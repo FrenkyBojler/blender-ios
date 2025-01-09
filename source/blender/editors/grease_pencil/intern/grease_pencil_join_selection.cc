@@ -16,6 +16,7 @@
 #include "DEG_depsgraph.hh"
 
 #include "ED_grease_pencil.hh"
+#include "ED_curves.hh"
 #include "RNA_access.hh"
 
 #include "WM_api.hh"
@@ -488,6 +489,17 @@ int grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
   dst_curves.update_curve_types();
   dst_curves.tag_topology_changed();
   dst_drawing->tag_topology_changed();
+
+  bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+      dst_curves, selection_domain, CD_PROP_BOOL);
+
+  if (selection_domain == bke::AttrDomain::Curve) {
+    ed::curves::fill_selection_true(selection.span.take_back(tmp_curves.curves_num()));
+  }
+  else {
+    ed::curves::fill_selection_true(selection.span.take_back(tmp_curves.points_num()));
+  }
+  selection.finish();
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
