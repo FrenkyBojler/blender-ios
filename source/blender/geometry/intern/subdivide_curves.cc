@@ -319,11 +319,11 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
   const bke::AttributeAccessor src_attributes = src_curves.attributes();
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
 
-  Vector<bke::AttributeTransferData> attributes_to_transfer;
+  Vector<bke::AttributeTransferData> attributes_to_transfer =
+      bke::retrieve_attributes_for_transfer(
+          src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter);
 
   auto subdivide_catmull_rom = [&](const IndexMask &selection) {
-    attributes_to_transfer = bke::retrieve_attributes_for_transfer(
-        src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter);
     for (auto &attribute : attributes_to_transfer) {
       subdivide_attribute_catmull_rom(src_points_by_curve,
                                       dst_points_by_curve,
@@ -336,8 +336,6 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
   };
 
   auto subdivide_poly = [&](const IndexMask &selection) {
-    attributes_to_transfer = bke::retrieve_attributes_for_transfer(
-        src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter);
     for (auto &attribute : attributes_to_transfer) {
       subdivide_attribute_linear(src_points_by_curve,
                                  dst_points_by_curve,
@@ -381,14 +379,18 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
                                  dst_handles_r.slice(dst_points));
     });
 
-    attributes_to_transfer = bke::retrieve_attributes_for_transfer(
-        src_attributes,
-        dst_attributes,
-        ATTR_DOMAIN_MASK_POINT,
-        attribute_filter_with_skip_ref(
-            attribute_filter,
-            {"position", "handle_type_left", "handle_type_right", "handle_right", "handle_left"}));
-    for (auto &attribute : attributes_to_transfer) {
+    /* Filter out positions and handles that are already interpolated. */
+    const Vector<bke::AttributeTransferData> bezier_attributes_to_transfer =
+        bke::retrieve_attributes_for_transfer(src_attributes,
+                                              dst_attributes,
+                                              ATTR_DOMAIN_MASK_POINT,
+                                              attribute_filter_with_skip_ref(attribute_filter,
+                                                                             {"position",
+                                                                              "handle_type_left",
+                                                                              "handle_type_right",
+                                                                              "handle_right",
+                                                                              "handle_left"}));
+    for (auto &attribute : bezier_attributes_to_transfer) {
       subdivide_attribute_linear(src_points_by_curve,
                                  dst_points_by_curve,
                                  selection,
