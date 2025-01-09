@@ -416,7 +416,7 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
   }
 
   blender::bke::node_set_active(ntree, output_material);
-  BKE_ntree_update_main_tree(bmain, ntree, nullptr);
+  BKE_ntree_update(*bmain, *ntree);
 
   return ma;
 }

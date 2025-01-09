@@ -9,6 +9,9 @@
  */
 
 #include <functional>
+#include <optional>
+
+#include "BLI_span.hh"
 
 struct ID;
 struct ImageUser;
@@ -72,19 +75,11 @@ struct NodeTreeUpdateExtraParams {
   std::function<void(bNodeTree &, ID &owner)> tree_output_changed_fn;
 };
 
-/**
- * Updates #bmain based on changes to node trees.
- */
-void BKE_ntree_update_main(Main *bmain, NodeTreeUpdateExtraParams *params);
+void BKE_ntree_update(Main &bmain,
+                      std::optional<blender::Span<bNodeTree *>> modified_trees = std::nullopt,
+                      const NodeTreeUpdateExtraParams &params = {});
+void BKE_ntree_update(Main &bmain,
+                      bNodeTree &modified_tree,
+                      const NodeTreeUpdateExtraParams &params = {});
 
-/**
- * Same as #BKE_ntree_update_main, but will first only look at the provided tree and only looks
- * at #bmain when something relevant for other data-blocks changed. This avoids scanning #bmain in
- * many cases.
- *
- * If #bmain is null, only the provided tree is updated. This should only be used in very rare
- * cases because it may result it incorrectly synced data in DNA.
- *
- * If #tree is null, this is the same as calling #BKE_ntree_update_main.
- */
-void BKE_ntree_update_main_tree(Main *bmain, bNodeTree *ntree, NodeTreeUpdateExtraParams *params);
+void BKE_ntree_update_without_main(bNodeTree &tree);

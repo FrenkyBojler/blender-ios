@@ -369,7 +369,7 @@ static void ntree_shader_unlink_hidden_value_sockets(bNode *group_node, bNodeSoc
   }
 
   if (removed_link) {
-    BKE_ntree_update_main_tree(G.main, group_ntree, nullptr);
+    BKE_ntree_update(*G.main, *group_ntree);
   }
 }
 
@@ -437,7 +437,7 @@ static void ntree_shader_groups_expand_inputs(bNodeTree *localtree)
   }
 
   if (link_added) {
-    BKE_ntree_update_main_tree(G.main, localtree, nullptr);
+    BKE_ntree_update(*G.main, *localtree);
   }
 }
 
@@ -564,7 +564,7 @@ static void ntree_shader_groups_flatten(bNodeTree *localtree)
     }
   }
 
-  BKE_ntree_update_main_tree(G.main, localtree, nullptr);
+  BKE_ntree_update(*G.main, *localtree);
 }
 
 struct branchIterData {
@@ -695,12 +695,12 @@ static bool ntree_shader_implicit_closure_cast(bNodeTree *ntree)
     else if ((link->fromsock->type == SOCK_SHADER) && (link->tosock->type != SOCK_SHADER)) {
       /* Meh. Not directly visible to the user. But better than nothing. */
       fprintf(stderr, "Shader Nodetree Error: Invalid implicit socket conversion\n");
-      BKE_ntree_update_main_tree(G.main, ntree, nullptr);
+      BKE_ntree_update(*G.main, *ntree);
       return false;
     }
   }
   if (modified) {
-    BKE_ntree_update_main_tree(G.main, ntree, nullptr);
+    BKE_ntree_update(*G.main, *ntree);
   }
   return true;
 }
@@ -969,7 +969,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
           }
 
           /* Manually add the link to the socket to avoid calling:
-           * `BKE_ntree_update_main_tree(G.main, oop, nullptr)`. */
+           * `BKE_ntree_update(G.main, oop)`. */
           fromsock->link = blender::bke::node_add_link(ntree, fromnode, fromsock, tonode, tosock);
           BLI_assert(fromsock->link);
         }
@@ -985,7 +985,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
     blender::bke::node_add_link(
         ntree, thickness_link->fromnode, thickness_link->fromsock, output_node, thickness_output);
   }
-  BKE_ntree_update_main_tree(G.main, ntree, nullptr);
+  BKE_ntree_update(*G.main, *ntree);
 }
 
 static bool closure_node_filter(const bNode *node)
@@ -1036,7 +1036,7 @@ static void ntree_shader_shader_to_rgba_branches(bNodeTree *ntree)
       continue;
     }
     ntree_shader_copy_branch(ntree, shader_to_rgba, closure_node_filter);
-    BKE_ntree_update_main_tree(G.main, ntree, nullptr);
+    BKE_ntree_update(*G.main, *ntree);
 
     ntree_shader_weight_tree_invert(ntree, shader_to_rgba);
   }
@@ -1199,7 +1199,7 @@ static void ntree_shader_pruned_unused(bNodeTree *ntree, bNode *output_node)
   }
 
   if (changed) {
-    BKE_ntree_update_main_tree(G.main, ntree, nullptr);
+    BKE_ntree_update(*G.main, *ntree);
   }
 }
 

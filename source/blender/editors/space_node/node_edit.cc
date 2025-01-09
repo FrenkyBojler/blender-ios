@@ -7,6 +7,7 @@
  */
 
 #include <algorithm>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -501,8 +502,12 @@ void ED_node_tree_propagate_change(Main *bmain, bNodeTree *root_ntree)
   params.tree_output_changed_fn = [](bNodeTree &ntree, ID & /*owner_id*/) {
     DEG_id_tag_update(&ntree.id, ID_RECALC_NTREE_OUTPUT);
   };
-
-  BKE_ntree_update_main_tree(bmain, root_ntree, &params);
+  if (root_ntree) {
+    BKE_ntree_update(*bmain, *root_ntree, params);
+  }
+  else {
+    BKE_ntree_update(*bmain, std::nullopt, params);
+  }
 }
 
 void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typeinfo)
@@ -565,7 +570,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
       blender::bke::node_unique_name(ma->nodetree, node_iter);
     }
 
-    BKE_ntree_update_main_tree(bmain, ma->nodetree, nullptr);
+    BKE_ntree_update(*bmain, *ma->nodetree);
   }
   else if (ELEM(GS(id->name), ID_WO, ID_LA)) {
     /* Emission */
@@ -602,7 +607,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
     output->location[0] = 300.0f;
     output->location[1] = 300.0f;
     blender::bke::node_set_active(ntree, output);
-    BKE_ntree_update_main_tree(bmain, ntree, nullptr);
+    BKE_ntree_update(*bmain, *ntree);
   }
   else {
     printf("ED_node_shader_default called on wrong ID type.\n");
@@ -637,7 +642,7 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
   blender::bke::node_add_link(sce->nodetree, in, fromsock, out, tosock);
 
-  BKE_ntree_update_main_tree(CTX_data_main(C), sce->nodetree, nullptr);
+  BKE_ntree_update(*CTX_data_main(C), *sce->nodetree);
 }
 
 void ED_node_texture_default(const bContext *C, Tex *tex)
@@ -665,7 +670,7 @@ void ED_node_texture_default(const bContext *C, Tex *tex)
   bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
   blender::bke::node_add_link(tex->nodetree, in, fromsock, out, tosock);
 
-  BKE_ntree_update_main_tree(CTX_data_main(C), tex->nodetree, nullptr);
+  BKE_ntree_update(*CTX_data_main(C), *tex->nodetree);
 }
 
 namespace blender::ed::space_node {

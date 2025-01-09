@@ -491,7 +491,7 @@ void dome_light_to_world_material(const USDImportParams &params,
     }
 
     bke::node_set_active(ntree, output);
-    BKE_ntree_update_main_tree(bmain, ntree, nullptr);
+    BKE_ntree_update(*bmain, *ntree);
 
     return;
   }
@@ -605,7 +605,7 @@ void dome_light_to_world_material(const USDImportParams &params,
 
   bke::node_set_active(ntree, output);
   DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);
-  BKE_ntree_update_main_tree(bmain, ntree, nullptr);
+  BKE_ntree_update(*bmain, *ntree);
 }
 
 }  // namespace blender::io::usd
