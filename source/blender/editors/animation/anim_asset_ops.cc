@@ -572,7 +572,10 @@ static int pose_asset_overwrite_exec(bContext *C, wmOperator *op)
   update_pose_action_from_scene(bmain, action->wrap(), *pose_object, mode);
 
   asset::generate_preview(C, &action->id);
-  bke::asset_edit_id_save(*bmain, action->id, *op->reports);
+  if (ID_IS_LINKED(action)) {
+    /* Not needed for local assets. */
+    bke::asset_edit_id_save(*bmain, action->id, *op->reports);
+  }
 
   refresh_asset_library(C);
 
@@ -591,6 +594,10 @@ static bool pose_asset_overwrite_poll(bContext *C)
 
   if (!action) {
     return false;
+  }
+
+  if (!ID_IS_LINKED(action)) {
+    return true;
   }
 
   if (!bke::asset_edit_id_is_editable(action->id)) {
