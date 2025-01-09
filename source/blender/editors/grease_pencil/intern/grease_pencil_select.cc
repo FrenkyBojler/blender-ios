@@ -848,6 +848,17 @@ static void GREASE_PENCIL_OT_select_ends(wmOperatorType *ot)
               INT32_MAX);
 }
 
+static IndexMask curves_to_shapes_mask(const IndexMask &curves_mask,
+                                       const Span<IndexMask> shapes,
+                                       IndexMaskMemory &memory)
+{
+  return IndexMask::from_predicate(
+      shapes.index_range(), GrainSize(4096), memory, [&](const int64_t shape_index) {
+        const IndexMask &shape = shapes[shape_index];
+        return !IndexMask::from_intersection(curves_mask, shape, memory).is_empty();
+      });
+}
+
 static int select_shape_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
@@ -881,17 +892,28 @@ static int select_shape_exec(bContext *C, wmOperator * /*op*/)
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
         curves, selection_domain, CD_PROP_BOOL);
 
-    selected_strokes.foreach_index(GrainSize(256), [&](const int64_t curve_i) {
-      const int shape_id = shape_ids[curve_i];
-      editable_strokes.foreach_index(GrainSize(256), [&](const int64_t curve_i2) {
-        if (shape_ids[curve_i2] != shape_id) {
-          return;
+    const Vector<IndexMask> shapes = info.drawing.shapes();
+    const IndexMask selected_shapes = curves_to_shapes_mask(selected_strokes, shapes, memory);
+
+    selected_shapes.foreach_index(GrainSize(256), [&](const int64_t shape_i) {
+      const IndexMask &shape = shapes[shape_i];
+
+      switch (selection_domain) {
+        case bke::AttrDomain::Curve: {
+          ed::curves::fill_selection_true(selection.span, shape);
+          break;
         }
-        GMutableSpan selection_curve = selection.span.slice(
-            selection_domain == bke::AttrDomain::Point ? points_by_curve[curve_i2] :
-                                                         IndexRange::from_single(curve_i2));
-        ed::curves::fill_selection_true(selection_curve);
-      });
+        case bke::AttrDomain::Point: {
+          const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+          shape.foreach_index([&](const int curve_index) {
+            const IndexRange points = points_by_curve[curve_index];
+            ed::curves::fill_selection_true(selection.span.slice(points));
+          });
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
+      }
     });
 
     selection.finish();
