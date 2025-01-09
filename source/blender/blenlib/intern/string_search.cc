@@ -419,12 +419,14 @@ void extract_normalized_words(StringRef str,
   const uint32_t unicode_underscore = uint32_t('_');
   const uint32_t unicode_slash = uint32_t('/');
   const uint32_t unicode_right_triangle = UI_MENU_ARROW_SEP_UNICODE;
+  const uint32_t unicode_vertical_line = uint32_t('|');
 
   BLI_assert(unicode_space == BLI_str_utf8_as_unicode_safe(" "));
   BLI_assert(unicode_dash == BLI_str_utf8_as_unicode_safe("-"));
   BLI_assert(unicode_underscore == BLI_str_utf8_as_unicode_safe("_"));
   BLI_assert(unicode_slash == BLI_str_utf8_as_unicode_safe("/"));
   BLI_assert(unicode_right_triangle == BLI_str_utf8_as_unicode_safe(UI_MENU_ARROW_SEP));
+  BLI_assert(unicode_vertical_line == BLI_str_utf8_as_unicode_safe("|"));
 
   auto is_separator = [&](uint32_t unicode) {
     return ELEM(unicode,
@@ -432,7 +434,8 @@ void extract_normalized_words(StringRef str,
                 unicode_dash,
                 unicode_underscore,
                 unicode_slash,
-                unicode_right_triangle);
+                unicode_right_triangle,
+                unicode_vertical_line);
   };
 
   Vector<int, 64> section_indices;
@@ -470,6 +473,10 @@ void extract_normalized_words(StringRef str,
       group_id++;
     }
     offset += size;
+    if (unicode == unicode_vertical_line) {
+      /* Exit early if we are at shortcut, like "keyword|Shift F1". #128331 */
+      break;
+    }
   }
   /* If the last word is not followed by a separator, it has to be handled separately. */
   if (is_in_word) {
