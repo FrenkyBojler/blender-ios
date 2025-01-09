@@ -486,10 +486,6 @@ int grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
 
   append_strokes_from(std::move(tmp_curves), dst_curves);
 
-  dst_curves.update_curve_types();
-  dst_curves.tag_topology_changed();
-  dst_drawing->tag_topology_changed();
-
   bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
       dst_curves, selection_domain, CD_PROP_BOOL);
 
@@ -500,6 +496,10 @@ int grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
     ed::curves::fill_selection_true(selection.span.take_back(tmp_curves.points_num()));
   }
   selection.finish();
+
+  dst_curves.update_curve_types();
+  dst_curves.tag_topology_changed();
+  dst_drawing->tag_topology_changed();
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
