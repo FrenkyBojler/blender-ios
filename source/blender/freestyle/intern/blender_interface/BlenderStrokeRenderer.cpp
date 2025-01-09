@@ -39,6 +39,7 @@
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
@@ -803,8 +804,8 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
           transp += 3;
         }
       }  // loop over strip vertices
-    }    // loop over strips
-  }      // loop over strokes
+    }  // loop over strips
+  }  // loop over strokes
 
   BKE_object_materials_test(freestyle_bmain, object_mesh, (ID *)mesh);
 
