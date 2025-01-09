@@ -640,7 +640,6 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
     const float2 region_coord =
         math::transform_point(image_to_region, float3(pixel_coord, 1.0f)).xy();
     const float3 position = placement.project_with_shift(region_coord);
-    // const float3 position = placement.project_with_shift(float2(pixel_coord));
     positions[point_i] = position;
 
     /* Calculate radius and opacity for the outline as if it was a user stroke with full pressure.
@@ -1129,8 +1128,6 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
                                  const int stroke_material_index,
                                  const bool keep_images)
 {
-  using bke::greasepencil::Layer;
-
   ARegion &region = *view_context.region;
   View3D &view3d = *view_context.v3d;
   Depsgraph &depsgraph = *view_context.depsgraph;
@@ -1151,7 +1148,6 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
                                                                    uniform_zoom,
                                                                    max_zoom_factor,
                                                                    margin);
-  // const float3x3 region_to_image = math::invert(image_to_region);
 
   ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
   if (placement.use_project_to_surface()) {
