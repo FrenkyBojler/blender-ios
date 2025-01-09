@@ -202,8 +202,9 @@ static void node_buts_texture(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  short multi = (node->id && ((Tex *)node->id)->use_nodes && (node->type != CMP_NODE_TEXTURE) &&
-                 (node->type != TEX_NODE_TEXTURE));
+  short multi = (node->id && ((Tex *)node->id)->use_nodes &&
+                 (node->type_legacy != CMP_NODE_TEXTURE) &&
+                 (node->type_legacy != TEX_NODE_TEXTURE));
 
   uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
@@ -231,7 +232,7 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
 {
   const float size = NODE_RESIZE_MARGIN * math::max(snode.runtime->aspect, 1.0f);
 
-  if (node->type == NODE_FRAME) {
+  if (node->type_legacy == NODE_FRAME) {
     NodeFrame *data = (NodeFrame *)node->storage;
 
     /* shrinking frame size is determined by child nodes */
@@ -1288,7 +1289,7 @@ static void std_node_socket_draw(
   // int subtype = sock->typeinfo->subtype;
 
   /* XXX not nice, eventually give this node its own socket type ... */
-  if (node->type == CMP_NODE_OUTPUT_FILE) {
+  if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
     node_file_output_socket_draw(C, layout, ptr, node_ptr);
     return;
   }
@@ -1299,7 +1300,7 @@ static void std_node_socket_draw(
                              false;
 
   if (has_gizmo) {
-    if (sock->in_out == SOCK_OUT && ELEM(node->type,
+    if (sock->in_out == SOCK_OUT && ELEM(node->type_legacy,
                                          SH_NODE_VALUE,
                                          FN_NODE_INPUT_VECTOR,
                                          FN_NODE_INPUT_INT,
@@ -2374,8 +2375,8 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
                           (field_link ? 0.7f : 1.0f);
   draw_config.has_back_link = gizmo_link;
   draw_config.highlighted = link.flag & NODE_LINK_TEMP_HIGHLIGHT;
-  draw_config.drawarrow = ((link.tonode && (link.tonode->type == NODE_REROUTE)) &&
-                           (link.fromnode && (link.fromnode->type == NODE_REROUTE)));
+  draw_config.drawarrow = ((link.tonode && (link.tonode->type_legacy == NODE_REROUTE)) &&
+                           (link.fromnode && (link.fromnode->type_legacy == NODE_REROUTE)));
   draw_config.drawmuted = (link.flag & NODE_LINK_MUTED);
 
   UI_GetThemeColor4fv(th_col3, draw_config.outline_color);

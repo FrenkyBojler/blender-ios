@@ -389,7 +389,7 @@ typedef struct bNode {
    * versioning code. Avoid using directly if possible, since may not match runtime node type if it
    * wasn't found.
    */
-  int16_t type;
+  int16_t type_legacy;
 
   /**
    * Depth of the node in the node editor, used to keep recently selected nodes at the front, and

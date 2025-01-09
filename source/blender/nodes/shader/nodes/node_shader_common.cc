@@ -28,7 +28,7 @@ static void group_gpu_copy_inputs(bNode *gnode, GPUNodeStack *in, bNodeStack *gs
   bNodeTree *ngroup = (bNodeTree *)gnode->id;
 
   for (bNode *node : ngroup->all_nodes()) {
-    if (node->type == NODE_GROUP_INPUT) {
+    if (node->type_legacy == NODE_GROUP_INPUT) {
       int a;
       LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &node->outputs, a) {
         bNodeStack *ns = node_get_socket_stack(gstack, sock);
