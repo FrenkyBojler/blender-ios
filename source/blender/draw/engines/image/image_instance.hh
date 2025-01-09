@@ -81,7 +81,7 @@ class Instance {
     /* Setup the matrix to go from screen UV coordinates to UV texture space coordinates. */
     float image_resolution[2] = {image_buffer ? image_buffer->x : 1024.0f,
                                  image_buffer ? image_buffer->y : 1024.0f};
-    float2 image_offset = state.image ? state.image->runtime.backdrop_offset : float2(0.0);
+    float2 image_offset = state.image ? float2(state.image->runtime.backdrop_offset) : float2(0.0);
     space_->init_ss_to_texture_matrix(region, image_offset, image_resolution, state.ss_to_texture);
 
     const Scene *scene = DRW_context_state_get()->scene;
