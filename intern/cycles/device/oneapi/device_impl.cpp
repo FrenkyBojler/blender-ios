@@ -398,6 +398,7 @@ void OneapiDevice::mem_alloc(device_memory &mem)
     }
     generic_alloc(mem);
 #  ifdef SYCL_EXT_ONEAPI_COPY_OPTIMIZE
+    /* Import host_pointer into USM memory for faster host<->device data transfers. */
     if (mem.type == MEM_READ_WRITE || mem.type == MEM_READ_ONLY) {
       sycl::queue *queue = reinterpret_cast<sycl::queue *>(device_queue_);
       sycl::ext::oneapi::experimental::prepare_for_device_copy(
