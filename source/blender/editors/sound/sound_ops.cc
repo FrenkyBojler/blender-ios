@@ -540,12 +540,14 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
       {AUD_CODEC_MP2, "MP2", 0, "MP2", "MPEG-1 Audio Layer II"},
       {AUD_CODEC_MP3, "MP3", 0, "MP3", "MPEG-2 Audio Layer III"},
       {AUD_CODEC_PCM, "PCM", 0, "PCM", "Pulse Code Modulation (RAW)"},
+      {AUD_CODEC_OPUS, "OPUS", 0, "Opus", "Opus Interactive Audio Codec"},
       {AUD_CODEC_VORBIS, "VORBIS", 0, "Vorbis", "Xiph.Org Vorbis Codec"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem ogg_codec_items[] = {
       {AUD_CODEC_FLAC, "FLAC", 0, "FLAC", "Free Lossless Audio Codec"},
+      {AUD_CODEC_OPUS, "OPUS", 0, "Opus", "Opus Interactive Audio Codec"},
       {AUD_CODEC_VORBIS, "VORBIS", 0, "Vorbis", "Xiph.Org Vorbis Codec"},
       {0, nullptr, 0, nullptr, nullptr},
   };
