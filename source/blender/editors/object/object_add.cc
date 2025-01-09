@@ -3123,6 +3123,10 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
 {
   grease_pencil.flag |= GREASE_PENCIL_STROKE_ORDER_3D;
 
+  if (mesh_eval.edges_num <= 0) {
+    return;
+  }
+
   bke::greasepencil::Layer &layer_line = grease_pencil.add_layer(DATA_("Lines"));
   bke::greasepencil::Drawing *drawing_line = grease_pencil.insert_frame(layer_line, current_frame);
 
@@ -3136,7 +3140,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   Span<int> faces_span = faces.data();
   const Span<int> corner_verts = mesh_eval.corner_verts();
 
-  if (generate_faces) {
+  if (generate_faces && (!faces.is_empty())) {
     bke::greasepencil::Layer &layer_fill = grease_pencil.add_layer(DATA_("Fills"));
     bke::greasepencil::Drawing *drawing_fill = grease_pencil.insert_frame(layer_fill,
                                                                           current_frame);
