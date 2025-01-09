@@ -315,7 +315,6 @@ class NodeTreeMainUpdater {
 
   void update()
   {
-    // TODO: handle filter
     Vector<bNodeTree *> changed_ntrees;
     FOREACH_NODETREE_BEGIN (bmain_, ntree, id) {
       if (is_tree_changed(*ntree)) {
@@ -1846,7 +1845,12 @@ void BKE_ntree_update(Main &bmain,
 
   is_updating = true;
   blender::bke::NodeTreeMainUpdater updater{&bmain, params};
-  updater.update();
+  if (modified_trees.has_value()) {
+    updater.update_rooted(*modified_trees);
+  }
+  else {
+    updater.update();
+  }
   is_updating = false;
 }
 
