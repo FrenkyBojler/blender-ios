@@ -220,7 +220,8 @@ using NodeMaterialXFunction = void (*)(void *data, bNode *node, bNodeSocket *out
  */
 struct bNodeType {
   std::string idname;
-  int type;
+  /** See bNode::type_legacy. */
+  int type_legacy;
 
   std::string ui_name;
   std::string ui_description;
@@ -1709,7 +1710,7 @@ std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket *sock);
 /**
  * Initialize a new node type struct with default values and callbacks.
  */
-void node_type_base(bNodeType *ntype, int type, short nclass);
+void node_type_base(bNodeType *ntype, std::string idname, int type, short nclass);
 
 void node_type_socket_templates(bNodeType *ntype,
                                 bNodeSocketTemplate *inputs,
