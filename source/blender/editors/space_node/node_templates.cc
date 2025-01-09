@@ -325,7 +325,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
 {
   Vector<NodeLinkItem> items;
 
-  if (arg->node_type->type == NODE_GROUP) {
+  if (arg->node_type->type_legacy == NODE_GROUP) {
     LISTBASE_FOREACH (bNodeTree *, ngroup, &arg->bmain->nodetrees) {
       if (BKE_id_name(ngroup->id)[0] == '.') {
         /* Don't display hidden node groups, just like the add menu. */
@@ -418,7 +418,7 @@ static void ui_node_link(bContext *C, void *arg_p, void *event_p)
     node_socket_remove(bmain, ntree, node_to, sock_to);
   }
   else {
-    node_socket_add_replace(C, ntree, node_to, sock_to, arg->node_type->type, &arg->item);
+    node_socket_add_replace(C, ntree, node_to, sock_to, arg->node_type->type_legacy, &arg->item);
   }
 
   ED_undo_push(C, "Node input modify");

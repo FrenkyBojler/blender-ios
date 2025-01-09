@@ -1434,7 +1434,9 @@ static bNode *nodetree_uv_node_recursive(bNode *node)
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (sock->link) {
       bNode *inode = sock->link->fromnode;
-      if (inode->typeinfo->nclass == NODE_CLASS_INPUT && inode->typeinfo->type == SH_NODE_UVMAP) {
+      if (inode->typeinfo->nclass == NODE_CLASS_INPUT &&
+          inode->typeinfo->type_legacy == SH_NODE_UVMAP)
+      {
         return inode;
       }
 
@@ -1462,13 +1464,13 @@ static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
   const bool do_color_attributes = (slot_filter & PAINT_SLOT_COLOR_ATTRIBUTE) != 0;
   for (bNode *node : nodetree->all_nodes()) {
     if (do_image_nodes && node->typeinfo->nclass == NODE_CLASS_TEXTURE &&
-        node->typeinfo->type == SH_NODE_TEX_IMAGE && node->id)
+        node->typeinfo->type_legacy == SH_NODE_TEX_IMAGE && node->id)
     {
       if (!callback(node, userdata)) {
         return false;
       }
     }
-    if (do_color_attributes && node->typeinfo->type == SH_NODE_ATTRIBUTE) {
+    if (do_color_attributes && node->typeinfo->type_legacy == SH_NODE_ATTRIBUTE) {
       if (!callback(node, userdata)) {
         return false;
       }

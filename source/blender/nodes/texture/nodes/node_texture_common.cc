@@ -149,7 +149,7 @@ void register_node_type_tex_group()
   blender::bke::node_type_base_custom(
       &ntype, "TextureNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
   ntype.enum_name_legacy = "GROUP";
-  ntype.type = NODE_GROUP;
+  ntype.type_legacy = NODE_GROUP;
   ntype.poll = tex_node_poll_default;
   ntype.poll_instance = node_group_poll_instance;
   ntype.insert_link = node_insert_link_default;

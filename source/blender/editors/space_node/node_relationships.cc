@@ -463,7 +463,7 @@ static bool is_viewer_socket_in_viewer(const bNodeSocket &socket)
 {
   const bNode &node = socket.owner_node();
   BLI_assert(is_viewer_node(node));
-  if (node.typeinfo->type == GEO_NODE_VIEWER) {
+  if (node.typeinfo->type_legacy == GEO_NODE_VIEWER) {
     return true;
   }
   return socket.index() == 0;

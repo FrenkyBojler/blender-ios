@@ -803,13 +803,13 @@ static const char *get_legacy_node_type(const PointerRNA *ptr)
 {
   const bNode *node = static_cast<const bNode *>(ptr->data);
   const blender::bke::bNodeType *ntype = node->typeinfo;
-  if (ntype->type == NODE_CUSTOM) {
+  if (ntype->type_legacy == NODE_CUSTOM) {
     return "CUSTOM";
   }
-  if (ntype->type == NODE_CUSTOM_GROUP) {
+  if (ntype->type_legacy == NODE_CUSTOM_GROUP) {
     return "CUSTOM GROUP";
   }
-  if (ntype->type == NODE_UNDEFINED) {
+  if (ntype->type_legacy == NODE_UNDEFINED) {
     return "UNDEFINED";
   }
   if (ntype->enum_name_legacy) {
@@ -3046,7 +3046,7 @@ static StructRNA *rna_GeometryNodeCustomGroup_register(Main *bmain,
     return nullptr;
   }
 
-  nt->type = NODE_CUSTOM_GROUP;
+  nt->type_legacy = NODE_CUSTOM_GROUP;
 
   register_node_type_geo_custom_group(nt);
 
@@ -3074,7 +3074,7 @@ static StructRNA *rna_ShaderNodeCustomGroup_register(Main *bmain,
     return nullptr;
   }
 
-  nt->type = NODE_CUSTOM_GROUP;
+  nt->type_legacy = NODE_CUSTOM_GROUP;
 
   register_node_type_sh_custom_group(nt);
 
@@ -3099,7 +3099,7 @@ static StructRNA *rna_CompositorNodeCustomGroup_register(Main *bmain,
     return nullptr;
   }
 
-  nt->type = NODE_CUSTOM_GROUP;
+  nt->type_legacy = NODE_CUSTOM_GROUP;
 
   register_node_type_cmp_custom_group(nt);
 

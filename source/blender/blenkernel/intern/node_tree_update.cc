@@ -907,7 +907,7 @@ class NodeTreeMainUpdater {
     for (bNode *node : ntree.toposort_right_to_left()) {
       const bool node_updated = this->should_update_individual_node(ntree, *node);
 
-      if (node->typeinfo->type == GEO_NODE_MENU_SWITCH) {
+      if (node->typeinfo->type_legacy == GEO_NODE_MENU_SWITCH) {
         /* Generate new enum items when the node has changed, otherwise keep existing items. */
         if (node_updated) {
           const NodeMenuSwitch &storage = *static_cast<NodeMenuSwitch *>(node->storage);

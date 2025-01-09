@@ -298,7 +298,7 @@ static void node_buts_frame_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *p
 
 static void node_common_set_butfunc(blender::bke::bNodeType *ntype)
 {
-  switch (ntype->type) {
+  switch (ntype->type_legacy) {
     case NODE_GROUP:
       ntype->draw_buttons = node_draw_buttons_group;
       break;
@@ -453,7 +453,7 @@ static void node_shader_buts_scatter(uiLayout *layout, bContext * /*C*/, Pointer
 /* only once called */
 static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
 {
-  switch (ntype->type) {
+  switch (ntype->type_legacy) {
     case SH_NODE_NORMAL:
       ntype->draw_buttons = node_buts_normal;
       break;
@@ -745,7 +745,7 @@ static void node_composit_buts_cryptomatte(uiLayout *layout, bContext *C, Pointe
 /* only once called */
 static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
 {
-  switch (ntype->type) {
+  switch (ntype->type_legacy) {
     case CMP_NODE_IMAGE:
       ntype->draw_buttons = node_composit_buts_image;
       ntype->draw_buttons_ex = node_composit_buts_image_ex;
@@ -950,11 +950,11 @@ static void node_texture_buts_combsep_color(uiLayout *layout, bContext * /*C*/, 
 /* only once called */
 static void node_texture_set_butfunc(blender::bke::bNodeType *ntype)
 {
-  if (ntype->type >= TEX_NODE_PROC && ntype->type < TEX_NODE_PROC_MAX) {
+  if (ntype->type_legacy >= TEX_NODE_PROC && ntype->type_legacy < TEX_NODE_PROC_MAX) {
     ntype->draw_buttons = node_texture_buts_proc;
   }
   else {
-    switch (ntype->type) {
+    switch (ntype->type_legacy) {
 
       case TEX_NODE_MATH:
         ntype->draw_buttons = node_buts_math;

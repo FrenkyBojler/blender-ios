@@ -1537,7 +1537,7 @@ static void node_set_typeinfo(const bContext *C,
     node->typeinfo = typeinfo;
 
     /* deprecated integer type */
-    node->type = typeinfo->type;
+    node->type = typeinfo->type_legacy;
 
     /* initialize the node if necessary */
     node_init(C, ntree, node);
@@ -2704,7 +2704,7 @@ bNode *node_add_static_node(const bContext *C, bNodeTree *ntree, const int type)
   for (bNodeType *ntype : node_types_get()) {
     /* Do an extra poll here, because some int types are used
      * for multiple node types, this helps find the desired type. */
-    if (ntype->type != type) {
+    if (ntype->type_legacy != type) {
       continue;
     }
 
@@ -4196,7 +4196,7 @@ static Set<int> get_known_node_types_set()
 {
   Set<int> result;
   for (const bNodeType *ntype : node_types_get()) {
-    result.add(ntype->type);
+    result.add(ntype->type_legacy);
   }
   return result;
 }
@@ -4349,7 +4349,7 @@ void node_type_base(bNodeType *ntype, std::string idname, const int type, const 
   /* make sure we have a valid type (everything registered) */
   BLI_assert(ntype->idname[0] != '\0');
 
-  ntype->type = type;
+  ntype->type_legacy = type;
   ntype->nclass = nclass;
 
   node_type_base_defaults(ntype);
@@ -4365,7 +4365,7 @@ void node_type_base_custom(bNodeType *ntype,
                            const short nclass)
 {
   ntype->idname = idname;
-  ntype->type = NODE_CUSTOM;
+  ntype->type_legacy = NODE_CUSTOM;
   ntype->ui_name = name;
   ntype->nclass = nclass;
   ntype->enum_name_legacy = enum_name.c_str();

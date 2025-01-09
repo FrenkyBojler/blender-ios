@@ -2736,7 +2736,7 @@ struct GeometryNodesLazyFunctionBuilder {
       this->build_muted_node(bnode, graph_params);
       return;
     }
-    switch (node_type->type) {
+    switch (node_type->type_legacy) {
       case NODE_FRAME: {
         /* Ignored. */
         break;

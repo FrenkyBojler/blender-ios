@@ -220,7 +220,7 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   node->height = ntype->height;
   node->color[0] = node->color[1] = node->color[2] = 0.608;
 
-  node->type = ntype->type;
+  node->type = ntype->type_legacy;
 
   BKE_ntree_update_tag_node_new(&ntree, node);
   return *node;
