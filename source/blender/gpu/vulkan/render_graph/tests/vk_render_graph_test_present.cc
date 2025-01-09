@@ -8,9 +8,9 @@
 
 namespace blender::gpu::render_graph {
 
-class vk_render_graph_test_present : public vk_render_graph {};
+class VkRenderGraphTestPresent : public VkRenderGraphTest {};
 
-TEST_F(vk_render_graph_test_present, transfer_and_present)
+TEST_F(VkRenderGraphTestPresent, transfer_and_present)
 {
   VkHandle<VkImage> back_buffer(1u);
 
@@ -34,7 +34,7 @@ TEST_F(vk_render_graph_test_present, transfer_and_present)
       log[0]);
 }
 
-TEST_F(vk_render_graph_test_present, clear_and_present)
+TEST_F(VkRenderGraphTestPresent, clear_and_present)
 {
   VkHandle<VkImage> back_buffer(1u);
 

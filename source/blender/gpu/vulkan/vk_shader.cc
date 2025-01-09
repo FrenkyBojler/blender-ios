@@ -1002,7 +1002,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
          << ", binding = " << (subpass_input_binding_index++) << ") uniform " << typePrefix
          << "subpassInput " << input_attachment_name << "; \n";
 
-      char swizzle[] = "xyzw";
+      std::string swizzle = "xyzw";
       swizzle[to_component_count(input.type)] = '\0';
 
       std::stringstream ss_pre;

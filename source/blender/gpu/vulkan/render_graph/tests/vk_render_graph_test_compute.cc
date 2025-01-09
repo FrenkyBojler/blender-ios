@@ -8,9 +8,9 @@
 
 namespace blender::gpu::render_graph {
 
-class vk_render_graph_test_compute : public vk_render_graph {};
+class VkRenderGraphTestCompute : public VkRenderGraphTest {};
 
-TEST_F(vk_render_graph_test_compute, dispatch_read_back)
+TEST_F(VkRenderGraphTestCompute, dispatch_read_back)
 {
   VkHandle<VkBuffer> buffer(1u);
   VkHandle<VkPipeline> pipeline(2u);
@@ -42,7 +42,7 @@ TEST_F(vk_render_graph_test_compute, dispatch_read_back)
 /**
  * Test that the descriptor sets are updated once when chaining dispatching.
  */
-TEST_F(vk_render_graph_test_compute, dispatch_dispatch_read_back)
+TEST_F(VkRenderGraphTestCompute, dispatch_dispatch_read_back)
 {
   VkHandle<VkBuffer> buffer(1u);
   VkHandle<VkPipeline> pipeline(2u);
@@ -100,7 +100,7 @@ TEST_F(vk_render_graph_test_compute, dispatch_dispatch_read_back)
  * Test that the descriptor sets are updated when chaining dispatching with different descriptor
  * sets.
  */
-TEST_F(vk_render_graph_test_compute, dispatch_dispatch_read_back_with_changing_descriptor_sets)
+TEST_F(VkRenderGraphTestCompute, dispatch_dispatch_read_back_with_changing_descriptor_sets)
 {
   VkHandle<VkBuffer> buffer(1u);
   VkHandle<VkPipeline> pipeline(2u);
@@ -162,7 +162,7 @@ TEST_F(vk_render_graph_test_compute, dispatch_dispatch_read_back_with_changing_d
 /**
  * Test that the descriptor sets are updated when chaining dispatching with different pipelines.
  */
-TEST_F(vk_render_graph_test_compute, dispatch_dispatch_read_back_with_changing_pipelines)
+TEST_F(VkRenderGraphTestCompute, dispatch_dispatch_read_back_with_changing_pipelines)
 {
   VkHandle<VkBuffer> buffer(1u);
   VkHandle<VkPipeline> pipeline_a(2u);
@@ -223,7 +223,7 @@ TEST_F(vk_render_graph_test_compute, dispatch_dispatch_read_back_with_changing_p
  * Test that the descriptor sets are updated when chaining dispatching with different pipelines and
  * descriptor sets.
  */
-TEST_F(vk_render_graph_test_compute,
+TEST_F(VkRenderGraphTestCompute,
        dispatch_dispatch_read_back_with_changing_pipelines_descriptor_sets)
 {
   VkHandle<VkBuffer> buffer(1u);
@@ -289,7 +289,7 @@ TEST_F(vk_render_graph_test_compute,
 /**
  * Test dispatch indirect
  */
-TEST_F(vk_render_graph_test_compute, dispatch_indirect_read_back)
+TEST_F(VkRenderGraphTestCompute, dispatch_indirect_read_back)
 {
   VkHandle<VkBuffer> buffer(1u);
   VkHandle<VkBuffer> command_buffer(2u);
@@ -329,7 +329,7 @@ TEST_F(vk_render_graph_test_compute, dispatch_indirect_read_back)
   EXPECT_EQ("dispatch_indirect(buffer=0x2, offset=0)", log[3]);
 }
 
-TEST_F(vk_render_graph_test_compute, dispatch_indirect_dispatch_indirect_read_back)
+TEST_F(VkRenderGraphTestCompute, dispatch_indirect_dispatch_indirect_read_back)
 {
   VkHandle<VkBuffer> buffer(1u);
   VkHandle<VkBuffer> command_buffer(2u);

@@ -475,9 +475,9 @@ class CommandBufferLog : public VKCommandBufferInterface {
   void end_debug_utils_label() override {}
 };
 
-class vk_render_graph : public ::testing::Test {
+class VkRenderGraphTest : public ::testing::Test {
  public:
-  vk_render_graph()
+  VkRenderGraphTest()
   {
     resources.use_dynamic_rendering = use_dynamic_rendering;
     resources.use_dynamic_rendering_local_read = use_dynamic_rendering_local_read;
@@ -495,9 +495,9 @@ class vk_render_graph : public ::testing::Test {
   bool use_dynamic_rendering_local_read = true;
 };
 
-class vk_render_graph_p : public ::testing::TestWithParam<std::tuple<bool, bool>> {
+class VkRenderGraphTest_P : public ::testing::TestWithParam<std::tuple<bool, bool>> {
  public:
-  vk_render_graph_p()
+  VkRenderGraphTest_P()
   {
     use_dynamic_rendering = std::get<0>(GetParam());
     use_dynamic_rendering_local_read = std::get<1>(GetParam());
@@ -510,12 +510,12 @@ class vk_render_graph_p : public ::testing::TestWithParam<std::tuple<bool, bool>
   }
 
  protected:
-  VkImageLayout colorAttachmentLayout() const
+  VkImageLayout color_attachment_layout() const
   {
     return use_dynamic_rendering_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
                                               VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   }
-  std::string colorAttachmentLayoutStr() const
+  std::string color_attachment_layout_str() const
   {
     return use_dynamic_rendering_local_read ? "VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR" :
                                               "VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL";
