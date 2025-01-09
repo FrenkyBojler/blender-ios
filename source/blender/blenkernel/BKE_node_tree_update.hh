@@ -75,11 +75,31 @@ struct NodeTreeUpdateExtraParams {
   std::function<void(bNodeTree &, ID &owner)> tree_output_changed_fn;
 };
 
+/**
+ * Updates the given bmain to ensure invariants related to node trees (for example that group nodes
+ * have sockets that correspond to the referenced node tree).
+ *
+ * \param bmain: Used to e.g. find node trees that depend on a modified node tree and thus have to
+ *   be modified too.
+ * \param modified_trees: Optional filter for node trees that have been modified. Passing this in
+ *   may make the update faster by avoiding having to iterate over all node trees.
+ * \param params: Additional parameters that allow the caller to properly tag the depsgraph and
+ *   sent notifiers.
+ */
 void BKE_ntree_update(Main &bmain,
                       std::optional<blender::Span<bNodeTree *>> modified_trees = std::nullopt,
                       const NodeTreeUpdateExtraParams &params = {});
+
+/**
+ * Same as #BKE_ntree_update but with a simpler API for the case when only a single tree has been
+ * modified.
+ */
 void BKE_ntree_update_after_single_tree_change(Main &bmain,
                                                bNodeTree &modified_tree,
                                                const NodeTreeUpdateExtraParams &params = {});
 
+/**
+ * Can be used to update trees locally, without affecting other trees. This can be used when e.g.
+ * building a temporary node tree that is not in bmain.
+ */
 void BKE_ntree_update_without_main(bNodeTree &tree);
