@@ -64,7 +64,7 @@ set(SRC
   WM_api.hh
   WM_keymap.hh
   WM_message.hh
-  WM_op_handlers.h
+  WM_op_handlers.hh
   WM_toolsystem.hh
   WM_types.hh
   wm.hh
@@ -84,7 +84,7 @@ set(SRC
   gizmo/intern/wm_gizmo_intern.hh
   message_bus/intern/wm_message_bus_intern.hh
   message_bus/wm_message_bus.hh
-  op_handlers/wm_op_handlers.h
+  op_handlers/wm_op_handlers.hh
   op_handlers/intern/wm_op_handlers_intern.h
 )
 

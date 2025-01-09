@@ -41,7 +41,7 @@
 
 #include "WM_api.hh"
 #include "WM_message.hh"
-#include "WM_op_handlers.h"
+#include "WM_op_handlers.hh"
 #include "WM_types.hh"
 #include "wm.hh"
 #include "wm_draw.hh"

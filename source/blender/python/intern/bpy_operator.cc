@@ -36,7 +36,7 @@
 #include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
-#include "WM_op_handlers.h"
+#include "WM_op_handlers.hh"
 #include "WM_types.hh"
 
 #include "MEM_guardedalloc.h"
