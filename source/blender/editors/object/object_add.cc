@@ -3123,9 +3123,13 @@ static void mesh_data_to_grease_pencil(Object &newob,
 {
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(newob.data);
 
-  bke::greasepencil::Layer &layer = grease_pencil.add_layer(DATA_("Converted Layer"));
-  bke::greasepencil::Drawing *drawing = grease_pencil.insert_frame(layer, current_frame);
+  grease_pencil.flag |= GREASE_PENCIL_STROKE_ORDER_3D;
 
+  bke::greasepencil::Layer &layer_line = grease_pencil.add_layer(DATA_("Lines"));
+  bke::greasepencil::Drawing *drawing_line = grease_pencil.insert_frame(layer_line, current_frame);
+
+  constexpr int face_mat_index = 1;
+  constexpr int stroke_mat_index = 0;
   const int edge_num = mesh_eval.edges_num;
   const Span<float3> mesh_positions = mesh_eval.vert_positions();
   const Span<float3> vert_normals = mesh_eval.vert_normals();
@@ -3134,52 +3138,58 @@ static void mesh_data_to_grease_pencil(Object &newob,
   Span<int> faces_span = faces.data();
   const Span<int> corner_verts = mesh_eval.corner_verts();
 
+  if (generate_faces) {
+    bke::greasepencil::Layer &layer_fill = grease_pencil.add_layer(DATA_("Fills"));
+    bke::greasepencil::Drawing *drawing_fill = grease_pencil.insert_frame(layer_fill,
+                                                                          current_frame);
+    const int fills_num = faces.size();
+    const int fills_points_num = corner_verts.size();
+
+    drawing_fill->strokes_for_write().resize(fills_points_num, fills_num);
+    bke::CurvesGeometry &curves_fill = drawing_fill->strokes_for_write();
+    MutableSpan<float3> point_positions_fill = curves_fill.positions_for_write();
+    MutableSpan<int> offsets_fill = curves_fill.offsets_for_write();
+    MutableSpan<bool> cyclic_fill = curves_fill.cyclic_for_write();
+    bke::SpanAttributeWriter<int> stroke_materials_fill =
+        curves_fill.attributes_for_write().lookup_or_add_for_write_span<int>(
+            "material_index", bke::AttrDomain::Curve);
+    curves_fill.fill_curve_types(CURVE_TYPE_POLY);
+
+    array_utils::gather(mesh_positions, corner_verts, point_positions_fill);
+    array_utils::copy(faces_span, offsets_fill);
+    cyclic_fill.fill(true);
+    stroke_materials_fill.span.fill(face_mat_index);
+    stroke_materials_fill.finish();
+    drawing_fill->tag_topology_changed();
+  }
+
   const int edges_num = edges.size();
-  const int total_curves = edges_num + (generate_faces ? faces.size() : 0);
-  const int total_points = generate_faces ? (edges_num * 2 + faces.total_size()) :
-                                            (total_curves * 2);
+  const int points_num = edges_num * 2;
 
-  drawing->strokes_for_write().resize(total_points, total_curves);
-  bke::CurvesGeometry &curves = drawing->strokes_for_write();
-
+  drawing_line->strokes_for_write().resize(points_num, edges_num);
+  bke::CurvesGeometry &curves = drawing_line->strokes_for_write();
   MutableSpan<float3> point_positions = curves.positions_for_write();
   MutableSpan<int> offsets = curves.offsets_for_write();
-  MutableSpan<bool> cyclic = curves.cyclic_for_write();
-  MutableSpan<float> radii = drawing->radii_for_write();
+  MutableSpan<float> radii = drawing_line->radii_for_write();
   bke::SpanAttributeWriter<int> stroke_materials =
       curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
                                                                       bke::AttrDomain::Curve);
-
   curves.fill_curve_types(CURVE_TYPE_POLY);
 
-  constexpr int face_mat_index = 1;
-  constexpr int stroke_mat_index = 0;
-
-  /* Fill faces first, so this way strokes can draw on top of the filled faces. */
-  const int total_fills = total_curves - edge_num;
-  IndexRange fills_range = IndexRange(total_fills);
-  if (generate_faces) {
-    const int faces_to_curves_num = mesh_eval.faces_num;
-    array_utils::gather(
-        mesh_positions, corner_verts, point_positions.take_front(corner_verts.size()));
-    array_utils::copy(faces_span, offsets.take_front(faces_span.size()));
-    cyclic.take_front(faces_to_curves_num).fill(true);
-    stroke_materials.span.take_front(faces_to_curves_num).fill(face_mat_index);
+  int point_i = 0;
+  for (const int edge_i : IndexRange(edge_num)) {
+    const int2 edge = edges[edge_i];
+    point_positions[point_i] = mesh_positions[edge[0]] + offset * vert_normals[edge[0]];
+    point_positions[point_i + 1] = mesh_positions[edge[1]] + offset * vert_normals[edge[1]];
+    radii[point_i] = radii[point_i + 1] = stroke_radius;
+    point_i += 2;
   }
-
-  array_utils::gather(
-      mesh_positions, edges.cast<int>(), point_positions.drop_front(corner_verts.size()));
   radii.fill(stroke_radius);
 
-  const int faces_size = faces_span.size();
-  offset_indices::fill_constant_group_size(
-      2, offsets.take_front(faces_size).last() + 2, offsets.drop_front(faces_size));
-
-  const IndexRange edges_range = IndexRange(total_fills, edge_num);
-  stroke_materials.span.slice(edges_range).fill(stroke_mat_index);
+  offset_indices::fill_constant_group_size(2, 0, offsets);
+  stroke_materials.span.fill(stroke_mat_index);
   stroke_materials.finish();
-
-  drawing->tag_topology_changed();
+  drawing_line->tag_topology_changed();
 }
 
 static Object *convert_mesh_to_grease_pencil(Base &base,
