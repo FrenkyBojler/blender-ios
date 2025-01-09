@@ -449,6 +449,214 @@ void COLLECTION_OT_create(wmOperatorType *ot)
   RNA_def_string(ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "Name of the new collection");
 }
 
+static bool collection_importer_poll(bContext *C)
+{
+  const Collection *collection = CTX_data_collection(C);
+  return collection != nullptr &&
+         !(ID_IS_LINKED(&collection->id) || ID_IS_OVERRIDE_LIBRARY(&collection->id));
+}
+
+static bool collection_importer_remove_poll(bContext *C)
+{
+  const Collection *collection = CTX_data_collection(C);
+  return collection->importer != nullptr;
+}
+
+static wmOperatorStatus collection_importer_add_exec(bContext *C, wmOperator *op)
+{
+  /* TODO - There should only be 1 importer in the hierarchy.
+   * This needs to be enforced either here or in the poll. */
+
+  using namespace blender;
+  Collection *collection = CTX_data_collection(C);
+
+  char name[MAX_ID_NAME - 2]; /* id name */
+  RNA_string_get(op->ptr, "name", name);
+
+  bke::FileHandlerType *fh = bke::file_handler_find(name);
+  if (!fh) {
+    BKE_reportf(op->reports, RPT_ERROR, "File handler '%s' not found", name);
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!WM_operatortype_find(fh->import_operator, true)) {
+    BKE_reportf(
+        op->reports, RPT_ERROR, "File handler operator '%s' not found", fh->import_operator);
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_collection_importer_add(collection, fh->idname, fh->label);
+
+  BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
+  DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static void COLLECTION_OT_importer_add(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add Importer";
+  ot->description = "Add Importer";
+  ot->idname = "COLLECTION_OT_importer_add";
+
+  /* api callbacks */
+  ot->exec = collection_importer_add_exec;
+  ot->poll = collection_importer_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_string(ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "FileHandler idname");
+}
+
+static wmOperatorStatus collection_importer_remove_exec(bContext *C, wmOperator * /*op*/)
+{
+  Collection *collection = CTX_data_collection(C);
+  CollectionImport *data = collection->importer;
+
+  if (!data) {
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_collection_importer_free_data(data);
+  MEM_delete(data);
+
+  collection->importer = nullptr;
+
+  BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
+  DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus collection_importer_remove_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent * /*event*/)
+{
+  return WM_operator_confirm_ex(
+      C, op, IFACE_("Remove importer?"), nullptr, IFACE_("Delete"), ui::AlertIcon::None, false);
+}
+
+static void COLLECTION_OT_importer_remove(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Remove Importer";
+  ot->description = "Remove Importer";
+  ot->idname = "COLLECTION_OT_importer_remove";
+
+  /* api callbacks */
+  ot->invoke = collection_importer_remove_invoke;
+  ot->exec = collection_importer_remove_exec;
+  ot->poll = collection_importer_remove_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator *op)
+{
+  Collection *collection = CTX_data_collection(C);
+  CollectionImport *data = collection->importer;
+
+  if (!data) {
+    return OPERATOR_CANCELLED;
+  }
+
+  using namespace blender;
+  bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);
+  if (!fh) {
+    BKE_reportf(op->reports, RPT_ERROR, "File handler '%s' not found", data->fh_idname);
+    return OPERATOR_CANCELLED;
+  }
+
+  wmOperatorType *ot = WM_operatortype_find(fh->import_operator, false);
+  if (!ot) {
+    BKE_reportf(
+        op->reports, RPT_ERROR, "File handler operator '%s' not found", fh->import_operator);
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Execute operator with our stored properties. */
+  IDProperty *op_props = IDP_CopyProperty(data->import_properties);
+  PointerRNA properties = RNA_pointer_create_discrete(nullptr, ot->srna, op_props);
+  const char *collection_name = collection->id.name + 2;
+
+  /* Ensure we have a valid filepath set. Create one if the user has not specified anything yet. */
+  char filepath[FILE_MAX];
+  RNA_string_get(&properties, "filepath", filepath);
+  if (!filepath[0]) {
+    BKE_report(op->reports, RPT_ERROR, "No filepath set");
+
+    IDP_FreeProperty(op_props);
+    return OPERATOR_CANCELLED;
+  }
+  else {
+    const char *filename = BLI_path_basename(filepath);
+    if (!filename[0] || !BLI_path_extension(filename)) {
+      BKE_reportf(op->reports, RPT_ERROR, "File path '%s' is not a valid file", filepath);
+
+      IDP_FreeProperty(op_props);
+      return OPERATOR_CANCELLED;
+    }
+  }
+
+  const Main *bmain = CTX_data_main(C);
+  BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
+
+  /* Ensure that any properties from when this operator was "last used" are cleared. Save them for
+   * restoration later. Otherwise properties from a regular File->Import may contaminate this
+   * collection import. */
+  IDProperty *last_properties = ot->last_properties;
+  ot->last_properties = nullptr;
+
+  RNA_string_set(&properties, "filepath", filepath);
+  /* TODO: How do we communicate which collection the importer should use? By chance this works
+   * with USD when invoked through the UI because that importer will concicously operate against
+   * the active layer collection; which is active because that's how you get to the Collection
+   * Properties for import. Setting a 'collection' property, like below, will need to be fully
+   * wired up eventually to make this association explicit. */
+  RNA_string_set(&properties, "collection", collection_name);
+  wmOperatorStatus op_result = WM_operator_name_call_ptr(
+      C, ot, wm::OpCallContext::ExecDefault, &properties, nullptr);
+
+  /* Free the "last used" properties that were just set from the collection export and restore the
+   * original "last used" properties. */
+  if (ot->last_properties) {
+    IDP_FreeProperty(ot->last_properties);
+  }
+  ot->last_properties = last_properties;
+
+  IDP_FreeProperty(op_props);
+
+  if (op_result == OPERATOR_FINISHED) {
+    BKE_reportf(op->reports, RPT_INFO, "Imported '%s'", filepath);
+  }
+
+  return op_result;
+}
+
+static void COLLECTION_OT_importer_import(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Import";
+  ot->description = "Invoke the import operation";
+  ot->idname = "COLLECTION_OT_importer_import";
+
+  /* api callbacks */
+  ot->exec = collection_importer_import_exec;
+  ot->poll = collection_importer_poll;
+
+  /* flags */
+  ot->flag = 0;
+}
+
 static bool collection_exporter_common_check(const Collection *collection)
 {
   return collection != nullptr &&
@@ -844,6 +1052,26 @@ static void WM_OT_collection_export_all(wmOperatorType *ot)
   ot->flag = 0;
 }
 
+static void collection_importer_menu_draw(const bContext * /*C*/, Menu *menu)
+{
+  using namespace blender;
+  ui::Layout &layout = *menu->layout;
+
+  /* Add all file handlers capable of being imported to the menu. */
+  bool at_least_one = false;
+  for (const auto &fh : bke::file_handlers()) {
+    if (STREQ(fh->idname, "IO_FH_usd") && WM_operatortype_find(fh->import_operator, true)) {
+      PointerRNA op_ptr = layout.op("COLLECTION_OT_importer_add", fh->label, ICON_NONE);
+      RNA_string_set(&op_ptr, "name", fh->idname);
+      at_least_one = true;
+    }
+  }
+
+  if (!at_least_one) {
+    layout.label(IFACE_("No file handlers available"), ICON_NONE);
+  }
+}
+
 static void collection_exporter_menu_draw(const bContext * /*C*/, Menu *menu)
 {
   ui::Layout &layout = *menu->layout;
@@ -861,6 +1089,19 @@ static void collection_exporter_menu_draw(const bContext * /*C*/, Menu *menu)
   if (!at_least_one) {
     layout.label(IFACE_("No file handlers available"), ICON_NONE);
   }
+}
+
+void collection_importer_register()
+{
+  MenuType *mt = MEM_new_zeroed<MenuType>(__func__);
+  STRNCPY_UTF8(mt->idname, "COLLECTION_MT_importer_add");
+  STRNCPY_UTF8(mt->label, N_("Add Importer"));
+  mt->draw = collection_importer_menu_draw;
+
+  WM_menutype_add(mt);
+  WM_operatortype_append(COLLECTION_OT_importer_add);
+  WM_operatortype_append(COLLECTION_OT_importer_remove);
+  WM_operatortype_append(COLLECTION_OT_importer_import);
 }
 
 void collection_exporter_register()

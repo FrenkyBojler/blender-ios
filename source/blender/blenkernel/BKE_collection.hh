@@ -29,6 +29,7 @@ struct BlendWriter;
 struct Collection;
 struct ID;
 struct CollectionChild;
+struct CollectionImport;
 struct CollectionExport;
 struct GHash;
 struct Main;
@@ -121,6 +122,11 @@ void BKE_collection_free_data(Collection *collection);
 /**
  * Add a new collection exporter to the collection.
  */
+CollectionImport *BKE_collection_importer_add(Collection *collection, char *idname, char *label);
+
+/**
+ * Add a new collection exporter to the collection.
+ */
 CollectionExport *BKE_collection_exporter_add(Collection *collection, char *idname, char *label);
 
 /**
@@ -141,8 +147,9 @@ void BKE_collection_exporter_name_set(const ListBaseT<CollectionExport> *exporte
                                       const char *newname);
 
 /**
- * Free all data owned by the collection exporter.
+ * Free all data owned by the collection importers/exporters.
  */
+void BKE_collection_importer_free_data(CollectionImport *data);
 void BKE_collection_exporter_free_data(CollectionExport *data);
 
 /**
