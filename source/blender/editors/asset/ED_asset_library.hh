@@ -72,7 +72,7 @@ const bUserAssetLibrary *library_ref_to_user_library(const AssetLibraryReference
 const bUserAssetLibrary *get_asset_library_from_prop(PointerRNA &ptr);
 
 /**
- * For earch catalog of the given bUserAssetLibrary call `visit_fn`.
+ * For each catalog of the given bUserAssetLibrary call `visit_fn`.
  */
 void visit_library_catalogs_catalog_for_search(
     const Main &bmain,
