@@ -17,6 +17,7 @@ struct AssetLibraryReference;
 struct EnumPropertyItem;
 struct PointerRNA;
 struct PropertyRNA;
+struct StringPropertySearchVisitParams;
 
 namespace blender::asset_system {
 class AssetCatalog;
