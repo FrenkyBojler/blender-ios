@@ -3928,11 +3928,13 @@ static void GREASE_PENCIL_OT_reset_uvs(wmOperatorType *ot)
 /** \name Separate Shapes Operator
  * \{ */
 
-static int grease_pencil_separate_shapes_exec(bContext *C, wmOperator * /*op*/)
+static int grease_pencil_separate_shapes_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+
+  const bool individual = RNA_boolean_get(op->ptr, "individual");
 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -3947,14 +3949,23 @@ static int grease_pencil_separate_shapes_exec(bContext *C, wmOperator * /*op*/)
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_for_write_span<int>("shape_id");
 
+    /* If the attribute does not exist then every shape is already separate. */
     if (!shape_ids) {
       return;
     }
 
-    const int max_shape_id = *std::max_element(shape_ids.span.begin(), shape_ids.span.end());
+    /* Get the first id that does not already exist. */
+    const int new_shape_id = *std::max_element(shape_ids.span.begin(), shape_ids.span.end()) + 1;
 
-    strokes.foreach_index(
-        [&](const int64_t i, const int64_t pos) { shape_ids.span[i] = pos + max_shape_id + 1; });
+    if (individual) {
+      /* Each selected stroke becomes a new shape. */
+      strokes.foreach_index(
+          [&](const int64_t i, const int64_t pos) { shape_ids.span[i] = pos + new_shape_id; });
+    }
+    else {
+      /* All selected stroke within a shape become a new shape. */
+      strokes.foreach_index([&](const int64_t i) { shape_ids.span[i] += new_shape_id; });
+    }
 
     shape_ids.finish();
     info.drawing.tag_topology_changed();
@@ -3975,7 +3986,7 @@ static void GREASE_PENCIL_OT_separate_shapes(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Separate Shapes";
   ot->idname = "GREASE_PENCIL_OT_separate_shapes";
-  ot->description = "Separate the selected strokes into unique shapes";
+  ot->description = "Separate the selected strokes from current shapes";
 
   /* callbacks */
   ot->exec = grease_pencil_separate_shapes_exec;
@@ -3983,6 +3994,12 @@ static void GREASE_PENCIL_OT_separate_shapes(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna,
+                  "individual",
+                  false,
+                  "Individual",
+                  "Separate all selected strokes into unique shapes");
 }
 
 /** \} */
