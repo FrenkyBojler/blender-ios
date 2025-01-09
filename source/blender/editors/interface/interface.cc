@@ -4475,10 +4475,10 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   int rows = 0;
 
   const wmWindow *win = CTX_wm_window(C);
-  const float row_height = int(float(UI_UNIT_Y) / but->block->aspect);
+  const float row_height = float(UI_UNIT_Y) / but->block->aspect;
   /* Calculate max_rows from how many rows can fit in this window. */
-  const int max_rows = int((float(WM_window_native_pixel_y(win) / 2) - (UI_UNIT_Y * 4.0f)) /
-                           row_height);
+  const float vertical_space = (float(WM_window_native_pixel_y(win)) / 2.0f) - (UI_UNIT_Y * 4.0f);
+  const int max_rows = int(vertical_space / row_height);
   float text_width = 0.0f;
 
   BLF_size(BLF_default(), UI_style_get()->widget.points * UI_SCALE_FAC);
