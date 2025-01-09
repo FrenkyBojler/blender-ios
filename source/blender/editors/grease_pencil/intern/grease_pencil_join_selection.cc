@@ -15,8 +15,8 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "ED_grease_pencil.hh"
 #include "ED_curves.hh"
+#include "ED_grease_pencil.hh"
 #include "RNA_access.hh"
 
 #include "WM_api.hh"
