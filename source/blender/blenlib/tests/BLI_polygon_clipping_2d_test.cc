@@ -415,6 +415,19 @@ TEST(polygonboolean, Simple)
 
     draw_results("Union", "polygon", is_cyclic, points_subj, points_clip, result);
   }
+  {
+    BooleanResult result = curve_boolean_calc(
+        Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}},
+    //     {{3, 3}, {4, 2}, {5, 3}}};
+    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+
+    draw_results("Difference", "polygon", is_cyclic, points_subj, points_clip, result);
+  }
+
   draw_divider_end();
 }
 
@@ -522,6 +535,50 @@ TEST(polygonboolean, Last_Edge_Loop)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
 
+  {
+    BooleanResult result = curve_boolean_calc(
+        Operation::Intersect, points_subj, points_clip, is_fill, is_cyclic);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {{{0, 5},
+    //                                                 {0, 0},
+    //                                                 {7, 0},
+    //                                                 {7, 5},
+    //                                                 {5.5, 5},
+    //                                                 {5, 4},
+    //                                                 {4.33333, 5},
+    //                                                 {4.5, 5},
+    //                                                 {3, 4},
+    //                                                 {2.5, 5},
+    //                                                 {2, 5},
+    //                                                 {2, 3},
+    //                                                 {1, 5}}};
+    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+
+    draw_results("Intersection", "polygon", is_cyclic, points_subj, points_clip, result);
+  }
+  {
+    BooleanResult result = curve_boolean_calc(
+        Operation::Union, points_subj, points_clip, is_fill, is_cyclic);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {{{0, 5},
+    //                                                 {0, 0},
+    //                                                 {7, 0},
+    //                                                 {7, 5},
+    //                                                 {5.5, 5},
+    //                                                 {5, 4},
+    //                                                 {4.33333, 5},
+    //                                                 {4.5, 5},
+    //                                                 {3, 4},
+    //                                                 {2.5, 5},
+    //                                                 {2, 5},
+    //                                                 {2, 3},
+    //                                                 {1, 5}}};
+    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+
+    draw_results("Union", "polygon", is_cyclic, points_subj, points_clip, result);
+  }
   {
     BooleanResult result = curve_boolean_calc(
         Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
