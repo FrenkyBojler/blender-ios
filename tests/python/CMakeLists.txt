@@ -866,30 +866,24 @@ endif()
 
 
 if(WITH_GPU_RENDER_TESTS)
-  if(NOT OPENIMAGEIO_TOOL)
-    message(STATUS "Disabling OpenGL draw tests because OIIO oiiotool does not exist")
-  elseif(NOT EXISTS "${TEST_SRC_DIR}/opengl")
-    message(
-      STATUS "Disabling OpenGL draw tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
-    )
-  else()
-    # Use all subdirectories of the `opengl` directory.
-    file(GLOB children RELATIVE ${TEST_SRC_DIR}/opengl ${TEST_SRC_DIR}/opengl/*)
-    foreach(child ${children})
-      # Resolve symlinks, useful to test production files with linked libraries.
-      get_filename_component(child_path ${TEST_SRC_DIR}/opengl/${child} REALPATH)
-      if(IS_DIRECTORY ${child_path})
-        file(GLOB_RECURSE blends "${child_path}/*.blend")
-        if(blends)
-          add_render_test(
-            opengl_draw_${child}
-            ${CMAKE_CURRENT_LIST_DIR}/opengl_draw_tests.py
-            --testdir "${child_path}"
-            --outdir "${TEST_OUT_DIR}/opengl_draw"
-          )
-        endif()
+  if(WITH_METAL_BACKEND)
+    if(NOT OPENIMAGEIO_TOOL)
+      message(STATUS "Disabling blender_screenshot tests because OIIO oiiotool does not exist")
+    elseif(NOT EXISTS "${TEST_SRC_DIR}/opengl")
+      message(
+              STATUS "Disabling blender_screenshot tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
+      )
+    else()
+      # Use all subdirectories of the `opengl` directory.
+      if(IS_DIRECTORY ${TEST_SRC_DIR}/opengl)
+        add_render_test(
+                blender_screenshot
+                ${CMAKE_CURRENT_LIST_DIR}/ui_screenshot_tests.py
+                --testdir "${TEST_SRC_DIR}/ui_screenshot"
+                --outdir "${TEST_OUT_DIR}/ui_screenshot"
+        )
       endif()
-    endforeach()
+    endif()
   endif()
 endif()
 
