@@ -904,7 +904,6 @@ static int select_shape_exec(bContext *C, wmOperator * /*op*/)
           break;
         }
         case bke::AttrDomain::Point: {
-          const OffsetIndices<int> points_by_curve = curves.points_by_curve();
           shape.foreach_index([&](const int curve_index) {
             const IndexRange points = points_by_curve[curve_index];
             ed::curves::fill_selection_true(selection.span.slice(points));
