@@ -1098,15 +1098,15 @@ static char *get_rna_access(ID *id,
 
     /* XXX problematic block-types. */
     case ID_SEQ: /* sequencer strip */
-      /* SEQ_FAC1: */
+      /* STRIP_FAC1: */
       switch (adrcode) {
-        case SEQ_FAC1:
+        case STRIP_FAC1:
           propname = "effect_fader";
           break;
-        case SEQ_FAC_SPEED:
+        case STRIP_FAC_SPEED:
           propname = "speed_fader";
           break;
-        case SEQ_FAC_OPACITY:
+        case STRIP_FAC_OPACITY:
           propname = "blend_alpha";
           break;
       }
@@ -1396,7 +1396,7 @@ static void fcurve_add_to_list(
  * is not relevant, BUT do not free the IPO-Curve itself...
  *
  * \param `id`: data-block that the IPO-Curve is attached to and/or which the new
- * datapaths will start from. May be null, which may impact the datapaths of the
+ * data-paths will start from. May be null, which may impact the data-paths of the
  * created F-Curves in some cases.
  * \param actname: name of Action-Channel (if applicable) that IPO-Curve's IPO-block belonged to.
  * \param constname: name of Constraint-Channel (if applicable)
@@ -1695,7 +1695,7 @@ static void icu_to_fcurves(ID *id,
  * it is given two lists, which it will perform driver/animation-data separation.
  *
  * \param `id`: Data-block that the IPO-Curve is attached to and/or which the
- * new datapaths will start from. May be null, which may impact the datapaths of
+ * new data-paths will start from. May be null, which may impact the data-paths of
  * the created F-Curves in some cases.
  * \param `actname`: Contrary to what you might think, this is not the name of
  * an action. I (Nathan) don't know what it *is*, but I'm leaving this note here
@@ -2099,10 +2099,10 @@ struct Seq_callback_data {
   AnimData *adt;
 };
 
-static bool seq_convert_callback(Strip *strip, void *userdata)
+static bool strip_convert_callback(Strip *strip, void *userdata)
 {
   IpoCurve *icu = static_cast<IpoCurve *>((strip->ipo) ? strip->ipo->curve.first : nullptr);
-  short adrcode = SEQ_FAC1;
+  short adrcode = STRIP_FAC1;
 
   if (G.debug & G_DEBUG) {
     printf("\tconverting sequence strip %s\n", strip->name + 2);
@@ -2115,15 +2115,15 @@ static bool seq_convert_callback(Strip *strip, void *userdata)
 
   /* Patch `adrcode`, so that we can map to different DNA variables later (semi-hack (tm)). */
   switch (strip->type) {
-    case SEQ_TYPE_IMAGE:
-    case SEQ_TYPE_META:
-    case SEQ_TYPE_SCENE:
-    case SEQ_TYPE_MOVIE:
-    case SEQ_TYPE_COLOR:
-      adrcode = SEQ_FAC_OPACITY;
+    case STRIP_TYPE_IMAGE:
+    case STRIP_TYPE_META:
+    case STRIP_TYPE_SCENE:
+    case STRIP_TYPE_MOVIE:
+    case STRIP_TYPE_COLOR:
+      adrcode = STRIP_FAC_OPACITY;
       break;
-    case SEQ_TYPE_SPEED:
-      adrcode = SEQ_FAC_SPEED;
+    case STRIP_TYPE_SPEED:
+      adrcode = STRIP_FAC_SPEED;
       break;
   }
   icu->adrcode = adrcode;
@@ -2412,7 +2412,7 @@ void do_versions_ipos_to_layered_actions(Main *bmain)
     Editing *ed = scene->ed;
     if (ed && ed->seqbasep) {
       Seq_callback_data cb_data = {bmain, scene, BKE_animdata_ensure_id(id)};
-      SEQ_for_each_callback(&ed->seqbase, seq_convert_callback, &cb_data);
+      SEQ_for_each_callback(&ed->seqbase, strip_convert_callback, &cb_data);
     }
   }
 

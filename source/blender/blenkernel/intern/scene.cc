@@ -361,7 +361,7 @@ static void scene_copy_data(Main *bmain,
                                       scene_dst,
                                       &scene_dst->ed->seqbase,
                                       &scene_src->ed->seqbase,
-                                      SEQ_DUPE_ALL,
+                                      STRIP_DUPE_ALL,
                                       flag_subdata);
     BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
     scene_dst->ed->displayed_channels = &scene_dst->ed->channels;
@@ -794,7 +794,7 @@ static void scene_foreach_layer_collection(LibraryForeachIDData *data,
   }
 }
 
-static bool seq_foreach_member_id_cb(Strip *strip, void *user_data)
+static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
 {
   LibraryForeachIDData *data = static_cast<LibraryForeachIDData *>(user_data);
   const int flag = BKE_lib_query_foreachid_process_flags_get(data);
@@ -828,7 +828,7 @@ static bool seq_foreach_member_id_cb(Strip *strip, void *user_data)
     FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
   }
 
-  if (strip->type == SEQ_TYPE_TEXT && strip->effectdata) {
+  if (strip->type == STRIP_TYPE_TEXT && strip->effectdata) {
     TextVars *text_data = static_cast<TextVars *>(strip->effectdata);
     FOREACHID_PROCESS_IDSUPER(data, text_data->text_font, IDWALK_CB_USER);
   }
@@ -861,7 +861,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   }
   if (scene->ed) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-        data, SEQ_for_each_callback(&scene->ed->seqbase, seq_foreach_member_id_cb, data));
+        data, SEQ_for_each_callback(&scene->ed->seqbase, strip_foreach_member_id_cb, data));
   }
 
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
@@ -942,20 +942,20 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-static bool seq_foreach_path_callback(Strip *strip, void *user_data)
+static bool strip_foreach_path_callback(Strip *strip, void *user_data)
 {
-  if (SEQ_HAS_PATH(strip)) {
+  if (STRIP_HAS_PATH(strip)) {
     StripElem *se = strip->data->stripdata;
     BPathForeachPathData *bpath_data = (BPathForeachPathData *)user_data;
 
-    if (ELEM(strip->type, SEQ_TYPE_MOVIE, SEQ_TYPE_SOUND_RAM) && se) {
+    if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_SOUND_RAM) && se) {
       BKE_bpath_foreach_path_dirfile_fixed_process(bpath_data,
                                                    strip->data->dirpath,
                                                    sizeof(strip->data->dirpath),
                                                    se->filename,
                                                    sizeof(se->filename));
     }
-    else if ((strip->type == SEQ_TYPE_IMAGE) && se) {
+    else if ((strip->type == STRIP_TYPE_IMAGE) && se) {
       /* NOTE: An option not to loop over all strips could be useful? */
       uint len = uint(MEM_allocN_len(se)) / uint(sizeof(*se));
       uint i;
@@ -986,7 +986,7 @@ static void scene_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Scene *scene = (Scene *)id;
   if (scene->ed != nullptr) {
-    SEQ_for_each_callback(&scene->ed->seqbase, seq_foreach_path_callback, bpath_data);
+    SEQ_for_each_callback(&scene->ed->seqbase, strip_foreach_path_callback, bpath_data);
   }
 }
 
@@ -1302,7 +1302,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
         BLO_read_get_new_data_address_no_us(reader, ed->act_seq, sizeof(Strip)));
     ed->cache = nullptr;
     ed->prefetch_job = nullptr;
-    ed->runtime.sequence_lookup = nullptr;
+    ed->runtime.strip_lookup = nullptr;
     ed->runtime.media_presence = nullptr;
     ed->runtime.thumbnail_cache = nullptr;
 
@@ -2883,32 +2883,6 @@ int BKE_render_preview_pixel_size(const RenderData *r)
     return (U.pixelsize > 1.5f) ? 2 : 1;
   }
   return r->preview_pixel_size;
-}
-
-double BKE_scene_unit_scale(const UnitSettings *unit, const int unit_type, double value)
-{
-  if (unit->system == USER_UNIT_NONE) {
-    /* Never apply scale_length when not using a unit setting! */
-    return value;
-  }
-
-  switch (unit_type) {
-    case B_UNIT_LENGTH:
-    case B_UNIT_VELOCITY:
-    case B_UNIT_ACCELERATION:
-      return value * double(unit->scale_length);
-    case B_UNIT_AREA:
-    case B_UNIT_POWER:
-      return value * pow(unit->scale_length, 2);
-    case B_UNIT_VOLUME:
-      return value * pow(unit->scale_length, 3);
-    case B_UNIT_MASS:
-      return value * pow(unit->scale_length, 3);
-    case B_UNIT_CAMERA: /* *Do not* use scene's unit scale for camera focal lens! See #42026. */
-    case B_UNIT_WAVELENGTH: /* Wavelength values are independent of the scene scale. */
-    default:
-      return value;
-  }
 }
 
 /******************** multiview *************************/

@@ -49,9 +49,12 @@ void convert_legacy_animato_actions(Main &bmain)
   LISTBASE_FOREACH (bAction *, dna_action, &bmain.actions) {
     blender::animrig::Action &action = dna_action->wrap();
 
-    if (action_is_layered(action)) {
+    if (action_is_layered(action) && !action.is_empty()) {
       /* This is just a safety net. Blender files that trigger this versioning code are not
-       * expected to have any layered/slotted Actions. */
+       * expected to have any layered/slotted Actions.
+       *
+       * Empty Actions, even though they are valid "layered" Actions, should still get through
+       * versioning, though, to ensure they have the default "Legacy Slot" and a zero idroot. */
       continue;
     }
 
@@ -146,7 +149,7 @@ void tag_action_user_for_slotted_actions_conversion(ID &animated_id)
 
 void tag_action_users_for_slotted_actions_conversion(Main &bmain)
 {
-  /* This function is only called when the blendfile is old enough to NOT use
+  /* This function is only called when the blend-file is old enough to NOT use
    * slotted Actions, so we can safely tag anything that uses an Action. */
 
   auto flag_adt = [](ID &animated_id,
