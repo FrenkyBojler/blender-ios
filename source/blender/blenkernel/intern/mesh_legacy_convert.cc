@@ -2237,7 +2237,7 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
     node_set_selected(node, false);
   }
 
-  BKE_ntree_update(bmain, *group);
+  BKE_ntree_update_after_single_tree_change(bmain, *group);
 
   return group;
 }

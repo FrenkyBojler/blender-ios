@@ -78,8 +78,8 @@ struct NodeTreeUpdateExtraParams {
 void BKE_ntree_update(Main &bmain,
                       std::optional<blender::Span<bNodeTree *>> modified_trees = std::nullopt,
                       const NodeTreeUpdateExtraParams &params = {});
-void BKE_ntree_update(Main &bmain,
-                      bNodeTree &modified_tree,
-                      const NodeTreeUpdateExtraParams &params = {});
+void BKE_ntree_update_after_single_tree_change(Main &bmain,
+                                               bNodeTree &modified_tree,
+                                               const NodeTreeUpdateExtraParams &params = {});
 
 void BKE_ntree_update_without_main(bNodeTree &tree);

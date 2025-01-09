@@ -1850,9 +1850,9 @@ void BKE_ntree_update(Main &bmain,
   is_updating = false;
 }
 
-void BKE_ntree_update(Main &bmain,
-                      bNodeTree &modified_tree,
-                      const NodeTreeUpdateExtraParams &params)
+void BKE_ntree_update_after_single_tree_change(Main &bmain,
+                                               bNodeTree &modified_tree,
+                                               const NodeTreeUpdateExtraParams &params)
 {
   BKE_ntree_update(bmain, blender::Span{&modified_tree}, params);
 }
