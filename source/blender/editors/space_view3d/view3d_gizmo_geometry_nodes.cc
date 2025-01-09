@@ -792,7 +792,7 @@ struct GeometryNodesGizmoGroup {
 
 static std::unique_ptr<NodeGizmos> create_gizmo_node_gizmos(const bNode &gizmo_node)
 {
-  switch (gizmo_node.type) {
+  switch (gizmo_node.type_legacy) {
     case GEO_NODE_GIZMO_LINEAR:
       return std::make_unique<LinearGizmo>();
     case GEO_NODE_GIZMO_DIAL:
@@ -1072,7 +1072,7 @@ static void WIDGETGROUP_geometry_nodes_refresh(const bContext *C, wmGizmoGroup *
                                                   modify_value);
 
                 Main *main = CTX_data_main(C);
-                ED_node_tree_propagate_change(const_cast<bContext *>(C), main, nullptr);
+                ED_node_tree_propagate_change(*main);
                 WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
               };
         }

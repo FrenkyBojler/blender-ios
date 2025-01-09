@@ -10,10 +10,7 @@
 
 #include "BLI_compiler_compat.h"
 #include "BLI_ghash.h"
-#include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-
-#include "DNA_listBase.h"
 
 #include "BKE_volume_enums.hh"
 
@@ -55,7 +52,6 @@ struct bNodeSocket;
 struct bNodeStack;
 struct bNodeTree;
 struct bNodeTreeExec;
-struct bNodeTreeType;
 struct uiLayout;
 
 namespace blender {
@@ -77,11 +73,11 @@ namespace inverse_eval {
 class InverseEvalParams;
 }  // namespace inverse_eval
 }  // namespace nodes
-namespace realtime_compositor {
+namespace compositor {
 class Context;
 class NodeOperation;
 class ShaderNode;
-}  // namespace realtime_compositor
+}  // namespace compositor
 }  // namespace blender
 
 namespace blender::bke {
@@ -133,10 +129,11 @@ using NodeGatherSocketLinkOperationsFunction =
 using NodeGatherAddOperationsFunction =
     void (*)(blender::nodes::GatherAddNodeSearchParams &params);
 
-using NodeGetCompositorOperationFunction = blender::realtime_compositor::NodeOperation
-    *(*)(blender::realtime_compositor::Context &context, blender::nodes::DNode node);
+using NodeGetCompositorOperationFunction =
+    blender::compositor::NodeOperation *(*)(blender::compositor::Context &context,
+                                            blender::nodes::DNode node);
 using NodeGetCompositorShaderNodeFunction =
-    blender::realtime_compositor::ShaderNode *(*)(blender::nodes::DNode node);
+    blender::compositor::ShaderNode *(*)(blender::nodes::DNode node);
 using NodeExtraInfoFunction = void (*)(blender::nodes::NodeExtraInfoParams &params);
 using NodeInverseElemEvalFunction =
     void (*)(blender::nodes::value_elem::InverseElemEvalParams &params);
@@ -150,53 +147,59 @@ using NodeInverseEvalFunction = void (*)(blender::nodes::inverse_eval::InverseEv
  */
 struct bNodeSocketType {
   /** Identifier name. */
-  char idname[64];
+  std::string idname;
   /** Type label. */
-  char label[64];
+  std::string label;
   /** Sub-type label. */
-  char subtype_label[64];
+  std::string subtype_label;
 
-  void (*draw)(
-      bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr, const char *text);
-  void (*draw_color)(bContext *C, PointerRNA *ptr, PointerRNA *node_ptr, float *r_color);
-  void (*draw_color_simple)(const bNodeSocketType *socket_type, float *r_color);
+  void (*draw)(bContext *C,
+               uiLayout *layout,
+               PointerRNA *ptr,
+               PointerRNA *node_ptr,
+               StringRefNull text) = nullptr;
+  void (*draw_color)(bContext *C, PointerRNA *ptr, PointerRNA *node_ptr, float *r_color) = nullptr;
+  void (*draw_color_simple)(const bNodeSocketType *socket_type, float *r_color) = nullptr;
 
-  void (*interface_draw)(ID *id, bNodeTreeInterfaceSocket *socket, bContext *C, uiLayout *layout);
+  void (*interface_draw)(ID *id,
+                         bNodeTreeInterfaceSocket *socket,
+                         bContext *C,
+                         uiLayout *layout) = nullptr;
   void (*interface_init_socket)(ID *id,
                                 const bNodeTreeInterfaceSocket *interface_socket,
                                 bNode *node,
                                 bNodeSocket *socket,
-                                const char *data_path);
+                                StringRefNull data_path) = nullptr;
   void (*interface_from_socket)(ID *id,
                                 bNodeTreeInterfaceSocket *interface_socket,
                                 const bNode *node,
-                                const bNodeSocket *socket);
+                                const bNodeSocket *socket) = nullptr;
 
   /* RNA integration */
-  ExtensionRNA ext_socket;
-  ExtensionRNA ext_interface;
+  ExtensionRNA ext_socket = {};
+  ExtensionRNA ext_interface = {};
 
   /* for standard socket types in C */
-  int type, subtype;
+  int type = 0, subtype = 0;
 
   /* When set, bNodeSocket->limit does not have any effect anymore. */
-  bool use_link_limits_of_type;
-  int input_link_limit;
-  int output_link_limit;
+  bool use_link_limits_of_type = 0;
+  int input_link_limit = 0;
+  int output_link_limit = 0;
 
   /* Callback to free the socket type. */
-  void (*free_self)(bNodeSocketType *stype);
+  void (*free_self)(bNodeSocketType *stype) = nullptr;
 
   /* Return the CPPType of this socket. */
-  const blender::CPPType *base_cpp_type;
+  const blender::CPPType *base_cpp_type = nullptr;
   /* Get the value of this socket in a generic way. */
-  SocketGetCPPValueFunction get_base_cpp_value;
+  SocketGetCPPValueFunction get_base_cpp_value = nullptr;
   /* Get geometry nodes cpp type. */
-  const blender::CPPType *geometry_nodes_cpp_type;
+  const blender::CPPType *geometry_nodes_cpp_type = nullptr;
   /* Get geometry nodes cpp value. */
-  SocketGetGeometryNodesCPPValueFunction get_geometry_nodes_cpp_value;
+  SocketGetGeometryNodesCPPValueFunction get_geometry_nodes_cpp_value = nullptr;
   /* Default value for this socket type. */
-  const void *geometry_nodes_default_cpp_value;
+  const void *geometry_nodes_default_cpp_value = nullptr;
 };
 
 using NodeInitExecFunction = void *(*)(bNodeExecContext *context,
@@ -216,47 +219,51 @@ using NodeMaterialXFunction = void (*)(void *data, bNode *node, bNodeSocket *out
  * implementing the node behavior.
  */
 struct bNodeType {
-  char idname[64]; /* identifier name */
-  int type;
+  std::string idname;
+  /** See bNode::type_legacy. */
+  int type_legacy;
 
-  char ui_name[64]; /* MAX_NAME */
-  char ui_description[256];
+  std::string ui_name;
+  std::string ui_description;
   int ui_icon;
   /** Should usually use the idname instead, but this enum type is still exposed in Python. */
-  const char *enum_name_legacy;
+  const char *enum_name_legacy = nullptr;
 
-  float width, minwidth, maxwidth;
-  float height, minheight, maxheight;
-  short nclass, flag;
+  float width = 0.0f, minwidth = 0.0f, maxwidth = 0.0f;
+  float height = 0.0f, minheight = 0.0f, maxheight = 0.0f;
+  short nclass = 0, flag = 0;
 
   /* templates for static sockets */
-  bNodeSocketTemplate *inputs, *outputs;
+  bNodeSocketTemplate *inputs = nullptr, *outputs = nullptr;
 
-  char storagename[64]; /* struct name for DNA */
+  std::string storagename; /* struct name for DNA */
 
   /* Draw the option buttons on the node */
-  void (*draw_buttons)(uiLayout *, bContext *C, PointerRNA *ptr);
+  void (*draw_buttons)(uiLayout *, bContext *C, PointerRNA *ptr) = nullptr;
   /* Additional parameters in the side panel */
-  void (*draw_buttons_ex)(uiLayout *, bContext *C, PointerRNA *ptr);
+  void (*draw_buttons_ex)(uiLayout *, bContext *C, PointerRNA *ptr) = nullptr;
 
   /* Additional drawing on backdrop */
-  void (*draw_backdrop)(SpaceNode *snode, ImBuf *backdrop, bNode *node, int x, int y);
+  void (*draw_backdrop)(SpaceNode *snode, ImBuf *backdrop, bNode *node, int x, int y) = nullptr;
 
   /**
    * Optional custom label function for the node header.
    * \note Used as a fallback when #bNode.label isn't set.
    */
-  void (*labelfunc)(const bNodeTree *ntree, const bNode *node, char *label, int label_maxncpy);
+  void (*labelfunc)(const bNodeTree *ntree,
+                    const bNode *node,
+                    char *label,
+                    int label_maxncpy) = nullptr;
 
   /** Optional override for node class, used for drawing node header. */
-  int (*ui_class)(const bNode *node);
+  int (*ui_class)(const bNode *node) = nullptr;
   /** Optional dynamic description of what the node group does. */
-  std::string (*ui_description_fn)(const bNode &node);
+  std::string (*ui_description_fn)(const bNode &node) = nullptr;
 
   /** Called when the node is updated in the editor. */
-  void (*updatefunc)(bNodeTree *ntree, bNode *node);
+  void (*updatefunc)(bNodeTree *ntree, bNode *node) = nullptr;
   /** Check and update if internal ID data has changed. */
-  void (*group_update_func)(bNodeTree *ntree, bNode *node);
+  void (*group_update_func)(bNodeTree *ntree, bNode *node) = nullptr;
 
   /**
    * Initialize a new node instance of this type after creation.
@@ -264,7 +271,7 @@ struct bNodeType {
    * \note Assignments to `node->id` must not increment the user of the ID.
    * This is handled by the caller of this callback.
    */
-  void (*initfunc)(bNodeTree *ntree, bNode *node);
+  void (*initfunc)(bNodeTree *ntree, bNode *node) = nullptr;
   /**
    * Free the node instance.
    *
@@ -272,20 +279,20 @@ struct bNodeType {
    * while freeing #Main, the state of this ID is undefined.
    * Higher level logic to remove the node handles the user-count.
    */
-  void (*freefunc)(bNode *node);
+  void (*freefunc)(bNode *node) = nullptr;
   /** Make a copy of the node instance. */
-  void (*copyfunc)(bNodeTree *dest_ntree, bNode *dest_node, const bNode *src_node);
+  void (*copyfunc)(bNodeTree *dest_ntree, bNode *dest_node, const bNode *src_node) = nullptr;
 
   /* Registerable API callback versions, called in addition to C callbacks */
-  void (*initfunc_api)(const bContext *C, PointerRNA *ptr);
-  void (*freefunc_api)(PointerRNA *ptr);
-  void (*copyfunc_api)(PointerRNA *ptr, const bNode *src_node);
+  void (*initfunc_api)(const bContext *C, PointerRNA *ptr) = nullptr;
+  void (*freefunc_api)(PointerRNA *ptr) = nullptr;
+  void (*copyfunc_api)(PointerRNA *ptr, const bNode *src_node) = nullptr;
 
   /**
    * An additional poll test for deciding whether nodes should be an option in search menus.
    * Potentially more strict poll than #poll(), but doesn't have to check the same things.
    */
-  bool (*add_ui_poll)(const bContext *C);
+  bool (*add_ui_poll)(const bContext *C) = nullptr;
 
   /**
    * Can this node type be added to a node tree?
@@ -296,47 +303,49 @@ struct bNodeType {
    *                         when it's not just a dummy, that is, if it actually wants to access
    *                         the returned disabled-hint (null-check needed!).
    */
-  bool (*poll)(const bNodeType *ntype, const bNodeTree *nodetree, const char **r_disabled_hint);
+  bool (*poll)(const bNodeType *ntype,
+               const bNodeTree *nodetree,
+               const char **r_disabled_hint) = nullptr;
   /**
    * Can this node be added to a node tree?
    * \param r_disabled_hint: See `poll()`.
    */
   bool (*poll_instance)(const bNode *node,
                         const bNodeTree *nodetree,
-                        const char **r_disabled_hint);
+                        const char **r_disabled_hint) = nullptr;
 
   /* Optional handling of link insertion. Returns false if the link shouldn't be created. */
-  bool (*insert_link)(bNodeTree *ntree, bNode *node, bNodeLink *link);
+  bool (*insert_link)(bNodeTree *ntree, bNode *node, bNodeLink *link) = nullptr;
 
-  void (*free_self)(bNodeType *ntype);
+  void (*free_self)(bNodeType *ntype) = nullptr;
 
   /* **** execution callbacks **** */
-  NodeInitExecFunction init_exec_fn;
-  NodeFreeExecFunction free_exec_fn;
-  NodeExecFunction exec_fn;
+  NodeInitExecFunction init_exec_fn = nullptr;
+  NodeFreeExecFunction free_exec_fn = nullptr;
+  NodeExecFunction exec_fn = nullptr;
   /* gpu */
-  NodeGPUExecFunction gpu_fn;
+  NodeGPUExecFunction gpu_fn = nullptr;
   /* MaterialX */
-  NodeMaterialXFunction materialx_fn;
+  NodeMaterialXFunction materialx_fn = nullptr;
 
   /* Get an instance of this node's compositor operation. Freeing the instance is the
    * responsibility of the caller. */
-  NodeGetCompositorOperationFunction get_compositor_operation;
+  NodeGetCompositorOperationFunction get_compositor_operation = nullptr;
 
   /* Get an instance of this node's compositor shader node. Freeing the instance is the
    * responsibility of the caller. */
-  NodeGetCompositorShaderNodeFunction get_compositor_shader_node;
+  NodeGetCompositorShaderNodeFunction get_compositor_shader_node = nullptr;
 
-  /* A message to display in the node header for unsupported realtime compositor nodes. The message
+  /* A message to display in the node header for unsupported compositor nodes. The message
    * is assumed to be static and thus require no memory handling. This field is to be removed when
    * all nodes are supported. */
-  const char *realtime_compositor_unsupported_message;
+  const char *compositor_unsupported_message = nullptr;
 
   /* Build a multi-function for this node. */
-  NodeMultiFunctionBuildFunction build_multi_function;
+  NodeMultiFunctionBuildFunction build_multi_function = nullptr;
 
   /* Execute a geometry node. */
-  NodeGeometryExecFunction geometry_node_execute;
+  NodeGeometryExecFunction geometry_node_execute = nullptr;
 
   /**
    * Declares which sockets and panels the node has. It has to be able to generate a declaration
@@ -344,7 +353,7 @@ struct bNodeType {
    * is not provided, then the declaration should be generated as much as possible and everything
    * that depends on the node context should be skipped.
    */
-  NodeDeclareFunction declare;
+  NodeDeclareFunction declare = nullptr;
 
   /**
    * Declaration of the node outside of any context. If the node declaration is never dependent on
@@ -353,51 +362,60 @@ struct bNodeType {
    * the node. In this case, the static declaration is mostly just a hint, and does not have to
    * match with the final node.
    */
-  blender::nodes::NodeDeclaration *static_declaration;
+  blender::nodes::NodeDeclaration *static_declaration = nullptr;
 
   /**
    * Add to the list of search names and operations gathered by node link drag searching.
    * Usually it isn't necessary to override the default behavior here, but a node type can have
    * custom behavior here like adding custom search items.
    */
-  NodeGatherSocketLinkOperationsFunction gather_link_search_ops;
+  NodeGatherSocketLinkOperationsFunction gather_link_search_ops = nullptr;
 
   /** Get extra information that is drawn next to the node. */
-  NodeExtraInfoFunction get_extra_info;
+  NodeExtraInfoFunction get_extra_info = nullptr;
 
   /**
    * "Abstract" evaluation of the node. It tells the caller which parts of the inputs affect which
    * parts of the outputs.
    */
-  NodeElemEvalFunction eval_elem;
+  NodeElemEvalFunction eval_elem = nullptr;
 
   /**
    * Similar to #eval_elem but tells the caller which parts of the inputs have to be modified to
    * modify the outputs.
    */
-  NodeInverseElemEvalFunction eval_inverse_elem;
+  NodeInverseElemEvalFunction eval_inverse_elem = nullptr;
 
   /**
    * Evaluates the inverse of the node if possible. This evaluation has access to logged values of
    * all input sockets as well as new values for output sockets. Based on that, it should determine
    * how one or more of the inputs should change so that the output becomes the given one.
    */
-  NodeInverseEvalFunction eval_inverse;
+  NodeInverseEvalFunction eval_inverse = nullptr;
 
   /**
    * Registers operators that are specific to this node. This allows nodes to be more
    * self-contained compared to the alternative to registering all operators in a more central
    * place.
    */
-  void (*register_operators)();
+  void (*register_operators)() = nullptr;
 
   /** True when the node cannot be muted. */
-  bool no_muting;
+  bool no_muting = false;
   /** True when the node still works but it's usage is discouraged. */
-  const char *deprecation_notice;
+  const char *deprecation_notice = nullptr;
 
   /* RNA integration */
-  ExtensionRNA rna_ext;
+  ExtensionRNA rna_ext = {};
+
+  /**
+   * Check if type has the given idname.
+   *
+   * Note: This function assumes that the given idname is a valid registered idname. This is done
+   * to catch typos earlier. One can compare with `bNodeType::idname` directly if the idname might
+   * not be registered.
+   */
+  bool is_type(StringRef query_idname) const;
 };
 
 /** #bNodeType.nclass (for add-menu and themes). */
@@ -426,7 +444,7 @@ struct bNodeType {
  * This is separate from the `NODE_CLASS_*` enum, because those have some additional items and are
  * not purely color tags. Some classes also have functional effects (e.g. `NODE_CLASS_INPUT`).
  */
-enum class NodeGroupColorTag {
+enum class NodeColorTag {
   None = 0,
   Attribute = 1,
   Color = 2,
@@ -441,46 +459,60 @@ enum class NodeGroupColorTag {
   Shader = 11,
   Texture = 12,
   Vector = 13,
+  Pattern = 14,
+  Interface = 15,
+  Group = 16,
 };
 
-using bNodeClassCallback = void (*)(void *calldata, int nclass, const char *name);
+using bNodeClassCallback = void (*)(void *calldata, int nclass, StringRefNull name);
 
 struct bNodeTreeType {
-  int type;        /* type identifier */
-  char idname[64]; /* identifier name */
+  int type = 0;       /* type identifier */
+  std::string idname; /* identifier name */
 
   /* The ID name of group nodes for this type. */
-  char group_idname[64];
+  std::string group_idname;
 
-  char ui_name[64];
-  char ui_description[256];
-  int ui_icon;
+  std::string ui_name;
+  std::string ui_description;
+  int ui_icon = 0;
 
   /* callbacks */
   /* Iteration over all node classes. */
-  void (*foreach_nodeclass)(void *calldata, bNodeClassCallback func);
+  void (*foreach_nodeclass)(void *calldata, bNodeClassCallback func) = nullptr;
   /* Check visibility in the node editor */
-  bool (*poll)(const bContext *C, bNodeTreeType *ntreetype);
+  bool (*poll)(const bContext *C, bNodeTreeType *ntreetype) = nullptr;
   /* Select a node tree from the context */
-  void (*get_from_context)(
-      const bContext *C, bNodeTreeType *ntreetype, bNodeTree **r_ntree, ID **r_id, ID **r_from);
+  void (*get_from_context)(const bContext *C,
+                           bNodeTreeType *ntreetype,
+                           bNodeTree **r_ntree,
+                           ID **r_id,
+                           ID **r_from) = nullptr;
 
   /* calls allowing threaded composite */
-  void (*localize)(bNodeTree *localtree, bNodeTree *ntree);
-  void (*local_merge)(Main *bmain, bNodeTree *localtree, bNodeTree *ntree);
+  void (*localize)(bNodeTree *localtree, bNodeTree *ntree) = nullptr;
+  void (*local_merge)(Main *bmain, bNodeTree *localtree, bNodeTree *ntree) = nullptr;
 
   /* Tree update. Overrides `nodetype->updatetreefunc`. */
-  void (*update)(bNodeTree *ntree);
+  void (*update)(bNodeTree *ntree) = nullptr;
 
-  bool (*validate_link)(eNodeSocketDatatype from, eNodeSocketDatatype to);
+  bool (*validate_link)(eNodeSocketDatatype from, eNodeSocketDatatype to) = nullptr;
 
-  void (*node_add_init)(bNodeTree *ntree, bNode *bnode);
+  void (*node_add_init)(bNodeTree *ntree, bNode *bnode) = nullptr;
 
   /* Check if the socket type is valid for this tree type. */
-  bool (*valid_socket_type)(bNodeTreeType *ntreetype, bNodeSocketType *socket_type);
+  bool (*valid_socket_type)(bNodeTreeType *ntreetype, bNodeSocketType *socket_type) = nullptr;
+
+  /**
+   * If true, then some UI elements related to building node groups will be hidden.
+   * This can be used by Python-defined custom node tree types.
+   *
+   * This is a uint8_t instead of bool to avoid compiler warnings in generated RNA code.
+   */
+  uint8_t no_group_interface = 0;
 
   /* RNA integration */
-  ExtensionRNA rna_ext;
+  ExtensionRNA rna_ext = {};
 };
 
 /** \} */
@@ -489,27 +521,12 @@ struct bNodeTreeType {
 /** \name Generic API, Trees
  * \{ */
 
-bNodeTreeType *node_tree_type_find(const char *idname);
+bNodeTreeType *node_tree_type_find(StringRef idname);
 void node_tree_type_add(bNodeTreeType *nt);
 void node_tree_type_free_link(const bNodeTreeType *nt);
 bool node_tree_is_registered(const bNodeTree *ntree);
-GHashIterator *node_tree_type_get_iterator();
 
-/* Helper macros for iterating over tree types. */
-#define NODE_TREE_TYPES_BEGIN(ntype) \
-  { \
-    GHashIterator *__node_tree_type_iter__ = blender::bke::node_tree_type_get_iterator(); \
-    for (; !BLI_ghashIterator_done(__node_tree_type_iter__); \
-         BLI_ghashIterator_step(__node_tree_type_iter__)) \
-    { \
-      blender::bke::bNodeTreeType *ntype = (blender::bke::bNodeTreeType *) \
-          BLI_ghashIterator_getValue(__node_tree_type_iter__);
-
-#define NODE_TREE_TYPES_END \
-  } \
-  BLI_ghashIterator_free(__node_tree_type_iter__); \
-  } \
-  (void)0
+Span<bNodeTreeType *> node_tree_types_get();
 
 /**
  * Try to initialize all type-info in a node tree.
@@ -521,7 +538,7 @@ GHashIterator *node_tree_type_get_iterator();
  */
 void node_tree_set_type(const bContext *C, bNodeTree *ntree);
 
-bNodeTree *node_tree_add_tree(Main *bmain, const char *name, const char *idname);
+bNodeTree *node_tree_add_tree(Main *bmain, StringRefNull name, StringRefNull idname);
 
 /**
  * Add a new (non-embedded) node tree, like #node_tree_add_tree, but allows to create it inside a
@@ -529,8 +546,8 @@ bNodeTree *node_tree_add_tree(Main *bmain, const char *name, const char *idname)
  */
 bNodeTree *node_tree_add_in_lib(Main *bmain,
                                 Library *owner_library,
-                                const char *name,
-                                const char *idname);
+                                StringRefNull name,
+                                StringRefNull idname);
 
 /**
  * Free tree which is embedded into another data-block.
@@ -586,54 +603,25 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree);
 /** \name Generic API, Nodes
  * \{ */
 
-bNodeType *node_type_find(const char *idname);
-const char *node_type_find_alias(const char *idname);
+bNodeType *node_type_find(StringRef idname);
+StringRefNull node_type_find_alias(StringRefNull idname);
 void node_register_type(bNodeType *ntype);
 void node_unregister_type(bNodeType *ntype);
-void node_register_alias(bNodeType *nt, const char *alias);
-GHashIterator *node_type_get_iterator();
+void node_register_alias(bNodeType *nt, StringRef alias);
 
-/* Helper macros for iterating over node types. */
-#define NODE_TYPES_BEGIN(ntype) \
-  { \
-    GHashIterator *__node_type_iter__ = blender::bke::node_type_get_iterator(); \
-    for (; !BLI_ghashIterator_done(__node_type_iter__); \
-         BLI_ghashIterator_step(__node_type_iter__)) { \
-      blender::bke::bNodeType *ntype = (blender::bke::bNodeType *)BLI_ghashIterator_getValue( \
-          __node_type_iter__);
+Span<bNodeType *> node_types_get();
 
-#define NODE_TYPES_END \
-  } \
-  BLI_ghashIterator_free(__node_type_iter__); \
-  } \
-  ((void)0)
-
-bNodeSocketType *node_socket_type_find(const char *idname);
+bNodeSocketType *node_socket_type_find(StringRef idname);
 void node_register_socket_type(bNodeSocketType *stype);
 void node_unregister_socket_type(bNodeSocketType *stype);
 bool node_socket_is_registered(const bNodeSocket *sock);
-GHashIterator *node_socket_type_get_iterator();
-const char *node_socket_type_label(const bNodeSocketType *stype);
+StringRefNull node_socket_type_label(const bNodeSocketType *stype);
 
-const char *node_static_socket_type(int type, int subtype);
-const char *node_static_socket_interface_type_new(int type, int subtype);
-const char *node_static_socket_label(int type, int subtype);
+std::optional<StringRefNull> node_static_socket_type(int type, int subtype);
+std::optional<StringRefNull> node_static_socket_interface_type_new(int type, int subtype);
+std::optional<StringRefNull> node_static_socket_label(int type, int subtype);
 
-/* Helper macros for iterating over node types. */
-#define NODE_SOCKET_TYPES_BEGIN(stype) \
-  { \
-    GHashIterator *__node_socket_type_iter__ = blender::bke::node_socket_type_get_iterator(); \
-    for (; !BLI_ghashIterator_done(__node_socket_type_iter__); \
-         BLI_ghashIterator_step(__node_socket_type_iter__)) \
-    { \
-      blender::bke::bNodeSocketType *stype = (blender::bke::bNodeSocketType *) \
-          BLI_ghashIterator_getValue(__node_socket_type_iter__);
-
-#define NODE_SOCKET_TYPES_END \
-  } \
-  BLI_ghashIterator_free(__node_socket_type_iter__); \
-  } \
-  ((void)0)
+Span<bNodeSocketType *> node_socket_types_get();
 
 bNodeSocket *node_find_socket(bNode *node, eNodeSocketInOut in_out, StringRef identifier);
 const bNodeSocket *node_find_socket(const bNode *node,
@@ -642,22 +630,22 @@ const bNodeSocket *node_find_socket(const bNode *node,
 bNodeSocket *node_add_socket(bNodeTree *ntree,
                              bNode *node,
                              eNodeSocketInOut in_out,
-                             const char *idname,
-                             const char *identifier,
-                             const char *name);
+                             StringRefNull idname,
+                             StringRefNull identifier,
+                             StringRefNull name);
 bNodeSocket *node_add_static_socket(bNodeTree *ntree,
                                     bNode *node,
                                     eNodeSocketInOut in_out,
                                     int type,
                                     int subtype,
-                                    const char *identifier,
-                                    const char *name);
+                                    StringRefNull identifier,
+                                    StringRefNull name);
 void node_remove_socket(bNodeTree *ntree, bNode *node, bNodeSocket *sock);
 
 void node_modify_socket_type_static(
     bNodeTree *ntree, bNode *node, bNodeSocket *sock, int type, int subtype);
 
-bNode *node_add_node(const bContext *C, bNodeTree *ntree, const char *idname);
+bNode *node_add_node(const bContext *C, bNodeTree *ntree, StringRefNull idname);
 bNode *node_add_static_node(const bContext *C, bNodeTree *ntree, int type);
 
 /**
@@ -693,18 +681,27 @@ void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent);
 void node_detach_node(bNodeTree *ntree, bNode *node);
 
 /**
- * Finds a node based on given socket and returns true on success.
+ * Finds a node based on given socket, returning null in the case where the socket is not part of
+ * the node tree.
  */
-bool node_find_node_try(bNodeTree *ntree, bNodeSocket *sock, bNode **r_node, int *r_sockindex);
+bNode *node_find_node_try(bNodeTree &ntree, bNodeSocket &socket);
 
 /**
- * Same as #node_find_node_try but expects that the socket definitely is in the node tree.
+ * Find the node that contains the given socket. This uses the node topology cache, meaning
+ * subsequent access after changing the node tree will be more expensive, but amortized over time,
+ * the cost is constant.
  */
-void node_find_node(bNodeTree *ntree, bNodeSocket *sock, bNode **r_node, int *r_sockindex);
+bNode &node_find_node(bNodeTree &ntree, bNodeSocket &socket);
+const bNode &node_find_node(const bNodeTree &ntree, const bNodeSocket &socket);
+
 /**
  * Finds a node based on its name.
  */
-bNode *node_find_node_by_name(bNodeTree *ntree, const char *name);
+bNode *node_find_node_by_name(bNodeTree *ntree, StringRefNull name);
+
+/** Try to find an input item with the given identifier in the entire node interface tree. */
+const bNodeTreeInterfaceSocket *node_find_interface_input_by_identifier(const bNodeTree &ntree,
+                                                                        StringRef identifier);
 
 bool node_is_parent_and_child(const bNode *parent, const bNode *child);
 
@@ -748,7 +745,7 @@ bNodeInstanceKey node_instance_key(bNodeInstanceKey parent_key,
                                    const bNodeTree *ntree,
                                    const bNode *node);
 
-bNodeInstanceHash *node_instance_hash_new(const char *info);
+bNodeInstanceHash *node_instance_hash_new(StringRefNull info);
 void node_instance_hash_free(bNodeInstanceHash *hash, bNodeInstanceValueFP valfreefp);
 void node_instance_hash_insert(bNodeInstanceHash *hash, bNodeInstanceKey key, void *value);
 void *node_instance_hash_lookup(bNodeInstanceHash *hash, bNodeInstanceKey key);
@@ -775,15 +772,19 @@ bool node_group_poll(const bNodeTree *nodetree,
                      const bNodeTree *grouptree,
                      const char **r_disabled_hint);
 
-void node_type_base_custom(
-    bNodeType *ntype, const char *idname, const char *name, const char *enum_name, short nclass);
+void node_type_base_custom(bNodeType *ntype,
+                           StringRefNull idname,
+                           StringRefNull name,
+                           StringRefNull enum_name,
+                           short nclass);
 
 /**
  * \warning Nodes defining a storage type _must_ allocate this for new nodes.
  * Otherwise nodes will reload as undefined (#46619).
+ * #storagename is optional due to some compositor nodes use non-DNA storage type.
  */
 void node_type_storage(bNodeType *ntype,
-                       const char *storagename,
+                       std::optional<StringRefNull> storagename,
                        void (*freefunc)(bNode *node),
                        void (*copyfunc)(bNodeTree *dest_ntree,
                                         bNode *dest_node,
@@ -1379,6 +1380,8 @@ void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, int layer_index);
 #define GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT 2148
 #define GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT 2149
 #define GEO_NODE_MERGE_LAYERS 2150
+#define GEO_NODE_INPUT_COLLECTION 2151
+#define GEO_NODE_INPUT_OBJECT 2152
 
 /** \} */
 
@@ -1430,6 +1433,7 @@ void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, int layer_index);
 #define FN_NODE_HASH_VALUE 1245
 #define FN_NODE_INTEGER_MATH 1246
 #define FN_NODE_MATRIX_DETERMINANT 1247
+#define FN_NODE_FIND_IN_STRING 1248
 
 /** \} */
 
@@ -1438,8 +1442,8 @@ void node_system_exit();
 
 bNodeTree *node_tree_add_tree_embedded(Main *bmain,
                                        ID *owner_id,
-                                       const char *name,
-                                       const char *idname);
+                                       StringRefNull name,
+                                       StringRefNull idname);
 
 /* Copy/free functions, need to manage ID users. */
 
@@ -1477,11 +1481,14 @@ bool node_type_is_undefined(const bNode *node);
 
 bool node_is_static_socket_type(const bNodeSocketType *stype);
 
-const char *node_socket_sub_type_label(int subtype);
+StringRefNull node_socket_sub_type_label(int subtype);
 
 void node_remove_socket_ex(bNodeTree *ntree, bNode *node, bNodeSocket *sock, bool do_id_user);
 
-void node_modify_socket_type(bNodeTree *ntree, bNode *node, bNodeSocket *sock, const char *idname);
+void node_modify_socket_type(bNodeTree *ntree,
+                             bNode *node,
+                             bNodeSocket *sock,
+                             StringRefNull idname);
 
 /**
  * \note Goes over entire tree.
@@ -1544,10 +1551,6 @@ void node_link_set_mute(bNodeTree *ntree, bNodeLink *link, const bool muted);
 bool node_link_is_selected(const bNodeLink *link);
 
 void node_internal_relink(bNodeTree *ntree, bNode *node);
-
-float2 node_to_view(const bNode *node, float2 loc);
-
-float2 node_from_view(const bNode *node, float2 view_loc);
 
 void node_position_relative(bNode *from_node,
                             const bNode *to_node,
@@ -1705,18 +1708,18 @@ void nodeLabel(const bNodeTree *ntree, const bNode *node, char *label, int maxle
 /**
  * Get node socket label if it is set.
  */
-const char *nodeSocketLabel(const bNodeSocket *sock);
+StringRefNull nodeSocketLabel(const bNodeSocket *sock);
 
 /**
  * Get node socket short label if it is set.
  * It is used when grouping sockets under panels, to avoid redundancy in the label.
  */
-const char *nodeSocketShortLabel(const bNodeSocket *sock);
+std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket *sock);
 
 /**
  * Initialize a new node type struct with default values and callbacks.
  */
-void node_type_base(bNodeType *ntype, int type, const char *name, short nclass);
+void node_type_base(bNodeType *ntype, std::string idname, int type, short nclass);
 
 void node_type_socket_templates(bNodeType *ntype,
                                 bNodeSocketTemplate *inputs,
@@ -1793,6 +1796,13 @@ Span<int> all_zone_node_types();
 Span<int> all_zone_input_node_types();
 Span<int> all_zone_output_node_types();
 const bNodeZoneType *zone_type_by_node_type(const int node_type);
+
+inline bool bNodeType::is_type(const StringRef query_idname) const
+{
+  /* Ensure that the given idname exists to check for typos. */
+  BLI_assert(node_type_find(query_idname) != nullptr);
+  return this->idname == query_idname;
+}
 
 }  // namespace blender::bke
 

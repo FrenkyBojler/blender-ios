@@ -14,7 +14,7 @@
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
 
 #include "BLT_translation.hh"
@@ -358,7 +358,7 @@ const FCurve *fcurve_find_by_rna_path(const AnimData &adt,
       switch (strip->type()) {
         case Strip::Type::Keyframe: {
           const StripKeyframeData &strip_data = strip->data<StripKeyframeData>(action);
-          const ChannelBag *channelbag_for_slot = strip_data.channelbag_for_slot(*slot);
+          const Channelbag *channelbag_for_slot = strip_data.channelbag_for_slot(*slot);
           if (!channelbag_for_slot) {
             continue;
           }

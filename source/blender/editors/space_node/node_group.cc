@@ -116,16 +116,16 @@ const char *node_group_idname(bContext *C)
   SpaceNode *snode = CTX_wm_space_node(C);
 
   if (ED_node_is_shader(snode)) {
-    return ntreeType_Shader->group_idname;
+    return ntreeType_Shader->group_idname.c_str();
   }
   if (ED_node_is_compositor(snode)) {
-    return ntreeType_Composite->group_idname;
+    return ntreeType_Composite->group_idname.c_str();
   }
   if (ED_node_is_texture(snode)) {
-    return ntreeType_Texture->group_idname;
+    return ntreeType_Texture->group_idname.c_str();
   }
   if (ED_node_is_geometry(snode)) {
-    return ntreeType_Geometry->group_idname;
+    return ntreeType_Geometry->group_idname.c_str();
   }
 
   return "";
@@ -148,8 +148,8 @@ static void remap_pairing(bNodeTree &dst_tree,
                           const Map<int32_t, int32_t> &identifier_map)
 {
   for (bNode *dst_node : nodes) {
-    if (bke::all_zone_input_node_types().contains(dst_node->type)) {
-      const bke::bNodeZoneType &zone_type = *bke::zone_type_by_node_type(dst_node->type);
+    if (bke::all_zone_input_node_types().contains(dst_node->type_legacy)) {
+      const bke::bNodeZoneType &zone_type = *bke::zone_type_by_node_type(dst_node->type_legacy);
       int &output_node_id = zone_type.get_corresponding_output_id(*dst_node);
       if (output_node_id == 0) {
         continue;
@@ -290,7 +290,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
     /* Remove interface nodes.
      * This also removes remaining links to and from interface nodes.
      */
-    if (ELEM(node->type, NODE_GROUP_INPUT, NODE_GROUP_OUTPUT)) {
+    if (ELEM(node->type_legacy, NODE_GROUP_INPUT, NODE_GROUP_OUTPUT)) {
       /* We must delay removal since sockets will reference this node. see: #52092 */
       nodes_delayed_free.append(node);
     }
@@ -321,8 +321,8 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
     }
 
     if (!node->parent) {
-      node->locx += gnode->locx;
-      node->locy += gnode->locy;
+      node->location[0] += gnode->location[0];
+      node->location[1] += gnode->location[1];
     }
 
     node->flag |= NODE_SELECT;
@@ -377,7 +377,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
   /* input links */
   if (glinks_first != nullptr) {
     for (bNodeLink *link = glinks_first->next; link != glinks_last->next; link = link->next) {
-      if (link->fromnode->type == NODE_GROUP_INPUT) {
+      if (link->fromnode->type_legacy == NODE_GROUP_INPUT) {
         const char *identifier = link->fromsock->identifier;
         int num_external_links = 0;
 
@@ -423,7 +423,9 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
              tlink = tlink->next)
         {
           /* only use active output node */
-          if (tlink->tonode->type == NODE_GROUP_OUTPUT && (tlink->tonode->flag & NODE_DO_OUTPUT)) {
+          if (tlink->tonode->type_legacy == NODE_GROUP_OUTPUT &&
+              (tlink->tonode->flag & NODE_DO_OUTPUT))
+          {
             if (STREQ(tlink->tosock->identifier, identifier)) {
               bke::node_add_link(
                   ntree, tlink->fromnode, tlink->fromsock, link->tonode, link->tosock);
@@ -481,7 +483,7 @@ static int node_group_ungroup_exec(bContext *C, wmOperator * /*op*/)
   for (bNode *node : nodes_to_ungroup) {
     node_group_ungroup(bmain, snode->edittree, node);
   }
-  ED_node_tree_propagate_change(C, CTX_data_main(C), nullptr);
+  ED_node_tree_propagate_change(*CTX_data_main(C));
   return OPERATOR_FINISHED;
 }
 
@@ -557,8 +559,8 @@ static bool node_group_separate_selected(
     }
 
     if (!newnode->parent) {
-      newnode->locx += offset.x;
-      newnode->locy += offset.y;
+      newnode->location[0] += offset.x;
+      newnode->location[1] += offset.y;
     }
   }
   if (!make_copy) {
@@ -666,7 +668,7 @@ static int node_group_separate_exec(bContext *C, wmOperator *op)
   /* switch to parent tree */
   ED_node_tree_pop(snode);
 
-  ED_node_tree_propagate_change(C, CTX_data_main(C), nullptr);
+  ED_node_tree_propagate_change(*CTX_data_main(C));
 
   return OPERATOR_FINISHED;
 }
@@ -678,8 +680,8 @@ static int node_group_separate_invoke(bContext *C, wmOperator * /*op*/, const wm
   uiLayout *layout = UI_popup_menu_layout(pup);
 
   uiLayoutSetOperatorContext(layout, WM_OP_EXEC_DEFAULT);
-  uiItemEnumO(layout, "NODE_OT_group_separate", nullptr, ICON_NONE, "type", NODE_GS_COPY);
-  uiItemEnumO(layout, "NODE_OT_group_separate", nullptr, ICON_NONE, "type", NODE_GS_MOVE);
+  uiItemEnumO(layout, "NODE_OT_group_separate", std::nullopt, ICON_NONE, "type", NODE_GS_COPY);
+  uiItemEnumO(layout, "NODE_OT_group_separate", std::nullopt, ICON_NONE, "type", NODE_GS_MOVE);
 
   UI_popup_menu_end(C, pup);
 
@@ -820,8 +822,7 @@ static void get_min_max_of_nodes(const Span<bNode *> nodes,
 
   INIT_MINMAX2(min, max);
   for (const bNode *node : nodes) {
-    const float2 node_offset = {node->offsetx, node->offsety};
-    float2 loc = bke::node_to_view(node, node_offset);
+    float2 loc(node->location);
     math::min_max(loc, min, max);
     if (use_size) {
       loc.x += node->width;
@@ -955,13 +956,13 @@ static void node_group_make_insert_selected(const bContext &C,
       return node;
     }
     bNode *output_node = bke::node_add_static_node(&C, &group, NODE_GROUP_OUTPUT);
-    output_node->locx = real_max[0] - center[0] + 50.0f;
+    output_node->location[0] = real_max[0] - center[0] + 50.0f;
     return output_node;
   }();
 
   /* Create new group input node for easier organization of the new nodes inside the group. */
   bNode *input_node = bke::node_add_static_node(&C, &group, NODE_GROUP_INPUT);
-  input_node->locx = real_min[0] - center[0] - 200.0f;
+  input_node->location[0] = real_min[0] - center[0] - 200.0f;
 
   struct InputSocketInfo {
     /* The unselected node the original link came from. */
@@ -1124,8 +1125,8 @@ static void node_group_make_insert_selected(const bContext &C,
   /* move nodes in the group to the center */
   for (bNode *node : nodes_to_move) {
     if (!node->parent) {
-      node->locx -= center[0];
-      node->locy -= center[1];
+      node->location[0] -= center[0];
+      node->location[1] -= center[1];
     }
   }
 
@@ -1203,7 +1204,7 @@ static void node_group_make_insert_selected(const bContext &C,
 
   update_nested_node_refs_after_moving_nodes_into_group(ntree, group, *gnode, node_identifier_map);
 
-  ED_node_tree_propagate_change(&C, bmain, nullptr);
+  ED_node_tree_propagate_change(*bmain);
 }
 
 static bNode *node_group_make_from_nodes(const bContext &C,
@@ -1226,8 +1227,8 @@ static bNode *node_group_make_from_nodes(const bContext &C,
   bNode *gnode = bke::node_add_node(&C, &ntree, ntype);
   gnode->id = (ID *)ngroup;
 
-  gnode->locx = 0.5f * (min[0] + max[0]);
-  gnode->locy = 0.5f * (min[1] + max[1]);
+  gnode->location[0] = 0.5f * (min[0] + max[0]);
+  gnode->location[1] = 0.5f * (min[1] + max[1]);
 
   node_group_make_insert_selected(C, ntree, gnode, nodes_to_group);
 

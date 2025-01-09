@@ -86,7 +86,7 @@ struct NodeClipboard {
     }
     this->nodes.clear_and_shrink();
     this->links.clear_and_shrink();
-    this->old_ids_to_idinfo.clear_and_shrink();
+    this->old_ids_to_idinfo.clear();
   }
 
   /**
@@ -260,7 +260,7 @@ struct NodeClipboard {
         IDWALK_READONLY);
 
     NodeClipboardItem item;
-    item.draw_rect = node.runtime->totr;
+    item.draw_rect = node.runtime->draw_bounds;
     item.node = new_node;
     this->nodes.append(std::move(item));
   }
@@ -439,8 +439,8 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
     for (bNode *new_node : node_map.values()) {
       /* Skip the offset for parented nodes since the location is in parent space. */
       if (new_node->parent == nullptr) {
-        new_node->locx += offset.x;
-        new_node->locy += offset.y;
+        new_node->location[0] += offset.x;
+        new_node->location[1] += offset.y;
       }
     }
   }
@@ -473,7 +473,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
     update_multi_input_indices_for_removed_links(*new_node);
   }
 
-  ED_node_tree_propagate_change(C, bmain, &tree);
+  ED_node_tree_propagate_change(*bmain);
   /* Pasting nodes can create arbitrary new relations because nodes can reference IDs. */
   DEG_relations_tag_update(bmain);
 
