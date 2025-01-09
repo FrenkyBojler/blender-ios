@@ -642,7 +642,7 @@ void MetalDevice::compile_and_load(const int device_id, MetalPipelineType pso_ty
 
 bool MetalDevice::is_texture(const TextureInfo &tex)
 {
-  return (tex.depth > 0 || tex.height > 0);
+  return is_nanovdb_type(tex.data_type) || (tex.depth > 0 || tex.height > 0);
 }
 
 void MetalDevice::load_texture_info()
@@ -1076,11 +1076,7 @@ void MetalDevice::tex_alloc_as_buffer(device_texture &mem)
   texture_slot_map[slot] = nil;
   need_texture_info = true;
 
-  if (mem.info.data_type == IMAGE_DATA_TYPE_NANOVDB_FLOAT ||
-      mem.info.data_type == IMAGE_DATA_TYPE_NANOVDB_FLOAT3 ||
-      mem.info.data_type == IMAGE_DATA_TYPE_NANOVDB_FPN ||
-      mem.info.data_type == IMAGE_DATA_TYPE_NANOVDB_FP16)
-  {
+  if (is_nanovdb_type(mem.info.data_type)) {
     using_nanovdb = true;
   }
 }
