@@ -596,8 +596,6 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
       t_offset += num_triangles_per_shape[shape_index];
 
       shape.foreach_index([&](const int64_t curve_i) {
-        const IndexRange points = points_by_curve[curve_i];
-
         if (show_stroke) {
           const int v_first = t_offset * 3;
           const int v_count = num_vertices_per_stroke[curve_i] * 2 * 3;
