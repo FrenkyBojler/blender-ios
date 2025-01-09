@@ -845,6 +845,7 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
 
         if params.display_type == 'THUMBNAIL':
             layout.prop_menu_enum(params, "display_size_discrete")
+            layout.operator("asset.screenshot_preview")
         layout.prop_menu_enum(params, "sort_method")
 
 

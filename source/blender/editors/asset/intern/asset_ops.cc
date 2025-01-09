@@ -9,11 +9,15 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
+#include "BKE_asset_edit.hh"
 #include "BKE_bpath.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_icons.h"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
+#include "BKE_preview_image.hh"
 #include "BKE_report.hh"
 
 #include "BLI_fnmatch.h"
@@ -31,9 +35,14 @@
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
+#include "IMB_imbuf.hh"
+
 #include "WM_api.hh"
 
 #include "DNA_space_types.h"
+
+#include "GPU_immediate.hh"
+#include "UI_resources.hh"
 
 namespace blender::ed::asset {
 /* -------------------------------------------------------------------- */
@@ -993,6 +1002,258 @@ static bool has_external_files(Main *bmain, ReportList *reports)
   return true;
 }
 
+struct ScreenshotOperatorData {
+  bool dragging;
+  void *draw_handle;
+};
+
+static int screenshot_preview_exec(bContext *C, wmOperator *op)
+{
+  blender::int2 p1, p2;
+  RNA_int_get_array(op->ptr, "p1", p1);
+  RNA_int_get_array(op->ptr, "p2", p2);
+
+  /* Sort points so p1 is lower left, and p2 is top right. */
+  if (p1.x > p2.x) {
+    int swap = p1.x;
+    p1.x = p2.x;
+    p2.x = swap;
+  }
+  if (p1.y > p2.y) {
+    int swap = p1.y;
+    p1.y = p2.y;
+    p2.y = swap;
+  }
+
+  const bool square = RNA_boolean_get(op->ptr, "force_square");
+  if (square) {
+    blender::int2 delta = p2 - p1;
+    if (delta.x < delta.y) {
+      delta.x = delta.y;
+    }
+    else if (delta.y < delta.x) {
+      delta.y = delta.x;
+    }
+    p2 = p1 + delta;
+  }
+
+  const int min_side = 16;
+  if (p2.x - p1.x < min_side || p2.y - p1.y < min_side) {
+    BKE_reportf(
+        op->reports, RPT_ERROR, "Screenshot cannot be smaller than %i pixels on a side", min_side);
+    return OPERATOR_CANCELLED;
+  }
+
+  int dumprect_size[2];
+  wmWindow *win = CTX_wm_window(C);
+  uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
+
+  ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], 24, 0);
+  IMB_assign_byte_buffer(image_buffer, dumprect, IB_DO_NOT_TAKE_OWNERSHIP);
+
+  const rcti crop_rect = {p1.x, p2.x, p1.y, p2.y};
+  IMB_rect_crop(image_buffer, &crop_rect);
+
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  BLI_assert_msg(asset_handle != nullptr, "This is ensured by poll");
+  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
+
+  Main *bmain = CTX_data_main(C);
+  ID *id = bke::asset_edit_id_from_weak_reference(
+      *bmain, asset_handle->get_id_type(), asset_reference);
+
+  PreviewImage *preview_image = BKE_previewimg_id_ensure(id);
+  BKE_previewimg_clear(preview_image);
+
+  for (int size_type = 0; size_type < NUM_ICON_SIZES; size_type++) {
+    BKE_previewimg_ensure(preview_image, size_type);
+    int width = image_buffer->x;
+    int height = image_buffer->y;
+    if (size_type == ICON_SIZE_ICON) {
+      if (image_buffer->x > image_buffer->y) {
+        width = ICON_RENDER_DEFAULT_HEIGHT;
+        height = image_buffer->y * (width / float(image_buffer->x));
+      }
+      else if (image_buffer->y > image_buffer->x) {
+        height = ICON_RENDER_DEFAULT_HEIGHT;
+        width = image_buffer->x * (height / float(image_buffer->y));
+      }
+      else {
+        width = height = ICON_RENDER_DEFAULT_HEIGHT;
+      }
+    }
+    ImBuf *scaled_imbuf = IMB_scale_into_new(
+        image_buffer, width, height, IMBScaleFilter::Nearest, false);
+    preview_image->rect[size_type] = (uint *)MEM_dupallocN(scaled_imbuf->byte_buffer.data);
+    preview_image->w[size_type] = width;
+    preview_image->h[size_type] = height;
+    IMB_freeImBuf(scaled_imbuf);
+  }
+
+  bke::asset_edit_id_save(*bmain, *id, *op->reports);
+
+  MEM_freeN(dumprect);
+  IMB_freeImBuf(image_buffer);
+
+  // refresh_asset_library(C, *CTX_wm_asset_library_ref(C));
+
+  WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static void screenshot_preview_draw(const bContext *C, ARegion * /*region*/, void *customdata)
+{
+  const uint shdr_pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+
+  GPU_line_width(1.0f);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
+
+  float viewport_size[4];
+  GPU_viewport_size_get_f(viewport_size);
+  immUniform2f("viewport_size", viewport_size[2] / UI_SCALE_FAC, viewport_size[3] / UI_SCALE_FAC);
+
+  immUniform1i("colors_len", 0); /* "simple" mode */
+  immUniformThemeColor3(TH_VIEW_OVERLAY);
+  immUniform1f("dash_width", 6.0f);
+  immUniform1f("udash_factor", 0.5f);
+
+  immBegin(GPU_PRIM_LINES, 2);
+  // immVertex2fv(shdr_pos, blender::float2(p1));
+  // immVertex2fv(shdr_pos, blender::float2(p2));
+  immEnd();
+
+  immUnbindProgram();
+
+  ED_area_tag_redraw(CTX_wm_area(C));
+}
+
+static void screenshot_preview_exit(bContext *C)
+{
+  wmWindow *win = CTX_wm_window(C);
+  WM_cursor_set(win, WM_CURSOR_DEFAULT);
+}
+
+static int screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  ARegion *region = CTX_wm_region(C);
+
+  blender::int2 screen_space_mouse = {
+      event->mval[0] + region->winrct.xmin,
+      event->mval[1] + region->winrct.ymin,
+  };
+  if (event->type == LEFTMOUSE) {
+    switch (event->val) {
+      case KM_PRESS: {
+        RNA_int_set_array(op->ptr, "p1", screen_space_mouse);
+        return OPERATOR_RUNNING_MODAL;
+      }
+      case KM_RELEASE: {
+        RNA_int_set_array(op->ptr, "p2", screen_space_mouse);
+        screenshot_preview_exec(C, op);
+        screenshot_preview_exit(C);
+        return OPERATOR_FINISHED;
+      }
+    }
+  }
+
+  if (event->type == MOUSEMOVE) {
+    RNA_int_set_array(op->ptr, "p2", screen_space_mouse);
+    blender::int2 p1;
+    RNA_int_get_array(op->ptr, "p1", p1);
+    // screenshot_preview_draw(C, p1, screen_space_mouse);
+  }
+
+  if (ELEM(event->type, RIGHTMOUSE, EVT_ESCKEY)) {
+    screenshot_preview_exit(C);
+    return OPERATOR_CANCELLED;
+  }
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static int screenshot_preview_invoke(bContext *C, wmOperator *op, const wmEvent * /* event */)
+{
+  WM_event_add_modal_handler(C, op);
+
+  wmWindow *win = CTX_wm_window(C);
+  WM_cursor_set(win, WM_CURSOR_CROSS);
+
+  op->customdata = MEM_callocN(sizeof(ScreenshotOperatorData), __func__);
+  ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static ID *id_from_selected_asset(bContext *C)
+{
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  if (!asset_handle) {
+    return nullptr;
+  }
+
+  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
+  Main *bmain = CTX_data_main(C);
+  return bke::asset_edit_id_from_weak_reference(
+      *bmain, asset_handle->get_id_type(), asset_reference);
+}
+
+static bool screenshot_preview_poll(bContext *C)
+{
+  if (G.background) {
+    return false;
+  }
+
+  ID *id = id_from_selected_asset(C);
+
+  if (!bke::asset_edit_id_is_editable(*id)) {
+    return false;
+  }
+
+  return WM_operator_winactive(C);
+}
+
+/* This should be a generic operator for assets not linked to the poselib. */
+static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
+{
+  ot->name = "Capture screenshot thumbnail";
+  ot->description = "Capture a screenshot to use as a preview for the selected asset";
+  ot->idname = "ASSET_OT_screenshot_preview";
+
+  ot->poll = screenshot_preview_poll;
+  ot->invoke = screenshot_preview_invoke;
+  ot->modal = screenshot_preview_modal;
+  ot->exec = screenshot_preview_exec;
+
+  RNA_def_int_array(ot->srna,
+                    "p1",
+                    2,
+                    nullptr,
+                    0,
+                    INT_MAX,
+                    "Point 1",
+                    "First point of the screenshot in screenspace",
+                    0,
+                    3840);
+  RNA_def_int_array(ot->srna,
+                    "p2",
+                    2,
+                    nullptr,
+                    0,
+                    INT_MAX,
+                    "Point 2",
+                    "Second point of the screenshot in screenspace",
+                    0,
+                    3840);
+  RNA_def_boolean(ot->srna,
+                  "force_square",
+                  true,
+                  "Force Square",
+                  "If enabled, the screenshot will have the same height as width");
+}
+
 /* -------------------------------------------------------------------- */
 
 void operatortypes_asset()
@@ -1011,6 +1272,8 @@ void operatortypes_asset()
   WM_operatortype_append(ASSET_OT_bundle_install);
 
   WM_operatortype_append(ASSET_OT_library_refresh);
+
+  WM_operatortype_append(ASSET_OT_screenshot_preview);
 }
 
 }  // namespace blender::ed::asset

@@ -59,6 +59,7 @@ class VIEW3D_AST_pose_library(bpy.types.AssetShelf):
 
         layout.separator()
         layout.operator("asset.open_containing_blend_file")
+        layout.operator("asset.screenshot_preview")
 
 
 def pose_library_asset_browser_context_menu(self: UIList, context: Context) -> None:
