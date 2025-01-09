@@ -6,6 +6,8 @@
  * \ingroup animrig
  */
 
+#include "intern/versioning_iterators.hh"
+
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 
