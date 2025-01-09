@@ -123,12 +123,26 @@ static int grease_pencil_stroke_smooth_exec(bContext *C, wmOperator *op)
     const VArray<bool> point_selection = *curves.attributes().lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
 
+    const IndexMask cyclic_mask = IndexMask::from_bools(cyclic, memory);
+    const IndexMask unselected_mask =
+        IndexMask::from_bools(point_selection, memory).complement(curves.points_range(), memory);
+    const IndexMask cyclic_mask_ensured = cyclic_mask.from_predicate(
+        curves.curves_range(), GrainSize(4096), memory, [&](const int curve_i) {
+          if (!unselected_mask.slice_content(points_by_curve[curve_i].index_range()).is_empty()) {
+            return false;
+          }
+          return true;
+          cyclic_mask.contains(curve_i);
+        });
+    Array<bool> use_cyclic(curves.curves_num(), false);
+    cyclic_mask_ensured.to_bools(use_cyclic.as_mutable_span());
+
     if (smooth_position) {
       bke::GSpanAttributeWriter positions = attributes.lookup_for_write_span("position");
       geometry::smooth_curve_attribute(strokes,
                                        points_by_curve,
                                        point_selection,
-                                       cyclic,
+                                       VArray<bool>::ForSpan(use_cyclic.as_span()),
                                        iterations,
                                        influence,
                                        smooth_ends,
