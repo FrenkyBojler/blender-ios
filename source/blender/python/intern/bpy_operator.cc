@@ -791,7 +791,7 @@ static PyObject *op_handler_append(int handler_id, PyObject *args, PyObject *kw)
 
   PyObject *py_data = bpy_op_handler_proc(args, kw);
 
-  wm_op_handler_cb *func = nullptr;
+  wmOpHandlerCb func = nullptr;
 
   switch (handler_id) {
     case HANDLER_TYPE_PRE_INVOKE:

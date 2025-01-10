@@ -92,7 +92,7 @@ void WM_op_handlers_append(
     int id,
     void *py_handle,
     const char *op_name,
-    wm_op_handler_cb cb,
+    wmOpHandlerCb cb,
     int (*check)(void *, void *, void *),
     bool (*poll)(bContext *, const wmEvent *event, void *, PointerRNA *properties),
     void *py_data)

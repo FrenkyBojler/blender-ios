@@ -41,15 +41,15 @@ void WM_op_handlers_destroy(struct wmOpHandlers *opHandlers);
 
 wmOpHandlerData *WM_get_op_handlers(wmOpHandlers *op_handlers, const char *op_name);
 
-typedef bool(wm_op_handler_cb)(
-    bContext *, const wmEvent *event, void *py_data, PointerRNA *properties, int);
+using wmOpHandlerCb =
+    bool (*)(bContext *, const wmEvent *event, void *py_data, PointerRNA *properties, int);
 
 void WM_op_handlers_append(
     wmOpHandlers *op_handlers,
     int id,
     void *handle,
     const char *op_name,
-    wm_op_handler_cb *cb,
+    wmOpHandlerCb cb,
     int (*check)(void *, void *, void *),
     bool (*poll)(bContext *, const wmEvent *event, void *, PointerRNA *properties),
     void *py_data);
