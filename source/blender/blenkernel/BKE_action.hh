@@ -15,8 +15,7 @@
 #include "BLI_function_ref.hh"
 #include "BLI_span.hh"
 
-#include "DNA_listBase.h"
-
+#include "DNA_action_defaults.h"
 struct BlendDataReader;
 struct BlendLibReader;
 struct BlendWriter;
