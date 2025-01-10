@@ -105,6 +105,19 @@ void SEQ_query_strip_effect_chain(const Scene *scene,
                                   blender::VectorSet<Strip *> &strips);
 
 /**
+ * Query all connected strips, as well as all effect strips directly or indirectly connected to
+ * those connected strips. These steps repeat until there are no new strips to process.
+ *
+ * \param strip_reference: reference strip
+ * \param seqbase: ListBase in which strips are queried
+ * \param strips: set of strips to be filled
+ */
+void SEQ_query_strip_connected_and_effect_chain(const Scene *scene,
+                                                Strip *reference_strip,
+                                                ListBase *seqbase,
+                                                blender::VectorSet<Strip *> &strips);
+
+/**
  * Query strips that are rendered at \a timeline_frame when \a displayed channel is viewed
  *
  * \param seqbase: ListBase in which strips are queried

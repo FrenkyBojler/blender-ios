@@ -14,6 +14,7 @@
 
 #include "BLI_listbase.h"
 
+#include "SEQ_connect.hh"
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
@@ -216,7 +217,7 @@ void SEQ_query_strip_effect_chain(const Scene *scene,
 
   strips.add(reference_strip);
 
-  /* Find all strips that reference_strip is connected to. */
+  /* Find all input strips for `reference_strip`. */
   if (reference_strip->type & STRIP_TYPE_EFFECT) {
     if (reference_strip->seq1) {
       SEQ_query_strip_effect_chain(scene, reference_strip->seq1, seqbase, strips);
@@ -226,10 +227,45 @@ void SEQ_query_strip_effect_chain(const Scene *scene,
     }
   }
 
-  /* Find all strips connected to reference_strip. */
+  /* Find all effect strips that have `reference_strip` as an input. */
   LISTBASE_FOREACH (Strip *, strip_test, seqbase) {
     if (strip_test->seq1 == reference_strip || strip_test->seq2 == reference_strip) {
       SEQ_query_strip_effect_chain(scene, strip_test, seqbase, strips);
+    }
+  }
+}
+
+void SEQ_query_strip_connected_and_effect_chain(const Scene *scene,
+                                                Strip *reference_strip,
+                                                ListBase *seqbase,
+                                                VectorSet<Strip *> &strips)
+{
+
+  VectorSet<Strip *> pending;
+  pending.add(reference_strip);
+
+  while (!pending.is_empty()) {
+    Strip *current = pending.pop();
+
+    if (strips.contains(current)) {
+      continue;
+    }
+
+    strips.add(current);
+
+    VectorSet<Strip *> connections = SEQ_get_connected_strips(current);
+    for (Strip *connection : connections) {
+      if (!strips.contains(connection)) {
+        pending.add(connection);
+      }
+    }
+
+    VectorSet<Strip *> effect_chain;
+    SEQ_query_strip_effect_chain(scene, current, seqbase, effect_chain);
+    for (Strip *effect_strip : effect_chain) {
+      if (!strips.contains(effect_strip)) {
+        pending.add(effect_strip);
+      }
     }
   }
 }
