@@ -701,9 +701,6 @@ static int grease_pencil_primitive_invoke(bContext *C, wmOperator *op, const wmE
   }
   else if (placement.use_project_to_stroke()) {
     placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
-    // placement.set_origin_to_nearest_stroke(start_coords);
-    if (std::optional<float3> loc = placement.project_depth(start_coords)) {
-    }
   }
 
   ptd.placement = placement;
