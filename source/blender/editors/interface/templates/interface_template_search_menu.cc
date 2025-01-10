@@ -792,7 +792,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
            * could be used as a more general way to know if poll succeeded,
            * at this point it's not set - this could be further investigated. */
           bool poll_success = true;
-          if (PanelType *pt = UI_but_paneltype_get(but)) {
+          if (PanelType *pt = UI_but_paneltype_get(but.get())) {
             if (pt->poll && (pt->poll(C, pt) == false)) {
               poll_success = false;
             }
