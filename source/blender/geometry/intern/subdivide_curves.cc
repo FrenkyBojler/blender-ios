@@ -380,17 +380,12 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
     });
 
     /* Filter out positions and handles that are already interpolated. */
-    const Vector<bke::AttributeTransferData> bezier_attributes_to_transfer =
-        bke::retrieve_attributes_for_transfer(src_attributes,
-                                              dst_attributes,
-                                              ATTR_DOMAIN_MASK_POINT,
-                                              attribute_filter_with_skip_ref(attribute_filter,
-                                                                             {"position",
-                                                                              "handle_type_left",
-                                                                              "handle_type_right",
-                                                                              "handle_right",
-                                                                              "handle_left"}));
-    for (auto &attribute : bezier_attributes_to_transfer) {
+    const Set<std::string> skip_attributes = {
+        "position", "handle_type_left", "handle_type_right", "handle_right", "handle_left"};
+    for (auto &attribute : attributes_to_transfer) {
+      if (skip_attributes.contains(attribute.name)) {
+        continue;
+      }
       subdivide_attribute_linear(src_points_by_curve,
                                  dst_points_by_curve,
                                  selection,
