@@ -137,8 +137,7 @@ static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *
 
 static void stats_object(Object *ob,
                          const View3D *v3d_local,
-                         SceneStats *stats,
-                         GSet *objects_gset)
+                         SceneStats *stats)
 {
   if ((ob->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
     return;
@@ -159,9 +158,6 @@ static void stats_object(Object *ob,
     case OB_MESH: {
       /* we assume evaluated mesh is already built, this strictly does stats now. */
       const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob);
-      if (!BLI_gset_add(objects_gset, (void *)mesh_eval)) {
-        break;
-      }
       stats_mesheval(mesh_eval, is_selected, stats);
       break;
     }
@@ -426,15 +422,13 @@ static void stats_update(Depsgraph *depsgraph,
   }
   else {
     /* Objects. */
-    GSet *objects_gset = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
     DEGObjectIterSettings deg_iter_settings{};
     deg_iter_settings.depsgraph = depsgraph;
     deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
     DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob_iter) {
-      stats_object(ob_iter, v3d_local, stats, objects_gset);
+      stats_object(ob_iter, v3d_local, stats);
     }
     DEG_OBJECT_ITER_END;
-    BLI_gset_free(objects_gset, nullptr);
   }
 }
 
