@@ -489,7 +489,10 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_SIMULATION_INPUT, "Simulation Input", NODE_CLASS_INTERFACE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeSimulationInput", GEO_NODE_SIMULATION_INPUT, NODE_CLASS_INTERFACE);
+  ntype.ui_name = "Simulation Input";
+  ntype.ui_description = "Input data for the simulation zone";
   ntype.enum_name_legacy = "SIMULATION_INPUT";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
@@ -867,7 +870,9 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_SIMULATION_OUTPUT, "Simulation Output", NODE_CLASS_INTERFACE);
+      &ntype, "GeometryNodeSimulationOutput", GEO_NODE_SIMULATION_OUTPUT, NODE_CLASS_INTERFACE);
+  ntype.ui_name = "Simulation Output";
+  ntype.ui_description = "Output data from the simulation zone";
   ntype.enum_name_legacy = "SIMULATION_OUTPUT";
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
@@ -895,7 +900,7 @@ std::unique_ptr<LazyFunction> get_simulation_input_lazy_function(
     const bNode &node,
     GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info)
 {
-  BLI_assert(node.type == GEO_NODE_SIMULATION_INPUT);
+  BLI_assert(node.type_legacy == GEO_NODE_SIMULATION_INPUT);
   return std::make_unique<
       node_geo_simulation_cc::sim_input_node::LazyFunctionForSimulationInputNode>(
       node_tree, node, own_lf_graph_info);
@@ -904,7 +909,7 @@ std::unique_ptr<LazyFunction> get_simulation_input_lazy_function(
 std::unique_ptr<LazyFunction> get_simulation_output_lazy_function(
     const bNode &node, GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info)
 {
-  BLI_assert(node.type == GEO_NODE_SIMULATION_OUTPUT);
+  BLI_assert(node.type_legacy == GEO_NODE_SIMULATION_OUTPUT);
   return std::make_unique<
       node_geo_simulation_cc::sim_output_node::LazyFunctionForSimulationOutputNode>(
       node, own_lf_graph_info);
