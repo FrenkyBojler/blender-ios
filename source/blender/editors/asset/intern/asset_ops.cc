@@ -1063,7 +1063,9 @@ static int screenshot_preview_exec(bContext *C, wmOperator *op)
   uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
 
   ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], 24, 0);
-  IMB_assign_byte_buffer(image_buffer, dumprect, IB_DO_NOT_TAKE_OWNERSHIP);
+  /* Using IB_TAKE_OWNERSHIP because the crop does kind of take ownership already it seems. At
+   * least freeing the memory after would cause a crash if ownership isn't taken. */
+  IMB_assign_byte_buffer(image_buffer, dumprect, IB_TAKE_OWNERSHIP);
 
   const rcti crop_rect = {p1.x, p2.x, p1.y, p2.y};
   IMB_rect_crop(image_buffer, &crop_rect);
@@ -1075,6 +1077,7 @@ static int screenshot_preview_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   ID *id = bke::asset_edit_id_from_weak_reference(
       *bmain, asset_handle->get_id_type(), asset_reference);
+  BLI_assert(id != nullptr);
 
   PreviewImage *preview_image = BKE_previewimg_id_ensure(id);
   BKE_previewimg_clear(preview_image);
@@ -1104,12 +1107,15 @@ static int screenshot_preview_exec(bContext *C, wmOperator *op)
     IMB_freeImBuf(scaled_imbuf);
   }
 
-  bke::asset_edit_id_save(*bmain, *id, *op->reports);
+  if (ID_IS_LINKED(id)) {
+    const bool saved = bke::asset_edit_id_save(*bmain, *id, *op->reports);
+    if (!saved) {
+      BKE_report(op->reports, RPT_ERROR, "Saving failed");
+    }
+  }
 
-  MEM_freeN(dumprect);
   IMB_freeImBuf(image_buffer);
-
-  // refresh_asset_library(C, *CTX_wm_asset_library_ref(C));
+  refresh_asset_library(C, *CTX_wm_asset_library_ref(C));
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
@@ -1224,6 +1230,10 @@ static bool screenshot_preview_poll(bContext *C)
   }
 
   ID *id = id_from_selected_asset(C);
+
+  if (!ID_IS_LINKED(id)) {
+    return WM_operator_winactive(C);
+  }
 
   if (!bke::asset_edit_id_is_editable(*id)) {
     return false;
