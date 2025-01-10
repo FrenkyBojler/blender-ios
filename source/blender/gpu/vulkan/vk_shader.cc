@@ -1006,7 +1006,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
       static const std::string swizzle = "xyzw";
       /* Populate the global before main using subpassLoad. */
       ss_pre << "  " << input.name << " = " << input.type << "( subpassLoad("
-             << input_attachment_name << ")." << swizzle.substr(to_component_count(input.type))
+             << input_attachment_name << ")." << swizzle.substr(0, to_component_count(input.type))
              << " ); \n";
 
       pre_main += ss_pre.str();
