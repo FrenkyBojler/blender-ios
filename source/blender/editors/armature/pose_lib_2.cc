@@ -83,7 +83,7 @@ struct PoseBlendData {
   PoseBackup *pose_backup;
 
   /* This is a pointer because the memory allocation doesn't work properly otherwise. */
-  blender::Vector<Object *> *objects; /* Objects to work on. */
+  blender::Vector<Object *> objects; /* Objects to work on. */
   bAction *act;         /* Pose to blend into the current pose. */
   bAction *act_flipped; /* Flipped copy of `act`. */
 
@@ -109,7 +109,7 @@ static bAction *poselib_action_to_blend(PoseBlendData *pbd)
 static void poselib_backup_posecopy(PoseBlendData *pbd)
 {
   bAction *action = poselib_action_to_blend(pbd);
-  pbd->pose_backup = BKE_pose_backup_create_selected_bones(*pbd->objects, action);
+  pbd->pose_backup = BKE_pose_backup_create_selected_bones(pbd->objects, action);
 
   if (pbd->state == POSE_BLEND_INIT) {
     /* Ready for blending now. */
@@ -122,7 +122,7 @@ static void poselib_backup_posecopy(PoseBlendData *pbd)
 /* Auto-key/tag bones affected by the pose Action. */
 static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
 {
-  for (Object *ob : *pbd->objects) {
+  for (Object *ob : pbd->objects) {
     if (!blender::animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
       return;
     }
@@ -189,7 +189,7 @@ static void poselib_blend_apply(bContext *C, wmOperator *op)
 
   /* The pose needs updating, whether it's for restoring the original pose or for showing the
    * result of the blend. */
-  for (Object *ob : *pbd->objects) {
+  for (Object *ob : pbd->objects) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
   }
@@ -207,7 +207,7 @@ static void poselib_blend_apply(bContext *C, wmOperator *op)
   }
 
   blender::animrig::pose_apply_action(
-      *pbd->objects, pose_action, &anim_eval_context, pbd->blend_factor);
+      pbd->objects, pose_action, &anim_eval_context, pbd->blend_factor);
 }
 
 /* ---------------------------- */
@@ -366,8 +366,7 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
 
   /* Set up blend state info. */
   PoseBlendData *pbd;
-  op->customdata = pbd = static_cast<PoseBlendData *>(
-      MEM_callocN(sizeof(PoseBlendData), "PoseLib Preview Data"));
+  op->customdata = pbd = MEM_new<PoseBlendData>("PoseLib Preview Data");
 
   pbd->act = poselib_blend_init_get_action(C, op);
   if (pbd->act == nullptr) {
@@ -384,8 +383,7 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
   }
 
   /* Get the basic data. */
-  pbd->objects = MEM_new<blender::Vector<Object *>>(__func__);
-  pbd->objects->extend(selected_pose_objects);
+  pbd->objects = selected_pose_objects;
 
   pbd->scene = CTX_data_scene(C);
   pbd->area = CTX_wm_area(C);
@@ -447,7 +445,7 @@ static void poselib_blend_cleanup(bContext *C, wmOperator *op)
   }
 
   /* This signals the depsgraph to unlock and reevaluate the pose on the next evaluation. */
-  for (Object *ob : *pbd->objects) {
+  for (Object *ob : pbd->objects) {
     bPose *pose = ob->pose;
     pose->flag |= POSE_DO_UNLOCK;
   }
@@ -475,7 +473,7 @@ static void poselib_blend_cleanup(bContext *C, wmOperator *op)
       break;
   }
 
-  for (Object *ob : *pbd->objects) {
+  for (Object *ob : pbd->objects) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
   }
@@ -490,8 +488,6 @@ static void poselib_blend_free(wmOperator *op)
     return;
   }
 
-  MEM_delete(pbd->objects);
-
   if (pbd->act_flipped) {
     BKE_id_free(nullptr, pbd->act_flipped);
   }
@@ -501,7 +497,7 @@ static void poselib_blend_free(wmOperator *op)
   BKE_pose_backup_free(pbd->pose_backup);
   pbd->pose_backup = nullptr;
 
-  MEM_SAFE_FREE(op->customdata);
+  MEM_delete(pbd);
 }
 
 static int poselib_blend_exit(bContext *C, wmOperator *op)
