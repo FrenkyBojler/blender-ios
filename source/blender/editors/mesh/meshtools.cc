@@ -33,6 +33,7 @@
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_key.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
@@ -56,6 +57,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+using blender::float2;
 using blender::float3;
 using blender::int2;
 using blender::MutableSpan;
@@ -1282,6 +1284,132 @@ bool ED_mesh_pick_face_vert(
       *r_index = v_idx_best;
       return true;
     }
+  }
+
+  return false;
+}
+
+bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
+{
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+
+  BLI_assert(mesh && GS(mesh->id.name) == ID_ME);
+
+  if (!mesh || mesh->edges_num == 0) {
+    return false;
+  }
+
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  ED_view3d_select_id_validate(&vc);
+  Base *base = BKE_view_layer_base_find(vc.view_layer, vc.obact);
+  DRW_select_buffer_context_create(vc.depsgraph, {base}, SCE_SELECT_EDGE);
+
+  uint edge_idx_best = ORIGINDEX_NONE;
+
+  if (dist_px) {
+    /* Sample rect to increase chances of selecting, so that when clicking
+     * on an edge in the back-buffer, we can still select a face. */
+    edge_idx_best = DRW_select_buffer_find_nearest_to_point(
+        vc.depsgraph, vc.region, vc.v3d, mval, 1, mesh->edges_num + 1, &dist_px);
+  }
+  else {
+    /* sample only on the exact position */
+    edge_idx_best = DRW_select_buffer_sample_point(vc.depsgraph, vc.region, vc.v3d, mval);
+  }
+
+  edge_idx_best--;
+
+  if (edge_idx_best == 0 || edge_idx_best > uint(mesh->edges_num)) {
+    edge_idx_best = ORIGINDEX_NONE;
+  }
+
+  if ((edge_idx_best != ORIGINDEX_NONE) && (edge_idx_best < mesh->edges_num)) {
+    *r_index = edge_idx_best;
+    return true;
+  }
+
+  return false;
+}
+
+bool ED_mesh_pick_face_edge(
+    bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
+{
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  uint face_index;
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+
+  BLI_assert(mesh && GS(mesh->id.name) == ID_ME);
+
+  if (!ED_mesh_pick_face(C, ob, mval, dist_px, &face_index)) {
+    return false;
+  }
+
+  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob_eval);
+  if (!mesh_eval) {
+    return false;
+  }
+
+  /* Map to face (on evaluated mesh) from orig index if possible. */
+  const blender::OffsetIndices faces = mesh_eval->faces();
+  const int *index_face_to_orig = (const int *)CustomData_get_layer(&mesh_eval->face_data,
+                                                                    CD_ORIGINDEX);
+  blender::IndexRange face;
+  if (index_face_to_orig) {
+    for (const int i : faces.index_range()) {
+      if (index_face_to_orig[i] == face_index) {
+        face = faces[i];
+        break;
+      }
+    }
+  }
+  else {
+    if (face_index < faces.size()) {
+      face = faces[face_index];
+    }
+  }
+
+  /* Find the edge (on evaluated mesh) closest to 'mval'. */
+  ARegion *region = CTX_wm_region(C);
+  int edge_idx_best = ORIGINDEX_NONE;
+  const float2 mval_f = {float(mval[0]), float(mval[1])};
+  float len_best = FLT_MAX;
+
+  const Span<float3> vert_positions = mesh_eval->vert_positions();
+  const Span<int> corner_edges = mesh_eval->corner_edges();
+  const Span<int2> edges = mesh_eval->edges();
+  const blender::Span<int> face_edges = corner_edges.slice(face);
+
+  for (const int i : face_edges) {
+    float2 screen_coordinate;
+    const int2 edge = edges[i];
+    const float3 edge_vert_average = blender::math::midpoint(vert_positions[edge[0]],
+                                                             vert_positions[edge[1]]);
+    eV3DProjStatus status = ED_view3d_project_float_object(
+        region, edge_vert_average, screen_coordinate, V3D_PROJ_TEST_CLIP_DEFAULT);
+    if (status != V3D_PROJ_RET_OK) {
+      continue;
+    }
+
+    const float len_test = len_manhattan_v2v2(mval_f, screen_coordinate);
+    if (len_test < len_best) {
+      len_best = len_test;
+      edge_idx_best = i;
+    }
+  }
+
+  /* Map edge index (on evaluated mesh) back to orig if possible. */
+  if (edge_idx_best != ORIGINDEX_NONE) {
+    const int *index_edge_to_orig = (const int *)CustomData_get_layer(&mesh_eval->edge_data,
+                                                                      CD_ORIGINDEX);
+    if (index_edge_to_orig) {
+      edge_idx_best = index_edge_to_orig[edge_idx_best];
+    }
+  }
+  if ((edge_idx_best != ORIGINDEX_NONE) && (edge_idx_best < mesh->edges_num)) {
+    *r_index = edge_idx_best;
+    return true;
   }
 
   return false;
