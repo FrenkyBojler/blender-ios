@@ -358,7 +358,7 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
   op->customdata = nullptr;
 
   /* check if valid poselib */
-  blender::Span<Object *> selected_pose_objects = get_poselib_objects(*C);
+  blender::Vector<Object *> selected_pose_objects = get_poselib_objects(*C);
   if (selected_pose_objects.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "Pose lib is only for armatures in pose mode");
     return false;
@@ -384,7 +384,8 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
   }
 
   /* Get the basic data. */
-  pbd->objects = new blender::Vector<Object *>(selected_pose_objects);
+  pbd->objects = MEM_new<blender::Vector<Object *>>(__func__);
+  pbd->objects->extend(selected_pose_objects);
 
   pbd->scene = CTX_data_scene(C);
   pbd->area = CTX_wm_area(C);
@@ -489,6 +490,8 @@ static void poselib_blend_free(wmOperator *op)
     return;
   }
 
+  MEM_delete(pbd->objects);
+
   if (pbd->act_flipped) {
     BKE_id_free(nullptr, pbd->act_flipped);
   }
@@ -508,7 +511,6 @@ static int poselib_blend_exit(bContext *C, wmOperator *op)
 
   poselib_blend_cleanup(C, op);
   poselib_blend_free(op);
-  delete pbd->objects;
 
   wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_restore(win);
