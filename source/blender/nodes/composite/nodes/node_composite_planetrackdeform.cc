@@ -6,6 +6,7 @@
  * \ingroup cmpnodes
  */
 
+#include "BKE_node.hh"
 #include "BLI_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -435,13 +436,13 @@ void register_node_type_cmp_planetrackdeform()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, "CompositorNodePlaneTrackDeform", CMP_NODE_PLANETRACKDEFORM, NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodePlaneTrackDeform", CMP_NODE_PLANETRACKDEFORM);
   ntype.ui_name = "Plane Track Deform";
   ntype.ui_description =
       "Replace flat planes in footage by another image, detected by plane tracks from motion "
       "tracking";
   ntype.enum_name_legacy = "PLANETRACKDEFORM";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_planetrackdeform_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_planetrackdeform;
   ntype.initfunc_api = file_ns::init;

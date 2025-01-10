@@ -47,9 +47,9 @@ static bool sh_fn_poll_default(const blender::bke::bNodeType * /*ntype*/,
   return true;
 }
 
-void sh_node_type_base(blender::bke::bNodeType *ntype, std::string idname, int type, short nclass)
+void sh_node_type_base(blender::bke::bNodeType *ntype, std::string idname, int type)
 {
-  blender::bke::node_type_base(ntype, idname, type, nclass);
+  blender::bke::node_type_base(ntype, idname, type);
 
   ntype->poll = sh_node_poll_default;
   ntype->insert_link = node_insert_link_default;

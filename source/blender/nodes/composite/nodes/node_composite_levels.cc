@@ -8,6 +8,7 @@
 
 #include <cmath>
 
+#include "BKE_node.hh"
 #include "BLI_assert.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -198,10 +199,11 @@ void register_node_type_cmp_view_levels()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeLevels", CMP_NODE_VIEW_LEVELS, NODE_CLASS_OUTPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeLevels", CMP_NODE_VIEW_LEVELS);
   ntype.ui_name = "Levels";
   ntype.ui_description = "Compute average and standard deviation of pixel values";
   ntype.enum_name_legacy = "LEVELS";
+  ntype.nclass = NODE_CLASS_OUTPUT;
   ntype.declare = file_ns::cmp_node_levels_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_view_levels;
   ntype.flag |= NODE_PREVIEW;

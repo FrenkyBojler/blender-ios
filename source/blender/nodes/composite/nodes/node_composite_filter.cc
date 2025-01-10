@@ -6,6 +6,7 @@
  * \ingroup cmpnodes
  */
 
+#include "BKE_node.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -247,10 +248,11 @@ void register_node_type_cmp_filter()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeFilter", CMP_NODE_FILTER, NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeFilter", CMP_NODE_FILTER);
   ntype.ui_name = "Filter";
   ntype.ui_description = "Apply common image enhancement filters";
   ntype.enum_name_legacy = "FILTER";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_filter_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_filter;
   ntype.labelfunc = node_filter_label;

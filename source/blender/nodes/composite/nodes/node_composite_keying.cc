@@ -6,6 +6,7 @@
  * \ingroup cmpnodes
  */
 
+#include "BKE_node.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
@@ -681,12 +682,13 @@ void register_node_type_cmp_keying()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeKeying", CMP_NODE_KEYING, NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeKeying", CMP_NODE_KEYING);
   ntype.ui_name = "Keying";
   ntype.ui_description =
       "Perform both chroma keying (to remove the backdrop) and despill (to correct color cast "
       "from the backdrop)";
   ntype.enum_name_legacy = "KEYING";
+  ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_keying_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_keying;
   ntype.initfunc = file_ns::node_composit_init_keying;
