@@ -435,6 +435,7 @@ static void fill_vertex_map(MeshAssembly &ma,
                             Span<const Mesh *> meshes,
                             const MeshOffsets &mesh_offsets)
 {
+  timeit::ScopedTimer timer("fill_vertex_map");
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "fill_vertex_map\n";
@@ -481,6 +482,7 @@ constexpr int face_group_inline = 4;
 static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
                                                              int input_faces_num)
 {
+  timeit::ScopedTimer timer("get_face_groups");
   constexpr int dbg_level = 0;
   Array<Vector<int, face_group_inline>> fg(input_faces_num);
   const int tris_num = mgl.NumTri();
@@ -679,6 +681,7 @@ static bool try_merge_out_face_pair(OutFace &f1,
                                     const OutFace &f2,
                                     const SharedEdge &se)
 {
+  
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "try_merge_out_face_pair\n";
@@ -846,6 +849,7 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
                                               Span<const Mesh *> meshes,
                                               const MeshOffsets &mesh_offsets)
 {
+  timeit::ScopedTimer timer("calculating assemble_mesh_from_meshgl");
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "assemble_mesh_from_meshgl\n";
@@ -866,15 +870,18 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
       dump_span(face_groups[i].as_span(), "");
     }
   }
-  for (const int gid : face_groups.index_range()) {
-    Span<int> group = face_groups[gid].as_span();
-    Vector<OutFace> group_faces(group.size());
-    for (const int i : group_faces.index_range()) {
-      int tri_index = group[i];
-      group_faces[i] = make_out_face(mgl, tri_index, gid);
+  {
+    timeit::ScopedTimer timer("face merging");
+    for (const int gid : face_groups.index_range()) {
+      Span<int> group = face_groups[gid].as_span();
+      Vector<OutFace> group_faces(group.size());
+      for (const int i : group_faces.index_range()) {
+        int tri_index = group[i];
+        group_faces[i] = make_out_face(mgl, tri_index, gid);
+      }
+      merge_out_faces(group_faces);
+      ma.new_faces.extend(group_faces.as_span());
     }
-    merge_out_faces(group_faces);
-    ma.new_faces.extend(group_faces.as_span());
   }
   if (dbg_level > 0) {
     std::cout << "mesh_assembly result:\n";
@@ -898,7 +905,7 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
  */
 static bool need_material_attribute(Span<Array<short>> material_remaps)
 {
-  for (const Array<short> remap : material_remaps) {
+  for (const Array<short> &remap : material_remaps) {
     for (const int remap_val : remap) {
       if (remap_val > 0) {
         return true;
@@ -940,12 +947,16 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
    * corner for each new face. */
   int tot_corners = 0;
   /* TODO: parallelize corner counting and offset calculation. */
-  Array<int> face_corner_start_index(tot_faces + 1);
-  for (const int i : ma.new_faces.index_range()) {
-    face_corner_start_index[i] = tot_corners;
-    tot_corners += ma.new_faces[i].verts.size();
+  Array<int> face_corner_start_index;
+  {
+    timeit::ScopedTimer timer_c("calculate corner_start_index");
+    face_corner_start_index.reinitialize(tot_faces + 1);
+    for (const int i : ma.new_faces.index_range()) {
+      face_corner_start_index[i] = tot_corners;
+      tot_corners += ma.new_faces[i].verts.size();
+    }
+    face_corner_start_index[tot_faces] = tot_corners;
   }
-  face_corner_start_index[tot_faces] = tot_corners;
 
   /* Make a new Mesh, now that we know the number of positions, faces, and corners.
    * We will use Blender's parallelized function to calculate edges later.
@@ -955,16 +966,19 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
 
   /* Set the vertex positions. */
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
-  int grain_size = 100000;
-  threading::parallel_for(IndexRange(tot_positions), grain_size, [&](const IndexRange range) {
-    for (const int i : range) {
-      int offset = ma.vertpos_stride * i;
-      float3 pos(ma.vertpos[offset],
-                 ma.vertpos[offset + 1],
-                 ma.vertpos[offset + 2]);
-      positions[i] = pos;
-    }
-  });
+  {
+    timeit::ScopedTimer timer_c("set positions");
+    int grain_size = 100000;
+    threading::parallel_for(IndexRange(tot_positions), grain_size, [&](const IndexRange range) {
+      for (const int i : range) {
+        int offset = ma.vertpos_stride * i;
+        float3 pos(ma.vertpos[offset],
+                   ma.vertpos[offset + 1],
+                   ma.vertpos[offset + 2]);
+        positions[i] = pos;
+      }
+    });
+  }
 
   /* Make the faces. */
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
@@ -974,31 +988,34 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   if (material_span_index == -1 && need_material_attribute(material_remaps)) {
     material_span_index = face_attrs.add_attribute("material_index", bke::AttrDomain::Face, CD_PROP_INT32);
   }
-  grain_size = 50000;
-  threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
-    for (const int face_index : range) {
-      const int corner_index = face_corner_start_index[face_index];
-      face_offsets[face_index] = corner_index;
-      const OutFace &face = ma.new_faces[face_index];
-      for (const int i : face.verts.index_range()) {
-        corner_verts[corner_index + i] = face.verts[i];
+  {
+    timeit::ScopedTimer timer_c("calculate faces");
+    int grain_size = 50000;
+    threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
+      for (const int face_index : range) {
+        const int corner_index = face_corner_start_index[face_index];
+        face_offsets[face_index] = corner_index;
+        const OutFace &face = ma.new_faces[face_index];
+        for (const int i : face.verts.index_range()) {
+          corner_verts[corner_index + i] = face.verts[i];
+        }
+        const int input_mesh_index = which_offset_index<int>(face.face_id, mesh_offsets.face_offsets);
+        BLI_assert(input_mesh_index >= 0);
+        const int input_face_index = face.face_id - mesh_offsets.face_offsets[input_mesh_index];
+        copy_face_attrs(face_attrs,
+                        input_mesh_index,
+                        input_face_index,
+                        face_index,
+                        material_span_index,
+                        material_remaps);
       }
-      const int input_mesh_index = which_offset_index<int>(face.face_id, mesh_offsets.face_offsets);
-      BLI_assert(input_mesh_index >= 0);
-      const int input_face_index = face.face_id - mesh_offsets.face_offsets[input_mesh_index];
-      copy_face_attrs(face_attrs,
-                      input_mesh_index,
-                      input_face_index,
-                      face_index,
-                      material_span_index,
-                      material_remaps);
-    }
-  });
-  face_offsets[tot_faces] = tot_corners;
+    });
+    face_offsets[tot_faces] = tot_corners;
+  }
 
   // bke::mesh_smooth_set(*mesh, false);
   {
-    timeit::ScopedTimer("calculating edges");
+    timeit::ScopedTimer timer_e("calculating edges");
     bke::mesh_calc_edges(*mesh, false, false);
   }
   if (dbg_level > 0) {
@@ -1021,7 +1038,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     std::cout << "\nMESH_BOOLEAN_MANIFOLD with " << meshes.size() << " args\n";
   }
   try {
-    timeit::ScopedTimer timer("manifold boolean");
+    timeit::ScopedTimer timer("MANIFOLD BOOLEAN");
     const int num_meshes = meshes.size();
     std::vector<Manifold> manifolds(num_meshes);
     Array<bool> manifold_ok(num_meshes);
@@ -1041,6 +1058,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       }
     }
     else {
+      timeit::ScopedTimer timer_in("INPUT MESHES TO MANIFOLD");
       threading::parallel_for_each(IndexRange(num_meshes), [&](int i) {
         manifolds[i] = manifold_from_mesh_via_meshgl(meshes[i], i, mesh_offsets.face_offsets[i]);
         manifold_ok[i] = manifolds[i].Status() == Manifold::Error::NoError;
@@ -1057,7 +1075,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                                                          manifold::OpType::Subtract);
     MeshGL meshgl_result;
     {
-      timeit::ScopedTimer("doing boolean and getting meshgl result");
+      timeit::ScopedTimer timer_bool("DOING BOOLEAN, GETTING MANIFOLD RESULT");
       Manifold man_result = Manifold::BatchBoolean(manifolds, mop);
       meshgl_result = man_result.GetMeshGL();
       if (dbg_level > 0) {
@@ -1065,7 +1083,11 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
         dump_meshgl(meshgl_result, "boolean result meshgl");
       }
     }
-    Mesh *mesh_result = meshgl_to_mesh(meshgl_result, meshes, material_remaps, mesh_offsets);
+    Mesh *mesh_result;
+    {
+      timeit::ScopedTimer timer_out("MESHGL RESULT TO MESH");
+      mesh_result = meshgl_to_mesh(meshgl_result, meshes, material_remaps, mesh_offsets);
+    }
     /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
     UNUSED_VARS(target_transform);
     return mesh_result;
