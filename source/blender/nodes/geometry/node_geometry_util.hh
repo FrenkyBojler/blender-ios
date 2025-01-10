@@ -7,6 +7,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 #include "BKE_node_socket_value.hh"
 
 #include "NOD_geometry_exec.hh"
@@ -16,13 +17,20 @@
 
 #include "node_util.hh"
 
+namespace blender {
+namespace bke {
 struct BVHTreeFromMesh;
-namespace blender::nodes {
+}
+namespace nodes {
 class GatherAddNodeSearchParams;
 class GatherLinkSearchOpParams;
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender
 
-void geo_node_type_base(blender::bke::bNodeType *ntype, int type, const char *name, short nclass);
+void geo_node_type_base(blender::bke::bNodeType *ntype,
+                        std::string idname,
+                        int type,
+                        short nclass);
 bool geo_node_poll_default(const blender::bke::bNodeType *ntype,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint);
@@ -34,7 +42,7 @@ void search_link_ops_for_tool_node(GatherLinkSearchOpParams &params);
 void search_link_ops_for_volume_grid_node(GatherLinkSearchOpParams &params);
 void search_link_ops_for_import_node(GatherLinkSearchOpParams &params);
 
-void get_closest_in_bvhtree(BVHTreeFromMesh &tree_data,
+void get_closest_in_bvhtree(bke::BVHTreeFromMesh &tree_data,
                             const VArray<float3> &positions,
                             const IndexMask &mask,
                             MutableSpan<int> r_indices,

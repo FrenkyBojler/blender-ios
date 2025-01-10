@@ -26,7 +26,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_node_tree_update.hh"
@@ -916,7 +916,7 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
 
     stroke_cyclic.span[stroke_i] = (gps->flag & GP_STROKE_CYCLIC) != 0;
     /* Truncating time in ms to uint32 then we don't lose precision in lower bits. */
-    const uint32_t clamped_init_time = static_cast<uint32_t>(
+    const uint32_t clamped_init_time = uint32_t(
         std::clamp(gps->inittime * 1e3, 0.0, double(std::numeric_limits<uint32_t>::max())));
     stroke_init_times.span[stroke_i] = float(clamped_init_time) / float(1e3);
     stroke_start_caps.span[stroke_i] = int8_t(gps->caps[0]);
@@ -1477,7 +1477,7 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
         /* Remove the default user. The count is tracked manually when assigning to modifiers. */
         id_us_min(&new_ntree->id);
         conversion_data.offset_radius_ntree_by_library.add_new(owner_library, new_ntree);
-        BKE_ntree_update_main_tree(&conversion_data.bmain, new_ntree, nullptr);
+        BKE_ntree_update_after_single_tree_change(conversion_data.bmain, *new_ntree);
         return new_ntree;
       };
       bNodeTree *offset_radius_node_tree = offset_radius_ntree_ensure(dst_object.id.lib);

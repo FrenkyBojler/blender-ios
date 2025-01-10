@@ -23,6 +23,7 @@
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_screen.hh"
 
 #include "RE_pipeline.h"
@@ -30,6 +31,8 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+
+#include "MOV_read.hh"
 
 #include "ED_image.hh"
 #include "ED_screen.hh"
@@ -51,7 +54,7 @@ ImageUser *ntree_get_active_iuser(bNodeTree *ntree)
 {
   if (ntree) {
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      if (node->type == CMP_NODE_VIEWER) {
+      if (node->type_legacy == CMP_NODE_VIEWER) {
         if (node->flag & NODE_DO_OUTPUT) {
           return static_cast<ImageUser *>(node->storage);
         }
@@ -1226,9 +1229,9 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
     int duration = 0;
 
     if (ima->source == IMA_SRC_MOVIE && BKE_image_has_anim(ima)) {
-      ImBufAnim *anim = ((ImageAnim *)ima->anims.first)->anim;
+      MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
       if (anim) {
-        duration = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+        duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
       }
     }
 
