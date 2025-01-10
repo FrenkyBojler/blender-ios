@@ -2643,7 +2643,7 @@ static std::optional<std::chrono::nanoseconds> geo_node_get_execution_time(
   if (tree_log == nullptr) {
     return std::nullopt;
   }
-  if (node.type_legacy == NODE_GROUP_OUTPUT) {
+  if (node.is_group_output()) {
     return tree_log->execution_time;
   }
   if (node.is_frame()) {

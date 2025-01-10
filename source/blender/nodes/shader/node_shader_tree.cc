@@ -388,8 +388,7 @@ static void ntree_shader_groups_expand_inputs(bNodeTree *localtree)
   LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
     const bool is_group = ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP) &&
                           (node->id != nullptr);
-    const bool is_group_output = node->type_legacy == NODE_GROUP_OUTPUT &&
-                                 (node->flag & NODE_DO_OUTPUT);
+    const bool is_group_output = node->is_group_output() && (node->flag & NODE_DO_OUTPUT);
 
     if (is_group) {
       /* Do it recursively. */
@@ -529,9 +528,7 @@ static void flatten_group_do(bNodeTree *ntree, bNode *gnode)
         /* find internal links to this output */
         for (bNodeLink *link = glinks_first->next; link != glinks_last->next; link = link->next) {
           /* only use active output node */
-          if (link->tonode->type_legacy == NODE_GROUP_OUTPUT &&
-              (link->tonode->flag & NODE_DO_OUTPUT))
-          {
+          if (link->tonode->is_group_output() && (link->tonode->flag & NODE_DO_OUTPUT)) {
             if (STREQ(link->tosock->identifier, identifier)) {
               blender::bke::node_add_link(
                   ntree, link->fromnode, link->fromsock, tlink->tonode, tlink->tosock);

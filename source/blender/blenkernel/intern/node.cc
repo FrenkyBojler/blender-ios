@@ -2168,7 +2168,7 @@ bNodeSocket *node_add_socket(bNodeTree *ntree,
 {
   BLI_assert(node->type_legacy != NODE_FRAME);
   BLI_assert(!(in_out == SOCK_IN && node->is_group_input()));
-  BLI_assert(!(in_out == SOCK_OUT && node->type_legacy == NODE_GROUP_OUTPUT));
+  BLI_assert(!(in_out == SOCK_OUT && node->is_group_output()));
 
   ListBase *lb = (in_out == SOCK_IN ? &node->inputs : &node->outputs);
   bNodeSocket *sock = make_socket(ntree, node, in_out, lb, idname, identifier, name);
@@ -3699,10 +3699,10 @@ void node_tree_set_output(bNodeTree *ntree)
     }
 
     /* group node outputs use this flag too */
-    if (node->type_legacy == NODE_GROUP_OUTPUT) {
+    if (node->is_group_output()) {
       int output = 0;
       LISTBASE_FOREACH (bNode *, tnode, &ntree->nodes) {
-        if (tnode->type_legacy != NODE_GROUP_OUTPUT) {
+        if (!tnode->is_group_output()) {
           continue;
         }
         if (tnode->flag & NODE_DO_OUTPUT) {

@@ -47,7 +47,7 @@ static InputSocketFieldType get_interface_input_field_type(const bNode &node,
   if (node.is_reroute()) {
     return InputSocketFieldType::IsSupported;
   }
-  if (node.type_legacy == NODE_GROUP_OUTPUT) {
+  if (node.is_group_output()) {
     /* Outputs always support fields when the data type is correct. */
     return InputSocketFieldType::IsSupported;
   }

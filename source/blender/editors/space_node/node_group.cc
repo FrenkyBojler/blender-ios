@@ -421,9 +421,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
              tlink = tlink->next)
         {
           /* only use active output node */
-          if (tlink->tonode->type_legacy == NODE_GROUP_OUTPUT &&
-              (tlink->tonode->flag & NODE_DO_OUTPUT))
-          {
+          if (tlink->tonode->is_group_output() && (tlink->tonode->flag & NODE_DO_OUTPUT)) {
             if (STREQ(tlink->tosock->identifier, identifier)) {
               bke::node_add_link(
                   ntree, tlink->fromnode, tlink->fromsock, link->tonode, link->tosock);
