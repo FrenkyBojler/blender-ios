@@ -196,7 +196,8 @@ class DrawingPlacement {
   float4x4 to_world_space() const;
 
  private:
-  float3 project_depth_or_view(float2 co) const;
+  /** Return depth buffer projection if possible or "View" placement fallback. */
+  float3 try_project_depth(float2 co) const;
 };
 
 void set_selected_frames_type(bke::greasepencil::Layer &layer,

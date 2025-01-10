@@ -325,7 +325,7 @@ std::optional<float3> DrawingPlacement::project_depth(const float2 co) const
   return std::nullopt;
 }
 
-float3 DrawingPlacement::project_depth_or_view(const float2 co) const
+float3 DrawingPlacement::try_project_depth(const float2 co) const
 {
   if (std::optional<float3> proj_point = this->project_depth(co)) {
     return *proj_point;
@@ -342,7 +342,7 @@ float3 DrawingPlacement::project(const float2 co) const
   float3 proj_point;
   if (depth_ == DrawingPlacementDepth::Surface) {
     /* Project using the viewport depth cache. */
-    proj_point = this->project_depth_or_view(co);
+    proj_point = this->try_project_depth(co);
   }
   else {
     if (placement_plane_) {
@@ -360,7 +360,7 @@ float3 DrawingPlacement::project_with_shift(const float2 co) const
   float3 proj_point;
   if (depth_ == DrawingPlacementDepth::Surface) {
     /* Project using the viewport depth cache. */
-    proj_point = this->project_depth_or_view(co);
+    proj_point = this->try_project_depth(co);
   }
   else {
     if (placement_plane_) {
@@ -394,7 +394,7 @@ float3 DrawingPlacement::reproject(const float3 pos) const
       return pos;
     }
     /* Project using the viewport depth cache. */
-    proj_point = this->project_depth_or_view(co);
+    proj_point = this->try_project_depth(co);
   }
   else {
     /* Reproject the point onto the `placement_plane_` from the current view. */
