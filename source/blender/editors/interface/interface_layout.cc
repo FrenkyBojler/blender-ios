@@ -5019,11 +5019,11 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
 uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
                                           uiLayout *layout,
                                           PointerRNA *open_prop_owner,
-                                          const char *open_prop_name,
-                                          const char *bool_prop_name,
-                                          const std::optional<const char *> label)
+                                          const StringRefNull open_prop_name,
+                                          const StringRefNull bool_prop_name,
+                                          const std::optional<StringRefNull> label)
 {
-  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
+  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name.c_str());
 
   uiLayout *panel_header = panel.header;
   panel_header->flag &= ~(UI_ITEM_PROP_SEP | UI_ITEM_PROP_DECORATE | UI_ITEM_INSIDE_PROP_SEP);

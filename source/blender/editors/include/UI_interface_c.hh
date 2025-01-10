@@ -2420,9 +2420,9 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
 uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
                                           uiLayout *layout,
                                           PointerRNA *open_prop_owner,
-                                          const char *open_prop_name,
-                                          const char *bool_prop_name,
-                                          const std::optional<const char *> label);
+                                          const blender::StringRefNull open_prop_name,
+                                          const blender::StringRefNull bool_prop_name,
+                                          const std::optional<blender::StringRefNull> label);
 
 /**
  * Variant of #uiLayoutPanelProp that automatically stores the open-close-state in the root
