@@ -19,6 +19,7 @@
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 
 #include "BLI_fnmatch.h"
 #include "BLI_path_utils.hh"
@@ -42,6 +43,7 @@
 #include "DNA_space_types.h"
 
 #include "GPU_immediate.hh"
+#include "UI_interface_c.hh"
 #include "UI_resources.hh"
 
 namespace blender::ed::asset {
@@ -1003,9 +1005,39 @@ static bool has_external_files(Main *bmain, ReportList *reports)
 }
 
 struct ScreenshotOperatorData {
-  bool dragging;
   void *draw_handle;
+  blender::int2 start, end;
+  bool dragging;
+  bool force_square;
 };
+
+/* Sort points so p1 is lower left, and p2 is top right. */
+static void sort_points(blender::int2 &p1, blender::int2 &p2)
+{
+  if (p1.x > p2.x) {
+    const int swap = p1.x;
+    p1.x = p2.x;
+    p2.x = swap;
+  }
+  if (p1.y > p2.y) {
+    const int swap = p1.y;
+    p1.y = p2.y;
+    p2.y = swap;
+  }
+}
+
+static void square_points(blender::int2 &p1, blender::int2 &p2)
+{
+  blender::int2 delta = p2 - p1;
+  if (std::abs(delta.x) < std::abs(delta.y)) {
+    delta.x = (delta.x / std::abs(delta.x)) * std::abs(delta.y);
+  }
+  else if (std::abs(delta.y) < std::abs(delta.x)) {
+    delta.y = (delta.y / std::abs(delta.y)) * std::abs(delta.x);
+  }
+  p2.x = p1.x + delta.x;
+  p2.y = p1.y + delta.y;
+}
 
 static int screenshot_preview_exec(bContext *C, wmOperator *op)
 {
@@ -1013,29 +1045,11 @@ static int screenshot_preview_exec(bContext *C, wmOperator *op)
   RNA_int_get_array(op->ptr, "p1", p1);
   RNA_int_get_array(op->ptr, "p2", p2);
 
-  /* Sort points so p1 is lower left, and p2 is top right. */
-  if (p1.x > p2.x) {
-    int swap = p1.x;
-    p1.x = p2.x;
-    p2.x = swap;
-  }
-  if (p1.y > p2.y) {
-    int swap = p1.y;
-    p1.y = p2.y;
-    p2.y = swap;
+  if (RNA_boolean_get(op->ptr, "force_square")) {
+    square_points(p1, p2);
   }
 
-  const bool square = RNA_boolean_get(op->ptr, "force_square");
-  if (square) {
-    blender::int2 delta = p2 - p1;
-    if (delta.x < delta.y) {
-      delta.x = delta.y;
-    }
-    else if (delta.y < delta.x) {
-      delta.y = delta.x;
-    }
-    p2 = p1 + delta;
-  }
+  sort_points(p1, p2);
 
   const int min_side = 16;
   if (p2.x - p1.x < min_side || p2.y - p1.y < min_side) {
@@ -1102,43 +1116,40 @@ static int screenshot_preview_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void screenshot_preview_draw(const bContext *C, ARegion * /*region*/, void *customdata)
+static void screenshot_preview_draw(const wmWindow * /* window */, void *operator_data)
 {
-  const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(operator_data);
+  if (!data->dragging) {
+    return;
+  }
+  blender::int2 p1 = data->start;
+  blender::int2 p2 = data->end;
+  if (data->force_square) {
+    square_points(p1, p2);
+  }
+  sort_points(p1, p2);
 
-  GPU_line_width(1.0f);
-
-  immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
-
-  float viewport_size[4];
-  GPU_viewport_size_get_f(viewport_size);
-  immUniform2f("viewport_size", viewport_size[2] / UI_SCALE_FAC, viewport_size[3] / UI_SCALE_FAC);
-
-  immUniform1i("colors_len", 0); /* "simple" mode */
-  immUniformThemeColor3(TH_VIEW_OVERLAY);
-  immUniform1f("dash_width", 6.0f);
-  immUniform1f("udash_factor", 0.5f);
-
-  immBegin(GPU_PRIM_LINES, 2);
-  // immVertex2fv(shdr_pos, blender::float2(p1));
-  // immVertex2fv(shdr_pos, blender::float2(p2));
-  immEnd();
-
-  immUnbindProgram();
-
-  ED_area_tag_redraw(CTX_wm_area(C));
+  /* Drawing rect just out of the screenshot area to not capture the box in the picture. */
+  const rctf rect = {float(p1.x - 1), float(p2.x + 1), float(p1.y - 1), float(p2.y + 1)};
+  blender::float4 color;
+  UI_GetThemeColor4fv(TH_EDITOR_BORDER, color);
+  UI_draw_roundbox_aa(&rect, false, 0, color);
 }
 
-static void screenshot_preview_exit(bContext *C)
+static void screenshot_preview_exit(bContext *C, wmOperator *op)
 {
   wmWindow *win = CTX_wm_window(C);
   WM_cursor_set(win, WM_CURSOR_DEFAULT);
+  ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
+  WM_draw_cb_exit(win, data->draw_handle);
+  MEM_freeN(data);
 }
 
 static int screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
+
+  ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
 
   blender::int2 screen_space_mouse = {
       event->mval[0] + region->winrct.xmin,
@@ -1148,26 +1159,27 @@ static int screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *
     switch (event->val) {
       case KM_PRESS: {
         RNA_int_set_array(op->ptr, "p1", screen_space_mouse);
+        data->start = screen_space_mouse;
+        data->dragging = true;
         return OPERATOR_RUNNING_MODAL;
       }
       case KM_RELEASE: {
         RNA_int_set_array(op->ptr, "p2", screen_space_mouse);
         screenshot_preview_exec(C, op);
-        screenshot_preview_exit(C);
+        screenshot_preview_exit(C, op);
         return OPERATOR_FINISHED;
       }
     }
   }
 
   if (event->type == MOUSEMOVE) {
-    RNA_int_set_array(op->ptr, "p2", screen_space_mouse);
-    blender::int2 p1;
-    RNA_int_get_array(op->ptr, "p1", p1);
-    // screenshot_preview_draw(C, p1, screen_space_mouse);
+    data->end = screen_space_mouse;
+    CTX_wm_screen(C)->do_draw = true;
   }
 
   if (ELEM(event->type, RIGHTMOUSE, EVT_ESCKEY)) {
-    screenshot_preview_exit(C);
+    screenshot_preview_exit(C, op);
+    CTX_wm_screen(C)->do_draw = true;
     return OPERATOR_CANCELLED;
   }
 
@@ -1176,13 +1188,18 @@ static int screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *
 
 static int screenshot_preview_invoke(bContext *C, wmOperator *op, const wmEvent * /* event */)
 {
-  WM_event_add_modal_handler(C, op);
-
   wmWindow *win = CTX_wm_window(C);
   WM_cursor_set(win, WM_CURSOR_CROSS);
 
   op->customdata = MEM_callocN(sizeof(ScreenshotOperatorData), __func__);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
+  data->draw_handle = WM_draw_cb_activate(win, screenshot_preview_draw, data);
+  data->dragging = false;
+  data->start = {0, 0};
+  data->end = {0, 0};
+  data->force_square = RNA_boolean_get(op->ptr, "force_square");
+
+  WM_event_add_modal_handler(C, op);
 
   return OPERATOR_RUNNING_MODAL;
 }
