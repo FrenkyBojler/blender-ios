@@ -787,6 +787,7 @@ class ASSETBROWSER_MT_metadata_preview_menu(bpy.types.Menu):
     def draw(self, _context):
         layout = self.layout
         layout.operator("ed.lib_id_generate_preview_from_object", text="Render Active Object")
+        layout.operator("asset.screenshot_preview")
 
 
 class ASSETBROWSER_PT_metadata_tags(asset_utils.AssetMetaDataPanel, Panel):
@@ -845,10 +846,6 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
 
         if params.display_type == 'THUMBNAIL':
             layout.prop_menu_enum(params, "display_size_discrete")
-            op_ctx = layout.operator_context
-            layout.operator_context = 'INVOKE_DEFAULT'
-            layout.operator("asset.screenshot_preview")
-            layout.operator_context = op_ctx
         layout.prop_menu_enum(params, "sort_method")
 
 

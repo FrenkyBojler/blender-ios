@@ -1245,7 +1245,7 @@ static bool screenshot_preview_poll(bContext *C)
 /* This should be a generic operator for assets not linked to the poselib. */
 static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
 {
-  ot->name = "Capture screenshot thumbnail";
+  ot->name = "Capture screenshot preview";
   ot->description = "Capture a screenshot to use as a preview for the selected asset";
   ot->idname = "ASSET_OT_screenshot_preview";
 
