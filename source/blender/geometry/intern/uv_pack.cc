@@ -8,7 +8,7 @@
 
 #include "GEO_uv_pack.hh"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "BLI_array.hh"
 #include "BLI_bounds.hh"
@@ -24,7 +24,6 @@
 #include "BLI_rect.h"
 #include "BLI_vector.hh"
 
-#include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
@@ -32,23 +31,23 @@
 
 namespace blender::geometry {
 
-/* Store information about an island's placement such as translation, rotation and reflection. */
-class uv_phi {
+/** Store information about an island's placement such as translation, rotation and reflection. */
+class UVPhi {
  public:
-  uv_phi();
+  UVPhi();
   bool is_valid() const;
 
   float2 translation;
   float rotation;
-  /* bool reflect; */
+  // bool reflect;
 };
 
-uv_phi::uv_phi() : translation(-1.0f, -1.0f), rotation(0.0f)
+UVPhi::UVPhi() : translation(-1.0f, -1.0f), rotation(0.0f)
 {
   /* Initialize invalid. */
 }
 
-bool uv_phi::is_valid() const
+bool UVPhi::is_valid() const
 {
   return translation.x != -1.0f;
 }
@@ -84,10 +83,10 @@ static float dist_signed_squared_to_edge(const float2 probe, const float2 uva, c
   const float2 edge = uvb - uva;
   const float2 side = probe - uva;
 
-  const float edge_length_squared = blender::math::length_squared(edge);
+  const float edge_length_squared = math::length_squared(edge);
   /* Tolerance here is to avoid division by zero later. */
   if (edge_length_squared < 1e-40f) {
-    return blender::math::length_squared(side);
+    return math::length_squared(side);
   }
 
   const float numerator = edge.x * side.y - edge.y * side.x; /* c.f. cross product. */
@@ -107,11 +106,31 @@ static float get_aspect_scaled_extent(const rctf &extent, const UVPackIsland_Par
 }
 
 /**
+ * \return the area of `extent`, factoring in the target aspect ratio.
+ */
+static float get_aspect_scaled_area(const rctf &extent, const UVPackIsland_Params &params)
+{
+  const float width = BLI_rctf_size_x(&extent);
+  const float height = BLI_rctf_size_y(&extent);
+  return (width / params.target_aspect_y) * height;
+}
+
+/**
  * \return true if `b` is a preferred layout over `a`, given the packing parameters supplied.
  */
 static bool is_larger(const rctf &a, const rctf &b, const UVPackIsland_Params &params)
 {
-  return get_aspect_scaled_extent(b, params) < get_aspect_scaled_extent(a, params);
+  const float extent_a = get_aspect_scaled_extent(a, params);
+  const float extent_b = get_aspect_scaled_extent(b, params);
+
+  /* Equal extent, use smaller area. */
+  if (compare_ff_relative(extent_a, extent_b, FLT_EPSILON, 64)) {
+    const float area_a = get_aspect_scaled_area(a, params);
+    const float area_b = get_aspect_scaled_area(b, params);
+    return area_b < area_a;
+  }
+
+  return extent_b < extent_a;
 }
 
 PackIsland::PackIsland()
@@ -142,7 +161,7 @@ void PackIsland::add_triangle(const float2 uv0, const float2 uv1, const float2 u
   }
 }
 
-void PackIsland::add_polygon(const blender::Span<float2> uvs, MemArena *arena, Heap *heap)
+void PackIsland::add_polygon(const Span<float2> uvs, MemArena *arena, Heap *heap)
 {
   /* Internally, PackIsland uses triangles as the primitive, so we have to triangulate. */
 
@@ -197,11 +216,18 @@ static float angle_match(float angle_radians, float target_radians)
   return angle_radians;
 }
 
+static float angle_wrap(float angle_radians)
+{
+  angle_radians = angle_radians - floorf((angle_radians + M_PI_2) / M_PI) * M_PI;
+  BLI_assert(DEG2RADF(-90.0f) <= angle_radians);
+  BLI_assert(angle_radians <= DEG2RADF(90.0f));
+  return angle_radians;
+}
+
 /** Angle rounding helper for "D4" transforms. */
 static float plusminus_90_angle(float angle_radians)
 {
-  angle_radians = angle_radians - floorf((angle_radians + M_PI_2) / M_PI) * M_PI;
-
+  angle_radians = angle_wrap(angle_radians);
   angle_radians = angle_match(angle_radians, DEG2RADF(-90.0f));
   angle_radians = angle_match(angle_radians, DEG2RADF(0.0f));
   angle_radians = angle_match(angle_radians, DEG2RADF(90.0f));
@@ -213,15 +239,19 @@ static float plusminus_90_angle(float angle_radians)
 void PackIsland::calculate_pre_rotation_(const UVPackIsland_Params &params)
 {
   pre_rotate_ = 0.0f;
-  if (!can_rotate_(params)) {
-    return; /* Nothing to do. */
-  }
   if (params.rotate_method == ED_UVPACK_ROTATION_CARDINAL) {
     /* Arbitrary rotations are not allowed. */
     return;
   }
-  BLI_assert(params.rotate_method == ED_UVPACK_ROTATION_ANY ||
-             params.rotate_method == ED_UVPACK_ROTATION_AXIS_ALIGNED);
+  if (!can_rotate_before_pack_(params)) {
+    return; /* Nothing to do. */
+  }
+
+  BLI_assert(ELEM(params.rotate_method,
+                  ED_UVPACK_ROTATION_ANY,
+                  ED_UVPACK_ROTATION_AXIS_ALIGNED,
+                  ED_UVPACK_ROTATION_AXIS_ALIGNED_X,
+                  ED_UVPACK_ROTATION_AXIS_ALIGNED_Y));
 
   /* As a heuristic to improve layout efficiency, #PackIsland's are first rotated by an
    * angle which minimizes the area of the enclosing AABB. This angle is stored in the
@@ -234,7 +264,7 @@ void PackIsland::calculate_pre_rotation_(const UVPackIsland_Params &params)
 
   /* TODO: Use "Rotating Calipers" directly. */
   {
-    blender::Array<float2> coords(triangle_vertices_.size());
+    Array<float2> coords(triangle_vertices_.size());
     for (const int64_t i : triangle_vertices_.index_range()) {
       coords[i].x = triangle_vertices_[i].x * aspect_y;
       coords[i].y = triangle_vertices_[i].y;
@@ -254,11 +284,30 @@ void PackIsland::calculate_pre_rotation_(const UVPackIsland_Params &params)
 
       Bounds<float2> island_bounds = *bounds::min_max(coords.as_span());
       float2 diagonal = island_bounds.max - island_bounds.min;
-      if (diagonal.y < diagonal.x) {
-        angle += DEG2RADF(90.0f);
+      switch (params.rotate_method) {
+        case ED_UVPACK_ROTATION_AXIS_ALIGNED_X: {
+          if (diagonal.x < diagonal.y) {
+            angle += DEG2RADF(90.0f);
+          }
+          pre_rotate_ = angle_wrap(angle);
+          break;
+        }
+        case ED_UVPACK_ROTATION_AXIS_ALIGNED_Y: {
+          if (diagonal.x > diagonal.y) {
+            angle += DEG2RADF(90.0f);
+          }
+          pre_rotate_ = angle_wrap(angle);
+          break;
+        }
+        default: {
+          if (diagonal.y < diagonal.x) {
+            angle += DEG2RADF(90.0f);
+          }
+          pre_rotate_ = plusminus_90_angle(angle);
+          break;
+        }
       }
     }
-    pre_rotate_ = plusminus_90_angle(angle);
   }
   if (!pre_rotate_) {
     return;
@@ -274,6 +323,8 @@ void PackIsland::calculate_pre_rotation_(const UVPackIsland_Params &params)
 
 void PackIsland::finalize_geometry_(const UVPackIsland_Params &params, MemArena *arena, Heap *heap)
 {
+  BLI_assert(BLI_heap_len(heap) == 0);
+
   /* After all the triangles and polygons have been added to a #PackIsland, but before we can start
    * running packing algorithms, there is a one-time finalization process where we can
    * pre-calculate a few quantities about the island, including pre-rotation, bounding box, or
@@ -304,16 +355,16 @@ void PackIsland::finalize_geometry_(const UVPackIsland_Params &params, MemArena 
 
     /* Compute convex hull. */
     int convex_len = BLI_convexhull_2d(source, vert_count, index_map);
-
-    /* Write back. */
-    triangle_vertices_.clear();
-    blender::Array<float2> convexVertices(convex_len);
-    for (int i = 0; i < convex_len; i++) {
-      convexVertices[i] = source[index_map[i]];
+    if (convex_len >= 3) {
+      /* Write back. */
+      triangle_vertices_.clear();
+      float2 *convex_verts = static_cast<float2 *>(
+          BLI_memarena_alloc(arena, sizeof(*convex_verts) * convex_len));
+      for (int i = 0; i < convex_len; i++) {
+        convex_verts[i] = source[index_map[i]];
+      }
+      add_polygon(Span(convex_verts, convex_len), arena, heap);
     }
-    add_polygon(convexVertices, arena, heap);
-
-    BLI_heap_clear(heap, nullptr);
   }
 
   /* Pivot calculation might be performed multiple times during pre-processing.
@@ -347,7 +398,7 @@ void PackIsland::calculate_pivot_()
   BLI_assert(half_diagonal_.y >= 0.0f);
 }
 
-void PackIsland::place_(const float scale, const uv_phi phi)
+void PackIsland::place_(const float scale, const UVPhi phi)
 {
   angle = phi.rotation + pre_rotate_;
 
@@ -408,7 +459,7 @@ static void pack_islands_alpaca_turbo(const int64_t exclude_index,
                                       const rctf &exclude,
                                       const Span<std::unique_ptr<UVAABBIsland>> islands,
                                       const float target_aspect_y,
-                                      MutableSpan<uv_phi> r_phis,
+                                      MutableSpan<UVPhi> r_phis,
                                       rctf *r_extent)
 {
   /* Exclude an initial AABB near the origin. */
@@ -440,7 +491,7 @@ static void pack_islands_alpaca_turbo(const int64_t exclude_index,
     }
 
     /* Place the island. */
-    uv_phi &phi = r_phis[island.index];
+    UVPhi &phi = r_phis[island.index];
     phi.rotation = 0.0f;
     phi.translation.x = u0 + dsm_u * 0.5f;
     phi.translation.y = v0 + dsm_v * 0.5f;
@@ -519,7 +570,7 @@ static void pack_islands_alpaca_rotate(const int64_t exclude_index,
                                        const rctf &exclude,
                                        const Span<std::unique_ptr<UVAABBIsland>> islands,
                                        const float target_aspect_y,
-                                       MutableSpan<uv_phi> r_phis,
+                                       MutableSpan<UVPhi> r_phis,
                                        rctf *r_extent)
 {
   /* Exclude an initial AABB near the origin. */
@@ -538,7 +589,7 @@ static void pack_islands_alpaca_rotate(const int64_t exclude_index,
   /* Visit every island in order, except the excluded islands at the start. */
   for (int64_t index = exclude_index; index < islands.size(); index++) {
     UVAABBIsland &island = *islands[index];
-    uv_phi &phi = r_phis[island.index];
+    UVPhi &phi = r_phis[island.index];
     const float uvdiag_x = island.uv_diagonal.x * island.aspect_y;
     float min_dsm = std::min(uvdiag_x, island.uv_diagonal.y);
     float max_dsm = std::max(uvdiag_x, island.uv_diagonal.y);
@@ -626,7 +677,7 @@ static void pack_islands_fast(const int64_t exclude_index,
                               const Span<std::unique_ptr<UVAABBIsland>> aabbs,
                               const bool rotate,
                               const float target_aspect_y,
-                              MutableSpan<uv_phi> r_phis,
+                              MutableSpan<UVPhi> r_phis,
                               rctf *r_extent)
 {
   if (rotate) {
@@ -641,10 +692,10 @@ static void pack_islands_fast(const int64_t exclude_index,
 static void pack_gobel(const Span<std::unique_ptr<UVAABBIsland>> aabbs,
                        const float scale,
                        const int m,
-                       MutableSpan<uv_phi> r_phis)
+                       MutableSpan<UVPhi> r_phis)
 {
   for (const int64_t i : aabbs.index_range()) {
-    uv_phi &phi = *(uv_phi *)&r_phis[aabbs[i]->index];
+    UVPhi &phi = *(UVPhi *)&r_phis[aabbs[i]->index];
     phi.rotation = 0.0f;
     if (i == 0) {
       phi.translation.x = 0.5f * scale;
@@ -677,12 +728,12 @@ static void pack_gobel(const Span<std::unique_ptr<UVAABBIsland>> aabbs,
 static bool pack_islands_optimal_pack_table(const int table_count,
                                             const float max_extent,
                                             const float *optimal,
-                                            const char * /* unused_comment */,
+                                            const char * /*unused_comment*/,
                                             int64_t island_count,
                                             const float large_uv,
                                             const Span<std::unique_ptr<UVAABBIsland>> aabbs,
                                             const UVPackIsland_Params &params,
-                                            MutableSpan<uv_phi> r_phis,
+                                            MutableSpan<UVPhi> r_phis,
                                             rctf *r_extent)
 {
   if (table_count < island_count) {
@@ -695,7 +746,7 @@ static bool pack_islands_optimal_pack_table(const int table_count,
   *r_extent = extent;
 
   for (int i = 0; i < island_count; i++) {
-    uv_phi &phi = r_phis[aabbs[i]->index];
+    UVPhi &phi = r_phis[aabbs[i]->index];
     phi.translation.x = optimal[i * 3 + 0] * large_uv;
     phi.translation.y = optimal[i * 3 + 1] * large_uv;
     phi.rotation = optimal[i * 3 + 2];
@@ -706,7 +757,7 @@ static bool pack_islands_optimal_pack_table(const int table_count,
 /* Attempt to find an "Optimal" packing of the islands, e.g. assuming squares or circles. */
 static void pack_islands_optimal_pack(const Span<std::unique_ptr<UVAABBIsland>> aabbs,
                                       const UVPackIsland_Params &params,
-                                      MutableSpan<uv_phi> r_phis,
+                                      MutableSpan<UVPhi> r_phis,
                                       rctf *r_extent)
 {
   if (params.shape_method == ED_UVPACK_SHAPE_AABB) {
@@ -1039,7 +1090,7 @@ static void pack_islands_optimal_pack(const Span<std::unique_ptr<UVAABBIsland>> 
 /* Wrapper around #BLI_box_pack_2d. */
 static void pack_island_box_pack_2d(const Span<std::unique_ptr<UVAABBIsland>> aabbs,
                                     const UVPackIsland_Params &params,
-                                    MutableSpan<uv_phi> r_phis,
+                                    MutableSpan<UVPhi> r_phis,
                                     rctf *r_extent)
 {
   /* Allocate storage. */
@@ -1066,7 +1117,7 @@ static void pack_island_box_pack_2d(const Span<std::unique_ptr<UVAABBIsland>> aa
     /* Write back box_pack UVs. */
     for (const int64_t i : aabbs.index_range()) {
       BoxPack *box = box_array + i;
-      uv_phi &phi = *(uv_phi *)&r_phis[aabbs[i]->index];
+      UVPhi &phi = *(UVPhi *)&r_phis[aabbs[i]->index];
       phi.rotation = 0.0f; /* #BLI_box_pack_2d never rotates. */
       phi.translation.x = (box->x + box->w * 0.5f) * params.target_aspect_y;
       phi.translation.y = (box->y + box->h * 0.5f);
@@ -1100,7 +1151,7 @@ class Occupancy {
 
   /* Write or Query an island on the bitmap. */
   float trace_island(const PackIsland *island,
-                     const uv_phi phi,
+                     const UVPhi phi,
                      const float scale,
                      const float margin,
                      const bool write) const;
@@ -1108,7 +1159,7 @@ class Occupancy {
   int bitmap_radix;              /* Width and Height of `bitmap`. */
   float bitmap_scale_reciprocal; /* == 1.0f / `bitmap_scale`. */
  private:
-  mutable blender::Array<float> bitmap_;
+  mutable Array<float> bitmap_;
 
   mutable float2 witness_;         /* Witness to a previously known occupied pixel. */
   mutable float witness_distance_; /* Signed distance to nearest placed island. */
@@ -1158,9 +1209,9 @@ static float signed_distance_fat_triangle(const float2 probe,
     return -sqrtf(-result_ssq);
   }
   BLI_assert(result_ssq >= 0.0f);
-  result_ssq = std::min(result_ssq, blender::math::length_squared(probe - uv0));
-  result_ssq = std::min(result_ssq, blender::math::length_squared(probe - uv1));
-  result_ssq = std::min(result_ssq, blender::math::length_squared(probe - uv2));
+  result_ssq = std::min(result_ssq, math::length_squared(probe - uv0));
+  result_ssq = std::min(result_ssq, math::length_squared(probe - uv1));
+  result_ssq = std::min(result_ssq, math::length_squared(probe - uv2));
   BLI_assert(result_ssq >= 0.0f);
   return sqrtf(result_ssq);
 }
@@ -1256,7 +1307,7 @@ float2 PackIsland::get_diagonal_support(const float scale,
 }
 
 float Occupancy::trace_island(const PackIsland *island,
-                              const uv_phi phi,
+                              const UVPhi phi,
                               const float scale,
                               const float margin,
                               const bool write) const
@@ -1300,14 +1351,14 @@ float Occupancy::trace_island(const PackIsland *island,
   return -1.0f; /* Available. */
 }
 
-static uv_phi find_best_fit_for_island(const PackIsland *island,
-                                       const int scan_line,
-                                       Occupancy &occupancy,
-                                       const float scale,
-                                       const int angle_90_multiple,
-                                       /* TODO: const bool reflect, */
-                                       const float margin,
-                                       const float target_aspect_y)
+static UVPhi find_best_fit_for_island(const PackIsland *island,
+                                      const int scan_line,
+                                      const Occupancy &occupancy,
+                                      const float scale,
+                                      const int angle_90_multiple,
+                                      /* TODO: const bool reflect, */
+                                      const float margin,
+                                      const float target_aspect_y)
 {
   /* Discussion: Different xatlas implementation make different choices here, either
    * fixing the output bitmap size before packing begins, or sometimes allowing
@@ -1336,9 +1387,9 @@ static uv_phi find_best_fit_for_island(const PackIsland *island,
   const int scan_line_x = int(scan_line * sqrt_target_aspect_y);
   const int scan_line_y = int(scan_line / sqrt_target_aspect_y);
 
-  uv_phi phi;
+  UVPhi phi;
   phi.rotation = DEG2RADF(angle_90_multiple * 90);
-  /* phi.reflect = reflect; */
+  // phi.reflect = reflect;
   float matrix[2][2];
   island->build_transformation(scale, phi.rotation, matrix);
 
@@ -1367,7 +1418,7 @@ static uv_phi find_best_fit_for_island(const PackIsland *island,
     t = t + std::max(1, int(extent));
   }
 
-  return uv_phi(); /* Unable to find a place to fit. */
+  return UVPhi(); /* Unable to find a place to fit. */
 }
 
 static float guess_initial_scale(const Span<PackIsland *> islands,
@@ -1394,8 +1445,8 @@ class UVMinimumEnclosingSquareFinder {
   float best_angle;
   rctf best_bounds;
 
-  blender::Vector<float2> points;
-  blender::Vector<int> indices;
+  Vector<float2> points;
+  Vector<int> indices;
 
   UVMinimumEnclosingSquareFinder(const float scale,
                                  const float margin,
@@ -1470,10 +1521,10 @@ static bool rotate_inside_square(const Span<std::unique_ptr<UVAABBIsland>> islan
                                  const UVPackIsland_Params &params,
                                  const float scale,
                                  const float margin,
-                                 MutableSpan<uv_phi> r_phis,
+                                 MutableSpan<UVPhi> r_phis,
                                  rctf *r_extent)
 {
-  if (island_indices.size() == 0) {
+  if (island_indices.is_empty()) {
     return false; /* Nothing to do. */
   }
   if (params.rotate_method != ED_UVPACK_ROTATION_ANY) {
@@ -1573,13 +1624,13 @@ static int64_t pack_island_xatlas(const Span<std::unique_ptr<UVAABBIsland>> isla
                                   const float scale,
                                   const float margin,
                                   const UVPackIsland_Params &params,
-                                  MutableSpan<uv_phi> r_phis,
+                                  MutableSpan<UVPhi> r_phis,
                                   rctf *r_extent)
 {
   if (params.shape_method == ED_UVPACK_SHAPE_AABB) {
     return 0; /* Not yet supported. */
   }
-  blender::Array<uv_phi> phis(r_phis.size());
+  Array<UVPhi> phis(r_phis.size());
   Occupancy occupancy(guess_initial_scale(islands, scale, margin));
   rctf extent = {0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -1617,7 +1668,7 @@ static int64_t pack_island_xatlas(const Span<std::unique_ptr<UVAABBIsland>> isla
     }
 
     PackIsland *island = islands[island_indices[i]->index];
-    uv_phi phi; /* Create an identity transform. */
+    UVPhi phi; /* Create an identity transform. */
 
     if (!island->can_translate_(params)) {
       /* Move the pinned island into the correct coordinate system. */
@@ -1756,7 +1807,7 @@ static float pack_islands_scale_margin(const Span<PackIsland *> islands,
                                        const float scale,
                                        const float margin,
                                        const UVPackIsland_Params &params,
-                                       MutableSpan<uv_phi> r_phis)
+                                       MutableSpan<UVPhi> r_phis)
 {
   /* #BLI_box_pack_2d produces layouts with high packing efficiency, but has `O(n^3)`
    * time complexity, causing poor performance if there are lots of islands. See: #102843.
@@ -1866,7 +1917,7 @@ static float pack_islands_scale_margin(const Span<PackIsland *> islands,
       BLI_rctf_do_minmax_v(&locked_bounds, top_right);
     }
 
-    uv_phi &phi = r_phis[aabbs[i]->index]; /* Lock in place. */
+    UVPhi &phi = r_phis[aabbs[i]->index]; /* Lock in place. */
     phi.translation = pack_island->pivot_;
     sub_v2_v2(phi.translation, params.udim_base_offset);
     phi.rotation = 0.0f;
@@ -1919,8 +1970,10 @@ static float pack_islands_scale_margin(const Span<PackIsland *> islands,
 
   /* At this stage, `extent` contains the fast/optimal/box_pack/xatlas UVs. */
 
-  if (all_can_rotate) {
-    /* Attempt to improve the layout even further by finding the minimal-bounding-square. */
+  /* If more islands remain to be packed, attempt to improve the layout further by finding the
+   * minimal-bounding-square. Disabled for other cases as users often prefer to avoid diagonal
+   * islands. */
+  if (all_can_rotate && aabbs.size() > slow_aabbs.size()) {
     rotate_inside_square(slow_aabbs, islands, params, scale, margin, r_phis, &extent);
   }
 
@@ -1947,7 +2000,7 @@ static float pack_islands_scale_margin(const Span<PackIsland *> islands,
  * Find the optimal scale to pack islands into the unit square.
  * returns largest scale that will pack `islands` into the unit square.
  */
-static float pack_islands_margin_fraction(const Span<PackIsland *> &islands,
+static float pack_islands_margin_fraction(const Span<PackIsland *> islands,
                                           const float margin_fraction,
                                           const bool rescale_margin,
                                           const UVPackIsland_Params &params)
@@ -1964,9 +2017,9 @@ static float pack_islands_margin_fraction(const Span<PackIsland *> &islands,
   float scale_high = 0.0f;
   float value_high = 0.0f;
 
-  blender::Array<uv_phi> phis_a(islands.size());
-  blender::Array<uv_phi> phis_b(islands.size());
-  blender::Array<uv_phi> *phis_low = nullptr;
+  Array<UVPhi> phis_a(islands.size());
+  Array<UVPhi> phis_b(islands.size());
+  Array<UVPhi> *phis_low = nullptr;
 
   /* Scaling smaller than `min_scale_roundoff` is unlikely to fit and
    * will destroy information in existing UVs. */
@@ -2022,7 +2075,7 @@ static float pack_islands_margin_fraction(const Span<PackIsland *> &islands,
     scale = std::max(scale, min_scale_roundoff);
 
     /* Evaluate our `f`. */
-    blender::Array<uv_phi> *phis_target = (phis_low == &phis_a) ? &phis_b : &phis_a;
+    Array<UVPhi> *phis_target = (phis_low == &phis_a) ? &phis_b : &phis_a;
     const float margin = rescale_margin ? margin_fraction * scale : margin_fraction;
     const float max_uv = pack_islands_scale_margin(islands, scale, margin, params, *phis_target) /
                          params.target_extent;
@@ -2061,7 +2114,7 @@ static float pack_islands_margin_fraction(const Span<PackIsland *> &islands,
   return scale_low;
 }
 
-static float calc_margin_from_aabb_length_sum(const Span<PackIsland *> &island_vector,
+static float calc_margin_from_aabb_length_sum(const Span<PackIsland *> island_vector,
                                               const UVPackIsland_Params &params)
 {
   /* Logic matches previous behavior from #geometry::uv_parametrizer_pack.
@@ -2138,7 +2191,7 @@ class OverlapMerger {
   }
 
   /** Return a new root of the binary tree, with `a` and `b` as leaves. */
-  static PackIsland *merge_islands(PackIsland *a, PackIsland *b)
+  static PackIsland *merge_islands(const PackIsland *a, const PackIsland *b)
   {
     PackIsland *result = new PackIsland();
     result->aspect_y = sqrtf(a->aspect_y * b->aspect_y);
@@ -2150,7 +2203,7 @@ class OverlapMerger {
     return result;
   }
 
-  static float pack_islands_overlap(const Span<PackIsland *> &islands,
+  static float pack_islands_overlap(const Span<PackIsland *> islands,
                                     const UVPackIsland_Params &params)
   {
 
@@ -2160,8 +2213,8 @@ class OverlapMerger {
      *
      * Technically, performance is O(n^2). In practice, should be fast enough. */
 
-    blender::Vector<PackIsland *> sub_islands; /* Pack these islands instead. */
-    blender::Vector<PackIsland *> merge_trace; /* Trace merge information. */
+    Vector<PackIsland *> sub_islands; /* Pack these islands instead. */
+    Vector<PackIsland *> merge_trace; /* Trace merge information. */
     for (const int64_t i : islands.index_range()) {
       PackIsland *island = islands[i];
       island->calculate_pivot_();
@@ -2210,7 +2263,7 @@ class OverlapMerger {
   }
 };
 
-static void finalize_geometry(const Span<PackIsland *> &islands, const UVPackIsland_Params &params)
+static void finalize_geometry(const Span<PackIsland *> islands, const UVPackIsland_Params &params)
 {
   MemArena *arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
   Heap *heap = BLI_heap_new();
@@ -2223,12 +2276,12 @@ static void finalize_geometry(const Span<PackIsland *> &islands, const UVPackIsl
   BLI_memarena_free(arena);
 }
 
-float pack_islands(const Span<PackIsland *> &islands, const UVPackIsland_Params &params)
+float pack_islands(const Span<PackIsland *> islands, const UVPackIsland_Params &params)
 {
   BLI_assert(0.0f <= params.margin);
   BLI_assert(0.0f <= params.target_aspect_y);
 
-  if (islands.size() == 0) {
+  if (islands.is_empty()) {
     return 1.0f; /* Nothing to do, just create a safe default. */
   }
 
@@ -2282,7 +2335,7 @@ float pack_islands(const Span<PackIsland *> &islands, const UVPackIsland_Params 
 
   /* Either all of the islands can scale, or none of them can.
    * In either case, we pack them all tight to the origin. */
-  blender::Array<uv_phi> phis(islands.size());
+  Array<UVPhi> phis(islands.size());
   const float scale = 1.0f;
   const float max_uv = pack_islands_scale_margin(islands, scale, margin, params, phis);
   const float result = can_scale_count && max_uv > 1e-14f ? params.target_extent / max_uv : 1.0f;
@@ -2332,12 +2385,20 @@ void PackIsland::build_inverse_transformation(const float scale,
 #endif
 }
 
-bool PackIsland::can_rotate_(const UVPackIsland_Params &params) const
+static bool can_rotate_with_method(const PackIsland &island,
+                                   const UVPackIsland_Params &params,
+                                   const eUVPackIsland_RotationMethod rotate_method)
 {
-  if (params.rotate_method == ED_UVPACK_ROTATION_NONE) {
+  /* When axis aligned along X/Y coordinates, rotation is performed once early on,
+   * but no rotation is allowed when packing. */
+  if (ELEM(rotate_method,
+           ED_UVPACK_ROTATION_NONE,
+           ED_UVPACK_ROTATION_AXIS_ALIGNED_X,
+           ED_UVPACK_ROTATION_AXIS_ALIGNED_Y))
+  {
     return false;
   }
-  if (!pinned) {
+  if (!island.pinned) {
     return true;
   }
   switch (params.pin_method) {
@@ -2348,6 +2409,20 @@ bool PackIsland::can_rotate_(const UVPackIsland_Params &params) const
     default:
       return true;
   }
+}
+
+bool PackIsland::can_rotate_before_pack_(const UVPackIsland_Params &params) const
+{
+  eUVPackIsland_RotationMethod rotate_method = params.rotate_method;
+  if (ELEM(rotate_method, ED_UVPACK_ROTATION_AXIS_ALIGNED_X, ED_UVPACK_ROTATION_AXIS_ALIGNED_Y)) {
+    rotate_method = ED_UVPACK_ROTATION_AXIS_ALIGNED;
+  }
+  return can_rotate_with_method(*this, params, rotate_method);
+}
+
+bool PackIsland::can_rotate_(const UVPackIsland_Params &params) const
+{
+  return can_rotate_with_method(*this, params, params.rotate_method);
 }
 
 bool PackIsland::can_scale_(const UVPackIsland_Params &params) const

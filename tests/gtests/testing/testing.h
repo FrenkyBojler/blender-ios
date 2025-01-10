@@ -6,15 +6,15 @@
 
 #include <vector>
 
-#include "gflags/gflags.h"
-#include "glog/logging.h"
-#include "gtest/gtest.h"
+#include <gflags/gflags.h>  // IWYU pragma: export
+#include <glog/logging.h>   // IWYU pragma: export
+#include <gtest/gtest.h>    // IWYU pragma: export
 
 namespace blender::tests {
 
 /* These strings are passed on the CLI with the --test-asset-dir and --test-release-dir arguments.
  * The arguments are added automatically when invoking tests via `ctest`. */
-const std::string &flags_test_asset_dir();   /* ../lib/tests in the SVN directory. */
+const std::string &flags_test_asset_dir();   /* tests/data in the Blender repository. */
 const std::string &flags_test_release_dir(); /* bin/{blender version} in the build directory. */
 
 }  // namespace blender::tests
@@ -148,6 +148,18 @@ inline void EXPECT_EQ_ARRAY_ND(const T *expected, const T *actual, const size_t 
   for (size_t i = 0; i < N; ++i) {
     for (size_t j = 0; j < D; ++j) {
       EXPECT_EQ(expected[i][j], actual[i][j])
+          << "Element mismatch at index " << i << ", component index " << j;
+    }
+  }
+}
+
+template<typename T, typename U>
+inline void EXPECT_NEAR_ARRAY_ND(
+    const T *expected, const T *actual, const size_t N, const size_t D, const U tolerance)
+{
+  for (size_t i = 0; i < N; ++i) {
+    for (size_t j = 0; j < D; ++j) {
+      EXPECT_NEAR(expected[i][j], actual[i][j], tolerance)
           << "Element mismatch at index " << i << ", component index " << j;
     }
   }

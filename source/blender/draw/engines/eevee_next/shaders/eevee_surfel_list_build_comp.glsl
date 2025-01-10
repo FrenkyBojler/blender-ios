@@ -13,14 +13,18 @@
  * Dispatch 1 thread per surfel.
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surfel_list_lib.glsl)
+#include "infos/eevee_lightprobe_volume_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_surfel_list_build)
+
+#include "eevee_surfel_list_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 void main()
 {
   int surfel_index = int(gl_GlobalInvocationID.x);
-  if (surfel_index >= capture_info_buf.surfel_len) {
+  if (surfel_index >= int(capture_info_buf.surfel_len)) {
     return;
   }
 

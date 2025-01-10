@@ -7,6 +7,7 @@
  */
 
 /* This little block needed for linking to Blender... */
+#include <algorithm>
 #include <csetjmp>
 #include <cstdio>
 
@@ -17,22 +18,19 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 
 #include "DNA_ID.h" /* ID property definitions. */
 
-#include "IMB_filetype.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_metadata.h"
-#include "imbuf.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_metadata.hh"
 
 #include <cstring>
 #include <jerror.h>
 #include <jpeglib.h>
-
-#include "IMB_colormanagement.h"
-#include "IMB_colormanagement_intern.h"
 
 /* the types are from the jpeg lib */
 static void jpeg_error(j_common_ptr cinfo) ATTR_NORETURN;
@@ -278,7 +276,7 @@ static ImBuf *ibJpegImageFromCinfo(
     if (max_size > 0) {
       /* `libjpeg` can more quickly decompress while scaling down to 1/2, 1/4, 1/8,
        * while `libjpeg-turbo` can also do 3/8, 5/8, etc. But max is 1/8. */
-      float scale = float(max_size) / MAX2(cinfo->image_width, cinfo->image_height);
+      float scale = float(max_size) / std::max(cinfo->image_width, cinfo->image_height);
       cinfo->scale_denom = 8;
       cinfo->scale_num = max_uu(1, min_uu(8, ceill(scale * float(cinfo->scale_denom))));
       cinfo->dct_method = JDCT_FASTEST;
@@ -294,7 +292,9 @@ static ImBuf *ibJpegImageFromCinfo(
       jpeg_abort_decompress(cinfo);
       ibuf = IMB_allocImBuf(x, y, 8 * depth, 0);
     }
-    else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_rect)) == nullptr) {
+    else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_rect | IB_uninitialized_pixels)) ==
+             nullptr)
+    {
       jpeg_abort_decompress(cinfo);
     }
     else {
@@ -304,7 +304,7 @@ static ImBuf *ibJpegImageFromCinfo(
 
       for (y = ibuf->y - 1; y >= 0; y--) {
         jpeg_read_scanlines(cinfo, row_pointer, 1);
-        rect = ibuf->byte_buffer.data + 4 * y * ibuf->x;
+        rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
         buffer = row_pointer[0];
 
         switch (depth) {
@@ -352,10 +352,13 @@ static ImBuf *ibJpegImageFromCinfo(
         }
 
         /*
-         * JPEG marker strings are not null-terminated,
-         * create a null-terminated copy before going further
-         */
-        str = BLI_strdupn((char *)marker->data, marker->data_length);
+         * JPEG marker strings are not meant to be null-terminated,
+         * create a null-terminated copy before going further.
+         *
+         * Files saved from Blender pre v4.0 were null terminated,
+         * use `BLI_strnlen` to prevent assertion on passing in too short a string. */
+        str = BLI_strdupn((const char *)marker->data,
+                          BLI_strnlen((const char *)marker->data, marker->data_length));
 
         /*
          * Because JPEG format don't support the
@@ -418,16 +421,16 @@ static ImBuf *ibJpegImageFromCinfo(
       /* Density_unit may be 0 for unknown, 1 for dots/inch, or 2 for dots/cm. */
       if (cinfo->density_unit == 1) {
         /* Convert inches to meters. */
-        ibuf->ppm[0] = cinfo->X_density / 0.0254f;
-        ibuf->ppm[1] = cinfo->Y_density / 0.0254f;
+        ibuf->ppm[0] = double(cinfo->X_density) / 0.0254;
+        ibuf->ppm[1] = double(cinfo->Y_density) / 0.0254;
       }
       else if (cinfo->density_unit == 2) {
-        ibuf->ppm[0] = cinfo->X_density * 100.0f;
-        ibuf->ppm[1] = cinfo->Y_density * 100.0f;
+        ibuf->ppm[0] = double(cinfo->X_density) * 100.0;
+        ibuf->ppm[1] = double(cinfo->Y_density) * 100.0;
       }
 
       ibuf->ftype = IMB_FTYPE_JPG;
-      ibuf->foptions.quality = MIN2(ibuf_quality, 100);
+      ibuf->foptions.quality = std::min<char>(ibuf_quality, 100);
     }
     jpeg_destroy((j_common_ptr)cinfo);
   }
@@ -575,13 +578,14 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
       if (prop->type == IDP_STRING) {
         int text_len;
         if (STREQ(prop->name, "None")) {
-          jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)IDP_String(prop), prop->len + 1);
+          jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)IDP_String(prop), prop->len);
         }
 
         char *text = static_text;
         int text_size = static_text_size;
         /* 7 is for Blender, 2 colon separators, length of property
-         * name and property value, followed by the nullptr-terminator. */
+         * name and property value, followed by the nullptr-terminator
+         * which isn't needed by JPEG but #BLI_snprintf_rlen requires it. */
         const int text_length_required = 7 + 2 + strlen(prop->name) + strlen(IDP_String(prop)) + 1;
         if (text_length_required <= static_text_size) {
           text = static_cast<char *>(MEM_mallocN(text_length_required, "jpeg metadata field"));
@@ -599,7 +603,8 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
          */
         text_len = BLI_snprintf_rlen(
             text, text_size, "Blender:%s:%s", prop->name, IDP_String(prop));
-        jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)text, text_len + 1);
+        /* Don't write the null byte (not expected by the JPEG format). */
+        jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)text, text_len);
 
         /* TODO(sergey): Ideally we will try to re-use allocation as
          * much as possible. In practice, such long fields don't happen
@@ -615,7 +620,7 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
       sizeof(JSAMPLE) * cinfo->input_components * cinfo->image_width, "jpeg row_pointer"));
 
   for (y = ibuf->y - 1; y >= 0; y--) {
-    rect = ibuf->byte_buffer.data + 4 * y * ibuf->x;
+    rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
     buffer = row_pointer[0];
 
     switch (cinfo->in_color_space) {

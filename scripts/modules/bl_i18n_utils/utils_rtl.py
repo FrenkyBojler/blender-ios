@@ -58,7 +58,7 @@ FRIBIDI_FLAGS_ARABIC = FRIBIDI_FLAG_SHAPE_ARAB_PRES | FRIBIDI_FLAG_SHAPE_ARAB_LI
 MENU_DETECT_REGEX = re.compile("%x\\d+\\|")
 
 
-##### Kernel processing funcs. #####
+##### Kernel processing functions. #####
 def protect_format_seq(msg):
     """
     Find some specific escaping/formatting sequences (like \", %s, etc.,
@@ -128,7 +128,7 @@ def protect_format_seq(msg):
 def log2vis(msgs, settings):
     """
     Globally mimics deprecated fribidi_log2vis.
-    msgs should be an iterable of messages to rtl-process.
+    msgs should be an iterable of messages to RTL-process.
     """
     fbd = ctypes.CDLL(settings.FRIBIDI_LIB)
 

@@ -2,13 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_listbase.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
 
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
@@ -81,7 +82,10 @@ static KnotsMode knots_mode_from_legacy(const short flag)
 
 Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_list)
 {
-  const Vector<const Nurb *> src_curves(nurbs_list);
+  Vector<const Nurb *> src_curves;
+  LISTBASE_FOREACH (const Nurb *, item, &nurbs_list) {
+    src_curves.append(item);
+  }
   if (src_curves.is_empty()) {
     return nullptr;
   }
@@ -112,7 +116,7 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
   const OffsetIndices points_by_curve = curves.points_by_curve();
   MutableSpan<float3> positions = curves.positions_for_write();
   SpanAttributeWriter<float> radius_attribute =
-      curves_attributes.lookup_or_add_for_write_only_span<float>("radius", ATTR_DOMAIN_POINT);
+      curves_attributes.lookup_or_add_for_write_only_span<float>("radius", AttrDomain::Point);
   MutableSpan<float> radii = radius_attribute.span;
   MutableSpan<float> tilts = curves.tilt_for_write();
 
@@ -199,6 +203,9 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
   curves.normal_mode_for_write().fill(normal_mode_from_legacy(curve_legacy.twist_mode));
 
   radius_attribute.finish();
+
+  curves_id->mat = static_cast<Material **>(MEM_dupallocN(curve_legacy.mat));
+  curves_id->totcol = curve_legacy.totcol;
 
   return curves_id;
 }

@@ -14,12 +14,15 @@ _modules = [
     "add_mesh_torus",
     "anim",
     "assets",
+    "bone_selection_sets",
     "clip",
+    "connect_to_output",
     "console",
     "constraint",
     "file",
     "geometry_nodes",
     "image",
+    "image_as_planes",
     "mesh",
     "node",
     "object",
@@ -31,13 +34,13 @@ _modules = [
     "screen_play_rendered_anim",
     "sequencer",
     "spreadsheet",
-    "text",
     "userpref",
     "uvcalc_follow_active",
     "uvcalc_lightmap",
     "uvcalc_transform",
     "vertexpaint_dirt",
     "view3d",
+    "world",
     "wm",
 ]
 
@@ -54,13 +57,21 @@ del _namespace
 
 def register():
     from bpy.utils import register_class
+    from . import bone_selection_sets
+
     for mod in _modules_loaded:
         for cls in mod.classes:
             register_class(cls)
 
+    bone_selection_sets.register()
+
 
 def unregister():
     from bpy.utils import unregister_class
+    from . import bone_selection_sets
+
+    bone_selection_sets.unregister()
+
     for mod in reversed(_modules_loaded):
         for cls in reversed(mod.classes):
             if cls.is_registered:

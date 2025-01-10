@@ -82,6 +82,12 @@ class GHOST_IWindow {
   virtual std::string getTitle() const = 0;
 
   /**
+   * Sets the file name represented by this window.
+   * \param filepath: The file directory.
+   */
+  virtual GHOST_TSuccess setPath(const char *filepath) = 0;
+
+  /**
    * Returns the window rectangle dimensions.
    * These are screen coordinates.
    * \param bounds: The bounding rectangle of the window.
@@ -133,7 +139,7 @@ class GHOST_IWindow {
   virtual void clientToScreen(int32_t inX, int32_t inY, int32_t &outX, int32_t &outY) const = 0;
 
   /**
-   * Tells if the ongoing drag'n'drop object can be accepted upon mouse drop
+   * Tells if the ongoing drag & drop object can be accepted upon mouse drop
    */
   virtual void setAcceptDragOperation(bool canAccept) = 0;
 
@@ -358,7 +364,5 @@ class GHOST_IWindow {
   virtual void endIME() = 0;
 #endif /* WITH_INPUT_IME */
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_IWindow")
-#endif
 };

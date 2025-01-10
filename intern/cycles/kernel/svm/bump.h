@@ -4,6 +4,16 @@
 
 #pragma once
 
+#include "kernel/globals.h"
+
+#include "kernel/geom/attribute.h"
+#include "kernel/geom/object.h"
+#include "kernel/geom/primitive.h"
+
+#include "kernel/svm/util.h"
+
+#include "kernel/util/differential.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Bump Eval Nodes */
@@ -11,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 ccl_device_noinline void svm_node_enter_bump_eval(KernelGlobals kg,
                                                   ccl_private ShaderData *sd,
                                                   ccl_private float *stack,
-                                                  uint offset)
+                                                  const uint offset)
 {
   /* save state */
   stack_store_float3(stack, offset + 0, sd->P);
@@ -30,13 +40,17 @@ ccl_device_noinline void svm_node_enter_bump_eval(KernelGlobals kg,
 
     sd->P = P;
     sd->dP = differential_make_compact(dP);
+
+    /* Save the full differential, the compact form isn't enough for svm_node_set_bump. */
+    stack_store_float3(stack, offset + 4, dP.dx);
+    stack_store_float3(stack, offset + 7, dP.dy);
   }
 }
 
 ccl_device_noinline void svm_node_leave_bump_eval(KernelGlobals kg,
                                                   ccl_private ShaderData *sd,
                                                   ccl_private float *stack,
-                                                  uint offset)
+                                                  const uint offset)
 {
   /* restore state */
   sd->P = stack_load_float3(stack, offset + 0);

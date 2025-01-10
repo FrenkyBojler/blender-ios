@@ -84,6 +84,11 @@ class GHOST_Window : public GHOST_IWindow {
    */
   virtual void *getOSWindow() const override;
 
+  virtual GHOST_TSuccess setPath(const char * /*filepath*/) override
+  {
+    return GHOST_kFailure;
+  }
+
   /**
    * Returns the current cursor shape.
    * \return The current cursor shape.
@@ -195,7 +200,7 @@ class GHOST_Window : public GHOST_IWindow {
   GHOST_TSuccess getSwapInterval(int &intervalOut) override;
 
   /**
-   * Tells if the ongoing drag'n'drop object can be accepted upon mouse drop
+   * Tells if the ongoing drag & drop object can be accepted upon mouse drop.
    */
   void setAcceptDragOperation(bool canAccept) override;
 
@@ -396,7 +401,7 @@ class GHOST_Window : public GHOST_IWindow {
   /** The presence of progress indicator with the application icon */
   bool m_progressBarVisible;
 
-  /** The acceptance of the "drop candidate" of the current drag'n'drop operation */
+  /** The acceptance of the "drop candidate" of the current drag & drop operation. */
   bool m_canAcceptDragOperation;
 
   /** Modified state : are there unsaved changes */

@@ -2,21 +2,22 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "curves.h"
-#include "hydra_scene_delegate.h"
-#include "light.h"
-#include "mesh.h"
-#include "object.h"
-#include "volume.h"
+#include "curves.hh"
+#include "hydra_scene_delegate.hh"
+#include "light.hh"
+#include "mesh.hh"
+#include "object.hh"
+#include "volume.hh"
 
 namespace blender::io::hydra {
 
 ObjectData::ObjectData(HydraSceneDelegate *scene_delegate,
                        const Object *object,
                        pxr::SdfPath const &prim_id)
-    : IdData(scene_delegate, &object->id, prim_id), transform(pxr::GfMatrix4d(1.0))
+    : IdData(scene_delegate, (object) ? &object->id : nullptr, prim_id),
+      transform(pxr::GfMatrix4d(1.0))
 {
 }
 
@@ -98,11 +99,11 @@ bool ObjectData::is_visible(HydraSceneDelegate *scene_delegate, const Object *ob
   if (deg_mode == DAG_EVAL_VIEWPORT) {
     ret &= BKE_object_is_visible_in_viewport(scene_delegate->view3d, object);
   }
-  /* Note: visibility for final render we are taking from depsgraph */
+  /* NOTE: visibility for final render we are taking from depsgraph */
   return ret;
 }
 
-pxr::VtValue ObjectData::get_data(pxr::SdfPath const & /* id */, pxr::TfToken const &key) const
+pxr::VtValue ObjectData::get_data(pxr::SdfPath const & /*id*/, pxr::TfToken const &key) const
 {
   return get_data(key);
 }
@@ -112,16 +113,16 @@ pxr::SdfPath ObjectData::material_id() const
   return pxr::SdfPath();
 }
 
-pxr::SdfPath ObjectData::material_id(pxr::SdfPath const & /* id */) const
+pxr::SdfPath ObjectData::material_id(pxr::SdfPath const & /*id*/) const
 {
   return material_id();
 }
 
-void ObjectData::available_materials(Set<pxr::SdfPath> & /* paths */) const {}
+void ObjectData::available_materials(Set<pxr::SdfPath> & /*paths*/) const {}
 
 void ObjectData::write_transform()
 {
-  transform = gf_matrix_from_transform(((const Object *)id)->object_to_world);
+  transform = gf_matrix_from_transform(((const Object *)id)->object_to_world().ptr());
 }
 
 void ObjectData::write_materials() {}

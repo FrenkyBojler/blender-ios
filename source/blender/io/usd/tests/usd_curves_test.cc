@@ -23,23 +23,23 @@
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 
-#include "BKE_context.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_context.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_mesh.hh"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BLI_fileops.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_path_util.h"
-#include "BLO_readfile.h"
+#include "BLI_path_utils.hh"
+#include "BLO_readfile.hh"
 
 #include "BKE_node_runtime.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "WM_api.hh"
 
-#include "usd.h"
+#include "usd.hh"
 
 namespace blender::io::usd {
 
@@ -63,7 +63,7 @@ static void check_nurbs_circle(const pxr::UsdPrim nurbs_prim,
 
 class UsdCurvesTest : public BlendfileLoadingBaseTest {
  protected:
-  struct bContext *context = nullptr;
+  bContext *context = nullptr;
 
  public:
   bool load_file_and_depsgraph(const StringRefNull &filepath,
@@ -110,7 +110,7 @@ TEST_F(UsdCurvesTest, usd_export_curves)
 
   USDExportParams params;
 
-  const bool result = USD_export(context, output_filename.c_str(), &params, false);
+  const bool result = USD_export(context, output_filename.c_str(), &params, false, nullptr);
   EXPECT_TRUE(result) << "USD export should succed.";
 
   pxr::UsdStageRefPtr stage = pxr::UsdStage::Open(output_filename);
@@ -127,7 +127,7 @@ TEST_F(UsdCurvesTest, usd_export_curves)
     std::string prim_name = pxr::TfMakeValidIdentifier("BezierCircle");
     pxr::UsdPrim test_prim = stage->GetPrimAtPath(pxr::SdfPath("/BezierCircle/" + prim_name));
     EXPECT_TRUE(test_prim.IsValid());
-    check_bezier_curve(test_prim, true, 13);
+    check_bezier_curve(test_prim, true, 12);
   }
 
   {

@@ -4,9 +4,13 @@
 
 #pragma once
 
-#include "kernel/closure/alloc.h"
-#include "kernel/closure/bsdf.h"
-#include "kernel/film/write.h"
+#include "kernel/globals.h"
+#include "kernel/types.h"
+
+#include "kernel/integrator/state.h"
+#include "kernel/util/colorspace.h"
+
+#include "util/color.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -15,6 +19,7 @@ CCL_NAMESPACE_BEGIN
 struct GuidingRISSample {
   float3 rand;
   float2 sampled_roughness;
+  /* The relative IOR of the outgoing media and the incoming media. */
   float eta{1.0f};
   int label;
   float3 wo;
@@ -31,7 +36,7 @@ struct GuidingRISSample {
 };
 
 ccl_device_forceinline bool calculate_ris_target(ccl_private GuidingRISSample *ris_sample,
-                                                 ccl_private const float guiding_sampling_prob)
+                                                 const ccl_private float guiding_sampling_prob)
 {
 #if defined(__PATH_GUIDING__)
   const float pi_factor = 2.0f;
@@ -74,7 +79,7 @@ static pgl_point3f guiding_point3f(const float3 v)
  * guiding_record_surface_bounce. */
 ccl_device_forceinline void guiding_record_surface_segment(KernelGlobals kg,
                                                            IntegratorState state,
-                                                           ccl_private const ShaderData *sd)
+                                                           const ccl_private ShaderData *sd)
 {
 #if defined(__PATH_GUIDING__) && PATH_GUIDING_LEVEL >= 1
   if (!kernel_data.integrator.train_guiding) {
@@ -98,7 +103,7 @@ ccl_device_forceinline void guiding_record_surface_segment(KernelGlobals kg,
 /* Records the surface scattering event at the current vertex position of the segment. */
 ccl_device_forceinline void guiding_record_surface_bounce(KernelGlobals kg,
                                                           IntegratorState state,
-                                                          ccl_private const ShaderData *sd,
+                                                          const ccl_private ShaderData *sd,
                                                           const Spectrum weight,
                                                           const float pdf,
                                                           const float3 N,
@@ -261,7 +266,7 @@ ccl_device_forceinline void guiding_record_volume_segment(KernelGlobals kg,
 /* Records the volume scattering event at the current vertex position of the segment. */
 ccl_device_forceinline void guiding_record_volume_bounce(KernelGlobals kg,
                                                          IntegratorState state,
-                                                         ccl_private const ShaderData *sd,
+                                                         const ccl_private ShaderData *sd,
                                                          const Spectrum weight,
                                                          const float pdf,
                                                          const float3 wo,
@@ -343,7 +348,7 @@ ccl_device_forceinline void guiding_record_volume_emission(KernelGlobals kg,
  * a call of guiding_record_surface_emission, if the intersected light source
  * emits light in the direction of the path. */
 ccl_device_forceinline void guiding_record_light_surface_segment(
-    KernelGlobals kg, IntegratorState state, ccl_private const Intersection *ccl_restrict isect)
+    KernelGlobals kg, IntegratorState state, const ccl_private Intersection *ccl_restrict isect)
 {
 #if defined(__PATH_GUIDING__) && PATH_GUIDING_LEVEL >= 1
   if (!kernel_data.integrator.train_guiding) {
@@ -457,7 +462,7 @@ ccl_device_forceinline void guiding_record_continuation_probability(
  * bounce) into separate rendering passes. */
 ccl_device_forceinline void guiding_write_debug_passes(KernelGlobals kg,
                                                        IntegratorState state,
-                                                       ccl_private const ShaderData *sd,
+                                                       const ccl_private ShaderData *sd,
                                                        ccl_global float *ccl_restrict
                                                            render_buffer)
 {
@@ -471,10 +476,7 @@ ccl_device_forceinline void guiding_write_debug_passes(KernelGlobals kg,
     return;
   }
 
-  const uint32_t render_pixel_index = INTEGRATOR_STATE(state, path, render_pixel_index);
-  const uint64_t render_buffer_offset = (uint64_t)render_pixel_index *
-                                        kernel_data.film.pass_stride;
-  ccl_global float *buffer = render_buffer + render_buffer_offset;
+  ccl_global float *buffer = film_pass_pixel_render_buffer(kg, state, render_buffer);
 
   if (kernel_data.film.pass_guiding_probability != PASS_UNUSED) {
     float guiding_prob = state->guiding.surface_guiding_sampling_prob;
@@ -485,7 +487,7 @@ ccl_device_forceinline void guiding_write_debug_passes(KernelGlobals kg,
     float avg_roughness = 0.0f;
     float sum_sample_weight = 0.0f;
     for (int i = 0; i < sd->num_closure; i++) {
-      ccl_private const ShaderClosure *sc = &sd->closure[i];
+      const ccl_private ShaderClosure *sc = &sd->closure[i];
 
       if (!CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
         continue;
@@ -512,7 +514,8 @@ ccl_device_forceinline bool guiding_bsdf_init(KernelGlobals kg,
 {
 #if defined(__PATH_GUIDING__) && PATH_GUIDING_LEVEL >= 4
   if (kg->opgl_surface_sampling_distribution->Init(
-          kg->opgl_guiding_field, guiding_point3f(P), rand)) {
+          kg->opgl_guiding_field, guiding_point3f(P), rand))
+  {
     kg->opgl_surface_sampling_distribution->ApplyCosineProduct(guiding_point3f(N));
     return true;
   }
@@ -575,7 +578,8 @@ ccl_device_forceinline bool guiding_phase_init(KernelGlobals kg,
   }
 
   if (kg->opgl_volume_sampling_distribution->Init(
-          kg->opgl_guiding_field, guiding_point3f(P), rand)) {
+          kg->opgl_guiding_field, guiding_point3f(P), rand))
+  {
     kg->opgl_volume_sampling_distribution->ApplySingleLobeHenyeyGreensteinProduct(guiding_vec3f(D),
                                                                                   g);
     return true;

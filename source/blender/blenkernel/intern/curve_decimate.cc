@@ -12,15 +12,15 @@
 #include "BLI_math_vector.h"
 #include "MEM_guardedalloc.h"
 
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 
 extern "C" {
 #include "curve_fit_nd.h"
 }
 
-#include "BLI_strict_flags.h"
-
 #include <cstring>
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 struct Knot {
   Knot *next, *prev;

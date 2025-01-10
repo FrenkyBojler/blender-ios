@@ -27,6 +27,8 @@ using namespace metal::raytracing;
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wsign-compare"
 #pragma clang diagnostic ignored "-Wuninitialized"
+#pragma clang diagnostic ignored "-Wc++17-extensions"
+#pragma clang diagnostic ignored "-Wmacro-redefined"
 
 /* Qualifiers */
 
@@ -45,18 +47,25 @@ using namespace metal::raytracing;
 #define ccl_global device
 #define ccl_inline_constant static constant constexpr
 #define ccl_device_constant constant
+#define ccl_static_constexpr static constant constexpr
 #define ccl_constant constant
 #define ccl_gpu_shared threadgroup
 #define ccl_private thread
+#ifdef __METALRT__
+#  define ccl_ray_data ray_data
+#else
+#  define ccl_ray_data ccl_private
+#endif
 #define ccl_may_alias
 #define ccl_restrict __restrict
-#define ccl_loop_no_unroll
 #define ccl_align(n) alignas(n)
 #define ccl_optional_struct_init
 
 /* No assert supported for Metal */
 
 #define kernel_assert(cond)
+
+#define offsetof(t, d) __builtin_offsetof(t, d)
 
 #define ccl_gpu_global_id_x() metal_global_id
 #define ccl_gpu_warp_size simdgroup_size
@@ -101,6 +110,31 @@ using namespace metal::raytracing;
 
 /* Generate a struct containing the entry-point parameters and a "run"
  * method which can access them implicitly via this-> */
+
+#ifdef __METAL_GLOBAL_BUILTINS__
+
+#define ccl_gpu_kernel_signature(name, ...) \
+struct kernel_gpu_##name \
+{ \
+  PARAMS_MAKER(__VA_ARGS__)(__VA_ARGS__) \
+  void run(thread MetalKernelContext& context, \
+           threadgroup atomic_int *threadgroup_array) ccl_global const; \
+}; \
+kernel void cycles_metal_##name(device const kernel_gpu_##name *params_struct, \
+                                constant KernelParamsMetal &ccl_restrict   _launch_params_metal, \
+                                constant MetalAncillaries *_metal_ancillaries, \
+                                threadgroup atomic_int *threadgroup_array[[ threadgroup(0) ]]) { \
+  MetalKernelContext context(_launch_params_metal, _metal_ancillaries); \
+  params_struct->run(context, threadgroup_array); \
+} \
+void kernel_gpu_##name::run(thread MetalKernelContext& context, \
+                  threadgroup atomic_int *threadgroup_array) ccl_global const
+
+#else
+
+/* On macOS versions before 14.x, builtin constants (e.g. metal_global_id) must
+ * be accessed through attributed entry-point parameters. */
+
 #define ccl_gpu_kernel_signature(name, ...) \
 struct kernel_gpu_##name \
 { \
@@ -142,11 +176,13 @@ void kernel_gpu_##name::run(thread MetalKernelContext& context, \
                   uint simd_group_index, \
                   uint num_simd_groups) ccl_global const
 
+#endif /* __METAL_GLOBAL_BUILTINS__ */
+
 #define ccl_gpu_kernel_postfix
 #define ccl_gpu_kernel_call(x) context.x
 #define ccl_gpu_kernel_within_bounds(i,n) true
 
-/* define a function object where "func" is the lambda body, and additional parameters are used to specify captured state  */
+/* define a function object where "func" is the lambda body, and additional parameters are used to specify captured state. */
 #define ccl_gpu_kernel_lambda(func, ...) \
   struct KernelLambda \
   { \
@@ -217,6 +253,21 @@ ccl_device_forceinline int4 make_int4(const int x, const int y, const int z, con
   return int4(x, y, z, w);
 }
 
+ccl_device_forceinline uint2 make_uint2(const uint x, const uint y)
+{
+  return uint2(x, y);
+}
+
+ccl_device_forceinline uint3 make_uint3(const uint x, const uint y, const uint z)
+{
+  return uint3(x, y, z);
+}
+
+ccl_device_forceinline uint4 make_uint4(const uint x, const uint y, const uint z, const uint w)
+{
+  return uint4(x, y, z, w);
+}
+
 ccl_device_forceinline uchar4 make_uchar4(const uchar x,
                                           const uchar y,
                                           const uchar z,
@@ -260,8 +311,6 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #define sqrtf(x) trigmode::sqrt(float(x))
 #define logf(x) trigmode::log(float(x))
 
-#define NULL 0
-
 #define __device__
 
 #ifdef __METALRT__
@@ -275,17 +324,23 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #  endif /* __METALRT_MOTION__ */
 
 typedef acceleration_structure<METALRT_TAGS> metalrt_as_type;
-typedef intersection_function_table<triangle_data, METALRT_TAGS> metalrt_ift_type;
-typedef metal::raytracing::intersector<triangle_data, METALRT_TAGS> metalrt_intersector_type;
+typedef intersection_function_table<triangle_data, curve_data, METALRT_TAGS, extended_limits>
+    metalrt_ift_type;
+typedef metal::raytracing::intersector<triangle_data, curve_data, METALRT_TAGS, extended_limits>
+    metalrt_intersector_type;
 #  if defined(__METALRT_MOTION__)
 typedef acceleration_structure<primitive_motion> metalrt_blas_as_type;
-typedef intersection_function_table<triangle_data, primitive_motion> metalrt_blas_ift_type;
-typedef metal::raytracing::intersector<triangle_data, primitive_motion>
-    metalrt_blas_intersector_type;
+typedef intersection_function_table<triangle_data, curve_data, primitive_motion, extended_limits>
+    metalrt_blas_ift_type;
+typedef metal::raytracing::
+    intersector<triangle_data, curve_data, primitive_motion, extended_limits>
+        metalrt_blas_intersector_type;
 #  else
 typedef acceleration_structure<> metalrt_blas_as_type;
-typedef intersection_function_table<triangle_data> metalrt_blas_ift_type;
-typedef metal::raytracing::intersector<triangle_data> metalrt_blas_intersector_type;
+typedef intersection_function_table<triangle_data, curve_data, extended_limits>
+    metalrt_blas_ift_type;
+typedef metal::raytracing::intersector<triangle_data, curve_data, extended_limits>
+    metalrt_blas_intersector_type;
 #  endif
 
 #endif /* __METALRT__ */
@@ -318,10 +373,13 @@ struct MetalAncillaries {
   metalrt_as_type accel_struct;
   metalrt_ift_type ift_default;
   metalrt_ift_type ift_shadow;
-  metalrt_ift_type ift_local;
-  metalrt_blas_ift_type ift_local_prim;
+  metalrt_ift_type ift_shadow_all;
+  metalrt_ift_type ift_volume;
+  metalrt_blas_ift_type ift_local;
+  metalrt_ift_type ift_local_mblur;
+  metalrt_blas_ift_type ift_local_single_hit;
+  metalrt_ift_type ift_local_single_hit_mblur;
   constant MetalRTBlasWrapper *blas_accel_structs;
-  constant int *blas_userID_to_index_lookUp;
 #endif
 };
 
@@ -342,7 +400,7 @@ enum SamplerType {
   SamplerCount
 };
 
-constant constexpr array<sampler, SamplerCount> metal_samplers = {
+constexpr constant array<sampler, SamplerCount> metal_samplers = {
     sampler(address::repeat, filter::nearest),
     sampler(address::clamp_to_edge, filter::nearest),
     sampler(address::clamp_to_zero, filter::nearest),
@@ -352,3 +410,14 @@ constant constexpr array<sampler, SamplerCount> metal_samplers = {
     sampler(address::clamp_to_zero, filter::linear),
     sampler(address::mirrored_repeat, filter::linear),
 };
+
+#ifdef __METAL_GLOBAL_BUILTINS__
+const uint metal_global_id [[thread_position_in_grid]];
+const ushort metal_local_id [[thread_position_in_threadgroup]];
+const ushort metal_local_size [[threads_per_threadgroup]];
+const uint metal_grid_id [[threadgroup_position_in_grid]];
+const uint simdgroup_size [[threads_per_simdgroup]];
+const uint simd_lane_index [[thread_index_in_simdgroup]];
+const uint simd_group_index [[simdgroup_index_in_threadgroup]];
+const uint num_simd_groups [[simdgroups_per_threadgroup]];
+#endif /* __METAL_GLOBAL_BUILTINS__ */

@@ -8,10 +8,13 @@
 #include "kernel/film/light_passes.h"
 
 #include "kernel/integrator/guiding.h"
+#include "kernel/integrator/intersect_closest.h"
 #include "kernel/integrator/surface_shader.h"
 
 #include "kernel/light/light.h"
 #include "kernel/light/sample.h"
+
+#include "kernel/geom/shader_data.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -64,7 +67,7 @@ ccl_device_inline void integrate_background(KernelGlobals kg,
   bool eval_background = true;
   float transparent = 0.0f;
 
-  int path_flag = INTEGRATOR_STATE(state, path, flag);
+  const int path_flag = INTEGRATOR_STATE(state, path, flag);
   const bool is_transparent_background_ray = kernel_data.background.transparent &&
                                              (path_flag & PATH_RAY_TRANSPARENT_BACKGROUND);
 
@@ -107,12 +110,7 @@ ccl_device_inline void integrate_background(KernelGlobals kg,
     }
 
     /* Background MIS weights. */
-    float mis_weight = 1.0f;
-    /* Check if background light exists or if we should skip PDF. */
-    if (!(INTEGRATOR_STATE(state, path, flag) & PATH_RAY_MIS_SKIP) &&
-        kernel_data.background.use_mis) {
-      mis_weight = light_sample_mis_weight_forward_background(kg, state, path_flag);
-    }
+    const float mis_weight = light_sample_mis_weight_forward_background(kg, state, path_flag);
 
     guiding_record_background(kg, state, L, mis_weight);
     L *= mis_weight;
@@ -158,8 +156,9 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
         /* This path should have been resolved with mnee, it will
          * generate a firefly for small lights since it is improbable. */
         const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
-        if (klight->use_caustics)
+        if (klight->use_caustics) {
           continue;
+        }
       }
 #endif /* __MNEE__ */
 
@@ -167,16 +166,13 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
       /* TODO: does aliasing like this break automatic SoA in CUDA? */
       ShaderDataTinyStorage emission_sd_storage;
       ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-      Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
+      const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
       if (is_zero(light_eval)) {
         continue;
       }
 
       /* MIS weighting. */
-      float mis_weight = 1.0f;
-      if (!(path_flag & PATH_RAY_MIS_SKIP)) {
-        mis_weight = light_sample_mis_weight_forward_distant(kg, state, path_flag, &ls);
-      }
+      const float mis_weight = light_sample_mis_weight_forward_distant(kg, state, path_flag, &ls);
 
       /* Write to render buffer. */
       guiding_record_background(kg, state, light_eval, mis_weight);

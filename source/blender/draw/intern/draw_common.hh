@@ -8,43 +8,70 @@
 
 #pragma once
 
-#include "draw_common.h"
+#include "draw_common_c.hh"
 #include "draw_manager.hh"
 #include "draw_pass.hh"
 
 namespace blender::draw {
 
-GPUBatch *hair_sub_pass_setup(PassMain::Sub &sub_ps,
-                              const Scene *scene,
-                              Object *object,
-                              ParticleSystem *psys,
-                              ModifierData *md,
-                              GPUMaterial *gpu_material = nullptr);
+/** Hair. */
 
-GPUBatch *hair_sub_pass_setup(PassSimple::Sub &sub_ps,
-                              const Scene *scene,
-                              Object *object,
-                              ParticleSystem *psys,
-                              ModifierData *md,
-                              GPUMaterial *gpu_material = nullptr);
+void hair_init();
 
-GPUBatch *curves_sub_pass_setup(PassMain::Sub &ps,
+gpu::VertBuf *hair_pos_buffer_get(Scene *scene,
+                                  Object *object,
+                                  ParticleSystem *psys,
+                                  ModifierData *md);
+
+void hair_update(Manager &manager);
+
+void hair_free();
+
+gpu::Batch *hair_sub_pass_setup(PassMain::Sub &sub_ps,
                                 const Scene *scene,
-                                Object *ob,
+                                Object *object,
+                                ParticleSystem *psys,
+                                ModifierData *md,
                                 GPUMaterial *gpu_material = nullptr);
 
-GPUBatch *curves_sub_pass_setup(PassSimple::Sub &ps,
+gpu::Batch *hair_sub_pass_setup(PassSimple::Sub &sub_ps,
                                 const Scene *scene,
-                                Object *ob,
+                                Object *object,
+                                ParticleSystem *psys,
+                                ModifierData *md,
                                 GPUMaterial *gpu_material = nullptr);
 
-GPUBatch *point_cloud_sub_pass_setup(PassMain::Sub &sub_ps,
-                                     Object *object,
-                                     GPUMaterial *gpu_material = nullptr);
+/** Curves. */
 
-GPUBatch *point_cloud_sub_pass_setup(PassSimple::Sub &sub_ps,
-                                     Object *object,
-                                     GPUMaterial *gpu_material = nullptr);
+void curves_init();
+
+gpu::VertBuf *curves_pos_buffer_get(Scene *scene, Object *object);
+
+void curves_update(Manager &manager);
+
+void curves_free();
+
+gpu::Batch *curves_sub_pass_setup(PassMain::Sub &ps,
+                                  const Scene *scene,
+                                  Object *ob,
+                                  GPUMaterial *gpu_material = nullptr);
+
+gpu::Batch *curves_sub_pass_setup(PassSimple::Sub &ps,
+                                  const Scene *scene,
+                                  Object *ob,
+                                  GPUMaterial *gpu_material = nullptr);
+
+/* Point cloud. */
+
+gpu::Batch *point_cloud_sub_pass_setup(PassMain::Sub &sub_ps,
+                                       Object *object,
+                                       GPUMaterial *gpu_material = nullptr);
+
+gpu::Batch *point_cloud_sub_pass_setup(PassSimple::Sub &sub_ps,
+                                       Object *object,
+                                       GPUMaterial *gpu_material = nullptr);
+
+/** Volume. */
 
 /**
  * Add attribute bindings of volume grids to an existing pass.

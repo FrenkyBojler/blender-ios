@@ -2,7 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(gpencil_common_lib.glsl)
+#include "infos/gpencil_vfx_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(gpencil_fx_composite)
+
+#include "gpencil_common_lib.glsl"
 
 float gaussian_weight(float x)
 {
@@ -28,8 +32,8 @@ void main()
 
 #elif defined(COLORIZE)
 
-const mat3 sepia_mat = mat3(
-    vec3(0.393, 0.349, 0.272), vec3(0.769, 0.686, 0.534), vec3(0.189, 0.168, 0.131));
+#  define sepia_mat \
+    mat3(vec3(0.393, 0.349, 0.272), vec3(0.769, 0.686, 0.534), vec3(0.189, 0.168, 0.131))
 
 #  define MODE_GRAYSCALE 0
 #  define MODE_SEPIA 1
@@ -207,7 +211,7 @@ void main()
     }
   }
   else {
-    /* Premult by foreground alpha (alpha mask). */
+    /* Pre-multiply by foreground alpha (alpha mask). */
     float mask = 1.0 - clamp(dot(vec3(0.333334), texture(colorBuf, uvcoordsvar.xy).rgb), 0.0, 1.0);
 
     /* fragRevealage is blurred shadow. */
@@ -251,7 +255,7 @@ void main()
   }
   fragRevealage /= weight_accum;
 
-  /* No blending in first pass, alpha over premult in second pass. */
+  /* No blending in first pass, alpha over pre-multiply in second pass. */
   if (isFirstPass) {
     /* In first pass we copy the reveal buffer. This let us do alpha under in second pass. */
     fragColor = texture(revealBuf, uvcoordsvar.xy);
@@ -259,7 +263,7 @@ void main()
   else {
     /* fragRevealage is blurred shadow. */
     float shadow_fac = 1.0 - clamp(dot(vec3(0.333334), fragRevealage.rgb), 0.0, 1.0);
-    /* Premult by foreground revealage (alpha under). */
+    /* Pre-multiply by foreground revealage (alpha under). */
     vec3 original_revealage = texture(colorBuf, uvcoordsvar.xy).rgb;
     shadow_fac *= clamp(dot(vec3(0.333334), original_revealage), 0.0, 1.0);
     /* Modulate by opacity */

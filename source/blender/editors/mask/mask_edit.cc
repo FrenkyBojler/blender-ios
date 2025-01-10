@@ -6,7 +6,7 @@
  * \ingroup edmask
  */
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_mask.h"
 
 #include "DNA_scene_types.h"
@@ -21,7 +21,7 @@
 
 #include "RNA_access.hh"
 
-#include "mask_intern.h" /* own include */
+#include "mask_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Poll Functions
@@ -163,7 +163,7 @@ void ED_operatortypes_mask()
 
 void ED_keymap_mask(wmKeyConfig *keyconf)
 {
-  wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Mask Editing", 0, 0);
+  wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = ED_maskedit_poll;
 }
 

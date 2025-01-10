@@ -8,13 +8,13 @@
 #include "exporter/abc_archive.h"
 #include "intern/abc_util.h"
 
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BLI_fileops.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 #include "DNA_scene_types.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 namespace blender::io::alembic {
 

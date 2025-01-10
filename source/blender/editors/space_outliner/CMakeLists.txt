@@ -4,18 +4,12 @@
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
-  ../../depsgraph
-  ../../gpu
-  ../../imbuf
+  ../../blenfont
   ../../makesrna
-  ../../sequencer
-  ../../windowmanager
-  ../../../../intern/clog
 
-  # RNA_prototypes.h
+  ../../../../extern/fmtlib/include
+
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -49,6 +43,7 @@ set(SRC
   tree/tree_element.cc
   tree/tree_element_anim_data.cc
   tree/tree_element_bone.cc
+  tree/tree_element_bone_collection.cc
   tree/tree_element_collection.cc
   tree/tree_element_constraint.cc
   tree/tree_element_defgroup.cc
@@ -72,13 +67,13 @@ set(SRC
   tree/tree_element_id_texture.cc
   tree/tree_element_label.cc
   tree/tree_element_layer_collection.cc
+  tree/tree_element_linked_node_tree.cc
   tree/tree_element_linked_object.cc
   tree/tree_element_modifier.cc
   tree/tree_element_nla.cc
   tree/tree_element_overrides.cc
   tree/tree_element_particle_system.cc
   tree/tree_element_pose.cc
-  tree/tree_element_pose_group.cc
   tree/tree_element_rna.cc
   tree/tree_element_scene_objects.cc
   tree/tree_element_seq.cc
@@ -92,6 +87,7 @@ set(SRC
   tree/tree_element.hh
   tree/tree_element_anim_data.hh
   tree/tree_element_bone.hh
+  tree/tree_element_bone_collection.hh
   tree/tree_element_collection.hh
   tree/tree_element_constraint.hh
   tree/tree_element_defgroup.hh
@@ -115,13 +111,13 @@ set(SRC
   tree/tree_element_id_texture.hh
   tree/tree_element_label.hh
   tree/tree_element_layer_collection.hh
+  tree/tree_element_linked_node_tree.hh
   tree/tree_element_linked_object.hh
   tree/tree_element_modifier.hh
   tree/tree_element_nla.hh
   tree/tree_element_overrides.hh
   tree/tree_element_particle_system.hh
   tree/tree_element_pose.hh
-  tree/tree_element_pose_group.hh
   tree/tree_element_rna.hh
   tree/tree_element_scene_objects.hh
   tree/tree_element_seq.hh
@@ -132,15 +128,25 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  bf_editor_id_management
   bf_editor_undo
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::sequencer
+  PRIVATE bf::windowmanager
+  extern_fmtlib
 )
 
 
 blender_add_lib(bf_editor_space_outliner "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.hh dna_type_offsets.h
 add_dependencies(bf_editor_space_outliner bf_rna)

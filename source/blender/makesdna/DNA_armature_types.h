@@ -18,11 +18,10 @@
 #include "BLI_utildefines.h"
 
 #ifdef __cplusplus
+#  include "BLI_span.hh"
 namespace blender::animrig {
 class BoneColor;
 }
-
-extern "C" {
 #endif
 
 struct AnimData;
@@ -30,7 +29,7 @@ struct BoneCollection;
 
 /* this system works on different transformation space levels;
  *
- * 1) Bone Space;      with each Bone having own (0,0,0) origin
+ * 1) Bone Space;      with each Bone having its own (0,0,0) origin
  * 2) Armature Space;  the rest position, in Object space, Bones Spaces are applied hierarchical
  * 3) Pose Space;      the animation position, in Object space
  * 4) World Space;     Object matrix applied to Pose or Armature space
@@ -124,6 +123,9 @@ typedef struct Bone {
   int layer;
   /** For B-bones. */
   short segments;
+  /** Vertex to segment mapping mode. */
+  char bbone_mapping_mode;
+  char _pad2[7];
 
   /** Type of next/prev bone handles. */
   char bbone_prev_type;
@@ -149,6 +151,7 @@ typedef struct bArmature_Runtime {
    */
   int active_collection_index;
   uint8_t _pad0[4];
+  struct BoneCollection *active_collection;
 } bArmature_Runtime;
 
 typedef struct bArmature {
@@ -185,10 +188,28 @@ typedef struct bArmature {
   short deformflag;
   short pathflag;
 
-  /* BoneCollection. */
-  ListBase collections;
-  /* Do not directly assign, use `ANIM_armature_bonecoll_active_set` instead. */
-  struct BoneCollection *active_collection;
+  /** This is used only for reading/writing BoneCollections in blend
+   * files, for forwards/backwards compatibility with Blender 4.0. It
+   * should always be empty at runtime. Use collection_array for
+   * everything other than file reading/writing.
+   * TODO: remove this in Blender 5.0, and instead write the contents of
+   * collection_array to blend files directly. */
+  ListBase collections_legacy; /* BoneCollection. */
+
+  struct BoneCollection **collection_array; /* Array of `collection_array_num` BoneCollections. */
+  int collection_array_num;
+  /**
+   * Number of root bone collections.
+   *
+   * `collection_array[0:collection_root_count]` are the collections without a parent collection.
+   */
+  int collection_root_count;
+
+  /** Do not directly assign, use `ANIM_armature_bonecoll_active_set` instead.
+   * This is stored as a string to make it possible for the library overrides system to understand
+   * when it actually changed (compared to a BoneCollection*, which would change on every load).
+   */
+  char active_collection_name[64]; /* MAX_NAME. */
 
   /** For UI, to show which layers are there. */
   unsigned int layer_used DNA_DEPRECATED;
@@ -200,6 +221,20 @@ typedef struct bArmature {
 
   /** Keep last, for consistency with the position of other DNA runtime structures. */
   struct bArmature_Runtime runtime;
+
+#ifdef __cplusplus
+  /* Collection array access for convenient for-loop iteration. */
+  blender::Span<const BoneCollection *> collections_span() const;
+  blender::Span<BoneCollection *> collections_span();
+
+  /* Span of all root collections. */
+  blender::Span<const BoneCollection *> collections_roots() const;
+  blender::Span<BoneCollection *> collections_roots();
+
+  /* Return the span of children of the given bone collection. */
+  blender::Span<const BoneCollection *> collection_children(const BoneCollection *parent) const;
+  blender::Span<BoneCollection *> collection_children(BoneCollection *parent);
+#endif
 } bArmature;
 
 /**
@@ -226,8 +261,58 @@ typedef struct BoneCollection {
   uint8_t flags;
   uint8_t _pad0[7];
 
+  /*
+   * Hierarchy information. The Armature has an array of BoneCollection pointers. These are ordered
+   * such that siblings are always stored in consecutive array elements.
+   */
+  /** Array index of the first child of this BoneCollection. */
+  int child_index;
+  /** Number of children of this BoneCollection. */
+  int child_count;
+
   /** Custom properties. */
   struct IDProperty *prop;
+
+#ifdef __cplusplus
+  /**
+   * Return whether this collection is marked as 'visible'.
+   *
+   * Note that its effective visibility depends on the visibility of its ancestors as well.
+   *
+   * \see is_visible_with_ancestors
+   * \see ANIM_bonecoll_show
+   * \see ANIM_bonecoll_hide
+   */
+  bool is_visible() const;
+
+  /**
+   * Return whether this collection's ancestors are visible or not.
+   *
+   * \see is_visible_with_ancestors
+   */
+  bool is_visible_ancestors() const;
+
+  /**
+   * Return whether this collection is visible, taking into account the
+   * visibility of its ancestors.
+   *
+   * \return true when this collection and all its ancestors are visible.
+   *
+   * \see is_visible
+   */
+  bool is_visible_with_ancestors() const;
+
+  /**
+   * Return whether this collection is marked as 'solo'.
+   */
+  bool is_solo() const;
+  /**
+   * Whether or not this bone collection is expanded in the tree view.
+   *
+   * This corresponds to the #BONE_COLLECTION_EXPANDED flag.
+   */
+  bool is_expanded() const;
+#endif
 } BoneCollection;
 
 /** Membership relation of a bone with a bone collection. */
@@ -260,8 +345,14 @@ typedef enum eArmature_Flag {
    * from the tail, set = drawn from the head). Only controls the parent side of
    * the line; the child side is always drawn to the head of the bone. */
   ARM_DRAW_RELATION_FROM_HEAD = (1 << 5), /* Cleared in versioning of pre-2.80 files. */
-  ARM_FLAG_UNUSED_6 = (1 << 6),           /* cleared */
-  ARM_FLAG_UNUSED_7 = (1 << 7),           /* cleared */
+  /**
+   * Whether any bone collection is marked with the 'solo' flag.
+   * When this is the case, bone collection visibility flags don't matter any more, and only ones
+   * that have their 'solo' flag set will be visible.
+   *
+   * \see eBoneCollection_Flag::BONE_COLLECTION_SOLO */
+  ARM_BCOLL_SOLO_ACTIVE = (1 << 6), /* Cleared in versioning of pre-2.80 files. */
+  ARM_FLAG_UNUSED_7 = (1 << 7),     /* cleared */
   ARM_MIRROR_EDIT = (1 << 8),
   ARM_FLAG_UNUSED_9 = (1 << 9),
   /** Made option negative, for backwards compatibility. */
@@ -392,6 +483,12 @@ typedef enum eBone_BBoneHandleType {
   BBONE_HANDLE_TANGENT = 3,  /* Custom handle in tangent mode (use direction, not location). */
 } eBone_BBoneHandleType;
 
+/* bone->bbone_mapping_mode */
+typedef enum eBone_BBoneMappingMode {
+  BBONE_MAPPING_STRAIGHT = 0, /* Default mode that ignores the rest pose curvature. */
+  BBONE_MAPPING_CURVED = 1,   /* Mode that takes the rest pose curvature into account. */
+} eBone_BBoneMappingMode;
+
 /* bone->bbone_flag */
 typedef enum eBone_BBoneFlag {
   /** Add the parent Out roll to the In roll. */
@@ -419,10 +516,34 @@ typedef enum eBone_BBoneHandleFlag {
 
 /** #BoneCollection.flag */
 typedef enum eBoneCollection_Flag {
-  BONE_COLLECTION_VISIBLE = (1 << 0),
+  BONE_COLLECTION_VISIBLE = (1 << 0),    /* Visibility flag of this particular collection. */
   BONE_COLLECTION_SELECTABLE = (1 << 1), /* Intended to be implemented in the not-so-far future. */
+  BONE_COLLECTION_OVERRIDE_LIBRARY_LOCAL = (1 << 2), /* Added by a local library override. */
+
+  /**
+   * Set when all ancestors are visible.
+   *
+   * This would actually be a runtime flag, but bone collections don't have a
+   * runtime struct yet, and the addition of one more flag doesn't seem worth
+   * the effort. */
+  BONE_COLLECTION_ANCESTORS_VISIBLE = (1 << 3),
+
+  /**
+   * Whether this bone collection is marked as 'solo'.
+   *
+   * If no bone collections have this flag set, visibility is determined by
+   * BONE_COLLECTION_VISIBLE.
+   *
+   * If there is any bone collection with the BONE_COLLECTION_SOLO flag enabled, all bone
+   * collections are effectively hidden, except other collections with this flag enabled.
+   *
+   * \see eArmature_Flag::ARM_BCOLL_SOLO_ACTIVE
+   */
+  BONE_COLLECTION_SOLO = (1 << 4),
+
+  BONE_COLLECTION_EXPANDED = (1 << 5), /* Expanded in the tree view. */
 } eBoneCollection_Flag;
-ENUM_OPERATORS(eBoneCollection_Flag, BONE_COLLECTION_SELECTABLE)
+ENUM_OPERATORS(eBoneCollection_Flag, BONE_COLLECTION_EXPANDED)
 
 #ifdef __cplusplus
 
@@ -433,6 +554,5 @@ inline blender::animrig::BoneColor &BoneColor::wrap()
 inline const blender::animrig::BoneColor &BoneColor::wrap() const
 {
   return *reinterpret_cast<const blender::animrig::BoneColor *>(this);
-}
 }
 #endif

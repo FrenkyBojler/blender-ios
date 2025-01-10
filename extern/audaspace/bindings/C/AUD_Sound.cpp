@@ -208,6 +208,8 @@ AUD_API const char* AUD_Sound_write(AUD_Sound* sound, const char* filename, AUD_
 				container = AUD_CONTAINER_OGG;
 			else if(extension == ".wav")
 				container = AUD_CONTAINER_WAV;
+			else if(extension == ".aac")
+				container = AUD_CONTAINER_AAC;
 			else
 				return invalid_container_error;
 		}
@@ -236,6 +238,9 @@ AUD_API const char* AUD_Sound_write(AUD_Sound* sound, const char* filename, AUD_
 				break;
 			case AUD_CONTAINER_WAV:
 				codec = AUD_CODEC_PCM;
+				break;
+			case AUD_CONTAINER_AAC:
+				codec = AUD_CODEC_AAC;
 				break;
 			default:
 				return "Unknown container, cannot select default codec.";
@@ -560,7 +565,7 @@ AUD_API AUD_Sound* AUD_Sound_rechannel(AUD_Sound* sound, AUD_Channels channels)
 	}
 }
 
-AUD_API AUD_Sound* AUD_Sound_resample(AUD_Sound* sound, AUD_SampleRate rate, bool high_quality)
+AUD_API AUD_Sound* AUD_Sound_resample(AUD_Sound* sound, AUD_SampleRate rate, AUD_ResampleQuality quality)
 {
 	assert(sound);
 
@@ -570,10 +575,14 @@ AUD_API AUD_Sound* AUD_Sound_resample(AUD_Sound* sound, AUD_SampleRate rate, boo
 		specs.channels = CHANNELS_INVALID;
 		specs.rate = rate;
 		specs.format = FORMAT_INVALID;
-		if(high_quality)
-			return new AUD_Sound(new JOSResample(*sound, specs));
-		else
+		if (quality == AUD_RESAMPLE_QUALITY_FASTEST)
+		{
 			return new AUD_Sound(new LinearResample(*sound, specs));
+		}
+		else
+		{
+			return new AUD_Sound(new JOSResample(*sound, specs, static_cast<ResampleQuality>(quality)));
+		}
 	}
 	catch(Exception&)
 	{

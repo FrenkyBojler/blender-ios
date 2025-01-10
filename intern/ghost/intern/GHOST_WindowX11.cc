@@ -112,7 +112,8 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
                                  const bool is_dialog,
                                  const bool stereoVisual,
                                  const bool exclusive,
-                                 const bool is_debug)
+                                 const bool is_debug,
+                                 const GHOST_GPUDevice &preferred_device)
     : GHOST_Window(width, height, state, stereoVisual, exclusive),
       m_display(display),
       m_visualInfo(nullptr),
@@ -132,7 +133,8 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
       m_xic(nullptr),
 #endif
       m_valid_setup(false),
-      m_is_debug_context(is_debug)
+      m_is_debug_context(is_debug),
+      m_preferred_device(preferred_device)
 {
 #ifdef WITH_OPENGL_BACKEND
   if (type == GHOST_kDrawingContextTypeOpenGL) {
@@ -348,6 +350,16 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
     m_valid_setup = true;
     GHOST_PRINT("Created window\n");
   }
+  else {
+    const char *text =
+        "A graphics card and driver with support for OpenGL 4.3 or higher is "
+        "required.\n\nInstalling the latest driver for your graphics card might resolve the "
+        "issue.";
+    const char *help = "https://www.blender.org/download/requirements/";
+    system->showMessageBox(
+        "Unsupported hardware", text, "Learn More", "Close", help, GHOST_DialogError);
+    exit(0);
+  }
 
   setTitle(title);
 
@@ -402,8 +414,9 @@ bool GHOST_WindowX11::createX11_XIC()
                     XNDestroyCallback,
                     &destroy,
                     nullptr);
-  if (!m_xic)
+  if (!m_xic) {
     return false;
+  }
 
   ulong fevent;
   XGetICValues(m_xic, XNFilterEvents, &fevent, nullptr);
@@ -637,7 +650,7 @@ int GHOST_WindowX11::icccmGetState() const
   struct {
     CARD32 state;
     XID icon;
-  } * prop_ret;
+  } *prop_ret;
   ulong bytes_after, num_ret;
   Atom type_ret;
   int ret, format_ret;
@@ -1184,9 +1197,11 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
                                                    m_display,
                                                    nullptr,
                                                    nullptr,
+                                                   nullptr,
                                                    1,
                                                    2,
-                                                   m_is_debug_context);
+                                                   m_is_debug_context,
+                                                   m_preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -1540,17 +1555,22 @@ uint16_t GHOST_WindowX11::getDPIHint()
   if (resMan) {
     XrmDatabase xrdb = XrmGetStringDatabase(resMan);
     if (xrdb) {
+      int dpi = -1;
       char *type = nullptr;
       XrmValue val;
 
       int success = XrmGetResource(xrdb, "Xft.dpi", "Xft.Dpi", &type, &val);
       if (success && type) {
         if (STREQ(type, "String")) {
-          return atoi((char *)val.addr);
+          dpi = atoi((const char *)val.addr);
         }
       }
+      XrmDestroyDatabase(xrdb);
+
+      if (dpi != -1) {
+        return dpi;
+      }
     }
-    XrmDestroyDatabase(xrdb);
   }
 
   /* Fallback to calculating DPI using X reported DPI, set using `xrandr --dpi`. */

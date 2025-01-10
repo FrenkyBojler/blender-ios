@@ -4,118 +4,144 @@
 
 /**
  * Compute light objects lighting contribution using Gbuffer data.
- *
- * Output light either directly to the radiance buffers or to temporary radiance accumulation
- * buffer that will be processed by other deferred lighting passes.
  */
 
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_eval_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_reflection_probe_eval_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_lightprobe_eval_lib.glsl)
+#include "infos/eevee_deferred_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_light)
+
+#include "draw_view_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "eevee_light_eval_lib.glsl"
+#include "eevee_lightprobe_eval_lib.glsl"
+#include "eevee_renderpass_lib.glsl"
+#include "eevee_subsurface_lib.glsl"
+#include "eevee_thickness_lib.glsl"
+#include "gpu_shader_codegen_lib.glsl"
+#include "gpu_shader_shared_exponent_lib.glsl"
+
+void write_radiance_direct(uchar layer_index, ivec2 texel, vec3 radiance)
+{
+  /* TODO(fclem): Layered texture. */
+  uint data = rgb9e5_encode(radiance);
+  if (layer_index == 0u) {
+    imageStore(direct_radiance_1_img, texel, uvec4(data));
+  }
+  else if (layer_index == 1u) {
+    imageStore(direct_radiance_2_img, texel, uvec4(data));
+  }
+  else if (layer_index == 2u) {
+    imageStore(direct_radiance_3_img, texel, uvec4(data));
+  }
+}
+
+void write_radiance_indirect(uchar layer_index, ivec2 texel, vec3 radiance)
+{
+  /* TODO(fclem): Layered texture. */
+  if (layer_index == 0u) {
+    imageStore(indirect_radiance_1_img, texel, vec4(radiance, 1.0));
+  }
+  else if (layer_index == 1u) {
+    imageStore(indirect_radiance_2_img, texel, vec4(radiance, 1.0));
+  }
+  else if (layer_index == 2u) {
+    imageStore(indirect_radiance_3_img, texel, vec4(radiance, 1.0));
+  }
+}
 
 void main()
 {
   ivec2 texel = ivec2(gl_FragCoord.xy);
 
   float depth = texelFetch(hiz_tx, texel, 0).r;
-  vec3 P = get_world_space_from_depth(uvcoordsvar.xy, depth);
+  GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
 
-  /* TODO(fclem): High precision derivative. */
-  vec3 Ng = safe_normalize(cross(dFdx(P), dFdy(P)));
-  vec3 V = cameraVec(P);
-  float vP_z = dot(cameraForward, P) - dot(cameraForward, cameraPos);
+  /* Bias the shading point position because of depth buffer precision.
+   * Constant is taken from https://www.terathon.com/gdc07_lengyel.pdf. */
+  const float bias = 2.4e-7;
+  depth -= bias;
 
-  vec4 gbuffer_0_packed = texelFetch(gbuffer_closure_tx, ivec3(texel, 0), 0);
-  vec4 gbuffer_1_packed = texelFetch(gbuffer_closure_tx, ivec3(texel, 1), 0);
+  vec3 P = drw_point_screen_to_world(vec3(uvcoordsvar.xy, depth));
+  vec3 Ng = gbuf.surface_N;
+  vec3 V = drw_world_incident_vector(P);
+  float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
 
-  ClosureReflection reflection_data;
-  reflection_data.N = gbuffer_normal_unpack(gbuffer_0_packed.xy);
-  reflection_data.roughness = gbuffer_0_packed.z;
-
-  ClosureDiffuse diffuse_data;
-  diffuse_data.N = gbuffer_normal_unpack(gbuffer_1_packed.xy);
-  /* These are only set for SSS case. */
-  diffuse_data.sss_radius = vec3(0.0);
-  diffuse_data.sss_id = 0u;
-  float thickness = 0.0;
-
-  ClosureRefraction refraction_data;
-  refraction_data.N = diffuse_data.N;
-  refraction_data.roughness = gbuffer_1_packed.z;
-  refraction_data.ior = 0.0; /* Not needed. */
-
-  bool is_refraction = gbuffer_is_refraction(gbuffer_1_packed);
-  if (is_refraction) {
-    /* Still evaluate the diffuse light so that dithered SSS / Refraction combination still
-     * produces a complete diffuse light buffer that will be correctly convolved by the SSSS.
-     * The refraction pixels will just set the diffuse radiance to 0. */
-  }
-  else if (textureSize(gbuffer_closure_tx, 0).z >= 3) {
-    vec4 gbuffer_2_packed = texelFetch(gbuffer_closure_tx, ivec3(texel, 2), 0);
-    diffuse_data.sss_radius = gbuffer_sss_radii_unpack(gbuffer_2_packed.xyz);
-    diffuse_data.sss_id = gbuffer_object_id_unorm16_unpack(gbuffer_2_packed.w);
-    thickness = gbuffer_thickness_unpack(gbuffer_1_packed.z);
+  ClosureLightStack stack;
+  /* Unroll light stack array assignments to avoid non-constant indexing. */
+  for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT && i < gbuf.closure_count; i++) {
+    closure_light_set(stack, i, closure_light_new(gbuffer_closure_get(gbuf, i), V));
   }
 
-  vec3 diffuse_light = vec3(0.0);
-#ifdef DO_REFLECTION_PROBES
-  vec3 reflection_light = imageLoad(indirect_reflection_img, texel).rgb;
-  vec3 refraction_light = imageLoad(indirect_refraction_img, texel).rgb;
-#else
-  vec3 reflection_light = vec3(0.0);
-  vec3 refraction_light = vec3(0.0);
+  /* TODO(fclem): If transmission (no SSS) is present, we could reduce LIGHT_CLOSURE_EVAL_COUNT
+   * by 1 for this evaluation and skip evaluating the transmission closure twice. */
+  uchar receiver_light_set = gbuffer_light_link_receiver_unpack(gbuf.header);
+  light_eval_reflection(stack, P, Ng, V, vPz, receiver_light_set);
+
+  if (use_transmission) {
+    ClosureUndetermined cl_transmit = gbuffer_closure_get(gbuf, 0);
+#if 1 /* TODO Limit to SSS. */
+    vec3 sss_reflect_shadowed, sss_reflect_unshadowed;
+    if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
+      sss_reflect_shadowed = stack.cl[0].light_shadowed;
+      sss_reflect_unshadowed = stack.cl[0].light_unshadowed;
+    }
 #endif
-  float shadow = 1.0;
 
-  lightprobe_eval(diffuse_data, reflection_data, P, Ng, V, diffuse_light, reflection_light);
+    stack.cl[0] = closure_light_new(cl_transmit, V, gbuf.thickness);
 
-  light_eval(diffuse_data,
-             reflection_data,
-             P,
-             Ng,
-             V,
-             vP_z,
-             thickness,
-             diffuse_light,
-             reflection_light,
-             shadow);
+    /* NOTE: Only evaluates `stack.cl[0]`. */
+    light_eval_transmission(stack, P, Ng, V, vPz, gbuf.thickness, receiver_light_set);
 
-  /* Apply color and output lighting to render-passes. */
-  vec4 color_0_packed = texelFetch(gbuffer_color_tx, ivec3(texel, 0), 0);
-  vec4 color_1_packed = texelFetch(gbuffer_color_tx, ivec3(texel, 1), 0);
-
-  reflection_data.color = gbuffer_color_unpack(color_0_packed);
-  refraction_data.color = is_refraction ? gbuffer_color_unpack(color_1_packed) : vec3(0.0);
-  diffuse_data.color = is_refraction ? vec3(0.0) : gbuffer_color_unpack(color_1_packed);
-
-  /* Light passes. */
-  if (rp_buf.diffuse_light_id >= 0) {
-    imageStore(rp_color_img, ivec3(texel, rp_buf.diffuse_light_id), vec4(diffuse_light, 1.0));
-  }
-  if (rp_buf.specular_light_id >= 0) {
-    vec3 specular_light = reflection_light + refraction_light;
-    imageStore(rp_color_img, ivec3(texel, rp_buf.specular_light_id), vec4(specular_light, 1.0));
-  }
-  if (rp_buf.shadow_id >= 0) {
-    imageStore(rp_value_img, ivec3(texel, rp_buf.shadow_id), vec4(shadow));
+#if 1 /* TODO Limit to SSS. */
+    if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
+      /* Apply transmission profile onto transmitted light and sum with reflected light. */
+      vec3 sss_profile = subsurface_transmission(to_closure_subsurface(cl_transmit).sss_radius,
+                                                 abs(gbuf.thickness));
+      stack.cl[0].light_shadowed *= sss_profile;
+      stack.cl[0].light_unshadowed *= sss_profile;
+      stack.cl[0].light_shadowed += sss_reflect_shadowed;
+      stack.cl[0].light_unshadowed += sss_reflect_unshadowed;
+    }
+#endif
   }
 
-  if (!is_last_eval_pass) {
-    /* Store lighting for next deferred pass. */
-    vec4 diffuse_radiance;
-    diffuse_radiance.xyz = diffuse_light;
-    /* Output object ID for sub-surface screen space processing. */
-    diffuse_radiance.w = gbuffer_object_id_f16_pack(diffuse_data.sss_id);
-    imageStore(out_diffuse_light_img, texel, diffuse_radiance);
-    imageStore(out_specular_light_img, texel, vec4(reflection_light + reflection_light, 0.0));
+  if (render_pass_shadow_id != -1) {
+    vec3 radiance_shadowed = vec3(0);
+    vec3 radiance_unshadowed = vec3(0);
+    for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT && i < gbuf.closure_count; i++) {
+      radiance_shadowed += closure_light_get(stack, i).light_shadowed;
+      radiance_unshadowed += closure_light_get(stack, i).light_unshadowed;
+    }
+    vec3 shadows = radiance_shadowed * safe_rcp(radiance_unshadowed);
+    output_renderpass_value(render_pass_shadow_id, average(shadows));
   }
 
-  diffuse_light *= diffuse_data.color;
-  reflection_light *= reflection_data.color;
-  refraction_light *= refraction_data.color;
-  /* Add radiance to combined pass. */
-  out_radiance = vec4(diffuse_light + reflection_light + refraction_light, 0.0);
-  out_transmittance = vec4(1.0);
+  if (use_lightprobe_eval) {
+    LightProbeSample samp = lightprobe_load(P, Ng, V);
+
+    float clamp_indirect = uniform_buf.clamp.surface_indirect;
+    samp.volume_irradiance = spherical_harmonics_clamp(samp.volume_irradiance, clamp_indirect);
+
+    for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT && i < gbuf.closure_count; i++) {
+      ClosureUndetermined cl = gbuffer_closure_get(gbuf, i);
+      vec3 indirect_light = lightprobe_eval(samp, cl, P, V, gbuf.thickness);
+
+      uchar layer_index = gbuffer_closure_get_bin_index(gbuf, i);
+      vec3 direct_light = closure_light_get(stack, i).light_shadowed;
+      if (use_split_indirect) {
+        write_radiance_indirect(layer_index, texel, indirect_light);
+        write_radiance_direct(layer_index, texel, direct_light);
+      }
+      else {
+        write_radiance_direct(layer_index, texel, direct_light + indirect_light);
+      }
+    }
+  }
+  else {
+    for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT && i < gbuf.closure_count; i++) {
+      uchar layer_index = gbuffer_closure_get_bin_index(gbuf, i);
+      vec3 direct_light = closure_light_get(stack, i).light_shadowed;
+      write_radiance_direct(layer_index, texel, direct_light);
+    }
+  }
 }

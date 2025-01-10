@@ -8,6 +8,8 @@
  * \ingroup bli
  */
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,15 +21,15 @@ struct BArrayStore_AtSize {
   int stride_table_len;
 };
 
-BArrayStore *BLI_array_store_at_size_ensure(struct BArrayStore_AtSize *bs_stride,
-                                            int stride,
-                                            int chunk_size);
+struct BArrayStore *BLI_array_store_at_size_ensure(struct BArrayStore_AtSize *bs_stride,
+                                                   int stride,
+                                                   int chunk_size);
 
-BArrayStore *BLI_array_store_at_size_get(struct BArrayStore_AtSize *bs_stride, int stride);
+struct BArrayStore *BLI_array_store_at_size_get(struct BArrayStore_AtSize *bs_stride, int stride);
 
 void BLI_array_store_at_size_clear(struct BArrayStore_AtSize *bs_stride);
 
-void BLI_array_store_at_size_calc_memory_usage(struct BArrayStore_AtSize *bs_stride,
+void BLI_array_store_at_size_calc_memory_usage(const struct BArrayStore_AtSize *bs_stride,
                                                size_t *r_size_expanded,
                                                size_t *r_size_compacted);
 

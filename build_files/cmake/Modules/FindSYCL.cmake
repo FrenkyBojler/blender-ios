@@ -12,11 +12,17 @@
 #                 This can also be an environment variable.
 #  SYCL_FOUND, If false, then don't try to use SYCL.
 
-if(NOT SYCL_ROOT_DIR AND NOT $ENV{SYCL_ROOT_DIR} STREQUAL "")
+if(NOT (DEFINED SYCL_ROOT_DIR))
+  set(SYCL_ROOT_DIR "")
+endif()
+
+if(SYCL_ROOT_DIR)
+  # Pass.
+elseif(DEFINED ENV{SYCL_ROOT_DIR} AND NOT $ENV{SYCL_ROOT_DIR} STREQUAL "")
   set(SYCL_ROOT_DIR $ENV{SYCL_ROOT_DIR})
 endif()
 
-set(_sycl_search_dirs
+set(_sycl_SEARCH_DIRS
   ${SYCL_ROOT_DIR}
   /usr/lib
   /usr/local/lib
@@ -35,7 +41,7 @@ find_program(SYCL_COMPILER
     dpcpp
     clang++
   HINTS
-    ${_sycl_search_dirs}
+    ${_sycl_SEARCH_DIRS}
   PATH_SUFFIXES
     bin
   NO_CMAKE_FIND_ROOT_PATH
@@ -50,7 +56,7 @@ if(NOT SYCL_COMPILER)
       icpx
       dpcpp
     HINTS
-      ${_sycl_search_dirs}
+      ${_sycl_SEARCH_DIRS}
     PATH_SUFFIXES
       bin
   )
@@ -62,7 +68,7 @@ find_library(SYCL_LIBRARY
     sycl6
     sycl
   HINTS
-    ${_sycl_search_dirs}
+    ${_sycl_SEARCH_DIRS}
   PATH_SUFFIXES
     lib64 lib
 )
@@ -74,7 +80,7 @@ if(WIN32)
       sycl6d
       sycld
     HINTS
-      ${_sycl_search_dirs}
+      ${_sycl_SEARCH_DIRS}
     PATH_SUFFIXES
       lib64 lib
   )
@@ -84,7 +90,7 @@ find_path(SYCL_INCLUDE_DIR
   NAMES
     sycl/sycl.hpp
   HINTS
-    ${_sycl_search_dirs}
+    ${_sycl_SEARCH_DIRS}
   PATH_SUFFIXES
     include
 )
@@ -123,3 +129,5 @@ mark_as_advanced(
   SYCL_INCLUDE_DIR
   SYCL_LIBRARY
 )
+
+unset(_sycl_SEARCH_DIRS)

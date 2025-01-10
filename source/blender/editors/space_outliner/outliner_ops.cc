@@ -52,6 +52,8 @@ void outliner_operatortypes()
 
   WM_operatortype_append(OUTLINER_OT_select_all);
   WM_operatortype_append(OUTLINER_OT_expanded_toggle);
+  WM_operatortype_append(OUTLINER_OT_start_filter);
+  WM_operatortype_append(OUTLINER_OT_clear_filter);
 
   WM_operatortype_append(OUTLINER_OT_keyingset_add_selected);
   WM_operatortype_append(OUTLINER_OT_keyingset_remove_selected);
@@ -60,6 +62,7 @@ void outliner_operatortypes()
   WM_operatortype_append(OUTLINER_OT_drivers_delete_selected);
 
   WM_operatortype_append(OUTLINER_OT_orphans_purge);
+  WM_operatortype_append(OUTLINER_OT_orphans_manage);
 
   WM_operatortype_append(OUTLINER_OT_parent_drop);
   WM_operatortype_append(OUTLINER_OT_parent_clear);
@@ -101,7 +104,7 @@ void outliner_operatortypes()
 
 void outliner_keymap(wmKeyConfig *keyconf)
 {
-  WM_keymap_ensure(keyconf, "Outliner", SPACE_OUTLINER, 0);
+  WM_keymap_ensure(keyconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
 }
 
 /** \} */

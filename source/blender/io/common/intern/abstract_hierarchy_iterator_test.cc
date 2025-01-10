@@ -5,11 +5,11 @@
 
 #include "tests/blendfile_loading_base_test.h"
 
-#include "BKE_scene.h"
-#include "BLI_path_util.h"
-#include "BLO_readfile.h"
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "BKE_scene.hh"
+#include "BLI_path_utils.hh"
+#include "BLO_readfile.hh"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 #include "DNA_object_types.h"
 
 #include <map>

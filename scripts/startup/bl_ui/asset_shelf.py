@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import bpy
 from bpy.types import (
     Panel,
 )
@@ -17,10 +16,13 @@ class ASSETSHELF_PT_display(Panel):
     def draw(self, context):
         layout = self.layout
 
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
         shelf = context.asset_shelf
 
+        layout.prop(shelf, "preview_size", text="Size")
         layout.prop(shelf, "show_names", text="Names")
-        layout.prop(shelf, "preview_size")
 
     @classmethod
     def poll(cls, context):

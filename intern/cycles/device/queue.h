@@ -7,7 +7,6 @@
 #include "device/kernel.h"
 
 #include "device/graphics_interop.h"
-#include "util/debug.h"
 #include "util/log.h"
 #include "util/map.h"
 #include "util/string.h"
@@ -27,8 +26,8 @@ struct DeviceKernelArguments {
     POINTER,
     INT32,
     FLOAT32,
-    BOOLEAN,
     KERNEL_FILM_CONVERT,
+    HIPRT_GLOBAL_STACK,
   };
 
   static const int MAX_ARGS = 18;
@@ -37,7 +36,7 @@ struct DeviceKernelArguments {
   size_t sizes[MAX_ARGS];
   size_t count = 0;
 
-  DeviceKernelArguments() {}
+  DeviceKernelArguments() = default;
 
   template<class T> DeviceKernelArguments(const T *arg)
   {
@@ -66,11 +65,7 @@ struct DeviceKernelArguments {
   {
     add(FLOAT32, value, sizeof(float));
   }
-  void add(const bool *value)
-  {
-    add(BOOLEAN, value, 4);
-  }
-  void add(const Type type, const void *value, size_t size)
+  void add(const Type type, const void *value, const size_t size)
   {
     assert(count < MAX_ARGS);
 
@@ -134,7 +129,7 @@ class DeviceQueue {
    * Return false if there was an error executing this or a previous kernel. */
   virtual bool enqueue(DeviceKernel kernel,
                        const int work_size,
-                       DeviceKernelArguments const &args) = 0;
+                       const DeviceKernelArguments &args) = 0;
 
   /* Wait unit all enqueued kernels have finished execution.
    * Return false if there was an error executing any of the enqueued kernels. */
@@ -161,6 +156,11 @@ class DeviceQueue {
 
   /* Device this queue has been created for. */
   Device *device;
+
+  virtual void *native_queue()
+  {
+    return nullptr;
+  }
 
  protected:
   /* Hide construction so that allocation via `Device` API is enforced. */

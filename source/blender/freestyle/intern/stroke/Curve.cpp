@@ -13,7 +13,7 @@
 #include "CurveAdvancedIterators.h"
 #include "CurveIterators.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BLI_utildefines.h"
 
 namespace Freestyle {
@@ -553,13 +553,14 @@ Vec2d CurvePoint::directionFredo() const
 /*                                */
 /**********************************/
 
-/* for  functions */
+/* for functions */
 
 Curve::~Curve()
 {
   if (!_Vertices.empty()) {
     for (vertex_container::iterator it = _Vertices.begin(), itend = _Vertices.end(); it != itend;
-         ++it) {
+         ++it)
+    {
       delete (*it);
     }
     _Vertices.clear();

@@ -22,9 +22,7 @@
 
 #include "BLI_utildefines.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -69,9 +67,7 @@ class Cell {
   Vec3r _orig;
   OccludersSet _occluders;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Cell")
-#endif
 };
 
 class GridVisitor {
@@ -89,9 +85,7 @@ class GridVisitor {
     return false;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:GridVisitor")
-#endif
 };
 
 /** Gathers all the occluders belonging to the cells traversed by the ray */
@@ -357,7 +351,7 @@ class Grid {
     } while ((!visitor.stop()) && (nextRayCell(_current_cell, _current_cell)));
   }
 
-  /** returns the  cell next to the cell passed as argument. */
+  /** Returns the cell next to the cell passed as argument. */
   bool nextRayCell(Vec3u &current_cell, Vec3u &next_cell);
 
   uint _timestamp;
@@ -378,9 +372,7 @@ class Grid {
   // a ray
   OccludersSet _occluders;  // List of all occluders inserted in the grid
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Grid")
-#endif
 };
 
 //
@@ -400,9 +392,7 @@ class VirtualOccludersSet {
   Grid &grid;
   OccludersSet::iterator it, end;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:VirtualOccludersSet")
-#endif
 };
 
 } /* namespace Freestyle */

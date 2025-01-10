@@ -509,10 +509,12 @@ class Octree {
   {
     printf("INFO AT: %d %d %d\n", st[0] >> minshift, st[1] >> minshift, st[2] >> minshift);
     LeafNode *leaf = (LeafNode *)locateLeafCheck(st);
-    if (leaf)
+    if (leaf) {
       printInfo(leaf);
-    else
+    }
+    else {
       printf("Leaf not exists!\n");
+    }
   }
 
   void printInfo(const LeafNode *leaf)
@@ -1388,9 +1390,7 @@ class Octree {
     return npar;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("DUALCON:Octree")
-#endif
 };
 
 #endif /* __OCTREE_H__ */

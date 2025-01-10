@@ -8,8 +8,10 @@
 
 #pragma once
 
-#include "IO_ply.h"
+#include "IO_ply.hh"
 #include "ply_data.hh"
+
+struct Mesh;
 
 namespace blender::io::ply {
 

@@ -5,12 +5,8 @@
 #include "integrator/pass_accessor.h"
 
 #include "session/buffers.h"
-#include "util/log.h"
 
-// clang-format off
-#include "kernel/device/cpu/compat.h"
-#include "kernel/types.h"
-// clang-format on
+#include "util/log.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -31,7 +27,7 @@ PassAccessor::PassAccessInfo::PassAccessInfo(const BufferPass &pass)
  * Pass destination.
  */
 
-PassAccessor::Destination::Destination(float *pixels, int num_components)
+PassAccessor::Destination::Destination(float *pixels, const int num_components)
     : pixels(pixels), num_components(num_components)
 {
 }
@@ -52,7 +48,7 @@ PassAccessor::Destination::Destination(const PassType pass_type)
  * Pass source.
  */
 
-PassAccessor::Source::Source(const float *pixels, int num_components)
+PassAccessor::Source::Source(const float *pixels, const int num_components)
     : pixels(pixels), num_components(num_components)
 {
 }
@@ -61,7 +57,9 @@ PassAccessor::Source::Source(const float *pixels, int num_components)
  * Pass accessor.
  */
 
-PassAccessor::PassAccessor(const PassAccessInfo &pass_access_info, float exposure, int num_samples)
+PassAccessor::PassAccessor(const PassAccessInfo &pass_access_info,
+                           const float exposure,
+                           const int num_samples)
     : pass_access_info_(pass_access_info), exposure_(exposure), num_samples_(num_samples)
 {
 }
@@ -196,7 +194,8 @@ bool PassAccessor::get_render_tile_pixels(const RenderBuffers *render_buffers,
 
         /* Use alpha for colors passes. */
         if (type == PASS_DIFFUSE_COLOR || type == PASS_GLOSSY_COLOR ||
-            type == PASS_TRANSMISSION_COLOR) {
+            type == PASS_TRANSMISSION_COLOR)
+        {
           num_written_components = destination.num_components;
         }
       }
@@ -206,7 +205,8 @@ bool PassAccessor::get_render_tile_pixels(const RenderBuffers *render_buffers,
           get_pass_float3(render_buffers, buffer_params, destination);
         }
         else if (type == PASS_COMBINED || type == PASS_SHADOW_CATCHER ||
-                 type == PASS_SHADOW_CATCHER_MATTE) {
+                 type == PASS_SHADOW_CATCHER_MATTE)
+        {
           /* Passes with transparency as 4th component. */
           get_pass_combined(render_buffers, buffer_params, destination);
         }

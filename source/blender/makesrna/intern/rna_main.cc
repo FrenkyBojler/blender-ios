@@ -9,18 +9,18 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_global.h"
-#  include "BKE_main.h"
+#  include "BKE_global.hh"
+#  include "BKE_main.hh"
 #  include "BKE_mesh.hh"
 
 /* all the list begin functions are added manually here, Main is not in SDNA */
@@ -332,14 +332,9 @@ void RNA_def_main(BlenderRNA *brna)
       {"grease_pencils",
        "GreasePencil",
        "rna_Main_gpencils_begin",
-#  ifdef WITH_GREASE_PENCIL_V3
-       "Grease Pencil (legacy)",
-       "Grease Pencil (legacy) data-blocks",
-#  else
-       "Grease Pencil",
-       "Grease Pencil data-blocks",
-#  endif
-       RNA_def_main_gpencil_legacy},
+       "Annotation",
+       "Annotation data-blocks (legacy Grease Pencil)",
+       RNA_def_main_annotations},
       {"grease_pencils_v3",
        "GreasePencilv3",
        "rna_Main_grease_pencils_begin",

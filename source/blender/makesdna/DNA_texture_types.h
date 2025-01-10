@@ -12,10 +12,6 @@
 #include "DNA_defs.h"
 #include "DNA_image_types.h" /* ImageUser */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct AnimData;
 struct ColorBand;
 struct CurveMapping;
@@ -166,7 +162,10 @@ typedef struct Tex {
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /* runtime (must be immediately after id for utilities to use it). */
+  /**
+   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
+   * DRW_drawdatalist_from_id to understand this requirement.
+   */
   DrawDataList drawdata;
 
   float noisesize, turbul;
@@ -378,10 +377,6 @@ enum {
   TEX_DS_EXPAND = 1 << 9,
   TEX_NO_CLAMP = 1 << 10,
 };
-
-#define TEX_FLAG_MASK \
-  (TEX_COLORBAND | TEX_FLIPBLEND | TEX_NEGALPHA | TEX_CHECKER_ODD | TEX_CHECKER_EVEN | \
-   TEX_PRV_ALPHA | TEX_PRV_NOR | TEX_REPEAT_XMIR | TEX_REPEAT_YMIR)
 
 /** #Tex::extend (starts with 1 because of backward compatibility). */
 enum {
@@ -627,7 +622,3 @@ enum {
 };
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif

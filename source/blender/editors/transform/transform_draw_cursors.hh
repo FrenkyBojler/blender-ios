@@ -8,7 +8,9 @@
 
 #pragma once
 
-/* Callbacks for #WM_paint_cursor_activate */
+struct bContext;
+
+/* Callbacks for #WM_paint_cursor_activate. */
 
 /**
  * Poll callback for cursor drawing:

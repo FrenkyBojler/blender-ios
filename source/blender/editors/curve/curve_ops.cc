@@ -9,7 +9,6 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
 
 #include "RNA_access.hh"
@@ -20,7 +19,7 @@
 #include "ED_curve.hh"
 #include "ED_screen.hh"
 
-#include "curve_intern.h"
+#include "curve_intern.hh"
 
 /************************* registration ****************************/
 
@@ -40,6 +39,7 @@ void ED_operatortypes_curve()
   WM_operatortype_append(FONT_OT_text_cut);
   WM_operatortype_append(FONT_OT_text_paste);
   WM_operatortype_append(FONT_OT_text_paste_from_file);
+  WM_operatortype_append(FONT_OT_text_insert_unicode);
 
   WM_operatortype_append(FONT_OT_selection_set);
   WM_operatortype_append(FONT_OT_select_word);
@@ -149,11 +149,11 @@ void ED_operatormacros_curve()
 void ED_keymap_curve(wmKeyConfig *keyconf)
 {
   /* only set in editmode font, by space_view3d listener */
-  wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Font", 0, 0);
+  wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Font", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = ED_operator_editfont;
 
   /* only set in editmode curve, by space_view3d listener */
-  keymap = WM_keymap_ensure(keyconf, "Curve", 0, 0);
+  keymap = WM_keymap_ensure(keyconf, "Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = ED_operator_editsurfcurve;
 
   curve_pen_modal_keymap(keyconf);

@@ -2,11 +2,17 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(workbench_common_lib.glsl)
-#pragma BLENDER_REQUIRE(workbench_image_lib.glsl)
-#pragma BLENDER_REQUIRE(workbench_matcap_lib.glsl)
-#pragma BLENDER_REQUIRE(workbench_world_light_lib.glsl)
+#include "infos/workbench_prepass_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(workbench_prepass)
+FRAGMENT_SHADER_CREATE_INFO(workbench_transparent_accum)
+FRAGMENT_SHADER_CREATE_INFO(workbench_lighting_matcap)
+
+#include "draw_view_lib.glsl"
+#include "workbench_common_lib.glsl"
+#include "workbench_image_lib.glsl"
+#include "workbench_matcap_lib.glsl"
+#include "workbench_world_light_lib.glsl"
 
 /* Special function only to be used with calculate_transparent_weight(). */
 float linear_zdepth(float depth, mat4 proj_mat)
@@ -26,7 +32,7 @@ float linear_zdepth(float depth, mat4 proj_mat)
  * McGuire and Bavoil, Weighted Blended Order-Independent Transparency, Journal of
  * Computer Graphics Techniques (JCGT), vol. 2, no. 2, 122–141, 2013
  */
-float calculate_transparent_weight(void)
+float calculate_transparent_weight()
 {
   float z = linear_zdepth(gl_FragCoord.z, drw_view.winmat);
 #if 0
@@ -48,32 +54,31 @@ float calculate_transparent_weight(void)
   return clamp(w, 1e-2, 3e2);
 }
 
-#ifdef WORKBENCH_NEXT
-
 void main()
 {
   /* Normal and Incident vector are in view-space. Lighting is evaluated in view-space. */
   vec2 uv_viewport = gl_FragCoord.xy * world_data.viewport_size_inv;
-  vec3 I = get_view_vector_from_screen_uv(uv_viewport);
+  vec3 vP = drw_point_screen_to_view(vec3(uv_viewport, 0.5));
+  vec3 I = drw_view_incident_vector(vP);
   vec3 N = normalize(normal_interp);
 
   vec3 color = color_interp;
 
-#  ifdef WORKBENCH_COLOR_TEXTURE
+#ifdef WORKBENCH_COLOR_TEXTURE
   color = workbench_image_color(uv_interp);
-#  endif
+#endif
 
-#  ifdef WORKBENCH_LIGHTING_MATCAP
+#ifdef WORKBENCH_LIGHTING_MATCAP
   vec3 shaded_color = get_matcap_lighting(matcap_tx, color, N, I);
-#  endif
+#endif
 
-#  ifdef WORKBENCH_LIGHTING_STUDIO
+#ifdef WORKBENCH_LIGHTING_STUDIO
   vec3 shaded_color = get_world_lighting(color, _roughness, metallic, N, I);
-#  endif
+#endif
 
-#  ifdef WORKBENCH_LIGHTING_FLAT
+#ifdef WORKBENCH_LIGHTING_FLAT
   vec3 shaded_color = color;
-#  endif
+#endif
 
   shaded_color *= get_shadow(N, forceShadowing);
 
@@ -85,42 +90,3 @@ void main()
 
   out_object_id = uint(object_id);
 }
-
-#else
-
-void main()
-{
-  /* Normal and Incident vector are in view-space. Lighting is evaluated in view-space. */
-  vec2 uv_viewport = gl_FragCoord.xy * world_data.viewport_size_inv;
-  vec3 I = get_view_vector_from_screen_uv(uv_viewport);
-  vec3 N = normalize(normal_interp);
-
-  vec3 color = color_interp;
-
-#  ifdef WORKBENCH_COLOR_TEXTURE
-  color = workbench_image_color(uv_interp);
-#  endif
-
-#  ifdef WORKBENCH_LIGHTING_MATCAP
-  vec3 shaded_color = get_matcap_lighting(matcap_diffuse_tx, matcap_specular_tx, color, N, I);
-#  endif
-
-#  ifdef WORKBENCH_LIGHTING_STUDIO
-  vec3 shaded_color = get_world_lighting(color, _roughness, metallic, N, I);
-#  endif
-
-#  ifdef WORKBENCH_LIGHTING_FLAT
-  vec3 shaded_color = color;
-#  endif
-
-  shaded_color *= get_shadow(N, forceShadowing);
-
-  /* Listing 4 */
-  float weight = calculate_transparent_weight() * alpha_interp;
-  out_transparent_accum = vec4(shaded_color * weight, alpha_interp);
-  out_revealage_accum = vec4(weight);
-
-  out_object_id = uint(object_id);
-}
-
-#endif

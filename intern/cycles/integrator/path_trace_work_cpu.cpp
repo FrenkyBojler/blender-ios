@@ -7,7 +7,6 @@
 #include "device/cpu/kernel.h"
 #include "device/device.h"
 
-#include "kernel/film/write.h"
 #include "kernel/integrator/path_state.h"
 
 #include "integrator/pass_accessor_cpu.h"
@@ -16,8 +15,6 @@
 #include "scene/scene.h"
 #include "session/buffers.h"
 
-#include "util/atomic.h"
-#include "util/log.h"
 #include "util/tbb.h"
 
 CCL_NAMESPACE_BEGIN
@@ -31,9 +28,9 @@ static inline tbb::task_arena local_tbb_arena_create(const Device *device)
   return tbb::task_arena(device->info.cpu_threads);
 }
 
-/* Get CPUKernelThreadGlobals for the current thread. */
-static inline CPUKernelThreadGlobals *kernel_thread_globals_get(
-    vector<CPUKernelThreadGlobals> &kernel_thread_globals)
+/* Get ThreadKernelGlobalsCPU for the current thread. */
+static inline ThreadKernelGlobalsCPU *kernel_thread_globals_get(
+    vector<ThreadKernelGlobalsCPU> &kernel_thread_globals)
 {
   const int thread_index = tbb::this_task_arena::current_thread_index();
   DCHECK_GE(thread_index, 0);
@@ -45,7 +42,7 @@ static inline CPUKernelThreadGlobals *kernel_thread_globals_get(
 PathTraceWorkCPU::PathTraceWorkCPU(Device *device,
                                    Film *film,
                                    DeviceScene *device_scene,
-                                   bool *cancel_requested_flag)
+                                   const bool *cancel_requested_flag)
     : PathTraceWork(device, film, device_scene, cancel_requested_flag),
       kernels_(Device::get_cpu_kernels())
 {
@@ -59,16 +56,16 @@ void PathTraceWorkCPU::init_execution()
 }
 
 void PathTraceWorkCPU::render_samples(RenderStatistics &statistics,
-                                      int start_sample,
-                                      int samples_num,
-                                      int sample_offset)
+                                      const int start_sample,
+                                      const int samples_num,
+                                      const int sample_offset)
 {
   const int64_t image_width = effective_buffer_params_.width;
   const int64_t image_height = effective_buffer_params_.height;
   const int64_t total_pixels_num = image_width * image_height;
 
   if (device_->profiler.active()) {
-    for (CPUKernelThreadGlobals &kernel_globals : kernel_thread_globals_) {
+    for (ThreadKernelGlobalsCPU &kernel_globals : kernel_thread_globals_) {
       kernel_globals.start_profiling();
     }
   }
@@ -94,13 +91,13 @@ void PathTraceWorkCPU::render_samples(RenderStatistics &statistics,
       work_tile.offset = effective_buffer_params_.offset;
       work_tile.stride = effective_buffer_params_.stride;
 
-      CPUKernelThreadGlobals *kernel_globals = kernel_thread_globals_get(kernel_thread_globals_);
+      ThreadKernelGlobalsCPU *kernel_globals = kernel_thread_globals_get(kernel_thread_globals_);
 
       render_samples_full_pipeline(kernel_globals, work_tile, samples_num);
     });
   });
   if (device_->profiler.active()) {
-    for (CPUKernelThreadGlobals &kernel_globals : kernel_thread_globals_) {
+    for (ThreadKernelGlobalsCPU &kernel_globals : kernel_thread_globals_) {
       kernel_globals.stop_profiling();
     }
   }
@@ -108,7 +105,7 @@ void PathTraceWorkCPU::render_samples(RenderStatistics &statistics,
   statistics.occupancy = 1.0f;
 }
 
-void PathTraceWorkCPU::render_samples_full_pipeline(KernelGlobalsCPU *kernel_globals,
+void PathTraceWorkCPU::render_samples_full_pipeline(ThreadKernelGlobalsCPU *kernel_globals,
                                                     const KernelWorkTile &work_tile,
                                                     const int samples_num)
 {
@@ -134,13 +131,15 @@ void PathTraceWorkCPU::render_samples_full_pipeline(KernelGlobalsCPU *kernel_glo
 
     if (has_bake) {
       if (!kernels_.integrator_init_from_bake(
-              kernel_globals, state, &sample_work_tile, render_buffer)) {
+              kernel_globals, state, &sample_work_tile, render_buffer))
+      {
         break;
       }
     }
     else {
       if (!kernels_.integrator_init_from_camera(
-              kernel_globals, state, &sample_work_tile, render_buffer)) {
+              kernel_globals, state, &sample_work_tile, render_buffer))
+      {
         break;
       }
     }
@@ -164,7 +163,7 @@ void PathTraceWorkCPU::render_samples_full_pipeline(KernelGlobalsCPU *kernel_glo
 
 void PathTraceWorkCPU::copy_to_display(PathTraceDisplay *display,
                                        PassMode pass_mode,
-                                       int num_samples)
+                                       const int num_samples)
 {
   half4 *rgba_half = display->map_texture_buffer();
   if (!rgba_half) {
@@ -176,6 +175,9 @@ void PathTraceWorkCPU::copy_to_display(PathTraceDisplay *display,
   const KernelFilm &kfilm = device_scene_->data.film;
 
   const PassAccessor::PassAccessInfo pass_access_info = get_display_pass_access_info(pass_mode);
+  if (pass_access_info.type == PASS_NONE) {
+    return;
+  }
 
   const PassAccessorCPU pass_accessor(pass_access_info, kfilm.exposure, num_samples);
 
@@ -209,7 +211,8 @@ bool PathTraceWorkCPU::zero_render_buffers()
   return true;
 }
 
-int PathTraceWorkCPU::adaptive_sampling_converge_filter_count_active(float threshold, bool reset)
+int PathTraceWorkCPU::adaptive_sampling_converge_filter_count_active(const float threshold,
+                                                                     bool reset)
 {
   const int full_x = effective_buffer_params_.full_x;
   const int full_y = effective_buffer_params_.full_y;
@@ -227,7 +230,7 @@ int PathTraceWorkCPU::adaptive_sampling_converge_filter_count_active(float thres
   /* Check convergency and do x-filter in a single `parallel_for`, to reduce threading overhead. */
   local_arena.execute([&]() {
     parallel_for(full_y, full_y + height, [&](int y) {
-      CPUKernelThreadGlobals *kernel_globals = &kernel_thread_globals_[0];
+      ThreadKernelGlobalsCPU *kernel_globals = kernel_thread_globals_.data();
 
       bool row_converged = true;
       uint num_row_pixels_active = 0;
@@ -252,7 +255,7 @@ int PathTraceWorkCPU::adaptive_sampling_converge_filter_count_active(float thres
   if (num_active_pixels) {
     local_arena.execute([&]() {
       parallel_for(full_x, full_x + width, [&](int x) {
-        CPUKernelThreadGlobals *kernel_globals = &kernel_thread_globals_[0];
+        ThreadKernelGlobalsCPU *kernel_globals = kernel_thread_globals_.data();
         kernels_.adaptive_sampling_filter_y(
             kernel_globals, render_buffer, x, full_y, height, offset, stride);
       });
@@ -274,7 +277,7 @@ void PathTraceWorkCPU::cryptomatte_postproces()
   /* Check convergency and do x-filter in a single `parallel_for`, to reduce threading overhead. */
   local_arena.execute([&]() {
     parallel_for(0, height, [&](int y) {
-      CPUKernelThreadGlobals *kernel_globals = &kernel_thread_globals_[0];
+      ThreadKernelGlobalsCPU *kernel_globals = kernel_thread_globals_.data();
       int pixel_index = y * width;
 
       for (int x = 0; x < width; ++x, ++pixel_index) {
@@ -294,7 +297,7 @@ void PathTraceWorkCPU::guiding_init_kernel_globals(void *guiding_field,
   /* Linking the global guiding structures (e.g., Field and SampleStorage) to the per-thread
    * kernel globals. */
   for (int thread_index = 0; thread_index < kernel_thread_globals_.size(); thread_index++) {
-    CPUKernelThreadGlobals &kg = kernel_thread_globals_[thread_index];
+    ThreadKernelGlobalsCPU &kg = kernel_thread_globals_[thread_index];
     openpgl::cpp::Field *field = (openpgl::cpp::Field *)guiding_field;
 
     /* Allocate sampling distributions. */
@@ -302,17 +305,17 @@ void PathTraceWorkCPU::guiding_init_kernel_globals(void *guiding_field,
 
 #  if PATH_GUIDING_LEVEL >= 4
     if (kg.opgl_surface_sampling_distribution) {
-      delete kg.opgl_surface_sampling_distribution;
-      kg.opgl_surface_sampling_distribution = nullptr;
+      kg.opgl_surface_sampling_distribution.reset();
     }
     if (kg.opgl_volume_sampling_distribution) {
-      delete kg.opgl_volume_sampling_distribution;
-      kg.opgl_volume_sampling_distribution = nullptr;
+      kg.opgl_volume_sampling_distribution.reset();
     }
 
     if (field) {
-      kg.opgl_surface_sampling_distribution = new openpgl::cpp::SurfaceSamplingDistribution(field);
-      kg.opgl_volume_sampling_distribution = new openpgl::cpp::VolumeSamplingDistribution(field);
+      kg.opgl_surface_sampling_distribution =
+          make_unique<openpgl::cpp::SurfaceSamplingDistribution>(field);
+      kg.opgl_volume_sampling_distribution = make_unique<openpgl::cpp::VolumeSamplingDistribution>(
+          field);
     }
 #  endif
 
@@ -329,7 +332,9 @@ void PathTraceWorkCPU::guiding_init_kernel_globals(void *guiding_field,
 }
 
 void PathTraceWorkCPU::guiding_push_sample_data_to_global_storage(
-    KernelGlobalsCPU *kg, IntegratorStateCPU *state, ccl_global float *ccl_restrict render_buffer)
+    ThreadKernelGlobalsCPU *kg,
+    IntegratorStateCPU *state,
+    const ccl_global float *ccl_restrict render_buffer)
 {
 #  ifdef WITH_CYCLES_DEBUG
   if (VLOG_WORK_IS_ON) {
@@ -342,10 +347,7 @@ void PathTraceWorkCPU::guiding_push_sample_data_to_global_storage(
 
   /* Write debug render pass to validate it matches combined pass. */
   pgl_vec3f pgl_final_color = kg->opgl_path_segment_storage->CalculatePixelEstimate(false);
-  const uint32_t render_pixel_index = INTEGRATOR_STATE(state, path, render_pixel_index);
-  const uint64_t render_buffer_offset = (uint64_t)render_pixel_index *
-                                        kernel_data.film.pass_stride;
-  ccl_global float *buffer = render_buffer + render_buffer_offset;
+  ccl_global float *buffer = film_pass_pixel_render_buffer(kg, state, render_buffer);
   float3 final_color = make_float3(pgl_final_color.x, pgl_final_color.y, pgl_final_color.z);
   if (kernel_data.film.pass_guiding_color != PASS_UNUSED) {
     film_write_pass_float3(buffer + kernel_data.film.pass_guiding_color, final_color);

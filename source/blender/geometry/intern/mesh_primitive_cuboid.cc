@@ -2,14 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_index_range.hh"
-#include "BLI_math_vector.h"
-#include "BLI_math_vector.hh"
-
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
-#include "BKE_geometry_set.hh"
+#include "BKE_attribute.hh"
 #include "BKE_mesh.hh"
 
 #include "GEO_mesh_primitive_cuboid.hh"
@@ -77,7 +70,7 @@ static void calculate_positions(const CuboidConfig &config, MutableSpan<float3> 
         const float y_pos = y_front + y_delta * y;
         for (const int x : IndexRange(config.verts_x)) {
           const float x_pos = x_left + x_delta * x;
-          copy_v3_v3(positions[vert_index++], float3(x_pos, y_pos, z_pos));
+          positions[vert_index++] = float3(x_pos, y_pos, z_pos);
         }
       }
     }
@@ -89,7 +82,7 @@ static void calculate_positions(const CuboidConfig &config, MutableSpan<float3> 
           const float z_pos = z_bottom + z_delta * z;
           for (const int x : IndexRange(config.verts_x)) {
             const float x_pos = x_left + x_delta * x;
-            copy_v3_v3(positions[vert_index++], float3(x_pos, y_pos, z_pos));
+            positions[vert_index++] = float3(x_pos, y_pos, z_pos);
           }
         }
         else {
@@ -97,9 +90,9 @@ static void calculate_positions(const CuboidConfig &config, MutableSpan<float3> 
           const float x_pos = x_left;
           const float y_pos = y_front + y_delta * y;
           const float z_pos = z_bottom + z_delta * z;
-          copy_v3_v3(positions[vert_index++], float3(x_pos, y_pos, z_pos));
+          positions[vert_index++] = float3(x_pos, y_pos, z_pos);
           const float x_pos2 = x_left + x_delta * config.edges_x;
-          copy_v3_v3(positions[vert_index++], float3(x_pos2, y_pos, z_pos));
+          positions[vert_index++] = float3(x_pos2, y_pos, z_pos);
         }
       }
     }
@@ -154,7 +147,6 @@ static void calculate_corner_verts(const CuboidConfig &config, MutableSpan<int> 
   for ([[maybe_unused]] const int z : IndexRange(config.edges_z)) {
     for (const int x : IndexRange(config.edges_x)) {
       define_quad(corner_verts,
-
                   loop_index,
                   vert_1_start + x,
                   vert_1_start + x + 1,
@@ -175,7 +167,6 @@ static void calculate_corner_verts(const CuboidConfig &config, MutableSpan<int> 
   for ([[maybe_unused]] const int y : IndexRange(config.edges_y)) {
     for (const int x : IndexRange(config.edges_x)) {
       define_quad(corner_verts,
-
                   loop_index,
                   vert_1_start + x,
                   vert_1_start + x + 1,
@@ -197,7 +188,6 @@ static void calculate_corner_verts(const CuboidConfig &config, MutableSpan<int> 
     }
     for (const int x : IndexRange(config.edges_x)) {
       define_quad(corner_verts,
-
                   loop_index,
                   vert_1_start + x,
                   vert_2_start + x,
@@ -299,11 +289,11 @@ static void calculate_corner_verts(const CuboidConfig &config, MutableSpan<int> 
   }
 }
 
-static void calculate_uvs(const CuboidConfig &config, Mesh *mesh, const bke::AttributeIDRef &uv_id)
+static void calculate_uvs(const CuboidConfig &config, Mesh *mesh, const StringRef uv_id)
 {
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  bke::SpanAttributeWriter<float2> uv_attribute =
-      attributes.lookup_or_add_for_write_only_span<float2>(uv_id, ATTR_DOMAIN_CORNER);
+  bke::SpanAttributeWriter uv_attribute = attributes.lookup_or_add_for_write_only_span<float2>(
+      uv_id, bke::AttrDomain::Corner);
   MutableSpan<float2> uvs = uv_attribute.span;
 
   int loop_index = 0;
@@ -379,27 +369,28 @@ Mesh *create_cuboid_mesh(const float3 &size,
                          const int verts_x,
                          const int verts_y,
                          const int verts_z,
-                         const bke::AttributeIDRef &uv_id)
+                         const std::optional<StringRef> &uv_id)
 {
   const CuboidConfig config(size, verts_x, verts_y, verts_z);
 
   Mesh *mesh = BKE_mesh_new_nomain(config.vertex_count, 0, config.face_count, config.loop_count);
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
-  BKE_mesh_smooth_flag_set(mesh, false);
+  bke::mesh_smooth_set(*mesh, false);
 
   calculate_positions(config, positions);
   offset_indices::fill_constant_group_size(4, 0, mesh->face_offsets_for_write());
   calculate_corner_verts(config, corner_verts);
-  BKE_mesh_calc_edges(mesh, false, false);
+  bke::mesh_calc_edges(*mesh, false, false);
 
   if (uv_id) {
-    calculate_uvs(config, mesh, uv_id);
+    calculate_uvs(config, mesh, *uv_id);
   }
 
   const float3 bounds = size * 0.5f;
   mesh->bounds_set_eager({-bounds, bounds});
   mesh->tag_loose_verts_none();
+  mesh->tag_overlapping_none();
 
   return mesh;
 }

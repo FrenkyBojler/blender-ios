@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Virtual shadow-mapping: Defrag.
+ * Virtual shadow-mapping: Defragment.
  *
  * Defragment the cached page buffer making one continuous array.
  *
@@ -14,21 +14,31 @@
  *     `[--xxxxx---------]`
  *   After page free step: 2 cached pages were removed (r), 3 pages were inserted in the cache (i).
  *     `[--xrxrxiii------]`
- *   After page defrag step: The buffer is compressed into only 6 pages.
+ *   After page defragment step: The buffer is compressed into only 6 pages.
  *     `[----xxxxxx------]`
  */
 
-#pragma BLENDER_REQUIRE(eevee_shadow_page_ops_lib.glsl)
+#include "infos/eevee_shadow_info.hh"
 
-const uint max_page = SHADOW_MAX_PAGE;
+COMPUTE_SHADER_CREATE_INFO(eevee_shadow_page_defrag)
+
+#include "eevee_shadow_page_ops_lib.glsl"
+
+/* Enable integrity check. */
+// #define CHECK_INTEGRITY
+
+#define max_page uint(SHADOW_MAX_PAGE)
 
 void find_first_valid(inout uint src, uint dst)
 {
-  for (; src < dst; src++) {
-    if (pages_cached_buf[src % max_page].x != uint(-1)) {
+  for (uint i = src; i < dst; i++) {
+    if (pages_cached_buf[i % max_page].x != uint(-1)) {
+      src = i;
       return;
     }
   }
+
+  src = dst;
 }
 
 void page_cached_free(uint page_index)
@@ -42,7 +52,7 @@ void page_cached_free(uint page_index)
   tiles_buf[tile_index] = shadow_tile_pack(tile);
 }
 
-#if 0 /* Can be used to debug heap and invalid pages inside the free buffer. */
+#ifdef CHECK_INTEGRITY /* Can be used to debug heap and invalid pages inside the free buffer. */
 #  define check_heap_integrity(heap, start, size, invalid_val, result) \
     result = true; \
     for (int i = 0; i < max_page; i++) { \
@@ -53,8 +63,6 @@ void page_cached_free(uint page_index)
         result = result && (heap[i].x == invalid_val); \
       } \
     }
-#else
-#  define check_heap_integrity(heap, start, size, invalid_val, result)
 #endif
 
 void main()
@@ -67,8 +75,10 @@ void main()
 
   find_first_valid(src, end);
 
+#ifdef CHECK_INTEGRITY
   bool valid_pre;
   check_heap_integrity(pages_free_buf, 0, pages_infos_buf.page_free_count, uint(-1), valid_pre);
+#endif
 
   /* First free as much pages as needed from the end of the cached range to fulfill the allocation.
    * Avoid defragmenting to then free them. */
@@ -77,11 +87,11 @@ void main()
     find_first_valid(src, end);
   }
 
-  /* Defrag page in "old" range. */
+  /* Defragment page in "old" range. */
   bool is_empty = (src == end);
   if (!is_empty) {
     /* `page_cached_end` refers to the next empty slot.
-     * Decrement by one to refer to the first slot we can defrag. */
+     * Decrement by one to refer to the first slot we can defragment. */
     for (uint dst = end - 1; dst > src; dst--) {
       /* Find hole. */
       if (pages_cached_buf[dst % max_page].x != uint(-1)) {
@@ -103,8 +113,10 @@ void main()
     page_cached_free(src % max_page);
   }
 
+#ifdef CHECK_INTEGRITY
   bool valid_post;
   check_heap_integrity(pages_free_buf, 0, pages_infos_buf.page_free_count, uint(-1), valid_post);
+#endif
 
   pages_infos_buf.page_cached_start = src;
   pages_infos_buf.page_cached_end = end;
@@ -129,4 +141,10 @@ void main()
   clear_dispatch_buf.num_groups_x = SHADOW_PAGE_RES / SHADOW_PAGE_CLEAR_GROUP_SIZE;
   clear_dispatch_buf.num_groups_y = SHADOW_PAGE_RES / SHADOW_PAGE_CLEAR_GROUP_SIZE;
   clear_dispatch_buf.num_groups_z = 0;
+
+  /* Reset TBDR command indirect buffer. */
+  tile_draw_buf.vertex_len = 0u;
+  tile_draw_buf.instance_len = 1u;
+  tile_draw_buf.vertex_first = 0u;
+  tile_draw_buf.base_index = 0u;
 }

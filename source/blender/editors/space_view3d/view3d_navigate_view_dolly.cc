@@ -6,12 +6,10 @@
  * \ingroup spview3d
  */
 
-#include "BKE_context.h"
-#include "BKE_report.h"
+#include "BKE_context.hh"
+#include "BKE_report.hh"
 
 #include "BLI_math_vector.h"
-
-#include "DEG_depsgraph.h"
 
 #include "WM_api.hh"
 
@@ -19,7 +17,7 @@
 
 #include "ED_screen.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
@@ -29,9 +27,10 @@
  * which avoids #RegionView3D.dist approaching zero.
  * \{ */
 
-/* This is an exact copy of #viewzoom_modal_keymap. */
 void viewdolly_modal_keymap(wmKeyConfig *keyconf)
 {
+  /* NOTE: This is an exact copy of #viewzoom_modal_keymap. */
+
   static const EnumPropertyItem modal_items[] = {
       {VIEW_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
       {VIEW_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
@@ -91,7 +90,7 @@ static void viewdolly_apply(ViewOpsData *vod, const int xy[2], const bool zoom_i
       len2 = (vod->region->winrct.ymax - vod->init.event_xy[1]) + 5;
     }
     if (zoom_invert) {
-      SWAP(float, len1, len2);
+      std::swap(len1, len2);
     }
 
     zfac = 1.0f + ((len1 - len2) * 0.01f * vod->rv3d->dist);

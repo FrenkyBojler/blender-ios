@@ -5,7 +5,6 @@
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
-#include "BKE_geometry_set.hh"
 
 #include "BLI_task.hh"
 
@@ -159,10 +158,8 @@ static void subdivide_bezier_segment(const float3 &position_prev,
     /* The first point in the segment is always copied. */
     dst_positions[segment_points.first()] = position_prev;
 
-    /* Non-vector segments in the result curve are given free handles. This could possibly be
-     * improved with another pass that sets handles to aligned where possible, but currently that
-     * does not provide much benefit for the increased complexity. */
-    fill_segment_handle_types(BEZIER_HANDLE_FREE);
+    /* Non-vector segments in the result curve are given auto handles. */
+    fill_segment_handle_types(BEZIER_HANDLE_AUTO);
 
     /* In order to generate a Bezier curve with the same shape as the input curve, apply the
      * De Casteljau algorithm iteratively for the provided number of cuts, constantly updating the
@@ -269,13 +266,12 @@ static void subdivide_bezier_positions(const Span<float3> src_positions,
       cyclic, dst_types_l, dst_types_r, dst_positions, dst_handles_l, dst_handles_r);
 }
 
-bke::CurvesGeometry subdivide_curves(
-    const bke::CurvesGeometry &src_curves,
-    const IndexMask &selection,
-    const VArray<int> &cuts,
-    const bke::AnonymousAttributePropagationInfo &propagation_info)
+bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
+                                     const IndexMask &selection,
+                                     const VArray<int> &cuts,
+                                     const bke::AttributeFilter &attribute_filter)
 {
-  if (src_curves.points_num() == 0) {
+  if (src_curves.is_empty()) {
     return src_curves;
   }
 
@@ -300,7 +296,7 @@ bke::CurvesGeometry subdivide_curves(
    * Storing the leading zero is unnecessary but makes the array a bit simpler to use by avoiding
    * a check for the first segment, and because some existing utilities also use leading zeros. */
   Array<int> all_point_offset_data(src_curves.points_num() + src_curves.curves_num());
-#ifdef DEBUG
+#ifndef NDEBUG
   all_point_offset_data.fill(-1);
 #endif
   calculate_result_offsets(src_curves,
@@ -321,7 +317,7 @@ bke::CurvesGeometry subdivide_curves(
 
   auto subdivide_catmull_rom = [&](const IndexMask &selection) {
     for (auto &attribute : bke::retrieve_attributes_for_transfer(
-             src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, propagation_info))
+             src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter))
     {
       subdivide_attribute_catmull_rom(src_points_by_curve,
                                       dst_points_by_curve,
@@ -336,7 +332,7 @@ bke::CurvesGeometry subdivide_curves(
 
   auto subdivide_poly = [&](const IndexMask &selection) {
     for (auto &attribute : bke::retrieve_attributes_for_transfer(
-             src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, propagation_info))
+             src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter))
     {
       subdivide_attribute_linear(src_points_by_curve,
                                  dst_points_by_curve,
@@ -381,12 +377,16 @@ bke::CurvesGeometry subdivide_curves(
                                  dst_handles_r.slice(dst_points));
     });
 
-    for (auto &attribute : bke::retrieve_attributes_for_transfer(
-             src_attributes,
-             dst_attributes,
-             ATTR_DOMAIN_MASK_POINT,
-             propagation_info,
-             {"position", "handle_type_left", "handle_type_right", "handle_right", "handle_left"}))
+    for (auto &attribute :
+         bke::retrieve_attributes_for_transfer(src_attributes,
+                                               dst_attributes,
+                                               ATTR_DOMAIN_MASK_POINT,
+                                               attribute_filter_with_skip_ref(attribute_filter,
+                                                                              {"position",
+                                                                               "handle_type_left",
+                                                                               "handle_type_right",
+                                                                               "handle_right",
+                                                                               "handle_left"})))
     {
       subdivide_attribute_linear(src_points_by_curve,
                                  dst_points_by_curve,
@@ -410,15 +410,14 @@ bke::CurvesGeometry subdivide_curves(
                                      subdivide_bezier,
                                      subdivide_nurbs);
 
-  if (!unselected.is_empty()) {
-    for (auto &attribute : bke::retrieve_attributes_for_transfer(
-             src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, propagation_info))
-    {
-      bke::curves::copy_point_data(
-          src_points_by_curve, dst_points_by_curve, unselected, attribute.src, attribute.dst.span);
-      attribute.dst.finish();
-    }
-  }
+  bke::copy_attributes_group_to_group(src_attributes,
+                                      bke::AttrDomain::Point,
+                                      bke::AttrDomain::Point,
+                                      attribute_filter,
+                                      src_points_by_curve,
+                                      dst_points_by_curve,
+                                      unselected,
+                                      dst_attributes);
 
   return dst_curves;
 }

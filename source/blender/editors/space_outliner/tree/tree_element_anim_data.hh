@@ -10,6 +10,8 @@
 
 #include "tree_element.hh"
 
+struct AnimData;
+
 namespace blender::ed::outliner {
 
 class TreeElementAnimData final : public AbstractTreeElement {
@@ -21,8 +23,8 @@ class TreeElementAnimData final : public AbstractTreeElement {
   void expand(SpaceOutliner &space_outliner) const override;
 
  private:
-  void expand_drivers(SpaceOutliner &space_outliner) const;
-  void expand_NLA_tracks(SpaceOutliner &space_outliner) const;
+  void expand_drivers() const;
+  void expand_NLA_tracks() const;
 };
 
 }  // namespace blender::ed::outliner

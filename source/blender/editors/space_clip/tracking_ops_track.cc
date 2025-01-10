@@ -8,14 +8,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_string.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
@@ -23,17 +23,14 @@
 #include "WM_types.hh"
 
 #include "ED_clip.hh"
-#include "ED_screen.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "PIL_time.h"
+#include "DEG_depsgraph.hh"
 
-#include "DEG_depsgraph.h"
-
-#include "clip_intern.h" /* own include */
-#include "tracking_ops_intern.h"
+#include "clip_intern.hh" /* own include */
+#include "tracking_ops_intern.hh"
 
 /********************** Track operator *********************/
 
@@ -153,10 +150,10 @@ static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwa
   /* Limit frames to be tracked by user setting. */
   if (frames_limit) {
     if (backwards) {
-      tmj->efra = MAX2(tmj->efra, tmj->sfra - frames_limit);
+      tmj->efra = std::max(tmj->efra, tmj->sfra - frames_limit);
     }
     else {
-      tmj->efra = MIN2(tmj->efra, tmj->sfra + frames_limit);
+      tmj->efra = std::min(tmj->efra, tmj->sfra + frames_limit);
     }
   }
 
@@ -203,13 +200,7 @@ static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwa
   return true;
 }
 
-static void track_markers_startjob(
-    void *tmv,
-    /* Cannot be const, this function implements wm_jobs_start_callback.
-     * NOLINTNEXTLINE: readability-non-const-parameter. */
-    bool *stop,
-    bool *do_update,
-    float *progress)
+static void track_markers_startjob(void *tmv, wmJobWorkerStatus *worker_status)
 {
   TrackMarkersJob *tmj = (TrackMarkersJob *)tmv;
   int framenr = tmj->sfra;
@@ -225,23 +216,23 @@ static void track_markers_startjob(
        * exec_time for "Fastest" tracking
        */
 
-      double start_time = PIL_check_seconds_timer(), exec_time;
+      double start_time = BLI_time_now_seconds(), exec_time;
 
       if (!BKE_autotrack_context_step(tmj->context)) {
         break;
       }
 
-      exec_time = PIL_check_seconds_timer() - start_time;
+      exec_time = BLI_time_now_seconds() - start_time;
       if (tmj->delay > float(exec_time)) {
-        PIL_sleep_ms(tmj->delay - float(exec_time));
+        BLI_time_sleep_ms(tmj->delay - float(exec_time));
       }
     }
     else if (!BKE_autotrack_context_step(tmj->context)) {
       break;
     }
 
-    *do_update = true;
-    *progress = float(framenr - tmj->sfra) / (tmj->efra - tmj->sfra);
+    worker_status->do_update = true;
+    worker_status->progress = float(framenr - tmj->sfra) / (tmj->efra - tmj->sfra);
 
     if (tmj->backwards) {
       framenr--;
@@ -252,7 +243,7 @@ static void track_markers_startjob(
 
     tmj->lastfra = framenr;
 
-    if (*stop || track_markers_testbreak()) {
+    if (worker_status->stop || track_markers_testbreak()) {
       break;
     }
   }
@@ -279,7 +270,7 @@ static void track_markers_endjob(void *tmv)
   BKE_autotrack_context_sync(tmj->context);
   BKE_autotrack_context_finish(tmj->context);
 
-  DEG_id_tag_update(&tmj->clip->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&tmj->clip->id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_SCENE | ND_FRAME, tmj->scene);
 }
 
@@ -356,9 +347,8 @@ static int track_markers(bContext *C, wmOperator *op, bool use_job)
     return OPERATOR_RUNNING_MODAL;
   }
 
-  bool stop = false, do_update = false;
-  float progress = 0.0f;
-  track_markers_startjob(tmj, &stop, &do_update, &progress);
+  wmJobWorkerStatus worker_status = {};
+  track_markers_startjob(tmj, &worker_status);
   track_markers_endjob(tmj);
   track_markers_freejob(tmj);
   return OPERATOR_FINISHED;
@@ -390,7 +380,9 @@ static int track_markers_modal(bContext *C, wmOperator * /*op*/, const wmEvent *
   return OPERATOR_PASS_THROUGH;
 }
 
-static std::string track_markers_desc(bContext * /*C*/, wmOperatorType * /*op*/, PointerRNA *ptr)
+static std::string track_markers_get_description(bContext * /*C*/,
+                                                 wmOperatorType * /*ot*/,
+                                                 PointerRNA *ptr)
 {
   const bool backwards = RNA_boolean_get(ptr, "backwards");
   const bool sequence = RNA_boolean_get(ptr, "sequence");
@@ -424,7 +416,7 @@ void CLIP_OT_track_markers(wmOperatorType *ot)
   ot->invoke = track_markers_invoke;
   ot->modal = track_markers_modal;
   ot->poll = ED_space_clip_tracking_poll;
-  ot->get_description = track_markers_desc;
+  ot->get_description = track_markers_get_description;
 
   /* flags */
   ot->flag = OPTYPE_UNDO;
@@ -456,7 +448,7 @@ static int refine_marker_exec(bContext *C, wmOperator *op)
     }
   }
 
-  DEG_id_tag_update(&clip->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
 
   return OPERATOR_FINISHED;

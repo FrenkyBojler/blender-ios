@@ -5,19 +5,9 @@
 set(INC
   ../asset
   ../include
-  ../../asset_system
-  ../../blenfont
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../render
-  ../../windowmanager
-  ../../../../extern/fmtlib/include
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -46,16 +36,28 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::asset_system
+  PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::dna
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
-  extern_fmtlib
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::intern::atomic
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WIN32)
   add_definitions(-DNOMINMAX)
+  list(APPEND LIB
+    PRIVATE bf::intern::utfconv
+  )
 endif()
 
 if(WITH_HEADLESS)
@@ -88,5 +90,5 @@ endif()
 
 blender_add_lib(bf_editor_space_file "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.hh dna_type_offsets.h
 add_dependencies(bf_editor_space_file bf_rna)

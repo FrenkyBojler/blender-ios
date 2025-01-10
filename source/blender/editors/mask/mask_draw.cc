@@ -13,7 +13,7 @@
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_mask.h"
 
 #include "DNA_mask_types.h"
@@ -28,16 +28,15 @@
 
 #include "BIF_glutil.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_shader.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_shader.hh"
+#include "GPU_state.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 static void mask_spline_color_get(MaskLayer *mask_layer,
                                   MaskSpline *spline,
@@ -125,14 +124,14 @@ static void draw_single_handle(const MaskLayer *mask_layer,
 
   switch (handle_type) {
     case HD_FREE:
-      immUniformThemeColor(TH_HANDLE_FREE);
+      immUniformThemeColor3(TH_HANDLE_FREE);
       break;
     case HD_AUTO:
-      immUniformThemeColor(TH_HANDLE_AUTO);
+      immUniformThemeColor3(TH_HANDLE_AUTO);
       break;
     case HD_ALIGN:
     case HD_ALIGN_DOUBLESIDE:
-      immUniformThemeColor(TH_HANDLE_ALIGN);
+      immUniformThemeColor3(TH_HANDLE_ALIGN);
       break;
   }
 
@@ -665,10 +664,10 @@ void ED_mask_draw_region(
   const float width = width_i, height = float(height_i) * (aspy / aspx);
 
   int x, y;
-  /* int w, h; */
+  // int w, h;
   float zoomx, zoomy;
 
-  /* frame image */
+  /* Frame image. */
   float maxdim;
   float xofs, yofs;
 

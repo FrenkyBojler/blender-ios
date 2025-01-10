@@ -14,17 +14,17 @@
 
 #include "BLI_rect.h"
 
-#include "GPU_framebuffer.h"
-#include "GPU_texture.h"
+#include "GPU_framebuffer.hh"
+#include "GPU_texture.hh"
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "eevee_film.hh"
 #include "eevee_instance.hh"
 
 namespace blender::eevee {
 
-void RenderBuffers::sync()
+void RenderBuffers::init()
 {
   const eViewLayerEEVEEPassType enabled_passes = inst_.film.enabled_passes_get();
 
@@ -40,6 +40,7 @@ void RenderBuffers::sync()
   };
 
   data.normal_id = pass_index_get(EEVEE_RENDER_PASS_NORMAL, EEVEE_RENDER_PASS_AO);
+  data.position_id = pass_index_get(EEVEE_RENDER_PASS_POSITION);
   data.diffuse_light_id = pass_index_get(EEVEE_RENDER_PASS_DIFFUSE_LIGHT);
   data.diffuse_color_id = pass_index_get(EEVEE_RENDER_PASS_DIFFUSE_COLOR);
   data.specular_light_id = pass_index_get(EEVEE_RENDER_PASS_SPECULAR_LIGHT);
@@ -49,26 +50,26 @@ void RenderBuffers::sync()
   data.environment_id = pass_index_get(EEVEE_RENDER_PASS_ENVIRONMENT);
   data.shadow_id = pass_index_get(EEVEE_RENDER_PASS_SHADOW);
   data.ambient_occlusion_id = pass_index_get(EEVEE_RENDER_PASS_AO);
+  data.transparent_id = pass_index_get(EEVEE_RENDER_PASS_TRANSPARENT);
 
   data.aovs = inst_.film.aovs_info;
-  data.push_update();
 }
 
 void RenderBuffers::acquire(int2 extent)
 {
   const eViewLayerEEVEEPassType enabled_passes = inst_.film.enabled_passes_get();
 
+  extent_ = extent;
+
   auto pass_extent = [&](eViewLayerEEVEEPassType pass_bit) -> int2 {
     /* Use dummy texture for disabled passes. Allows correct bindings. */
     return (enabled_passes & pass_bit) ? extent : int2(1);
   };
 
-  eGPUTextureFormat color_format = GPU_RGBA16F;
-  eGPUTextureFormat float_format = GPU_R16F;
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
 
   /* Depth and combined are always needed. */
-  depth_tx.ensure_2d(GPU_DEPTH24_STENCIL8, extent, usage | GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW);
+  depth_tx.ensure_2d(GPU_DEPTH24_STENCIL8, extent, usage);
   /* TODO(fclem): depth_tx should ideally be a texture from pool but we need stencil_view
    * which is currently unsupported by pool textures. */
   // depth_tx.acquire(extent, GPU_DEPTH24_STENCIL8);
@@ -79,9 +80,13 @@ void RenderBuffers::acquire(int2 extent)
                                                  GPU_TEXTURE_USAGE_SHADER_WRITE;
 
   /* TODO(fclem): Make vector pass allocation optional if no TAA or motion blur is needed. */
-  vector_tx.acquire(extent,
-                    vector_tx_format(),
-                    usage_attachment_read_write | GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW);
+  vector_tx.acquire(extent, vector_tx_format(), usage_attachment_read_write);
+
+  const bool do_motion_vectors_swizzle = vector_tx_format() == GPU_RG16F;
+  if (do_motion_vectors_swizzle) {
+    /* Change texture swizzling to avoid complexity in shaders. */
+    GPU_texture_swizzle_set(vector_tx, "rgrg");
+  }
 
   int color_len = data.color_len + data.aovs.color_len;
   int value_len = data.value_len + data.aovs.value_len;
@@ -118,18 +123,25 @@ void RenderBuffers::release()
   // depth_tx.release();
   combined_tx.release();
 
+  const bool do_motion_vectors_swizzle = vector_tx_format() == GPU_RG16F;
+  if (do_motion_vectors_swizzle) {
+    /* Reset swizzle since this texture might be reused in other places. */
+    GPU_texture_swizzle_set(vector_tx, "rgba");
+  }
   vector_tx.release();
+
   cryptomatte_tx.release();
 }
 
 eGPUTextureFormat RenderBuffers::vector_tx_format()
 {
   const eViewLayerEEVEEPassType enabled_passes = inst_.film.enabled_passes_get();
-  bool do_vector_render_pass = (enabled_passes & EEVEE_RENDER_PASS_VECTOR) ||
-                               (inst_.motion_blur.postfx_enabled() && !inst_.is_viewport());
+  bool do_full_vector_render_pass = ((enabled_passes & EEVEE_RENDER_PASS_VECTOR) ||
+                                     inst_.motion_blur.postfx_enabled()) &&
+                                    !inst_.is_viewport();
 
-  /* Only RG16F when only doing only reprojection or motion blur. */
-  return do_vector_render_pass ? GPU_RGBA16F : GPU_RG16F;
+  /* Only RG16F (`motion.prev`) for the viewport. */
+  return do_full_vector_render_pass ? GPU_RGBA16F : GPU_RG16F;
 }
 
 }  // namespace blender::eevee

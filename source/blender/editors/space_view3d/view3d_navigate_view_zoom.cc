@@ -8,11 +8,10 @@
 
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
+#include "BLI_time.h"
 
-#include "BKE_context.h"
-#include "BKE_screen.h"
-
-#include "DEG_depsgraph_query.h"
+#include "BKE_context.hh"
+#include "BKE_screen.hh"
 
 #include "WM_api.hh"
 
@@ -20,18 +19,17 @@
 
 #include "ED_screen.hh"
 
-#include "PIL_time.h"
-
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name View Zoom Operator
  * \{ */
 
-/* #viewdolly_modal_keymap has an exact copy of this, apply fixes to both. */
 void viewzoom_modal_keymap(wmKeyConfig *keyconf)
 {
+  /* NOTE: #viewdolly_modal_keymap has an exact copy of this, apply fixes to both. */
+
   static const EnumPropertyItem modal_items[] = {
       {VIEW_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
       {VIEW_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
@@ -60,7 +58,7 @@ void viewzoom_modal_keymap(wmKeyConfig *keyconf)
  * (coords compatible w/ #wmEvent.xy). Use when not nullptr.
  */
 static void view_zoom_to_window_xy_camera(Scene *scene,
-                                          Depsgraph *depsgraph,
+                                          const Depsgraph *depsgraph,
                                           View3D *v3d,
                                           ARegion *region,
                                           float dfac,
@@ -81,13 +79,13 @@ static void view_zoom_to_window_xy_camera(Scene *scene,
     float pt_dst[2];
     float delta_px[2];
 
-    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, &camera_frame_old, false);
+    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &camera_frame_old);
     BLI_rctf_translate(&camera_frame_old, region->winrct.xmin, region->winrct.ymin);
 
     rv3d->camzoom = camzoom_new;
     CLAMP(rv3d->camzoom, RV3D_CAMZOOM_MIN, RV3D_CAMZOOM_MAX);
 
-    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, &camera_frame_new, false);
+    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &camera_frame_new);
     BLI_rctf_translate(&camera_frame_new, region->winrct.xmin, region->winrct.ymin);
 
     BLI_rctf_transform_pt_v(&camera_frame_new, &camera_frame_old, pt_dst, pt_src);
@@ -163,7 +161,7 @@ static float viewzoom_scale_value(const rcti *winrct,
   float zfac;
 
   if (viewzoom == USER_ZOOM_CONTINUE) {
-    double time = PIL_check_seconds_timer();
+    double time = BLI_time_now_seconds();
     float time_step = float(time - *r_timer_lastdraw);
     float fac;
 
@@ -195,7 +193,7 @@ static float viewzoom_scale_value(const rcti *winrct,
 
     /* intentionally ignore 'zoom_invert' for scale */
     if (zoom_invert_force) {
-      SWAP(float, len_new, len_old);
+      std::swap(len_new, len_old);
     }
 
     zfac = val_orig * (len_old / max_ff(len_new, 1.0f)) / val;
@@ -214,7 +212,7 @@ static float viewzoom_scale_value(const rcti *winrct,
     }
 
     if (zoom_invert != zoom_invert_force) {
-      SWAP(float, len_new, len_old);
+      std::swap(len_new, len_old);
     }
 
     zfac = val_orig * (2.0f * ((len_new / max_ff(len_old, 1.0f)) - 1.0f) + 1.0f) / val;
@@ -385,7 +383,7 @@ static int viewzoom_modal_impl(bContext *C,
 }
 
 static void view_zoom_apply_step(bContext *C,
-                                 Depsgraph *depsgraph,
+                                 const Depsgraph *depsgraph,
                                  Scene *scene,
                                  ScrArea *area,
                                  ARegion *region,
@@ -516,7 +514,7 @@ static int viewzoom_invoke_impl(bContext *C,
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
     /* needs a timer to continue redrawing */
     vod->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
-    vod->prev.time = PIL_check_seconds_timer();
+    vod->prev.time = BLI_time_now_seconds();
   }
 
   return OPERATOR_RUNNING_MODAL;

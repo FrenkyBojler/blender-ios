@@ -7,65 +7,79 @@
  * This mask is then processed by the compaction phase.
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_vector_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_codegen_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
+#include "infos/eevee_tracing_info.hh"
 
-shared uint tile_contains_glossy_rays;
+COMPUTE_SHADER_CREATE_INFO(eevee_ray_tile_classify)
 
-/* Returns a blend factor between different irradiance fetching method for reflections. */
-float ray_glossy_factor(float roughness)
+#include "eevee_closure_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "gpu_shader_codegen_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
+
+shared uint tile_contains_ray_tracing[GBUFFER_LAYER_MAX];
+shared uint tile_contains_horizon_scan;
+
+/* Returns a blend factor between different tracing method. */
+float ray_roughness_factor(RayTraceData raytrace, float roughness)
 {
-  /* TODO */
-  return 1.0;
+  return saturate(roughness * raytrace.roughness_mask_scale - raytrace.roughness_mask_bias);
 }
 
 void main()
 {
-  if (all(equal(gl_LocalInvocationID, uvec3(0)))) {
-    /* Clear num_groups_x to 0 so that we can use it as counter in the compaction phase.
-     * Note that these writes are subject to race condition, but we write the same value
-     * from all work-groups. */
-    denoise_dispatch_buf.num_groups_x = 0u;
-    denoise_dispatch_buf.num_groups_y = 1u;
-    denoise_dispatch_buf.num_groups_z = 1u;
-    ray_dispatch_buf.num_groups_x = 0u;
-    ray_dispatch_buf.num_groups_y = 1u;
-    ray_dispatch_buf.num_groups_z = 1u;
-
+  if (gl_LocalInvocationIndex == 0u) {
     /* Init shared variables. */
-    tile_contains_glossy_rays = 0;
+    tile_contains_horizon_scan = 0;
+    for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
+      tile_contains_ray_tracing[i] = 0;
+    }
   }
 
   barrier();
 
-  ivec2 texel = min(ivec2(gl_GlobalInvocationID.xy), textureSize(stencil_tx, 0) - 1);
+  ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
 
-  eClosureBits closure_bits = eClosureBits(texelFetch(stencil_tx, texel, 0).r);
+  bool valid_texel = in_texture_range(texel, gbuf_header_tx);
 
-  if (flag_test(closure_bits, raytrace_buf.closure_active)) {
-    int gbuffer_layer = raytrace_buf.closure_active == CLOSURE_REFRACTION ? 1 : 0;
+  if (valid_texel) {
+    GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
 
-    vec4 gbuffer_packed = texelFetch(gbuffer_closure_tx, ivec3(texel, gbuffer_layer), 0);
-    float roughness = gbuffer_packed.z;
+    for (uchar i = 0; i < GBUFFER_LAYER_MAX; i++) {
+      ClosureUndetermined cl = gbuffer_closure_get_by_bin(gbuf, i);
+      if (cl.type == CLOSURE_NONE_ID) {
+        continue;
+      }
+      float roughness = closure_apparent_roughness_get(cl);
+      float ray_roughness_fac = ray_roughness_factor(uniform_buf.raytrace, roughness);
 
-    if (ray_glossy_factor(roughness) > 0.0) {
       /* We don't care about race condition here. */
-      tile_contains_glossy_rays = 1;
+      if (ray_roughness_fac > 0.0) {
+        tile_contains_horizon_scan = 1;
+      }
+      if (ray_roughness_fac < 1.0) {
+        tile_contains_ray_tracing[i] = 1;
+      }
     }
   }
 
   barrier();
 
-  if (all(equal(gl_LocalInvocationID, uvec3(0)))) {
-    ivec2 tile_co = ivec2(gl_WorkGroupID.xy);
+  if (gl_LocalInvocationIndex == 0u) {
+    ivec2 denoise_tile_co = ivec2(gl_WorkGroupID.xy);
+    ivec2 tracing_tile_co = denoise_tile_co / uniform_buf.raytrace.resolution_scale;
 
-    uint tile_mask = 0u;
-    if (tile_contains_glossy_rays > 0) {
-      tile_mask = 1u;
+    for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
+      if (tile_contains_ray_tracing[i] > 0) {
+        imageStoreFast(tile_raytrace_denoise_img, ivec3(denoise_tile_co, i), uvec4(1));
+        imageStoreFast(tile_raytrace_tracing_img, ivec3(tracing_tile_co, i), uvec4(1));
+      }
     }
 
-    imageStore(tile_mask_img, tile_co, uvec4(tile_mask));
+    if (tile_contains_horizon_scan > 0) {
+      ivec2 tracing_tile_co = denoise_tile_co / uniform_buf.raytrace.horizon_resolution_scale;
+      imageStoreFast(tile_horizon_denoise_img, ivec3(denoise_tile_co, 0), uvec4(1));
+      imageStoreFast(tile_horizon_tracing_img, ivec3(tracing_tile_co, 0), uvec4(1));
+    }
   }
 }

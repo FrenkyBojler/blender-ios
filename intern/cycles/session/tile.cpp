@@ -13,8 +13,7 @@
 #include "scene/integrator.h"
 #include "scene/scene.h"
 #include "session/session.h"
-#include "util/algorithm.h"
-#include "util/foreach.h"
+
 #include "util/log.h"
 #include "util/path.h"
 #include "util/string.h"
@@ -39,7 +38,7 @@ static std::atomic<uint64_t> g_instance_index = 0;
 /* Construct names of EXR channels which will ensure order of all channels to match exact offsets
  * in render buffers corresponding to the given passes.
  *
- * Returns `std` datatypes so that it can be assigned directly to the OIIO's `ImageSpec`. */
+ * Returns `std` data-types so that it can be assigned directly to the OIIO's `ImageSpec`. */
 static std::vector<std::string> exr_channel_names_for_passes(const BufferParams &buffer_params)
 {
   static const char *component_suffixes[] = {"R", "G", "B", "A"};
@@ -320,7 +319,7 @@ TileManager::TileManager()
                            to_string(tile_manager_id);
 }
 
-TileManager::~TileManager() {}
+TileManager::~TileManager() = default;
 
 int TileManager::compute_render_tile_size(const int suggested_tile_size) const
 {
@@ -333,7 +332,7 @@ int TileManager::compute_render_tile_size(const int suggested_tile_size) const
   return min(computed_tile_size, MAX_TILE_SIZE);
 }
 
-void TileManager::reset_scheduling(const BufferParams &params, int2 tile_size)
+void TileManager::reset_scheduling(const BufferParams &params, const int2 tile_size)
 {
   VLOG_WORK << "Using tile size of " << tile_size;
 
@@ -405,7 +404,7 @@ bool TileManager::next()
   return true;
 }
 
-Tile TileManager::get_tile_for_index(int index) const
+Tile TileManager::get_tile_for_index(const int index) const
 {
   /* TODO(sergey): Consider using hilbert spiral, or. maybe, even configurable. Not sure this
    * brings a lot of value since this is only applicable to BIG tiles. */
@@ -438,7 +437,7 @@ const Tile &TileManager::get_current_tile() const
   return tile_state_.current_tile;
 }
 
-const int2 TileManager::get_size() const
+int2 TileManager::get_size() const
 {
   return make_int2(buffer_params_.width, buffer_params_.height);
 }

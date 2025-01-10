@@ -15,7 +15,7 @@
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.h"
 
 #include "WM_message.hh"
 #include "WM_types.hh"
@@ -130,8 +130,7 @@ static void wm_msg_rna_update_by_id(wmMsgBus *mbus, ID *id_src, ID *id_dst)
       }
       else {
         /* We need to resolve this from the new ID pointer. */
-        PointerRNA idptr;
-        RNA_id_pointer_create(id_dst, &idptr);
+        PointerRNA idptr = RNA_id_pointer_create(id_dst);
         PointerRNA ptr;
         PropertyRNA *prop = nullptr;
         if (RNA_path_resolve(&idptr, key->msg.params.data_path, &ptr, &prop) &&
@@ -294,10 +293,10 @@ void WM_msg_subscribe_rna_params(wmMsgBus *mbus,
 {
   wmMsgSubscribeKey_RNA msg_key_test = {{nullptr}};
 
-  /* use when added */
+  /* Use when added. */
   msg_key_test.msg.head.id = id_repr;
   msg_key_test.msg.head.type = WM_MSG_TYPE_RNA;
-  /* for lookup */
+  /* For lookup. */
   msg_key_test.msg.params = *msg_key_params;
 
   const char *none = "<none>";
@@ -317,7 +316,9 @@ void WM_msg_subscribe_rna_params(wmMsgBus *mbus,
     if (msg_key->msg.params.data_path == nullptr) {
       if (msg_key->msg.params.ptr.data != msg_key->msg.params.ptr.owner_id) {
         /* We assume prop type can't change. */
-        msg_key->msg.params.data_path = RNA_path_from_ID_to_struct(&msg_key->msg.params.ptr);
+        const std::optional<std::string> str = RNA_path_from_ID_to_struct(
+            &msg_key->msg.params.ptr);
+        msg_key->msg.params.data_path = str ? BLI_strdupn(str->c_str(), str->size()) : nullptr;
       }
     }
   }
@@ -348,15 +349,15 @@ void WM_msg_subscribe_ID(wmMsgBus *mbus,
                          const wmMsgSubscribeValue *msg_val_params,
                          const char *id_repr)
 {
-  wmMsgParams_RNA msg_key_params = {{nullptr}};
-  RNA_id_pointer_create(id, &msg_key_params.ptr);
+  wmMsgParams_RNA msg_key_params = {{}};
+  msg_key_params.ptr = RNA_id_pointer_create(id);
   WM_msg_subscribe_rna_params(mbus, &msg_key_params, msg_val_params, id_repr);
 }
 
 void WM_msg_publish_ID(wmMsgBus *mbus, ID *id)
 {
-  wmMsgParams_RNA msg_key_params = {{nullptr}};
-  RNA_id_pointer_create(id, &msg_key_params.ptr);
+  wmMsgParams_RNA msg_key_params = {{}};
+  msg_key_params.ptr = RNA_id_pointer_create(id);
   WM_msg_publish_rna_params(mbus, &msg_key_params);
 }
 

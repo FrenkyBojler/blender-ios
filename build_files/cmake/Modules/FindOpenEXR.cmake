@@ -117,7 +117,7 @@ foreach(COMPONENT ${_openexr_FIND_COMPONENTS})
       ${_openexr_SEARCH_DIRS}
     PATH_SUFFIXES
       lib64 lib
-    )
+  )
   list(APPEND _openexr_LIBRARIES "${OPENEXR_${UPPERCOMPONENT}_LIBRARY}")
 endforeach()
 
@@ -163,7 +163,7 @@ if(OPENEXR_VERSION VERSION_GREATER_EQUAL "3.0.0")
       ${_openexr_SEARCH_DIRS}
     PATH_SUFFIXES
       lib64 lib
-    )
+  )
   list(APPEND _openexr_LIBRARIES "${IMATH_LIBRARY}")
 
   # In cmake version 3.21 and up, we can instead use the NO_CACHE option for
@@ -174,9 +174,9 @@ if(OPENEXR_VERSION VERSION_GREATER_EQUAL "3.0.0")
 endif()
 
 if(OPENEXR_VERSION VERSION_GREATER_EQUAL "3.0.0")
-	set(IMATH_LIBRARIES ${IMATH_LIBRARY})
+  set(IMATH_LIBRARIES ${IMATH_LIBRARY})
 else()
-	set(IMATH_LIBRARIES ${OPENEXR_IMATH_LIBRARY})
+  set(IMATH_LIBRARIES ${OPENEXR_IMATH_LIBRARY})
 endif()
 
 # handle the QUIETLY and REQUIRED arguments and set OPENEXR_FOUND to TRUE if
@@ -199,6 +199,9 @@ if(OPENEXR_FOUND)
       ${IMATH_INCLUDE_DIR}
       ${IMATH_INCLUDE_DIR}/Imath)
   endif()
+
+  set(IMATH_INCLUDE_DIRS
+    ${IMATH_INCLUDE_DIR})
 endif()
 
 mark_as_advanced(

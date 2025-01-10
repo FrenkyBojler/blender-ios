@@ -6,8 +6,11 @@
 """
 this script updates XML themes once new settings are added
 
-  ./blender.bin --background -noaudio --python tools/check_source/check_descriptions.py
+  ./blender.bin --background --python tools/check_source/check_descriptions.py
 """
+__all__ = (
+    "main",
+)
 
 import bpy
 

@@ -42,7 +42,7 @@ class GHOST_DropTargetX11 {
    * \param dropBufferSize: Size of returned buffer.
    * \return Pointer to data.
    */
-  void *getGhostData(Atom dropType, unsigned char *dropBuffer, int dropBufferSize);
+  void *getGhostData(Atom dropType, const unsigned char *dropBuffer, int dropBufferSize);
 
  private:
   /* Internal helper functions */
@@ -63,14 +63,14 @@ class GHOST_DropTargetX11 {
    * \param dropBufferSize: Size of dropped buffer.
    * \return pointer to newly created GHOST data.
    */
-  void *getURIListGhostData(unsigned char *dropBuffer, int dropBufferSize);
+  void *getURIListGhostData(const unsigned char *dropBuffer, int dropBufferSize);
 
   /**
    * Fully decode file URL (i.e. converts `file:///a%20b/test` to `/a b/test`)
    * \param fileUrl: - file path URL to be fully decoded.
    * \return decoded file path (result should be free-d).
    */
-  char *FileUrlDecode(char *fileUrl);
+  char *FileUrlDecode(const char *fileUrl);
 
   /* The associated GHOST_WindowWin32. */
   GHOST_WindowX11 *m_window;
@@ -98,7 +98,5 @@ class GHOST_DropTargetX11 {
   /* Counter of references to global #XDND structures. */
   static int m_refCounter;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_DropTargetX11")
-#endif
 };

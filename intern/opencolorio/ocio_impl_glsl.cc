@@ -19,18 +19,24 @@
 #  pragma warning(pop)
 #endif
 
-#include "GPU_immediate.h"
-#include "GPU_shader.h"
-#include "GPU_uniform_buffer.h"
+#include "GPU_immediate.hh"
+#include "GPU_shader.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "gpu_shader_create_info.hh"
 
 using namespace OCIO_NAMESPACE;
 
+#include "BLI_math_color.h"
+#include "BLI_math_color.hh"
+#include "BLI_math_matrix.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "ocio_impl.h"
 #include "ocio_shader_shared.hh"
+
+using blender::float3x3;
 
 /* **** OpenGL drawing routines using GLSL for color space transform ***** */
 
@@ -204,6 +210,10 @@ static bool createGPUShader(OCIO_GPUShader &shader,
   info.define("texture1D", "texture");
   info.define("texture2D", "texture");
   info.define("texture3D", "texture");
+  /* Work around unsupported in keyword in Metal GLSL emulation. */
+#ifdef __APPLE__
+  info.define("in", "");
+#endif
   info.typedef_source("ocio_shader_shared.hh");
   info.sampler(TEXTURE_SLOT_IMAGE, ImageType::FLOAT_2D, "image_texture");
   info.sampler(TEXTURE_SLOT_OVERLAY, ImageType::FLOAT_2D, "overlay_texture");
@@ -343,8 +353,15 @@ static bool addGPULut1D2D(OCIO_GPUTextures &textures,
   unsigned int height = 0;
   GpuShaderCreator::TextureType channel = GpuShaderCreator::TEXTURE_RGB_CHANNEL;
   Interpolation interpolation = INTERP_LINEAR;
+#if OCIO_VERSION_HEX >= 0x02030000
+  /* Always use 2D textures in OpenColorIO 2.3, simpler and same performance. */
+  GpuShaderDesc::TextureDimensions dimensions = GpuShaderDesc::TEXTURE_2D;
+  shader_desc->getTexture(
+      index, texture_name, sampler_name, width, height, channel, dimensions, interpolation);
+#else
   shader_desc->getTexture(
       index, texture_name, sampler_name, width, height, channel, interpolation);
+#endif
 
   const float *values;
   shader_desc->getTextureValues(index, values);
@@ -358,6 +375,7 @@ static bool addGPULut1D2D(OCIO_GPUTextures &textures,
                                                                                   GPU_R16F;
 
   OCIO_GPULutTexture lut;
+#if OCIO_VERSION_HEX < 0x02030000
   /* There does not appear to be an explicit way to check if a texture is 1D or 2D.
    * It depends on more than height. So check instead by looking at the source. */
   std::string sampler1D_name = std::string("sampler1D ") + sampler_name;
@@ -365,7 +383,9 @@ static bool addGPULut1D2D(OCIO_GPUTextures &textures,
     lut.texture = GPU_texture_create_1d(
         texture_name, width, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, values);
   }
-  else {
+  else
+#endif
+  {
     lut.texture = GPU_texture_create_2d(
         texture_name, width, height, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, values);
   }
@@ -502,8 +522,8 @@ static void updateGPUCurveMapping(OCIO_GPUCurveMappping &curvemap,
   curvemap.cache_id = curve_mapping_settings->cache_id;
 
   /* Update texture. */
-  int offset[3] = {0, 0, 0};
-  int extent[3] = {curve_mapping_settings->lut_size, 0, 0};
+  const int offset[3] = {0, 0, 0};
+  const int extent[3] = {curve_mapping_settings->lut_size, 0, 0};
   const float *pixels = curve_mapping_settings->lut;
   GPU_texture_update_sub(
       curvemap.texture, GPU_DATA_FLOAT, pixels, UNPACK3(offset), UNPACK3(extent));
@@ -533,8 +553,8 @@ static void updateGPUCurveMapping(OCIO_GPUCurveMappping &curvemap,
 }
 
 static void updateGPUDisplayParameters(OCIO_GPUShader &shader,
-                                       float scale,
                                        float exponent,
+                                       float4x4 scene_linear_matrix,
                                        float dither,
                                        bool use_predivide,
                                        bool use_overlay,
@@ -546,8 +566,8 @@ static void updateGPUDisplayParameters(OCIO_GPUShader &shader,
     do_update = true;
   }
   OCIO_GPUParameters &data = shader.parameters;
-  if (data.scale != scale) {
-    data.scale = scale;
+  if (data.scene_linear_matrix != scene_linear_matrix) {
+    data.scene_linear_matrix = scene_linear_matrix;
     do_update = true;
   }
   if (data.exponent != exponent) {
@@ -631,20 +651,22 @@ static OCIO_GPUDisplayShader &getGPUDisplayShader(
 
   /* Create Processors.
    *
-   * Scale and exponent are handled outside of OCIO shader so we can handle them
-   * as uniforms at the binding stage. OCIO would otherwise bake them into the
-   * shader code, requiring slow recompiles when interactively adjusting them.
+   * Scale, white balance and exponent are handled outside of OCIO shader so we
+   * can handle them as uniforms at the binding stage. OCIO would otherwise bake
+   * them into the shader code, requiring slow recompiles when interactively
+   * adjusting them.
    *
    * Note that OCIO does have the concept of dynamic properties, however there
    * is no dynamic gamma and exposure is part of more expensive operations only.
    *
-   * Since exposure must happen in scene linear, we use two processors. The input
-   * is usually scene linear already and so that conversion is often a no-op.
+   * Since exposure and white balance must happen in scene linear, we use two
+   * processors. The input is usually scene linear already and so that conversion
+   * is often a no-op.
    */
   OCIO_ConstProcessorRcPtr *processor_to_scene_linear = OCIO_configGetProcessorWithNames(
       config, input, ROLE_SCENE_LINEAR);
   OCIO_ConstProcessorRcPtr *processor_to_display = OCIO_createDisplayProcessor(
-      config, ROLE_SCENE_LINEAR, view, display, look, 1.0f, 1.0f, false);
+      config, ROLE_SCENE_LINEAR, view, display, look, 1.0f, 1.0f, 0.0f, 0.0f, false, false);
 
   /* Create shader descriptions. */
   if (processor_to_scene_linear && processor_to_display) {
@@ -710,9 +732,12 @@ bool OCIOImpl::gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
                                     const float scale,
                                     const float exponent,
                                     const float dither,
+                                    const float temperature,
+                                    const float tint,
                                     const bool use_predivide,
                                     const bool use_overlay,
-                                    const bool use_hdr)
+                                    const bool use_hdr,
+                                    const bool use_white_balance)
 {
   /* Get GPU shader from cache or create new one. */
   OCIO_GPUDisplayShader &display_shader = getGPUDisplayShader(
@@ -747,7 +772,24 @@ bool OCIOImpl::gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
     GPU_uniformbuf_bind(textures.uniforms_buffer, UNIFORMBUF_SLOT_LUTS);
   }
 
-  updateGPUDisplayParameters(shader, scale, exponent, dither, use_predivide, use_overlay, use_hdr);
+  float3x3 matrix = float3x3::identity() * scale;
+  if (use_white_balance) {
+    /* Compute white point of the scene space in XYZ.*/
+    float3x3 xyz_to_scene;
+    configGetXYZtoSceneLinear(config, xyz_to_scene.ptr());
+    float3x3 scene_to_xyz = blender::math::invert(xyz_to_scene);
+    float3 target = scene_to_xyz * float3(1.0f);
+
+    /* Add operations to the matrix.
+     * Note: Since we're multiplying from the right, the operations here will be performed in
+     * reverse list order (scene-to-XYZ, then adaption, then XYZ-to-scene, then exposure). */
+    matrix *= xyz_to_scene;
+    matrix *= blender::math::chromatic_adaption_matrix(
+        blender::math::whitepoint_from_temp_tint(temperature, tint), target);
+    matrix *= scene_to_xyz;
+  }
+  updateGPUDisplayParameters(
+      shader, exponent, float4x4(matrix), dither, use_predivide, use_overlay, use_hdr);
   GPU_uniformbuf_bind(shader.parameters_buffer, UNIFORMBUF_SLOT_DISPLAY);
 
   /* TODO(fclem): remove remains of IMM. */
