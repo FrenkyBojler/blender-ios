@@ -801,9 +801,11 @@ class Slot : public ::ActionSlot {
    *
    * Note that it is possible, but odd, for an ID to use a Slot that is not
    * suitable for it. This is discouraged, and a best effort is made to prevent
-   * this in typical cases, but it is not possible to completely prevent.
-   * Therefore this method returning `false` should NOT be taken as a guarantee
-   * that this Slot will never be used by the given ID.
+   * this in typical cases, but it is not possible to completely prevent due to
+   * library linking (e.g. an Action linked from another file may be replaced in
+   * that other file, causing its Slots to effectively change). Therefore this
+   * method returning `false` should NOT be taken as a guarantee that this Slot
+   * will never be used by the given ID or other IDs of the same type.
    *
    * \see identifier_prefix_for_idtype() \see has_idtype()
    */
