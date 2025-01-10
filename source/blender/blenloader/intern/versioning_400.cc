@@ -3413,7 +3413,7 @@ static void rename_mesh_uv_seam_attribute(Mesh &mesh)
 static void version_group_input_socket_data_block_reference(bNodeTree &ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
-    if (node->type_legacy != NODE_GROUP_INPUT) {
+    if (!node->is_group_input()) {
       continue;
     }
     LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {

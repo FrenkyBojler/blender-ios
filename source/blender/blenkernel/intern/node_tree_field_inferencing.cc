@@ -81,7 +81,7 @@ static OutputFieldDependency get_interface_output_field_dependency(const bNode &
     /* The reroute just forwards what is passed in. */
     return OutputFieldDependency::ForDependentField();
   }
-  if (node.type_legacy == NODE_GROUP_INPUT) {
+  if (node.is_group_input()) {
     /* Input nodes get special treatment in #determine_group_input_states. */
     return OutputFieldDependency::ForDependentField();
   }
@@ -234,7 +234,7 @@ static OutputFieldDependency find_group_output_dependencies(
           field_state_by_socket_id[origin_socket->index_in_tree()];
 
       if (origin_state.is_field_source) {
-        if (origin_node.type_legacy == NODE_GROUP_INPUT) {
+        if (origin_node.is_group_input()) {
           /* Found a group input that the group output depends on. */
           linked_input_indices.append_non_duplicates(origin_socket->index());
         }
@@ -577,7 +577,7 @@ static void propagate_field_status_from_left_to_right(
     bool need_update = false;
 
     for (const bNode *node : toposort_result) {
-      if (node->type_legacy == NODE_GROUP_INPUT) {
+      if (node->is_group_input()) {
         continue;
       }
 

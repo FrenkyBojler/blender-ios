@@ -2167,7 +2167,7 @@ bNodeSocket *node_add_socket(bNodeTree *ntree,
                              const StringRefNull name)
 {
   BLI_assert(node->type_legacy != NODE_FRAME);
-  BLI_assert(!(in_out == SOCK_IN && node->type_legacy == NODE_GROUP_INPUT));
+  BLI_assert(!(in_out == SOCK_IN && node->is_group_input()));
   BLI_assert(!(in_out == SOCK_OUT && node->type_legacy == NODE_GROUP_OUTPUT));
 
   ListBase *lb = (in_out == SOCK_IN ? &node->inputs : &node->outputs);

@@ -359,7 +359,7 @@ static void ntree_shader_unlink_hidden_value_sockets(bNode *group_node, bNodeSoc
         continue;
       }
       /* If socket is linked to a group input node and sockets id match. */
-      if (sock && sock->link && sock->link->fromnode->type_legacy == NODE_GROUP_INPUT) {
+      if (sock && sock->link && sock->link->fromnode->is_group_input()) {
         if (STREQ(isock->identifier, sock->link->fromsock->identifier)) {
           if (is_group) {
             /* Recursively unlink sockets within the nested group. */
@@ -475,7 +475,7 @@ static void flatten_group_do(bNodeTree *ntree, bNode *gnode)
     /* Remove interface nodes.
      * This also removes remaining links to and from interface nodes.
      * We must delay removal since sockets will reference this node. see: #52092 */
-    if (ELEM(node->type_legacy, NODE_GROUP_INPUT, NODE_GROUP_OUTPUT)) {
+    if (node->is_group_input() || node->is_group_output()) {
       BLI_linklist_prepend(&group_interface_nodes, node);
     }
     /* migrate node */
@@ -503,7 +503,7 @@ static void flatten_group_do(bNodeTree *ntree, bNode *gnode)
   if (glinks_first != nullptr) {
     /* input links */
     for (bNodeLink *link = glinks_first->next; link != glinks_last->next; link = link->next) {
-      if (link->fromnode->type_legacy == NODE_GROUP_INPUT) {
+      if (link->fromnode->is_group_input()) {
         const char *identifier = link->fromsock->identifier;
         /* find external links to this input */
         for (bNodeLink *tlink = static_cast<bNodeLink *>(ntree->links.first);
