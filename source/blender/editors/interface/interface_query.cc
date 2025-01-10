@@ -678,6 +678,9 @@ bool ui_block_is_popup_any(const uiBlock *block)
 
 static const uiBut *ui_but_next_non_separator(const uiBut *but)
 {
+  if (!but) {
+    return nullptr;
+  }
   for (int i = but->block->but_index(but); i < but->block->buttons.size(); i++) {
     but = but->block->buttons[i].get();
     if (!ELEM(but->type, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE)) {
@@ -689,7 +692,7 @@ static const uiBut *ui_but_next_non_separator(const uiBut *but)
 
 bool UI_block_is_empty_ex(const uiBlock *block, const bool skip_title)
 {
-  const uiBut *but = block->first_but_or_null();
+  const uiBut *but = block->first_but();
   if (skip_title) {
     /* Skip the first label, since popups often have a title,
      * we may want to consider the block empty in this case. */
@@ -709,7 +712,7 @@ bool UI_block_is_empty(const uiBlock *block)
 bool UI_block_can_add_separator(const uiBlock *block)
 {
   if (ui_block_is_menu(block) && !ui_block_is_pie_menu(block)) {
-    const uiBut *but = block->last_but_or_null();
+    const uiBut *but = block->last_but();
     return (but && !ELEM(but->type, UI_BTYPE_SEPR_LINE, UI_BTYPE_SEPR));
   }
   return true;

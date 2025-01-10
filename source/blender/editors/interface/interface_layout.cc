@@ -2340,7 +2340,7 @@ void uiItemFullR(uiLayout *layout,
       ui_decorate.layout = uiLayoutColumn(layout_row, true);
       ui_decorate.layout->space = 0;
       UI_block_layout_set_current(block, layout);
-      ui_decorate.but = block->last_but_or_null();
+      ui_decorate.but = block->last_but();
 
       /* Clear after. */
       layout->flag |= UI_ITEM_PROP_DECORATE_NO_PAD;
@@ -2494,8 +2494,7 @@ void uiItemFullR(uiLayout *layout,
 
 #ifdef UI_PROP_DECORATE
   if (ui_decorate.use_prop_decorate) {
-    uiBut *but_decorate = ui_decorate.but ? block->next_but(ui_decorate.but) :
-                                            block->first_but_or_null();
+    uiBut *but_decorate = ui_decorate.but ? block->next_but(ui_decorate.but) : block->first_but();
 
     /* Move temporarily last buts to avoid multiple reallocations while inserting decorators. */
     blender::Vector<std::unique_ptr<uiBut>> tmp;

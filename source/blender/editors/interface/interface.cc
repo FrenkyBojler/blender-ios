@@ -288,12 +288,12 @@ void uiBlock::remove_but(const uiBut *but)
   this->buttons.remove(target_index);
 }
 
-uiBut *uiBlock::first_but_or_null() const
+uiBut *uiBlock::first_but() const
 {
   return !this->buttons.is_empty() ? this->buttons.first().get() : nullptr;
 }
 
-uiBut *uiBlock::last_but_or_null() const
+uiBut *uiBlock::last_but() const
 {
   return !this->buttons.is_empty() ? this->buttons.last().get() : nullptr;
 }
@@ -505,7 +505,7 @@ void ui_block_bounds_calc(uiBlock *block)
   block->rect.xmax = block->rect.xmin + max_ff(BLI_rctf_size_x(&block->rect), block->minbounds);
 
   /* hardcoded exception... but that one is annoying with larger safety */
-  uiBut *bt = block->first_but_or_null();
+  uiBut *bt = block->first_but();
   const int xof = ((bt && STRPREFIX(bt->str.c_str(), "ERROR")) ? 10 : 40) * UI_SCALE_FAC;
 
   block->safety.xmin = block->rect.xmin - xof;
