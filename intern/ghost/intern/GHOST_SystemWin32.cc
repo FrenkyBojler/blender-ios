@@ -944,6 +944,15 @@ void GHOST_SystemWin32::processWintabEvent(GHOST_WindowWin32 *window)
   mouseMoveHandled = useWintabPos = wt->trustCoordinates();
 
   for (GHOST_WintabInfoWin32 &info : wintabInfo) {
+
+    if (wt->untrustedHwnd()) {
+      int _dummy = 0;
+      GHOST_IWindow *iwindow = system->getWindowUnderCursor(_dummy, _dummy);
+      if (iwindow) {
+        window = reinterpret_cast<GHOST_WindowWin32 *>(iwindow);
+      }
+    }
+
     switch (info.type) {
       case GHOST_kEventCursorMove: {
         if (!useWintabPos) {
@@ -1145,9 +1154,28 @@ GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *wind
 {
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
 
-  if (window->getTabletData().Active != GHOST_kTabletModeNone) {
-    /* While pen devices are in range, cursor movement is handled by tablet input processing. */
-    return nullptr;
+  GHOST_Wintab *wt = window->getWintab();
+
+  /* While pen devices are in range, cursor movement is handled by tablet input processing,
+   * however due to vender WinTab driver issues, we don't have correct window pointer for
+   * Huion/XP-Pen tablets, which means the active state is registered in whatever window the
+   * driver event sends to, so we need to check each one of windows to make sure. */
+  if (wt->untrustedHwnd()) {
+    std::vector<GHOST_IWindow *>::iterator iter;
+    std::vector<GHOST_IWindow *> windows = system->getWindowManager()->getWindows();
+    for (iter = windows.begin(); iter != windows.end(); iter++) {
+      GHOST_WindowWin32 *winiter = reinterpret_cast<GHOST_WindowWin32 *>(*iter);
+      if (winiter->getTabletData().Active != GHOST_kTabletModeNone) {
+        /* If any one of the window is handling tablet input, then it means we do not process
+         * mousemove events here. */
+        return nullptr;
+      }
+    }
+  }
+  else {
+    if (window->getTabletData().Active != GHOST_kTabletModeNone) {
+      return nullptr;
+    }
   }
 
   int32_t x_screen = screen_co[0], y_screen = screen_co[1];

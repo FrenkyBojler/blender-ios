@@ -171,6 +171,13 @@ class GHOST_Wintab {
    */
   GHOST_TabletData getLastTabletData();
 
+  /**
+   * Some vendor's WinTab driver does not report HWND correctly in their tablet events when there's
+   * more than 1 window that has called WTOpen(), this currently includes Huion and XP-Pen. We need
+   * special fallback method to get the actual window of the events to process them.
+   */
+  bool untrustedHwnd();
+
   /* Sets Wintab debugging.
    * \param debug: True to enable Wintab debugging.
    */
@@ -238,6 +245,9 @@ class GHOST_Wintab {
   /** Whether Wintab logging is enabled. */
   static bool m_debug;
 
+  /** Whether to use fallback method to get the actual HWND for tablet events. */
+  bool m_untrusted_hwnd;
+
   GHOST_Wintab(unique_hmodule handle,
                GHOST_WIN32_WTInfo info,
                GHOST_WIN32_WTGet get,
@@ -248,7 +258,8 @@ class GHOST_Wintab {
                unique_hctx hctx,
                Coord tablet,
                Coord system,
-               size_t queueSize);
+               size_t queueSize,
+               const bool untrusted_hwnd);
 
   /**
    * Convert Wintab system mapped (mouse) buttons into Ghost button mask.

@@ -77,6 +77,13 @@ GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
     return nullptr;
   }
 
+  WINTAB_PRINTF("WinTab driver name: %s\n", lc.lcName);
+
+  bool untrusted_hwnd = false;
+  if (strstr(lc.lcName, "HUION") || strstr(lc.lcName, "XP-Pen") || strstr(lc.lcName, "UGTABLET")) {
+    untrusted_hwnd = true;
+  }
+
   Coord tablet, system;
   extractCoordinates(lc, tablet, system);
   modifyContext(lc);
@@ -138,7 +145,8 @@ GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
                           std::move(hctx),
                           tablet,
                           system,
-                          size_t(queueSize));
+                          size_t(queueSize),
+                          untrusted_hwnd);
 }
 
 void GHOST_Wintab::modifyContext(LOGCONTEXT &lc)
@@ -181,7 +189,8 @@ GHOST_Wintab::GHOST_Wintab(unique_hmodule handle,
                            unique_hctx hctx,
                            Coord tablet,
                            Coord system,
-                           size_t queueSize)
+                           size_t queueSize,
+                           const bool untrusted_hwnd)
     : m_handle{std::move(handle)},
       m_fpInfo{info},
       m_fpGet{get},
@@ -192,7 +201,8 @@ GHOST_Wintab::GHOST_Wintab(unique_hmodule handle,
       m_context{std::move(hctx)},
       m_tabletCoord{tablet},
       m_systemCoord{system},
-      m_pkts{queueSize}
+      m_pkts{queueSize},
+      m_untrusted_hwnd{untrusted_hwnd}
 {
   m_fpInfo(WTI_INTERFACE, IFC_NDEVICES, &m_numDevices);
   WINTAB_PRINTF("Wintab Devices: %d\n", m_numDevices);
@@ -482,6 +492,11 @@ bool GHOST_Wintab::testCoordinates(int sysX, int sysY, int wtX, int wtY)
     m_coordTrusted = false;
     return false;
   }
+}
+
+bool GHOST_Wintab::untrustedHwnd()
+{
+  return m_untrusted_hwnd;
 }
 
 bool GHOST_Wintab::m_debug = false;
