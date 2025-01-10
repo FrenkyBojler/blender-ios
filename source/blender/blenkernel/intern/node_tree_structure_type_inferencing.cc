@@ -14,6 +14,10 @@
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 
+/**
+Rules:
+- */
+
 namespace blender::bke::node_structure_type_inferencing {
 
 using nodes::StructureType;
@@ -78,7 +82,7 @@ static void update_interface_structure_types(
 
   /* Build derived inputs from group input nodes. */
   for (const int input_i : tree.interface_inputs().index_range()) {
-    bNodeTreeInterfaceSocket &io_socket = *tree.interface_inputs()[input_i];
+    const bNodeTreeInterfaceSocket &io_socket = *tree.interface_inputs()[input_i];
     if (io_socket.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
       derived_interface.inputs[input_i] = StructureType(io_socket.structure_type);
       continue;
@@ -99,10 +103,10 @@ static void update_interface_structure_types(
     }
   }
 
-  if (bNode *output_node = tree.group_output_node()) {
+  if (const bNode *output_node = tree.group_output_node()) {
     for (const int output_i : tree.interface_outputs().index_range()) {
       const bNodeSocket &socket = output_node->input_socket(output_i);
-      bNodeTreeInterfaceSocket &io_socket = *tree.interface_outputs()[output_i];
+      const bNodeTreeInterfaceSocket &io_socket = *tree.interface_outputs()[output_i];
       if (io_socket.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
         derived_interface.outputs[output_i] = StructureType(io_socket.structure_type);
         continue;
@@ -205,10 +209,10 @@ static void propagate_left_to_right(const bNodeTree &tree,
       socket_structure_type = StructureType::Single;
     }
 
-    switch (node->type) {
+    switch (node->type_legacy) {
       case NODE_REROUTE: {
-        socket_structure_types[node->output_socket(0).index_in_tree()] =
-            socket_structure_types[node->input_socket(0).index_in_tree()];
+        socket_usages[node->output_socket(0).index_in_tree()] =
+            socket_usages[node->input_socket(0).index_in_tree()];
         break;
       }
       case NODE_GROUP_INPUT: {

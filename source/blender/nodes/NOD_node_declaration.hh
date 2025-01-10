@@ -8,6 +8,7 @@
 #include <functional>
 #include <type_traits>
 
+#include "BLI_array.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
