@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <optional>
 
-#include "BKE_main_invariants.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_material_types.h"
@@ -23,6 +22,7 @@
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
