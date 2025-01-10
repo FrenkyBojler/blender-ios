@@ -29,6 +29,7 @@
 #include "ED_screen.hh"
 /* XXX needs access to the file list, should all be done via the asset system in future. */
 #include "ED_fileselect.hh"
+#include "ED_render.hh"
 
 #include "BLT_translation.hh"
 
@@ -1041,6 +1042,8 @@ static void square_points(blender::int2 &p1, blender::int2 &p2)
 
 static int screenshot_preview_exec(bContext *C, wmOperator *op)
 {
+  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+
   blender::int2 p1, p2;
   RNA_int_get_array(op->ptr, "p1", p1);
   RNA_int_get_array(op->ptr, "p2", p2);
@@ -1115,9 +1118,9 @@ static int screenshot_preview_exec(bContext *C, wmOperator *op)
   }
 
   IMB_freeImBuf(image_buffer);
-  refresh_asset_library(C, *CTX_wm_asset_library_ref(C));
+  asset::list::storage_tag_main_data_dirty();
 
-  WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
+  WM_main_add_notifier(NC_ASSET | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
