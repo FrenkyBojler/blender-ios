@@ -218,10 +218,10 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
       if (mcmd->flip_axis & MOD_MESHCACHE_FLIP_AXIS_X) {
         tmat[0][0] = -1.0f;
       }
-      if (mcmd->flip_axis & MOD_MESHCACHE_FLIP_AXIS_X) {
+      if (mcmd->flip_axis & MOD_MESHCACHE_FLIP_AXIS_Y) {
         tmat[1][1] = -1.0f;
       }
-      if (mcmd->flip_axis & MOD_MESHCACHE_FLIP_AXIS_X) {
+      if (mcmd->flip_axis & MOD_MESHCACHE_FLIP_AXIS_Z) {
         tmat[2][2] = -1.0f;
       }
       mul_m3_m3m3(mat, tmat, mat);
