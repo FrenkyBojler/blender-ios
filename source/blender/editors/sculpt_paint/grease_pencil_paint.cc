@@ -1060,7 +1060,14 @@ bool PaintOperation::update_stroke_depth_placement(const bContext &C, const Inpu
     placement_.set_stroke_projection_plane(origin, normal);
   }
 
-  last_stroke_placement_loc_ = new_stroke_placement_loc;
+  /* In AllPoints mode the snap location is updated each time a new hit is found. */
+  const StrokeSnapMode snap_mode = get_snap_mode(C);
+  if (!last_stroke_placement_loc_ && snap_mode != StrokeSnapMode::FirstPoint) {
+    last_stroke_placement_loc_ = new_stroke_placement_loc;
+  }
+
+  this->reproject_samples_on_strokes(C);
+
   return true;
 }
 
@@ -1087,10 +1094,15 @@ void PaintOperation::reproject_samples_on_strokes(const bContext &C)
     return;
   }
 
-  const IndexRange active_points = last_stroke_placement_point_ < 0 ?
-                                       all_points :
-                                       IndexRange::from_begin_end_inclusive(
-                                           last_stroke_placement_point_, all_points.last());
+  const StrokeSnapMode snap_mode = get_snap_mode(C);
+  /* In FirstPoint mode all the points are reprojected, otherwise only reproject points since the
+   * last update. */
+  IndexRange active_points = all_points;
+  if (snap_mode != StrokeSnapMode::FirstPoint && last_stroke_placement_point_ >= 0) {
+    active_points = IndexRange::from_begin_end_inclusive(last_stroke_placement_point_,
+                                                         all_points.last());
+  }
+
   /* Point slice relative to the curve, valid for 2D coordinate array. */
   const IndexRange active_curve_points = active_points.shift(-all_points.start());
 
@@ -1102,7 +1114,9 @@ void PaintOperation::reproject_samples_on_strokes(const bContext &C)
     positions[i] = this->placement_.project(final_coords[i]);
   }
 
-  last_stroke_placement_point_ = all_points.one_after_last();
+  if (snap_mode == StrokeSnapMode::AllPoints) {
+    last_stroke_placement_point_ = all_points.one_after_last();
+  }
 }
 
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
@@ -1194,20 +1208,8 @@ void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &ex
   executor.execute(*this, C, extension_sample);
 
   if (placement_.use_project_to_stroke()) {
-    const StrokeSnapMode snap_mode = get_snap_mode(C);
-    switch (snap_mode) {
-      case StrokeSnapMode::AllPoints:
-        /* Apply the current projection if it exists and then update the snap point. */
-        if (this->update_stroke_depth_placement(C, extension_sample)) {
-          this->reproject_samples_on_strokes(C);
-        }
-        break;
-
-      case StrokeSnapMode::EndPoints:
-      case StrokeSnapMode::FirstPoint:
-        /* In these cases the first snap point remains unchanged during the operation. */
-        break;
-    }
+    /* Find a new snap point and apply projection to trailing points. */
+    this->update_stroke_depth_placement(C, extension_sample);
   }
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
@@ -1609,24 +1611,6 @@ void PaintOperation::on_stroke_done(const bContext &C)
                                                            bke::AttrDomain::Point);
   screen_space_positions.span.slice(points).copy_from(this->screen_space_final_coords_);
   screen_space_positions.finish();
-
-  if (placement_.use_project_to_stroke()) {
-    const StrokeSnapMode snap_mode = get_snap_mode(C);
-    switch (snap_mode) {
-      case StrokeSnapMode::AllPoints:
-        /* This mode already reprojects when adding points, nothing to do here. */
-        break;
-
-      case StrokeSnapMode::EndPoints:
-        /* Finalize projection after the stroke is finished. */
-        this->reproject_samples_on_strokes(C);
-        break;
-
-      case StrokeSnapMode::FirstPoint:
-        /* Only the initial snap point is used. */
-        break;
-    }
-  }
 
   /* Remove trailing points with radii close to zero. */
   trim_end_points(drawing, 1e-5f, on_back, active_curve);
