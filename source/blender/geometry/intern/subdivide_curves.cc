@@ -380,7 +380,7 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
     });
 
     /* Filter out positions and handles that are already interpolated. */
-    const Set<std::string> attributes_to_skip = {
+    const Set<StringRef> attributes_to_skip = {
         "position", "handle_type_left", "handle_type_right", "handle_right", "handle_left"};
     for (auto &attribute : attributes_to_transfer) {
       if (attributes_to_skip.contains(attribute.name)) {

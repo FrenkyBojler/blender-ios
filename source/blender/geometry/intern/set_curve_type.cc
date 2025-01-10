@@ -304,7 +304,7 @@ static bke::CurvesGeometry convert_curves_to_bezier(const bke::CurvesGeometry &s
   MutableSpan<int8_t> dst_types_r = dst_curves.handle_types_right_for_write();
   Vector<bke::AttributeTransferData> generic_attributes = bke::retrieve_attributes_for_transfer(
       src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter);
-  Set<std::string> attributes_to_skip = {
+  Set<StringRef> attributes_to_skip = {
       "position", "handle_type_left", "handle_type_right", "handle_right", "handle_left"};
   if (!dst_curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
     attributes_to_skip.add_new("nurbs_weight");
@@ -484,12 +484,12 @@ static bke::CurvesGeometry convert_curves_to_nurbs(const bke::CurvesGeometry &sr
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
   Vector<bke::AttributeTransferData> generic_attributes = bke::retrieve_attributes_for_transfer(
       src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter);
-  const Set<std::string> attributes_to_skip = {"position",
-                                               "handle_type_left",
-                                               "handle_type_right",
-                                               "handle_right",
-                                               "handle_left",
-                                               "nurbs_weight"};
+  const Set<StringRef> attributes_to_skip = {"position",
+                                             "handle_type_left",
+                                             "handle_type_right",
+                                             "handle_right",
+                                             "handle_left",
+                                             "nurbs_weight"};
 
   auto fill_weights_if_necessary = [&](const IndexMask &selection) {
     if (src_attributes.contains("nurbs_weight")) {
@@ -685,12 +685,12 @@ static bke::CurvesGeometry convert_curves_to_catmull_rom_or_poly(
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
   Vector<bke::AttributeTransferData> generic_attributes = bke::retrieve_attributes_for_transfer(
       src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter);
-  const Set<std::string> attributes_to_skip = {"position",
-                                               "handle_type_left",
-                                               "handle_type_right",
-                                               "handle_right",
-                                               "handle_left",
-                                               "nurbs_weight"};
+  const Set<StringRef> attributes_to_skip = {"position",
+                                             "handle_type_left",
+                                             "handle_type_right",
+                                             "handle_right",
+                                             "handle_left",
+                                             "nurbs_weight"};
 
   auto convert_from_catmull_rom_or_poly_or_nurbs = [&](const IndexMask &selection) {
     array_utils::copy_group_to_group(
