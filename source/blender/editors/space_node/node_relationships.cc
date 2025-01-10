@@ -217,7 +217,7 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
 
   /* Always allow linking to an reroute node. The socket type of the reroute sockets might change
    * after the link has been created. */
-  if (node->type_legacy == NODE_REROUTE) {
+  if (node->is_reroute()) {
     return (bNodeSocket *)node->outputs.first;
   }
 
@@ -2436,7 +2436,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     best_output = get_main_socket(ntree, *node_to_insert, SOCK_OUT);
   }
 
-  if (node_to_insert->type_legacy != NODE_REROUTE) {
+  if (!node_to_insert->is_reroute()) {
     /* Ignore main sockets when the types don't match. */
     if (best_input != nullptr && ntree.typeinfo->validate_link != nullptr &&
         !ntree.typeinfo->validate_link(static_cast<eNodeSocketDatatype>(old_link->fromsock->type),

@@ -2921,7 +2921,7 @@ void node_socket_move_default_value(Main & /*bmain*/,
     /* Multi input sockets no have value. */
     return;
   }
-  if (ELEM(NODE_REROUTE, dst_node.type_legacy, src_node.type_legacy)) {
+  if (dst_node.is_reroute() || src_node.is_reroute()) {
     /* Reroute node can't have ownership of socket value directly. */
     return;
   }

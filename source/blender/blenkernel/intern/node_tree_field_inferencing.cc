@@ -44,7 +44,7 @@ static InputSocketFieldType get_interface_input_field_type(const bNode &node,
   if (!is_field_socket_type(socket)) {
     return InputSocketFieldType::None;
   }
-  if (node.type_legacy == NODE_REROUTE) {
+  if (node.is_reroute()) {
     return InputSocketFieldType::IsSupported;
   }
   if (node.type_legacy == NODE_GROUP_OUTPUT) {
@@ -77,7 +77,7 @@ static OutputFieldDependency get_interface_output_field_dependency(const bNode &
     /* Non-field sockets always output data. */
     return OutputFieldDependency::ForDataSource();
   }
-  if (node.type_legacy == NODE_REROUTE) {
+  if (node.is_reroute()) {
     /* The reroute just forwards what is passed in. */
     return OutputFieldDependency::ForDependentField();
   }
