@@ -1199,33 +1199,34 @@ void SEQUENCER_OT_refresh_all(wmOperatorType *ot)
 /** \name Reassign Inputs Operator
  * \{ */
 
-int strip_effect_find_selected(Scene *scene,
-                               Strip *activeseq,
-                               int type,
-                               Strip **r_selseq1,
-                               Strip **r_selseq2,
-                               const char **r_error_str)
+bool strip_effect_get_new_inputs(Scene *scene,
+                                 bool ignore_active,
+                                 int strip_type,
+                                 Strip **r_seq1,
+                                 Strip **r_seq2,
+                                 const char **r_error_str)
 {
   Editing *ed = SEQ_editing_get(scene);
   Strip *seq1 = nullptr, *seq2 = nullptr;
+  Strip *active_strip = SEQ_select_active_get(scene);
 
   *r_error_str = nullptr;
 
-  if (SEQ_effect_get_num_inputs(type) == 0) {
-    *r_selseq1 = *r_selseq2 = nullptr;
-    return 1;
+  if (SEQ_effect_get_num_inputs(strip_type) == 0) {
+    *r_seq1 = *r_seq2 = nullptr;
+    return true;
   }
 
   for (Strip *strip : SEQ_query_selected_strips(ed->seqbasep)) {
     if (strip->flag & SELECT) {
-      if (strip->type == SEQ_TYPE_SOUND_RAM) {
+      if (strip->type == STRIP_TYPE_SOUND_RAM) {
         // Ignore sound strips for now (avoids unnecessary errors when connected strips are
         // selected together, and the intent to operate on strips with video content is clear).
         continue;
       }
-      if (strip == activeseq) {
-        // If `activeseq` is set, this function is being called from the reassign inputs operator.
-        // Ignore the active strip, since it is the effect strip.
+      if (ignore_active && strip == active_strip) {
+        // If `ignore_active` is true, this function is being called from the reassign inputs
+        // operator, meaning the active strip must be the effect strip to reassign.
         continue;
       }
       if (seq1 == nullptr) {
@@ -1236,63 +1237,62 @@ int strip_effect_find_selected(Scene *scene,
       }
       else {
         *r_error_str = N_("Cannot apply effect to more than 2 sequence strips with video content");
-        return 0;
+        return false;
       }
     }
   }
 
-  switch (SEQ_effect_get_num_inputs(type)) {
+  switch (SEQ_effect_get_num_inputs(strip_type)) {
     case 1:
       // Error if there are zero or two selected strips with video content.
       if (seq1 == nullptr || seq2) {
         *r_error_str = N_("Exactly one selected sequence strip with video content is needed");
-        return 0;
+        return false;
       }
       break;
     case 2:
       // Error if there aren't two strips with video content.
       if (seq1 == nullptr || seq2 == nullptr) {
         *r_error_str = N_("Exactly 2 selected sequence strips with video content are needed");
-        return 0;
+        return false;
       }
       break;
   }
 
-  *r_selseq1 = seq1;
-  *r_selseq2 = seq2;
+  *r_seq1 = seq1;
+  *r_seq2 = seq2;
 
-  return 1;
+  return true;
 }
 
 static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  Strip *seq1, *seq2, *last_seq = SEQ_select_active_get(scene);
+  Strip *seq1, *seq2;
+  Strip *active_strip = SEQ_select_active_get(scene);
   const char *error_msg;
 
-  if (SEQ_effect_get_num_inputs(last_seq->type) == 0) {
+  if (SEQ_effect_get_num_inputs(active_strip->type) == 0) {
     BKE_report(op->reports, RPT_ERROR, "Cannot reassign inputs: strip has no inputs");
     return OPERATOR_CANCELLED;
   }
 
-  if (!strip_effect_find_selected(scene, last_seq, last_seq->type, &seq1, &seq2, &error_msg) ||
-      SEQ_effect_get_num_inputs(last_seq->type) == 0)
-  {
+  if (!strip_effect_get_new_inputs(scene, true, active_strip->type, &seq1, &seq2, &error_msg)) {
     BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
   }
   /* Check if reassigning would create recursivity. */
-  if (SEQ_relations_render_loop_check(seq1, last_seq) ||
-      SEQ_relations_render_loop_check(seq2, last_seq))
+  if (SEQ_relations_render_loop_check(seq1, active_strip) ||
+      SEQ_relations_render_loop_check(seq2, active_strip))
   {
     BKE_report(op->reports, RPT_ERROR, "Cannot reassign inputs: recursion detected");
     return OPERATOR_CANCELLED;
   }
 
-  last_seq->seq1 = seq1;
-  last_seq->seq2 = seq2;
+  active_strip->seq1 = seq1;
+  active_strip->seq2 = seq2;
 
-  int old_start = last_seq->start;
+  int old_start = active_strip->start;
 
   /* Force time position update for reassigned effects.
    * TODO(Richard): This is because internally startdisp is still used, due to poor performance of
@@ -1300,8 +1300,8 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
   SEQ_strip_lookup_invalidate(scene);
   SEQ_time_left_handle_frame_set(scene, seq1, SEQ_time_left_handle_frame_get(scene, seq1));
 
-  SEQ_relations_invalidate_cache_preprocessed(scene, last_seq);
-  SEQ_offset_animdata(scene, last_seq, (last_seq->start - old_start));
+  SEQ_relations_invalidate_cache_preprocessed(scene, active_strip);
+  SEQ_offset_animdata(scene, active_strip, (active_strip->start - old_start));
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
@@ -1314,8 +1314,8 @@ static bool sequencer_effect_poll(bContext *C)
   Editing *ed = SEQ_editing_get(scene);
 
   if (ed) {
-    Strip *last_seq = SEQ_select_active_get(scene);
-    if (last_seq && (last_seq->type & STRIP_TYPE_EFFECT)) {
+    Strip *active_strip = SEQ_select_active_get(scene);
+    if (active_strip && (active_strip->type & STRIP_TYPE_EFFECT)) {
       return true;
     }
   }
@@ -1347,18 +1347,18 @@ void SEQUENCER_OT_reassign_inputs(wmOperatorType *ot)
 static int sequencer_swap_inputs_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  Strip *strip, *last_seq = SEQ_select_active_get(scene);
+  Strip *active_strip = SEQ_select_active_get(scene);
 
-  if (last_seq->seq1 == nullptr || last_seq->seq2 == nullptr) {
+  if (active_strip->seq1 == nullptr || active_strip->seq2 == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "No valid inputs to swap");
     return OPERATOR_CANCELLED;
   }
 
-  strip = last_seq->seq1;
-  last_seq->seq1 = last_seq->seq2;
-  last_seq->seq2 = strip;
+  Strip *strip = active_strip->seq1;
+  active_strip->seq1 = active_strip->seq2;
+  active_strip->seq2 = strip;
 
-  SEQ_relations_invalidate_cache_preprocessed(scene, last_seq);
+  SEQ_relations_invalidate_cache_preprocessed(scene, active_strip);
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 

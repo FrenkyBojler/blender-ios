@@ -1469,7 +1469,7 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
   load_data.effect.type = RNA_enum_get(op->ptr, "type");
 
   Strip *seq1, *seq2;
-  if (!strip_effect_find_selected(scene, nullptr, load_data.effect.type, &seq1, &seq2, &error_msg))
+  if (!strip_effect_get_new_inputs(scene, false, load_data.effect.type, &seq1, &seq2, &error_msg))
   {
     BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
