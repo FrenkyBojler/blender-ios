@@ -351,8 +351,7 @@ static void ntree_shader_unlink_hidden_value_sockets(bNode *group_node, bNodeSoc
   bool removed_link = false;
 
   LISTBASE_FOREACH (bNode *, node, &group_ntree->nodes) {
-    const bool is_group = ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP) &&
-                          (node->id != nullptr);
+    const bool is_group = node->is_group() && (node->id != nullptr);
 
     LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       if (!is_group && (sock->flag & SOCK_HIDE_VALUE) == 0) {
@@ -386,8 +385,7 @@ static void ntree_shader_groups_expand_inputs(bNodeTree *localtree)
   bool link_added = false;
 
   LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
-    const bool is_group = ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP) &&
-                          (node->id != nullptr);
+    const bool is_group = node->is_group() && (node->id != nullptr);
     const bool is_group_output = node->is_group_output() && (node->flag & NODE_DO_OUTPUT);
 
     if (is_group) {
@@ -451,7 +449,7 @@ static void ntree_shader_groups_expand_inputs(bNodeTree *localtree)
 static void ntree_shader_groups_remove_muted_links(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type_legacy == NODE_GROUP) {
+    if (node->is_group()) {
       if (node->id != nullptr) {
         ntree_shader_groups_remove_muted_links(reinterpret_cast<bNodeTree *>(node->id));
       }
@@ -555,7 +553,7 @@ static void ntree_shader_groups_flatten(bNodeTree *localtree)
   for (bNode *node = static_cast<bNode *>(localtree->nodes.first), *node_next; node;
        node = node_next)
   {
-    if (ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP) && node->id != nullptr) {
+    if (node->is_group() && node->id != nullptr) {
       flatten_group_do(localtree, node);
       /* Continue even on new flattened nodes. */
       node_next = node->next;
