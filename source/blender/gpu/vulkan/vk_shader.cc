@@ -1002,13 +1002,12 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
          << ", binding = " << (subpass_input_binding_index++) << ") uniform " << typePrefix
          << "subpassInput " << input_attachment_name << "; \n";
 
-      std::string swizzle = "xyzw";
-      swizzle[to_component_count(input.type)] = '\0';
-
       std::stringstream ss_pre;
+      static const std::string swizzle = "xyzw";
       /* Populate the global before main using subpassLoad. */
       ss_pre << "  " << input.name << " = " << input.type << "( subpassLoad("
-             << input_attachment_name << ")." << swizzle << " ); \n";
+             << input_attachment_name << ")." << swizzle.substr(to_component_count(input.type))
+             << " ); \n";
 
       pre_main += ss_pre.str();
     }
