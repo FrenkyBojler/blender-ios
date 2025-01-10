@@ -129,7 +129,7 @@ static void localize(bNodeTree *localtree, bNodeTree * /*ntree*/)
 {
   /* replace muted nodes and reroute nodes by internal links */
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &localtree->nodes) {
-    if (node->flag & NODE_MUTED || node->is_reroute()) {
+    if (node->is_muted() || node->is_reroute()) {
       if (node->is_group() && node->id) {
         /* Free the group like in #ntree_shader_groups_flatten. */
         bNodeTree *group = reinterpret_cast<bNodeTree *>(node->id);
