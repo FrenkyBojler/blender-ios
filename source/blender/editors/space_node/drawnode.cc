@@ -227,7 +227,7 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
 {
   const float size = NODE_RESIZE_MARGIN * math::max(snode.runtime->aspect, 1.0f);
 
-  if (node->type_legacy == NODE_FRAME) {
+  if (node->is_frame()) {
     NodeFrame *data = (NodeFrame *)node->storage;
 
     /* shrinking frame size is determined by child nodes */

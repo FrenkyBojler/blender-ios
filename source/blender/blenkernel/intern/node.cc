@@ -2166,7 +2166,7 @@ bNodeSocket *node_add_socket(bNodeTree *ntree,
                              const StringRefNull identifier,
                              const StringRefNull name)
 {
-  BLI_assert(node->type_legacy != NODE_FRAME);
+  BLI_assert(!node->is_frame());
   BLI_assert(!(in_out == SOCK_IN && node->is_group_input()));
   BLI_assert(!(in_out == SOCK_OUT && node->is_group_output()));
 
@@ -2551,7 +2551,7 @@ bNode *node_find_root_parent(bNode *node)
   while (parent_iter->parent != nullptr) {
     parent_iter = parent_iter->parent;
   }
-  if (parent_iter->type_legacy != NODE_FRAME) {
+  if (!parent_iter->is_frame()) {
     return nullptr;
   }
   return parent_iter;
@@ -3147,7 +3147,7 @@ void node_internal_relink(bNodeTree *ntree, bNode *node)
 
 void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent)
 {
-  BLI_assert(parent->type_legacy == NODE_FRAME);
+  BLI_assert(parent->is_frame());
   BLI_assert(!node_is_parent_and_child(parent, node));
   node->parent = parent;
   BKE_ntree_update_tag_parent_change(ntree, node);
@@ -3156,7 +3156,7 @@ void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent)
 void node_detach_node(bNodeTree *ntree, bNode *node)
 {
   if (node->parent) {
-    BLI_assert(node->parent->type_legacy == NODE_FRAME);
+    BLI_assert(node->parent->is_frame());
     node->parent = nullptr;
     BKE_ntree_update_tag_parent_change(ntree, node);
   }

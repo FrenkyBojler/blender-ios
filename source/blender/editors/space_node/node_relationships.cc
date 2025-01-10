@@ -1913,7 +1913,7 @@ static int node_parent_set_exec(bContext *C, wmOperator * /*op*/)
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
   bNode *frame = bke::node_get_active(&ntree);
-  if (!frame || frame->type_legacy != NODE_FRAME) {
+  if (!frame || !frame->is_frame()) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2718,7 +2718,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     /* check nodes front to back */
     for (bNode *frame : tree_draw_order_calc_nodes_reversed(*ntree)) {
       /* skip selected, those are the nodes we want to attach */
-      if ((frame->type_legacy != NODE_FRAME) || (frame->flag & NODE_SELECT)) {
+      if (!frame->is_frame() || (frame->flag & NODE_SELECT)) {
         continue;
       }
 
