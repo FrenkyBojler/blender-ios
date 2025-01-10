@@ -4509,6 +4509,7 @@ static void node_draw_zones_and_frames(const bContext &C,
         IndexRange(1),
         VArray<float>::ForSingle(BASIS_RAD, boundary_positions_num),
         VArray<int>::ForSingle(5, boundary_positions_num),
+        false,
         true,
         {});
   }

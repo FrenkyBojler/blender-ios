@@ -39,6 +39,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .field_on_all();
   b.add_input<decl::Bool>("Limit Radius")
       .description("Limit the maximum value of the radius in order to avoid overlapping fillets");
+  b.add_input<decl::Bool>("Remove Doubles")
+      .description("Remove points in the same position");
   b.add_output<decl::Geometry>("Curve").propagate_all();
 
   const bNode *node = b.node_or_null();
@@ -66,6 +68,7 @@ static bke::CurvesGeometry fillet_curve(const bke::CurvesGeometry &src_curves,
                                         const std::optional<Field<int>> &count_field,
                                         const Field<float> &radius_field,
                                         const bool limit_radius,
+                                        const bool remove_doubles,
                                         const AttributeFilter &attribute_filter)
 {
   fn::FieldEvaluator evaluator{field_context, src_curves.points_num()};
@@ -78,6 +81,7 @@ static bke::CurvesGeometry fillet_curve(const bke::CurvesGeometry &src_curves,
                                             src_curves.curves_range(),
                                             evaluator.get_evaluated<float>(0),
                                             limit_radius,
+                                            remove_doubles,
                                             attribute_filter);
     }
     case GEO_NODE_CURVE_FILLET_POLY: {
@@ -88,6 +92,7 @@ static bke::CurvesGeometry fillet_curve(const bke::CurvesGeometry &src_curves,
                                           evaluator.get_evaluated<float>(0),
                                           evaluator.get_evaluated<int>(1),
                                           limit_radius,
+                                          remove_doubles,
                                           attribute_filter);
     }
   }
@@ -99,6 +104,7 @@ static void fillet_grease_pencil(GreasePencil &grease_pencil,
                                  const std::optional<Field<int>> &count_field,
                                  const Field<float> &radius_field,
                                  const bool limit_radius,
+                                 const bool remove_doubles,
                                  const AttributeFilter &attribute_filter)
 {
   using namespace blender::bke::greasepencil;
@@ -119,6 +125,7 @@ static void fillet_grease_pencil(GreasePencil &grease_pencil,
                                                   count_field,
                                                   radius_field,
                                                   limit_radius,
+                                                  remove_doubles,
                                                   attribute_filter);
     drawing->strokes_for_write() = std::move(dst_curves);
     drawing->tag_topology_changed();
@@ -134,6 +141,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Field<float> radius_field = params.extract_input<Field<float>>("Radius");
   const bool limit_radius = params.extract_input<bool>("Limit Radius");
+  const bool remove_doubles = params.extract_input<bool>("Remove Doubles");
 
   std::optional<Field<int>> count_field;
   if (mode == GEO_NODE_CURVE_FILLET_POLY) {
@@ -153,6 +161,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                                     count_field,
                                                     radius_field,
                                                     limit_radius,
+                                                    remove_doubles,
                                                     attribute_filter);
       Curves *dst_curves_id = bke::curves_new_nomain(std::move(dst_curves));
       bke::curves_copy_parameters(curves_id, *dst_curves_id);
@@ -161,7 +170,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (geometry_set.has_grease_pencil()) {
       GreasePencil &grease_pencil = *geometry_set.get_grease_pencil_for_write();
       fillet_grease_pencil(
-          grease_pencil, mode, count_field, radius_field, limit_radius, attribute_filter);
+          grease_pencil, mode, count_field, radius_field, limit_radius, remove_doubles, attribute_filter);
     }
   });
 

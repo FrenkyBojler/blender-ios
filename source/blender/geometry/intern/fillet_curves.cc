@@ -6,6 +6,7 @@
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 
+#include "BLI_array.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_task.hh"
 
@@ -362,11 +363,51 @@ static void calculate_bezier_handles_poly_mode(const Span<float3> src_handles_l,
   });
 }
 
+static bke::CurvesGeometry fillet_curves_opt(const bke::CurvesGeometry &src_curves,
+                                             bool use_bezier_mode)
+{
+  bke::CurvesGeometry dst_curves = src_curves;
+
+  const Span<float3> dst_pos = dst_curves.positions();
+  Array<bool> bools(dst_curves.offsets().last(), false);
+
+  MutableSpan<int8_t> dst_types_left = dst_curves.handle_types_left_for_write();
+  MutableSpan<float3> hand_pos_left = dst_curves.handle_positions_left_for_write();
+
+  const float toler = 0.0001;
+  int i_pre;
+  for (const int i : dst_pos.index_range()) {
+    if (i == 0){
+      i_pre = dst_curves.offsets().last()-1;
+    }
+    else{
+      i_pre = i-1;
+    }
+    // check if the position of current and previous point is the same with a tolerance
+    if ((dst_pos[i_pre].x-dst_pos[i].x<toler) && (dst_pos[i_pre].x-dst_pos[i].x>-toler) &&
+        (dst_pos[i_pre].y-dst_pos[i].y<toler) && (dst_pos[i_pre].y-dst_pos[i].y>-toler) &&
+        (dst_pos[i_pre].z-dst_pos[i].z<toler) && (dst_pos[i_pre].z-dst_pos[i].z>-toler)){
+      bools[i_pre] = true;
+      dst_types_left[i] = dst_types_left[i_pre];
+      hand_pos_left[i] = hand_pos_left[i_pre];
+    }
+  }
+
+  IndexMaskMemory memory;
+  const IndexMask indexMa = blender::index_mask::IndexMask::from_bools(bools ,memory);
+
+  dst_curves.remove_points(indexMa, {});
+  dst_curves.tag_topology_changed();
+
+  return dst_curves;
+}
+
 static bke::CurvesGeometry fillet_curves(const bke::CurvesGeometry &src_curves,
                                          const IndexMask &curve_selection,
                                          const VArray<float> &radius_input,
                                          const VArray<int> &counts,
                                          const bool limit_radius,
+                                         const bool remove_doubles,
                                          const bool use_bezier_mode,
                                          const bke::AttributeFilter &attribute_filter)
 {
@@ -513,7 +554,9 @@ static bke::CurvesGeometry fillet_curves(const bke::CurvesGeometry &src_curves,
                                       dst_points_by_curve,
                                       unselected,
                                       dst_attributes);
-
+  if (remove_doubles){
+    return fillet_curves_opt(dst_curves, use_bezier_mode);
+  }
   return dst_curves;
 }
 
@@ -522,16 +565,18 @@ bke::CurvesGeometry fillet_curves_poly(const bke::CurvesGeometry &src_curves,
                                        const VArray<float> &radius,
                                        const VArray<int> &count,
                                        const bool limit_radius,
+                                       const bool remove_doubles,
                                        const bke::AttributeFilter &attribute_filter)
 {
   return fillet_curves(
-      src_curves, curve_selection, radius, count, limit_radius, false, attribute_filter);
+      src_curves, curve_selection, radius, count, limit_radius, remove_doubles, false, attribute_filter);
 }
 
 bke::CurvesGeometry fillet_curves_bezier(const bke::CurvesGeometry &src_curves,
                                          const IndexMask &curve_selection,
                                          const VArray<float> &radius,
                                          const bool limit_radius,
+                                         const bool remove_doubles,
                                          const bke::AttributeFilter &attribute_filter)
 {
   return fillet_curves(src_curves,
@@ -539,6 +584,7 @@ bke::CurvesGeometry fillet_curves_bezier(const bke::CurvesGeometry &src_curves,
                        radius,
                        VArray<int>::ForSingle(1, src_curves.points_num()),
                        limit_radius,
+                       remove_doubles,
                        true,
                        attribute_filter);
 }
