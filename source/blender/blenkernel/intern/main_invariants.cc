@@ -11,6 +11,7 @@
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+#include <optional>
 
 static void send_notifiers_after_node_tree_change(ID *id, bNodeTree *ntree)
 {
@@ -50,7 +51,17 @@ static void propagate_node_tree_changes(Main &bmain,
     DEG_id_tag_update(&ntree.id, ID_RECALC_NTREE_OUTPUT);
   };
 
-  BKE_ntree_update_main(&bmain, &params);
+  std::optional<blender::Vector<bNodeTree *>> modified_trees;
+  if (modified_ids.has_value()) {
+    modified_trees.emplace();
+    for (ID *id : *modified_ids) {
+      if (GS(id->name) == ID_NT) {
+        modified_trees->append(reinterpret_cast<bNodeTree *>(id));
+      }
+    }
+  }
+
+  BKE_ntree_update(bmain, modified_trees, params);
 }
 
 void BKE_main_ensure_invariants(Main &bmain, const std::optional<blender::Span<ID *>> modified_ids)
