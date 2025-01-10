@@ -1012,8 +1012,8 @@ static bool but_itr_in_range(const std::unique_ptr<uiBut> *but, const uiBlock *b
   return block->buttons.begin() <= but && but < block->buttons.end();
 }
 
-std::unique_ptr<uiBut> *but_rfind_old_itr(uiBlock *block_old,
-                                          const std::unique_ptr<uiBut> &but_new)
+static std::unique_ptr<uiBut> *but_rfind_old_itr(uiBlock *block_old,
+                                                 const std::unique_ptr<uiBut> &but_new)
 {
   for (int i = block_old->buttons.size() - 1; i >= 0; i--) {
     std::unique_ptr<uiBut> *but = block_old->buttons.begin() + i;
