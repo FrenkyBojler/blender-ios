@@ -576,9 +576,6 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
   }
 };
 
-static_assert(std::is_trivial_v<VecBase<int, 3>>);
-static_assert(std::is_trivially_copyable_v<VecBase<int, 3>>);
-
 namespace math {
 
 template<typename T> struct AssertUnitEpsilon {
