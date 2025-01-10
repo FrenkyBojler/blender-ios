@@ -949,7 +949,7 @@ static void ui_item_enum_expand_tabs(uiLayout *layout,
                                      const int h,
                                      const bool icon_only)
 {
-  int start_size = block->buttons.size();
+  const int start_size = block->buttons.size();
 
   ui_item_enum_expand_exec(layout, block, ptr, prop, uiname, h, UI_BTYPE_TAB, icon_only);
   BLI_assert(start_size != block->buttons.size());
@@ -968,7 +968,7 @@ static void ui_item_enum_expand_tabs(uiLayout *layout,
     const int highlight_array_len = RNA_property_array_length(ptr_highlight, prop_highlight);
     blender::Array<bool, 64> highlight_array(highlight_array_len);
     RNA_property_boolean_get_array(ptr_highlight, prop_highlight, highlight_array.data());
-    int end = std::max<int>(start_size + highlight_array_len, block->buttons.size());
+    const int end = std::min<int>(start_size + highlight_array_len, block->buttons.size());
     for (int i = start_size; i < end; i++) {
       uiBut *tab_but = block->buttons[i].get();
       SET_FLAG_FROM_TEST(tab_but->flag, !highlight_array[i], UI_BUT_INACTIVE);

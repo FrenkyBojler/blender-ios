@@ -1896,6 +1896,10 @@ void UI_block_update_from_old(const bContext *C, uiBlock *block)
     return;
   }
   uiBlock *oldblock = block->oldblock;
+  if (BLI_listbase_is_empty(&block->oldblock->butstore) == false) {
+    UI_butstore_update(block);
+  }
+
   /* Remove all back `buts` until an active `but` is found, most `blocks` do not even have an
    * active `but`. */
   int count = 0;
@@ -1914,11 +1918,6 @@ void UI_block_update_from_old(const bContext *C, uiBlock *block)
   std::reverse(oldblock->buttons.begin(), oldblock->buttons.end());
   std::unique_ptr<uiBut> *oldbut = !oldblock->buttons.is_empty() ? oldblock->buttons.end() - 1 :
                                                                    nullptr;
-
-  if (BLI_listbase_is_empty(&block->oldblock->butstore) == false) {
-    UI_butstore_update(block);
-  }
-
   for (std::unique_ptr<uiBut> &but : block->buttons) {
     if (oldblock->buttons.is_empty()) {
       break;
