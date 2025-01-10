@@ -118,6 +118,9 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
 
   /** Mixed scalar-vector constructors. */
 
+  template<int OtherSize, BLI_ENABLE_IF(OtherSize < Size)>
+  VecBase(const VecBase<T, OtherSize> &other) = delete;
+
   template<typename U, BLI_ENABLE_IF_VEC(Size, == 3)>
   constexpr VecBase(const VecBase<U, 2> &xy, T z) : VecBase(T(xy.x), T(xy.y), z)
   {
@@ -572,6 +575,9 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
     return stream;
   }
 };
+
+static_assert(std::is_trivial_v<VecBase<int, 3>>);
+static_assert(std::is_trivially_copyable_v<VecBase<int, 3>>);
 
 namespace math {
 
