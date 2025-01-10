@@ -644,7 +644,7 @@ static PyObject *bpy_op_get_callback_call(PyObject *callback,
   return py_ret;
 }
 
-static bool bpy_op_handler_poll(struct bContext *C,
+static bool bpy_op_handler_poll(bContext *C,
                                 const wmEvent *event,
                                 void *py_data,
                                 PointerRNA *properties)
@@ -791,7 +791,7 @@ static PyObject *op_handler_append(int handler_id, PyObject *args, PyObject *kw)
 
   PyObject *py_data = bpy_op_handler_proc(args, kw);
 
-  bool (*func)(bContext *C, const wmEvent *event, void *, PointerRNA *, int) = nullptr;
+  wm_op_handler_cb *func = nullptr;
 
   switch (handler_id) {
     case HANDLER_TYPE_PRE_INVOKE:
@@ -847,12 +847,12 @@ static PyObject *op_handler_remove(int handler_id, PyObject *args, PyObject *kw)
     if (py_owner == Py_None && py_cb == Py_None) {
       PyErr_Format(PyExc_TypeError, "missing owner or callback");
     }
+    else if (py_op == Py_None) {
+      PyErr_Format(PyExc_TypeError, "Unknown operator");
+    }
     else {
-      if (WM_op_handlers_remove(op_handlers,
-                                handler_id,
-                                (py_op == Py_None ? nullptr : PyUnicode_AsUTF8(py_op)),
-                                (py_cb == Py_None ? nullptr : py_cb),
-                                (py_owner == Py_None ? nullptr : py_owner)) == 0)
+      if (WM_op_handlers_remove(
+              op_handlers, handler_id, PyUnicode_AsUTF8(py_op), py_cb, py_owner) == 0)
       {
         PyErr_Format(PyExc_NameError, "data not found on %s", PyUnicode_AsUTF8(py_op));
       }

@@ -36,48 +36,44 @@ typedef struct wmOpHandlerData {
   ListBase modal_end;
 } wmOpHandlerData;
 
-struct wmOpHandlers *WM_op_handlers_create(void);
+wmOpHandlers *WM_op_handlers_create(void);
 void WM_op_handlers_destroy(struct wmOpHandlers *opHandlers);
 
-wmOpHandlerData *WM_get_op_handlers(struct wmOpHandlers *op_handlers, const char *op_name);
+wmOpHandlerData *WM_get_op_handlers(wmOpHandlers *op_handlers, const char *op_name);
+
+typedef bool(wm_op_handler_cb)(
+    bContext *, const wmEvent *event, void *py_data, PointerRNA *properties, int);
 
 void WM_op_handlers_append(
-    struct wmOpHandlers *op_handlers,
+    wmOpHandlers *op_handlers,
     int id,
     void *handle,
     const char *op_name,
-    bool (*cb)(
-        struct bContext *, const struct wmEvent *event, void *, PointerRNA *properties, int),
+    wm_op_handler_cb *cb,
     int (*check)(void *, void *, void *),
-    bool (*poll)(struct bContext *, const struct wmEvent *event, void *, PointerRNA *properties),
+    bool (*poll)(bContext *, const wmEvent *event, void *, PointerRNA *properties),
     void *py_data);
 
 int WM_op_handlers_remove(
-    struct wmOpHandlers *op_handlers, int id, const char *op_name, void *cb, void *owner);
+    wmOpHandlers *op_handlers, int id, const char *op_name, void *cb, void *owner);
 
-bool WM_op_handlers_operator_pre_invoke(struct bContext *C,
-                                        const struct wmEvent *event,
-                                        struct wmOpHandlers *op_handlers,
-                                        struct wmOperatorType *ot,
+bool WM_op_handlers_operator_pre_invoke(bContext *C,
+                                        const wmEvent *event,
+                                        wmOpHandlers *op_handlers,
+                                        wmOperatorType *ot,
                                         PointerRNA *properties);
-void WM_op_handlers_operator_post_invoke(struct bContext *C,
-                                         const struct wmEvent *event,
-                                         struct wmOpHandlers *op_handlers,
-                                         struct wmOperatorType *ot,
+void WM_op_handlers_operator_post_invoke(bContext *C,
+                                         const wmEvent *event,
+                                         wmOpHandlers *op_handlers,
+                                         wmOperatorType *ot,
                                          PointerRNA *properties,
                                          int retval);
 
-bool WM_op_handlers_operator_modal(struct bContext *C,
-                                   const struct wmEvent *event,
-                                   struct wmOpHandlers *op_handlers,
-                                   struct wmOperatorType *ot,
-                                   int retval);
+bool WM_op_handlers_operator_modal(
+    bContext *C, const wmEvent *event, wmOpHandlers *op_handlers, wmOperatorType *ot, int retval);
 
-void WM_op_handlers_operator_modal_end(struct bContext *C,
-                                       const struct wmEvent *event,
-                                       struct wmOpHandlers *op_handlers,
-                                       struct wmOperatorType *ot,
-                                       int retval);
+void WM_op_handlers_operator_modal_end(
+    bContext *C, const wmEvent *event, wmOpHandlers *op_handlers, wmOperatorType *ot, int retval);
 
 #ifdef __cplusplus
 }

@@ -6,7 +6,6 @@
  * \ingroup wm
  */
 
-
 #pragma once
 
 struct wmOpHandlers;
