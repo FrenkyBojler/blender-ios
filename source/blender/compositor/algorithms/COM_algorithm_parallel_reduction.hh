@@ -75,10 +75,6 @@ float maximum_luminance(Context &context,
                         const Result &result,
                         const float3 &luminance_coefficients);
 
-/* Computes the maximum brightness of all pixels in the given result. Brightness is the maximum of
- * all color channels. */
-float maximum_brightness(Context &context, const Result &result);
-
 /* Computes the maximum float value of all pixels in the given result. */
 float maximum_float(Context &context, const Result &result);
 
