@@ -10,13 +10,13 @@
 #include "BKE_curve.hh"
 #include "BKE_customdata.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_math_base.hh"
+#include "BLI_math_base.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 
@@ -28,8 +28,6 @@
 #include "DNA_curve_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -51,19 +49,6 @@ struct Expectation {
 
 class OBJImportTest : public BlendfileLoadingBaseTest {
  public:
-  OBJImportTest()
-  {
-    params.global_scale = 1.0f;
-    params.clamp_size = 0;
-    params.forward_axis = IO_AXIS_NEGATIVE_Z;
-    params.up_axis = IO_AXIS_Y;
-    params.validate_meshes = true;
-    params.use_split_objects = true;
-    params.use_split_groups = false;
-    params.import_vertex_groups = false;
-    params.relative_paths = true;
-    params.clear_selection = true;
-  }
   void import_and_check(const char *path,
                         const Expectation *expect,
                         size_t expect_count,
