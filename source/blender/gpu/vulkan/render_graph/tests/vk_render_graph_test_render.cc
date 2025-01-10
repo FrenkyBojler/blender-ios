@@ -8,9 +8,9 @@
 
 namespace blender::gpu::render_graph {
 
-class VkRenderGraphTestRender : public VkRenderGraphTest_P {};
+class VKRenderGraphTestRender : public VKRenderGraphTest_P {};
 
-TEST_P(VkRenderGraphTestRender, begin_clear_attachments_end_read_back)
+TEST_P(VKRenderGraphTestRender, begin_clear_attachments_end_read_back)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
@@ -136,7 +136,7 @@ TEST_P(VkRenderGraphTestRender, begin_clear_attachments_end_read_back)
       log[5]);
 }
 
-TEST_P(VkRenderGraphTestRender, begin_draw_end)
+TEST_P(VKRenderGraphTestRender, begin_draw_end)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
@@ -217,7 +217,7 @@ TEST_P(VkRenderGraphTestRender, begin_draw_end)
   EXPECT_EQ("end_rendering()", log[4]);
 }
 
-TEST_P(VkRenderGraphTestRender, begin_draw_end__layered)
+TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
@@ -335,7 +335,7 @@ TEST_P(VkRenderGraphTestRender, begin_draw_end__layered)
 }
 
 INSTANTIATE_TEST_SUITE_P(,
-                         VkRenderGraphTestRender,
+                         VKRenderGraphTestRender,
                          ::testing::Values(std::make_tuple(true, true),
                                            std::make_tuple(true, false)));
 

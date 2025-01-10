@@ -475,9 +475,9 @@ class CommandBufferLog : public VKCommandBufferInterface {
   void end_debug_utils_label() override {}
 };
 
-class VkRenderGraphTest : public ::testing::Test {
+class VKRenderGraphTest : public ::testing::Test {
  public:
-  VkRenderGraphTest()
+  VKRenderGraphTest()
   {
     resources.use_dynamic_rendering = use_dynamic_rendering;
     resources.use_dynamic_rendering_local_read = use_dynamic_rendering_local_read;
@@ -495,9 +495,9 @@ class VkRenderGraphTest : public ::testing::Test {
   bool use_dynamic_rendering_local_read = true;
 };
 
-class VkRenderGraphTest_P : public ::testing::TestWithParam<std::tuple<bool, bool>> {
+class VKRenderGraphTest_P : public ::testing::TestWithParam<std::tuple<bool, bool>> {
  public:
-  VkRenderGraphTest_P()
+  VKRenderGraphTest_P()
   {
     use_dynamic_rendering = std::get<0>(GetParam());
     use_dynamic_rendering_local_read = std::get<1>(GetParam());

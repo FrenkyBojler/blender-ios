@@ -8,12 +8,12 @@
 
 namespace blender::gpu::render_graph {
 
-class VkRenderGraphTestTransfer : public VkRenderGraphTest {};
+class VKRenderGraphTestTransfer : public VKRenderGraphTest {};
 
 /**
  * Fill a single buffer and read it back.
  */
-TEST_F(VkRenderGraphTestTransfer, fill_and_read_back)
+TEST_F(VKRenderGraphTestTransfer, fill_and_read_back)
 {
   VkHandle<VkBuffer> buffer(1u);
 
@@ -29,7 +29,7 @@ TEST_F(VkRenderGraphTestTransfer, fill_and_read_back)
 /**
  * Fill a single buffer, copy it to a staging buffer and read the staging buffer back.
  */
-TEST_F(VkRenderGraphTestTransfer, fill_transfer_and_read_back)
+TEST_F(VKRenderGraphTestTransfer, fill_transfer_and_read_back)
 {
   VkHandle<VkBuffer> buffer(1u);
   VkHandle<VkBuffer> staging_buffer(2u);
@@ -70,7 +70,7 @@ TEST_F(VkRenderGraphTestTransfer, fill_transfer_and_read_back)
  *
  * Between the two fills a write->write barrier should be created.
  */
-TEST_F(VkRenderGraphTestTransfer, fill_fill_read_back)
+TEST_F(VKRenderGraphTestTransfer, fill_fill_read_back)
 {
   VkHandle<VkBuffer> buffer(1u);
 
@@ -98,7 +98,7 @@ TEST_F(VkRenderGraphTestTransfer, fill_fill_read_back)
 /**
  * Fill a single buffer, copy it to a staging buffer and read the staging buffer back.
  */
-TEST_F(VkRenderGraphTestTransfer, clear_clear_copy_and_read_back)
+TEST_F(VKRenderGraphTestTransfer, clear_clear_copy_and_read_back)
 {
   VkHandle<VkImage> src_image(1u);
   VkHandle<VkImage> dst_image(2u);
@@ -239,7 +239,7 @@ TEST_F(VkRenderGraphTestTransfer, clear_clear_copy_and_read_back)
 /**
  * Clear an image, blit it to another image, copy to a staging buffer and read back.
  */
-TEST_F(VkRenderGraphTestTransfer, clear_blit_copy_and_read_back)
+TEST_F(VKRenderGraphTestTransfer, clear_blit_copy_and_read_back)
 {
   VkHandle<VkImage> src_image(1u);
   VkHandle<VkImage> dst_image(2u);

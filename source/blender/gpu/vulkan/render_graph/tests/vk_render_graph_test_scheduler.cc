@@ -8,10 +8,10 @@
 
 namespace blender::gpu::render_graph {
 
-class VkRenderGraphTestScheduler : public VkRenderGraphTest_P {};
+class VKRenderGraphTestScheduler : public VKRenderGraphTest_P {};
 
 /** Copy buffer should be done after the end rendering. */
-TEST_P(VkRenderGraphTestScheduler, begin_rendering_copy_buffer_end_rendering)
+TEST_P(VKRenderGraphTestScheduler, begin_rendering_copy_buffer_end_rendering)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
@@ -110,7 +110,7 @@ TEST_P(VkRenderGraphTestScheduler, begin_rendering_copy_buffer_end_rendering)
       log[5]);
 }
 
-TEST_P(VkRenderGraphTestScheduler, begin_clear_attachments_copy_buffer_end)
+TEST_P(VKRenderGraphTestScheduler, begin_clear_attachments_copy_buffer_end)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
@@ -231,7 +231,7 @@ TEST_P(VkRenderGraphTestScheduler, begin_clear_attachments_copy_buffer_end)
       log[6]);
 }
 
-TEST_P(VkRenderGraphTestScheduler, begin_copy_buffer_clear_attachments_end)
+TEST_P(VKRenderGraphTestScheduler, begin_copy_buffer_clear_attachments_end)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
@@ -352,7 +352,7 @@ TEST_P(VkRenderGraphTestScheduler, begin_copy_buffer_clear_attachments_end)
       log[6]);
 }
 
-TEST_P(VkRenderGraphTestScheduler, begin_clear_attachments_copy_buffer_clear_attachments_end)
+TEST_P(VKRenderGraphTestScheduler, begin_clear_attachments_copy_buffer_clear_attachments_end)
 {
   VkHandle<VkImage> image(1u);
   VkHandle<VkImageView> image_view(2u);
@@ -502,7 +502,7 @@ TEST_P(VkRenderGraphTestScheduler, begin_clear_attachments_copy_buffer_clear_att
  * This happens in EEVEE where the feedback radiance is copied before the world background is added
  * to the combined texture.
  */
-TEST_P(VkRenderGraphTestScheduler, begin_draw_copy_framebuffer_draw_end)
+TEST_P(VKRenderGraphTestScheduler, begin_draw_copy_framebuffer_draw_end)
 {
   VkHandle<VkImage> image_attachment(1u);
   VkHandle<VkImage> image_feedback(2u);
@@ -689,7 +689,7 @@ TEST_P(VkRenderGraphTestScheduler, begin_draw_copy_framebuffer_draw_end)
  * Update buffers can be moved to before the rendering scope as when the destination buffer isn't
  * used.
  */
-TEST_P(VkRenderGraphTestScheduler, begin_update_draw_update_draw_update_draw_end)
+TEST_P(VKRenderGraphTestScheduler, begin_update_draw_update_draw_update_draw_end)
 {
   VkHandle<VkBuffer> buffer_a(1u);
   VkHandle<VkBuffer> buffer_b(2u);
@@ -918,7 +918,7 @@ TEST_P(VkRenderGraphTestScheduler, begin_update_draw_update_draw_update_draw_end
  *
  * This case happens when updating the swap-chain image with the result of editors.
  */
-TEST_P(VkRenderGraphTestScheduler, begin_draw_copy_to_attachment_draw_end)
+TEST_P(VKRenderGraphTestScheduler, begin_draw_copy_to_attachment_draw_end)
 {
   VkHandle<VkImage> image_attachment(1u);
   VkHandle<VkImage> image_editor(2u);
@@ -1097,7 +1097,7 @@ TEST_P(VkRenderGraphTestScheduler, begin_draw_copy_to_attachment_draw_end)
 }
 
 INSTANTIATE_TEST_SUITE_P(,
-                         VkRenderGraphTestScheduler,
+                         VKRenderGraphTestScheduler,
                          ::testing::Values(std::make_tuple(true, true),
                                            std::make_tuple(true, false)));
 
