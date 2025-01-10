@@ -40,7 +40,6 @@
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
 
-#include "COM_algorithm_parallel_reduction.hh"
 #include "COM_algorithm_symmetric_separable_blur.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -73,14 +72,12 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .description("The smoothness of the extracted highlights")
       .compositor_expects_single_value();
-  b.add_input<decl::Float>("Suppression", "Highlights Suppression")
+  b.add_input<decl::Float>("Maximum", "Maximum Highlights")
       .default_value(0.0f)
       .min(0.0f)
-      .max(1.0f)
-      .subtype(PROP_FACTOR)
       .description(
-          "Suppresses very bright highlights. 0.5 means the maximum highlights will be half the "
-          "brightness of the brightest pixel in the input")
+          "Suppresses the highlights such that their brightness are not larger than this value. "
+          "Zero disables suppression and has no effect")
       .compositor_expects_single_value();
   b.add_input<decl::Float>("Strength")
       .default_value(1.0f)
@@ -273,14 +270,12 @@ class GlareOperation : public NodeOperation {
 
   Result execute_highlights_gpu()
   {
-    const float max_brightness = this->get_maximum_brightness();
-
     GPUShader *shader = context().get_shader("compositor_glare_highlights");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "threshold", this->get_threshold());
     GPU_shader_uniform_1f(shader, "highlights_smoothness", this->get_highlights_smoothness());
-    GPU_shader_uniform_1f(shader, "max_brightness", max_brightness);
+    GPU_shader_uniform_1f(shader, "max_brightness", this->get_maximum_brightness());
 
     const Result &input_image = get_input("Image");
     GPU_texture_filter_mode(input_image, true);
@@ -344,13 +339,16 @@ class GlareOperation : public NodeOperation {
 
   float get_maximum_brightness()
   {
-    const float suppression = this->get_highlights_suppression();
-    if (suppression == 0.0f) {
+    const float max_highlights = this->get_max_highlights();
+    /* Disabled when zero. Return the maximum possible brightness. */
+    if (max_highlights == 0.0f) {
       return std::numeric_limits<float>::max();
     }
-    const float max_brightness = maximum_brightness(this->context(), this->get_input("Image"));
-    const float suppressed_max_brightness = (1.0f - suppression) * max_brightness;
-    return math::max(suppressed_max_brightness, this->get_threshold());
+
+    /* Brightness of the highlights are relative to the threshold, see execute_highlights_cpu, so
+     * we add the threshold such that the maximum brightness corresponds to the actual brightness
+     * of the computed highlights. */
+    return this->get_threshold() + max_highlights;
   }
 
   /* A Quadratic Polynomial smooth minimum function *without* normalization, based on:
@@ -374,7 +372,8 @@ class GlareOperation : public NodeOperation {
     return -this->smooth_min(-a, -b, smoothness);
   }
 
-  /* Clamps the input x within min and max using smooth minimum and maximum functions. */
+  /* Clamps the input x within min_value and max_value using a quadratic polynomial smooth minimum
+   * and maximum functions, with individual control over their smoothness. */
   float smooth_clamp(const float x,
                      const float min_value,
                      const float max_value,
@@ -385,24 +384,33 @@ class GlareOperation : public NodeOperation {
         max_value, this->smooth_max(min_value, x, min_smoothness), max_smoothness);
   }
 
-  /* A variant of smooth_clamp that adapts the smoothness by potentially reducing it such that the
-   * function evaluates to the given min for x <= 0 assuming min/max are not negative. The
-   * aforementioned guarantee holds for the standard clamp function by definition, but since the
-   * smooth clamp function gradually increases before the specified min/max, if min/max are
-   * sufficiently close to zero, it will not evaluate to min at zero, since zero will be at the
-   * region of gradual increase.
+  /* A variant of smooth_clamp that limits the smoothness such that the function evaluates to the
+   * given min for 0 <= min <= max and x >= 0. The aforementioned guarantee holds for the standard
+   * clamp function by definition, but since the smooth clamp function gradually increases before
+   * the specified min/max, if min/max are sufficiently close together or to zero, they will not
+   * evaluate to min at zero or at min, since zero or min will be at the region of the gradual
+   * increase.
    *
    * It can be shown that the width of the gradual increase region is equivalent to the smoothness
-   * parameter, so smoothness can't be larger than the difference between the bounds and zero, that
-   * is, the bounds themselves, otherwise, zero will lies inside the gradual increase region of
-   * that bound. So take the minimum of the bound with its smoothness parameter. */
+   * parameter, so smoothness can't be larger than the difference between the min/max and zero, or
+   * larger than the difference between min and max themselves. Otherwise, zero or min will lie
+   * inside the gradual increase region of min/max. So we limit the smoothness of min/max by taking
+   * the minimum with the distances to zero and to the distance to the other bound. */
   float adaptive_smooth_clamp(const float x,
                               const float min_value,
                               const float max_value,
                               const float smoothness)
   {
-    const float min_smoothness = math::min(smoothness, min_value);
-    const float max_smoothness = math::min(smoothness, max_value);
+    const float range_distance = math::distance(min_value, max_value);
+    const float distance_from_min_to_zero = math::distance(min_value, 0.0f);
+    const float distance_from_max_to_zero = math::distance(max_value, 0.0f);
+
+    const float max_safe_smoothness_for_min = math::min(distance_from_min_to_zero, range_distance);
+    const float max_safe_smoothness_for_max = math::min(distance_from_max_to_zero, range_distance);
+
+    const float min_smoothness = math::min(smoothness, max_safe_smoothness_for_min);
+    const float max_smoothness = math::min(smoothness, max_safe_smoothness_for_max);
+
     return this->smooth_clamp(x, min_value, max_value, min_smoothness, max_smoothness);
   }
 
@@ -417,10 +425,9 @@ class GlareOperation : public NodeOperation {
                      this->get_input("Highlights Smoothness").get_single_value_default(0.1f));
   }
 
-  float get_highlights_suppression()
+  float get_max_highlights()
   {
-    return math::clamp(
-        this->get_input("Highlights Suppression").get_single_value_default(0.0f), 0.0f, 1.0f);
+    return math::max(0.0f, this->get_input("Maximum Highlights").get_single_value_default(0.0f));
   }
 
   /* As a performance optimization, the operation can compute the glare on a fraction of the input
