@@ -241,11 +241,11 @@ void SEQ_query_strip_connected_and_effect_chain(const Scene *scene,
                                                 VectorSet<Strip *> &r_strips)
 {
 
-  VectorSet<Strip *> pending;
-  pending.add(reference_strip);
+  blender::Vector<Strip *> pending;
+  pending.append(reference_strip);
 
   while (!pending.is_empty()) {
-    Strip *current = pending.pop();
+    Strip *current = pending.pop_last();
 
     if (r_strips.contains(current)) {
       continue;
@@ -256,7 +256,7 @@ void SEQ_query_strip_connected_and_effect_chain(const Scene *scene,
     VectorSet<Strip *> connections = SEQ_get_connected_strips(current);
     for (Strip *connection : connections) {
       if (!r_strips.contains(connection)) {
-        pending.add(connection);
+        pending.append(connection);
       }
     }
 
@@ -264,7 +264,7 @@ void SEQ_query_strip_connected_and_effect_chain(const Scene *scene,
     SEQ_query_strip_effect_chain(scene, current, seqbase, effect_chain);
     for (Strip *effect_strip : effect_chain) {
       if (!r_strips.contains(effect_strip)) {
-        pending.add(effect_strip);
+        pending.append(effect_strip);
       }
     }
   }
