@@ -412,50 +412,6 @@ const char *node_cmp_rlayers_sock_to_pass(int sock_index)
 
 namespace blender::nodes::node_composite_render_layer_cc {
 
-static std::optional<eNodeSocketDatatype> builtin_pass_type(const StringRefNull pass_name)
-{
-  static const std::array<std::pair<StringRefNull, eNodeSocketDatatype>, 31> builtin_passes = {
-    {N_("Image"), SOCK_RGBA},
-    {N_("Alpha"), SOCK_FLOAT},
-    {N_(RE_PASSNAME_Z), SOCK_FLOAT},
-    {N_(RE_PASSNAME_NORMAL), SOCK_VECTOR},
-    {N_(RE_PASSNAME_UV), SOCK_VECTOR},
-    {N_(RE_PASSNAME_VECTOR), SOCK_VECTOR},
-    {N_(RE_PASSNAME_POSITION), SOCK_VECTOR},
-    {N_(RE_PASSNAME_DEPRECATED), SOCK_RGBA},
-    {N_(RE_PASSNAME_DEPRECATED), SOCK_RGBA},
-    {N_(RE_PASSNAME_SHADOW), SOCK_RGBA},
-    {N_(RE_PASSNAME_AO), SOCK_RGBA},
-    {N_(RE_PASSNAME_DEPRECATED), SOCK_RGBA},
-    {N_(RE_PASSNAME_DEPRECATED), SOCK_RGBA},
-    {N_(RE_PASSNAME_DEPRECATED), SOCK_RGBA},
-    {N_(RE_PASSNAME_INDEXOB), SOCK_FLOAT},
-    {N_(RE_PASSNAME_INDEXMA), SOCK_FLOAT},
-    {N_(RE_PASSNAME_MIST), SOCK_FLOAT},
-    {N_(RE_PASSNAME_EMIT), SOCK_RGBA},
-    {N_(RE_PASSNAME_ENVIRONMENT), SOCK_RGBA},
-    {N_(RE_PASSNAME_DIFFUSE_DIRECT), SOCK_RGBA},
-    {N_(RE_PASSNAME_DIFFUSE_INDIRECT), SOCK_RGBA},
-    {N_(RE_PASSNAME_DIFFUSE_COLOR), SOCK_RGBA},
-    {N_(RE_PASSNAME_GLOSSY_DIRECT), SOCK_RGBA},
-    {N_(RE_PASSNAME_GLOSSY_INDIRECT), SOCK_RGBA},
-    {N_(RE_PASSNAME_GLOSSY_COLOR), SOCK_RGBA},
-    {N_(RE_PASSNAME_TRANSM_DIRECT), SOCK_RGBA},
-    {N_(RE_PASSNAME_TRANSM_INDIRECT), SOCK_RGBA},
-    {N_(RE_PASSNAME_TRANSM_COLOR), SOCK_RGBA},
-    {N_(RE_PASSNAME_SUBSURFACE_DIRECT), SOCK_RGBA},
-    {N_(RE_PASSNAME_SUBSURFACE_INDIRECT), SOCK_RGBA},
-    {N_(RE_PASSNAME_SUBSURFACE_COLOR), SOCK_RGBA}};
-
-  const int index = std::distance(builtin_passes.begin(), std::find_if(builtin_passes.begin(), builtin_passes.end(), [](const std::pair<StringRefNull, eNodeSocketDatatype> &item) {
-    return item.first == pass_name;
-  }));
-  if (index < builtin_passes.size()) {
-    return builtin_passes[index].second;
-  }
-  return std::nullopt;
-}
-
 static void node_rlayer_declare(NodeDeclarationBuilder &builder)
 {
   const auto default_outputs = [&]() {
