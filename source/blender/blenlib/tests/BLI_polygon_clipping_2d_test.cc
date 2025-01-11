@@ -279,21 +279,45 @@ void draw_results(const std::string &label,
 
   f << "<svg width=\"" << mapping.view_width << "\" height=\"" << mapping.view_height << "\">\n";
 
-  /* TODO */
-  const Array<int> offset_a = {0, int(points_by_curve[0].size())};
-  const Array<int> offset_b = {0, int(points_by_curve[1].size())};
+  const IndexRange subject_shapes = IndexRange::from_begin_end(0, clipping_shapes.first());
+
+  Array<int> offset_a(subject_shapes.size() + 1);
+  Array<int> offset_b(clipping_shapes.size() + 1);
+
+  int offset = 0;
+
+  for (const int i : subject_shapes.index_range()) {
+    offset_a[i] = offset;
+    offset += points_by_curve[subject_shapes[i]].size();
+  }
+  offset_a.last() = offset;
+
+  offset = 0; /* Reuse. */
+
+  for (const int i : clipping_shapes.index_range()) {
+    offset_b[i] = offset;
+    offset += points_by_curve[clipping_shapes[i]].size();
+  }
+  offset_b.last() = offset;
+
+  const Span<float2> a_points = input_points.slice(
+      IndexRange::from_begin_end_inclusive(points_by_curve[subject_shapes.first()].first(),
+                                           points_by_curve[subject_shapes.last()].last()));
+  const Span<float2> b_points = input_points.slice(
+      IndexRange::from_begin_end_inclusive(points_by_curve[clipping_shapes.first()].first(),
+                                           points_by_curve[clipping_shapes.last()].last()));
 
   SVG_add_path(f,
                type + "-A",
-               input_points.slice(points_by_curve[0]),
+               a_points,
                OffsetIndices<int>(offset_a),
-               {is_cyclic[0]},
+               is_cyclic.slice(subject_shapes),
                mapping);
   SVG_add_path(f,
                type + "-B",
-               input_points.slice(points_by_curve[1]),
+               b_points,
                OffsetIndices<int>(offset_b),
-               {is_cyclic[1]},
+               is_cyclic.slice(clipping_shapes),
                mapping);
   Array<float2> output_points(result.point_offsets.last());
   calculate_positions(input_points, result, output_points.as_mutable_span());
