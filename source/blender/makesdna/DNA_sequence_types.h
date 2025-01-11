@@ -241,7 +241,7 @@ typedef struct Strip {
   ListBase channels; /* SeqTimelineChannel */
 
   /* List of strip connections (one-way, not bidirectional). */
-  ListBase connections; /* SeqConnection */
+  ListBase connections; /* StripConnection */
 
   /** The linked "bSound" object. */
   struct bSound *sound;
@@ -317,10 +317,10 @@ typedef struct SeqTimelineChannel {
   int flag;
 } SeqTimelineChannel;
 
-typedef struct SeqConnection {
-  struct SeqConnection *next, *prev;
+typedef struct StripConnection {
+  struct StripConnection *next, *prev;
   Strip *seq_ref;
-} SeqConnection;
+} StripConnection;
 
 typedef struct EditingRuntime {
   struct StripLookup *strip_lookup;
