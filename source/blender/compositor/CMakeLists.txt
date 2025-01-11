@@ -8,6 +8,7 @@ set(INC
   cached_resources
   utilities
   ../gpu/intern
+  ../makesrna
   ../render/intern
 )
 
@@ -151,7 +152,6 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::rna
 )
 
 set(GLSL_SRC
@@ -193,6 +193,8 @@ set(GLSL_SRC
   shaders/compositor_glare_simple_star_vertical_pass.glsl
   shaders/compositor_glare_streaks_accumulate.glsl
   shaders/compositor_glare_streaks_filter.glsl
+  shaders/compositor_glare_write_glare_output.glsl
+  shaders/compositor_glare_write_highlights_output.glsl
   shaders/compositor_id_mask.glsl
   shaders/compositor_image_crop.glsl
   shaders/compositor_inpaint_compute_boundary.glsl
@@ -246,6 +248,7 @@ set(GLSL_SRC
   shaders/compositor_symmetric_separable_blur_variable_size.glsl
   shaders/compositor_tone_map_photoreceptor.glsl
   shaders/compositor_tone_map_simple.glsl
+  shaders/compositor_translate_wrapped.glsl
   shaders/compositor_van_vliet_gaussian_blur.glsl
   shaders/compositor_van_vliet_gaussian_blur_sum.glsl
   shaders/compositor_write_output.glsl

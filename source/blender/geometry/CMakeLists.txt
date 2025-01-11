@@ -4,6 +4,7 @@
 
 set(INC
   PUBLIC .
+  ../makesrna
   ../../../intern/eigen
 )
 
@@ -106,7 +107,6 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
-  PRIVATE bf::rna
 )
 
 if(WITH_UV_SLIM)

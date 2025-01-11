@@ -23,7 +23,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -1418,8 +1418,8 @@ void Layer::prepare_for_dna_write()
 void Layer::update_from_dna_read()
 {
   /* Re-create frames data in runtime map. */
-  /* NOTE: Avoid re-allocating runtime data to reduce 'false positive' change detections from
-   * memfile undo. */
+  /* NOTE: Avoid re-allocating runtime data to reduce 'false positive' change detection from
+   * MEMFILE undo. */
   if (runtime) {
     runtime->clear();
   }
@@ -2441,7 +2441,11 @@ Material *BKE_grease_pencil_object_material_ensure_from_brush(Main *bmain,
 
     /* check if the material is already on object material slots and add it if missing */
     if (ma && BKE_object_material_index_get(ob, ma) < 0) {
-      BKE_object_material_slot_add(bmain, ob);
+      /* The object's active material is what's used for the unpinned material. Do not touch it
+       * while using a pinned material. */
+      const bool change_active_material = false;
+
+      BKE_object_material_slot_add(bmain, ob, change_active_material);
       BKE_object_material_assign(bmain, ob, ma, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
     }
 
