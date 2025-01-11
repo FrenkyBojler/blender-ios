@@ -9,6 +9,7 @@
 #pragma once
 
 #include "RNA_types.hh"
+#include <map>
 #include <stdio.h>
 
 #define HANDLER_TYPE_ALL 0
@@ -21,13 +22,7 @@
 extern "C" {
 #endif
 
-struct wmOpHandlers {
-  /** Handlers in order of being added. */
-  ListBase handlers;
-};
-
 typedef struct wmOpHandlerData {
-  struct wmOpHandlerData *next, *prev;
   char id_name[OP_MAX_TYPENAME];
   /** Handlers in order of being added. */
   ListBase pre_invoke;
@@ -35,6 +30,11 @@ typedef struct wmOpHandlerData {
   ListBase modal;
   ListBase modal_end;
 } wmOpHandlerData;
+
+struct wmOpHandlers {
+  // Map Key matches wmOpHandlerData::id_name
+  std::map<std::string, std::shared_ptr<wmOpHandlerData>> handlers;
+};
 
 wmOpHandlers *WM_op_handlers_create(void);
 void WM_op_handlers_destroy(struct wmOpHandlers *opHandlers);
