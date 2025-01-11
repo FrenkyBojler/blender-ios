@@ -319,7 +319,7 @@ typedef struct SeqTimelineChannel {
 
 typedef struct StripConnection {
   struct StripConnection *next, *prev;
-  Strip *seq_ref;
+  Strip *strip_ref;
 } StripConnection;
 
 typedef struct EditingRuntime {

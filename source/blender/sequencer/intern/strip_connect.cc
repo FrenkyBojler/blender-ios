@@ -38,10 +38,10 @@ bool SEQ_disconnect(Strip *strip)
     return false;
   }
   /* Remove `StripConnections` from other strips' `connections` list that point to `strip`. */
-  LISTBASE_FOREACH (StripConnection *, con_seq, &strip->connections) {
-    Strip *other = con_seq->seq_ref;
+  LISTBASE_FOREACH (StripConnection *, con_strip, &strip->connections) {
+    Strip *other = con_strip->strip_ref;
     LISTBASE_FOREACH_MUTABLE (StripConnection *, con_other, &other->connections) {
-      if (con_other->seq_ref == strip) {
+      if (con_other->strip_ref == strip) {
         BLI_remlink(&other->connections, con_other);
         MEM_delete(con_other);
       }
@@ -68,19 +68,19 @@ void SEQ_cut_one_way_connections(Strip *strip)
   if (strip == nullptr) {
     return;
   }
-  LISTBASE_FOREACH_MUTABLE (StripConnection *, con_seq, &strip->connections) {
-    Strip *other = con_seq->seq_ref;
+  LISTBASE_FOREACH_MUTABLE (StripConnection *, con_strip, &strip->connections) {
+    Strip *other = con_strip->strip_ref;
     bool is_one_way = true;
     LISTBASE_FOREACH (StripConnection *, con_other, &other->connections) {
-      if (con_other->seq_ref == strip) {
+      if (con_other->strip_ref == strip) {
         /* The `other` sequence has a bidirectional connection with `strip`. */
         is_one_way = false;
         break;
       }
     }
     if (is_one_way) {
-      BLI_remlink(&strip->connections, con_seq);
-      MEM_delete(con_seq);
+      BLI_remlink(&strip->connections, con_strip);
+      MEM_delete(con_strip);
     }
   }
 }
@@ -108,7 +108,7 @@ void SEQ_connect(blender::VectorSet<Strip *> &strip_list)
         continue;
       }
       StripConnection *con = MEM_cnew<StripConnection>("stripconnection");
-      con->seq_ref = seq2;
+      con->strip_ref = seq2;
       BLI_addtail(&seq1->connections, con);
     }
   }
@@ -119,7 +119,7 @@ blender::VectorSet<Strip *> SEQ_get_connected_strips(const Strip *strip)
   blender::VectorSet<Strip *> connections;
   if (strip != nullptr) {
     LISTBASE_FOREACH (StripConnection *, con, &strip->connections) {
-      connections.add(con->seq_ref);
+      connections.add(con->strip_ref);
     }
   }
   return connections;
