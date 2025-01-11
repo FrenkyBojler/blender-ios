@@ -43,8 +43,9 @@ static void CSS_setup_style(std::ofstream &f)
        "\n";
 
   f << ".polygon-A {\n"
-       "  fill: none;\n"
-       "  stroke: red;\n"
+       "  fill: blue;\n"
+       "  fill-opacity: 0.25;\n"
+       "  stroke: blue;\n"
        "  stroke-width: "
     << stroke_width
     << "px;\n"
@@ -53,8 +54,9 @@ static void CSS_setup_style(std::ofstream &f)
     << "px;\n"
        "}\n";
   f << ".polygon-B {\n"
-       "  fill: none;\n"
-       "  stroke: blue;\n"
+       "  fill: red;\n"
+       "  fill-opacity: 0.25;\n"
+       "  stroke: red;\n"
        "  stroke-width: "
     << stroke_width
     << "px;\n"
