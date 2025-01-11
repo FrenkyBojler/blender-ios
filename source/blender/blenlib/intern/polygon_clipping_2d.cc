@@ -223,6 +223,12 @@ struct ExtendedIntersectionPoint {
     BLI_assert(curve == curve_a || curve == curve_b);
     return curve == curve_a ? point_a + alpha_a : point_b + alpha_b;
   }
+
+  int other_curve(const int curve) const
+  {
+    BLI_assert(curve == curve_a || curve == curve_b);
+    return curve == curve_a ? curve_b : curve_a;
+  }
 };
 
 static ExtendedIntersectionPoint create_intersection(const int point_a,
@@ -502,24 +508,35 @@ BooleanResult execute_boolean(const Operation boolean_mode,
   for (const int curve_i : all_segments_by_curve.index_range()) {
     const IndexRange segments = all_segments_by_curve[curve_i];
 
+    /* TODO: This assumes that the segment size is not zero which is not always true. */
+    const int first_point = all_segments[segments.first()].start_point();
     const bool is_subj = !clipping_shapes.contains(curve_i);
 
     int current_winding_order = 0;
 
-    /* TODO */
-    if (is_fill[1 - curve_i]) {
-      /* TODO: This assumes that the segment size is not zero which is not always true. */
-      const int first_point = all_segments[segments.first()].start_point();
-      const Span<float2> poly_other = points.slice(points_by_curve[1 - curve_i]); /* TODO */
-      current_winding_order = point_in_polygon_winding_order(points[first_point], poly_other);
+    for (const int curve_j : all_segments_by_curve.index_range()) {
+      if (curve_j == curve_i) {
+        continue;
+      }
+      if (is_fill[curve_j]) {
+        const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
+        current_winding_order += point_in_polygon_winding_order(points[first_point], poly_j);
+      }
     }
 
     for (const int seg_i : segments) {
+      const Segment &this_segment = all_segments[seg_i];
       if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
-        unsorted_segments.append(all_segments[seg_i]);
+        unsorted_segments.append(this_segment);
       }
 
-      const int other_curve_i = 1 - curve_i; /* TODO */
+      if (!this_segment.has_end_intersection()) {
+        continue;
+      }
+      const int int_p_end = this_segment.end_intersection();
+      const ExtendedIntersectionPoint &inter_end = intersections[int_p_end];
+
+      const int other_curve_i = inter_end.other_curve(curve_i);
 
       if (is_fill[other_curve_i]) {
         current_winding_order++; /* TODO */
