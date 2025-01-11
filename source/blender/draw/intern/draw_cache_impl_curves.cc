@@ -1136,10 +1136,9 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
 {
   static GPUVertFormat format_segments = []() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "point_index", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "point_index", GPU_COMP_I32, 2, GPU_FETCH_INT);
     GPU_vertformat_attr_add(&format, "evaluated_points_offset", GPU_COMP_I32, 1, GPU_FETCH_INT);
     GPU_vertformat_attr_add(&format, "radius", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
-    GPU_vertformat_attr_add(&format, "_pad", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     return format;
   }();
 
@@ -1158,8 +1157,9 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
   int next_segment_offset = 0;
   Vector<CurveSegment> segment_data;
 
-  bezier_curves.foreach_index([&](const int64_t curve) {
+  bezier_curves.foreach_index([&](const int64_t curve, const int64_t bezier_curve) {
     const IndexRange points = points_by_curve[curve];
+    const IndexRange bezier_points = bezier_offsets[bezier_curve];
     max_resolution = math::max(max_resolution, resolution[curve]);
 
     if (points.size() == 0) {
@@ -1167,13 +1167,17 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
     }
 
     for (const int point : points.index_range()) {
-      CurveSegment seg_data{int32_t(points[point]), next_segment_offset, radius[points[point]]};
+      CurveSegment seg_data{int32_t(points[point]),
+                            int32_t(bezier_points[point]),
+                            next_segment_offset,
+                            radius[points[point]]};
       segment_data.append(seg_data);
       next_segment_offset += resolution[curve];
     }
 
     if (cyclic[curve] || points.size() == 1) {
-      CurveSegment seg_data{int32_t(points[0]), next_segment_offset, radius[points[0]]};
+      CurveSegment seg_data{
+          int32_t(points[0]), int32_t(bezier_points[0]), next_segment_offset, radius[points[0]]};
       segment_data.append(seg_data);
     }
     else {

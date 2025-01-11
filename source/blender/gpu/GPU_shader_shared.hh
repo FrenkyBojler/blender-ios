@@ -75,12 +75,17 @@ BLI_STATIC_ASSERT_ALIGN(NodeLinkInstanceData, 16)
 struct CurveSegment {
   /** Curve segment's left control point index in `CurvesBatchCache.edit_points_pos`. */
   int32_t point_index;
+  /**
+   * Curve segment's left control point handle index in `CurvesBatchCache.edit_points_pos`.
+   * Index is without left or right handle offset (curves.points_num() and curves.points_num() +
+   * bezier point count).
+   */
+  int32_t handle_index;
 
   int32_t evaluated_points_offset;
 
   /** Curve segment's left control point radius. */
   float radius;
-  float _pad;
 };
 BLI_STATIC_ASSERT_ALIGN(CurveSegment, 16)
 

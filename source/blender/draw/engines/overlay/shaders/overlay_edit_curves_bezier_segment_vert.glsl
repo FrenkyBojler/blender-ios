@@ -19,16 +19,16 @@ struct VertIn {
 VertIn input_assembly(uint vertex_id)
 {
   const uint segment_i = gpu_index_load(vertex_id);
-  const uint start_index = point_index[gpu_attr_load_index(segment_i, gpu_attr_0)];
-  const uint end_index = point_index[gpu_attr_load_index(segment_i + 1, gpu_attr_0)];
+  const uvec2 start_point_indices = gpu_attr_load_int2(point_index, gpu_attr_0, segment_i);
+  const uvec2 end_point_indices = gpu_attr_load_int2(point_index, gpu_attr_0, segment_i + 1);
   const int left_handle_offset = curves_data.point_num;
   const int right_handle_offset = left_handle_offset + curves_data.bezier_point_num;
 
   VertIn vert_in;
-  vert_in.p[0] = gpu_attr_load_float3(pos, gpu_attr_3, start_index);
-  vert_in.p[1] = gpu_attr_load_float3(pos, gpu_attr_3, start_index + right_handle_offset);
-  vert_in.p[2] = gpu_attr_load_float3(pos, gpu_attr_3, end_index + left_handle_offset);
-  vert_in.p[3] = gpu_attr_load_float3(pos, gpu_attr_3, end_index);
+  vert_in.p[0] = gpu_attr_load_float3(pos, gpu_attr_3, start_point_indices.x);
+  vert_in.p[1] = gpu_attr_load_float3(pos, gpu_attr_3, start_point_indices.y + right_handle_offset);
+  vert_in.p[2] = gpu_attr_load_float3(pos, gpu_attr_3, end_point_indices.y + left_handle_offset);
+  vert_in.p[3] = gpu_attr_load_float3(pos, gpu_attr_3, end_point_indices.x);
   vert_in.first_vertex_id = evaluated_points_offset[gpu_attr_load_index(segment_i, gpu_attr_1)];
   vert_in.resolution = evaluated_points_offset[gpu_attr_load_index(segment_i + 1, gpu_attr_1)] -
                        vert_in.first_vertex_id;
