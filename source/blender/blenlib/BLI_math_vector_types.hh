@@ -118,9 +118,6 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
 
   /** Mixed scalar-vector constructors. */
 
-  template<int OtherSize, BLI_ENABLE_IF(OtherSize < Size)>
-  VecBase(const VecBase<T, OtherSize> &other) = delete;
-
   template<typename U, BLI_ENABLE_IF_VEC(Size, == 3)>
   constexpr VecBase(const VecBase<U, 2> &xy, T z) : VecBase(T(xy.x), T(xy.y), z)
   {
@@ -160,6 +157,11 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
   VecBase(T x, T y, VecBase<U, 2> zw) : VecBase(T(x), T(y), T(zw.x), T(zw.y))
   {
   }
+
+  /** Up-cast of dimensions. */
+
+  template<typename U, int OtherSize, BLI_ENABLE_IF(OtherSize < Size)>
+  VecBase(const VecBase<U, OtherSize> &other) = delete;
 
   /** Masking. */
 
