@@ -1303,13 +1303,11 @@ void ensure_non_cyclic_clamped(const IndexMask selection, bke::CurvesGeometry &c
   const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
   MutableSpan<float> knot_spans = curves.nurbs_knot_spans_for_write();
 
-  threading::parallel_for(curves.curves_range(), 128, [&](const IndexRange range) {
-    for (const int curve : range) {
-      if (cyclic[curve] && nurbs_knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
-        MutableSpan<float> curve_knot_spans = knot_spans.slice(points_by_curve[curve]);
-        curve_knot_spans[0] = 0.0f;
-        curve_knot_spans.take_back(nurbs_orders[curve] - 2).fill(0.0f);
-      }
+  selection.foreach_index(GrainSize(256), [&](const int curve) {
+    if (!cyclic[curve] && nurbs_knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
+      MutableSpan<float> curve_knot_spans = knot_spans.slice(points_by_curve[curve]);
+      curve_knot_spans[0] = 0.0f;
+      curve_knot_spans.take_back(nurbs_orders[curve] - 2).fill(0.0f);
     }
   });
 }
