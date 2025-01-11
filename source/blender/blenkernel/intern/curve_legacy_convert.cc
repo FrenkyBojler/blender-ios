@@ -175,6 +175,8 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
     MutableSpan<int8_t> nurbs_orders = curves.nurbs_orders_for_write();
     MutableSpan<int8_t> nurbs_knots_modes = curves.nurbs_knots_modes_for_write();
 
+    std::atomic<bool> has_custom_knot_curves = false;
+
     selection.foreach_index(GrainSize(256), [&](const int curve_i) {
       const Nurb &src_curve = *src_curves[curve_i];
       const Span src_points(src_curve.bp, src_curve.pntsu);
@@ -184,11 +186,7 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
       nurbs_orders[curve_i] = src_curve.orderu;
       nurbs_knots_modes[curve_i] = knots_mode_from_legacy(src_curve.flagu);
       if (nurbs_knots_modes[curve_i] & NURBS_KNOT_MODE_CUSTOM) {
-        /* Placed here to prevent attribute creation when it is not needed. */
-        MutableSpan<float> knot_spans = curves.nurbs_knot_spans_for_write();
-        curves::nurbs::knots_to_spans(src_curve.orderu,
-                                      Span<float>(src_curve.knotsu, KNOTSU(&src_curve)),
-                                      knot_spans.slice(points));
+        has_custom_knot_curves = true;
       }
 
       for (const int i : src_points.index_range()) {
@@ -197,6 +195,23 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
         radii[points[i]] = bp.radius;
         tilts[points[i]] = bp.tilt;
         nurbs_weights[points[i]] = bp.vec[3];
+      }
+    });
+
+    if (!has_custom_knot_curves) {
+      return;
+    }
+
+    MutableSpan<float> knot_spans = curves.nurbs_knot_spans_for_write();
+    selection.foreach_index(GrainSize(256), [&](const int curve_i) {
+      if (nurbs_knots_modes[curve_i] & NURBS_KNOT_MODE_CUSTOM) {
+        const Nurb &src_curve = *src_curves[curve_i];
+        const Span src_points(src_curve.bp, src_curve.pntsu);
+        const IndexRange points = points_by_curve[curve_i];
+
+        curves::nurbs::knots_to_spans(src_curve.orderu,
+                                      Span<float>(src_curve.knotsu, KNOTSU(&src_curve)),
+                                      knot_spans.slice(points));
       }
     });
   };
