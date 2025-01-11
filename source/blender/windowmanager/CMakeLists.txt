@@ -85,7 +85,7 @@ set(SRC
   message_bus/intern/wm_message_bus_intern.hh
   message_bus/wm_message_bus.hh
   op_handlers/wm_op_handlers.hh
-  op_handlers/intern/wm_op_handlers_intern.h
+  op_handlers/intern/wm_op_handlers_intern.hh
 )
 
 set(LIB

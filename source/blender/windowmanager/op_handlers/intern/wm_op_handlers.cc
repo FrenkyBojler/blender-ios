@@ -18,7 +18,7 @@
 
 #include "WM_types.hh"
 
-#include "op_handlers/intern/wm_op_handlers_intern.h"
+#include "op_handlers/intern/wm_op_handlers_intern.hh"
 #include "op_handlers/wm_op_handlers.hh"
 
 /* -------------------------------------------------------------------------- */
