@@ -102,7 +102,7 @@ blender::VectorSet<Strip *> SEQ_query_all_strips_recursive(const ListBase *seqba
 void SEQ_query_strip_effect_chain(const Scene *scene,
                                   Strip *strip_reference,
                                   ListBase *seqbase,
-                                  blender::VectorSet<Strip *> &strips);
+                                  blender::VectorSet<Strip *> &r_strips);
 
 /**
  * Query all connected strips, as well as all effect strips directly or indirectly connected to
@@ -115,7 +115,7 @@ void SEQ_query_strip_effect_chain(const Scene *scene,
 void SEQ_query_strip_connected_and_effect_chain(const Scene *scene,
                                                 Strip *reference_strip,
                                                 ListBase *seqbase,
-                                                blender::VectorSet<Strip *> &strips);
+                                                blender::VectorSet<Strip *> &r_strips);
 
 /**
  * Query strips that are rendered at \a timeline_frame when \a displayed channel is viewed

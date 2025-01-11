@@ -209,28 +209,28 @@ VectorSet<Strip *> SEQ_query_unselected_strips(ListBase *seqbase)
 void SEQ_query_strip_effect_chain(const Scene *scene,
                                   Strip *reference_strip,
                                   ListBase *seqbase,
-                                  VectorSet<Strip *> &strips)
+                                  VectorSet<Strip *> &r_strips)
 {
-  if (strips.contains(reference_strip)) {
+  if (r_strips.contains(reference_strip)) {
     return; /* Strip is already in set, so all effects connected to it are as well. */
   }
 
-  strips.add(reference_strip);
+  r_strips.add(reference_strip);
 
   /* Find all input strips for `reference_strip`. */
   if (reference_strip->type & STRIP_TYPE_EFFECT) {
     if (reference_strip->seq1) {
-      SEQ_query_strip_effect_chain(scene, reference_strip->seq1, seqbase, strips);
+      SEQ_query_strip_effect_chain(scene, reference_strip->seq1, seqbase, r_strips);
     }
     if (reference_strip->seq2) {
-      SEQ_query_strip_effect_chain(scene, reference_strip->seq2, seqbase, strips);
+      SEQ_query_strip_effect_chain(scene, reference_strip->seq2, seqbase, r_strips);
     }
   }
 
   /* Find all effect strips that have `reference_strip` as an input. */
   LISTBASE_FOREACH (Strip *, strip_test, seqbase) {
     if (strip_test->seq1 == reference_strip || strip_test->seq2 == reference_strip) {
-      SEQ_query_strip_effect_chain(scene, strip_test, seqbase, strips);
+      SEQ_query_strip_effect_chain(scene, strip_test, seqbase, r_strips);
     }
   }
 }
@@ -238,7 +238,7 @@ void SEQ_query_strip_effect_chain(const Scene *scene,
 void SEQ_query_strip_connected_and_effect_chain(const Scene *scene,
                                                 Strip *reference_strip,
                                                 ListBase *seqbase,
-                                                VectorSet<Strip *> &strips)
+                                                VectorSet<Strip *> &r_strips)
 {
 
   VectorSet<Strip *> pending;
@@ -247,15 +247,15 @@ void SEQ_query_strip_connected_and_effect_chain(const Scene *scene,
   while (!pending.is_empty()) {
     Strip *current = pending.pop();
 
-    if (strips.contains(current)) {
+    if (r_strips.contains(current)) {
       continue;
     }
 
-    strips.add(current);
+    r_strips.add(current);
 
     VectorSet<Strip *> connections = SEQ_get_connected_strips(current);
     for (Strip *connection : connections) {
-      if (!strips.contains(connection)) {
+      if (!r_strips.contains(connection)) {
         pending.add(connection);
       }
     }
@@ -263,7 +263,7 @@ void SEQ_query_strip_connected_and_effect_chain(const Scene *scene,
     VectorSet<Strip *> effect_chain;
     SEQ_query_strip_effect_chain(scene, current, seqbase, effect_chain);
     for (Strip *effect_strip : effect_chain) {
-      if (!strips.contains(effect_strip)) {
+      if (!r_strips.contains(effect_strip)) {
         pending.add(effect_strip);
       }
     }
