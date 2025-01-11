@@ -257,9 +257,10 @@ void draw_divider_end()
 
 void draw_results(const std::string &label,
                   const std::string &type,
+                  const Span<float2> input_points,
+                  const OffsetIndices<int> points_by_curve,
+                  const IndexRange clipping_shapes,
                   const Span<bool> is_cyclic,
-                  const Span<float2> curve_subj,
-                  const Span<float2> curve_clip,
                   const BooleanResult &result)
 {
   if (!DO_DRAW) {
@@ -273,31 +274,33 @@ void draw_results(const std::string &label,
 
   f << "<div>\n";
 
-  const Bounds<float2> bounds = *bounds::merge(bounds::min_max(curve_subj),
-                                               bounds::min_max(curve_clip));
+  const Bounds<float2> bounds = *bounds::min_max(input_points);
   SVGMapping mapping = SVGMapping(bounds);
 
   f << "<svg width=\"" << mapping.view_width << "\" height=\"" << mapping.view_height << "\">\n";
 
-  const Array<int> offset_a = {0, int(curve_subj.size())};
-  const Array<int> offset_b = {0, int(curve_clip.size())};
-
-  SVG_add_path(f, type + "-A", curve_subj, OffsetIndices<int>(offset_a), {is_cyclic[0]}, mapping);
-  SVG_add_path(f, type + "-B", curve_clip, OffsetIndices<int>(offset_b), {is_cyclic[1]}, mapping);
-
   /* TODO */
-  Array<float2> in_points(curve_subj.size() + curve_clip.size());
-  array_utils::copy(curve_subj, in_points.as_mutable_span().slice(IndexRange(curve_subj.size())));
-  array_utils::copy(
-      curve_clip,
-      in_points.as_mutable_span().slice(IndexRange(curve_subj.size(), curve_clip.size())));
+  const Array<int> offset_a = {0, int(points_by_curve[0].size())};
+  const Array<int> offset_b = {0, int(points_by_curve[1].size())};
 
-  Array<float2> out_points(result.point_offsets.last());
-  calculate_positions(in_points, result, out_points.as_mutable_span());
+  SVG_add_path(f,
+               type + "-A",
+               input_points.slice(points_by_curve[0]),
+               OffsetIndices<int>(offset_a),
+               {is_cyclic[0]},
+               mapping);
+  SVG_add_path(f,
+               type + "-B",
+               input_points.slice(points_by_curve[1]),
+               OffsetIndices<int>(offset_b),
+               {is_cyclic[1]},
+               mapping);
+  Array<float2> output_points(result.point_offsets.last());
+  calculate_positions(input_points, result, output_points.as_mutable_span());
 
   const OffsetIndices<int> points_by_polygon = OffsetIndices<int>(result.point_offsets);
 
-  SVG_add_path(f, type + "-C", out_points, points_by_polygon, result.cyclic, mapping);
+  SVG_add_path(f, type + "-C", output_points, points_by_polygon, result.cyclic, mapping);
 
   f << "</svg>\n";
 
@@ -378,7 +381,13 @@ TEST(polygonboolean, Squares)
     const Array<Vector<float2>> expected_points = {{{2, 2}, {1, 2}, {1, 1}, {2, 1}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Intersection", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Intersection",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     BooleanResult result = curve_boolean_calc(Operation::Union,
@@ -392,7 +401,13 @@ TEST(polygonboolean, Squares)
         {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 3}, {3, 3}, {3, 1}, {2, 1}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Union", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Union",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     BooleanResult result = curve_boolean_calc(Operation::Difference,
@@ -406,7 +421,13 @@ TEST(polygonboolean, Squares)
         {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Difference", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Difference",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   draw_divider_end();
 }
@@ -448,7 +469,13 @@ TEST(polygonboolean, Simple)
                                                    {{2, 3}, {2, 4}, {3, 3}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Intersection", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Intersection",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     BooleanResult result = curve_boolean_calc(Operation::Union,
@@ -463,7 +490,13 @@ TEST(polygonboolean, Simple)
         {{3, 3}, {4, 2}, {5, 3}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Union", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Union",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     BooleanResult result = curve_boolean_calc(Operation::Difference,
@@ -479,7 +512,13 @@ TEST(polygonboolean, Simple)
     //     {{3, 3}, {4, 2}, {5, 3}}};
     // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Difference", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Difference",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
 
   draw_divider_end();
@@ -527,7 +566,13 @@ TEST(polygonboolean, Complex)
         {{7.38462, 6}, {7.21053, 5.24561}, {7.76923, 5.30769}, {8, 6}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Intersection", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Intersection",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     BooleanResult result = curve_boolean_calc(Operation::Union,
@@ -562,7 +607,13 @@ TEST(polygonboolean, Complex)
         {{5, 5}, {6.95349, 4.13178}, {7.21053, 5.24561}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Union", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Union",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     BooleanResult result = curve_boolean_calc(Operation::Difference,
@@ -590,7 +641,13 @@ TEST(polygonboolean, Complex)
         {{8, 6}, {7.76923, 5.30769}, {10.5059, 5.61176}, {10.3333, 6}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Difference", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Difference",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
 
   draw_divider_end();
@@ -647,7 +704,13 @@ TEST(polygonboolean, Last_Edge_Loop)
     //                                                 {1, 5}}};
     // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Intersection", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Intersection",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     BooleanResult result = curve_boolean_calc(Operation::Union,
@@ -673,7 +736,13 @@ TEST(polygonboolean, Last_Edge_Loop)
     //                                                 {1, 5}}};
     // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Union", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Union",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     BooleanResult result = curve_boolean_calc(Operation::Difference,
@@ -698,7 +767,13 @@ TEST(polygonboolean, Last_Edge_Loop)
                                                     {1, 5}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Difference", "polygon", is_cyclic, points_subj, points_clip, result);
+    draw_results("Difference",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
 
   draw_divider_end();
@@ -737,7 +812,13 @@ TEST(polygonboolean, Simple_Cuts)
                                                    {{0.857143, 3.14286}, {0, 2}, {0, 0}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Simple Cut 1", "cut", is_cyclic, points_subj, points_clip, result);
+    draw_results("Simple Cut 1",
+                 "cut",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     const Array<float2> points_subj = {{5, 5}, {3, 5}, {1, 3}, {1, 1}};
@@ -766,7 +847,13 @@ TEST(polygonboolean, Simple_Cuts)
     const Array<Vector<float2>> expected_points = {{{4, 5}, {3, 5}, {1, 3}, {1, 2}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Simple Cut 2", "cut", is_cyclic, points_subj, points_clip, result);
+    draw_results("Simple Cut 2",
+                 "cut",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     const Array<float2> points_subj = {{6, 8}, {4, 7}, {1, 3}, {1, 1}};
@@ -799,7 +886,13 @@ TEST(polygonboolean, Simple_Cuts)
                                                    {{1.6, 3.8}, {1.27273, 3.36364}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Simple Cut 3", "cut", is_cyclic, points_subj, points_clip, result);
+    draw_results("Simple Cut 3",
+                 "cut",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     const Array<float2> points_subj = {{6, 7}, {4, 6}, {1, 2}, {1, 0}};
@@ -832,7 +925,13 @@ TEST(polygonboolean, Simple_Cuts)
                                                    {{1.42857, 2.57143}, {1, 2}, {1, 0}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Simple Cut 4", "cut", is_cyclic, points_subj, points_clip, result);
+    draw_results("Simple Cut 4",
+                 "cut",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   {
     const Array<float2> points_subj = {{6, 5}, {4, 5}, {1, 2}, {1, 0}};
@@ -863,7 +962,13 @@ TEST(polygonboolean, Simple_Cuts)
                                                    {{1.8, 2.8}, {1, 2}, {1, 0}, {2.6, 1.6}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
 
-    draw_results("Cyclical Cut", "cut", is_cyclic, points_subj, points_clip, result);
+    draw_results("Cyclical Cut",
+                 "cut",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
   }
   draw_divider_end();
 }
