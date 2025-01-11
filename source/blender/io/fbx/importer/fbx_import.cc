@@ -78,9 +78,9 @@ struct FbxImportContext {
   void setup_hierarchy();
 };
 
-static const char *get_node_name(const ufbx_node *node)
+static const char *get_name(const ufbx_string &name, const char *def = "Untitled")
 {
-  return node->name.length > 0 ? node->name.data : "Untitled";
+  return name.length > 0 ? name.data : def;
 }
 
 static void node_matrix_to_obj(const ufbx_node *node, Object *obj)
@@ -319,10 +319,9 @@ void FbxImportContext::import_meshes()
     /* Create object.
      * Steps after this have to be done on the final object in Main. */
     const ufbx_node *node = fmesh->instances[0];
-    const char *ob_name = get_node_name(node);
-    const char *mesh_name = fmesh->name.length > 0 ? fmesh->name.data : ob_name;
-    Object *obj = BKE_object_add_only_object(this->bmain, OB_MESH, ob_name);
-    obj->data = BKE_object_obdata_add_from_type(this->bmain, OB_MESH, mesh_name);
+    Object *obj = BKE_object_add_only_object(this->bmain, OB_MESH, get_name(node->name));
+    obj->data = BKE_object_obdata_add_from_type(
+        this->bmain, OB_MESH, get_name(fmesh->name, "Mesh"));
     BKE_mesh_nomain_to_mesh(mesh, static_cast<Mesh *>(obj->data), obj);
     mesh = (Mesh *)obj->data;
 
@@ -413,9 +412,8 @@ void FbxImportContext::import_cameras()
       continue; /* Ignore if not used by any objects. */
     }
     const ufbx_node *node = fcam->instances[0];
-    const char *ob_name = get_node_name(node);
 
-    Camera *bcam = BKE_camera_add(this->bmain, ob_name);
+    Camera *bcam = BKE_camera_add(this->bmain, get_name(fcam->name, "Camera"));
 
     bcam->type = fcam->projection_mode == UFBX_PROJECTION_MODE_ORTHOGRAPHIC ? CAM_ORTHO :
                                                                               CAM_PERSP;
@@ -434,7 +432,7 @@ void FbxImportContext::import_cameras()
     bcam->clip_start = fcam->near_plane * this->fbx.metadata.root_scale;
     bcam->clip_end = fcam->far_plane * this->fbx.metadata.root_scale;
 
-    Object *obj = BKE_object_add_only_object(this->bmain, OB_CAMERA, ob_name);
+    Object *obj = BKE_object_add_only_object(this->bmain, OB_CAMERA, get_name(node->name));
     obj->data = bcam;
 
     node_matrix_to_obj(node, obj);
@@ -449,9 +447,8 @@ void FbxImportContext::import_lights()
       continue; /* Ignore if not used by any objects. */
     }
     const ufbx_node *node = flight->instances[0];
-    const char *ob_name = get_node_name(node);
 
-    Light *lamp = BKE_light_add(this->bmain, ob_name);
+    Light *lamp = BKE_light_add(this->bmain, get_name(flight->name, "Light"));
     switch (flight->type) {
       case UFBX_LIGHT_POINT:
         lamp->type = LA_LOCAL;
@@ -477,7 +474,7 @@ void FbxImportContext::import_lights()
     }
     //@TODO: if hasattr(lamp, "cycles"): lamp.cycles.cast_shadow = lamp.use_shadow
 
-    Object *obj = BKE_object_add_only_object(this->bmain, OB_LAMP, ob_name);
+    Object *obj = BKE_object_add_only_object(this->bmain, OB_LAMP, get_name(node->name));
     obj->data = lamp;
 
     node_matrix_to_obj(node, obj);
@@ -508,8 +505,7 @@ void FbxImportContext::import_empties()
     const ufbx_node *node = ((const ufbx_node *)item.key)->parent;
     while (node != nullptr && !node->is_root) {
       if (!this->element_to_object.contains(&node->element) && !node_to_empty.contains(node)) {
-        const char *ob_name = get_node_name(node);
-        Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, ob_name);
+        Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_name(node->name));
         obj->data = nullptr;
         node_matrix_to_obj(node, obj);
         node_to_empty.add(node, obj);
