@@ -154,11 +154,11 @@ class Fade : Overlay {
       return false;
     }
 
-    if (active_object == ob) {
+    if (active_object->mode == OB_MODE_EDIT && ob->mode == OB_MODE_EDIT) {
       return false;
     }
 
-    if (active_object->data == ob->data) {
+    if (active_object == ob) {
       return false;
     }
 
