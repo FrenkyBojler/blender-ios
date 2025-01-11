@@ -609,29 +609,15 @@ BooleanResult execute_boolean(const Operation boolean_mode,
 }
 
 BooleanResult curve_boolean_calc(const Operation boolean_mode,
-                                 const Span<float2> curve_subj,
-                                 const Span<float2> curve_clip,
+                                 const Span<float2> points,
+                                 const OffsetIndices<int> points_by_curve,
+                                 const IndexRange clipping_shapes,
                                  const Span<bool> is_fill,
                                  const Span<bool> is_cyclic)
 {
-  /* TODO */
-  const Array<int> points_by_curve(
-      {0, int(curve_subj.size()), int(curve_subj.size() + curve_clip.size())});
 
-  Array<float2> points(curve_subj.size() + curve_clip.size());
-  array_utils::copy(curve_subj, points.as_mutable_span().slice(IndexRange(curve_subj.size())));
-  array_utils::copy(
-      curve_clip,
-      points.as_mutable_span().slice(IndexRange(curve_subj.size(), curve_clip.size())));
-
-  const IndexRange clipping_shapes = IndexRange(1, 1);
-
-  return execute_boolean(boolean_mode,
-                         points,
-                         OffsetIndices<int>(points_by_curve),
-                         clipping_shapes,
-                         is_fill,
-                         is_cyclic);
+  return execute_boolean(
+      boolean_mode, points, points_by_curve, clipping_shapes, is_fill, is_cyclic);
 }
 
 }  // namespace blender::polygonboolean

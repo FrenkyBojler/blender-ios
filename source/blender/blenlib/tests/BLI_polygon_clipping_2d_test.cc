@@ -348,9 +348,24 @@ TEST(polygonboolean, Squares)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
 
+  /* TODO */
+  const Array<int> points_by_curve(
+      {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
+  Array<float2> points(points_subj.size() + points_clip.size());
+  array_utils::copy(points_subj.as_span(),
+                    points.as_mutable_span().slice(IndexRange(points_subj.size())));
+  array_utils::copy(
+      points_clip.as_span(),
+      points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
+  const IndexRange clipping_shapes = IndexRange(1, 1);
+
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Intersect, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Intersect,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {{{2, 2}, {1, 2}, {1, 1}, {2, 1}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
@@ -358,8 +373,12 @@ TEST(polygonboolean, Squares)
     draw_results("Intersection", "polygon", is_cyclic, points_subj, points_clip, result);
   }
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Union, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Union,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {
         {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 3}, {3, 3}, {3, 1}, {2, 1}}};
@@ -368,8 +387,12 @@ TEST(polygonboolean, Squares)
     draw_results("Union", "polygon", is_cyclic, points_subj, points_clip, result);
   }
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Difference,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {
         {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
@@ -394,9 +417,24 @@ TEST(polygonboolean, Simple)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
 
+  /* TODO */
+  const Array<int> points_by_curve(
+      {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
+  Array<float2> points(points_subj.size() + points_clip.size());
+  array_utils::copy(points_subj.as_span(),
+                    points.as_mutable_span().slice(IndexRange(points_subj.size())));
+  array_utils::copy(
+      points_clip.as_span(),
+      points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
+  const IndexRange clipping_shapes = IndexRange(1, 1);
+
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Intersect, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Intersect,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {{{5, 3}, {6, 4}, {6, 3}},
                                                    {{2, 3}, {2, 4}, {3, 3}}};
@@ -405,8 +443,12 @@ TEST(polygonboolean, Simple)
     draw_results("Intersection", "polygon", is_cyclic, points_subj, points_clip, result);
   }
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Union, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Union,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {
         {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}},
@@ -416,8 +458,12 @@ TEST(polygonboolean, Simple)
     draw_results("Union", "polygon", is_cyclic, points_subj, points_clip, result);
   }
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Difference,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
@@ -445,9 +491,24 @@ TEST(polygonboolean, Complex)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
 
+  /* TODO */
+  const Array<int> points_by_curve(
+      {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
+  Array<float2> points(points_subj.size() + points_clip.size());
+  array_utils::copy(points_subj.as_span(),
+                    points.as_mutable_span().slice(IndexRange(points_subj.size())));
+  array_utils::copy(
+      points_clip.as_span(),
+      points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
+  const IndexRange clipping_shapes = IndexRange(1, 1);
+
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Intersect, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Intersect,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {
         {{12.3455, 1.47273}, {12.2, 1.8}, {12.4851, 1.67327}, {12.5663, 1.40964}},
@@ -461,8 +522,12 @@ TEST(polygonboolean, Complex)
     draw_results("Intersection", "polygon", is_cyclic, points_subj, points_clip, result);
   }
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Union, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Union,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {
         {{14, 1},
@@ -492,8 +557,12 @@ TEST(polygonboolean, Complex)
     draw_results("Union", "polygon", is_cyclic, points_subj, points_clip, result);
   }
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Difference,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {
         {{14, 1}, {12.4851, 1.67327}, {12.5663, 1.40964}},
@@ -535,9 +604,24 @@ TEST(polygonboolean, Last_Edge_Loop)
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
 
+  /* TODO */
+  const Array<int> points_by_curve(
+      {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
+  Array<float2> points(points_subj.size() + points_clip.size());
+  array_utils::copy(points_subj.as_span(),
+                    points.as_mutable_span().slice(IndexRange(points_subj.size())));
+  array_utils::copy(
+      points_clip.as_span(),
+      points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
+  const IndexRange clipping_shapes = IndexRange(1, 1);
+
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Intersect, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Intersect,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {{{0, 5},
@@ -558,8 +642,12 @@ TEST(polygonboolean, Last_Edge_Loop)
     draw_results("Intersection", "polygon", is_cyclic, points_subj, points_clip, result);
   }
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Union, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Union,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {{{0, 5},
@@ -580,8 +668,12 @@ TEST(polygonboolean, Last_Edge_Loop)
     draw_results("Union", "polygon", is_cyclic, points_subj, points_clip, result);
   }
   {
-    BooleanResult result = curve_boolean_calc(
-        Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
+    BooleanResult result = curve_boolean_calc(Operation::Difference,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {{{0, 5},
                                                     {0, 0},
@@ -613,8 +705,24 @@ TEST(polygonboolean, Simple_Cuts)
     const Array<float2> points_clip = {{1, 6}, {3, 4}, {3, 1}, {0, 4}, {2, 3}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
-    BooleanResult result = curve_boolean_calc(
-        Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
+
+    /* TODO */
+    const Array<int> points_by_curve(
+        {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
+    Array<float2> points(points_subj.size() + points_clip.size());
+    array_utils::copy(points_subj.as_span(),
+                      points.as_mutable_span().slice(IndexRange(points_subj.size())));
+    array_utils::copy(
+        points_clip.as_span(),
+        points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
+    const IndexRange clipping_shapes = IndexRange(1, 1);
+
+    BooleanResult result = curve_boolean_calc(Operation::Difference,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {{{5, 7}, {3, 6}, {2.14286, 4.85714}},
                                                    {{1.61538, 4.15385}, {1.09091, 3.45455}},
@@ -628,8 +736,24 @@ TEST(polygonboolean, Simple_Cuts)
     const Array<float2> points_clip = {{5, 6}, {6, 5}, {1, 0}, {0, 1}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
-    BooleanResult result = curve_boolean_calc(
-        Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
+
+    /* TODO */
+    const Array<int> points_by_curve(
+        {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
+    Array<float2> points(points_subj.size() + points_clip.size());
+    array_utils::copy(points_subj.as_span(),
+                      points.as_mutable_span().slice(IndexRange(points_subj.size())));
+    array_utils::copy(
+        points_clip.as_span(),
+        points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
+    const IndexRange clipping_shapes = IndexRange(1, 1);
+
+    BooleanResult result = curve_boolean_calc(Operation::Difference,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {{{4, 5}, {3, 5}, {1, 3}, {1, 2}}};
     expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
@@ -642,8 +766,24 @@ TEST(polygonboolean, Simple_Cuts)
         {3, 7}, {5, 5}, {1, 0}, {0, 4}, {2, 3}, {1, 5}, {3, 4}, {2, 6}, {4, 5}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
-    BooleanResult result = curve_boolean_calc(
-        Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
+
+    /* TODO */
+    const Array<int> points_by_curve(
+        {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
+    Array<float2> points(points_subj.size() + points_clip.size());
+    array_utils::copy(points_subj.as_span(),
+                      points.as_mutable_span().slice(IndexRange(points_subj.size())));
+    array_utils::copy(
+        points_clip.as_span(),
+        points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
+    const IndexRange clipping_shapes = IndexRange(1, 1);
+
+    BooleanResult result = curve_boolean_calc(Operation::Difference,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {{{6, 8}, {4, 7}, {3.57143, 6.42857}},
                                                    {{3.4, 6.2}, {2.90909, 5.54545}},
@@ -659,8 +799,24 @@ TEST(polygonboolean, Simple_Cuts)
         {0, 4}, {2, 2}, {7, 8}, {3, 7}, {4, 5}, {2, 6}, {3, 4}, {1, 5}, {2, 3}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
-    BooleanResult result = curve_boolean_calc(
-        Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
+
+    /* TODO */
+    const Array<int> points_by_curve(
+        {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
+    Array<float2> points(points_subj.size() + points_clip.size());
+    array_utils::copy(points_subj.as_span(),
+                      points.as_mutable_span().slice(IndexRange(points_subj.size())));
+    array_utils::copy(
+        points_clip.as_span(),
+        points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
+    const IndexRange clipping_shapes = IndexRange(1, 1);
+
+    BooleanResult result = curve_boolean_calc(Operation::Difference,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {{{3.7, 5.6}, {3.45455, 5.27273}},
                                                    {{2.8, 4.4}, {2.63636, 4.18182}},
@@ -675,8 +831,24 @@ TEST(polygonboolean, Simple_Cuts)
     const Array<float2> points_clip = {{1, 4}, {3, 1}, {5, 3}, {2, 5}, {3, 3}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {true, true};
-    BooleanResult result = curve_boolean_calc(
-        Operation::Difference, points_subj, points_clip, is_fill, is_cyclic);
+
+    /* TODO */
+    const Array<int> points_by_curve(
+        {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
+    Array<float2> points(points_subj.size() + points_clip.size());
+    array_utils::copy(points_subj.as_span(),
+                      points.as_mutable_span().slice(IndexRange(points_subj.size())));
+    array_utils::copy(
+        points_clip.as_span(),
+        points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
+    const IndexRange clipping_shapes = IndexRange(1, 1);
+
+    BooleanResult result = curve_boolean_calc(Operation::Difference,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
 
     const Array<Vector<float2>> expected_points = {{{4.4, 3.4}, {6, 5}, {4, 5}, {3.2, 4.2}},
                                                    {{2.66667, 3.66667}, {2.33333, 3.33333}},

@@ -200,9 +200,10 @@ void calculate_positions(Span<float2> pos_subj,
                          MutableSpan<float2> dst_pos);
 
 BooleanResult curve_boolean_calc(const Operation boolean_mode,
-                                 Span<float2> curve_subj,
-                                 Span<float2> curve_clip,
-                                 Span<bool> is_fill,
-                                 Span<bool> is_cyclic);
+                                 const Span<float2> points,
+                                 const OffsetIndices<int> points_by_curve,
+                                 const IndexRange clipping_shapes,
+                                 const Span<bool> is_fill,
+                                 const Span<bool> is_cyclic);
 
 }  // namespace blender::polygonboolean
