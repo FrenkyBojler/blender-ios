@@ -284,12 +284,20 @@ void draw_results(const std::string &label,
 
   SVG_add_path(f, type + "-A", curve_subj, OffsetIndices<int>(offset_a), {is_cyclic[0]}, mapping);
   SVG_add_path(f, type + "-B", curve_clip, OffsetIndices<int>(offset_b), {is_cyclic[1]}, mapping);
-  Array<float2> points(result.point_offsets.last());
-  calculate_positions(curve_subj, curve_clip, result, points.as_mutable_span());
+
+  /* TODO */
+  Array<float2> in_points(curve_subj.size() + curve_clip.size());
+  array_utils::copy(curve_subj, in_points.as_mutable_span().slice(IndexRange(curve_subj.size())));
+  array_utils::copy(
+      curve_clip,
+      in_points.as_mutable_span().slice(IndexRange(curve_subj.size(), curve_clip.size())));
+
+  Array<float2> out_points(result.point_offsets.last());
+  calculate_positions(in_points, result, out_points.as_mutable_span());
 
   const OffsetIndices<int> points_by_polygon = OffsetIndices<int>(result.point_offsets);
 
-  SVG_add_path(f, type + "-C", points, points_by_polygon, result.cyclic, mapping);
+  SVG_add_path(f, type + "-C", out_points, points_by_polygon, result.cyclic, mapping);
 
   f << "</svg>\n";
 

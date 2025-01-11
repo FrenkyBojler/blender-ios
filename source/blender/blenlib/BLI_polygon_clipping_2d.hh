@@ -194,8 +194,7 @@ struct BooleanResult {
   Vector<int> point_offsets;
 };
 
-void calculate_positions(Span<float2> pos_subj,
-                         Span<float2> pos_clip,
+void calculate_positions(Span<float2> points,
                          const BooleanResult &result,
                          MutableSpan<float2> dst_pos);
 

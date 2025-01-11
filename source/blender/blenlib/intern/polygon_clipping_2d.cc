@@ -342,17 +342,10 @@ static void calculate_offsets_from_segments(const Span<Segment> segments,
   offsets.last() = offset;
 }
 
-void calculate_positions(const Span<float2> pos_subj,
-                         const Span<float2> pos_clip,
+void calculate_positions(const Span<float2> points,
                          const BooleanResult &result,
                          MutableSpan<float2> dst_pos)
 {
-  /* TODO */
-  Array<float2> points(pos_subj.size() + pos_clip.size());
-  array_utils::copy(pos_subj, points.as_mutable_span().slice(IndexRange(pos_subj.size())));
-  array_utils::copy(pos_clip,
-                    points.as_mutable_span().slice(IndexRange(pos_subj.size(), pos_clip.size())));
-
   const OffsetIndices<int> segments_by_polygon = OffsetIndices<int>(result.segment_offsets);
   int i = 0;
 
