@@ -818,9 +818,25 @@ int knots_num(int points_num, int8_t order, bool cyclic);
 void calculate_knots(
     int points_num, KnotsMode mode, int8_t order, bool cyclic, MutableSpan<float> knots);
 
-void spans_to_knots(int8_t order, Span<float> src_knots, MutableSpan<float> knots);
-
+/**
+ * NURBS knots without a loss of information can be stored as spans between those knots,
+ * as NURBS formulas use differences of two knots. This saves one number per knot vector.
+ * For ex. 4 point order 4 clamped curve's knot vector [0, 0, 0, 0, 1, 1, 1, 1] as spans
+ * becomes [0, 0, 0, 1, 0, 0, 0].
+ *
+ * `knots_to_spans` also drops `order - 1` spans, to fit into `bke::AttrDomain::Point` domain. This
+ * restricts support of custom knot vector only to clamped or cyclic curves. Otherwise knot vector
+ * requires separate it's own domain.
+ *
+ * To get good points and knots alignment for operators like `CURVES_OT_delete` drops `order - 2`
+ * spans at the begining and one at the end. For ex. above final result is [0, 1, 0, 0].
+ */
 void knots_to_spans(int8_t order, Span<float> src_knots, MutableSpan<float> knots);
+
+/**
+ * Restores knot vector from spans array. See `knots_to_spans` for details.
+ */
+void spans_to_knots(int8_t order, Span<float> src_knots, MutableSpan<float> knots);
 
 /**
  * Based on the knots, the order, and other properties of a NURBS curve, calculate a cache that can
@@ -881,6 +897,11 @@ CurvesGeometry curves_new_no_attributes(int point_num, int curve_num);
 
 std::array<int, CURVE_TYPES_NUM> calculate_type_counts(const VArray<int8_t> &types);
 
+/**
+ * Overwrites first and last `order - 2` knot spans to make selected non cyclic
+ * `NURBS_KNOT_MODE_CUSTOM` curves clamped. Used in operators like `CURVES_OT_delete` or
+ * `CURVES_OT_duplicate`where modifications might break this rule.
+ */
 void ensure_non_cyclic_clamped(IndexMask selection, CurvesGeometry &curves);
 
 /* -------------------------------------------------------------------- */
