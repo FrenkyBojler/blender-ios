@@ -260,6 +260,8 @@ class SubdivisionSet(Operator):
                     any_object_has_relevant_modifier |= any(mod.type == 'MULTIRES' for mod in obj.modifiers)
                 elif obj.mode == 'OBJECT':
                     any_object_has_relevant_modifier |= any(mod.type == 'SUBSURF' for mod in obj.modifiers)
+                if any_object_has_relevant_modifier:
+                    break
 
             if not any_object_has_relevant_modifier:
                 return {'CANCELLED'}
