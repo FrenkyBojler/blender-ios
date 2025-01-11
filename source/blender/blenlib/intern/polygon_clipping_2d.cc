@@ -385,34 +385,40 @@ BooleanResult execute_boolean(const Operation boolean_mode,
   Array<Vector<int>> inters_per_curves(points_by_curve.size());
 
   /* Calculate all intersections. */
-  {
-    const int curve_i = 0;
-    const int curve_j = 1;
-
+  for (const int curve_i : points_by_curve.index_range()) {
     const IndexRange points_i = points_by_curve[curve_i];
-    const IndexRange points_j = points_by_curve[curve_j];
-
     const bool is_cyclic_i = is_cyclic[curve_i];
-    const bool is_cyclic_j = is_cyclic[curve_j];
 
-    for (const int i : points_i.index_range().drop_back(is_cyclic_i ? 0 : 1)) {
-      for (const int j : points_j.index_range().drop_back(is_cyclic_j ? 0 : 1)) {
-        float alpha_a, alpha_b;
-        const int val = intersect(points[points_i[i]],
-                                  points[points_i[(i + 1) % points_i.size()]],
-                                  points[points_j[j]],
-                                  points[points_j[(j + 1) % points_j.size()]],
-                                  &alpha_a,
-                                  &alpha_b);
-        if (val == ISECT_LINE_LINE_CROSS) {
-          inters_per_curves[curve_i].append(intersections.size());
-          inters_per_curves[curve_j].append(intersections.size());
-          intersections.append(
-              create_intersection(points_i[i], points_j[j], alpha_a, alpha_b, curve_i, curve_j));
-        }
-        else if (val == ISECT_LINE_LINE_EXACT) {
-          /* TODO */
-          // return std::nullopt;
+    for (const int curve_j : points_by_curve.index_range()) {
+      if (curve_i == curve_j) {
+        continue;
+      }
+      if (curve_i > curve_j) {
+        continue;
+      }
+
+      const IndexRange points_j = points_by_curve[curve_j];
+      const bool is_cyclic_j = is_cyclic[curve_j];
+
+      for (const int i : points_i.index_range().drop_back(is_cyclic_i ? 0 : 1)) {
+        for (const int j : points_j.index_range().drop_back(is_cyclic_j ? 0 : 1)) {
+          float alpha_a, alpha_b;
+          const int val = intersect(points[points_i[i]],
+                                    points[points_i[(i + 1) % points_i.size()]],
+                                    points[points_j[j]],
+                                    points[points_j[(j + 1) % points_j.size()]],
+                                    &alpha_a,
+                                    &alpha_b);
+          if (val == ISECT_LINE_LINE_CROSS) {
+            inters_per_curves[curve_i].append(intersections.size());
+            inters_per_curves[curve_j].append(intersections.size());
+            intersections.append(
+                create_intersection(points_i[i], points_j[j], alpha_a, alpha_b, curve_i, curve_j));
+          }
+          else if (val == ISECT_LINE_LINE_EXACT) {
+            /* TODO */
+            // return std::nullopt;
+          }
         }
       }
     }

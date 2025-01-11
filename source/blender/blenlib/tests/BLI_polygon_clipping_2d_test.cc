@@ -177,9 +177,7 @@ static void SVG_add_path(std::ofstream &f,
 
   f << "\"";
 
-  if (array_utils::count_booleans(VArray<bool>::ForSpan(cyclic)) != 0) {
-    f << " fill-rule=\"evenodd\"";
-  }
+  f << " fill-rule=\"evenodd\"";
 
   f << "/>\n";
 }
@@ -964,6 +962,101 @@ TEST(polygonboolean, Simple_Cuts)
 
     draw_results("Cyclical Cut",
                  "cut",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
+  }
+  draw_divider_end();
+}
+
+TEST(polygonboolean, Squares_With_Holes)
+{
+  draw_divider_start("Squares With Holes");
+
+  const Array<float2> points = {{0, 0},
+                                {0, 5},
+                                {5, 5},
+                                {5, 0},
+
+                                {1, 1},
+                                {1, 4},
+                                {4, 4},
+                                {4, 1},
+
+                                {2, 2},
+                                {2, 7},
+                                {7, 7},
+                                {7, 2},
+
+                                {3, 3},
+                                {3, 6},
+                                {6, 6},
+                                {6, 3}};
+
+  const Array<int> points_by_curve({0, 4, 8, 12, 16});
+  const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 4);
+  const Array<bool> is_fill = {true, true, true, true};
+  const Array<bool> is_cyclic = {true, true, true, true};
+
+  {
+    BooleanResult result = curve_boolean_calc(Operation::Intersect,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+
+    draw_results("Intersection",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
+  }
+  {
+    BooleanResult result = curve_boolean_calc(Operation::Union,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+
+    draw_results("Union",
+                 "polygon",
+                 points,
+                 OffsetIndices<int>(points_by_curve),
+                 clipping_shapes,
+                 is_cyclic,
+                 result);
+  }
+  {
+    BooleanResult result = curve_boolean_calc(Operation::Difference,
+                                              points,
+                                              OffsetIndices<int>(points_by_curve),
+                                              clipping_shapes,
+                                              is_fill,
+                                              is_cyclic);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+
+    draw_results("Difference",
+                 "polygon",
                  points,
                  OffsetIndices<int>(points_by_curve),
                  clipping_shapes,
