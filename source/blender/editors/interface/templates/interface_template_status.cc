@@ -11,11 +11,13 @@
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
@@ -254,6 +256,33 @@ void uiTemplateInputStatus(uiLayout *layout, bContext *C)
       uiItemL(row, "", (ICON_MOUSE_LMB_DRAG + i));
       uiItemL(row, msg_drag, ICON_NONE);
       uiItemS_ex(row, 0.7f);
+    }
+  }
+
+  ScrArea *area = nullptr;
+  LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
+    LISTBASE_FOREACH (ARegion *, ar, &area_iter->regionbase) {
+      area = area_iter;
+      break;
+    }
+  }
+
+  if (area && area->spacetype == SPACE_VIEW3D) {
+    const ViewLayer *view_layer = CTX_data_view_layer(C);
+    const Object *ob = BKE_view_layer_active_object_get(view_layer);
+    if (ob && is_negative_m4(ob->object_to_world().ptr())) {
+      uiItemS_ex(row, 1.0f);
+      uiItemL(row, "", ICON_ERROR);
+      uiItemS_ex(row, -0.2f);
+      uiItemL(row, "Active Object has negative scale", ICON_NONE);
+    }
+    else if (ob && !(fabsf(ob->scale[0] - ob->scale[1]) < 1e-4f &&
+                     fabsf(ob->scale[1] - ob->scale[2]) < 1e-4f))
+    {
+      uiItemS_ex(row, 1.0f);
+      uiItemL(row, "", ICON_ERROR);
+      uiItemS_ex(row, -0.2f);
+      uiItemL(row, "Active Object has non-uniform scale", ICON_NONE);
     }
   }
 }
