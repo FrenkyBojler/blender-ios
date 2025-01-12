@@ -250,8 +250,10 @@ class LinearGizmo : public NodeGizmos {
   {
     float3 position;
     float3 direction;
+    float lenght;
     if (!params.get_input_value("Position", position) ||
-        !params.get_input_value("Direction", direction))
+        !params.get_input_value("Direction", direction) ||
+        !params.get_input_value("Length", lenght))
     {
       params.r_report.missing_socket_logs = true;
       return false;
