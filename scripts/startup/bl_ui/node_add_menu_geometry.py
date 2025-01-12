@@ -213,7 +213,7 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_OPERATIONS(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        if context.space_data.geometry_nodes_type != 'BRUSH':
+        if _context.space_data.geometry_nodes_type != 'BRUSH':
             node_add_menu.add_node_type(layout, "GeometryNodeBake")
         node_add_menu.add_node_type(layout, "GeometryNodeBoundBox")
         node_add_menu.add_node_type(layout, "GeometryNodeConvexHull")
@@ -508,7 +508,7 @@ class NODE_MT_category_GEO_OUTPUT(Menu):
     def draw(self, _context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "NodeGroupOutput")
-        if context.space_data.geometry_nodes_type != 'BRUSH':
+        if _context.space_data.geometry_nodes_type != 'BRUSH':
             node_add_menu.add_node_type(layout, "GeometryNodeViewer")
             node_add_menu.add_node_type(layout, "GeometryNodeWarning")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
