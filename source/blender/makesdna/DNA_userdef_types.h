@@ -1276,7 +1276,6 @@ typedef enum eUserpref_UI_Flag {
   USER_FILTERFILEEXTS = (1 << 3),
   USER_DRAWVIEWINFO = (1 << 4),
   USER_PLAINMENUS = (1 << 5),
-  USER_LOCK_CURSOR_ADJUST = (1 << 6),
   USER_HEADER_BOTTOM = (1 << 7),
   /** Otherwise use header alignment from the file. */
   USER_HEADER_FROM_PREF = (1 << 8),
