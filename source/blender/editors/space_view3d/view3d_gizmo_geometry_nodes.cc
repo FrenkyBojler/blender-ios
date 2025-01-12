@@ -215,7 +215,7 @@ class LinearGizmo : public NodeGizmos {
     const auto &storage = *static_cast<const NodeGeometryLinearGizmo *>(params.gizmo_node.storage);
     const bool is_interacting = gizmo_is_interacting(*gizmo_);
 
-    this->update_style(storage);
+    this->update_style(storage, params);
 
     if (is_interacting) {
       return;
@@ -226,7 +226,7 @@ class LinearGizmo : public NodeGizmos {
     this->update_target_property();
   }
 
-  void update_style(const NodeGeometryLinearGizmo &storage)
+  void update_style(const NodeGeometryLinearGizmo &storage, GizmosUpdateParams &params)
   {
     /* Make sure the enum values are in sync. */
     static_assert(int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_ARROW) == int(ED_GIZMO_ARROW_STYLE_NORMAL));
@@ -236,9 +236,15 @@ class LinearGizmo : public NodeGizmos {
 
     WM_gizmo_set_line_width(gizmo_, 1.0f);
 
-    const float length = (storage.draw_style == GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX) ? 0.8f :
+    const float base_length = (storage.draw_style == GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX) ? 0.8f :
                                                                                         1.0f;
-    RNA_float_set(gizmo_->ptr, "length", length);
+    float length;
+    if (!params.get_input_value("Length", length)) {
+      params.r_report.missing_socket_logs = true;
+      return;
+    }
+
+    RNA_float_set(gizmo_->ptr, "length", base_length * length);
 
     const ThemeColorID color_theme_id = get_gizmo_theme_color_id(
         GeometryNodeGizmoColor(storage.color_id));
@@ -250,10 +256,8 @@ class LinearGizmo : public NodeGizmos {
   {
     float3 position;
     float3 direction;
-    float lenght;
     if (!params.get_input_value("Position", position) ||
-        !params.get_input_value("Direction", direction) ||
-        !params.get_input_value("Length", lenght))
+        !params.get_input_value("Direction", direction))
     {
       params.r_report.missing_socket_logs = true;
       return false;
