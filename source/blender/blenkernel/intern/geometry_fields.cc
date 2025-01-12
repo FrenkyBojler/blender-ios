@@ -64,6 +64,20 @@ GVArray GreasePencilLayerFieldContext::get_varray_for_input(const fn::FieldInput
   return field_input.get_varray_for_context(*this, mask, scope);
 }
 
+const Span<float3> MeshSculptFieldContext::positions() const
+{
+  const Span<int> indices = this->indices();
+  const Span<float3> vert_positions = this->vert_positions();
+
+  Array<float3> positions(indices.size());
+
+  for (const int i : positions.index_range()) {
+    positions[i] = vert_positions[indices[i]];
+  }
+
+  return positions;
+}
+
 const Span<float3> MeshSculptFieldContext::normals() const
 {
   const Depsgraph &depsgraph = this->depsgraph();

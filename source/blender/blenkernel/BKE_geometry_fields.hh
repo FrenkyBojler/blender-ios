@@ -171,10 +171,12 @@ class SculptFieldContext : public fn::FieldContext {
   {
     return depsgraph_;
   }
+
   const Object &object() const
   {
     return object_;
   }
+
   virtual const Span<float3> positions() const
   {
     return positions_;
@@ -192,6 +194,7 @@ class MeshSculptFieldContext : public SculptFieldContext {
  private:
   const Mesh &mesh_;
   const Span<int> indices_;
+  const Span<float3> vert_positions_;
   const Span<float4> colors_;
 
  public:
@@ -200,10 +203,12 @@ class MeshSculptFieldContext : public SculptFieldContext {
                          const Mesh &mesh,
                          const Span<float3> positions,
                          const Span<int> indices,
+                         const Span<float3> vert_positions,
                          const Span<float4> colors)
       : SculptFieldContext(depsgraph, object, positions),
         mesh_(mesh),
         indices_(indices),
+        vert_positions_(vert_positions),
         colors_(colors)
   {
   }
@@ -213,7 +218,14 @@ class MeshSculptFieldContext : public SculptFieldContext {
     return mesh_;
   }
 
+  const Span<float3> positions() const override;
+
   const Span<float3> normals() const override;
+
+  const Span<float3> vert_positions() const
+  {
+    return vert_positions_;
+  }
 
   const Span<int> indices() const
   {

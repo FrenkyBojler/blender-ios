@@ -229,14 +229,8 @@ void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                 const Span<int> verts,
                                 MutableSpan<float3> translations)
 {
-  Array<float3> positions(verts.size());
-
-  for (const int i : positions.index_range()) {
-    positions[i] = vert_positions[verts[i]];
-  }
-
   const Mesh *mesh = static_cast<const Mesh *>(object.data);
-  bke::MeshSculptFieldContext context(depsgraph, object, *mesh, positions, verts, {});
+  bke::MeshSculptFieldContext context(depsgraph, object, *mesh, {}, verts, vert_positions, {});
 
   threading::isolate_task(
       [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations); });
@@ -251,14 +245,9 @@ void paint_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  MutableSpan<float4> brush_colors,
                                  MutableSpan<float4> current_colors)
 {
-  Vector<float3> positions(verts.size());
-
-  for (const int i : positions.index_range()) {
-    positions[i] = vert_positions[verts[i]];
-  }
-
   const Mesh *mesh = static_cast<const Mesh *>(object.data);
-  bke::MeshSculptFieldContext context(depsgraph, object, *mesh, positions, verts, current_colors);
+  bke::MeshSculptFieldContext context(
+      depsgraph, object, *mesh, {}, verts, vert_positions, current_colors);
 
   Vector<float3> outputs(verts.size());
   outputs.fill(float3(1.0f));
