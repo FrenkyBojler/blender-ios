@@ -25,6 +25,7 @@
 #include "BKE_mask.h"
 #include "BKE_modifier.hh"
 #include "BKE_paint.hh"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "SEQ_transform.hh"
@@ -259,6 +260,12 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
     if (t->scene->toolsettings->transform_flag & SCE_XFORM_AXIS_ALIGN) {
       t->flag |= T_V3D_ALIGN;
+      if (object_mode == OB_MODE_OBJECT && ELEM(t->mode, TFM_RESIZE, TFM_ROTATION) &&
+          CTX_DATA_COUNT(C, selected_editable_objects) == 1)
+      {
+        BKE_report(t->reports, RPT_WARNING, "Transform is set to only affect location.");
+        ED_workspace_status_text(C, " ");
+      }
     }
 
     if ((object_mode & OB_MODE_ALL_PAINT) || (object_mode & OB_MODE_SCULPT_CURVES)) {
