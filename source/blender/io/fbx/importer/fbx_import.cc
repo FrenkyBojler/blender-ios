@@ -12,6 +12,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_camera.h"
 #include "BKE_deform.hh"
+#include "BKE_idprop.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_light.h"
@@ -37,6 +38,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_key_types.h"
 #include "DNA_light_types.h"
+#include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 
@@ -105,10 +107,56 @@ static void node_matrix_to_obj(const ufbx_node *node, Object *obj)
   BKE_object_apply_mat4(obj, obmat, true, false);
 }
 
+static void read_custom_properties(const ufbx_props &props, ID &id)
+{
+  for (const ufbx_prop &prop : props.props) {
+    if ((prop.flags & UFBX_PROP_FLAG_USER_DEFINED) == 0) {
+      continue;
+    }
+
+    IDProperty *idgroup = IDP_EnsureProperties(&id);
+    IDProperty *idprop = nullptr;
+    IDPropertyTemplate val = {0};
+    //@TODO: validate_blend_names on the property name
+    const char *name = prop.name.data;
+
+    switch (prop.type) {
+      case UFBX_PROP_BOOLEAN:
+        val.i = prop.value_int;
+        idprop = IDP_New(IDP_BOOLEAN, &val, name);
+        break;
+      case UFBX_PROP_INTEGER:
+        val.i = prop.value_int;
+        idprop = IDP_New(IDP_INT, &val, name);
+        break;
+      case UFBX_PROP_NUMBER:
+        val.d = prop.value_real;
+        idprop = IDP_New(IDP_DOUBLE, &val, name);
+        break;
+      case UFBX_PROP_STRING:
+        val.string.str = prop.value_str.data;
+        val.string.len = prop.value_str.length + 1; /* Length includes null terminator. */
+        val.string.subtype = IDP_STRING_SUB_UTF8;
+        idprop = IDP_New(IDP_STRING, &val, name);
+        break;
+      //@TODO: vector, color, color_with_alpha, translation, rotation, ...
+      default:
+        break;
+    }
+
+    if (idprop != nullptr) {
+      IDP_AddToGroup(idgroup, idprop);
+    }
+  }
+}
+
 void FbxImportContext::import_materials()
 {
   for (const ufbx_material *fmat : this->fbx.materials) {
     Material *mat = io::fbx::import_material(this->bmain, this->base_dir, *fmat);
+    if (this->params.use_custom_props) {
+      read_custom_properties(fmat->props, mat->id);
+    }
     fmat_to_material.add(fmat, mat);
   }
 }
@@ -321,6 +369,9 @@ void FbxImportContext::import_meshes()
         BKE_object_obdata_add_from_type(this->bmain, OB_MESH, get_name(fmesh->name, "Mesh")));
     BKE_mesh_nomain_to_mesh(mesh, mesh_main, nullptr);
     mesh = mesh_main;
+    if (this->params.use_custom_props) {
+      read_custom_properties(fmesh->props, mesh->id);
+    }
 
     /* Blend shapes. */
     Key *mesh_key = nullptr;
@@ -417,6 +468,9 @@ void FbxImportContext::import_meshes()
                                    SUBSURF_BOUNDARY_SMOOTH_ALL;
       }
 
+      if (this->params.use_custom_props) {
+        read_custom_properties(node->props, obj->id);
+      }
       node_matrix_to_obj(node, obj);
       this->element_to_object.add(&node->element, obj);
     }
@@ -432,6 +486,9 @@ void FbxImportContext::import_cameras()
     const ufbx_node *node = fcam->instances[0];
 
     Camera *bcam = BKE_camera_add(this->bmain, get_name(fcam->name, "Camera"));
+    if (this->params.use_custom_props) {
+      read_custom_properties(fcam->props, bcam->id);
+    }
 
     bcam->type = fcam->projection_mode == UFBX_PROJECTION_MODE_ORTHOGRAPHIC ? CAM_ORTHO :
                                                                               CAM_PERSP;
@@ -453,6 +510,9 @@ void FbxImportContext::import_cameras()
     Object *obj = BKE_object_add_only_object(this->bmain, OB_CAMERA, get_name(node->name));
     obj->data = bcam;
 
+    if (this->params.use_custom_props) {
+      read_custom_properties(node->props, obj->id);
+    }
     node_matrix_to_obj(node, obj);
     this->element_to_object.add(&node->element, obj);
   }
@@ -467,6 +527,9 @@ void FbxImportContext::import_lights()
     const ufbx_node *node = flight->instances[0];
 
     Light *lamp = BKE_light_add(this->bmain, get_name(flight->name, "Light"));
+    if (this->params.use_custom_props) {
+      read_custom_properties(flight->props, lamp->id);
+    }
     switch (flight->type) {
       case UFBX_LIGHT_POINT:
         lamp->type = LA_LOCAL;
@@ -495,6 +558,9 @@ void FbxImportContext::import_lights()
     Object *obj = BKE_object_add_only_object(this->bmain, OB_LAMP, get_name(node->name));
     obj->data = lamp;
 
+    if (this->params.use_custom_props) {
+      read_custom_properties(node->props, obj->id);
+    }
     node_matrix_to_obj(node, obj);
     this->element_to_object.add(&node->element, obj);
   }
@@ -506,6 +572,9 @@ void FbxImportContext::import_armatures()
     const char *ob_name = fskin->name.data;
     bArmature *arm = BKE_armature_add(bmain, ob_name);
     Object *obj = BKE_object_add_only_object(this->bmain, OB_ARMATURE, ob_name);
+    if (this->params.use_custom_props) {
+      read_custom_properties(fskin->props, arm->id);
+    }
     obj->data = arm;
 
     this->element_to_object.add(&fskin->element, obj);
@@ -525,6 +594,9 @@ void FbxImportContext::import_empties()
       if (!this->element_to_object.contains(&node->element) && !node_to_empty.contains(node)) {
         Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_name(node->name));
         obj->data = nullptr;
+        if (this->params.use_custom_props) {
+          read_custom_properties(node->props, obj->id);
+        }
         node_matrix_to_obj(node, obj);
         node_to_empty.add(node, obj);
       }
