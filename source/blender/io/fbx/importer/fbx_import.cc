@@ -42,6 +42,8 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 
+#include "ED_armature.hh"
+
 #include "IO_fbx.hh"
 
 #include "fbx_import.hh"
@@ -421,6 +423,21 @@ void FbxImportContext::import_meshes()
             BKE_object_defgroup_add_name(obj, fcluster->name.data);
           }
         }
+
+        /* Add armature modifier. */
+        Object *arm_obj = this->element_to_object.lookup_default(&skin->element, nullptr);
+        if (arm_obj != nullptr && arm_obj->type == OB_ARMATURE) {
+
+          ModifierData *md = BKE_modifier_new(eModifierType_Armature);
+          STRNCPY(md->name, get_name(skin->name, "Armature"));
+          BLI_addtail(&obj->modifiers, md);
+          BKE_modifiers_persistent_uid_init(*obj, *md);
+
+          ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);
+          ad->object = arm_obj;
+
+          obj->parent = arm_obj;
+        }
       }
 
       /* Assign materials. */
@@ -569,13 +586,33 @@ void FbxImportContext::import_lights()
 void FbxImportContext::import_armatures()
 {
   for (const ufbx_skin_deformer *fskin : this->fbx.skin_deformers) {
-    const char *ob_name = fskin->name.data;
-    bArmature *arm = BKE_armature_add(bmain, ob_name);
-    Object *obj = BKE_object_add_only_object(this->bmain, OB_ARMATURE, ob_name);
+    bArmature *arm = BKE_armature_add(bmain, get_name(fskin->name, "Armature"));
+    Object *obj = BKE_object_add_only_object(
+        this->bmain, OB_ARMATURE, get_name(fskin->name, "Armature"));
     if (this->params.use_custom_props) {
       read_custom_properties(fskin->props, arm->id);
     }
     obj->data = arm;
+
+    ED_armature_to_edit(arm);
+
+    for (const ufbx_skin_cluster *fbone : fskin->clusters) {
+      EditBone *bone = ED_armature_ebone_add(arm, get_name(fbone->bone_node->name, "Bone"));
+      //@TODO: custom props
+      //@TODO: bone matrices
+      bone->flag |= BONE_SELECTED;
+
+      float bone_size = 1.0f;  //@TODO calculate average distance to children
+      /* Zero length bones are automatically collapsed into their parent when you leave edit mode,
+       * so enforce a minimum length. */
+      bone_size = math::max(bone_size, 0.01f);
+      bone->tail[0] = 0.0f;
+      bone->tail[1] = bone_size;
+      bone->tail[2] = 0.0f;
+    }
+
+    ED_armature_from_edit(this->bmain, arm);
+    ED_armature_edit_free(arm);
 
     this->element_to_object.add(&fskin->element, obj);
   }
@@ -619,7 +656,9 @@ void FbxImportContext::setup_hierarchy()
     const ufbx_node *node = (const ufbx_node *)item.key;
     if (node->parent) {
       Object *obj_par = this->element_to_object.lookup_default(&node->parent->element, nullptr);
-      item.value->parent = obj_par;
+      if (obj_par != nullptr) {
+        item.value->parent = obj_par;
+      }
     }
   }
 }
@@ -678,10 +717,10 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
 
   FbxImportContext ctx(bmain, fbx, params);
   ctx.import_materials();
+  ctx.import_armatures();
   ctx.import_meshes();
   ctx.import_cameras();
   ctx.import_lights();
-  ctx.import_armatures();
   ctx.import_empties();
   ctx.setup_hierarchy();
 
