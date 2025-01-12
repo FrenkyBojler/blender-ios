@@ -417,7 +417,7 @@ static bool wm_cursor_time_large(wmWindow *win, int nr)
                                     32,
                                     15,
                                     15,
-                                    true) == GHOST_kSuccess;
+                                    false) == GHOST_kSuccess;
 }
 
 static void wm_cursor_time_small(wmWindow *win, int nr)
@@ -453,7 +453,14 @@ static void wm_cursor_time_small(wmWindow *win, int nr)
     nr /= 10;
   }
 
-  window_set_custom_cursor(win, mask, bitmap, 7, 7);
+  GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                             (uint8_t *)bitmap,
+                             (uint8_t *)mask,
+                             16,
+                             16,
+                             7,
+                             7,
+                             false);
 }
 
 void WM_cursor_time(wmWindow *win, int nr)
