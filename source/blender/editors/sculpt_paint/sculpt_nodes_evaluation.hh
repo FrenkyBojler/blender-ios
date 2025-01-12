@@ -7,34 +7,34 @@ namespace blender::ed::sculpt_paint {
 void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                 Object &object,
                                 const Brush &brush,
-                                StrokeCache &cache,
+                                const StrokeCache &cache,
                                 const Span<float3> position_eval,
                                 const Span<int> verts,
-                                MutableSpan<float3> translations);
+                                const MutableSpan<float3> translations);
 
 void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
                                  const Brush &brush,
-                                 StrokeCache &cache,
-                                 SubdivCCG &subdiv_ccg,
-                                 Span<int> grids,
-                                 Span<float3> positions,
-                                 MutableSpan<float3> translations);
+                                 const StrokeCache &cache,
+                                 const SubdivCCG &subdiv_ccg,
+                                 const Span<int> grids,
+                                 const Span<float3> positions,
+                                 const MutableSpan<float3> translations);
 
 void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
                                  const Brush &brush,
-                                 StrokeCache &cache,
+                                 const StrokeCache &cache,
                                  const Set<BMVert *, 0> &verts,
-                                 Span<float3> positions,
-                                 MutableSpan<float3> translations);
+                                 const Span<float3> positions,
+                                 const MutableSpan<float3> translations);
 
 void paint_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
                                  const Brush &brush,
-                                 StrokeCache &cache,
-                                 Span<float3> positions,
-                                 Span<int> verts,
-                                 MutableSpan<float4> brush_colors,
-                                 MutableSpan<float4> current_colors);
+                                 const StrokeCache &cache,
+                                 const Span<float3> positions,
+                                 const Span<int> verts,
+                                 const MutableSpan<float4> brush_colors,
+                                 const MutableSpan<float4> current_colors);
 }  // namespace blender::ed::sculpt_paint

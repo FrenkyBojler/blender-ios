@@ -978,9 +978,9 @@ float sculpt_calc_radius(const ViewContext &vc,
                          const Scene &scene,
                          float3 location);
 
-float4x4 calc_local_space_matrix(StrokeCache &cache, const float3 &origin);
+float4x4 calc_local_space_matrix(const StrokeCache &cache, const float3 &origin);
 
-float4x4 calc_texture_space_matrix(StrokeCache &cache);
+float4x4 calc_texture_space_matrix(const StrokeCache &cache);
 
 bool node_in_cube(const bke::pbvh::Node &node, const float4x4 &mat);
 

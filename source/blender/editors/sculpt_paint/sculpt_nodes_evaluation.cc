@@ -66,7 +66,7 @@ static void evaluate(const bke::SocketValueVariant &output_socket,
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   Object &object,
                                   const Brush &brush,
-                                  StrokeCache &cache,
+                                  const StrokeCache &cache,
                                   const bke::SculptFieldContext &context,
                                   const MutableSpan<float3> outputs)
 {
@@ -224,10 +224,10 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                 Object &object,
                                 const Brush &brush,
-                                StrokeCache &cache,
+                                const StrokeCache &cache,
                                 const Span<float3> vert_positions,
                                 const Span<int> verts,
-                                MutableSpan<float3> translations)
+                                const MutableSpan<float3> translations)
 {
   const Mesh *mesh = static_cast<const Mesh *>(object.data);
   bke::MeshSculptFieldContext context(depsgraph, object, *mesh, {}, verts, vert_positions, {});
@@ -239,11 +239,11 @@ void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 void paint_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
                                  const Brush &brush,
-                                 StrokeCache &cache,
-                                 Span<float3> vert_positions,
-                                 Span<int> verts,
-                                 MutableSpan<float4> brush_colors,
-                                 MutableSpan<float4> current_colors)
+                                 const StrokeCache &cache,
+                                 const Span<float3> vert_positions,
+                                 const Span<int> verts,
+                                 const MutableSpan<float4> brush_colors,
+                                 const MutableSpan<float4> current_colors)
 {
   const Mesh *mesh = static_cast<const Mesh *>(object.data);
   bke::MeshSculptFieldContext context(
@@ -263,11 +263,11 @@ void paint_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
                                  const Brush &brush,
-                                 StrokeCache &cache,
-                                 SubdivCCG &subdiv_ccg,
-                                 Span<int> grids,
-                                 Span<float3> positions,
-                                 MutableSpan<float3> translations)
+                                 const StrokeCache &cache,
+                                 const SubdivCCG &subdiv_ccg,
+                                 const Span<int> grids,
+                                 const Span<float3> positions,
+                                 const MutableSpan<float3> translations)
 {
   bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
 
@@ -278,10 +278,10 @@ void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
                                  const Brush &brush,
-                                 StrokeCache &cache,
+                                 const StrokeCache &cache,
                                  const Set<BMVert *, 0> &verts,
-                                 Span<float3> positions,
-                                 MutableSpan<float3> translations)
+                                 const Span<float3> positions,
+                                 const MutableSpan<float3> translations)
 {
   bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
 

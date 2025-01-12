@@ -7769,7 +7769,7 @@ void calc_brush_radius_factors(const Brush &brush,
   }
 }
 
-float4x4 calc_local_space_matrix(StrokeCache &cache, const float3 &origin)
+float4x4 calc_local_space_matrix(const StrokeCache &cache, const float3 &origin)
 {
   float4x4 mat = float4x4::identity();
   mat.x_axis() = math::cross(cache.sculpt_normal_symm, cache.grab_delta_symm);
@@ -7785,7 +7785,7 @@ float4x4 calc_local_space_matrix(StrokeCache &cache, const float3 &origin)
   return inv_mat;
 }
 
-float4x4 calc_texture_space_matrix(StrokeCache &cache)
+float4x4 calc_texture_space_matrix(const StrokeCache &cache)
 {
   float4x4 mat = math::from_location<float4x4>(float3(0.5f, 0.5f, 0.0f));
   mat *= math::from_scale<float4x4>(float3(0.5f, 0.5f, 1.0f));
