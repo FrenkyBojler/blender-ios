@@ -85,7 +85,6 @@ class MetalDevice : public Device {
   id<MTLArgumentEncoder> mtlBufferArgEncoder = nil;
   id<MTLBuffer> buffer_bindings_1d = nil;
   id<MTLBuffer> texture_bindings_2d = nil;
-  id<MTLBuffer> texture_bindings_3d = nil;
   std::vector<id<MTLTexture>> texture_slot_map;
 
   MetalPipelineType kernel_specialization_level = PSO_GENERIC;
