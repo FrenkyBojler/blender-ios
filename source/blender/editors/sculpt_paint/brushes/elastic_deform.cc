@@ -121,7 +121,7 @@ static void calc_faces(const Depsgraph &depsgraph,
                     translations);
 
   mesh_sculpt_nodes_evaluate(
-      depsgraph, object, brush, *ss.cache, orig_data.positions, verts, translations);
+      depsgraph, object, brush, *ss.cache, position_data.eval, verts, translations);
 
   scale_translations(translations, factors);
 

@@ -66,7 +66,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
   translations_from_offset_and_factors(offset, tls.factors, translations);
   mesh_sculpt_nodes_evaluate(
-      depsgraph, object, brush, *ss.cache, orig_data.positions, verts, translations);
+      depsgraph, object, brush, *ss.cache, position_data.eval, verts, translations);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
   position_data.deform(translations, verts);
