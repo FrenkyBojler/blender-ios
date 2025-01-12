@@ -316,24 +316,11 @@ void FbxImportContext::import_meshes()
       BKE_mesh_validate(mesh, verbose_validate, false);
     }
 
-    /* Create object.
-     * Steps after this have to be done on the final object in Main. */
-    const ufbx_node *node = fmesh->instances[0];
-    Object *obj = BKE_object_add_only_object(this->bmain, OB_MESH, get_name(node->name));
-    obj->data = BKE_object_obdata_add_from_type(
-        this->bmain, OB_MESH, get_name(fmesh->name, "Mesh"));
-    BKE_mesh_nomain_to_mesh(mesh, static_cast<Mesh *>(obj->data), obj);
-    mesh = (Mesh *)obj->data;
-
-    /* Add vertex groups to object. */
-    if (fmesh->skin_deformers.count > 0) {
-      const ufbx_skin_deformer *skin = fmesh->skin_deformers[0];
-      if (skin != nullptr) {
-        for (const ufbx_skin_cluster *fcluster : skin->clusters) {
-          BKE_object_defgroup_add_name(obj, fcluster->name.data);
-        }
-      }
-    }
+    /* Steps below have to be done on the final mesh in Main. */
+    Mesh *mesh_main = static_cast<Mesh *>(
+        BKE_object_obdata_add_from_type(this->bmain, OB_MESH, get_name(fmesh->name, "Mesh")));
+    BKE_mesh_nomain_to_mesh(mesh, mesh_main, nullptr);
+    mesh = mesh_main;
 
     /* Blend shapes. */
     Key *mesh_key = nullptr;
@@ -352,7 +339,6 @@ void FbxImportContext::import_meshes()
 
           KeyBlock *kb = BKE_keyblock_add(mesh_key, "Basis");
           BKE_keyblock_convert_from_mesh(mesh, mesh_key, kb);
-          obj->shapenr = 1;
         }
 
         KeyBlock *kb = BKE_keyblock_add(mesh_key, fchan->target_shape->name.data);
@@ -367,41 +353,73 @@ void FbxImportContext::import_meshes()
       }
     }
 
-    /* Assign materials. */
-    if (fmesh->materials.count > 0) {
-      for (const ufbx_material *fmat : fmesh->materials) {
-        Material *mat = this->fmat_to_material.lookup_default(fmat, nullptr);
-        if (mat != nullptr) {
-          BKE_object_material_assign_single_obdata(this->bmain, obj, mat, obj->totcol + 1);
+    /* Create objects that use this mesh. */
+    for (const ufbx_node *node : fmesh->instances) {
+      Object *obj = BKE_object_add_only_object(this->bmain, OB_MESH, get_name(node->name));
+      obj->data = mesh_main;
+
+      if (mesh_key != nullptr) {
+        obj->shapenr = 1;
+      }
+
+      /* Add vertex groups to object. */
+      if (fmesh->skin_deformers.count > 0) {
+        const ufbx_skin_deformer *skin = fmesh->skin_deformers[0];
+        if (skin != nullptr) {
+          for (const ufbx_skin_cluster *fcluster : skin->clusters) {
+            BKE_object_defgroup_add_name(obj, fcluster->name.data);
+          }
         }
       }
-      if (obj->totcol > 0) {
-        obj->actcol = 1;
+
+      /* Assign materials. */
+      if (fmesh->materials.count > 0 && node->materials.count == fmesh->materials.count) {
+        int mat_index = 0;
+        for (int mi = 0; mi < fmesh->materials.count; mi++) {
+          const ufbx_material *mesh_fmat = fmesh->materials[mi];
+          const ufbx_material *node_fmat = node->materials[mi];
+          Material *mesh_mat = this->fmat_to_material.lookup_default(mesh_fmat, nullptr);
+          Material *node_mat = this->fmat_to_material.lookup_default(node_fmat, nullptr);
+          if (mesh_mat != nullptr) {
+            mat_index++;
+            /* Assign material to the data block. */
+            BKE_object_material_assign_single_obdata(this->bmain, obj, mesh_mat, mat_index);
+
+            /* If object material is different, assign that to object. */
+            if (node_mat != nullptr && node_mat != mesh_mat) {
+              BKE_object_material_assign(
+                  this->bmain, obj, node_mat, mat_index, BKE_MAT_ASSIGN_OBJECT);
+            }
+          }
+        }
+        if (mat_index > 0) {
+          obj->actcol = 1;
+        }
       }
+
+      /* Subdivision. */
+      if (this->params.use_subsurf &&
+          fmesh->subdivision_display_mode != UFBX_SUBDIVISION_DISPLAY_DISABLED &&
+          (fmesh->subdivision_preview_levels > 0 || fmesh->subdivision_render_levels > 0))
+      {
+        ModifierData *md = BKE_modifier_new(eModifierType_Subsurf);
+        STRNCPY(md->name, "subsurf");
+        BLI_addtail(&obj->modifiers, md);
+        BKE_modifiers_persistent_uid_init(*obj, *md);
+
+        SubsurfModifierData *ssd = reinterpret_cast<SubsurfModifierData *>(md);
+        ssd->subdivType = SUBSURF_TYPE_CATMULL_CLARK;
+        ssd->levels = fmesh->subdivision_preview_levels;
+        ssd->renderLevels = fmesh->subdivision_render_levels;
+        ssd->boundary_smooth = fmesh->subdivision_boundary ==
+                                       UFBX_SUBDIVISION_BOUNDARY_SHARP_CORNERS ?
+                                   SUBSURF_BOUNDARY_SMOOTH_PRESERVE_CORNERS :
+                                   SUBSURF_BOUNDARY_SMOOTH_ALL;
+      }
+
+      node_matrix_to_obj(node, obj);
+      this->element_to_object.add(&node->element, obj);
     }
-
-    /* Subdivision. */
-    if (this->params.use_subsurf &&
-        fmesh->subdivision_display_mode != UFBX_SUBDIVISION_DISPLAY_DISABLED &&
-        (fmesh->subdivision_preview_levels > 0 || fmesh->subdivision_render_levels > 0))
-    {
-      ModifierData *md = BKE_modifier_new(eModifierType_Subsurf);
-      STRNCPY(md->name, "subsurf");
-      BLI_addtail(&obj->modifiers, md);
-      BKE_modifiers_persistent_uid_init(*obj, *md);
-
-      SubsurfModifierData *ssd = reinterpret_cast<SubsurfModifierData *>(md);
-      ssd->subdivType = SUBSURF_TYPE_CATMULL_CLARK;
-      ssd->levels = fmesh->subdivision_preview_levels;
-      ssd->renderLevels = fmesh->subdivision_render_levels;
-      ssd->boundary_smooth = fmesh->subdivision_boundary ==
-                                     UFBX_SUBDIVISION_BOUNDARY_SHARP_CORNERS ?
-                                 SUBSURF_BOUNDARY_SMOOTH_PRESERVE_CORNERS :
-                                 SUBSURF_BOUNDARY_SMOOTH_ALL;
-    }
-
-    node_matrix_to_obj(node, obj);
-    this->element_to_object.add(&node->element, obj);
   }
 }
 
@@ -552,8 +570,7 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   opts.evaluate_caches = false;
   opts.load_external_files = false;
   opts.clean_skin_weights = true;
-  opts.use_blender_pbr_material =
-      false;  // true; //@TODO: use this once/if we switch to PBR properties
+  opts.use_blender_pbr_material = true;
   //@TODO: axes according to import settings
   opts.target_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;
   opts.target_axes.up = UFBX_COORDINATE_AXIS_POSITIVE_Z;

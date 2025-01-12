@@ -92,14 +92,18 @@ static void set_socket_vector(const char *socket_id, float vx, float vy, float v
 
 static void set_bsdf_socket_values(bNode *bsdf, Material *mat, const ufbx_material &fmat)
 {
-  /* It might be better to use ufbx_material_pbr_maps, for now however interpret
-   * FBX material properties in the same way as FBX python importer did. */
+  /* It would be better to use ufbx_material_pbr_maps to get better import
+   * of PBR properties from various applications. However for now we do it
+   * manually to match the FBX importer behavior. */
 
   /* Base color. */
   ufbx_vec3 diff_color = {1, 1, 1};
   if (fmat.fbx.diffuse_color.has_value) {
-    diff_color = fmat.pbr.base_color.value_vec3;
+    diff_color = fmat.fbx.diffuse_color.value_vec3;
   }
+  diff_color.x = math::clamp(diff_color.x, 0.0, 1.0);
+  diff_color.y = math::clamp(diff_color.y, 0.0, 1.0);
+  diff_color.z = math::clamp(diff_color.z, 0.0, 1.0);
   set_socket_rgb("Base Color", diff_color.x, diff_color.y, diff_color.z, bsdf);
   mat->r = diff_color.x; /* For viewport shading. */
   mat->g = diff_color.y;
@@ -110,15 +114,17 @@ static void set_bsdf_socket_values(bNode *bsdf, Material *mat, const ufbx_materi
   if (fmat.fbx.specular_factor.has_value) {
     specular = fmat.fbx.specular_factor.value_real;
   }
-  set_socket_float("Specular IOR Level", specular * 2.0f, bsdf);
+  specular *= 2.0f;
+  specular = math::clamp(specular, 0.0f, 1.0f);
+  set_socket_float("Specular IOR Level", specular, bsdf);
 
   /* Rougness: empirical map from FBX shininess (0..100) to (1..0) rougness. */
-  float shininess = 20.0f;
-  if (fmat.fbx.specular_exponent.has_value) {
-    shininess = fmat.fbx.specular_exponent.value_real;
-    shininess = math::clamp(shininess, 0.0f, 100.0f);
-  }
+  /* Note: to match python importer, only manually query for Shininess property;
+   * ufbx queries for both Shininess and ShininessExponent for mat.fbx.specular_exponent */
+  float shininess = ufbx_find_real(&fmat.props, "Shininess", 20.0f);
+  shininess = math::clamp(shininess, 0.0f, 100.0f);
   float roughness = 1.0f - (sqrtf(shininess)) / 10.0f;
+  roughness = math::clamp(roughness, 0.0f, 1.0f);
   set_socket_float("Roughness", roughness, bsdf);
   mat->roughness = roughness; /* For viewport shading. */
 
@@ -140,6 +146,7 @@ static void set_bsdf_socket_values(bNode *bsdf, Material *mat, const ufbx_materi
   if (fmat.fbx.reflection_factor.has_value) {
     metallic = fmat.fbx.reflection_factor.value_real;
   }
+  metallic = math::clamp(metallic, 0.0f, 1.0f);
   set_socket_float("Metallic", metallic, bsdf);
   mat->metallic = metallic; /* For viewport shading. */
 
@@ -152,7 +159,7 @@ static void set_bsdf_socket_values(bNode *bsdf, Material *mat, const ufbx_materi
 
   ufbx_vec3 emis_color = {0, 0, 0};
   if (fmat.fbx.emission_color.has_value) {
-    emis_color = fmat.pbr.emission_color.value_vec3;
+    emis_color = fmat.fbx.emission_color.value_vec3;
     emis_color.x = math::clamp(emis_color.x, 0.0, 1000000.0);
     emis_color.y = math::clamp(emis_color.y, 0.0, 1000000.0);
     emis_color.z = math::clamp(emis_color.z, 0.0, 1000000.0);
@@ -200,26 +207,26 @@ static Image *load_texture_image(Main *bmain, const std::string &file_dir, const
 }
 
 static const char *ufbx_map_to_node_socket[UFBX_MATERIAL_FBX_MAP_COUNT] = {
-    nullptr,             /* UFBX_MATERIAL_FBX_DIFFUSE_FACTOR */
-    "Base Color",        /* UFBX_MATERIAL_FBX_DIFFUSE_COLOR */
-    nullptr,             /* UFBX_MATERIAL_FBX_SPECULAR_FACTOR */
-    nullptr,             /* UFBX_MATERIAL_FBX_SPECULAR_COLOR */
-    "Roughness",         /* UFBX_MATERIAL_FBX_SPECULAR_EXPONENT */
-    "Metallic",          /* UFBX_MATERIAL_FBX_REFLECTION_FACTOR */
-    nullptr,             /* UFBX_MATERIAL_FBX_REFLECTION_COLOR */
-    "Alpha",             /* UFBX_MATERIAL_FBX_TRANSPARENCY_FACTOR */
-    nullptr,             /* UFBX_MATERIAL_FBX_TRANSPARENCY_COLOR */
-    "Emission Strength", /* UFBX_MATERIAL_FBX_EMISSION_FACTOR */
-    "Emission Color",    /* UFBX_MATERIAL_FBX_EMISSION_COLOR */
-    nullptr,             /* UFBX_MATERIAL_FBX_AMBIENT_FACTOR */
-    nullptr,             /* UFBX_MATERIAL_FBX_AMBIENT_COLOR */
-    "Normal",            /* UFBX_MATERIAL_FBX_NORMAL_MAP */
-    nullptr,             /* UFBX_MATERIAL_FBX_BUMP */
-    nullptr,             /* UFBX_MATERIAL_FBX_BUMP_FACTOR */
-    nullptr,             /* UFBX_MATERIAL_FBX_DISPLACEMENT_FACTOR */
-    nullptr,             /* UFBX_MATERIAL_FBX_DISPLACEMENT */
-    nullptr,             /* UFBX_MATERIAL_FBX_VECTOR_DISPLACEMENT_FACTOR */
-    nullptr,             /* UFBX_MATERIAL_FBX_VECTOR_DISPLACEMENT */
+    nullptr,              /* UFBX_MATERIAL_FBX_DIFFUSE_FACTOR */
+    "Base Color",         /* UFBX_MATERIAL_FBX_DIFFUSE_COLOR */
+    "Specular IOR Level", /* UFBX_MATERIAL_FBX_SPECULAR_FACTOR */
+    nullptr,              /* UFBX_MATERIAL_FBX_SPECULAR_COLOR */
+    "Roughness",          /* UFBX_MATERIAL_FBX_SPECULAR_EXPONENT */
+    "Metallic",           /* UFBX_MATERIAL_FBX_REFLECTION_FACTOR */
+    nullptr,              /* UFBX_MATERIAL_FBX_REFLECTION_COLOR */
+    "Alpha",              /* UFBX_MATERIAL_FBX_TRANSPARENCY_FACTOR */
+    nullptr,              /* UFBX_MATERIAL_FBX_TRANSPARENCY_COLOR */
+    "Emission Strength",  /* UFBX_MATERIAL_FBX_EMISSION_FACTOR */
+    "Emission Color",     /* UFBX_MATERIAL_FBX_EMISSION_COLOR */
+    nullptr,              /* UFBX_MATERIAL_FBX_AMBIENT_FACTOR */
+    nullptr,              /* UFBX_MATERIAL_FBX_AMBIENT_COLOR */
+    "Normal",             /* UFBX_MATERIAL_FBX_NORMAL_MAP */
+    nullptr,              /* UFBX_MATERIAL_FBX_BUMP */
+    nullptr,              /* UFBX_MATERIAL_FBX_BUMP_FACTOR */
+    nullptr,              /* UFBX_MATERIAL_FBX_DISPLACEMENT_FACTOR */
+    nullptr,              /* UFBX_MATERIAL_FBX_DISPLACEMENT */
+    nullptr,              /* UFBX_MATERIAL_FBX_VECTOR_DISPLACEMENT_FACTOR */
+    nullptr,              /* UFBX_MATERIAL_FBX_VECTOR_DISPLACEMENT */
 };
 
 static void add_image_textures(Main *bmain,
