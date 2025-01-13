@@ -399,7 +399,7 @@ static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
 #  include "BKE_colorband.hh"
 #  include "BKE_gpencil_legacy.h"
 #  include "BKE_icons.h"
-#  include "BKE_material.h"
+#  include "BKE_material.hh"
 #  include "BKE_paint.hh"
 #  include "BKE_preview_image.hh"
 
@@ -1431,6 +1431,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 3);
   RNA_def_property_ui_text(
       prop, "Strength", "Color strength for new strokes (affect alpha factor of color)");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
 
@@ -1751,6 +1752,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_extend_modes_items);
   RNA_def_property_ui_text(
       prop, "Closure Mode", "Types of stroke extensions used for closing gaps");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, ParameterFlag(0));
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
@@ -1925,6 +1927,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "fill_direction");
   RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_direction_items);
   RNA_def_property_ui_text(prop, "Direction", "Direction of the fill");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
@@ -2656,6 +2659,7 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, sculpt_stroke_method_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Brush_stroke_itemf");
   RNA_def_property_ui_text(prop, "Stroke Method", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_update(prop, 0, "rna_Brush_stroke_update");
 
   prop = RNA_def_property(srna, "sculpt_plane", PROP_ENUM, PROP_NONE);
@@ -2672,7 +2676,8 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "curve_preset", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_brush_curve_preset_items);
   RNA_def_property_ui_text(prop, "Curve Preset", "");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVES); /* Abusing id_curves :/ */
+  RNA_def_property_translation_context(prop,
+                                       BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "deform_target", PROP_ENUM, PROP_NONE);
@@ -2695,6 +2700,7 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "cloth_deform_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, brush_cloth_deform_type_items);
   RNA_def_property_ui_text(prop, "Deformation", "Deformation type that is used in the brush");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "cloth_force_falloff_type", PROP_ENUM, PROP_NONE);
@@ -2725,11 +2731,13 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "smear_deform_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, brush_smear_deform_type_items);
   RNA_def_property_ui_text(prop, "Deformation", "Deformation type that is used in the brush");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "slide_deform_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, brush_slide_deform_type_items);
   RNA_def_property_ui_text(prop, "Deformation", "Deformation type that is used in the brush");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "boundary_deform_type", PROP_ENUM, PROP_NONE);
@@ -3617,6 +3625,7 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_SPACE);
   RNA_def_property_ui_text(
       prop, "Space", "Limit brush application to the distance specified by spacing");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "use_line", PROP_BOOLEAN, PROP_NONE);

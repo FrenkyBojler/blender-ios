@@ -13,6 +13,8 @@
 
 #include "BKE_lib_id.hh"
 
+#include "BLT_translation.hh"
+
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -217,7 +219,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 #  include "BKE_lib_query.hh"
 #  include "BKE_lib_remap.hh"
 #  include "BKE_library.hh"
-#  include "BKE_material.h"
+#  include "BKE_material.hh"
 #  include "BKE_preview_image.hh"
 #  include "BKE_vfont.hh"
 
@@ -2264,6 +2266,7 @@ static void rna_def_ID(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "id_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_ui_text(prop, "Type", "Type identifier of this data-block");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   RNA_def_property_enum_items(prop, rna_enum_id_type_items);
   RNA_def_property_enum_funcs(prop, "rna_ID_type_get", nullptr, nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
