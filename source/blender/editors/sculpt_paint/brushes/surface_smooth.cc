@@ -23,6 +23,7 @@
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
+#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 #include "editors/sculpt_paint/sculpt_smooth.hh"
 
 #include "bmesh.hh"
@@ -100,6 +101,9 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
         depsgraph, object, cache.automasking.get(), nodes[i], verts, factors);
 
     calc_brush_texture_factors(ss, brush, position_data.eval, verts, factors);
+
+    mesh_sculpt_nodes_evaluate(
+        depsgraph, object, brush, cache, position_data.eval, verts, factors);
 
     scale_factors(factors, cache.bstrength);
     clamp_factors(factors);
@@ -219,6 +223,9 @@ BLI_NOINLINE static void do_surface_smooth_brush_grids(
 
     calc_brush_texture_factors(ss, brush, positions, factors);
 
+    grids_sculpt_nodes_evaluate(
+        depsgraph, object, brush, cache, subdiv_ccg, grids, positions, factors);
+
     scale_factors(factors, cache.bstrength);
     clamp_factors(factors);
   });
@@ -320,6 +327,8 @@ BLI_NOINLINE static void do_surface_smooth_brush_bmesh(
         depsgraph, object, cache.automasking.get(), nodes[i], verts, factors);
 
     calc_brush_texture_factors(ss, brush, positions, factors);
+
+    bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, cache, verts, positions, factors);
 
     scale_factors(factors, cache.bstrength);
     clamp_factors(factors);
