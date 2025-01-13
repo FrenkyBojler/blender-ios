@@ -47,7 +47,7 @@ class SessionParams {
   bool experimental;
   int samples;
   bool use_sample_subset;
-  int sample_offset;
+  int sample_subset_offset;
   int sample_subset_length;
   int pixel_size;
   int threads;
@@ -76,7 +76,7 @@ class SessionParams {
     experimental = false;
     samples = 1024;
     use_sample_subset = false;
-    sample_offset = 0;
+    sample_subset_offset = 0;
     sample_subset_length = 2048;
     pixel_size = 1;
     threads = 0;
