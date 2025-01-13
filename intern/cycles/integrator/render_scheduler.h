@@ -106,6 +106,12 @@ class RenderScheduler {
   void set_adaptive_sampling(const AdaptiveSampling &adaptive_sampling);
   bool is_adaptive_sampling_used() const;
 
+  /* A helper function to setup various sample parameters and in the right order */
+  void set_sample_params(const bool use_sample_subset,
+                         const int sample_subset_length,
+                         const int num_samples,
+                         const int sample_offset);
+
   /* Start sample for path tracing.
    * The scheduler will schedule work using this sample as the first one. */
   void set_start_sample(const int start_sample);
