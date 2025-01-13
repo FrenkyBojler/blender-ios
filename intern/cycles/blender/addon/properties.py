@@ -490,19 +490,19 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
 
     use_sample_subset: BoolProperty(
         name="Sampling Subset",
-        description="Render a subset of the specified max samples for distrobuting rendering across multiple devices",
+        description="Render a subset of the specified max samples. Typically used for distributed rendering across multiple devices",
         default=False,
     )
 
     sample_offset: IntProperty(
-        name="Offset",
+        name="Sample Subset Offset",
         description="0-based index of sample to start rendering from",
         min=0, max=(1 << 24),
         default=0,
     )
 
     sample_subset_length: IntProperty(
-        name="Length",
+        name="Sample Subset Length",
         description="The number of samples to render in this subset",
         min=1, max=(1 << 24),
         default=2048,

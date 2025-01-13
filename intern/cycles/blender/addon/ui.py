@@ -477,8 +477,8 @@ class CYCLES_RENDER_PT_sampling_advanced_sample_subset(CyclesButtonsPanel, Panel
 
         col = layout.column(align=True)
         col.active = cscene.use_sample_subset
-        col.prop(cscene, "sample_offset")
-        col.prop(cscene, "sample_subset_length")
+        col.prop(cscene, "sample_offset", text="Offset")
+        col.prop(cscene, "sample_subset_length", text="Length")
 
 
 class CYCLES_RENDER_PT_sampling_lights(CyclesButtonsPanel, Panel):
