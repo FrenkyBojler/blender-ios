@@ -29,9 +29,11 @@
  */
 
 #include <algorithm>
+#include <functional>
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
+#include "BLI_map.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector_types.hh"
@@ -203,6 +205,148 @@ static int point_in_polygon_winding_order(const float2 &point, const Span<float2
   return int(inside(point, poly));
 }
 
+class WindingState {
+ private:
+  /* Winding order of each shape. */
+  Map<int, int> orders_;
+
+ public:
+  void add_to_shape(const int shape_id, const int winding_i)
+  {
+    if (winding_i == 0) {
+      return;
+    }
+
+    if (orders_.contains(shape_id)) {
+      orders_.lookup(shape_id) += winding_i;
+
+      /* Remove unneeded ids. */
+      if (orders_.lookup(shape_id) == 0) {
+        orders_.remove(shape_id);
+      }
+    }
+    else {
+      orders_.add(shape_id, winding_i);
+    }
+  }
+
+  bool is_in_shape(const int shape_id) const
+  {
+    if (!orders_.contains(shape_id)) {
+      return false;
+    }
+
+    if (true) { /* TODO. */
+      return orders_.lookup(shape_id) % 2 != 0;
+    }
+    else {
+      return orders_.lookup(shape_id) != 0;
+    }
+  }
+
+  bool is_in_shapes(const IndexMask &shapes) const
+  {
+    if (orders_.is_empty() || shapes.is_empty()) {
+      return false;
+    }
+
+    return threading::parallel_reduce(
+        shapes.index_range(),
+        4096,
+        false,
+        [&](const IndexRange range, bool value) {
+          if (value) {
+            return value;
+          }
+          shapes.slice(range).foreach_index([&](const int shape_id) {
+            if (this->is_in_shape(shape_id)) {
+              value = true;
+              return;
+            }
+          });
+          return value;
+        },
+        std::logical_or());
+  }
+
+  bool is_contributing(const Operation boolean_mode,
+                       const IndexRange subject_shapes,
+                       const IndexRange clipping_shapes) const
+  {
+    const bool subj = this->is_in_shapes(subject_shapes);
+    const bool clip = this->is_in_shapes(clipping_shapes);
+
+    switch (boolean_mode) {
+      case Operation::Intersect: {
+        return subj && clip;
+      }
+      case Operation::Difference: {
+        return subj && !clip;
+      }
+      case Operation::Union: {
+        return subj || clip;
+      }
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+
+    return false;
+  }
+};
+
+static WindingState state_from_point(const float2 point,
+                                     const Span<float2> points,
+                                     const OffsetIndices<int> points_by_curve,
+                                     const Span<bool> is_fill)
+{
+  WindingState state;
+
+  for (const int curve_i : points_by_curve.index_range()) {
+    const int shape_id = curve_i; /* TODO. */
+
+    if (is_fill[curve_i]) {
+      const Span<float2> poly_i = points.slice(points_by_curve[curve_i]);
+      state.add_to_shape(shape_id, point_in_polygon_winding_order(point, poly_i));
+    }
+  }
+
+  return state;
+}
+
+static std::pair<WindingState, WindingState> LR_states_from_segment(
+    const Segment &segment,
+    const int curve_i,
+    const Span<float2> points,
+    const OffsetIndices<int> points_by_curve,
+    const Span<bool> is_fill)
+{
+  WindingState state_L;
+  WindingState state_R;
+
+  state_L.add_to_shape(curve_i, 1); /* TODO. */
+
+  /* TODO: This assumes that the segment size is not zero which is not always true. */
+  const int first_point = segment.start_point();
+
+  for (const int curve_j : points_by_curve.index_range()) {
+    if (curve_j == curve_i) {
+      continue;
+    }
+
+    const int shape_id = curve_j; /* TODO. */
+
+    if (is_fill[curve_j]) {
+      const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
+      state_L.add_to_shape(shape_id, point_in_polygon_winding_order(points[first_point], poly_j));
+      state_R.add_to_shape(shape_id, point_in_polygon_winding_order(points[first_point], poly_j));
+    }
+  }
+
+  return {state_L, state_R};
+}
+
+/* Crossing a line going left to right is incrementing. */
 // static bool seg_seg_winding(const float2 &P1, const float2 &P2, const float2 &Q1, const float2
 // &Q2)
 // {
@@ -279,40 +423,6 @@ static int get_next_segment(const Span<Segment> unsorted_segments,
   }
 
   return -1;
-}
-
-static bool winding_rule(const int winding_order)
-{
-  if (true) { /* TODO */
-    return winding_order % 2 == 0;
-  }
-  else {
-    return winding_order == 0;
-  }
-}
-
-static bool contributing_rule(const int winding_order,
-                              const bool is_subj,
-                              const Operation boolean_mode)
-{
-  const bool is_fill = winding_rule(winding_order);
-
-  switch (boolean_mode) {
-    case Operation::Intersect: {
-      return !is_fill;
-    }
-    case Operation::Difference: {
-      return !is_fill ^ is_subj;
-    }
-    case Operation::Union: {
-      return is_fill;
-    }
-    default:
-      BLI_assert_unreachable();
-      break;
-  }
-
-  return false;
 }
 
 static void calculate_offsets_from_segments(const Span<Segment> segments,
@@ -500,6 +610,9 @@ BooleanResult execute_boolean(const Operation boolean_mode,
 
   /* -------------------- */
 
+  /* TODO. */
+  const IndexRange subject_shapes = IndexRange::from_begin_end(0, clipping_shapes.first());
+
   const OffsetIndices<int> all_segments_by_curve = OffsetIndices<int>(all_segment_offsets);
   Vector<Segment> unsorted_segments;
 
@@ -507,25 +620,15 @@ BooleanResult execute_boolean(const Operation boolean_mode,
   for (const int curve_i : all_segments_by_curve.index_range()) {
     const IndexRange segments = all_segments_by_curve[curve_i];
 
-    /* TODO: This assumes that the segment size is not zero which is not always true. */
-    const int first_point = all_segments[segments.first()].start_point();
-    const bool is_subj = !clipping_shapes.contains(curve_i);
-
-    int current_winding_order = 0;
-
-    for (const int curve_j : all_segments_by_curve.index_range()) {
-      if (curve_j == curve_i) {
-        continue;
-      }
-      if (is_fill[curve_j]) {
-        const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
-        current_winding_order += point_in_polygon_winding_order(points[first_point], poly_j);
-      }
-    }
+    const Segment &first_segment = all_segments[segments.first()];
+    auto [state_L, state_R] = LR_states_from_segment(
+        first_segment, curve_i, points, points_by_curve, is_fill);
 
     for (const int seg_i : segments) {
       const Segment &this_segment = all_segments[seg_i];
-      if (contributing_rule(current_winding_order, is_subj, boolean_mode)) {
+      if (state_L.is_contributing(boolean_mode, subject_shapes, clipping_shapes) ^
+          state_R.is_contributing(boolean_mode, subject_shapes, clipping_shapes))
+      {
         unsorted_segments.append(this_segment);
       }
 
@@ -536,9 +639,12 @@ BooleanResult execute_boolean(const Operation boolean_mode,
       const ExtendedIntersectionPoint &inter_end = intersections[int_p_end];
 
       const int other_curve_i = inter_end.other_curve(curve_i);
+      const int other_shape = other_curve_i; /* TODO. */
 
       if (is_fill[other_curve_i]) {
-        current_winding_order++; /* TODO */
+        /* TODO */
+        state_L.add_to_shape(other_shape, 1);
+        state_R.add_to_shape(other_shape, 1);
         // current_winding_order += seg_seg_winding(
         //     curve_subj[inter_first.point_a],
         //     curve_subj[(inter_first.point_a + 1) % curve_subj.size()],
@@ -549,6 +655,11 @@ BooleanResult execute_boolean(const Operation boolean_mode,
   }
 
   /* -------------------- */
+
+  if (unsorted_segments.is_empty()) {
+    BooleanResult result;
+    return result;
+  }
 
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(unsorted_segments.size(), false);
