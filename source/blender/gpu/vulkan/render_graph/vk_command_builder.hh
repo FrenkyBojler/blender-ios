@@ -125,7 +125,7 @@ class VKCommandBuilder {
      *
      * Render suspension/resuming will not work after calling this method.
      */
-    void end(Barrier &r_barrier);
+    void end(Barrier &r_barrier, bool use_local_read);
 
     /**
      * Suspend layer tracking
@@ -135,7 +135,7 @@ class VKCommandBuilder {
      * NOTE: Only call this method when you the rendering will be resumed, otherwise use
      * `layer_tracking_end`.
      */
-    void suspend(Barrier &r_barrier);
+    void suspend(Barrier &r_barrier, bool use_local_read);
 
     /**
      * Resume suspended layer tracking.
@@ -143,7 +143,7 @@ class VKCommandBuilder {
      * Resume suspended layer tracking. This transits all registered layers back to its modified
      * state.
      */
-    void resume(Barrier &r_barrier);
+    void resume(Barrier &r_barrier, bool use_local_read);
   };
 
   /**
@@ -162,10 +162,15 @@ class VKCommandBuilder {
 
   /** Per group store the indices of the nodes. */
   Vector<GroupNodes> group_nodes_;
-  /** Barriers that will be recorded just before the commands of a group is recorded. */
+  /** Barriers that will be recorded just before the commands of a group are recorded. */
   Vector<Barriers> group_pre_barriers_;
   /** Barriers that will be recorded after a group is recorded. */
   Vector<Barriers> group_post_barriers_;
+  /**
+   * Barriers that will be recorded just befor the commands of a specific node are recorded. The
+   * barriers are stored per NodeHandle and in the same order as `Span<NodeHandle> nodes`.
+   */
+  Vector<Barriers> node_pre_barriers_;
 
   /** List of all generated barriers. */
   Vector<Barrier> barrier_list_;
@@ -203,7 +208,9 @@ class VKCommandBuilder {
    * This process is single threaded as resource states change during the extraction process. The
    * result of this function would allow the sub builders to be built in parallel.
    */
-  void groups_extract_barriers(VKRenderGraph &render_graph, Span<NodeHandle> node_handles);
+  void groups_extract_barriers(VKRenderGraph &render_graph,
+                               Span<NodeHandle> node_handles,
+                               bool supports_local_read);
 
   /**
    * Record all the commands for all the groups to the command buffer.
