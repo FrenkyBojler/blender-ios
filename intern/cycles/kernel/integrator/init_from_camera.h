@@ -75,7 +75,7 @@ ccl_device bool integrator_init_from_camera(KernelGlobals kg,
    * pixel after it was converged and samples were added somewhere else (in which case the
    * `scheduled_sample` will be different from actual number of samples in this pixel). */
   const int sample = film_write_sample(
-      kg, state, render_buffer, scheduled_sample, tile->sample_offset);
+      kg, state, render_buffer, scheduled_sample, tile->sample_subset_offset);
 
   /* Initialize random number seed for path. */
   const uint rng_pixel = path_rng_pixel_init(kg, sample, x, y);

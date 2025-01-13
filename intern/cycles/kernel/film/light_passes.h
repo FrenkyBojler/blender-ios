@@ -159,7 +159,7 @@ ccl_device_inline int film_write_sample(KernelGlobals kg,
                                         ConstIntegratorState state,
                                         ccl_global float *ccl_restrict render_buffer,
                                         const int sample,
-                                        const int sample_offset)
+                                        const int sample_subset_offset)
 {
   if (kernel_data.film.pass_sample_count == PASS_UNUSED) {
     return sample;
@@ -169,7 +169,7 @@ ccl_device_inline int film_write_sample(KernelGlobals kg,
 
   return atomic_fetch_and_add_uint32(
              (ccl_global uint *)(buffer) + kernel_data.film.pass_sample_count, 1) +
-         sample_offset;
+         sample_subset_offset;
 }
 
 ccl_device void film_write_adaptive_buffer(KernelGlobals kg,

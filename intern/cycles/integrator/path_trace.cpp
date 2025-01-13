@@ -406,7 +406,7 @@ void PathTrace::path_trace(RenderWork &render_work)
     path_trace_work->render_samples(statistics,
                                     render_work.path_trace.start_sample,
                                     num_samples,
-                                    render_work.path_trace.sample_offset);
+                                    render_work.path_trace.sample_subset_offset);
 
     DCHECK(isfinite(statistics.occupancy));
 

@@ -58,7 +58,7 @@ void PathTraceWorkCPU::init_execution()
 void PathTraceWorkCPU::render_samples(RenderStatistics &statistics,
                                       const int start_sample,
                                       const int samples_num,
-                                      const int sample_offset)
+                                      const int sample_subset_offset)
 {
   const int64_t image_width = effective_buffer_params_.width;
   const int64_t image_height = effective_buffer_params_.height;
@@ -86,7 +86,7 @@ void PathTraceWorkCPU::render_samples(RenderStatistics &statistics,
       work_tile.w = 1;
       work_tile.h = 1;
       work_tile.start_sample = start_sample;
-      work_tile.sample_offset = sample_offset;
+      work_tile.sample_subset_offset = sample_subset_offset;
       work_tile.num_samples = 1;
       work_tile.offset = effective_buffer_params_.offset;
       work_tile.stride = effective_buffer_params_.stride;

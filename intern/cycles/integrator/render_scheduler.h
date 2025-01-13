@@ -29,7 +29,7 @@ class RenderWork {
   struct {
     int start_sample = 0;
     int num_samples = 0;
-    int sample_offset = 0;
+    int sample_subset_offset = 0;
   } path_trace;
 
   struct {
@@ -117,7 +117,7 @@ class RenderScheduler {
   void set_sample_params(const bool use_sample_subset,
                          const int sample_subset_length,
                          const int num_samples,
-                         const int sample_offset);
+                         const int sample_subset_offset);
 
   /* Start sample for path tracing.
    * The scheduler will schedule work using this sample as the first one. */
@@ -128,7 +128,7 @@ class RenderScheduler {
    * [start_sample, start_sample + num_samples - 1], inclusively. */
   int get_num_samples() const;
 
-  int get_sample_offset() const;
+  int get_sample_subset_offset() const;
 
   /* Time limit for the path tracing tasks, in minutes.
    * Zero disables the limit. */
@@ -158,7 +158,7 @@ class RenderScheduler {
   void reset(const BufferParams &buffer_params,
              const int num_samples,
              const bool use_sample_subset,
-             const int sample_offset,
+             const int sample_subset_offset,
              const int sample_subset_length);
 
   /* Reset scheduler upon switching to a next tile.
@@ -448,7 +448,7 @@ class RenderScheduler {
   int num_samples_ = 0;
 
   bool use_sample_subset_ = false;
-  int sample_offset_ = 0;
+  int sample_subset_offset_ = 0;
   int sample_subset_length_ = 0;
 
   /* Limit in seconds for how long path tracing is allowed to happen.

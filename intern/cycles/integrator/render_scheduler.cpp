@@ -69,11 +69,11 @@ bool RenderScheduler::is_adaptive_sampling_used() const
 void RenderScheduler::set_sample_params(const bool use_sample_subset,
                                         const int sample_subset_length,
                                         const int num_samples,
-                                        const int sample_offset)
+                                        const int sample_subset_offset)
 {
   num_samples_ = use_sample_subset ? min(sample_subset_length, num_samples) : num_samples;
-  start_sample_ = use_sample_subset ? sample_offset : 0;
-  sample_offset_ = use_sample_subset ? sample_offset : 0;
+  start_sample_ = use_sample_subset ? sample_subset_offset : 0;
+  sample_subset_offset_ = use_sample_subset ? sample_subset_offset : 0;
   use_sample_subset_ = use_sample_subset;
   sample_subset_length_ = sample_subset_length;
 }
@@ -88,9 +88,9 @@ int RenderScheduler::get_num_samples() const
   return num_samples_;
 }
 
-int RenderScheduler::get_sample_offset() const
+int RenderScheduler::get_sample_subset_offset() const
 {
-  return sample_offset_;
+  return sample_subset_offset_;
 }
 
 void RenderScheduler::set_time_limit(const double time_limit)
@@ -107,7 +107,7 @@ int RenderScheduler::get_rendered_sample() const
 {
   DCHECK_GT(get_num_rendered_samples(), 0);
 
-  return start_sample_ + get_num_rendered_samples() - 1 - sample_offset_;
+  return start_sample_ + get_num_rendered_samples() - 1 - sample_subset_offset_;
 }
 
 int RenderScheduler::get_num_rendered_samples() const
@@ -118,14 +118,14 @@ int RenderScheduler::get_num_rendered_samples() const
 void RenderScheduler::reset(const BufferParams &buffer_params,
                             const int num_samples,
                             const bool use_sample_subset,
-                            const int sample_offset,
+                            const int sample_subset_offset,
                             const int sample_subset_length)
 {
   buffer_params_ = buffer_params;
 
   update_start_resolution_divider();
 
-  set_sample_params(use_sample_subset, sample_subset_length, num_samples, sample_offset);
+  set_sample_params(use_sample_subset, sample_subset_length, num_samples, sample_subset_offset);
 
   /* In background mode never do lower resolution render preview, as it is not really supported
    * by the software. */
@@ -179,7 +179,11 @@ void RenderScheduler::reset(const BufferParams &buffer_params,
 
 void RenderScheduler::reset_for_next_tile()
 {
-  reset(buffer_params_, num_samples_, use_sample_subset_, sample_offset_, sample_subset_length_);
+  reset(buffer_params_,
+        num_samples_,
+        use_sample_subset_,
+        sample_subset_offset_,
+        sample_subset_length_);
 }
 
 bool RenderScheduler::render_work_reschedule_on_converge(RenderWork &render_work)
@@ -340,7 +344,7 @@ RenderWork RenderScheduler::get_render_work()
 
   render_work.path_trace.start_sample = get_start_sample_to_path_trace();
   render_work.path_trace.num_samples = get_num_samples_to_path_trace();
-  render_work.path_trace.sample_offset = get_sample_offset();
+  render_work.path_trace.sample_subset_offset = get_sample_subset_offset();
 
   render_work.init_render_buffers = (render_work.path_trace.start_sample == get_start_sample());
 
@@ -930,7 +934,7 @@ int RenderScheduler::get_num_samples_to_path_trace() const
    * is to ensure that the final render is pixel-matched regardless of how many samples per second
    * compute device can do. */
 
-  return adaptive_sampling_.align_samples(path_trace_start_sample - sample_offset_,
+  return adaptive_sampling_.align_samples(path_trace_start_sample - sample_subset_offset_,
                                           num_samples_to_render);
 }
 
