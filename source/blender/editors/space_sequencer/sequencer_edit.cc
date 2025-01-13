@@ -1201,62 +1201,52 @@ void SEQUENCER_OT_refresh_all(wmOperatorType *ot)
 
 bool strip_effect_get_new_inputs(Scene *scene,
                                  bool ignore_active,
-                                 int strip_type,
+                                 int num_inputs,
                                  Strip **r_seq1,
                                  Strip **r_seq2,
                                  const char **r_error_str)
 {
   Editing *ed = SEQ_editing_get(scene);
   Strip *seq1 = nullptr, *seq2 = nullptr;
-  Strip *active_strip = SEQ_select_active_get(scene);
 
   *r_error_str = nullptr;
 
-  if (SEQ_effect_get_num_inputs(strip_type) == 0) {
+  if (num_inputs == 0) {
     *r_seq1 = *r_seq2 = nullptr;
     return true;
   }
 
-  for (Strip *strip : SEQ_query_selected_strips(ed->seqbasep)) {
-    if (strip->flag & SELECT) {
-      if (strip->type == STRIP_TYPE_SOUND_RAM) {
-        // Ignore sound strips for now (avoids unnecessary errors when connected strips are
-        // selected together, and the intent to operate on strips with video content is clear).
-        continue;
-      }
-      if (ignore_active && strip == active_strip) {
-        // If `ignore_active` is true, this function is being called from the reassign inputs
-        // operator, meaning the active strip must be the effect strip to reassign.
-        continue;
-      }
-      if (seq1 == nullptr) {
-        seq1 = strip;
-      }
-      else if (seq2 == nullptr) {
-        seq2 = strip;
-      }
-      else {
-        *r_error_str = N_("Cannot apply effect to more than 2 sequence strips with video content");
-        return false;
-      }
-    }
+  blender::VectorSet<Strip *> new_inputs = SEQ_query_selected_strips(ed->seqbasep);
+  // Ignore sound strips for now (avoids unnecessary errors when connected strips are
+  // selected together, and the intent to operate on strips with video content is clear).
+  new_inputs.remove_if([&](Strip *strip) { return strip->type == STRIP_TYPE_SOUND_RAM; });
+
+  if (ignore_active) {
+    // If `ignore_active` is true, this function is being called from the reassign inputs
+    // operator, meaning the active strip must be the effect strip to reassign.
+    Strip *active_strip = SEQ_select_active_get(scene);
+    new_inputs.remove_if([&](Strip *strip) { return strip == active_strip; });
   }
 
-  switch (SEQ_effect_get_num_inputs(strip_type)) {
-    case 1:
-      // Error if there are zero or two selected strips with video content.
-      if (seq1 == nullptr || seq2) {
-        *r_error_str = N_("Exactly one selected sequence strip with video content is needed");
-        return false;
-      }
-      break;
-    case 2:
-      // Error if there aren't two strips with video content.
-      if (seq1 == nullptr || seq2 == nullptr) {
-        *r_error_str = N_("Exactly 2 selected sequence strips with video content are needed");
-        return false;
-      }
-      break;
+  if (new_inputs.size() > 2) {
+    *r_error_str = N_("Cannot apply effect to more than 2 sequence strips with video content");
+    return false;
+  }
+
+  if (num_inputs == 2) {
+    if (new_inputs.size() != 2) {
+      *r_error_str = N_("Exactly 2 selected sequence strips with video content are needed");
+      return false;
+    }
+    seq1 = new_inputs[0];
+    seq2 = new_inputs[1];
+  }
+  else if (num_inputs == 1) {
+    if (new_inputs.size() != 1) {
+      *r_error_str = N_("Exactly one selected sequence strip with video content is needed");
+      return false;
+    }
+    seq1 = new_inputs[0];
   }
 
   *r_seq1 = seq1;
@@ -1271,13 +1261,14 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
   Strip *seq1, *seq2;
   Strip *active_strip = SEQ_select_active_get(scene);
   const char *error_msg;
+  const int num_inputs = SEQ_effect_get_num_inputs(active_strip->type);
 
-  if (SEQ_effect_get_num_inputs(active_strip->type) == 0) {
+  if (num_inputs == 0) {
     BKE_report(op->reports, RPT_ERROR, "Cannot reassign inputs: strip has no inputs");
     return OPERATOR_CANCELLED;
   }
 
-  if (!strip_effect_get_new_inputs(scene, true, active_strip->type, &seq1, &seq2, &error_msg)) {
+  if (!strip_effect_get_new_inputs(scene, true, num_inputs, &seq1, &seq2, &error_msg)) {
     BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
   }

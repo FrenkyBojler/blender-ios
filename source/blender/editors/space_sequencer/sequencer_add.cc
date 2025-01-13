@@ -1467,10 +1467,10 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
   SeqLoadData load_data;
   load_data_init_from_operator(&load_data, C, op);
   load_data.effect.type = RNA_enum_get(op->ptr, "type");
+  const int num_inputs = SEQ_effect_get_num_inputs(load_data.effect.type);
 
   Strip *seq1, *seq2;
-  if (!strip_effect_get_new_inputs(scene, false, load_data.effect.type, &seq1, &seq2, &error_msg))
-  {
+  if (!strip_effect_get_new_inputs(scene, false, num_inputs, &seq1, &seq2, &error_msg)) {
     BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
   }
