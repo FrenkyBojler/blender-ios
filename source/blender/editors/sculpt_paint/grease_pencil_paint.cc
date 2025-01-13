@@ -249,7 +249,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
   /* Last valid stroke intersection, for use in Stroke projection mode. */
   std::optional<float3> last_stroke_placement_loc_;
   /* Point index of the last valid stroke placement. */
-  int last_stroke_placement_point_ = -1;
+  std::optional<int> last_stroke_placement_point_;
 
   /* Direction the pen is moving in smoothed over time. */
   float2 smoothed_pen_direction_ = float2(0.0f);
@@ -285,7 +285,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
   PaintOperation(const bool temp_draw = false) : temp_draw_(temp_draw) {}
 
   bool update_stroke_depth_placement(const bContext &C, const InputSample &sample);
-  void reproject_samples_on_strokes(const bContext &C);
+  /* Returns the range of actually reprojected points. */
+  IndexRange reproject_samples_on_strokes(const bContext &C, std::optional<int> start_point) const;
 };
 
 /**
@@ -1042,7 +1043,14 @@ bool PaintOperation::update_stroke_depth_placement(const bContext &C, const Inpu
     return false;
   }
 
-  if (last_stroke_placement_loc_) {
+  auto set_view_normal_plane = [&]() {
+    const float3 origin = *new_stroke_placement_loc;
+    const float3 normal = rv3d.viewinv[2];
+    placement_.set_stroke_projection_plane(origin, normal);
+  };
+
+  auto set_stroke_normal_plane = [&]() {
+    BLI_assert(last_stroke_placement_loc_.has_value());
     const float3 origin = *new_stroke_placement_loc;
     const float3 direction = (*last_stroke_placement_loc_) - origin;
     /* Chose x or y axis of the view matrix for the largest cross product. */
@@ -1052,26 +1060,74 @@ bool PaintOperation::update_stroke_depth_placement(const bContext &C, const Inpu
                                 rv3d.viewmat[0]);
     const float3 normal = math::normalize(math::cross(up_axis, direction));
     placement_.set_stroke_projection_plane(origin, normal);
-  }
-  else {
-    /* Use view direction as the normal when there is no previous depth yet. */
-    const float3 origin = *new_stroke_placement_loc;
-    const float3 normal = rv3d.viewinv[2];
-    placement_.set_stroke_projection_plane(origin, normal);
-  }
+  };
 
-  /* In AllPoints mode the snap location is updated each time a new hit is found. */
   const StrokeSnapMode snap_mode = get_snap_mode(C);
-  if (!last_stroke_placement_loc_ && snap_mode != StrokeSnapMode::FirstPoint) {
-    last_stroke_placement_loc_ = new_stroke_placement_loc;
-  }
+  switch (snap_mode) {
+    case StrokeSnapMode::AllPoints: {
+      if (!last_stroke_placement_loc_) {
+        /* Use view direction as the normal when there is no previous depth yet. */
+        set_view_normal_plane();
+        last_stroke_placement_loc_ = new_stroke_placement_loc;
+      }
+      else {
+        set_stroke_normal_plane();
+        /* Previous location is updated for each segment. */
+        last_stroke_placement_loc_ = new_stroke_placement_loc;
+      }
 
-  this->reproject_samples_on_strokes(C);
+      const IndexRange reprojected_points = this->reproject_samples_on_strokes(
+          C, last_stroke_placement_point_);
+      /* Only reproject newly added points next time a hit point is found. */
+      if (!reprojected_points.is_empty()) {
+        last_stroke_placement_point_ = reprojected_points.one_after_last();
+      }
+
+      /* Use view normal for future points until the next hit is found. */
+      set_view_normal_plane();
+      break;
+    }
+    case StrokeSnapMode::EndPoints: {
+      bool set_active_point_range = false;
+      if (!last_stroke_placement_loc_) {
+        /* Use view direction as the normal when there is no previous depth yet. */
+        set_view_normal_plane();
+        last_stroke_placement_loc_ = new_stroke_placement_loc;
+        /* Clamp active point range after reprojection on the first hit. */
+        set_active_point_range = true;
+      }
+      else {
+        set_stroke_normal_plane();
+      }
+
+      const IndexRange reprojected_points = this->reproject_samples_on_strokes(
+          C, last_stroke_placement_point_);
+      /* Only reproject newly added points next time a hit point is found. */
+      if (!reprojected_points.is_empty() && set_active_point_range) {
+        last_stroke_placement_point_ = reprojected_points.one_after_last();
+      }
+
+      /* Use view normal for future points until the next hit is found. */
+      set_view_normal_plane();
+      break;
+    }
+    case StrokeSnapMode::FirstPoint: {
+      /* Only reproject once in "First Point" mode. */
+      if (!last_stroke_placement_loc_) {
+        set_view_normal_plane();
+        last_stroke_placement_loc_ = new_stroke_placement_loc;
+
+        this->reproject_samples_on_strokes(C, std::nullopt);
+      }
+      break;
+    }
+  }
 
   return true;
 }
 
-void PaintOperation::reproject_samples_on_strokes(const bContext &C)
+IndexRange PaintOperation::reproject_samples_on_strokes(const bContext &C,
+                                                        std::optional<int> start_point) const
 {
   using namespace blender::bke;
 
@@ -1091,16 +1147,12 @@ void PaintOperation::reproject_samples_on_strokes(const bContext &C)
   const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
   const IndexRange all_points = points_by_curve[active_curve];
   if (all_points.is_empty()) {
-    return;
+    return {};
   }
 
-  const StrokeSnapMode snap_mode = get_snap_mode(C);
-  /* In FirstPoint mode all the points are reprojected, otherwise only reproject points since the
-   * last update. */
   IndexRange active_points = all_points;
-  if (snap_mode != StrokeSnapMode::FirstPoint && last_stroke_placement_point_ >= 0) {
-    active_points = IndexRange::from_begin_end_inclusive(last_stroke_placement_point_,
-                                                         all_points.last());
+  if (start_point) {
+    active_points = IndexRange::from_begin_end_inclusive(*start_point, all_points.last());
   }
 
   /* Point slice relative to the curve, valid for 2D coordinate array. */
@@ -1114,9 +1166,7 @@ void PaintOperation::reproject_samples_on_strokes(const bContext &C)
     positions[i] = this->placement_.project(final_coords[i]);
   }
 
-  if (snap_mode == StrokeSnapMode::AllPoints) {
-    last_stroke_placement_point_ = all_points.one_after_last();
-  }
+  return active_points;
 }
 
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
