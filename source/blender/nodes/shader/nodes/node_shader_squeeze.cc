@@ -39,6 +39,7 @@ void register_node_type_sh_squeeze()
   ntype.ui_name = "Squeeze Value (Legacy)";
   ntype.ui_description = "Deprecated";
   ntype.enum_name_legacy = "SQUEEZE";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.gather_link_search_ops = nullptr;
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::gpu_shader_squeeze;

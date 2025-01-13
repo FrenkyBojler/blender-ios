@@ -56,12 +56,9 @@ void sh_node_type_base(blender::bke::bNodeType *ntype, std::string idname, int t
   ntype->gather_link_search_ops = blender::nodes::search_link_ops_for_basic_node;
 }
 
-void sh_fn_node_type_base(blender::bke::bNodeType *ntype,
-                          std::string idname,
-                          int type,
-                          short nclass)
+void sh_fn_node_type_base(blender::bke::bNodeType *ntype, std::string idname, int type)
 {
-  sh_node_type_base(ntype, idname, type, nclass);
+  sh_node_type_base(ntype, idname, type);
   ntype->poll = sh_fn_poll_default;
   ntype->gather_link_search_ops = blender::nodes::search_link_ops_for_basic_node;
 }
