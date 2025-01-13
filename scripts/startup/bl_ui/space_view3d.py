@@ -7304,7 +7304,7 @@ class VIEW3D_PT_overlay_edit_curves(Panel):
         row.prop(overlay, "display_handle", text="Handles")
         
         row = col.row()
-        row.prop(overlay, "curves_radius_display", text="Show radius")
+        row.prop(overlay, "curves_radius_display", text="Radius")
 
 
 class VIEW3D_PT_overlay_sculpt(Panel):

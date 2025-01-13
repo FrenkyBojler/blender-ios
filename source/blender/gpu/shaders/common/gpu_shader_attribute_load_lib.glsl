@@ -49,11 +49,6 @@ uvec4 gpu_attr_decode_uchar4_to_uint4(uint in_data)
 /* TODO(fclem): Once the stride and offset are made obsolete, we can think of wrapping vec3 into
  * structs of floats as they do not have the 16byte alignment restriction. */
 
-#define gpu_attr_load_quad(_type, _data, _stride_and_offset, _i) \
-  _type(_data[gpu_attr_load_index(_i, _stride_and_offset) + 0], \
-        _data[gpu_attr_load_index(_i, _stride_and_offset) + 1], \
-        _data[gpu_attr_load_index(_i, _stride_and_offset) + 2], \
-        _data[gpu_attr_load_index(_i, _stride_and_offset) + 3])
 #define gpu_attr_load_triplet(_type, _data, _stride_and_offset, _i) \
   _type(_data[gpu_attr_load_index(_i, _stride_and_offset) + 0], \
         _data[gpu_attr_load_index(_i, _stride_and_offset) + 1], \
@@ -68,8 +63,6 @@ uvec4 gpu_attr_decode_uchar4_to_uint4(uint in_data)
 #define gpu_attr_load_float2(_data, _stride_and_offset, _i) \
   gpu_attr_load_tuple(vec2, _data, _stride_and_offset, _i)
 /* Assumes _data is declared as an array of uint. */
-#define gpu_attr_load_int4(_data, _stride_and_offset, _i) \
-  gpu_attr_load_quad(ivec4, _data, _stride_and_offset, _i)
 #define gpu_attr_load_uint3(_data, _stride_and_offset, _i) \
   gpu_attr_load_triplet(ivec3, _data, _stride_and_offset, _i)
 #define gpu_attr_load_uint2(_data, _stride_and_offset, _i) \
