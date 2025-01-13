@@ -155,10 +155,10 @@ static void calculate_point_handles(const HandleType type_left,
    * the opposite direction. Don't handle the case of two aligned handles, because code elsewhere
    * should keep the pair consistent, and the relative locations aren't affected by other points
    * anyway. */
-  if (type_left == BEZIER_HANDLE_ALIGN && type_right != BEZIER_HANDLE_ALIGN) {
+  if (type_left == BEZIER_HANDLE_ALIGN) {
     left = calculate_aligned_handle(position, right, left);
   }
-  else if (type_left != BEZIER_HANDLE_ALIGN && type_right == BEZIER_HANDLE_ALIGN) {
+  else if (type_right == BEZIER_HANDLE_ALIGN) {
     right = calculate_aligned_handle(position, left, right);
   }
 }
