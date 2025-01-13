@@ -352,10 +352,10 @@ RenderWork Session::run_update_for_next_iteration()
     path_trace_->set_guiding_params(guiding_params, guiding_reset);
   }
 
-  render_scheduler_.set_sample_params(params.use_sample_subset,
-                                      params.sample_subset_length,
-                                      params.samples,
-                                      params.sample_subset_offset);
+  render_scheduler_.set_sample_params(params.samples,
+                                      params.use_sample_subset,
+                                      params.sample_subset_offset,
+                                      params.sample_subset_length);
   render_scheduler_.set_time_limit(params.time_limit);
 
   while (have_tiles) {

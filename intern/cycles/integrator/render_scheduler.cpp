@@ -66,10 +66,10 @@ bool RenderScheduler::is_adaptive_sampling_used() const
   return adaptive_sampling_.use;
 }
 
-void RenderScheduler::set_sample_params(const bool use_sample_subset,
-                                        const int sample_subset_length,
-                                        const int num_samples,
-                                        const int sample_subset_offset)
+void RenderScheduler::set_sample_params(const int num_samples,
+                                        const bool use_sample_subset,
+                                        const int sample_subset_offset,
+                                        const int sample_subset_length)
 {
   num_samples_ = use_sample_subset ? min(sample_subset_length, num_samples) : num_samples;
   start_sample_ = use_sample_subset ? sample_subset_offset : 0;
@@ -125,7 +125,7 @@ void RenderScheduler::reset(const BufferParams &buffer_params,
 
   update_start_resolution_divider();
 
-  set_sample_params(use_sample_subset, sample_subset_length, num_samples, sample_subset_offset);
+  set_sample_params(num_samples, use_sample_subset, sample_subset_offset, sample_subset_length);
 
   /* In background mode never do lower resolution render preview, as it is not really supported
    * by the software. */

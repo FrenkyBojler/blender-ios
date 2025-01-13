@@ -114,10 +114,10 @@ class RenderScheduler {
   /* - sample_offset - 0-based sample index to start sampling from if use_sample_subset is true. */
   /* - sample_subset_length - Number of samples to render in this subset if use_sample_subset is
    * true. */
-  void set_sample_params(const bool use_sample_subset,
-                         const int sample_subset_length,
-                         const int num_samples,
-                         const int sample_subset_offset);
+  void set_sample_params(const int num_samples,
+                         const bool use_sample_subset,
+                         const int sample_subset_offset,
+                         const int sample_subset_length);
 
   /* Start sample for path tracing.
    * The scheduler will schedule work using this sample as the first one. */
