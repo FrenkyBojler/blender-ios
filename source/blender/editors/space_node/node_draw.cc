@@ -3439,7 +3439,7 @@ static void node_draw_basis(const bContext &C,
     UI_block_emboss_set(&block, UI_EMBOSS);
   }
   /* Viewer node shortcuts. */
-  if (node.type == CMP_NODE_VIEWER) {
+  if (node.type_legacy == CMP_NODE_VIEWER) {
     short shortcut_icon = get_shortcut_icon(node);
     iconofs -= iconbutw;
     UI_block_emboss_set(&block, UI_EMBOSS_NONE);
