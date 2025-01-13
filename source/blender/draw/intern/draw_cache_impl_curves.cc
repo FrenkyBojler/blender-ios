@@ -1061,27 +1061,27 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
   draw::CurvesBatchCache &cache = draw::get_batch_cache(*curves_id);
   const bke::CurvesGeometry &curves_orig = curves_orig_id->geometry.wrap();
 
-  bool is_bezier_needed = false;
+  bool is_edit_data_needed = false;
 
   if (DRW_batch_requested(cache.edit_points, GPU_PRIM_POINTS)) {
     DRW_vbo_request(cache.edit_points, &cache.edit_points_pos);
     DRW_vbo_request(cache.edit_points, &cache.edit_points_data);
     DRW_vbo_request(cache.edit_points, &cache.edit_points_selection);
-    is_bezier_needed = true;
+    is_edit_data_needed = true;
   }
   if (DRW_batch_requested(cache.sculpt_cage, GPU_PRIM_LINE_STRIP)) {
     DRW_ibo_request(cache.sculpt_cage, &cache.sculpt_cage_ibo);
     DRW_vbo_request(cache.sculpt_cage, &cache.edit_points_pos);
     DRW_vbo_request(cache.sculpt_cage, &cache.edit_points_data);
     DRW_vbo_request(cache.sculpt_cage, &cache.edit_points_selection);
-    is_bezier_needed = true;
+    is_edit_data_needed = true;
   }
   if (DRW_batch_requested(cache.edit_handles, GPU_PRIM_LINES)) {
     DRW_ibo_request(cache.edit_handles, &cache.edit_handles_ibo);
     DRW_vbo_request(cache.edit_handles, &cache.edit_points_pos);
     DRW_vbo_request(cache.edit_handles, &cache.edit_points_data);
     DRW_vbo_request(cache.edit_handles, &cache.edit_points_selection);
-    is_bezier_needed = true;
+    is_edit_data_needed = true;
   }
   if (DRW_batch_requested(cache.edit_curves_lines, GPU_PRIM_LINE_STRIP)) {
     DRW_vbo_request(cache.edit_curves_lines, &cache.edit_curves_lines_pos);
@@ -1089,7 +1089,7 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
   }
 
   const bke::crazyspace::GeometryDeformation deformation =
-      is_bezier_needed || DRW_vbo_requested(cache.edit_curves_lines_pos) ?
+      is_edit_data_needed || DRW_vbo_requested(cache.edit_curves_lines_pos) ?
           bke::crazyspace::get_evaluated_curves_deformation(ob, *ob_orig) :
           bke::crazyspace::GeometryDeformation();
 
@@ -1105,7 +1105,7 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
     create_edit_lines_ibo(curves_orig, cache);
   }
 
-  if (!is_bezier_needed) {
+  if (!is_edit_data_needed) {
     return;
   }
 
