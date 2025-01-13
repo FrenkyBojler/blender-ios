@@ -35,21 +35,81 @@ static bool is_socket_type_supported(eNodeSocketDatatype type)
   return ELEM(type, SOCK_VECTOR, SOCK_RGBA, SOCK_FLOAT);
 }
 
-template<typename T>
+template<typename FactorType, typename TargetType> struct ApplyFactors {
+  static void apply_factors(const MutableSpan<FactorType> factors, MutableSpan<TargetType> targets)
+  {
+    BLI_assert_unreachable();
+  }
+};
+
+template<> struct ApplyFactors<float, float3> {
+  static void apply_factors(const MutableSpan<float> factors, MutableSpan<float3> targets)
+  {
+    for (const int i : factors.index_range()) {
+      targets[i] *= float3(factors[i]);
+    }
+  }
+};
+
+template<> struct ApplyFactors<float3, float3> {
+  static void apply_factors(const MutableSpan<float3> factors, MutableSpan<float3> targets)
+  {
+    for (const int i : factors.index_range()) {
+      targets[i] *= factors[i];
+    }
+  }
+};
+
+template<> struct ApplyFactors<ColorGeometry4f, float3> {
+  static void apply_factors(const MutableSpan<ColorGeometry4f> factors,
+                            MutableSpan<float3> targets)
+  {
+    for (const int i : factors.index_range()) {
+      targets[i] *= float3(factors[i].r, factors[i].g, factors[i].b);
+    }
+  }
+};
+
+template<> struct ApplyFactors<float, float> {
+  static void apply_factors(const MutableSpan<float> factors, MutableSpan<float> targets)
+  {
+    for (const int i : factors.index_range()) {
+      targets[i] *= factors[i];
+    }
+  }
+};
+
+template<> struct ApplyFactors<float3, float> {
+  static void apply_factors(const MutableSpan<float3> factors, MutableSpan<float> targets)
+  {
+    for (const int i : factors.index_range()) {
+      targets[i] *= (factors[i].x + factors[i].y + factors[i].z) / 3.0f;
+    }
+  }
+};
+
+template<> struct ApplyFactors<ColorGeometry4f, float> {
+  static void apply_factors(const MutableSpan<ColorGeometry4f> factors, MutableSpan<float> targets)
+  {
+    for (const int i : factors.index_range()) {
+      targets[i] *= (factors[i].r + factors[i].g + factors[i].b) / 3.0f;
+    }
+  }
+};
+
+template<typename FactorType, typename TargetType>
 static void evaluate(const bke::SocketValueVariant &output_socket,
-                     const MutableSpan<float3> outputs,
+                     const MutableSpan<TargetType> output_targets,
                      const bke::SculptFieldContext &context)
 {
-  Array<T> tmp_outputs(outputs.size());
-  fn::Field<T> output_field = output_socket.get<fn::Field<T>>();
+  Array<FactorType> output_factors(output_targets.size());
+  fn::Field<FactorType> factor_output_field = output_socket.get<fn::Field<FactorType>>();
 
-  fn::FieldEvaluator evaluator{context, outputs.size()};
-  evaluator.add_with_destination(output_field, tmp_outputs.as_mutable_span());
+  fn::FieldEvaluator evaluator{context, output_factors.size()};
+  evaluator.add_with_destination(factor_output_field, output_factors.as_mutable_span());
   evaluator.evaluate();
 
-  for (const int i : outputs.index_range()) {
-    outputs[i] *= float3(tmp_outputs[i]);
-  }
+  ApplyFactors<FactorType, TargetType>::apply_factors(output_factors, output_targets);
 }
 
 /**
@@ -63,12 +123,13 @@ static void evaluate(const bke::SocketValueVariant &output_socket,
  * Currently supports the following output types: vector, float, and
  * color.
  */
+template<typename TargetType>
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   Object &object,
                                   const Brush &brush,
                                   const StrokeCache &cache,
                                   const bke::SculptFieldContext &context,
-                                  const MutableSpan<float3> outputs)
+                                  const MutableSpan<TargetType> output_targets)
 {
   const bNodeTree *tree = brush.node_group;
 
@@ -193,15 +254,15 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
   switch (type) {
     case SOCK_VECTOR: {
-      evaluate<float3>(output_socket, outputs, context);
+      evaluate<float3>(output_socket, output_targets, context);
       break;
     }
     case SOCK_FLOAT: {
-      evaluate<float>(output_socket, outputs, context);
+      evaluate<float>(output_socket, output_targets, context);
       break;
     }
     case SOCK_RGBA: {
-      evaluate<ColorGeometry4f>(output_socket, outputs, context);
+      evaluate<ColorGeometry4f>(output_socket, output_targets, context);
       break;
     }
     default:
@@ -221,20 +282,102 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   }
 }
 
+template<typename TargetType>
 void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                 Object &object,
                                 const Brush &brush,
                                 const StrokeCache &cache,
                                 const Span<float3> vert_positions,
                                 const Span<int> verts,
-                                const MutableSpan<float3> translations)
+                                const MutableSpan<TargetType> output_targets)
 {
   const Mesh *mesh = static_cast<const Mesh *>(object.data);
   bke::MeshSculptFieldContext context(depsgraph, object, *mesh, {}, verts, vert_positions, {});
 
   threading::isolate_task(
-      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations); });
+      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, output_targets); });
 }
+
+template void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+                                         Object &object,
+                                         const Brush &brush,
+                                         const StrokeCache &cache,
+                                         const Span<float3> vert_positions,
+                                         const Span<int> verts,
+                                         const MutableSpan<float> output_targets);
+
+template void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+                                         Object &object,
+                                         const Brush &brush,
+                                         const StrokeCache &cache,
+                                         const Span<float3> vert_positions,
+                                         const Span<int> verts,
+                                         const MutableSpan<float3> output_targets);
+
+template<typename TargetType>
+void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+                                 Object &object,
+                                 const Brush &brush,
+                                 const StrokeCache &cache,
+                                 const SubdivCCG &subdiv_ccg,
+                                 const Span<int> grids,
+                                 const Span<float3> positions,
+                                 const MutableSpan<TargetType> output_targets)
+{
+  bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
+
+  threading::isolate_task(
+      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, output_targets); });
+}
+
+template void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+                                          Object &object,
+                                          const Brush &brush,
+                                          const StrokeCache &cache,
+                                          const SubdivCCG &subdiv_ccg,
+                                          const Span<int> grids,
+                                          const Span<float3> positions,
+                                          const MutableSpan<float> output_targets);
+
+template void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+                                          Object &object,
+                                          const Brush &brush,
+                                          const StrokeCache &cache,
+                                          const SubdivCCG &subdiv_ccg,
+                                          const Span<int> grids,
+                                          const Span<float3> positions,
+                                          const MutableSpan<float3> output_targets);
+
+template<typename TargetType>
+void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+                                 Object &object,
+                                 const Brush &brush,
+                                 const StrokeCache &cache,
+                                 const Set<BMVert *, 0> &verts,
+                                 const Span<float3> positions,
+                                 const MutableSpan<TargetType> output_targets)
+{
+  bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
+
+  threading::isolate_task(
+      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, output_targets); });
+}
+
+template void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+                                          Object &object,
+                                          const Brush &brush,
+                                          const StrokeCache &cache,
+                                          const Set<BMVert *, 0> &verts,
+                                          const Span<float3> positions,
+                                          const MutableSpan<float> output_targets);
+
+template void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+                                          Object &object,
+                                          const Brush &brush,
+                                          const StrokeCache &cache,
+                                          const Set<BMVert *, 0> &verts,
+                                          const Span<float3> positions,
+                                          const MutableSpan<float3> output_targets);
 
 void paint_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                  Object &object,
@@ -252,41 +395,13 @@ void paint_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   Vector<float3> outputs(verts.size());
   outputs.fill(float3(1.0f));
 
-  threading::isolate_task(
-      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, outputs); });
+  threading::isolate_task([&]() {
+    sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, outputs.as_mutable_span());
+  });
 
   for (const int i : brush_colors.index_range()) {
     brush_colors[i] = float4(outputs[i], brush_colors[i].w);
   }
-}
-
-void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                 Object &object,
-                                 const Brush &brush,
-                                 const StrokeCache &cache,
-                                 const SubdivCCG &subdiv_ccg,
-                                 const Span<int> grids,
-                                 const Span<float3> positions,
-                                 const MutableSpan<float3> translations)
-{
-  bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
-
-  threading::isolate_task(
-      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations); });
-}
-
-void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                 Object &object,
-                                 const Brush &brush,
-                                 const StrokeCache &cache,
-                                 const Set<BMVert *, 0> &verts,
-                                 const Span<float3> positions,
-                                 const MutableSpan<float3> translations)
-{
-  bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
-
-  threading::isolate_task(
-      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, cache, context, translations); });
 }
 
 }  // namespace blender::ed::sculpt_paint
