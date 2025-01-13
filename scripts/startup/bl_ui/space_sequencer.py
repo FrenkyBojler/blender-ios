@@ -99,7 +99,7 @@ def draw_color_balance(layout, color_balance):
         box = col.box()
         split = box.split(factor=0.35)
         col = split.column(align=True)
-        col.label(text="Power")
+        col.label(text="Power", text_ctxt=i18n_contexts.id_movieclip)
         col.separator()
         col.separator()
         col.prop(color_balance, "power", text="")
@@ -1406,7 +1406,7 @@ class SEQUENCER_PT_color_tag_picker(SequencerColorTagPicker, Panel):
         row = layout.row(align=True)
         row.operator("sequencer.strip_color_tag_set", icon='X').color = 'NONE'
         for i in range(1, 10):
-            icon = 'SEQUENCE_COLOR_{:02d}'.format(i)
+            icon = 'STRIP_COLOR_{:02d}'.format(i)
             row.operator("sequencer.strip_color_tag_set", icon=icon).color = 'COLOR_{:02d}'.format(i)
 
 
@@ -1776,6 +1776,7 @@ class SEQUENCER_PT_effect_text_shadow(SequencerButtonsPanel, Panel):
 
 class SEQUENCER_PT_effect_text_box(SequencerButtonsPanel, Panel):
     bl_label = "Box"
+    bl_translation_context = i18n_contexts.id_sequence
     bl_options = {"DEFAULT_CLOSED"}
     bl_category = "Strip"
     bl_parent_id = "SEQUENCER_PT_effect_text_style"
@@ -2967,7 +2968,7 @@ class SEQUENCER_PT_custom_props(SequencerButtonsPanel, PropertyPanel, Panel):
         'BLENDER_WORKBENCH',
     }
     _context_path = "active_sequence_strip"
-    _property_type = (bpy.types.Sequence,)
+    _property_type = (bpy.types.Strip,)
     bl_category = "Strip"
 
 

@@ -1285,7 +1285,7 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
         if context.mode == 'EDIT_MESH':
             layout.operator("transform.shrink_fatten", text="Shrink/Fatten")
             layout.operator("transform.skin_resize")
-        elif context.mode in ['EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES']:
+        elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES'}:
             layout.operator("transform.transform", text="Radius").mode = 'CURVE_SHRINKFATTEN'
 
         if context.mode != 'EDIT_CURVES' and context.mode != 'EDIT_GREASE_PENCIL':
@@ -1406,7 +1406,7 @@ class VIEW3D_MT_uv_map(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.menu("IMAGE_MT_uvs_unwrap")
+        layout.menu_contents("IMAGE_MT_uvs_unwrap")
 
         layout.separator()
 
@@ -1444,7 +1444,10 @@ class VIEW3D_MT_view(Menu):
 
         layout.separator()
 
-        layout.operator("view3d.view_selected", text="Frame Selected").use_all_regions = False
+        if context.mode in {'PAINT_TEXTURE', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT'}:
+            layout.operator("view3d.view_selected", text="Frame Last Stroke").use_all_regions = False
+        else:
+            layout.operator("view3d.view_selected", text="Frame Selected").use_all_regions = False
         if view.region_quadviews:
             layout.operator("view3d.view_selected", text="Frame Selected (Quad View)").use_all_regions = True
 
@@ -3246,7 +3249,16 @@ class VIEW3D_MT_object_modifiers(Menu):
 
     def draw(self, _context):
         active_object = bpy.context.active_object
-        supported_types = {'MESH', 'CURVE', 'CURVES', 'SURFACE', 'FONT', 'VOLUME', 'GREASEPENCIL'}
+        supported_types = {
+            'MESH',
+            'CURVE',
+            'CURVES',
+            'SURFACE',
+            'FONT',
+            'VOLUME',
+            'GREASEPENCIL',
+            'LATTICE',
+            'POINTCLOUD'}
 
         layout = self.layout
 
@@ -3631,7 +3643,7 @@ class VIEW3D_MT_sculpt(Menu):
         layout.separator()
 
         sculpt_filters_types = [
-            ('SMOOTH', iface_("Smooth")),
+            ('SMOOTH', iface_("Smooth", i18n_contexts.operator_default)),
             ('SURFACE_SMOOTH', iface_("Surface Smooth")),
             ('INFLATE', iface_("Inflate")),
             ('RELAX', iface_("Relax Topology")),
@@ -4932,7 +4944,7 @@ class VIEW3D_MT_edit_mesh_normals(Menu):
 
         layout.operator("mesh.merge_normals", text="Merge")
         layout.operator("mesh.split_normals", text="Split")
-        layout.menu("VIEW3D_MT_edit_mesh_normals_average", text="Average")
+        layout.menu("VIEW3D_MT_edit_mesh_normals_average", text="Average", text_ctxt=i18n_contexts.id_mesh)
 
         layout.separator()
 
@@ -5969,7 +5981,7 @@ class VIEW3D_MT_pivot_pie(Menu):
         pie.prop_enum(tool_settings, "transform_pivot_point", value='ACTIVE_ELEMENT')
         if (obj is None) or (mode in {'OBJECT', 'POSE', 'WEIGHT_PAINT'}):
             pie.prop(tool_settings, "use_transform_pivot_point_align")
-        if mode in ['EDIT_GPENCIL', 'EDIT_GREASE_PENCIL']:
+        if mode in {'EDIT_GPENCIL', 'EDIT_GREASE_PENCIL'}:
             pie.prop(tool_settings.gpencil_sculpt, "use_scale_thickness")
 
 
@@ -6191,7 +6203,7 @@ class VIEW3D_PT_view3d_properties(Panel):
 
         subcol = col.column(align=True)
         subcol.prop(view, "clip_start", text="Clip Start")
-        subcol.prop(view, "clip_end", text="End")
+        subcol.prop(view, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
 
         layout.separator()
 
@@ -8267,8 +8279,8 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
 
         if brush.gpencil_vertex_tool in {'DRAW', 'REPLACE'}:
             split = layout.split(factor=0.1)
-            split.prop(brush, "color", text="")
-            split.template_color_picker(brush, "color", value_slider=True)
+            split.prop(tool_settings.unified_paint_settings, "color", text="")
+            split.template_color_picker(tool_settings.unified_paint_settings, "color", value_slider=True)
 
             col = layout.column()
             col.separator()

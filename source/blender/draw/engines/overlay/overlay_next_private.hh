@@ -64,7 +64,7 @@ struct BoneInstanceData {
     mat44[0] = ob_mat[0] * radius;
     mat44[1] = ob_mat[1] * radius;
     mat44[2] = ob_mat[2] * radius;
-    mat44[3] = float4(blender::math::transform_point(ob_mat, pos));
+    mat44[3] = float4(blender::math::transform_point(ob_mat, pos), 0.0f);
     set_color(color);
   }
 
@@ -156,6 +156,7 @@ struct State {
   int clipping_plane_count = 0;
 
   /* Active Image properties. Only valid image space only. */
+  bool is_image_valid = false;
   int2 image_size = int2(0);
   float2 image_uv_aspect = float2(0.0f);
   float2 image_aspect = float2(0.0f);
@@ -439,6 +440,7 @@ class ShaderModule {
   ShaderPtr armature_shape_outline = shader_selectable("overlay_armature_shape_outline");
   ShaderPtr armature_shape_fill = shader_selectable("overlay_armature_shape_solid");
   ShaderPtr armature_shape_wire = shader_selectable("overlay_armature_shape_wire");
+  ShaderPtr armature_shape_wire_strip = shader_selectable("overlay_armature_shape_wire_strip");
   ShaderPtr armature_sphere_outline = shader_selectable("overlay_armature_sphere_outline");
   ShaderPtr armature_sphere_fill = shader_selectable("overlay_armature_sphere_solid");
   ShaderPtr armature_stick = shader_selectable("overlay_armature_stick");
