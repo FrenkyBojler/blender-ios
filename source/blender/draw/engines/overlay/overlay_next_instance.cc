@@ -356,6 +356,10 @@ void Instance::end_sync()
                                                    GPU_DEPTH24_STENCIL8,
                                                    GPU_TEXTURE_USAGE_GENERAL,
                                                    nullptr);
+
+      /* TODO: This is more expensive than framebuffer clears. */
+      uint clear_depth = 0x00FFFFFFu;
+      GPU_texture_clear(dtxl->depth_in_front, eGPUDataFormat::GPU_DATA_UINT_24_8, &clear_depth);
     }
 
     GPU_framebuffer_ensure_config(
