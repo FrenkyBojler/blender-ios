@@ -524,16 +524,6 @@ typedef enum eBrushCurvesSculptType {
         SCULPT_BRUSH_TYPE_SLIDE_RELAX, \
         SCULPT_BRUSH_TYPE_MASK) == 0)
 
-#define SCULPT_BRUSH_TYPE_HAS_NODE_GROUP(t) \
-  (ELEM(t, \
-        SCULPT_BRUSH_TYPE_SMOOTH, \
-        SCULPT_BRUSH_TYPE_DRAW_FACE_SETS, \
-        SCULPT_BRUSH_TYPE_ROTATE, \
-        SCULPT_BRUSH_TYPE_SLIDE_RELAX, \
-        SCULPT_BRUSH_TYPE_SMEAR, \
-        SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR, \
-        SCULPT_BRUSH_TYPE_MASK) == 0)
-
 /** #Brush.image_brush_type */
 typedef enum eBrushImagePaintType {
   IMAGE_PAINT_BRUSH_TYPE_DRAW = 0,

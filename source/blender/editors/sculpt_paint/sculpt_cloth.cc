@@ -52,6 +52,7 @@
 #include "sculpt_filter.hh"
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
+#include "sculpt_nodes_evaluation.hh"
 #include "sculpt_undo.hh"
 
 #include "RNA_access.hh"
@@ -803,6 +804,8 @@ static void calc_forces_mesh(const Depsgraph &depsgraph,
 
   calc_brush_texture_factors(ss, brush, current_positions, factors);
 
+  mesh_sculpt_nodes_evaluate(depsgraph, ob, brush, *ss.cache, positions, verts, factors);
+
   scale_factors(factors, cache.bstrength);
 
   switch (brush.cloth_deform_type) {
@@ -913,6 +916,9 @@ static void calc_forces_grids(const Depsgraph &depsgraph,
 
   calc_brush_texture_factors(ss, brush, current_positions, factors);
 
+  grids_sculpt_nodes_evaluate(
+      depsgraph, ob, brush, *ss.cache, subdiv_ccg, grids, positions, factors);
+
   scale_factors(factors, cache.bstrength);
 
   switch (brush.cloth_deform_type) {
@@ -1020,6 +1026,8 @@ static void calc_forces_bmesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, ob, automask, node, bm_verts, factors);
 
   calc_brush_texture_factors(ss, brush, current_positions, factors);
+
+  bmesh_sculpt_nodes_evaluate(depsgraph, ob, brush, cache, bm_verts, positions, factors);
 
   scale_factors(factors, cache.bstrength);
 

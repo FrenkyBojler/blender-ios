@@ -731,6 +731,7 @@ static void do_smear_brush_task(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
+  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, *ss.cache, vert_positions, verts, factors);
   scale_factors(factors, strength);
 
   float3 brush_delta;

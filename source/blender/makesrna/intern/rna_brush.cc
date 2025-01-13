@@ -567,7 +567,9 @@ static bool rna_BrushCapabilitiesSculpt_has_space_attenuation_get(PointerRNA *pt
 static bool rna_BrushCapabilitiesSculpt_has_node_group_get(PointerRNA *ptr)
 {
   Brush *br = (Brush *)ptr->data;
-  return SCULPT_BRUSH_TYPE_HAS_NODE_GROUP(br->sculpt_brush_type);
+  return !ELEM(br->sculpt_brush_type,
+               SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
+               SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR);
 }
 
 static bool rna_BrushCapabilitiesImagePaint_has_space_attenuation_get(PointerRNA *ptr)
