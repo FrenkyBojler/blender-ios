@@ -24,6 +24,7 @@
 #include "BLI_asan.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_math_bits.h"
 
 #include "BLT_translation.hh"
 
@@ -2354,7 +2355,7 @@ static void rna_def_property_boolean_sdna(PropertyRNA *prop,
 
   /* In 'bitset array' case, ensure that the booleanbit value has a single bit enabled, and find
    * its 'index'. */
-  short bit_index = 0;
+  uint bit_index = 0;
   if (length > 1) {
     if (booleanbit <= 0) {
       CLOG_ERROR(&LOG,
@@ -2367,10 +2368,8 @@ static void rna_def_property_boolean_sdna(PropertyRNA *prop,
       return;
     }
 
-    int64_t bit = booleanbit;
-    for (; (bit & 1) == 0 && bit != 0; bit >>= 1, bit_index++)
-      ;
-    if (bit != 1) {
+    bit_index = bitscan_forward_uint64(*reinterpret_cast<const uint64_t *>(&booleanbit));
+    if ((booleanbit & ~(1 << bit_index)) != 0) {
       CLOG_ERROR(&LOG,
                  "%s.%s is using a multi-bit 'booleanbit' value of %ld, which is invalid for "
                  "'bitset arrays' boolean properties.",

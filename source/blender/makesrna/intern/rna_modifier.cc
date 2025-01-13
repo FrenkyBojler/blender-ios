@@ -6897,8 +6897,8 @@ static void rna_def_modifier_meshcache(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "flip_axis", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flip_axis", MOD_MESHCACHE_FLIP_AXIS_X);
-  RNA_def_property_array(prop, 3);
+  RNA_def_property_boolean_bitset_array_sdna(
+      prop, nullptr, "flip_axis", MOD_MESHCACHE_FLIP_AXIS_X, 3);
   RNA_def_property_ui_text(prop, "Flip Axis", "");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
