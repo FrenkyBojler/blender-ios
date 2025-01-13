@@ -153,7 +153,7 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
 
 static Manifold manifold_from_mesh_via_meshgl(const Mesh *mesh, int mesh_index, int faceID_offset)
 {
-  constexpr int dbg_level = 0;
+  constexpr int dbg_level = 1;
   if (dbg_level > 0) {
     std::cout << "\nMANIFOLD_FRON_MESH_VIA_MESHGL\n";
     dump_mesh(mesh, "mesh " + std::to_string(mesh_index));
@@ -915,6 +915,82 @@ static bool need_material_attribute(Span<Array<short>> material_remaps)
   return false;
 }
 
+/* Return true if direction vectors \a a and \a b are approximately parallel. */
+static inline bool approximately_parallel(const float3 &a, const float3 &b)
+{
+  float ab = math::length(a) * math::length(b);
+  if (ab == 0.0f) {
+    return true;
+  }
+  float abs_cos_ab = math::abs(math::dot(a, b) / ab);
+  return (math::abs(abs_cos_ab - 1.0f) <= 1e-5f);
+}
+
+/* Look for an edge in face \a face_index of \a mesh can be
+ * used as an attribute representative for an edge between
+ * vertices \a vert_index and \a vert_index_next in the same
+ * face, if any.
+ * Also look for a corner in that face that is for vertex \a vert_index.
+ *
+ * It is possible that either of vert_index or vert_index_next is -1.
+ * If only one of them is -1, look for an edge attached to the other
+ * and in the same direction as \a edge_dir.
+ *
+ * Return a pair where the first element is the edge index in \a mesh
+ * that is a good representative, or -1 if none, and the second element
+ * is the corner in \a mesh that is a corner of our face that is for
+ * \a vert+index, or -1 if none.
+ *
+ * Note there are some cases that this logic won't find a representative
+ * edge when one exists: (a) if there are vertex aliases such that the same
+ * output vertex maps to multiple input vertices; (b) if the original edge
+ * only exists as middle subset in the output face. A TODO to handle these.
+ */
+static int2 get_rep_edge_and_corner(const int vert_index,
+                                    const int vert_index_next,
+                                    const float3 &edge_dir,
+                                    const Mesh *mesh,
+                                    const int face_index)
+{
+  const IndexRange face = mesh->faces()[face_index];
+  Span<int> corner_verts = mesh->corner_verts();
+  Span<int> corner_edges = mesh->corner_edges();
+  Span<float3> vert_positions = mesh->vert_positions();
+  int rep_edge = -1;
+  int rep_corner = -1;
+  if (vert_index != -1) {
+    const int corner = bke::mesh::face_find_corner_from_vert(face, corner_verts, vert_index);
+    if (corner != -1) {
+      rep_corner = corner;
+      const int next_corner = bke::mesh::face_corner_next(face, corner);
+      const int face_v_next = corner_verts[next_corner];
+      if (face_v_next == vert_index_next) {
+        rep_edge = corner_edges[corner];
+      }
+      else {
+        /* Does the direciton match at least? */
+        const float3 mesh_edge_dir = vert_positions[face_v_next] - vert_positions[vert_index];
+        if (approximately_parallel(edge_dir, mesh_edge_dir)) {
+          rep_edge = corner_edges[corner];
+        }
+      }
+    }
+  }
+  else if (vert_index_next != -1) {
+    /* Maybe there is an edge that ends at vert_index_next and is in the right direction. */
+    const int corner = bke::mesh::face_find_corner_from_vert(face, corner_verts, vert_index_next);
+    if (corner != -1) {
+      const int prev_corner = bke::mesh::face_corner_prev(face, corner);
+      const int face_v_prev = corner_verts[prev_corner];
+      const float3 mesh_edge_dir = vert_positions[vert_index_next] - vert_positions[face_v_prev];
+      if (approximately_parallel(edge_dir, mesh_edge_dir)) {
+        rep_edge = corner_edges[prev_corner];
+      }
+    }
+  }
+  return int2(rep_edge, rep_corner);
+}
+
 /* Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
  * Note: the caller of mesh_boolean_manifold will fix the returned
@@ -925,7 +1001,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                             Span<Array<short>> material_remaps,
                             const MeshOffsets &mesh_offsets)
 {
-  constexpr int dbg_level = 0;
+  constexpr int dbg_level = 1;
   if (dbg_level > 0) {
     std::cout << "\nMESHGL_TO_MESH\n";
     dump_meshgl(mgl, "meshgl_to_mesh argument");
@@ -946,7 +1022,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   /* Get total number of corners, and index of the start
    * corner for each new face. */
   int tot_corners = 0;
-  /* TODO: parallelize corner counting and offset calculation. */
+  /* TODO: maybe parallelize corner counting and offset calculation. */
   Array<int> face_corner_start_index;
   {
     timeit::ScopedTimer timer_c("calculate corner_start_index");
@@ -1018,6 +1094,72 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     timeit::ScopedTimer timer_e("calculating edges");
     bke::mesh_calc_edges(*mesh, false, false);
   }
+  
+  // TODO: only do this if there are any edge or corner attributes
+  if (true)
+  {
+    timeit::ScopedTimer timer_eattr("calculating edge and corner attrs");
+    Span<int> corner_edges = mesh->corner_edges();
+    Span<int> corner_verts = mesh->corner_verts();
+    Span<float3> positions = mesh->vert_positions();
+    GAttributeReadWriteSpans edge_attrs(meshes, mesh, bke::AttrDomain::Edge);
+    int grain_size = 25000;
+    threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
+      for (const int face_index : IndexRange(range)) {
+        const int corner_index = face_corner_start_index[face_index];
+        const OutFace &face = ma.new_faces[face_index];
+        const int input_mesh_index = which_offset_index<int>(face.face_id, mesh_offsets.face_offsets);
+        BLI_assert(input_mesh_index >= 0);
+        const Mesh *input_mesh = meshes[input_mesh_index];
+        const int flen = face.verts.size();
+        const int input_face_index = face.face_id - mesh_offsets.face_offsets[input_mesh_index];
+        const int input_face_vert_offset = mesh_offsets.vert_offsets[input_mesh_index];
+        const int input_face_vert_offset_end = mesh_offsets.vert_offsets[input_mesh_index + 1];
+        auto to_mesh_vert_index = [&](int v) {
+          int in_v = ma.out_to_in_vert_map[v];
+          if (in_v == -1 || in_v < input_face_vert_offset || in_v >= input_face_vert_offset_end) {
+            return -1;
+          }
+          return in_v - input_face_vert_offset;
+        };
+        for (const int i : IndexRange(flen)) {
+          const int output_corner = corner_index + i;
+          const int output_e = corner_edges[output_corner];
+          const int output_v = corner_verts[output_corner];
+          const int output_v_next = corner_verts[corner_index + (i + 1) % flen];
+          const int input_v = to_mesh_vert_index(output_v);
+          const int input_v_next = to_mesh_vert_index(output_v_next);
+          float3 edge_dir = positions[output_v_next] - positions[output_v];
+          int2 edge_and_corner = get_rep_edge_and_corner(input_v,
+                                                    input_v_next,
+                                                    edge_dir,
+                                                    input_mesh,
+                                                    input_face_index);
+          /* Just handle edges in forward direction. Assuming mesh is manifold
+           * at this time, there can be at most one face with the edge in a forward
+           * direction, so parallel loops won't race for same edge. */
+          if (true) {
+            //DEBUG!!
+            const int edge_rep = edge_and_corner[0];
+            const int corner_rep = edge_and_corner[1];
+            std::cout << "get edge attrs for output edge " << output_e
+              << " from mesh " << input_mesh_index
+              << " edge " << edge_rep << "\n";
+            std::cout << "get corner attrs for output corner " << output_corner
+              << " from mesh " << input_mesh_index
+              << " corner " << corner_rep << "\n";
+#if 0
+            copy_edge_attrs(edge_attrs,
+                            input_mesh_index,
+                            e,
+                            v,
+                            v_next);
+#endif
+          }
+        }
+      }
+    });
+  }
   if (dbg_level > 0) {
     dump_mesh(mesh, "output mesh");
   }
@@ -1033,7 +1175,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             Span<Array<short>> material_remaps,
                             BooleanOpParameters op_params)
 {
-  constexpr int dbg_level = 0;
+  constexpr int dbg_level = 1;
   if (dbg_level > 0) {
     std::cout << "\nMESH_BOOLEAN_MANIFOLD with " << meshes.size() << " args\n";
   }
