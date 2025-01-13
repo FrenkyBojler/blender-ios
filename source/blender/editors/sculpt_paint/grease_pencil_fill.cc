@@ -983,11 +983,6 @@ static auto fit_strokes_to_view(const ViewContext &view_context,
       const Bounds<float2> render_bounds = {
           fill_bounds.center() - 0.5f * region_bounds.size() * zoom.x,
           fill_bounds.center() + 0.5f * region_bounds.size() * zoom.y};
-      const Bounds<float2> scaled_render_bounds = {
-          fill_bounds.center() -
-              0.5f * region_bounds.size() * zoom.x * math::safe_rcp(pixel_scale),
-          fill_bounds.center() +
-              0.5f * region_bounds.size() * zoom.y * math::safe_rcp(pixel_scale)};
 
       /* Center offset for View3d matrices (strokes to pixels). */
       const float2 offset = math::safe_divide(render_bounds.center() - region_bounds.center(),
