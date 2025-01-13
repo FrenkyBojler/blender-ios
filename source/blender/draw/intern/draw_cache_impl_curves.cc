@@ -1093,30 +1093,6 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
           bke::crazyspace::get_evaluated_curves_deformation(ob, *ob_orig) :
           bke::crazyspace::GeometryDeformation();
 
-  if (is_bezier_needed) {
-    IndexMaskMemory memory;
-    const IndexMask bezier_curves = bke::curves::indices_for_type(curves_orig.curve_types(),
-                                                                  curves_orig.curve_type_counts(),
-                                                                  CURVE_TYPE_BEZIER,
-                                                                  curves_orig.curves_range(),
-                                                                  memory);
-    Array<int> bezier_point_offset_data(bezier_curves.size() + 1);
-    const OffsetIndices<int> bezier_offsets = offset_indices::gather_selected_offsets(
-        curves_orig.points_by_curve(), bezier_curves, bezier_point_offset_data);
-
-    if (DRW_vbo_requested(cache.edit_points_pos)) {
-      create_edit_points_position_and_data(
-          curves_orig, bezier_curves, bezier_offsets, deformation, cache);
-    }
-    if (DRW_vbo_requested(cache.edit_points_selection)) {
-      create_edit_points_selection(curves_orig, bezier_curves, bezier_offsets, cache);
-    }
-    if (DRW_ibo_requested(cache.edit_handles_ibo)) {
-      const IndexMask other_curves = bezier_curves.complement(curves_orig.curves_range(), memory);
-      calc_edit_handles_ibo(curves_orig, bezier_curves, bezier_offsets, other_curves, cache);
-    }
-  }
-
   if (DRW_ibo_requested(cache.sculpt_cage_ibo)) {
     create_sculpt_cage_ibo(curves_orig.points_by_curve(), cache);
   }
@@ -1127,6 +1103,32 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
 
   if (DRW_ibo_requested(cache.edit_curves_lines_ibo)) {
     create_edit_lines_ibo(curves_orig, cache);
+  }
+
+  if (!is_bezier_needed) {
+    return;
+  }
+
+  IndexMaskMemory memory;
+  const IndexMask bezier_curves = bke::curves::indices_for_type(curves_orig.curve_types(),
+                                                                curves_orig.curve_type_counts(),
+                                                                CURVE_TYPE_BEZIER,
+                                                                curves_orig.curves_range(),
+                                                                memory);
+  Array<int> bezier_point_offset_data(bezier_curves.size() + 1);
+  const OffsetIndices<int> bezier_offsets = offset_indices::gather_selected_offsets(
+      curves_orig.points_by_curve(), bezier_curves, bezier_point_offset_data);
+
+  if (DRW_vbo_requested(cache.edit_points_pos)) {
+    create_edit_points_position_and_data(
+        curves_orig, bezier_curves, bezier_offsets, deformation, cache);
+  }
+  if (DRW_vbo_requested(cache.edit_points_selection)) {
+    create_edit_points_selection(curves_orig, bezier_curves, bezier_offsets, cache);
+  }
+  if (DRW_ibo_requested(cache.edit_handles_ibo)) {
+    const IndexMask other_curves = bezier_curves.complement(curves_orig.curves_range(), memory);
+    calc_edit_handles_ibo(curves_orig, bezier_curves, bezier_offsets, other_curves, cache);
   }
 }
 
