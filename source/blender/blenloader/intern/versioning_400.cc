@@ -5511,6 +5511,18 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 20)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      IDProperty *cscene = version_cycles_properties_from_ID(&scene->id);
+      if (cscene) {
+        int my_int = version_cycles_property_int(cscene, "sample_offset", 0);
+        if (version_cycles_property_int(cscene, "sample_offset", 0) > 0) {
+          version_cycles_property_boolean_set(cscene, "use_sample_subset", true);
+        }
+      }
+    }
+  }
+
   /* Always run this versioning; meshes are written with the legacy format which always needs to
    * be converted to the new format on file load. Can be moved to a subversion check in a larger
    * breaking release. */
