@@ -11,9 +11,12 @@ namespace blender::nodes::node_geo_viewport_transform_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Matrix>("Projection")
-      .description("The 3D viewport's perspective or orthographic projection matrix");
+      .description(
+          "Transforms points in view space to region space (\"clip space\" or \"normalized device "
+          "coordinates\")");
   b.add_output<decl::Matrix>("View").description(
-      "The view direction and location of the 3D viewport");
+      "Transforms points from object space to view space using the viewport's location and "
+      "rotation");
   b.add_output<decl::Bool>("Is Orthographic")
       .description("Whether the viewport is using orthographic projection");
 }
@@ -35,7 +38,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_TOOL_VIEWPORT_TRANSFORM, "Viewport Transform", NODE_CLASS_INPUT);
+      &ntype, "GeometryNodeViewportTransform", GEO_NODE_TOOL_VIEWPORT_TRANSFORM, NODE_CLASS_INPUT);
+  ntype.ui_name = "Viewport Transform";
+  ntype.ui_description = "Retrieve the view direction and location of the 3D viewport";
+  ntype.enum_name_legacy = "VIEWPORT_TRANFORM";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_tool_node;

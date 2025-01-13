@@ -10,6 +10,8 @@
 
 #include "DNA_view3d_enums.h"
 
+#include <cstdint>
+
 enum class PaintMode : int8_t;
 struct bContext;
 struct bToolRef;
@@ -18,6 +20,7 @@ struct Image;
 struct ImageUser;
 struct ImBuf;
 struct Main;
+struct Object;
 struct PaintModeSettings;
 struct PaintTileMap;
 struct ReportList;
@@ -38,7 +41,10 @@ void ED_keymap_paint(wmKeyConfig *keyconf);
 void ED_imapaint_clear_partial_redraw();
 void ED_imapaint_dirty_region(
     Image *ima, ImBuf *ibuf, ImageUser *iuser, int x, int y, int w, int h, bool find_old);
-void ED_imapaint_bucket_fill(bContext *C, float color[3], wmOperator *op, const int mouse[2]);
+void ED_imapaint_bucket_fill(bContext *C,
+                             const float color[3],
+                             wmOperator *op,
+                             const int mouse[2]);
 
 /* `paint_image_proj.cc` */
 

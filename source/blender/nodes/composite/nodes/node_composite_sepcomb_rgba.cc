@@ -27,7 +27,7 @@ static void cmp_node_seprgba_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("A").translation_context(BLT_I18NCONTEXT_COLOR);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class SeparateRGBAShaderNode : public ShaderNode {
  public:
@@ -56,7 +56,10 @@ void register_node_type_cmp_seprgba()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(
-      &ntype, CMP_NODE_SEPRGBA_LEGACY, "Separate RGBA (Legacy)", NODE_CLASS_CONVERTER);
+      &ntype, "CompositorNodeSepRGBA", CMP_NODE_SEPRGBA_LEGACY, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Separate RGBA (Legacy)";
+  ntype.ui_description = "Deprecated";
+  ntype.enum_name_legacy = "SEPRGBA";
   ntype.declare = file_ns::cmp_node_seprgba_declare;
   ntype.gather_link_search_ops = nullptr;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
@@ -94,7 +97,7 @@ static void cmp_node_combrgba_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Color>("Image");
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class CombineRGBAShaderNode : public ShaderNode {
  public:
@@ -123,7 +126,10 @@ void register_node_type_cmp_combrgba()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(
-      &ntype, CMP_NODE_COMBRGBA_LEGACY, "Combine RGBA (Legacy)", NODE_CLASS_CONVERTER);
+      &ntype, "CompositorNodeCombRGBA", CMP_NODE_COMBRGBA_LEGACY, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Combine RGBA (Legacy)";
+  ntype.ui_description = "Deprecated";
+  ntype.enum_name_legacy = "COMBRGBA";
   ntype.declare = file_ns::cmp_node_combrgba_declare;
   ntype.gather_link_search_ops = nullptr;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;

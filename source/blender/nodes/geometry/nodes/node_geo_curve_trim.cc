@@ -74,7 +74,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -127,7 +127,7 @@ static bool trim_curves(const bke::CurvesGeometry &src_curves,
                         const AttributeFilter &attribute_filter,
                         bke::CurvesGeometry &dst_curves)
 {
-  if (src_curves.curves_num() == 0) {
+  if (src_curves.is_empty()) {
     return false;
   }
   fn::FieldEvaluator evaluator{field_context, src_curves.curves_num()};
@@ -158,7 +158,7 @@ static void geometry_set_curve_trim(GeometrySet &geometry_set,
   if (geometry_set.has_curves()) {
     const Curves &src_curves_id = *geometry_set.get_curves();
     const bke::CurvesGeometry &src_curves = src_curves_id.geometry.wrap();
-    const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Curve};
+    const bke::CurvesFieldContext field_context{src_curves_id, AttrDomain::Curve};
     bke::CurvesGeometry dst_curves;
     if (trim_curves(src_curves,
                     mode,
@@ -260,7 +260,10 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_TRIM_CURVE, "Trim Curve", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeTrimCurve", GEO_NODE_TRIM_CURVE, NODE_CLASS_GEOMETRY);
+  ntype.ui_name = "Trim Curve";
+  ntype.ui_description = "Shorten curves by removing portions at the start or end";
+  ntype.enum_name_legacy = "TRIM_CURVE";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;

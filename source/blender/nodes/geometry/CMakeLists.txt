@@ -8,18 +8,8 @@ set(INC
   include
   ../intern
   ../../editors/include
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
-  ../../bmesh
-  ../../functions
-  ../../geometry
-  ../../gpu
-  ../../imbuf
   ../../makesrna
   ../../modifiers
-  ../../render
-  ../../windowmanager
   ../../io/common
   ../../io/ply
   ../../io/stl
@@ -101,6 +91,7 @@ set(SRC
   nodes/node_geo_index_of_nearest.cc
   nodes/node_geo_index_switch.cc
   nodes/node_geo_input_active_camera.cc
+  nodes/node_geo_input_collection.cc
   nodes/node_geo_input_curve_handles.cc
   nodes/node_geo_input_curve_tilt.cc
   nodes/node_geo_input_edge_smooth.cc
@@ -123,6 +114,7 @@ set(SRC
   nodes/node_geo_input_named_attribute.cc
   nodes/node_geo_input_named_layer_selection.cc
   nodes/node_geo_input_normal.cc
+  nodes/node_geo_input_object.cc
   nodes/node_geo_input_position.cc
   nodes/node_geo_input_radius.cc
   nodes/node_geo_input_scene_time.cc
@@ -140,6 +132,7 @@ set(SRC
   nodes/node_geo_material_selection.cc
   nodes/node_geo_menu_switch.cc
   nodes/node_geo_merge_by_distance.cc
+  nodes/node_geo_merge_layers.cc
   nodes/node_geo_mesh_face_group_boundaries.cc
   nodes/node_geo_mesh_primitive_circle.cc
   nodes/node_geo_mesh_primitive_cone.cc
@@ -231,6 +224,7 @@ set(SRC
 
   include/NOD_geo_bake.hh
   include/NOD_geo_capture_attribute.hh
+  include/NOD_geo_foreach_geometry_element.hh
   include/NOD_geo_index_switch.hh
   include/NOD_geo_menu_switch.hh
   include/NOD_geo_repeat.hh
@@ -243,17 +237,25 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  bf_bmesh
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_functions
-  bf_geometry
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_nodes
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_IO_STL)

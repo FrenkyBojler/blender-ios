@@ -8,8 +8,6 @@
  * Interactions with the underlying platform.
  */
 
-#include "BLI_string.h"
-
 #include "WM_api.hh" /* Own include. */
 
 #ifdef WIN32
@@ -17,9 +15,11 @@
 #elif defined(__APPLE__)
 /* Pass. */
 #else
+#  include "BLI_string.h"
+
 #  include "BKE_context.hh"
 
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_run.hh"
 #endif
 
 /* -------------------------------------------------------------------- */

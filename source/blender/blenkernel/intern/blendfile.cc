@@ -16,6 +16,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_brush_types.h"
+#include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -24,7 +26,7 @@
 #include "BLI_fileops.h"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
@@ -69,7 +71,7 @@
 #include "RE_pipeline.h"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 using namespace blender::bke;
@@ -481,7 +483,7 @@ static void reuse_editable_asset_bmain_data_for_blendfile(ReuseOldBMainData *reu
 
   FOREACH_MAIN_LISTBASE_ID_BEGIN (old_lb, old_id_iter) {
     /* Keep any datablocks from libraries marked as LIBRARY_ASSET_EDITABLE. */
-    if (!((ID_IS_LINKED(old_id_iter) && old_id_iter->lib->runtime.tag & LIBRARY_ASSET_EDITABLE))) {
+    if (!(ID_IS_LINKED(old_id_iter) && old_id_iter->lib->runtime.tag & LIBRARY_ASSET_EDITABLE)) {
       continue;
     }
 
@@ -505,6 +507,27 @@ static void reuse_editable_asset_bmain_data_for_blendfile(ReuseOldBMainData *reu
                                   reuse_editable_asset_bmain_data_dependencies_process_cb,
                                   reuse_data,
                                   IDWALK_RECURSE | IDWALK_DO_LIBRARY_POINTER);
+    }
+  }
+  FOREACH_MAIN_LISTBASE_ID_END;
+}
+
+/**
+ * Grease pencil brushes may have a material pinned that is from the current file. Moving local
+ * scene data to a different #Main is tricky, so in that case, unpin the material.
+ */
+static void unpin_file_local_grease_pencil_brush_materials(const ReuseOldBMainData *reuse_data)
+{
+  ID *old_id_iter;
+  FOREACH_MAIN_LISTBASE_ID_BEGIN (&reuse_data->old_bmain->brushes, old_id_iter) {
+    const Brush *brush = reinterpret_cast<Brush *>(old_id_iter);
+    if (brush->gpencil_settings && brush->gpencil_settings->material &&
+        /* Don't unpin if this material is linked, then it can be preserved for the new file. */
+        !ID_IS_LINKED(brush->gpencil_settings->material))
+    {
+      /* Unpin material and clear pointer. */
+      brush->gpencil_settings->flag &= ~GP_BRUSH_MATERIAL_PINNED;
+      brush->gpencil_settings->material = nullptr;
     }
   }
   FOREACH_MAIN_LISTBASE_ID_END;
@@ -756,7 +779,7 @@ static void reuse_bmain_data_invalid_local_usages_fix(ReuseOldBMainData *reuse_d
                                     nullptr;
 
     BKE_library_foreach_ID_link(
-        new_bmain, id_iter, reuse_bmain_data_invalid_local_usages_fix_cb, reuse_data, 0);
+        new_bmain, id_iter, reuse_bmain_data_invalid_local_usages_fix_cb, reuse_data, IDWALK_NOP);
 
     /* Liboverrides who lost their reference should not be liboverrides anymore, but regular IDs.
      */
@@ -946,6 +969,7 @@ static void setup_app_data(bContext *C,
     BKE_main_idmap_destroy(reuse_data.id_map);
 
     if (!params->is_factory_settings && reuse_editable_asset_needed(&reuse_data)) {
+      unpin_file_local_grease_pencil_brush_materials(&reuse_data);
       /* Keep linked brush asset data, similar to UI data. Only does a known
        * subset know. Could do everything, but that risks dragging along more
        * scene data than we want. */
@@ -1130,6 +1154,7 @@ static void setup_app_data(bContext *C,
      * and/or needs to operate over the whole Main data-base
      * (versioning done in file reading code only operates on a per-library basis). */
     BLO_read_do_version_after_setup(bmain, nullptr, reports);
+    BLO_readfile_id_runtime_data_free_all(*bmain);
   }
 
   bmain->recovered = false;
@@ -1178,7 +1203,7 @@ static void setup_app_data(bContext *C,
 
   BLI_assert(BKE_main_namemap_validate(bmain));
 
-  if (mode != LOAD_UNDO && !USER_EXPERIMENTAL_TEST(&U, no_override_auto_resync)) {
+  if (mode != LOAD_UNDO && liboverride::is_auto_resync_enabled()) {
     reports->duration.lib_overrides_resync = BLI_time_now_seconds();
 
     BKE_lib_override_library_main_resync(
@@ -1445,6 +1470,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
         "io_scene_gltf2",
         "cycles",
         "pose_library",
+        "bl_pkg",
     };
     for (int i = 0; i < ARRAY_SIZE(addons); i++) {
       bAddon *addon = BKE_addon_new();
@@ -1492,11 +1518,25 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
   {
     BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
-        userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh/Sculpt/Cloth");
+        userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh Sculpt/General");
     BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
-        userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh/Sculpt/General");
+        userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh Sculpt/Paint");
     BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
-        userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh/Sculpt/Painting");
+        userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh Sculpt/Simulation");
+
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_gpencil_paint", "Brushes/Grease Pencil Draw/Draw");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_gpencil_paint", "Brushes/Grease Pencil Draw/Erase");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_gpencil_paint", "Brushes/Grease Pencil Draw/Utilities");
+
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_gpencil_sculpt", "Brushes/Grease Pencil Sculpt/Contrast");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_gpencil_sculpt", "Brushes/Grease Pencil Sculpt/Transform");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_gpencil_sculpt", "Brushes/Grease Pencil Sculpt/Utilities");
   }
 
   return userdef;
@@ -1751,12 +1791,10 @@ ID *PartialWriteContext::id_add_copy(const ID *id, const bool regenerate_session
 {
   ID *ctx_root_id = nullptr;
   BLI_assert(BKE_main_idmap_lookup_uid(matching_uid_map_, id->session_uid) == nullptr);
-  ctx_root_id = BKE_id_copy_in_lib(nullptr,
-                                   id->lib,
-                                   id,
-                                   nullptr,
-                                   nullptr,
-                                   (LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT));
+  const int copy_flags = (LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT |
+                          /* NOTE: Could make this an option if needed in the future */
+                          LIB_ID_COPY_ASSET_METADATA);
+  ctx_root_id = BKE_id_copy_in_lib(nullptr, id->lib, id, nullptr, nullptr, copy_flags);
   ctx_root_id->tag |= ID_TAG_TEMP_MAIN;
   if (regenerate_session_uid) {
     /* Calling #BKE_lib_libblock_session_uid_renew is not needed here, copying already generated a
@@ -1778,9 +1816,20 @@ void PartialWriteContext::make_local(ID *ctx_id, const int make_local_flags)
   /* Making an ID local typically resets its session UID, here we want to keep the same value. */
   const uint ctx_id_session_uid = ctx_id->session_uid;
   BKE_main_idmap_remove_id(this->bmain.id_map, ctx_id);
-  BKE_main_idmap_insert_id(matching_uid_map_, ctx_id);
+  BKE_main_idmap_remove_id(matching_uid_map_, ctx_id);
 
-  BKE_lib_id_make_local(&this->bmain, ctx_id, make_local_flags);
+  if (ID_IS_LINKED(ctx_id)) {
+    BKE_lib_id_make_local(&this->bmain, ctx_id, make_local_flags);
+  }
+  /* NOTE: Cannot rely only on `ID_IS_OVERRIDE_LIBRARY` here, as the reference pointer to the
+   * linked data may have already been cleared out by dependency management in code above that
+   * call. */
+  else if ((ctx_id->override_library || ID_IS_OVERRIDE_LIBRARY(ctx_id)) &&
+           (make_local_flags & LIB_ID_MAKELOCAL_LIBOVERRIDE_CLEAR) != 0)
+
+  {
+    BKE_lib_override_library_make_local(&this->bmain, ctx_id);
+  }
 
   this->preempt_session_uid(ctx_id, ctx_id_session_uid);
   BKE_main_idmap_insert_id(this->bmain.id_map, ctx_id);
@@ -1886,13 +1935,12 @@ ID *PartialWriteContext::id_add(
       return IDWALK_RET_NOP;
     }
 
-    PartialWriteContext::IDAddOperations operations_final = PartialWriteContext::IDAddOperations(
-        options.operations & MASK_INHERITED);
+    PartialWriteContext::IDAddOperations operations_final = (options.operations & MASK_INHERITED);
     if (dependencies_filter_cb) {
       const PartialWriteContext::IDAddOperations operations_per_id = dependencies_filter_cb(
           cb_data, options);
-      operations_final = PartialWriteContext::IDAddOperations(
-          (operations_per_id & MASK_PER_ID_USAGE) | (operations_final & ~MASK_PER_ID_USAGE));
+      operations_final = ((operations_per_id & MASK_PER_ID_USAGE) |
+                          (operations_final & ~MASK_PER_ID_USAGE));
     }
 
     const bool add_dependencies = (operations_final & ADD_DEPENDENCIES) != 0;

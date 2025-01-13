@@ -6,22 +6,15 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 
 #include "DNA_ID.h"
 #include "DNA_material_types.h"
-#include "DNA_object_types.h"
-#include "DNA_vfont_types.h"
 
-#include "BLI_utildefines.h"
-
-#include "BKE_icons.h"
 #include "BKE_lib_id.hh"
-#include "BKE_main_namemap.hh"
-#include "BKE_object.hh"
 
-#include "RNA_access.hh"
+#include "BLT_translation.hh"
+
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -135,7 +128,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
      "filter_grease_pencil",
      ICON_GREASEPENCIL,
      "Grease Pencil",
-     "Show Grease pencil data-blocks"},
+     "Show Grease Pencil data-blocks"},
     {FILTER_ID_GR,
      "filter_group",
      ICON_OUTLINER_COLLECTION,
@@ -219,13 +212,14 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_global.hh" /* XXX, remove me */
+#  include "BKE_icons.h"
 #  include "BKE_idprop.hh"
 #  include "BKE_idtype.hh"
 #  include "BKE_lib_override.hh"
 #  include "BKE_lib_query.hh"
 #  include "BKE_lib_remap.hh"
 #  include "BKE_library.hh"
-#  include "BKE_material.h"
+#  include "BKE_material.hh"
 #  include "BKE_preview_image.hh"
 #  include "BKE_vfont.hh"
 
@@ -238,7 +232,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 #  include "WM_api.hh"
 
 #  ifdef WITH_PYTHON
-#    include "BPY_extern.h"
+#    include "BPY_extern.hh"
 #  endif
 
 void rna_ID_override_library_property_operation_refname_get(PointerRNA *ptr, char *value)
@@ -660,6 +654,9 @@ IDProperty **rna_PropertyGroup_idprops(PointerRNA *ptr)
 
 bool rna_PropertyGroup_unregister(Main * /*bmain*/, StructRNA *type)
 {
+  /* Ensure that a potential py object representing this RNA type is properly dereferenced. */
+  BPY_free_srna_pytype(type);
+
   RNA_struct_free(&BLENDER_RNA, type);
   return true;
 }
@@ -2149,7 +2146,7 @@ static void rna_def_ID_override_library(BlenderRNA *brna)
                          "view_layer",
                          "ViewLayer",
                          "",
-                         "The view layer to operate in (same usage as the `scene` data, in case "
+                         "The view layer to operate in (same usage as the ``scene`` data, in case "
                          "it is not provided the scene's collection will be used instead)");
   parm = RNA_def_pointer(
       func,
@@ -2269,6 +2266,7 @@ static void rna_def_ID(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "id_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_ui_text(prop, "Type", "Type identifier of this data-block");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   RNA_def_property_enum_items(prop, rna_enum_id_type_items);
   RNA_def_property_enum_funcs(prop, "rna_ID_type_get", nullptr, nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);

@@ -28,7 +28,7 @@ static Curves *subdivide_curves(const Curves &src_curves_id,
 {
   const bke::CurvesGeometry &src_curves = src_curves_id.geometry.wrap();
 
-  const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Point};
+  const bke::CurvesFieldContext field_context{src_curves_id, AttrDomain::Point};
   fn::FieldEvaluator evaluator{field_context, src_curves.points_num()};
   evaluator.add(cuts_field);
   evaluator.evaluate();
@@ -106,8 +106,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_SUBDIVIDE_CURVE, "Subdivide Curve", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(
+      &ntype, "GeometryNodeSubdivideCurve", GEO_NODE_SUBDIVIDE_CURVE, NODE_CLASS_GEOMETRY);
+  ntype.ui_name = "Subdivide Curve";
+  ntype.ui_description = "Dividing each curve segment into a specified number of pieces";
+  ntype.enum_name_legacy = "SUBDIVIDE_CURVE";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

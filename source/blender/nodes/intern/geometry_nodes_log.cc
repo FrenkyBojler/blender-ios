@@ -8,6 +8,7 @@
 #include "BKE_compute_contexts.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_type_conversions.hh"
@@ -23,6 +24,8 @@
 #include "ED_viewer_path.hh"
 
 #include "MOD_nodes.hh"
+
+#include "UI_resources.hh"
 
 namespace blender::nodes::geo_eval_log {
 
@@ -317,7 +320,7 @@ void GeoTreeLog::ensure_node_warnings(const bNodeTree *tree)
         if (node->is_group() && node->id) {
           child_tree = reinterpret_cast<const bNodeTree *>(node->id);
         }
-        else if (bke::all_zone_output_node_types().contains(node->type)) {
+        else if (bke::all_zone_output_node_types().contains(node->type_legacy)) {
           child_tree = tree;
         }
       }
@@ -348,18 +351,6 @@ void GeoTreeLog::ensure_execution_times()
       this->nodes.lookup_or_add_default_as(timings.node_id).execution_time += duration;
     }
     this->execution_time += tree_logger->execution_time;
-  }
-  for (const ComputeContextHash &child_hash : children_hashes_) {
-    GeoTreeLog &child_log = modifier_log_->get_tree_log(child_hash);
-    if (child_log.tree_loggers_.is_empty()) {
-      continue;
-    }
-    child_log.ensure_execution_times();
-    const std::optional<int32_t> &parent_node_id = child_log.tree_loggers_[0]->parent_node_id;
-    if (parent_node_id.has_value()) {
-      this->nodes.lookup_or_add_default(*parent_node_id).execution_time +=
-          child_log.execution_time;
-    }
   }
   reduced_execution_times_ = true;
 }
@@ -642,7 +633,7 @@ static void find_tree_zone_hash_recursive(
     ComputeContextBuilder &compute_context_builder,
     Map<const bNodeTreeZone *, ComputeContextHash> &r_hash_by_zone)
 {
-  switch (zone.output_node->type) {
+  switch (zone.output_node->type_legacy) {
     case GEO_NODE_SIMULATION_OUTPUT: {
       compute_context_builder.push<bke::SimulationZoneComputeContext>(*zone.output_node);
       break;
@@ -782,6 +773,34 @@ const ViewerNodeLog *GeoModifierLog::find_viewer_node_log_for_path(const ViewerP
   const ViewerNodeLog *viewer_log = tree_log.viewer_node_logs.lookup_default(
       parsed_path->viewer_node_id, nullptr);
   return viewer_log;
+}
+
+int node_warning_type_icon(const NodeWarningType type)
+{
+  switch (type) {
+    case NodeWarningType::Error:
+      return ICON_CANCEL;
+    case NodeWarningType::Warning:
+      return ICON_ERROR;
+    case NodeWarningType::Info:
+      return ICON_INFO;
+  }
+  BLI_assert_unreachable();
+  return ICON_ERROR;
+}
+
+int node_warning_type_severity(const NodeWarningType type)
+{
+  switch (type) {
+    case NodeWarningType::Error:
+      return 3;
+    case NodeWarningType::Warning:
+      return 2;
+    case NodeWarningType::Info:
+      return 1;
+  }
+  BLI_assert_unreachable();
+  return 0;
 }
 
 }  // namespace blender::nodes::geo_eval_log

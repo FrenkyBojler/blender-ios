@@ -22,6 +22,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_instances.hh"
 #include "BKE_modifier.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 
@@ -236,6 +237,10 @@ class LinearGizmo : public NodeGizmos {
 
     WM_gizmo_set_line_width(gizmo_, 1.0f);
 
+    const float length = (storage.draw_style == GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX) ? 0.8f :
+                                                                                        1.0f;
+    RNA_float_set(gizmo_->ptr, "length", length);
+
     const ThemeColorID color_theme_id = get_gizmo_theme_color_id(
         GeometryNodeGizmoColor(storage.color_id));
     UI_GetThemeColor3fv(color_theme_id, gizmo_->color);
@@ -374,7 +379,14 @@ class DialGizmo : public NodeGizmos {
     copy_m4_m4(gizmo_->matrix_basis, gizmo_transform.ptr());
 
     WM_gizmo_set_flag(gizmo_, WM_GIZMO_DRAW_NO_SCALE, !screen_space);
-    copy_m4_m4(gizmo_->matrix_offset, math::from_scale<float4x4>(float3(radius)).ptr());
+    float transform_scale = 1.0f;
+    if (!screen_space) {
+      /* We can't scale the dial gizmo non-uniformly, so just take the average of the scale in each
+       * axis for now. */
+      transform_scale = math::average(math::to_scale(params.parent_transform));
+    }
+    copy_m4_m4(gizmo_->matrix_offset,
+               math::from_scale<float4x4>(float3(radius * transform_scale)).ptr());
 
     return true;
   }
@@ -781,7 +793,7 @@ struct GeometryNodesGizmoGroup {
 
 static std::unique_ptr<NodeGizmos> create_gizmo_node_gizmos(const bNode &gizmo_node)
 {
-  switch (gizmo_node.type) {
+  switch (gizmo_node.type_legacy) {
     case GEO_NODE_GIZMO_LINEAR:
       return std::make_unique<LinearGizmo>();
     case GEO_NODE_GIZMO_DIAL:
@@ -1061,7 +1073,7 @@ static void WIDGETGROUP_geometry_nodes_refresh(const bContext *C, wmGizmoGroup *
                                                   modify_value);
 
                 Main *main = CTX_data_main(C);
-                ED_node_tree_propagate_change(const_cast<bContext *>(C), main, nullptr);
+                ED_node_tree_propagate_change(*main);
                 WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
               };
         }

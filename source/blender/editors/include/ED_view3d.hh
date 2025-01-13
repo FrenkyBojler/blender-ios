@@ -182,8 +182,8 @@ void ED_view3d_lastview_store(RegionView3D *rv3d);
 
 /* Depth buffer */
 enum eV3DDepthOverrideMode {
-  /** Redraw viewport without overlays. */
-  V3D_DEPTH_NO_OVERLAYS = 0,
+  /** Redraw viewport with all objects. */
+  V3D_DEPTH_ALL = 0,
   /** Redraw viewport without Grease Pencil. */
   V3D_DEPTH_NO_GPENCIL,
   /** Redraw viewport with Grease Pencil only. */
@@ -198,12 +198,21 @@ enum eV3DDepthOverrideMode {
  * Redraw the viewport depth buffer.
  * Call #ED_view3d_has_depth_buffer_updated if you want to check if the viewport already has depth
  * buffer updated.
+ *
+ * \param use_overlay: When enabled and the `v3d` has overlays enabled, show overlays.
+ * A rule of thumb for this value is:
+ * - For viewport navigation the value should be true.
+ *   Since the user may want to inspect non-geometry contents of their scene.
+ * - For painting and other tools, the value should be false.
+ *   Since it's not typically desirable to paint onto the cameras frame or spot-light,
+ *   nor use these depths for object placement.
  */
 void ED_view3d_depth_override(Depsgraph *depsgraph,
                               ARegion *region,
                               View3D *v3d,
                               Object *obact,
                               eV3DDepthOverrideMode mode,
+                              bool use_overlay,
                               ViewDepths **r_depths);
 void ED_view3d_depths_free(ViewDepths *depths);
 bool ED_view3d_depth_read_cached(const ViewDepths *vd,
@@ -639,6 +648,23 @@ void ED_view3d_win_to_3d_int(const View3D *v3d,
                              const float depth_pt[3],
                              const int mval[2],
                              float r_out[3]);
+/**
+ * Calculate a 3D location from 2D window coordinates including camera shift.
+ *
+ * \note Does the same as #ED_view3d_win_to_3d by using the #RegionView3D::persinv translation
+ * instead of #RegionView3D::viewinv, but that function cannot be changed
+ * without breaking lots of operators.
+ *
+ * \param region: The region (used for the window width and height).
+ * \param depth_pt: The reference location used to calculate the Z depth.
+ * \param mval: The area relative location (such as `event->mval` converted to floats).
+ * \param r_out: The resulting world-space location.
+ */
+void ED_view3d_win_to_3d_with_shift(const View3D *v3d,
+                                    const ARegion *region,
+                                    const float depth_pt[3],
+                                    const float mval[2],
+                                    float r_out[3]);
 bool ED_view3d_win_to_3d_on_plane(const ARegion *region,
                                   const float plane[4],
                                   const float mval[2],
@@ -770,8 +796,8 @@ void ED_view3d_calc_camera_border(const Scene *scene,
                                   const ARegion *region,
                                   const View3D *v3d,
                                   const RegionView3D *rv3d,
-                                  rctf *r_viewborder,
-                                  bool no_shift);
+                                  bool no_shift,
+                                  rctf *r_viewborder);
 void ED_view3d_calc_camera_border_size(const Scene *scene,
                                        Depsgraph *depsgraph,
                                        const ARegion *region,
@@ -779,7 +805,7 @@ void ED_view3d_calc_camera_border_size(const Scene *scene,
                                        const RegionView3D *rv3d,
                                        float r_size[2]);
 bool ED_view3d_calc_render_border(
-    const Scene *scene, Depsgraph *depsgraph, View3D *v3d, ARegion *region, rcti *rect);
+    const Scene *scene, Depsgraph *depsgraph, View3D *v3d, ARegion *region, rcti *r_rect);
 
 void ED_view3d_clipping_calc_from_boundbox(float clip[4][4], const BoundBox *bb, bool is_flip);
 void ED_view3d_clipping_calc(
@@ -888,8 +914,11 @@ bool ED_view3d_autodist_simple(ARegion *region,
                                float mouse_worldloc[3],
                                int margin,
                                const float *force_depth);
-bool ED_view3d_depth_read_cached_seg(
-    const ViewDepths *vd, const int mval_sta[2], const int mval_end[2], int margin, float *depth);
+bool ED_view3d_depth_read_cached_seg(const ViewDepths *vd,
+                                     const int mval_sta[2],
+                                     const int mval_end[2],
+                                     int margin,
+                                     float *r_depth);
 
 /**
  * Returns viewport color in linear space, matching #ED_space_node_color_sample().
@@ -1284,6 +1313,13 @@ void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *area);
 #define XRAY_ALPHA(v3d) SHADING_XRAY_ALPHA((v3d)->shading)
 #define XRAY_FLAG(v3d) SHADING_XRAY_FLAG((v3d)->shading)
 #define XRAY_FLAG_ENABLED(v3d) SHADING_XRAY_FLAG_ENABLED((v3d)->shading)
+/**
+ * Checks X-ray is enabled and the alpha is less than one.
+ *
+ * \note In edit-mode vertices & edges behave differently,
+ * using X-ray drawing irrespective of the alpha value.
+ * In this case #XRAY_FLAG_ENABLED should be used instead.
+ */
 #define XRAY_ENABLED(v3d) SHADING_XRAY_ENABLED((v3d)->shading)
 #define XRAY_ACTIVE(v3d) SHADING_XRAY_ACTIVE((v3d)->shading)
 

@@ -31,8 +31,8 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -798,7 +798,7 @@ static void render_endjob(void *rjv)
 
   if (rj->single_layer) {
     BKE_ntree_update_tag_id_changed(rj->main, &rj->scene->id);
-    BKE_ntree_update_main(rj->main, nullptr);
+    BKE_ntree_update(*rj->main);
     WM_main_add_notifier(NC_NODE | NA_EDITED, rj->scene);
   }
 
@@ -1023,6 +1023,9 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
   /* flush sculpt and editmode changes */
   ED_editors_flush_edits_ex(bmain, true, false);
+
+  /* Cleanup VSE cache, since it is not guaranteed that stored images are invalid. */
+  SEQ_cache_cleanup(scene);
 
   /* store spare
    * get view3d layer, local layer, make this nice api call to render

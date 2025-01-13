@@ -165,7 +165,9 @@ typedef struct ThemeUI {
   float menu_shadow_fac;
   short menu_shadow_width;
 
+  unsigned char editor_border[4];
   unsigned char editor_outline[4];
+  unsigned char editor_outline_active[4];
 
   /* Transparent Grid */
   unsigned char transparent_checker_primary[4], transparent_checker_secondary[4];
@@ -358,7 +360,7 @@ typedef struct ThemeSpace {
   /** For sequence editor. */
   unsigned char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];
   unsigned char effect[4], transition[4], meta[4], text_strip[4], color_strip[4];
-  unsigned char active_strip[4], selected_strip[4];
+  unsigned char active_strip[4], selected_strip[4], text_strip_cursor[4], selected_text[4];
 
   /** For dopesheet - scale factor for size of keyframes (i.e. height of channels). */
   float keyframe_scale_fac;
@@ -538,7 +540,7 @@ typedef struct bTheme {
   /* See COLLECTION_COLOR_TOT for the number of collection colors. */
   ThemeCollectionColor collection_color[8];
 
-  /* See SEQUENCE_COLOR_TOT for the total number of strip colors. */
+  /* See STRIP_COLOR_TOT for the total number of strip colors. */
   ThemeStripColor strip_color[9];
 
   int active_theme_area;
@@ -733,6 +735,10 @@ typedef struct UserDef_FileSpaceData {
   int temp_win_sizey;
 } UserDef_FileSpaceData;
 
+/**
+ * Checking experimental members must use the #USER_EXPERIMENTAL_TEST() macro
+ * unless the #USER_DEVELOPER_UI is known to be enabled.
+ */
 typedef struct UserDef_Experimental {
   /* Debug options, always available. */
   char use_undo_legacy;
@@ -753,15 +759,10 @@ typedef struct UserDef_Experimental {
   char use_sculpt_tools_tilt;
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
-  char enable_overlay_next;
   char use_new_volume_nodes;
   char use_new_file_import_nodes;
   char use_shader_node_previews;
-  char use_animation_baklava;
-  char use_docking;
-  char enable_new_cpu_compositor;
-  char _pad[1];
-  /** `makesdna` does not allow empty structs. */
+  char _pad[5];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
@@ -1293,7 +1294,8 @@ typedef enum eUserpref_UI_Flag {
   USER_ZOOM_TO_MOUSEPOS = (1 << 20),
   USER_SHOW_FPS = (1 << 21),
   USER_REGISTER_ALL_USERS = (1 << 22),
-  USER_UIFLAG_UNUSED_4 = (1 << 23), /* Cleared. */
+  /** Actually implemented in .py. */
+  USER_FILTER_BRUSHES_BY_TOOL = (1 << 23),
   USER_CONTINUOUS_MOUSE = (1 << 24),
   USER_ZOOM_INVERT = (1 << 25),
   USER_ZOOM_HORIZ = (1 << 26), /* for CONTINUE and DOLLY zoom */
@@ -1322,7 +1324,7 @@ typedef enum eUserpref_UI_Flag2 {
 
 /** #UserDef.gpu_flag */
 typedef enum eUserpref_GPU_Flag {
-  USER_GPU_FLAG_NO_DEPT_PICK = (1 << 0),
+  USER_GPU_FLAG_NO_DEPT_PICK = (1 << 0), /* Unused. To be removed. */
   USER_GPU_FLAG_NO_EDIT_MODE_SMOOTH_WIRE = (1 << 1),
   USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE = (1 << 2),
   USER_GPU_FLAG_SUBDIVISION_EVALUATION = (1 << 3),

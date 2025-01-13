@@ -10,7 +10,7 @@
 #include "BLI_math_vector_types.hh"
 
 #include "BKE_global.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
 #include "RNA_access.hh"
 
@@ -46,10 +46,10 @@ static void node_composit_init_viewer(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_viewer(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "use_alpha", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_alpha", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class ViewerOperation : public NodeOperation {
  public:
@@ -85,16 +85,17 @@ class ViewerOperation : public NodeOperation {
     const Result &image = get_input("Image");
     const Result &alpha = get_input("Alpha");
 
-    float4 color = image.get_color_value();
+    float4 color = image.get_single_value<float4>();
     if (ignore_alpha()) {
       color.w = 1.0f;
     }
     else if (node().input_by_identifier("Alpha")->is_logically_linked()) {
-      color.w = alpha.get_float_value();
+      color.w = alpha.get_single_value<float>();
     }
 
     const Domain domain = compute_domain();
-    Result output = context().get_viewer_output_result(domain, image.meta_data.is_non_color_data);
+    Result output = context().get_viewer_output_result(
+        domain, image.meta_data.is_non_color_data, image.precision());
     if (this->context().use_gpu()) {
       GPU_texture_clear(output, GPU_DATA_FLOAT, color);
     }
@@ -118,7 +119,8 @@ class ViewerOperation : public NodeOperation {
   {
     const Result &image = get_input("Image");
     const Domain domain = compute_domain();
-    Result output = context().get_viewer_output_result(domain, image.meta_data.is_non_color_data);
+    Result output = context().get_viewer_output_result(
+        domain, image.meta_data.is_non_color_data, image.precision());
 
     GPUShader *shader = context().get_shader("compositor_write_output_opaque", output.precision());
     GPU_shader_bind(shader);
@@ -142,7 +144,8 @@ class ViewerOperation : public NodeOperation {
   {
     const Domain domain = compute_domain();
     const Result &image = get_input("Image");
-    Result output = context().get_viewer_output_result(domain, image.meta_data.is_non_color_data);
+    Result output = context().get_viewer_output_result(
+        domain, image.meta_data.is_non_color_data, image.precision());
 
     const Bounds<int2> bounds = get_output_bounds();
     parallel_for(domain.size, [&](const int2 texel) {
@@ -150,7 +153,8 @@ class ViewerOperation : public NodeOperation {
       if (output_texel.x > bounds.max.x || output_texel.y > bounds.max.y) {
         return;
       }
-      output.store_pixel(texel + bounds.min, float4(image.load_pixel(texel).xyz(), 1.0f));
+      output.store_pixel(texel + bounds.min,
+                         float4(image.load_pixel<float4, true>(texel).xyz(), 1.0f));
     });
   }
 
@@ -170,7 +174,8 @@ class ViewerOperation : public NodeOperation {
   {
     const Result &image = get_input("Image");
     const Domain domain = compute_domain();
-    Result output = context().get_viewer_output_result(domain, image.meta_data.is_non_color_data);
+    Result output = context().get_viewer_output_result(
+        domain, image.meta_data.is_non_color_data, image.precision());
 
     GPUShader *shader = context().get_shader("compositor_write_output", output.precision());
     GPU_shader_bind(shader);
@@ -194,7 +199,8 @@ class ViewerOperation : public NodeOperation {
   {
     const Domain domain = compute_domain();
     const Result &image = get_input("Image");
-    Result output = context().get_viewer_output_result(domain, image.meta_data.is_non_color_data);
+    Result output = context().get_viewer_output_result(
+        domain, image.meta_data.is_non_color_data, image.precision());
 
     const Bounds<int2> bounds = get_output_bounds();
     parallel_for(domain.size, [&](const int2 texel) {
@@ -202,7 +208,7 @@ class ViewerOperation : public NodeOperation {
       if (output_texel.x > bounds.max.x || output_texel.y > bounds.max.y) {
         return;
       }
-      output.store_pixel(texel + bounds.min, image.load_pixel(texel));
+      output.store_pixel(texel + bounds.min, image.load_pixel<float4>(texel));
     });
   }
 
@@ -221,7 +227,8 @@ class ViewerOperation : public NodeOperation {
   {
     const Result &image = get_input("Image");
     const Domain domain = compute_domain();
-    Result output = context().get_viewer_output_result(domain, image.meta_data.is_non_color_data);
+    Result output = context().get_viewer_output_result(
+        domain, image.meta_data.is_non_color_data, image.precision());
 
     GPUShader *shader = context().get_shader("compositor_write_output_alpha", output.precision());
     GPU_shader_bind(shader);
@@ -250,7 +257,8 @@ class ViewerOperation : public NodeOperation {
     const Domain domain = compute_domain();
     const Result &image = get_input("Image");
     const Result &alpha = get_input("Alpha");
-    Result output = context().get_viewer_output_result(domain, image.meta_data.is_non_color_data);
+    Result output = context().get_viewer_output_result(
+        domain, image.meta_data.is_non_color_data, image.precision());
 
     const Bounds<int2> bounds = get_output_bounds();
     parallel_for(domain.size, [&](const int2 texel) {
@@ -259,7 +267,8 @@ class ViewerOperation : public NodeOperation {
         return;
       }
       output.store_pixel(texel + bounds.min,
-                         float4(image.load_pixel(texel).xyz(), alpha.load_pixel(texel).x));
+                         float4(image.load_pixel<float4, true>(texel).xyz(),
+                                alpha.load_pixel<float, true>(texel)));
     });
   }
 
@@ -315,7 +324,11 @@ void register_node_type_cmp_viewer()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_VIEWER, "Viewer", NODE_CLASS_OUTPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeViewer", CMP_NODE_VIEWER, NODE_CLASS_OUTPUT);
+  ntype.ui_name = "Viewer";
+  ntype.ui_description =
+      "Visualize data from inside a node graph, in the image editor or as a backdrop";
+  ntype.enum_name_legacy = "VIEWER";
   ntype.declare = file_ns::cmp_node_viewer_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_viewer;
   ntype.initfunc = file_ns::node_composit_init_viewer;

@@ -8,20 +8,12 @@
 
 #include <cstdlib>
 
-#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
-#include "DNA_scene_types.h"
-
-#include "BLI_listbase_wrapper.hh"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "BKE_nla.hh"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -31,8 +23,6 @@
 #include "WM_types.hh"
 
 #include "ED_keyframing.hh"
-
-#include "ANIM_action.hh"
 
 using namespace blender;
 
@@ -116,6 +106,10 @@ const EnumPropertyItem rna_enum_keying_flag_api_items[] = {
 #  include "BKE_fcurve.hh"
 #  include "BKE_nla.hh"
 
+#  include "ANIM_action.hh"
+#  include "ANIM_action_legacy.hh"
+#  include "ANIM_keyingsets.hh"
+
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
 
@@ -161,29 +155,22 @@ static PointerRNA rna_AnimData_action_get(PointerRNA *ptr)
   return RNA_id_pointer_create(&action->id);
 }
 
-static void rna_AnimData_action_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
+static void rna_AnimData_action_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
 {
-#  ifdef WITH_ANIM_BAKLAVA
   using namespace blender::animrig;
   BLI_assert(ptr->owner_id);
   ID &animated_id = *ptr->owner_id;
 
-  /* TODO: protect against altering action in NLA tweak mode, see BKE_animdata_action_editable() */
-
   Action *action = static_cast<Action *>(value.data);
-  assign_action(action, animated_id);
-#  else
-  ID *ownerId = ptr->owner_id;
-  BKE_animdata_set_action(nullptr, ownerId, static_cast<bAction *>(value.data));
-#  endif
+  if (!assign_action(action, animated_id)) {
+    BKE_report(reports, RPT_ERROR, "Could not change action");
+  }
 }
 
-static void rna_AnimData_tmpact_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
+static void rna_AnimData_tmpact_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
 {
   ID *ownerId = ptr->owner_id;
-
-  /* set action */
-  BKE_animdata_set_tmpact(nullptr, ownerId, static_cast<bAction *>(value.data));
+  BKE_animdata_set_tmpact(reports, ownerId, static_cast<bAction *>(value.data));
 }
 
 static void rna_AnimData_tweakmode_set(PointerRNA *ptr, const bool value)
@@ -230,7 +217,6 @@ bool rna_AnimData_tweakmode_override_apply(Main * /*bmain*/,
   return true;
 }
 
-#  ifdef WITH_ANIM_BAKLAVA
 void rna_generic_action_slot_handle_set(blender::animrig::slot_handle_t slot_handle_to_assign,
                                         ID &animated_id,
                                         bAction *&action_ptr_ref,
@@ -269,7 +255,7 @@ static void rna_AnimData_action_slot_handle_set(
   AnimData *adt = BKE_animdata_from_id(&animated_id);
 
   rna_generic_action_slot_handle_set(
-      new_slot_handle, animated_id, adt->action, adt->slot_handle, adt->slot_name);
+      new_slot_handle, animated_id, adt->action, adt->slot_handle, adt->last_slot_identifier);
 }
 
 static AnimData &rna_animdata(const PointerRNA *ptr)
@@ -319,14 +305,16 @@ void rna_generic_action_slot_set(PointerRNA rna_slot_to_assign,
     case ActionSlotAssignmentResult::OK:
       break;
     case ActionSlotAssignmentResult::SlotNotFromAction:
-      BKE_reportf(
-          reports, RPT_ERROR, "This slot (%s) does not belong to the assigned Action", slot->name);
+      BKE_reportf(reports,
+                  RPT_ERROR,
+                  "This slot (%s) does not belong to the assigned Action",
+                  slot->identifier);
       break;
     case ActionSlotAssignmentResult::SlotNotSuitable:
       BKE_reportf(reports,
                   RPT_ERROR,
                   "This slot (%s) is not suitable for this data-block type (%c%c)",
-                  slot->name,
+                  slot->identifier,
                   animated_id.name[0],
                   animated_id.name[1]);
       break;
@@ -346,7 +334,7 @@ static void rna_AnimData_action_slot_set(PointerRNA *ptr, PointerRNA value, Repo
   }
 
   rna_generic_action_slot_set(
-      value, *animated_id, adt->action, adt->slot_handle, adt->slot_name, reports);
+      value, *animated_id, adt->action, adt->slot_handle, adt->last_slot_identifier, reports);
 }
 
 static void rna_AnimData_action_slot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -363,7 +351,7 @@ static void rna_AnimData_action_slot_update(Main *bmain, Scene *scene, PointerRN
  * to refer to this from any other file, though, which is why it's not declared in
  * rna_action_tools.hh.
  */
-bool rna_iterator_generic_action_slots_skip(CollectionPropertyIterator *iter, void *data)
+bool rna_iterator_generic_action_suitable_slots_skip(CollectionPropertyIterator *iter, void *data)
 {
   using animrig::Slot;
 
@@ -381,8 +369,8 @@ bool rna_iterator_generic_action_slots_skip(CollectionPropertyIterator *iter, vo
   return !slot.is_suitable_for(*animated_id);
 }
 
-void rna_iterator_generic_action_slots_begin(CollectionPropertyIterator *iter,
-                                             bAction *assigned_action)
+void rna_iterator_generic_action_suitable_slots_begin(CollectionPropertyIterator *iter,
+                                                      bAction *assigned_action)
 {
   if (!assigned_action) {
     /* No action means no slots. */
@@ -397,16 +385,14 @@ void rna_iterator_generic_action_slots_begin(CollectionPropertyIterator *iter,
                            sizeof(animrig::Slot *),
                            slots.size(),
                            0,
-                           rna_iterator_generic_action_slots_skip);
+                           rna_iterator_generic_action_suitable_slots_skip);
 }
 
-static void rna_iterator_animdata_action_slots_begin(CollectionPropertyIterator *iter,
-                                                     PointerRNA *ptr)
+static void rna_iterator_animdata_action_suitable_slots_begin(CollectionPropertyIterator *iter,
+                                                              PointerRNA *ptr)
 {
-  rna_iterator_generic_action_slots_begin(iter, rna_animdata(ptr).action);
+  rna_iterator_generic_action_suitable_slots_begin(iter, rna_animdata(ptr).action);
 }
-
-#  endif /* WITH_ANIM_BAKLAVA */
 
 /* ****************************** */
 
@@ -515,7 +501,7 @@ static bool rna_KeyingSetInfo_unregister(Main *bmain, StructRNA *type)
   WM_main_add_notifier(NC_WINDOW, nullptr);
 
   /* unlink Blender-side data */
-  ANIM_keyingset_info_unregister(bmain, ksi);
+  blender::animrig::keyingset_info_unregister(bmain, ksi);
   return true;
 }
 
@@ -553,7 +539,7 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   }
 
   /* check if we have registered this info before, and remove it */
-  ksi = ANIM_keyingset_info_find_name(dummy_ksi.idname);
+  ksi = blender::animrig::keyingset_info_find_name(dummy_ksi.idname);
   if (ksi) {
     BKE_reportf(reports,
                 RPT_INFO,
@@ -593,7 +579,7 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   ksi->generate = (have_function[2]) ? RKS_GEN_rna_internal : nullptr;
 
   /* add and register with other info as needed */
-  ANIM_keyingset_info_register(ksi);
+  blender::animrig::keyingset_info_register(ksi);
 
   WM_main_add_notifier(NC_WINDOW, nullptr);
 
@@ -681,21 +667,15 @@ static void rna_KeyingSet_name_set(PointerRNA *ptr, const char *value)
         AnimData *adt = BKE_animdata_from_id(ksp->id);
 
         /* TODO: NLA strips? */
-        if (adt && adt->action) {
-          bActionGroup *agrp;
-
-          /* lazy check - should really find the F-Curve for the affected path and check its
-           * group but this way should be faster and work well for most cases, as long as there
-           * are no conflicts
-           */
-          for (agrp = static_cast<bActionGroup *>(adt->action->groups.first); agrp;
-               agrp = agrp->next)
-          {
-            if (STREQ(ks->name, agrp->name)) {
-              /* there should only be one of these in the action, so can stop... */
-              STRNCPY(agrp->name, value);
-              break;
-            }
+        /* lazy check - should really find the F-Curve for the affected path and check its
+         * group but this way should be faster and work well for most cases, as long as there
+         * are no conflicts
+         */
+        for (bActionGroup *agrp : animrig::legacy::channel_groups_for_assigned_slot(adt)) {
+          if (STREQ(ks->name, agrp->name)) {
+            /* there should only be one of these in the action, so can stop... */
+            STRNCPY(agrp->name, value);
+            break;
           }
         }
       }
@@ -758,7 +738,7 @@ static PointerRNA rna_KeyingSet_typeinfo_get(PointerRNA *ptr)
 
   /* keying set info is only for builtin Keying Sets */
   if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
-    ksi = ANIM_keyingset_info_find_name(ks->typeinfo);
+    ksi = blender::animrig::keyingset_info_find_name(ks->typeinfo);
   }
   return rna_pointer_inherit_refine(ptr, &RNA_KeyingSetInfo, ksi);
 }
@@ -1005,10 +985,11 @@ bool rna_AnimaData_override_apply(Main *bmain, RNAPropertyOverrideApplyContext &
     adt_dst->action = adt_src->action;
     id_us_plus(reinterpret_cast<ID *>(adt_dst->action));
     id_us_min(reinterpret_cast<ID *>(adt_dst->tmpact));
-#  ifdef WITH_ANIM_BAKLAVA
+
     adt_dst->slot_handle = adt_src->slot_handle;
-    STRNCPY(adt_dst->slot_name, adt_src->slot_name);
-#  endif
+    adt_dst->tmp_slot_handle = adt_src->tmp_slot_handle;
+    STRNCPY(adt_dst->last_slot_identifier, adt_src->last_slot_identifier);
+    STRNCPY(adt_dst->tmp_last_slot_identifier, adt_src->tmp_last_slot_identifier);
     adt_dst->tmpact = adt_src->tmpact;
     id_us_plus(reinterpret_cast<ID *>(adt_dst->tmpact));
     adt_dst->act_blendmode = adt_src->act_blendmode;
@@ -1690,7 +1671,6 @@ static void rna_def_animdata(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Pin in Graph Editor", "");
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
-#  ifdef WITH_ANIM_BAKLAVA
   /* This property is not necessary for the Python API (that is better off using
    * slot references/pointers directly), but it is needed for library overrides
    * to work. */
@@ -1704,14 +1684,14 @@ static void rna_def_animdata(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_ANIMATION | ND_NLA_ACTCHANGE, "rna_AnimData_dependency_update");
 
-  prop = RNA_def_property(srna, "action_slot_name", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "slot_name");
+  prop = RNA_def_property(srna, "last_slot_identifier", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "last_slot_identifier");
   RNA_def_property_ui_text(
       prop,
-      "Action Slot Name",
-      "The name of the action slot. The slot identifies which sub-set of the Action "
-      "is considered to be for this data-block, and its name is used to find the right slot "
-      "when assigning an Action.");
+      "Last Action Slot Identifier",
+      "The identifier of the most recently assigned action slot. The slot identifies which "
+      "sub-set of the Action is considered to be for this data-block, and its identifier is used "
+      "to find the right slot when assigning an Action.");
 
   prop = RNA_def_property(srna, "action_slot", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "ActionSlot");
@@ -1737,10 +1717,10 @@ static void rna_def_animdata(BlenderRNA *brna)
    * and that's enough. */
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
 
-  prop = RNA_def_property(srna, "action_slots", PROP_COLLECTION, PROP_NONE);
+  prop = RNA_def_property(srna, "action_suitable_slots", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "ActionSlot");
   RNA_def_property_collection_funcs(prop,
-                                    "rna_iterator_animdata_action_slots_begin",
+                                    "rna_iterator_animdata_action_suitable_slots_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_dereference_get",
@@ -1749,7 +1729,6 @@ static void rna_def_animdata(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   RNA_def_property_ui_text(prop, "Slots", "The list of slots in this animation data-block");
-#  endif /* WITH_ANIM_BAKLAVA */
 
   RNA_define_lib_overridable(false);
 

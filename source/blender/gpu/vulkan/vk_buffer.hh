@@ -10,18 +10,22 @@
 
 #include "gpu_context_private.hh"
 
+#include "BLI_utility_mixins.hh"
 #include "vk_common.hh"
 
 namespace blender::gpu {
 class VKContext;
+class VKDevice;
 
 /**
  * Class for handing vulkan buffers (allocation/updating/binding).
  */
-class VKBuffer {
+class VKBuffer : public NonCopyable {
   size_t size_in_bytes_ = 0;
   VkBuffer vk_buffer_ = VK_NULL_HANDLE;
   VmaAllocation allocation_ = VK_NULL_HANDLE;
+  VkMemoryPropertyFlags vk_memory_property_flags_;
+
   /* Pointer to the virtually mapped memory. */
   void *mapped_memory_ = nullptr;
 
@@ -31,12 +35,27 @@ class VKBuffer {
 
   /** Has this buffer been allocated? */
   bool is_allocated() const;
+
+  /**
+   * Allocate the buffer.
+   *
+   * When `is_host_visible` is set to true it will allocate from a host visible memory heap. When
+   * `is_host_visible` is false it will try to allocate from a host visible memory heap. When not
+   * available it will allocate from a not host visible memory heap. This is also known as
+   * Resizable BAR or ReBAR.
+   */
   bool create(size_t size,
               GPUUsageType usage,
               VkBufferUsageFlags buffer_usage,
-              bool is_host_visible = true);
+              bool is_host_visible);
   void clear(VKContext &context, uint32_t clear_value);
-  void update(const void *data) const;
+  void update_immediately(const void *data) const;
+
+  /**
+   * Update the buffer as part of the render graph evaluation. The ownership of data will be
+   * transferred to the render graph and should have been allocated using guarded alloc.
+   */
+  void update_render_graph(VKContext &context, void *data) const;
   void flush() const;
   void read(VKContext &context, void *data) const;
 
@@ -47,6 +66,11 @@ class VKBuffer {
    * rendering so we can only destroy them after the rendering is completed.
    */
   bool free();
+
+  /**
+   * Destroy the buffer immediately.
+   */
+  void free_immediately(VKDevice &device);
 
   int64_t size_in_bytes() const
   {

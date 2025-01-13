@@ -16,7 +16,7 @@
 #include "DNA_screen_types.h"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -41,8 +41,8 @@
 #include "RNA_prototypes.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
-#  include "BPY_extern_run.h"
+#  include "BPY_extern.hh"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "WM_api.hh"
@@ -1099,7 +1099,9 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 
   /* Expose id specific operators in context menu when button has no operator associated. Otherwise
    * they would appear in nested context menus, see: #126006. */
-  if ((but->optype == nullptr) && (but->apply_func == nullptr)) {
+  if ((but->optype == nullptr) && (but->apply_func == nullptr) &&
+      (but->menu_create_func == nullptr))
+  {
     /* If the button represents an id, it can set the "id" context pointer. */
     if (asset::can_mark_single_from_context(C)) {
       const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(C, "id", &RNA_ID).data);
@@ -1343,7 +1345,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   }
 
   if (but->optype && U.flag & USER_DEVELOPER_UI) {
-    uiItemO(layout, nullptr, ICON_NONE, "UI_OT_copy_python_command_button");
+    uiItemO(layout, std::nullopt, ICON_NONE, "UI_OT_copy_python_command_button");
   }
 
   /* perhaps we should move this into (G.debug & G_DEBUG) - campbell */
@@ -1351,7 +1353,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     if (ui_block_is_menu(but->block) == false) {
       uiItemFullO(layout,
                   "UI_OT_editsource",
-                  nullptr,
+                  std::nullopt,
                   ICON_NONE,
                   nullptr,
                   WM_OP_INVOKE_DEFAULT,

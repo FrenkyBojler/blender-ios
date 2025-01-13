@@ -58,7 +58,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-      const bke::CurvesFieldContext field_context{curves, AttrDomain::Curve};
+      const bke::CurvesFieldContext field_context{*curves_id, AttrDomain::Curve};
       set_curve_cyclic(curves, field_context, selection, cyclic);
     }
     if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
@@ -73,7 +73,12 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SET_SPLINE_CYCLIC, "Set Spline Cyclic", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(
+      &ntype, "GeometryNodeSetSplineCyclic", GEO_NODE_SET_SPLINE_CYCLIC, NODE_CLASS_GEOMETRY);
+  ntype.ui_name = "Set Spline Cyclic";
+  ntype.ui_description =
+      "Control whether each spline loops back on itself by changing the \"cyclic\" attribute";
+  ntype.enum_name_legacy = "SET_SPLINE_CYCLIC";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

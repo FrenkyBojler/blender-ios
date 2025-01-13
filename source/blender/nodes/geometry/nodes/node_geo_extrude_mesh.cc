@@ -89,9 +89,14 @@ static void save_selection_as_attribute(MutableAttributeAccessor attributes,
 static void remove_non_propagated_attributes(MutableAttributeAccessor attributes,
                                              const AttributeFilter &attribute_filter)
 {
-  Set<StringRefNull> ids_to_remove = attributes.all_ids();
-  ids_to_remove.remove_if([&](const StringRef id) { return !attribute_filter.allow_skip(id); });
-  for (const StringRef id : ids_to_remove) {
+  Vector<std::string> names_to_remove;
+  const Set<StringRefNull> all_names = attributes.all_ids();
+  for (const StringRefNull name : all_names) {
+    if (attribute_filter.allow_skip(name)) {
+      names_to_remove.append(name);
+    }
+  }
+  for (const StringRef id : names_to_remove) {
     attributes.remove(id);
   }
 }
@@ -120,7 +125,6 @@ static void remove_unsupported_corner_data(Mesh &mesh)
   CustomData_free_layers(&mesh.corner_data, CD_TANGENT, mesh.corners_num);
   CustomData_free_layers(&mesh.corner_data, CD_MLOOPTANGENT, mesh.corners_num);
   CustomData_free_layers(&mesh.corner_data, CD_GRID_PAINT_MASK, mesh.corners_num);
-  CustomData_free_layers(&mesh.corner_data, CD_CUSTOMLOOPNORMAL, mesh.corners_num);
 }
 
 static void expand_mesh(Mesh &mesh,
@@ -264,15 +268,14 @@ static IDsByDomain attribute_ids_by_domain(const AttributeAccessor attributes,
                                            const Set<StringRef> &skip)
 {
   IDsByDomain ids_by_domain;
-  attributes.for_all([&](const StringRef id, const AttributeMetaData meta_data) {
-    if (meta_data.data_type == CD_PROP_STRING) {
-      return true;
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.data_type == CD_PROP_STRING) {
+      return;
     }
-    if (skip.contains(id)) {
-      return true;
+    if (skip.contains(iter.name)) {
+      return;
     }
-    ids_by_domain[int(meta_data.domain)].append(id);
-    return true;
+    ids_by_domain[int(iter.domain)].append(iter.name);
   });
   return ids_by_domain;
 }
@@ -282,18 +285,18 @@ static bool is_empty_domain(const AttributeAccessor attributes,
                             const AttrDomain domain)
 {
   bool is_empty = true;
-  attributes.for_all([&](const StringRef id, const AttributeMetaData meta_data) {
-    if (meta_data.data_type == CD_PROP_STRING) {
-      return true;
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.data_type == CD_PROP_STRING) {
+      return;
     }
-    if (meta_data.domain != domain) {
-      return true;
+    if (iter.domain != domain) {
+      return;
     }
-    if (skip.contains(id)) {
-      return true;
+    if (skip.contains(iter.name)) {
+      return;
     }
     is_empty = false;
-    return false;
+    iter.stop();
   });
   return is_empty;
 }
@@ -1538,7 +1541,13 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_EXTRUDE_MESH, "Extrude Mesh", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(
+      &ntype, "GeometryNodeExtrudeMesh", GEO_NODE_EXTRUDE_MESH, NODE_CLASS_GEOMETRY);
+  ntype.ui_name = "Extrude Mesh";
+  ntype.ui_description =
+      "Generate new vertices, edges, or faces from selected elements and move them based on an "
+      "offset while keeping them connected by their boundary";
+  ntype.enum_name_legacy = "EXTRUDE_MESH";
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;

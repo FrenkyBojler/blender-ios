@@ -46,6 +46,7 @@
 #include "ED_util.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_action_legacy.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
@@ -106,8 +107,11 @@ static bAction *poselib_action_to_blend(PoseBlendData *pbd)
 /* Makes a copy of the current pose for restoration purposes - doesn't do constraints currently */
 static void poselib_backup_posecopy(PoseBlendData *pbd)
 {
-  const bAction *action = poselib_action_to_blend(pbd);
-  pbd->pose_backup = BKE_pose_backup_create_selected_bones(pbd->ob, action);
+  bAction *action = poselib_action_to_blend(pbd);
+  blender::animrig::Action &pose_data = action->wrap();
+  blender::animrig::Slot &slot = blender::animrig::get_best_pose_slot_for_id(pbd->ob->id,
+                                                                             pose_data);
+  pbd->pose_backup = BKE_pose_backup_create_selected_bones(pbd->ob, action, slot.handle);
 
   if (pbd->state == POSE_BLEND_INIT) {
     /* Ready for blending now. */
@@ -135,12 +139,13 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
   bPose *pose = pbd->ob->pose;
   bAction *act = poselib_action_to_blend(pbd);
 
-  KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);
+  KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene,
+                                                                 ANIM_KS_WHOLE_CHARACTER_ID);
   blender::Vector<PointerRNA> sources;
 
   /* start tagging/keying */
   const bArmature *armature = static_cast<const bArmature *>(pbd->ob->data);
-  LISTBASE_FOREACH (bActionGroup *, agrp, &act->groups) {
+  for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
     /* Only for selected bones unless there aren't any selected, in which case all are included. */
     bPoseChannel *pchan = BKE_pose_channel_find_name(pose, agrp->name);
     if (pchan == nullptr) {
@@ -154,7 +159,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
     }
 
     /* Add data-source override for the PoseChannel, to be used later. */
-    ANIM_relative_keyingset_add_source(sources, &pbd->ob->id, &RNA_PoseBone, pchan);
+    blender::animrig::relative_keyingset_add_source(sources, &pbd->ob->id, &RNA_PoseBone, pchan);
   }
 
   if (adt->action) {
@@ -162,7 +167,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
   }
 
   /* Perform actual auto-keying. */
-  ANIM_apply_keyingset(
+  blender::animrig::apply_keyingset(
       C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, float(scene->r.cfra));
 
   /* send notifiers for this */
@@ -194,11 +199,11 @@ static void poselib_blend_apply(bContext *C, wmOperator *op)
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph, 0.0f);
   bAction *to_blend = poselib_action_to_blend(pbd);
-  blender::animrig::slot_handle_t to_blend_slot_handle = blender::animrig::first_slot_handle(
-      *to_blend);
+  blender::animrig::Slot &to_blend_slot = blender::animrig::get_best_pose_slot_for_id(
+      pbd->ob->id, to_blend->wrap());
 
   blender::animrig::pose_apply_action_blend(
-      pbd->ob, to_blend, to_blend_slot_handle, &anim_eval_context, pbd->blend_factor);
+      pbd->ob, to_blend, to_blend_slot.handle, &anim_eval_context, pbd->blend_factor);
 }
 
 /* ---------------------------- */

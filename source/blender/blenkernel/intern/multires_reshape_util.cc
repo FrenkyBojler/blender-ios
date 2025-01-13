@@ -51,6 +51,9 @@ blender::bke::subdiv::Subdiv *multires_reshape_create_subdiv(Depsgraph *depsgrap
   subdiv::Settings subdiv_settings;
   BKE_multires_subdiv_settings_init(&subdiv_settings, mmd);
   subdiv::Subdiv *subdiv = subdiv::new_from_mesh(&subdiv_settings, base_mesh);
+  if (!subdiv) {
+    return nullptr;
+  }
   if (!subdiv::eval_begin_from_mesh(
           subdiv, base_mesh, {}, subdiv::SUBDIV_EVALUATOR_TYPE_CPU, nullptr))
   {
@@ -67,15 +70,13 @@ static void context_zero(MultiresReshapeContext *reshape_context)
 
 static void context_init_lookup(MultiresReshapeContext *reshape_context)
 {
-  const Mesh *base_mesh = reshape_context->base_mesh;
   const blender::OffsetIndices faces = reshape_context->base_faces;
-  const int num_faces = base_mesh->faces_num;
 
   reshape_context->face_start_grid_index = static_cast<int *>(
-      MEM_malloc_arrayN(num_faces, sizeof(int), "face_start_grid_index"));
+      MEM_malloc_arrayN(faces.size(), sizeof(int), "face_start_grid_index"));
   int num_grids = 0;
   int num_ptex_faces = 0;
-  for (int face_index = 0; face_index < num_faces; ++face_index) {
+  for (const int face_index : faces.index_range()) {
     const int num_corners = faces[face_index].size();
     reshape_context->face_start_grid_index[face_index] = num_grids;
     num_grids += num_corners;
@@ -86,7 +87,8 @@ static void context_init_lookup(MultiresReshapeContext *reshape_context)
       MEM_malloc_arrayN(num_grids, sizeof(int), "grid_to_face_index"));
   reshape_context->ptex_start_grid_index = static_cast<int *>(
       MEM_malloc_arrayN(num_ptex_faces, sizeof(int), "ptex_start_grid_index"));
-  for (int face_index = 0, grid_index = 0, ptex_index = 0; face_index < num_faces; ++face_index) {
+  for (int face_index = 0, grid_index = 0, ptex_index = 0; face_index < faces.size(); ++face_index)
+  {
     const int num_corners = faces[face_index].size();
     const int num_face_ptex_faces = (num_corners == 4) ? 1 : num_corners;
     for (int i = 0; i < num_face_ptex_faces; ++i) {
@@ -164,6 +166,9 @@ bool multires_reshape_context_create_from_base_mesh(MultiresReshapeContext *resh
   reshape_context->base_corner_edges = base_mesh->corner_edges();
 
   reshape_context->subdiv = multires_reshape_create_subdiv(nullptr, object, mmd);
+  if (!reshape_context->subdiv) {
+    return false;
+  }
   reshape_context->need_free_subdiv = true;
 
   reshape_context->reshape.level = multires_get_level(
@@ -205,6 +210,9 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
   reshape_context->base_corner_edges = base_mesh->corner_edges();
 
   reshape_context->subdiv = multires_reshape_create_subdiv(depsgraph, object, mmd);
+  if (!reshape_context->subdiv) {
+    return false;
+  }
   reshape_context->need_free_subdiv = true;
 
   reshape_context->reshape.level = multires_get_level(

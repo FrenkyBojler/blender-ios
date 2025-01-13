@@ -59,7 +59,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-      const bke::CurvesFieldContext field_context{curves, AttrDomain::Curve};
+      const bke::CurvesFieldContext field_context{*curves_id, AttrDomain::Curve};
       reverse_curve(curves, field_context, selection_field);
     }
     if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
@@ -73,7 +73,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_REVERSE_CURVE, "Reverse Curve", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(
+      &ntype, "GeometryNodeReverseCurve", GEO_NODE_REVERSE_CURVE, NODE_CLASS_GEOMETRY);
+  ntype.ui_name = "Reverse Curve";
+  ntype.ui_description = "Change the direction of curves by swapping their start and end data";
+  ntype.enum_name_legacy = "REVERSE_CURVE";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

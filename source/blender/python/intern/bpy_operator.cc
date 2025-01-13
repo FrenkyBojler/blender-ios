@@ -18,18 +18,16 @@
 #include "RNA_types.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
-#include "../generic/py_capi_rna.h"
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_rna.hh"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
 
-#include "BPY_extern.h"
-#include "bpy_capi_utils.h"
-#include "bpy_operator.h"
-#include "bpy_operator_wrap.h"
-#include "bpy_rna.h" /* for setting argument properties & type method `get_rna_type`. */
+#include "BPY_extern.hh"
+#include "bpy_capi_utils.hh"
+#include "bpy_operator.hh"
+#include "bpy_operator_wrap.hh"
+#include "bpy_rna.hh" /* for setting argument properties & type method `get_rna_type`. */
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
@@ -39,8 +37,6 @@
 #include "WM_types.hh"
 
 #include "MEM_guardedalloc.h"
-
-#include "BLI_ghash.h"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -128,7 +124,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   /* main purpose of this function */
   ret = WM_operator_poll_context((bContext *)C, ot, context) ? Py_True : Py_False;
 
-  return Py_INCREF_RET(ret);
+  return Py_NewRef(ret);
 }
 
 static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)

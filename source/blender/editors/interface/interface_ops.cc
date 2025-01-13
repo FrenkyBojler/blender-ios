@@ -33,7 +33,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_remap.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
@@ -90,7 +90,7 @@ static void ui_region_redraw_immediately(bContext *C, ARegion *region)
   WM_draw_region_viewport_bind(region);
   ED_region_do_draw(C, region);
   WM_draw_region_viewport_unbind(region);
-  region->do_draw = 0;
+  region->runtime->do_draw = 0;
 }
 
 /** \} */
@@ -1171,7 +1171,7 @@ bool UI_context_copy_to_selected_list(bContext *C,
 
     *r_lb = list_of_things;
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
+  else if (RNA_struct_is_a(ptr->type, &RNA_Strip)) {
     /* Special case when we do this for 'Sequence.lock'.
      * (if the sequence is locked, it won't be in "selected_editable_sequences"). */
     const char *prop_id = RNA_property_identifier(prop);
@@ -1222,14 +1222,13 @@ bool UI_context_copy_to_selected_list(bContext *C,
     if (RNA_struct_is_a(ptr->type, &RNA_NodeSocket)) {
       bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
       bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
-      if (blender::bke::node_find_node_try(ntree, sock, &node, nullptr)) {
-        path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Node);
-        if (path) {
-          /* we're good! */
-        }
-        else {
-          node = nullptr;
-        }
+      node = &blender::bke::node_find_node(*ntree, *sock);
+      path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Node);
+      if (path) {
+        /* we're good! */
+      }
+      else {
+        node = nullptr;
       }
     }
     else {
@@ -1241,7 +1240,7 @@ bool UI_context_copy_to_selected_list(bContext *C,
       lb = CTX_data_collection_get(C, "selected_nodes");
       lb.remove_if([&](const PointerRNA &link) {
         bNode *node_data = static_cast<bNode *>(link.data);
-        if (node_data->type != node->type) {
+        if (node_data->type_legacy != node->type_legacy) {
           return true;
         }
         return false;
@@ -1299,9 +1298,9 @@ bool UI_context_copy_to_selected_list(bContext *C,
     }
     else if (GS(id->name) == ID_SCE) {
       /* Sequencer's ID is scene :/ */
-      /* Try to recursively find an RNA_Sequence ancestor,
+      /* Try to recursively find an RNA_Strip ancestor,
        * to handle situations like #41062... */
-      *r_path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Sequence);
+      *r_path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Strip);
       if (r_path->has_value()) {
         /* Special case when we do this for 'Sequence.lock'.
          * (if the sequence is locked, it won't be in "selected_editable_sequences"). */
@@ -1677,7 +1676,7 @@ int paste_property_drivers(blender::Span<FCurve *> src_drivers,
      * quadratic complexity when the drivers are within the same ID, due to this
      * being inside of a loop and doing a linear scan of the drivers to find one
      * that matches.  We should be able to make this more efficient with a
-     * little cleverness .*/
+     * little cleverness. */
     if (driven) {
       FCurve *old_driver = BKE_fcurve_find(&dst_adt->drivers, dst_path->c_str(), dst_index);
       if (old_driver) {
@@ -2056,9 +2055,7 @@ static bool ui_editsource_uibut_match(uiBut *but_a, uiBut *but_b)
   return false;
 }
 
-extern "C" {
-void PyC_FileAndNum_Safe(const char **r_filename, int *r_lineno);
-}
+extern void PyC_FileAndNum_Safe(const char **r_filename, int *r_lineno);
 
 void UI_editsource_active_but_test(uiBut *but)
 {
@@ -2523,18 +2520,23 @@ static void UI_OT_list_start_filter(wmOperatorType *ot)
 /** \name UI View Start Filter Operator
  * \{ */
 
-static bool ui_view_focused_poll(bContext *C)
+static AbstractView *get_view_focused(bContext *C)
 {
   const wmWindow *win = CTX_wm_window(C);
   if (!(win && win->eventstate)) {
-    return false;
+    return nullptr;
   }
 
   const ARegion *region = CTX_wm_region(C);
   if (!region) {
-    return false;
+    return nullptr;
   }
-  const blender::ui::AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, 0);
+  return UI_region_view_find_at(region, win->eventstate->xy, 0);
+}
+
+static bool ui_view_focused_poll(bContext *C)
+{
+  const AbstractView *view = get_view_focused(C);
   return view != nullptr;
 }
 
@@ -2609,6 +2611,72 @@ static void UI_OT_view_drop(wmOperatorType *ot)
 
   ot->invoke = ui_view_drop_invoke;
   ot->poll = ui_view_drop_poll;
+
+  ot->flag = OPTYPE_INTERNAL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UI View Drop Operator
+ * \{ */
+
+static bool ui_view_scroll_poll(bContext *C)
+{
+  const AbstractView *view = get_view_focused(C);
+  if (!view) {
+    return false;
+  }
+
+  return view->supports_scrolling();
+}
+
+static int ui_view_scroll_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+{
+  ARegion *region = CTX_wm_region(C);
+  int type = event->type;
+  bool invert_direction = false;
+
+  if (type == MOUSEPAN) {
+    int dummy_val;
+    ui_pan_to_scroll(event, &type, &dummy_val);
+
+    /* 'ui_pan_to_scroll' gives the absolute direction. */
+    if (event->flag & WM_EVENT_SCROLL_INVERT) {
+      invert_direction = true;
+    }
+  }
+
+  AbstractView *view = get_view_focused(C);
+  std::optional<ViewScrollDirection> direction =
+      [type, invert_direction]() -> std::optional<ViewScrollDirection> {
+    switch (type) {
+      case WHEELUPMOUSE:
+        return invert_direction ? ViewScrollDirection::DOWN : ViewScrollDirection::UP;
+      case WHEELDOWNMOUSE:
+        return invert_direction ? ViewScrollDirection::UP : ViewScrollDirection::DOWN;
+      default:
+        return std::nullopt;
+    }
+  }();
+  if (!direction) {
+    return OPERATOR_CANCELLED;
+  }
+
+  BLI_assert(view->supports_scrolling());
+  view->scroll(*direction);
+
+  ED_region_tag_redraw(region);
+  return OPERATOR_FINISHED;
+}
+
+static void UI_OT_view_scroll(wmOperatorType *ot)
+{
+  ot->name = "View Scroll";
+  ot->idname = "UI_OT_view_scroll";
+
+  ot->invoke = ui_view_scroll_invoke;
+  ot->poll = ui_view_scroll_poll;
 
   ot->flag = OPTYPE_INTERNAL;
 }
@@ -2759,6 +2827,7 @@ void ED_operatortypes_ui()
 
   WM_operatortype_append(UI_OT_view_start_filter);
   WM_operatortype_append(UI_OT_view_drop);
+  WM_operatortype_append(UI_OT_view_scroll);
   WM_operatortype_append(UI_OT_view_item_rename);
 
   WM_operatortype_append(UI_OT_override_type_set_button);
@@ -2775,7 +2844,7 @@ void ED_operatortypes_ui()
   WM_operatortype_append(UI_OT_eyedropper_id);
   WM_operatortype_append(UI_OT_eyedropper_depth);
   WM_operatortype_append(UI_OT_eyedropper_driver);
-  WM_operatortype_append(UI_OT_eyedropper_gpencil_color);
+  WM_operatortype_append(UI_OT_eyedropper_bone);
   WM_operatortype_append(UI_OT_eyedropper_grease_pencil_color);
 }
 

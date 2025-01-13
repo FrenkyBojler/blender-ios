@@ -10,7 +10,10 @@ from bpy.props import (
     IntProperty,
     StringProperty,
 )
-from bpy.app.translations import pgettext_rpt as rpt_
+from bpy.app.translations import (
+    pgettext_rpt as rpt_,
+    contexts as i18n_contexts,
+)
 
 
 class SelectPattern(Operator):
@@ -22,6 +25,7 @@ class SelectPattern(Operator):
 
     pattern: StringProperty(
         name="Pattern",
+        translation_context=i18n_contexts.id_text,
         description="Name filter using '*', '?' and "
         "'[abc]' unix style wildcards",
         maxlen=64,
@@ -286,7 +290,7 @@ class SubdivisionSet(Operator):
                 else:
                     mod = obj.modifiers.new("Subdivision", 'SUBSURF')
                     mod.levels = level
-            except BaseException:
+            except Exception:
                 self.report({'WARNING'}, "Modifiers cannot be added to object: " + obj.name)
 
         for obj in context.selected_editable_objects:

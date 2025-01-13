@@ -14,23 +14,22 @@
 
 #include <Python.h>
 
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "GPU_context.hh"
-#include "GPU_state.hh"
 
-#include "py_capi_utils.h"
-
-#include "BKE_global.hh"
+#include "py_capi_utils.hh"
 
 #include <epoxy/gl.h>
 
-#include "bgl.h"
-
 #include "CLG_log.h"
+
+/* Forward declare API's defines here. */
+#define USE_BGL_DEPRECATED_API
+#include "bgl.hh" /* Own include. */
+#undef USE_BGL_DEPRECATED_API
 
 static CLG_LogRef LOG = {"bgl"};
 
@@ -2675,10 +2674,11 @@ PyObject *BPyInit_bgl()
               "'bgl' imported without an OpenGL backend. Please update your add-ons to use the "
               "'gpu' module.");
   }
+#else
+  UNUSED_VARS(LOG);
 #endif
 
-  PyModule_AddObject(submodule, "Buffer", (PyObject *)&BGL_bufferType);
-  Py_INCREF((PyObject *)&BGL_bufferType);
+  PyModule_AddObjectRef(submodule, "Buffer", (PyObject *)&BGL_bufferType);
 
   init_bgl_version_1_0_methods(submodule, dict);
   init_bgl_version_1_1_methods(submodule, dict);
