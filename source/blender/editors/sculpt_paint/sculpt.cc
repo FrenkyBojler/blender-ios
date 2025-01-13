@@ -5547,6 +5547,14 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 
   paint_stroke_operator_properties(ot);
 
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "reproject_stroke",
+      false,
+      "Reproject Stroke",
+      "Determines whether to reproject the provided 'mouse_event' values into object space");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+
   RNA_def_boolean(ot->srna,
                   "ignore_background_click",
                   false,

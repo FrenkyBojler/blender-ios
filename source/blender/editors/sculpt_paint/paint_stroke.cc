@@ -1664,9 +1664,24 @@ int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
     }
   }
 
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "reproject_stroke");
+  const bool reproject_stroke = prop && RNA_property_boolean_get(op->ptr, prop) &&
+                                stroke->get_location;
   if (stroke->stroke_started) {
     RNA_BEGIN (op->ptr, itemptr, "stroke") {
-      stroke->update_step(C, op, stroke, &itemptr);
+      if (reproject_stroke) {
+        float2 mval;
+        RNA_float_get_array(&itemptr, "mouse_event", mval);
+
+        float3 location;
+        if (stroke->get_location(C, location, mval, false)) {
+          RNA_float_set_array(&itemptr, "location", location);
+          stroke->update_step(C, op, stroke, &itemptr);
+        }
+      }
+      else {
+        stroke->update_step(C, op, stroke, &itemptr);
+      }
     }
     RNA_END;
   }
