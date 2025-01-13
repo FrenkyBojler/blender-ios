@@ -93,8 +93,8 @@ class EEVEE_MATERIAL_PT_context_material(MaterialButtonsPanel, Panel):
             return False
 
         return (ob or mat) and \
-                    ob.type!='GREASEPENCIL' and \
-                    (context.engine in cls.COMPAT_ENGINES)
+            ob.type != 'GREASEPENCIL' and \
+            (context.engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
