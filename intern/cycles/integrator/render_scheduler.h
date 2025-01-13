@@ -128,6 +128,9 @@ class RenderScheduler {
    * [start_sample, start_sample + num_samples - 1], inclusively. */
   int get_num_samples() const;
 
+  /* Get 0-based sample index to start sampling from for subset rendering.
+   * When the subset rendering is not used returns 0. Otherwise returns the
+   * currently configured subset offset. */
   int get_sample_subset_offset() const;
 
   /* Time limit for the path tracing tasks, in minutes.
