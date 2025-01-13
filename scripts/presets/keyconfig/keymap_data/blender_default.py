@@ -3942,7 +3942,8 @@ def km_grease_pencil_edit_mode(params):
             params, connected=True, toggle_data_path="tool_settings.use_proportional_edit"),
 
         # Cyclical set
-        ("grease_pencil.cyclical_set", {"type": 'F', "value": 'PRESS'}, {"properties": [("type", "CLOSE")]}),
+        ("grease_pencil.cyclical_set", {"type": 'F', "value": 'PRESS'},
+         {"properties": [("type", "CLOSE"), ("add_geometry", True)]}),
         ("grease_pencil.cyclical_set", {"type": 'C', "value": 'PRESS',
          "alt": True}, {"properties": [("type", "TOGGLE")]}),
 
