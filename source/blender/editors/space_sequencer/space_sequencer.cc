@@ -789,10 +789,10 @@ static void sequencer_preview_region_init(wmWindowManager *wm, ARegion *region)
 #endif
 
   /* Own keymap. */
-  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerCommon", SPACE_SEQ, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerPreview", SPACE_SEQ, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerPreview", SPACE_SEQ, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerCommon", SPACE_SEQ, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* Do this instead of adding V2D and frames `ED_KEYMAP_*` flags to `art->keymapflag`, since text
