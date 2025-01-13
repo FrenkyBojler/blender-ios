@@ -106,14 +106,23 @@ class RenderScheduler {
   void set_adaptive_sampling(const AdaptiveSampling &adaptive_sampling);
   bool is_adaptive_sampling_used() const;
 
-  /* A helper function to setup various sample parameters that depend on each other. */
-  /* - num_samples - The maximum number of samples that can be rendered for this frame */
-  /* - use_sample_subset - Whether or not to render a subset of samples of num_samples. */
-  /* subset sampling is typically used to distrobute rendering of a frame across multiple
-   * computers. */
-  /* - sample_offset - 0-based sample index to start sampling from if use_sample_subset is true. */
-  /* - sample_subset_length - Number of samples to render in this subset if use_sample_subset is
-   * true. */
+  /* Setup parameters defining the sampling range.
+   *
+   * It is a single function setting up multiple parameters because there are inter-dependencies
+   * between these parameters.
+   *
+   * In simple cases the subset is not used and the given num_samples samples is rendered, and the
+   * subset length and offset are ignored.
+   *
+   * It is possible to render a subset of the overall samples. This is typically used to distribute
+   * rendering of a single frame across multiple computers. This subset rendering is  enabled by
+   * setting use_sample_subset=true, and giving the desired offset and length of the subset. The
+   * subset offset is a 0-based sample index to start sampling from, and the length is the number
+   * of samples to render in this subset.
+   *
+   * When the subset rendering is enabled, num_samples is expected to be set to the overall number
+   * of samples to be rendered, and it is internally used to clamp the number of samples rendered
+   * by a subset. */
   void set_sample_params(const int num_samples,
                          const bool use_sample_subset,
                          const int sample_subset_offset,
