@@ -481,7 +481,7 @@ static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType *
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
     bNode *node = bke::node_get_active(snode->edittree);
 
-    if (node && ELEM(node->type, CMP_NODE_MASK_BOX)) {
+    if (node && ELEM(node->type_legacy, CMP_NODE_MASK_BOX)) {
       return true;
     }
   }

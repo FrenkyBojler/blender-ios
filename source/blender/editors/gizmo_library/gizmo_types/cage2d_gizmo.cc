@@ -1199,8 +1199,8 @@ static int gizmo_cage2d_modal(bContext *C,
       /* Rotate current and original mouse coordinates around gizmo center. */
       float rot[3][3];
       float loc[3];
-      copy_v3_v3(loc, gz->matrix_offset[3]);
-      mat4_to_rot(rot, gz->matrix_offset);
+      float size[3];
+      mat4_to_loc_rot_size(loc, rot, size, gz->matrix_offset);
 
       invert_m3(rot);
       sub_v2_v2(point_local, loc);
