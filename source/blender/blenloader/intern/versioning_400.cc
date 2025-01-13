@@ -5515,7 +5515,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       IDProperty *cscene = version_cycles_properties_from_ID(&scene->id);
       if (cscene) {
-        int my_int = version_cycles_property_int(cscene, "sample_offset", 0);
         if (version_cycles_property_int(cscene, "sample_offset", 0) > 0) {
           version_cycles_property_boolean_set(cscene, "use_sample_subset", true);
         }
