@@ -44,11 +44,11 @@ void VertexBlurOperation::on_stroke_extended(const bContext &C,
   this->foreach_editable_drawing(C, GrainSize(1), [&](const GreasePencilStrokeParams &params) {
     IndexMaskMemory memory;
     const IndexMask stroke_selection = stroke_selection_mask(
-        params, use_selection_masking, memory);
+        params, use_selection_masking, false, memory);
     if (stroke_selection.is_empty()) {
       return false;
     }
-    const IndexMask point_selection = point_selection_mask(params, use_selection_masking, memory);
+    const IndexMask point_selection = point_selection_mask(params, use_selection_masking, false, memory);
     const Array<float2> view_positions = calculate_view_positions(params, point_selection);
     const OffsetIndices<int> points_by_curve = params.drawing.strokes().points_by_curve();
     MutableSpan<ColorGeometry4f> vertex_colors = params.drawing.vertex_colors_for_write();

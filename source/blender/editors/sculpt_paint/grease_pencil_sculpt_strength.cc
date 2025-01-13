@@ -49,7 +49,7 @@ void StrengthOperation::on_stroke_extended(const bContext &C, const InputSample 
   this->foreach_editable_drawing(C, [&](const GreasePencilStrokeParams &params) {
     IndexMaskMemory selection_memory;
     const IndexMask selection = point_selection_mask(
-        params, use_selection_masking, selection_memory);
+        params, use_selection_masking, true, selection_memory);
     if (selection.is_empty()) {
       return false;
     }

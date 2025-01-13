@@ -298,24 +298,62 @@ GreasePencilStrokeParams GreasePencilStrokeParams::from_context(
 
 IndexMask point_selection_mask(const GreasePencilStrokeParams &params,
                                const bool use_selection_masking,
+                               const bool use_auto_masking,
                                IndexMaskMemory &memory)
 {
+  const IndexMask editable_points =
+      use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_points(
+                                  params.ob_orig, params.drawing, params.layer_index, memory) :
+                              ed::greasepencil::retrieve_editable_points(
+                                  params.ob_orig, params.drawing, params.layer_index, memory);
+  const bool use_active_material_masking = (params.toolsettings.gp_sculpt.flag &
+                                            GP_SCULPT_SETT_FLAG_AUTOMASK_MATERIAL_ACTIVE) != 0;
+  if (use_auto_masking && use_active_material_masking) {
+    const int active_material_index = math::max(params.ob_orig.actcol - 1, 0);
 
-  return use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_points(
-                                     params.ob_orig, params.drawing, params.layer_index, memory) :
-                                 ed::greasepencil::retrieve_editable_points(
-                                     params.ob_orig, params.drawing, params.layer_index, memory);
+    const bke::greasepencil::Drawing &drawing = params.drawing;
+    const bke::CurvesGeometry &curves = drawing.strokes();
+    const bke::AttributeAccessor attributes = curves.attributes();
+
+    const VArray<int> materials = *attributes.lookup_or_default<int>(
+        "material_index", bke::AttrDomain::Point, 0);
+    const IndexMask active_material_mask = IndexMask::from_predicate(
+        curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+          return active_material_index == materials[point_i];
+        });
+    return IndexMask::from_intersection(active_material_mask, editable_points, memory);
+  }
+  return editable_points;
 }
 
 IndexMask stroke_selection_mask(const GreasePencilStrokeParams &params,
                                 const bool use_selection_masking,
+                                const bool use_auto_masking,
                                 IndexMaskMemory &memory)
 {
+  const IndexMask editable_strokes =
+      use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_strokes(
+                                  params.ob_orig, params.drawing, params.layer_index, memory) :
+                              ed::greasepencil::retrieve_editable_strokes(
+                                  params.ob_orig, params.drawing, params.layer_index, memory);
+  const bool use_active_material_masking = (params.toolsettings.gp_sculpt.flag &
+                                            GP_SCULPT_SETT_FLAG_AUTOMASK_MATERIAL_ACTIVE) != 0;
+  if (use_auto_masking && use_active_material_masking) {
+    const int active_material_index = math::max(params.ob_orig.actcol - 1, 0);
 
-  return use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_strokes(
-                                     params.ob_orig, params.drawing, params.layer_index, memory) :
-                                 ed::greasepencil::retrieve_editable_strokes(
-                                     params.ob_orig, params.drawing, params.layer_index, memory);
+    const bke::greasepencil::Drawing &drawing = params.drawing;
+    const bke::CurvesGeometry &curves = drawing.strokes();
+    const bke::AttributeAccessor attributes = curves.attributes();
+
+    const VArray<int> materials = *attributes.lookup_or_default<int>(
+        "material_index", bke::AttrDomain::Curve, 0);
+    const IndexMask active_material_mask = IndexMask::from_predicate(
+        curves.curves_range(), GrainSize(4096), memory, [&](const int64_t curve_i) {
+          return active_material_index == materials[curve_i];
+        });
+    return IndexMask::from_intersection(active_material_mask, editable_strokes, memory);
+  }
+  return editable_strokes;
 }
 
 IndexMask fill_selection_mask(const GreasePencilStrokeParams &params,

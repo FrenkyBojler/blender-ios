@@ -126,13 +126,15 @@ struct GreasePencilStrokeParams {
 
 /* Point index mask for a drawing based on selection tool settings. */
 IndexMask point_selection_mask(const GreasePencilStrokeParams &params,
-                               const bool use_masking,
+                               bool use_masking,
+                               bool use_auto_masking,
                                IndexMaskMemory &memory);
 IndexMask stroke_selection_mask(const GreasePencilStrokeParams &params,
-                                const bool use_masking,
+                                bool use_masking,
+                                bool use_auto_masking,
                                 IndexMaskMemory &memory);
 IndexMask fill_selection_mask(const GreasePencilStrokeParams &params,
-                              const bool use_masking,
+                              bool use_masking,
                               IndexMaskMemory &memory);
 
 bke::crazyspace::GeometryDeformation get_drawing_deformation(

@@ -48,7 +48,7 @@ void PinchOperation::on_stroke_extended(const bContext &C, const InputSample &ex
       C, [&](const GreasePencilStrokeParams &params, const DeltaProjectionFunc &projection_fn) {
         IndexMaskMemory selection_memory;
         const IndexMask selection = point_selection_mask(
-            params, use_selection_masking, selection_memory);
+            params, use_selection_masking, true, selection_memory);
         if (selection.is_empty()) {
           return false;
         }
