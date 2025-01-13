@@ -722,12 +722,12 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
 
   bool do_random = false;
   bool do_partial_update = false;
-  bool update_color = ((brush->flag & BRUSH_USE_GRADIENT) &&
-                       (ELEM(brush->gradient_stroke_mode,
-                             BRUSH_GRADIENT_SPACING_REPEAT,
-                             BRUSH_GRADIENT_SPACING_CLAMP) ||
-                        (cache->last_pressure != pressure))) ||
-                      BKE_brush_color_jitter_get_settings(scene, painter->paint, brush) != nullptr;
+  bool update_color =
+      ((brush->flag & BRUSH_USE_GRADIENT) && (ELEM(brush->gradient_stroke_mode,
+                                                   BRUSH_GRADIENT_SPACING_REPEAT,
+                                                   BRUSH_GRADIENT_SPACING_CLAMP) ||
+                                              (cache->last_pressure != pressure))) ||
+      BKE_brush_color_jitter_get_settings(scene, painter->paint, brush).has_value();
   float tex_rotation = -brush->mtex.rot;
   float mask_rotation = -brush->mask_mtex.rot;
 

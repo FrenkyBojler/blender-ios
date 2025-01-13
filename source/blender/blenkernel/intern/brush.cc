@@ -85,6 +85,7 @@ static void brush_copy_data(Main * /*bmain*/,
 
   brush_dst->curve = BKE_curvemapping_copy(brush_src->curve);
   brush_dst->automasking_cavity_curve = BKE_curvemapping_copy(brush_src->automasking_cavity_curve);
+
   if (brush_src->gpencil_settings != nullptr) {
     brush_dst->gpencil_settings = MEM_dupallocN<BrushGpencilSettings>(
         __func__, *(brush_src->gpencil_settings));
@@ -1082,18 +1083,30 @@ const float *BKE_brush_color_get(const Scene *scene, const Paint *paint, const B
   return brush->rgb;
 }
 
-/** Get color jitter settings or nullptr if not enabled. */
-const BrushColorJitterSettings *BKE_brush_color_jitter_get_settings(const Scene *scene,
-                                                                    const Paint *paint,
-                                                                    const Brush *brush)
+/** Get color jitter settings if enabled. */
+const std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(
+    const Scene *scene, const Paint *paint, const Brush *brush)
 {
   if (BKE_paint_use_unified_color(scene->toolsettings, paint)) {
     const bool use_color_jitter = (scene->toolsettings->unified_paint_settings.flag &
                                    UNIFIED_PAINT_COLOR_JITTER) != 0;
-    return use_color_jitter ? &scene->toolsettings->unified_paint_settings.color_jitter : nullptr;
+    const UnifiedPaintSettings settings = scene->toolsettings->unified_paint_settings;
+    return use_color_jitter ? std::make_optional(BrushColorJitterSettings{
+                                  .flag = settings.color_jitter_flag,
+                                  .hue = settings.hsv_jitter_amounts[0],
+                                  .saturation = settings.hsv_jitter_amounts[1],
+                                  .value = settings.hsv_jitter_amounts[2],
+                              }) :
+                              std::nullopt;
   }
 
-  return (brush->flag2 & BRUSH_JITTER_COLOR) ? &brush->color_jitter : nullptr;
+  return (brush->flag2 & BRUSH_JITTER_COLOR) ? std::make_optional(BrushColorJitterSettings{
+                                                   .flag = brush->color_jitter_flag,
+                                                   .hue = brush->hsv_jitter_amounts[0],
+                                                   .saturation = brush->hsv_jitter_amounts[1],
+                                                   .value = brush->hsv_jitter_amounts[2],
+                                               }) :
+                                               std::nullopt;
 }
 
 const float *BKE_brush_secondary_color_get(const Scene *scene,

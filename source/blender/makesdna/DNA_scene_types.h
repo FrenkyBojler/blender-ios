@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "DNA_brush_types.h"
 #include "DNA_defs.h"
 
 /**
@@ -1424,12 +1423,12 @@ typedef struct UnifiedPaintSettings {
 
   /** Unified brush color. */
   float rgb[3];
-
   /** Unified brush secondary color. */
   float secondary_rgb[3];
 
   /** Unified color jitter settings */
-  BrushColorJitterSettings color_jitter;
+  int color_jitter_flag;
+  float hsv_jitter_amounts[3];
 
   /** Unified brush stroke input samples. */
   int input_samples;

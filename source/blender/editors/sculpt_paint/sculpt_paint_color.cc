@@ -434,7 +434,7 @@ static void do_paint_brush_task(const Scene &scene,
 
   IMB_colormanagement_srgb_to_scene_linear_v3(brush_color_rgb, brush_color_rgb);
 
-  if (BKE_brush_color_jitter_get_settings(&scene, &paint, &brush) != nullptr) {
+  if (BKE_brush_color_jitter_get_settings(&scene, &paint, &brush).has_value()) {
     brush_color_rgb = BKE_paint_randomize_color(&scene,
                                                 &paint,
                                                 &brush,

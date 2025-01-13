@@ -154,14 +154,6 @@ typedef struct BrushCurvesSculptSettings {
   struct CurveMapping *curve_parameter_falloff;
 } BrushCurvesSculptSettings;
 
-typedef struct BrushColorJitterSettings {
-  int flag;
-  /** Jitter amounts */
-  float hue;
-  float saturation;
-  float value;
-} BrushColorJitterSettings;
-
 /** Max number of propagation steps for automasking settings. */
 #define AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS 20
 /**
@@ -231,7 +223,8 @@ typedef struct Brush {
 
   /** Color. */
   float rgb[3];
-  BrushColorJitterSettings color_jitter;
+  int color_jitter_flag;
+  float hsv_jitter_amounts[3];
 
   /** Opacity. */
   float alpha;

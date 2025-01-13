@@ -20,6 +20,7 @@
 #include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+
 #include "BLT_translation.hh"
 
 #include "IMB_imbuf.hh"
@@ -360,7 +361,7 @@ bool paint_use_opacity_masking(const Scene *scene, const Paint *paint, const Bru
                        IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
                   (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
                   (brush->flag & BRUSH_USE_GRADIENT) ||
-                  (BKE_brush_color_jitter_get_settings(scene, paint, brush) != nullptr) ||
+                  (BKE_brush_color_jitter_get_settings(scene, paint, brush).has_value()) ||
                   (brush->mtex.tex && !ELEM(brush->mtex.brush_map_mode,
                                             MTEX_MAP_MODE_TILED,
                                             MTEX_MAP_MODE_STENCIL,
@@ -404,7 +405,7 @@ void paint_brush_color_get(Scene *scene,
        * Brush colors are expected to be in sRGB though. */
       IMB_colormanagement_scene_linear_to_srgb_v3(r_color, color_gr);
     }
-    else if (BKE_brush_color_jitter_get_settings(scene, paint, br) != nullptr) {
+    else if (BKE_brush_color_jitter_get_settings(scene, paint, br).has_value()) {
       copy_v3_v3(r_color,
                  BKE_paint_randomize_color(scene,
                                            paint,

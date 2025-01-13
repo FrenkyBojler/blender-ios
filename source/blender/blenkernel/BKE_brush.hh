@@ -13,7 +13,6 @@
 #include "BLI_span.hh"
 
 #include "DNA_brush_enums.h"
-#include "DNA_brush_types.h"
 #include "DNA_color_types.h"
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
@@ -165,10 +164,17 @@ ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool displa
 
 /* Unified strength size and color. */
 
+typedef struct BrushColorJitterSettings {
+  int flag;
+  /** Jitter amounts */
+  float hue;
+  float saturation;
+  float value;
+} BrushColorJitterSettings;
+
 const float *BKE_brush_color_get(const Scene *scene, const Paint *paint, const Brush *brush);
-const BrushColorJitterSettings *BKE_brush_color_jitter_get_settings(const Scene *scene,
-                                                                    const Paint *paint,
-                                                                    const Brush *brush);
+const std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(
+    const Scene *scene, const Paint *paint, const Brush *brush);
 const float *BKE_brush_secondary_color_get(const Scene *scene,
                                            const Paint *paint,
                                            const Brush *brush);
