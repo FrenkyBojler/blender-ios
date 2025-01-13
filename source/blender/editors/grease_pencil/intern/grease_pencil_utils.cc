@@ -113,7 +113,7 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
   }
 
   if (plane_ != DrawingPlacementPlane::View) {
-    BLI_assert(placement_plane_.has_value());
+    placement_plane_ = float4();
     plane_from_point_normal_v3(*placement_plane_, placement_loc_, placement_normal_);
   }
 }
@@ -191,7 +191,7 @@ DrawingPlacement::DrawingPlacement(const Scene &scene,
   }
 
   if (plane_ != DrawingPlacementPlane::View) {
-    BLI_assert(placement_plane_.has_value());
+    placement_plane_ = float4();
     plane_from_point_normal_v3(*placement_plane_, placement_loc_, placement_normal_);
   }
 }
