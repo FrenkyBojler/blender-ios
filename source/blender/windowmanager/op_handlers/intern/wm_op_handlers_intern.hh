@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "../wm_op_handlers.hh"
-
 typedef struct wmHandlerData {
   struct wmHandlerData *next, *prev;
   // Pointer to wmOpHandlerData.id_name

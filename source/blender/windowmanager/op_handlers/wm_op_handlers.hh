@@ -12,6 +12,8 @@
 #include <map>
 #include <stdio.h>
 
+#include "intern/wm_op_handlers_intern.hh"
+
 #define HANDLER_TYPE_ALL 0
 #define HANDLER_TYPE_PRE_INVOKE 1
 #define HANDLER_TYPE_POST_INVOKE 2
@@ -24,16 +26,15 @@ extern "C" {
 
 typedef struct wmOpHandlerData {
   char id_name[OP_MAX_TYPENAME];
-  /** Handlers in order of being added. */
-  ListBase pre_invoke;
-  ListBase post_invoke;
-  ListBase modal;
-  ListBase modal_end;
+  blender::Vector<wmHandlerData> pre_invoke;
+  blender::Vector<wmHandlerData> post_invoke;
+  blender::Vector<wmHandlerData> modal;
+  blender::Vector<wmHandlerData> modal_end;
 } wmOpHandlerData;
 
 struct wmOpHandlers {
   // Map Key matches wmOpHandlerData::id_name
-  std::map<std::string, std::shared_ptr<wmOpHandlerData>> handlers;
+  std::map<std::string, wmOpHandlerData> handlers;
 };
 
 wmOpHandlers *WM_op_handlers_create(void);
