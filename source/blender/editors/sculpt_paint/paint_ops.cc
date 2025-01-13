@@ -961,8 +961,21 @@ static bNodeTree *node_group_add_for_brush(Main *bmain,
 {
   bNodeTree *node_group = bke::node_tree_add_tree(bmain, name, "GeometryNodeTree");
   BKE_id_move_to_same_lib(*bmain, node_group->id, brush->id);
-  node_group->tree_interface.add_socket(
-      DATA_("Vector"), "", "NodeSocketVectorXYZ", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+
+  /* These brushes expect a float output */
+  if (ELEM(brush->sculpt_brush_type,
+           SCULPT_BRUSH_TYPE_MASK,
+           SCULPT_BRUSH_TYPE_CLOTH,
+           SCULPT_BRUSH_TYPE_SLIDE_RELAX))
+  {
+    node_group->tree_interface.add_socket(
+        DATA_("Value"), "", "NodeSocketFloat", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+  }
+  else {
+    node_group->tree_interface.add_socket(
+        DATA_("Vector"), "", "NodeSocketVector", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+  }
+
   bke::node_add_node(nullptr, node_group, "NodeGroupOutput");
   BKE_ntree_update_main_tree(bmain, node_group, nullptr);
   return node_group;
