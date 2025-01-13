@@ -9,7 +9,6 @@
 #pragma once
 
 typedef struct wmHandlerData {
-  struct wmHandlerData *next, *prev;
   // Pointer to wmOpHandlerData.id_name
   char *id_name;
   void *py_handle;
