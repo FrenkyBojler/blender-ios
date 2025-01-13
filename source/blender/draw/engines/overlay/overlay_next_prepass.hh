@@ -190,7 +190,9 @@ class Prepass : Overlay {
                    Resources &res,
                    const State &state) final
   {
-    if (!enabled_ || ob_ref.object->dt < OB_SOLID) {
+    bool is_solid = ob_ref.object->dt >= OB_SOLID || state.v3d->shading.type == OB_RENDER;
+
+    if (!enabled_ || !is_solid) {
       return;
     }
 
