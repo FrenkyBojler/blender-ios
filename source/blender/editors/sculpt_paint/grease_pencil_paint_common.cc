@@ -297,34 +297,34 @@ GreasePencilStrokeParams GreasePencilStrokeParams::from_context(
 }
 
 IndexMask point_selection_mask(const GreasePencilStrokeParams &params,
-                               const bool use_masking,
+                               const bool use_selection_masking,
                                IndexMaskMemory &memory)
 {
 
-  return use_masking ? ed::greasepencil::retrieve_editable_and_selected_points(
-                           params.ob_orig, params.drawing, params.layer_index, memory) :
-                       ed::greasepencil::retrieve_editable_points(
-                           params.ob_orig, params.drawing, params.layer_index, memory);
+  return use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_points(
+                                     params.ob_orig, params.drawing, params.layer_index, memory) :
+                                 ed::greasepencil::retrieve_editable_points(
+                                     params.ob_orig, params.drawing, params.layer_index, memory);
 }
 
 IndexMask stroke_selection_mask(const GreasePencilStrokeParams &params,
-                                const bool use_masking,
+                                const bool use_selection_masking,
                                 IndexMaskMemory &memory)
 {
 
-  return use_masking ? ed::greasepencil::retrieve_editable_and_selected_strokes(
-                           params.ob_orig, params.drawing, params.layer_index, memory) :
-                       ed::greasepencil::retrieve_editable_strokes(
-                           params.ob_orig, params.drawing, params.layer_index, memory);
+  return use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_strokes(
+                                     params.ob_orig, params.drawing, params.layer_index, memory) :
+                                 ed::greasepencil::retrieve_editable_strokes(
+                                     params.ob_orig, params.drawing, params.layer_index, memory);
 }
 
 IndexMask fill_selection_mask(const GreasePencilStrokeParams &params,
-                              const bool use_masking,
+                              const bool use_selection_masking,
                               IndexMaskMemory &memory)
 {
-  return use_masking ? ed::greasepencil::retrieve_editable_and_selected_fill_strokes(
-                           params.ob_orig, params.drawing, params.layer_index, memory) :
-                       params.drawing.strokes().curves_range();
+  return use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_fill_strokes(
+                                     params.ob_orig, params.drawing, params.layer_index, memory) :
+                                 params.drawing.strokes().curves_range();
 }
 
 bke::crazyspace::GeometryDeformation get_drawing_deformation(

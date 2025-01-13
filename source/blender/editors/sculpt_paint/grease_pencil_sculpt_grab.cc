@@ -128,7 +128,7 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
   Object &ob_eval = *DEG_get_evaluated_object(&depsgraph, &ob_orig);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
 
-  const bool is_masking = GPENCIL_ANY_SCULPT_MASK(
+  const bool use_selection_masking = GPENCIL_ANY_SCULPT_MASK(
       eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
 
   init_brush(brush);
@@ -157,7 +157,7 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
                                        info.multi_frame_falloff,
                                        info.drawing};
     IndexMaskMemory selection_memory;
-    IndexMask selection = point_selection_mask(params, is_masking, selection_memory);
+    IndexMask selection = point_selection_mask(params, use_selection_masking, selection_memory);
 
     Array<float2> view_positions = calculate_view_positions(params, selection);
 

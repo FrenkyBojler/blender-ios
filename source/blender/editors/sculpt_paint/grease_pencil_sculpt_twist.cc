@@ -51,13 +51,14 @@ void TwistOperation::on_stroke_extended(const bContext &C, const InputSample &ex
   const Brush &brush = *BKE_paint_brush(&paint);
   const bool invert = this->is_inverted(brush);
 
-  const bool is_masking = GPENCIL_ANY_SCULPT_MASK(
+  const bool use_selection_masking = GPENCIL_ANY_SCULPT_MASK(
       eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
 
   this->foreach_editable_drawing(
       C, [&](const GreasePencilStrokeParams &params, const DeltaProjectionFunc &projection_fn) {
         IndexMaskMemory selection_memory;
-        const IndexMask selection = point_selection_mask(params, is_masking, selection_memory);
+        const IndexMask selection = point_selection_mask(
+            params, use_selection_masking, selection_memory);
         if (selection.is_empty()) {
           return false;
         }
