@@ -478,6 +478,41 @@ NodeItem NodeItem::exp() const
   return to_vector().arithmetic("exp", [](float a) { return std::exp(a); });
 }
 
+bool NodeItem::is_convertible(eNodeSocketDatatype from_type, Type to_type)
+{
+  switch (to_type) {
+    case Type::Any:
+      return true;
+    case Type::Empty:
+    case Type::Multioutput:
+      return false;
+    case Type::String:
+    case Type::Filename:
+      return from_type == SOCK_STRING;
+    case Type::Boolean:
+      return from_type == SOCK_BOOLEAN;
+    case Type::Integer:
+      return from_type == SOCK_INT;
+    case Type::Float:
+    case Type::Vector2:
+    case Type::Vector3:
+    case Type::Color3:
+    case Type::Vector4:
+    case Type::Color4:
+    case Type::DisplacementShader:
+      return ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA);
+    case Type::EDF:
+      return ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_SHADER);
+    case Type::BSDF:
+    case Type::SurfaceShader:
+    case Type::Material:
+    case Type::SurfaceOpacity:
+      return from_type == SOCK_SHADER;
+  }
+
+  return false;
+}
+
 NodeItem NodeItem::convert(Type to_type) const
 {
   Type from_type = type();
@@ -486,14 +521,24 @@ NodeItem NodeItem::convert(Type to_type) const
   }
 
   if (is_arithmetic(from_type)) {
-    /* Link arithmetic types to shader as EDF, without BSDF and fully opaque. */
-    if (to_type == Type::EDF) {
-      return create_node(
-          "uniform_edf", NodeItem::Type::EDF, {{"color", this->convert(Type::Color3)}});
-    }
-    if (to_type == Type::SurfaceShader || to_type == Type::BSDF || to_type == Type::SurfaceOpacity)
-    {
-      return empty();
+    switch (to_type) {
+      /* Link arithmetic types to shader as EDF. */
+      case Type::EDF:
+        return create_node("uniform_edf", NodeItem::Type::EDF, {{"color", convert(Type::Color3)}});
+      /* Displacement shader from arithmetic types, when not using (Vector) Displacement node. */
+      case Type::DisplacementShader:
+        return create_node("displacement",
+                           NodeItem::Type::DisplacementShader,
+                           {{"displacement", convert(Type::Vector3)}});
+      /* Material output will evaluate graph multiple times for different components,
+       * we only want to return and EDF and leave others empty. */
+      case Type::BSDF:
+      case Type::SurfaceShader:
+      case Type::Material:
+      case Type::SurfaceOpacity:
+        return empty();
+      default:
+        break;
     }
   }
 
