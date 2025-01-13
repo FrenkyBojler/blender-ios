@@ -141,7 +141,7 @@ struct GBuffer {
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
                              GPU_TEXTURE_USAGE_ATTACHMENT;
-    header_tx.ensure_2d(GPU_R16UI, extent, usage);
+    header_tx.ensure_2d(GPU_R32UI, extent, usage);
     closure_tx.ensure_2d_array(GPU_RGB10_A2, extent, data_count, usage);
     normal_tx.ensure_2d_array(GPU_RG16, extent, normal_count, usage);
     /* Ensure layer view for frame-buffer attachment. */
@@ -155,36 +155,31 @@ struct GBuffer {
   /* Bind the GBuffer frame-buffer correctly using the correct workarounds. */
   void bind(Framebuffer &gbuffer_fb)
   {
-    if (/* FIXME(fclem): Vulkan doesn't implement load / store config yet. */
-        GPU_backend_get_type() == GPU_BACKEND_VULKAN ||
-        /* FIXME(fclem): Metal has bug in backend. */
-        GPU_backend_get_type() == GPU_BACKEND_METAL)
+    /* Workaround a Metal bug that is only showing up on ATI/Intel GPUs. */
+    if (GPU_type_matches(
+            GPU_DEVICE_ATI | GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_MAC, GPU_DRIVER_ANY))
     {
       header_tx.clear(uint4(0));
+      GPU_framebuffer_bind(gbuffer_fb);
+      return;
     }
 
-    if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
-      /* TODO(fclem): Load/store action is broken on Metal. */
+    if (!GPU_stencil_export_support()) {
+      /* Clearing custom load-store frame-buffers is invalid,
+       * clear the stencil as a regular frame-buffer first. */
       GPU_framebuffer_bind(gbuffer_fb);
+      GPU_framebuffer_clear_stencil(gbuffer_fb, 0x0u);
     }
-    else {
-      if (!GPU_stencil_export_support()) {
-        /* Clearing custom load-store frame-buffers is invalid,
-         * clear the stencil as a regular frame-buffer first. */
-        GPU_framebuffer_bind(gbuffer_fb);
-        GPU_framebuffer_clear_stencil(gbuffer_fb, 0x0u);
-      }
-      GPU_framebuffer_bind_ex(
-          gbuffer_fb,
-          {
-              {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE},       /* Depth */
-              {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE},       /* Combined */
-              {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {0}}, /* GBuf Header */
-              {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Normal */
-              {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Closure */
-              {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Closure 2*/
-          });
-    }
+    GPU_framebuffer_bind_ex(
+        gbuffer_fb,
+        {
+            {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE},       /* Depth. */
+            {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE},       /* Combined. */
+            {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {0}}, /* GBuf Header. */
+            {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Normal. */
+            {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Closure. */
+            {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE},  /* GBuf Closure 2. */
+        });
   }
 
   void release()

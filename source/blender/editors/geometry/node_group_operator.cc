@@ -6,7 +6,7 @@
  * \ingroup edcurves
  */
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 
@@ -30,13 +30,15 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
+#include "BKE_paint.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
@@ -63,6 +65,7 @@
 
 #include "FN_lazy_function_execute.hh"
 
+#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -73,6 +76,8 @@
 #include "AS_asset_representation.hh"
 
 #include "geometry_intern.hh"
+
+#include <fmt/format.h>
 
 namespace geo_log = blender::nodes::geo_eval_log;
 
@@ -170,7 +175,8 @@ static void find_socket_log_contexts(const Main &bmain,
  * we need to create evaluated copies of geometry before passing it to geometry nodes. Implicit
  * sharing lets us avoid copying attribute data though.
  */
-static bke::GeometrySet get_original_geometry_eval_copy(Object &object)
+static bke::GeometrySet get_original_geometry_eval_copy(Object &object,
+                                                        nodes::GeoNodesOperatorData &operator_data)
 {
   switch (object.type) {
     case OB_CURVES: {
@@ -185,13 +191,16 @@ static bke::GeometrySet get_original_geometry_eval_copy(Object &object)
     case OB_MESH: {
       const Mesh *mesh = static_cast<const Mesh *>(object.data);
       if (std::shared_ptr<BMEditMesh> &em = mesh->runtime->edit_mesh) {
+        operator_data.active_point_index = BM_mesh_active_vert_index_get(em->bm);
+        operator_data.active_edge_index = BM_mesh_active_edge_index_get(em->bm);
+        operator_data.active_face_index = BM_mesh_active_face_index_get(em->bm, false, true);
         Mesh *mesh_copy = BKE_mesh_wrapper_from_editmesh(em, nullptr, mesh);
         BKE_mesh_wrapper_ensure_mdata(mesh_copy);
-        Mesh *final_copy = BKE_mesh_copy_for_eval(mesh_copy);
+        Mesh *final_copy = BKE_mesh_copy_for_eval(*mesh_copy);
         BKE_id_free(nullptr, mesh_copy);
         return bke::GeometrySet::from_mesh(final_copy);
       }
-      return bke::GeometrySet::from_mesh(BKE_mesh_copy_for_eval(mesh));
+      return bke::GeometrySet::from_mesh(BKE_mesh_copy_for_eval(*mesh));
     }
     default:
       return {};
@@ -241,7 +250,7 @@ static void store_result_geometry(
       const bool has_shape_keys = mesh.key != nullptr;
 
       if (object.mode == OB_MODE_SCULPT) {
-        sculpt_paint::undo::geometry_begin(&object, &op);
+        sculpt_paint::undo::geometry_begin(scene, object, &op);
       }
 
       Mesh *new_mesh = geometry.get_component_for_write<bke::MeshComponent>().release();
@@ -268,7 +277,8 @@ static void store_result_geometry(
       }
 
       if (object.mode == OB_MODE_SCULPT) {
-        sculpt_paint::undo::geometry_end(&object);
+        sculpt_paint::undo::geometry_end(object);
+        BKE_sculptsession_free_pbvh(object);
       }
       break;
     }
@@ -283,11 +293,10 @@ static void store_result_geometry(
 static void gather_node_group_ids(const bNodeTree &node_tree, Set<ID *> &ids)
 {
   const int orig_size = ids.size();
-
-  bool needs_own_transform_relation = false;
-  bool needs_scene_camera_relation = false;
-  nodes::find_node_tree_dependencies(
-      node_tree, ids, needs_own_transform_relation, needs_scene_camera_relation);
+  BLI_assert(node_tree.runtime->geometry_nodes_eval_dependencies);
+  for (ID *id : node_tree.runtime->geometry_nodes_eval_dependencies->ids.values()) {
+    ids.add(id);
+  }
   if (ids.size() != orig_size) {
     /* Only evaluate the node group if it references data-blocks. In that case it needs to be
      * evaluated so that ID pointers are switched to point to evaluated data-blocks. */
@@ -399,7 +408,9 @@ static void replace_inputs_evaluated_data_blocks(
 {
   IDP_foreach_property(&properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
     if (ID *id = IDP_Id(property)) {
-      property->data.pointer = const_cast<ID *>(depsgraphs.get_evaluated_id(*id));
+      if (ID_TYPE_USE_COPY_ON_EVAL(GS(id->name))) {
+        property->data.pointer = const_cast<ID *>(depsgraphs.get_evaluated_id(*id));
+      }
     }
   });
 }
@@ -461,9 +472,6 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Object *active_object = CTX_data_active_object(C);
-  /* NOTE: `region` and `rv3d` may be null when called from a script. */
-  const ARegion *region = CTX_wm_region(C);
-  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
   if (!active_object) {
     return OPERATOR_CANCELLED;
   }
@@ -484,7 +492,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
   for (ID *id : input_ids.values()) {
     /* Skip IDs that are already fully evaluated in the active depsgraph. */
     if (!DEG_id_is_fully_evaluated(depsgraph_active, id)) {
-      return extra_ids.add(id);
+      extra_ids.add(id);
     }
   }
 
@@ -539,14 +547,15 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
     operator_eval_data.self_object_orig = object;
     operator_eval_data.scene_orig = scene;
     RNA_int_get_array(op->ptr, "mouse_position", operator_eval_data.mouse_position);
-    if (region) {
-      operator_eval_data.region_size = int2(BLI_rcti_size_x(&region->winrct),
-                                            BLI_rcti_size_y(&region->winrct));
-    }
-    else {
-      operator_eval_data.region_size = int2(0);
-    }
-    operator_eval_data.rv3d = rv3d;
+    RNA_int_get_array(op->ptr, "region_size", operator_eval_data.region_size);
+    RNA_float_get_array(op->ptr, "cursor_position", operator_eval_data.cursor_position);
+    RNA_float_get_array(op->ptr, "cursor_rotation", &operator_eval_data.cursor_rotation.w);
+    RNA_float_get_array(
+        op->ptr, "viewport_projection_matrix", operator_eval_data.viewport_winmat.base_ptr());
+    RNA_float_get_array(
+        op->ptr, "viewport_view_matrix", operator_eval_data.viewport_viewmat.base_ptr());
+    operator_eval_data.viewport_is_perspective = RNA_boolean_get(op->ptr,
+                                                                 "viewport_is_perspective");
 
     nodes::GeoNodesCallData call_data{};
     call_data.operator_data = &operator_eval_data;
@@ -556,7 +565,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
       call_data.socket_log_contexts = &socket_log_contexts;
     }
 
-    bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(*object);
+    bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(*object, operator_eval_data);
 
     bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
         *node_tree, properties, compute_context, call_data, std::move(geometry_orig));
@@ -568,7 +577,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
   }
 
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
-  tree_log.ensure_node_warnings();
+  tree_log.ensure_node_warnings(node_tree);
   for (const geo_log::NodeWarning &warning : tree_log.all_warnings) {
     if (warning.type == geo_log::NodeWarningType::Info) {
       BKE_report(op->reports, RPT_INFO, warning.message.c_str());
@@ -581,6 +590,49 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+/**
+ * Input node values are stored as operator properties in order to support redoing from the redo
+ * panel for a few reasons:
+ *  1. Some data (like the mouse position) cannot be retrieved from the `exec` callback used for
+ *     operator redo. Redo is meant to just call the operator again with the exact same properties.
+ *  2. While adjusting an input in the redo panel, the user doesn't expect anything else to change.
+ *     If we retrieve other data like the viewport transform on every execution, that won't be the
+ *     case.
+ * We use operator RNA properties instead of operator custom data because the custom data struct
+ * isn't maintained for the redo `exec` call.
+ */
+static void store_input_node_values_rna_props(const bContext &C,
+                                              wmOperator &op,
+                                              const wmEvent &event)
+{
+  Scene *scene = CTX_data_scene(&C);
+  /* NOTE: `region` and `rv3d` may be null when called from a script. */
+  const ARegion *region = CTX_wm_region(&C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
+
+  /* Mouse position node inputs. */
+  RNA_int_set_array(op.ptr, "mouse_position", event.mval);
+  RNA_int_set_array(
+      op.ptr,
+      "region_size",
+      region ? int2(BLI_rcti_size_x(&region->winrct), BLI_rcti_size_y(&region->winrct)) : int2(0));
+
+  /* 3D cursor node inputs. */
+  const View3DCursor &cursor = scene->cursor;
+  RNA_float_set_array(op.ptr, "cursor_position", cursor.location);
+  math::Quaternion cursor_rotation = cursor.rotation();
+  RNA_float_set_array(op.ptr, "cursor_rotation", &cursor_rotation.w);
+
+  /* Viewport transform node inputs. */
+  RNA_float_set_array(op.ptr,
+                      "viewport_projection_matrix",
+                      rv3d ? float4x4(rv3d->winmat).base_ptr() : float4x4::identity().base_ptr());
+  RNA_float_set_array(op.ptr,
+                      "viewport_view_matrix",
+                      rv3d ? float4x4(rv3d->viewmat).base_ptr() : float4x4::identity().base_ptr());
+  RNA_boolean_set(op.ptr, "viewport_is_perspective", rv3d ? bool(rv3d->is_persp) : true);
+}
+
 static int run_node_group_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const bNodeTree *node_tree = get_node_group(*C, *op->ptr, op->reports);
@@ -588,9 +640,10 @@ static int run_node_group_invoke(bContext *C, wmOperator *op, const wmEvent *eve
     return OPERATOR_CANCELLED;
   }
 
-  RNA_int_set_array(op->ptr, "mouse_position", event->mval);
+  store_input_node_values_rna_props(*C, *op, *event);
 
-  nodes::update_input_properties_from_node_tree(*node_tree, op->properties, *op->properties, true);
+  nodes ::update_input_properties_from_node_tree(
+      *node_tree, op->properties, *op->properties, true);
   nodes::update_output_properties_from_node_tree(*node_tree, op->properties, *op->properties);
 
   return run_node_group_exec(C, op);
@@ -613,18 +666,17 @@ static std::string run_node_group_get_description(bContext *C,
 
 static void add_attribute_search_or_value_buttons(uiLayout *layout,
                                                   PointerRNA *md_ptr,
+                                                  const StringRef socket_id_esc,
+                                                  const StringRefNull rna_path,
                                                   const bNodeTreeInterfaceSocket &socket)
 {
-  bNodeSocketType *typeinfo = nodeSocketTypeFind(socket.socket_type);
+  bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
-  char socket_id_esc[MAX_NAME * 2];
-  BLI_str_escape(socket_id_esc, socket.identifier, sizeof(socket_id_esc));
-  const std::string rna_path = "[\"" + std::string(socket_id_esc) + "\"]";
-  const std::string rna_path_use_attribute = "[\"" + std::string(socket_id_esc) +
-                                             nodes::input_use_attribute_suffix() + "\"]";
-  const std::string rna_path_attribute_name = "[\"" + std::string(socket_id_esc) +
-                                              nodes::input_attribute_name_suffix() + "\"]";
+  const std::string rna_path_use_attribute = fmt::format(
+      "[\"{}{}\"]", socket_id_esc, nodes::input_use_attribute_suffix);
+  const std::string rna_path_attribute_name = fmt::format(
+      "[\"{}{}\"]", socket_id_esc, nodes::input_attribute_name_suffix);
 
   /* We're handling this manually in this case. */
   uiLayoutSetPropDecorate(layout, false);
@@ -649,15 +701,14 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
 
   if (use_attribute) {
     /* TODO: Add attribute search. */
-    uiItemR(prop_row, md_ptr, rna_path_attribute_name.c_str(), UI_ITEM_NONE, "", ICON_NONE);
+    uiItemR(prop_row, md_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
   }
   else {
     const char *name = socket_type == SOCK_BOOLEAN ? (socket.name ? socket.name : "") : "";
-    uiItemR(prop_row, md_ptr, rna_path.c_str(), UI_ITEM_NONE, name, ICON_NONE);
+    uiItemR(prop_row, md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
   }
 
-  uiItemR(
-      prop_row, md_ptr, rna_path_use_attribute.c_str(), UI_ITEM_R_ICON_ONLY, "", ICON_SPREADSHEET);
+  uiItemR(prop_row, md_ptr, rna_path_use_attribute, UI_ITEM_R_ICON_ONLY, "", ICON_SPREADSHEET);
 }
 
 static void draw_property_for_socket(const bNodeTree &node_tree,
@@ -668,7 +719,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
                                      const bNodeTreeInterfaceSocket &socket,
                                      const int socket_index)
 {
-  bNodeSocketType *typeinfo = nodeSocketTypeFind(socket.socket_type);
+  bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
@@ -712,7 +763,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
       break;
     default:
       if (nodes::input_has_attribute_toggle(node_tree, socket_index)) {
-        add_attribute_search_or_value_buttons(row, op_ptr, socket);
+        add_attribute_search_or_value_buttons(row, op_ptr, socket_id_esc, rna_path, socket);
       }
       else {
         uiItemR(row, op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
@@ -821,9 +872,7 @@ void GEOMETRY_OT_execute_node_group(wmOperatorType *ot)
   asset::operator_asset_reference_props_register(*ot->srna);
   WM_operator_properties_id_lookup(ot, true);
 
-  /* Store the mouse position in an RNA property rather than allocated operator custom data in
-   * order to support redoing the operator. Because redo uses `exec`, the mouse position will be in
-   * the same position in screen space. */
+  /* See comment for #store_input_node_values_rna_props. */
   prop = RNA_def_int_array(ot->srna,
                            "mouse_position",
                            2,
@@ -834,6 +883,56 @@ void GEOMETRY_OT_execute_node_group(wmOperatorType *ot)
                            "Mouse coordinates in region space",
                            INT_MIN,
                            INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  prop = RNA_def_int_array(
+      ot->srna, "region_size", 2, nullptr, 0, INT_MAX, "Region Size", "", 0, INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  prop = RNA_def_float_array(ot->srna,
+                             "cursor_position",
+                             3,
+                             nullptr,
+                             FLT_MIN,
+                             FLT_MAX,
+                             "3D Cursor Position",
+                             "",
+                             FLT_MIN,
+                             FLT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  prop = RNA_def_float_array(ot->srna,
+                             "cursor_rotation",
+                             4,
+                             nullptr,
+                             FLT_MIN,
+                             FLT_MAX,
+                             "3D Cursor Rotation",
+                             "",
+                             FLT_MIN,
+                             FLT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  prop = RNA_def_float_array(ot->srna,
+                             "viewport_projection_matrix",
+                             16,
+                             nullptr,
+                             FLT_MIN,
+                             FLT_MAX,
+                             "Viewport Projection Transform",
+                             "",
+                             FLT_MIN,
+                             FLT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  prop = RNA_def_float_array(ot->srna,
+                             "viewport_view_matrix",
+                             16,
+                             nullptr,
+                             FLT_MIN,
+                             FLT_MAX,
+                             "Viewport View Transform",
+                             "",
+                             FLT_MIN,
+                             FLT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  prop = RNA_def_boolean(
+      ot->srna, "viewport_is_perspective", false, "Viewport Is Perspective", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
@@ -967,7 +1066,9 @@ static asset::AssetItemTree *get_static_item_tree(const Object &active_object)
 void clear_operator_asset_trees()
 {
   for (const ObjectType type : {OB_MESH, OB_CURVES, OB_POINTCLOUD}) {
-    for (const eObjectMode mode : {OB_MODE_OBJECT, OB_MODE_EDIT, OB_MODE_SCULPT_CURVES}) {
+    for (const eObjectMode mode :
+         {OB_MODE_OBJECT, OB_MODE_EDIT, OB_MODE_SCULPT, OB_MODE_SCULPT_CURVES})
+    {
       if (asset::AssetItemTree *tree = get_static_item_tree(type, mode)) {
         tree->dirty = true;
       }
@@ -1045,6 +1146,7 @@ static Set<std::string> get_builtin_menus(const ObjectType object_type, const eO
           menus.add_new("Face");
           menus.add_new("Face/Face Data");
           menus.add_new("UV");
+          menus.add_new("UV/Unwrap");
           break;
         case OB_MODE_SCULPT:
           menus.add_new("View");
@@ -1071,7 +1173,6 @@ static Set<std::string> get_builtin_menus(const ObjectType object_type, const eO
 
 static void catalog_assets_draw(const bContext *C, Menu *menu)
 {
-  bScreen &screen = *CTX_wm_screen(C);
   const Object *active_object = CTX_data_active_object(C);
   if (!active_object) {
     return;
@@ -1080,13 +1181,14 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   if (!tree) {
     return;
   }
-  const PointerRNA menu_path_ptr = CTX_data_pointer_get(C, "asset_catalog_path");
-  if (RNA_pointer_is_null(&menu_path_ptr)) {
+  const std::optional<StringRefNull> menu_path = CTX_data_string_get(C, "asset_catalog_path");
+  if (!menu_path) {
     return;
   }
-  const auto &menu_path = *static_cast<const asset_system::AssetCatalogPath *>(menu_path_ptr.data);
-  const Span<asset_system::AssetRepresentation *> assets = tree->assets_per_path.lookup(menu_path);
-  const asset_system::AssetCatalogTreeItem *catalog_item = tree->catalogs.find_item(menu_path);
+  const Span<asset_system::AssetRepresentation *> assets = tree->assets_per_path.lookup(
+      menu_path->data());
+  const asset_system::AssetCatalogTreeItem *catalog_item = tree->catalogs.find_item(
+      menu_path->data());
   BLI_assert(catalog_item != nullptr);
 
   uiLayout *layout = menu->layout;
@@ -1127,8 +1229,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       uiItemS(layout);
       add_separator = false;
     }
-    asset::draw_menu_for_catalog(
-        screen, *all_library, item, "GEO_MT_node_operator_catalog_assets", *layout);
+    asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", *layout);
   });
 }
 
@@ -1249,7 +1350,6 @@ void ui_template_node_operator_asset_menu_items(uiLayout &layout,
                                                 const bContext &C,
                                                 const StringRef catalog_path)
 {
-  bScreen &screen = *CTX_wm_screen(&C);
   const Object *active_object = CTX_data_active_object(&C);
   if (!active_object) {
     return;
@@ -1267,18 +1367,13 @@ void ui_template_node_operator_asset_menu_items(uiLayout &layout,
   if (!all_library) {
     return;
   }
-  PointerRNA path_ptr = asset::persistent_catalog_path_rna_pointer(screen, *all_library, *item);
-  if (path_ptr.data == nullptr) {
-    return;
-  }
   uiLayout *col = uiLayoutColumn(&layout, false);
-  uiLayoutSetContextPointer(col, "asset_catalog_path", &path_ptr);
+  uiLayoutSetContextString(col, "asset_catalog_path", item->catalog_path().str());
   uiItemMContents(col, "GEO_MT_node_operator_catalog_assets");
 }
 
 void ui_template_node_operator_asset_root_items(uiLayout &layout, const bContext &C)
 {
-  bScreen &screen = *CTX_wm_screen(&C);
   const Object *active_object = CTX_data_active_object(&C);
   if (!active_object) {
     return;
@@ -1291,19 +1386,14 @@ void ui_template_node_operator_asset_root_items(uiLayout &layout, const bContext
     *tree = build_catalog_tree(C, *active_object);
   }
 
-  if (asset_system::AssetLibrary *all_library = asset::list::library_get_once_available(
-          asset_system::all_library_reference()))
-  {
-    const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
-                                                             eObjectMode(active_object->mode));
+  const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
+                                                           eObjectMode(active_object->mode));
 
-    tree->catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
-      if (!builtin_menus.contains_as(item.catalog_path().str())) {
-        asset::draw_menu_for_catalog(
-            screen, *all_library, item, "GEO_MT_node_operator_catalog_assets", layout);
-      }
-    });
-  }
+  tree->catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
+    if (!builtin_menus.contains_as(item.catalog_path().str())) {
+      asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", layout);
+    }
+  });
 
   if (!tree->unassigned_assets.is_empty() || unassigned_local_poll(C)) {
     uiItemM(&layout, "GEO_MT_node_operator_unassigned", "", ICON_FILE_HIDDEN);

@@ -25,7 +25,7 @@
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_ui_common.hh"
@@ -33,7 +33,7 @@
 namespace blender {
 
 using bke::greasepencil::Drawing;
-using bke::greasepencil::FramesMapKey;
+using bke::greasepencil::FramesMapKeyT;
 using bke::greasepencil::Layer;
 
 static void init_data(ModifierData *md)
@@ -154,22 +154,20 @@ static void modify_fill_color(const GreasePencilOpacityModifierData &omd,
   fill_opacities.finish();
 }
 
-static void modify_hardness(const GreasePencilOpacityModifierData &omd,
+static void modify_softness(const GreasePencilOpacityModifierData &omd,
                             bke::CurvesGeometry &curves,
                             const IndexMask &curves_mask)
 {
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  bke::SpanAttributeWriter<float> hardnesses = attributes.lookup_or_add_for_write_span<float>(
-      "hardness",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curve_num)));
+  bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
+      "softness", bke::AttrDomain::Curve);
 
   curves_mask.foreach_index(GrainSize(512), [&](int64_t curve_i) {
-    hardnesses.span[curve_i] = std::clamp(
-        hardnesses.span[curve_i] * omd.hardness_factor, 0.0f, 1.0f);
+    softness.span[curve_i] =
+        1.0f - std::clamp((1.0f - softness.span[curve_i]) * omd.hardness_factor, 0.0f, 1.0f);
   });
 
-  hardnesses.finish();
+  softness.finish();
 }
 
 static void modify_curves(ModifierData *md,
@@ -194,7 +192,7 @@ static void modify_curves(ModifierData *md,
       modify_fill_color(*omd, curves, curves_mask);
       break;
     case MOD_GREASE_PENCIL_COLOR_HARDNESS:
-      modify_hardness(*omd, curves, curves_mask);
+      modify_softness(*omd, curves, curves_mask);
       break;
   }
 }
@@ -232,16 +230,16 @@ static void panel_draw(const bContext *C, Panel *panel)
   const GreasePencilModifierColorMode color_mode = GreasePencilModifierColorMode(
       RNA_enum_get(ptr, "color_mode"));
 
-  uiItemR(layout, ptr, "color_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (color_mode == MOD_GREASE_PENCIL_COLOR_HARDNESS) {
-    uiItemR(layout, ptr, "hardness_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "hardness_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
     const bool use_uniform_opacity = RNA_boolean_get(ptr, "use_uniform_opacity");
     const bool use_weight_as_factor = RNA_boolean_get(ptr, "use_weight_as_factor");
 
-    uiItemR(layout, ptr, "use_uniform_opacity", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "use_uniform_opacity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     const char *text = (use_uniform_opacity) ? IFACE_("Opacity") : IFACE_("Opacity Factor");
 
     uiLayout *row = uiLayoutRow(layout, true);
@@ -255,7 +253,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

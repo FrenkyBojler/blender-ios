@@ -309,7 +309,7 @@ short ANIM_animchannel_keyframes_loop(KeyframeEditData *ked,
                                       KeyframeEditFunc key_cb,
                                       FcuEditFunc fcu_cb);
 /**
- * Same as above, except bAnimListElem wrapper is not needed.
+ * Same as #ANIM_animchannel_keyframes_loop, except #bAnimListElem wrapper is not needed.
  * \param keytype: is #eAnim_KeyType.
  */
 short ANIM_animchanneldata_keyframes_loop(KeyframeEditData *ked,
@@ -348,7 +348,7 @@ KeyframeEditFunc ANIM_editkeyframes_snap(short mode);
  * \note for markers and 'value', the values to use must be supplied as the first float value.
  */
 KeyframeEditFunc ANIM_editkeyframes_mirror(short mode);
-KeyframeEditFunc ANIM_editkeyframes_select(short mode);
+KeyframeEditFunc ANIM_editkeyframes_select(eEditKeyframes_Select selectmode);
 /**
  * Set all selected Bezier Handles to a single type.
  */
@@ -417,7 +417,7 @@ bool keyframe_region_circle_test(const KeyframeEdit_CircleData *data_circle, con
 /* Destructive Editing API `keyframes_general.cc`. */
 
 bool duplicate_fcurve_keys(FCurve *fcu);
-float get_default_rna_value(FCurve *fcu, PropertyRNA *prop, PointerRNA *ptr);
+float get_default_rna_value(const FCurve *fcu, PropertyRNA *prop, PointerRNA *ptr);
 
 struct FCurveSegment {
   FCurveSegment *next, *prev;
@@ -431,11 +431,7 @@ struct FCurveSegment {
  * The caller is responsible for freeing the memory.
  */
 ListBase find_fcurve_segments(FCurve *fcu);
-void clean_fcurve(bAnimContext *ac,
-                  bAnimListElem *ale,
-                  float thresh,
-                  bool cleardefault,
-                  bool only_selected_keys);
+void clean_fcurve(bAnimListElem *ale, float thresh, bool cleardefault, bool only_selected_keys);
 void blend_to_neighbor_fcurve_segment(FCurve *fcu, FCurveSegment *segment, float factor);
 void breakdown_fcurve_segment(FCurve *fcu, FCurveSegment *segment, float factor);
 void scale_average_fcurve_segment(FCurve *fcu, FCurveSegment *segment, float factor);
@@ -455,7 +451,7 @@ void ED_ANIM_get_1d_gauss_kernel(const float sigma, int kernel_size, double *r_k
 
 ButterworthCoefficients *ED_anim_allocate_butterworth_coefficients(const int filter_order);
 void ED_anim_free_butterworth_coefficients(ButterworthCoefficients *bw_coeff);
-void ED_anim_calculate_butterworth_coefficients(float cutoff,
+void ED_anim_calculate_butterworth_coefficients(float cutoff_frequency,
                                                 float sampling_frequency,
                                                 ButterworthCoefficients *bw_coeff);
 /**

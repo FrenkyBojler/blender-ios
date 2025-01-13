@@ -50,28 +50,6 @@ enum {
   DRW_MESH_WEIGHT_STATE_LOCK_RELATIVE = (1 << 2),
 };
 
-enum eMRIterType {
-  MR_ITER_CORNER_TRI = 1 << 0,
-  MR_ITER_POLY = 1 << 1,
-  MR_ITER_LOOSE_EDGE = 1 << 2,
-  MR_ITER_LOOSE_VERT = 1 << 3,
-};
-ENUM_OPERATORS(eMRIterType, MR_ITER_LOOSE_VERT)
-
-enum eMRDataType {
-  MR_DATA_NONE = 0,
-  MR_DATA_POLY_NOR = 1 << 1,
-  MR_DATA_LOOP_NOR = 1 << 2,
-  MR_DATA_CORNER_TRI = 1 << 3,
-  MR_DATA_LOOSE_GEOM = 1 << 4,
-  /** Force loop normals calculation. */
-  MR_DATA_TAN_LOOP_NOR = 1 << 5,
-  MR_DATA_POLYS_SORTED = 1 << 6,
-};
-ENUM_OPERATORS(eMRDataType, MR_DATA_POLYS_SORTED)
-
-int mesh_render_mat_len_get(const Object *object, const Mesh *mesh);
-
 struct MeshBufferList {
   /* Every VBO below contains at least enough data for every loop in the mesh
    * (except fdots and skin roots). For some VBOs, it extends to (in this exact order) :
@@ -256,9 +234,8 @@ struct MeshBatchCache {
   MeshBatchList batch;
 
   /* Index buffer per material. These are sub-ranges of `ibo.tris`. */
-  gpu::IndexBuf **tris_per_mat;
-
-  gpu::Batch **surface_per_mat;
+  Array<gpu::IndexBuf *> tris_per_mat;
+  Array<gpu::Batch *> surface_per_mat;
 
   DRWSubdivCache *subdiv_cache;
 
@@ -296,25 +273,23 @@ struct MeshBatchCache {
   bool no_loose_wire;
 
   eV3DShadingColorType color_type;
-  bool pbvh_is_drawing;
 };
 
 #define MBC_EDITUV \
   (MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | \
    MBC_EDITUV_EDGES | MBC_EDITUV_VERTS | MBC_EDITUV_FACEDOTS | MBC_WIRE_LOOPS_UVS)
 
-void mesh_buffer_cache_create_requested(TaskGraph *task_graph,
+void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
                                         MeshBatchCache &cache,
                                         MeshBufferCache &mbc,
-                                        Object *object,
-                                        Mesh *mesh,
+                                        Object &object,
+                                        Mesh &mesh,
                                         bool is_editmode,
                                         bool is_paint_mode,
-                                        bool edit_mode_active,
                                         const float4x4 &object_to_world,
                                         bool do_final,
                                         bool do_uvedit,
-                                        const Scene *scene,
+                                        const Scene &scene,
                                         const ToolSettings *ts,
                                         bool use_hide);
 

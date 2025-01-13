@@ -59,9 +59,18 @@ struct NodeClipboardItem {
   std::string library_name;
 };
 
+struct ClipboardLink {
+  const bNode *from_node = nullptr;
+  const bNode *to_node = nullptr;
+  std::string from_socket;
+  std::string to_socket;
+  int flag = 0;
+  int multi_input_sort_id = 0;
+};
+
 struct NodeClipboard {
   Vector<NodeClipboardItem> nodes;
-  Vector<bNodeLink> links;
+  Vector<ClipboardLink> links;
 
   /* A mapping of all ID references from nodes in the clipboard, to information allowing to find
    * their valid matching counterpart in current Main data when pasting the nodes back. Entries are
@@ -77,7 +86,7 @@ struct NodeClipboard {
     }
     this->nodes.clear_and_shrink();
     this->links.clear_and_shrink();
-    this->old_ids_to_idinfo.clear_and_shrink();
+    this->old_ids_to_idinfo.clear();
   }
 
   /**
@@ -251,7 +260,7 @@ struct NodeClipboard {
         IDWALK_READONLY);
 
     NodeClipboardItem item;
-    item.draw_rect = node.runtime->totr;
+    item.draw_rect = node.runtime->draw_bounds;
     item.node = new_node;
     this->nodes.append(std::move(item));
   }
@@ -278,6 +287,8 @@ static int node_clipboard_copy_exec(bContext *C, wmOperator * /*op*/)
   Map<const bNode *, bNode *> node_map;
   Map<const bNodeSocket *, bNodeSocket *> socket_map;
 
+  node_select_paired(tree);
+
   for (const bNode *node : tree.all_nodes()) {
     if (node->flag & SELECT) {
       clipboard.copy_add_node(*node, node_map, socket_map);
@@ -291,7 +302,7 @@ static int node_clipboard_copy_exec(bContext *C, wmOperator * /*op*/)
         new_node->parent = node_map.lookup(new_node->parent);
       }
       else {
-        nodeDetachNode(&tree, new_node);
+        bke::node_detach_node(&tree, new_node);
       }
     }
   }
@@ -301,14 +312,14 @@ static int node_clipboard_copy_exec(bContext *C, wmOperator * /*op*/)
     BLI_assert(link->tonode);
     BLI_assert(link->fromnode);
     if (link->tonode->flag & NODE_SELECT && link->fromnode->flag & NODE_SELECT) {
-      bNodeLink new_link{};
+      clipboard.links.append({});
+      ClipboardLink &new_link = clipboard.links.last();
       new_link.flag = link->flag;
-      new_link.tonode = node_map.lookup(link->tonode);
-      new_link.tosock = socket_map.lookup(link->tosock);
-      new_link.fromnode = node_map.lookup(link->fromnode);
-      new_link.fromsock = socket_map.lookup(link->fromsock);
+      new_link.to_node = node_map.lookup(link->tonode);
+      new_link.from_node = node_map.lookup(link->fromnode);
+      new_link.to_socket = link->tosock->identifier;
+      new_link.from_socket = link->fromsock->identifier;
       new_link.multi_input_sort_id = link->multi_input_sort_id;
-      clipboard.links.append(new_link);
     }
   }
 
@@ -399,7 +410,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
   }
 
   for (bNode *new_node : node_map.values()) {
-    nodeSetSelected(new_node, true);
+    bke::node_set_selected(new_node, true);
 
     new_node->flag &= ~NODE_ACTIVE;
 
@@ -428,31 +439,33 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
     for (bNode *new_node : node_map.values()) {
       /* Skip the offset for parented nodes since the location is in parent space. */
       if (new_node->parent == nullptr) {
-        new_node->locx += offset.x;
-        new_node->locy += offset.y;
+        new_node->location[0] += offset.x;
+        new_node->location[1] += offset.y;
       }
     }
   }
 
-  /* Add links between existing nodes. */
-  for (const bNodeLink &link : clipboard.links) {
-    const bNode *fromnode = link.fromnode;
-    const bNode *tonode = link.tonode;
-    if (node_map.lookup_key_ptr(fromnode) && node_map.lookup_key_ptr(tonode)) {
-      bNodeLink *new_link = nodeAddLink(&tree,
-                                        node_map.lookup(fromnode),
-                                        socket_map.lookup(link.fromsock),
-                                        node_map.lookup(tonode),
-                                        socket_map.lookup(link.tosock));
-      new_link->multi_input_sort_id = link.multi_input_sort_id;
-    }
-  }
+  remap_node_pairing(tree, node_map);
 
   for (bNode *new_node : node_map.values()) {
-    bke::nodeDeclarationEnsure(&tree, new_node);
+    bke::node_declaration_ensure(&tree, new_node);
   }
 
-  remap_node_pairing(tree, node_map);
+  /* Add links between existing nodes. */
+  for (const ClipboardLink &link : clipboard.links) {
+    bNode *from_node = node_map.lookup_default(link.from_node, nullptr);
+    bNode *to_node = node_map.lookup_default(link.to_node, nullptr);
+    if (!from_node || !to_node) {
+      continue;
+    }
+    bNodeSocket *from = bke::node_find_socket(from_node, SOCK_OUT, link.from_socket.c_str());
+    bNodeSocket *to = bke::node_find_socket(to_node, SOCK_IN, link.to_socket.c_str());
+    if (!from || !to) {
+      continue;
+    }
+    bNodeLink *new_link = bke::node_add_link(&tree, from_node, from, to_node, to);
+    new_link->multi_input_sort_id = link.multi_input_sort_id;
+  }
 
   tree.ensure_topology_cache();
   for (bNode *new_node : node_map.values()) {
@@ -460,7 +473,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
     update_multi_input_indices_for_removed_links(*new_node);
   }
 
-  ED_node_tree_propagate_change(C, bmain, &tree);
+  ED_node_tree_propagate_change(*bmain);
   /* Pasting nodes can create arbitrary new relations because nodes can reference IDs. */
   DEG_relations_tag_update(bmain);
 

@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 /**
  * Virtual shadow-mapping: Usage tagging
  *
@@ -9,19 +11,25 @@
  * This contains the common logic used for tagging shadows for opaque and transparent receivers.
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(draw_intersect_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_iter_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_lib.glsl)
+#include "infos/eevee_shadow_info.hh"
 
-void shadow_tag_usage_tile(LightData light, ivec2 tile_co, int lod, int tilemap_index)
+#ifdef GPU_LIBRARY_SHADER
+SHADER_LIBRARY_CREATE_INFO(eevee_shadow_tag_usage_surfels)
+#endif
+
+#include "draw_intersect_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "eevee_light_iter_lib.glsl"
+#include "eevee_light_lib.glsl"
+#include "eevee_shadow_lib.glsl"
+
+void shadow_tag_usage_tile(LightData light, uvec2 tile_co, int lod, int tilemap_index)
 {
   if (tilemap_index > light_tilemap_max_get(light)) {
     return;
   }
 
-  tile_co >>= lod;
+  tile_co >>= uint(lod);
   int tile_index = shadow_tile_offset(tile_co, tilemaps_buf[tilemap_index].tiles_index, lod);
   atomicOr(tiles_buf[tile_index], uint(SHADOW_IS_USED));
 }
@@ -34,13 +42,13 @@ void shadow_tag_usage_tilemap_directional_at_level(uint l_idx, vec3 P, int level
     return;
   }
 
-  vec3 lP = light_world_to_local(light, P);
+  vec3 lP = light_world_to_local_direction(light, P);
 
   level = clamp(
       level, light_sun_data_get(light).clipmap_lod_min, light_sun_data_get(light).clipmap_lod_max);
 
   ShadowCoordinates coord = shadow_directional_coordinates_at_level(light, lP, level);
-  shadow_tag_usage_tile(light, coord.tile_coord, 0, coord.tilemap_index);
+  shadow_tag_usage_tile(light, coord.tilemap_tile, 0, coord.tilemap_index);
 }
 
 void shadow_tag_usage_tilemap_directional(uint l_idx, vec3 P, vec3 V, float radius, int lod_bias)
@@ -51,19 +59,23 @@ void shadow_tag_usage_tilemap_directional(uint l_idx, vec3 P, vec3 V, float radi
     return;
   }
 
-  vec3 lP = light_world_to_local(light, P);
+  vec3 lP = light_world_to_local_direction(light, P);
 
-  /* TODO(Miguel Pozo): Implement lod_bias support. */
+  LightSunData sun = light_sun_data_get(light);
+
   if (radius == 0.0) {
     int level = shadow_directional_level(light, lP - light_position_get(light));
+    level = clamp(level + lod_bias, sun.clipmap_lod_min, sun.clipmap_lod_max);
     ShadowCoordinates coord = shadow_directional_coordinates_at_level(light, lP, level);
-    shadow_tag_usage_tile(light, coord.tile_coord, 0, coord.tilemap_index);
+    shadow_tag_usage_tile(light, coord.tilemap_tile, 0, coord.tilemap_index);
   }
   else {
-    vec3 start_lP = light_world_to_local(light, P - V * radius);
-    vec3 end_lP = light_world_to_local(light, P + V * radius);
+    vec3 start_lP = light_world_to_local_direction(light, P - V * radius);
+    vec3 end_lP = light_world_to_local_direction(light, P + V * radius);
     int min_level = shadow_directional_level(light, start_lP - light_position_get(light));
     int max_level = shadow_directional_level(light, end_lP - light_position_get(light));
+    min_level = clamp(min_level + lod_bias, sun.clipmap_lod_min, sun.clipmap_lod_max);
+    max_level = clamp(max_level + lod_bias, sun.clipmap_lod_min, sun.clipmap_lod_max);
 
     for (int level = min_level; level <= max_level; level++) {
       ShadowCoordinates coord_min = shadow_directional_coordinates_at_level(
@@ -71,9 +83,9 @@ void shadow_tag_usage_tilemap_directional(uint l_idx, vec3 P, vec3 V, float radi
       ShadowCoordinates coord_max = shadow_directional_coordinates_at_level(
           light, lP + vec3(radius, radius, 0.0), level);
 
-      for (int x = coord_min.tile_coord.x; x <= coord_max.tile_coord.x; x++) {
-        for (int y = coord_min.tile_coord.y; y <= coord_max.tile_coord.y; y++) {
-          shadow_tag_usage_tile(light, ivec2(x, y), 0, coord_min.tilemap_index);
+      for (uint x = coord_min.tilemap_tile.x; x <= coord_max.tilemap_tile.x; x++) {
+        for (uint y = coord_min.tilemap_tile.y; y <= coord_max.tilemap_tile.y; y++) {
+          shadow_tag_usage_tile(light, uvec2(x, y), 0, coord_min.tilemap_index);
         }
       }
     }
@@ -107,8 +119,8 @@ void shadow_tag_usage_tilemap_punctual(uint l_idx, vec3 P, float radius, int lod
     }
   }
 
-  /* TODO(fclem): 3D shift for jittered soft shadows. */
-  lP += vec3(0.0, 0.0, -light_local_data_get(light).shadow_projection_shift);
+  /* Transform to shadow local space. */
+  lP -= light_local_data_get(light).shadow_position;
 
   int lod = shadow_punctual_level(light,
                                   lP,
@@ -121,7 +133,7 @@ void shadow_tag_usage_tilemap_punctual(uint l_idx, vec3 P, float radius, int lod
     int face_id = shadow_punctual_face_index_get(lP);
     lP = shadow_punctual_local_position_to_face_local(face_id, lP);
     ShadowCoordinates coord = shadow_punctual_coordinates(light, lP, face_id);
-    shadow_tag_usage_tile(light, coord.tile_coord, lod, coord.tilemap_index);
+    shadow_tag_usage_tile(light, coord.tilemap_tile, lod, coord.tilemap_index);
   }
   else {
     uint faces = 0u;
@@ -146,9 +158,9 @@ void shadow_tag_usage_tilemap_punctual(uint l_idx, vec3 P, float radius, int lod
       ShadowCoordinates coord_min = shadow_punctual_coordinates(light, _lP - offset, face_id);
       ShadowCoordinates coord_max = shadow_punctual_coordinates(light, _lP + offset, face_id);
 
-      for (int x = coord_min.tile_coord.x; x <= coord_max.tile_coord.x; x++) {
-        for (int y = coord_min.tile_coord.y; y <= coord_max.tile_coord.y; y++) {
-          shadow_tag_usage_tile(light, ivec2(x, y), lod, tilemap_index);
+      for (uint x = coord_min.tilemap_tile.x; x <= coord_max.tilemap_tile.x; x++) {
+        for (uint y = coord_min.tilemap_tile.y; y <= coord_max.tilemap_tile.y; y++) {
+          shadow_tag_usage_tile(light, uvec2(x, y), lod, tilemap_index);
         }
       }
     }

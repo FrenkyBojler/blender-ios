@@ -83,7 +83,6 @@ static void id_type_init()
   INIT_TYPE(ID_GR);
   INIT_TYPE(ID_AR);
   INIT_TYPE(ID_AC);
-  INIT_TYPE(ID_AN);
   INIT_TYPE(ID_NT);
   INIT_TYPE(ID_BR);
   INIT_TYPE(ID_PA);
@@ -109,6 +108,18 @@ static void id_type_init()
 
   BLI_assert_msg(init_types_num == INDEX_ID_MAX, "Some IDTypeInfo initialization is missing");
   UNUSED_VARS_NDEBUG(init_types_num);
+
+  { /* Inspect which ID types can be animated, so that IDType_ID_AC.dependencies_id_types can be
+     * set to include those. The runtime ID* cache of #animrig::Slot will point to any
+     * ID that is animated by it, and thus can point to any animatable ID type. */
+    IDType_ID_AC.dependencies_id_types = 0;
+    for (const IDTypeInfo *id_type : id_types) {
+      const bool is_animatable = (id_type->flags & IDTYPE_FLAGS_NO_ANIMDATA) == 0;
+      if (is_animatable) {
+        IDType_ID_AC.dependencies_id_types |= id_type->id_filter;
+      }
+    }
+  }
 
 #undef INIT_TYPE
 }
@@ -226,7 +237,6 @@ int BKE_idtype_idcode_to_index(const short idcode)
 
   switch ((ID_Type)idcode) {
     CASE_IDINDEX(AC);
-    CASE_IDINDEX(AN);
     CASE_IDINDEX(AR);
     CASE_IDINDEX(BR);
     CASE_IDINDEX(CA);
@@ -286,7 +296,6 @@ int BKE_idtype_idfilter_to_index(const uint64_t id_filter)
 
   switch (id_filter) {
     CASE_IDINDEX(AC);
-    CASE_IDINDEX(AN);
     CASE_IDINDEX(AR);
     CASE_IDINDEX(BR);
     CASE_IDINDEX(CA);
@@ -383,7 +392,7 @@ void BKE_idtype_id_foreach_cache(ID *id,
   }
 
   /* Handle 'private IDs'. */
-  bNodeTree *nodetree = ntreeFromID(id);
+  bNodeTree *nodetree = blender::bke::node_tree_from_id(id);
   if (nodetree != nullptr) {
     type_info = BKE_idtype_get_info_from_id(&nodetree->id);
     if (type_info == nullptr) {

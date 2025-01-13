@@ -13,12 +13,17 @@
  * we precompute a weight profile texture to be able to support per pixel AND per channel radius.
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_rotation_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_matrix_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_codegen_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
+#include "infos/eevee_subsurface_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_subsurface_convolve)
+
+#include "draw_view_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "gpu_shader_codegen_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_math_rotation_lib.glsl"
+#include "gpu_shader_shared_exponent_lib.glsl"
 
 /* Produces NaN tile artifacts on Metal (M1). */
 #ifndef GPU_METAL
@@ -77,7 +82,7 @@ SubSurfaceSample sample_neighborhood(vec2 sample_uv)
   return samp;
 }
 
-void main(void)
+void main()
 {
   const uint tile_size = SUBSURFACE_GROUP_SIZE;
   uvec2 tile_coord = unpackUvec2x16(tiles_coord_buf[gl_WorkGroupID.x]);
@@ -111,7 +116,9 @@ void main(void)
   }
 
   /* Avoid too small radii that have float imprecision. */
-  vec3 clamped_sss_radius = max(vec3(1e-4), closure.sss_radius / max_radius) * max_radius;
+  vec3 clamped_sss_radius = max(vec3(uniform_buf.subsurface.min_radius),
+                                closure.sss_radius / max_radius) *
+                            max_radius;
   /* Scale albedo because we can have HDR value caused by BSDF sampling. */
   vec3 albedo = closure.color / max(1e-6, reduce_max(closure.color));
   vec3 d = burley_setup(clamped_sss_radius, albedo);
@@ -146,7 +153,7 @@ void main(void)
   accum_radiance *= safe_rcp(accum_weight);
 
   /* Put result in direct diffuse. */
-  imageStore(out_direct_light_img, texel, vec4(accum_radiance, 0.0));
+  imageStoreFast(out_direct_light_img, texel, uvec4(rgb9e5_encode(accum_radiance)));
   /* Clear the indirect pass since its content has been merged and convolved with direct light. */
-  imageStore(out_indirect_light_img, texel, vec4(0.0, 0.0, 0.0, 0.0));
+  imageStoreFast(out_indirect_light_img, texel, vec4(0.0, 0.0, 0.0, 0.0));
 }

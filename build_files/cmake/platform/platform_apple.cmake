@@ -5,7 +5,7 @@
 # Libraries configuration for Apple.
 
 macro(find_package_wrapper)
-# do nothing, just satisfy the macro
+  # do nothing, just satisfy the macro
 endmacro()
 
 function(print_found_status
@@ -174,6 +174,9 @@ if(WITH_CODEC_FFMPEG)
   if(EXISTS ${LIBDIR}/ffmpeg/lib/libaom.a)
     list(APPEND FFMPEG_FIND_COMPONENTS aom)
   endif()
+  if(EXISTS ${LIBDIR}/ffmpeg/lib/libx265.a)
+    list(APPEND FFMPEG_FIND_COMPONENTS x265)
+  endif()
   if(EXISTS ${LIBDIR}/ffmpeg/lib/libxvidcore.a)
     list(APPEND FFMPEG_FIND_COMPONENTS xvidcore)
   endif()
@@ -252,12 +255,9 @@ if(WITH_BOOST)
   set(Boost_NO_BOOST_CMAKE ON)
   set(Boost_ROOT ${LIBDIR}/boost)
   set(Boost_NO_SYSTEM_PATHS ON)
-  set(_boost_FIND_COMPONENTS date_time filesystem regex system thread wave)
+  set(_boost_FIND_COMPONENTS)
   if(WITH_INTERNATIONAL)
     list(APPEND _boost_FIND_COMPONENTS locale)
-  endif()
-  if(WITH_OPENVDB)
-    list(APPEND _boost_FIND_COMPONENTS iostreams)
   endif()
   if(WITH_USD AND USD_PYTHON_SUPPORT)
     list(APPEND _boost_FIND_COMPONENTS python${PYTHON_VERSION_NO_DOTS})
@@ -530,8 +530,9 @@ if(PLATFORM_BUNDLED_LIBRARIES)
 
   # Environment variables to run precompiled executables that needed libraries.
   list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ":" _library_paths)
-  set(PLATFORM_ENV_BUILD "DYLD_LIBRARY_PATH=\"${_library_paths};$DYLD_LIBRARY_PATH\"")
-  set(PLATFORM_ENV_INSTALL "DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/Blender.app/Contents/Resources/lib/;$DYLD_LIBRARY_PATH")
+  # Intentionally double "$$" which expands into "$" when instantiated.
+  set(PLATFORM_ENV_BUILD "DYLD_LIBRARY_PATH=\"${_library_paths};$$DYLD_LIBRARY_PATH\"")
+  set(PLATFORM_ENV_INSTALL "DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/Blender.app/Contents/Resources/lib/;$$DYLD_LIBRARY_PATH")
   unset(_library_paths)
 endif()
 

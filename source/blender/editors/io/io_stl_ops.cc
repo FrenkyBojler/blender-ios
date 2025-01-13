@@ -48,7 +48,7 @@ static int wm_stl_export_execute(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No filename given");
     return OPERATOR_CANCELLED;
   }
-  STLExportParams export_params{};
+  STLExportParams export_params;
   RNA_string_get(op->ptr, "filepath", export_params.filepath);
   export_params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
   export_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
@@ -65,7 +65,7 @@ static int wm_stl_export_execute(bContext *C, wmOperator *op)
 
   STL_export(C, &export_params);
 
-  return OPERATOR_FINISHED;
+  return BKE_reports_contain(op->reports, RPT_ERROR) ? OPERATOR_CANCELLED : OPERATOR_FINISHED;
 }
 
 static void wm_stl_export_draw(bContext *C, wmOperator *op)
@@ -76,31 +76,32 @@ static void wm_stl_export_draw(bContext *C, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayout *box, *col, *sub;
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "STL_export_general", false, IFACE_("General"))) {
+    uiLayout *col = uiLayoutColumn(panel, false);
 
-  box = uiLayoutBox(layout);
-  col = uiLayoutColumn(box, false);
-  sub = uiLayoutColumnWithHeading(col, false, IFACE_("Format"));
-  uiItemR(sub, ptr, "ascii_format", UI_ITEM_NONE, IFACE_("ASCII"), ICON_NONE);
+    uiLayout *sub = uiLayoutColumnWithHeading(col, false, IFACE_("Format"));
+    uiItemR(sub, ptr, "ascii_format", UI_ITEM_NONE, IFACE_("ASCII"), ICON_NONE);
 
-  /* The Batch mode and Selection only options only make sense when using regular export. */
-  if (CTX_wm_space_file(C)) {
-    uiItemR(col, ptr, "use_batch", UI_ITEM_NONE, IFACE_("Batch"), ICON_NONE);
+    /* The Batch mode and Selection only options only make sense when using regular export. */
+    if (CTX_wm_space_file(C)) {
+      uiItemR(col, ptr, "use_batch", UI_ITEM_NONE, IFACE_("Batch"), ICON_NONE);
 
-    box = uiLayoutBox(layout);
-    sub = uiLayoutColumnWithHeading(box, false, IFACE_("Include"));
-    uiItemR(
-        sub, ptr, "export_selected_objects", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
+      sub = uiLayoutColumnWithHeading(col, false, IFACE_("Include"));
+      uiItemR(
+          sub, ptr, "export_selected_objects", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
+    }
+
+    uiItemR(sub, ptr, "global_scale", UI_ITEM_NONE, IFACE_("Scale"), ICON_NONE);
+    uiItemR(sub, ptr, "use_scene_unit", UI_ITEM_NONE, IFACE_("Scene Unit"), ICON_NONE);
+    uiItemR(sub, ptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward"), ICON_NONE);
+    uiItemR(sub, ptr, "up_axis", UI_ITEM_NONE, IFACE_("Up"), ICON_NONE);
   }
 
-  uiItemR(sub, ptr, "global_scale", UI_ITEM_NONE, IFACE_("Scale"), ICON_NONE);
-  uiItemR(sub, ptr, "use_scene_unit", UI_ITEM_NONE, IFACE_("Scene Unit"), ICON_NONE);
-  uiItemR(sub, ptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward"), ICON_NONE);
-  uiItemR(sub, ptr, "up_axis", UI_ITEM_NONE, IFACE_("Up"), ICON_NONE);
-
-  box = uiLayoutBox(layout);
-  sub = uiLayoutColumnWithHeading(box, false, IFACE_("Geometry"));
-  uiItemR(sub, ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "STL_export_geometry", false, IFACE_("Geometry")))
+  {
+    uiLayout *col = uiLayoutColumn(panel, false);
+    uiItemR(col, ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
+  }
 }
 
 /**
@@ -191,7 +192,7 @@ void WM_OT_stl_export(wmOperatorType *ot)
 
 static int wm_stl_import_exec(bContext *C, wmOperator *op)
 {
-  STLImportParams params{};
+  STLImportParams params;
   params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
   params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
   params.use_facet_normal = RNA_boolean_get(op->ptr, "use_facet_normal");
@@ -234,24 +235,29 @@ static bool wm_stl_import_check(bContext * /*C*/, wmOperator *op)
   return false;
 }
 
-static void ui_stl_import_settings(uiLayout *layout, PointerRNA *ptr)
+static void ui_stl_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayout *box = uiLayoutBox(layout);
-  uiLayout *col = uiLayoutColumn(box, false);
-  uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_scene_unit", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_facet_normal", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward Axis"), ICON_NONE);
-  uiItemR(col, ptr, "up_axis", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_mesh_validate", UI_ITEM_NONE, nullptr, ICON_NONE);
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "STL_import_general", false, IFACE_("General"))) {
+    uiLayout *col = uiLayoutColumn(panel, false);
+    uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "use_scene_unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward Axis"), ICON_NONE);
+    uiItemR(col, ptr, "up_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "STL_import_options", false, IFACE_("Options"))) {
+    uiLayout *col = uiLayoutColumn(panel, false);
+    uiItemR(col, ptr, "use_facet_normal", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "use_mesh_validate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 }
 
-static void wm_stl_import_draw(bContext * /*C*/, wmOperator *op)
+static void wm_stl_import_draw(bContext *C, wmOperator *op)
 {
-  ui_stl_import_settings(op->layout, op->ptr);
+  ui_stl_import_settings(C, op->layout, op->ptr);
 }
 
 void WM_OT_stl_import(wmOperatorType *ot)

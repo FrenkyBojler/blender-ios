@@ -42,6 +42,7 @@ class COLLECTION_PT_collection_flags(CollectionButtonsPanel, Panel):
 
         col = layout.column(align=True)
         col.prop(collection, "hide_select", text="Selectable", toggle=False, invert_checkbox=True)
+        col.prop(collection, "hide_viewport", toggle=False)
         col.prop(collection, "hide_render", toggle=False)
 
         col = layout.column(align=True)
@@ -54,14 +55,6 @@ class COLLECTION_PT_exporters(CollectionButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        collection = context.collection
-
-        row = layout.row()
-        col = row.column()
-        col.operator("wm.call_menu", text="Add", icon='ADD').name = "COLLECTION_MT_exporter_add"
-        col = row.column()
-        col.operator("COLLECTION_OT_export_all", icon='EXPORT')
-        col.enabled = len(collection.exporters) > 0
 
         layout.template_collection_exporters()
 

@@ -27,12 +27,14 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   fn_node_type_base(
-      &ntype, FN_NODE_TRANSFORM_DIRECTION, "Transform Direction", NODE_CLASS_CONVERTER);
+      &ntype, "FunctionNodeTransformDirection", FN_NODE_TRANSFORM_DIRECTION, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Transform Direction";
+  ntype.enum_name_legacy = "TRANSFORM_DIRECTION";
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

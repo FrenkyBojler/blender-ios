@@ -215,6 +215,7 @@ struct MaterialKey {
                                              to_displacement_type(mat_->displacement_method),
                                              to_thickness_type(mat_->thickness_mode),
                                              mat_->blend_flag);
+    options = (options << 1) | (visibility_flags & OB_HIDE_CAMERA ? 0 : 1);
     options = (options << 1) | (visibility_flags & OB_HIDE_SHADOW ? 0 : 1);
     options = (options << 1) | (visibility_flags & OB_HIDE_PROBE_CUBEMAP ? 0 : 1);
     options = (options << 1) | (visibility_flags & OB_HIDE_PROBE_PLANAR ? 0 : 1);
@@ -256,10 +257,12 @@ struct ShaderKey {
   GPUShader *shader;
   uint64_t options;
 
-  ShaderKey(GPUMaterial *gpumat, eMaterialProbe probe_capture)
+  ShaderKey(GPUMaterial *gpumat, ::Material *blender_mat, eMaterialProbe probe_capture)
   {
     shader = GPU_material_get_shader(gpumat);
-    options = uint64_t(probe_capture);
+    options = uint64_t(shader_closure_bits_from_flag(gpumat));
+    options = (options << 8) | blender_mat->blend_flag;
+    options = (options << 2) | uint64_t(probe_capture);
   }
 
   uint64_t hash() const
@@ -327,8 +330,8 @@ struct Material {
   MaterialPass prepass;
   MaterialPass overlap_masking;
   MaterialPass capture;
-  MaterialPass reflection_probe_prepass;
-  MaterialPass reflection_probe_shading;
+  MaterialPass lightprobe_sphere_prepass;
+  MaterialPass lightprobe_sphere_shading;
   MaterialPass planar_probe_prepass;
   MaterialPass planar_probe_shading;
   MaterialPass volume_occupancy;

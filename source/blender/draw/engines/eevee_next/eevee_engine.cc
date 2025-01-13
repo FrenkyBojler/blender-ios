@@ -49,7 +49,7 @@ static void eevee_engine_init(void *vedata)
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
   int2 size = int2(GPU_texture_width(dtxl->color), GPU_texture_height(dtxl->color));
 
-  const DRWView *default_view = DRW_view_default_get();
+  draw::View &default_view = draw::View::default_get();
 
   Object *camera = nullptr;
   /* Get render borders. */
@@ -69,7 +69,7 @@ static void eevee_engine_init(void *vedata)
       if (!is_default_border && use_border) {
         rctf viewborder;
         /* TODO(fclem) Might be better to get it from DRW. */
-        ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, &viewborder, false);
+        ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
         float viewborder_sizex = BLI_rctf_size_x(&viewborder);
         float viewborder_sizey = BLI_rctf_size_y(&viewborder);
         rect.xmin = floorf(viewborder.xmin + (scene->r.border.xmin * viewborder_sizex));
@@ -97,7 +97,7 @@ static void eevee_engine_init(void *vedata)
   }
 
   ved->instance->init(
-      size, &rect, &visible_rect, nullptr, depsgraph, camera, nullptr, default_view, v3d, rv3d);
+      size, &rect, &visible_rect, nullptr, depsgraph, camera, nullptr, &default_view, v3d, rv3d);
 }
 
 static void eevee_draw_scene(void *vedata)
@@ -109,9 +109,9 @@ static void eevee_draw_scene(void *vedata)
   else {
     ved->instance->draw_viewport();
   }
-  STRNCPY(ved->info, ved->instance->info.c_str());
-  /* Reset view for other following engines. */
-  DRW_view_set_active(nullptr);
+  STRNCPY(ved->info, ved->instance->info_get());
+  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+  GPU_framebuffer_viewport_reset(dfbl->default_fb);
 }
 
 static void eevee_cache_init(void *vedata)
@@ -121,7 +121,8 @@ static void eevee_cache_init(void *vedata)
 
 static void eevee_cache_populate(void *vedata, Object *object)
 {
-  reinterpret_cast<EEVEE_Data *>(vedata)->instance->object_sync(object);
+  draw::ObjectRef ob_ref = DRW_object_ref_get(object);
+  reinterpret_cast<EEVEE_Data *>(vedata)->instance->object_sync(ob_ref);
 }
 
 static void eevee_cache_finish(void *vedata)
@@ -165,7 +166,7 @@ static void eevee_render_to_image(void *vedata,
   rcti visible_rect = rect;
 
   instance->init(size, &rect, &visible_rect, engine, depsgraph, camera_original_ob, layer);
-  instance->render_frame(layer, viewname);
+  instance->render_frame(engine, layer, viewname);
 
   EEVEE_Data *ved = static_cast<EEVEE_Data *>(vedata);
   delete ved->instance;
@@ -212,7 +213,7 @@ RenderEngineType DRW_engine_viewport_eevee_next_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ "BLENDER_EEVEE_NEXT",
-    /*name*/ N_("EEVEE-Next"),
+    /*name*/ N_("EEVEE"),
     /*flag*/ RE_INTERNAL | RE_USE_PREVIEW | RE_USE_STEREO_VIEWPORT | RE_USE_GPU_CONTEXT,
     /*update*/ nullptr,
     /*render*/ &DRW_render_to_image,

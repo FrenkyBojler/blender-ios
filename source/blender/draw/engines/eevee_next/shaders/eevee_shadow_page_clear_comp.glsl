@@ -8,7 +8,11 @@
  * Equivalent to a frame-buffer depth clear but only for pages pushed to the clear_page_buf.
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
+#include "infos/eevee_shadow_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_shadow_page_clear)
+
+#include "gpu_shader_utildefines_lib.glsl"
 
 void main()
 {
@@ -17,6 +21,5 @@ void main()
   uvec3 page_co = shadow_page_unpack(page_packed);
   page_co.xy = page_co.xy * SHADOW_PAGE_RES + gl_GlobalInvocationID.xy;
 
-  /* Clear to FLT_MAX instead of 1 so the far plane doesn't cast shadows onto farther objects. */
   imageStoreFast(shadow_atlas_img, ivec3(page_co), uvec4(floatBitsToUint(FLT_MAX)));
 }

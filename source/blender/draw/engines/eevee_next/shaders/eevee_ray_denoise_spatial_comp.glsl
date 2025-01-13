@@ -15,59 +15,29 @@
  * https://www.ea.com/seed/news/seed-dd18-presentation-slides-raytracing
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_codegen_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_ray_types_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_bxdf_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_closure_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_thickness_lib.glsl)
+#include "infos/eevee_tracing_info.hh"
 
-float bxdf_eval(ClosureUndetermined cl, vec3 L, vec3 V, float thickness)
-{
-  switch (cl.type) {
-    case CLOSURE_BSDF_TRANSLUCENT_ID:
-      if (thickness != 0.0) {
-        /* Uniform sphere weighting. */
-        return 1.0;
-      }
-      return bsdf_lambert(-cl.N, L);
-    case CLOSURE_BSSRDF_BURLEY_ID:
-    case CLOSURE_BSDF_DIFFUSE_ID:
-      return bsdf_lambert(cl.N, L);
-    case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
-      return bsdf_ggx_reflect(
-          cl.N, L, V, square(max(BSDF_ROUGHNESS_THRESHOLD, to_closure_reflection(cl).roughness)));
-    case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
-      return bsdf_ggx_refract(
-          cl.N,
-          L,
-          V,
-          square(max(BSDF_ROUGHNESS_THRESHOLD, to_closure_refraction(cl).roughness)),
-          to_closure_refraction(cl).ior);
-    case CLOSURE_NONE_ID:
-    default:
-      return 0.0;
-  }
-}
+COMPUTE_SHADER_CREATE_INFO(eevee_ray_denoise_spatial)
+
+#include "draw_view_lib.glsl"
+#include "eevee_bxdf_lib.glsl"
+#include "eevee_bxdf_sampling_lib.glsl"
+#include "eevee_closure_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "eevee_ray_types_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_thickness_lib.glsl"
+#include "gpu_shader_codegen_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 void transmission_thickness_amend_closure(inout ClosureUndetermined cl,
                                           inout vec3 V,
                                           float thickness)
 {
   switch (cl.type) {
-    case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID: {
-      float ior = to_closure_refraction(cl).ior;
-      float roughness = to_closure_refraction(cl).roughness;
-      roughness = refraction_roughness_remapping(roughness, ior);
-      vec3 L = refraction_dominant_dir(cl.N, V, ior, roughness);
-      cl.N = -thickness_shape_intersect(thickness, cl.N, L).hit_N;
-      cl.data.y = 1.0 / ior;
-      V = -L;
-    } break;
-    default:
+    case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
+      bxdf_ggx_context_amend_transmission(cl, V, thickness);
       break;
   }
 }
@@ -75,9 +45,9 @@ void transmission_thickness_amend_closure(inout ClosureUndetermined cl,
 /* Tag pixel radiance as invalid. */
 void invalid_pixel_write(ivec2 texel)
 {
-  imageStore(out_radiance_img, texel, vec4(FLT_11_11_10_MAX, 0.0));
-  imageStore(out_variance_img, texel, vec4(0.0));
-  imageStore(out_hit_depth_img, texel, vec4(0.0));
+  imageStoreFast(out_radiance_img, texel, vec4(FLT_11_11_10_MAX, 0.0));
+  imageStoreFast(out_variance_img, texel, vec4(0.0));
+  imageStoreFast(out_hit_depth_img, texel, vec4(0.0));
 }
 
 void main()
@@ -85,21 +55,10 @@ void main()
   const uint tile_size = RAYTRACE_GROUP_SIZE;
   uvec2 tile_coord = unpackUvec2x16(tiles_coord_buf[gl_WorkGroupID.x]);
 
-#ifdef GPU_METAL
-  int rt_resolution_scale = raytrace_resolution_scale;
-#else /* TODO(fclem): Support specialization on OpenGL and Vulkan. */
-  int rt_resolution_scale = uniform_buf.raytrace.resolution_scale;
-#endif
-
   ivec2 texel_fullres = ivec2(gl_LocalInvocationID.xy + tile_coord * tile_size);
-  ivec2 texel = (texel_fullres) / rt_resolution_scale;
+  ivec2 texel = (texel_fullres) / raytrace_resolution_scale;
 
-#ifdef GPU_METAL
-  bool do_skip_denoise = skip_denoise;
-#else /* TODO(fclem): Support specialization on OpenGL and Vulkan. */
-  bool do_skip_denoise = uniform_buf.raytrace.skip_denoise;
-#endif
-  if (do_skip_denoise) {
+  if (skip_denoise) {
     imageStore(out_radiance_img, texel_fullres, imageLoad(ray_radiance_img, texel));
     return;
   }
@@ -119,7 +78,7 @@ void main()
 
       ivec3 sample_tile = ivec3(tile_coord_neighbor, closure_index);
 
-      uint tile_mask = imageLoad(tile_mask_img, sample_tile).r;
+      uint tile_mask = imageLoadFast(tile_mask_img, sample_tile).r;
       bool tile_is_unused = !flag_test(tile_mask, 1u << 0u);
       if (tile_is_unused) {
         ivec2 texel_fullres_neighbor = texel_fullres + ivec2(x, y) * int(tile_size);
@@ -160,7 +119,7 @@ void main()
   /* NOTE: filter_size should never be greater than twice RAYTRACE_GROUP_SIZE. Otherwise, the
    * reconstruction can becomes ill defined since we don't know if further tiles are valid. */
   float filter_size = 12.0 * sqrt(filter_size_factor);
-  if (rt_resolution_scale > 1) {
+  if (raytrace_resolution_scale > 1) {
     /* Filter at least 1 trace pixel to fight the undersampling. */
     filter_size = max(filter_size, 3.0);
     sample_count = max(sample_count, 5u);
@@ -193,8 +152,10 @@ void main()
     closest_hit_time = min(closest_hit_time, ray_time);
 
     /* Slide 54. */
-    /* TODO(fclem): Apparently, ratio estimator should be pdf_bsdf / pdf_ray. */
-    float weight = bxdf_eval(closure, ray_direction, V, thickness) * ray_pdf_inv;
+    /* The reference is wrong.
+     * The ratio estimator is `pdf_local / pdf_ray` instead of `bsdf_local / pdf_ray`. */
+    float pdf = closure_evaluate_pdf(closure, ray_direction, V, thickness);
+    float weight = pdf * ray_pdf_inv;
 
     radiance_accum += ray_radiance.rgb * weight;
     weight_accum += weight;
@@ -214,7 +175,7 @@ void main()
   float scene_z = drw_depth_screen_to_view(texelFetch(depth_tx, texel_fullres, 0).r);
   float hit_depth = drw_depth_view_to_screen(scene_z - closest_hit_time);
 
-  imageStore(out_radiance_img, texel_fullres, vec4(radiance_accum, 0.0));
-  imageStore(out_variance_img, texel_fullres, vec4(hit_variance));
-  imageStore(out_hit_depth_img, texel_fullres, vec4(hit_depth));
+  imageStoreFast(out_radiance_img, texel_fullres, vec4(radiance_accum, 0.0));
+  imageStoreFast(out_variance_img, texel_fullres, vec4(hit_variance));
+  imageStoreFast(out_hit_depth_img, texel_fullres, vec4(hit_depth));
 }

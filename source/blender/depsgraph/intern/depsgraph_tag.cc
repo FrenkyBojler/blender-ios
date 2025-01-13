@@ -14,6 +14,7 @@
 #include <cstring> /* required for memset */
 #include <queue>
 
+#include "BLI_index_range.hh"
 #include "BLI_math_bits.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
@@ -239,7 +240,7 @@ void depsgraph_tag_to_component_opcode(const ID *id,
 void id_tag_update_ntree_special(
     Main *bmain, Depsgraph *graph, ID *id, uint flags, eUpdateSource update_source)
 {
-  bNodeTree *ntree = ntreeFromID(id);
+  bNodeTree *ntree = bke::node_tree_from_id(id);
   if (ntree == nullptr) {
     return;
   }
@@ -639,7 +640,6 @@ NodeType geometry_tag_to_component(const ID *id)
         case OB_FONT:
         case OB_LATTICE:
         case OB_MBALL:
-        case OB_GPENCIL_LEGACY:
         case OB_CURVES:
         case OB_POINTCLOUD:
         case OB_VOLUME:
@@ -937,7 +937,7 @@ void DEG_editors_update(Depsgraph *depsgraph, bool time)
 static void deg_graph_clear_id_recalc_flags(ID *id)
 {
   id->recalc &= ~ID_RECALC_ALL;
-  bNodeTree *ntree = ntreeFromID(id);
+  bNodeTree *ntree = blender::bke::node_tree_from_id(id);
   /* Clear embedded node trees too. */
   if (ntree) {
     ntree->id.recalc &= ~ID_RECALC_ALL;
@@ -968,6 +968,14 @@ void DEG_ids_clear_recalc(Depsgraph *depsgraph, const bool backup)
       deg_graph_clear_id_recalc_flags(id_node->id_orig);
     }
   }
+
+  if (backup) {
+    for (const int64_t i : blender::IndexRange(INDEX_ID_MAX)) {
+      if (deg_graph->id_type_updated[i] != 0) {
+        deg_graph->id_type_updated_backup[i] = 1;
+      }
+    }
+  }
   memset(deg_graph->id_type_updated, 0, sizeof(deg_graph->id_type_updated));
 }
 
@@ -979,4 +987,11 @@ void DEG_ids_restore_recalc(Depsgraph *depsgraph)
     id_node->id_cow->recalc |= id_node->id_cow_recalc_backup;
     id_node->id_cow_recalc_backup = 0;
   }
+
+  for (const int64_t i : blender::IndexRange(INDEX_ID_MAX)) {
+    if (deg_graph->id_type_updated_backup[i] != 0) {
+      deg_graph->id_type_updated[i] = 1;
+    }
+  }
+  memset(deg_graph->id_type_updated_backup, 0, sizeof(deg_graph->id_type_updated_backup));
 }

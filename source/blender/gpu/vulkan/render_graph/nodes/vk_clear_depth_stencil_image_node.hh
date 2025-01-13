@@ -21,8 +21,19 @@ struct VKClearDepthStencilImageData {
   VkImageSubresourceRange vk_image_subresource_range;
 };
 
+struct VKClearDepthStencilImageCreateInfo {
+  VKClearDepthStencilImageData node_data;
+
+  /**
+   * All image aspects of the image that will be cleared.
+   *
+   * Used during the pipeline barriers as the full image aspect needs to be known for changing the
+   * layout. Even when only one aspect is eventually cleared. */
+  VkImageAspectFlags vk_image_aspects;
+};
+
 class VKClearDepthStencilImageNode : public VKNodeInfo<VKNodeType::CLEAR_DEPTH_STENCIL_IMAGE,
-                                                       VKClearDepthStencilImageData,
+                                                       VKClearDepthStencilImageCreateInfo,
                                                        VKClearDepthStencilImageData,
                                                        VK_PIPELINE_STAGE_TRANSFER_BIT,
                                                        VKResourceType::IMAGE> {
@@ -36,7 +47,7 @@ class VKClearDepthStencilImageNode : public VKNodeInfo<VKNodeType::CLEAR_DEPTH_S
    */
   template<typename Node> static void set_node_data(Node &node, const CreateInfo &create_info)
   {
-    node.clear_depth_stencil_image = create_info;
+    node.clear_depth_stencil_image = create_info.node_data;
   }
 
   /**
@@ -46,18 +57,19 @@ class VKClearDepthStencilImageNode : public VKNodeInfo<VKNodeType::CLEAR_DEPTH_S
                    VKRenderGraphNodeLinks &node_links,
                    const CreateInfo &create_info) override
   {
-    ResourceWithStamp resource = resources.get_image_and_increase_stamp(create_info.vk_image);
+    ResourceWithStamp resource = resources.get_image_and_increase_stamp(
+        create_info.node_data.vk_image);
     node_links.outputs.append({resource,
                                VK_ACCESS_TRANSFER_WRITE_BIT,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                               create_info.vk_image_subresource_range.aspectMask});
+                               create_info.vk_image_aspects});
   }
 
   /**
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
-                      const Data &data,
+                      Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
     command_buffer.clear_depth_stencil_image(data.vk_image,

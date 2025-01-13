@@ -12,12 +12,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.hh"
-#include "BKE_object.hh"
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_shader_fx_types.h"
 
@@ -29,7 +27,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -171,7 +169,7 @@ static void shaderfx_panel_header(const bContext * /*C*/, Panel *panel)
 
   const ShaderFxTypeInfo *fxti = BKE_shaderfx_get_info(ShaderFxType(fx->type));
 
-  UI_block_lock_set(uiLayoutGetBlock(layout), (ob && ID_IS_LINKED(ob)), ERROR_LIBDATA_MESSAGE);
+  UI_block_lock_set(uiLayoutGetBlock(layout), (ob && !ID_IS_EDITABLE(ob)), ERROR_LIBDATA_MESSAGE);
 
   /* Effect type icon. */
   uiLayout *row = uiLayoutRow(layout, false);
@@ -216,7 +214,7 @@ static bool shaderfx_ui_poll(const bContext *C, PanelType * /*pt*/)
 {
   Object *ob = blender::ed::object::context_active_object(C);
 
-  return (ob != nullptr) && (ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL));
+  return (ob != nullptr) && ob->type == OB_GREASE_PENCIL;
 }
 
 PanelType *shaderfx_panel_register(ARegionType *region_type, ShaderFxType type, PanelDrawFn draw)

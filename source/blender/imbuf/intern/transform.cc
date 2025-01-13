@@ -9,7 +9,7 @@
 
 #include <type_traits>
 
-#include "BLI_math_color_blend.h"
+#include "BLI_math_color.h"
 #include "BLI_math_interp.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
@@ -148,15 +148,15 @@ static void sample_image(const ImBuf *source, float u, float v, T *r_sample)
   }
   else if constexpr (Filter == IMB_FILTER_BILINEAR && std::is_same_v<T, float>) {
     if constexpr (WrapUV) {
-      math::interpolate_bilinear_wrap_fl(source->float_buffer.data,
-                                         r_sample,
-                                         source->x,
-                                         source->y,
-                                         NumChannels,
-                                         u,
-                                         v,
-                                         true,
-                                         true);
+      math::interpolate_bilinear_wrapmode_fl(source->float_buffer.data,
+                                             r_sample,
+                                             source->x,
+                                             source->y,
+                                             NumChannels,
+                                             u,
+                                             v,
+                                             math::InterpWrapMode::Repeat,
+                                             math::InterpWrapMode::Repeat);
     }
     else {
       math::interpolate_bilinear_fl(
@@ -297,7 +297,8 @@ static void process_scanlines(const TransformContext &ctx, IndexRange y_range)
     }
   }
   else {
-    /* One sample per pixel. Note: sample at pixel center for proper filtering. */
+    /* One sample per pixel.
+     * NOTE: sample at pixel center for proper filtering. */
     float2 uv_start = ctx.start_uv + ctx.add_x * 0.5f + ctx.add_y * 0.5f;
     for (int yi : y_range) {
       T *output = init_pixel_pointer<T>(ctx.dst, ctx.dst_region_x_range.first(), yi);

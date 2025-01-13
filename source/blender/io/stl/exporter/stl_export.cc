@@ -6,11 +6,11 @@
  * \ingroup stl
  */
 
-#include <cstdio>
 #include <memory>
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -34,6 +34,9 @@
 #include "stl_export.hh"
 #include "stl_export_writer.hh"
 
+#include "CLG_log.h"
+static CLG_LogRef LOG = {"io.stl"};
+
 namespace blender::io::stl {
 
 void export_frame(Depsgraph *depsgraph,
@@ -48,7 +51,7 @@ void export_frame(Depsgraph *depsgraph,
       writer = std::make_unique<FileWriter>(export_params.filepath, export_params.ascii_format);
     }
     catch (const std::runtime_error &ex) {
-      fprintf(stderr, "%s\n", ex.what());
+      CLOG_ERROR(&LOG, "Error: %s", ex.what());
       BKE_reportf(export_params.reports,
                   RPT_ERROR,
                   "STL Export: Cannot open file '%s'",
@@ -84,6 +87,14 @@ void export_frame(Depsgraph *depsgraph,
       /* Include object name in the exported file name. */
       char filepath[FILE_MAX];
       STRNCPY(filepath, export_params.filepath);
+      /* When basename is just ".stl", regular path functions would
+       * treat it as a hidden file called ".stl". Remove the extension
+       * before trying to add a suffix. */
+      const char *basename = BLI_path_basename(filepath);
+      if (basename != nullptr && BLI_strcasecmp(basename, ".stl") == 0) {
+        *const_cast<char *>(basename) = '\0';
+      }
+
       BLI_path_suffix(filepath, FILE_MAX, object_name, "");
       /* Make sure we have `.stl` extension (case insensitive). */
       if (!BLI_path_extension_check(filepath, ".stl")) {
@@ -94,7 +105,7 @@ void export_frame(Depsgraph *depsgraph,
         writer = std::make_unique<FileWriter>(filepath, export_params.ascii_format);
       }
       catch (const std::runtime_error &ex) {
-        fprintf(stderr, "%s\n", ex.what());
+        CLOG_ERROR(&LOG, "Error: %s", ex.what());
         BKE_reportf(
             export_params.reports, RPT_ERROR, "STL Export: Cannot open file '%s'", filepath);
         return;
@@ -102,8 +113,11 @@ void export_frame(Depsgraph *depsgraph,
     }
 
     Object *obj_eval = DEG_get_evaluated_object(depsgraph, object);
-    Mesh *mesh = export_params.apply_modifiers ? BKE_object_get_evaluated_mesh(obj_eval) :
-                                                 BKE_object_get_pre_modified_mesh(obj_eval);
+    const Mesh *mesh = export_params.apply_modifiers ? BKE_object_get_evaluated_mesh(obj_eval) :
+                                                       BKE_object_get_pre_modified_mesh(obj_eval);
+
+    /* Ensure data exists if currently in edit mode. */
+    BKE_mesh_wrapper_ensure_mdata(const_cast<Mesh *>(mesh));
 
     /* Calculate transform. */
     float global_scale = export_params.global_scale * scene_unit_scale;
@@ -118,13 +132,17 @@ void export_frame(Depsgraph *depsgraph,
     mul_v3_m3v3(xform[3], axes_transform, obj_eval->object_to_world().location());
     xform[3][3] = obj_eval->object_to_world()[3][3];
 
+    const bool mirrored = is_negative_m4(xform);
+
     /* Write triangles. */
     const Span<float3> positions = mesh->vert_positions();
     const Span<int> corner_verts = mesh->corner_verts();
     for (const int3 &tri : mesh->corner_tris()) {
       PackedTriangle data{};
       for (int i = 0; i < 3; i++) {
-        float3 pos = positions[corner_verts[tri[i]]];
+        /* Reverse face order for mirrored objects. */
+        int idx = mirrored ? 2 - i : i;
+        float3 pos = positions[corner_verts[tri[idx]]];
         mul_m4_v3(xform, pos);
         pos *= global_scale;
         data.vertices[i] = pos;

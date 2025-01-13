@@ -3,24 +3,32 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <numeric>
+#include <string>
 
 #include <pxr/usd/usdGeom/basisCurves.h>
 #include <pxr/usd/usdGeom/curves.h>
 #include <pxr/usd/usdGeom/nurbsCurves.h>
+#include <pxr/usd/usdGeom/primvar.h>
+#include <pxr/usd/usdGeom/primvarsAPI.h>
 #include <pxr/usd/usdGeom/tokens.h>
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/materialBindingAPI.h>
 
+#include "usd_attribute_utils.hh"
 #include "usd_hierarchy_iterator.hh"
+#include "usd_utils.hh"
 #include "usd_writer_curves.hh"
 
 #include "BLI_array_utils.hh"
+#include "BLI_generic_virtual_array.hh"
+#include "BLI_span.hh"
+#include "BLI_virtual_array.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_report.hh"
 
 #include "BLT_translation.hh"
@@ -354,6 +362,112 @@ void USDCurvesWriter::set_writer_attributes(pxr::UsdGeomCurves &usd_curves,
   }
 }
 
+static std::optional<pxr::TfToken> convert_blender_domain_to_usd(
+    const bke::AttrDomain blender_domain, bool is_bezier)
+{
+  switch (blender_domain) {
+    case bke::AttrDomain::Point:
+      return is_bezier ? pxr::UsdGeomTokens->varying : pxr::UsdGeomTokens->vertex;
+    case bke::AttrDomain::Curve:
+      return pxr::UsdGeomTokens->uniform;
+
+    default:
+      return std::nullopt;
+  }
+}
+
+void USDCurvesWriter::write_generic_data(const bke::CurvesGeometry &curves,
+                                         const bke::AttributeIter &attr,
+                                         const pxr::UsdGeomCurves &usd_curves)
+{
+  const CurveType curve_type = CurveType(curves.curve_types().first());
+  const bool is_bezier = curve_type == CURVE_TYPE_BEZIER;
+
+  const std::optional<pxr::TfToken> pv_interp = convert_blender_domain_to_usd(attr.domain,
+                                                                              is_bezier);
+  const std::optional<pxr::SdfValueTypeName> pv_type = convert_blender_type_to_usd(attr.data_type);
+
+  if (!pv_interp || !pv_type) {
+    BKE_reportf(this->reports(),
+                RPT_WARNING,
+                "Attribute '%s' (Blender domain %d, type %d) cannot be converted to USD",
+                attr.name.c_str(),
+                int8_t(attr.domain),
+                attr.data_type);
+    return;
+  }
+
+  const GVArray attribute = *attr.get();
+  if (attribute.is_empty()) {
+    return;
+  }
+
+  const pxr::UsdTimeCode timecode = get_export_time_code();
+  const pxr::TfToken pv_name(
+      make_safe_name(attr.name, usd_export_context_.export_params.allow_unicode));
+  const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_curves);
+
+  pxr::UsdGeomPrimvar pv_attr = pv_api.CreatePrimvar(pv_name, *pv_type, *pv_interp);
+
+  copy_blender_attribute_to_primvar(
+      attribute, attr.data_type, timecode, pv_attr, usd_value_writer_);
+}
+
+void USDCurvesWriter::write_uv_data(const bke::AttributeIter &attr,
+                                    const pxr::UsdGeomCurves &usd_curves)
+{
+  const VArray<float2> buffer = *attr.get<float2>(bke::AttrDomain::Curve);
+  if (buffer.is_empty()) {
+    return;
+  }
+
+  const pxr::UsdTimeCode timecode = get_export_time_code();
+  const pxr::TfToken pv_name(
+      make_safe_name(attr.name, usd_export_context_.export_params.allow_unicode));
+  const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_curves);
+
+  pxr::UsdGeomPrimvar pv_uv = pv_api.CreatePrimvar(
+      pv_name, pxr::SdfValueTypeNames->TexCoord2fArray, pxr::UsdGeomTokens->uniform);
+
+  copy_blender_buffer_to_primvar<float2, pxr::GfVec2f>(buffer, timecode, pv_uv, usd_value_writer_);
+}
+
+void USDCurvesWriter::write_custom_data(const bke::CurvesGeometry &curves,
+                                        const pxr::UsdGeomCurves &usd_curves)
+{
+  const bke::AttributeAccessor attributes = curves.attributes();
+
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    /* Skip "internal" Blender properties and attributes dealt with elsewhere. */
+    if (iter.name[0] == '.' || bke::attribute_name_is_anonymous(iter.name) ||
+        ELEM(iter.name,
+             "position",
+             "radius",
+             "resolution",
+             "id",
+             "curve_type",
+             "handle_left",
+             "handle_right",
+             "handle_type_left",
+             "handle_type_right"))
+    {
+      return;
+    }
+
+    /* Spline UV data */
+    if (iter.domain == bke::AttrDomain::Curve && iter.data_type == CD_PROP_FLOAT2) {
+      if (usd_export_context_.export_params.export_uvmaps) {
+        this->write_uv_data(iter, usd_curves);
+      }
+    }
+
+    /* Everything else. */
+    else {
+      this->write_generic_data(curves, iter, usd_curves);
+    }
+  });
+}
+
 void USDCurvesWriter::do_write(HierarchyContext &context)
 {
   Curves *curves_id;
@@ -376,7 +490,7 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
   }
 
   const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-  if (curves.points_num() == 0) {
+  if (curves.is_empty()) {
     return;
   }
 
@@ -480,6 +594,8 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
   set_writer_attributes(*usd_curves, verts, control_point_counts, widths, timecode, interpolation);
 
   assign_materials(context, *usd_curves);
+
+  write_custom_data(curves, *usd_curves);
 
   auto prim = usd_curves->GetPrim();
   write_id_properties(prim, curves_id->id, timecode);

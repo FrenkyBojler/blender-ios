@@ -46,7 +46,7 @@ class VKCopyBufferNode : public VKNodeInfo<VKNodeType::COPY_BUFFER,
                    const CreateInfo &create_info) override
   {
     ResourceWithStamp src_resource = resources.get_buffer(create_info.src_buffer);
-    ResourceWithStamp dst_resource = resources.get_buffer_and_increase_version(
+    ResourceWithStamp dst_resource = resources.get_buffer_and_increase_stamp(
         create_info.dst_buffer);
     node_links.inputs.append(
         {src_resource, VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED});
@@ -58,7 +58,7 @@ class VKCopyBufferNode : public VKNodeInfo<VKNodeType::COPY_BUFFER,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
-                      const Data &data,
+                      Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
     command_buffer.copy_buffer(data.src_buffer, data.dst_buffer, 1, &data.region);

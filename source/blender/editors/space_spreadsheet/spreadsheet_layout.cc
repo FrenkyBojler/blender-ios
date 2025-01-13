@@ -15,9 +15,11 @@
 #include "BKE_instances.hh"
 
 #include "spreadsheet_column_values.hh"
+#include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_layout.hh"
 
 #include "DNA_collection_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_userdef_types.h"
 
@@ -110,6 +112,13 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     0,
                                     0,
                                     nullptr);
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, const char * /*tip*/) {
+            return fmt::format("{}", *((int *)argN));
+          },
+          MEM_cnew<int>(__func__, value),
+          MEM_freeN);
       /* Right-align Integers. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -134,6 +143,10 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
     }
+    else if (data.type().is<short2>()) {
+      const int2 value = int2(data.get<short2>(real_index));
+      this->draw_int_vector(params, Span(&value.x, 2));
+    }
     else if (data.type().is<int2>()) {
       const int2 value = data.get<int2>(real_index);
       this->draw_int_vector(params, Span(&value.x, 2));
@@ -156,6 +169,13 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     0,
                                     0,
                                     nullptr);
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, const char * /*tip*/) {
+            return fmt::format("{:f}", *((float *)argN));
+          },
+          MEM_cnew<float>(__func__, value),
+          MEM_freeN);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -203,61 +223,21 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     }
     else if (data.type().is<bke::InstanceReference>()) {
       const bke::InstanceReference value = data.get<bke::InstanceReference>(real_index);
-      switch (value.type()) {
-        case bke::InstanceReference::Type::Object: {
-          const Object &object = value.object();
-          uiDefIconTextBut(params.block,
-                           UI_BTYPE_LABEL,
-                           0,
-                           ICON_OBJECT_DATA,
-                           object.id.name + 2,
-                           params.xmin,
-                           params.ymin,
-                           params.width,
-                           params.height,
-                           nullptr,
-                           0,
-                           0,
-                           nullptr);
-          break;
-        }
-        case bke::InstanceReference::Type::Collection: {
-          Collection &collection = value.collection();
-          uiDefIconTextBut(params.block,
-                           UI_BTYPE_LABEL,
-                           0,
-                           ICON_OUTLINER_COLLECTION,
-                           collection.id.name + 2,
-                           params.xmin,
-                           params.ymin,
-                           params.width,
-                           params.height,
-                           nullptr,
-                           0,
-                           0,
-                           nullptr);
-          break;
-        }
-        case bke::InstanceReference::Type::GeometrySet: {
-          uiDefIconTextBut(params.block,
-                           UI_BTYPE_LABEL,
-                           0,
-                           ICON_MESH_DATA,
-                           "Geometry",
-                           params.xmin,
-                           params.ymin,
-                           params.width,
-                           params.height,
-                           nullptr,
-                           0,
-                           0,
-                           nullptr);
-          break;
-        }
-        case bke::InstanceReference::Type::None: {
-          break;
-        }
-      }
+      const StringRefNull name = value.name().is_empty() ? IFACE_("(Geometry)") : value.name();
+      const int icon = get_instance_reference_icon(value);
+      uiDefIconTextBut(params.block,
+                       UI_BTYPE_LABEL,
+                       0,
+                       icon,
+                       name.c_str(),
+                       params.xmin,
+                       params.ymin,
+                       params.width,
+                       params.height,
+                       nullptr,
+                       0,
+                       0,
+                       nullptr);
     }
     else if (data.type().is<std::string>()) {
       uiDefIconTextBut(params.block,
@@ -273,6 +253,32 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                        0,
                        0,
                        nullptr);
+    }
+    else if (data.type().is<MStringProperty>()) {
+      MStringProperty *prop = MEM_cnew<MStringProperty>(__func__);
+      data.get_to_uninitialized(real_index, prop);
+      uiBut *but = uiDefIconTextBut(params.block,
+                                    UI_BTYPE_LABEL,
+                                    0,
+                                    ICON_NONE,
+                                    StringRef(prop->s, prop->s_len),
+                                    params.xmin,
+                                    params.ymin,
+                                    params.width,
+                                    params.height,
+                                    nullptr,
+                                    0,
+                                    0,
+                                    nullptr);
+
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, const char * /*tip*/) {
+            const MStringProperty &prop = *static_cast<MStringProperty *>(argN);
+            return std::string(StringRef(prop.s, prop.s_len));
+          },
+          prop,
+          MEM_freeN);
     }
   }
 
@@ -298,6 +304,14 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     0,
                                     0,
                                     nullptr);
+
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, const char * /*tip*/) {
+            return fmt::format("{:f}", *((float *)argN));
+          },
+          MEM_cnew<float>(__func__, value),
+          MEM_freeN);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -326,6 +340,13 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     0,
                                     0,
                                     nullptr);
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, const char * /*tip*/) {
+            return fmt::format("{}", *((int *)argN));
+          },
+          MEM_cnew<int>(__func__, value),
+          MEM_freeN);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -365,7 +386,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           [](bContext * /*C*/, void *argN, const char * /*tip*/) {
             const uint32_t uint_color = POINTER_AS_UINT(argN);
             ColorGeometry4b color = *(ColorGeometry4b *)&uint_color;
-            return fmt::format(TIP_("Byte Color (sRGB encoded):\n{}  {}  {}  {}"),
+            return fmt::format(fmt::runtime(TIP_("Byte Color (sRGB encoded):\n{}  {}  {}  {}")),
                                color.r,
                                color.g,
                                color.b,
@@ -405,7 +426,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           ss << value[3];
           return ss.str();
         },
-        MEM_new<float4x4>(__func__, value),
+        MEM_cnew<float4x4>(__func__, value),
         MEM_freeN);
   }
 

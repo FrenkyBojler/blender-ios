@@ -131,7 +131,7 @@ static void metaball_blend_read_data(BlendDataReader *reader, ID *id)
 {
   MetaBall *mb = (MetaBall *)id;
 
-  BLO_read_pointer_array(reader, (void **)&mb->mat);
+  BLO_read_pointer_array(reader, mb->totcol, (void **)&mb->mat);
 
   BLO_read_struct_list(reader, MetaElem, &(mb->elems));
 
@@ -332,7 +332,7 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
    * think it would be worth it.
    */
   for (Object *ob_src = static_cast<Object *>(bmain->objects.first);
-       ob_src != nullptr && !ID_IS_LINKED(ob_src);)
+       ob_src != nullptr && ID_IS_EDITABLE(ob_src);)
   {
     if (ob_src->data != metaball_src) {
       ob_src = static_cast<Object *>(ob_src->id.next);
@@ -373,7 +373,7 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
     for (ob_iter = static_cast<Object *>(ob_src->id.next); ob_iter != nullptr;
          ob_iter = static_cast<Object *>(ob_iter->id.next))
     {
-      if (ob_iter->id.name[2] != obactive_name[0] || ID_IS_LINKED(ob_iter)) {
+      if (ob_iter->id.name[2] != obactive_name[0] || !ID_IS_EDITABLE(ob_iter)) {
         break;
       }
       if (ob_iter->type != OB_MBALL || ob_iter->data == metaball_src) {

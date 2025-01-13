@@ -25,7 +25,7 @@
 
 ARegion *ui_region_temp_add(bScreen *screen)
 {
-  ARegion *region = MEM_cnew<ARegion>(__func__);
+  ARegion *region = BKE_area_region_new();
   BLI_addtail(&screen->regionbase, region);
 
   region->regiontype = RGN_TYPE_TEMPORARY;
@@ -51,7 +51,7 @@ void ui_region_temp_remove(bContext *C, bScreen *screen, ARegion *region)
   if (CTX_wm_region(C) == region) {
     CTX_wm_region_set(C, nullptr);
   }
-  if (CTX_wm_menu(C) == region) {
-    CTX_wm_menu_set(C, nullptr);
+  if (CTX_wm_region_popup(C) == region) {
+    CTX_wm_region_popup_set(C, nullptr);
   }
 }

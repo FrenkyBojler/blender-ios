@@ -48,11 +48,11 @@
 #include "BKE_deform.hh"
 #include "BKE_dynamicpaint.h"
 #include "BKE_effect.h"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
@@ -1916,7 +1916,7 @@ static void dynamic_paint_apply_surface_wave_cb(void *__restrict userdata,
  */
 static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *ob, Mesh *mesh)
 {
-  Mesh *result = BKE_mesh_copy_for_eval(mesh);
+  Mesh *result = BKE_mesh_copy_for_eval(*mesh);
 
   if (pmd->canvas && !(pmd->canvas->flags & MOD_DPAINT_BAKING) &&
       pmd->type == MOD_DYNAMICPAINT_TYPE_CANVAS)
@@ -2069,7 +2069,7 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
     if (runtime_data->brush_mesh != nullptr) {
       BKE_id_free(nullptr, runtime_data->brush_mesh);
     }
-    runtime_data->brush_mesh = BKE_mesh_copy_for_eval(result);
+    runtime_data->brush_mesh = BKE_mesh_copy_for_eval(*result);
   }
 
   return result;
@@ -2090,7 +2090,7 @@ static void canvas_copyMesh(DynamicPaintCanvasSettings *canvas, Mesh *mesh)
     BKE_id_free(nullptr, runtime->canvas_mesh);
   }
 
-  runtime->canvas_mesh = BKE_mesh_copy_for_eval(mesh);
+  runtime->canvas_mesh = BKE_mesh_copy_for_eval(*mesh);
 }
 
 /*
@@ -3430,7 +3430,7 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface,
 #ifdef WITH_OPENEXR
   if (format == R_IMF_IMTYPE_OPENEXR) { /* OpenEXR 32-bit float */
     ibuf->ftype = IMB_FTYPE_OPENEXR;
-    ibuf->foptions.flag |= OPENEXR_COMPRESS;
+    ibuf->foptions.flag = R_IMF_EXR_CODEC_ZIP;
   }
   else
 #endif
@@ -3459,7 +3459,7 @@ static void mesh_tris_spherecast_dp(void *userdata,
                                     const BVHTreeRay *ray,
                                     BVHTreeRayHit *hit)
 {
-  const BVHTreeFromMesh *data = (BVHTreeFromMesh *)userdata;
+  const blender::bke::BVHTreeFromMesh *data = (blender::bke::BVHTreeFromMesh *)userdata;
   const blender::Span<blender::float3> positions = data->vert_positions;
   const int3 *corner_tris = data->corner_tris.data();
   const int *corner_verts = data->corner_verts.data();
@@ -3471,7 +3471,7 @@ static void mesh_tris_spherecast_dp(void *userdata,
   t1 = positions[corner_verts[corner_tris[index][1]]];
   t2 = positions[corner_verts[corner_tris[index][2]]];
 
-  dist = bvhtree_ray_tri_intersection(ray, hit->dist, t0, t1, t2);
+  dist = blender::bke::bvhtree_ray_tri_intersection(ray, hit->dist, t0, t1, t2);
 
   if (dist >= 0 && dist < hit->dist) {
     hit->index = index;
@@ -3491,7 +3491,7 @@ static void mesh_tris_nearest_point_dp(void *userdata,
                                        const float co[3],
                                        BVHTreeNearest *nearest)
 {
-  const BVHTreeFromMesh *data = (BVHTreeFromMesh *)userdata;
+  const blender::bke::BVHTreeFromMesh *data = (blender::bke::BVHTreeFromMesh *)userdata;
   const blender::Span<blender::float3> positions = data->vert_positions;
   const int3 *corner_tris = data->corner_tris.data();
   const int *corner_verts = data->corner_verts.data();
@@ -3827,7 +3827,7 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
                                       SUBFRAME_RECURSION,
                                       BKE_scene_ctime_get(scene),
                                       eModifierType_DynamicPaint);
-  mesh_p = BKE_mesh_copy_for_eval(dynamicPaint_brush_mesh_get(brush));
+  mesh_p = BKE_mesh_copy_for_eval(*dynamicPaint_brush_mesh_get(brush));
   numOfVerts_p = mesh_p->verts_num;
 
   float(*positions_p)[3] = reinterpret_cast<float(*)[3]>(
@@ -3977,7 +3977,8 @@ static void dynamic_paint_paint_mesh_cell_point_cb_ex(void *__restrict userdata,
   const float *avg_brushNor = data->avg_brushNor;
   const Vec3f *brushVelocity = data->brushVelocity;
 
-  BVHTreeFromMesh *treeData = static_cast<BVHTreeFromMesh *>(data->treeData);
+  blender::bke::BVHTreeFromMesh *treeData = static_cast<blender::bke::BVHTreeFromMesh *>(
+      data->treeData);
 
   const int index = grid->t_index[grid->s_pos[c_index] + id];
   const int samples = bData->s_num[index];
@@ -4311,7 +4312,6 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
   }
 
   {
-    BVHTreeFromMesh treeData = {nullptr};
     float avg_brushNor[3] = {0.0f};
     const float brush_radius = brush->paint_distance * surface->radius_scale;
     int numOfVerts;
@@ -4319,7 +4319,7 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
     Bounds3D mesh_bb = {{0}};
     DynamicPaintVolumeGrid *grid = bData->grid;
 
-    mesh = BKE_mesh_copy_for_eval(brush_mesh);
+    mesh = BKE_mesh_copy_for_eval(*brush_mesh);
     blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
     const blender::Span<blender::float3> vert_normals = mesh->vert_normals();
     const blender::Span<int> corner_verts = mesh->corner_verts();
@@ -4355,7 +4355,8 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
     /* check bounding box collision */
     if (grid && meshBrush_boundsIntersect(&grid->grid_bounds, &mesh_bb, brush, brush_radius)) {
       /* Build a bvh tree from transformed vertices */
-      if (BKE_bvhtree_from_mesh_get(&treeData, mesh, BVHTREE_FROM_CORNER_TRIS, 4)) {
+      blender::bke::BVHTreeFromMesh treeData = mesh->bvh_corner_tris();
+      if (treeData.tree != nullptr) {
         int c_index;
         int total_cells = grid->dim[0] * grid->dim[1] * grid->dim[2];
 
@@ -4396,8 +4397,6 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
         }
       }
     }
-    /* free bvh tree */
-    free_bvhtree_from_mesh(&treeData);
     BKE_id_free(nullptr, mesh);
   }
 

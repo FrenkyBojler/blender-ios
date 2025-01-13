@@ -14,8 +14,9 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 
 #include "bmesh.hh"
@@ -25,6 +26,7 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.alembic"};
@@ -141,6 +143,9 @@ void ABCGenericMeshWriter::do_write(HierarchyContext &context)
   if (mesh == nullptr) {
     return;
   }
+
+  /* Ensure data exists if currently in edit mode. */
+  BKE_mesh_wrapper_ensure_mdata(mesh);
 
   if (args_.export_params->triangulate) {
     const bool tag_only = false;
@@ -360,8 +365,9 @@ bool ABCGenericMeshWriter::get_velocities(Mesh *mesh, std::vector<Imath::V3f> &v
 {
   /* Export velocity attribute output by fluid sim, sequence cache modifier
    * and geometry nodes. */
-  const CustomDataLayer *velocity_layer = BKE_id_attribute_find(
-      &mesh->id, "velocity", CD_PROP_FLOAT3, bke::AttrDomain::Point);
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+  const CustomDataLayer *velocity_layer = BKE_attribute_find(
+      owner, "velocity", CD_PROP_FLOAT3, bke::AttrDomain::Point);
 
   if (velocity_layer == nullptr) {
     return false;

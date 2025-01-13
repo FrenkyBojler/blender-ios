@@ -24,11 +24,14 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  fn_node_type_base(&ntype, FN_NODE_TRANSPOSE_MATRIX, "Transpose Matrix", NODE_CLASS_CONVERTER);
+  static blender::bke::bNodeType ntype;
+  fn_node_type_base(
+      &ntype, "FunctionNodeTransposeMatrix", FN_NODE_TRANSPOSE_MATRIX, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Transpose Matrix";
+  ntype.enum_name_legacy = "TRANSPOSE_MATRIX";
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

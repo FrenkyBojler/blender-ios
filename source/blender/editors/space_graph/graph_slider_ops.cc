@@ -134,7 +134,7 @@ static void common_draw_status_header(bContext *C, tGraphSliderOp *gso, const ch
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
 
-    outputNumInput(&gso->num, str_ofs, &gso->scene->unit);
+    outputNumInput(&gso->num, str_ofs, gso->scene->unit);
 
     SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
   }
@@ -159,7 +159,7 @@ static void store_original_bezt_arrays(tGraphSliderOp *gso)
 
   /* Loop through filtered data and copy the curves. */
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
+    const FCurve *fcu = (const FCurve *)ale->key_data;
 
     if (fcu->bezt == nullptr) {
       /* This curve is baked, skip it. */
@@ -464,7 +464,7 @@ static void decimate_draw_status(bContext *C, tGraphSliderOp *gso)
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
 
-    outputNumInput(&gso->num, str_ofs, &gso->scene->unit);
+    outputNumInput(&gso->num, str_ofs, gso->scene->unit);
 
     SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
   }
@@ -565,7 +565,9 @@ static bool decimate_poll_property(const bContext * /*C*/, wmOperator *op, const
   return true;
 }
 
-static std::string decimate_desc(bContext * /*C*/, wmOperatorType * /*ot*/, PointerRNA *ptr)
+static std::string decimate_get_description(bContext * /*C*/,
+                                            wmOperatorType * /*ot*/,
+                                            PointerRNA *ptr)
 {
 
   if (RNA_enum_get(ptr, "mode") == DECIM_ERROR) {
@@ -602,7 +604,7 @@ void GRAPH_OT_decimate(wmOperatorType *ot)
 
   /* API callbacks */
   ot->poll_property = decimate_poll_property;
-  ot->get_description = decimate_desc;
+  ot->get_description = decimate_get_description;
   ot->invoke = decimate_invoke;
   ot->modal = graph_slider_modal;
   ot->exec = decimate_exec;
@@ -624,8 +626,8 @@ void GRAPH_OT_decimate(wmOperatorType *ot)
                        1.0f / 3.0f,
                        0.0f,
                        1.0f,
-                       "Remove",
-                       "The ratio of remaining keyframes after the operation",
+                       "Factor",
+                       "The ratio of keyframes to remove",
                        0.0f,
                        1.0f);
   RNA_def_float(ot->srna,
@@ -971,7 +973,7 @@ static void ease_draw_status_header(bContext *C, wmOperator *op)
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
 
-    outputNumInput(&gso->num, str_ofs, &gso->scene->unit);
+    outputNumInput(&gso->num, str_ofs, gso->scene->unit);
 
     SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
   }
@@ -1467,6 +1469,7 @@ static int time_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   gso->factor_prop = RNA_struct_find_property(op->ptr, "frame_offset");
   time_offset_draw_status_header(C, gso);
   ED_slider_factor_bounds_set(gso->slider, -10, 10);
+  ED_slider_increment_step_set(gso->slider, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
   ED_slider_mode_set(gso->slider, SLIDER_MODE_FLOAT);
   ED_slider_unit_set(gso->slider, "Frames");
@@ -1574,7 +1577,7 @@ static void shear_draw_status_header(bContext *C, tGraphSliderOp *gso)
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
 
-    outputNumInput(&gso->num, str_ofs, &gso->scene->unit);
+    outputNumInput(&gso->num, str_ofs, gso->scene->unit);
 
     SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
   }
@@ -2171,6 +2174,7 @@ static int btw_smooth_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   const float frame_rate = float(gso->scene->r.frs_sec) / gso->scene->r.frs_sec_base;
   const float sampling_frequency = frame_rate * samples_per_frame;
   ED_slider_factor_bounds_set(gso->slider, 0, sampling_frequency / 2);
+  ED_slider_increment_step_set(gso->slider, sampling_frequency / 20);
   ED_slider_factor_set(gso->slider, RNA_float_get(op->ptr, "cutoff_frequency"));
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_mode_set(gso->slider, SLIDER_MODE_FLOAT);
@@ -2463,7 +2467,7 @@ static void scale_from_neighbor_draw_status_header(bContext *C, wmOperator *op)
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
 
-    outputNumInput(&gso->num, str_ofs, &gso->scene->unit);
+    outputNumInput(&gso->num, str_ofs, gso->scene->unit);
 
     SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
   }

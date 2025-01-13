@@ -44,14 +44,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-      const bke::CurvesFieldContext field_context(curves, AttrDomain::Point);
+      const bke::CurvesFieldContext field_context(*curves_id, AttrDomain::Point);
       set_radius(curves, field_context, selection, radius);
     }
     if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
       using namespace blender::bke::greasepencil;
       for (const int layer_index : grease_pencil->layers().index_range()) {
-        Drawing *drawing = get_eval_grease_pencil_layer_drawing_for_write(*grease_pencil,
-                                                                          layer_index);
+        Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));
         if (drawing == nullptr) {
           continue;
         }
@@ -69,12 +68,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SET_CURVE_RADIUS, "Set Curve Radius", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(
+      &ntype, "GeometryNodeSetCurveRadius", GEO_NODE_SET_CURVE_RADIUS, NODE_CLASS_GEOMETRY);
+  ntype.ui_name = "Set Curve Radius";
+  ntype.ui_description = "Set the radius of the curve at each control point";
+  ntype.enum_name_legacy = "SET_CURVE_RADIUS";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -31,7 +31,7 @@
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
@@ -701,7 +701,7 @@ short ED_transform_calc_orientation_from_type_ex(const Scene *scene,
       break;
     }
     case V3D_ORIENT_CURSOR: {
-      BKE_scene_cursor_rot_to_mat3(&scene->cursor, r_mat);
+      copy_m3_m3(r_mat, scene->cursor.matrix<blender::float3x3>().ptr());
       break;
     }
     case V3D_ORIENT_CUSTOM_MATRIX: {
@@ -735,9 +735,9 @@ short transform_orientation_matrix_get(bContext *C,
 
   if (t->spacetype == SPACE_SEQ && t->options & CTX_SEQUENCER_IMAGE) {
     Scene *scene = t->scene;
-    Sequence *seq = SEQ_select_active_get(scene);
-    if (seq && seq->strip->transform && orient_index == V3D_ORIENT_LOCAL) {
-      axis_angle_to_mat3_single(r_spacemtx, 'Z', seq->strip->transform->rotation);
+    Strip *strip = SEQ_select_active_get(scene);
+    if (strip && strip->data->transform && orient_index == V3D_ORIENT_LOCAL) {
+      axis_angle_to_mat3_single(r_spacemtx, 'Z', strip->data->transform->rotation);
       return orient_index;
     }
   }

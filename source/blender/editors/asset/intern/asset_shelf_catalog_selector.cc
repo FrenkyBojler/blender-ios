@@ -24,7 +24,7 @@
 #include "ED_asset_list.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_tree_view.hh"
@@ -75,10 +75,15 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
   {
     Item &view_item = parent_view_item.add_tree_item<Item>(catalog_item, shelf_);
 
-    catalog_item.foreach_child(
-        [&view_item, this](const asset_system::AssetCatalogTreeItem &child) {
-          build_catalog_items_recursive(view_item, child);
-        });
+    const int parent_count = view_item.count_parents() + 1;
+    catalog_item.foreach_child([&, this](const asset_system::AssetCatalogTreeItem &child) {
+      Item &child_item = build_catalog_items_recursive(view_item, child);
+
+      /* Uncollapse to some level (gives quick access, but don't let the tree get too big). */
+      if (parent_count < 2) {
+        child_item.uncollapse_by_default();
+      }
+    });
 
     return view_item;
   }
@@ -136,7 +141,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
 
       uiLayout *subrow = uiLayoutRow(&row, false);
       uiLayoutSetActive(subrow, catalog_path_enabled_);
-      uiItemL(subrow, catalog_item_.get_name().c_str(), ICON_NONE);
+      uiItemL(subrow, catalog_item_.get_name(), ICON_NONE);
       UI_block_layout_set_current(block, &row);
 
       uiBut *toggle_but = uiDefButC(block,
@@ -174,38 +179,43 @@ void AssetCatalogSelectorTree::update_shelf_settings_from_enabled_catalogs()
   });
 }
 
+void library_selector_draw(const bContext *C, uiLayout *layout, AssetShelf &shelf)
+{
+  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+
+  PointerRNA shelf_ptr = RNA_pointer_create(&CTX_wm_screen(C)->id, &RNA_AssetShelf, &shelf);
+
+  uiLayout *row = uiLayoutRow(layout, true);
+  uiItemR(row, &shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
+  if (shelf.settings.asset_library_reference.type != ASSET_LIBRARY_LOCAL) {
+    uiItemO(row, "", ICON_FILE_REFRESH, "ASSET_OT_library_refresh");
+  }
+}
+
 static void catalog_selector_panel_draw(const bContext *C, Panel *panel)
 {
-  const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
   AssetShelf *shelf = active_shelf_from_context(C);
   if (!shelf) {
     return;
   }
 
   uiLayout *layout = panel->layout;
-  uiBlock *block = uiLayoutGetBlock(layout);
 
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  library_selector_draw(C, layout, *shelf);
 
-  PointerRNA shelf_ptr = RNA_pointer_create(&CTX_wm_screen(C)->id, &RNA_AssetShelf, shelf);
-
-  uiLayout *row = uiLayoutRow(layout, true);
-  uiItemR(row, &shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
-  if (library_ref->type != ASSET_LIBRARY_LOCAL) {
-    uiItemO(row, "", ICON_FILE_REFRESH, "ASSET_OT_library_refresh");
-  }
-
-  asset_system::AssetLibrary *library = list::library_get_once_available(*library_ref);
+  asset_system::AssetLibrary *library = list::library_get_once_available(
+      shelf->settings.asset_library_reference);
   if (!library) {
     return;
   }
 
+  uiBlock *block = uiLayoutGetBlock(layout);
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,
       "asset catalog tree view",
       std::make_unique<AssetCatalogSelectorTree>(*library, *shelf));
-
-  ui::TreeViewBuilder::build_tree_view(*tree_view, *layout);
+  tree_view->set_context_menu_title("Catalog");
+  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
 
 void catalog_selector_panel_register(ARegionType *region_type)

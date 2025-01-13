@@ -30,14 +30,14 @@
 #include "BLI_timecode.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-void ED_time_scrub_region_rect_get(const ARegion *region, rcti *rect)
+void ED_time_scrub_region_rect_get(const ARegion *region, rcti *r_rect)
 {
-  rect->xmin = 0;
-  rect->xmax = region->winx;
-  rect->ymax = region->winy;
-  rect->ymin = rect->ymax - UI_TIME_SCRUB_MARGIN_Y;
+  r_rect->xmin = 0;
+  r_rect->xmax = region->winx;
+  r_rect->ymax = region->winy;
+  r_rect->ymin = r_rect->ymax - UI_TIME_SCRUB_MARGIN_Y;
 }
 
 static int get_centered_text_y(const rcti *rect)
@@ -65,7 +65,7 @@ static void get_current_time_str(
     const Scene *scene, bool display_seconds, int frame, char *r_str, uint str_maxncpy)
 {
   if (display_seconds) {
-    BLI_timecode_string_from_time(r_str, str_maxncpy, 0, FRA2TIME(frame), FPS, U.timecode_style);
+    BLI_timecode_string_from_time(r_str, str_maxncpy, -1, FRA2TIME(frame), FPS, U.timecode_style);
   }
   else {
     BLI_snprintf(r_str, str_maxncpy, "%d", frame);
@@ -195,6 +195,14 @@ bool ED_time_scrub_event_in_region(const ARegion *region, const wmEvent *event)
   rcti rect = region->winrct;
   rect.ymin = rect.ymax - UI_TIME_SCRUB_MARGIN_Y;
   return BLI_rcti_isect_pt_v(&rect, event->xy);
+}
+
+bool ED_time_scrub_event_in_region_poll(const wmWindow * /*win*/,
+                                        const ScrArea * /*area*/,
+                                        const ARegion *region,
+                                        const wmEvent *event)
+{
+  return ED_time_scrub_event_in_region(region, event);
 }
 
 void ED_time_scrub_channel_search_draw(const bContext *C, ARegion *region, bDopeSheet *dopesheet)

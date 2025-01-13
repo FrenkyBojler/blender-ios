@@ -7,26 +7,35 @@
  * This also fills the different render passes.
  */
 
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_renderpass_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_colorspace_lib.glsl)
+#include "infos/eevee_deferred_info.hh"
 
-vec3 load_radiance_direct(ivec2 texel, int i)
+FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_combine)
+
+#include "eevee_colorspace_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "eevee_renderpass_lib.glsl"
+#include "gpu_shader_shared_exponent_lib.glsl"
+
+vec3 load_radiance_direct(ivec2 texel, uchar i)
 {
+  uint data = 0u;
   switch (i) {
     case 0:
-      return texelFetch(direct_radiance_1_tx, texel, 0).rgb;
+      data = texelFetch(direct_radiance_1_tx, texel, 0).r;
+      break;
     case 1:
-      return texelFetch(direct_radiance_2_tx, texel, 0).rgb;
+      data = texelFetch(direct_radiance_2_tx, texel, 0).r;
+      break;
     case 2:
-      return texelFetch(direct_radiance_3_tx, texel, 0).rgb;
+      data = texelFetch(direct_radiance_3_tx, texel, 0).r;
+      break;
     default:
-      return vec3(0);
+      break;
   }
-  return vec3(0);
+  return rgb9e5_decode(data);
 }
 
-vec3 load_radiance_indirect(ivec2 texel, int i)
+vec3 load_radiance_indirect(ivec2 texel, uchar i)
 {
   switch (i) {
     case 0:
@@ -57,12 +66,12 @@ void main()
   vec3 out_indirect = vec3(0.0);
   vec3 average_normal = vec3(0.0);
 
-  for (int i = 0; i < GBUFFER_LAYER_MAX && i < gbuf.closure_count; i++) {
+  for (uchar i = 0; i < GBUFFER_LAYER_MAX && i < gbuf.closure_count; i++) {
     ClosureUndetermined cl = gbuffer_closure_get(gbuf, i);
     if (cl.type == CLOSURE_NONE_ID) {
       continue;
     }
-    int layer_index = gbuffer_closure_get_bin_index(gbuf, i);
+    uchar layer_index = gbuffer_closure_get_bin_index(gbuf, i);
     vec3 closure_direct_light = load_radiance_direct(texel, layer_index);
     vec3 closure_indirect_light = vec3(0.0);
 
@@ -112,7 +121,7 @@ void main()
   float clamp_indirect = uniform_buf.clamp.surface_indirect;
   out_direct = colorspace_brightness_clamp_max(out_direct, clamp_direct);
   out_indirect = colorspace_brightness_clamp_max(out_indirect, clamp_indirect);
-  /* TODO(fcleù): Shouldn't we clamp these relative the main clamp? */
+  /* TODO(@fclem): Shouldn't we clamp these relative the main clamp? */
   diffuse_direct = colorspace_brightness_clamp_max(diffuse_direct, clamp_direct);
   diffuse_indirect = colorspace_brightness_clamp_max(diffuse_indirect, clamp_indirect);
   specular_direct = colorspace_brightness_clamp_max(specular_direct, clamp_direct);

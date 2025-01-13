@@ -10,13 +10,17 @@
  * - tilemaps_tx
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tracing_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_iter_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_thickness_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
+#include "infos/eevee_deferred_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_thickness_amend)
+
+#include "draw_view_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "eevee_light_iter_lib.glsl"
+#include "eevee_light_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_shadow_tracing_lib.glsl"
+#include "eevee_thickness_lib.glsl"
 
 void thickness_from_shadow_single(uint l_idx,
                                   const bool is_directional,
@@ -50,11 +54,10 @@ void thickness_from_shadow_single(uint l_idx,
   /* Inverting this bias means we will over estimate the distance. Which removes some artifacts. */
   P_offset -= texel_radius * shadow_pcf_offset(lv.L, Ng, pcf_random);
 
-  ShadowEvalResult result = shadow_sample(
+  float occluder_delta = shadow_sample(
       is_directional, shadow_atlas_tx, shadow_tilemaps_tx, light, P_offset);
-
-  if (result.light_visibilty == 0.0) {
-    float hit_distance = result.occluder_distance;
+  if (occluder_delta > 0.0) {
+    float hit_distance = abs(occluder_delta);
     /* Add back the amount of offset we added to the original position.
      * This avoids self shadowing issue. */
     hit_distance += (normal_offset + 1.0) * texel_radius;

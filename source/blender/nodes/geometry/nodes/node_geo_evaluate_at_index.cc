@@ -42,7 +42,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const bNodeType &node_type = params.node_type();
+  const blender::bke::bNodeType &node_type = params.node_type();
   const std::optional<eCustomDataType> type = bke::socket_type_to_custom_data_type(
       eNodeSocketDatatype(params.other_socket().type));
   if (type && *type != CD_PROP_STRING) {
@@ -80,8 +80,7 @@ static void node_rna(StructRNA *srna)
                     "Domain the field is evaluated in",
                     rna_enum_attribute_domain_items,
                     NOD_inline_enum_accessors(custom1),
-                    int(AttrDomain::Point),
-                    enums::domain_experimental_grease_pencil_version3_fn);
+                    int(AttrDomain::Point));
 
   RNA_def_node_enum(srna,
                     "data_type",
@@ -95,16 +94,19 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_EVALUATE_AT_INDEX, "Evaluate at Index", NODE_CLASS_CONVERTER);
+      &ntype, "GeometryNodeFieldAtIndex", GEO_NODE_EVALUATE_AT_INDEX, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Evaluate at Index";
+  ntype.ui_description = "Retrieve data of other elements in the context's geometry";
+  ntype.enum_name_legacy = "FIELD_AT_INDEX";
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -26,11 +26,11 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_linestyle.h"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
@@ -38,7 +38,7 @@
 #include "BKE_screen.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_buttons.hh"
 #include "ED_physics.hh"
@@ -257,14 +257,9 @@ static bool buttons_context_path_data(ButsContextPath *path, int type)
   if (RNA_struct_is_a(ptr->type, &RNA_LightProbe) && ELEM(type, -1, OB_LIGHTPROBE)) {
     return true;
   }
-  if (RNA_struct_is_a(ptr->type, &RNA_GreasePencil) && ELEM(type, -1, OB_GPENCIL_LEGACY)) {
-    return true;
-  }
-#ifdef WITH_GREASE_PENCIL_V3
   if (RNA_struct_is_a(ptr->type, &RNA_GreasePencilv3) && ELEM(type, -1, OB_GREASE_PENCIL)) {
     return true;
   }
-#endif
   if (RNA_struct_is_a(ptr->type, &RNA_Curves) && ELEM(type, -1, OB_CURVES)) {
     return true;
   }
@@ -303,7 +298,6 @@ static bool buttons_context_path_modifier(ButsContextPath *path)
              OB_FONT,
              OB_SURF,
              OB_LATTICE,
-             OB_GPENCIL_LEGACY,
              OB_GREASE_PENCIL,
              OB_CURVES,
              OB_POINTCLOUD,
@@ -327,7 +321,7 @@ static bool buttons_context_path_shaderfx(ButsContextPath *path)
   if (buttons_context_path_object(path)) {
     Object *ob = static_cast<Object *>(path->ptr[path->len - 1].data);
 
-    if (ob && ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+    if (ob && ob->type == OB_GREASE_PENCIL) {
       return true;
     }
   }
@@ -554,7 +548,7 @@ static bool buttons_context_path(
   Scene *scene = WM_window_get_active_scene(window);
   ViewLayer *view_layer = WM_window_get_active_view_layer(window);
 
-  memset(path, 0, sizeof(*path));
+  *path = {};
   path->flag = flag;
 
   /* If some ID datablock is pinned, set the root pointer. */
@@ -693,7 +687,7 @@ static int buttons_shading_new_context(const bContext *C, int flag)
 void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
 {
   if (!sbuts->path) {
-    sbuts->path = MEM_callocN(sizeof(ButsContextPath), "ButsContextPath");
+    sbuts->path = MEM_new<ButsContextPath>("ButsContextPath");
   }
 
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);
@@ -845,9 +839,7 @@ const char *buttons_context_dir[] = {
     "line_style",
     "collection",
     "gpencil",
-#ifdef WITH_GREASE_PENCIL_V3
     "grease_pencil",
-#endif
     "curves",
 #ifdef WITH_POINT_CLOUD
     "pointcloud",
@@ -1175,12 +1167,10 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     set_pointer_type(path, result, &RNA_GreasePencil);
     return CTX_RESULT_OK;
   }
-#ifdef WITH_GREASE_PENCIL_V3
   if (CTX_data_equals(member, "grease_pencil")) {
     set_pointer_type(path, result, &RNA_GreasePencilv3);
     return CTX_RESULT_OK;
   }
-#endif
   return CTX_RESULT_MEMBER_NOT_FOUND;
 }
 

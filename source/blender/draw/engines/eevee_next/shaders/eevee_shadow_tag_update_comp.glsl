@@ -11,11 +11,16 @@
  * tag the appropriate tiles.
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
-#pragma BLENDER_REQUIRE(common_intersect_lib.glsl)
-#pragma BLENDER_REQUIRE(common_aabb_lib.glsl)
+#include "infos/eevee_shadow_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_shadow_tag_update)
+
+#include "common_aabb_lib.glsl"
+#include "common_intersect_lib.glsl"
+
+#include "draw_view_lib.glsl"
+#include "eevee_shadow_tilemap_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 vec3 safe_project(mat4 winmat, mat4 viewmat, inout int clipped, vec3 v)
 {
@@ -71,6 +76,9 @@ void main()
         return;
       }
     }
+    else {
+      /* None of the verts are behind the camera. The projected AABB is correct. */
+    }
   }
 
   AABB aabb_tag;
@@ -95,7 +103,7 @@ void main()
   for (int lod = 0; lod <= SHADOW_TILEMAP_LOD; lod++, box_min >>= 1, box_max >>= 1) {
     for (int y = box_min.y; y <= box_max.y; y++) {
       for (int x = box_min.x; x <= box_max.x; x++) {
-        int tile_index = shadow_tile_offset(ivec2(x, y), tilemap.tiles_index, lod);
+        int tile_index = shadow_tile_offset(uvec2(x, y), tilemap.tiles_index, lod);
         atomicOr(tiles_buf[tile_index], uint(SHADOW_DO_UPDATE));
       }
     }

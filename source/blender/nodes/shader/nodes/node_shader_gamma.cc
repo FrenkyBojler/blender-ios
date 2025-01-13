@@ -15,11 +15,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(1.0f)
       .min(0.001f)
       .max(10.0f)
-      .subtype(PROP_UNSIGNED)
+      .subtype(PROP_NONE)
       .description(
           "Gamma correction value\n"
           "Gamma controls the relative intensity of the mid-tones compared to the full black and "
-          "full white.");
+          "full white");
   b.add_output<decl::Color>("Color");
 }
 
@@ -48,12 +48,15 @@ void register_node_type_sh_gamma()
 {
   namespace file_ns = blender::nodes::node_shader_gamma_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_GAMMA, "Gamma", NODE_CLASS_OP_COLOR);
+  sh_node_type_base(&ntype, "ShaderNodeGamma", SH_NODE_GAMMA, NODE_CLASS_OP_COLOR);
+  ntype.ui_name = "Gamma";
+  ntype.ui_description = "Apply a gamma correction";
+  ntype.enum_name_legacy = "GAMMA";
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::node_shader_gpu_gamma;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

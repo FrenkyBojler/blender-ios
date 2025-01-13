@@ -10,13 +10,13 @@
 #include "BKE_curve.hh"
 #include "BKE_customdata.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_math_base.hh"
+#include "BLI_math_base.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 
@@ -28,8 +28,6 @@
 #include "DNA_curve_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -51,19 +49,6 @@ struct Expectation {
 
 class OBJImportTest : public BlendfileLoadingBaseTest {
  public:
-  OBJImportTest()
-  {
-    params.global_scale = 1.0f;
-    params.clamp_size = 0;
-    params.forward_axis = IO_AXIS_NEGATIVE_Z;
-    params.up_axis = IO_AXIS_Y;
-    params.validate_meshes = true;
-    params.use_split_objects = true;
-    params.use_split_groups = false;
-    params.import_vertex_groups = false;
-    params.relative_paths = true;
-    params.clear_selection = true;
-  }
   void import_and_check(const char *path,
                         const Expectation *expect,
                         size_t expect_count,
@@ -168,9 +153,8 @@ class OBJImportTest : public BlendfileLoadingBaseTest {
         int endpoint = (nurb->flagu & CU_NURB_ENDPOINT) ? 1 : 0;
         EXPECT_EQ(nurb->orderu, exp.mesh_faces_num_or_curve_order);
         EXPECT_EQ(endpoint, exp.mesh_edges_num_or_curve_endp);
-        /* Cyclic flag is not set by the importer yet. */
-        // int cyclic = (nurb->flagu & CU_NURB_CYCLIC) ? 1 : 0;
-        // EXPECT_EQ(cyclic, exp.mesh_corner_num_or_curve_cyclic);
+        int cyclic = (nurb->flagu & CU_NURB_CYCLIC) ? 1 : 0;
+        EXPECT_EQ(cyclic, exp.mesh_corner_num_or_curve_cyclic);
       }
       if (!exp.first_mat.empty()) {
         Material *mat = BKE_object_material_get(object, 1);
@@ -204,7 +188,7 @@ TEST_F(OBJImportTest, import_cube)
        24,
        float3(-1, -1, 1),
        float3(1, -1, -1),
-       float3(-0.57735f, 0.57735f, -0.57735f)},
+       float3(-0.57758f, 0.57735f, -0.57711f)},
   };
   import_and_check("cube.obj", expect, std::size(expect), 1);
 }
@@ -222,7 +206,7 @@ TEST_F(OBJImportTest, import_cube_o_after_verts)
           24,
           float3(-1, -1, 1),
           float3(1, -1, -1),
-          float3(0, 0, 1),
+          float3(0.57735f, -0.57735f, 0.57735f),
       },
       {
           "OBSparseTri",
@@ -263,11 +247,11 @@ TEST_F(OBJImportTest, import_nurbs)
       {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
       {"OBnurbs",
        OB_CURVES_LEGACY,
-       12,
+       9,
        0,
        4,
        1,
-       float3(0.260472f, -1.477212f, -0.866025f),
+       float3(1.149067f, 0.964181f, -0.866025f),
        float3(-1.5f, 2.598076f, 0)},
   };
   import_and_check("nurbs.obj", expect, std::size(expect), 0);
@@ -279,7 +263,7 @@ TEST_F(OBJImportTest, import_nurbs_curves)
       {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
       {"OBCurveDeg3", OB_CURVES_LEGACY, 4, 0, 3, 0, float3(10, -2, 0), float3(6, -2, 0)},
       {"OBnurbs_curves", OB_CURVES_LEGACY, 4, 0, 4, 0, float3(2, -2, 0), float3(-2, -2, 0)},
-      {"OBNurbsCurveCyclic", OB_CURVES_LEGACY, 7, 0, 4, 1, float3(-2, -2, 0), float3(-6, 2, 0)},
+      {"OBNurbsCurveCyclic", OB_CURVES_LEGACY, 4, 0, 4, 1, float3(-6, -2, -0), float3(-6, 2, 0)},
       {"OBNurbsCurveDiffWeights",
        OB_CURVES_LEGACY,
        4,
@@ -306,21 +290,53 @@ TEST_F(OBJImportTest, import_nurbs_cyclic)
       {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
       {"OBnurbs_cyclic",
        OB_CURVES_LEGACY,
-       31,
+       28,
        0,
        4,
        1,
-       float3(2.591002f, 0, -0.794829f),
+       float3(0.935235f, -0.000000f, 3.518242f),
        float3(3.280729f, 0, 3.043217f)},
   };
   import_and_check("nurbs_cyclic.obj", expect, std::size(expect), 0);
+}
+
+TEST_F(OBJImportTest, import_nurbs_endpoint)
+{
+  Expectation expect[] = {
+      {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
+      {"OBCurveEndpointRange01",
+       OB_CURVES_LEGACY,
+       15,
+       1,
+       4,
+       0,
+       float3(0.29f, 0, -0.11f),
+       float3(22.17f, 0, -5.31f)},
+      {"OBCurveEndpointRangeNon01",
+       OB_CURVES_LEGACY,
+       15,
+       1,
+       4,
+       0,
+       float3(0.29f, 0, -0.11f),
+       float3(22.17f, 0, -5.31f)},
+      {"OBCurveNoEndpointRange01",
+       OB_CURVES_LEGACY,
+       15,
+       0,
+       4,
+       0,
+       float3(0.29f, 0, -0.11f),
+       float3(22.17f, 0, -5.31f)},
+  };
+  import_and_check("nurbs_endpoint.obj", expect, std::size(expect), 0);
 }
 
 TEST_F(OBJImportTest, import_nurbs_manual)
 {
   Expectation expect[] = {
       {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
-      {"OBCurve_Cyclic", OB_CURVES_LEGACY, 7, 0, 4, 1, float3(-2, 0, 2), float3(2, 0, -2)},
+      {"OBCurve_Cyclic", OB_CURVES_LEGACY, 4, 0, 4, 1, float3(-2, 0, -2), float3(2, 0, -2)},
       {"OBCurve_Endpoints", OB_CURVES_LEGACY, 5, 1, 4, 0, float3(-2, 0, 2), float3(-2, 0, 2)},
       {"OBCurve_NonUniform_Parm",
        OB_CURVES_LEGACY,
@@ -819,6 +835,36 @@ TEST_F(OBJImportTest, import_cubes_vertex_colors_mrgb)
       },
   };
   import_and_check("cubes_vertex_colors_mrgb.obj", expect, std::size(expect), 0);
+}
+
+TEST_F(OBJImportTest, import_vertex_colors_non_contiguous)
+{
+  Expectation expect[] = {
+      {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
+      {"OBNoColor",
+       OB_MESH,
+       3,
+       3,
+       1,
+       3,
+       float3(0, 0, 1),
+       float3(1, 0, 1),
+       float3(0, 0, 0),
+       float2(0, 0),
+       float4(-1, -1, -1, -1)},
+      {"OBRed",
+       OB_MESH,
+       3,
+       3,
+       1,
+       3,
+       float3(0, 0, 0),
+       float3(1, 0, 0),
+       float3(0, 0, 0),
+       float2(0, 0),
+       float4(1, 0, 0, 1)},
+  };
+  import_and_check("vertex_colors_non_contiguous.obj", expect, std::size(expect), 0);
 }
 
 TEST_F(OBJImportTest, import_vertices)

@@ -19,10 +19,10 @@ GroupNodeParser::GroupNodeParser(MaterialX::GraphElement *graph,
                                  const bNodeSocket *socket_out,
                                  NodeItem::Type to_type,
                                  GroupNodeParser *group_parser,
-                                 ExportImageFunction export_image_fn,
+                                 ExportParams export_params,
                                  bool use_group_default)
     : NodeParser(
-          graph, depsgraph, material, node, socket_out, to_type, group_parser, export_image_fn),
+          graph, depsgraph, material, node, socket_out, to_type, group_parser, export_params),
       use_group_default_(use_group_default)
 {
 }
@@ -56,7 +56,7 @@ NodeItem GroupNodeParser::compute()
                                        socket_out_,
                                        to_type_,
                                        this,
-                                       export_image_fn_,
+                                       export_params_,
                                        use_group_default_)
                      .compute_full();
 
@@ -111,7 +111,7 @@ NodeItem GroupOutputNodeParser::compute_full()
             1,
             "%s [%d] => %s",
             node_->name,
-            node_->typeinfo->type,
+            node_->typeinfo->type_legacy,
             NodeItem::type(to_type_).c_str());
 
 #ifdef USE_MATERIALX_NODEGRAPH
@@ -161,7 +161,7 @@ NodeItem GroupInputNodeParser::compute_full()
             1,
             "%s [%d] => %s",
             node_->name,
-            node_->typeinfo->type,
+            node_->typeinfo->type_legacy,
             NodeItem::type(to_type_).c_str());
 
 #ifdef USE_MATERIALX_NODEGRAPH

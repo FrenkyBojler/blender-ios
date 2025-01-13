@@ -11,6 +11,7 @@
 #include "COM_shader_node.hh"
 
 #include "NOD_math_functions.hh"
+#include "NOD_multi_function.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
@@ -68,7 +69,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class MathShaderNode : public ShaderNode {
  public:
@@ -122,14 +123,18 @@ void register_node_type_cmp_math()
 {
   namespace file_ns = blender::nodes::node_composite_math_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MATH, "Math", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, "CompositorNodeMath", CMP_NODE_MATH, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Math";
+  ntype.ui_description = "Perform math operations";
+  ntype.enum_name_legacy = "MATH";
   ntype.declare = file_ns::cmp_node_math_declare;
   ntype.labelfunc = node_math_label;
   ntype.updatefunc = node_math_update;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
+  ntype.build_multi_function = blender::nodes::node_math_build_multi_function;
   ntype.gather_link_search_ops = file_ns::node_gather_link_searches;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

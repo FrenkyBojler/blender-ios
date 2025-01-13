@@ -10,7 +10,6 @@
 
 #include <cstdlib>
 
-#include "BLI_dlrbTree.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
@@ -19,7 +18,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
@@ -34,6 +33,7 @@
 #include "ED_anim_api.hh"
 #include "ED_keyframes_keylist.hh"
 
+#include "ANIM_action_legacy.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "CLG_log.h"
@@ -50,7 +50,7 @@ struct MPathTarget {
 
   /* Original (Source Objects) */
   Object *ob;          /* source object */
-  bPoseChannel *pchan; /* source posechannel (if applicable) */
+  bPoseChannel *pchan; /* source pose-channel (if applicable) */
 
   /* "Evaluated" Copies (these come from the background evaluated copy
    * that provide all the coordinates we want to save off). */
@@ -321,7 +321,7 @@ static void motionpath_calculate_update_range(MPathTarget *mpt,
    * we ignore all others (which can potentially make an update range unnecessary wide). */
   for (FCurve *fcu = static_cast<FCurve *>(fcurve_list->first); fcu != nullptr; fcu = fcu->next) {
     AnimKeylist *keylist = ED_keylist_create();
-    fcurve_to_keylist(adt, fcu, keylist, 0, {-FLT_MAX, FLT_MAX});
+    fcurve_to_keylist(adt, fcu, keylist, 0, {-FLT_MAX, FLT_MAX}, true);
     ED_keylist_prepare_for_direct_access(keylist);
 
     int fcu_sfra = motionpath_get_prev_prev_keyframe(mpt, keylist, current_frame);
@@ -370,11 +370,11 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene)
   }
 
   AnimKeylist *keylist = ED_keylist_create();
-  LISTBASE_FOREACH (FCurve *, fcu, &ob->adt->action->curves) {
-    fcurve_to_keylist(ob->adt, fcu, keylist, 0, {-FLT_MAX, FLT_MAX});
+  for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(ob->adt)) {
+    fcurve_to_keylist(ob->adt, fcu, keylist, 0, {-FLT_MAX, FLT_MAX}, true);
   }
 
-  Range2f frame_range;
+  blender::Bounds<float> frame_range;
   switch (avs->path_range) {
     case MOTIONPATH_RANGE_KEYS_SELECTED:
       if (ED_keylist_selected_keys_frame_range(keylist, &frame_range)) {

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Alpha (b'3a5389d5abe0')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-04-29 07:27+0000\n"
+"POT-Creation-Date: 2025-01-13 11:47+0000\n"
 "PO-Revision-Date: 2023-10-06 09:54+0000\n"
 "Last-Translator: Eitan Traurig <eitant13@gmail.com>\n"
 "Language-Team: Hebrew <https://translate.blender.org/projects/blender-ui/ui/he/>\n"
@@ -59,38 +59,6 @@ msgid "Select"
 msgstr "רחוב"
 
 
-msgid "Module"
-msgstr "לודומ"
-
-
-msgid "Module name"
-msgstr "לודומה םש"
-
-
-msgid "Password"
-msgstr "המסיס"
-
-
-msgid "Error Message"
-msgstr "האיגש תעדוה"
-
-
-msgid "Message"
-msgstr "העדוה"
-
-
-msgid "Off"
-msgstr "יובכ"
-
-
-msgid "Full"
-msgstr "אלמ"
-
-
-msgid "Animation Data"
-msgstr "היצמינא ינותנ"
-
-
 msgid "Replace"
 msgstr "ףלחה"
 
@@ -105,34 +73,6 @@ msgstr "ריסחהל"
 
 msgid "Multiply"
 msgstr "ליפכהל"
-
-
-msgid "Hold"
-msgstr "קיזחהל"
-
-
-msgid "Animation"
-msgstr "היצמינא"
-
-
-msgid "Heads"
-msgstr "םישאר"
-
-
-msgid "Tails"
-msgstr "תובנז"
-
-
-msgid "After Current"
-msgstr "יחכונה ירחא"
-
-
-msgid "Before Current"
-msgstr "יחכונה ינפל"
-
-
-msgid "Width"
-msgstr "בחור"
 
 
 msgctxt "ID"
@@ -158,6 +98,54 @@ msgstr "טסקט"
 msgctxt "ID"
 msgid "Texture"
 msgstr "םקרמ"
+
+
+msgid "Module"
+msgstr "לודומ"
+
+
+msgid "Module name"
+msgstr "לודומה םש"
+
+
+msgid "Off"
+msgstr "יובכ"
+
+
+msgid "Full"
+msgstr "אלמ"
+
+
+msgid "Center"
+msgstr "זכרמ"
+
+
+msgid "Animation Data"
+msgstr "היצמינא ינותנ"
+
+
+msgid "Hold"
+msgstr "קיזחהל"
+
+
+msgid "Heads"
+msgstr "םישאר"
+
+
+msgid "Tails"
+msgstr "תובנז"
+
+
+msgid "After Current"
+msgstr "יחכונה ירחא"
+
+
+msgid "Before Current"
+msgstr "יחכונה ינפל"
+
+
+msgid "Width"
+msgstr "בחור"
 
 
 msgid "Data Type"
@@ -256,23 +244,11 @@ msgid "Tail"
 msgstr "בנז"
 
 
-msgid "Remove"
-msgstr "רסה"
-
-
 msgid "Vertex Color"
 msgstr "דוקדוק עבצ"
 
 
-msgid "Pencil"
-msgstr "ןורפע"
-
-
-msgid "Pen"
-msgstr "טע"
-
-
-msgctxt "GPencil"
+msgctxt "Amount"
 msgid "Smooth"
 msgstr "קלח"
 
@@ -280,11 +256,6 @@ msgstr "קלח"
 msgctxt "GPencil"
 msgid "Strength"
 msgstr "המצוע"
-
-
-msgctxt "Amount"
-msgid "Smooth"
-msgstr "קלח"
 
 
 msgid "Saturation"
@@ -305,10 +276,6 @@ msgstr "לאמש"
 
 msgid "Right"
 msgstr "ןימי"
-
-
-msgid "Center"
-msgstr "זכרמ"
 
 
 msgid "Gamma"
@@ -396,6 +363,10 @@ msgid "Modifiers"
 msgstr "םינשמ"
 
 
+msgid "Roughness"
+msgstr "תוסג"
+
+
 msgid "Frequency"
 msgstr "תורידת"
 
@@ -441,10 +412,6 @@ msgid "Vertex Group"
 msgstr "דוקדוק תצובק"
 
 
-msgid "Generated"
-msgstr "רצוימ"
-
-
 msgid "Collection"
 msgstr "ףסוא"
 
@@ -465,22 +432,6 @@ msgid "Tool Header"
 msgstr "ילכ תרתוכ"
 
 
-msgid "Edit Mode"
-msgstr "הכירע בצמ"
-
-
-msgid "Mirror"
-msgstr "הארמ"
-
-
-msgid "Smooth"
-msgstr "קלח"
-
-
-msgid "Space"
-msgstr "חוור"
-
-
 msgid "Red Green Blue"
 msgstr "לוחכ קורי םודא"
 
@@ -497,14 +448,6 @@ msgid "Blue"
 msgstr "לוחכ"
 
 
-msgid "Mask"
-msgstr "הכסמ"
-
-
-msgid "World"
-msgstr "םלוע"
-
-
 msgid "Full Name"
 msgstr "אלמ םש"
 
@@ -514,14 +457,14 @@ msgid "Smooth"
 msgstr "קלח"
 
 
-msgctxt "Mask"
+msgctxt "GPencil"
 msgid "Smooth"
 msgstr "קלח"
 
 
-msgctxt "Brush"
-msgid "Sculpt Tool"
-msgstr "לוסיפ ילכ"
+msgctxt "Mask"
+msgid "Smooth"
+msgstr "קלח"
 
 
 msgid "Up"
@@ -536,17 +479,9 @@ msgid "Mean"
 msgstr "עצוממ"
 
 
-msgid "Movie"
-msgstr "טרס"
-
-
 msgctxt "Material"
 msgid "Hair"
 msgstr "רעיש"
-
-
-msgid "Roughness"
-msgstr "תוסג"
 
 
 msgid "Specular"
@@ -571,6 +506,10 @@ msgstr "ילכ"
 
 msgid "Faces"
 msgstr "תואפ"
+
+
+msgid "Edit Mode"
+msgstr "הכירע בצמ"
 
 
 msgid "Sculpt Mode"
@@ -603,6 +542,10 @@ msgstr "יעוביר"
 
 msgid "Mist"
 msgstr "לפרע"
+
+
+msgid "Animation"
+msgstr "היצמינא"
 
 
 msgid "Black"
@@ -640,16 +583,32 @@ msgid "Grease Pencil Color"
 msgstr "Grease Pencil יאבצ"
 
 
+msgid "Mask"
+msgstr "הכסמ"
+
+
+msgid "Mirror"
+msgstr "הארמ"
+
+
+msgid "Apply"
+msgstr "לחה"
+
+
+msgid "Convert"
+msgstr "רמה"
+
+
+msgid "Face Data"
+msgstr "האפ ינותנ"
+
+
 msgid "Languages..."
 msgstr "..תופש"
 
 
 msgid "Add Modifier"
 msgstr "הנשמ ףסוה"
-
-
-msgid "Apply"
-msgstr "לחה"
 
 
 msgid "Python"
@@ -660,12 +619,8 @@ msgid "System"
 msgstr "תכרעמ"
 
 
-msgid "Face Data"
-msgstr "האפ ינותנ"
-
-
-msgid "Convert"
-msgstr "רמה"
+msgid "Smooth"
+msgstr "קלח"
 
 
 msgid "Vertex group name"
@@ -678,6 +633,14 @@ msgstr "עלצ ינותנ"
 
 msgid "Vertex Data"
 msgstr "דוקדוק ינותנ"
+
+
+msgid "Space"
+msgstr "חוור"
+
+
+msgid "World"
+msgstr "םלוע"
 
 
 msgid "Lift"
@@ -711,6 +674,10 @@ msgstr "תופקתשה"
 
 msgid "Emission"
 msgstr "הטילפ"
+
+
+msgid "Generated"
+msgstr "רצוימ"
 
 
 msgctxt "Operator"
@@ -749,18 +716,8 @@ msgid "Eraser"
 msgstr "קחמ"
 
 
-msgctxt "Operator"
-msgid "Select Vertex Color"
-msgstr "דוקדוק עבצ רחוב"
-
-
 msgid "Both"
 msgstr "םהינש"
-
-
-msgctxt "Operator"
-msgid "Select Vertex Group"
-msgstr "דוקדוק תצובק רחב"
 
 
 msgid "Image Name"
@@ -770,6 +727,11 @@ msgstr "הנומת םש"
 msgctxt "Mesh"
 msgid "Vertex Groups"
 msgstr "דוקדוק תוצובק"
+
+
+msgctxt "Operator"
+msgid "Select Vertex Group"
+msgstr "דוקדוק תצובק רחב"
 
 
 msgctxt "Operator"
@@ -801,6 +763,10 @@ msgstr "ףילחהל"
 
 msgid "Select All"
 msgstr "לכה רחוב"
+
+
+msgid "Remove"
+msgstr "רסה"
 
 
 msgid "Header Text"
@@ -839,10 +805,6 @@ msgid "Languages"
 msgstr "תופש"
 
 
-msgid "Hide Names"
-msgstr "תומש רתסה"
-
-
 msgctxt "Sequence"
 msgid "Image"
 msgstr "הנומת"
@@ -861,8 +823,8 @@ msgid "Sort by Name"
 msgstr "םש יפל ןיימ"
 
 
-msgid "AOV"
-msgstr "AOV"
+msgid "Error Message"
+msgstr "האיגש תעדוה"
 
 
 msgctxt "WindowManager"
@@ -929,9 +891,8 @@ msgid "Location:"
 msgstr "‏:םוקימ"
 
 
-msgctxt "Operator"
-msgid "Grease Pencil"
-msgstr "Grease Pencil"
+msgid "AOV"
+msgstr "AOV"
 
 
 msgid "Nothing selected"
@@ -973,8 +934,12 @@ msgid "Saturation:"
 msgstr ":היוור"
 
 
-msgid "No Properties"
-msgstr "םינייפאמ אלל"
+msgid "Cancel"
+msgstr "לוטיב"
+
+
+msgid "Movie"
+msgstr "טרס"
 
 
 msgid "Sort By:"
@@ -983,6 +948,10 @@ msgstr ":יפל ןיימ"
 
 msgid "Delete points"
 msgstr "תודוקנ קחמ"
+
+
+msgid "No Properties"
+msgstr "םינייפאמ אלל"
 
 
 msgid "Stop this job"
@@ -1011,10 +980,6 @@ msgstr ":ץבוק ביתנ"
 
 msgid "File path"
 msgstr "ץבוק ביתנ"
-
-
-msgid "Cancel"
-msgstr "לוטיב"
 
 
 msgid "File name"

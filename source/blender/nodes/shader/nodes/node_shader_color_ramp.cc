@@ -157,16 +157,20 @@ void register_node_type_sh_valtorgb()
 {
   namespace file_ns = blender::nodes::node_shader_color_ramp_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_VALTORGB, "Color Ramp", NODE_CLASS_CONVERTER);
+  sh_fn_node_type_base(&ntype, "ShaderNodeValToRGB", SH_NODE_VALTORGB, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Color Ramp";
+  ntype.ui_description = "Map values to colors with the use of a gradient";
+  ntype.enum_name_legacy = "VALTORGB";
   ntype.declare = file_ns::sh_node_valtorgb_declare;
   ntype.initfunc = file_ns::node_shader_init_valtorgb;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
-  node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      &ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::gpu_shader_valtorgb;
   ntype.build_multi_function = file_ns::sh_node_valtorgb_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

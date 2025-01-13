@@ -12,6 +12,7 @@
 #include "BLI_bit_span.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
+#include "BLI_index_ranges_builder_fwd.hh"
 #include "BLI_linear_allocator.hh"
 #include "BLI_offset_span.hh"
 #include "BLI_task.hh"
@@ -241,6 +242,8 @@ class IndexMask : private IndexMaskData {
   static IndexMask from_union(const IndexMask &mask_a,
                               const IndexMask &mask_b,
                               IndexMaskMemory &memory);
+  /** Constructs a mask from the union of multiple masks. */
+  static IndexMask from_union(Span<IndexMask> masks, IndexMaskMemory &memory);
   /** Construct a mask from the difference of #mask_a and #mask_b. */
   static IndexMask from_difference(const IndexMask &mask_a,
                                    const IndexMask &mask_b,
@@ -255,6 +258,20 @@ class IndexMask : private IndexMaskData {
                                   GrainSize grain_size,
                                   IndexMaskMemory &memory,
                                   Fn &&predicate);
+  /**
+   * This is a variant of #from_predicate that is more efficient if the predicate for many indices
+   * can be evaluated at once.
+   *
+   * \param batch_predicate: A function that finds indices in a certain segment that should become
+   * part of the mask. To efficiently handle ranges, this function uses #IndexRangesBuilder. It
+   * returns an index offset that should be applied to each index in the builder.
+   */
+  static IndexMask from_batch_predicate(
+      const IndexMask &universe,
+      GrainSize grain_size,
+      IndexMaskMemory &memory,
+      FunctionRef<int64_t(const IndexMaskSegment &universe_segment,
+                          IndexRangesBuilder<int16_t> &builder)> batch_predicate);
   /** Sorts all indices from #universe into the different output masks. */
   template<typename T, typename Fn>
   static void from_groups(const IndexMask &universe,
@@ -347,7 +364,7 @@ class IndexMask : private IndexMaskData {
    * \return A new index mask that contains all the indices from the universe that are not in the
    * current mask.
    */
-  IndexMask complement(IndexRange universe, IndexMaskMemory &memory) const;
+  IndexMask complement(const IndexMask &universe, IndexMaskMemory &memory) const;
 
   /**
    * \return Number of segments in the mask.
@@ -437,6 +454,10 @@ class IndexMask : private IndexMaskData {
    * size as the mask.
    */
   template<typename T> void to_indices(MutableSpan<T> r_indices) const;
+  /**
+   * Set the bits at indices in the mask to 1.
+   */
+  void set_bits(MutableBitSpan r_bits, int64_t offset = 0) const;
   /**
    * Set the bits at indices in the mask to 1 and all other bits to 0.
    */
@@ -708,11 +729,10 @@ inline RawMaskIterator IndexMask::index_to_iterator(const int64_t index) const
   BLI_assert(index < indices_num_);
   RawMaskIterator it;
   const int64_t full_index = index + cumulative_segment_sizes_[0] + begin_index_in_segment_;
-  it.segment_i = -1 +
-                 binary_search::find_predicate_begin(
-                     cumulative_segment_sizes_,
-                     cumulative_segment_sizes_ + segments_num_ + 1,
-                     [&](const int64_t cumulative_size) { return cumulative_size > full_index; });
+  it.segment_i = binary_search::last_if(
+      cumulative_segment_sizes_,
+      cumulative_segment_sizes_ + segments_num_ + 1,
+      [&](const int64_t cumulative_size) { return cumulative_size <= full_index; });
   it.index_in_segment = full_index - cumulative_segment_sizes_[it.segment_i];
   return it;
 }

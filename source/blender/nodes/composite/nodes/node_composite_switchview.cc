@@ -52,21 +52,7 @@ static void init_switch_view(const bContext *C, PointerRNA *ptr)
   id_us_plus(node->id);
 }
 
-static void node_composit_buts_switch_view_ex(uiLayout *layout,
-                                              bContext * /*C*/,
-                                              PointerRNA * /*ptr*/)
-{
-  uiItemFullO(layout,
-              "NODE_OT_switch_view_update",
-              "Update Views",
-              ICON_FILE_REFRESH,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              nullptr);
-}
-
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class SwitchViewOperation : public NodeOperation {
  public:
@@ -99,13 +85,16 @@ void register_node_type_cmp_switch_view()
 {
   namespace file_ns = blender::nodes::node_composite_switchview_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_SWITCH_VIEW, "Switch View", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(
+      &ntype, "CompositorNodeSwitchView", CMP_NODE_SWITCH_VIEW, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Switch View";
+  ntype.ui_description = "Combine the views (left and right) into a single stereo 3D output";
+  ntype.enum_name_legacy = "VIEWSWITCH";
   ntype.declare = file_ns::node_declare;
-  ntype.draw_buttons_ex = file_ns::node_composit_buts_switch_view_ex;
   ntype.initfunc_api = file_ns::init_switch_view;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
