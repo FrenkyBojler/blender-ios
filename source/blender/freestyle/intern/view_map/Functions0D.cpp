@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2008-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,7 @@
 
 #include "BLI_sys_types.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 using namespace std;
 
@@ -358,7 +358,8 @@ int GetOccludersF0D::operator()(Interface0DIterator &iter)
   result.clear();
   // vsOccluders.insert(vsOccluders.begin(), occluders.begin(), occluders.end());
   for (set<ViewShape *>::iterator it = occluders.begin(), itend = occluders.end(); it != itend;
-       ++it) {
+       ++it)
+  {
     result.push_back(*it);
   }
   return 0;

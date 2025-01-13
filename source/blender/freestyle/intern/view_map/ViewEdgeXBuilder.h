@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -29,9 +29,7 @@
 
 #include "../system/FreestyleConfig.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -47,9 +45,9 @@ struct SVertexHasher {
 #define _MOD 2147483647UL
   inline size_t operator()(const Vec3r &p) const
   {
-    size_t res = ((unsigned long)(p[0] * _MUL)) % _MOD;
-    res = ((res + (unsigned long)(p[1]) * _MUL)) % _MOD;
-    return ((res + (unsigned long)(p[2]) * _MUL)) % _MOD;
+    size_t res = (ulong(p[0] * _MUL)) % _MOD;
+    res = ((res + ulong(p[1]) * _MUL)) % _MOD;
+    return ((res + ulong(p[2]) * _MUL)) % _MOD;
   }
 #undef _MUL
 #undef _MOD
@@ -77,7 +75,7 @@ class OWXFaceLayer {
 
   OWXFaceLayer()
   {
-    fl = NULL;
+    fl = nullptr;
     order = true;
   }
 
@@ -104,9 +102,7 @@ class OWXFaceLayer {
     return !(*this == b);
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:OWXFaceLayer")
-#endif
 };
 
 class WXEdge;
@@ -119,7 +115,7 @@ class OWXEdge {
 
   OWXEdge()
   {
-    e = NULL;
+    e = nullptr;
     order = true;
   }
 
@@ -146,9 +142,7 @@ class OWXEdge {
     return !(*this == b);
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:OWXEdge")
-#endif
 };
 
 class WOEdge;
@@ -271,9 +265,7 @@ class ViewEdgeXBuilder {
   SShape *_pCurrentSShape;
   ViewShape *_pCurrentVShape;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:ViewEdgeXBuilder")
-#endif
 };
 
 } /* namespace Freestyle */

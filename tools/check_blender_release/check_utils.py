@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "ScriptUnitTesting",
+    "parseArguments",
+    "sliceCommandLineArguments",
+)
 
 import unittest
 
@@ -64,7 +69,7 @@ def runScriptInBlender(blender_directory, script):
     return process.returncode == 0
 
 
-class SceiptUnitTesting(unittest.TestCase):
+class ScriptUnitTesting(unittest.TestCase):
     def checkScript(self, script):
         # Parse arguments which are not handled by unit testing framework.
         args = parseArguments()

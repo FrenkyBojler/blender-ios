@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,8 +11,8 @@
 
 #include "gpu_context_private.hh"
 
-#include "GPU_common_types.h"
-#include "GPU_context.h"
+#include "GPU_common_types.hh"
+#include "GPU_context.hh"
 
 /* Don't generate OpenGL deprecation warning. This is a known thing, and is not something easily
  * solvable in a short term. */
@@ -53,9 +53,6 @@ class MTLStorageBuf;
 /* Structs containing information on current binding state for textures and samplers. */
 struct MTLTextureBinding {
   bool used;
-
-  /* Same value as index in bindings array. */
-  uint slot_index;
   gpu::MTLTexture *texture_resource;
 };
 
@@ -148,8 +145,8 @@ class MTLRenderPassState {
   /* Buffer binding (RenderCommandEncoder). */
   void bind_vertex_buffer(id<MTLBuffer> buffer, uint64_t buffer_offset, uint index);
   void bind_fragment_buffer(id<MTLBuffer> buffer, uint64_t buffer_offset, uint index);
-  void bind_vertex_bytes(void *bytes, uint64_t length, uint index);
-  void bind_fragment_bytes(void *bytes, uint64_t length, uint index);
+  void bind_vertex_bytes(const void *bytes, uint64_t length, uint index);
+  void bind_fragment_bytes(const void *bytes, uint64_t length, uint index);
 };
 
 /* Metal Context Compute Pass State -- Used to track active ComputeCommandEncoder state. */
@@ -183,11 +180,8 @@ class MTLComputeState {
                             bool use_argument_buffer_for_samplers,
                             uint slot);
   /* Buffer binding (ComputeCommandEncoder). */
-  void bind_compute_buffer(id<MTLBuffer> buffer,
-                           uint64_t buffer_offset,
-                           uint index,
-                           bool writeable = false);
-  void bind_compute_bytes(void *bytes, uint64_t length, uint index);
+  void bind_compute_buffer(id<MTLBuffer> buffer, uint64_t buffer_offset, uint index);
+  void bind_compute_bytes(const void *bytes, uint64_t length, uint index);
 };
 
 /* Depth Stencil State */
@@ -425,7 +419,7 @@ struct MTLSamplerArray {
   }
 };
 
-typedef enum MTLPipelineStateDirtyFlag {
+enum MTLPipelineStateDirtyFlag {
   MTL_PIPELINE_STATE_NULL_FLAG = 0,
   /* Whether we need to call setViewport. */
   MTL_PIPELINE_STATE_VIEWPORT_FLAG = (1 << 0),
@@ -444,7 +438,7 @@ typedef enum MTLPipelineStateDirtyFlag {
       (MTL_PIPELINE_STATE_VIEWPORT_FLAG | MTL_PIPELINE_STATE_SCISSOR_FLAG |
        MTL_PIPELINE_STATE_DEPTHSTENCIL_FLAG | MTL_PIPELINE_STATE_PSO_FLAG |
        MTL_PIPELINE_STATE_FRONT_FACING_FLAG | MTL_PIPELINE_STATE_CULLMODE_FLAG)
-} MTLPipelineStateDirtyFlag;
+};
 
 /* Ignore full flag bit-mask `MTL_PIPELINE_STATE_ALL_FLAG`. */
 ENUM_OPERATORS(MTLPipelineStateDirtyFlag, MTL_PIPELINE_STATE_CULLMODE_FLAG);
@@ -460,7 +454,7 @@ struct MTLStorageBufferBinding {
 };
 
 struct MTLContextGlobalShaderPipelineState {
-  bool initialised;
+  bool initialised = false;
 
   /* Whether the pipeline state has been modified since application.
    * `dirty_flags` is a bitmask of the types of state which have been updated.
@@ -468,14 +462,14 @@ struct MTLContextGlobalShaderPipelineState {
    * Some state parameters are dynamically applied on the RenderCommandEncoder,
    * others may be encapsulated in GPU-resident state objects such as
    * MTLDepthStencilState or MTLRenderPipelineState. */
-  bool dirty;
-  MTLPipelineStateDirtyFlag dirty_flags;
+  bool dirty = true;
+  MTLPipelineStateDirtyFlag dirty_flags = MTL_PIPELINE_STATE_NULL_FLAG;
 
   /* Shader resources. */
-  MTLShader *null_shader;
+  MTLShader *null_shader = nullptr;
 
   /* Active Shader State. */
-  MTLShader *active_shader;
+  MTLShader *active_shader = nullptr;
 
   /* Global Uniform Buffers. */
   MTLUniformBufferBinding ubo_bindings[MTL_MAX_BUFFER_BINDINGS];
@@ -491,7 +485,7 @@ struct MTLContextGlobalShaderPipelineState {
   MTLTextureBinding image_bindings[MTL_MAX_TEXTURE_SLOTS];
 
   /*** --- Render Pipeline State --- ***/
-  /* Track global render pipeline state for the current context. The functions in GPU_state.h
+  /* Track global render pipeline state for the current context. The functions in GPU_state.hh
    * modify these parameters. Certain values, tagged [PSO], are parameters which are required to be
    * passed into PSO creation, rather than dynamic state functions on the RenderCommandEncoder.
    */
@@ -515,10 +509,11 @@ struct MTLContextGlobalShaderPipelineState {
   MTLContextDepthStencilState depth_stencil_state;
 
   /* Viewport/Scissor Region. */
-  int viewport_offset_x;
-  int viewport_offset_y;
-  int viewport_width;
-  int viewport_height;
+  int num_active_viewports = 1;
+  int viewport_offset_x[GPU_MAX_VIEWPORTS];
+  int viewport_offset_y[GPU_MAX_VIEWPORTS];
+  int viewport_width[GPU_MAX_VIEWPORTS];
+  int viewport_height[GPU_MAX_VIEWPORTS];
   bool scissor_enabled;
   int scissor_x;
   int scissor_y;
@@ -553,8 +548,8 @@ class MTLCommandBufferManager {
   friend class MTLContext;
 
  public:
-  /* Counter for active command buffers. */
-  static int num_active_cmd_bufs;
+  /* Counter for all active command buffers. */
+  static volatile std::atomic<int> num_active_cmd_bufs_in_system;
 
  private:
   /* Associated Context and properties. */
@@ -564,6 +559,7 @@ class MTLCommandBufferManager {
   /* CommandBuffer tracking. */
   id<MTLCommandBuffer> active_command_buffer_ = nil;
   id<MTLCommandBuffer> last_submitted_command_buffer_ = nil;
+  volatile std::atomic<int> num_active_cmd_bufs = 0;
 
   /* Active MTLCommandEncoders. */
   enum {
@@ -642,7 +638,7 @@ class MTLCommandBufferManager {
   bool end_active_command_encoder();
   id<MTLRenderCommandEncoder> ensure_begin_render_command_encoder(MTLFrameBuffer *ctx_framebuffer,
                                                                   bool force_begin,
-                                                                  bool *new_pass);
+                                                                  bool *r_new_pass);
   id<MTLBlitCommandEncoder> ensure_begin_blit_encoder();
   id<MTLComputeCommandEncoder> ensure_begin_compute_encoder();
 
@@ -658,6 +654,31 @@ class MTLCommandBufferManager {
   void push_debug_group(const char *name, int index);
   void pop_debug_group();
 
+  void inc_active_command_buffer_count()
+  {
+    num_active_cmd_bufs_in_system++;
+    num_active_cmd_bufs++;
+  }
+
+  void dec_active_command_buffer_count()
+  {
+    BLI_assert(num_active_cmd_bufs_in_system > 0 && num_active_cmd_bufs > 0);
+    num_active_cmd_bufs_in_system--;
+    num_active_cmd_bufs--;
+  }
+
+  int get_active_command_buffer_count()
+  {
+    return num_active_cmd_bufs;
+  }
+
+  void wait_until_active_command_buffers_complete()
+  {
+    while (get_active_command_buffer_count()) {
+      std::this_thread::yield();
+    }
+  }
+
  private:
   /* Begin new command buffer. */
   id<MTLCommandBuffer> ensure_begin();
@@ -668,10 +689,12 @@ class MTLCommandBufferManager {
   void unfold_pending_debug_groups();
 };
 
-/** MTLContext -- Core render loop and state management. **/
-/* NOTE(Metal): Partial #MTLContext stub to provide wrapper functionality
- * for work-in-progress `MTL*` classes. */
-
+/**
+ * MTLContext -- Core render loop and state management.
+ *
+ * NOTE(Metal): Partial #MTLContext stub to provide wrapper functionality
+ * for work-in-progress `MTL*` classes.
+ */
 class MTLContext : public Context {
   friend class MTLBackend;
   friend class MTLRenderPassState;
@@ -754,7 +777,7 @@ class MTLContext : public Context {
   /* Maximum of 32 texture types. Though most combinations invalid. */
   gpu::MTLTexture *dummy_textures_[GPU_SAMPLER_TYPE_MAX][GPU_TEXTURE_BUFFER] = {{nullptr}};
   GPUVertFormat dummy_vertformat_[GPU_SAMPLER_TYPE_MAX];
-  GPUVertBuf *dummy_verts_[GPU_SAMPLER_TYPE_MAX] = {nullptr};
+  VertBuf *dummy_verts_[GPU_SAMPLER_TYPE_MAX] = {nullptr};
 
  public:
   /* GPUContext interface. */
@@ -771,7 +794,7 @@ class MTLContext : public Context {
   void flush() override;
   void finish() override;
 
-  void memory_statistics_get(int *total_mem, int *free_mem) override;
+  void memory_statistics_get(int *r_total_mem, int *r_free_mem) override;
 
   static MTLContext *get()
   {
@@ -780,11 +803,14 @@ class MTLContext : public Context {
 
   void debug_group_begin(const char *name, int index) override;
   void debug_group_end() override;
-  bool debug_capture_begin() override;
+  bool debug_capture_begin(const char *title) override;
   void debug_capture_end() override;
   void *debug_capture_scope_create(const char *name) override;
   bool debug_capture_scope_begin(void *scope) override;
   void debug_capture_scope_end(void *scope) override;
+
+  void debug_unbind_all_ubo() override{};
+  void debug_unbind_all_ssbo() override{};
 
   /*** MTLContext Utility functions. */
   /*
@@ -839,13 +865,13 @@ class MTLContext : public Context {
                               const MTLRenderPipelineStateInstance *pipeline_state_instance);
   bool ensure_buffer_bindings(id<MTLComputeCommandEncoder> rec,
                               const MTLShaderInterface *shader_interface,
-                              const MTLComputePipelineStateInstance &pipeline_state_instance);
+                              const MTLComputePipelineStateInstance *pipeline_state_instance);
   void ensure_texture_bindings(id<MTLRenderCommandEncoder> rec,
                                MTLShaderInterface *shader_interface,
                                const MTLRenderPipelineStateInstance *pipeline_state_instance);
   void ensure_texture_bindings(id<MTLComputeCommandEncoder> rec,
                                MTLShaderInterface *shader_interface,
-                               const MTLComputePipelineStateInstance &pipeline_state_instance);
+                               const MTLComputePipelineStateInstance *pipeline_state_instance);
   void ensure_depth_stencil_state(MTLPrimitiveType prim_type);
 
   id<MTLBuffer> get_null_buffer();
@@ -854,12 +880,14 @@ class MTLContext : public Context {
   void free_dummy_resources();
 
   /* Compute. */
-  bool ensure_compute_pipeline_state();
+  /* Ensure compute pipeline state for current config is compiled and return PSO instance. */
+  const MTLComputePipelineStateInstance *ensure_compute_pipeline_state();
   void compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len);
   void compute_dispatch_indirect(StorageBuf *indirect_buf);
 
   /* State assignment. */
   void set_viewport(int origin_x, int origin_y, int width, int height);
+  void set_viewports(int count, const int (&viewports)[GPU_MAX_VIEWPORTS][4]);
   void set_scissor(int scissor_x, int scissor_y, int scissor_width, int scissor_height);
   void set_scissor_enabled(bool scissor_enabled);
 

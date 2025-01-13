@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011 Blender Foundation
+/* SPDX-FileCopyrightText: 2011 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -17,20 +17,20 @@
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_moviecache.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "tracking_private.h"
 
@@ -741,7 +741,11 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
     if (final_ibuf == orig_ibuf) {
       final_ibuf = IMB_dupImBuf(orig_ibuf);
     }
-    IMB_scaleImBuf(final_ibuf, orig_ibuf->x / (1 << downscale), orig_ibuf->y / (1 << downscale));
+    IMB_scale(final_ibuf,
+              orig_ibuf->x / (1 << downscale),
+              orig_ibuf->y / (1 << downscale),
+              IMBScaleFilter::Box,
+              false);
   }
   /* Apply possible transformation. */
   if (transform != nullptr) {

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -131,6 +131,15 @@ TEST(generic_array, AssignDefault)
   array = {};
   EXPECT_EQ(array.size(), 0);
   EXPECT_EQ(array.data(), nullptr);
+}
+
+TEST(generic_array, DefaultConstructor)
+{
+  GArray<> array;
+
+  EXPECT_TRUE(array.is_empty());
+  EXPECT_TRUE(array.as_mutable_span().is_empty());
+  EXPECT_TRUE(array.as_span().is_empty());
 }
 
 }  // namespace blender::tests

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,38 +8,33 @@
 
 #include "abc_reader_mesh.h"
 #include "abc_axis_conversion.h"
-#include "abc_reader_transform.h"
+#include "abc_customdata.h"
 #include "abc_util.h"
-
-#include <algorithm>
-
-#include "MEM_guardedalloc.h"
 
 #include "DNA_customdata_types.h"
 #include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
+
 #include "DNA_object_types.h"
 
 #include "BLI_compiler_compat.h"
-#include "BLI_edgehash.h"
-#include "BLI_index_range.hh"
 #include "BLI_listbase.h"
-#include "BLI_math_geom.h"
+#include "BLI_map.hh"
+#include "BLI_math_vector.h"
+#include "BLI_ordered_edge.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_attribute.hh"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_material.h"
+#include "BKE_customdata.hh"
+#include "BKE_geometry_set.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
 using Alembic::Abc::FloatArraySamplePtr;
 using Alembic::Abc::Int32ArraySamplePtr;
-using Alembic::Abc::IV3fArrayProperty;
 using Alembic::Abc::P3fArraySamplePtr;
 using Alembic::Abc::PropertyHeader;
 using Alembic::Abc::V3fArraySamplePtr;
@@ -64,7 +59,7 @@ using Alembic::AbcGeom::V2fArraySamplePtr;
 
 namespace blender::io::alembic {
 
-/* NOTE: Alembic's polygon winding order is clockwise, to match with Renderman. */
+/* NOTE: Alembic's face winding order is clockwise, to match with Renderman. */
 
 /* Some helpers for mesh generation */
 namespace utils {
@@ -156,7 +151,7 @@ static void read_mverts(CDStreamConfig &config, const AbcMeshData &mesh_data)
 
     const double weight = mesh_data.interpolation_settings->weight;
     read_mverts_interp(vert_positions, positions, mesh_data.ceil_positions, weight);
-    BKE_mesh_tag_positions_changed(config.mesh);
+    config.mesh->tag_positions_changed();
     return;
   }
 
@@ -171,21 +166,21 @@ void read_mverts(Mesh &mesh, const P3fArraySamplePtr positions, const N3fArraySa
 
     copy_zup_from_yup(vert_positions[i], pos_in.getValue());
   }
-  BKE_mesh_tag_positions_changed(&mesh);
+  mesh.tag_positions_changed();
 
   if (normals) {
-    float(*vert_normals)[3] = BKE_mesh_vert_normals_for_write(&mesh);
+    Vector<float3> vert_normals(mesh.verts_num);
     for (const int64_t i : IndexRange(normals->size())) {
       Imath::V3f nor_in = (*normals)[i];
       copy_zup_from_yup(vert_normals[i], nor_in.getValue());
     }
-    BKE_mesh_vert_normals_clear_dirty(&mesh);
+    bke::mesh_vert_normals_assign(mesh, std::move(vert_normals));
   }
 }
 
 static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
 {
-  int *poly_offsets = config.poly_offsets;
+  int *face_offsets = config.face_offsets;
   int *corner_verts = config.corner_verts;
   float2 *mloopuvs = config.mloopuv;
 
@@ -207,7 +202,7 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
   for (int i = 0; i < face_counts->size(); i++) {
     const int face_size = (*face_counts)[i];
 
-    poly_offsets[i] = loop_index;
+    face_offsets[i] = loop_index;
 
     /* Polygons are always assumed to be smooth-shaded. If the Alembic mesh should be flat-shaded,
      * this is encoded in custom loop normals. See #71246. */
@@ -241,7 +236,7 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
     }
   }
 
-  BKE_mesh_calc_edges(config.mesh, false, false);
+  bke::mesh_calc_edges(*config.mesh, false, false);
   if (seen_invalid_geometry) {
     if (config.modifier_error_message) {
       *config.modifier_error_message = "Mesh hash invalid geometry; more details on the console";
@@ -265,34 +260,30 @@ static void process_loop_normals(CDStreamConfig &config, const N3fArraySamplePtr
   }
 
   Mesh *mesh = config.mesh;
-  if (loop_count != mesh->totloop) {
+  if (loop_count != mesh->corners_num) {
     /* This happens in certain Houdini exports. When a mesh is animated and then replaced by a
      * fluid simulation, Houdini will still write the original mesh's loop normals, but the mesh
-     * verts/loops/polys are from the simulation. In such cases the normals cannot be mapped to the
+     * verts/loops/faces are from the simulation. In such cases the normals cannot be mapped to the
      * mesh, so it's better to ignore them. */
     process_no_normals(config);
     return;
   }
 
-  float(*lnors)[3] = static_cast<float(*)[3]>(
-      MEM_malloc_arrayN(loop_count, sizeof(float[3]), "ABC::FaceNormals"));
+  Array<float3> corner_normals(loop_count);
 
-  const OffsetIndices polys = mesh->polys();
+  const OffsetIndices faces = mesh->faces();
   const N3fArraySample &loop_normals = *loop_normals_ptr;
   int abc_index = 0;
-  for (int i = 0, e = mesh->totpoly; i < e; i++) {
-    const IndexRange poly = polys[i];
+  for (int i = 0, e = mesh->faces_num; i < e; i++) {
+    const IndexRange face = faces[i];
     /* As usual, ABC orders the loops in reverse. */
-    for (int j = poly.size() - 1; j >= 0; j--, abc_index++) {
-      int blender_index = poly[j];
-      copy_zup_from_yup(lnors[blender_index], loop_normals[abc_index].getValue());
+    for (int j = face.size() - 1; j >= 0; j--, abc_index++) {
+      int blender_index = face[j];
+      copy_zup_from_yup(corner_normals[blender_index], loop_normals[abc_index].getValue());
     }
   }
 
-  mesh->flag |= ME_AUTOSMOOTH;
-  BKE_mesh_set_custom_normals(mesh, lnors);
-
-  MEM_freeN(lnors);
+  bke::mesh_set_custom_normals(*mesh, corner_normals);
 }
 
 static void process_vertex_normals(CDStreamConfig &config,
@@ -304,17 +295,14 @@ static void process_vertex_normals(CDStreamConfig &config,
     return;
   }
 
-  float(*vert_normals)[3] = static_cast<float(*)[3]>(
-      MEM_malloc_arrayN(normals_count, sizeof(float[3]), "ABC::VertexNormals"));
+  Array<float3> vert_normals(normals_count);
 
   const N3fArraySample &vertex_normals = *vertex_normals_ptr;
   for (int index = 0; index < normals_count; index++) {
     copy_zup_from_yup(vert_normals[index], vertex_normals[index].getValue());
   }
 
-  config.mesh->flag |= ME_AUTOSMOOTH;
-  BKE_mesh_set_custom_normals_from_verts(config.mesh, vert_normals);
-  MEM_freeN(vert_normals);
+  bke::mesh_set_custom_normals_from_verts(*config.mesh, vert_normals);
 }
 
 static void process_normals(CDStreamConfig &config,
@@ -392,73 +380,17 @@ static void *add_customdata_cb(Mesh *mesh, const char *name, int data_type)
   }
 
   void *cd_ptr = CustomData_get_layer_named_for_write(
-      &mesh->ldata, cd_data_type, name, mesh->totloop);
+      &mesh->corner_data, cd_data_type, name, mesh->corners_num);
   if (cd_ptr != nullptr) {
     /* layer already exists, so just return it. */
     return cd_ptr;
   }
 
   /* Create a new layer. */
-  int numloops = mesh->totloop;
-  cd_ptr = CustomData_add_layer_named(&mesh->ldata, cd_data_type, CD_SET_DEFAULT, numloops, name);
+  int numloops = mesh->corners_num;
+  cd_ptr = CustomData_add_layer_named(
+      &mesh->corner_data, cd_data_type, CD_SET_DEFAULT, numloops, name);
   return cd_ptr;
-}
-
-static V3fArraySamplePtr get_velocity_prop(const ICompoundProperty &schema,
-                                           const ISampleSelector &selector,
-                                           const std::string &name)
-{
-  for (size_t i = 0; i < schema.getNumProperties(); i++) {
-    const PropertyHeader &header = schema.getPropertyHeader(i);
-
-    if (header.isCompound()) {
-      const ICompoundProperty &prop = ICompoundProperty(schema, header.getName());
-
-      if (has_property(prop, name)) {
-        /* Header cannot be null here, as its presence is checked via has_property, so it is safe
-         * to dereference. */
-        const PropertyHeader *header = prop.getPropertyHeader(name);
-        if (!IV3fArrayProperty::matches(*header)) {
-          continue;
-        }
-
-        const IV3fArrayProperty &velocity_prop = IV3fArrayProperty(prop, name, 0);
-        if (velocity_prop) {
-          return velocity_prop.getValue(selector);
-        }
-      }
-    }
-    else if (header.isArray()) {
-      if (header.getName() == name && IV3fArrayProperty::matches(header)) {
-        const IV3fArrayProperty &velocity_prop = IV3fArrayProperty(schema, name, 0);
-        return velocity_prop.getValue(selector);
-      }
-    }
-  }
-
-  return V3fArraySamplePtr();
-}
-
-static void read_velocity(const V3fArraySamplePtr &velocities,
-                          const CDStreamConfig &config,
-                          const float velocity_scale)
-{
-  const int num_velocity_vectors = int(velocities->size());
-  if (num_velocity_vectors != config.mesh->totvert) {
-    /* Files containing videogrammetry data may be malformed and export velocity data on missing
-     * frames (most likely by copying the last valid data). */
-    return;
-  }
-
-  CustomDataLayer *velocity_layer = BKE_id_attribute_new(
-      &config.mesh->id, "velocity", CD_PROP_FLOAT3, ATTR_DOMAIN_POINT, nullptr);
-  float(*velocity)[3] = (float(*)[3])velocity_layer->data;
-
-  for (int i = 0; i < num_velocity_vectors; i++) {
-    const Imath::V3f &vel_in = (*velocities)[i];
-    copy_zup_from_yup(velocity[i], vel_in.getValue());
-    mul_v3_fl(velocity[i], velocity_scale);
-  }
 }
 
 template<typename SampleType>
@@ -548,17 +480,17 @@ static void read_mesh_sample(const std::string &iobject_full_name,
   }
 }
 
-CDStreamConfig get_config(Mesh *mesh)
+static CDStreamConfig get_config(Mesh *mesh)
 {
   CDStreamConfig config;
   config.mesh = mesh;
   config.positions = mesh->vert_positions_for_write().data();
   config.corner_verts = mesh->corner_verts_for_write().data();
-  config.poly_offsets = mesh->poly_offsets_for_write().data();
-  config.totvert = mesh->totvert;
-  config.totloop = mesh->totloop;
-  config.totpoly = mesh->totpoly;
-  config.loopdata = &mesh->ldata;
+  config.face_offsets = mesh->face_offsets_for_write().data();
+  config.totvert = mesh->verts_num;
+  config.totloop = mesh->corners_num;
+  config.faces_num = mesh->faces_num;
+  config.loopdata = &mesh->corner_data;
   config.add_customdata_cb = add_customdata_cb;
 
   return config;
@@ -666,17 +598,17 @@ void AbcMeshReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
 bool AbcMeshReader::accepts_object_type(
     const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
     const Object *const ob,
-    const char **err_str) const
+    const char **r_err_str) const
 {
   if (!Alembic::AbcGeom::IPolyMesh::matches(alembic_header)) {
-    *err_str = TIP_(
+    *r_err_str = RPT_(
         "Object type mismatch, Alembic object path pointed to PolyMesh when importing, but not "
         "any more");
     return false;
   }
 
   if (ob->type != OB_MESH) {
-    *err_str = TIP_("Object type mismatch, Alembic object path points to PolyMesh");
+    *r_err_str = RPT_("Object type mismatch, Alembic object path points to PolyMesh");
     return false;
   }
 
@@ -704,9 +636,9 @@ bool AbcMeshReader::topology_changed(const Mesh *existing_mesh, const ISampleSel
   const Alembic::Abc::Int32ArraySamplePtr &face_counts = sample.getFaceCounts();
 
   /* It the counters are different, we can be sure the topology is different. */
-  const bool different_counters = positions->size() != existing_mesh->totvert ||
-                                  face_counts->size() != existing_mesh->totpoly ||
-                                  face_indices->size() != existing_mesh->totloop;
+  const bool different_counters = positions->size() != existing_mesh->verts_num ||
+                                  face_counts->size() != existing_mesh->faces_num ||
+                                  face_indices->size() != existing_mesh->corners_num;
   if (different_counters) {
     return true;
   }
@@ -724,10 +656,10 @@ bool AbcMeshReader::topology_changed(const Mesh *existing_mesh, const ISampleSel
   uint abc_index = 0;
 
   const int *mesh_corner_verts = existing_mesh->corner_verts().data();
-  const int *mesh_poly_offsets = existing_mesh->poly_offsets().data();
+  const int *mesh_face_offsets = existing_mesh->face_offsets().data();
 
   for (int i = 0; i < face_counts->size(); i++) {
-    if (mesh_poly_offsets[i] != abc_index) {
+    if (mesh_face_offsets[i] != abc_index) {
       return true;
     }
 
@@ -746,20 +678,39 @@ bool AbcMeshReader::topology_changed(const Mesh *existing_mesh, const ISampleSel
   return false;
 }
 
+void AbcMeshReader::read_geometry(bke::GeometrySet &geometry_set,
+                                  const Alembic::Abc::ISampleSelector &sample_sel,
+                                  const int read_flag,
+                                  const char *velocity_name,
+                                  const float velocity_scale,
+                                  const char **r_err_str)
+{
+  Mesh *mesh = geometry_set.get_mesh_for_write();
+
+  if (mesh == nullptr) {
+    return;
+  }
+
+  Mesh *new_mesh = read_mesh(
+      mesh, sample_sel, read_flag, velocity_name, velocity_scale, r_err_str);
+
+  geometry_set.replace_mesh(new_mesh);
+}
+
 Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
                                const ISampleSelector &sample_sel,
                                const int read_flag,
                                const char *velocity_name,
                                const float velocity_scale,
-                               const char **err_str)
+                               const char **r_err_str)
 {
   IPolyMeshSchema::Sample sample;
   try {
     sample = m_schema.getValue(sample_sel);
   }
   catch (Alembic::Util::Exception &ex) {
-    if (err_str != nullptr) {
-      *err_str = TIP_("Error reading mesh sample; more detail on the console");
+    if (r_err_str != nullptr) {
+      *r_err_str = RPT_("Error reading mesh sample; more detail on the console");
     }
     printf("Alembic: error reading mesh sample for '%s/%s' at time %f: %s\n",
            m_iobject.getFullName().c_str(),
@@ -778,8 +729,8 @@ Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
   const int loop_count = face_indices->size();
   /* This is the same test as in poly_to_tri_count(). */
   if (poly_count > 0 && loop_count < poly_count * 2) {
-    if (err_str != nullptr) {
-      *err_str = TIP_("Invalid mesh; more detail on the console");
+    if (r_err_str != nullptr) {
+      *r_err_str = RPT_("Invalid mesh; more detail on the console");
     }
     printf("Alembic: invalid mesh sample for '%s/%s' at time %f, less than 2 loops per face\n",
            m_iobject.getFullName().c_str(),
@@ -806,13 +757,13 @@ Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
     /* If the face count changed (e.g. by triangulation), only read points.
      * This prevents crash from #49813.
      * TODO(kevin): perhaps find a better way to do this? */
-    if (face_counts->size() != existing_mesh->totpoly ||
-        face_indices->size() != existing_mesh->totloop)
+    if (face_counts->size() != existing_mesh->faces_num ||
+        face_indices->size() != existing_mesh->corners_num)
     {
       settings.read_flag = MOD_MESHSEQ_READ_VERT;
 
-      if (err_str) {
-        *err_str = TIP_(
+      if (r_err_str) {
+        *r_err_str = RPT_(
             "Topology has changed, perhaps by triangulating the mesh. Only vertices will be "
             "read!");
       }
@@ -822,7 +773,7 @@ Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
   Mesh *mesh_to_export = new_mesh ? new_mesh : existing_mesh;
   CDStreamConfig config = get_config(mesh_to_export);
   config.time = sample_sel.getRequestedTime();
-  config.modifier_error_message = err_str;
+  config.modifier_error_message = r_err_str;
 
   read_mesh_sample(m_iobject.getFullName(), &settings, m_schema, sample_sel, config);
 
@@ -830,12 +781,12 @@ Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
     /* Here we assume that the number of materials doesn't change, i.e. that
      * the material slots that were created when the object was loaded from
      * Alembic are still valid now. */
-    size_t num_polys = new_mesh->totpoly;
-    if (num_polys > 0) {
+    size_t num_faces = new_mesh->faces_num;
+    if (num_faces > 0) {
       std::map<std::string, int> mat_map;
       bke::MutableAttributeAccessor attributes = new_mesh->attributes_for_write();
       bke::SpanAttributeWriter<int> material_indices =
-          attributes.lookup_or_add_for_write_span<int>("material_index", ATTR_DOMAIN_FACE);
+          attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Face);
       assign_facesets_to_material_indices(sample_sel, material_indices.span, mat_map);
       material_indices.finish();
     }
@@ -896,7 +847,7 @@ void AbcMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const ISampleSel
   std::map<std::string, int> mat_map;
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", ATTR_DOMAIN_FACE);
+      "material_index", bke::AttrDomain::Face);
   assign_facesets_to_material_indices(sample_sel, material_indices.span, mat_map);
   material_indices.finish();
   utils::assign_materials(bmain, m_object, mat_map);
@@ -970,8 +921,8 @@ static void read_vertex_creases(Mesh *mesh,
   }
 
   float *vertex_crease_data = (float *)CustomData_add_layer_named(
-      &mesh->vdata, CD_PROP_FLOAT, CD_SET_DEFAULT, mesh->totvert, "crease_vert");
-  const int totvert = mesh->totvert;
+      &mesh->vert_data, CD_PROP_FLOAT, CD_SET_DEFAULT, mesh->verts_num, "crease_vert");
+  const int totvert = mesh->verts_num;
 
   for (int i = 0, v = indices->size(); i < v; ++i) {
     const int idx = (*indices)[i];
@@ -992,38 +943,27 @@ static void read_edge_creases(Mesh *mesh,
     return;
   }
 
-  MutableSpan<int2> edges = mesh->edges_for_write();
-  EdgeHash *edge_hash = BLI_edgehash_new_ex(__func__, edges.size());
-
-  float *creases = static_cast<float *>(CustomData_add_layer_named(
-      &mesh->edata, CD_PROP_FLOAT, CD_SET_DEFAULT, edges.size(), "crease_edge"));
-
+  const Span<int2> edges = mesh->edges_for_write();
+  Map<OrderedEdge, int> edge_hash;
+  edge_hash.reserve(edges.size());
   for (const int i : edges.index_range()) {
-    int2 &edge = edges[i];
-    BLI_edgehash_insert(edge_hash, edge[0], edge[1], &edge);
+    edge_hash.add(edges[i], i);
   }
+
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+  bke::SpanAttributeWriter<float> creases = attributes.lookup_or_add_for_write_span<float>(
+      "crease_edge", bke::AttrDomain::Edge);
 
   for (int i = 0, s = 0, e = indices->size(); i < e; i += 2, s++) {
     int v1 = (*indices)[i];
     int v2 = (*indices)[i + 1];
-
-    if (v2 < v1) {
-      /* It appears to be common to store edges with the smallest index first, in which case this
-       * prevents us from doing the second search below. */
-      std::swap(v1, v2);
+    const int *index = edge_hash.lookup_ptr({v1, v2});
+    if (!index) {
+      continue;
     }
 
-    int2 *edge = static_cast<int2 *>(BLI_edgehash_lookup(edge_hash, v1, v2));
-    if (edge == nullptr) {
-      edge = static_cast<int2 *>(BLI_edgehash_lookup(edge_hash, v2, v1));
-    }
-
-    if (edge) {
-      creases[edge - edges.data()] = unit_float_to_uchar_clamp((*sharpnesses)[s]);
-    }
+    creases.span[*index] = std::clamp((*sharpnesses)[s], 0.0f, 1.0f);
   }
-
-  BLI_edgehash_free(edge_hash, nullptr);
 }
 
 /* ************************************************************************** */
@@ -1047,17 +987,17 @@ bool AbcSubDReader::valid() const
 bool AbcSubDReader::accepts_object_type(
     const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
     const Object *const ob,
-    const char **err_str) const
+    const char **r_err_str) const
 {
   if (!Alembic::AbcGeom::ISubD::matches(alembic_header)) {
-    *err_str = TIP_(
+    *r_err_str = RPT_(
         "Object type mismatch, Alembic object path pointed to SubD when importing, but not any "
         "more");
     return false;
   }
 
   if (ob->type != OB_MESH) {
-    *err_str = TIP_("Object type mismatch, Alembic object path points to SubD");
+    *r_err_str = RPT_("Object type mismatch, Alembic object path points to SubD");
     return false;
   }
 
@@ -1107,15 +1047,15 @@ Mesh *AbcSubDReader::read_mesh(Mesh *existing_mesh,
                                const int read_flag,
                                const char *velocity_name,
                                const float velocity_scale,
-                               const char **err_str)
+                               const char **r_err_str)
 {
   ISubDSchema::Sample sample;
   try {
     sample = m_schema.getValue(sample_sel);
   }
   catch (Alembic::Util::Exception &ex) {
-    if (err_str != nullptr) {
-      *err_str = TIP_("Error reading mesh sample; more detail on the console");
+    if (r_err_str != nullptr) {
+      *r_err_str = RPT_("Error reading mesh sample; more detail on the console");
     }
     printf("Alembic: error reading mesh sample for '%s/%s' at time %f: %s\n",
            m_iobject.getFullName().c_str(),
@@ -1136,7 +1076,7 @@ Mesh *AbcSubDReader::read_mesh(Mesh *existing_mesh,
   settings.velocity_name = velocity_name;
   settings.velocity_scale = velocity_scale;
 
-  if (existing_mesh->totvert != positions->size()) {
+  if (existing_mesh->verts_num != positions->size()) {
     new_mesh = BKE_mesh_new_nomain_from_template(
         existing_mesh, positions->size(), 0, face_counts->size(), face_indices->size());
 
@@ -1146,13 +1086,13 @@ Mesh *AbcSubDReader::read_mesh(Mesh *existing_mesh,
     /* If the face count changed (e.g. by triangulation), only read points.
      * This prevents crash from #49813.
      * TODO(kevin): perhaps find a better way to do this? */
-    if (face_counts->size() != existing_mesh->totpoly ||
-        face_indices->size() != existing_mesh->totloop)
+    if (face_counts->size() != existing_mesh->faces_num ||
+        face_indices->size() != existing_mesh->corners_num)
     {
       settings.read_flag = MOD_MESHSEQ_READ_VERT;
 
-      if (err_str) {
-        *err_str = TIP_(
+      if (r_err_str) {
+        *r_err_str = RPT_(
             "Topology has changed, perhaps by triangulating the mesh. Only vertices will be "
             "read!");
       }
@@ -1163,10 +1103,29 @@ Mesh *AbcSubDReader::read_mesh(Mesh *existing_mesh,
   Mesh *mesh_to_export = new_mesh ? new_mesh : existing_mesh;
   CDStreamConfig config = get_config(mesh_to_export);
   config.time = sample_sel.getRequestedTime();
-  config.modifier_error_message = err_str;
+  config.modifier_error_message = r_err_str;
   read_subd_sample(m_iobject.getFullName(), &settings, m_schema, sample_sel, config);
 
   return mesh_to_export;
+}
+
+void AbcSubDReader::read_geometry(bke::GeometrySet &geometry_set,
+                                  const Alembic::Abc::ISampleSelector &sample_sel,
+                                  const int read_flag,
+                                  const char *velocity_name,
+                                  const float velocity_scale,
+                                  const char **r_err_str)
+{
+  Mesh *mesh = geometry_set.get_mesh_for_write();
+
+  if (mesh == nullptr) {
+    return;
+  }
+
+  Mesh *new_mesh = read_mesh(
+      mesh, sample_sel, read_flag, velocity_name, velocity_scale, r_err_str);
+
+  geometry_set.replace_mesh(new_mesh);
 }
 
 }  // namespace blender::io::alembic

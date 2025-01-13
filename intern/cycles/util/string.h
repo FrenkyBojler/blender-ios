@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <sstream>
-#include <string.h>
+#include <cstring>
 #include <string>
 
 /* Use string view implementation from OIIO.
@@ -17,10 +16,9 @@
 
 CCL_NAMESPACE_BEGIN
 
-using std::istringstream;
-using std::ostringstream;
+struct float4;
+
 using std::string;
-using std::stringstream;
 using std::to_string;
 
 using OIIO::string_view;
@@ -64,8 +62,8 @@ string string_to_ansi(const string &str);
 #endif
 
 /* Make a string from a size in bytes in human readable form. */
-string string_human_readable_size(size_t size);
+string string_human_readable_size(const size_t size);
 /* Make a string from a unit-less quantity in human readable form. */
-string string_human_readable_number(size_t num);
+string string_human_readable_number(const size_t num);
 
 CCL_NAMESPACE_END

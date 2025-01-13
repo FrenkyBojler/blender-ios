@@ -1,11 +1,11 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <stdlib.h>
 
 #include "BLI_utildefines.h"
-#include "IMB_imbuf.h"
+#include "IMB_imbuf.hh"
 
 struct ColorSpace;
 struct ImBuf;

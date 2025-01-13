@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2006 Blender Foundation
+# SPDX-FileCopyrightText: 2006 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -39,6 +39,7 @@ if(WIN32)
 
   target_link_libraries(BlendThumb bf_blenlib dbghelp.lib Version.lib)
   set_target_properties(BlendThumb PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt")
+  set_target_properties(BlendThumb PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
 
 else()
   # -----------------------------------------------------------------------------

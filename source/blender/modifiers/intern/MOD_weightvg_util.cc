@@ -8,11 +8,11 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_math.h"
+#include "BLI_math_color.h"
 #include "BLI_rand.h"
 #include "BLI_string.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_color_types.h" /* CurveMapping. */
 #include "DNA_mesh_types.h"
@@ -21,21 +21,21 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_colortools.h" /* CurveMapping. */
-#include "BKE_context.h"
-#include "BKE_customdata.h"
-#include "BKE_deform.h"
-#include "BKE_modifier.h"
-#include "BKE_scene.h"
+#include "BKE_colortools.hh" /* CurveMapping. */
+#include "BKE_context.hh"
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
+#include "BKE_modifier.hh"
+#include "BKE_scene.hh"
 #include "BKE_texture.h" /* Texture masking. */
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 #include "MOD_ui_common.hh"
@@ -115,7 +115,7 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
                       Mesh *mesh,
                       const float fact,
                       const char defgrp_name[MAX_VGROUP_NAME],
-                      Scene *scene,
+                      Scene * /*scene*/,
                       Tex *texture,
                       const int tex_use_channel,
                       const int tex_mapping,
@@ -138,7 +138,7 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
     float(*tex_co)[3];
     /* See mapping note below... */
     MappingInfoModifierData t_map;
-    const int verts_num = mesh->totvert;
+    const int verts_num = mesh->verts_num;
 
     /* Use new generic get_texture_coords, but do not modify our DNA struct for it...
      * XXX Why use a ModifierData stuff here ? Why not a simple, generic struct for parameters?
@@ -161,8 +161,7 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
       int idx = indices ? indices[i] : i;
       TexResult texres;
       float hsv[3]; /* For HSV color space. */
-      bool do_color_manage = tex_use_channel != MOD_WVG_MASK_TEX_USE_INT &&
-                             BKE_scene_check_color_management_enabled(scene);
+      bool do_color_manage = tex_use_channel != MOD_WVG_MASK_TEX_USE_INT;
 
       BKE_texture_get_value(texture, tex_co[idx], &texres, do_color_manage);
       /* Get the good channel value... */
@@ -215,7 +214,7 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
     /* Proceed only if vgroup is valid, else use constant factor. */
     /* Get actual deform-verts (ie vertex group data). */
     const MDeformVert *dvert = static_cast<const MDeformVert *>(
-        CustomData_get_layer(&mesh->vdata, CD_MDEFORMVERT));
+        CustomData_get_layer(&mesh->vert_data, CD_MDEFORMVERT));
     /* Proceed only if vgroup is valid, else assume factor = O. */
     if (dvert == nullptr) {
       return;
@@ -323,7 +322,7 @@ void weightvg_ui_common(const bContext *C, PointerRNA *ob_ptr, PointerRNA *ptr, 
 
   if (!has_mask_texture) {
     modifier_vgroup_ui(
-        layout, ptr, ob_ptr, "mask_vertex_group", "invert_mask_vertex_group", nullptr);
+        layout, ptr, ob_ptr, "mask_vertex_group", "invert_mask_vertex_group", std::nullopt);
   }
 
   if (!has_mask_vertex_group) {
@@ -334,21 +333,21 @@ void weightvg_ui_common(const bContext *C, PointerRNA *ob_ptr, PointerRNA *ptr, 
                  "texture.new",
                  nullptr,
                  nullptr,
-                 0,
-                 ICON_NONE,
+                 UI_TEMPLATE_ID_FILTER_ALL,
+                 false,
                  IFACE_("Mask Texture"));
 
     if (has_mask_texture) {
-      uiItemR(layout, ptr, "mask_tex_use_channel", 0, IFACE_("Channel"), ICON_NONE);
-      uiItemR(layout, ptr, "mask_tex_mapping", 0, nullptr, ICON_NONE);
+      uiItemR(layout, ptr, "mask_tex_use_channel", UI_ITEM_NONE, IFACE_("Channel"), ICON_NONE);
+      uiItemR(layout, ptr, "mask_tex_mapping", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       if (mask_tex_mapping == MOD_DISP_MAP_OBJECT) {
-        uiItemR(layout, ptr, "mask_tex_map_object", 0, IFACE_("Object"), ICON_NONE);
+        uiItemR(layout, ptr, "mask_tex_map_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
       }
       else if (mask_tex_mapping == MOD_DISP_MAP_UV && RNA_enum_get(ob_ptr, "type") == OB_MESH) {
         PointerRNA obj_data_ptr = RNA_pointer_get(ob_ptr, "data");
         uiItemPointerR(
-            layout, ptr, "mask_tex_uv_layer", &obj_data_ptr, "uv_layers", nullptr, ICON_NONE);
+            layout, ptr, "mask_tex_uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_NONE);
       }
     }
   }

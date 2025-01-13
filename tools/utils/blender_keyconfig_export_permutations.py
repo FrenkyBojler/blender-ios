@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -28,6 +28,9 @@ config = [
     ("rmb_action", ('TWEAK', 'FALLBACK_TOOL')),
 ]
 """
+__all__ = (
+    "main",
+)
 
 import os
 import sys

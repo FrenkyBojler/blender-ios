@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,7 +11,10 @@
 #pragma once
 
 #include "MEM_guardedalloc.h"
+
 #include "gpu_immediate_private.hh"
+
+#include "mtl_context.hh"
 
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
@@ -29,7 +32,7 @@ class MTLImmediate : public Immediate {
 
  public:
   MTLImmediate(MTLContext *ctx);
-  ~MTLImmediate();
+  ~MTLImmediate() override = default;
 
   uchar *begin() override;
   void end() override;

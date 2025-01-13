@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,10 +10,12 @@
 
 #include "DNA_image_types.h"
 
-#include "BLI_math.h"
+#include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_memory_utils.hh"
 
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf_types.hh"
 
 namespace blender::bke::image {
 
@@ -48,7 +50,7 @@ struct ImageTileWrapper {
 };
 
 template<typename T, int Channels = 4> struct ImageBufferAccessor {
-  static_assert(std::is_same_v<T, int> || std::is_same_v<T, float4>);
+  static_assert(is_same_any_v<T, int, float4>);
 
   ImBuf &image_buffer;
 

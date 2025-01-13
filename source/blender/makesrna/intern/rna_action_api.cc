@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,22 +6,17 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 
-#include "BLI_utildefines.h"
+#include "RNA_define.hh"
 
-#include "RNA_define.h"
-
-#include "DNA_action_types.h"
-
-#include "rna_internal.h" /* own include */
+#include "rna_internal.hh" /* own include */
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_action.h"
+#  include "BKE_action.hh"
 
 #  include "DNA_anim_types.h"
 #  include "DNA_curve_types.h"

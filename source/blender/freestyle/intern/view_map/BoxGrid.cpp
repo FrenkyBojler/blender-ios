@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,7 +14,7 @@
 
 #include "BLI_sys_types.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 using namespace std;
 
@@ -169,7 +169,7 @@ void BoxGrid::distributePolygons(OccluderSource &source)
       // If an exception was thrown, _faces.push_back() cannot have succeeded.
       // occluder is not owned by anyone, and must be deleted.
       // If the exception was thrown before or during new OccluderData(), then
-      // occluder is NULL, and this delete is harmless.
+      // occluder is nullptr, and this delete is harmless.
       delete occluder;
       throw;
     }

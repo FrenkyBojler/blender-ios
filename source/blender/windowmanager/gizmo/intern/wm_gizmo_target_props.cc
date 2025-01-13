@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,56 +7,32 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "WM_api.h"
-#include "WM_message.h"
-#include "WM_types.h"
+#include "WM_message.hh"
+#include "WM_types.hh"
 
-#include "wm.h"
+#include "ED_screen.hh"
 
-#include "ED_keyframing.h"
-#include "ED_screen.h"
-#include "ED_view3d.h"
+#include "ANIM_keyframing.hh"
 
-/* own includes */
-#include "wm_gizmo_intern.h"
-#include "wm_gizmo_wmapi.h"
+/* Own includes. */
 
 /* -------------------------------------------------------------------- */
 /** \name Property Definition
  * \{ */
-
-BLI_INLINE wmGizmoProperty *wm_gizmo_target_property_array(wmGizmo *gz)
-{
-  return (wmGizmoProperty *)POINTER_OFFSET(gz, gz->type->struct_size);
-}
-
-wmGizmoProperty *WM_gizmo_target_property_array(wmGizmo *gz)
-{
-  return wm_gizmo_target_property_array(gz);
-}
-
-wmGizmoProperty *WM_gizmo_target_property_at_index(wmGizmo *gz, int index)
-{
-  BLI_assert(index < gz->type->target_property_defs_len);
-  BLI_assert(index != -1);
-  wmGizmoProperty *gz_prop_array = wm_gizmo_target_property_array(gz);
-  return &gz_prop_array[index];
-}
 
 wmGizmoProperty *WM_gizmo_target_property_find(wmGizmo *gz, const char *idname)
 {
   int index = BLI_findstringindex(
       &gz->type->target_property_defs, idname, offsetof(wmGizmoPropertyType, idname));
   if (index != -1) {
-    return WM_gizmo_target_property_at_index(gz, index);
+    return &gz->target_properties[index];
   }
   return nullptr;
 }
@@ -67,10 +43,10 @@ void WM_gizmo_target_property_def_rna_ptr(wmGizmo *gz,
                                           PropertyRNA *prop,
                                           int index)
 {
-  wmGizmoProperty *gz_prop = WM_gizmo_target_property_at_index(gz, gz_prop_type->index_in_type);
+  wmGizmoProperty *gz_prop = &gz->target_properties[gz_prop_type->index_in_type];
 
-  /* if gizmo evokes an operator we cannot use it for property manipulation */
-  BLI_assert(gz->op_data == nullptr);
+  /* If gizmo evokes an operator we cannot use it for property manipulation. */
+  BLI_assert(gz->op_data.is_empty());
   BLI_assert(prop != nullptr);
 
   gz_prop->type = gz_prop_type;
@@ -99,10 +75,10 @@ void WM_gizmo_target_property_def_func_ptr(wmGizmo *gz,
                                            const wmGizmoPropertyType *gz_prop_type,
                                            const wmGizmoPropertyFnParams *params)
 {
-  wmGizmoProperty *gz_prop = WM_gizmo_target_property_at_index(gz, gz_prop_type->index_in_type);
+  wmGizmoProperty *gz_prop = &gz->target_properties[gz_prop_type->index_in_type];
 
-  /* if gizmo evokes an operator we cannot use it for property manipulation */
-  BLI_assert(gz->op_data == nullptr);
+  /* If gizmo evokes an operator we cannot use it for property manipulation. */
+  BLI_assert(gz->op_data.is_empty());
 
   gz_prop->type = gz_prop_type;
 
@@ -127,16 +103,12 @@ void WM_gizmo_target_property_def_func(wmGizmo *gz,
 
 void WM_gizmo_target_property_clear_rna_ptr(wmGizmo *gz, const wmGizmoPropertyType *gz_prop_type)
 {
-  wmGizmoProperty *gz_prop = WM_gizmo_target_property_at_index(gz, gz_prop_type->index_in_type);
+  wmGizmoProperty *gz_prop = &gz->target_properties[gz_prop_type->index_in_type];
 
-  /* if gizmo evokes an operator we cannot use it for property manipulation */
-  BLI_assert(gz->op_data == nullptr);
+  /* If gizmo evokes an operator we cannot use it for property manipulation. */
+  BLI_assert(gz->op_data.is_empty());
 
-  gz_prop->type = nullptr;
-
-  gz_prop->ptr = PointerRNA_NULL;
-  gz_prop->prop = nullptr;
-  gz_prop->index = -1;
+  *gz_prop = {};
 }
 
 void WM_gizmo_target_property_clear_rna(wmGizmo *gz, const char *idname)
@@ -151,12 +123,10 @@ void WM_gizmo_target_property_clear_rna(wmGizmo *gz, const char *idname)
 /** \name Property Access
  * \{ */
 
-bool WM_gizmo_target_property_is_valid_any(wmGizmo *gz)
+bool WM_gizmo_target_property_is_valid_any(const wmGizmo *gz)
 {
-  wmGizmoProperty *gz_prop_array = wm_gizmo_target_property_array(gz);
-  for (int i = 0; i < gz->type->target_property_defs_len; i++) {
-    wmGizmoProperty *gz_prop = &gz_prop_array[i];
-    if (WM_gizmo_target_property_is_valid(gz_prop)) {
+  for (const wmGizmoProperty &gz_prop : gz->target_properties) {
+    if (WM_gizmo_target_property_is_valid(&gz_prop)) {
       return true;
     }
   }
@@ -195,7 +165,7 @@ void WM_gizmo_target_property_float_set(bContext *C,
     return;
   }
 
-  /* reset property */
+  /* Reset property. */
   if (gz_prop->index == -1) {
     RNA_property_float_set(&gz_prop->ptr, gz_prop->prop, value);
   }
@@ -310,26 +280,22 @@ void WM_gizmo_do_msg_notify_tag_refresh(bContext * /*C*/,
 
 void WM_gizmo_target_property_subscribe_all(wmGizmo *gz, wmMsgBus *mbus, ARegion *region)
 {
-  if (gz->type->target_property_defs_len) {
-    wmGizmoProperty *gz_prop_array = WM_gizmo_target_property_array(gz);
-    for (int i = 0; i < gz->type->target_property_defs_len; i++) {
-      wmGizmoProperty *gz_prop = &gz_prop_array[i];
-      if (WM_gizmo_target_property_is_valid(gz_prop)) {
-        if (gz_prop->prop) {
-          {
-            wmMsgSubscribeValue value{};
-            value.owner = region;
-            value.user_data = region;
-            value.notify = ED_region_do_msg_notify_tag_redraw;
-            WM_msg_subscribe_rna(mbus, &gz_prop->ptr, gz_prop->prop, &value, __func__);
-          }
-          {
-            wmMsgSubscribeValue value{};
-            value.owner = region;
-            value.user_data = gz->parent_gzgroup->parent_gzmap;
-            value.notify = WM_gizmo_do_msg_notify_tag_refresh;
-            WM_msg_subscribe_rna(mbus, &gz_prop->ptr, gz_prop->prop, &value, __func__);
-          }
+  for (wmGizmoProperty &gz_prop : gz->target_properties) {
+    if (WM_gizmo_target_property_is_valid(&gz_prop)) {
+      if (gz_prop.prop) {
+        {
+          wmMsgSubscribeValue value{};
+          value.owner = region;
+          value.user_data = region;
+          value.notify = ED_region_do_msg_notify_tag_redraw;
+          WM_msg_subscribe_rna(mbus, &gz_prop.ptr, gz_prop.prop, &value, __func__);
+        }
+        {
+          wmMsgSubscribeValue value{};
+          value.owner = region;
+          value.user_data = gz->parent_gzgroup->parent_gzmap;
+          value.notify = WM_gizmo_do_msg_notify_tag_refresh;
+          WM_msg_subscribe_rna(mbus, &gz_prop.ptr, gz_prop.prop, &value, __func__);
         }
       }
     }
@@ -344,7 +310,8 @@ void WM_gizmo_target_property_anim_autokey(bContext *C,
     Scene *scene = CTX_data_scene(C);
     const float cfra = float(scene->r.cfra);
     const int index = gz_prop->index == -1 ? 0 : gz_prop->index;
-    ED_autokeyframe_property(C, scene, &gz_prop->ptr, gz_prop->prop, index, cfra, false);
+    blender::animrig::autokeyframe_property(
+        C, scene, &gz_prop->ptr, gz_prop->prop, index, cfra, false);
   }
 }
 

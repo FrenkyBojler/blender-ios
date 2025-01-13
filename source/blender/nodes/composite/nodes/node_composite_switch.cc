@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2006 Blender Foundation
+/* SPDX-FileCopyrightText: 2006 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,8 +6,8 @@
  * \ingroup cmpnodes
  */
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "COM_node_operation.hh"
 
@@ -26,10 +26,10 @@ static void cmp_node_switch_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_buts_switch(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "check", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "check", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class SwitchOperation : public NodeOperation {
  public:
@@ -59,13 +59,16 @@ void register_node_type_cmp_switch()
 {
   namespace file_ns = blender::nodes::node_composite_switch_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_SWITCH, "Switch", NODE_CLASS_LAYOUT);
+  cmp_node_type_base(&ntype, "CompositorNodeSwitch", CMP_NODE_SWITCH, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Switch";
+  ntype.ui_description = "Switch between two images using a checkbox";
+  ntype.enum_name_legacy = "SWITCH";
   ntype.declare = file_ns::cmp_node_switch_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_switch;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

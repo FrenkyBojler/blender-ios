@@ -84,6 +84,11 @@ class GHOST_Window : public GHOST_IWindow {
    */
   virtual void *getOSWindow() const override;
 
+  virtual GHOST_TSuccess setPath(const char * /*filepath*/) override
+  {
+    return GHOST_kFailure;
+  }
+
   /**
    * Returns the current cursor shape.
    * \return The current cursor shape.
@@ -195,7 +200,7 @@ class GHOST_Window : public GHOST_IWindow {
   GHOST_TSuccess getSwapInterval(int &intervalOut) override;
 
   /**
-   * Tells if the ongoing drag'n'drop object can be accepted upon mouse drop
+   * Tells if the ongoing drag & drop object can be accepted upon mouse drop.
    */
   void setAcceptDragOperation(bool canAccept) override;
 
@@ -270,13 +275,10 @@ class GHOST_Window : public GHOST_IWindow {
    */
   virtual unsigned int getDefaultFramebuffer() override;
 
-  /**
-   * Gets the Vulkan framebuffer related resource handles associated with the Vulkan context.
-   * Needs to be called after each swap events as the framebuffer will change.
-   * \return  A boolean success indicator.
-   */
-  virtual GHOST_TSuccess getVulkanBackbuffer(
-      void *image, void *framebuffer, void *render_pass, void *extent, uint32_t *fb_id) override;
+#ifdef WITH_VULKAN_BACKEND
+  virtual GHOST_TSuccess getVulkanSwapChainFormat(
+      GHOST_VulkanSwapChainData *r_swap_chain_data) override;
+#endif
 
   /**
    * Returns the window user data.
@@ -399,7 +401,7 @@ class GHOST_Window : public GHOST_IWindow {
   /** The presence of progress indicator with the application icon */
   bool m_progressBarVisible;
 
-  /** The acceptance of the "drop candidate" of the current drag'n'drop operation */
+  /** The acceptance of the "drop candidate" of the current drag & drop operation. */
   bool m_canAcceptDragOperation;
 
   /** Modified state : are there unsaved changes */

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,7 +7,7 @@
 /** \file
  * \ingroup bli
  *
- * This file provides safe alternatives to common math functions like sqrt, powf.
+ * This file provides safe alternatives to common math functions like `sqrt`, `powf`.
  * In this context "safe" means that the output is not NaN if the input is not NaN.
  */
 
@@ -31,5 +31,5 @@ MINLINE float safe_powf(float base, float exponent);
 #endif
 
 #if BLI_MATH_DO_INLINE
-#  include "intern/math_base_safe_inline.c"
+#  include "intern/math_base_safe_inline.c"  // IWYU pragma: export
 #endif

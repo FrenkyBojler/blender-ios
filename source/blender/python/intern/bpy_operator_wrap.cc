@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,18 +13,16 @@
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_prototypes.h"
-
-#include "bpy_intern_string.h"
-#include "bpy_operator_wrap.h" /* own include */
-#include "bpy_rna.h"
+#include "bpy_intern_string.hh"
+#include "bpy_operator_wrap.hh" /* own include */
+#include "bpy_rna.hh"
 
 static void operator_properties_init(wmOperatorType *ot)
 {
@@ -54,10 +52,9 @@ static void operator_properties_init(wmOperatorType *ot)
     if (bl_property) {
       const char *prop_id = PyUnicode_AsUTF8(bl_property);
       if (prop_id != nullptr) {
-        PointerRNA ptr;
         PropertyRNA *prop;
 
-        RNA_pointer_create(nullptr, ot->srna, nullptr, &ptr);
+        PointerRNA ptr = RNA_pointer_create(nullptr, ot->srna, nullptr);
         prop = RNA_struct_find_property(&ptr, prop_id);
         if (prop) {
           ot->prop = prop;
@@ -128,18 +125,19 @@ PyObject *PYOP_wrap_macro_define(PyObject * /*self*/, PyObject *args)
   wmOperatorType *ot;
   wmOperatorTypeMacro *otmacro;
   PyObject *macro;
-  PointerRNA ptr_otmacro;
   StructRNA *srna;
 
-  const char *opname;
-  const char *macroname;
+  const char *idname_py;
+  char idname[OP_MAX_TYPENAME];
 
-  if (!PyArg_ParseTuple(args, "Os:_bpy.ops.macro_define", &macro, &opname)) {
+  if (!PyArg_ParseTuple(args, "Os:_bpy.ops.macro_define", &macro, &idname_py)) {
     return nullptr;
   }
 
-  if (WM_operatortype_find(opname, true) == nullptr) {
-    PyErr_Format(PyExc_ValueError, "Macro Define: '%s' is not a valid operator id", opname);
+  /* Support both `foo.bar` & `FOO_OT_bar`. */
+  WM_operator_bl_idname(idname, idname_py);
+  if (!WM_operator_bl_idname_is_valid(idname)) {
+    PyErr_Format(PyExc_ValueError, "Macro Define: '%s' is not a valid operator id name", idname);
     return nullptr;
   }
 
@@ -149,17 +147,16 @@ PyObject *PYOP_wrap_macro_define(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  macroname = RNA_struct_identifier(srna);
-  ot = WM_operatortype_find(macroname, true);
+  const char *macro_idname = RNA_struct_identifier(srna);
+  ot = WM_operatortype_find(macro_idname, true);
 
   if (!ot) {
-    PyErr_Format(PyExc_ValueError, "Macro Define: '%s' is not a valid macro", macroname);
+    PyErr_Format(PyExc_ValueError, "Macro Define: '%s' is not a valid macro", macro_idname);
     return nullptr;
   }
 
-  otmacro = WM_operatortype_macro_define(ot, opname);
+  otmacro = WM_operatortype_macro_define(ot, idname);
 
-  RNA_pointer_create(nullptr, &RNA_OperatorMacro, otmacro, &ptr_otmacro);
-
+  PointerRNA ptr_otmacro = RNA_pointer_create(nullptr, &RNA_OperatorMacro, otmacro);
   return pyrna_struct_CreatePyObject(&ptr_otmacro);
 }

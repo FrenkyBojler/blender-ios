@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2016 Blender Foundation
+/* SPDX-FileCopyrightText: 2016 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,24 +12,24 @@
 #include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-#include "BKE_cachefile.h"
-#include "BKE_context.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
+#include "BKE_cachefile.hh"
+#include "BKE_context.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_report.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "io_cache.hh"
 
@@ -43,7 +43,7 @@ static void cachefile_init(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
-  op->customdata = pprop = MEM_cnew<PropertyPointerRNA>("OpenPropertyPointerRNA");
+  op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
   UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
@@ -53,8 +53,8 @@ static int cachefile_open_invoke(bContext *C, wmOperator *op, const wmEvent * /*
     char filepath[FILE_MAX];
     Main *bmain = CTX_data_main(C);
 
-    STRNCPY(filepath, BKE_main_blendfile_path(bmain));
-    BLI_path_extension_replace(filepath, sizeof(filepath), ".abc");
+    /* Default to the same directory as the blend file. */
+    BLI_path_split_dir_part(BKE_main_blendfile_path(bmain), filepath, sizeof(filepath));
     RNA_string_set(op->ptr, "filepath", filepath);
   }
 
@@ -67,8 +67,11 @@ static int cachefile_open_invoke(bContext *C, wmOperator *op, const wmEvent * /*
 
 static void open_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
-  op->customdata = nullptr;
+  if (op->customdata) {
+    PropertyPointerRNA *prop_ptr = static_cast<PropertyPointerRNA *>(op->customdata);
+    op->customdata = nullptr;
+    MEM_delete(prop_ptr);
+  }
 }
 
 static int cachefile_open_exec(bContext *C, wmOperator *op)
@@ -86,7 +89,7 @@ static int cachefile_open_exec(bContext *C, wmOperator *op)
   CacheFile *cache_file = static_cast<CacheFile *>(
       BKE_libblock_alloc(bmain, ID_CF, BLI_path_basename(filepath), 0));
   STRNCPY(cache_file->filepath, filepath);
-  DEG_id_tag_update(&cache_file->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&cache_file->id, ID_RECALC_SYNC_TO_EVAL);
 
   /* Will be set when running invoke, not exec directly. */
   if (op->customdata != nullptr) {
@@ -97,13 +100,13 @@ static int cachefile_open_exec(bContext *C, wmOperator *op)
        * pointer see also increases user, so this compensates it. */
       id_us_min(&cache_file->id);
 
-      PointerRNA idptr;
-      RNA_id_pointer_create(&cache_file->id, &idptr);
+      PointerRNA idptr = RNA_id_pointer_create(&cache_file->id);
       RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
       RNA_property_update(C, &pprop->ptr, pprop->prop);
     }
 
-    MEM_freeN(op->customdata);
+    op->customdata = nullptr;
+    MEM_delete(pprop);
   }
 
   return OPERATOR_FINISHED;
@@ -120,7 +123,7 @@ void CACHEFILE_OT_open(wmOperatorType *ot)
   ot->cancel = open_cancel;
 
   WM_operator_properties_filesel(ot,
-                                 FILE_TYPE_ALEMBIC | FILE_TYPE_FOLDER,
+                                 FILE_TYPE_ALEMBIC | FILE_TYPE_USD | FILE_TYPE_FOLDER,
                                  FILE_BLENDER,
                                  FILE_OPENFILE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH,
@@ -164,8 +167,8 @@ static int cachefile_layer_open_invoke(bContext *C, wmOperator *op, const wmEven
     char filepath[FILE_MAX];
     Main *bmain = CTX_data_main(C);
 
-    STRNCPY(filepath, BKE_main_blendfile_path(bmain));
-    BLI_path_extension_replace(filepath, sizeof(filepath), ".abc");
+    /* Default to the same directory as the blend file. */
+    BLI_path_split_dir_part(BKE_main_blendfile_path(bmain), filepath, sizeof(filepath));
     RNA_string_set(op->ptr, "filepath", filepath);
   }
 
@@ -216,7 +219,7 @@ void CACHEFILE_OT_layer_add(wmOperatorType *ot)
   ot->exec = cachefile_layer_add_exec;
 
   WM_operator_properties_filesel(ot,
-                                 FILE_TYPE_ALEMBIC | FILE_TYPE_FOLDER,
+                                 FILE_TYPE_ALEMBIC | FILE_TYPE_USD | FILE_TYPE_FOLDER,
                                  FILE_BLENDER,
                                  FILE_OPENFILE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH,

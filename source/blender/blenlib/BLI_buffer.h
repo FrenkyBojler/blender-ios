@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,6 +7,8 @@
 /** \file
  * \ingroup bli
  */
+
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,9 +39,9 @@ enum {
 
 #define BLI_buffer_at(buffer_, type_, index_) \
   ((((type_ *)(buffer_) \
-         ->data)[(BLI_assert(sizeof(type_) == (buffer_)->elem_size)), \
-                 (BLI_assert((int)(index_) >= 0 && (size_t)(index_) < (buffer_)->count)), \
-                 index_]))
+         ->data)[((BLI_assert(sizeof(type_) == (buffer_)->elem_size)), \
+                  (BLI_assert((int)(index_) >= 0 && (size_t)(index_) < (buffer_)->count)), \
+                  index_)]))
 
 #define BLI_buffer_array(buffer_, type_) (&(BLI_buffer_at(buffer_, type_, 0)))
 
@@ -50,8 +52,8 @@ enum {
   ((BLI_buffer_reinit(buffer_, new_count_), new_count_ ? BLI_buffer_array(buffer_, type_) : NULL))
 
 #define BLI_buffer_append(buffer_, type_, val_) \
-  (BLI_buffer_resize(buffer_, (buffer_)->count + 1), \
-   (BLI_buffer_at(buffer_, type_, (buffer_)->count - 1) = val_))
+  ((BLI_buffer_resize(buffer_, (buffer_)->count + 1), \
+    (BLI_buffer_at(buffer_, type_, (buffer_)->count - 1) = val_)))
 
 #define BLI_buffer_clear(buffer_) \
   { \
@@ -78,7 +80,7 @@ void BLI_buffer_reinit(BLI_Buffer *buffer, size_t new_count);
  *
  * Callers use #BLI_buffer_append_array.
  */
-void _bli_buffer_append_array(BLI_Buffer *buffer, void *data, size_t count);
+void _bli_buffer_append_array(BLI_Buffer *buffer, void *new_data, size_t count);
 #define BLI_buffer_append_array(buffer_, type_, data_, count_) \
   { \
     type_ *__tmp = (data_); \

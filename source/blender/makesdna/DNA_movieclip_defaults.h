@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -18,8 +17,7 @@
 #define _DNA_DEFAULT_MovieClipProxy \
   { \
     .build_size_flag = IMB_PROXY_25, \
-    .build_tc_flag = IMB_TC_RECORD_RUN | IMB_TC_FREE_RUN | \
-                     IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN | IMB_TC_RECORD_RUN_NO_GAPS, \
+    .build_tc_flag = IMB_TC_RECORD_RUN | IMB_TC_RECORD_RUN_NO_GAPS, \
     .quality = 50, \
   }
 

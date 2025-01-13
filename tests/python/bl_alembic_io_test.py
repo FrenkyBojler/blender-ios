@@ -1,9 +1,9 @@
-# SPDX-FileCopyrightText: 2017-2022 Blender Foundation
+# SPDX-FileCopyrightText: 2017-2022 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-./blender.bin --background -noaudio --factory-startup --python tests/python/bl_alembic_io_test.py -- --testdir /path/to/lib/tests/alembic
+./blender.bin --background --factory-startup --python tests/python/bl_alembic_io_test.py -- --testdir /path/to/tests/data/alembic
 """
 
 import math
@@ -13,7 +13,6 @@ import tempfile
 import unittest
 
 import bpy
-from mathutils import Euler, Matrix, Vector
 
 args = None
 
@@ -111,7 +110,7 @@ class SimpleImportTest(AbstractAlembicTest):
             as_background_job=False)
 
         # The active object is probably the first one that was imported, but this
-        # behaviour is not defined. At least it should be one of the cubes, and
+        # behavior is not defined. At least it should be one of the cubes, and
         # not the sphere.
         self.assertNotEqual(sphere, bpy.context.active_object)
         self.assertTrue('Cube' in bpy.context.active_object.name)
@@ -256,7 +255,7 @@ class CameraExportImportTest(unittest.TestCase):
         # Unload the current blend file to release the imported Alembic file.
         # This is necessary on Windows in order to be able to delete the
         # temporary ABC file.
-        bpy.ops.wm.read_homefile()
+        bpy.ops.wm.read_homefile(use_empty=True, use_factory_startup=True)
         self._tempdir.cleanup()
 
     def test_export_hierarchy(self):

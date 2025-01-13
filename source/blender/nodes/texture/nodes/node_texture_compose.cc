@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,17 +6,16 @@
  * \ingroup texnodes
  */
 
-#include "NOD_texture.h"
 #include "node_texture_util.hh"
 
-static bNodeSocketTemplate inputs[] = {
+static blender::bke::bNodeSocketTemplate inputs[] = {
     {SOCK_FLOAT, N_("Red"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_UNSIGNED},
     {SOCK_FLOAT, N_("Green"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_UNSIGNED},
     {SOCK_FLOAT, N_("Blue"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_UNSIGNED},
     {SOCK_FLOAT, N_("Alpha"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_UNSIGNED},
     {-1, ""},
 };
-static bNodeSocketTemplate outputs[] = {
+static blender::bke::bNodeSocketTemplate outputs[] = {
     {SOCK_RGBA, N_("Color")},
     {-1, ""},
 };
@@ -41,12 +40,13 @@ static void exec(void *data,
 
 void register_node_type_tex_compose()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(
-      &ntype, TEX_NODE_COMPOSE_LEGACY, "Combine RGBA (Legacy)", NODE_CLASS_OP_COLOR);
+  tex_node_type_base(&ntype, "TextureNodeCompose", TEX_NODE_COMPOSE_LEGACY, NODE_CLASS_OP_COLOR);
+  ntype.ui_name = "Combine RGBA (Legacy)";
+  ntype.enum_name_legacy = "COMPOSE";
   blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.exec_fn = exec;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

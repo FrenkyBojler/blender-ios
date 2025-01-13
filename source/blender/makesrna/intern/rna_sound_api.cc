@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2015 Blender Foundation
+/* SPDX-FileCopyrightText: 2015 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,12 +8,12 @@
 
 #include "DNA_packedFile_types.h"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #ifdef RNA_RUNTIME
 
@@ -27,11 +27,16 @@ static void rna_Sound_unpack(bSound *sound, Main *bmain, ReportList *reports, in
 {
   if (!sound->packedfile) {
     BKE_report(reports, RPT_ERROR, "Sound not packed");
+    return;
   }
-  else {
-    /* reports its own error on failure */
-    BKE_packedfile_unpack_sound(bmain, reports, sound, ePF_FileStatus(method));
+
+  if (!ID_IS_EDITABLE(&sound->id)) {
+    BKE_report(reports, RPT_ERROR, "Sound is not editable");
+    return;
   }
+
+  /* reports its own error on failure */
+  BKE_packedfile_unpack_sound(bmain, reports, sound, ePF_FileStatus(method));
 }
 
 #else

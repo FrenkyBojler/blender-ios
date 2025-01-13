@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,12 +16,13 @@
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_scanfill.h" /* own include */
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 typedef struct PolyInfo {
   ScanFillEdge *edge_first, *edge_last;
@@ -424,7 +425,7 @@ bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
     return false;
   }
 
-  /* move free edges into own list */
+  /* move free edges into their own list */
   {
     ScanFillEdge *eed;
     ScanFillEdge *eed_next;
@@ -437,7 +438,7 @@ bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
     }
   }
 
-  /* move free vertices into own list */
+  /* move free vertices into their own list */
   {
     ScanFillEdge *eed;
     ScanFillVert *eve;

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,7 +10,7 @@
 
 #include "BLI_listbase.h"
 
-struct Sequence;
+struct Strip;
 
 namespace blender::deg {
 
@@ -23,8 +23,8 @@ class SequenceBackup {
 
   void reset();
 
-  void init_from_sequence(Sequence *sequence);
-  void restore_to_sequence(Sequence *sequence);
+  void init_from_sequence(Strip *sequence);
+  void restore_to_sequence(Strip *sequence);
 
   bool isEmpty() const;
 

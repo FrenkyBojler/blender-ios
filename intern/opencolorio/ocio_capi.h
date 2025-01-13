@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2012 Blender Foundation
+/* SPDX-FileCopyrightText: 2012 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -151,6 +151,7 @@ OCIO_ConstProcessorRcPtr *OCIO_configGetProcessorWithNames(OCIO_ConstConfigRcPtr
 void OCIO_processorRelease(OCIO_ConstProcessorRcPtr *cpu_processor);
 
 OCIO_ConstCPUProcessorRcPtr *OCIO_processorGetCPUProcessor(OCIO_ConstProcessorRcPtr *processor);
+bool OCIO_cpuProcessorIsNoOp(OCIO_ConstCPUProcessorRcPtr *cpu_processor);
 void OCIO_cpuProcessorApply(OCIO_ConstCPUProcessorRcPtr *cpu_processor,
                             struct OCIO_PackedImageDesc *img);
 void OCIO_cpuProcessorApply_predivide(OCIO_ConstCPUProcessorRcPtr *cpu_processor,
@@ -174,6 +175,9 @@ OCIO_ConstProcessorRcPtr *OCIO_createDisplayProcessor(OCIO_ConstConfigRcPtr *con
                                                       const char *look,
                                                       const float scale,
                                                       const float exponent,
+                                                      const float temperature,
+                                                      const float tint,
+                                                      const bool use_white_balance,
                                                       const bool inverse);
 
 struct OCIO_PackedImageDesc *OCIO_createOCIO_PackedImageDesc(float *data,
@@ -196,8 +200,12 @@ bool OCIO_gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
                                const float scale,
                                const float exponent,
                                const float dither,
+                               const float temperature,
+                               const float tint,
                                const bool use_predivide,
-                               const bool use_overlay);
+                               const bool use_overlay,
+                               const bool use_hdr,
+                               const bool use_white_balance);
 void OCIO_gpuDisplayShaderUnbind(void);
 void OCIO_gpuCacheFree(void);
 

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -19,9 +19,7 @@
 
 #include "../python/Director.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -104,9 +102,7 @@ template<class T> class UnaryFunction1D {
  protected:
   IntegrationType _integration;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:UnaryFunction1D")
-#endif
 };
 
 class UnaryFunction1D_void {
@@ -149,9 +145,7 @@ class UnaryFunction1D_void {
  protected:
   IntegrationType _integration;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:UnaryFunction1D_void")
-#endif
 };
 
 //
@@ -378,7 +372,7 @@ class ZDiscontinuityF1D : public UnaryFunction1D<double> {
  * Interface1D results of a chaining (chain, stroke), then it might be made of several 1D elements
  * of different Quantitative Invisibilities.
  */
-class QuantitativeInvisibilityF1D : public UnaryFunction1D<unsigned> {
+class QuantitativeInvisibilityF1D : public UnaryFunction1D<uint> {
  private:
   Functions0D::QuantitativeInvisibilityF0D _func;
 
@@ -387,9 +381,7 @@ class QuantitativeInvisibilityF1D : public UnaryFunction1D<unsigned> {
    *  \param iType:
    *    The integration method used to compute a single value from a set of values.
    */
-  QuantitativeInvisibilityF1D(IntegrationType iType = MEAN) : UnaryFunction1D<unsigned int>(iType)
-  {
-  }
+  QuantitativeInvisibilityF1D(IntegrationType iType = MEAN) : UnaryFunction1D<uint>(iType) {}
 
   /** Returns the string "QuantitativeInvisibilityF1D" */
   string getName() const

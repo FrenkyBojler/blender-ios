@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,9 @@
 
 #pragma once
 
-#include "gpu_batch_private.hh"
+#include "vk_common.hh"
+
+#include "GPU_batch.hh"
 
 namespace blender::gpu {
 class VKVertexBuffer;
@@ -22,10 +24,16 @@ class VKBatch : public Batch {
                            int count,
                            intptr_t offset,
                            intptr_t stride) override;
+  void multi_draw_indirect(VkBuffer indirect_buf, int count, intptr_t offset, intptr_t stride);
 
   VKVertexBuffer *vertex_buffer_get(int index);
   VKVertexBuffer *instance_buffer_get(int index);
   VKIndexBuffer *index_buffer_get();
 };
+
+inline VKBatch *unwrap(Batch *batch)
+{
+  return static_cast<VKBatch *>(batch);
+}
 
 }  // namespace blender::gpu

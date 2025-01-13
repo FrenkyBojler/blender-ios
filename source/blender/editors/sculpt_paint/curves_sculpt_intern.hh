@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -17,7 +17,7 @@
 #include "BKE_curves.hh"
 
 #include "ED_curves.hh"
-#include "ED_curves_sculpt.h"
+#include "ED_curves_sculpt.hh"
 
 struct ARegion;
 struct RegionView3D;
@@ -26,7 +26,11 @@ struct View3D;
 struct Object;
 struct Brush;
 struct Scene;
+namespace blender {
+namespace bke {
 struct BVHTreeFromMesh;
+}
+}  // namespace blender
 struct ReportList;
 
 namespace blender::ed::sculpt_paint {
@@ -92,19 +96,25 @@ std::optional<CurvesBrush3D> sample_curves_3d_brush(const Depsgraph &depsgraph,
                                                     const float2 &brush_pos_re,
                                                     const float brush_radius_re);
 
+/**
+ * Updates the position of the stroke so that it can be used by the orbit-around-selection
+ * navigation method.
+ */
+void remember_stroke_position(Scene &scene, const float3 &brush_position_wo);
+
 Vector<float4x4> get_symmetry_brush_transforms(eCurvesSymmetryType symmetry);
 
 bke::SpanAttributeWriter<float> float_selection_ensure(Curves &curves_id);
 
 /** See #move_last_point_and_resample. */
 struct MoveAndResampleBuffers {
-  Array<float> orig_lengths;
-  Array<float> new_lengths;
+  Vector<float> orig_lengths;
+  Vector<float> new_lengths;
 
-  Array<int> sample_indices;
-  Array<float> sample_factors;
+  Vector<int> sample_indices;
+  Vector<float> sample_factors;
 
-  Array<float3> new_positions;
+  Vector<float3> new_positions;
 };
 
 /**
@@ -117,7 +127,7 @@ void move_last_point_and_resample(MoveAndResampleBuffers &buffer,
 class CurvesSculptCommonContext {
  public:
   const Depsgraph *depsgraph = nullptr;
-  const Scene *scene = nullptr;
+  Scene *scene = nullptr;
   ARegion *region = nullptr;
   const View3D *v3d = nullptr;
   RegionView3D *rv3d = nullptr;
@@ -130,7 +140,7 @@ std::optional<CurvesBrush3D> sample_curves_surface_3d_brush(
     const ARegion &region,
     const View3D &v3d,
     const CurvesSurfaceTransforms &transforms,
-    const BVHTreeFromMesh &surface_bvh,
+    const bke::BVHTreeFromMesh &surface_bvh,
     const float2 &brush_pos_re,
     const float brush_radius_re);
 
@@ -171,7 +181,7 @@ struct CurvesConstraintSolver {
   }
 };
 
-}  // namespace blender::ed::sculpt_paint
+bool curves_sculpt_poll(bContext *C);
+bool curves_sculpt_poll_view3d(bContext *C);
 
-bool CURVES_SCULPT_mode_poll(struct bContext *C);
-bool CURVES_SCULPT_mode_poll_view3d(struct bContext *C);
+}  // namespace blender::ed::sculpt_paint

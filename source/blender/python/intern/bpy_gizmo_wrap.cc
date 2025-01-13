@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,26 +10,24 @@
  * 'rna_wm.cc', some calling into functions here to do python specific
  * functionality.
  *
- * \note This follows 'bpy_operator_wrap.c' very closely.
+ * \note This follows `bpy_operator_wrap.cc` very closely.
  * Keep in sync unless there is good reason not to!
  */
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
+#include "WM_types.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "bpy_gizmo_wrap.hh" /* own include */
+#include "bpy_intern_string.hh"
+#include "bpy_rna.hh"
 
-#include "bpy_gizmo_wrap.h" /* own include */
-#include "bpy_intern_string.h"
-#include "bpy_rna.h"
-
-#include "../generic/py_capi_rna.h"
+#include "../generic/py_capi_rna.hh"
+#include "../generic/python_compat.hh"
 
 /* we may want to add, but not now */
 
@@ -54,13 +52,14 @@ static bool bpy_gizmotype_target_property_def(wmGizmoType *gzt, PyObject *item)
 
   static const char *const _keywords[] = {"id", "type", "array_length", nullptr};
   static _PyArg_Parser _parser = {
+    PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "s"  /* `id` */
       "O&" /* `type` */
       "i"  /* `array_length` */
       ":register_class",
       _keywords,
-      0,
+      nullptr,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(empty_tuple,
                                         item,

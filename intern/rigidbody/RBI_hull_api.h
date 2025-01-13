@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,7 +15,7 @@ extern "C" {
 
 typedef struct plConvexHull__ {
   int unused;
-} * plConvexHull;
+} *plConvexHull;
 
 plConvexHull plConvexHullCompute(float (*coords)[3], int count);
 void plConvexHullDelete(plConvexHull hull);

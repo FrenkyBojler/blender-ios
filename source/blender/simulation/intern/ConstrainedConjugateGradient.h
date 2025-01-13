@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: Blender Foundation
+/* SPDX-FileCopyrightText: Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,6 +9,7 @@
  */
 
 #include <Eigen/Core>
+#include <Eigen/Sparse>
 
 namespace Eigen {
 
@@ -73,29 +74,29 @@ EIGEN_DONT_INLINE void constrained_conjugate_gradient(const MatrixType &mat,
 
   VectorType z(n), tmp(n);
   RealScalar absNew = numext::real(
-      residual.dot(p)); /* the square of the absolute value of r scaled by invM */
+      residual.dot(p)); /* The square of the absolute value of `r` scaled by `invM`. */
   int i = 0;
   while (i < maxIters) {
-    tmp.noalias() = filter * (mat * p); /* the bottleneck of the algorithm */
+    tmp.noalias() = filter * (mat * p); /* The bottleneck of the algorithm. */
 
-    Scalar alpha = absNew / p.dot(tmp); /* the amount we travel on dir */
-    x += alpha * p;                     /* update solution */
-    residual -= alpha * tmp;            /* update residue */
+    Scalar alpha = absNew / p.dot(tmp); /* The amount we travel on direction. */
+    x += alpha * p;                     /* Update solution. */
+    residual -= alpha * tmp;            /* Update residue. */
 
     residualNorm2 = residual.squaredNorm();
     if (residualNorm2 < threshold) {
       break;
     }
 
-    z = precond.solve(residual); /* approximately solve for "A z = residual" */
+    z = precond.solve(residual); /* Approximately solve for `A z = residual`. */
 
     RealScalar absOld = absNew;
-    absNew = numext::real(residual.dot(z)); /* update the absolute value of r */
+    absNew = numext::real(residual.dot(z)); /* Update the absolute value of `r`. */
 
     /* Calculate the Gram-Schmidt value used to create the new search direction. */
     RealScalar beta = absNew / absOld;
 
-    p = filter * (z + beta * p); /* update search direction */
+    p = filter * (z + beta * p); /* Update search direction. */
     i++;
   }
   tol_error = sqrt(residualNorm2 / rhsNorm2);
@@ -106,13 +107,9 @@ EIGEN_DONT_INLINE void constrained_conjugate_gradient(const MatrixType &mat,
 
 #if 0 /* unused */
 template<typename MatrixType> struct MatrixFilter {
-  MatrixFilter() : m_cmat(NULL)
-  {
-  }
+  MatrixFilter() : m_cmat(NULL) {}
 
-  MatrixFilter(const MatrixType &cmat) : m_cmat(&cmat)
-  {
-  }
+  MatrixFilter(const MatrixType &cmat) : m_cmat(&cmat) {}
 
   void setMatrix(const MatrixType &cmat)
   {

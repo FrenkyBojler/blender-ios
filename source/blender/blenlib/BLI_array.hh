@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -163,7 +163,10 @@ class Array {
       : Array(NoExceptConstructor(), other.allocator_)
   {
     if (other.data_ == other.inline_buffer_) {
-      uninitialized_relocate_n(other.data_, other.size_, data_);
+      /* This comparison with #InlineBufferCapacity may look a bit useless, and indeed it is.
+       * However, it helps to quiet a wrong GCC `-Warray-bounds` warning. */
+      const int64_t relocate_num = (InlineBufferCapacity > 0) ? other.size_ : 0;
+      uninitialized_relocate_n(other.data_, relocate_num, data_);
     }
     else {
       data_ = other.data_;
@@ -432,12 +435,5 @@ class Array {
     }
   }
 };
-
-/**
- * Same as a normal Array, but does not use Blender's guarded allocator. This is useful when
- * allocating memory with static storage duration.
- */
-template<typename T, int64_t InlineBufferCapacity = default_inline_buffer_capacity(sizeof(T))>
-using RawArray = Array<T, InlineBufferCapacity, RawAllocator>;
 
 }  // namespace blender

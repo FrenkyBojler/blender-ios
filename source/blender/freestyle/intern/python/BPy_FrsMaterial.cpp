@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,11 +10,12 @@
 
 #include "BPy_Convert.h"
 
+#include "BLI_hash_mm2a.hh"
+#include "BLI_math_vector.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_hash_mm2a.h"
 
 using namespace Freestyle;
 
@@ -30,8 +31,7 @@ int FrsMaterial_Init(PyObject *module)
   if (PyType_Ready(&FrsMaterial_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&FrsMaterial_Type);
-  PyModule_AddObject(module, "Material", (PyObject *)&FrsMaterial_Type);
+  PyModule_AddObjectRef(module, "Material", (PyObject *)&FrsMaterial_Type);
 
   FrsMaterial_mathutils_register_callback();
 
@@ -41,6 +41,7 @@ int FrsMaterial_Init(PyObject *module)
 //------------------------INSTANCE METHODS ----------------------------------
 
 PyDoc_STRVAR(
+    /* Wrap. */
     FrsMaterial_doc,
     "Class defining a material.\n"
     "\n"
@@ -54,15 +55,18 @@ PyDoc_STRVAR(
     "   :arg brother: A Material object to be used as a copy constructor.\n"
     "   :type brother: :class:`Material`\n"
     "   :arg line: The line color.\n"
-    "   :type line: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
+    "   :type line: :class:`mathutils.Vector` | tuple[float, float, float, float] | list[float]\n"
     "   :arg diffuse: The diffuse color.\n"
-    "   :type diffuse: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
+    "   :type diffuse: \n"
     "   :arg ambient: The ambient color.\n"
-    "   :type ambient: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
+    "   :type ambient: :class:`mathutils.Vector` | tuple[float, float, float, float] | "
+    "list[float]\n"
     "   :arg specular: The specular color.\n"
-    "   :type specular: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
+    "   :type specular: :class:`mathutils.Vector` | tuple[float, float, float, float] | "
+    "list[float]\n"
     "   :arg emission: The emissive color.\n"
-    "   :type emission: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
+    "   :type emission: :class:`mathutils.Vector` | tuple[float, float, float, float] | "
+    "list[float]\n"
     "   :arg shininess: The shininess coefficient.\n"
     "   :type shininess: float\n"
     "   :arg priority: The line color priority.\n"
@@ -78,7 +82,8 @@ static int FrsMaterial_init(BPy_FrsMaterial *self, PyObject *args, PyObject *kwd
   int priority;
 
   if (PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist_1, &FrsMaterial_Type, &brother)) {
+          args, kwds, "|O!", (char **)kwlist_1, &FrsMaterial_Type, &brother))
+  {
     if (!brother) {
       self->m = new FrsMaterial();
     }
@@ -218,23 +223,28 @@ static int FrsMaterial_mathutils_get_index(BaseMathObject *bmo, int subtype, int
     case MATHUTILS_SUBTYPE_LINE: {
       const float *color = self->m->line();
       bmo->data[index] = color[index];
-    } break;
+      break;
+    }
     case MATHUTILS_SUBTYPE_DIFFUSE: {
       const float *color = self->m->diffuse();
       bmo->data[index] = color[index];
-    } break;
+      break;
+    }
     case MATHUTILS_SUBTYPE_SPECULAR: {
       const float *color = self->m->specular();
       bmo->data[index] = color[index];
-    } break;
+      break;
+    }
     case MATHUTILS_SUBTYPE_AMBIENT: {
       const float *color = self->m->ambient();
       bmo->data[index] = color[index];
-    } break;
+      break;
+    }
     case MATHUTILS_SUBTYPE_EMISSION: {
       const float *color = self->m->emission();
       bmo->data[index] = color[index];
-    } break;
+      break;
+    }
     default:
       return -1;
   }
@@ -294,10 +304,12 @@ void FrsMaterial_mathutils_register_callback()
 
 /*----------------------FrsMaterial get/setters ----------------------------*/
 
-PyDoc_STRVAR(FrsMaterial_line_doc,
-             "RGBA components of the line color of the material.\n"
-             "\n"
-             ":type: :class:`mathutils.Vector`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_line_doc,
+    "RGBA components of the line color of the material.\n"
+    "\n"
+    ":type: :class:`mathutils.Vector`");
 
 static PyObject *FrsMaterial_line_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
@@ -315,10 +327,12 @@ static int FrsMaterial_line_set(BPy_FrsMaterial *self, PyObject *value, void * /
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_diffuse_doc,
-             "RGBA components of the diffuse color of the material.\n"
-             "\n"
-             ":type: :class:`mathutils.Vector`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_diffuse_doc,
+    "RGBA components of the diffuse color of the material.\n"
+    "\n"
+    ":type: :class:`mathutils.Vector`");
 
 static PyObject *FrsMaterial_diffuse_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
@@ -336,10 +350,12 @@ static int FrsMaterial_diffuse_set(BPy_FrsMaterial *self, PyObject *value, void 
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_specular_doc,
-             "RGBA components of the specular color of the material.\n"
-             "\n"
-             ":type: :class:`mathutils.Vector`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_specular_doc,
+    "RGBA components of the specular color of the material.\n"
+    "\n"
+    ":type: :class:`mathutils.Vector`");
 
 static PyObject *FrsMaterial_specular_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
@@ -357,10 +373,12 @@ static int FrsMaterial_specular_set(BPy_FrsMaterial *self, PyObject *value, void
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_ambient_doc,
-             "RGBA components of the ambient color of the material.\n"
-             "\n"
-             ":type: :class:`mathutils.Color`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_ambient_doc,
+    "RGBA components of the ambient color of the material.\n"
+    "\n"
+    ":type: :class:`mathutils.Color`");
 
 static PyObject *FrsMaterial_ambient_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
@@ -378,10 +396,12 @@ static int FrsMaterial_ambient_set(BPy_FrsMaterial *self, PyObject *value, void 
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_emission_doc,
-             "RGBA components of the emissive color of the material.\n"
-             "\n"
-             ":type: :class:`mathutils.Color`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_emission_doc,
+    "RGBA components of the emissive color of the material.\n"
+    "\n"
+    ":type: :class:`mathutils.Color`");
 
 static PyObject *FrsMaterial_emission_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
@@ -399,10 +419,12 @@ static int FrsMaterial_emission_set(BPy_FrsMaterial *self, PyObject *value, void
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_shininess_doc,
-             "Shininess coefficient of the material.\n"
-             "\n"
-             ":type: float");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_shininess_doc,
+    "Shininess coefficient of the material.\n"
+    "\n"
+    ":type: float");
 
 static PyObject *FrsMaterial_shininess_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
@@ -421,10 +443,12 @@ static int FrsMaterial_shininess_set(BPy_FrsMaterial *self, PyObject *value, voi
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_priority_doc,
-             "Line color priority of the material.\n"
-             "\n"
-             ":type: int");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_priority_doc,
+    "Line color priority of the material.\n"
+    "\n"
+    ":type: int");
 
 static PyObject *FrsMaterial_priority_get(BPy_FrsMaterial *self, void * /*closure*/)
 {

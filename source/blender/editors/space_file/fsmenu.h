@@ -8,14 +8,10 @@
 
 #pragma once
 
+#include "ED_fileselect.hh"
+
 /* XXX could become UserPref */
 #define FSMENU_RECENT_MAX 10
-
-enum FSMenuCategory;
-enum FSMenuInsert;
-
-struct FSMenu;
-struct FSMenuEntry;
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,7 +50,7 @@ void fsmenu_read_bookmarks(struct FSMenu *fsmenu, const char *filepath);
 /** adds system specific directories */
 void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks);
 
-/** Free's all the memory associated with the fsmenu */
+/** Frees all the memory associated with the `fsmenu`. */
 void fsmenu_free(void);
 
 /** Refresh system directory menu */

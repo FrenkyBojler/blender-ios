@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008 Blender Foundation
+/* SPDX-FileCopyrightText: 2008 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -17,23 +17,23 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_appdir.h"
-#include "BKE_blender_copybuffer.h"
-#include "BKE_context.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
+#include "BKE_appdir.hh"
+#include "BKE_blender_copybuffer.hh"
+#include "BKE_blendfile.hh"
+#include "BKE_context.hh"
+#include "BKE_report.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_outliner.h"
-#include "ED_screen.h"
-#include "ED_transform.h"
+#include "ED_outliner.hh"
+#include "ED_screen.hh"
+#include "ED_transform.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh"
 
 #ifdef WIN32
@@ -57,23 +57,30 @@ static void view3d_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filep
 
 static int view3d_copybuffer_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  char filepath[FILE_MAX];
-  int num_copied = 0;
+  using namespace blender::bke::blendfile;
 
-  BKE_copybuffer_copy_begin(bmain);
+  Main *bmain = CTX_data_main(C);
+  PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
 
   /* context, selection, could be generalized */
   CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
-    if ((ob->id.tag & LIB_TAG_DOIT) == 0) {
-      BKE_copybuffer_copy_tag_ID(&ob->id);
-      num_copied++;
-    }
+    copybuffer.id_add(&ob->id,
+                      PartialWriteContext::IDAddOptions{
+                          (PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+                           PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
+                           PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
+                      nullptr);
   }
   CTX_DATA_END;
 
+  /* Explicitly adding an object to the copy/paste buffer _may_ add others as dependencies (e.g. a
+   * parent object). So count to total amount of objects added, to get a matching number with the
+   * one reported by the "paste" operation. */
+  const int num_copied = BLI_listbase_count(&copybuffer.bmain.objects);
+
+  char filepath[FILE_MAX];
   view3d_copybuffer_filepath_get(filepath, sizeof(filepath));
-  BKE_copybuffer_copy_end(bmain, filepath, op->reports);
+  copybuffer.write(filepath, *op->reports);
 
   BKE_reportf(op->reports, RPT_INFO, "Copied %d selected object(s)", num_copied);
 
@@ -175,8 +182,8 @@ void view3d_operatortypes()
   WM_operatortype_append(VIEW3D_OT_view_roll);
   WM_operatortype_append(VIEW3D_OT_view_pan);
   WM_operatortype_append(VIEW3D_OT_view_persportho);
-  WM_operatortype_append(VIEW3D_OT_background_image_add);
-  WM_operatortype_append(VIEW3D_OT_background_image_remove);
+  WM_operatortype_append(VIEW3D_OT_camera_background_image_add);
+  WM_operatortype_append(VIEW3D_OT_camera_background_image_remove);
   WM_operatortype_append(VIEW3D_OT_drop_world);
   WM_operatortype_append(VIEW3D_OT_view_selected);
   WM_operatortype_append(VIEW3D_OT_view_lock_clear);
@@ -232,10 +239,10 @@ void view3d_operatortypes()
 
 void view3d_keymap(wmKeyConfig *keyconf)
 {
-  WM_keymap_ensure(keyconf, "3D View Generic", SPACE_VIEW3D, 0);
+  WM_keymap_ensure(keyconf, "3D View Generic", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   /* only for region 3D window */
-  WM_keymap_ensure(keyconf, "3D View", SPACE_VIEW3D, 0);
+  WM_keymap_ensure(keyconf, "3D View", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   fly_modal_keymap(keyconf);
   walk_modal_keymap(keyconf);

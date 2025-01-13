@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,7 +14,9 @@ namespace blender::gpu {
 
 VKBuffer::~VKBuffer()
 {
-  free();
+  if (is_allocated()) {
+    free();
+  }
 }
 
 bool VKBuffer::is_allocated() const
@@ -22,36 +24,47 @@ bool VKBuffer::is_allocated() const
   return allocation_ != VK_NULL_HANDLE;
 }
 
-static VmaAllocationCreateFlagBits vma_allocation_flags(GPUUsageType usage)
+static VmaAllocationCreateFlags vma_allocation_flags(GPUUsageType usage)
 {
   switch (usage) {
     case GPU_USAGE_STATIC:
+    case GPU_USAGE_DEVICE_ONLY:
+      return 0;
     case GPU_USAGE_DYNAMIC:
     case GPU_USAGE_STREAM:
-      return static_cast<VmaAllocationCreateFlagBits>(
-          VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-    case GPU_USAGE_DEVICE_ONLY:
-      return static_cast<VmaAllocationCreateFlagBits>(
-          VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
-          VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT);
+      return VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
     case GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY:
       break;
   }
   BLI_assert_msg(false, "Unimplemented GPUUsageType");
-  return static_cast<VmaAllocationCreateFlagBits>(VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
-                                                  VMA_ALLOCATION_CREATE_MAPPED_BIT);
+  return VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 }
 
-bool VKBuffer::create(int64_t size_in_bytes,
+static VkMemoryPropertyFlags vma_preferred_flags(const bool is_host_visible)
+{
+  /* When is_host_visible is true, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT is set in
+   * `vma_required_flags`. We set the reverse to support ReBAR. */
+  return is_host_visible ?
+             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT :
+             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+}
+
+static VkMemoryPropertyFlags vma_required_flags(const bool is_host_visible)
+{
+  return is_host_visible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0;
+}
+
+bool VKBuffer::create(size_t size_in_bytes,
                       GPUUsageType usage,
-                      VkBufferUsageFlagBits buffer_usage)
+                      VkBufferUsageFlags buffer_usage,
+                      const bool is_host_visible)
 {
   BLI_assert(!is_allocated());
   BLI_assert(vk_buffer_ == VK_NULL_HANDLE);
   BLI_assert(mapped_memory_ == nullptr);
 
   size_in_bytes_ = size_in_bytes;
-  const VKDevice &device = VKBackend::get().device_get();
+  VKDevice &device = VKBackend::get().device;
 
   VmaAllocator allocator = device.mem_allocator_get();
   VkBufferCreateInfo create_info = {};
@@ -61,17 +74,20 @@ bool VKBuffer::create(int64_t size_in_bytes,
    * Vulkan doesn't allow empty buffers but some areas (DrawManager Instance data, PyGPU) create
    * them.
    */
-  create_info.size = max_ii(size_in_bytes, 1);
+  create_info.size = max_ulul(size_in_bytes, 1);
   create_info.usage = buffer_usage;
   /* We use the same command queue for the compute and graphics pipeline, so it is safe to use
    * exclusive resource handling. */
   create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   create_info.queueFamilyIndexCount = 1;
-  create_info.pQueueFamilyIndices = device.queue_family_ptr_get();
+  const uint32_t queue_family_indices[1] = {device.queue_family_get()};
+  create_info.pQueueFamilyIndices = queue_family_indices;
 
   VmaAllocationCreateInfo vma_create_info = {};
   vma_create_info.flags = vma_allocation_flags(usage);
   vma_create_info.priority = 1.0f;
+  vma_create_info.requiredFlags = vma_required_flags(is_host_visible);
+  vma_create_info.preferredFlags = vma_preferred_flags(is_host_visible);
   vma_create_info.usage = VMA_MEMORY_USAGE_AUTO;
 
   VkResult result = vmaCreateBuffer(
@@ -80,29 +96,54 @@ bool VKBuffer::create(int64_t size_in_bytes,
     return false;
   }
 
-  /* All buffers are mapped to virtual memory. */
-  return map();
+  device.resources.add_buffer(vk_buffer_);
+
+  vmaGetAllocationMemoryProperties(allocator, allocation_, &vk_memory_property_flags_);
+
+  if (vk_memory_property_flags_ & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+    return map();
+  }
+  return true;
 }
 
-void VKBuffer::update(const void *data) const
+void VKBuffer::update_immediately(const void *data) const
 {
   BLI_assert_msg(is_mapped(), "Cannot update a non-mapped buffer.");
   memcpy(mapped_memory_, data, size_in_bytes_);
+}
 
-  const VKDevice &device = VKBackend::get().device_get();
+void VKBuffer::update_render_graph(VKContext &context, void *data) const
+{
+  BLI_assert(size_in_bytes_ <= 65536 && size_in_bytes_ % 4 == 0);
+  render_graph::VKUpdateBufferNode::CreateInfo update_buffer = {};
+  update_buffer.dst_buffer = vk_buffer_;
+  update_buffer.data_size = size_in_bytes_;
+  update_buffer.data = data;
+  context.render_graph.add_node(update_buffer);
+}
+
+void VKBuffer::flush() const
+{
+  const VKDevice &device = VKBackend::get().device;
   VmaAllocator allocator = device.mem_allocator_get();
-  vmaFlushAllocation(allocator, allocation_, 0, max_ii(size_in_bytes(), 1));
+  vmaFlushAllocation(allocator, allocation_, 0, max_ulul(size_in_bytes(), 1));
 }
 
 void VKBuffer::clear(VKContext &context, uint32_t clear_value)
 {
-  VKCommandBuffer &command_buffer = context.command_buffer_get();
-  command_buffer.fill(*this, clear_value);
+  render_graph::VKFillBufferNode::CreateInfo fill_buffer = {};
+  fill_buffer.vk_buffer = vk_buffer_;
+  fill_buffer.data = clear_value;
+  fill_buffer.size = size_in_bytes_;
+  context.render_graph.add_node(fill_buffer);
 }
 
-void VKBuffer::read(void *data) const
+void VKBuffer::read(VKContext &context, void *data) const
 {
   BLI_assert_msg(is_mapped(), "Cannot read a non-mapped buffer.");
+  context.rendering_end();
+  context.descriptor_set_get().upload_descriptor_sets();
+  context.render_graph.submit_buffer_for_read(vk_buffer_);
   memcpy(data, mapped_memory_, size_in_bytes_);
 }
 
@@ -120,7 +161,7 @@ bool VKBuffer::is_mapped() const
 bool VKBuffer::map()
 {
   BLI_assert(!is_mapped());
-  const VKDevice &device = VKBackend::get().device_get();
+  const VKDevice &device = VKBackend::get().device;
   VmaAllocator allocator = device.mem_allocator_get();
   VkResult result = vmaMapMemory(allocator, allocation_, &mapped_memory_);
   return result == VK_SUCCESS;
@@ -129,7 +170,7 @@ bool VKBuffer::map()
 void VKBuffer::unmap()
 {
   BLI_assert(is_mapped());
-  const VKDevice &device = VKBackend::get().device_get();
+  const VKDevice &device = VKBackend::get().device;
   VmaAllocator allocator = device.mem_allocator_get();
   vmaUnmapMemory(allocator, allocation_);
   mapped_memory_ = nullptr;
@@ -141,10 +182,26 @@ bool VKBuffer::free()
     unmap();
   }
 
-  const VKDevice &device = VKBackend::get().device_get();
-  VmaAllocator allocator = device.mem_allocator_get();
-  vmaDestroyBuffer(allocator, vk_buffer_, allocation_);
+  VKDevice &device = VKBackend::get().device;
+  device.discard_pool_for_current_thread().discard_buffer(vk_buffer_, allocation_);
+
+  allocation_ = VK_NULL_HANDLE;
+  vk_buffer_ = VK_NULL_HANDLE;
+
   return true;
+}
+
+void VKBuffer::free_immediately(VKDevice &device)
+{
+  BLI_assert(vk_buffer_ != VK_NULL_HANDLE);
+  BLI_assert(allocation_ != VK_NULL_HANDLE);
+  if (is_mapped()) {
+    unmap();
+  }
+  device.resources.remove_buffer(vk_buffer_);
+  vmaDestroyBuffer(device.mem_allocator_get(), vk_buffer_, allocation_);
+  allocation_ = VK_NULL_HANDLE;
+  vk_buffer_ = VK_NULL_HANDLE;
 }
 
 }  // namespace blender::gpu

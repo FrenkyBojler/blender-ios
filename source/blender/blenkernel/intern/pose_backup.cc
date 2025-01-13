@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -18,10 +18,10 @@
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_action.h"
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
+#include "BKE_object_types.hh"
 
 using namespace blender::bke;
 
@@ -37,7 +37,7 @@ struct PoseChannelBackup {
 
 struct PoseBackup {
   bool is_bone_selection_relevant;
-  ListBase /* PoseChannelBackup* */ backups;
+  ListBase /*PoseChannelBackup*/ backups;
 };
 
 /**
@@ -50,6 +50,7 @@ struct PoseBackup {
  */
 static PoseBackup *pose_backup_create(const Object *ob,
                                       const bAction *action,
+                                      const blender::animrig::slot_handle_t slot_handle,
                                       const BoneNameSet &selected_bone_names)
 {
   ListBase backups = {nullptr, nullptr};
@@ -57,7 +58,7 @@ static PoseBackup *pose_backup_create(const Object *ob,
 
   BoneNameSet backed_up_bone_names;
   /* Make a backup of the given pose channel. */
-  auto store_animated_pchans = [&](FCurve * /* unused */, const char *bone_name) {
+  auto store_animated_pchans = [&](const FCurve * /*unused*/, const char *bone_name) {
     if (backed_up_bone_names.contains(bone_name)) {
       /* Only backup each bone once. */
       return;
@@ -87,7 +88,7 @@ static PoseBackup *pose_backup_create(const Object *ob,
   };
 
   /* Call `store_animated_pchans()` for each FCurve that targets a bone. */
-  BKE_action_find_fcurves_with_bones(action, store_animated_pchans);
+  BKE_action_find_fcurves_with_bones(action, slot_handle, store_animated_pchans);
 
   /* PoseBackup is constructed late, so that the above loop can use stack variables. */
   PoseBackup *pose_backup = static_cast<PoseBackup *>(MEM_callocN(sizeof(*pose_backup), __func__));
@@ -96,16 +97,19 @@ static PoseBackup *pose_backup_create(const Object *ob,
   return pose_backup;
 }
 
-PoseBackup *BKE_pose_backup_create_all_bones(const Object *ob, const bAction *action)
+PoseBackup *BKE_pose_backup_create_all_bones(const Object *ob,
+                                             const bAction *action,
+                                             const blender::animrig::slot_handle_t slot_handle)
 {
-  return pose_backup_create(ob, action, BoneNameSet());
+  return pose_backup_create(ob, action, slot_handle, BoneNameSet());
 }
 
-PoseBackup *BKE_pose_backup_create_selected_bones(const Object *ob, const bAction *action)
+PoseBackup *BKE_pose_backup_create_selected_bones(
+    const Object *ob, const bAction *action, const blender::animrig::slot_handle_t slot_handle)
 {
   const bArmature *armature = static_cast<const bArmature *>(ob->data);
   const BoneNameSet selected_bone_names = BKE_armature_find_selected_bone_names(armature);
-  return pose_backup_create(ob, action, selected_bone_names);
+  return pose_backup_create(ob, action, slot_handle, selected_bone_names);
 }
 
 bool BKE_pose_backup_is_selection_relevant(const PoseBackup *pose_backup)
@@ -138,28 +142,30 @@ void BKE_pose_backup_free(PoseBackup *pbd)
   MEM_freeN(pbd);
 }
 
-void BKE_pose_backup_create_on_object(Object *ob, const bAction *action)
+void BKE_pose_backup_create_on_object(Object *ob,
+                                      const bAction *action,
+                                      const blender::animrig::slot_handle_t slot_handle)
 {
   BKE_pose_backup_clear(ob);
-  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones(ob, action);
-  ob->runtime.pose_backup = pose_backup;
+  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones(ob, action, slot_handle);
+  ob->runtime->pose_backup = pose_backup;
 }
 
 bool BKE_pose_backup_restore_on_object(Object *ob)
 {
-  if (ob->runtime.pose_backup == nullptr) {
+  if (ob->runtime->pose_backup == nullptr) {
     return false;
   }
-  BKE_pose_backup_restore(ob->runtime.pose_backup);
+  BKE_pose_backup_restore(ob->runtime->pose_backup);
   return true;
 }
 
 void BKE_pose_backup_clear(Object *ob)
 {
-  if (ob->runtime.pose_backup == nullptr) {
+  if (ob->runtime->pose_backup == nullptr) {
     return;
   }
 
-  BKE_pose_backup_free(ob->runtime.pose_backup);
-  ob->runtime.pose_backup = nullptr;
+  BKE_pose_backup_free(ob->runtime->pose_backup);
+  ob->runtime->pose_backup = nullptr;
 }

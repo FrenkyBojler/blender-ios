@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -17,6 +17,10 @@ Example Use::
 
    blender.bin -b --factory-startup my_shapes.blend --python make_shape_2d_from_blend.py
 '''
+__all__ = (
+    "main",
+)
+
 import bpy
 import os
 

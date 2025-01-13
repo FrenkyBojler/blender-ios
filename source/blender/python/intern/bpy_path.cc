@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,16 +10,14 @@
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
+#include "bpy_path.hh"
 
-#include "bpy_path.h"
+#include "../generic/py_capi_utils.hh"
 
-#include "../generic/py_capi_utils.h"
-
-/* #include "IMB_imbuf_types.h" */
-extern "C" const char *imb_ext_image[];
-extern "C" const char *imb_ext_movie[];
-extern "C" const char *imb_ext_audio[];
+/* #include "IMB_imbuf_types.hh" */
+extern const char *imb_ext_image[];
+extern const char *imb_ext_movie[];
+extern const char *imb_ext_audio[];
 
 /*----------------------------MODULE INIT-------------------------*/
 static PyModuleDef _bpy_path_module_def = {

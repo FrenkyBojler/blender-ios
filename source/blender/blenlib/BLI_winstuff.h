@@ -46,33 +46,22 @@ extern "C" {
 #  define _USE_MATH_DEFINES
 #endif
 
-#define MAXPATHLEN MAX_PATH
-
 #ifndef S_ISREG
-#  define S_ISREG(x) (((x)&_S_IFREG) == _S_IFREG)
+#  define S_ISREG(x) (((x) & _S_IFREG) == _S_IFREG)
 #endif
 #ifndef S_ISDIR
-#  define S_ISDIR(x) (((x)&_S_IFDIR) == _S_IFDIR)
+#  define S_ISDIR(x) (((x) & _S_IFDIR) == _S_IFDIR)
 #endif
 
 #if defined(_MSC_VER)
 #  define R_OK 4
 #  define W_OK 2
 /* Not accepted by `access()` on windows. */
-//#  define X_OK    1
+// #  define X_OK    1
 #  define F_OK 0
 #endif
 
 typedef unsigned int mode_t;
-
-#ifndef _SSIZE_T_
-#  define _SSIZE_T_
-/* python uses HAVE_SSIZE_T */
-#  ifndef HAVE_SSIZE_T
-#    define HAVE_SSIZE_T 1
-typedef SSIZE_T ssize_t;
-#  endif
-#endif
 
 /** Directory reading compatibility with UNIX. */
 struct dirent {
@@ -95,6 +84,13 @@ const char *dirname(char *path);
 bool BLI_windows_is_store_install(void);
 bool BLI_windows_register_blend_extension(bool all_users);
 bool BLI_windows_unregister_blend_extension(bool all_users);
+bool BLI_windows_update_pinned_launcher(const char *launcher_path);
+
+/* Gets the version of the currently loaded DirectX driver for the first device that matches
+ * deviceString. This is required for Qualcomm devices which use Mesa's Gallium D2D12 layer for
+ * OpenGL functionality */
+bool BLI_windows_get_directx_driver_version(const wchar_t *deviceSubString,
+                                            long long *r_driverVersion);
 
 /**
  * Set the `root_dir` to the default root directory on MS-Windows,

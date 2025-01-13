@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -38,10 +38,23 @@ struct OrderedEdge {
 
   friend bool operator==(const OrderedEdge &e1, const OrderedEdge &e2)
   {
-    BLI_assert(e1.v_low < e1.v_high);
-    BLI_assert(e2.v_low < e2.v_high);
     return e1.v_low == e2.v_low && e1.v_high == e2.v_high;
   }
+
+  friend bool operator!=(const OrderedEdge &e1, const OrderedEdge &e2)
+  {
+    return !(e1 == e2);
+  }
+
+  friend bool operator<(const OrderedEdge &e1, const OrderedEdge &e2)
+  {
+    if (e1.v_low != e2.v_low) {
+      return e1.v_low < e2.v_low;
+    }
+    return e1.v_high < e2.v_high;
+  }
+
+  friend std::ostream &operator<<(std::ostream &stream, const OrderedEdge &e);
 };
 
 }  // namespace blender

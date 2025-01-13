@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2015 Blender Foundation
+/* SPDX-FileCopyrightText: 2015 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,23 +6,18 @@
  * \ingroup imbuf
  */
 
+#include <algorithm>
 #include <cstddef>
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "IMB_allocimbuf.h"
-#include "IMB_colormanagement_intern.h"
-#include "IMB_filetype.h"
-#include "IMB_metadata.h"
-
-#include "imbuf.h"
+#include "imbuf.hh"
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
-
-#include "BLI_math.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
@@ -101,7 +96,7 @@ static void imb_stereo3d_write_anaglyph(const Stereo3DData *s3d, enum eStereo3dA
           to[0] = from[r][0];
           to[1] = from[g][1];
           to[2] = from[b][2];
-          to[3] = MAX2(from[0][3], from[1][3]);
+          to[3] = std::max(from[0][3], from[1][3]);
         }
       }
     }
@@ -138,7 +133,7 @@ static void imb_stereo3d_write_anaglyph(const Stereo3DData *s3d, enum eStereo3dA
           to[0] = from[r][0];
           to[1] = from[g][1];
           to[2] = from[b][2];
-          to[3] = MAX2(from[0][3], from[1][3]);
+          to[3] = std::max(from[0][3], from[1][3]);
         }
       }
     }
@@ -578,7 +573,7 @@ static void imb_stereo3d_squeeze_ImBuf(ImBuf *ibuf,
     return;
   }
 
-  IMB_scaleImBuf_threaded(ibuf, x, y);
+  IMB_scale(ibuf, x, y, IMBScaleFilter::Bilinear);
 }
 
 static void imb_stereo3d_unsqueeze_ImBuf(ImBuf *ibuf,
@@ -594,7 +589,7 @@ static void imb_stereo3d_unsqueeze_ImBuf(ImBuf *ibuf,
     return;
   }
 
-  IMB_scaleImBuf_threaded(ibuf, x, y);
+  IMB_scale(ibuf, x, y, IMBScaleFilter::Bilinear);
 }
 
 static void imb_stereo3d_squeeze_rectf(
@@ -626,7 +621,7 @@ static void imb_stereo3d_squeeze_rectf(
                               width,
                               width);
 
-  IMB_scaleImBuf_threaded(ibuf, x, y);
+  IMB_scale(ibuf, x, y, IMBScaleFilter::Bilinear);
   memcpy(rectf, ibuf->float_buffer.data, x * y * sizeof(float[4]));
   IMB_freeImBuf(ibuf);
 }
@@ -659,7 +654,7 @@ static void imb_stereo3d_squeeze_rect(
                             width,
                             width);
 
-  IMB_scaleImBuf_threaded(ibuf, x, y);
+  IMB_scale(ibuf, x, y, IMBScaleFilter::Bilinear);
   memcpy(rect, ibuf->byte_buffer.data, x * y * sizeof(uint));
   IMB_freeImBuf(ibuf);
 }

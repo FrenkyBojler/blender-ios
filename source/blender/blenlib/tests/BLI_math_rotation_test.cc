@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -876,6 +876,24 @@ TEST(math_rotation, DualQuaternionTransform)
     EXPECT_V3_NEAR(p1_result, float3(46.6121, -86.7318, 14.8882), 1e-2f);
     EXPECT_V3_NEAR(p2_result, float3(-12309.5, -1248.99, 18466.1), 6e-2f);
     EXPECT_M3_NEAR(crazy_space_mat, expected_crazy_space_mat, 1e-4f);
+  }
+}
+
+TEST(math_axis_angle, AxisAngleFromQuaternion)
+{
+  {
+    const math::AxisAngle axis_angle({0.0f, 1.0f, 0.0f}, math::AngleRadian(0));
+    const math::Quaternion quaternion(1.0f, {0.0f, 0.0f, 0.0f});
+    const math::AxisAngle from_quaternion = math::to_axis_angle(quaternion);
+    EXPECT_V3_NEAR(axis_angle.axis(), from_quaternion.axis(), 1e-6);
+    EXPECT_NEAR(axis_angle.angle().radian(), from_quaternion.angle().radian(), 1e-6);
+  }
+  {
+    const math::AxisAngle axis_angle({0.0f, -1.0f, 0.0f}, math::AngleRadian(0));
+    const math::Quaternion quaternion(-1.0f, {0.0f, 0.0f, 0.0f});
+    const math::AxisAngle from_quaternion = math::to_axis_angle(quaternion);
+    EXPECT_V3_NEAR(axis_angle.axis(), from_quaternion.axis(), 1e-6);
+    EXPECT_NEAR(axis_angle.angle().radian(), from_quaternion.angle().radian(), 1e-6);
   }
 }
 

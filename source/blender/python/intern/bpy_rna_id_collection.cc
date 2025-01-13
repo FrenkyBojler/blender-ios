@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,34 +14,28 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_utildefines.h"
 
-#include "BKE_global.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_main.hh"
 
 #include "DNA_ID.h"
 /* Those following are only to support hack of not listing some internal
  * 'backward' pointers in generated user_map. */
-#include "DNA_key_types.h"
-#include "DNA_object_types.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "bpy_capi_utils.h"
-#include "bpy_rna_id_collection.h"
+#include "bpy_rna_id_collection.hh"
 
-#include "../generic/py_capi_rna.h"
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_rna.hh"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
 
-#include "RNA_access.h"
-#include "RNA_enum_types.h"
-#include "RNA_types.h"
+#include "RNA_enum_types.hh"
 
-#include "bpy_rna.h"
+#include "bpy_rna.hh"
 
 struct IDUserMapData {
   /** We loop over data-blocks that this ID points to (do build a reverse lookup table) */
@@ -73,7 +67,7 @@ static int foreach_libblock_id_user_map_callback(LibraryIDLinkCallbackData *cb_d
 
   if (*id_p) {
     IDUserMapData *data = static_cast<IDUserMapData *>(cb_data->user_data);
-    const int cb_flag = cb_data->cb_flag;
+    const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
 
     if (data->types_bitmap) {
       if (!id_check_type(*id_p, data->types_bitmap)) {
@@ -118,25 +112,26 @@ static int foreach_libblock_id_user_map_callback(LibraryIDLinkCallbackData *cb_d
   return IDWALK_RET_NOP;
 }
 
-PyDoc_STRVAR(bpy_user_map_doc,
-             ".. method:: user_map(subset, key_types, value_types)\n"
-             "\n"
-             "   Returns a mapping of all ID data-blocks in current ``bpy.data`` to a set of all "
-             "datablocks using them.\n"
-             "\n"
-             "   For list of valid set members for key_types & value_types, see: "
-             ":class:`bpy.types.KeyingSetPath.id_type`.\n"
-             "\n"
-             "   :arg subset: When passed, only these data-blocks and their users will be "
-             "included as keys/values in the map.\n"
-             "   :type subset: sequence\n"
-             "   :arg key_types: Filter the keys mapped by ID types.\n"
-             "   :type key_types: set of strings\n"
-             "   :arg value_types: Filter the values in the set by ID types.\n"
-             "   :type value_types: set of strings\n"
-             "   :return: dictionary of :class:`bpy.types.ID` instances, with sets of ID's as "
-             "their values.\n"
-             "   :rtype: dict\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_user_map_doc,
+    ".. method:: user_map(subset, key_types, value_types)\n"
+    "\n"
+    "   Returns a mapping of all ID data-blocks in current ``bpy.data`` to a set of all "
+    "data-blocks using them.\n"
+    "\n"
+    "   For list of valid set members for key_types & value_types, see: "
+    ":class:`bpy.types.KeyingSetPath.id_type`.\n"
+    "\n"
+    "   :arg subset: When passed, only these data-blocks and their users will be "
+    "included as keys/values in the map.\n"
+    "   :type subset: Sequence[:class:`bpy.types.ID`]\n"
+    "   :arg key_types: Filter the keys mapped by ID types.\n"
+    "   :type key_types: set[str]\n"
+    "   :arg value_types: Filter the values in the set by ID types.\n"
+    "   :type value_types: set[str]\n"
+    "   :return: dictionary that maps data-blocks ID's to their users.\n"
+    "   :rtype: dict[:class:`bpy.types.ID`, set[:class:`bpy.types.ID`]]\n");
 static PyObject *bpy_user_map(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
 #if 0 /* If someone knows how to get a proper 'self' in that case... */
@@ -161,13 +156,14 @@ static PyObject *bpy_user_map(PyObject * /*self*/, PyObject *args, PyObject *kwd
 
   static const char *_keywords[] = {"subset", "key_types", "value_types", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O"  /* `subset` */
       "O!" /* `key_types` */
       "O!" /* `value_types` */
       ":user_map",
       _keywords,
-      0,
+      nullptr,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kwds, &_parser, &subset, &PySet_Type, &key_types, &PySet_Type, &val_types))
@@ -250,7 +246,7 @@ static PyObject *bpy_user_map(PyObject * /*self*/, PyObject *args, PyObject *kwd
 
       data_cb.id_curr = id;
       BKE_library_foreach_ID_link(
-          nullptr, id, foreach_libblock_id_user_map_callback, &data_cb, IDWALK_CB_NOP);
+          nullptr, id, foreach_libblock_id_user_map_callback, &data_cb, IDWALK_NOP);
 
       if (data_cb.py_id_curr) {
         Py_DECREF(data_cb.py_id_curr);
@@ -275,20 +271,22 @@ error:
   return ret;
 }
 
-PyDoc_STRVAR(bpy_batch_remove_doc,
-             ".. method:: batch_remove(ids)\n"
-             "\n"
-             "   Remove (delete) several IDs at once.\n"
-             "\n"
-             "   WARNING: Considered experimental feature currently.\n"
-             "\n"
-             "   Note that this function is quicker than individual calls to :func:`remove()` "
-             "(from :class:`bpy.types.BlendData`\n"
-             "   ID collections), but less safe/versatile (it can break Blender, e.g. by removing "
-             "all scenes...).\n"
-             "\n"
-             "   :arg ids: Iterables of IDs (types can be mixed).\n"
-             "   :type subset: sequence\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_batch_remove_doc,
+    ".. method:: batch_remove(ids)\n"
+    "\n"
+    "   Remove (delete) several IDs at once.\n"
+    "\n"
+    "   WARNING: Considered experimental feature currently.\n"
+    "\n"
+    "   Note that this function is quicker than individual calls to :func:`remove()` "
+    "(from :class:`bpy.types.BlendData`\n"
+    "   ID collections), but less safe/versatile (it can break Blender, e.g. by removing "
+    "all scenes...).\n"
+    "\n"
+    "   :arg ids: Sequence of IDs (types can be mixed).\n"
+    "   :type ids: Sequence[:class:`bpy.types.ID`]\n");
 static PyObject *bpy_batch_remove(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
 #if 0 /* If someone knows how to get a proper 'self' in that case... */
@@ -304,17 +302,18 @@ static PyObject *bpy_batch_remove(PyObject * /*self*/, PyObject *args, PyObject 
 
   static const char *_keywords[] = {"ids", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "O" /* `ids` */
       ":batch_remove",
       _keywords,
-      0,
+      nullptr,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(args, kwds, &_parser, &ids)) {
     return ret;
   }
 
   if (ids) {
-    BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+    BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
     PyObject *ids_fast = PySequence_Fast(ids, "batch_remove");
     if (ids_fast == nullptr) {
@@ -333,7 +332,7 @@ static PyObject *bpy_batch_remove(PyObject * /*self*/, PyObject *args, PyObject 
         goto error;
       }
 
-      id->tag |= LIB_TAG_DOIT;
+      id->tag |= ID_TAG_DOIT;
     }
     Py_DECREF(ids_fast);
 
@@ -352,19 +351,21 @@ error:
   return ret;
 }
 
-PyDoc_STRVAR(bpy_orphans_purge_doc,
-             ".. method:: orphans_purge()\n"
-             "\n"
-             "   Remove (delete) all IDs with no user.\n"
-             "\n"
-             "   :arg do_local_ids: Include unused local IDs in the deletion, defaults to True\n"
-             "   :type do_local_ids: bool, optional\n"
-             "   :arg do_linked_ids: Include unused linked IDs in the deletion, defaults to True\n"
-             "   :type do_linked_ids: bool, optional\n"
-             "   :arg do_recursive: Recursively check for unused IDs, ensuring no orphaned one "
-             "remain after a single run of that function, defaults to False\n"
-             "   :type do_recursive: bool, optional\n"
-             "   :return: The number of deleted IDs.\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_orphans_purge_doc,
+    ".. method:: orphans_purge()\n"
+    "\n"
+    "   Remove (delete) all IDs with no user.\n"
+    "\n"
+    "   :arg do_local_ids: Include unused local IDs in the deletion, defaults to True\n"
+    "   :type do_local_ids: bool, optional\n"
+    "   :arg do_linked_ids: Include unused linked IDs in the deletion, defaults to True\n"
+    "   :type do_linked_ids: bool, optional\n"
+    "   :arg do_recursive: Recursively check for unused IDs, ensuring no orphaned one "
+    "remain after a single run of that function, defaults to False\n"
+    "   :type do_recursive: bool, optional\n"
+    "   :return: The number of deleted IDs.\n");
 static PyObject *bpy_orphans_purge(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
 #if 0 /* If someone knows how to get a proper 'self' in that case... */
@@ -374,40 +375,39 @@ static PyObject *bpy_orphans_purge(PyObject * /*self*/, PyObject *args, PyObject
   Main *bmain = G_MAIN; /* XXX Ugly, but should work! */
 #endif
 
-  int num_tagged[INDEX_ID_MAX] = {0};
-
-  bool do_local_ids = true;
-  bool do_linked_ids = true;
-  bool do_recursive_cleanup = false;
+  LibQueryUnusedIDsData unused_ids_data;
+  unused_ids_data.do_local_ids = true;
+  unused_ids_data.do_linked_ids = true;
+  unused_ids_data.do_recursive = false;
 
   static const char *_keywords[] = {"do_local_ids", "do_linked_ids", "do_recursive", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "|"  /* Optional arguments. */
       "O&" /* `do_local_ids` */
       "O&" /* `do_linked_ids` */
       "O&" /* `do_recursive` */
       ":orphans_purge",
       _keywords,
-      0,
+      nullptr,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kwds,
                                         &_parser,
                                         PyC_ParseBool,
-                                        &do_local_ids,
+                                        &unused_ids_data.do_local_ids,
                                         PyC_ParseBool,
-                                        &do_linked_ids,
+                                        &unused_ids_data.do_linked_ids,
                                         PyC_ParseBool,
-                                        &do_recursive_cleanup))
+                                        &unused_ids_data.do_recursive))
   {
     return nullptr;
   }
 
   /* Tag all IDs to delete. */
-  BKE_lib_query_unused_ids_tag(
-      bmain, LIB_TAG_DOIT, do_local_ids, do_linked_ids, do_recursive_cleanup, num_tagged);
+  BKE_lib_query_unused_ids_tag(bmain, ID_TAG_DOIT, unused_ids_data);
 
-  if (num_tagged[INDEX_ID_NULL] == 0) {
+  if (unused_ids_data.num_total[INDEX_ID_NULL] == 0) {
     return PyLong_FromSize_t(0);
   }
 

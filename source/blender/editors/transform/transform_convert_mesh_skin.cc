@@ -11,17 +11,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
-#include "BKE_context.h"
-#include "BKE_crazyspace.h"
-#include "BKE_editmesh.h"
-#include "BKE_modifier.h"
-#include "BKE_scene.h"
-
-#include "ED_mesh.h"
-
-#include "DEG_depsgraph_query.h"
+#include "BKE_context.hh"
+#include "BKE_editmesh.hh"
 
 #include "transform.hh"
 #include "transform_orientations.hh"
@@ -32,9 +26,9 @@
 /** \name Edit Mesh #CD_MVERT_SKIN Transform Creation
  * \{ */
 
-static float *tc_mesh_skin_transdata_center(const TransIslandData *island_data,
-                                            const int island_index,
-                                            BMVert *eve)
+static float *mesh_skin_transdata_center(const TransIslandData *island_data,
+                                         const int island_index,
+                                         BMVert *eve)
 {
   if (island_data->center && island_index != -1) {
     return island_data->center[island_index];
@@ -42,11 +36,11 @@ static float *tc_mesh_skin_transdata_center(const TransIslandData *island_data,
   return eve->co;
 }
 
-static void tc_mesh_skin_transdata_create(TransDataBasic *td,
-                                          BMEditMesh *em,
-                                          BMVert *eve,
-                                          const TransIslandData *island_data,
-                                          const int island_index)
+static void mesh_skin_transdata_create(TransDataBasic *td,
+                                       BMEditMesh *em,
+                                       BMVert *eve,
+                                       const TransIslandData *island_data,
+                                       const int island_index)
 {
   BLI_assert(BM_elem_flag_test(eve, BM_ELEM_HIDDEN) == 0);
   MVertSkin *vs = static_cast<MVertSkin *>(
@@ -64,7 +58,7 @@ static void tc_mesh_skin_transdata_create(TransDataBasic *td,
     td->flag |= TD_SELECTED;
   }
 
-  copy_v3_v3(td->center, tc_mesh_skin_transdata_center(island_data, island_index, eve));
+  copy_v3_v3(td->center, mesh_skin_transdata_center(island_data, island_index, eve));
   td->extra = eve;
 }
 
@@ -73,7 +67,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
   BLI_assert(t->mode == TFM_SKIN_RESIZE);
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
-    Mesh *me = static_cast<Mesh *>(tc->obedit->data);
+    Mesh *mesh = static_cast<Mesh *>(tc->obedit->data);
     BMesh *bm = em->bm;
     BMVert *eve;
     BMIter iter;
@@ -133,9 +127,9 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
           em, calc_single_islands, calc_island_center, calc_island_axismtx, &island_data);
     }
 
-    copy_m3_m4(mtx, tc->obedit->object_to_world);
-    /* we use a pseudo-inverse so that when one of the axes is scaled to 0,
-     * matrix inversion still works and we can still moving along the other */
+    copy_m3_m4(mtx, tc->obedit->object_to_world().ptr());
+    /* We use a pseudo-inverse so that when one of the axes is scaled to 0,
+     * matrix inversion still works and we can still moving along the other. */
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
     /* Original index of our connected vertex when connected distances are calculated.
@@ -152,7 +146,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
 
     /* Create TransDataMirror. */
     if (tc->use_mirror_axis_any) {
-      bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+      bool use_topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
       bool use_select = (t->flag & T_PROP_EDIT) == 0;
       const bool mirror_axis[3] = {
           bool(tc->use_mirror_axis_x), bool(tc->use_mirror_axis_y), bool(tc->use_mirror_axis_z)};
@@ -174,7 +168,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
       }
     }
 
-    /* Detect CrazySpace [tm]. */
+    /* Detect CrazySpace [TM]. */
     transform_convert_mesh_crazyspace_detect(t, tc, em, &crazyspace_data);
 
     /* Create TransData. */
@@ -197,7 +191,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
       }
 
       if (mirror_data.vert_map && mirror_data.vert_map[a].index != -1) {
-        tc_mesh_skin_transdata_create(
+        mesh_skin_transdata_create(
             (TransDataBasic *)td_mirror, em, eve, &island_data, island_index);
 
         int elem_index = mirror_data.vert_map[a].index;
@@ -210,13 +204,13 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
         td_mirror++;
       }
       else if (prop_mode || BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
-        tc_mesh_skin_transdata_create((TransDataBasic *)td, em, eve, &island_data, island_index);
+        mesh_skin_transdata_create((TransDataBasic *)td, em, eve, &island_data, island_index);
 
         if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
           createSpaceNormal(td->axismtx, eve->no);
         }
         else {
-          /* Setting normals */
+          /* Setting normals. */
           copy_v3_v3(td->axismtx[2], eve->no);
           td->axismtx[0][0] = td->axismtx[0][1] = td->axismtx[0][2] = td->axismtx[1][0] =
               td->axismtx[1][1] = td->axismtx[1][2] = 0.0f;
@@ -227,16 +221,15 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
             td->dist = dists[a];
           }
           else {
-            td->flag |= TD_NOTCONNECTED;
             td->dist = FLT_MAX;
           }
         }
 
-        /* CrazySpace */
+        /* CrazySpace. */
         transform_convert_mesh_crazyspace_transdata_set(
             mtx,
             smtx,
-            crazyspace_data.defmats ? crazyspace_data.defmats[a] : nullptr,
+            !crazyspace_data.defmats.is_empty() ? crazyspace_data.defmats[a].ptr() : nullptr,
             crazyspace_data.quats && BM_elem_flag_test(eve, BM_ELEM_TAG) ?
                 crazyspace_data.quats[a] :
                 nullptr,
@@ -264,7 +257,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
 /** \name Recalc Mesh Data
  * \{ */
 
-static void tc_mesh_skin_apply_to_mirror(TransInfo *t)
+static void mesh_skin_apply_to_mirror(TransInfo *t)
 {
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     if (tc->use_mirror_axis_any) {
@@ -279,17 +272,17 @@ static void tc_mesh_skin_apply_to_mirror(TransInfo *t)
 static void recalcData_mesh_skin(TransInfo *t)
 {
   bool is_canceling = t->state == TRANS_CANCEL;
-  /* mirror modifier clipping? */
+  /* Mirror modifier clipping? */
   if (!is_canceling) {
     if (!(t->flag & T_NO_MIRROR)) {
-      tc_mesh_skin_apply_to_mirror(t);
+      mesh_skin_apply_to_mirror(t);
     }
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     DEG_id_tag_update(static_cast<ID *>(tc->obedit->data), ID_RECALC_GEOMETRY);
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
-    BKE_editmesh_looptri_and_normals_calc(em);
+    BKE_editmesh_looptris_and_normals_calc(em);
   }
 }
 
@@ -297,7 +290,7 @@ static void recalcData_mesh_skin(TransInfo *t)
 
 TransConvertTypeInfo TransConvertType_MeshSkin = {
     /*flags*/ (T_EDIT | T_POINTS),
-    /*createTransData*/ createTransMeshSkin,
-    /*recalcData*/ recalcData_mesh_skin,
+    /*create_trans_data*/ createTransMeshSkin,
+    /*recalc_data*/ recalcData_mesh_skin,
     /*special_aftertrans_update*/ nullptr,
 };

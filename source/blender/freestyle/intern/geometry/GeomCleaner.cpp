@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2012-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2012-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -25,7 +25,7 @@
 
 #include "../system/TimeUtils.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "BLI_sys_types.h"
 

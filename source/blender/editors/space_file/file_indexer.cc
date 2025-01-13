@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,13 +8,12 @@
  * This file implements the default file browser indexer and has some helper function to work with
  * `FileIndexerEntries`.
  */
-#include "file_indexer.h"
+#include "file_indexer.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 namespace blender::ed::file::indexer {
@@ -55,8 +54,6 @@ static FileIndexerEntry *file_indexer_entry_create_from_datablock_info(
 
 }  // namespace blender::ed::file::indexer
 
-extern "C" {
-
 void ED_file_indexer_entries_extend_from_datablock_infos(
     FileIndexerEntries *indexer_entries,
     LinkNode * /*BLODataBlockInfo*/ datablock_infos,
@@ -83,4 +80,3 @@ void ED_file_indexer_entries_clear(FileIndexerEntries *indexer_entries)
 }
 
 const FileIndexerType file_indexer_noop = blender::ed::file::indexer::default_indexer();
-}

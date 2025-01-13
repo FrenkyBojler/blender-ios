@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,30 +14,32 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_metadata.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+
+#include "MOV_enums.hh"
+#include "MOV_read.hh"
 
 #ifdef RNA_RUNTIME
 
-#  include "DEG_depsgraph.h"
+#  include "DEG_depsgraph.hh"
 
-#  include "ED_clip.h"
+#  include "ED_clip.hh"
 
 #  include "DNA_screen_types.h"
 #  include "DNA_space_types.h"
 
-#  include "SEQ_relations.h"
+#  include "SEQ_relations.hh"
 
 static void rna_MovieClip_reload_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
@@ -110,20 +112,19 @@ static PointerRNA rna_MovieClip_metadata_get(MovieClip *clip)
     return PointerRNA_NULL;
   }
 
-  IDProperty *metadata = IMB_anim_load_metadata(clip->anim);
+  IDProperty *metadata = MOV_load_metadata(clip->anim);
   if (metadata == nullptr) {
     return PointerRNA_NULL;
   }
 
-  PointerRNA ptr;
-  RNA_pointer_create(nullptr, &RNA_IDPropertyWrapPtr, metadata, &ptr);
+  PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_IDPropertyWrapPtr, metadata);
   return ptr;
 }
 
-static char *rna_MovieClipUser_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_MovieClipUser_path(const PointerRNA *ptr)
 {
   if (ptr->owner_id) {
-    /* MovieClipUser *mc_user = ptr->data; */
+    // MovieClipUser *mc_user = ptr->data;
 
     switch (GS(ptr->owner_id->name)) {
       case ID_CA:
@@ -133,7 +134,7 @@ static char *rna_MovieClipUser_path(const PointerRNA *ptr)
     }
   }
 
-  return BLI_strdup("");
+  return "";
 }
 
 #else
@@ -144,28 +145,23 @@ static void rna_def_movieclip_proxy(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem clip_tc_items[] = {
-      {IMB_TC_NONE, "NONE", 0, "None", ""},
+      {IMB_TC_NONE,
+       "NONE",
+       0,
+       "None",
+       "Ignore generated timecodes, seek in movie stream based on calculated timestamp"},
       {IMB_TC_RECORD_RUN,
        "RECORD_RUN",
        0,
        "Record Run",
-       "Use images in the order they are recorded"},
-      {IMB_TC_FREE_RUN,
-       "FREE_RUN",
-       0,
-       "Free Run",
-       "Use global timestamp written by recording device"},
-      {IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN,
-       "FREE_RUN_REC_DATE",
-       0,
-       "Free Run (rec date)",
-       "Interpolate a global timestamp using the record date and time "
-       "written by recording device"},
+       "Seek based on timestamps read from movie stream, giving the best match between scene and "
+       "movie times"},
       {IMB_TC_RECORD_RUN_NO_GAPS,
        "FREE_RUN_NO_GAPS",
        0,
-       "Free Run No Gaps",
-       "Record run, but ignore timecode, changes in framerate or dropouts"},
+       "Record Run No Gaps",
+       "Effectively convert movie to an image sequence, ignoring incomplete or dropped frames, "
+       "and changes in frame rate"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -228,18 +224,6 @@ static void rna_def_movieclip_proxy(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "build_tc_flag", IMB_TC_RECORD_RUN);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Rec Run", "Build record run time code index");
-
-  prop = RNA_def_property(srna, "build_free_run", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "build_tc_flag", IMB_TC_FREE_RUN);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "Free Run", "Build free run time code index");
-
-  prop = RNA_def_property(srna, "build_free_run_rec_date", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "build_tc_flag", IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(
-      prop, "Free Run (Rec Date)", "Build free run time code index using Record Date/Time");
 
   /* quality of proxied image */
   prop = RNA_def_property(srna, "quality", PROP_INT, PROP_UNSIGNED);
@@ -402,7 +386,7 @@ static void rna_def_movieclip(BlenderRNA *brna)
   RNA_def_property_pointer_funcs(
       prop, nullptr, nullptr, nullptr, "rna_GPencil_datablocks_annotations_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
-  RNA_def_property_ui_text(prop, "Grease Pencil", "Grease pencil data for this movie clip");
+  RNA_def_property_ui_text(prop, "Grease Pencil", "Grease Pencil data for this movie clip");
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, nullptr);
 
   /* start_frame */

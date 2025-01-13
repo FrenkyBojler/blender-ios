@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,20 +10,17 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "RNA_access.h"
-#include "RNA_types.h"
+#include "WM_message.hh"
 
-#include "WM_message.h"
+#include "ED_screen.hh"
 
-#include "ED_screen.h"
-
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
+#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Generic Tool System Region Callbacks

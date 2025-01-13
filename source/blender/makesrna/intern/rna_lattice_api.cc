@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,18 +9,18 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "RNA_define.h"
+#include "RNA_define.hh"
 
 #include "BLI_sys_types.h"
 
 #include "BLI_utildefines.h"
 
-#include "rna_internal.h" /* own include */
+#include "rna_internal.hh" /* own include */
 
 #ifdef RNA_RUNTIME
-static void rna_Lattice_transform(Lattice *lt, float mat[16], bool shape_keys)
+static void rna_Lattice_transform(Lattice *lt, const float mat[16], bool shape_keys)
 {
-  BKE_lattice_transform(lt, (float(*)[4])mat, shape_keys);
+  BKE_lattice_transform(lt, (const float(*)[4])mat, shape_keys);
 
   DEG_id_tag_update(&lt->id, 0);
 }

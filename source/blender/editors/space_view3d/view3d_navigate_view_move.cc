@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,18 +6,13 @@
  * \ingroup spview3d
  */
 
-#include "BLI_math_vector.h"
+#include "BKE_context.hh"
 
-#include "BKE_context.h"
+#include "WM_api.hh"
 
-#include "WM_api.h"
+#include "ED_screen.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-
-#include "ED_screen.h"
-
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
@@ -134,7 +129,7 @@ void VIEW3D_OT_move(wmOperatorType *ot)
 /** \} */
 
 const ViewOpsType ViewOpsType_move = {
-    /*flag*/ (VIEWOPS_FLAG_DEPTH_NAVIGATE | VIEWOPS_FLAG_USE_MOUSE_INIT | VIEWOPS_FLAG_INIT_ZFAC),
+    /*flag*/ (VIEWOPS_FLAG_DEPTH_NAVIGATE | VIEWOPS_FLAG_INIT_ZFAC),
     /*idname*/ "VIEW3D_OT_move",
     /*poll_fn*/ view3d_location_poll,
     /*init_fn*/ viewmove_invoke_impl,

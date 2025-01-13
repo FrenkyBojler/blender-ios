@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,37 +8,30 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_utildefines_stack.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.h"
-#include "BKE_mesh_runtime.h"
-#include "BKE_mesh_wrapper.h"
-#include "BKE_particle.h"
-#include "BKE_screen.h"
+#include "BKE_deform.hh"
+#include "BKE_mesh_mapping.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
@@ -64,18 +57,34 @@ struct LaplacianSystem {
   int tris_num;
   int anchors_num;
   int repeat;
-  char anchor_grp_name[64]; /* Vertex Group name */
-  float (*co)[3];           /* Original vertex coordinates */
-  float (*no)[3];           /* Original vertex normal */
-  float (*delta)[3];        /* Differential Coordinates */
-  uint (*tris)[3];          /* Copy of MLoopTri (tessellation triangle) v1-v3 */
-  int *index_anchors;       /* Static vertex index list */
-  int *unit_verts;          /* Unit vectors of projected edges onto the plane orthogonal to n */
-  int *ringf_indices;       /* Indices of faces per vertex */
-  int *ringv_indices;       /* Indices of neighbors(vertex) per vertex */
-  LinearSolver *context;    /* System for solve general implicit rotations */
-  MeshElemMap *ringf_map;   /* Map of faces per vertex */
-  MeshElemMap *ringv_map;   /* Map of vertex per vertex */
+  /** Vertex Group name */
+  char anchor_grp_name[64];
+  /** Original vertex coordinates. */
+  float (*co)[3];
+  /** Original vertex normal. */
+  float (*no)[3];
+  /** Differential Coordinates. */
+  float (*delta)[3];
+  /**
+   * An array of triangles, each triangle represents 3 vertex indices.
+   *
+   * \note This is derived from the Mesh::corner_tris() array.
+   */
+  uint (*tris)[3];
+  /** Static vertex index list. */
+  int *index_anchors;
+  /** Unit vectors of projected edges onto the plane orthogonal to n. */
+  int *unit_verts;
+  /** Indices of faces per vertex. */
+  int *ringf_indices;
+  /** Indices of neighbors(vertex) per vertex. */
+  int *ringv_indices;
+  /** System for solve general implicit rotations. */
+  LinearSolver *context;
+  /** Map of faces per vertex. */
+  MeshElemMap *ringf_map;
+  /** Map of vertex per vertex. */
+  MeshElemMap *ringv_map;
 };
 
 static LaplacianSystem *newLaplacianSystem()
@@ -140,7 +149,7 @@ static void deleteLaplacianSystem(LaplacianSystem *sys)
 }
 
 static void createFaceRingMap(const int mvert_tot,
-                              blender::Span<MLoopTri> looptris,
+                              blender::Span<blender::int3> corner_tris,
                               blender::Span<int> corner_verts,
                               MeshElemMap **r_map,
                               int **r_indices)
@@ -149,10 +158,10 @@ static void createFaceRingMap(const int mvert_tot,
   int *indices, *index_iter;
   MeshElemMap *map = MEM_cnew_array<MeshElemMap>(mvert_tot, __func__);
 
-  for (const int i : looptris.index_range()) {
-    const MLoopTri &mlt = looptris[i];
+  for (const int i : corner_tris.index_range()) {
+    const blender::int3 &tri = corner_tris[i];
     for (int j = 0; j < 3; j++) {
-      const int v_index = corner_verts[mlt.tri[j]];
+      const int v_index = corner_verts[tri[j]];
       map[v_index].count++;
       indices_num++;
     }
@@ -164,10 +173,10 @@ static void createFaceRingMap(const int mvert_tot,
     index_iter += map[i].count;
     map[i].count = 0;
   }
-  for (const int i : looptris.index_range()) {
-    const MLoopTri &mlt = looptris[i];
+  for (const int i : corner_tris.index_range()) {
+    const blender::int3 &tri = corner_tris[i];
     for (int j = 0; j < 3; j++) {
-      const int v_index = corner_verts[mlt.tri[j]];
+      const int v_index = corner_verts[tri[j]];
       map[v_index].indices[map[v_index].count] = i;
       map[v_index].count++;
     }
@@ -530,7 +539,7 @@ static void initSystem(
 
   if (isValidVertexGroup(lmd, ob, mesh)) {
     int *index_anchors = static_cast<int *>(
-        MEM_malloc_arrayN(verts_num, sizeof(int), __func__)); /* over-alloc */
+        MEM_malloc_arrayN(verts_num, sizeof(int), __func__)); /* Over-allocate. */
 
     STACK_DECLARE(index_anchors);
 
@@ -550,11 +559,15 @@ static void initSystem(
 
     const blender::Span<blender::int2> edges = mesh->edges();
     const blender::Span<int> corner_verts = mesh->corner_verts();
-    const blender::Span<MLoopTri> looptris = mesh->looptris();
+    const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
 
     anchors_num = STACK_SIZE(index_anchors);
-    lmd->cache_system = initLaplacianSystem(
-        verts_num, edges.size(), looptris.size(), anchors_num, lmd->anchor_grp_name, lmd->repeat);
+    lmd->cache_system = initLaplacianSystem(verts_num,
+                                            edges.size(),
+                                            corner_tris.size(),
+                                            anchors_num,
+                                            lmd->anchor_grp_name,
+                                            lmd->repeat);
     sys = (LaplacianSystem *)lmd->cache_system;
     memcpy(sys->index_anchors, index_anchors, sizeof(int) * anchors_num);
     memcpy(sys->co, vertexCos, sizeof(float[3]) * verts_num);
@@ -563,13 +576,14 @@ static void initSystem(
     memcpy(lmd->vertexco, vertexCos, sizeof(float[3]) * verts_num);
     lmd->verts_num = verts_num;
 
-    createFaceRingMap(mesh->totvert, looptris, corner_verts, &sys->ringf_map, &sys->ringf_indices);
-    createVertRingMap(mesh->totvert, edges, &sys->ringv_map, &sys->ringv_indices);
+    createFaceRingMap(
+        mesh->verts_num, corner_tris, corner_verts, &sys->ringf_map, &sys->ringf_indices);
+    createVertRingMap(mesh->verts_num, edges, &sys->ringv_map, &sys->ringv_indices);
 
     for (i = 0; i < sys->tris_num; i++) {
-      sys->tris[i][0] = corner_verts[looptris[i].tri[0]];
-      sys->tris[i][1] = corner_verts[looptris[i].tri[1]];
-      sys->tris[i][2] = corner_verts[looptris[i].tri[2]];
+      sys->tris[i][0] = corner_verts[corner_tris[i][0]];
+      sys->tris[i][1] = corner_verts[corner_tris[i][1]];
+      sys->tris[i][2] = corner_verts[corner_tris[i][2]];
     }
   }
 }
@@ -591,7 +605,7 @@ static int isSystemDifferent(LaplacianDeformModifierData *lmd,
   if (sys->verts_num != verts_num) {
     return LAPDEFORM_SYSTEM_CHANGE_VERTEXES;
   }
-  if (sys->edges_num != mesh->totedge) {
+  if (sys->edges_num != mesh->edges_num) {
     return LAPDEFORM_SYSTEM_CHANGE_EDGES;
   }
   if (!STREQ(lmd->anchor_grp_name, sys->anchor_grp_name)) {
@@ -660,7 +674,7 @@ static void LaplacianDeformModifier_do(
         }
         else if (sysdif == LAPDEFORM_SYSTEM_CHANGE_EDGES) {
           BKE_modifier_set_error(
-              ob, &lmd->modifier, "Edges changed from %d to %d", sys->edges_num, mesh->totedge);
+              ob, &lmd->modifier, "Edges changed from %d to %d", sys->edges_num, mesh->edges_num);
         }
         else if (sysdif == LAPDEFORM_SYSTEM_CHANGE_NOT_VALID_GROUP) {
           BKE_modifier_set_error(ob,
@@ -705,7 +719,7 @@ static void LaplacianDeformModifier_do(
   }
 }
 
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 
@@ -714,7 +728,7 @@ static void initData(ModifierData *md)
   MEMCPY_STRUCT_AFTER(lmd, DNA_struct_default_get(LaplacianDeformModifierData), modifier);
 }
 
-static void copyData(const ModifierData *md, ModifierData *target, const int flag)
+static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
   const LaplacianDeformModifierData *lmd = (const LaplacianDeformModifierData *)md;
   LaplacianDeformModifierData *tlmd = (LaplacianDeformModifierData *)target;
@@ -725,7 +739,7 @@ static void copyData(const ModifierData *md, ModifierData *target, const int fla
   tlmd->cache_system = nullptr;
 }
 
-static bool isDisabled(const Scene * /*scene*/, ModifierData *md, bool /*useRenderParams*/)
+static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
   if (lmd->anchor_grp_name[0]) {
@@ -734,7 +748,7 @@ static bool isDisabled(const Scene * /*scene*/, ModifierData *md, bool /*useRend
   return true;
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 
@@ -743,17 +757,19 @@ static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_ma
   }
 }
 
-static void deformVerts(ModifierData *md,
-                        const ModifierEvalContext *ctx,
-                        Mesh *mesh,
-                        float (*vertexCos)[3],
-                        int verts_num)
+static void deform_verts(ModifierData *md,
+                         const ModifierEvalContext *ctx,
+                         Mesh *mesh,
+                         blender::MutableSpan<blender::float3> positions)
 {
-  LaplacianDeformModifier_do(
-      (LaplacianDeformModifierData *)md, ctx->object, mesh, vertexCos, verts_num);
+  LaplacianDeformModifier_do((LaplacianDeformModifierData *)md,
+                             ctx->object,
+                             mesh,
+                             reinterpret_cast<float(*)[3]>(positions.data()),
+                             positions.size());
 }
 
-static void freeData(ModifierData *md)
+static void free_data(ModifierData *md)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
   LaplacianSystem *sys = (LaplacianSystem *)lmd->cache_system;
@@ -777,9 +793,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "iterations", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   uiItemS(layout);
 
@@ -793,12 +809,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   modifier_panel_end(layout, ptr);
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_LaplacianDeform, panel_draw);
 }
 
-static void blendWrite(BlendWriter *writer, const ID *id_owner, const ModifierData *md)
+static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierData *md)
 {
   LaplacianDeformModifierData lmd = *(const LaplacianDeformModifierData *)md;
   const bool is_undo = BLO_write_is_undo(writer);
@@ -821,7 +837,7 @@ static void blendWrite(BlendWriter *writer, const ID *id_owner, const ModifierDa
   }
 }
 
-static void blendRead(BlendDataReader *reader, ModifierData *md)
+static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 
@@ -830,33 +846,35 @@ static void blendRead(BlendDataReader *reader, ModifierData *md)
 }
 
 ModifierTypeInfo modifierType_LaplacianDeform = {
+    /*idname*/ "LaplacianDeform",
     /*name*/ N_("LaplacianDeform"),
-    /*structName*/ "LaplacianDeformModifierData",
-    /*structSize*/ sizeof(LaplacianDeformModifierData),
+    /*struct_name*/ "LaplacianDeformModifierData",
+    /*struct_size*/ sizeof(LaplacianDeformModifierData),
     /*srna*/ &RNA_LaplacianDeformModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_MESHDEFORM,
-    /*copyData*/ copyData,
+    /*copy_data*/ copy_data,
 
-    /*deformVerts*/ deformVerts,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ nullptr,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ nullptr,
-    /*modifyGeometrySet*/ nullptr,
+    /*deform_verts*/ deform_verts,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ nullptr,
+    /*modify_geometry_set*/ nullptr,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ requiredDataMask,
-    /*freeData*/ freeData,
-    /*isDisabled*/ isDisabled,
-    /*updateDepsgraph*/ nullptr,
-    /*dependsOnTime*/ nullptr,
-    /*dependsOnNormals*/ nullptr,
-    /*foreachIDLink*/ nullptr,
-    /*foreachTexLink*/ nullptr,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ blendWrite,
-    /*blendRead*/ blendRead,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ required_data_mask,
+    /*free_data*/ free_data,
+    /*is_disabled*/ is_disabled,
+    /*update_depsgraph*/ nullptr,
+    /*depends_on_time*/ nullptr,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ nullptr,
+    /*foreach_tex_link*/ nullptr,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ blend_write,
+    /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
 };

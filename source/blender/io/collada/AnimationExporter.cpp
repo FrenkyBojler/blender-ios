@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2009-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -144,7 +144,7 @@ void AnimationExporter::exportAnimation(Object *ob, BCAnimationSampler &sampler)
 
     /* Export skeletal animation (if any) */
     bArmature *arm = (bArmature *)ob->data;
-    for (Bone *root_bone = (Bone *)arm->bonebase.first; root_bone; root_bone = root_bone->next) {
+    LISTBASE_FOREACH (Bone *, root_bone, &arm->bonebase) {
       export_bone_animations_recursive(ob, root_bone, sampler);
     }
   }
@@ -248,7 +248,7 @@ void AnimationExporter::export_bone_animations_recursive(Object *ob,
     }
   }
 
-  for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
+  LISTBASE_FOREACH (Bone *, child, &bone->childbase) {
     export_bone_animations_recursive(ob, child, sampler);
   }
 }
@@ -305,7 +305,7 @@ void AnimationExporter::export_curve_animation(Object *ob, BCAnimationCurve &cur
   /*
    * Some curves can not be exported as is and need some conversion
    * For more information see implementation of get_modified_export_curve()
-   * NOTE: if mcurve is not NULL then it must be deleted at end of this method;
+   * NOTE: if mcurve is not null then it must be deleted at end of this method;
    */
 
   int channel_index = curve.get_channel_index();
@@ -364,7 +364,7 @@ bool AnimationExporter::is_bone_deform_group(Bone *bone)
   }
   /* Check child bones */
 
-  for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
+  LISTBASE_FOREACH (Bone *, child, &bone->childbase) {
     /* loop through all the children until deform bone is found, and then return */
     is_def = is_bone_deform_group(child);
     if (is_def) {
@@ -816,22 +816,15 @@ std::string AnimationExporter::get_collada_sid(const BCAnimationCurve &curve,
  * So we have to update BCSample for this to work. */
 void AnimationExporter::export_morph_animation(Object *ob, BCAnimationSampler &sampler)
 {
-  FCurve *fcu;
   Key *key = BKE_key_from_object(ob);
   if (!key) {
     return;
   }
 
-  if (key->adt && key->adt->action) {
-    fcu = (FCurve *)key->adt->action->curves.first;
+  for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(key->adt)) {
+    BC_animation_transform_type tm_type = get_transform_type(fcu->rna_path);
 
-    while (fcu) {
-      BC_animation_transform_type tm_type = get_transform_type(fcu->rna_path);
-
-      create_keyframed_animation(ob, fcu, tm_type, true, sampler);
-
-      fcu = fcu->next;
-    }
+    create_keyframed_animation(ob, fcu, tm_type, true, sampler);
   }
 }
 #endif

@@ -1,9 +1,9 @@
-# SPDX-FileCopyrightText: 2012-2022 Blender Foundation
+# SPDX-FileCopyrightText: 2012-2022 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # This is a quite stupid script which extracts bmesh api docs from
-# 'bmesh_opdefines.c' in order to avoid having to add a lot of introspection
+# 'bmesh_opdefines.cc' in order to avoid having to add a lot of introspection
 # data access into the api.
 #
 # The script is stupid because it makes assumptions about formatting...
@@ -19,7 +19,7 @@ import re
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 SOURCE_DIR = os.path.normpath(os.path.abspath(os.path.normpath(os.path.join(CURRENT_DIR, "..", ".."))))
-FILE_OP_DEFINES_C = os.path.join(SOURCE_DIR, "source", "blender", "bmesh", "intern", "bmesh_opdefines.c")
+FILE_OP_DEFINES_CC = os.path.join(SOURCE_DIR, "source", "blender", "bmesh", "intern", "bmesh_opdefines.cc")
 OUT_RST = os.path.join(CURRENT_DIR, "rst", "bmesh.ops.rst")
 
 HEADER = r"""
@@ -43,7 +43,7 @@ This script shows how operators can be used to model a link of a chain.
 
 
 def main():
-    fsrc = open(FILE_OP_DEFINES_C, 'r', encoding="utf-8")
+    fsrc = open(FILE_OP_DEFINES_CC, 'r', encoding="utf-8")
 
     blocks = []
 
@@ -157,6 +157,8 @@ def main():
             l = l.strip()
             # casts
             l = l.replace("(int)", "")
+            l = re.sub(r'to_subtype_union\((.*?)\)', '{\\1}', l)
+            l = re.sub(r'eBMOpSlotSubType_Elem\((.*?)\)', '\\1', l)
 
             l = l.replace("{", "(")
             l = l.replace("}", ")")
@@ -250,8 +252,7 @@ def main():
                     name, tp = arg
                     tp_sub = None
                 else:
-                    print(arg)
-                    assert 0
+                    assert False, "unreachable, unsupported 'arg' length found {:d}".format(len(arg))
 
                 tp_str = ""
 
@@ -320,8 +321,7 @@ def main():
                         #     but think the idea is that that pointer is for any type?
                         tp_str = ":class:`bpy.types.bpy_struct`"
                     else:
-                        print("Can't find", vars_dict_reverse[tp_sub])
-                        assert 0
+                        assert False, "unreachable, unknown type {!r}".format(vars_dict_reverse[tp_sub])
 
                 elif tp == BMO_OP_SLOT_ELEMENT_BUF:
                     assert tp_sub is not None
@@ -338,7 +338,7 @@ def main():
                     if tp_sub & BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE:
                         tp_str = "/".join(ls)
                     else:
-                        tp_str = ("list of (%s)" % ", ".join(ls))
+                        tp_str = "list of ({:s})".format(", ".join(ls))
                         default_value = '[]'
 
                     del ls
@@ -360,11 +360,9 @@ def main():
                         elif tp_sub == BMO_OP_SLOT_SUBTYPE_MAP_INTERNAL:
                             tp_str += "unknown internal data, not compatible with python"
                         else:
-                            print("Can't find", vars_dict_reverse[tp_sub])
-                            assert 0
+                            assert False, "unreachable, unknown type {!r}".format(vars_dict_reverse[tp_sub])
                 else:
-                    print("Can't find", vars_dict_reverse[tp])
-                    assert 0
+                    assert False, "unreachable, unknown type {!r}".format(vars_dict_reverse[tp])
 
                 args_wash.append((name, default_value, tp_str, comment))
             return args_wash
@@ -372,7 +370,9 @@ def main():
 
         args_in_wash = get_args_wash(args_in, args_in_index, False)
 
-        fw(".. function:: %s(bm, %s)\n\n" % (b[0], ", ".join([arg_name_with_default(arg) for arg in args_in_wash])))
+        fw(".. function:: {:s}(bm, {:s})\n\n".format(
+            b[0], ", ".join([arg_name_with_default(arg) for arg in args_in_wash]),
+        ))
 
         # -- wash the comment
         comment_washed = []
@@ -403,8 +403,8 @@ def main():
             if comment == "":
                 comment = "Undocumented."
 
-            fw("   :arg %s: %s\n" % (name, comment))
-            fw("   :type %s: %s\n" % (name, tp))
+            fw("   :arg {:s}: {:s}\n".format(name, comment))
+            fw("   :type {:s}: {:s}\n".format(name, tp))
 
         if args_out_wash:
             fw("   :return:\n\n")
@@ -412,11 +412,14 @@ def main():
             for (name, _, tp, comment) in args_out_wash:
                 assert name.endswith(".out")
                 name = name[:-4]
-                fw("      - ``%s``: %s\n\n" % (name, comment))
-                fw("        **type** %s\n" % tp)
+                fw("      - ``{:s}``: {:s}\n\n".format(name, comment))
+                fw("        **type** {:s}\n".format(tp))
 
             fw("\n")
-            fw("   :rtype: dict with string keys\n")
+            # TODO: Any is not quite correct here,
+            # the exact type depends on output args used by BMesh.
+            # This should really be a type alias.
+            fw("   :rtype: dict[str, Any]\n")
 
         fw("\n\n")
 

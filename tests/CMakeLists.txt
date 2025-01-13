@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2014-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2014-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -27,7 +27,9 @@ endif()
 # To suit different needs, the user can pass `-DTEST_PYTHON_EXE=/path/to/python` to CMake.
 if(NOT TEST_PYTHON_EXE)
   set(TEST_PYTHON_EXE ${PYTHON_EXECUTABLE})
-  message(STATUS "Tests: Using Python executable: ${TEST_PYTHON_EXE}")
+  if(FIRST_RUN)
+    message(STATUS "Tests: Using Python executable: ${TEST_PYTHON_EXE}")
+  endif()
 elseif(NOT EXISTS ${TEST_PYTHON_EXE})
   message(FATAL_ERROR "Tests: TEST_PYTHON_EXE ${TEST_PYTHON_EXE} does not exist")
 endif()
@@ -51,7 +53,9 @@ endif()
 
 # Standard Blender arguments for running tests.
 # Specify exit code so that if a Python script error happens, the test fails.
-set(TEST_BLENDER_EXE_PARAMS --background -noaudio --factory-startup --debug-memory --debug-exit-on-error --python-exit-code 1)
+set(TEST_BLENDER_EXE_PARAMS
+  --background --factory-startup --debug-memory --debug-exit-on-error --python-exit-code 1
+)
 
 # Python CTests
 if(WITH_BLENDER AND WITH_PYTHON AND NOT WITH_PYTHON_MODULE)
@@ -65,3 +69,17 @@ endif()
 
 # GTest
 add_subdirectory(gtests)
+
+if(WITH_COMPILER_CODE_COVERAGE)
+  set(COVERAGE_SCRIPT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/coverage/coverage.py)
+
+  add_custom_target(coverage-report
+    ${PYTHON_EXECUTABLE} ${COVERAGE_SCRIPT_PATH} report --build-directory ${CMAKE_BINARY_DIR}
+    USES_TERMINAL
+  )
+
+  add_custom_target(coverage-reset
+    ${PYTHON_EXECUTABLE} ${COVERAGE_SCRIPT_PATH} reset --build-directory ${CMAKE_BINARY_DIR}
+    USES_TERMINAL
+  )
+endif()

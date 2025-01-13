@@ -2,8 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __INTEGRATOR_H__
-#define __INTEGRATOR_H__
+#pragma once
 
 #include "kernel/types.h"
 
@@ -98,6 +97,8 @@ class Integrator : public Node {
   NODE_SOCKET_API(bool, use_denoise_pass_albedo);
   NODE_SOCKET_API(bool, use_denoise_pass_normal);
   NODE_SOCKET_API(DenoiserPrefilter, denoiser_prefilter);
+  NODE_SOCKET_API(bool, denoise_use_gpu);
+  NODE_SOCKET_API(DenoiserQuality, denoiser_quality);
 
   enum : uint32_t {
     AO_PASS_MODIFIED = (1 << 0),
@@ -110,12 +111,12 @@ class Integrator : public Node {
   };
 
   Integrator();
-  ~Integrator();
+  ~Integrator() override;
 
   void device_update(Device *device, DeviceScene *dscene, Scene *scene);
   void device_free(Device *device, DeviceScene *dscene, bool force_free = false);
 
-  void tag_update(Scene *scene, uint32_t flag);
+  void tag_update(Scene *scene, const uint32_t flag);
 
   uint get_kernel_features() const;
 
@@ -125,5 +126,3 @@ class Integrator : public Node {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __INTEGRATOR_H__ */

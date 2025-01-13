@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,7 @@
 
 #include <cstdlib>
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_cloth_types.h"
 #include "DNA_dynamicpaint_types.h"
@@ -20,13 +20,13 @@
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 static const EnumPropertyItem effector_shape_items[] = {
     {PFIELD_SHAPE_POINT, "POINT", 0, "Point", "Field originates from the object center"},
@@ -51,9 +51,11 @@ static const EnumPropertyItem effector_shape_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include <fmt/format.h>
+
 #  include "BLI_math_base.h"
 
-#  include "RNA_access.h"
+#  include "RNA_access.hh"
 
 /* type specific return values only used from functions */
 static const EnumPropertyItem curve_shape_items[] = {
@@ -100,20 +102,22 @@ static const EnumPropertyItem empty_vortex_shape_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+#  include <fmt/format.h>
+
 #  include "MEM_guardedalloc.h"
 
 #  include "DNA_modifier_types.h"
 #  include "DNA_texture_types.h"
 
-#  include "BKE_collection.h"
-#  include "BKE_context.h"
-#  include "BKE_modifier.h"
+#  include "BKE_collection.hh"
+#  include "BKE_context.hh"
+#  include "BKE_modifier.hh"
 #  include "BKE_pointcache.h"
 
-#  include "DEG_depsgraph.h"
-#  include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph.hh"
+#  include "DEG_depsgraph_build.hh"
 
-#  include "ED_object.h"
+#  include "ED_object.hh"
 
 static bool rna_Cache_get_valid_owner_ID(PointerRNA *ptr, Object **ob, Scene **scene)
 {
@@ -134,7 +138,7 @@ static bool rna_Cache_get_valid_owner_ID(PointerRNA *ptr, Object **ob, Scene **s
   return (*ob != nullptr || *scene != nullptr);
 }
 
-static char *rna_PointCache_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_PointCache_path(const PointerRNA *ptr)
 {
   ModifierData *md;
   Object *ob = (Object *)ptr->owner_id;
@@ -154,7 +158,7 @@ static char *rna_PointCache_path(const PointerRNA *ptr)
       case eModifierType_ParticleSystem: {
         ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
         if (psmd->psys->pointcache == cache) {
-          return BLI_sprintfN("modifiers[\"%s\"].particle_system.point_cache", name_esc);
+          return fmt::format("modifiers[\"{}\"].particle_system.point_cache", name_esc);
         }
         break;
       }
@@ -167,8 +171,8 @@ static char *rna_PointCache_path(const PointerRNA *ptr)
             if (surface->pointcache == cache) {
               char name_surface_esc[sizeof(surface->name) * 2];
               BLI_str_escape(name_surface_esc, surface->name, sizeof(name_surface_esc));
-              return BLI_sprintfN(
-                  "modifiers[\"%s\"].canvas_settings.canvas_surfaces[\"%s\"].point_cache",
+              return fmt::format(
+                  "modifiers[\"{}\"].canvas_settings.canvas_surfaces[\"{}\"].point_cache",
                   name_esc,
                   name_surface_esc);
             }
@@ -179,23 +183,23 @@ static char *rna_PointCache_path(const PointerRNA *ptr)
       case eModifierType_Cloth: {
         ClothModifierData *clmd = (ClothModifierData *)md;
         if (clmd->point_cache == cache) {
-          return BLI_sprintfN("modifiers[\"%s\"].point_cache", name_esc);
+          return fmt::format("modifiers[\"{}\"].point_cache", name_esc);
         }
         break;
       }
       case eModifierType_Softbody: {
         SoftBody *sb = ob->soft;
         if (sb && sb->shared->pointcache == cache) {
-          return BLI_sprintfN("modifiers[\"%s\"].point_cache", name_esc);
+          return fmt::format("modifiers[\"{}\"].point_cache", name_esc);
         }
         break;
       }
       default: {
-        return BLI_sprintfN("modifiers[\"%s\"].point_cache", name_esc);
+        return fmt::format("modifiers[\"{}\"].point_cache", name_esc);
       }
     }
   }
-  return nullptr;
+  return std::nullopt;
 }
 
 static void rna_Cache_change(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -247,20 +251,14 @@ static void rna_Cache_toggle_disk_cache(Main * /*bmain*/, Scene * /*scene*/, Poi
 }
 
 bool rna_Cache_use_disk_cache_override_apply(Main * /*bmain*/,
-                                             PointerRNA *ptr_dst,
-                                             PointerRNA *ptr_src,
-                                             PointerRNA * /*ptr_storage*/,
-                                             PropertyRNA *prop_dst,
-                                             PropertyRNA *prop_src,
-                                             PropertyRNA * /*prop_storage*/,
-                                             const int /*len_dst*/,
-                                             const int /*len_src*/,
-                                             const int /*len_storage*/,
-                                             PointerRNA * /*ptr_item_dst*/,
-                                             PointerRNA * /*ptr_item_src*/,
-                                             PointerRNA * /*ptr_item_storage*/,
-                                             IDOverrideLibraryPropertyOperation *opop)
+                                             RNAPropertyOverrideApplyContext &rnaapply_ctx)
 {
+  PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
+  PointerRNA *ptr_src = &rnaapply_ctx.ptr_src;
+  PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
+  PropertyRNA *prop_src = rnaapply_ctx.prop_src;
+  IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
+
   BLI_assert(RNA_property_type(prop_dst) == PROP_BOOLEAN);
   BLI_assert(opop->operation == LIBOVERRIDE_OP_REPLACE);
   UNUSED_VARS_NDEBUG(opop);
@@ -448,7 +446,7 @@ int rna_Cache_info_length(PointerRNA *ptr)
   return int(strlen(cache->info));
 }
 
-static char *rna_CollisionSettings_path(const PointerRNA * /*ptr*/)
+static std::optional<std::string> rna_CollisionSettings_path(const PointerRNA * /*ptr*/)
 {
   /* both methods work ok, but return the shorter path */
 #  if 0
@@ -459,14 +457,14 @@ static char *rna_CollisionSettings_path(const PointerRNA * /*ptr*/)
     char name_esc[sizeof(md->name) * 2];
 
     BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-    return BLI_sprintfN("modifiers[\"%s\"].settings", name_esc);
+    return fmt::format("modifiers[\"{}\"].settings", name_esc);
   }
   else {
-    return BLI_strdup("");
+    return "";
   }
 #  else
   /* more reliable */
-  return BLI_strdup("collision");
+  return "collision";
 #  endif
 }
 
@@ -624,14 +622,14 @@ static void rna_SoftBodySettings_spring_vgroup_set(PointerRNA *ptr, const char *
   rna_object_vgroup_name_set(ptr, value, sb->namedVG_Spring_K, sizeof(sb->namedVG_Spring_K));
 }
 
-static char *rna_SoftBodySettings_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_SoftBodySettings_path(const PointerRNA *ptr)
 {
   const Object *ob = (Object *)ptr->owner_id;
   const ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Softbody);
   char name_esc[sizeof(md->name) * 2];
 
   BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-  return BLI_sprintfN("modifiers[\"%s\"].settings", name_esc);
+  return fmt::format("modifiers[\"{}\"].settings", name_esc);
 }
 
 static int particle_id_check(const PointerRNA *ptr)
@@ -686,7 +684,7 @@ static void rna_FieldSettings_shape_update(Main *bmain, Scene *scene, PointerRNA
 {
   if (!particle_id_check(ptr)) {
     Object *ob = (Object *)ptr->owner_id;
-    ED_object_check_force_modifiers(bmain, scene, ob);
+    blender::ed::object::check_force_modifiers(bmain, scene, ob);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
@@ -737,7 +735,7 @@ static void rna_FieldSettings_dependency_update(Main *bmain, Scene *scene, Point
   }
 }
 
-static char *rna_FieldSettings_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_FieldSettings_path(const PointerRNA *ptr)
 {
   PartDeflect *pd = (PartDeflect *)ptr->data;
 
@@ -748,10 +746,10 @@ static char *rna_FieldSettings_path(const PointerRNA *ptr)
     ParticleSettings *part = (ParticleSettings *)ptr->owner_id;
 
     if (part->pd == pd) {
-      return BLI_strdup("force_field_1");
+      return "force_field_1";
     }
     else if (part->pd2 == pd) {
-      return BLI_strdup("force_field_2");
+      return "force_field_2";
     }
   }
   else {
@@ -759,10 +757,10 @@ static char *rna_FieldSettings_path(const PointerRNA *ptr)
     Object *ob = (Object *)ptr->owner_id;
 
     if (ob->pd == pd) {
-      return BLI_strdup("field");
+      return "field";
     }
   }
-  return nullptr;
+  return std::nullopt;
 }
 
 static void rna_EffectorWeight_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -791,7 +789,7 @@ static void rna_EffectorWeight_dependency_update(Main *bmain, Scene * /*scene*/,
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }
 
-static char *rna_EffectorWeight_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_EffectorWeight_path(const PointerRNA *ptr)
 {
   EffectorWeights *ew = (EffectorWeights *)ptr->data;
   /* Check through all possible places the settings can be to find the right one */
@@ -801,7 +799,7 @@ static char *rna_EffectorWeight_path(const PointerRNA *ptr)
     ParticleSettings *part = (ParticleSettings *)ptr->owner_id;
 
     if (part->effector_weights == ew) {
-      return BLI_strdup("effector_weights");
+      return "effector_weights";
     }
   }
   else {
@@ -812,7 +810,7 @@ static char *rna_EffectorWeight_path(const PointerRNA *ptr)
       const RigidBodyWorld *rbw = scene->rigidbody_world;
 
       if (rbw->effector_weights == ew) {
-        return BLI_strdup("rigidbody_world.effector_weights");
+        return "rigidbody_world.effector_weights";
       }
     }
 
@@ -826,7 +824,7 @@ static char *rna_EffectorWeight_path(const PointerRNA *ptr)
       if (ob->soft->effector_weights == ew) {
         char name_esc[sizeof(md->name) * 2];
         BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-        return BLI_sprintfN("modifiers[\"%s\"].settings.effector_weights", name_esc);
+        return fmt::format("modifiers[\"{}\"].settings.effector_weights", name_esc);
       }
     }
 
@@ -837,7 +835,7 @@ static char *rna_EffectorWeight_path(const PointerRNA *ptr)
       if (cmd->sim_parms->effector_weights == ew) {
         char name_esc[sizeof(md->name) * 2];
         BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-        return BLI_sprintfN("modifiers[\"%s\"].settings.effector_weights", name_esc);
+        return fmt::format("modifiers[\"{}\"].settings.effector_weights", name_esc);
       }
     }
 
@@ -849,7 +847,7 @@ static char *rna_EffectorWeight_path(const PointerRNA *ptr)
       {
         char name_esc[sizeof(md->name) * 2];
         BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-        return BLI_sprintfN("modifiers[\"%s\"].domain_settings.effector_weights", name_esc);
+        return fmt::format("modifiers[\"{}\"].domain_settings.effector_weights", name_esc);
       }
     }
 
@@ -869,8 +867,8 @@ static char *rna_EffectorWeight_path(const PointerRNA *ptr)
 
             BLI_str_escape(name_esc, md->name, sizeof(name_esc));
             BLI_str_escape(name_esc_surface, surface->name, sizeof(name_esc_surface));
-            return BLI_sprintfN(
-                "modifiers[\"%s\"].canvas_settings.canvas_surfaces[\"%s\"]"
+            return fmt::format(
+                "modifiers[\"{}\"].canvas_settings.canvas_surfaces[\"{}\"]"
                 ".effector_weights",
                 name_esc,
                 name_esc_surface);
@@ -879,7 +877,7 @@ static char *rna_EffectorWeight_path(const PointerRNA *ptr)
       }
     }
   }
-  return nullptr;
+  return std::nullopt;
 }
 
 static void rna_CollisionSettings_dependency_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -889,7 +887,7 @@ static void rna_CollisionSettings_dependency_update(Main *bmain, Scene *scene, P
 
   /* add the modifier if needed */
   if (ob->pd->deflect && !md) {
-    ED_object_modifier_add(nullptr, bmain, scene, ob, nullptr, eModifierType_Collision);
+    blender::ed::object::modifier_add(nullptr, bmain, scene, ob, nullptr, eModifierType_Collision);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
@@ -1054,8 +1052,7 @@ static void rna_def_pointcache_common(StructRNA *srna)
   /* Note that we do not actually need a getter here, `rna_Cache_info_length` will update the info
    * string just as well. */
   RNA_def_property_string_funcs(prop, nullptr, "rna_Cache_info_length", nullptr);
-  RNA_def_property_string_maxlength(
-      prop, sizeof(((PointCache *)0)->info) / sizeof(*(((PointCache *)0)->info)));
+  RNA_def_property_string_maxlength(prop, sizeof(PointCache::info) / sizeof(*PointCache::info));
   RNA_def_property_ui_text(prop, "Cache Info", "Info on current cache status");
 
   prop = RNA_def_property(srna, "use_external", PROP_BOOLEAN, PROP_NONE);

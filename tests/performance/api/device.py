@@ -1,10 +1,9 @@
-# SPDX-FileCopyrightText: 2021-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2021-2023 Blender Authors
 #
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
 import subprocess
-from typing import List
 
 
 def get_cpu_name() -> str:
@@ -23,10 +22,9 @@ def get_cpu_name() -> str:
     return "Unknown CPU"
 
 
-def get_gpu_device(args: None) -> List:
+def get_gpu_device(args: None) -> list:
     # Get the list of available Cycles GPU devices.
     import bpy
-    import sys
 
     prefs = bpy.context.preferences
     cprefs = prefs.addons['cycles'].preferences

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,32 +6,34 @@
  * \ingroup obj
  */
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
-#include "BLI_map.hh"
 #include "BLI_math_vector.h"
-#include "BLI_math_vector.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 
-#include "obj_export_mesh.hh"
 #include "obj_export_mtl.hh"
+
+#include "CLG_log.h"
+static CLG_LogRef LOG = {"io.obj"};
 
 namespace blender::io::obj {
 
 const char *tex_map_type_to_socket_id[] = {
     "Base Color",
     "Metallic",
-    "Specular",
+    "Specular IOR Level",
     "Roughness", /* Map specular exponent to roughness. */
     "Roughness",
-    "Sheen",
+    "Sheen Weight",
     "Metallic", /* Map reflection to metallic. */
-    "Emission",
+    "Emission Color",
     "Alpha",
     "Normal",
 };
@@ -49,7 +51,8 @@ static void copy_property_from_node(const eNodeSocketDatatype property_type,
   if (!node) {
     return;
   }
-  const bNodeSocket *socket = nodeFindSocket(const_cast<bNode *>(node), SOCK_IN, identifier);
+  const bNodeSocket *socket = bke::node_find_socket(
+      const_cast<bNode *>(node), SOCK_IN, identifier);
   BLI_assert(socket && socket->type == property_type);
   if (!socket) {
     return;
@@ -119,7 +122,7 @@ static const bNode *get_node_of_type(Span<const bNodeSocket *> sockets_list, con
 {
   for (const bNodeSocket *socket : sockets_list) {
     const bNode &parent_node = socket->owner_node();
-    if (parent_node.typeinfo->type == node_type) {
+    if (parent_node.typeinfo->type_legacy == node_type) {
       return &parent_node;
     }
   }
@@ -141,12 +144,13 @@ static std::string get_image_filepath(const bNode *tex_node)
   }
 
   if (BKE_image_has_packedfile(tex_image)) {
-    /* Put image in the same directory as the .MTL file. */
+    /* Put image in the same directory as the `.MTL` file. */
     const char *filename = BLI_path_basename(tex_image->filepath);
-    fprintf(stderr,
-            "Packed image found:'%s'. Unpack and place the image in the same "
-            "directory as the .MTL file.\n",
-            filename);
+    CLOG_INFO(&LOG,
+              1,
+              "Packed image found:'%s'. Unpack and place the image in the same "
+              "directory as the .MTL file.",
+              filename);
     return filename;
   }
 
@@ -178,7 +182,7 @@ static const bNode *find_bsdf_node(const bNodeTree *nodetree)
     const bNodeSocket &node_input_socket0 = node->input_socket(0);
     for (const bNodeSocket *out_sock : node_input_socket0.directly_linked_sockets()) {
       const bNode &in_node = out_sock->owner_node();
-      if (in_node.typeinfo->type == SH_NODE_BSDF_PRINCIPLED) {
+      if (in_node.typeinfo->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
         return &in_node;
       }
     }
@@ -203,7 +207,7 @@ static void store_bsdf_properties(const bNode *bsdf_node,
 
   float specular = material->spec;
   if (bsdf_node) {
-    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Specular", {&specular, 1});
+    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Specular IOR Level", {&specular, 1});
   }
 
   float metallic = material->metallic;
@@ -231,24 +235,26 @@ static void store_bsdf_properties(const bNode *bsdf_node,
   float emission_strength = 0.0f;
   if (bsdf_node) {
     copy_property_from_node(SOCK_FLOAT, bsdf_node, "Emission Strength", {&emission_strength, 1});
-    copy_property_from_node(SOCK_RGBA, bsdf_node, "Emission", {emission_col, 3});
+    copy_property_from_node(SOCK_RGBA, bsdf_node, "Emission Color", {emission_col, 3});
   }
   mul_v3_fl(emission_col, emission_strength);
 
   float sheen = -1.0f;
-  float clearcoat = -1.0f;
-  float clearcoat_roughness = -1.0f;
+  float coat = -1.0f;
+  float coat_roughness = -1.0f;
   float aniso = -1.0f;
   float aniso_rot = -1.0f;
   float transmission = -1.0f;
   if (bsdf_node) {
-    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Sheen", {&sheen, 1});
-    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Clearcoat", {&clearcoat, 1});
-    copy_property_from_node(
-        SOCK_FLOAT, bsdf_node, "Clearcoat Roughness", {&clearcoat_roughness, 1});
+    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Sheen Weight", {&sheen, 1});
+    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Coat Weight", {&coat, 1});
+    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Coat Roughness", {&coat_roughness, 1});
     copy_property_from_node(SOCK_FLOAT, bsdf_node, "Anisotropic", {&aniso, 1});
     copy_property_from_node(SOCK_FLOAT, bsdf_node, "Anisotropic Rotation", {&aniso_rot, 1});
-    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Transmission", {&transmission, 1});
+    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Transmission Weight", {&transmission, 1});
+
+    /* Clearcoat used to include an implicit 0.25 factor, so stay compatible to old versions. */
+    coat *= 4.0f;
   }
 
   /* See https://wikipedia.org/wiki/Wavefront_.obj_file for all possible values of `illum`. */
@@ -289,8 +295,8 @@ static void store_bsdf_properties(const bNode *bsdf_node,
   r_mtl_mat.roughness = roughness;
   r_mtl_mat.metallic = metallic;
   r_mtl_mat.sheen = sheen;
-  r_mtl_mat.cc_thickness = clearcoat;
-  r_mtl_mat.cc_roughness = clearcoat_roughness;
+  r_mtl_mat.cc_thickness = coat;
+  r_mtl_mat.cc_roughness = coat_roughness;
   r_mtl_mat.aniso = aniso;
   r_mtl_mat.aniso_rot = aniso_rot;
   r_mtl_mat.transmit_color = {transmission, transmission, transmission};

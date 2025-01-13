@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,9 @@
 
 using blender::Span;
 
+struct SpaceText;
 struct Text;
+struct TextLine;
 
 /* *** Flatten String *** */
 struct FlattenString {
@@ -39,7 +41,7 @@ enum {
 #define FMT_CONT_ALL \
   (FMT_CONT_QUOTESINGLE | FMT_CONT_QUOTEDOUBLE | FMT_CONT_TRIPLE | FMT_CONT_COMMENT_C)
 
-int flatten_string(const struct SpaceText *st, FlattenString *fs, const char *in);
+int flatten_string(const SpaceText *st, FlattenString *fs, const char *in);
 void flatten_string_free(FlattenString *fs);
 /**
  * Takes a string within `fs->buf` and returns its length.
@@ -66,7 +68,7 @@ void text_format_fill_ascii(const char **str_p, char **fmt_p, char type, int len
 
 /* *** Generalize Formatting *** */
 struct TextFormatType {
-  struct TextFormatType *next, *prev;
+  TextFormatType *next, *prev;
 
   char (*format_identifier)(const char *string);
 
@@ -110,10 +112,11 @@ enum {
   FMT_TYPE_DEFAULT = 'q',
 };
 
-TextFormatType *ED_text_format_get(struct Text *text);
+TextFormatType *ED_text_format_get(Text *text);
 void ED_text_format_register(TextFormatType *tft);
 
 /* formatters */
+void ED_text_format_register_glsl();
 void ED_text_format_register_py();
 void ED_text_format_register_osl();
 void ED_text_format_register_pov();
@@ -126,14 +129,13 @@ void ED_text_format_register_pov_ini();
  * If a string literal is found, the length of the string literal is returned.
  * Otherwise, 0.
  */
-int text_format_string_literal_find(const Span<const char *> string_literals, const char *text);
+int text_format_string_literal_find(Span<const char *> string_literals, const char *text);
 
 #ifndef NDEBUG
 /**
  * Check if #string_literals array is shorted. This validation is required since text formatters do
  * binary search on these string literals arrays. Used only for assertions.
  */
-const bool text_format_string_literals_check_sorted_array(
-    const Span<const char *> &string_literals);
+const bool text_format_string_literals_check_sorted_array(Span<const char *> string_literals);
 
 #endif

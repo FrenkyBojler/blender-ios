@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,11 +8,11 @@
 
 #pragma once
 
-#include "DNA_session_uuid_types.h"
+#include "DNA_session_uid_types.h"
 
-#include "BLI_session_uuid.h"
+#include "BLI_session_uid.h"
 
-#include "intern/depsgraph_type.h"
+#include "intern/depsgraph_type.hh"
 #include "intern/eval/deg_eval_runtime_backup_sequence.h"
 
 struct Scene;
@@ -31,7 +31,7 @@ class SequencerBackup {
 
   const Depsgraph *depsgraph;
 
-  Map<SessionUUID, SequenceBackup> sequences_backup;
+  Map<SessionUID, SequenceBackup> sequences_backup;
 };
 
 }  // namespace blender::deg

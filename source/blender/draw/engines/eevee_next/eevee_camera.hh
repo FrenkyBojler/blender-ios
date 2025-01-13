@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2021 Blender Foundation
+/* SPDX-FileCopyrightText: 2021 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -93,15 +93,23 @@ class Camera {
  private:
   Instance &inst_;
 
-  CameraDataBuf data_;
+  CameraData &data_;
 
   struct {
     float3 center;
     float radius;
   } bound_sphere;
 
+  float overscan_;
+  bool overscan_changed_;
+  /** Whether or not the camera was synced from a camera object. */
+  bool is_camera_object_ = false;
+  /** Just for tracking camera changes, use Instance::camera_orig_object for data access. */
+  Object *last_camera_object_ = nullptr;
+  bool camera_changed_ = false;
+
  public:
-  Camera(Instance &inst) : inst_(inst){};
+  Camera(Instance &inst, CameraData &data) : inst_(inst), data_(data){};
   ~Camera(){};
 
   void init();
@@ -109,14 +117,10 @@ class Camera {
 
   /**
    * Getters
-   **/
+   */
   const CameraData &data_get() const
   {
     BLI_assert(data_.initialized);
-    return data_;
-  }
-  GPUUniformBuf *ubo_get() const
-  {
     return data_;
   }
   bool is_panoramic() const
@@ -130,6 +134,10 @@ class Camera {
   bool is_perspective() const
   {
     return data_.type == CAMERA_PERSP;
+  }
+  bool is_camera_object() const
+  {
+    return is_camera_object_;
   }
   const float3 &position() const
   {
@@ -146,6 +154,18 @@ class Camera {
   const float &bound_radius() const
   {
     return bound_sphere.radius;
+  }
+  float overscan() const
+  {
+    return overscan_;
+  }
+  bool overscan_changed() const
+  {
+    return overscan_changed_;
+  }
+  bool camera_changed() const
+  {
+    return camera_changed_;
   }
 
  private:

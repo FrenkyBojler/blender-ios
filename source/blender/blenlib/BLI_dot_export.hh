@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -18,8 +18,8 @@
 
 #include "BLI_dot_export_attribute_enums.hh"
 
+#include <iosfwd>
 #include <optional>
-#include <sstream>
 
 namespace blender::dot {
 
@@ -248,10 +248,8 @@ struct NodeWithSockets {
     std::string name;
     std::optional<std::string> fontcolor;
   };
-  struct Input : public Socket {
-  };
-  struct Output : public Socket {
-  };
+  struct Input : public Socket {};
+  struct Output : public Socket {};
 
   std::string node_name;
   Vector<Input> inputs;

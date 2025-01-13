@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,14 +13,14 @@ namespace blender {
  * saving unnecessary computation by making a calculated value accessible from any object that
  * shares the cache. Unlike `CacheMutex`, the cached data is embedded inside of this object.
  *
- * When data is copied (copy-on-write before changing a mesh, for example), the cache is shared,
- * allowing its calculation on either the source or original to make the result available on both
- * objects. As soon as either object is changed in a way that invalidates the cache, the data is
- * "un-shared", and they will no-longer influence each other.
+ * When data is copied (copy-on-evaluation before changing a mesh, for example), the cache is
+ * shared, allowing its calculation on either the source or original to make the result available
+ * on both objects. As soon as either object is changed in a way that invalidates the cache, the
+ * data is "un-shared", and they will no-longer influence each other.
  *
- * One important use case is a typical CoW update loop of a persistent geometry data-block in
- * `Main`. Even if bounds are only calculated on the evaluated *copied* geometry, if nothing
- * changes them, they only need to be calculated on the first evaluation, because the same
+ * One important use case is a typical copy-on-evaluation update loop of a persistent geometry
+ * data-block in `Main`. Even if bounds are only calculated on the evaluated *copied* geometry, if
+ * nothing changes them, they only need to be calculated on the first evaluation, because the same
  * evaluated bounds are also accessible from the original geometry.
  *
  * The cache is implemented with a shared pointer, so it is relatively cheap, but to avoid
@@ -30,6 +30,8 @@ template<typename T> class SharedCache {
   struct CacheData {
     CacheMutex mutex;
     T data;
+    CacheData() = default;
+    CacheData(const T &data) : data(data) {}
   };
   std::shared_ptr<CacheData> cache_;
 
@@ -43,7 +45,7 @@ template<typename T> class SharedCache {
   /** Tag the data for recomputation and stop sharing the cache with other objects. */
   void tag_dirty()
   {
-    if (cache_.unique()) {
+    if (cache_.use_count() == 1) {
       cache_->mutex.tag_dirty();
     }
     else {
@@ -57,6 +59,23 @@ template<typename T> class SharedCache {
    */
   void ensure(FunctionRef<void(T &data)> compute_cache)
   {
+    cache_->mutex.ensure([&]() { compute_cache(this->cache_->data); });
+  }
+
+  /**
+   * Represents a combination of "tag dirty" and "update cache for new data." Existing cached
+   * values are kept available (copied from shared data if necessary). This can be helpful when
+   * the recalculation is only expected to make a small change to the cached data, since using
+   * #tag_dirty() and #ensure() separately may require rebuilding the cache from scratch.
+   */
+  void update(FunctionRef<void(T &data)> compute_cache)
+  {
+    if (cache_.use_count() == 1) {
+      cache_->mutex.tag_dirty();
+    }
+    else {
+      cache_ = std::make_shared<CacheData>(cache_->data);
+    }
     cache_->mutex.ensure([&]() { compute_cache(this->cache_->data); });
   }
 

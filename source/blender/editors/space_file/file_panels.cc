@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,10 +9,10 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_screen.h"
+#include "BKE_context.hh"
+#include "BKE_screen.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -20,22 +20,21 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
-#include "ED_fileselect.h"
+#include "ED_fileselect.hh"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
+#include "UI_resources.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "file_intern.h"
-#include "filelist.h"
-#include "fsmenu.h"
+#include "file_intern.hh"
+#include "filelist.hh"
 
 #include <cstring>
 
@@ -56,7 +55,8 @@ static void file_panel_operator_header(const bContext *C, Panel *panel)
   SpaceFile *sfile = CTX_wm_space_file(C);
   wmOperator *op = sfile->op;
 
-  STRNCPY(panel->drawname, WM_operatortype_name(op->type, op->ptr));
+  const std::string opname = WM_operatortype_name(op->type, op->ptr);
+  UI_panel_drawname_set(panel, opname);
 }
 
 static void file_panel_operator(const bContext *C, Panel *panel)
@@ -68,10 +68,13 @@ static void file_panel_operator(const bContext *C, Panel *panel)
 
   /* Hack: temporary hide. */
   const char *hide[] = {"filepath", "files", "directory", "filename"};
+  /* Track overridden properties with #PROP_HIDDEN flag. */
+  bool hidden_override[ARRAY_SIZE(hide)] = {false};
   for (int i = 0; i < ARRAY_SIZE(hide); i++) {
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, hide[i]);
-    if (prop) {
+    if (prop && !(RNA_property_flag(prop) & PROP_HIDDEN)) {
       RNA_def_property_flag(prop, PROP_HIDDEN);
+      hidden_override[i] = true;
     }
   }
 
@@ -81,7 +84,7 @@ static void file_panel_operator(const bContext *C, Panel *panel)
   /* Hack: temporary hide. */
   for (int i = 0; i < ARRAY_SIZE(hide); i++) {
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, hide[i]);
-    if (prop) {
+    if (prop && hidden_override[i]) {
       RNA_def_property_clear_flag(prop, PROP_HIDDEN);
     }
   }
@@ -131,7 +134,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
   uiBlock *block = uiLayoutGetBlock(panel->layout);
   uiBut *but;
   uiLayout *row;
-  PointerRNA params_rna_ptr, *but_extra_rna_ptr;
+  PointerRNA *but_extra_rna_ptr;
 
   const bool overwrite_alert = file_draw_check_exists(sfile);
   const bool windows_layout =
@@ -141,7 +144,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
       false;
 #endif
 
-  RNA_pointer_create(&screen->id, &RNA_FileSelectParams, params, &params_rna_ptr);
+  PointerRNA params_rna_ptr = RNA_pointer_create(&screen->id, &RNA_FileSelectParams, params);
 
   row = uiLayoutRow(panel->layout, false);
   uiLayoutSetScaleY(row, 1.3f);
@@ -162,9 +165,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
                   0,
                   0.0f,
                   float(FILE_MAXFILE),
-                  0,
-                  0,
-                  TIP_(overwrite_alert ? N_("File name, overwrite existing") : N_("File name")));
+                  overwrite_alert ? TIP_("File name, overwrite existing") : TIP_("File name"));
 
   BLI_assert(!UI_but_flag_is_set(but, UI_BUT_UNDO));
   BLI_assert(!UI_but_is_utf8(but));
@@ -224,17 +225,16 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
   bScreen *screen = CTX_wm_screen(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
   /* May be null if the library wasn't loaded yet. */
-  AssetLibrary *asset_library = filelist_asset_library(sfile->files);
+  blender::asset_system::AssetLibrary *asset_library = filelist_asset_library(sfile->files);
   FileAssetSelectParams *params = ED_fileselect_get_asset_params(sfile);
   BLI_assert(params != nullptr);
 
   uiLayout *col = uiLayoutColumn(panel->layout, false);
   uiLayout *row = uiLayoutRow(col, true);
 
-  PointerRNA params_ptr;
-  RNA_pointer_create(&screen->id, &RNA_FileAssetSelectParams, params, &params_ptr);
+  PointerRNA params_ptr = RNA_pointer_create(&screen->id, &RNA_FileAssetSelectParams, params);
 
-  uiItemR(row, &params_ptr, "asset_library_ref", 0, "", ICON_NONE);
+  uiItemR(row, &params_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
   if (params->asset_library_ref.type == ASSET_LIBRARY_LOCAL) {
     bContext *mutable_ctx = CTX_copy(C);
     if (WM_operator_name_poll(mutable_ctx, "asset.bundle_install")) {
@@ -242,8 +242,8 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
       uiItemMenuEnumO(col,
                       C,
                       "asset.bundle_install",
-                      "asset_library_ref",
-                      "Copy Bundle to Asset Library...",
+                      "asset_library_reference",
+                      IFACE_("Copy Bundle to Asset Library..."),
                       ICON_IMPORT);
     }
     CTX_free(mutable_ctx);
@@ -254,7 +254,8 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
 
   uiItemS(col);
 
-  file_create_asset_catalog_tree_view_in_layout(asset_library, col, sfile, params);
+  blender::ed::asset_browser::file_create_asset_catalog_tree_view_in_layout(
+      C, asset_library, col, sfile, params);
 }
 
 void file_tools_region_panels_register(ARegionType *art)

@@ -1,16 +1,20 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_matrix.h"
+#include "BLI_string.h"
 
 #include "DNA_collection_types.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "NOD_rna_define.hh"
 
-#include "BKE_collection.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+
+#include "BKE_collection.hh"
 #include "BKE_instances.hh"
+
+#include "DEG_depsgraph_query.hh"
 
 #include "node_geometry_util.hh"
 
@@ -35,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "transform_space", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "transform_space", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static void node_node_init(bNodeTree * /*tree*/, bNode *node)
@@ -60,10 +64,18 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   const Object *self_object = params.self_object();
-  const bool is_recursive = BKE_collection_has_object_recursive_instanced(
+  /* Compare by `orig_id` because objects may be copied into separate depsgraphs. */
+  const bool is_recursive = BKE_collection_has_object_recursive_instanced_orig_id(
       collection, const_cast<Object *>(self_object));
   if (is_recursive) {
     params.error_message_add(NodeWarningType::Error, TIP_("Collection contains current object"));
+    params.set_default_remaining_outputs();
+    return;
+  }
+  if (!DEG_collection_geometry_is_evaluated(*collection)) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Can't access collections geometry because it's not evaluated "
+                                  "yet. This can happen when there is a dependency cycle"));
     params.set_default_remaining_outputs();
     return;
   }
@@ -86,7 +98,6 @@ static void node_geo_exec(GeoNodeExecParams params)
       children_objects.append(collection_object->ob);
     }
 
-    instances->reserve(children_collections.size() + children_objects.size());
     Vector<InstanceListEntry> entries;
     entries.reserve(children_collections.size() + children_objects.size());
 
@@ -95,7 +106,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       if (!reset_children) {
         transform.location() += float3(child_collection->instance_offset);
         if (use_relative_transform) {
-          transform = float4x4(self_object->world_to_object) * transform;
+          transform = self_object->world_to_object() * transform;
         }
         else {
           transform.location() -= float3(collection->instance_offset);
@@ -109,12 +120,12 @@ static void node_geo_exec(GeoNodeExecParams params)
       float4x4 transform = float4x4::identity();
       if (!reset_children) {
         if (use_relative_transform) {
-          transform = float4x4(self_object->world_to_object);
+          transform = self_object->world_to_object();
         }
         else {
           transform.location() -= float3(collection->instance_offset);
         }
-        transform *= float4x4(child_object->object_to_world);
+        transform *= child_object->object_to_world();
       }
       entries.append({handle, &(child_object->id.name[2]), transform});
     }
@@ -132,32 +143,67 @@ static void node_geo_exec(GeoNodeExecParams params)
     float4x4 transform = float4x4::identity();
     if (use_relative_transform) {
       transform.location() = collection->instance_offset;
-      transform = float4x4_view(self_object->world_to_object) * transform;
+      transform = self_object->world_to_object() * transform;
     }
 
     const int handle = instances->add_reference(*collection);
     instances->add_instance(handle, transform);
   }
+  GeometrySet geometry = GeometrySet::from_instances(instances.release());
+  geometry.name = collection->id.name + 2;
 
-  params.set_output("Instances", GeometrySet::create_with_instances(instances.release()));
+  params.set_output("Instances", std::move(geometry));
 }
+
+static void node_rna(StructRNA *srna)
+{
+  static const EnumPropertyItem rna_node_geometry_collection_info_transform_space_items[] = {
+      {GEO_NODE_TRANSFORM_SPACE_ORIGINAL,
+       "ORIGINAL",
+       0,
+       "Original",
+       "Output the geometry relative to the collection offset"},
+      {GEO_NODE_TRANSFORM_SPACE_RELATIVE,
+       "RELATIVE",
+       0,
+       "Relative",
+       "Bring the input collection geometry into the modified object, maintaining the relative "
+       "position between the objects in the scene"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_node_enum(
+      srna,
+      "transform_space",
+      "Transform Space",
+      "The transformation of the instances output. Does not affect the internal geometry",
+      rna_node_geometry_collection_info_transform_space_items,
+      NOD_storage_enum_accessors(transform_space),
+      GEO_NODE_TRANSFORM_SPACE_ORIGINAL);
+  RNA_def_property_update_runtime(prop, rna_Node_update_relations);
+}
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  geo_node_type_base(
+      &ntype, "GeometryNodeCollectionInfo", GEO_NODE_COLLECTION_INFO, NODE_CLASS_INPUT);
+  ntype.ui_name = "Collection Info";
+  ntype.ui_description = "Retrieve geometry instances from a collection";
+  ntype.enum_name_legacy = "COLLECTION_INFO";
+  ntype.declare = node_declare;
+  ntype.initfunc = node_node_init;
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryCollectionInfo",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.draw_buttons = node_layout;
+  blender::bke::node_register_type(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
+}
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_collection_info_cc
-
-void register_node_type_geo_collection_info()
-{
-  namespace file_ns = blender::nodes::node_geo_collection_info_cc;
-
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_COLLECTION_INFO, "Collection Info", NODE_CLASS_INPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.initfunc = file_ns::node_node_init;
-  node_type_storage(&ntype,
-                    "NodeGeometryCollectionInfo",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.draw_buttons = file_ns::node_layout;
-  nodeRegisterType(&ntype);
-}

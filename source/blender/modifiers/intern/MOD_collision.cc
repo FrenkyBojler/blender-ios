@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,14 +8,13 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_kdopbvh.h"
-#include "BLI_math.h"
+#include "BLI_kdopbvh.hh"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -23,31 +22,20 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_collision.h"
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_lib_id.h"
+#include "BKE_global.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.h"
-#include "BKE_modifier.h"
-#include "BKE_pointcache.h"
-#include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_modifier.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
-#include "MOD_util.hh"
 
-#include "BLO_read_write.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "DEG_depsgraph_query.h"
-
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
   CollisionModifierData *collmd = (CollisionModifierData *)md;
 
@@ -56,7 +44,7 @@ static void initData(ModifierData *md)
   MEMCPY_STRUCT_AFTER(collmd, DNA_struct_default_get(CollisionModifierData), modifier);
 }
 
-static void freeData(ModifierData *md)
+static void free_data(ModifierData *md)
 {
   CollisionModifierData *collmd = (CollisionModifierData *)md;
 
@@ -72,7 +60,7 @@ static void freeData(ModifierData *md)
     MEM_SAFE_FREE(collmd->current_xnew);
     MEM_SAFE_FREE(collmd->current_v);
 
-    MEM_SAFE_FREE(collmd->tri);
+    MEM_SAFE_FREE(collmd->vert_tris);
 
     collmd->time_x = collmd->time_xnew = -1000;
     collmd->mvert_num = 0;
@@ -81,16 +69,15 @@ static void freeData(ModifierData *md)
   }
 }
 
-static bool dependsOnTime(Scene * /*scene*/, ModifierData * /*md*/)
+static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
 {
   return true;
 }
 
-static void deformVerts(ModifierData *md,
-                        const ModifierEvalContext *ctx,
-                        Mesh *mesh,
-                        float (*vertexCos)[3],
-                        int /*verts_num*/)
+static void deform_verts(ModifierData *md,
+                         const ModifierEvalContext *ctx,
+                         Mesh *mesh,
+                         blender::MutableSpan<blender::float3> positions)
 {
   CollisionModifierData *collmd = (CollisionModifierData *)md;
   Object *ob = ctx->object;
@@ -101,7 +88,7 @@ static void deformVerts(ModifierData *md,
       printf("CollisionModifier: collision settings are missing!\n");
     }
 
-    freeData(md);
+    free_data(md);
     return;
   }
 
@@ -109,7 +96,8 @@ static void deformVerts(ModifierData *md,
     float current_time = 0;
     int mvert_num = 0;
 
-    BKE_mesh_vert_coords_apply(mesh, vertexCos);
+    mesh->vert_positions_for_write().copy_from(positions);
+    mesh->tag_positions_changed();
 
     current_time = DEG_get_ctime(ctx->depsgraph);
 
@@ -117,29 +105,33 @@ static void deformVerts(ModifierData *md,
       printf("current_time %f, collmd->time_xnew %f\n", current_time, collmd->time_xnew);
     }
 
-    mvert_num = mesh->totvert;
+    mvert_num = mesh->verts_num;
 
     if (current_time < collmd->time_xnew) {
-      freeData((ModifierData *)collmd);
+      free_data((ModifierData *)collmd);
     }
     else if (current_time == collmd->time_xnew) {
       if (mvert_num != collmd->mvert_num) {
-        freeData((ModifierData *)collmd);
+        free_data((ModifierData *)collmd);
       }
     }
 
     /* check if mesh has changed */
     if (collmd->x && (mvert_num != collmd->mvert_num)) {
-      freeData((ModifierData *)collmd);
+      free_data((ModifierData *)collmd);
     }
 
     if (collmd->time_xnew == -1000) { /* first time */
 
-      collmd->x = BKE_mesh_vert_coords_alloc(mesh, &mvert_num); /* frame start position */
+      mvert_num = mesh->verts_num;
+      collmd->x = static_cast<float(*)[3]>(
+          MEM_malloc_arrayN(mvert_num, sizeof(float[3]), __func__));
+      blender::MutableSpan(reinterpret_cast<blender::float3 *>(collmd->x), mvert_num)
+          .copy_from(mesh->vert_positions());
 
       for (uint i = 0; i < mvert_num; i++) {
         /* we save global positions */
-        mul_m4_v3(ob->object_to_world, collmd->x[i]);
+        mul_m4_v3(ob->object_to_world().ptr(), collmd->x[i]);
       }
 
       collmd->xnew = static_cast<float(*)[3]>(MEM_dupallocN(collmd->x)); /* Frame end position. */
@@ -150,18 +142,23 @@ static void deformVerts(ModifierData *md,
       collmd->mvert_num = mvert_num;
 
       {
-        const MLoopTri *looptri = BKE_mesh_runtime_looptri_ensure(mesh);
-        collmd->tri_num = BKE_mesh_runtime_looptri_len(mesh);
-        MVertTri *tri = static_cast<MVertTri *>(
-            MEM_mallocN(sizeof(*tri) * collmd->tri_num, __func__));
-        BKE_mesh_runtime_verttri_from_looptri(
-            tri, mesh->corner_verts().data(), looptri, collmd->tri_num);
-        collmd->tri = tri;
+        const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
+        collmd->tri_num = corner_tris.size();
+        int(*vert_tris)[3] = static_cast<int(*)[3]>(
+            MEM_malloc_arrayN(collmd->tri_num, sizeof(int[3]), __func__));
+        blender::bke::mesh::vert_tris_from_corner_tris(
+            mesh->corner_verts(),
+            corner_tris,
+            {reinterpret_cast<blender::int3 *>(vert_tris), collmd->tri_num});
+        collmd->vert_tris = vert_tris;
       }
 
       /* create bounding box hierarchy */
       collmd->bvhtree = bvhtree_build_from_mvert(
-          collmd->x, collmd->tri, collmd->tri_num, ob->pd->pdef_sboft);
+          collmd->x,
+          reinterpret_cast<blender::int3 *>(collmd->vert_tris),
+          collmd->tri_num,
+          ob->pd->pdef_sboft);
 
       collmd->time_x = collmd->time_xnew = current_time;
       collmd->is_static = true;
@@ -179,7 +176,7 @@ static void deformVerts(ModifierData *md,
 
       for (uint i = 0; i < mvert_num; i++) {
         /* we save global positions */
-        mul_m4_v3(ob->object_to_world, collmd->xnew[i]);
+        mul_m4_v3(ob->object_to_world().ptr(), collmd->xnew[i]);
 
         /* detect motion */
         is_static = is_static && equals_v3v3(collmd->x[i], collmd->xnew[i]);
@@ -193,21 +190,27 @@ static void deformVerts(ModifierData *md,
         if (ob->pd->pdef_sboft != BLI_bvhtree_get_epsilon(collmd->bvhtree)) {
           BLI_bvhtree_free(collmd->bvhtree);
           collmd->bvhtree = bvhtree_build_from_mvert(
-              collmd->current_x, collmd->tri, collmd->tri_num, ob->pd->pdef_sboft);
+              collmd->current_x,
+              reinterpret_cast<const blender::int3 *>(collmd->vert_tris),
+              collmd->tri_num,
+              ob->pd->pdef_sboft);
         }
       }
 
-      /* Happens on file load (ONLY when I un-comment changes in readfile.c) */
+      /* Happens on file load (ONLY when I un-comment changes in `readfile.cc`). */
       if (!collmd->bvhtree) {
         collmd->bvhtree = bvhtree_build_from_mvert(
-            collmd->current_x, collmd->tri, collmd->tri_num, ob->pd->pdef_sboft);
+            collmd->current_x,
+            reinterpret_cast<const blender::int3 *>(collmd->vert_tris),
+            collmd->tri_num,
+            ob->pd->pdef_sboft);
       }
       else if (!collmd->is_static || !is_static) {
         /* recalc static bounding boxes */
         bvhtree_update_from_mvert(collmd->bvhtree,
                                   collmd->current_x,
                                   collmd->current_xnew,
-                                  collmd->tri,
+                                  reinterpret_cast<const blender::int3 *>(collmd->vert_tris),
                                   collmd->tri_num,
                                   true);
       }
@@ -216,12 +219,12 @@ static void deformVerts(ModifierData *md,
       collmd->time_xnew = current_time;
     }
     else if (mvert_num != collmd->mvert_num) {
-      freeData((ModifierData *)collmd);
+      free_data((ModifierData *)collmd);
     }
   }
 }
 
-static void updateDepsgraph(ModifierData * /*md*/, const ModifierUpdateDepsgraphContext *ctx)
+static void update_depsgraph(ModifierData * /*md*/, const ModifierUpdateDepsgraphContext *ctx)
 {
   DEG_add_depends_on_transform_relation(ctx->node, "Collision Modifier");
 }
@@ -232,17 +235,17 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, TIP_("Settings are inside the Physics tab"), ICON_NONE);
+  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_Collision, panel_draw);
 }
 
-static void blendRead(BlendDataReader * /*reader*/, ModifierData *md)
+static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
 {
   CollisionModifierData *collmd = (CollisionModifierData *)md;
 #if 0
@@ -267,38 +270,40 @@ static void blendRead(BlendDataReader * /*reader*/, ModifierData *md)
   collmd->tri_num = 0;
   collmd->is_static = false;
   collmd->bvhtree = nullptr;
-  collmd->tri = nullptr;
+  collmd->vert_tris = nullptr;
 }
 
 ModifierTypeInfo modifierType_Collision = {
+    /*idname*/ "Collision",
     /*name*/ N_("Collision"),
-    /*structName*/ "CollisionModifierData",
-    /*structSize*/ sizeof(CollisionModifierData),
+    /*struct_name*/ "CollisionModifierData",
+    /*struct_size*/ sizeof(CollisionModifierData),
     /*srna*/ &RNA_CollisionModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_Single,
     /*icon*/ ICON_MOD_PHYSICS,
 
-    /*copyData*/ nullptr,
+    /*copy_data*/ nullptr,
 
-    /*deformVerts*/ deformVerts,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ nullptr,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ nullptr,
-    /*modifyGeometrySet*/ nullptr,
+    /*deform_verts*/ deform_verts,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ nullptr,
+    /*modify_geometry_set*/ nullptr,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ nullptr,
-    /*freeData*/ freeData,
-    /*isDisabled*/ nullptr,
-    /*updateDepsgraph*/ updateDepsgraph,
-    /*dependsOnTime*/ dependsOnTime,
-    /*dependsOnNormals*/ nullptr,
-    /*foreachIDLink*/ nullptr,
-    /*foreachTexLink*/ nullptr,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ nullptr,
-    /*blendRead*/ blendRead,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ nullptr,
+    /*free_data*/ free_data,
+    /*is_disabled*/ nullptr,
+    /*update_depsgraph*/ update_depsgraph,
+    /*depends_on_time*/ depends_on_time,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ nullptr,
+    /*foreach_tex_link*/ nullptr,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
 };

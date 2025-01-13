@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008 Blender Foundation
+/* SPDX-FileCopyrightText: 2008 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,7 +10,7 @@
 
 #include <stdio.h>
 
-#include "BLI_math.h"
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -18,7 +18,7 @@
 
 #include "DNA_userdef_types.h" /* for eTimecodeStyles only */
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 size_t BLI_timecode_string_from_time(char *str,
                                      const size_t maxncpy,

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,6 +16,7 @@
 #include "BLI_utildefines.h" /* for BLI_assert */
 
 #include "CCGSubSurf.h"
+#include "CCGSubSurf_inline.h"
 #include "CCGSubSurf_intern.h"
 
 /**
@@ -51,7 +52,7 @@ EHash *ccg_ehash_new(int estimatedNumEntries,
   return eh;
 }
 
-void ccg_ehash_free(EHash *eh, EHEntryFreeFP freeEntry, void *userData)
+void ccg_ehash_free(EHash *eh, EHEntryFreeFP freeEntry, void *user_data)
 {
   int numBuckets = eh->curSize;
 
@@ -61,7 +62,7 @@ void ccg_ehash_free(EHash *eh, EHEntryFreeFP freeEntry, void *userData)
     while (entry) {
       EHEntry *next = entry->next;
 
-      freeEntry(entry, userData);
+      freeEntry(entry, user_data);
 
       entry = next;
     }

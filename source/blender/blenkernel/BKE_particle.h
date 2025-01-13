@@ -9,9 +9,15 @@
  * \ingroup bke
  */
 
+#include <optional>
+
 #include "BLI_buffer.h"
 #include "BLI_compiler_attrs.h"
+#include "BLI_map.hh"
+#include "BLI_ordered_edge.hh"
 #include "BLI_utildefines.h"
+
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
 
 #include "DNA_particle_types.h"
 
@@ -31,7 +37,6 @@ struct BlendLibReader;
 struct BlendWriter;
 struct CustomData_MeshMasks;
 struct Depsgraph;
-struct EdgeHash;
 struct KDTree_3d;
 struct LinkNode;
 struct MCol;
@@ -84,7 +89,7 @@ typedef struct SPHData {
   ParticleSystem *psys[10];
   ParticleData *pa;
   float mass;
-  struct EdgeHash *eh;
+  std::optional<blender::Map<blender::OrderedEdge, int>> eh;
   float *gravity;
   float hfac;
   /* Average distance to neighbors (other particles in the support domain),
@@ -362,11 +367,11 @@ struct ParticleSystemModifierData *psys_get_modifier(struct Object *ob,
                                                      struct ParticleSystem *psys);
 
 struct ModifierData *object_add_particle_system(struct Main *bmain,
-                                                struct Scene *scene,
+                                                const struct Scene *scene,
                                                 struct Object *ob,
                                                 const char *name);
 struct ModifierData *object_copy_particle_system(struct Main *bmain,
-                                                 struct Scene *scene,
+                                                 const struct Scene *scene,
                                                  struct Object *ob,
                                                  const struct ParticleSystem *psys_orig);
 void object_remove_particle_system(struct Main *bmain,
@@ -487,7 +492,7 @@ void psys_apply_hair_lattice(struct Depsgraph *depsgraph,
                              struct Object *ob,
                              struct ParticleSystem *psys);
 
-/* particle_system.c */
+/* `particle_system.cc` */
 
 struct ParticleSystem *psys_get_target_system(struct Object *ob, struct ParticleTarget *pt);
 /**
@@ -530,7 +535,7 @@ void particle_system_update(struct Depsgraph *depsgraph,
 typedef void (*ParticleSystemIDFunc)(struct ParticleSystem *psys,
                                      struct ID **idpoin,
                                      void *userdata,
-                                     int cb_flag);
+                                     LibraryForeachIDCallbackFlag cb_flag);
 
 void BKE_particlesystem_id_loop(struct ParticleSystem *psys,
                                 ParticleSystemIDFunc func,
@@ -626,7 +631,7 @@ void psys_particle_on_dm(struct Mesh *mesh_final,
                          float vtan[3],
                          float orco[3]);
 
-/* particle_system.c */
+/* `particle_system.cc` */
 
 void distribute_particles(struct ParticleSimulationData *sim, int from);
 /**
@@ -646,7 +651,7 @@ void psys_calc_dmcache(struct Object *ob,
  * \param findex_orig: The input tessface index.
  * \param fw: Face weights (position of the particle inside the \a findex_orig tessface).
  * \param poly_nodes: May be NULL, otherwise an array of linked list,
- * one for each final \a mesh_final polygon, containing all its tessfaces indices.
+ * one for each final \a mesh_final face, containing all its tessfaces indices.
  * \return The \a mesh_final tessface index.
  */
 int psys_particle_dm_face_lookup(struct Mesh *mesh_final,
@@ -698,16 +703,13 @@ extern void (*BKE_particle_batch_cache_free_cb)(struct ParticleSystem *psys);
 
 void BKE_particle_partdeflect_blend_read_data(struct BlendDataReader *reader,
                                               struct PartDeflect *pd);
-void BKE_particle_partdeflect_blend_read_lib(struct BlendLibReader *reader,
-                                             struct ID *id,
-                                             struct PartDeflect *pd);
 void BKE_particle_system_blend_write(struct BlendWriter *writer, struct ListBase *particles);
 void BKE_particle_system_blend_read_data(struct BlendDataReader *reader,
                                          struct ListBase *particles);
-void BKE_particle_system_blend_read_lib(struct BlendLibReader *reader,
-                                        struct Object *ob,
-                                        struct ID *id,
-                                        struct ListBase *particles);
+void BKE_particle_system_blend_read_after_liblink(struct BlendLibReader *reader,
+                                                  struct Object *ob,
+                                                  struct ID *id,
+                                                  struct ListBase *particles);
 
 #ifdef __cplusplus
 }

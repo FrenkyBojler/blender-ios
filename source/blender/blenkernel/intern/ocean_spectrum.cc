@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,8 +7,9 @@
  */
 
 #include "BKE_ocean.h"
-#include "BLI_math.h"
 #include "ocean_intern.h"
+
+#include <cmath>
 
 #ifdef WITH_OCEANSIM
 
@@ -61,7 +62,7 @@ static float ocean_spectrum_wind_and_damp(const Ocean *oc,
   const float k_mag_inv = 1.0f / k2;
   const float k_dot_w = (kx * k_mag_inv * oc->_wx) + (kz * k_mag_inv * oc->_wz);
 
-  /* Bias towards wind dir. */
+  /* Bias towards wind direction. */
   float newval = val * pow(fabs(k_dot_w), oc->_wind_alignment);
 
   /* Eliminate wavelengths smaller than cutoff. */

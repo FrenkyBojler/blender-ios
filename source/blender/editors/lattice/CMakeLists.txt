@@ -1,11 +1,10 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
   ../../makesrna
-  ../../render
 )
 
 set(INC_SYS
@@ -18,7 +17,7 @@ set(SRC
   editlattice_undo.cc
   lattice_ops.cc
 
-  lattice_intern.h
+  lattice_intern.hh
 )
 
 set(LIB
@@ -28,6 +27,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::render
   PRIVATE bf::windowmanager
 )
 

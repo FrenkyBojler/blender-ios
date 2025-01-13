@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -8,13 +8,11 @@ set(INC
   importer
   intern
   ../common
-  ../../geometry
   ../../makesrna
 )
 
 set(INC_SYS
   ../../../../extern/fast_float
-  ../../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -42,7 +40,7 @@ set(SRC
   importer/ply_import_buffer.hh
   importer/ply_import_data.hh
   importer/ply_import_mesh.hh
-  IO_ply.h
+  IO_ply.hh
 
   intern/ply_data.hh
 )
@@ -53,13 +51,15 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::geometry
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::windowmanager
-  extern_fmtlib
 )
 
-blender_add_lib(bf_ply "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(bf_io_ply "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(WITH_GTESTS)
   set(TEST_SRC
@@ -71,8 +71,8 @@ if(WITH_GTESTS)
     ../../../../tests/gtests
   )
   set(TEST_LIB
-    bf_ply
+    bf_io_ply
+    bf_blenloader_test_util
   )
-  include(GTestTesting)
-  blender_add_test_lib(bf_io_ply_tests "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+  blender_add_test_suite_lib(io_ply "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
 endif()

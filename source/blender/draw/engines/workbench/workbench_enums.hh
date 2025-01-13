@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -45,9 +45,8 @@ static inline eGeometryType geometry_type_from_object(Object *ob)
 enum class ePipelineType {
   OPAQUE = 0,
   TRANSPARENT,
-  SHADOW,
 };
-static constexpr int pipeline_type_len = static_cast<int>(ePipelineType::SHADOW) + 1;
+static constexpr int pipeline_type_len = static_cast<int>(ePipelineType::TRANSPARENT) + 1;
 
 enum class eLightingType {
   FLAT = 0,

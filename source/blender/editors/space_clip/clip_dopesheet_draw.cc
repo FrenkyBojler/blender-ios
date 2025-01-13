@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2012 Blender Foundation
+/* SPDX-FileCopyrightText: 2012 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,31 +9,30 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_movieclip.h"
 
-#include "ED_clip.h"
-#include "ED_screen.h"
+#include "ED_clip.hh"
+#include "ED_screen.hh"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+#include "UI_view2d.hh"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 static void track_channel_color(MovieTrackingTrack *track,
                                 const float default_color[3],
@@ -137,7 +136,8 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
 
       /* check if visible */
       if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
-          IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
+          IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+      {
         MovieTrackingTrack *track = channel->track;
         int i;
         bool sel = (track->flag & TRACK_DOPE_SEL) != 0;
@@ -227,7 +227,8 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
 
         /* check if visible */
         if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
-            IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
+            IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+        {
           MovieTrackingTrack *track = channel->track;
           int i;
           bool sel = (track->flag & TRACK_DOPE_SEL) != 0;
@@ -321,7 +322,8 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
 
     /* check if visible */
     if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
-        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
+        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+    {
       MovieTrackingTrack *track = channel->track;
       float color[3];
       track_channel_color(track, nullptr, color);
@@ -350,7 +352,8 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
 
     /* check if visible */
     if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
-        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
+        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+    {
       MovieTrackingTrack *track = channel->track;
       bool sel = (track->flag & TRACK_DOPE_SEL) != 0;
 
@@ -380,12 +383,11 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
 
     /* check if visible */
     if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
-        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
+        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+    {
       MovieTrackingTrack *track = channel->track;
       const int icon = (track->flag & TRACK_LOCKED) ? ICON_LOCKED : ICON_UNLOCKED;
-      PointerRNA ptr;
-
-      RNA_pointer_create(&clip->id, &RNA_MovieTrackingTrack, track, &ptr);
+      PointerRNA ptr = RNA_pointer_create(&clip->id, &RNA_MovieTrackingTrack, track);
 
       UI_block_emboss_set(block, UI_EMBOSS_NONE);
       uiDefIconButR_prop(block,
@@ -398,8 +400,6 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
                          UI_UNIT_Y,
                          &ptr,
                          chan_prop_lock,
-                         0,
-                         0,
                          0,
                          0,
                          0,

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,14 +6,27 @@
  * \ingroup bke
  */
 
-#include "BKE_subdiv_topology.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_subdiv.h"
+#include "BKE_subdiv_topology.hh"
 
-#include "opensubdiv_topology_refiner_capi.h"
+#include "BKE_subdiv.hh"
 
-int BKE_subdiv_topology_num_fvar_layers_get(const Subdiv *subdiv)
+#ifdef WITH_OPENSUBDIV
+#  include "opensubdiv_topology_refiner.hh"
+#endif
+
+namespace blender::bke::subdiv {
+
+int topology_num_fvar_layers_get(const Subdiv *subdiv)
 {
-  OpenSubdiv_TopologyRefiner *topology_refiner = subdiv->topology_refiner;
-  return topology_refiner->getNumFVarChannels(topology_refiner);
+#ifdef WITH_OPENSUBDIV
+  const blender::opensubdiv::TopologyRefinerImpl *topology_refiner = subdiv->topology_refiner;
+  return topology_refiner->base_level().GetNumFVarChannels();
+#else
+  UNUSED_VARS(subdiv);
+  return 0;
+#endif
 }
+
+}  // namespace blender::bke::subdiv

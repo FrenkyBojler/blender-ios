@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2012 Blender Foundation
+/* SPDX-FileCopyrightText: 2012 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -63,6 +63,7 @@ class IOCIOImpl {
   virtual void processorRelease(OCIO_ConstProcessorRcPtr *processor) = 0;
 
   virtual OCIO_ConstCPUProcessorRcPtr *processorGetCPUProcessor(OCIO_ConstProcessorRcPtr *p) = 0;
+  virtual bool cpuProcessorIsNoOp(OCIO_ConstCPUProcessorRcPtr *cpu_processor) = 0;
   virtual void cpuProcessorApply(OCIO_ConstCPUProcessorRcPtr *cpu_processor,
                                  OCIO_PackedImageDesc *img) = 0;
   virtual void cpuProcessorApply_predivide(OCIO_ConstCPUProcessorRcPtr *cpu_processor,
@@ -86,6 +87,9 @@ class IOCIOImpl {
                                                            const char *look,
                                                            const float scale,
                                                            const float exponent,
+                                                           const float temperature,
+                                                           const float tint,
+                                                           const bool use_white_balance,
                                                            const bool inverse) = 0;
 
   virtual OCIO_PackedImageDesc *createOCIO_PackedImageDesc(float *data,
@@ -112,8 +116,12 @@ class IOCIOImpl {
                                     const float /*scale*/,
                                     const float /*exponent*/,
                                     const float /*dither*/,
+                                    const float /*temperature*/,
+                                    const float /*tint*/,
                                     const bool /*use_predivide*/,
-                                    const bool /*use_overlay*/)
+                                    const bool /*use_overlay*/,
+                                    const bool /*use_hdr*/,
+                                    const bool /*use_white_balance*/)
   {
     return false;
   }
@@ -176,6 +184,7 @@ class FallbackImpl : public IOCIOImpl {
   void processorRelease(OCIO_ConstProcessorRcPtr *processor);
 
   OCIO_ConstCPUProcessorRcPtr *processorGetCPUProcessor(OCIO_ConstProcessorRcPtr *processor);
+  bool cpuProcessorIsNoOp(OCIO_ConstCPUProcessorRcPtr *cpu_processor);
   void cpuProcessorApply(OCIO_ConstCPUProcessorRcPtr *cpu_processor, OCIO_PackedImageDesc *img);
   void cpuProcessorApply_predivide(OCIO_ConstCPUProcessorRcPtr *cpu_processor,
                                    OCIO_PackedImageDesc *img);
@@ -197,6 +206,9 @@ class FallbackImpl : public IOCIOImpl {
                                                    const char *look,
                                                    const float scale,
                                                    const float exponent,
+                                                   const float temperature,
+                                                   const float tint,
+                                                   const bool use_white_balance,
                                                    const bool inverse);
 
   OCIO_PackedImageDesc *createOCIO_PackedImageDesc(float *data,
@@ -266,6 +278,7 @@ class OCIOImpl : public IOCIOImpl {
   void processorRelease(OCIO_ConstProcessorRcPtr *processor);
 
   OCIO_ConstCPUProcessorRcPtr *processorGetCPUProcessor(OCIO_ConstProcessorRcPtr *processor);
+  bool cpuProcessorIsNoOp(OCIO_ConstCPUProcessorRcPtr *cpu_processor);
   void cpuProcessorApply(OCIO_ConstCPUProcessorRcPtr *cpu_processor, OCIO_PackedImageDesc *img);
   void cpuProcessorApply_predivide(OCIO_ConstCPUProcessorRcPtr *cpu_processor,
                                    OCIO_PackedImageDesc *img);
@@ -287,6 +300,9 @@ class OCIOImpl : public IOCIOImpl {
                                                    const char *look,
                                                    const float scale,
                                                    const float exponent,
+                                                   const float temperature,
+                                                   const float tint,
+                                                   const bool use_white_balance,
                                                    const bool inverse);
 
   OCIO_PackedImageDesc *createOCIO_PackedImageDesc(float *data,
@@ -309,8 +325,12 @@ class OCIOImpl : public IOCIOImpl {
                             const float scale,
                             const float exponent,
                             const float dither,
+                            const float temperature,
+                            const float tint,
                             const bool use_predivide,
-                            const bool use_overlay);
+                            const bool use_overlay,
+                            const bool use_hdr,
+                            const bool use_white_balance);
   void gpuDisplayShaderUnbind(void);
   void gpuCacheFree(void);
 

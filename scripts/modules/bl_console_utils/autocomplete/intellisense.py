@@ -1,8 +1,8 @@
-# SPDX-FileCopyrightText: 2009-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2009-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# Copyright (c) 2009 www.stani.be
+# Copyright (c) 2009 https://www.stani.be
 
 """This module provides intellisense features such as:
 
@@ -54,7 +54,7 @@ def complete(line, cursor, namespace, private):
     :arg private: whether private variables should be listed
     :type private: bool
     :returns: list of completions, word
-    :rtype: list, str
+    :rtype: tuple[list[str], str]
 
     >>> complete('re.sr', 5, {'re': re})
     (['re.sre_compile', 're.sre_parse'], 're.sr')
@@ -81,7 +81,7 @@ def complete(line, cursor, namespace, private):
 
 
 def expand(line, cursor, namespace, *, private=True):
-    """This method is invoked when the user asks autocompletion,
+    """This method is invoked when the user asks auto-completion,
     e.g. when Ctrl+Space is clicked.
 
     :arg line: incomplete text line
@@ -89,7 +89,7 @@ def expand(line, cursor, namespace, *, private=True):
     :arg cursor: current character position
     :type cursor: int
     :arg namespace: namespace
-    :type namespace: dict
+    :type namespace: dict[str, Any]
     :arg private: whether private variables should be listed
     :type private: bool
     :returns:

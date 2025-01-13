@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,11 +14,10 @@
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
-#include "WM_message.h"
-#include "WM_types.h"
-#include "message_bus/intern/wm_message_bus_intern.h"
+#include "WM_message.hh"
+#include "WM_types.hh"
+#include "message_bus/intern/wm_message_bus_intern.hh"
 
 /* -------------------------------------------------------------------------- */
 
@@ -108,10 +107,10 @@ void WM_msg_subscribe_static_params(wmMsgBus *mbus,
 {
   wmMsgSubscribeKey_Static msg_key_test = {{nullptr}};
 
-  /* use when added */
+  /* Use when added. */
   msg_key_test.msg.head.id = id_repr;
   msg_key_test.msg.head.type = WM_MSG_TYPE_STATIC;
-  /* for lookup */
+  /* For lookup. */
   msg_key_test.msg.params = *msg_key_params;
 
   WM_msg_subscribe_with_key(mbus, &msg_key_test.head, msg_val_params);

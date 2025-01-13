@@ -1,11 +1,10 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
   ../../makesrna
-  ../../sequencer
 )
 
 set(INC_SYS
@@ -14,6 +13,7 @@ set(INC_SYS
 
 set(SRC
   scene_edit.cc
+  scene_fps.cc
 )
 
 set(LIB
@@ -23,6 +23,7 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )
 

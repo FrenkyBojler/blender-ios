@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,24 +8,24 @@
 
 #include <cstdlib>
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "DNA_sound_types.h"
 #include "DNA_speaker_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #ifdef RNA_RUNTIME
 
 #  include "MEM_guardedalloc.h"
 
-#  include "BKE_main.h"
+#  include "BKE_main.hh"
 
-#  include "WM_api.h"
-#  include "WM_types.h"
+#  include "WM_api.hh"
+#  include "WM_types.hh"
 
 #else
 

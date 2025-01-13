@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -295,7 +295,7 @@ bool cdf_read_open(CDataFile *cdf, const char *filepath)
   return true;
 }
 
-bool cdf_read_layer(CDataFile *cdf, CDataFileLayer *blay)
+bool cdf_read_layer(CDataFile *cdf, const CDataFileLayer *blay)
 {
   size_t offset;
   int a;
@@ -387,7 +387,7 @@ bool cdf_write_layer(CDataFile * /*cdf*/, CDataFileLayer * /*blay*/)
   return true;
 }
 
-bool cdf_write_data(CDataFile *cdf, uint size, void *data)
+bool cdf_write_data(CDataFile *cdf, uint size, const void *data)
 {
   /* write data */
   if (!fwrite(data, size, 1, cdf->writef)) {

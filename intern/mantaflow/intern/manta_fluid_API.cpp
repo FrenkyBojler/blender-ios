@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2016 Blender Foundation
+/* SPDX-FileCopyrightText: 2016 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -19,7 +19,6 @@ MANTA *manta_init(int *res, struct FluidModifierData *fmd)
 void manta_free(MANTA *fluid)
 {
   delete fluid;
-  fluid = nullptr;
 }
 
 bool manta_ensure_obstacle(MANTA *fluid, struct FluidModifierData *fmd)

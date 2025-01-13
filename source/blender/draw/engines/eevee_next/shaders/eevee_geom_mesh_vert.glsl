@@ -1,21 +1,29 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_attributes_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_nodetree_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surf_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_velocity_lib.glsl)
+#include "infos/eevee_material_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
+VERTEX_SHADER_CREATE_INFO(eevee_geom_mesh)
+
+#include "draw_model_lib.glsl"
+#include "eevee_attributes_mesh_lib.glsl"
+#include "eevee_nodetree_lib.glsl"
+#include "eevee_surf_lib.glsl"
+#include "eevee_velocity_lib.glsl"
 
 void main()
 {
   DRW_VIEW_FROM_RESOURCE_ID;
 #ifdef MAT_SHADOW
-  shadow_interp.view_id = drw_view_id;
+  shadow_viewport_layer_set(int(drw_view_id), int(render_view_buf[drw_view_id].viewport_index));
 #endif
 
   init_interface();
 
-  interp.P = point_object_to_world(pos);
-  interp.N = normal_object_to_world(nor);
+  interp.P = drw_point_object_to_world(pos);
+  interp.N = normalize(drw_normal_object_to_world(nor));
 #ifdef MAT_VELOCITY
   vec3 prv, nxt;
   velocity_local_pos_get(pos, gl_VertexID, prv, nxt);
@@ -32,5 +40,16 @@ void main()
 
   interp.P += nodetree_displacement();
 
-  gl_Position = point_world_to_ndc(interp.P);
+#ifdef MAT_CLIP_PLANE
+  clip_interp.clip_distance = dot(clip_plane.plane, vec4(interp.P, 1.0));
+#endif
+
+#ifdef MAT_SHADOW
+  vec3 vs_P = drw_point_world_to_view(interp.P);
+  ShadowRenderView view = render_view_buf[drw_view_id];
+  shadow_clip.position = shadow_position_vector_get(vs_P, view);
+  shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
+#endif
+
+  gl_Position = drw_point_world_to_homogenous(interp.P);
 }

@@ -1,13 +1,11 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
-  ../../gpu
   ../../makesrna
-  ../../../../extern/curve_fit_nd
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -26,23 +24,24 @@ set(SRC
   editfont.cc
   editfont_undo.cc
 
-  curve_intern.h
+  curve_intern.hh
 )
 
 set(LIB
   PRIVATE bf::blenkernel
+  PRIVATE bf::animrig
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::extern::curve_fit_nd
+  PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
-  extern_curve_fit_nd
 )
-
 
 blender_add_lib(bf_editor_curve "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_curve bf_rna)

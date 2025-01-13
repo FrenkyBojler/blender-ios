@@ -17,7 +17,6 @@
  * To be valid, a rectangle should have a left coordinate smaller than or equal to right.
  * To be valid, a rectangle should have a top coordinate smaller than or equal to bottom.
  */
-
 class GHOST_Rect {
  public:
   /**
@@ -160,9 +159,7 @@ class GHOST_Rect {
   /** Bottom coordinate of the rectangle */
   int32_t m_b;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_Rect")
-#endif
 };
 
 inline int32_t GHOST_Rect::getWidth() const

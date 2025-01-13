@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,10 +8,10 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
-#include "RNA_enum_types.h"
+#include "RNA_enum_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "node_function_util.hh"
 
@@ -26,7 +26,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "rounding_mode", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "rounding_mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_label(const bNodeTree * /*tree*/,
@@ -37,9 +37,9 @@ static void node_label(const bNodeTree * /*tree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_float_to_int_items, node->custom1, &name);
   if (!enum_label) {
-    name = "Unknown";
+    name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
   }
-  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
@@ -75,18 +75,19 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
-}  // namespace blender::nodes::node_fn_float_to_int_cc
-
-void register_node_type_fn_float_to_int()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_fn_float_to_int_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  fn_node_type_base(&ntype, FN_NODE_FLOAT_TO_INT, "Float to Integer", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::node_declare;
-  ntype.labelfunc = file_ns::node_label;
-  ntype.build_multi_function = file_ns::node_build_multi_function;
-  ntype.draw_buttons = file_ns::node_layout;
-  nodeRegisterType(&ntype);
+  fn_node_type_base(&ntype, "FunctionNodeFloatToInt", FN_NODE_FLOAT_TO_INT, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Float to Integer";
+  ntype.enum_name_legacy = "FLOAT_TO_INT";
+  ntype.declare = node_declare;
+  ntype.labelfunc = node_label;
+  ntype.build_multi_function = node_build_multi_function;
+  ntype.draw_buttons = node_layout;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_float_to_int_cc

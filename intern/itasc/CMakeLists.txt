@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2006 Blender Foundation
+# SPDX-FileCopyrightText: 2006 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -369,7 +369,6 @@ set(SRC
   WSDLSSolver.cpp
   WorldObject.cpp
   eigen_types.cpp
-  ublas_types.hpp
 
   kdl/chain.cpp
   kdl/chainfksolverpos_recursive.cpp

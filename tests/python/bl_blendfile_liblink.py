@@ -1,8 +1,14 @@
-# SPDX-FileCopyrightText: 2020-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2020-2023 Blender Authors
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# ./blender.bin --background -noaudio --python tests/python/bl_blendfile_liblink.py
+"""
+./blender.bin --background --python tests/python/bl_blendfile_liblink.py
+"""
+__all__ = (
+    "main",
+)
+
 import bpy
 import os
 import sys
@@ -37,6 +43,48 @@ class TestBlendLibLinkHelper(TestHelper):
         self.ensure_path(output_dir)
         # Take care to keep the name unique so multiple test jobs can run at once.
         output_lib_path = os.path.join(output_dir, self.unique_blendfile_name("blendlib_basic"))
+
+        bpy.ops.wm.save_as_mainfile(filepath=output_lib_path, check_existing=False, compress=False)
+
+        return output_lib_path
+
+    def init_lib_data_animated(self):
+        self.reset_blender()
+
+        me = bpy.data.meshes.new("LibMesh")
+        ob = bpy.data.objects.new("LibMesh", me)
+        ob_ctrl = bpy.data.objects.new("LibController", None)
+        coll = bpy.data.collections.new("LibMesh")
+        coll.objects.link(ob)
+        coll.objects.link(ob_ctrl)
+        bpy.context.scene.collection.children.link(coll)
+
+        # Add some action & driver animation to `LibMesh`.
+        # Animate Y location.
+        ob.location[1] = 0.0
+        ob.keyframe_insert("location", index=1, frame=1)
+        ob.location[1] = -5.0
+        ob.keyframe_insert("location", index=1, frame=10)
+
+        # Drive X location.
+        ob_drv = ob.driver_add("location", 0)
+        ob_drv.driver.type = 'AVERAGE'
+        ob_drv_var = ob_drv.driver.variables.new()
+        ob_drv_var.type = 'TRANSFORMS'
+        ob_drv_var.targets[0].id = ob_ctrl
+        ob_drv_var.targets[0].transform_type = 'LOC_X'
+
+        # Add some action & driver animation to `LibController`.
+        # Animate X location.
+        ob_ctrl.location[0] = 0.0
+        ob_ctrl.keyframe_insert("location", index=0, frame=1)
+        ob_ctrl.location[0] = 5.0
+        ob_ctrl.keyframe_insert("location", index=0, frame=10)
+
+        output_dir = self.args.output_dir
+        self.ensure_path(output_dir)
+        # Take care to keep the name unique so multiple test jobs can run at once.
+        output_lib_path = os.path.join(output_dir, self.unique_blendfile_name("blendlib_animated"))
 
         bpy.ops.wm.save_as_mainfile(filepath=output_lib_path, check_existing=False, compress=False)
 
@@ -214,14 +262,14 @@ class TestBlendLibLinkIndirect(TestBlendLibLinkHelper):
         material = bpy.data.materials[0]
 
         assert material.library is not None
-        assert material.use_fake_user is True
-        assert material.users == 2  # Fake user is not cleared when linking.
-        assert material.is_library_indirect
+        assert material.use_fake_user is False  # Fake user is cleared when linking.
+        assert material.users == 1
+        assert material.is_library_indirect is True
 
         assert mesh.library is not None
         assert mesh.use_fake_user is False
         assert mesh.users == 0
-        # IDs explicitely linked by the user are forcefully considered directly linked.
+        # IDs explicitly linked by the user are forcefully considered directly linked.
         assert mesh.is_library_indirect is False
 
         ob = bpy.data.objects.new("LocalMesh", mesh)
@@ -229,29 +277,28 @@ class TestBlendLibLinkIndirect(TestBlendLibLinkHelper):
         coll.objects.link(ob)
         bpy.context.scene.collection.children.link(coll)
 
-        assert material.users == 2
-        assert material.is_library_indirect
+        assert material.users == 1
+        assert material.is_library_indirect is True
         assert mesh.users == 1
         assert mesh.is_library_indirect is False
 
         ob.material_slots[0].link = 'OBJECT'
         ob.material_slots[0].material = material
 
-        assert material.users == 3
+        assert material.users == 2
         assert material.is_library_indirect is False
 
         ob.material_slots[0].material = None
 
-        assert material.users == 2
+        assert material.users == 1
         # This is not properly updated whene removing a local user of linked data.
         assert material.is_library_indirect is False
 
         output_work_path = os.path.join(output_dir, self.unique_blendfile_name("blendfile"))
         bpy.ops.wm.save_as_mainfile(filepath=output_work_path, check_existing=False, compress=False)
 
-        assert material.users == 2
-        # Currently linked data with 'fake user' set are considered as directly linked data.
-        assert not material.is_library_indirect
+        assert material.users == 1
+        assert material.is_library_indirect is True
 
         bpy.ops.wm.open_mainfile(filepath=output_work_path, load_ui=False)
 
@@ -264,15 +311,61 @@ class TestBlendLibLinkIndirect(TestBlendLibLinkHelper):
         material = bpy.data.materials[0]
 
         assert material.library is not None
-        assert material.use_fake_user is True
-        assert material.users == 2  # Fake user is not cleared when linking.
-        # Currently linked data with 'fake user' set are considered as directly linked data.
-        assert not material.is_library_indirect
+        assert material.use_fake_user is False  # Fake user is cleared when linking.
+        assert material.users == 1
+        assert material.is_library_indirect is True
 
         assert mesh.library is not None
         assert mesh.use_fake_user is False
         assert mesh.users == 1
         assert mesh.is_library_indirect is False
+
+
+class TestBlendLibLinkAnimation(TestBlendLibLinkHelper):
+
+    def __init__(self, args):
+        self.args = args
+
+    def test_link(self):
+        output_dir = self.args.output_dir
+        output_lib_path = self.init_lib_data_animated()
+
+        # Simple link of a the collection, and check animation values.
+        self.reset_blender()
+
+        link_dir = os.path.join(output_lib_path, "Collection")
+        bpy.ops.wm.link(directory=link_dir, filename="LibMesh", instance_collections=False, instance_object_data=False)
+
+        assert bpy.data.meshes[0].library
+        assert bpy.data.meshes[0].users == 1
+        assert len(bpy.data.objects) == 2
+        assert bpy.data.objects[0].library
+        assert bpy.data.objects[0].users == 1
+        assert bpy.data.objects[1].library
+        assert bpy.data.objects[1].users == 1
+        assert len(bpy.data.collections) == 1  # Scene's master collection is not listed here
+        assert bpy.data.collections[0].library
+        assert bpy.data.collections[0].users == 1
+        assert len(bpy.data.actions) == 2
+        assert bpy.data.actions[0].library
+        assert bpy.data.actions[0].users == 1
+        assert bpy.data.actions[1].library
+        assert bpy.data.actions[1].users == 1
+
+        # Validate animation evaluation.
+        bpy.context.scene.frame_set(10)
+        print(bpy.data.objects["LibController"].location)
+        print(bpy.data.objects["LibMesh"].location)
+        bpy.context.scene.frame_set(1)
+        print(bpy.data.objects["LibController"].location)
+        print(bpy.data.objects["LibMesh"].location)
+        assert bpy.data.objects["LibController"].location[0] == 0.0
+        assert bpy.data.objects["LibMesh"].location[0] == bpy.data.objects["LibController"].location[0]
+        assert bpy.data.objects["LibMesh"].location[1] == 0.0
+        bpy.context.scene.frame_set(10)
+        assert bpy.data.objects["LibController"].location[0] == 5.0
+        assert bpy.data.objects["LibMesh"].location[0] == bpy.data.objects["LibController"].location[0]
+        assert bpy.data.objects["LibMesh"].location[1] == -5.0
 
 
 class TestBlendLibAppendBasic(TestBlendLibLinkHelper):
@@ -293,7 +386,7 @@ class TestBlendLibAppendBasic(TestBlendLibLinkHelper):
 
         assert len(bpy.data.materials) == 1
         assert bpy.data.materials[0].library is not None
-        assert bpy.data.materials[0].users == 2  # Fake user is not cleared when linking.
+        assert bpy.data.materials[0].users == 1  # Fake user is cleared when linking.
         assert len(bpy.data.meshes) == 1
         assert bpy.data.meshes[0].library is None
         assert bpy.data.meshes[0].use_fake_user is False
@@ -310,7 +403,7 @@ class TestBlendLibAppendBasic(TestBlendLibLinkHelper):
 
         assert len(bpy.data.materials) == 1
         assert bpy.data.materials[0].library is not None
-        assert bpy.data.materials[0].users == 2  # Fake user is not cleared when linking.
+        assert bpy.data.materials[0].users == 1  # Fake user is cleared when linking.
         assert len(bpy.data.meshes) == 1
         assert bpy.data.meshes[0].library is None
         assert bpy.data.meshes[0].use_fake_user is False
@@ -328,7 +421,7 @@ class TestBlendLibAppendBasic(TestBlendLibLinkHelper):
 
         assert len(bpy.data.materials) == 1
         assert bpy.data.materials[0].library is not None
-        assert bpy.data.materials[0].users == 2  # Fake user is not cleared when linking.
+        assert bpy.data.materials[0].users == 1  # Fake user is cleared when linking.
         assert len(bpy.data.meshes) == 1
         assert bpy.data.meshes[0].library is None
         assert bpy.data.meshes[0].use_fake_user is True
@@ -345,7 +438,7 @@ class TestBlendLibAppendBasic(TestBlendLibLinkHelper):
 
         assert len(bpy.data.materials) == 1
         assert bpy.data.materials[0].library is not None
-        assert bpy.data.materials[0].users == 2  # Fake user is not cleared when linking.
+        assert bpy.data.materials[0].users == 1  # Fake user is cleared when linking.
         assert len(bpy.data.meshes) == 1
         assert bpy.data.meshes[0].library is None
         assert bpy.data.meshes[0].users == 1
@@ -598,7 +691,7 @@ class TestBlendLibDataLibrariesLoadLibOverride(TestBlendLibDataLibrariesLoad):
         assert bpy.data.objects[-1].library is not None
         assert bpy.data.collections[-1].library is not None
 
-        # Only explicitely linked data gets a liboverride, without any handling of hierarchy/dependencies.
+        # Only explicitly linked data gets a liboverride, without any handling of hierarchy/dependencies.
         assert bpy.data.collections[0].library is None
         assert bpy.data.collections[0].is_runtime_data is False
         assert bpy.data.collections[0].override_library is not None
@@ -616,7 +709,7 @@ class TestBlendLibDataLibrariesLoadLibOverride(TestBlendLibDataLibrariesLoad):
         assert bpy.data.objects[-1].library is not None
         assert bpy.data.collections[-1].library is not None
 
-        # Only explicitely linked data gets a liboverride, without any handling of hierarchy/dependencies.
+        # Only explicitly linked data gets a liboverride, without any handling of hierarchy/dependencies.
         assert bpy.data.collections[1].library is None
         assert bpy.data.collections[1].is_runtime_data is False
         assert bpy.data.collections[1].override_library is not None
@@ -634,7 +727,7 @@ class TestBlendLibDataLibrariesLoadLibOverride(TestBlendLibDataLibrariesLoad):
         assert bpy.data.objects[-1].library is not None
         assert bpy.data.collections[-1].library is not None
 
-        # Only explicitely linked data gets a liboverride, without any handling of hierarchy/dependencies.
+        # Only explicitly linked data gets a liboverride, without any handling of hierarchy/dependencies.
         assert bpy.data.collections[1].library is None
         assert bpy.data.collections[1].is_runtime_data is False
         assert bpy.data.collections[1].override_library is not None
@@ -655,7 +748,7 @@ class TestBlendLibDataLibrariesLoadLibOverride(TestBlendLibDataLibrariesLoad):
         assert bpy.data.objects[-1].library is not None
         assert bpy.data.collections[-1].library is not None
 
-        # Only explicitely linked data gets a liboverride, without any handling of hierarchy/dependencies.
+        # Only explicitly linked data gets a liboverride, without any handling of hierarchy/dependencies.
         assert bpy.data.collections[0].library is None
         assert bpy.data.collections[0].is_runtime_data is True
         assert bpy.data.collections[0].override_library is not None
@@ -677,7 +770,7 @@ class TestBlendLibDataLibrariesLoadLibOverride(TestBlendLibDataLibrariesLoad):
         assert bpy.data.objects[-1].library is not None
         assert bpy.data.collections[-1].library is not None
 
-        # Only explicitely linked data gets a liboverride, without any handling of hierarchy/dependencies.
+        # Only explicitly linked data gets a liboverride, without any handling of hierarchy/dependencies.
         assert bpy.data.collections[0].library is None
         assert bpy.data.collections[0].is_runtime_data is True
         assert bpy.data.collections[0].override_library is not None
@@ -699,7 +792,7 @@ class TestBlendLibDataLibrariesLoadLibOverride(TestBlendLibDataLibrariesLoad):
         assert bpy.data.objects[-1].library is not None
         assert bpy.data.collections[-1].library is not None
 
-        # Only explicitely linked data gets a liboverride, without any handling of hierarchy/dependencies.
+        # Only explicitly linked data gets a liboverride, without any handling of hierarchy/dependencies.
         assert bpy.data.collections[1].library is None
         assert bpy.data.collections[1].is_runtime_data is False
         assert bpy.data.collections[1].override_library is not None
@@ -708,6 +801,7 @@ class TestBlendLibDataLibrariesLoadLibOverride(TestBlendLibDataLibrariesLoad):
 
 TESTS = (
     TestBlendLibLinkSaveLoadBasic,
+    TestBlendLibLinkAnimation,
     TestBlendLibLinkIndirect,
 
     TestBlendLibAppendBasic,

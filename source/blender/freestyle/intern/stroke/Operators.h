@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -23,9 +23,7 @@
 #include "../view_map/Interface1D.h"
 #include "../view_map/ViewMap.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -198,7 +196,7 @@ class Operators {
                             UnaryPredicate1D &pred,
                             float sampling = 0.0f);
 
-  /** Sorts the current set of chains (or viewedges)
+  /** Sorts the current set of chains (or view-edges)
    *  according to the comparison predicate given as argument.
    *  \param pred:
    *           The binary predicate used for the comparison
@@ -219,32 +217,32 @@ class Operators {
   //
   ////////////////////////////////////////////////
 
-  static ViewEdge *getViewEdgeFromIndex(unsigned i)
+  static ViewEdge *getViewEdgeFromIndex(uint i)
   {
     return dynamic_cast<ViewEdge *>(_current_view_edges_set[i]);
   }
 
-  static Chain *getChainFromIndex(unsigned i)
+  static Chain *getChainFromIndex(uint i)
   {
     return dynamic_cast<Chain *>(_current_chains_set[i]);
   }
 
-  static Stroke *getStrokeFromIndex(unsigned i)
+  static Stroke *getStrokeFromIndex(uint i)
   {
     return _current_strokes_set[i];
   }
 
-  static unsigned getViewEdgesSize()
+  static uint getViewEdgesSize()
   {
     return _current_view_edges_set.size();
   }
 
-  static unsigned getChainsSize()
+  static uint getChainsSize()
   {
     return _current_chains_set.size();
   }
 
-  static unsigned getStrokesSize()
+  static uint getStrokesSize()
   {
     return _current_strokes_set.size();
   }
@@ -269,9 +267,7 @@ class Operators {
   static I1DContainer *_current_set;
   static StrokesContainer _current_strokes_set;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Operators")
-#endif
 };
 
 } /* namespace Freestyle */

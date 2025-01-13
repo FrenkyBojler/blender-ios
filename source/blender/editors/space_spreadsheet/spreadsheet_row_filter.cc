@@ -1,21 +1,22 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstring>
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.hh"
 #include "BLI_math_matrix.hh"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "BKE_instances.hh"
 
@@ -162,6 +163,36 @@ static IndexMask apply_row_filter(const SpreadsheetRowFilter &row_filter,
         apply_filter_operation(
             column_data.typed<int2>(),
             [&](const int2 cell) { return cell.x < value.x && cell.y < value.y; },
+            prev_mask,
+            memory);
+        break;
+      }
+    }
+  }
+  else if (column_data.type().is<short2>()) {
+    const short2 value = short2(int2(row_filter.value_int2));
+    switch (row_filter.operation) {
+      case SPREADSHEET_ROW_FILTER_EQUAL: {
+        const float threshold_sq = pow2f(row_filter.threshold);
+        apply_filter_operation(
+            column_data.typed<short2>(),
+            [&](const short2 cell) { return math::distance_squared(cell, value) <= threshold_sq; },
+            prev_mask,
+            memory);
+        break;
+      }
+      case SPREADSHEET_ROW_FILTER_GREATER: {
+        apply_filter_operation(
+            column_data.typed<short2>(),
+            [&](const short2 cell) { return cell.x > value.x && cell.y > value.y; },
+            prev_mask,
+            memory);
+        break;
+      }
+      case SPREADSHEET_ROW_FILTER_LESS: {
+        apply_filter_operation(
+            column_data.typed<short2>(),
+            [&](const short2 cell) { return cell.x < value.x && cell.y < value.y; },
             prev_mask,
             memory);
         break;

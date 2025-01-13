@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008 Blender Foundation
+/* SPDX-FileCopyrightText: 2008 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,7 +16,6 @@
 #include "BLI_string.h"
 
 #include "BKE_text_suggestions.h" /* Own include. */
-#include "DNA_text_types.h"
 
 /**********************/
 /* Static definitions */

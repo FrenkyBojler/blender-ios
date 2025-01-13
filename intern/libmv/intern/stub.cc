@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -303,8 +303,8 @@ void libmv_cameraIntrinsicsInvert(
   *y1 = 0.0;
 }
 
-void libmv_homography2DFromCorrespondencesEuc(/* const */ double (*/*x1*/)[2],
-                                              /* const */ double (*/*x2*/)[2],
+void libmv_homography2DFromCorrespondencesEuc(/* const */ double (* /*x1*/)[2],
+                                              /* const */ double (* /*x2*/)[2],
                                               int /*num_points*/,
                                               double H[3][3]) {
   memset(H, 0, sizeof(double[3][3]));

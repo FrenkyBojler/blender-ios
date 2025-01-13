@@ -10,24 +10,26 @@
 
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_task.h"
 
-#include "BKE_context.h"
-#include "BKE_image.h"
-#include "BKE_unit.h"
+#include "BKE_image.hh"
+#include "BKE_unit.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "transform.hh"
 #include "transform_constraints.hh"
 #include "transform_convert.hh"
 #include "transform_mode.hh"
 #include "transform_snap.hh"
+
+using namespace blender;
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Resize) Element
@@ -104,7 +106,7 @@ static void constrain_scale_to_boundary(const float numerator,
    * "catastrophic cancellation". See #102923 for an example. We use epsilon tests here to
    * distinguish between genuine negative coordinates versus coordinates that should be rounded off
    * to zero. */
-  const float epsilon = 0.25f / 65536.0f; /* i.e. Quarter of a texel on a 65536 x 65536 texture. */
+  const float epsilon = 0.25f / 65536.0f; /* A quarter of a texel on a 65536 x 65536 texture. */
   if (fabsf(denominator) < epsilon) {
     /* The origin of the scale is very near the edge of the boundary. */
     if (numerator < -epsilon) {
@@ -167,7 +169,7 @@ static bool clip_uv_transform_resize(TransInfo *t, float vec[2])
         constrain_scale_to_boundary(
             scale_origin[0] - base_offset[0], scale_origin[0] - min[0], &scale);
 
-        /* Now the right border, negated, because `-1.0 / -1.0 = 1.0` */
+        /* Now the right border, negated, because `-1.0 / -1.0 = 1.0`. */
         constrain_scale_to_boundary(
             base_offset[0] + t->aspect[0] - scale_origin[0], max[0] - scale_origin[0], &scale);
       }
@@ -187,7 +189,7 @@ static bool clip_uv_transform_resize(TransInfo *t, float vec[2])
   return scale != 1.0f;
 }
 
-static void applyResize(TransInfo *t, const int[2] /*mval*/)
+static void applyResize(TransInfo *t)
 {
   float mat[3][3];
   int i;
@@ -232,7 +234,7 @@ static void applyResize(TransInfo *t, const int[2] /*mval*/)
     headerResize(t, t->values_final, str, sizeof(str));
   }
 
-  copy_m3_m3(t->mat, mat); /* used in gizmo */
+  copy_m3_m3(t->mat, mat); /* Used in gizmo. */
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
 
@@ -272,15 +274,14 @@ static void applyResize(TransInfo *t, const int[2] /*mval*/)
         ElementResize(t, tc, td, mat);
       }
 
-      /* XXX(@dg): In proportional edit it can happen that vertices
-       * in the radius of the brush end outside the clipping area. */
+      /* Not ideal, see #clipUVData code-comment. */
       if (t->flag & T_PROP_EDIT) {
         clipUVData(t);
       }
     }
   }
 
-  recalcData(t);
+  recalc_data(t);
 
   ED_area_status_text(t->area, str);
 }
@@ -315,7 +316,7 @@ static void initResize(TransInfo *t, wmOperator *op)
   }
   else {
     int mval_start[2], mval_end[2];
-    float mval_dir[3], t_mval[2];
+    float mval_dir[3];
     float viewmat[3][3];
 
     copy_m3_m4(viewmat, t->viewmat);
@@ -331,8 +332,7 @@ static void initResize(TransInfo *t, wmOperator *op)
     mval_start[0] = t->center2d[0];
     mval_start[1] = t->center2d[1];
 
-    t_mval[0] = t->mval[0] - mval_start[0];
-    t_mval[1] = t->mval[1] - mval_start[1];
+    float2 t_mval = t->mval - float2(t->center2d);
     project_v2_v2v2(mval_dir, t_mval, mval_dir);
 
     mval_end[0] = t->center2d[0] + mval_dir[0];

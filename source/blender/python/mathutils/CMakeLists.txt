@@ -1,10 +1,9 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   .
-  ../../imbuf
 )
 
 set(INC_SYS
@@ -24,17 +23,17 @@ set(SRC
   mathutils_kdtree.cc
   mathutils_noise.cc
 
-  mathutils.h
-  mathutils_Color.h
-  mathutils_Euler.h
-  mathutils_Matrix.h
-  mathutils_Quaternion.h
-  mathutils_Vector.h
-  mathutils_bvhtree.h
-  mathutils_geometry.h
-  mathutils_interpolate.h
-  mathutils_kdtree.h
-  mathutils_noise.h
+  mathutils.hh
+  mathutils_Color.hh
+  mathutils_Euler.hh
+  mathutils_Matrix.hh
+  mathutils_Quaternion.hh
+  mathutils_Vector.hh
+  mathutils_bvhtree.hh
+  mathutils_geometry.hh
+  mathutils_interpolate.hh
+  mathutils_kdtree.hh
+  mathutils_noise.hh
 )
 
 set(LIB
@@ -43,7 +42,7 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_imbuf
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   bf_python_ext
 

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021 Blender Foundation
+# SPDX-FileCopyrightText: 2021 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -7,16 +7,14 @@ set(INC
   ..
   ../intern
   ../../editors/include
-  ../../functions
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../render
   ../../../../intern/sky/include
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
+set(INC_SYS
+)
 
 set(SRC
   nodes/node_shader_add_shader.cc
@@ -31,7 +29,9 @@ set(SRC
   nodes/node_shader_bsdf_glossy.cc
   nodes/node_shader_bsdf_hair.cc
   nodes/node_shader_bsdf_hair_principled.cc
+  nodes/node_shader_bsdf_metallic.cc
   nodes/node_shader_bsdf_principled.cc
+  nodes/node_shader_bsdf_ray_portal.cc
   nodes/node_shader_bsdf_refraction.cc
   nodes/node_shader_bsdf_sheen.cc
   nodes/node_shader_bsdf_toon.cc
@@ -88,10 +88,10 @@ set(SRC
   nodes/node_shader_tex_checker.cc
   nodes/node_shader_tex_coord.cc
   nodes/node_shader_tex_environment.cc
+  nodes/node_shader_tex_gabor.cc
   nodes/node_shader_tex_gradient.cc
   nodes/node_shader_tex_image.cc
   nodes/node_shader_tex_magic.cc
-  nodes/node_shader_tex_musgrave.cc
   nodes/node_shader_tex_noise.cc
   nodes/node_shader_tex_pointdensity.cc
   nodes/node_shader_tex_sky.cc
@@ -127,39 +127,59 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_functions
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_intern_sky
   bf_nodes
+  PRIVATE bf::render
   PRIVATE bf::windowmanager
 )
+
+if(WITH_MATERIALX)
+  add_definitions(-DWITH_MATERIALX)
+  list(APPEND SRC
+    materialx/group_nodes.cc
+    materialx/material.cc
+    materialx/node_item.cc
+    materialx/node_parser.cc
+
+    materialx/group_nodes.h
+    materialx/material.h
+    materialx/node_item.h
+    materialx/node_parser.h
+  )
+  list(APPEND LIB
+    MaterialXCore
+    MaterialXFormat
+  )
+
+  if(WITH_USD)
+    add_definitions(-DWITH_USD)
+    list(APPEND INC_SYS
+      ${USD_INCLUDE_DIRS}
+      ${BOOST_INCLUDE_DIR}
+    )
+  endif()
+endif()
 
 if(WITH_FREESTYLE)
   add_definitions(-DWITH_FREESTYLE)
 endif()
 
 if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
   if(WIN32)
     # TBB includes Windows.h which will define min/max macros
-    # that will collide with the stl versions.
+    # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
 endif()
 
 blender_add_lib(bf_nodes_shader "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-if(WITH_UNITY_BUILD)
-  set_target_properties(bf_nodes_shader PROPERTIES UNITY_BUILD ON)
-  set_target_properties(bf_nodes_shader PROPERTIES UNITY_BUILD_BATCH_SIZE 10)
-endif()
+blender_set_target_unity_build(bf_nodes_shader 10)
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_nodes_shader bf_rna)

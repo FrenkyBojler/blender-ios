@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,8 +8,10 @@
 #include "GEO_mesh_merge_by_distance.hh"
 #include "GEO_point_merge_by_distance.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "NOD_rna_define.hh"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -30,7 +32,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -40,11 +42,10 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
-static PointCloud *pointcloud_merge_by_distance(
-    const PointCloud &src_points,
-    const float merge_distance,
-    const Field<bool> &selection_field,
-    const AnonymousAttributePropagationInfo &propagation_info)
+static PointCloud *pointcloud_merge_by_distance(const PointCloud &src_points,
+                                                const float merge_distance,
+                                                const Field<bool> &selection_field,
+                                                const AttributeFilter &attribute_filter)
 {
   const bke::PointCloudFieldContext context{src_points};
   FieldEvaluator evaluator{context, src_points.totpoint};
@@ -57,16 +58,16 @@ static PointCloud *pointcloud_merge_by_distance(
   }
 
   return geometry::point_merge_by_distance(
-      src_points, merge_distance, selection, propagation_info);
+      src_points, merge_distance, selection, attribute_filter);
 }
 
 static std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
                                                               const float merge_distance,
                                                               const Field<bool> &selection_field)
 {
-  Array<bool> selection(mesh.totvert);
-  const bke::MeshFieldContext context{mesh, ATTR_DOMAIN_POINT};
-  FieldEvaluator evaluator{context, mesh.totvert};
+  Array<bool> selection(mesh.verts_num);
+  const bke::MeshFieldContext context{mesh, AttrDomain::Point};
+  FieldEvaluator evaluator{context, mesh.verts_num};
   evaluator.add_with_destination(selection_field, selection.as_mutable_span());
   evaluator.evaluate();
 
@@ -77,8 +78,8 @@ static std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
                                                         const float merge_distance,
                                                         const Field<bool> &selection_field)
 {
-  const bke::MeshFieldContext context{mesh, ATTR_DOMAIN_POINT};
-  FieldEvaluator evaluator{context, mesh.totvert};
+  const bke::MeshFieldContext context{mesh, AttrDomain::Point};
+  FieldEvaluator evaluator{context, mesh.verts_num};
   evaluator.add(selection_field);
   evaluator.evaluate();
 
@@ -101,14 +102,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float merge_distance = params.extract_input<float>("Distance");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    if (const PointCloud *pointcloud = geometry_set.get_pointcloud_for_read()) {
+    if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
       PointCloud *result = pointcloud_merge_by_distance(
-          *pointcloud, merge_distance, selection, params.get_output_propagation_info("Geometry"));
+          *pointcloud, merge_distance, selection, params.get_attribute_filter("Geometry"));
       if (result) {
         geometry_set.replace_pointcloud(result);
       }
     }
-    if (const Mesh *mesh = geometry_set.get_mesh_for_read()) {
+    if (const Mesh *mesh = geometry_set.get_mesh()) {
       std::optional<Mesh *> result;
       switch (mode) {
         case GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL:
@@ -129,22 +130,52 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Geometry", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_merge_by_distance_cc
-
-void register_node_type_geo_merge_by_distance()
+static void node_rna(StructRNA *srna)
 {
-  namespace file_ns = blender::nodes::node_geo_merge_by_distance_cc;
+  static EnumPropertyItem mode_items[] = {
+      {GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL,
+       "ALL",
+       0,
+       "All",
+       "Merge all close selected points, whether or not they are connected"},
+      {GEO_NODE_MERGE_BY_DISTANCE_MODE_CONNECTED,
+       "CONNECTED",
+       0,
+       "Connected",
+       "Only merge mesh vertices along existing edges. This method can be much faster"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_MERGE_BY_DISTANCE, "Merge by Distance", NODE_CLASS_GEOMETRY);
-  ntype.initfunc = file_ns::node_init;
-  node_type_storage(&ntype,
-                    "NodeGeometryMergeByDistance",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.draw_buttons = file_ns::node_layout;
-  nodeRegisterType(&ntype);
+  RNA_def_node_enum(srna,
+                    "mode",
+                    "Mode",
+                    "",
+                    mode_items,
+                    NOD_storage_enum_accessors(mode),
+                    GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL);
 }
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  geo_node_type_base(
+      &ntype, "GeometryNodeMergeByDistance", GEO_NODE_MERGE_BY_DISTANCE, NODE_CLASS_GEOMETRY);
+  ntype.ui_name = "Merge by Distance";
+  ntype.ui_description = "Merge vertices or points within a given distance";
+  ntype.enum_name_legacy = "MERGE_BY_DISTANCE";
+  ntype.initfunc = node_init;
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryMergeByDistance",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.draw_buttons = node_layout;
+  blender::bke::node_register_type(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
+}
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_merge_by_distance_cc

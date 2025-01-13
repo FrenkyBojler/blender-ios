@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2022-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,7 +9,7 @@
 #include "BLI_math_base.h"
 #include "BLI_math_bits.h"
 
-#include "GPU_framebuffer.h"
+#include "GPU_framebuffer.hh"
 
 #include "mtl_context.hh"
 #include "mtl_framebuffer.hh"
@@ -143,7 +143,7 @@ void MTLStateManager::set_mutable_state(const GPUStateMutable &state)
     pipeline_state.dirty_flags |= MTL_PIPELINE_STATE_PSO_FLAG;
   }
 
-  if (changed.depth_range[0] != 0 || changed.depth_range[1] != 0) {
+  if (float_as_uint(changed.depth_range[0]) != 0 || float_as_uint(changed.depth_range[1]) != 0) {
     /* TODO remove, should modify the projection matrix instead. */
     mtl_depth_range(state.depth_range[0], state.depth_range[1]);
   }
@@ -327,7 +327,7 @@ void MTLStateManager::set_stencil_test(const eGPUStencilTest test, const eGPUSte
   pipeline_state.dirty_flags |= MTL_PIPELINE_STATE_DEPTHSTENCIL_FLAG;
 }
 
-void MTLStateManager::set_stencil_mask(const eGPUStencilTest test, const GPUStateMutable state)
+void MTLStateManager::set_stencil_mask(const eGPUStencilTest test, const GPUStateMutable &state)
 {
   if (test == GPU_STENCIL_NONE) {
     mtl_stencil_mask(0x00);
@@ -407,7 +407,7 @@ void MTLStateManager::set_provoking_vert(const eGPUProvokingVertex /*vert*/)
   /* NOTE(Metal): Provoking vertex is not a feature in the Metal API.
    * Shaders are handled on a case-by-case basis using a modified vertex shader.
    * For example, wireframe rendering and edit-mesh shaders utilize an SSBO-based
-   * vertex fetching mechanism which considers the inverse convention for flat
+   * vertex pulling mechanism which considers the inverse convention for flat
    * shading, to ensure consistent results with OpenGL. */
 }
 
@@ -442,10 +442,10 @@ void MTLStateManager::set_blend(const eGPUBlend value)
   /**
    * Factors to the equation.
    * SRC is fragment shader output.
-   * DST is framebuffer color.
+   * DST is frame-buffer color.
    * final.rgb = SRC.rgb * src_rgb + DST.rgb * dst_rgb;
    * final.a = SRC.a * src_alpha + DST.a * dst_alpha;
-   **/
+   */
   MTLBlendFactor src_rgb;
   MTLBlendFactor dst_rgb;
   MTLBlendFactor src_alpha;
@@ -575,7 +575,7 @@ void MTLStateManager::issue_barrier(eGPUBarrier barrier_bits)
   eGPUStageBarrierBits before_stages = GPU_BARRIER_STAGE_ANY;
   eGPUStageBarrierBits after_stages = GPU_BARRIER_STAGE_ANY;
 
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
 
   ctx->main_command_buffer.insert_memory_barrier(barrier_bits, before_stages, after_stages);
@@ -628,7 +628,7 @@ void MTLFence::wait()
 void MTLStateManager::texture_unpack_row_length_set(uint len)
 {
   /* Set source image row data stride when uploading image data to the GPU. */
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   ctx->pipeline_state.unpack_row_length = len;
 }
 
@@ -638,7 +638,7 @@ void MTLStateManager::texture_bind(Texture *tex_, GPUSamplerState sampler_type, 
   gpu::MTLTexture *mtl_tex = static_cast<gpu::MTLTexture *>(tex_);
   BLI_assert(mtl_tex);
 
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   if (unit >= 0) {
     ctx->texture_bind(mtl_tex, unit, false);
 
@@ -658,13 +658,13 @@ void MTLStateManager::texture_unbind(Texture *tex_)
   BLI_assert(tex_);
   gpu::MTLTexture *mtl_tex = static_cast<gpu::MTLTexture *>(tex_);
   BLI_assert(mtl_tex);
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   ctx->texture_unbind(mtl_tex, false);
 }
 
 void MTLStateManager::texture_unbind_all()
 {
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
   ctx->texture_unbind_all(false);
 }
@@ -681,7 +681,7 @@ void MTLStateManager::image_bind(Texture *tex_, int unit)
   gpu::MTLTexture *mtl_tex = static_cast<gpu::MTLTexture *>(tex_);
   BLI_assert(mtl_tex);
 
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   if (unit >= 0) {
     ctx->texture_bind(mtl_tex, unit, true);
   }
@@ -692,13 +692,13 @@ void MTLStateManager::image_unbind(Texture *tex_)
   BLI_assert(tex_);
   gpu::MTLTexture *mtl_tex = static_cast<gpu::MTLTexture *>(tex_);
   BLI_assert(mtl_tex);
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   ctx->texture_unbind(mtl_tex, true);
 }
 
 void MTLStateManager::image_unbind_all()
 {
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
   ctx->texture_unbind_all(true);
 }

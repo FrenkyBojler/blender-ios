@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2011-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2011-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -69,7 +69,7 @@ class SCENE_OT_freestyle_fill_range_by_selection(Operator):
         else:
             self.report({'ERROR'}, "Unexpected modifier type: " + m.type)
             return {'CANCELLED'}
-        # Find selected vertices in editmesh
+        # Find selected vertices in edit-mesh.
         ob = context.active_object
         if ob.type == 'MESH' and ob.mode == 'EDIT' and ob.name != ref.name:
             bpy.ops.object.mode_set(mode='OBJECT')
@@ -147,7 +147,7 @@ class SCENE_OT_freestyle_add_edge_marks_to_keying_set(Operator):
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         for i, edge in enumerate(mesh.edges):
             if not edge.hide and edge.select:
-                path = "edges[%d].use_freestyle_mark" % i
+                path = "edges[{:d}].use_freestyle_mark".format(i)
                 ks.paths.add(mesh, path, index=0)
         bpy.ops.object.mode_set(mode=ob_mode, toggle=False)
         return {'FINISHED'}
@@ -178,7 +178,7 @@ class SCENE_OT_freestyle_add_face_marks_to_keying_set(Operator):
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         for i, polygon in enumerate(mesh.polygons):
             if not polygon.hide and polygon.select:
-                path = "polygons[%d].use_freestyle_mark" % i
+                path = "polygons[{:d}].use_freestyle_mark".format(i)
                 ks.paths.add(mesh, path, index=0)
         bpy.ops.object.mode_set(mode=ob_mode, toggle=False)
         return {'FINISHED'}

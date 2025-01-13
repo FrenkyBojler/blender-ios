@@ -1,19 +1,13 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../asset
   ../include
-  ../../asset_system
-  ../../blenloader
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../render
-  ../../../../extern/fmtlib/include
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -22,6 +16,7 @@ set(INC_SYS
 
 set(SRC
   asset_catalog_tree_view.cc
+  file_context.cc
   file_draw.cc
   file_indexer.cc
   file_ops.cc
@@ -30,29 +25,39 @@ set(SRC
   filelist.cc
   filesel.cc
   folder_history.cc
-  fsmenu.c
+  fsmenu.cc
+  fsmenu_system.cc
   space_file.cc
 
-  file_indexer.h
-  file_intern.h
-  filelist.h
+  file_indexer.hh
+  file_intern.hh
+  filelist.hh
   fsmenu.h
 )
 
 set(LIB
+  PRIVATE bf::asset_system
   PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
   PRIVATE bf::blentranslation
   PRIVATE bf::dna
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::windowmanager
-  extern_fmtlib
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::intern::atomic
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WIN32)
   add_definitions(-DNOMINMAX)
+  list(APPEND LIB
+    PRIVATE bf::intern::utfconv
+  )
 endif()
 
 if(WITH_HEADLESS)
@@ -85,5 +90,5 @@ endif()
 
 blender_add_lib(bf_editor_space_file "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.hh dna_type_offsets.h
 add_dependencies(bf_editor_space_file bf_rna)

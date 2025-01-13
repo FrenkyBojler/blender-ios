@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2016 Blender Foundation
+/* SPDX-FileCopyrightText: 2016 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,37 +7,34 @@
  */
 
 #include <cstring>
+#include <optional>
 
-#include "DNA_anim_types.h"
 #include "DNA_cachefile_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_anim_data.h"
-#include "BKE_bpath.h"
-#include "BKE_cachefile.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_modifier.h"
-#include "BKE_scene.h"
+#include "BKE_bpath.hh"
+#include "BKE_cachefile.hh"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_scene.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "RE_engine.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -46,7 +43,7 @@
 #endif
 
 #ifdef WITH_USD
-#  include "usd.h"
+#  include "usd.hh"
 #endif
 
 static void cachefile_handle_free(CacheFile *cache_file);
@@ -63,6 +60,7 @@ static void cache_file_init_data(ID *id)
 }
 
 static void cache_file_copy_data(Main * /*bmain*/,
+                                 std::optional<Library *> /*owner_library*/,
                                  ID *id_dst,
                                  const ID *id_src,
                                  const int /*flag*/)
@@ -104,10 +102,6 @@ static void cache_file_blend_write(BlendWriter *writer, ID *id, const void *id_a
   BLO_write_id_struct(writer, CacheFile, id_address, &cache_file->id);
   BKE_id_blend_write(writer, &cache_file->id);
 
-  if (cache_file->adt) {
-    BKE_animdata_blend_write(writer, cache_file->adt);
-  }
-
   /* write layers */
   LISTBASE_FOREACH (CacheFileLayer *, layer, &cache_file->layers) {
     BLO_write_struct(writer, CacheFileLayer, layer);
@@ -122,21 +116,18 @@ static void cache_file_blend_read_data(BlendDataReader *reader, ID *id)
   cache_file->handle_filepath[0] = '\0';
   cache_file->handle_readers = nullptr;
 
-  /* relink animdata */
-  BLO_read_data_address(reader, &cache_file->adt);
-  BKE_animdata_blend_read_data(reader, cache_file->adt);
-
   /* relink layers */
-  BLO_read_list(reader, &cache_file->layers);
+  BLO_read_struct_list(reader, CacheFileLayer, &cache_file->layers);
 }
 
 IDTypeInfo IDType_ID_CF = {
     /*id_code*/ ID_CF,
     /*id_filter*/ FILTER_ID_CF,
+    /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_CF,
     /*struct_size*/ sizeof(CacheFile),
     /*name*/ "CacheFile",
-    /*name_plural*/ "cache_files",
+    /*name_plural*/ N_("cache_files"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_CACHEFILE,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -152,8 +143,7 @@ IDTypeInfo IDType_ID_CF = {
 
     /*blend_write*/ cache_file_blend_write,
     /*blend_read_data*/ cache_file_blend_read_data,
-    /*blend_read_lib*/ nullptr,
-    /*blend_read_expand*/ nullptr,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -180,7 +170,7 @@ void BKE_cachefile_reader_open(CacheFile *cache_file,
 {
 #if defined(WITH_ALEMBIC) || defined(WITH_USD)
 
-  BLI_assert(cache_file->id.tag & LIB_TAG_COPIED_ON_WRITE);
+  BLI_assert(cache_file->id.tag & ID_TAG_COPIED_ON_EVAL);
 
   if (cache_file->handle == nullptr) {
     return;
@@ -197,7 +187,8 @@ void BKE_cachefile_reader_open(CacheFile *cache_file,
     case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
       /* Open USD cache reader. */
-      *reader = CacheReader_open_usd_object(cache_file->handle, *reader, object, object_path);
+      *reader = blender::io::usd::CacheReader_open_usd_object(
+          cache_file->handle, *reader, object, object_path);
 #  endif
       break;
     case CACHE_FILE_TYPE_INVALID:
@@ -231,7 +222,7 @@ void BKE_cachefile_reader_free(CacheFile *cache_file, CacheReader **reader)
   BLI_spin_lock(&spin);
   if (*reader != nullptr) {
     if (cache_file) {
-      BLI_assert(cache_file->id.tag & LIB_TAG_COPIED_ON_WRITE);
+      BLI_assert(cache_file->id.tag & ID_TAG_COPIED_ON_EVAL);
 
       switch (cache_file->type) {
         case CACHEFILE_TYPE_ALEMBIC:
@@ -241,7 +232,7 @@ void BKE_cachefile_reader_free(CacheFile *cache_file, CacheReader **reader)
           break;
         case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
-          USD_CacheReader_free(*reader);
+          blender::io::usd::USD_CacheReader_free(*reader);
 #  endif
           break;
         case CACHE_FILE_TYPE_INVALID:
@@ -281,7 +272,7 @@ static void cachefile_handle_free(CacheFile *cache_file)
             break;
           case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
-            USD_CacheReader_free(*reader);
+            blender::io::usd::USD_CacheReader_free(*reader);
 #  endif
             break;
           case CACHE_FILE_TYPE_INVALID:
@@ -308,7 +299,7 @@ static void cachefile_handle_free(CacheFile *cache_file)
         break;
       case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
-        USD_free_handle(cache_file->handle);
+        blender::io::usd::USD_free_handle(cache_file->handle);
 #  endif
         break;
       case CACHE_FILE_TYPE_INVALID:
@@ -339,12 +330,12 @@ void BKE_cachefile_reload(Depsgraph *depsgraph, CacheFile *cache_file)
     cachefile_handle_free(cache_file_eval);
   }
 
-  DEG_id_tag_update(&cache_file->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&cache_file->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 void BKE_cachefile_eval(Main *bmain, Depsgraph *depsgraph, CacheFile *cache_file)
 {
-  BLI_assert(cache_file->id.tag & LIB_TAG_COPIED_ON_WRITE);
+  BLI_assert(cache_file->id.tag & ID_TAG_COPIED_ON_EVAL);
 
   /* Compute filepath. */
   char filepath[FILE_MAX];
@@ -374,8 +365,9 @@ void BKE_cachefile_eval(Main *bmain, Depsgraph *depsgraph, CacheFile *cache_file
 #ifdef WITH_USD
   if (BLI_path_extension_check_glob(filepath, "*.usd;*.usda;*.usdc;*.usdz")) {
     cache_file->type = CACHEFILE_TYPE_USD;
-    cache_file->handle = USD_create_handle(bmain, filepath, &cache_file->object_paths);
-    BLI_strncpy(cache_file->handle_filepath, filepath, FILE_MAX);
+    cache_file->handle = blender::io::usd::USD_create_handle(
+        bmain, filepath, &cache_file->object_paths);
+    STRNCPY(cache_file->handle_filepath, filepath);
   }
 #endif
 
@@ -438,9 +430,7 @@ bool BKE_cache_file_uses_render_procedural(const CacheFile *cache_file, Scene *s
 
 CacheFileLayer *BKE_cachefile_add_layer(CacheFile *cache_file, const char filepath[1024])
 {
-  for (CacheFileLayer *layer = static_cast<CacheFileLayer *>(cache_file->layers.first); layer;
-       layer = layer->next)
-  {
+  LISTBASE_FOREACH (CacheFileLayer *, layer, &cache_file->layers) {
     if (STREQ(layer->filepath, filepath)) {
       return nullptr;
     }

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,30 +8,36 @@
 
 #include "DNA_gpencil_legacy_types.h"
 
-#include "BLI_math.h"
-
-#include "BKE_armature.h"
-#include "BKE_context.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
 #include "BKE_gpencil_geom_legacy.h"
-#include "BKE_layer.h"
-#include "BKE_object.h"
-#include "BKE_paint.h"
-#include "BKE_scene.h"
+#include "BKE_layer.hh"
+#include "BKE_object.hh"
+#include "BKE_paint.hh"
+#include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "BLI_bounds_types.hh"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
-#include "ED_mesh.h"
-#include "ED_particle.h"
-#include "ED_screen.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "WM_api.h"
-#include "WM_message.h"
+#include "ED_mesh.hh"
+#include "ED_particle.hh"
+#include "ED_screen.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "WM_api.hh"
+#include "WM_message.hh"
 
-#include "view3d_intern.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
+
+using blender::float3;
+
 /* -------------------------------------------------------------------- */
 /** \name View All Operator
  *
@@ -65,17 +71,17 @@ static void view3d_object_calc_minmax(Depsgraph *depsgraph,
                                       Scene *scene,
                                       Object *ob_eval,
                                       const bool only_center,
-                                      float min[3],
-                                      float max[3])
+                                      float3 &min,
+                                      float3 &max)
 {
   /* Account for duplis. */
   if (BKE_object_minmax_dupli(depsgraph, scene, ob_eval, min, max, false) == 0) {
     /* Use if duplis aren't found. */
     if (only_center) {
-      minmax_v3v3_v3(min, max, ob_eval->object_to_world[3]);
+      minmax_v3v3_v3(min, max, ob_eval->object_to_world().location());
     }
     else {
-      BKE_object_minmax(ob_eval, min, max, false);
+      BKE_object_minmax(ob_eval, min, max);
     }
   }
 }
@@ -202,7 +208,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op)
   const bool center = RNA_boolean_get(op->ptr, "center");
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
-  float min[3], max[3];
+  float3 min, max;
   bool changed = false;
 
   if (center) {
@@ -210,10 +216,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op)
     View3DCursor *cursor = &scene->cursor;
     zero_v3(min);
     zero_v3(max);
-    zero_v3(cursor->location);
-    float mat3[3][3];
-    unit_m3(mat3);
-    BKE_scene_cursor_mat3_to_rot(cursor, mat3, false);
+    cursor->set_matrix(blender::float4x4::identity(), false);
   }
   else {
     INIT_MINMAX(min, max);
@@ -236,7 +239,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op)
     wmMsgBus *mbus = CTX_wm_message_bus(C);
     WM_msg_publish_rna_prop(mbus, &scene->id, &scene->cursor, View3DCursor, location);
 
-    DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
   if (!changed) {
@@ -285,7 +288,7 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
 
   /* properties */
   view3d_operator_properties_common(ot, V3D_OP_PROP_USE_ALL_REGIONS);
-  RNA_def_boolean(ot->srna, "center", 0, "Center", "");
+  RNA_def_boolean(ot->srna, "center", false, "Center", "");
 }
 
 /** \} */
@@ -298,6 +301,7 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
 
 static int viewselected_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender;
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -309,13 +313,9 @@ static int viewselected_exec(bContext *C, wmOperator *op)
   BKE_view_layer_synced_ensure(scene_eval, view_layer_eval);
   Object *ob_eval = BKE_view_layer_active_object_get(view_layer_eval);
   Object *obedit = CTX_data_edit_object(C);
-  const bGPdata *gpd_eval = ob_eval && (ob_eval->type == OB_GPENCIL_LEGACY) ?
-                                static_cast<const bGPdata *>(ob_eval->data) :
-                                nullptr;
-  const bool is_gp_edit = gpd_eval ? GPENCIL_ANY_MODE(gpd_eval) : false;
-  const bool is_face_map = ((is_gp_edit == false) && region->gizmo_map &&
-                            WM_gizmomap_is_any_selected(region->gizmo_map));
-  float min[3], max[3];
+  const bool is_face_map = (region->runtime->gizmo_map &&
+                            WM_gizmomap_is_any_selected(region->runtime->gizmo_map));
+  float3 min, max;
   bool ok = false, ok_dist = true;
   const bool use_all_regions = RNA_boolean_get(op->ptr, "use_all_regions");
   const bool skip_camera = (ED_view3d_camera_lock_check(v3d, rv3d) ||
@@ -349,46 +349,15 @@ static int viewselected_exec(bContext *C, wmOperator *op)
     }
   }
 
-  if (is_gp_edit) {
-    CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
-      /* we're only interested in selected points here... */
-      if ((gps->flag & GP_STROKE_SELECT) && (gps->flag & GP_STROKE_3DSPACE)) {
-        ok |= BKE_gpencil_stroke_minmax(gps, true, min, max);
-      }
-      if (gps->editcurve != nullptr) {
-        for (int i = 0; i < gps->editcurve->tot_curve_points; i++) {
-          BezTriple *bezt = &gps->editcurve->curve_points[i].bezt;
-          if (bezt->f1 & SELECT) {
-            minmax_v3v3_v3(min, max, bezt->vec[0]);
-            ok = true;
-          }
-          if (bezt->f2 & SELECT) {
-            minmax_v3v3_v3(min, max, bezt->vec[1]);
-            ok = true;
-          }
-          if (bezt->f3 & SELECT) {
-            minmax_v3v3_v3(min, max, bezt->vec[2]);
-            ok = true;
-          }
-        }
-      }
-    }
-    CTX_DATA_END;
-
-    if ((ob_eval) && (ok)) {
-      mul_m4_v3(ob_eval->object_to_world, min);
-      mul_m4_v3(ob_eval->object_to_world, max);
-    }
-  }
-  else if (is_face_map) {
-    ok = WM_gizmomap_minmax(region->gizmo_map, true, true, min, max);
+  if (is_face_map) {
+    ok = WM_gizmomap_minmax(region->runtime->gizmo_map, true, true, min, max);
   }
   else if (obedit) {
     /* only selected */
     FOREACH_OBJECT_IN_MODE_BEGIN (
         scene_eval, view_layer_eval, v3d, obedit->type, obedit->mode, ob_eval_iter)
     {
-      ok |= ED_view3d_minmax_verts(ob_eval_iter, min, max);
+      ok |= ED_view3d_minmax_verts(scene_eval, ob_eval_iter, min, max);
     }
     FOREACH_OBJECT_IN_MODE_END;
   }
@@ -396,7 +365,12 @@ static int viewselected_exec(bContext *C, wmOperator *op)
     FOREACH_OBJECT_IN_MODE_BEGIN (
         scene_eval, view_layer_eval, v3d, ob_eval->type, ob_eval->mode, ob_eval_iter)
     {
-      ok |= BKE_pose_minmax(ob_eval_iter, min, max, true, true);
+      const std::optional<Bounds<float3>> bounds = BKE_pose_minmax(ob_eval_iter, true);
+      if (bounds) {
+        minmax_v3v3_v3(min, max, bounds->min);
+        minmax_v3v3_v3(min, max, bounds->max);
+        ok = true;
+      }
     }
     FOREACH_OBJECT_IN_MODE_END;
   }
@@ -406,13 +380,21 @@ static int viewselected_exec(bContext *C, wmOperator *op)
   else if (ob_eval && (ob_eval->mode & OB_MODE_PARTICLE_EDIT)) {
     ok = PE_minmax(depsgraph, scene, CTX_data_view_layer(C), min, max);
   }
+  else if (ob_eval && (ob_eval->mode & OB_MODE_SCULPT_CURVES)) {
+    FOREACH_OBJECT_IN_MODE_BEGIN (
+        scene_eval, view_layer_eval, v3d, ob_eval->type, ob_eval->mode, ob_eval_iter)
+    {
+      ok |= ED_view3d_minmax_verts(scene_eval, ob_eval_iter, min, max);
+    }
+    FOREACH_OBJECT_IN_MODE_END;
+  }
   else if (ob_eval && (ob_eval->mode & (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT |
                                         OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)))
   {
     BKE_paint_stroke_get_average(scene, ob_eval, min);
     copy_v3_v3(max, min);
     ok = true;
-    ok_dist = 0; /* don't zoom */
+    ok_dist = false; /* don't zoom */
   }
   else {
     LISTBASE_FOREACH (Base *, base_eval, BKE_view_layer_object_bases_get(view_layer_eval)) {
@@ -423,7 +405,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
           continue;
         }
         view3d_object_calc_minmax(depsgraph, scene, base_eval->object, only_center, min, max);
-        ok = 1;
+        ok = true;
       }
     }
   }

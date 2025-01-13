@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,31 +11,29 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_rect.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
-#include "BKE_context.h"
-#include "BKE_fcurve.h"
-#include "BKE_nla.h"
+#include "BKE_context.hh"
+#include "BKE_fcurve.hh"
+#include "BKE_nla.hh"
 
-#include "UI_interface.h"
-#include "UI_view2d.h"
+#include "UI_view2d.hh"
 
-#include "ED_anim_api.h"
-#include "ED_markers.h"
-#include "ED_screen.h"
+#include "ED_anim_api.hh"
+#include "ED_markers.hh"
+#include "ED_screen.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "graph_intern.h"
+#include "graph_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Calculate Range
@@ -52,7 +50,6 @@ void get_graph_keyframe_extents(bAnimContext *ac,
   Scene *scene = ac->scene;
 
   ListBase anim_data = {nullptr, nullptr};
-  bAnimListElem *ale;
   int filter;
 
   /* Get data to filter, from Dopesheet. */
@@ -84,21 +81,18 @@ void get_graph_keyframe_extents(bAnimContext *ac,
     bool foundBounds = false;
 
     /* Go through channels, finding max extents. */
-    for (ale = static_cast<bAnimListElem *>(anim_data.first); ale; ale = ale->next) {
-      AnimData *adt = ANIM_nla_mapping_get(ac, ale);
+    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
       FCurve *fcu = (FCurve *)ale->key_data;
       rctf bounds;
       float unitFac, offset;
 
       /* Get range. */
       if (BKE_fcurve_calc_bounds(fcu, do_sel_only, include_handles, nullptr, &bounds)) {
-        short mapping_flag = ANIM_get_normalization_flags(ac);
+        short mapping_flag = ANIM_get_normalization_flags(ac->sl);
 
         /* Apply NLA scaling. */
-        if (adt) {
-          bounds.xmin = BKE_nla_tweakedit_remap(adt, bounds.xmin, NLATIME_CONVERT_MAP);
-          bounds.xmax = BKE_nla_tweakedit_remap(adt, bounds.xmax, NLATIME_CONVERT_MAP);
-        }
+        bounds.xmin = ANIM_nla_tweakedit_remap(ale, bounds.xmin, NLATIME_CONVERT_MAP);
+        bounds.xmax = ANIM_nla_tweakedit_remap(ale, bounds.xmax, NLATIME_CONVERT_MAP);
 
         /* Apply unit corrections. */
         unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag, &offset);
@@ -133,7 +127,7 @@ void get_graph_keyframe_extents(bAnimContext *ac,
         *xmax += 0.0005f;
       }
       if ((ymin && ymax) && (fabsf(*ymax - *ymin) < 0.001f)) {
-        *ymax -= 0.0005f;
+        *ymin -= 0.0005f;
         *ymax += 0.0005f;
       }
     }
@@ -263,7 +257,8 @@ static int graphkeys_viewall(bContext *C,
                              include_handles);
 
   /* Give some more space at the borders. */
-  BLI_rctf_scale(&cur_new, 1.1f);
+  cur_new = ANIM_frame_range_view2d_add_xmargin(ac.region->v2d, cur_new);
+  BLI_rctf_resize_y(&cur_new, 1.1f * BLI_rctf_size_y(&cur_new));
 
   /* Take regions into account, that could block the view.
    * Marker region is supposed to be larger than the scroll-bar, so prioritize it. */
@@ -386,7 +381,6 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 {
   SpaceGraph *sipo = (SpaceGraph *)ac->sl;
   ListBase anim_data = {nullptr, nullptr};
-  bAnimListElem *ale;
   int filter;
 
   /* Free existing ghost curves. */
@@ -405,15 +399,14 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   /* Loop through filtered data and add keys between selected keyframes on every frame. */
-  for (ale = static_cast<bAnimListElem *>(anim_data.first); ale; ale = ale->next) {
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     FCurve *fcu = (FCurve *)ale->key_data;
     FCurve *gcu = BKE_fcurve_create();
-    AnimData *adt = ANIM_nla_mapping_get(ac, ale);
     ChannelDriver *driver = fcu->driver;
     FPoint *fpt;
     float unitFac, offset;
     int cfra;
-    short mapping_flag = ANIM_get_normalization_flags(ac);
+    short mapping_flag = ANIM_get_normalization_flags(ac->sl);
 
     /* Disable driver so that it don't muck up the sampling process. */
     fcu->driver = nullptr;
@@ -430,7 +423,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 
     /* Use the sampling callback at 1-frame intervals from start to end frames. */
     for (cfra = start; cfra <= end; cfra++, fpt++) {
-      float cfrae = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
+      const float cfrae = ANIM_nla_tweakedit_remap(ale, cfra, NLATIME_CONVERT_UNMAP);
 
       fpt->vec[0] = cfrae;
       fpt->vec[1] = (fcurve_samplingcb_evalcurve(fcu, nullptr, cfrae) + offset) * unitFac;

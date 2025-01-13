@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2006 Blender Foundation
+# SPDX-FileCopyrightText: 2006 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -12,15 +12,26 @@ if(HAVE_MALLOC_STATS_H)
   add_definitions(-DHAVE_MALLOC_STATS_H)
 endif()
 
-# files rna_access.cc rna_define.cc makesrna.cc intentionally excluded.
+# There is some code in `makesrna.cc` that forces files to be regenerated even if they have not
+# changed to keep make out of some dependency problem. Ninja and VisualStudios `msbuild` do not
+# appear to be requiring this and much time can be saved by not rebuilding hundreds of files
+# when not required, both generators have been whitelisted here not to take this code-path,
+# all other generators will take the conservative route and regenerate.
+if(CMAKE_GENERATOR MATCHES ".*Unix Makefiles")
+  add_definitions(-DUSE_MAKEFILE_WORKAROUND)
+endif()
+
+# Files `rna_access.cc`, `rna_define.cc`, `makesrna.cc` intentionally excluded.
 set(DEFSRC
   rna_ID.cc
   rna_action.cc
   rna_animation.cc
   rna_animviz.cc
+  rna_annotations.cc
   rna_armature.cc
   rna_asset.cc
   rna_attribute.cc
+  rna_blendfile_import.cc
   rna_boid.cc
   rna_brush.cc
   rna_cachefile.cc
@@ -37,8 +48,7 @@ set(DEFSRC
   rna_dynamicpaint.cc
   rna_fcurve.cc
   rna_fluid.cc
-  rna_gpencil_legacy.cc
-  rna_gpencil_legacy_modifier.cc
+  rna_grease_pencil.cc
   rna_image.cc
   rna_key.cc
   rna_lattice.cc
@@ -54,8 +64,9 @@ set(DEFSRC
   rna_modifier.cc
   rna_movieclip.cc
   rna_nla.cc
-  rna_nodetree.cc
   rna_node_socket.cc
+  rna_node_tree_interface.cc
+  rna_nodetree.cc
   rna_object.cc
   rna_object_force.cc
   rna_packedfile.cc
@@ -74,7 +85,7 @@ set(DEFSRC
   rna_sound.cc
   rna_space.cc
   rna_speaker.cc
-  rna_test.c
+  rna_test.cc
   rna_text.cc
   rna_texture.cc
   rna_timeline.cc
@@ -90,12 +101,15 @@ set(DEFSRC
   rna_xr.cc
 )
 
+if(WITH_USD)
+  list(APPEND DEFSRC
+    rna_usd.cc
+  )
+  add_definitions(-DWITH_USD)
+endif()
+
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
-  add_definitions(-DWITH_GREASE_PENCIL_V3)
-  list(APPEND DEFSRC
-    rna_grease_pencil.cc
-  )
 endif()
 
 set(APISRC
@@ -104,7 +118,9 @@ set(APISRC
   rna_armature_api.cc
   rna_camera_api.cc
   rna_curve_api.cc
+  rna_curves_api.cc
   rna_fcurve_api.cc
+  rna_grease_pencil_api.cc
   rna_image_api.cc
   rna_lattice_api.cc
   rna_main_api.cc
@@ -126,12 +142,18 @@ set(APISRC
   rna_workspace_api.cc
 )
 
-string(REGEX REPLACE "rna_([a-zA-Z0-9_-]*).c" "${CMAKE_CURRENT_BINARY_DIR}/rna_\\1_gen.c" GENSRC "${DEFSRC}")
+string(
+  REGEX REPLACE
+  "rna_([a-zA-Z0-9_-]*).cc" "${CMAKE_CURRENT_BINARY_DIR}/rna_\\1_gen.cc"
+  GENSRC "${DEFSRC}"
+)
 list(APPEND GENSRC
-  "${CMAKE_CURRENT_BINARY_DIR}/rna_prototypes_gen.h"
-  "${CMAKE_CURRENT_BINARY_DIR}/../RNA_prototypes.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/rna_prototypes_gen.hh"
+  "${CMAKE_CURRENT_BINARY_DIR}/../RNA_prototypes.hh"
 )
 set_source_files_properties(${GENSRC} PROPERTIES GENERATED TRUE)
+
+# TODO: Remove the `GENSRC_C` flags and data, there are no C files anymore here.
 
 # --------------------------
 # CFLAGS for Generated Files
@@ -154,9 +176,9 @@ elseif(MSVC)
 endif()
 
 set(GENSRC_C ${GENSRC})
-list(FILTER GENSRC_C INCLUDE REGEX ".*\.c$")
+list(FILTER GENSRC_C INCLUDE REGEX "[a-zA-Z0-9_-]\.c$")
 set(GENSRC_CXX ${GENSRC})
-list(FILTER GENSRC_CXX INCLUDE REGEX ".*\.cc$")
+list(FILTER GENSRC_CXX INCLUDE REGEX "[a-zA-Z0-9_-]\.cc$")
 
 if(GENSRC_FLAGS)
   set_source_files_properties(${GENSRC} PROPERTIES COMPILE_FLAGS "${GENSRC_FLAGS}")
@@ -178,7 +200,7 @@ unset(GENSRC_CXXFLAGS)
 
 
 # NOTE: Disable clang-tidy because generated files are stored outside of the source,
-# so the clang-tidy can not find our .clang-tidy and fall-backs to own set of rules
+# so the clang-tidy can not find our .clang-tidy and fall-backs to its own set of rules
 # which are too noisy for Blender.
 #
 # In the future clang-tidy would either need to be inlined checks and passed via the
@@ -188,13 +210,15 @@ unset(CMAKE_C_CLANG_TIDY)
 unset(CMAKE_CXX_CLANG_TIDY)
 
 set(SRC_RNA_INC
-  ../RNA_access.h
-  ../RNA_define.h
-  ../RNA_documentation.h
-  ../RNA_enum_items.h
-  ../RNA_enum_types.h
-  ../RNA_path.h
-  ../RNA_types.h
+  ../RNA_access.hh
+  ../RNA_define.hh
+  ../RNA_documentation.hh
+  ../RNA_enum_items.hh
+  ../RNA_enum_types.hh
+  ../RNA_path.hh
+  ../RNA_types.hh
+
+  rna_action_tools.hh
 )
 
 set(SRC
@@ -203,12 +227,6 @@ set(SRC
   ${DEFSRC}
   ${APISRC}
   ../../../../intern/clog/clog.c
-  ../../../../intern/guardedalloc/intern/leak_detector.cc
-  ../../../../intern/guardedalloc/intern/mallocn.c
-  ../../../../intern/guardedalloc/intern/mallocn_guarded_impl.c
-  ../../../../intern/guardedalloc/intern/mallocn_lockfree_impl.c
-  ../../../../intern/guardedalloc/intern/memory_usage.cc
-
   # Needed for defaults.
   ../../../../release/datafiles/userdef/userdef_default.c
   ../../../../release/datafiles/userdef/userdef_default_theme.c
@@ -217,6 +235,7 @@ set(SRC
 set(INC
   .
   ..
+  ../../animrig
   ../../asset_system
   ../../blenfont
   ../../blenkernel
@@ -226,23 +245,29 @@ set(INC
   ../../bmesh
   ../../depsgraph
   ../../draw
+  ../../functions
   ../../gpu
   ../../ikplugin
   ../../imbuf
+  ../../imbuf/movie
+  ../../io/usd
   ../../modifiers
   ../../nodes
+  ../../nodes/geometry/include
   ../../sequencer
   ../../simulation
   ../../windowmanager
+  ../../editors/asset
   ../../editors/include
   ../../render
   ../../../../intern/clog
   ../../../../intern/cycles/blender
+  ../../../../extern/fmtlib/include
   ../../../../intern/memutil
   ../../../../intern/mantaflow/extern
 
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_CURRENT_BINARY_DIR}/../../makesrna/
 )
 
@@ -291,15 +316,6 @@ if(WITH_AUDASPACE)
 endif()
 
 if(WITH_CODEC_FFMPEG)
-  list(APPEND INC
-    ../../../../intern/ffmpeg
-  )
-  list(APPEND INC_SYS
-    ${FFMPEG_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFMPEG_LIBRARIES}
-  )
   add_definitions(-DWITH_FFMPEG)
 endif()
 
@@ -316,12 +332,6 @@ if(WITH_MOD_OCEANSIM)
 endif()
 
 if(WITH_SDL)
-  if(WITH_SDL_DYNLOAD)
-    add_definitions(-DWITH_SDL_DYNLOAD)
-    list(APPEND INC
-      ../../../../extern/sdlew/include
-    )
-  endif()
   add_definitions(-DWITH_SDL)
 endif()
 
@@ -422,7 +432,7 @@ if(WITH_GMP)
   add_definitions(-DWITH_GMP)
 endif()
 
-# Build makesrna executable
+# Build `makesrna` executable.
 add_cc_flags_custom_test(makesrna)
 
 add_executable(makesrna ${SRC} ${SRC_RNA_INC} ${SRC_DNA_INC})
@@ -435,6 +445,7 @@ target_link_libraries(makesrna PRIVATE bf_dna)
 target_link_libraries(makesrna PRIVATE bf::intern::atomic)
 target_link_libraries(makesrna PRIVATE bf::intern::guardedalloc)
 target_link_libraries(makesrna PRIVATE bf_dna_blenlib)
+target_link_libraries(makesrna PRIVATE bf::dependencies::optional::tbb)
 
 if(WIN32 AND NOT UNIX)
   if(DEFINED PTHREADS_LIBRARIES)
@@ -442,12 +453,14 @@ if(WIN32 AND NOT UNIX)
   endif()
 endif()
 
-# Output `rna_*_gen.c`.
+# Output `rna_*_gen.cc`.
 # NOTE: (Linux only): with crashes try add this after COMMAND:
 # `valgrind --leak-check=full --track-origins=yes`
 add_custom_command(
   OUTPUT ${GENSRC}
-  COMMAND "$<TARGET_FILE:makesrna>" ${CMAKE_CURRENT_BINARY_DIR}/ ${CMAKE_CURRENT_BINARY_DIR}/../
+  COMMAND
+    ${CMAKE_COMMAND} -E env ${PLATFORM_ENV_BUILD}
+    "$<TARGET_FILE:makesrna>" ${CMAKE_CURRENT_BINARY_DIR}/ ${CMAKE_CURRENT_BINARY_DIR}/../
   DEPENDS makesrna
 )
 
@@ -459,14 +472,18 @@ set(SRC
   ${GENSRC}
 
   ${SRC_RNA_INC}
-  rna_access_internal.h
-  rna_internal.h
-  rna_internal_types.h
+  rna_access_internal.hh
+  rna_curves_utils.hh
+  rna_internal.hh
+  rna_internal_types.hh
   rna_mesh_utils.hh
 )
 
 set(LIB
+  PRIVATE bf::animrig
   PRIVATE bf::dna
+  PRIVATE bf::dependencies::optional::tbb
+  PRIVATE extern_fmtlib
   bf_editor_space_api
 
   bf_editor_animation

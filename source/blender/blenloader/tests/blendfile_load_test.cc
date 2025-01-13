@@ -1,16 +1,15 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "blendfile_loading_base_test.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
-class BlendfileLoadingTest : public BlendfileLoadingBaseTest {
-};
+class BlendfileLoadingTest : public BlendfileLoadingBaseTest {};
 
 TEST_F(BlendfileLoadingTest, CanaryTest)
 {
-  /* Load the smallest blend file we have in the SVN lib/tests directory. */
+  /* Load the smallest blend file we have in the tests/data directory. */
   if (!blendfile_load("modifier_stack" SEP_STR "array_test.blend")) {
     return;
   }

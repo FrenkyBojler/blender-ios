@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -24,15 +24,15 @@
 
 #include "BKE_constraint.h"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "intern/builder/deg_builder.h"
-#include "intern/depsgraph.h"
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/depsgraph.hh"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
 
 namespace blender::deg {
 
@@ -276,7 +276,6 @@ RNANodeIdentifier RNANodeQuery::construct_node_identifier(const PointerRNA *ptr,
     return node_identifier;
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Mesh) || RNA_struct_is_a(ptr->type, &RNA_Modifier) ||
-           RNA_struct_is_a(ptr->type, &RNA_GpencilModifier) ||
            RNA_struct_is_a(ptr->type, &RNA_Spline) || RNA_struct_is_a(ptr->type, &RNA_TextBox) ||
            RNA_struct_is_a(ptr->type, &RNA_GPencilLayer) ||
            RNA_struct_is_a(ptr->type, &RNA_LatticePoint) ||
@@ -351,7 +350,7 @@ RNANodeIdentifier RNANodeQuery::construct_node_identifier(const PointerRNA *ptr,
     node_identifier.type = NodeType::GEOMETRY;
     return node_identifier;
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
+  else if (RNA_struct_is_a(ptr->type, &RNA_Strip)) {
     /* Sequencer strip */
     node_identifier.type = NodeType::SEQUENCER;
     return node_identifier;

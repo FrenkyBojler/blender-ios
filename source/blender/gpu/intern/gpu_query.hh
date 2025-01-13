@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,13 +14,13 @@ namespace blender::gpu {
 
 #define QUERY_MIN_LEN 16
 
-typedef enum GPUQueryType {
+enum GPUQueryType {
   GPU_QUERY_OCCLUSION = 0,
-} GPUQueryType;
+};
 
 class QueryPool {
  public:
-  virtual ~QueryPool(){};
+  virtual ~QueryPool() = default;
 
   /**
    * Will start and end the query at this index inside the pool. The pool will resize

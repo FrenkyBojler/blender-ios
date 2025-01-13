@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2018-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2018-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -14,13 +14,6 @@ class ShaderFxButtonsPanel:
 class DATA_PT_shader_fx(ShaderFxButtonsPanel, Panel):
     bl_label = "Effects"
     bl_options = {'HIDE_HEADER'}
-
-    # Unused: always show for now.
-
-    # @classmethod
-    # def poll(cls, context):
-    #     ob = context.object
-    #     return ob and ob.type == 'GPENCIL'
 
     def draw(self, _context):
         layout = self.layout

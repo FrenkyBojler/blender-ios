@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2008 Blender Foundation
+# SPDX-FileCopyrightText: 2008 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -15,14 +15,15 @@ set(SRC
   intern/blt_lang.cc
   intern/blt_translation.cc
 
-  BLT_lang.h
-  BLT_translation.h
+  BLT_lang.hh
+  BLT_translation.hh
 )
 
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
 )
 
@@ -40,10 +41,8 @@ if(WITH_PYTHON)
   )
 endif()
 
-if(WIN32 OR APPLE)
-  if(WITH_INPUT_IME)
-    add_definitions(-DWITH_INPUT_IME)
-  endif()
+if(WITH_INPUT_IME)
+  add_definitions(-DWITH_INPUT_IME)
 endif()
 
 blender_add_lib(bf_blentranslation "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

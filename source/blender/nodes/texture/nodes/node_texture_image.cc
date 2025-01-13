@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2006 Blender Foundation
+/* SPDX-FileCopyrightText: 2006 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,10 +6,14 @@
  * \ingroup texnodes
  */
 
-#include "NOD_texture.h"
+#include "BKE_image.hh"
+#include "BLI_math_vector.h"
+#include "BLI_threads.h"
+#include "IMB_imbuf.hh"
 #include "node_texture_util.hh"
+#include "node_util.hh"
 
-static bNodeSocketTemplate outputs[] = {
+static blender::bke::bNodeSocketTemplate outputs[] = {
     {SOCK_RGBA, N_("Image")},
     {-1, ""},
 };
@@ -90,15 +94,18 @@ static void init(bNodeTree * /*ntree*/, bNode *node)
 
 void register_node_type_tex_image()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_IMAGE, "Image", NODE_CLASS_INPUT);
+  tex_node_type_base(&ntype, "TextureNodeImage", TEX_NODE_IMAGE, NODE_CLASS_INPUT);
+  ntype.ui_name = "Image";
+  ntype.enum_name_legacy = "IMAGE";
   blender::bke::node_type_socket_templates(&ntype, nullptr, outputs);
   ntype.initfunc = init;
-  node_type_storage(&ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      &ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
   ntype.exec_fn = exec;
   ntype.labelfunc = node_image_label;
   ntype.flag |= NODE_PREVIEW;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

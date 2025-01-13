@@ -1,12 +1,10 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
   ../io
-  ../../asset_system
-  ../../gpu
   ../../makesrna
 )
 
@@ -19,6 +17,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::asset_system
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
@@ -42,6 +41,7 @@ set(LIB
   bf_editor_space_topbar
   bf_editor_space_userpref
   bf_editor_space_view3d
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
 )

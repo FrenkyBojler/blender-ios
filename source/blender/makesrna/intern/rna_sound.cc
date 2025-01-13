@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,9 +8,9 @@
 
 #include <cstdlib>
 
-#include "RNA_define.h"
+#include "RNA_define.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "DNA_sound_types.h"
 
@@ -32,16 +32,18 @@ static const EnumPropertyItem rna_enum_audio_channels_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_context.h"
+#  include "BKE_context.hh"
 #  include "BKE_sound.h"
 
-#  include "DEG_depsgraph.h"
+#  include "DEG_depsgraph.hh"
 
-#  include "SEQ_sequencer.h"
+#  include "SEQ_sequencer.hh"
+#  include "SEQ_utils.hh"
 
-static void rna_Sound_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+static void rna_Sound_update(Main * /*bmain*/, Scene *scene, PointerRNA *ptr)
 {
   bSound *sound = (bSound *)ptr->data;
+  blender::seq::media_presence_invalidate_sound(scene, sound);
   DEG_id_tag_update(&sound->id, ID_RECALC_AUDIO);
 }
 

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,8 +14,8 @@
 #include "ImportSettings.h"
 
 #include "BLI_linklist.h"
-#include "BLI_path_util.h"
-#include "RNA_types.h"
+#include "BLI_path_utils.hh"
+#include "RNA_types.hh"
 
 #ifdef __cplusplus
 extern "C" {

@@ -8,18 +8,19 @@
 
 #include <cstdlib>
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
 
-#include "BKE_context.h"
-#include "BKE_unit.h"
+#include "BKE_unit.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -122,7 +123,7 @@ static void applyTrackballValue(TransInfo *t, const float axis[3], const float a
   }
 }
 
-static void applyTrackball(TransInfo *t, const int[2] /*mval*/)
+static void applyTrackball(TransInfo *t)
 {
   char str[UI_MAX_DRAW_STR];
   size_t ofs = 0;
@@ -139,11 +140,11 @@ static void applyTrackball(TransInfo *t, const int[2] /*mval*/)
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN * 2];
 
-    outputNumInput(&(t->num), c, &t->scene->unit);
+    outputNumInput(&(t->num), c, t->scene->unit);
 
     ofs += BLI_snprintf_rlen(str + ofs,
                              sizeof(str) - ofs,
-                             TIP_("Trackball: %s %s %s"),
+                             IFACE_("Trackball: %s %s %s"),
                              &c[0],
                              &c[NUM_STR_REP_LEN],
                              t->proptext);
@@ -151,7 +152,7 @@ static void applyTrackball(TransInfo *t, const int[2] /*mval*/)
   else {
     ofs += BLI_snprintf_rlen(str + ofs,
                              sizeof(str) - ofs,
-                             TIP_("Trackball: %.2f %.2f %s"),
+                             IFACE_("Trackball: %.2f %.2f %s"),
                              RAD2DEGF(phi[0]),
                              RAD2DEGF(phi[1]),
                              t->proptext);
@@ -159,14 +160,14 @@ static void applyTrackball(TransInfo *t, const int[2] /*mval*/)
 
   if (t->flag & T_PROP_EDIT_ALL) {
     ofs += BLI_snprintf_rlen(
-        str + ofs, sizeof(str) - ofs, TIP_(" Proportional size: %.2f"), t->prop_size);
+        str + ofs, sizeof(str) - ofs, IFACE_(" Proportional size: %.2f"), t->prop_size);
   }
 
   float axis_final[3], angle_final;
   applyTrackballValue_calc_axis_angle(t, phi, axis_final, &angle_final);
   applyTrackballValue(t, axis_final, angle_final);
 
-  recalcData(t);
+  recalc_data(t);
 
   ED_area_status_text(t->area, str);
 }

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2017-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2017-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -7,6 +7,12 @@ Module to manage overriding various parts of Blender.
 
 Intended for use with 'app_templates', though it can be used from anywhere.
 """
+
+__all__ = (
+    "class_filter",
+    "ui_draw_filter_register",
+    "ui_draw_filter_unregister",
+)
 
 
 # TODO, how to check these aren't from add-ons.
@@ -31,7 +37,7 @@ def ui_draw_filter_register(
     ui_ignore_operator=None,
     ui_ignore_property=None,
     ui_ignore_menu=None,
-    ui_ignore_label=None
+    ui_ignore_label=None,
 ):
     import bpy
 

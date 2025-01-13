@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,6 +9,7 @@
 #pragma once
 
 #include "MEM_guardedalloc.h"
+
 #include "gpu_uniform_buffer_private.hh"
 
 #include "mtl_context.hh"
@@ -19,7 +20,7 @@ class MTLStorageBuf;
 
 /**
  * Implementation of Uniform Buffers using Metal.
- **/
+ */
 class MTLUniformBuf : public UniformBuf {
   friend class MTLStorageBuf; /* For bind as SSBO resource access. */
 
@@ -40,7 +41,7 @@ class MTLUniformBuf : public UniformBuf {
 
  public:
   MTLUniformBuf(size_t size, const char *name);
-  ~MTLUniformBuf();
+  ~MTLUniformBuf() override;
 
   void update(const void *data) override;
   void bind(int slot) override;

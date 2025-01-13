@@ -1,18 +1,26 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
-#include "BKE_geometry_fields.hh"
-
-#include "BLI_task.hh"
 
 #include "DNA_object_types.h"
 
 #include "ED_curves.hh"
-#include "ED_transverts.h"
+#include "ED_transverts.hh"
 
 namespace blender::ed::curves {
+
+Vector<MutableSpan<float3>> get_curves_positions_for_write(bke::CurvesGeometry &curves)
+{
+  Vector<MutableSpan<float3>> positions_per_attribute;
+  positions_per_attribute.append(curves.positions_for_write());
+  if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    positions_per_attribute.append(curves.handle_positions_left_for_write());
+    positions_per_attribute.append(curves.handle_positions_right_for_write());
+  }
+  return positions_per_attribute;
+}
 
 void transverts_from_curves_positions_create(bke::CurvesGeometry &curves, TransVertStore *tvs)
 {
@@ -32,21 +40,14 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves, TransV
   });
 }
 
-}  // namespace blender::ed::curves
-
-float (*ED_curves_point_normals_array_create(const Curves *curves_id))[3]
+float (*point_normals_array_create(const Curves *curves_id))[3]
 {
   using namespace blender;
   const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
   const int size = curves.points_num();
-
   float3 *data = static_cast<float3 *>(MEM_malloc_arrayN(size, sizeof(float3), __func__));
-
-  const bke::CurvesFieldContext context(curves, ATTR_DOMAIN_POINT);
-  fn::FieldEvaluator evaluator(context, size);
-  fn::Field<float3> field(std::make_shared<bke::NormalFieldInput>());
-  evaluator.add_with_destination(std::move(field), {data, size});
-  evaluator.evaluate();
-
+  bke::curves_normals_point_domain_calc(curves, {data, size});
   return reinterpret_cast<float(*)[3]>(data);
 }
+
+}  // namespace blender::ed::curves

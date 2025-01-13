@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -20,9 +20,7 @@
 
 #include "../winged_edge/Nature.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -78,7 +76,7 @@ T integrate(UnaryFunction0D<T> &fun,
             IntegrationType integration_type = MEAN)
 {
   T res;
-  unsigned size;
+  uint size;
   switch (integration_type) {
     case MIN:
       fun(it);
@@ -185,23 +183,21 @@ class Interface1D {
   virtual Nature::EdgeNature getNature() const;
 
   /** Returns the time stamp of the 1D element. Mainly used for selection. */
-  virtual unsigned getTimeStamp() const
+  virtual uint getTimeStamp() const
   {
     return _timeStamp;
   }
 
   /** Sets the time stamp for the 1D element. */
-  inline void setTimeStamp(unsigned iTimeStamp)
+  inline void setTimeStamp(uint iTimeStamp)
   {
     _timeStamp = iTimeStamp;
   }
 
  protected:
-  unsigned _timeStamp;
+  uint _timeStamp;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Interface1D")
-#endif
 };
 
 } /* namespace Freestyle */

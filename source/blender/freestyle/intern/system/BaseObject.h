@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,9 +10,9 @@
  * \brief Inspired by COM IUnknown system.
  */
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
+
+#include "BLI_sys_types.h"
 
 namespace Freestyle {
 
@@ -49,11 +49,9 @@ class BaseObject {
   }
 
  private:
-  unsigned _ref_counter;
+  uint _ref_counter;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:BaseObject")
-#endif
 };
 
 } /* namespace Freestyle */

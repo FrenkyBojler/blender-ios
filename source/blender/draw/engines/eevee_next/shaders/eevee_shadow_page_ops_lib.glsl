@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
 
 /**
  * Operations to move virtual shadow map pages between heaps and tiles.
@@ -22,12 +27,13 @@
  * IMPORTANT: Do not forget to manually store the tile data after doing operations on them.
  */
 
-#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
+#include "infos/eevee_shadow_info.hh"
 
-/* TODO(@fclem): Implement. */
-#ifndef GPU_METAL
-#  define assert(check)
+#ifdef GPU_LIBRARY_SHADER
+SHADER_LIBRARY_CREATE_INFO(eevee_shadow_page_free)
 #endif
+
+#include "eevee_shadow_tilemap_lib.glsl"
 
 /* Remove page ownership from the tile and append it to the cache. */
 void shadow_page_free(inout ShadowTileData tile)
@@ -37,9 +43,9 @@ void shadow_page_free(inout ShadowTileData tile)
   int index = atomicAdd(pages_infos_buf.page_free_count, 1);
   assert(index < SHADOW_MAX_PAGE);
   /* Insert in heap. */
-  pages_free_buf[index] = packUvec2x16(tile.page);
+  pages_free_buf[index] = shadow_page_pack(tile.page);
   /* Remove from tile. */
-  tile.page = uvec2(-1);
+  tile.page = uvec3(-1);
   tile.is_cached = false;
   tile.is_allocated = false;
 }
@@ -55,7 +61,7 @@ void shadow_page_alloc(inout ShadowTileData tile)
     return;
   }
   /* Insert in tile. */
-  tile.page = unpackUvec2x16(pages_free_buf[index]);
+  tile.page = shadow_page_unpack(pages_free_buf[index]);
   tile.is_allocated = true;
   tile.do_update = true;
   /* Remove from heap. */
@@ -67,12 +73,12 @@ void shadow_page_cache_append(inout ShadowTileData tile, uint tile_index)
 {
   assert(tile.is_allocated);
 
-  /* The page_cached_next is also wrapped in the defrag phase to avoid unsigned overflow. */
+  /* The page_cached_next is also wrapped in the defragment phase to avoid unsigned overflow. */
   uint index = atomicAdd(pages_infos_buf.page_cached_next, 1u) % uint(SHADOW_MAX_PAGE);
   /* Insert in heap. */
-  pages_cached_buf[index] = uvec2(packUvec2x16(tile.page), tile_index);
+  pages_cached_buf[index] = uvec2(shadow_page_pack(tile.page), tile_index);
   /* Remove from tile. */
-  tile.page = uvec2(-1);
+  tile.page = uvec3(-1);
   tile.cache_index = index;
   tile.is_cached = true;
   tile.is_allocated = false;
@@ -86,11 +92,11 @@ void shadow_page_cache_remove(inout ShadowTileData tile)
 
   uint index = tile.cache_index;
   /* Insert in tile. */
-  tile.page = unpackUvec2x16(pages_cached_buf[index].x);
+  tile.page = shadow_page_unpack(pages_cached_buf[index].x);
   tile.cache_index = uint(-1);
   tile.is_cached = false;
   tile.is_allocated = true;
-  /* Remove from heap. Leaves hole in the buffer. This is handled by the defrag phase. */
+  /* Remove from heap. Leaves hole in the buffer. This is handled by the defragment phase. */
   pages_cached_buf[index] = uvec2(-1);
 }
 
@@ -103,7 +109,7 @@ void shadow_page_cache_update_page_ref(uint page_index, uint new_page_index)
   tiles_buf[tile_index] = shadow_tile_pack(tile);
 }
 
-/* Update cached page reference when a tile referencing a cached page moves inside the tilemap. */
+/* Update cached page reference when a tile referencing a cached page moves inside the tile-map. */
 void shadow_page_cache_update_tile_ref(uint page_index, uint new_tile_index)
 {
   pages_cached_buf[page_index].y = new_tile_index;

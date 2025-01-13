@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011 Blender Foundation
+/* SPDX-FileCopyrightText: 2011 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include "atomic_ops.h"
 #include <cstdlib>
 
 #include "MEM_guardedalloc.h"
@@ -15,18 +14,16 @@
 #include "DNA_object_types.h" /* SELECT */
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
-#include "PIL_time.h"
 
-#include "BKE_global.h"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "libmv-capi.h"
 #include "tracking_private.h"
@@ -278,8 +275,7 @@ static MovieTrackingMarker libmv_marker_to_dna_marker(const libmv_Marker &libmv_
 /* -------------------------------------------------------------------- */
 /** \name General helpers.
  *
- * TODO(sergey): Should be moved to tracking_util.c
- *
+ * TODO(sergey): Should be moved to `tracking_util.cc`.
  * \{ */
 
 /* Returns false if marker crossed margin area from frame bounds. */
@@ -823,10 +819,11 @@ void BKE_autotrack_context_sync(AutoTrackContext *context)
   }
 }
 
-/* TODO(sergey): Find a way to avoid this, somehow making all needed logic in
- * #BKE_autotrack_context_sync(). */
 void BKE_autotrack_context_sync_user(AutoTrackContext *context, MovieClipUser *user)
 {
+  /* TODO(sergey): Find a way to avoid this function,
+   * somehow making all needed logic in #BKE_autotrack_context_sync(). */
+
   user->framenr = context->synchronized_scene_frame;
 }
 

@@ -10,23 +10,22 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_fileops.h"
 #include "BLI_fileops_types.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_image_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "BKE_image.h"
-#include "BKE_main.h"
+#include "BKE_image.hh"
+#include "BKE_main.hh"
 
-#include "ED_image.h"
+#include "ED_image.hh"
 
 struct ImageFrame {
   ImageFrame *next, *prev;
@@ -141,7 +140,9 @@ static void image_detect_frame_range(ImageFrameRange *range, const bool detect_u
   }
 }
 
-ListBase ED_image_filesel_detect_sequences(Main *bmain, wmOperator *op, const bool detect_udim)
+ListBase ED_image_filesel_detect_sequences(blender::StringRefNull root_path,
+                                           wmOperator *op,
+                                           const bool detect_udim)
 {
   ListBase ranges;
   BLI_listbase_clear(&ranges);
@@ -161,7 +162,7 @@ ListBase ED_image_filesel_detect_sequences(Main *bmain, wmOperator *op, const bo
       BLI_freelistN(&range->frames);
 
       if (was_relative) {
-        BLI_path_rel(range->filepath, BKE_main_blendfile_path(bmain));
+        BLI_path_rel(range->filepath, root_path.c_str());
       }
     }
   }

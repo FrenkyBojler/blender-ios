@@ -1,9 +1,6 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
-
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 
 #include "BKE_mesh.hh"
 
@@ -19,18 +16,18 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The surface area of each of the mesh's faces");
 }
 
-static VArray<float> construct_face_area_varray(const Mesh &mesh, const eAttrDomain domain)
+static VArray<float> construct_face_area_varray(const Mesh &mesh, const AttrDomain domain)
 {
   const Span<float3> positions = mesh.vert_positions();
-  const OffsetIndices polys = mesh.polys();
+  const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
 
-  auto area_fn = [positions, polys, corner_verts](const int i) -> float {
-    return bke::mesh::poly_area_calc(positions, corner_verts.slice(polys[i]));
+  auto area_fn = [positions, faces, corner_verts](const int i) -> float {
+    return bke::mesh::face_area_calc(positions, corner_verts.slice(faces[i]));
   };
 
   return mesh.attributes().adapt_domain<float>(
-      VArray<float>::ForFunc(polys.size(), area_fn), ATTR_DOMAIN_FACE, domain);
+      VArray<float>::ForFunc(faces.size(), area_fn), AttrDomain::Face, domain);
 }
 
 class FaceAreaFieldInput final : public bke::MeshFieldInput {
@@ -41,7 +38,7 @@ class FaceAreaFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
     return construct_face_area_varray(mesh, domain);
@@ -58,9 +55,9 @@ class FaceAreaFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const FaceAreaFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_FACE;
+    return AttrDomain::Face;
   }
 };
 
@@ -69,15 +66,18 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Area", Field<float>(std::make_shared<FaceAreaFieldInput>()));
 }
 
-}  // namespace blender::nodes::node_geo_input_mesh_face_area_cc
-
-void register_node_type_geo_input_mesh_face_area()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_mesh_face_area_cc;
-
-  static bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_MESH_FACE_AREA, "Face Area", NODE_CLASS_INPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(
+      &ntype, "GeometryNodeInputMeshFaceArea", GEO_NODE_INPUT_MESH_FACE_AREA, NODE_CLASS_INPUT);
+  ntype.ui_name = "Face Area";
+  ntype.ui_description = "Calculate the surface area of a mesh's faces";
+  ntype.enum_name_legacy = "MESH_FACE_AREA";
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_mesh_face_area_cc

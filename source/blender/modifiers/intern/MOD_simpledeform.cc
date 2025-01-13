@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,48 +6,38 @@
  * \ingroup modifiers
  */
 
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_wrapper.h"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_deform.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_modifier.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
-
-#include "DEG_depsgraph_query.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 
 #define BEND_EPS 0.000001f
 
-ALIGN_STRUCT struct DeformUserData {
+BLI_ALIGN_STRUCT struct DeformUserData {
   bool invert_vgroup;
   char mode;
   char deform_axis;
   int lock_axis;
   int vgroup;
   int limit_axis;
-  float weight;
   float smd_factor;
   float smd_limit[2];
   float (*vertexCos)[3];
@@ -79,8 +69,10 @@ BLI_INLINE void copy_v3_v3_unmap(float a[3], const float b[3], const uint map[3]
   a[map[2]] = b[2];
 }
 
-/* Clamps/Limits the given coordinate to:  limits[0] <= co[axis] <= limits[1]
- * The amount of clamp is saved on dcut */
+/**
+ * Clamps/Limits the given coordinate to: limits[0] <= co[axis] <= limits[1]
+ * The amount of clamp is saved on `dcut`.
+ */
 static void axis_limit(const int axis, const float limits[2], float co[3], float dcut[3])
 {
   float val = co[axis];
@@ -296,7 +288,7 @@ static void SimpleDeformModifier_do(SimpleDeformModifierData *smd,
   const MDeformVert *dvert;
 
   /* This is historically the lock axis, _not_ the deform axis as the name would imply */
-  const int deform_axis = smd->deform_axis;
+  const int deform_axis = std::clamp(int(smd->deform_axis), 0, 2);
   int lock_axis = smd->axis;
   if (smd->mode == MOD_SIMPLEDEFORM_MODE_BEND) { /* Bend mode shouldn't have any lock axis */
     lock_axis = 0;
@@ -404,7 +396,7 @@ static void SimpleDeformModifier_do(SimpleDeformModifierData *smd,
 }
 
 /* SimpleDeform */
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
   SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
 
@@ -413,7 +405,7 @@ static void initData(ModifierData *md)
   MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SimpleDeformModifierData), modifier);
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
   SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
 
@@ -423,13 +415,13 @@ static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_ma
   }
 }
 
-static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
+static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
-  walk(userData, ob, (ID **)&smd->origin, IDWALK_CB_NOP);
+  walk(user_data, ob, (ID **)&smd->origin, IDWALK_CB_NOP);
 }
 
-static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
+static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
   SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
   if (smd->origin != nullptr) {
@@ -439,14 +431,18 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   }
 }
 
-static void deformVerts(ModifierData *md,
-                        const ModifierEvalContext *ctx,
-                        Mesh *mesh,
-                        float (*vertexCos)[3],
-                        int verts_num)
+static void deform_verts(ModifierData *md,
+                         const ModifierEvalContext *ctx,
+                         Mesh *mesh,
+                         blender::MutableSpan<blender::float3> positions)
 {
   SimpleDeformModifierData *sdmd = (SimpleDeformModifierData *)md;
-  SimpleDeformModifier_do(sdmd, ctx, ctx->object, mesh, vertexCos, verts_num);
+  SimpleDeformModifier_do(sdmd,
+                          ctx,
+                          ctx->object,
+                          mesh,
+                          reinterpret_cast<float(*)[3]>(positions.data()),
+                          positions.size());
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -460,19 +456,19 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   int deform_method = RNA_enum_get(ptr, "deform_method");
 
   row = uiLayoutRow(layout, false);
-  uiItemR(row, ptr, "deform_method", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "deform_method", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
   if (ELEM(deform_method, MOD_SIMPLEDEFORM_MODE_TAPER, MOD_SIMPLEDEFORM_MODE_STRETCH)) {
-    uiItemR(layout, ptr, "factor", 0, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    uiItemR(layout, ptr, "angle", 0, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  uiItemR(layout, ptr, "origin", 0, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "deform_axis", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "origin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
@@ -481,7 +477,7 @@ static void restrictions_panel_draw(const bContext * /*C*/, Panel *panel)
 {
   uiLayout *row;
   uiLayout *layout = panel->layout;
-  int toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -490,7 +486,7 @@ static void restrictions_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "limits", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "limits", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   if (ELEM(deform_method,
            MOD_SIMPLEDEFORM_MODE_TAPER,
@@ -501,20 +497,20 @@ static void restrictions_panel_draw(const bContext * /*C*/, Panel *panel)
 
     row = uiLayoutRowWithHeading(layout, true, IFACE_("Lock"));
     if (deform_axis != 0) {
-      uiItemR(row, ptr, "lock_x", toggles_flag, nullptr, ICON_NONE);
+      uiItemR(row, ptr, "lock_x", toggles_flag, std::nullopt, ICON_NONE);
     }
     if (deform_axis != 1) {
-      uiItemR(row, ptr, "lock_y", toggles_flag, nullptr, ICON_NONE);
+      uiItemR(row, ptr, "lock_y", toggles_flag, std::nullopt, ICON_NONE);
     }
     if (deform_axis != 2) {
-      uiItemR(row, ptr, "lock_z", toggles_flag, nullptr, ICON_NONE);
+      uiItemR(row, ptr, "lock_z", toggles_flag, std::nullopt, ICON_NONE);
     }
   }
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   PanelType *panel_type = modifier_panel_register(
       region_type, eModifierType_SimpleDeform, panel_draw);
@@ -523,37 +519,39 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_SimpleDeform = {
+    /*idname*/ "SimpleDeform",
     /*name*/ N_("SimpleDeform"),
-    /*structName*/ "SimpleDeformModifierData",
-    /*structSize*/ sizeof(SimpleDeformModifierData),
+    /*struct_name*/ "SimpleDeformModifierData",
+    /*struct_size*/ sizeof(SimpleDeformModifierData),
     /*srna*/ &RNA_SimpleDeformModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
 
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_AcceptsVertexCosOnly | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode,
     /*icon*/ ICON_MOD_SIMPLEDEFORM,
 
-    /*copyData*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ BKE_modifier_copydata_generic,
 
-    /*deformVerts*/ deformVerts,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ nullptr,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ nullptr,
-    /*modifyGeometrySet*/ nullptr,
+    /*deform_verts*/ deform_verts,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ nullptr,
+    /*modify_geometry_set*/ nullptr,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ requiredDataMask,
-    /*freeData*/ nullptr,
-    /*isDisabled*/ nullptr,
-    /*updateDepsgraph*/ updateDepsgraph,
-    /*dependsOnTime*/ nullptr,
-    /*dependsOnNormals*/ nullptr,
-    /*foreachIDLink*/ foreachIDLink,
-    /*foreachTexLink*/ nullptr,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ nullptr,
-    /*blendRead*/ nullptr,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ required_data_mask,
+    /*free_data*/ nullptr,
+    /*is_disabled*/ nullptr,
+    /*update_depsgraph*/ update_depsgraph,
+    /*depends_on_time*/ nullptr,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_tex_link*/ nullptr,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

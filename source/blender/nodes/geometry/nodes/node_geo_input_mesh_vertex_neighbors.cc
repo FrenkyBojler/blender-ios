@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -30,13 +30,13 @@ class VertexCountFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    if (domain != ATTR_DOMAIN_POINT) {
+    if (domain != AttrDomain::Point) {
       return {};
     }
-    Array<int> counts(mesh.totvert, 0);
+    Array<int> counts(mesh.verts_num, 0);
     array_utils::count_indices(mesh.edges().cast<int>(), counts);
     return VArray<int>::ForContainer(std::move(counts));
   }
@@ -52,9 +52,9 @@ class VertexCountFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const VertexCountFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -66,13 +66,13 @@ class VertexFaceCountFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    if (domain != ATTR_DOMAIN_POINT) {
+    if (domain != AttrDomain::Point) {
       return {};
     }
-    Array<int> counts(mesh.totvert, 0);
+    Array<int> counts(mesh.verts_num, 0);
     array_utils::count_indices(mesh.corner_verts(), counts);
     return VArray<int>::ForContainer(std::move(counts));
   }
@@ -88,9 +88,9 @@ class VertexFaceCountFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const VertexFaceCountFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -103,16 +103,20 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Face Count", std::move(face_field));
 }
 
-}  // namespace blender::nodes::node_geo_input_mesh_vertex_neighbors_cc
-
-void register_node_type_geo_input_mesh_vertex_neighbors()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_mesh_vertex_neighbors_cc;
-
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_INPUT_MESH_VERTEX_NEIGHBORS, "Vertex Neighbors", NODE_CLASS_INPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype,
+                     "GeometryNodeInputMeshVertexNeighbors",
+                     GEO_NODE_INPUT_MESH_VERTEX_NEIGHBORS,
+                     NODE_CLASS_INPUT);
+  ntype.ui_name = "Vertex Neighbors";
+  ntype.ui_description = "Retrieve topology information relating to each vertex of a mesh";
+  ntype.enum_name_legacy = "MESH_VERTEX_NEIGHBORS";
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_mesh_vertex_neighbors_cc

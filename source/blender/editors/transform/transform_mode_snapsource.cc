@@ -8,14 +8,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
-
 #include "DNA_windowmanager_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
+#include "BKE_screen.hh"
 
-#include "ED_screen.h"
-#include "ED_transform_snap_object_context.h"
+#include "ED_screen.hh"
+#include "ED_transform_snap_object_context.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -26,6 +25,8 @@
 
 #define RESET_TRANSFORMATION
 #define REMOVE_GIZMO
+
+using namespace blender;
 
 /* -------------------------------------------------------------------- */
 /** \name Transform Element
@@ -74,12 +75,13 @@ static void snapsource_confirm(TransInfo *t)
   BLI_assert(t->modifiers & MOD_EDIT_SNAP_SOURCE);
   getSnapPoint(t, t->tsnap.snap_source);
   t->tsnap.snap_source_fn = nullptr;
+  t->tsnap.source_type = t->tsnap.target_type;
   t->tsnap.status |= SNAP_SOURCE_FOUND;
 
   SnapSouceCustomData *customdata = static_cast<SnapSouceCustomData *>(t->custom.mode.data);
   t->tsnap.mode = customdata->snap_mode_confirm;
 
-  int mval[2];
+  float2 mval;
 #ifndef RESET_TRANSFORMATION
   if (true) {
     if (t->transform_matrix) {
@@ -97,12 +99,12 @@ static void snapsource_confirm(TransInfo *t)
       sub_v3_v3(t->tsnap.snap_source, t->vec);
     }
 
-    projectIntView(t, t->tsnap.snap_source, mval);
+    projectFloatView(t, t->tsnap.snap_source, mval);
   }
   else
 #endif
   {
-    copy_v2_v2_int(mval, t->mval);
+    mval = t->mval;
   }
 
   snapsource_end(t);
@@ -114,6 +116,11 @@ static void snapsource_confirm(TransInfo *t)
 
 static eRedrawFlag snapsource_handle_event_fn(TransInfo *t, const wmEvent *event)
 {
+  if (t->redraw) {
+    /* Event already handled. */
+    return TREDRAW_NOTHING;
+  }
+
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
       case TFM_MODAL_CONFIRM:
@@ -123,9 +130,6 @@ static eRedrawFlag snapsource_handle_event_fn(TransInfo *t, const wmEvent *event
           snapsource_confirm(t);
 
           BLI_assert(t->state != TRANS_CONFIRM);
-        }
-        else {
-          t->modifiers |= MOD_EDIT_SNAP_SOURCE;
         }
         break;
       case TFM_MODAL_CANCEL:
@@ -146,7 +150,7 @@ static eRedrawFlag snapsource_handle_event_fn(TransInfo *t, const wmEvent *event
   return TREDRAW_NOTHING;
 }
 
-static void snapsource_transform_fn(TransInfo *t, const int[2] /*mval*/)
+static void snapsource_transform_fn(TransInfo *t)
 {
   BLI_assert(t->modifiers & MOD_EDIT_SNAP_SOURCE);
 
@@ -164,8 +168,14 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
     return;
   }
 
+  if (!t->tsnap.snap_target_fn) {
+    /* A `snap_target_fn` is required for the operation to work.
+     * `snap_target_fn` can be `nullptr` when transforming camera in camera view. */
+    return;
+  }
+
   if (ELEM(t->mode, TFM_INIT, TFM_DUMMY)) {
-    /* Fallback */
+    /* Fallback. */
     transform_mode_init(t, nullptr, TFM_TRANSLATION);
   }
 
@@ -187,17 +197,20 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
   }
 
   t->mode_info = &TransMode_snapsource;
-  t->flag |= T_DRAW_SNAP_SOURCE;
   t->tsnap.target_operation = SCE_SNAP_TARGET_ALL;
   t->tsnap.status &= ~SNAP_SOURCE_FOUND;
+
+  if (t->spacetype == SPACE_VIEW3D) {
+    t->flag |= T_DRAW_SNAP_SOURCE;
+  }
 
   customdata->snap_mode_confirm = t->tsnap.mode;
   t->tsnap.mode &= ~(SCE_SNAP_TO_EDGE_PERPENDICULAR | SCE_SNAP_INDIVIDUAL_PROJECT |
                      SCE_SNAP_INDIVIDUAL_NEAREST);
 
-  if ((t->tsnap.mode & ~(SCE_SNAP_TO_INCREMENT | SCE_SNAP_TO_GRID)) == 0) {
+  if ((t->tsnap.mode & ~SCE_SNAP_TO_INCREMENT) == 0) {
     /* Initialize snap modes for geometry. */
-    t->tsnap.mode &= ~(SCE_SNAP_TO_INCREMENT | SCE_SNAP_TO_GRID);
+    t->tsnap.mode &= ~SCE_SNAP_TO_INCREMENT;
     t->tsnap.mode |= SCE_SNAP_TO_GEOM & ~SCE_SNAP_TO_EDGE_PERPENDICULAR;
 
     if (!(customdata->snap_mode_confirm & SCE_SNAP_TO_EDGE_PERPENDICULAR)) {
@@ -212,7 +225,7 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
 
 #ifdef RESET_TRANSFORMATION
   /* Temporarily disable snapping.
-   * We don't want #SCE_SNAP_PROJECT to affect `recalcData` for example. */
+   * We don't want #SCE_SNAP_PROJECT to affect `recalc_data` for example. */
   t->tsnap.flag &= ~SCE_SNAP;
 
   restoreTransObjects(t);
@@ -225,21 +238,24 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
 #endif
 
 #ifdef REMOVE_GIZMO
-  wmGizmo *gz = WM_gizmomap_get_modal(t->region->gizmo_map);
+  wmGizmo *gz = WM_gizmomap_get_modal(t->region->runtime->gizmo_map);
   if (gz) {
     const wmEvent *event = CTX_wm_window(t->context)->eventstate;
 #  ifdef RESET_TRANSFORMATION
     wmGizmoFnModal modal_fn = gz->custom_modal ? gz->custom_modal : gz->type->modal;
-    modal_fn(t->context, gz, event, eWM_GizmoFlagTweak(0));
+    if (modal_fn) {
+      modal_fn(t->context, gz, event, eWM_GizmoFlagTweak(0));
+    }
 #  endif
 
-    WM_gizmo_modal_set_while_modal(t->region->gizmo_map, t->context, nullptr, event);
+    WM_gizmo_modal_set_while_modal(t->region->runtime->gizmo_map, t->context, nullptr, event);
   }
 #endif
 
   t->mouse.apply = nullptr;
   t->mouse.post = nullptr;
   t->mouse.use_virtual_mval = false;
+  t->modifiers |= MOD_EDIT_SNAP_SOURCE;
 }
 
 /** \} */

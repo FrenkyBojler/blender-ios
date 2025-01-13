@@ -1,6 +1,10 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
+
+__all__ = (
+    "data",
+)
 
 data = {
 "12315f4d0e0ae993805f141f64cb8c73c5297311": 2,

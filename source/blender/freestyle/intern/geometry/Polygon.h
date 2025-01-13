@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,9 +14,7 @@
 #include "Geom.h"
 #include "GeomUtils.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -93,7 +91,7 @@ template<class Point> class Polygon {
     return result;
   }
 
-  inline unsigned getId() const
+  inline uint getId() const
   {
     return _id;
   }
@@ -114,7 +112,7 @@ template<class Point> class Polygon {
     computeBBox();
   }
 
-  inline void setId(unsigned id)
+  inline void setId(uint id)
   {
     _id = id;
   }
@@ -133,7 +131,7 @@ template<class Point> class Polygon {
     _min = _vertices[0];
 
     for (typename vector<Point>::iterator it = _vertices.begin(); it != _vertices.end(); it++) {
-      for (unsigned int i = 0; i < Point::dim(); i++) {
+      for (uint i = 0; i < Point::dim(); i++) {
         if ((*it)[i] > _max[i]) {
           _max[i] = (*it)[i];
         }
@@ -152,11 +150,9 @@ template<class Point> class Polygon {
   vector<Point> _vertices;
   Point _min;
   Point _max;
-  unsigned _id;
+  uint _id;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Geometry:Polygon")
-#endif
 };
 
 //

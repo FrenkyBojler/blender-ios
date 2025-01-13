@@ -21,49 +21,47 @@
 #include "DNA_space_types.h"
 #include "DNA_view2d_types.h"
 
-#include "PIL_time.h"
-
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_moviecache.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_moviecache.hh"
 
-#include "BKE_context.h"
-#include "BKE_image.h"
-#include "BKE_paint.h"
+#include "BKE_context.hh"
+#include "BKE_image.hh"
+#include "BKE_paint.hh"
 
-#include "BIF_glutil.h"
+#include "BIF_glutil.hh"
 
-#include "GPU_framebuffer.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_framebuffer.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
-#include "ED_gpencil_legacy.h"
-#include "ED_image.h"
-#include "ED_mask.h"
-#include "ED_render.h"
-#include "ED_screen.h"
-#include "ED_util.h"
+#include "ED_gpencil_legacy.hh"
+#include "ED_image.hh"
+#include "ED_mask.hh"
+#include "ED_render.hh"
+#include "ED_screen.hh"
+#include "ED_util.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+#include "UI_view2d.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#include "image_intern.h"
+#include "image_intern.hh"
 
 static void draw_render_info(
     const bContext *C, Scene *scene, Image *ima, ARegion *region, float zoomx, float zoomy)
@@ -81,12 +79,11 @@ static void draw_render_info(
     ED_region_info_draw(region, rr->text, fill_color, true);
   }
 
-  BKE_image_release_renderresult(stats_scene, ima);
+  BKE_image_release_renderresult(stats_scene, ima, rr);
 
   if (re) {
     int total_tiles;
-    bool need_free_tiles;
-    rcti *tiles = RE_engine_get_current_tiles(re, &total_tiles, &need_free_tiles);
+    const rcti *tiles = RE_engine_get_current_tiles(re, &total_tiles);
 
     if (total_tiles) {
       /* find window pixel coordinates of origin */
@@ -104,16 +101,12 @@ static void draw_render_info(
 
       GPU_line_width(1.0f);
 
-      rcti *tile = tiles;
+      const rcti *tile = tiles;
       for (int i = 0; i < total_tiles; i++, tile++) {
         immDrawBorderCorners(pos, tile, zoomx, zoomy);
       }
 
       immUnbindProgram();
-
-      if (need_free_tiles) {
-        MEM_freeN(tiles);
-      }
 
       GPU_matrix_pop();
     }
@@ -550,7 +543,8 @@ void draw_image_cache(const bContext *C, ARegion *region)
   immRecti(pos, x, region_bottom, x + ceilf(framelen), region_bottom + 8 * UI_SCALE_FAC);
   immUnbindProgram();
 
-  ED_region_cache_draw_curfra_label(cfra, x, region_bottom + 8.0f * UI_SCALE_FAC);
+  ED_region_cache_draw_curfra_label(
+      cfra, x + roundf(framelen / 2), region_bottom + 8.0f * UI_SCALE_FAC);
 
   if (mask != nullptr) {
     ED_mask_draw_frames(mask, region, cfra, sfra, efra);
@@ -596,7 +590,8 @@ void ED_space_image_grid_steps(SpaceImage *sima,
         BLI_assert(pixel_width > 0 && pixel_height > 0);
         grid_steps_x[step] = 1.0f / pixel_width;
         grid_steps_y[step] = 1.0f / pixel_height;
-      } break;
+        break;
+      }
       default:
         BLI_assert_unreachable();
     }

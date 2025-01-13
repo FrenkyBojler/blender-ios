@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "BLI_math.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
@@ -24,6 +23,12 @@ class RandomNumberGenerator {
   {
     this->seed(seed);
   }
+
+  /**
+   * Creates a random number generator with a somewhat random seed. This can be used when
+   * determinism is not necessary or not desired.
+   */
+  static RandomNumberGenerator from_random_seed();
 
   /**
    * Set the seed for future random numbers.
@@ -49,6 +54,11 @@ class RandomNumberGenerator {
   {
     this->step();
     return int32_t(x_ >> 17);
+  }
+
+  uint64_t get_uint64()
+  {
+    return (uint64_t(this->get_uint32()) << 32) | this->get_uint32();
   }
 
   /**

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2006 Blender Foundation
+/* SPDX-FileCopyrightText: 2006 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,11 +6,15 @@
  * \ingroup cmpnodes
  */
 
-#include "GPU_material.h"
+#include "GPU_material.hh"
 
 #include "COM_shader_node.hh"
 
 #include "NOD_math_functions.hh"
+#include "NOD_multi_function.hh"
+#include "NOD_socket_search_link.hh"
+
+#include "RNA_enum_types.hh"
 
 #include "node_composite_util.hh"
 
@@ -38,7 +42,34 @@ static void cmp_node_math_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Value");
 }
 
-using namespace blender::realtime_compositor;
+class SocketSearchOp {
+ public:
+  std::string socket_name;
+  NodeMathOperation mode = NODE_MATH_ADD;
+  void operator()(LinkSearchOpParams &params)
+  {
+    bNode &node = params.add_node("CompositorNodeMath");
+    node.custom1 = mode;
+    params.update_and_connect_available_socket(node, socket_name);
+  }
+};
+
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const int weight = ELEM(params.other_socket().type, SOCK_FLOAT) ? 0 : -1;
+
+  for (const EnumPropertyItem *item = rna_enum_node_math_items; item->identifier != nullptr;
+       item++)
+  {
+    if (item->name != nullptr && item->identifier[0] != '\0') {
+      params.add_item(CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
+                      SocketSearchOp{"Value", (NodeMathOperation)item->value},
+                      weight);
+    }
+  }
+}
+
+using namespace blender::compositor;
 
 class MathShaderNode : public ShaderNode {
  public:
@@ -92,13 +123,18 @@ void register_node_type_cmp_math()
 {
   namespace file_ns = blender::nodes::node_composite_math_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MATH, "Math", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, "CompositorNodeMath", CMP_NODE_MATH, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Math";
+  ntype.ui_description = "Perform math operations";
+  ntype.enum_name_legacy = "MATH";
   ntype.declare = file_ns::cmp_node_math_declare;
   ntype.labelfunc = node_math_label;
   ntype.updatefunc = node_math_update;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
+  ntype.build_multi_function = blender::nodes::node_math_build_multi_function;
+  ntype.gather_link_search_ops = file_ns::node_gather_link_searches;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

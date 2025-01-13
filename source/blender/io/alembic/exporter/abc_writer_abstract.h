@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
@@ -8,10 +8,8 @@
 #include "abc_hierarchy_iterator.h"
 
 #include <Alembic/Abc/OObject.h>
-#include <vector>
 
-#include "DEG_depsgraph_query.h"
-#include "DNA_material_types.h"
+#include <memory>
 
 struct IDProperty;
 struct Object;

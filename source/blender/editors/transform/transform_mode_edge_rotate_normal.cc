@@ -8,16 +8,17 @@
 
 #include <cstdlib>
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 
-#include "BKE_context.h"
-#include "BKE_editmesh.h"
-#include "BKE_mesh.h"
-#include "BKE_unit.h"
+#include "BKE_editmesh.hh"
+#include "BKE_mesh.hh"
+#include "BKE_unit.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -46,7 +47,7 @@ void freeCustomNormalArray(TransInfo *t, TransDataContainer *tc, TransCustomData
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
     BMesh *bm = em->bm;
 
-    /* Restore custom loop normal on cancel */
+    /* Restore custom loop normal on cancel. */
     for (int i = 0; i < lnors_ed_arr->totloop; i++, lnor_ed++) {
       BKE_lnor_space_custom_normal_to_data(
           bm->lnor_spacearr->lspacearr[lnor_ed->loop_index], lnor_ed->niloc, lnor_ed->clnors_data);
@@ -59,13 +60,14 @@ void freeCustomNormalArray(TransInfo *t, TransDataContainer *tc, TransCustomData
   tc->custom.mode.free_cb = nullptr;
 }
 
-/* Works by getting custom normal from clnor_data, transform, then store */
-static void applyNormalRotation(TransInfo *t, const int[2] /*mval*/)
+/* Works by getting custom normal from clnor_data, transform, then store. */
+static void applyNormalRotation(TransInfo *t)
 {
   char str[UI_MAX_DRAW_STR];
 
   float axis_final[3];
-  copy_v3_v3(axis_final, t->spacemtx[t->orient_axis]);
+  /* Use the negative axis to match the default Z axis of the view matrix. */
+  negate_v3_v3(axis_final, t->spacemtx[t->orient_axis]);
 
   if ((t->con.mode & CON_APPLY) && t->con.applyRot) {
     t->con.applyRot(t, nullptr, nullptr, axis_final, nullptr);
@@ -104,7 +106,7 @@ static void applyNormalRotation(TransInfo *t, const int[2] /*mval*/)
     t->values_final[0] = angle;
   }
 
-  recalcData(t);
+  recalc_data(t);
 
   ED_area_status_text(t->area, str);
 }
@@ -117,8 +119,7 @@ static void initNormalRotation(TransInfo *t, wmOperator * /*op*/)
 
   t->idx_max = 0;
   t->num.idx_max = 0;
-  t->snap[0] = DEG2RAD(5.0);
-  t->snap[1] = DEG2RAD(1.0);
+  initSnapAngleIncrements(t);
 
   copy_v3_fl(t->num.val_inc, t->snap[1]);
   t->num.unit_sys = t->scene->unit.system;
@@ -129,8 +130,7 @@ static void initNormalRotation(TransInfo *t, wmOperator * /*op*/)
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
     BMesh *bm = em->bm;
 
-    BKE_editmesh_ensure_autosmooth(em, static_cast<Mesh *>(tc->obedit->data));
-    BKE_editmesh_lnorspace_update(em, static_cast<Mesh *>(tc->obedit->data));
+    BKE_editmesh_lnorspace_update(em);
 
     storeCustomLNorValue(tc, bm);
   }

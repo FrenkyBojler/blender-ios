@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,6 +14,7 @@
 #include "NOD_node_declaration.hh"
 
 struct bContext;
+struct SpaceNode;
 
 namespace blender::nodes {
 
@@ -49,7 +50,7 @@ class LinkSearchOpParams {
   }
 
   bNode &add_node(StringRef idname);
-  bNode &add_node(const bNodeType &type);
+  bNode &add_node(const bke::bNodeType &node_type);
   /**
    * Find a socket with the given name (correctly checks for inputs and outputs)
    * and connect it to the socket the link drag started from (#socket).
@@ -71,8 +72,9 @@ struct SocketLinkOperation {
 
 class GatherLinkSearchOpParams {
   /** The current node type. */
-  const bNodeType &node_type_;
+  const bke::bNodeType &node_type_;
 
+  const SpaceNode &snode_;
   const bNodeTree &node_tree_;
 
   const bNodeSocket &other_socket_;
@@ -81,11 +83,16 @@ class GatherLinkSearchOpParams {
   Vector<SocketLinkOperation> &items_;
 
  public:
-  GatherLinkSearchOpParams(const bNodeType &node_type,
+  GatherLinkSearchOpParams(const bke::bNodeType &node_type,
+                           const SpaceNode &snode,
                            const bNodeTree &node_tree,
                            const bNodeSocket &other_socket,
                            Vector<SocketLinkOperation> &items)
-      : node_type_(node_type), node_tree_(node_tree), other_socket_(other_socket), items_(items)
+      : node_type_(node_type),
+        snode_(snode),
+        node_tree_(node_tree),
+        other_socket_(other_socket),
+        items_(items)
   {
   }
 
@@ -95,6 +102,11 @@ class GatherLinkSearchOpParams {
   const bNodeSocket &other_socket() const;
 
   /**
+   * The currently active node editor.
+   */
+  const SpaceNode &space_node() const;
+
+  /**
    * The node tree the user is editing when the search menu is created.
    */
   const bNodeTree &node_tree() const;
@@ -102,7 +114,7 @@ class GatherLinkSearchOpParams {
   /**
    * The type of the node in the current callback.
    */
-  const bNodeType &node_type() const;
+  const bke::bNodeType &node_type() const;
 
   /**
    * Whether to list the input or output sockets of the node.
@@ -128,12 +140,12 @@ class GatherLinkSearchOpParams {
  * If a node type does not meet these criteria, the function will do nothing in a release build.
  * In a debug build, an assert will most likely be hit.
  *
- * \note For nodes with the deprecated #bNodeSocketTemplate instead of a declaration,
+ * \note For nodes with the deprecated #blender::bke::bNodeSocketTemplate instead of a declaration,
  * these criteria do not apply and the function just tries its best without asserting.
  */
 void search_link_ops_for_basic_node(GatherLinkSearchOpParams &params);
 
 void search_link_ops_for_declarations(GatherLinkSearchOpParams &params,
-                                      Span<SocketDeclarationPtr> declarations);
+                                      Span<SocketDeclaration *> declarations);
 
 }  // namespace blender::nodes

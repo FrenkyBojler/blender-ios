@@ -1,9 +1,12 @@
-# SPDX-FileCopyrightText: 2009-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2009-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from bpy.types import (
     Panel,
+)
+from bpy.app.translations import (
+    contexts as i18n_contexts,
 )
 from bl_ui.properties_physics_common import (
     basic_force_field_settings_ui,
@@ -31,10 +34,9 @@ class PHYSICS_PT_field(PhysicButtonsPanel, Panel):
     bl_label = "Force Fields"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     @classmethod
     def poll(cls, context):
@@ -55,13 +57,12 @@ class PHYSICS_PT_field(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_field_settings(PhysicButtonsPanel, Panel):
     bl_label = "Settings"
-    bl_parent_id = 'PHYSICS_PT_field'
+    bl_parent_id = "PHYSICS_PT_field"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     @classmethod
     def poll(cls, context):
@@ -147,13 +148,12 @@ class PHYSICS_PT_field_settings(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_field_settings_kink(PhysicButtonsPanel, Panel):
     bl_label = "Kink"
-    bl_parent_id = 'PHYSICS_PT_field_settings'
+    bl_parent_id = "PHYSICS_PT_field_settings"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     @classmethod
     def poll(cls, context):
@@ -186,13 +186,12 @@ class PHYSICS_PT_field_settings_kink(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_field_settings_texture_select(PhysicButtonsPanel, Panel):
     bl_label = "Texture"
-    bl_parent_id = 'PHYSICS_PT_field_settings'
+    bl_parent_id = "PHYSICS_PT_field_settings"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     @classmethod
     def poll(cls, context):
@@ -216,10 +215,9 @@ class PHYSICS_PT_field_falloff(PhysicButtonsPanel, Panel):
     bl_parent_id = "PHYSICS_PT_field"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     @classmethod
     def poll(cls, context):
@@ -246,10 +244,9 @@ class PHYSICS_PT_field_falloff_angular(PhysicButtonsPanel, Panel):
     bl_parent_id = "PHYSICS_PT_field_falloff"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     @classmethod
     def poll(cls, context):
@@ -268,7 +265,7 @@ class PHYSICS_PT_field_falloff_angular(PhysicButtonsPanel, Panel):
         field = ob.field
 
         col = flow.column()
-        col.prop(field, "radial_falloff", text="Power")
+        col.prop(field, "radial_falloff", text="Power", text_ctxt=i18n_contexts.id_particlesettings)
 
         col = flow.column()
         col.prop(field, "use_radial_min", text="Use Min Angle")
@@ -290,10 +287,9 @@ class PHYSICS_PT_field_falloff_radial(PhysicButtonsPanel, Panel):
     bl_parent_id = "PHYSICS_PT_field_falloff"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     @classmethod
     def poll(cls, context):
@@ -312,7 +308,7 @@ class PHYSICS_PT_field_falloff_radial(PhysicButtonsPanel, Panel):
         field = ob.field
 
         col = flow.column()
-        col.prop(field, "radial_falloff", text="Power")
+        col.prop(field, "radial_falloff", text="Power", text_ctxt=i18n_contexts.id_particlesettings)
 
         col = flow.column()
         col.prop(field, "use_radial_min", text="Use Minimum")
@@ -339,10 +335,9 @@ class PHYSICS_PT_collision(PhysicButtonsPanel, Panel):
     bl_label = "Collision"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     @classmethod
     def poll(cls, context):
@@ -375,10 +370,9 @@ class PHYSICS_PT_collision_particle(PhysicButtonsPanel, Panel):
     bl_parent_id = "PHYSICS_PT_collision"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     @classmethod
     def poll(cls, context):
@@ -426,10 +420,9 @@ class PHYSICS_PT_collision_softbody(PhysicButtonsPanel, Panel):
     bl_parent_id = "PHYSICS_PT_collision"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     @classmethod
     def poll(cls, context):

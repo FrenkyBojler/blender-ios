@@ -1,10 +1,10 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
-#include "BLI_hash_mm2a.h"
+#include "BLI_hash_mm2a.hh"
 
 /* NOTE: Reference results are taken from reference implementation
  * (cpp code, CMurmurHash2A variant):

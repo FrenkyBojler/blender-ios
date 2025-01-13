@@ -1,16 +1,15 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "GEO_uv_parametrizer.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
 #include "BKE_mesh.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+
+#include "NOD_rna_define.hh"
 
 #include "node_geometry_util.hh"
 
@@ -42,7 +41,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "method", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "method", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -58,15 +57,15 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
                                            const bool fill_holes,
                                            const float margin,
                                            const GeometryNodeUVUnwrapMethod method,
-                                           const eAttrDomain domain)
+                                           const AttrDomain domain)
 {
   const Span<float3> positions = mesh.vert_positions();
   const Span<int2> edges = mesh.edges();
-  const OffsetIndices polys = mesh.polys();
+  const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
 
-  const bke::MeshFieldContext face_context{mesh, ATTR_DOMAIN_FACE};
-  FieldEvaluator face_evaluator{face_context, polys.size()};
+  const bke::MeshFieldContext face_context{mesh, AttrDomain::Face};
+  FieldEvaluator face_evaluator{face_context, faces.size()};
   face_evaluator.add(selection_field);
   face_evaluator.evaluate();
   const IndexMask selection = face_evaluator.get_evaluated_as_mask(0);
@@ -74,7 +73,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
     return {};
   }
 
-  const bke::MeshFieldContext edge_context{mesh, ATTR_DOMAIN_EDGE};
+  const bke::MeshFieldContext edge_context{mesh, AttrDomain::Edge};
   FieldEvaluator edge_evaluator{edge_context, edges.size()};
   edge_evaluator.add(seam_field);
   edge_evaluator.evaluate();
@@ -83,15 +82,15 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   Array<float3> uv(corner_verts.size(), float3(0));
 
   geometry::ParamHandle *handle = new geometry::ParamHandle();
-  selection.foreach_index([&](const int poly_index) {
-    const IndexRange poly = polys[poly_index];
-    Array<geometry::ParamKey, 16> mp_vkeys(poly.size());
-    Array<bool, 16> mp_pin(poly.size());
-    Array<bool, 16> mp_select(poly.size());
-    Array<const float *, 16> mp_co(poly.size());
-    Array<float *, 16> mp_uv(poly.size());
-    for (const int i : IndexRange(poly.size())) {
-      const int corner = poly[i];
+  selection.foreach_index([&](const int face_index) {
+    const IndexRange face = faces[face_index];
+    Array<geometry::ParamKey, 16> mp_vkeys(face.size());
+    Array<bool, 16> mp_pin(face.size());
+    Array<bool, 16> mp_select(face.size());
+    Array<const float *, 16> mp_co(face.size());
+    Array<float *, 16> mp_uv(face.size());
+    for (const int i : IndexRange(face.size())) {
+      const int corner = face[i];
       const int vert = corner_verts[corner];
       mp_vkeys[i] = vert;
       mp_co[i] = positions[vert];
@@ -100,11 +99,12 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
       mp_select[i] = false;
     }
     geometry::uv_parametrizer_face_add(handle,
-                                       poly_index,
-                                       poly.size(),
+                                       face_index,
+                                       face.size(),
                                        mp_vkeys.data(),
                                        mp_co.data(),
                                        mp_uv.data(),
+                                       nullptr,
                                        mp_pin.data(),
                                        mp_select.data());
   });
@@ -128,7 +128,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   delete (handle);
 
   return mesh.attributes().adapt_domain<float3>(
-      VArray<float3>::ForContainer(std::move(uv)), ATTR_DOMAIN_CORNER, domain);
+      VArray<float3>::ForContainer(std::move(uv)), AttrDomain::Corner, domain);
 }
 
 class UnwrapFieldInput final : public bke::MeshFieldInput {
@@ -156,7 +156,7 @@ class UnwrapFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
     return construct_uv_gvarray(mesh, selection_, seam_, fill_holes_, margin_, method_, domain);
@@ -168,9 +168,9 @@ class UnwrapFieldInput final : public bke::MeshFieldInput {
     seam_.node().for_each_field_input_recursive(fn);
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_CORNER;
+    return AttrDomain::Corner;
   }
 };
 
@@ -187,20 +187,45 @@ static void node_geo_exec(GeoNodeExecParams params)
                         selection_field, seam_field, fill_holes, margin, method)));
 }
 
-}  // namespace blender::nodes::node_geo_uv_unwrap_cc
-
-void register_node_type_geo_uv_unwrap()
+static void node_rna(StructRNA *srna)
 {
-  namespace file_ns = blender::nodes::node_geo_uv_unwrap_cc;
+  static EnumPropertyItem method_items[] = {
+      {GEO_NODE_UV_UNWRAP_METHOD_ANGLE_BASED,
+       "ANGLE_BASED",
+       0,
+       "Angle Based",
+       "This method gives a good 2D representation of a mesh"},
+      {GEO_NODE_UV_UNWRAP_METHOD_CONFORMAL,
+       "CONFORMAL",
+       0,
+       "Conformal",
+       "Uses LSCM (Least Squares Conformal Mapping). This usually gives a less accurate UV "
+       "mapping than Angle Based, but works better for simpler objects"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_UV_UNWRAP, "UV Unwrap", NODE_CLASS_CONVERTER);
-  ntype.initfunc = file_ns::node_init;
-  node_type_storage(
-      &ntype, "NodeGeometryUVUnwrap", node_free_standard_storage, node_copy_standard_storage);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.draw_buttons = file_ns::node_layout;
-  nodeRegisterType(&ntype);
+  RNA_def_node_enum(
+      srna, "method", "Method", "", method_items, NOD_storage_enum_accessors(method));
 }
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  geo_node_type_base(&ntype, "GeometryNodeUVUnwrap", GEO_NODE_UV_UNWRAP, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "UV Unwrap";
+  ntype.ui_description = "Generate a UV map based on seam edges";
+  ntype.enum_name_legacy = "UV_UNWRAP";
+  ntype.initfunc = node_init;
+  blender::bke::node_type_storage(
+      &ntype, "NodeGeometryUVUnwrap", node_free_standard_storage, node_copy_standard_storage);
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.draw_buttons = node_layout;
+  blender::bke::node_register_type(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
+}
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_uv_unwrap_cc

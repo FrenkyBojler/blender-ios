@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,8 +10,8 @@ extern "C" {
 #endif
 
 typedef struct QuadriflowRemeshData {
-  float *verts;
-  int *faces;
+  const float *verts;
+  const int *faces;
   int totfaces;
   int totverts;
 

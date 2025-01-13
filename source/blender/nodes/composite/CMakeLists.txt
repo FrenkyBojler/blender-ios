@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021 Blender Foundation
+# SPDX-FileCopyrightText: 2021 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -7,16 +7,13 @@ set(INC
   ..
   ../intern
   ../../editors/include
-  ../../functions
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../render
-  ../../compositor/realtime_compositor
-  ../../compositor/realtime_compositor/algorithms
-  ../../compositor/realtime_compositor/cached_resources
+  ../../compositor
+  ../../compositor/algorithms
+  ../../compositor/cached_resources
+  ../../compositor/utilities
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -56,6 +53,7 @@ set(SRC
   nodes/node_composite_double_edge_mask.cc
   nodes/node_composite_ellipsemask.cc
   nodes/node_composite_exposure.cc
+  nodes/node_composite_file_output.cc
   nodes/node_composite_filter.cc
   nodes/node_composite_flip.cc
   nodes/node_composite_gamma.cc
@@ -82,7 +80,6 @@ set(SRC
   nodes/node_composite_moviedistortion.cc
   nodes/node_composite_normal.cc
   nodes/node_composite_normalize.cc
-  nodes/node_composite_output_file.cc
   nodes/node_composite_pixelate.cc
   nodes/node_composite_planetrackdeform.cc
   nodes/node_composite_posterize.cc
@@ -98,7 +95,7 @@ set(SRC
   nodes/node_composite_sepcomb_ycca.cc
   nodes/node_composite_sepcomb_yuva.cc
   nodes/node_composite_setalpha.cc
-  nodes/node_composite_split_viewer.cc
+  nodes/node_composite_split.cc
   nodes/node_composite_stabilize2d.cc
   nodes/node_composite_sunbeams.cc
   nodes/node_composite_switch.cc
@@ -128,20 +125,22 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
-  bf_realtime_compositor
+  PRIVATE bf::extern::fmtlib
+  bf_compositor
+  PRIVATE bf::render
   PRIVATE bf::windowmanager
 )
 
-if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+if(WITH_OPENCOLORIO)
+  add_definitions(-DWITH_OCIO)
 endif()
 
-if(WITH_COMPOSITOR_CPU)
-  list(APPEND INC
-    ../../compositor
-  )
-  add_definitions(-DWITH_COMPOSITOR_CPU)
+if(WITH_IMAGE_OPENEXR)
+  add_definitions(-DWITH_OPENEXR)
 endif()
 
 if(WITH_OPENIMAGEDENOISE)
@@ -157,12 +156,20 @@ if(WITH_OPENIMAGEDENOISE)
   )
 endif()
 
-blender_add_lib(bf_nodes_composite "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-if(WITH_UNITY_BUILD)
-  set_target_properties(bf_nodes_composite PROPERTIES UNITY_BUILD ON)
-  set_target_properties(bf_nodes_composite PROPERTIES UNITY_BUILD_BATCH_SIZE 10)
+if(WITH_FFTW3)
+  list(APPEND INC_SYS
+    ${FFTW3_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${FFTW3_LIBRARIES}
+  )
+  add_definitions(-DWITH_FFTW3)
 endif()
 
-# RNA_prototypes.h
+blender_add_lib(bf_nodes_composite "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+blender_set_target_unity_build(bf_nodes_composite 10)
+
+# RNA_prototypes.hh
 add_dependencies(bf_nodes_composite bf_rna)

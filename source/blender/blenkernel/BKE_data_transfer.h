@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2014 Blender Foundation
+/* SPDX-FileCopyrightText: 2014 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "BKE_customdata.h"
 #include "BLI_compiler_compat.h"
 
 #ifdef __cplusplus
@@ -18,7 +17,6 @@ extern "C" {
 struct Depsgraph;
 struct Object;
 struct ReportList;
-struct Scene;
 struct SpaceTransform;
 
 /* Warning, those def are stored in files (TransferData modifier), *DO NOT* modify those values. */
@@ -85,7 +83,7 @@ int BKE_object_data_transfer_dttype_to_srcdst_index(int dtdata_type);
        DT_TYPE_FREESTYLE_EDGE)
 #define DT_DATATYPE_IS_LOOP(_dt) \
   ELEM(_dt, DT_TYPE_UV, DT_TYPE_LNOR, DT_TYPE_MLOOPCOL_LOOP, DT_TYPE_MPROPCOL_LOOP)
-#define DT_DATATYPE_IS_POLY(_dt) ELEM(_dt, DT_TYPE_UV, DT_TYPE_SHARP_FACE, DT_TYPE_FREESTYLE_FACE)
+#define DT_DATATYPE_IS_FACE(_dt) ELEM(_dt, DT_TYPE_UV, DT_TYPE_SHARP_FACE, DT_TYPE_FREESTYLE_FACE)
 
 #define DT_DATATYPE_IS_MULTILAYERS(_dt) \
   ELEM(_dt, \
@@ -156,7 +154,7 @@ bool BKE_object_data_transfer_mesh(struct Depsgraph *depsgraph,
                                    int map_vert_mode,
                                    int map_edge_mode,
                                    int map_loop_mode,
-                                   int map_poly_mode,
+                                   int map_face_mode,
                                    struct SpaceTransform *space_transform,
                                    bool auto_transform,
                                    float max_distance,
@@ -178,7 +176,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                  int map_vert_mode,
                                  int map_edge_mode,
                                  int map_loop_mode,
-                                 int map_poly_mode,
+                                 int map_face_mode,
                                  struct SpaceTransform *space_transform,
                                  bool auto_transform,
                                  float max_distance,

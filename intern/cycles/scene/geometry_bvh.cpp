@@ -10,26 +10,15 @@
 #include "scene/attribute.h"
 #include "scene/camera.h"
 #include "scene/geometry.h"
-#include "scene/hair.h"
 #include "scene/light.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
-#include "scene/pointcloud.h"
 #include "scene/scene.h"
 #include "scene/shader.h"
 #include "scene/shader_nodes.h"
-#include "scene/stats.h"
-#include "scene/volume.h"
 
-#include "subd/patch_table.h"
-#include "subd/split.h"
-
-#include "kernel/osl/globals.h"
-
-#include "util/foreach.h"
 #include "util/log.h"
 #include "util/progress.h"
-#include "util/task.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -37,11 +26,12 @@ void Geometry::compute_bvh(Device *device,
                            DeviceScene *dscene,
                            SceneParams *params,
                            Progress *progress,
-                           size_t n,
-                           size_t total)
+                           const size_t n,
+                           const size_t total)
 {
-  if (progress->get_cancel())
+  if (progress->get_cancel()) {
     return;
+  }
 
   compute_bounds();
 
@@ -49,10 +39,12 @@ void Geometry::compute_bvh(Device *device,
       params->bvh_layout, device->get_bvh_layout_mask(dscene->data.kernel_features));
   if (need_build_bvh(bvh_layout)) {
     string msg = "Updating Geometry BVH ";
-    if (name.empty())
+    if (name.empty()) {
       msg += string_printf("%u/%u", (uint)(n + 1), (uint)total);
-    else
+    }
+    else {
       msg += string_printf("%s %u/%u", name.c_str(), (uint)(n + 1), (uint)total);
+    }
 
     Object object;
 
@@ -73,7 +65,7 @@ void Geometry::compute_bvh(Device *device,
 
       bvh->replace_geometry(geometry, objects);
 
-      device->build_bvh(bvh, *progress, true);
+      device->build_bvh(bvh.get(), *progress, true);
     }
     else {
       progress->set_status(msg, "Building BVH");
@@ -90,9 +82,8 @@ void Geometry::compute_bvh(Device *device,
       bparams.bvh_type = params->bvh_type;
       bparams.curve_subdivisions = params->curve_subdivisions();
 
-      delete bvh;
       bvh = BVH::create(bparams, geometry, objects, device);
-      MEM_GUARDED_CALL(progress, device->build_bvh, bvh, *progress, false);
+      MEM_GUARDED_CALL(progress, device->build_bvh, bvh.get(), *progress, false);
     }
   }
 
@@ -127,9 +118,10 @@ void GeometryManager::device_update_bvh(Device *device,
                          (bparams.bvh_layout == BVHLayout::BVH_LAYOUT_OPTIX ||
                           bparams.bvh_layout == BVHLayout::BVH_LAYOUT_METAL);
 
-  BVH *bvh = scene->bvh;
-  if (!scene->bvh) {
-    bvh = scene->bvh = BVH::create(bparams, scene->geometry, scene->objects, device);
+  BVH *bvh = scene->bvh.get();
+  if (bvh == nullptr) {
+    scene->bvh = BVH::create(bparams, scene->geometry, scene->objects, device);
+    bvh = scene->bvh.get();
   }
 
   device->build_bvh(bvh, progress, can_refit);
@@ -190,8 +182,13 @@ void GeometryManager::device_update_bvh(Device *device,
   dscene->data.bvh.root = pack.root_index;
   dscene->data.bvh.use_bvh_steps = (scene->params.num_bvh_time_steps != 0);
   dscene->data.bvh.curve_subdivisions = scene->params.curve_subdivisions();
+
+#ifdef WITH_EMBREE
   /* The scene handle is set in 'CPUDevice::const_copy_to' and 'OptiXDevice::const_copy_to' */
+  dscene->data.device_bvh = nullptr;
+#else
   dscene->data.device_bvh = 0;
+#endif
 }
 
 CCL_NAMESPACE_END

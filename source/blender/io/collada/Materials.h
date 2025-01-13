@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,8 +7,8 @@
 #include <map>
 #include <string>
 
-#include "BKE_context.h"
-#include "BKE_node.h"
+#include "BKE_context.hh"
+#include "BKE_node.hh"
 #include "BLI_listbase.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"

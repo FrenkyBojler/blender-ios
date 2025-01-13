@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2006 Blender Foundation
+# SPDX-FileCopyrightText: 2006 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -52,16 +52,16 @@ if(WITH_MOD_FLUID)
   add_subdirectory(mantaflow)
 endif()
 
+if(WITH_UV_SLIM)
+  add_subdirectory(slim)
+endif()
+
 if(WITH_OPENVDB)
   add_subdirectory(openvdb)
 endif()
 
 if(WITH_QUADRIFLOW)
   add_subdirectory(quadriflow)
-endif()
-
-if(WITH_CODEC_FFMPEG)
-  add_subdirectory(ffmpeg)
 endif()
 
 if(UNIX AND NOT APPLE)

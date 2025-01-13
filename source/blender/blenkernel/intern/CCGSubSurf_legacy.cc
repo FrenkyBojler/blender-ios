@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,11 +9,11 @@
 #include "BLI_sys_types.h" /* for intptr_t support */
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h" /* for BLI_assert */
 
 #include "CCGSubSurf.h"
+#include "CCGSubSurf_inline.h"
 #include "CCGSubSurf_intern.h"
 
 #define FACE_calcIFNo(f, lvl, S, x, y, no) \
@@ -71,12 +71,16 @@ static float *_face_getIFNoEdge(CCGFace *f,
 static void _face_calcIFNo(
     CCGFace *f, int lvl, int S, int x, int y, float no[3], int levels, int dataSize)
 {
-  float *a = static_cast<float *>(ccg_face_getIFCo(f, lvl, S, x + 0, y + 0, levels, dataSize));
-  float *b = static_cast<float *>(ccg_face_getIFCo(f, lvl, S, x + 1, y + 0, levels, dataSize));
-  float *c = static_cast<float *>(ccg_face_getIFCo(f, lvl, S, x + 1, y + 1, levels, dataSize));
-  float *d = static_cast<float *>(ccg_face_getIFCo(f, lvl, S, x + 0, y + 1, levels, dataSize));
-  float a_cX = c[0] - a[0], a_cY = c[1] - a[1], a_cZ = c[2] - a[2];
-  float b_dX = d[0] - b[0], b_dY = d[1] - b[1], b_dZ = d[2] - b[2];
+  const float *a = static_cast<float *>(
+      ccg_face_getIFCo(f, lvl, S, x + 0, y + 0, levels, dataSize));
+  const float *b = static_cast<float *>(
+      ccg_face_getIFCo(f, lvl, S, x + 1, y + 0, levels, dataSize));
+  const float *c = static_cast<float *>(
+      ccg_face_getIFCo(f, lvl, S, x + 1, y + 1, levels, dataSize));
+  const float *d = static_cast<float *>(
+      ccg_face_getIFCo(f, lvl, S, x + 0, y + 1, levels, dataSize));
+  const float a_cX = c[0] - a[0], a_cY = c[1] - a[1], a_cZ = c[2] - a[2];
+  const float b_dX = d[0] - b[0], b_dY = d[1] - b[1], b_dZ = d[2] - b[2];
 
   no[0] = b_dY * a_cZ - b_dZ * a_cY;
   no[1] = b_dZ * a_cX - b_dX * a_cZ;
@@ -1230,20 +1234,20 @@ void ccgSubSurf__sync_legacy(CCGSubSurf *ss)
   if (ss->useAgeCounts) {
     for (i = 0; i < numEffectedV; i++) {
       CCGVert *v = effectedV[i];
-      byte *userData = static_cast<byte *>(ccgSubSurf_getVertUserData(ss, v));
-      *((int *)&userData[ss->vertUserAgeOffset]) = ss->currentAge;
+      byte *user_data = static_cast<byte *>(ccgSubSurf_getVertUserData(ss, v));
+      *((int *)&user_data[ss->vertUserAgeOffset]) = ss->currentAge;
     }
 
     for (i = 0; i < numEffectedE; i++) {
       CCGEdge *e = effectedE[i];
-      byte *userData = static_cast<byte *>(ccgSubSurf_getEdgeUserData(ss, e));
-      *((int *)&userData[ss->edgeUserAgeOffset]) = ss->currentAge;
+      byte *user_data = static_cast<byte *>(ccgSubSurf_getEdgeUserData(ss, e));
+      *((int *)&user_data[ss->edgeUserAgeOffset]) = ss->currentAge;
     }
 
     for (i = 0; i < numEffectedF; i++) {
       CCGFace *f = effectedF[i];
-      byte *userData = static_cast<byte *>(ccgSubSurf_getFaceUserData(ss, f));
-      *((int *)&userData[ss->faceUserAgeOffset]) = ss->currentAge;
+      byte *user_data = static_cast<byte *>(ccgSubSurf_getFaceUserData(ss, f));
+      *((int *)&user_data[ss->faceUserAgeOffset]) = ss->currentAge;
     }
   }
 

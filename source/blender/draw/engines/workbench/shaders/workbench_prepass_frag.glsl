@@ -1,9 +1,16 @@
+/* SPDX-FileCopyrightText: 2018-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(workbench_common_lib.glsl)
-#pragma BLENDER_REQUIRE(workbench_image_lib.glsl)
+#include "infos/workbench_prepass_info.hh"
 
-#ifdef WORKBENCH_NEXT
+FRAGMENT_SHADER_CREATE_INFO(workbench_prepass)
+FRAGMENT_SHADER_CREATE_INFO(workbench_opaque)
+FRAGMENT_SHADER_CREATE_INFO(workbench_lighting_matcap)
+
+#include "draw_view_lib.glsl"
+#include "workbench_common_lib.glsl"
+#include "workbench_image_lib.glsl"
 
 void main()
 {
@@ -12,34 +19,12 @@ void main()
 
   out_material = vec4(color_interp, workbench_float_pair_encode(_roughness, metallic));
 
-#  ifdef WORKBENCH_COLOR_TEXTURE
+#ifdef WORKBENCH_COLOR_TEXTURE
   out_material.rgb = workbench_image_color(uv_interp);
-#  endif
+#endif
 
-#  ifdef WORKBENCH_LIGHTING_MATCAP
+#ifdef WORKBENCH_LIGHTING_MATCAP
   /* For matcaps, save front facing in alpha channel. */
   out_material.a = float(gl_FrontFacing);
-#  endif
-}
-
-#else
-
-void main()
-{
-  out_normal = workbench_normal_encode(gl_FrontFacing, normal_interp);
-
-  out_material = vec4(color_interp, workbench_float_pair_encode(_roughness, metallic));
-
-  out_object_id = uint(object_id);
-
-  if (useMatcap) {
-    /* For matcaps, save front facing in alpha channel. */
-    out_material.a = float(gl_FrontFacing);
-  }
-
-#  ifdef WORKBENCH_COLOR_TEXTURE
-  out_material.rgb = workbench_image_color(uv_interp);
-#  endif
-}
-
 #endif
+}

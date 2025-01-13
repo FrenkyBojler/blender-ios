@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,18 +10,17 @@
 
 #include "BLI_listbase.h"
 
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_outliner_types.h"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "../outliner_intern.hh"
 #include "common.hh"
-#include "tree_display.hh"
 
 namespace blender::ed::outliner {
 

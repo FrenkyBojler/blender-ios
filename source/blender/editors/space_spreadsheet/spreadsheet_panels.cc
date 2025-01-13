@@ -1,10 +1,13 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_screen.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 
-#include "BLT_translation.h"
+#include "BKE_screen.hh"
+
+#include "BLT_translation.hh"
 
 #include "spreadsheet_dataset_draw.hh"
 #include "spreadsheet_intern.hh"

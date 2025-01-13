@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,7 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "gpu_index_buffer_private.hh"
+#include "GPU_index_buffer.hh"
 
 #include <epoxy/gl.h>
 

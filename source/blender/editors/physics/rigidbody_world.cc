@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -18,22 +18,21 @@
 #  include "RBI_api.h"
 #endif
 
-#include "BKE_context.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
+#include "BKE_context.hh"
+#include "BKE_report.hh"
 #include "BKE_rigidbody.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "physics_intern.h"
+#include "physics_intern.hh"
 
 /* ********************************************** */
 /* API */
@@ -178,7 +177,8 @@ void RIGIDBODY_OT_world_export(wmOperatorType *ot)
   ot->idname = "RIGIDBODY_OT_world_export";
   ot->name = "Export Rigid Body World";
   ot->description =
-      "Export Rigid Body world to simulator's own fileformat (i.e. '.bullet' for Bullet Physics)";
+      "Export Rigid Body world to the simulator's own fileformat (i.e. '.bullet' for Bullet "
+      "Physics)";
 
   /* callbacks */
   ot->invoke = rigidbody_world_export_invoke;

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -42,6 +42,6 @@ class SpreadsheetDrawer {
 
 void draw_spreadsheet_in_region(const bContext *C,
                                 ARegion *region,
-                                const SpreadsheetDrawer &spreadsheet_drawer);
+                                const SpreadsheetDrawer &drawer);
 
 }  // namespace blender::ed::spreadsheet

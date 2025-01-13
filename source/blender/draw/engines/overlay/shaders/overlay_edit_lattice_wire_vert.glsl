@@ -1,6 +1,9 @@
+/* SPDX-FileCopyrightText: 2016-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
+#include "common_view_clipping_lib.glsl"
+#include "common_view_lib.glsl"
 
 #define no_active_weight 666.0
 

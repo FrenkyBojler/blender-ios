@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -17,16 +17,21 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Material Index", std::move(material_index_field));
 }
 
-}  // namespace blender::nodes::node_geo_input_material_index_cc
-
-void register_node_type_geo_input_material_index()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_material_index_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_MATERIAL_INDEX, "Material Index", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(
+      &ntype, "GeometryNodeInputMaterialIndex", GEO_NODE_INPUT_MATERIAL_INDEX, NODE_CLASS_INPUT);
+  ntype.ui_name = "Material Index";
+  ntype.ui_description =
+      "Retrieve the index of the material used for each element in the geometry's list of "
+      "materials";
+  ntype.enum_name_legacy = "INPUT_MATERIAL_INDEX";
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_material_index_cc

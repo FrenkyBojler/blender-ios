@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2008-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -45,10 +45,6 @@
 
 #include "../stroke/StrokeRep.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 using namespace Freestyle::Geometry;
 
@@ -61,6 +57,32 @@ using namespace Freestyle::Geometry;
 PyObject *PyBool_from_bool(bool b)
 {
   return PyBool_FromLong(b ? 1 : 0);
+}
+
+PyObject *PyLong_subtype_new(PyTypeObject *ty, long value)
+{
+  BLI_assert(ty->tp_basicsize == sizeof(PyLongObject));
+  PyLongObject *result = PyObject_NewVar(PyLongObject, ty, 1);
+#if PY_VERSION_HEX >= 0x030c0000
+  {
+    /* Account for change in `PyLongObject` in Python 3.12+.
+     * The values of longs are no longer accessible via public API's, copy the value instead. */
+    PyLongObject *value_py = (PyLongObject *)PyLong_FromLong(value);
+    memcpy(&result->long_value, &value_py->long_value, sizeof(result->long_value));
+    Py_DECREF(value_py);
+  }
+#else
+  result->ob_digit[0] = value;
+#endif
+  return (PyObject *)result;
+}
+
+void PyLong_subtype_add_to_dict(PyObject *dict, PyTypeObject *ty, const char *attr, long value)
+{
+  PyObject *result = PyLong_subtype_new(ty, value);
+  PyDict_SetItemString(dict, attr, result);
+  /* Owned by the dictionary. */
+  Py_DECREF(result);
 }
 
 PyObject *Vector_from_Vec2f(Vec2f &vec)
@@ -803,7 +825,3 @@ int convert_v2(PyObject *obj, void *v)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

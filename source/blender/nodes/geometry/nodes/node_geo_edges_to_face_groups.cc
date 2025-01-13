@@ -1,9 +1,9 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.h"
+#include "BKE_mesh_mapping.hh"
 
 #include "BLI_atomic_disjoint_set.hh"
 
@@ -26,10 +26,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 /** Join all unique unordered combinations of indices. */
 static void join_indices(AtomicDisjointSet &set, const Span<int> indices)
 {
-  for (const int i : indices.index_range()) {
-    for (int j = i + 1; j < indices.size(); j++) {
-      set.join(indices[i], indices[j]);
-    }
+  for (const int i : indices.index_range().drop_back(1)) {
+    set.join(indices[i], indices[i + 1]);
   }
 }
 
@@ -45,31 +43,31 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    const bke::MeshFieldContext context{mesh, ATTR_DOMAIN_EDGE};
-    fn::FieldEvaluator evaluator{context, mesh.totedge};
+    const bke::MeshFieldContext context{mesh, AttrDomain::Edge};
+    fn::FieldEvaluator evaluator{context, mesh.edges_num};
     evaluator.add(non_boundary_edge_field_);
     evaluator.evaluate();
     const IndexMask non_boundary_edges = evaluator.get_evaluated_as_mask(0);
 
-    const OffsetIndices polys = mesh.polys();
+    const OffsetIndices faces = mesh.faces();
 
     Array<int> edge_to_face_offsets;
     Array<int> edge_to_face_indices;
-    const GroupedSpan<int> edge_to_face_map = bke::mesh::build_edge_to_poly_map(
-        polys, mesh.corner_edges(), mesh.totedge, edge_to_face_offsets, edge_to_face_indices);
+    const GroupedSpan<int> edge_to_face_map = bke::mesh::build_edge_to_face_map(
+        faces, mesh.corner_edges(), mesh.edges_num, edge_to_face_offsets, edge_to_face_indices);
 
-    AtomicDisjointSet islands(polys.size());
+    AtomicDisjointSet islands(faces.size());
     non_boundary_edges.foreach_index(
-        [&](const int edge) { join_indices(islands, edge_to_face_map[edge]); });
+        GrainSize(2048), [&](const int edge) { join_indices(islands, edge_to_face_map[edge]); });
 
-    Array<int> output(polys.size());
+    Array<int> output(faces.size());
     islands.calc_reduced_ids(output);
 
     return mesh.attributes().adapt_domain(
-        VArray<int>::ForContainer(std::move(output)), ATTR_DOMAIN_FACE, domain);
+        VArray<int>::ForContainer(std::move(output)), AttrDomain::Face, domain);
   }
 
   uint64_t hash() const override
@@ -85,9 +83,9 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_FACE;
+    return AttrDomain::Face;
   }
 };
 
@@ -100,18 +98,20 @@ static void geo_node_exec(GeoNodeExecParams params)
       Field<int>(std::make_shared<FaceSetFromBoundariesInput>(std::move(non_boundary_edges))));
 }
 
-}  // namespace blender::nodes::node_geo_edges_to_face_groups_cc
-
-void register_node_type_geo_edges_to_face_groups()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_edges_to_face_groups_cc;
-
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_EDGES_TO_FACE_GROUPS, "Edges to Face Groups", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::geo_node_exec;
-  ntype.declare = file_ns::node_declare;
+      &ntype, "GeometryNodeEdgesToFaceGroups", GEO_NODE_EDGES_TO_FACE_GROUPS, NODE_CLASS_INPUT);
+  ntype.ui_name = "Edges to Face Groups";
+  ntype.ui_description = "Group faces into regions surrounded by the selected boundary edges";
+  ntype.enum_name_legacy = "EDGES_TO_FACE_GROUPS";
+  ntype.geometry_node_execute = geo_node_exec;
+  ntype.declare = node_declare;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_edges_to_face_groups_cc

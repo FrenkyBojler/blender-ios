@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -24,8 +24,8 @@
 #include "BLI_fileops.h"
 #include "BLI_string.h"
 
-#include "BLF_api.h"
-#include "blf_internal.h"
+#include "BLF_api.hh"
+#include "blf_internal.hh"
 
 char *blf_dir_metrics_search(const char *filepath)
 {

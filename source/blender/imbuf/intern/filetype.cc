@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,11 +10,10 @@
 
 #include "BLI_utildefines.h"
 
-#include "IMB_filetype.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-
-#include "IMB_colormanagement.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "oiio/openimageio_api.h"
 
@@ -238,6 +237,8 @@ const ImFileType *IMB_file_type_from_ibuf(const ImBuf *ibuf)
 void imb_filetypes_init()
 {
   const ImFileType *type;
+
+  OIIO_init();
 
   for (type = IMB_FILE_TYPES; type < IMB_FILE_TYPES_LAST; type++) {
     if (type->init) {

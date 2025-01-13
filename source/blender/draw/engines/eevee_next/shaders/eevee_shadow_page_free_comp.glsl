@@ -1,14 +1,21 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Virtual shadowmapping: Tile page freeing.
+ * Virtual shadow-mapping: Tile page freeing.
  *
- * Releases the allocated pages held by tilemaps that have been become unused.
+ * Releases the allocated pages held by tile-maps that have been become unused.
  * Also reclaim cached pages if the tiles needs them.
  * Note that we also count the number of new page allocations needed.
  */
 
-#pragma BLENDER_REQUIRE(eevee_shadow_page_ops_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
+#include "infos/eevee_shadow_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_shadow_page_free)
+
+#include "eevee_shadow_page_ops_lib.glsl"
+#include "eevee_shadow_tilemap_lib.glsl"
 
 void main()
 {

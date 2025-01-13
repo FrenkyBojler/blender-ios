@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -10,12 +10,10 @@ set(INC
   ../../bmesh/intern
   ../../editors/include
   ../../makesrna
-  ../../nodes
 )
 
 set(INC_SYS
   ../../../../extern/fast_float
-  ../../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -33,7 +31,7 @@ set(SRC
   importer/obj_import_string_utils.cc
   importer/obj_importer.cc
 
-  IO_wavefront_obj.h
+  IO_wavefront_obj.hh
   exporter/obj_export_file_writer.hh
   exporter/obj_export_io.hh
   exporter/obj_export_mesh.hh
@@ -56,19 +54,15 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
+  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
   PRIVATE bf::windowmanager
-  extern_fmtlib
 )
 
-if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
-  list(APPEND INC_SYS ${TBB_INCLUDE_DIRS})
-  list(APPEND LIB ${TBB_LIBRARIES})
-endif()
-
-blender_add_lib(bf_wavefront_obj "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(bf_io_wavefront_obj "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(WITH_GTESTS)
   set(TEST_SRC
@@ -76,8 +70,6 @@ if(WITH_GTESTS)
     tests/obj_import_string_utils_tests.cc
     tests/obj_importer_tests.cc
     tests/obj_mtl_parser_tests.cc
-
-    tests/obj_exporter_tests.hh
   )
 
   set(TEST_INC
@@ -90,11 +82,9 @@ if(WITH_GTESTS)
   set(TEST_LIB
     ${LIB}
 
-    bf_blenloader_tests
-    bf_wavefront_obj
+    bf_blenloader_test_util
+    bf_io_wavefront_obj
   )
 
-  include(GTestTesting)
-  blender_add_test_lib(bf_wavefront_obj_tests "${TEST_SRC}" "${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
-  add_dependencies(bf_wavefront_obj_tests bf_wavefront_obj)
+  blender_add_test_suite_lib(io_wavefront "${TEST_SRC}" "${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()

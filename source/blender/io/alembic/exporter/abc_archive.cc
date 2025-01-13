@@ -1,25 +1,29 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "abc_archive.h"
 
 #include "BKE_blender_version.h"
-#include "BKE_main.h"
-#include "BKE_scene.h"
-
-#include "DEG_depsgraph_query.h"
+#include "BKE_main.hh"
 
 #include "DNA_scene_types.h"
 
-#include <Alembic/AbcCoreOgawa/All.h>
-#include <Alembic/AbcGeom/All.h>
+#include <Alembic/Abc/ArchiveInfo.h>
+#include <Alembic/Abc/ErrorHandler.h>
+#include <Alembic/Abc/Foundation.h>
+#include <Alembic/Abc/OArchive.h>
+#include <Alembic/AbcCoreAbstract/MetaData.h>
+#include <Alembic/AbcCoreAbstract/TimeSampling.h>
+#include <Alembic/AbcCoreAbstract/TimeSamplingType.h>
+#include <Alembic/AbcCoreOgawa/ReadWrite.h>
+#include <Alembic/AbcGeom/ArchiveBounds.h>
 
 #ifdef WIN32
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 
-#  include "utfconv.h"
+#  include "utfconv.hh"
 #endif
 
 namespace blender::io::alembic {

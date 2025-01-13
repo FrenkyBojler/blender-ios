@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,12 +8,13 @@
 
 #pragma once
 
+#include <algorithm>
 #include <optional>
 #include <string>
 
 #include "BKE_cryptomatte.h"
 
-#include "BLI_hash_mm3.h"
+#include "BLI_hash_mm3.hh"
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
 
@@ -80,8 +81,8 @@ struct CryptomatteHash {
   {
     uint32_t mantissa = hash & ((1 << 23) - 1);
     uint32_t exponent = (hash >> 23) & ((1 << 8) - 1);
-    exponent = MAX2(exponent, uint32_t(1));
-    exponent = MIN2(exponent, uint32_t(254));
+    exponent = std::max(exponent, uint32_t(1));
+    exponent = std::min(exponent, uint32_t(254));
     exponent = exponent << 23;
     uint32_t sign = (hash >> 31);
     sign = sign << 31;
@@ -95,12 +96,10 @@ struct CryptomatteHash {
 struct CryptomatteLayer {
   blender::Map<std::string, CryptomatteHash> hashes;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("cryptomatte:CryptomatteLayer")
-#endif
 
   static std::unique_ptr<CryptomatteLayer> read_from_manifest(blender::StringRefNull manifest);
-  uint32_t add_ID(const struct ID &id);
+  uint32_t add_ID(const ID &id);
   void add_hash(blender::StringRef name, CryptomatteHash cryptomatte_hash);
   std::string manifest() const;
 
@@ -108,7 +107,7 @@ struct CryptomatteLayer {
 };
 
 struct CryptomatteStampDataCallbackData {
-  struct CryptomatteSession *session;
+  CryptomatteSession *session;
   blender::Map<std::string, std::string> hash_to_layer_name;
 
   /**

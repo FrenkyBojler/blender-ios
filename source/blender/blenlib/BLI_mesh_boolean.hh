@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,14 +11,15 @@
 /* The boolean functions in Blenlib use exact arithmetic, so require GMP. */
 #ifdef WITH_GMP
 
+#  include "BLI_function_ref.hh"
 #  include "BLI_mesh_intersect.hh"
-#  include <functional>
 
 namespace blender::meshintersect {
 
 /**
  * Enum values after BOOLEAN_NONE need to match BMESH_ISECT_BOOLEAN_... values in
- * editmesh_intersect.c. */
+ * `editmesh_intersect.cc`.
+ */
 enum class BoolOpType {
   None = -1,
   /* Aligned with #BooleanModifierOp. */
@@ -45,7 +46,7 @@ enum class BoolOpType {
 IMesh boolean_mesh(IMesh &imesh,
                    BoolOpType op,
                    int nshapes,
-                   std::function<int(int)> shape_fn,
+                   FunctionRef<int(int)> shape_fn,
                    bool use_self,
                    bool hole_tolerant,
                    IMesh *imesh_triangulated,
@@ -55,11 +56,16 @@ IMesh boolean_mesh(IMesh &imesh,
  * This is like boolean, but operates on #IMesh's whose faces are all triangles.
  * It is exposed mainly for unit testing, at the moment: boolean_mesh() uses
  * it to do most of its work.
+ *
+ * This function does a boolean operation on a #TriMesh with `nshapes` inputs.
+ * All the shapes are combined in `tm_in`.
+ * The shape_fn function should take a triangle index in `tm_in` and return
+ * a number in the range 0 to `nshapes - 1`, to say which shape that triangle is in.
  */
 IMesh boolean_trimesh(IMesh &tm_in,
                       BoolOpType op,
                       int nshapes,
-                      std::function<int(int)> shape_fn,
+                      FunctionRef<int(int)> shape_fn,
                       bool use_self,
                       bool hole_tolerant,
                       IMeshArena *arena);

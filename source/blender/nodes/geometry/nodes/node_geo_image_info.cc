@@ -1,17 +1,15 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
-#include "BLI_path_util.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "MOV_read.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -64,14 +62,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   float fps = 0.0f;
 
   if (ImageAnim *ianim = static_cast<ImageAnim *>(image->anims.first)) {
-    auto *anim = ianim->anim;
+    MovieReader *anim = ianim->anim;
     if (anim) {
-      frames = IMB_anim_get_duration(anim, IMB_TC_NONE);
-
-      short fps_sec = 0;
-      float fps_sec_base = 0.0f;
-      IMB_anim_get_fps(anim, &fps_sec, &fps_sec_base, true);
-      fps = float(fps_sec) / fps_sec_base;
+      frames = MOV_get_duration_frames(anim, IMB_TC_NONE);
+      fps = MOV_get_fps(anim);
     }
   }
 
@@ -79,17 +73,19 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("FPS", fps);
 }
 
-}  // namespace blender::nodes::node_geo_image_info_cc
-
-void register_node_type_geo_image_info()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_image_info_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_IMAGE_INFO, "Image Info", NODE_CLASS_INPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeImageInfo", GEO_NODE_IMAGE_INFO, NODE_CLASS_INPUT);
+  ntype.ui_name = "Image Info";
+  ntype.ui_description = "Retrieve information about an image";
+  ntype.enum_name_legacy = "IMAGE_INFO";
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_image_info_cc

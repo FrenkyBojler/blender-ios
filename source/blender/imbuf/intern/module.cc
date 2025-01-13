@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,10 +10,10 @@
 
 #include "BLI_utildefines.h"
 
-#include "IMB_allocimbuf.h"
-#include "IMB_colormanagement_intern.h"
-#include "IMB_filetype.h"
-#include "IMB_imbuf.h"
+#include "IMB_allocimbuf.hh"
+#include "IMB_colormanagement_intern.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf.hh"
 
 void IMB_init()
 {

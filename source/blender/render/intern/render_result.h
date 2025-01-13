@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2007 Blender Foundation
+/* SPDX-FileCopyrightText: 2007 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -37,7 +37,7 @@ extern "C" {
  * `re->winx`, `re->winy` is coordinate space of entire image, `partrct` the part within.
  */
 struct RenderResult *render_result_new(struct Render *re,
-                                       struct rcti *partrct,
+                                       const struct rcti *partrct,
                                        const char *layername,
                                        const char *viewname);
 

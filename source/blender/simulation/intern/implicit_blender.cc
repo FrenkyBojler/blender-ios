@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: Blender Foundation
+/* SPDX-FileCopyrightText: Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,18 +12,11 @@
 
 #  include "MEM_guardedalloc.h"
 
-#  include "DNA_meshdata_types.h"
-#  include "DNA_object_force_types.h"
-#  include "DNA_object_types.h"
-#  include "DNA_scene_types.h"
-#  include "DNA_texture_types.h"
+#  include "BLI_math_geom.h"
+#  include "BLI_math_matrix.h"
+#  include "BLI_math_vector.h"
 
-#  include "BLI_math.h"
-#  include "BLI_utildefines.h"
-
-#  include "BKE_cloth.h"
-#  include "BKE_collision.h"
-#  include "BKE_effect.h"
+#  include "BKE_cloth.hh"
 
 #  include "SIM_mass_spring.h"
 
@@ -35,10 +28,10 @@
 #    define CLOTH_OPENMP_LIMIT 512
 #  endif
 
-//#define DEBUG_TIME
+// #define DEBUG_TIME
 
 #  ifdef DEBUG_TIME
-#    include "PIL_time.h"
+#    include "BLI_time.h"
 #  endif
 
 static float I[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
@@ -178,7 +171,7 @@ DO_INLINE float dot_lfvector(float (*fLongVectorA)[3], float (*fLongVectorB)[3],
    * due to non-commutative nature of floating point ops this makes the sim give
    * different results each time you run it!
    * schedule(guided, 2) */
-  //#pragma omp parallel for reduction(+: temp) if (verts > CLOTH_OPENMP_LIMIT)
+  // #pragma omp parallel for reduction(+: temp) if (verts > CLOTH_OPENMP_LIMIT)
   for (i = 0; i < long(verts); i++) {
     temp += dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
   }
@@ -789,16 +782,16 @@ static int cg_filtered(lfVector *ldV, fmatrix3x3 *lA, lfVector *lB, lfVector *z,
 
     a = s / dot_lfvector(d, q, numverts);
 
-    /* X = X + d*a; */
+    /* `X = X + d*a;` */
     add_lfvector_lfvectorS(ldV, ldV, d, a, numverts);
 
-    /* r = r - q*a; */
+    /* `r = r - q*a;` */
     sub_lfvector_lfvectorS(r, r, q, a, numverts);
 
     s_prev = s;
     s = dot_lfvector(r, r, numverts);
 
-    // d = r+d*(s/s_prev);
+    /* `d = r+d*(s/s_prev);` */
     add_lfvector_lfvectorS(d, r, d, (s / s_prev), numverts);
 
     filter(d, S);
@@ -963,7 +956,7 @@ static int cg_filtered_pre(lfVector *dv,
   delta0 = deltaNew * sqrt(conjgrad_epsilon);
 
 #      ifdef DEBUG_TIME
-  double start = PIL_check_seconds_timer();
+  double start = BLI_time_now_seconds();
 #      endif
 
   while ((deltaNew > delta0) && (iterations < conjgrad_looplimit)) {
@@ -991,8 +984,8 @@ static int cg_filtered_pre(lfVector *dv,
   }
 
 #      ifdef DEBUG_TIME
-  double end = PIL_check_seconds_timer();
-  printf("cg_filtered_pre time: %f\n", (float)(end - start));
+  double end = BLI_time_now_seconds();
+  printf("cg_filtered_pre time: %f\n", float(end - start));
 #      endif
 
   del_lfvector(h);
@@ -1072,7 +1065,7 @@ static int cg_filtered_pre(lfVector *dv,
 #    endif
 
 #    ifdef DEBUG_TIME
-  double start = PIL_check_seconds_timer();
+  double start = BLI_time_now_seconds();
 #    endif
 
   tol = (0.01 * 0.2);
@@ -1102,8 +1095,8 @@ static int cg_filtered_pre(lfVector *dv,
   }
 
 #    ifdef DEBUG_TIME
-  double end = PIL_check_seconds_timer();
-  printf("cg_filtered_pre time: %f\n", (float)(end - start));
+  double end = BLI_time_now_seconds();
+  printf("cg_filtered_pre time: %f\n", float(end - start));
 #    endif
 
   del_lfvector(btemp);
@@ -1135,7 +1128,7 @@ bool SIM_mass_spring_solve_velocities(Implicit_Data *data, float dt, ImplicitSol
   add_lfvectorS_lfvectorS(data->B, data->F, dt, dFdXmV, (dt * dt), numverts);
 
 #  ifdef DEBUG_TIME
-  double start = PIL_check_seconds_timer();
+  double start = BLI_time_now_seconds();
 #  endif
 
   /* Conjugate gradient algorithm to solve Ax=b. */
@@ -1144,8 +1137,8 @@ bool SIM_mass_spring_solve_velocities(Implicit_Data *data, float dt, ImplicitSol
   // cg_filtered_pre(id->dV, id->A, id->B, id->z, id->S, id->P, id->Pinv, id->bigI);
 
 #  ifdef DEBUG_TIME
-  double end = PIL_check_seconds_timer();
-  printf("cg_filtered calc time: %f\n", (float)(end - start));
+  double end = BLI_time_now_seconds();
+  printf("cg_filtered calc time: %f\n", float(end - start));
 #  endif
 
   /* advance velocities */
@@ -1653,7 +1646,7 @@ BLI_INLINE void dfdx_damp(float to[3][3],
   // return (I - outerprod(dir, dir)) * (-damping * -(dot(dir, vel) / Max(length, rest)));
   mul_fvectorT_fvector(to, dir, dir);
   sub_fmatrix_fmatrix(to, I, to);
-  mul_fmatrix_S(to, (-damping * -(dot_v3v3(dir, vel) / MAX2(length, rest))));
+  mul_fmatrix_S(to, (-damping * -(dot_v3v3(dir, vel) / std::max(length, rest))));
 }
 #  endif
 
@@ -1723,7 +1716,8 @@ BLI_INLINE bool spring_length(Implicit_Data *data,
 #  if 0
     if (length > L) {
       if ((clmd->sim_parms->flags & CSIMSETT_FLAG_TEARING_ENABLED) &&
-          (((length - L) * 100.0f / L) > clmd->sim_parms->maxspringlen)) {
+          (((length - L) * 100.0f / L) > clmd->sim_parms->maxspringlen))
+      {
         /* cut spring! */
         s->flags |= CSPRING_FLAG_DEACTIVATE;
         return false;

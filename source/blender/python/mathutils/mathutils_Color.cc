@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,18 +6,19 @@
  * \ingroup pymathutils
  */
 
+#include <algorithm>
+
 #include <Python.h>
 
-#include "mathutils.h"
+#include "mathutils.hh"
 
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_utildefines.hh"
 
 #ifndef MATH_STANDALONE
-#  include "IMB_colormanagement.h"
+#  include "IMB_colormanagement.hh"
 #endif
 
 #ifndef MATH_STANDALONE
@@ -98,13 +99,15 @@ static PyObject *Color_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 #ifndef MATH_STANDALONE
 
-PyDoc_STRVAR(Color_from_scene_linear_to_srgb_doc,
-             ".. function:: from_scene_linear_to_srgb()\n"
-             "\n"
-             "   Convert from scene linear to sRGB color space.\n"
-             "\n"
-             "   :return: A color in sRGB color space.\n"
-             "   :rtype: :class:`Color`\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_from_scene_linear_to_srgb_doc,
+    ".. function:: from_scene_linear_to_srgb()\n"
+    "\n"
+    "   Convert from scene linear to sRGB color space.\n"
+    "\n"
+    "   :return: A color in sRGB color space.\n"
+    "   :rtype: :class:`Color`\n");
 static PyObject *Color_from_scene_linear_to_srgb(ColorObject *self)
 {
   float col[3];
@@ -112,13 +115,15 @@ static PyObject *Color_from_scene_linear_to_srgb(ColorObject *self)
   return Color_CreatePyObject(col, Py_TYPE(self));
 }
 
-PyDoc_STRVAR(Color_from_srgb_to_scene_linear_doc,
-             ".. function:: from_srgb_to_scene_linear()\n"
-             "\n"
-             "   Convert from sRGB to scene linear color space.\n"
-             "\n"
-             "   :return: A color in scene linear color space.\n"
-             "   :rtype: :class:`Color`\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_from_srgb_to_scene_linear_doc,
+    ".. function:: from_srgb_to_scene_linear()\n"
+    "\n"
+    "   Convert from sRGB to scene linear color space.\n"
+    "\n"
+    "   :return: A color in scene linear color space.\n"
+    "   :rtype: :class:`Color`\n");
 static PyObject *Color_from_srgb_to_scene_linear(ColorObject *self)
 {
   float col[3];
@@ -126,13 +131,15 @@ static PyObject *Color_from_srgb_to_scene_linear(ColorObject *self)
   return Color_CreatePyObject(col, Py_TYPE(self));
 }
 
-PyDoc_STRVAR(Color_from_scene_linear_to_xyz_d65_doc,
-             ".. function:: from_scene_linear_to_xyz_d65()\n"
-             "\n"
-             "   Convert from scene linear to CIE XYZ (Illuminant D65) color space.\n"
-             "\n"
-             "   :return: A color in XYZ color space.\n"
-             "   :rtype: :class:`Color`\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_from_scene_linear_to_xyz_d65_doc,
+    ".. function:: from_scene_linear_to_xyz_d65()\n"
+    "\n"
+    "   Convert from scene linear to CIE XYZ (Illuminant D65) color space.\n"
+    "\n"
+    "   :return: A color in XYZ color space.\n"
+    "   :rtype: :class:`Color`\n");
 static PyObject *Color_from_scene_linear_to_xyz_d65(ColorObject *self)
 {
   float col[3];
@@ -140,13 +147,15 @@ static PyObject *Color_from_scene_linear_to_xyz_d65(ColorObject *self)
   return Color_CreatePyObject(col, Py_TYPE(self));
 }
 
-PyDoc_STRVAR(Color_from_xyz_d65_to_scene_linear_doc,
-             ".. function:: from_xyz_d65_to_scene_linear()\n"
-             "\n"
-             "   Convert from CIE XYZ (Illuminant D65) to scene linear color space.\n"
-             "\n"
-             "   :return: A color in scene linear color space.\n"
-             "   :rtype: :class:`Color`\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_from_xyz_d65_to_scene_linear_doc,
+    ".. function:: from_xyz_d65_to_scene_linear()\n"
+    "\n"
+    "   Convert from CIE XYZ (Illuminant D65) to scene linear color space.\n"
+    "\n"
+    "   :return: A color in scene linear color space.\n"
+    "   :rtype: :class:`Color`\n");
 static PyObject *Color_from_xyz_d65_to_scene_linear(ColorObject *self)
 {
   float col[3];
@@ -154,13 +163,15 @@ static PyObject *Color_from_xyz_d65_to_scene_linear(ColorObject *self)
   return Color_CreatePyObject(col, Py_TYPE(self));
 }
 
-PyDoc_STRVAR(Color_from_scene_linear_to_aces_doc,
-             ".. function:: from_scene_linear_to_aces()\n"
-             "\n"
-             "   Convert from scene linear to ACES2065-1 linear color space.\n"
-             "\n"
-             "   :return: A color in ACES2065-1 linear color space.\n"
-             "   :rtype: :class:`Color`\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_from_scene_linear_to_aces_doc,
+    ".. function:: from_scene_linear_to_aces()\n"
+    "\n"
+    "   Convert from scene linear to ACES2065-1 linear color space.\n"
+    "\n"
+    "   :return: A color in ACES2065-1 linear color space.\n"
+    "   :rtype: :class:`Color`\n");
 static PyObject *Color_from_scene_linear_to_aces(ColorObject *self)
 {
   float col[3];
@@ -168,13 +179,15 @@ static PyObject *Color_from_scene_linear_to_aces(ColorObject *self)
   return Color_CreatePyObject(col, Py_TYPE(self));
 }
 
-PyDoc_STRVAR(Color_from_aces_to_scene_linear_doc,
-             ".. function:: from_aces_to_scene_linear()\n"
-             "\n"
-             "   Convert from ACES2065-1 linear to scene linear color space.\n"
-             "\n"
-             "   :return: A color in scene linear color space.\n"
-             "   :rtype: :class:`Color`\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_from_aces_to_scene_linear_doc,
+    ".. function:: from_aces_to_scene_linear()\n"
+    "\n"
+    "   Convert from ACES2065-1 linear to scene linear color space.\n"
+    "\n"
+    "   :return: A color in scene linear color space.\n"
+    "   :rtype: :class:`Color`\n");
 static PyObject *Color_from_aces_to_scene_linear(ColorObject *self)
 {
   float col[3];
@@ -182,13 +195,15 @@ static PyObject *Color_from_aces_to_scene_linear(ColorObject *self)
   return Color_CreatePyObject(col, Py_TYPE(self));
 }
 
-PyDoc_STRVAR(Color_from_scene_linear_to_rec709_linear_doc,
-             ".. function:: from_scene_linear_to_rec709_linear()\n"
-             "\n"
-             "   Convert from scene linear to Rec.709 linear color space.\n"
-             "\n"
-             "   :return: A color in Rec.709 linear color space.\n"
-             "   :rtype: :class:`Color`\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_from_scene_linear_to_rec709_linear_doc,
+    ".. function:: from_scene_linear_to_rec709_linear()\n"
+    "\n"
+    "   Convert from scene linear to Rec.709 linear color space.\n"
+    "\n"
+    "   :return: A color in Rec.709 linear color space.\n"
+    "   :rtype: :class:`Color`\n");
 static PyObject *Color_from_scene_linear_to_rec709_linear(ColorObject *self)
 {
   float col[3];
@@ -196,13 +211,15 @@ static PyObject *Color_from_scene_linear_to_rec709_linear(ColorObject *self)
   return Color_CreatePyObject(col, Py_TYPE(self));
 }
 
-PyDoc_STRVAR(Color_from_rec709_linear_to_scene_linear_doc,
-             ".. function:: from_rec709_linear_to_scene_linear()\n"
-             "\n"
-             "   Convert from Rec.709 linear color space to scene linear color space.\n"
-             "\n"
-             "   :return: A color in scene linear color space.\n"
-             "   :rtype: :class:`Color`\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_from_rec709_linear_to_scene_linear_doc,
+    ".. function:: from_rec709_linear_to_scene_linear()\n"
+    "\n"
+    "   Convert from Rec.709 linear color space to scene linear color space.\n"
+    "\n"
+    "   :return: A color in scene linear color space.\n"
+    "   :rtype: :class:`Color`\n");
 static PyObject *Color_from_rec709_linear_to_scene_linear(ColorObject *self)
 {
   float col[3];
@@ -210,7 +227,7 @@ static PyObject *Color_from_rec709_linear_to_scene_linear(ColorObject *self)
   return Color_CreatePyObject(col, Py_TYPE(self));
 }
 
-#endif /* MATH_STANDALONE */
+#endif /* !MATH_STANDALONE */
 
 /** \} */
 
@@ -218,16 +235,18 @@ static PyObject *Color_from_rec709_linear_to_scene_linear(ColorObject *self)
 /** \name Color Methods: Color Copy/Deep-Copy
  * \{ */
 
-PyDoc_STRVAR(Color_copy_doc,
-             ".. function:: copy()\n"
-             "\n"
-             "   Returns a copy of this color.\n"
-             "\n"
-             "   :return: A copy of the color.\n"
-             "   :rtype: :class:`Color`\n"
-             "\n"
-             "   .. note:: use this to get a copy of a wrapped color with\n"
-             "      no reference to the original data.\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_copy_doc,
+    ".. function:: copy()\n"
+    "\n"
+    "   Returns a copy of this color.\n"
+    "\n"
+    "   :return: A copy of the color.\n"
+    "   :rtype: :class:`Color`\n"
+    "\n"
+    "   .. note:: use this to get a copy of a wrapped color with\n"
+    "      no reference to the original data.\n");
 static PyObject *Color_copy(ColorObject *self)
 {
   if (BaseMath_ReadCallback(self) == -1) {
@@ -325,7 +344,7 @@ static PyObject *Color_richcmpr(PyObject *a, PyObject *b, int op)
       return nullptr;
   }
 
-  return Py_INCREF_RET(res);
+  return Py_NewRef(res);
 }
 
 /** \} */
@@ -432,7 +451,7 @@ static PyObject *Color_slice(ColorObject *self, int begin, int end)
     end = (COLOR_SIZE + 1) + end;
   }
   CLAMP(end, 0, COLOR_SIZE);
-  begin = MIN2(begin, end);
+  begin = std::min(begin, end);
 
   tuple = PyTuple_New(end - begin);
   for (count = begin; count < end; count++) {
@@ -457,7 +476,7 @@ static int Color_ass_slice(ColorObject *self, int begin, int end, PyObject *seq)
     end = (COLOR_SIZE + 1) + end;
   }
   CLAMP(end, 0, COLOR_SIZE);
-  begin = MIN2(begin, end);
+  begin = std::min(begin, end);
 
   if ((size = mathutils_array_parse(col, 0, COLOR_SIZE, seq, "mathutils.Color[begin:end] = []")) ==
       -1)
@@ -894,9 +913,24 @@ static PyNumberMethods Color_NumMethods = {
 
 /* Color channel (RGB): `color.r/g/b`. */
 
-PyDoc_STRVAR(Color_channel_r_doc, "Red color channel.\n\n:type: float");
-PyDoc_STRVAR(Color_channel_g_doc, "Green color channel.\n\n:type: float");
-PyDoc_STRVAR(Color_channel_b_doc, "Blue color channel.\n\n:type: float");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_channel_r_doc,
+    "Red color channel.\n"
+    "\n"
+    ":type: float");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_channel_g_doc,
+    "Green color channel.\n"
+    "\n"
+    ":type: float");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_channel_b_doc,
+    "Blue color channel.\n"
+    "\n"
+    ":type: float");
 
 static PyObject *Color_channel_get(ColorObject *self, void *type)
 {
@@ -910,9 +944,24 @@ static int Color_channel_set(ColorObject *self, PyObject *value, void *type)
 
 /* Color channel (HSV): `color.h/s/v`. */
 
-PyDoc_STRVAR(Color_channel_hsv_h_doc, "HSV Hue component in [0, 1].\n\n:type: float");
-PyDoc_STRVAR(Color_channel_hsv_s_doc, "HSV Saturation component in [0, 1].\n\n:type: float");
-PyDoc_STRVAR(Color_channel_hsv_v_doc, "HSV Value component in [0, 1].\n\n:type: float");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_channel_hsv_h_doc,
+    "HSV Hue component in [0, 1].\n"
+    "\n"
+    ":type: float");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_channel_hsv_s_doc,
+    "HSV Saturation component in [0, 1].\n"
+    "\n"
+    ":type: float");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_channel_hsv_v_doc,
+    "HSV Value component in [0, 1].\n"
+    "\n"
+    ":type: float");
 
 static PyObject *Color_channel_hsv_get(ColorObject *self, void *type)
 {
@@ -957,7 +1006,12 @@ static int Color_channel_hsv_set(ColorObject *self, PyObject *value, void *type)
   return 0;
 }
 
-PyDoc_STRVAR(Color_hsv_doc, "HSV Values in [0, 1].\n\n:type: float triplet");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Color_hsv_doc,
+    "HSV Values in [0, 1].\n"
+    "\n"
+    ":type: float triplet");
 /** Color channel HSV (get): `x = color.hsv`. */
 static PyObject *Color_hsv_get(ColorObject *self, void * /*closure*/)
 {
@@ -1006,27 +1060,39 @@ static int Color_hsv_set(ColorObject *self, PyObject *value, void * /*closure*/)
  * \{ */
 
 static PyGetSetDef Color_getseters[] = {
-    {"r", (getter)Color_channel_get, (setter)Color_channel_set, Color_channel_r_doc, (void *)0},
-    {"g", (getter)Color_channel_get, (setter)Color_channel_set, Color_channel_g_doc, (void *)1},
-    {"b", (getter)Color_channel_get, (setter)Color_channel_set, Color_channel_b_doc, (void *)2},
+    {"r",
+     (getter)Color_channel_get,
+     (setter)Color_channel_set,
+     Color_channel_r_doc,
+     POINTER_FROM_INT(0)},
+    {"g",
+     (getter)Color_channel_get,
+     (setter)Color_channel_set,
+     Color_channel_g_doc,
+     POINTER_FROM_INT(1)},
+    {"b",
+     (getter)Color_channel_get,
+     (setter)Color_channel_set,
+     Color_channel_b_doc,
+     POINTER_FROM_INT(2)},
 
     {"h",
      (getter)Color_channel_hsv_get,
      (setter)Color_channel_hsv_set,
      Color_channel_hsv_h_doc,
-     (void *)0},
+     POINTER_FROM_INT(0)},
     {"s",
      (getter)Color_channel_hsv_get,
      (setter)Color_channel_hsv_set,
      Color_channel_hsv_s_doc,
-     (void *)1},
+     POINTER_FROM_INT(1)},
     {"v",
      (getter)Color_channel_hsv_get,
      (setter)Color_channel_hsv_set,
      Color_channel_hsv_v_doc,
-     (void *)2},
+     POINTER_FROM_INT(2)},
 
-    {"hsv", (getter)Color_hsv_get, (setter)Color_hsv_set, Color_hsv_doc, (void *)0},
+    {"hsv", (getter)Color_hsv_get, (setter)Color_hsv_set, Color_hsv_doc, nullptr},
 
     {"is_wrapped",
      (getter)BaseMathObject_is_wrapped_get,
@@ -1104,7 +1170,7 @@ static PyMethodDef Color_methods[] = {
      (PyCFunction)Color_from_rec709_linear_to_scene_linear,
      METH_NOARGS,
      Color_from_rec709_linear_to_scene_linear_doc},
-#endif /* MATH_STANDALONE */
+#endif /* !MATH_STANDALONE */
 
     {nullptr, nullptr, 0, nullptr},
 };
@@ -1124,6 +1190,7 @@ static PyMethodDef Color_methods[] = {
 #endif
 
 PyDoc_STRVAR(
+    /* Wrap. */
     color_doc,
     ".. class:: Color(rgb)\n"
     "\n"
@@ -1133,8 +1200,8 @@ PyDoc_STRVAR(
     "   the OpenColorIO configuration. The notable exception is user interface theming colors, "
     "   which are in sRGB color space.\n"
     "\n"
-    "   :arg rgb: (r, g, b) color values\n"
-    "   :type rgb: 3d vector\n");
+    "   :arg rgb: (red, green, blue) color values where (0, 0, 0) is black & (1, 1, 1) is white.\n"
+    "   :type rgb: Sequence[float]\n");
 PyTypeObject color_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "Color",

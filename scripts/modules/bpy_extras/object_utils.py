@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2010-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2010-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -11,6 +11,7 @@ __all__ = (
     "object_add_grid_scale",
     "object_add_grid_scale_apply_operator",
     "world_to_camera_view",
+    "object_report_if_active_shape_key_is_locked",
 )
 
 
@@ -88,12 +89,12 @@ def object_data_add(context, obdata, operator=None, name=None):
 
     :arg context: The context to use.
     :type context: :class:`bpy.types.Context`
-    :arg obdata: the data used for the new object.
-    :type obdata: valid object data type or None.
+    :arg obdata: Valid object data to used for the new object or None.
+    :type obdata: :class:`bpy.types.ID` | None
     :arg operator: The operator, checked for location and rotation properties.
     :type operator: :class:`bpy.types.Operator`
     :arg name: Optional name
-    :type name: string
+    :type name: str
     :return: the newly created object in the scene.
     :rtype: :class:`bpy.types.Object`
     """
@@ -263,3 +264,26 @@ def world_to_camera_view(scene, obj, coord):
     y = (co_local.y - min_y) / (max_y - min_y)
 
     return Vector((x, y, z))
+
+
+def object_report_if_active_shape_key_is_locked(obj, operator):
+    """
+    Checks if the active shape key of the specified object is locked, and reports an error if so.
+
+    If the object has no shape keys, there is nothing to lock, and the function returns False.
+
+    :arg obj: Object to check.
+    :type obj: :class:`bpy.types.Object`
+    :arg operator: Currently running operator to report the error through. Use None to suppress emitting the message.
+    :type operator: :class:`bpy.types.Operator`
+    :return: True if the shape key was locked.
+    """
+    key = obj.active_shape_key
+
+    if key and key.lock_shape:
+        if operator:
+            operator.report({'ERROR'}, "The active shape key of {:s} is locked".format(obj.name))
+
+        return True
+
+    return False

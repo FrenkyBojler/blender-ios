@@ -1,11 +1,15 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_function_util.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+
+#include "NOD_rna_define.hh"
+
+#include "RNA_enum_types.hh"
 
 namespace blender::nodes::node_fn_combine_color_cc {
 
@@ -23,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_update(bNodeTree * /*tree*/, bNode *node)
@@ -79,22 +83,36 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
-}  // namespace blender::nodes::node_fn_combine_color_cc
-
-void register_node_type_fn_combine_color()
+static void node_rna(StructRNA *srna)
 {
-  namespace file_ns = blender::nodes::node_fn_combine_color_cc;
-
-  static bNodeType ntype;
-
-  fn_node_type_base(&ntype, FN_NODE_COMBINE_COLOR, "Combine Color", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::node_declare;
-  ntype.updatefunc = file_ns::node_update;
-  ntype.initfunc = file_ns::node_init;
-  node_type_storage(
-      &ntype, "NodeCombSepColor", node_free_standard_storage, node_copy_standard_storage);
-  ntype.build_multi_function = file_ns::node_build_multi_function;
-  ntype.draw_buttons = file_ns::node_layout;
-
-  nodeRegisterType(&ntype);
+  RNA_def_node_enum(srna,
+                    "mode",
+                    "Mode",
+                    "Mode of color processing",
+                    rna_enum_node_combsep_color_items,
+                    NOD_storage_enum_accessors(mode));
 }
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  fn_node_type_base(
+      &ntype, "FunctionNodeCombineColor", FN_NODE_COMBINE_COLOR, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Combine Color";
+  ntype.enum_name_legacy = "COMBINE_COLOR";
+  ntype.declare = node_declare;
+  ntype.updatefunc = node_update;
+  ntype.initfunc = node_init;
+  blender::bke::node_type_storage(
+      &ntype, "NodeCombSepColor", node_free_standard_storage, node_copy_standard_storage);
+  ntype.build_multi_function = node_build_multi_function;
+  ntype.draw_buttons = node_layout;
+
+  blender::bke::node_register_type(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
+}
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_combine_color_cc

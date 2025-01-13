@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -20,9 +20,7 @@
 
 #include "../winged_edge/Nature.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -102,9 +100,7 @@ class Interface0D {
   /** Cast the Interface0D in TVertex if it can be. */
   virtual TVertex *castToTVertex();
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Interface0D")
-#endif
 };
 
 //
@@ -165,7 +161,7 @@ class Interface0DIteratorNested : public Iterator {
  */
 class Interface0DIterator : public Iterator {
  public:
-  Interface0DIterator(Interface0DIteratorNested *it = NULL)
+  Interface0DIterator(Interface0DIteratorNested *it = nullptr)
   {
     _iterator = it;
   }

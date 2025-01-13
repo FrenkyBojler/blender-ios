@@ -19,7 +19,7 @@
 #ifdef WITH_X11_XINPUT
 #  include <X11/extensions/XInput.h>
 
-/* Disable XINPUT warp, currently not implemented by Xorg for multi-head display.
+/* Disable XINPUT warp, currently not implemented by XORG for multi-head display.
  * (see comment in XSERVER `Xi/xiwarppointer.c` -> `FIXME: panoramix stuff is missing` ~ v1.13.4)
  * If this is supported we can add back XINPUT for warping (fixing #48901).
  * For now disable (see #50383). */
@@ -57,7 +57,6 @@ class GHOST_WindowX11;
  * X11 Implementation of GHOST_System class.
  * \see GHOST_System.
  */
-
 class GHOST_SystemX11 : public GHOST_System {
  public:
   /**
@@ -156,6 +155,13 @@ class GHOST_SystemX11 : public GHOST_System {
   GHOST_TSuccess setCursorPosition(int32_t x, int32_t y) override;
 
   /**
+   * Get the color of the pixel at the current mouse cursor location
+   * \param r_color: returned sRGB float colors
+   * \return Success value (true == successful and supported by platform)
+   */
+  GHOST_TSuccess getPixelAtCursor(float r_color[3]) const override;
+
+  /**
    * Returns the state of all modifier keys.
    * \param keys: The state of all modifier keys (true == pressed).
    * \return Indication of success.
@@ -193,6 +199,13 @@ class GHOST_SystemX11 : public GHOST_System {
     return m_xim;
   }
 #endif
+
+  /**
+   * Use this function instead of #GHOST_System::getMilliSeconds,
+   * passing in the time-stamp from X to input to get the event
+   * time-stamp with an offset applied to make it compatible with `getMilliSeconds`.
+   */
+  uint64_t ms_from_input_time(const Time timestamp) const;
 
   /** Helped function for get data from the clipboard. */
   void getClipboard_xcout(const XEvent *evt,
@@ -233,9 +246,9 @@ class GHOST_SystemX11 : public GHOST_System {
                                 GHOST_DialogOptions dialog_options) const override;
 #ifdef WITH_XDND
   /**
-   * Creates a drag'n'drop event and pushes it immediately onto the event queue.
-   * Called by GHOST_DropTargetX11 class.
-   * \param eventType: The type of drag'n'drop event.
+   * Creates a drag & drop event and pushes it immediately onto the event queue.
+   * Called by #GHOST_DropTargetX11 class.
+   * \param eventType: The type of drag & drop event.
    * \param draggedObjectType: The type object concerned.
    * (currently array of file names, string, ?bitmap)
    * \param mouseX: x mouse coordinate (in window coordinates).
@@ -301,6 +314,7 @@ class GHOST_SystemX11 : public GHOST_System {
     /* Atoms for Selection, copy & paste. */
     Atom TARGETS;
     Atom STRING;
+    Atom C_STRING;
     Atom COMPOUND_TEXT;
     Atom TEXT;
     Atom CLIPBOARD;
@@ -335,9 +349,6 @@ class GHOST_SystemX11 : public GHOST_System {
   /** The vector of windows that need to be updated. */
   std::vector<GHOST_WindowX11 *> m_dirty_windows;
 
-  /** Start time at initialization. */
-  uint64_t m_start_time;
-
   /** A vector of keyboard key masks. */
   char m_keyboard_vector[32];
 
@@ -351,6 +362,11 @@ class GHOST_SystemX11 : public GHOST_System {
   /* Detect auto-repeat glitch. */
   unsigned int m_last_release_keycode;
   Time m_last_release_time;
+
+#ifdef WITH_X11_XINPUT
+  /** Last key press or release, to apply to XIM generated events. */
+  Time m_last_key_time;
+#endif
 
   uint m_keycode_last_repeat_key;
 

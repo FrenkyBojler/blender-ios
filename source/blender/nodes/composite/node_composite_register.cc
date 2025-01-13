@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -95,7 +95,7 @@ void register_composite_nodes()
   register_node_type_cmp_sepycca();
   register_node_type_cmp_sepyuva();
   register_node_type_cmp_setalpha();
-  register_node_type_cmp_splitviewer();
+  register_node_type_cmp_split();
   register_node_type_cmp_stabilize2d();
   register_node_type_cmp_sunbeams();
   register_node_type_cmp_switch_view();

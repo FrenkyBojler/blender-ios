@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2006 Blender Foundation
+/* SPDX-FileCopyrightText: 2006 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,12 +12,11 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
-#include "BLI_implicit_sharing.h"
-
 struct GPUTexture;
 struct ImBuf;
 struct Image;
 struct ImageFormatData;
+struct MovieWriter;
 struct Main;
 struct Object;
 struct RenderData;
@@ -26,7 +25,6 @@ struct ReportList;
 struct Scene;
 struct StampData;
 struct ViewLayer;
-struct bMovieHandle;
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,8 +53,8 @@ typedef struct RenderView {
 typedef struct RenderPass {
   struct RenderPass *next, *prev;
   int channels;
-  char name[64];   /* amount defined in IMB_openexr.h */
-  char chan_id[8]; /* amount defined in IMB_openexr.h */
+  char name[64];   /* amount defined in IMB_openexr.hh */
+  char chan_id[8]; /* amount defined in IMB_openexr.hh */
 
   /* Image buffer which contains data of this pass.
    *
@@ -100,6 +98,17 @@ typedef struct RenderLayer {
 
 typedef struct RenderResult {
   struct RenderResult *next, *prev;
+
+  /* The number of users of this render result. Default value is 0. The result is freed when
+   * #RE_FreeRenderResult is called with the render result with 0 users. In a way this is
+   * off-by-one, but it is the easiest for the currently used zero-initialized state. The way to
+   * think of it is the number of extra users.
+   *
+   * TODO: Make it an actual number of users, so the #RE_FreeRenderResult frees the result when
+   * the number of users goes to 0.
+   *
+   * TODO: Make it atomic. Currently it is not to allow shallow copying. */
+  int user_counter;
 
   /* target image size */
   int rectx, recty;
@@ -163,6 +172,11 @@ struct Render *RE_GetSceneRender(const struct Scene *scene);
 struct RenderEngineType;
 struct ViewRender *RE_NewViewRender(struct RenderEngineType *engine_type);
 
+/* Creates a new render for interactive compositing of the given scene. If an existing render
+ * exists for the given scene, it is returned instead. See interactive_compositor_renders in
+ * RenderGlobal for more information. */
+struct Render *RE_NewInteractiveCompositorRender(const struct Scene *scene);
+
 /* Assign default dummy callbacks. */
 
 /**
@@ -218,6 +232,7 @@ void RE_FreeRenderResult(struct RenderResult *rr);
  */
 struct RenderResult *RE_AcquireResultRead(struct Render *re);
 struct RenderResult *RE_AcquireResultWrite(struct Render *re);
+void RE_ReferenceRenderResult(struct RenderResult *rr);
 void RE_ReleaseResult(struct Render *re);
 /**
  * Same as #RE_AcquireResultImage but creating the necessary views to store the result
@@ -245,6 +260,7 @@ struct RenderStats *RE_GetStats(struct Render *re);
  * Caller is responsible for allocating `rect` in correct size!
  */
 void RE_ResultGet32(struct Render *re, unsigned int *rect);
+void RE_ResultGetFloat(struct Render *re, float *rect);
 
 void RE_render_result_full_channel_name(char *fullname,
                                         const char *layname,
@@ -296,7 +312,7 @@ void RE_InitState(struct Render *re,
                   struct ViewLayer *single_layer,
                   int winx,
                   int winy,
-                  rcti *disprect);
+                  const rcti *disprect);
 
 /**
  * Set up the view-plane/perspective matrix, three choices.
@@ -326,8 +342,7 @@ bool RE_WriteRenderViewsMovie(struct ReportList *reports,
                               struct RenderResult *rr,
                               struct Scene *scene,
                               struct RenderData *rd,
-                              struct bMovieHandle *mh,
-                              void **movie_ctx_arr,
+                              struct MovieWriter **movie_writers,
                               int totvideos,
                               bool preview);
 
@@ -391,7 +406,7 @@ struct RenderResult *RE_MultilayerConvert(
 /* Display and event callbacks. */
 
 /**
- * Image and movie output has to move to either imbuf or kernel.
+ * Image and movie output has to move to either #ImBuf or kernel.
  */
 void RE_display_init_cb(struct Render *re,
                         void *handle,
@@ -406,6 +421,9 @@ void RE_stats_draw_cb(struct Render *re, void *handle, void (*f)(void *handle, R
 void RE_progress_cb(struct Render *re, void *handle, void (*f)(void *handle, float));
 void RE_draw_lock_cb(struct Render *re, void *handle, void (*f)(void *handle, bool lock));
 void RE_test_break_cb(struct Render *re, void *handle, bool (*f)(void *handle));
+void RE_prepare_viewlayer_cb(struct Render *re,
+                             void *handle,
+                             bool (*f)(void *handle, ViewLayer *vl, struct Depsgraph *depsgraph));
 void RE_current_scene_update_cb(struct Render *re,
                                 void *handle,
                                 void (*f)(void *handle, struct Scene *scene));
@@ -459,7 +477,7 @@ struct GPUTexture *RE_pass_ensure_gpu_texture_cache(struct Render *re, struct Re
 #define RE_BAKE_DISPLACEMENT 1
 #define RE_BAKE_AO 2
 
-void RE_GetCameraWindow(struct Render *re, const struct Object *camera, float mat[4][4]);
+void RE_GetCameraWindow(struct Render *re, const struct Object *camera, float r_winmat[4][4]);
 /**
  * Must be called after #RE_GetCameraWindow(), does not change `re->winmat`.
  */
@@ -467,6 +485,13 @@ void RE_GetCameraWindowWithOverscan(const struct Render *re, float overscan, flo
 void RE_GetCameraModelMatrix(const struct Render *re,
                              const struct Object *camera,
                              float r_modelmat[4][4]);
+
+void RE_GetWindowMatrixWithOverscan(bool is_ortho,
+                                    float clip_start,
+                                    float clip_end,
+                                    rctf viewplane,
+                                    float overscan,
+                                    float r_winmat[4][4]);
 
 struct Scene *RE_GetScene(struct Render *re);
 void RE_SetScene(struct Render *re, struct Scene *sce);
@@ -478,7 +503,7 @@ bool RE_is_rendering_allowed(struct Scene *scene,
 
 bool RE_allow_render_generic_object(struct Object *ob);
 
-/******* defined in render_result.c *********/
+/******* defined in `render_result.cc` *********/
 
 bool RE_HasCombinedLayer(const RenderResult *result);
 bool RE_HasFloatPixels(const RenderResult *result);
@@ -490,6 +515,9 @@ RenderResult *RE_DuplicateRenderResult(RenderResult *rr);
 
 struct ImBuf *RE_RenderPassEnsureImBuf(RenderPass *render_pass);
 struct ImBuf *RE_RenderViewEnsureImBuf(const RenderResult *render_result, RenderView *render_view);
+
+/* Returns true if the pass is a color (as opposite of data) and needs to be color managed. */
+bool RE_RenderPassIsColor(const RenderPass *render_pass);
 
 #ifdef __cplusplus
 }

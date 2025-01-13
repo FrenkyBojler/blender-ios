@@ -6,9 +6,7 @@
 #include "integrator/pass_accessor_cpu.h"
 #include "integrator/path_trace.h"
 
-#include "scene/film.h"
 #include "scene/pass.h"
-#include "scene/scene.h"
 #include "session/buffers.h"
 
 CCL_NAMESPACE_BEGIN
@@ -54,6 +52,11 @@ bool PathTraceTile::get_pass_pixels(const string_view pass_name,
   }
 
   pass = buffer_params.get_actual_display_pass(pass);
+  if (pass == nullptr) {
+    /* Happens when interactive session changes display pass but render
+     * buffer does not contain it yet. */
+    return false;
+  }
 
   const float exposure = buffer_params.exposure;
   const int num_samples = path_trace_.get_num_render_tile_samples();
@@ -81,13 +84,17 @@ bool PathTraceTile::set_pass_pixels(const string_view pass_name,
   if (!pass) {
     return false;
   }
+  if (pass->offset == PASS_UNUSED) {
+    /* Happens when attempting to set pixels of a pass with compositing when baking. */
+    return false;
+  }
 
   const float exposure = buffer_params.exposure;
   const int num_samples = 1;
 
   const PassAccessor::PassAccessInfo pass_access_info(*pass);
   PassAccessorCPU pass_accessor(pass_access_info, exposure, num_samples);
-  PassAccessor::Source source(pixels, num_channels);
+  const PassAccessor::Source source(pixels, num_channels);
 
   return path_trace_.set_render_tile_pixels(pass_accessor, source);
 }

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,9 +6,9 @@
  * \ingroup collada
  */
 
-#include "BKE_collection.h"
-#include "BKE_lib_id.h"
-#include "BKE_object.h"
+#include "BKE_collection.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_object.hh"
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
@@ -36,7 +36,7 @@ void SceneExporter::exportHierarchy()
   /* Ensure all objects in the export_set are marked */
   for (node = this->export_settings.get_export_set(); node; node = node->next) {
     Object *ob = (Object *)node->link;
-    ob->id.tag |= LIB_TAG_DOIT;
+    ob->id.tag |= ID_TAG_DOIT;
   }
 
   /* Now find all exportable base objects (highest in export hierarchy) */
@@ -48,7 +48,6 @@ void SceneExporter::exportHierarchy()
         case OB_CAMERA:
         case OB_LAMP:
         case OB_EMPTY:
-        case OB_GPENCIL_LEGACY:
         case OB_ARMATURE:
           base_objects.add(ob);
           break;
@@ -141,6 +140,7 @@ void SceneExporter::writeNode(Object *ob)
 
     /* <instance_controller> */
     else if (ob->type == OB_ARMATURE) {
+      arm_exporter->add_bone_collections(ob, colladaNode);
       arm_exporter->add_armature_bones(ob, view_layer, this, child_objects);
     }
 
@@ -198,10 +198,9 @@ void SceneExporter::writeNode(Object *ob)
 
           ListBase targets = {nullptr, nullptr};
           if (BKE_constraint_targets_get(con, &targets)) {
-            bConstraintTarget *ct;
             Object *obtar;
 
-            for (ct = (bConstraintTarget *)targets.first; ct; ct = ct->next) {
+            LISTBASE_FOREACH (bConstraintTarget *, ct, &targets) {
               obtar = ct->tar;
               std::string tar_id((obtar) ? id_name(obtar) : "");
               colladaNode.addExtraTechniqueChildParameter("blender", con_tag, "target_id", tar_id);

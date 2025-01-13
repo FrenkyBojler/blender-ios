@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,18 +9,17 @@
 #include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
 
-#include "BKE_collection.h"
-#include "BKE_main.h"
+#include "BKE_collection.hh"
+#include "BKE_main.hh"
 
 #include "DNA_collection_types.h"
 #include "DNA_space_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "../outliner_intern.hh"
 #include "common.hh"
 #include "tree_display.hh"
-#include "tree_element.hh"
 
 namespace blender::ed::outliner {
 
@@ -31,7 +30,7 @@ TreeDisplayLibraries::TreeDisplayLibraries(SpaceOutliner &space_outliner)
 {
 }
 
-ListBase TreeDisplayLibraries::buildTree(const TreeSourceData &source_data)
+ListBase TreeDisplayLibraries::build_tree(const TreeSourceData &source_data)
 {
   ListBase tree = {nullptr};
 
@@ -67,13 +66,13 @@ ListBase TreeDisplayLibraries::buildTree(const TreeSourceData &source_data)
     TreeStoreElem *tselem = TREESTORE(ten);
     Library *lib = (Library *)tselem->id;
     BLI_assert(!lib || (GS(lib->id.name) == ID_LI));
-    if (!lib || !lib->parent) {
+    if (!lib || !lib->runtime.parent) {
       continue;
     }
 
-    TreeElement *parent = (TreeElement *)lib->parent->id.newid;
+    TreeElement *parent = (TreeElement *)lib->runtime.parent->id.newid;
 
-    if (tselem->id->tag & LIB_TAG_INDIRECT) {
+    if (tselem->id->tag & ID_TAG_INDIRECT) {
       /* Only remove from 'first level' if lib is not also directly used. */
       BLI_remlink(&tree, ten);
       BLI_addtail(&parent->subtree, ten);
@@ -137,10 +136,10 @@ TreeElement *TreeDisplayLibraries::add_library_contents(Main &mainvar, ListBase 
       if (!tenlib) {
         /* Create library tree element on demand, depending if there are any data-blocks. */
         if (lib) {
-          tenlib = outliner_add_element(&space_outliner_, &lb, lib, nullptr, TSE_SOME_ID, 0);
+          tenlib = add_element(&lb, reinterpret_cast<ID *>(lib), nullptr, nullptr, TSE_SOME_ID, 0);
         }
         else {
-          tenlib = outliner_add_element(&space_outliner_, &lb, &mainvar, nullptr, TSE_ID_BASE, 0);
+          tenlib = add_element(&lb, nullptr, &mainvar, nullptr, TSE_ID_BASE, 0);
           tenlib->name = IFACE_("Current File");
         }
       }
@@ -153,15 +152,15 @@ TreeElement *TreeDisplayLibraries::add_library_contents(Main &mainvar, ListBase 
           ten = tenlib;
         }
         else {
-          ten = outliner_add_element(
-              &space_outliner_, &tenlib->subtree, lib, nullptr, TSE_ID_BASE, a);
+          ten = add_element(
+              &tenlib->subtree, reinterpret_cast<ID *>(lib), nullptr, nullptr, TSE_ID_BASE, a);
           ten->directdata = lbarray[a];
           ten->name = outliner_idcode_to_plural(GS(id->name));
         }
 
         for (ID *id : List<ID>(lbarray[a])) {
           if (library_id_filter_poll(lib, id)) {
-            outliner_add_element(&space_outliner_, &ten->subtree, id, ten, TSE_SOME_ID, 0);
+            add_element(&ten->subtree, id, nullptr, ten, TSE_SOME_ID, 0);
           }
         }
       }

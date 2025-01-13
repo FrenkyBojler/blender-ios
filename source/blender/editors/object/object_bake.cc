@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004 Blender Foundation
+/* SPDX-FileCopyrightText: 2004 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,50 +10,40 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_world_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_DerivedMesh.h"
-#include "BKE_blender.h"
-#include "BKE_cdderivedmesh.h"
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_material.h"
-#include "BKE_mesh.hh"
-#include "BKE_modifier.h"
-#include "BKE_multires.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-
-#include "DEG_depsgraph.h"
+#include "BKE_attribute.hh"
+#include "BKE_context.hh"
+#include "BKE_customdata.hh"
+#include "BKE_global.hh"
+#include "BKE_image.hh"
+#include "BKE_mesh_legacy_derived_mesh.hh"
+#include "BKE_modifier.hh"
+#include "BKE_multires.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "RE_multires_bake.h"
 #include "RE_pipeline.h"
-#include "RE_texture.h"
 
-#include "PIL_time.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "ED_screen.hh"
+#include "ED_uvedit.hh"
 
-#include "ED_object.h"
-#include "ED_screen.h"
-#include "ED_uvedit.h"
+#include "object_intern.hh"
 
-#include "object_intern.h"
+namespace blender::ed::object {
 
 static Image *bake_object_image_get(Object *ob, int mat_nr)
 {
@@ -116,7 +106,7 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Object *ob;
-  Mesh *me;
+  Mesh *mesh;
   MultiresModifierData *mmd;
   bool ok = true;
   int a;
@@ -132,7 +122,7 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
       break;
     }
 
-    me = (Mesh *)ob->data;
+    mesh = (Mesh *)ob->data;
     mmd = get_multires_modifier(scene, ob, false);
 
     /* Multi-resolution should be and be last in the stack */
@@ -157,16 +147,19 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
       break;
     }
 
-    if (!CustomData_has_layer(&me->ldata, CD_PROP_FLOAT2)) {
+    if (!CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
       BKE_report(op->reports, RPT_ERROR, "Mesh should be unwrapped before multires data baking");
 
       ok = false;
     }
     else {
-      const int *material_indices = BKE_mesh_material_indices(me);
-      a = me->totpoly;
+      const bke::AttributeAccessor attributes = mesh->attributes();
+      const VArraySpan material_indices = *attributes.lookup<int>("material_index",
+                                                                  bke::AttrDomain::Face);
+      a = mesh->faces_num;
       while (ok && a--) {
-        Image *ima = bake_object_image_get(ob, material_indices ? material_indices[a] : 0);
+        Image *ima = bake_object_image_get(ob,
+                                           material_indices.is_empty() ? 0 : material_indices[a]);
 
         if (!ima) {
           BKE_report(
@@ -221,22 +214,23 @@ static DerivedMesh *multiresbake_create_loresdm(Scene *scene, Object *ob, int *l
 {
   DerivedMesh *dm;
   MultiresModifierData *mmd = get_multires_modifier(scene, ob, false);
-  Mesh *me = (Mesh *)ob->data;
-  MultiresModifierData tmp_mmd = blender::dna::shallow_copy(*mmd);
+  Mesh *mesh = (Mesh *)ob->data;
+  MultiresModifierData tmp_mmd = dna::shallow_copy(*mmd);
 
   *lvl = mmd->lvl;
 
   if (mmd->lvl == 0) {
-    DerivedMesh *cddm = CDDM_from_mesh(me);
+    DerivedMesh *cddm = CDDM_from_mesh(mesh);
     DM_set_only_copy(cddm, &CD_MASK_BAREMESH);
     return cddm;
   }
 
-  DerivedMesh *cddm = CDDM_from_mesh(me);
+  DerivedMesh *cddm = CDDM_from_mesh(mesh);
   DM_set_only_copy(cddm, &CD_MASK_BAREMESH);
   tmp_mmd.lvl = mmd->lvl;
   tmp_mmd.sculptlvl = mmd->lvl;
-  dm = multires_make_derived_from_derived(cddm, &tmp_mmd, scene, ob, MultiresFlags(0));
+  dm = multires_make_derived_from_derived(
+      cddm, &tmp_mmd, scene, ob, MultiresFlags::IgnoreSimplify);
 
   cddm->release(cddm);
 
@@ -245,10 +239,10 @@ static DerivedMesh *multiresbake_create_loresdm(Scene *scene, Object *ob, int *l
 
 static DerivedMesh *multiresbake_create_hiresdm(Scene *scene, Object *ob, int *lvl)
 {
-  Mesh *me = (Mesh *)ob->data;
+  Mesh *mesh = (Mesh *)ob->data;
   MultiresModifierData *mmd = get_multires_modifier(scene, ob, false);
-  MultiresModifierData tmp_mmd = blender::dna::shallow_copy(*mmd);
-  DerivedMesh *cddm = CDDM_from_mesh(me);
+  MultiresModifierData tmp_mmd = dna::shallow_copy(*mmd);
+  DerivedMesh *cddm = CDDM_from_mesh(mesh);
   DerivedMesh *dm;
 
   DM_set_only_copy(cddm, &CD_MASK_BAREMESH);
@@ -263,7 +257,8 @@ static DerivedMesh *multiresbake_create_hiresdm(Scene *scene, Object *ob, int *l
 
   tmp_mmd.lvl = mmd->totlvl;
   tmp_mmd.sculptlvl = mmd->totlvl;
-  dm = multires_make_derived_from_derived(cddm, &tmp_mmd, scene, ob, MultiresFlags(0));
+  dm = multires_make_derived_from_derived(
+      cddm, &tmp_mmd, scene, ob, MultiresFlags::IgnoreSimplify);
   cddm->release(cddm);
 
   return dm;
@@ -283,7 +278,7 @@ static void clear_single_image(Image *image, ClearFlag flag)
   const float disp_alpha[4] = {0.5f, 0.5f, 0.5f, 0.0f};
   const float disp_solid[4] = {0.5f, 0.5f, 0.5f, 1.0f};
 
-  if ((image->id.tag & LIB_TAG_DOIT) == 0) {
+  if ((image->id.tag & ID_TAG_DOIT) == 0) {
     LISTBASE_FOREACH (ImageTile *, tile, &image->tiles) {
       ImageUser iuser;
       BKE_imageuser_default(&iuser);
@@ -301,7 +296,7 @@ static void clear_single_image(Image *image, ClearFlag flag)
         IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? vec_alpha : vec_solid);
       }
 
-      image->id.tag |= LIB_TAG_DOIT;
+      image->id.tag |= ID_TAG_DOIT;
 
       BKE_image_release_ibuf(image, ibuf, nullptr);
     }
@@ -313,7 +308,7 @@ static void clear_images_poly(Image **ob_image_array, int ob_image_array_len, Cl
   for (int i = 0; i < ob_image_array_len; i++) {
     Image *image = ob_image_array[i];
     if (image) {
-      image->id.tag &= ~LIB_TAG_DOIT;
+      image->id.tag &= ~ID_TAG_DOIT;
     }
   }
 
@@ -327,7 +322,7 @@ static void clear_images_poly(Image **ob_image_array, int ob_image_array_len, Cl
   for (int i = 0; i < ob_image_array_len; i++) {
     Image *image = ob_image_array[i];
     if (image) {
-      image->id.tag &= ~LIB_TAG_DOIT;
+      image->id.tag &= ~ID_TAG_DOIT;
     }
   }
 }
@@ -347,7 +342,7 @@ static int multiresbake_image_exec_locked(bContext *C, wmOperator *op)
       ClearFlag clear_flag = ClearFlag(0);
 
       ob = base->object;
-      // me = (Mesh *)ob->data;
+      // mesh = (Mesh *)ob->data;
 
       if (scene->r.bake_mode == RE_BAKE_NORMALS) {
         clear_flag = CLEAR_TANGENT_NORMAL;
@@ -464,16 +459,15 @@ static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
   CTX_DATA_END;
 }
 
-static void multiresbake_startjob(void *bkv, bool *stop, bool *do_update, float *progress)
+static void multiresbake_startjob(void *bkv, wmJobWorkerStatus *worker_status)
 {
-  MultiresBakerJobData *data;
   MultiresBakeJob *bkj = static_cast<MultiresBakeJob *>(bkv);
   int baked_objects = 0, tot_obj;
 
   tot_obj = BLI_listbase_count(&bkj->data);
 
   if (bkj->bake_clear) { /* clear images */
-    for (data = static_cast<MultiresBakerJobData *>(bkj->data.first); data; data = data->next) {
+    LISTBASE_FOREACH (MultiresBakerJobData *, data, &bkj->data) {
       ClearFlag clear_flag = ClearFlag(0);
 
       if (bkj->mode == RE_BAKE_NORMALS) {
@@ -487,7 +481,7 @@ static void multiresbake_startjob(void *bkv, bool *stop, bool *do_update, float 
     }
   }
 
-  for (data = static_cast<MultiresBakerJobData *>(bkj->data.first); data; data = data->next) {
+  LISTBASE_FOREACH (MultiresBakerJobData *, data, &bkj->data) {
     MultiresBakeRender bkr = {nullptr};
 
     /* copy data stored in job descriptor */
@@ -511,9 +505,9 @@ static void multiresbake_startjob(void *bkv, bool *stop, bool *do_update, float 
     bkr.tot_obj = tot_obj;
     bkr.baked_objects = baked_objects;
 
-    bkr.stop = stop;
-    bkr.do_update = do_update;
-    bkr.progress = progress;
+    bkr.stop = &worker_status->stop;
+    bkr.do_update = &worker_status->do_update;
+    bkr.progress = &worker_status->progress;
 
     bkr.bias = bkj->bias;
     bkr.number_of_rays = bkj->number_of_rays;
@@ -531,7 +525,6 @@ static void multiresbake_freejob(void *bkv)
 {
   MultiresBakeJob *bkj = static_cast<MultiresBakeJob *>(bkv);
   MultiresBakerJobData *data, *next;
-  LinkData *link;
 
   data = static_cast<MultiresBakerJobData *>(bkj->data.first);
   while (data) {
@@ -540,7 +533,7 @@ static void multiresbake_freejob(void *bkv)
     data->hires_dm->release(data->hires_dm);
 
     /* delete here, since this delete will be called from main thread */
-    for (link = static_cast<LinkData *>(data->images.first); link; link = link->next) {
+    LISTBASE_FOREACH (LinkData *, link, &data->images) {
       Image *ima = (Image *)link->data;
       BKE_image_partial_update_mark_full_update(ima);
     }
@@ -569,6 +562,7 @@ static int multiresbake_image_exec(bContext *C, wmOperator *op)
 
   if (!bkr->data.first) {
     BKE_report(op->reports, RPT_ERROR, "No objects found to bake from");
+    MEM_freeN(bkr);
     return OPERATOR_CANCELLED;
   }
 
@@ -663,3 +657,5 @@ void OBJECT_OT_bake_image(wmOperatorType *ot)
   ot->modal = objects_bake_render_modal;
   ot->poll = ED_operator_object_active;
 }
+
+}  // namespace blender::ed::object

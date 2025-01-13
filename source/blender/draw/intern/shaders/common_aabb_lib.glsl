@@ -1,5 +1,10 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_shape_lib.glsl)
+#pragma once
+
+#include "common_shape_lib.glsl"
 
 /* ---------------------------------------------------------------------- */
 /** \name Axis Aligned Bound Box

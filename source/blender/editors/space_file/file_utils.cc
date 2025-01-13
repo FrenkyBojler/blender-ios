@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,20 +6,15 @@
  * \ingroup spfile
  */
 
-#include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 
-#include "BKE_blendfile.h"
-#include "BKE_context.h"
+#include "BKE_blendfile.hh"
 
-#include "ED_fileselect.h"
-#include "ED_screen.h"
+#include "ED_fileselect.hh"
 
-#include "WM_types.h"
-
-#include "file_intern.h"
+#include "file_intern.hh"
 
 void file_tile_boundbox(const ARegion *region, FileLayout *layout, const int file, rcti *r_bounds)
 {
@@ -34,10 +29,10 @@ void file_tile_boundbox(const ARegion *region, FileLayout *layout, const int fil
                 ymax);
 }
 
-void file_path_to_ui_path(const char *path, char *r_path, int max_size)
+void file_path_to_ui_path(const char *path, char *r_path, int r_path_maxncpy)
 {
-  char tmp_path[PATH_MAX];
+  char tmp_path[FILE_MAX_LIBEXTRA];
   STRNCPY(tmp_path, path);
   BLI_path_slash_rstrip(tmp_path);
-  BLI_strncpy(r_path, BKE_blendfile_extension_check(tmp_path) ? tmp_path : path, max_size);
+  BLI_strncpy(r_path, BKE_blendfile_extension_check(tmp_path) ? tmp_path : path, r_path_maxncpy);
 }

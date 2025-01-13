@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2018 Blender Foundation
+/* SPDX-FileCopyrightText: 2018 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,16 +6,9 @@
  * \ingroup shader_fx
  */
 
-#include <cstdio>
-
-#include "MEM_guardedalloc.h"
-
-#include "BLI_utildefines.h"
-
 #include "BKE_shader_fx.h"
 
 #include "FX_shader_types.h"
-#include "FX_shader_util.h"
 
 void shaderfx_type_init(ShaderFxTypeInfo *types[])
 {

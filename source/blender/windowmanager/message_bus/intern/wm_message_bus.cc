@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -17,10 +17,10 @@
 
 #include "BLI_ghash.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
-#include "message_bus/intern/wm_message_bus_intern.h"
-#include "message_bus/wm_message_bus.h"
+#include "message_bus/intern/wm_message_bus_intern.hh"
+#include "message_bus/wm_message_bus.hh"
 
 /* -------------------------------------------------------------------------- */
 /** \name Public API
@@ -184,7 +184,7 @@ void WM_msg_publish_with_key(wmMsgBus *mbus, wmMsgSubscribeKey *msg_key)
             BLI_listbase_count(&msg_key->values));
 
   LISTBASE_FOREACH (wmMsgSubscribeValueLink *, msg_lnk, &msg_key->values) {
-    if (false) { /* make an option? */
+    if (false) { /* Make an option? */
       msg_lnk->params.notify(nullptr, msg_key, &msg_lnk->params);
     }
     else {

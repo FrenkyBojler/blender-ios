@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,17 +12,16 @@
 
 #include <Python.h>
 
-#include "DNA_text_types.h"
-
 #include "MEM_guardedalloc.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "BKE_text.h"
 
-#include "bpy_capi_utils.h"
-#include "bpy_rna.h"
-#include "bpy_rna_text.h"
+#include "../generic/python_compat.hh"
+
+#include "bpy_rna.hh"
+#include "bpy_rna_text.hh" /* Declare #BPY_rna_region_as_string_method_def. */
 
 /* -------------------------------------------------------------------- */
 /** \name Data structures.
@@ -44,33 +43,36 @@ struct TextRegion {
 /** \name Text Editor Get / Set region text API
  * \{ */
 
-PyDoc_STRVAR(bpy_rna_region_as_string_doc,
-             ".. method:: region_as_string(range=None)\n"
-             "\n"
-             "   :arg range: The region of text to be returned, "
-             "defaulting to the selection when no range is passed.\n"
-             "      Each int pair represents a line and column: "
-             "((start_line, start_column), (end_line, end_column))\n"
-             "      The values match Python's slicing logic "
-             "(negative values count backwards from the end, the end value is not inclusive).\n"
-             "   :type range: Two pairs of ints\n"
-             "   :return: The specified region as a string.\n"
-             "   :rtype: str.\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_rna_region_as_string_doc,
+    ".. method:: region_as_string(range=None)\n"
+    "\n"
+    "   :arg range: The region of text to be returned, "
+    "defaulting to the selection when no range is passed.\n"
+    "      Each int pair represents a line and column: "
+    "((start_line, start_column), (end_line, end_column))\n"
+    "      The values match Python's slicing logic "
+    "(negative values count backwards from the end, the end value is not inclusive).\n"
+    "   :type range: tuple[tuple[int, int], tuple[int, int]]\n"
+    "   :return: The specified region as a string.\n"
+    "   :rtype: str.\n");
 /* Receive a Python Tuple as parameter to represent the region range. */
 static PyObject *bpy_rna_region_as_string(PyObject *self, PyObject *args, PyObject *kwds)
 {
   BPy_StructRNA *pyrna = (BPy_StructRNA *)self;
-  Text *text = static_cast<Text *>(pyrna->ptr.data);
+  Text *text = static_cast<Text *>(pyrna->ptr->data);
   /* Parse the region range. */
   TextRegion region;
 
   static const char *_keywords[] = {"range", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "|$"         /* Optional keyword only arguments. */
       "((ii)(ii))" /* `range` */
       ":region_as_string",
       _keywords,
-      0,
+      nullptr,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kwds, &_parser, &region.curl, &region.curc, &region.sell, &region.selc))
@@ -109,22 +111,24 @@ PyMethodDef BPY_rna_region_as_string_method_def = {
 #  pragma GCC diagnostic pop
 #endif
 
-PyDoc_STRVAR(bpy_rna_region_from_string_doc,
-             ".. method:: region_from_string(body, range=None)\n"
-             "\n"
-             "   :arg body: The text to be inserted.\n"
-             "   :type body: str\n"
-             "   :arg range: The region of text to be returned, "
-             "defaulting to the selection when no range is passed.\n"
-             "      Each int pair represents a line and column: "
-             "((start_line, start_column), (end_line, end_column))\n"
-             "      The values match Python's slicing logic "
-             "(negative values count backwards from the end, the end value is not inclusive).\n"
-             "   :type range: Two pairs of ints\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_rna_region_from_string_doc,
+    ".. method:: region_from_string(body, range=None)\n"
+    "\n"
+    "   :arg body: The text to be inserted.\n"
+    "   :type body: str\n"
+    "   :arg range: The region of text to be returned, "
+    "defaulting to the selection when no range is passed.\n"
+    "      Each int pair represents a line and column: "
+    "((start_line, start_column), (end_line, end_column))\n"
+    "      The values match Python's slicing logic "
+    "(negative values count backwards from the end, the end value is not inclusive).\n"
+    "   :type range: tuple[tuple[int, int], tuple[int, int]]\n");
 static PyObject *bpy_rna_region_from_string(PyObject *self, PyObject *args, PyObject *kwds)
 {
   BPy_StructRNA *pyrna = (BPy_StructRNA *)self;
-  Text *text = static_cast<Text *>(pyrna->ptr.data);
+  Text *text = static_cast<Text *>(pyrna->ptr->data);
 
   /* Parse the region range. */
   const char *buf;
@@ -133,12 +137,13 @@ static PyObject *bpy_rna_region_from_string(PyObject *self, PyObject *args, PyOb
 
   static const char *_keywords[] = {"", "range", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "s#"         /* `buf` (positional). */
       "|$"         /* Optional keyword only arguments. */
       "((ii)(ii))" /* `range` */
       ":region_from_string",
       _keywords,
-      0,
+      nullptr,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kwds,

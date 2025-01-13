@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,15 +12,14 @@
 #include "COLLADAFWNode.h"
 #include "COLLADAFWUniqueId.h"
 
-#include "BKE_context.h"
-#include "BKE_key.h"
+#include "BKE_context.hh"
+#include "BKE_key.hh"
 
 #include "DNA_armature_types.h"
-#include "DNA_key_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "ED_armature.h"
+#include "ED_armature.hh"
 
 #include "AnimationImporter.h"
 #include "ExtraTags.h"

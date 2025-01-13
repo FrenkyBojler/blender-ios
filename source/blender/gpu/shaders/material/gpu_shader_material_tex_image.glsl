@@ -1,4 +1,8 @@
-#pragma BLENDER_REQUIRE(gpu_shader_bicubic_sampler_lib.glsl)
+/* SPDX-FileCopyrightText: 2019-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "gpu_shader_bicubic_sampler_lib.glsl"
 
 void point_texco_remap_square(vec3 vin, out vec3 vout)
 {
@@ -52,7 +56,15 @@ void point_map_to_tube(vec3 vin, out vec3 vout)
 
 void node_tex_image_linear(vec3 co, sampler2D ima, out vec4 color, out float alpha)
 {
+#ifdef GPU_FRAGMENT_SHADER
+  vec2 dx = dFdx(co.xy) * texture_lod_bias_get();
+  vec2 dy = dFdy(co.xy) * texture_lod_bias_get();
+
+  color = safe_color(textureGrad(ima, co.xy, dx, dy));
+#else
   color = safe_color(texture(ima, co.xy));
+#endif
+
   alpha = color.a;
 }
 
@@ -121,7 +133,7 @@ void tex_box_blend(
    * in between we blend between two textures, and in the middle we a blend
    * between three textures.
    *
-   * the Nxyz values are the barycentric coordinates in an equilateral
+   * the `Nxyz` values are the barycentric coordinates in an equilateral
    * triangle, which in case of blending, in the middle has a smaller
    * equilateral triangle where 3 textures blend. this divides things into
    * 7 zones, with an if () test for each zone

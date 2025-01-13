@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2009-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2009-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -25,6 +25,9 @@ import ssl
 import urllib3
 import zlib
 import zstandard
+
+# Dynamically loaded modules, to ensure they have satisfactory dependencies.
+import _blake2
 
 # VFX platform modules.
 from pxr import Usd

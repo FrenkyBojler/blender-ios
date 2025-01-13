@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2015-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2015-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,12 +8,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
-
-#include "DNA_texture_types.h"
-
-#include "BKE_effect.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "eigen_utils.h"
 #include "implicit.h"
@@ -543,7 +539,7 @@ void SIM_hair_volume_add_segment(HairGrid *grid,
     float shift1, shift2; /* fraction of a full cell shift [0.0, 1.0) */
     int jmin, jmax, kmin, kmax;
 
-    h = CLAMPIS(float(i), start0, end0);
+    h = std::clamp(float(i), start0, end0);
 
     shift1 = start1 + (h - start0) * inc1;
     shift2 = start2 + (h - start0) * inc2;
@@ -809,11 +805,11 @@ bool SIM_hair_volume_solve_divergence(HairGrid *grid,
           grid_to_world(grid, wloc, loc);
 
           if (divergence > 0.0f) {
-            fac = CLAMPIS(divergence * target_strength, 0.0, 1.0);
+            fac = std::clamp(divergence * target_strength, 0.0, 1.0);
             interp_v3_v3v3(col, col0, colp, fac);
           }
           else {
-            fac = CLAMPIS(-divergence * target_strength, 0.0, 1.0);
+            fac = std::clamp(-divergence * target_strength, 0.0, 1.0);
             interp_v3_v3v3(col, col0, coln, fac);
           }
           if (fac > 0.05f) {
@@ -976,11 +972,11 @@ bool SIM_hair_volume_solve_divergence(HairGrid *grid,
 
             float pressure = p[u];
             if (pressure > 0.0f) {
-              fac = CLAMPIS(pressure * grid->debug1, 0.0, 1.0);
+              fac = std::clamp(pressure * grid->debug1, 0.0, 1.0);
               interp_v3_v3v3(col, col0, colp, fac);
             }
             else {
-              fac = CLAMPIS(-pressure * grid->debug1, 0.0, 1.0);
+              fac = std::clamp(-pressure * grid->debug1, 0.0, 1.0);
               interp_v3_v3v3(col, col0, coln, fac);
             }
             if (fac > 0.05f) {
@@ -998,7 +994,7 @@ bool SIM_hair_volume_solve_divergence(HairGrid *grid,
             }
 
             if (!is_margin) {
-              float d = CLAMPIS(vert->density * grid->debug2, 0.0f, 1.0f);
+              float d = std::clamp(vert->density * grid->debug2, 0.0f, 1.0f);
               float col0[3] = {0.3, 0.3, 0.3};
               float colp[3] = {0.0, 0.0, 1.0};
               float col[3];
@@ -1194,7 +1190,7 @@ static HairGridVert *hair_volume_create_collision_grid(ClothModifierData *clmd,
   int size = hair_grid_size(res);
   HairGridVert *collgrid;
   ListBase *colliders;
-  ColliderCache *col = NULL;
+  ColliderCache *col = nullptr;
   float gmin[3], gmax[3], scale[3];
   /* 2.0f is an experimental value that seems to give good results */
   float collfac = 2.0f * clmd->sim_parms->collider_friction;
@@ -1213,7 +1209,7 @@ static HairGridVert *hair_volume_create_collision_grid(ClothModifierData *clmd,
   }
 
   /* gather colliders */
-  colliders = BKE_collider_cache_create(depsgraph, NULL, NULL);
+  colliders = BKE_collider_cache_create(depsgraph, nullptr, nullptr);
   if (colliders && collfac > 0.0f) {
     for (col = colliders->first; col; col = col->next) {
       float3 *loc0 = col->collmd->x;

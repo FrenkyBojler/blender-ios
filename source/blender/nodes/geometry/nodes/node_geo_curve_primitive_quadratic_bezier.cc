@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -58,19 +58,24 @@ static void node_geo_exec(GeoNodeExecParams params)
       params.extract_input<float3>("Middle"),
       params.extract_input<float3>("End"),
       std::max(params.extract_input<int>("Resolution"), 3));
-  params.set_output("Curve", GeometrySet::create_with_curves(curves));
+  params.set_output("Curve", GeometrySet::from_curves(curves));
 }
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype,
+                     "GeometryNodeCurveQuadraticBezier",
+                     GEO_NODE_CURVE_PRIMITIVE_QUADRATIC_BEZIER,
+                     NODE_CLASS_GEOMETRY);
+  ntype.ui_name = "Quadratic Bézier";
+  ntype.ui_description =
+      "Generate a poly spline in a parabola shape with control points positions";
+  ntype.enum_name_legacy = "CURVE_PRIMITIVE_QUADRATIC_BEZIER";
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
+}
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_curve_primitive_quadratic_bezier_cc
-
-void register_node_type_geo_curve_primitive_quadratic_bezier()
-{
-  namespace file_ns = blender::nodes::node_geo_curve_primitive_quadratic_bezier_cc;
-
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_PRIMITIVE_QUADRATIC_BEZIER, "Quadratic Bezier", NODE_CLASS_GEOMETRY);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
-}

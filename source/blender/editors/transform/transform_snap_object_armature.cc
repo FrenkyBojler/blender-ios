@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,22 +6,22 @@
  * \ingroup edtransform
  */
 
-#include "BLI_math.h"
 #include "BLI_math_matrix.hh"
 
-#include "BKE_armature.h"
-#include "BKE_bvhutils.h"
-#include "BKE_mesh.hh"
+#include "BKE_armature.hh"
+#include "BKE_bvhutils.hh"
 #include "DNA_armature_types.h"
 
-#include "ED_transform_snap_object_context.h"
+#include "ED_transform_snap_object_context.hh"
+
+#include "ANIM_bone_collections.hh"
 
 #include "transform_snap_object.hh"
 
 using blender::float4x4;
 
 eSnapMode snapArmature(SnapObjectContext *sctx,
-                       Object *ob_eval,
+                       const Object *ob_eval,
                        const float4x4 &obmat,
                        bool is_object_active)
 {
@@ -36,19 +36,11 @@ eSnapMode snapArmature(SnapObjectContext *sctx,
 
   SnapData nearest2d(sctx, obmat);
 
-  const bool is_editmode = arm->edbo != nullptr;
-
-  if (is_editmode == false) {
-    const BoundBox *bb = BKE_armature_boundbox_get(ob_eval);
-    if (bb && !nearest2d.snap_boundbox(bb->vec[0], bb->vec[6])) {
-      return retval;
-    }
-  }
-
-  nearest2d.clip_planes_enable(sctx);
+  nearest2d.clip_planes_enable(sctx, ob_eval);
 
   const float *head_vec = nullptr, *tail_vec = nullptr;
 
+  const bool is_editmode = arm->edbo != nullptr;
   const bool is_posemode = is_object_active && (ob_eval->mode & OB_MODE_POSE);
   const bool skip_selected = (is_editmode || is_posemode) &&
                              (sctx->runtime.params.snap_target_select &
@@ -56,7 +48,7 @@ eSnapMode snapArmature(SnapObjectContext *sctx,
 
   if (arm->edbo) {
     LISTBASE_FOREACH (EditBone *, eBone, arm->edbo) {
-      if (eBone->layer & arm->layer) {
+      if (ANIM_bonecoll_is_visible_editbone(arm, eBone)) {
         if (eBone->flag & BONE_HIDDEN_A) {
           /* Skip hidden bones. */
           continue;

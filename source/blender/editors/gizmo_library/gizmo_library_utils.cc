@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2015 Blender Foundation
+/* SPDX-FileCopyrightText: 2015 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,27 +10,30 @@
  * \brief This file contains functions for common behaviors of gizmos.
  */
 
-#include "BLI_math.h"
-
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
+#include "BKE_screen.hh"
 
-#include "RNA_access.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "RNA_access.hh"
 
-#include "ED_screen.h"
-#include "ED_view3d.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
+
+#include "ED_screen.hh"
+#include "ED_view3d.hh"
 
 #include "CLG_log.h"
 
 /* own includes */
-#include "gizmo_library_intern.h"
+#include "gizmo_library_intern.hh"
 
 static CLG_LogRef LOG = {"ed.gizmo.library_utils"};
 
@@ -151,13 +154,13 @@ void gizmo_property_value_reset(bContext *C,
 
 /* -------------------------------------------------------------------- */
 
-void gizmo_color_get(const wmGizmo *gz, const bool highlight, float r_col[4])
+void gizmo_color_get(const wmGizmo *gz, const bool highlight, float r_color[4])
 {
   if (highlight && !(gz->flag & WM_GIZMO_DRAW_HOVER)) {
-    copy_v4_v4(r_col, gz->color_hi);
+    copy_v4_v4(r_color, gz->color_hi);
   }
   else {
-    copy_v4_v4(r_col, gz->color);
+    copy_v4_v4(r_color, gz->color);
   }
 }
 
@@ -263,14 +266,16 @@ wmGizmo *gizmo_find_from_properties(const IDProperty *properties,
         continue;
       }
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-        if (region->gizmo_map == nullptr) {
+        if (region->runtime->gizmo_map == nullptr) {
           continue;
         }
         if (!ELEM(regionid, RGN_TYPE_ANY, region->regiontype)) {
           continue;
         }
 
-        LISTBASE_FOREACH (wmGizmoGroup *, gzgroup, WM_gizmomap_group_list(region->gizmo_map)) {
+        LISTBASE_FOREACH (
+            wmGizmoGroup *, gzgroup, WM_gizmomap_group_list(region->runtime->gizmo_map))
+        {
           LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
             if (gz->properties == properties) {
               return gz;

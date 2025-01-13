@@ -1,20 +1,16 @@
-# SPDX-FileCopyrightText: 2006 Blender Foundation
+# SPDX-FileCopyrightText: 2006 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
 set(INC
-  .
+  PUBLIC .
   intern
-  ../compositor/realtime_compositor
-  ../compositor/realtime_compositor/cached_resources
-  ../draw
-  ../gpu
+  ../compositor
+  ../compositor/cached_resources
+  ../draw/intern
   ../gpu/intern
-  ../imbuf
   ../makesrna
-  ../nodes
-  ../sequencer
   ../simulation
   ../../../intern/mikktspace
   ../../../intern/mantaflow/extern
@@ -32,11 +28,12 @@ set(SRC
   intern/pipeline.cc
   intern/render_result.cc
   intern/render_types.cc
-  intern/texture_image.c
+  intern/texture_image.cc
   intern/texture_margin.cc
-  intern/texture_pointdensity.c
-  intern/texture_procedural.c
-  intern/zbuf.c
+  intern/texture_pointdensity.cc
+  intern/texture_procedural.cc
+  intern/tile_highlight.cc
+  intern/zbuf.cc
 
   RE_bake.h
   RE_compositor.hh
@@ -50,6 +47,7 @@ set(SRC
   intern/render_result.h
   intern/render_types.h
   intern/texture_common.h
+  intern/tile_highlight.h
   intern/zbuf.h
 )
 
@@ -59,9 +57,16 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
+  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
-  bf_realtime_compositor
+  bf_compositor
   PRIVATE bf::intern::atomic
+  PRIVATE bf::nodes
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )
 
@@ -89,5 +94,9 @@ if(WITH_FREESTYLE)
   add_definitions(-DWITH_FREESTYLE)
 endif()
 
+if(WITH_HYDRA)
+  add_subdirectory(hydra)
+endif()
 
 blender_add_lib_nolist(bf_render "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::render ALIAS bf_render)

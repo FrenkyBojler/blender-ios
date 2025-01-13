@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,17 +6,14 @@
  * \ingroup spview3d
  */
 
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 
-#include "BKE_context.h"
+#include "WM_api.hh"
 
-#include "DEG_depsgraph.h"
+#include "ED_screen.hh"
 
-#include "WM_api.h"
-
-#include "ED_screen.h"
-
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
 /* -------------------------------------------------------------------- */

@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
+
+__all__ = (
+    "main",
+)
+
 
 import subprocess
 import os
@@ -9,10 +14,10 @@ from os.path import join
 
 from autopep8_clean_config import PATHS, PATHS_EXCLUDE
 
-from typing import (
+
+from collections.abc import (
     Callable,
-    Generator,
-    Optional,
+    Iterator,
     Sequence,
 )
 
@@ -35,8 +40,8 @@ def is_source_and_included(filename: str) -> bool:
 
 def path_iter(
         path: str,
-        filename_check: Optional[Callable[[str], bool]] = None,
-) -> Generator[str, None, None]:
+        filename_check: Callable[[str], bool] | None = None,
+) -> Iterator[str]:
     for dirpath, dirnames, filenames in os.walk(path):
         # skip ".git"
         dirnames[:] = [d for d in dirnames if not d.startswith(".")]
@@ -51,8 +56,8 @@ def path_iter(
 
 def path_expand(
         paths: Sequence[str],
-        filename_check: Optional[Callable[[str], bool]] = None,
-) -> Generator[str, None, None]:
+        filename_check: Callable[[str], bool] | None = None,
+) -> Iterator[str]:
     for f in paths:
         if not os.path.exists(f):
             print("Missing:", f)
@@ -106,7 +111,7 @@ def main() -> None:
     if USE_MULTIPROCESS:
         import multiprocessing
         job_total = multiprocessing.cpu_count()
-        pool = multiprocessing.Pool(processes=job_total * 2)
+        pool = multiprocessing.Pool(processes=job_total)
         pool.map(autopep8_format_file, paths)
     else:
         for f in paths:

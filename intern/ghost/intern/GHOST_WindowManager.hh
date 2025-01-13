@@ -59,7 +59,7 @@ class GHOST_WindowManager {
 
   /**
    * Returns pointer to the full-screen window.
-   * \return The full-screen window (NULL if not in full-screen).
+   * \return The full-screen window (nullptr if not in full-screen).
    */
   GHOST_IWindow *getFullScreenWindow() const;
 
@@ -86,7 +86,7 @@ class GHOST_WindowManager {
   /**
    * Returns the active window (the window receiving events).
    * There can be only one window active which should be in the current window list.
-   * \return window The active window (or NULL if there is none).
+   * \return window The active window (or nullptr if there is none).
    */
   GHOST_IWindow *getActiveWindow() const;
 
@@ -108,7 +108,7 @@ class GHOST_WindowManager {
    * \param osWindow: The OS window object/handle.
    * \return The associated window, null if none corresponds.
    */
-  GHOST_IWindow *getWindowAssociatedWithOSWindow(void *osWindow);
+  GHOST_IWindow *getWindowAssociatedWithOSWindow(const void *osWindow);
 
  protected:
   /** The list of windows managed */
@@ -123,7 +123,5 @@ class GHOST_WindowManager {
   /** Window that was active before entering full-screen state. */
   GHOST_IWindow *m_activeWindowBeforeFullScreen;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_WindowManager")
-#endif
 };

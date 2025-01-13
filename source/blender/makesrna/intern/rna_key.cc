@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,18 +15,18 @@
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 const EnumPropertyItem rna_enum_keyblock_type_items[] = {
     {KEY_LINEAR, "KEY_LINEAR", 0, "Linear", ""},
@@ -38,21 +38,23 @@ const EnumPropertyItem rna_enum_keyblock_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include <algorithm>
+#  include <fmt/format.h>
 #  include <stddef.h>
 
 #  include "DNA_object_types.h"
 
 #  include "BLI_listbase.h"
-#  include "BLI_string_utils.h"
+#  include "BLI_string_utils.hh"
 
 #  include "BKE_animsys.h"
-#  include "BKE_key.h"
-#  include "BKE_main.h"
+#  include "BKE_key.hh"
+#  include "BKE_main.hh"
 
-#  include "DEG_depsgraph.h"
+#  include "DEG_depsgraph.hh"
 
-#  include "WM_api.h"
-#  include "WM_types.h"
+#  include "WM_api.hh"
+#  include "WM_types.hh"
 
 static Key *rna_ShapeKey_find_key(ID *id)
 {
@@ -165,7 +167,7 @@ static void rna_ShapeKey_slider_max_set(PointerRNA *ptr, float value)
 
 /* ***** Normals accessors for shape-keys. ***** */
 /* NOTE: with this we may recompute several times the same data, should we want to access verts,
- *       then polys, then loops normals... However,
+ *       then faces, then loops normals... However,
  *       such case looks rather unlikely - and not worth adding some kind of caching in key-blocks.
  */
 
@@ -195,9 +197,9 @@ static Mesh *rna_KeyBlock_normals_get_mesh(const PointerRNA *ptr, ID *id)
 static int rna_KeyBlock_normals_vert_len(const PointerRNA *ptr,
                                          int length[RNA_MAX_ARRAY_DIMENSION])
 {
-  const Mesh *me = rna_KeyBlock_normals_get_mesh(ptr, nullptr);
+  const Mesh *mesh = rna_KeyBlock_normals_get_mesh(ptr, nullptr);
 
-  length[0] = me ? me->totvert : 0;
+  length[0] = mesh ? mesh->verts_num : 0;
   length[1] = 3;
 
   return (length[0] * length[1]);
@@ -205,30 +207,29 @@ static int rna_KeyBlock_normals_vert_len(const PointerRNA *ptr,
 
 static void rna_KeyBlock_normals_vert_calc(ID *id,
                                            KeyBlock *data,
-                                           int *normals_len,
-                                           float **normals)
+                                           float **normals,
+                                           int *normals_num)
 {
-  Mesh *me = rna_KeyBlock_normals_get_mesh(nullptr, id);
+  Mesh *mesh = rna_KeyBlock_normals_get_mesh(nullptr, id);
 
-  *normals_len = (me ? me->totvert : 0) * 3;
+  *normals_num = (mesh ? mesh->verts_num : 0) * 3;
 
-  if (ELEM(nullptr, me, data) || (me->totvert == 0)) {
+  if (ELEM(nullptr, mesh, data) || (mesh->verts_num == 0)) {
     *normals = nullptr;
     return;
   }
 
-  *normals = static_cast<float *>(
-      MEM_mallocN(sizeof(**normals) * (size_t)(*normals_len), __func__));
+  *normals = static_cast<float *>(MEM_mallocN(sizeof(**normals) * size_t(*normals_num), __func__));
 
-  BKE_keyblock_mesh_calc_normals(data, me, (float(*)[3])(*normals), nullptr, nullptr);
+  BKE_keyblock_mesh_calc_normals(data, mesh, (float(*)[3])(*normals), nullptr, nullptr);
 }
 
 static int rna_KeyBlock_normals_poly_len(const PointerRNA *ptr,
                                          int length[RNA_MAX_ARRAY_DIMENSION])
 {
-  const Mesh *me = rna_KeyBlock_normals_get_mesh(ptr, nullptr);
+  const Mesh *mesh = rna_KeyBlock_normals_get_mesh(ptr, nullptr);
 
-  length[0] = me ? me->totpoly : 0;
+  length[0] = mesh ? mesh->faces_num : 0;
   length[1] = 3;
 
   return (length[0] * length[1]);
@@ -236,30 +237,29 @@ static int rna_KeyBlock_normals_poly_len(const PointerRNA *ptr,
 
 static void rna_KeyBlock_normals_poly_calc(ID *id,
                                            KeyBlock *data,
-                                           int *normals_len,
-                                           float **normals)
+                                           float **normals,
+                                           int *normals_num)
 {
-  Mesh *me = rna_KeyBlock_normals_get_mesh(nullptr, id);
+  Mesh *mesh = rna_KeyBlock_normals_get_mesh(nullptr, id);
 
-  *normals_len = (me ? me->totpoly : 0) * 3;
+  *normals_num = (mesh ? mesh->faces_num : 0) * 3;
 
-  if (ELEM(nullptr, me, data) || (me->totpoly == 0)) {
+  if (ELEM(nullptr, mesh, data) || (mesh->faces_num == 0)) {
     *normals = nullptr;
     return;
   }
 
-  *normals = static_cast<float *>(
-      MEM_mallocN(sizeof(**normals) * (size_t)(*normals_len), __func__));
+  *normals = static_cast<float *>(MEM_mallocN(sizeof(**normals) * size_t(*normals_num), __func__));
 
-  BKE_keyblock_mesh_calc_normals(data, me, nullptr, (float(*)[3])(*normals), nullptr);
+  BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, (float(*)[3])(*normals), nullptr);
 }
 
 static int rna_KeyBlock_normals_loop_len(const PointerRNA *ptr,
                                          int length[RNA_MAX_ARRAY_DIMENSION])
 {
-  const Mesh *me = rna_KeyBlock_normals_get_mesh(ptr, nullptr);
+  const Mesh *mesh = rna_KeyBlock_normals_get_mesh(ptr, nullptr);
 
-  length[0] = me ? me->totloop : 0;
+  length[0] = mesh ? mesh->corners_num : 0;
   length[1] = 3;
 
   return (length[0] * length[1]);
@@ -267,36 +267,33 @@ static int rna_KeyBlock_normals_loop_len(const PointerRNA *ptr,
 
 static void rna_KeyBlock_normals_loop_calc(ID *id,
                                            KeyBlock *data,
-                                           int *normals_len,
-                                           float **normals)
+                                           float **normals,
+                                           int *normals_num)
 {
-  Mesh *me = rna_KeyBlock_normals_get_mesh(nullptr, id);
+  Mesh *mesh = rna_KeyBlock_normals_get_mesh(nullptr, id);
 
-  *normals_len = (me ? me->totloop : 0) * 3;
+  *normals_num = (mesh ? mesh->corners_num : 0) * 3;
 
-  if (ELEM(nullptr, me, data) || (me->totloop == 0)) {
+  if (ELEM(nullptr, mesh, data) || (mesh->corners_num == 0)) {
     *normals = nullptr;
     return;
   }
 
-  *normals = static_cast<float *>(
-      MEM_mallocN(sizeof(**normals) * (size_t)(*normals_len), __func__));
+  *normals = static_cast<float *>(MEM_mallocN(sizeof(**normals) * size_t(*normals_num), __func__));
 
-  BKE_keyblock_mesh_calc_normals(data, me, nullptr, nullptr, (float(*)[3])(*normals));
+  BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, nullptr, (float(*)[3])(*normals));
 }
 
 PointerRNA rna_object_shapekey_index_get(ID *id, int value)
 {
   Key *key = rna_ShapeKey_find_key(id);
   KeyBlock *kb = nullptr;
-  PointerRNA ptr;
 
   if (key && value < key->totkey) {
     kb = static_cast<KeyBlock *>(BLI_findlink(&key->block, value));
   }
 
-  RNA_pointer_create(id, &RNA_ShapeKey, kb, &ptr);
-
+  PointerRNA ptr = RNA_pointer_create(id, &RNA_ShapeKey, kb);
   return ptr;
 }
 
@@ -496,11 +493,11 @@ static void rna_ShapeKey_NurbInfo_step(NurbInfo *r_info,
   rna_ShapeKey_NurbInfo_init(r_info, nu);
 
   if (input_elem) {
-    r_info->nurb_index = MIN2(r_info->nurb_size, *p_raw_index / r_info->nurb_elem_step);
+    r_info->nurb_index = std::min(r_info->nurb_size, *p_raw_index / r_info->nurb_elem_step);
     *p_raw_index -= r_info->nurb_size * r_info->nurb_elem_step;
   }
   else {
-    r_info->nurb_index = MIN2(r_info->nurb_size, *p_raw_index);
+    r_info->nurb_index = std::min(r_info->nurb_size, *p_raw_index);
     *p_raw_index -= r_info->nurb_size;
   }
 
@@ -638,14 +635,14 @@ static PointerRNA rna_ShapeKey_data_get(CollectionPropertyIterator *iter)
   return rna_pointer_inherit_refine(&iter->parent, type, ptr);
 }
 
-int rna_ShapeKey_data_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
+bool rna_ShapeKey_data_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
 {
   Key *key = rna_ShapeKey_find_key(ptr->owner_id);
   KeyBlock *kb = (KeyBlock *)ptr->data;
   int elemsize = key->elemsize;
   char *databuf = static_cast<char *>(kb->data);
 
-  memset(r_ptr, 0, sizeof(*r_ptr));
+  *r_ptr = {};
 
   if (index < 0) {
     return false;
@@ -672,7 +669,63 @@ int rna_ShapeKey_data_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
   return false;
 }
 
-static char *rna_ShapeKey_path(const PointerRNA *ptr)
+static void rna_ShapeKey_points_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  Key *key = rna_ShapeKey_find_key(ptr->owner_id);
+  KeyBlock *kb = (KeyBlock *)ptr->data;
+  int tot = kb->totelem;
+
+  if (GS(key->from->name) == ID_CU_LEGACY) {
+    /* Legacy curves have only curve points and bezier points. */
+    tot = 0;
+  }
+  rna_iterator_array_begin(iter, (void *)kb->data, key->elemsize, tot, 0, nullptr);
+}
+
+static int rna_ShapeKey_points_length(PointerRNA *ptr)
+{
+  Key *key = rna_ShapeKey_find_key(ptr->owner_id);
+  KeyBlock *kb = (KeyBlock *)ptr->data;
+  int tot = kb->totelem;
+
+  if (GS(key->from->name) == ID_CU_LEGACY) {
+    /* Legacy curves have only curve points and bezier points. */
+    tot = 0;
+  }
+
+  return tot;
+}
+
+bool rna_ShapeKey_points_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
+{
+  Key *key = rna_ShapeKey_find_key(ptr->owner_id);
+  KeyBlock *kb = (KeyBlock *)ptr->data;
+  int elemsize = key->elemsize;
+  char *databuf = static_cast<char *>(kb->data);
+
+  *r_ptr = {};
+
+  if (index < 0) {
+    return false;
+  }
+
+  if (GS(key->from->name) == ID_CU_LEGACY) {
+    /* Legacy curves have only curve points and bezier points. */
+    return false;
+  }
+  else {
+    if (index < kb->totelem) {
+      r_ptr->owner_id = ptr->owner_id;
+      r_ptr->type = &RNA_ShapeKeyPoint;
+      r_ptr->data = databuf + elemsize * index;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static std::optional<std::string> rna_ShapeKey_path(const PointerRNA *ptr)
 {
   const KeyBlock *kb = (KeyBlock *)ptr->data;
   const ID *id = ptr->owner_id;
@@ -681,11 +734,9 @@ static char *rna_ShapeKey_path(const PointerRNA *ptr)
   BLI_str_escape(name_esc, kb->name, sizeof(name_esc));
 
   if ((id) && (GS(id->name) != ID_KE)) {
-    return BLI_sprintfN("shape_keys.key_blocks[\"%s\"]", name_esc);
+    return fmt::format("shape_keys.key_blocks[\"{}\"]", name_esc);
   }
-  else {
-    return BLI_sprintfN("key_blocks[\"%s\"]", name_esc);
-  }
+  return fmt::format("key_blocks[\"{}\"]", name_esc);
 }
 
 static void rna_Key_update_data(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
@@ -694,7 +745,8 @@ static void rna_Key_update_data(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
   Object *ob;
 
   for (ob = static_cast<Object *>(bmain->objects.first); ob;
-       ob = static_cast<Object *>(ob->id.next)) {
+       ob = static_cast<Object *>(ob->id.next))
+  {
     if (BKE_key_from_object(ob) == key) {
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
@@ -767,7 +819,7 @@ static int rna_ShapeKeyPoint_get_index(Key *key, KeyBlock *kb, float *point)
   return int(pt - start) / key->elemsize;
 }
 
-static char *rna_ShapeKeyPoint_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_ShapeKeyPoint_path(const PointerRNA *ptr)
 {
   ID *id = ptr->owner_id;
   Key *key = rna_ShapeKey_find_key(ptr->owner_id);
@@ -790,15 +842,11 @@ static char *rna_ShapeKeyPoint_path(const PointerRNA *ptr)
     BLI_str_escape(name_esc_kb, kb->name, sizeof(name_esc_kb));
 
     if (GS(id->name) == ID_KE) {
-      return BLI_sprintfN("key_blocks[\"%s\"].data[%d]", name_esc_kb, index);
+      return fmt::format("key_blocks[\"{}\"].data[{}]", name_esc_kb, index);
     }
-    else {
-      return BLI_sprintfN("shape_keys.key_blocks[\"%s\"].data[%d]", name_esc_kb, index);
-    }
+    return fmt::format("shape_keys.key_blocks[\"{}\"].data[{}]", name_esc_kb, index);
   }
-  else {
-    return nullptr; /* XXX: there's really no way to resolve this... */
-  }
+  return std::nullopt; /* XXX: there's really no way to resolve this... */
 }
 
 #else
@@ -811,13 +859,13 @@ static void rna_def_keydata(BlenderRNA *brna)
   PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "ShapeKeyPoint", nullptr);
+  RNA_def_struct_sdna(srna, "vec3f");
   RNA_def_struct_ui_text(srna, "Shape Key Point", "Point in a shape key");
   RNA_def_struct_path_func(srna, "rna_ShapeKeyPoint_path");
 
   prop = RNA_def_property(srna, "co", PROP_FLOAT, PROP_TRANSLATION);
+  RNA_def_property_float_sdna(prop, nullptr, "x");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_float_funcs(
-      prop, "rna_ShapeKeyPoint_co_get", "rna_ShapeKeyPoint_co_set", nullptr);
   RNA_def_property_ui_text(prop, "Location", "");
   RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
@@ -849,7 +897,7 @@ static void rna_def_keydata(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
   srna = RNA_def_struct(brna, "ShapeKeyBezierPoint", nullptr);
-  RNA_def_struct_ui_text(srna, "Shape Key Bezier Point", "Point in a shape key for Bezier curves");
+  RNA_def_struct_ui_text(srna, "Shape Key Bézier Point", "Point in a shape key for Bézier curves");
   /* there's nothing type specific here, so this is fine for now */
   RNA_def_struct_path_func(srna, "rna_ShapeKeyPoint_path");
 
@@ -957,6 +1005,13 @@ static void rna_def_keyblock(BlenderRNA *brna)
   RNA_def_property_ui_icon(prop, ICON_CHECKBOX_HLT, -1);
   RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
+  prop = RNA_def_property(srna, "lock_shape", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", KEYBLOCK_LOCKED_SHAPE);
+  RNA_def_property_ui_text(
+      prop, "Lock Shape", "Protect the shape key from accidental sculpting and editing");
+  RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
+  RNA_def_property_update(prop, 0, "rna_Key_update_data");
+
   prop = RNA_def_property(srna, "slider_min", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "slidermin");
   RNA_def_property_range(prop, -10.0f, 10.0f);
@@ -986,6 +1041,25 @@ static void rna_def_keyblock(BlenderRNA *brna)
                                     "rna_ShapeKey_data_get",
                                     "rna_ShapeKey_data_length",
                                     "rna_ShapeKey_data_lookup_int",
+                                    nullptr,
+                                    nullptr);
+
+  prop = RNA_def_property(srna, "points", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "data", nullptr);
+  RNA_def_property_struct_type(prop, "ShapeKeyPoint");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
+  RNA_def_property_ui_text(prop,
+                           "Points",
+                           "Optimized access to shape keys point data, when using "
+                           "foreach_get/foreach_set accessors. "
+                           "Warning: Does not support legacy Curve shape keys.");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_ShapeKey_points_begin",
+                                    "rna_iterator_array_next",
+                                    "rna_iterator_array_end",
+                                    "rna_iterator_array_get",
+                                    "rna_ShapeKey_points_length",
+                                    "rna_ShapeKey_points_lookup_int",
                                     nullptr,
                                     nullptr);
 

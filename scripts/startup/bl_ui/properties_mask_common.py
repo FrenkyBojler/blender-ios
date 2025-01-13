@@ -1,9 +1,9 @@
-# SPDX-FileCopyrightText: 2012-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2012-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# panels get subclassed (not registered directly)
-# menus are referenced `as is`
+# Panels get sub-classed (not registered directly).
+# Menus are referenced as-is.
 
 from bpy.types import Menu, UIList
 from bpy.app.translations import contexts as i18n_contexts
@@ -36,8 +36,7 @@ def draw_mask_context_menu(layout, _context):
 
 
 class MASK_UL_layers(UIList):
-    def draw_item(self, _context, layout, _data, item, icon,
-                  _active_data, _active_propname, _index):
+    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         # assert(isinstance(item, bpy.types.MaskLayer)
         mask = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
@@ -99,8 +98,10 @@ class MASK_PT_layers:
         rows = 4 if active_layer else 1
 
         row = layout.row()
-        row.template_list("MASK_UL_layers", "", mask, "layers",
-                          mask, "active_layer_index", rows=rows)
+        row.template_list(
+            "MASK_UL_layers", "", mask, "layers",
+            mask, "active_layer_index", rows=rows,
+        )
 
         sub = row.column(align=True)
 
@@ -204,18 +205,17 @@ class MASK_PT_point:
             row = col.row()
             row.prop(parent, "type", expand=True)
 
-            col.prop_search(parent, "parent", tracking,
-                            "objects", icon='OBJECT_DATA', text="Object")
+            col.prop_search(parent, "parent", tracking, "objects", icon='OBJECT_DATA', text="Object")
 
             tracks_list = "tracks" if parent.type == 'POINT_TRACK' else "plane_tracks"
 
             if parent.parent in tracking.objects:
                 ob = tracking.objects[parent.parent]
                 col.prop_search(parent, "sub_parent", ob,
-                                tracks_list, icon='ANIM_DATA', text="Track")
+                                tracks_list, icon='ANIM_DATA', text="Track", text_ctxt=i18n_contexts.id_movieclip)
             else:
                 col.prop_search(parent, "sub_parent", tracking,
-                                tracks_list, icon='ANIM_DATA', text="Track")
+                                tracks_list, icon='ANIM_DATA', text="Track", text_ctxt=i18n_contexts.id_movieclip)
 
 
 class MASK_PT_display:
@@ -245,7 +245,7 @@ class MASK_PT_display:
         sub.active = space_data.show_mask_overlay
         sub.prop(space_data, "mask_overlay_mode", text="")
         row = layout.row()
-        row.active = (space_data.mask_overlay_mode in ['COMBINED'] and space_data.show_mask_overlay)
+        row.active = space_data.show_mask_overlay and (space_data.mask_overlay_mode == 'COMBINED')
         row.prop(space_data, "blend_factor", text="Blending Factor")
 
 

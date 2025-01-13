@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,7 +10,7 @@
 #include "BLI_cache_mutex.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_multi_value_map.hh"
-#include "BLI_resource_scope.hh"
+#include "BLI_set.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -18,29 +18,34 @@
 #include "DNA_node_types.h"
 
 #include "BKE_node.hh"
+#include "BKE_node_tree_interface.hh"
 
 struct bNode;
 struct bNodeSocket;
 struct bNodeTree;
-struct bNodeType;
 
 namespace blender::nodes {
 struct FieldInferencingInterface;
+struct GeometryNodesEvalDependencies;
 class NodeDeclaration;
 struct GeometryNodesLazyFunctionGraphInfo;
 namespace anonymous_attribute_lifetime {
-struct RelationsInNode;
 }
 namespace aal = anonymous_attribute_lifetime;
+namespace gizmos {
+struct TreeGizmoPropagation;
+}
 }  // namespace blender::nodes
 namespace blender::bke {
+struct bNodeType;
 class bNodeTreeZones;
-}
-namespace blender::bke::anonymous_attribute_inferencing {
-struct AnonymousAttributeInferencingResult;
-};
+}  // namespace blender::bke
 
-namespace blender {
+namespace blender::bke::node_tree_reference_lifetimes {
+struct ReferenceLifetimesInfo;
+}
+
+namespace blender::bke {
 
 struct NodeIDHash {
   uint64_t operator()(const bNode *node) const
@@ -68,17 +73,39 @@ struct NodeIDEquality {
   }
 };
 
-}  // namespace blender
-
-namespace blender::bke {
+enum class FieldSocketState : int8_t {
+  RequiresSingle,
+  CanBeField,
+  IsField,
+};
 
 using NodeIDVectorSet = VectorSet<bNode *, DefaultProbingStrategy, NodeIDHash, NodeIDEquality>;
 
+struct NodeLinkError {
+  std::string tooltip;
+};
+
+struct LoggedZoneGraphs {
+  std::mutex mutex;
+  /**
+   * Technically there can be more than one graph per zone because the zone can be invoked in
+   * different contexts. However, for the purpose of logging here, we only need one at a time
+   * anyway.
+   */
+  Map<int, std::string> graph_by_zone_id;
+};
+
+/**
+ * Runtime data for #bNodeTree from the perspective of execution instructions (rather than runtime
+ * data from evaluation of the node tree). Evaluation data is not the responsibility of the node
+ * tree and should be stored elsewhere. Evaluating a node tree should be possible without changing
+ * it.
+ */
 class bNodeTreeRuntime : NonCopyable, NonMovable {
  public:
   /**
    * Keeps track of what changed in the node tree until the next update.
-   * Should not be changed directly, instead use the functions in `BKE_node_tree_update.h`.
+   * Should not be changed directly, instead use the functions in `BKE_node_tree_update.hh`.
    * #eNodeTreeChangedFlag.
    */
   uint32_t changed_flag = 0;
@@ -95,6 +122,15 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   uint8_t runtime_flag = 0;
 
   /**
+   * Contains a number increased for each node-tree update.
+   * Store a state variable in the #NestedTreePreviews structure to compare if they differ.
+   */
+  uint32_t previews_refresh_state = 0;
+
+  /** Allows logging zone graphs purely for debugging purposes. */
+  std::unique_ptr<LoggedZoneGraphs> logged_zone_graphs;
+
+  /**
    * Storage of nodes based on their identifier. Also used as a contiguous array of nodes to
    * allow simpler and more cache friendly iteration. Supports lookup by integer or by node.
    * Unlike other caches, this is maintained eagerly while changing the tree.
@@ -102,18 +138,12 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   NodeIDVectorSet nodes_by_id;
 
   /**
-   * Execution data.
+   * Legacy execution data.
    *
-   * XXX It would be preferable to completely move this data out of the underlying node tree,
-   * so node tree execution could finally run independent of the tree itself.
-   * This would allow node trees to be merely linked by other data (materials, textures, etc.),
-   * as ID data is supposed to.
-   * Execution data is generated from the tree once at execution start and can then be used
-   * as long as necessary, even while the tree is being modified.
+   * \todo Move this out of the node tree to improve semantic/physical separation between the node
+   * tree execution instructions and its evaluation.
    */
-  struct bNodeTreeExec *execdata = nullptr;
-
-  /* Callbacks. */
+  bNodeTreeExec *execdata = nullptr;
   void (*progress)(void *, float progress) = nullptr;
   /** \warning may be called by different threads */
   void (*stats_draw)(void *, const char *str) = nullptr;
@@ -121,11 +151,15 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   void (*update_draw)(void *) = nullptr;
   void *tbh = nullptr, *prh = nullptr, *sdh = nullptr, *udh = nullptr;
 
+  /* End legacy execution data. */
+
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
+  /** Field status for every socket, accessed with #bNodeSocket::index_in_tree(). */
+  Array<FieldSocketState> field_states;
   /** Information about usage of anonymous attributes within the group. */
-  std::unique_ptr<anonymous_attribute_inferencing::AnonymousAttributeInferencingResult>
-      anonymous_attribute_inferencing;
+  std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
+  std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
 
   /**
    * For geometry nodes, a lazy function graph with some additional info is cached. This is used to
@@ -135,6 +169,13 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   std::mutex geometry_nodes_lazy_function_graph_info_mutex;
   std::unique_ptr<nodes::GeometryNodesLazyFunctionGraphInfo>
       geometry_nodes_lazy_function_graph_info;
+
+  /**
+   * Stores information about invalid links. This information is then displayed to the user. The
+   * key of the map is the node identifier. The data is stored per target-node because we want to
+   * display the error information there.
+   */
+  MultiValueMap<int, NodeLinkError> link_errors_by_target_node;
 
   /**
    * Protects access to all topology cache variables below. This is necessary so that the cache can
@@ -151,6 +192,20 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   CacheMutex tree_zones_cache_mutex;
   std::unique_ptr<bNodeTreeZones> tree_zones;
 
+  /**
+   * The stored sockets are drawn using a special link to indicate that there is a gizmo. This is
+   * only valid during node editor drawing.
+   */
+  Set<const bNodeSocket *> sockets_on_active_gizmo_paths;
+
+  /**
+   * Cache of dependencies used by the node tree itself. Does not account for data that's passed
+   * into the node tree from the outside.
+   * NOTE: The node tree may reference additional data-blocks besides the ones included here. But
+   * those are not used when the node tree is evaluated by Geometry Nodes.
+   */
+  std::unique_ptr<nodes::GeometryNodesEvalDependencies> geometry_nodes_eval_dependencies;
+
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> links;
   Vector<bNodeSocket *> sockets;
@@ -164,8 +219,6 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   bool has_undefined_nodes_or_sockets = false;
   bNode *group_output_node = nullptr;
   Vector<bNode *> root_frames;
-  Vector<bNodeSocket *> interface_inputs;
-  Vector<bNodeSocket *> interface_outputs;
 };
 
 /**
@@ -180,7 +233,7 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
    * data. It has to be updated when the node declaration changes. Access can be allowed by using
    * #AllowUsingOutdatedInfo.
    */
-  const SocketDeclarationHandle *declaration = nullptr;
+  const nodes::SocketDeclaration *declaration = nullptr;
 
   /** #eNodeTreeChangedFlag. */
   uint32_t changed_flag = 0;
@@ -194,7 +247,7 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
   /**
    * The location of the socket in the tree, calculated while drawing the nodes and invalid if the
    * node tree hasn't been drawn yet. In the node tree's "world space" (the same as
-   * #bNode::runtime::totr).
+   * #bNode::runtime::draw_bounds).
    */
   float2 location;
 
@@ -208,6 +261,21 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
   int index_in_node = -1;
   int index_in_all_sockets = -1;
   int index_in_inout_sockets = -1;
+};
+
+struct bNodePanelExtent {
+  float min_y;
+  float max_y;
+  bool fill_node_end = false;
+};
+
+class bNodePanelRuntime : NonCopyable, NonMovable {
+ public:
+  /* The vertical location of the panel in the tree, calculated while drawing the nodes and invalid
+   * if the node tree hasn't been drawn yet. In the node tree's "world space" (the same as
+   * #bNode::runtime::draw_bounds). */
+  std::optional<float> header_center_y;
+  std::optional<bNodePanelExtent> content_extent;
 };
 
 /**
@@ -229,13 +297,13 @@ class bNodeRuntime : NonCopyable, NonMovable {
    *
    * The declaration of a node can be recreated at any time when it is used. Caching it here is
    * just a bit more efficient when it is used a lot. To make sure that the cache is up-to-date,
-   * call #nodeDeclarationEnsure before using it.
+   * call #node_declaration_ensure before using it.
    *
    * Currently, the declaration is the same for every node of the same type. Going forward, that is
    * intended to change though. Especially when nodes become more dynamic with respect to how many
    * sockets they have.
    */
-  NodeDeclarationHandle *declaration = nullptr;
+  nodes::NodeDeclaration *declaration = nullptr;
 
   /** #eNodeTreeChangedFlag. */
   uint32_t changed_flag = 0;
@@ -244,21 +312,10 @@ class bNodeRuntime : NonCopyable, NonMovable {
   uint8_t need_exec = 0;
 
   /** The original node in the tree (for localized tree). */
-  struct bNode *original = nullptr;
+  bNode *original = nullptr;
 
-  /**
-   * XXX TODO
-   * Node totr size depends on the prvr size, which in turn is determined from preview size.
-   * In earlier versions bNodePreview was stored directly in nodes, but since now there can be
-   * multiple instances using different preview images it is possible that required node size
-   * varies between instances. preview_xsize, preview_ysize defines a common reserved size for
-   * preview rect for now, could be replaced by more accurate node instance drawing,
-   * but that requires removing totr from DNA and replacing all uses with per-instance data.
-   */
-  /** Reserved size of the preview rect. */
-  short preview_xsize, preview_ysize = 0;
-  /** Entire bound-box (world-space). */
-  rctf totr{};
+  /** Calculated bounding box of node in the view space of the node editor (including UI scale). */
+  rctf draw_bounds{};
 
   /** Used at runtime when going through the tree. Initialize before use. */
   short tmp_flag = 0;
@@ -269,9 +326,7 @@ class bNodeRuntime : NonCopyable, NonMovable {
   /** Update flags. */
   int update = 0;
 
-  /** Initial locx for insert offset animation. */
-  float anim_init_locx;
-  /** Offset that will be added to locx for insert offset animation. */
+  /** Offset that will be added to #bNode::locx for insert offset animation. */
   float anim_ofsx;
 
   /** List of cached internal links (input to output), for muted nodes and operators. */
@@ -279,6 +334,13 @@ class bNodeRuntime : NonCopyable, NonMovable {
 
   /** Eagerly maintained cache of the node's index in the tree. */
   int index_in_tree = -1;
+
+  /** Used to avoid running forward compatibility code more often than necessary. */
+  bool forward_compatible_versioning_done = false;
+
+  /** If this node is reroute and this reroute is not logically linked with any source except other
+   * reroute, this will be true. */
+  bool is_dangling_reroute = false;
 
   /** Only valid if #topology_cache_is_dirty is false. */
   Vector<bNodeSocket *> inputs;
@@ -292,6 +354,9 @@ class bNodeRuntime : NonCopyable, NonMovable {
   /** Can be used to toposort a subset of nodes. */
   int toposort_left_to_right_index = -1;
   int toposort_right_to_left_index = -1;
+
+  /* Panel runtime state */
+  Array<bNodePanelRuntime> panels;
 };
 
 namespace node_tree_runtime {
@@ -387,14 +452,14 @@ inline const bNode *bNodeTree::node_by_id(const int32_t identifier) const
 inline blender::Span<bNode *> bNodeTree::nodes_by_type(const blender::StringRefNull type_idname)
 {
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
-  return this->runtime->nodes_by_type.lookup(nodeTypeFind(type_idname.c_str()));
+  return this->runtime->nodes_by_type.lookup(blender::bke::node_type_find(type_idname.c_str()));
 }
 
 inline blender::Span<const bNode *> bNodeTree::nodes_by_type(
     const blender::StringRefNull type_idname) const
 {
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
-  return this->runtime->nodes_by_type.lookup(nodeTypeFind(type_idname.c_str()));
+  return this->runtime->nodes_by_type.lookup(blender::bke::node_type_find(type_idname.c_str()));
 }
 
 inline blender::Span<const bNode *> bNodeTree::toposort_left_to_right() const
@@ -457,21 +522,14 @@ inline const bNode *bNodeTree::group_output_node() const
   return this->runtime->group_output_node;
 }
 
-inline blender::Span<const bNode *> bNodeTree::group_input_nodes() const
+inline blender::Span<bNode *> bNodeTree::group_input_nodes()
 {
   return this->nodes_by_type("NodeGroupInput");
 }
 
-inline blender::Span<const bNodeSocket *> bNodeTree::interface_inputs() const
+inline blender::Span<const bNode *> bNodeTree::group_input_nodes() const
 {
-  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
-  return this->runtime->interface_inputs;
-}
-
-inline blender::Span<const bNodeSocket *> bNodeTree::interface_outputs() const
-{
-  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
-  return this->runtime->interface_outputs;
+  return this->nodes_by_type("NodeGroupInput");
 }
 
 inline blender::Span<const bNodeSocket *> bNodeTree::all_input_sockets() const
@@ -528,16 +586,6 @@ inline blender::Span<const bNodeLink *> bNodeTree::all_links() const
   return this->runtime->links;
 }
 
-inline blender::Span<const bNodePanel *> bNodeTree::panels() const
-{
-  return blender::Span(panels_array, panels_num);
-}
-
-inline blender::MutableSpan<bNodePanel *> bNodeTree::panels_for_write()
-{
-  return blender::MutableSpan(panels_array, panels_num);
-}
-
 inline blender::MutableSpan<bNestedNodeRef> bNodeTree::nested_node_refs_span()
 {
   return {this->nested_node_refs, this->nested_node_refs_num};
@@ -546,6 +594,65 @@ inline blender::MutableSpan<bNestedNodeRef> bNodeTree::nested_node_refs_span()
 inline blender::Span<bNestedNodeRef> bNodeTree::nested_node_refs_span() const
 {
   return {this->nested_node_refs, this->nested_node_refs_num};
+}
+
+inline void bNodeTree::ensure_interface_cache() const
+{
+  this->tree_interface.ensure_items_cache();
+}
+
+inline blender::Span<bNodeTreeInterfaceSocket *> bNodeTree::interface_inputs()
+{
+  BLI_assert(this->tree_interface.items_cache_is_available());
+  return this->tree_interface.runtime->inputs_;
+}
+
+inline blender::Span<const bNodeTreeInterfaceSocket *> bNodeTree::interface_inputs() const
+{
+  BLI_assert(this->tree_interface.items_cache_is_available());
+  return this->tree_interface.runtime->inputs_.as_span();
+}
+
+inline blender::Span<bNodeTreeInterfaceSocket *> bNodeTree::interface_outputs()
+{
+  BLI_assert(this->tree_interface.items_cache_is_available());
+  return this->tree_interface.runtime->outputs_;
+}
+
+inline blender::Span<const bNodeTreeInterfaceSocket *> bNodeTree::interface_outputs() const
+{
+  BLI_assert(this->tree_interface.items_cache_is_available());
+  return this->tree_interface.runtime->outputs_.as_span();
+}
+
+inline blender::Span<bNodeTreeInterfaceItem *> bNodeTree::interface_items()
+{
+  BLI_assert(this->tree_interface.items_cache_is_available());
+  return this->tree_interface.runtime->items_;
+}
+
+inline blender::Span<const bNodeTreeInterfaceItem *> bNodeTree::interface_items() const
+{
+  BLI_assert(this->tree_interface.items_cache_is_available());
+  return this->tree_interface.runtime->items_.as_span();
+}
+
+inline int bNodeTree::interface_input_index(const bNodeTreeInterfaceSocket &io_socket) const
+{
+  BLI_assert(this->tree_interface.items_cache_is_available());
+  return this->tree_interface.runtime->inputs_.index_of_as(&io_socket);
+}
+
+inline int bNodeTree::interface_output_index(const bNodeTreeInterfaceSocket &io_socket) const
+{
+  BLI_assert(this->tree_interface.items_cache_is_available());
+  return this->tree_interface.runtime->outputs_.index_of_as(&io_socket);
+}
+
+inline int bNodeTree::interface_item_index(const bNodeTreeInterfaceItem &io_item) const
+{
+  BLI_assert(this->tree_interface.items_cache_is_available());
+  return this->tree_interface.runtime->items_.index_of_as(&io_item);
 }
 
 /** \} */
@@ -585,6 +692,26 @@ inline blender::Span<const bNodeSocket *> bNode::output_sockets() const
 {
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->outputs;
+}
+
+inline blender::IndexRange bNode::input_socket_indices_in_tree() const
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  const int num_inputs = this->runtime->inputs.size();
+  if (num_inputs == 0) {
+    return {};
+  }
+  return blender::IndexRange::from_begin_size(this->input_socket(0).index_in_tree(), num_inputs);
+}
+
+inline blender::IndexRange bNode::output_socket_indices_in_tree() const
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  const int num_outputs = this->runtime->outputs.size();
+  if (num_outputs == 0) {
+    return {};
+  }
+  return blender::IndexRange::from_begin_size(this->output_socket(0).index_in_tree(), num_outputs);
 }
 
 inline bNodeSocket &bNode::input_socket(int index)
@@ -641,6 +768,12 @@ inline const bNodeTree &bNode::owner_tree() const
   return *this->runtime->owner_tree;
 }
 
+inline bNodeTree &bNode::owner_tree()
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  return *this->runtime->owner_tree;
+}
+
 inline blender::StringRefNull bNode::label_or_name() const
 {
   if (this->label[0] == '\0') {
@@ -656,32 +789,53 @@ inline bool bNode::is_muted() const
 
 inline bool bNode::is_reroute() const
 {
-  return this->type == NODE_REROUTE;
+  return this->type_legacy == NODE_REROUTE;
 }
 
 inline bool bNode::is_frame() const
 {
-  return this->type == NODE_FRAME;
+  return this->type_legacy == NODE_FRAME;
 }
 
 inline bool bNode::is_group() const
 {
-  return ELEM(this->type, NODE_GROUP, NODE_CUSTOM_GROUP);
+  return ELEM(this->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP);
 }
 
 inline bool bNode::is_group_input() const
 {
-  return this->type == NODE_GROUP_INPUT;
+  return this->type_legacy == NODE_GROUP_INPUT;
 }
 
 inline bool bNode::is_group_output() const
 {
-  return this->type == NODE_GROUP_OUTPUT;
+  return this->type_legacy == NODE_GROUP_OUTPUT;
+}
+
+inline bool bNode::is_type(const blender::StringRef query_idname) const
+{
+  return this->typeinfo->is_type(query_idname);
 }
 
 inline blender::Span<bNodeLink> bNode::internal_links() const
 {
   return this->runtime->internal_links;
+}
+
+inline bool bNode::is_dangling_reroute() const
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  return this->runtime->is_dangling_reroute;
+}
+
+inline bool bNode::is_socket_drawn(const bNodeSocket &socket) const
+{
+  return socket.is_visible();
+}
+
+inline bool bNode::is_socket_icon_drawn(const bNodeSocket &socket) const
+{
+  return socket.is_visible() && (this->flag & NODE_HIDDEN || !socket.is_panel_collapsed());
 }
 
 inline blender::Span<bNode *> bNode::direct_children_in_frame() const
@@ -694,6 +848,16 @@ inline blender::Span<bNode *> bNode::direct_children_in_frame() const
 inline const blender::nodes::NodeDeclaration *bNode::declaration() const
 {
   return this->runtime->declaration;
+}
+
+inline blender::Span<bNodePanelState> bNode::panel_states() const
+{
+  return {panel_states_array, num_panel_states};
+}
+
+inline blender::MutableSpan<bNodePanelState> bNode::panel_states()
+{
+  return {panel_states_array, num_panel_states};
 }
 
 /** \} */
@@ -759,6 +923,11 @@ inline bool bNodeSocket::is_available() const
   return (this->flag & SOCK_UNAVAIL) == 0;
 }
 
+inline bool bNodeSocket::is_panel_collapsed() const
+{
+  return (this->flag & SOCK_PANEL_COLLAPSED) != 0;
+}
+
 inline bool bNodeSocket::is_visible() const
 {
   return !this->is_hidden() && this->is_available();
@@ -771,6 +940,12 @@ inline bNode &bNodeSocket::owner_node()
 }
 
 inline const bNodeTree &bNodeSocket::owner_tree() const
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  return *this->runtime->owner_node->runtime->owner_tree;
+}
+
+inline bNodeTree &bNodeSocket::owner_tree()
 {
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
   return *this->runtime->owner_node->runtime->owner_tree;
@@ -852,6 +1027,27 @@ inline const bNode &bNodeSocket::owner_node() const
 {
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
   return *this->runtime->owner_node;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #bNode Inline Methods
+ * \{ */
+
+inline bool bNodePanelState::is_collapsed() const
+{
+  return flag & NODE_PANEL_COLLAPSED;
+}
+
+inline bool bNodePanelState::is_parent_collapsed() const
+{
+  return flag & NODE_PANEL_PARENT_COLLAPSED;
+}
+
+inline bool bNodePanelState::has_visible_content() const
+{
+  return flag & NODE_PANEL_CONTENT_VISIBLE;
 }
 
 /** \} */

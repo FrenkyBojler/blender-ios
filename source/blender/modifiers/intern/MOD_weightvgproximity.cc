@@ -10,11 +10,12 @@
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_rand.h"
 #include "BLI_task.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_color_types.h" /* CurveMapping. */
 #include "DNA_defaults.h"
@@ -24,43 +25,38 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_bvhutils.h"
-#include "BKE_colortools.h" /* CurveMapping. */
-#include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_customdata.h"
-#include "BKE_deform.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_bvhutils.hh"
+#include "BKE_colortools.hh" /* CurveMapping. */
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.h"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_mesh_wrapper.hh"
+#include "BKE_modifier.hh"
 #include "BKE_texture.h" /* Texture masking. */
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 #include "MOD_weightvg_util.hh"
 
-//#define USE_TIMEIT
+// #define USE_TIMEIT
 
 #ifdef USE_TIMEIT
-#  include "PIL_time.h"
-#  include "PIL_time_utildefines.h"
+#  include "BLI_time.h"
+#  include "BLI_time_utildefines.h"
 #endif
 
 /**************************************
@@ -78,7 +74,7 @@ struct Vert2GeomData {
 
   const SpaceTransform *loc2trgt;
 
-  BVHTreeFromMesh *treeData[3];
+  blender::bke::BVHTreeFromMesh *treeData[3];
 
   /* Write data, but not needing locking (two different threads will never write same index). */
   float *dist[3];
@@ -144,7 +140,7 @@ static void vert2geom_task_cb_ex(void *__restrict userdata,
 }
 
 /**
- * Find nearest vertex and/or edge and/or face, for each vertex (adapted from shrinkwrap.c).
+ * Find nearest vertex and/or edge and/or face, for each vertex (adapted from `shrinkwrap.cc`).
  */
 static void get_vert2geom_distance(int verts_num,
                                    const blender::Span<blender::float3> positions,
@@ -158,13 +154,13 @@ static void get_vert2geom_distance(int verts_num,
   Vert2GeomData data{};
   Vert2GeomDataChunk data_chunk = {{{0}}};
 
-  BVHTreeFromMesh treeData_v = {nullptr};
-  BVHTreeFromMesh treeData_e = {nullptr};
-  BVHTreeFromMesh treeData_f = {nullptr};
+  blender::bke::BVHTreeFromMesh treeData_v{};
+  blender::bke::BVHTreeFromMesh treeData_e{};
+  blender::bke::BVHTreeFromMesh treeData_f{};
 
   if (dist_v) {
     /* Create a BVH-tree of the given target's verts. */
-    BKE_bvhtree_from_mesh_get(&treeData_v, target, BVHTREE_FROM_VERTS, 2);
+    treeData_v = target->bvh_verts();
     if (treeData_v.tree == nullptr) {
       OUT_OF_MEMORY();
       return;
@@ -172,7 +168,7 @@ static void get_vert2geom_distance(int verts_num,
   }
   if (dist_e) {
     /* Create a BVH-tree of the given target's edges. */
-    BKE_bvhtree_from_mesh_get(&treeData_e, target, BVHTREE_FROM_EDGES, 2);
+    treeData_e = target->bvh_edges();
     if (treeData_e.tree == nullptr) {
       OUT_OF_MEMORY();
       return;
@@ -180,7 +176,7 @@ static void get_vert2geom_distance(int verts_num,
   }
   if (dist_f) {
     /* Create a BVH-tree of the given target's faces. */
-    BKE_bvhtree_from_mesh_get(&treeData_f, target, BVHTREE_FROM_LOOPTRI, 2);
+    treeData_f = target->bvh_corner_tris();
     if (treeData_f.tree == nullptr) {
       OUT_OF_MEMORY();
       return;
@@ -203,16 +199,6 @@ static void get_vert2geom_distance(int verts_num,
   settings.userdata_chunk = &data_chunk;
   settings.userdata_chunk_size = sizeof(data_chunk);
   BLI_task_parallel_range(0, verts_num, &data, vert2geom_task_cb_ex, &settings);
-
-  if (dist_v) {
-    free_bvhtree_from_mesh(&treeData_v);
-  }
-  if (dist_e) {
-    free_bvhtree_from_mesh(&treeData_e);
-  }
-  if (dist_f) {
-    free_bvhtree_from_mesh(&treeData_f);
-  }
 }
 
 /**
@@ -232,9 +218,9 @@ static void get_vert2ob_distance(int verts_num,
 
   while (i-- > 0) {
     /* Get world-coordinates of the vertex (constraints and anim included). */
-    mul_v3_m4v3(v_wco, ob->object_to_world, positions[indices ? indices[i] : i]);
+    mul_v3_m4v3(v_wco, ob->object_to_world().ptr(), positions[indices ? indices[i] : i]);
     /* Return distance between both coordinates. */
-    dist[i] = len_v3v3(v_wco, obr->object_to_world[3]);
+    dist[i] = len_v3v3(v_wco, obr->object_to_world().location());
   }
 }
 
@@ -244,7 +230,7 @@ static void get_vert2ob_distance(int verts_num,
  */
 static float get_ob2ob_distance(const Object *ob, const Object *obr)
 {
-  return len_v3v3(ob->object_to_world[3], obr->object_to_world[3]);
+  return len_v3v3(ob->object_to_world().location(), obr->object_to_world().location());
 }
 
 /**
@@ -311,7 +297,7 @@ static void do_map(Object *ob,
 /**************************************
  * Modifiers functions.               *
  **************************************/
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
   WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *)md;
 
@@ -323,13 +309,13 @@ static void initData(ModifierData *md)
   BKE_curvemapping_init(wmd->cmap_curve);
 }
 
-static void freeData(ModifierData *md)
+static void free_data(ModifierData *md)
 {
   WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *)md;
   BKE_curvemapping_free(wmd->cmap_curve);
 }
 
-static void copyData(const ModifierData *md, ModifierData *target, const int flag)
+static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
   const WeightVGProximityModifierData *wmd = (const WeightVGProximityModifierData *)md;
   WeightVGProximityModifierData *twmd = (WeightVGProximityModifierData *)target;
@@ -339,7 +325,7 @@ static void copyData(const ModifierData *md, ModifierData *target, const int fla
   twmd->cmap_curve = BKE_curvemapping_copy(wmd->cmap_curve);
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
   WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *)md;
 
@@ -350,11 +336,9 @@ static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_ma
   if (wmd->mask_tex_mapping == MOD_DISP_MAP_UV) {
     r_cddata_masks->fmask |= CD_MASK_MTFACE;
   }
-
-  /* No need to ask for CD_PREVIEW_MLOOPCOL... */
 }
 
-static bool dependsOnTime(Scene * /*scene*/, ModifierData *md)
+static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
 {
   WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *)md;
 
@@ -364,21 +348,23 @@ static bool dependsOnTime(Scene * /*scene*/, ModifierData *md)
   return false;
 }
 
-static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
+static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *)md;
 
-  walk(userData, ob, (ID **)&wmd->mask_texture, IDWALK_CB_USER);
-  walk(userData, ob, (ID **)&wmd->proximity_ob_target, IDWALK_CB_NOP);
-  walk(userData, ob, (ID **)&wmd->mask_tex_map_obj, IDWALK_CB_NOP);
+  walk(user_data, ob, (ID **)&wmd->mask_texture, IDWALK_CB_USER);
+  walk(user_data, ob, (ID **)&wmd->proximity_ob_target, IDWALK_CB_NOP);
+  walk(user_data, ob, (ID **)&wmd->mask_tex_map_obj, IDWALK_CB_NOP);
 }
 
-static void foreachTexLink(ModifierData *md, Object *ob, TexWalkFunc walk, void *userData)
+static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  walk(userData, ob, md, "mask_texture");
+  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "mask_texture");
+  walk(user_data, ob, md, &ptr, prop);
 }
 
-static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
+static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
   WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *)md;
   bool need_transform_relation = false;
@@ -387,7 +373,8 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
     DEG_add_object_relation(
         ctx->node, wmd->proximity_ob_target, DEG_OB_COMP_TRANSFORM, "WeightVGProximity Modifier");
     if (wmd->proximity_ob_target->data != nullptr &&
-        wmd->proximity_mode == MOD_WVG_PROXIMITY_GEOMETRY) {
+        wmd->proximity_mode == MOD_WVG_PROXIMITY_GEOMETRY)
+    {
       DEG_add_object_relation(
           ctx->node, wmd->proximity_ob_target, DEG_OB_COMP_GEOMETRY, "WeightVGProximity Modifier");
     }
@@ -412,7 +399,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   }
 }
 
-static bool isDisabled(const Scene * /*scene*/, ModifierData *md, bool /*useRenderParams*/)
+static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
   WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *)md;
   /* If no vertex group, bypass. */
@@ -423,7 +410,7 @@ static bool isDisabled(const Scene * /*scene*/, ModifierData *md, bool /*useRend
   return (wmd->proximity_ob_target == nullptr);
 }
 
-static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
+static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
   BLI_assert(mesh != nullptr);
 
@@ -451,7 +438,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
 #endif
 
   /* Get number of verts. */
-  const int verts_num = mesh->totvert;
+  const int verts_num = mesh->verts_num;
 
   /* Check if we can just return the original mesh.
    * Must have verts and therefore verts assigned to vgroups to do anything useful!
@@ -471,14 +458,14 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   if (defgrp_index == -1) {
     return mesh;
   }
-  const bool has_mdef = CustomData_has_layer(&mesh->vdata, CD_MDEFORMVERT);
+  const bool has_mdef = CustomData_has_layer(&mesh->vert_data, CD_MDEFORMVERT);
   /* If no vertices were ever added to an object's vgroup, dvert might be nullptr. */
   /* As this modifier never add vertices to vgroup, just return. */
   if (!has_mdef) {
     return mesh;
   }
 
-  MDeformVert *dvert = BKE_mesh_deform_verts_for_write(mesh);
+  MDeformVert *dvert = mesh->deform_verts_for_write().data();
   /* Ultimate security check. */
   if (!dvert) {
     return mesh;
@@ -651,22 +638,23 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemPointerR(layout, ptr, "vertex_group", &ob_ptr, "vertex_groups", nullptr, ICON_NONE);
+  uiItemPointerR(
+      layout, ptr, "vertex_group", &ob_ptr, "vertex_groups", std::nullopt, ICON_GROUP_VERTEX);
 
-  uiItemR(layout, ptr, "target", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemS(layout);
 
-  uiItemR(layout, ptr, "proximity_mode", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "proximity_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_enum_get(ptr, "proximity_mode") == MOD_WVG_PROXIMITY_GEOMETRY) {
     uiItemR(layout, ptr, "proximity_geometry", UI_ITEM_R_EXPAND, IFACE_("Geometry"), ICON_NONE);
   }
 
   col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "min_dist", 0, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "max_dist", 0, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "min_dist", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "max_dist", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "normalize", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "normalize", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void falloff_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -680,10 +668,10 @@ static void falloff_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   row = uiLayoutRow(layout, true);
-  uiItemR(row, ptr, "falloff_type", 0, IFACE_("Type"), ICON_NONE);
+  uiItemR(row, ptr, "falloff_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
   sub = uiLayoutRow(row, true);
   uiLayoutSetPropSep(sub, false);
-  uiItemR(row, ptr, "invert_falloff", 0, "", ICON_ARROW_LEFTRIGHT);
+  uiItemR(row, ptr, "invert_falloff", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   if (RNA_enum_get(ptr, "falloff_type") == MOD_WVG_MAPPING_CURVE) {
     uiTemplateCurveMapping(layout, ptr, "map_curve", 0, false, false, false, false);
   }
@@ -700,7 +688,7 @@ static void influence_panel_draw(const bContext *C, Panel *panel)
   weightvg_ui_common(C, &ob_ptr, ptr, layout);
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   PanelType *panel_type = modifier_panel_register(
       region_type, eModifierType_WeightVGProximity, panel_draw);
@@ -710,7 +698,7 @@ static void panelRegister(ARegionType *region_type)
       region_type, "influence", "Influence", nullptr, influence_panel_draw, panel_type);
 }
 
-static void blendWrite(BlendWriter *writer, const ID * /*id_owner*/, const ModifierData *md)
+static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const ModifierData *md)
 {
   const WeightVGProximityModifierData *wmd = (const WeightVGProximityModifierData *)md;
 
@@ -721,46 +709,48 @@ static void blendWrite(BlendWriter *writer, const ID * /*id_owner*/, const Modif
   }
 }
 
-static void blendRead(BlendDataReader *reader, ModifierData *md)
+static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *)md;
 
-  BLO_read_data_address(reader, &wmd->cmap_curve);
+  BLO_read_struct(reader, CurveMapping, &wmd->cmap_curve);
   if (wmd->cmap_curve) {
     BKE_curvemapping_blend_read(reader, wmd->cmap_curve);
   }
 }
 
 ModifierTypeInfo modifierType_WeightVGProximity = {
+    /*idname*/ "VertexWeightProximity",
     /*name*/ N_("VertexWeightProximity"),
-    /*structName*/ "WeightVGProximityModifierData",
-    /*structSize*/ sizeof(WeightVGProximityModifierData),
+    /*struct_name*/ "WeightVGProximityModifierData",
+    /*struct_size*/ sizeof(WeightVGProximityModifierData),
     /*srna*/ &RNA_VertexWeightProximityModifier,
-    /*type*/ eModifierTypeType_NonGeometrical,
+    /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
-        eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_UsesPreview,
+        eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_VERTEX_WEIGHT,
 
-    /*copyData*/ copyData,
+    /*copy_data*/ copy_data,
 
-    /*deformVerts*/ nullptr,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ nullptr,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ modifyMesh,
-    /*modifyGeometrySet*/ nullptr,
+    /*deform_verts*/ nullptr,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ modify_mesh,
+    /*modify_geometry_set*/ nullptr,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ requiredDataMask,
-    /*freeData*/ freeData,
-    /*isDisabled*/ isDisabled,
-    /*updateDepsgraph*/ updateDepsgraph,
-    /*dependsOnTime*/ dependsOnTime,
-    /*dependsOnNormals*/ nullptr,
-    /*foreachIDLink*/ foreachIDLink,
-    /*foreachTexLink*/ foreachTexLink,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ blendWrite,
-    /*blendRead*/ blendRead,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ required_data_mask,
+    /*free_data*/ free_data,
+    /*is_disabled*/ is_disabled,
+    /*update_depsgraph*/ update_depsgraph,
+    /*depends_on_time*/ depends_on_time,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_tex_link*/ foreach_tex_link,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ blend_write,
+    /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
 };

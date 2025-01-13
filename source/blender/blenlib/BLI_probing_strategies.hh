@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -42,6 +42,8 @@
  * - When the hash table is very small, having a trivial hash function and then doing linear
  *   probing might work best.
  */
+
+#include <limits>
 
 #include "BLI_sys_types.h"
 

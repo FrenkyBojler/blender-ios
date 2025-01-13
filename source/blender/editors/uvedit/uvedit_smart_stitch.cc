@@ -12,49 +12,52 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_ghash.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
-#include "BKE_customdata.h"
-#include "BKE_editmesh.h"
-#include "BKE_layer.h"
-#include "BKE_mesh_mapping.h"
-#include "BKE_report.h"
+#include "BKE_context.hh"
+#include "BKE_customdata.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_layer.hh"
+#include "BKE_mesh_mapping.hh"
+#include "BKE_report.hh"
+#include "BKE_screen.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "ED_mesh.h"
-#include "ED_screen.h"
-#include "ED_space_api.h"
-#include "ED_uvedit.h"
+#include "ED_mesh.hh"
+#include "ED_screen.hh"
+#include "ED_space_api.hh"
+#include "ED_uvedit.hh"
 
-#include "GPU_batch.h"
-#include "GPU_state.h"
+#include "GPU_batch.hh"
+#include "GPU_state.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_resources.hh"
+#include "UI_view2d.hh"
 
-#include "uvedit_intern.h"
+#include "uvedit_intern.hh"
+
+using blender::Vector;
 
 /* ********************** smart stitch operator *********************** */
 
@@ -62,7 +65,7 @@
 struct StitchPreviewer {
   /* here we'll store the preview triangle indices of the mesh */
   float *preview_polys;
-  /* uvs per polygon. */
+  /* uvs per face. */
   uint *uvs_per_polygon;
   /* Number of preview polygons. */
   uint num_polys;
@@ -119,7 +122,7 @@ struct UvEdge {
   uchar flag;
   /**
    * Element that guarantees `element.l` has the edge on
-   * `element.loop_of_poly_index` and `element->loop_of_poly_index + 1` is the second UV.
+   * `element.loop_of_face_index` and `element->loop_of_face_index + 1` is the second UV.
    */
   UvElement *element;
   /** next uv edge with the same exact vertices as this one.
@@ -269,7 +272,7 @@ static void stitch_preview_delete(StitchPreviewer *stitch_preview)
 /* This function updates the header of the UV editor when the stitch tool updates its settings */
 static void stitch_update_header(StitchStateContainer *ssc, bContext *C)
 {
-  const char *str = TIP_(
+  const char *str = IFACE_(
       "Mode(TAB) %s, "
       "(S)nap %s, "
       "(M)idpoints %s, "
@@ -283,7 +286,7 @@ static void stitch_update_header(StitchStateContainer *ssc, bContext *C)
   if (area) {
     SNPRINTF(msg,
              str,
-             ssc->mode == STITCH_VERT ? TIP_("Vertex") : TIP_("Edge"),
+             ssc->mode == STITCH_VERT ? IFACE_("Vertex") : IFACE_("Edge"),
              WM_bool_as_string(ssc->snap_islands),
              WM_bool_as_string(ssc->midpoints),
              ssc->limit_dist,
@@ -478,10 +481,10 @@ static void stitch_calculate_island_snapping(const int cd_loop_uv_offset,
             stitch_uv_rotate(rotation_mat,
                              island_stitch_data[i].medianPoint,
                              preview->preview_polys + face_preview_pos +
-                                 2 * element->loop_of_poly_index,
+                                 2 * element->loop_of_face_index,
                              state->aspect);
 
-            add_v2_v2(preview->preview_polys + face_preview_pos + 2 * element->loop_of_poly_index,
+            add_v2_v2(preview->preview_polys + face_preview_pos + 2 * element->loop_of_face_index,
                       island_stitch_data[i].translation);
           }
         }
@@ -696,7 +699,7 @@ static void stitch_uv_edge_generate_linked_edges(GHash *edge_hash, StitchState *
 
           /* make sure the indices are well behaved */
           if (index1 > index2) {
-            SWAP(int, index1, index2);
+            std::swap(index1, index2);
           }
 
           edgetmp.uv1 = index1;
@@ -830,7 +833,8 @@ static void stitch_validate_uv_stitchability(const int cd_loop_uv_offset,
       }
       if (stitch_check_uvs_state_stitchable(cd_loop_uv_offset, element, element_iter, ssc)) {
         if ((element_iter->island == ssc->static_island) ||
-            (element->island == ssc->static_island)) {
+            (element->island == ssc->static_island))
+        {
           element->flag |= STITCH_STITCHABLE;
           preview->num_stitchable++;
           stitch_setup_face_preview_for_uv_group(
@@ -924,14 +928,15 @@ static void stitch_propagate_uv_final_position(Scene *scene,
             preview_position[BM_elem_index_get(element_iter->l->f)].data_position;
         if (face_preview_pos != STITCH_NO_PREVIEW) {
           copy_v2_v2(preview->preview_polys + face_preview_pos +
-                         2 * element_iter->loop_of_poly_index,
+                         2 * element_iter->loop_of_face_index,
                      final_position[index].uv);
         }
       }
 
       /* end of calculations, keep only the selection flag */
       if ((!ssc->snap_islands) ||
-          ((!ssc->midpoints) && (element_iter->island == ssc->static_island))) {
+          ((!ssc->midpoints) && (element_iter->island == ssc->static_island)))
+      {
         element_iter->flag &= STITCH_SELECTED;
       }
 
@@ -1659,9 +1664,9 @@ static void stitch_calculate_edge_normal(const int cd_loop_uv_offset,
 
 /**
  */
-static void stitch_draw_vbo(GPUVertBuf *vbo, GPUPrimType prim_type, const float col[4])
+static void stitch_draw_vbo(blender::gpu::VertBuf *vbo, GPUPrimType prim_type, const float col[4])
 {
-  GPUBatch *batch = GPU_batch_create_ex(prim_type, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+  blender::gpu::Batch *batch = GPU_batch_create_ex(prim_type, vbo, nullptr, GPU_BATCH_OWNS_VBO);
   GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_batch_uniform_4fv(batch, "color", col);
   GPU_batch_draw(batch);
@@ -1680,7 +1685,7 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
     uint num_line = 0, num_tri, tri_idx = 0, line_idx = 0;
     StitchState *state = ssc->states[ob_index];
     StitchPreviewer *stitch_preview = state->stitch_preview;
-    GPUVertBuf *vbo, *vbo_line;
+    blender::gpu::VertBuf *vbo, *vbo_line;
     float col[4];
 
     static GPUVertFormat format = {0};
@@ -1694,8 +1699,8 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
     /* Static Triangles. */
     if (stitch_preview->static_tris) {
       UI_GetThemeColor4fv(TH_STITCH_PREVIEW_ACTIVE, col);
-      vbo = GPU_vertbuf_create_with_format(&format);
-      GPU_vertbuf_data_alloc(vbo, stitch_preview->num_static_tris * 3);
+      vbo = GPU_vertbuf_create_with_format(format);
+      GPU_vertbuf_data_alloc(*vbo, stitch_preview->num_static_tris * 3);
       for (int i = 0; i < stitch_preview->num_static_tris * 3; i++) {
         GPU_vertbuf_attr_set(vbo, pos_id, i, &stitch_preview->static_tris[i * 2]);
       }
@@ -1711,11 +1716,11 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
       num_tri = num_line - 2 * stitch_preview->num_polys;
 
       /* we need to convert the polys into triangles / lines */
-      vbo = GPU_vertbuf_create_with_format(&format);
-      vbo_line = GPU_vertbuf_create_with_format(&format);
+      vbo = GPU_vertbuf_create_with_format(format);
+      vbo_line = GPU_vertbuf_create_with_format(format);
 
-      GPU_vertbuf_data_alloc(vbo, num_tri * 3);
-      GPU_vertbuf_data_alloc(vbo_line, num_line * 2);
+      GPU_vertbuf_data_alloc(*vbo, num_tri * 3);
+      GPU_vertbuf_data_alloc(*vbo_line, num_line * 2);
 
       for (int i = 0; i < stitch_preview->num_polys; i++) {
         BLI_assert(stitch_preview->uvs_per_polygon[i] >= 3);
@@ -1760,16 +1765,16 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
       GPU_point_size(UI_GetThemeValuef(TH_VERTEX_SIZE) * 2.0f);
 
       UI_GetThemeColor4fv(TH_STITCH_PREVIEW_STITCHABLE, col);
-      vbo = GPU_vertbuf_create_with_format(&format);
-      GPU_vertbuf_data_alloc(vbo, stitch_preview->num_stitchable);
+      vbo = GPU_vertbuf_create_with_format(format);
+      GPU_vertbuf_data_alloc(*vbo, stitch_preview->num_stitchable);
       for (int i = 0; i < stitch_preview->num_stitchable; i++) {
         GPU_vertbuf_attr_set(vbo, pos_id, i, &stitch_preview->preview_stitchable[i * 2]);
       }
       stitch_draw_vbo(vbo, GPU_PRIM_POINTS, col);
 
       UI_GetThemeColor4fv(TH_STITCH_PREVIEW_UNSTITCHABLE, col);
-      vbo = GPU_vertbuf_create_with_format(&format);
-      GPU_vertbuf_data_alloc(vbo, stitch_preview->num_unstitchable);
+      vbo = GPU_vertbuf_create_with_format(format);
+      GPU_vertbuf_data_alloc(*vbo, stitch_preview->num_unstitchable);
       for (int i = 0; i < stitch_preview->num_unstitchable; i++) {
         GPU_vertbuf_attr_set(vbo, pos_id, i, &stitch_preview->preview_unstitchable[i * 2]);
       }
@@ -1777,16 +1782,16 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
     }
     else {
       UI_GetThemeColor4fv(TH_STITCH_PREVIEW_STITCHABLE, col);
-      vbo = GPU_vertbuf_create_with_format(&format);
-      GPU_vertbuf_data_alloc(vbo, stitch_preview->num_stitchable * 2);
+      vbo = GPU_vertbuf_create_with_format(format);
+      GPU_vertbuf_data_alloc(*vbo, stitch_preview->num_stitchable * 2);
       for (int i = 0; i < stitch_preview->num_stitchable * 2; i++) {
         GPU_vertbuf_attr_set(vbo, pos_id, i, &stitch_preview->preview_stitchable[i * 2]);
       }
       stitch_draw_vbo(vbo, GPU_PRIM_LINES, col);
 
       UI_GetThemeColor4fv(TH_STITCH_PREVIEW_UNSTITCHABLE, col);
-      vbo = GPU_vertbuf_create_with_format(&format);
-      GPU_vertbuf_data_alloc(vbo, stitch_preview->num_unstitchable * 2);
+      vbo = GPU_vertbuf_create_with_format(format);
+      GPU_vertbuf_data_alloc(*vbo, stitch_preview->num_unstitchable * 2);
       for (int i = 0; i < stitch_preview->num_unstitchable * 2; i++) {
         GPU_vertbuf_attr_set(vbo, pos_id, i, &stitch_preview->preview_unstitchable[i * 2]);
       }
@@ -1987,7 +1992,7 @@ static StitchState *stitch_init(bContext *C,
   /* we use boundary edges to calculate 2D normals.
    * to disambiguate the direction of the normal, we also need
    * a point "inside" the island, that can be provided by
-   * the winding of the polygon (assuming counter-clockwise flow). */
+   * the winding of the face (assuming counter-clockwise flow). */
 
   for (i = 0; i < total_edges; i++) {
     UvEdge *edge = edges + i;
@@ -2185,23 +2190,20 @@ static int stitch_init_all(bContext *C, wmOperator *op)
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, v3d, &objects_len);
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, v3d);
 
-  if (objects_len == 0) {
-    MEM_freeN(objects);
+  if (objects.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "No objects selected");
     return 0;
   }
 
-  if (objects_len > RNA_MAX_ARRAY_LENGTH) {
-    MEM_freeN(objects);
+  if (objects.size() > RNA_MAX_ARRAY_LENGTH) {
     BKE_reportf(op->reports,
                 RPT_ERROR,
-                "Stitching only works with less than %i objects selected (%u selected)",
+                "Stitching only works with less than %i objects selected (%i selected)",
                 RNA_MAX_ARRAY_LENGTH,
-                objects_len);
+                int(objects.size()));
     return 0;
   }
 
@@ -2240,9 +2242,9 @@ static int stitch_init_all(bContext *C, wmOperator *op)
   }
 
   ssc->objects = static_cast<Object **>(
-      MEM_callocN(sizeof(Object *) * objects_len, "Object *ssc->objects"));
+      MEM_callocN(sizeof(Object *) * objects.size(), "Object *ssc->objects"));
   ssc->states = static_cast<StitchState **>(
-      MEM_callocN(sizeof(StitchState *) * objects_len, "StitchState"));
+      MEM_callocN(sizeof(StitchState *) * objects.size(), "StitchState"));
   ssc->objects_len = 0;
 
   int *objs_selection_count = nullptr;
@@ -2256,11 +2258,11 @@ static int stitch_init_all(bContext *C, wmOperator *op)
      * for all objects. */
 
     objs_selection_count = static_cast<int *>(
-        MEM_mallocN(sizeof(int *) * objects_len, "objects_selection_count"));
+        MEM_mallocN(sizeof(int *) * objects.size(), "objects_selection_count"));
     RNA_int_get_array(op->ptr, "objects_selection_count", objs_selection_count);
 
     int total_selected = 0;
-    for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+    for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
       total_selected += objs_selection_count[ob_index];
     }
 
@@ -2282,7 +2284,7 @@ static int stitch_init_all(bContext *C, wmOperator *op)
     state_init->to_select = selected_uvs_arr;
   }
 
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+  for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
     Object *obedit = objects[ob_index];
 
     if (state_init != nullptr) {
@@ -2303,7 +2305,6 @@ static int stitch_init_all(bContext *C, wmOperator *op)
     }
   }
 
-  MEM_freeN(objects);
   MEM_SAFE_FREE(selected_uvs_arr);
   MEM_SAFE_FREE(objs_selection_count);
   MEM_SAFE_FREE(state_init);
@@ -2335,7 +2336,7 @@ static int stitch_init_all(bContext *C, wmOperator *op)
   stitch_update_header(ssc, C);
 
   ssc->draw_handle = ED_region_draw_cb_activate(
-      region->type, stitch_draw, ssc, REGION_DRAW_POST_VIEW);
+      region->runtime->type, stitch_draw, ssc, REGION_DRAW_POST_VIEW);
 
   return 1;
 }
@@ -2414,7 +2415,7 @@ static void stitch_exit(bContext *C, wmOperator *op, int finished)
         RNA_collection_add(op->ptr, "selection", &itemptr);
 
         RNA_int_set(&itemptr, "face_index", BM_elem_index_get(element->l->f));
-        RNA_int_set(&itemptr, "element_index", element->loop_of_poly_index);
+        RNA_int_set(&itemptr, "element_index", element->loop_of_face_index);
       }
       uvedit_live_unwrap_update(sima, scene, obedit);
 
@@ -2431,7 +2432,7 @@ static void stitch_exit(bContext *C, wmOperator *op, int finished)
     ED_workspace_status_text(C, nullptr);
   }
 
-  ED_region_draw_cb_exit(CTX_wm_region(C)->type, ssc->draw_handle);
+  ED_region_draw_cb_exit(CTX_wm_region(C)->runtime->type, ssc->draw_handle);
 
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
@@ -2487,7 +2488,7 @@ static StitchState *stitch_select(bContext *C,
   UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
   if (ssc->mode == STITCH_VERT) {
-    if (uv_find_nearest_vert_multi(scene, ssc->objects, ssc->objects_len, co, 0.0f, &hit)) {
+    if (uv_find_nearest_vert_multi(scene, {ssc->objects, ssc->objects_len}, co, 0.0f, &hit)) {
       /* Add vertex to selection, deselect all common uv's of vert other than selected and
        * update the preview. This behavior was decided so that you can do stuff like deselect
        * the opposite stitchable vertex and the initial still gets deselected */
@@ -2510,7 +2511,7 @@ static StitchState *stitch_select(bContext *C,
       return state;
     }
   }
-  else if (uv_find_nearest_edge_multi(scene, ssc->objects, ssc->objects_len, co, 0.0f, &hit)) {
+  else if (uv_find_nearest_edge_multi(scene, {ssc->objects, ssc->objects_len}, co, 0.0f, &hit)) {
     /* find StitchState from hit->ob */
     StitchState *state = nullptr;
     for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
@@ -2579,7 +2580,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
     case WHEELDOWNMOUSE:
       if ((event->val == KM_PRESS) && (event->modifier & KM_ALT)) {
         ssc->limit_dist -= 0.01f;
-        ssc->limit_dist = MAX2(0.01f, ssc->limit_dist);
+        ssc->limit_dist = std::max(0.01f, ssc->limit_dist);
         if (!stitch_process_data(ssc, active_state, scene, false)) {
           stitch_cancel(C, op);
           return OPERATOR_CANCELLED;

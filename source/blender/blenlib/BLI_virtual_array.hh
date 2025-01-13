@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,22 +7,22 @@
 /** \file
  * \ingroup bli
  *
- * A virtual array is a data structure that behaves similar to an array, but its elements are
+ * A virtual array is a data structure that behaves similarly to an array, but its elements are
  * accessed through virtual methods. This improves the decoupling of a function from its callers,
  * because it does not have to know exactly how the data is laid out in memory, or if it is stored
  * in memory at all. It could just as well be computed on the fly.
  *
  * Taking a virtual array as parameter instead of a more specific non-virtual type has some
- * tradeoffs. Access to individual elements of the individual elements is higher due to function
+ * tradeoffs. Access to individual elements of the individual elements is slower due to function
  * call overhead. On the other hand, potential callers don't have to convert the data into the
  * specific format required for the function. This can be a costly conversion if only few of the
  * elements are accessed in the end.
  *
  * Functions taking a virtual array as input can still optimize for different data layouts. For
- * example, they can check if the array is stored as an array internally or if it is the same
- * element for all indices. Whether it is worth to optimize for different data layouts in a
+ * example, they can check if the array references contiguous memory internally or if it is the
+ * same value for all indices. Whether it is worth optimizing for different data layouts in a
  * function has to be decided on a case by case basis. One should always do some benchmarking to
- * see of the increased compile time and binary size is worth it.
+ * see if the increased compile time and binary size is worth it.
  */
 
 #include <optional>
@@ -40,7 +40,7 @@ class GVArray;
 class GVMutableArray;
 
 /**
- * Is used to quickly check if a varray is a span or single value. This struct also allows
+ * Used to quickly check if a varray is a span or a single value. This struct also allows
  * retrieving multiple pieces of data with a single virtual method call.
  */
 struct CommonVArrayInfo {
@@ -57,7 +57,7 @@ struct CommonVArrayInfo {
   bool may_have_ownership = true;
 
   /**
-   * Points either to nothing, a single value or array of values, depending on #type.
+   * Points either to nothing, a single value, or an array of values, depending on #type.
    * If this is a span of a mutable virtual array, it is safe to cast away const.
    */
   const void *data;
@@ -647,6 +647,20 @@ template<typename T> class VArrayCommon {
     }
     return impl_->size();
   }
+  /**
+   * Get the first element.
+   */
+  T first() const
+  {
+    return (*this)[0];
+  }
+  /**
+   * Get the nth last element.
+   */
+  T last(const int64_t n = 0) const
+  {
+    return (*this)[this->size() - 1 - n];
+  }
 
   /** True when the size is zero or when there is no virtual array. */
   bool is_empty() const
@@ -772,12 +786,9 @@ template<typename T> class VMutableArray;
  * construct the virtual array first and then move it into the vector.
  */
 namespace varray_tag {
-struct span {
-};
-struct single_ref {
-};
-struct single {
-};
+struct span {};
+struct single_ref {};
+struct single {};
 }  // namespace varray_tag
 
 /**
@@ -797,12 +808,12 @@ template<typename T> class VArray : public VArrayCommon<T> {
 
   VArray(std::shared_ptr<const VArrayImpl<T>> impl) : VArrayCommon<T>(std::move(impl)) {}
 
-  VArray(varray_tag::span /* tag */, Span<T> span)
+  VArray(varray_tag::span /*tag*/, Span<T> span)
   {
     this->template emplace<VArrayImpl_For_Span_final<T>>(span);
   }
 
-  VArray(varray_tag::single /* tag */, T value, const int64_t size)
+  VArray(varray_tag::single /*tag*/, T value, const int64_t size)
   {
     this->template emplace<VArrayImpl_For_Single<T>>(std::move(value), size);
   }
@@ -934,7 +945,7 @@ template<typename T> class VMutableArray : public VArrayCommon<T> {
   }
 
   /** Convert to a #VArray by moving. */
-  operator VArray<T>() &&noexcept
+  operator VArray<T>() && noexcept
   {
     VArray<T> varray;
     varray.move_from(std::move(*this));
@@ -1024,7 +1035,9 @@ template<typename T> class VArraySpan final : public Span<T> {
  public:
   VArraySpan() = default;
 
-  VArraySpan(VArray<T> varray) : Span<T>(), varray_(std::move(varray))
+  VArraySpan(const VArray<T> &varray) : VArraySpan(VArray<T>(varray)) {}
+
+  VArraySpan(VArray<T> &&varray) : Span<T>(), varray_(std::move(varray))
   {
     if (!varray_) {
       return;
@@ -1070,6 +1083,10 @@ template<typename T> class VArraySpan final : public Span<T> {
     return *this;
   }
 };
+
+namespace internal {
+void print_mutable_varray_span_warning();
+}
 
 /**
  * Same as #VArraySpan, but for a mutable span.
@@ -1141,7 +1158,7 @@ template<typename T> class MutableVArraySpan final : public MutableSpan<T> {
     if (varray_) {
       if (show_not_saved_warning_) {
         if (!save_has_been_called_) {
-          std::cout << "Warning: Call `save()` to make sure that changes persist in all cases.\n";
+          internal::print_mutable_varray_span_warning();
         }
       }
     }
@@ -1202,6 +1219,19 @@ template<typename T> class SingleAsSpan {
   }
 };
 
+template<typename T> class VArrayRef {
+ private:
+  const VArray<T> &ref_;
+
+ public:
+  VArrayRef(const VArray<T> &ref) : ref_(ref) {}
+
+  const T operator[](const int64_t index) const
+  {
+    return ref_[index];
+  }
+};
+
 /** To be used with #call_with_devirtualized_parameters. */
 template<typename T, bool UseSingle, bool UseSpan> struct VArrayDevirtualizer {
   const VArray<T> &varray;
@@ -1242,7 +1272,7 @@ inline void devirtualize_varray(const VArray<T> &varray, const Func &func, bool 
       return;
     }
   }
-  func(varray);
+  func(VArrayRef<T>(varray));
 }
 
 /**
@@ -1265,7 +1295,7 @@ inline void devirtualize_varray2(const VArray<T1> &varray1,
       return;
     }
   }
-  func(varray1, varray2);
+  func(VArrayRef<T1>(varray1), VArrayRef<T2>(varray2));
 }
 
 }  // namespace blender

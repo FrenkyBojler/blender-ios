@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2017 Blender Foundation
+/* SPDX-FileCopyrightText: 2017 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,8 +6,8 @@
  * \ingroup cmpnodes
  */
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "COM_algorithm_smaa.hh"
 #include "COM_node_operation.hh"
@@ -45,12 +45,12 @@ static void node_composit_buts_antialiasing(uiLayout *layout, bContext * /*C*/, 
 
   col = uiLayoutColumn(layout, false);
 
-  uiItemR(col, ptr, "threshold", 0, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "contrast_limit", 0, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "corner_rounding", 0, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "contrast_limit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "corner_rounding", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class AntiAliasingOperation : public NodeOperation {
  public:
@@ -77,7 +77,7 @@ class AntiAliasingOperation : public NodeOperation {
    * algorithm expects it in the [0, 10] range. */
   float get_local_contrast_adaptation_factor()
   {
-    return node_storage(bnode()).threshold * 10.0f;
+    return node_storage(bnode()).contrast_limit * 10.0f;
   }
 
   /* Blender encodes the corner rounding factor in the float [0, 1] range, while the SMAA algorithm
@@ -99,17 +99,21 @@ void register_node_type_cmp_antialiasing()
 {
   namespace file_ns = blender::nodes::node_composite_antialiasing_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_ANTIALIASING, "Anti-Aliasing", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(
+      &ntype, "CompositorNodeAntiAliasing", CMP_NODE_ANTIALIASING, NODE_CLASS_OP_FILTER);
+  ntype.ui_name = "Anti-Aliasing";
+  ntype.ui_description = "Smooth away jagged edges";
+  ntype.enum_name_legacy = "ANTIALIASING";
   ntype.declare = file_ns::cmp_node_antialiasing_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_antialiasing;
   ntype.flag |= NODE_PREVIEW;
   blender::bke::node_type_size(&ntype, 170, 140, 200);
   ntype.initfunc = file_ns::node_composit_init_antialiasing;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeAntiAliasingData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

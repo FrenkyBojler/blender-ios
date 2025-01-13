@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <new>
 #include <type_traits>
 
 #include "BLI_utildefines.h"
@@ -117,8 +116,7 @@ template<typename T> using destruct_ptr = std::unique_ptr<T, DestructValueAtAddr
  * not be initialized by the default constructor.
  */
 template<size_t Size, size_t Alignment> class AlignedBuffer {
-  struct Empty {
-  };
+  struct Empty {};
   struct alignas(Alignment) Sized {
     /* Don't create an empty array. This causes problems with some compilers. */
     std::byte buffer_[Size > 0 ? Size : 1];
@@ -270,8 +268,7 @@ class alignas(ReservedAlignment) DynamicStackBuffer {
  * This can be used by container constructors. A parameter of this type should be used to indicate
  * that the constructor does not construct the elements.
  */
-class NoInitialization {
-};
+class NoInitialization {};
 
 /**
  * This can be used to mark a constructor of an object that does not throw exceptions. Other
@@ -279,8 +276,7 @@ class NoInitialization {
  * With this, the destructor of the object will be called, even when the remaining constructor
  * throws.
  */
-class NoExceptConstructor {
-};
+class NoExceptConstructor {};
 
 /**
  * Helper variable that checks if a pointer type can be converted into another pointer type without
@@ -288,8 +284,8 @@ class NoExceptConstructor {
  * Adding const or casting to a parent class is fine.
  */
 template<typename From, typename To>
-inline constexpr bool is_convertible_pointer_v =
-    std::is_convertible_v<From, To> &&std::is_pointer_v<From> &&std::is_pointer_v<To>;
+inline constexpr bool is_convertible_pointer_v = std::is_convertible_v<From, To> &&
+                                                 std::is_pointer_v<From> && std::is_pointer_v<To>;
 
 /**
  * Helper variable that checks if a Span<From> can be converted to Span<To> safely, whereby From
@@ -300,7 +296,7 @@ inline constexpr bool is_convertible_pointer_v =
 template<typename From, typename To>
 inline constexpr bool is_span_convertible_pointer_v =
     /* Make sure we are working with pointers. */
-    std::is_pointer_v<From> &&std::is_pointer_v<To> &&
+    std::is_pointer_v<From> && std::is_pointer_v<To> &&
     (/* No casting is necessary when both types are the same. */
      std::is_same_v<From, To> ||
      /* Allow adding const to the underlying type. */
@@ -317,8 +313,8 @@ template<typename T, typename... Args>
 inline constexpr bool is_same_any_v = (std::is_same_v<T, Args> || ...);
 
 /**
- * Inline buffers for small-object-optimization should be disable by default. Otherwise we might
- * get large unexpected allocations on the stack.
+ * Inline buffers for small-object-optimization should be disabled by default for large objects.
+ * Otherwise we might get large unexpected allocations on the stack.
  */
 inline constexpr int64_t default_inline_buffer_capacity(size_t element_size)
 {

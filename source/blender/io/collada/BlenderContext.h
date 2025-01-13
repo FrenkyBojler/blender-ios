@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,12 +8,12 @@
 
 #pragma once
 
-#include "BKE_context.h"
-#include "BKE_main.h"
+#include "BKE_context.hh"
+#include "BKE_main.hh"
 #include "BLI_linklist.h"
 #include "BlenderTypes.h"
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 
@@ -33,7 +33,7 @@ bool bc_is_base_node(LinkNode *export_set, Object *ob, const Scene *scene, ViewL
  * Returns the highest selected ancestor
  * returns NULL if no ancestor is selected
  * IMPORTANT: This function expects that all exported objects have set:
- * `ob->id.tag & LIB_TAG_DOIT`
+ * `ob->id.tag & ID_TAG_DOIT`
  */
 Object *bc_get_highest_exported_ancestor_or_self(LinkNode *export_set,
                                                  Object *ob,

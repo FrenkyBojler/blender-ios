@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2018-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2018-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -94,7 +94,7 @@ def load():
         ),
     )
 
-    if platform == 'darwin':
+    if platform == "darwin":
         from bl_keymap_utils.platform_helpers import keyconfig_data_oskey_from_ctrl_for_macos
         keyconfig_data = keyconfig_data_oskey_from_ctrl_for_macos(keyconfig_data)
 

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,25 +6,28 @@
  * \ingroup spoutliner
  */
 
-#include "BKE_collection.h"
-#include "BKE_lib_override.h"
+#include "BKE_collection.hh"
+#include "BKE_lib_override.hh"
 
 #include "BLI_function_ref.hh"
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_map.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_space_types.h"
 
-#include "RNA_access.h"
-#include "RNA_path.h"
+#include "RNA_access.hh"
+#include "RNA_path.hh"
 
 #include "../outliner_intern.hh"
 
+#include "tree_display.hh"
 #include "tree_element_label.hh"
 #include "tree_element_overrides.hh"
+
+#include <stdexcept>
 
 namespace blender::ed::outliner {
 
@@ -71,14 +74,14 @@ TreeElementOverridesBase::TreeElementOverridesBase(TreeElement &legacy_te, ID &i
   }
 }
 
-StringRefNull TreeElementOverridesBase::getWarning() const
+StringRefNull TreeElementOverridesBase::get_warning() const
 {
-  if (id.flag & LIB_LIB_OVERRIDE_RESYNC_LEFTOVER) {
-    return TIP_("This override data-block is not needed anymore, but was detected as user-edited");
+  if (id.flag & ID_FLAG_LIB_OVERRIDE_RESYNC_LEFTOVER) {
+    return RPT_("This override data-block is not needed anymore, but was detected as user-edited");
   }
 
   if (ID_IS_OVERRIDE_LIBRARY_REAL(&id) && ID_REAL_USERS(&id) == 0) {
-    return TIP_("This override data-block is unused");
+    return RPT_("This override data-block is unused");
   }
 
   return {};
@@ -91,8 +94,7 @@ static void iterate_properties_to_display(ID &id,
   PointerRNA override_rna_ptr;
   PropertyRNA *override_rna_prop;
 
-  PointerRNA idpoin;
-  RNA_id_pointer_create(&id, &idpoin);
+  PointerRNA idpoin = RNA_id_pointer_create(&id);
 
   for (IDOverrideLibraryProperty *override_prop :
        ListBaseWrapper<IDOverrideLibraryProperty>(id.override_library->properties))
@@ -180,10 +182,10 @@ TreeElementOverridesProperty::TreeElementOverridesProperty(TreeElement &legacy_t
   legacy_te.name = RNA_property_ui_name(&override_data.override_rna_prop);
 }
 
-StringRefNull TreeElementOverridesProperty::getWarning() const
+StringRefNull TreeElementOverridesProperty::get_warning() const
 {
   if (!is_rna_path_valid) {
-    return TIP_(
+    return RPT_(
         "This override property does not exist in current data, it will be removed on "
         "next .blend file save");
   }
@@ -228,35 +230,35 @@ TreeElementOverridesPropertyOperation::TreeElementOverridesPropertyOperation(
   }
 }
 
-StringRefNull TreeElementOverridesPropertyOperation::getOverrideOperationLabel() const
+StringRefNull TreeElementOverridesPropertyOperation::get_override_operation_label() const
 {
   switch (operation_->operation) {
     case LIBOVERRIDE_OP_INSERT_AFTER:
     case LIBOVERRIDE_OP_INSERT_BEFORE:
-      return TIP_("Added through override");
+      return RPT_("Added through override");
     case LIBOVERRIDE_OP_REPLACE:
       /* Returning nothing so that drawing code shows actual RNA button instead. */
       return {};
     /* Following cases are not expected in regular situation, but could be found in experimental
      * files. */
     case LIBOVERRIDE_OP_NOOP:
-      return TIP_("Protected from override");
+      return RPT_("Protected from override");
     case LIBOVERRIDE_OP_ADD:
-      return TIP_("Additive override");
+      return RPT_("Additive override");
     case LIBOVERRIDE_OP_SUBTRACT:
-      return TIP_("Subtractive override");
+      return RPT_("Subtractive override");
     case LIBOVERRIDE_OP_MULTIPLY:
-      return TIP_("Multiplicative override");
+      return RPT_("Multiplicative override");
     default:
       BLI_assert_unreachable();
       return {};
   }
 }
 
-std::optional<BIFIconID> TreeElementOverridesPropertyOperation::getIcon() const
+std::optional<BIFIconID> TreeElementOverridesPropertyOperation::get_icon() const
 {
   if (const std::optional<PointerRNA> col_item_ptr = get_collection_ptr()) {
-    return (BIFIconID)RNA_struct_ui_icon(col_item_ptr->type);
+    return RNA_struct_ui_icon(col_item_ptr->type);
   }
 
   return {};
@@ -310,8 +312,7 @@ void OverrideRNAPathTreeBuilder::build_path(TreeElement &parent,
                                             TreeElementOverridesData &override_data,
                                             short &index)
 {
-  PointerRNA idpoin;
-  RNA_id_pointer_create(&override_data.id, &idpoin);
+  PointerRNA idpoin = RNA_id_pointer_create(&override_data.id);
 
   ListBase path_elems = {nullptr};
   if (!RNA_path_resolve_elements(&idpoin, override_data.override_property.rna_path, &path_elems)) {
@@ -320,6 +321,7 @@ void OverrideRNAPathTreeBuilder::build_path(TreeElement &parent,
 
   const char *elem_path = nullptr;
   TreeElement *te_to_expand = &parent;
+  char name_buf[128], *name;
 
   LISTBASE_FOREACH (PropertyElemRNA *, elem, &path_elems) {
     if (!elem->next) {
@@ -338,8 +340,12 @@ void OverrideRNAPathTreeBuilder::build_path(TreeElement &parent,
     if (RNA_property_type(elem->prop) == PROP_COLLECTION) {
       const int coll_item_idx = RNA_property_collection_lookup_index(
           &elem->ptr, elem->prop, &elem->next->ptr);
+      name = RNA_struct_name_get_alloc(&elem->next->ptr, name_buf, sizeof(name_buf), nullptr);
       const char *coll_item_path = RNA_path_append(
-          previous_path, &elem->ptr, elem->prop, coll_item_idx, nullptr);
+          previous_path, &elem->ptr, elem->prop, coll_item_idx, name);
+      if (name && (name != name_buf)) {
+        MEM_freeN(name);
+      }
 
       te_to_expand = &ensure_label_element_for_ptr(
           *te_to_expand, coll_item_path, elem->next->ptr, index);
@@ -353,7 +359,10 @@ void OverrideRNAPathTreeBuilder::build_path(TreeElement &parent,
       elem_path = new_path;
     }
   }
-  BLI_freelistN(&path_elems);
+  LISTBASE_FOREACH_MUTABLE (PropertyElemRNA *, elem, &path_elems) {
+    MEM_delete(elem);
+  }
+  BLI_listbase_clear(&path_elems);
 
   /* Special case: Overriding collections, e.g. adding or removing items. In this case we add
    * elements for all collection items to show full context, and indicate which ones were
@@ -374,12 +383,13 @@ void OverrideRNAPathTreeBuilder::build_path(TreeElement &parent,
    * values), so the element may already be present. At this point they are displayed as a single
    * property in the tree, so don't add it multiple times here. */
   else if (!path_te_map.contains(override_data.override_property.rna_path)) {
-    outliner_add_element(&space_outliner_,
-                         &te_to_expand->subtree,
-                         &override_data,
-                         te_to_expand,
-                         TSE_LIBRARY_OVERRIDE,
-                         index++);
+    AbstractTreeDisplay::add_element(&space_outliner_,
+                                     &te_to_expand->subtree,
+                                     &override_data.id,
+                                     &override_data,
+                                     te_to_expand,
+                                     TSE_LIBRARY_OVERRIDE,
+                                     index++);
   }
 
   MEM_delete(elem_path);
@@ -396,15 +406,27 @@ void OverrideRNAPathTreeBuilder::ensure_entire_collection(
 
   TreeElement *previous_te = nullptr;
   int item_idx = 0;
+  char name_buf[128], *name;
   RNA_PROP_BEGIN (&override_data.override_rna_ptr, itemptr, &override_data.override_rna_prop) {
+    name = RNA_struct_name_get_alloc(&itemptr, name_buf, sizeof(name_buf), nullptr);
     const char *coll_item_path = RNA_path_append(coll_prop_path,
                                                  &override_data.override_rna_ptr,
                                                  &override_data.override_rna_prop,
                                                  item_idx,
-                                                 nullptr);
+                                                 name);
+    if (name && (name != name_buf)) {
+      MEM_freeN(name);
+    }
     IDOverrideLibraryPropertyOperation *item_operation =
-        BKE_lib_override_library_property_operation_find(
-            &override_data.override_property, nullptr, nullptr, -1, item_idx, false, nullptr);
+        BKE_lib_override_library_property_operation_find(&override_data.override_property,
+                                                         nullptr,
+                                                         nullptr,
+                                                         {},
+                                                         {},
+                                                         -1,
+                                                         item_idx,
+                                                         false,
+                                                         nullptr);
     TreeElement *current_te = nullptr;
 
     TreeElement *existing_te = path_te_map.lookup_default(coll_item_path, nullptr);
@@ -423,13 +445,14 @@ void OverrideRNAPathTreeBuilder::ensure_entire_collection(
       TreeElementOverridesData override_op_data = override_data;
       override_op_data.operation = item_operation;
 
-      current_te = outliner_add_element(&space_outliner_,
-                                        &te_to_expand.subtree,
-                                        /* Element will store a copy. */
-                                        &override_op_data,
-                                        &te_to_expand,
-                                        TSE_LIBRARY_OVERRIDE_OPERATION,
-                                        index++);
+      current_te = AbstractTreeDisplay::add_element(&space_outliner_,
+                                                    &te_to_expand.subtree,
+                                                    &override_op_data.id,
+                                                    /* Element will store a copy. */
+                                                    &override_op_data,
+                                                    &te_to_expand,
+                                                    TSE_LIBRARY_OVERRIDE_OPERATION,
+                                                    index++);
     }
     else {
       current_te = &ensure_label_element_for_ptr(te_to_expand, coll_item_path, itemptr, index);
@@ -444,7 +467,7 @@ void OverrideRNAPathTreeBuilder::ensure_entire_collection(
 
 static BIFIconID get_property_icon(PointerRNA &ptr, PropertyRNA &prop)
 {
-  BIFIconID icon = (BIFIconID)RNA_property_ui_icon(&prop);
+  BIFIconID icon = RNA_property_ui_icon(&prop);
   if (icon) {
     return icon;
   }
@@ -453,7 +476,7 @@ static BIFIconID get_property_icon(PointerRNA &ptr, PropertyRNA &prop)
    * #Object.modifiers property). */
   if (RNA_property_type(&prop) == PROP_COLLECTION) {
     const StructRNA *coll_ptr_type = RNA_property_pointer_type(&ptr, &prop);
-    icon = (BIFIconID)RNA_struct_ui_icon(coll_ptr_type);
+    icon = RNA_struct_ui_icon(coll_ptr_type);
     if (icon != ICON_DOT) {
       return icon;
     }
@@ -466,16 +489,17 @@ TreeElement &OverrideRNAPathTreeBuilder::ensure_label_element_for_prop(
     TreeElement &parent, StringRef elem_path, PointerRNA &ptr, PropertyRNA &prop, short &index)
 {
   return *path_te_map.lookup_or_add_cb(elem_path, [&]() {
-    TreeElement *new_te = outliner_add_element(&space_outliner_,
-                                               &parent.subtree,
-                                               (void *)RNA_property_ui_name(&prop),
-                                               &parent,
-                                               TSE_GENERIC_LABEL,
-                                               index++,
-                                               false);
+    TreeElement *new_te = AbstractTreeDisplay::add_element(&space_outliner_,
+                                                           &parent.subtree,
+                                                           nullptr,
+                                                           (void *)RNA_property_ui_name(&prop),
+                                                           &parent,
+                                                           TSE_GENERIC_LABEL,
+                                                           index++,
+                                                           false);
     TreeElementLabel *te_label = tree_element_cast<TreeElementLabel>(new_te);
 
-    te_label->setIcon(get_property_icon(ptr, prop));
+    te_label->set_icon(get_property_icon(ptr, prop));
     return new_te;
   });
 }
@@ -488,15 +512,16 @@ TreeElement &OverrideRNAPathTreeBuilder::ensure_label_element_for_ptr(TreeElemen
   return *path_te_map.lookup_or_add_cb(elem_path, [&]() {
     const char *dyn_name = RNA_struct_name_get_alloc(&ptr, nullptr, 0, nullptr);
 
-    TreeElement *new_te = outliner_add_element(
+    TreeElement *new_te = AbstractTreeDisplay::add_element(
         &space_outliner_,
         &parent.subtree,
+        nullptr,
         (void *)(dyn_name ? dyn_name : RNA_struct_ui_name(ptr.type)),
         &parent,
         TSE_GENERIC_LABEL,
         index++);
     TreeElementLabel *te_label = tree_element_cast<TreeElementLabel>(new_te);
-    te_label->setIcon((BIFIconID)RNA_struct_ui_icon(ptr.type));
+    te_label->set_icon(RNA_struct_ui_icon(ptr.type));
 
     MEM_delete(dyn_name);
 

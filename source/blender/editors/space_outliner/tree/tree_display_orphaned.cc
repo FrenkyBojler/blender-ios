@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,12 +13,12 @@
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_main.h"
+#include "BKE_idtype.hh"
+#include "BKE_main.hh"
 
 #include "../outliner_intern.hh"
 #include "common.hh"
 #include "tree_display.hh"
-#include "tree_element.hh"
 
 namespace blender::ed::outliner {
 
@@ -29,7 +29,7 @@ TreeDisplayIDOrphans::TreeDisplayIDOrphans(SpaceOutliner &space_outliner)
 {
 }
 
-ListBase TreeDisplayIDOrphans::buildTree(const TreeSourceData &source_data)
+ListBase TreeDisplayIDOrphans::build_tree(const TreeSourceData &source_data)
 {
   ListBase tree = {nullptr};
   ListBase *lbarray[INDEX_ID_MAX];
@@ -58,16 +58,15 @@ ListBase TreeDisplayIDOrphans::buildTree(const TreeSourceData &source_data)
     TreeElement *te = nullptr;
     if (!filter_id_type) {
       ID *id = (ID *)lbarray[a]->first;
-      te = outliner_add_element(&space_outliner_, &tree, lbarray[a], nullptr, TSE_ID_BASE, 0);
+      te = add_element(&tree, nullptr, lbarray[a], nullptr, TSE_ID_BASE, 0);
       te->directdata = lbarray[a];
       te->name = outliner_idcode_to_plural(GS(id->name));
     }
 
     /* Add the orphaned data-blocks - these will not be added with any subtrees attached. */
     for (ID *id : List<ID>(lbarray[a])) {
-      if (ID_REAL_USERS(id) <= 0) {
-        outliner_add_element(
-            &space_outliner_, (te) ? &te->subtree : &tree, id, te, TSE_SOME_ID, 0);
+      if (ID_REFCOUNTING_USERS(id) <= 0) {
+        add_element((te) ? &te->subtree : &tree, id, nullptr, te, TSE_SOME_ID, 0, false);
       }
     }
   }
@@ -77,8 +76,17 @@ ListBase TreeDisplayIDOrphans::buildTree(const TreeSourceData &source_data)
 
 bool TreeDisplayIDOrphans::datablock_has_orphans(ListBase &lb) const
 {
+  if (BLI_listbase_is_empty(&lb)) {
+    return false;
+  }
+  const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(static_cast<ID *>(lb.first));
+  if (id_type->flags & IDTYPE_FLAGS_NEVER_UNUSED) {
+    /* These ID types are never unused. */
+    return false;
+  }
+
   for (ID *id : List<ID>(lb)) {
-    if (ID_REAL_USERS(id) <= 0) {
+    if (ID_REFCOUNTING_USERS(id) <= 0) {
       return true;
     }
   }

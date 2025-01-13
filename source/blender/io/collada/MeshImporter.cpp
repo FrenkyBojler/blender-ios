@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2010-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2010-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -18,18 +18,19 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_attribute.h"
-#include "BKE_customdata.h"
+#include "BKE_attribute.hh"
+#include "BKE_customdata.hh"
 #include "BKE_displist.h"
-#include "BKE_global.h"
-#include "BKE_lib_id.h"
-#include "BKE_material.h"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
-#include "BKE_object.h"
+#include "BKE_mesh_runtime.hh"
+#include "BKE_object.hh"
 
-#include "BLI_edgehash.h"
+#include "DNA_meshdata_types.h"
+
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_string.h"
 
 #include "ArmatureImporter.h"
@@ -99,7 +100,8 @@ void WVDataWrapper::print()
           fprintf(stderr, "%.1f, %.1f\n", (*values)[i], (*values)[i + 1]);
         }
       }
-    } break;
+      break;
+    }
     case COLLADAFW::MeshVertexData::DATA_TYPE_DOUBLE: {
       COLLADAFW::ArrayPrimitiveType<double> *values = mVData->getDoubleValues();
       if (values->getCount()) {
@@ -107,7 +109,8 @@ void WVDataWrapper::print()
           fprintf(stderr, "%.1f, %.1f\n", float((*values)[i]), float((*values)[i + 1]));
         }
       }
-    } break;
+      break;
+    }
   }
   fprintf(stderr, "\n");
 }
@@ -128,8 +131,8 @@ void UVDataWrapper::getUV(int uv_index, float *uv)
       }
       uv[0] = (*values)[uv_index * stride];
       uv[1] = (*values)[uv_index * stride + 1];
-
-    } break;
+      break;
+    }
     case COLLADAFW::MeshVertexData::DATA_TYPE_DOUBLE: {
       COLLADAFW::ArrayPrimitiveType<double> *values = mVData->getDoubleValues();
       if (values->empty()) {
@@ -137,8 +140,8 @@ void UVDataWrapper::getUV(int uv_index, float *uv)
       }
       uv[0] = float((*values)[uv_index * stride]);
       uv[1] = float((*values)[uv_index * stride + 1]);
-
-    } break;
+      break;
+    }
     case COLLADAFW::MeshVertexData::DATA_TYPE_UNKNOWN:
     default:
       fprintf(stderr, "MeshImporter.getUV(): unknown data type\n");
@@ -179,13 +182,13 @@ void VCOLDataWrapper::get_vcol(int v_index, MLoopCol *mloopcol)
     case COLLADAFW::MeshVertexData::DATA_TYPE_FLOAT: {
       COLLADAFW::ArrayPrimitiveType<float> *values = mVData->getFloatValues();
       colladaAddColor<COLLADAFW::ArrayPrimitiveType<float> *>(values, mloopcol, v_index, stride);
-    } break;
-
+      break;
+    }
     case COLLADAFW::MeshVertexData::DATA_TYPE_DOUBLE: {
       COLLADAFW::ArrayPrimitiveType<double> *values = mVData->getDoubleValues();
       colladaAddColor<COLLADAFW::ArrayPrimitiveType<double> *>(values, mloopcol, v_index, stride);
-    } break;
-
+      break;
+    }
     default:
       fprintf(stderr, "VCOLDataWrapper.getvcol(): unknown data type\n");
   }
@@ -207,7 +210,7 @@ MeshImporter::MeshImporter(UnitConverter *unitconv,
   /* pass */
 }
 
-bool MeshImporter::set_poly_indices(int *poly_verts,
+bool MeshImporter::set_poly_indices(int *face_verts,
                                     int loop_index,
                                     const uint *indices,
                                     int loop_count)
@@ -225,8 +228,8 @@ bool MeshImporter::set_poly_indices(int *poly_verts,
       }
     }
 
-    *poly_verts = indices[index];
-    poly_verts++;
+    *face_verts = indices[index];
+    face_verts++;
   }
   return broken_loop;
 }
@@ -326,7 +329,8 @@ bool MeshImporter::is_nice_mesh(COLLADAFW::Mesh *mesh)
 
     else if (!ELEM(type,
                    COLLADAFW::MeshPrimitive::TRIANGLES,
-                   COLLADAFW::MeshPrimitive::TRIANGLE_FANS)) {
+                   COLLADAFW::MeshPrimitive::TRIANGLE_FANS))
+    {
       fprintf(stderr, "ERROR: Primitive type %s is not supported.\n", type_str);
       return false;
     }
@@ -335,7 +339,7 @@ bool MeshImporter::is_nice_mesh(COLLADAFW::Mesh *mesh)
   return true;
 }
 
-void MeshImporter::read_vertices(COLLADAFW::Mesh *mesh, Mesh *me)
+void MeshImporter::read_vertices(COLLADAFW::Mesh *mesh, Mesh *blender_mesh)
 {
   /* vertices */
   COLLADAFW::MeshVertexData &pos = mesh->getPositions();
@@ -348,9 +352,10 @@ void MeshImporter::read_vertices(COLLADAFW::Mesh *mesh, Mesh *me)
     stride = 3;
   }
 
-  me->totvert = pos.getFloatValues()->getCount() / stride;
-  CustomData_add_layer_named(&me->vdata, CD_PROP_FLOAT3, CD_CONSTRUCT, me->totvert, "position");
-  MutableSpan<float3> positions = me->vert_positions_for_write();
+  blender_mesh->verts_num = pos.getFloatValues()->getCount() / stride;
+  CustomData_add_layer_named(
+      &blender_mesh->vert_data, CD_PROP_FLOAT3, CD_CONSTRUCT, blender_mesh->verts_num, "position");
+  MutableSpan<float3> positions = blender_mesh->vert_positions_for_write();
   for (const int i : positions.index_range()) {
     get_vector(positions[i], pos, i, stride);
   }
@@ -410,7 +415,7 @@ static std::string extract_vcolname(const COLLADAFW::String &collada_id)
   return colname;
 }
 
-void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *me)
+void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *mesh)
 {
   COLLADAFW::MeshPrimitiveArray &prim_arr = collada_mesh->getMeshPrimitives();
   int total_poly_count = 0;
@@ -451,11 +456,11 @@ void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *me)
 
   /* Add the data containers */
   if (total_poly_count > 0) {
-    me->totpoly = total_poly_count;
-    me->totloop = total_loop_count;
-    BKE_mesh_poly_offsets_ensure_alloc(me);
+    mesh->faces_num = total_poly_count;
+    mesh->corners_num = total_loop_count;
+    BKE_mesh_face_offsets_ensure_alloc(mesh);
     CustomData_add_layer_named(
-        &me->ldata, CD_PROP_INT32, CD_SET_DEFAULT, me->totloop, ".corner_vert");
+        &mesh->corner_data, CD_PROP_INT32, CD_SET_DEFAULT, mesh->corners_num, ".corner_vert");
 
     uint totuvset = collada_mesh->getUVCoords().getInputInfosArray().getCount();
     for (int i = 0; i < totuvset; i++) {
@@ -472,10 +477,10 @@ void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *me)
         COLLADAFW::String &uvname = info->mName;
         /* Allocate space for UV_data */
         CustomData_add_layer_named(
-            &me->ldata, CD_PROP_FLOAT2, CD_SET_DEFAULT, me->totloop, uvname.c_str());
+            &mesh->corner_data, CD_PROP_FLOAT2, CD_SET_DEFAULT, mesh->corners_num, uvname);
       }
       /* activate the first uv map */
-      CustomData_set_layer_active(&me->ldata, CD_PROP_FLOAT2, 0);
+      CustomData_set_layer_active(&mesh->corner_data, CD_PROP_FLOAT2, 0);
     }
 
     int totcolset = collada_mesh->getColors().getInputInfosArray().getCount();
@@ -485,12 +490,12 @@ void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *me)
             collada_mesh->getColors().getInputInfosArray()[i];
         COLLADAFW::String colname = extract_vcolname(info->mName);
         CustomData_add_layer_named(
-            &me->ldata, CD_PROP_BYTE_COLOR, CD_SET_DEFAULT, me->totloop, colname.c_str());
+            &mesh->corner_data, CD_PROP_BYTE_COLOR, CD_SET_DEFAULT, mesh->corners_num, colname);
       }
       BKE_id_attributes_active_color_set(
-          &me->id, CustomData_get_layer_name(&me->ldata, CD_PROP_BYTE_COLOR, 0));
+          &mesh->id, CustomData_get_layer_name(&mesh->corner_data, CD_PROP_BYTE_COLOR, 0));
       BKE_id_attributes_default_color_set(
-          &me->id, CustomData_get_layer_name(&me->ldata, CD_PROP_BYTE_COLOR, 0));
+          &mesh->id, CustomData_get_layer_name(&mesh->corner_data, CD_PROP_BYTE_COLOR, 0));
     }
   }
 }
@@ -542,38 +547,42 @@ uint MeshImporter::get_loose_edge_count(COLLADAFW::Mesh *mesh)
 
 void MeshImporter::mesh_add_edges(Mesh *mesh, int len)
 {
-  CustomData edata;
+  CustomData edge_data;
   int totedge;
 
   if (len == 0) {
     return;
   }
 
-  totedge = mesh->totedge + len;
+  totedge = mesh->edges_num + len;
 
   /* Update custom-data. */
-  CustomData_copy_layout(&mesh->edata, &edata, CD_MASK_MESH.emask, CD_SET_DEFAULT, totedge);
-  CustomData_copy_data(&mesh->edata, &edata, 0, 0, mesh->totedge);
+  CustomData_init_layout_from(
+      &mesh->edge_data, &edge_data, CD_MASK_MESH.emask, CD_SET_DEFAULT, totedge);
+  CustomData_copy_data(&mesh->edge_data, &edge_data, 0, 0, mesh->edges_num);
 
-  if (!CustomData_has_layer_named(&edata, CD_PROP_INT32_2D, ".edge_verts")) {
-    CustomData_add_layer_named(&edata, CD_PROP_INT32_2D, CD_CONSTRUCT, totedge, ".edge_verts");
+  if (!CustomData_has_layer_named(&edge_data, CD_PROP_INT32_2D, ".edge_verts")) {
+    CustomData_add_layer_named(&edge_data, CD_PROP_INT32_2D, CD_CONSTRUCT, totedge, ".edge_verts");
   }
 
-  CustomData_free(&mesh->edata, mesh->totedge);
-  mesh->edata = edata;
-  mesh->totedge = totedge;
+  CustomData_free(&mesh->edge_data, mesh->edges_num);
+  mesh->edge_data = edge_data;
+
+  BKE_mesh_runtime_clear_cache(mesh);
+
+  mesh->edges_num = totedge;
 }
 
-void MeshImporter::read_lines(COLLADAFW::Mesh *mesh, Mesh *me)
+void MeshImporter::read_lines(COLLADAFW::Mesh *mesh, Mesh *blender_mesh)
 {
   uint loose_edge_count = get_loose_edge_count(mesh);
   if (loose_edge_count > 0) {
 
-    uint face_edge_count = me->totedge;
-    /* uint total_edge_count = loose_edge_count + face_edge_count; */ /* UNUSED */
+    uint face_edge_count = blender_mesh->edges_num;
+    // uint total_edge_count = loose_edge_count + face_edge_count; /* UNUSED. */
 
-    mesh_add_edges(me, loose_edge_count);
-    MutableSpan<blender::int2> edges = me->edges_for_write();
+    mesh_add_edges(blender_mesh, loose_edge_count);
+    MutableSpan<blender::int2> edges = blender_mesh->edges_for_write();
     blender::int2 *edge = edges.data() + face_edge_count;
 
     COLLADAFW::MeshPrimitiveArray &prim_arr = mesh->getMeshPrimitives();
@@ -596,30 +605,29 @@ void MeshImporter::read_lines(COLLADAFW::Mesh *mesh, Mesh *me)
 }
 
 void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
-                              Mesh *me,
+                              Mesh *mesh,
                               blender::Vector<blender::float3> &loop_normals)
 {
+  using namespace blender;
   uint i;
 
-  allocate_poly_data(collada_mesh, me);
+  allocate_poly_data(collada_mesh, mesh);
 
   UVDataWrapper uvs(collada_mesh->getUVCoords());
   VCOLDataWrapper vcol(collada_mesh->getColors());
 
-  MutableSpan<int> poly_offsets = me->poly_offsets_for_write();
-  MutableSpan<int> corner_verts = me->corner_verts_for_write();
-  int poly_index = 0;
+  MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
+  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
+  int face_index = 0;
   int loop_index = 0;
 
   MaterialIdPrimitiveArrayMap mat_prim_map;
 
-  int *material_indices = BKE_mesh_material_indices_for_write(me);
-  bool *sharp_faces = static_cast<bool *>(
-      CustomData_get_layer_named_for_write(&me->pdata, CD_PROP_BOOL, "sharp_face", me->totpoly));
-  if (!sharp_faces) {
-    sharp_faces = static_cast<bool *>(CustomData_add_layer_named(
-        &me->pdata, CD_PROP_BOOL, CD_SET_DEFAULT, me->totpoly, "sharp_face"));
-  }
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+  bke::SpanAttributeWriter material_indices = attributes.lookup_or_add_for_write_span<int>(
+      "material_index", bke::AttrDomain::Face);
+  bke::SpanAttributeWriter sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
+      "sharp_face", bke::AttrDomain::Face);
 
   COLLADAFW::MeshPrimitiveArray &prim_arr = collada_mesh->getMeshPrimitives();
   COLLADAFW::MeshVertexData &nor = collada_mesh->getNormals();
@@ -629,7 +637,7 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
     COLLADAFW::MeshPrimitive *mp = prim_arr[i];
 
     /* faces */
-    size_t prim_totpoly = mp->getFaceCount();
+    size_t prim_faces_num = mp->getFaceCount();
     uint *position_indices = mp->getPositionIndices().getData();
     uint *normal_indices = mp->getNormalIndices().getData();
 
@@ -638,8 +646,13 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
 
     int collada_meshtype = mp->getPrimitiveType();
 
-    /* Since we cannot set `poly->mat_nr` here, we store a portion of `me->mpoly` in Primitive. */
-    Primitive prim = {poly_index, &material_indices[poly_index], 0};
+    if (collada_meshtype == COLLADAFW::MeshPrimitive::LINES) {
+      continue; /* read the lines later after all the rest is done */
+    }
+
+    /* Since we cannot set `poly->mat_nr` here, we store a portion of `mesh->mpoly` in Primitive.
+     */
+    Primitive prim = {face_index, &material_indices.span[face_index], 0};
 
     /* If MeshPrimitive is TRIANGLE_FANS we split it into triangles
      * The first triangle-fan vertex will be the first vertex in every triangle
@@ -657,19 +670,19 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
           /* For each triangle store indices of its 3 vertices */
           uint triangle_vertex_indices[3] = {
               first_vertex, position_indices[1], position_indices[2]};
-          poly_offsets[poly_index] = loop_index;
+          face_offsets[face_index] = loop_index;
           set_poly_indices(&corner_verts[loop_index], loop_index, triangle_vertex_indices, 3);
 
           if (mp_has_normals) { /* vertex normals, same implementation as for the triangles */
             /* The same for vertices normals. */
             uint vertex_normal_indices[3] = {first_normal, normal_indices[1], normal_indices[2]};
-            sharp_faces[poly_index] = is_flat_face(vertex_normal_indices, nor, 3);
+            sharp_faces.span[face_index] = is_flat_face(vertex_normal_indices, nor, 3);
             normal_indices++;
           }
 
-          poly_index++;
+          face_index++;
           loop_index += 3;
-          prim.totpoly++;
+          prim.faces_num++;
         }
 
         /* Moving cursor to the next triangle fan. */
@@ -693,7 +706,7 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
       COLLADAFW::IndexListArray &index_list_array_vcolor = mp->getColorIndicesArray();
 
       int invalid_loop_holes = 0;
-      for (uint j = 0; j < prim_totpoly; j++) {
+      for (uint j = 0; j < prim_faces_num; j++) {
 
         /* Vertices in polygon: */
         int vcount = get_vertex_count(mpvc, j);
@@ -701,7 +714,7 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
           continue; /* TODO: add support for holes */
         }
 
-        poly_offsets[poly_index] = loop_index;
+        face_offsets[face_index] = loop_index;
         bool broken_loop = set_poly_indices(
             &corner_verts[loop_index], loop_index, position_indices, vcount);
         if (broken_loop) {
@@ -709,15 +722,16 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
         }
 
         for (uint uvset_index = 0; uvset_index < index_list_array_uvcoord.getCount();
-             uvset_index++) {
+             uvset_index++)
+        {
           COLLADAFW::IndexList &index_list = *index_list_array_uvcoord[uvset_index];
           blender::float2 *mloopuv = static_cast<blender::float2 *>(
               CustomData_get_layer_named_for_write(
-                  &me->ldata, CD_PROP_FLOAT2, index_list.getName().c_str(), me->totloop));
+                  &mesh->corner_data, CD_PROP_FLOAT2, index_list.getName(), mesh->corners_num));
           if (mloopuv == nullptr) {
             fprintf(stderr,
                     "Collada import: Mesh [%s] : Unknown reference to TEXCOORD [#%s].\n",
-                    me->id.name,
+                    mesh->id.name,
                     index_list.getName().c_str());
           }
           else {
@@ -732,7 +746,7 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
         if (mp_has_normals) {
           /* If it turns out that we have complete custom normals for each poly
            * and we want to use custom normals, this will be overridden. */
-          sharp_faces[poly_index] = is_flat_face(normal_indices, nor, vcount);
+          sharp_faces.span[face_index] = is_flat_face(normal_indices, nor, vcount);
 
           if (use_custom_normals) {
             /* Store the custom normals for later application. */
@@ -754,11 +768,11 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
             COLLADAFW::IndexList &color_index_list = *mp->getColorIndices(vcolor_index);
             COLLADAFW::String colname = extract_vcolname(color_index_list.getName());
             MLoopCol *mloopcol = (MLoopCol *)CustomData_get_layer_named_for_write(
-                &me->ldata, CD_PROP_BYTE_COLOR, colname.c_str(), me->totloop);
+                &mesh->corner_data, CD_PROP_BYTE_COLOR, colname, mesh->corners_num);
             if (mloopcol == nullptr) {
               fprintf(stderr,
                       "Collada import: Mesh [%s] : Unknown reference to VCOLOR [#%s].\n",
-                      me->id.name,
+                      mesh->id.name,
                       color_index_list.getName().c_str());
             }
             else {
@@ -767,10 +781,10 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
           }
         }
 
-        poly_index++;
+        face_index++;
         loop_index += vcount;
         start_index += vcount;
-        prim.totpoly++;
+        prim.faces_num++;
 
         if (mp_has_normals) {
           normal_indices += vcount;
@@ -782,13 +796,9 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
       if (invalid_loop_holes > 0) {
         fprintf(stderr,
                 "Collada import: Mesh [%s] : contains %d unsupported loops (holes).\n",
-                me->id.name,
+                mesh->id.name,
                 invalid_loop_holes);
       }
-    }
-
-    else if (collada_meshtype == COLLADAFW::MeshPrimitive::LINES) {
-      continue; /* read the lines later after all the rest is done */
     }
 
     if (mp_has_faces) {
@@ -797,6 +807,7 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
   }
 
   geom_uid_mat_mapping_map[collada_mesh->getUniqueId()] = mat_prim_map;
+  material_indices.finish();
 }
 
 void MeshImporter::get_vector(float v[3], COLLADAFW::MeshVertexData &arr, int i, int stride)
@@ -818,8 +829,8 @@ void MeshImporter::get_vector(float v[3], COLLADAFW::MeshVertexData &arr, int i,
       else {
         v[2] = 0.0f;
       }
-
-    } break;
+      break;
+    }
     case COLLADAFW::MeshVertexData::DATA_TYPE_DOUBLE: {
       COLLADAFW::ArrayPrimitiveType<double> *values = arr.getDoubleValues();
       if (values->empty()) {
@@ -834,7 +845,8 @@ void MeshImporter::get_vector(float v[3], COLLADAFW::MeshVertexData &arr, int i,
       else {
         v[2] = 0.0f;
       }
-    } break;
+      break;
+    }
     default:
       break;
   }
@@ -887,10 +899,10 @@ std::string *MeshImporter::get_geometry_name(const std::string &mesh_name)
   return nullptr;
 }
 
-static bool bc_has_out_of_bound_indices(Mesh *me)
+static bool bc_has_out_of_bound_indices(Mesh *mesh)
 {
-  for (const int vert_i : me->corner_verts()) {
-    if (vert_i >= me->totvert) {
+  for (const int vert_i : mesh->corner_verts()) {
+    if (vert_i >= mesh->verts_num) {
       return true;
     }
   }
@@ -930,18 +942,18 @@ static bool bc_has_same_material_configuration(Object *ob1, Object *ob2)
  * and no material is assigned to Data.
  * That is true right after the objects have been imported.
  */
-static void bc_copy_materials_to_data(Object *ob, Mesh *me)
+static void bc_copy_materials_to_data(Object *ob, Mesh *mesh)
 {
   for (int index = 0; index < ob->totcol; index++) {
     ob->matbits[index] = 0;
-    me->mat[index] = ob->mat[index];
+    mesh->mat[index] = ob->mat[index];
   }
 }
 
 /**
  * Remove all references to materials from the object.
  */
-static void bc_remove_materials_from_object(Object *ob, Mesh *me)
+static void bc_remove_materials_from_object(Object *ob, Mesh *mesh)
 {
   for (int index = 0; index < ob->totcol; index++) {
     ob->matbits[index] = 0;
@@ -955,8 +967,8 @@ std::vector<Object *> MeshImporter::get_all_users_of(Mesh *reference_mesh)
   for (Object *ob : imported_objects) {
     if (bc_is_marked(ob)) {
       bc_remove_mark(ob);
-      Mesh *me = (Mesh *)ob->data;
-      if (me == reference_mesh) {
+      Mesh *mesh = (Mesh *)ob->data;
+      if (mesh == reference_mesh) {
         mesh_users.push_back(ob);
       }
     }
@@ -967,15 +979,15 @@ std::vector<Object *> MeshImporter::get_all_users_of(Mesh *reference_mesh)
 void MeshImporter::optimize_material_assignements()
 {
   for (Object *ob : imported_objects) {
-    Mesh *me = (Mesh *)ob->data;
-    if (ID_REAL_USERS(&me->id) == 1) {
-      bc_copy_materials_to_data(ob, me);
-      bc_remove_materials_from_object(ob, me);
+    Mesh *mesh = (Mesh *)ob->data;
+    if (ID_REAL_USERS(&mesh->id) == 1) {
+      bc_copy_materials_to_data(ob, mesh);
+      bc_remove_materials_from_object(ob, mesh);
       bc_remove_mark(ob);
     }
-    else if (ID_REAL_USERS(&me->id) > 1) {
+    else if (ID_REAL_USERS(&mesh->id) > 1) {
       bool can_move = true;
-      std::vector<Object *> mesh_users = get_all_users_of(me);
+      std::vector<Object *> mesh_users = get_all_users_of(mesh);
       if (mesh_users.size() > 1) {
         Object *ref_ob = mesh_users[0];
         for (int index = 1; index < mesh_users.size(); index++) {
@@ -985,9 +997,9 @@ void MeshImporter::optimize_material_assignements()
           }
         }
         if (can_move) {
-          bc_copy_materials_to_data(ref_ob, me);
+          bc_copy_materials_to_data(ref_ob, mesh);
           for (Object *object : mesh_users) {
-            bc_remove_materials_from_object(object, me);
+            bc_remove_materials_from_object(object, mesh);
             bc_remove_mark(object);
           }
         }
@@ -1036,7 +1048,7 @@ void MeshImporter::assign_material_to_geom(
     for (it = prims.begin(); it != prims.end(); it++) {
       Primitive &prim = *it;
 
-      for (int i = 0; i < prim.totpoly; i++) {
+      for (int i = 0; i < prim.faces_num; i++) {
         prim.material_indices[i] = mat_index;
       }
     }
@@ -1118,7 +1130,7 @@ Object *MeshImporter::create_mesh_object(
 
 bool MeshImporter::write_geometry(const COLLADAFW::Geometry *geom)
 {
-
+  using namespace blender;
   if (geom->getType() != COLLADAFW::Geometry::GEO_TYPE_MESH) {
     /* TODO: report warning */
     fprintf(stderr, "Mesh type %s is not supported\n", bc_geomTypeToStr(geom->getType()));
@@ -1134,49 +1146,49 @@ bool MeshImporter::write_geometry(const COLLADAFW::Geometry *geom)
 
   const std::string &str_geom_id = mesh->getName().empty() ? mesh->getOriginalId() :
                                                              mesh->getName();
-  Mesh *me = BKE_mesh_add(m_bmain, (char *)str_geom_id.c_str());
-  id_us_min(&me->id); /* is already 1 here, but will be set later in BKE_mesh_assign_object */
+  Mesh *blender_mesh = BKE_mesh_add(m_bmain, (char *)str_geom_id.c_str());
+  id_us_min(
+      &blender_mesh->id); /* is already 1 here, but will be set later in BKE_mesh_assign_object */
 
   /* store the Mesh pointer to link it later with an Object
    * mesh_geom_map needed to map mesh to its geometry name (for shape key naming) */
-  this->uid_mesh_map[mesh->getUniqueId()] = me;
-  this->mesh_geom_map[std::string(me->id.name)] = str_geom_id;
+  this->uid_mesh_map[mesh->getUniqueId()] = blender_mesh;
+  this->mesh_geom_map[std::string(blender_mesh->id.name)] = str_geom_id;
 
-  read_vertices(mesh, me);
+  read_vertices(mesh, blender_mesh);
 
   blender::Vector<blender::float3> loop_normals;
-  read_polys(mesh, me, loop_normals);
+  read_polys(mesh, blender_mesh, loop_normals);
 
-  BKE_mesh_calc_edges(me, false, false);
+  blender::bke::mesh_calc_edges(*blender_mesh, false, false);
 
   /* We must apply custom normals after edges have been calculated, because
-   * BKE_mesh_set_custom_normals()'s internals expect me->medge to be populated
+   * bke::mesh_set_custom_normals()'s internals expect mesh->medge to be populated
    * and for the MLoops to have correct edge indices. */
   if (use_custom_normals && !loop_normals.is_empty()) {
-    /* BKE_mesh_set_custom_normals()'s internals also expect that each corner
+    /* bke::mesh_set_custom_normals()'s internals also expect that each corner
      * has a valid vertex index, which may not be the case due to the existing
-     * logic in read_polys(). This check isn't necessary in the no-custom-normals
+     * logic in read_faces(). This check isn't necessary in the no-custom-normals
      * case because the invalid MLoops get stripped in a later step. */
-    if (bc_has_out_of_bound_indices(me)) {
+    if (bc_has_out_of_bound_indices(blender_mesh)) {
       fprintf(stderr, "Can't apply custom normals, encountered invalid loop vert indices!\n");
     }
     /* There may be a mismatch in lengths if one or more of the MeshPrimitives in
      * the Geometry had missing or otherwise invalid normals. */
-    else if (me->totloop != loop_normals.size()) {
+    else if (blender_mesh->corners_num != loop_normals.size()) {
       fprintf(stderr,
-              "Can't apply custom normals, me->totloop != loop_normals.size() (%d != %d)\n",
-              me->totloop,
+              "Can't apply custom normals, mesh->corners_num != loop_normals.size() (%d != %d)\n",
+              blender_mesh->corners_num,
               int(loop_normals.size()));
     }
     else {
-      BKE_mesh_set_custom_normals(me, reinterpret_cast<float(*)[3]>(loop_normals.data()));
-      me->flag |= ME_AUTOSMOOTH;
+      bke::mesh_set_custom_normals(*blender_mesh, loop_normals);
     }
   }
 
   /* read_lines() must be called after the face edges have been generated.
    * Otherwise the loose edges will be silently deleted again. */
-  read_lines(mesh, me);
+  read_lines(mesh, blender_mesh);
 
   return true;
 }

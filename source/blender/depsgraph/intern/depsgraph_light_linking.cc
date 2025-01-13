@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,7 +7,7 @@
  *
  * Light linking utilities. */
 
-#include "intern/depsgraph_light_linking.h"
+#include "intern/depsgraph_light_linking.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -16,18 +16,17 @@
 #include "BLI_map.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 
 #include "DNA_collection_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "DEG_depsgraph_light_linking.h"
 #include "DEG_depsgraph_light_linking.hh"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "intern/depsgraph.h"
+#include "intern/depsgraph.hh"
 
 namespace deg = blender::deg;
 
@@ -67,7 +66,7 @@ template<class T> static inline const T *get_original(const T *id)
 #ifndef NDEBUG
 bool is_valid_input_id(const ID &id)
 {
-  return (id.tag & LIB_TAG_LOCALIZED) || DEG_is_original_id(&id);
+  return (id.tag & ID_TAG_LOCALIZED) || DEG_is_original_id(&id);
 }
 #endif
 
@@ -140,8 +139,8 @@ bool LightSet::operator==(const LightSet &other) const
 
 uint64_t LightSet::hash() const
 {
-  return get_default_hash_2(get_default_hash(include_collection_mask),
-                            get_default_hash(exclude_collection_mask));
+  return get_default_hash(get_default_hash(include_collection_mask),
+                          get_default_hash(exclude_collection_mask));
 }
 
 /* EmitterSetMembership */
@@ -266,7 +265,7 @@ LightSet &LinkingData::ensure_light_set_for(const Object &object)
 
 void LinkingData::clear_after_build()
 {
-  light_linked_sets_.clear_and_shrink();
+  light_linked_sets_.clear();
 }
 
 void LinkingData::end_build(const Scene &scene, EmitterDataMap &emitter_data_map)
@@ -447,7 +446,6 @@ void Cache::end_build(const Scene &scene)
   shadow_linking_.end_build(scene, shadow_emitter_data_map_);
 }
 
-/* Set runtime data in light linking. */
 void Cache::eval_runtime_data(Object &object_eval) const
 {
   static const LightLinkingRuntime runtime_no_links = {

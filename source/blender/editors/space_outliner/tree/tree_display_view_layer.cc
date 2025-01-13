@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,19 +12,16 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
 
-#include "BLT_translation.h"
-
 #include "../outliner_intern.hh"
 #include "common.hh"
 #include "tree_display.hh"
-#include "tree_element.hh"
 
 namespace blender::ed::outliner {
 
@@ -38,7 +35,7 @@ class ObjectsChildrenBuilder {
   ObjectTreeElementsMap object_tree_elements_map_;
 
  public:
-  ObjectsChildrenBuilder(SpaceOutliner &soutliner);
+  ObjectsChildrenBuilder(SpaceOutliner &space_outliner);
   ~ObjectsChildrenBuilder() = default;
 
   void operator()(TreeElement &collection_tree_elem);
@@ -57,12 +54,12 @@ TreeDisplayViewLayer::TreeDisplayViewLayer(SpaceOutliner &space_outliner)
 {
 }
 
-bool TreeDisplayViewLayer::supportsModeColumn() const
+bool TreeDisplayViewLayer::supports_mode_column() const
 {
   return true;
 }
 
-ListBase TreeDisplayViewLayer::buildTree(const TreeSourceData &source_data)
+ListBase TreeDisplayViewLayer::build_tree(const TreeSourceData &source_data)
 {
   ListBase tree = {nullptr};
   Scene *scene = source_data.scene;
@@ -80,8 +77,8 @@ ListBase TreeDisplayViewLayer::buildTree(const TreeSourceData &source_data)
       add_view_layer(*scene, tree, (TreeElement *)nullptr);
     }
     else {
-      TreeElement &te_view_layer = *outliner_add_element(
-          &space_outliner_, &tree, view_layer, nullptr, TSE_R_LAYER, 0);
+      TreeElement &te_view_layer = *add_element(
+          &tree, reinterpret_cast<ID *>(scene), &view_layer, nullptr, TSE_R_LAYER, 0);
 
       TreeStoreElem *tselem = TREESTORE(&te_view_layer);
 
@@ -107,8 +104,8 @@ void TreeDisplayViewLayer::add_view_layer(Scene &scene, ListBase &tree, TreeElem
     /* Show objects in the view layer. */
     BKE_view_layer_synced_ensure(&scene, view_layer_);
     for (Base *base : List<Base>(*BKE_view_layer_object_bases_get(view_layer_))) {
-      TreeElement *te_object = outliner_add_element(
-          &space_outliner_, &tree, base->object, parent, TSE_SOME_ID, 0);
+      TreeElement *te_object = add_element(
+          &tree, reinterpret_cast<ID *>(base->object), nullptr, parent, TSE_SOME_ID, 0);
       te_object->directdata = base;
     }
 
@@ -118,9 +115,8 @@ void TreeDisplayViewLayer::add_view_layer(Scene &scene, ListBase &tree, TreeElem
   }
   else {
     /* Show collections in the view layer. */
-    TreeElement &ten = *outliner_add_element(
-        &space_outliner_, &tree, &scene, parent, TSE_VIEW_COLLECTION_BASE, 0);
-    ten.name = IFACE_("Scene Collection");
+    TreeElement &ten = *AbstractTreeDisplay::add_element(
+        &space_outliner_, &tree, &scene.id, nullptr, parent, TSE_VIEW_COLLECTION_BASE, 0);
     TREESTORE(&ten)->flag &= ~TSE_CLOSED;
 
     /* First layer collection is for master collection, don't show it. */
@@ -152,15 +148,11 @@ void TreeDisplayViewLayer::add_layer_collections_recursive(ListBase &tree,
     }
     else {
       ID *id = &lc->collection->id;
-      ten = outliner_add_element(
-          &space_outliner_, &tree, id, &parent_ten, TSE_LAYER_COLLECTION, 0);
-
-      ten->name = id->name + 2;
-      ten->directdata = lc;
+      ten = add_element(&tree, id, lc, &parent_ten, TSE_LAYER_COLLECTION, 0);
 
       /* Open by default, except linked collections, which may contain many elements. */
       TreeStoreElem *tselem = TREESTORE(ten);
-      if (!(tselem->used || ID_IS_LINKED(id) || ID_IS_OVERRIDE_LIBRARY(id))) {
+      if (!(tselem->used || !ID_IS_EDITABLE(id) || ID_IS_OVERRIDE_LIBRARY(id))) {
         tselem->flag &= ~TSE_CLOSED;
       }
     }
@@ -179,8 +171,8 @@ void TreeDisplayViewLayer::add_layer_collection_objects(ListBase &tree,
   BKE_view_layer_synced_ensure(scene_, view_layer_);
   for (CollectionObject *cob : List<CollectionObject>(lc.collection->gobject)) {
     Base *base = BKE_view_layer_base_find(view_layer_, cob->ob);
-    TreeElement *te_object = outliner_add_element(
-        &space_outliner_, &tree, base->object, &ten, TSE_SOME_ID, 0);
+    TreeElement *te_object = add_element(
+        &tree, reinterpret_cast<ID *>(base->object), nullptr, &ten, TSE_SOME_ID, 0);
     te_object->directdata = base;
   }
 }
@@ -202,7 +194,10 @@ void TreeDisplayViewLayer::add_layer_collection_objects_children(TreeElement &co
  *
  * \{ */
 
-ObjectsChildrenBuilder::ObjectsChildrenBuilder(SpaceOutliner &outliner) : outliner_(outliner) {}
+ObjectsChildrenBuilder::ObjectsChildrenBuilder(SpaceOutliner &space_outliner)
+    : outliner_(space_outliner)
+{
+}
 
 void ObjectsChildrenBuilder::operator()(TreeElement &collection_tree_elem)
 {
@@ -282,13 +277,15 @@ void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
       if (!found) {
         /* We add the child in the tree even if it is not in the collection.
          * We don't expand its sub-tree though, to make it less prominent. */
-        TreeElement *child_ob_tree_element = outliner_add_element(&outliner_,
-                                                                  &parent_ob_tree_element->subtree,
-                                                                  child,
-                                                                  parent_ob_tree_element,
-                                                                  TSE_SOME_ID,
-                                                                  0,
-                                                                  false);
+        TreeElement *child_ob_tree_element = AbstractTreeDisplay::add_element(
+            &outliner_,
+            &parent_ob_tree_element->subtree,
+            reinterpret_cast<ID *>(child),
+            nullptr,
+            parent_ob_tree_element,
+            TSE_SOME_ID,
+            0,
+            false);
         child_ob_tree_element->flag |= TE_CHILD_NOT_IN_COLLECTION;
         child_ob_tree_elements.append(child_ob_tree_element);
       }

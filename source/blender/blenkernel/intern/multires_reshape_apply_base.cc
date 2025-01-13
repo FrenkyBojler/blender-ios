@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,22 +11,13 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_customdata.h"
-#include "BKE_lib_id.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.h"
-#include "BKE_mesh_runtime.h"
-#include "BKE_multires.h"
-#include "BKE_subdiv_eval.h"
-
-#include "DEG_depsgraph_query.h"
+#include "BKE_multires.hh"
+#include "BKE_subdiv_eval.hh"
 
 void multires_reshape_apply_base_update_mesh_coords(MultiresReshapeContext *reshape_context)
 {
@@ -71,36 +62,27 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
   blender::MutableSpan<blender::float3> base_positions = base_mesh->vert_positions_for_write();
   /* Update the context in case the vertices were duplicated. */
   reshape_context->base_positions = base_positions;
-  blender::Array<int> vert_to_poly_offsets;
-  blender::Array<int> vert_to_poly_indices;
-  const blender::GroupedSpan<int> pmap = blender::bke::mesh::build_vert_to_poly_map(
-      reshape_context->base_polys,
-      reshape_context->base_corner_verts,
-      base_mesh->totvert,
-      vert_to_poly_offsets,
-      vert_to_poly_indices);
+  const blender::GroupedSpan<int> vert_to_face_map = base_mesh->vert_to_face_map();
 
   float(*origco)[3] = static_cast<float(*)[3]>(
-      MEM_calloc_arrayN(base_mesh->totvert, sizeof(float[3]), __func__));
-  for (int i = 0; i < base_mesh->totvert; i++) {
+      MEM_calloc_arrayN(base_mesh->verts_num, sizeof(float[3]), __func__));
+  for (int i = 0; i < base_mesh->verts_num; i++) {
     copy_v3_v3(origco[i], base_positions[i]);
   }
 
-  for (int i = 0; i < base_mesh->totvert; i++) {
+  for (int i = 0; i < base_mesh->verts_num; i++) {
     float avg_no[3] = {0, 0, 0}, center[3] = {0, 0, 0}, push[3];
 
-    /* Don't adjust vertices not used by at least one poly. */
-    if (!pmap[i].size()) {
+    /* Don't adjust vertices not used by at least one face. */
+    if (!vert_to_face_map[i].size()) {
       continue;
     }
 
     /* Find center. */
     int tot = 0;
-    for (int j = 0; j < pmap[i].size(); j++) {
-      const blender::IndexRange poly = reshape_context->base_polys[pmap[i][j]];
-
+    for (const int face : vert_to_face_map[i]) {
       /* This double counts, not sure if that's bad or good. */
-      for (const int corner : poly) {
+      for (const int corner : reshape_context->base_faces[face]) {
         const int vndx = reshape_context->base_corner_verts[corner];
         if (vndx != i) {
           add_v3_v3(center, origco[vndx]);
@@ -111,17 +93,17 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
     mul_v3_fl(center, 1.0f / tot);
 
     /* Find normal. */
-    for (int j = 0; j < pmap[i].size(); j++) {
-      const blender::IndexRange poly = reshape_context->base_polys[pmap[i][j]];
+    for (int j = 0; j < vert_to_face_map[i].size(); j++) {
+      const blender::IndexRange face = reshape_context->base_faces[vert_to_face_map[i][j]];
 
-      /* Set up poly, loops, and coords in order to call #bke::mesh::poly_normal_calc(). */
-      blender::Array<int> poly_verts(poly.size());
-      blender::Array<blender::float3> fake_co(poly.size());
+      /* Set up face, loops, and coords in order to call #bke::mesh::face_normal_calc(). */
+      blender::Array<int> face_verts(face.size());
+      blender::Array<blender::float3> fake_co(face.size());
 
-      for (int k = 0; k < poly.size(); k++) {
-        const int vndx = reshape_context->base_corner_verts[poly[k]];
+      for (int k = 0; k < face.size(); k++) {
+        const int vndx = reshape_context->base_corner_verts[face[k]];
 
-        poly_verts[k] = k;
+        face_verts[k] = k;
 
         if (vndx == i) {
           copy_v3_v3(fake_co[k], center);
@@ -131,7 +113,7 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
         }
       }
 
-      const blender::float3 no = blender::bke::mesh::poly_normal_calc(fake_co, poly_verts);
+      const blender::float3 no = blender::bke::mesh::face_normal_calc(fake_co, face_verts);
       add_v3_v3(avg_no, no);
     }
     normalize_v3(avg_no);
@@ -148,12 +130,13 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
   /* Vertices were moved around, need to update normals after all the vertices are updated
    * Probably this is possible to do in the loop above, but this is rather tricky because
    * we don't know all needed vertices' coordinates there yet. */
-  BKE_mesh_tag_positions_changed(base_mesh);
+  base_mesh->tag_positions_changed();
 }
 
 void multires_reshape_apply_base_refine_from_base(MultiresReshapeContext *reshape_context)
 {
-  BKE_subdiv_eval_refine_from_mesh(reshape_context->subdiv, reshape_context->base_mesh, nullptr);
+  blender::bke::subdiv::eval_refine_from_mesh(
+      reshape_context->subdiv, reshape_context->base_mesh, {});
 }
 
 void multires_reshape_apply_base_refine_from_deform(MultiresReshapeContext *reshape_context)
@@ -165,11 +148,9 @@ void multires_reshape_apply_base_refine_from_deform(MultiresReshapeContext *resh
   BLI_assert(object != nullptr);
   BLI_assert(mmd != nullptr);
 
-  float(*deformed_verts)[3] = BKE_multires_create_deformed_base_mesh_vert_coords(
-      depsgraph, object, mmd, nullptr);
+  blender::Array<blender::float3> deformed_verts =
+      BKE_multires_create_deformed_base_mesh_vert_coords(depsgraph, object, mmd);
 
-  BKE_subdiv_eval_refine_from_mesh(
+  blender::bke::subdiv::eval_refine_from_mesh(
       reshape_context->subdiv, reshape_context->base_mesh, deformed_verts);
-
-  MEM_freeN(deformed_verts);
 }

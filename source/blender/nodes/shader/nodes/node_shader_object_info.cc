@@ -1,8 +1,10 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_shader_util.hh"
+
+#include "DNA_material_types.h"
 
 namespace blender::nodes::node_shader_object_info_cc {
 
@@ -28,17 +30,42 @@ static int node_shader_gpu_object_info(GPUMaterial *mat,
   return GPU_stack_link(mat, node, "node_object_info", in, out, GPU_constant(&index));
 }
 
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  /* NOTE: Some outputs isn't supported by MaterialX. */
+  NodeItem res = empty();
+  std::string name = socket_out_->name;
+
+  if (name == "Location") {
+    res = create_node("position", NodeItem::Type::Vector3, {{"space", val(std::string("world"))}});
+  }
+  else if (name == "Random") {
+    res = create_node("randomfloat", NodeItem::Type::Float);
+  }
+  else {
+    res = get_output_default(name, NodeItem::Type::Any);
+  }
+  return res;
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
 }  // namespace blender::nodes::node_shader_object_info_cc
 
 void register_node_type_sh_object_info()
 {
   namespace file_ns = blender::nodes::node_shader_object_info_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_OBJECT_INFO, "Object Info", NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, "ShaderNodeObjectInfo", SH_NODE_OBJECT_INFO, NODE_CLASS_INPUT);
+  ntype.ui_name = "Object Info";
+  ntype.ui_description = "Retrieve information about the object instance";
+  ntype.enum_name_legacy = "OBJECT_INFO";
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::node_shader_gpu_object_info;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

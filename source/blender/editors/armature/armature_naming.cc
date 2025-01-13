@@ -22,34 +22,39 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
-#include "BLI_string_utils.h"
+#include "BLI_listbase_wrapper.hh"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_animsys.h"
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 #include "BKE_constraint.h"
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_gpencil_modifier_legacy.h"
-#include "BKE_layer.h"
-#include "BKE_main.h"
-#include "BKE_modifier.h"
+#include "BKE_context.hh"
+#include "BKE_deform.hh"
+#include "BKE_grease_pencil.hh"
+#include "BKE_layer.hh"
+#include "BKE_main.hh"
+#include "BKE_modifier.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_armature.h"
-#include "ED_screen.h"
+#include "ED_armature.hh"
+#include "ED_screen.hh"
 
-#include "armature_intern.h"
+#include "ANIM_bone_collections.hh"
+
+#include "armature_intern.hh"
+
+using namespace blender;
 
 /* -------------------------------------------------------------------- */
 /** \name Unique Bone Name Utility (Edit Mode)
@@ -62,6 +67,18 @@ static bool editbone_unique_check(void *arg, const char *name)
     ListBase *lb;
     void *bone;
   } *data = static_cast<Arg *>(arg);
+
+  if (data->bone) {
+    /* This indicates that there is a bone to ignore. This means ED_armature_ebone_find_name()
+     * cannot be used, as it might return the bone we should be ignoring. */
+    for (EditBone *ebone : ListBaseWrapper<EditBone>(data->lb)) {
+      if (STREQ(ebone->name, name) && ebone != data->bone) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   EditBone *dupli = ED_armature_ebone_find_name(data->lb, name);
   return dupli && dupli != data->bone;
 }
@@ -91,8 +108,7 @@ static bool bone_unique_check(void *arg, const char *name)
 
 static void ed_armature_bone_unique_name(bArmature *arm, char *name)
 {
-  BLI_uniquename_cb(
-      bone_unique_check, (void *)arm, DATA_("Bone"), '.', name, sizeof(((Bone *)nullptr)->name));
+  BLI_uniquename_cb(bone_unique_check, (void *)arm, DATA_("Bone"), '.', name, sizeof(Bone::name));
 }
 
 /** \} */
@@ -107,15 +123,12 @@ static void constraint_bone_name_fix(Object *ob,
                                      const char *oldname,
                                      const char *newname)
 {
-  bConstraint *curcon;
-  bConstraintTarget *ct;
-
-  for (curcon = static_cast<bConstraint *>(conlist->first); curcon; curcon = curcon->next) {
+  LISTBASE_FOREACH (bConstraint *, curcon, conlist) {
     ListBase targets = {nullptr, nullptr};
 
     /* constraint targets */
     if (BKE_constraint_targets_get(curcon, &targets)) {
-      for (ct = static_cast<bConstraintTarget *>(targets.first); ct; ct = ct->next) {
+      LISTBASE_FOREACH (bConstraintTarget *, ct, &targets) {
         if (ct->tar == ob) {
           if (STREQ(ct->subtarget, oldname)) {
             STRNCPY(ct->subtarget, newname);
@@ -186,13 +199,13 @@ void ED_armature_bone_rename(Main *bmain,
       }
     }
 
-    /* force copy on write to update database */
-    DEG_id_tag_update(&arm->id, ID_RECALC_COPY_ON_WRITE);
+    /* force evaluation copy to update database */
+    DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
 
     /* do entire dbase - objects */
     for (ob = static_cast<Object *>(bmain->objects.first); ob;
-         ob = static_cast<Object *>(ob->id.next)) {
-      ModifierData *md;
+         ob = static_cast<Object *>(ob->id.next))
+    {
 
       /* we have the object using the armature */
       if (arm == ob->data) {
@@ -228,9 +241,7 @@ void ED_armature_bone_rename(Main *bmain,
             constraint_bone_name_fix(ob, &cob->constraints, oldname, newname);
           }
           if (cob->pose) {
-            bPoseChannel *pchan;
-            for (pchan = static_cast<bPoseChannel *>(cob->pose->chanbase.first); pchan;
-                 pchan = pchan->next) {
+            LISTBASE_FOREACH (bPoseChannel *, pchan, &cob->pose->chanbase) {
               constraint_bone_name_fix(ob, &pchan->constraints, oldname, newname);
             }
           }
@@ -251,12 +262,18 @@ void ED_armature_bone_rename(Main *bmain,
         bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname);
         if (dg) {
           STRNCPY(dg->name, newname);
+
+          if (ob->type == OB_GREASE_PENCIL) {
+            /* Update vgroup names stored in CurvesGeometry */
+            BKE_grease_pencil_vgroup_name_update(ob, oldname, dg->name);
+          }
+
           DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
         }
       }
 
       /* fix modifiers that might be using this name */
-      for (md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
+      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
         switch (md->type) {
           case eModifierType_Hook: {
             HookModifierData *hmd = (HookModifierData *)md;
@@ -294,51 +311,27 @@ void ED_armature_bone_rename(Main *bmain,
         if ((cam->dof.focus_object != nullptr) && (cam->dof.focus_object->data == arm)) {
           if (STREQ(cam->dof.focus_subtarget, oldname)) {
             STRNCPY(cam->dof.focus_subtarget, newname);
-            DEG_id_tag_update(&cam->id, ID_RECALC_COPY_ON_WRITE);
+            DEG_id_tag_update(&cam->id, ID_RECALC_SYNC_TO_EVAL);
           }
         }
       }
 
-      /* fix grease pencil modifiers and vertex groups */
-      if (ob->type == OB_GPENCIL_LEGACY) {
-
-        bGPdata *gpd = (bGPdata *)ob->data;
-        LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-          if ((gpl->parent != nullptr) && (gpl->parent->data == arm)) {
-            if (STREQ(gpl->parsubstr, oldname)) {
-              STRNCPY(gpl->parsubstr, newname);
-            }
+      if (ob->type == OB_GREASE_PENCIL) {
+        using namespace blender;
+        GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+        for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+          Object *parent = layer->parent;
+          if (parent == nullptr) {
+            continue;
           }
-        }
-
-        LISTBASE_FOREACH (GpencilModifierData *, gp_md, &ob->greasepencil_modifiers) {
-          switch (gp_md->type) {
-            case eGpencilModifierType_Armature: {
-              ArmatureGpencilModifierData *mmd = (ArmatureGpencilModifierData *)gp_md;
-              if (mmd->object && mmd->object->data == arm) {
-                bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname);
-                if (dg) {
-                  STRNCPY(dg->name, newname);
-                  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
-                }
-              }
-              break;
-            }
-            case eGpencilModifierType_Hook: {
-              HookGpencilModifierData *hgp_md = (HookGpencilModifierData *)gp_md;
-              if (hgp_md->object && (hgp_md->object->data == arm)) {
-                if (STREQ(hgp_md->subtarget, oldname)) {
-                  STRNCPY(hgp_md->subtarget, newname);
-                }
-              }
-              break;
-            }
-            default:
-              break;
+          StringRefNull bone_name = layer->parent_bone_name();
+          if (!bone_name.is_empty() && bone_name == StringRef(oldname)) {
+            layer->set_parent_bone_name(newname);
           }
         }
       }
-      DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+
+      DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
     }
 
     /* Fix all animdata that may refer to this bone -
@@ -358,11 +351,9 @@ void ED_armature_bone_rename(Main *bmain,
       for (screen = static_cast<bScreen *>(bmain->screens.first); screen;
            screen = static_cast<bScreen *>(screen->id.next))
       {
-        ScrArea *area;
         /* add regions */
-        for (area = static_cast<ScrArea *>(screen->areabase.first); area; area = area->next) {
-          SpaceLink *sl;
-          for (sl = static_cast<SpaceLink *>(area->spacedata.first); sl; sl = sl->next) {
+        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
             if (sl->spacetype == SPACE_VIEW3D) {
               View3D *v3d = (View3D *)sl;
               if (v3d->ob_center && v3d->ob_center->data == arm) {
@@ -423,7 +414,7 @@ void ED_armature_bones_flip_names(Main *bmain,
    * Note that if the other bone was not selected, its name was not flipped,
    * so conflict remains and that second rename simply generates a new numbered alternative name.
    */
-  for (bfn = static_cast<BoneFlipNameData *>(bones_names_conflicts.first); bfn; bfn = bfn->next) {
+  LISTBASE_FOREACH (BoneFlipNameData *, bfn, &bones_names_conflicts) {
     ED_armature_bone_rename(bmain, arm, bfn->name, bfn->name_flip);
   }
 }
@@ -443,11 +434,9 @@ static int armature_flip_names_exec(bContext *C, wmOperator *op)
 
   const bool do_strip_numbers = RNA_boolean_get(op->ptr, "do_strip_numbers");
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
 
     /* Paranoia check. */
@@ -484,13 +473,12 @@ static int armature_flip_names_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
     /* copied from #rna_Bone_update_renamed */
-    /* redraw view */
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+    /* Redraw Outliner / Dopesheet. */
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_RENAME, ob->data);
 
     /* update animation channels */
     WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, ob->data);
   }
-  MEM_freeN(objects);
 
   return OPERATOR_FINISHED;
 }
@@ -532,11 +520,9 @@ static int armature_autoside_names_exec(bContext *C, wmOperator *op)
   const short axis = RNA_enum_get(op->ptr, "type");
   bool changed_multi = false;
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bool changed = false;
 
@@ -581,7 +567,6 @@ static int armature_autoside_names_exec(bContext *C, wmOperator *op)
     /* NOTE: notifier might evolve. */
     WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
   }
-  MEM_freeN(objects);
   return changed_multi ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
@@ -610,7 +595,7 @@ void ARMATURE_OT_autoside_names(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* settings */
-  ot->prop = RNA_def_enum(ot->srna, "type", axis_items, 0, "Axis", "Axis tag names with");
+  ot->prop = RNA_def_enum(ot->srna, "type", axis_items, 0, "Axis", "Axis to tag names with");
 }
 
 /** \} */

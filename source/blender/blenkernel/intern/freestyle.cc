@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,11 +12,13 @@
 #include "DNA_freestyle_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_string_utils.h"
+#include "BLI_math_rotation.h"
+#include "BLI_string_utils.hh"
+
+#include "BLT_translation.hh"
 
 #include "BKE_freestyle.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_linestyle.h"
 
 /* Function declarations. */
@@ -40,9 +42,7 @@ void BKE_freestyle_config_init(FreestyleConfig *config)
 
 void BKE_freestyle_config_free(FreestyleConfig *config, const bool do_id_user)
 {
-  FreestyleLineSet *lineset;
-
-  for (lineset = (FreestyleLineSet *)config->linesets.first; lineset; lineset = lineset->next) {
+  LISTBASE_FOREACH (FreestyleLineSet *, lineset, &config->linesets) {
     if (lineset->group) {
       if (do_id_user) {
         id_us_min(&lineset->group->id);
@@ -64,8 +64,8 @@ void BKE_freestyle_config_copy(FreestyleConfig *new_config,
                                const FreestyleConfig *config,
                                const int flag)
 {
-  FreestyleLineSet *lineset, *new_lineset;
-  FreestyleModuleConfig *module, *new_module;
+  FreestyleLineSet *new_lineset;
+  FreestyleModuleConfig *new_module;
 
   new_config->mode = config->mode;
   new_config->flags = config->flags;
@@ -74,14 +74,14 @@ void BKE_freestyle_config_copy(FreestyleConfig *new_config,
   new_config->crease_angle = config->crease_angle;
 
   BLI_listbase_clear(&new_config->linesets);
-  for (lineset = (FreestyleLineSet *)config->linesets.first; lineset; lineset = lineset->next) {
+  LISTBASE_FOREACH (FreestyleLineSet *, lineset, &config->linesets) {
     new_lineset = alloc_lineset();
     copy_lineset(new_lineset, lineset, flag);
     BLI_addtail(&new_config->linesets, (void *)new_lineset);
   }
 
   BLI_listbase_clear(&new_config->modules);
-  for (module = (FreestyleModuleConfig *)config->modules.first; module; module = module->next) {
+  LISTBASE_FOREACH (FreestyleModuleConfig *, module, &config->modules) {
     new_module = alloc_module();
     copy_module(new_module, module);
     BLI_addtail(&new_config->modules, (void *)new_module);
@@ -168,7 +168,7 @@ FreestyleLineSet *BKE_freestyle_lineset_add(Main *bmain, FreestyleConfig *config
   BLI_addtail(&config->linesets, (void *)lineset);
   BKE_freestyle_lineset_set_active_index(config, lineset_index);
 
-  lineset->linestyle = BKE_linestyle_new(bmain, "LineStyle");
+  lineset->linestyle = BKE_linestyle_new(bmain, DATA_("LineStyle"));
   lineset->flags |= FREESTYLE_LINESET_ENABLED;
   lineset->selection = FREESTYLE_SEL_VISIBILITY | FREESTYLE_SEL_EDGE_TYPES |
                        FREESTYLE_SEL_IMAGE_BORDER;
@@ -182,10 +182,10 @@ FreestyleLineSet *BKE_freestyle_lineset_add(Main *bmain, FreestyleConfig *config
     STRNCPY(lineset->name, name);
   }
   else if (lineset_index > 0) {
-    SNPRINTF(lineset->name, "LineSet %i", lineset_index + 1);
+    SNPRINTF(lineset->name, DATA_("LineSet %i"), lineset_index + 1);
   }
   else {
-    STRNCPY(lineset->name, "LineSet");
+    STRNCPY(lineset->name, DATA_("LineSet"));
   }
   BKE_freestyle_lineset_unique_name(config, lineset);
 
@@ -211,9 +211,7 @@ bool BKE_freestyle_lineset_delete(FreestyleConfig *config, FreestyleLineSet *lin
 
 FreestyleLineSet *BKE_freestyle_lineset_get_active(FreestyleConfig *config)
 {
-  FreestyleLineSet *lineset;
-
-  for (lineset = (FreestyleLineSet *)config->linesets.first; lineset; lineset = lineset->next) {
+  LISTBASE_FOREACH (FreestyleLineSet *, lineset, &config->linesets) {
     if (lineset->flags & FREESTYLE_LINESET_CURRENT) {
       return lineset;
     }

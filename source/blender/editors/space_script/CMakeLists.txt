@@ -1,11 +1,9 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
-  ../../blenloader
-  ../../gpu
   ../../makesrna
 
 )
@@ -18,14 +16,16 @@ set(SRC
   script_ops.cc
   space_script.cc
 
-  script_intern.h
+  script_intern.hh
 )
 
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
   PRIVATE bf::blentranslation
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
 )

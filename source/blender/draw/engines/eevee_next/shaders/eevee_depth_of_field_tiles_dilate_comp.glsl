@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
  * Tile dilate pass: Takes the 8x8 Tiles buffer and converts dilates the tiles with large CoC to
@@ -5,13 +8,17 @@
  *
  * Input & Output:
  * - Separated foreground and background CoC. 1/8th of half-res resolution. So 1/16th of full-res.
- **/
+ */
 
-#pragma BLENDER_REQUIRE(eevee_depth_of_field_lib.glsl)
+#include "infos/eevee_depth_of_field_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_tiles_dilate)
+
+#include "eevee_depth_of_field_lib.glsl"
 
 /* Error introduced by the random offset of the gathering kernel's center. */
-const float bluring_radius_error = 1.0 + 1.0 / (float(DOF_GATHER_RING_COUNT) + 0.5);
-const float tile_to_fullres_factor = float(DOF_TILES_SIZE * 2);
+#define bluring_radius_error float(1.0 + 1.0 / (float(DOF_GATHER_RING_COUNT) + 0.5))
+#define tile_to_fullres_factor float(float(DOF_TILES_SIZE * 2))
 
 void main()
 {

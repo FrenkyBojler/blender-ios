@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,17 +10,14 @@
 
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "ED_gizmo_utils.hh"
+#include "ED_screen.hh"
 
-#include "ED_gizmo_utils.h"
-#include "ED_screen.h"
+#include "UI_resources.hh"
 
-#include "UI_resources.h"
+#include "WM_types.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
-
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Mesh Pre-Select Element Gizmo

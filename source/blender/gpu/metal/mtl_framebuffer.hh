@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,11 +10,12 @@
 
 #pragma once
 
-#include "GPU_common_types.h"
+#include "GPU_common_types.hh"
 #include "MEM_guardedalloc.h"
 
 #include "gpu_framebuffer_private.hh"
 #include "mtl_texture.hh"
+
 #include <Metal/Metal.h>
 
 namespace blender::gpu {
@@ -22,22 +23,22 @@ namespace blender::gpu {
 class MTLContext;
 
 struct MTLAttachment {
-  bool used;
-  gpu::MTLTexture *texture;
+  bool used = false;
+  gpu::MTLTexture *texture = nullptr;
   union {
     float color[4];
     float depth;
     uint stencil;
   } clear_value;
 
-  eGPULoadOp load_action;
-  eGPUStoreOp store_action;
-  uint mip;
-  uint slice;
-  uint depth_plane;
+  eGPULoadOp load_action = GPU_LOADACTION_DONT_CARE;
+  eGPUStoreOp store_action = GPU_STOREACTION_DONT_CARE;
+  uint mip = 0;
+  uint slice = 0;
+  uint depth_plane = 0;
 
   /* If Array Length is larger than zero, use multilayered rendering. */
-  uint render_target_array_length;
+  uint render_target_array_length = 0;
 };
 
 /**
@@ -74,8 +75,8 @@ class MTLFrameBuffer : public FrameBuffer {
 
   /**
    * Whether a clear is pending -- Used to toggle between clear and load FB configurations
-   * (without dirtying the state) - Frame-buffer load config is used if no `GPU_clear_*` command
-   * was issued after binding the #FrameBuffer.
+   * (without dirtying the state) - Frame-buffer load configuration is used if no `GPU_clear_*`
+   * command was issued after binding the #FrameBuffer.
    */
   bool has_pending_clear_;
 
@@ -87,14 +88,15 @@ class MTLFrameBuffer : public FrameBuffer {
    * [1] = LOAD CONFIG -- Used if bound, but no clear is required.
    * [2] = CUSTOM CONFIG -- When using GPU_framebuffer_bind_ex to manually specify
    * load-store configuration for optimal bandwidth utilization.
-   * -- We cache these different configs to avoid re-generation --
+   * -- We cache these different configurations to avoid re-generation --
    */
-  typedef enum {
+  enum {
     MTL_FB_CONFIG_CLEAR = 0,
     MTL_FB_CONFIG_LOAD = 1,
-    MTL_FB_CONFIG_CUSTOM = 2
-  } MTL_FB_CONFIG;
-#define MTL_FB_CONFIG_MAX (MTL_FB_CONFIG_CUSTOM + 1)
+    MTL_FB_CONFIG_CUSTOM = 2,
+
+    MTL_FB_CONFIG_MAX = (MTL_FB_CONFIG_CUSTOM + 1),
+  };
 
   MTLRenderPassDescriptor *framebuffer_descriptor_[MTL_FB_CONFIG_MAX];
   MTLRenderPassColorAttachmentDescriptor
@@ -106,7 +108,7 @@ class MTLFrameBuffer : public FrameBuffer {
   /** Whether the primary Frame-buffer attachment is an SRGB target or not. */
   bool srgb_;
 
-  /** Default width/height represent raw size of active framebuffer attachments.
+  /** Default width/height represent raw size of active frame-buffer attachments.
    * For consistency with OpenGL backend, as width_/height_ can affect viewport and scissor
    * size, we need to track this differently to ensure viewport state does not get reset.
    * This size is only used to reset viewport/scissor regions when viewports and scissor are
@@ -118,11 +120,11 @@ class MTLFrameBuffer : public FrameBuffer {
 
  public:
   /**
-   * Create a conventional framebuffer to attach texture to.
+   * Create a conventional frame-buffer to attach texture to.
    */
   MTLFrameBuffer(MTLContext *ctx, const char *name);
 
-  ~MTLFrameBuffer();
+  ~MTLFrameBuffer() override;
 
   void bind(bool enabled_srgb) override;
 
@@ -137,9 +139,7 @@ class MTLFrameBuffer : public FrameBuffer {
                         eGPUDataFormat data_format,
                         const void *clear_value) override;
 
-  void attachment_set_loadstore_op(GPUAttachmentType type,
-                                   eGPULoadOp load_action,
-                                   eGPUStoreOp store_action) override;
+  void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore ls) override;
 
   void read(eGPUFrameBufferBits planes,
             eGPUDataFormat format,
@@ -155,6 +155,11 @@ class MTLFrameBuffer : public FrameBuffer {
                int dst_offset_x,
                int dst_offset_y) override;
 
+ protected:
+  void subpass_transition_impl(const GPUAttachmentState /*depth_attachment_state*/,
+                               Span<GPUAttachmentState> color_attachment_states) override;
+
+ public:
   void apply_state();
 
   /* State. */

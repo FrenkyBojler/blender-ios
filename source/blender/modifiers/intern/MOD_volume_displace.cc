@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,40 +7,33 @@
  */
 
 #include "BKE_geometry_set.hh"
-#include "BKE_lib_query.h"
-#include "BKE_mesh_runtime.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_lib_query.hh"
+#include "BKE_modifier.hh"
 #include "BKE_texture.h"
-#include "BKE_volume.h"
+#include "BKE_volume.hh"
+#include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_texture_types.h"
-#include "DNA_volume_types.h"
 
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-
-#include "BLO_read_write.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 #include "RE_texture.h"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "BLI_math_vector.h"
 
@@ -52,7 +45,7 @@
 #  include <openvdb/tools/ValueTransformer.h>
 #endif
 
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
   VolumeDisplaceModifierData *vdmd = reinterpret_cast<VolumeDisplaceModifierData *>(md);
   vdmd->texture = nullptr;
@@ -61,7 +54,7 @@ static void initData(ModifierData *md)
   vdmd->texture_sample_radius = 1.0f;
 }
 
-static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
+static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
   VolumeDisplaceModifierData *vdmd = reinterpret_cast<VolumeDisplaceModifierData *>(md);
   if (vdmd->texture != nullptr) {
@@ -75,19 +68,21 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   }
 }
 
-static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
+static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   VolumeDisplaceModifierData *vdmd = reinterpret_cast<VolumeDisplaceModifierData *>(md);
-  walk(userData, ob, (ID **)&vdmd->texture, IDWALK_CB_USER);
-  walk(userData, ob, (ID **)&vdmd->texture_map_object, IDWALK_CB_USER);
+  walk(user_data, ob, (ID **)&vdmd->texture, IDWALK_CB_USER);
+  walk(user_data, ob, (ID **)&vdmd->texture_map_object, IDWALK_CB_USER);
 }
 
-static void foreachTexLink(ModifierData *md, Object *ob, TexWalkFunc walk, void *userData)
+static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  walk(userData, ob, md, "texture");
+  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
+  walk(user_data, ob, md, &ptr, prop);
 }
 
-static bool dependsOnTime(Scene * /*scene*/, ModifierData *md)
+static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
 {
   VolumeDisplaceModifierData *vdmd = reinterpret_cast<VolumeDisplaceModifierData *>(md);
   if (vdmd->texture) {
@@ -106,33 +101,33 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr, 0, ICON_NONE, nullptr);
-  uiItemR(layout, ptr, "texture_map_mode", 0, "Texture Mapping", ICON_NONE);
+  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
+  uiItemR(layout, ptr, "texture_map_mode", UI_ITEM_NONE, IFACE_("Texture Mapping"), ICON_NONE);
 
   if (vdmd->texture_map_mode == MOD_VOLUME_DISPLACE_MAP_OBJECT) {
-    uiItemR(layout, ptr, "texture_map_object", 0, "Object", ICON_NONE);
+    uiItemR(layout, ptr, "texture_map_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
   }
 
-  uiItemR(layout, ptr, "strength", 0, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "texture_sample_radius", 0, "Sample Radius", ICON_NONE);
-  uiItemR(layout, ptr, "texture_mid_level", 0, "Mid Level", ICON_NONE);
+  uiItemR(layout, ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "texture_sample_radius", UI_ITEM_NONE, IFACE_("Sample Radius"), ICON_NONE);
+  uiItemR(layout, ptr, "texture_mid_level", UI_ITEM_NONE, IFACE_("Mid Level"), ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_VolumeDisplace, panel_draw);
 }
 
 #ifdef WITH_OPENVDB
 
-static openvdb::Mat4s matrix_to_openvdb(const float m[4][4])
+static openvdb::Mat4s matrix_to_openvdb(const blender::float4x4 &m)
 {
   /* OpenVDB matrices are transposed Blender matrices, i.e. the translation is in the last row
    * instead of in the last column. However, the layout in memory is the same, because OpenVDB
    * matrices are row major (compared to Blender's column major matrices). */
-  openvdb::Mat4s new_matrix{reinterpret_cast<const float *>(m)};
+  openvdb::Mat4s new_matrix{m.base_ptr()};
   return new_matrix;
 }
 
@@ -193,7 +188,8 @@ struct DisplaceGridOp {
   template<typename GridType> void operator()()
   {
     if constexpr (blender::
-                      is_same_any_v<GridType, openvdb::points::PointDataGrid, openvdb::MaskGrid>) {
+                      is_same_any_v<GridType, openvdb::points::PointDataGrid, openvdb::MaskGrid>)
+    {
       /* We don't support displacing these grid types yet. */
       return;
     }
@@ -257,16 +253,16 @@ struct DisplaceGridOp {
         return index_to_object;
       }
       case MOD_VOLUME_DISPLACE_MAP_GLOBAL: {
-        const openvdb::Mat4s object_to_world = matrix_to_openvdb(ctx.object->object_to_world);
+        const openvdb::Mat4s object_to_world = matrix_to_openvdb(ctx.object->object_to_world());
         return index_to_object * object_to_world;
       }
       case MOD_VOLUME_DISPLACE_MAP_OBJECT: {
         if (vdmd.texture_map_object == nullptr) {
           return index_to_object;
         }
-        const openvdb::Mat4s object_to_world = matrix_to_openvdb(ctx.object->object_to_world);
+        const openvdb::Mat4s object_to_world = matrix_to_openvdb(ctx.object->object_to_world());
         const openvdb::Mat4s world_to_texture = matrix_to_openvdb(
-            vdmd.texture_map_object->world_to_object);
+            vdmd.texture_map_object->world_to_object());
         return index_to_object * object_to_world * world_to_texture;
       }
     }
@@ -286,13 +282,14 @@ static void displace_volume(ModifierData *md, const ModifierEvalContext *ctx, Vo
   BKE_volume_load(volume, DEG_get_bmain(ctx->depsgraph));
   const int grid_amount = BKE_volume_num_grids(volume);
   for (int grid_index = 0; grid_index < grid_amount; grid_index++) {
-    VolumeGrid *volume_grid = BKE_volume_grid_get_for_write(volume, grid_index);
-    BLI_assert(volume_grid != nullptr);
+    blender::bke::VolumeGridData *volume_grid = BKE_volume_grid_get_for_write(volume, grid_index);
+    BLI_assert(volume_grid);
 
-    openvdb::GridBase::Ptr grid = BKE_volume_grid_openvdb_for_write(volume, volume_grid, false);
-    VolumeGridType grid_type = BKE_volume_grid_type(volume_grid);
+    blender::bke::VolumeTreeAccessToken tree_token;
+    openvdb::GridBase &grid = volume_grid->grid_for_write(tree_token);
+    VolumeGridType grid_type = volume_grid->grid_type();
 
-    DisplaceGridOp displace_grid_op{*grid, *vdmd, *ctx};
+    DisplaceGridOp displace_grid_op{grid, *vdmd, *ctx};
     BKE_volume_grid_type_operation(grid_type, displace_grid_op);
   }
 
@@ -302,9 +299,9 @@ static void displace_volume(ModifierData *md, const ModifierEvalContext *ctx, Vo
 #endif
 }
 
-static void modifyGeometrySet(ModifierData *md,
-                              const ModifierEvalContext *ctx,
-                              blender::bke::GeometrySet *geometry_set)
+static void modify_geometry_set(ModifierData *md,
+                                const ModifierEvalContext *ctx,
+                                blender::bke::GeometrySet *geometry_set)
 {
   Volume *input_volume = geometry_set->get_volume_for_write();
   if (input_volume != nullptr) {
@@ -313,34 +310,36 @@ static void modifyGeometrySet(ModifierData *md,
 }
 
 ModifierTypeInfo modifierType_VolumeDisplace = {
+    /*idname*/ "Volume Displace",
     /*name*/ N_("Volume Displace"),
-    /*structName*/ "VolumeDisplaceModifierData",
-    /*structSize*/ sizeof(VolumeDisplaceModifierData),
+    /*struct_name*/ "VolumeDisplaceModifierData",
+    /*struct_size*/ sizeof(VolumeDisplaceModifierData),
     /*srna*/ &RNA_VolumeDisplaceModifier,
-    /*type*/ eModifierTypeType_NonGeometrical,
+    /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ static_cast<ModifierTypeFlag>(0),
     /*icon*/ ICON_VOLUME_DATA, /* TODO: Use correct icon. */
 
-    /*copyData*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ BKE_modifier_copydata_generic,
 
-    /*deformVerts*/ nullptr,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ nullptr,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ nullptr,
-    /*modifyGeometrySet*/ modifyGeometrySet,
+    /*deform_verts*/ nullptr,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ nullptr,
+    /*modify_geometry_set*/ modify_geometry_set,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ nullptr,
-    /*freeData*/ nullptr,
-    /*isDisabled*/ nullptr,
-    /*updateDepsgraph*/ updateDepsgraph,
-    /*dependsOnTime*/ dependsOnTime,
-    /*dependsOnNormals*/ nullptr,
-    /*foreachIDLink*/ foreachIDLink,
-    /*foreachTexLink*/ foreachTexLink,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ nullptr,
-    /*blendRead*/ nullptr,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ nullptr,
+    /*free_data*/ nullptr,
+    /*is_disabled*/ nullptr,
+    /*update_depsgraph*/ update_depsgraph,
+    /*depends_on_time*/ depends_on_time,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_tex_link*/ foreach_tex_link,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

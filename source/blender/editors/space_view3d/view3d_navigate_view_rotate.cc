@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,17 +6,17 @@
  * \ingroup spview3d
  */
 
-#include "BLI_math.h"
+#include "BKE_context.hh"
 
-#include "BKE_context.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
-#include "RNA_access.h"
+#include "ED_screen.hh"
 
-#include "ED_screen.h"
-
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
@@ -390,8 +390,7 @@ void VIEW3D_OT_rotate(wmOperatorType *ot)
 /** \} */
 
 const ViewOpsType ViewOpsType_rotate = {
-    /*flag*/ (VIEWOPS_FLAG_DEPTH_NAVIGATE | VIEWOPS_FLAG_USE_MOUSE_INIT |
-              VIEWOPS_FLAG_PERSP_ENSURE | VIEWOPS_FLAG_ORBIT_SELECT),
+    /*flag*/ (VIEWOPS_FLAG_DEPTH_NAVIGATE | VIEWOPS_FLAG_PERSP_ENSURE | VIEWOPS_FLAG_ORBIT_SELECT),
     /*idname*/ "VIEW3D_OT_rotate",
     /*poll_fn*/ view3d_rotation_poll,
     /*init_fn*/ viewrotate_invoke_impl,

@@ -11,14 +11,15 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
-#include "BKE_context.h"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
+#include "BKE_object_types.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 
-#include "ED_particle.h"
+#include "ED_particle.hh"
 
 #include "transform.hh"
 #include "transform_snap.hh"
@@ -97,7 +98,7 @@ static void createTransParticleVerts(bContext * /*C*/, TransInfo *t)
 
     unit_m4(mat);
 
-    invert_m4_m4(ob->world_to_object, ob->object_to_world);
+    invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
 
     for (i = 0, point = edit->points; i < edit->totpoint; i++, point++) {
       TransData *head, *tail;
@@ -136,17 +137,16 @@ static void createTransParticleVerts(bContext * /*C*/, TransInfo *t)
         unit_m3(td->mtx);
         unit_m3(td->smtx);
 
-        /* don't allow moving roots */
+        /* Don't allow moving roots. */
         if (k == 0 && pset->flag & PE_LOCK_FIRST && (!psys || !(psys->flag & PSYS_GLOBAL_HAIR))) {
           td->protectflag |= OB_LOCK_LOC;
         }
 
-        td->ob = ob;
         td->ext = tx;
         if (t->mode == TFM_BAKE_TIME) {
           td->val = key->time;
           td->ival = *(key->time);
-          /* abuse size and quat for min/max values */
+          /* Abuse size and quat for min/max values. */
           td->flag |= TD_NO_EXT;
           if (k == 0) {
             tx->size = nullptr;
@@ -198,8 +198,8 @@ static void flushTransParticles(TransInfo *t)
     int i, k;
     const bool is_prop_edit = (t->flag & T_PROP_EDIT) != 0;
 
-    /* we do transform in world space, so flush world space position
-     * back to particle local space (only for hair particles) */
+    /* We do transform in world space, so flush world space position
+     * back to particle local space (only for hair particles). */
     td = tc->data;
     for (i = 0, point = edit->points; i < edit->totpoint; i++, point++, td++) {
       if (!(point->flag & PEP_TRANSFORM)) {
@@ -216,7 +216,7 @@ static void flushTransParticles(TransInfo *t)
           copy_v3_v3(co, key->world_co);
           mul_m4_v3(imat, co);
 
-          /* optimization for proportional edit */
+          /* Optimization for proportional edit. */
           if (!is_prop_edit || !compare_v3v3(key->co, co, 0.0001f)) {
             copy_v3_v3(key->co, co);
             point->flag |= PEP_EDIT_RECALC;
@@ -252,7 +252,7 @@ static void recalcData_particles(TransInfo *t)
 
 TransConvertTypeInfo TransConvertType_Particle = {
     /*flags*/ T_POINTS,
-    /*createTransData*/ createTransParticleVerts,
-    /*recalcData*/ recalcData_particles,
+    /*create_trans_data*/ createTransParticleVerts,
+    /*recalc_data*/ recalcData_particles,
     /*special_aftertrans_update*/ nullptr,
 };

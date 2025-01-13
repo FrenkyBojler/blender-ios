@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-FileCopyrightText: 2010-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2010-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -7,7 +7,7 @@
 # assumes you have dependencies installed already
 
 # See this page for more info:
-#   https://wiki.blender.org/wiki/Building_Blender/Linux/Generic_Distro/CMake
+#   https://developer.blender.org/docs/handbook/building_blender/linux/
 
 # grab blender
 mkdir ~/blender-git

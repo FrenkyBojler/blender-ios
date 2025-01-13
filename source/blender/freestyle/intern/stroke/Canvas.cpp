@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2008-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -26,13 +26,13 @@
 
 #include "BLI_sys_types.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 // soc #include <qimage.h>
 // soc #include <QString>
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 using namespace std;
 
@@ -121,7 +121,8 @@ void Canvas::Clear()
 {
   if (!_Layers.empty()) {
     for (deque<StrokeLayer *>::iterator sl = _Layers.begin(), slend = _Layers.end(); sl != slend;
-         ++sl) {
+         ++sl)
+    {
       if (*sl) {
         delete (*sl);
       }
@@ -151,7 +152,8 @@ void Canvas::Erase()
 {
   if (!_Layers.empty()) {
     for (deque<StrokeLayer *>::iterator sl = _Layers.begin(), slend = _Layers.end(); sl != slend;
-         ++sl) {
+         ++sl)
+    {
       if (*sl) {
         (*sl)->clear();
       }
@@ -353,7 +355,7 @@ void Canvas::loadMap(const char *iFileName, const char *iMapName, uint iNbLevels
   ImBuf *scaledImg;
   if ((qimg->x != width()) || (qimg->y != height())) {
     scaledImg = IMB_dupImBuf(qimg);
-    IMB_scaleImBuf(scaledImg, width(), height());
+    IMB_scale(scaledImg, width(), height(), IMBScaleFilter::Box, false);
   }
 
   // deal with color image
@@ -362,8 +364,8 @@ void Canvas::loadMap(const char *iFileName, const char *iMapName, uint iNbLevels
     int w = newMap->width();
     int h = newMap->height();
     QImage *tmp = new QImage(w, h, 8);
-    for (unsigned int y = 0; y < h; ++y) {
-      for (unsigned int x = 0; x < w; ++x) {
+    for (uint y = 0; y < h; ++y) {
+      for (uint x = 0; x < w; ++x) {
         int c = qGray(newMap->pixel(x, y));
         tmp->setPixel(x, y, c);
       }
@@ -391,7 +393,7 @@ void Canvas::loadMap(const char *iFileName, const char *iMapName, uint iNbLevels
 #if 0
   GrayImage blur(w, h);
   GaussianFilter gf(4.0f);
-  //int bound = gf.getBound();
+  // int bound = gf.getBound();
   for (y = 0; y < h; ++y) {
     for (x = 0; x < w; ++x) {
       int c = gf.getSmoothedPixel<GrayImage>(&tmp, x, y);
@@ -435,7 +437,7 @@ void Canvas::loadMap(const char *iFileName, const char *iMapName, uint iNbLevels
   QImage *qtmp = new QImage(w, h, 32);
   for (y = 0; y < h; ++y) {
     for (x = 0; x < w; ++x) {
-      int c = (int)blur.pixel(x, y);
+      int c = int(blur.pixel(x, y));
       qtmp->setPixel(x, y, qRgb(c, c, c));
     }
   }

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,27 +12,27 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "BKE_image.h"
-#include "BKE_scene.h"
+#include "BKE_image.hh"
+#include "BKE_scene.hh"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#include "ED_render.h"
+#include "ED_render.hh"
 
 /* Deprecated, only provided for API compatibility. */
 const EnumPropertyItem rna_enum_render_pass_type_items[] = {
@@ -84,18 +84,18 @@ const EnumPropertyItem rna_enum_bake_pass_type_items[] = {
 
 #  include "MEM_guardedalloc.h"
 
-#  include "RNA_access.h"
+#  include "RNA_access.hh"
 
-#  include "BKE_appdir.h"
-#  include "BKE_context.h"
-#  include "BKE_report.h"
+#  include "BKE_appdir.hh"
+#  include "BKE_context.hh"
+#  include "BKE_report.hh"
 
-#  include "GPU_capabilities.h"
-#  include "GPU_shader.h"
-#  include "IMB_colormanagement.h"
-#  include "IMB_imbuf_types.h"
+#  include "GPU_capabilities.hh"
+#  include "GPU_shader.hh"
+#  include "IMB_colormanagement.hh"
+#  include "IMB_imbuf_types.hh"
 
-#  include "DEG_depsgraph_query.h"
+#  include "DEG_depsgraph_query.hh"
 
 /* RenderEngine Callbacks */
 
@@ -134,11 +134,10 @@ static void engine_unbind_display_space_shader(RenderEngine * /*engine*/)
 static void engine_update(RenderEngine *engine, Main *bmain, Depsgraph *depsgraph)
 {
   extern FunctionRNA rna_RenderEngine_update_func;
-  PointerRNA ptr;
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine, &ptr);
+  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_update_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -152,11 +151,10 @@ static void engine_update(RenderEngine *engine, Main *bmain, Depsgraph *depsgrap
 static void engine_render(RenderEngine *engine, Depsgraph *depsgraph)
 {
   extern FunctionRNA rna_RenderEngine_render_func;
-  PointerRNA ptr;
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine, &ptr);
+  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_render_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -169,11 +167,10 @@ static void engine_render(RenderEngine *engine, Depsgraph *depsgraph)
 static void engine_render_frame_finish(RenderEngine *engine)
 {
   extern FunctionRNA rna_RenderEngine_render_frame_finish_func;
-  PointerRNA ptr;
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine, &ptr);
+  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_render_frame_finish_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -185,11 +182,10 @@ static void engine_render_frame_finish(RenderEngine *engine)
 static void engine_draw(RenderEngine *engine, const bContext *context, Depsgraph *depsgraph)
 {
   extern FunctionRNA rna_RenderEngine_draw_func;
-  PointerRNA ptr;
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine, &ptr);
+  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_draw_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -209,11 +205,10 @@ static void engine_bake(RenderEngine *engine,
                         const int height)
 {
   extern FunctionRNA rna_RenderEngine_bake_func;
-  PointerRNA ptr;
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine, &ptr);
+  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_bake_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -231,11 +226,10 @@ static void engine_bake(RenderEngine *engine,
 static void engine_view_update(RenderEngine *engine, const bContext *context, Depsgraph *depsgraph)
 {
   extern FunctionRNA rna_RenderEngine_view_update_func;
-  PointerRNA ptr;
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine, &ptr);
+  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_view_update_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -249,11 +243,10 @@ static void engine_view_update(RenderEngine *engine, const bContext *context, De
 static void engine_view_draw(RenderEngine *engine, const bContext *context, Depsgraph *depsgraph)
 {
   extern FunctionRNA rna_RenderEngine_view_draw_func;
-  PointerRNA ptr;
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine, &ptr);
+  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_view_draw_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -267,12 +260,11 @@ static void engine_view_draw(RenderEngine *engine, const bContext *context, Deps
 static void engine_update_script_node(RenderEngine *engine, bNodeTree *ntree, bNode *node)
 {
   extern FunctionRNA rna_RenderEngine_update_script_node_func;
-  PointerRNA ptr, nodeptr;
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine, &ptr);
-  RNA_pointer_create((ID *)ntree, &RNA_Node, node, &nodeptr);
+  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA nodeptr = RNA_pointer_create((ID *)ntree, &RNA_Node, node);
   func = &rna_RenderEngine_update_script_node_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -285,11 +277,10 @@ static void engine_update_script_node(RenderEngine *engine, bNodeTree *ntree, bN
 static void engine_update_render_passes(RenderEngine *engine, Scene *scene, ViewLayer *view_layer)
 {
   extern FunctionRNA rna_RenderEngine_update_render_passes_func;
-  PointerRNA ptr;
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine, &ptr);
+  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_update_render_passes_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -331,13 +322,12 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   const char *error_prefix = "Registering render engine class:";
   RenderEngineType *et, dummy_et = {nullptr};
   RenderEngine dummy_engine = {nullptr};
-  PointerRNA dummy_engine_ptr;
   bool have_function[9];
 
   /* setup dummy engine & engine type to store static properties in */
   dummy_engine.type = &dummy_et;
   dummy_et.flag |= RE_USE_SHADING_NODES_CUSTOM;
-  RNA_pointer_create(nullptr, &RNA_RenderEngine, &dummy_engine, &dummy_engine_ptr);
+  PointerRNA dummy_engine_ptr = RNA_pointer_create(nullptr, &RNA_RenderEngine, &dummy_engine);
 
   /* validate the python class */
   if (validate(&dummy_engine_ptr, data, have_function) != 0) {
@@ -358,6 +348,13 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   et = static_cast<RenderEngineType *>(
       BLI_findstring(&R_engines, dummy_et.idname, offsetof(RenderEngineType, idname)));
   if (et) {
+    BKE_reportf(reports,
+                RPT_INFO,
+                "%s '%s', bl_idname '%s' has been registered before, unregistering previous",
+                error_prefix,
+                identifier,
+                dummy_et.idname);
+
     StructRNA *srna = et->rna_ext.srna;
     if (!(srna && rna_RenderEngine_unregister(bmain, srna))) {
       BKE_reportf(reports,
@@ -953,8 +950,9 @@ static void rna_def_render_engine(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bl_use_eevee_viewport", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_EEVEE_VIEWPORT);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_ui_text(
-      prop, "Use Eevee Viewport", "Uses Eevee for viewport shading in LookDev shading mode");
+  RNA_def_property_ui_text(prop,
+                           "Use EEVEE Viewport",
+                           "Uses EEVEE for viewport shading in Material Preview shading mode");
 
   prop = RNA_def_property(srna, "bl_use_custom_freestyle", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_CUSTOM_FREESTYLE);
@@ -972,7 +970,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
       prop,
       "Use Image Save",
       "Save images/movie to disk while rendering an animation. "
-      "Disabling image saving is only supported when bl_use_postprocess is also disabled");
+      "Disabling image saving is only supported when bl_use_postprocess is also disabled.");
 
   prop = RNA_def_property(srna, "bl_use_gpu_context", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_GPU_CONTEXT);
@@ -988,8 +986,8 @@ static void rna_def_render_engine(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
   RNA_def_property_ui_text(prop,
                            "Use Custom Shading Nodes",
-                           "Don't expose Cycles and Eevee shading nodes in the node editor user "
-                           "interface, so own nodes can be used instead");
+                           "Don't expose Cycles and EEVEE shading nodes in the node editor user "
+                           "interface, so separate nodes can be used instead");
 
   prop = RNA_def_property(srna, "bl_use_spherical_stereo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_SPHERICAL_STEREO);
@@ -1007,7 +1005,21 @@ static void rna_def_render_engine(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Use Alembic Procedural", "Support loading Alembic data at render time");
 
+  prop = RNA_def_property(srna, "bl_use_materialx", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_MATERIALX);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop, "Use MaterialX", "Use MaterialX for exporting materials to Hydra");
+
   RNA_define_verify_sdna(true);
+}
+
+static void rna_def_hydra_render_engine(BlenderRNA *brna)
+{
+  /* This is implemented in Python. */
+  StructRNA *srna = RNA_def_struct(brna, "HydraRenderEngine", "RenderEngine");
+  RNA_def_struct_sdna(srna, "RenderEngine");
+  RNA_def_struct_ui_text(srna, "Hydra Render Engine", "Base class from USD Hydra based renderers");
 }
 
 static void rna_def_render_result(BlenderRNA *brna)
@@ -1238,6 +1250,7 @@ static void rna_def_render_pass(BlenderRNA *brna)
 void RNA_def_render(BlenderRNA *brna)
 {
   rna_def_render_engine(brna);
+  rna_def_hydra_render_engine(brna);
   rna_def_render_result(brna);
   rna_def_render_view(brna);
   rna_def_render_layer(brna);

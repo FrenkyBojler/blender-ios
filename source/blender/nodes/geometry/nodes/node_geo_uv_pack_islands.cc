@@ -1,11 +1,8 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "GEO_uv_parametrizer.hh"
-
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 
 #include "BKE_mesh.hh"
 
@@ -32,14 +29,14 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
                                            const Field<float3> uv_field,
                                            const bool rotate,
                                            const float margin,
-                                           const eAttrDomain domain)
+                                           const AttrDomain domain)
 {
   const Span<float3> positions = mesh.vert_positions();
-  const OffsetIndices polys = mesh.polys();
+  const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
 
-  const bke::MeshFieldContext face_context{mesh, ATTR_DOMAIN_FACE};
-  FieldEvaluator face_evaluator{face_context, polys.size()};
+  const bke::MeshFieldContext face_context{mesh, AttrDomain::Face};
+  FieldEvaluator face_evaluator{face_context, faces.size()};
   face_evaluator.add(selection_field);
   face_evaluator.evaluate();
   const IndexMask selection = face_evaluator.get_evaluated_as_mask(0);
@@ -47,22 +44,22 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
     return {};
   }
 
-  const bke::MeshFieldContext corner_context{mesh, ATTR_DOMAIN_CORNER};
-  FieldEvaluator evaluator{corner_context, mesh.totloop};
-  Array<float3> uv(mesh.totloop);
+  const bke::MeshFieldContext corner_context{mesh, AttrDomain::Corner};
+  FieldEvaluator evaluator{corner_context, mesh.corners_num};
+  Array<float3> uv(mesh.corners_num);
   evaluator.add_with_destination(uv_field, uv.as_mutable_span());
   evaluator.evaluate();
 
   geometry::ParamHandle *handle = new geometry::ParamHandle();
-  selection.foreach_index([&](const int poly_index) {
-    const IndexRange poly = polys[poly_index];
-    Array<geometry::ParamKey, 16> mp_vkeys(poly.size());
-    Array<bool, 16> mp_pin(poly.size());
-    Array<bool, 16> mp_select(poly.size());
-    Array<const float *, 16> mp_co(poly.size());
-    Array<float *, 16> mp_uv(poly.size());
-    for (const int i : IndexRange(poly.size())) {
-      const int corner = poly[i];
+  selection.foreach_index([&](const int face_index) {
+    const IndexRange face = faces[face_index];
+    Array<geometry::ParamKey, 16> mp_vkeys(face.size());
+    Array<bool, 16> mp_pin(face.size());
+    Array<bool, 16> mp_select(face.size());
+    Array<const float *, 16> mp_co(face.size());
+    Array<float *, 16> mp_uv(face.size());
+    for (const int i : IndexRange(face.size())) {
+      const int corner = face[i];
       const int vert = corner_verts[corner];
       mp_vkeys[i] = vert;
       mp_co[i] = positions[vert];
@@ -71,11 +68,12 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
       mp_select[i] = false;
     }
     geometry::uv_parametrizer_face_add(handle,
-                                       poly_index,
-                                       poly.size(),
+                                       face_index,
+                                       face.size(),
                                        mp_vkeys.data(),
                                        mp_co.data(),
                                        mp_uv.data(),
+                                       nullptr,
                                        mp_pin.data(),
                                        mp_select.data());
   });
@@ -86,7 +84,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   delete (handle);
 
   return mesh.attributes().adapt_domain<float3>(
-      VArray<float3>::ForContainer(std::move(uv)), ATTR_DOMAIN_CORNER, domain);
+      VArray<float3>::ForContainer(std::move(uv)), AttrDomain::Corner, domain);
 }
 
 class PackIslandsFieldInput final : public bke::MeshFieldInput {
@@ -111,7 +109,7 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
     return construct_uv_gvarray(mesh, selection_field_, uv_field_, rotate_, margin_, domain);
@@ -123,9 +121,9 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
     uv_field_.node().for_each_field_input_recursive(fn);
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_CORNER;
+    return AttrDomain::Corner;
   }
 };
 
@@ -140,16 +138,20 @@ static void node_geo_exec(GeoNodeExecParams params)
                         selection_field, uv_field, rotate, margin)));
 }
 
-}  // namespace blender::nodes::node_geo_uv_pack_islands_cc
-
-void register_node_type_geo_uv_pack_islands()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_uv_pack_islands_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_UV_PACK_ISLANDS, "Pack UV Islands", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(
+      &ntype, "GeometryNodeUVPackIslands", GEO_NODE_UV_PACK_ISLANDS, NODE_CLASS_CONVERTER);
+  ntype.ui_name = "Pack UV Islands";
+  ntype.ui_description =
+      "Scale islands of a UV map and move them so they fill the UV space as much as possible";
+  ntype.enum_name_legacy = "UV_PACK_ISLANDS";
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_uv_pack_islands_cc

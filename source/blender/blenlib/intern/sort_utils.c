@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -68,34 +68,6 @@ int BLI_sortutil_cmp_int_reverse(const void *a_, const void *b_)
 {
   const struct SortAnyByInt *a = a_;
   const struct SortAnyByInt *b = b_;
-  if (a->sort_value < b->sort_value) {
-    return 1;
-  }
-  if (a->sort_value > b->sort_value) {
-    return -1;
-  }
-
-  return 0;
-}
-
-int BLI_sortutil_cmp_ptr(const void *a_, const void *b_)
-{
-  const struct SortAnyByPtr *a = a_;
-  const struct SortAnyByPtr *b = b_;
-  if (a->sort_value > b->sort_value) {
-    return 1;
-  }
-  if (a->sort_value < b->sort_value) {
-    return -1;
-  }
-
-  return 0;
-}
-
-int BLI_sortutil_cmp_ptr_reverse(const void *a_, const void *b_)
-{
-  const struct SortAnyByPtr *a = a_;
-  const struct SortAnyByPtr *b = b_;
   if (a->sort_value < b->sort_value) {
     return 1;
   }

@@ -1,11 +1,9 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
-  ../../asset_system
-  ../../blenloader
   ../../makesrna
 )
 
@@ -21,17 +19,13 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::asset_system
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
   PRIVATE bf::blentranslation
   PRIVATE bf::bmesh
   PRIVATE bf::dna
-  bf_editor_curve
-  bf_editor_curves
-  bf_editor_lattice
-  bf_editor_mesh
-  bf_editor_metaball
-  bf_editor_physics
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager

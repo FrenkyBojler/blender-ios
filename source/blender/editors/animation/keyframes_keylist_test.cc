@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -6,14 +6,14 @@
 
 #include "BLI_utildefines.h"
 
-#include "ED_keyframes_keylist.h"
+#include "ED_keyframes_keylist.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_curve_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 
 #include <functional>
 #include <optional>
@@ -43,7 +43,7 @@ static AnimKeylist *create_test_keylist()
   build_fcurve(*fcurve);
 
   AnimKeylist *keylist = ED_keylist_create();
-  fcurve_to_keylist(nullptr, fcurve, keylist, 0);
+  fcurve_to_keylist(nullptr, fcurve, keylist, 0, {-FLT_MAX, FLT_MAX}, false);
   BKE_fcurve_free(fcurve);
 
   ED_keylist_prepare_for_direct_access(keylist);

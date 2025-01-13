@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -19,16 +19,20 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("ID", std::move(position_field));
 }
 
-}  // namespace blender::nodes::node_geo_input_id_cc
-
-void register_node_type_geo_input_id()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_id_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_ID, "ID", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeInputID", GEO_NODE_INPUT_ID, NODE_CLASS_INPUT);
+  ntype.ui_name = "ID";
+  ntype.ui_description =
+      "Retrieve a stable random identifier value from the \"id\" attribute on the point domain, "
+      "or the index if the attribute does not exist";
+  ntype.enum_name_legacy = "INPUT_ID";
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_id_cc

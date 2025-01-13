@@ -1,10 +1,10 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 #include "testing/testing.h"
 
 struct BlendFileData;
@@ -25,10 +25,10 @@ class BlendfileLoadingBaseTest : public testing::Test {
   /* Frees the depsgraph & blendfile. */
   virtual void TearDown();
 
-  /* Loads a blend file from the lib/tests directory from SVN.
-   * Returns 'ok' flag (true=good, false=bad) and sets this->bfile.
+  /* Loads a blend file from the tests/data directory from SVN.
+   * Returns 'ok' flag (true=good, false=bad) and sets `this->bfile`.
    * Fails the test if the file cannot be loaded (still returns though).
-   * Requires the CLI argument --test-asset-dir to point to ../../lib/tests.
+   * Requires the CLI argument `--test-asset-dir` to point to `../tests/data`.
    *
    * WARNING: only files saved with Blender 2.80+ can be loaded. Since Blender
    * is only partially initialized (most importantly, without window manager),

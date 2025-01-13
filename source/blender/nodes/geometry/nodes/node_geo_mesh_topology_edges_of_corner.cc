@@ -1,9 +1,8 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.h"
 
 #include "BLI_task.hh"
 
@@ -34,10 +33,10 @@ class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    if (domain != ATTR_DOMAIN_CORNER) {
+    if (domain != AttrDomain::Corner) {
       return {};
     }
     return VArray<int>::ForSpan(mesh.corner_edges());
@@ -53,9 +52,9 @@ class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const CornerNextEdgeFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_CORNER;
+    return AttrDomain::Corner;
   }
 };
 
@@ -67,20 +66,18 @@ class CornerPreviousEdgeFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    if (domain != ATTR_DOMAIN_CORNER) {
+    if (domain != AttrDomain::Corner) {
       return {};
     }
-    const OffsetIndices polys = mesh.polys();
+    const OffsetIndices faces = mesh.faces();
     const Span<int> corner_edges = mesh.corner_edges();
-    Array<int> loop_to_poly_map = bke::mesh::build_loop_to_poly_map(polys);
+    const Span<int> corner_to_face = mesh.corner_to_face_map();
     return VArray<int>::ForFunc(
-        mesh.totloop,
-        [polys, corner_edges, loop_to_poly_map = std::move(loop_to_poly_map)](const int corner_i) {
-          return corner_edges[bke::mesh::poly_corner_prev(polys[loop_to_poly_map[corner_i]],
-                                                          corner_i)];
+        corner_edges.size(), [faces, corner_edges, corner_to_face](const int corner) {
+          return corner_edges[bke::mesh::face_corner_prev(faces[corner_to_face[corner]], corner)];
         });
   }
 
@@ -94,9 +91,9 @@ class CornerPreviousEdgeFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const CornerPreviousEdgeFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_CORNER;
+    return AttrDomain::Corner;
   }
 };
 
@@ -105,30 +102,34 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<int> corner_index = params.extract_input<Field<int>>("Corner Index");
   if (params.output_is_required("Next Edge Index")) {
     params.set_output("Next Edge Index",
-                      Field<int>(std::make_shared<EvaluateAtIndexInput>(
+                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           corner_index,
                           Field<int>(std::make_shared<CornerNextEdgeFieldInput>()),
-                          ATTR_DOMAIN_CORNER)));
+                          AttrDomain::Corner)));
   }
   if (params.output_is_required("Previous Edge Index")) {
     params.set_output("Previous Edge Index",
-                      Field<int>(std::make_shared<EvaluateAtIndexInput>(
+                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           corner_index,
                           Field<int>(std::make_shared<CornerPreviousEdgeFieldInput>()),
-                          ATTR_DOMAIN_CORNER)));
+                          AttrDomain::Corner)));
   }
 }
 
-}  // namespace blender::nodes::node_geo_mesh_topology_edges_of_corner_cc
-
-void register_node_type_geo_mesh_topology_edges_of_corner()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_mesh_topology_edges_of_corner_cc;
-
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_MESH_TOPOLOGY_EDGES_OF_CORNER, "Edges of Corner", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype,
+                     "GeometryNodeEdgesOfCorner",
+                     GEO_NODE_MESH_TOPOLOGY_EDGES_OF_CORNER,
+                     NODE_CLASS_INPUT);
+  ntype.ui_name = "Edges of Corner";
+  ntype.ui_description = "Retrieve the edges on both sides of a face corner";
+  ntype.enum_name_legacy = "EDGES_OF_CORNER";
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_mesh_topology_edges_of_corner_cc

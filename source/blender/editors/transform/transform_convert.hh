@@ -11,6 +11,12 @@
 
 #include "RE_engine.h"
 
+#include "BKE_curves.hh"
+
+#include "BLI_index_mask.hh"
+
+#include "transform.hh"
+
 struct BMEditMesh;
 struct BMesh;
 struct BezTriple;
@@ -20,19 +26,24 @@ struct TransData;
 struct TransDataCurveHandleFlags;
 struct TransInfo;
 struct bContext;
+struct Strip;
+
+namespace blender::bke::crazyspace {
+struct GeometryDeformation;
+}
 
 struct TransConvertTypeInfo {
-  int flags; /* eTFlag */
+  int flags; /* #eTFlag. */
 
   /**
    * Allocate and initialize `t->data`.
    */
-  void (*createTransData)(bContext *C, TransInfo *t);
+  void (*create_trans_data)(bContext *C, TransInfo *t);
 
   /**
    * Force recalculation of data during transformation.
    */
-  void (*recalcData)(TransInfo *t);
+  void (*recalc_data)(TransInfo *t);
 
   /**
    * Called when the operation is finished.
@@ -40,7 +51,73 @@ struct TransConvertTypeInfo {
   void (*special_aftertrans_update)(bContext *C, TransInfo *t);
 };
 
-/* transform_convert.c */
+/**
+ * Structure used for Edge Slide operation.
+ * The data is filled based on the 'transform_convert_' type.
+ */
+struct TransDataEdgeSlideVert {
+  TransData *td;
+  blender::float3 dir_side[2]; /* Directional vectors on the sides. */
+  float edge_len;              /* Distance between vectors. */
+  int loop_nr;                 /* Number that identifies the group of connected edges. */
+
+  const float *v_co_orig() const
+  {
+    return this->td->iloc;
+  }
+};
+
+/**
+ * Structure used for Vert Slide operation.
+ * The data is filled based on the 'transform_convert_' type.
+ */
+struct TransDataVertSlideVert {
+  TransData *td;
+  blender::Span<blender::float3> co_link_orig_3d; /* Target locations. */
+  int co_link_curr;
+
+  const float *co_orig_3d() const
+  {
+    return this->td->iloc;
+  }
+
+  const blender::float3 &co_dest_3d() const
+  {
+    return this->co_link_orig_3d[this->co_link_curr];
+  }
+};
+
+/**
+ * Structure used for curves transform operation.
+ * Used for both curves and grease pencil objects.
+ */
+struct CurvesTransformData {
+  blender::IndexMaskMemory memory;
+  blender::Vector<blender::IndexMask> selection_by_layer;
+  /* TODO: add support for grease pencil layers. */
+  blender::IndexMask aligned_with_left;
+  blender::IndexMask aligned_with_right;
+
+  /**
+   * The offsets of every grease pencil layer into `positions` array.
+   * For curves layers are used to store: positions, handle_positions_left and
+   * handle_positions_right.
+   */
+  blender::Vector<int> layer_offsets;
+
+  /**
+   * Grease pencil multi-frame editing falloff. One value for each drawing in a
+   * `TransDataContainer`.
+   */
+  blender::Vector<float> grease_pencil_falloffs;
+
+  /**
+   * Copy of all positions being transformed.
+   */
+  blender::Array<blender::float3> positions;
+};
+
+/* `transform_convert.cc` */
 
 /**
  * Change the chain-length of auto-IK.
@@ -52,25 +129,25 @@ int special_transform_moving(TransInfo *t);
  */
 void special_aftertrans_update(bContext *C, TransInfo *t);
 void sort_trans_data_dist(TransInfo *t);
-void createTransData(bContext *C, TransInfo *t);
+void create_trans_data(bContext *C, TransInfo *t);
 void clipUVData(TransInfo *t);
 void transform_convert_flush_handle2D(TransData *td, TransData2D *td2d, float y_fac);
 /**
  * Called for updating while transform acts, once per redraw.
  */
-void recalcData(TransInfo *t);
+void recalc_data(TransInfo *t);
 
-/* transform_convert_mesh.c */
+/* `transform_convert_mesh.cc` */
 
 void transform_convert_mesh_customdatacorrect_init(TransInfo *t);
 
-/* transform_convert_sequencer.c */
+/* `transform_convert_sequencer.cc` */
 
 void transform_convert_sequencer_channel_clamp(TransInfo *t, float r_val[2]);
 
 /********************* intern **********************/
 
-/* transform_convert.c */
+/* `transform_convert.cc` */
 
 bool transform_mode_use_local_origins(const TransInfo *t);
 /**
@@ -106,11 +183,36 @@ void transform_convert_clip_mirror_modifier_apply(TransDataContainer *tc);
  */
 void animrecord_check_state(TransInfo *t, ID *id);
 
-/* transform_convert_action.c */
+/* `transform_convert_curves.cc` */
+
+/**
+ * Used for both curves and grease pencil objects.
+ */
+void curve_populate_trans_data_structs(
+    const TransInfo &t,
+    TransDataContainer &tc,
+    blender::bke::CurvesGeometry &curves,
+    const blender::float4x4 &transform,
+    const blender::bke::crazyspace::GeometryDeformation &deformation,
+    std::optional<blender::MutableSpan<float>> value_attribute,
+    const blender::Span<blender::IndexMask> points_to_transform_indices,
+    const blender::IndexMask &affected_curves,
+    bool use_connected_only,
+    const blender::IndexMask &bezier_curves,
+    void *extra = nullptr);
+
+CurvesTransformData *create_curves_transform_custom_data(TransCustomData &custom_data);
+
+void copy_positions_from_curves_transform_custom_data(
+    const TransCustomData &custom_data,
+    const int layer,
+    blender::MutableSpan<blender::float3> positions_dst);
+
+/* `transform_convert_action.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Action;
 
-/* transform_convert_armature.c */
+/* `transform_convert_armature.cc` */
 
 extern TransConvertTypeInfo TransConvertType_EditArmature;
 extern TransConvertTypeInfo TransConvertType_Pose;
@@ -121,41 +223,41 @@ extern TransConvertTypeInfo TransConvertType_Pose;
  */
 void transform_convert_pose_transflags_update(Object *ob, int mode, short around);
 
-/* transform_convert_cursor.c */
+/* `transform_convert_cursor.cc` */
 
 extern TransConvertTypeInfo TransConvertType_CursorImage;
 extern TransConvertTypeInfo TransConvertType_CursorSequencer;
 extern TransConvertTypeInfo TransConvertType_Cursor3D;
 
-/* transform_convert_curve.c */
+/* `transform_convert_curve.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Curve;
 
-/* transform_convert_curves.cc */
+/* `transform_convert_curves.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Curves;
 
-/* transform_convert_graph.c */
+/* `transform_convert_graph.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Graph;
 
-/* transform_convert_gpencil_legacy.c */
+/* `transform_convert_greasepencil.cc` */
 
-extern TransConvertTypeInfo TransConvertType_GPencil;
+extern TransConvertTypeInfo TransConvertType_GreasePencil;
 
-/* transform_convert_lattice.c */
+/* `transform_convert_lattice.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Lattice;
 
-/* transform_convert_mask.c */
+/* `transform_convert_mask.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Mask;
 
-/* transform_convert_mball.c */
+/* `transform_convert_mball.cc` */
 
 extern TransConvertTypeInfo TransConvertType_MBall;
 
-/* transform_convert_mesh.c */
+/* `transform_convert_mesh.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Mesh;
 
@@ -178,7 +280,7 @@ struct TransMirrorData {
 
 struct TransMeshDataCrazySpace {
   float (*quats)[4];
-  float (*defmats)[3][3];
+  blender::Array<blender::float3x3, 0> defmats;
 };
 
 void transform_convert_mesh_islands_calc(BMEditMesh *em,
@@ -217,62 +319,82 @@ void transform_convert_mesh_crazyspace_transdata_set(const float mtx[3][3],
                                                      TransData *r_td);
 void transform_convert_mesh_crazyspace_free(TransMeshDataCrazySpace *r_crazyspace_data);
 
-/* transform_convert_mesh_edge.c */
+blender::Array<TransDataVertSlideVert> transform_mesh_vert_slide_data_create(
+    const TransDataContainer *tc, blender::Vector<blender::float3> &r_loc_dst_buffer);
+
+blender::Array<TransDataEdgeSlideVert> transform_mesh_edge_slide_data_create(
+    const TransDataContainer *tc, int *r_group_len);
+
+/* `transform_convert_mesh_edge.cc` */
 
 extern TransConvertTypeInfo TransConvertType_MeshEdge;
 
-/* transform_convert_mesh_skin.c */
+/* `transform_convert_mesh_skin.cc` */
 
 extern TransConvertTypeInfo TransConvertType_MeshSkin;
 
-/* transform_convert_mesh_uv.c */
+/* `transform_convert_mesh_uv.cc` */
 
 extern TransConvertTypeInfo TransConvertType_MeshUV;
 
-/* transform_convert_mesh_vert_cdata.c */
+blender::Array<TransDataVertSlideVert> transform_mesh_uv_vert_slide_data_create(
+    const TransInfo *t,
+    TransDataContainer *tc,
+    blender::Vector<blender::float3> &r_loc_dst_buffer);
+
+blender::Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(
+    const TransInfo *t, TransDataContainer *tc, int *r_group_len);
+
+/* `transform_convert_mesh_vert_cdata.cc` */
 
 extern TransConvertTypeInfo TransConvertType_MeshVertCData;
 
-/* transform_convert_nla.c */
+/* `transform_convert_nla.cc` */
 
 extern TransConvertTypeInfo TransConvertType_NLA;
 
-/* transform_convert_node.cc */
+/* `transform_convert_node.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Node;
 
-/* transform_convert_object.c */
+/* `transform_convert_object.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Object;
 
-/* transform_convert_object_texspace.c */
+/* `transform_convert_object_texspace.cc` */
 
 extern TransConvertTypeInfo TransConvertType_ObjectTexSpace;
 
-/* transform_convert_paintcurve.c */
+/* `transform_convert_paintcurve.cc` */
 
 extern TransConvertTypeInfo TransConvertType_PaintCurve;
 
-/* transform_convert_particle.c */
+/* `transform_convert_particle.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Particle;
 
-/* transform_convert_sculpt.cc */
+/* `transform_convert_sculpt.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Sculpt;
 
-/* transform_convert_sequencer.c */
+/* `transform_convert_sequencer.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Sequencer;
 
-/* transform_convert_sequencer_image.c */
+bool seq_transform_check_overlap(blender::Span<Strip *> transformed_strips);
+
+/* `transform_convert_sequencer_image.cc` */
 
 extern TransConvertTypeInfo TransConvertType_SequencerImage;
 
-/* transform_convert_tracking.c */
+/* `transform_convert_sequencer_retiming.cc` */
+
+extern TransConvertTypeInfo TransConvertType_SequencerRetiming;
+
+/* `transform_convert_tracking.cc` */
 
 extern TransConvertTypeInfo TransConvertType_Tracking;
 
-/* transform_convert_tracking_curves.c */
+/* `transform_convert_tracking_curves.cc` */
 
 extern TransConvertTypeInfo TransConvertType_TrackingCurves;

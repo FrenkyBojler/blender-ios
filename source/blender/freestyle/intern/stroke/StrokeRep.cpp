@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2008-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,7 +15,7 @@
 #include "StrokeRenderer.h"
 #include "StrokeRep.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 using namespace std;
 
@@ -754,7 +754,7 @@ StrokeRep::StrokeRep()
     _textureId = ptm->getDefaultTextureId();
   }
 #if 0
-  _averageTextureAlpha = 0.5;  //default value
+  _averageTextureAlpha = 0.5;  // default value
   if (_strokeType == OIL_STROKE) {
     _averageTextureAlpha = 0.75;
   }
@@ -788,7 +788,7 @@ StrokeRep::StrokeRep(Stroke *iStroke)
   }
 
 #if 0
-  _averageTextureAlpha = 0.5;  //default value
+  _averageTextureAlpha = 0.5;  // default value
   if (_strokeType == OIL_STROKE) {
     _averageTextureAlpha = 0.75;
   }

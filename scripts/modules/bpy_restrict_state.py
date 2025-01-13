@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2009-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2009-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -45,6 +45,6 @@ class RestrictBlend:
         _bpy.data = _data_restrict
         _bpy.context = _context_restrict
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, _type, _value, _traceback):
         _bpy.data = self.data
         _bpy.context = self.context

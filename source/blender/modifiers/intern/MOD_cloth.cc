@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,7 @@
 
 #include "BLI_listbase.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_cloth_types.h"
 #include "DNA_defaults.h"
@@ -20,36 +20,31 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_cloth.h"
-#include "BKE_context.h"
+#include "BKE_cloth.hh"
+#include "BKE_customdata.hh"
 #include "BKE_effect.h"
-#include "BKE_global.h"
-#include "BKE_key.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_mesh.h"
-#include "BKE_modifier.h"
+#include "BKE_global.hh"
+#include "BKE_key.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_modifier.hh"
 #include "BKE_pointcache.h"
-#include "BKE_screen.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "DEG_depsgraph_physics.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_physics.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "MOD_ui_common.hh"
-#include "MOD_util.hh"
 
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
   ClothModifierData *clmd = (ClothModifierData *)md;
 
@@ -75,52 +70,57 @@ static void initData(ModifierData *md)
   }
 }
 
-static void deformVerts(ModifierData *md,
-                        const ModifierEvalContext *ctx,
-                        Mesh *mesh,
-                        float (*vertexCos)[3],
-                        int verts_num)
+static void deform_verts(ModifierData *md,
+                         const ModifierEvalContext *ctx,
+                         Mesh *mesh,
+                         blender::MutableSpan<blender::float3> positions)
 {
   ClothModifierData *clmd = (ClothModifierData *)md;
   Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
 
   /* check for alloc failing */
   if (!clmd->sim_parms || !clmd->coll_parms) {
-    initData(md);
+    init_data(md);
 
     if (!clmd->sim_parms || !clmd->coll_parms) {
       return;
     }
   }
 
-  /* TODO(sergey): For now it actually duplicates logic from DerivedMesh.cc
+  /* TODO(sergey): For now it actually duplicates logic from mesh_data_update.cc
    * and needs some more generic solution. But starting experimenting with
    * this so close to the release is not that nice..
    *
    * Also hopefully new cloth system will arrive soon..
    */
   if (mesh == nullptr && clmd->sim_parms->shapekey_rest) {
-    KeyBlock *kb = BKE_keyblock_from_key(BKE_key_from_object(ctx->object),
-                                         clmd->sim_parms->shapekey_rest);
+    KeyBlock *kb = BKE_keyblock_find_by_index(BKE_key_from_object(ctx->object),
+                                              clmd->sim_parms->shapekey_rest);
     if (kb && kb->data != nullptr) {
       float(*layerorco)[3];
       if (!(layerorco = static_cast<float(*)[3]>(
-                CustomData_get_layer_for_write(&mesh->vdata, CD_CLOTH_ORCO, mesh->totvert))))
+                CustomData_get_layer_for_write(&mesh->vert_data, CD_CLOTH_ORCO, mesh->verts_num))))
       {
-        layerorco = static_cast<float(*)[3]>(
-            CustomData_add_layer(&mesh->vdata, CD_CLOTH_ORCO, CD_SET_DEFAULT, mesh->totvert));
+        layerorco = static_cast<float(*)[3]>(CustomData_add_layer(
+            &mesh->vert_data, CD_CLOTH_ORCO, CD_SET_DEFAULT, mesh->verts_num));
       }
 
-      memcpy(layerorco, kb->data, sizeof(float[3]) * verts_num);
+      memcpy(layerorco, kb->data, sizeof(float[3]) * positions.size());
     }
   }
 
-  BKE_mesh_vert_coords_apply(mesh, vertexCos);
+  mesh->vert_positions_for_write().copy_from(positions);
+  mesh->tag_positions_changed();
 
-  clothModifier_do(clmd, ctx->depsgraph, scene, ctx->object, mesh, vertexCos);
+  clothModifier_do(clmd,
+                   ctx->depsgraph,
+                   scene,
+                   ctx->object,
+                   mesh,
+                   reinterpret_cast<float(*)[3]>(positions.data()));
 }
 
-static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
+static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
   ClothModifierData *clmd = (ClothModifierData *)md;
   if (clmd != nullptr) {
@@ -138,7 +138,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   DEG_add_depends_on_transform_relation(ctx->node, "Cloth Modifier");
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
   ClothModifierData *clmd = (ClothModifierData *)md;
 
@@ -151,7 +151,7 @@ static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_ma
   }
 }
 
-static void copyData(const ModifierData *md, ModifierData *target, const int flag)
+static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
   const ClothModifierData *clmd = (const ClothModifierData *)md;
   ClothModifierData *tclmd = (ClothModifierData *)target;
@@ -192,12 +192,12 @@ static void copyData(const ModifierData *md, ModifierData *target, const int fla
   tclmd->solver_result = nullptr;
 }
 
-static bool dependsOnTime(Scene * /*scene*/, ModifierData * /*md*/)
+static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
 {
   return true;
 }
 
-static void freeData(ModifierData *md)
+static void free_data(ModifierData *md)
 {
   ClothModifierData *clmd = (ClothModifierData *)md;
 
@@ -236,16 +236,16 @@ static void freeData(ModifierData *md)
   }
 }
 
-static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
+static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   ClothModifierData *clmd = (ClothModifierData *)md;
 
   if (clmd->coll_parms) {
-    walk(userData, ob, (ID **)&clmd->coll_parms->group, IDWALK_CB_NOP);
+    walk(user_data, ob, (ID **)&clmd->coll_parms->group, IDWALK_CB_NOP);
   }
 
   if (clmd->sim_parms && clmd->sim_parms->effector_weights) {
-    walk(userData, ob, (ID **)&clmd->sim_parms->effector_weights->group, IDWALK_CB_USER);
+    walk(user_data, ob, (ID **)&clmd->sim_parms->effector_weights->group, IDWALK_CB_USER);
   }
 }
 
@@ -255,46 +255,48 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, TIP_("Settings are inside the Physics tab"), ICON_NONE);
+  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_Cloth, panel_draw);
 }
 
 ModifierTypeInfo modifierType_Cloth = {
+    /*idname*/ "Cloth",
     /*name*/ N_("Cloth"),
-    /*structName*/ "ClothModifierData",
-    /*structSize*/ sizeof(ClothModifierData),
+    /*struct_name*/ "ClothModifierData",
+    /*struct_size*/ sizeof(ClothModifierData),
     /*srna*/ &RNA_ClothModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_UsesPointCache |
         eModifierTypeFlag_Single,
     /*icon*/ ICON_MOD_CLOTH,
 
-    /*copyData*/ copyData,
+    /*copy_data*/ copy_data,
 
-    /*deformVerts*/ deformVerts,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ nullptr,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ nullptr,
-    /*modifyGeometrySet*/ nullptr,
+    /*deform_verts*/ deform_verts,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ nullptr,
+    /*modify_geometry_set*/ nullptr,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ requiredDataMask,
-    /*freeData*/ freeData,
-    /*isDisabled*/ nullptr,
-    /*updateDepsgraph*/ updateDepsgraph,
-    /*dependsOnTime*/ dependsOnTime,
-    /*dependsOnNormals*/ nullptr,
-    /*foreachIDLink*/ foreachIDLink,
-    /*foreachTexLink*/ nullptr,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ nullptr,
-    /*blendRead*/ nullptr,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ required_data_mask,
+    /*free_data*/ free_data,
+    /*is_disabled*/ nullptr,
+    /*update_depsgraph*/ update_depsgraph,
+    /*depends_on_time*/ depends_on_time,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_tex_link*/ nullptr,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

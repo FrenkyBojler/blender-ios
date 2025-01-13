@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
+__all__ = (
+    "print_notes",
+)
 
 import requests
 
@@ -16,9 +19,9 @@ class ReleaseLogLine:
     * issue_id: (int or None) the extracted issue id associated with this log
                line. Can be None if the log line isn't associated with a issue.
     * commit_id: (str or None) the extracted commit id associated with this log
-               line. Only filled when no `issue_id` could be found.
-    * ref: (str) `issue_id` or `commit_id` of this line, including `T` for issues
-            or `D` for diffs.
+               line. Only filled when no ``issue_id`` could be found.
+    * ref: (str) ``issue_id`` or ``commit_id`` of this line, including ``T`` for issues
+            or ``D`` for diffs.
     * title: (str) title of this log line. When constructed this attribute is
             an empty string. The called needs to retrieve the title from the
             backend.
@@ -73,11 +76,11 @@ class ReleaseLogLine:
     def __format_as_steam(self) -> str:
         return f"* {self.title} ([url={self.url}]{self.ref}[/url])"
 
-    def __format_as_wiki(self) -> str:
+    def __format_as_markdown(self) -> str:
         if self.issue_id:
-            return f"* {self.title} [{{{{BugReport|{self.issue_id}}}}}]"
+            return f"* {self.title} ({self.issue_repo}#{self.issue_id})"
         else:
-            return f"* {self.title} [{{{{GitCommit|{self.commit_id[2:]}}}}}]"
+            return f"* {self.title} ({self.commit_repo}@{self.commit_id})"
 
     def format(self, format: str) -> str:
         """
@@ -90,8 +93,8 @@ class ReleaseLogLine:
             return self.__format_as_html()
         elif format == 'steam':
             return self.__format_as_steam()
-        elif format == 'wiki':
-            return self.__format_as_wiki()
+        elif format == 'markdown':
+            return self.__format_as_markdown()
         else:
             return self.__format_as_text()
 

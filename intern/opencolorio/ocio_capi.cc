@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2012 Blender Foundation
+/* SPDX-FileCopyrightText: 2012 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -189,6 +189,11 @@ OCIO_ConstCPUProcessorRcPtr *OCIO_processorGetCPUProcessor(OCIO_ConstProcessorRc
   return impl->processorGetCPUProcessor(processor);
 }
 
+bool OCIO_cpuProcessorIsNoOp(OCIO_ConstCPUProcessorRcPtr *cpu_processor)
+{
+  return impl->cpuProcessorIsNoOp(cpu_processor);
+}
+
 void OCIO_cpuProcessorApply(OCIO_ConstCPUProcessorRcPtr *cpu_processor, OCIO_PackedImageDesc *img)
 {
   impl->cpuProcessorApply(cpu_processor, img);
@@ -252,10 +257,22 @@ OCIO_ConstProcessorRcPtr *OCIO_createDisplayProcessor(OCIO_ConstConfigRcPtr *con
                                                       const char *look,
                                                       const float scale,
                                                       const float exponent,
+                                                      const float temperature,
+                                                      const float tint,
+                                                      const bool use_white_balance,
                                                       const bool inverse)
 {
-  return impl->createDisplayProcessor(
-      config, input, view, display, look, scale, exponent, inverse);
+  return impl->createDisplayProcessor(config,
+                                      input,
+                                      view,
+                                      display,
+                                      look,
+                                      scale,
+                                      exponent,
+                                      temperature,
+                                      tint,
+                                      use_white_balance,
+                                      inverse);
 }
 
 OCIO_PackedImageDesc *OCIO_createOCIO_PackedImageDesc(float *data,
@@ -289,8 +306,12 @@ bool OCIO_gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
                                const float scale,
                                const float exponent,
                                const float dither,
+                               const float temperature,
+                               const float tint,
                                const bool use_predivide,
-                               const bool use_overlay)
+                               const bool use_overlay,
+                               const bool use_hdr,
+                               const bool use_white_balance)
 {
   return impl->gpuDisplayShaderBind(config,
                                     input,
@@ -301,8 +322,12 @@ bool OCIO_gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
                                     scale,
                                     exponent,
                                     dither,
+                                    temperature,
+                                    tint,
                                     use_predivide,
-                                    use_overlay);
+                                    use_overlay,
+                                    use_hdr,
+                                    use_white_balance);
 }
 
 void OCIO_gpuDisplayShaderUnbind()

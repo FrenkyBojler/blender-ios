@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -86,7 +86,7 @@
 
 /* Alignment directive */
 #ifdef _WIN64
-#  define ALIGN_STRUCT __declspec(align(64))
+#  define BLI_ALIGN_STRUCT __declspec(align(64))
 #else
-#  define ALIGN_STRUCT
+#  define BLI_ALIGN_STRUCT
 #endif

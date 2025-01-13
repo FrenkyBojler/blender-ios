@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,7 @@
 #include <ios>
 #include <iostream>
 
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 
 #include "DNA_ID.h"
 #include "DNA_action_types.h"

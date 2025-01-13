@@ -1,11 +1,11 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
  *
- * This file deals with array access for 'BPy_PropertyArrayRNA' from bpy_rna.c
+ * This file deals with array access for 'BPy_PropertyArrayRNA' from `bpy_rna.cc`.
  */
 
 #include <Python.h>
@@ -14,22 +14,22 @@
 
 #include "BLI_utildefines.h"
 
-#include "RNA_types.h"
+#include "RNA_types.hh"
 
-#include "bpy_rna.h"
+#include "bpy_rna.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "BPY_extern_clog.h"
+#include "BPY_extern_clog.hh"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/py_capi_utils.hh"
 
 #define USE_MATHUTILS
 
 #ifdef USE_MATHUTILS
-#  include "../mathutils/mathutils.h" /* so we can have mathutils callbacks */
+#  include "../mathutils/mathutils.hh" /* so we can have mathutils callbacks */
 #endif
 
 #define MAX_ARRAY_DIMENSION 10
@@ -989,7 +989,7 @@ PyObject *pyrna_py_from_array(PointerRNA *ptr, PropertyRNA *prop)
 
   ret = pyrna_math_object_from_array(ptr, prop);
 
-  /* is this a maths object? */
+  /* Is this a math object? */
   if (ret) {
     return ret;
   }
@@ -1048,8 +1048,6 @@ int pyrna_array_contains_py(PointerRNA *ptr, PropertyRNA *prop, PyObject *value)
       }
 
       return i < len ? 1 : 0;
-
-      break;
     }
     case PROP_INT: {
       const int value_i = PyC_Long_AsI32(value);
@@ -1081,8 +1079,6 @@ int pyrna_array_contains_py(PointerRNA *ptr, PropertyRNA *prop, PyObject *value)
       }
 
       return i < len ? 1 : 0;
-
-      break;
     }
     case PROP_BOOLEAN: {
       const int value_i = PyC_Long_AsBool(value);
@@ -1114,8 +1110,6 @@ int pyrna_array_contains_py(PointerRNA *ptr, PropertyRNA *prop, PyObject *value)
       }
 
       return i < len ? 1 : 0;
-
-      break;
     }
   }
 

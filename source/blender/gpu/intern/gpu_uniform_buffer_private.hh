@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,10 +12,9 @@
 
 struct GPUUniformBuf;
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #  define DEBUG_NAME_LEN 64
 #else
 #  define DEBUG_NAME_LEN 8
@@ -69,5 +68,4 @@ static inline const UniformBuf *unwrap(const GPUUniformBuf *vert)
 
 #undef DEBUG_NAME_LEN
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

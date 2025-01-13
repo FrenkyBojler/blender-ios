@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2012 Blender Foundation
+/* SPDX-FileCopyrightText: 2012 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -27,7 +27,7 @@ struct MaskSplinePointUW;
 struct MovieClip;
 struct MovieClipUser;
 
-/* mask_ops.c */
+/* `mask_ops.cc` */
 
 typedef enum {
   MASK_WHICH_HANDLE_NONE = 0,
@@ -67,8 +67,8 @@ void BKE_mask_point_free(struct MaskSplinePoint *point);
 void BKE_mask_layer_unique_name(struct Mask *mask, struct MaskLayer *masklay);
 void BKE_mask_layer_rename(struct Mask *mask,
                            struct MaskLayer *masklay,
-                           char *oldname,
-                           char *newname);
+                           const char *oldname,
+                           const char *newname);
 
 struct MaskLayer *BKE_mask_layer_copy(const struct MaskLayer *masklay);
 void BKE_mask_layer_copy_list(struct ListBase *masklayers_new, const struct ListBase *masklayers);
@@ -333,9 +333,9 @@ void BKE_mask_clipboard_paste_to_layer(struct Main *bmain, struct MaskLayer *mas
 
 #define MASK_RESOL_MAX 128
 
-/* mask_evaluate.c */
+/* `mask_evaluate.cc` */
 
-unsigned int BKE_mask_spline_resolution(struct MaskSpline *spline, int width, int height);
+int BKE_mask_spline_resolution(struct MaskSpline *spline, int width, int height);
 unsigned int BKE_mask_spline_feather_resolution(struct MaskSpline *spline, int width, int height);
 int BKE_mask_spline_differentiate_calc_total(const struct MaskSpline *spline, unsigned int resol);
 
@@ -373,7 +373,7 @@ float *BKE_mask_point_segment_feather_diff(struct MaskSpline *spline,
                                            struct MaskSplinePoint *point,
                                            int width,
                                            int height,
-                                           unsigned int *tot_feather_point);
+                                           unsigned int *r_tot_feather_point);
 
 void BKE_mask_layer_evaluate_animation(struct MaskLayer *masklay, float ctime);
 void BKE_mask_layer_evaluate_deform(struct MaskLayer *masklay, float ctime);
@@ -387,7 +387,7 @@ void BKE_mask_eval_update(struct Depsgraph *depsgraph, struct Mask *mask);
 /** \name Rasterization
  * \{ */
 
-/* mask_rasterize.c */
+/* `mask_rasterize.cc` */
 
 struct MaskRasterHandle;
 typedef struct MaskRasterHandle MaskRasterHandle;

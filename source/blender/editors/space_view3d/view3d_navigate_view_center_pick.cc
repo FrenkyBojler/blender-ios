@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,42 +6,15 @@
  * \ingroup spview3d
  */
 
-#include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
-
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
-#include "BLI_rect.h"
+#include "BLI_math_vector.h"
 
-#include "BLT_translation.h"
+#include "BKE_context.hh"
 
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_layer.h"
-#include "BKE_object.h"
-#include "BKE_paint.h"
-#include "BKE_scene.h"
-#include "BKE_screen.h"
-#include "BKE_vfont.h"
+#include "WM_api.hh"
 
-#include "DEG_depsgraph_query.h"
-
-#include "ED_mesh.h"
-#include "ED_particle.h"
-#include "ED_screen.h"
-#include "ED_transform.h"
-
-#include "WM_api.h"
-#include "WM_message.h"
-
-#include "RNA_access.h"
-#include "RNA_define.h"
-
-#include "UI_resources.h"
-
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 #include "view3d_navigate.hh" /* own include */
 
@@ -64,7 +37,10 @@ static int viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 
     view3d_operator_needs_opengl(C);
 
-    if (ED_view3d_autodist(depsgraph, region, v3d, event->mval, new_ofs, false, nullptr)) {
+    /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
+    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, true, nullptr);
+
+    if (ED_view3d_autodist(region, v3d, event->mval, new_ofs, nullptr)) {
       /* pass */
     }
     else {

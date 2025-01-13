@@ -8,18 +8,17 @@
 
 #include <cstdlib>
 
-#include "BLI_math.h"
 #include "BLI_math_bits.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BKE_context.h"
-#include "BKE_unit.h"
+#include "BKE_unit.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -31,7 +30,7 @@
 /** \name Transform (Curve Shrink/Fatten)
  * \{ */
 
-static void applyCurveShrinkFatten(TransInfo *t, const int[2] /*mval*/)
+static void applyCurveShrinkFatten(TransInfo *t)
 {
   float ratio;
   int i;
@@ -45,15 +44,15 @@ static void applyCurveShrinkFatten(TransInfo *t, const int[2] /*mval*/)
 
   t->values_final[0] = ratio;
 
-  /* header print for NumInput */
+  /* Header print for NumInput. */
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
 
-    outputNumInput(&(t->num), c, &t->scene->unit);
-    SNPRINTF(str, TIP_("Shrink/Fatten: %s"), c);
+    outputNumInput(&(t->num), c, t->scene->unit);
+    SNPRINTF(str, IFACE_("Shrink/Fatten: %s"), c);
   }
   else {
-    SNPRINTF(str, TIP_("Shrink/Fatten: %3f"), ratio);
+    SNPRINTF(str, IFACE_("Shrink/Fatten: %3f"), ratio);
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -79,7 +78,7 @@ static void applyCurveShrinkFatten(TransInfo *t, const int[2] /*mval*/)
     }
   }
 
-  recalcData(t);
+  recalc_data(t);
 
   ED_area_status_text(t->area, str);
 }
