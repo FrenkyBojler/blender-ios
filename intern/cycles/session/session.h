@@ -77,7 +77,7 @@ class SessionParams {
     samples = 1024;
     use_sample_subset = false;
     sample_subset_offset = 0;
-    sample_subset_length = 2048;
+    sample_subset_length = 1024;
     pixel_size = 1;
     threads = 0;
     time_limit = 0.0;
