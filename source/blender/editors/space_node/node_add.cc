@@ -247,7 +247,7 @@ void NODE_OT_add_reroute(wmOperatorType *ot)
   /* properties */
   PropertyRNA *prop;
   prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   /* internal */
   RNA_def_int(ot->srna, "cursor", WM_CURSOR_CROSS, 0, INT_MAX, "Cursor", "", 0, INT_MAX);
 }
@@ -307,7 +307,7 @@ static int node_add_group_exec(bContext *C, wmOperator *op)
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
-  const char *node_idname = node_group_idname(C);
+  const StringRef node_idname = node_group_idname(C);
   if (node_idname[0] == '\0') {
     BKE_report(op->reports, RPT_WARNING, "Could not determine type of group node");
     return OPERATOR_CANCELLED;
@@ -387,7 +387,7 @@ void NODE_OT_add_group(wmOperatorType *ot)
 
   PropertyRNA *prop = RNA_def_boolean(
       ot->srna, "show_datablock_in_node", true, "Show the datablock selector in the node", "");
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_SKIP_SAVE | PROP_HIDDEN));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
 /** \} */
