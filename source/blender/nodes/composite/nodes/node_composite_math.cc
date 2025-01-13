@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "GPU_material.hh"
 
 #include "COM_shader_node.hh"

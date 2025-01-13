@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_string_utf8.h"
 
 #include "DNA_mask_types.h"

@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "DNA_node_types.h"

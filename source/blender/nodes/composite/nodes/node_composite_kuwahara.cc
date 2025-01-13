@@ -8,7 +8,6 @@
 
 #include <limits>
 
-#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_numbers.hh"

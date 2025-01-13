@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 

@@ -8,7 +8,6 @@
 
 #include <climits>
 
-#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 

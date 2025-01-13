@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "node_composite_util.hh"
 
 #include "BLI_assert.h"

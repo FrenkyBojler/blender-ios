@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"

@@ -12,7 +12,6 @@
 #include <limits>
 #include <memory>
 
-#include "BKE_node.hh"
 #include "MEM_guardedalloc.h"
 
 #if defined(WITH_FFTW3)

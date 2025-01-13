@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "COM_algorithm_parallel_reduction.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
