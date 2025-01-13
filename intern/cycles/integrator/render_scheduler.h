@@ -117,8 +117,12 @@ class RenderScheduler {
   void set_num_samples(const int num_samples);
   int get_num_samples() const;
 
+  void set_use_sample_subset(const bool use_sample_subset);
+
   void set_sample_offset(const int sample_offset);
   int get_sample_offset() const;
+
+  void set_sample_subset_length(const int sample_subset_length);
 
   /* Time limit for the path tracing tasks, in minutes.
    * Zero disables the limit. */
@@ -145,7 +149,11 @@ class RenderScheduler {
 
   /* Reset scheduler, indicating that rendering will happen from scratch.
    * Resets current rendered state, as well as scheduling information. */
-  void reset(const BufferParams &buffer_params, const int num_samples, const int sample_offset);
+  void reset(const BufferParams &buffer_params,
+             const int num_samples,
+             const bool use_sample_subset,
+             const int sample_offset,
+             const int sample_subset_length);
 
   /* Reset scheduler upon switching to a next tile.
    * Will keep the same number of samples and full-frame render parameters, but will reset progress
@@ -433,7 +441,9 @@ class RenderScheduler {
   int start_sample_ = 0;
   int num_samples_ = 0;
 
+  bool use_sample_subset_ = false;
   int sample_offset_ = 0;
+  int sample_subset_length_ = 0;
 
   /* Limit in seconds for how long path tracing is allowed to happen.
    * Zero means no limit is applied. */

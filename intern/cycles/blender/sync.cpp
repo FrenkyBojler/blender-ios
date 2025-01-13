@@ -928,18 +928,25 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine &b_engine,
   /* samples */
   const int samples = get_int(cscene, "samples");
   const int preview_samples = get_int(cscene, "preview_samples");
+  const bool use_sample_subset = get_boolean(cscene, "use_sample_subset");
   const int sample_offset = get_int(cscene, "sample_offset");
+  const int sample_subset_length = get_int(cscene, "sample_subset_length");
 
   if (background) {
     params.samples = samples;
+
+    params.use_sample_subset = use_sample_subset;
     params.sample_offset = sample_offset;
+    params.sample_subset_length = sample_subset_length;
   }
   else {
     params.samples = preview_samples;
     if (params.samples == 0) {
       params.samples = INT_MAX;
     }
+    params.use_sample_subset = false;
     params.sample_offset = 0;
+    params.sample_subset_length = 0;
   }
 
   /* Clamp sample offset. */

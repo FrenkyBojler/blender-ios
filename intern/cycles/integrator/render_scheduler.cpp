@@ -68,7 +68,7 @@ bool RenderScheduler::is_adaptive_sampling_used() const
 
 void RenderScheduler::set_start_sample(const int start_sample)
 {
-  start_sample_ = start_sample;
+  start_sample_ = use_sample_subset_ ? start_sample : 0;
 }
 
 int RenderScheduler::get_start_sample() const
@@ -78,7 +78,7 @@ int RenderScheduler::get_start_sample() const
 
 void RenderScheduler::set_num_samples(const int num_samples)
 {
-  num_samples_ = num_samples;
+  num_samples_ = use_sample_subset_ ? min(sample_subset_length_, num_samples) : num_samples;
 }
 
 int RenderScheduler::get_num_samples() const
@@ -86,14 +86,24 @@ int RenderScheduler::get_num_samples() const
   return num_samples_;
 }
 
+void RenderScheduler::set_use_sample_subset(const bool use_sample_subset)
+{
+  use_sample_subset_ = use_sample_subset;
+}
+
 void RenderScheduler::set_sample_offset(const int sample_offset)
 {
-  sample_offset_ = sample_offset;
+  sample_offset_ = use_sample_subset_ ? sample_subset_length_ : sample_offset;
 }
 
 int RenderScheduler::get_sample_offset() const
 {
   return sample_offset_;
+}
+
+void RenderScheduler::set_sample_subset_length(const int sample_subset_length)
+{
+  sample_subset_length_ = sample_subset_length;
 }
 
 void RenderScheduler::set_time_limit(const double time_limit)
@@ -120,12 +130,16 @@ int RenderScheduler::get_num_rendered_samples() const
 
 void RenderScheduler::reset(const BufferParams &buffer_params,
                             const int num_samples,
-                            const int sample_offset)
+                            const bool use_sample_subset,
+                            const int sample_offset,
+                            const int sample_subset_length)
 {
   buffer_params_ = buffer_params;
 
   update_start_resolution_divider();
 
+  set_use_sample_subset(use_sample_subset);
+  set_sample_subset_length(sample_subset_length);
   set_num_samples(num_samples);
   set_start_sample(sample_offset);
   set_sample_offset(sample_offset);
@@ -182,7 +196,7 @@ void RenderScheduler::reset(const BufferParams &buffer_params,
 
 void RenderScheduler::reset_for_next_tile()
 {
-  reset(buffer_params_, num_samples_, sample_offset_);
+  reset(buffer_params_, num_samples_, use_sample_subset_, sample_offset_, sample_subset_length_);
 }
 
 bool RenderScheduler::render_work_reschedule_on_converge(RenderWork &render_work)

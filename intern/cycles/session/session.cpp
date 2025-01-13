@@ -352,6 +352,8 @@ RenderWork Session::run_update_for_next_iteration()
     path_trace_->set_guiding_params(guiding_params, guiding_reset);
   }
 
+  render_scheduler_.set_use_sample_subset(params.use_sample_subset);
+  render_scheduler_.set_sample_subset_length(params.sample_subset_length);
   render_scheduler_.set_num_samples(params.samples);
   render_scheduler_.set_start_sample(params.sample_offset);
   render_scheduler_.set_time_limit(params.time_limit);
@@ -532,7 +534,11 @@ void Session::do_delayed_reset()
 
   /* Tile and work scheduling. */
   tile_manager_.reset_scheduling(buffer_params_, get_effective_tile_size());
-  render_scheduler_.reset(buffer_params_, params.samples, params.sample_offset);
+  render_scheduler_.reset(buffer_params_,
+                          params.samples,
+                          params.use_sample_subset,
+                          params.sample_offset,
+                          params.sample_subset_length);
 
   /* Passes. */
   /* When multiple tiles are used SAMPLE_COUNT pass is used to keep track of possible partial

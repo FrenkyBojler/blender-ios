@@ -944,8 +944,7 @@ void PathTrace::progress_update_if_needed(const RenderWork &render_work)
     const uint64_t num_samples_added = uint64_t(tile_size.x) * tile_size.y *
                                        render_work.path_trace.num_samples;
     const int current_sample = render_work.path_trace.start_sample +
-                               render_work.path_trace.num_samples -
-                               render_work.path_trace.sample_offset;
+                               render_work.path_trace.num_samples;
     progress_->add_samples(num_samples_added, current_sample);
   }
 
