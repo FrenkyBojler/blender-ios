@@ -3131,8 +3131,6 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   bke::greasepencil::Drawing *drawing_line = grease_pencil.insert_frame(layer_line, current_frame);
 
   constexpr int face_mat_index = 1;
-  constexpr int stroke_mat_index = 0;
-  const int edge_num = mesh_eval.edges_num;
   const Span<float3> mesh_positions = mesh_eval.vert_positions();
   const Span<float3> vert_normals = mesh_eval.vert_normals();
   const Span<int2> edges = mesh_eval.edges();
@@ -3140,7 +3138,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   Span<int> faces_span = faces.data();
   const Span<int> corner_verts = mesh_eval.corner_verts();
 
-  if (generate_faces && (!faces.is_empty())) {
+  if (generate_faces && !faces.is_empty()) {
     bke::greasepencil::Layer &layer_fill = grease_pencil.add_layer(DATA_("Fills"));
     bke::greasepencil::Drawing *drawing_fill = grease_pencil.insert_frame(layer_fill,
                                                                           current_frame);
@@ -3162,23 +3160,19 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     cyclic_fill.fill(true);
     stroke_materials_fill.span.fill(face_mat_index);
     stroke_materials_fill.finish();
-    drawing_fill->tag_topology_changed();
   }
 
   const int edges_num = edges.size();
   const int points_num = edges_num * 2;
 
-  drawing_line->strokes_for_write().resize(points_num, edges_num);
   bke::CurvesGeometry &curves = drawing_line->strokes_for_write();
+  curves.resize(points_num, edges_num);
   MutableSpan<float3> point_positions = curves.positions_for_write();
   MutableSpan<int> offsets = curves.offsets_for_write();
-  MutableSpan<float> radii = drawing_line->radii_for_write();
-  bke::SpanAttributeWriter<int> stroke_materials =
-      curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
-                                                                      bke::AttrDomain::Curve);
+  MutableSpan<float> radii = curves.radius_for_write();
   curves.fill_curve_types(CURVE_TYPE_POLY);
 
-  for (const int edge_i : IndexRange(edge_num)) {
+  for (const int edge_i : edges.index_range()) {
     const int2 edge = edges[edge_i];
     const int point_i = edge_i * 2;
     point_positions[point_i] = mesh_positions[edge[0]] + offset * vert_normals[edge[0]];
@@ -3188,9 +3182,6 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   radii.fill(stroke_radius);
 
   offset_indices::fill_constant_group_size(2, 0, offsets);
-  stroke_materials.span.fill(stroke_mat_index);
-  stroke_materials.finish();
-  drawing_line->tag_topology_changed();
 }
 
 static Object *convert_mesh_to_grease_pencil(Base &base,
