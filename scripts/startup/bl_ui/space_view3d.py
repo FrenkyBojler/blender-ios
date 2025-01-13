@@ -431,8 +431,6 @@ class _draw_tool_settings_context_mode:
         # Brush falloff
         layout.popover("VIEW3D_PT_tools_brush_falloff")
 
-        # Active layer only switch
-        layout.prop(brush.gpencil_settings, "use_active_layer_only")
         return True
 
     @staticmethod

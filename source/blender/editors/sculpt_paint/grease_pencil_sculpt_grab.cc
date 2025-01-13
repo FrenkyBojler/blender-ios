@@ -135,7 +135,7 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
 
   this->prev_mouse_position = start_sample.mouse_position;
 
-  const Vector<MutableDrawingInfo> drawings = get_drawings_for_painting(C);
+  const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
   this->drawing_data.reinitialize(drawings.size());
   threading::parallel_for_each(drawings.index_range(), [&](const int i) {
     const MutableDrawingInfo &info = drawings[i];

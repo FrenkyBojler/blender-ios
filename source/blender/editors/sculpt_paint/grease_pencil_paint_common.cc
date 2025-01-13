@@ -31,19 +31,19 @@
 
 namespace blender::ed::sculpt_paint::greasepencil {
 
-Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_painting(const bContext &C)
+Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_stroke_operation(const bContext &C)
 {
   using namespace blender::bke::greasepencil;
 
   const Scene &scene = *CTX_data_scene(&C);
+  const ToolSettings &ts = *CTX_data_tool_settings(&C);
   Object &ob_orig = *CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
-  Paint &paint = *BKE_paint_get_active_from_context(&C);
-  const Brush &brush = *BKE_paint_brush(&paint);
-  const bool active_layer_only = ((brush.gpencil_settings->flag & GP_BRUSH_ACTIVE_LAYER_ONLY) !=
-                                  0);
 
-  if (active_layer_only) {
+  const bool active_layer_masking = (ts.gp_sculpt.flag &
+                                     GP_SCULPT_SETT_FLAG_AUTOMASK_LAYER_ACTIVE) != 0;
+
+  if (active_layer_masking) {
     /* Apply only to the drawing at the current frame of the active layer. */
     if (!grease_pencil.has_active_layer()) {
       return {};
@@ -411,7 +411,7 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   std::atomic<bool> changed = false;
-  const Vector<MutableDrawingInfo> drawings = get_drawings_for_painting(C);
+  const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
   for (const int64_t i : drawings.index_range()) {
     const MutableDrawingInfo &info = drawings[i];
     GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
@@ -450,7 +450,7 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   std::atomic<bool> changed = false;
-  const Vector<MutableDrawingInfo> drawings = get_drawings_for_painting(C);
+  const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
   threading::parallel_for(drawings.index_range(), grain_size.value, [&](const IndexRange range) {
     for (const int64_t i : range) {
       const MutableDrawingInfo &info = drawings[i];
@@ -492,7 +492,7 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   std::atomic<bool> changed = false;
-  const Vector<MutableDrawingInfo> drawings = get_drawings_for_painting(C);
+  const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     const Layer &layer = grease_pencil.layer(info.layer_index);
 
