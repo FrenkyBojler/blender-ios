@@ -71,18 +71,11 @@ void RenderScheduler::set_sample_params(const bool use_sample_subset,
                                         const int num_samples,
                                         const int sample_offset)
 {
-  /* Sample subset parameters must be set before the number of samples parameters */
-  set_use_sample_subset(use_sample_subset);
-  set_sample_subset_length(sample_subset_length);
-
-  set_num_samples(num_samples);
-  set_start_sample(sample_offset);
-  set_sample_offset(sample_offset);
-}
-
-void RenderScheduler::set_start_sample(const int start_sample)
-{
-  start_sample_ = use_sample_subset_ ? start_sample : 0;
+  num_samples_ = use_sample_subset ? min(sample_subset_length, num_samples) : num_samples;
+  start_sample_ = use_sample_subset ? sample_offset : 0;
+  sample_offset_ = use_sample_subset ? sample_offset : 0;
+  use_sample_subset_ = use_sample_subset;
+  sample_subset_length_ = sample_subset_length;
 }
 
 int RenderScheduler::get_start_sample() const
@@ -90,34 +83,14 @@ int RenderScheduler::get_start_sample() const
   return start_sample_;
 }
 
-void RenderScheduler::set_num_samples(const int num_samples)
-{
-  num_samples_ = use_sample_subset_ ? min(sample_subset_length_, num_samples) : num_samples;
-}
-
 int RenderScheduler::get_num_samples() const
 {
   return num_samples_;
 }
 
-void RenderScheduler::set_use_sample_subset(const bool use_sample_subset)
-{
-  use_sample_subset_ = use_sample_subset;
-}
-
-void RenderScheduler::set_sample_offset(const int sample_offset)
-{
-  sample_offset_ = use_sample_subset_ ? sample_subset_length_ : sample_offset;
-}
-
 int RenderScheduler::get_sample_offset() const
 {
   return sample_offset_;
-}
-
-void RenderScheduler::set_sample_subset_length(const int sample_subset_length)
-{
-  sample_subset_length_ = sample_subset_length;
 }
 
 void RenderScheduler::set_time_limit(const double time_limit)
