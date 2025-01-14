@@ -109,6 +109,7 @@ NODE_DEFINE(Integrator)
 
   SOCKET_INT(aa_samples, "AA Samples", 0);
   SOCKET_INT(start_sample, "Start Sample", 0);
+  SOCKET_INT(sample_subset_length, "Sample Subset Length", 0);
 
   SOCKET_BOOLEAN(use_adaptive_sampling, "Use Adaptive Sampling", true);
   SOCKET_FLOAT(adaptive_threshold, "Adaptive Threshold", 0.01f);
@@ -392,6 +393,13 @@ AdaptiveSampling Integrator::get_adaptive_sampling() const
   }
   else {
     adaptive_sampling.threshold = adaptive_threshold;
+  }
+
+  if (aa_samples && sample_subset_length) {
+    /* aa_samples and sample_subset_length can be 0 during scene intialization.
+     * E.g. When `Film:update_passes` is deciding whether or not adaptive sampling related passes
+     * need to be setup */
+    adaptive_sampling.threshold *= sqrtf((float)sample_subset_length / (float)aa_samples);
   }
 
   if (adaptive_sampling.threshold > 0 && adaptive_min_samples == 0) {

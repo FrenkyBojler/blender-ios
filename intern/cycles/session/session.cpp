@@ -333,6 +333,12 @@ RenderWork Session::run_update_for_next_iteration()
     scene->integrator->set_aa_samples(params.samples);
   }
 
+  if (did_reset) {
+    scene->integrator->set_sample_subset_length(
+        params.use_sample_subset ? min(params.sample_subset_length, params.samples) :
+                                   params.samples);
+  }
+
   /* Update denoiser settings. */
   {
     const DenoiseParams denoise_params = scene->integrator->get_denoise_params();
