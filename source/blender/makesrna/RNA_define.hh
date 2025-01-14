@@ -622,15 +622,6 @@ const char *RNA_property_typename(PropertyType type);
 #define IS_DNATYPE_BOOLEAN_COMPAT(_str) \
   (IS_DNATYPE_INT_COMPAT(_str) || strcmp(_str, "int64_t") == 0 || strcmp(_str, "uint64_t") == 0)
 
-/* Several types cannot use all their bytes to store a bitset (bitshift operations on negative
- * numbers are 'arithmetic', i.e. preserve the sign, i.e. are not 'pure' binary shifting).
- *
- * Currently, all signed types and uint64_t cannot use their left-most bit (i.e. sign bit). */
-#define IS_DNATYPE_BOOLEAN_BITSHIFT_FULLRANGE_COMPAT(_str) \
-  (strcmp(_str, "char") == 0 || strcmp(_str, "uchar") == 0 || strcmp(_str, "ushort") == 0 || \
-   strcmp(_str, "uint") == 0 || strcmp(_str, "uint8_t") == 0 || strcmp(_str, "uint16_t") == 0 || \
-   strcmp(_str, "uint32_t") == 0)
-
 void RNA_identifier_sanitize(char *identifier, int property);
 
 /* Common arguments for length. */
