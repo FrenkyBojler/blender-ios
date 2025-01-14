@@ -561,7 +561,7 @@ static void rna_Sequences_meta_remove(
   rna_Sequences_remove(id, &strip->seqbase, bmain, reports, strip_ptr);
 }
 
-static StripElem *rna_SequenceElements_append(ID *id, Strip *strip, const char *filename)
+static StripElem *rna_StripElements_append(ID *id, Strip *strip, const char *filename)
 {
   Scene *scene = (Scene *)id;
   StripElem *se;
@@ -579,13 +579,13 @@ static StripElem *rna_SequenceElements_append(ID *id, Strip *strip, const char *
   return se;
 }
 
-static void rna_SequenceElements_pop(ID *id, Strip *strip, ReportList *reports, int index)
+static void rna_StripElements_pop(ID *id, Strip *strip, ReportList *reports, int index)
 {
   Scene *scene = (Scene *)id;
   StripElem *new_seq, *se;
 
   if (strip->len == 1) {
-    BKE_report(reports, RPT_ERROR, "SequenceElements.pop: cannot pop the last element");
+    BKE_report(reports, RPT_ERROR, "StripElements.pop: cannot pop the last element");
     return;
   }
 
@@ -595,12 +595,12 @@ static void rna_SequenceElements_pop(ID *id, Strip *strip, ReportList *reports, 
   }
 
   if (strip->len <= index || index < 0) {
-    BKE_report(reports, RPT_ERROR, "SequenceElements.pop: index out of range");
+    BKE_report(reports, RPT_ERROR, "StripElements.pop: index out of range");
     return;
   }
 
   new_seq = static_cast<StripElem *>(
-      MEM_callocN(sizeof(StripElem) * (strip->len - 1), "SequenceElements_pop"));
+      MEM_callocN(sizeof(StripElem) * (strip->len - 1), "StripElements_pop"));
   strip->len--;
 
   if (strip->len == 1) {
@@ -693,7 +693,7 @@ void RNA_api_sequence_strip(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_function_return(
       func,
-      RNA_def_pointer(func, "elem", "SequenceElement", "", "strip element of the current frame"));
+      RNA_def_pointer(func, "elem", "StripElement", "", "strip element of the current frame"));
 
   func = RNA_def_function(srna, "swap", "rna_Sequence_swap_internal");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
@@ -740,21 +740,21 @@ void RNA_api_sequence_elements(BlenderRNA *brna, PropertyRNA *cprop)
   PropertyRNA *parm;
   FunctionRNA *func;
 
-  RNA_def_property_srna(cprop, "SequenceElements");
-  srna = RNA_def_struct(brna, "SequenceElements", nullptr);
+  RNA_def_property_srna(cprop, "StripElements");
+  srna = RNA_def_struct(brna, "StripElements", nullptr);
   RNA_def_struct_sdna(srna, "Strip");
-  RNA_def_struct_ui_text(srna, "SequenceElements", "Collection of SequenceElement");
+  RNA_def_struct_ui_text(srna, "StripElements", "Collection of StripElement");
 
-  func = RNA_def_function(srna, "append", "rna_SequenceElements_append");
+  func = RNA_def_function(srna, "append", "rna_StripElements_append");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID);
   RNA_def_function_ui_description(func, "Push an image from ImageSequence.directory");
   parm = RNA_def_string(func, "filename", "File", 0, "", "Filepath to image");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   /* return type */
-  parm = RNA_def_pointer(func, "elem", "SequenceElement", "", "New SequenceElement");
+  parm = RNA_def_pointer(func, "elem", "StripElement", "", "New StripElement");
   RNA_def_function_return(func, parm);
 
-  func = RNA_def_function(srna, "pop", "rna_SequenceElements_pop");
+  func = RNA_def_function(srna, "pop", "rna_StripElements_pop");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
   RNA_def_function_ui_description(func, "Pop an image off the collection");
   parm = RNA_def_int(
