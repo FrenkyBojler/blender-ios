@@ -913,8 +913,6 @@ bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
                                             const IndexMask &point_mask);
 
 /* Make sure selection domain is updated to match the current selection mode. */
-bool ensure_selection_domain(ToolSettings *ts,
-                             Object *object,
-                             const std::optional<int> new_selection_mode = {});
+bool ensure_selection_domain(ToolSettings *ts, Object *object);
 
 }  // namespace blender::ed::greasepencil

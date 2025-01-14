@@ -800,7 +800,9 @@ static void rna_Gpencil_mask_point_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_SEGMENT;
 
   Object *ob = CTX_data_active_object(C);
-  blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
 static void rna_Gpencil_mask_stroke_update(bContext *C, PointerRNA *ptr)
@@ -811,7 +813,9 @@ static void rna_Gpencil_mask_stroke_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_SEGMENT;
 
   Object *ob = CTX_data_active_object(C);
-  blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
 static void rna_Gpencil_mask_segment_update(bContext *C, PointerRNA *ptr)
@@ -822,7 +826,9 @@ static void rna_Gpencil_mask_segment_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_STROKE;
 
   Object *ob = CTX_data_active_object(C);
-  blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
 static void rna_Gpencil_vertex_mask_point_update(bContext *C, PointerRNA *ptr)
@@ -833,7 +839,9 @@ static void rna_Gpencil_vertex_mask_point_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_SEGMENT;
 
   Object *ob = CTX_data_active_object(C);
-  blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
 static void rna_Gpencil_vertex_mask_stroke_update(bContext *C, PointerRNA *ptr)
@@ -844,7 +852,9 @@ static void rna_Gpencil_vertex_mask_stroke_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_SEGMENT;
 
   Object *ob = CTX_data_active_object(C);
-  blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
 static void rna_Gpencil_vertex_mask_segment_update(bContext *C, PointerRNA *ptr)
@@ -855,7 +865,9 @@ static void rna_Gpencil_vertex_mask_segment_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_STROKE;
 
   Object *ob = CTX_data_active_object(C);
-  blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
 static void rna_active_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)

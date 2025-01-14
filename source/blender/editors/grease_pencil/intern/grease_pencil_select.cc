@@ -849,26 +849,9 @@ static void GREASE_PENCIL_OT_select_ends(wmOperatorType *ot)
               INT32_MAX);
 }
 
-bool ensure_selection_domain(ToolSettings *ts,
-                             Object *object,
-                             const std::optional<int> new_selection_mode)
+bool ensure_selection_domain(ToolSettings *ts, Object *object)
 {
   bool changed = false;
-  if (new_selection_mode.has_value()) {
-    const int new_mode = new_selection_mode.value();
-    if (BKE_object_is_mode_compat(object, OB_MODE_EDIT)) {
-      changed = (new_mode != ts->gpencil_selectmode_edit);
-      ts->gpencil_selectmode_edit = new_mode;
-    }
-    else if (BKE_object_is_mode_compat(object, OB_MODE_SCULPT_GREASE_PENCIL)) {
-      changed = (new_mode != ts->gpencil_selectmode_sculpt);
-      ts->gpencil_selectmode_sculpt = new_mode;
-    }
-    else if (BKE_object_is_mode_compat(object, OB_MODE_VERTEX_GREASE_PENCIL)) {
-      changed = (new_mode != ts->gpencil_selectmode_vertex);
-      ts->gpencil_selectmode_vertex = new_mode;
-    }
-  }
 
   /* Convert all drawings of the active GP to the new selection domain. */
   const bke::AttrDomain domain = ED_grease_pencil_selection_domain_get(ts, object);
@@ -936,7 +919,21 @@ static int select_set_mode_exec(bContext *C, wmOperator *op)
   ToolSettings *ts = CTX_data_tool_settings(C);
   Object *ob = CTX_data_active_object(C);
 
-  const bool changed = ensure_selection_domain(ts, ob, mode_new);
+  bool changed = false;
+  if (BKE_object_is_mode_compat(ob, OB_MODE_EDIT)) {
+    changed = (mode_new != ts->gpencil_selectmode_edit);
+    ts->gpencil_selectmode_edit = mode_new;
+  }
+  else if (BKE_object_is_mode_compat(ob, OB_MODE_SCULPT_GREASE_PENCIL)) {
+    changed = (mode_new != ts->gpencil_selectmode_sculpt);
+    ts->gpencil_selectmode_sculpt = mode_new;
+  }
+  else if (BKE_object_is_mode_compat(ob, OB_MODE_VERTEX_GREASE_PENCIL)) {
+    changed = (mode_new != ts->gpencil_selectmode_vertex);
+    ts->gpencil_selectmode_vertex = mode_new;
+  }
+
+  changed = changed || ensure_selection_domain(ts, ob);
 
   if (changed) {
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
