@@ -292,8 +292,9 @@ void DrawingPlacement::cache_viewport_depths(Depsgraph *depsgraph, ARegion *regi
     }
   }
   if (use_project_to_stroke()) {
-    /* Enforce 3D depth buffer values to ensure positions can be computed correctly. */
-    view3d->gp_flag |= V3D_GP_FORCE_3D_DEPTH;
+    /* Enforce render engine to use 3D stroke order, otherwise depth buffer values are not in 3D
+     * space. */
+    view3d->gp_flag |= V3D_GP_FORCE_STROKE_ORDER_3D;
   }
 
   ED_view3d_depth_override(depsgraph, region, view3d, nullptr, mode, false, &this->depth_cache_);

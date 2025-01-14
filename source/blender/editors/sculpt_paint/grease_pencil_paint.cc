@@ -1254,7 +1254,6 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 
 void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
 {
-
   Object *object = CTX_data_active_object(&C);
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
 

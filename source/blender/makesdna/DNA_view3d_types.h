@@ -527,7 +527,7 @@ enum {
   /** Show Canvas Grid on Top. */
   V3D_GP_SHOW_GRID_XRAY = 1 << 9,
   /** Force 3D depth rendering and ignore per-object stroke depth mode. */
-  V3D_GP_FORCE_3D_DEPTH = 1 << 10,
+  V3D_GP_FORCE_STROKE_ORDER_3D = 1 << 10,
 };
 
 /** #View3DShading.flag */
