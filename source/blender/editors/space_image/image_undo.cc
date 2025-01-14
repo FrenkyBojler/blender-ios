@@ -1142,6 +1142,9 @@ void ED_image_undo_push_begin_with_image_all_udims(const char *name,
     ImBuf *ibuf = BKE_image_acquire_ibuf(image, iuser, nullptr);
 
     ED_image_undo_push(image, ibuf, iuser, us);
+
+    // Release the image buffer to avoid leaking memory
+    BKE_image_release_ibuf(image, ibuf, nullptr);
   }
 }
 
