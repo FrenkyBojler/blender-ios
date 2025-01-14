@@ -19,6 +19,7 @@
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
+#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 
 #include "bmesh.hh"
 
@@ -86,6 +87,8 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
 
   calc_closest_to_plane(test_plane, position_data.eval, verts, translations);
+  mesh_sculpt_nodes_evaluate(
+      depsgraph, object, brush, *ss.cache, position_data.eval, verts, translations);
   scale_translations(translations, strength);
   scale_translations(translations, tls.factors);
 
@@ -114,6 +117,8 @@ static void calc_grids(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
 
   calc_closest_to_plane(test_plane, positions, translations);
+  grids_sculpt_nodes_evaluate(
+      depsgraph, object, brush, *ss.cache, subdiv_ccg, grids, positions, translations);
   scale_translations(translations, strength);
   scale_translations(translations, tls.factors);
 
@@ -141,6 +146,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
 
   calc_closest_to_plane(test_plane, positions, translations);
+  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, *ss.cache, verts, positions, translations);
   scale_translations(translations, strength);
   scale_translations(translations, tls.factors);
 

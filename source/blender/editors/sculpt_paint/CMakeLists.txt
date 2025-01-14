@@ -97,6 +97,7 @@ set(SRC
   sculpt_gesture.cc
   sculpt_hide.cc
   sculpt_mask_init.cc
+  sculpt_nodes_evaluation.cc
   sculpt_ops.cc
   sculpt_paint_color.cc
   sculpt_paint_image.cc
@@ -130,6 +131,7 @@ set(SRC
   sculpt_hide.hh
   sculpt_intern.hh
   sculpt_islands.hh
+  sculpt_nodes_evaluation.cc
   sculpt_pose.hh
   sculpt_smooth.hh
   sculpt_undo.hh

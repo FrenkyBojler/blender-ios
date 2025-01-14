@@ -18,6 +18,7 @@
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
+#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 #include "editors/sculpt_paint/sculpt_smooth.hh"
 
 #include "bmesh.hh"
@@ -67,6 +68,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations(verts, direction, translations);
+  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, *ss.cache, verts, positions, translations);
   scale_translations(translations, tls.factors);
 
   clip_and_lock_translations(sd, ss, positions, translations);

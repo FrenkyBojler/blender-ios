@@ -23,6 +23,7 @@
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
+#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 
 #include "bmesh.hh"
 
@@ -194,6 +195,9 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
   calc_translation_directions(brush, cache, positions, translations);
   calc_neighbor_influence(position_data.eval, positions, neighbors, translations);
+  mesh_sculpt_nodes_evaluate(
+      depsgraph, object, brush, *ss.cache, position_data.eval, verts, translations);
+
   scale_translations(translations, tls.factors);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
@@ -230,6 +234,8 @@ static void calc_grids(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
   calc_translation_directions(brush, cache, positions, translations);
   calc_neighbor_influence(subdiv_ccg, grids, translations);
+  grids_sculpt_nodes_evaluate(
+      depsgraph, object, brush, *ss.cache, subdiv_ccg, grids, positions, translations);
   scale_translations(translations, tls.factors);
 
   clip_and_lock_translations(sd, ss, orig_data.positions, translations);
@@ -262,6 +268,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
   calc_translation_directions(brush, cache, positions, translations);
   calc_neighbor_influence(positions, verts, translations);
+  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, *ss.cache, verts, positions, translations);
   scale_translations(translations, tls.factors);
 
   clip_and_lock_translations(sd, ss, orig_positions, translations);
