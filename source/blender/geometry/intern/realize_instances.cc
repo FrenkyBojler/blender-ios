@@ -1140,7 +1140,7 @@ static AllPointCloudsInfo preprocess_pointclouds(const bke::GeometrySet &geometr
         pointcloud_info.stored_ids = ids_attribute.varray.get_internal_span().typed<int>();
       }
     }
-    if (info.create_radius_attribute) {
+    if (info.create_radius_attribute || options.apply_uniform_scale) {
       pointcloud_info.radii = *attributes.lookup_or_default(
           "radius", bke::AttrDomain::Point, 0.01f);
     }
@@ -1776,7 +1776,7 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
       }
     }
 
-    if (attributes.contains("radius")) {
+    if (attributes.contains("radius") || options.apply_uniform_scale) {
       curve_info.radius =
           attributes.lookup<float>("radius", bke::AttrDomain::Point).varray.get_internal_span();
       info.create_radius_attribute = true;
@@ -1855,14 +1855,18 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
   }
 
   if (all_curves_info.create_radius_attribute) {
+    printf(">> %s;\n", (options.apply_uniform_scale ? "True" : "False"));
     const float3 scale = math::to_scale(task.transform);
     const float scale_mean = (scale.x + scale.y + scale.z) / 3.0f;
     if (curves_info.radius.is_empty()) {
+      const float default_redius = options.apply_uniform_scale ? scale_mean : 0.1f;
       all_radii.slice(dst_point_range).fill(scale_mean);
     }
     else {
       all_radii.slice(dst_point_range).copy_from(curves_info.radius);
-      apply_scale_radii(scale_mean, all_radii.slice(dst_point_range));
+      if (options.apply_uniform_scale) {
+        apply_scale_radii(scale_mean, all_radii.slice(dst_point_range));
+      }
     }
   }
 

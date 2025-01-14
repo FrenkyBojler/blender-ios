@@ -10568,6 +10568,14 @@ static void def_fn_rotate_euler(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_geo_realize_instances(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "scale_radius", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(prop, "Scale Radius", "Uniformly apply transformation to a radius");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_geo_sample_index(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   using namespace blender;
@@ -12478,7 +12486,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodePointsToVolume");
   define("GeometryNode", "GeometryNodeProximity");
   define("GeometryNode", "GeometryNodeRaycast");
-  define("GeometryNode", "GeometryNodeRealizeInstances");
+  define("GeometryNode", "GeometryNodeRealizeInstances", def_geo_realize_instances);
   define("GeometryNode", "GeometryNodeRemoveAttribute");
   define("GeometryNode", "GeometryNodeRepeatInput", def_geo_repeat_input);
   define("GeometryNode", "GeometryNodeRepeatOutput", def_geo_repeat_output);

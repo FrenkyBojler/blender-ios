@@ -31,6 +31,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Geometry").propagate_all();
 }
 
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  node->custom1 = int(false);
+}
+
+static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "scale_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
@@ -76,6 +86,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::RealizeInstancesOptions options;
   options.keep_original_ids = false;
   options.realize_instance_attributes = true;
+  options.apply_uniform_scale = bool(params.node().custom1);
   const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Geometry");
   options.attribute_filter = attribute_filter;
   GeometrySet new_geometry_set = geometry::realize_instances(
@@ -94,6 +105,8 @@ static void node_register()
   ntype.ui_description = "Convert instances into real geometry data";
   ntype.enum_name_legacy = "REALIZE_INSTANCES";
   ntype.declare = node_declare;
+  ntype.draw_buttons_ex = node_layout_ex;
+  ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);
 }
