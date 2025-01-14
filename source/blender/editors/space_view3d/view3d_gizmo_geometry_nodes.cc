@@ -234,16 +234,18 @@ class LinearGizmo : public NodeGizmos {
     static_assert(int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CROSS) == int(ED_GIZMO_ARROW_STYLE_CROSS));
     RNA_enum_set(gizmo_->ptr, "draw_style", storage.draw_style);
 
-    WM_gizmo_set_line_width(gizmo_, 1.0f);
-
     const float base_length = (storage.draw_style == GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX) ? 0.8f :
                                                                                         1.0f;
     float length;
-    if (!params.get_input_value("Length", length)) {
+    float line_width;
+    if (!params.get_input_value("Length", length) ||
+        !params.get_input_value("Width", line_width))
+    {
       params.r_report.missing_socket_logs = true;
       return;
     }
 
+    WM_gizmo_set_line_width(gizmo_, line_width);
     RNA_float_set(gizmo_->ptr, "length", base_length * length);
 
     const ThemeColorID color_theme_id = get_gizmo_theme_color_id(

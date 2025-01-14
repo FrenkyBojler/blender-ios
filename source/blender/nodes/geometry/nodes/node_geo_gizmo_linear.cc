@@ -20,7 +20,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Value").hide_value().multi_input();
   b.add_input<decl::Vector>("Position").subtype(PROP_TRANSLATION);
   b.add_input<decl::Vector>("Direction").default_value({0, 0, 1}).subtype(PROP_XYZ);
-  b.add_input<decl::Float>("Length").default_value(1.0f).min(0.0f).max(2.0f);
+  b.add_input<decl::Float>("Length").default_value(1.0f).min(0.0f).max(3.0f);
+  b.add_input<decl::Float>("Width").default_value(1.0f).min(0.0f).max(3.0f);
   b.add_output<decl::Geometry>("Transform");
 }
 
