@@ -969,7 +969,7 @@ static void do_version_glare_node_options_to_inputs(const Scene *scene,
 
   /* Get the newly added inputs. */
   bNodeSocket *threshold = version_node_add_socket_if_not_exist(
-      node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Threshold", "Threshold");
+      node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Highlights Threshold", "Threshold");
   bNodeSocket *strength = version_node_add_socket_if_not_exist(
       node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Strength", "Strength");
   bNodeSocket *size = version_node_add_socket_if_not_exist(
@@ -1080,6 +1080,31 @@ static void do_version_glare_node_options_to_inputs(const Scene *scene,
       blender::bke::node_remove_link(node_tree, link);
     }
   }
+}
+
+static void do_version_glare_node_options_to_inputs_recursive(
+    const Scene *scene,
+    bNodeTree *node_tree,
+    blender::Set<bNodeTree *> &node_trees_already_versioned)
+{
+  if (node_trees_already_versioned.contains(node_tree)) {
+    return;
+  }
+
+  LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+    if (node->type_legacy == CMP_NODE_GLARE) {
+      do_version_glare_node_options_to_inputs(scene, node_tree, node);
+    }
+    else if (node->is_group()) {
+      bNodeTree *child_tree = reinterpret_cast<bNodeTree *>(node->id);
+      if (child_tree) {
+        do_version_glare_node_options_to_inputs_recursive(
+            scene, child_tree, node_trees_already_versioned);
+      }
+    }
+  }
+
+  node_trees_already_versioned.add_new(node_tree);
 }
 
 static bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines)
@@ -1319,24 +1344,42 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 18)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_COMPOSIT) {
+    blender::Set<bNodeTree *> node_trees_already_versioned;
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      bNodeTree *node_tree = scene->nodetree;
+      if (!node_tree) {
+        continue;
+      }
+      do_version_glare_node_options_to_inputs_recursive(
+          scene, node_tree, node_trees_already_versioned);
+    }
+
+    /* The above loop versioned all node trees used in a scene, but other node trees might exist
+     * that are not used in a scene. For those, assume the first scene in the file, as this is
+     * better than not doing versioning at all. */
+    Scene *scene = static_cast<Scene *>(bmain->scenes.first);
+    LISTBASE_FOREACH (bNodeTree *, node_tree, &bmain->nodetrees) {
+      if (node_trees_already_versioned.contains(node_tree)) {
         continue;
       }
 
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type_legacy != CMP_NODE_GLARE) {
-          continue;
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy == CMP_NODE_GLARE) {
+          do_version_glare_node_options_to_inputs(scene, node_tree, node);
         }
-        do_version_glare_node_options_to_inputs(reinterpret_cast<Scene *>(id), ntree, node);
       }
+      node_trees_already_versioned.add_new(node_tree);
     }
-    FOREACH_NODETREE_END;
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 19)) {
     /* Two new inputs were added, Saturation and Tint. */
     version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 3, 2, 11);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 20)) {
+    /* Two new inputs were added, Highlights Smoothness and Highlights suppression. */
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 2, 2, 13);
   }
 
   /**
