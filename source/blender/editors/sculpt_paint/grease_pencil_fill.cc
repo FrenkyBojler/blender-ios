@@ -942,6 +942,7 @@ static auto fit_strokes_to_view(const ViewContext &view_context,
 {
   BLI_assert(max_zoom_factor >= 1.0f);
   const float min_zoom_factor = math::safe_rcp(max_zoom_factor);
+  /* These values are copied from GPv2. */
   const int2 min_image_size = int2(128, 128);
 
   switch (fit_method) {
