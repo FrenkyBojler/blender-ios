@@ -17,6 +17,7 @@
 
 #include "BLI_endian_switch.h"
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
