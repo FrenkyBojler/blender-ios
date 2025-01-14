@@ -838,6 +838,7 @@ if(WITH_GTESTS)
   set(TEST_LIB
     ${LIB}
     bf_rna  # RNA_prototypes.hh
+    bf_geometry # Easy primitive creation (e.g. GEO_mesh_primitive_cuboid.hh)
   )
   blender_add_test_suite_lib(blenkernel "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()

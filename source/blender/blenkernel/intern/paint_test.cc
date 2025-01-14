@@ -8,29 +8,25 @@
 #include "BKE_idtype.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "testing/testing.h"
-
 #include "BKE_main.hh"
 #include "BKE_mesh.h"
 #include "BKE_object.hh"
+#include "BKE_paint.hh"
+#include "BKE_paint_bvh.hh"
+#include "BKE_scene.hh"
 
-#include "../../geometry/GEO_mesh_primitive_cuboid.hh"
+#include "CLG_log.h"
+
+#include "DEG_depsgraph.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
-#include "RNA_access.hh"
+#include "GEO_mesh_primitive_cuboid.hh"
 
-#include "BKE_paint.hh"
-#include "BKE_paint_bvh.hh"
-#include "BKE_scene.hh"
-#include "BKE_sound.h"
-#include "CLG_log.h"
-#include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_query.hh"
 #include "IMB_imbuf.hh"
-#include "RNA_define.hh"
-#include "intern/node/deg_node.hh"
+
+#include "testing/testing.h"
 
 namespace blender::bke::tests {
   class PaintTest : public testing::Test {
