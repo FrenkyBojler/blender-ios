@@ -39,14 +39,15 @@ void VKUniformBuffer::allocate()
                  GPU_USAGE_STATIC,
                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                 false);
+                 VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
   debug::object_label(buffer_.vk_handle(), name_);
 }
 
 void VKUniformBuffer::clear_to_zero()
 {
   if (!buffer_.is_allocated()) {
-    allocate();
+    allocate(); 
   }
   VKContext &context = *VKContext::get();
   buffer_.clear(context, 0);
