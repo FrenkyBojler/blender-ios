@@ -108,11 +108,14 @@ void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata)
   Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
 
-  float fg_color[4], bg_color[4];
+  float fg_color[4];
+  float bg_color[4];
   if (v3d && scene) {
+    /* Use overlay colors for 3D Viewport. */
     ED_view3d_text_colors_get(scene, v3d, fg_color, bg_color);
   }
   else {
+    /* Otherwise editor foreground and background colors. */
     UI_GetThemeColor3fv(TH_TEXT_HI, fg_color);
     UI_GetThemeColor3fv(TH_BACK, bg_color);
   }
@@ -133,12 +136,14 @@ void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata)
     immUniform1f("dash_width", DASH_LENGTH);
     immUniform1f("udash_factor", 0.5f);
 
+    /* Draw in background color first. */
     immUniformColor4fv(bg_color);
     immBegin(GPU_PRIM_LINES, 2);
     immVertex2fv(pos_id, cent);
     immVertex2f(pos_id, tmval[0], tmval[1]);
     immEnd();
 
+    /* Then foreground over top, shifted slightly. */
     immUniformColor4fv(fg_color);
     immBegin(GPU_PRIM_LINES, 2);
     immVertex2f(pos_id, cent[0] - U.pixelsize, cent[1] + U.pixelsize);
@@ -151,8 +156,10 @@ void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata)
   /* And now, solid lines. */
 
   immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-  immUniformColor4fv(bg_color);
   immUniform2fv("viewportSize", &viewport_size[2]);
+
+  /* First pass is background color and wider lines. */
+  immUniformColor4fv(bg_color);
   immUniform1f("lineWidth", ARROW_WIDTH * 2.0f);
 
   GPU_matrix_push();
@@ -164,7 +171,7 @@ void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata)
       drawArrow(pos_id, UP);
       drawArrow(pos_id, DOWN);
       immUniformColor4fv(fg_color);
-      immUniform1f("lineWidth", ARROW_WIDTH * 1.0f);
+      immUniform1f("lineWidth", ARROW_WIDTH);
       drawArrow(pos_id, UP);
       drawArrow(pos_id, DOWN);
       break;
@@ -206,7 +213,7 @@ void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata)
       immUniform1f("lineWidth", ARROW_WIDTH * 2.0f);
       drawArrow(pos_id, DOWN);
       immUniformColor4fv(fg_color);
-      immUniform1f("lineWidth", ARROW_WIDTH * 1.0f);
+      immUniform1f("lineWidth", ARROW_WIDTH);
       drawArrow(pos_id, DOWN);
 
       GPU_matrix_pop();
@@ -216,7 +223,7 @@ void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata)
       immUniform1f("lineWidth", ARROW_WIDTH * 2.0f);
       drawArrow(pos_id, UP);
       immUniformColor4fv(fg_color);
-      immUniform1f("lineWidth", ARROW_WIDTH * 1.0f);
+      immUniform1f("lineWidth", ARROW_WIDTH);
       drawArrow(pos_id, UP);
       break;
     }
@@ -229,7 +236,7 @@ void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata)
       drawArrow(pos_id, DOWN);
       GPU_matrix_translate_3f(-U.pixelsize, U.pixelsize, 0.0f);
 
-      immUniform1f("lineWidth", ARROW_WIDTH * 1.0f);
+      immUniform1f("lineWidth", ARROW_WIDTH);
       uchar col[3], col2[3];
       UI_GetThemeColor3ubv(TH_GRID, col);
       UI_make_axis_color(col, 'X', col2);
