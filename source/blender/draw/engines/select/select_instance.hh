@@ -100,8 +100,6 @@ struct SelectMap {
   StorageArrayBuffer<uint, 4, true> dummy_select_buf = {"dummy_select_buf"};
   /** Uniform buffer to bind to all passes to pass information about the selection state. */
   UniformBuffer<SelectInfoData> info_buf;
-  /** Will remove the depth test state from any pass drawing objects with select id. */
-  bool disable_depth_test = false;
 
   SelectMap(const SelectionType selection_type) : selection_type(selection_type){};
 
@@ -165,10 +163,8 @@ struct SelectMap {
       return;
     }
 
-    if (disable_depth_test) {
-      /* TODO: clipping state. */
-      pass.state_set(DRW_STATE_WRITE_COLOR);
-    }
+    /* TODO: clipping state. */
+    pass.state_set(DRW_STATE_WRITE_COLOR);
     pass.bind_ubo(SELECT_DATA, &info_buf);
     pass.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
   }
@@ -181,10 +177,8 @@ struct SelectMap {
     }
 
     pass.use_custom_ids = true;
-    if (disable_depth_test) {
-      /* TODO: clipping state. */
-      pass.state_set(DRW_STATE_WRITE_COLOR);
-    }
+    /* TODO: clipping state. */
+    pass.state_set(DRW_STATE_WRITE_COLOR);
     pass.bind_ubo(SELECT_DATA, &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     pass.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
@@ -200,10 +194,8 @@ struct SelectMap {
     }
 
     pass.use_custom_ids = true;
-    if (disable_depth_test) {
-      /* TODO: clipping state. */
-      sub.state_set(DRW_STATE_WRITE_COLOR);
-    }
+    /* TODO: clipping state. */
+    sub.state_set(DRW_STATE_WRITE_COLOR);
     sub.bind_ubo(SELECT_DATA, &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     sub.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
@@ -236,21 +228,18 @@ struct SelectMap {
       case GPU_SELECT_ALL:
         info_buf.mode = SelectType::SELECT_ALL;
         info_buf.cursor = int2(0);
-        disable_depth_test = true;
         /* This mode uses atomicOr and store result as a bitmap. Clear to 0 (no selection). */
         GPU_storagebuf_clear(select_output_buf, 0);
         break;
       case GPU_SELECT_PICK_ALL:
         info_buf.mode = SelectType::SELECT_PICK_ALL;
         info_buf.cursor = int2(gpu_select_next_get_pick_area_center());
-        disable_depth_test = true;
         /* Mode uses atomicMin. Clear to UINT_MAX. */
         GPU_storagebuf_clear(select_output_buf, 0xFFFFFFFFu);
         break;
       case GPU_SELECT_PICK_NEAREST:
         info_buf.mode = SelectType::SELECT_PICK_NEAREST;
         info_buf.cursor = int2(gpu_select_next_get_pick_area_center());
-        disable_depth_test = true;
         /* Mode uses atomicMin. Clear to UINT_MAX. */
         GPU_storagebuf_clear(select_output_buf, 0xFFFFFFFFu);
         break;
