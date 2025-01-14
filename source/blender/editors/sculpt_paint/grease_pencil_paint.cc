@@ -1146,6 +1146,7 @@ IndexRange PaintOperation::reproject_samples_on_strokes(const bContext &C,
                                      drawing.strokes().curves_range().last();
   const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
   const IndexRange all_points = points_by_curve[active_curve];
+  BLI_assert(this->screen_space_final_coords_.size() == all_points.size());
   if (all_points.is_empty()) {
     return {};
   }
@@ -1205,8 +1206,6 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   }
   else if (placement_.use_project_to_stroke()) {
     placement_.cache_viewport_depths(depsgraph, region, view3d);
-    /* Initialize the snap point. */
-    this->update_stroke_depth_placement(C, start_sample);
   }
 
   texture_space_ = ed::greasepencil::calculate_texture_space(
@@ -1243,6 +1242,11 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 
   PaintOperationExecutor executor{C};
   executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
+
+  if (placement_.use_project_to_stroke()) {
+    /* Initialize the snap point. */
+    this->update_stroke_depth_placement(C, start_sample);
+  }
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
