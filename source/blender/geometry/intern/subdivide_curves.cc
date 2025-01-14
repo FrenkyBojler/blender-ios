@@ -5,7 +5,9 @@
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
+#include "BKE_deform.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_task.hh"
 
 #include "GEO_subdivide_curves.hh"
@@ -158,10 +160,8 @@ static void subdivide_bezier_segment(const float3 &position_prev,
     /* The first point in the segment is always copied. */
     dst_positions[segment_points.first()] = position_prev;
 
-    /* Non-vector segments in the result curve are given free handles. This could possibly be
-     * improved with another pass that sets handles to aligned where possible, but currently that
-     * does not provide much benefit for the increased complexity. */
-    fill_segment_handle_types(BEZIER_HANDLE_FREE);
+    /* Non-vector segments in the result curve are given auto handles. */
+    fill_segment_handle_types(BEZIER_HANDLE_AUTO);
 
     /* In order to generate a Bezier curve with the same shape as the input curve, apply the
      * De Casteljau algorithm iteratively for the provided number of cuts, constantly updating the
@@ -284,6 +284,8 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
   const IndexMask unselected = selection.complement(src_curves.curves_range(), memory);
 
   bke::CurvesGeometry dst_curves = bke::curves::copy_only_curve_domain(src_curves);
+  /* Copy vertex groups from source curves to allow copying vertex group attributes. */
+  BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
 
   /* For each point, this contains the point offset in the corresponding result curve,
    * starting at zero. For example for two curves with four points each, the values might
@@ -317,10 +319,12 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
   const bke::AttributeAccessor src_attributes = src_curves.attributes();
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
 
+  Vector<bke::AttributeTransferData> attributes_to_transfer =
+      bke::retrieve_attributes_for_transfer(
+          src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter);
+
   auto subdivide_catmull_rom = [&](const IndexMask &selection) {
-    for (auto &attribute : bke::retrieve_attributes_for_transfer(
-             src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter))
-    {
+    for (auto &attribute : attributes_to_transfer) {
       subdivide_attribute_catmull_rom(src_points_by_curve,
                                       dst_points_by_curve,
                                       selection,
@@ -328,21 +332,17 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
                                       cyclic,
                                       attribute.src,
                                       attribute.dst.span);
-      attribute.dst.finish();
     }
   };
 
   auto subdivide_poly = [&](const IndexMask &selection) {
-    for (auto &attribute : bke::retrieve_attributes_for_transfer(
-             src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter))
-    {
+    for (auto &attribute : attributes_to_transfer) {
       subdivide_attribute_linear(src_points_by_curve,
                                  dst_points_by_curve,
                                  selection,
                                  all_point_offsets,
                                  attribute.src,
                                  attribute.dst.span);
-      attribute.dst.finish();
     }
   };
 
@@ -379,24 +379,19 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
                                  dst_handles_r.slice(dst_points));
     });
 
-    for (auto &attribute :
-         bke::retrieve_attributes_for_transfer(src_attributes,
-                                               dst_attributes,
-                                               ATTR_DOMAIN_MASK_POINT,
-                                               attribute_filter_with_skip_ref(attribute_filter,
-                                                                              {"position",
-                                                                               "handle_type_left",
-                                                                               "handle_type_right",
-                                                                               "handle_right",
-                                                                               "handle_left"})))
-    {
+    /* Filter out positions and handles that are already interpolated. */
+    const Set<StringRef> attributes_to_skip = {
+        "position", "handle_type_left", "handle_type_right", "handle_right", "handle_left"};
+    for (auto &attribute : attributes_to_transfer) {
+      if (attributes_to_skip.contains(attribute.name)) {
+        continue;
+      }
       subdivide_attribute_linear(src_points_by_curve,
                                  dst_points_by_curve,
                                  selection,
                                  all_point_offsets,
                                  attribute.src,
                                  attribute.dst.span);
-      attribute.dst.finish();
     }
   };
 
@@ -412,14 +407,11 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
                                      subdivide_bezier,
                                      subdivide_nurbs);
 
-  bke::copy_attributes_group_to_group(src_attributes,
-                                      bke::AttrDomain::Point,
-                                      bke::AttrDomain::Point,
-                                      attribute_filter,
-                                      src_points_by_curve,
-                                      dst_points_by_curve,
-                                      unselected,
-                                      dst_attributes);
+  for (auto &attribute : attributes_to_transfer) {
+    array_utils::copy_group_to_group(
+        src_points_by_curve, dst_points_by_curve, unselected, attribute.src, attribute.dst.span);
+    attribute.dst.finish();
+  }
 
   return dst_curves;
 }

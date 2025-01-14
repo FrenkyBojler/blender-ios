@@ -360,7 +360,7 @@ typedef struct ThemeSpace {
   /** For sequence editor. */
   unsigned char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];
   unsigned char effect[4], transition[4], meta[4], text_strip[4], color_strip[4];
-  unsigned char active_strip[4], selected_strip[4];
+  unsigned char active_strip[4], selected_strip[4], text_strip_cursor[4], selected_text[4];
 
   /** For dopesheet - scale factor for size of keyframes (i.e. height of channels). */
   float keyframe_scale_fac;
@@ -540,7 +540,7 @@ typedef struct bTheme {
   /* See COLLECTION_COLOR_TOT for the number of collection colors. */
   ThemeCollectionColor collection_color[8];
 
-  /* See SEQUENCE_COLOR_TOT for the total number of strip colors. */
+  /* See STRIP_COLOR_TOT for the total number of strip colors. */
   ThemeStripColor strip_color[9];
 
   int active_theme_area;

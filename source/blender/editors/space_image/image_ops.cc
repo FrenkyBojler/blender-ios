@@ -49,11 +49,12 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "IMB_anim.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_moviecache.hh"
+
+#include "MOV_read.hh"
 
 #include "RE_pipeline.h"
 
@@ -1726,11 +1727,11 @@ static int image_match_len_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  ImBufAnim *anim = ((ImageAnim *)ima->anims.first)->anim;
+  MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
   if (!anim) {
     return OPERATOR_CANCELLED;
   }
-  iuser->frames = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+  iuser->frames = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
   BKE_image_user_frame_calc(ima, iuser, scene->r.cfra);
 
   return OPERATOR_FINISHED;
@@ -4294,6 +4295,8 @@ static void tile_add_draw(bContext * /*C*/, wmOperator *op)
 
 void IMAGE_OT_tile_add(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* identifiers */
   ot->name = "Add Tile";
   ot->description = "Adds a tile to the image";
@@ -4319,7 +4322,8 @@ void IMAGE_OT_tile_add(wmOperatorType *ot)
               1099);
   RNA_def_int(ot->srna, "count", 1, 1, INT_MAX, "Count", "How many tiles to add", 1, 1000);
   RNA_def_string(ot->srna, "label", nullptr, 0, "Label", "Optional tile label");
-  RNA_def_boolean(ot->srna, "fill", true, "Fill", "Fill new tile with a generated image");
+  prop = RNA_def_boolean(ot->srna, "fill", true, "Fill", "Fill new tile with a generated image");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_IMAGE);
   def_fill_tile(ot->srna);
 }
 
@@ -4403,8 +4407,11 @@ static int tile_fill_invoke(bContext *C, wmOperator *op, const wmEvent * /*event
 {
   tile_fill_init(op->ptr, CTX_data_edit_image(C), nullptr);
 
-  return WM_operator_props_dialog_popup(
-      C, op, 300, IFACE_("Fill Tile With Generated Image"), IFACE_("Fill"));
+  return WM_operator_props_dialog_popup(C,
+                                        op,
+                                        300,
+                                        IFACE_("Fill Tile With Generated Image"),
+                                        CTX_IFACE_(BLT_I18NCONTEXT_ID_IMAGE, "Fill"));
 }
 
 static void tile_fill_draw(bContext * /*C*/, wmOperator *op)

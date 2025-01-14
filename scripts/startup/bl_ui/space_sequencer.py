@@ -99,7 +99,7 @@ def draw_color_balance(layout, color_balance):
         box = col.box()
         split = box.split(factor=0.35)
         col = split.column(align=True)
-        col.label(text="Power")
+        col.label(text="Power", text_ctxt=i18n_contexts.id_movieclip)
         col.separator()
         col.separator()
         col.prop(color_balance, "power", text="")
@@ -478,8 +478,10 @@ class SEQUENCER_MT_view(Menu):
         if is_sequencer_view:
             layout.operator_context = 'INVOKE_REGION_WIN'
             layout.operator("sequencer.view_all")
-            layout.operator("anim.scene_range_frame",
-                            text="Frame Preview Range" if context.scene.use_preview_range else "Frame Scene Range")
+            layout.operator(
+                "anim.scene_range_frame",
+                text="Frame Preview Range" if context.scene.use_preview_range else "Frame Scene Range",
+            )
             layout.operator("sequencer.view_frame")
             layout.prop(st, "use_clamp_view")
 
@@ -817,20 +819,41 @@ class SEQUENCER_MT_add_effect(Menu):
         layout.operator_context = 'INVOKE_REGION_WIN'
 
         col = layout.column()
-        col.operator("sequencer.effect_strip_add", text="Add",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'ADD'
-        col.operator("sequencer.effect_strip_add", text="Subtract",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'SUBTRACT'
-        col.operator("sequencer.effect_strip_add", text="Multiply",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'MULTIPLY'
-        col.operator("sequencer.effect_strip_add", text="Over Drop",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'OVER_DROP'
-        col.operator("sequencer.effect_strip_add", text="Alpha Over",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'ALPHA_OVER'
-        col.operator("sequencer.effect_strip_add", text="Alpha Under",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'ALPHA_UNDER'
-        col.operator("sequencer.effect_strip_add", text="Color Mix",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'COLORMIX'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Add",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'ADD'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Subtract",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'SUBTRACT'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Multiply",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'MULTIPLY'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Over Drop",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'OVER_DROP'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Alpha Over",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'ALPHA_OVER'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Alpha Under",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'ALPHA_UNDER'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Color Mix",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'COLORMIX'
         col.enabled = selected_sequences_len(context) >= 2
 
         layout.separator()
@@ -887,6 +910,26 @@ class SEQUENCER_MT_strip_transform(Menu):
             layout.operator("sequencer.gap_remove").all = False
             layout.operator("sequencer.gap_remove", text="Remove Gaps (All)").all = True
             layout.operator("sequencer.gap_insert")
+
+
+class SEQUENCER_MT_strip_text(Menu):
+    bl_label = "Text"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_PREVIEW'
+        layout.operator("sequencer.text_edit_mode_toggle")
+        layout.separator()
+        layout.operator("sequencer.text_edit_copy", icon='COPYDOWN')
+        layout.operator("sequencer.text_edit_paste", icon='PASTEDOWN')
+        layout.operator("sequencer.text_edit_cut")
+        layout.separator()
+        props = layout.operator("sequencer.text_delete")
+        props.type = 'PREVIOUS_OR_SELECTION'
+        layout.operator("sequencer.text_line_break")
+        layout.separator()
+        layout.operator("sequencer.text_select_all")
+        layout.operator("sequencer.text_deselect_all")
 
 
 class SEQUENCER_MT_strip_input(Menu):
@@ -993,16 +1036,21 @@ class SEQUENCER_MT_strip(Menu):
         st = context.space_data
         has_sequencer, has_preview = _space_view_types(st)
 
+        layout.menu("SEQUENCER_MT_strip_transform")
+
         if has_preview:
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
         else:
             layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.menu("SEQUENCER_MT_strip_transform")
+        strip = context.active_sequence_strip
 
         if has_preview:
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
+            layout.separator()
+            if strip and strip.type == 'TEXT':
+                layout.menu("SEQUENCER_MT_strip_text")
 
         if has_sequencer:
             layout.menu("SEQUENCER_MT_strip_retiming")
@@ -1023,8 +1071,6 @@ class SEQUENCER_MT_strip(Menu):
 
         layout.separator()
         layout.operator("sequencer.delete", text="Delete")
-
-        strip = context.active_sequence_strip
 
         if strip and strip.type == 'SCENE':
             layout.operator("sequencer.delete", text="Delete Strip & Data").delete_data = True
@@ -1087,7 +1133,7 @@ class SEQUENCER_MT_image(Menu):
         layout = self.layout
         st = context.space_data
 
-        if st.view_type == {'PREVIEW', 'SEQUENCER_PREVIEW'}:
+        if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.menu("SEQUENCER_MT_image_transform")
 
         layout.menu("SEQUENCER_MT_image_clear")
@@ -1113,13 +1159,25 @@ class SEQUENCER_MT_image_clear(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("sequencer.strip_transform_clear", text="Position",
-                        text_ctxt=i18n_contexts.default).property = 'POSITION'
-        layout.operator("sequencer.strip_transform_clear", text="Scale",
-                        text_ctxt=i18n_contexts.default).property = 'SCALE'
-        layout.operator("sequencer.strip_transform_clear", text="Rotation",
-                        text_ctxt=i18n_contexts.default).property = 'ROTATION'
-        layout.operator("sequencer.strip_transform_clear", text="All Transforms").property = 'ALL'
+        layout.operator(
+            "sequencer.strip_transform_clear",
+            text="Position",
+            text_ctxt=i18n_contexts.default,
+        ).property = 'POSITION'
+        layout.operator(
+            "sequencer.strip_transform_clear",
+            text="Scale",
+            text_ctxt=i18n_contexts.default,
+        ).property = 'SCALE'
+        layout.operator(
+            "sequencer.strip_transform_clear",
+            text="Rotation",
+            text_ctxt=i18n_contexts.default,
+        ).property = 'ROTATION'
+        layout.operator(
+            "sequencer.strip_transform_clear",
+            text="All Transforms",
+        ).property = 'ALL'
 
 
 class SEQUENCER_MT_image_apply(Menu):
@@ -1383,7 +1441,7 @@ class SEQUENCER_PT_color_tag_picker(SequencerColorTagPicker, Panel):
         row = layout.row(align=True)
         row.operator("sequencer.strip_color_tag_set", icon='X').color = 'NONE'
         for i in range(1, 10):
-            icon = 'SEQUENCE_COLOR_{:02d}'.format(i)
+            icon = 'STRIP_COLOR_{:02d}'.format(i)
             row.operator("sequencer.strip_color_tag_set", icon=icon).color = 'COLOR_{:02d}'.format(i)
 
 
@@ -1753,6 +1811,7 @@ class SEQUENCER_PT_effect_text_shadow(SequencerButtonsPanel, Panel):
 
 class SEQUENCER_PT_effect_text_box(SequencerButtonsPanel, Panel):
     bl_label = "Box"
+    bl_translation_context = i18n_contexts.id_sequence
     bl_options = {"DEFAULT_CLOSED"}
     bl_category = "Strip"
     bl_parent_id = "SEQUENCER_PT_effect_text_style"
@@ -2944,7 +3003,7 @@ class SEQUENCER_PT_custom_props(SequencerButtonsPanel, PropertyPanel, Panel):
         'BLENDER_WORKBENCH',
     }
     _context_path = "active_sequence_strip"
-    _property_type = (bpy.types.Sequence,)
+    _property_type = (bpy.types.Strip,)
     bl_category = "Strip"
 
 
@@ -3039,6 +3098,7 @@ classes = (
     SEQUENCER_MT_strip,
     SEQUENCER_MT_strip_transform,
     SEQUENCER_MT_strip_retiming,
+    SEQUENCER_MT_strip_text,
     SEQUENCER_MT_strip_input,
     SEQUENCER_MT_strip_lock_mute,
     SEQUENCER_MT_image,

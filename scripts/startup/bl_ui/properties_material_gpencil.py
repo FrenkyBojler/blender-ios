@@ -32,7 +32,8 @@ class GPENCIL_MT_material_context_menu(Menu):
 
         layout.operator(
             "grease_pencil.material_copy_to_object",
-            text="Copy Material to Selected").only_active = True
+            text="Copy Material to Selected",
+        ).only_active = True
         layout.operator(
             "grease_pencil.material_copy_to_object",
             text="Copy All Materials to Selected",
@@ -92,8 +93,9 @@ class MATERIAL_PT_gpencil_slots(GreasePencilMaterialsPanel, Panel):
     @classmethod
     def poll(cls, context):
         ma = context.material
-
-        return ma and ma.grease_pencil
+        found_material = ma and ma.grease_pencil
+        found_object = context.object and context.object.type == 'GREASEPENCIL'
+        return found_material or found_object
 
 
 # Used as parent for "Stroke" and "Fill" panels

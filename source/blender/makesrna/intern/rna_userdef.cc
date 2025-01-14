@@ -342,11 +342,8 @@ static void rna_userdef_language_update(Main *bmain, Scene * /*scene*/, PointerR
 {
   BLT_lang_set(nullptr);
 
-  const char *uilng = BLT_lang_get();
-  if (STREQ(uilng, "en_US")) {
-    U.transopts &= ~(USER_TR_IFACE | USER_TR_TOOLTIPS | USER_TR_REPORTS | USER_TR_NEWDATANAME);
-  }
-  else {
+  if (!blender::bke::preferences::exists()) {
+    /* If changing language without current userprefs, enable all usage options. */
     U.transopts |= (USER_TR_IFACE | USER_TR_TOOLTIPS | USER_TR_REPORTS | USER_TR_NEWDATANAME);
   }
 
@@ -3869,6 +3866,18 @@ static void rna_def_userdef_theme_space_seq(BlenderRNA *brna)
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Alternate Rows", "Overlay color on every other row");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "text_strip_cursor", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "text_strip_cursor");
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Text Strip Cursor", "Text strip editing cursor");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "selected_text", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "selected_text");
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Selected text", "Text strip editing selection");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
 static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
@@ -4394,12 +4403,14 @@ static void rna_def_userdef_theme_space_clip(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "path_keyframe_before", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Path Before", "Color of path before current frame");
+  RNA_def_property_ui_text(
+      prop, "Path Keyframe Before", "Color of keyframes on a path before current frame");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "path_keyframe_after", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Path After", "Color of path after current frame");
+  RNA_def_property_ui_text(
+      prop, "Path Keyframe After", "Color of keyframes on a path after current frame");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "frame_current", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -4933,6 +4944,7 @@ static void rna_def_userdef_solidlight(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 0.5f);
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(prop, "Smooth", "Smooth the lighting from this light");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
   RNA_def_property_update(prop, 0, "rna_UserDef_viewport_lights_update");
 
   prop = RNA_def_property(srna, "direction", PROP_FLOAT, PROP_DIRECTION);
@@ -5182,6 +5194,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_splash", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "uiflag", USER_SPLASH_DISABLE);
   RNA_def_property_ui_text(prop, "Show Splash", "Display splash screen on startup");
+  RNA_def_property_boolean_default(prop, true);
 
   prop = RNA_def_property(srna, "show_playback_fps", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_SHOW_FPS);
@@ -5487,6 +5500,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "text_render", USER_TEXT_DISABLE_AA);
   RNA_def_property_ui_text(
       prop, "Text Anti-Aliasing", "Smooth jagged edges of user interface text");
+  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_update(prop, 0, "rna_userdef_text_update");
 
   prop = RNA_def_property(srna, "use_text_render_subpixelaa", PROP_BOOLEAN, PROP_NONE);
@@ -5723,6 +5737,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
       prop,
       "Show Auto Keying Warning",
       "Show warning indicators when transforming objects and bones if auto keying is enabled");
+  RNA_def_property_boolean_default(prop, true);
 
   /* keyframing settings */
   prop = RNA_def_property(srna, "key_insert_channels", PROP_ENUM, PROP_NONE);
@@ -5732,6 +5747,10 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Default Key Channels",
                            "Which channels to insert keys at when no keying set is active");
+  RNA_def_property_enum_default(prop,
+                                USER_ANIM_KEY_CHANNEL_LOCATION | USER_ANIM_KEY_CHANNEL_ROTATION |
+                                    USER_ANIM_KEY_CHANNEL_SCALE |
+                                    USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES);
 
   prop = RNA_def_property(srna, "use_auto_keyframe_insert_needed", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "keying_flag", AUTOKEY_FLAG_INSERTNEEDED);
@@ -5762,7 +5781,6 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_anim_channel_group_colors", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "animation_flag", USER_ANIM_SHOW_CHANNEL_GROUP_COLORS);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop,
       "Channel Group Colors",
@@ -6246,6 +6264,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       prop,
       "Edit Mode Smooth Wires",
       "Enable edit mode edge smoothing, reducing aliasing (requires restart)");
+  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "use_region_overlap", PROP_BOOLEAN, PROP_NONE);
@@ -6299,7 +6318,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "anisotropic_filter");
   RNA_def_property_enum_items(prop, anisotropic_items);
-  RNA_def_property_enum_default(prop, 1);
   RNA_def_property_ui_text(prop, "Anisotropic Filtering", "Quality of anisotropic filtering");
   RNA_def_property_update(prop, 0, "rna_userdef_anisotropic_update");
 
@@ -6352,6 +6370,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "GPU Depth Picking",
                            "When making a selection in 3D View, use the GPU depth buffer to "
                            "ensure the frontmost object is selected first");
+  RNA_def_property_boolean_default(prop, true);
 
   /* GPU subdivision evaluation. */
 
@@ -7242,11 +7261,13 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "uiflag", USER_HIDE_RECENT);
   RNA_def_property_ui_text(
       prop, "Show Recent Locations", "Show Recent locations list in the File Browser");
+  RNA_def_property_boolean_default(prop, true);
 
   prop = RNA_def_property(srna, "show_system_bookmarks", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "uiflag", USER_HIDE_SYSTEM_BOOKMARKS);
   RNA_def_property_ui_text(
       prop, "Show System Locations", "Show System locations list in the File Browser");
+  RNA_def_property_boolean_default(prop, true);
 
   prop = RNA_def_property(srna, "use_relative_paths", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_RELPATHS);
@@ -7263,6 +7284,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_load_ui", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", USER_FILENOUI);
   RNA_def_property_ui_text(prop, "Load UI", "Load user interface setup when loading .blend files");
+  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_update(prop, 0, "rna_userdef_load_ui_update");
 
   prop = RNA_def_property(srna, "use_scripts_auto_execute", PROP_BOOLEAN, PROP_NONE);
@@ -7279,6 +7301,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
       prop,
       "Tabs as Spaces",
       "Automatically convert all new tabs into spaces for new and loaded text files");
+  RNA_def_property_boolean_default(prop, true);
 
   prop = RNA_def_property(srna, "use_extension_online_access_handled", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
@@ -7708,6 +7731,7 @@ void RNA_def_userdef(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_recent_searches", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", USER_FLAG_RECENT_SEARCHES_DISABLE);
   RNA_def_property_ui_text(prop, "Recent Searches", "Sort the recently searched items at the top");
+  RNA_def_property_boolean_default(prop, true);
 
   /* nested structs */
   prop = RNA_def_property(srna, "view", PROP_POINTER, PROP_NONE);
