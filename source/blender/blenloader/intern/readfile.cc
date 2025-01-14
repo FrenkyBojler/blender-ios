@@ -1450,9 +1450,6 @@ void blo_filedata_free(FileData *fd)
     BKE_main_idmap_destroy(fd->new_idmap_uid);
   }
   blo_cache_storage_end(fd);
-  if (fd->bheadmap) {
-    MEM_freeN(fd->bheadmap);
-  }
 
 #ifdef USE_GHASH_BHEAD
   if (fd->bhead_idname_hash) {
@@ -3983,51 +3980,6 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
  * Also used for append.
  * \{ */
 
-struct BHeadSort {
-  BHead *bhead;
-  const void *old;
-};
-
-static int verg_bheadsort(const void *v1, const void *v2)
-{
-  const BHeadSort *x1 = static_cast<const BHeadSort *>(v1),
-                  *x2 = static_cast<const BHeadSort *>(v2);
-
-  if (x1->old > x2->old) {
-    return 1;
-  }
-  if (x1->old < x2->old) {
-    return -1;
-  }
-  return 0;
-}
-
-static void sort_bhead_old_map(FileData *fd)
-{
-  BHead *bhead;
-  BHeadSort *bhs;
-  int tot = 0;
-
-  for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
-    tot++;
-  }
-
-  fd->tot_bheadmap = tot;
-  if (tot == 0) {
-    return;
-  }
-
-  bhs = fd->bheadmap = static_cast<BHeadSort *>(
-      MEM_malloc_arrayN(tot, sizeof(BHeadSort), "BHeadSort"));
-
-  for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead), bhs++) {
-    bhs->bhead = bhead;
-    bhs->old = bhead->old;
-  }
-
-  qsort(fd->bheadmap, tot, sizeof(BHeadSort), verg_bheadsort);
-}
-
 static BHead *find_previous_lib(FileData *fd, BHead *bhead)
 {
   /* Skip library data-blocks in undo, see comment in read_libblock. */
@@ -4046,36 +3998,13 @@ static BHead *find_previous_lib(FileData *fd, BHead *bhead)
 
 static BHead *find_bhead(FileData *fd, void *old)
 {
-#if 0
-  BHead *bhead;
-#endif
-  BHeadSort *bhs, bhs_s;
-
-  if (!old) {
-    return nullptr;
-  }
-
-  if (fd->bheadmap == nullptr) {
-    sort_bhead_old_map(fd);
-  }
-
-  bhs_s.old = old;
-  bhs = static_cast<BHeadSort *>(
-      bsearch(&bhs_s, fd->bheadmap, fd->tot_bheadmap, sizeof(BHeadSort), verg_bheadsort));
-
-  if (bhs) {
-    return bhs->bhead;
-  }
-
-#if 0
-  for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
-    if (bhead->old == old) {
-      return bhead;
+  if (!fd->bheadmap.has_value()) {
+    fd->bheadmap.emplace();
+    for (BHead *bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
+      fd->bheadmap->add(bhead->old, bhead);
     }
   }
-#endif
-
-  return nullptr;
+  return fd->bheadmap->lookup_default(old, nullptr);
 }
 
 static BHead *find_bhead_from_code_name(FileData *fd, const short idcode, const char *name)
