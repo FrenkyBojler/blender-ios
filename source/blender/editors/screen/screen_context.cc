@@ -89,9 +89,9 @@ const char *screen_context_dir[] = {
     "particle_edit_object",
     "pose_object",
     "active_sequence_strip",
-    "strips",
-    "selected_strips",
-    "selected_editable_strips", /* sequencer */
+    "sequences",
+    "selected_sequences",
+    "selected_editable_sequences", /* sequencer */
     "active_nla_track",
     "active_nla_strip",
     "selected_nla_strips", /* nla editor */
@@ -694,7 +694,7 @@ static eContextResult screen_ctx_sequences(const bContext *C, bContextDataResult
   }
   return CTX_RESULT_NO_DATA;
 }
-static eContextResult screen_ctx_selected_strips(const bContext *C, bContextDataResult *result)
+static eContextResult screen_ctx_selected_sequences(const bContext *C, bContextDataResult *result)
 {
   wmWindow *win = CTX_wm_window(C);
   Scene *scene = WM_window_get_active_scene(win);
@@ -710,8 +710,8 @@ static eContextResult screen_ctx_selected_strips(const bContext *C, bContextData
   }
   return CTX_RESULT_NO_DATA;
 }
-static eContextResult screen_ctx_selected_editable_strips(const bContext *C,
-                                                          bContextDataResult *result)
+static eContextResult screen_ctx_selected_editable_sequences(const bContext *C,
+                                                             bContextDataResult *result)
 {
   wmWindow *win = CTX_wm_window(C);
   Scene *scene = WM_window_get_active_scene(win);
@@ -1171,9 +1171,9 @@ ensure_ed_screen_context_functions()
     map.add("particle_edit_object", screen_ctx_particle_edit_object);
     map.add("pose_object", screen_ctx_pose_object);
     map.add("active_sequence_strip", screen_ctx_active_sequence_strip);
-    map.add("strips", screen_ctx_sequences);
-    map.add("selected_strips", screen_ctx_selected_strips);
-    map.add("selected_editable_strips", screen_ctx_selected_editable_strips);
+    map.add("sequences", screen_ctx_sequences);
+    map.add("selected_sequences", screen_ctx_selected_sequences);
+    map.add("selected_editable_sequences", screen_ctx_selected_editable_sequences);
     map.add("active_nla_track", screen_ctx_active_nla_track);
     map.add("active_nla_strip", screen_ctx_active_nla_strip);
     map.add("selected_nla_strips", screen_ctx_selected_nla_strips);

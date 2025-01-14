@@ -30,11 +30,11 @@ def _space_view_types(st):
     )
 
 
-def selected_strips_len(context):
-    selected_strips = getattr(context, "selected_strips", None)
-    if selected_strips is None:
+def selected_sequences_len(context):
+    selected_sequences = getattr(context, "selected_sequences", None)
+    if selected_sequences is None:
         return 0
-    return len(selected_strips)
+    return len(selected_sequences)
 
 
 def draw_color_balance(layout, color_balance):
@@ -429,7 +429,7 @@ class SEQUENCER_MT_proxy(Menu):
         col = layout.column()
         col.operator("sequencer.enable_proxies", text="Setup")
         col.operator("sequencer.rebuild_proxy", text="Rebuild")
-        col.enabled = selected_strips_len(context) >= 1
+        col.enabled = selected_sequences_len(context) >= 1
         layout.prop(st, "proxy_render_size", text="")
 
 
@@ -744,11 +744,11 @@ class SEQUENCER_MT_add(Menu):
 
         col = layout.column()
         col.menu("SEQUENCER_MT_add_transitions", icon='ARROW_LEFTRIGHT')
-        col.enabled = selected_strips_len(context) >= 2
+        col.enabled = selected_sequences_len(context) >= 2
 
         col = layout.column()
         col.operator_menu_enum("sequencer.fades_add", "type", text="Fade", icon='IPO_EASE_IN_OUT')
-        col.enabled = selected_strips_len(context) >= 1
+        col.enabled = selected_sequences_len(context) >= 1
 
 
 class SEQUENCER_MT_add_scene(Menu):
@@ -807,7 +807,7 @@ class SEQUENCER_MT_add_transitions(Menu):
         col.separator()
 
         col.operator("sequencer.effect_strip_add", text="Wipe").type = 'WIPE'
-        col.enabled = selected_strips_len(context) >= 2
+        col.enabled = selected_sequences_len(context) >= 2
 
 
 class SEQUENCER_MT_add_effect(Menu):
@@ -854,7 +854,7 @@ class SEQUENCER_MT_add_effect(Menu):
             text="Color Mix",
             text_ctxt=i18n_contexts.id_sequence,
         ).type = 'COLORMIX'
-        col.enabled = selected_strips_len(context) >= 2
+        col.enabled = selected_sequences_len(context) >= 2
 
         layout.separator()
 
@@ -870,7 +870,7 @@ class SEQUENCER_MT_add_effect(Menu):
 
         col.operator("sequencer.effect_strip_add", text="Glow").type = 'GLOW'
         col.operator("sequencer.effect_strip_add", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
-        col.enabled = selected_strips_len(context) != 0
+        col.enabled = selected_sequences_len(context) != 0
 
 
 class SEQUENCER_MT_strip_transform(Menu):
@@ -1247,23 +1247,23 @@ class SEQUENCER_MT_context_menu(Menu):
 
         if strip:
             strip_type = strip.type
-            selected_strips_count = selected_strips_len(context)
+            selected_sequences_count = selected_sequences_len(context)
 
             layout.separator()
             layout.operator_menu_enum("sequencer.strip_modifier_add", "type", text="Add Modifier")
             layout.operator("sequencer.strip_modifier_copy", text="Copy Modifiers to Selection")
 
             if strip_type != 'SOUND':
-                if selected_strips_count >= 2:
+                if selected_sequences_count >= 2:
                     layout.separator()
                     col = layout.column()
                     col.menu("SEQUENCER_MT_add_transitions", text="Add Transition")
             else:
-                if selected_strips_count >= 2:
+                if selected_sequences_count >= 2:
                     layout.separator()
                     layout.operator("sequencer.crossfade_sounds", text="Crossfade Sounds")
 
-            if selected_strips_count >= 1:
+            if selected_sequences_count >= 1:
                 col = layout.column()
                 col.operator_menu_enum("sequencer.fades_add", "type", text="Fade")
                 layout.operator("sequencer.fades_clear", text="Clear Fade")

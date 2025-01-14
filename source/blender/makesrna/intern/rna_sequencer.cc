@@ -2382,13 +2382,13 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_SEQUENCE);
   RNA_def_struct_sdna(srna, "Editing");
 
-  prop = RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);
+  prop = RNA_def_property(srna, "sequences", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(prop, "Strips", "Top-level strips only");
   RNA_api_strips(brna, prop, false);
 
-  prop = RNA_def_property(srna, "strips_all", PROP_COLLECTION, PROP_NONE);
+  prop = RNA_def_property(srna, "sequences_all", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(
@@ -2757,7 +2757,7 @@ static void rna_def_meta(BlenderRNA *brna)
       srna, "Meta Strip", "Sequence strip to group other strips as a single sequence strip");
   RNA_def_struct_sdna(srna, "Strip");
 
-  prop = RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);
+  prop = RNA_def_property(srna, "sequences", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(prop, "Strips", "Strips nested in meta strip");
