@@ -48,10 +48,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, "GeometryNodeSculptVertexColor", GEO_NODE_SCULPT_VERTEX_COLOR, NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "GeometryNodeSculptVertexColor");
   ntype.ui_name = "Vertex Color";
   ntype.ui_description = "Vertex Color";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

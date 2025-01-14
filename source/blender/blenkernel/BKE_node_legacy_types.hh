@@ -512,11 +512,7 @@
 #define GEO_NODE_MERGE_LAYERS 2150
 #define GEO_NODE_INPUT_COLLECTION 2151
 #define GEO_NODE_INPUT_OBJECT 2152
-#define GEO_NODE_SCULPT_BRUSH_INFO 2153
-#define GEO_NODE_SCULPT_PEN_PRESSURE 2154
-#define GEO_NODE_SCULPT_STROKE_INFO 2155
-#define GEO_NODE_SCULPT_ACTIVE_MESH 2156
-#define GEO_NODE_SCULPT_VERTEX_COLOR 2157
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

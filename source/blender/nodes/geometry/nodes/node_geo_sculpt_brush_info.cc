@@ -36,10 +36,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, "GeometryNodeSculptBrushInfo", GEO_NODE_SCULPT_BRUSH_INFO, NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "GeometryNodeSculptBrushInfo");
   ntype.ui_name = "Brush Info";
   ntype.ui_description = "Brush Info";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);
