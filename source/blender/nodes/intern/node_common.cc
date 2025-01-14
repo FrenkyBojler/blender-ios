@@ -32,7 +32,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "NOD_common.h"
+#include "NOD_common.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_register.hh"
 #include "NOD_socket.hh"
@@ -64,12 +64,12 @@ static bNodeSocket *find_matching_socket(ListBase &sockets, StringRef identifier
   return nullptr;
 }
 
-bNodeSocket *node_group_find_input_socket(bNode *groupnode, const char *identifier)
+bNodeSocket *node_group_find_input_socket(bNode *groupnode, const blender::StringRef identifier)
 {
   return find_matching_socket(groupnode->inputs, identifier);
 }
 
-bNodeSocket *node_group_find_output_socket(bNode *groupnode, const char *identifier)
+bNodeSocket *node_group_find_output_socket(bNode *groupnode, const blender::StringRef identifier)
 {
   return find_matching_socket(groupnode->outputs, identifier);
 }
@@ -509,10 +509,15 @@ static void node_frame_init(bNodeTree * /*ntree*/, bNode *node)
 void register_node_type_frame()
 {
   /* frame type is used for all tree types, needs dynamic allocation */
-  blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("frame node type");
-  ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
+  blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("frame node type");
+  ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
-  blender::bke::node_type_base(ntype, NODE_FRAME, "Frame", NODE_CLASS_LAYOUT);
+  blender::bke::node_type_base(ntype, "NodeFrame", NODE_FRAME);
+  ntype->ui_name = "Frame";
+  ntype->ui_description =
+      "Collect related nodes together in a common area. Useful for organization when the "
+      "re-usability of a node group is not required";
+  ntype->nclass = NODE_CLASS_LAYOUT;
   ntype->enum_name_legacy = "FRAME";
   ntype->initfunc = node_frame_init;
   blender::bke::node_type_storage(
@@ -552,11 +557,15 @@ static void node_reroute_init(bNodeTree * /*ntree*/, bNode *node)
 void register_node_type_reroute()
 {
   /* frame type is used for all tree types, needs dynamic allocation */
-  blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("frame node type");
-  ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
+  blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("frame node type");
+  ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
-  blender::bke::node_type_base(ntype, NODE_REROUTE, "Reroute", NODE_CLASS_LAYOUT);
+  blender::bke::node_type_base(ntype, "NodeReroute", NODE_REROUTE);
+  ntype->ui_name = "Reroute";
+  ntype->ui_description =
+      "A single-socket organization tool that supports one input and multiple outputs";
   ntype->enum_name_legacy = "REROUTE";
+  ntype->nclass = NODE_CLASS_LAYOUT;
   ntype->declare = node_reroute_declare;
   ntype->initfunc = node_reroute_init;
   node_type_storage(ntype, "NodeReroute", node_free_standard_storage, node_copy_standard_storage);
@@ -690,7 +699,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     const int reroute_index = reroute_nodes[reroute_i];
     bNode &reroute_node = *all_nodes[reroute_index];
     NodeReroute *storage = static_cast<NodeReroute *>(reroute_node.storage);
-    STRNCPY(storage->type_idname, reroute_type->idname);
+    StringRef(reroute_type->idname).copy(storage->type_idname);
     nodes::update_node_declaration_and_sockets(*ntree, reroute_node);
   }
 }
@@ -727,10 +736,10 @@ bool blender::bke::node_is_connected_to_output(const bNodeTree *ntree, const bNo
 /** \name Node #GROUP_INPUT / #GROUP_OUTPUT
  * \{ */
 
-bNodeSocket *node_group_input_find_socket(bNode *node, const char *identifier)
+bNodeSocket *node_group_input_find_socket(bNode *node, const StringRef identifier)
 {
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    if (STREQ(sock->identifier, identifier)) {
+    if (sock->identifier == identifier) {
       return sock;
     }
   }
@@ -830,11 +839,15 @@ static bool group_output_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *l
 void register_node_type_group_input()
 {
   /* used for all tree types, needs dynamic allocation */
-  blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("node type");
-  ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
+  blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("node type");
+  ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
-  blender::bke::node_type_base(ntype, NODE_GROUP_INPUT, "Group Input", NODE_CLASS_INTERFACE);
+  blender::bke::node_type_base(ntype, "NodeGroupInput", NODE_GROUP_INPUT);
+  ntype->ui_name = "Group Input";
+  ntype->ui_description =
+      "Expose connected data from inside a node group as inputs to its interface";
   ntype->enum_name_legacy = "GROUP_INPUT";
+  ntype->nclass = NODE_CLASS_INTERFACE;
   blender::bke::node_type_size(ntype, 140, 80, 400);
   ntype->declare = blender::nodes::group_input_declare;
   ntype->insert_link = blender::nodes::group_input_insert_link;
@@ -842,10 +855,10 @@ void register_node_type_group_input()
   blender::bke::node_register_type(ntype);
 }
 
-bNodeSocket *node_group_output_find_socket(bNode *node, const char *identifier)
+bNodeSocket *node_group_output_find_socket(bNode *node, const StringRef identifier)
 {
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    if (STREQ(sock->identifier, identifier)) {
+    if (sock->identifier == identifier) {
       return sock;
     }
   }
@@ -855,11 +868,14 @@ bNodeSocket *node_group_output_find_socket(bNode *node, const char *identifier)
 void register_node_type_group_output()
 {
   /* used for all tree types, needs dynamic allocation */
-  blender::bke::bNodeType *ntype = MEM_cnew<blender::bke::bNodeType>("node type");
-  ntype->free_self = (void (*)(blender::bke::bNodeType *))MEM_freeN;
+  blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("node type");
+  ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
-  blender::bke::node_type_base(ntype, NODE_GROUP_OUTPUT, "Group Output", NODE_CLASS_INTERFACE);
+  blender::bke::node_type_base(ntype, "NodeGroupOutput", NODE_GROUP_OUTPUT);
+  ntype->ui_name = "Group Output";
+  ntype->ui_description = "Output data from inside of a node group";
   ntype->enum_name_legacy = "GROUP_OUTPUT";
+  ntype->nclass = NODE_CLASS_INTERFACE;
   blender::bke::node_type_size(ntype, 140, 80, 400);
   ntype->declare = blender::nodes::group_output_declare;
   ntype->insert_link = blender::nodes::group_output_insert_link;
