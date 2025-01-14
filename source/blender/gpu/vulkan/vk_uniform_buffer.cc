@@ -47,7 +47,7 @@ void VKUniformBuffer::allocate()
 void VKUniformBuffer::clear_to_zero()
 {
   if (!buffer_.is_allocated()) {
-    allocate(); 
+    allocate();
   }
   VKContext &context = *VKContext::get();
   buffer_.clear(context, 0);
