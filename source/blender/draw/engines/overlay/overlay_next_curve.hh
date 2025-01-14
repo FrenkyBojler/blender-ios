@@ -48,6 +48,8 @@ class Curves : Overlay {
   View::OffsetData offset_data_;
 
  public:
+  Curves(bool in_front) : Overlay(in_front){};
+
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_v3d();

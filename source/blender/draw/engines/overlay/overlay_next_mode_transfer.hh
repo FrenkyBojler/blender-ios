@@ -32,6 +32,8 @@ class ModeTransfer : Overlay {
   bool any_animated_ = false;
 
  public:
+  ModeTransfer(bool in_front) : Overlay(in_front){};
+
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_v3d() && !res.is_selection();

@@ -70,6 +70,8 @@ class Prepass : Overlay {
   bool use_material_slot_selection_ = false;
 
  public:
+  Prepass(bool in_front) : Overlay(in_front){};
+
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_v3d() && !state.xray_enabled;

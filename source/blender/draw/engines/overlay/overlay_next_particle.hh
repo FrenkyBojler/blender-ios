@@ -38,6 +38,8 @@ class Particles : Overlay {
   bool show_point_tip_ = false;
 
  public:
+  Particles(bool in_front) : Overlay(in_front){};
+
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_v3d();

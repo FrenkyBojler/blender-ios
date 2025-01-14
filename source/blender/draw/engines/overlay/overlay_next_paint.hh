@@ -41,6 +41,8 @@ class Paints : Overlay {
   bool show_paint_mask_ = false;
 
  public:
+  Paints(bool in_front) : Overlay(in_front){};
+
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ =

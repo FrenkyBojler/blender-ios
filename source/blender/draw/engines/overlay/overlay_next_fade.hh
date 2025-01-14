@@ -30,6 +30,8 @@ class Fade : Overlay {
   PassMain::Sub *armature_fade_geometry_other_ps_;
 
  public:
+  Fade(bool in_front) : Overlay(in_front){};
+
   void begin_sync(Resources &res, const State &state) final
   {
     const bool do_edit_mesh_fade_geom = !state.xray_enabled && state.show_fade_inactive();

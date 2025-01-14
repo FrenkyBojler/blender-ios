@@ -99,7 +99,8 @@ struct SelectMap {
   /** Dummy buffer. Might be better to remove, but simplify the shader create info patching. */
   StorageArrayBuffer<uint, 4, true> dummy_select_buf = {"dummy_select_buf"};
   /** Uniform buffer to bind to all passes to pass information about the selection state. */
-  UniformBuffer<SelectInfoData> info_buf;
+  UniformBuffer<SelectInfoData> info_buf = {"info_buf"};
+  UniformBuffer<SelectInfoData> info_in_front_buf = {"info_in_front_buf"};
 
   SelectMap(const SelectionType selection_type) : selection_type(selection_type){};
 
@@ -163,9 +164,13 @@ struct SelectMap {
       return;
     }
 
+    if (in_front) {
+      printf("In Front\n");
+    }
+
     /* TODO: clipping state. */
     pass.state_set(DRW_STATE_WRITE_COLOR);
-    pass.bind_ubo(SELECT_DATA, &info_buf);
+    pass.bind_ubo(SELECT_DATA, in_front ? &info_in_front_buf : &info_buf);
     pass.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
   }
 
@@ -176,10 +181,14 @@ struct SelectMap {
       return;
     }
 
+    if (in_front) {
+      printf("In Front\n");
+    }
+
     pass.use_custom_ids = true;
     /* TODO: clipping state. */
     pass.state_set(DRW_STATE_WRITE_COLOR);
-    pass.bind_ubo(SELECT_DATA, &info_buf);
+    pass.bind_ubo(SELECT_DATA, in_front ? &info_in_front_buf : &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     pass.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
     pass.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
@@ -193,10 +202,14 @@ struct SelectMap {
       return;
     }
 
+    if (in_front) {
+      printf("In Front\n");
+    }
+
     pass.use_custom_ids = true;
     /* TODO: clipping state. */
     sub.state_set(DRW_STATE_WRITE_COLOR);
-    sub.bind_ubo(SELECT_DATA, &info_buf);
+    sub.bind_ubo(SELECT_DATA, in_front ? &info_in_front_buf : &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     sub.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
     sub.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
@@ -244,7 +257,13 @@ struct SelectMap {
         GPU_storagebuf_clear(select_output_buf, 0xFFFFFFFFu);
         break;
     }
+    info_buf.in_front = false;
     info_buf.push_update();
+
+    info_in_front_buf.mode = info_buf.mode;
+    info_in_front_buf.cursor = info_buf.cursor;
+    info_in_front_buf.in_front = true;
+    info_in_front_buf.push_update();
   }
 
   void read_result()

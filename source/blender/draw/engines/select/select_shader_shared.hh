@@ -21,7 +21,7 @@ enum SelectType : uint32_t {
 struct SelectInfoData {
   int2 cursor;
   SelectType mode;
-  uint _pad0;
+  bool32_t in_front;
 };
 BLI_STATIC_ASSERT_ALIGN(SelectInfoData, 16)
 

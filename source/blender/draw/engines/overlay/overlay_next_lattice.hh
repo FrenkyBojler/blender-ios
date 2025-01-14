@@ -28,6 +28,8 @@ class Lattices : Overlay {
   PassMain::Sub *edit_lattice_point_ps_;
 
  public:
+  Lattices(bool in_front) : Overlay(in_front){};
+
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_v3d();
