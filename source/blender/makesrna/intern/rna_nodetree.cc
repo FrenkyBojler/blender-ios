@@ -12495,6 +12495,11 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSampleUVSurface");
   define("GeometryNode", "GeometryNodeScaleElements");
   define("GeometryNode", "GeometryNodeScaleInstances");
+  define("GeometryNode", "GeometryNodeSculptActiveMesh");
+  define("GeometryNode", "GeometryNodeSculptBrushInfo");
+  define("GeometryNode", "GeometryNodeSculptPenPressure");
+  define("GeometryNode", "GeometryNodeSculptStrokeInfo");
+  define("GeometryNode", "GeometryNodeSculptVertexColor");
   define("GeometryNode", "GeometryNodeSDFGridBoolean");
   define("GeometryNode", "GeometryNodeSelfObject");
   define("GeometryNode", "GeometryNodeSeparateComponents");
