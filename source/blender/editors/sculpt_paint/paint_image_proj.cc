@@ -455,6 +455,7 @@ struct ProjPaintState {
   const float (**poly_to_loop_uv_clone)[2];
 
   /* Actual material for each index, either from object or Mesh datablock... */
+  int mat_array_size;
   Material **mat_array;
 };
 
@@ -561,7 +562,7 @@ static int project_paint_face_paint_tile(Image *ima, const float *uv)
 static Material *tex_get_material(const ProjPaintState *ps, int face_i)
 {
   int mat_nr = ps->material_indices == nullptr ? 0 : ps->material_indices[face_i];
-  if (mat_nr >= 0 && mat_nr <= ps->ob->totcol) {
+  if (mat_nr >= 0 && mat_nr < ps->mat_array_size) {
     return ps->mat_array[mat_nr];
   }
 
@@ -4054,18 +4055,23 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
     return false;
   }
 
+
+
+  const short *totcolp = BKE_object_material_len_p(const_cast<Object *>(ob_eval));
+
   /* Build final material array, we use this a lot here. */
-  /* materials start from 1, default material is 0 */
-  const int totmat = ob->totcol + 1;
+  const int totmat = totcolp ? *totcolp : 0;
   ps->mat_array = static_cast<Material **>(
-      MEM_malloc_arrayN(totmat, sizeof(*ps->mat_array), __func__));
+      MEM_malloc_arrayN(totmat+1, sizeof(*ps->mat_array), __func__));
   /* We leave last material as empty - rationale here is being able to index
    * the materials by using the mf->mat_nr directly and leaving the last
    * material as nullptr in case no materials exist on mesh, so indexing will not fail. */
-  for (int i = 0; i < totmat - 1; i++) {
-    ps->mat_array[i] = BKE_object_material_get(ob, i + 1);
+  for (int i = 0; i < totmat; i++) {
+    ps->mat_array[i] = BKE_object_material_get(const_cast<Object *>(ob_eval), i + 1);
+    BKE_texpaint_slot_refresh_cache(ps->scene, ps->mat_array[i], ob_eval);
   }
-  ps->mat_array[totmat - 1] = nullptr;
+  ps->mat_array[totmat] = nullptr;
+  ps->mat_array_size = totmat;
 
   ps->vert_positions_eval = ps->mesh_eval->vert_positions();
   ps->vert_normals = ps->mesh_eval->vert_normals();
