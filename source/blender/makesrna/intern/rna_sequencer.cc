@@ -81,18 +81,18 @@ struct EffectInfo {
   {seqModifierType_SoundEqualizer, "SOUND_EQUALIZER", ICON_NONE, "Sound Equalizer", ""}
 /* clang-format on */
 
-const EnumPropertyItem rna_enum_sequence_modifier_type_items[] = {
+const EnumPropertyItem rna_enum_strip_modifier_type_items[] = {
     RNA_ENUM_SEQUENCER_VIDEO_MODIFIER_TYPE_ITEMS,
     RNA_ENUM_SEQUENCER_AUDIO_MODIFIER_TYPE_ITEMS,
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-const EnumPropertyItem rna_enum_sequence_video_modifier_type_items[] = {
+const EnumPropertyItem rna_enum_strip_video_modifier_type_items[] = {
     RNA_ENUM_SEQUENCER_VIDEO_MODIFIER_TYPE_ITEMS,
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-const EnumPropertyItem rna_enum_sequence_sound_modifier_type_items[] = {
+const EnumPropertyItem rna_enum_strip_sound_modifier_type_items[] = {
     RNA_ENUM_SEQUENCER_AUDIO_MODIFIER_TYPE_ITEMS,
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -2054,7 +2054,7 @@ static void rna_def_sequence_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
   /* modifier to add */
   parm = RNA_def_enum(func,
                       "type",
-                      rna_enum_sequence_modifier_type_items,
+                      rna_enum_strip_modifier_type_items,
                       seqModifierType_ColorBalance,
                       "",
                       "Modifier type to add");
@@ -3643,7 +3643,7 @@ static void rna_def_modifier(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_enum_items(prop, rna_enum_sequence_modifier_type_items);
+  RNA_def_property_enum_items(prop, rna_enum_strip_modifier_type_items);
   RNA_def_property_ui_text(prop, "Type", "");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
