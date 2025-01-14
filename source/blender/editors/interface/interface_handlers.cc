@@ -5485,13 +5485,13 @@ static void ui_numedit_set_active(uiBut *but)
   if ((but->flag & UI_SELECT) == 0) {
     if ((but->drawflag & UI_BUT_HOVER_LEFT) || (but->drawflag & UI_BUT_HOVER_RIGHT)) {
       if (data->changed_cursor) {
-        data->window->tag_cursor_refresh = true;
+        WM_cursor_modal_restore(data->window);
         data->changed_cursor = false;
       }
     }
     else {
       if (data->changed_cursor == false) {
-        WM_cursor_set(data->window, WM_CURSOR_X_MOVE);
+        WM_cursor_modal_set(data->window, WM_CURSOR_X_MOVE);
         data->changed_cursor = true;
       }
     }
@@ -8193,6 +8193,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 
       /* RMB has two options now */
       if (ui_popup_context_menu_for_button(C, but, event)) {
+        WM_cursor_modal_restore(data->window);
         return WM_UI_HANDLER_BREAK;
       }
     }
@@ -8925,7 +8926,7 @@ static void button_activate_exit(
 #endif
 
   if (data->changed_cursor) {
-    win->tag_cursor_refresh = true;
+    WM_cursor_modal_restore(win);
   }
 
   /* redraw and refresh (for popups) */
@@ -11110,7 +11111,11 @@ static int ui_handle_menu_event(bContext *C,
             /* Accelerator keys that allow "pressing" a menu entry by pressing a single key. */
             LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
               if (!(but_iter->flag & UI_BUT_DISABLED) && but_iter->menu_key == event->type) {
-                if (but_iter->type == UI_BTYPE_BUT) {
+                if (ELEM(but_iter->type,
+                         UI_BTYPE_BUT,
+                         UI_BTYPE_ICON_TOGGLE,
+                         UI_BTYPE_ICON_TOGGLE_N))
+                {
                   UI_but_execute(C, region, but_iter);
                 }
                 else {
