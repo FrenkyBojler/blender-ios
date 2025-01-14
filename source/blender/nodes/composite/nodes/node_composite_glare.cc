@@ -78,7 +78,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
 
-  PanelDeclarationBuilder &highlights_panel = b.add_panel("Highlights");
+  PanelDeclarationBuilder &highlights_panel = b.add_panel("Highlights").default_closed(true);
   highlights_panel.add_input<decl::Float>("Threshold", "Highlights Threshold")
       .default_value(1.0f)
       .min(0.0f)
