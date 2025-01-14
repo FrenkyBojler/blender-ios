@@ -82,7 +82,6 @@ struct PoseBlendData {
   bool is_flipped;
   PoseBackup *pose_backup;
 
-  /* This is a pointer because the memory allocation doesn't work properly otherwise. */
   blender::Vector<Object *> objects; /* Objects to work on. */
   bAction *act;         /* Pose to blend into the current pose. */
   bAction *act_flipped; /* Flipped copy of `act`. */
