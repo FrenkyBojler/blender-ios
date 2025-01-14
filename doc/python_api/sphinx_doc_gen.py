@@ -1873,7 +1873,7 @@ def pyrna2sphinx(basepath):
             )
 
         if _BPY_PROP_COLLECTION_IDPROP_FAKE:
-            class_value = bpy.data.objects.__class__
+            class_value = bpy.context.preferences.addons['cycles'].preferences.devices.__class__
             fake_bpy_type(
                 "bpy.types", class_value, _BPY_PROP_COLLECTION_IDPROP_FAKE,
                 "built-in class used for user defined collections.", use_subclasses=False,
