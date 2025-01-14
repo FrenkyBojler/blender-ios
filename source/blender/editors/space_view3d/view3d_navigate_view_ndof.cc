@@ -242,8 +242,10 @@ static void view3d_ndof_orbit(const wmNDOFMotionData *ndof,
 
   if (apply_dyn_ofs) {
     /* Use CoR as a dynamic offset. */
-    vod->use_dyn_ofs = true;
-    copy_v3_v3(vod->dyn_ofs, rv3d->cor);
+    if (U.ndof_flag & NDOF_AUTO_COR) {
+      vod->use_dyn_ofs = true;
+      copy_v3_v3(vod->dyn_ofs, rv3d->cor);
+    }
     viewrotate_apply_dyn_ofs(vod, rv3d->viewquat);
   }
 }
@@ -768,7 +770,9 @@ static int ndof_orbit_zoom_invoke_impl(bContext *C,
   rv3d->rot_angle = 0.0f;
 
   if (ndof->progress == P_STARTING) {
-    ndof_recalculate_cor(C);
+    if (U.ndof_flag & NDOF_AUTO_COR) {
+      ndof_recalculate_cor(C);
+    }
   }
   else if ((rv3d->persp == RV3D_ORTHO) && RV3D_VIEW_IS_AXIS(rv3d->view)) {
     /* if we can't rotate, fallback to translate (locked axis views) */
