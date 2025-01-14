@@ -97,6 +97,9 @@ static void dump_meshgl(const MeshGL &mgl, const std::string &name)
   dump_vector(mgl.runOriginalID, 1, "runOrigiinalID");
 }
 
+static const char *domain_names[] = {
+    "point", "edge", "face", "corner", "curve", "instance", "layer"};
+
 static void dump_mesh(const Mesh *mesh, const std::string &name)
 {
   std::cout << "\nMesh " << name << ":\n"
@@ -117,8 +120,6 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
     if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
       return;
     }
-    static const char *domain_names[] = {
-        "point", "edge", "face", "corner", "curve", "instance", "layer"};
     const int di = static_cast<int8_t>(iter.domain);
     const char *domain = (di >= 0 && di < ATTR_DOMAIN_NUM) ? domain_names[di] : "?";
     std::string label = std::string(domain) + ": " + iter.name;
@@ -312,6 +313,63 @@ int GAttributeReadWriteSpans::find_attr_index(const char *name) const
   return -1;
 }
 
+/* Class to hold the attribute names for attributes we need on each of the domains.
+ * We'll omit the attributes "position", ".edge_verts", ".corner_vert", ".corner_edge",
+ * which are all used for structure that we set directly in the mesh.
+ * This are identfied by the function #BKE_mesh_attribute_required.
+ */
+class NeededAttributes
+{
+public:
+  struct Spec {
+    StringRefNull name;
+    bke::AttrDomain domain;
+    eCustomDataType data_type;
+
+    Spec(bke::AttributeIter iter) :
+      name(iter.name), domain(iter.domain), data_type(iter.data_type)
+    {
+    }
+  };
+  Map<StringRefNull, Spec> attr_map;
+
+  NeededAttributes(Span<const Mesh*> meshes);
+};
+
+/* Get the union of the needed attributes from all the meshes,
+ * in a deterministic order, and omitting the structure attributes. */
+NeededAttributes::NeededAttributes(Span<const Mesh*> meshes)
+{
+  for (const Mesh *mesh : meshes) {
+    bke::AttributeAccessor attrs = mesh->attributes();
+    attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
+      if (BKE_mesh_attribute_required(iter.name.c_str())) {
+        return;
+      }
+      this->attr_map.add(iter.name, Spec(iter));
+    });
+  }
+}
+
+/* Ensure that \a mesh has all the needed attributes. */
+static void add_needed_attributes_to_mesh(Mesh *mesh, const NeededAttributes &needed_attributes)
+{
+  /* Sort the attributes by name to get deterministic order. */
+  Vector<NeededAttributes::Spec> attr_specs;
+  attr_specs.reserve(needed_attributes.attr_map.size());
+  for (const NeededAttributes::Spec &val : needed_attributes.attr_map.values()) {
+    attr_specs.append(val);
+  }
+  std::sort(attr_specs.begin(), attr_specs.end(),
+            [](const NeededAttributes::Spec &a, const NeededAttributes::Spec &b) { return a.name < b.name; });
+  //DEBUG!!
+  std::cout << "Needed attributes:\n";
+  for (const NeededAttributes::Spec &s : attr_specs) {
+    std::cout << s.name << " domain " << domain_names[static_cast<int8_t>(s.domain)] << "\n";
+  }
+  bke::MutableAttributeAccessor accessor = mesh->attributes_for_write();
+}
+
 /* Given an \a input_face index, along with its \a input_mesh_index, copy the attributes
  * in the #GAttributeReadWriteSpans \a rw_spans to attributes in the destination mesh
  * as recorded in \a rw_spans.
@@ -355,6 +413,46 @@ static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
           }
         }
       }
+    }
+  }
+}
+
+/* Like previous, but generic for a given \a domain. */
+static void copy_attrs_for_domain(bke::AttrDomain domain,
+                                  GAttributeReadWriteSpans &rw_spans,
+                                  int input_mesh_index,
+                                  int input_element,
+                                  int output_element)
+{
+  constexpr int dbg_level = 1;
+  if (dbg_level > 0) {
+    std::cout << "copy attrs for domain "
+      << (domain == bke::AttrDomain::Point ? "Point" :
+          (domain == bke::AttrDomain::Edge ? "Edge" :
+           (domain == bke::AttrDomain::Corner ? "Corner" : "?")))
+      << ", input mesh " << input_mesh_index
+      << ", element " << input_element
+      << " to  output element " << output_element << "\n";
+  }
+  for (const int i : rw_spans.attrs.index_range()) {
+    const StringRef attr_name = rw_spans.attrs[i];
+    if ((domain == bke::AttrDomain::Point and attr_name == "position") or
+        (domain == bke::AttrDomain::Edge and attr_name == ".edge_verts") or
+        (domain == bke::AttrDomain::Corner and ELEM(attr_name, ".corner_vert", ".corner_edge"))) {
+      continue;
+    }
+    if (dbg_level > 0) {
+      std::cout << "  attribute index " << i << ", name = " << attr_name << "\n";
+    }
+    std::optional<GVArraySpan> &src = rw_spans.sources[input_mesh_index][i];
+    GMutableSpan &dst = rw_spans.dest[i];
+    if (src.has_value()) {
+      if (dbg_level > 0) {
+        std::cout << "value gets " << src->type().to_string(src.value()[input_element])
+        << "\n";
+      }
+      /* rw_spans.dest[output_element] = src[input_element] */
+      dst.type().copy_assign(src.value()[input_element], dst[output_element]);
     }
   }
 }
@@ -1040,6 +1138,10 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   Mesh *mesh = BKE_mesh_new_nomain_from_template(
       meshes[0], tot_positions, 0, tot_faces, tot_corners);
 
+  /* Ensure that mesh has all needed attributes. */
+  NeededAttributes needed_attributes(meshes);
+  add_needed_attributes_to_mesh(mesh, needed_attributes);
+  
   /* Set the vertex positions. */
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
   {
@@ -1103,8 +1205,11 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     Span<int> corner_verts = mesh->corner_verts();
     Span<float3> positions = mesh->vert_positions();
     GAttributeReadWriteSpans edge_attrs(meshes, mesh, bke::AttrDomain::Edge);
+    GAttributeReadWriteSpans corner_attrs(meshes, mesh, bke::AttrDomain::Corner);
     int grain_size = 25000;
-    threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
+    threading::parallel_for(IndexRange(tot_faces),
+ grain_size,
+ [&](const IndexRange range) {
       for (const int face_index : IndexRange(range)) {
         const int corner_index = face_corner_start_index[face_index];
         const OutFace &face = ma.new_faces[face_index];
@@ -1139,21 +1244,28 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
            * at this time, there can be at most one face with the edge in a forward
            * direction, so parallel loops won't race for same edge. */
           if (true) {
-            //DEBUG!!
             const int edge_rep = edge_and_corner[0];
             const int corner_rep = edge_and_corner[1];
-            std::cout << "get edge attrs for output edge " << output_e
-              << " from mesh " << input_mesh_index
-              << " edge " << edge_rep << "\n";
-            std::cout << "get corner attrs for output corner " << output_corner
-              << " from mesh " << input_mesh_index
-              << " corner " << corner_rep << "\n";
+            /* TODO: figure out how to only do this for one instance
+             * of the edge, deterministically. */
+            if (edge_rep != -1) {
+              copy_attrs_for_domain(bke::AttrDomain::Edge,
+                                    edge_attrs,
+                                    input_mesh_index,
+                                    edge_rep,
+                                    output_e);
+            }
 #if 0
-            copy_edge_attrs(edge_attrs,
-                            input_mesh_index,
-                            e,
-                            v,
-                            v_next);
+            if (corner_rep != -1) {
+              copy_attrs_for_domain(bke::AttrDomain::Corner,
+                                    corner_attrs,
+                                    input_mesh_index,
+                                    corner_rep,
+                                    output_corner);
+            }
+            else {
+              /* TODO: interpolate output corner attributes in face. */
+            }
 #endif
           }
         }
