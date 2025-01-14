@@ -1173,13 +1173,13 @@ bool UI_context_copy_to_selected_list(bContext *C,
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Strip)) {
     /* Special case when we do this for 'Sequence.lock'.
-     * (if the sequence is locked, it won't be in "selected_editable_sequences"). */
+     * (if the sequence is locked, it won't be in "selected_editable_strips"). */
     const char *prop_id = RNA_property_identifier(prop);
     if (STREQ(prop_id, "lock")) {
-      *r_lb = CTX_data_collection_get(C, "selected_sequences");
+      *r_lb = CTX_data_collection_get(C, "selected_strips");
     }
     else {
-      *r_lb = CTX_data_collection_get(C, "selected_editable_sequences");
+      *r_lb = CTX_data_collection_get(C, "selected_editable_strips");
     }
 
     if (is_rna) {
@@ -1303,13 +1303,13 @@ bool UI_context_copy_to_selected_list(bContext *C,
       *r_path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Strip);
       if (r_path->has_value()) {
         /* Special case when we do this for 'Sequence.lock'.
-         * (if the sequence is locked, it won't be in "selected_editable_sequences"). */
+         * (if the sequence is locked, it won't be in "selected_editable_strips"). */
         const char *prop_id = RNA_property_identifier(prop);
         if (is_rna && STREQ(prop_id, "lock")) {
-          *r_lb = CTX_data_collection_get(C, "selected_sequences");
+          *r_lb = CTX_data_collection_get(C, "selected_strips");
         }
         else {
-          *r_lb = CTX_data_collection_get(C, "selected_editable_sequences");
+          *r_lb = CTX_data_collection_get(C, "selected_editable_strips");
         }
 
         if (is_rna) {

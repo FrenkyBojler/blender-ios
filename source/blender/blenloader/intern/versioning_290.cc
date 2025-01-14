@@ -242,10 +242,10 @@ static void strip_convert_transform_crop(const Scene *scene,
   char name_esc[(sizeof(strip->name) - 2) * 2], *path;
   BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
 
-  path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].transform.offset_x", name_esc);
+  path = BLI_sprintfN("sequence_editor.strips_all[\"%s\"].transform.offset_x", name_esc);
   strip_convert_transform_animation(strip, scene, path, image_size_x, scene->r.xsch);
   MEM_freeN(path);
-  path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].transform.offset_y", name_esc);
+  path = BLI_sprintfN("sequence_editor.strips_all[\"%s\"].transform.offset_y", name_esc);
   strip_convert_transform_animation(strip, scene, path, image_size_y, scene->r.ysch);
   MEM_freeN(path);
 
@@ -319,22 +319,22 @@ static void strip_convert_transform_crop_2(const Scene *scene,
 
   char name_esc[(sizeof(strip->name) - 2) * 2], *path;
   BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
-  path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].transform.scale_x", name_esc);
+  path = BLI_sprintfN("sequence_editor.strips_all[\"%s\"].transform.scale_x", name_esc);
   strip_convert_transform_animation_2(scene, path, scale_to_fit_factor);
   MEM_freeN(path);
-  path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].transform.scale_y", name_esc);
+  path = BLI_sprintfN("sequence_editor.strips_all[\"%s\"].transform.scale_y", name_esc);
   strip_convert_transform_animation_2(scene, path, scale_to_fit_factor);
   MEM_freeN(path);
-  path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].crop.min_x", name_esc);
+  path = BLI_sprintfN("sequence_editor.strips_all[\"%s\"].crop.min_x", name_esc);
   strip_convert_transform_animation_2(scene, path, 1 / scale_to_fit_factor);
   MEM_freeN(path);
-  path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].crop.max_x", name_esc);
+  path = BLI_sprintfN("sequence_editor.strips_all[\"%s\"].crop.max_x", name_esc);
   strip_convert_transform_animation_2(scene, path, 1 / scale_to_fit_factor);
   MEM_freeN(path);
-  path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].crop.min_y", name_esc);
+  path = BLI_sprintfN("sequence_editor.strips_all[\"%s\"].crop.min_y", name_esc);
   strip_convert_transform_animation_2(scene, path, 1 / scale_to_fit_factor);
   MEM_freeN(path);
-  path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].crop.max_x", name_esc);
+  path = BLI_sprintfN("sequence_editor.strips_all[\"%s\"].crop.max_x", name_esc);
   strip_convert_transform_animation_2(scene, path, 1 / scale_to_fit_factor);
   MEM_freeN(path);
 }

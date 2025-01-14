@@ -59,9 +59,9 @@ static StripElem *rna_Strip_strip_elem_from_frame(ID *id, Strip *self, int timel
 }
 
 static void rna_Strip_swap_internal(ID *id,
-                                       Strip *strip_self,
-                                       ReportList *reports,
-                                       Strip *strip_other)
+                                    Strip *strip_self,
+                                    ReportList *reports,
+                                    Strip *strip_other)
 {
   const char *error_msg;
   Scene *scene = (Scene *)id;
@@ -122,12 +122,12 @@ static Strip *rna_Strip_parent_meta(ID *id, Strip *strip_self)
 }
 
 static Strip *rna_Strips_new_clip(ID *id,
-                                     ListBase *seqbase,
-                                     Main *bmain,
-                                     const char *name,
-                                     MovieClip *clip,
-                                     int channel,
-                                     int frame_start)
+                                  ListBase *seqbase,
+                                  Main *bmain,
+                                  const char *name,
+                                  MovieClip *clip,
+                                  int channel,
+                                  int frame_start)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
@@ -143,34 +143,34 @@ static Strip *rna_Strips_new_clip(ID *id,
 }
 
 static Strip *rna_Strips_editing_new_clip(ID *id,
-                                             Editing *ed,
-                                             Main *bmain,
-                                             const char *name,
-                                             MovieClip *clip,
-                                             int channel,
-                                             int frame_start)
-{
-  return rna_Strips_new_clip(id, &ed->seqbase, bmain, name, clip, channel, frame_start);
-}
-
-static Strip *rna_Strips_meta_new_clip(ID *id,
-                                          Strip *strip,
+                                          Editing *ed,
                                           Main *bmain,
                                           const char *name,
                                           MovieClip *clip,
                                           int channel,
                                           int frame_start)
 {
+  return rna_Strips_new_clip(id, &ed->seqbase, bmain, name, clip, channel, frame_start);
+}
+
+static Strip *rna_Strips_meta_new_clip(ID *id,
+                                       Strip *strip,
+                                       Main *bmain,
+                                       const char *name,
+                                       MovieClip *clip,
+                                       int channel,
+                                       int frame_start)
+{
   return rna_Strips_new_clip(id, &strip->seqbase, bmain, name, clip, channel, frame_start);
 }
 
 static Strip *rna_Strips_new_mask(ID *id,
-                                     ListBase *seqbase,
-                                     Main *bmain,
-                                     const char *name,
-                                     Mask *mask,
-                                     int channel,
-                                     int frame_start)
+                                  ListBase *seqbase,
+                                  Main *bmain,
+                                  const char *name,
+                                  Mask *mask,
+                                  int channel,
+                                  int frame_start)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
@@ -197,12 +197,12 @@ static Strip *rna_Strips_meta_new_mask(
 }
 
 static Strip *rna_Strips_new_scene(ID *id,
-                                      ListBase *seqbase,
-                                      Main *bmain,
-                                      const char *name,
-                                      Scene *sce_seq,
-                                      int channel,
-                                      int frame_start)
+                                   ListBase *seqbase,
+                                   Main *bmain,
+                                   const char *name,
+                                   Scene *sce_seq,
+                                   int channel,
+                                   int frame_start)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
@@ -218,36 +218,36 @@ static Strip *rna_Strips_new_scene(ID *id,
 }
 
 static Strip *rna_Strips_editing_new_scene(ID *id,
-                                              Editing *ed,
-                                              Main *bmain,
-                                              const char *name,
-                                              Scene *sce_seq,
-                                              int channel,
-                                              int frame_start)
-{
-  return rna_Strips_new_scene(id, &ed->seqbase, bmain, name, sce_seq, channel, frame_start);
-}
-
-static Strip *rna_Strips_meta_new_scene(ID *id,
-                                           Strip *strip,
+                                           Editing *ed,
                                            Main *bmain,
                                            const char *name,
                                            Scene *sce_seq,
                                            int channel,
                                            int frame_start)
 {
+  return rna_Strips_new_scene(id, &ed->seqbase, bmain, name, sce_seq, channel, frame_start);
+}
+
+static Strip *rna_Strips_meta_new_scene(ID *id,
+                                        Strip *strip,
+                                        Main *bmain,
+                                        const char *name,
+                                        Scene *sce_seq,
+                                        int channel,
+                                        int frame_start)
+{
   return rna_Strips_new_scene(id, &strip->seqbase, bmain, name, sce_seq, channel, frame_start);
 }
 
 static Strip *rna_Strips_new_image(ID *id,
-                                      ListBase *seqbase,
-                                      Main *bmain,
-                                      ReportList * /*reports*/,
-                                      const char *name,
-                                      const char *file,
-                                      int channel,
-                                      int frame_start,
-                                      int fit_method)
+                                   ListBase *seqbase,
+                                   Main *bmain,
+                                   ReportList * /*reports*/,
+                                   const char *name,
+                                   const char *file,
+                                   int channel,
+                                   int frame_start,
+                                   int fit_method)
 {
   Scene *scene = (Scene *)id;
 
@@ -271,21 +271,7 @@ static Strip *rna_Strips_new_image(ID *id,
 }
 
 static Strip *rna_Strips_editing_new_image(ID *id,
-                                              Editing *ed,
-                                              Main *bmain,
-                                              ReportList *reports,
-                                              const char *name,
-                                              const char *file,
-                                              int channel,
-                                              int frame_start,
-                                              int fit_method)
-{
-  return rna_Strips_new_image(
-      id, &ed->seqbase, bmain, reports, name, file, channel, frame_start, fit_method);
-}
-
-static Strip *rna_Strips_meta_new_image(ID *id,
-                                           Strip *strip,
+                                           Editing *ed,
                                            Main *bmain,
                                            ReportList *reports,
                                            const char *name,
@@ -295,17 +281,31 @@ static Strip *rna_Strips_meta_new_image(ID *id,
                                            int fit_method)
 {
   return rna_Strips_new_image(
+      id, &ed->seqbase, bmain, reports, name, file, channel, frame_start, fit_method);
+}
+
+static Strip *rna_Strips_meta_new_image(ID *id,
+                                        Strip *strip,
+                                        Main *bmain,
+                                        ReportList *reports,
+                                        const char *name,
+                                        const char *file,
+                                        int channel,
+                                        int frame_start,
+                                        int fit_method)
+{
+  return rna_Strips_new_image(
       id, &strip->seqbase, bmain, reports, name, file, channel, frame_start, fit_method);
 }
 
 static Strip *rna_Strips_new_movie(ID *id,
-                                      ListBase *seqbase,
-                                      Main *bmain,
-                                      const char *name,
-                                      const char *file,
-                                      int channel,
-                                      int frame_start,
-                                      int fit_method)
+                                   ListBase *seqbase,
+                                   Main *bmain,
+                                   const char *name,
+                                   const char *file,
+                                   int channel,
+                                   int frame_start,
+                                   int fit_method)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
@@ -322,20 +322,7 @@ static Strip *rna_Strips_new_movie(ID *id,
 }
 
 static Strip *rna_Strips_editing_new_movie(ID *id,
-                                              Editing *ed,
-                                              Main *bmain,
-                                              const char *name,
-                                              const char *file,
-                                              int channel,
-                                              int frame_start,
-                                              int fit_method)
-{
-  return rna_Strips_new_movie(
-      id, &ed->seqbase, bmain, name, file, channel, frame_start, fit_method);
-}
-
-static Strip *rna_Strips_meta_new_movie(ID *id,
-                                           Strip *strip,
+                                           Editing *ed,
                                            Main *bmain,
                                            const char *name,
                                            const char *file,
@@ -344,18 +331,31 @@ static Strip *rna_Strips_meta_new_movie(ID *id,
                                            int fit_method)
 {
   return rna_Strips_new_movie(
+      id, &ed->seqbase, bmain, name, file, channel, frame_start, fit_method);
+}
+
+static Strip *rna_Strips_meta_new_movie(ID *id,
+                                        Strip *strip,
+                                        Main *bmain,
+                                        const char *name,
+                                        const char *file,
+                                        int channel,
+                                        int frame_start,
+                                        int fit_method)
+{
+  return rna_Strips_new_movie(
       id, &strip->seqbase, bmain, name, file, channel, frame_start, fit_method);
 }
 
 #  ifdef WITH_AUDASPACE
 static Strip *rna_Strips_new_sound(ID *id,
-                                      ListBase *seqbase,
-                                      Main *bmain,
-                                      ReportList *reports,
-                                      const char *name,
-                                      const char *file,
-                                      int channel,
-                                      int frame_start)
+                                   ListBase *seqbase,
+                                   Main *bmain,
+                                   ReportList *reports,
+                                   const char *name,
+                                   const char *file,
+                                   int channel,
+                                   int frame_start)
 {
   Scene *scene = (Scene *)id;
   SeqLoadData load_data;
@@ -376,13 +376,13 @@ static Strip *rna_Strips_new_sound(ID *id,
 }
 #  else  /* WITH_AUDASPACE */
 static Strip *rna_Strips_new_sound(ID * /*id*/,
-                                      ListBase * /*seqbase*/,
-                                      Main * /*bmain*/,
-                                      ReportList *reports,
-                                      const char * /*name*/,
-                                      const char * /*file*/,
-                                      int /*channel*/,
-                                      int /*frame_start*/)
+                                   ListBase * /*seqbase*/,
+                                   Main * /*bmain*/,
+                                   ReportList *reports,
+                                   const char * /*name*/,
+                                   const char * /*file*/,
+                                   int /*channel*/,
+                                   int /*frame_start*/)
 {
   BKE_report(reports, RPT_ERROR, "Blender compiled without Audaspace support");
   return nullptr;
@@ -390,26 +390,25 @@ static Strip *rna_Strips_new_sound(ID * /*id*/,
 #  endif /* WITH_AUDASPACE */
 
 static Strip *rna_Strips_editing_new_sound(ID *id,
-                                              Editing *ed,
-                                              Main *bmain,
-                                              ReportList *reports,
-                                              const char *name,
-                                              const char *file,
-                                              int channel,
-                                              int frame_start)
-{
-  return rna_Strips_new_sound(
-      id, &ed->seqbase, bmain, reports, name, file, channel, frame_start);
-}
-
-static Strip *rna_Strips_meta_new_sound(ID *id,
-                                           Strip *strip,
+                                           Editing *ed,
                                            Main *bmain,
                                            ReportList *reports,
                                            const char *name,
                                            const char *file,
                                            int channel,
                                            int frame_start)
+{
+  return rna_Strips_new_sound(id, &ed->seqbase, bmain, reports, name, file, channel, frame_start);
+}
+
+static Strip *rna_Strips_meta_new_sound(ID *id,
+                                        Strip *strip,
+                                        Main *bmain,
+                                        ReportList *reports,
+                                        const char *name,
+                                        const char *file,
+                                        int channel,
+                                        int frame_start)
 {
   return rna_Strips_new_sound(
       id, &strip->seqbase, bmain, reports, name, file, channel, frame_start);
@@ -442,15 +441,15 @@ static Strip *rna_Strips_meta_new_meta(
 }
 
 static Strip *rna_Strips_new_effect(ID *id,
-                                       ListBase *seqbase,
-                                       ReportList *reports,
-                                       const char *name,
-                                       int type,
-                                       int channel,
-                                       int frame_start,
-                                       int frame_end,
-                                       Strip *seq1,
-                                       Strip *seq2)
+                                    ListBase *seqbase,
+                                    ReportList *reports,
+                                    const char *name,
+                                    int type,
+                                    int channel,
+                                    int frame_start,
+                                    int frame_end,
+                                    Strip *seq1,
+                                    Strip *seq2)
 {
   Scene *scene = (Scene *)id;
   Strip *strip;
@@ -499,22 +498,7 @@ static Strip *rna_Strips_new_effect(ID *id,
 }
 
 static Strip *rna_Strips_editing_new_effect(ID *id,
-                                               Editing *ed,
-                                               ReportList *reports,
-                                               const char *name,
-                                               int type,
-                                               int channel,
-                                               int frame_start,
-                                               int frame_end,
-                                               Strip *seq1,
-                                               Strip *seq2)
-{
-  return rna_Strips_new_effect(
-      id, &ed->seqbase, reports, name, type, channel, frame_start, frame_end, seq1, seq2);
-}
-
-static Strip *rna_Strips_meta_new_effect(ID *id,
-                                            Strip *strip,
+                                            Editing *ed,
                                             ReportList *reports,
                                             const char *name,
                                             int type,
@@ -523,6 +507,21 @@ static Strip *rna_Strips_meta_new_effect(ID *id,
                                             int frame_end,
                                             Strip *seq1,
                                             Strip *seq2)
+{
+  return rna_Strips_new_effect(
+      id, &ed->seqbase, reports, name, type, channel, frame_start, frame_end, seq1, seq2);
+}
+
+static Strip *rna_Strips_meta_new_effect(ID *id,
+                                         Strip *strip,
+                                         ReportList *reports,
+                                         const char *name,
+                                         int type,
+                                         int channel,
+                                         int frame_start,
+                                         int frame_end,
+                                         Strip *seq1,
+                                         Strip *seq2)
 {
   return rna_Strips_new_effect(
       id, &strip->seqbase, reports, name, type, channel, frame_start, frame_end, seq1, seq2);
@@ -660,7 +659,7 @@ static void rna_Strip_retiming_keys_reset(ID *id, Strip *strip)
 
 #else
 
-void RNA_api_sequence_strip(StructRNA *srna)
+void RNA_api_strip(StructRNA *srna)
 {
   FunctionRNA *func;
   PropertyRNA *parm;
@@ -734,7 +733,7 @@ void RNA_api_sequence_strip(StructRNA *srna)
   RNA_def_function_return(func, parm);
 }
 
-void RNA_api_sequence_elements(BlenderRNA *brna, PropertyRNA *cprop)
+void RNA_api_strip_elements(BlenderRNA *brna, PropertyRNA *cprop)
 {
   StructRNA *srna;
   PropertyRNA *parm;
@@ -762,7 +761,7 @@ void RNA_api_sequence_elements(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
-void RNA_api_sequence_retiming_keys(BlenderRNA *brna, PropertyRNA *cprop)
+void RNA_api_strip_retiming_keys(BlenderRNA *brna, PropertyRNA *cprop)
 {
   StructRNA *srna;
 
@@ -785,7 +784,7 @@ void RNA_api_sequence_retiming_keys(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_ui_description(func, "Remove all retiming keys");
 }
 
-void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, const bool metastrip)
+void RNA_api_strips(BlenderRNA *brna, PropertyRNA *cprop, const bool metastrip)
 {
   StructRNA *srna;
   PropertyRNA *parm;

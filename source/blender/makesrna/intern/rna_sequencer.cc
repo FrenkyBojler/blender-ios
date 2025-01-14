@@ -245,8 +245,7 @@ static std::optional<std::string> rna_SequenceEditor_path(const PointerRNA * /*p
   return "sequence_editor";
 }
 
-static void rna_SequenceEditor_sequences_all_begin(CollectionPropertyIterator *iter,
-                                                   PointerRNA *ptr)
+static void rna_SequenceEditor_strips_all_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
   Editing *ed = SEQ_editing_get(scene);
@@ -265,7 +264,7 @@ static void rna_SequenceEditor_sequences_all_begin(CollectionPropertyIterator *i
   iter->valid = bli_iter->current != nullptr;
 }
 
-static void rna_SequenceEditor_sequences_all_next(CollectionPropertyIterator *iter)
+static void rna_SequenceEditor_strips_all_next(CollectionPropertyIterator *iter)
 {
   BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(iter->internal.custom);
   StripsAllIterator *seq_iter = static_cast<StripsAllIterator *>(bli_iter->data);
@@ -277,13 +276,13 @@ static void rna_SequenceEditor_sequences_all_next(CollectionPropertyIterator *it
   iter->valid = bli_iter->current != nullptr && seq_iter->index < seq_iter->strips.size();
 }
 
-static PointerRNA rna_SequenceEditor_sequences_all_get(CollectionPropertyIterator *iter)
+static PointerRNA rna_SequenceEditor_strips_all_get(CollectionPropertyIterator *iter)
 {
   Strip *strip = static_cast<Strip *>(((BLI_Iterator *)iter->internal.custom)->current);
   return rna_pointer_inherit_refine(&iter->parent, &RNA_Strip, strip);
 }
 
-static void rna_SequenceEditor_sequences_all_end(CollectionPropertyIterator *iter)
+static void rna_SequenceEditor_strips_all_end(CollectionPropertyIterator *iter)
 {
   BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(iter->internal.custom);
   StripsAllIterator *seq_iter = static_cast<StripsAllIterator *>(bli_iter->data);
@@ -292,9 +291,9 @@ static void rna_SequenceEditor_sequences_all_end(CollectionPropertyIterator *ite
   MEM_freeN(bli_iter);
 }
 
-static bool rna_SequenceEditor_sequences_all_lookup_string(PointerRNA *ptr,
-                                                           const char *key,
-                                                           PointerRNA *r_ptr)
+static bool rna_SequenceEditor_strips_all_lookup_string(PointerRNA *ptr,
+                                                        const char *key,
+                                                        PointerRNA *r_ptr)
 {
   ID *id = ptr->owner_id;
   Scene *scene = (Scene *)id;
@@ -593,7 +592,7 @@ static int rna_Strip_frame_duration_get(PointerRNA *ptr)
 static int rna_Strip_frame_editable(const PointerRNA *ptr, const char ** /*r_info*/)
 {
   Strip *strip = (Strip *)ptr->data;
-  /* Effect sequences' start frame and length must be readonly! */
+  /* Effect strips' start frame and length must be readonly! */
   return (SEQ_effect_get_num_inputs(strip->type)) ? PropertyFlag(0) : PROP_EDITABLE;
 }
 
@@ -652,7 +651,7 @@ static std::optional<std::string> rna_StripTransform_path(const PointerRNA *ptr)
   if (strip) {
     char name_esc[(sizeof(strip->name) - 2) * 2];
     BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
-    return fmt::format("sequence_editor.sequences_all[\"{}\"].transform", name_esc);
+    return fmt::format("sequence_editor.strips_all[\"{}\"].transform", name_esc);
   }
   return "";
 }
@@ -699,7 +698,7 @@ static std::optional<std::string> rna_StripCrop_path(const PointerRNA *ptr)
   if (strip) {
     char name_esc[(sizeof(strip->name) - 2) * 2];
     BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
-    return fmt::format("sequence_editor.sequences_all[\"{}\"].crop", name_esc);
+    return fmt::format("sequence_editor.strips_all[\"{}\"].crop", name_esc);
   }
   return "";
 }
@@ -763,19 +762,12 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
   /* Don't rename everywhere because these are per scene. */
 #  if 0
   BKE_animdata_fix_paths_rename_all(
-      nullptr, "sequence_editor.sequences_all", oldname, strip->name + 2);
+      nullptr, "sequence_editor.strips_all", oldname, strip->name + 2);
 #  endif
   adt = BKE_animdata_from_id(&scene->id);
   if (adt) {
-    BKE_animdata_fix_paths_rename(&scene->id,
-                                  adt,
-                                  nullptr,
-                                  "sequence_editor.sequences_all",
-                                  oldname,
-                                  strip->name + 2,
-                                  0,
-                                  0,
-                                  1);
+    BKE_animdata_fix_paths_rename(
+        &scene->id, adt, nullptr, "sequence_editor.strips_all", oldname, strip->name + 2, 0, 0, 1);
   }
 }
 
@@ -849,7 +841,7 @@ static std::optional<std::string> rna_Strip_path(const PointerRNA *ptr)
   char name_esc[(sizeof(strip->name) - 2) * 2];
 
   BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
-  return fmt::format("sequence_editor.sequences_all[\"{}\"]", name_esc);
+  return fmt::format("sequence_editor.strips_all[\"{}\"]", name_esc);
 }
 
 static IDProperty **rna_Strip_idprops(PointerRNA *ptr)
@@ -1187,13 +1179,13 @@ static std::optional<std::string> rna_StripColorBalance_path(const PointerRNA *p
 
     if (!smd) {
       /* Path to old filter color balance. */
-      return fmt::format("sequence_editor.sequences_all[\"{}\"].color_balance", name_esc);
+      return fmt::format("sequence_editor.strips_all[\"{}\"].color_balance", name_esc);
     }
     /* Path to modifier. */
     char name_esc_smd[sizeof(smd->name) * 2];
 
     BLI_str_escape(name_esc_smd, smd->name, sizeof(name_esc_smd));
-    return fmt::format("sequence_editor.sequences_all[\"{}\"].modifiers[\"{}\"].color_balance",
+    return fmt::format("sequence_editor.strips_all[\"{}\"].modifiers[\"{}\"].color_balance",
                        name_esc,
                        name_esc_smd);
   }
@@ -1347,7 +1339,7 @@ static std::optional<std::string> rna_StripModifier_path(const PointerRNA *ptr)
     BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
     BLI_str_escape(name_esc_smd, smd->name, sizeof(name_esc_smd));
     return fmt::format(
-        "sequence_editor.sequences_all[\"{}\"].modifiers[\"{}\"]", name_esc, name_esc_smd);
+        "sequence_editor.strips_all[\"{}\"].modifiers[\"{}\"]", name_esc, name_esc_smd);
   }
   return "";
 }
@@ -1378,7 +1370,7 @@ static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
     char strip_name_esc[(sizeof(strip->name) - 2) * 2];
     BLI_str_escape(strip_name_esc, strip->name + 2, sizeof(strip_name_esc));
 
-    SNPRINTF(rna_path_prefix, "sequence_editor.sequences_all[\"%s\"].modifiers", strip_name_esc);
+    SNPRINTF(rna_path_prefix, "sequence_editor.strips_all[\"%s\"].modifiers", strip_name_esc);
     BKE_animdata_fix_paths_rename(
         &scene->id, adt, nullptr, rna_path_prefix, oldname, smd->name, 0, 0, 1);
   }
@@ -1586,7 +1578,7 @@ static std::optional<std::string> rna_SeqTimelineChannel_path(const PointerRNA *
   char owner_name_esc[(sizeof(channel_owner->name) - 2) * 2];
   BLI_str_escape(owner_name_esc, channel_owner->name + 2, sizeof(owner_name_esc));
   return fmt::format(
-      "sequence_editor.sequences_all[\"{}\"].channels[\"{}\"]", owner_name_esc, channel_name_esc);
+      "sequence_editor.strips_all[\"{}\"].channels[\"{}\"]", owner_name_esc, channel_name_esc);
 }
 
 static EQCurveMappingData *rna_Strip_SoundEqualizer_Curve_add(SoundEqualizerModifierData *semd,
@@ -2336,7 +2328,7 @@ static void rna_def_sequence(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_SHOW_RETIMING);
   RNA_def_property_ui_text(prop, "Show Retiming Keys", "Show retiming keys, so they can be moved");
 
-  RNA_api_sequence_strip(srna);
+  RNA_api_strip(srna);
 }
 
 static void rna_def_channel(BlenderRNA *brna)
@@ -2390,25 +2382,25 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_SEQUENCE);
   RNA_def_struct_sdna(srna, "Editing");
 
-  prop = RNA_def_property(srna, "sequences", PROP_COLLECTION, PROP_NONE);
+  prop = RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(prop, "Strips", "Top-level strips only");
-  RNA_api_sequences(brna, prop, false);
+  RNA_api_strips(brna, prop, false);
 
-  prop = RNA_def_property(srna, "sequences_all", PROP_COLLECTION, PROP_NONE);
+  prop = RNA_def_property(srna, "strips_all", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(
       prop, "All Strips", "All strips, recursively including those inside metastrips");
   RNA_def_property_collection_funcs(prop,
-                                    "rna_SequenceEditor_sequences_all_begin",
-                                    "rna_SequenceEditor_sequences_all_next",
-                                    "rna_SequenceEditor_sequences_all_end",
-                                    "rna_SequenceEditor_sequences_all_get",
+                                    "rna_SequenceEditor_strips_all_begin",
+                                    "rna_SequenceEditor_strips_all_next",
+                                    "rna_SequenceEditor_strips_all_end",
+                                    "rna_SequenceEditor_strips_all_get",
                                     nullptr,
                                     nullptr,
-                                    "rna_SequenceEditor_sequences_all_lookup_string",
+                                    "rna_SequenceEditor_strips_all_lookup_string",
                                     nullptr);
 
   prop = RNA_def_property(srna, "meta_stack", PROP_COLLECTION, PROP_NONE);
@@ -2519,7 +2511,7 @@ static void rna_def_editor(BlenderRNA *brna)
 
   func = RNA_def_function(srna, "display_stack", "rna_SequenceEditor_display_stack");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
-  RNA_def_function_ui_description(func, "Display sequences stack");
+  RNA_def_function_ui_description(func, "Display strips stack");
   parm = RNA_def_pointer(
       func, "meta_sequence", "Strip", "Meta Strip", "Meta to display its stack");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
@@ -2728,7 +2720,7 @@ static void rna_def_image(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
-  RNA_api_sequence_elements(brna, prop);
+  RNA_api_strip_elements(brna, prop);
 
   /* multiview */
   prop = RNA_def_property(srna, "use_multiview", PROP_BOOLEAN, PROP_NONE);
@@ -2765,11 +2757,11 @@ static void rna_def_meta(BlenderRNA *brna)
       srna, "Meta Strip", "Sequence strip to group other strips as a single sequence strip");
   RNA_def_struct_sdna(srna, "Strip");
 
-  prop = RNA_def_property(srna, "sequences", PROP_COLLECTION, PROP_NONE);
+  prop = RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(prop, "Strips", "Strips nested in meta strip");
-  RNA_api_sequences(brna, prop, true);
+  RNA_api_strips(brna, prop, true);
 
   prop = RNA_def_property(srna, "channels", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "channels", nullptr);
@@ -2894,7 +2886,7 @@ static void rna_def_movie(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
-  RNA_api_sequence_retiming_keys(brna, prop);
+  RNA_api_strip_retiming_keys(brna, prop);
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File", "");

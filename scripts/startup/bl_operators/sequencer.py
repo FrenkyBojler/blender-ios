@@ -41,7 +41,7 @@ class SequencerCrossfadeSounds(Operator):
         scene = context.scene
         seq1 = None
         seq2 = None
-        for strip in scene.sequence_editor.sequences_all:
+        for strip in scene.sequence_editor.strips_all:
             if strip.select and strip.type == 'SOUND':
                 if seq1 is None:
                     seq1 = strip
@@ -126,7 +126,7 @@ class SequencerDeinterlaceSelectedMovies(Operator):
         return (scene and scene.sequence_editor)
 
     def execute(self, context):
-        for strip in context.scene.sequence_editor.sequences_all:
+        for strip in context.scene.sequence_editor.strips_all:
             if strip.select and strip.type == 'MOVIE':
                 strip.use_deinterlace = True
 
@@ -156,9 +156,9 @@ class SequencerFadesClear(Operator):
         fcurve_map = {
             curve.data_path: curve
             for curve in fcurves
-            if curve.data_path.startswith("sequence_editor.sequences_all")
+            if curve.data_path.startswith("sequence_editor.strips_all")
         }
-        for sequence in context.selected_sequences:
+        for sequence in context.selected_strips:
             for animated_property in _animated_properties_get(sequence):
                 data_path = sequence.path_from_id() + "." + animated_property
                 curve = fcurve_map.get(data_path)
@@ -199,7 +199,7 @@ class SequencerFadesAdd(Operator):
 
     @classmethod
     def poll(cls, context):
-        # Can't use context.selected_sequences as it can have an impact on performances
+        # Can't use context.selected_strips as it can have an impact on performances
         strip = context.active_sequence_strip
         return strip is not None
 
@@ -214,7 +214,7 @@ class SequencerFadesAdd(Operator):
             action = bpy.data.actions.new(scene.name + "Action")
             scene.animation_data.action = action
 
-        sequences = context.selected_sequences
+        sequences = context.selected_strips
 
         if not sequences:
             self.report({'ERROR'}, "No sequences selected")

@@ -1605,7 +1605,7 @@ static void remove_sequencer_fcurves(Scene *sce)
 
   if (adt && adt->action) {
     LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &adt->action->curves) {
-      if ((fcu->rna_path) && strstr(fcu->rna_path, "sequences_all")) {
+      if ((fcu->rna_path) && strstr(fcu->rna_path, "strips_all")) {
         action_groups_remove_channel(adt->action, fcu);
         BKE_fcurve_free(fcu);
       }
