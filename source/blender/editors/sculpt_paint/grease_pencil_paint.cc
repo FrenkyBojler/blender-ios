@@ -1055,13 +1055,13 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   if ((settings->flag & GP_BRUSH_GROUP_RANDOM) != 0) {
     /* Since we want stroke properties to randomize around set values, it's easier for us to have a
      * signed value in range (-1,1) in calculations downstream. */
-    stroke_random_radius_factor_ = rng_.get_float() * 2.0f - 1;
-    stroke_random_opacity_factor_ = rng_.get_float() * 2.0f - 1;
-    stroke_random_rotation_factor_ = rng_.get_float() * 2.0f - 1;
+    stroke_random_radius_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_opacity_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_rotation_factor_ = rng_.get_float() * 2.0f - 1.0f;
 
-    stroke_random_hue_factor_ = rng_.get_float() * 2.0f - 1;
-    stroke_random_sat_factor_ = rng_.get_float() * 2.0f - 1;
-    stroke_random_val_factor_ = rng_.get_float() * 2.0f - 1;
+    stroke_random_hue_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_sat_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_val_factor_ = rng_.get_float() * 2.0f - 1.0f;
   }
 
   Material *material = BKE_grease_pencil_object_material_ensure_from_active_input_brush(
