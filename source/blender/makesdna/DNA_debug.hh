@@ -4,7 +4,6 @@
 
 #pragma once
 
-// Include std::ostream as forward declaration:
 #include <iosfwd>
 
 struct SDNA;
