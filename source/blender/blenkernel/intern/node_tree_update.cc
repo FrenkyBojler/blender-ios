@@ -4,7 +4,6 @@
 
 #include <fmt/format.h>
 
-#include "BKE_lib_id.hh"
 #include "BLI_map.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_noise.hh"
@@ -20,6 +19,7 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_image.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_enum.hh"
