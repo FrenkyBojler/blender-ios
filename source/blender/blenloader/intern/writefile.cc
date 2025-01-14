@@ -82,6 +82,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_collection_types.h"
+#include "DNA_debug.hh"
 #include "DNA_fileglobal_types.h"
 #include "DNA_genfile.h"
 #include "DNA_key_types.h"
@@ -91,6 +92,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
+#include "BLI_fileops.hh"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_link_utils.h"
 #include "BLI_linklist.h"
@@ -135,6 +137,13 @@
 
 /* Make preferences read-only. */
 #define U (*((const UserDef *)&U))
+
+/**
+ * Generate an additional file next to every saved .blend file that contains the file content in a
+ * more human readable form.
+ */
+#define GENERATE_DEBUG_BLEND_FILE 1
+#define DEBUG_BLEND_FILE_SUFFIX ".debug.txt"
 
 /* ********* my write, buffered writing with minimum size chunks ************ */
 
@@ -402,6 +411,7 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
 
 struct WriteData {
   const SDNA *sdna;
+  std::ostream *debug_dst = nullptr;
 
   struct {
     /** Use for file and memory writing (size stored in max_size). */
@@ -757,6 +767,10 @@ static void writestruct_at_address_nr(WriteData *wd,
 
   if (bh.len == 0) {
     return;
+  }
+
+  if (wd->debug_dst) {
+    DNA_struct_debug_print(*wd->sdna, *wd->sdna->structs[struct_nr], data, adr, 0, *wd->debug_dst);
   }
 
   write_bhead(wd, bh);
@@ -1383,11 +1397,13 @@ static bool write_file_handle(Main *mainvar,
                               MemFile *current,
                               const int write_flags,
                               const bool use_userdef,
-                              const BlendThumbnail *thumb)
+                              const BlendThumbnail *thumb,
+                              std::ostream *debug_dst)
 {
   WriteData *wd;
 
   wd = mywrite_begin(ww, compare, current);
+  wd->debug_dst = debug_dst;
   BlendWriter writer = {wd};
 
   /* Clear 'directly linked' flag for all linked data, these are not necessarily valid/up-to-date
@@ -1702,9 +1718,17 @@ static bool BLO_write_file_impl(Main *mainvar,
     }
   }
 
+#if GENERATE_DEBUG_BLEND_FILE
+  std::string debug_dst_path = blender::StringRef(filepath) + DEBUG_BLEND_FILE_SUFFIX;
+  blender::fstream debug_dst_file(debug_dst_path, std::ios::out);
+  std::ostream *debug_dst = &debug_dst_file;
+#else
+  std::ostream *debug_dst = nullptr;
+#endif
+
   /* Actual file writing. */
   const bool err = write_file_handle(
-      mainvar, &ww, nullptr, nullptr, write_flags, use_userdef, thumb);
+      mainvar, &ww, nullptr, nullptr, write_flags, use_userdef, thumb, debug_dst);
 
   ww.close();
 
@@ -1766,7 +1790,7 @@ bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, const
   bool use_userdef = false;
 
   const bool err = write_file_handle(
-      mainvar, nullptr, compare, current, write_flags, use_userdef, nullptr);
+      mainvar, nullptr, compare, current, write_flags, use_userdef, nullptr, nullptr);
 
   return (err == 0);
 }
