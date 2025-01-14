@@ -335,8 +335,7 @@ RenderWork Session::run_update_for_next_iteration()
 
   if (did_reset) {
     scene->integrator->set_sample_subset_length(
-        params.use_sample_subset ? min(params.sample_subset_length, params.samples) :
-                                   params.samples);
+        params.use_sample_subset ? min(params.sample_subset_length, params.samples) : 0);
   }
 
   /* Update denoiser settings. */
