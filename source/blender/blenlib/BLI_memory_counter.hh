@@ -46,7 +46,7 @@ class MemoryCounter : NonCopyable, NonMovable {
   /**
    * Add bytes that are uniquely owned, i.e. not shared.
    */
-  void add(const int64_t bytes);
+  void add(int64_t bytes);
 
   /**
    * Add (potentially) shared data which should not be counted twice.
@@ -58,13 +58,13 @@ class MemoryCounter : NonCopyable, NonMovable {
    *   counting the amount of used memory can be a bit more involved.
    */
   void add_shared(const ImplicitSharingInfo *sharing_info,
-                  const FunctionRef<void(MemoryCounter &shared_memory)> count_fn);
+                  FunctionRef<void(MemoryCounter &shared_memory)> count_fn);
 
   /**
    * Same as above, but takes in the number of bytes directly instead of callback. This is easier
    * to use in cases where computing the number of bytes is very cheap.
    */
-  void add_shared(const ImplicitSharingInfo *sharing_info, const int64_t bytes);
+  void add_shared(const ImplicitSharingInfo *sharing_info, int64_t bytes);
 };
 
 }  // namespace blender::memory_counter
