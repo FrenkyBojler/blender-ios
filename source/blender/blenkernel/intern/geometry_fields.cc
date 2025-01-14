@@ -11,6 +11,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_type_conversions.hh"
 
@@ -20,6 +21,8 @@
 #include "BLT_translation.hh"
 
 #include <fmt/format.h>
+
+#include "bmesh.hh"
 
 namespace blender::bke {
 
@@ -59,6 +62,100 @@ GVArray GreasePencilLayerFieldContext::get_varray_for_input(const fn::FieldInput
     return {};
   }
   return field_input.get_varray_for_context(*this, mask, scope);
+}
+
+const Span<float3> MeshSculptFieldContext::positions() const
+{
+  const Span<int> indices = this->indices();
+  const Span<float3> vert_positions = this->vert_positions();
+
+  Array<float3> positions(indices.size());
+
+  for (const int i : positions.index_range()) {
+    positions[i] = vert_positions[indices[i]];
+  }
+
+  return positions;
+}
+
+const Span<float3> MeshSculptFieldContext::normals() const
+{
+  const Depsgraph &depsgraph = this->depsgraph();
+  const Object &object = this->object();
+  const Span<int> indices = this->indices();
+
+  const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
+  Array<float3> normals(indices.size());
+
+  for (const int i : normals.index_range()) {
+    normals[i] = vert_normals[indices[i]];
+  }
+
+  return normals;
+}
+
+const Span<float3> GridsSculptFieldContext::normals() const
+{
+  const SubdivCCG &subdiv_ccg = this->subdiv_ccg();
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  const Span<int> grids = this->grids();
+  const Span<float3> ccg_normals = subdiv_ccg.normals;
+
+  const int total_vertices = grids.size() * key.grid_area;
+  Array<float3> normals_array(total_vertices);
+  MutableSpan<float3> normals(normals_array);
+
+  for (const int i : grids.index_range()) {
+    const Span<float3> grid_normals = ccg_normals.slice(bke::ccg::grid_range(key, grids[i]));
+    const MutableSpan<float3> node_normals = normals.slice(bke::ccg::grid_range(key, i));
+    node_normals.copy_from(grid_normals);
+  }
+
+  return normals;
+}
+
+const Span<float3> BMeshSculptFieldContext::normals() const
+{
+  const Set<BMVert *, 0> &verts = this->verts();
+  Array<float3> normals(verts.size());
+
+  int i = 0;
+  for (const BMVert *vert : verts) {
+    normals[i] = float3(vert->no);
+    i++;
+  }
+
+  return normals;
+}
+
+GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_input,
+                                                 const IndexMask & /*mask*/,
+                                                 ResourceScope & /*scope*/) const
+{
+  const AttributeFieldInput *attribute_field_input = dynamic_cast<const AttributeFieldInput *>(
+      &field_input);
+
+  if (attribute_field_input != nullptr) {
+    if (attribute_field_input->attribute_name() == "position") {
+      return VArray<float3>::ForContainer(std::move(this->positions()));
+    }
+  }
+
+  const NormalFieldInput *normal_field_input = dynamic_cast<const NormalFieldInput *>(
+      &field_input);
+
+  if (normal_field_input != nullptr) {
+    return VArray<float3>::ForContainer(std::move(this->normals()));
+  }
+
+  const fn::IndexFieldInput *index_field_input = dynamic_cast<const fn::IndexFieldInput *>(
+      &field_input);
+
+  if (index_field_input != nullptr) {
+    return VArray<int>::ForContainer(std::move(this->indices()));
+  }
+
+  return {};
 }
 
 GeometryFieldContext::GeometryFieldContext(const GeometryFieldContext &other,

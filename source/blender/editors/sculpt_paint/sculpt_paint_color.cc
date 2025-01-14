@@ -33,6 +33,7 @@
 #include "sculpt_automask.hh"
 #include "sculpt_color.hh"
 #include "sculpt_intern.hh"
+#include "sculpt_nodes_evaluation.hh"
 #include "sculpt_smooth.hh"
 
 #include "IMB_imbuf.hh"
@@ -361,7 +362,7 @@ static void do_paint_brush_task(const Scene &scene,
                                 bke::GSpanAttributeWriter &color_attribute)
 {
   const SculptSession &ss = *object.sculpt;
-  const StrokeCache &cache = *ss.cache;
+  StrokeCache &cache = *ss.cache;
 
   const float bstrength = fabsf(ss.cache->bstrength);
   const float alpha = BKE_brush_alpha_get(&scene, &brush);
@@ -400,6 +401,8 @@ static void do_paint_brush_task(const Scene &scene,
   }
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
+  mesh_sculpt_nodes_evaluate(
+    depsgraph, object, brush, vert_positions, verts, factors);
   scale_factors(factors, bstrength);
 
   const float density = ss.cache->paint_brush.density;
@@ -462,7 +465,9 @@ static void do_paint_brush_task(const Scene &scene,
     blend_color_interpolate_float(
         paint_color, paint_color, wet_mix_color, ss.cache->paint_brush.wet_mix);
     blend_color_mix_float(color_buffer[i], color_buffer[i], paint_color);
+  }
 
+  for (const int i : verts.index_range()) {
     /* Final mix over the original color using brush alpha. We apply auto-making again
      * at this point to avoid washing out non-binary masking modes like cavity masking. */
     float automasking = auto_mask.is_empty() ? 1.0f : auto_mask[i];
@@ -717,6 +722,7 @@ static void do_smear_brush_task(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
+  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, vert_positions, verts, factors);
   scale_factors(factors, strength);
 
   float3 brush_delta;

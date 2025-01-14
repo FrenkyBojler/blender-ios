@@ -181,6 +181,8 @@ typedef struct Brush {
   struct MTex mtex;
   struct MTex mask_mtex;
 
+  struct bNodeTree *node_group;
+
   struct Brush *toggle_brush;
 
   struct ImBuf *icon_imbuf;
@@ -278,6 +280,8 @@ typedef struct Brush {
   char falloff_shape;
   float falloff_angle;
 
+  char sculpt_brush_shape;
+
   /** Active sculpt brush type. */
   char sculpt_brush_type;
   /** Active vertex paint. */
@@ -298,7 +302,7 @@ typedef struct Brush {
   char gpencil_weight_brush_type;
   /** Active curves sculpt brush type (#eBrushCurvesSculptType). */
   char curves_sculpt_brush_type;
-  char _pad1[6];
+  char _pad1[5];
 
   float autosmooth_factor;
 

@@ -92,7 +92,7 @@ static void calc_faces(const Depsgraph &depsgraph,
                     translations);
 
   mesh_sculpt_nodes_evaluate(
-      depsgraph, object, brush, *ss.cache, position_data.eval, verts, translations);
+      depsgraph, object, brush, position_data.eval, verts, translations);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
   position_data.deform(translations, verts);
@@ -135,7 +135,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                     translations);
 
   grids_sculpt_nodes_evaluate(
-      depsgraph, object, brush, *ss.cache, subdiv_ccg, grids, orig_data.positions, translations);
+      depsgraph, object, brush, subdiv_ccg, grids, orig_data.positions, translations);
 
   clip_and_lock_translations(sd, ss, orig_data.positions, translations);
   apply_translations(translations, grids, subdiv_ccg);
@@ -168,7 +168,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   calc_translations(
       orig_positions, cache.sculpt_normal_symm, tls.factors, cache.location_symm, translations);
   bmesh_sculpt_nodes_evaluate(
-      depsgraph, object, brush, *ss.cache, verts, orig_positions, translations);
+      depsgraph, object, brush, verts, orig_positions, translations);
 
   clip_and_lock_translations(sd, ss, orig_positions, translations);
   apply_translations(translations, verts);

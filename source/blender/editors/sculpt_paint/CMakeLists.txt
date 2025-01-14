@@ -131,7 +131,7 @@ set(SRC
   sculpt_hide.hh
   sculpt_intern.hh
   sculpt_islands.hh
-  sculpt_nodes_evaluation.cc
+  sculpt_nodes_evaluation.hh
   sculpt_pose.hh
   sculpt_smooth.hh
   sculpt_undo.hh

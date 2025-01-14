@@ -11,11 +11,15 @@
  */
 
 #include "BKE_geometry_set.hh"
+#include "BKE_subdiv_ccg.hh"
 
 #include "FN_field.hh"
 
 struct Mesh;
 struct PointCloud;
+struct Depsgraph;
+struct Object;
+struct BMVert;
 
 namespace blender::bke {
 
@@ -140,6 +144,137 @@ class InstancesFieldContext : public fn::FieldContext {
   {
     return instances_;
   }
+};
+
+class SculptFieldContext : public fn::FieldContext {
+ private:
+  /* Having object and depsgraph is needed here to have access to them in some field inputs.
+     A better solution might be necessary. */
+  const Depsgraph &depsgraph_;
+  const Object &object_;
+
+  const Span<float3> positions_;
+
+ public:
+  SculptFieldContext(const Depsgraph &depsgraph,
+                     const Object &object,
+                     const Span<float3> positions)
+      : depsgraph_(depsgraph), object_(object), positions_(positions)
+  {
+  }
+
+  GVArray get_varray_for_input(const fn::FieldInput &field_input,
+                               const IndexMask &mask,
+                               ResourceScope &scope) const;
+
+  const Depsgraph &depsgraph() const
+  {
+    return depsgraph_;
+  }
+
+  const Object &object() const
+  {
+    return object_;
+  }
+
+  virtual const Span<float3> positions() const
+  {
+    return positions_;
+  }
+
+  virtual const Span<float3> normals() const = 0;
+
+  virtual const Span<int> indices() const
+  {
+    return {};
+  }
+};
+
+class MeshSculptFieldContext : public SculptFieldContext {
+ private:
+  const Mesh &mesh_;
+  const Span<int> indices_;
+  const Span<float3> vert_positions_;
+
+ public:
+  MeshSculptFieldContext(const Depsgraph &depsgraph,
+                         const Object &object,
+                         const Mesh &mesh,
+                         const Span<int> indices,
+                         const Span<float3> vert_positions)
+    : SculptFieldContext(depsgraph, object, {}),
+        mesh_(mesh),
+        indices_(indices),
+        vert_positions_(vert_positions)
+  {
+  }
+
+  const Mesh &mesh() const
+  {
+    return mesh_;
+  }
+
+  const Span<float3> positions() const override;
+
+  const Span<float3> normals() const override;
+
+  const Span<float3> vert_positions() const
+  {
+    return vert_positions_;
+  }
+
+  const Span<int> indices() const
+  {
+    return indices_;
+  }
+};
+
+class GridsSculptFieldContext : public SculptFieldContext {
+ private:
+  const SubdivCCG &subdiv_ccg_;
+  const Span<int> grids_;
+
+ public:
+  GridsSculptFieldContext(const Depsgraph &depsgraph,
+                          const Object &object,
+                          const SubdivCCG &subdiv_ccg,
+                          const Span<int> grids,
+                          const Span<float3> positions)
+      : SculptFieldContext(depsgraph, object, positions), subdiv_ccg_(subdiv_ccg), grids_(grids)
+  {
+  }
+
+  const SubdivCCG &subdiv_ccg() const
+  {
+    return subdiv_ccg_;
+  }
+  const Span<int> grids() const
+  {
+    return grids_;
+  }
+
+  const Span<float3> normals() const override;
+};
+
+class BMeshSculptFieldContext : public SculptFieldContext {
+ private:
+  const Set<BMVert *, 0> &verts_;
+
+ public:
+  BMeshSculptFieldContext(const Depsgraph &depsgraph,
+                          const Object &object,
+                          const Set<BMVert *, 0> &verts,
+                          const Span<float3> positions)
+      : SculptFieldContext(depsgraph, object, positions), verts_(verts)
+  {
+  }
+
+  const Set<BMVert *, 0> &verts() const
+  {
+    return verts_;
+  }
+
+  const Span<float3> normals() const override;
 };
 
 /**

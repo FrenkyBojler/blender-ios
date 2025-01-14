@@ -72,7 +72,7 @@ static void calc_node(const Depsgraph &depsgraph,
   }
 
   grids_sculpt_nodes_evaluate(
-      depsgraph, object, brush, *ss.cache, subdiv_ccg, grids, positions, translations);
+      depsgraph, object, brush, subdiv_ccg, grids, positions, translations);
   scale_translations(translations, tls.factors);
 
   clip_and_lock_translations(sd, ss, positions, translations);

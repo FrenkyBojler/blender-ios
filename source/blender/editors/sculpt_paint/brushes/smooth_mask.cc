@@ -96,7 +96,7 @@ static void apply_masks_faces(const Depsgraph &depsgraph,
 
   calc_brush_texture_factors(ss, brush, positions_eval, verts, factors);
 
-  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, cache, positions_eval, verts, factors);
+  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, positions_eval, verts, factors);
 
   tls.new_masks.resize(verts.size());
   const MutableSpan<float> new_masks = tls.new_masks;
@@ -215,7 +215,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   calc_brush_texture_factors(ss, brush, positions, factors);
 
   grids_sculpt_nodes_evaluate(
-      depsgraph, object, brush, cache, subdiv_ccg, grids, positions, factors);
+      depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
 
   tls.masks.resize(positions.size());
   const MutableSpan<float> masks = tls.masks;
@@ -269,7 +269,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   calc_brush_texture_factors(ss, brush, positions, factors);
 
-  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, cache, verts, positions, factors);
+  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, factors);
 
   tls.masks.resize(verts.size());
   const MutableSpan<float> masks = tls.masks;

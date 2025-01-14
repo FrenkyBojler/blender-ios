@@ -30,6 +30,8 @@
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_node.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
@@ -43,6 +45,8 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+
+#include "BLT_translation.hh"
 
 #include "curves_sculpt_intern.hh"
 #include "paint_hide.hh"
@@ -949,6 +953,80 @@ static void BRUSH_OT_stencil_reset_transform(wmOperatorType *ot)
       ot->srna, "mask", false, "Modify Mask Stencil", "Modify either the primary or mask stencil");
 }
 
+namespace blender::ed::sculpt_paint {
+
+static bNodeTree *node_group_add_for_brush(Main *bmain,
+                                           const StringRefNull name,
+                                           const Brush *brush)
+{
+  bNodeTree *node_group = bke::node_tree_add_tree(bmain, name, "GeometryNodeTree");
+  BKE_id_move_to_same_lib(*bmain, node_group->id, brush->id);
+
+  /* These brushes expect a float output */
+  if (ELEM(brush->sculpt_brush_type,
+           SCULPT_BRUSH_TYPE_MASK,
+           SCULPT_BRUSH_TYPE_CLOTH,
+           SCULPT_BRUSH_TYPE_SLIDE_RELAX))
+  {
+    node_group->tree_interface.add_socket(
+        DATA_("Value"), "", "NodeSocketFloat", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+  }
+  else {
+    node_group->tree_interface.add_socket(
+        DATA_("Vector"), "", "NodeSocketVector", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+  }
+
+  bke::node_add_node(nullptr, node_group, "NodeGroupOutput");
+  BKE_ntree_update_after_single_tree_change(*bmain, *node_group);
+  return node_group;
+}
+
+static int new_node_group_exec(bContext *C, wmOperator * /*op*/)
+{
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  if (!paint) {
+    return OPERATOR_CANCELLED;
+  }
+  Brush *brush = BKE_paint_brush(paint);
+  Main *bmain = CTX_data_main(C);
+
+  if (brush) {
+    brush->node_group = node_group_add_for_brush(bmain, DATA_("Node Group"), brush);
+    BKE_brush_tag_unsaved_changes(brush);
+  }
+
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static bool new_node_group_poll(bContext *C)
+{
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  if (!paint) {
+    return false;
+  }
+  const Brush *brush = BKE_paint_brush_for_read(paint);
+  if (!brush) {
+    return false;
+  }
+  return true;
+}
+
+static void BRUSH_OT_new_node_group(wmOperatorType *ot)
+{
+  ot->name = "Add Brush Node Group";
+  ot->description = "Add a new node group for use by the brush";
+  ot->idname = "BRUSH_OT_new_node_group";
+
+  ot->exec = new_node_group_exec;
+  ot->poll = new_node_group_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+}  // namespace blender::ed::sculpt_paint
+
 /**************************** registration **********************************/
 
 void ED_operatormacros_paint()
@@ -979,6 +1057,8 @@ void ED_operatortypes_paint()
   WM_operatortype_append(PALETTE_OT_sort);
   WM_operatortype_append(PALETTE_OT_color_move);
   WM_operatortype_append(PALETTE_OT_join);
+
+  WM_operatortype_append(BRUSH_OT_new_node_group);
 
   /* paint curve */
   WM_operatortype_append(PAINTCURVE_OT_new);
