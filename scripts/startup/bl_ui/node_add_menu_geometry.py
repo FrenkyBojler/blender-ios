@@ -436,6 +436,7 @@ class NODE_MT_geometry_node_GEO_MESH_OPERATIONS(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeEdgePathsToSelection")
         node_add_menu.add_node_type(layout, "GeometryNodeExtrudeMesh")
         node_add_menu.add_node_type(layout, "GeometryNodeFlipFaces")
+        node_add_menu.add_node_type(layout, "GeometryNodeHelloWorld")
         node_add_menu.add_node_type(layout, "GeometryNodeMeshBoolean")
         node_add_menu.add_node_type(layout, "GeometryNodeMeshToCurve")
         if context.preferences.experimental.use_new_volume_nodes:

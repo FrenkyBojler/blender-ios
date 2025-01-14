@@ -12403,6 +12403,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeGizmoTransform", rna_def_geo_gizmo_transform);
   define("GeometryNode", "GeometryNodeGreasePencilToCurves");
   define("GeometryNode", "GeometryNodeGridToMesh");
+  define("GeometryNode", "GeometryNodeHelloWorld");
   define("GeometryNode", "GeometryNodeImageInfo");
   define("GeometryNode", "GeometryNodeImageTexture", def_geo_image_texture);
   define("GeometryNode", "GeometryNodeImportOBJ");
