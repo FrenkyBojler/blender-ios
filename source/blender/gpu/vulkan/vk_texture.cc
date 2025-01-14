@@ -176,7 +176,7 @@ void VKTexture::clear_depth_stencil(const eGPUFrameBufferBits buffers,
 
 void VKTexture::swizzle_set(const char swizzle_mask[4])
 {
-  memcpy(image_view_info_.swizzle, swizzle_mask, 4);
+  memcpy(swizzle_, swizzle_mask, 4);
 }
 
 void VKTexture::mip_range_set(int min, int max)
@@ -626,23 +626,29 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImage
   image_view_info_.use_stencil = use_stencil_;
   image_view_info_.arrayed = arrayed;
   image_view_info_.layer_range = layer_range();
+
   if (arrayed == VKImageViewArrayed::NOT_ARRAYED) {
     image_view_info_.layer_range = image_view_info_.layer_range.slice(
         0, ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? 6 : 1);
   }
 
-  VKImageViewInfo image_view_info = image_view_info_;
   if (bool(flags & VKImageViewFlags::NO_SWIZZLING)) {
-    image_view_info.swizzle[0] = 'r';
-    image_view_info.swizzle[1] = 'g';
-    image_view_info.swizzle[2] = 'b';
-    image_view_info.swizzle[3] = 'a';
+    image_view_info_.swizzle[0] = 'r';
+    image_view_info_.swizzle[1] = 'g';
+    image_view_info_.swizzle[2] = 'b';
+    image_view_info_.swizzle[3] = 'a';
+  }
+  else {
+    image_view_info_.swizzle[0] = swizzle_[0];
+    image_view_info_.swizzle[1] = swizzle_[1];
+    image_view_info_.swizzle[2] = swizzle_[2];
+    image_view_info_.swizzle[3] = swizzle_[3];
   }
 
   if (is_texture_view()) {
-    return source_texture_->image_view_get(image_view_info);
+    return source_texture_->image_view_get(image_view_info_);
   }
-  return image_view_get(image_view_info);
+  return image_view_get(image_view_info_);
 }
 
 /** \} */

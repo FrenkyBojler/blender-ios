@@ -66,6 +66,7 @@ class VKTexture : public Texture {
   int layer_offset_ = 0;
   bool use_stencil_ = false;
 
+  char swizzle_[4] = {'r', 'g', 'b', 'a'};
   VKImageViewInfo image_view_info_ = {eImageViewUsage::ShaderBinding,
                                       IndexRange(0, VK_REMAINING_ARRAY_LAYERS),
                                       IndexRange(0, VK_REMAINING_MIP_LEVELS),
