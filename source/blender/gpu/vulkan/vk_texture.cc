@@ -607,7 +607,7 @@ const VKImageView &VKTexture::image_view_get(const VKImageViewInfo &info)
   if (is_texture_view()) {
     /* TODO: API should be improved as we don't support image view specialization.
      * In the current API this is still possible to setup when using attachments. */
-    return image_view_get(info.arrayed);
+    return image_view_get(info.arrayed, VKImageViewFlags::DEFAULT);
   }
   for (const VKImageView &image_view : image_views_) {
     if (image_view.info == info) {
@@ -619,7 +619,7 @@ const VKImageView &VKTexture::image_view_get(const VKImageViewInfo &info)
   return image_views_.last();
 }
 
-const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed)
+const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImageViewFlags flags)
 {
   image_view_info_.mip_range = mip_map_range();
   image_view_info_.use_srgb = true;
@@ -631,10 +631,18 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed)
         0, ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? 6 : 1);
   }
 
-  if (is_texture_view()) {
-    return source_texture_->image_view_get(image_view_info_);
+  VKImageViewInfo image_view_info = image_view_info_;
+  if (bool(flags & VKImageViewFlags::NO_SWIZZLING)) {
+    image_view_info.swizzle[0] = 'r';
+    image_view_info.swizzle[1] = 'g';
+    image_view_info.swizzle[2] = 'b';
+    image_view_info.swizzle[3] = 'a';
   }
-  return image_view_get(image_view_info_);
+
+  if (is_texture_view()) {
+    return source_texture_->image_view_get(image_view_info);
+  }
+  return image_view_get(image_view_info);
 }
 
 /** \} */

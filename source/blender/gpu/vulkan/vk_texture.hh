@@ -19,6 +19,13 @@ class VKSampler;
 class VKDescriptorSetTracker;
 class VKVertexBuffer;
 
+/** Additional modifiers when requesting image views. */
+enum class VKImageViewFlags {
+  DEFAULT = 0,
+  NO_SWIZZLING = 1 << 0,
+};
+ENUM_OPERATORS(VKImageViewFlags, VKImageViewFlags::NO_SWIZZLING)
+
 class VKTexture : public Texture {
   friend class VKDescriptorSetTracker;
 
@@ -122,7 +129,7 @@ class VKTexture : public Texture {
   /**
    * Get the current image view for this texture.
    */
-  const VKImageView &image_view_get(VKImageViewArrayed arrayed);
+  const VKImageView &image_view_get(VKImageViewArrayed arrayed, VKImageViewFlags flags);
 
  protected:
   bool init_internal() override;
