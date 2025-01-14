@@ -39,21 +39,6 @@ static VmaAllocationCreateFlags vma_allocation_flags(GPUUsageType usage)
   BLI_assert_msg(false, "Unimplemented GPUUsageType");
   return VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 }
-#if 0
-static VkMemoryPropertyFlags vma_preferred_flags(const bool is_host_visible)
-{
-  /* When is_host_visible is true, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT is set in
-   * `vma_required_flags`. We set the reverse to support ReBAR. */
-  return is_host_visible ?
-             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT :
-             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-}
-
-static VkMemoryPropertyFlags vma_required_flags(const bool is_host_visible)
-{
-  return is_host_visible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0;
-}
-#endif
 
 bool VKBuffer::create(size_t size_in_bytes,
                       GPUUsageType usage,
