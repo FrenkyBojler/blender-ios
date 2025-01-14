@@ -1618,15 +1618,7 @@ class GlareOperation : public NodeOperation {
    * achieved when down-sampling happens down to the smallest size of 2. */
   Result execute_bloom(Result &highlights)
   {
-    /* The maximum possible glare size is achieved when we down-sampled down to the smallest size
-     * of 2, which would result in a down-sampling chain length of the binary logarithm of the
-     * smaller dimension of the size of the highlights.
-     *
-     * However, as users might want a smaller glare size, we reduce the chain length by the
-     * size supplied by the user. Also make sure that log2 does not get zero. */
-    const int smaller_dimension = math::reduce_min(highlights.domain().size);
-    const float scaled_dimension = smaller_dimension * this->get_size();
-    const int chain_length = int(std::log2(math::max(1.0f, scaled_dimension)));
+    const int chain_length = this->compute_bloom_chain_length(highlights);
 
     /* If the chain length is less than 2, that means no down-sampling will happen, so we just
      * return a copy of the highlights. This is a sanitization of a corner case, so no need to
@@ -1926,6 +1918,19 @@ class GlareOperation : public NodeOperation {
            math::safe_rcp(math::reduce_add(weights));
   }
 
+  /* The maximum possible glare size is achieved when we down-sampled down to the smallest size of
+   * 2, which would result in a down-sampling chain length of the binary logarithm of the smaller
+   * dimension of the size of the highlights.
+   *
+   * However, as users might want a smaller glare size, we reduce the chain length by the size
+   * supplied by the user. Also make sure that log2 does not get zero. */
+  int compute_bloom_chain_length(const Result &highlights)
+  {
+    const int smaller_dimension = math::reduce_min(highlights.domain().size);
+    const float scaled_dimension = smaller_dimension * this->get_size();
+    return int(std::log2(math::max(1.0f, scaled_dimension)));
+  }
+
   /* ---------------
    * Fog Glow Glare.
    * --------------- */
@@ -2143,7 +2148,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "saturation", this->get_saturation());
-    GPU_shader_uniform_3fv(shader, "tint", this->get_tint());
+    GPU_shader_uniform_3fv(shader, "tint", this->get_corrected_tint(glare_result));
 
     const Result &input_image = get_input("Image");
     input_image.bind_as_texture(shader, "input_tx");
@@ -2167,7 +2172,7 @@ class GlareOperation : public NodeOperation {
   void execute_mix_cpu(const Result &glare_result)
   {
     const float saturation = this->get_saturation();
-    const float3 tint = this->get_tint();
+    const float3 tint = this->get_corrected_tint(glare_result);
 
     const Result &input = get_input("Image");
 
@@ -2214,7 +2219,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "saturation", this->get_saturation());
-    GPU_shader_uniform_3fv(shader, "tint", this->get_tint());
+    GPU_shader_uniform_3fv(shader, "tint", this->get_corrected_tint(glare));
 
     GPU_texture_filter_mode(glare, true);
     GPU_texture_extend_mode(glare, GPU_SAMPLER_EXTEND_MODE_EXTEND);
@@ -2235,7 +2240,7 @@ class GlareOperation : public NodeOperation {
   void write_glare_output_cpu(const Result &glare)
   {
     const float saturation = this->get_saturation();
-    const float3 tint = this->get_tint();
+    const float3 tint = this->get_corrected_tint(glare);
 
     const Result &image_input = this->get_input("Image");
     Result &output = this->get_result("Glare");
@@ -2258,6 +2263,34 @@ class GlareOperation : public NodeOperation {
     });
   }
 
+  /* Combine the tint, strength, and normalization scale into a single factor that can be
+   * multiplied to the glare. Takes the glare result as an input since the normalization scale
+   * might depend on its size. */
+  float3 get_corrected_tint(const Result &glare)
+  {
+    return this->get_tint() * this->get_strength() / this->get_normalization_scale(glare);
+  }
+
+  /* The computed glare might need to be normalized to be energy conserving or be in a reasonable
+   * range, instead of doing that in a separate step as part of the glare computation, we delay the
+   * normalization until the mixing step as an optimization, since we multiply by the tint and
+   * strength anyways. Takes the glare result as an input since the normalization scale might
+   * depend on its size. */
+  float get_normalization_scale(const Result &glare)
+  {
+    switch (static_cast<CMPNodeGlareType>(node_storage(bnode()).type)) {
+      case CMP_NODE_GLARE_BLOOM:
+        /* Bloom adds a number of layers equivalent to the chain length, so we need to normalize by
+         * the chain length, see the bloom code for more information. */
+        return this->compute_bloom_chain_length(glare);
+      case CMP_NODE_GLARE_SIMPLE_STAR:
+      case CMP_NODE_GLARE_FOG_GLOW:
+      case CMP_NODE_GLARE_STREAKS:
+      case CMP_NODE_GLARE_GHOST:
+        return 1.0f;
+    }
+  }
+
   /* -------
    * Common.
    * ------- */
@@ -2274,8 +2307,7 @@ class GlareOperation : public NodeOperation {
 
   float3 get_tint()
   {
-    return this->get_input("Tint").get_single_value_default(float4(1.0f)).xyz() *
-           this->get_strength();
+    return this->get_input("Tint").get_single_value_default(float4(1.0f)).xyz();
   }
 
   float get_size()
