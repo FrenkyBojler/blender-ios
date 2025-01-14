@@ -33,7 +33,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_SCULPT_ACTIVE_MESH, "Active Mesh", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "GeometryNodeSculptActiveMesh", GEO_NODE_SCULPT_ACTIVE_MESH, NODE_CLASS_INPUT);
+  ntype.ui_name = "Active Mesh";
+  ntype.ui_description = "Active Mesh";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

@@ -977,7 +977,7 @@ static bNodeTree *node_group_add_for_brush(Main *bmain,
   }
 
   bke::node_add_node(nullptr, node_group, "NodeGroupOutput");
-  BKE_ntree_update_main_tree(bmain, node_group, nullptr);
+  BKE_ntree_update_after_single_tree_change(*bmain, *node_group);
   return node_group;
 }
 

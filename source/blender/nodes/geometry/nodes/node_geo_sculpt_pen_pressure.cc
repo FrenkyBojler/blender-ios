@@ -27,7 +27,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_SCULPT_PEN_PRESSURE, "Pen Pressure", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "GeometryNodeSculptPenPressure", GEO_NODE_SCULPT_PEN_PRESSURE, NODE_CLASS_INPUT);
+  ntype.ui_name = "Pen Pressure";
+  ntype.ui_description = "Pen Pressure";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);
