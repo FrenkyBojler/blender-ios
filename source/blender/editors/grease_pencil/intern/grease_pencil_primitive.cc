@@ -700,7 +700,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
 static void grease_pencil_primitive_undo_curves(PrimitiveToolOperation &ptd)
 {
   bke::CurvesGeometry &curves = ptd.drawing->strokes_for_write();
-  const int target_curve_index = ptd.on_back ? 0 : (curves.curve_num - 1);
+  const int target_curve_index = ptd.on_back ? 0 : (curves.curves_num() - 1);
   curves.remove_curves(IndexRange::from_single(target_curve_index), {});
   ptd.drawing->tag_topology_changed();
 }
