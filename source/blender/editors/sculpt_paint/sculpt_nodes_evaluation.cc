@@ -206,8 +206,6 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   for (const int i : tree->interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket &interface_socket = *tree->interface_inputs()[i];
     const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
-    const eNodeSocketDatatype socket_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
-                                                       SOCK_CUSTOM;
 
     const CPPType *type = typeinfo->geometry_nodes_cpp_type;
     BLI_assert(type != nullptr);
