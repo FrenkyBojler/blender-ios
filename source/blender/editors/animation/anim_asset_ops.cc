@@ -22,6 +22,7 @@
 #include "ED_asset_mark_clear.hh"
 #include "ED_asset_menu_utils.hh"
 #include "ED_asset_shelf.hh"
+#include "ED_fileselect.hh"
 #include "ED_screen.hh"
 
 #include "UI_interface_icons.hh"
@@ -255,8 +256,7 @@ static int create_pose_asset_user_library(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  asset_system::AssetLibrary *library = AS_asset_library_load(
-      bmain, blender::ed::asset::user_library_to_library_ref(*user_library));
+  asset_system::AssetLibrary *library = AS_asset_library_load(bmain, lib_ref);
   if (!library) {
     BKE_report(op->reports, RPT_ERROR, "Failed to load asset library");
     return OPERATOR_CANCELLED;
@@ -294,10 +294,10 @@ static int create_pose_asset_user_library(bContext *C,
 
   BKE_id_free(bmain, &pose_action.id);
 
-  blender::ed::asset::refresh_asset_library(
-      C, blender::ed::asset::user_library_to_library_ref(*user_library));
+  blender::ed::asset::refresh_asset_library(C, lib_ref);
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
+
   return OPERATOR_FINISHED;
 }
 
@@ -701,13 +701,20 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
   if (!action) {
     return OPERATOR_CANCELLED;
   }
+
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
+  bUserAssetLibrary *library = BKE_preferences_asset_library_find_by_name(
+      &U, asset_reference.asset_library_identifier);
+
   if (ID_IS_LINKED(action)) {
     bke::asset_edit_id_delete(*CTX_data_main(C), action->id, *op->reports);
   }
   else {
     asset::clear_id(&action->id);
   }
-  refresh_asset_library(C);
+
+  blender::ed::asset::refresh_asset_library(C, *library);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
