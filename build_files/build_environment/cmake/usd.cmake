@@ -60,6 +60,9 @@ set(USD_EXTRA_ARGS
   -DOPENEXR_INCLUDE_DIR=${LIBDIR}/imath/include
   -DImath_DIR=${LIBDIR}/imath/lib/cmake/Imath
   -DOPENVDB_LOCATION=${LIBDIR}/openvdb
+  # Custom namespace to prevent conflicts when importing both bpy module
+  # and usd-core pip packages with the same version but different libs.
+  -DPXR_SET_INTERNAL_NAMESPACE=pxrblender
   -DPXR_ENABLE_PYTHON_SUPPORT=ON
   -DPXR_USE_PYTHON_3=ON
   -DPXR_BUILD_IMAGING=ON
@@ -89,7 +92,7 @@ set(USD_EXTRA_ARGS
   # Tracking ticket https://github.com/PixarAnimationStudios/USD/issues/1386
   -DPXR_BUILD_OPENCOLORIO_PLUGIN=OFF
   # We'd like Vulkan support on, but it has trouble not finding the SDK since we have
-  # the invididual components in the deps builder. 
+  # the invididual components in the deps builder.
   -DPXR_ENABLE_VULKAN_SUPPORT=OFF
   -DPXR_ENABLE_PTEX_SUPPORT=OFF
   -DPXR_BUILD_USD_TOOLS=OFF
@@ -128,13 +131,16 @@ ExternalProject_Add(external_usd
       ${PATCH_DIR}/usd_core_profile.diff &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/usd/src/external_usd <
+      ${PATCH_DIR}/usd_ctor.diff &&
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/usd/src/external_usd <
       ${PATCH_DIR}/usd_3204.diff &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/usd/src/external_usd <
       ${PATCH_DIR}/usd_3243.diff  &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/usd/src/external_usd <
-      ${PATCH_DIR}/usd_3434.diff 
+      ${PATCH_DIR}/usd_3434.diff
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/usd
     -Wno-dev
