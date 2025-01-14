@@ -848,19 +848,14 @@ static void GREASE_PENCIL_OT_select_ends(wmOperatorType *ot)
               INT32_MAX);
 }
 
-static int select_set_mode_exec(bContext *C, wmOperator *op)
+bool ensure_selection_domain(ToolSettings *ts, Object *object, const std::optional<int> new_mode)
 {
-  using namespace blender::bke::greasepencil;
-
-  /* Set new selection mode. */
-  const int mode_new = RNA_enum_get(op->ptr, "mode");
-  ToolSettings *ts = CTX_data_tool_settings(C);
-
-  bool changed = (mode_new != ts->gpencil_selectmode_edit);
-  ts->gpencil_selectmode_edit = mode_new;
+  bool changed = (new_mode.has_value() && new_mode.value() != ts->gpencil_selectmode_edit);
+  if (new_mode.has_value()) {
+    ts->gpencil_selectmode_edit = new_mode.value();
+  }
 
   /* Convert all drawings of the active GP to the new selection domain. */
-  Object *object = CTX_data_active_object(C);
   const bke::AttrDomain domain = ED_grease_pencil_selection_domain_get(ts, object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   Span<GreasePencilDrawingBase *> drawings = grease_pencil.drawings();
@@ -914,9 +909,24 @@ static int select_set_mode_exec(bContext *C, wmOperator *op)
     }
   }
 
+  return changed;
+}
+
+static int select_set_mode_exec(bContext *C, wmOperator *op)
+{
+  using namespace blender::bke::greasepencil;
+
+  /* Set new selection mode. */
+  const int mode_new = RNA_enum_get(op->ptr, "mode");
+  ToolSettings *ts = CTX_data_tool_settings(C);
+  Object *ob = CTX_data_active_object(C);
+
+  const bool changed = ensure_selection_domain(ts, ob, mode_new);
+
   if (changed) {
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
