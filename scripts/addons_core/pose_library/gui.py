@@ -126,7 +126,7 @@ class DOPESHEET_PT_asset_panel(PoseLibraryPanel, Panel):
         layout = self.layout
         col = layout.column(align=True)
         row = col.row(align=True)
-        row.operator("poselib.create_pose_asset").activate_new_action = True
+        row.operator("poselib.create_pose_asset")
         if bpy.types.POSELIB_OT_restore_previous_action.poll(context):
             row.operator("poselib.restore_previous_action", text="", icon='LOOP_BACK')
         col.operator("poselib.copy_as_asset", icon="COPYDOWN")
@@ -153,7 +153,7 @@ class ASSETBROWSER_MT_asset(Menu):
 
         layout.operator("poselib.paste_asset", icon='PASTEDOWN')
         layout.separator()
-        layout.operator("poselib.create_pose_asset").activate_new_action = False
+        layout.operator("poselib.create_pose_asset")
 
 
 # Messagebus subscription to monitor asset library changes.

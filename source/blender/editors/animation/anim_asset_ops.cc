@@ -304,7 +304,7 @@ static int create_pose_asset_user_library(bContext *C,
 static int pose_asset_create_exec(bContext *C, wmOperator *op)
 {
   char name[MAX_NAME] = "";
-  PropertyRNA *name_prop = RNA_struct_find_property(op->ptr, "name");
+  PropertyRNA *name_prop = RNA_struct_find_property(op->ptr, "pose_name");
   if (RNA_property_is_set(op->ptr, name_prop)) {
     RNA_property_string_get(op->ptr, name_prop, name);
   }
@@ -374,18 +374,18 @@ static void visit_library_prop_catalogs_catalog_for_search_fn(
       *CTX_data_main(C), lib_ref, edit_text, visit_fn);
 }
 
-void POSELIB_OT_asset_create(wmOperatorType *ot)
+void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
 {
   ot->name = "Create Pose Asset";
   ot->description = "Create a new asset from the selection in the scene";
-  ot->idname = "POSELIB_OT_asset_create";
+  ot->idname = "POSELIB_OT_create_pose_asset";
 
   ot->exec = pose_asset_create_exec;
   ot->invoke = pose_asset_create_invoke;
   ot->poll = pose_asset_create_poll;
 
   ot->prop = RNA_def_string(
-      ot->srna, "name", nullptr, MAX_NAME, "Name", "Name for the new pose asset");
+      ot->srna, "pose_name", nullptr, MAX_NAME, "Pose Name", "Name for the new pose asset");
 
   PropertyRNA *prop = RNA_def_property(ot->srna, "asset_library_reference", PROP_ENUM, PROP_NONE);
   RNA_def_enum_funcs(prop, rna_asset_library_reference_itemf);
@@ -395,6 +395,13 @@ void POSELIB_OT_asset_create(wmOperatorType *ot)
       ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "Catalog to use for the new asset");
   RNA_def_property_string_search_func_runtime(
       prop, visit_library_prop_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
+
+  prop = RNA_def_boolean(ot->srna,
+                         "activate_new_action",
+                         false,
+                         "Activate New Action",
+                         "This property is deprecated and will be removed in the future");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
 enum AssetOverwriteMode {
@@ -633,6 +640,7 @@ static const EnumPropertyItem prop_asset_overwrite_modes[] = {
      0,
      "Remove",
      "Remove channels of the selection from the pose asset"},
+    {0, nullptr, 0, nullptr, nullptr},
 };
 
 static std::string pose_asset_overwrite_description(bContext * /* C */,
