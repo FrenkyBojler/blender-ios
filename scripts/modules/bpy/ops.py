@@ -25,7 +25,6 @@ class handler_action:
         self._remove_func = remove_func
 
     def append(self, cb, owner=None, args=None, poll=None):
-        # is there a way to remove self from console show?
         self._append_func(owner=owner, op=self._mod.idname(), cb=cb, args=args, poll=poll)
 
     def remove(self, cb=None, owner=None):
