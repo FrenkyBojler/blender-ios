@@ -29,6 +29,7 @@
 
 #include "BLI_ghash.h"
 
+#include "DNA_debug.hh"
 #include "DNA_genfile.h"
 #include "DNA_sdna_types.h" /* for SDNA ;-) */
 
@@ -2101,7 +2102,7 @@ void DNA_struct_debug_print(const SDNA &sdna,
           const void *current_data = POINTER_OFFSET(data, elem_i * type_size);
           switch (member.type_index) {
             case SDNA_TYPE_CHAR: {
-              const char value = *(char *)current_data;
+              const char value = *reinterpret_cast<const char *>(current_data);
               if (std::isprint(value)) {
                 stream << value;
               }
@@ -2111,7 +2112,7 @@ void DNA_struct_debug_print(const SDNA &sdna,
               break;
             }
             case SDNA_TYPE_UCHAR: {
-              const uchar value = *(char *)current_data;
+              const uchar value = *reinterpret_cast<const uchar *>(current_data);
               if (std::isprint(value)) {
                 stream << value;
               }
@@ -2121,37 +2122,37 @@ void DNA_struct_debug_print(const SDNA &sdna,
               break;
             }
             case SDNA_TYPE_INT8: {
-              stream << *(int8_t *)current_data;
+              stream << *reinterpret_cast<const int8_t *>(current_data);
               break;
             }
             case SDNA_TYPE_SHORT: {
-              stream << *(short *)current_data;
+              stream << *reinterpret_cast<const short *>(current_data);
               break;
             }
             case SDNA_TYPE_USHORT: {
-              stream << *(ushort *)current_data;
+              stream << *reinterpret_cast<const ushort *>(current_data);
               break;
             }
             case SDNA_TYPE_INT: {
-              stream << *(int *)current_data;
+              stream << *reinterpret_cast<const int *>(current_data);
               break;
             }
             case SDNA_TYPE_FLOAT: {
-              stream << *(float *)current_data;
+              stream << *reinterpret_cast<const float *>(current_data);
               break;
             }
             case SDNA_TYPE_INT64: {
-              stream << *(int64_t *)current_data;
+              stream << *reinterpret_cast<const int64_t *>(current_data);
               break;
             }
             /* Somehow the types are a bit messed up after VOID, not sure what's going on. */
             case SDNA_TYPE_VOID:
             case SDNA_TYPE_UINT64: {
-              stream << *(uint64_t *)current_data;
+              stream << *reinterpret_cast<const uint64_t *>(current_data);
               break;
             }
             case SDNA_TYPE_DOUBLE: {
-              stream << *(double *)current_data;
+              stream << *reinterpret_cast<const double *>(current_data);
               break;
             }
             default: {
@@ -2167,7 +2168,7 @@ void DNA_struct_debug_print(const SDNA &sdna,
       case STRUCT_MEMBER_CATEGORY_POINTER: {
         for ([[maybe_unused]] const int elem_i : IndexRange(array_elem_num)) {
           const void *current_data = POINTER_OFFSET(data, sdna.pointer_size * elem_i);
-          stream << " " << *(void **)current_data << " ";
+          stream << " " << *reinterpret_cast<const void *const *>(current_data) << " ";
         }
         stream << "\n";
 
