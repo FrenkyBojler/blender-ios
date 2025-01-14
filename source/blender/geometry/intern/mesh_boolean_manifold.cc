@@ -256,7 +256,9 @@ class GAttributeReadWriteSpans {
   int find_attr_index(const char *name) const;
 };
 
-int GAttributeReadWriteSpans::add_attribute(StringRefNull name, bke::AttrDomain domain, eCustomDataType data_type)
+int GAttributeReadWriteSpans::add_attribute(StringRefNull name,
+                                            bke::AttrDomain domain,
+                                            eCustomDataType data_type)
 {
   this->attrs.append(name);
   this->data_types.append(data_type);
@@ -264,8 +266,7 @@ int GAttributeReadWriteSpans::add_attribute(StringRefNull name, bke::AttrDomain 
       this->output_accessor.lookup_or_add_for_write_only_span(name, domain, data_type));
   this->dest.append(this->dest_writers.last().span);
   for (int i : this->input_meshes.index_range()) {
-    this->sources[i].append(
-        *this->input_accessors[i].lookup_or_default(name, domain, data_type));
+    this->sources[i].append(*this->input_accessors[i].lookup_or_default(name, domain, data_type));
   }
   return this->dest_writers.size() - 1;
 }
@@ -276,9 +277,9 @@ int GAttributeReadWriteSpans::add_attribute(StringRefNull name, bke::AttrDomain 
 GAttributeReadWriteSpans::GAttributeReadWriteSpans(Span<const Mesh *> input_meshes,
                                                    Mesh *output_mesh,
                                                    bke::AttrDomain domain)
-  : output_mesh(output_mesh),
-    output_accessor(output_mesh->attributes_for_write()),
-    input_meshes(input_meshes)
+    : output_mesh(output_mesh),
+      output_accessor(output_mesh->attributes_for_write()),
+      input_meshes(input_meshes)
 {
   const int num_mesh = input_meshes.size();
   this->sources.reinitialize(num_mesh);
@@ -318,27 +319,27 @@ int GAttributeReadWriteSpans::find_attr_index(const char *name) const
  * which are all used for structure that we set directly in the mesh.
  * This are identfied by the function #BKE_mesh_attribute_required.
  */
-class NeededAttributes
-{
-public:
+class NeededAttributes {
+ public:
   struct Spec {
     StringRefNull name;
     bke::AttrDomain domain;
     eCustomDataType data_type;
 
-    Spec(bke::AttributeIter iter) :
-      name(iter.name), domain(iter.domain), data_type(iter.data_type)
+    Spec(bke::AttributeIter iter) : name(iter.name), domain(iter.domain), data_type(iter.data_type)
     {
     }
   };
   Map<StringRefNull, Spec> attr_map;
 
-  NeededAttributes(Span<const Mesh*> meshes);
+  NeededAttributes(Span<const Mesh *> meshes);
+
+  int num_attrs_for_domain(bke::AttrDomain domain) const;
 };
 
 /* Get the union of the needed attributes from all the meshes,
  * in a deterministic order, and omitting the structure attributes. */
-NeededAttributes::NeededAttributes(Span<const Mesh*> meshes)
+NeededAttributes::NeededAttributes(Span<const Mesh *> meshes)
 {
   for (const Mesh *mesh : meshes) {
     bke::AttributeAccessor attrs = mesh->attributes();
@@ -351,6 +352,18 @@ NeededAttributes::NeededAttributes(Span<const Mesh*> meshes)
   }
 }
 
+/* Return the number of attributes in the #NeededAttributes that are for \a domain. */
+int NeededAttributes::num_attrs_for_domain(bke::AttrDomain domain) const
+{
+  int sum = 0;
+  this->attr_map.foreach_item([&](const StringRefNull &, const NeededAttributes::Spec &spec) {
+    if (spec.domain == domain) {
+      sum++;
+    }
+  });
+  return sum;
+}
+
 /* Ensure that \a mesh has all the needed attributes. */
 static void add_needed_attributes_to_mesh(Mesh *mesh, const NeededAttributes &needed_attributes)
 {
@@ -360,14 +373,20 @@ static void add_needed_attributes_to_mesh(Mesh *mesh, const NeededAttributes &ne
   for (const NeededAttributes::Spec &val : needed_attributes.attr_map.values()) {
     attr_specs.append(val);
   }
-  std::sort(attr_specs.begin(), attr_specs.end(),
-            [](const NeededAttributes::Spec &a, const NeededAttributes::Spec &b) { return a.name < b.name; });
-  //DEBUG!!
-  std::cout << "Needed attributes:\n";
-  for (const NeededAttributes::Spec &s : attr_specs) {
-    std::cout << s.name << " domain " << domain_names[static_cast<int8_t>(s.domain)] << "\n";
-  }
+  std::sort(attr_specs.begin(),
+            attr_specs.end(),
+            [](const NeededAttributes::Spec &a, const NeededAttributes::Spec &b) {
+              return a.name < b.name;
+            });
   bke::MutableAttributeAccessor accessor = mesh->attributes_for_write();
+  bke::AttributeInitDefaultValue attr_init;
+  for (const NeededAttributes::Spec &spec : attr_specs) {
+    // DEBUG!!
+    std::cout << "adding attribute " << spec.name << "\n";
+    accessor.add(spec.name, spec.domain, spec.data_type, attr_init);
+  }
+  // DEBUG!!
+  // dump_mesh(mesh, "AFTER ADD_NEEDED_ATTRIBUTES");
 }
 
 /* Given an \a input_face index, along with its \a input_mesh_index, copy the attributes
@@ -395,8 +414,7 @@ static void copy_face_attrs(GAttributeReadWriteSpans &rw_spans,
     if (src.has_value()) {
       if (dbg_level > 0) {
         std::cout << "attribute index " << i << ", name = " << rw_spans.attrs[i]
-        << ", value = " << src->type().to_string(src.value()[input_face])
-        << "\n";
+                  << ", value = " << src->type().to_string(src.value()[input_face]) << "\n";
       }
       /* rw_spans.dest[output_face] = src[input_face] */
       dst.type().copy_assign(src.value()[input_face], dst[output_face]);
@@ -427,18 +445,20 @@ static void copy_attrs_for_domain(bke::AttrDomain domain,
   constexpr int dbg_level = 1;
   if (dbg_level > 0) {
     std::cout << "copy attrs for domain "
-      << (domain == bke::AttrDomain::Point ? "Point" :
-          (domain == bke::AttrDomain::Edge ? "Edge" :
-           (domain == bke::AttrDomain::Corner ? "Corner" : "?")))
-      << ", input mesh " << input_mesh_index
-      << ", element " << input_element
-      << " to  output element " << output_element << "\n";
+              << (domain == bke::AttrDomain::Point ?
+                      "Point" :
+                      (domain == bke::AttrDomain::Edge ?
+                           "Edge" :
+                           (domain == bke::AttrDomain::Corner ? "Corner" : "?")))
+              << ", input mesh " << input_mesh_index << ", element " << input_element
+              << " to  output element " << output_element << "\n";
   }
   for (const int i : rw_spans.attrs.index_range()) {
     const StringRef attr_name = rw_spans.attrs[i];
     if ((domain == bke::AttrDomain::Point and attr_name == "position") or
         (domain == bke::AttrDomain::Edge and attr_name == ".edge_verts") or
-        (domain == bke::AttrDomain::Corner and ELEM(attr_name, ".corner_vert", ".corner_edge"))) {
+        (domain == bke::AttrDomain::Corner and ELEM(attr_name, ".corner_vert", ".corner_edge")))
+    {
       continue;
     }
     if (dbg_level > 0) {
@@ -448,8 +468,7 @@ static void copy_attrs_for_domain(bke::AttrDomain domain,
     GMutableSpan &dst = rw_spans.dest[i];
     if (src.has_value()) {
       if (dbg_level > 0) {
-        std::cout << "value gets " << src->type().to_string(src.value()[input_element])
-        << "\n";
+        std::cout << "value gets " << src->type().to_string(src.value()[input_element]) << "\n";
       }
       /* rw_spans.dest[output_element] = src[input_element] */
       dst.type().copy_assign(src.value()[input_element], dst[output_element]);
@@ -742,10 +761,7 @@ static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces)
  * The splice will be between vertices \a v1 and \a v2, which are assumed to not be
  * repeated in the other face (since incoming faces are assumed legal).
  */
-static bool is_legal_merge(const OutFace &f1,
-                           const OutFace &f2,
-                           int v1,
-                           int v2)
+static bool is_legal_merge(const OutFace &f1, const OutFace &f2, int v1, int v2)
 {
   /* For now, just look for each non-splice-involved vertex of each face to see if
    * it is in the other face.
@@ -775,17 +791,16 @@ static bool is_legal_merge(const OutFace &f1,
  * If the merge is successful, update f1 to be the merged face and return true,
  * else leave the faces alone and return false.
  */
-static bool try_merge_out_face_pair(OutFace &f1,
-                                    const OutFace &f2,
-                                    const SharedEdge &se)
+static bool try_merge_out_face_pair(OutFace &f1, const OutFace &f2, const SharedEdge &se)
 {
-  
+
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "try_merge_out_face_pair\n";
     dump_span(f1.verts.as_span(), "f1");
     dump_span(f2.verts.as_span(), "f2");
-    std::cout << "shared edge: " << "(e" << se.e1 << ",e" << se.e2 << ";v" << se.v1 << ",v" << se.v2 << ")\n";
+    std::cout << "shared edge: "
+              << "(e" << se.e1 << ",e" << se.e2 << ";v" << se.v1 << ",v" << se.v2 << ")\n";
   }
   const int f1_len = f1.verts.size();
   const int f2_len = f2.verts.size();
@@ -803,8 +818,7 @@ static bool try_merge_out_face_pair(OutFace &f1,
   BLI_assert(f2.verts[i2] == v2 && f2.verts[i2_next] == v1);
   const bool can_merge = is_legal_merge(f1, f2, v1, v2);
   if (dbg_level > 0) {
-    std::cout << "i1 = " << i1 << ", i2 = " << i2 <<
-      ", can_merge = " << can_merge << "\n";
+    std::cout << "i1 = " << i1 << ", i2 = " << i2 << ", can_merge = " << can_merge << "\n";
   }
   if (!can_merge) {
     return false;
@@ -984,7 +998,7 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
   if (dbg_level > 0) {
     std::cout << "mesh_assembly result:\n";
     std::cout << "num_input_verts = " << ma.num_input_verts
-      << ", num_output_verts = " << ma.num_output_verts << "\n";
+              << ", num_output_verts = " << ma.num_output_verts << "\n";
     dump_span_with_stride(ma.vertpos, ma.vertpos_stride, "vertpos");
     dump_span(ma.out_to_in_vert_map.as_span(), "out_to_in_vert_map");
     dump_span(ma.input_faces_to_output.as_span(), "input_faces_to_output");
@@ -1141,7 +1155,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   /* Ensure that mesh has all needed attributes. */
   NeededAttributes needed_attributes(meshes);
   add_needed_attributes_to_mesh(mesh, needed_attributes);
-  
+
   /* Set the vertex positions. */
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
   {
@@ -1150,9 +1164,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     threading::parallel_for(IndexRange(tot_positions), grain_size, [&](const IndexRange range) {
       for (const int i : range) {
         int offset = ma.vertpos_stride * i;
-        float3 pos(ma.vertpos[offset],
-                   ma.vertpos[offset + 1],
-                   ma.vertpos[offset + 2]);
+        float3 pos(ma.vertpos[offset], ma.vertpos[offset + 1], ma.vertpos[offset + 2]);
         positions[i] = pos;
       }
     });
@@ -1164,7 +1176,8 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
   int material_span_index = face_attrs.find_attr_index("material_index");
   if (material_span_index == -1 && need_material_attribute(material_remaps)) {
-    material_span_index = face_attrs.add_attribute("material_index", bke::AttrDomain::Face, CD_PROP_INT32);
+    material_span_index = face_attrs.add_attribute(
+        "material_index", bke::AttrDomain::Face, CD_PROP_INT32);
   }
   {
     timeit::ScopedTimer timer_c("calculate faces");
@@ -1177,7 +1190,8 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
         for (const int i : face.verts.index_range()) {
           corner_verts[corner_index + i] = face.verts[i];
         }
-        const int input_mesh_index = which_offset_index<int>(face.face_id, mesh_offsets.face_offsets);
+        const int input_mesh_index = which_offset_index<int>(face.face_id,
+                                                             mesh_offsets.face_offsets);
         BLI_assert(input_mesh_index >= 0);
         const int input_face_index = face.face_id - mesh_offsets.face_offsets[input_mesh_index];
         copy_face_attrs(face_attrs,
@@ -1196,9 +1210,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     timeit::ScopedTimer timer_e("calculating edges");
     bke::mesh_calc_edges(*mesh, false, false);
   }
-  
-  // TODO: only do this if there are any edge or corner attributes
-  if (true)
+
+  if (needed_attributes.num_attrs_for_domain(bke::AttrDomain::Edge) > 0 ||
+      needed_attributes.num_attrs_for_domain(bke::AttrDomain::Corner) > 0)
   {
     timeit::ScopedTimer timer_eattr("calculating edge and corner attrs");
     Span<int> corner_edges = mesh->corner_edges();
@@ -1207,13 +1221,12 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     GAttributeReadWriteSpans edge_attrs(meshes, mesh, bke::AttrDomain::Edge);
     GAttributeReadWriteSpans corner_attrs(meshes, mesh, bke::AttrDomain::Corner);
     int grain_size = 25000;
-    threading::parallel_for(IndexRange(tot_faces),
- grain_size,
- [&](const IndexRange range) {
+    threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
       for (const int face_index : IndexRange(range)) {
         const int corner_index = face_corner_start_index[face_index];
         const OutFace &face = ma.new_faces[face_index];
-        const int input_mesh_index = which_offset_index<int>(face.face_id, mesh_offsets.face_offsets);
+        const int input_mesh_index = which_offset_index<int>(face.face_id,
+                                                             mesh_offsets.face_offsets);
         BLI_assert(input_mesh_index >= 0);
         const Mesh *input_mesh = meshes[input_mesh_index];
         const int flen = face.verts.size();
@@ -1235,11 +1248,8 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
           const int input_v = to_mesh_vert_index(output_v);
           const int input_v_next = to_mesh_vert_index(output_v_next);
           float3 edge_dir = positions[output_v_next] - positions[output_v];
-          int2 edge_and_corner = get_rep_edge_and_corner(input_v,
-                                                    input_v_next,
-                                                    edge_dir,
-                                                    input_mesh,
-                                                    input_face_index);
+          int2 edge_and_corner = get_rep_edge_and_corner(
+              input_v, input_v_next, edge_dir, input_mesh, input_face_index);
           /* Just handle edges in forward direction. Assuming mesh is manifold
            * at this time, there can be at most one face with the edge in a forward
            * direction, so parallel loops won't race for same edge. */
@@ -1249,11 +1259,8 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
             /* TODO: figure out how to only do this for one instance
              * of the edge, deterministically. */
             if (edge_rep != -1) {
-              copy_attrs_for_domain(bke::AttrDomain::Edge,
-                                    edge_attrs,
-                                    input_mesh_index,
-                                    edge_rep,
-                                    output_e);
+              copy_attrs_for_domain(
+                  bke::AttrDomain::Edge, edge_attrs, input_mesh_index, edge_rep, output_e);
             }
 #if 0
             if (corner_rep != -1) {
