@@ -587,10 +587,10 @@ void node_tree_set_output(bNodeTree *ntree);
 /**
  * Returns localized tree for execution in threads.
  *
- * \param new_owner_id: the owner ID of the localized nodetree, may be null if unknown or
+ * \param new_owner_id: the owner ID of the localized nodetree, may be nullopt if unknown or
  * irrelevant.
  */
-bNodeTree *node_tree_localize(bNodeTree *ntree, ID *new_owner_id);
+bNodeTree *node_tree_localize(bNodeTree *ntree, std::optional<ID *> new_owner_id);
 
 /**
  * This is only direct data, tree itself should have been written.
@@ -1165,7 +1165,7 @@ std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket *sock);
 /**
  * Initialize a new node type struct with default values and callbacks.
  */
-void node_type_base(bNodeType *ntype, std::string idname, int type, short nclass);
+void node_type_base(bNodeType *ntype, std::string idname, int type);
 
 void node_type_socket_templates(bNodeType *ntype,
                                 bNodeSocketTemplate *inputs,
