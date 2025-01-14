@@ -12,7 +12,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(100.0f)
       .min(0.0f)
       .max(1000000.0f)
-      .description("Light strength before applying falloff modification");
+      .description("Light strength before applying falloff modification")
+      .translation_context(BLT_I18NCONTEXT_AMOUNT);
 
   b.add_input<decl::Float>("Smooth").default_value(0.0f).min(0.0f).max(1000.0f).description(
       "Smooth intensity of light near light sources.\n"
@@ -54,7 +55,7 @@ void register_node_type_sh_light_falloff()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_LIGHT_FALLOFF, NODE_CLASS_OP_COLOR);
+  sh_node_type_base(&ntype, "ShaderNodeLightFalloff", SH_NODE_LIGHT_FALLOFF, NODE_CLASS_OP_COLOR);
   ntype.ui_name = "Light Falloff";
   ntype.ui_description =
       "Manipulate how light intensity decreases over distance. Typically used for "

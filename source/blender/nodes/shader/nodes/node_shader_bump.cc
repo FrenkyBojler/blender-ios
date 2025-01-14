@@ -24,7 +24,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .description(
           "Strength of the bump mapping effect, interpolating between "
-          "no bump mapping and full bump mapping");
+          "no bump mapping and full bump mapping")
+      .translation_context(BLT_I18NCONTEXT_AMOUNT);
   b.add_input<decl::Float>("Distance")
       .default_value(1.0f)
       .min(0.0f)
@@ -116,7 +117,7 @@ void register_node_type_sh_bump()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_BUMP, NODE_CLASS_OP_VECTOR);
+  sh_node_type_base(&ntype, "ShaderNodeBump", SH_NODE_BUMP, NODE_CLASS_OP_VECTOR);
   ntype.ui_name = "Bump";
   ntype.ui_description =
       "Generate a perturbed normal from a height texture for bump mapping. Typically used for "

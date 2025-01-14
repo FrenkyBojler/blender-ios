@@ -32,7 +32,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "NOD_common.h"
+#include "NOD_common.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_register.hh"
 #include "NOD_socket.hh"
@@ -64,12 +64,12 @@ static bNodeSocket *find_matching_socket(ListBase &sockets, StringRef identifier
   return nullptr;
 }
 
-bNodeSocket *node_group_find_input_socket(bNode *groupnode, const char *identifier)
+bNodeSocket *node_group_find_input_socket(bNode *groupnode, const blender::StringRef identifier)
 {
   return find_matching_socket(groupnode->inputs, identifier);
 }
 
-bNodeSocket *node_group_find_output_socket(bNode *groupnode, const char *identifier)
+bNodeSocket *node_group_find_output_socket(bNode *groupnode, const blender::StringRef identifier)
 {
   return find_matching_socket(groupnode->outputs, identifier);
 }
@@ -512,7 +512,7 @@ void register_node_type_frame()
   blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("frame node type");
   ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
-  blender::bke::node_type_base(ntype, NODE_FRAME, NODE_CLASS_LAYOUT);
+  blender::bke::node_type_base(ntype, "NodeFrame", NODE_FRAME, NODE_CLASS_LAYOUT);
   ntype->ui_name = "Frame";
   ntype->ui_description =
       "Collect related nodes together in a common area. Useful for organization when the "
@@ -559,7 +559,7 @@ void register_node_type_reroute()
   blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("frame node type");
   ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
-  blender::bke::node_type_base(ntype, NODE_REROUTE, NODE_CLASS_LAYOUT);
+  blender::bke::node_type_base(ntype, "NodeReroute", NODE_REROUTE, NODE_CLASS_LAYOUT);
   ntype->ui_name = "Reroute";
   ntype->ui_description =
       "A single-socket organization tool that supports one input and multiple outputs";
@@ -734,10 +734,10 @@ bool blender::bke::node_is_connected_to_output(const bNodeTree *ntree, const bNo
 /** \name Node #GROUP_INPUT / #GROUP_OUTPUT
  * \{ */
 
-bNodeSocket *node_group_input_find_socket(bNode *node, const char *identifier)
+bNodeSocket *node_group_input_find_socket(bNode *node, const StringRef identifier)
 {
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    if (STREQ(sock->identifier, identifier)) {
+    if (sock->identifier == identifier) {
       return sock;
     }
   }
@@ -840,7 +840,7 @@ void register_node_type_group_input()
   blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("node type");
   ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
-  blender::bke::node_type_base(ntype, NODE_GROUP_INPUT, NODE_CLASS_INTERFACE);
+  blender::bke::node_type_base(ntype, "NodeGroupInput", NODE_GROUP_INPUT, NODE_CLASS_INTERFACE);
   ntype->ui_name = "Group Input";
   ntype->ui_description =
       "Expose connected data from inside a node group as inputs to its interface";
@@ -852,10 +852,10 @@ void register_node_type_group_input()
   blender::bke::node_register_type(ntype);
 }
 
-bNodeSocket *node_group_output_find_socket(bNode *node, const char *identifier)
+bNodeSocket *node_group_output_find_socket(bNode *node, const StringRef identifier)
 {
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    if (STREQ(sock->identifier, identifier)) {
+    if (sock->identifier == identifier) {
       return sock;
     }
   }
@@ -868,7 +868,7 @@ void register_node_type_group_output()
   blender::bke::bNodeType *ntype = MEM_new<blender::bke::bNodeType>("node type");
   ntype->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
-  blender::bke::node_type_base(ntype, NODE_GROUP_OUTPUT, NODE_CLASS_INTERFACE);
+  blender::bke::node_type_base(ntype, "NodeGroupOutput", NODE_GROUP_OUTPUT, NODE_CLASS_INTERFACE);
   ntype->ui_name = "Group Output";
   ntype->ui_description = "Output data from inside of a node group";
   ntype->enum_name_legacy = "GROUP_OUTPUT";
