@@ -907,7 +907,7 @@ static bke::CurvesGeometry subdivide_last_segement(bke::CurvesGeometry &curves,
   Array<int> use_cuts(curves.points_num(), 0);
   const OffsetIndices points_by_curve = curves.points_by_curve();
 
-  strokes.foreach_index([&](const int curve_i) {
+  strokes.foreach_index(GrainSize(4096), [&](const int curve_i) {
     if (cyclic[curve_i]) {
       const IndexRange points = points_by_curve[curve_i];
       const float end_distance = math::distance(positions[points.first()],
