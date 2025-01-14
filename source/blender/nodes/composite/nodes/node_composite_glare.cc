@@ -2289,6 +2289,7 @@ class GlareOperation : public NodeOperation {
       case CMP_NODE_GLARE_GHOST:
         return 1.0f;
     }
+    return 1.0f;
   }
 
   /* -------
