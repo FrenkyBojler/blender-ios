@@ -5516,7 +5516,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 20)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 21)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       IDProperty *cscene = version_cycles_properties_from_ID(&scene->id);
       if (cscene) {
