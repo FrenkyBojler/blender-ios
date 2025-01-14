@@ -647,9 +647,8 @@ struct Resources : public select::SelectMap {
 
       this->overlay_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_tx));
       this->overlay_line_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_tx));
-      this->overlay_in_front_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_in_front_tx));
-      this->overlay_line_in_front_fb.ensure(
-          GPU_ATTACHMENT_TEXTURE(this->depth_target_in_front_tx));
+      this->overlay_in_front_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_tx));
+      this->overlay_line_in_front_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_target_tx));
     }
     else {
       eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
