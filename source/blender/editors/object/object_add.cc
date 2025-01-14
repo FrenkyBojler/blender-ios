@@ -3200,7 +3200,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   const float stroke_radius = float(thickness) / 1000.0f;
 
   const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
-  Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
   BKE_object_free_derived_caches(newob);
   BKE_object_free_modifiers(newob, 0);
