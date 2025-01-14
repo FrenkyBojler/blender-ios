@@ -3090,7 +3090,7 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
 
 static int mesh_to_grease_pencil_add_material(Main &bmain,
                                               Object &ob_grease_pencil,
-                                              const StringRefNull name,
+                                              const StringRefNull &name,
                                               const std::optional<float4> stroke_color,
                                               const std::optional<float4> fill_color)
 {
@@ -3147,7 +3147,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
 
     drawing_fill->strokes_for_write().resize(fills_points_num, fills_num);
     bke::CurvesGeometry &curves_fill = drawing_fill->strokes_for_write();
-    MutableSpan<float3> point_positions_fill = curves_fill.positions_for_write();
+    MutableSpan<float3> positions_fill = curves_fill.positions_for_write();
     MutableSpan<int> offsets_fill = curves_fill.offsets_for_write();
     MutableSpan<bool> cyclic_fill = curves_fill.cyclic_for_write();
     bke::SpanAttributeWriter<int> stroke_materials_fill =
@@ -3155,7 +3155,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
             "material_index", bke::AttrDomain::Curve);
     curves_fill.fill_curve_types(CURVE_TYPE_POLY);
 
-    array_utils::gather(mesh_positions, corner_verts, point_positions_fill);
+    array_utils::gather(mesh_positions, corner_verts, positions_fill);
     array_utils::copy(faces_span, offsets_fill);
     cyclic_fill.fill(true);
     stroke_materials_fill.span.fill(face_mat_index);
@@ -3167,7 +3167,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
 
   bke::CurvesGeometry &curves = drawing_line->strokes_for_write();
   curves.resize(points_num, edges_num);
-  MutableSpan<float3> point_positions = curves.positions_for_write();
+  MutableSpan<float3> positions = curves.positions_for_write();
   MutableSpan<int> offsets = curves.offsets_for_write();
   MutableSpan<float> radii = curves.radius_for_write();
   curves.fill_curve_types(CURVE_TYPE_POLY);
@@ -3175,8 +3175,8 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   for (const int edge_i : edges.index_range()) {
     const int2 edge = edges[edge_i];
     const int point_i = edge_i * 2;
-    point_positions[point_i] = mesh_positions[edge[0]] + offset * vert_normals[edge[0]];
-    point_positions[point_i + 1] = mesh_positions[edge[1]] + offset * vert_normals[edge[1]];
+    positions[point_i] = mesh_positions[edge[0]] + offset * vert_normals[edge[0]];
+    positions[point_i + 1] = mesh_positions[edge[1]] + offset * vert_normals[edge[1]];
     radii[point_i] = radii[point_i + 1] = stroke_radius;
   }
   radii.fill(stroke_radius);
@@ -3210,7 +3210,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   newob->type = OB_GREASE_PENCIL;
 
   /* Reset `ob->totcol` since currently the generic / grease pencil material functions still
-   * depends on this value being coherent (The same value as `GreasePencil::material_array_num`).
+   * depend on this value being coherent (The same value as `GreasePencil::material_array_num`).
    */
   short *totcol = BKE_object_material_len_p(newob);
   newob->totcol = *totcol;
