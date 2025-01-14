@@ -4,6 +4,8 @@
 
 #include "integrator/render_scheduler.h"
 
+#include "scene/integrator.h"
+
 #include "session/session.h"
 #include "session/tile.h"
 
@@ -71,16 +73,14 @@ void RenderScheduler::set_sample_params(const int num_samples,
                                         const int sample_subset_offset,
                                         const int sample_subset_length)
 {
-  num_samples_ = use_sample_subset ? min(sample_subset_length, num_samples) : num_samples;
-  start_sample_ = use_sample_subset ? sample_subset_offset : 0;
-  sample_subset_offset_ = use_sample_subset ? sample_subset_offset : 0;
-  use_sample_subset_ = use_sample_subset;
-  sample_subset_length_ = sample_subset_length;
-}
+  sample_offset_ = 0;
+  num_samples_ = min(num_samples, Integrator::MAX_SAMPLES);
 
-int RenderScheduler::get_start_sample() const
-{
-  return start_sample_;
+  if (use_sample_subset) {
+    sample_offset_ = sample_subset_offset;
+    num_samples_ = max(
+        min(sample_subset_offset + sample_subset_length, num_samples_) - sample_subset_offset, 0);
+  }
 }
 
 int RenderScheduler::get_num_samples() const
@@ -88,9 +88,9 @@ int RenderScheduler::get_num_samples() const
   return num_samples_;
 }
 
-int RenderScheduler::get_sample_subset_offset() const
+int RenderScheduler::get_sample_offset() const
 {
-  return sample_subset_offset_;
+  return sample_offset_;
 }
 
 void RenderScheduler::set_time_limit(const double time_limit)
@@ -107,7 +107,7 @@ int RenderScheduler::get_rendered_sample() const
 {
   DCHECK_GT(get_num_rendered_samples(), 0);
 
-  return start_sample_ + get_num_rendered_samples() - 1 - sample_subset_offset_;
+  return get_num_rendered_samples() - 1;
 }
 
 int RenderScheduler::get_num_rendered_samples() const
@@ -115,17 +115,11 @@ int RenderScheduler::get_num_rendered_samples() const
   return state_.num_rendered_samples;
 }
 
-void RenderScheduler::reset(const BufferParams &buffer_params,
-                            const int num_samples,
-                            const bool use_sample_subset,
-                            const int sample_subset_offset,
-                            const int sample_subset_length)
+void RenderScheduler::reset(const BufferParams &buffer_params)
 {
   buffer_params_ = buffer_params;
 
   update_start_resolution_divider();
-
-  set_sample_params(num_samples, use_sample_subset, sample_subset_offset, sample_subset_length);
 
   /* In background mode never do lower resolution render preview, as it is not really supported
    * by the software. */
@@ -179,11 +173,7 @@ void RenderScheduler::reset(const BufferParams &buffer_params,
 
 void RenderScheduler::reset_for_next_tile()
 {
-  reset(buffer_params_,
-        num_samples_,
-        use_sample_subset_,
-        sample_subset_offset_,
-        sample_subset_length_);
+  reset(buffer_params_);
 }
 
 bool RenderScheduler::render_work_reschedule_on_converge(RenderWork &render_work)
@@ -344,9 +334,9 @@ RenderWork RenderScheduler::get_render_work()
 
   render_work.path_trace.start_sample = get_start_sample_to_path_trace();
   render_work.path_trace.num_samples = get_num_samples_to_path_trace();
-  render_work.path_trace.sample_subset_offset = get_sample_subset_offset();
+  render_work.path_trace.sample_offset = get_sample_offset();
 
-  render_work.init_render_buffers = (render_work.path_trace.start_sample == get_start_sample());
+  render_work.init_render_buffers = (render_work.path_trace.start_sample == get_sample_offset());
 
   /* NOTE: Rebalance scheduler requires current number of samples to not be advanced forward. */
   render_work.rebalance = work_need_rebalance();
@@ -476,7 +466,7 @@ void RenderScheduler::report_work_begin(const RenderWork &render_work)
    * because it might be wrongly 0. Check for whether path tracing is actually happening as it is
    * expected to happen in the first work. */
   if (render_work.resolution_divider == pixel_size_ && render_work.path_trace.num_samples != 0 &&
-      render_work.path_trace.start_sample == get_start_sample())
+      render_work.path_trace.start_sample == get_sample_offset())
   {
     state_.start_render_time = time_dt();
   }
@@ -802,7 +792,7 @@ int RenderScheduler::calculate_num_samples_per_update() const
 
 int RenderScheduler::get_start_sample_to_path_trace() const
 {
-  return start_sample_ + state_.num_rendered_samples;
+  return sample_offset_ + state_.num_rendered_samples;
 }
 
 /* Round number of samples to the closest power of two.
@@ -856,7 +846,7 @@ int RenderScheduler::get_num_samples_to_path_trace() const
    * more than N samples. */
   const int num_samples_pot = round_num_samples_to_power_of_2(num_samples_per_update);
 
-  const int max_num_samples_to_render = start_sample_ + num_samples_ - path_trace_start_sample;
+  const int max_num_samples_to_render = sample_offset_ + num_samples_ - path_trace_start_sample;
 
   int num_samples_to_render = min(num_samples_pot, max_num_samples_to_render);
 
@@ -934,7 +924,7 @@ int RenderScheduler::get_num_samples_to_path_trace() const
    * is to ensure that the final render is pixel-matched regardless of how many samples per second
    * compute device can do. */
 
-  return adaptive_sampling_.align_samples(path_trace_start_sample - sample_subset_offset_,
+  return adaptive_sampling_.align_samples(path_trace_start_sample - sample_offset_,
                                           num_samples_to_render);
 }
 
@@ -1197,7 +1187,7 @@ bool RenderScheduler::is_denoise_active_during_update() const
 bool RenderScheduler::work_is_usable_for_first_render_estimation(const RenderWork &render_work)
 {
   return render_work.resolution_divider == pixel_size_ &&
-         render_work.path_trace.start_sample == start_sample_;
+         render_work.path_trace.start_sample == sample_offset_;
 }
 
 bool RenderScheduler::work_report_reset_average(const RenderWork &render_work)

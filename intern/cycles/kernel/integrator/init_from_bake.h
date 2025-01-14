@@ -119,7 +119,7 @@ ccl_device bool integrator_init_from_bake(KernelGlobals kg,
 
   /* Always count the sample, even if the camera sample will reject the ray. */
   const int sample = film_write_sample(
-      kg, state, render_buffer, scheduled_sample, tile->sample_subset_offset);
+      kg, state, render_buffer, scheduled_sample, tile->sample_offset);
 
   /* Setup render buffers. */
   ccl_global float *buffer = film_pass_pixel_render_buffer(kg, state, render_buffer);

@@ -334,8 +334,9 @@ RenderWork Session::run_update_for_next_iteration()
   }
 
   if (did_reset) {
-    scene->integrator->set_sample_subset_length(
-        params.use_sample_subset ? min(params.sample_subset_length, params.samples) : 0);
+    scene->integrator->set_use_sample_subset(params.use_sample_subset);
+    scene->integrator->set_sample_subset_offset(params.sample_subset_offset);
+    scene->integrator->set_sample_subset_length(params.sample_subset_length);
   }
 
   /* Update denoiser settings. */
@@ -531,7 +532,7 @@ void Session::do_delayed_reset()
   buffer_params_ = delayed_reset_.buffer_params;
 
   /* Store parameters used for buffers access outside of scene graph. */
-  buffer_params_.samples = params.samples;
+  buffer_params_.samples = min(params.samples, Integrator::MAX_SAMPLES);
   buffer_params_.exposure = scene->film->get_exposure();
   buffer_params_.use_approximate_shadow_catcher =
       scene->film->get_use_approximate_shadow_catcher();
@@ -539,11 +540,11 @@ void Session::do_delayed_reset()
 
   /* Tile and work scheduling. */
   tile_manager_.reset_scheduling(buffer_params_, get_effective_tile_size());
-  render_scheduler_.reset(buffer_params_,
-                          params.samples,
-                          params.use_sample_subset,
-                          params.sample_subset_offset,
-                          params.sample_subset_length);
+  render_scheduler_.set_sample_params(params.samples,
+                                      params.use_sample_subset,
+                                      params.sample_subset_offset,
+                                      params.sample_subset_length);
+  render_scheduler_.reset(buffer_params_);
 
   /* Passes. */
   /* When multiple tiles are used SAMPLE_COUNT pass is used to keep track of possible partial
@@ -565,7 +566,7 @@ void Session::do_delayed_reset()
   /* Progress. */
   progress.reset_sample();
   progress.set_total_pixel_samples(static_cast<uint64_t>(buffer_params_.width) *
-                                   buffer_params_.height * params.samples);
+                                   buffer_params_.height * buffer_params_.samples);
 
   if (!params.background) {
     progress.set_start_time();

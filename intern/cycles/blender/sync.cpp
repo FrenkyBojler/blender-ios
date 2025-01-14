@@ -949,12 +949,6 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine &b_engine,
     params.sample_subset_length = 0;
   }
 
-  /* Clamp sample offset. */
-  params.sample_subset_offset = clamp(params.sample_subset_offset, 0, Integrator::MAX_SAMPLES);
-
-  /* Clamp samples. */
-  params.samples = clamp(params.samples, 0, Integrator::MAX_SAMPLES - params.sample_subset_offset);
-
   /* Viewport Performance */
   params.pixel_size = b_engine.get_preview_pixel_size(b_scene);
 

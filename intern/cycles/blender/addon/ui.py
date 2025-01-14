@@ -465,7 +465,7 @@ class CYCLES_RENDER_PT_sampling_advanced_sample_subset(CyclesButtonsPanel, Panel
         scene = context.scene
         cscene = scene.cycles
 
-        self.layout.prop(context.scene.cycles, "use_sample_subset", text="")
+        self.layout.prop(cscene, "use_sample_subset", text="")
 
     def draw(self, context):
         layout = self.layout

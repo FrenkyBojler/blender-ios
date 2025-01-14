@@ -29,7 +29,7 @@ class RenderWork {
   struct {
     int start_sample = 0;
     int num_samples = 0;
-    int sample_subset_offset = 0;
+    int sample_offset = 0;
   } path_trace;
 
   struct {
@@ -128,19 +128,14 @@ class RenderScheduler {
                          const int sample_subset_offset,
                          const int sample_subset_length);
 
-  /* Start sample for path tracing.
-   * The scheduler will schedule work using this sample as the first one. */
-  int get_start_sample() const;
-
   /* Number of samples to render, starting from start sample.
    * The scheduler will schedule work in the range of
    * [start_sample, start_sample + num_samples - 1], inclusively. */
   int get_num_samples() const;
 
-  /* Get 0-based sample index to start sampling from for subset rendering.
-   * When the subset rendering is not used returns 0. Otherwise returns the
-   * currently configured subset offset. */
-  int get_sample_subset_offset() const;
+  /* For sample subset rendering, extra offset to be added to sample index
+   * for the sampling pattern to be shifted. */
+  int get_sample_offset() const;
 
   /* Time limit for the path tracing tasks, in minutes.
    * Zero disables the limit. */
@@ -167,11 +162,7 @@ class RenderScheduler {
 
   /* Reset scheduler, indicating that rendering will happen from scratch.
    * Resets current rendered state, as well as scheduling information. */
-  void reset(const BufferParams &buffer_params,
-             const int num_samples,
-             const bool use_sample_subset,
-             const int sample_subset_offset,
-             const int sample_subset_length);
+  void reset(const BufferParams &buffer_params);
 
   /* Reset scheduler upon switching to a next tile.
    * Will keep the same number of samples and full-frame render parameters, but will reset progress
@@ -455,13 +446,9 @@ class RenderScheduler {
   bool need_schedule_rebalance_works_ = false;
 
   /* Path tracing work will be scheduled for samples from within
-   * [start_sample_, start_sample_ + num_samples_ - 1] range, inclusively. */
-  int start_sample_ = 0;
+   * [sample_offset_, sample_offset_ + num_samples_ - 1] range, inclusively. */
+  int sample_offset_ = 0;
   int num_samples_ = 0;
-
-  bool use_sample_subset_ = false;
-  int sample_subset_offset_ = 0;
-  int sample_subset_length_ = 0;
 
   /* Limit in seconds for how long path tracing is allowed to happen.
    * Zero means no limit is applied. */

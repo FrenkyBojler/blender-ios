@@ -5522,6 +5522,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       if (cscene) {
         if (version_cycles_property_int(cscene, "sample_offset", 0) > 0) {
           version_cycles_property_boolean_set(cscene, "use_sample_subset", true);
+          version_cycles_property_int_set(cscene, "sample_subset_length", (1 << 24));
         }
       }
     }

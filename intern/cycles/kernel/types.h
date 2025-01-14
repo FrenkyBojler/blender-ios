@@ -1774,7 +1774,7 @@ struct KernelWorkTile {
 
   uint start_sample;
   uint num_samples;
-  uint sample_subset_offset;
+  uint sample_offset;
 
   int offset;
   uint stride;

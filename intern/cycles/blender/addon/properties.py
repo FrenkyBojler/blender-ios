@@ -489,7 +489,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
 
     use_sample_subset: BoolProperty(
-        name="Sampling Subset",
+        name="Use Sample Subset",
         description="Render a subset of the specified max samples. Typically used for distributed rendering across multiple devices",
         default=False,
     )

@@ -33,7 +33,7 @@ class WorkTileScheduler {
   void reset(const BufferParams &buffer_params,
              const int sample_start,
              const int samples_num,
-             const int sample_subset_offset,
+             const int sample_offset,
              float scrambling_distance);
 
   /* Get work for a device.
@@ -75,7 +75,7 @@ class WorkTileScheduler {
    * (splitting into a smaller work tiles). */
   int sample_start_ = 0;
   int samples_num_ = 0;
-  int sample_subset_offset_ = 0;
+  int sample_offset_ = 0;
 
   /* Tile size which be scheduled for rendering. */
   TileSize tile_size_;
