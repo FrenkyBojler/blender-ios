@@ -92,7 +92,8 @@ class Cameras : Overlay {
   float4x4 depth_bias_winmat_;
 
  public:
-  Cameras(const SelectionType selection_type) : call_buffers_{selection_type} {};
+  Cameras(const SelectionType selection_type, bool in_front)
+      : Overlay(in_front), call_buffers_{selection_type} {};
 
   void begin_sync(Resources &res, const State &state) final
   {
@@ -125,7 +126,7 @@ class Cameras : Overlay {
         pass.shader_set(res.shaders.image_plane_depth_bias.get());
         pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
         pass.push_constant("depth_bias_winmat", &depth_bias_winmat_);
-        res.select_bind(pass);
+        res.select_bind(pass, in_front_);
       };
 
       DRWState draw_state;
@@ -167,7 +168,7 @@ class Cameras : Overlay {
 
     ps_.init();
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(ps_);
+    res.select_bind(ps_, in_front_);
 
     {
       PassSimple::Sub &sub_pass = ps_.sub("volume");

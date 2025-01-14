@@ -31,7 +31,8 @@ class Axes : Overlay {
   EmptyInstanceBuf xform_origins_buf = {selection_type_, "xform_origins"};
 
  public:
-  Axes(const SelectionType selection_type) : selection_type_{selection_type} {};
+  Axes(const SelectionType selection_type, bool in_front)
+      : Overlay(in_front), selection_type_{selection_type} {};
 
   void begin_sync(Resources & /*res*/, const State &state) final
   {
@@ -84,7 +85,7 @@ class Axes : Overlay {
     ps_.state_set(state_common | DRW_STATE_DEPTH_LESS_EQUAL, state.clipping_plane_count);
     ps_.shader_set(res.shaders.extra_shape.get());
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(ps_);
+    res.select_bind(ps_, in_front_);
 
     axes_buf.end_sync(ps_, res.shapes.arrows.get());
 

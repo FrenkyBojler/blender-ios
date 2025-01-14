@@ -34,7 +34,10 @@ class EditText : Overlay {
   gpu::Batch *quad = nullptr;
 
  public:
-  EditText(SelectionType selection_type) : box_line_buf_(selection_type, "box_line_buf_") {}
+  EditText(const SelectionType selection_type, bool in_front)
+      : Overlay(in_front), box_line_buf_(selection_type, "box_line_buf_")
+  {
+  }
 
   void begin_sync(Resources &res, const State &state) final
   {
@@ -49,7 +52,7 @@ class EditText : Overlay {
 
     ps_.init();
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(ps_);
+    res.select_bind(ps_, in_front_);
     {
       DRWState default_state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA;
       float4 color;

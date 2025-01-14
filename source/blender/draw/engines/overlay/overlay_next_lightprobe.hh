@@ -43,7 +43,8 @@ class LightProbes : Overlay {
   } call_buffers_{selection_type_};
 
  public:
-  LightProbes(const SelectionType selection_type) : selection_type_(selection_type){};
+  LightProbes(const SelectionType selection_type, bool in_front)
+      : Overlay(in_front), selection_type_(selection_type){};
 
   void begin_sync(Resources &res, const State &state) final
   {
@@ -67,7 +68,7 @@ class LightProbes : Overlay {
     ps_dots_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     ps_dots_.bind_texture("depthBuffer", &res.depth_tx);
     ps_dots_.push_constant("isTransform", (G.moving & G_TRANSFORM_OBJ) != 0);
-    res.select_bind(ps_dots_);
+    res.select_bind(ps_dots_, in_front_);
   }
 
   void object_sync(Manager & /*manager*/,
@@ -193,7 +194,7 @@ class LightProbes : Overlay {
 
     ps_.init();
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(ps_);
+    res.select_bind(ps_, in_front_);
 
     DRWState pass_state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |
                           DRW_STATE_DEPTH_LESS_EQUAL;

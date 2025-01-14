@@ -77,36 +77,37 @@ class Instance {
 
   struct OverlayLayer {
     const SelectionType selection_type_;
-    Armatures armatures = {selection_type_};
+    const bool in_front_;
+    Armatures armatures = {selection_type_, in_front_};
     AttributeViewer attribute_viewer;
     AttributeTexts attribute_texts;
-    Axes axes = {selection_type_};
-    Bounds bounds = {selection_type_};
-    Cameras cameras = {selection_type_};
+    Axes axes = {selection_type_, in_front_};
+    Bounds bounds = {selection_type_, in_front_};
+    Cameras cameras = {selection_type_, in_front_};
     Curves curves;
-    EditText edit_text = {selection_type_};
-    Empties empties = {selection_type_};
+    EditText edit_text = {selection_type_, in_front_};
+    Empties empties = {selection_type_, in_front_};
     Facing facing;
     Fade fade;
-    Fluids fluids = {selection_type_};
-    ForceFields force_fields = {selection_type_};
+    Fluids fluids = {selection_type_, in_front_};
+    ForceFields force_fields = {selection_type_, in_front_};
     GreasePencil grease_pencil;
     Lattices lattices;
-    Lights lights = {selection_type_};
-    LightProbes light_probes = {selection_type_};
+    Lights lights = {selection_type_, in_front_};
+    LightProbes light_probes = {selection_type_, in_front_};
     Meshes meshes;
     MeshUVs mesh_uvs;
-    Metaballs metaballs = {selection_type_};
+    Metaballs metaballs = {selection_type_, in_front_};
     ModeTransfer mode_transfer;
     Names names;
     Paints paints;
     Particles particles;
     Prepass prepass;
-    Relations relations = {selection_type_};
+    Relations relations = {selection_type_, in_front_};
     Sculpts sculpts;
-    Speakers speakers = {selection_type_};
+    Speakers speakers = {selection_type_, in_front_};
     Wireframe wireframe;
-  } regular{selection_type_}, infront{selection_type_};
+  } regular{selection_type_, false}, infront{selection_type_, true};
 
   Grid grid;
 

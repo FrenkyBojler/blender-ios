@@ -76,7 +76,7 @@ class Wireframe : Overlay {
       pass.state_set(DRW_STATE_FIRST_VERTEX_CONVENTION | DRW_STATE_WRITE_COLOR |
                          DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
-      res.select_bind(pass);
+      res.select_bind(pass, in_front_);
 
       auto shader_pass =
           [&](GPUShader *shader, const char *name, bool use_coloring, float wire_threshold) {

@@ -28,6 +28,11 @@ struct Overlay {
    */
   bool enabled_ = false;
 
+  const bool in_front_ = false;
+
+  Overlay() = default;
+  Overlay(bool in_front) : in_front_(in_front){};
+
   /**
    * Synchronization creates and fill render passes based on context state and scene state.
    *

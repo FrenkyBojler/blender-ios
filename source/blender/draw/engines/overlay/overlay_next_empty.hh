@@ -53,7 +53,8 @@ class Empties : Overlay {
   float4x4 depth_bias_winmat_;
 
  public:
-  Empties(const SelectionType selection_type) : call_buffers_{selection_type} {};
+  Empties(const SelectionType selection_type, bool in_front)
+      : Overlay(in_front), call_buffers_{selection_type} {};
 
   void begin_sync(Resources &res, const State &state) final
   {
@@ -71,14 +72,14 @@ class Empties : Overlay {
       pass.shader_set(res.shaders.image_plane_depth_bias.get());
       pass.push_constant("depth_bias_winmat", &depth_bias_winmat_);
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-      res.select_bind(pass);
+      res.select_bind(pass, in_front_);
     };
 
     auto init_sortable = [&](PassSortable &pass, DRWState draw_state) {
       pass.init();
       PassMain::Sub &sub = pass.sub("ResourceBind", -FLT_MAX);
       sub.state_set(draw_state, state.clipping_plane_count);
-      res.select_bind(pass, sub);
+      res.select_bind(pass, sub, in_front_);
     };
 
     DRWState draw_state;
@@ -172,7 +173,7 @@ class Empties : Overlay {
     }
 
     ps_.init();
-    res.select_bind(ps_);
+    res.select_bind(ps_, in_front_);
     end_sync(res, state, ps_, call_buffers_);
   }
 

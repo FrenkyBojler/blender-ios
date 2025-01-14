@@ -157,7 +157,7 @@ struct SelectMap {
   }
 
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassSimple &pass)
+  void select_bind(PassSimple &pass, bool in_front)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
@@ -170,7 +170,7 @@ struct SelectMap {
   }
 
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassMain &pass)
+  void select_bind(PassMain &pass, bool in_front)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
@@ -187,7 +187,7 @@ struct SelectMap {
 
   /* TODO: Deduplicate. */
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassMain &pass, PassMain::Sub &sub)
+  void select_bind(PassMain &pass, PassMain::Sub &sub, bool in_front)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
