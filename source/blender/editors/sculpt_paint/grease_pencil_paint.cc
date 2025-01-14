@@ -1054,10 +1054,10 @@ bool PaintOperation::update_stroke_depth_placement(const bContext &C, const Inpu
     const float3 origin = *new_stroke_placement_loc;
     const float3 direction = (*last_stroke_placement_loc_) - origin;
     /* Chose x or y axis of the view matrix for the largest cross product. */
-    const float3 up_axis = (math::abs(math::dot(direction, float3(rv3d.viewmat[0]))) >
-                                    math::abs(math::dot(direction, float3(rv3d.viewmat[1]))) ?
-                                rv3d.viewmat[1] :
-                                rv3d.viewmat[0]);
+    const float3 up_axis = (math::abs(math::dot(direction, float3(rv3d.viewinv[0]))) >
+                                    math::abs(math::dot(direction, float3(rv3d.viewinv[1]))) ?
+                                rv3d.viewinv[1] :
+                                rv3d.viewinv[0]);
     const float3 normal = math::normalize(math::cross(up_axis, direction));
     placement_.set_stroke_projection_plane(origin, normal);
   };
