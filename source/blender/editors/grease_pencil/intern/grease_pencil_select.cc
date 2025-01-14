@@ -10,6 +10,7 @@
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_object.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_offset_indices.hh"
@@ -848,11 +849,25 @@ static void GREASE_PENCIL_OT_select_ends(wmOperatorType *ot)
               INT32_MAX);
 }
 
-bool ensure_selection_domain(ToolSettings *ts, Object *object, const std::optional<int> new_mode)
+bool ensure_selection_domain(ToolSettings *ts,
+                             Object *object,
+                             const std::optional<int> new_selection_mode)
 {
-  bool changed = (new_mode.has_value() && new_mode.value() != ts->gpencil_selectmode_edit);
-  if (new_mode.has_value()) {
-    ts->gpencil_selectmode_edit = new_mode.value();
+  bool changed = false;
+  if (new_selection_mode.has_value()) {
+    const int new_mode = new_selection_mode.value();
+    if (BKE_object_is_mode_compat(object, OB_MODE_EDIT)) {
+      changed = (new_mode != ts->gpencil_selectmode_edit);
+      ts->gpencil_selectmode_edit = new_mode;
+    }
+    else if (BKE_object_is_mode_compat(object, OB_MODE_SCULPT_GREASE_PENCIL)) {
+      changed = (new_mode != ts->gpencil_selectmode_sculpt);
+      ts->gpencil_selectmode_sculpt = new_mode;
+    }
+    else if (BKE_object_is_mode_compat(object, OB_MODE_VERTEX_GREASE_PENCIL)) {
+      changed = (new_mode != ts->gpencil_selectmode_vertex);
+      ts->gpencil_selectmode_vertex = new_mode;
+    }
   }
 
   /* Convert all drawings of the active GP to the new selection domain. */
