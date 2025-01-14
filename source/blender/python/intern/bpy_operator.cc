@@ -575,7 +575,7 @@ static bool bpy_op_callback_get_return_value(PyObject *callback, PyObject *py_re
 {
   bool ret = true;
   if (py_ret == nullptr) {
-    // Do not interrump on error
+    /* Do not interrump on error. */
     PyC_Err_PrintWithFunc(callback);
   }
   else {
@@ -650,21 +650,21 @@ static bool bpy_op_handler_poll(bContext *C,
                                 PointerRNA *properties)
 {
   bool ret = true;
-  // Python Global Interperter Lock
+  /* Python Global Interperter Lock. */
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
   {
     PyObject *callback_args = PyTuple_GET_ITEM(py_data, 3);
     PyObject *py_poll = PyTuple_GET_ITEM(py_data, 4);
 
-    // Properties get null on modall poll, params are not bypassed to Py poll function
+    /* Properties get null on modall poll, params are not bypassed to Py poll function. */
     PyObject *params = (properties == nullptr) ? Py_None : bpy_op_get_operator_params(properties);
     if (py_poll != Py_None) {
       PyObject *py_ret = bpy_op_get_callback_call(
           py_poll, C, event, nullptr, params, callback_args);
 
       if (py_ret == nullptr) {
-        // Error
+        /* Error. */
         PyErr_Print();
         return false;
       }
@@ -696,7 +696,7 @@ static bool bpy_op_handler_modal(bContext *C,
                                  int operator_ret)
 {
   bool ret = true;
-  // Python Global Interperter Lock
+  /* Python Global Interperter Lock. */
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
   {
@@ -714,7 +714,7 @@ static bool bpy_op_handler_invoke(
     bContext *C, const wmEvent *event, void *py_data, PointerRNA *properties, int operator_ret)
 {
   bool ret = true;
-  // Python Global Interperter Lock
+  /* Python Global Interperter Lock. */
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
   {
@@ -734,7 +734,8 @@ static PyObject *bpy_op_handler_proc(PyObject *args, PyObject *kw)
   const char *error_prefix = "op_handler_proc";
 
   PyObject *py_op = nullptr;
-  PyObject *py_owner = nullptr;  // Object who creates the handler
+  /* Object who creates the handler. */
+  PyObject *py_owner = nullptr;
   PyObject *callback = nullptr, *py_poll = nullptr;
   PyObject *callback_args = nullptr;
 
@@ -742,7 +743,7 @@ static PyObject *bpy_op_handler_proc(PyObject *args, PyObject *kw)
     PyErr_Format(PyExc_TypeError, "%s: only keyword arguments are supported", error_prefix);
   }
 
-  // see https://docs.python.org/3/c-api/arg.html
+  /* See https://docs.python.org/3/c-api/arg.html */
   static const char *_keywords[] = {"owner", "op", "cb", "args", "poll", nullptr};
   static _PyArg_Parser _parser = {"OOOOO|:handler_proc", _keywords, 0};
 
@@ -753,13 +754,13 @@ static PyObject *bpy_op_handler_proc(PyObject *args, PyObject *kw)
   }
 
   if (callback != Py_None && !PyFunction_Check(callback)) {
-    // Callback may be none on remove
+    /* Callback may be none on remove */
     PyErr_Format(
         PyExc_TypeError, "callback expects a function, found %.200s", Py_TYPE(callback)->tp_name);
   }
 
   if (py_poll != Py_None && !PyFunction_Check(py_poll)) {
-    // Callback may be none on remove
+    /* Callback may be none on remove. */
     PyErr_Format(
         PyExc_TypeError, "poll expects a function, found %.200s", Py_TYPE(callback)->tp_name);
   }

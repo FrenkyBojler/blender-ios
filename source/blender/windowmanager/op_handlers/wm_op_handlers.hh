@@ -33,7 +33,7 @@ typedef struct wmOpHandlerData {
 } wmOpHandlerData;
 
 struct wmOpHandlers {
-  // Map Key matches wmOpHandlerData::id_name
+  /* Map Key matches wmOpHandlerData::id_name. */
   std::map<std::string, wmOpHandlerData> handlers;
 };
 

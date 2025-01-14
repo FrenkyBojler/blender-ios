@@ -1578,7 +1578,7 @@ static int wm_operator_invoke(bContext *C,
     return WM_operator_poll(C, ot);
   }
 
-  // Ensure any change is processed by poll
+  /* Ensure any change is processed by poll. */
   if (WM_op_handlers_operator_pre_invoke(C, event, CTX_wm_op_handlers(C), ot, properties) == false)
   {
     return OPERATOR_FINISHED;
@@ -2589,7 +2589,7 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
       }
 
       if ((WM_get_op_handlers(CTX_wm_op_handlers(C), ot->idname) != nullptr) && !ot->poll(C)) {
-        // Py Handler, changing poll conditions
+        /* Py Handler, changing poll conditions. */
         retval = OPERATOR_CANCELLED;
       }
       else {

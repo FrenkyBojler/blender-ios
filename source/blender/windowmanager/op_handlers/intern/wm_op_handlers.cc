@@ -25,26 +25,11 @@
 /** \name Public API
  * \{ */
 
-// Avoid Wmissing-declarations
-bool WM_op_handlers_operator_exec(bContext *C,
-                                  const wmEvent *event,
-                                  blender::Vector<wmHandlerData> &list,
-                                  wmOperatorType *ot,
-                                  PointerRNA *properties,
-                                  int retval);
-
-// Avoid Wmissing-declarations
-int WM_op_handlers_remove_all(wmOpHandlers *op_handlers, void *cb, void *owner);
-
-// Avoid Wmissing-declarations
-blender::Vector<wmHandlerData> &WM_op_handlers_get_handler_list(wmOpHandlerData *opHandlers,
-                                                                int id);
-
 wmOpHandlers *WM_op_handlers_create(void)
 {
   std::map<std::string, wmOpHandlerData> op_handlers_data;
   wmOpHandlers *op_handlers = (wmOpHandlers *)MEM_callocN(sizeof(wmOpHandlers), __func__);
-  // std::map need to be constructed
+  /* std::map needs to be constructed. */
   op_handlers->handlers = std::move(op_handlers_data);
   return op_handlers;
 }
@@ -77,7 +62,7 @@ blender::Vector<wmHandlerData> &WM_op_handlers_get_handler_list(wmOpHandlerData 
     default:
       BLI_assert(false);
   }
-  // Should never get here
+  /* Should never get here. */
   return op_handler_data->pre_invoke;
 }
 
@@ -101,7 +86,7 @@ void WM_op_handlers_append(
   wmHandlerData data;
 
   if (op_handler_data == nullptr) {
-    // Create
+    /* Create. */
     wmOpHandlerData new_data = {0};
     op_handler_data = &(op_handlers->handlers[op_name] = std::move(new_data));
     BLI_strncpy(op_handler_data->id_name, op_name, OP_MAX_TYPENAME);
@@ -169,7 +154,7 @@ bool WM_op_handlers_operator_exec(bContext *C,
   return ret;
 }
 
-// Previous to invoke
+/* Previous to invoke. */
 bool WM_op_handlers_operator_pre_invoke(bContext *C,
                                         const wmEvent *event,
                                         wmOpHandlers *op_handlers,
@@ -192,7 +177,7 @@ bool WM_op_handlers_operator_pre_invoke(bContext *C,
   return ret;
 }
 
-// Post To invoke
+/* Post To invoke. */
 void WM_op_handlers_operator_post_invoke(bContext *C,
                                          const wmEvent *event,
                                          wmOpHandlers *op_handlers,
