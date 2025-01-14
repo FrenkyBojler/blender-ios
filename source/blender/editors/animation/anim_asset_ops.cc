@@ -396,6 +396,8 @@ void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
   RNA_def_property_string_search_func_runtime(
       prop, visit_library_prop_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
 
+  /* This property is just kept to have backwards compatibility and has no functionality. It should
+   * be removed in the 5.0 release. */
   prop = RNA_def_boolean(ot->srna,
                          "activate_new_action",
                          false,
