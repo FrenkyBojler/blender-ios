@@ -969,7 +969,7 @@ static void do_version_glare_node_options_to_inputs(const Scene *scene,
 
   /* Get the newly added inputs. */
   bNodeSocket *threshold = version_node_add_socket_if_not_exist(
-      node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Threshold", "Threshold");
+      node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Highlights Threshold", "Threshold");
   bNodeSocket *strength = version_node_add_socket_if_not_exist(
       node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Strength", "Strength");
   bNodeSocket *size = version_node_add_socket_if_not_exist(
@@ -1375,6 +1375,11 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 19)) {
     /* Two new inputs were added, Saturation and Tint. */
     version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 3, 2, 11);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 20)) {
+    /* Two new inputs were added, Highlights Smoothness and Highlights suppression. */
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 2, 2, 13);
   }
 
   /**
