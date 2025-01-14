@@ -70,8 +70,6 @@ class Prepass : Overlay {
   bool use_material_slot_selection_ = false;
 
  public:
-  Prepass(bool in_front) : Overlay(in_front){};
-
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_v3d() && !state.xray_enabled;
@@ -95,7 +93,7 @@ class Prepass : Overlay {
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     ps_.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | backface_cull_state,
                   state.clipping_plane_count);
-    res.select_bind(ps_, in_front_);
+    res.select_bind(ps_);
     {
       auto &sub = ps_.sub("Mesh");
       sub.shader_set(res.is_selection() ? res.shaders.depth_mesh_conservative.get() :

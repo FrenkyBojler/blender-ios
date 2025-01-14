@@ -26,8 +26,6 @@ class Facing : Overlay {
   PassMain ps_ = {"Facing"};
 
  public:
-  Facing(bool in_front) : Overlay(in_front){};
-
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.v3d && state.show_face_orientation() && !state.xray_enabled &&

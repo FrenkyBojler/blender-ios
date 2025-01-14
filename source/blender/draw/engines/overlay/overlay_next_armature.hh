@@ -140,8 +140,7 @@ class Armatures : Overlay {
   BoneBuffers transparent_ = {selection_type_};
 
  public:
-  Armatures(const SelectionType selection_type, bool in_front)
-      : Overlay(in_front), selection_type_(selection_type){};
+  Armatures(const SelectionType selection_type) : selection_type_(selection_type){};
 
   void begin_sync(Resources &res, const State &state) final
   {
@@ -164,7 +163,7 @@ class Armatures : Overlay {
 
     armature_ps_.init();
     armature_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(armature_ps_, in_front_);
+    res.select_bind(armature_ps_);
 
     /* Envelope distances and degrees of freedom need to be drawn first as they use additive
      * transparent blending. */

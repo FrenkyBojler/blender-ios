@@ -37,8 +37,7 @@ class Fluids : Overlay {
   int dominant_axis = -1;
 
  public:
-  Fluids(const SelectionType selection_type, bool in_front)
-      : Overlay(in_front), selection_type_(selection_type){};
+  Fluids(const SelectionType selection_type) : selection_type_(selection_type){};
 
   void begin_sync(Resources &res, const State &state) final
   {
@@ -51,7 +50,7 @@ class Fluids : Overlay {
       pass.init();
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
-      res.select_bind(pass, in_front_);
+      res.select_bind(pass);
 
       /* TODO(fclem): Use either specialization constants or push constants to reduce the amount of
        * shader variants. */

@@ -41,10 +41,7 @@ class ForceFields : Overlay {
   } call_buffers_;
 
  public:
-  ForceFields(const SelectionType selection_type, bool in_front)
-      : Overlay(in_front), call_buffers_{selection_type}
-  {
-  }
+  ForceFields(const SelectionType selection_type) : call_buffers_{selection_type} {}
 
   void begin_sync(Resources & /*res*/, const State & /*state*/) final
   {
@@ -157,7 +154,7 @@ class ForceFields : Overlay {
   void end_sync(Resources &res, const State &state) final
   {
     ps_.init();
-    res.select_bind(ps_, in_front_);
+    res.select_bind(ps_);
     ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                   state.clipping_plane_count);
     ps_.shader_set(res.shaders.extra_shape.get());

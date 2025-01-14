@@ -37,8 +37,7 @@ class Lights : Overlay {
   } call_buffers_{selection_type_};
 
  public:
-  Lights(const SelectionType selection_type, bool in_front)
-      : Overlay(in_front), selection_type_(selection_type){};
+  Lights(const SelectionType selection_type) : selection_type_(selection_type){};
 
   void begin_sync(Resources & /*res*/, const State &state) final
   {
@@ -164,7 +163,7 @@ class Lights : Overlay {
                                 DRW_STATE_DEPTH_LESS_EQUAL;
     ps_.init();
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(ps_, in_front_);
+    res.select_bind(ps_);
 
     {
       PassSimple::Sub &sub_pass = ps_.sub("spot_cone_front");

@@ -90,6 +90,7 @@ struct SelectMap {
 
   /** Mapping between internal IDs and `object->runtime->select_id`. */
   Vector<uint> select_id_map;
+  Vector<bool> in_front_map;
 #ifndef NDEBUG
   /** Debug map containing a copy of the object name. */
   Vector<std::string> map_names;
@@ -99,8 +100,7 @@ struct SelectMap {
   /** Dummy buffer. Might be better to remove, but simplify the shader create info patching. */
   StorageArrayBuffer<uint, 4, true> dummy_select_buf = {"dummy_select_buf"};
   /** Uniform buffer to bind to all passes to pass information about the selection state. */
-  UniformBuffer<SelectInfoData> info_buf = {"info_buf"};
-  UniformBuffer<SelectInfoData> info_in_front_buf = {"info_in_front_buf"};
+  UniformBuffer<SelectInfoData> info_buf;
 
   SelectMap(const SelectionType selection_type) : selection_type(selection_type){};
 
@@ -120,6 +120,7 @@ struct SelectMap {
 
     uint object_id = ob_ref.object->runtime->select_id;
     uint id = select_id_map.append_and_get_index(object_id | sub_object_id);
+    in_front_map.append(ob_ref.object->dtx & OB_DRAW_IN_FRONT);
 
 #ifdef DEBUG_PRINT
     /* Print mapping from object name, select id and the mapping to internal select id.
@@ -152,43 +153,36 @@ struct SelectMap {
     }
 
     select_id_map.clear();
+    in_front_map.clear();
 #ifndef NDEBUG
     map_names.clear();
 #endif
   }
 
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassSimple &pass, bool in_front)
+  void select_bind(PassSimple &pass)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
-    }
-
-    if (in_front) {
-      printf("In Front\n");
     }
 
     /* TODO: clipping state. */
     pass.state_set(DRW_STATE_WRITE_COLOR);
-    pass.bind_ubo(SELECT_DATA, in_front ? &info_in_front_buf : &info_buf);
+    pass.bind_ubo(SELECT_DATA, &info_buf);
     pass.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
   }
 
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassMain &pass, bool in_front)
+  void select_bind(PassMain &pass)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
-    }
-
-    if (in_front) {
-      printf("In Front\n");
     }
 
     pass.use_custom_ids = true;
     /* TODO: clipping state. */
     pass.state_set(DRW_STATE_WRITE_COLOR);
-    pass.bind_ubo(SELECT_DATA, in_front ? &info_in_front_buf : &info_buf);
+    pass.bind_ubo(SELECT_DATA, &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     pass.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
     pass.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
@@ -196,20 +190,16 @@ struct SelectMap {
 
   /* TODO: Deduplicate. */
   /** IMPORTANT: Changes the draw state. Need to be called after the pass's own state_set. */
-  void select_bind(PassMain &pass, PassMain::Sub &sub, bool in_front)
+  void select_bind(PassMain &pass, PassMain::Sub &sub)
   {
     if (selection_type == SelectionType::DISABLED) {
       return;
     }
 
-    if (in_front) {
-      printf("In Front\n");
-    }
-
     pass.use_custom_ids = true;
     /* TODO: clipping state. */
     sub.state_set(DRW_STATE_WRITE_COLOR);
-    sub.bind_ubo(SELECT_DATA, in_front ? &info_in_front_buf : &info_buf);
+    sub.bind_ubo(SELECT_DATA, &info_buf);
     /* IMPORTANT: This binds a dummy buffer `in_select_buf` but it is not supposed to be used. */
     sub.bind_ssbo(SELECT_ID_IN, &dummy_select_buf);
     sub.bind_ssbo(SELECT_ID_OUT, &select_output_buf);
@@ -220,6 +210,8 @@ struct SelectMap {
     if (selection_type == SelectionType::DISABLED) {
       return;
     }
+
+    BLI_assert(select_id_map.size() == in_front_map.size());
 
     select_output_buf.resize(max_uu(ceil_to_multiple_u(select_id_map.size(), 4), 4));
     select_output_buf.push_update();
@@ -257,13 +249,7 @@ struct SelectMap {
         GPU_storagebuf_clear(select_output_buf, 0xFFFFFFFFu);
         break;
     }
-    info_buf.in_front = false;
     info_buf.push_update();
-
-    info_in_front_buf.mode = info_buf.mode;
-    info_in_front_buf.cursor = info_buf.cursor;
-    info_in_front_buf.in_front = true;
-    info_in_front_buf.push_update();
   }
 
   void read_result()
@@ -299,6 +285,12 @@ struct SelectMap {
             GPUSelectResult hit_result{};
             hit_result.id = select_id_map[i];
             hit_result.depth = select_output_buf[i];
+            if (!in_front_map[i]) {
+              /* Offset regular objects, so "In Front" objects go first. */
+              /* TODO(Miguel Pozo): This breaks code using depth for position reconstruction. */
+              float offset_depth = *reinterpret_cast<float *>(&hit_result.depth) + 1.0f;
+              hit_result.depth = *reinterpret_cast<uint32_t *>(&offset_depth);
+            }
             hit_results.append(hit_result);
           }
         }

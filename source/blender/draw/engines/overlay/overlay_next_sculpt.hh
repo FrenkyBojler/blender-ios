@@ -44,8 +44,6 @@ class Sculpts : Overlay {
   bool show_mask_ = false;
 
  public:
-  Sculpts(bool in_front) : Overlay(in_front){};
-
   void begin_sync(Resources &res, const State &state) final
   {
     show_curves_cage_ = state.show_sculpt_curves_cage();

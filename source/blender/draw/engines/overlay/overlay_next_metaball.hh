@@ -29,8 +29,7 @@ class Metaballs : Overlay {
   SphereOutlineInstanceBuf circle_buf_ = {selection_type_, "metaball_data_buf"};
 
  public:
-  Metaballs(const SelectionType selection_type, bool in_front)
-      : Overlay(in_front), selection_type_(selection_type){};
+  Metaballs(const SelectionType selection_type) : selection_type_(selection_type){};
 
   void begin_sync(Resources & /*res*/, const State & /*state*/) final
   {
@@ -96,7 +95,7 @@ class Metaballs : Overlay {
      * just a circle facing the camera. */
     ps_.shader_set(res.shaders.armature_sphere_outline.get());
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(ps_, in_front_);
+    res.select_bind(ps_);
 
     circle_buf_.end_sync(ps_, res.shapes.metaball_wire_circle.get());
   }

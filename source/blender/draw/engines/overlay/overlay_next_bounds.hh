@@ -48,10 +48,7 @@ class Bounds : Overlay {
   } call_buffers_;
 
  public:
-  Bounds(const SelectionType selection_type, bool in_front)
-      : Overlay(in_front), call_buffers_{selection_type}
-  {
-  }
+  Bounds(const SelectionType selection_type) : call_buffers_{selection_type} {}
 
   void begin_sync(Resources & /*res*/, const State & /*state*/) final
   {
@@ -206,7 +203,7 @@ class Bounds : Overlay {
                   state.clipping_plane_count);
     ps_.shader_set(res.shaders.extra_shape.get());
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(ps_, in_front_);
+    res.select_bind(ps_);
 
     call_buffers_.box.end_sync(ps_, res.shapes.cube.get());
     call_buffers_.sphere.end_sync(ps_, res.shapes.empty_sphere.get());

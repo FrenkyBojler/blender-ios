@@ -38,8 +38,6 @@ class Particles : Overlay {
   bool show_point_tip_ = false;
 
  public:
-  Particles(bool in_front) : Overlay(in_front){};
-
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_v3d();
@@ -63,7 +61,7 @@ class Particles : Overlay {
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
-      res.select_bind(pass, in_front_);
+      res.select_bind(pass);
       {
         auto &sub = pass.sub("Dots");
         sub.shader_set(res.shaders.particle_dot.get());
@@ -91,7 +89,7 @@ class Particles : Overlay {
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
-      res.select_bind(pass, in_front_);
+      res.select_bind(pass);
       {
         auto &sub = pass.sub("Dots");
         sub.shader_set(res.shaders.particle_edit_vert.get());

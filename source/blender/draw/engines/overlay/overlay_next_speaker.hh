@@ -28,8 +28,7 @@ class Speakers : Overlay {
   SpeakerInstanceBuf speaker_buf_ = {selection_type_, "speaker_data_buf"};
 
  public:
-  Speakers(const SelectionType selection_type, bool in_front)
-      : Overlay(in_front), selection_type_(selection_type){};
+  Speakers(const SelectionType selection_type) : selection_type_(selection_type){};
 
   void begin_sync(Resources & /*res*/, const State &state) final
   {
@@ -68,7 +67,7 @@ class Speakers : Overlay {
                   state.clipping_plane_count);
     ps_.shader_set(res.shaders.extra_shape.get());
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(ps_, in_front_);
+    res.select_bind(ps_);
 
     speaker_buf_.end_sync(ps_, res.shapes.speaker.get());
   }

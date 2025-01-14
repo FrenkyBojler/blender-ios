@@ -47,8 +47,6 @@ class Wireframe : Overlay {
   bool show_wire_ = false;
 
  public:
-  Wireframe(bool in_front) : Overlay(in_front){};
-
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_v3d() && (state.is_wireframe_mode || !state.hide_overlays);
@@ -78,7 +76,7 @@ class Wireframe : Overlay {
       pass.state_set(DRW_STATE_FIRST_VERTEX_CONVENTION | DRW_STATE_WRITE_COLOR |
                          DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
-      res.select_bind(pass, in_front_);
+      res.select_bind(pass);
 
       auto shader_pass =
           [&](GPUShader *shader, const char *name, bool use_coloring, float wire_threshold) {

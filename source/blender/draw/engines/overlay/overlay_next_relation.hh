@@ -32,9 +32,8 @@ class Relations : Overlay {
   PointPrimitiveBuf points_buf_;
 
  public:
-  Relations(const SelectionType selection_type, bool in_front)
-      : Overlay(in_front),
-        relations_buf_(selection_type, "relations_buf_"),
+  Relations(SelectionType selection_type)
+      : relations_buf_(selection_type, "relations_buf_"),
         points_buf_(selection_type, "points_buf_")
   {
   }
@@ -197,7 +196,7 @@ class Relations : Overlay {
 
     ps_.init();
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(ps_, in_front_);
+    res.select_bind(ps_);
     {
       PassSimple::Sub &sub_pass = ps_.sub("lines");
       sub_pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |

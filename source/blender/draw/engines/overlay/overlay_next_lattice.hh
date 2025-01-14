@@ -28,8 +28,6 @@ class Lattices : Overlay {
   PassMain::Sub *edit_lattice_point_ps_;
 
  public:
-  Lattices(bool in_front) : Overlay(in_front){};
-
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_v3d();
@@ -50,7 +48,7 @@ class Lattices : Overlay {
     ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                   state.clipping_plane_count);
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
-    res.select_bind(ps_, in_front_);
+    res.select_bind(ps_);
     edit_lattice_wire_ps_ = create_sub_pass(
         "edit_lattice_wire", res.shaders.lattice_wire.get(), true);
     edit_lattice_point_ps_ = create_sub_pass(

@@ -80,8 +80,6 @@ class Meshes : Overlay {
   View::OffsetData offset_data_;
 
  public:
-  Meshes(bool in_front) : Overlay(in_front){};
-
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_v3d();
@@ -515,8 +513,6 @@ class MeshUVs : Overlay {
   bool show_tiled_image_label_ = false;
 
  public:
-  MeshUVs(bool in_front) : Overlay(in_front){};
-
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = state.is_space_image();
