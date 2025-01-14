@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <iosfwd>
 
 struct SDNA;
@@ -13,5 +14,6 @@ void DNA_struct_debug_print(const SDNA &sdna,
                             const SDNA_Struct &sdna_struct,
                             const void *data,
                             const void *address,
+                            int64_t element_num,
                             int indent,
                             std::ostream &stream);

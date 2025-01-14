@@ -142,7 +142,7 @@
  * Generate an additional file next to every saved .blend file that contains the file content in a
  * more human readable form.
  */
-#define GENERATE_DEBUG_BLEND_FILE 0
+#define GENERATE_DEBUG_BLEND_FILE 1
 #define DEBUG_BLEND_FILE_SUFFIX ".debug.txt"
 
 /* ********* my write, buffered writing with minimum size chunks ************ */
@@ -770,7 +770,8 @@ static void writestruct_at_address_nr(WriteData *wd,
   }
 
   if (wd->debug_dst) {
-    DNA_struct_debug_print(*wd->sdna, *wd->sdna->structs[struct_nr], data, adr, 0, *wd->debug_dst);
+    DNA_struct_debug_print(
+        *wd->sdna, *wd->sdna->structs[struct_nr], data, adr, nr, 0, *wd->debug_dst);
   }
 
   write_bhead(wd, bh);

@@ -2056,6 +2056,7 @@ void DNA_struct_debug_print(const SDNA &sdna,
                             const SDNA_Struct &sdna_struct,
                             const void *initial_data,
                             const void *address,
+                            const int64_t element_num,
                             const int indent,
                             std::ostream &stream)
 {
@@ -2065,7 +2066,13 @@ void DNA_struct_debug_print(const SDNA &sdna,
 
   const char *struct_name = sdna.types[sdna_struct.type_index];
   if (indent == 0) {
-    stream << indentation << "<" << struct_name << "> " << address << "\n";
+    if (element_num == 1) {
+      stream << indentation << "<" << struct_name << "> " << address << "\n";
+    }
+    else {
+      stream << indentation << "<" << struct_name << "> " << element_num << "x " << address
+             << "\n";
+    }
   }
   for (const int member_i : IndexRange(sdna_struct.members_num)) {
     const SDNA_StructMember &member = sdna_struct.members[member_i];
@@ -2081,18 +2088,8 @@ void DNA_struct_debug_print(const SDNA &sdna,
         stream << "\n";
         const int substruct_i = DNA_struct_find_index_without_alias(&sdna, member_type_name);
         const SDNA_Struct &sub_sdna_struct = *sdna.structs[substruct_i];
-        int substruct_size = sdna.types_size[member.type_index];
-        for (int elem_i = 0; elem_i < array_elem_num; elem_i++) {
-          const void *sub_data = POINTER_OFFSET(data, elem_i * substruct_size);
-          const intptr_t subdata_offset = intptr_t(sub_data) - intptr_t(initial_data);
-          DNA_struct_debug_print(sdna,
-                                 sub_sdna_struct,
-                                 sub_data,
-                                 POINTER_OFFSET(address, subdata_offset),
-                                 indent + 2,
-                                 stream);
-          break;
-        }
+        DNA_struct_debug_print(
+            sdna, sub_sdna_struct, data, nullptr, array_elem_num, indent + 2, stream);
         break;
       }
       case STRUCT_MEMBER_CATEGORY_PRIMITIVE: {
