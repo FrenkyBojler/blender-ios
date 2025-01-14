@@ -3200,7 +3200,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   const float stroke_radius = float(thickness) / 1000.0f;
 
   const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
-  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+  Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
   BKE_object_free_derived_caches(newob);
   BKE_object_free_modifiers(newob, 0);
@@ -3209,11 +3209,13 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   newob->data = grease_pencil;
   newob->type = OB_GREASE_PENCIL;
 
-  /* Reset `ob->totcol` since currently the generic / grease pencil material functions still
-   * depend on this value being coherent (The same value as `GreasePencil::material_array_num`).
+  /* Reset `ob->totcol` and `ob->actcol` since currently the generic / grease pencil material
+   * functions still depend on this value being coherent (The same value as
+   * `GreasePencil::material_array_num`).
    */
   short *totcol = BKE_object_material_len_p(newob);
   newob->totcol = *totcol;
+  newob->actcol = *totcol;
 
   mesh_to_grease_pencil_add_material(
       *info.bmain, *newob, DATA_("Stroke"), float4(0.0f, 0.0f, 0.0f, 1.0f), {});
