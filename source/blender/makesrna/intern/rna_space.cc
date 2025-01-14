@@ -2646,6 +2646,9 @@ static bool space_node_node_geometry_nodes_poll(const SpaceNode &snode, const bN
         return false;
       }
       return true;
+    case SNODE_GEOMETRY_BRUSH:
+      // TODO: Add some filtering based on asset traits.
+      return true;
   }
   return false;
 }
@@ -7783,6 +7786,7 @@ static void rna_def_space_node(BlenderRNA *brna)
        0,
        "Tool",
        "Edit any geometry node group for use as an operator"},
+      {SNODE_GEOMETRY_BRUSH, "BRUSH", 0, "Brush", "Edit the node group used by the active brush"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

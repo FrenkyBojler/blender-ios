@@ -170,13 +170,18 @@ class NODE_HT_header(Header):
                             row.template_ID(active_modifier, "node_group", new="node.new_geometry_node_group_assign")
                     else:
                         row.template_ID(snode, "node_tree", new="node.new_geometry_nodes_modifier")
-            else:
+            elif snode.geometry_nodes_type == 'TOOL':
                 layout.template_ID(snode, "geometry_nodes_tool_tree", new="node.new_geometry_node_group_tool")
                 if snode.node_tree:
                     layout.popover(panel="NODE_PT_geometry_node_tool_object_types", text="Types")
                     layout.popover(panel="NODE_PT_geometry_node_tool_mode", text="Modes")
                     layout.popover(panel="NODE_PT_geometry_node_tool_options", text="Options")
                 display_pin = False
+            else:  # snode.geometry_nodes_type == 'BRUSH'
+                # TODO: Display something when the context has no active brush.
+                settings = context.scene.tool_settings.sculpt
+                brush = settings.brush
+                layout.template_ID(brush, "node_group", new="brush.new_node_group")
         else:
             # Custom node tree is edited as independent ID block
             NODE_MT_editor_menus.draw_collapsible(context, layout)

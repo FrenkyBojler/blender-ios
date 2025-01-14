@@ -6,6 +6,8 @@
 
 #include "BLI_string.h"
 
+#include "DNA_brush_types.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "NOD_geometry.hh"
@@ -14,6 +16,7 @@
 #include "BKE_layer.hh"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
+#include "BKE_paint.hh"
 
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
@@ -38,6 +41,16 @@ static void geometry_node_tree_get_from_context(const bContext *C,
   const SpaceNode *snode = CTX_wm_space_node(C);
   if (snode->geometry_nodes_type == SNODE_GEOMETRY_TOOL) {
     *r_ntree = snode->geometry_nodes_tool_tree;
+    return;
+  }
+  if (snode->geometry_nodes_type == SNODE_GEOMETRY_BRUSH) {
+    Paint *paint = BKE_paint_get_active_from_context(C);
+    if (paint) {
+      Brush *brush = BKE_paint_brush(paint);
+      if (brush) {
+        *r_ntree = brush->node_group;
+      }
+    }
     return;
   }
 

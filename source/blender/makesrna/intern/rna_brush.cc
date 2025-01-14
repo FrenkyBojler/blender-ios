@@ -556,6 +556,14 @@ static bool rna_BrushCapabilitiesSculpt_has_space_attenuation_get(PointerRNA *pt
                 SCULPT_BRUSH_TYPE_SNAKE_HOOK));
 }
 
+static bool rna_BrushCapabilitiesSculpt_has_node_group_get(PointerRNA *ptr)
+{
+  Brush *br = (Brush *)ptr->data;
+  return !ELEM(br->sculpt_brush_type,
+               SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
+               SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR);
+}
+
 static bool rna_BrushCapabilitiesImagePaint_has_space_attenuation_get(PointerRNA *ptr)
 {
   Brush *br = (Brush *)ptr->data;
@@ -668,6 +676,15 @@ static bool rna_BrushCapabilitiesImagePaint_has_radius_get(PointerRNA *ptr)
   Brush *br = (Brush *)ptr->data;
 
   return (br->image_brush_type != IMAGE_PAINT_BRUSH_TYPE_FILL);
+}
+
+static bool rna_Brush_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  bNodeTree *ntree = static_cast<bNodeTree *>(value.data);
+  if (ntree->type != NTREE_GEOMETRY) {
+    return false;
+  }
+  return true;
 }
 
 static PointerRNA rna_Sculpt_brush_capabilities_get(PointerRNA *ptr)
@@ -1273,6 +1290,7 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
   SCULPT_BRUSH_CAPABILITY(has_direction, "Has Direction");
   SCULPT_BRUSH_CAPABILITY(has_gravity, "Has Gravity");
   SCULPT_BRUSH_CAPABILITY(has_tilt, "Has Tilt");
+  SCULPT_BRUSH_CAPABILITY(has_node_group, "Has Node Group");
 
 #  undef SCULPT_CAPABILITY
 }
@@ -3833,6 +3851,13 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, nullptr, "icon_filepath");
   RNA_def_property_ui_text(prop, "Brush Icon Filepath", "File path to brush icon");
   RNA_def_property_update(prop, 0, "rna_Brush_icon_update");
+
+  /* node tree */
+  prop = RNA_def_property(srna, "node_group", PROP_POINTER, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Node Group", "Node group for brush calculation");
+  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_Brush_node_group_poll");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_update(prop, NC_BRUSH | ND_DATA, "rna_Brush_update");
 
   /* clone brush */
   prop = RNA_def_property(srna, "clone_image", PROP_POINTER, PROP_NONE);
