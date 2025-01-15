@@ -62,7 +62,7 @@ GVArray GreasePencilLayerFieldContext::get_varray_for_input(const fn::FieldInput
   return field_input.get_varray_for_context(*this, mask, scope);
 }
 
-const Span<float3> MeshSculptFieldContext::positions() const
+Span<float3> MeshSculptFieldContext::positions() const
 {
   const Span<int> indices = this->indices();
   const Span<float3> vert_positions = this->vert_positions();
@@ -76,7 +76,7 @@ const Span<float3> MeshSculptFieldContext::positions() const
   return positions;
 }
 
-const Span<float3> MeshSculptFieldContext::normals() const
+Span<float3> MeshSculptFieldContext::normals() const
 {
   const Depsgraph &depsgraph = this->depsgraph();
   const Object &object = this->object();
@@ -92,7 +92,7 @@ const Span<float3> MeshSculptFieldContext::normals() const
   return normals;
 }
 
-const Span<float3> GridsSculptFieldContext::normals() const
+Span<float3> GridsSculptFieldContext::normals() const
 {
   const SubdivCCG &subdiv_ccg = this->subdiv_ccg();
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
@@ -112,7 +112,7 @@ const Span<float3> GridsSculptFieldContext::normals() const
   return normals;
 }
 
-const Span<float3> BMeshSculptFieldContext::normals() const
+Span<float3> BMeshSculptFieldContext::normals() const
 {
   const Set<BMVert *, 0> &verts = this->verts();
   Array<float3> normals(verts.size());

@@ -177,14 +177,14 @@ class SculptFieldContext : public fn::FieldContext {
     return object_;
   }
 
-  virtual const Span<float3> positions() const
+  virtual Span<float3> positions() const
   {
     return positions_;
   }
 
-  virtual const Span<float3> normals() const = 0;
+  virtual Span<float3> normals() const = 0;
 
-  virtual const Span<int> indices() const
+  virtual Span<int> indices() const
   {
     return {};
   }
@@ -202,7 +202,7 @@ class MeshSculptFieldContext : public SculptFieldContext {
                          const Mesh &mesh,
                          const Span<int> indices,
                          const Span<float3> vert_positions)
-    : SculptFieldContext(depsgraph, object, {}),
+      : SculptFieldContext(depsgraph, object, {}),
         mesh_(mesh),
         indices_(indices),
         vert_positions_(vert_positions)
@@ -214,16 +214,16 @@ class MeshSculptFieldContext : public SculptFieldContext {
     return mesh_;
   }
 
-  const Span<float3> positions() const override;
+  Span<float3> positions() const override;
 
-  const Span<float3> normals() const override;
+  Span<float3> normals() const override;
 
-  const Span<float3> vert_positions() const
+  Span<float3> vert_positions() const
   {
     return vert_positions_;
   }
 
-  const Span<int> indices() const
+  Span<int> indices() const
   {
     return indices_;
   }
@@ -248,12 +248,12 @@ class GridsSculptFieldContext : public SculptFieldContext {
   {
     return subdiv_ccg_;
   }
-  const Span<int> grids() const
+  Span<int> grids() const
   {
     return grids_;
   }
 
-  const Span<float3> normals() const override;
+  Span<float3> normals() const override;
 };
 
 class BMeshSculptFieldContext : public SculptFieldContext {
@@ -274,7 +274,7 @@ class BMeshSculptFieldContext : public SculptFieldContext {
     return verts_;
   }
 
-  const Span<float3> normals() const override;
+  Span<float3> normals() const override;
 };
 
 /**
