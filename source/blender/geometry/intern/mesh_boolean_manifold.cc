@@ -381,12 +381,8 @@ static void add_needed_attributes_to_mesh(Mesh *mesh, const NeededAttributes &ne
   bke::MutableAttributeAccessor accessor = mesh->attributes_for_write();
   bke::AttributeInitDefaultValue attr_init;
   for (const NeededAttributes::Spec &spec : attr_specs) {
-    // DEBUG!!
-    std::cout << "adding attribute " << spec.name << "\n";
     accessor.add(spec.name, spec.domain, spec.data_type, attr_init);
   }
-  // DEBUG!!
-  // dump_mesh(mesh, "AFTER ADD_NEEDED_ATTRIBUTES");
 }
 
 /* Given an \a input_face index, along with its \a input_mesh_index, copy the attributes
@@ -1152,10 +1148,6 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   Mesh *mesh = BKE_mesh_new_nomain_from_template(
       meshes[0], tot_positions, 0, tot_faces, tot_corners);
 
-  /* Ensure that mesh has all needed attributes. */
-  NeededAttributes needed_attributes(meshes);
-  add_needed_attributes_to_mesh(mesh, needed_attributes);
-
   /* Set the vertex positions. */
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
   {
@@ -1210,6 +1202,10 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     timeit::ScopedTimer timer_e("calculating edges");
     bke::mesh_calc_edges(*mesh, false, false);
   }
+
+  /* Ensure that mesh has all needed attributes. */
+  NeededAttributes needed_attributes(meshes);
+  add_needed_attributes_to_mesh(mesh, needed_attributes);
 
   if (needed_attributes.num_attrs_for_domain(bke::AttrDomain::Edge) > 0 ||
       needed_attributes.num_attrs_for_domain(bke::AttrDomain::Corner) > 0)
