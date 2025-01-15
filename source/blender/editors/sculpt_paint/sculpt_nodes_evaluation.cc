@@ -123,6 +123,9 @@ static void evaluate(const bke::SocketValueVariant &output_socket,
  *
  * Currently supports the following output types: vector, float, and
  * color.
+ *
+ * TODO: This whole function shouldn't be templated, instead type conversions should be done with
+ * fields and only a small amount of code should depend on the result type.
  */
 template<typename TargetType>
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
