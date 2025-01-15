@@ -504,6 +504,7 @@ bool eyedropper_color_sample_fl(bContext *C,
     }
   }
 
+  zero_v3(r_col);
   return false;
 }
 
