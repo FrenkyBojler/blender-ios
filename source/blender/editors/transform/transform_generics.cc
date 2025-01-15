@@ -25,7 +25,6 @@
 #include "BKE_mask.h"
 #include "BKE_modifier.hh"
 #include "BKE_paint.hh"
-#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "SEQ_transform.hh"
@@ -48,6 +47,8 @@
 #include "transform_gizmo.hh"
 #include "transform_orientations.hh"
 #include "transform_snap.hh"
+
+#include "UI_resources.hh"
 
 using namespace blender;
 
@@ -261,10 +262,11 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     if (t->scene->toolsettings->transform_flag & SCE_XFORM_AXIS_ALIGN) {
       t->flag |= T_V3D_ALIGN;
       if (object_mode == OB_MODE_OBJECT && ELEM(t->mode, TFM_RESIZE, TFM_ROTATION) &&
+          t->settings->transform_pivot_point != V3D_AROUND_CURSOR &&
           CTX_DATA_COUNT(C, selected_editable_objects) == 1)
       {
-        BKE_report(t->reports, RPT_WARNING, "Transform is set to only affect location.");
-        ED_workspace_status_text(C, " ");
+        WorkspaceStatus status(C);
+        status.item("Transform is set to only affect location", ICON_ERROR);
       }
     }
 
