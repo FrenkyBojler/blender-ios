@@ -165,7 +165,7 @@ class SculptFieldContext : public fn::FieldContext {
 
   GVArray get_varray_for_input(const fn::FieldInput &field_input,
                                const IndexMask &mask,
-                               ResourceScope &scope) const;
+                               ResourceScope &scope) const override;
 
   const Depsgraph &depsgraph() const
   {
@@ -223,7 +223,7 @@ class MeshSculptFieldContext : public SculptFieldContext {
     return vert_positions_;
   }
 
-  Span<int> indices() const
+  Span<int> indices() const override
   {
     return indices_;
   }
