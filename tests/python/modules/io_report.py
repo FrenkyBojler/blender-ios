@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Compare textual dump of imported scene against reference versions and generate
+Compare textual dump of imported data against reference versions and generate
 a HTML report showing the differences, for regression testing.
 """
 
@@ -362,9 +362,9 @@ class Report:
                     desc.write(f" slot:{adt.action_slot.identifier}")
                 desc.write(f" blend:{adt.action_blend_type} drivers:{len(adt.drivers)}\n")
 
-    def generate_scene_desc(self) -> str:
+    def generate_main_data_desc(self) -> str:
         """Generates textual description of the current state of the
-        Blender scene."""
+        Blender main data."""
 
         desc = StringIO()
 
@@ -606,7 +606,7 @@ class Report:
         # import
         try:
             import_func(str(input_file), params)
-            got_desc = self.generate_scene_desc()
+            got_desc = self.generate_main_data_desc()
         except RuntimeError as ex:
             got_desc = f"Error during import: {ex}"
 
