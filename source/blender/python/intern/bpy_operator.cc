@@ -553,11 +553,14 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
         break;
       }
       case PROP_POINTER: {
-        data = PyUnicode_FromString("POINTER");
+        // bpy.props.PointerProperty ?
+        data = PyUnicode_FromString("TODO: POINTER");
         break;
       }
       case PROP_COLLECTION: {
-        data = PyUnicode_FromString("COLLECTION");
+        // https://docs.blender.org/api/current/bpy.types.Collection.html
+        // bpy.props.CollectionProperty ?
+        data = PyUnicode_FromString("TODO: COLLECTION");
         break;
       }
       default:
