@@ -692,8 +692,6 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
     return OPERATOR_RUNNING_MODAL;
   }
 
-  printf("%d\n", event->type);
-
   switch (event->type) {
     case MOUSEMOVE: {
       if (!has_numInput) {
