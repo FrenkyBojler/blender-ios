@@ -3217,8 +3217,9 @@ static void node_draw_extra_info_panel(const bContext &C,
   }
 }
 
-static short get_shortcut_icon(const bNode &node)
+static short get_viewer_shortcut_icon(const bNode &node)
 {
+  BLI_assert(node.type_legacy == 'VIEWER');
   switch (node.custom1) {
     case NODE_SHORTCUT_NONE:
       /* No change by default. */
@@ -3440,7 +3441,7 @@ static void node_draw_basis(const bContext &C,
   }
   /* Viewer node shortcuts. */
   if (node.type_legacy == CMP_NODE_VIEWER) {
-    short shortcut_icon = get_shortcut_icon(node);
+    short shortcut_icon = get_viewer_shortcut_icon(node);
     iconofs -= iconbutw;
     UI_block_emboss_set(&block, UI_EMBOSS_NONE);
     uiDefIconBut(&block,
