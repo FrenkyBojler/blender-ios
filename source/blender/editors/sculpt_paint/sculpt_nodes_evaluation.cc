@@ -113,13 +113,14 @@ static void evaluate(const bke::SocketValueVariant &output_socket,
 }
 
 /**
- * Evaluates the Geometry Nodes node group associated with the given brush and context.
+ * Evaluates the Geometry Nodes node group associated with the specified brush in the given
+ * context.
  *
- * `outputs` represents:
- * - A translation in object space when used by sculpt brushes.
- * - A color when used by paint brushes.
+ * For most brushes, `TargetType` is `float3`, representing a translation. For certain brushes
+ * (e.g., Mask Brush), `TargetType` is `float`, representing a factor. The first output socket
+ * of the node group is evaluated and used to scale `output_targets`; all other outputs are
+ * ignored.
  *
- * Only the first output socket is evaluted; others are ignored.
  * Currently supports the following output types: vector, float, and
  * color.
  */
@@ -194,8 +195,6 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   for (const int i : tree->interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket &interface_socket = *tree->interface_inputs()[i];
     const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
-    const eNodeSocketDatatype socket_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
-                                                       SOCK_CUSTOM;
 
     const CPPType *type = typeinfo->geometry_nodes_cpp_type;
     BLI_assert(type != nullptr);
