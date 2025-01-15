@@ -139,6 +139,8 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
         }
         for k, v in expected_map.items():
             assert k in file_path_map
+            print(file_path_map[k])
+            print(v)
             assert file_path_map[k] == v
 
         file_path_map = abspaths(bpy.data.file_path_map(include_libraries=True))
