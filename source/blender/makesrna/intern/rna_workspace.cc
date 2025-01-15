@@ -426,6 +426,11 @@ static void rna_def_workspace(BlenderRNA *brna)
                            "(which has its own active asset library)");
   RNA_def_property_update(prop, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
 
+  prop = RNA_def_property(srna, "order", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Workspace index", "Index of the workspace in the overall order");
+  RNA_def_property_update(prop, 0, "rna_window_update_all");
+
   RNA_api_workspace(srna);
 }
 
