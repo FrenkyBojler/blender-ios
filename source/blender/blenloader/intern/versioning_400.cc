@@ -5626,8 +5626,28 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  /* Legacy handling of radius attribute. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 22)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      IDProperty *cscene = version_cycles_properties_from_ID(&scene->id);
+      if (cscene) {
+        if (version_cycles_property_int(cscene, "sample_offset", 0) > 0) {
+          version_cycles_property_boolean_set(cscene, "use_sample_subset", true);
+          version_cycles_property_int_set(cscene, "sample_subset_length", (1 << 24));
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 23)) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Curves", "float", "surface_collision_distance")) {
+      LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
+        curves->surface_collision_distance = 0.005f;
+      }
+    }
+  }
+
+  /* Legacy handling of radius attribute. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 24)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
