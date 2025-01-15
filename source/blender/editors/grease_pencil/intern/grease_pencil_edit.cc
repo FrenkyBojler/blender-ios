@@ -897,7 +897,7 @@ static const EnumPropertyItem prop_cyclical_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static bke::CurvesGeometry subdivide_last_segement(bke::CurvesGeometry &curves,
+static bke::CurvesGeometry subdivide_last_segement(const bke::CurvesGeometry &curves,
                                                    const IndexMask &strokes)
 {
   const VArray<bool> cyclic = curves.cyclic();
