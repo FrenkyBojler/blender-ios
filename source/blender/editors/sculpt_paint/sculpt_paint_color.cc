@@ -465,9 +465,7 @@ static void do_paint_brush_task(const Scene &scene,
     blend_color_interpolate_float(
         paint_color, paint_color, wet_mix_color, ss.cache->paint_brush.wet_mix);
     blend_color_mix_float(color_buffer[i], color_buffer[i], paint_color);
-  }
 
-  for (const int i : verts.index_range()) {
     /* Final mix over the original color using brush alpha. We apply auto-making again
      * at this point to avoid washing out non-binary masking modes like cavity masking. */
     float automasking = auto_mask.is_empty() ? 1.0f : auto_mask[i];
