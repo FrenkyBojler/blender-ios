@@ -95,8 +95,91 @@ class TestBlendUserMap(TestBlendLibLinkHelper):
             pass
 
 
+class TestBlendFilePathMap(TestBlendLibLinkHelper):
+
+    def __init__(self, args):
+        self.args = args
+
+    def test_file_path_map(self):
+        output_dir = self.args.output_dir
+        output_blendfile_path = self.init_lib_data_indirect_lib()
+
+        # Simple link of a single ObData.
+        self.reset_blender()
+
+        bpy.ops.wm.open_mainfile(filepath=output_blendfile_path)
+
+        assert len(bpy.data.images) == 1
+        assert bpy.data.images[0].library is not None
+        assert len(bpy.data.materials) == 1
+        assert bpy.data.materials[0].library is not None
+        assert len(bpy.data.meshes) == 1
+        assert len(bpy.data.objects) == 1
+        assert len(bpy.data.collections) == 1
+
+        file_path_map = bpy.data.file_path_map()
+        # Note: Workspaces and screens are ignored here.
+        expected_map = {
+            bpy.data.images[0]: {native_pathsep('//../../../src/tests/data/imbuf_io/reference/jpeg-rgb-90__from__rgba08.jpg')},
+            bpy.data.materials[0]: set(),
+            bpy.data.scenes[0]: set(),
+            bpy.data.collections[0]: set(),
+            bpy.data.libraries[0]: {native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
+            bpy.data.meshes[0]: set(),
+            bpy.data.objects[0]: set(),
+            bpy.data.window_managers[0]: set(),
+        }
+        for k, v in expected_map.items():
+            assert k in file_path_map
+            assert file_path_map[k] == v
+
+        file_path_map = bpy.data.file_path_map(include_libraries=True)
+        # Note: Workspaces and screens are ignored here.
+        expected_map = {
+            bpy.data.images[0]: {native_pathsep('//../../../src/tests/data/imbuf_io/reference/jpeg-rgb-90__from__rgba08.jpg'),
+                                 native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
+            bpy.data.materials[0]: {native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
+            bpy.data.scenes[0]: set(),
+            bpy.data.collections[0]: set(),
+            bpy.data.libraries[0]: {bpy.path.native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
+            bpy.data.meshes[0]: set(),
+            bpy.data.objects[0]: set(),
+            bpy.data.window_managers[0]: set(),
+        }
+        for k, v in expected_map.items():
+            assert k in file_path_map
+            assert file_path_map[k] == v
+
+        file_path_map = bpy.data.file_path_map(subset=[bpy.data.images[0], bpy.data.materials[0]])
+        expected_map = {
+            bpy.data.images[0]: {native_pathsep('//../../../src/tests/data/imbuf_io/reference/jpeg-rgb-90__from__rgba08.jpg')},
+            bpy.data.materials[0]: set(),
+        }
+        for k, v in expected_map.items():
+            assert k in file_path_map
+            assert file_path_map[k] == v
+        partial_map = bpy.data.user_map(key_types={'IMAGE', 'MATERIAL'})
+        for k, v in expected_map.items():
+            assert k in file_path_map
+            assert file_path_map[k] == v
+
+        # Test handling of invalid parameters
+        try:
+            file_path_map = bpy.data.file_path_map(key_types={'FOOBAR'})
+            assert 0
+        except ValueError:
+            pass
+
+        try:
+            file_path_map = bpy.data.file_path_map(subset=[bpy.data.objects[0], bpy.data.images[0], "FooBar"])
+            assert 0
+        except TypeError:
+            pass
+
+
 TESTS = (
     TestBlendUserMap,
+    TestBlendFilePathMap,
 )
 
 
