@@ -935,7 +935,7 @@ static int grease_pencil_cyclical_set_exec(bContext *C, wmOperator *op)
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const CyclicalMode mode = CyclicalMode(RNA_enum_get(op->ptr, "type"));
-  const bool add_geometry = RNA_boolean_get(op->ptr, "add_geometry");
+  const bool subdivide_cyclic_segment = RNA_boolean_get(op->ptr, "subdivide_cyclic_segment");
 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -973,7 +973,7 @@ static int grease_pencil_cyclical_set_exec(bContext *C, wmOperator *op)
       }
     }
 
-    if (add_geometry) {
+    if (subdivide_cyclic_segment) {
       /* Update to properly calculate the lengths. */
       curves.tag_topology_changed();
 
@@ -1008,7 +1008,7 @@ static void GREASE_PENCIL_OT_cyclical_set(wmOperatorType *ot)
       ot->srna, "type", prop_cyclical_types, int(CyclicalMode::TOGGLE), "Type", "");
 
   RNA_def_boolean(ot->srna,
-                  "add_geometry",
+                  "subdivide_cyclic_segment",
                   true,
                   "Match Point Density",
                   "Add point in the new segment to keep the same density");
