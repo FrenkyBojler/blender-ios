@@ -466,7 +466,7 @@ void RNA_api_region_view3d(StructRNA *srna);
 void RNA_api_texture(StructRNA *srna);
 void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, bool metastrip);
 void RNA_api_sequence_elements(BlenderRNA *brna, PropertyRNA *cprop);
-void RNA_api_sequence_retiming_keys(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_api_sequence_retiming_keys(BlenderRNA *brna);
 void RNA_api_sound(StructRNA *srna);
 void RNA_api_vfont(StructRNA *srna);
 void RNA_api_workspace(StructRNA *srna);
