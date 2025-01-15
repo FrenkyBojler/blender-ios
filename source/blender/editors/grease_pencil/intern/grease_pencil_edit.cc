@@ -923,9 +923,9 @@ static bke::CurvesGeometry subdivide_last_segement(const bke::CurvesGeometry &cu
     }
   });
 
-  const VArray<int> vcuts = VArray<int>::ForContainer(std::move(use_cuts));
+  const VArray<int> cuts = VArray<int>::ForSpan(use_cuts.as_span());
 
-  return geometry::subdivide_curves(curves, strokes, vcuts);
+  return geometry::subdivide_curves(curves, strokes, cuts);
 }
 
 static int grease_pencil_cyclical_set_exec(bContext *C, wmOperator *op)
