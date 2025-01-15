@@ -34,8 +34,8 @@
 #include "BKE_bake_items.hh"
 #include "BKE_node_tree_zones.hh"
 
-struct Depsgraph;
 struct Object;
+struct Depsgraph;
 struct Scene;
 
 namespace blender::nodes {
