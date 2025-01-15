@@ -41,6 +41,7 @@
 #include "BKE_cryptomatte.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_image.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -1154,7 +1155,7 @@ static void rna_NodeTree_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
   WM_main_add_notifier(NC_NODE | NA_EDITED, &ntree->id);
   WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
 
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 static void rna_NodeTree_update_asset(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -1266,7 +1267,7 @@ static bNode *rna_NodeTree_node_new(bNodeTree *ntree,
   }
 
   Main *bmain = CTX_data_main(C);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 
   return node;
@@ -1292,7 +1293,7 @@ static void rna_NodeTree_node_remove(bNodeTree *ntree,
 
   RNA_POINTER_INVALIDATE(node_ptr);
 
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -1312,7 +1313,7 @@ static void rna_NodeTree_node_clear(bNodeTree *ntree, Main *bmain, ReportList *r
     node = next_node;
   }
 
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -1448,7 +1449,7 @@ static bNodeLink *rna_NodeTree_link_new(bNodeTree *ntree,
     fromsock->flag &= ~SOCK_HIDDEN;
     tosock->flag &= ~SOCK_HIDDEN;
 
-    ED_node_tree_propagate_change(*bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
   }
   return ret;
@@ -1473,7 +1474,7 @@ static void rna_NodeTree_link_remove(bNodeTree *ntree,
   blender::bke::node_remove_link(ntree, link);
   RNA_POINTER_INVALIDATE(link_ptr);
 
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -1492,7 +1493,7 @@ static void rna_NodeTree_link_clear(bNodeTree *ntree, Main *bmain, ReportList *r
 
     link = next_link;
   }
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -1645,7 +1646,7 @@ static void rna_NodeTree_interface_update(bNodeTree *ntree, bContext *C)
 {
   Main *bmain = CTX_data_main(C);
   ntree->tree_interface.tag_items_changed();
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 /* ******** NodeLink ******** */
@@ -1668,7 +1669,7 @@ static void rna_NodeLink_swap_multi_input_sort_id(
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   BKE_ntree_update_tag_link_changed(ntree);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -2516,7 +2517,7 @@ void rna_Node_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode *node = static_cast<bNode *>(ptr->data);
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 static void rna_NodeCrop_min_x_set(PointerRNA *ptr, int value)
@@ -2592,7 +2593,7 @@ void rna_Node_update_relations(Main *bmain, Scene *scene, PointerRNA *ptr)
 static void rna_Node_socket_value_update(ID *id, bNode * /*node*/, bContext *C)
 {
   BKE_ntree_update_tag_all(reinterpret_cast<bNodeTree *>(id));
-  ED_node_tree_propagate_change(*CTX_data_main(C), reinterpret_cast<bNodeTree *>(id));
+  BKE_main_ensure_invariants(*CTX_data_main(C), *id);
 }
 
 static void rna_Node_select_set(PointerRNA *ptr, bool value)
@@ -2698,7 +2699,7 @@ static bNodeSocket *rna_Node_inputs_new(ID *id,
     if (use_multi_input) {
       sock->flag |= SOCK_MULTI_INPUT;
     }
-    ED_node_tree_propagate_change(*bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
   }
 
@@ -2736,7 +2737,7 @@ static bNodeSocket *rna_Node_outputs_new(ID *id,
     BKE_report(reports, RPT_ERROR, "Unable to create socket");
   }
   else {
-    ED_node_tree_propagate_change(*bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
   }
 
@@ -2759,7 +2760,7 @@ static void rna_Node_socket_remove(
   else {
     blender::bke::node_remove_socket(ntree, node, sock);
 
-    ED_node_tree_propagate_change(*bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
   }
 }
@@ -2779,7 +2780,7 @@ static void rna_Node_inputs_clear(ID *id, bNode *node, Main *bmain, ReportList *
     blender::bke::node_remove_socket(ntree, node, sock);
   }
 
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -2798,7 +2799,7 @@ static void rna_Node_outputs_clear(ID *id, bNode *node, Main *bmain, ReportList 
     blender::bke::node_remove_socket(ntree, node, sock);
   }
 
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -2837,7 +2838,7 @@ static void rna_Node_inputs_move(
   }
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -2876,7 +2877,7 @@ static void rna_Node_outputs_move(
   }
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -3002,7 +3003,7 @@ static void rna_NodeInternal_update(ID *id, bNode *node, Main *bmain)
 {
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 static void rna_NodeInternal_draw_buttons(ID *id, bNode *node, bContext *C, uiLayout *layout)
@@ -3137,7 +3138,7 @@ static void rna_Node_tex_image_update(Main *bmain, Scene * /*scene*/, PointerRNA
   bNode *node = static_cast<bNode *>(ptr->data);
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_IMAGE, nullptr);
 }
 
@@ -3147,7 +3148,7 @@ static void rna_NodeGroup_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr
   bNode *node = static_cast<bNode *>(ptr->data);
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   DEG_relations_tag_update(bmain);
 }
 
@@ -3958,7 +3959,7 @@ static bool rna_Node_pair_with_output(
   output_node_id = output_node->identifier;
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*CTX_data_main(C), ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
   return true;
 }
@@ -3990,7 +3991,7 @@ static void rna_Node_ItemArray_remove(ID *id,
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -4001,7 +4002,7 @@ template<typename Accessor> static void rna_Node_ItemArray_clear(ID *id, bNode *
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -4018,7 +4019,7 @@ static void rna_Node_ItemArray_move(
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -4059,7 +4060,7 @@ static void rna_Node_ItemArray_item_update(Main *bmain, Scene * /*scene*/, Point
   BLI_assert(node != nullptr);
 
   BKE_ntree_update_tag_node_property(&ntree, node);
-  ED_node_tree_propagate_change(*bmain, &ntree);
+  BKE_main_ensure_invariants(*bmain, ntree.id);
 }
 
 template<typename Accessor>
@@ -4110,7 +4111,7 @@ typename Accessor::ItemT *rna_Node_ItemArray_new_with_socket_and_name(
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 
   return new_item;
@@ -4123,7 +4124,7 @@ static IndexSwitchItem *rna_NodeIndexSwitchItems_new(ID *id, bNode *node, Main *
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 
   return new_item;
@@ -4217,7 +4218,7 @@ static bNodeSocket *rna_NodeOutputFile_slots_new(
 
   sock = ntreeCompositOutputFileAddSocket(ntree, node, name, im_format);
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 
   return sock;
@@ -4333,7 +4334,7 @@ static void rna_ShaderNodeScript_update(Main *bmain, Scene *scene, PointerRNA *p
   }
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 static void rna_ShaderNode_socket_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -4629,7 +4630,7 @@ static NodeEnumItem *rna_NodeMenuSwitchItems_new(ID *id,
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 
   return new_item;
