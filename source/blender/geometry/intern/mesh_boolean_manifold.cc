@@ -329,17 +329,24 @@ class NeededAttributes {
     Spec(bke::AttributeIter iter) : name(iter.name), domain(iter.domain), data_type(iter.data_type)
     {
     }
+
+    Spec(StringRefNull name, bke::AttrDomain domain, eCustomDataType type)
+        : name(name), domain(domain), data_type(data_type)
+    {
+    }
   };
   Map<StringRefNull, Spec> attr_map;
 
-  NeededAttributes(Span<const Mesh *> meshes);
+  NeededAttributes(Span<const Mesh *> meshes, bool need_material_index);
 
   int num_attrs_for_domain(bke::AttrDomain domain) const;
 };
 
 /* Get the union of the needed attributes from all the meshes,
- * in a deterministic order, and omitting the structure attributes. */
-NeededAttributes::NeededAttributes(Span<const Mesh *> meshes)
+ * in a deterministic order, and omitting the structure attributes.
+ * If \a need_material_index is true, we need a "material_index" face attribute.
+ */
+NeededAttributes::NeededAttributes(Span<const Mesh *> meshes, bool need_material_index)
 {
   for (const Mesh *mesh : meshes) {
     bke::AttributeAccessor attrs = mesh->attributes();
@@ -349,6 +356,13 @@ NeededAttributes::NeededAttributes(Span<const Mesh *> meshes)
       }
       this->attr_map.add(iter.name, Spec(iter));
     });
+  }
+  if (need_material_index) {
+    if (!this->attr_map.lookup_try("material_index")) {
+      this->attr_map.add(
+          "material_index",
+          NeededAttributes::Spec("material_index", bke::AttrDomain::Face, CD_PROP_INT32));
+    }
   }
 }
 
@@ -1099,6 +1113,38 @@ static int2 get_rep_edge_and_corner(const int vert_index,
   return int2(rep_edge, rep_corner);
 }
 
+/* Copy the face attributes to all faces in \a dst_mesh from the representative face
+ * as identified by \a mesh_assembly.
+ */
+static void copy_faces_attrs(Mesh *dst_mesh,
+                             Span<const Mesh *> meshes,
+                             Span<Array<short>> material_remaps,
+                             const MeshOffsets &mesh_offsets,
+                             const MeshAssembly &mesh_assembly)
+{
+  Span<int> face_offsets = dst_mesh->face_offsets();
+  GAttributeReadWriteSpans face_attrs(meshes, dst_mesh, bke::AttrDomain::Face);
+  int material_span_index = face_attrs.find_attr_index("material_index");
+  int grain_size = 50000;
+  threading::parallel_for(
+      IndexRange(dst_mesh->faces_num), grain_size, [&](const IndexRange range) {
+        for (const int face_index : range) {
+          const int corner_index = face_offsets[face_index];
+          const OutFace &face = mesh_assembly.new_faces[face_index];
+          const int input_mesh_index = which_offset_index<int>(face.face_id,
+                                                               mesh_offsets.face_offsets);
+          BLI_assert(input_mesh_index >= 0);
+          const int input_face_index = face.face_id - mesh_offsets.face_offsets[input_mesh_index];
+          copy_face_attrs(face_attrs,
+                          input_mesh_index,
+                          input_face_index,
+                          face_index,
+                          material_span_index,
+                          material_remaps);
+        }
+      });
+}
+
 /* Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
  * Note: the caller of mesh_boolean_manifold will fix the returned
@@ -1165,12 +1211,6 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   /* Make the faces. */
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
-  GAttributeReadWriteSpans face_attrs(meshes, mesh, bke::AttrDomain::Face);
-  int material_span_index = face_attrs.find_attr_index("material_index");
-  if (material_span_index == -1 && need_material_attribute(material_remaps)) {
-    material_span_index = face_attrs.add_attribute(
-        "material_index", bke::AttrDomain::Face, CD_PROP_INT32);
-  }
   {
     timeit::ScopedTimer timer_c("calculate faces");
     int grain_size = 50000;
@@ -1182,16 +1222,6 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
         for (const int i : face.verts.index_range()) {
           corner_verts[corner_index + i] = face.verts[i];
         }
-        const int input_mesh_index = which_offset_index<int>(face.face_id,
-                                                             mesh_offsets.face_offsets);
-        BLI_assert(input_mesh_index >= 0);
-        const int input_face_index = face.face_id - mesh_offsets.face_offsets[input_mesh_index];
-        copy_face_attrs(face_attrs,
-                        input_mesh_index,
-                        input_face_index,
-                        face_index,
-                        material_span_index,
-                        material_remaps);
       }
     });
     face_offsets[tot_faces] = tot_corners;
@@ -1204,8 +1234,12 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   }
 
   /* Ensure that mesh has all needed attributes. */
-  NeededAttributes needed_attributes(meshes);
+  NeededAttributes needed_attributes(meshes, need_material_attribute(material_remaps));
   add_needed_attributes_to_mesh(mesh, needed_attributes);
+
+  if (needed_attributes.num_attrs_for_domain(bke::AttrDomain::Face) > 0) {
+    copy_faces_attrs(mesh, meshes, material_remaps, mesh_offsets, ma);
+  }
 
   if (needed_attributes.num_attrs_for_domain(bke::AttrDomain::Edge) > 0 ||
       needed_attributes.num_attrs_for_domain(bke::AttrDomain::Corner) > 0)
