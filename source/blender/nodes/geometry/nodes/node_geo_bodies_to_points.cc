@@ -59,7 +59,7 @@ static void convert_bodies_to_points(GeometrySet &geometry_set,
   point_radii.finish();
 
   const bke::AttributeAccessor src_attributes = physics.attributes();
-  Map<StringRef, AttributeKind> attributes_to_propagate;
+  Map<StringRef, AttributeDomainAndType> attributes_to_propagate;
   geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::Physics},
                                                  GeometryComponent::Type::PointCloud,
                                                  false,

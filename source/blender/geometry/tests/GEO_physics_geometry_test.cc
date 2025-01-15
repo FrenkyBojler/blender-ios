@@ -81,12 +81,6 @@ struct TestAttributeOwner {
   static AttributeAccessorFunctions get_accessor_functions()
   {
     AttributeAccessorFunctions fn;
-    fn.is_builtin = [](const void * /*owner*/, StringRef attribute_id) {
-      if (attribute_id == test_attribute_name) {
-        return true;
-      }
-      return false;
-    };
     fn.lookup = [](const void *owner, StringRef attribute_id) {
       if (attribute_id == test_attribute_name) {
         return get_test_attribute_reader(owner);

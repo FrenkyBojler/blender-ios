@@ -1831,7 +1831,7 @@ bool PhysicsWorldConstraintAttributeProvider::exists(const void * /*owner*/) con
 /** \name World Data Attribute Accessor Functions
  * \{ */
 
-static ComponentAttributeProviders create_attribute_providers()
+static GeometryAttributeProviders create_attribute_providers()
 {
   using namespace physics_attributes;
   using BodyAttribute = PhysicsBodyAttribute;
@@ -1872,7 +1872,7 @@ static ComponentAttributeProviders create_attribute_providers()
         &constraint_attribute_providers_data[i];
   }
 
-  return ComponentAttributeProviders(builtin_providers, {});
+  return GeometryAttributeProviders(builtin_providers, {});
 }
 
 static GVArray adapt_physics_attribute_domain(const PhysicsWorldState & /*state*/,
@@ -1888,7 +1888,7 @@ static GVArray adapt_physics_attribute_domain(const PhysicsWorldState & /*state*
 
 static AttributeAccessorFunctions get_accessor_functions()
 {
-  static const ComponentAttributeProviders providers = create_attribute_providers();
+  static const GeometryAttributeProviders providers = create_attribute_providers();
   AttributeAccessorFunctions fn =
       attribute_accessor_functions::accessor_functions_for_providers<providers>();
   fn.domain_size = [](const void *owner, const AttrDomain domain) {

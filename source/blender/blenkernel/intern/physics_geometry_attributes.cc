@@ -27,7 +27,7 @@ namespace blender::bke {
  * \{ */
 
 template<PhysicsStateAttributeAccessMode access_mode>
-static ComponentAttributeProviders create_attribute_providers_for_physics()
+static GeometryAttributeProviders create_attribute_providers_for_physics()
 {
   using namespace physics_attributes;
   using BodyAttribute = PhysicsBodyAttribute;
@@ -69,8 +69,8 @@ static ComponentAttributeProviders create_attribute_providers_for_physics()
   static CustomDataAttributeProvider constraint_custom_data(AttrDomain::Edge,
                                                             constraint_custom_data_access);
 
-  return ComponentAttributeProviders(builtin_providers,
-                                     {&body_custom_data, &constraint_custom_data});
+  return GeometryAttributeProviders(builtin_providers,
+                                    {&body_custom_data, &constraint_custom_data});
 }
 
 static GVArray adapt_physics_attribute_domain(const PhysicsWorldState & /*state*/,
@@ -87,11 +87,11 @@ static GVArray adapt_physics_attribute_domain(const PhysicsWorldState & /*state*
 static AttributeAccessorFunctions get_physics_accessor_functions(const bool enable_cache,
                                                                  const bool enable_world_data)
 {
-  static const ComponentAttributeProviders providers =
+  static const GeometryAttributeProviders providers =
       create_attribute_providers_for_physics<PhysicsStateAttributeAccessMode::CachedRead>();
-  static const ComponentAttributeProviders cache_providers =
+  static const GeometryAttributeProviders cache_providers =
       create_attribute_providers_for_physics<PhysicsStateAttributeAccessMode::CachedReadWrite>();
-  static const ComponentAttributeProviders world_data_providers =
+  static const GeometryAttributeProviders world_data_providers =
       create_attribute_providers_for_physics<PhysicsStateAttributeAccessMode::DirectReadWrite>();
   BLI_assert(enable_cache || enable_world_data);
   AttributeAccessorFunctions fn =

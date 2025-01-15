@@ -2411,7 +2411,7 @@ static OrderedAttributes gather_generic_physics_attributes_to_propagate(
   RealizeInstancesOptions local_options = options;
   local_options.attribute_filter = filter;
 
-  Map<StringRef, AttributeKind> attributes_to_propagate = gather_attributes_to_propagate(
+  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Physics, local_options, varied_depth_options);
 
   OrderedAttributes ordered_attributes;
