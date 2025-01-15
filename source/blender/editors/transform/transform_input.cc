@@ -465,7 +465,12 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
     case HLP_CARROW:
       if (t->flag & T_MODAL) {
         t->flag |= T_MODAL_CURSOR_SET;
-        WM_cursor_modal_set(win, WM_CURSOR_NONE);
+        if (t->flag & T_INVALID) {
+          WM_cursor_modal_set(win, WM_CURSOR_STOP);
+        }
+        else {
+          WM_cursor_modal_set(win, WM_CURSOR_NONE);
+        }
       }
       break;
     default:

@@ -261,13 +261,6 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
     if (t->scene->toolsettings->transform_flag & SCE_XFORM_AXIS_ALIGN) {
       t->flag |= T_V3D_ALIGN;
-      if (object_mode == OB_MODE_OBJECT && ELEM(t->mode, TFM_RESIZE, TFM_ROTATION) &&
-          t->settings->transform_pivot_point != V3D_AROUND_CURSOR &&
-          CTX_DATA_COUNT(C, selected_editable_objects) == 1)
-      {
-        WorkspaceStatus status(C);
-        status.item("Transform is set to only affect location", ICON_ERROR);
-      }
     }
 
     if ((object_mode & OB_MODE_ALL_PAINT) || (object_mode & OB_MODE_SCULPT_CURVES)) {

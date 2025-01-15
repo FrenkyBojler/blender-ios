@@ -155,6 +155,10 @@ void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata)
 
   /* And now, solid lines. */
 
+  if (t->flag & T_INVALID) {
+    return;
+  }
+
   immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
   immUniform2fv("viewportSize", &viewport_size[2]);
 
