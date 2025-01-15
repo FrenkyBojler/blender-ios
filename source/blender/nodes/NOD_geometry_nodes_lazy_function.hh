@@ -253,7 +253,9 @@ struct GeoNodesCallData {
    * Data from execution as operator in 3D viewport.
    */
   GeoNodesOperatorData *operator_data = nullptr;
-
+  /**
+   * Data from execution as a sculpt brush.
+   */
   GeoNodesSculptData *sculpt_data = nullptr;
 
   /**
