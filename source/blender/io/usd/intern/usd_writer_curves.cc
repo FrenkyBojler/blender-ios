@@ -28,7 +28,7 @@
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_report.hh"
 
 #include "BLT_translation.hh"
@@ -490,7 +490,7 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
   }
 
   const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-  if (curves.points_num() == 0) {
+  if (curves.is_empty()) {
     return;
   }
 

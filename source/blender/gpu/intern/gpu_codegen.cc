@@ -24,7 +24,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_cryptomatte.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 
 #include "GPU_capabilities.hh"
 #include "GPU_context.hh"
@@ -344,7 +344,7 @@ void GPUCodegen::generate_attribs()
   /* Input declaration, loading / assignment to interface and geometry shader passthrough. */
   std::stringstream load_ss;
 
-  int slot = 15;
+  int slot = GPU_shader_draw_parameters_support() ? 15 : 14;
   LISTBASE_FOREACH (GPUMaterialAttribute *, attr, &graph.attributes) {
     if (slot == -1) {
       BLI_assert_msg(0, "Too many attributes");

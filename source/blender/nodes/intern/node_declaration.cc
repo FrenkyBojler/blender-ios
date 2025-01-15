@@ -110,6 +110,8 @@ NodeDeclarationBuilder::NodeDeclarationBuilder(const bke::bNodeType &typeinfo,
       ntree_(ntree),
       node_(node)
 {
+  /* Unused in release builds, but used for BLI_assert() in debug builds. */
+  UNUSED_VARS(typeinfo_);
 }
 
 void NodeDeclarationBuilder::use_custom_socket_order(bool enable)
@@ -587,7 +589,8 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::description(std::str
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::translation_context(std::string value)
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::translation_context(
+    std::optional<std::string> value)
 {
   decl_base_->translation_context = std::move(value);
   return *this;

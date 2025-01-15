@@ -401,7 +401,11 @@ class IMAGE_MT_uvs_unwrap(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator_enum("uv.unwrap", "method")
+        # It would be nice to do: `layout.operator_enum("uv.unwrap", "method")`
+        # However the menu items don't have an "Unwrap" prefix, so inline the operators.
+        layout.operator("uv.unwrap", text="Unwrap Angle Based").method = 'ANGLE_BASED'
+        layout.operator("uv.unwrap", text="Unwrap Conformal").method = 'CONFORMAL'
+        layout.operator("uv.unwrap", text="Unwrap Minimum Stretch").method = 'MINIMUM_STRETCH'
 
         layout.separator()
 
@@ -1045,7 +1049,8 @@ class IMAGE_PT_snapping(Panel):
             "use_snap_translate",
             text="Move",
             text_ctxt=i18n_contexts.operator_default,
-            toggle=True)
+            toggle=True,
+        )
         row.prop(tool_settings, "use_snap_rotate", text="Rotate", text_ctxt=i18n_contexts.operator_default, toggle=True)
         row.prop(tool_settings, "use_snap_scale", text="Scale", text_ctxt=i18n_contexts.operator_default, toggle=True)
         col.label(text="Rotation Increment")
@@ -1363,11 +1368,13 @@ class IMAGE_PT_tools_imagepaint_symmetry(BrushButtonsPanel, Panel):
         row.prop(ipaint, "tile_y", text="Y", toggle=True)
 
 
-class IMAGE_PT_uv_sculpt_curve(Panel, ImagePaintPanel):
+# Only a popover.
+class IMAGE_PT_uv_sculpt_curve(Panel):
+    bl_space_type = 'TOPBAR'  # dummy.
+    bl_region_type = 'HEADER'
+
     bl_context = ".uv_sculpt"  # Dot on purpose (access from top-bar).
-    bl_category = "Tool"
     bl_label = "Falloff"
-    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
@@ -1377,9 +1384,12 @@ class IMAGE_PT_uv_sculpt_curve(Panel, ImagePaintPanel):
             layout.template_curve_mapping(props, "strength_curve")
 
 
-class IMAGE_PT_uv_sculpt_options(Panel, ImagePaintPanel):
+# Only a popover.
+class IMAGE_PT_uv_sculpt_options(Panel):
+    bl_space_type = 'TOPBAR'  # dummy.
+    bl_region_type = 'HEADER'
+
     bl_context = ".uv_sculpt"  # Dot on purpose (access from top-bar).
-    bl_category = "Tool"
     bl_label = "Options"
 
     def draw(self, context):

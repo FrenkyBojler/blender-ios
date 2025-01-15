@@ -53,12 +53,12 @@
 #include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_light.h"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
 #include "BKE_pose_backup.h"
@@ -709,7 +709,8 @@ static bool ed_preview_draw_rect(
   return ok;
 }
 
-void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, rcti *rect)
+void ED_preview_draw(
+    const bContext *C, void *idp, void *parentp, void *slotp, uiPreview *ui_preview, rcti *rect)
 {
   if (idp) {
     Scene *scene = CTX_data_scene(C);
@@ -746,7 +747,7 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
     /* start a new preview render job if signaled through sbuts->preview,
      * if no render result was found and no preview render job is running,
      * or if the job is running and the size of preview changed */
-    if ((sbuts != nullptr && sbuts->preview) ||
+    if ((sbuts != nullptr && sbuts->preview) || (ui_preview->tag & UI_PREVIEW_TAG_DIRTY) ||
         (!ok && !WM_jobs_test(wm, area, WM_JOB_TYPE_RENDER_PREVIEW)) ||
         (sp && (abs(sp->sizex - newx) >= 2 || abs(sp->sizey - newy) > 2)))
     {
@@ -754,6 +755,22 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
         sbuts->preview = 0;
       }
       ED_preview_shader_job(C, area, id, parent, slot, newx, newy, PR_BUTS_RENDER);
+      ui_preview->tag &= ~UI_PREVIEW_TAG_DIRTY;
+    }
+  }
+}
+
+void ED_previews_tag_dirty_by_id(const Main &bmain, const ID &id)
+{
+  LISTBASE_FOREACH (const bScreen *, screen, &bmain.screens) {
+    LISTBASE_FOREACH (const ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (const ARegion *, region, &area->regionbase) {
+        LISTBASE_FOREACH (uiPreview *, preview, &region->ui_previews) {
+          if (preview->id_session_uid == id.session_uid) {
+            preview->tag |= UI_PREVIEW_TAG_DIRTY;
+          }
+        }
+      }
     }
   }
 }
@@ -960,14 +977,24 @@ static PoseBackup *action_preview_render_prepare(IconPreview *preview)
   }
 
   /* Create a backup of the current pose. */
-  bAction *action = (bAction *)preview->id;
-  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones(object, action);
+  blender::animrig::Action &pose_action = reinterpret_cast<bAction *>(preview->id)->wrap();
+
+  if (pose_action.slot_array_num == 0) {
+    WM_report(RPT_WARNING, "Action has no data, cannot render preview");
+    return nullptr;
+  }
+
+  blender::animrig::Slot &slot = blender::animrig::get_best_pose_slot_for_id(object->id,
+                                                                             pose_action);
+  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones(object, &pose_action, slot.handle);
 
   /* Apply the Action as pose, so that it can be rendered. This assumes the Action represents a
    * single pose, and that thus the evaluation time doesn't matter. */
   AnimationEvalContext anim_eval_context = {preview->depsgraph, 0.0f};
-  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
-  blender::animrig::pose_apply_action_all_bones(object, action, slot_handle, &anim_eval_context);
+  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+      pose_action);
+  blender::animrig::pose_apply_action_all_bones(
+      object, &pose_action, slot_handle, &anim_eval_context);
 
   /* Force evaluation of the new pose, before the preview is rendered. */
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);

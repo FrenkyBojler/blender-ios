@@ -21,7 +21,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_fileops.h"
-#include "BLI_ghash.h"
+#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -38,8 +38,8 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_icons.h"
-#include "BKE_image.h"
-#include "BKE_image_save.h"
+#include "BKE_image.hh"
+#include "BKE_image_save.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -53,6 +53,8 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_moviecache.hh"
+
+#include "MOV_read.hh"
 
 #include "RE_pipeline.h"
 
@@ -327,7 +329,7 @@ bool space_image_main_region_poll(bContext *C)
   // ARegion *region = CTX_wm_region(C); /* XXX. */
 
   if (sima) {
-    return true; /* XXX (region && region->type->regionid == RGN_TYPE_WINDOW); */
+    return true; /* XXX (region && region->runtime->type->regionid == RGN_TYPE_WINDOW); */
   }
   return false;
 }
@@ -1267,21 +1269,16 @@ static void image_open_cancel(bContext * /*C*/, wmOperator *op)
 }
 
 static Image *image_open_single(Main *bmain,
+                                Library *owner_library,
                                 wmOperator *op,
                                 const ImageFrameRange *range,
-                                const bool use_multiview,
-                                const bool check_exists)
+                                const bool use_multiview)
 {
   bool exists = false;
   Image *ima = nullptr;
 
   errno = 0;
-  if (check_exists) {
-    ima = BKE_image_load_exists_ex(bmain, range->filepath, &exists);
-  }
-  else {
-    ima = BKE_image_load(bmain, range->filepath);
-  }
+  ima = BKE_image_load_exists_in_lib(bmain, owner_library, range->filepath, &exists);
 
   if (!ima) {
     if (op->customdata) {
@@ -1351,16 +1348,14 @@ static int image_open_exec(bContext *C, wmOperator *op)
   }
 
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
+  ID *owner_id = iod->pprop.ptr.owner_id;
+  Library *owner_library = owner_id ? owner_id->lib : nullptr;
+  blender::StringRefNull root_path = owner_library ? owner_library->runtime.filepath_abs :
+                                                     BKE_main_blendfile_path(bmain);
 
-  /* For editable assets always create a new image datablock. We can't assign
-   * a local datablock to linked asset datablocks. */
-  const bool check_exists = !(iod->pprop.prop && iod->pprop.ptr.owner_id &&
-                              ID_IS_LINKED(iod->pprop.ptr.owner_id) &&
-                              ID_IS_EDITABLE(iod->pprop.ptr.owner_id));
-
-  ListBase ranges = ED_image_filesel_detect_sequences(bmain, op, use_udim);
+  ListBase ranges = ED_image_filesel_detect_sequences(root_path, op, use_udim);
   LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
-    Image *ima_range = image_open_single(bmain, op, range, use_multiview, check_exists);
+    Image *ima_range = image_open_single(bmain, owner_library, op, range, use_multiview);
 
     /* take the first image */
     if ((ima == nullptr) && ima_range) {
@@ -1601,6 +1596,17 @@ static int image_file_browse_exec(bContext *C, wmOperator *op)
 
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
+  if (BLI_path_is_rel(filepath)) {
+    /* Relative path created by the file-browser are always relative to the current blendfile, need
+     * to be made relative to the library blendfile path in case image is an editable linked data.
+     */
+    BLI_path_abs(filepath, BKE_main_blendfile_path(CTX_data_main(C)));
+    /* TODO: make this a BKE_lib_id helper (already a static function in BKE_image too), we likely
+     * need this in more places in the future. ~~mont29 */
+    BLI_path_rel(filepath,
+                 ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime.filepath_abs :
+                                          BKE_main_blendfile_path(CTX_data_main(C)));
+  }
 
   /* If loading into a tiled texture, ensure that the filename is tokenized. */
   if (ima->source == IMA_SRC_TILED) {
@@ -1626,6 +1632,9 @@ static int image_file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *
 
   char filepath[FILE_MAX];
   STRNCPY(filepath, ima->filepath);
+  BLI_path_abs(filepath,
+               ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime.filepath_abs :
+                                        BKE_main_blendfile_path(CTX_data_main(C)));
 
   /* Shift+Click to open the file, Alt+Click to browse a folder in the OS's browser. */
   if (event->modifier & (KM_SHIFT | KM_ALT)) {
@@ -1718,11 +1727,11 @@ static int image_match_len_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  ImBufAnim *anim = ((ImageAnim *)ima->anims.first)->anim;
+  MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
   if (!anim) {
     return OPERATOR_CANCELLED;
   }
-  iuser->frames = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+  iuser->frames = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
   BKE_image_user_frame_calc(ima, iuser, scene->r.cfra);
 
   return OPERATOR_FINISHED;
@@ -1781,6 +1790,7 @@ static int image_replace_exec(bContext *C, wmOperator *op)
 
   BKE_icon_changed(BKE_icon_id_ensure(&sima->image->id));
   BKE_image_signal(bmain, sima->image, &sima->iuser, IMA_SIGNAL_RELOAD);
+  DEG_id_tag_update(&sima->image->id, 0);
   WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, sima->image);
 
   return OPERATOR_FINISHED;
@@ -2358,7 +2368,7 @@ bool ED_image_should_save_modified(const Main *bmain)
 
 int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
 {
-  GSet *unique_paths = BLI_gset_str_new(__func__);
+  blender::Set<std::string> unique_paths;
 
   int num_saveable_images = 0;
 
@@ -2389,14 +2399,14 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
       else {
         if (image_has_valid_path(ima)) {
           num_saveable_images++;
-          if (BLI_gset_haskey(unique_paths, ima->filepath)) {
+          if (unique_paths.contains_as(ima->filepath)) {
             BKE_reportf(reports,
                         RPT_WARNING,
                         "Multiple images can't be saved to an identical path: \"%s\"",
                         ima->filepath);
           }
           else {
-            BLI_gset_insert(unique_paths, BLI_strdup(ima->filepath));
+            unique_paths.add(ima->filepath);
           }
         }
         else {
@@ -2409,7 +2419,6 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
     }
   }
 
-  BLI_gset_free(unique_paths, MEM_freeN);
   return num_saveable_images;
 }
 
@@ -2666,19 +2675,19 @@ static void image_new_draw(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropDecorate(layout, false);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, op->ptr, "name", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "width", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "height", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "color", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "alpha", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "generated_type", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "float", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "tiled", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, op->ptr, "tiled", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
 #if 0
   if (is_multiview) {
     uiItemL(col[0], "", ICON_NONE);
-    uiItemR(col[1], op->ptr, "use_stereo_3d", 0, nullptr, ICON_NONE);
+    uiItemR(col[1], op->ptr, "use_stereo_3d", 0, std::nullopt, ICON_NONE);
   }
 #endif
 }
@@ -3216,38 +3225,80 @@ static int image_scale_exec(bContext *C, wmOperator *op)
 {
   Image *ima = image_from_context(C);
   ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
   SpaceImage *sima = CTX_wm_space_image(C);
   const bool is_paint = ((sima != nullptr) && (sima->mode == SI_MODE_PAINT));
-
-  if (ibuf == nullptr) {
-    /* TODO: this should actually never happen, but does for render-results -> cleanup */
-    return OPERATOR_CANCELLED;
-  }
 
   if (is_paint) {
     ED_imapaint_clear_partial_redraw();
   }
 
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "size");
-  int size[2];
-  if (RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_int_get_array(op->ptr, prop, size);
+  const bool is_scaling_all = RNA_boolean_get(op->ptr, "all_udims");
+
+  if (!is_scaling_all) {
+    ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+
+    if (ibuf == nullptr) {
+      /* TODO: this should actually never happen, but does for render-results -> cleanup */
+      return OPERATOR_CANCELLED;
+    }
+
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "size");
+    int size[2];
+    if (RNA_property_is_set(op->ptr, prop)) {
+      RNA_property_int_get_array(op->ptr, prop, size);
+    }
+    else {
+      size[0] = ibuf->x;
+      size[1] = ibuf->y;
+      RNA_property_int_set_array(op->ptr, prop, size);
+    }
+
+    ED_image_undo_push_begin_with_image(op->type->name, ima, ibuf, &iuser);
+    ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+    IMB_scale(ibuf, size[0], size[1], IMBScaleFilter::Box, false);
+    BKE_image_mark_dirty(ima, ibuf);
+    BKE_image_release_ibuf(ima, ibuf, nullptr);
+    ED_image_undo_push_end();
   }
   else {
-    size[0] = ibuf->x;
-    size[1] = ibuf->y;
-    RNA_property_int_set_array(op->ptr, prop, size);
+    // Ensure that an image buffer can be aquired for all UDIM tiles
+    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
+      iuser.tile = current_tile->tile_number;
+
+      ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+
+      if (ibuf == nullptr) {
+        /* TODO: this should actually never happen, but does for render-results -> cleanup */
+        return OPERATOR_CANCELLED;
+      }
+
+      BKE_image_release_ibuf(ima, ibuf, nullptr);
+    }
+
+    ED_image_undo_push_begin_with_image_all_udims(op->type->name, ima, &iuser);
+    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
+      iuser.tile = current_tile->tile_number;
+
+      ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+
+      PropertyRNA *prop = RNA_struct_find_property(op->ptr, "size");
+      int size[2];
+      if (RNA_property_is_set(op->ptr, prop)) {
+        RNA_property_int_get_array(op->ptr, prop, size);
+      }
+      else {
+        size[0] = ibuf->x;
+        size[1] = ibuf->y;
+        RNA_property_int_set_array(op->ptr, prop, size);
+      }
+
+      ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+      IMB_scale(ibuf, size[0], size[1], IMBScaleFilter::Box, false);
+      BKE_image_mark_dirty(ima, ibuf);
+      BKE_image_release_ibuf(ima, ibuf, nullptr);
+    }
+    ED_image_undo_push_end();
   }
-
-  ED_image_undo_push_begin_with_image(op->type->name, ima, ibuf, &iuser);
-
-  ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
-  IMB_scale(ibuf, size[0], size[1], IMBScaleFilter::Box, false);
-  BKE_image_mark_dirty(ima, ibuf);
-  BKE_image_release_ibuf(ima, ibuf, nullptr);
-
-  ED_image_undo_push_end();
 
   BKE_image_partial_update_mark_full_update(ima);
 
@@ -3271,6 +3322,8 @@ void IMAGE_OT_resize(wmOperatorType *ot)
 
   /* properties */
   RNA_def_int_vector(ot->srna, "size", 2, nullptr, 1, INT_MAX, "Size", "", 1, SHRT_MAX);
+  RNA_def_boolean(
+      ot->srna, "all_udims", false, "All UDIM Tiles", "Scale all the image's UDIM tiles");
 
   /* flags */
   ot->flag = OPTYPE_REGISTER;
@@ -4127,12 +4180,12 @@ static void draw_fill_tile(PointerRNA *ptr, uiLayout *layout)
   uiLayoutSetPropDecorate(layout, false);
 
   uiLayout *col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "color", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "width", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "height", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "alpha", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "generated_type", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "float", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void tile_fill_init(PointerRNA *ptr, Image *ima, ImageTile *tile)
@@ -4274,10 +4327,10 @@ static void tile_add_draw(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropDecorate(layout, false);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, op->ptr, "number", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "count", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "label", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "fill", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, op->ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, op->ptr, "label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, op->ptr, "fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_boolean_get(op->ptr, "fill")) {
     draw_fill_tile(op->ptr, layout);
@@ -4286,6 +4339,8 @@ static void tile_add_draw(bContext * /*C*/, wmOperator *op)
 
 void IMAGE_OT_tile_add(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* identifiers */
   ot->name = "Add Tile";
   ot->description = "Adds a tile to the image";
@@ -4311,7 +4366,8 @@ void IMAGE_OT_tile_add(wmOperatorType *ot)
               1099);
   RNA_def_int(ot->srna, "count", 1, 1, INT_MAX, "Count", "How many tiles to add", 1, 1000);
   RNA_def_string(ot->srna, "label", nullptr, 0, "Label", "Optional tile label");
-  RNA_def_boolean(ot->srna, "fill", true, "Fill", "Fill new tile with a generated image");
+  prop = RNA_def_boolean(ot->srna, "fill", true, "Fill", "Fill new tile with a generated image");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_IMAGE);
   def_fill_tile(ot->srna);
 }
 
@@ -4395,8 +4451,11 @@ static int tile_fill_invoke(bContext *C, wmOperator *op, const wmEvent * /*event
 {
   tile_fill_init(op->ptr, CTX_data_edit_image(C), nullptr);
 
-  return WM_operator_props_dialog_popup(
-      C, op, 300, IFACE_("Fill Tile With Generated Image"), IFACE_("Fill"));
+  return WM_operator_props_dialog_popup(C,
+                                        op,
+                                        300,
+                                        IFACE_("Fill Tile With Generated Image"),
+                                        CTX_IFACE_(BLT_I18NCONTEXT_ID_IMAGE, "Fill"));
 }
 
 static void tile_fill_draw(bContext * /*C*/, wmOperator *op)

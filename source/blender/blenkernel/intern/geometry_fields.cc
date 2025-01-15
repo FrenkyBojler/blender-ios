@@ -12,8 +12,6 @@
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
 #include "BKE_physics_geometry.hh"
-#include "BKE_pointcloud.hh"
-#include "BKE_type_conversions.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
@@ -521,7 +519,7 @@ std::string AttributeFieldInput::socket_inspection_name() const
   if (socket_inspection_name_) {
     return *socket_inspection_name_;
   }
-  return fmt::format(TIP_("\"{}\" attribute from geometry"), name_);
+  return fmt::format(fmt::runtime(TIP_("\"{}\" attribute from geometry")), name_);
 }
 
 uint64_t AttributeFieldInput::hash() const
@@ -910,6 +908,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     const AttributeValidator validator = attributes.lookup_validator(id);
     const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
     const CPPType &type = field.cpp_type();
+    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(type);
 
     /* We are writing to an attribute that exists already with the correct domain and type. */
     if (const GAttributeReader dst = attributes.lookup(id)) {
@@ -930,7 +929,8 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
      * - The field does not depend on that attribute (we can't easily check for that yet). */
     void *buffer = MEM_mallocN_aligned(type.size() * domain_size, type.alignment(), __func__);
     if (!selection_is_full) {
-      type.value_initialize_n(buffer, domain_size);
+      const GAttributeReader old_attribute = attributes.lookup_or_default(id, domain, data_type);
+      old_attribute.varray.materialize(buffer);
     }
 
     GMutableSpan dst(type, buffer, domain_size);

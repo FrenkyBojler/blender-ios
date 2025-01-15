@@ -43,6 +43,7 @@
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_reference_lifetimes.hh"
 #include "BKE_node_tree_zones.hh"
@@ -454,7 +455,7 @@ std::string make_anonymous_attribute_socket_inspection_string(const bNodeSocket 
 std::string make_anonymous_attribute_socket_inspection_string(StringRef node_name,
                                                               StringRef socket_name)
 {
-  return fmt::format(TIP_("\"{}\" from {}"), socket_name, node_name);
+  return fmt::format(fmt::runtime(TIP_("\"{}\" from {}")), socket_name, node_name);
 }
 
 static void execute_multi_function_on_value_variant__single(
@@ -1181,7 +1182,8 @@ class LazyFunctionForGroupNode : public LazyFunction {
 
   std::string name() const override
   {
-    return fmt::format(TIP_("Group '{}' ({})"), group_node_.id->name + 2, group_node_.name);
+    return fmt::format(
+        fmt::runtime(TIP_("Group '{}' ({})")), group_node_.id->name + 2, group_node_.name);
   }
 
   std::string input_name(const int i) const override
@@ -1919,7 +1921,7 @@ struct GeometryNodesLazyFunctionBuilder {
 
     for (const int zone_i : zone_build_order) {
       const bNodeTreeZone &zone = *tree_zones_->zones[zone_i];
-      switch (zone.output_node->type) {
+      switch (zone.output_node->type_legacy) {
         case GEO_NODE_SIMULATION_OUTPUT: {
           this->build_simulation_zone_function(zone);
           break;
@@ -2709,8 +2711,7 @@ struct GeometryNodesLazyFunctionBuilder {
     for (const bNodeTreeInterfaceSocket *interface_input : interface_inputs) {
       const bke::bNodeSocketType *typeinfo = interface_input->socket_typeinfo();
       lf::GraphInputSocket &lf_socket = lf_graph.add_input(
-          *typeinfo->geometry_nodes_cpp_type,
-          interface_input->name ? interface_input->name : nullptr);
+          *typeinfo->geometry_nodes_cpp_type, interface_input->name ? interface_input->name : "");
       group_input_sockets_.append(&lf_socket);
     }
   }
@@ -2745,7 +2746,7 @@ struct GeometryNodesLazyFunctionBuilder {
       this->build_muted_node(bnode, graph_params);
       return;
     }
-    switch (node_type->type) {
+    switch (node_type->type_legacy) {
       case NODE_FRAME: {
         /* Ignored. */
         break;

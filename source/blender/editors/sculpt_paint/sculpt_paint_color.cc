@@ -25,7 +25,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
 
 #include "IMB_colormanagement.hh"
 
@@ -255,7 +255,8 @@ struct ColorPaintLocalData {
   Vector<float4> colors;
   Vector<float4> new_colors;
   Vector<float4> mix_colors;
-  Vector<Vector<int>> vert_neighbors;
+  Vector<int> neighbor_offsets;
+  Vector<int> neighbor_data;
 };
 
 static void do_color_smooth_task(const Depsgraph &depsgraph,
@@ -308,10 +309,13 @@ static void do_color_smooth_task(const Depsgraph &depsgraph,
                                verts[i]);
   }
 
-  tls.vert_neighbors.resize(verts.size());
-  calc_vert_neighbors(
-      faces, corner_verts, vert_to_face_map, attribute_data.hide_poly, verts, tls.vert_neighbors);
-  const Span<Vector<int>> vert_neighbors = tls.vert_neighbors;
+  const GroupedSpan<int> neighbors = calc_vert_neighbors(faces,
+                                                         corner_verts,
+                                                         vert_to_face_map,
+                                                         attribute_data.hide_poly,
+                                                         verts,
+                                                         tls.neighbor_offsets,
+                                                         tls.neighbor_data);
 
   tls.new_colors.resize(verts.size());
   MutableSpan<float4> new_colors = tls.new_colors;
@@ -320,7 +324,7 @@ static void do_color_smooth_task(const Depsgraph &depsgraph,
                                  vert_to_face_map,
                                  color_attribute.span,
                                  color_attribute.domain,
-                                 vert_neighbors,
+                                 neighbors,
                                  new_colors);
 
   for (const int i : colors.index_range()) {
@@ -347,6 +351,7 @@ static void do_paint_brush_task(const Scene &scene,
                                 const Span<int> corner_verts,
                                 const GroupedSpan<int> vert_to_face_map,
                                 const MeshAttributeData &attribute_data,
+                                const Paint &paint,
                                 const Brush &brush,
                                 const float4x4 &mat,
                                 const float4 wet_mix_sampled_color,
@@ -409,8 +414,9 @@ static void do_paint_brush_task(const Scene &scene,
     }
   }
 
-  const float3 brush_color_rgb = ss.cache->invert ? BKE_brush_secondary_color_get(&scene, &brush) :
-                                                    BKE_brush_color_get(&scene, &brush);
+  const float3 brush_color_rgb = ss.cache->invert ?
+                                     BKE_brush_secondary_color_get(&scene, &paint, &brush) :
+                                     BKE_brush_color_get(&scene, &paint, &brush);
   float4 brush_color(brush_color_rgb, 1.0f);
   IMB_colormanagement_srgb_to_scene_linear_v3(brush_color, brush_color);
 
@@ -660,6 +666,7 @@ void do_paint_brush(const Scene &scene,
                         corner_verts,
                         vert_to_face_map,
                         attribute_data,
+                        sd.paint,
                         brush,
                         mat,
                         wet_color,

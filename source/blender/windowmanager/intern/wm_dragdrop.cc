@@ -21,7 +21,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_bitmap.h"
 #include "BLI_blenlib.h"
 #include "BLI_math_color.h"
 
@@ -39,13 +38,11 @@
 
 #include "BLO_readfile.hh"
 
-#include "ED_asset.hh"
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
 
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
-#include "GPU_viewport.hh"
 
 #include "IMB_imbuf_types.hh"
 
@@ -232,7 +229,7 @@ static void wm_dropbox_invoke(bContext *C, wmDrag *drag)
     bScreen *screen = WM_window_get_active_screen(win);
     ED_screen_areas_iter (win, screen, area) {
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-        if (region->visible) {
+        if (region->runtime->visible) {
           BLI_assert(area->spacetype < SPACE_TYPE_NUM);
           BLI_assert(region->regiontype < RGN_TYPE_NUM);
           area_region_tag[area->spacetype][region->regiontype] = true;
@@ -325,7 +322,7 @@ void wm_drags_exit(wmWindowManager *wm, wmWindow *win)
     WM_cursor_modal_restore(win);
   }
 
-  /* Active area should always redraw, even if cancelled. */
+  /* Active area should always redraw, even if canceled. */
   int event_xy_target[2];
   wmWindow *target_win = WM_window_find_under_cursor(win, win->eventstate->xy, event_xy_target);
   if (target_win) {
@@ -490,7 +487,7 @@ static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *ev
   if (area) {
     ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, event->xy);
     if (region) {
-      drop = dropbox_active(C, &region->handlers, drag, event);
+      drop = dropbox_active(C, &region->runtime->handlers, drag, event);
     }
 
     if (!drop) {
@@ -856,7 +853,7 @@ wmDragPath *WM_drag_create_path_data(blender::Span<const char *> paths)
 
   if (path_data->paths.size() > 1) {
     std::string path_count = std::to_string(path_data->paths.size());
-    path_data->tooltip = fmt::format(TIP_("Dragging {} files"), path_count);
+    path_data->tooltip = fmt::format(fmt::runtime(TIP_("Dragging {} files")), path_count);
   }
 
   return path_data;

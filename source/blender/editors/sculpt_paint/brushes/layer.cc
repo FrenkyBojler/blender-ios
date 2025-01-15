@@ -9,17 +9,15 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_key.hh"
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_array.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
-#include "BLI_task.h"
 #include "BLI_task.hh"
 
 #include "editors/sculpt_paint/mesh_brush_common.hh"
@@ -27,6 +25,8 @@
 #include "editors/sculpt_paint/paint_mask.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
+
+#include "bmesh.hh"
 
 namespace blender::ed::sculpt_paint {
 
@@ -226,7 +226,6 @@ static void calc_grids(const Depsgraph &depsgraph,
   SculptSession &ss = *object.sculpt;
   const StrokeCache &cache = *ss.cache;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
   const Span<int> grids = node.grids();
   const OrigPositionData orig_data = orig_position_data_get_grids(object, node);
@@ -256,7 +255,7 @@ static void calc_grids(const Depsgraph &depsgraph,
       subdiv_ccg, layer_displacement_factor.as_span(), grids, tls.displacement_factors);
 
   offset_displacement_factors(displacement_factors, tls.factors, cache.bstrength);
-  if (key.has_mask) {
+  if (!subdiv_ccg.masks.is_empty()) {
     tls.masks.resize(positions.size());
     mask::gather_mask_grids(subdiv_ccg, grids, tls.masks);
   }

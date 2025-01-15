@@ -805,9 +805,11 @@ class PHYSICS_PT_dp_brush_source_color_ramp(PhysicButtonsPanel, Panel):
             return False
 
         brush = context.dynamic_paint.brush_settings
-        return ((brush.paint_source in {'DISTANCE', 'VOLUME_DISTANCE', 'POINT'})
-                and (brush.proximity_falloff == 'RAMP')
-                and (context.engine in cls.COMPAT_ENGINES))
+        return (
+            (brush.paint_source in {'DISTANCE', 'VOLUME_DISTANCE', 'POINT'}) and
+            (brush.proximity_falloff == 'RAMP') and
+            (context.engine in cls.COMPAT_ENGINES)
+        )
 
     def draw(self, context):
         layout = self.layout
@@ -909,7 +911,7 @@ class PHYSICS_PT_dp_brush_velocity_smudge(PhysicButtonsPanel, Panel):
         brush = context.dynamic_paint.brush_settings
 
         layout.active = brush.use_smudge
-        layout.prop(brush, "smudge_strength", text="Strength", slider=True)
+        layout.prop(brush, "smudge_strength", text="Strength", text_ctxt=i18n_contexts.amount, slider=True)
 
 
 class PHYSICS_PT_dp_brush_wave(PhysicButtonsPanel, Panel):

@@ -14,6 +14,8 @@
 
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -557,7 +559,7 @@ bool rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Poin
 {
   StructRNA *srna;
   PropertyRNA *prop;
-  PointerRNA propptr = {nullptr};
+  PointerRNA propptr = {};
 
   srna = ptr->type;
 
@@ -1293,8 +1295,8 @@ struct RNACompareOverrideDiffPropPtrContext {
   /** RNA pointer specific diffing parameters. */
   ID *owner_id_a = nullptr;
   ID *owner_id_b = nullptr;
-  PointerRNA propptr_a = {0};
-  PointerRNA propptr_b = {0};
+  PointerRNA propptr_a = {};
+  PointerRNA propptr_b = {};
   PropertyType property_type = PROP_BOOLEAN;
 
   /**
@@ -1750,8 +1752,8 @@ void rna_property_override_diff_default(Main *bmain, RNAPropertyOverrideDiffCont
 {
   PropertyRNAOrID *prop_a = rnadiff_ctx.prop_a;
   PropertyRNAOrID *prop_b = rnadiff_ctx.prop_b;
-  PointerRNA *ptr_a = &prop_a->ptr;
-  PointerRNA *ptr_b = &prop_b->ptr;
+  PointerRNA *ptr_a = prop_a->ptr;
+  PointerRNA *ptr_b = prop_b->ptr;
   PropertyRNA *rawprop_a = prop_a->rawprop;
   PropertyRNA *rawprop_b = prop_b->rawprop;
   const uint len_a = prop_a->array_len;
@@ -3186,6 +3188,7 @@ static void rna_def_property(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_property_subtype_items);
   RNA_def_property_enum_funcs(prop, "rna_Property_subtype_get", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Subtype", "Semantic interpretation of the property");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
 
   prop = RNA_def_property(srna, "srna", PROP_POINTER, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -3197,6 +3200,7 @@ static void rna_def_property(BlenderRNA *brna)
   prop = RNA_def_property(srna, "unit", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_enum_items(prop, rna_enum_property_unit_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
   RNA_def_property_enum_funcs(prop, "rna_Property_unit_get", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Unit", "Type of units for this property");
 

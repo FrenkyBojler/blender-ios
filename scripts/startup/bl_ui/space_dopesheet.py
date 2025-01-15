@@ -12,7 +12,9 @@ from bpy.types import (
 from bl_ui.properties_data_grease_pencil import (
     GreasePencil_LayerMaskPanel,
     GreasePencil_LayerTransformPanel,
-    GreasPencil_LayerRelationsPanel,
+    GreasePencil_LayerRelationsPanel,
+    GreasePencil_LayerAdjustmentsPanel,
+    GreasePencil_LayerDisplayPanel,
 )
 
 from rna_prop_ui import PropertyPanel
@@ -222,20 +224,9 @@ class DOPESHEET_HT_editor_buttons:
         st = context.space_data
         tool_settings = context.tool_settings
 
-        if st.mode in {'ACTION', 'SHAPEKEY'}:
-            # TODO: These buttons need some tidying up -
-            # Probably by using a popover, and bypassing the template_id() here
-            row = layout.row(align=True)
-            row.operator("action.layer_prev", text="", icon='TRIA_DOWN')
-            row.operator("action.layer_next", text="", icon='TRIA_UP')
-
-            row = layout.row(align=True)
-            row.operator("action.push_down", text="Push Down", icon='NLA_PUSHDOWN')
-            row.operator("action.stash", text="Stash", icon='FREEZE')
-
-            if context.object:
-                layout.separator_spacer()
-                cls._draw_action_selector(context, layout)
+        if st.mode in {'ACTION', 'SHAPEKEY'} and context.object:
+            layout.separator_spacer()
+            cls._draw_action_selector(context, layout)
 
         # Layer management
         if st.mode == 'GPENCIL':
@@ -319,7 +310,7 @@ class DOPESHEET_HT_editor_buttons:
         row.context_pointer_set("animated_id", animated_id)
         row.template_search(
             adt, "action_slot",
-            adt, "action_slots",
+            adt, "action_suitable_slots",
             new="anim.slot_new_for_id",
             unlink="anim.slot_unassign_from_id",
         )
@@ -580,6 +571,10 @@ class DOPESHEET_MT_action(Menu):
 
         layout.separator()
         layout.operator("anim.slot_channels_move_to_new_action")
+
+        layout.separator()
+        layout.operator("action.push_down", text="Push Down Action", icon='NLA_PUSHDOWN')
+        layout.operator("action.stash", text="Stash Action", icon='FREEZE')
 
 
 class DOPESHEET_MT_key(Menu):
@@ -877,7 +872,7 @@ class LayersDopeSheetPanel:
     def poll(cls, context):
         st = context.space_data
         ob = context.object
-        if st.mode != 'GPENCIL' or ob is None or ob.type != 'GPENCIL':
+        if st.mode != 'GPENCIL' or ob is None or ob.type != 'GREASEPENCIL':
             return False
 
         gpd = ob.data
@@ -940,7 +935,8 @@ class DOPESHEET_PT_grease_pencil_layer_masks(GreasePencilLayersDopeSheetPanel, G
 class DOPESHEET_PT_grease_pencil_layer_transform(
         GreasePencilLayersDopeSheetPanel,
         GreasePencil_LayerTransformPanel,
-        Panel):
+        Panel,
+):
     bl_label = "Transform"
     bl_parent_id = "DOPESHEET_PT_grease_pencil_mode"
     bl_options = {'DEFAULT_CLOSED'}
@@ -948,9 +944,30 @@ class DOPESHEET_PT_grease_pencil_layer_transform(
 
 class DOPESHEET_PT_grease_pencil_layer_relations(
         GreasePencilLayersDopeSheetPanel,
-        GreasPencil_LayerRelationsPanel,
-        Panel):
+        GreasePencil_LayerRelationsPanel,
+        Panel,
+):
     bl_label = "Relations"
+    bl_parent_id = "DOPESHEET_PT_grease_pencil_mode"
+    bl_options = {'DEFAULT_CLOSED'}
+
+
+class DOPESHEET_PT_grease_pencil_layer_adjustments(
+        GreasePencilLayersDopeSheetPanel,
+        GreasePencil_LayerAdjustmentsPanel,
+        Panel,
+):
+    bl_label = "Adjustments"
+    bl_parent_id = "DOPESHEET_PT_grease_pencil_mode"
+    bl_options = {'DEFAULT_CLOSED'}
+
+
+class DOPESHEET_PT_grease_pencil_layer_display(
+        GreasePencilLayersDopeSheetPanel,
+        GreasePencil_LayerDisplayPanel,
+        Panel,
+):
+    bl_label = "Display"
     bl_parent_id = "DOPESHEET_PT_grease_pencil_mode"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -980,7 +997,9 @@ classes = (
     DOPESHEET_PT_grease_pencil_mode,
     DOPESHEET_PT_grease_pencil_layer_masks,
     DOPESHEET_PT_grease_pencil_layer_transform,
+    DOPESHEET_PT_grease_pencil_layer_adjustments,
     DOPESHEET_PT_grease_pencil_layer_relations,
+    DOPESHEET_PT_grease_pencil_layer_display,
 )
 
 if __name__ == "__main__":  # only for live edit.

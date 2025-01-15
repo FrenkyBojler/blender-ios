@@ -10,7 +10,6 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#include <new>
 #include <sstream>
 
 #include <fmt/format.h>
@@ -19,19 +18,15 @@
 
 #include "DNA_ID.h"
 #include "DNA_anim_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_alloca.h"
-#include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
 #include "BLI_ghash.h"
+#include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BLF_api.hh"
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
@@ -151,7 +146,7 @@ PointerRNA RNA_id_pointer_create(ID *id)
   StructRNA *type, *idtype = nullptr;
 
   if (id) {
-    PointerRNA tmp = {nullptr};
+    PointerRNA tmp = {};
     tmp.data = id;
     idtype = rna_ID_refine(&tmp);
 
@@ -497,7 +492,7 @@ void rna_property_rna_or_id_get(PropertyRNA *prop,
    * pointer to the IDProperty. */
   *r_prop_rna_or_id = {};
 
-  r_prop_rna_or_id->ptr = *ptr;
+  r_prop_rna_or_id->ptr = ptr;
   r_prop_rna_or_id->rawprop = prop;
 
   if (prop->magic == RNA_MAGIC) {
@@ -3874,8 +3869,17 @@ void RNA_property_enum_set(PointerRNA *ptr, PropertyRNA *prop, int value)
 int RNA_property_enum_get_default(PointerRNA * /*ptr*/, PropertyRNA *prop)
 {
   EnumPropertyRNA *eprop = (EnumPropertyRNA *)rna_ensure_property(prop);
-
   BLI_assert(RNA_property_type(prop) == PROP_ENUM);
+
+  if (prop->magic != RNA_MAGIC) {
+    const IDProperty *idprop = reinterpret_cast<const IDProperty *>(prop);
+    if (idprop->ui_data) {
+      BLI_assert(idprop->type == IDP_INT);
+      const IDPropertyUIDataInt *ui_data = reinterpret_cast<const IDPropertyUIDataInt *>(
+          idprop->ui_data);
+      return ui_data->default_value;
+    }
+  }
 
   return eprop->defaultvalue;
 }
@@ -5877,7 +5881,7 @@ std::string RNA_pointer_as_string_keywords_ex(bContext *C,
 
     if (as_function && (prop->flag_parameter & PARM_REQUIRED)) {
       /* required args don't have useful defaults */
-      ss << fmt::format(first_iter ? "{}" : ", {}", arg_name);
+      ss << fmt::format(fmt::runtime(first_iter ? "{}" : ", {}"), arg_name);
       first_iter = false;
     }
     else {
@@ -5906,7 +5910,7 @@ std::string RNA_pointer_as_string_keywords_ex(bContext *C,
           buf = RNA_property_as_string(C, ptr, prop, -1, max_prop_length);
         }
 
-        ss << fmt::format(first_iter ? "{}={}" : ", {}={}", arg_name, buf);
+        ss << fmt::format(fmt::runtime(first_iter ? "{}={}" : ", {}={}"), arg_name, buf);
         first_iter = false;
       }
     }
@@ -5989,7 +5993,8 @@ static void rna_array_as_string_elem(int type, void **buf_p, int len, std::strin
     case PROP_BOOLEAN: {
       bool *buf = static_cast<bool *>(*buf_p);
       for (int i = 0; i < len; i++, buf++) {
-        ss << fmt::format((i < end || !end) ? "{}, " : "{}", bool_as_py_string(*buf));
+        ss << fmt::format(fmt::runtime((i < end || !end) ? "{}, " : "{}"),
+                          bool_as_py_string(*buf));
       }
       *buf_p = buf;
       break;
@@ -5997,7 +6002,7 @@ static void rna_array_as_string_elem(int type, void **buf_p, int len, std::strin
     case PROP_INT: {
       int *buf = static_cast<int *>(*buf_p);
       for (int i = 0; i < len; i++, buf++) {
-        ss << fmt::format((i < end || !end) ? "{}, " : "{}", *buf);
+        ss << fmt::format(fmt::runtime((i < end || !end) ? "{}, " : "{}"), *buf);
       }
       *buf_p = buf;
       break;
@@ -6005,7 +6010,7 @@ static void rna_array_as_string_elem(int type, void **buf_p, int len, std::strin
     case PROP_FLOAT: {
       float *buf = static_cast<float *>(*buf_p);
       for (int i = 0; i < len; i++, buf++) {
-        ss << fmt::format((i < end || !end) ? "{:g}, " : "{:g}", *buf);
+        ss << fmt::format(fmt::runtime((i < end || !end) ? "{:g}, " : "{:g}"), *buf);
       }
       *buf_p = buf;
       break;
@@ -6135,7 +6140,7 @@ std::string RNA_property_as_string(
             bool is_first = true;
             for (; item->identifier; item++) {
               if (item->identifier[0] && item->value & val) {
-                ss << fmt::format(is_first ? "'{}'" : ", '{}'", item->identifier);
+                ss << fmt::format(fmt::runtime(is_first ? "'{}'" : ", '{}'"), item->identifier);
                 is_first = false;
               }
             }
@@ -6623,7 +6628,7 @@ int RNA_function_call(
   return -1;
 }
 
-const char *RNA_translate_ui_text(
+std::optional<blender::StringRefNull> RNA_translate_ui_text(
     const char *text, const char *text_ctxt, StructRNA *type, PropertyRNA *prop, int translate)
 {
   return rna_translate_ui_text(text, text_ctxt, type, prop, translate);
