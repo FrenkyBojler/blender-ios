@@ -137,7 +137,7 @@ struct PuffOperationExecutor {
       self_->constraint_solver_.initialize(*curves_,
                                            curve_selection_,
                                            curves_id_->flag & CV_SCULPT_COLLISION_ENABLED,
-                                           curves_id_->surface_collision_radius);
+                                           curves_id_->surface_collision_distance);
     }
 
     Array<float> curve_weights(curves_->curves_num(), 0.0f);

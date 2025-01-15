@@ -174,7 +174,7 @@ class VIEW3D_HT_tool_header(Header):
             row.prop(ob.data, "use_sculpt_collision", icon='MOD_PHYSICS', icon_only=True, toggle=True)
             sub = row.row(align=True)
             sub.active = ob.data.use_sculpt_collision
-            sub.prop(ob.data, "surface_collision_radius")
+            sub.prop(ob.data, "surface_collision_distance")
 
         # Expand panels from the side-bar as popovers.
         popover_kw = {"space_type": 'VIEW_3D', "region_type": 'UI', "category": "Tool"}

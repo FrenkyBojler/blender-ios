@@ -128,7 +128,7 @@ struct PinchOperationExecutor {
       self_->constraint_solver_.initialize(*curves_,
                                            curve_selection_,
                                            curves_id_->flag & CV_SCULPT_COLLISION_ENABLED,
-                                           curves_id_->surface_collision_radius);
+                                           curves_id_->surface_collision_distance);
     }
 
     Array<bool> changed_curves(curves_->curves_num(), false);

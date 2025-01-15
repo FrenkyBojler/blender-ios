@@ -143,7 +143,7 @@ struct CombOperationExecutor {
       self_->constraint_solver_.initialize(*curves_orig_,
                                            curve_selection_,
                                            curves_id_orig_->flag & CV_SCULPT_COLLISION_ENABLED,
-                                           curves_id_orig_->surface_collision_radius);
+                                           curves_id_orig_->surface_collision_distance);
 
       self_->curve_lengths_.reinitialize(curves_orig_->curves_num());
       const Span<float> segment_lengths = self_->constraint_solver_.segment_lengths();

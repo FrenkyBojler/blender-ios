@@ -5639,9 +5639,9 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 23)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "Curves", "float", "surface_collision_radius")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Curves", "float", "surface_collision_distance")) {
       LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
-        curves->surface_collision_radius = 0.005f;
+        curves->surface_collision_distance = 0.005f;
       }
     }
   }
