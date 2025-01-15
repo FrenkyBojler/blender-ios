@@ -40,6 +40,44 @@ bool remove_selection(bke::CurvesGeometry &curves, const bke::AttrDomain selecti
   return attributes.domain_size(selection_domain) != domain_size_orig;
 }
 
+static void foreach_content_slice_by_offsets(
+    const IndexMask &mask,
+    const OffsetIndices<int> offset_indices,
+    FunctionRef<void(Span<IndexRange> selected_points, IndexRange slice_points, int slice)> fn)
+{
+  Vector<IndexRange> ranges;
+  Span<int> offset_data = offset_indices.data();
+
+  int slice = 0;
+
+  int range_first = mask.first();
+  int range_last = mask.first() - 1;
+
+  mask.foreach_index([&](const int64_t index) {
+    if (offset_data[slice + 1] <= index) {
+      if (range_last - range_first >= 0) {
+        ranges.append(IndexRange::from_begin_end_inclusive(range_first, range_last));
+        fn(ranges, offset_indices[slice], slice);
+        ranges.clear();
+      }
+      do {
+        ++slice;
+      } while (offset_data[slice + 1] <= index);
+      range_first = index;
+    }
+    else if (range_last + 1 != index) {
+      ranges.append(IndexRange::from_begin_end_inclusive(range_first, range_last));
+      range_first = index;
+    }
+    range_last = index;
+  });
+
+  if (range_last - range_first >= 0) {
+    ranges.append(IndexRange::from_begin_end_inclusive(range_first, range_last));
+    fn(ranges, offset_indices[slice], slice);
+  }
+}
+
 void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
 {
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
@@ -54,7 +92,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
   Vector<bool> dst_cyclic;
 
   /* Add the duplicated curves and points. */
-  index_mask::foreach_content_slice_by_offsets(
+  foreach_content_slice_by_offsets(
       mask,
       points_by_curve,
       [&](Span<IndexRange> ranges_to_duplicate, IndexRange points, int curve_i) {
