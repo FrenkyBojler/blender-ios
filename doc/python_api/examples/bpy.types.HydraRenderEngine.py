@@ -22,6 +22,7 @@ class CustomHydraRenderEngine(bpy.types.HydraRenderEngine):
     # Register path to plugin.
     @classmethod
     def register(cls):
+        bpy.utils.expose_bundled_modules()
         import pxr.Plug
         pxr.Plug.Registry().RegisterPlugins(['/path/to/plugin'])
 

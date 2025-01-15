@@ -185,6 +185,7 @@ bl_info = {
 
 import bpy
 import bpy.types
+bpy.utils.expose_bundled_modules()
 import pxr.Gf as Gf
 import pxr.Sdf as Sdf
 import pxr.Usd as Usd
