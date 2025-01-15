@@ -23,6 +23,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  // TODO: Support in sculpt brush evaluation mode.
   if (!check_tool_context_and_error(params)) {
     return;
   }
