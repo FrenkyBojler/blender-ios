@@ -135,7 +135,7 @@ GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_inp
 
   if (attribute_field_input != nullptr) {
     if (attribute_field_input->attribute_name() == "position") {
-      return VArray<float3>::ForContainer(std::move(this->positions()));
+      return VArray<float3>::ForContainer(this->positions());
     }
   }
 
@@ -143,14 +143,14 @@ GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_inp
       &field_input);
 
   if (normal_field_input != nullptr) {
-    return VArray<float3>::ForContainer(std::move(this->normals()));
+    return VArray<float3>::ForContainer(this->normals());
   }
 
   const fn::IndexFieldInput *index_field_input = dynamic_cast<const fn::IndexFieldInput *>(
       &field_input);
 
   if (index_field_input != nullptr) {
-    return VArray<int>::ForContainer(std::move(this->indices()));
+    return VArray<int>::ForContainer(this->indices());
   }
 
   return {};
