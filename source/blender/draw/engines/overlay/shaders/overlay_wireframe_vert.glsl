@@ -123,7 +123,7 @@ void main()
 #endif
 
 #if !defined(POINTS) && !defined(CURVES)
-  if (!use_custom_depth_bias) {
+  {
     float facing_ratio = clamp(1.0 - facing * facing, 0.0, 1.0);
     float flip = sign(facing);           /* Flip when not facing the normal (i.e.: back-facing). */
     float curvature = (1.0 - wd * 0.75); /* Avoid making things worse for curvy areas. */

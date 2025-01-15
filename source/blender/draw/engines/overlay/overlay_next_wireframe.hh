@@ -82,7 +82,8 @@ class Wireframe : Overlay {
           [&](GPUShader *shader, const char *name, bool use_coloring, float wire_threshold) {
             auto &sub = pass.sub(name);
             if (res.shaders.wireframe_mesh.get() == shader) {
-              sub.specialize_constant(shader, "use_custom_depth_bias", do_smooth_lines);
+              /* Handling depth bias in vertex seems a bit unrealiable. */
+              sub.specialize_constant(shader, "use_custom_depth_bias", true);
             }
             sub.shader_set(shader);
             sub.bind_texture("depthTex", depth_tex);
