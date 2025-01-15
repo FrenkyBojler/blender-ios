@@ -964,6 +964,7 @@ static bNodeTree *node_group_add_for_brush(Main *bmain,
 
   /* These brushes expect a float output */
   if (ELEM(brush->sculpt_brush_type,
+           SCULPT_BRUSH_TYPE_PAINT,
            SCULPT_BRUSH_TYPE_MASK,
            SCULPT_BRUSH_TYPE_CLOTH,
            SCULPT_BRUSH_TYPE_SLIDE_RELAX))

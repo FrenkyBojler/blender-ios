@@ -261,7 +261,7 @@ struct ColorPaintLocalData {
 };
 
 static void do_color_smooth_task(const Depsgraph &depsgraph,
-                                 const Object &object,
+                                 Object &object,
                                  const Span<float3> vert_positions,
                                  const Span<float3> vert_normals,
                                  const OffsetIndices<int> faces,
@@ -297,6 +297,8 @@ static void do_color_smooth_task(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
+  mesh_sculpt_nodes_evaluate(
+    depsgraph, object, brush, vert_positions, verts, factors);
   scale_factors(factors, cache.bstrength);
 
   tls.colors.resize(verts.size());
