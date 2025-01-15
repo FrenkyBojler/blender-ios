@@ -3943,9 +3943,9 @@ def km_grease_pencil_edit_mode(params):
 
         # Cyclical set
         ("grease_pencil.cyclical_set", {"type": 'F', "value": 'PRESS'},
-         {"properties": [("type", "CLOSE"), ("add_geometry", True)]}),
+         {"properties": [("type", "CLOSE"), ("subdivide_cyclic_segment", True)]}),
         ("grease_pencil.cyclical_set", {"type": 'C', "value": 'PRESS',
-         "alt": True}, {"properties": [("type", "TOGGLE"), ("add_geometry", False)]}),
+         "alt": True}, {"properties": [("type", "TOGGLE"), ("subdivide_cyclic_segment", False)]}),
 
         # Join selection
         ("grease_pencil.join_selection", {"type": 'J', "value": 'PRESS', "ctrl": True},
