@@ -692,6 +692,8 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
     return OPERATOR_RUNNING_MODAL;
   }
 
+  printf("%d\n", event->type);
+
   switch (event->type) {
     case MOUSEMOVE: {
       if (!has_numInput) {
@@ -741,6 +743,7 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
 
     case LEFTMOUSE:
     case EVT_RETKEY:
+    case EVT_PADENTER:
     case EVT_SPACEKEY: {
       MEM_freeN(data->strip_array);
       MEM_freeN(data);
@@ -756,6 +759,7 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
     case EVT_ESCKEY:
     case RIGHTMOUSE: {
       int offset = data->previous_offset;
+
       float subframe_delta = data->subframe_restore;
       sequencer_slip_strips(scene, data, -offset, -subframe_delta);
 
