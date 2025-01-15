@@ -421,6 +421,12 @@ static void threaded_fill(const GPointer value, GMutableSpan dst)
   });
 }
 
+static float transform_to_radius_factor(const float4x4 &transform)
+{
+  const float3 scale = math::to_scale(transform);
+  return (scale.x + scale.y + scale.z) / 3.0f;
+}
+
 static void apply_scale_radii(const float scale, MutableSpan<float> radii)
 {
   if (scale == 1.0f) {
@@ -1141,8 +1147,7 @@ static AllPointCloudsInfo preprocess_pointclouds(const bke::GeometrySet &geometr
       }
     }
     if (info.create_radius_attribute || options.apply_uniform_scale) {
-      pointcloud_info.radii = *attributes.lookup_or_default(
-          "radius", bke::AttrDomain::Point, 0.01f);
+      pointcloud_info.radii = *attributes.lookup<float>("radius", bke::AttrDomain::Point);
     }
     const VArray<float3> position_attribute = *attributes.lookup_or_default<float3>(
         "position", bke::AttrDomain::Point, float3(0));
@@ -1174,10 +1179,17 @@ static void execute_realize_pointcloud_task(
   }
   if (!all_dst_radii.is_empty()) {
     MutableSpan<float> point_radii = all_dst_radii.slice(point_slice);
-    pointcloud_info.radii.materialize(point_radii);
-    const float3 scale = math::to_scale(task.transform);
-    const float scale_mean = (scale.x + scale.y + scale.z) / 3.0f;
-    apply_scale_radii(scale_mean, point_radii);
+    const float mean_radius_scale = transform_to_radius_factor(task.transform);
+    if (pointcloud_info.radii.is_empty()) {
+      const float default_redius = 0.1f * (options.apply_uniform_scale ? mean_radius_scale : 1.0f);
+      point_radii.fill(default_redius);
+    }
+    else {
+      pointcloud_info.radii.materialize(point_radii);
+      if (options.apply_uniform_scale) {
+        apply_scale_radii(mean_radius_scale, point_radii);
+      }
+    }
   }
 
   copy_generic_attributes_to_result(
@@ -1259,7 +1271,7 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
                                                                       bke::AttrDomain::Point);
   }
   SpanAttributeWriter<float> point_radii;
-  if (all_pointclouds_info.create_radius_attribute) {
+  if (all_pointclouds_info.create_radius_attribute || options.apply_uniform_scale) {
     point_radii = dst_attributes.lookup_or_add_for_write_only_span<float>("radius",
                                                                           bke::AttrDomain::Point);
   }
@@ -1776,7 +1788,7 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
       }
     }
 
-    if (attributes.contains("radius") || options.apply_uniform_scale) {
+    if (attributes.contains("radius")) {
       curve_info.radius =
           attributes.lookup<float>("radius", bke::AttrDomain::Point).varray.get_internal_span();
       info.create_radius_attribute = true;
@@ -1854,18 +1866,16 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
     }
   }
 
-  if (all_curves_info.create_radius_attribute) {
-    printf(">> %s;\n", (options.apply_uniform_scale ? "True" : "False"));
-    const float3 scale = math::to_scale(task.transform);
-    const float scale_mean = (scale.x + scale.y + scale.z) / 3.0f;
+  if (all_curves_info.create_radius_attribute || options.apply_uniform_scale) {
+    const float mean_radius_scale = transform_to_radius_factor(task.transform);
     if (curves_info.radius.is_empty()) {
-      const float default_redius = options.apply_uniform_scale ? scale_mean : 0.1f;
-      all_radii.slice(dst_point_range).fill(scale_mean);
+      const float default_redius = 0.1f * (options.apply_uniform_scale ? mean_radius_scale : 1.0f);
+      all_radii.slice(dst_point_range).fill(default_redius);
     }
     else {
       all_radii.slice(dst_point_range).copy_from(curves_info.radius);
       if (options.apply_uniform_scale) {
-        apply_scale_radii(scale_mean, all_radii.slice(dst_point_range));
+        apply_scale_radii(mean_radius_scale, all_radii.slice(dst_point_range));
       }
     }
   }
@@ -1980,7 +1990,7 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   }
 
   SpanAttributeWriter<float> radius;
-  if (all_curves_info.create_radius_attribute) {
+  if (all_curves_info.create_radius_attribute || options.apply_uniform_scale) {
     radius = dst_attributes.lookup_or_add_for_write_only_span<float>("radius",
                                                                      bke::AttrDomain::Point);
   }
