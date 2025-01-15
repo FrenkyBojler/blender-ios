@@ -3219,7 +3219,7 @@ static void node_draw_extra_info_panel(const bContext &C,
 
 static short get_viewer_shortcut_icon(const bNode &node)
 {
-  BLI_assert(node.type_legacy == 'VIEWER');
+  BLI_assert(node.type_legacy == CMP_NODE_VIEWER);
   switch (node.custom1) {
     case NODE_SHORTCUT_NONE:
       /* No change by default. */
