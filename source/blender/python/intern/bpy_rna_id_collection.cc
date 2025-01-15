@@ -426,9 +426,9 @@ static PyObject *bpy_file_path_map(PyObject * /*self*/, PyObject *args, PyObject
 
     data.file_path_map = _PyDict_NewPresized(subset_len);
     for (; subset_len; subset_array++, subset_len--) {
-      data.id_file_path_set = PySet_New(nullptr);
-      PyDict_SetItem(data.file_path_map, *subset_array, data.id_file_path_set);
-      Py_DECREF(data.id_file_path_set);
+      if (PyDict_Contains(data.file_path_map, *subset_array)) {
+        continue;
+      }
 
       ID *id;
       if (!pyrna_id_FromPyObject(*subset_array, &id)) {
@@ -436,8 +436,13 @@ static PyObject *bpy_file_path_map(PyObject * /*self*/, PyObject *args, PyObject
                      "Expected an ID type in `subset` iterable, not %.200s",
                      Py_TYPE(*subset_array)->tp_name);
         Py_DECREF(subset_fast);
+        Py_DECREF(data.file_path_map);
         goto error;
       }
+
+      data.id_file_path_set = PySet_New(nullptr);
+      PyDict_SetItem(data.file_path_map, *subset_array, data.id_file_path_set);
+      Py_DECREF(data.id_file_path_set);
 
       data.id = id;
       foreach_id_file_path_map(bpath_data);
