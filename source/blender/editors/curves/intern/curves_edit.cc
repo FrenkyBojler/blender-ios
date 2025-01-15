@@ -45,8 +45,6 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const VArray<bool> src_cyclic = curves.cyclic();
 
-  Array<bool> points_to_duplicate(curves.points_num());
-  mask.to_bools(points_to_duplicate.as_mutable_span());
   const int num_points_to_add = mask.size();
 
   int curr_dst_point_start = 0;
@@ -56,50 +54,46 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
   Vector<bool> dst_cyclic;
 
   /* Add the duplicated curves and points. */
-  for (const int curve_i : curves.curves_range()) {
-    const IndexRange points = points_by_curve[curve_i];
-    const Span<bool> curve_points_to_duplicate = points_to_duplicate.as_span().slice(points);
-    const bool curve_cyclic = src_cyclic[curve_i];
+  index_mask::foreach_content_slice_by_offsets(
+      mask,
+      points_by_curve,
+      [&](Span<IndexRange> ranges_to_duplicate, IndexRange points, int curve_i) {
+        const bool curve_cyclic = src_cyclic[curve_i];
 
-    /* Note, these ranges start at zero and needed to be shifted by `points.first()` */
-    const Vector<IndexRange> ranges_to_duplicate = array_utils::find_all_ranges(
-        curve_points_to_duplicate, true);
+        const bool is_last_segment_selected = curve_cyclic &&
+                                              ranges_to_duplicate.first().first() ==
+                                                  points.first() &&
+                                              ranges_to_duplicate.last().last() == points.last();
+        const bool is_curve_self_joined = is_last_segment_selected &&
+                                          ranges_to_duplicate.size() != 1;
+        const bool is_cyclic = ranges_to_duplicate.size() == 1 && is_last_segment_selected;
 
-    if (ranges_to_duplicate.is_empty()) {
-      continue;
-    }
+        const IndexRange range_ids = ranges_to_duplicate.index_range();
+        /* Skip the first range because it is joined to the end of the last range. */
+        for (const int range_i :
+             ranges_to_duplicate.index_range().drop_front(is_curve_self_joined)) {
+          const IndexRange range = ranges_to_duplicate[range_i];
 
-    const bool is_last_segment_selected = curve_cyclic &&
-                                          ranges_to_duplicate.first().first() == 0 &&
-                                          ranges_to_duplicate.last().last() == points.size() - 1;
-    const bool is_curve_self_joined = is_last_segment_selected && ranges_to_duplicate.size() != 1;
-    const bool is_cyclic = ranges_to_duplicate.size() == 1 && is_last_segment_selected;
+          array_utils::fill_index_range<int>(
+              dst_to_src_point.as_mutable_span().slice(curr_dst_point_start, range.size()),
+              range.start());
+          curr_dst_point_start += range.size();
 
-    const IndexRange range_ids = ranges_to_duplicate.index_range();
-    /* Skip the first range because it is joined to the end of the last range. */
-    for (const int range_i : ranges_to_duplicate.index_range().drop_front(is_curve_self_joined)) {
-      const IndexRange range = ranges_to_duplicate[range_i];
+          dst_curve_counts.append(range.size());
+          dst_to_src_curve.append(curve_i);
+          dst_cyclic.append(is_cyclic);
+        }
 
-      array_utils::fill_index_range<int>(
-          dst_to_src_point.as_mutable_span().slice(curr_dst_point_start, range.size()),
-          range.start() + points.first());
-      curr_dst_point_start += range.size();
-
-      dst_curve_counts.append(range.size());
-      dst_to_src_curve.append(curve_i);
-      dst_cyclic.append(is_cyclic);
-    }
-
-    /* Join the first range to the end of the last range. */
-    if (is_curve_self_joined) {
-      const IndexRange first_range = ranges_to_duplicate[range_ids.first()];
-      array_utils::fill_index_range<int>(
-          dst_to_src_point.as_mutable_span().slice(curr_dst_point_start, first_range.size()),
-          first_range.start() + points.first());
-      curr_dst_point_start += first_range.size();
-      dst_curve_counts[dst_curve_counts.size() - 1] += first_range.size();
-    }
-  }
+        /* Join the first range to the end of the last range. */
+        if (is_curve_self_joined) {
+          const IndexRange first_range = ranges_to_duplicate[range_ids.first()];
+          array_utils::fill_index_range<int>(
+              dst_to_src_point.as_mutable_span().slice(curr_dst_point_start, first_range.size()),
+              first_range.start());
+          curr_dst_point_start += first_range.size();
+          dst_curve_counts[dst_curve_counts.size() - 1] += first_range.size();
+        }
+      });
 
   const int old_curves_num = curves.curves_num();
   const int old_points_num = curves.points_num();

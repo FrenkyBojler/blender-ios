@@ -14,6 +14,7 @@
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_index_ranges_builder_fwd.hh"
 #include "BLI_linear_allocator.hh"
+#include "BLI_offset_indices.hh"
 #include "BLI_offset_span.hh"
 #include "BLI_task.hh"
 #include "BLI_unique_sorted_indices.hh"
@@ -564,6 +565,11 @@ inline void masked_fill(MutableSpan<T> data, const T &value, const IndexMask &ma
 {
   mask.foreach_index_optimized<int64_t>([&](const int64_t i) { data[i] = value; });
 }
+
+void foreach_content_slice_by_offsets(
+    const IndexMask &mask,
+    const OffsetIndices<int> offset_indices,
+    FunctionRef<void(Span<IndexRange> selected_points, IndexRange slice_points, int slice)> fn);
 
 /**
  * Fill masked indices of \a r_mask with the index of that item in the mask such that
