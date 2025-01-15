@@ -1663,6 +1663,8 @@ class GlareOperation : public NodeOperation {
     GPUShader *shader = context().get_shader("compositor_glare_bloom_upsample");
     GPU_shader_bind(shader);
 
+    GPU_shader_uniform_1f(shader, "fractional_scale", this->compute_fractional_scale());
+
     GPU_texture_filter_mode(input, true);
     input.bind_as_texture(shader, "input_tx");
 
@@ -1677,6 +1679,8 @@ class GlareOperation : public NodeOperation {
 
   void compute_bloom_upsample_cpu(const Result &input, Result &output)
   {
+    const float fractional_scale = this->compute_fractional_scale();
+
     /* Each invocation corresponds to one output pixel, where the output has twice the size of the
      * input. */
     const int2 size = output.domain().size;
@@ -1687,7 +1691,7 @@ class GlareOperation : public NodeOperation {
 
       /* All the offsets in the following code section are in the normalized pixel space of the
        * output image, so compute its normalized pixel size. */
-      float2 pixel_size = 1.0f / float2(size);
+      float2 pixel_size = (1.0f / float2(size)) * fractional_scale;
 
       /* Upsample by applying a 3x3 tent filter on the bi-linearly interpolated values evaluated at
        * the center of neighboring output pixels. As more tent filter upsampling passes are
@@ -1783,6 +1787,8 @@ class GlareOperation : public NodeOperation {
                             "compositor_glare_bloom_downsample_simple_average");
     GPU_shader_bind(shader);
 
+    GPU_shader_uniform_1f(shader, "fractional_scale", this->compute_fractional_scale());
+
     GPU_texture_filter_mode(input, true);
     input.bind_as_texture(shader, "input_tx");
 
@@ -1799,6 +1805,8 @@ class GlareOperation : public NodeOperation {
   template<bool UseKarisAverage>
   void compute_bloom_downsample_cpu(const Result &input, Result &output)
   {
+    const float fractional_scale = this->compute_fractional_scale();
+
     const int2 size = input.domain().size / 2;
     output.allocate_texture(size);
 
@@ -1811,7 +1819,7 @@ class GlareOperation : public NodeOperation {
 
       /* All the offsets in the following code section are in the normalized pixel space of the
        * input texture, so compute its normalized pixel size. */
-      float2 pixel_size = 1.0f / float2(input.domain().size);
+      float2 pixel_size = (1.0f / float2(input.domain().size)) / fractional_scale;
 
       /* Each invocation downsamples a 6x6 area of pixels around the center of the corresponding
        * output pixel, but instead of sampling each of the 36 pixels in the area, we only sample 13
@@ -1931,6 +1939,11 @@ class GlareOperation : public NodeOperation {
     const int smaller_dimension = math::reduce_min(image_size);
     const float scaled_dimension = smaller_dimension * this->get_size();
     return int(std::log2(math::max(1.0f, scaled_dimension)));
+  }
+
+  float compute_fractional_scale()
+  {
+    return 1.0f + 1.0f - math::fract(-std::log2(this->get_size()));
   }
 
   /* ---------------

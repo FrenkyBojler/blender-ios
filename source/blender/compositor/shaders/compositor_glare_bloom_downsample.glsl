@@ -32,7 +32,7 @@ void main()
 
   /* All the offsets in the following code section are in the normalized pixel space of the input
    * texture, so compute its normalized pixel size. */
-  vec2 pixel_size = 1.0 / vec2(texture_size(input_tx));
+  vec2 pixel_size = (1.0 / vec2(texture_size(input_tx))) / fractional_scale;
 
   /* Each invocation downsamples a 6x6 area of pixels around the center of the corresponding output
    * pixel, but instead of sampling each of the 36 pixels in the area, we only sample 13 positions

@@ -14,7 +14,7 @@ void main()
 
   /* All the offsets in the following code section are in the normalized pixel space of the output
    * image, so compute its normalized pixel size. */
-  vec2 pixel_size = 1.0 / vec2(imageSize(output_img));
+  vec2 pixel_size = (1.0 / vec2(imageSize(output_img))) * fractional_scale;
 
   /* Upsample by applying a 3x3 tent filter on the bi-linearly interpolated values evaluated at
    * the center of neighboring output pixels. As more tent filter upsampling passes are applied,
