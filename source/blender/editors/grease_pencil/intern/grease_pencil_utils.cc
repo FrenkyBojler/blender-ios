@@ -302,6 +302,11 @@ void DrawingPlacement::cache_viewport_depths(Depsgraph *depsgraph, ARegion *regi
   view3d->gp_flag = previous_gp_flag;
 }
 
+std::optional<float4> DrawingPlacement::stroke_projection_plane() const
+{
+  return placement_plane_;
+}
+
 void DrawingPlacement::set_stroke_projection_plane(const float3 &origin, const float3 &normal)
 {
   BLI_assert(use_project_to_stroke());
@@ -309,6 +314,11 @@ void DrawingPlacement::set_stroke_projection_plane(const float3 &origin, const f
   placement_normal_ = normal;
   placement_plane_ = float4();
   plane_from_point_normal_v3(*placement_plane_, placement_loc_, placement_normal_);
+}
+
+void DrawingPlacement::set_stroke_projection_plane(const std::optional<float4> &plane)
+{
+  placement_plane_ = plane;
 }
 
 std::optional<float3> DrawingPlacement::project_depth(const float2 co) const

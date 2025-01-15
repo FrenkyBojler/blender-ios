@@ -234,6 +234,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
   Vector<Vector<float2>> screen_space_curve_fitted_coords_;
   /* Temporary vector of screen space offsets  */
   Vector<float2> screen_space_jitter_offsets_;
+  /* Projection planes for every point in "Stroke" placement mode. */
+  Vector<float4> stroke_placement_planes_;
 
   /* Screen space coordinates after smoothing. */
   Vector<float2> screen_space_smoothed_coords_;
@@ -286,7 +288,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
 
   bool update_stroke_depth_placement(const bContext &C, const InputSample &sample);
   /* Returns the range of actually reprojected points. */
-  IndexRange reproject_samples_on_strokes(const bContext &C, std::optional<int> start_point) const;
+  IndexRange reproject_samples_on_strokes(const bContext &C, std::optional<int> start_point);
 };
 
 /**
@@ -620,6 +622,19 @@ struct PaintOperationExecutor {
     curve_attributes_to_skip.add("curve_type");
     curves.update_curve_types();
 
+    if (self.placement_.use_project_to_stroke()) {
+      const std::optional<float4> placement_plane = self.placement_.stroke_projection_plane();
+      if (placement_plane) {
+        self.stroke_placement_planes_.append(*placement_plane);
+      }
+      else {
+        const float3 view_normal = float3(rv3d->viewinv[2]);
+        self.stroke_placement_planes_.append(float4(view_normal, 0.0f));
+      }
+      /* Initialize the snap point. */
+      self.update_stroke_depth_placement(C, start_sample);
+    }
+
     /* Initialize the rest of the attributes with default values. */
     bke::fill_attribute_range_default(
         attributes,
@@ -739,9 +754,23 @@ struct PaintOperationExecutor {
     MutableSpan<float2> final_coords = self.screen_space_final_coords_.as_mutable_span().slice(
         active_window);
     MutableSpan<float3> positions_slice = curve_positions.slice(active_window);
-    for (const int64_t window_i : active_window.index_range()) {
-      final_coords[window_i] = smoothed_coords[window_i] + jitter_slice[window_i];
-      positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+    if (self.placement_.use_project_to_stroke()) {
+      BLI_assert(self.stroke_placement_planes_.size() == self.screen_space_coords_orig_.size());
+      const Span<float4> stroke_planes = self.stroke_placement_planes_.as_mutable_span().slice(
+          active_window);
+      const std::optional<float4> current_plane = self.placement_.stroke_projection_plane();
+      for (const int64_t window_i : active_window.index_range()) {
+        final_coords[window_i] = smoothed_coords[window_i] + jitter_slice[window_i];
+        self.placement_.set_stroke_projection_plane(stroke_planes[window_i]);
+        positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+      }
+      self.placement_.set_stroke_projection_plane(current_plane);
+    }
+    else {
+      for (const int64_t window_i : active_window.index_range()) {
+        final_coords[window_i] = smoothed_coords[window_i] + jitter_slice[window_i];
+        positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+      }
     }
   }
 
@@ -949,6 +978,16 @@ struct PaintOperationExecutor {
     for (float2 new_position : new_screen_space_coords) {
       self.screen_space_curve_fitted_coords_.append(Vector<float2>({new_position}));
     }
+    if (self.placement_.use_project_to_stroke()) {
+      const std::optional<float4> placement_plane = self.placement_.stroke_projection_plane();
+      if (placement_plane) {
+        self.stroke_placement_planes_.append_n_times(*placement_plane, new_points_num);
+      }
+      else {
+        const float3 view_normal = float3(rv3d->viewinv[2]);
+        self.stroke_placement_planes_.append_n_times(float4(view_normal, 0.0f), new_points_num);
+      }
+    }
 
     /* Only start smoothing if there are enough points. */
     constexpr int64_t min_active_smoothing_points_num = 8;
@@ -982,9 +1021,27 @@ struct PaintOperationExecutor {
       /* Not jitter, so we just copy the positions over. */
       final_coords.copy_from(smoothed_coords);
       MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
-      for (const int64_t window_i : smooth_window.index_range()) {
-        curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+      if (self.placement_.use_project_to_stroke()) {
+        BLI_assert(self.stroke_placement_planes_.size() == self.screen_space_coords_orig_.size());
+        const Span<float4> stroke_planes = self.stroke_placement_planes_.as_mutable_span().slice(
+            smooth_window);
+        const std::optional<float4> current_plane = self.placement_.stroke_projection_plane();
+        for (const int64_t window_i : smooth_window.index_range()) {
+          self.placement_.set_stroke_projection_plane(stroke_planes[window_i]);
+          curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+        }
+        self.placement_.set_stroke_projection_plane(current_plane);
       }
+      else {
+        for (const int64_t window_i : smooth_window.index_range()) {
+          curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+        }
+      }
+    }
+
+    if (self.placement_.use_project_to_stroke()) {
+      /* Find a new snap point and apply projection to trailing points. */
+      self.update_stroke_depth_placement(C, extension_sample);
     }
 
     /* Initialize the rest of the attributes with default values. */
@@ -1118,16 +1175,17 @@ bool PaintOperation::update_stroke_depth_placement(const bContext &C, const Inpu
         last_stroke_placement_loc_ = new_stroke_placement_loc;
 
         this->reproject_samples_on_strokes(C, std::nullopt);
+        break;
       }
-      break;
     }
   }
 
+  BLI_assert(placement_.stroke_projection_plane());
   return true;
 }
 
 IndexRange PaintOperation::reproject_samples_on_strokes(const bContext &C,
-                                                        std::optional<int> start_point) const
+                                                        std::optional<int> start_point)
 {
   using namespace blender::bke;
 
@@ -1146,7 +1204,7 @@ IndexRange PaintOperation::reproject_samples_on_strokes(const bContext &C,
                                      drawing.strokes().curves_range().last();
   const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
   const IndexRange all_points = points_by_curve[active_curve];
-  BLI_assert(this->screen_space_final_coords_.size() == all_points.size());
+  BLI_assert(screen_space_final_coords_.size() == all_points.size());
   if (all_points.is_empty()) {
     return {};
   }
@@ -1155,16 +1213,25 @@ IndexRange PaintOperation::reproject_samples_on_strokes(const bContext &C,
   if (start_point) {
     active_points = IndexRange::from_begin_end_inclusive(*start_point, all_points.last());
   }
+  if (active_points.is_empty()) {
+    return {};
+  }
 
   /* Point slice relative to the curve, valid for 2D coordinate array. */
   const IndexRange active_curve_points = active_points.shift(-all_points.start());
 
+  /* Update the placement plane for later reprojection (active smoothing). */
+  BLI_assert(placement_.stroke_projection_plane());
+  stroke_placement_planes_.as_mutable_span()
+      .slice(active_curve_points)
+      .fill(*placement_.stroke_projection_plane());
+
   MutableSpan<float3> positions = drawing.strokes_for_write().positions_for_write().slice(
       active_points);
-  const Span<float2> final_coords = this->screen_space_final_coords_.as_span().slice(
+  const Span<float2> final_coords = screen_space_final_coords_.as_span().slice(
       active_curve_points);
   for (const int i : positions.index_range()) {
-    positions[i] = this->placement_.project(final_coords[i]);
+    positions[i] = placement_.project(final_coords[i]);
   }
 
   return active_points;
@@ -1243,11 +1310,6 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   PaintOperationExecutor executor{C};
   executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
 
-  if (placement_.use_project_to_stroke()) {
-    /* Initialize the snap point. */
-    this->update_stroke_depth_placement(C, start_sample);
-  }
-
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
 }
@@ -1259,11 +1321,6 @@ void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &ex
 
   PaintOperationExecutor executor{C};
   executor.execute(*this, C, extension_sample);
-
-  if (placement_.use_project_to_stroke()) {
-    /* Find a new snap point and apply projection to trailing points. */
-    this->update_stroke_depth_placement(C, extension_sample);
-  }
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);

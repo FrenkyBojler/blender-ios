@@ -168,9 +168,18 @@ class DrawingPlacement {
   void cache_viewport_depths(Depsgraph *depsgraph, ARegion *region, View3D *view3d);
 
   /**
+   * Projection plane used in stroke placement mode, if defined.
+   */
+  std::optional<float4> stroke_projection_plane() const;
+
+  /**
    * Set the placement plane, must only be called in Stroke depth mode.
    */
   void set_stroke_projection_plane(const float3 &origin, const float3 &normal);
+  /**
+   * Set the placement plane, must only be called in Stroke depth mode.
+   */
+  void set_stroke_projection_plane(const std::optional<float4> &plane);
 
   /**
    * Attempt to project from the depth buffer.
