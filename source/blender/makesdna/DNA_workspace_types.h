@@ -73,6 +73,12 @@ typedef struct bToolRef {
   /** Optionally use these when not interacting directly with the primary tools gizmo. */
   char idname_fallback[64];
 
+  /**
+   * A request has been made to switch to a different tool,
+   * when refreshing the tools, attempt to set this as active.
+   */
+  char idname_pending[64];
+
   /** Use to avoid initializing the same tool multiple times. */
   short tag;
 
