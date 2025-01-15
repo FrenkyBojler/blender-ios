@@ -49,6 +49,10 @@ elseif(UNIX)
   endif()
 endif()
 
+# Custom namespace to prevent conflicts when importing both bpy module
+# and usd-core pip packages with the same version but different libs.
+string(REPLACE "." "_" USD_NAMESPACE "pxrBlender_v${USD_VERSION}")
+
 set(USD_EXTRA_ARGS
   ${DEFAULT_BOOST_FLAGS}
   ${USD_PLATFORM_FLAGS}
@@ -60,9 +64,7 @@ set(USD_EXTRA_ARGS
   -DOPENEXR_INCLUDE_DIR=${LIBDIR}/imath/include
   -DImath_DIR=${LIBDIR}/imath/lib/cmake/Imath
   -DOPENVDB_LOCATION=${LIBDIR}/openvdb
-  # Custom namespace to prevent conflicts when importing both bpy module
-  # and usd-core pip packages with the same version but different libs.
-  -DPXR_SET_INTERNAL_NAMESPACE=pxrblender
+  -DPXR_SET_INTERNAL_NAMESPACE=${USD_NAMESPACE}
   -DPXR_ENABLE_PYTHON_SUPPORT=ON
   -DPXR_USE_PYTHON_3=ON
   -DPXR_BUILD_IMAGING=ON
