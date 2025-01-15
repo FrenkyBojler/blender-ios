@@ -5547,12 +5547,12 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 
   paint_stroke_operator_properties(ot);
 
-  PropertyRNA *prop = RNA_def_boolean(
-      ot->srna,
-      "override_location",
-      false,
-      "Override Location",
-      "Override the given `location` array by recalulating object space positions from the provided `mouse_event` positions");
+  PropertyRNA *prop = RNA_def_boolean(ot->srna,
+                                      "override_location",
+                                      false,
+                                      "Override Location",
+                                      "Override the given `location` array by recalulating object "
+                                      "space positions from the provided `mouse_event` positions");
   RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 
   RNA_def_boolean(ot->srna,

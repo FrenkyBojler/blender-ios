@@ -1666,7 +1666,7 @@ int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "override_location");
   const bool override_location = prop && RNA_property_boolean_get(op->ptr, prop) &&
-                                stroke->get_location;
+                                 stroke->get_location;
   if (stroke->stroke_started) {
     RNA_BEGIN (op->ptr, itemptr, "stroke") {
       if (override_location) {
