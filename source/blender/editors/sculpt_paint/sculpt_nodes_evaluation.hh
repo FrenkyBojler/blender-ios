@@ -2,6 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
+#include "BLI_span.hh"
+
+struct BMVert;
+struct Brush;
+struct Depsgraph;
+struct Object;
+struct SubdivCCG;
+
 namespace blender::ed::sculpt_paint {
 
 template<typename TargetType>
