@@ -11,7 +11,7 @@
 #include "BLI_math_vector.hh"
 
 #include "BKE_collision_shape.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_physics_geometry.hh"
 
