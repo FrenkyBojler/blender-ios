@@ -16,7 +16,7 @@ namespace blender::ed::sculpt_paint {
 
 template<typename TargetType>
 void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                Object &object,
+                                const Object &object,
                                 const Brush &brush,
                                 const Span<float3> position_eval,
                                 const Span<int> verts,
@@ -24,7 +24,7 @@ void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
 template<typename TargetType>
 void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                 Object &object,
+                                 const Object &object,
                                  const Brush &brush,
                                  const SubdivCCG &subdiv_ccg,
                                  const Span<int> grids,
@@ -33,7 +33,7 @@ void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
 template<typename TargetType>
 void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                 Object &object,
+                                 const Object &object,
                                  const Brush &brush,
                                  const Set<BMVert *, 0> &verts,
                                  const Span<float3> positions,

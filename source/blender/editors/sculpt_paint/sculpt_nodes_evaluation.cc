@@ -126,7 +126,7 @@ static void evaluate(const bke::SocketValueVariant &output_socket,
  */
 template<typename TargetType>
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                  Object &object,
+                                  const Object &object,
                                   const Brush &brush,
                                   const bke::SculptFieldContext &context,
                                   const MutableSpan<TargetType> output_targets)
@@ -271,7 +271,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
 template<typename TargetType>
 void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                Object &object,
+                                const Object &object,
                                 const Brush &brush,
                                 const Span<float3> vert_positions,
                                 const Span<int> verts,
@@ -285,14 +285,14 @@ void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 }
 
 template void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                         Object &object,
+                                         const Object &object,
                                          const Brush &brush,
                                          const Span<float3> vert_positions,
                                          const Span<int> verts,
                                          const MutableSpan<float> output_targets);
 
 template void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                         Object &object,
+                                         const Object &object,
                                          const Brush &brush,
                                          const Span<float3> vert_positions,
                                          const Span<int> verts,
@@ -300,7 +300,7 @@ template void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
 template<typename TargetType>
 void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                 Object &object,
+                                 const Object &object,
                                  const Brush &brush,
                                  const SubdivCCG &subdiv_ccg,
                                  const Span<int> grids,
@@ -314,7 +314,7 @@ void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 }
 
 template void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                          Object &object,
+                                          const Object &object,
                                           const Brush &brush,
                                           const SubdivCCG &subdiv_ccg,
                                           const Span<int> grids,
@@ -322,7 +322,7 @@ template void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                           const MutableSpan<float> output_targets);
 
 template void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                          Object &object,
+                                          const Object &object,
                                           const Brush &brush,
                                           const SubdivCCG &subdiv_ccg,
                                           const Span<int> grids,
@@ -331,7 +331,7 @@ template void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
 template<typename TargetType>
 void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                 Object &object,
+                                 const Object &object,
                                  const Brush &brush,
                                  const Set<BMVert *, 0> &verts,
                                  const Span<float3> positions,
@@ -344,14 +344,14 @@ void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 }
 
 template void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                          Object &object,
+                                          const Object &object,
                                           const Brush &brush,
                                           const Set<BMVert *, 0> &verts,
                                           const Span<float3> positions,
                                           const MutableSpan<float> output_targets);
 
 template void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                          Object &object,
+                                          const Object &object,
                                           const Brush &brush,
                                           const Set<BMVert *, 0> &verts,
                                           const Span<float3> positions,
