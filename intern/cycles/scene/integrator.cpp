@@ -407,7 +407,7 @@ AdaptiveSampling Integrator::get_adaptive_sampling() const
             sample_subset_offset,
         0);
 
-    adaptive_sampling.threshold *= sqrtf((float)subset_samples / (float)aa_samples);
+    adaptive_sampling.threshold *= sqrtf((float)subset_samples / (float)clamped_aa_samples);
   }
 
   if (adaptive_sampling.threshold > 0 && adaptive_min_samples == 0) {
