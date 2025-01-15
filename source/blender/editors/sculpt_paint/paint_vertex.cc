@@ -2118,10 +2118,10 @@ void PAINT_OT_vertex_paint(wmOperatorType *ot)
   paint_stroke_operator_properties(ot);
   PropertyRNA *prop = RNA_def_boolean(
       ot->srna,
-      "reproject_stroke",
+      "override_location",
       false,
-      "Reproject Stroke",
-      "Determines whether to reproject the provided 'mouse_event' values into object space");
+      "Override Location",
+      "Override the given `location` array by recalulating object space positions from the provided `mouse_event` positions");
   RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 

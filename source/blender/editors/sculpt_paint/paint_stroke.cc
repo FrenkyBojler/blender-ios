@@ -1664,12 +1664,12 @@ int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
     }
   }
 
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "reproject_stroke");
-  const bool reproject_stroke = prop && RNA_property_boolean_get(op->ptr, prop) &&
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "override_location");
+  const bool override_location = prop && RNA_property_boolean_get(op->ptr, prop) &&
                                 stroke->get_location;
   if (stroke->stroke_started) {
     RNA_BEGIN (op->ptr, itemptr, "stroke") {
-      if (reproject_stroke) {
+      if (override_location) {
         float2 mval;
         RNA_float_get_array(&itemptr, "mouse_event", mval);
 
