@@ -84,6 +84,7 @@ static PyStructSequence_Field app_info_fields[] = {
     {"version_cycle", "The release status of this build alpha/beta/rc/release"},
     {"background",
      "Boolean, True when blender is running without a user interface (started with -b)"},
+    {"module", "Boolean, True when running Blender as a python module"},
     {"factory_startup", "Boolean, True when blender is running with --factory-startup)"},
 
     /* buildinfo */
@@ -154,6 +155,11 @@ static PyObject *make_app_info()
 
   SetStrItem(STRINGIFY(BLENDER_VERSION_CYCLE));
   SetObjItem(PyBool_FromLong(G.background));
+#ifdef WITH_PYTHON_MODULE
+  SetObjItem(PyBool_FromLong(true));
+#else
+  SetObjItem(PyBool_FromLong(false));
+#endif
   SetObjItem(PyBool_FromLong(G.factory_startup));
 
 /* build info, use bytes since we can't assume _any_ encoding:

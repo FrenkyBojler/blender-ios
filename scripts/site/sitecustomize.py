@@ -46,3 +46,7 @@ if materialx_libs_env is None:
     os.environ["PXR_MTLX_STDLIB_SEARCH_PATHS"] = materialx_libs_dir
 else:
     os.environ["PXR_MTLX_STDLIB_SEARCH_PATHS"] = materialx_libs_env + os.pathsep + materialx_libs_dir
+
+# To make this work as a startup script for Blender as a Python module.
+def register():
+    pass
