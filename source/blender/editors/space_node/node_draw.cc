@@ -3218,7 +3218,7 @@ static void node_draw_extra_info_panel(const bContext &C,
 
 static short get_shortcut_icon(const bNode &node)
 {
-  switch (node.shortcut) {
+  switch (node.custom1) {
     case NODE_SHORTCUT_NONE:
       /* No change by default. */
       return node.typeinfo->ui_icon;

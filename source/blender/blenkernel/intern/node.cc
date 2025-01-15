@@ -1463,7 +1463,6 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
   node->width = ntype->width;
   node->height = ntype->height;
   node->color[0] = node->color[1] = node->color[2] = 0.608; /* default theme color */
-  node->shortcut = NODE_SHORTCUT_NONE;
   /* initialize the node name with the node label.
    * NOTE: do this after the initfunc so nodes get their data set which may be used in naming
    * (node groups for example) */

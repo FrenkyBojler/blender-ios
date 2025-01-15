@@ -430,10 +430,7 @@ typedef struct bNode {
    * #NodeWarningPropagation.
    */
   int8_t warning_propagation;
-  char _pad[3];
-
-  /** Custom user-defined UI shortcut. */
-  int shortcut;
+  char _pad[7];
 
   /**
    * Optional link to libdata.

@@ -1457,7 +1457,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
   }
 
   for (bNode *node : node_map.values()) {
-    node->shortcut = NODE_SHORTCUT_NONE;
+    node->custom1 = NODE_SHORTCUT_NONE;
   }
 
   /* Clear flags for recursive depth-first iteration. */

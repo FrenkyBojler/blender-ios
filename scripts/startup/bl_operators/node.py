@@ -422,7 +422,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
     def get_node_with_shortcut(self, context, shortcut):
         nodes = context.space_data.edit_tree.nodes
         for n in nodes:
-            if n.ui_shortcut == shortcut:
+            if n.type == 'VIEWER' and n.ui_shortcut == shortcut:
                 return n
         return None
 
@@ -501,7 +501,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
         # Get viewer node with exisiting shortcut.
         viewer_node = None
         for n in nodes:
-            if n.ui_shortcut == self.viewer_index:
+            if n.type == 'VIEWER' and n.ui_shortcut == self.viewer_index:
                 viewer_node = n
 
         if not viewer_node:

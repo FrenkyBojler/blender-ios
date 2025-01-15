@@ -1352,18 +1352,18 @@ static void rna_NodeTree_active_node_set(PointerRNA *ptr,
   }
 }
 
-static void rna_NodeTree_shortcut_node_set(PointerRNA *ptr, int value)
+static void rna_Node_shortcut_node_set(PointerRNA *ptr, int value)
 {
   bNode *curr_node = static_cast<bNode *>(ptr->data);
   bNodeTree ntree = curr_node->owner_tree();
 
   /* Avoid having two nodes with the same shortcut. */
   for (bNode *node : ntree.all_nodes()) {
-    if (node->shortcut == value) {
-      node->shortcut = NODE_SHORTCUT_NONE;
+    if (node->custom1 == value) {
+      node->custom1 = NODE_SHORTCUT_NONE;
     }
   }
-  curr_node->shortcut = value;
+  curr_node->custom1 = value;
 }
 
 static bNodeLink *rna_NodeTree_link_new(bNodeTree *ntree,
@@ -9112,6 +9112,12 @@ static void def_cmp_viewer(BlenderRNA * /*brna*/, StructRNA *srna)
       "Use Alpha",
       "Colors are treated alpha premultiplied, or colors output straight (alpha gets set to 1)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "custom1");
+  RNA_def_property_int_funcs(prop, nullptr, "rna_Node_shortcut_node_set", nullptr);
+  RNA_def_property_int_default(prop, NODE_SHORTCUT_NONE);
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
 }
 
 static void def_cmp_composite(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -11279,12 +11285,6 @@ static void rna_def_node(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_Node_select_set");
   RNA_def_property_ui_text(prop, "Select", "Node selection state");
   RNA_def_property_update(prop, NC_NODE | NA_SELECTED, nullptr);
-
-  prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "shortcut");
-  RNA_def_property_int_funcs(prop, nullptr, "rna_NodeTree_shortcut_node_set", nullptr);
-  RNA_def_property_int_default(prop, NODE_SHORTCUT_NONE);
-  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
 
   prop = RNA_def_property(srna, "show_options", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_OPTIONS);
