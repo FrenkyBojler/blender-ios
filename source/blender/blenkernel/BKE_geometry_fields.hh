@@ -146,6 +146,7 @@ class InstancesFieldContext : public fn::FieldContext {
   }
 };
 
+/** TODO: Move this out of geometry_field.hh into some sculpt file. */
 class SculptFieldContext : public fn::FieldContext {
  private:
   /* Having object and depsgraph is needed here to have access to them in some field inputs.
