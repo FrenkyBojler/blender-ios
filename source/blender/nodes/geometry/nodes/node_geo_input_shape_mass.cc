@@ -43,7 +43,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_SHAPE_MASS, "Shape Mass", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "InputShapeMass", GEO_NODE_INPUT_SHAPE_MASS);
+  ntype.ui_name = "Shape Mass";
+  ntype.ui_description = "Mass and inertia of a collision shape based on density";
+  ntype.enum_name_legacy = "SHAPE_MASS";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

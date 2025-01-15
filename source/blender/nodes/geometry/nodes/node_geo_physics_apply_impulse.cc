@@ -49,7 +49,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_PHYSICS_APPLY_IMPULSE, "Apply Impulse", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "PhysicsApplyImpulse", GEO_NODE_PHYSICS_APPLY_IMPULSE);
+  ntype.ui_name = "Apply Impulse";
+  ntype.ui_description = "Apply impulse to rigid bodies";
+  ntype.enum_name_legacy = "PHYSICS_APPLY_IMPLULSE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
 

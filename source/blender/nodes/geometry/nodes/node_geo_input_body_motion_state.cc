@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_node.hh"
 #include "BKE_physics_geometry.hh"
 
 #include "node_geometry_util.hh"
@@ -106,8 +105,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_INPUT_BODY_MOTION_STATE, "Body Motion State", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "InputBodyMotionState", GEO_NODE_INPUT_BODY_MOTION_STATE);
+  ntype.ui_name = "Body Motion State";
+  ntype.ui_description = "Motion state properties of rigid bodies";
+  ntype.enum_name_legacy = "INPUT_BODY_MOTION_STATE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

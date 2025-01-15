@@ -50,8 +50,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_BODY_COLLISION_SHAPE, "Body Collision Shape", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "BodyCollisionShape", GEO_NODE_BODY_COLLISION_SHAPE);
+  ntype.ui_name = "Body Collision Shape";
+  ntype.ui_description = "Retrieve the geometry for a single body's collision shape";
+  ntype.enum_name_legacy = "BODY_COLLISION_SHAPE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_node.hh"
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_set_rigid_body_inertia_cc {
@@ -76,8 +75,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_SET_RIGID_BODY_INERTIA, "Set Rigid Body Inertia", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "SetRigidBodyInertia", GEO_NODE_SET_RIGID_BODY_INERTIA);
+  ntype.ui_name = "Set Rigid Body Inertia";
+  ntype.ui_description = "Set local moments of inertia of rigid bodies";
+  ntype.enum_name_legacy = "SET_RIGID_BODY_INERTIA";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

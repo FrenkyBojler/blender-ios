@@ -67,7 +67,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_CHILD_SHAPE, "Child Shape", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "InputChildShape", GEO_NODE_INPUT_CHILD_SHAPE);
+  ntype.ui_name = "Child Shape";
+  ntype.ui_description = "Extract a child shape from a compound collision shape";
+  ntype.enum_name_legacy = "INPUT_CHILD_SHAPE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

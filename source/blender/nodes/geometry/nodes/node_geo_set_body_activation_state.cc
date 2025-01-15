@@ -6,7 +6,6 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_node.hh"
 #include "BKE_physics_geometry.hh"
 
 #include "FN_field.hh"
@@ -60,10 +59,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype,
-                     GEO_NODE_SET_BODY_ACTIVATION_STATE,
-                     "Set Body Activation State",
-                     NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "SetBodyActivationState", GEO_NODE_SET_BODY_ACTIVATION_STATE);
+  ntype.ui_name = "Set Body Activation State";
+  ntype.ui_description = "Set body activation state in the simulation";
+  ntype.enum_name_legacy = "SET_BODY_ACTIVATION_STATE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

@@ -41,7 +41,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SHAPE_GEOMETRY, "Shape Geometry", NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, "ShapeGeometry", GEO_NODE_SHAPE_GEOMETRY);
+  ntype.ui_name = "Shape Geometry";
+  ntype.ui_description = "Create instances for non-primitive shapes with internal geometry";
+  ntype.enum_name_legacy = "SHAPE_GEOMETRY";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

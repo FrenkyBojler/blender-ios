@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_geometry_fields.hh"
-#include "BKE_node.hh"
 #include "BKE_physics_geometry.hh"
 
 #include "node_geometry_util.hh"
@@ -33,8 +32,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_INPUT_BODY_ACTIVATION_STATE, "Body Activation State", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "InputBodyActivationState", GEO_NODE_INPUT_BODY_ACTIVATION_STATE);
+  ntype.ui_name = "Body Activation State";
+  ntype.ui_description = "Current activation state of a body in the simulation";
+  ntype.enum_name_legacy = "INPUT_BODY_ACTIVATION_STATE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

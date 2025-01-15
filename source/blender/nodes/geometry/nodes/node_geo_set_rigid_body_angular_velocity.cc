@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_node.hh"
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_set_rigid_body_angular_velocity_cc {
@@ -77,10 +76,12 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype,
-                     GEO_NODE_SET_RIGID_BODY_ANGULAR_VELOCITY,
-                     "Set Rigid Body Angular Velocity",
-                     NODE_CLASS_GEOMETRY);
+  geo_node_type_base(
+      &ntype, "SetRigidBodyAngularVelocity", GEO_NODE_SET_RIGID_BODY_ANGULAR_VELOCITY);
+  ntype.ui_name = "Set Rigid Body Angular Velocity";
+  ntype.ui_description = "Set angular velocity of rigid bodies";
+  ntype.enum_name_legacy = "SET_RIGID_BODY_ANGULAR_VELOCITY";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

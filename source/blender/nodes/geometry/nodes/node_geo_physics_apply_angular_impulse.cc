@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_geometry_fields.hh"
-#include "BKE_node.hh"
 #include "BKE_physics_geometry.hh"
 
 #include "RNA_enum_types.hh"
@@ -45,10 +44,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype,
-                     GEO_NODE_PHYSICS_APPLY_ANGULAR_IMPULSE,
-                     "Apply Angular Impulse",
-                     NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "PhysicsApplyAngularImpulse", GEO_NODE_PHYSICS_APPLY_ANGULAR_IMPULSE);
+  ntype.ui_name = "Apply Angular Impulse";
+  ntype.ui_description = "Apply angular impulse to rigid bodies";
+  ntype.enum_name_legacy = "PHYSICS_APPLY_ANGULAR_IMPULSE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
 

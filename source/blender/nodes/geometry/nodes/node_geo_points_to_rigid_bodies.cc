@@ -159,8 +159,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_POINTS_TO_RIGID_BODIES, "Points to Rigid Bodies", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "PointsToRigidBodies", GEO_NODE_POINTS_TO_RIGID_BODIES);
+  ntype.ui_name = "Points to Rigid Bodies";
+  ntype.ui_description = "Create a rigid body for each point";
+  ntype.enum_name_legacy = "POINTS_TO_RIGID_BODIES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

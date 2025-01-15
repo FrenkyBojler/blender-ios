@@ -39,7 +39,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_PHYSICS_TIME_STEP, "Physics Time Step", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "PhysicsTimeStep", GEO_NODE_PHYSICS_TIME_STEP);
+  ntype.ui_name = "Physics Time Step";
+  ntype.ui_description = "Advance rigid bodies over a time interval and resolve collisions";
+  ntype.enum_name_legacy = "PHYSICS_TIME_STEP";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

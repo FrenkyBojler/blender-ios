@@ -45,8 +45,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_PHYSICS_WORLD, "Physics World", NODE_CLASS_GEOMETRY);
-
+  geo_node_type_base(&ntype, "PhysicsWorld", GEO_NODE_PHYSICS_WORLD);
+  ntype.ui_name = "Physics World";
+  ntype.ui_description = "Generate a physics world for simulating rigid bodies";
+  ntype.enum_name_legacy = "PHYSICS_WORLD";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

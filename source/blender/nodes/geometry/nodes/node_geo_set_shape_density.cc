@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_collision_shape.hh"
-#include "BKE_node.hh"
 
 #include "node_geometry_util.hh"
 
@@ -34,7 +33,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SET_SHAPE_DENSITY, "Set Shape Density", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "SetShapeDensity", GEO_NODE_SET_SHAPE_DENSITY);
+  ntype.ui_name = "Set Shape Density";
+  ntype.ui_description = "Set the shape density used to compute mass from volume";
+  ntype.enum_name_legacy = "SET_SHAPE_DENSITY";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(&ntype);

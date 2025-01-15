@@ -132,7 +132,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_SHAPE_INFO, "Shape Info", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "InputShapeInfo", GEO_NODE_INPUT_SHAPE_INFO);
+  ntype.ui_name = "Shape Info";
+  ntype.ui_description = "Properties of collision shapes";
+  ntype.enum_name_legacy = "INPUT_SHAPE_INFO";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
