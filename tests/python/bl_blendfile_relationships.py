@@ -120,11 +120,13 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
         file_path_map = bpy.data.file_path_map()
         # Note: Workspaces and screens are ignored here.
         expected_map = {
-            bpy.data.images[0]: {native_pathsep('//../../../src/tests/data/imbuf_io/reference/jpeg-rgb-90__from__rgba08.jpg')},
+            bpy.data.images[0]: {
+                native_pathsep('//../../../src/tests/data/imbuf_io/reference/jpeg-rgb-90__from__rgba08.jpg')},
             bpy.data.materials[0]: set(),
             bpy.data.scenes[0]: set(),
             bpy.data.collections[0]: set(),
-            bpy.data.libraries[0]: {native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
+            bpy.data.libraries[0]: {
+                native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
             bpy.data.meshes[0]: set(),
             bpy.data.objects[0]: set(),
             bpy.data.window_managers[0]: set(),
@@ -136,12 +138,15 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
         file_path_map = bpy.data.file_path_map(include_libraries=True)
         # Note: Workspaces and screens are ignored here.
         expected_map = {
-            bpy.data.images[0]: {native_pathsep('//../../../src/tests/data/imbuf_io/reference/jpeg-rgb-90__from__rgba08.jpg'),
-                                 native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
-            bpy.data.materials[0]: {native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
+            bpy.data.images[0]: {
+                native_pathsep('//../../../src/tests/data/imbuf_io/reference/jpeg-rgb-90__from__rgba08.jpg'),
+                native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
+            bpy.data.materials[0]: {
+                native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
             bpy.data.scenes[0]: set(),
             bpy.data.collections[0]: set(),
-            bpy.data.libraries[0]: {bpy.path.native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
+            bpy.data.libraries[0]: {
+                bpy.path.native_pathsep('//blendlib_indirect_materialTestBlendFilePathMap.blend')},
             bpy.data.meshes[0]: set(),
             bpy.data.objects[0]: set(),
             bpy.data.window_managers[0]: set(),
@@ -152,7 +157,8 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
 
         file_path_map = bpy.data.file_path_map(subset=[bpy.data.images[0], bpy.data.materials[0]])
         expected_map = {
-            bpy.data.images[0]: {native_pathsep('//../../../src/tests/data/imbuf_io/reference/jpeg-rgb-90__from__rgba08.jpg')},
+            bpy.data.images[0]: {
+                native_pathsep('//../../../src/tests/data/imbuf_io/reference/jpeg-rgb-90__from__rgba08.jpg')},
             bpy.data.materials[0]: set(),
         }
         for k, v in expected_map.items():
