@@ -213,7 +213,8 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_OPERATIONS(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "GeometryNodeBake")
+        if _context.space_data.geometry_nodes_type != 'BRUSH':
+            node_add_menu.add_node_type(layout, "GeometryNodeBake")
         node_add_menu.add_node_type(layout, "GeometryNodeBoundBox")
         node_add_menu.add_node_type(layout, "GeometryNodeConvexHull")
         node_add_menu.add_node_type(layout, "GeometryNodeDeleteGeometry")
@@ -249,7 +250,7 @@ class NODE_MT_geometry_node_GEO_INPUT(Menu):
     def draw(self, context):
         layout = self.layout
         layout.menu("NODE_MT_geometry_node_GEO_INPUT_CONSTANT")
-        if context.space_data.geometry_nodes_type != 'TOOL':
+        if context.space_data.geometry_nodes_type == 'MODIFIER':
             layout.menu("NODE_MT_geometry_node_GEO_INPUT_GIZMO")
         layout.menu("NODE_MT_geometry_node_GEO_INPUT_GROUP")
         layout.menu("NODE_MT_geometry_node_GEO_INPUT_SCENE")
@@ -300,12 +301,14 @@ class NODE_MT_geometry_node_GEO_INPUT_SCENE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeInputActiveCamera")
         node_add_menu.add_node_type(layout, "GeometryNodeCollectionInfo")
         node_add_menu.add_node_type(layout, "GeometryNodeImageInfo")
-        node_add_menu.add_node_type(layout, "GeometryNodeIsViewport")
+        if context.space_data.geometry_nodes_type != 'BRUSH':
+            node_add_menu.add_node_type(layout, "GeometryNodeIsViewport")
         node_add_menu.add_node_type(layout, "GeometryNodeInputNamedLayerSelection")
         if context.space_data.geometry_nodes_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeToolMousePosition")
         node_add_menu.add_node_type(layout, "GeometryNodeObjectInfo")
-        node_add_menu.add_node_type(layout, "GeometryNodeInputSceneTime")
+        if context.space_data.geometry_nodes_type != 'BRUSH':
+            node_add_menu.add_node_type(layout, "GeometryNodeInputSceneTime")
         node_add_menu.add_node_type(layout, "GeometryNodeSelfObject")
         if context.space_data.geometry_nodes_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeViewportTransform")
@@ -505,8 +508,9 @@ class NODE_MT_category_GEO_OUTPUT(Menu):
     def draw(self, _context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "NodeGroupOutput")
-        node_add_menu.add_node_type(layout, "GeometryNodeViewer")
-        node_add_menu.add_node_type(layout, "GeometryNodeWarning")
+        if _context.space_data.geometry_nodes_type != 'BRUSH':
+            node_add_menu.add_node_type(layout, "GeometryNodeViewer")
+            node_add_menu.add_node_type(layout, "GeometryNodeWarning")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -815,10 +819,12 @@ class NODE_MT_geometry_node_add_all(Menu):
         layout.menu("NODE_MT_geometry_node_GEO_MESH")
         layout.menu("NODE_MT_category_GEO_POINT")
         layout.menu("NODE_MT_category_GEO_VOLUME")
+        if context.space_data.geometry_nodes_type != 'BRUSH':
+            layout.separator()
+            layout.menu("NODE_MT_category_simulation")
         layout.separator()
-        layout.menu("NODE_MT_category_simulation")
-        layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_MATERIAL")
+        if context.space_data.geometry_nodes_type != 'BRUSH':
+            layout.menu("NODE_MT_geometry_node_GEO_MATERIAL")
         layout.menu("NODE_MT_category_GEO_TEXTURE")
         layout.menu("NODE_MT_category_GEO_UTILITIES")
         layout.separator()
