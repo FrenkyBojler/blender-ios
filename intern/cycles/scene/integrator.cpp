@@ -401,7 +401,7 @@ AdaptiveSampling Integrator::get_adaptive_sampling() const
     adaptive_sampling.threshold = adaptive_threshold;
   }
 
-  if (clamped_aa_samples > 0 && use_sample_subset) {
+  if (use_sample_subset && clamped_aa_samples > 0) {
     const int subset_samples = max(
         min(sample_subset_offset + sample_subset_length, clamped_aa_samples) -
             sample_subset_offset,
