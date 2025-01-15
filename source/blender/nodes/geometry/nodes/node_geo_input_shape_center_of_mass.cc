@@ -30,7 +30,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "InputShapeCenterOfMass", GEO_NODE_INPUT_SHAPE_CENTER_OF_MASS);
+  geo_node_type_base(
+      &ntype, "GeometryNodeInputShapeCenterOfMass", GEO_NODE_INPUT_SHAPE_CENTER_OF_MASS);
   ntype.ui_name = "Shape Center of Mass";
   ntype.ui_description = "Center of mass of a collision shape";
   ntype.enum_name_legacy = "SHAPE_CENTER_OF_MASS";

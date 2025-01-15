@@ -82,7 +82,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "SetBodyMotionType", GEO_NODE_SET_BODY_MOTION_TYPE);
+  geo_node_type_base(&ntype, "GeometryNodeSetBodyMotionType", GEO_NODE_SET_BODY_MOTION_TYPE);
   ntype.ui_name = "Set Motion Type";
   ntype.ui_description = "Set the motion type of a rigid body";
   ntype.enum_name_legacy = "SET_BODY_MOTION_TYPE";

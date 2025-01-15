@@ -28,7 +28,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "InputBodyMass", GEO_NODE_INPUT_BODY_MASS);
+  geo_node_type_base(&ntype, "GeometryNodeInputBodyMass", GEO_NODE_INPUT_BODY_MASS);
   ntype.ui_name = "Body Mass";
   ntype.ui_description = "Mass properties of rigid bodies";
   ntype.enum_name_legacy = "INPUT_BODY_MASS";

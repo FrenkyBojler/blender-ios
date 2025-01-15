@@ -48,7 +48,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "PhysicsApplyForce", GEO_NODE_PHYSICS_APPLY_FORCE);
+  geo_node_type_base(&ntype, "GeometryNodePhysicsApplyForce", GEO_NODE_PHYSICS_APPLY_FORCE);
   ntype.ui_name = "Apply Force";
   ntype.ui_description = "Apply force to rigid bodies";
   ntype.enum_name_legacy = "PHYSICS_APPLY_FORCE";

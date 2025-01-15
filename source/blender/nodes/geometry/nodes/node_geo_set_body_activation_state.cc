@@ -59,7 +59,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "SetBodyActivationState", GEO_NODE_SET_BODY_ACTIVATION_STATE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeSetBodyActivationState", GEO_NODE_SET_BODY_ACTIVATION_STATE);
   ntype.ui_name = "Set Body Activation State";
   ntype.ui_description = "Set body activation state in the simulation";
   ntype.enum_name_legacy = "SET_BODY_ACTIVATION_STATE";

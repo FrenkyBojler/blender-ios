@@ -75,7 +75,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "SetRigidBodyInertia", GEO_NODE_SET_RIGID_BODY_INERTIA);
+  geo_node_type_base(&ntype, "GeometryNodeSetRigidBodyInertia", GEO_NODE_SET_RIGID_BODY_INERTIA);
   ntype.ui_name = "Set Rigid Body Inertia";
   ntype.ui_description = "Set local moments of inertia of rigid bodies";
   ntype.enum_name_legacy = "SET_RIGID_BODY_INERTIA";

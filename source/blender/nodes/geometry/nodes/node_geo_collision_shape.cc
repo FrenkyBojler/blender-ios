@@ -346,7 +346,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "CollisionShape", GEO_NODE_COLLISION_SHAPE);
+  geo_node_type_base(&ntype, "GeometryNodeCollisionShape", GEO_NODE_COLLISION_SHAPE);
   ntype.ui_name = "Collision Shape";
   ntype.ui_description = "Collision shape for a physics body";
   ntype.enum_name_legacy = "COLLISION_SHAPE";

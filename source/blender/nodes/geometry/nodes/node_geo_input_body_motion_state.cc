@@ -105,7 +105,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "InputBodyMotionState", GEO_NODE_INPUT_BODY_MOTION_STATE);
+  geo_node_type_base(&ntype, "GeometryNodeInputBodyMotionState", GEO_NODE_INPUT_BODY_MOTION_STATE);
   ntype.ui_name = "Body Motion State";
   ntype.ui_description = "Motion state properties of rigid bodies";
   ntype.enum_name_legacy = "INPUT_BODY_MOTION_STATE";

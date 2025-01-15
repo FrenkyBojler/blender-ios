@@ -44,7 +44,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "PhysicsApplyTorque", GEO_NODE_PHYSICS_APPLY_TORQUE);
+  geo_node_type_base(&ntype, "GeometryNodePhysicsApplyTorque", GEO_NODE_PHYSICS_APPLY_TORQUE);
   ntype.ui_name = "Apply Torque";
   ntype.ui_description = "Apply torque to rigid bodies";
   ntype.enum_name_legacy = "PHYSICS_APPLY_TORQUE";

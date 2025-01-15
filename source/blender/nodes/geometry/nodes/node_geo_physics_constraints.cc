@@ -156,7 +156,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "PhysicsConstraints", GEO_NODE_PHYSICS_CONSTRAINTS);
+  geo_node_type_base(&ntype, "GeometryNodePhysicsConstraints", GEO_NODE_PHYSICS_CONSTRAINTS);
   ntype.ui_name = "Physics Constraints";
   ntype.ui_description = "Generate constraints between physics bodies";
   ntype.enum_name_legacy = "PHYSICS_CONSTRAINTS";

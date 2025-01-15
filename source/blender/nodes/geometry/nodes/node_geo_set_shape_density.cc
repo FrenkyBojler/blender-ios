@@ -33,7 +33,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "SetShapeDensity", GEO_NODE_SET_SHAPE_DENSITY);
+  geo_node_type_base(&ntype, "GeometryNodeSetShapeDensity", GEO_NODE_SET_SHAPE_DENSITY);
   ntype.ui_name = "Set Shape Density";
   ntype.ui_description = "Set the shape density used to compute mass from volume";
   ntype.enum_name_legacy = "SET_SHAPE_DENSITY";

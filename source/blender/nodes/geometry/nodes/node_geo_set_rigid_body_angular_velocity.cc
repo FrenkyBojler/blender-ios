@@ -77,7 +77,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, "SetRigidBodyAngularVelocity", GEO_NODE_SET_RIGID_BODY_ANGULAR_VELOCITY);
+      &ntype, "GeometryNodeSetRigidBodyAngularVelocity", GEO_NODE_SET_RIGID_BODY_ANGULAR_VELOCITY);
   ntype.ui_name = "Set Rigid Body Angular Velocity";
   ntype.ui_description = "Set angular velocity of rigid bodies";
   ntype.enum_name_legacy = "SET_RIGID_BODY_ANGULAR_VELOCITY";

@@ -32,7 +32,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "InputBodyActivationState", GEO_NODE_INPUT_BODY_ACTIVATION_STATE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeInputBodyActivationState", GEO_NODE_INPUT_BODY_ACTIVATION_STATE);
   ntype.ui_name = "Body Activation State";
   ntype.ui_description = "Current activation state of a body in the simulation";
   ntype.enum_name_legacy = "INPUT_BODY_ACTIVATION_STATE";
