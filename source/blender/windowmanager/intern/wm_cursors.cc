@@ -112,20 +112,7 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
   }
 }
 
-static void window_set_custom_cursor(
-    wmWindow *win, const uchar mask[16][2], const uchar bitmap[16][2], int hotx, int hoty)
-{
-  GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
-                             (uint8_t *)bitmap,
-                             (uint8_t *)mask,
-                             16,
-                             16,
-                             hotx,
-                             hoty,
-                             true);
-}
-
-static void window_set_custom_cursor_ex(wmWindow *win, BCursor *cursor)
+static void window_set_custom_cursor(wmWindow *win, BCursor *cursor)
 {
   GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
                              (uint8_t *)cursor->bitmap,
@@ -177,7 +164,7 @@ void WM_cursor_set(wmWindow *win, int curs)
     BCursor *bcursor = BlenderCursor[curs];
     if (bcursor) {
       /* Use custom bitmap cursor. */
-      window_set_custom_cursor_ex(win, bcursor);
+      window_set_custom_cursor(win, bcursor);
     }
     else {
       /* Fallback to default cursor if no bitmap found. */
