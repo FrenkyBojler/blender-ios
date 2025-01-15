@@ -124,8 +124,7 @@ static void calc_faces(const Depsgraph &depsgraph,
     SCULPT_calc_vertex_displacement(ss, brush, colors[i], translations[i]);
   }
 
-  mesh_sculpt_nodes_evaluate(
-      depsgraph, object, brush, position_data.eval, verts, translations);
+  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, position_data.eval, verts, translations);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
   position_data.deform(translations, verts);

@@ -108,7 +108,7 @@ BLI_NOINLINE static void calc_factors_faces(const Depsgraph &depsgraph,
                                             const MeshAttributeData &attribute_data,
                                             const float strength,
                                             const bool relax_face_sets,
-                                            Object &object,
+                                            const Object &object,
                                             const bke::pbvh::MeshNode &node,
                                             MeshLocalData &tls,
                                             const MutableSpan<float> factors)
@@ -137,7 +137,6 @@ BLI_NOINLINE static void calc_factors_faces(const Depsgraph &depsgraph,
   scale_factors(factors, strength);
 
   calc_brush_texture_factors(ss, brush, positions_eval, verts, factors);
-
   mesh_sculpt_nodes_evaluate(depsgraph, object, brush, positions_eval, verts, factors);
 
   face_set::filter_verts_with_unique_face_sets_mesh(
@@ -258,9 +257,7 @@ BLI_NOINLINE static void calc_factors_grids(const Depsgraph &depsgraph,
   scale_factors(factors, strength);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
-
-  grids_sculpt_nodes_evaluate(
-      depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
+  grids_sculpt_nodes_evaluate(depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
 
   face_set::filter_verts_with_unique_face_sets_grids(faces,
                                                      corner_verts,
@@ -380,11 +377,11 @@ static void calc_factors_bmesh(const Depsgraph &depsgraph,
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
-  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, factors);
-
   scale_factors(factors, strength);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, factors);
+
   face_set::filter_verts_with_unique_face_sets_bmesh(
       face_set_offset, relax_face_sets, verts, factors);
 }

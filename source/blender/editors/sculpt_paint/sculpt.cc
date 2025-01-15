@@ -90,6 +90,7 @@
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
 #include "sculpt_islands.hh"
+#include "sculpt_nodes_evaluation.hh"
 #include "sculpt_pose.hh"
 #include "sculpt_undo.hh"
 
@@ -6283,6 +6284,7 @@ void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
+  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, vert_positions, verts, factors);
 }
 
 void calc_factors_common_mesh(const Depsgraph &depsgraph,
@@ -6318,6 +6320,7 @@ void calc_factors_common_mesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, positions, verts, factors);
 }
 
 void calc_factors_common_grids(const Depsgraph &depsgraph,
@@ -6352,6 +6355,7 @@ void calc_factors_common_grids(const Depsgraph &depsgraph,
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  grids_sculpt_nodes_evaluate(depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
 }
 
 void calc_factors_common_bmesh(const Depsgraph &depsgraph,
@@ -6385,6 +6389,7 @@ void calc_factors_common_bmesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, factors);
 }
 
 void calc_factors_common_from_orig_data_mesh(const Depsgraph &depsgraph,
@@ -6421,6 +6426,7 @@ void calc_factors_common_from_orig_data_mesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, positions, verts, factors);
 }
 
 void calc_factors_common_from_orig_data_grids(const Depsgraph &depsgraph,
@@ -6456,6 +6462,7 @@ void calc_factors_common_from_orig_data_grids(const Depsgraph &depsgraph,
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  grids_sculpt_nodes_evaluate(depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
 }
 
 void calc_factors_common_from_orig_data_bmesh(const Depsgraph &depsgraph,
@@ -6490,6 +6497,7 @@ void calc_factors_common_from_orig_data_bmesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, factors);
 }
 
 void fill_factor_from_hide(const Span<bool> hide_vert,

@@ -115,6 +115,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, position_data.eval, verts, factors);
+  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, position_data.eval, verts, factors);
 
   scale_factors(factors, strength);
 
@@ -128,8 +129,6 @@ static void calc_faces(const Depsgraph &depsgraph,
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations_to_plane(position_data.eval, verts, plane, translations);
-  mesh_sculpt_nodes_evaluate(
-      depsgraph, object, brush, position_data.eval, verts, translations);
   filter_plane_trim_limit_factors(brush, cache, translations, factors);
   scale_translations(translations, factors);
 
@@ -175,6 +174,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  grids_sculpt_nodes_evaluate(depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
 
   scale_factors(factors, strength);
 
@@ -188,8 +188,6 @@ static void calc_grids(const Depsgraph &depsgraph,
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations_to_plane(positions, plane, translations);
-  grids_sculpt_nodes_evaluate(
-      depsgraph, object, brush, subdiv_ccg, grids, positions, translations);
   filter_plane_trim_limit_factors(brush, cache, translations, factors);
   scale_translations(translations, factors);
 
@@ -234,6 +232,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, factors);
 
   scale_factors(factors, strength);
 
@@ -247,7 +246,6 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations_to_plane(positions, plane, translations);
-  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, translations);
   filter_plane_trim_limit_factors(brush, cache, translations, factors);
   scale_translations(translations, factors);
 

@@ -101,9 +101,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
         depsgraph, object, cache.automasking.get(), nodes[i], verts, factors);
 
     calc_brush_texture_factors(ss, brush, position_data.eval, verts, factors);
-
-    mesh_sculpt_nodes_evaluate(
-        depsgraph, object, brush, position_data.eval, verts, factors);
+    mesh_sculpt_nodes_evaluate(depsgraph, object, brush, position_data.eval, verts, factors);
 
     scale_factors(factors, cache.bstrength);
     clamp_factors(factors);
@@ -222,9 +220,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_grids(
         depsgraph, object, cache.automasking.get(), nodes[i], grids, factors);
 
     calc_brush_texture_factors(ss, brush, positions, factors);
-
-    grids_sculpt_nodes_evaluate(
-        depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
+    grids_sculpt_nodes_evaluate(depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
 
     scale_factors(factors, cache.bstrength);
     clamp_factors(factors);
@@ -327,7 +323,6 @@ BLI_NOINLINE static void do_surface_smooth_brush_bmesh(
         depsgraph, object, cache.automasking.get(), nodes[i], verts, factors);
 
     calc_brush_texture_factors(ss, brush, positions, factors);
-
     bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, factors);
 
     scale_factors(factors, cache.bstrength);

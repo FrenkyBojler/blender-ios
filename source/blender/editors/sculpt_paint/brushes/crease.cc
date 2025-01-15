@@ -25,7 +25,6 @@
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
-#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 
 #include "bmesh.hh"
 
@@ -103,9 +102,6 @@ static void calc_faces(const Depsgraph &depsgraph,
     project_translations(translations, cache.view_normal_symm);
   }
 
-  mesh_sculpt_nodes_evaluate(
-      depsgraph, object, brush, position_data.eval, verts, translations);
-
   scale_translations(translations, tls.factors);
   scale_translations(translations, strength);
 
@@ -145,9 +141,6 @@ static void calc_grids(const Depsgraph &depsgraph,
     project_translations(translations, cache.view_normal_symm);
   }
 
-  grids_sculpt_nodes_evaluate(
-      depsgraph, object, brush, subdiv_ccg, grids, positions, translations);
-
   scale_translations(translations, tls.factors);
   scale_translations(translations, strength);
 
@@ -183,8 +176,6 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   if (brush.falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
     project_translations(translations, cache.view_normal_symm);
   }
-
-  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, translations);
 
   scale_translations(translations, tls.factors);
   scale_translations(translations, strength);

@@ -261,7 +261,7 @@ struct ColorPaintLocalData {
 };
 
 static void do_color_smooth_task(const Depsgraph &depsgraph,
-                                 Object &object,
+                                 const Object &object,
                                  const Span<float3> vert_positions,
                                  const Span<float3> vert_normals,
                                  const OffsetIndices<int> faces,
@@ -297,8 +297,7 @@ static void do_color_smooth_task(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
-  mesh_sculpt_nodes_evaluate(
-    depsgraph, object, brush, vert_positions, verts, factors);
+  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, vert_positions, verts, factors);
   scale_factors(factors, cache.bstrength);
 
   tls.colors.resize(verts.size());
@@ -364,7 +363,7 @@ static void do_paint_brush_task(const Scene &scene,
                                 bke::GSpanAttributeWriter &color_attribute)
 {
   const SculptSession &ss = *object.sculpt;
-  StrokeCache &cache = *ss.cache;
+  const StrokeCache &cache = *ss.cache;
 
   const float bstrength = fabsf(ss.cache->bstrength);
   const float alpha = BKE_brush_alpha_get(&scene, &brush);
@@ -403,8 +402,7 @@ static void do_paint_brush_task(const Scene &scene,
   }
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
-  mesh_sculpt_nodes_evaluate(
-    depsgraph, object, brush, vert_positions, verts, factors);
+  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, vert_positions, verts, factors);
   scale_factors(factors, bstrength);
 
   const float density = ss.cache->paint_brush.density;

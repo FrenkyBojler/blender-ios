@@ -25,7 +25,6 @@
 #include "editors/sculpt_paint/paint_mask.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
-#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 
 #include "bmesh.hh"
 
@@ -192,9 +191,6 @@ static void calc_faces(const Depsgraph &depsgraph,
                       brush.height,
                       translations);
 
-    mesh_sculpt_nodes_evaluate(
-        depsgraph, object, brush, position_data.eval, verts, translations);
-
     clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
     position_data.deform(translations, verts);
   }
@@ -213,9 +209,6 @@ static void calc_faces(const Depsgraph &depsgraph,
                       tls.factors,
                       brush.height,
                       translations);
-
-    mesh_sculpt_nodes_evaluate(
-        depsgraph, object, brush, position_data.eval, verts, translations);
 
     clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
     position_data.deform(translations, verts);
@@ -283,9 +276,6 @@ static void calc_grids(const Depsgraph &depsgraph,
                     brush.height,
                     translations);
 
-  grids_sculpt_nodes_evaluate(
-      depsgraph, object, brush, subdiv_ccg, grids, positions, translations);
-
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, grids, subdiv_ccg);
 }
@@ -349,8 +339,6 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                     tls.factors,
                     brush.height,
                     translations);
-
-  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, translations);
 
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, verts);

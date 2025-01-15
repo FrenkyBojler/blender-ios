@@ -963,6 +963,7 @@ static bNodeTree *node_group_add_for_brush(Main *bmain,
   BKE_id_move_to_same_lib(*bmain, node_group->id, brush->id);
 
   /* These brushes expect a float output */
+  /* TODO: Switch to checking for the draw vector displacement brush type*/
   if (ELEM(brush->sculpt_brush_type,
            SCULPT_BRUSH_TYPE_PAINT,
            SCULPT_BRUSH_TYPE_MASK,
