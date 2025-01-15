@@ -1456,7 +1456,6 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
     update_multi_input_indices_for_removed_links(*node);
   }
 
-  /* Clear shortcuts. */
   for (bNode *node : node_map.values()) {
     node->shortcut = NODE_SHORTCUT_NONE;
   }

@@ -1358,9 +1358,8 @@ static void rna_NodeTree_shortcut_node_set(PointerRNA *ptr, int value)
   bNodeTree ntree = curr_node->owner_tree();
 
   /* Avoid having two nodes with the same shortcut. */
-  int old_shortcut = value;
   for (bNode *node : ntree.all_nodes()) {
-    if (node->shortcut == old_shortcut) {
+    if (node->shortcut == value) {
       node->shortcut = NODE_SHORTCUT_NONE;
     }
   }

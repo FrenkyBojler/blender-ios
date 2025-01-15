@@ -430,7 +430,10 @@ typedef struct bNode {
    * #NodeWarningPropagation.
    */
   int8_t warning_propagation;
-  char _pad[7];
+  char _pad[3];
+
+  /** Custom user-defined UI shortcut. */
+  int shortcut;
 
   /**
    * Optional link to libdata.
@@ -472,10 +475,6 @@ typedef struct bNode {
   bNodePanelState *panel_states_array;
 
   bNodeRuntimeHandle *runtime;
-
-  /** Custom user-defined UI shortcut. */
-  int shortcut;
-  char _pad2[4];
 
 #ifdef __cplusplus
   /** The index in the owner node tree. */

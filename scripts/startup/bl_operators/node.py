@@ -410,7 +410,7 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
 
 
 class NODE_OT_viewer_shortcut_set(Operator):
-    """Create a compositor viewer shortcut for the selected node by pressingctrl+1,2,..9"""
+    """Create a compositor viewer shortcut for the selected node by pressing ctrl+1,2,..9"""
     bl_idname = "node.viewer_shortcut_set"
     bl_label = "Fast Preview"
     bl_options = {'REGISTER', 'UNDO'}
@@ -451,13 +451,14 @@ class NODE_OT_viewer_shortcut_set(Operator):
         selected_nodes = context.selected_nodes
 
         if len(selected_nodes) == 0:
-            self.report({'ERROR'}, "No previews to set. Reason: No nodes selected.")
+            self.report({'ERROR'}, "Unable to set shortcut, no nodes selected.")
             return {'CANCELLED'}
 
         fav_node = selected_nodes[0]
 
         # Only viewer nodes can be set to favorites. However, the user can
         # create a new favorite viewer by selecting any node and pressing ctrl+1
+        old_active = nodes.active
         if fav_node.type == 'VIEWER':
             viewer_node = fav_node
         elif self.check_viewer_connected(fav_node):
@@ -466,7 +467,14 @@ class NODE_OT_viewer_shortcut_set(Operator):
             bpy.ops.node.link_viewer()
             viewer_node = self.get_connected_viewer(fav_node)
 
+        if not viewer_node:
+            self.report({'ERROR'}, "Unable to set shortcut, selected node is not a viewer node or does not support viewing.")
+            return {'CANCELLED'}
+
         nodes.active = viewer_node
+        if old_active.type != 'VIEWER':
+            nodes.active = old_active
+
         viewer_node.ui_shortcut = self.viewer_index
         self.report({'INFO'}, "Set viewer %s to shortcut %i" % (viewer_node.name, self.viewer_index))
 
@@ -474,7 +482,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
 
 
 class NODE_OT_viewer_shortcut_get(Operator):
-    """Get favorite viewer in compositor and set it to active using 1,2,..,9 keys"""
+    """Activate a specific compositor viewer node using 1,2,..,9 keys"""
     bl_idname = "node.viewer_shortcut_get"
     bl_label = "Fast Preview"
     bl_options = {'REGISTER', 'UNDO'}
@@ -500,7 +508,10 @@ class NODE_OT_viewer_shortcut_get(Operator):
             self.report({'WARNING'}, "No preview set for shortcut %i" % self.viewer_index)
             return {'CANCELLED'}
 
+        old_active = nodes.active
         nodes.active = viewer_node
+        if old_active.type != "VIEWER":
+            nodes.active = old_active
 
         return {'FINISHED'}
 

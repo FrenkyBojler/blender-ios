@@ -3242,8 +3242,7 @@ static short get_shortcut_icon(const bNode &node)
       return ICON_EVENT_NDOF_BUTTON_9;
   }
 
-  BLI_assert_unreachable();
-  return -1;
+  return node.typeinfo->ui_icon;
 }
 
 static void node_draw_basis(const bContext &C,
