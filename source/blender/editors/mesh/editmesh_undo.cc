@@ -20,6 +20,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BLI_array_utils.h"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
