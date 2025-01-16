@@ -76,7 +76,7 @@ static PyTypeObject BlenderAppType;
 
 static PyStructSequence_Field app_info_fields[] = {
     {"version",
-     "The Blender version as a tuple of 3 numbers (major, minor, micro). eg. (2, 83, 1)"},
+     "The Blender version as a tuple of 3 numbers (major, minor, micro). eg. (4, 3, 1)"},
     {"version_file",
      "The Blender File version, as a tuple of 3 numbers (major, minor, file sub-version), that "
      "will be used to save a .blend file. The last item in this tuple indicates the file "
