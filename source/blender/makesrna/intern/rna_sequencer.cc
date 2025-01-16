@@ -2792,7 +2792,7 @@ static void rna_def_strips_meta(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "StripsMeta", nullptr);
   RNA_def_struct_sdna(srna, "Strip");
   RNA_def_struct_ui_text(srna, "Strips", "Collection of Strips");
-  
+
   RNA_api_strips(srna, true);
 }
 
