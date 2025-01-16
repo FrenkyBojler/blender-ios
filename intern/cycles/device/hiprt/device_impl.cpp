@@ -215,26 +215,27 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
   source_path = path_join(path_join(source_path, "kernel"),
                           path_join("device", path_join(base, string_printf("%s.cpp", name))));
 
-  const char* const kernel_ext = "genco";
+  const char *const kernel_ext = "genco";
   string options;
-  options.append("-Wno-parentheses-equality -Wno-unused-value -ffast-math -O3 -std=c++17 -D __HIPRT__");
+  options.append(
+      "-Wno-parentheses-equality -Wno-unused-value -ffast-math -O3 -std=c++17 -D __HIPRT__");
   options.append(" --offload-arch=").append(arch.c_str());
-#ifdef WITH_NANOVDB
+#  ifdef WITH_NANOVDB
   options.append(" -D WITH_NANOVDB");
-#endif
+#  endif
 
   printf("Compiling  %s and caching to %s", source_path.c_str(), fatbin.c_str());
 
   double starttime = time_dt();
 
   string compile_command = string_printf("%s -%s -I %s -I %s --%s %s -o \"%s\"",
-                                        hipcc,
-                                        options.c_str(),
-                                        include_path.c_str(),
-                                        hiprt_include_path.c_str(),
-                                        kernel_ext,
-                                        source_path.c_str(),
-                                        fatbin.c_str());
+                                         hipcc,
+                                         options.c_str(),
+                                         include_path.c_str(),
+                                         hiprt_include_path.c_str(),
+                                         kernel_ext,
+                                         source_path.c_str(),
+                                         fatbin.c_str());
 
 #  ifdef _WIN32
   compile_command = "call " + compile_command;
