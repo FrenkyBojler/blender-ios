@@ -21,7 +21,7 @@
 
 namespace blender::ed::sculpt_paint {
 
-static bool is_socket_type_supported(eNodeSocketDatatype type)
+static bool is_socket_type_supported(const eNodeSocketDatatype type)
 {
   return ELEM(type, SOCK_VECTOR, SOCK_RGBA, SOCK_FLOAT);
 }
