@@ -1368,10 +1368,11 @@ def expose_bundled_modules():
         return
 
     from pathlib import Path
-    packages_dir = Path(__file__).parents[4] / "python" / "lib"
+    packages_dir = Path(__file__).resolve().parents[4] / "python" / "lib"
     if _sys.platform != "win32":
         version = _sys.version_info
         packages_dir = packages_dir / f"python{version.major}.{version.minor}"
-    packages_dir = packages_dir / "site-packages"
+    packages_dir = str(packages_dir / "site-packages")
 
-    _sys.path.insert(0, str(packages_dir))
+    if packages_dir not in _sys.path:
+        _sys.path.insert(0, str(packages_dir))
