@@ -65,7 +65,7 @@ elseif(APPLE)
     COMMAND install_name_tool -add_rpath @loader_path/../../../../Resources/lib $<TARGET_FILE:blender-thumbnailer>
   )
   # It needs to be codesigned (ad-hoc in this case) even on developer machine to generate thumbnails.
-  # Command taken from XCode build process. This step is done after all installs.
+  # Command taken from XCode build process.
   add_custom_command(
     TARGET blender-thumbnailer POST_BUILD
     COMMAND codesign --deep --force --sign - --entitlements "${CMAKE_SOURCE_DIR}/release/darwin/thumbnailer_entitlements.plist"
