@@ -34,6 +34,7 @@ static const char *get_realization_shader(Result &input,
         return "compositor_realize_on_domain_bicubic_vector";
       case ResultType::Float:
         return "compositor_realize_on_domain_bicubic_float";
+      case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Float2:
       case ResultType::Float3:
@@ -49,6 +50,7 @@ static const char *get_realization_shader(Result &input,
         return "compositor_realize_on_domain_vector";
       case ResultType::Float:
         return "compositor_realize_on_domain_float";
+      case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Float2:
       case ResultType::Float3:
@@ -80,7 +82,7 @@ static void realize_on_domain_gpu(Context &context,
       realization_options.interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
   GPU_texture_filter_mode(input, use_bilinear);
 
-  /* If the input repeats, set a repeating wrap mode for out-of-bound texture access. Otherwise,
+  /* If the input repeats, set a repeating extend mode for out-of-bound texture access. Otherwise,
    * make out-of-bound texture access return zero by setting a clamp to border extend mode. */
   GPU_texture_extend_mode_x(input,
                             realization_options.repeat_x ?
