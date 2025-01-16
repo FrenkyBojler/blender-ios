@@ -17,6 +17,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_type_conversions.hh"
 
+#include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 
 #include "BLI_stack.hh"
