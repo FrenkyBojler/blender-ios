@@ -382,6 +382,10 @@ if(WITH_HARU)
   find_package(Haru REQUIRED)
 endif()
 
+if(WITH_JOLT)
+  find_package(Jolt REQUIRED)
+endif()
+
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
   find_package(openpgl QUIET)
   if(openpgl_FOUND)

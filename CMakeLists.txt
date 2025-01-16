@@ -325,8 +325,6 @@ Use the systems bullet library (currently unsupported due to missing features in
 )
 mark_as_advanced(WITH_SYSTEM_BULLET)
 option(WITH_JOLT "Enable Jolt Physics support" ON)
-option(WITH_SYSTEM_JOLT "Use the systems Jolt library" OFF)
-mark_as_advanced(WITH_SYSTEM_JOLT)
 option(WITH_OPENCOLORIO "Enable OpenColorIO color management" ON)
 
 set(_option_default ON)
@@ -1708,20 +1706,6 @@ if(WITH_BULLET)
   else()
     set(BULLET_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/bullet2/src")
     set(BULLET_LIBRARIES "extern_bullet")
-  endif()
-endif()
-
-
-# -----------------------------------------------------------------------------
-# Configure Jolt
-
-if(WITH_JOLT)
-  if(WITH_SYSTEM_JOLT)
-    find_package(Jolt)
-    set_and_warn_library_found("Jolt" JOLT_FOUND WITH_JOLT)
-  else()
-    set(JOLT_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/jolt/src/")
-    set(JOLT_LIBRARIES "extern_jolt")
   endif()
 endif()
 

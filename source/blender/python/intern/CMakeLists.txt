@@ -367,6 +367,10 @@ if(WITH_HARU)
   add_definitions(-DWITH_HARU)
 endif()
 
+if(WITH_JOLT)
+  add_definitions(-DWITH_JOLT)
+endif()
+
 if(WITH_HYDRA)
   list(APPEND LIB
     bf_render_hydra

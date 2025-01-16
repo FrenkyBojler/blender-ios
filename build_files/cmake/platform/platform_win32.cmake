@@ -1221,6 +1221,13 @@ if(WITH_HARU)
   set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
 endif()
 
+if(WITH_JOLT)
+  set(JOLT_FOUND ON)
+  set(JOLT_ROOT_DIR ${LIBDIR}/jolt)
+  set(JOLT_INCLUDE_DIRS ${JOLT_ROOT_DIR}/inc)
+  set(JOLT_LIBRARIES ${JOLT_ROOT_DIR}/lib/jolt.lib)
+endif()
+
 if(WITH_VULKAN_BACKEND)
   if(EXISTS ${LIBDIR}/vulkan)
     set(VULKAN_FOUND ON)
@@ -1304,13 +1311,6 @@ if(WITH_CYCLES AND (WITH_CYCLES_DEVICE_ONEAPI OR (WITH_CYCLES_EMBREE AND EMBREE_
     optimized ${SYCL_LIBRARY}
     debug ${SYCL_LIBRARY_DEBUG}
   )
-endif()
-
-if(WITH_JOLT)
-  set(JOLT_FOUND ON)
-  set(JOLT_ROOT_DIR ${LIBDIR}/jolt)
-  set(JOLT_INCLUDE_DIRS ${JOLT_ROOT_DIR}/inc)
-  set(JOLT_LIBRARIES ${JOLT_ROOT_DIR}/lib/jolt.lib)
 endif()
 
 # Add the msvc directory to the path so when building with ASAN enabled tools such as

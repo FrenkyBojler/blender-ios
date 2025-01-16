@@ -998,6 +998,15 @@ Copyright (C) 1999-2006 Takeshi Kanno.
 Copyright (C) 2007-2009 Antony Dovgal.
 ]=])
 
+set(JOLT_VERSION 5.2.0)
+set(JOLT_URI https://github.com/jrouwe/JoltPhysics/archive/refs/tags/v5.2.0.tar.gz)
+set(JOLT_HASH 6920a1db85b3fc9b6b078a03854d6417)
+set(JOLT_HASH_TYPE MD5)
+set(JOLT_FILE JoltPhysics-${JOLT_VERSION}.tar.gz)
+set(JOLT_HOMEPAGE https://github.com/jrouwe/JoltPhysics)
+set(JOLT_LICENSE SPDX:MIT)
+set(JOLT_COPYRIGHT "Copyright 2021 Jorrit Rouwe.")
+
 set(ZSTD_VERSION 1.5.0)
 set(ZSTD_URI https://github.com/facebook/zstd/releases/download/v${ZSTD_VERSION}/zstd-${ZSTD_VERSION}.tar.gz)
 set(ZSTD_HASH 5194fbfa781fcf45b98c5e849651aa7b3b0a008c6b72d4a0db760f3002291e94)

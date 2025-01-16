@@ -40,10 +40,6 @@ if(WITH_BULLET)
   endif()
 endif()
 
-if(WITH_JOLT AND NOT WITH_SYSTEM_JOLT)
-  add_subdirectory(jolt)
-endif()
-
 if(WITH_DRACO)
   add_subdirectory(draco)
 endif()

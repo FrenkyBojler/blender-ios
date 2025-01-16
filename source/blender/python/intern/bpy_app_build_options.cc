@@ -58,6 +58,7 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"potrace", nullptr},
     {"pugixml", nullptr},
     {"haru", nullptr},
+    {"jolt", nullptr},
     /* Sentinel (this line prevents `clang-format` wrapping into columns). */
     {nullptr},
 };
@@ -314,6 +315,12 @@ static PyObject *make_builtopts_info()
 #endif
 
 #ifdef WITH_HARU
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
+#ifdef WITH_JOLT
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
