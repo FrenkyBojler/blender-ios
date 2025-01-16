@@ -90,6 +90,7 @@ struct SelectMap {
 
   /** Mapping between internal IDs and `object->runtime->select_id`. */
   Vector<uint> select_id_map;
+  /** Track objects with OB_DRAW_IN_FRONT. */
   Vector<bool> in_front_map;
 #ifndef NDEBUG
   /** Debug map containing a copy of the object name. */
@@ -285,10 +286,11 @@ struct SelectMap {
             GPUSelectResult hit_result{};
             hit_result.id = select_id_map[i];
             hit_result.depth = select_output_buf[i];
-            if (!in_front_map[i]) {
-              /* Offset regular objects, so "In Front" objects go first. */
-              /* TODO(Miguel Pozo): This breaks code using depth for position reconstruction. */
-              float offset_depth = *reinterpret_cast<float *>(&hit_result.depth) + 1.0f;
+            if (in_front_map[i]) {
+              /* Divide "In Front" objects depth so they go first. */
+              /* TODO(Miguel Pozo): This reproduces the previous engine behavior, but it breaks
+               * with code using depth for position reconstruction. Should we improve this? */
+              float offset_depth = *reinterpret_cast<float *>(&hit_result.depth) / 100.0f;
               hit_result.depth = *reinterpret_cast<uint32_t *>(&offset_depth);
             }
             hit_results.append(hit_result);
