@@ -576,12 +576,12 @@ if(WIN32)
     )
     install(
       FILES ${LIBDIR}/opencolorio/lib/site-packages-debug/PyOpenColorIO_d.pyd
-      DESTINATION ${TARGETDIR_SITEPACKAGES}
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
       CONFIGURATIONS Debug
     )
     install(
       FILES ${LIBDIR}/opencolorio/lib/site-packages/PyOpenColorIO.pyd
-      DESTINATION ${TARGETDIR_SITEPACKAGES}
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
   endif()
@@ -596,12 +596,12 @@ if(WIN32)
     )
     install(
       DIRECTORY ${LIBDIR}/opencolorio/lib/site-packages-debug/PyOpenColorIO
-      DESTINATION ${TARGETDIR_SITEPACKAGES}
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
       CONFIGURATIONS Debug
     )
     install(
       DIRECTORY ${LIBDIR}/opencolorio/lib/site-packages/PyOpenColorIO
-      DESTINATION ${TARGETDIR_SITEPACKAGES}
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
   endif()
@@ -1305,7 +1305,7 @@ elseif(WIN32)
       if(EXISTS ${LIBDIR}/openimageio/lib/python${PYTHON_VERSION}/site-packages)
         install(
           DIRECTORY ${LIBDIR}/openimageio/lib/python${PYTHON_VERSION}/site-packages/
-          DESTINATION ${TARGETDIR_SITEPACKAGES}/
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}/
           CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
           PATTERN "__pycache__" EXCLUDE           # * any cache *
           PATTERN "*.pyc" EXCLUDE                 # * any cache *
@@ -1315,7 +1315,7 @@ elseif(WIN32)
       if(EXISTS ${LIBDIR}/openimageio/lib/python${PYTHON_VERSION}_debug/site-packages)
         install(
           DIRECTORY ${LIBDIR}/openimageio/lib/python${PYTHON_VERSION}_debug/site-packages/
-          DESTINATION ${TARGETDIR_SITEPACKAGES}/
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}/
           CONFIGURATIONS Debug
           PATTERN "__pycache__" EXCLUDE           # * any cache *
           PATTERN "*.pyc" EXCLUDE                 # * any cache *
@@ -1328,7 +1328,7 @@ elseif(WIN32)
       if(EXISTS ${USD_LIBRARY_DIR}/python/)
         install(
           DIRECTORY ${USD_LIBRARY_DIR}/python/
-          DESTINATION ${TARGETDIR_SITEPACKAGES}
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}
           CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
           PATTERN "__pycache__" EXCLUDE           # * any cache *
           PATTERN "*.pyc" EXCLUDE                 # * any cache *
@@ -1338,7 +1338,7 @@ elseif(WIN32)
       if(EXISTS ${USD_LIBRARY_DIR}/debug/python/)
         install(
           DIRECTORY ${USD_LIBRARY_DIR}/debug/python/
-          DESTINATION ${TARGETDIR_SITEPACKAGES}
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}
           CONFIGURATIONS Debug
           PATTERN "__pycache__" EXCLUDE           # * any cache *
           PATTERN "*.pyc" EXCLUDE                 # * any cache *
@@ -1351,12 +1351,12 @@ elseif(WIN32)
       if(EXISTS ${LIBDIR}/openvdb/python/pyopenvdb_d.pyd)
         install(
           FILES ${LIBDIR}/openvdb/python/pyopenvdb_d.pyd
-          DESTINATION ${TARGETDIR_SITEPACKAGES}
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}
           CONFIGURATIONS Debug
         )
         install(
           FILES ${LIBDIR}/openvdb/python/pyopenvdb.pyd
-          DESTINATION ${TARGETDIR_SITEPACKAGES}
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}
           CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
         )
       endif()
@@ -1371,12 +1371,12 @@ elseif(WIN32)
       if(EXISTS ${LIBDIR}/openvdb/python/pyopenvdb_d.cp${_PYTHON_VERSION_NO_DOTS}-win_${_openvdb_arch}.pyd)
         install(
           FILES ${LIBDIR}/openvdb/python/pyopenvdb_d.cp${_PYTHON_VERSION_NO_DOTS}-win_${_openvdb_arch}.pyd
-          DESTINATION ${TARGETDIR_SITEPACKAGES}
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}
           CONFIGURATIONS Debug
         )
         install(
           FILES ${LIBDIR}/openvdb/python/pyopenvdb.cp${_PYTHON_VERSION_NO_DOTS}-win_${_openvdb_arch}.pyd
-          DESTINATION ${TARGETDIR_SITEPACKAGES}
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}
           CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
         )
       endif()
@@ -1384,7 +1384,7 @@ elseif(WIN32)
       # MaterialX python bindings
       install(
         DIRECTORY ${LIBDIR}/materialx/python/Release/MaterialX
-        DESTINATION ${TARGETDIR_SITEPACKAGES}/
+        DESTINATION ${TARGETDIR_SITE_PACKAGES}/
         CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
         PATTERN "__pycache__" EXCLUDE           # * any cache *
         PATTERN "*.pyc" EXCLUDE                 # * any cache *
@@ -1392,7 +1392,7 @@ elseif(WIN32)
       )
       install(
         DIRECTORY ${LIBDIR}/materialx/python/Debug/MaterialX
-        DESTINATION ${TARGETDIR_SITEPACKAGES}/
+        DESTINATION ${TARGETDIR_SITE_PACKAGES}/
         CONFIGURATIONS Debug
         PATTERN "__pycache__" EXCLUDE           # * any cache *
         PATTERN "*.pyc" EXCLUDE                 # * any cache *
