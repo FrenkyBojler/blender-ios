@@ -3,23 +3,19 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
   dummy
   intern
   metal
   opengl
   vulkan
-  ../blenkernel
-  ../bmesh
-  ../draw
-  ../imbuf
   ../makesrna
 
   # For theme color access.
   ../editors/include
 
   # For `*_info.hh` includes.
-  ../compositor/realtime_compositor/shaders/infos
+  ../compositor/shaders/infos
   ../draw/engines/eevee_next
   ../draw/engines/eevee_next/shaders/infos
   ../draw/engines/gpencil
@@ -35,8 +31,6 @@ set(INC
   metal/kernels
   shaders/infos
 
-  # For node muting stuff.
-  ../nodes
 
   # For shader includes
   shaders/common
@@ -381,12 +375,17 @@ set(METAL_SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::bmesh
   PRIVATE bf::dna
+  PRIVATE bf::draw
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
 )
 
 # Select Backend source based on availability
@@ -437,6 +436,7 @@ if(WITH_VULKAN_BACKEND)
     ${VULKAN_LIBRARIES}
     ${SHADERC_LIBRARIES}
     extern_vulkan_memory_allocator
+    PRIVATE bf::extern::xxhash
   )
 
   add_definitions(-DWITH_VULKAN_BACKEND)
@@ -684,7 +684,7 @@ set(MSL_SRC
 )
 
 if(WITH_GTESTS)
-  if(WITH_GPU_DRAW_TESTS)
+  if(WITH_GPU_BACKEND_TESTS)
     list(APPEND GLSL_SRC ${GLSL_SRC_TEST})
   endif()
 endif()
@@ -735,15 +735,16 @@ if(WITH_OPENCOLORIO)
   add_definitions(-DWITH_OCIO)
 endif()
 
-if(WITH_GPU_DRAW_TESTS)
-  add_definitions(-DWITH_GPU_DRAW_TESTS)
+if(WITH_GPU_BACKEND_TESTS)
+  add_definitions(-DWITH_GPU_BACKEND_TESTS)
 endif()
 
-if(WITH_GTEST)
-  add_definitions(-DWITH_GTEST)
+if(WITH_GTESTS)
+  add_definitions(-DWITH_GTESTS)
 endif()
 
 blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::gpu ALIAS bf_gpu)
 target_link_libraries(bf_gpu PUBLIC
   bf_compositor_shaders
   bf_draw_shaders
@@ -751,7 +752,7 @@ target_link_libraries(bf_gpu PUBLIC
 )
 
 if(WITH_OPENGL_BACKEND AND UNIX)
-target_link_libraries(bf_gpu PUBLIC rt)
+  target_link_libraries(bf_gpu PUBLIC rt)
 endif()
 
 if(WITH_OPENCOLORIO)
@@ -777,7 +778,7 @@ if(WITH_GTESTS)
     bf_windowmanager
   )
 
-  if(WITH_GPU_DRAW_TESTS)
+  if(WITH_GPU_BACKEND_TESTS)
     list(APPEND TEST_SRC
       tests/buffer_texture_test.cc
       tests/compute_test.cc
@@ -810,7 +811,8 @@ if(WITH_GTESTS)
   endif()
 
   # Enable shader validation on build-bot for Metal
-  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS)
+  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS AND
+     NOT (WITH_GTESTS AND WITH_GPU_BACKEND_TESTS)) # Avoid duplicate source file
     list(APPEND TEST_SRC
       tests/shader_create_info_test.cc
     )

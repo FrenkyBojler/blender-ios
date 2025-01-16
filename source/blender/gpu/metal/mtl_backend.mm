@@ -131,7 +131,7 @@ void MTLBackend::render_end()
   }
 }
 
-void MTLBackend::render_step()
+void MTLBackend::render_step(bool force_resource_release)
 {
   /* NOTE(Metal): Primarily called from main thread, but below data-structures
    * and operations are thread-safe, and GPUContext rendering coordination
@@ -148,6 +148,11 @@ void MTLBackend::render_step()
       MTLContext::get_global_memory_manager()->get_current_safe_list();
   if (cmd_free_buffer_list->should_flush()) {
     MTLContext::get_global_memory_manager()->begin_new_safe_list();
+  }
+
+  if (force_resource_release && g_autoreleasepool) {
+    [g_autoreleasepool drain];
+    g_autoreleasepool = [[NSAutoreleasePool alloc] init];
   }
 }
 
@@ -517,7 +522,6 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   GCaps.depth_blitting_workaround = false;
   GCaps.use_main_context_workaround = false;
   GCaps.broken_amd_driver = false;
-  GCaps.clear_viewport_workaround = true;
 
   /* Metal related workarounds. */
   /* Minimum per-vertex stride is 4 bytes in Metal.

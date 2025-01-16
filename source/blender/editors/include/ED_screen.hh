@@ -10,11 +10,7 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view2d_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_workspace_types.h"
-
-#include "DNA_object_enums.h"
 
 #include "WM_types.hh"
 
@@ -295,7 +291,7 @@ ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area);
                        vert_name->next)
 
 /**
- * Update all areas that are supposed to follow the timeline playhead.
+ * Update all areas that are supposed to follow the timeline current-frame indicator.
  */
 void ED_areas_do_frame_follow(bContext *C, bool center_view);
 

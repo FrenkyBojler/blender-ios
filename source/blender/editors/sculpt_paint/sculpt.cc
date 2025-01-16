@@ -10,7 +10,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 
 #include "MEM_guardedalloc.h"
 
@@ -18,16 +17,14 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_atomic_disjoint_set.hh"
-#include "BLI_bit_span_ops.hh"
-#include "BLI_blenlib.h"
 #include "BLI_dial_2d.h"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_ghash.h"
+#include "BLI_math_axis_angle.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
-#include "BLI_math_rotation.hh"
+#include "BLI_rect.h"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_task.h"
@@ -279,7 +276,7 @@ bool vert_has_face_set(const SubdivCCG &subdiv_ccg,
 bool vert_has_face_set(const int face_set_offset, const BMVert &vert, const int face_set)
 {
   if (face_set_offset == -1) {
-    return false;
+    return face_set == SCULPT_FACE_SET_NONE;
   }
   BMIter iter;
   BMFace *face;
@@ -2591,7 +2588,7 @@ void SCULPT_tilt_apply_to_normal(float r_normal[3],
                                  blender::ed::sculpt_paint::StrokeCache *cache,
                                  const float tilt_strength)
 {
-  if (!U.experimental.use_sculpt_tools_tilt) {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_sculpt_tools_tilt)) {
     return;
   }
   const float rot_max = M_PI_2 * tilt_strength * SCULPT_TILT_SENSITIVITY;
@@ -2635,7 +2632,7 @@ static bool sculpt_needs_pbvh_pixels(PaintModeSettings &paint_mode_settings,
                                      Object &ob)
 {
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
-      U.experimental.use_sculpt_texture_paint)
+      USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint))
   {
     Image *image;
     ImageUser *image_user;
@@ -3153,7 +3150,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
   if (node_mask.is_empty()) {
     return;
   }
-  float location[3];
 
   if (!use_pixels) {
     push_undo_nodes(depsgraph, ob, brush, node_mask);
@@ -3372,10 +3368,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
 
   /* Update average stroke position. */
-  copy_v3_v3(location, ss.cache->location);
-  mul_m4_v3(ob.object_to_world().ptr(), location);
+  const float3 world_location = math::project_point(ob.object_to_world(), ss.cache->location);
 
-  add_v3_v3(ups.average_stroke_accum, location);
+  add_v3_v3(ups.average_stroke_accum, world_location);
   ups.average_stroke_counter++;
   /* Update last stroke position. */
   ups.last_stroke_valid = true;
@@ -5231,23 +5226,21 @@ static void stroke_undo_end(const bContext *C, Brush *brush)
   }
 }
 
-bool SCULPT_handles_colors_report(const Object &object, ReportList *reports)
-{
-  switch (blender::bke::object::pbvh_get(object)->type()) {
-    case blender::bke::pbvh::Type::Mesh:
-      return true;
-    case blender::bke::pbvh::Type::BMesh:
-      BKE_report(reports, RPT_ERROR, "Not supported in dynamic topology mode");
-      return false;
-    case blender::bke::pbvh::Type::Grids:
-      BKE_report(reports, RPT_ERROR, "Not supported in multiresolution mode");
-      return false;
-  }
-  BLI_assert_unreachable();
-  return false;
-}
-
 namespace blender::ed::sculpt_paint {
+
+bool color_supported_check(const Scene &scene, Object &object, ReportList *reports)
+{
+  if (const SculptSession &ss = *object.sculpt; ss.bm) {
+    BKE_report(reports, RPT_ERROR, "Not supported in dynamic topology mode");
+    return false;
+  }
+  else if (BKE_sculpt_multires_active(&scene, &object)) {
+    BKE_report(reports, RPT_ERROR, "Not supported in multiresolution mode");
+    return false;
+  }
+
+  return true;
+}
 
 static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
 {
@@ -5421,7 +5414,7 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent
   Brush &brush = *BKE_paint_brush(&sd.paint);
 
   if (SCULPT_brush_type_is_paint(brush.sculpt_brush_type) &&
-      !SCULPT_handles_colors_report(ob, op->reports))
+      !color_supported_check(scene, ob, op->reports))
   {
     return OPERATOR_CANCELLED;
   }
@@ -6108,6 +6101,15 @@ void SCULPT_cube_tip_init(const Sculpt & /*sd*/,
 
 namespace blender::ed::sculpt_paint {
 
+MeshAttributeData::MeshAttributeData(const Mesh &mesh)
+{
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  this->mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
+  this->hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  this->hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  this->face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+}
+
 void gather_bmesh_positions(const Set<BMVert *, 0> &verts, const MutableSpan<float3> positions)
 {
   BLI_assert(verts.size() == positions.size());
@@ -6447,7 +6449,7 @@ void calc_factors_common_from_orig_data_grids(const Depsgraph &depsgraph,
   fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal_symm, normals, grids, factors);
+    calc_front_face(cache.view_normal_symm, normals, factors);
   }
 
   r_distances.resize(positions.size());

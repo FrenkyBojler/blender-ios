@@ -11,6 +11,8 @@
 
 #include "BLI_string.h"
 
+#include "BLT_translation.hh"
+
 #include "DNA_grease_pencil_types.h"
 #include "DNA_scene_types.h"
 
@@ -649,6 +651,20 @@ static int rna_iterator_grease_pencil_layer_groups_length(PointerRNA *ptr)
   return grease_pencil->layer_groups().size();
 }
 
+static int rna_group_color_tag_get(PointerRNA *ptr)
+{
+  using namespace blender::bke::greasepencil;
+  GreasePencilLayerTreeGroup *group = static_cast<GreasePencilLayerTreeGroup *>(ptr->data);
+  return group->color_tag;
+}
+
+static void rna_group_color_tag_set(PointerRNA *ptr, int value)
+{
+  GreasePencilLayerTreeGroup *group = static_cast<GreasePencilLayerTreeGroup *>(ptr->data);
+  group->color_tag = value;
+  WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
+}
+
 #else
 
 static void rna_def_grease_pencil_drawing(BlenderRNA *brna)
@@ -777,6 +793,7 @@ static void rna_def_grease_pencil_frame(BlenderRNA *brna)
   RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, ParameterFlag(0));
   RNA_def_property_enum_items(prop, rna_enum_keyframe_type_items);
   RNA_def_property_ui_text(prop, "Keyframe Type", "Type of keyframe");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
 }
 
@@ -1097,6 +1114,11 @@ static void rna_def_grease_pencil_layer(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Parent Layer Group", "The parent layer group this layer is part of");
 
+  prop = RNA_def_property(srna, "channel_color", PROP_FLOAT, PROP_COLOR);
+  RNA_def_property_float_sdna(prop, "GreasePencilLayerTreeNode", "color");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_update(prop, NC_GPENCIL | NA_EDITED, nullptr);
+
   RNA_api_grease_pencil_layer(srna);
 }
 
@@ -1123,6 +1145,19 @@ static void rna_def_grease_pencil_layers(BlenderRNA *brna, PropertyRNA *cprop)
 
   RNA_api_grease_pencil_layers(srna);
 }
+
+const EnumPropertyItem enum_layergroup_color_items[] = {
+    {LAYERGROUP_COLOR_NONE, "NONE", ICON_X, "Reset color tag", ""},
+    {LAYERGROUP_COLOR_01, "COLOR1", ICON_LAYERGROUP_COLOR_01, "Color tag 1", ""},
+    {LAYERGROUP_COLOR_02, "COLOR2", ICON_LAYERGROUP_COLOR_02, "Color tag 2", ""},
+    {LAYERGROUP_COLOR_03, "COLOR3", ICON_LAYERGROUP_COLOR_03, "Color tag 3", ""},
+    {LAYERGROUP_COLOR_04, "COLOR4", ICON_LAYERGROUP_COLOR_04, "Color tag 4", ""},
+    {LAYERGROUP_COLOR_05, "COLOR5", ICON_LAYERGROUP_COLOR_05, "Color tag 5", ""},
+    {LAYERGROUP_COLOR_06, "COLOR6", ICON_LAYERGROUP_COLOR_06, "Color tag 6", ""},
+    {LAYERGROUP_COLOR_07, "COLOR7", ICON_LAYERGROUP_COLOR_07, "Color tag 7", ""},
+    {LAYERGROUP_COLOR_08, "COLOR8", ICON_LAYERGROUP_COLOR_08, "Color tag 8", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 static void rna_def_grease_pencil_layer_group(BlenderRNA *brna)
 {
@@ -1195,6 +1230,11 @@ static void rna_def_grease_pencil_layer_group(BlenderRNA *brna)
   RNA_def_property_pointer_funcs(
       prop, "rna_GreasePencilLayerGroup_parent_group_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Parent Group", "The parent group this group is part of");
+
+  /* Color tag. */
+  prop = RNA_def_property(srna, "color_tag", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_funcs(prop, "rna_group_color_tag_get", "rna_group_color_tag_set", nullptr);
+  RNA_def_property_enum_items(prop, enum_layergroup_color_items);
 }
 
 static void rna_def_grease_pencil_layer_groups(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1334,6 +1374,7 @@ static void rna_def_grease_pencil_onion_skinning(StructRNA *srna)
   RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, ParameterFlag(0));
   RNA_def_property_enum_items(prop, prop_enum_onion_keyframe_type_items);
   RNA_def_property_ui_text(prop, "Filter by Type", "Type of keyframe (for filtering)");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
 
   prop = RNA_def_property(srna, "use_onion_fade", PROP_BOOLEAN, PROP_NONE);

@@ -14,7 +14,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_armature_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
@@ -22,7 +21,6 @@
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
-#include "BLI_memory_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -437,7 +435,7 @@ static void ui_item_position(uiItem *item, const int x, const int y, const int w
     bitem->but->rect.xmax = x + w;
     bitem->but->rect.ymax = y + h;
 
-    ui_but_update(bitem->but); /* for strlen */
+    ui_but_update(bitem->but); /* For `strlen`. */
   }
   else {
     uiLayout *litem = static_cast<uiLayout *>(item);
@@ -457,7 +455,7 @@ static void ui_item_move(uiItem *item, const int delta_xmin, const int delta_xma
     bitem->but->rect.xmin += delta_xmin;
     bitem->but->rect.xmax += delta_xmax;
 
-    ui_but_update(bitem->but); /* for strlen */
+    ui_but_update(bitem->but); /* For `strlen`. */
   }
   else {
     uiLayout *litem = static_cast<uiLayout *>(item);
@@ -5016,6 +5014,22 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
   return panel.body;
 }
 
+uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
+                                          uiLayout *layout,
+                                          PointerRNA *open_prop_owner,
+                                          const StringRefNull open_prop_name,
+                                          const StringRefNull bool_prop_name,
+                                          const std::optional<StringRefNull> label)
+{
+  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name.c_str());
+
+  uiLayout *panel_header = panel.header;
+  panel_header->flag &= ~(UI_ITEM_PROP_SEP | UI_ITEM_PROP_DECORATE | UI_ITEM_INSIDE_PROP_SEP);
+  uiItemR(panel_header, open_prop_owner, bool_prop_name, UI_ITEM_NONE, label, ICON_NONE);
+
+  return panel.body;
+}
+
 PanelLayout uiLayoutPanel(const bContext *C,
                           uiLayout *layout,
                           const char *idname,
@@ -6079,6 +6093,12 @@ void uiLayoutSetContextPointer(uiLayout *layout, StringRef name, PointerRNA *ptr
 }
 
 void uiLayoutSetContextString(uiLayout *layout, StringRef name, blender::StringRef value)
+{
+  uiBlock *block = layout->root->block;
+  layout->context = CTX_store_add(block->contexts, name, value);
+}
+
+void uiLayoutSetContextInt(uiLayout *layout, StringRef name, int64_t value)
 {
   uiBlock *block = layout->root->block;
   layout->context = CTX_store_add(block->contexts, name, value);
