@@ -2034,6 +2034,7 @@ static int armature_select_hierarchy_exec(bContext *C, wmOperator *op)
   EditBone *ebone_active;
   int direction = RNA_enum_get(op->ptr, "direction");
   const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
+  const bool use_only_connected = RNA_boolean_get(op->ptr, "use_only_connected");
   bool changed = false;
   bArmature *arm = (bArmature *)ob->data;
 
@@ -2061,33 +2062,27 @@ static int armature_select_hierarchy_exec(bContext *C, wmOperator *op)
     }
   }
   else { /* BONE_SELECT_CHILD */
-    EditBone *ebone_child = nullptr;
-    int pass;
+    /* Deselect the active EditBone prior (if needed) since doing it afterwards would affect the
+     * child BONE_ROOTSEL. If nothing changes (no children), we will re-select afterwards (see
+     * below). */
+    if (!add_to_sel) {
+      ED_armature_ebone_select_set(ebone_active, false);
+    }
+    LISTBASE_FOREACH (EditBone *, ebone_iter, arm->edbo) {
+      /* possible we have multiple children, some invisible */
+      if (EBONE_SELECTABLE(arm, ebone_iter)) {
+        if (ebone_iter->parent == ebone_active) {
+          if (!use_only_connected || (ebone_iter->flag & BONE_CONNECTED)) {
+            arm->act_edbone = ebone_iter;
+            ED_armature_ebone_select_set(ebone_iter, true);
 
-    /* first pass, only connected bones (the logical direct child) */
-    for (pass = 0; pass < 2 && (ebone_child == nullptr); pass++) {
-      LISTBASE_FOREACH (EditBone *, ebone_iter, arm->edbo) {
-        /* possible we have multiple children, some invisible */
-        if (EBONE_SELECTABLE(arm, ebone_iter)) {
-          if (ebone_iter->parent == ebone_active) {
-            if ((pass == 1) || (ebone_iter->flag & BONE_CONNECTED)) {
-              ebone_child = ebone_iter;
-              break;
-            }
+            changed = true;
           }
         }
       }
     }
-
-    if (ebone_child) {
-      arm->act_edbone = ebone_child;
-
-      if (!add_to_sel) {
-        ED_armature_ebone_select_set(ebone_active, false);
-      }
-      ED_armature_ebone_select_set(ebone_child, true);
-
-      changed = true;
+    if (changed == false) {
+      ED_armature_ebone_select_set(ebone_active, true);
     }
   }
 
@@ -2128,6 +2123,11 @@ void ARMATURE_OT_select_hierarchy(wmOperatorType *ot)
   /* props */
   RNA_def_enum(ot->srna, "direction", direction_items, BONE_SELECT_PARENT, "Direction", "");
   RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
+  RNA_def_boolean(ot->srna,
+                  "use_only_connected",
+                  false,
+                  "Only connected",
+                  "Only select if the child is connected (only for Child Direction)");
 }
 
 /** \} */

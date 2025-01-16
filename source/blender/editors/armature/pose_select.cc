@@ -726,6 +726,7 @@ static int pose_select_hierarchy_exec(bContext *C, wmOperator *op)
   bPoseChannel *pchan_act;
   int direction = RNA_enum_get(op->ptr, "direction");
   const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
+  const bool use_only_connected = RNA_boolean_get(op->ptr, "use_only_connected");
   bool changed = false;
 
   pchan_act = BKE_pose_channel_active_if_bonecoll_visible(ob);
@@ -750,33 +751,21 @@ static int pose_select_hierarchy_exec(bContext *C, wmOperator *op)
     }
   }
   else { /* direction == BONE_SELECT_CHILD */
-    Bone *bone_child = nullptr;
-    int pass;
+    LISTBASE_FOREACH (bPoseChannel *, pchan_iter, &ob->pose->chanbase) {
+      /* possible we have multiple children, some invisible */
+      if (PBONE_SELECTABLE(arm, pchan_iter->bone)) {
+        if (pchan_iter->parent == pchan_act) {
+          if (!use_only_connected || (pchan_iter->bone->flag & BONE_CONNECTED)) {
+            arm->act_bone = pchan_iter->bone;
+            pchan_iter->bone->flag |= BONE_SELECTED;
 
-    /* first pass, only connected bones (the logical direct child) */
-    for (pass = 0; pass < 2 && (bone_child == nullptr); pass++) {
-      LISTBASE_FOREACH (bPoseChannel *, pchan_iter, &ob->pose->chanbase) {
-        /* possible we have multiple children, some invisible */
-        if (PBONE_SELECTABLE(arm, pchan_iter->bone)) {
-          if (pchan_iter->parent == pchan_act) {
-            if ((pass == 1) || (pchan_iter->bone->flag & BONE_CONNECTED)) {
-              bone_child = pchan_iter->bone;
-              break;
-            }
+            changed = true;
           }
         }
       }
     }
-
-    if (bone_child) {
-      arm->act_bone = bone_child;
-
-      if (!add_to_sel) {
-        pchan_act->bone->flag &= ~BONE_SELECTED;
-      }
-      bone_child->flag |= BONE_SELECTED;
-
-      changed = true;
+    if (changed && !add_to_sel) {
+      pchan_act->bone->flag &= ~BONE_SELECTED;
     }
   }
 
@@ -815,6 +804,11 @@ void POSE_OT_select_hierarchy(wmOperatorType *ot)
   ot->prop = RNA_def_enum(
       ot->srna, "direction", direction_items, BONE_SELECT_PARENT, "Direction", "");
   RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
+  RNA_def_boolean(ot->srna,
+                  "use_only_connected",
+                  false,
+                  "Only connected",
+                  "Only select if the child is connected (only for Child Direction)");
 }
 
 /* -------------------------------------- */
