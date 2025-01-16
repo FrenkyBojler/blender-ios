@@ -47,7 +47,10 @@ void VKStateManager::issue_barrier(eGPUBarrier barrier_bits)
    * This limitation could also be addressed in the render graph scheduler, but that would be quite
    * a hassle to track and might not be worth the effort.
    */
-  if (bool(barrier_bits & GPU_BARRIER_SHADER_IMAGE_ACCESS)) {
+  const VKWorkarounds& workarounds = VKBackend::get().device.workarounds_get();
+  const bool supports_local_read = !workarounds.dynamic_rendering_local_read;
+
+  if (!supports_local_read && bool(barrier_bits & GPU_BARRIER_SHADER_IMAGE_ACCESS)) {
     VKContext &context = *VKContext::get();
     context.rendering_end();
   }

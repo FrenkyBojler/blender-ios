@@ -63,6 +63,11 @@ void VKFrameBuffer::render_pass_free()
 void VKFrameBuffer::bind(bool enabled_srgb)
 {
   VKContext &context = *VKContext::get();
+  const bool supports_local_read = !VKBackend::get().device.workarounds_get().dynamic_rendering_local_read;
+  if (supports_local_read && context.active_framebuffer_get() == this)
+  {
+    return;
+  }
   /* Updating attachments can issue pipeline barriers, this should be done outside the render pass.
    * When done inside a render pass there should be a self-dependency between sub-passes on the
    * active render pass. As the active render pass isn't aware of the new render pass (and should
@@ -978,7 +983,14 @@ void VKFrameBuffer::rendering_ensure(VKContext &context)
   if (!dirty_state_ && is_rendering_) {
     return;
   }
+  const VKWorkarounds& workarounds = VKBackend::get().device.workarounds_get();
 
+  const bool supports_local_read = !workarounds.dynamic_rendering_local_read;
+
+  if (supports_local_read && is_rendering_)
+  {
+    return;
+  }
   if (is_rendering_) {
     rendering_end(context);
   }
@@ -991,7 +1003,6 @@ void VKFrameBuffer::rendering_ensure(VKContext &context)
   }
 #endif
 
-  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
   is_rendering_ = true;
   if (workarounds.dynamic_rendering) {
     rendering_ensure_render_pass(context);
@@ -1018,12 +1029,18 @@ Span<VkFormat> VKFrameBuffer::color_attachment_formats_get() const
 
 void VKFrameBuffer::rendering_end(VKContext &context)
 {
+  const VKWorkarounds& workarounds = VKBackend::get().device.workarounds_get();
+  const bool supports_local_read = !workarounds.dynamic_rendering_local_read;
+
+  if (supports_local_read && !is_rendering_)
+  {
+    return;
+  }
   if (!is_rendering_ && use_explicit_load_store_) {
     rendering_ensure(context);
   }
 
   if (is_rendering_) {
-    const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
     render_graph::VKEndRenderingNode::CreateInfo end_rendering = {};
     end_rendering.vk_render_pass = VK_NULL_HANDLE;
     if (workarounds.dynamic_rendering) {
