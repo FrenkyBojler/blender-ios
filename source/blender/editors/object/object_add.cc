@@ -3152,7 +3152,8 @@ static Vector<FillColorRecord> mesh_to_grease_pencil_get_material_list(Object &o
       has_empty = true;
       continue;
     }
-    float4 fill_color = float4(&mesh_material->r);
+    const float4 fill_color = float4(
+        mesh_material->r, mesh_material->g, mesh_material->b, mesh_material->a);
     const StringRefNull material_name = BKE_id_name(mesh_material->id);
     const FillColorRecord record = {fill_color, material_name};
     const int record_index = fill_colors.first_index_of_try(record);
