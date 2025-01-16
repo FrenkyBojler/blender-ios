@@ -62,7 +62,7 @@ GVArray GreasePencilLayerFieldContext::get_varray_for_input(const fn::FieldInput
   return field_input.get_varray_for_context(*this, mask, scope);
 }
 
-Span<float3> MeshSculptFieldContext::positions() const
+VArray<float3> MeshSculptFieldContext::positions() const
 {
   const Span<int> indices = this->indices();
   const Span<float3> vert_positions = this->vert_positions();
@@ -70,10 +70,10 @@ Span<float3> MeshSculptFieldContext::positions() const
   Array<float3> positions(indices.size());
   array_utils::gather(vert_positions, indices, positions.as_mutable_span());
 
-  return positions;
+  return VArray<float3>::ForContainer(positions);
 }
 
-Span<float3> MeshSculptFieldContext::normals() const
+VArray<float3> MeshSculptFieldContext::normals() const
 {
   const Depsgraph &depsgraph = this->depsgraph();
   const Object &object = this->object();
@@ -84,10 +84,10 @@ Span<float3> MeshSculptFieldContext::normals() const
 
   array_utils::gather(vert_normals, indices, normals.as_mutable_span());
 
-  return normals;
+  return VArray<float3>::ForContainer(normals);
 }
 
-Span<float3> GridsSculptFieldContext::normals() const
+VArray<float3> GridsSculptFieldContext::normals() const
 {
   const SubdivCCG &subdiv_ccg = this->subdiv_ccg();
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
@@ -104,10 +104,10 @@ Span<float3> GridsSculptFieldContext::normals() const
     node_normals.copy_from(grid_normals);
   }
 
-  return normals;
+  return VArray<float3>::ForContainer(normals);
 }
 
-Span<float3> BMeshSculptFieldContext::normals() const
+VArray<float3> BMeshSculptFieldContext::normals() const
 {
   const Set<BMVert *, 0> &verts = this->verts();
   Array<float3> normals(verts.size());
@@ -118,7 +118,7 @@ Span<float3> BMeshSculptFieldContext::normals() const
     i++;
   }
 
-  return normals;
+  return VArray<float3>::ForContainer(normals);
 }
 
 GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_input,
@@ -130,7 +130,7 @@ GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_inp
 
   if (attribute_field_input != nullptr) {
     if (attribute_field_input->attribute_name() == "position") {
-      return VArray<float3>::ForContainer(this->positions());
+      return this->positions();
     }
   }
 
@@ -138,7 +138,7 @@ GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_inp
       &field_input);
 
   if (normal_field_input != nullptr) {
-    return VArray<float3>::ForContainer(this->normals());
+    return this->normals();
   }
 
   const fn::IndexFieldInput *index_field_input = dynamic_cast<const fn::IndexFieldInput *>(

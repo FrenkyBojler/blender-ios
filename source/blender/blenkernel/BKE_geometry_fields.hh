@@ -178,12 +178,12 @@ class SculptFieldContext : public fn::FieldContext {
     return object_;
   }
 
-  virtual Span<float3> positions() const
+  virtual VArray<float3> positions() const
   {
-    return positions_;
+    return VArray<float3>::ForContainer(positions_);
   }
 
-  virtual Span<float3> normals() const = 0;
+  virtual VArray<float3> normals() const = 0;
 
   virtual Span<int> indices() const
   {
@@ -215,9 +215,9 @@ class MeshSculptFieldContext : public SculptFieldContext {
     return mesh_;
   }
 
-  Span<float3> positions() const override;
+  VArray<float3> positions() const override;
 
-  Span<float3> normals() const override;
+  VArray<float3> normals() const override;
 
   Span<float3> vert_positions() const
   {
@@ -254,7 +254,7 @@ class GridsSculptFieldContext : public SculptFieldContext {
     return grids_;
   }
 
-  Span<float3> normals() const override;
+  VArray<float3> normals() const override;
 };
 
 class BMeshSculptFieldContext : public SculptFieldContext {
@@ -275,7 +275,7 @@ class BMeshSculptFieldContext : public SculptFieldContext {
     return verts_;
   }
 
-  Span<float3> normals() const override;
+  VArray<float3> normals() const override;
 };
 
 /**
