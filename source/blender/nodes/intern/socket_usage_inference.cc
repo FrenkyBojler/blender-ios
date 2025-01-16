@@ -22,6 +22,7 @@ namespace blender::nodes::socket_usage_inference {
 
 /** Utility class to simplify passing global state into all the functions during inferencing. */
 struct SocketUsageInferencer {
+ private:
   /** Owns e.g. intermediate evaluated values. */
   ResourceScope scope_;
 
@@ -36,11 +37,6 @@ struct SocketUsageInferencer {
    * The data-type is the #base_cpp_type of the socket. So e.g. `float` for float sockets.
    */
   const Span<GPointer> root_tree_input_values_;
-
-  /**
-   * Where the result of the inference is stored. Each entry corresponds to one input of the tree.
-   */
-  const MutableSpan<bool> r_root_input_usages_;
 
   /**
    * Stack of tasks that allows depth-first (partial) evaluation of the tree.
@@ -63,23 +59,66 @@ struct SocketUsageInferencer {
   /** Some inline storage to reduce the number of allocations. */
   AlignedBuffer<1024, 8> scope_buffer_;
 
-  SocketUsageInferencer(const bNodeTree &tree,
-                        const Span<GPointer> tree_input_values,
-                        const MutableSpan<bool> r_input_usages)
-      : root_tree_(tree),
-        root_tree_input_values_(tree_input_values),
-        r_root_input_usages_(r_input_usages)
+ public:
+  SocketUsageInferencer(const bNodeTree &tree, const Span<GPointer> tree_input_values)
+      : root_tree_(tree), root_tree_input_values_(tree_input_values)
   {
     scope_.linear_allocator().provide_buffer(scope_buffer_);
+
+    root_tree_.ensure_topology_cache();
+    for (const bNode *node : root_tree_.group_input_nodes()) {
+      for (const int i : root_tree_.interface_inputs().index_range()) {
+        const bNodeSocket &socket = node->output_socket(i);
+        all_socket_values_.add_new({nullptr, &socket}, root_tree_input_values_[i].get());
+      }
+    }
   }
 
-  void do_inference()
+  bool is_socket_used(const SocketInContext &socket)
   {
-    this->schedule_root_tasks_and_store_tree_inputs();
-    this->process_usage_tasks_until_all_done();
-    this->gather_finalized_input_usages();
+    const std::optional<bool> is_used = all_socket_usages_.lookup_try(socket);
+    if (is_used.has_value()) {
+      return *is_used;
+    }
+
+    BLI_assert(usage_tasks_.is_empty());
+    usage_tasks_.push(socket);
+
+    while (!usage_tasks_.is_empty()) {
+      const SocketInContext &socket = usage_tasks_.peek();
+      this->usage_task(socket);
+      if (&socket == &usage_tasks_.peek()) {
+        /* The task is finished if it hasn't added any new task it depends on.*/
+        usage_tasks_.pop();
+      }
+    }
+
+    return all_socket_usages_.lookup(socket);
   }
 
+  const void *get_socket_value(const SocketInContext &socket)
+  {
+    const std::optional<const void *> value = all_socket_values_.lookup_try(socket);
+    if (value.has_value()) {
+      return *value;
+    }
+
+    BLI_assert(value_tasks_.is_empty());
+    value_tasks_.push(socket);
+
+    while (!value_tasks_.is_empty()) {
+      const SocketInContext &socket = value_tasks_.peek();
+      this->value_task(socket);
+      if (&socket == &value_tasks_.peek()) {
+        /* The task is finished if it hasn't added any new task it depends on.*/
+        value_tasks_.pop();
+      }
+    }
+
+    return all_socket_values_.lookup(socket);
+  }
+
+ private:
   void schedule_root_tasks_and_store_tree_inputs()
   {
     root_tree_.ensure_topology_cache();
@@ -100,17 +139,6 @@ struct SocketUsageInferencer {
       if (&socket == &usage_tasks_.peek()) {
         /* The task is finished if it hasn't added any new task it depends on.*/
         usage_tasks_.pop();
-      }
-    }
-  }
-
-  void gather_finalized_input_usages()
-  {
-    r_root_input_usages_.fill(false);
-    for (const bNode *node : root_tree_.group_input_nodes()) {
-      for (const int i : root_tree_.interface_inputs().index_range()) {
-        const bNodeSocket &socket = node->output_socket(i);
-        r_root_input_usages_[i] |= all_socket_usages_.lookup({nullptr, &socket});
       }
     }
   }
@@ -385,28 +413,6 @@ struct SocketUsageInferencer {
     }
     /* None of the dependent sockets is used, so the current socket is not used either. */
     all_socket_usages_.add_new(socket, false);
-  }
-
-  const void *get_socket_value(const SocketInContext &socket)
-  {
-    const std::optional<const void *> value = all_socket_values_.lookup_try(socket);
-    if (value.has_value()) {
-      return *value;
-    }
-
-    BLI_assert(value_tasks_.is_empty());
-    value_tasks_.push(socket);
-
-    while (!value_tasks_.is_empty()) {
-      const SocketInContext &socket = value_tasks_.peek();
-      this->value_task(socket);
-      if (&socket == &value_tasks_.peek()) {
-        /* The task is finished if it hasn't added any new task it depends on.*/
-        value_tasks_.pop();
-      }
-    }
-
-    return all_socket_values_.lookup(socket);
   }
 
   void value_task(const SocketInContext &socket)
@@ -763,8 +769,15 @@ void infer_inputs_socket_usage(const bNodeTree &tree,
                                const Span<GPointer> tree_input_values,
                                const MutableSpan<bool> r_input_usages)
 {
-  SocketUsageInferencer inferencer{tree, tree_input_values, r_input_usages};
-  inferencer.do_inference();
+  SocketUsageInferencer inferencer{tree, tree_input_values};
+
+  r_input_usages.fill(false);
+  for (const bNode *node : tree.group_input_nodes()) {
+    for (const int i : tree.interface_inputs().index_range()) {
+      const bNodeSocket &socket = node->output_socket(i);
+      r_input_usages[i] |= inferencer.is_socket_used({nullptr, &socket});
+    }
+  }
 }
 
 void infer_inputs_socket_usage(const bNodeTree &tree,
