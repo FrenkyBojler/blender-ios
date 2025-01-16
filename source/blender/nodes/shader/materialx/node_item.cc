@@ -520,26 +520,36 @@ NodeItem NodeItem::convert(Type to_type) const
     return *this;
   }
 
-  if (is_arithmetic(from_type)) {
-    switch (to_type) {
-      /* Link arithmetic types to shader as EDF. */
-      case Type::EDF:
+  switch (to_type) {
+    /* Link arithmetic types to shader as EDF. */
+    case Type::EDF:
+      if (is_arithmetic(from_type)) {
         return create_node("uniform_edf", NodeItem::Type::EDF, {{"color", convert(Type::Color3)}});
-      /* Displacement shader from arithmetic types, when not using (Vector) Displacement node. */
-      case Type::DisplacementShader:
+      }
+      return empty();
+    /* Displacement shader from arithmetic types, when not using (Vector) Displacement node. */
+    case Type::DisplacementShader:
+      if (is_arithmetic(from_type)) {
         return create_node("displacement",
                            NodeItem::Type::DisplacementShader,
                            {{"displacement", convert(Type::Vector3)}});
-      /* Material output will evaluate graph multiple times for different components,
-       * we only want to return and EDF and leave others empty. */
-      case Type::BSDF:
-      case Type::SurfaceShader:
-      case Type::Material:
-      case Type::SurfaceOpacity:
-        return empty();
-      default:
-        break;
-    }
+      }
+      return empty();
+    /* Surface opacity is just a float. */
+    case Type::SurfaceOpacity:
+      to_type = Type::Float;
+      if (from_type == to_type || to_type == Type::Any) {
+        return *this;
+      }
+      break;
+    /* Material output will evaluate graph multiple times for different components,
+     * when linking arithmetic types we want to leave those empty. */
+    case Type::BSDF:
+    case Type::SurfaceShader:
+    case Type::Material:
+      return empty();
+    default:
+      break;
   }
 
   if (!is_arithmetic(from_type) || !is_arithmetic(to_type)) {
