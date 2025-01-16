@@ -504,7 +504,7 @@ void SEQ_ensure_unique_name(Strip *strip, Scene *scene)
   BKE_animdata_fix_paths_rename(&scene->id,
                                 scene->adt,
                                 nullptr,
-                                "sequence_editor.strips_all",
+                                "sequence_editor.sequences_all",
                                 name,
                                 strip->name + 2,
                                 0,

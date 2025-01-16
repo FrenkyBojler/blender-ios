@@ -636,11 +636,11 @@ static void strip_speed_factor_fix_rna_path(Strip *strip, ListBase *fcurves)
 {
   char name_esc[(sizeof(strip->name) - 2) * 2];
   BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
-  char *path = BLI_sprintfN("sequence_editor.strips_all[\"%s\"].pitch", name_esc);
+  char *path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].pitch", name_esc);
   FCurve *fcu = BKE_fcurve_find(fcurves, path, 0);
   if (fcu != nullptr) {
     MEM_freeN(fcu->rna_path);
-    fcu->rna_path = BLI_sprintfN("sequence_editor.strips_all[\"%s\"].speed_factor", name_esc);
+    fcu->rna_path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].speed_factor", name_esc);
   }
   MEM_freeN(path);
 }

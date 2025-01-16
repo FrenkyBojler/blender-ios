@@ -1182,7 +1182,7 @@ static char *get_rna_access(ID *id,
     /* Strip names in Scene */
     char strip_name_esc[(sizeof(strip->name) - 2) * 2];
     BLI_str_escape(strip_name_esc, strip->name + 2, sizeof(strip_name_esc));
-    SNPRINTF(buf, "sequence_editor.strips_all[\"%s\"]", strip_name_esc);
+    SNPRINTF(buf, "sequence_editor.sequences_all[\"%s\"]", strip_name_esc);
   }
   else {
     buf[0] = '\0'; /* empty string */
