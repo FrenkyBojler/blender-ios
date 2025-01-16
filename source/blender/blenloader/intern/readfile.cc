@@ -4061,7 +4061,7 @@ static BHead *find_bhead_from_code_name(FileData *fd, const short idcode, const 
 
 static BHead *find_bhead_from_idname(FileData *fd, const char *idname)
 {
-  BHead *bhead = find_bhead_from_code_name(fd, GS(idname), idname + 2);
+  BHead *bhead = fd->bhead_idname_map->lookup_default(idname, nullptr);
   if (LIKELY(bhead)) {
     return bhead;
   }
