@@ -3136,6 +3136,8 @@ static Vector<FillColorRecord> mesh_to_grease_pencil_get_material_list(Object &o
   if (num_materials == 0) {
     Vector<FillColorRecord> fill_colors(1);
     fill_colors[0] = empty_fill;
+    material_remap.reinitialize(1);
+    material_remap[0] = 0;
     return fill_colors;
   }
 
