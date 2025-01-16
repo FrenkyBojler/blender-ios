@@ -585,8 +585,8 @@ float perlin(float4 position)
 template<typename T>
 #if defined(_MSC_VER) && _MSC_VER >= 1930
 /* The MSVC 2022 optimizer generates bad code for perlin_fractal_distorted when perlin_fbm gets
-   inlined leading to incorrect results and failing tests that rely on perlin noise. For now just
-   disable inlining for this function until we can get the compiler fixed. */
+ * inlined leading to incorrect results and failing tests that rely on perlin noise. For now just
+ * disable inlining for this function until we can get the compiler fixed. */
 BLI_NOINLINE
 #endif
     float
