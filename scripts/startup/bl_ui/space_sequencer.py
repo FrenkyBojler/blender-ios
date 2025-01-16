@@ -31,7 +31,7 @@ def _space_view_types(st):
 
 
 def selected_strips_count(context):
-    selected_strips = getattr(context, "selected_trips", None)
+    selected_strips = getattr(context, "selected_strips", None)
     if selected_strips is None:
         return 0, 0
 
@@ -2921,7 +2921,7 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                         sequences_object = ed
                         if ed.meta_stack:
                             sequences_object = ed.meta_stack[-1]
-                        col.prop_search(mod, "input_mask_strip", sequences_object, "sequences", text="Mask")
+                        col.prop_search(mod, "input_mask_strip", sequences_object, "strips", text="Mask")
                     else:
                         col.prop(mod, "input_mask_id")
                         row = col.row()

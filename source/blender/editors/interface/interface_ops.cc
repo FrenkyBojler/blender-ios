@@ -1176,7 +1176,7 @@ bool UI_context_copy_to_selected_list(bContext *C,
      * (if the strip is locked, it won't be in "selected_editable_strips"). */
     const char *prop_id = RNA_property_identifier(prop);
     if (STREQ(prop_id, "lock")) {
-      *r_lb = CTX_data_collection_get(C, "selected_trips");
+      *r_lb = CTX_data_collection_get(C, "selected_strips");
     }
     else {
       *r_lb = CTX_data_collection_get(C, "selected_editable_strips");
@@ -1306,7 +1306,7 @@ bool UI_context_copy_to_selected_list(bContext *C,
          * (if the strip is locked, it won't be in "selected_editable_strips"). */
         const char *prop_id = RNA_property_identifier(prop);
         if (is_rna && STREQ(prop_id, "lock")) {
-          *r_lb = CTX_data_collection_get(C, "selected_trips");
+          *r_lb = CTX_data_collection_get(C, "selected_strips");
         }
         else {
           *r_lb = CTX_data_collection_get(C, "selected_editable_strips");
