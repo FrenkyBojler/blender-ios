@@ -167,6 +167,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * out.
    */
   blender::Array<bool> inferenced_input_socket_usage;
+  CacheMutex inferenced_input_socket_usage_mutex;
 
   /**
    * For geometry nodes, a lazy function graph with some additional info is cached. This is used to

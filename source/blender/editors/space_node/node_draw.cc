@@ -2435,14 +2435,13 @@ static void node_draw_panels_background(const bNode &node)
 static bool panel_has_only_inactive_inputs(const bNode &node,
                                            const nodes::PanelDeclaration &panel_decl)
 {
-  const bNodeTree &ntree = node.owner_tree();
   for (const nodes::ItemDeclaration *item_decl : panel_decl.items) {
     if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
       if (socket_decl->in_out == SOCK_OUT) {
         return false;
       }
       const bNodeSocket &socket = node.socket_by_decl(*socket_decl);
-      if (ntree.runtime->inferenced_input_socket_usage[socket.index_in_all_inputs()]) {
+      if (socket.affects_node_output()) {
         return false;
       }
     }

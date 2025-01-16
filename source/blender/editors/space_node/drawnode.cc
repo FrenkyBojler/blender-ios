@@ -1284,9 +1284,7 @@ static void std_node_socket_draw(
   int type = sock->typeinfo->type;
   // int subtype = sock->typeinfo->subtype;
 
-  if (sock->is_input() &&
-      !tree->runtime->inferenced_input_socket_usage[sock->index_in_all_inputs()])
-  {
+  if (sock->is_input() && !sock->affects_node_output()) {
     uiLayoutSetActive(layout, false);
   }
 

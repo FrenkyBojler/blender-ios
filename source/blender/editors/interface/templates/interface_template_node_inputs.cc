@@ -76,14 +76,13 @@ static void draw_node_input(bContext *C,
 static bool panel_has_any_used_input(const bNode &node,
                                      const blender::nodes::PanelDeclaration &panel_decl)
 {
-  const bNodeTree &ntree = node.owner_tree();
   for (const blender::nodes::ItemDeclaration *item_decl : panel_decl.items) {
     if (const auto *socket_decl = dynamic_cast<const SocketDeclaration *>(item_decl)) {
       if (socket_decl->in_out == SOCK_OUT) {
         continue;
       }
       const bNodeSocket &socket = node.socket_by_decl(*socket_decl);
-      if (ntree.runtime->inferenced_input_socket_usage[socket.index_in_all_inputs()]) {
+      if (socket.affects_node_output()) {
         return true;
       }
     }

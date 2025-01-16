@@ -34,7 +34,6 @@
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
-#include "NOD_socket_usage_inference.hh"
 #include "NOD_texture.h"
 
 #include "DEG_depsgraph_build.hh"
@@ -67,6 +66,7 @@ static void add_tree_tag(bNodeTree *ntree, const eNodeTreeChangedFlag flag)
   ntree->runtime->changed_flag |= flag;
   ntree->runtime->topology_cache_mutex.tag_dirty();
   ntree->runtime->tree_zones_cache_mutex.tag_dirty();
+  ntree->runtime->inferenced_input_socket_usage_mutex.tag_dirty();
 }
 
 static void add_node_tag(bNodeTree *ntree, bNode *node, const eNodeTreeChangedFlag flag)
@@ -530,7 +530,6 @@ class NodeTreeMainUpdater {
 
     result.output_changed = this->check_if_output_changed(ntree);
 
-    this->update_socket_usage(ntree);
     this->update_socket_link_and_use(ntree);
     this->update_link_validation(ntree);
 
@@ -559,12 +558,6 @@ class NodeTreeMainUpdater {
 #endif
 
     return result;
-  }
-
-  void update_socket_usage(bNodeTree &tree)
-  {
-    tree.runtime->inferenced_input_socket_usage =
-        nodes::socket_usage_inference::infer_all_input_sockets_usage(tree);
   }
 
   void update_socket_link_and_use(bNodeTree &tree)
