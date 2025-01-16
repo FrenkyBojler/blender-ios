@@ -10,7 +10,7 @@
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 
@@ -179,9 +179,11 @@ static int ensure_background_material(Main *bmain, Object *ob, const StringRefNu
 
 static bke::CurvesGeometry grease_pencil_trace_image(TraceJob &trace_job, const ImBuf &ibuf)
 {
-  /* Trace the image. */
+  /* Trace the image.
+   * Note: Colors above threshold are interpreted as "background". This works well for images with
+   * black-on-white drawings, but is quite arbitrary. */
   potrace_bitmap_t *bm = image_trace::image_to_bitmap(ibuf, [&](const ColorGeometry4f &color) {
-    return math::average(float3(color.r, color.g, color.b)) * color.a > trace_job.threshold;
+    return math::average(float3(color.r, color.g, color.b)) * color.a <= trace_job.threshold;
   });
 
   image_trace::TraceParams params;

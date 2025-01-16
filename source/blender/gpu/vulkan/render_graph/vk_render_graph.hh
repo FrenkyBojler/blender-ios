@@ -43,6 +43,7 @@
 
 #include "BKE_global.hh"
 
+#include "BLI_color.hh"
 #include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
@@ -97,8 +98,19 @@ class VKRenderGraph : public NonCopyable {
    */
   VKResourceStateTracker &resources_;
 
+  struct DebugGroup {
+    std::string name;
+    ColorTheme4f color;
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(DebugGroup, name, color)
+    uint64_t hash() const
+    {
+      return get_default_hash<std::string, ColorTheme4f>(name, color);
+    }
+  };
+
   struct {
-    VectorSet<std::string> group_names;
+    VectorSet<DebugGroup> groups;
 
     /** Current stack of debug group names. */
     Vector<DebugGroupNameID> group_stack;
@@ -210,7 +222,7 @@ class VKRenderGraph : public NonCopyable {
    * After calling this function the mapped memory of the vk_buffer would contain the data of the
    * buffer.
    */
-  void submit_buffer_for_read(VkBuffer vk_buffer);
+  void submit_for_read();
 
   /**
    * Submit partial graph to be able to present the expected result of the rendering commands
@@ -239,7 +251,7 @@ class VKRenderGraph : public NonCopyable {
    *
    * New nodes added to the render graph will be associated with this debug group.
    */
-  void debug_group_begin(const char *name);
+  void debug_group_begin(const char *name, const ColorTheme4f &color);
 
   /**
    * Pop the top of the debugging group stack.

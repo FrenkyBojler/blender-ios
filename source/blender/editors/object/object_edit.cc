@@ -56,7 +56,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
@@ -79,6 +79,7 @@
 #include "ED_asset_menu_utils.hh"
 #include "ED_curve.hh"
 #include "ED_gpencil_legacy.hh"
+#include "ED_grease_pencil.hh"
 #include "ED_image.hh"
 #include "ED_keyframes_keylist.hh"
 #include "ED_lattice.hh"
@@ -897,6 +898,7 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
   }
   else if (ob->type == OB_GREASE_PENCIL) {
     ok = true;
+    blender::ed::greasepencil::ensure_selection_domain(scene->toolsettings, ob);
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_GREASE_PENCIL, scene);
   }
   else if (ob->type == OB_POINTCLOUD) {
@@ -1003,7 +1005,7 @@ void OBJECT_OT_editmode_toggle(wmOperatorType *ot)
 {
 
   /* identifiers */
-  ot->name = "Toggle Edit Mode";
+  ot->name = "Edit Mode";
   ot->description = "Toggle object's edit mode";
   ot->idname = "OBJECT_OT_editmode_toggle";
 
@@ -1874,11 +1876,11 @@ static void shade_auto_smooth_ui(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiItemR(layout, op->ptr, "use_auto_smooth", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "use_auto_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayout *col = uiLayoutColumn(layout, false);
   uiLayoutSetActive(col, RNA_boolean_get(op->ptr, "use_auto_smooth"));
-  uiItemR(layout, op->ptr, "angle", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void OBJECT_OT_shade_auto_smooth(wmOperatorType *ot)

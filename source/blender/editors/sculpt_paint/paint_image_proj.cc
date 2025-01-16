@@ -63,11 +63,13 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_main_invariants.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
@@ -5813,7 +5815,8 @@ void paint_proj_stroke(const bContext *C,
     view3d_operator_needs_opengl(C);
 
     /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
-    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, nullptr);
+    ED_view3d_depth_override(
+        depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, nullptr);
 
     if (!ED_view3d_autodist(region, v3d, mval_i, cursor, nullptr)) {
       return;
@@ -6775,7 +6778,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       }
     }
 
-    ED_node_tree_propagate_change(C, bmain, ntree);
+    BKE_main_ensure_invariants(*bmain);
     /* In case we added more than one node, position them too. */
     blender::bke::node_position_propagate(out_node);
 
@@ -6863,32 +6866,32 @@ static void texture_paint_add_texture_paint_slot_ui(bContext *C, wmOperator *op)
 
   if (ob->mode == OB_MODE_SCULPT) {
     slot_type = (ePaintCanvasSource)RNA_enum_get(op->ptr, "slot_type");
-    uiItemR(layout, op->ptr, "slot_type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "slot_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
-  uiItemR(layout, op->ptr, "name", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   switch (slot_type) {
     case PAINT_CANVAS_SOURCE_IMAGE: {
       uiLayout *col = uiLayoutColumn(layout, true);
-      uiItemR(col, op->ptr, "width", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(col, op->ptr, "height", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(col, op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(col, op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      uiItemR(layout, op->ptr, "alpha", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "generated_type", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "float", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
     case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE:
-      uiItemR(layout, op->ptr, "domain", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "data_type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+      uiItemR(layout, op->ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "data_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
       break;
     case PAINT_CANVAS_SOURCE_MATERIAL:
       BLI_assert_unreachable();
       break;
   }
 
-  uiItemR(layout, op->ptr, "color", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 #define IMA_DEF_NAME N_("Untitled")

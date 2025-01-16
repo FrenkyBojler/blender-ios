@@ -9,7 +9,6 @@
 #include "DNA_node_types.h"
 
 #include "BLI_rect.h"
-#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -90,10 +89,10 @@ bool space_node_view_flag(
   if (snode.edittree) {
     for (const bNode *node : snode.edittree->all_nodes()) {
       if ((node->flag & node_flag) == node_flag) {
-        BLI_rctf_union(&cur_new, &node->runtime->totr);
+        BLI_rctf_union(&cur_new, &node->runtime->draw_bounds);
         tot++;
 
-        if (node->type == NODE_FRAME) {
+        if (node->type_legacy == NODE_FRAME) {
           has_frame = true;
         }
       }

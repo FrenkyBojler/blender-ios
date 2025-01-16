@@ -23,6 +23,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -1447,9 +1448,9 @@ static bool wm_draw_update_test_window(Main *bmain, bContext *C, wmWindow *win)
   bool do_draw = false;
 
   LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
-    if (region->do_draw_paintcursor) {
+    if (region->runtime->do_draw_paintcursor) {
       screen->do_draw_paintcursor = true;
-      region->do_draw_paintcursor = false;
+      region->runtime->do_draw_paintcursor = false;
     }
     if (region->runtime->visible && region->runtime->do_draw) {
       do_draw = true;
