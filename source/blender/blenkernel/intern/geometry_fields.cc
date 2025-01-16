@@ -68,10 +68,7 @@ Span<float3> MeshSculptFieldContext::positions() const
   const Span<float3> vert_positions = this->vert_positions();
 
   Array<float3> positions(indices.size());
-
-  for (const int i : positions.index_range()) {
-    positions[i] = vert_positions[indices[i]];
-  }
+  array_utils::gather(vert_positions, indices, positions.as_mutable_span());
 
   return positions;
 }
@@ -85,9 +82,7 @@ Span<float3> MeshSculptFieldContext::normals() const
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
   Array<float3> normals(indices.size());
 
-  for (const int i : normals.index_range()) {
-    normals[i] = vert_normals[indices[i]];
-  }
+  array_utils::gather(vert_normals, indices, normals.as_mutable_span());
 
   return normals;
 }
