@@ -8136,8 +8136,10 @@ static void point_normals_update_statusbar(bContext *C, wmOperator *op)
 
   status.opmodal(IFACE_("Use pivot"), op->type, EDBM_CLNOR_MODAL_POINTTO_USE_PIVOT);
   status.opmodal(IFACE_("Use object"), op->type, EDBM_CLNOR_MODAL_POINTTO_USE_OBJECT);
-  status.opmodal(IFACE_("Set & use 3D cursor"), op->type, EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR);
-  status.opmodal(IFACE_("Select & use mesh item"), op->type, EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED);
+  status.opmodal(
+      IFACE_("Set and use 3D cursor"), op->type, EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR);
+  status.opmodal(
+      IFACE_("Select and use mesh item"), op->type, EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED);
 }
 
 /* TODO: move that to generic function in BMesh? */
