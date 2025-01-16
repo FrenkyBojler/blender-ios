@@ -7,7 +7,7 @@
 		<key>CFBundleName</key>
 		<string>blender-thumbnailer</string>
 		<key>CFBundleDisplayName</key>
-		<string>blender_thumbnailer</string>
+		<string>Blender Thumbnailer</string>
 		<key>CFBundleExecutable</key>
 		<string>blender-thumbnailer</string>
 		<key>CFBundleIdentifier</key>
