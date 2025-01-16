@@ -639,7 +639,7 @@ static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
       status.opmodal(IFACE_("Cancel"), op->type, EYE_MODAL_CANCEL);
       status.opmodal(IFACE_("Confirm"), op->type, EYE_MODAL_SAMPLE_CONFIRM);
 #ifdef __APPLE__
-      status.item(TIP_("Outside of a Blender window, press 'Enter' to sample"), ICON_INFO);
+      status.item(TIP_("Press 'Enter' to sample outside of a Blender window"), ICON_INFO);
 #endif
     }
 
