@@ -203,7 +203,7 @@ static void rna_Strip_scene_switch_update(Main *bmain, Scene *scene, PointerRNA 
   DEG_relations_tag_update(bmain);
 }
 
-static void rna_Strip_use_sequence(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+static void rna_Strip_use_strip(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
 
@@ -250,16 +250,16 @@ static void rna_SequenceEditor_strips_all_begin(CollectionPropertyIterator *iter
   Scene *scene = (Scene *)ptr->owner_id;
   Editing *ed = SEQ_editing_get(scene);
 
-  StripsAllIterator *seq_iter = MEM_new<StripsAllIterator>(__func__);
-  seq_iter->index = 0;
-  add_strips_from_seqbase(&ed->seqbase, seq_iter->strips);
+  StripsAllIterator *strip_iter = MEM_new<StripsAllIterator>(__func__);
+  strip_iter->index = 0;
+  add_strips_from_seqbase(&ed->seqbase, strip_iter->strips);
 
   BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(
       MEM_callocN(sizeof(BLI_Iterator), __func__));
   iter->internal.custom = bli_iter;
-  bli_iter->data = seq_iter;
+  bli_iter->data = strip_iter;
 
-  Strip **strip_arr = seq_iter->strips.begin();
+  Strip **strip_arr = strip_iter->strips.begin();
   bli_iter->current = *strip_arr;
   iter->valid = bli_iter->current != nullptr;
 }
@@ -267,13 +267,13 @@ static void rna_SequenceEditor_strips_all_begin(CollectionPropertyIterator *iter
 static void rna_SequenceEditor_strips_all_next(CollectionPropertyIterator *iter)
 {
   BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(iter->internal.custom);
-  StripsAllIterator *seq_iter = static_cast<StripsAllIterator *>(bli_iter->data);
+  StripsAllIterator *strip_iter = static_cast<StripsAllIterator *>(bli_iter->data);
 
-  seq_iter->index++;
-  Strip **strip_arr = seq_iter->strips.begin();
-  bli_iter->current = *(strip_arr + seq_iter->index);
+  strip_iter->index++;
+  Strip **strip_arr = strip_iter->strips.begin();
+  bli_iter->current = *(strip_arr + strip_iter->index);
 
-  iter->valid = bli_iter->current != nullptr && seq_iter->index < seq_iter->strips.size();
+  iter->valid = bli_iter->current != nullptr && strip_iter->index < strip_iter->strips.size();
 }
 
 static PointerRNA rna_SequenceEditor_strips_all_get(CollectionPropertyIterator *iter)
@@ -285,9 +285,9 @@ static PointerRNA rna_SequenceEditor_strips_all_get(CollectionPropertyIterator *
 static void rna_SequenceEditor_strips_all_end(CollectionPropertyIterator *iter)
 {
   BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(iter->internal.custom);
-  StripsAllIterator *seq_iter = static_cast<StripsAllIterator *>(bli_iter->data);
+  StripsAllIterator *strip_iter = static_cast<StripsAllIterator *>(bli_iter->data);
 
-  MEM_delete(seq_iter);
+  MEM_delete(strip_iter);
   MEM_freeN(bli_iter);
 }
 
@@ -2825,7 +2825,7 @@ static void rna_def_scene(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag");
   RNA_def_property_enum_items(prop, scene_input_items);
   RNA_def_property_ui_text(prop, "Input", "Input type to use for the Scene strip");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_use_sequence");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_use_strip");
 
   prop = RNA_def_property(srna, "use_annotations", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", SEQ_SCENE_NO_ANNOTATION);

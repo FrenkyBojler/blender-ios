@@ -52,7 +52,7 @@
 
 #  include "WM_api.hh"
 
-static StripElem *rna_Strip_strip_elem_from_frame(ID *id, Strip *self, int timeline_frame)
+static StripElem *rna_Strip_elem_from_frame(ID *id, Strip *self, int timeline_frame)
 {
   Scene *scene = (Scene *)id;
   return SEQ_render_give_stripelem(scene, self, timeline_frame);
@@ -677,7 +677,7 @@ void RNA_api_strip(StructRNA *srna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  func = RNA_def_function(srna, "strip_elem_from_frame", "rna_Strip_strip_elem_from_frame");
+  func = RNA_def_function(srna, "strip_elem_from_frame", "rna_Strip_elem_from_frame");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID);
   RNA_def_function_ui_description(func, "Return the strip element from a given frame or None");
   parm = RNA_def_int(func,
