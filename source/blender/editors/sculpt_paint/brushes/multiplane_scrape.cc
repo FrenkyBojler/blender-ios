@@ -396,7 +396,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
-  mesh_sculpt_nodes_evaluate(depsgraph, object, brush, position_data.eval, verts, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, brush, position_data.eval, verts, factors);
 
   tls.translations.resize(verts.size());
   MutableSpan<float3> translations = tls.translations;
@@ -456,7 +456,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
-  grids_sculpt_nodes_evaluate(depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
+  nodes_evaluate_factors_grids(depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
 
   tls.translations.resize(positions.size());
   MutableSpan<float3> translations = tls.translations;
@@ -515,7 +515,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
-  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, factors);
+  nodes_evaluate_factors_bmesh(depsgraph, object, brush, verts, positions, factors);
 
   tls.translations.resize(verts.size());
   MutableSpan<float3> translations = tls.translations;

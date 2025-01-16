@@ -122,8 +122,8 @@ VArray<float3> BMeshSculptFieldContext::normals() const
 }
 
 GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_input,
-                                                 const IndexMask & /*mask*/,
-                                                 ResourceScope & /*scope*/) const
+                                                 const IndexMask &mask,
+                                                 ResourceScope &scope) const
 {
   const AttributeFieldInput *attribute_field_input = dynamic_cast<const AttributeFieldInput *>(
       &field_input);
@@ -148,7 +148,7 @@ GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_inp
     return VArray<int>::ForContainer(this->indices());
   }
 
-  return {};
+  return field_input.get_varray_for_context(*this, mask, scope);
 }
 
 GeometryFieldContext::GeometryFieldContext(const GeometryFieldContext &other,

@@ -14,29 +14,48 @@ struct SubdivCCG;
 
 namespace blender::ed::sculpt_paint {
 
-template<typename TargetType>
-void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                const Object &object,
-                                const Brush &brush,
-                                const Span<float3> position_eval,
-                                const Span<int> verts,
-                                const MutableSpan<TargetType> output_targets);
-
-template<typename TargetType>
-void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
+void nodes_evaluate_factors_mesh(const Depsgraph &depsgraph,
                                  const Object &object,
                                  const Brush &brush,
-                                 const SubdivCCG &subdiv_ccg,
-                                 const Span<int> grids,
-                                 const Span<float3> positions,
-                                 const MutableSpan<TargetType> output_targets);
+                                 Span<float3> vert_positions,
+                                 Span<int> verts,
+                                 MutableSpan<float> factors);
 
-template<typename TargetType>
-void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                 const Object &object,
-                                 const Brush &brush,
-                                 const Set<BMVert *, 0> &verts,
-                                 const Span<float3> positions,
-                                 const MutableSpan<TargetType> output_targets);
+void nodes_evaluate_factors_grids(const Depsgraph &depsgraph,
+                                  const Object &object,
+                                  const Brush &brush,
+                                  const SubdivCCG &subdiv_ccg,
+                                  const Span<int> grids,
+                                  Span<float3> positions,
+                                  MutableSpan<float> factors);
+
+void nodes_evaluate_factors_bmesh(const Depsgraph &depsgraph,
+                                  const Object &object,
+                                  const Brush &brush,
+                                  const Set<BMVert *, 0> &verts,
+                                  Span<float3> positions,
+                                  MutableSpan<float> factors);
+
+void nodes_evaluate_translations_mesh(const Depsgraph &depsgraph,
+                                      const Object &object,
+                                      const Brush &brush,
+                                      Span<float3> vert_positions,
+                                      Span<int> verts,
+                                      MutableSpan<float3> translations);
+
+void nodes_evaluate_translations_grids(const Depsgraph &depsgraph,
+                                       const Object &object,
+                                       const Brush &brush,
+                                       const SubdivCCG &subdiv_ccg,
+                                       Span<int> grids,
+                                       Span<float3> positions,
+                                       MutableSpan<float3> translations);
+
+void nodes_evaluate_translations_bmesh(const Depsgraph &depsgraph,
+                                       const Object &object,
+                                       const Brush &brush,
+                                       const Set<BMVert *, 0> &verts,
+                                       Span<float3> positions,
+                                       MutableSpan<float3> translations);
 
 }  // namespace blender::ed::sculpt_paint

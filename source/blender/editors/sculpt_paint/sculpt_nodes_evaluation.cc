@@ -2,8 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <iostream>
+#include <memory>
+#include <variant>
+
+#include "BLI_generic_virtual_array.hh"
 #include "DNA_brush_types.h"
 
+#include "FN_multi_function_builder.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -26,26 +32,39 @@ static bool is_socket_type_supported(const eNodeSocketDatatype type)
   return ELEM(type, SOCK_VECTOR, SOCK_RGBA, SOCK_FLOAT);
 }
 
+template<typename T> class SpanFieldInput final : public fn::FieldInput {
+  Span<T> data_;
+
+ public:
+  SpanFieldInput(Span<T> data) : FieldInput(CPPType::get<T>(), "Span"), data_(data) {}
+
+  GVArray get_varray_for_context(const fn::FieldContext & /*context*/,
+                                 const IndexMask & /*mask*/,
+                                 ResourceScope & /*scope*/) const final
+  {
+    return VArray<T>::ForSpan(data_);
+  }
+};
+
+struct CombineFactors {
+  MutableSpan<float> factors;
+};
+
+struct OutputTranslations {
+  MutableSpan<float3> translations;
+};
+
+using EvaluationResult = std::variant<CombineFactors, OutputTranslations>;
+
 /**
  * Evaluates the Geometry Nodes node group associated with the specified brush in the given
  * context.
- *
- * The `ExpectedType` should be `float` for all brushes except the Vector Displacement
- * brush, which requires `float3`. The first output socket of the node group is evaluated
- * and used to scale `output_targets`; all other outputs are ignored.
- *
- * Currently supports the following output types: vector, float, and
- * color.
- *
- * TODO: This whole function shouldn't be templated, instead type conversions should be done with
- * fields and only a small amount of code should depend on the result type.
  */
-template<typename ExpectedType>
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   const Object &object,
                                   const Brush &brush,
                                   const bke::SculptFieldContext &context,
-                                  const MutableSpan<ExpectedType> output_targets)
+                                  const EvaluationResult &output)
 {
   const bNodeTree *tree = brush.node_group;
   if (tree == nullptr) {
@@ -149,25 +168,32 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   }
   lazy_function.destruct_storage(lf_context.storage);
 
-  /* Only consider the first output. The other outputs are not evaluated. */
-  const bke::SocketValueVariant output_socket = std::move(
-      *param_outputs[0].get<bke::SocketValueVariant>());
-
-  /* Convert the field type to the expected type */
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
-  fn::Field<ExpectedType> field_to_evaluate = conversions.try_convert(
-      output_socket.get<fn::GField>(), CPPType::get<ExpectedType>());
 
-  Array<ExpectedType> field_outputs(output_targets.size());
+  /* Only consider the first output. The other outputs are not evaluated. */
+  bke::SocketValueVariant *output_socket = param_outputs[0].get<bke::SocketValueVariant>();
+  fn::GField output_field = output_socket->extract<fn::GField>();
+  if (const CombineFactors *result = std::get_if<CombineFactors>(&output)) {
+    fn::Field<float> converted = conversions.try_convert(std::move(output_field),
+                                                         CPPType::get<float>());
+    static auto multiply_fn = mf::build::SI2_SO<float, float, float>(
+        "Multiply",
+        [](float a, float b) { return a * b; },
+        mf::build::exec_presets::AllSpanOrSingle());
 
-  /* Evaluate the field */
-  fn::FieldEvaluator evaluator{context, output_targets.size()};
-  evaluator.add_with_destination(field_to_evaluate, field_outputs.as_mutable_span());
-  evaluator.evaluate();
-
-  /* Scale the output targets */
-  for (const int i : output_targets.index_range()) {
-    output_targets[i] *= field_outputs[i];
+    fn::Field<float> input_factors(std::make_shared<SpanFieldInput<float>>(result->factors));
+    fn::Field<float> final_factor{
+        fn::FieldOperation::Create(multiply_fn, {std::move(converted), std::move(input_factors)})};
+    fn::FieldEvaluator evaluator{context, result->factors.size()};
+    evaluator.add_with_destination(std::move(final_factor), result->factors);
+    evaluator.evaluate();
+  }
+  else if (const OutputTranslations *result = std::get_if<OutputTranslations>(&output)) {
+    fn::Field<float3> converted = conversions.try_convert(std::move(output_field),
+                                                          CPPType::get<float3>());
+    fn::FieldEvaluator evaluator{context, result->translations.size()};
+    evaluator.add_with_destination(std::move(converted), result->translations);
+    evaluator.evaluate();
   }
 
   /* Destruct inputs and outputs */
@@ -183,92 +209,92 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   }
 }
 
-template<typename TargetType>
-void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                const Object &object,
-                                const Brush &brush,
-                                const Span<float3> vert_positions,
-                                const Span<int> verts,
-                                const MutableSpan<TargetType> output_targets)
+void nodes_evaluate_factors_mesh(const Depsgraph &depsgraph,
+                                 const Object &object,
+                                 const Brush &brush,
+                                 const Span<float3> vert_positions,
+                                 const Span<int> verts,
+                                 const MutableSpan<float> factors)
 {
   const Mesh *mesh = static_cast<const Mesh *>(object.data);
-  bke::MeshSculptFieldContext context(depsgraph, object, *mesh, verts, vert_positions);
-
-  threading::isolate_task(
-      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, context, output_targets); });
+  const bke::MeshSculptFieldContext context(depsgraph, object, *mesh, verts, vert_positions);
+  threading::isolate_task([&]() {
+    const CombineFactors output{factors};
+    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+  });
 }
 
-template void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                         const Object &object,
-                                         const Brush &brush,
-                                         const Span<float3> vert_positions,
-                                         const Span<int> verts,
-                                         const MutableSpan<float> output_targets);
-
-template void mesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                         const Object &object,
-                                         const Brush &brush,
-                                         const Span<float3> vert_positions,
-                                         const Span<int> verts,
-                                         const MutableSpan<float3> output_targets);
-
-template<typename TargetType>
-void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                 const Object &object,
-                                 const Brush &brush,
-                                 const SubdivCCG &subdiv_ccg,
-                                 const Span<int> grids,
-                                 const Span<float3> positions,
-                                 const MutableSpan<TargetType> output_targets)
+void nodes_evaluate_factors_grids(const Depsgraph &depsgraph,
+                                  const Object &object,
+                                  const Brush &brush,
+                                  const SubdivCCG &subdiv_ccg,
+                                  const Span<int> grids,
+                                  const Span<float3> positions,
+                                  const MutableSpan<float> factors)
 {
-  bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
-
-  threading::isolate_task(
-      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, context, output_targets); });
+  const bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
+  threading::isolate_task([&]() {
+    const CombineFactors output{factors};
+    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+  });
 }
 
-template void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                          const Object &object,
-                                          const Brush &brush,
-                                          const SubdivCCG &subdiv_ccg,
-                                          const Span<int> grids,
-                                          const Span<float3> positions,
-                                          const MutableSpan<float> output_targets);
-
-template void grids_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                          const Object &object,
-                                          const Brush &brush,
-                                          const SubdivCCG &subdiv_ccg,
-                                          const Span<int> grids,
-                                          const Span<float3> positions,
-                                          const MutableSpan<float3> output_targets);
-
-template<typename TargetType>
-void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                 const Object &object,
-                                 const Brush &brush,
-                                 const Set<BMVert *, 0> &verts,
-                                 const Span<float3> positions,
-                                 const MutableSpan<TargetType> output_targets)
+void nodes_evaluate_factors_bmesh(const Depsgraph &depsgraph,
+                                  const Object &object,
+                                  const Brush &brush,
+                                  const Set<BMVert *, 0> &verts,
+                                  const Span<float3> positions,
+                                  const MutableSpan<float> factors)
 {
-  bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
-
-  threading::isolate_task(
-      [&]() { sculpt_nodes_evaluate(depsgraph, object, brush, context, output_targets); });
+  const bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
+  threading::isolate_task([&]() {
+    const CombineFactors output{factors};
+    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+  });
 }
 
-template void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                          const Object &object,
-                                          const Brush &brush,
-                                          const Set<BMVert *, 0> &verts,
-                                          const Span<float3> positions,
-                                          const MutableSpan<float> output_targets);
+void nodes_evaluate_translations_mesh(const Depsgraph &depsgraph,
+                                      const Object &object,
+                                      const Brush &brush,
+                                      const Span<float3> vert_positions,
+                                      const Span<int> verts,
+                                      const MutableSpan<float3> translations)
+{
+  const Mesh *mesh = static_cast<const Mesh *>(object.data);
+  const bke::MeshSculptFieldContext context(depsgraph, object, *mesh, verts, vert_positions);
+  threading::isolate_task([&]() {
+    const OutputTranslations output{translations};
+    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+  });
+}
 
-template void bmesh_sculpt_nodes_evaluate(const Depsgraph &depsgraph,
-                                          const Object &object,
-                                          const Brush &brush,
-                                          const Set<BMVert *, 0> &verts,
-                                          const Span<float3> positions,
-                                          const MutableSpan<float3> output_targets);
+void nodes_evaluate_translations_grids(const Depsgraph &depsgraph,
+                                       const Object &object,
+                                       const Brush &brush,
+                                       const SubdivCCG &subdiv_ccg,
+                                       const Span<int> grids,
+                                       const Span<float3> positions,
+                                       const MutableSpan<float3> translations)
+{
+  const bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
+  threading::isolate_task([&]() {
+    const OutputTranslations output{translations};
+    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+  });
+}
+
+void nodes_evaluate_translations_bmesh(const Depsgraph &depsgraph,
+                                       const Object &object,
+                                       const Brush &brush,
+                                       const Set<BMVert *, 0> &verts,
+                                       const Span<float3> positions,
+                                       const MutableSpan<float3> translations)
+{
+  const bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
+  threading::isolate_task([&]() {
+    const OutputTranslations output{translations};
+    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+  });
+}
 
 }  // namespace blender::ed::sculpt_paint

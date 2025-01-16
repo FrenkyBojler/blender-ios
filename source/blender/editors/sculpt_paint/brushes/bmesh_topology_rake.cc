@@ -68,7 +68,6 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations(verts, direction, translations);
-  bmesh_sculpt_nodes_evaluate(depsgraph, object, brush, verts, positions, translations);
   scale_translations(translations, tls.factors);
 
   clip_and_lock_translations(sd, ss, positions, translations);
