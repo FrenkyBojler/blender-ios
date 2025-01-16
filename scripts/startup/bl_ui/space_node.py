@@ -181,7 +181,8 @@ class NODE_HT_header(Header):
                 # TODO: Display something when the context has no active brush.
                 settings = context.scene.tool_settings.sculpt
                 brush = settings.brush
-                layout.template_ID(brush, "node_group", new="brush.new_node_group")
+                if brush:
+                    layout.template_ID(brush, "node_group", new="brush.new_node_group")
         else:
             # Custom node tree is edited as independent ID block
             NODE_MT_editor_menus.draw_collapsible(context, layout)
