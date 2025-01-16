@@ -30,15 +30,6 @@ struct SocketUsageInferencer {
   const bNodeTree &root_tree_;
 
   /**
-   * Input values of the root node tree provided by the caller. Those may come input sockets or
-   * e.g. input settings in the Geometry Nodes modifier. Each input may be null, which indicates
-   * that the input does not have a "static" input value.
-   *
-   * The data-type is the #base_cpp_type of the socket. So e.g. `float` for float sockets.
-   */
-  const Span<GPointer> root_tree_input_values_;
-
-  /**
    * Stack of tasks that allows depth-first (partial) evaluation of the tree.
    */
   Stack<SocketInContext> usage_tasks_;
@@ -60,17 +51,30 @@ struct SocketUsageInferencer {
   AlignedBuffer<1024, 8> scope_buffer_;
 
  public:
-  SocketUsageInferencer(const bNodeTree &tree, const Span<GPointer> tree_input_values)
-      : root_tree_(tree), root_tree_input_values_(tree_input_values)
+  SocketUsageInferencer(const bNodeTree &tree,
+                        const std::optional<Span<GPointer>> tree_input_values)
+      : root_tree_(tree)
   {
     scope_.linear_allocator().provide_buffer(scope_buffer_);
-
     root_tree_.ensure_topology_cache();
+    root_tree_.ensure_interface_cache();
+
     for (const bNode *node : root_tree_.group_input_nodes()) {
       for (const int i : root_tree_.interface_inputs().index_range()) {
         const bNodeSocket &socket = node->output_socket(i);
-        all_socket_values_.add_new({nullptr, &socket}, root_tree_input_values_[i].get());
+        const void *input_value = nullptr;
+        if (tree_input_values.has_value()) {
+          input_value = (*tree_input_values)[i].get();
+        }
+        all_socket_values_.add_new({nullptr, &socket}, input_value);
       }
+    }
+  }
+
+  void mark_top_level_node_outputs_as_used()
+  {
+    for (const bNodeSocket *socket : root_tree_.all_output_sockets()) {
+      all_socket_usages_.add_new({nullptr, socket}, true);
     }
   }
 
@@ -119,30 +123,6 @@ struct SocketUsageInferencer {
   }
 
  private:
-  void schedule_root_tasks_and_store_tree_inputs()
-  {
-    root_tree_.ensure_topology_cache();
-    for (const bNode *node : root_tree_.group_input_nodes()) {
-      for (const int i : root_tree_.interface_inputs().index_range()) {
-        const bNodeSocket &socket = node->output_socket(i);
-        this->push_usage_task({nullptr, &socket});
-        all_socket_values_.add_new({nullptr, &socket}, root_tree_input_values_[i].get());
-      }
-    }
-  }
-
-  void process_usage_tasks_until_all_done()
-  {
-    while (!usage_tasks_.is_empty()) {
-      const SocketInContext &socket = usage_tasks_.peek();
-      this->usage_task(socket);
-      if (&socket == &usage_tasks_.peek()) {
-        /* The task is finished if it hasn't added any new task it depends on.*/
-        usage_tasks_.pop();
-      }
-    }
-  }
-
   void usage_task(const SocketInContext &socket)
   {
     if (all_socket_usages_.contains(socket)) {
@@ -764,6 +744,23 @@ struct SocketUsageInferencer {
     value_tasks_.push(socket);
   }
 };
+
+Array<bool> infer_all_input_sockets_usage(const bNodeTree &tree)
+{
+  tree.ensure_topology_cache();
+  const Span<const bNodeSocket *> all_input_sockets = tree.all_input_sockets();
+  Array<bool> all_usages(all_input_sockets.size());
+
+  SocketUsageInferencer inferencer{tree, std::nullopt};
+  inferencer.mark_top_level_node_outputs_as_used();
+
+  for (const int i : all_input_sockets.index_range()) {
+    const bNodeSocket &socket = *all_input_sockets[i];
+    all_usages[i] = inferencer.is_socket_used({nullptr, &socket});
+  }
+
+  return all_usages;
+}
 
 void infer_group_interface_inputs_usage(const bNodeTree &group,
                                         const Span<GPointer> group_input_values,

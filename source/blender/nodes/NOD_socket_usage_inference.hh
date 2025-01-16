@@ -14,6 +14,12 @@ struct IDProperty;
 namespace blender::nodes::socket_usage_inference {
 
 /**
+ * Get a boolean value for each input socket in the given tree that indicates whether that input is
+ * used. It is assumed that all output sockets in the tree are used.
+ */
+Array<bool> infer_all_input_sockets_usage(const bNodeTree &tree);
+
+/**
  * Get a boolean value for each node group input that indicates whether that input is used by the
  * outputs. The result can be used to e.g. gray out or hide individual inputs that are unused.
  *
