@@ -122,7 +122,7 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
         assert len(bpy.data.collections) == 1
 
         blendlib_path = os.path.normpath(bpy.path.abspath(bpy.data.materials[0].library.filepath))
-        image_path = os.path.join(self.args.src_test_dir,
+        image_path = os.path.join(native_pathsep(self.args.src_test_dir),
                                   native_pathsep('imbuf_io/reference/jpeg-rgb-90__from__rgba08.jpg'))
 
         file_path_map = abspaths(bpy.data.file_path_map())
