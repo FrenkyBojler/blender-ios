@@ -719,7 +719,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
                                      PointerRNA *op_ptr,
                                      const bNodeTreeInterfaceSocket &socket,
                                      const int socket_index,
-                                     const bool is_used)
+                                     const bool affects_output)
 {
   bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
@@ -740,7 +740,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
   uiLayout *row = uiLayoutRow(layout, true);
-  uiLayoutSetActive(row, is_used);
+  uiLayoutSetActive(row, affects_output);
   uiLayoutSetPropDecorate(row, false);
 
   /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough

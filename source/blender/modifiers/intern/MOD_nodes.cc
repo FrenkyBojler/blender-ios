@@ -2266,8 +2266,8 @@ static bool interface_panel_has_socket(const bNodeTreeInterfacePanel &interface_
   return false;
 }
 
-static bool interface_panel_has_active_input(DrawGroupInputsContext &ctx,
-                                             const bNodeTreeInterfacePanel &panel)
+static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
+                                           const bNodeTreeInterfacePanel &panel)
 {
   for (const bNodeTreeInterfaceItem *item : panel.items()) {
     if (item->item_type == NODE_INTERFACE_SOCKET) {
@@ -2279,7 +2279,7 @@ static bool interface_panel_has_active_input(DrawGroupInputsContext &ctx,
     }
     else if (item->item_type == NODE_INTERFACE_PANEL) {
       const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
-      if (interface_panel_has_active_input(ctx, sub_interface_panel)) {
+      if (interface_panel_affects_output(ctx, sub_interface_panel)) {
         return true;
       }
     }
@@ -2302,7 +2302,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
           ctx.md_ptr->owner_id, &RNA_NodesModifierPanel, panel);
       PanelLayout panel_layout = uiLayoutPanelProp(&ctx.C, layout, &panel_ptr, "is_open");
       uiItemL(panel_layout.header, IFACE_(sub_interface_panel.name), ICON_NONE);
-      if (!interface_panel_has_active_input(ctx, sub_interface_panel)) {
+      if (!interface_panel_affects_output(ctx, sub_interface_panel)) {
         uiLayoutSetActive(panel_layout.header, false);
       }
       uiLayoutSetTooltipFunc(

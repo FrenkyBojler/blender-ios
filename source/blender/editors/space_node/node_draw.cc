@@ -2428,9 +2428,9 @@ static void node_draw_panels_background(const bNode &node)
 }
 
 /**
- * Note that this is different from #panel_has_any_used_input in how it treats output sockets.
- * Within the node UI, the panel should not be grayed out if it has an output socket. However, the
- * sidebar only shows inputs, so output sockets should be ignored.
+ * Note that this is different from #panel_has_input_affecting_node_output in how it treats output
+ * sockets. Within the node UI, the panel should not be grayed out if it has an output socket.
+ * However, the sidebar only shows inputs, so output sockets should be ignored.
  */
 static bool panel_has_only_inactive_inputs(const bNode &node,
                                            const nodes::PanelDeclaration &panel_decl)
