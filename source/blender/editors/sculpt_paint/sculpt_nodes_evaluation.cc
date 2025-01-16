@@ -48,8 +48,6 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   const MutableSpan<ExpectedType> output_targets)
 {
   const bNodeTree *tree = brush.node_group;
-
-  /* The brush doesn't have an associated node group. */
   if (tree == nullptr) {
     return;
   }
