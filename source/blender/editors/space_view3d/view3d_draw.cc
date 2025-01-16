@@ -1025,8 +1025,11 @@ static void draw_view_axis(RegionView3D *rv3d, const rcti *rect)
 }
 
 #ifdef WITH_INPUT_NDOF
-static void draw_point(const float center[3], const uchar color[4])
+static float center[3] = {0, 0, 0};
+
+static void draw_center_of_rotation()
 {
+  uchar color[4] = {0, 108, 255, 255}; /* bright blue so it matches device LEDs */
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_depth_mask(false); /* Don't overwrite the Z-buffer. */
 
@@ -1047,12 +1050,9 @@ static void draw_point(const float center[3], const uchar color[4])
   GPU_depth_mask(true);
 }
 
-static void draw_rotation_center(const RegionView3D *rv3d)
+void ED_view3d_set_rotation_center(const float *cor)
 {
-  float center[3] = {0, 0, 0};
-  uchar color[4] = {0, 108, 255, 255}; /* bright blue so it matches device LEDs */
-  negate_v3_v3(center, rv3d->cor);
-  draw_point(center, color);
+  negate_v3_v3(center, cor);
 }
 
 /* draw center and axis of rotation for ongoing 3D mouse navigation */
@@ -1495,7 +1495,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     if ((U.ndof_cor_visibility & COR_ALWAYS) ||
         ((U.ndof_cor_visibility & COR_ON_ROTATION) && rv3d->rot_angle != 0.0f))
     {
-      draw_rotation_center(rv3d);
+      draw_center_of_rotation();
     }
   }
 #endif

@@ -1391,3 +1391,7 @@ bool ED_view3d_is_region_xr_mirror_active(const wmWindowManager *wm,
                                           const View3D *v3d,
                                           const ARegion *region);
 #endif
+
+#ifdef WITH_INPUT_NDOF
+void ED_view3d_set_rotation_center(const float cor[3]);
+#endif

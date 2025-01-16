@@ -19,6 +19,7 @@
 #include "WM_api.hh"
 
 #include "ED_screen.hh"
+#include "ED_view3d.hh"
 
 #include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
@@ -41,6 +42,12 @@ enum {
   HAS_TRANSLATE = (1 << 0),
   HAS_ROTATE = (1 << 0),
 };
+
+typedef struct NDOFSession {
+  float cor[3];
+} NDOFSession;
+
+static NDOFSession ndof_session = {};
 
 static bool ndof_has_translate(const wmNDOFMotionData *ndof,
                                const View3D *v3d,
@@ -244,7 +251,7 @@ static void view3d_ndof_orbit(const wmNDOFMotionData *ndof,
     /* Use CoR as a dynamic offset. */
     if (U.ndof_flag & NDOF_AUTO_COR) {
       vod->use_dyn_ofs = true;
-      copy_v3_v3(vod->dyn_ofs, rv3d->cor);
+      copy_v3_v3(vod->dyn_ofs, ndof_session.cor);
     }
     viewrotate_apply_dyn_ofs(vod, rv3d->viewquat);
   }
@@ -697,9 +704,9 @@ static bool ndof_get_cor_from_zbuf(const CoRFromZBufParams *params, float r_cor[
   return false;
 }
 
-static void ndof_recalculate_cor(bContext *C)
+static void ndof_recalculate_cor(bContext *C, float *cor)
 {
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
@@ -708,35 +715,26 @@ static void ndof_recalculate_cor(bContext *C)
 
   BKE_view_layer_synced_ensure(scene_eval, view_layer_eval);
 
-  /* Don't recalculate when cor was manually set and not cleared. */
-  /* Recalculate only in orbit mode */
-  if (rv3d->auto_cor_override || ((U.ndof_flag & NDOF_MODE_ORBIT) == 0)) {
-    return;
-  }
-
   /* Try acquiring cor from bbox */
   {
     const CoRBboxTestParams params = {scene, view_layer_eval, v3d, rv3d};
 
     float3 r_cor(0);
     if (ndof_get_cor_from_bbox(&params, r_cor)) {
-      negate_v3_v3(rv3d->cor, r_cor);
+      negate_v3_v3(cor, r_cor);
       return;
     }
   }
 
-  /* Test with Z buffer when "Auto" mode is on */
-  if (U.ndof_flag & NDOF_AUTO_COR) {
-    wmWindow *window = CTX_wm_window(C);
-    ARegion *region = CTX_wm_region(C);
+  wmWindow *window = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(C);
 
-    const CoRFromZBufParams params = {scene, view_layer_eval, v3d, region, window};
+  const CoRFromZBufParams params = {scene, view_layer_eval, v3d, region, window};
 
-    float3 r_cor(0);
-    if (ndof_get_cor_from_zbuf(&params, r_cor)) {
-      negate_v3_v3(rv3d->cor, r_cor);
-      return;
-    }
+  float3 r_cor(0);
+  if (ndof_get_cor_from_zbuf(&params, r_cor)) {
+    negate_v3_v3(cor, r_cor);
+    return;
   }
 }
 
@@ -771,7 +769,8 @@ static int ndof_orbit_zoom_invoke_impl(bContext *C,
 
   if (ndof->progress == P_STARTING) {
     if (U.ndof_flag & NDOF_AUTO_COR) {
-      ndof_recalculate_cor(C);
+      ndof_recalculate_cor(C, ndof_session.cor);
+      ED_view3d_set_rotation_center(ndof_session.cor);
     }
   }
   else if ((rv3d->persp == RV3D_ORTHO) && RV3D_VIEW_IS_AXIS(rv3d->view)) {
