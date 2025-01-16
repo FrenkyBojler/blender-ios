@@ -12,6 +12,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
+#include "BKE_type_conversions.hh"
 
 #include "FN_field.hh"
 #include "FN_lazy_function_execute.hh"
@@ -25,91 +26,13 @@ static bool is_socket_type_supported(eNodeSocketDatatype type)
   return ELEM(type, SOCK_VECTOR, SOCK_RGBA, SOCK_FLOAT);
 }
 
-template<typename FactorType, typename TargetType> struct ApplyFactors {
-  static void apply_factors(const MutableSpan<FactorType> factors, MutableSpan<TargetType> targets)
-  {
-    BLI_assert_unreachable();
-  }
-};
-
-template<> struct ApplyFactors<float, float3> {
-  static void apply_factors(const MutableSpan<float> factors, MutableSpan<float3> targets)
-  {
-    for (const int i : factors.index_range()) {
-      targets[i] *= float3(factors[i]);
-    }
-  }
-};
-
-template<> struct ApplyFactors<float3, float3> {
-  static void apply_factors(const MutableSpan<float3> factors, MutableSpan<float3> targets)
-  {
-    for (const int i : factors.index_range()) {
-      targets[i] *= factors[i];
-    }
-  }
-};
-
-template<> struct ApplyFactors<ColorGeometry4f, float3> {
-  static void apply_factors(const MutableSpan<ColorGeometry4f> factors,
-                            MutableSpan<float3> targets)
-  {
-    for (const int i : factors.index_range()) {
-      targets[i] *= float3(factors[i].r, factors[i].g, factors[i].b);
-    }
-  }
-};
-
-template<> struct ApplyFactors<float, float> {
-  static void apply_factors(const MutableSpan<float> factors, MutableSpan<float> targets)
-  {
-    for (const int i : factors.index_range()) {
-      targets[i] *= factors[i];
-    }
-  }
-};
-
-template<> struct ApplyFactors<float3, float> {
-  static void apply_factors(const MutableSpan<float3> factors, MutableSpan<float> targets)
-  {
-    for (const int i : factors.index_range()) {
-      targets[i] *= (factors[i].x + factors[i].y + factors[i].z) / 3.0f;
-    }
-  }
-};
-
-template<> struct ApplyFactors<ColorGeometry4f, float> {
-  static void apply_factors(const MutableSpan<ColorGeometry4f> factors, MutableSpan<float> targets)
-  {
-    for (const int i : factors.index_range()) {
-      targets[i] *= (factors[i].r + factors[i].g + factors[i].b) / 3.0f;
-    }
-  }
-};
-
-template<typename FactorType, typename TargetType>
-static void evaluate(const bke::SocketValueVariant &output_socket,
-                     const MutableSpan<TargetType> output_targets,
-                     const bke::SculptFieldContext &context)
-{
-  Array<FactorType> output_factors(output_targets.size());
-  fn::Field<FactorType> factor_output_field = output_socket.get<fn::Field<FactorType>>();
-
-  fn::FieldEvaluator evaluator{context, output_factors.size()};
-  evaluator.add_with_destination(factor_output_field, output_factors.as_mutable_span());
-  evaluator.evaluate();
-
-  ApplyFactors<FactorType, TargetType>::apply_factors(output_factors, output_targets);
-}
-
 /**
  * Evaluates the Geometry Nodes node group associated with the specified brush in the given
  * context.
  *
- * For most brushes, `TargetType` is `float3`, representing a translation. For certain brushes
- * (e.g., Mask Brush), `TargetType` is `float`, representing a factor. The first output socket
- * of the node group is evaluated and used to scale `output_targets`; all other outputs are
- * ignored.
+ * The `ExpectedType` should be `float` for all brushes except the Vector Displacement
+ * brush, which requires `float3`. The first output socket of the node group is evaluated
+ * and used to scale `output_targets`; all other outputs are ignored.
  *
  * Currently supports the following output types: vector, float, and
  * color.
@@ -117,12 +40,12 @@ static void evaluate(const bke::SocketValueVariant &output_socket,
  * TODO: This whole function shouldn't be templated, instead type conversions should be done with
  * fields and only a small amount of code should depend on the result type.
  */
-template<typename TargetType>
+template<typename ExpectedType>
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   const Object &object,
                                   const Brush &brush,
                                   const bke::SculptFieldContext &context,
-                                  const MutableSpan<TargetType> output_targets)
+                                  const MutableSpan<ExpectedType> output_targets)
 {
   const bNodeTree *tree = brush.node_group;
 
@@ -232,21 +155,21 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   const bke::SocketValueVariant output_socket = std::move(
       *param_outputs[0].get<bke::SocketValueVariant>());
 
-  switch (type) {
-    case SOCK_VECTOR: {
-      evaluate<float3>(output_socket, output_targets, context);
-      break;
-    }
-    case SOCK_FLOAT: {
-      evaluate<float>(output_socket, output_targets, context);
-      break;
-    }
-    case SOCK_RGBA: {
-      evaluate<ColorGeometry4f>(output_socket, output_targets, context);
-      break;
-    }
-    default:
-      BLI_assert_unreachable();
+  /* Convert the field type to the expected type */
+  bke::DataTypeConversions conversions = bke::get_implicit_type_conversions();
+  fn::Field<ExpectedType> field_to_evaluate = conversions.try_convert(
+      output_socket.get<fn::GField>(), CPPType::get<ExpectedType>());
+
+  Array<ExpectedType> field_outputs(output_targets.size());
+
+  /* Evaluate the field */
+  fn::FieldEvaluator evaluator{context, output_targets.size()};
+  evaluator.add_with_destination(field_to_evaluate, field_outputs.as_mutable_span());
+  evaluator.evaluate();
+
+  /* Scale the output targets */
+  for (const int i : output_targets.index_range()) {
+    output_targets[i] *= field_outputs[i];
   }
 
   /* Destruct inputs and outputs */
