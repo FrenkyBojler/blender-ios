@@ -6,6 +6,7 @@
  * \ingroup RNA
  */
 
+#include "BLI_array.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 #include "RNA_types.hh"
@@ -26,6 +27,7 @@
 
 #include "DNA_space_types.h"
 #include "DNA_workspace_types.h"
+#include <array>
 
 #ifdef RNA_RUNTIME
 
@@ -429,7 +431,7 @@ static void rna_def_workspace_tools(BlenderRNA *brna, PropertyRNA *cprop)
 
 static void rna_def_space_properties_filter(StructRNA *srna)
 {
-  const blender::Vector<const char *> filter_items = {
+  const std::array<const char *, BCONTEXT_TOT> filter_items = {
       "show_properties_tool",
       "show_properties_render",
       "show_properties_output",
@@ -450,9 +452,7 @@ static void rna_def_space_properties_filter(StructRNA *srna)
       "show_properties_texture",
   };
 
-  BLI_assert(filter_items.size() == BCONTEXT_TOT);
-
-  for (int i = 1; i < BCONTEXT_TOT; i++) {
+  for (const int i : blender::IndexRange(BCONTEXT_TOT)) {
     EnumPropertyItem item = rna_enum_properties_editor_context_items[i];
     const int value = (1 << item.value);
     const char *prop_name = filter_items[i];

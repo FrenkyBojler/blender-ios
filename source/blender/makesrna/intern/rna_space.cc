@@ -549,6 +549,7 @@ static const EnumPropertyItem rna_enum_curve_display_handle_items[] = {
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
+#  include <array>
 #  include <fmt/format.h>
 
 #  include "AS_asset_representation.hh"
@@ -2061,9 +2062,10 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext *C,
 
   /* Although it would never reach this amount, a theoretical maximum number of tabs
    * is BCONTEXT_TOT * 2, with every tab displayed and a spacer in every other item. */
-  short context_tabs_array[BCONTEXT_TOT * 2];
+  std::array<short, BCONTEXT_TOT * 2> context_tabs_array;
+
   int totitem = ED_buttons_tabs_list(CTX_wm_workspace(C), sbuts, context_tabs_array);
-  BLI_assert(totitem <= ARRAY_SIZE(context_tabs_array));
+  BLI_assert(totitem <= context_tabs_array.size());
 
   int totitem_added = 0;
   bool add_separator = true;
@@ -2108,7 +2110,7 @@ static int rna_SpaceProperties_tab_search_results_getlength(const PointerRNA *pt
 {
   SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
 
-  short context_tabs_array[BCONTEXT_TOT * 2]; /* Dummy variable. */
+  std::array<short, BCONTEXT_TOT * 2> context_tabs_array; /* Dummy variable. */
   const int tabs_len = ED_buttons_tabs_list(sbuts, context_tabs_array);
 
   length[0] = tabs_len;
@@ -2120,7 +2122,7 @@ static void rna_SpaceProperties_tab_search_results_get(PointerRNA *ptr, bool *va
 {
   SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
 
-  short context_tabs_array[BCONTEXT_TOT * 2]; /* Dummy variable. */
+  std::array<short, BCONTEXT_TOT * 2> context_tabs_array; /* Dummy variable. */
   const int tabs_len = ED_buttons_tabs_list(sbuts, context_tabs_array);
 
   for (int i = 0; i < tabs_len; i++) {

@@ -6,9 +6,11 @@
  * \ingroup spbuttons
  */
 
+#include <array>
 #include <cstdio>
 #include <cstring>
 
+#include "BLI_string_ref.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
@@ -165,7 +167,7 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 
 void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 {
-  const blender::Vector<const char *> filter_items = {
+  const std::array<blender::StringRef, BCONTEXT_TOT - 1> filter_items = {
       "show_properties_render",
       "show_properties_output",
       "show_properties_view_layer",
@@ -188,19 +190,20 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
   PointerRNA ptr = RNA_pointer_create(
       reinterpret_cast<ID *>(CTX_wm_workspace(C)), &RNA_WorkSpace, CTX_wm_workspace(C));
 
-  for (const char *item : filter_items) {
-    uiItemR(layout, &ptr, item, UI_ITEM_R_TOGGLE, nullptr, ICON_NONE);
+  for (blender::StringRef item : filter_items) {
+    uiItemR(layout, &ptr, item.data(), UI_ITEM_R_TOGGLE, nullptr, ICON_NONE);
   }
 }
 
-int ED_buttons_tabs_list(const SpaceProperties *sbuts, short *context_tabs_array)
+int ED_buttons_tabs_list(const SpaceProperties *sbuts,
+                         std::array<short, BCONTEXT_TOT * 2> &context_tabs_array)
 {
   return ED_buttons_tabs_list(nullptr, sbuts, context_tabs_array);
 }
 
 int ED_buttons_tabs_list(const WorkSpace *workspace,
                          const SpaceProperties *sbuts,
-                         short *context_tabs_array)
+                         std::array<short, BCONTEXT_TOT * 2> &context_tabs_array)
 {
   int filter = 0xffffffff;
 
@@ -413,9 +416,10 @@ static bool property_search_for_context(const bContext *C, ARegion *region, Spac
       C, region, &region->runtime->type->paneltypes, contexts, nullptr);
 }
 
-static void property_search_move_to_next_tab_with_results(SpaceProperties *sbuts,
-                                                          const short *context_tabs_array,
-                                                          const int tabs_len)
+static void property_search_move_to_next_tab_with_results(
+    SpaceProperties *sbuts,
+    std::array<short, BCONTEXT_TOT * 2> context_tabs_array,
+    const int tabs_len)
 {
   /* As long as all-tab search in the tool is disabled in the tool context, don't move from it. */
   if (sbuts->mainb == BCONTEXT_TOOL) {
@@ -450,7 +454,7 @@ static void property_search_move_to_next_tab_with_results(SpaceProperties *sbuts
 static void property_search_all_tabs(const bContext *C,
                                      SpaceProperties *sbuts,
                                      ARegion *region_original,
-                                     const short *context_tabs_array,
+                                     std::array<short, BCONTEXT_TOT * 2> context_tabs_array,
                                      const int tabs_len)
 {
   /* Use local copies of the area and duplicate the region as a mainly-paranoid protection
@@ -511,7 +515,7 @@ static void buttons_main_region_property_search(const bContext *C,
                                                 ARegion *region)
 {
   /* Theoretical maximum of every context shown with a spacer between every tab. */
-  short context_tabs_array[BCONTEXT_TOT * 2];
+  std::array<short, BCONTEXT_TOT * 2> context_tabs_array;
   int tabs_len = ED_buttons_tabs_list(CTX_wm_workspace(C), sbuts, context_tabs_array);
 
   property_search_all_tabs(C, sbuts, region, context_tabs_array, tabs_len);
@@ -665,14 +669,14 @@ static int find_new_properties_tab(const WorkSpace *workspace,
                                    const SpaceProperties *sbuts,
                                    int iter_step)
 {
-  short tabs_array_no_filter[BCONTEXT_TOT * 2];
+  std::array<short, BCONTEXT_TOT * 2> tabs_array_no_filter;
   const int tabs_no_filter_len = ED_buttons_tabs_list(nullptr, sbuts, tabs_array_no_filter);
 
-  short tabs_array[BCONTEXT_TOT * 2];
+  std::array<short, BCONTEXT_TOT * 2> tabs_array;
   const int tabs_len = ED_buttons_tabs_list(workspace, sbuts, tabs_array);
 
   const int old_index = BLI_array_findindex(
-      tabs_array_no_filter, tabs_no_filter_len, &sbuts->mainb);
+      tabs_array_no_filter.data(), tabs_no_filter_len, &sbuts->mainb);
 
   /* Try to find next tab to switch to. */
   int new_tab = -1;
@@ -683,7 +687,7 @@ static int find_new_properties_tab(const WorkSpace *workspace,
       continue;
     }
 
-    const int found_tab_index = BLI_array_findindex(tabs_array, tabs_len, &candidate_tab);
+    const int found_tab_index = BLI_array_findindex(tabs_array.data(), tabs_len, &candidate_tab);
 
     if (found_tab_index != -1) {
       new_tab = tabs_array[found_tab_index];
@@ -713,6 +717,9 @@ static void buttons_check_filter(const bContext *C, SpaceProperties *sbuts)
     new_tab = (1 << BCONTEXT_TOOL);
     BLI_assert_unreachable();
   }
+
+  sbuts->mainb = new_tab;
+  sbuts->mainbuser = new_tab;
 }
 
 static void buttons_navigation_bar_region_draw(const bContext *C, ARegion *region)
