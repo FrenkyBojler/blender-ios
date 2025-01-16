@@ -161,9 +161,9 @@ static PyObject *make_app_info()
   SetStrItem(STRINGIFY(BLENDER_VERSION_CYCLE));
   SetObjItem(PyBool_FromLong(G.background));
 #ifdef WITH_PYTHON_MODULE
-  SetObjItem(PyBool_FromLong(true));
+  SetObjItem(Py_NewRef(Py_True));
 #else
-  SetObjItem(PyBool_FromLong(false));
+  SetObjItem(Py_NewRef(Py_False));
 #endif
   SetObjItem(PyBool_FromLong(G.factory_startup));
 
