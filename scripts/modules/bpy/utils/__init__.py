@@ -1379,4 +1379,4 @@ def expose_bundled_modules():
     packages_dir = _os.path.join(packages_dir, "site-packages")
 
     if packages_dir not in _sys.path:
-        _sys.path.insert(0, str(packages_dir))
+        _sys.path.insert(0, packages_dir)
