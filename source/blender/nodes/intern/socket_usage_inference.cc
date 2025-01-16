@@ -12,24 +12,13 @@
 #include "DNA_node_types.h"
 
 #include "BKE_compute_contexts.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_type_conversions.hh"
 
 #include "BLI_stack.hh"
 
 namespace blender::nodes::socket_usage_inference {
-
-enum class TaskType {
-  /** Indicates that the task is to check if a socket is used. */
-  Usage,
-  /** Indicates that the task is to try to compute the value of a socket. */
-  Value,
-};
-
-struct Task {
-  TaskType type;
-  SocketInContext socket;
-};
 
 /** Utility class to simplify passing global state into all the functions during inferencing. */
 struct SocketUsageInferencer {
@@ -56,7 +45,8 @@ struct SocketUsageInferencer {
   /**
    * Stack of tasks that allows depth-first (partial) evaluation of the tree.
    */
-  Stack<Task> tasks_;
+  Stack<SocketInContext> usage_tasks_;
+  Stack<SocketInContext> value_tasks_;
 
   /**
    * If the usage of a socket is known, it is added to this map. Sockets not in this map are not
@@ -86,7 +76,7 @@ struct SocketUsageInferencer {
   void do_inference()
   {
     this->schedule_root_tasks_and_store_tree_inputs();
-    this->process_tasks_until_empty();
+    this->process_usage_tasks_until_all_done();
     this->gather_finalized_input_usages();
   }
 
@@ -102,26 +92,14 @@ struct SocketUsageInferencer {
     }
   }
 
-  void process_tasks_until_empty()
+  void process_usage_tasks_until_all_done()
   {
-    while (!tasks_.is_empty()) {
-      const Task &task = tasks_.peek();
-      const int prev_tasks_num = tasks_.size();
-
-      switch (task.type) {
-        case TaskType::Value: {
-          this->value_task(task.socket);
-          break;
-        }
-        case TaskType::Usage: {
-          this->usage_task(task.socket);
-          break;
-        }
-      }
-
-      if (tasks_.size() == prev_tasks_num) {
+    while (!usage_tasks_.is_empty()) {
+      const SocketInContext &socket = usage_tasks_.peek();
+      this->usage_task(socket);
+      if (&socket == &usage_tasks_.peek()) {
         /* The task is finished if it hasn't added any new task it depends on.*/
-        tasks_.pop();
+        usage_tasks_.pop();
       }
     }
   }
@@ -153,7 +131,7 @@ struct SocketUsageInferencer {
   void usage_task__input(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    switch (node->type) {
+    switch (node->type_legacy) {
       case NODE_GROUP:
       case NODE_CUSTOM_GROUP: {
         this->usage_task__input__group_node(socket);
@@ -234,18 +212,13 @@ struct SocketUsageInferencer {
       all_socket_usages_.add_new(socket, true);
       return;
     }
-    const std::optional<const void *> condition_value = all_socket_values_.lookup_try(
-        condition_socket);
-    if (!condition_value.has_value()) {
-      this->push_value_task(condition_socket);
-      return;
-    }
-    if (*condition_value == nullptr) {
+    const void *condition_value = this->get_socket_value(condition_socket);
+    if (condition_value == nullptr) {
       /* The exact condition value is unknown, so any input may be used. */
       all_socket_usages_.add_new(socket, true);
       return;
     }
-    const bool is_used = is_selected_socket(socket, *condition_value);
+    const bool is_used = is_selected_socket(socket, condition_value);
     all_socket_usages_.add_new(socket, is_used);
   }
 
@@ -414,6 +387,28 @@ struct SocketUsageInferencer {
     all_socket_usages_.add_new(socket, false);
   }
 
+  const void *get_socket_value(const SocketInContext &socket)
+  {
+    const std::optional<const void *> value = all_socket_values_.lookup_try(socket);
+    if (value.has_value()) {
+      return *value;
+    }
+
+    BLI_assert(value_tasks_.is_empty());
+    value_tasks_.push(socket);
+
+    while (!value_tasks_.is_empty()) {
+      const SocketInContext &socket = value_tasks_.peek();
+      this->value_task(socket);
+      if (&socket == &value_tasks_.peek()) {
+        /* The task is finished if it hasn't added any new task it depends on.*/
+        value_tasks_.pop();
+      }
+    }
+
+    return all_socket_values_.lookup(socket);
+  }
+
   void value_task(const SocketInContext &socket)
   {
     if (all_socket_values_.contains(socket)) {
@@ -441,7 +436,7 @@ struct SocketUsageInferencer {
       this->value_task__output__muted_node(socket);
       return;
     }
-    switch (node->type) {
+    switch (node->type_legacy) {
       case NODE_GROUP:
       case NODE_CUSTOM_GROUP: {
         this->value_task__output__group_node(socket);
@@ -755,12 +750,12 @@ struct SocketUsageInferencer {
 
   void push_usage_task(const SocketInContext &socket)
   {
-    tasks_.push({TaskType::Usage, socket});
+    usage_tasks_.push(socket);
   }
 
   void push_value_task(const SocketInContext &socket)
   {
-    tasks_.push({TaskType::Value, socket});
+    value_tasks_.push(socket);
   }
 };
 
