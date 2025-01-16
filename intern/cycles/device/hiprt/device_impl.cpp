@@ -160,16 +160,9 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
   const string kernel_md5 = util_md5_string(source_md5 + common_cflags);
 
   const string include_path = source_path;
-  const string cycles_bc = string_printf(
-      "cycles_%s_%s_%s.bc", name, arch.c_str(), kernel_md5.c_str());
-  const string cycles_bitcode = path_cache_get(path_join("kernels", cycles_bc));
   const string fatbin_file = string_printf(
       "cycles_%s_%s_%s.hipfb", name, arch.c_str(), kernel_md5.c_str());
   const string fatbin = path_cache_get(path_join("kernels", fatbin_file));
-  const string hiprt_bc = string_printf(
-      "hiprt_%s_%s_%s.bc", name, arch.c_str(), kernel_md5.c_str());
-  const string hiprt_bitcode = path_cache_get(path_join("kernels", hiprt_bc));
-
   const string hiprt_include_path = path_join(source_path, "kernel/device/hiprt");
 
   VLOG(1) << "Testing for locally compiled kernel " << fatbin << ".";
@@ -219,89 +212,34 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
 
   path_create_directories(fatbin);
 
-  string rtc_options;
-  rtc_options.append(" --offload-arch=").append(arch);
-  rtc_options.append(" -D __HIPRT__");
-  rtc_options.append(" -ffast-math -O3 -std=c++17");
-  rtc_options.append(" -fgpu-rdc -c --gpu-bundle-output -c -emit-llvm");
-
   source_path = path_join(path_join(source_path, "kernel"),
                           path_join("device", path_join(base, string_printf("%s.cpp", name))));
+
+  const char* const kernel_ext = "genco";
+  string options;
+  options.append("Wno-parentheses-equality -Wno-unused-value -ffast-math -O3 -std=c++17 -D __HIPRT__");
+  options.append(" --offload-arch=").append(arch.c_str());
+#ifdef WITH_NANOVDB
+  options.append(" - D WITH_NANOVDB");
+#endif
 
   printf("Compiling  %s and caching to %s", source_path.c_str(), fatbin.c_str());
 
   double starttime = time_dt();
 
-  if (!path_exists(cycles_bitcode)) {
-
-    string command = string_printf("%s %s -I %s  -I %s %s -o \"%s\"",
-                                   hipcc,
-                                   rtc_options.c_str(),
-                                   include_path.c_str(),
-                                   hiprt_include_path.c_str(),
-                                   source_path.c_str(),
-                                   cycles_bitcode.c_str());
-
-    printf("Compiling %sHIP kernel ...\n%s\n",
-           (use_adaptive_compilation()) ? "adaptive " : "",
-           command.c_str());
-
-#  ifdef _WIN32
-    command = "call " + command;
-#  endif
-    if (system(command.c_str()) != 0) {
-      set_error(
-          "Failed to execute compilation command, "
-          "see console for details.");
-      return string();
-    }
-  }
-
-  if (!path_exists(hiprt_bitcode)) {
-
-    rtc_options.append(" -x hip");
-    rtc_options.append(" -D HIPRT_BITCODE_LINKING ");
-
-    string source_path = path_join(hiprt_include_path, "/hiprt/impl/hiprt_kernels_bitcode.h");
-
-    string command = string_printf("%s %s -I %s %s -o \"%s\"",
-                                   hipcc,
-                                   rtc_options.c_str(),
-                                   hiprt_include_path.c_str(),
-                                   source_path.c_str(),
-                                   hiprt_bitcode.c_str());
-
-    printf("Compiling %sHIP kernel ...\n%s\n",
-           (use_adaptive_compilation()) ? "adaptive " : "",
-           command.c_str());
-
-#  ifdef _WIN32
-    command = "call " + command;
-#  endif
-    if (system(command.c_str()) != 0) {
-      set_error(
-          "Failed to execute compilation command, "
-          "see console for details.");
-      return string();
-    }
-  }
-
-  // After compilation, the bitcode produced is linked with HIP RT bitcode (containing
-  // implementations of HIP RT functions, e.g. traversal, to produce the final executable code
-  string linker_options;
-  linker_options.append(" --offload-arch=").append(arch);
-  linker_options.append(" -fgpu-rdc --hip-link --cuda-device-only ");
-
-  string linker_command = string_printf("clang++ %s \"%s\" \"%s\" -o \"%s\"",
-                                        linker_options.c_str(),
-                                        cycles_bitcode.c_str(),
-                                        hiprt_bitcode.c_str(),
+  string compile_command = string_printf("%s -%s -I %s -I %s --%s %s -o \"%s\"",
+                                        hipcc,
+                                        options.c_str(),
+                                        include_path.c_str(),
+                                        hiprt_include_path.c_str(),
+                                        kernel_ext,
+                                        source_path.c_str(),
                                         fatbin.c_str());
 
 #  ifdef _WIN32
-  linker_command = "call " + linker_command;
+  compile_command = "call " + compile_command;
 #  endif
-  if (system(linker_command.c_str()) != 0) {
+  if (system(compile_command.c_str()) != 0) {
     set_error(
         "Failed to execute linking command, "
         "see console for details.");

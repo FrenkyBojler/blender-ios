@@ -36,24 +36,6 @@ find_program(HIP_HIPCC_EXECUTABLE
     bin
 )
 
-if(WIN32)
-  set(LINKER clang++)
-else()
-  set(LINKER amdclang++)
-endif()
-
-find_program(HIP_LINKER_EXECUTABLE
-  NAMES
-    ${LINKER}
-  HINTS
-    ${_hip_SEARCH_DIRS}
-    PATH_SUFFIXES
-      bin
-    NO_DEFAULT_PATH
-    NO_CMAKE_PATH
-)
-
-
 if(HIP_HIPCC_EXECUTABLE)
   set(HIP_VERSION_MAJOR 0)
   set(HIP_VERSION_MINOR 0)
@@ -111,7 +93,6 @@ find_package_handle_standard_args(HIP
 
 mark_as_advanced(
   HIP_HIPCC_EXECUTABLE
-  HIP_LINKER_EXECUTABLE
 )
 
 unset(_hip_SEARCH_DIRS)

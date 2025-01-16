@@ -11,22 +11,12 @@ get_filename_component(_hip_path ${_hip_path} DIRECTORY)
 set(HIPRT_EXTRA_ARGS
   -DCMAKE_BUILD_TYPE=Release
   -DHIP_PATH=${_hip_path}
-  -DBITCODE=ON
+  -DBITCODE=OFF
   -DGENERATE_BAKE_KERNEL=OFF
   -DNO_UNITTEST=ON
+  -DBAKE_COMPILED_KERNEL=ON
+  -DPRECOMPILE=ON
 )
-
-if(WIN32)
-  # Windows is currently defaulting to HIP 5 for the buildbot and the
-  # dependency build environment.
-  list(APPEND HIPRT_EXTRA_ARGS -DHIPRT_PREFER_HIP_5=ON)
-else()
-  # The Linux uses HIP 6 by default in those environments, but it had
-  # -DHIPRT_PREFER_HIP_5=ON passed to the dependency builder in its
-  # initial implementation. Force it to off so that incremental build
-  # in the existing build environment does the right thing.
-  list(APPEND HIPRT_EXTRA_ARGS -DHIPRT_PREFER_HIP_5=OFF)
-endif()
 
 set(HIPRT_SOURCE_DIR ${BUILD_DIR}/hiprt/src/external_hiprt)
 set(HIPRT_BUILD_DIR ${BUILD_DIR}/hiprt/src/external_hiprt-build)
