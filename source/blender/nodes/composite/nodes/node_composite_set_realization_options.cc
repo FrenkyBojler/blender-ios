@@ -97,8 +97,11 @@ void register_node_type_cmp_set_realization_options()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, CMP_NODE_SET_REALIZATION_OPTIONS, "Set Realization Options", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodeSetRealizationOptions");
+  ntype.ui_name = "Set Realization Options";
+  ntype.ui_description =
+      "Sets the realization options used when realizing an image on a different domain";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_declare;
   ntype.draw_buttons = file_ns::node_composit_draw_buttons;
   ntype.initfunc = file_ns::node_composit_init;
