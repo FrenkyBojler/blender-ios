@@ -18,6 +18,7 @@
 #include "BKE_type_conversions.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_action_iterators.hh"
 
 #include "BLI_stack.hh"
 
@@ -771,35 +772,39 @@ struct SocketUsageInferencer {
     if (!tree.adt) {
       return;
     }
-    if (!tree.adt->action) {
-      return;
-    }
-    const animrig::Channelbag *channelbag = animrig::channelbag_for_action_slot(
-        tree.adt->action->wrap(), tree.adt->slot_handle);
-    if (!channelbag) {
-      return;
-    }
 
     static std::regex pattern(R"#(nodes\["(.*)"\].inputs\[(\d+)\].default_value)#");
-
-    /* Gather all animated inputs. */
     MultiValueMap<StringRef, int> animated_inputs_by_node_name;
-    for (const FCurve *fcurve : channelbag->fcurves()) {
+    auto handle_rna_path = [&](const char *rna_path) {
       std::cmatch match;
-      if (!std::regex_match(fcurve->rna_path, match, pattern)) {
-        continue;
+      if (!std::regex_match(rna_path, match, pattern)) {
+        return;
       }
-      const std::string node_name = match[1];
+      const StringRef node_name{match[1].first, match[1].second - match[1].first};
       const int socket_index = std::stoi(match[2]);
       animated_inputs_by_node_name.add(node_name, socket_index);
+    };
+
+    /* Gather all inputs controlled by fcurves. */
+    if (tree.adt->action) {
+      animrig::foreach_fcurve_in_action_slot(
+          tree.adt->action->wrap(), tree.adt->slot_handle, [&](const FCurve &fcurve) {
+            handle_rna_path(fcurve.rna_path);
+          });
+    }
+    /* Gather all inputs controlled by drivers. */
+    LISTBASE_FOREACH (const FCurve *, driver, &tree.adt->drivers) {
+      handle_rna_path(driver->rna_path);
     }
 
-    /* Actually find the #bNodeSocket for each animated input. */
-    for (const bNode *node : tree.all_nodes()) {
-      const Span<int> animated_inputs = animated_inputs_by_node_name.lookup(node->name);
-      for (const int socket_index : animated_inputs) {
-        const bNodeSocket &socket = node->input_socket(socket_index);
-        animated_sockets_.add(&socket);
+    /* Actually find the #bNodeSocket for each controlled input. */
+    if (!animated_inputs_by_node_name.size() == 0) {
+      for (const bNode *node : tree.all_nodes()) {
+        const Span<int> animated_inputs = animated_inputs_by_node_name.lookup(node->name);
+        for (const int socket_index : animated_inputs) {
+          const bNodeSocket &socket = node->input_socket(socket_index);
+          animated_sockets_.add(&socket);
+        }
       }
     }
   }
