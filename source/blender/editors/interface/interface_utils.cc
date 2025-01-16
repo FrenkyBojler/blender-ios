@@ -927,7 +927,7 @@ void UI_butstore_free(uiBlock *block, uiButStore *bs_handle)
   BLI_assert(BLI_findindex(&block->butstore, bs_handle) != -1);
   BLI_remlink(&block->butstore, bs_handle);
 
-  MEM_freeN(bs_handle);
+  MEM_delete(bs_handle);
 }
 
 bool UI_butstore_is_valid(uiButStore *bs_handle)

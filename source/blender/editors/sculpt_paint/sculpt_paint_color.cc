@@ -438,7 +438,7 @@ static void do_paint_brush_task(const Scene &scene,
     brush_color_rgb = BKE_paint_randomize_color(&scene,
                                                 &paint,
                                                 &brush,
-                                                ss.cache->initial_hsv_jitter,
+                                                *ss.cache->initial_hsv_jitter,
                                                 ss.cache->stroke_distance,
                                                 ss.cache->pressure,
                                                 brush_color_rgb);

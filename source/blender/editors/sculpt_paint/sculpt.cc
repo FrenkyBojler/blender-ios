@@ -4039,7 +4039,10 @@ static void sculpt_update_cache_invariants(
     cache->accum = true;
   }
 
-  cache->initial_hsv_jitter = seed_hsv_jitter();
+  cache->initial_hsv_jitter =
+      (BKE_brush_color_jitter_get_settings(CTX_data_scene(C), &sd.paint, brush).has_value() ?
+           std::optional(seed_hsv_jitter()) :
+           std::nullopt);
   cache->first_time = true;
   cache->plane_brush.first_time = true;
 

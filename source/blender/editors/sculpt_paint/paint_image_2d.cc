@@ -78,7 +78,10 @@ struct BrushPainter {
   Scene *scene;
   const Paint *paint;
   Brush *brush;
-  blender::float3 initial_hsv_jitter;
+
+  /* Store initial starting points for perlin noise on the beginning of each stroke when using
+   * color jitter. */
+  std::optional<blender::float3> initial_hsv_jitter;
 
   bool firsttouch; /* first paint op */
 
@@ -142,12 +145,15 @@ static BrushPainter *brush_painter_2d_new(Scene *scene,
                                           Brush *brush,
                                           bool invert)
 {
-  BrushPainter *painter = MEM_callocN<BrushPainter>(__func__);
+  BrushPainter *painter = MEM_new<BrushPainter>(__func__);
 
   painter->brush = brush;
   painter->scene = scene;
   painter->paint = paint;
-  painter->initial_hsv_jitter = seed_hsv_jitter();
+  painter->initial_hsv_jitter =
+      (BKE_brush_color_jitter_get_settings(scene, paint, brush).has_value() ?
+           std::optional(seed_hsv_jitter()) :
+           std::nullopt);
   painter->firsttouch = true;
   painter->cache_invert = invert;
 
@@ -400,7 +406,7 @@ static ImBuf *brush_painter_imbuf_new(
     paint_brush_color_get(scene,
                           paint,
                           brush,
-                          painter->initial_hsv_jitter,
+                          *painter->initial_hsv_jitter,
                           use_color_correction,
                           cache->invert,
                           distance,
@@ -493,7 +499,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
     paint_brush_color_get(scene,
                           paint,
                           brush,
-                          painter->initial_hsv_jitter,
+                          *painter->initial_hsv_jitter,
                           use_color_correction,
                           cache->invert,
                           0.0f,
@@ -1727,7 +1733,7 @@ void paint_2d_stroke_done(void *ps)
   for (int i = 0; i < s->num_tiles; i++) {
     brush_painter_cache_2d_free(&s->tiles[i].cache);
   }
-  MEM_freeN(s->painter);
+  MEM_delete(s->painter);
   MEM_freeN(s->tiles);
   paint_brush_exit_tex(s->brush);
 

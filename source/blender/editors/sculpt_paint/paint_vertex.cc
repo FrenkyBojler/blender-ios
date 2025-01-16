@@ -496,7 +496,11 @@ void update_cache_invariants(
 
   cache->accum = true;
 
-  cache->initial_hsv_jitter = seed_hsv_jitter();
+  cache->initial_hsv_jitter =
+      (BKE_brush_color_jitter_get_settings(scene, &vp.paint, brush).has_value() ?
+           std::optional(seed_hsv_jitter()) :
+           std::nullopt);
+  ;
 }
 
 void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
@@ -1723,7 +1727,7 @@ static blender::float3 get_brush_color(const Scene *scene,
     brush_color = BKE_paint_randomize_color(scene,
                                             paint,
                                             brush,
-                                            cache.initial_hsv_jitter,
+                                            *cache.initial_hsv_jitter,
                                             cache.stroke_distance,
                                             cache.pressure,
                                             brush_color);
