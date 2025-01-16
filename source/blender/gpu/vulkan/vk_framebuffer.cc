@@ -356,7 +356,6 @@ void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
       }
     }
     if (is_rendering_) {
-      is_rendering_ = false;
       load_stores.fill(default_load_store());
     }
   }
