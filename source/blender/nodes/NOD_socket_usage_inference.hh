@@ -9,6 +9,7 @@
 
 struct bNodeTree;
 struct bNodeSocket;
+struct IDProperty;
 
 namespace blender::nodes::socket_usage_inference {
 
