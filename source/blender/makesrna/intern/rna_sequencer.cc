@@ -2360,6 +2360,17 @@ static void rna_def_channel(BlenderRNA *brna)
       prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceTimelineChannel_mute_update");
 }
 
+static void rna_def_strips_top_level(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "StripsTopLevel", nullptr);
+  RNA_def_struct_sdna(srna, "Editing");
+  RNA_def_struct_ui_text(srna, "Strips", "Collection of Strips");
+
+  RNA_api_strips(srna, false);
+}
+
 static void rna_def_editor(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2382,13 +2393,15 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_SEQUENCE);
   RNA_def_struct_sdna(srna, "Editing");
 
+  rna_def_strips_top_level(brna);
+
   /* DEPRECATED */
   prop = RNA_def_property(srna, "sequences", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_srna(prop, "StripsTopLevel");
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(
       prop, "Strips", "(Deprecated: Replaced by '.strips') Top-level strips only");
-  RNA_api_strips(brna, prop, false);
 
   /* DEPRECATED */
   prop = RNA_def_property(srna, "sequences_all", PROP_COLLECTION, PROP_NONE);
@@ -2409,10 +2422,10 @@ static void rna_def_editor(BlenderRNA *brna)
                                     nullptr);
 
   prop = RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_srna(prop, "StripsTopLevel");
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(prop, "Strips", "Top-level strips only");
-  RNA_api_strips(brna, prop, false);
 
   prop = RNA_def_property(srna, "strips_all", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
@@ -2772,6 +2785,17 @@ static void rna_def_image(BlenderRNA *brna)
   rna_def_color_management(srna);
 }
 
+static void rna_def_strips_meta(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "StripsMeta", nullptr);
+  RNA_def_struct_sdna(srna, "Strip");
+  RNA_def_struct_ui_text(srna, "Strips", "Collection of Strips");
+  
+  RNA_api_strips(srna, true);
+}
+
 static void rna_def_meta(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2783,19 +2807,21 @@ static void rna_def_meta(BlenderRNA *brna)
       srna, "Meta Strip", "Sequence strip to group other strips as a single sequence strip");
   RNA_def_struct_sdna(srna, "Strip");
 
+  rna_def_strips_meta(brna);
+
   /* DEPRECATED */
   prop = RNA_def_property(srna, "sequences", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_srna(prop, "StripsMeta");
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(
       prop, "Strips", "(Deprecated: Replaced by '.strips') Strips nested in meta strip");
-  RNA_api_strips(brna, prop, true);
 
   prop = RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_srna(prop, "StripsMeta");
   RNA_def_property_collection_sdna(prop, nullptr, "seqbase", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(prop, "Strips", "Strips nested in meta strip");
-  RNA_api_strips(brna, prop, true);
 
   prop = RNA_def_property(srna, "channels", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "channels", nullptr);
