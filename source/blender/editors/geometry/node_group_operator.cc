@@ -793,7 +793,7 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   node_tree->ensure_interface_cache();
 
   Array<bool> input_usages(node_tree->interface_inputs().size());
-  nodes::socket_usage_inference::infer_inputs_socket_usage(
+  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
       *node_tree, op->properties, input_usages);
 
   int input_index = 0;

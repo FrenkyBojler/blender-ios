@@ -580,7 +580,7 @@ class NodeTreeMainUpdater {
       }
       MutableSpan<bool> inputs_usages = new_inferenced_input_socket_usage.as_mutable_span().slice(
           group_node->input_socket_indices_in_all_inputs());
-      nodes::socket_usage_inference::infer_inputs_socket_usage(
+      nodes::socket_usage_inference::infer_group_interface_inputs_usage(
           *group, group_node->input_sockets(), inputs_usages);
     }
 

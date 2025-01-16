@@ -2528,7 +2528,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
     ctx.input_usages.reinitialize(nmd->node_group->interface_inputs().size());
-    nodes::socket_usage_inference::infer_inputs_socket_usage(
+    nodes::socket_usage_inference::infer_group_interface_inputs_usage(
         *nmd->node_group, nmd->settings.properties, ctx.input_usages);
     draw_interface_panel_content(ctx, layout, nmd->node_group->tree_interface.root_panel);
   }

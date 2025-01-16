@@ -765,26 +765,26 @@ struct SocketUsageInferencer {
   }
 };
 
-void infer_inputs_socket_usage(const bNodeTree &tree,
-                               const Span<GPointer> tree_input_values,
-                               const MutableSpan<bool> r_input_usages)
+void infer_group_interface_inputs_usage(const bNodeTree &group,
+                                        const Span<GPointer> group_input_values,
+                                        const MutableSpan<bool> r_input_usages)
 {
-  SocketUsageInferencer inferencer{tree, tree_input_values};
+  SocketUsageInferencer inferencer{group, group_input_values};
 
   r_input_usages.fill(false);
-  for (const bNode *node : tree.group_input_nodes()) {
-    for (const int i : tree.interface_inputs().index_range()) {
+  for (const bNode *node : group.group_input_nodes()) {
+    for (const int i : group.interface_inputs().index_range()) {
       const bNodeSocket &socket = node->output_socket(i);
       r_input_usages[i] |= inferencer.is_socket_used({nullptr, &socket});
     }
   }
 }
 
-void infer_inputs_socket_usage(const bNodeTree &tree,
-                               Span<const bNodeSocket *> input_sockets,
-                               MutableSpan<bool> r_input_usages)
+void infer_group_interface_inputs_usage(const bNodeTree &group,
+                                        Span<const bNodeSocket *> input_sockets,
+                                        MutableSpan<bool> r_input_usages)
 {
-  BLI_assert(tree.interface_inputs().size() == input_sockets.size());
+  BLI_assert(group.interface_inputs().size() == input_sockets.size());
 
   AlignedBuffer<1024, 8> allocator_buffer;
   LinearAllocator<> allocator;
@@ -807,7 +807,7 @@ void infer_inputs_socket_usage(const bNodeTree &tree,
     input_values[i] = GPointer(base_type, value);
   }
 
-  infer_inputs_socket_usage(tree, input_values, r_input_usages);
+  infer_group_interface_inputs_usage(group, input_values, r_input_usages);
 
   for (GPointer &value : input_values) {
     if (const void *data = value.get()) {
@@ -816,15 +816,16 @@ void infer_inputs_socket_usage(const bNodeTree &tree,
   }
 }
 
-void infer_inputs_socket_usage(const bNodeTree &tree,
-                               const IDProperty *properties,
-                               MutableSpan<bool> r_input_usages)
+void infer_group_interface_inputs_usage(const bNodeTree &group,
+                                        const IDProperty *properties,
+                                        MutableSpan<bool> r_input_usages)
 {
-  const int inputs_num = tree.interface_inputs().size();
+  const int inputs_num = group.interface_inputs().size();
   Array<GPointer> input_values(inputs_num);
   ResourceScope scope;
-  nodes::get_geometry_nodes_input_base_values(tree, properties, scope, input_values);
-  nodes::socket_usage_inference::infer_inputs_socket_usage(tree, input_values, r_input_usages);
+  nodes::get_geometry_nodes_input_base_values(group, properties, scope, input_values);
+  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+      group, input_values, r_input_usages);
 }
 
 }  // namespace blender::nodes::socket_usage_inference
