@@ -2,19 +2,22 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <functional>
+#include <regex>
 
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_node_in_compute_context.hh"
 #include "NOD_socket_usage_inference.hh"
 
+#include "DNA_anim_types.h"
 #include "DNA_node_types.h"
 
 #include "BKE_compute_contexts.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_type_conversions.hh"
+
+#include "ANIM_action.hh"
 
 #include "BLI_stack.hh"
 
@@ -47,6 +50,13 @@ struct SocketUsageInferencer {
    */
   Map<SocketInContext, const void *> all_socket_values_;
 
+  /**
+   * All sockets that have animation data and thus their value is not fixed statically. This can
+   * contain sockets from multiple different trees.
+   */
+  Set<const bNodeSocket *> animated_sockets_;
+  Set<const bNodeTree *> trees_with_handled_animation_data_;
+
   /** Some inline storage to reduce the number of allocations. */
   AlignedBuffer<1024, 8> scope_buffer_;
 
@@ -58,6 +68,7 @@ struct SocketUsageInferencer {
     scope_.linear_allocator().provide_buffer(scope_buffer_);
     root_tree_.ensure_topology_cache();
     root_tree_.ensure_interface_cache();
+    this->ensure_animation_data_processed(root_tree_);
 
     for (const bNode *node : root_tree_.group_input_nodes()) {
       for (const int i : root_tree_.interface_inputs().index_range()) {
@@ -239,6 +250,7 @@ struct SocketUsageInferencer {
       return;
     }
     group->ensure_topology_cache();
+    this->ensure_animation_data_processed(*group);
 
     /* The group node input is used iff any of the matching group inputs within the group is
      * used. */
@@ -465,6 +477,7 @@ struct SocketUsageInferencer {
       all_socket_values_.add_new(socket, nullptr);
       return;
     }
+    this->ensure_animation_data_processed(*group);
     const bNode *group_output_node = group->group_output_node();
     if (!group_output_node) {
       /* Can't compute the value if the group does not have an output node. */
@@ -660,6 +673,12 @@ struct SocketUsageInferencer {
 
   void value_task__input__unlinked(const SocketInContext &socket)
   {
+    if (animated_sockets_.contains(socket.socket)) {
+      /* The value of animated sockets is not known statically. */
+      all_socket_values_.add_new(socket, nullptr);
+      return;
+    }
+
     const CPPType &base_type = *socket->typeinfo->base_cpp_type;
     void *value_buffer = scope_.linear_allocator().allocate(base_type.size(),
                                                             base_type.alignment());
@@ -742,6 +761,47 @@ struct SocketUsageInferencer {
   void push_value_task(const SocketInContext &socket)
   {
     value_tasks_.push(socket);
+  }
+
+  void ensure_animation_data_processed(const bNodeTree &tree)
+  {
+    if (!trees_with_handled_animation_data_.add(&tree)) {
+      return;
+    }
+    if (!tree.adt) {
+      return;
+    }
+    if (!tree.adt->action) {
+      return;
+    }
+    const animrig::Channelbag *channelbag = animrig::channelbag_for_action_slot(
+        tree.adt->action->wrap(), tree.adt->slot_handle);
+    if (!channelbag) {
+      return;
+    }
+
+    static std::regex pattern(R"#(nodes\["(.*)"\].inputs\[(\d+)\].default_value)#");
+
+    /* Gather all animated inputs. */
+    MultiValueMap<StringRef, int> animated_inputs_by_node_name;
+    for (const FCurve *fcurve : channelbag->fcurves()) {
+      std::cmatch match;
+      if (!std::regex_match(fcurve->rna_path, match, pattern)) {
+        continue;
+      }
+      const std::string node_name = match[1];
+      const int socket_index = std::stoi(match[2]);
+      animated_inputs_by_node_name.add(node_name, socket_index);
+    }
+
+    /* Actually find the #bNodeSocket for each animated input. */
+    for (const bNode *node : tree.all_nodes()) {
+      const Span<int> animated_inputs = animated_inputs_by_node_name.lookup(node->name);
+      for (const int socket_index : animated_inputs) {
+        const bNodeSocket &socket = node->input_socket(socket_index);
+        animated_sockets_.add(&socket);
+      }
+    }
   }
 };
 
