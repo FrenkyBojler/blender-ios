@@ -156,7 +156,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
       *param_outputs[0].get<bke::SocketValueVariant>());
 
   /* Convert the field type to the expected type */
-  bke::DataTypeConversions conversions = bke::get_implicit_type_conversions();
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   fn::Field<ExpectedType> field_to_evaluate = conversions.try_convert(
       output_socket.get<fn::GField>(), CPPType::get<ExpectedType>());
 
