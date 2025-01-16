@@ -1695,8 +1695,13 @@ if(WITH_PYTHON_MODULE AND LIBDIR AND NOT WIN32)
   install(
     DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/pxr
     DESTINATION ${TARGETDIR_SITE_PACKAGES})
+  if(APPLE)
+    set(_pyopenvdb_filename pyopenvdb.cpython-${PYTHON_VERSION_NO_DOTS}-darwin.so)
+  else()
+    set(_pyopenvdb_filename pyopenvdb.cpython-${PYTHON_VERSION_NO_DOTS}-${CMAKE_SYSTEM_PROCESSOR}-linux-gnu.so)
+  endif()
   install(
-    FILES ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/pyopenvdb.cpython-${PYTHON_VERSION_NO_DOTS}-darwin.so
+    FILES ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/${_pyopenvdb_filename}
     DESTINATION ${TARGETDIR_SITE_PACKAGES})
 endif()
 
