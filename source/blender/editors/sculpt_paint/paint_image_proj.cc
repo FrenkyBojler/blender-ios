@@ -233,6 +233,8 @@ struct ProjStrokeHandle {
    * we can assume at least the first is set while painting. */
   ProjPaintState *ps_views[8];
 
+  /* Store initial starting points for perlin noise on the beginning of each stroke when using
+   * color jitter. */
   std::optional<blender::float3> initial_hsv_jitter;
 
   int ps_views_tot;
