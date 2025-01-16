@@ -9117,6 +9117,8 @@ static void def_cmp_viewer(BlenderRNA * /*brna*/, StructRNA *srna)
   prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "custom1");
   RNA_def_property_int_funcs(prop, nullptr, "rna_Node_shortcut_node_set", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_int_default(prop, NODE_SHORTCUT_NONE);
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
 }

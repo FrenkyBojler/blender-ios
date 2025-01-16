@@ -457,7 +457,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
         fav_node = selected_nodes[0]
 
         # Only viewer nodes can be set to favorites. However, the user can
-        # create a new favorite viewer by selecting any node and pressing ctrl+1
+        # create a new favorite viewer by selecting any node and pressing ctrl+1.
         old_active = nodes.active
         if fav_node.type == 'VIEWER':
             viewer_node = fav_node
@@ -471,6 +471,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
             self.report({'ERROR'}, "Unable to set shortcut, selected node is not a viewer node or does not support viewing.")
             return {'CANCELLED'}
 
+        # Use the node active status to enable this viewer node and disable others.
         nodes.active = viewer_node
         if old_active.type != 'VIEWER':
             nodes.active = old_active
@@ -508,6 +509,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
             self.report({'WARNING'}, "No preview set for shortcut %i" % self.viewer_index)
             return {'CANCELLED'}
 
+        # Use the node active status to enable this viewer node and disable others.
         old_active = nodes.active
         nodes.active = viewer_node
         if old_active.type != "VIEWER":
