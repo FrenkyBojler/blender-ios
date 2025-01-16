@@ -83,8 +83,8 @@ struct PoseBlendData {
   PoseBackup *pose_backup;
 
   blender::Vector<Object *> objects; /* Objects to work on. */
-  bAction *act;         /* Pose to blend into the current pose. */
-  bAction *act_flipped; /* Flipped copy of `act`. */
+  bAction *act;                      /* Pose to blend into the current pose. */
+  bAction *act_flipped;              /* Flipped copy of `act`. */
 
   Scene *scene;  /* For auto-keying. */
   ScrArea *area; /* For drawing status text. */
