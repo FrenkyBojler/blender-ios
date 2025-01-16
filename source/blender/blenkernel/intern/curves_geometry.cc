@@ -1292,7 +1292,7 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
   ensure_non_cyclic_clamped(this->curves_range(), *this);
 }
 
-void ensure_non_cyclic_clamped(const IndexMask selection, bke::CurvesGeometry &curves)
+void ensure_non_cyclic_clamped(const IndexMask &selection, bke::CurvesGeometry &curves)
 {
   if (!curves.attributes().contains(ATTR_NURBS_KNOT_SPAN)) {
     return;

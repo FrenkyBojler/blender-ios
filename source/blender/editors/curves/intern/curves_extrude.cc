@@ -363,7 +363,7 @@ static void extrude_curves(Curves &curves_id)
   }
 
   const VArray<int8_t> knots_modes = curves.nurbs_knots_modes();
-  IndexMask custom_knot_curves = IndexMask::from_predicate(
+  const IndexMask custom_knot_curves = IndexMask::from_predicate(
       curves.curves_range(), GrainSize(512), memory, [&](const int64_t curve) {
         return knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM;
       });

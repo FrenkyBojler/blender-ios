@@ -97,9 +97,9 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
                                        nurbs_geometry.parm,
                                        nurbs_geometry.range);
 
-  if (nurb->flagu & (CU_NURB_CUSTOM | CU_NURB_CYCLIC | CU_NURB_ENDPOINT) == CU_NURB_CUSTOM) {
-    /* TODO: If mode is CU_NURB_CUSTOM, but not CU_NURB_CYCLIC and CU_NURB_ENDPOINT, then make curve
-     * clamped instead of removing CU_NURB_CUSTOM. */
+  if ((nurb->flagu & (CU_NURB_CUSTOM | CU_NURB_CYCLIC | CU_NURB_ENDPOINT)) == CU_NURB_CUSTOM) {
+    /* TODO: If mode is CU_NURB_CUSTOM, but not CU_NURB_CYCLIC and CU_NURB_ENDPOINT, then make
+     * curve clamped instead of removing CU_NURB_CUSTOM. */
     nurb->flagu &= ~CU_NURB_CUSTOM;
   }
 

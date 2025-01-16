@@ -819,7 +819,7 @@ void calculate_knots(
     int points_num, KnotsMode mode, int8_t order, bool cyclic, MutableSpan<float> knots);
 
 /**
- * NURBS knots without a loss of information can be stored as spans between those knots,
+ * NURBS knots can be stored as spans between those knots without a loss of information,
  * as NURBS formulas use differences of two knots. This saves one number per knot vector.
  * For ex. 4 point order 4 clamped curve's knot vector [0, 0, 0, 0, 1, 1, 1, 1] as spans
  * becomes [0, 0, 0, 1, 0, 0, 0].
@@ -831,7 +831,7 @@ void calculate_knots(
  * To get good points and knots alignment for operators like `CURVES_OT_delete` drops `order - 2`
  * spans at the begining and one at the end. For ex. above final result is [0, 1, 0, 0].
  */
-void knots_to_spans(int8_t order, Span<float> src_knots, MutableSpan<float> knots);
+void knots_to_spans(int8_t order, Span<float> knots, MutableSpan<float> knot_spans);
 
 /**
  * Restores knot vector from spans array. See `knots_to_spans` for details.
@@ -902,7 +902,7 @@ std::array<int, CURVE_TYPES_NUM> calculate_type_counts(const VArray<int8_t> &typ
  * `NURBS_KNOT_MODE_CUSTOM` curves clamped. Used in operators like `CURVES_OT_delete` or
  * `CURVES_OT_duplicate`where modifications might break this rule.
  */
-void ensure_non_cyclic_clamped(IndexMask selection, CurvesGeometry &curves);
+void ensure_non_cyclic_clamped(const IndexMask &selection, CurvesGeometry &curves);
 
 /* -------------------------------------------------------------------- */
 /** \name #CurvesGeometry Inline Methods
