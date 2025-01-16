@@ -3122,11 +3122,14 @@ class FillColorRecord {
   {
     return other.color == color && other.name == name;
   }
+  uint64_t hash() const
+  {
+    return hash_string(name);
+  }
 };
 
-static Vector<FillColorRecord> mesh_to_grease_pencil_get_material_list(Object &ob_mesh,
-                                                                       const Mesh &mesh,
-                                                                       Array<int> &material_remap)
+static VectorSet<FillColorRecord> mesh_to_grease_pencil_get_material_list(
+    Object &ob_mesh, const Mesh &mesh, Array<int> &material_remap)
 {
   const short num_materials = mesh.totcol;
   const FillColorRecord empty_fill = {float4(1.0f), DATA_("Empty Fill")};
@@ -3134,45 +3137,28 @@ static Vector<FillColorRecord> mesh_to_grease_pencil_get_material_list(Object &o
   /* This function will only be called when we want to create fills out of mesh faces, so always
    * ensure that fills would have at least one material to be assigned to. */
   if (num_materials == 0) {
-    Vector<FillColorRecord> fill_colors(1);
-    fill_colors[0] = empty_fill;
+    VectorSet<FillColorRecord> fill_colors;
+    fill_colors.add(empty_fill);
     material_remap.reinitialize(1);
     material_remap[0] = 0;
     return fill_colors;
   }
 
-  Vector<FillColorRecord> fill_colors;
-  bool has_empty = false;
+  VectorSet<FillColorRecord> fill_colors;
 
-  int valid_material_index = 0;
   material_remap.reinitialize(num_materials);
-  material_remap.fill(-1);
 
   for (const int material_i : IndexRange(num_materials)) {
     const Material *mesh_material = BKE_object_material_get(&ob_mesh, material_i + 1);
     if (!mesh_material) {
-      has_empty = true;
+      material_remap[material_i] = fill_colors.index_of_or_add(empty_fill);
       continue;
     }
     const float4 fill_color = float4(
         mesh_material->r, mesh_material->g, mesh_material->b, mesh_material->a);
     const StringRefNull material_name = BKE_id_name(mesh_material->id);
     const FillColorRecord record = {fill_color, material_name};
-    const int record_index = fill_colors.first_index_of_try(record);
-    if (record_index == -1) {
-      valid_material_index = fill_colors.append_and_get_index(record);
-    }
-    material_remap[material_i] = valid_material_index;
-  }
-
-  if (has_empty) {
-    valid_material_index++;
-    fill_colors.append_non_duplicates(empty_fill);
-    for (const int material_i : material_remap.index_range()) {
-      if (material_remap[material_i] == -1) {
-        material_remap[material_i] = valid_material_index;
-      }
-    }
+    material_remap[material_i] = fill_colors.index_of_or_add(record);
   }
 
   return fill_colors;
@@ -3274,7 +3260,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
-  Vector<FillColorRecord> fill_colors;
+  VectorSet<FillColorRecord> fill_colors;
   Array<int> material_remap;
   if (generate_faces) {
     fill_colors = mesh_to_grease_pencil_get_material_list(*ob_eval, *mesh_eval, material_remap);
@@ -3301,7 +3287,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
 
   if (generate_faces) {
     for (const int fill_i : fill_colors.index_range()) {
-      FillColorRecord &record = fill_colors[fill_i];
+      const FillColorRecord &record = fill_colors[fill_i];
       mesh_to_grease_pencil_add_material(*info.bmain, *newob, record.name, {}, record.color);
     }
   }
