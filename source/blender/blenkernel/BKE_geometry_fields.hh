@@ -180,7 +180,7 @@ class SculptFieldContext : public fn::FieldContext {
 
   virtual VArray<float3> positions() const
   {
-    return VArray<float3>::ForContainer(positions_);
+    return VArray<float3>::ForSpan(positions_);
   }
 
   virtual VArray<float3> normals() const = 0;

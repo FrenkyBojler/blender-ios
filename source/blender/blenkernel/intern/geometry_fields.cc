@@ -70,7 +70,7 @@ VArray<float3> MeshSculptFieldContext::positions() const
   Array<float3> positions(indices.size());
   array_utils::gather(vert_positions, indices, positions.as_mutable_span());
 
-  return VArray<float3>::ForContainer(positions);
+  return VArray<float3>::ForContainer(std::move(positions));
 }
 
 VArray<float3> MeshSculptFieldContext::normals() const
@@ -84,7 +84,7 @@ VArray<float3> MeshSculptFieldContext::normals() const
 
   array_utils::gather(vert_normals, indices, normals.as_mutable_span());
 
-  return VArray<float3>::ForContainer(normals);
+  return VArray<float3>::ForContainer(std::move(normals));
 }
 
 VArray<float3> GridsSculptFieldContext::normals() const
@@ -104,7 +104,7 @@ VArray<float3> GridsSculptFieldContext::normals() const
     node_normals.copy_from(grid_normals);
   }
 
-  return VArray<float3>::ForContainer(normals);
+  return VArray<float3>::ForContainer(std::move(normals));
 }
 
 VArray<float3> BMeshSculptFieldContext::normals() const
@@ -118,7 +118,7 @@ VArray<float3> BMeshSculptFieldContext::normals() const
     i++;
   }
 
-  return VArray<float3>::ForContainer(normals);
+  return VArray<float3>::ForContainer(std::move(normals));
 }
 
 GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_input,
@@ -145,7 +145,7 @@ GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_inp
       &field_input);
 
   if (index_field_input != nullptr) {
-    return VArray<int>::ForContainer(this->indices());
+    return VArray<int>::ForSpan(this->indices());
   }
 
   return field_input.get_varray_for_context(*this, mask, scope);
