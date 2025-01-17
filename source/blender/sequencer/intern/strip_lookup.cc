@@ -29,103 +29,160 @@ struct StripLookup {
   blender::Map<const Strip *, Strip *> meta_by_strip;
   blender::Map<const Strip *, blender::VectorSet<Strip *>> effects_by_strip;
   blender::Map<const SeqTimelineChannel *, Strip *> owner_by_channel;
-  bool is_valid = false;
+  bool valid_strip_by_name = false;
+  bool valid_meta_by_strip = false;
+  bool valid_effects_by_strip = false;
+  bool valid_owner_by_channel = false;
+
+  void build_strip_by_name(const ListBase *seqbase);
+  void build_meta_by_strip(Strip *parent_meta, const ListBase *seqbase);
+  void build_effects_by_strip(const ListBase *seqbase);
+  void build_owner_by_channel(Strip *parent_meta, const ListBase *seqbase);
+
+  void append_effect(const Strip *input, Strip *effect);
 };
 
-static void strip_lookup_append_effect(const Strip *input, Strip *effect, StripLookup *lookup)
+void StripLookup::append_effect(const Strip *input, Strip *effect)
 {
-  if (input == nullptr) {
-    return;
+  if (input != nullptr) {
+    blender::VectorSet<Strip *> &effects = this->effects_by_strip.lookup_or_add_default(input);
+    effects.add(effect);
   }
-
-  blender::VectorSet<Strip *> &effects = lookup->effects_by_strip.lookup_or_add_default(input);
-
-  effects.add(effect);
 }
 
-static void strip_lookup_build_effect(Strip *strip, StripLookup *lookup)
+void StripLookup::build_strip_by_name(const ListBase *seqbase)
 {
-  if ((strip->type & STRIP_TYPE_EFFECT) == 0) {
-    return;
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    this->strip_by_name.add(strip->name + 2, strip);
+    if (strip->type == STRIP_TYPE_META) {
+      build_strip_by_name(&strip->seqbase);
+    }
   }
-
-  strip_lookup_append_effect(strip->seq1, strip, lookup);
-  strip_lookup_append_effect(strip->seq2, strip, lookup);
 }
 
-static void strip_lookup_build_from_seqbase(Strip *parent_meta,
-                                            const ListBase *seqbase,
-                                            StripLookup *lookup)
+void StripLookup::build_meta_by_strip(Strip *parent_meta, const ListBase *seqbase)
+{
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    this->meta_by_strip.add(strip, parent_meta);
+    if (strip->type == STRIP_TYPE_META) {
+      build_meta_by_strip(strip, &strip->seqbase);
+    }
+  }
+}
+
+void StripLookup::build_effects_by_strip(const ListBase *seqbase)
+{
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    if ((strip->type & STRIP_TYPE_EFFECT) != 0) {
+      this->append_effect(strip->seq1, strip);
+      this->append_effect(strip->seq2, strip);
+    }
+    if (strip->type == STRIP_TYPE_META) {
+      build_effects_by_strip(&strip->seqbase);
+    }
+  }
+}
+
+void StripLookup::build_owner_by_channel(Strip *parent_meta, const ListBase *seqbase)
 {
   if (parent_meta != nullptr) {
     LISTBASE_FOREACH (SeqTimelineChannel *, channel, &parent_meta->channels) {
-      lookup->owner_by_channel.add(channel, parent_meta);
+      this->owner_by_channel.add(channel, parent_meta);
     }
   }
 
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    lookup->strip_by_name.add(strip->name + 2, strip);
-    lookup->meta_by_strip.add(strip, parent_meta);
-    strip_lookup_build_effect(strip, lookup);
-
     if (strip->type == STRIP_TYPE_META) {
-      strip_lookup_build_from_seqbase(strip, &strip->seqbase, lookup);
+      build_owner_by_channel(strip, &strip->seqbase);
     }
   }
 }
 
-static void strip_lookup_build(const Scene *scene, StripLookup *lookup)
+static void ensure_strip_lookup(StripLookup *&r_lookup)
 {
-  Editing *ed = SEQ_editing_get(scene);
-  strip_lookup_build_from_seqbase(nullptr, &ed->seqbase, lookup);
-  lookup->is_valid = true;
-}
-
-static StripLookup *strip_lookup_new()
-{
-  StripLookup *lookup = MEM_new<StripLookup>(__func__);
-  return lookup;
-}
-
-static void strip_lookup_free(StripLookup **lookup)
-{
-  MEM_delete(*lookup);
-  *lookup = nullptr;
-}
-
-static void strip_lookup_rebuild(const Scene *scene, StripLookup **lookup)
-{
-  strip_lookup_free(lookup);
-  *lookup = strip_lookup_new();
-  strip_lookup_build(scene, *lookup);
-}
-
-static void strip_lookup_update_if_needed(const Scene *scene, StripLookup **lookup)
-{
-  if (!scene->ed) {
-    return;
+  if (r_lookup == nullptr) {
+    r_lookup = MEM_new<StripLookup>(__func__);
   }
-  if (*lookup && (*lookup)->is_valid) {
+}
+
+static void strip_lookup_update_strip_by_name(const Scene *scene, StripLookup *&r_lookup)
+{
+  ensure_strip_lookup(r_lookup);
+  if (r_lookup->valid_strip_by_name) {
     return;
   }
 
-  strip_lookup_rebuild(scene, lookup);
+  /* Clear previous map, but keep a portion of previous allocation capacity. */
+  int64_t new_capacity = r_lookup->strip_by_name.capacity() / 8;
+  r_lookup->strip_by_name.clear();
+  r_lookup->strip_by_name.reserve(new_capacity);
+
+  r_lookup->build_strip_by_name(&scene->ed->seqbase);
+  r_lookup->valid_strip_by_name = true;
+}
+
+static void strip_lookup_update_meta_by_strip(const Scene *scene, StripLookup *&r_lookup)
+{
+  ensure_strip_lookup(r_lookup);
+  if (r_lookup->valid_meta_by_strip) {
+    return;
+  }
+
+  /* Clear previous map, but keep a portion of previous allocation capacity. */
+  int64_t new_capacity = r_lookup->meta_by_strip.capacity() / 8;
+  r_lookup->meta_by_strip.clear();
+  r_lookup->meta_by_strip.reserve(new_capacity);
+
+  r_lookup->build_meta_by_strip(nullptr, &scene->ed->seqbase);
+  r_lookup->valid_meta_by_strip = true;
+}
+
+static void strip_lookup_update_effects_by_strip(const Scene *scene, StripLookup *&r_lookup)
+{
+  ensure_strip_lookup(r_lookup);
+  if (r_lookup->valid_effects_by_strip) {
+    return;
+  }
+
+  /* Clear previous map, but keep a portion of previous allocation capacity. */
+  int64_t new_capacity = r_lookup->effects_by_strip.capacity() / 8;
+  r_lookup->effects_by_strip.clear();
+  r_lookup->effects_by_strip.reserve(new_capacity);
+
+  r_lookup->build_effects_by_strip(&scene->ed->seqbase);
+  r_lookup->valid_effects_by_strip = true;
+}
+
+static void strip_lookup_update_owner_by_channel(const Scene *scene, StripLookup *&r_lookup)
+{
+  ensure_strip_lookup(r_lookup);
+  if (r_lookup->valid_owner_by_channel) {
+    return;
+  }
+
+  /* Clear previous map, but keep a portion of previous allocation capacity. */
+  int64_t new_capacity = r_lookup->owner_by_channel.capacity() / 8;
+  r_lookup->owner_by_channel.clear();
+  r_lookup->owner_by_channel.reserve(new_capacity);
+
+  r_lookup->build_owner_by_channel(nullptr, &scene->ed->seqbase);
+  r_lookup->valid_owner_by_channel = true;
 }
 
 void SEQ_strip_lookup_free(const Scene *scene)
 {
   BLI_assert(scene->ed);
   std::lock_guard lock(lookup_lock);
-  StripLookup *lookup = scene->ed->runtime.strip_lookup;
-  strip_lookup_free(&lookup);
+  MEM_delete(scene->ed->runtime.strip_lookup);
+  scene->ed->runtime.strip_lookup = nullptr;
 }
 
 Strip *SEQ_lookup_strip_by_name(const Scene *scene, const char *key)
 {
   BLI_assert(scene->ed);
   std::lock_guard lock(lookup_lock);
-  strip_lookup_update_if_needed(scene, &scene->ed->runtime.strip_lookup);
-  StripLookup *lookup = scene->ed->runtime.strip_lookup;
+  StripLookup *&lookup = scene->ed->runtime.strip_lookup;
+  strip_lookup_update_strip_by_name(scene, lookup);
   return lookup->strip_by_name.lookup_default(key, nullptr);
 }
 
@@ -133,8 +190,8 @@ Strip *SEQ_lookup_meta_by_strip(const Scene *scene, const Strip *key)
 {
   BLI_assert(scene->ed);
   std::lock_guard lock(lookup_lock);
-  strip_lookup_update_if_needed(scene, &scene->ed->runtime.strip_lookup);
-  StripLookup *lookup = scene->ed->runtime.strip_lookup;
+  StripLookup *&lookup = scene->ed->runtime.strip_lookup;
+  strip_lookup_update_meta_by_strip(scene, lookup);
   return lookup->meta_by_strip.lookup_default(key, nullptr);
 }
 
@@ -142,22 +199,22 @@ blender::Span<Strip *> SEQ_lookup_effects_by_strip(const Scene *scene, const Str
 {
   BLI_assert(scene->ed);
   std::lock_guard lock(lookup_lock);
-  strip_lookup_update_if_needed(scene, &scene->ed->runtime.strip_lookup);
-  StripLookup *lookup = scene->ed->runtime.strip_lookup;
+  StripLookup *&lookup = scene->ed->runtime.strip_lookup;
+  strip_lookup_update_effects_by_strip(scene, lookup);
   blender::VectorSet<Strip *> &effects = lookup->effects_by_strip.lookup_or_add_default(key);
   return effects.as_span();
 }
 
-Strip *SEQ_lookup_strip_by_channel_owner(const Scene *scene, const SeqTimelineChannel *channel)
+Strip *SEQ_lookup_channel_owner(const Scene *scene, const SeqTimelineChannel *channel)
 {
   BLI_assert(scene->ed);
   std::lock_guard lock(lookup_lock);
-  strip_lookup_update_if_needed(scene, &scene->ed->runtime.strip_lookup);
-  StripLookup *lookup = scene->ed->runtime.strip_lookup;
+  StripLookup *&lookup = scene->ed->runtime.strip_lookup;
+  strip_lookup_update_owner_by_channel(scene, lookup);
   return lookup->owner_by_channel.lookup_default(channel, nullptr);
 }
 
-void SEQ_strip_lookup_invalidate(const Scene *scene)
+void SEQ_strip_lookup_invalidate(const Scene *scene, StripLookupInvalidateFlag flags)
 {
   if (scene == nullptr || scene->ed == nullptr) {
     return;
@@ -166,6 +223,17 @@ void SEQ_strip_lookup_invalidate(const Scene *scene)
   std::lock_guard lock(lookup_lock);
   StripLookup *lookup = scene->ed->runtime.strip_lookup;
   if (lookup != nullptr) {
-    lookup->is_valid = false;
+    if ((flags & StripLookupInvalidateFlag::Name) != StripLookupInvalidateFlag::None) {
+      lookup->valid_strip_by_name = false;
+    }
+    if ((flags & StripLookupInvalidateFlag::Meta) != StripLookupInvalidateFlag::None) {
+      lookup->valid_meta_by_strip = false;
+    }
+    if ((flags & StripLookupInvalidateFlag::Effects) != StripLookupInvalidateFlag::None) {
+      lookup->valid_effects_by_strip = false;
+    }
+    if ((flags & StripLookupInvalidateFlag::Channel) != StripLookupInvalidateFlag::None) {
+      lookup->valid_owner_by_channel = false;
+    }
   }
 }

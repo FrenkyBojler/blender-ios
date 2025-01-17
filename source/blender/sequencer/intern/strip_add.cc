@@ -72,11 +72,14 @@ void SEQ_add_load_data_init(SeqLoadData *load_data,
   load_data->channel = channel;
 }
 
-static void strip_add_generic_update(Scene *scene, Strip *strip)
+static void strip_add_generic_update(
+    Scene *scene,
+    Strip *strip,
+    StripLookupInvalidateFlag invalidate_flag = StripLookupInvalidateFlag::Name)
 {
   SEQ_sequence_base_unique_name_recursive(scene, &scene->ed->seqbase, strip);
   SEQ_relations_invalidate_cache_composite(scene, strip);
-  SEQ_strip_lookup_invalidate(scene);
+  SEQ_strip_lookup_invalidate(scene, invalidate_flag);
   strip_time_effect_range_set(scene, strip);
   SEQ_time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene, strip));
 }
@@ -182,7 +185,8 @@ Strip *SEQ_add_effect_strip(Scene *scene, ListBase *seqbase, SeqLoadData *load_d
   }
 
   strip_add_set_name(scene, strip, load_data);
-  strip_add_generic_update(scene, strip);
+  strip_add_generic_update(
+      scene, strip, StripLookupInvalidateFlag::Name | StripLookupInvalidateFlag::Effects);
 
   return strip;
 }
@@ -387,7 +391,7 @@ Strip *SEQ_add_meta_strip(Scene *scene, ListBase *seqbase, SeqLoadData *load_dat
   seqm->start = load_data->start_frame;
   seqm->len = 1;
 
-  strip_add_generic_update(scene, seqm);
+  strip_add_generic_update(scene, seqm, StripLookupInvalidateFlag::All);
 
   return seqm;
 }

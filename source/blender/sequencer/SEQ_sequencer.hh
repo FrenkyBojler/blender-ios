@@ -8,6 +8,7 @@
  * \ingroup sequencer
  */
 
+#include "BLI_utildefines.h"
 #include "DNA_scene_types.h"
 
 struct BlendDataReader;
@@ -129,7 +130,7 @@ Strip *SEQ_lookup_strip_by_name(const Scene *scene, const char *key);
  * Find which meta strip the given timeline channel belongs to. Returns nullptr if it is a global
  * channel.
  */
-Strip *SEQ_lookup_strip_by_channel_owner(const Scene *scene, const SeqTimelineChannel *channel);
+Strip *SEQ_lookup_channel_owner(const Scene *scene, const SeqTimelineChannel *channel);
 
 /**
  * Free lookup hash data.
@@ -138,7 +139,25 @@ Strip *SEQ_lookup_strip_by_channel_owner(const Scene *scene, const SeqTimelineCh
  */
 void SEQ_strip_lookup_free(const Scene *scene);
 
+enum class StripLookupInvalidateFlag {
+  None = 0,
+
+  /* Name of a strip has changed. */
+  Name = (1 << 0),
+  /* Meta strip of a strip has changed. */
+  Meta = (1 << 1),
+  /* Which effects use a strip as input has changed. */
+  Effects = (1 << 2),
+  /* Timeline channel owner (meta strip) has changed. */
+  Channel = (1 << 3),
+
+  All = Name | Meta | Effects | Channel
+};
+ENUM_OPERATORS(StripLookupInvalidateFlag, StripLookupInvalidateFlag::All)
+
 /**
  * Mark strip lookup as invalid (i.e. will need rebuilding).
+ * Flags indicate which parts of the strip lookup need a rebuild.
  */
-void SEQ_strip_lookup_invalidate(const Scene *scene);
+void SEQ_strip_lookup_invalidate(const Scene *scene,
+                                 StripLookupInvalidateFlag flags = StripLookupInvalidateFlag::All);
