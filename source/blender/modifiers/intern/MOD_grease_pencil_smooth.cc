@@ -217,20 +217,25 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   row = uiLayoutRow(layout, true);
   uiItemR(row, ptr, "use_edit_position", UI_ITEM_R_TOGGLE, IFACE_("Position"), ICON_NONE);
-  uiItemR(row, ptr, "use_edit_strength", UI_ITEM_R_TOGGLE, IFACE_("Strength"), ICON_NONE);
+  uiItemR(row,
+          ptr,
+          "use_edit_strength",
+          UI_ITEM_R_TOGGLE,
+          CTX_IFACE_(BLT_I18NCONTEXT_ID_GPENCIL, "Strength"),
+          ICON_NONE);
   uiItemR(row, ptr, "use_edit_thickness", UI_ITEM_R_TOGGLE, IFACE_("Thickness"), ICON_NONE);
 
   uiItemR(row, ptr, "use_edit_uv", UI_ITEM_R_TOGGLE, IFACE_("UV"), ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(layout, ptr, "step", UI_ITEM_NONE, IFACE_("Repeat"), ICON_NONE);
 
   col = uiLayoutColumn(layout, false);
   uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_edit_position"));
-  uiItemR(col, ptr, "use_keep_shape", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_smooth_ends", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "use_keep_shape", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "use_smooth_ends", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
           C, layout, ptr, "open_influence_panel", IFACE_("Influence")))

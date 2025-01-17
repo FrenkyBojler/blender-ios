@@ -381,14 +381,14 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
         BKE_id_copy_in_lib(bmain,
                            owner_library,
                            reinterpret_cast<ID *>(dadt->action),
-                           nullptr,
+                           std::nullopt,
                            nullptr,
                            id_copy_flag));
     dadt->tmpact = reinterpret_cast<bAction *>(
         BKE_id_copy_in_lib(bmain,
                            owner_library,
                            reinterpret_cast<ID *>(dadt->tmpact),
-                           nullptr,
+                           std::nullopt,
                            nullptr,
                            id_copy_flag));
   }
@@ -1507,3 +1507,12 @@ void BKE_animdata_liboverride_post_process(ID *id)
 
   BKE_nla_liboverride_post_process(id, adt);
 }
+
+namespace blender::bke::animdata {
+
+void action_slots_user_cache_invalidate(Main &bmain)
+{
+  blender::animrig::Slot::users_invalidate(bmain);
+}
+
+}  // namespace blender::bke::animdata

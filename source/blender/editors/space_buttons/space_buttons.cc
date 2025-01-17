@@ -9,6 +9,7 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <optional>
 
 #include "BLI_string_ref.hh"
 #include "MEM_guardedalloc.h"
@@ -191,7 +192,7 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
       reinterpret_cast<ID *>(CTX_wm_workspace(C)), &RNA_WorkSpace, CTX_wm_workspace(C));
 
   for (blender::StringRef item : filter_items) {
-    uiItemR(layout, &ptr, item.data(), UI_ITEM_R_TOGGLE, nullptr, ICON_NONE);
+    uiItemR(layout, &ptr, item.data(), UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -932,6 +933,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
       break;
     case NC_ANIMATION:
       switch (wmn->data) {
+        case ND_KEYFRAME_PROP:
         case ND_NLA_ACTCHANGE:
           ED_area_tag_redraw(area);
           break;

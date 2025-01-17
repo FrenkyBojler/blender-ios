@@ -59,6 +59,14 @@ struct PaintSample {
   float pressure;
 };
 
+/**
+ * Common structure for various paint operators (e.g. Sculpt, Grease Pencil, Curves Sculpt)
+ *
+ * Callback functions defined and stored on this struct (e.g. `StrokeGetLocation`) allow each of
+ * these modes to customize specific behavior while still sharing other common handing.
+ *
+ * See #paint_stroke_modal for the majority of the paint operator logic.
+ */
 struct PaintStroke {
   std::unique_ptr<PaintModeData> mode_data;
   void *stroke_cursor;
@@ -132,6 +140,11 @@ static void paint_draw_smooth_cursor(bContext *C, const int x, const int y, void
   const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
   PaintStroke *stroke = static_cast<PaintStroke *>(customdata);
+  const PaintMode mode = BKE_paintmode_get_active_from_context(C);
+
+  if ((mode == PaintMode::GPencil) && (paint->flags & PAINT_SHOW_BRUSH) == 0) {
+    return;
+  }
 
   if (stroke && brush) {
     GPU_line_smooth(true);
@@ -1045,7 +1058,7 @@ bool paint_space_stroke_enabled(const Brush &br, const PaintMode mode)
     return false;
   }
 
-  if (ELEM(mode, PaintMode::GPencil, PaintMode::SculptGreasePencil)) {
+  if (ELEM(mode, PaintMode::GPencil, PaintMode::SculptGPencil)) {
     /* No spacing needed for now. */
     return false;
   }
