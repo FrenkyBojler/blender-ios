@@ -9,8 +9,10 @@
 #include "DNA_material_types.h"
 
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
+
 #include "NOD_shader.h"
 
 #include "eevee_instance.hh"
@@ -210,7 +212,9 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
 
   const bool is_transparent = GPU_material_flag_get(matpass.gpumat, GPU_MATFLAG_TRANSPARENT);
 
-  if (use_deferred_compilation && GPU_material_recalc_flag_get(matpass.gpumat)) {
+  if (inst_.is_viewport() && use_deferred_compilation &&
+      GPU_material_recalc_flag_get(matpass.gpumat))
+  {
     /* TODO(Miguel Pozo): This is broken, it consumes the flag,
      * but GPUMats can be shared across viewports. */
     inst_.sampling.reset();
@@ -430,7 +434,7 @@ Material &MaterialModule::material_sync(Object *ob,
 
 ::Material *MaterialModule::material_from_slot(Object *ob, int slot)
 {
-  ::Material *ma = BKE_object_material_get(ob, slot + 1);
+  ::Material *ma = BKE_object_material_get_eval(ob, slot + 1);
   if (ma == nullptr) {
     if (ob->type == OB_VOLUME) {
       return BKE_material_default_volume();

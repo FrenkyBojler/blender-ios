@@ -1457,11 +1457,13 @@ void UI_but_context_ptr_set(uiBlock *block,
                             uiBut *but,
                             blender::StringRef name,
                             const PointerRNA *ptr);
+void UI_but_context_int_set(uiBlock *block, uiBut *but, blender::StringRef name, int64_t value);
 const PointerRNA *UI_but_context_ptr_get(const uiBut *but,
                                          blender::StringRef name,
                                          const StructRNA *type = nullptr);
 std::optional<blender::StringRefNull> UI_but_context_string_get(const uiBut *but,
                                                                 blender::StringRef name);
+std::optional<int64_t> UI_but_context_int_get(const uiBut *but, blender::StringRef name);
 const bContextStore *UI_but_context_get(const uiBut *but);
 
 void UI_but_unit_type_set(uiBut *but, int unit_type);
@@ -1828,6 +1830,13 @@ void UI_but_func_drawextra_set(uiBlock *block,
 
 void UI_but_func_menu_step_set(uiBut *but, uiMenuStepFunc func);
 
+/**
+ * When a button displays a menu, hovering another button that can display one will switch to that
+ * menu instead. In some cases that's unexpected, so the feature can be disabled here (as in, this
+ * button will not spawn its menu on hover and the previously spawned menu will remain open).
+ */
+void UI_but_menu_disable_hover_open(uiBut *but);
+
 void UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *arg, uiFreeArgFunc free_arg);
 /**
  * Enable a custom quick tooltip label. That is, a short tooltip that appears faster than the full
@@ -2063,6 +2072,8 @@ void UI_panel_category_clear_all(ARegion *region);
  */
 void UI_panel_category_draw_all(ARegion *region, const char *category_id_active);
 
+void UI_panel_stop_animation(const bContext *C, Panel *panel);
+
 /* Panel custom data. */
 PointerRNA *UI_panel_custom_data_get(const Panel *panel);
 PointerRNA *UI_region_panel_custom_data_under_cursor(const bContext *C, const wmEvent *event);
@@ -2274,6 +2285,7 @@ uiBlock *uiLayoutGetBlock(uiLayout *layout);
 void uiLayoutSetFunc(uiLayout *layout, uiMenuHandleFunc handlefunc, void *argv);
 void uiLayoutSetContextPointer(uiLayout *layout, blender::StringRef name, PointerRNA *ptr);
 void uiLayoutSetContextString(uiLayout *layout, blender::StringRef name, blender::StringRef value);
+void uiLayoutSetContextInt(uiLayout *layout, blender::StringRef name, int64_t value);
 bContextStore *uiLayoutGetContextStore(uiLayout *layout);
 void uiLayoutContextCopy(uiLayout *layout, const bContextStore *context);
 
@@ -2406,6 +2418,13 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
                             PointerRNA *open_prop_owner,
                             const char *open_prop_name,
                             const char *label);
+
+uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
+                                          uiLayout *layout,
+                                          PointerRNA *open_prop_owner,
+                                          const blender::StringRefNull open_prop_name,
+                                          const blender::StringRefNull bool_prop_name,
+                                          const std::optional<blender::StringRefNull> label);
 
 /**
  * Variant of #uiLayoutPanelProp that automatically stores the open-close-state in the root
@@ -2657,8 +2676,8 @@ void uiTemplateCryptoPicker(uiLayout *layout,
                             blender::StringRefNull propname,
                             int icon);
 /**
- * \todo for now, grouping of layers is determined by dividing up the length of
- * the array of layer bitflags
+ * TODO: for now, grouping of layers is determined by dividing up the length of
+ * the array of layer bit-flags.
  */
 void uiTemplateLayers(uiLayout *layout,
                       PointerRNA *ptr,

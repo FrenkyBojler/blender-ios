@@ -24,6 +24,7 @@
 #include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_vertex_groups.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
 
@@ -117,26 +118,27 @@ static float get_distance_factor(float3 target_pos,
   const float3 gvert = math::transform_point(obmat, pos);
   const float dist = math::distance(target_pos, gvert);
 
-  if (dist > dist_max) {
+  if (dist_max > dist_min) {
+    if (dist > dist_max) {
+      return 1.0f;
+    }
+    if (dist <= dist_max && dist > dist_min) {
+      return 1.0f - ((dist_max - dist) / math::max((dist_max - dist_min), 0.0001f));
+    }
+    return 0.0f;
+  }
+  else if (dist_max < dist_min) {
+    if (dist > dist_min) {
+      return 0.0f;
+    }
+    if (dist <= dist_min && dist > dist_max) {
+      return (dist_min - dist) / math::max((dist_min - dist_max), 0.0001f);
+    }
     return 1.0f;
   }
-  if (dist <= dist_max && dist > dist_min) {
-    return 1.0f - ((dist_max - dist) / math::max((dist_max - dist_min), 0.0001f));
-  }
-  return 0.0f;
-}
 
-static int ensure_vertex_group(const StringRefNull name, ListBase &vertex_group_names)
-{
-  int def_nr = BKE_defgroup_name_index(&vertex_group_names, name);
-  if (def_nr < 0) {
-    bDeformGroup *defgroup = MEM_cnew<bDeformGroup>(__func__);
-    STRNCPY(defgroup->name, name.c_str());
-    BLI_addtail(&vertex_group_names, defgroup);
-    def_nr = BLI_listbase_count(&vertex_group_names) - 1;
-    BLI_assert(def_nr >= 0);
-  }
-  return def_nr;
+  /* dist_max == dist_min, "stepped" behavior then. */
+  return (dist > dist_max) ? 0.0f : 1.0f;
 }
 
 static bool target_vertex_group_available(const StringRefNull name,
@@ -166,7 +168,7 @@ static void write_weights_for_drawing(const ModifierData &md,
   }
 
   /* Make sure that the target vertex group is added to this drawing so we can write to it. */
-  ensure_vertex_group(mmd.target_vgname, curves.vertex_group_names);
+  bke::greasepencil::ensure_vertex_group(mmd.target_vgname, curves.vertex_group_names);
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> dst_weights = attributes.lookup_for_write_span<float>(
@@ -186,7 +188,7 @@ static void write_weights_for_drawing(const ModifierData &md,
   threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
     for (const int point_i : range) {
       const float weight = vgroup_weights[point_i];
-      if (weight < 0.0f) {
+      if (weight <= 0.0f) {
         continue;
       }
 

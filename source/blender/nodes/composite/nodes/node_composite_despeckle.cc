@@ -54,7 +54,7 @@ static void node_composit_buts_despeckle(uiLayout *layout, bContext * /*C*/, Poi
   uiItemR(col, ptr, "threshold_neighbor", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class DespeckleOperation : public NodeOperation {
  public:
@@ -172,7 +172,7 @@ class DespeckleOperation : public NodeOperation {
       }
 
       /* We need to despeckle, so write the mean accumulated color. */
-      float factor = factor_image.load_pixel<float>(texel);
+      float factor = factor_image.load_pixel<float, true>(texel);
       float4 mean_color = accumulated_color / accumulated_weight;
       output.store_pixel(texel, math::interpolate(center_color, mean_color, factor));
     });
@@ -202,7 +202,13 @@ void register_node_type_cmp_despeckle()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_DESPECKLE, "Despeckle", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeDespeckle", CMP_NODE_DESPECKLE);
+  ntype.ui_name = "Despeckle";
+  ntype.ui_description =
+      "Smooth areas of an image in which noise is noticeable, while leaving complex areas "
+      "untouched";
+  ntype.enum_name_legacy = "DESPECKLE";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_despeckle_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_despeckle;
   ntype.flag |= NODE_PREVIEW;

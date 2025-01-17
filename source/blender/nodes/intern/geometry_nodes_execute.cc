@@ -219,6 +219,7 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       auto property = bke::idprop::create(identifier, value->value);
       IDPropertyUIDataInt *ui_data = (IDPropertyUIDataInt *)IDP_ui_data_ensure(property.get());
       id_property_int_update_enum_items(value, ui_data);
+      ui_data->default_value = value->value;
       return property;
     }
     case SOCK_OBJECT: {
@@ -964,9 +965,11 @@ void update_input_properties_from_node_tree(const bNodeTree &tree,
       const std::string attribute_name_id = socket_identifier + input_attribute_name_suffix;
 
       IDProperty *use_attribute_prop = bke::idprop::create_bool(use_attribute_id, false).release();
+      use_attribute_prop->flag |= IDP_FLAG_OVERRIDABLE_LIBRARY | IDP_FLAG_STATIC_TYPE;
       IDP_AddToGroup(&properties, use_attribute_prop);
 
       IDProperty *attribute_prop = bke::idprop::create(attribute_name_id, "").release();
+      attribute_prop->flag |= IDP_FLAG_OVERRIDABLE_LIBRARY | IDP_FLAG_STATIC_TYPE;
       IDP_AddToGroup(&properties, attribute_prop);
 
       if (old_properties == nullptr) {

@@ -131,8 +131,11 @@ static Array<int> point_counts_to_keep_concurrent(const bke::CurvesGeometry &cur
 
   auto get_stroke_factor = [&](const float factor, const int index) {
     const bool stroke_cyclic = cyclic[index];
-    const float max_factor = max_length /
-                             curves.evaluated_length_total_for_curve(index, stroke_cyclic);
+    const float total_length = curves.evaluated_length_total_for_curve(index, stroke_cyclic);
+    if (total_length == 0) {
+      return factor > 0.5f ? 1.0f : 0.0f;
+    }
+    const float max_factor = max_length / total_length;
     if (time_alignment == MOD_GREASE_PENCIL_BUILD_TIMEALIGN_START) {
       if (clamp_points) {
         return std::clamp(factor * max_factor, 0.0f, 1.0f);
@@ -791,13 +794,13 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiItemS(layout);
   uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  if (uiLayout *panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_frame_range_panel", IFACE_("Effective Range")))
+  if (uiLayout *panel = uiLayoutPanelPropWithBoolHeader(C,
+                                                        layout,
+                                                        ptr,
+                                                        "open_frame_range_panel",
+                                                        "use_restrict_frame_range",
+                                                        IFACE_("Effective Range")))
   {
-    uiLayoutSetPropSep(panel, true);
-    uiItemR(
-        panel, ptr, "use_restrict_frame_range", UI_ITEM_NONE, IFACE_("Custom Range"), ICON_NONE);
-
     const bool active = RNA_boolean_get(ptr, "use_restrict_frame_range");
     uiLayout *col = uiLayoutColumn(panel, false);
     uiLayoutSetActive(col, active);
@@ -805,10 +808,9 @@ static void panel_draw(const bContext *C, Panel *panel)
     uiItemR(col, ptr, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
   }
 
-  if (uiLayout *panel = uiLayoutPanelProp(C, layout, ptr, "open_fading_panel", IFACE_("Fading"))) {
-    uiLayoutSetPropSep(panel, true);
-    uiItemR(panel, ptr, "use_fading", UI_ITEM_NONE, IFACE_("Fade"), ICON_NONE);
-
+  if (uiLayout *panel = uiLayoutPanelPropWithBoolHeader(
+          C, layout, ptr, "open_fading_panel", "use_fading", IFACE_("Fading")))
+  {
     const bool active = RNA_boolean_get(ptr, "use_fading");
     uiLayout *col = uiLayoutColumn(panel, false);
     uiLayoutSetActive(col, active);

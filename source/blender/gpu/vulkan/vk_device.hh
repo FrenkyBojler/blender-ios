@@ -69,6 +69,11 @@ struct VKWorkarounds {
   bool dynamic_rendering = false;
 
   /**
+   * Is the workarounds for devices that don't support VK_KHR_dynamic_rendering_local_read enabled.
+   */
+  bool dynamic_rendering_local_read = false;
+
+  /**
    * Is the workarounds for devices that don't support VK_EXT_dynamic_rendering_unused_attachments
    * enabled.
    */
@@ -78,14 +83,6 @@ struct VKWorkarounds {
    * Is the workarounds for devices that don't support Logic Ops enabled.
    */
   bool logic_ops = false;
-
-  /**
-   * Is the workaround for devices that don't support LocalSizeId execution model enabled.
-   *
-   * This execution model has been introduced in VK_KHR_maintenance4, is core in 1.3. Previous
-   * (WorkgroupSize) execution model will be deprecated in SPIR-V 1.6.
-   */
-  bool local_size_execution_mode = false;
 };
 
 /**

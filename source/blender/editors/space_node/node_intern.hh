@@ -9,9 +9,7 @@
 #pragma once
 
 #include "BLI_compute_context.hh"
-#include "BLI_math_vector.hh"
 #include "BLI_vector.hh"
-#include "BLI_vector_set.hh"
 
 #include "BKE_node.hh"
 
@@ -180,9 +178,9 @@ Array<bNode *> tree_draw_order_calc_nodes_reversed(bNodeTree &ntree);
 
 void node_set_cursor(wmWindow &win, ARegion &region, SpaceNode &snode, const float2 &cursor);
 /* DPI scaled coords */
-float2 node_to_view(const bNode &node, const float2 &co);
+float2 node_to_view(const float2 &co);
 void node_to_updated_rect(const bNode &node, rctf &r_rect);
-float2 node_from_view(const bNode &node, const float2 &co);
+float2 node_from_view(const float2 &co);
 
 /* `node_ops.cc` */
 
@@ -303,7 +301,7 @@ void NODE_OT_new_node_tree(wmOperatorType *ot);
 
 /* `node_group.cc` */
 
-const char *node_group_idname(bContext *C);
+StringRef node_group_idname(bContext *C);
 void NODE_OT_group_make(wmOperatorType *ot);
 void NODE_OT_group_insert(wmOperatorType *ot);
 void NODE_OT_group_ungroup(wmOperatorType *ot);
@@ -335,6 +333,7 @@ void NODE_OT_link_viewer(wmOperatorType *ot);
 void NODE_OT_insert_offset(wmOperatorType *ot);
 
 wmKeyMap *node_link_modal_keymap(wmKeyConfig *keyconf);
+wmKeyMap *node_resize_modal_keymap(wmKeyConfig *keyconf);
 
 /* `node_edit.cc` */
 
