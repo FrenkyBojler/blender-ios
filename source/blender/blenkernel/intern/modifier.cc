@@ -912,7 +912,8 @@ Mesh *BKE_modifier_modify_mesh(ModifierData *md, const ModifierEvalContext *ctx,
 }
 
 template<typename T>
-blender::ArrayState<T> get_array_state(const blender::bke::AttributeReader<T> &attr)
+blender::ArrayState<T> attribute_reader_to_array_state(
+    const blender::bke::AttributeReader<T> &attr)
 {
   if (!attr) {
     return {};
@@ -920,22 +921,59 @@ blender::ArrayState<T> get_array_state(const blender::bke::AttributeReader<T> &a
   return {attr.varray, attr.sharing_info};
 }
 
+template<typename T>
+bool attribute_reader_matches_array_state(const blender::ArrayState<T> &array_state,
+                                          const blender::bke::AttributeReader<T> &attr)
+{
+  if (!attr) {
+    return array_state.is_empty();
+  }
+  return array_state.same_as(attr.varray, attr.sharing_info);
+}
+
 class MeshTopologyState {
  private:
-  blender::ArrayState<int> edge_verts_;
+  blender::ArrayState<blender::int2> edge_verts_;
   blender::ArrayState<int> corner_verts_;
   blender::ArrayState<int> corner_edges_;
   blender::ArrayState<int> face_offset_indices_;
 
-  MeshTopologyState(Mesh &mesh)
+ public:
+  MeshTopologyState(const Mesh &mesh)
   {
     const blender::bke::AttributeAccessor attributes = mesh.attributes();
-    edge_verts_ = get_array_state(attributes.lookup<int>(".edge_vert"));
-    corner_verts_ = get_array_state(attributes.lookup<int>(".corner_vert"));
-    corner_edges_ = get_array_state(attributes.lookup<int>(".corner_edge"));
+    edge_verts_ = attribute_reader_to_array_state(attributes.lookup<blender::int2>(".edge_vert"));
+    corner_verts_ = attribute_reader_to_array_state(attributes.lookup<int>(".corner_vert"));
+    corner_edges_ = attribute_reader_to_array_state(attributes.lookup<int>(".corner_edge"));
     face_offset_indices_ = blender::ArrayState<int>(
         blender::VArray<int>::ForSpan(mesh.face_offsets()),
         mesh.runtime->face_offsets_sharing_info);
+  }
+
+  bool same_topology_as(const Mesh &mesh) const
+  {
+    const blender::bke::AttributeAccessor attributes = mesh.attributes();
+    if (!attribute_reader_matches_array_state(edge_verts_,
+                                              attributes.lookup<blender::int2>(".edge_vert")))
+    {
+      return false;
+    }
+    if (!attribute_reader_matches_array_state(corner_verts_,
+                                              attributes.lookup<int>(".corner_vert")))
+    {
+      return false;
+    }
+    if (!attribute_reader_matches_array_state(corner_edges_,
+                                              attributes.lookup<int>(".corner_edge")))
+    {
+      return false;
+    }
+    if (!face_offset_indices_.same_as(blender::VArray<int>::ForSpan(mesh.face_offsets()),
+                                      mesh.runtime->face_offsets_sharing_info))
+    {
+      return false;
+    }
+    return true;
   }
 };
 
@@ -968,14 +1006,15 @@ bool BKE_modifier_deform_verts(ModifierData *md,
     mesh_to_deform->vert_positions_for_write().copy_from(positions);
     mesh_to_deform->tag_positions_changed();
 
-    AttributeAccessor mesh_attributes = mesh_to_deform->attributes();
+    /* Remember the topology of the mesh before passing it to the modifier. */
+    const MeshTopologyState old_topology{*mesh_to_deform};
 
     /* Call the modifier and "hope" that it just deforms the mesh. */
     mti->modify_geometry_set(md, ctx, &geometry);
 
-    /* Extract the deformed vertex positions if possible. */
+    /* Extract the deformed vertex positions if the topology has not changed. */
     if (const Mesh *deformed_mesh = geometry.get_mesh()) {
-      if (deformed_mesh->verts_num == positions.size()) {
+      if (old_topology.same_topology_as(*deformed_mesh)) {
         positions.copy_from(deformed_mesh->vert_positions());
         if (mesh) {
           mesh->tag_positions_changed();
