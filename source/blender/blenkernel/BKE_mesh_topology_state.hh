@@ -15,7 +15,7 @@ namespace blender::bke {
  * Simplifies checking if the topology of a mesh before and after an operation is the same.
  *
  * It does so by remembering the topology of the mesh. In common cases, this can be done without
- * additional copies by using implicit-sharing.
+ * additional copies in constant time by using implicit-sharing.
  */
 class MeshTopologyState {
  private:
