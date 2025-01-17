@@ -66,28 +66,9 @@ const bUserAssetLibrary *library_ref_to_user_library(const AssetLibraryReference
 AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library);
 
 /**
- * The PointerRNA is expected to have an enum called "asset_library_reference".
- */
-const bUserAssetLibrary *get_asset_library_from_prop(PointerRNA &ptr);
-
-/**
- * For each catalog of the given bUserAssetLibrary call `visit_fn`.
- */
-void visit_library_catalogs_catalog_for_search(
-    const Main &bmain,
-    const AssetLibraryReference lib,
-    const StringRef edit_text,
-    const FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
-
-/**
  * Call after changes to an asset library have been made to reflect the changes in the UI.
  */
 void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref);
 void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library);
-
-/**
- * Enable catalog in all visible asset shelves.
- */
-void show_catalog_in_asset_shelf(const bContext &C, const StringRefNull catalog_path);
 
 }  // namespace blender::ed::asset

@@ -29,6 +29,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "ED_asset.hh"
 #include "ED_asset_handle.hh"
 #include "ED_asset_library.hh"
 #include "ED_asset_list.hh"
@@ -37,7 +38,6 @@
 #include "ED_asset_shelf.hh"
 
 #include "UI_interface_icons.hh"
-#include "UI_resources.hh"
 
 #include "BLT_translation.hh"
 
@@ -143,7 +143,7 @@ static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
     STRNCPY(name, brush->id.name + 2);
   }
 
-  const bUserAssetLibrary *user_library = asset::get_asset_library_from_prop(*op->ptr);
+  const bUserAssetLibrary *user_library = asset::get_asset_library_from_opptr(*op->ptr);
   if (!user_library) {
     return OPERATOR_CANCELLED;
   }
@@ -276,7 +276,7 @@ static void visit_library_prop_catalogs_catalog_for_search_fn(
     FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
   /* NOTE: Using the all library would also be a valid choice. */
-  if (const bUserAssetLibrary *user_library = asset::get_asset_library_from_prop(*ptr)) {
+  if (const bUserAssetLibrary *user_library = asset::get_asset_library_from_opptr(*ptr)) {
     asset::visit_library_catalogs_catalog_for_search(
         *CTX_data_main(C), asset::user_library_to_library_ref(*user_library), edit_text, visit_fn);
   }
