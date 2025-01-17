@@ -10,7 +10,6 @@
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 
 #include "editors/sculpt_paint/mesh_brush_common.hh"
@@ -158,7 +157,7 @@ static void do_relax_face_sets_brush_mesh(const Depsgraph &depsgraph,
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-  const MeshAttributeData attribute_data(mesh.attributes());
+  const MeshAttributeData attribute_data(mesh);
 
   const PositionDeformData position_data(depsgraph, object);
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
@@ -499,7 +498,7 @@ static void do_topology_relax_brush_mesh(const Depsgraph &depsgraph,
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-  const MeshAttributeData attribute_data(mesh.attributes());
+  const MeshAttributeData attribute_data(mesh);
   const PositionDeformData position_data(depsgraph, object);
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
 
