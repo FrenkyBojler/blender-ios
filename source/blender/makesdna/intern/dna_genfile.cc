@@ -2054,12 +2054,44 @@ void DNA_sdna_alias_data_ensure_structs_map(SDNA *sdna)
 #endif
 }
 
-static void print_full_struct_recursive(const SDNA &sdna,
-                                        const SDNA_Struct &sdna_struct,
-                                        const void *initial_data,
-                                        const int64_t element_num,
-                                        const int indent,
-                                        fmt::appender &dst)
+static void print_struct_array_recursive(const SDNA &sdna,
+                                         const SDNA_Struct &sdna_struct,
+                                         const void *initial_data,
+                                         const int64_t element_num,
+                                         const int indent,
+                                         fmt::appender &dst);
+static void print_single_struct_recursive(const SDNA &sdna,
+                                          const SDNA_Struct &sdna_struct,
+                                          const void *initial_data,
+                                          const int indent,
+                                          fmt::appender &dst);
+
+static void print_struct_array_recursive(const SDNA &sdna,
+                                         const SDNA_Struct &sdna_struct,
+                                         const void *data,
+                                         const int64_t element_num,
+                                         const int indent,
+                                         fmt::appender &dst)
+{
+  if (element_num == 1) {
+    print_single_struct_recursive(sdna, sdna_struct, data, indent, dst);
+    return;
+  }
+
+  const char *struct_name = sdna.types[sdna_struct.type_index];
+  const int64_t struct_size = sdna.types_size[sdna_struct.type_index];
+  for (const int64_t i : blender::IndexRange(element_num)) {
+    const void *element_data = POINTER_OFFSET(data, i * struct_size);
+    fmt::format_to(dst, "{:{}}{}: <{}>\n", "", indent, i, struct_name);
+    print_single_struct_recursive(sdna, sdna_struct, element_data, indent + 1, dst);
+  }
+}
+
+static void print_single_struct_recursive(const SDNA &sdna,
+                                          const SDNA_Struct &sdna_struct,
+                                          const void *initial_data,
+                                          const int indent,
+                                          fmt::appender &dst)
 {
   using namespace blender;
   const void *data = initial_data;
@@ -2071,14 +2103,14 @@ static void print_full_struct_recursive(const SDNA &sdna,
     const eStructMemberCategory member_category = get_struct_member_category(&sdna, &member);
     const int array_elem_num = sdna.members_array_num[member.member_index];
 
-    fmt::format_to(dst, "{:{}}  {} {}:", "", indent, member_type_name, member_name);
+    fmt::format_to(dst, "{:{}}{} {}:", "", indent, member_type_name, member_name);
 
     switch (member_category) {
       case STRUCT_MEMBER_CATEGORY_STRUCT: {
         fmt::format_to(dst, "\n");
         const int substruct_i = DNA_struct_find_index_without_alias(&sdna, member_type_name);
         const SDNA_Struct &sub_sdna_struct = *sdna.structs[substruct_i];
-        print_full_struct_recursive(sdna, sub_sdna_struct, data, array_elem_num, indent + 2, dst);
+        print_struct_array_recursive(sdna, sub_sdna_struct, data, array_elem_num, indent + 1, dst);
         break;
       }
       case STRUCT_MEMBER_CATEGORY_PRIMITIVE: {
@@ -2179,7 +2211,7 @@ void DNA_struct_debug_print(const SDNA &sdna,
   const char *struct_name = sdna.types[sdna_struct.type_index];
   fmt::format_to(dst, "<{}> {}x at {}\n", struct_name, element_num, address);
 
-  print_full_struct_recursive(sdna, sdna_struct, initial_data, element_num, 0, dst);
+  print_struct_array_recursive(sdna, sdna_struct, initial_data, element_num, 1, dst);
   stream << fmt::to_string(buf);
 }
 
