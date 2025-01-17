@@ -45,21 +45,24 @@ BlenderImageLoader::BlenderImageLoader(Image *b_image,
 bool BlenderImageLoader::load_metadata(const ImageDeviceFeatures & /*features*/,
                                        ImageMetaData &metadata)
 {
-  void *lock;
   bool is_float = false;
-  ImBuf *ibuf = BKE_image_acquire_ibuf(b_image, &b_iuser, &lock);
-  if (ibuf) {
-    is_float = ibuf->float_buffer.data != nullptr;
-    metadata.width = ibuf->x;
-    metadata.height = ibuf->y;
-    metadata.channels = (is_float) ? ibuf->channels : 4;
+
+  {
+    void *lock;
+    ImBuf *ibuf = BKE_image_acquire_ibuf(b_image, &b_iuser, &lock);
+    if (ibuf) {
+      is_float = ibuf->float_buffer.data != nullptr;
+      metadata.width = ibuf->x;
+      metadata.height = ibuf->y;
+      metadata.channels = (is_float) ? ibuf->channels : 4;
+    }
+    else {
+      metadata.width = 0;
+      metadata.height = 0;
+      metadata.channels = 0;
+    }
+    BKE_image_release_ibuf(b_image, ibuf, lock);
   }
-  else {
-    metadata.width = 0;
-    metadata.height = 0;
-    metadata.channels = 0;
-  }
-  BKE_image_release_ibuf(b_image, ibuf, lock);
 
   metadata.depth = 1;
 
