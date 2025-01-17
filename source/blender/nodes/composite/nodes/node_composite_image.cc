@@ -440,7 +440,7 @@ static void node_composit_copy_image(bNodeTree * /*dst_ntree*/,
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class ImageOperation : public NodeOperation {
  public:
@@ -509,7 +509,11 @@ void register_node_type_cmp_image()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_IMAGE, "Image", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeImage", CMP_NODE_IMAGE);
+  ntype.ui_name = "Image";
+  ntype.ui_description = "Input image or movie file";
+  ntype.enum_name_legacy = "IMAGE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.initfunc = file_ns::node_composit_init_image;
   blender::bke::node_type_storage(
       &ntype, "ImageUser", file_ns::node_composit_free_image, file_ns::node_composit_copy_image);
@@ -659,7 +663,7 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
   RNA_string_set(&op_ptr, "scene", scene_name);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class RenderLayerOperation : public NodeOperation {
  public:
@@ -818,13 +822,17 @@ void register_node_type_cmp_rlayers()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_R_LAYERS, "Render Layers", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeRLayers", CMP_NODE_R_LAYERS);
+  ntype.ui_name = "Render Layers";
+  ntype.ui_description = "Input render passes from a scene render";
+  ntype.enum_name_legacy = "R_LAYERS";
+  ntype.nclass = NODE_CLASS_INPUT;
   blender::bke::node_type_socket_templates(&ntype, nullptr, cmp_node_rlayers_out);
   ntype.draw_buttons = file_ns::node_composit_buts_viewlayers;
   ntype.initfunc_api = file_ns::node_composit_init_rlayers;
   ntype.poll = file_ns::node_composit_poll_rlayers;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  ntype.realtime_compositor_unsupported_message = N_(
+  ntype.compositor_unsupported_message = N_(
       "Render passes not supported in the Viewport compositor");
   ntype.flag |= NODE_PREVIEW;
   blender::bke::node_type_storage(&ntype,

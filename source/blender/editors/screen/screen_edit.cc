@@ -15,7 +15,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -560,6 +561,12 @@ static bool screen_area_join_ex(
     ED_area_tag_redraw(side2);
   }
 
+  if (sa1 != CTX_wm_area(C)) {
+    /* Active area has changed so active region could be invalid. It is
+     * safe to set null and let it be set later by mouse position. #131751. */
+    screen->active_region = nullptr;
+  }
+
   BKE_icon_changed(screen->id.icon_id);
   return true;
 }
@@ -854,6 +861,11 @@ void ED_region_exit(bContext *C, ARegion *region)
 
   WM_event_remove_handlers(C, &region->runtime->handlers);
   WM_event_modal_handler_region_replace(win, region, nullptr);
+
+  /* Stop panel animation in this region if there are any. */
+  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+    UI_panel_stop_animation(C, panel);
+  }
 
   if (region->regiontype == RGN_TYPE_TEMPORARY) {
     /* This may be a popup region such as a popover or splash screen.

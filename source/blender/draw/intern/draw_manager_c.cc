@@ -594,7 +594,9 @@ static void duplidata_key_free(void *key)
     drw_batch_cache_generate_requested(dupli_key->ob);
   }
   else {
+    /* Geometry instances shouldn't be rendered with edit mode overlays. */
     Object temp_object = blender::dna::shallow_copy(*dupli_key->ob);
+    temp_object.mode = OB_MODE_OBJECT;
     blender::bke::ObjectRuntime runtime = *dupli_key->ob->runtime;
     temp_object.runtime = &runtime;
 
@@ -2394,6 +2396,8 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   GPU_framebuffer_bind(g_select_buffer.framebuffer_depth_only);
   GPU_framebuffer_clear_depth(g_select_buffer.framebuffer_depth_only, 1.0f);
   /* WORKAROUND: Needed for Select-Next for keeping the same code-flow as Overlay-Next. */
+  /* TODO(pragma37): Some engines retrieve the depth texture before this point (See #132922).
+   * Check with @fclem. */
   BLI_assert(DRW_viewport_texture_list_get()->depth == nullptr);
   DRW_viewport_texture_list_get()->depth = g_select_buffer.texture_depth;
 

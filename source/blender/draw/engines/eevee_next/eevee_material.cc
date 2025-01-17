@@ -9,8 +9,10 @@
 #include "DNA_material_types.h"
 
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
+
 #include "NOD_shader.h"
 
 #include "eevee_instance.hh"
@@ -432,7 +434,7 @@ Material &MaterialModule::material_sync(Object *ob,
 
 ::Material *MaterialModule::material_from_slot(Object *ob, int slot)
 {
-  ::Material *ma = BKE_object_material_get(ob, slot + 1);
+  ::Material *ma = BKE_object_material_get_eval(ob, slot + 1);
   if (ma == nullptr) {
     if (ob->type == OB_VOLUME) {
       return BKE_material_default_volume();

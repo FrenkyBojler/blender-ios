@@ -6,8 +6,6 @@
  * \ingroup spview3d
  */
 
-#include "DNA_gpencil_legacy_types.h"
-
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_gpencil_geom_legacy.h"
@@ -18,7 +16,6 @@
 #include "BKE_screen.hh"
 
 #include "BLI_bounds_types.hh"
-#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
 #include "DEG_depsgraph_query.hh"
@@ -35,6 +32,9 @@
 
 #include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
+
+using blender::float3;
+
 /* -------------------------------------------------------------------- */
 /** \name View All Operator
  *
@@ -68,8 +68,8 @@ static void view3d_object_calc_minmax(Depsgraph *depsgraph,
                                       Scene *scene,
                                       Object *ob_eval,
                                       const bool only_center,
-                                      float min[3],
-                                      float max[3])
+                                      float3 &min,
+                                      float3 &max)
 {
   /* Account for duplis. */
   if (BKE_object_minmax_dupli(depsgraph, scene, ob_eval, min, max, false) == 0) {
@@ -205,7 +205,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op)
   const bool center = RNA_boolean_get(op->ptr, "center");
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
-  float min[3], max[3];
+  float3 min, max;
   bool changed = false;
 
   if (center) {

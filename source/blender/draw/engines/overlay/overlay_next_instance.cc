@@ -50,13 +50,16 @@ void Instance::init()
   state.space_type = state.v3d != nullptr ? SPACE_VIEW3D : eSpace_Type(ctx->space_data->spacetype);
   if (state.v3d != nullptr) {
     state.clear_in_front = (state.v3d->shading.type != OB_SOLID);
-    state.use_in_front = (state.v3d->shading.type <= OB_SOLID) ||
-                         BKE_scene_uses_blender_workbench(state.scene);
+    /* TODO(pragma37): Check with @fclem if this was intentional. */
+    // state.use_in_front = (state.v3d->shading.type <= OB_SOLID) ||
+    //                      BKE_scene_uses_blender_workbench(state.scene);
+    state.use_in_front = true;
     state.is_wireframe_mode = (state.v3d->shading.type == OB_WIRE);
     state.hide_overlays = (state.v3d->flag2 & V3D_HIDE_OVERLAYS) != 0;
     state.xray_enabled = XRAY_ACTIVE(state.v3d);
     state.xray_enabled_and_not_wire = state.xray_enabled && (state.v3d->shading.type > OB_WIRE);
     state.xray_opacity = state.xray_enabled ? XRAY_ALPHA(state.v3d) : 1.0f;
+    state.xray_flag_enabled = SHADING_XRAY_FLAG_ENABLED(state.v3d->shading);
 
     if (!state.hide_overlays) {
       state.overlay = state.v3d->overlay;
@@ -90,6 +93,7 @@ void Instance::init()
     /* During engine initialization phase the `space_image` isn't locked and we are able to
      * retrieve the needed data. During cache_init the image engine locks the `space_image` and
      * makes it impossible to retrieve the data. */
+    state.is_image_valid = bool(space_image->image);
     ED_space_image_get_uv_aspect(space_image, &state.image_uv_aspect.x, &state.image_uv_aspect.y);
     ED_space_image_get_size(space_image, &state.image_size.x, &state.image_size.y);
     ED_space_image_get_aspect(space_image, &state.image_aspect.x, &state.image_aspect.y);
@@ -598,7 +602,7 @@ bool Instance::object_is_selected(const ObjectRef &ob_ref)
 
 bool Instance::object_is_paint_mode(const Object *object)
 {
-  if (object->type == OB_GREASE_PENCIL && (state.object_mode & OB_MODE_ALL_PAINT_GPENCIL)) {
+  if (object->type == OB_GREASE_PENCIL && (object->mode & OB_MODE_ALL_PAINT_GPENCIL)) {
     return true;
   }
   return (object == state.object_active) && (state.object_mode & OB_MODE_ALL_PAINT);
@@ -754,8 +758,8 @@ bool Instance::object_is_rendered_transparent(const Object *object, const State 
 
   if (shading.color_type == V3D_SHADING_MATERIAL_COLOR) {
     if (object->type == OB_MESH) {
-      Mesh *mesh = static_cast<Mesh *>(object->data);
-      for (int i = 0; i < mesh->totcol; i++) {
+      const int materials_num = BKE_object_material_count_eval(object);
+      for (int i = 0; i < materials_num; i++) {
         Material *mat = BKE_object_material_get_eval(const_cast<Object *>(object), i + 1);
         if (mat && mat->a < 1.0f) {
           return true;

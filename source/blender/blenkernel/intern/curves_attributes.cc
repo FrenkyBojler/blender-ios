@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_listbase.h"
+
+#include "DNA_object_types.h"
+
 #include "BKE_curves.hh"
 #include "BKE_deform.hh"
 
@@ -238,12 +242,15 @@ static GeometryAttributeProviders create_attribute_providers_for_curve()
                                                          tag_component_topology_changed,
                                                          AttributeValidator{&handle_type_clamp});
 
+  static float default_nurbs_weight = 1.0f;
   static BuiltinCustomDataLayerProvider nurbs_weight("nurbs_weight",
                                                      AttrDomain::Point,
                                                      CD_PROP_FLOAT,
                                                      BuiltinAttributeProvider::Deletable,
                                                      point_access,
-                                                     tag_component_positions_changed);
+                                                     tag_component_positions_changed,
+                                                     {},
+                                                     &default_nurbs_weight);
 
   static const auto nurbs_order_clamp = mf::build::SI1_SO<int8_t, int8_t>(
       "NURBS Order Validate",
