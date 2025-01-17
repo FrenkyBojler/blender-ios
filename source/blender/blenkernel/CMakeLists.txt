@@ -453,6 +453,7 @@ set(SRC
   BKE_mesh_runtime.hh
   BKE_mesh_sample.hh
   BKE_mesh_tangent.hh
+  BKE_mesh_topology_state.hh
   BKE_mesh_types.hh
   BKE_mesh_wrapper.hh
   BKE_modifier.hh

@@ -34,7 +34,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BLI_array_state.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -59,6 +58,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_topology_state.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
@@ -910,72 +910,6 @@ Mesh *BKE_modifier_modify_mesh(ModifierData *md, const ModifierEvalContext *ctx,
 
   return mti->modify_mesh(md, ctx, mesh);
 }
-
-template<typename T>
-blender::ArrayState<T> attribute_reader_to_array_state(
-    const blender::bke::AttributeReader<T> &attr)
-{
-  if (!attr) {
-    return {};
-  }
-  return {attr.varray, attr.sharing_info};
-}
-
-template<typename T>
-bool attribute_reader_matches_array_state(const blender::ArrayState<T> &array_state,
-                                          const blender::bke::AttributeReader<T> &attr)
-{
-  if (!attr) {
-    return array_state.is_empty();
-  }
-  return array_state.same_as(attr.varray, attr.sharing_info);
-}
-
-class MeshTopologyState {
- private:
-  blender::ArrayState<blender::int2> edge_verts_;
-  blender::ArrayState<int> corner_verts_;
-  blender::ArrayState<int> corner_edges_;
-  blender::ArrayState<int> face_offset_indices_;
-
- public:
-  MeshTopologyState(const Mesh &mesh)
-  {
-    const blender::bke::AttributeAccessor attributes = mesh.attributes();
-    edge_verts_ = attribute_reader_to_array_state(attributes.lookup<blender::int2>(".edge_verts"));
-    corner_verts_ = attribute_reader_to_array_state(attributes.lookup<int>(".corner_vert"));
-    corner_edges_ = attribute_reader_to_array_state(attributes.lookup<int>(".corner_edge"));
-    face_offset_indices_ = blender::ArrayState<int>(
-        blender::VArray<int>::ForSpan(mesh.face_offsets()),
-        mesh.runtime->face_offsets_sharing_info);
-  }
-
-  bool same_topology_as(const Mesh &mesh) const
-  {
-    const blender::bke::AttributeAccessor attributes = mesh.attributes();
-    if (!attribute_reader_matches_array_state(edge_verts_,
-                                              attributes.lookup<blender::int2>(".edge_verts")))
-    {
-      return false;
-    }
-    if (!attribute_reader_matches_array_state(corner_verts_,
-                                              attributes.lookup<int>(".corner_vert")))
-    {
-      return false;
-    }
-    if (!attribute_reader_matches_array_state(corner_edges_,
-                                              attributes.lookup<int>(".corner_edge")))
-    {
-      return false;
-    }
-    if (!face_offset_indices_.same_as(blender::VArray<int>::ForSpan(mesh.face_offsets()),
-                                      mesh.runtime->face_offsets_sharing_info))
-    {
-      return false;
-    }
-    return true;
-  }
-};
 
 bool BKE_modifier_deform_verts(ModifierData *md,
                                const ModifierEvalContext *ctx,
