@@ -18,8 +18,9 @@
 #include "DNA_object_types.h"   /* for OB_DATA_SUPPORT_ID */
 #include "DNA_screen_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_color.h"
+#include "BLI_rect.h"
+#include "BLI_string.h"
 
 #include "BLF_api.hh"
 #include "BLT_lang.hh"
@@ -33,7 +34,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_remap.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
@@ -1240,7 +1241,7 @@ bool UI_context_copy_to_selected_list(bContext *C,
       lb = CTX_data_collection_get(C, "selected_nodes");
       lb.remove_if([&](const PointerRNA &link) {
         bNode *node_data = static_cast<bNode *>(link.data);
-        if (node_data->type != node->type) {
+        if (node_data->type_legacy != node->type_legacy) {
           return true;
         }
         return false;
