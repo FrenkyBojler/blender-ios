@@ -77,37 +77,6 @@ const bUserAssetLibrary *library_ref_to_user_library(const AssetLibraryReference
       BLI_findlink(&U.asset_libraries, library_ref.custom_library_index));
 }
 
-const bUserAssetLibrary *get_asset_library_from_prop(PointerRNA &ptr)
-{
-  const int enum_value = RNA_enum_get(&ptr, "asset_library_reference");
-  const AssetLibraryReference lib_ref = asset::library_reference_from_enum_value(enum_value);
-  return BKE_preferences_asset_library_find_index(&U, lib_ref.custom_library_index);
-}
-
-void visit_library_catalogs_catalog_for_search(
-    const Main &bmain,
-    const AssetLibraryReference lib,
-    const StringRef edit_text,
-    const FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
-{
-  const asset_system::AssetLibrary *library = AS_asset_library_load(&bmain, lib);
-  if (!library) {
-    return;
-  }
-
-  if (!edit_text.is_empty()) {
-    const asset_system::AssetCatalogPath edit_path = edit_text;
-    if (!library->catalog_service().find_catalog_by_path(edit_path)) {
-      visit_fn(StringPropertySearchVisitParams{edit_path.str(), std::nullopt, ICON_ADD});
-    }
-  }
-
-  const asset_system::AssetCatalogTree &full_tree = library->catalog_service().catalog_tree();
-  full_tree.foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
-    visit_fn(StringPropertySearchVisitParams{item.catalog_path().str(), std::nullopt});
-  });
-}
-
 void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref)
 {
   asset::list::clear(&library_ref, C);
@@ -119,23 +88,6 @@ void refresh_asset_library(const bContext *C, const AssetLibraryReference &libra
 void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library)
 {
   refresh_asset_library(C, user_library_to_library_ref(user_library));
-}
-
-void show_catalog_in_asset_shelf(const bContext &C, const StringRefNull catalog_path)
-{
-  /* Enable catalog in all visible asset shelves. */
-  wmWindowManager *wm = CTX_wm_manager(&C);
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    const bScreen *screen = WM_window_get_active_screen(win);
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      const AssetShelf *shelf = asset::shelf::active_shelf_from_area(area);
-      if (shelf && BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
-                       &U, shelf->idname, catalog_path.c_str()))
-      {
-        U.runtime.is_dirty = true;
-      }
-    }
-  }
 }
 
 }  // namespace blender::ed::asset

@@ -16,10 +16,7 @@ struct bUserAssetLibrary;
 struct bContext;
 struct AssetLibraryReference;
 struct EnumPropertyItem;
-struct PointerRNA;
-struct PropertyRNA;
 struct StringPropertySearchVisitParams;
-struct Main;
 
 namespace blender::asset_system {
 class AssetCatalog;
@@ -59,36 +56,16 @@ blender::asset_system::AssetCatalog &library_ensure_catalogs_in_path(
     blender::asset_system::AssetLibrary &library,
     const blender::asset_system::AssetCatalogPath &path);
 
-AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library);
-
 /**
  * May return a nullptr if the given AssetLibraryReference is not a user library.
  */
 const bUserAssetLibrary *library_ref_to_user_library(const AssetLibraryReference &library_ref);
-
-/**
- * The PointerRNA is expected to have an enum called "asset_library_reference".
- */
-const bUserAssetLibrary *get_asset_library_from_prop(PointerRNA &ptr);
-
-/**
- * For each catalog of the given bUserAssetLibrary call `visit_fn`.
- */
-void visit_library_catalogs_catalog_for_search(
-    const Main &bmain,
-    const AssetLibraryReference lib,
-    const StringRef edit_text,
-    const FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
+AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library);
 
 /**
  * Call after changes to an asset library have been made to reflect the changes in the UI.
  */
 void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref);
 void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library);
-
-/**
- *
- */
-void show_catalog_in_asset_shelf(const bContext &C, const StringRefNull catalog_path);
 
 }  // namespace blender::ed::asset

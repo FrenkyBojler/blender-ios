@@ -29,6 +29,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "ED_asset.hh"
 #include "ED_asset_handle.hh"
 #include "ED_asset_library.hh"
 #include "ED_asset_list.hh"
@@ -37,7 +38,6 @@
 #include "ED_asset_shelf.hh"
 
 #include "UI_interface_icons.hh"
-#include "UI_resources.hh"
 
 #include "BLT_translation.hh"
 
@@ -143,14 +143,13 @@ static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
     STRNCPY(name, brush->id.name + 2);
   }
 
-  const bUserAssetLibrary *user_library = blender::ed::asset::get_asset_library_from_prop(
-      *op->ptr);
+  const bUserAssetLibrary *user_library = asset::get_asset_library_from_opptr(*op->ptr);
   if (!user_library) {
     return OPERATOR_CANCELLED;
   }
 
   asset_system::AssetLibrary *library = AS_asset_library_load(
-      bmain, blender::ed::asset::user_library_to_library_ref(*user_library));
+      bmain, asset::user_library_to_library_ref(*user_library));
   if (!library) {
     BKE_report(op->reports, RPT_ERROR, "Failed to load asset library");
     return OPERATOR_CANCELLED;
@@ -169,8 +168,8 @@ static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
 
   AssetMetaData &meta_data = *brush->id.asset_data;
   if (catalog_path[0]) {
-    const asset_system::AssetCatalog &catalog =
-        blender::ed::asset::library_ensure_catalogs_in_path(*library, catalog_path);
+    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
+        *library, catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
@@ -182,7 +181,7 @@ static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
   }
 
   library->catalog_service().write_to_disk(*final_full_asset_filepath);
-  blender::ed::asset::show_catalog_in_asset_shelf(*C, catalog_path);
+  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
 
   brush = reinterpret_cast<Brush *>(
       bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, brush_asset_reference));
@@ -193,7 +192,7 @@ static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_WARNING, "Unable to activate just-saved brush asset");
   }
 
-  blender::ed::asset::refresh_asset_library(C, *user_library);
+  asset::refresh_asset_library(C, *user_library);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
 
@@ -235,7 +234,7 @@ static int brush_asset_save_as_invoke(bContext *C, wmOperator *op, const wmEvent
                    asset::library_reference_to_enum_value(&*library_ref));
     }
     else {
-      const AssetLibraryReference first_library = blender::ed::asset::user_library_to_library_ref(
+      const AssetLibraryReference first_library = asset::user_library_to_library_ref(
           *static_cast<const bUserAssetLibrary *>(U.asset_libraries.first));
       RNA_enum_set(op->ptr,
                    "asset_library_reference",
@@ -277,14 +276,9 @@ static void visit_library_prop_catalogs_catalog_for_search_fn(
     FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
   /* NOTE: Using the all library would also be a valid choice. */
-  if (const bUserAssetLibrary *user_library = blender::ed::asset::get_asset_library_from_prop(
-          *ptr))
-  {
-    blender::ed::asset::visit_library_catalogs_catalog_for_search(
-        *CTX_data_main(C),
-        blender::ed::asset::user_library_to_library_ref(*user_library),
-        edit_text,
-        visit_fn);
+  if (const bUserAssetLibrary *user_library = asset::get_asset_library_from_opptr(*ptr)) {
+    asset::visit_library_catalogs_catalog_for_search(
+        *CTX_data_main(C), asset::user_library_to_library_ref(*user_library), edit_text, visit_fn);
   }
 }
 
@@ -339,8 +333,8 @@ static int brush_asset_edit_metadata_exec(bContext *C, wmOperator *op)
   meta_data.description = RNA_string_get_alloc(op->ptr, "description", nullptr, 0, nullptr);
 
   if (catalog_path[0]) {
-    const asset_system::AssetCatalog &catalog =
-        blender::ed::asset::library_ensure_catalogs_in_path(*library, catalog_path);
+    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
+        *library, catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
@@ -359,7 +353,7 @@ static int brush_asset_edit_metadata_exec(bContext *C, wmOperator *op)
 
   library->catalog_service().write_to_disk(file_path);
 
-  blender::ed::asset::refresh_asset_library(C, library_ref);
+  asset::refresh_asset_library(C, library_ref);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
@@ -410,7 +404,7 @@ static void visit_active_library_catalogs_catalog_for_search_fn(
   const asset_system::AssetLibrary &library = asset->owner_asset_library();
 
   /* NOTE: Using the all library would also be a valid choice. */
-  blender::ed::asset::visit_library_catalogs_catalog_for_search(
+  asset::visit_library_catalogs_catalog_for_search(
       *CTX_data_main(C), *library_to_library_ref(library), edit_text, visit_fn);
 }
 
@@ -431,9 +425,9 @@ static bool brush_asset_edit_metadata_poll(bContext *C)
     return false;
   }
   const asset_system::AssetRepresentation *asset = asset::find_asset_from_weak_ref(
-      *C, *brush_weak_ref, nullptr);
+      *C, *brush_weak_ref, CTX_wm_reports(C));
   if (!asset) {
-    BLI_assert_unreachable();
+    /* May happen if library loading hasn't finished. */
     return false;
   }
   const std::optional<AssetLibraryReference> library_ref = library_to_library_ref(
@@ -498,7 +492,7 @@ static int brush_asset_load_preview_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  blender::ed::asset::refresh_asset_library(C, library_ref);
+  asset::refresh_asset_library(C, library_ref);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
@@ -566,7 +560,7 @@ static int brush_asset_delete_exec(bContext *C, wmOperator *op)
   BKE_paint_brush_set_default(bmain, paint);
 
   if (library) {
-    blender::ed::asset::refresh_asset_library(C, *library);
+    asset::refresh_asset_library(C, *library);
   }
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
@@ -645,7 +639,7 @@ static int brush_asset_save_exec(bContext *C, wmOperator *op)
   bke::asset_edit_id_save(*bmain, brush->id, *op->reports);
   brush->has_unsaved_changes = false;
 
-  blender::ed::asset::refresh_asset_library(C, *user_library);
+  asset::refresh_asset_library(C, *user_library);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
 
