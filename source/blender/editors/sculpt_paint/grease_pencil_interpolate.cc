@@ -1414,7 +1414,7 @@ static void grease_pencil_interpolate_sequence_ui(bContext *C, wmOperator *op)
 
   row = uiLayoutRow(layout, true);
   uiItemR(row, op->ptr, "exclude_breakdowns", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(row, op->ptr, "use_selection", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(row, op->ptr, "use_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = uiLayoutRow(layout, true);
   uiItemR(row, op->ptr, "flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
