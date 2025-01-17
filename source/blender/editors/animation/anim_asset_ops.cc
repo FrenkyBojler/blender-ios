@@ -17,6 +17,7 @@
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
+#include "ED_asset.hh"
 #include "ED_asset_library.hh"
 #include "ED_asset_list.hh"
 #include "ED_asset_mark_clear.hh"
@@ -233,7 +234,7 @@ static int create_pose_asset_local(bContext *C,
   }
 
   ensure_asset_ui_visible(*C);
-  blender::ed::asset::show_catalog_in_asset_shelf(*C, catalog_path);
+  blender::ed::asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
 
   blender::ed::asset::refresh_asset_library(C, lib_ref);
 
@@ -290,7 +291,7 @@ static int create_pose_asset_user_library(bContext *C,
 
   library->catalog_service().write_to_disk(*final_full_asset_filepath);
   ensure_asset_ui_visible(*C);
-  blender::ed::asset::show_catalog_in_asset_shelf(*C, catalog_path);
+  blender::ed::asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
 
   BKE_id_free(bmain, &pose_action.id);
 
