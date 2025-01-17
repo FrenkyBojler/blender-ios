@@ -269,77 +269,94 @@ static void rna_WorkSpace_show_properties_tool_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_TOOL, value);
 }
+
 static void rna_WorkSpace_show_properties_scene_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_SCENE, value);
 }
+
 static void rna_WorkSpace_show_properties_render_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_RENDER, value);
 }
+
 static void rna_WorkSpace_show_properties_output_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_OUTPUT, value);
 }
+
 static void rna_WorkSpace_show_properties_view_layer_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(
       reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_VIEW_LAYER, value);
 }
+
 static void rna_WorkSpace_show_properties_world_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_WORLD, value);
 }
+
 static void rna_WorkSpace_show_properties_collection_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(
       reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_COLLECTION, value);
 }
+
 static void rna_WorkSpace_show_properties_object_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_OBJECT, value);
 }
+
 static void rna_WorkSpace_show_properties_constraints_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(
       reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_CONSTRAINT, value);
 }
+
 static void rna_WorkSpace_show_properties_modifiers_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(
       reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_MODIFIER, value);
 }
+
 static void rna_WorkSpace_show_properties_data_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_DATA, value);
 }
+
 static void rna_WorkSpace_show_properties_bone_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_BONE, value);
 }
+
 static void rna_WorkSpace_show_properties_bone_constraints_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(
       reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_BONE_CONSTRAINT, value);
 }
+
 static void rna_WorkSpace_show_properties_material_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(
       reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_MATERIAL, value);
 }
+
 static void rna_WorkSpace_show_properties_texture_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_TEXTURE, value);
 }
+
 static void rna_WorkSpace_show_properties_particles_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(
       reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_PARTICLE, value);
 }
+
 static void rna_WorkSpace_show_properties_physics_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(reinterpret_cast<WorkSpace *>(ptr->owner_id), BCONTEXT_PHYSICS, value);
 }
+
 static void rna_WorkSpace_show_properties_effects_set(PointerRNA *ptr, bool value)
 {
   set_filter_ensure_any_set(
