@@ -8,18 +8,13 @@
 
 #pragma once
 
-#include "BLI_function_ref.hh"
-#include "BLI_string_ref.hh"
 #include "DNA_asset_types.h"
 
 struct bUserAssetLibrary;
 struct bContext;
 struct AssetLibraryReference;
 struct EnumPropertyItem;
-struct PointerRNA;
-struct PropertyRNA;
 struct StringPropertySearchVisitParams;
-struct Main;
 
 namespace blender::asset_system {
 class AssetCatalog;
