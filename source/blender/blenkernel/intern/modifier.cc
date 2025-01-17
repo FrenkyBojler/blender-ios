@@ -926,7 +926,7 @@ bool BKE_modifier_deform_verts(ModifierData *md,
     }
     return true;
   }
-  /* Try to emulate #deform_verts by deforming a mesh or pointcloud. */
+  /* Try to emulate #deform_verts by deforming a mesh. */
   if (mti->modify_geometry_set) {
     /* Prepare mesh with vertices at the given positions. */
     GeometrySet geometry;
