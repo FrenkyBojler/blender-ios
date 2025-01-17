@@ -18,6 +18,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <fmt/format.h>
+
 #include "MEM_guardedalloc.h" /* for MEM_freeN MEM_mallocN MEM_callocN */
 
 #include "BLI_endian_switch.h"
@@ -2066,13 +2068,7 @@ void DNA_struct_debug_print(const SDNA &sdna,
 
   const char *struct_name = sdna.types[sdna_struct.type_index];
   if (indent == 0) {
-    if (element_num == 1) {
-      stream << indentation << "<" << struct_name << "> " << address << "\n";
-    }
-    else {
-      stream << indentation << "<" << struct_name << "> " << element_num << "x " << address
-             << "\n";
-    }
+    stream << fmt::format("{}<{}> {}x at {}\n", indentation, struct_name, element_num, address);
   }
   for (const int member_i : IndexRange(sdna_struct.members_num)) {
     const SDNA_StructMember &member = sdna_struct.members[member_i];
