@@ -15,6 +15,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <optional>
 
 /* Allow using deprecated functionality for .blend file I/O. */
@@ -83,7 +84,7 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
-#include "NOD_common.h"
+#include "NOD_common.hh"
 #include "NOD_composite.hh"
 #include "NOD_geo_bake.hh"
 #include "NOD_geo_capture_attribute.hh"
@@ -2683,7 +2684,7 @@ void node_unique_id(bNodeTree *ntree, bNode *node)
   BLI_assert(node->runtime->index_in_tree == ntree->runtime->nodes_by_id.index_of(node));
 }
 
-bNode *node_add_node(const bContext *C, bNodeTree *ntree, const StringRefNull idname)
+bNode *node_add_node(const bContext *C, bNodeTree *ntree, const StringRef idname)
 {
   bNode *node = MEM_cnew<bNode>(__func__);
   node->runtime = MEM_new<bNodeRuntime>(__func__);
@@ -3219,8 +3220,8 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
                                         std::optional<Library *> owner_library,
                                         ID *owner_id,
                                         const bool is_embedded,
-                                        const StringRefNull name,
-                                        const StringRefNull idname)
+                                        const StringRef name,
+                                        const StringRef idname)
 {
   /* trees are created as local trees for compositor, material or texture nodes,
    * node groups and other tree types are created as library data.
@@ -3232,7 +3233,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
   BLI_assert_msg(!owner_library || !owner_id,
                  "Embedded NTrees should never have a defined owner library here");
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(
-      BKE_libblock_alloc_in_lib(bmain, owner_library, ID_NT, name.c_str(), flag));
+      BKE_libblock_alloc_in_lib(bmain, owner_library, ID_NT, std::string(name).c_str(), flag));
   BKE_libblock_init_empty(&ntree->id);
   if (is_embedded) {
     BLI_assert(owner_id != nullptr);
@@ -3252,7 +3253,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
   return ntree;
 }
 
-bNodeTree *node_tree_add_tree(Main *bmain, const StringRefNull name, const StringRefNull idname)
+bNodeTree *node_tree_add_tree(Main *bmain, const StringRef name, const StringRef idname)
 {
   return node_tree_add_tree_do(bmain, std::nullopt, nullptr, false, name, idname);
 }
@@ -3764,7 +3765,7 @@ void node_tree_node_flag_set(const bNodeTree *ntree, const int flag, const bool 
   }
 }
 
-bNodeTree *node_tree_localize(bNodeTree *ntree, ID *new_owner_id)
+bNodeTree *node_tree_localize(bNodeTree *ntree, std::optional<ID *> new_owner_id)
 {
   if (ntree == nullptr) {
     return nullptr;
@@ -4338,10 +4339,31 @@ static bool node_poll_instance_default(const bNode *node,
   return node->typeinfo->poll(node->typeinfo, ntree, r_disabled_hint);
 }
 
-void node_type_base(bNodeType *ntype, std::string idname, const int type, const short nclass)
+static int16_t get_next_auto_legacy_type()
+{
+  static std::atomic<int> next_legacy_type = []() {
+    /* Randomize the value a bit to avoid accidentally depending on the generated legacy type to be
+     * stable across Blender sessions. */
+    RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
+    return NODE_LEGACY_TYPE_GENERATION_START + rng.get_int32(100);
+  }();
+  const int new_type = next_legacy_type.fetch_add(1);
+  BLI_assert(new_type <= std::numeric_limits<int16_t>::max());
+  return new_type;
+}
+
+void node_type_base(bNodeType *ntype, std::string idname, std::optional<int16_t> legacy_type)
 {
   ntype->idname = std::move(idname);
-  if (!ELEM(type, NODE_CUSTOM, NODE_UNDEFINED)) {
+
+  if (!legacy_type.has_value()) {
+    /* Still auto-generate a legacy type for this node type if none was specified. This is
+     * necessary because some code checks if two nodes are the same type by comparing their legacy
+     * types. The exact value does not matter, but it must be unique. */
+    legacy_type = get_next_auto_legacy_type();
+  }
+
+  if (!ELEM(*legacy_type, NODE_CUSTOM, NODE_UNDEFINED)) {
     StructRNA *srna = RNA_struct_find(ntype->idname.c_str());
     BLI_assert(srna != nullptr);
     ntype->rna_ext.srna = srna;
@@ -4351,8 +4373,8 @@ void node_type_base(bNodeType *ntype, std::string idname, const int type, const 
   /* make sure we have a valid type (everything registered) */
   BLI_assert(ntype->idname[0] != '\0');
 
-  ntype->type_legacy = type;
-  ntype->nclass = nclass;
+  ntype->type_legacy = *legacy_type;
+  ntype->nclass = NODE_CLASS_CONVERTER;
 
   node_type_base_defaults(ntype);
 

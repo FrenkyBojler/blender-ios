@@ -30,11 +30,15 @@ def _space_view_types(st):
     )
 
 
-def selected_sequences_len(context):
-    selected_sequences = getattr(context, "selected_sequences", None)
-    if selected_sequences is None:
-        return 0
-    return len(selected_sequences)
+def selected_strips_count(context):
+    selected_strips = getattr(context, "selected_sequences", None)
+    if selected_strips is None:
+        return 0, 0
+
+    total_count = len(selected_strips)
+    nonsound_count = sum(1 for strip in selected_strips if strip.type != 'SOUND')
+
+    return total_count, nonsound_count
 
 
 def draw_color_balance(layout, color_balance):
@@ -99,7 +103,7 @@ def draw_color_balance(layout, color_balance):
         box = col.box()
         split = box.split(factor=0.35)
         col = split.column(align=True)
-        col.label(text="Power")
+        col.label(text="Power", text_ctxt=i18n_contexts.id_movieclip)
         col.separator()
         col.separator()
         col.prop(color_balance, "power", text="")
@@ -424,12 +428,13 @@ class SEQUENCER_MT_proxy(Menu):
 
     def draw(self, context):
         layout = self.layout
-
         st = context.space_data
+        _, nonsound = selected_strips_count(context)
+
         col = layout.column()
         col.operator("sequencer.enable_proxies", text="Setup")
         col.operator("sequencer.rebuild_proxy", text="Rebuild")
-        col.enabled = selected_sequences_len(context) >= 1
+        col.enabled = nonsound >= 1
         layout.prop(st, "proxy_render_size", text="")
 
 
@@ -478,8 +483,10 @@ class SEQUENCER_MT_view(Menu):
         if is_sequencer_view:
             layout.operator_context = 'INVOKE_REGION_WIN'
             layout.operator("sequencer.view_all")
-            layout.operator("anim.scene_range_frame",
-                            text="Frame Preview Range" if context.scene.use_preview_range else "Frame Scene Range")
+            layout.operator(
+                "anim.scene_range_frame",
+                text="Frame Preview Range" if context.scene.use_preview_range else "Frame Scene Range",
+            )
             layout.operator("sequencer.view_frame")
             layout.prop(st, "use_clamp_view")
 
@@ -740,13 +747,16 @@ class SEQUENCER_MT_add(Menu):
         layout.operator_context = 'INVOKE_DEFAULT'
         layout.menu("SEQUENCER_MT_add_effect", icon='SHADERFX')
 
+        total, nonsound = selected_strips_count(context)
+
         col = layout.column()
         col.menu("SEQUENCER_MT_add_transitions", icon='ARROW_LEFTRIGHT')
-        col.enabled = selected_sequences_len(context) >= 2
+        # Enable for video transitions or sound crossfade.
+        col.enabled = nonsound == 2 or (nonsound == 0 and total == 2)
 
         col = layout.column()
         col.operator_menu_enum("sequencer.fades_add", "type", text="Fade", icon='IPO_EASE_IN_OUT')
-        col.enabled = selected_sequences_len(context) >= 1
+        col.enabled = total >= 1
 
 
 class SEQUENCER_MT_add_scene(Menu):
@@ -790,22 +800,24 @@ class SEQUENCER_MT_add_transitions(Menu):
     bl_label = "Transition"
 
     def draw(self, context):
+        total, nonsound = selected_strips_count(context)
 
         layout = self.layout
 
         col = layout.column()
-
         col.operator("sequencer.crossfade_sounds", text="Sound Crossfade")
+        col.enabled = (nonsound == 0 and total == 2)
 
-        col.separator()
+        layout.separator()
 
+        col = layout.column()
         col.operator("sequencer.effect_strip_add", text="Cross").type = 'CROSS'
         col.operator("sequencer.effect_strip_add", text="Gamma Cross").type = 'GAMMA_CROSS'
 
         col.separator()
 
         col.operator("sequencer.effect_strip_add", text="Wipe").type = 'WIPE'
-        col.enabled = selected_sequences_len(context) >= 2
+        col.enabled = nonsound == 2
 
 
 class SEQUENCER_MT_add_effect(Menu):
@@ -815,25 +827,7 @@ class SEQUENCER_MT_add_effect(Menu):
 
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
-
-        col = layout.column()
-        col.operator("sequencer.effect_strip_add", text="Add",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'ADD'
-        col.operator("sequencer.effect_strip_add", text="Subtract",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'SUBTRACT'
-        col.operator("sequencer.effect_strip_add", text="Multiply",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'MULTIPLY'
-        col.operator("sequencer.effect_strip_add", text="Over Drop",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'OVER_DROP'
-        col.operator("sequencer.effect_strip_add", text="Alpha Over",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'ALPHA_OVER'
-        col.operator("sequencer.effect_strip_add", text="Alpha Under",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'ALPHA_UNDER'
-        col.operator("sequencer.effect_strip_add", text="Color Mix",
-                     text_ctxt=i18n_contexts.id_sequence).type = 'COLORMIX'
-        col.enabled = selected_sequences_len(context) >= 2
-
-        layout.separator()
+        _, nonsound = selected_strips_count(context)
 
         layout.operator("sequencer.effect_strip_add", text="Multicam Selector").type = 'MULTICAM'
 
@@ -847,7 +841,47 @@ class SEQUENCER_MT_add_effect(Menu):
 
         col.operator("sequencer.effect_strip_add", text="Glow").type = 'GLOW'
         col.operator("sequencer.effect_strip_add", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
-        col.enabled = selected_sequences_len(context) != 0
+        col.enabled = nonsound == 1
+
+        layout.separator()
+
+        col = layout.column()
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Add",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'ADD'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Subtract",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'SUBTRACT'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Multiply",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'MULTIPLY'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Over Drop",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'OVER_DROP'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Alpha Over",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'ALPHA_OVER'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Alpha Under",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'ALPHA_UNDER'
+        col.operator(
+            "sequencer.effect_strip_add",
+            text="Color Mix",
+            text_ctxt=i18n_contexts.id_sequence,
+        ).type = 'COLORMIX'
+        col.enabled = nonsound == 2
 
 
 class SEQUENCER_MT_strip_transform(Menu):
@@ -1110,7 +1144,7 @@ class SEQUENCER_MT_image(Menu):
         layout = self.layout
         st = context.space_data
 
-        if st.view_type == {'PREVIEW', 'SEQUENCER_PREVIEW'}:
+        if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.menu("SEQUENCER_MT_image_transform")
 
         layout.menu("SEQUENCER_MT_image_clear")
@@ -1136,13 +1170,25 @@ class SEQUENCER_MT_image_clear(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("sequencer.strip_transform_clear", text="Position",
-                        text_ctxt=i18n_contexts.default).property = 'POSITION'
-        layout.operator("sequencer.strip_transform_clear", text="Scale",
-                        text_ctxt=i18n_contexts.default).property = 'SCALE'
-        layout.operator("sequencer.strip_transform_clear", text="Rotation",
-                        text_ctxt=i18n_contexts.default).property = 'ROTATION'
-        layout.operator("sequencer.strip_transform_clear", text="All Transforms").property = 'ALL'
+        layout.operator(
+            "sequencer.strip_transform_clear",
+            text="Position",
+            text_ctxt=i18n_contexts.default,
+        ).property = 'POSITION'
+        layout.operator(
+            "sequencer.strip_transform_clear",
+            text="Scale",
+            text_ctxt=i18n_contexts.default,
+        ).property = 'SCALE'
+        layout.operator(
+            "sequencer.strip_transform_clear",
+            text="Rotation",
+            text_ctxt=i18n_contexts.default,
+        ).property = 'ROTATION'
+        layout.operator(
+            "sequencer.strip_transform_clear",
+            text="All Transforms",
+        ).property = 'ALL'
 
 
 class SEQUENCER_MT_image_apply(Menu):
@@ -1212,23 +1258,22 @@ class SEQUENCER_MT_context_menu(Menu):
 
         if strip:
             strip_type = strip.type
-            selected_sequences_count = selected_sequences_len(context)
+            total, nonsound = selected_strips_count(context)
 
             layout.separator()
             layout.operator_menu_enum("sequencer.strip_modifier_add", "type", text="Add Modifier")
             layout.operator("sequencer.strip_modifier_copy", text="Copy Modifiers to Selection")
 
-            if strip_type != 'SOUND':
-                if selected_sequences_count >= 2:
+            if total == 2:
+                if nonsound == 2:
                     layout.separator()
                     col = layout.column()
                     col.menu("SEQUENCER_MT_add_transitions", text="Add Transition")
-            else:
-                if selected_sequences_count >= 2:
+                elif nonsound == 0:
                     layout.separator()
                     layout.operator("sequencer.crossfade_sounds", text="Crossfade Sounds")
 
-            if selected_sequences_count >= 1:
+            if total >= 1:
                 col = layout.column()
                 col.operator_menu_enum("sequencer.fades_add", "type", text="Fade")
                 layout.operator("sequencer.fades_clear", text="Clear Fade")
@@ -1776,6 +1821,7 @@ class SEQUENCER_PT_effect_text_shadow(SequencerButtonsPanel, Panel):
 
 class SEQUENCER_PT_effect_text_box(SequencerButtonsPanel, Panel):
     bl_label = "Box"
+    bl_translation_context = i18n_contexts.id_sequence
     bl_options = {"DEFAULT_CLOSED"}
     bl_category = "Strip"
     bl_parent_id = "SEQUENCER_PT_effect_text_style"
@@ -2111,7 +2157,7 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
         frame_current = scene.frame_current
         strip = context.active_sequence_strip
 
-        is_effect = isinstance(strip, bpy.types.EffectSequence)
+        is_effect = isinstance(strip, bpy.types.EffectStrip)
 
         # Get once.
         frame_start = strip.frame_start
