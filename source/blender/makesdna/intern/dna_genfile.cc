@@ -2054,13 +2054,13 @@ void DNA_sdna_alias_data_ensure_structs_map(SDNA *sdna)
 #endif
 }
 
-void DNA_struct_debug_print(const SDNA &sdna,
-                            const SDNA_Struct &sdna_struct,
-                            const void *initial_data,
-                            const void *address,
-                            const int64_t element_num,
-                            const int indent,
-                            std::ostream &stream)
+static void print_full_struct_recursive(const SDNA &sdna,
+                                        const SDNA_Struct &sdna_struct,
+                                        const void *initial_data,
+                                        const void *address,
+                                        const int64_t element_num,
+                                        const int indent,
+                                        std::ostream &stream)
 {
   using namespace blender;
   std::string indentation = StringRef("                              ").substr(0, indent);
@@ -2084,7 +2084,7 @@ void DNA_struct_debug_print(const SDNA &sdna,
         stream << "\n";
         const int substruct_i = DNA_struct_find_index_without_alias(&sdna, member_type_name);
         const SDNA_Struct &sub_sdna_struct = *sdna.structs[substruct_i];
-        DNA_struct_debug_print(
+        print_full_struct_recursive(
             sdna, sub_sdna_struct, data, nullptr, array_elem_num, indent + 2, stream);
         break;
       }
@@ -2171,6 +2171,16 @@ void DNA_struct_debug_print(const SDNA &sdna,
     const int member_size = get_member_size_in_bytes(&sdna, &member);
     data = POINTER_OFFSET(data, member_size);
   }
+}
+
+void DNA_struct_debug_print(const SDNA &sdna,
+                            const SDNA_Struct &sdna_struct,
+                            const void *initial_data,
+                            const void *address,
+                            const int64_t element_num,
+                            std::ostream &stream)
+{
+  print_full_struct_recursive(sdna, sdna_struct, initial_data, address, element_num, 0, stream);
 }
 
 /** \} */

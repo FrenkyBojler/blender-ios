@@ -771,7 +771,7 @@ static void writestruct_at_address_nr(WriteData *wd,
 
   if (wd->debug_dst) {
     DNA_struct_debug_print(
-        *wd->sdna, *wd->sdna->structs[struct_nr], data, adr, nr, 0, *wd->debug_dst);
+        *wd->sdna, *wd->sdna->structs[struct_nr], data, adr, nr, *wd->debug_dst);
   }
 
   write_bhead(wd, bh);
