@@ -181,7 +181,7 @@ static int brush_asset_save_as_exec(bContext *C, wmOperator *op)
   }
 
   library->catalog_service().write_to_disk(*final_full_asset_filepath);
-  asset::show_catalog_in_asset_shelf(*C, catalog_path);
+  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
 
   brush = reinterpret_cast<Brush *>(
       bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, brush_asset_reference));
