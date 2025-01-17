@@ -155,8 +155,9 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
                                        info.frame_number,
                                        info.multi_frame_falloff,
                                        info.drawing};
+    // TODO: Rewrite to use automasking api!
     IndexMaskMemory selection_memory;
-    IndexMask selection = point_selection_mask(params, use_selection_masking, true, selection_memory);
+    IndexMask selection = point_selection_mask(params, use_selection_masking, selection_memory);
 
     Array<float2> view_positions = calculate_view_positions(params, selection);
 

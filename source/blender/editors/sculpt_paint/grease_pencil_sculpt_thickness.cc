@@ -43,34 +43,35 @@ void ThicknessOperation::on_stroke_extended(const bContext &C, const InputSample
   const Brush &brush = *BKE_paint_brush(&paint);
   const bool invert = this->is_inverted(brush);
 
-  const bool use_selection_masking = GPENCIL_ANY_SCULPT_MASK(
-      eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
+  // const bool use_selection_masking = GPENCIL_ANY_SCULPT_MASK(
+  //     eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
 
-  this->foreach_editable_drawing(C, [&](const GreasePencilStrokeParams &params) {
-    IndexMaskMemory selection_memory;
-    const IndexMask selection = point_selection_mask(
-        params, use_selection_masking, true, selection_memory);
-    if (selection.is_empty()) {
-      return false;
-    }
+  this->foreach_editable_drawing_with_automask(
+      C, [&](const GreasePencilStrokeParams &params, const IndexMask &point_mask) {
+        // IndexMaskMemory selection_memory;
+        // const IndexMask selection = point_selection_mask(
+        //     params, use_selection_masking, true, selection_memory);
+        // if (selection.is_empty()) {
+        //   return false;
+        // }
 
-    Array<float2> view_positions = calculate_view_positions(params, selection);
-    bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
-    BLI_assert(view_positions.size() == curves.points_num());
-    MutableSpan<float> radii = params.drawing.radii_for_write();
+        Array<float2> view_positions = calculate_view_positions(params, point_mask);
+        bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
+        BLI_assert(view_positions.size() == curves.points_num());
+        MutableSpan<float> radii = params.drawing.radii_for_write();
 
-    selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-      float &radius = radii[point_i];
-      const float influence = brush_point_influence(
-          scene, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
-      /* Factor 1/1000 is used to map arbitrary influence value to a sensible radius. */
-      const float delta_radius = (invert ? -influence : influence) * 0.001f;
-      radius = std::max(radius + delta_radius, 0.0f);
-    });
+        point_mask.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
+          float &radius = radii[point_i];
+          const float influence = brush_point_influence(
+              scene, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
+          /* Factor 1/1000 is used to map arbitrary influence value to a sensible radius. */
+          const float delta_radius = (invert ? -influence : influence) * 0.001f;
+          radius = std::max(radius + delta_radius, 0.0f);
+        });
 
-    curves.tag_radii_changed();
-    return true;
-  });
+        curves.tag_radii_changed();
+        return true;
+      });
   this->stroke_extended(extension_sample);
 }
 

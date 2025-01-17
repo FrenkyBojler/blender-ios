@@ -74,92 +74,96 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
   }();
   const int sculpt_mode_flag = brush.gpencil_settings->sculpt_mode_flag;
 
-  const bool use_selection_masking = GPENCIL_ANY_SCULPT_MASK(
-      eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
+  // const bool use_selection_masking = GPENCIL_ANY_SCULPT_MASK(
+  //     eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
 
-  this->foreach_editable_drawing(C, [&](const GreasePencilStrokeParams &params) {
-    IndexMaskMemory selection_memory;
-    const IndexMask selection = point_selection_mask(
-        params, use_selection_masking, true, selection_memory);
-    if (selection.is_empty()) {
-      return false;
-    }
+  this->foreach_editable_drawing_with_automask(
+      C, [&](const GreasePencilStrokeParams &params, const IndexMask &point_mask) {
+        // IndexMaskMemory selection_memory;
+        // const IndexMask selection = point_selection_mask(
+        //     params, use_selection_masking, true, selection_memory);
+        // if (selection.is_empty()) {
+        //   return false;
+        // }
 
-    Array<float2> view_positions = calculate_view_positions(params, selection);
-    bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
-    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    const OffsetIndices points_by_curve = curves.points_by_curve();
-    const VArray<bool> cyclic = curves.cyclic();
-    const int iterations = 2;
+        Array<float2> view_positions = calculate_view_positions(params, point_mask);
+        bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
+        bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+        const OffsetIndices points_by_curve = curves.points_by_curve();
+        const VArray<bool> cyclic = curves.cyclic();
+        const int iterations = 2;
 
-    const VArray<float> influences = VArray<float>::ForFunc(
-        view_positions.size(), [&](const int64_t point_) {
-          return brush_point_influence(
-              scene, brush, view_positions[point_], extension_sample, params.multi_frame_falloff);
-        });
-    Array<bool> selection_array(curves.points_num());
-    selection.to_bools(selection_array);
-    const VArray<bool> selection_varray = VArray<bool>::ForSpan(selection_array);
+        const VArray<float> influences = VArray<float>::ForFunc(
+            view_positions.size(), [&](const int64_t point_) {
+              return brush_point_influence(scene,
+                                           brush,
+                                           view_positions[point_],
+                                           extension_sample,
+                                           params.multi_frame_falloff);
+            });
+        Array<bool> selection_array(curves.points_num());
+        point_mask.to_bools(selection_array);
+        const VArray<bool> selection_varray = VArray<bool>::ForSpan(selection_array);
 
-    bool changed = false;
-    if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_POSITION) {
-      MutableSpan<float3> positions = curves.positions_for_write();
-      geometry::smooth_curve_attribute(curves.curves_range(),
-                                       points_by_curve,
-                                       selection_varray,
-                                       cyclic,
-                                       iterations,
-                                       influences,
-                                       false,
-                                       false,
-                                       positions);
-      params.drawing.tag_positions_changed();
-      changed = true;
-    }
-    if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_STRENGTH) {
-      MutableSpan<float> opacities = params.drawing.opacities_for_write();
-      geometry::smooth_curve_attribute(curves.curves_range(),
-                                       points_by_curve,
-                                       selection_varray,
-                                       cyclic,
-                                       iterations,
-                                       influences,
-                                       true,
-                                       false,
-                                       opacities);
-      changed = true;
-    }
-    if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_THICKNESS) {
-      const MutableSpan<float> radii = params.drawing.radii_for_write();
-      geometry::smooth_curve_attribute(curves.curves_range(),
-                                       points_by_curve,
-                                       selection_varray,
-                                       cyclic,
-                                       iterations,
-                                       influences,
-                                       true,
-                                       false,
-                                       radii);
-      curves.tag_radii_changed();
-      changed = true;
-    }
-    if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_UV) {
-      bke::SpanAttributeWriter<float> rotations = attributes.lookup_or_add_for_write_span<float>(
-          "rotation", bke::AttrDomain::Point);
-      geometry::smooth_curve_attribute(curves.curves_range(),
-                                       points_by_curve,
-                                       selection_varray,
-                                       cyclic,
-                                       iterations,
-                                       influences,
-                                       true,
-                                       false,
-                                       rotations.span);
-      rotations.finish();
-      changed = true;
-    }
-    return changed;
-  });
+        bool changed = false;
+        if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_POSITION) {
+          MutableSpan<float3> positions = curves.positions_for_write();
+          geometry::smooth_curve_attribute(curves.curves_range(),
+                                           points_by_curve,
+                                           selection_varray,
+                                           cyclic,
+                                           iterations,
+                                           influences,
+                                           false,
+                                           false,
+                                           positions);
+          params.drawing.tag_positions_changed();
+          changed = true;
+        }
+        if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_STRENGTH) {
+          MutableSpan<float> opacities = params.drawing.opacities_for_write();
+          geometry::smooth_curve_attribute(curves.curves_range(),
+                                           points_by_curve,
+                                           selection_varray,
+                                           cyclic,
+                                           iterations,
+                                           influences,
+                                           true,
+                                           false,
+                                           opacities);
+          changed = true;
+        }
+        if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_THICKNESS) {
+          const MutableSpan<float> radii = params.drawing.radii_for_write();
+          geometry::smooth_curve_attribute(curves.curves_range(),
+                                           points_by_curve,
+                                           selection_varray,
+                                           cyclic,
+                                           iterations,
+                                           influences,
+                                           true,
+                                           false,
+                                           radii);
+          curves.tag_radii_changed();
+          changed = true;
+        }
+        if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_UV) {
+          bke::SpanAttributeWriter<float> rotations =
+              attributes.lookup_or_add_for_write_span<float>("rotation", bke::AttrDomain::Point);
+          geometry::smooth_curve_attribute(curves.curves_range(),
+                                           points_by_curve,
+                                           selection_varray,
+                                           cyclic,
+                                           iterations,
+                                           influences,
+                                           true,
+                                           false,
+                                           rotations.span);
+          rotations.finish();
+          changed = true;
+        }
+        return changed;
+      });
   this->stroke_extended(extension_sample);
 }
 

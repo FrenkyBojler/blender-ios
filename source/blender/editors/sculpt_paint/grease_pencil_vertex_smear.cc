@@ -89,7 +89,7 @@ void VertexSmearOperation::init_color_grid(const bContext &C, const float2 start
   /* Initialize grid values. */
   this->foreach_editable_drawing(C, [&](const GreasePencilStrokeParams &params) {
     IndexMaskMemory memory;
-    const IndexMask point_selection = point_selection_mask(params, use_selection_masking, false, memory);
+    const IndexMask point_selection = point_selection_mask(params, use_selection_masking, memory);
     if (point_selection.is_empty()) {
       return false;
     }
@@ -159,7 +159,7 @@ void VertexSmearOperation::on_stroke_extended(const bContext &C,
 
   this->foreach_editable_drawing(C, GrainSize(1), [&](const GreasePencilStrokeParams &params) {
     IndexMaskMemory memory;
-    const IndexMask point_selection = point_selection_mask(params, use_selection_masking, false, memory);
+    const IndexMask point_selection = point_selection_mask(params, use_selection_masking, memory);
     if (point_selection.is_empty()) {
       return false;
     }
