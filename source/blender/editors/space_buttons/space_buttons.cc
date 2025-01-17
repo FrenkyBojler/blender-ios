@@ -11,7 +11,6 @@
 #include <cstring>
 #include <optional>
 
-#include "BLI_string_ref.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
@@ -20,8 +19,8 @@
 #include "BLI_array_utils.h"
 #include "BLI_bitmap.h"
 #include "BLI_blenlib.h"
+#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
-#include "BLI_vector.hh"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
@@ -168,7 +167,8 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 
 void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 {
-  const std::array<blender::StringRef, BCONTEXT_TOT - 1> filter_items = {
+  const std::array<blender::StringRef, BCONTEXT_TOT> filter_items = {
+      "show_properties_tool",
       "show_properties_render",
       "show_properties_output",
       "show_properties_view_layer",

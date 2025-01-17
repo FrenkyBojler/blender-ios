@@ -172,8 +172,10 @@ class WORKSPACE_PT_prop_filter(WorkSpaceButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         workspace = context.workspace
-
-        col = layout.column(align=True)
+        
+        layout.use_property_split = True
+        col = layout.column(heading="Show", align=True)
+        col.prop(workspace, "show_properties_tool")
         col.prop(workspace, "show_properties_render")
         col.prop(workspace, "show_properties_output")
         col.prop(workspace, "show_properties_view_layer")
