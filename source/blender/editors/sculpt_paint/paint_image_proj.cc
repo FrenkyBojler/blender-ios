@@ -4056,14 +4056,12 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
     return false;
   }
 
-
-
   const short *totcolp = BKE_object_material_len_p(const_cast<Object *>(ob_eval));
 
   /* Build final material array, we use this a lot here. */
   const int totmat = totcolp ? *totcolp : 0;
   ps->mat_array = static_cast<Material **>(
-      MEM_malloc_arrayN(totmat+1, sizeof(*ps->mat_array), __func__));
+      MEM_malloc_arrayN(totmat + 1, sizeof(*ps->mat_array), __func__));
   /* We leave last material as empty - rationale here is being able to index
    * the materials by using the mf->mat_nr directly and leaving the last
    * material as nullptr in case no materials exist on mesh, so indexing will not fail. */
