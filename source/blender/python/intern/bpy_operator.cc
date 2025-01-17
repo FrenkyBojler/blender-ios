@@ -50,6 +50,8 @@
 /* so operators called can spawn threads which acquire the GIL */
 #define BPY_RELEASE_GIL
 
+static PyObject *py_data_from_properties(PointerRNA *properties);
+
 static wmOperatorType *ot_lookup_from_py_string(PyObject *value, const char *py_fn_id)
 {
   const char *opname = PyUnicode_AsUTF8(value);
@@ -479,10 +481,101 @@ static int bpy_op_handler_check(void *py_data, void *owner, void *callback)
   }
 }
 
-/*
- * @Properties Rna Properties that has been used to set the operator
- */
-static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
+static PyObject *py_data_from_property_boolean(PointerRNA *properties, PropertyRNA *prop)
+{
+  PyObject *data = nullptr;
+  bool val = RNA_property_boolean_get(properties, prop);
+  /* From Py Docs, Py_False and Py_truee needs to be treated just like any other object with
+  respect to reference counts. */
+  data = val ? Py_False : Py_True;
+  return data;
+}
+
+static PyObject *py_data_from_property_int(PointerRNA *properties, PropertyRNA *prop)
+{
+  PyObject *data = nullptr;
+  const int prop_array_length = RNA_property_array_length(properties, prop);
+  if (prop_array_length == 0) {
+    int val = RNA_property_int_get(properties, prop);
+    data = PyLong_FromLong(val);
+  }
+  else {
+    int *values = (int *)MEM_callocN(sizeof(int) * prop_array_length, __func__);
+    RNA_property_int_get_array(properties, prop, values);
+    data = PyTuple_New(prop_array_length);
+    for (int i = 0; i < prop_array_length; i++) {
+      PyObject *py_val = PyLong_FromLong(*(values + i));
+      PyTuple_SET_ITEM(data, i, py_val);
+    }
+    MEM_freeN(values);
+  }
+  return data;
+}
+
+static PyObject *py_data_from_property_float(PointerRNA *properties, PropertyRNA *prop)
+{
+  PyObject *data = nullptr;
+  const int prop_array_length = RNA_property_array_length(properties, prop);
+  if (prop_array_length == 0) {
+    float val;
+    val = RNA_property_float_get(properties, prop);
+    data = PyFloat_FromDouble(val);
+  }
+  else {
+    float *values = (float *)MEM_callocN(sizeof(float) * prop_array_length, __func__);
+    RNA_property_float_get_array(properties, prop, values);
+    data = PyTuple_New(prop_array_length);
+    for (int i = 0; i < prop_array_length; i++) {
+      PyObject *py_val = PyFloat_FromDouble(*(values + i));
+      PyTuple_SET_ITEM(data, i, py_val);
+    }
+    MEM_freeN(values);
+  }
+  return data;
+}
+
+static PyObject *py_data_from_property_string(PointerRNA *properties, PropertyRNA *prop)
+{
+  PyObject *data = nullptr;
+  char buff[256];
+  char *value = RNA_property_string_get_alloc(properties, prop, buff, sizeof(buff), nullptr);
+  data = PyUnicode_FromString(value);
+  if (value != buff) {
+    MEM_freeN(value);
+  }
+  return data;
+}
+
+static PyObject *py_data_from_property_enum(PointerRNA *properties, PropertyRNA *prop)
+{
+  PyObject *data = nullptr;
+  int val = RNA_property_enum_get(properties, prop);
+  data = PyLong_FromLong(val);
+  return data;
+}
+
+static PyObject *py_data_from_property_collection(PointerRNA *properties, PropertyRNA *prop)
+{
+
+  int collection_len = RNA_property_collection_length(properties, prop);
+  PyObject *data = PyTuple_New(collection_len);
+
+  CollectionPropertyIterator iter;
+  RNA_property_collection_begin(properties, prop, &iter);
+  for (int i = 0; iter.valid; RNA_property_collection_next(&iter), i++) {
+    PyObject *col_data = py_data_from_properties(&iter.ptr);
+    if (col_data != nullptr) {
+      PyTuple_SET_ITEM(data, i, col_data);
+    }
+    else {
+      // ?
+    }
+  }
+  RNA_property_collection_end(&iter);
+  return data;
+}
+
+static PyObject *py_data_from_properties(PointerRNA *properties)
 {
   const char *arg_name = nullptr;
   PyObject *py_dict = PyDict_New();
@@ -494,86 +587,28 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
       continue;
     }
     switch (RNA_property_type(prop)) {
-      case PROP_BOOLEAN: {
-        bool val = RNA_property_boolean_get(properties, prop);
-        /* From Py Docs, Py_False and Py_truee needs to be treated just like any other object with
-        respect to reference counts. */
-        data = val ? Py_False : Py_True;
+      case PROP_BOOLEAN:
+        data = py_data_from_property_boolean(properties, prop);
         break;
-      }
-      case PROP_INT: {
-        const int prop_array_length = RNA_property_array_length(properties, prop);
-        if (prop_array_length == 0) {
-          int val = RNA_property_int_get(properties, prop);
-          data = PyLong_FromLong(val);
-        }
-        else {
-          int *values = (int *)MEM_callocN(sizeof(int) * prop_array_length, __func__);
-          RNA_property_int_get_array(properties, prop, values);
-          data = PyTuple_New(prop_array_length);
-          for (int i = 0; i < prop_array_length; i++) {
-            PyObject *py_val = PyLong_FromLong(*(values + i));
-            PyTuple_SET_ITEM(data, i, py_val);
-          }
-          MEM_freeN(values);
-        }
+      case PROP_INT:
+        data = py_data_from_property_int(properties, prop);
         break;
-      }
-      case PROP_FLOAT: {
-        const int prop_array_length = RNA_property_array_length(properties, prop);
-        if (prop_array_length == 0) {
-          float val;
-          val = RNA_property_float_get(properties, prop);
-          data = PyFloat_FromDouble(val);
-        }
-        else {
-          float *values = (float *)MEM_callocN(sizeof(float) * prop_array_length, __func__);
-          RNA_property_float_get_array(properties, prop, values);
-          data = PyTuple_New(prop_array_length);
-          for (int i = 0; i < prop_array_length; i++) {
-            PyObject *py_val = PyFloat_FromDouble(*(values + i));
-            PyTuple_SET_ITEM(data, i, py_val);
-          }
-          MEM_freeN(values);
-        }
+      case PROP_FLOAT:
+        data = py_data_from_property_float(properties, prop);
         break;
-      }
-      case PROP_STRING: {
-        char buff[256];
-        char *value = RNA_property_string_get_alloc(properties, prop, buff, sizeof(buff), nullptr);
-        data = PyUnicode_FromString(value);
-        if (value != buff) {
-          MEM_freeN(value);
-        }
+      case PROP_STRING:
+        data = py_data_from_property_string(properties, prop);
         break;
-      }
-      case PROP_ENUM: {
-        int val = RNA_property_enum_get(properties, prop);
-        data = PyLong_FromLong(val);
+      case PROP_ENUM:
+        data = py_data_from_property_enum(properties, prop);
         break;
-      }
-      case PROP_POINTER: {
+      case PROP_POINTER:
         // bpy.props.PointerProperty ?
         data = PyUnicode_FromString("TODO: POINTER");
         break;
-      }
-      case PROP_COLLECTION: {
-        int len = RNA_property_collection_length(properties,prop);
-        CollectionPropertyIterator iter;
-        RNA_property_collection_begin(properties, prop, &iter);
-        for (; iter.valid; RNA_property_collection_next(&iter)) {
-          PointerRNA *properties = &iter.ptr;
-          int a = 0;
-          RNA_STRUCT_BEGIN (properties, prop) {
-            arg_name = RNA_property_identifier(prop);
-            printf("UE: %s\n", arg_name);
-            data = nullptr;
-          }
-          RNA_STRUCT_END;
-        }
-        RNA_property_collection_end(&iter);
+      case PROP_COLLECTION:
+        data = py_data_from_property_collection(properties, prop);
         break;
-      }
       default:
         BLI_assert(false);
     }
@@ -583,6 +618,14 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
   }
   RNA_STRUCT_END;
   return py_dict;
+}
+
+/*
+ * @Properties Rna Properties that has been used to set the operator
+ */
+static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
+{
+  return py_data_from_properties(properties);
 }
 
 static bool bpy_op_callback_get_return_value(PyObject *callback, PyObject *py_ret)
