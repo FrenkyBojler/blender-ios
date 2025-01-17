@@ -479,6 +479,7 @@ static void calc_blurred_cavity_grids(const Object &object,
 
   const float3 vec = all_verts.position - verts_in_range.position;
   float factor_sum = math::dot(vec, verts_in_range.normal) / all_verts.distance;
+
   cavity_factors[vert.to_index(key)] = calc_cavity_factor(automasking, factor_sum);
 }
 
@@ -1730,6 +1731,30 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
   }
 
   return automasking;
+}
+
+void Cache::calc_cavity_factor(Object &object, const IndexMask &node_mask)
+{
+  if (this->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
+    const SculptSession &ss = *object.sculpt;
+    bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+    if (pbvh.type() == bke::pbvh::Type::Grids) {
+      const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+      const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+      MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
+      node_mask.foreach_index(GrainSize(1), [&](const int i) {
+        const Span<int> grids = nodes[i].grids();
+        for (const int grid : grids) {
+          for (const int offset : IndexRange(key.grid_area)) {
+            calc_cavity_factor_grids(key, *this, object, grid * key.grid_area + offset);
+          }
+        }
+      });
+    }
+  }
+  else {
+    // Warn?
+  }
 }
 
 }  // namespace blender::ed::sculpt_paint::auto_mask

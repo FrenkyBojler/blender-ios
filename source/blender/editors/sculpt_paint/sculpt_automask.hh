@@ -79,6 +79,13 @@ struct Cache {
 
   bool can_reuse_mask;
   uchar current_stroke_id;
+
+  /**
+   * Calculates the cavity factor for a set of nodes.
+   *
+   * Has no effect on an individual node level if the vertex has already been calculated.
+   */
+  void calc_cavity_factor(Object &object, const IndexMask &node_mask);
 };
 
 /**
