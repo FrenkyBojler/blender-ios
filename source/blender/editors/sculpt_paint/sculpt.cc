@@ -3234,7 +3234,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
   if (node_mask.is_empty()) {
     return;
   }
-  float location[3];
 
   if (!use_pixels) {
     /**
@@ -3453,10 +3452,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
 
   /* Update average stroke position. */
-  copy_v3_v3(location, ss.cache->location);
-  mul_m4_v3(ob.object_to_world().ptr(), location);
+  const float3 world_location = math::project_point(ob.object_to_world(), ss.cache->location);
 
-  add_v3_v3(ups.average_stroke_accum, location);
+  add_v3_v3(ups.average_stroke_accum, world_location);
   ups.average_stroke_counter++;
   /* Update last stroke position. */
   ups.last_stroke_valid = true;

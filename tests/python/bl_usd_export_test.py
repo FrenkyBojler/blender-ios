@@ -375,6 +375,34 @@ class USDExportTest(AbstractUSDTest):
         self.assertTrue(stage_path.parent.joinpath(image_path1).is_file())
         self.assertTrue(stage_path.parent.joinpath(image_path2).is_file())
 
+    def test_export_material_textures_mode(self):
+        """Validate the non-default export textures mode options."""
+
+        # Use the common materials .blend file
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_materials_export.blend"))
+
+        # For this test, the "textures" directory should NOT exist and the image paths
+        # should all point to the original test location, not the temp output location.
+        def check_image_paths(stage):
+            orig_tex_path = (self.testdir / "textures")
+            temp_tex_path = (self.tempdir / "textures")
+            self.assertFalse(temp_tex_path.is_dir())
+
+            shader_prim = stage.GetPrimAtPath("/root/_materials/Material/Image_Texture")
+            shader = UsdShade.Shader(shader_prim)
+            filepath = pathlib.Path(shader.GetInput('file').Get().path)
+            self.assertEqual(orig_tex_path, filepath.parent)
+
+        export_file = str(self.tempdir / "usd_materials_texture_preserve.usda")
+        self.export_and_validate(
+            filepath=export_file, export_materials=True, convert_world_material=False, export_textures_mode='PRESERVE')
+        check_image_paths(Usd.Stage.Open(export_file))
+
+        export_file = str(self.tempdir / "usd_materials_texture_keep.usda")
+        self.export_and_validate(
+            filepath=export_file, export_materials=True, convert_world_material=False, export_textures_mode='KEEP')
+        check_image_paths(Usd.Stage.Open(export_file))
+
     def test_export_material_displacement(self):
         """Validate correct export of Displacement information for the UsdPreviewSurface"""
 
@@ -655,6 +683,35 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(UsdGeom.Boundable(points2).GetExtentAttr().GetTimeSamples(), [])
         self.assertEqual(UsdGeom.Boundable(points3).GetExtentAttr().GetTimeSamples(), sparse_frames)
         self.assertEqual(UsdGeom.Boundable(points4).GetExtentAttr().GetTimeSamples(), [])
+
+        #
+        # Validate BasisCurve data
+        #
+        curves1 = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane1/curves1/Curves"))
+        curves2 = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane2/curves2/Curves"))
+        curves3 = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane3/curves3/Curves"))
+        curves4 = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane4/curves4/Curves"))
+
+        # Positions (should be sparsely written)
+        self.assertEqual(curves1.GetPointsAttr().GetTimeSamples(), sparse_frames)
+        self.assertEqual(curves2.GetPointsAttr().GetTimeSamples(), [])
+        self.assertEqual(curves3.GetPointsAttr().GetTimeSamples(), [])
+        self.assertEqual(curves4.GetPointsAttr().GetTimeSamples(), [])
+        # Velocity (should be sparsely written)
+        self.assertEqual(curves1.GetVelocitiesAttr().GetTimeSamples(), [])
+        self.assertEqual(curves2.GetVelocitiesAttr().GetTimeSamples(), sparse_frames)
+        self.assertEqual(curves3.GetVelocitiesAttr().GetTimeSamples(), [])
+        self.assertEqual(curves4.GetVelocitiesAttr().GetTimeSamples(), [])
+        # Radius (should be sparsely written)
+        self.assertEqual(curves1.GetWidthsAttr().GetTimeSamples(), [])
+        self.assertEqual(curves2.GetWidthsAttr().GetTimeSamples(), [])
+        self.assertEqual(curves3.GetWidthsAttr().GetTimeSamples(), sparse_frames)
+        self.assertEqual(curves4.GetWidthsAttr().GetTimeSamples(), [])
+        # Regular primvar (should be sparsely written)
+        self.assertEqual(UsdGeom.PrimvarsAPI(curves1).GetPrimvar("test").GetTimeSamples(), [])
+        self.assertEqual(UsdGeom.PrimvarsAPI(curves2).GetPrimvar("test").GetTimeSamples(), [])
+        self.assertEqual(UsdGeom.PrimvarsAPI(curves3).GetPrimvar("test").GetTimeSamples(), [])
+        self.assertEqual(UsdGeom.PrimvarsAPI(curves4).GetPrimvar("test").GetTimeSamples(), sparse_frames)
 
     def test_export_mesh_subd(self):
         """Test exporting Subdivision Surface attributes and values"""
@@ -1179,8 +1236,8 @@ class USDExportTest(AbstractUSDTest):
     def test_export_units(self):
         """Test specifying stage meters per unit on export."""
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
-        export_path = self.tempdir / "usd_export_units_test_cm.usda"
 
+        export_path = self.tempdir / "usd_export_units_test_cm.usda"
         self.export_and_validate(
             filepath=str(export_path),
             convert_scene_units='CENTIMETERS'
@@ -1193,7 +1250,6 @@ class USDExportTest(AbstractUSDTest):
 
         # Export with default meters units.
         export_path = self.tempdir / "usd_export_units_test_default.usda"
-
         self.export_and_validate(
             filepath=str(export_path)
         )
@@ -1205,7 +1261,6 @@ class USDExportTest(AbstractUSDTest):
 
         # Export with custom meters per unit.
         export_path = self.tempdir / "usd_export_units_test_custom.usda"
-
         self.export_and_validate(
             filepath=str(export_path),
             convert_scene_units='CUSTOM',
