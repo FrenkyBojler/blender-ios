@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_math_color.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -72,7 +73,7 @@ inline float4 vector_to_color(const float4 &value)
 
 inline float color_to_float(const float4 &value)
 {
-  return math::reduce_add(value.xyz()) / 3.0f;
+  return rgb_to_grayscale(value);
 }
 
 inline int color_to_int(const float4 &value)
