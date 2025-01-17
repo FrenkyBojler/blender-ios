@@ -182,9 +182,6 @@ enum eTFlag {
 
   /** Special flag for when the transform code is called after keys have been duplicated. */
   T_DUPLICATED_KEYFRAMES = 1 << 26,
-
-  /** Invalid or error state, like scaling when only affecting location. */
-  T_INVALID = 1 << 27,
 };
 ENUM_OPERATORS(eTFlag, T_DUPLICATED_KEYFRAMES);
 
@@ -259,6 +256,7 @@ enum eTHelpline {
   HLP_VARROW = 4,
   HLP_CARROW = 5,
   HLP_TRACKBALL = 6,
+  HLP_ERROR = 7,
 };
 
 enum eTOType {

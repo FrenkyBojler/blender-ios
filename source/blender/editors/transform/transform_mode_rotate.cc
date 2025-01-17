@@ -411,17 +411,19 @@ static void initRotation(TransInfo *t, wmOperator * /*op*/)
 
   t->mode = TFM_ROTATION;
 
+  bool only_location = false;
+
   if (t->options & CTX_OBJECT && t->context && t->flag & T_V3D_ALIGN) {
     if (t->settings->transform_pivot_point != V3D_AROUND_CURSOR &&
         CTX_DATA_COUNT(t->context, selected_editable_objects) == 1)
     {
+      only_location = true;
       WorkspaceStatus status(t->context);
       status.item(TIP_("Transform is set to only affect location"), ICON_ERROR);
-      t->flag |= T_INVALID;
     }
   }
 
-  initMouseInputMode(t, &t->mouse, INPUT_ANGLE);
+  initMouseInputMode(t, &t->mouse, only_location ? INPUT_NONE : INPUT_ANGLE);
 
   t->idx_max = 0;
   t->num.idx_max = 0;

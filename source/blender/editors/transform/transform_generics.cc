@@ -48,8 +48,6 @@
 #include "transform_orientations.hh"
 #include "transform_snap.hh"
 
-#include "UI_resources.hh"
-
 using namespace blender;
 
 /* ************************** GENERICS **************************** */
