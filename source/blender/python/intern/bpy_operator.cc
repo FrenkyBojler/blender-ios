@@ -558,9 +558,20 @@ static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
         break;
       }
       case PROP_COLLECTION: {
-        // https://docs.blender.org/api/current/bpy.types.Collection.html
-        // bpy.props.CollectionProperty ?
-        data = PyUnicode_FromString("TODO: COLLECTION");
+        int len = RNA_property_collection_length(properties,prop);
+        CollectionPropertyIterator iter;
+        RNA_property_collection_begin(properties, prop, &iter);
+        for (; iter.valid; RNA_property_collection_next(&iter)) {
+          PointerRNA *properties = &iter.ptr;
+          int a = 0;
+          RNA_STRUCT_BEGIN (properties, prop) {
+            arg_name = RNA_property_identifier(prop);
+            printf("UE: %s\n", arg_name);
+            data = nullptr;
+          }
+          RNA_STRUCT_END;
+        }
+        RNA_property_collection_end(&iter);
         break;
       }
       default:
