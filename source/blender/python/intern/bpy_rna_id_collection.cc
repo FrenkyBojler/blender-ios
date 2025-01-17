@@ -373,7 +373,7 @@ static PyObject *bpy_file_path_map(PyObject * /*self*/, PyObject *args, PyObject
 
   PyObject *ret = nullptr;
 
-  IDFilePathMapData data{};
+  IDFilePathMapData filepathmap_data{};
   BPathForeachPathData bpath_data{};
 
   static const char *_keywords[] = {"subset", "key_types", "include_libraries", nullptr};
@@ -411,9 +411,9 @@ static PyObject *bpy_file_path_map(PyObject * /*self*/, PyObject *args, PyObject
   bpath_data.callback_function = foreach_id_file_path_map_callback;
   /* TODO: needs to be controlable from caller (add more options to the API). */
   bpath_data.flag = BKE_BPATH_FOREACH_PATH_SKIP_PACKED | BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES;
-  bpath_data.user_data = &data;
+  bpath_data.user_data = &filepathmap_data;
 
-  data.include_libraries = (include_libraries == Py_True);
+  filepathmap_data.include_libraries = (include_libraries == Py_True);
 
   if (subset) {
     PyObject *subset_fast = PySequence_Fast(subset, "user_map");
@@ -424,9 +424,9 @@ static PyObject *bpy_file_path_map(PyObject * /*self*/, PyObject *args, PyObject
     PyObject **subset_array = PySequence_Fast_ITEMS(subset_fast);
     Py_ssize_t subset_len = PySequence_Fast_GET_SIZE(subset_fast);
 
-    data.file_path_map = _PyDict_NewPresized(subset_len);
+    filepathmap_data.file_path_map = _PyDict_NewPresized(subset_len);
     for (; subset_len; subset_array++, subset_len--) {
-      if (PyDict_Contains(data.file_path_map, *subset_array)) {
+      if (PyDict_Contains(filepathmap_data.file_path_map, *subset_array)) {
         continue;
       }
 
@@ -436,15 +436,16 @@ static PyObject *bpy_file_path_map(PyObject * /*self*/, PyObject *args, PyObject
                      "Expected an ID type in `subset` iterable, not %.200s",
                      Py_TYPE(*subset_array)->tp_name);
         Py_DECREF(subset_fast);
-        Py_DECREF(data.file_path_map);
+        Py_DECREF(filepathmap_data.file_path_map);
         goto error;
       }
 
-      data.id_file_path_set = PySet_New(nullptr);
-      PyDict_SetItem(data.file_path_map, *subset_array, data.id_file_path_set);
-      Py_DECREF(data.id_file_path_set);
+      filepathmap_data.id_file_path_set = PySet_New(nullptr);
+      PyDict_SetItem(
+          filepathmap_data.file_path_map, *subset_array, filepathmap_data.id_file_path_set);
+      Py_DECREF(filepathmap_data.id_file_path_set);
 
-      data.id = id;
+      filepathmap_data.id = id;
       foreach_id_file_path_map(bpath_data);
     }
     Py_DECREF(subset_fast);
@@ -452,7 +453,7 @@ static PyObject *bpy_file_path_map(PyObject * /*self*/, PyObject *args, PyObject
   else {
     ListBase *lb;
     ID *id;
-    data.file_path_map = PyDict_New();
+    filepathmap_data.file_path_map = PyDict_New();
 
     FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb) {
       FOREACH_MAIN_LISTBASE_ID_BEGIN (lb, id) {
@@ -462,12 +463,12 @@ static PyObject *bpy_file_path_map(PyObject * /*self*/, PyObject *args, PyObject
         }
 
         PyObject *key = pyrna_id_CreatePyObject(id);
-        data.id_file_path_set = PySet_New(nullptr);
-        PyDict_SetItem(data.file_path_map, key, data.id_file_path_set);
-        Py_DECREF(data.id_file_path_set);
+        filepathmap_data.id_file_path_set = PySet_New(nullptr);
+        PyDict_SetItem(filepathmap_data.file_path_map, key, filepathmap_data.id_file_path_set);
+        Py_DECREF(filepathmap_data.id_file_path_set);
         Py_DECREF(key);
 
-        data.id = id;
+        filepathmap_data.id = id;
         foreach_id_file_path_map(bpath_data);
       }
       FOREACH_MAIN_LISTBASE_ID_END;
@@ -475,7 +476,7 @@ static PyObject *bpy_file_path_map(PyObject * /*self*/, PyObject *args, PyObject
     FOREACH_MAIN_LISTBASE_ID_END;
   }
 
-  ret = data.file_path_map;
+  ret = filepathmap_data.file_path_map;
 
 error:
   if (key_types_bitmap != nullptr) {

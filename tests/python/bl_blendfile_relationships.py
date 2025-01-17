@@ -89,7 +89,7 @@ class TestBlendUserMap(TestBlendLibLinkHelper):
 class TestBlendFilePathMap(TestBlendLibLinkHelper):
 
     def __init__(self, args):
-        self.args = args
+        super().__init__(args)
 
     def test_file_path_map(self):
         def abspaths(file_path_map):
@@ -104,13 +104,13 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
 
         bpy.ops.wm.open_mainfile(filepath=output_blendfile_path)
 
-        assert len(bpy.data.images) == 1
-        assert bpy.data.images[0].library is not None
-        assert len(bpy.data.materials) == 1
-        assert bpy.data.materials[0].library is not None
-        assert len(bpy.data.meshes) == 1
-        assert len(bpy.data.objects) == 1
-        assert len(bpy.data.collections) == 1
+        self.assertEqual(len(bpy.data.images), 1)
+        self.assertTrue(bpy.data.images[0].library is not None)
+        self.assertEqual(len(bpy.data.materials), 1)
+        self.assertTrue(bpy.data.materials[0].library is not None)
+        self.assertEqual(len(bpy.data.meshes), 1)
+        self.assertEqual(len(bpy.data.objects), 1)
+        self.assertEqual(len(bpy.data.collections), 1)
 
         blendlib_path = os.path.normpath(bpy.path.abspath(bpy.data.materials[0].library.filepath))
         image_path = os.path.join(native_pathsep(self.args.src_test_dir),
@@ -129,8 +129,8 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
             bpy.data.window_managers[0]: set(),
         }
         for k, v in expected_map.items():
-            assert k in file_path_map
-            assert file_path_map[k] == v
+            self.assertIn(k, file_path_map)
+            self.assertEqual(file_path_map[k], v)
 
         file_path_map = abspaths(bpy.data.file_path_map(include_libraries=True))
         # Note: Workspaces and screens are ignored here.
@@ -145,8 +145,8 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
             bpy.data.window_managers[0]: set(),
         }
         for k, v in expected_map.items():
-            assert k in file_path_map
-            assert file_path_map[k] == v
+            self.assertIn(k, file_path_map)
+            self.assertEqual(file_path_map[k], v)
 
         file_path_map = abspaths(bpy.data.file_path_map(subset=[bpy.data.images[0], bpy.data.materials[0]]))
         expected_map = {
@@ -154,25 +154,16 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
             bpy.data.materials[0]: set(),
         }
         for k, v in expected_map.items():
-            assert k in file_path_map
-            assert file_path_map[k] == v
+            self.assertIn(k, file_path_map)
+            self.assertEqual(file_path_map[k], v)
         partial_map = abspaths(bpy.data.file_path_map(key_types={'IMAGE', 'MATERIAL'}))
         for k, v in expected_map.items():
-            assert k in file_path_map
-            assert file_path_map[k] == v
+            self.assertIn(k, file_path_map)
+            self.assertEqual(file_path_map[k], v)
 
         # Test handling of invalid parameters
-        try:
-            file_path_map = abspaths(bpy.data.file_path_map(key_types={'FOOBAR'}))
-            assert 0
-        except ValueError:
-            pass
-
-        try:
-            file_path_map = abspaths(bpy.data.file_path_map(subset=[bpy.data.objects[0], bpy.data.images[0], "FooBar"]))
-            assert 0
-        except TypeError:
-            pass
+        self.assertRaises(ValueError, bpy.data.file_path_map, key_types={'FOOBAR'})
+        self.assertRaises(TypeError, bpy.data.file_path_map, subset=[bpy.data.objects[0], bpy.data.images[0], "FooBar"])
 
 
 TESTS = (
