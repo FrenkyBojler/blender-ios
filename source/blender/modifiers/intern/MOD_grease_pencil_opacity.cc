@@ -145,9 +145,10 @@ static void modify_fill_color(const GreasePencilOpacityModifierData &omd,
       /* Use the first stroke point as vertex weight. */
       const IndexRange points = points_by_curve[curve_i];
       const float vgroup_weight_first = vgroup_weights[points.first()];
-      const float stroke_weight = points.is_empty() || (vgroup_weight_first <= 0.0f) ?
-                                      1.0f :
-                                      vgroup_weight_first;
+      float stroke_weight = vgroup_weight_first;
+      if (points.is_empty() || (vgroup_weight_first <= 0.0f)) {
+        stroke_weight = 1.0f;
+      }
       const float stroke_influence = invert_vertex_group ? 1.0f - stroke_weight : stroke_weight;
 
       fill_opacities.span[curve_i] = std::clamp(stroke_influence, 0.0f, 1.0f);
