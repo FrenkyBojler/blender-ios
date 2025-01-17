@@ -31,17 +31,16 @@ set(_jolt_SEARCH_DIRS
 
 find_path(JOLT_INCLUDE_DIR
   NAMES
-    Jolt.h
+    Jolt/Jolt.h
   HINTS
     ${_jolt_SEARCH_DIRS}
   PATH_SUFFIXES
-    include/Jolt
     include
 )
 
 find_library(JOLT_LIBRARY
   NAMES
-    libjolt
+    Jolt
   HINTS
     ${_jolt_SEARCH_DIRS}
   PATH_SUFFIXES

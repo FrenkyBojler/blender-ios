@@ -1222,10 +1222,7 @@ if(WITH_HARU)
 endif()
 
 if(WITH_JOLT)
-  set(JOLT_FOUND ON)
-  set(JOLT_ROOT_DIR ${LIBDIR}/jolt)
-  set(JOLT_INCLUDE_DIRS ${JOLT_ROOT_DIR}/inc)
-  set(JOLT_LIBRARIES ${JOLT_ROOT_DIR}/lib/jolt.lib)
+  windows_find_package(Jolt)
 endif()
 
 if(WITH_VULKAN_BACKEND)
