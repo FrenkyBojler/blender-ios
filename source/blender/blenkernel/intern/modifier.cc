@@ -942,7 +942,7 @@ class MeshTopologyState {
   MeshTopologyState(const Mesh &mesh)
   {
     const blender::bke::AttributeAccessor attributes = mesh.attributes();
-    edge_verts_ = attribute_reader_to_array_state(attributes.lookup<blender::int2>(".edge_vert"));
+    edge_verts_ = attribute_reader_to_array_state(attributes.lookup<blender::int2>(".edge_verts"));
     corner_verts_ = attribute_reader_to_array_state(attributes.lookup<int>(".corner_vert"));
     corner_edges_ = attribute_reader_to_array_state(attributes.lookup<int>(".corner_edge"));
     face_offset_indices_ = blender::ArrayState<int>(
@@ -954,7 +954,7 @@ class MeshTopologyState {
   {
     const blender::bke::AttributeAccessor attributes = mesh.attributes();
     if (!attribute_reader_matches_array_state(edge_verts_,
-                                              attributes.lookup<blender::int2>(".edge_vert")))
+                                              attributes.lookup<blender::int2>(".edge_verts")))
     {
       return false;
     }
