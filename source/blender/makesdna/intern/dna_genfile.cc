@@ -2057,19 +2057,13 @@ void DNA_sdna_alias_data_ensure_structs_map(SDNA *sdna)
 static void print_full_struct_recursive(const SDNA &sdna,
                                         const SDNA_Struct &sdna_struct,
                                         const void *initial_data,
-                                        const void *address,
                                         const int64_t element_num,
                                         const int indent,
-                                        std::ostream &stream)
+                                        fmt::appender &dst)
 {
   using namespace blender;
-  std::string indentation = StringRef("                              ").substr(0, indent);
   const void *data = initial_data;
 
-  const char *struct_name = sdna.types[sdna_struct.type_index];
-  if (indent == 0) {
-    stream << fmt::format("{}<{}> {}x at {}\n", indentation, struct_name, element_num, address);
-  }
   for (const int member_i : IndexRange(sdna_struct.members_num)) {
     const SDNA_StructMember &member = sdna_struct.members[member_i];
     const char *member_type_name = sdna.types[member.type_index];
@@ -2077,19 +2071,18 @@ static void print_full_struct_recursive(const SDNA &sdna,
     const eStructMemberCategory member_category = get_struct_member_category(&sdna, &member);
     const int array_elem_num = sdna.members_array_num[member.member_index];
 
-    stream << indentation << "  " << member_type_name << " " << member_name << ":";
+    fmt::format_to(dst, "{:{}}  {} {}:", "", indent, member_type_name, member_name);
 
     switch (member_category) {
       case STRUCT_MEMBER_CATEGORY_STRUCT: {
-        stream << "\n";
+        fmt::format_to(dst, "\n");
         const int substruct_i = DNA_struct_find_index_without_alias(&sdna, member_type_name);
         const SDNA_Struct &sub_sdna_struct = *sdna.structs[substruct_i];
-        print_full_struct_recursive(
-            sdna, sub_sdna_struct, data, nullptr, array_elem_num, indent + 2, stream);
+        print_full_struct_recursive(sdna, sub_sdna_struct, data, array_elem_num, indent + 2, dst);
         break;
       }
       case STRUCT_MEMBER_CATEGORY_PRIMITIVE: {
-        stream << " ";
+        fmt::format_to(dst, " ");
         const int type_size = sdna.types_size[member.type_index];
         for ([[maybe_unused]] const int elem_i : IndexRange(array_elem_num)) {
           const void *current_data = POINTER_OFFSET(data, elem_i * type_size);
@@ -2097,55 +2090,55 @@ static void print_full_struct_recursive(const SDNA &sdna,
             case SDNA_TYPE_CHAR: {
               const char value = *reinterpret_cast<const char *>(current_data);
               if (std::isprint(value)) {
-                stream << value;
+                fmt::format_to(dst, "{}", value);
               }
               else {
-                stream << int(value);
+                fmt::format_to(dst, "{}", int(value));
               }
               break;
             }
             case SDNA_TYPE_UCHAR: {
               const uchar value = *reinterpret_cast<const uchar *>(current_data);
               if (std::isprint(value)) {
-                stream << value;
+                fmt::format_to(dst, "{}", value);
               }
               else {
-                stream << int(value);
+                fmt::format_to(dst, "{}", int(value));
               }
               break;
             }
             case SDNA_TYPE_INT8: {
-              stream << *reinterpret_cast<const int8_t *>(current_data);
+              fmt::format_to(dst, "{}", *reinterpret_cast<const int8_t *>(current_data));
               break;
             }
             case SDNA_TYPE_SHORT: {
-              stream << *reinterpret_cast<const short *>(current_data);
+              fmt::format_to(dst, "{}", *reinterpret_cast<const short *>(current_data));
               break;
             }
             case SDNA_TYPE_USHORT: {
-              stream << *reinterpret_cast<const ushort *>(current_data);
+              fmt::format_to(dst, "{}", *reinterpret_cast<const ushort *>(current_data));
               break;
             }
             case SDNA_TYPE_INT: {
-              stream << *reinterpret_cast<const int *>(current_data);
+              fmt::format_to(dst, "{}", *reinterpret_cast<const int *>(current_data));
               break;
             }
             case SDNA_TYPE_FLOAT: {
-              stream << *reinterpret_cast<const float *>(current_data);
+              fmt::format_to(dst, "{}", *reinterpret_cast<const float *>(current_data));
               break;
             }
             case SDNA_TYPE_INT64: {
-              stream << *reinterpret_cast<const int64_t *>(current_data);
+              fmt::format_to(dst, "{}", *reinterpret_cast<const int64_t *>(current_data));
               break;
             }
             /* Somehow the types are a bit messed up after VOID, not sure what's going on. */
             case SDNA_TYPE_VOID:
             case SDNA_TYPE_UINT64: {
-              stream << *reinterpret_cast<const uint64_t *>(current_data);
+              fmt::format_to(dst, "{}", *reinterpret_cast<const uint64_t *>(current_data));
               break;
             }
             case SDNA_TYPE_DOUBLE: {
-              stream << *reinterpret_cast<const double *>(current_data);
+              fmt::format_to(dst, "{}", *reinterpret_cast<const double *>(current_data));
               break;
             }
             default: {
@@ -2153,17 +2146,17 @@ static void print_full_struct_recursive(const SDNA &sdna,
               break;
             }
           }
-          stream << " ";
+          fmt::format_to(dst, " ");
         }
-        stream << "\n";
+        fmt::format_to(dst, "\n");
         break;
       }
       case STRUCT_MEMBER_CATEGORY_POINTER: {
         for ([[maybe_unused]] const int elem_i : IndexRange(array_elem_num)) {
           const void *current_data = POINTER_OFFSET(data, sdna.pointer_size * elem_i);
-          stream << " " << *reinterpret_cast<const void *const *>(current_data) << " ";
+          fmt::format_to(dst, " {}", *reinterpret_cast<const void *const *>(current_data));
         }
-        stream << "\n";
+        fmt::format_to(dst, "\n");
 
         break;
       }
@@ -2180,7 +2173,14 @@ void DNA_struct_debug_print(const SDNA &sdna,
                             const int64_t element_num,
                             std::ostream &stream)
 {
-  print_full_struct_recursive(sdna, sdna_struct, initial_data, address, element_num, 0, stream);
+  fmt::memory_buffer buf;
+  fmt::appender dst = fmt::appender(buf);
+
+  const char *struct_name = sdna.types[sdna_struct.type_index];
+  fmt::format_to(dst, "<{}> {}x at {}\n", struct_name, element_num, address);
+
+  print_full_struct_recursive(sdna, sdna_struct, initial_data, element_num, 0, dst);
+  stream << fmt::to_string(buf);
 }
 
 /** \} */
