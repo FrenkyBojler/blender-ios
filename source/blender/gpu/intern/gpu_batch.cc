@@ -342,7 +342,7 @@ void GPU_batch_draw_parameter_get(Batch *gpu_batch,
     *r_base_index = batch->elem_()->index_base_get();
   }
   else {
-    *r_vertex_count = batch->verts_(0)->vertex_len;
+    *r_vertex_count = batch->verts_(0) ? batch->verts_(0)->vertex_len : 0;
     *r_vertex_first = 0;
     *r_base_index = -1;
   }
@@ -490,7 +490,8 @@ void GPU_batch_draw_indirect(Batch *gpu_batch, GPUStorageBuf *indirect_buf, intp
   Context::get()->assert_framebuffer_shader_compatibility(Context::get()->shader);
   Batch *batch = static_cast<Batch *>(gpu_batch);
 
-  batch->draw_indirect(indirect_buf, offset);
+  if (batch->flag != GPU_BATCH_INVALID)
+    batch->draw_indirect(indirect_buf, offset);
 }
 
 void GPU_batch_multi_draw_indirect(

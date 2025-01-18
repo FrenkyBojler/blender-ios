@@ -98,7 +98,13 @@ static void create_material_subranges(const MeshRenderData &mr,
   /* Create ibo sub-ranges. Always do this to avoid error when the standard surface batch
    * is created before the surfaces-per-material. */
   int mat_start = 0;
-  for (int i = 0; i < mr.materials_num; i++) {
+
+  int materials_num = mr.materials_num;
+  if (mr.materials_num > cache.tris_per_mat.size()) {
+    materials_num = (int)cache.tris_per_mat.size();
+  }
+
+  for (int i = 0; i < materials_num; i++) {
     /* These IBOs have not been queried yet but we create them just in case they are needed
      * later since they are not tracked by mesh_buffer_cache_create_requested(). */
     if (cache.tris_per_mat[i] == nullptr) {
