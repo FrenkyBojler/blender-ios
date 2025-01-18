@@ -494,8 +494,12 @@ static bool main_namemap_validate_and_fix(Main *bmain, const bool do_fix)
            * to the validated set if it can now be added to `id_names_libs`, and will prevent
            * further checking (which would fail again, since the new ID name/lib key has already
            * been added to `id_names_libs`). */
-          BKE_id_new_name_validate(
-              bmain, which_libbase(bmain, GS(id_iter->name)), id_iter, nullptr, true);
+          BKE_id_new_name_validate(*bmain,
+                                   *which_libbase(bmain, GS(id_iter->name)),
+                                   *id_iter,
+                                   nullptr,
+                                   IDNewNameMode::RenameExistingNever,
+                                   true);
           STRNCPY(key.name, id_iter->name);
           if (!id_names_libs.add(key)) {
             /* This is a serious error, very likely a bug, keep it as CLOG_ERROR even when doing
@@ -530,9 +534,8 @@ static bool main_namemap_validate_and_fix(Main *bmain, const bool do_fix)
       if (!type_map->full_names.contains(key_namemap)) {
         is_valid = false;
         if (do_fix) {
-          CLOG_INFO(
+          CLOG_WARN(
               &LOG,
-              3,
               "ID name '%s' (from library '%s') exists in current Main, but is not listed in "
               "the namemap",
               id_iter->name,
@@ -569,9 +572,8 @@ static bool main_namemap_validate_and_fix(Main *bmain, const bool do_fix)
             if (!id_names_libs.contains(key)) {
               is_valid = false;
               if (do_fix) {
-                CLOG_INFO(
+                CLOG_WARN(
                     &LOG,
-                    3,
                     "ID name '%s' (from library '%s') is listed in the namemap, but does not "
                     "exists in current Main",
                     key.name,

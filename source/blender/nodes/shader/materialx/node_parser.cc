@@ -14,7 +14,7 @@
 
 namespace blender::nodes::materialx {
 
-static const std::string TEXCOORD_NODE_NAME = "node_texcoord";
+constexpr StringRef TEXCOORD_NODE_NAME = "node_texcoord";
 
 CLG_LOGREF_DECLARE_GLOBAL(LOG_MATERIALX_SHADER, "materialx.shader");
 
@@ -41,6 +41,10 @@ NodeItem NodeParser::compute_full()
 {
   NodeItem res = empty();
 
+  if (socket_out_ && !NodeItem::is_convertible((eNodeSocketDatatype)socket_out_->type, to_type_)) {
+    return res;
+  }
+
   /* Checking if node was already computed */
   res.node = graph_->getNode(node_name());
   if (!res.node) {
@@ -48,7 +52,7 @@ NodeItem NodeParser::compute_full()
               1,
               "%s [%d] => %s",
               node_->name,
-              node_->typeinfo->type,
+              node_->typeinfo->type_legacy,
               NodeItem::type(to_type_).c_str());
 
     res = compute();
@@ -56,10 +60,7 @@ NodeItem NodeParser::compute_full()
       res.node->setName(node_name());
     }
   }
-  if (NodeItem::is_arithmetic(to_type_)) {
-    res = res.convert(to_type_);
-  }
-  return res;
+  return res.convert(to_type_);
 }
 
 std::string NodeParser::node_name(bool with_out_socket) const
@@ -243,7 +244,7 @@ NodeItem NodeParser::get_input_link(const bNodeSocket &socket,
 
   const bNode *from_node = link->fromnode;
 
-  /* Passing NODE_REROUTE nodes */
+  /* Passing reroute nodes. */
   while (from_node->is_reroute()) {
     link = from_node->input_socket(0).link;
     if (!(link && link->is_used())) {
@@ -281,7 +282,7 @@ NodeItem NodeParser::get_input_link(const bNodeSocket &socket,
     CLOG_WARN(LOG_MATERIALX_SHADER,
               "Unsupported node: %s [%d]",
               from_node->name,
-              from_node->typeinfo->type);
+              from_node->typeinfo->type_legacy);
     return empty();
   }
 

@@ -14,7 +14,7 @@
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
 
 #include "BLT_translation.hh"
@@ -30,8 +30,6 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_particle_types.h"
-
-#include "ED_anim_api.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
@@ -63,10 +61,7 @@ static void add_object_data_users(const Main &bmain, const ID &id, Vector<ID *> 
   FOREACH_MAIN_LISTBASE_ID_END;
 }
 
-/* Find an action on an ID that is related to the given ID. Related things are e.g. Object<->Data,
- * Mesh<->Material and so on. The exact relationships are defined per ID type. Only relationships
- * of 1:1 are traced. The case of multiple users for 1 ID is treated as not related. */
-static bAction *find_related_action(Main &bmain, ID &id)
+Vector<ID *> find_related_ids(Main &bmain, ID &id)
 {
   Vector<ID *> related_ids({&id});
 
@@ -75,16 +70,13 @@ static bAction *find_related_action(Main &bmain, ID &id)
   for (int i = 0; i < related_ids.size(); i++) {
     ID *related_id = related_ids[i];
 
-    Action *action = get_action(*related_id);
-    if (action && action->is_action_layered()) {
-      /* Returning the first action found means highest priority has the action closest in the
-       * relationship graph. */
-      return action;
-    }
-
     if (related_id->flag & ID_FLAG_EMBEDDED_DATA) {
       /* No matter the type of embedded ID, their owner can always be added to the related IDs. */
-      BLI_assert(ID_REAL_USERS(related_id) == 0);
+
+      /* User counting is irrelevant for the logic here, because embedded IDs cannot be shared.
+       * Embedded IDs do exist (sometimes) with a non-zero user count, hence the assertion that the
+       * user count is not greater than 1. */
+      BLI_assert(ID_REAL_USERS(related_id) <= 1);
       ID *owner_id = BKE_id_owner_get(related_id);
       /* Embedded IDs should always have an owner. */
       BLI_assert(owner_id != nullptr);
@@ -115,9 +107,9 @@ static bAction *find_related_action(Main &bmain, ID &id)
       }
 
       case ID_KE: {
-        /* Shapekeys.  */
+        /* Shape-keys. */
         Key *key = (Key *)related_id;
-        /* Shapekeys are not embedded but there is currently no way to reuse them. */
+        /* Shape-keys are not embedded but there is currently no way to reuse them. */
         BLI_assert(ID_REAL_USERS(related_id) == 1);
         related_ids.append_non_duplicates(key->from);
         break;
@@ -172,7 +164,7 @@ static bAction *find_related_action(Main &bmain, ID &id)
 
         Key *key = BKE_key_from_id(related_id);
         if (key) {
-          /* No check for multi user because the Shapekey cannot be shared. */
+          /* No check for multi user because the shape-key cannot be shared. */
           BLI_assert(ID_REAL_USERS(&key->id) == 1);
           related_ids.append_non_duplicates(&key->id);
         }
@@ -181,42 +173,51 @@ static bAction *find_related_action(Main &bmain, ID &id)
     }
   }
 
+  return related_ids;
+}
+
+/* Find an action on an ID that is related to the given ID. Related things are e.g. Object<->Data,
+ * Mesh<->Material and so on. */
+static bAction *find_related_action(Main &bmain, ID &id)
+{
+  Vector<ID *> related_ids = find_related_ids(bmain, id);
+
+  for (ID *related_id : related_ids) {
+    Action *action = get_action(*related_id);
+    if (action && action->is_action_layered()) {
+      /* Returning the first action found means highest priority has the action closest in the
+       * relationship graph. */
+      return action;
+    }
+  }
+
   return nullptr;
 }
 
 bAction *id_action_ensure(Main *bmain, ID *id)
 {
-  AnimData *adt;
-
-  /* init animdata if none available yet */
-  adt = BKE_animdata_from_id(id);
+  AnimData *adt = BKE_animdata_ensure_id(id);
   if (adt == nullptr) {
-    adt = BKE_animdata_ensure_id(id);
-  }
-  if (adt == nullptr) {
-    /* if still none (as not allowed to add, or ID doesn't have animdata for some reason) */
-    printf("ERROR: Couldn't add AnimData (ID = %s)\n", (id) ? (id->name) : "<None>");
+    printf("ERROR: data-block type is not animatable (ID = %s)\n", (id) ? (id->name) : "<None>");
     return nullptr;
   }
 
   /* init action if none available yet */
   /* TODO: need some wizardry to handle NLA stuff correct */
   if (adt->action == nullptr) {
-    bAction *action = nullptr;
-    if (USER_EXPERIMENTAL_TEST(&U, use_animation_baklava)) {
-      action = find_related_action(*bmain, *id);
-    }
+    bAction *action = find_related_action(*bmain, *id);
+
     if (action == nullptr) {
       /* init action name from name of ID block */
       char actname[sizeof(id->name) - 2];
-      if (id->flag & ID_FLAG_EMBEDDED_DATA && USER_EXPERIMENTAL_TEST(&U, use_animation_baklava)) {
+      if (id->flag & ID_FLAG_EMBEDDED_DATA) {
         /* When the ID is embedded, use the name of the owner ID for clarity. */
         ID *owner_id = BKE_id_owner_get(id);
         /* If the ID is embedded it should have an owner. */
         BLI_assert(owner_id != nullptr);
         SNPRINTF(actname, DATA_("%sAction"), owner_id->name + 2);
       }
-      else if (GS(id->name) == ID_KE && USER_EXPERIMENTAL_TEST(&U, use_animation_baklava)) {
+      else if (GS(id->name) == ID_KE) {
         Key *key = (Key *)id;
         SNPRINTF(actname, DATA_("%sAction"), key->from->name + 2);
       }
@@ -226,13 +227,18 @@ bAction *id_action_ensure(Main *bmain, ID *id)
 
       /* create action */
       action = BKE_action_add(bmain, actname);
-      /* set ID-type from ID-block that this is going to be assigned to
-       * so that users can't accidentally break actions by assigning them
-       * to the wrong places
-       */
-      BKE_animdata_action_ensure_idroot(id, adt->action);
+
+      /* Decrement the default-1 user count, as assigning it will increase it again. */
+      BLI_assert(action->id.us == 1);
+      id_us_min(&action->id);
     }
-    adt->action = action;
+
+    /* Assigning the Action should always work here. The only reason it wouldn't, is when a legacy
+     * Action of the wrong ID type is assigned, but since in this branch of the code we're only
+     * dealing with either new or layered Actions, this will never fail. */
+    const bool ok = animrig::assign_action(action, {*id, *adt});
+    BLI_assert_msg(ok, "Expecting Action assignment to work here");
+    UNUSED_VARS_NDEBUG(ok);
 
     /* Tag depsgraph to be rebuilt to include time dependency. */
     DEG_relations_tag_update(bmain);
@@ -244,7 +250,7 @@ bAction *id_action_ensure(Main *bmain, ID *id)
   return adt->action;
 }
 
-void animdata_fcurve_delete(bAnimContext *ac, AnimData *adt, FCurve *fcu)
+void animdata_fcurve_delete(AnimData *adt, FCurve *fcu)
 {
   /* - If no AnimData, we've got nowhere to remove the F-Curve from
    *   (this doesn't guarantee that the F-Curve is in there, but at least we tried
@@ -254,13 +260,8 @@ void animdata_fcurve_delete(bAnimContext *ac, AnimData *adt, FCurve *fcu)
     return;
   }
 
-  /* Remove from whatever list it came from
-   * - Action Group
-   * - Action
-   * - Drivers
-   * - TODO... some others?
-   */
-  if ((ac) && (ac->datatype == ANIMCONT_DRIVERS)) {
+  const bool is_driver = fcu->driver != nullptr;
+  if (is_driver) {
     BLI_remlink(&adt->drivers, fcu);
   }
   else if (adt->action) {
@@ -325,37 +326,6 @@ bool animdata_remove_empty_action(AnimData *adt)
 
 /** \} */
 
-void reevaluate_fcurve_errors(bAnimContext *ac)
-{
-  /* Need to take off the flag before filtering, else the filter code would skip the FCurves, which
-   * have not yet been validated. */
-  const bool filtering_enabled = ac->ads->filterflag & ADS_FILTER_ONLY_ERRORS;
-  if (filtering_enabled) {
-    ac->ads->filterflag &= ~ADS_FILTER_ONLY_ERRORS;
-  }
-  ListBase anim_data = {nullptr, nullptr};
-  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
-  ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
-
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
-    PointerRNA ptr;
-    PropertyRNA *prop;
-    PointerRNA id_ptr = RNA_id_pointer_create(ale->id);
-    if (RNA_path_resolve_property(&id_ptr, fcu->rna_path, &ptr, &prop)) {
-      fcu->flag &= ~FCURVE_DISABLED;
-    }
-    else {
-      fcu->flag |= FCURVE_DISABLED;
-    }
-  }
-
-  ANIM_animdata_freelist(&anim_data);
-  if (filtering_enabled) {
-    ac->ads->filterflag |= ADS_FILTER_ONLY_ERRORS;
-  }
-}
-
 const FCurve *fcurve_find_by_rna_path(const AnimData &adt,
                                       const StringRefNull rna_path,
                                       const int array_index)
@@ -387,8 +357,8 @@ const FCurve *fcurve_find_by_rna_path(const AnimData &adt,
     for (const Strip *strip : layer->strips()) {
       switch (strip->type()) {
         case Strip::Type::Keyframe: {
-          const KeyframeStrip &key_strip = strip->as<KeyframeStrip>();
-          const ChannelBag *channelbag_for_slot = key_strip.channelbag_for_slot(*slot);
+          const StripKeyframeData &strip_data = strip->data<StripKeyframeData>(action);
+          const Channelbag *channelbag_for_slot = strip_data.channelbag_for_slot(*slot);
           if (!channelbag_for_slot) {
             continue;
           }

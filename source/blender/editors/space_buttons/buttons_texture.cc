@@ -34,6 +34,7 @@
 #include "BKE_layer.hh"
 #include "BKE_linestyle.h"
 #include "BKE_modifier.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
@@ -139,7 +140,7 @@ static void buttons_texture_users_find_nodetree(ListBase *users,
 {
   if (ntree) {
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      if (node->type == CMP_NODE_TEXTURE) {
+      if (node->type_legacy == CMP_NODE_TEXTURE) {
         PointerRNA ptr = RNA_pointer_create(&ntree->id, &RNA_Node, node);
         PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
         buttons_texture_user_node_add(
@@ -151,13 +152,13 @@ static void buttons_texture_users_find_nodetree(ListBase *users,
                                       id,
                                       ntree,
                                       node,
-                                      {nullptr},
+                                      {},
                                       nullptr,
                                       category,
                                       RNA_struct_ui_icon(ptr.type),
                                       node->name);
       }
-      else if (node->type == NODE_GROUP && node->id) {
+      else if (node->is_group() && node->id) {
         buttons_texture_users_find_nodetree(users, id, (bNodeTree *)node->id, category);
       }
     }
@@ -174,7 +175,7 @@ static void buttons_texture_modifier_geonodes_users_add(
   PropertyRNA *prop;
 
   for (bNode *node : node_tree->all_nodes()) {
-    if (node->type == NODE_GROUP && node->id) {
+    if (node->is_group() && node->id) {
       if (handled_groups.add(reinterpret_cast<bNodeTree *>(node->id))) {
         /* Recurse into the node group */
         buttons_texture_modifier_geonodes_users_add(
@@ -515,7 +516,12 @@ static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*a
                            0.0,
                            0.0,
                            "");
-    UI_but_funcN_set(but, template_texture_select, MEM_dupallocN(user), nullptr);
+    UI_but_funcN_set(but,
+                     template_texture_select,
+                     MEM_new<ButsTextureUser>("ButsTextureUser", *user),
+                     nullptr,
+                     but_func_argN_free<ButsTextureUser>,
+                     but_func_argN_copy<ButsTextureUser>);
 
     last_category = user->category;
   }

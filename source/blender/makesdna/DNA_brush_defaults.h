@@ -27,6 +27,7 @@
     /* BRUSH SCULPT BRUSH SETTINGS */ \
     .weight = 1.0f, /* weight of brush 0 - 1.0 */ \
     .size = 35,     /* radius of the brush in pixels */ \
+    .unprojected_radius = 0.05f, /* radius of the brush in Blender units */ \
     .alpha = 1.0f,  /* brush strength/intensity probably variable should be renamed? */ \
     .autosmooth_factor = 0.0f, \
     .topology_rake_factor = 0.0f, \
@@ -86,6 +87,8 @@
  \
     .stencil_pos = {256, 256}, \
     .stencil_dimension = {256, 256}, \
+    .mask_stencil_pos = {256, 256}, \
+    .mask_stencil_dimension = {256, 256}, \
  \
     /* sculpting defaults to the draw brush for new brushes */ \
     .sculpt_brush_type = SCULPT_BRUSH_TYPE_DRAW, \

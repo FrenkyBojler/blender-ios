@@ -127,7 +127,7 @@ bool BM_attribute_stored_in_bmesh_builtin(const StringRef name)
               ".hide_vert",
               ".hide_edge",
               ".hide_poly",
-              ".uv_seam",
+              "uv_seam",
               ".select_vert",
               ".select_edge",
               ".select_poly",
@@ -426,7 +426,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   const VArraySpan material_indices = *attributes.lookup<int>("material_index", AttrDomain::Face);
   const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
   const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
-  const VArraySpan uv_seams = *attributes.lookup<bool>(".uv_seam", AttrDomain::Edge);
+  const VArraySpan uv_seams = *attributes.lookup<bool>("uv_seam", AttrDomain::Edge);
 
   const Span<float3> positions = mesh->vert_positions();
   Array<BMVert *> vtable(mesh->verts_num);
@@ -792,7 +792,7 @@ static void bm_to_mesh_shape(BMesh *bm,
   BMIter iter;
   BMVert *eve;
   float(*ofs)[3] = nullptr;
-  bool *dependent = nullptr;
+  std::optional<Array<bool>> dependent;
 
   /* Editing the basis key updates others. */
   if ((key->type == KEY_RELATIVE) &&
@@ -801,7 +801,7 @@ static void bm_to_mesh_shape(BMesh *bm,
       /* Original key-indices are only used to check the vertex existed when entering edit-mode. */
       (cd_shape_keyindex_offset != -1) &&
       /* Offsets are only needed if the current shape is a basis for others. */
-      (dependent = BKE_keyblock_get_dependent_keys(key, bm->shapenr - 1)) != nullptr)
+      (dependent = BKE_keyblock_get_dependent_keys(key, bm->shapenr - 1)).has_value())
   {
 
     BLI_assert(actkey != nullptr); /* Assured by `actkey_has_layer` check. */
@@ -828,8 +828,7 @@ static void bm_to_mesh_shape(BMesh *bm,
          * ones, creating a mess when doing e.g. subdivide + translate. */
         MEM_freeN(ofs);
         ofs = nullptr;
-        MEM_freeN(dependent);
-        dependent = nullptr;
+        dependent.reset();
         break;
       }
     }
@@ -868,7 +867,7 @@ static void bm_to_mesh_shape(BMesh *bm,
 
     /* Common case, the layer data is available, use it where possible. */
     if (cd_shape_offset != -1) {
-      const bool apply_offset = (ofs != nullptr) && (currkey != actkey) && dependent[currkey_i];
+      const bool apply_offset = (ofs != nullptr) && (currkey != actkey) && (*dependent)[currkey_i];
 
       if (currkey->data && (currkey->totelem == bm->totvert)) {
         /* Use memory in-place. */
@@ -957,7 +956,6 @@ static void bm_to_mesh_shape(BMesh *bm,
   }
 
   MEM_SAFE_FREE(ofs);
-  MEM_SAFE_FREE(dependent);
 }
 
 /** \} */
@@ -1504,7 +1502,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
     sharp_edge = attrs.lookup_or_add_for_write_only_span<bool>("sharp_edge", AttrDomain::Edge);
   }
   if (need_uv_seams) {
-    uv_seams = attrs.lookup_or_add_for_write_only_span<bool>(".uv_seam", AttrDomain::Edge);
+    uv_seams = attrs.lookup_or_add_for_write_only_span<bool>("uv_seam", AttrDomain::Edge);
   }
   if (need_hide_edge) {
     hide_edge = attrs.lookup_or_add_for_write_only_span<bool>(".hide_edge", AttrDomain::Edge);
@@ -1731,7 +1729,7 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
       sharp_edge = attrs.lookup_or_add_for_write_only_span<bool>("sharp_edge", AttrDomain::Edge);
     }
     if (need_uv_seams) {
-      uv_seams = attrs.lookup_or_add_for_write_only_span<bool>(".uv_seam", AttrDomain::Edge);
+      uv_seams = attrs.lookup_or_add_for_write_only_span<bool>("uv_seam", AttrDomain::Edge);
     }
     if (need_hide_edge) {
       hide_edge = attrs.lookup_or_add_for_write_only_span<bool>(".hide_edge", AttrDomain::Edge);

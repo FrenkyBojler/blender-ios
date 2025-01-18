@@ -28,11 +28,6 @@
 #include <pxr/usdImaging/usdImaging/cylinderAdapter.h>
 #include <pxr/usdImaging/usdImaging/sphereAdapter.h>
 
-namespace usdtokens {
-/* Materials */
-static const pxr::TfToken displayColor("displayColor", pxr::TfToken::Immortal);
-}  // namespace usdtokens
-
 namespace blender::io::usd {
 
 USDShapeReader::USDShapeReader(const pxr::UsdPrim &prim,
@@ -192,18 +187,9 @@ void USDShapeReader::apply_primvars_to_mesh(Mesh *mesh, const double motionSampl
   pxr::TfToken active_color_name;
 
   for (const pxr::UsdGeomPrimvar &pv : primvars) {
-    if (!pv.HasValue()) {
-      BKE_reportf(reports(),
-                  RPT_WARNING,
-                  "Skipping primvar %s, mesh %s -- no value",
-                  pv.GetName().GetText(),
-                  &mesh->id.name[2]);
-      continue;
-    }
-
-    if (!pv.GetAttr().GetTypeName().IsArray()) {
-      /* Non-array attributes are technically improper USD. */
-      continue;
+    const pxr::SdfValueTypeName pv_type = pv.GetTypeName();
+    if (!pv_type.IsArray()) {
+      continue; /* Skip non-array primvar attributes. */
     }
 
     const pxr::TfToken name = pxr::UsdGeomPrimvar::StripPrimvarsName(pv.GetPrimvarName());
@@ -213,9 +199,7 @@ void USDShapeReader::apply_primvars_to_mesh(Mesh *mesh, const double motionSampl
       continue;
     }
 
-    const pxr::SdfValueTypeName sdf_type = pv.GetTypeName();
-
-    const std::optional<eCustomDataType> type = convert_usd_type_to_blender(sdf_type);
+    const std::optional<eCustomDataType> type = convert_usd_type_to_blender(pv_type);
     if (type == CD_PROP_COLOR) {
       /* Set the active color name to 'displayColor', if a color primvar
        * with this name exists.  Otherwise, use the name of the first
@@ -223,13 +207,13 @@ void USDShapeReader::apply_primvars_to_mesh(Mesh *mesh, const double motionSampl
       if (active_color_name.IsEmpty() || name == usdtokens::displayColor) {
         active_color_name = name;
       }
+    }
 
-      read_color_data_primvar(mesh, pv, motionSampleTime, reports(), false);
+    read_generic_mesh_primvar(mesh, pv, motionSampleTime, false);
 
-      /* Record whether the primvar attribute might be time varying. */
-      if (!primvar_time_varying_map_.contains(name)) {
-        primvar_time_varying_map_.add(name, pv.ValueMightBeTimeVarying());
-      }
+    /* Record whether the primvar attribute might be time varying. */
+    if (!primvar_time_varying_map_.contains(name)) {
+      primvar_time_varying_map_.add(name, pv.ValueMightBeTimeVarying());
     }
   }
 
@@ -265,12 +249,7 @@ Mesh *USDShapeReader::mesh_from_prim(Mesh *existing_mesh,
   }
 
   MutableSpan<float3> vert_positions = active_mesh->vert_positions_for_write();
-
-  for (int i = 0; i < positions.size(); i++) {
-    vert_positions[i][0] = positions[i][0];
-    vert_positions[i][1] = positions[i][1];
-    vert_positions[i][2] = positions[i][2];
-  }
+  vert_positions.copy_from(Span(positions.data(), positions.size()).cast<float3>());
 
   if (params.read_flags & MOD_MESHSEQ_READ_COLOR) {
     if (active_mesh != existing_mesh) {

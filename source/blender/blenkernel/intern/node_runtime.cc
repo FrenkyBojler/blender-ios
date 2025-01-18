@@ -12,6 +12,7 @@
 #include "BLI_task.hh"
 
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_node_declaration.hh"
 
 namespace blender::bke::node_tree_runtime {
 
@@ -177,7 +178,7 @@ static void find_logical_origins_for_socket_recursive(
       /* Non available sockets are ignored. */
       continue;
     }
-    if (origin_node.type == NODE_REROUTE) {
+    if (origin_node.is_reroute()) {
       bNodeSocket &reroute_input = *origin_node.runtime->inputs[0];
       bNodeSocket &reroute_output = *origin_node.runtime->outputs[0];
       r_skipped_origins.append(&reroute_input);
@@ -284,8 +285,8 @@ struct ToposortNodeState {
 static Vector<const bNode *> get_implicit_origin_nodes(const bNodeTree &ntree, bNode &node)
 {
   Vector<const bNode *> origin_nodes;
-  if (all_zone_output_node_types().contains(node.type)) {
-    const bNodeZoneType &zone_type = *zone_type_by_node_type(node.type);
+  if (all_zone_output_node_types().contains(node.type_legacy)) {
+    const bNodeZoneType &zone_type = *zone_type_by_node_type(node.type_legacy);
     /* Can't use #zone_type.get_corresponding_input because that expects the topology cache to be
      * build already, but we are still building it here. */
     for (const bNode *input_node :
@@ -302,8 +303,8 @@ static Vector<const bNode *> get_implicit_origin_nodes(const bNodeTree &ntree, b
 static Vector<const bNode *> get_implicit_target_nodes(const bNodeTree &ntree, bNode &node)
 {
   Vector<const bNode *> target_nodes;
-  if (all_zone_input_node_types().contains(node.type)) {
-    const bNodeZoneType &zone_type = *zone_type_by_node_type(node.type);
+  if (all_zone_input_node_types().contains(node.type_legacy)) {
+    const bNodeZoneType &zone_type = *zone_type_by_node_type(node.type_legacy);
     if (const bNode *output_node = zone_type.get_corresponding_output(ntree, node)) {
       target_nodes.append(output_node);
     }
@@ -650,4 +651,14 @@ const bNode *bNodeTree::find_nested_node(const int32_t nested_node_id,
     return nullptr;
   }
   return group->find_nested_node(ref->path.id_in_node, r_tree);
+}
+
+const bNodeSocket &bNode::socket_by_decl(const blender::nodes::SocketDeclaration &decl) const
+{
+  return decl.in_out == SOCK_IN ? this->input_socket(decl.index) : this->output_socket(decl.index);
+}
+
+bNodeSocket &bNode::socket_by_decl(const blender::nodes::SocketDeclaration &decl)
+{
+  return decl.in_out == SOCK_IN ? this->input_socket(decl.index) : this->output_socket(decl.index);
 }

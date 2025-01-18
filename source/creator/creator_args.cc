@@ -24,7 +24,7 @@
 #  include "BLI_dynstr.h"
 #  include "BLI_fileops.h"
 #  include "BLI_listbase.h"
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
 #  include "BLI_system.h"
@@ -41,7 +41,7 @@
 #  include "BKE_context.hh"
 
 #  include "BKE_global.hh"
-#  include "BKE_image_format.h"
+#  include "BKE_image_format.hh"
 #  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
@@ -52,8 +52,8 @@
 #  include "GPU_context.hh"
 
 #  ifdef WITH_PYTHON
-#    include "BPY_extern_python.h"
-#    include "BPY_extern_run.h"
+#    include "BPY_extern_python.hh"
+#    include "BPY_extern_run.hh"
 #  endif
 
 #  include "RE_engine.h"
@@ -859,10 +859,13 @@ static void print_help(bArgs *ba, bool all)
   PRINT("  $BLENDER_USER_DATAFILES  Directory for user data files (icons, translations, ..).\n");
   PRINT("\n");
   PRINT("  $BLENDER_SYSTEM_RESOURCES  Replace default directory of all bundled resource files.\n");
-  PRINT("  $BLENDER_SYSTEM_SCRIPTS    Directory to add more bundled scripts.\n");
+  PRINT("  $BLENDER_SYSTEM_SCRIPTS    Directories to add extra scripts.\n");
   PRINT("  $BLENDER_SYSTEM_EXTENSIONS Directory for system extensions repository.\n");
   PRINT("  $BLENDER_SYSTEM_DATAFILES  Directory to replace bundled datafiles.\n");
   PRINT("  $BLENDER_SYSTEM_PYTHON     Directory to replace bundled Python libraries.\n");
+  PRINT("  $BLENDER_CUSTOM_SPLASH     Full path to an image that replaces the splash screen.\n");
+  PRINT(
+      "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
 
   if (defs.with_ocio) {
     PRINT("  $OCIO                      Path to override the OpenColorIO configuration file.\n");
@@ -1055,7 +1058,7 @@ static const char arg_handle_background_mode_set_doc[] =
     "\tRun in background (often used for UI-less rendering).\n"
     "\n"
     "\tThe audio device is disabled in background-mode by default\n"
-    "\tand can be re-enabled by passing in '-setaudo Default' afterwards.";
+    "\tand can be re-enabled by passing in '-setaudio Default' afterwards.";
 static int arg_handle_background_mode_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   if (!G.quiet) {
@@ -1103,6 +1106,39 @@ static int arg_handle_command_set(int argc, const char **argv, void *data)
 
   /* Consume remaining arguments. */
   return argc - 1;
+}
+
+static const char arg_handle_disable_depsgraph_on_file_load_doc[] =
+    "\n"
+    "\tBackround mode: Do not systematically build and evaluate ViewLayers' dependency graphs\n"
+    "\twhen loading a blendfile in background mode (`-b` or `-c` options).\n"
+    "\n"
+    "\tScripts requiring evaluated data then need to explicitly ensure that\n"
+    "\tan evaluated depsgraph is available\n"
+    "\t(e.g. by calling `depsgraph = context.evaluated_depsgraph_get()`).\n"
+    "\n"
+    "\tNOTE: this is a temporary option, in the future depsgraph will never be\n"
+    "\tautomatically generated on file load in background mode.";
+static int arg_handle_disable_depsgraph_on_file_load(int /*argc*/,
+                                                     const char ** /*argv*/,
+                                                     void * /*data*/)
+{
+  G.fileflags |= G_BACKGROUND_NO_DEPSGRAPH;
+  return 0;
+}
+
+static const char arg_handle_disable_liboverride_auto_resync_doc[] =
+    "\n"
+    "\tDo not perform library override automatic resync when loading a new blendfile.\n"
+    "\n"
+    "\tNOTE: this is an alternative way to get the same effect as when setting the\n"
+    "\t`No Override Auto Resync` User Preferences Debug option.";
+static int arg_handle_disable_liboverride_auto_resync(int /*argc*/,
+                                                      const char ** /*argv*/,
+                                                      void * /*data*/)
+{
+  G.fileflags |= G_LIBOVERRIDE_NO_AUTO_RESYNC;
+  return 0;
 }
 
 static const char arg_handle_log_level_set_doc[] =
@@ -1314,6 +1350,11 @@ static const char arg_handle_debug_mode_generic_set_doc_depsgraph_uid[] =
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_workarounds[] =
     "\n\t"
     "Enable workarounds for typical GPU issues and disable all GPU extensions.";
+#  ifdef WITH_VULKAN_BACKEND
+static const char arg_handle_debug_mode_generic_set_doc_gpu_force_vulkan_local_read[] =
+    "\n\t"
+    "Force Vulkan dynamic rendering local read when supported by device.";
+#  endif
 
 static int arg_handle_debug_mode_generic_set(int /*argc*/, const char ** /*argv*/, void *data)
 {
@@ -1436,7 +1477,7 @@ static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, v
 
 static const char arg_handle_debug_gpu_renderdoc_set_doc[] =
     "\n"
-    "\tEnable Renderdoc integration for GPU frame grabbing and debugging.";
+    "\tEnable RenderDoc integration for GPU frame grabbing and debugging.";
 static int arg_handle_debug_gpu_renderdoc_set(int /*argc*/,
                                               const char ** /*argv*/,
                                               void * /*data*/)
@@ -2668,6 +2709,18 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   /* Command implies background mode (defers execution). */
   BLI_args_add(ba, "-c", "--command", CB(arg_handle_command_set), C);
 
+  BLI_args_add(ba,
+               nullptr,
+               "--disable-depsgraph-on-file-load",
+               CB(arg_handle_disable_depsgraph_on_file_load),
+               nullptr);
+
+  BLI_args_add(ba,
+               nullptr,
+               "--disable-liboverride-auto-resync",
+               CB(arg_handle_disable_liboverride_auto_resync),
+               nullptr);
+
   BLI_args_add(ba, "-a", nullptr, CB(arg_handle_playback_mode), nullptr);
 
   BLI_args_add(ba, "-d", "--debug", CB(arg_handle_debug_mode_set), ba);
@@ -2808,6 +2861,13 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                "--debug-gpu-force-workarounds",
                CB_EX(arg_handle_debug_mode_generic_set, gpu_force_workarounds),
                (void *)G_DEBUG_GPU_FORCE_WORKAROUNDS);
+#  ifdef WITH_VULKAN_BACKEND
+  BLI_args_add(ba,
+               nullptr,
+               "--debug-gpu-vulkan-local-read",
+               CB_EX(arg_handle_debug_mode_generic_set, gpu_force_vulkan_local_read),
+               (void *)G_DEBUG_GPU_FORCE_VULKAN_LOCAL_READ);
+#  endif
   BLI_args_add(ba, nullptr, "--debug-exit-on-error", CB(arg_handle_debug_exit_on_error), nullptr);
 
   BLI_args_add(ba, nullptr, "--verbose", CB(arg_handle_verbosity_set), nullptr);

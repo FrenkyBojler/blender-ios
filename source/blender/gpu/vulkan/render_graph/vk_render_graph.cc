@@ -7,6 +7,9 @@
  */
 
 #include "vk_render_graph.hh"
+#include "gpu_backend.hh"
+
+#include <sstream>
 
 namespace blender::gpu::render_graph {
 
@@ -50,7 +53,7 @@ void VKRenderGraph::submit_for_present(VkImage vk_swapchain_image)
   add_node<VKSynchronizationNode>(synchronization);
 
   std::scoped_lock lock(resources_.mutex);
-  Span<NodeHandle> node_handles = scheduler_.select_nodes_for_image(*this, vk_swapchain_image);
+  Span<NodeHandle> node_handles = scheduler_.select_nodes(*this);
   command_builder_.build_nodes(*this, *command_buffer_, node_handles);
   /* TODO: To improve performance it could be better to return a semaphore. This semaphore can be
    * passed in the swapchain to ensure GPU synchronization. This also require a second semaphore to
@@ -63,18 +66,7 @@ void VKRenderGraph::submit_for_present(VkImage vk_swapchain_image)
   command_buffer_->wait_for_cpu_synchronization();
 }
 
-void VKRenderGraph::submit_buffer_for_read(VkBuffer vk_buffer)
-{
-  std::scoped_lock lock(resources_.mutex);
-  Span<NodeHandle> node_handles = scheduler_.select_nodes_for_buffer(*this, vk_buffer);
-  command_builder_.build_nodes(*this, *command_buffer_, node_handles);
-  command_buffer_->submit_with_cpu_synchronization();
-  submission_id.next();
-  remove_nodes(node_handles);
-  command_buffer_->wait_for_cpu_synchronization();
-}
-
-void VKRenderGraph::submit()
+void VKRenderGraph::submit_for_read()
 {
   std::scoped_lock lock(resources_.mutex);
   Span<NodeHandle> node_handles = scheduler_.select_nodes(*this);
@@ -85,15 +77,43 @@ void VKRenderGraph::submit()
   command_buffer_->wait_for_cpu_synchronization();
 }
 
+void VKRenderGraph::submit()
+{
+  /* Using `VK_NULL_HANDLE` will select the default VkFence of the command buffer. */
+  submit_synchronization_event(VK_NULL_HANDLE);
+  wait_synchronization_event(VK_NULL_HANDLE);
+}
+
+void VKRenderGraph::submit_synchronization_event(VkFence vk_fence)
+{
+  std::scoped_lock lock(resources_.mutex);
+  Span<NodeHandle> node_handles = scheduler_.select_nodes(*this);
+  command_builder_.build_nodes(*this, *command_buffer_, node_handles);
+  command_buffer_->submit_with_cpu_synchronization(vk_fence);
+  submission_id.next();
+  remove_nodes(node_handles);
+}
+
+void VKRenderGraph::wait_synchronization_event(VkFence vk_fence)
+{
+  command_buffer_->wait_for_cpu_synchronization(vk_fence);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Debug
  * \{ */
 
-void VKRenderGraph::debug_group_begin(const char *name)
+void VKRenderGraph::debug_group_begin(const char *name, const ColorTheme4f &color)
 {
-  DebugGroupNameID name_id = debug_.group_names.index_of_or_add(std::string(name));
+  ColorTheme4f useColor = color;
+  if ((color == blender::gpu::debug::GPU_DEBUG_GROUP_COLOR_DEFAULT) &&
+      (debug_.group_stack.size() > 0))
+  {
+    useColor = debug_.groups[debug_.group_stack.last()].color;
+  }
+  DebugGroupNameID name_id = debug_.groups.index_of_or_add({std::string(name), useColor});
   debug_.group_stack.append(name_id);
   debug_.group_used = false;
 }
@@ -124,6 +144,25 @@ void VKRenderGraph::debug_print(NodeHandle node_handle) const
     link.debug_print(os, resources_);
     os << "\n";
   }
+}
+
+std::string VKRenderGraph::full_debug_group(NodeHandle node_handle) const
+{
+  if ((G.debug & G_DEBUG_GPU) == 0) {
+    return std::string();
+  }
+
+  DebugGroupID debug_group = debug_.node_group_map[node_handle];
+  if (debug_group == -1) {
+    return std::string();
+  }
+
+  std::stringstream ss;
+  for (const VKRenderGraph::DebugGroupNameID &name_id : debug_.used_groups[debug_group]) {
+    ss << "/" << debug_.groups[name_id].name;
+  }
+
+  return ss.str();
 }
 
 /** \} */

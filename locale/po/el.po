@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.3.0 Alpha (b'b5ea3beaf93b')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-09-02 14:03+0000\n"
+"POT-Creation-Date: 2025-01-13 11:47+0000\n"
 "PO-Revision-Date: 2024-04-29 13:44+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -355,52 +355,12 @@ msgid "Blue"
 msgstr "Μπλε"
 
 
-msgid "Font"
-msgstr "Γραμματοσειρά"
-
-
-msgid "Key"
-msgstr "Κλειδί"
-
-
-msgid "Lattice"
-msgstr "Πλέγμα"
-
-
 msgid "Library"
 msgstr "Βιβλιοθήκη"
 
 
-msgid "Light"
-msgstr "Φως"
-
-
-msgid "Mesh"
-msgstr "Πολύγωνα"
-
-
-msgid "Metaball"
-msgstr "Μετα-σφαίρα"
-
-
-msgid "Sound"
-msgstr "Ήχος"
-
-
-msgid "Text"
-msgstr "Κείμενο"
-
-
-msgid "World"
-msgstr "Κόσμος"
-
-
 msgid "Wire"
 msgstr "Πλέγμα"
-
-
-msgid "Grab"
-msgstr "Μετακίνηση"
 
 
 msgid "Dynamic"
@@ -421,6 +381,10 @@ msgstr "Προεξοχή"
 
 msgid "Path"
 msgstr "Μονοπάτι"
+
+
+msgid "Font"
+msgstr "Γραμματοσειρά"
 
 
 msgid "Shear"
@@ -451,10 +415,6 @@ msgid "Cube"
 msgstr "Κύβος"
 
 
-msgid "Opaque"
-msgstr "Αδιαφανής"
-
-
 msgid "Edges"
 msgstr "Ακμές"
 
@@ -465,6 +425,10 @@ msgstr "Κορυφές"
 
 msgid "Edit"
 msgstr "Επεξεργασία"
+
+
+msgid "Mesh"
+msgstr "Πολύγωνα"
 
 
 msgid "Bounding Box"
@@ -503,6 +467,14 @@ msgid "Weight Paint"
 msgstr "Χρωματισμός Βάρους"
 
 
+msgid "Lattice"
+msgstr "Πλέγμα"
+
+
+msgid "Sound"
+msgstr "Ήχος"
+
+
 msgid "Blend"
 msgstr "Ανάμιξη"
 
@@ -513,10 +485,6 @@ msgstr "Σκληρό"
 
 msgid "Area"
 msgstr "Περιοχή"
-
-
-msgid "Sharp"
-msgstr "Απότομο"
 
 
 msgid "Themes"
@@ -563,6 +531,14 @@ msgid "Select Linked"
 msgstr "Επιλογή Συνδεδεμένων"
 
 
+msgid "Metaball"
+msgstr "Μετα-σφαίρα"
+
+
+msgid "Light"
+msgstr "Φως"
+
+
 msgid "Rigid Body"
 msgstr "Rigid Body"
 
@@ -581,6 +557,14 @@ msgstr "Ορισμός Ενός Χρήστη"
 
 msgid "Merge"
 msgstr "Συγχώνευση"
+
+
+msgid "Text"
+msgstr "Κείμενο"
+
+
+msgid "Key"
+msgstr "Κλειδί"
 
 
 msgid "Import"
@@ -607,6 +591,10 @@ msgid "Help"
 msgstr "Βοήθεια"
 
 
+msgid "Sharp"
+msgstr "Απότομο"
+
+
 msgid "Ball"
 msgstr "Σφαίρα"
 
@@ -617,6 +605,10 @@ msgstr "Βίδωμα"
 
 msgid "Wireframe"
 msgstr "Πλέγμα"
+
+
+msgid "Subdivide"
+msgstr "Υποδιαίρεση"
 
 
 msgid "Warp"
@@ -631,8 +623,8 @@ msgid "New"
 msgstr "Νέο"
 
 
-msgid "Shaded"
-msgstr "Με σκίαση"
+msgid "World"
+msgstr "Κόσμος"
 
 
 msgid "Lines"
@@ -744,21 +736,8 @@ msgid "Open"
 msgstr "Άνοιγμα"
 
 
-msgctxt "Operator"
-msgid "Rotate"
-msgstr "Rotate"
-
-
 msgid "Both"
 msgstr "Both"
-
-
-msgid "Join"
-msgstr "Ένωσε"
-
-
-msgid "Remove"
-msgstr "Remove"
 
 
 msgid "Next Keyframe"
@@ -767,6 +746,15 @@ msgstr "Επόμενο Καρέ με Κλειδί"
 
 msgid "Flat"
 msgstr "Επίπεδο"
+
+
+msgid "Join"
+msgstr "Ένωσε"
+
+
+msgctxt "Operator"
+msgid "Merge"
+msgstr "Συγχώνευση"
 
 
 msgctxt "Operator"
@@ -781,11 +769,6 @@ msgstr "Συμπλήρωμα"
 
 msgid "Ring"
 msgstr "Ring"
-
-
-msgctxt "Operator"
-msgid "Merge"
-msgstr "Συγχώνευση"
 
 
 msgid "Merge selected vertices"
@@ -899,6 +882,11 @@ msgstr "Αποθήκευση ως"
 
 
 msgctxt "Operator"
+msgid "Rotate"
+msgstr "Rotate"
+
+
+msgctxt "Operator"
 msgid "Shear"
 msgstr "Πλαγίαση"
 
@@ -930,6 +918,10 @@ msgid "Pan"
 msgstr "Ολίσθηση προβολής"
 
 
+msgid "Remove"
+msgstr "Remove"
+
+
 msgctxt "Operator"
 msgid "Quit Blender"
 msgstr "Έξοδος"
@@ -947,6 +939,10 @@ msgstr "Φόρτωση εργοστασιακών ρυθμίσεων"
 msgctxt "Operator"
 msgid "Recover Last Session"
 msgstr "Επαναφορά τελευταίας συνεδρίας"
+
+
+msgid "Shaded"
+msgstr "Με σκίαση"
 
 
 msgid "Sub"
@@ -985,16 +981,16 @@ msgid "Sky"
 msgstr "Ουρανός"
 
 
+msgid "Lens"
+msgstr "Φακός"
+
+
 msgid "Alpha Under"
 msgstr "Υποκάλυψη βάσει διαφάνειας"
 
 
 msgid "Gamma Cross"
 msgstr "Μετάβαση Γάμμα"
-
-
-msgid "Lens"
-msgstr "Φακός"
 
 
 msgid "Stencil"
@@ -1018,10 +1014,6 @@ msgid "Clear"
 msgstr "Καθαρισμός"
 
 
-msgid "Layer:"
-msgstr "Στρώμα"
-
-
 msgid "Esc"
 msgstr "Esc"
 
@@ -1038,10 +1030,10 @@ msgid "Fields"
 msgstr "Πεδία"
 
 
-msgid "Subdivide"
-msgstr "Υποδιαίρεση"
-
-
 msgid "Life"
 msgstr "Ζωή"
+
+
+msgid "Layer:"
+msgstr "Στρώμα"
 

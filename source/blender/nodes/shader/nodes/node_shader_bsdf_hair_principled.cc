@@ -97,7 +97,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .description("Vary roughness values for each strand");
   b.add_input<decl::Float>("Random").hide_value();
-  b.add_input<decl::Float>("Weight").unavailable();
+  b.add_input<decl::Float>("Weight").available(false);
   b.add_input<decl::Float>("Reflection", "R lobe")
       .default_value(1.0f)
       .min(0.0f)
@@ -212,8 +212,11 @@ void register_node_type_sh_bsdf_hair_principled()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(
-      &ntype, SH_NODE_BSDF_HAIR_PRINCIPLED, "Principled Hair BSDF", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, "ShaderNodeBsdfHairPrincipled", SH_NODE_BSDF_HAIR_PRINCIPLED);
+  ntype.ui_name = "Principled Hair BSDF";
+  ntype.ui_description = "Physically-based, easy-to-use shader for rendering hair and fur";
+  ntype.enum_name_legacy = "BSDF_HAIR_PRINCIPLED";
+  ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_cycles_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts_principled_hair;

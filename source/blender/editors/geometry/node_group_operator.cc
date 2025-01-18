@@ -6,7 +6,7 @@
  * \ingroup edcurves
  */
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 
@@ -30,11 +30,12 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
+#include "BKE_paint.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -62,8 +63,7 @@
 
 #include "BLT_translation.hh"
 
-#include "FN_lazy_function_execute.hh"
-
+#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -74,6 +74,8 @@
 #include "AS_asset_representation.hh"
 
 #include "geometry_intern.hh"
+
+#include <fmt/format.h>
 
 namespace geo_log = blender::nodes::geo_eval_log;
 
@@ -246,7 +248,7 @@ static void store_result_geometry(
       const bool has_shape_keys = mesh.key != nullptr;
 
       if (object.mode == OB_MODE_SCULPT) {
-        sculpt_paint::undo::geometry_begin(object, &op);
+        sculpt_paint::undo::geometry_begin(scene, object, &op);
       }
 
       Mesh *new_mesh = geometry.get_component_for_write<bke::MeshComponent>().release();
@@ -274,6 +276,7 @@ static void store_result_geometry(
 
       if (object.mode == OB_MODE_SCULPT) {
         sculpt_paint::undo::geometry_end(object);
+        BKE_sculptsession_free_pbvh(object);
       }
       break;
     }
@@ -288,11 +291,10 @@ static void store_result_geometry(
 static void gather_node_group_ids(const bNodeTree &node_tree, Set<ID *> &ids)
 {
   const int orig_size = ids.size();
-
-  bool needs_own_transform_relation = false;
-  bool needs_scene_camera_relation = false;
-  nodes::find_node_tree_dependencies(
-      node_tree, ids, needs_own_transform_relation, needs_scene_camera_relation);
+  BLI_assert(node_tree.runtime->geometry_nodes_eval_dependencies);
+  for (ID *id : node_tree.runtime->geometry_nodes_eval_dependencies->ids.values()) {
+    ids.add(id);
+  }
   if (ids.size() != orig_size) {
     /* Only evaluate the node group if it references data-blocks. In that case it needs to be
      * evaluated so that ID pointers are switched to point to evaluated data-blocks. */
@@ -404,7 +406,9 @@ static void replace_inputs_evaluated_data_blocks(
 {
   IDP_foreach_property(&properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
     if (ID *id = IDP_Id(property)) {
-      property->data.pointer = const_cast<ID *>(depsgraphs.get_evaluated_id(*id));
+      if (ID_TYPE_USE_COPY_ON_EVAL(GS(id->name))) {
+        property->data.pointer = const_cast<ID *>(depsgraphs.get_evaluated_id(*id));
+      }
     }
   });
 }
@@ -486,7 +490,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
   for (ID *id : input_ids.values()) {
     /* Skip IDs that are already fully evaluated in the active depsgraph. */
     if (!DEG_id_is_fully_evaluated(depsgraph_active, id)) {
-      return extra_ids.add(id);
+      extra_ids.add(id);
     }
   }
 
@@ -660,18 +664,17 @@ static std::string run_node_group_get_description(bContext *C,
 
 static void add_attribute_search_or_value_buttons(uiLayout *layout,
                                                   PointerRNA *md_ptr,
+                                                  const StringRef socket_id_esc,
+                                                  const StringRefNull rna_path,
                                                   const bNodeTreeInterfaceSocket &socket)
 {
   bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
-  char socket_id_esc[MAX_NAME * 2];
-  BLI_str_escape(socket_id_esc, socket.identifier, sizeof(socket_id_esc));
-  const std::string rna_path = "[\"" + std::string(socket_id_esc) + "\"]";
-  const std::string rna_path_use_attribute = "[\"" + std::string(socket_id_esc) +
-                                             nodes::input_use_attribute_suffix() + "\"]";
-  const std::string rna_path_attribute_name = "[\"" + std::string(socket_id_esc) +
-                                              nodes::input_attribute_name_suffix() + "\"]";
+  const std::string rna_path_use_attribute = fmt::format(
+      "[\"{}{}\"]", socket_id_esc, nodes::input_use_attribute_suffix);
+  const std::string rna_path_attribute_name = fmt::format(
+      "[\"{}{}\"]", socket_id_esc, nodes::input_attribute_name_suffix);
 
   /* We're handling this manually in this case. */
   uiLayoutSetPropDecorate(layout, false);
@@ -696,15 +699,14 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
 
   if (use_attribute) {
     /* TODO: Add attribute search. */
-    uiItemR(prop_row, md_ptr, rna_path_attribute_name.c_str(), UI_ITEM_NONE, "", ICON_NONE);
+    uiItemR(prop_row, md_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
   }
   else {
     const char *name = socket_type == SOCK_BOOLEAN ? (socket.name ? socket.name : "") : "";
-    uiItemR(prop_row, md_ptr, rna_path.c_str(), UI_ITEM_NONE, name, ICON_NONE);
+    uiItemR(prop_row, md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
   }
 
-  uiItemR(
-      prop_row, md_ptr, rna_path_use_attribute.c_str(), UI_ITEM_R_ICON_ONLY, "", ICON_SPREADSHEET);
+  uiItemR(prop_row, md_ptr, rna_path_use_attribute, UI_ITEM_R_ICON_ONLY, "", ICON_SPREADSHEET);
 }
 
 static void draw_property_for_socket(const bNodeTree &node_tree,
@@ -759,7 +761,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
       break;
     default:
       if (nodes::input_has_attribute_toggle(node_tree, socket_index)) {
-        add_attribute_search_or_value_buttons(row, op_ptr, socket);
+        add_attribute_search_or_value_buttons(row, op_ptr, socket_id_esc, rna_path, socket);
       }
       else {
         uiItemR(row, op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
@@ -1142,6 +1144,7 @@ static Set<std::string> get_builtin_menus(const ObjectType object_type, const eO
           menus.add_new("Face");
           menus.add_new("Face/Face Data");
           menus.add_new("UV");
+          menus.add_new("UV/Unwrap");
           break;
         case OB_MODE_SCULPT:
           menus.add_new("View");

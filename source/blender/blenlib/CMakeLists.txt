@@ -21,7 +21,6 @@ set(INC_SYS
 )
 
 set(SRC
-  intern/BLI_array.c
   intern/BLI_assert.c
   intern/BLI_color.cc
   intern/BLI_dial_2d.c
@@ -31,7 +30,7 @@ set(SRC
   intern/BLI_ghash_utils.cc
   intern/BLI_heap.c
   intern/BLI_heap_simple.c
-  intern/BLI_kdopbvh.c
+  intern/BLI_kdopbvh.cc
   intern/BLI_linklist.c
   intern/BLI_linklist_lockfree.c
   intern/BLI_memarena.c
@@ -41,7 +40,6 @@ set(SRC
   intern/BLI_mmap.c
   intern/BLI_subprocess.cc
   intern/BLI_timer.c
-  intern/DLRB_tree.c
   intern/array_store.cc
   intern/array_store_utils.cc
   intern/array_utils.c
@@ -62,7 +60,6 @@ set(SRC
   intern/cpp_types.cc
   intern/delaunay_2d.cc
   intern/dot_export.cc
-  intern/dynlib.cc
   intern/easing.c
   intern/endian_switch.c
   intern/expr_pylike_eval.c
@@ -95,7 +92,7 @@ set(SRC
   intern/lazy_threading.cc
   intern/length_parameterize.cc
   intern/listbase.cc
-  intern/math_base.c
+  intern/math_base.cc
   intern/math_base_inline.c
   intern/math_base_safe_inline.c
   intern/math_basis_types.cc
@@ -106,32 +103,33 @@ set(SRC
   intern/math_color_inline.c
   intern/math_geom.cc
   intern/math_geom_inline.c
+  intern/math_half.cc
   intern/math_interp.cc
   intern/math_matrix.cc
   intern/math_matrix_c.cc
-  intern/math_rotation.c
   intern/math_rotation.cc
-  intern/math_solvers.c
-  intern/math_statistics.c
-  intern/math_time.c
+  intern/math_rotation_c.cc
+  intern/math_solvers.cc
+  intern/math_statistics.cc
+  intern/math_time.cc
   intern/math_vec.cc
-  intern/math_vector.c
+  intern/math_vector.cc
   intern/math_vector_inline.c
   intern/memory_cache.cc
   intern/memory_counter.cc
-  intern/memory_utils.c
+  intern/memory_utils.cc
   intern/mesh_boolean.cc
   intern/mesh_intersect.cc
-  intern/noise.c
   intern/noise.cc
+  intern/noise_c.cc
   intern/offset_indices.cc
   intern/ordered_edge.cc
-  intern/path_util.cc
-  intern/polyfill_2d.c
-  intern/polyfill_2d_beautify.c
-  intern/quadric.c
+  intern/path_utils.cc
+  intern/polyfill_2d.cc
+  intern/polyfill_2d_beautify.cc
+  intern/quadric.cc
   intern/rand.cc
-  intern/rct.c
+  intern/rct.cc
   intern/resource_scope.cc
   intern/scanfill.c
   intern/scanfill_utils.c
@@ -154,7 +152,7 @@ set(SRC
   intern/task_pool.cc
   intern/task_range.cc
   intern/task_scheduler.cc
-  intern/tempfile.c
+  intern/tempfile.cc
   intern/threads.cc
   intern/time.c
   intern/timecode.c
@@ -178,7 +176,6 @@ set(SRC
   BLI_alloca.h
   BLI_allocator.hh
   BLI_any.hh
-  BLI_array.h
   BLI_array.hh
   BLI_array_store.h
   BLI_array_store_utils.h
@@ -222,10 +219,8 @@ set(SRC
   BLI_devirtualize_parameters.hh
   BLI_dial_2d.h
   BLI_disjoint_set.hh
-  BLI_dlrbTree.h
   BLI_dot_export.hh
   BLI_dot_export_attribute_enums.hh
-  BLI_dynlib.h
   BLI_dynstr.h
   BLI_easing.h
   BLI_endian_defines.h
@@ -272,7 +267,7 @@ set(SRC
   BLI_inplace_priority_queue.hh
   BLI_iterator.h
   BLI_jitter_2d.h
-  BLI_kdopbvh.h
+  BLI_kdopbvh.hh
   BLI_kdtree.h
   BLI_kdtree_impl.h
   BLI_lasso_2d.hh
@@ -300,9 +295,11 @@ set(SRC
   BLI_math_color.h
   BLI_math_color.hh
   BLI_math_color_blend.h
+  BLI_math_constants.h
   BLI_math_euler.hh
   BLI_math_euler_types.hh
   BLI_math_geom.h
+  BLI_math_half.hh
   BLI_math_inline.h
   BLI_math_interp.hh
   BLI_math_matrix.h
@@ -323,6 +320,7 @@ set(SRC
   BLI_math_vector.hh
   BLI_math_vector_mpq_types.hh
   BLI_math_vector_types.hh
+  BLI_math_vector_unroll.hh
   BLI_memarena.h
   BLI_memblock.h
   BLI_memiter.h
@@ -342,7 +340,7 @@ set(SRC
   BLI_offset_span.hh
   BLI_ordered_edge.hh
   BLI_parameter_pack_utils.hh
-  BLI_path_util.h
+  BLI_path_utils.hh
   BLI_polyfill_2d.h
   BLI_polyfill_2d_beautify.h
   BLI_pool.hh
@@ -351,7 +349,6 @@ set(SRC
   BLI_rand.h
   BLI_rand.hh
   BLI_random_access_iterator_mixin.hh
-  BLI_range.h
   BLI_rect.h
   BLI_resource_scope.hh
   BLI_scanfill.h
@@ -479,15 +476,15 @@ if(WIN32)
     dxgi
   )
   list(APPEND SRC
-    intern/system_win32.c
+    intern/system_win32.cc
   )
 endif()
 
 
 if(APPLE)
   list(APPEND SRC
-    intern/storage_apple.mm
     intern/fileops_apple.mm
+    intern/storage_apple.mm
   )
 endif()
 
@@ -561,6 +558,7 @@ if(WITH_GTESTS)
     tests/BLI_math_bits_test.cc
     tests/BLI_math_color_test.cc
     tests/BLI_math_geom_test.cc
+    tests/BLI_math_half_test.cc
     tests/BLI_math_interp_test.cc
     tests/BLI_math_matrix_test.cc
     tests/BLI_math_matrix_types_test.cc
@@ -578,7 +576,7 @@ if(WITH_GTESTS)
     tests/BLI_mesh_intersect_test.cc
     tests/BLI_multi_value_map_test.cc
     tests/BLI_offset_indices_test.cc
-    tests/BLI_path_util_test.cc
+    tests/BLI_path_utils_test.cc
     tests/BLI_polyfill_2d_test.cc
     tests/BLI_pool_test.cc
     tests/BLI_random_access_iterator_mixin_test.cc

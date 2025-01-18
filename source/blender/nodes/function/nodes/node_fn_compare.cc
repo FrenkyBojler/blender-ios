@@ -42,8 +42,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("A", "A_COL").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
   b.add_input<decl::Color>("B", "B_COL").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
 
-  b.add_input<decl::String>("A", "A_STR").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-  b.add_input<decl::String>("B", "B_STR").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::String>("A", "A_STR")
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .hide_label();
+  b.add_input<decl::String>("B", "B_STR")
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .hide_label();
 
   b.add_input<decl::Float>("C").default_value(0.9f);
   b.add_input<decl::Float>("Angle").default_value(0.0872665f).subtype(PROP_ANGLE);
@@ -733,7 +737,10 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  fn_node_type_base(&ntype, FN_NODE_COMPARE, "Compare", NODE_CLASS_CONVERTER);
+  fn_node_type_base(&ntype, "FunctionNodeCompare", FN_NODE_COMPARE);
+  ntype.ui_name = "Compare";
+  ntype.enum_name_legacy = "COMPARE";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
   ntype.updatefunc = node_update;

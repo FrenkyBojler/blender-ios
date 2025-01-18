@@ -41,15 +41,18 @@
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 
+#include "ANIM_action.hh"
+#include "ANIM_action_legacy.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "ED_node.hh"
@@ -64,9 +67,6 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
-#if 0
-#  include "NOD_common.h"
-#endif
 
 #include "BlenderContext.h"
 #include "ExportSettings.h"
@@ -751,8 +751,12 @@ static bool has_custom_props(Bone *bone, bool enabled, std::string key)
           bc_get_IDProperty(bone, key + "_z"));
 }
 
-void bc_enable_fcurves(bAction *act, char *bone_name)
+void bc_enable_fcurves(AnimData *adt, char *bone_name)
 {
+  if (adt == nullptr) {
+    return;
+  }
+
   char prefix[200];
 
   if (bone_name) {
@@ -761,7 +765,7 @@ void bc_enable_fcurves(bAction *act, char *bone_name)
     SNPRINTF(prefix, "pose.bones[\"%s\"]", bone_name_esc);
   }
 
-  LISTBASE_FOREACH (FCurve *, fcu, &act->curves) {
+  for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(adt)) {
     if (bone_name) {
       if (STREQLEN(fcu->rna_path, prefix, strlen(prefix))) {
         fcu->flag &= ~FCURVE_DISABLED;
@@ -786,10 +790,9 @@ bool bc_bone_matrix_local_get(Object *ob, Bone *bone, Matrix &mat, bool for_open
     return false;
   }
 
-  bAction *action = bc_getSceneObjectAction(ob);
   bPoseChannel *parchan = pchan->parent;
 
-  bc_enable_fcurves(action, bone->name);
+  bc_enable_fcurves(ob->adt, bone->name);
   float ipar[4][4];
 
   if (bone->parent) {
@@ -818,7 +821,7 @@ bool bc_bone_matrix_local_get(Object *ob, Bone *bone, Matrix &mat, bool for_open
       mul_m4_m4m4(mat, temp, mat);
     }
   }
-  bc_enable_fcurves(action, nullptr);
+  bc_enable_fcurves(ob->adt, nullptr);
   return true;
 }
 
@@ -850,9 +853,9 @@ bool bc_is_animated(BCMatrixSampleMap &values)
 bool bc_has_animations(Object *ob)
 {
   /* Check for object, light and camera transform animations */
-  if ((bc_getSceneObjectAction(ob) && bc_getSceneObjectAction(ob)->curves.first) ||
-      (bc_getSceneLightAction(ob) && bc_getSceneLightAction(ob)->curves.first) ||
-      (bc_getSceneCameraAction(ob) && bc_getSceneCameraAction(ob)->curves.first))
+  if (blender::animrig::legacy::assigned_action_has_keyframes(ob->adt) ||
+      blender::animrig::legacy::assigned_action_has_keyframes(bc_getSceneLightAnimData(ob)) ||
+      blender::animrig::legacy::assigned_action_has_keyframes(bc_getSceneCameraAnimData(ob)))
   {
     return true;
   }
@@ -863,13 +866,13 @@ bool bc_has_animations(Object *ob)
     if (!ma) {
       continue;
     }
-    if (ma->adt && ma->adt->action && ma->adt->action->curves.first) {
+    if (blender::animrig::legacy::assigned_action_has_keyframes(bc_getSceneMaterialAnimData(ma))) {
       return true;
     }
   }
 
   Key *key = BKE_key_from_object(ob);
-  if ((key && key->adt && key->adt->action) && key->adt->action->curves.first) {
+  if (key && blender::animrig::legacy::assigned_action_has_keyframes(key->adt)) {
     return true;
   }
 
@@ -1118,8 +1121,8 @@ static bNode *bc_add_node(
     if (label.length() > 0) {
       STRNCPY(node->label, label.c_str());
     }
-    node->locx = locx;
-    node->locy = locy;
+    node->location[0] = locx;
+    node->location[1] = locy;
     node->flag |= NODE_SELECT;
   }
   return node;
@@ -1300,7 +1303,7 @@ bNode *bc_get_master_shader(Material *ma)
   bNodeTree *nodetree = ma->nodetree;
   if (nodetree) {
     LISTBASE_FOREACH (bNode *, node, &nodetree->nodes) {
-      if (node->typeinfo->type == SH_NODE_BSDF_PRINCIPLED) {
+      if (node->typeinfo->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
         return node;
       }
     }

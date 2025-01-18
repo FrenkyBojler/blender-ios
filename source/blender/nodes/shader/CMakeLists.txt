@@ -6,15 +6,8 @@ set(INC
   .
   ..
   ../intern
-  ../../blenkernel
-  ../../blentranslation
   ../../editors/include
-  ../../functions
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../render
-  ../../windowmanager
   ../../../../intern/sky/include
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -129,14 +122,20 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_functions
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_intern_sky
   bf_nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_MATERIALX)
@@ -173,7 +172,7 @@ endif()
 if(WITH_TBB)
   if(WIN32)
     # TBB includes Windows.h which will define min/max macros
-    # that will collide with the stl versions.
+    # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
 endif()

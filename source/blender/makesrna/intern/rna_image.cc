@@ -14,8 +14,9 @@
 
 #include "BLI_utildefines.h"
 
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "BLT_translation.hh"
@@ -25,6 +26,8 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+
+#include "MOV_read.hh"
 
 #include "rna_internal.hh"
 
@@ -252,7 +255,7 @@ static void rna_ImageUser_update(Main *bmain, Scene *scene, PointerRNA *ptr)
     if (GS(id->name) == ID_NT) {
       /* Special update for node-trees. */
       BKE_ntree_update_tag_image_user_changed((bNodeTree *)id, iuser);
-      ED_node_tree_propagate_change(nullptr, bmain, nullptr);
+      BKE_main_ensure_invariants(*bmain);
     }
     else {
       /* Update material or texture for render preview. */
@@ -599,9 +602,9 @@ static int rna_Image_frame_duration_get(PointerRNA *ptr)
   }
 
   if (BKE_image_has_anim(ima)) {
-    ImBufAnim *anim = ((ImageAnim *)ima->anims.first)->anim;
+    MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
     if (anim) {
-      duration = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+      duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
     }
   }
 
@@ -1048,6 +1051,11 @@ static void rna_def_udim_tile(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Float Buffer", "Generate floating-point buffer");
   RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_UDIMTile_generated_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "is_generated_tile", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gen_flag", IMA_GEN_TILE);
+  RNA_def_property_ui_text(prop, "Is Generated Tile", "Is this image tile generated");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "generated_color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "gen_color");
