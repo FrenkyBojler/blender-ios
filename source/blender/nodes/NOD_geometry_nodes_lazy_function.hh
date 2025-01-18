@@ -211,6 +211,9 @@ struct GeoNodesOperatorData {
 struct GeoNodesSculptData {
   const Object *self_object = nullptr;
   const Depsgraph *depsgraph = nullptr;
+  float4x4 view_matrix;
+  float4x4 projection_matrix;
+  bool is_orthographic;
 };
 
 struct GeoNodesCallData {

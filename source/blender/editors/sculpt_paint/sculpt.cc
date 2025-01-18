@@ -6290,7 +6290,7 @@ void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
-  nodes_evaluate_factors_mesh(depsgraph, object, brush, vert_positions, verts, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, cache, brush, vert_positions, verts, factors);
 }
 
 void calc_factors_common_mesh(const Depsgraph &depsgraph,
@@ -6326,7 +6326,7 @@ void calc_factors_common_mesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
-  nodes_evaluate_factors_mesh(depsgraph, object, brush, positions, verts, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, cache, brush, positions, verts, factors);
 }
 
 void calc_factors_common_grids(const Depsgraph &depsgraph,
@@ -6361,7 +6361,8 @@ void calc_factors_common_grids(const Depsgraph &depsgraph,
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
-  nodes_evaluate_factors_grids(depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
+  nodes_evaluate_factors_grids(
+      depsgraph, object, cache, brush, subdiv_ccg, grids, positions, factors);
 }
 
 void calc_factors_common_bmesh(const Depsgraph &depsgraph,
@@ -6395,7 +6396,7 @@ void calc_factors_common_bmesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
-  nodes_evaluate_factors_bmesh(depsgraph, object, brush, verts, positions, factors);
+  nodes_evaluate_factors_bmesh(depsgraph, object, cache, brush, verts, positions, factors);
 }
 
 void calc_factors_common_from_orig_data_mesh(const Depsgraph &depsgraph,
@@ -6432,7 +6433,7 @@ void calc_factors_common_from_orig_data_mesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
-  nodes_evaluate_factors_mesh(depsgraph, object, brush, positions, verts, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, cache, brush, positions, verts, factors);
 }
 
 void calc_factors_common_from_orig_data_grids(const Depsgraph &depsgraph,
@@ -6468,7 +6469,8 @@ void calc_factors_common_from_orig_data_grids(const Depsgraph &depsgraph,
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
-  nodes_evaluate_factors_grids(depsgraph, object, brush, subdiv_ccg, grids, positions, factors);
+  nodes_evaluate_factors_grids(
+      depsgraph, object, cache, brush, subdiv_ccg, grids, positions, factors);
 }
 
 void calc_factors_common_from_orig_data_bmesh(const Depsgraph &depsgraph,
@@ -6503,7 +6505,7 @@ void calc_factors_common_from_orig_data_bmesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
-  nodes_evaluate_factors_bmesh(depsgraph, object, brush, verts, positions, factors);
+  nodes_evaluate_factors_bmesh(depsgraph, object, cache, brush, verts, positions, factors);
 }
 
 void fill_factor_from_hide(const Span<bool> hide_vert,

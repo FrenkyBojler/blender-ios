@@ -23,11 +23,21 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  // TODO: Support in sculpt brush evaluation mode.
+  const Object &self_object = *params.self_object();
+
+  if (params.user_data()->call_data->sculpt_data) {
+    const GeoNodesSculptData &data = *params.user_data()->call_data->sculpt_data;
+
+    params.set_output("Projection", data.projection_matrix);
+    params.set_output("View", data.view_matrix * self_object.object_to_world());
+    params.set_output("Is Orthographic", data.is_orthographic);
+
+    return;
+  }
+
   if (!check_tool_context_and_error(params)) {
     return;
   }
-  const Object &self_object = *params.self_object();
   const GeoNodesOperatorData &data = *params.user_data()->call_data->operator_data;
 
   params.set_output("Projection", data.viewport_winmat);

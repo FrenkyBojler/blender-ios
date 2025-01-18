@@ -23,6 +23,7 @@
 #include "FN_field.hh"
 #include "FN_lazy_function_execute.hh"
 
+#include "sculpt_intern.hh"
 #include "sculpt_nodes_evaluation.hh"
 
 namespace blender::ed::sculpt_paint {
@@ -62,6 +63,7 @@ using EvaluationResult = std::variant<CombineFactors, OutputTranslations>;
  */
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   const Object &object,
+                                  const StrokeCache &cache,
                                   const Brush &brush,
                                   const bke::SculptFieldContext &context,
                                   const EvaluationResult &output)
@@ -107,6 +109,17 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   nodes::GeoNodesSculptData sculpt_data;
   sculpt_data.depsgraph = &depsgraph;
   sculpt_data.self_object = &object;
+
+  if (cache.vc->rv3d) {
+    sculpt_data.view_matrix = float4x4(cache.vc->rv3d->viewmat);
+    sculpt_data.projection_matrix = float4x4(cache.vc->rv3d->winmat);
+    sculpt_data.is_orthographic = !bool(cache.vc->rv3d->is_persp);
+  }
+  else {
+    sculpt_data.view_matrix = float4x4::identity();
+    sculpt_data.projection_matrix = float4x4::identity();
+    sculpt_data.is_orthographic = false;
+  }
 
   nodes::GeoNodesCallData call_data;
   call_data.root_ntree = tree;
@@ -211,6 +224,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
 void nodes_evaluate_factors_mesh(const Depsgraph &depsgraph,
                                  const Object &object,
+                                 const StrokeCache &cache,
                                  const Brush &brush,
                                  const Span<float3> vert_positions,
                                  const Span<int> verts,
@@ -220,12 +234,13 @@ void nodes_evaluate_factors_mesh(const Depsgraph &depsgraph,
   const bke::MeshSculptFieldContext context(depsgraph, object, *mesh, verts, vert_positions);
   threading::isolate_task([&]() {
     const CombineFactors output{factors};
-    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
 
 void nodes_evaluate_factors_grids(const Depsgraph &depsgraph,
                                   const Object &object,
+                                  const StrokeCache &cache,
                                   const Brush &brush,
                                   const SubdivCCG &subdiv_ccg,
                                   const Span<int> grids,
@@ -235,12 +250,13 @@ void nodes_evaluate_factors_grids(const Depsgraph &depsgraph,
   const bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
   threading::isolate_task([&]() {
     const CombineFactors output{factors};
-    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
 
 void nodes_evaluate_factors_bmesh(const Depsgraph &depsgraph,
                                   const Object &object,
+                                  const StrokeCache &cache,
                                   const Brush &brush,
                                   const Set<BMVert *, 0> &verts,
                                   const Span<float3> positions,
@@ -249,12 +265,13 @@ void nodes_evaluate_factors_bmesh(const Depsgraph &depsgraph,
   const bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
   threading::isolate_task([&]() {
     const CombineFactors output{factors};
-    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
 
 void nodes_evaluate_translations_mesh(const Depsgraph &depsgraph,
                                       const Object &object,
+                                      const StrokeCache &cache,
                                       const Brush &brush,
                                       const Span<float3> vert_positions,
                                       const Span<int> verts,
@@ -264,12 +281,13 @@ void nodes_evaluate_translations_mesh(const Depsgraph &depsgraph,
   const bke::MeshSculptFieldContext context(depsgraph, object, *mesh, verts, vert_positions);
   threading::isolate_task([&]() {
     const OutputTranslations output{translations};
-    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
 
 void nodes_evaluate_translations_grids(const Depsgraph &depsgraph,
                                        const Object &object,
+                                       const StrokeCache &cache,
                                        const Brush &brush,
                                        const SubdivCCG &subdiv_ccg,
                                        const Span<int> grids,
@@ -279,12 +297,13 @@ void nodes_evaluate_translations_grids(const Depsgraph &depsgraph,
   const bke::GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
   threading::isolate_task([&]() {
     const OutputTranslations output{translations};
-    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
 
 void nodes_evaluate_translations_bmesh(const Depsgraph &depsgraph,
                                        const Object &object,
+                                       const StrokeCache &cache,
                                        const Brush &brush,
                                        const Set<BMVert *, 0> &verts,
                                        const Span<float3> positions,
@@ -293,7 +312,7 @@ void nodes_evaluate_translations_bmesh(const Depsgraph &depsgraph,
   const bke::BMeshSculptFieldContext context(depsgraph, object, verts, positions);
   threading::isolate_task([&]() {
     const OutputTranslations output{translations};
-    sculpt_nodes_evaluate(depsgraph, object, brush, context, output);
+    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
 
