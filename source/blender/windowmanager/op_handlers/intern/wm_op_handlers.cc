@@ -126,9 +126,9 @@ int WM_op_handlers_remove(
     ret = WM_op_handlers_remove_all(op_handlers, cb, owner);
   }
   else {
-    wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, op_name);
-    if (opHandlers != nullptr) {
-      for (auto data : WM_op_handlers_get_handler_list(opHandlers, id)) {
+    wmOpHandlerData *op_handler_data = WM_get_op_handlers(op_handlers, op_name);
+    if (op_handler_data != nullptr) {
+      for (auto data : WM_op_handlers_get_handler_list(op_handler_data, id)) {
         if (data.check(data.py_data, owner, cb)) {
           ret++;
         }
@@ -163,12 +163,12 @@ bool WM_op_handlers_operator_pre_invoke(bContext *C,
 {
   bool ret = true;
   if (op_handlers != nullptr) {
-    wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, ot->idname);
-    if (opHandlers != nullptr) {
+    wmOpHandlerData *op_handler_data = WM_get_op_handlers(op_handlers, ot->idname);
+    if (op_handler_data != nullptr) {
       ret = ret && WM_op_handlers_operator_exec(
                        C,
                        event,
-                       WM_op_handlers_get_handler_list(opHandlers, HANDLER_TYPE_PRE_INVOKE),
+                       WM_op_handlers_get_handler_list(op_handler_data, HANDLER_TYPE_PRE_INVOKE),
                        ot,
                        properties,
                        0);
@@ -186,12 +186,12 @@ void WM_op_handlers_operator_post_invoke(bContext *C,
                                          int retval)
 {
   if (op_handlers != nullptr) {
-    wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, ot->idname);
-    if (opHandlers != nullptr) {
+    wmOpHandlerData *op_handler_data = WM_get_op_handlers(op_handlers, ot->idname);
+    if (op_handler_data != nullptr) {
       WM_op_handlers_operator_exec(
           C,
           event,
-          WM_op_handlers_get_handler_list(opHandlers, HANDLER_TYPE_POST_INVOKE),
+          WM_op_handlers_get_handler_list(op_handler_data, HANDLER_TYPE_POST_INVOKE),
           ot,
           properties,
           retval);
@@ -204,12 +204,12 @@ bool WM_op_handlers_operator_modal(
 {
   bool ret = true;
   if (op_handlers != nullptr) {
-    wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, ot->idname);
-    if (opHandlers != nullptr) {
+    wmOpHandlerData *op_handler_data = WM_get_op_handlers(op_handlers, ot->idname);
+    if (op_handler_data != nullptr) {
       ret = ret && WM_op_handlers_operator_exec(
                        C,
                        event,
-                       WM_op_handlers_get_handler_list(opHandlers, HANDLER_TYPE_MODAL),
+                       WM_op_handlers_get_handler_list(op_handler_data, HANDLER_TYPE_MODAL),
                        ot,
                        nullptr,
                        retval);
@@ -222,12 +222,12 @@ void WM_op_handlers_operator_modal_end(
     bContext *C, const wmEvent *event, wmOpHandlers *op_handlers, wmOperatorType *ot, int retval)
 {
   if (op_handlers != nullptr) {
-    wmOpHandlerData *opHandlers = WM_get_op_handlers(op_handlers, ot->idname);
-    if (opHandlers != nullptr) {
+    wmOpHandlerData *op_handler_data = WM_get_op_handlers(op_handlers, ot->idname);
+    if (op_handler_data != nullptr) {
       WM_op_handlers_operator_exec(
           C,
           event,
-          WM_op_handlers_get_handler_list(opHandlers, HANDLER_TYPE_MODAL_END),
+          WM_op_handlers_get_handler_list(op_handler_data, HANDLER_TYPE_MODAL_END),
           ot,
           nullptr,
           retval);

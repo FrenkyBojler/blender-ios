@@ -30,5 +30,5 @@ bool WM_op_handlers_operator_exec(bContext *C,
 
 int WM_op_handlers_remove_all(wmOpHandlers *op_handlers, void *cb, void *owner);
 
-blender::Vector<wmHandlerData> &WM_op_handlers_get_handler_list(wmOpHandlerData *opHandlers,
+blender::Vector<wmHandlerData> &WM_op_handlers_get_handler_list(wmOpHandlerData *op_handler_data,
                                                                 int id);
