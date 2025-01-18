@@ -1050,6 +1050,9 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
     return;
   }
 
+  /* Assume that all inputs have unknown values by default. */
+  r_values.fill(nullptr);
+
   btree.ensure_interface_cache();
   for (const int input_i : btree.interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket &io_input = *btree.interface_inputs()[input_i];
