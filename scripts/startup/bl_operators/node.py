@@ -416,15 +416,8 @@ class NODE_OT_viewer_shortcut_set(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     viewer_index: IntProperty(
-        name="Viewer index",
+        name="Viewer Index",
         description="Index corresponding to the shortcut, e.g. number key 1 corresponds to index 1 etc..")
-
-    def get_node_with_shortcut(self, context, shortcut):
-        nodes = context.space_data.edit_tree.nodes
-        for n in nodes:
-            if n.type == 'VIEWER' and n.ui_shortcut == shortcut:
-                return n
-        return None
 
     def get_connected_viewer(self, node):
         for out in node.outputs:
@@ -461,11 +454,14 @@ class NODE_OT_viewer_shortcut_set(Operator):
         old_active = nodes.active
         if fav_node.type == 'VIEWER':
             viewer_node = fav_node
-        elif self.check_viewer_connected(fav_node):
-            viewer_node = self.get_connected_viewer(fav_node)
         else:
-            bpy.ops.node.link_viewer()
             viewer_node = self.get_connected_viewer(fav_node)
+            if not viewer_node:
+                # Calling link_viewer() if a viewer node is connected will connect the next available socket to the viewer node.
+                # This behavior is not desired as we want to create a shortcut to the exisiting connected viewer node.
+                # Therefore link_viewer() is called only when no viewer node is connected.
+                bpy.ops.node.link_viewer()
+                viewer_node = self.get_connected_viewer(fav_node)
 
         if not viewer_node:
             self.report({'ERROR'}, "Unable to set shortcut, selected node is not a viewer node or does not support viewing.")
@@ -489,7 +485,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     viewer_index: IntProperty(
-        name="Viewer index",
+        name="Viewer Index",
         description="Index corresponding to the shortcut, e.g. number key 1 corresponds to index 1 etc..")
 
     @classmethod

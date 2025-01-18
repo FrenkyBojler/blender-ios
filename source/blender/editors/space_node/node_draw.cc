@@ -3221,26 +3221,26 @@ static short get_viewer_shortcut_icon(const bNode &node)
 {
   BLI_assert(node.is_type("CompositorNodeViewer"));
   switch (node.custom1) {
-    case NODE_SHORTCUT_NONE:
+    case NODE_VIEWER_SHORTCUT_NONE:
       /* No change by default. */
       return node.typeinfo->ui_icon;
-    case NODE_SHORCTUT_SLOT_1:
+    case NODE_VIEWER_SHORCTUT_SLOT_1:
       return ICON_EVENT_NDOF_BUTTON_1;
-    case NODE_SHORCTUT_SLOT_2:
+    case NODE_VIEWER_SHORCTUT_SLOT_2:
       return ICON_EVENT_NDOF_BUTTON_2;
-    case NODE_SHORCTUT_SLOT_3:
+    case NODE_VIEWER_SHORCTUT_SLOT_3:
       return ICON_EVENT_NDOF_BUTTON_3;
-    case NODE_SHORCTUT_SLOT_4:
+    case NODE_VIEWER_SHORCTUT_SLOT_4:
       return ICON_EVENT_NDOF_BUTTON_4;
-    case NODE_SHORCTUT_SLOT_5:
+    case NODE_VIEWER_SHORCTUT_SLOT_5:
       return ICON_EVENT_NDOF_BUTTON_5;
-    case NODE_SHORCTUT_SLOT_6:
+    case NODE_VIEWER_SHORCTUT_SLOT_6:
       return ICON_EVENT_NDOF_BUTTON_6;
-    case NODE_SHORCTUT_SLOT_7:
+    case NODE_VIEWER_SHORCTUT_SLOT_7:
       return ICON_EVENT_NDOF_BUTTON_7;
-    case NODE_SHORCTUT_SLOT_8:
+    case NODE_VIEWER_SHORCTUT_SLOT_8:
       return ICON_EVENT_NDOF_BUTTON_8;
-    case NODE_SHORCTUT_SLOT_9:
+    case NODE_VIEWER_SHORCTUT_SLOT_9:
       return ICON_EVENT_NDOF_BUTTON_9;
   }
 

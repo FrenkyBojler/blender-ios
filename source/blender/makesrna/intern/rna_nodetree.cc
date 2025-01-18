@@ -1356,12 +1356,12 @@ static void rna_NodeTree_active_node_set(PointerRNA *ptr,
 static void rna_Node_shortcut_node_set(PointerRNA *ptr, int value)
 {
   bNode *curr_node = static_cast<bNode *>(ptr->data);
-  bNodeTree ntree = curr_node->owner_tree();
+  bNodeTree &ntree = curr_node->owner_tree();
 
   /* Avoid having two nodes with the same shortcut. */
   for (bNode *node : ntree.all_nodes()) {
-    if (node->custom1 == value) {
-      node->custom1 = NODE_SHORTCUT_NONE;
+    if (node->is_type("CompositorNodeViewer") && node->custom1 == value) {
+      node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
     }
   }
   curr_node->custom1 = value;
@@ -9119,7 +9119,7 @@ static void def_cmp_viewer(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_int_funcs(prop, nullptr, "rna_Node_shortcut_node_set", nullptr);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
-  RNA_def_property_int_default(prop, NODE_SHORTCUT_NONE);
+  RNA_def_property_int_default(prop, NODE_VIEWER_SHORTCUT_NONE);
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
 }
 

@@ -1447,7 +1447,9 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
   }
 
   for (bNode *node : node_map.values()) {
-    node->custom1 = NODE_SHORTCUT_NONE;
+    if (node->is_type("CompositorNodeViewer")) {
+      node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
+    }
   }
 
   /* Clear flags for recursive depth-first iteration. */
