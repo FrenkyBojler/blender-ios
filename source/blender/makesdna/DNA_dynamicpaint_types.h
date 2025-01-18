@@ -113,6 +113,14 @@ typedef struct DynamicPaintSurface {
   /** MAX_CUSTOMDATA_LAYER_NAME. */
   char init_layername[68];
 
+  /* initial wetmap */
+  short init_wetmap_type;
+  char _pad1[2];
+  float init_wetmap_color[4];
+  struct Tex *init_wetmap_texture;
+  /** MAX_CUSTOMDATA_LAYER_NAME. */
+  char init_wetmap_layername[68];
+
   int dry_speed, diss_speed;
   float color_dry_threshold;
   float depth_clamp, disp_factor;

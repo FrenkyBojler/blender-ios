@@ -536,6 +536,50 @@ class PHYSICS_PT_dp_canvas_initial_color(PhysicButtonsPanel, Panel):
             col.prop_search(surface, "init_layername", ob.data, "vertex_colors", text="Color Layer")
 
 
+class PHYSICS_PT_dp_canvas_initial_wetmap(PhysicButtonsPanel, Panel):
+    bl_label = "Initial Wetmap"
+    bl_parent_id = "PHYSICS_PT_dynamic_paint"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
+
+    @classmethod
+    def poll(cls, context):
+        if not PhysicButtonsPanel.poll_dyn_canvas_paint(context):
+            return False
+
+        return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+
+        canvas = context.dynamic_paint.canvas_settings
+        surface = canvas.canvas_surfaces.active
+        ob = context.object
+
+        layout.use_property_split = True
+
+        col = layout.column()
+        col.prop(surface, "init_wetmap_type", text="Type", expand=False)
+
+        if surface.init_wetmap_type != 'NONE':
+            col.separator()
+
+        # dissolve
+        if surface.init_wetmap_type == 'COLOR':
+            layout.prop(surface, "init_wetmap_color")
+
+        elif surface.init_wetmap_type == 'TEXTURE':
+            col.prop(surface, "init_texture")
+            col.prop_search(surface, "init_wetmap_layername", ob.data, "uv_layers", text="UV Map")
+
+        elif surface.init_wetmap_type == 'VERTEX_COLOR':
+            col.prop_search(surface, "init_wetmap_layername", ob.data, "vertex_colors", text="Color Layer")
+
+
 class PHYSICS_PT_dp_effects(PhysicButtonsPanel, Panel):
     bl_label = "Effects"
     bl_parent_id = "PHYSICS_PT_dynamic_paint"
@@ -963,6 +1007,7 @@ classes = (
     PHYSICS_PT_dp_effects_drip_weights,
     PHYSICS_PT_dp_effects_shrink,
     PHYSICS_PT_dp_canvas_initial_color,
+    PHYSICS_PT_dp_canvas_initial_wetmap,
     PHYSICS_PT_dp_brush_source,
     PHYSICS_PT_dp_brush_source_color_ramp,
     PHYSICS_PT_dp_brush_velocity,
