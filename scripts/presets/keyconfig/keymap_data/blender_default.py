@@ -2275,7 +2275,7 @@ def km_node_editor(params):
         ("wm.context_toggle", {"type": 'Z', "value": 'PRESS', "alt": True, "shift": True},
          {"properties": [("data_path", "space_data.overlay.show_overlays")]}),
         *_template_items_context_menu("NODE_MT_context_menu", params.context_menu_event),
-        # Fast preview
+        # Viewer shortcuts.
         ("node.viewer_shortcut_get", {"type": 'ONE', "value": 'PRESS'}, {"properties": [("viewer_index", 1)]}),
         ("node.viewer_shortcut_set", {"type": 'ONE', "value": 'PRESS',
          'ctrl': True}, {"properties": [("viewer_index", 1)]}),
