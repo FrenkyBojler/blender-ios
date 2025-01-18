@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <map>
+#include "DNA_node_types.h"
 
 #include <MaterialXCore/Node.h>
 
@@ -69,6 +69,7 @@ class NodeItem {
   static Type type(const std::string &type_str);
   static std::string type(Type type);
   static bool is_arithmetic(Type type);
+  static bool is_convertible(eNodeSocketDatatype from_type, Type to_type);
 
   /* Operators */
   operator bool() const;
