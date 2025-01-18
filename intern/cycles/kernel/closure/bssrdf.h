@@ -305,13 +305,9 @@ ccl_device int bssrdf_setup(ccl_private ShaderData *sd,
   int bssrdf_channels = SPECTRUM_CHANNELS;
   Spectrum diffuse_weight = zero_spectrum();
 
-  /* Fall back to diffuse if the radius is smaller than a quarter pixel. */
-  float min_radius = max(0.25f * sd->dP, BSSRDF_MIN_RADIUS);
-  if (path_flag & PATH_RAY_DIFFUSE_ANCESTOR) {
-    /* Always fall back to diffuse after a diffuse ancestor. Can't see it well then and adds
-     * considerable noise due to probabilities of continuing the path getting lower and lower. */
-    min_radius = FLT_MAX;
-  }
+  /* Always fall back to diffuse after a diffuse ancestor. Can't see it that well and it adds
+   * considerable noise due to probabilities of continuing the path getting lower and lower. */
+  const float min_radius = path_flag & PATH_RAY_DIFFUSE_ANCESTOR ? FLT_MAX : BSSRDF_MIN_RADIUS;
 
   FOREACH_SPECTRUM_CHANNEL (i) {
     if (GET_SPECTRUM_CHANNEL(bssrdf->radius, i) < min_radius) {
