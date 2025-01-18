@@ -1054,7 +1054,10 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
   for (const int input_i : btree.interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket &io_input = *btree.interface_inputs()[input_i];
     const bke::bNodeSocketType *stype = io_input.socket_typeinfo();
-    const eNodeSocketDatatype socket_type = stype ? eNodeSocketDatatype(stype->type) : SOCK_CUSTOM;
+    if (!stype) {
+      continue;
+    }
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(stype->type);
     if (!stype->base_cpp_type || !stype->geometry_nodes_cpp_type) {
       continue;
     }
