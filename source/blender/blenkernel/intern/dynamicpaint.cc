@@ -1257,6 +1257,7 @@ void dynamicPaint_Modifier_copy(const DynamicPaintModifierData *pmd,
       t_surface->image_fileformat = surface->image_fileformat;
       t_surface->effect_ui = surface->effect_ui;
       t_surface->init_color_type = surface->init_color_type;
+      t_surface->init_wetmap_type = surface->init_wetmap_type;
       t_surface->flags = surface->flags;
       t_surface->effect = surface->effect;
 
@@ -1268,6 +1269,10 @@ void dynamicPaint_Modifier_copy(const DynamicPaintModifierData *pmd,
       copy_v4_v4(t_surface->init_color, surface->init_color);
       t_surface->init_texture = surface->init_texture;
       STRNCPY(t_surface->init_layername, surface->init_layername);
+
+      copy_v4_v4(t_surface->init_wetmap_color, surface->init_wetmap_color);
+      t_surface->init_wetmap_texture = surface->init_wetmap_texture;
+      STRNCPY(t_surface->init_wetmap_layername, surface->init_wetmap_layername);
 
       t_surface->dry_speed = surface->dry_speed;
       t_surface->diss_speed = surface->diss_speed;
@@ -1540,6 +1545,38 @@ static void dynamic_paint_set_init_color_tex_to_vcol_cb(void *__restrict userdat
   }
 }
 
+
+static void dynamic_paint_set_init_wetmap_tex_to_vcol_cb(void *__restrict userdata,
+                                                        const int i,
+                                                        const TaskParallelTLS *__restrict /*tls*/)
+{
+  const DynamicPaintSetInitColorData *data = static_cast<DynamicPaintSetInitColorData *>(userdata);
+
+  const PaintSurfaceData *sData = data->surface->data;
+  PaintPoint *pPoint = (PaintPoint *)sData->type_data;
+
+  const blender::Span<int> corner_verts = data->corner_verts;
+  const blender::Span<int3> corner_tris = data->corner_tris;
+  const float(*mloopuv)[2] = data->mloopuv;
+  ImagePool *pool = data->pool;
+  Tex *tex = data->surface->init_wetmap_texture;
+
+  float uv[3] = {0.0f};
+
+  for (int j = 3; j--;) {
+    TexResult texres = {0};
+    const int vert = corner_verts[corner_tris[i][j]];
+
+    /* remap to [-1.0, 1.0] */
+    uv[0] = mloopuv[corner_tris[i][j]][0] * 2.0f - 1.0f;
+    uv[1] = mloopuv[corner_tris[i][j]][1] * 2.0f - 1.0f;
+
+    multitex_ext_safe(tex, uv, &texres, pool, true, false);
+
+    pPoint[vert].wetness = texres.trgba[0];
+  }
+}
+
 static void dynamic_paint_set_init_color_tex_to_imseq_cb(void *__restrict userdata,
                                                          const int i,
                                                          const TaskParallelTLS *__restrict /*tls*/)
@@ -1578,6 +1615,43 @@ static void dynamic_paint_set_init_color_tex_to_imseq_cb(void *__restrict userda
   pPoint[i].color[3] = texres.tin;
 }
 
+
+static void dynamic_paint_set_init_wetmap_tex_to_imseq_cb(void *__restrict userdata,
+                                                         const int i,
+                                                         const TaskParallelTLS *__restrict /*tls*/)
+{
+  const DynamicPaintSetInitColorData *data = static_cast<DynamicPaintSetInitColorData *>(userdata);
+
+  const PaintSurfaceData *sData = data->surface->data;
+  PaintPoint *pPoint = (PaintPoint *)sData->type_data;
+
+  const blender::Span<int3> corner_tris = data->corner_tris;
+  const float(*mloopuv)[2] = data->mloopuv;
+  Tex *tex = data->surface->init_wetmap_texture;
+  ImgSeqFormatData *f_data = (ImgSeqFormatData *)sData->format_data;
+  const int samples = (data->surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
+
+  float uv[9] = {0.0f};
+  float uv_final[3] = {0.0f};
+
+  TexResult texres = {0};
+
+  /* collect all uvs */
+  for (int j = 3; j--;) {
+    copy_v2_v2(&uv[j * 3], mloopuv[corner_tris[f_data->uv_p[i].tri_index][j]]);
+  }
+
+  /* interpolate final uv pos */
+  interp_v3_v3v3v3(uv_final, &uv[0], &uv[3], &uv[6], f_data->barycentricWeights[i * samples].v);
+  /* remap to [-1.0, 1.0] */
+  uv_final[0] = uv_final[0] * 2.0f - 1.0f;
+  uv_final[1] = uv_final[1] * 2.0f - 1.0f;
+
+  multitex_ext_safe(tex, uv_final, &texres, nullptr, true, false);
+
+  pPoint[i].wetness = texres.trgba[0];
+}
+
 static void dynamic_paint_set_init_color_vcol_to_imseq_cb(
     void *__restrict userdata, const int i, const TaskParallelTLS *__restrict /*tls*/)
 {
@@ -1604,6 +1678,35 @@ static void dynamic_paint_set_init_color_vcol_to_imseq_cb(
   interp_v4_v4v4v4(final_color, UNPACK3(colors), f_data->barycentricWeights[i * samples].v);
 
   copy_v4_v4(pPoint[i].color, final_color);
+}
+
+
+static void dynamic_paint_set_init_wetmap_vcol_to_imseq_cb(
+    void *__restrict userdata, const int i, const TaskParallelTLS *__restrict /*tls*/)
+{
+  const DynamicPaintSetInitColorData *data = static_cast<DynamicPaintSetInitColorData *>(userdata);
+
+  const PaintSurfaceData *sData = data->surface->data;
+  PaintPoint *pPoint = (PaintPoint *)sData->type_data;
+
+  const blender::Span<int3> corner_tris = data->corner_tris;
+  const MLoopCol *mloopcol = data->mloopcol;
+  ImgSeqFormatData *f_data = (ImgSeqFormatData *)sData->format_data;
+  const int samples = (data->surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
+
+  const int tri_idx = f_data->uv_p[i].tri_index;
+  float colors[3][4];
+  float final_color[4];
+
+  /* collect color values */
+  for (int j = 3; j--;) {
+    rgba_uchar_to_float(colors[j], (const uchar *)&mloopcol[corner_tris[tri_idx][j]].r);
+  }
+
+  /* interpolate final color */
+  interp_v4_v4v4v4(final_color, UNPACK3(colors), f_data->barycentricWeights[i * samples].v);
+
+  pPoint[i].wetness = final_color[0];
 }
 
 static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSurface *surface)
@@ -1720,6 +1823,120 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
   }
 }
 
+static void dynamicPaint_setInitialWetmap(const Scene * /*scene*/, DynamicPaintSurface *surface)
+{
+  PaintSurfaceData *sData = surface->data;
+  PaintPoint *pPoint = (PaintPoint *)sData->type_data;
+  Mesh *mesh = dynamicPaint_canvas_mesh_get(surface->canvas);
+
+  if (surface->type != MOD_DPAINT_SURFACE_T_PAINT) {
+    return;
+  }
+
+  if (surface->init_wetmap_type == MOD_DPAINT_INITIAL_NONE) {
+    return;
+  }
+
+  /* Single color */
+  if (surface->init_wetmap_type == MOD_DPAINT_INITIAL_COLOR) {
+    /* apply color to every surface point */
+    for (int i = 0; i < sData->total_points; i++) {
+      copy_v4_v4(pPoint[i].color, surface->init_wetmap_color);
+    }
+  }
+  /* UV mapped texture */
+  else if (surface->init_wetmap_type == MOD_DPAINT_INITIAL_TEXTURE) {
+    Tex *tex = surface->init_wetmap_texture;
+
+    const blender::Span<int> corner_verts = mesh->corner_verts();
+    const blender::Span<int3> corner_tris = mesh->corner_tris();
+
+    char uvname[MAX_CUSTOMDATA_LAYER_NAME];
+
+    if (!tex) {
+      return;
+    }
+
+    /* get uv map */
+    CustomData_validate_layer_name(
+        &mesh->corner_data, CD_PROP_FLOAT2, surface->init_wetmap_layername, uvname);
+    const float(*mloopuv)[2] = static_cast<const float(*)[2]>(
+        CustomData_get_layer_named(&mesh->corner_data, CD_PROP_FLOAT2, uvname));
+
+    if (!mloopuv) {
+      return;
+    }
+
+    /* For vertex surface loop through `corner_tris` and find UV color
+     * that provides highest alpha. */
+    if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
+      ImagePool *pool = BKE_image_pool_new();
+
+      DynamicPaintSetInitColorData data{};
+      data.surface = surface;
+      data.corner_verts = corner_verts;
+      data.corner_tris = corner_tris;
+      data.mloopuv = mloopuv;
+      data.pool = pool;
+
+      TaskParallelSettings settings;
+      BLI_parallel_range_settings_defaults(&settings);
+      settings.use_threading = (corner_tris.size() > 1000);
+      BLI_task_parallel_range(
+          0, corner_tris.size(), &data, dynamic_paint_set_init_wetmap_tex_to_vcol_cb, &settings);
+      BKE_image_pool_free(pool);
+    }
+    else if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) {
+      DynamicPaintSetInitColorData data{};
+      data.surface = surface;
+      data.corner_tris = corner_tris;
+      data.mloopuv = mloopuv;
+
+      TaskParallelSettings settings;
+      BLI_parallel_range_settings_defaults(&settings);
+      settings.use_threading = (sData->total_points > 1000);
+      BLI_task_parallel_range(
+          0, sData->total_points, &data, dynamic_paint_set_init_wetmap_tex_to_imseq_cb, &settings);
+    }
+  }
+  /* vertex color layer */
+  else if (surface->init_wetmap_type == MOD_DPAINT_INITIAL_VERTEXCOLOR) {
+
+    /* For vertex surface, just copy colors from #MLoopCol. */
+    if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
+      const blender::Span<int> corner_verts = mesh->corner_verts();
+      const MLoopCol *col = static_cast<const MLoopCol *>(CustomData_get_layer_named(
+          &mesh->corner_data, CD_PROP_BYTE_COLOR, surface->init_wetmap_layername));
+      if (!col) {
+        return;
+      }
+
+      for (const int i : corner_verts.index_range()) {
+        rgba_uchar_to_float(pPoint[corner_verts[i]].color, (const uchar *)&col[i].r);
+      }
+    }
+    else if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) {
+      const blender::Span<int3> corner_tris = mesh->corner_tris();
+      const MLoopCol *col = static_cast<const MLoopCol *>(CustomData_get_layer_named(
+          &mesh->corner_data, CD_PROP_BYTE_COLOR, surface->init_wetmap_layername));
+      if (!col) {
+        return;
+      }
+
+      DynamicPaintSetInitColorData data{};
+      data.surface = surface;
+      data.corner_tris = corner_tris;
+      data.mloopcol = col;
+
+      TaskParallelSettings settings;
+      BLI_parallel_range_settings_defaults(&settings);
+      settings.use_threading = (sData->total_points > 1000);
+      BLI_task_parallel_range(
+          0, sData->total_points, &data, dynamic_paint_set_init_wetmap_vcol_to_imseq_cb, &settings);
+    }
+  }
+}
+
 void dynamicPaint_clearSurface(const Scene *scene, DynamicPaintSurface *surface)
 {
   PaintSurfaceData *sData = surface->data;
@@ -1741,6 +1958,7 @@ void dynamicPaint_clearSurface(const Scene *scene, DynamicPaintSurface *surface)
     /* set initial color */
     if (surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
       dynamicPaint_setInitialColor(scene, surface);
+      dynamicPaint_setInitialWetmap(scene, surface);
     }
 
     if (sData->bData) {
@@ -1779,6 +1997,7 @@ bool dynamicPaint_resetSurface(const Scene *scene, DynamicPaintSurface *surface)
   /* set initial color */
   if (surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
     dynamicPaint_setInitialColor(scene, surface);
+    dynamicPaint_setInitialWetmap(scene, surface);
   }
 
   return true;
@@ -3198,6 +3417,7 @@ int dynamicPaint_createUVSurface(Scene *scene,
 #endif
 
     dynamicPaint_setInitialColor(scene, surface);
+    dynamicPaint_setInitialWetmap(scene, surface);
   }
 
   *progress = 0.09f;

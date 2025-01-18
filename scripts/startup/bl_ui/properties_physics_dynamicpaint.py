@@ -573,7 +573,7 @@ class PHYSICS_PT_dp_canvas_initial_wetmap(PhysicButtonsPanel, Panel):
             layout.prop(surface, "init_wetmap_color")
 
         elif surface.init_wetmap_type == 'TEXTURE':
-            col.prop(surface, "init_texture")
+            col.prop(surface, "init_wetmap_texture")
             col.prop_search(surface, "init_wetmap_layername", ob.data, "uv_layers", text="UV Map")
 
         elif surface.init_wetmap_type == 'VERTEX_COLOR':

@@ -77,13 +77,15 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
     for (; surface; surface = surface->next) {
       /* UVs: #CD_PROP_FLOAT2. */
       if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ ||
-          surface->init_color_type == MOD_DPAINT_INITIAL_TEXTURE)
+          surface->init_color_type == MOD_DPAINT_INITIAL_TEXTURE ||
+          surface->init_wetmap_type == MOD_DPAINT_INITIAL_TEXTURE)
       {
         r_cddata_masks->lmask |= CD_MASK_PROP_FLOAT2;
       }
       /* Vertex Colors: #CD_PROP_BYTE_COLOR. */
       if (surface->type == MOD_DPAINT_SURFACE_T_PAINT ||
-          surface->init_color_type == MOD_DPAINT_INITIAL_VERTEXCOLOR)
+          surface->init_color_type == MOD_DPAINT_INITIAL_VERTEXCOLOR ||
+          surface->init_wetmap_type == MOD_DPAINT_INITIAL_VERTEXCOLOR)
       {
         r_cddata_masks->lmask |= CD_MASK_PROP_BYTE_COLOR;
       }
