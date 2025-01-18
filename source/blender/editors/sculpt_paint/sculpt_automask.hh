@@ -82,7 +82,7 @@ struct Cache {
    *
    * Has no effect on an individual node level if the vertex has already been calculated.
    */
-  void calc_cavity_factor(Object &object, const IndexMask &node_mask);
+  void calc_cavity_factor(const Depsgraph &depsgraph, Object &object, const IndexMask &node_mask);
 };
 
 /**

@@ -591,10 +591,10 @@ static float process_cavity_factor(const Cache &automasking, float factor)
   return factor;
 }
 
-static float calc_cavity_factor_mesh(const Depsgraph &depsgraph,
-                                     const Cache &automasking,
-                                     const Object &object,
-                                     const int vert)
+static void calc_cavity_factor_mesh(const Depsgraph &depsgraph,
+                                    const Cache &automasking,
+                                    const Object &object,
+                                    const int vert)
 {
   if (automasking.cavity_factor[vert] == -1.0f) {
     calc_blurred_cavity_mesh(depsgraph,
@@ -604,13 +604,12 @@ static float calc_cavity_factor_mesh(const Depsgraph &depsgraph,
                              vert,
                              const_cast<Cache &>(automasking).cavity_factor);
   }
-  return process_cavity_factor(automasking, automasking.cavity_factor[vert]);
 }
 
-static float calc_cavity_factor_grids(const CCGKey &key,
-                                      const Cache &automasking,
-                                      const Object &object,
-                                      const int vert)
+static void calc_cavity_factor_grids(const CCGKey &key,
+                                     const Cache &automasking,
+                                     const Object &object,
+                                     const int vert)
 {
   if (automasking.cavity_factor[vert] == -1.0f) {
     calc_blurred_cavity_grids(object,
@@ -619,10 +618,9 @@ static float calc_cavity_factor_grids(const CCGKey &key,
                               SubdivCCGCoord::from_index(key, vert),
                               const_cast<Cache &>(automasking).cavity_factor);
   }
-  return process_cavity_factor(automasking, automasking.cavity_factor[vert]);
 }
 
-static float calc_cavity_factor_bmesh(const Cache &automasking, BMVert *vert, const int vert_i)
+static void calc_cavity_factor_bmesh(const Cache &automasking, BMVert *vert, const int vert_i)
 {
   if (automasking.cavity_factor[vert_i] == -1.0f) {
     calc_blurred_cavity_bmesh(automasking,
@@ -630,7 +628,6 @@ static float calc_cavity_factor_bmesh(const Cache &automasking, BMVert *vert, co
                               vert,
                               const_cast<Cache &>(automasking).cavity_factor);
   }
-  return process_cavity_factor(automasking, automasking.cavity_factor[vert_i]);
 }
 
 void calc_vert_factors(const Depsgraph &depsgraph,
@@ -677,7 +674,8 @@ void calc_vert_factors(const Depsgraph &depsgraph,
       float cached_factor = automasking.factor[vert];
 
       if (automasking.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
-        cached_factor *= calc_cavity_factor_mesh(depsgraph, automasking, object, vert);
+        BLI_assert(automasking.cavity_factor[vert] != -1.0f);
+        cached_factor *= process_cavity_factor(automasking, automasking.cavity_factor[vert]);
       }
 
       factors[i] *= cached_factor;
@@ -739,7 +737,8 @@ void calc_vert_factors(const Depsgraph &depsgraph,
     }
 
     if (automasking.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
-      factors[i] *= calc_cavity_factor_mesh(depsgraph, automasking, object, vert);
+      BLI_assert(automasking.cavity_factor[vert] != -1.0f);
+      factors[i] *= process_cavity_factor(automasking, automasking.cavity_factor[vert]);
     }
   }
 }
@@ -784,7 +783,8 @@ void calc_face_factors(const Depsgraph &depsgraph,
         float cached_factor = automasking.factor[vert];
 
         if (automasking.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
-          cached_factor *= calc_cavity_factor_mesh(depsgraph, automasking, object, vert);
+          BLI_assert(automasking.cavity_factor[vert] != -1.0f);
+          cached_factor *= process_cavity_factor(automasking, automasking.cavity_factor[vert]);
         }
 
         factor *= cached_factor;
@@ -846,7 +846,8 @@ void calc_face_factors(const Depsgraph &depsgraph,
       }
 
       if (automasking.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
-        factor *= calc_cavity_factor_mesh(depsgraph, automasking, object, vert);
+        BLI_assert(automasking.cavity_factor[vert] != -1.0f);
+        factor *= process_cavity_factor(automasking, automasking.cavity_factor[vert]);
       }
     }
     factors[i] *= sum * math::rcp(float(face_verts.size()));
@@ -908,7 +909,8 @@ void calc_grids_factors(const Depsgraph &depsgraph,
         float cached_factor = automasking.factor[vert];
 
         if (automasking.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
-          cached_factor *= calc_cavity_factor_grids(key, automasking, object, vert);
+          BLI_assert(automasking.cavity_factor[vert] != -1.0f);
+          cached_factor *= process_cavity_factor(automasking, automasking.cavity_factor[vert]);
         }
 
         factors[node_vert] *= cached_factor;
@@ -975,7 +977,8 @@ void calc_grids_factors(const Depsgraph &depsgraph,
       }
 
       if (automasking.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
-        factors[node_vert] *= calc_cavity_factor_grids(key, automasking, object, vert);
+        BLI_assert(automasking.cavity_factor[vert] != -1.0f);
+        factors[node_vert] *= process_cavity_factor(automasking, automasking.cavity_factor[vert]);
       }
     }
   }
@@ -1021,7 +1024,8 @@ void calc_vert_factors(const Depsgraph &depsgraph,
       float cached_factor = automasking.factor[vert_i];
 
       if (automasking.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
-        cached_factor *= calc_cavity_factor_bmesh(automasking, vert, vert_i);
+        BLI_assert(automasking.cavity_factor[vert_i] != -1.0f);
+        cached_factor *= process_cavity_factor(automasking, automasking.cavity_factor[vert_i]);
       }
 
       factors[i] *= cached_factor;
@@ -1083,7 +1087,8 @@ void calc_vert_factors(const Depsgraph &depsgraph,
     }
 
     if (automasking.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
-      factors[i] *= calc_cavity_factor_bmesh(automasking, vert, vert_i);
+      BLI_assert(automasking.cavity_factor[vert_i] != -1.0f);
+      factors[i] *= process_cavity_factor(automasking, automasking.cavity_factor[vert_i]);
     }
   }
 }
@@ -1724,12 +1729,30 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
   return automasking;
 }
 
-void Cache::calc_cavity_factor(Object &object, const IndexMask &node_mask)
+void Cache::calc_cavity_factor(const Depsgraph &depsgraph,
+                               Object &object,
+                               const IndexMask &node_mask)
 {
-  if (this->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
-    const SculptSession &ss = *object.sculpt;
-    bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-    if (pbvh.type() == bke::pbvh::Type::Grids) {
+  if ((this->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) == 0) {
+    return;
+  }
+
+  BLI_assert(!this->cavity_factor.is_empty());
+
+  const SculptSession &ss = *object.sculpt;
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  switch (pbvh.type()) {
+    case bke::pbvh::Type::Mesh: {
+      MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
+      node_mask.foreach_index(GrainSize(1), [&](const int i) {
+        const Span<int> verts = nodes[i].verts();
+        for (const int vert : verts) {
+          calc_cavity_factor_mesh(depsgraph, *this, object, vert);
+        }
+      });
+      break;
+    }
+    case bke::pbvh::Type::Grids: {
       const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
@@ -1741,10 +1764,17 @@ void Cache::calc_cavity_factor(Object &object, const IndexMask &node_mask)
           }
         }
       });
+      break;
     }
-  }
-  else {
-    // Warn?
+    case bke::pbvh::Type::BMesh: {
+      MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
+      node_mask.foreach_index(GrainSize(1), [&](const int i) {
+        const Set<BMVert *, 0> verts = nodes[i].bm_unique_verts_;
+        for (BMVert *vert : verts) {
+          calc_cavity_factor_bmesh(*this, vert, BM_elem_index_get(vert));
+        }
+      });
+    }
   }
 }
 
