@@ -487,7 +487,7 @@ static PyObject *py_data_from_property_boolean(PointerRNA *properties, PropertyR
   bool val = RNA_property_boolean_get(properties, prop);
   /* From Py Docs, Py_False and Py_truee needs to be treated just like any other object with
   respect to reference counts. */
-  data = val ? Py_False : Py_True;
+  data = val ? Py_True : Py_False;
   return data;
 }
 
