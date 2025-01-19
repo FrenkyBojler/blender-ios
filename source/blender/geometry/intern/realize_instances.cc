@@ -426,19 +426,35 @@ static float transform_to_radius_factor(const float4x4 &transform)
   return math::average<float, 3>(math::to_scale(transform));
 }
 
-template<typename TaskT> static bool task_with_unit_scale(const TaskT &task)
+static bool transform_is_unit_scale(const float4x4 &transform)
 {
-  return math::abs(transform_to_radius_factor(task.transform) - 1.0f) < 1e-6f;
+  return math::abs(transform_to_radius_factor(transform) - 1.0f) < 1e-6f;
 }
 
-static void apply_scale_radii(const float scale, MutableSpan<float> radii)
+static void realize_radius(const RealizeInstancesOptions &options,
+                           const VArray<float> &src_radius,
+                           const float4x4 &transform,
+                           const float default_value,
+                           MutableSpan<float> dst_radius)
 {
-  if (scale == 1.0f) {
+  const float mean_radius_scale = transform_to_radius_factor(transform);
+  if (src_radius.is_empty()) {
+    const float default_redius = default_value *
+                                 (options.apply_uniform_scale ? mean_radius_scale : 1.0f);
+    dst_radius.fill(default_redius);
     return;
   }
-  threading::parallel_for(radii.index_range(), 2048, [&](const IndexRange range) {
-    for (float &radius : radii.slice(range)) {
-      radius *= scale;
+
+  src_radius.materialize(dst_radius);
+  if (!options.apply_uniform_scale) {
+    return;
+  }
+  if (transform_is_unit_scale(transform)) {
+    return;
+  }
+  threading::parallel_for(dst_radius.index_range(), 2048, [&](const IndexRange range) {
+    for (float &radius : dst_radius.slice(range)) {
+      radius *= mean_radius_scale;
     }
   });
 }
@@ -1182,20 +1198,8 @@ static void execute_realize_pointcloud_task(
         options, pointcloud_info.stored_ids, task.id, all_dst_ids.slice(point_slice));
   }
   if (!all_dst_radii.is_empty()) {
-    MutableSpan<float> point_radii = all_dst_radii.slice(point_slice);
-    const float mean_radius_scale = transform_to_radius_factor(task.transform);
-    if (pointcloud_info.radii.is_empty()) {
-      constexpr float default_radius = 0.1f;
-      const float default_redius = default_radius *
-                                   (options.apply_uniform_scale ? mean_radius_scale : 1.0f);
-      point_radii.fill(default_redius);
-    }
-    else {
-      pointcloud_info.radii.materialize(point_radii);
-      if (options.apply_uniform_scale) {
-        apply_scale_radii(mean_radius_scale, point_radii);
-      }
-    }
+    realize_radius(
+        options, pointcloud_info.radii, task.transform, 0.1f, all_dst_radii.slice(point_slice));
   }
 
   copy_generic_attributes_to_result(
@@ -1277,10 +1281,11 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
                                                                       bke::AttrDomain::Point);
   }
 
-  const bool force_radius_attribute = options.apply_uniform_scale &&
-                                      !std::all_of(tasks.begin(),
-                                                   tasks.end(),
-                                                   task_with_unit_scale<RealizePointCloudTask>);
+  const bool force_radius_attribute =
+      options.apply_uniform_scale &&
+      !std::all_of(tasks.begin(), tasks.end(), [](const RealizePointCloudTask &task) {
+        return transform_is_unit_scale(task.transform);
+      });
   SpanAttributeWriter<float> point_radii;
   if (all_pointclouds_info.create_radius_attribute || force_radius_attribute) {
     printf("Scale!\n");
@@ -1879,19 +1884,11 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
   }
 
   if (!all_radii.is_empty()) {
-    const float mean_radius_scale = transform_to_radius_factor(task.transform);
-    if (curves_info.radius.is_empty()) {
-      constexpr float default_radius = 1.0f;
-      const float default_redius = default_radius *
-                                   (options.apply_uniform_scale ? mean_radius_scale : 1.0f);
-      all_radii.slice(dst_point_range).fill(default_redius);
-    }
-    else {
-      all_radii.slice(dst_point_range).copy_from(curves_info.radius);
-      if (options.apply_uniform_scale) {
-        apply_scale_radii(mean_radius_scale, all_radii.slice(dst_point_range));
-      }
-    }
+    realize_radius(options,
+                   VArray<float>::ForSpan(curves_info.radius),
+                   task.transform,
+                   1.0f,
+                   all_radii.slice(dst_point_range));
   }
 
   if (all_curves_info.create_custom_normal_attribute) {
@@ -2003,10 +2000,11 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
         "handle_right", bke::AttrDomain::Point);
   }
 
-  const bool force_radius_attribute = options.apply_uniform_scale &&
-                                      !std::all_of(tasks.begin(),
-                                                   tasks.end(),
-                                                   task_with_unit_scale<RealizeCurveTask>);
+  const bool force_radius_attribute =
+      options.apply_uniform_scale &&
+      !std::all_of(tasks.begin(), tasks.end(), [](const RealizeCurveTask &task) {
+        return transform_is_unit_scale(task.transform);
+      });
   SpanAttributeWriter<float> radius;
   if (all_curves_info.create_radius_attribute || force_radius_attribute) {
     printf("Scale!\n");
