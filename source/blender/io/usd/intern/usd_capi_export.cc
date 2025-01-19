@@ -503,7 +503,7 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
   }
 
   if (params.use_instancing) {
-    process_scene_graph_instances(usd_stage);
+    process_scene_graph_instances(params, usd_stage);
   }
 
   call_export_hooks(usd_stage, depsgraph, params.worker_status->reports);

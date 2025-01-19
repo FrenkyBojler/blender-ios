@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "usd_instancing_utils.hh"
+
+#include "usd.hh"
 #include "usd_hash_types.hh"
 
 #include "BLI_map.hh"
@@ -74,7 +76,7 @@ static void convert_proto_to_instance(pxr::UsdStageRefPtr stage,
   proto_prim.SetInstanceable(true);
 }
 
-void process_scene_graph_instances(pxr::UsdStageRefPtr stage)
+void process_scene_graph_instances(const USDExportParams& export_params, pxr::UsdStageRefPtr stage)
 {
   if (!stage) {
     return;
@@ -108,11 +110,12 @@ void process_scene_graph_instances(pxr::UsdStageRefPtr stage)
   /* Map an original prototype path to the location where it will be copied. */
   PathMap proto_to_copy_map;
 
-  pxr::SdfPath protos_root_path = get_unique_path(stage, "/Protos");
+  std::string protos_root_str(export_params.root_prim_path);
+  protos_root_str += "/prototypes";
+  pxr::SdfPath protos_root_path = get_unique_path(stage, protos_root_str);
 
   /* Create the abstract prim under which prototypes will be copied. */
-  pxr::UsdPrim prim = stage->CreateClassPrim(protos_root_path);
-  if (!prim) {
+  if (!stage->CreateClassPrim(protos_root_path)) {
     CLOG_ERROR(&LOG, "Couldn't create class prim %s.", protos_root_path.GetAsString().c_str());
     return;
   }
