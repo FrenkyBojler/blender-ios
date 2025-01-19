@@ -585,7 +585,7 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
     int i;
 
     /* For now, reuse an appropriate theme color */
-    UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEANG, col);
+    UI_GetThemeColor4ubv(TH_TEXT_HI, col);
 
     if (em->selectmode & SCE_SELECT_VERTEX) {
       BMVert *v;
@@ -599,7 +599,7 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
               ob->object_to_world(), use_coords ? vert_positions[BM_elem_index_get(v)] : v->co);
 
           const size_t numstr_len = SNPRINTF_RLEN(numstr, "%d", i);
-          DRW_text_cache_add(dt, co, numstr, numstr_len, 0, 0, txt_flag, col);
+          DRW_text_cache_add(dt, co, numstr, numstr_len, 0, 0, txt_flag, col, true, true);
         }
       }
     }
