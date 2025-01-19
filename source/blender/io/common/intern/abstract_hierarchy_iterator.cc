@@ -562,7 +562,9 @@ void AbstractHierarchyIterator::determine_duplication_references(
       }
     }
 
-    determine_duplication_references(context, indent + "  ");
+    if (should_determine_duplication_references(context)) {
+      determine_duplication_references(context, indent + "  ");
+    }
   }
 }
 

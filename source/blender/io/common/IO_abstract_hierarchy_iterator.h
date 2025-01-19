@@ -358,6 +358,12 @@ class AbstractHierarchyIterator {
 
   AbstractHierarchyWriter *get_writer(const std::string &export_path) const;
   ExportChildren &graph_children(const HierarchyContext *context);
+
+  /* Return true if duplication references should be resolved for the children of the given context. */
+  virtual bool should_determine_duplication_references(const HierarchyContext* parent_context) const
+  {
+    return parent_context != nullptr;
+  }
 };
 
 }  // namespace blender::io

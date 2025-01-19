@@ -267,6 +267,15 @@ bool USDHierarchyIterator::include_child_writers(const HierarchyContext *context
   return !(params_.use_instancing && context->is_instance());
 }
 
+bool USDHierarchyIterator::should_determine_duplication_references(const HierarchyContext* parent_context) const
+{
+  if (!parent_context) {
+    return false;
+  }
+
+  return !(params_.use_instancing && parent_context->is_instance());
+}
+
 void USDHierarchyIterator::add_usd_skel_export_mapping(const Object *obj, const pxr::SdfPath &path)
 {
   if (params_.export_shapekeys && is_mesh_with_shape_keys(obj)) {
