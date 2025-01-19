@@ -76,7 +76,7 @@ static void convert_proto_to_instance(pxr::UsdStageRefPtr stage,
   proto_prim.SetInstanceable(true);
 }
 
-void process_scene_graph_instances(const USDExportParams& export_params, pxr::UsdStageRefPtr stage)
+void process_scene_graph_instances(const USDExportParams &export_params, pxr::UsdStageRefPtr stage)
 {
   if (!stage) {
     return;

@@ -75,10 +75,11 @@ struct USDExportParams;
  *   }
  *
  * \param export_params: The export parameters
- * 
+ *
  * \param stage: Pointer to the stage to process
  *
  */
-void process_scene_graph_instances(const USDExportParams& export_params, pxr::UsdStageRefPtr stage);
+void process_scene_graph_instances(const USDExportParams &export_params,
+                                   pxr::UsdStageRefPtr stage);
 
 }  // namespace blender::io::usd
