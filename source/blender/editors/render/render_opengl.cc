@@ -1231,22 +1231,32 @@ static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_s
   OGLRender *oglrender = static_cast<OGLRender *>(customdata);
   Scene *scene = oglrender->scene;
 
-  bool ret = true;
+  bool canceled = false;
+  bool finished = false;
 
-  while (ret) {
+  while (!finished && !canceled) {
     /* Render while blocking main thread, since we use 3D viewport resources. */
     WM_job_main_thread_lock_acquire(oglrender->wm_job);
-    ret = screen_opengl_render_anim_step(oglrender);
-    WM_job_main_thread_lock_release(oglrender->wm_job);
-
-    worker_status->progress = float(scene->r.cfra - PSFRA + 1) / float(PEFRA - PSFRA + 1);
-    worker_status->do_update = true;
 
     if (worker_status->stop || G.is_break) {
-      /* Cancel task pool writing images async. */
-      oglrender->pool_ok = false;
-      break;
+      canceled = true;
     }
+    else {
+      finished = !screen_opengl_render_anim_step(oglrender);
+      worker_status->progress = float(scene->r.cfra - PSFRA + 1) / float(PEFRA - PSFRA + 1);
+      worker_status->do_update = true;
+    }
+
+    WM_job_main_thread_lock_release(oglrender->wm_job);
+
+    if (worker_status->stop || G.is_break) {
+      canceled = true;
+    }
+  }
+
+  if (canceled) {
+    /* Cancel task pool writing images async. */
+    oglrender->pool_ok = false;
   }
 }
 
