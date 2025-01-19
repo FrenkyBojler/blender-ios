@@ -195,7 +195,7 @@ const pxr::SdfPath &USDAbstractWriter::usd_path() const
   return usd_export_context_.usd_path;
 }
 
-pxr::SdfPath USDAbstractWriter::get_material_library_path(const HierarchyContext& context) const
+pxr::SdfPath USDAbstractWriter::get_material_library_path(const HierarchyContext &context) const
 {
   static std::string material_library_path("/_materials");
 

@@ -217,7 +217,7 @@ class AbstractHierarchyIterator {
    * instanced datablock, the export path of the original can be looked up. */
   typedef std::map<ID *, std::string> ExportPathMap;
   /* IDs of all duplisource objects, used to identify instance prototypes. */
-  typedef std::set<ID*> DupliSources;
+  typedef std::set<ID *> DupliSources;
 
  protected:
   ExportGraph export_graph_;
@@ -365,8 +365,10 @@ class AbstractHierarchyIterator {
   AbstractHierarchyWriter *get_writer(const std::string &export_path) const;
   ExportChildren &graph_children(const HierarchyContext *context);
 
-  /* Return true if duplication references should be resolved for the children of the given context. */
-  virtual bool should_determine_duplication_references(const HierarchyContext* parent_context) const
+  /* Return true if duplication references should be resolved for the children of the given
+   * context. */
+  virtual bool should_determine_duplication_references(
+      const HierarchyContext *parent_context) const
   {
     return parent_context != nullptr;
   }

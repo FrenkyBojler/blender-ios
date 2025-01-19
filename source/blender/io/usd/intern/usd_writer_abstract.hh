@@ -64,7 +64,7 @@ class USDAbstractWriter : public AbstractHierarchyWriter {
   pxr::UsdTimeCode get_export_time_code() const;
 
   /* Returns the parent path of exported materials. */
-  pxr::SdfPath get_material_library_path(const HierarchyContext& context) const;
+  pxr::SdfPath get_material_library_path(const HierarchyContext &context) const;
   pxr::UsdShadeMaterial ensure_usd_material(const HierarchyContext &context,
                                             Material *material) const;
 

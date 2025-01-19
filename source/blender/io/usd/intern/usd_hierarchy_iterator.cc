@@ -267,7 +267,8 @@ bool USDHierarchyIterator::include_child_writers(const HierarchyContext *context
   return !(params_.use_instancing && context->is_instance());
 }
 
-bool USDHierarchyIterator::should_determine_duplication_references(const HierarchyContext* parent_context) const
+bool USDHierarchyIterator::should_determine_duplication_references(
+    const HierarchyContext *parent_context) const
 {
   if (!parent_context) {
     return false;

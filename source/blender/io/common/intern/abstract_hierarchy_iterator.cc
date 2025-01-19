@@ -569,7 +569,7 @@ void AbstractHierarchyIterator::determine_duplication_references(
     }
     else {
       /* Determine is this context is for an instance prototype. */
-      ID* id = &context->object->id;
+      ID *id = &context->object->id;
       if (duplisources_.find(id) != duplisources_.end()) {
         context->is_duplisource = true;
       }
