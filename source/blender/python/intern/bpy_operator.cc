@@ -554,6 +554,34 @@ static PyObject *py_data_from_property_enum(PointerRNA *properties, PropertyRNA 
   return data;
 }
 
+static PyObject *py_data_from_property_rna_tye(bContext * /*C*/,
+                                               PointerRNA * /*properties*/,
+                                               PropertyRNA * /*prop*/)
+{
+  // Nothing
+  return nullptr;
+}
+
+static PyObject *py_data_from_property_pointer(bContext *C,
+                                               PointerRNA *properties,
+                                               PropertyRNA *prop)
+{
+  PyObject *data = nullptr;
+  if (STREQ(RNA_property_identifier(prop), "rna_type")) {
+    data = py_data_from_property_rna_tye(C, properties, prop);
+  }
+  else {
+    /**
+     * This is not tested.
+     * I do not know how to set a pointer on the operator call.
+     */
+    StructRNA *ptr_type = RNA_property_pointer_type(properties, prop);
+    PointerRNA tptr = RNA_pointer_create(nullptr, ptr_type, prop);
+    data = pyrna_struct_CreatePyObject(&tptr);
+  }
+  return data;
+}
+
 static PyObject *py_data_from_property_collection(bContext *C,
                                                   PointerRNA *properties,
                                                   PropertyRNA *prop)
@@ -562,16 +590,27 @@ static PyObject *py_data_from_property_collection(bContext *C,
   // std::string as_string = RNA_pointer_as_string_id(C,properties);
   int collection_len = RNA_property_collection_length(properties, prop);
   PyObject *data = PyTuple_New(collection_len + 1);
-  PointerRNA tptr = RNA_pointer_create(nullptr, &RNA_Property, prop);
 
+#if 0
+  /*
+   *  Returns the type of the element?
+   */
+  StructRNA *ptr_type = RNA_property_pointer_type(properties, prop);
+#endif
+
+  PointerRNA tptr = RNA_pointer_create(nullptr, &RNA_Property, prop);
   PyTuple_SET_ITEM(data, 0, pyrna_struct_CreatePyObject(&tptr));
 
+  /*
+   *  Append next the collection values. I do not know ho to get it from data
+   *  set above in the python scope.
+   */
   CollectionPropertyIterator iter;
   RNA_property_collection_begin(properties, prop, &iter);
   for (int i = 1; iter.valid; RNA_property_collection_next(&iter), i++) {
-    PyObject *col_data = py_data_from_properties(C, &iter.ptr);
-    if (col_data != nullptr) {
-      PyTuple_SET_ITEM(data, i, col_data);
+    PyObject *prop_data = py_data_from_properties(C, &iter.ptr);
+    if (prop_data != nullptr) {
+      PyTuple_SET_ITEM(data, i, prop_data);
     }
     else {
       // ?
@@ -579,13 +618,6 @@ static PyObject *py_data_from_property_collection(bContext *C,
   }
   RNA_property_collection_end(&iter);
   return data;
-}
-static PyObject *py_data_from_property_rna_tye(bContext * /*C*/,
-                                               PointerRNA * /*properties*/,
-                                               PropertyRNA * /*prop*/)
-{
-  // Nothing
-  return nullptr;
 }
 
 static PyObject *py_data_from_properties(bContext *C, PointerRNA *properties)
@@ -613,13 +645,7 @@ static PyObject *py_data_from_properties(bContext *C, PointerRNA *properties)
         data = py_data_from_property_enum(properties, prop);
         break;
       case PROP_POINTER:
-        if (STREQ(arg_name, "rna_type")) {
-          data = py_data_from_property_rna_tye(C, properties, prop);
-        }
-        else {
-          // bpy.props.PointerProperty ?
-          data = PyUnicode_FromString("TODO: POINTER");
-        }
+        data = py_data_from_property_pointer(C, properties, prop);
         break;
       case PROP_COLLECTION:
         data = py_data_from_property_collection(C, properties, prop);
