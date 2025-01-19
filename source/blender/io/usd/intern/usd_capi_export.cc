@@ -188,7 +188,7 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
 
   for (const auto &path : pxr::SdfPath(params.root_prim_path).GetPrefixes()) {
     auto xform = pxr::UsdGeomXform::Define(stage, path);
-    /* Tag generated prims to allow filtering on import */
+    /* Tag generated primitives to allow filtering on import. */
     xform.GetPrim().SetCustomDataByKey(pxr::TfToken("Blender:generated"), pxr::VtValue(true));
   }
 }
@@ -742,7 +742,7 @@ int USD_get_version()
   return PXR_VERSION;
 }
 
-double get_meters_per_unit(const struct USDExportParams *params)
+double get_meters_per_unit(const USDExportParams *params)
 {
   double result;
   switch (params->convert_scene_units) {

@@ -6,6 +6,8 @@
  * \ingroup edobj
  */
 
+#include <sys/stat.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_material_types.h"
@@ -17,7 +19,6 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_path_utils.hh"
@@ -35,7 +36,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
@@ -1625,7 +1626,7 @@ static int bake(const BakeAPIRender *bkr,
     for (i = 0; i < tot_highpoly; i++) {
       ok = RE_bake_engine(re,
                           depsgraph,
-                          highpoly[i].ob,
+                          highpoly[i].ob_eval,
                           i,
                           pixel_array_high,
                           &targets,
