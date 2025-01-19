@@ -41,6 +41,7 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
+  extern_fmtlib
 )
 
 if(WITH_UV_SLIM)
