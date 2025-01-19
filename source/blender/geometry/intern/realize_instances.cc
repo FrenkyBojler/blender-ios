@@ -1288,7 +1288,6 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
       });
   SpanAttributeWriter<float> point_radii;
   if (all_pointclouds_info.create_radius_attribute || force_radius_attribute) {
-    printf("Scale!\n");
     point_radii = dst_attributes.lookup_or_add_for_write_only_span<float>("radius",
                                                                           bke::AttrDomain::Point);
   }
@@ -2007,7 +2006,6 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
       });
   SpanAttributeWriter<float> radius;
   if (all_curves_info.create_radius_attribute || force_radius_attribute) {
-    printf("Scale!\n");
     radius = dst_attributes.lookup_or_add_for_write_only_span<float>("radius",
                                                                      bke::AttrDomain::Point);
   }
