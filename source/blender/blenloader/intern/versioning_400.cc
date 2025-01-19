@@ -5646,7 +5646,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
   /* Legacy handling of radius attribute. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 24)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type_legacy == GEO_NODE_REALIZE_INSTANCES) {
@@ -5655,7 +5655,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
     }
-    FOREACH_NODETREE_END;
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
