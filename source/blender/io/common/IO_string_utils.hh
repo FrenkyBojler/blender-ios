@@ -55,7 +55,7 @@ const char *drop_non_whitespace(const char *p, const char *end);
  * Returns the start of remainder of the input string after parsing.
  */
 const char *try_parse_int(
-    const char *p, const char *end, bool &success, int &dst, bool skip_space = true);
+    const char *p, const char *end, int fallback, bool &success, int &dst, bool skip_space = true);
 
 /**
  * Parse a float from an input string.
@@ -66,8 +66,12 @@ const char *try_parse_int(
  *
  * Returns the start of remainder of the input string after parsing.
  */
-const char *try_parse_float(
-    const char *p, const char *end, bool &success, float &dst, bool skip_space = true);
+const char *try_parse_float(const char *p,
+                            const char *end,
+                            int fallback,
+                            bool &success,
+                            float &dst,
+                            bool skip_space = true);
 
 /**
  * Parse an integer from an input string.

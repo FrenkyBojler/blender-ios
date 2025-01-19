@@ -23,7 +23,7 @@ CsvData::CsvData(const int64_t rows_num,
       column_names(column_names),
       column_types(column_types)
 {
-  for (int i = 0; i < this->columns_num; i++) {
+  for (const int i : IndexRange(this->columns_num)) {
     data[i] = GArray(*bke::custom_data_type_to_cpp_type(this->column_types[i]), rows_num);
   }
 }
@@ -36,7 +36,7 @@ PointCloud *CsvData::to_point_cloud() const
   point_cloud->positions_for_write().fill(float3(0.0f, 0.0f, 0.0f));
 
   /* Fill the attributes */
-  for (int i = 0; i < columns_num; i++) {
+  for (const int i : IndexRange(columns_num)) {
     const StringRef column_name = column_names[i];
     const eCustomDataType column_type = column_types[i];
     void *column_data = get_data_of_garray(data[i], column_type);
@@ -49,9 +49,8 @@ PointCloud *CsvData::to_point_cloud() const
 
 void *CsvData::get_data_of_garray(const GSpan span, const eCustomDataType type) const
 {
-  const char *func = __func__;
   const CPPType *cpp_type = bke::custom_data_type_to_cpp_type(type);
-  void *data = MEM_mallocN_aligned(rows_num * cpp_type->size(), cpp_type->alignment(), func);
+  void *data = MEM_mallocN_aligned(rows_num * cpp_type->size(), cpp_type->alignment(), __func__);
   std::memcpy(data, span.data(), rows_num * cpp_type->size());
   return data;
 }

@@ -48,14 +48,14 @@ static std::optional<eCustomDataType> get_column_type(const char *start, const c
   bool success = false;
 
   int _val_int = 0;
-  try_parse_int(start, end, success, _val_int);
+  try_parse_int(start, end, 0, success, _val_int);
 
   if (success) {
     return CD_PROP_INT32;
   }
 
   float _val_float = 0.0f;
-  try_parse_float(start, end, success, _val_float);
+  try_parse_float(start, end, 0.0f, success, _val_float);
 
   if (success) {
     return CD_PROP_FLOAT;
@@ -107,7 +107,7 @@ static int64_t get_row_count(StringRef buffer)
   return row_count;
 }
 
-static bool parse_csv_cell(CsvData &csv_data,
+static void parse_csv_cell(CsvData &csv_data,
                            int64_t row_index,
                            int64_t col_index,
                            const char *start,
@@ -119,11 +119,9 @@ static bool parse_csv_cell(CsvData &csv_data,
   switch (csv_data.get_column_type(col_index)) {
     case CD_PROP_INT32: {
       int value = 0;
-      try_parse_int(start, end, success, value);
-      if (success) {
-        csv_data.set_data(row_index, col_index, value);
-      }
-      else {
+      try_parse_int(start, end, 0, success, value);
+      csv_data.set_data(row_index, col_index, value);
+      if (!success) {
         std::string column_name = csv_data.get_column_name(col_index);
         BKE_reportf(import_params.reports,
                     RPT_ERROR,
@@ -132,17 +130,14 @@ static bool parse_csv_cell(CsvData &csv_data,
                     import_params.filepath,
                     row_index,
                     column_name.c_str());
-        return false;
       }
       break;
     }
     case CD_PROP_FLOAT: {
       float value = 0.0f;
-      try_parse_float(start, end, success, value);
-      if (success) {
-        csv_data.set_data(row_index, col_index, value);
-      }
-      else {
+      try_parse_float(start, end, 0.0f, success, value);
+      csv_data.set_data(row_index, col_index, value);
+      if (!success) {
         std::string column_name = csv_data.get_column_name(col_index);
         BKE_reportf(import_params.reports,
                     RPT_ERROR,
@@ -151,19 +146,23 @@ static bool parse_csv_cell(CsvData &csv_data,
                     import_params.filepath,
                     row_index,
                     column_name.c_str());
-        return false;
       }
       break;
     }
     default: {
-      return false;
+      std::string column_name = csv_data.get_column_name(col_index);
+      BKE_reportf(import_params.reports,
+                  RPT_ERROR,
+                  "CSV Import: file '%s' has an unsupported value at row %lld for column %s",
+                  import_params.filepath,
+                  row_index,
+                  column_name.c_str());
+      break;
     }
   }
-
-  return true;
 }
 
-static bool parse_csv_line(CsvData &csv_data,
+static void parse_csv_line(CsvData &csv_data,
                            int64_t row_index,
                            const StringRef line,
                            const CSVImportParams &import_params)
@@ -179,9 +178,7 @@ static bool parse_csv_line(CsvData &csv_data,
   while (delim_index != StringRef::not_found) {
     cell_end = start + delim_index;
 
-    if (!parse_csv_cell(csv_data, row_index, col_index, cell_start, cell_end, import_params)) {
-      return false;
-    }
+    parse_csv_cell(csv_data, row_index, col_index, cell_start, cell_end, import_params);
     col_index++;
 
     cell_start = cell_end + 1;
@@ -189,14 +186,10 @@ static bool parse_csv_line(CsvData &csv_data,
   }
 
   /* Handle last cell, --end because the end in StringRef is one_after_ern */
-  if (!parse_csv_cell(csv_data, row_index, col_index, cell_start, --end, import_params)) {
-    return false;
-  }
-
-  return true;
+  parse_csv_cell(csv_data, row_index, col_index, cell_start, --end, import_params);
 }
 
-static bool parse_csv_data(CsvData &csv_data,
+static void parse_csv_data(CsvData &csv_data,
                            StringRef buffer,
                            const CSVImportParams &import_params)
 {
@@ -204,14 +197,10 @@ static bool parse_csv_data(CsvData &csv_data,
   while (!buffer.is_empty()) {
     const StringRef line = read_next_line(buffer);
 
-    if (!parse_csv_line(csv_data, row_index, line, import_params)) {
-      return false;
-    }
+    parse_csv_line(csv_data, row_index, line, import_params);
 
     row_index++;
   }
-
-  return true;
 }
 
 PointCloud *read_csv_file(const CSVImportParams &import_params)
@@ -271,11 +260,9 @@ PointCloud *read_csv_file(const CSVImportParams &import_params)
   CsvData csv_data(row_count, columns, column_types);
 
   /* Fill csv data while seeking over the file */
-  if (parse_csv_data(csv_data, data_buffer, import_params)) {
-    return csv_data.to_point_cloud();
-  }
+  parse_csv_data(csv_data, data_buffer, import_params);
 
-  return nullptr;
+  return csv_data.to_point_cloud();
 }
 
 }  // namespace blender::io::csv

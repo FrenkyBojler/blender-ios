@@ -92,7 +92,7 @@ static const char *drop_sign(const char *p, const char *end, int &sign)
 }
 
 const char *try_parse_float(
-    const char *p, const char *end, bool &success, float &dst, bool skip_space)
+    const char *p, const char *end, int fallback, bool &success, float &dst, bool skip_space)
 {
   if (skip_space) {
     p = drop_whitespace(p, end);
@@ -101,6 +101,7 @@ const char *try_parse_float(
   p = drop_sign(p, end, sign);
   fast_float::from_chars_result res = fast_float::from_chars(p, end, dst);
   if (ELEM(res.ec, std::errc::invalid_argument, std::errc::result_out_of_range) || res.ptr < end) {
+    dst = fallback;
     success = false;
   }
   else {
@@ -110,7 +111,8 @@ const char *try_parse_float(
   return res.ptr;
 }
 
-const char *try_parse_int(const char *p, const char *end, bool &success, int &dst, bool skip_space)
+const char *try_parse_int(
+    const char *p, const char *end, int fallback, bool &success, int &dst, bool skip_space)
 {
   if (skip_space) {
     p = drop_whitespace(p, end);
@@ -119,6 +121,7 @@ const char *try_parse_int(const char *p, const char *end, bool &success, int &ds
   p = drop_sign(p, end, sign);
   std::from_chars_result res = std::from_chars(p, end, dst);
   if (ELEM(res.ec, std::errc::invalid_argument, std::errc::result_out_of_range) || res.ptr < end) {
+    dst = fallback;
     success = false;
   }
   else {
