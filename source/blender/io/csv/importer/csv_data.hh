@@ -49,9 +49,6 @@ class CsvData {
   {
     return column_names[col_index];
   }
-
- private:
-  void *get_data_of_garray(const GSpan span, eCustomDataType type) const;
 };
 
 }  // namespace blender::io::csv
