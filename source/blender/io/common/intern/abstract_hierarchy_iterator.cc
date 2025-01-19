@@ -60,6 +60,14 @@ void HierarchyContext::mark_as_not_instanced()
   original_export_path.clear();
 }
 
+bool HierarchyContext::is_prototype() const
+{
+  /* The context is for a prototype if it's for a duplisource or
+   * for a duplicated object that was designated to be a prototype
+   * because the original was not included in the export.*/
+  return is_duplisource || (duplicator != nullptr && !is_instance());
+}
+
 bool HierarchyContext::is_object_visible(const enum eEvaluationMode evaluation_mode) const
 {
   const bool is_dupli = duplicator != nullptr;
