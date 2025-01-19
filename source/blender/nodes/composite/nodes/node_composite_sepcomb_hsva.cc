@@ -27,7 +27,7 @@ static void cmp_node_sephsva_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("A").translation_context(BLT_I18NCONTEXT_COLOR);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class SeparateHSVAShaderNode : public ShaderNode {
  public:
@@ -55,8 +55,11 @@ void register_node_type_cmp_sephsva()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, CMP_NODE_SEPHSVA_LEGACY, "Separate HSVA (Legacy)", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, "CompositorNodeSepHSVA", CMP_NODE_SEPHSVA_LEGACY);
+  ntype.ui_name = "Separate HSVA (Legacy)";
+  ntype.ui_description = "Deprecated";
+  ntype.enum_name_legacy = "SEPHSVA";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_sephsva_declare;
   ntype.gather_link_search_ops = nullptr;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
@@ -94,7 +97,7 @@ static void cmp_node_combhsva_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Color>("Image");
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class CombineHSVAShaderNode : public ShaderNode {
  public:
@@ -122,8 +125,11 @@ void register_node_type_cmp_combhsva()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, CMP_NODE_COMBHSVA_LEGACY, "Combine HSVA (Legacy)", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, "CompositorNodeCombHSVA", CMP_NODE_COMBHSVA_LEGACY);
+  ntype.ui_name = "Combine HSVA (Legacy)";
+  ntype.ui_description = "Deprecated";
+  ntype.enum_name_legacy = "COMBHSVA";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_combhsva_declare;
   ntype.gather_link_search_ops = nullptr;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;

@@ -6,6 +6,7 @@
  * \ingroup cmpnodes
  */
 
+#include "BKE_node.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_vector_types.hh"
 
@@ -52,8 +53,8 @@ static void node_composit_buts_crop(uiLayout *layout, bContext * /*C*/, PointerR
 {
   uiLayout *col;
 
-  uiItemR(layout, ptr, "use_crop_size", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "relative", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_crop_size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "relative", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
   col = uiLayoutColumn(layout, true);
   if (RNA_boolean_get(ptr, "relative")) {
@@ -70,7 +71,7 @@ static void node_composit_buts_crop(uiLayout *layout, bContext * /*C*/, PointerR
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class CropOperation : public NodeOperation {
  public:
@@ -146,7 +147,7 @@ class CropOperation : public NodeOperation {
       bool is_inside = texel.x >= lower_bound.x && texel.y >= lower_bound.y &&
                        texel.x < upper_bound.x && texel.y < upper_bound.y;
       /* Write the pixel color if it is inside the cropping region, otherwise, write zero. */
-      float4 color = is_inside ? input.load_pixel(texel) : float4(0.0f);
+      float4 color = is_inside ? input.load_pixel<float4>(texel) : float4(0.0f);
       output.store_pixel(texel, color);
     });
   }
@@ -214,7 +215,7 @@ class CropOperation : public NodeOperation {
     output.allocate_texture(Domain(size, compute_domain().transformation));
 
     parallel_for(size, [&](const int2 texel) {
-      output.store_pixel(texel, input.load_pixel(texel + lower_bound));
+      output.store_pixel(texel, input.load_pixel<float4>(texel + lower_bound));
     });
   }
 
@@ -292,7 +293,13 @@ void register_node_type_cmp_crop()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_CROP, "Crop", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodeCrop", CMP_NODE_CROP);
+  ntype.ui_name = "Crop";
+  ntype.ui_description =
+      "Crops image to a smaller region, either making the cropped area transparent or resizing "
+      "the image";
+  ntype.enum_name_legacy = "CROP";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_crop_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_crop;
   ntype.initfunc = file_ns::node_composit_init_crop;

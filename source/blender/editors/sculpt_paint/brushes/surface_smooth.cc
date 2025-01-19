@@ -15,10 +15,8 @@
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_array.hh"
-#include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_task.hh"
-#include "BLI_virtual_array.hh"
 
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
@@ -35,7 +33,8 @@ struct LocalData {
   Vector<float3> positions;
   Vector<float> factors;
   Vector<float> distances;
-  Vector<Vector<int>> vert_neighbors;
+  Vector<int> neighbor_offsets;
+  Vector<int> neighbor_data;
   Vector<float3> laplacian_disp;
   Vector<float3> average_positions;
   Vector<float3> translations;
@@ -66,7 +65,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-  const MeshAttributeData attribute_data(mesh.attributes());
+  const MeshAttributeData attribute_data(mesh);
 
   const PositionDeformData position_data(depsgraph, object);
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
@@ -112,18 +111,17 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
       const OrigPositionData orig_data = orig_position_data_get_mesh(object, nodes[i]);
       const Span<float> factors = all_factors.as_span().slice(node_offsets[pos]);
 
-      tls.vert_neighbors.resize(verts.size());
-      calc_vert_neighbors(faces,
-                          corner_verts,
-                          vert_to_face_map,
-                          attribute_data.hide_poly,
-                          verts,
-                          tls.vert_neighbors);
+      const GroupedSpan<int> neighbors = calc_vert_neighbors(faces,
+                                                             corner_verts,
+                                                             vert_to_face_map,
+                                                             attribute_data.hide_poly,
+                                                             verts,
+                                                             tls.neighbor_offsets,
+                                                             tls.neighbor_data);
 
       tls.average_positions.resize(verts.size());
       const MutableSpan<float3> average_positions = tls.average_positions;
-      smooth::neighbor_data_average_mesh(
-          position_data.eval, tls.vert_neighbors, average_positions);
+      smooth::neighbor_data_average_mesh(position_data.eval, neighbors, average_positions);
 
       tls.laplacian_disp.resize(verts.size());
       const MutableSpan<float3> laplacian_disp = tls.laplacian_disp;
@@ -147,18 +145,18 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
       const MutableSpan<float3> laplacian_disp = gather_data_mesh(
           all_laplacian_disp.as_span(), verts, tls.laplacian_disp);
 
-      tls.vert_neighbors.resize(verts.size());
-      calc_vert_neighbors(faces,
-                          corner_verts,
-                          vert_to_face_map,
-                          attribute_data.hide_poly,
-                          verts,
-                          tls.vert_neighbors);
+      const GroupedSpan<int> neighbors = calc_vert_neighbors(faces,
+                                                             corner_verts,
+                                                             vert_to_face_map,
+                                                             attribute_data.hide_poly,
+                                                             verts,
+                                                             tls.neighbor_offsets,
+                                                             tls.neighbor_data);
 
       tls.average_positions.resize(verts.size());
       const MutableSpan<float3> average_laplacian_disps = tls.average_positions;
       smooth::neighbor_data_average_mesh(
-          all_laplacian_disp.as_span(), tls.vert_neighbors, average_laplacian_disps);
+          all_laplacian_disp.as_span(), neighbors, average_laplacian_disps);
 
       tls.translations.resize(verts.size());
       const MutableSpan<float3> translations = tls.translations;

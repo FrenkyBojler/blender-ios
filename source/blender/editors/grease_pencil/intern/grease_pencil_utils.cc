@@ -11,7 +11,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -288,7 +288,7 @@ void DrawingPlacement::cache_viewport_depths(Depsgraph *depsgraph, ARegion *regi
       mode = V3D_DEPTH_NO_GPENCIL;
     }
   }
-  ED_view3d_depth_override(depsgraph, region, view3d, nullptr, mode, &this->depth_cache_);
+  ED_view3d_depth_override(depsgraph, region, view3d, nullptr, mode, false, &this->depth_cache_);
 }
 
 void DrawingPlacement::set_origin_to_nearest_stroke(const float2 co)
@@ -388,26 +388,24 @@ float3 DrawingPlacement::reproject(const float3 pos) const
     /* Reproject the point onto the `placement_plane_` from the current view. */
     RegionView3D *rv3d = static_cast<RegionView3D *>(region_->regiondata);
 
-    float3 ray_co, ray_no;
+    float3 ray_no;
     if (rv3d->is_persp) {
-      ray_co = float3(rv3d->viewinv[3]);
-      ray_no = math::normalize(ray_co - world_pos);
+      ray_no = math::normalize(world_pos - float3(rv3d->viewinv[3]));
     }
     else {
-      ray_co = world_pos;
       ray_no = -float3(rv3d->viewinv[2]);
     }
     float4 plane;
     if (plane_ == DrawingPlacementPlane::View) {
-      plane = float4(rv3d->viewinv[2]);
+      plane_from_point_normal_v3(plane, placement_loc_, rv3d->viewinv[2]);
     }
     else {
       plane = placement_plane_;
     }
 
     float lambda;
-    if (isect_ray_plane_v3(ray_co, ray_no, plane, &lambda, false)) {
-      proj_point = ray_co + ray_no * lambda;
+    if (isect_ray_plane_v3(world_pos, ray_no, plane, &lambda, false)) {
+      proj_point = world_pos + ray_no * lambda;
     }
     else {
       return pos;
@@ -872,21 +870,21 @@ Vector<DrawingInfo> retrieve_visible_drawings(const Scene &scene,
   return visible_drawings;
 }
 
-static VectorSet<int> get_editable_material_indices(Object &object)
+static VectorSet<int> get_locked_material_indices(Object &object)
 {
   BLI_assert(object.type == OB_GREASE_PENCIL);
-  VectorSet<int> editable_material_indices;
+  VectorSet<int> locked_material_indices;
   for (const int mat_i : IndexRange(object.totcol)) {
     Material *material = BKE_object_material_get(&object, mat_i + 1);
     /* The editable materials are unlocked and not hidden. */
     if (material != nullptr && material->gp_style != nullptr &&
-        (material->gp_style->flag & GP_MATERIAL_LOCKED) == 0 &&
-        (material->gp_style->flag & GP_MATERIAL_HIDE) == 0)
+        ((material->gp_style->flag & GP_MATERIAL_LOCKED) != 0 ||
+         (material->gp_style->flag & GP_MATERIAL_HIDE) != 0))
     {
-      editable_material_indices.add_new(mat_i);
+      locked_material_indices.add_new(mat_i);
     }
   }
-  return editable_material_indices;
+  return locked_material_indices;
 }
 
 static VectorSet<int> get_hidden_material_indices(Object &object)
@@ -941,24 +939,24 @@ IndexMask retrieve_editable_strokes(Object &object,
   }
 
   /* Get all the editable material indices */
-  VectorSet<int> editable_material_indices = get_editable_material_indices(object);
-  if (editable_material_indices.is_empty()) {
-    return {};
+  VectorSet<int> locked_material_indices = get_locked_material_indices(object);
+  if (locked_material_indices.is_empty()) {
+    return curves_range;
   }
 
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Curve);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
-    if (editable_material_indices.contains(0)) {
-      return curves_range;
+    if (locked_material_indices.contains(0)) {
+      return {};
     }
-    return {};
+    return curves_range;
   }
   /* Get all the strokes that have their material unlocked. */
   return IndexMask::from_predicate(
       curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        return editable_material_indices.contains(materials[curve_i]);
+        return !locked_material_indices.contains(materials[curve_i]);
       });
 }
 
@@ -1002,30 +1000,31 @@ IndexMask retrieve_editable_strokes_by_material(Object &object,
 {
   using namespace blender;
 
+  const bke::CurvesGeometry &curves = drawing.strokes();
+  const IndexRange curves_range = curves.curves_range();
+
   /* Get all the editable material indices */
-  VectorSet<int> editable_material_indices = get_editable_material_indices(object);
-  if (editable_material_indices.is_empty()) {
-    return {};
+  VectorSet<int> locked_material_indices = get_locked_material_indices(object);
+  if (locked_material_indices.is_empty()) {
+    return curves_range;
   }
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
-  const IndexRange curves_range = drawing.strokes().curves_range();
   const bke::AttributeAccessor attributes = curves.attributes();
 
   const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Curve);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
-    if (editable_material_indices.contains(0)) {
-      return curves_range;
+    if (locked_material_indices.contains(0)) {
+      return {};
     }
-    return {};
+    return curves_range;
   }
   /* Get all the strokes that share the same material and have it unlocked. */
   return IndexMask::from_predicate(
       curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
         const int material_index = materials[curve_i];
         if (material_index == mat_i) {
-          return editable_material_indices.contains(material_index);
+          return !locked_material_indices.contains(material_index);
         }
         return false;
       });
@@ -1052,9 +1051,9 @@ IndexMask retrieve_editable_points(Object &object,
   }
 
   /* Get all the editable material indices */
-  VectorSet<int> editable_material_indices = get_editable_material_indices(object);
-  if (editable_material_indices.is_empty()) {
-    return {};
+  VectorSet<int> locked_material_indices = get_locked_material_indices(object);
+  if (locked_material_indices.is_empty()) {
+    return points_range;
   }
 
   /* Propagate the material index to the points. */
@@ -1062,15 +1061,15 @@ IndexMask retrieve_editable_points(Object &object,
   const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Point);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
-    if (editable_material_indices.contains(0)) {
-      return points_range;
+    if (locked_material_indices.contains(0)) {
+      return {};
     }
-    return {};
+    return points_range;
   }
   /* Get all the points that are part of a stroke with an unlocked material. */
   return IndexMask::from_predicate(
       points_range, GrainSize(4096), memory, [&](const int64_t point_i) {
-        return editable_material_indices.contains(materials[point_i]);
+        return !locked_material_indices.contains(materials[point_i]);
       });
 }
 

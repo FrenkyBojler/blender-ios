@@ -10,9 +10,7 @@
 
 #pragma once
 
-#include <cstdint>
-
-#include "BLI_vector.hh"
+#include "BLI_function_ref.hh"
 #include "DNA_action_types.h"
 
 struct FCurve;
@@ -20,7 +18,7 @@ namespace blender::animrig {
 class Action;
 class Layer;
 class Strip;
-class ChannelBag;
+class Channelbag;
 }  // namespace blender::animrig
 
 namespace blender::animrig {
@@ -52,7 +50,7 @@ void foreach_fcurve_in_action_slot(Action &action,
  *   - NLA strips.
  *   - Action Constraints, both on Object and Pose Bone level.
  *
- * \param callback The function to call for each Action+Slot used. Even when there is no slot
+ * \param callback: The function to call for each Action+Slot used. Even when there is no slot
  * assigned, this function will be called (but then with slot_handle = Slot::unassigned). The
  * callback should return `true` to continue the foreach loop, or return `false` to stop it.
  *

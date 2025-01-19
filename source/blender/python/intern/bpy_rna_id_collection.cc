@@ -14,7 +14,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
@@ -68,7 +67,7 @@ static int foreach_libblock_id_user_map_callback(LibraryIDLinkCallbackData *cb_d
 
   if (*id_p) {
     IDUserMapData *data = static_cast<IDUserMapData *>(cb_data->user_data);
-    const int cb_flag = cb_data->cb_flag;
+    const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
 
     if (data->types_bitmap) {
       if (!id_check_type(*id_p, data->types_bitmap)) {
@@ -200,9 +199,21 @@ static PyObject *bpy_user_map(PyObject * /*self*/, PyObject *args, PyObject *kwd
     data_cb.user_map = _PyDict_NewPresized(subset_len);
     data_cb.is_subset = true;
     for (; subset_len; subset_array++, subset_len--) {
-      PyObject *set = PySet_New(nullptr);
-      PyDict_SetItem(data_cb.user_map, *subset_array, set);
-      Py_DECREF(set);
+      ID *id;
+      if (!pyrna_id_FromPyObject(*subset_array, &id)) {
+        PyErr_Format(PyExc_TypeError,
+                     "Expected an ID type in `subset` iterable, not %.200s",
+                     Py_TYPE(*subset_array)->tp_name);
+        Py_DECREF(subset_fast);
+        Py_DECREF(data_cb.user_map);
+        goto error;
+      }
+
+      if (!PyDict_Contains(data_cb.user_map, *subset_array)) {
+        PyObject *set = PySet_New(nullptr);
+        PyDict_SetItem(data_cb.user_map, *subset_array, set);
+        Py_DECREF(set);
+      }
     }
     Py_DECREF(subset_fast);
   }
@@ -247,7 +258,7 @@ static PyObject *bpy_user_map(PyObject * /*self*/, PyObject *args, PyObject *kwd
 
       data_cb.id_curr = id;
       BKE_library_foreach_ID_link(
-          nullptr, id, foreach_libblock_id_user_map_callback, &data_cb, IDWALK_CB_NOP);
+          nullptr, id, foreach_libblock_id_user_map_callback, &data_cb, IDWALK_NOP);
 
       if (data_cb.py_id_curr) {
         Py_DECREF(data_cb.py_id_curr);
@@ -264,7 +275,6 @@ error:
   if (key_types_bitmap != nullptr) {
     MEM_freeN(key_types_bitmap);
   }
-
   if (val_types_bitmap != nullptr) {
     MEM_freeN(val_types_bitmap);
   }
