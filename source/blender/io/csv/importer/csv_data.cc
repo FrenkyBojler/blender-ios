@@ -49,7 +49,6 @@ PointCloud *CsvData::to_point_cloud() const
                                                  __func__),
                              rows_num * cpp_column_type->size()};
 
-    // array_utils::copy(data[i].as_span(), column_data);
     std::memcpy(column_data.data(), data[i].data(), rows_num * cpp_column_type->size());
 
     CustomData_add_layer_named_with_data(
