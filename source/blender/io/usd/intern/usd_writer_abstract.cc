@@ -208,7 +208,7 @@ pxr::SdfPath USDAbstractWriter::get_material_library_path() const
   return pxr::SdfPath(material_library_path);
 }
 
-pxr::SdfPath USDAbstractWriter::get_proto_material_root_path(const HierarchyContext& context) const
+pxr::SdfPath USDAbstractWriter::get_proto_material_root_path(const HierarchyContext &context) const
 {
   static std::string material_library_path("/_materials");
 
@@ -219,8 +219,8 @@ pxr::SdfPath USDAbstractWriter::get_proto_material_root_path(const HierarchyCont
   return pxr::SdfPath(path_prefix + material_library_path);
 }
 
-pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material_created(const HierarchyContext &context,
-                                                                     Material *material) const
+pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material_created(
+    const HierarchyContext &context, Material *material) const
 {
   pxr::UsdStageRefPtr stage = usd_export_context_.stage;
 
@@ -246,8 +246,8 @@ pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material_created(const Hiera
   return usd_material;
 }
 
-pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material(const HierarchyContext& context,
-                                                             Material* material) const
+pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material(const HierarchyContext &context,
+                                                             Material *material) const
 {
   pxr::UsdShadeMaterial library_material = ensure_usd_material_created(context, material);
 
@@ -265,17 +265,17 @@ pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material(const HierarchyCont
   pxr::UsdStageRefPtr stage = usd_export_context_.stage;
 
   pxr::SdfPath usd_path = pxr::UsdGeomScope::Define(stage, get_proto_material_root_path(context))
-                               .GetPath()
-                               .AppendChild(library_material.GetPath().GetNameToken());
+                              .GetPath()
+                              .AppendChild(library_material.GetPath().GetNameToken());
 
   pxr::UsdShadeMaterial proto_material = pxr::UsdShadeMaterial::Define(stage, usd_path);
 
   if (!proto_material.GetPrim().GetReferences().AddInternalReference(library_material.GetPath())) {
     CLOG_WARN(&LOG,
-      "Unable to add a material reference from %s to %s for prototype %s",
-      proto_material.GetPath().GetAsString().c_str(),
-      library_material.GetPath().GetAsString().c_str(),
-      context.export_path.c_str());
+              "Unable to add a material reference from %s to %s for prototype %s",
+              proto_material.GetPath().GetAsString().c_str(),
+              library_material.GetPath().GetAsString().c_str(),
+              context.export_path.c_str());
     return library_material;
   }
 
