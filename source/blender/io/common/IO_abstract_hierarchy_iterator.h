@@ -80,6 +80,9 @@ struct HierarchyContext {
    */
   bool is_parent;
 
+  /* When true this is duplisource object. This flag is used to identify instance prototypes. */
+  bool is_duplisource;
+
   /*********** Determined during writer creation: ***************/
   float parent_matrix_inv_world[4][4]; /* Inverse of the parent's world matrix. */
   std::string export_path; /* Hierarchical path, such as "/grandparent/parent/object_name". */
@@ -213,6 +216,8 @@ class AbstractHierarchyIterator {
   /* Mapping from ID to its export path. This is used for instancing; given an
    * instanced datablock, the export path of the original can be looked up. */
   typedef std::map<ID *, std::string> ExportPathMap;
+  /* IDs of all duplisource objects, used to identify instance prototypes. */
+  typedef std::set<ID*> DupliSources;
 
  protected:
   ExportGraph export_graph_;
@@ -221,6 +226,7 @@ class AbstractHierarchyIterator {
   Depsgraph *depsgraph_;
   WriterMap writers_;
   ExportSubset export_subset_;
+  DupliSources duplisources_;
 
  public:
   explicit AbstractHierarchyIterator(Main *bmain, Depsgraph *depsgraph);

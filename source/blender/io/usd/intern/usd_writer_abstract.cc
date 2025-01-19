@@ -209,10 +209,16 @@ pxr::SdfPath USDAbstractWriter::get_material_library_path(const HierarchyContext
 
   /*
    * For instance prototypes, create the material beneath the prototype prim.
-   * If the context has a duplicator, we know the object is a prototype.
    */
-  if (context.duplicator && usd_export_context_.export_params.use_instancing) {
-    path_prefix += context.higher_up_export_path;
+  if (usd_export_context_.export_params.use_instancing) {
+    /*
+     * The context is for a prototype if it's for a duplisource or
+     * for a duplicated object that was designated to be a prototype
+     * because the original was not included in the export.
+     */
+    if (context.is_duplisource || (context.duplicator && !context.is_instance())) {
+      path_prefix += context.higher_up_export_path;
+    }
   }
 
   if (!path_prefix.empty()) {

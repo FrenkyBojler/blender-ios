@@ -414,6 +414,7 @@ void AbstractHierarchyIterator::visit_object(Object *object,
   context->export_path = "";
   context->original_export_path = "";
   context->higher_up_export_path = "";
+  context->is_duplisource = false;
 
   copy_m4_m4(context->matrix_world, object->object_to_world().ptr());
 
@@ -453,6 +454,7 @@ void AbstractHierarchyIterator::visit_dupli_object(DupliObject *dupli_object,
   context->export_path = "";
   context->original_export_path = "";
   context->animation_check_include_parent = false;
+  context->is_duplisource = false;
 
   copy_m4_m4(context->matrix_world, dupli_object->mat);
 
@@ -466,6 +468,10 @@ void AbstractHierarchyIterator::visit_dupli_object(DupliObject *dupli_object,
   context_update_for_graph_index(context, graph_index);
 
   export_graph_[graph_index].insert(context);
+
+  if (dupli_object->ob) {
+    this->duplisources_.insert(&dupli_object->ob->id);
+  }
 }
 
 AbstractHierarchyIterator::ExportGraph::key_type AbstractHierarchyIterator::
@@ -559,6 +565,13 @@ void AbstractHierarchyIterator::determine_duplication_references(
           duplisource_export_path_[source_id] = context->export_path;
           duplisource_export_path_[source_data_id] = data_path;
         }
+      }
+    }
+    else {
+      /* Determine is this context is for an instance prototype. */
+      ID* id = &context->object->id;
+      if (duplisources_.find(id) != duplisources_.end()) {
+        context->is_duplisource = true;
       }
     }
 
