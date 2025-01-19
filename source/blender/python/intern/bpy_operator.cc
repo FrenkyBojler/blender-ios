@@ -50,7 +50,7 @@
 /* so operators called can spawn threads which acquire the GIL */
 #define BPY_RELEASE_GIL
 
-static PyObject *py_data_from_properties(PointerRNA *properties);
+static PyObject *py_data_from_properties(bContext *C, PointerRNA *properties);
 
 static wmOperatorType *ot_lookup_from_py_string(PyObject *value, const char *py_fn_id)
 {
@@ -554,16 +554,22 @@ static PyObject *py_data_from_property_enum(PointerRNA *properties, PropertyRNA 
   return data;
 }
 
-static PyObject *py_data_from_property_collection(PointerRNA *properties, PropertyRNA *prop)
+static PyObject *py_data_from_property_collection(bContext *C,
+                                                  PointerRNA *properties,
+                                                  PropertyRNA *prop)
 {
 
+  // std::string as_string = RNA_pointer_as_string_id(C,properties);
   int collection_len = RNA_property_collection_length(properties, prop);
-  PyObject *data = PyTuple_New(collection_len);
+  PyObject *data = PyTuple_New(collection_len + 1);
+  PointerRNA tptr = RNA_pointer_create(nullptr, &RNA_Property, prop);
+
+  PyTuple_SET_ITEM(data, 0, pyrna_struct_CreatePyObject(&tptr));
 
   CollectionPropertyIterator iter;
   RNA_property_collection_begin(properties, prop, &iter);
-  for (int i = 0; iter.valid; RNA_property_collection_next(&iter), i++) {
-    PyObject *col_data = py_data_from_properties(&iter.ptr);
+  for (int i = 1; iter.valid; RNA_property_collection_next(&iter), i++) {
+    PyObject *col_data = py_data_from_properties(C, &iter.ptr);
     if (col_data != nullptr) {
       PyTuple_SET_ITEM(data, i, col_data);
     }
@@ -574,8 +580,15 @@ static PyObject *py_data_from_property_collection(PointerRNA *properties, Proper
   RNA_property_collection_end(&iter);
   return data;
 }
+static PyObject *py_data_from_property_rna_tye(bContext * /*C*/,
+                                               PointerRNA * /*properties*/,
+                                               PropertyRNA * /*prop*/)
+{
+  // Nothing
+  return nullptr;
+}
 
-static PyObject *py_data_from_properties(PointerRNA *properties)
+static PyObject *py_data_from_properties(bContext *C, PointerRNA *properties)
 {
   const char *arg_name = nullptr;
   PyObject *py_dict = PyDict_New();
@@ -583,9 +596,6 @@ static PyObject *py_data_from_properties(PointerRNA *properties)
   RNA_STRUCT_BEGIN (properties, prop) {
     arg_name = RNA_property_identifier(prop);
     data = nullptr;
-    if (STREQ(arg_name, "rna_type")) {
-      continue;
-    }
     switch (RNA_property_type(prop)) {
       case PROP_BOOLEAN:
         data = py_data_from_property_boolean(properties, prop);
@@ -603,11 +613,16 @@ static PyObject *py_data_from_properties(PointerRNA *properties)
         data = py_data_from_property_enum(properties, prop);
         break;
       case PROP_POINTER:
-        // bpy.props.PointerProperty ?
-        data = PyUnicode_FromString("TODO: POINTER");
+        if (STREQ(arg_name, "rna_type")) {
+          data = py_data_from_property_rna_tye(C, properties, prop);
+        }
+        else {
+          // bpy.props.PointerProperty ?
+          data = PyUnicode_FromString("TODO: POINTER");
+        }
         break;
       case PROP_COLLECTION:
-        data = py_data_from_property_collection(properties, prop);
+        data = py_data_from_property_collection(C, properties, prop);
         break;
       default:
         BLI_assert(false);
@@ -623,9 +638,9 @@ static PyObject *py_data_from_properties(PointerRNA *properties)
 /*
  * @Properties Rna Properties that has been used to set the operator
  */
-static PyObject *bpy_op_get_operator_params(PointerRNA *properties)
+static PyObject *bpy_op_get_operator_params(bContext *C, PointerRNA *properties)
 {
-  return py_data_from_properties(properties);
+  return py_data_from_properties(C, properties);
 }
 
 static bool bpy_op_callback_get_return_value(PyObject *callback, PyObject *py_ret)
@@ -715,7 +730,8 @@ static bool bpy_op_handler_poll(bContext *C,
     PyObject *py_poll = PyTuple_GET_ITEM(py_data, 4);
 
     /* Properties get null on modall poll, params are not bypassed to Py poll function. */
-    PyObject *params = (properties == nullptr) ? Py_None : bpy_op_get_operator_params(properties);
+    PyObject *params = (properties == nullptr) ? Py_None :
+                                                 bpy_op_get_operator_params(C, properties);
     if (py_poll != Py_None) {
       PyObject *py_ret = bpy_op_get_callback_call(
           py_poll, C, event, nullptr, params, callback_args);
@@ -777,7 +793,7 @@ static bool bpy_op_handler_invoke(
   {
     PyObject *callback = PyTuple_GET_ITEM(py_data, 2);
     PyObject *callback_args = PyTuple_GET_ITEM(py_data, 3);
-    PyObject *params = bpy_op_get_operator_params(properties);
+    PyObject *params = bpy_op_get_operator_params(C, properties);
     PyObject *py_ret = bpy_op_get_callback_call(
         callback, C, event, operator_ret ? &operator_ret : nullptr, params, callback_args);
     ret = bpy_op_callback_get_return_value(callback, py_ret);
