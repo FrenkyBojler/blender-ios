@@ -999,20 +999,20 @@ static void area_azone_init(wmWindow *win, const bScreen *screen, ScrArea *area)
 
   const float coords[3][4] = {
       /* Bottom-left. */
-      {area->totrct.xmin - U.pixelsize,
-       area->totrct.ymin - U.pixelsize,
-       area->totrct.xmin + AZONESPOTW,
-       area->totrct.ymin + AZONESPOTH},
+      {float(area->totrct.xmin) - U.pixelsize,
+       float(area->totrct.ymin) - U.pixelsize,
+       float(area->totrct.xmin) + AZONESPOTW,
+       float(area->totrct.ymin) + AZONESPOTH},
       /* Bottom-right. */
-      {area->totrct.xmax - AZONESPOTW,
-       area->totrct.ymin - U.pixelsize,
-       area->totrct.xmax + U.pixelsize,
-       area->totrct.ymin + AZONESPOTH},
+      {float(area->totrct.xmax) - AZONESPOTW,
+       float(area->totrct.ymin) - U.pixelsize,
+       float(area->totrct.xmax) + U.pixelsize,
+       float(area->totrct.ymin) + AZONESPOTH},
       /* Top. */
-      {area->totrct.xmin - U.pixelsize,
-       area->totrct.ymax - ED_area_headersize(),
-       area->totrct.xmax + U.pixelsize,
-       area->totrct.ymax},
+      {float(area->totrct.xmin) - U.pixelsize,
+       float(area->totrct.ymax) - ED_area_headersize(),
+       float(area->totrct.xmax) + U.pixelsize,
+       float(area->totrct.ymax)},
   };
 
   for (int i = 0; i < 3; i++) {
