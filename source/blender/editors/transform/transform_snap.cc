@@ -10,7 +10,6 @@
 #include "BLI_math_rotation.h"
 #include "BLI_time.h"
 
-#include "DNA_space_types.h"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 
