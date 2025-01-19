@@ -698,11 +698,11 @@ static void add_flat_items_for_socket(bNode &node,
                                       Vector<FlatNodeItem> &r_items)
 {
   bNodeSocket &socket = node.socket_by_decl(socket_decl);
-  if (!socket.is_visible()) {
-    return;
-  }
   if (!socket_decl.align_with_previous_socket) {
     r_items.append({flat_item::Socket()});
+  }
+  if (!socket.is_visible()) {
+    return;
   }
   flat_item::Socket &item = std::get<flat_item::Socket>(r_items.last().item);
   if (socket_decl.in_out == SOCK_IN) {
