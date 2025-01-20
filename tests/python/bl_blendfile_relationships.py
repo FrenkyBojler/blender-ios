@@ -56,7 +56,7 @@ class TestBlendUserMap(TestBlendLibLinkHelper):
         }
         for k, v in expected_map.items():
             self.assertIn(k, user_map)
-            self.assertEqual(user_map[k], v)
+            self.assertEqual(user_map[k], v, msg=f"ID {k.name} has unexpected user map")
 
         user_map = bpy.data.user_map(subset=[bpy.data.objects[0], bpy.data.meshes[0]])
         expected_map = {
@@ -66,11 +66,11 @@ class TestBlendUserMap(TestBlendLibLinkHelper):
         }
         for k, v in expected_map.items():
             self.assertIn(k, user_map)
-            self.assertEqual(user_map[k], v)
+            self.assertEqual(user_map[k], v, msg=f"ID {k.name} has unexpected user map")
         user_map = bpy.data.user_map(key_types={'OBJECT', 'MESH'})
         for k, v in expected_map.items():
             self.assertIn(k, user_map)
-            self.assertEqual(user_map[k], v)
+            self.assertEqual(user_map[k], v, msg=f"ID {k.name} has unexpected user map")
 
         user_map = bpy.data.user_map(value_types={'SCENE'})
         expected_map = {
@@ -79,7 +79,7 @@ class TestBlendUserMap(TestBlendLibLinkHelper):
         }
         for k, v in expected_map.items():
             self.assertIn(k, user_map)
-            self.assertEqual(user_map[k], v)
+            self.assertEqual(user_map[k], v, msg=f"ID {k.name} has unexpected user map")
 
         # Test handling of invalid parameters
         self.assertRaises(ValueError, bpy.data.user_map, value_types={'FOOBAR'})
@@ -105,9 +105,9 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
         bpy.ops.wm.open_mainfile(filepath=output_blendfile_path)
 
         self.assertEqual(len(bpy.data.images), 1)
-        self.assertTrue(bpy.data.images[0].library is not None)
+        self.assertIsNotNone(bpy.data.images[0].library)
         self.assertEqual(len(bpy.data.materials), 1)
-        self.assertTrue(bpy.data.materials[0].library is not None)
+        self.assertIsNotNone(bpy.data.materials[0].library)
         self.assertEqual(len(bpy.data.meshes), 1)
         self.assertEqual(len(bpy.data.objects), 1)
         self.assertEqual(len(bpy.data.collections), 1)
@@ -130,7 +130,7 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
         }
         for k, v in expected_map.items():
             self.assertIn(k, file_path_map)
-            self.assertEqual(file_path_map[k], v)
+            self.assertEqual(file_path_map[k], v, msg=f"ID {k.name} has unexpected filepath map")
 
         file_path_map = abspaths(bpy.data.file_path_map(include_libraries=True))
         # Note: Workspaces and screens are ignored here.
@@ -146,7 +146,7 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
         }
         for k, v in expected_map.items():
             self.assertIn(k, file_path_map)
-            self.assertEqual(file_path_map[k], v)
+            self.assertEqual(file_path_map[k], v, msg=f"ID {k.name} has unexpected filepath map")
 
         file_path_map = abspaths(bpy.data.file_path_map(subset=[bpy.data.images[0], bpy.data.materials[0]]))
         expected_map = {
@@ -155,11 +155,11 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
         }
         for k, v in expected_map.items():
             self.assertIn(k, file_path_map)
-            self.assertEqual(file_path_map[k], v)
+            self.assertEqual(file_path_map[k], v, msg=f"ID {k.name} has unexpected filepath map")
         partial_map = abspaths(bpy.data.file_path_map(key_types={'IMAGE', 'MATERIAL'}))
         for k, v in expected_map.items():
             self.assertIn(k, file_path_map)
-            self.assertEqual(file_path_map[k], v)
+            self.assertEqual(file_path_map[k], v, msg=f"ID {k.name} has unexpected filepath map")
 
         # Test handling of invalid parameters
         self.assertRaises(ValueError, bpy.data.file_path_map, key_types={'FOOBAR'})
