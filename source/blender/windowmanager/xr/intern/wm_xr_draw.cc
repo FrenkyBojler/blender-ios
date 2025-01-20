@@ -17,8 +17,6 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "DEG_depsgraph.hh"
-
 #include "ED_view3d_offscreen.hh"
 
 #include "GHOST_C-api.h"
@@ -163,13 +161,6 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   GPU_framebuffer_restore();
   /* Some systems have drawing glitches without this. */
   GPU_clear_depth(1.0f);
-
-  // DEG_id_type_updated(depsgraph, ID_NT) needs to return true down in compositorengine.update because
-  // the XR view will be continually updated and invalidate the composition graph. Since the graph
-  // normally forces this to be true only when something in the composition itself changes, we need
-  // to set it here to ensure the depsgraph will be updated at the right time.
-  // Without this, the compositor operators will be invalid and cause an exception.
-  DEG_graph_id_type_tag(draw_data->depsgraph, ID_NT);
 
   /* Draws the view into the surface_data->viewport's frame-buffers. */
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
