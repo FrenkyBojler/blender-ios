@@ -5,9 +5,12 @@
 #include <algorithm>
 #include <iostream>
 
+#include "BLI_alloca.h"
 #include "BLI_array.hh"
 #include "BLI_hash.hh"
 #include "BLI_map.hh"
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
@@ -19,6 +22,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
@@ -79,6 +83,12 @@ static void dump_vector(std::vector<T> vec, int stride, const std::string &name)
     }
   }
   std::cout << "\n";
+}
+
+static void dump_indexrange(const IndexRange r, const std::string &name)
+{
+  std::cout << name << ": [";
+  std::cout << r.first() << ".." << r.last() << "]";
 }
 
 static void dump_meshgl(const MeshGL &mgl, const std::string &name)
@@ -154,7 +164,7 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
 
 static Manifold manifold_from_mesh_via_meshgl(const Mesh *mesh, int mesh_index, int faceID_offset)
 {
-  constexpr int dbg_level = 1;
+  constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "\nMANIFOLD_FRON_MESH_VIA_MESHGL\n";
     dump_mesh(mesh, "mesh " + std::to_string(mesh_index));
@@ -331,7 +341,7 @@ class NeededAttributes {
     }
 
     Spec(StringRefNull name, bke::AttrDomain domain, eCustomDataType type)
-        : name(name), domain(domain), data_type(data_type)
+        : name(name), domain(domain), data_type(type)
     {
     }
   };
@@ -452,7 +462,7 @@ static void copy_attrs_for_domain(bke::AttrDomain domain,
                                   int input_element,
                                   int output_element)
 {
-  constexpr int dbg_level = 1;
+  constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "copy attrs for domain "
               << (domain == bke::AttrDomain::Point ?
@@ -482,6 +492,71 @@ static void copy_attrs_for_domain(bke::AttrDomain domain,
       }
       /* rw_spans.dest[output_element] = src[input_element] */
       dst.type().copy_assign(src.value()[input_element], dst[output_element]);
+    }
+  }
+}
+
+/* Like previous, but instead of copying from a source element,
+ * interpolate from a Span of source elements with supplied weights. */
+static void interp_attrs_for_domain(bke::AttrDomain domain,
+                                  GAttributeReadWriteSpans &rw_spans,
+                                  int input_mesh_index,
+                                  const IndexRange input_elements,
+                                  Span<float> weights,
+                                  int output_element)
+{
+  constexpr int dbg_level = 0;
+  if (dbg_level > 0) {
+    std::cout << "interpolate attrs for domain "
+              << (domain == bke::AttrDomain::Point ?
+                      "Point" :
+                      (domain == bke::AttrDomain::Edge ?
+                           "Edge" :
+                           (domain == bke::AttrDomain::Corner ? "Corner" : "?")))
+              << ", input mesh " << input_mesh_index
+              << " to output element " << output_element << "\n";
+    dump_indexrange(input_elements, "input_elements");
+    std::cout << "\n";
+    dump_span(weights, "weights");
+  }
+  for (const int i : rw_spans.attrs.index_range()) {
+    const StringRef attr_name = rw_spans.attrs[i];
+    if ((domain == bke::AttrDomain::Point and attr_name == "position") or
+        (domain == bke::AttrDomain::Edge and attr_name == ".edge_verts") or
+        (domain == bke::AttrDomain::Corner and ELEM(attr_name, ".corner_vert", ".corner_edge")))
+    {
+      continue;
+    }
+    if (dbg_level > 0) {
+      std::cout << "  attribute index " << i << ", name = " << attr_name << "\n";
+    }
+    std::optional<GVArraySpan> &src_opt = rw_spans.sources[input_mesh_index][i];
+    GMutableSpan &dst = rw_spans.dest[i];
+    if (src_opt.has_value()) {
+      GVArraySpan &src = src_opt.value();
+      const CPPType &type = dst.type();
+      BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
+      BLI_SCOPED_DEFER([&]() { type.destruct(buffer); });
+      bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
+        using T = decltype(dummy);
+        const Span<T> src_typed = src.typed<T>();
+        Array<T,10> input_values(input_elements.size());
+        for (const int i : input_values.index_range()) {
+          input_values[i] = src_typed[input_elements[i]];
+        }
+        if (dbg_level > 1) {
+          dump_span<T>(input_values, "input_values");
+        }
+        bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(static_cast<T *>(buffer), 1)};
+        for (const int i : input_values.index_range()) {
+          mixer.mix_in(0, input_values[i], weights[i]);
+        }
+        mixer.finalize();
+        if (dbg_level > 0) {
+          std::cout << "interpolated value = " << type.to_string(buffer) << "\n";
+        }
+        type.copy_assign(buffer, dst[output_element]);
+      });
     }
   }
 }
@@ -1051,66 +1126,259 @@ static inline bool approximately_parallel(const float3 &a, const float3 &b)
 /* Look for an edge in face \a face_index of \a mesh can be
  * used as an attribute representative for an edge between
  * vertices \a vert_index and \a vert_index_next in the same
- * face, if any.
- * Also look for a corner in that face that is for vertex \a vert_index.
+ * face, if any. Return the representative edge if found, else -1.
  *
  * It is possible that either of vert_index or vert_index_next is -1.
  * If only one of them is -1, look for an edge attached to the other
  * and in the same direction as \a edge_dir.
- *
- * Return a pair where the first element is the edge index in \a mesh
- * that is a good representative, or -1 if none, and the second element
- * is the corner in \a mesh that is a corner of our face that is for
- * \a vert+index, or -1 if none.
  *
  * Note there are some cases that this logic won't find a representative
  * edge when one exists: (a) if there are vertex aliases such that the same
  * output vertex maps to multiple input vertices; (b) if the original edge
  * only exists as middle subset in the output face. A TODO to handle these.
  */
-static int2 get_rep_edge_and_corner(const int vert_index,
-                                    const int vert_index_next,
-                                    const float3 &edge_dir,
-                                    const Mesh *mesh,
-                                    const int face_index)
+static int get_rep_edge(const int vert_index,
+                        const int vert_index_next,
+                        const float3 &edge_dir,
+                        const Mesh *mesh,
+                        const int face_index)
 {
   const IndexRange face = mesh->faces()[face_index];
   Span<int> corner_verts = mesh->corner_verts();
   Span<int> corner_edges = mesh->corner_edges();
   Span<float3> vert_positions = mesh->vert_positions();
   int rep_edge = -1;
-  int rep_corner = -1;
   if (vert_index != -1) {
-    const int corner = bke::mesh::face_find_corner_from_vert(face, corner_verts, vert_index);
-    if (corner != -1) {
-      rep_corner = corner;
+    const int face_i = corner_verts.slice(face).first_index_try(vert_index);
+    if (face_i != -1) {
+      const int corner = face[face_i];
       const int next_corner = bke::mesh::face_corner_next(face, corner);
       const int face_v_next = corner_verts[next_corner];
       if (face_v_next == vert_index_next) {
         rep_edge = corner_edges[corner];
       }
       else {
-        /* Does the direciton match at least? */
-        const float3 mesh_edge_dir = vert_positions[face_v_next] - vert_positions[vert_index];
-        if (approximately_parallel(edge_dir, mesh_edge_dir)) {
-          rep_edge = corner_edges[corner];
+        /* It is possible that face is reversed relative to the output face. */
+        const int prev_corner = bke::mesh::face_corner_prev(face, corner);
+        const int face_v_prev = corner_verts[prev_corner];
+        if (face_v_prev == vert_index_next) {
+          rep_edge = corner_edges[prev_corner];
+        }
+        else {
+          /* Does the direciton match at least? */
+          const float3 mesh_edge_dir_to_next = vert_positions[face_v_next] - vert_positions[vert_index];
+          if (approximately_parallel(edge_dir, mesh_edge_dir_to_next)) {
+            rep_edge = corner_edges[corner];
+          }
+          else {
+            const float3 mesh_edge_dir_to_prev = vert_positions[face_v_prev] - vert_positions[vert_index];
+            if (approximately_parallel(edge_dir, mesh_edge_dir_to_prev)) {
+              rep_edge = corner_edges[prev_corner];
+            }
+          }
         }
       }
     }
   }
   else if (vert_index_next != -1) {
     /* Maybe there is an edge that ends at vert_index_next and is in the right direction. */
-    const int corner = bke::mesh::face_find_corner_from_vert(face, corner_verts, vert_index_next);
-    if (corner != -1) {
+    const int face_i = corner_verts.slice(face).first_index_try(vert_index_next);
+    if (face_i != -1) {
+      const int corner = face[face_i];
       const int prev_corner = bke::mesh::face_corner_prev(face, corner);
       const int face_v_prev = corner_verts[prev_corner];
       const float3 mesh_edge_dir = vert_positions[vert_index_next] - vert_positions[face_v_prev];
       if (approximately_parallel(edge_dir, mesh_edge_dir)) {
         rep_edge = corner_edges[prev_corner];
       }
+      else {
+        /* It is possible that face is reversed relative to output face. */
+        const int next_corner = bke::mesh::face_corner_next(face, corner);
+        const int face_v_next = corner_verts[next_corner];
+        const float3 mesh_edge_dir_to_next = vert_positions[face_v_next] - vert_positions[vert_index_next];
+        if (approximately_parallel(edge_dir, mesh_edge_dir_to_next)) {
+          rep_edge = corner_edges[corner];
+        }
+      }
     }
   }
-  return int2(rep_edge, rep_corner);
+  return rep_edge;
+}
+
+/* Using the output to input vert map in \a mesh_assembly, find the
+ * input vertex, if any, corresponding to output vertex \a v.
+ * If found, put it into the index space of the input mesh by substracting
+ * \a mesh_vert_start.
+ * But return -1 if the input vertex is not actually in the range given
+ * by \a mesh_vert_start and \a mesh_vert_end. */
+static inline int to_mesh_vert_index(int v,
+                                     const MeshAssembly &mesh_assembly,
+                                     int mesh_vert_start,
+                                     int mesh_vert_end)
+{
+  const int in_v = mesh_assembly.out_to_in_vert_map[v];
+  if (in_v == -1 || in_v < mesh_vert_start || in_v >= mesh_vert_end) {
+    return -1;
+  }
+  return in_v - mesh_vert_start;
+}
+
+/* Copy the vertex attributes to all vertices in \a dst_mesh from the representative
+ * vertex as identifed by \a mesh_assembly. */
+static void copy_vertex_attrs(Mesh *dst_mesh,
+                              Span<const Mesh *> meshes,
+                              const MeshOffsets &mesh_offsets,
+                              const MeshAssembly &mesh_assembly)
+{
+  GAttributeReadWriteSpans vert_attrs(meshes, dst_mesh, bke::AttrDomain::Point);
+  int grain_size = 50000;
+  threading::parallel_for(
+      IndexRange(dst_mesh->verts_num), grain_size, [&](const IndexRange range) {
+        for (const int out_vert_index : range) {
+          const int rep_vert_index = mesh_assembly.out_to_in_vert_map[out_vert_index];
+          if (rep_vert_index != -1) {
+            const int input_mesh_index = which_offset_index<int>(rep_vert_index,
+                                                                 mesh_offsets.vert_offsets);
+            BLI_assert(input_mesh_index >= 0);
+            const int input_vert_index = rep_vert_index - mesh_offsets.vert_offsets[input_mesh_index];
+            copy_attrs_for_domain(bke::AttrDomain::Point,
+                                  vert_attrs,
+                                  input_mesh_index,
+                                  input_vert_index,
+                                  out_vert_index);
+          }
+        }
+      });
+}
+
+/* Copy the edge attributes to all edges in \a dst_mesh from representative
+ * edges that can be found in the input meshes' faces.
+ * We look for edges in the original face that start and/or end on the
+ * same vertices, and if only one end is a match, go in the same direction.
+ * Since there may be more than one face containing a given edge,
+ * this is harder to parallelize.  TODO: parallelize this.
+ */
+static void copy_edge_attrs(Mesh *dst_mesh,
+                            Span<const Mesh *> meshes,
+                            const MeshOffsets &mesh_offsets,
+                            const MeshAssembly &mesh_assembly)
+{
+  Span<int> dst_corner_edges = dst_mesh->corner_edges();
+  Span<int> dst_corner_verts = dst_mesh->corner_verts();
+  Span<float3> dst_positions = dst_mesh->vert_positions();
+  Array<bool> done_edge(dst_mesh->edges_num, false);
+  GAttributeReadWriteSpans edge_attrs(meshes, dst_mesh, bke::AttrDomain::Edge);
+  for (const int dst_face_index : IndexRange(dst_mesh->faces_num)) {
+    const int corner_index = dst_mesh->face_offsets()[dst_face_index];
+    const OutFace &face = mesh_assembly.new_faces[dst_face_index];
+    const int input_mesh_index = which_offset_index<int>(face.face_id,
+                                                         mesh_offsets.face_offsets);
+    BLI_assert(input_mesh_index >= 0);
+    const Mesh *input_mesh = meshes[input_mesh_index];
+    const int flen = face.verts.size();
+    const int input_face_index = face.face_id - mesh_offsets.face_offsets[input_mesh_index];
+    const int input_face_vert_offset = mesh_offsets.vert_offsets[input_mesh_index];
+    const int input_face_vert_offset_end = mesh_offsets.vert_offsets[input_mesh_index + 1];
+    /* Function to convert vertex index v in dst_mesh space to one in the
+     * space of input_mesh, using -1 if it doesn't map to a vertex in input_mesh. */
+    for (const int i : IndexRange(flen)) {
+      const int output_corner = corner_index + i;
+      const int output_e = dst_corner_edges[output_corner];
+      if (done_edge[output_e]) {
+        continue;
+      }
+      const int output_v = dst_corner_verts[output_corner];
+      const int output_v_next = dst_corner_verts[corner_index + (i + 1) % flen];
+      const int input_v = to_mesh_vert_index(output_v, mesh_assembly, input_face_vert_offset, input_face_vert_offset_end);
+      const int input_v_next = to_mesh_vert_index(output_v_next, mesh_assembly, input_face_vert_offset, input_face_vert_offset_end);
+      float3 edge_dir = dst_positions[output_v_next] - dst_positions[output_v];
+      const int edge_rep = get_rep_edge(input_v, input_v_next, edge_dir, input_mesh, input_face_index);
+      if (edge_rep != -1) {
+        copy_attrs_for_domain(bke::AttrDomain::Edge, edge_attrs, input_mesh_index, edge_rep, output_e);
+        done_edge[output_e] = true;
+      }
+    }
+  }
+}
+
+/* Calculate all the corner attributes for \a dst_mesh, either from representative
+ * corners found in the input \a meshes as give by \a mesh_assembly, or by interpolating
+ * interpolating in the input face.
+ * Since we don't have an output corner -> input corner map, we'll go through all the
+ * outpu faces and calculate that map on the fly.
+ */
+static void calculate_corner_attrs(Mesh *dst_mesh,
+                                   Span<const Mesh *> meshes,
+                                   const MeshOffsets &mesh_offsets,
+                                   const MeshAssembly &mesh_assembly)
+{
+  GAttributeReadWriteSpans corner_attrs(meshes, dst_mesh, bke::AttrDomain::Corner);
+  const OffsetIndices<int> dst_faces = dst_mesh->faces();
+  Span<int> dst_corner_verts = dst_mesh->corner_verts();
+  int grain_size = 50000;
+  threading::parallel_for(IndexRange(dst_mesh->faces_num),
+ grain_size,
+ [&](const IndexRange range) {
+    for (const int face_index : range) {
+      const int face_id = mesh_assembly.new_faces[face_index].face_id;
+      const int input_mesh_index = which_offset_index<int>(face_id,
+                                                           mesh_offsets.face_offsets);
+      BLI_assert(input_mesh_index >= 0);
+      const Mesh *input_mesh = meshes[input_mesh_index];
+      const int input_face_index = face_id - mesh_offsets
+        .face_offsets[input_mesh_index];
+      const int input_face_vert_offset = mesh_offsets.vert_offsets[input_mesh_index];
+      const int input_face_vert_offset_end = mesh_offsets.vert_offsets[input_mesh_index + 1];
+      const IndexRange input_face = input_mesh->faces()[input_face_index];
+      Span<int> input_corner_verts = input_mesh->corner_verts();
+      /* We may need these for interpolation, but initialize only if needed.  */
+      float(*cos_2d)[2]; /* Need to declare this way for call to interp_weights_poly_v2. */
+      Array<float, 10> weights;
+      float axis_mat[3][3];
+      bool interp_initialized = false;
+      for (const int corner : dst_faces[face_index]) {
+        const int output_v = dst_corner_verts[corner];
+        const int input_v = to_mesh_vert_index(output_v, mesh_assembly, input_face_vert_offset, input_face_vert_offset_end);
+        if (input_v != -1) {
+          const int face_i = input_corner_verts.slice(input_face).first_index_try(input_v);
+          if (face_i != -1) {
+            const int input_corner = input_face[face_i];
+            copy_attrs_for_domain(bke::AttrDomain::Corner,
+                                  corner_attrs,
+                                  input_mesh_index,
+                                  input_corner,
+                                  corner);
+          }
+        }
+        else {
+          Span<int> face_verts = input_mesh->corner_verts().slice(input_face);
+          if (!interp_initialized) {
+            /* FIll cos_2d with the 2d coordinates found by projecting
+             * #input_face along its normal. */
+            const int input_face_size = input_face.size();
+            cos_2d = (float(*)[2])BLI_array_alloca(cos_2d, input_face_size);
+            weights.reinitialize(input_face_size);
+            const float3 axis_dominant = bke::mesh::face_normal_calc(input_mesh->vert_positions(), face_verts);
+            axis_dominant_v3_to_m3(axis_mat, axis_dominant);
+            for (const int i : face_verts.index_range()) {
+              float3 co = input_mesh->vert_positions()[face_verts[i]];
+              *reinterpret_cast<float2 *>(&cos_2d[i]) = (float3x3(axis_mat) * co).xy();
+            }
+            interp_initialized = true;
+          }
+          float co[2];
+          mul_v2_m3v3(co, axis_mat, dst_mesh->vert_positions()[output_v]);
+          interp_weights_poly_v2(weights.data(), cos_2d, input_face.size(), co);
+          interp_attrs_for_domain(bke::AttrDomain::Corner,
+                                  corner_attrs,
+                                  input_mesh_index,
+                                  input_face,
+                                  weights,
+                                  corner);
+        }
+      }
+    }
+  });
 }
 
 /* Copy the face attributes to all faces in \a dst_mesh from the representative face
@@ -1122,14 +1390,12 @@ static void copy_faces_attrs(Mesh *dst_mesh,
                              const MeshOffsets &mesh_offsets,
                              const MeshAssembly &mesh_assembly)
 {
-  Span<int> face_offsets = dst_mesh->face_offsets();
   GAttributeReadWriteSpans face_attrs(meshes, dst_mesh, bke::AttrDomain::Face);
   int material_span_index = face_attrs.find_attr_index("material_index");
   int grain_size = 50000;
   threading::parallel_for(
       IndexRange(dst_mesh->faces_num), grain_size, [&](const IndexRange range) {
         for (const int face_index : range) {
-          const int corner_index = face_offsets[face_index];
           const OutFace &face = mesh_assembly.new_faces[face_index];
           const int input_mesh_index = which_offset_index<int>(face.face_id,
                                                                mesh_offsets.face_offsets);
@@ -1155,7 +1421,7 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                             Span<Array<short>> material_remaps,
                             const MeshOffsets &mesh_offsets)
 {
-  constexpr int dbg_level = 1;
+  constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "\nMESHGL_TO_MESH\n";
     dump_meshgl(mgl, "meshgl_to_mesh argument");
@@ -1227,7 +1493,6 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     face_offsets[tot_faces] = tot_corners;
   }
 
-  // bke::mesh_smooth_set(*mesh, false);
   {
     timeit::ScopedTimer timer_e("calculating edges");
     bke::mesh_calc_edges(*mesh, false, false);
@@ -1237,78 +1502,26 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   NeededAttributes needed_attributes(meshes, need_material_attribute(material_remaps));
   add_needed_attributes_to_mesh(mesh, needed_attributes);
 
+  if (needed_attributes.num_attrs_for_domain(bke::AttrDomain::Point) > 0) {
+    timeit::ScopedTimer timer_va("calculating vertex attributes");
+    copy_vertex_attrs(mesh, meshes, mesh_offsets, ma);
+  }
+
   if (needed_attributes.num_attrs_for_domain(bke::AttrDomain::Face) > 0) {
+    timeit::ScopedTimer timer_fa("calculating face attributes");
     copy_faces_attrs(mesh, meshes, material_remaps, mesh_offsets, ma);
   }
 
-  if (needed_attributes.num_attrs_for_domain(bke::AttrDomain::Edge) > 0 ||
-      needed_attributes.num_attrs_for_domain(bke::AttrDomain::Corner) > 0)
-  {
-    timeit::ScopedTimer timer_eattr("calculating edge and corner attrs");
-    Span<int> corner_edges = mesh->corner_edges();
-    Span<int> corner_verts = mesh->corner_verts();
-    Span<float3> positions = mesh->vert_positions();
-    GAttributeReadWriteSpans edge_attrs(meshes, mesh, bke::AttrDomain::Edge);
-    GAttributeReadWriteSpans corner_attrs(meshes, mesh, bke::AttrDomain::Corner);
-    int grain_size = 25000;
-    threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
-      for (const int face_index : IndexRange(range)) {
-        const int corner_index = face_corner_start_index[face_index];
-        const OutFace &face = ma.new_faces[face_index];
-        const int input_mesh_index = which_offset_index<int>(face.face_id,
-                                                             mesh_offsets.face_offsets);
-        BLI_assert(input_mesh_index >= 0);
-        const Mesh *input_mesh = meshes[input_mesh_index];
-        const int flen = face.verts.size();
-        const int input_face_index = face.face_id - mesh_offsets.face_offsets[input_mesh_index];
-        const int input_face_vert_offset = mesh_offsets.vert_offsets[input_mesh_index];
-        const int input_face_vert_offset_end = mesh_offsets.vert_offsets[input_mesh_index + 1];
-        auto to_mesh_vert_index = [&](int v) {
-          int in_v = ma.out_to_in_vert_map[v];
-          if (in_v == -1 || in_v < input_face_vert_offset || in_v >= input_face_vert_offset_end) {
-            return -1;
-          }
-          return in_v - input_face_vert_offset;
-        };
-        for (const int i : IndexRange(flen)) {
-          const int output_corner = corner_index + i;
-          const int output_e = corner_edges[output_corner];
-          const int output_v = corner_verts[output_corner];
-          const int output_v_next = corner_verts[corner_index + (i + 1) % flen];
-          const int input_v = to_mesh_vert_index(output_v);
-          const int input_v_next = to_mesh_vert_index(output_v_next);
-          float3 edge_dir = positions[output_v_next] - positions[output_v];
-          int2 edge_and_corner = get_rep_edge_and_corner(
-              input_v, input_v_next, edge_dir, input_mesh, input_face_index);
-          /* Just handle edges in forward direction. Assuming mesh is manifold
-           * at this time, there can be at most one face with the edge in a forward
-           * direction, so parallel loops won't race for same edge. */
-          if (true) {
-            const int edge_rep = edge_and_corner[0];
-            const int corner_rep = edge_and_corner[1];
-            /* TODO: figure out how to only do this for one instance
-             * of the edge, deterministically. */
-            if (edge_rep != -1) {
-              copy_attrs_for_domain(
-                  bke::AttrDomain::Edge, edge_attrs, input_mesh_index, edge_rep, output_e);
-            }
-#if 0
-            if (corner_rep != -1) {
-              copy_attrs_for_domain(bke::AttrDomain::Corner,
-                                    corner_attrs,
-                                    input_mesh_index,
-                                    corner_rep,
-                                    output_corner);
-            }
-            else {
-              /* TODO: interpolate output corner attributes in face. */
-            }
-#endif
-          }
-        }
-      }
-    });
+  if (needed_attributes.num_attrs_for_domain(bke::AttrDomain::Edge) > 0) {
+    timeit::ScopedTimer timer_ea("calculating edge attributes");
+    copy_edge_attrs(mesh, meshes, mesh_offsets, ma);
   }
+
+  if (needed_attributes.num_attrs_for_domain(bke::AttrDomain::Corner) > 0) {
+    timeit::ScopedTimer timer_ea("calculating corner attributes");
+    calculate_corner_attrs(mesh, meshes, mesh_offsets, ma);
+  }
+
   if (dbg_level > 0) {
     dump_mesh(mesh, "output mesh");
   }
@@ -1324,7 +1537,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             Span<Array<short>> material_remaps,
                             BooleanOpParameters op_params)
 {
-  constexpr int dbg_level = 1;
+  constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "\nMESH_BOOLEAN_MANIFOLD with " << meshes.size() << " args\n";
   }
