@@ -2117,7 +2117,7 @@ void BKE_nla_validate_state(AnimData *adt)
 
 bool BKE_nla_action_slot_is_stashed(AnimData *adt,
                                     bAction *act,
-                                    blender::animrig::slot_handle_t slot_handle)
+                                    const blender::animrig::slot_handle_t slot_handle)
 {
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
     if (strstr(nlt->name, STASH_TRACK_NAME)) {
