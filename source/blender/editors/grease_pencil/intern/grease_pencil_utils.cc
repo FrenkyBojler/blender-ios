@@ -302,36 +302,28 @@ void DrawingPlacement::cache_viewport_depths(Depsgraph *depsgraph, ARegion *regi
   view3d->gp_flag = previous_gp_flag;
 }
 
-std::optional<float4> DrawingPlacement::stroke_projection_plane() const
-{
-  return placement_plane_;
-}
-
-void DrawingPlacement::set_stroke_projection_plane(const float3 &origin, const float3 &normal)
-{
-  BLI_assert(use_project_to_stroke());
-  placement_loc_ = origin;
-  placement_normal_ = normal;
-  placement_plane_ = float4();
-  plane_from_point_normal_v3(*placement_plane_, placement_loc_, placement_normal_);
-}
-
-void DrawingPlacement::set_stroke_projection_plane(const std::optional<float4> &plane)
-{
-  placement_plane_ = plane;
-}
-
 std::optional<float3> DrawingPlacement::project_depth(const float2 co) const
+{
+  std::optional<float> depth = get_depth(co);
+  if (!depth) {
+    return std::nullopt;
+  }
+
+  float3 proj_point;
+  if (ED_view3d_depth_unproject_v3(region_, int2(co), *depth, proj_point)) {
+    float3 view_normal;
+    ED_view3d_win_to_vector(region_, co, view_normal);
+    proj_point -= view_normal * surface_offset_;
+    return proj_point;
+  }
+  return std::nullopt;
+}
+
+std::optional<float> DrawingPlacement::get_depth(float2 co) const
 {
   float depth;
   if (depth_cache_ != nullptr && ED_view3d_depth_read_cached(depth_cache_, int2(co), 4, &depth)) {
-    float3 proj_point;
-    if (ED_view3d_depth_unproject_v3(region_, int2(co), depth, proj_point)) {
-      float3 view_normal;
-      ED_view3d_win_to_vector(region_, co, view_normal);
-      proj_point -= view_normal * surface_offset_;
-      return proj_point;
-    }
+    return depth;
   }
   return std::nullopt;
 }
@@ -391,6 +383,13 @@ void DrawingPlacement::project(const Span<float2> src, MutableSpan<float3> dst) 
       dst[i] = this->project(src[i]);
     }
   });
+}
+
+float3 DrawingPlacement::place(const float2 co, const float depth) const
+{
+  float3 loc;
+  ED_view3d_unproject_v3(region_, co.x, co.y, depth, loc);
+  return math::transform_point(world_space_to_layer_space_, loc);
 }
 
 float3 DrawingPlacement::reproject(const float3 pos) const

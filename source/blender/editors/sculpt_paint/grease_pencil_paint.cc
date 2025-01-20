@@ -234,7 +234,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
   /* Temporary vector of screen space offsets  */
   Vector<float2> screen_space_jitter_offsets_;
   /* Projection planes for every point in "Stroke" placement mode. */
-  Vector<float4> stroke_placement_planes_;
+  Vector<float> stroke_placement_depths_;
 
   /* Screen space coordinates after smoothing. */
   Vector<float2> screen_space_smoothed_coords_;
@@ -248,7 +248,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
   /* Helper class to project screen space coordinates to 3d. */
   ed::greasepencil::DrawingPlacement placement_;
   /* Last valid stroke intersection, for use in Stroke projection mode. */
-  std::optional<float3> last_stroke_placement_loc_;
+  std::optional<float> last_stroke_placement_depth_;
   /* Point index of the last valid stroke placement. */
   std::optional<int> last_stroke_placement_point_;
 
@@ -287,7 +287,10 @@ class PaintOperation : public GreasePencilStrokeOperation {
 
   bool update_stroke_depth_placement(const bContext &C, const InputSample &sample);
   /* Returns the range of actually reprojected points. */
-  IndexRange reproject_samples_on_strokes(const bContext &C, std::optional<int> start_point);
+  IndexRange interpolate_stroke_depth(const bContext &C,
+                                      std::optional<int> start_point,
+                                      float from_depth,
+                                      float to_depth);
 };
 
 /**
@@ -494,7 +497,19 @@ struct PaintOperationExecutor {
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
 
-    const float3 start_location = self.placement_.project(start_coords);
+    float3 start_location;
+    if (self.placement_.use_project_to_stroke()) {
+      const std::optional<float> depth = self.placement_.get_depth(start_coords);
+      if (depth) {
+        start_location = self.placement_.place(start_coords, *depth);
+      }
+      else {
+        start_location = self.placement_.project(start_coords);
+      }
+    }
+    else {
+      start_location = self.placement_.project(start_coords);
+    }
     float start_radius = ed::greasepencil::radius_from_input_sample(
         rv3d,
         region,
@@ -622,14 +637,8 @@ struct PaintOperationExecutor {
     curves.update_curve_types();
 
     if (self.placement_.use_project_to_stroke()) {
-      const std::optional<float4> placement_plane = self.placement_.stroke_projection_plane();
-      if (placement_plane) {
-        self.stroke_placement_planes_.append(*placement_plane);
-      }
-      else {
-        const float3 view_normal = float3(rv3d->viewinv[2]);
-        self.stroke_placement_planes_.append(float4(view_normal, 0.0f));
-      }
+      self.stroke_placement_depths_.append(
+          self.stroke_placement_depths_.is_empty() ? 0.0f : self.stroke_placement_depths_.last());
       /* Initialize the snap point. */
       self.update_stroke_depth_placement(C, start_sample);
     }
@@ -754,16 +763,14 @@ struct PaintOperationExecutor {
         active_window);
     MutableSpan<float3> positions_slice = curve_positions.slice(active_window);
     if (self.placement_.use_project_to_stroke()) {
-      BLI_assert(self.stroke_placement_planes_.size() == self.screen_space_coords_orig_.size());
-      const Span<float4> stroke_planes = self.stroke_placement_planes_.as_mutable_span().slice(
+      BLI_assert(self.stroke_placement_depths_.size() == self.screen_space_coords_orig_.size());
+      const Span<float> stroke_depths = self.stroke_placement_depths_.as_span().slice(
           active_window);
-      const std::optional<float4> current_plane = self.placement_.stroke_projection_plane();
       for (const int64_t window_i : active_window.index_range()) {
         final_coords[window_i] = smoothed_coords[window_i] + jitter_slice[window_i];
-        self.placement_.set_stroke_projection_plane(stroke_planes[window_i]);
-        positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+        positions_slice[window_i] = self.placement_.place(final_coords[window_i],
+                                                          stroke_depths[window_i]);
       }
-      self.placement_.set_stroke_projection_plane(current_plane);
     }
     else {
       for (const int64_t window_i : active_window.index_range()) {
@@ -783,7 +790,20 @@ struct PaintOperationExecutor {
     const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
     const float2 coords = extension_sample.mouse_position;
-    float3 position = self.placement_.project(coords);
+    float3 position;
+    if (self.placement_.use_project_to_stroke()) {
+      const std::optional<float> depth = self.placement_.get_depth(coords);
+      if (depth) {
+        position = self.placement_.place(coords, *depth);
+      }
+      else {
+        position = self.placement_.project(coords);
+      }
+    }
+    else {
+      position = self.placement_.project(coords);
+    }
+
     float radius = ed::greasepencil::radius_from_input_sample(rv3d,
                                                               region,
                                                               brush_,
@@ -978,14 +998,13 @@ struct PaintOperationExecutor {
       self.screen_space_curve_fitted_coords_.append(Vector<float2>({new_position}));
     }
     if (self.placement_.use_project_to_stroke()) {
-      const std::optional<float4> placement_plane = self.placement_.stroke_projection_plane();
-      if (placement_plane) {
-        self.stroke_placement_planes_.append_n_times(*placement_plane, new_points_num);
-      }
-      else {
-        const float3 view_normal = float3(rv3d->viewinv[2]);
-        self.stroke_placement_planes_.append_n_times(float4(view_normal, 0.0f), new_points_num);
-      }
+      const float depth = self.stroke_placement_depths_.is_empty() ?
+                              0.0f :
+                              self.stroke_placement_depths_.last();
+      self.stroke_placement_depths_.append_n_times(depth, new_points_num);
+    }
+    else {
+      self.stroke_placement_depths_.append_n_times(0.0f, new_points_num);
     }
 
     /* Only start smoothing if there are enough points. */
@@ -1021,15 +1040,13 @@ struct PaintOperationExecutor {
       final_coords.copy_from(smoothed_coords);
       MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
       if (self.placement_.use_project_to_stroke()) {
-        BLI_assert(self.stroke_placement_planes_.size() == self.screen_space_coords_orig_.size());
-        const Span<float4> stroke_planes = self.stroke_placement_planes_.as_mutable_span().slice(
+        BLI_assert(self.stroke_placement_depths_.size() == self.screen_space_coords_orig_.size());
+        const Span<float> stroke_depths = self.stroke_placement_depths_.as_mutable_span().slice(
             smooth_window);
-        const std::optional<float4> current_plane = self.placement_.stroke_projection_plane();
         for (const int64_t window_i : smooth_window.index_range()) {
-          self.placement_.set_stroke_projection_plane(stroke_planes[window_i]);
-          curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+          curve_positions_slice[window_i] = self.placement_.place(final_coords[window_i],
+                                                                  stroke_depths[window_i]);
         }
-        self.placement_.set_stroke_projection_plane(current_plane);
       }
       else {
         for (const int64_t window_i : smooth_window.index_range()) {
@@ -1091,100 +1108,63 @@ static StrokeSnapMode get_snap_mode(const bContext &C)
 bool PaintOperation::update_stroke_depth_placement(const bContext &C, const InputSample &sample)
 {
   BLI_assert(placement_.use_project_to_stroke());
-  const RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
 
-  const std::optional<float3> new_stroke_placement_loc = placement_.project_depth(
+  const std::optional<float> new_stroke_placement_depth = placement_.get_depth(
       sample.mouse_position);
-  if (!new_stroke_placement_loc) {
+  if (!new_stroke_placement_depth) {
     return false;
   }
-
-  auto set_view_normal_plane = [&]() {
-    const float3 origin = *new_stroke_placement_loc;
-    const float3 normal = rv3d.viewinv[2];
-    placement_.set_stroke_projection_plane(origin, normal);
-  };
-
-  auto set_stroke_normal_plane = [&]() {
-    BLI_assert(last_stroke_placement_loc_.has_value());
-    const float3 origin = *new_stroke_placement_loc;
-    const float3 direction = (*last_stroke_placement_loc_) - origin;
-    /* Chose x or y axis of the view matrix for the largest cross product. */
-    const float3 up_axis = (math::abs(math::dot(direction, float3(rv3d.viewinv[0]))) >
-                                    math::abs(math::dot(direction, float3(rv3d.viewinv[1]))) ?
-                                rv3d.viewinv[1] :
-                                rv3d.viewinv[0]);
-    const float3 normal = math::normalize(math::cross(up_axis, direction));
-    placement_.set_stroke_projection_plane(origin, normal);
-  };
 
   const StrokeSnapMode snap_mode = get_snap_mode(C);
   switch (snap_mode) {
     case StrokeSnapMode::AllPoints: {
-      if (!last_stroke_placement_loc_) {
-        /* Use view direction as the normal when there is no previous depth yet. */
-        set_view_normal_plane();
-        last_stroke_placement_loc_ = new_stroke_placement_loc;
-      }
-      else {
-        set_stroke_normal_plane();
-        /* Previous location is updated for each segment. */
-        last_stroke_placement_loc_ = new_stroke_placement_loc;
-      }
-
-      const IndexRange reprojected_points = this->reproject_samples_on_strokes(
-          C, last_stroke_placement_point_);
+      const float start_depth = last_stroke_placement_depth_ ? *last_stroke_placement_depth_ :
+                                                               *new_stroke_placement_depth;
+      const float end_depth = *new_stroke_placement_depth;
+      const IndexRange reprojected_points = this->interpolate_stroke_depth(
+          C, last_stroke_placement_point_, start_depth, end_depth);
       /* Only reproject newly added points next time a hit point is found. */
       if (!reprojected_points.is_empty()) {
         last_stroke_placement_point_ = reprojected_points.one_after_last();
       }
 
-      /* Use view normal for future points until the next hit is found. */
-      set_view_normal_plane();
+      last_stroke_placement_depth_ = new_stroke_placement_depth;
       break;
     }
     case StrokeSnapMode::EndPoints: {
-      bool set_active_point_range = false;
-      if (!last_stroke_placement_loc_) {
-        /* Use view direction as the normal when there is no previous depth yet. */
-        set_view_normal_plane();
-        last_stroke_placement_loc_ = new_stroke_placement_loc;
-        /* Clamp active point range after reprojection on the first hit. */
-        set_active_point_range = true;
-      }
-      else {
-        set_stroke_normal_plane();
-      }
-
-      const IndexRange reprojected_points = this->reproject_samples_on_strokes(
-          C, last_stroke_placement_point_);
+      const float start_depth = last_stroke_placement_depth_ ? *last_stroke_placement_depth_ :
+                                                               *new_stroke_placement_depth;
+      const float end_depth = *new_stroke_placement_depth;
+      const IndexRange reprojected_points = this->interpolate_stroke_depth(
+          C, last_stroke_placement_point_, start_depth, end_depth);
       /* Only reproject newly added points next time a hit point is found. */
-      if (!reprojected_points.is_empty() && set_active_point_range) {
+      if (!reprojected_points.is_empty() && !last_stroke_placement_depth_) {
         last_stroke_placement_point_ = reprojected_points.one_after_last();
       }
 
-      /* Use view normal for future points until the next hit is found. */
-      set_view_normal_plane();
+      last_stroke_placement_depth_ = new_stroke_placement_depth;
       break;
     }
     case StrokeSnapMode::FirstPoint: {
       /* Only reproject once in "First Point" mode. */
-      if (!last_stroke_placement_loc_) {
-        set_view_normal_plane();
-        last_stroke_placement_loc_ = new_stroke_placement_loc;
+      if (!last_stroke_placement_depth_) {
+        const float start_depth = *new_stroke_placement_depth;
+        const float end_depth = *new_stroke_placement_depth;
+        this->interpolate_stroke_depth(C, last_stroke_placement_point_, start_depth, end_depth);
 
-        this->reproject_samples_on_strokes(C, std::nullopt);
+        last_stroke_placement_depth_ = new_stroke_placement_depth;
         break;
       }
     }
   }
 
-  BLI_assert(placement_.stroke_projection_plane());
   return true;
 }
 
-IndexRange PaintOperation::reproject_samples_on_strokes(const bContext &C,
-                                                        std::optional<int> start_point)
+IndexRange PaintOperation::interpolate_stroke_depth(const bContext &C,
+                                                    std::optional<int> start_point,
+                                                    const float from_depth,
+                                                    const float to_depth)
 {
   using namespace blender::bke;
 
@@ -1219,18 +1199,17 @@ IndexRange PaintOperation::reproject_samples_on_strokes(const bContext &C,
   /* Point slice relative to the curve, valid for 2D coordinate array. */
   const IndexRange active_curve_points = active_points.shift(-all_points.start());
 
-  /* Update the placement plane for later reprojection (active smoothing). */
-  BLI_assert(placement_.stroke_projection_plane());
-  stroke_placement_planes_.as_mutable_span()
-      .slice(active_curve_points)
-      .fill(*placement_.stroke_projection_plane());
-
+  MutableSpan<float> depths = stroke_placement_depths_.as_mutable_span().slice(
+      active_curve_points);
   MutableSpan<float3> positions = drawing.strokes_for_write().positions_for_write().slice(
       active_points);
   const Span<float2> final_coords = screen_space_final_coords_.as_span().slice(
       active_curve_points);
+  const float step_size = 1.0f / std::max(int(active_points.size()) - 1, 1);
   for (const int i : positions.index_range()) {
-    positions[i] = placement_.project(final_coords[i]);
+    /* Update the placement depth for later reprojection (active smoothing). */
+    depths[i] = math::interpolate(from_depth, to_depth, float(i) * step_size);
+    positions[i] = placement_.place(final_coords[i], depths[i]);
   }
 
   return active_points;

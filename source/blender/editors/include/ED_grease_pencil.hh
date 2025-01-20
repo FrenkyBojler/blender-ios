@@ -168,20 +168,6 @@ class DrawingPlacement {
   void cache_viewport_depths(Depsgraph *depsgraph, ARegion *region, View3D *view3d);
 
   /**
-   * Projection plane used in stroke placement mode, if defined.
-   */
-  std::optional<float4> stroke_projection_plane() const;
-
-  /**
-   * Set the placement plane, must only be called in Stroke depth mode.
-   */
-  void set_stroke_projection_plane(const float3 &origin, const float3 &normal);
-  /**
-   * Set the placement plane, must only be called in Stroke depth mode.
-   */
-  void set_stroke_projection_plane(const std::optional<float4> &plane);
-
-  /**
    * Attempt to project from the depth buffer.
    * \return Un-projected position if a valid depth is found at the screen position.
    */
@@ -198,12 +184,20 @@ class DrawingPlacement {
   float3 project_with_shift(float2 co) const;
 
   /**
+   * Convert a screen space coordinate with depth to the local drawing space.
+   */
+  float3 place(float2 co, float depth) const;
+
+  /**
    * Projects a 3D position (in local space) to the drawing plane.
    */
   float3 reproject(float3 pos) const;
   void reproject(Span<float3> src, MutableSpan<float3> dst) const;
 
   float4x4 to_world_space() const;
+
+  /** Return depth buffer if possible. */
+  std::optional<float> get_depth(float2 co) const;
 
  private:
   /** Return depth buffer projection if possible or "View" placement fallback. */
