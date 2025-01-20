@@ -14,7 +14,6 @@
 #include "BKE_anim_data.hh"
 #include "BKE_attribute.hh"
 #include "BKE_blendfile_link_append.hh"
-#include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_deform.hh"
@@ -40,6 +39,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -62,7 +62,6 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
-#include "ANIM_action_legacy.hh"
 
 namespace blender::bke::greasepencil::convert {
 
@@ -537,7 +536,7 @@ class AnimDataConvertor {
         this->animdata_dst = BKE_animdata_ensure_id(&this->id_dst);
       }
       auto actions_idroot_ensure = [&](bAction &action) -> bool {
-        action.idroot = GS(this->id_dst.name);
+        BKE_animdata_action_ensure_idroot(&this->id_dst, &action);
         return true;
       };
       this->animdata_action_foreach(*this->animdata_dst, actions_idroot_ensure);
@@ -2948,8 +2947,12 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
     /* Legacy GP data also used by objects. Create the duplicate of legacy GPv2 data for
      * annotations, if not yet done. */
     if (!new_annotation_gpd) {
-      new_annotation_gpd = reinterpret_cast<bGPdata *>(BKE_id_copy_in_lib(
-          &bmain, legacy_gpd->id.lib, &legacy_gpd->id, nullptr, nullptr, LIB_ID_COPY_DEFAULT));
+      new_annotation_gpd = reinterpret_cast<bGPdata *>(BKE_id_copy_in_lib(&bmain,
+                                                                          legacy_gpd->id.lib,
+                                                                          &legacy_gpd->id,
+                                                                          std::nullopt,
+                                                                          nullptr,
+                                                                          LIB_ID_COPY_DEFAULT));
       new_annotation_gpd->flag |= GP_DATA_ANNOTATIONS;
       id_us_min(&new_annotation_gpd->id);
       annotations_gpv2.add_overwrite(legacy_gpd, new_annotation_gpd);
