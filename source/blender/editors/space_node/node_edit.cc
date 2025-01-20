@@ -1446,12 +1446,6 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
     update_multi_input_indices_for_removed_links(*node);
   }
 
-  for (bNode *node : node_map.values()) {
-    if (node->is_type("CompositorNodeViewer")) {
-      node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
-    }
-  }
-
   /* Clear flags for recursive depth-first iteration. */
   for (bNode *node : ntree->all_nodes()) {
     node->flag &= ~NODE_TEST;

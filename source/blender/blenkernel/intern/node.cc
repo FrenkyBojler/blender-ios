@@ -2773,6 +2773,10 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
     BLI_addtail(&dst_tree->nodes, node_dst);
   }
 
+  if (node_dst->is_type("CompositorNodeViewer")) {
+    node_dst->custom1 = NODE_VIEWER_SHORTCUT_NONE;
+  }
+
   BLI_listbase_clear(&node_dst->inputs);
   LISTBASE_FOREACH (const bNodeSocket *, src_socket, &node_src.inputs) {
     bNodeSocket *dst_socket = static_cast<bNodeSocket *>(MEM_dupallocN(src_socket));
