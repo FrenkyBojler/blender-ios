@@ -2420,7 +2420,7 @@ static void change_input_socket_to_rotation_type(bNodeTree &ntree,
       continue;
     }
     if (ELEM(link->fromsock->type, SOCK_ROTATION, SOCK_VECTOR, SOCK_FLOAT) &&
-        link->fromnode->type_legacy != NODE_REROUTE)
+        !link->fromnode->is_reroute())
     {
       /* No need to add the conversion node when implicit conversions will work. */
       continue;
@@ -2453,9 +2453,7 @@ static void change_output_socket_to_rotation_type(bNodeTree &ntree,
     if (link->fromsock != &socket) {
       continue;
     }
-    if (ELEM(link->tosock->type, SOCK_ROTATION, SOCK_VECTOR) &&
-        link->tonode->type_legacy != NODE_REROUTE)
-    {
+    if (ELEM(link->tosock->type, SOCK_ROTATION, SOCK_VECTOR) && !link->tonode->is_reroute()) {
       /* No need to add the conversion node when implicit conversions will work. */
       continue;
     }
@@ -3568,7 +3566,7 @@ static void rename_mesh_uv_seam_attribute(Mesh &mesh)
 static void version_group_input_socket_data_block_reference(bNodeTree &ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
-    if (node->type_legacy != NODE_GROUP_INPUT) {
+    if (!node->is_group_input()) {
       continue;
     }
     LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
@@ -5634,6 +5632,14 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
           version_cycles_property_boolean_set(cscene, "use_sample_subset", true);
           version_cycles_property_int_set(cscene, "sample_subset_length", (1 << 24));
         }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 23)) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Curves", "float", "surface_collision_distance")) {
+      LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
+        curves->surface_collision_distance = 0.005f;
       }
     }
   }
