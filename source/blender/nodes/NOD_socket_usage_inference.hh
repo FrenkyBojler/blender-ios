@@ -27,7 +27,7 @@ Array<bool> infer_all_input_sockets_usage(const bNodeTree &tree);
  * \param group_input_values: An optional input value for each node group input. The type is
  *   expected to be `bNodeSocketType::base_cpp_type`. If the input value for a socket is not known
  *   or can't be represented as base type, null has to be passed instead.
- * \param r_input_usages: The destination array where the inferred usages are written to.
+ * \param r_input_usages: The destination array where the inferred usages are written.
  */
 void infer_group_interface_inputs_usage(const bNodeTree &group,
                                         Span<GPointer> group_input_values,
