@@ -305,16 +305,20 @@ ccl_device int bssrdf_setup(ccl_private ShaderData *sd,
   int bssrdf_channels = SPECTRUM_CHANNELS;
   Spectrum diffuse_weight = zero_spectrum();
 
-  /* Always fall back to diffuse after a diffuse ancestor. Can't see it that well and it adds
-   * considerable noise due to probabilities of continuing the path getting lower and lower. */
-  const float min_radius = path_flag & PATH_RAY_DIFFUSE_ANCESTOR ? FLT_MAX : BSSRDF_MIN_RADIUS;
-
-  FOREACH_SPECTRUM_CHANNEL (i) {
-    if (GET_SPECTRUM_CHANNEL(bssrdf->radius, i) < min_radius) {
-      GET_SPECTRUM_CHANNEL(diffuse_weight, i) = GET_SPECTRUM_CHANNEL(bssrdf->weight, i);
-      GET_SPECTRUM_CHANNEL(bssrdf->weight, i) = 0.0f;
-      GET_SPECTRUM_CHANNEL(bssrdf->radius, i) = 0.0f;
-      bssrdf_channels--;
+  if (path_flag & PATH_RAY_DIFFUSE_ANCESTOR) {
+    /* Always fall back to diffuse after a diffuse ancestor. Can't see it that well and it adds
+     * considerable noise due to probabilities of continuing the path getting lower and lower. */
+    bssrdf_channels = 0;
+    diffuse_weight = bssrdf->weight;
+  }
+  else {
+    FOREACH_SPECTRUM_CHANNEL (i) {
+      if (GET_SPECTRUM_CHANNEL(bssrdf->radius, i) < BSSRDF_MIN_RADIUS) {
+        GET_SPECTRUM_CHANNEL(diffuse_weight, i) = GET_SPECTRUM_CHANNEL(bssrdf->weight, i);
+        GET_SPECTRUM_CHANNEL(bssrdf->weight, i) = 0.0f;
+        GET_SPECTRUM_CHANNEL(bssrdf->radius, i) = 0.0f;
+        bssrdf_channels--;
+      }
     }
   }
 
