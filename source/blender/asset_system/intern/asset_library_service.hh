@@ -101,6 +101,12 @@ class AssetLibraryService {
   void reload_all_library_catalogs_if_dirty();
 
   /**
+   * Call when the .blend file is saved to destroy the runtime library. It's not represented as a
+   * on disk library.
+   */
+  void destroy_runtime_current_file_library();
+
+  /**
    * Return the start position of the last blend-file extension in given path,
    * or #std::string::npos if not found. Works with both kind of path separators.
    */
