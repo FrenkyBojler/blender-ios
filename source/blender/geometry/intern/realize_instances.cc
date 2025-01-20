@@ -1199,7 +1199,7 @@ static void execute_realize_pointcloud_task(
   }
   if (!all_dst_radii.is_empty()) {
     realize_radius(
-        options, pointcloud_info.radii, task.transform, 0.1f, all_dst_radii.slice(point_slice));
+        options, pointcloud_info.radii, task.transform, 0.01f, all_dst_radii.slice(point_slice));
   }
 
   copy_generic_attributes_to_result(
