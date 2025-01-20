@@ -58,6 +58,7 @@
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_modifier.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
@@ -66,6 +67,7 @@
 
 #include "NOD_composite.hh"
 
+#include "COM_compositor.hh"
 #include "COM_render_context.hh"
 
 #include "DEG_depsgraph.hh"
@@ -77,7 +79,8 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
-#include "IMB_movie_write.hh"
+
+#include "MOV_write.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -1182,14 +1185,14 @@ static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
  * otherwise. */
 static Scene *get_scene_referenced_by_node(const bNode *node)
 {
-  if (node->flag & NODE_MUTED) {
+  if (node->is_muted()) {
     return nullptr;
   }
 
-  if (node->type == CMP_NODE_R_LAYERS) {
+  if (node->type_legacy == CMP_NODE_R_LAYERS) {
     return reinterpret_cast<Scene *>(node->id);
   }
-  else if (node->type == CMP_NODE_CRYPTOMATTE &&
+  else if (node->type_legacy == CMP_NODE_CRYPTOMATTE &&
            node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER)
   {
     return reinterpret_cast<Scene *>(node->id);
@@ -1233,13 +1236,13 @@ static bool node_tree_has_composite_output(const bNodeTree *node_tree)
   }
 
   for (const bNode *node : node_tree->all_nodes()) {
-    if (node->flag & NODE_MUTED) {
+    if (node->is_muted()) {
       continue;
     }
-    if (node->type == CMP_NODE_COMPOSITE && node->flag & NODE_DO_OUTPUT) {
+    if (node->type_legacy == CMP_NODE_COMPOSITE && node->flag & NODE_DO_OUTPUT) {
       return true;
     }
-    if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP) && node->id) {
+    if (node->is_group() && node->id) {
       if (node_tree_has_composite_output(reinterpret_cast<const bNodeTree *>(node->id))) {
         return true;
       }
@@ -1371,13 +1374,13 @@ static void do_render_compositor(Render *re)
 
         blender::compositor::RenderContext compositor_render_context;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
-          ntreeCompositExecTree(re,
-                                re->pipeline_scene_eval,
-                                ntree,
-                                &re->r,
-                                rv->name,
-                                &compositor_render_context,
-                                nullptr);
+          COM_execute(re,
+                      &re->r,
+                      re->pipeline_scene_eval,
+                      ntree,
+                      rv->name,
+                      &compositor_render_context,
+                      nullptr);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
 
@@ -1444,8 +1447,8 @@ bool RE_seq_render_active(Scene *scene, RenderData *rd)
     return false;
   }
 
-  LISTBASE_FOREACH (Sequence *, seq, &ed->seqbase) {
-    if (seq->type != SEQ_TYPE_SOUND_RAM && !SEQ_render_is_muted(&ed->channels, seq)) {
+  LISTBASE_FOREACH (Strip *, seq, &ed->seqbase) {
+    if (seq->type != STRIP_TYPE_SOUND_RAM && !SEQ_render_is_muted(&ed->channels, seq)) {
       return true;
     }
   }
@@ -1625,7 +1628,7 @@ static bool check_valid_compositing_camera(Scene *scene,
 {
   if (scene->r.scemode & R_DOCOMP && scene->use_nodes) {
     for (bNode *node : scene->nodetree->all_nodes()) {
-      if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
+      if (node->type_legacy == CMP_NODE_R_LAYERS && !node->is_muted()) {
         Scene *sce = node->id ? (Scene *)node->id : scene;
         if (sce->camera == nullptr) {
           sce->camera = BKE_view_layer_camera_find(sce, BKE_view_layer_default_render(sce));
@@ -1703,8 +1706,8 @@ static int check_valid_camera(Scene *scene, Object *camera_override, ReportList 
 
   if (RE_seq_render_active(scene, &scene->r)) {
     if (scene->ed) {
-      LISTBASE_FOREACH (Sequence *, seq, &scene->ed->seqbase) {
-        if ((seq->type == SEQ_TYPE_SCENE) && ((seq->flag & SEQ_SCENE_STRIPS) == 0) &&
+      LISTBASE_FOREACH (Strip *, seq, &scene->ed->seqbase) {
+        if ((seq->type == STRIP_TYPE_SCENE) && ((seq->flag & SEQ_SCENE_STRIPS) == 0) &&
             (seq->scene != nullptr))
         {
           if (!seq->scene_camera) {
@@ -1736,10 +1739,10 @@ static int check_valid_camera(Scene *scene, Object *camera_override, ReportList 
 static bool node_tree_has_any_compositor_output(const bNodeTree *ntree)
 {
   for (const bNode *node : ntree->all_nodes()) {
-    if (ELEM(node->type, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
+    if (ELEM(node->type_legacy, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
       return true;
     }
-    if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+    if (node->is_group()) {
       if (node->id) {
         if (node_tree_has_any_compositor_output((const bNodeTree *)node->id)) {
           return true;
@@ -2146,7 +2149,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
                               RenderResult *rr,
                               Scene *scene,
                               RenderData *rd,
-                              ImbMovieWriter **movie_writers,
+                              MovieWriter **movie_writers,
                               const int totvideos,
                               bool preview)
 {
@@ -2171,13 +2174,13 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
       IMB_colormanagement_imbuf_for_write(ibuf, true, false, &image_format);
 
       BLI_assert(movie_writers[view_id] != nullptr);
-      if (!IMB_movie_write_append(movie_writers[view_id],
-                                  rd,
-                                  preview ? scene->r.psfra : scene->r.sfra,
-                                  scene->r.cfra,
-                                  ibuf,
-                                  suffix,
-                                  reports))
+      if (!MOV_write_append(movie_writers[view_id],
+                            rd,
+                            preview ? scene->r.psfra : scene->r.sfra,
+                            scene->r.cfra,
+                            ibuf,
+                            suffix,
+                            reports))
       {
         ok = false;
       }
@@ -2206,13 +2209,13 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
     ibuf_arr[2] = IMB_stereo3d_ImBuf(&image_format, ibuf_arr[0], ibuf_arr[1]);
 
     BLI_assert(movie_writers[0] != nullptr);
-    if (!IMB_movie_write_append(movie_writers[0],
-                                rd,
-                                preview ? scene->r.psfra : scene->r.sfra,
-                                scene->r.cfra,
-                                ibuf_arr[2],
-                                "",
-                                reports))
+    if (!MOV_write_append(movie_writers[0],
+                          rd,
+                          preview ? scene->r.psfra : scene->r.sfra,
+                          scene->r.cfra,
+                          ibuf_arr[2],
+                          "",
+                          reports))
     {
       ok = false;
     }
@@ -2327,8 +2330,8 @@ static void get_videos_dimensions(const Render *re,
 
 static void re_movie_free_all(Render *re)
 {
-  for (ImbMovieWriter *writer : re->movie_writers) {
-    IMB_movie_write_end(writer);
+  for (MovieWriter *writer : re->movie_writers) {
+    MOV_write_end(writer);
   }
   re->movie_writers.clear_and_shrink();
 }
@@ -2377,14 +2380,14 @@ void RE_RenderAnim(Render *re,
     re->movie_writers.reserve(totvideos);
     for (int i = 0; i < totvideos; i++) {
       const char *suffix = BKE_scene_multiview_view_id_suffix_get(&re->r, i);
-      ImbMovieWriter *writer = IMB_movie_write_begin(rd.im_format.imtype,
-                                                     re->pipeline_scene_eval,
-                                                     &re->r,
-                                                     width,
-                                                     height,
-                                                     re->reports,
-                                                     false,
-                                                     suffix);
+      MovieWriter *writer = MOV_write_begin(rd.im_format.imtype,
+                                            re->pipeline_scene_eval,
+                                            &re->r,
+                                            width,
+                                            height,
+                                            re->reports,
+                                            false,
+                                            suffix);
       if (writer == nullptr) {
         is_error = true;
         break;

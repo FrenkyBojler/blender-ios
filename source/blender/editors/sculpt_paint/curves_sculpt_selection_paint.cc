@@ -3,11 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <algorithm>
-#include <numeric>
 
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_memory_utils.hh"
 #include "BLI_task.hh"
 
 #include "DNA_brush_types.h"
@@ -98,7 +96,7 @@ struct SelectionPaintOperationExecutor {
     brush_ = BKE_paint_brush_for_read(&ctx_.scene->toolsettings->curves_sculpt->paint);
     brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
-    brush_strength_ = BKE_brush_alpha_get(ctx_.scene, brush_);
+    brush_strength_ = brush_strength_get(*ctx_.scene, *brush_, stroke_extension);
 
     brush_pos_re_ = stroke_extension.mouse_position;
 

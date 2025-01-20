@@ -54,10 +54,11 @@
 #include "GPU_immediate_util.hh"
 #include "GPU_state.hh"
 
-#include "IMB_anim.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_thumbs.hh"
+
+#include "MOV_read.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -790,6 +791,39 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   return data->fields.is_empty() ? nullptr : std::move(data);
 }
 
+static std::string ui_tooltip_color_string(const blender::float4 &color,
+                                           const blender::StringRefNull title,
+                                           const bool show_alpha,
+                                           const bool show_hex = false)
+{
+  if (show_hex) {
+    uchar hex[4];
+    rgba_float_to_uchar(hex, color);
+    if (show_alpha) {
+      return fmt::format("{}: #{:02X}{:02X}{:02X}{:02X}",
+                         TIP_(title.c_str()),
+                         int(hex[0]),
+                         int(hex[1]),
+                         int(hex[2]),
+                         int(hex[3]));
+    }
+    return fmt::format(
+        "{}: #{:02X}{:02X}{:02X}", TIP_(title.c_str()), int(hex[0]), int(hex[1]), int(hex[2]));
+  }
+
+  if (show_alpha) {
+    return fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}  {:.3f}",
+                       TIP_(title.c_str()),
+                       color[0],
+                       color[1],
+                       color[2],
+                       color[3]);
+  }
+
+  return fmt::format(
+      "{}:  {:.3f}  {:.3f}  {:.3f}", TIP_(title.c_str()), color[0], color[1], color[2]);
+};
+
 static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     bContext *C, uiBut *but, uiButExtraOpIcon *extra_icon, const bool is_label)
 {
@@ -1061,10 +1095,12 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     float color[4];
     ui_but_v3_get(but, color);
     color[3] = 1.0f;
+    bool has_alpha = false;
 
     if (but->rnaprop) {
       BLI_assert(but->rnaindex == -1);
-      if (RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4) {
+      has_alpha = RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4;
+      if (has_alpha) {
         color[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
       }
     }
@@ -1073,25 +1109,16 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
       ui_block_cm_to_display_space_v3(but->block, color);
     }
 
-    uchar rgb_hex_uchar[4];
-    rgba_float_to_uchar(rgb_hex_uchar, color);
-    const std::string hex_st = fmt::format("Hex: #{:02X}{:02X}{:02X}{:02X}",
-                                           int(rgb_hex_uchar[0]),
-                                           int(rgb_hex_uchar[1]),
-                                           int(rgb_hex_uchar[2]),
-                                           int(rgb_hex_uchar[3]));
+    const std::string hex_st = ui_tooltip_color_string(color, "Hex", has_alpha, true);
 
-    const std::string rgba_st = fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}  {:.3f}",
-                                            TIP_("RGBA"),
-                                            color[0],
-                                            color[1],
-                                            color[2],
-                                            color[3]);
+    const std::string rgba_st = ui_tooltip_color_string(
+        color, has_alpha ? "RGBA" : "RGB", has_alpha);
+
     float hsva[4];
     rgb_to_hsv_v(color, hsva);
     hsva[3] = color[3];
-    const std::string hsva_st = fmt::format(
-        "{}:  {:.3f}  {:.3f}  {:.3f}  {:.3f}", TIP_("HSVA"), hsva[0], hsva[1], hsva[2], hsva[3]);
+    const std::string hsva_st = ui_tooltip_color_string(
+        hsva, has_alpha ? "HSVA" : "HSV", has_alpha);
 
     const uiFontStyle *fs = &UI_style_get()->tooltip;
     BLF_size(blf_mono_font, fs->points * UI_SCALE_FAC);
@@ -1099,7 +1126,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
     uiTooltipImage image_data;
     image_data.width = int(w);
-    image_data.height = int(w / 4.0f);
+    image_data.height = int(w / (has_alpha ? 4.0f : 3.0f));
     image_data.ibuf = IMB_allocImBuf(image_data.width, image_data.height, 32, IB_rect);
     image_data.border = true;
     image_data.premultiplied = false;
@@ -1619,9 +1646,9 @@ static void ui_tooltip_from_image(Image &ima, uiTooltipData &data)
   }
 
   if (BKE_image_has_anim(&ima)) {
-    ImBufAnim *anim = static_cast<ImBufAnim *>(ima.anims.first);
+    MovieReader *anim = static_cast<MovieReader *>(ima.anims.first);
     if (anim) {
-      int duration = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+      int duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
       UI_tooltip_text_field_add(
           data, fmt::format("Frames: {}", duration), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
     }
@@ -1671,24 +1698,23 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
   UI_tooltip_text_field_add(data, image_type, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
 
   if (clip.anim) {
-    ImBufAnim *anim = clip.anim;
-
-    UI_tooltip_text_field_add(data,
-                              fmt::format("{} \u00D7 {}",
-                                          IMB_anim_get_image_width(anim),
-                                          IMB_anim_get_image_height(anim)),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_NORMAL);
+    MovieReader *anim = clip.anim;
 
     UI_tooltip_text_field_add(
         data,
-        fmt::format("Frames: {}", IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN)),
+        fmt::format("{} \u00D7 {}", MOV_get_image_width(anim), MOV_get_image_height(anim)),
         {},
         UI_TIP_STYLE_NORMAL,
         UI_TIP_LC_NORMAL);
 
-    ImBuf *ibuf = IMB_anim_previewframe(anim);
+    UI_tooltip_text_field_add(
+        data,
+        fmt::format("Frames: {}", MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN)),
+        {},
+        UI_TIP_STYLE_NORMAL,
+        UI_TIP_LC_NORMAL);
+
+    ImBuf *ibuf = MOV_decode_preview_frame(anim);
 
     if (ibuf) {
       /* Resize. */
