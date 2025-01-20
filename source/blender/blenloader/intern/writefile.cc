@@ -74,6 +74,8 @@
 #  include <unistd.h> /* FreeBSD, for write() and close(). */
 #endif
 
+#include <fmt/format.h>
+
 #include "BLI_utildefines.h"
 
 #include "CLG_log.h"
@@ -784,6 +786,32 @@ static void writestruct_nr(
   writestruct_at_address_nr(wd, filecode, struct_nr, nr, adr, adr);
 }
 
+static void write_raw_data_in_debug_file(WriteData *wd, const size_t len, const void *adr)
+{
+  fmt::memory_buffer buf;
+  fmt::appender dst{buf};
+
+  fmt::format_to(dst, "<Raw Data> at {} ({} bytes)\n", adr, len);
+
+  constexpr int bytes_per_row = 8;
+  const int len_digits = std::to_string(std::max<size_t>(0, len - 1)).size();
+
+  for (size_t i = 0; i < len; i++) {
+    if (i % bytes_per_row == 0) {
+      fmt::format_to(dst, "  {:{}}: ", i, len_digits);
+    }
+    fmt::format_to(dst, "{:02x} ", reinterpret_cast<const uint8_t *>(adr)[i]);
+    if (i % bytes_per_row == bytes_per_row - 1) {
+      fmt::format_to(dst, "\n");
+    }
+  }
+  if (len % bytes_per_row != 0) {
+    fmt::format_to(dst, "\n");
+  }
+
+  *wd->debug_dst << fmt::to_string(buf);
+}
+
 /**
  * \warning Do not use for structs.
  */
@@ -809,6 +837,10 @@ static void writedata(WriteData *wd, const int filecode, const size_t len, const
   BLI_STATIC_ASSERT(SDNA_RAW_DATA_STRUCT_INDEX == 0, "'raw data' SDNA struct index should be 0")
   bh.SDNAnr = SDNA_RAW_DATA_STRUCT_INDEX;
   bh.len = int(len);
+
+  if (wd->debug_dst) {
+    write_raw_data_in_debug_file(wd, len, adr);
+  }
 
   write_bhead(wd, bh);
   mywrite(wd, adr, len);

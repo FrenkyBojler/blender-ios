@@ -2228,7 +2228,7 @@ void DNA_struct_debug_print(const SDNA &sdna,
                             std::ostream &stream)
 {
   fmt::memory_buffer buf;
-  fmt::appender dst = fmt::appender(buf);
+  fmt::appender dst{buf};
 
   const char *struct_name = sdna.types[sdna_struct.type_index];
   fmt::format_to(dst, "<{}> {}x at {}\n", struct_name, element_num, address);
