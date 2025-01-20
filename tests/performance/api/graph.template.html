@@ -56,6 +56,7 @@
           chart: {title: device["name"], subtitle: device['device']},
           pointsVisible: true,
           pointSize: 2.5,
+          height: 500,
         };
 
         /* Create chart div. */
@@ -74,6 +75,13 @@
           chart.draw(transposeDataTable(data), options);
         }
       }
+
+      google.visualization.events.addListener(chart, 'ready', function () {
+        var allSvg = document.getElementsByTagName("svg");
+        for (var index = 0; index < allSvg.length; index++) {
+          allSvg[index].setAttribute('height', allSvg[index].getBBox().height);
+        }
+      });
     }
   </script>
 </head>
