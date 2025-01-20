@@ -1460,6 +1460,64 @@ static void process_stroke_weights(const Scene &scene,
   });
 }
 
+void append_stroke_from(const bke::CurvesGeometry &src,
+                        const IndexRange points,
+                        bke::CurvesGeometry &dst)
+{
+  const int initial_points_num = dst.points_num();
+  const int initial_curves_num = dst.curves_num();
+
+  const int other_curves_num = src.curves_num();
+
+  dst.resize(initial_points_num + points.size(), initial_curves_num + 1);
+
+  Array<int> other_raw_offsets{points.first(), points.one_after_last()};
+  Array<int> dst_raw_offsets{initial_points_num, initial_points_num + int(points.size())};
+
+  OffsetIndices<int> other_point_offsets{other_raw_offsets};
+  OffsetIndices<int> dst_point_offsets{dst_raw_offsets};
+
+  copy_attributes_group_to_group(src.attributes(),
+                                 bke::AttrDomain::Point,
+                                 bke::AttrDomain::Point,
+                                 {},
+                                 other_point_offsets,
+                                 dst_point_offsets,
+                                 IndexMask{1},
+                                 dst.attributes_for_write());
+
+  other_raw_offsets = {other_curves_num - 1, other_curves_num};
+  dst_raw_offsets = {initial_curves_num, initial_curves_num + 1};
+
+  OffsetIndices<int> other_curve_offsets{other_raw_offsets};
+  OffsetIndices<int> dst_curve_offsets{dst_raw_offsets};
+
+  copy_attributes_group_to_group(src.attributes(),
+                                 bke::AttrDomain::Curve,
+                                 bke::AttrDomain::Curve,
+                                 {},
+                                 other_curve_offsets,
+                                 dst_curve_offsets,
+                                 IndexMask{1},
+                                 dst.attributes_for_write());
+}
+
+static void append_stroke_to_drawings(const bke::CurvesGeometry &src_strokes,
+                                      const IndexRange points,
+                                      const int exclude_frame,
+                                      Span<ed::greasepencil::MutableDrawingInfo> drawings)
+{
+  for (const ed::greasepencil::MutableDrawingInfo &drawing_info : drawings) {
+    if (drawing_info.frame_number == exclude_frame) {
+      continue;
+    }
+    bke::greasepencil::Drawing &drawing = drawing_info.drawing;
+    bke::CurvesGeometry &dst_strokes = drawing.strokes_for_write();
+    append_stroke_from(src_strokes, points, dst_strokes);
+    drawing.tag_topology_changed();
+  }
+}
+
 void PaintOperation::on_stroke_done(const bContext &C)
 {
   using namespace blender::bke;
@@ -1551,6 +1609,17 @@ void PaintOperation::on_stroke_done(const bContext &C)
   }
 
   drawing.tag_topology_changed();
+
+  const bool use_multi_frame_editing = (scene->toolsettings->gpencil_flags &
+                                        GP_USE_MULTI_FRAME_EDITING) != 0;
+
+  if (use_multi_frame_editing) {
+    const bke::CurvesGeometry &curves = drawing.strokes();
+    append_stroke_to_drawings(curves,
+                              curves.points_by_curve()[active_curve],
+                              scene->r.cfra,
+                              ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil));
+  }
 
   /* Now we're done drawing. */
   grease_pencil.runtime->is_drawing_stroke = false;
