@@ -812,7 +812,7 @@ struct SocketUsageInferencer {
     }
 
     /* Actually find the #bNodeSocket for each controlled input. */
-    if (!animated_inputs_by_node_name.size() == 0) {
+    if (!animated_inputs_by_node_name.is_empty()) {
       for (const bNode *node : tree.all_nodes()) {
         const Span<int> animated_inputs = animated_inputs_by_node_name.lookup(node->name);
         for (const int socket_index : animated_inputs) {
