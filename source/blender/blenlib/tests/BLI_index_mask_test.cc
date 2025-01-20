@@ -1246,4 +1246,33 @@ TEST(index_mask, IndexRangeToMaskSegments)
   test_range(IndexRange::from_begin_end_inclusive(1'000'000, 1'000'000));
 }
 
+TEST(index_mask, FromRanges)
+{
+  IndexMaskMemory memory;
+  Array<int> data = {5, 100, 400, 500, 100'000, 200'000};
+  OffsetIndices<int> offsets(data);
+
+  {
+    const IndexMask mask = IndexMask::from_offset_indices(offsets, offsets.index_range(), memory);
+    EXPECT_EQ(mask.size(), 199'995);
+    EXPECT_EQ(*mask.to_range(), IndexRange::from_begin_end(5, 200'000));
+  }
+  {
+    const IndexMask mask = IndexMask::from_offset_indices(offsets, IndexRange(0), memory);
+    EXPECT_TRUE(mask.is_empty());
+  }
+  {
+    const IndexMask mask = IndexMask::from_offset_indices(offsets, IndexRange(1), memory);
+    EXPECT_EQ(*mask.to_range(), IndexRange::from_begin_end(5, 100));
+  }
+  {
+    const IndexMask offsets_mask = IndexMask::from_indices(Span<int>({1, 4}), memory);
+    const IndexMask mask = IndexMask::from_offset_indices(offsets, offsets_mask, memory);
+    EXPECT_EQ(mask,
+              IndexMask::from_initializers({IndexRange::from_begin_end(100, 400),
+                                            IndexRange::from_begin_end(100'000, 200'000)},
+                                           memory));
+  }
+}
+
 }  // namespace blender::index_mask::tests

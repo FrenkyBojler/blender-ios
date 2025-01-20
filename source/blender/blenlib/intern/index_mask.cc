@@ -643,9 +643,9 @@ IndexMask IndexMask::from_bools(const IndexMask &universe,
 }
 
 template<typename T>
-IndexMask IndexMask::from_ranges(OffsetIndices<T> offsets,
-                                 const IndexMask &mask,
-                                 IndexMaskMemory &memory)
+IndexMask IndexMask::from_offset_indices(OffsetIndices<T> offsets,
+                                         const IndexMask &mask,
+                                         IndexMaskMemory &memory)
 {
   Vector<IndexMaskSegment, 16> segments;
   mask.foreach_range([&](const IndexRange mask_range) {
@@ -1201,11 +1201,11 @@ template IndexMask IndexMask::from_indices(Span<int32_t>, IndexMaskMemory &);
 template IndexMask IndexMask::from_indices(Span<int64_t>, IndexMaskMemory &);
 template void IndexMask::to_indices(MutableSpan<int32_t>) const;
 template void IndexMask::to_indices(MutableSpan<int64_t>) const;
-template IndexMask IndexMask::from_ranges(OffsetIndices<int32_t>,
-                                          const IndexMask &,
-                                          IndexMaskMemory &);
-template IndexMask IndexMask::from_ranges(OffsetIndices<int64_t>,
-                                          const IndexMask &,
-                                          IndexMaskMemory &);
+template IndexMask IndexMask::from_offset_indices(OffsetIndices<int32_t>,
+                                                  const IndexMask &,
+                                                  IndexMaskMemory &);
+template IndexMask IndexMask::from_offset_indices(OffsetIndices<int64_t>,
+                                                  const IndexMask &,
+                                                  IndexMaskMemory &);
 
 }  // namespace blender::index_mask
