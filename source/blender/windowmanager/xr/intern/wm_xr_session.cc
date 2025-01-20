@@ -1358,6 +1358,8 @@ static void wm_xr_session_do_depsgraph(bContext *C)
   Scene *scene;
   Depsgraph *depsgraph;
   wm_xr_session_scene_and_depsgraph_get(wm, &scene, &depsgraph);
+  /* tag ID_NT to ensure compositor operators will be updated every frame. */
+  DEG_graph_id_type_tag(depsgraph, ID_NT); 
   BKE_scene_graph_evaluated_ensure(depsgraph, CTX_data_main(C));
 }
 
