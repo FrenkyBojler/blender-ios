@@ -123,7 +123,7 @@ void MeshComponent::count_memory(MemoryCounter &memory) const
 VArray<float3> mesh_normals_varray(const Mesh &mesh,
                                    const IndexMask &mask,
                                    const AttrDomain domain,
-                                   bool no_corner_normals)
+                                   const bool no_corner_normals)
 {
   switch (domain) {
     case AttrDomain::Face: {
