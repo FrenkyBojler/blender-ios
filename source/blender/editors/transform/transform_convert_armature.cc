@@ -550,7 +550,7 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
   td->con = static_cast<bConstraint *>(pchan->constraints.first);
 }
 
-static void createTransPose(bContext * /*C*/, TransInfo *t)
+static void createTransPose(bContext *C, TransInfo *t)
 {
   Main *bmain = CTX_data_main(t->context);
 
@@ -574,7 +574,7 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     const bool mirror = ((pose->flag & POSE_MIRROR_EDIT) != 0);
 
     /* Set flags. */
-    transform_convert_pose_transflags_update(ob, t->mode, t->around);
+    transform_convert_pose_transflags_update(C, ob, t->mode, t->around);
 
     /* Now count, and check if we have autoIK or have to switch from translate to rotate. */
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
@@ -1481,28 +1481,26 @@ static void bone_children_clear_transflag(int mode, short around, ListBase *lb)
   }
 }
 
-void transform_convert_pose_transflags_update(Object *ob, const int mode, const short around)
+void transform_convert_pose_transflags_update(const bContext *C,
+                                              Object *ob,
+                                              const int mode,
+                                              const short around)
 {
   bArmature *arm = static_cast<bArmature *>(ob->data);
   Bone *bone;
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
+    pchan->bone->flag &= ~BONE_TRANSFORM;
+  }
+  CTX_DATA_BEGIN (C, bPoseChannel *, pchan, selected_pose_bones) {
     bone = pchan->bone;
     if (PBONE_VISIBLE(arm, bone)) {
-      if (bone->flag & BONE_SELECTED) {
-        bone->flag |= BONE_TRANSFORM;
-      }
-      else {
-        bone->flag &= ~BONE_TRANSFORM;
-      }
-
+      bone->flag |= BONE_TRANSFORM;
       bone->flag &= ~BONE_HINGE_CHILD_TRANSFORM;
       bone->flag &= ~BONE_TRANSFORM_CHILD;
     }
-    else {
-      bone->flag &= ~BONE_TRANSFORM;
-    }
   }
+  CTX_DATA_END;
 
   /* Make sure no bone can be transformed when a parent is transformed. */
   /* Since pchans are depsgraph sorted, the parents are in beginning of list. */
@@ -1677,7 +1675,7 @@ static void special_aftertrans_update__pose(bContext *C, TransInfo *t)
 
       /* Set BONE_TRANSFORM flags for auto-key, gizmo draw might have changed them. */
       if (!canceled && (t->mode != TFM_DUMMY)) {
-        transform_convert_pose_transflags_update(ob, t->mode, t->around);
+        transform_convert_pose_transflags_update(C, ob, t->mode, t->around);
       }
 
       /* If target-less IK grabbing, we calculate the pchan transforms and clear flag. */

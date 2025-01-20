@@ -799,7 +799,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
       /* Mislead counting bones... bah. We don't know the gizmo mode, could be mixed. */
       const int mode = TFM_ROTATION;
 
-      transform_convert_pose_transflags_update(ob_iter, mode, V3D_AROUND_CENTER_BOUNDS);
+      transform_convert_pose_transflags_update(C, ob_iter, mode, V3D_AROUND_CENTER_BOUNDS);
 
       float mat_local[4][4];
       if (use_mat_local) {
