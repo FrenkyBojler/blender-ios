@@ -73,6 +73,7 @@
 #include "BLF_api.hh"
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
+#include "GPU_immediate.hh"
 #include "GPU_init_exit.hh"
 
 #include "UI_resources.hh"
@@ -2530,16 +2531,77 @@ bool WM_clipboard_image_set(ImBuf *ibuf)
 /** \name Progress Bar
  * \{ */
 
+/* This be in window runtime. */
+static struct wmStaticProgress {
+  float min;
+  float max;
+  float current;
+  float progress;  // normalized 0-1
+  void *callback_handle;
+} wm_progress_state = {0.0f, 1.0f, 0.0f, 0.0f, nullptr};
+
+static void wm_progress_cb(const wmWindow *win, void *customdata)
+{
+  float *progress = static_cast<float *>(customdata);
+
+  GPUVertFormat *format = immVertexFormat();
+  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  GPU_blend(GPU_BLEND_ALPHA);
+  GPU_line_width(2.0f);
+
+  float color[4];
+  UI_GetThemeColorType4fv(TH_TEXT, SPACE_TOPBAR, color);
+  color[3] = 0.5f;
+  immUniformColor4fv(color);
+
+  immBegin(GPU_PRIM_LINES, 2);
+  immVertex2f(pos, 0.0f, win->sizey - U.pixelsize);
+  immVertex2f(pos, win->sizex * *progress, win->sizey - U.pixelsize);
+  immEnd();
+  immUnbindProgram();
+  GPU_blend(GPU_BLEND_NONE);
+  GPU_line_width(1.0f);
+}
+
+void WM_progress_range(wmWindow *win, float min, float max)
+{
+  wm_progress_state.min = min;
+  wm_progress_state.max = max;
+  wm_progress_state.current = min;
+  wm_progress_state.progress = 0.0f;
+}
+
 void WM_progress_set(wmWindow *win, float progress)
 {
+  wm_progress_state.current = progress;
+  wm_progress_state.progress = (wm_progress_state.current - wm_progress_state.min) /
+                               (wm_progress_state.max - wm_progress_state.min);
+
+  if (!wm_progress_state.callback_handle) {
+    wm_progress_state.callback_handle = WM_draw_cb_activate(
+        win, wm_progress_cb, &wm_progress_state.progress);
+  }
+
   /* In background mode we may have windows, but not actual GHOST windows. */
   if (win->ghostwin) {
-    GHOST_SetProgressBar(static_cast<GHOST_WindowHandle>(win->ghostwin), progress);
+    GHOST_SetProgressBar(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                         wm_progress_state.progress);
   }
 }
 
 void WM_progress_clear(wmWindow *win)
 {
+  if (wm_progress_state.callback_handle) {
+    WM_draw_cb_exit(win, wm_progress_state.callback_handle);
+    wm_progress_state.callback_handle = nullptr;
+  }
+
+  wm_progress_state.min = 0.0f;
+  wm_progress_state.max = 1.0f;
+  wm_progress_state.current = 0.0f;
+  wm_progress_state.progress = 0.0f;
+
   if (win->ghostwin) {
     GHOST_EndProgressBar(static_cast<GHOST_WindowHandle>(win->ghostwin));
   }

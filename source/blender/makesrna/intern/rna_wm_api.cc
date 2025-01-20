@@ -167,48 +167,19 @@ static void rna_gizmo_group_type_unlink_delayed(ReportList *reports, const char 
   }
 }
 
-/* Placeholder data for final implementation of a true progress-bar. */
-static struct wmStaticProgress {
-  float min;
-  float max;
-  bool is_valid;
-} wm_progress_state = {0, 0, false};
-
-static void rna_progress_begin(wmWindowManager * /*wm*/, float min, float max)
+static void rna_progress_begin(wmWindowManager *wm, float min, float max)
 {
-  float range = max - min;
-  if (range != 0) {
-    wm_progress_state.min = min;
-    wm_progress_state.max = max;
-    wm_progress_state.is_valid = true;
-  }
-  else {
-    wm_progress_state.is_valid = false;
-  }
+  WM_progress_range(wm->winactive, min, max);
 }
 
 static void rna_progress_update(wmWindowManager *wm, float value)
 {
-  if (wm_progress_state.is_valid) {
-    /* Map to cursor_time range [0,9999] */
-    wmWindow *win = wm->winactive;
-    if (win) {
-      int val = int(10000 * (value - wm_progress_state.min) /
-                    (wm_progress_state.max - wm_progress_state.min));
-      WM_cursor_time(win, val);
-    }
-  }
+  WM_progress_set(wm->winactive, value);
 }
 
 static void rna_progress_end(wmWindowManager *wm)
 {
-  if (wm_progress_state.is_valid) {
-    wmWindow *win = wm->winactive;
-    if (win) {
-      WM_cursor_modal_restore(win);
-      wm_progress_state.is_valid = false;
-    }
-  }
+  WM_progress_clear(wm->winactive);
 }
 
 /* wrap these because of 'const wmEvent *' */

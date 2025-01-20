@@ -1787,6 +1787,7 @@ bool WM_clipboard_image_set(ImBuf *ibuf) ATTR_NONNULL(1);
 
 /* Progress. */
 
+void WM_progress_range(wmWindow *win, float min, float max);
 void WM_progress_set(wmWindow *win, float progress);
 void WM_progress_clear(wmWindow *win);
 
