@@ -448,6 +448,57 @@ TEST_F(ActionLayersTest, slot_remove)
   }
 }
 
+TEST_F(ActionLayersTest, slot_move)
+{
+  Slot &slot_a = action->slot_add();
+  Slot &slot_b = action->slot_add();
+  Slot &slot_c = action->slot_add();
+  Slot &slot_d = action->slot_add();
+
+  const slot_handle_t handle_a = slot_a.handle;
+  const slot_handle_t handle_b = slot_b.handle;
+  const slot_handle_t handle_c = slot_c.handle;
+  const slot_handle_t handle_d = slot_d.handle;
+
+  EXPECT_EQ(action->slot(0)->handle, handle_a);
+  EXPECT_EQ(action->slot(1)->handle, handle_b);
+  EXPECT_EQ(action->slot(2)->handle, handle_c);
+  EXPECT_EQ(action->slot(3)->handle, handle_d);
+
+  /* First "move" a slot to its own location, which should do nothing. */
+  action->slot_move(slot_b, 1);
+  EXPECT_EQ(action->slot(0)->handle, handle_a);
+  EXPECT_EQ(action->slot(1)->handle, handle_b);
+  EXPECT_EQ(action->slot(2)->handle, handle_c);
+  EXPECT_EQ(action->slot(3)->handle, handle_d);
+
+  /* Then move slots around in various ways. */
+
+  action->slot_move(slot_a, 2);
+  EXPECT_EQ(action->slot(0)->handle, handle_b);
+  EXPECT_EQ(action->slot(1)->handle, handle_c);
+  EXPECT_EQ(action->slot(2)->handle, handle_a);
+  EXPECT_EQ(action->slot(3)->handle, handle_d);
+
+  action->slot_move(slot_d, 1);
+  EXPECT_EQ(action->slot(0)->handle, handle_b);
+  EXPECT_EQ(action->slot(1)->handle, handle_d);
+  EXPECT_EQ(action->slot(2)->handle, handle_c);
+  EXPECT_EQ(action->slot(3)->handle, handle_a);
+
+  action->slot_move(slot_c, 3);
+  EXPECT_EQ(action->slot(0)->handle, handle_b);
+  EXPECT_EQ(action->slot(1)->handle, handle_d);
+  EXPECT_EQ(action->slot(2)->handle, handle_a);
+  EXPECT_EQ(action->slot(3)->handle, handle_c);
+
+  action->slot_move(slot_d, 0);
+  EXPECT_EQ(action->slot(0)->handle, handle_d);
+  EXPECT_EQ(action->slot(1)->handle, handle_b);
+  EXPECT_EQ(action->slot(2)->handle, handle_a);
+  EXPECT_EQ(action->slot(3)->handle, handle_c);
+}
+
 TEST_F(ActionLayersTest, action_assign_id)
 {
   /* Assign to the only, 'virgin' Slot, should always work. */
