@@ -96,6 +96,9 @@ struct SocketUsageInferencer {
     if (is_used.has_value()) {
       return *is_used;
     }
+    if (socket->owner_tree().has_available_link_cycle()) {
+      return false;
+    }
 
     BLI_assert(usage_tasks_.is_empty());
     usage_tasks_.push(socket);
@@ -117,6 +120,9 @@ struct SocketUsageInferencer {
     const std::optional<const void *> value = all_socket_values_.lookup_try(socket);
     if (value.has_value()) {
       return *value;
+    }
+    if (socket->owner_tree().has_available_link_cycle()) {
+      return nullptr;
     }
 
     BLI_assert(value_tasks_.is_empty());
@@ -251,6 +257,10 @@ struct SocketUsageInferencer {
       return;
     }
     group->ensure_topology_cache();
+    if (group->has_available_link_cycle()) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
     this->ensure_animation_data_processed(*group);
 
     /* The group node input is used iff any of the matching group inputs within the group is
@@ -475,6 +485,10 @@ struct SocketUsageInferencer {
     const NodeInContext node = socket.owner_node();
     const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
     if (!group || ID_MISSING(&group->id)) {
+      all_socket_values_.add_new(socket, nullptr);
+      return;
+    }
+    if (group->has_available_link_cycle()) {
       all_socket_values_.add_new(socket, nullptr);
       return;
     }
