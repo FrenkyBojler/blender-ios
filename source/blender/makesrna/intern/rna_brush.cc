@@ -3040,9 +3040,9 @@ static void rna_def_brush(BlenderRNA *brna)
       "Affectable height of brush (i.e. the layer height for the layer tool)");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "plane_depth", PROP_FLOAT, PROP_DISTANCE);
+  prop = RNA_def_property(srna, "plane_depth", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "plane_depth");
-  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
   RNA_def_property_ui_text(prop,
@@ -3051,7 +3051,7 @@ static void rna_def_brush(BlenderRNA *brna)
                            "within this distance.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "plane_height", PROP_FLOAT, PROP_DISTANCE);
+  prop = RNA_def_property(srna, "plane_height", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "plane_height");
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_range(prop, 0, 1.0f);
@@ -3062,18 +3062,18 @@ static void rna_def_brush(BlenderRNA *brna)
                            "within this distance.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "stabilize_normal", PROP_FLOAT, PROP_DISTANCE);
+  prop = RNA_def_property(srna, "stabilize_normal", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "stabilize_normal");
-  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
   RNA_def_property_ui_text(
       prop, "Stabilize Normal", "Stabilize the orientation of the brush plane.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "stabilize_plane", PROP_FLOAT, PROP_DISTANCE);
+  prop = RNA_def_property(srna, "stabilize_plane", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "stabilize_plane");
-  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
   RNA_def_property_ui_text(prop, "Stabilize Plane", "Stabilize the center of the brush plane.");
