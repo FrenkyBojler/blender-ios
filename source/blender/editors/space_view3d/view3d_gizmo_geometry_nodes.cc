@@ -233,15 +233,25 @@ class LinearGizmo : public NodeGizmos {
                                                                                         1.0f;
     float length;
     float line_width;
+    float scale;
     if (!params.get_input_value("Length", length) ||
-        !params.get_input_value("Width", line_width))
+        !params.get_input_value("Width", line_width) ||
+        !params.get_input_value("Scale", scale))
     {
       params.r_report.missing_socket_logs = true;
       return;
     }
 
     WM_gizmo_set_line_width(gizmo_, line_width);
-    RNA_float_set(gizmo_->ptr, "length", base_length * length);
+    if (line_width <= 0.0f) {
+      RNA_float_set(gizmo_->ptr, "length", 0.0f);
+    } else {
+      RNA_float_set(gizmo_->ptr, "length", base_length * length / scale);
+    }
+
+    /* Apply scale to box and cone */
+    float4x4 scale_matrix = math::from_scale<float4x4>(float3(scale));
+    copy_m4_m4(gizmo_->matrix_offset, scale_matrix.ptr());
 
     const ThemeColorID color_theme_id = get_gizmo_theme_color_id(
         GeometryNodeGizmoColor(storage.color_id));
@@ -253,6 +263,7 @@ class LinearGizmo : public NodeGizmos {
   {
     float3 position;
     float3 direction;
+    float scale;
     if (!params.get_input_value("Position", position) ||
         !params.get_input_value("Direction", direction))
     {
@@ -272,6 +283,7 @@ class LinearGizmo : public NodeGizmos {
     edit_data_.factor_from_transform = safe_divide(1.0f, math::length(gizmo_transform.z_axis()));
     make_matrix_orthonormal_but_keep_z_axis(gizmo_transform);
     copy_m4_m4(gizmo_->matrix_basis, gizmo_transform.ptr());
+
     return true;
   }
 
