@@ -4,7 +4,7 @@
 
 from bpy.types import Header, Panel
 from rna_prop_ui import PropertyPanel
-from .utils import draw_action_and_slot_selector_for_id
+from .anim import draw_action_and_slot_selector_for_id
 
 
 class PROPERTIES_HT_header(Header):

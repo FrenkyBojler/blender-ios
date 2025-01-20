@@ -7,7 +7,7 @@
 
 from bpy.types import Menu, UIList
 from bpy.app.translations import contexts as i18n_contexts
-from .utils import draw_action_and_slot_selector_for_id
+from .anim import draw_action_and_slot_selector_for_id
 
 
 # Use by both image & clip context menus.
