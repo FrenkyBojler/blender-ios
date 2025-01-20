@@ -1198,8 +1198,21 @@ static void do_version_glare_node_bloom_strength_recursive(
  * divide by 3. */
 static void do_version_color_to_float_conversion(bNodeTree *node_tree)
 {
+  /* Stores a mapping between an output and the final link of the versioning node tree that was
+   * added for it, in order to share the same versioning node tree with potentially multiple
+   * outgoing links from that same output. */
+  blender::Map<bNodeSocket *, bNodeLink *> color_to_float_links;
   LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree->links) {
     if (!(link->fromsock->type == SOCK_RGBA && link->tosock->type == SOCK_FLOAT)) {
+      continue;
+    }
+
+    /* If that output was versioned before, just connect the existing link. */
+    bNodeLink *existing_link = color_to_float_links.lookup_default(link->fromsock, nullptr);
+    if (existing_link) {
+      blender::bke::node_add_link(
+          node_tree, existing_link->fromnode, existing_link->fromsock, link->tonode, link->tosock);
+      blender::bke::node_remove_link(node_tree, link);
       continue;
     }
 
@@ -1248,8 +1261,11 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
     /* Link the multiply node output to the link target. */
     bNodeSocket *multiply_output = version_node_add_socket_if_not_exist(
         node_tree, multiply_node, SOCK_OUT, SOCK_FLOAT, PROP_NONE, "Value", "Value");
-    blender::bke::node_add_link(
+    bNodeLink *final_link = blender::bke::node_add_link(
         node_tree, multiply_node, multiply_output, link->tonode, link->tosock);
+
+    /* Add the new link to the cache. */
+    color_to_float_links.add_new(link->fromsock, final_link);
 
     /* Remove the old link. */
     blender::bke::node_remove_link(node_tree, link);
