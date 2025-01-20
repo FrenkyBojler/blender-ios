@@ -4,7 +4,7 @@
 
 from bpy.types import Header, Panel
 from rna_prop_ui import PropertyPanel
-from .anim import draw_action_and_slot_selector_for_id
+from . import anim
 
 
 class PROPERTIES_HT_header(Header):
@@ -123,7 +123,7 @@ class PropertiesAnimationMixin:
             layout.label(text="No animatable data-block, please report as bug", icon='ERROR')
             return
 
-        draw_action_and_slot_selector_for_id(layout, animated_id)
+        anim.draw_action_and_slot_selector_for_id(layout, animated_id)
 
 
 classes = (

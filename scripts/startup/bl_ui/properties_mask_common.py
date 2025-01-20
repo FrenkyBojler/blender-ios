@@ -7,7 +7,7 @@
 
 from bpy.types import Menu, UIList
 from bpy.app.translations import contexts as i18n_contexts
-from .anim import draw_action_and_slot_selector_for_id
+from . import anim
 
 
 # Use by both image & clip context menus.
@@ -245,7 +245,7 @@ class MASK_PT_animation:
         mask = sc.mask
 
         col = layout.column(align=True)
-        draw_action_and_slot_selector_for_id(col, mask)
+        anim.draw_action_and_slot_selector_for_id(col, mask)
 
 
 class MASK_PT_display:
