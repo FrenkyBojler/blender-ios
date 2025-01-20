@@ -256,8 +256,7 @@ void asset_library_on_save_post(Main *bmain,
   asset_lib->on_blend_save_post(bmain, pointers, num_pointers);
 
   if (asset_lib->library_type() == ASSET_LIBRARY_LOCAL) {
-    AssetLibraryService &library_service = *AssetLibraryService::get();
-    library_service.destroy_runtime_current_file_library();
+    AssetLibraryService::destroy_runtime_current_file_library();
   }
 }
 

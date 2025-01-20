@@ -207,7 +207,8 @@ void AssetLibraryService::reload_all_library_catalogs_if_dirty()
 
 void AssetLibraryService::destroy_runtime_current_file_library()
 {
-  current_file_library_ = nullptr;
+  AssetLibraryService &library_service = *AssetLibraryService::get();
+  library_service.current_file_library_ = nullptr;
 }
 
 AssetLibrary *AssetLibraryService::get_asset_library_all(const Main *bmain)
