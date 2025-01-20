@@ -651,7 +651,7 @@ static std::optional<std::string> rna_StripTransform_path(const PointerRNA *ptr)
   if (strip) {
     char name_esc[(sizeof(strip->name) - 2) * 2];
     BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
-    return fmt::format("sequence_editor.strips_all[\"{}\"].transform", name_esc);
+    return fmt::format("sequence_editor.sequences_all[\"{}\"].transform", name_esc);
   }
   return "";
 }
@@ -698,7 +698,7 @@ static std::optional<std::string> rna_StripCrop_path(const PointerRNA *ptr)
   if (strip) {
     char name_esc[(sizeof(strip->name) - 2) * 2];
     BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
-    return fmt::format("sequence_editor.strips_all[\"{}\"].crop", name_esc);
+    return fmt::format("sequence_editor.sequences_all[\"{}\"].crop", name_esc);
   }
   return "";
 }
@@ -762,12 +762,19 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
   /* Don't rename everywhere because these are per scene. */
 #  if 0
   BKE_animdata_fix_paths_rename_all(
-      nullptr, "sequence_editor.strips_all", oldname, strip->name + 2);
+      nullptr, "sequence_editor.sequences_all", oldname, strip->name + 2);
 #  endif
   adt = BKE_animdata_from_id(&scene->id);
   if (adt) {
-    BKE_animdata_fix_paths_rename(
-        &scene->id, adt, nullptr, "sequence_editor.strips_all", oldname, strip->name + 2, 0, 0, 1);
+    BKE_animdata_fix_paths_rename(&scene->id,
+                                  adt,
+                                  nullptr,
+                                  "sequence_editor.sequences_all",
+                                  oldname,
+                                  strip->name + 2,
+                                  0,
+                                  0,
+                                  1);
   }
 }
 
@@ -841,7 +848,7 @@ static std::optional<std::string> rna_Strip_path(const PointerRNA *ptr)
   char name_esc[(sizeof(strip->name) - 2) * 2];
 
   BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
-  return fmt::format("sequence_editor.strips_all[\"{}\"]", name_esc);
+  return fmt::format("sequence_editor.sequences_all[\"{}\"]", name_esc);
 }
 
 static IDProperty **rna_Strip_idprops(PointerRNA *ptr)
@@ -1179,13 +1186,13 @@ static std::optional<std::string> rna_StripColorBalance_path(const PointerRNA *p
 
     if (!smd) {
       /* Path to old filter color balance. */
-      return fmt::format("sequence_editor.strips_all[\"{}\"].color_balance", name_esc);
+      return fmt::format("sequence_editor.sequences_all[\"{}\"].color_balance", name_esc);
     }
     /* Path to modifier. */
     char name_esc_smd[sizeof(smd->name) * 2];
 
     BLI_str_escape(name_esc_smd, smd->name, sizeof(name_esc_smd));
-    return fmt::format("sequence_editor.strips_all[\"{}\"].modifiers[\"{}\"].color_balance",
+    return fmt::format("sequence_editor.sequences_all[\"{}\"].modifiers[\"{}\"].color_balance",
                        name_esc,
                        name_esc_smd);
   }
@@ -1339,7 +1346,7 @@ static std::optional<std::string> rna_StripModifier_path(const PointerRNA *ptr)
     BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
     BLI_str_escape(name_esc_smd, smd->name, sizeof(name_esc_smd));
     return fmt::format(
-        "sequence_editor.strips_all[\"{}\"].modifiers[\"{}\"]", name_esc, name_esc_smd);
+        "sequence_editor.sequences_all[\"{}\"].modifiers[\"{}\"]", name_esc, name_esc_smd);
   }
   return "";
 }
@@ -1370,7 +1377,7 @@ static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
     char strip_name_esc[(sizeof(strip->name) - 2) * 2];
     BLI_str_escape(strip_name_esc, strip->name + 2, sizeof(strip_name_esc));
 
-    SNPRINTF(rna_path_prefix, "sequence_editor.strips_all[\"%s\"].modifiers", strip_name_esc);
+    SNPRINTF(rna_path_prefix, "sequence_editor.sequences_all[\"%s\"].modifiers", strip_name_esc);
     BKE_animdata_fix_paths_rename(
         &scene->id, adt, nullptr, rna_path_prefix, oldname, smd->name, 0, 0, 1);
   }
@@ -1578,7 +1585,7 @@ static std::optional<std::string> rna_SeqTimelineChannel_path(const PointerRNA *
   char owner_name_esc[(sizeof(channel_owner->name) - 2) * 2];
   BLI_str_escape(owner_name_esc, channel_owner->name + 2, sizeof(owner_name_esc));
   return fmt::format(
-      "sequence_editor.strips_all[\"{}\"].channels[\"{}\"]", owner_name_esc, channel_name_esc);
+      "sequence_editor.sequences_all[\"{}\"].channels[\"{}\"]", owner_name_esc, channel_name_esc);
 }
 
 static EQCurveMappingData *rna_Strip_SoundEqualizer_Curve_add(SoundEqualizerModifierData *semd,
@@ -2693,6 +2700,24 @@ static void rna_def_movie_types(StructRNA *srna)
   RNA_def_property_float_funcs(prop, "rna_Strip_fps_get", nullptr, nullptr);
 }
 
+static void rna_def_retiming_keys(StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "retiming_keys", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "retiming_keys", nullptr);
+  RNA_def_property_struct_type(prop, "RetimingKey");
+  RNA_def_property_ui_text(prop, "Retiming Keys", "");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_Strip_retiming_keys_begin",
+                                    "rna_iterator_array_next",
+                                    "rna_iterator_array_end",
+                                    "rna_iterator_array_get",
+                                    "rna_Strip_retiming_keys_length",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_srna(prop, "RetimingKeys");
+}
+
 static void rna_def_image(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2721,6 +2746,8 @@ static void rna_def_image(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   RNA_api_strip_elements(brna, prop);
+
+  rna_def_retiming_keys(srna);
 
   /* multiview */
   prop = RNA_def_property(srna, "use_multiview", PROP_BOOLEAN, PROP_NONE);
@@ -2832,6 +2859,7 @@ static void rna_def_scene(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Use Annotations", "Show Annotations in OpenGL previews");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
+  rna_def_retiming_keys(srna);
   rna_def_audio_options(srna);
   rna_def_filter_video(srna);
   rna_def_proxy(srna);
@@ -2873,20 +2901,7 @@ static void rna_def_movie(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
 
-  prop = RNA_def_property(srna, "retiming_keys", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "retiming_keys", nullptr);
-  RNA_def_property_struct_type(prop, "RetimingKey");
-  RNA_def_property_ui_text(prop, "Retiming Keys", "");
-  RNA_def_property_collection_funcs(prop,
-                                    "rna_Strip_retiming_keys_begin",
-                                    "rna_iterator_array_next",
-                                    "rna_iterator_array_end",
-                                    "rna_iterator_array_get",
-                                    "rna_Strip_retiming_keys_length",
-                                    nullptr,
-                                    nullptr,
-                                    nullptr);
-  RNA_api_strip_retiming_keys(brna, prop);
+  rna_def_retiming_keys(srna);
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File", "");
@@ -3032,6 +3047,7 @@ static void rna_def_sound(BlenderRNA *brna)
       prop, "Display Waveform", "Display the audio waveform inside the strip");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
+  rna_def_retiming_keys(srna);
   rna_def_input(srna);
 }
 
@@ -3955,6 +3971,8 @@ void RNA_def_sequencer(BlenderRNA *brna)
   rna_def_effects(brna);
   rna_def_modifiers(brna);
   rna_def_sound_modifiers(brna);
+
+  RNA_api_strip_retiming_keys(brna);
 }
 
 #endif
