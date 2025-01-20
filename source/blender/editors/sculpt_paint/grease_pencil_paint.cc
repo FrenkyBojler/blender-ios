@@ -354,8 +354,9 @@ struct PaintOperationExecutor {
       random_factor *= BKE_curvemapping_evaluateF(settings_->curve_rand_pressure, 0, pressure);
     }
 
-    return math::interpolate(
+    const float randomized_radius = math::interpolate(
         radius, radius * (1.0f + random_factor), settings_->draw_random_press);
+    return math::max(randomized_radius, 0.0f);
   }
 
   float randomize_opacity(PaintOperation &self,
@@ -381,7 +382,9 @@ struct PaintOperationExecutor {
       random_factor *= BKE_curvemapping_evaluateF(settings_->curve_rand_strength, 0, pressure);
     }
 
-    return math::interpolate(opacity, opacity + random_factor, settings_->draw_random_strength);
+    const float randomized_opacity = math::interpolate(
+        opacity, opacity + random_factor, settings_->draw_random_strength);
+    return math::clamp(randomized_opacity, 0.0f, 1.0f);
   }
 
   float randomize_rotation(PaintOperation &self, const float pressure)
@@ -471,6 +474,9 @@ struct PaintOperationExecutor {
     else if (hsv[0] < 0.0f) {
       hsv[0] += 1.0f;
     }
+
+    hsv[1] = math::clamp(hsv[1], 0.0f, 1.0f);
+    hsv[2] = math::clamp(hsv[2], 0.0f, 1.0f);
 
     ColorGeometry4f random_color;
     hsv_to_rgb_v(hsv, random_color);
