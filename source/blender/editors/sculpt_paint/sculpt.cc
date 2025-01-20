@@ -1975,18 +1975,19 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
 
 /*
  * Stabilizes the position (center) and orientation (normal) of the brush plane during a stroke.
- * Implements a smoothing mechanism based on a weighted moving average.
+ * Implements a smoothing mechanism based on a weighted moving average for both the plane normal
+ * and the plane center.
  *
- * The stabilized normal is computed as the average of the last `normal_max_index`
- * plane normals, where `max_normal_index` is determined by the `stabilize_normal` parameter of the
- * brush. Each new plane normal is interpolated with the previous plane normal, with
- * `stabilize_normal` controlling the interpolation factor.
+ * The stabilized normal (`r_stabilized_normal`) is computed as the average of the last
+ * `max_normal_index` plane normals, where `max_normal_index` is determined by the
+ * `stabilize_normal` parameter of the brush. Each new plane normal is interpolated with the
+ * previous plane normal, with `stabilize_normal` controlling the interpolation factor.
  *
- * Similarly, the stabilized center is computed as the average of the last `max_center_index`
- * plane centers, where `max_center_index` is determined by `stabilize_plane`.
- * The newest plane center added to the averaging window is a weighted average
- * between the new, not-yet-stabilized plane center and its projection onto the
- * plane of the previous stroke step.
+ * The stabilized center (`r_stabilized_center`) is computed based on the signed distances
+ * of the stored plane centers from a reference plane defined by the current stroke step's center
+ * and the stabilized normal. The signed distances are averaged, and this average is used to
+ * adjust the position of the stabilized center such that it maintains the average offset of the
+ * stored centers relative to the reference plane.
  */
 static void calc_stabilized_plane(const Brush &brush,
                                   StrokeCache &cache,
@@ -2040,18 +2041,27 @@ static void calc_stabilized_plane(const Brush &brush,
   plane_cache.center_index = (plane_cache.center_index + 1) % plane_cache.max_center_index;
 
   r_stabilized_normal = float3(0.0f);
-  r_stabilized_center = float3(0.0f);
 
   for (int i = 0; i < plane_cache.max_normal_index; i++) {
     r_stabilized_normal += plane_cache.normals[i];
   }
+  r_stabilized_normal = math::normalize(r_stabilized_normal);
+
+  float4 reference_plane;
+  plane_from_point_normal_v3(reference_plane, new_plane_center, r_stabilized_normal);
+  float total_signed_distance = 0.0f;
 
   for (int i = 0; i < plane_cache.max_center_index; i++) {
-    r_stabilized_center += plane_cache.centers[i];
+    float signed_distance = math::dot(r_stabilized_normal, plane_cache.centers[i]) -
+                            reference_plane.w;
+    total_signed_distance += signed_distance;
   }
 
-  r_stabilized_normal = math::normalize(r_stabilized_normal);
-  r_stabilized_center /= plane_cache.max_center_index;
+  const float avg_signed_distance = total_signed_distance / plane_cache.max_center_index;
+  const float new_center_signed_distance = math::dot(r_stabilized_normal, new_plane_center) -
+                                           reference_plane.w;
+  const float adjusted_distance = new_center_signed_distance - avg_signed_distance;
+  r_stabilized_center = new_plane_center - r_stabilized_normal * adjusted_distance;
 
   plane_cache.last_normal = r_stabilized_normal;
   plane_cache.last_center = r_stabilized_center;
