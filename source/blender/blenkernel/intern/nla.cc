@@ -2115,12 +2115,12 @@ void BKE_nla_validate_state(AnimData *adt)
 /* name of stashed tracks - the translation stuff is included here to save extra work */
 #define STASH_TRACK_NAME DATA_("[Action Stash]")
 
-bool BKE_nla_action_is_stashed(AnimData *adt, bAction *act)
+bool BKE_nla_action_is_stashed(AnimData *adt, bAction *act, int32_t slot_handle)
 {
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
     if (strstr(nlt->name, STASH_TRACK_NAME)) {
       LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {
-        if (strip->act == act) {
+        if (strip->act == act && strip->action_slot_handle == slot_handle) {
           return true;
         }
       }
@@ -2144,7 +2144,7 @@ bool BKE_nla_action_stash(const OwnedAnimData owned_adt, const bool is_liboverri
   }
 
   /* do not add if it is already stashed */
-  if (BKE_nla_action_is_stashed(adt, adt->action)) {
+  if (BKE_nla_action_is_stashed(adt, adt->action, adt->slot_handle)) {
     return false;
   }
 
