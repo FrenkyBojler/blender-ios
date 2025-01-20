@@ -2115,7 +2115,9 @@ void BKE_nla_validate_state(AnimData *adt)
 /* name of stashed tracks - the translation stuff is included here to save extra work */
 #define STASH_TRACK_NAME DATA_("[Action Stash]")
 
-bool BKE_nla_action_is_stashed(AnimData *adt, bAction *act, int32_t slot_handle)
+bool BKE_nla_action_is_stashed(AnimData *adt,
+                               bAction *act,
+                               blender::animrig::slot_handle_t slot_handle)
 {
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
     if (strstr(nlt->name, STASH_TRACK_NAME)) {
