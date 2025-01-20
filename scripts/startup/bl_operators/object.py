@@ -220,7 +220,13 @@ class SubdivisionSet(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     level: IntProperty(
-        name="Level",
+        name="Viewport Level",
+        min=-100, max=100,
+        soft_min=-6, soft_max=6,
+        default=1,
+    )
+    render_level: IntProperty(
+        name="Render Level",
         min=-100, max=100,
         soft_min=-6, soft_max=6,
         default=1,
@@ -238,13 +244,17 @@ class SubdivisionSet(Operator):
 
     def execute(self, context):
         level = self.level
+        render_level = self.render_level
         relative = self.relative
 
         if relative and level == 0:
             return {'CANCELLED'}  # nothing to do
 
-        if not relative and level < 0:
-            self.level = level = 0
+        if not self.relative:
+            if self.level < 0:
+                self.level = level = 0
+            if self.render_level < 0:
+                self.render_level = render_level = 0
 
         def set_object_subd(obj):
             for mod in obj.modifiers:
@@ -274,9 +284,10 @@ class SubdivisionSet(Operator):
                 elif mod.type == 'SUBSURF':
                     if relative:
                         mod.levels += level
+                        mod.render_levels += render_level
                     else:
-                        if mod.levels != level:
-                            mod.levels = level
+                        mod.levels = level
+                        mod.render_levels = render_level
 
                     return
 
@@ -290,6 +301,7 @@ class SubdivisionSet(Operator):
                 else:
                     mod = obj.modifiers.new("Subdivision", 'SUBSURF')
                     mod.levels = level
+                    mod.render_levels = render_level
             except Exception:
                 self.report({'WARNING'}, "Modifiers cannot be added to object: " + obj.name)
 
