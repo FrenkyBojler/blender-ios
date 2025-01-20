@@ -1188,6 +1188,25 @@ static void do_version_glare_node_bloom_strength_recursive(
   node_trees_already_versioned.add_new(node_tree);
 }
 
+static void do_version_viewer_shortcut(Main *bmain)
+{
+  blender::Set<bNodeTree *> node_trees_already_versioned;
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    bNodeTree *node_tree = scene->nodetree;
+    if (!node_tree || node_tree->type != NTREE_COMPOSIT) {
+      continue;
+    }
+
+    LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+      if (!node->is_type("CompositorNodeViewer")) {
+        continue;
+      }
+      /* custom1 was previously used for Tile Order for the Tiled Compositor. */
+      node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
+    }
+  }
+}
+
 static bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines)
 {
   if (!bmain->scenes.first) {
@@ -1490,6 +1509,10 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
       }
       node_trees_already_versioned.add_new(node_tree);
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 24)) {
+    do_version_viewer_shortcut(bmain);
   }
 
   /**
