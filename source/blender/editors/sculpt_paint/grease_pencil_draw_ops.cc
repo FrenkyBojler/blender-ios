@@ -1059,7 +1059,7 @@ static void grease_pencil_fill_status_indicators(bContext &C,
   WorkspaceStatus status(&C);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Fill"), ICON_MOUSE_LMB);
-  status.item(fmt::format("{} : {:.3f}", IFACE_("Length"), op_data.extension_length),
+  status.item(fmt::format("{} ({:.3f})", IFACE_("Length"), op_data.extension_length),
               ICON_MOUSE_MMB_SCROLL);
   status.item_bool(IFACE_("Radius"), !is_extend, ICON_EVENT_S);
   if (is_extend) {
