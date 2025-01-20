@@ -209,6 +209,7 @@ class IndexMask : private IndexMaskData {
   static IndexMask from_bools(const IndexMask &universe,
                               const VArray<bool> &bools,
                               IndexMaskMemory &memory);
+  /** Construct a mask from the ranges referenced by the offset indices. */
   template<typename T>
   static IndexMask from_offset_indices(OffsetIndices<T> offsets,
                                        const IndexMask &mask,
@@ -586,6 +587,10 @@ template<typename T> void build_reverse_map(const IndexMask &mask, MutableSpan<T
 int64_t consolidate_index_mask_segments(MutableSpan<IndexMaskSegment> segments,
                                         IndexMaskMemory &memory);
 
+/**
+ * Adds index mask segments to the the vector for the given range. Ranges shorter than
+ * #max_segment_size fit into a single segment. Larger ranges are split into multiple segments.
+ */
 template<int64_t N>
 void index_range_to_mask_segments(const IndexRange range, Vector<IndexMaskSegment, N> &r_segments);
 
