@@ -234,7 +234,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
   /* Temporary vector of screen space offsets  */
   Vector<float2> screen_space_jitter_offsets_;
   /* Projection planes for every point in "Stroke" placement mode. */
-  Vector<float> stroke_placement_depths_;
+  Vector<std::optional<float>> stroke_placement_depths_;
 
   /* Screen space coordinates after smoothing. */
   Vector<float2> screen_space_smoothed_coords_;
@@ -637,8 +637,9 @@ struct PaintOperationExecutor {
     curves.update_curve_types();
 
     if (self.placement_.use_project_to_stroke()) {
-      self.stroke_placement_depths_.append(
-          self.stroke_placement_depths_.is_empty() ? 0.0f : self.stroke_placement_depths_.last());
+      self.stroke_placement_depths_.append(self.stroke_placement_depths_.is_empty() ?
+                                               std::nullopt :
+                                               self.stroke_placement_depths_.last());
       /* Initialize the snap point. */
       self.update_stroke_depth_placement(C, start_sample);
     }
@@ -764,12 +765,13 @@ struct PaintOperationExecutor {
     MutableSpan<float3> positions_slice = curve_positions.slice(active_window);
     if (self.placement_.use_project_to_stroke()) {
       BLI_assert(self.stroke_placement_depths_.size() == self.screen_space_coords_orig_.size());
-      const Span<float> stroke_depths = self.stroke_placement_depths_.as_span().slice(
-          active_window);
+      const Span<std::optional<float>> stroke_depths =
+          self.stroke_placement_depths_.as_span().slice(active_window);
       for (const int64_t window_i : active_window.index_range()) {
         final_coords[window_i] = smoothed_coords[window_i] + jitter_slice[window_i];
-        positions_slice[window_i] = self.placement_.place(final_coords[window_i],
-                                                          stroke_depths[window_i]);
+        const std::optional<float> depth = stroke_depths[window_i];
+        positions_slice[window_i] = depth ? self.placement_.place(final_coords[window_i], *depth) :
+                                            self.placement_.project(final_coords[window_i]);
       }
     }
     else {
@@ -998,13 +1000,10 @@ struct PaintOperationExecutor {
       self.screen_space_curve_fitted_coords_.append(Vector<float2>({new_position}));
     }
     if (self.placement_.use_project_to_stroke()) {
-      const float depth = self.stroke_placement_depths_.is_empty() ?
-                              0.0f :
-                              self.stroke_placement_depths_.last();
-      self.stroke_placement_depths_.append_n_times(depth, new_points_num);
-    }
-    else {
-      self.stroke_placement_depths_.append_n_times(0.0f, new_points_num);
+      const std::optional<float> last_depth = self.stroke_placement_depths_.is_empty() ?
+                                                  std::nullopt :
+                                                  self.stroke_placement_depths_.last();
+      self.stroke_placement_depths_.append_n_times(last_depth, new_points_num);
     }
 
     /* Only start smoothing if there are enough points. */
@@ -1041,11 +1040,14 @@ struct PaintOperationExecutor {
       MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
       if (self.placement_.use_project_to_stroke()) {
         BLI_assert(self.stroke_placement_depths_.size() == self.screen_space_coords_orig_.size());
-        const Span<float> stroke_depths = self.stroke_placement_depths_.as_mutable_span().slice(
-            smooth_window);
+        const Span<std::optional<float>> stroke_depths =
+            self.stroke_placement_depths_.as_mutable_span().slice(smooth_window);
         for (const int64_t window_i : smooth_window.index_range()) {
-          curve_positions_slice[window_i] = self.placement_.place(final_coords[window_i],
-                                                                  stroke_depths[window_i]);
+          const std::optional<float> depth = stroke_depths[window_i];
+          curve_positions_slice[window_i] = depth ?
+                                                self.placement_.place(final_coords[window_i],
+                                                                      *depth) :
+                                                self.placement_.project(final_coords[window_i]);
         }
       }
       else {
@@ -1137,12 +1139,15 @@ bool PaintOperation::update_stroke_depth_placement(const bContext &C, const Inpu
       const float end_depth = *new_stroke_placement_depth;
       const IndexRange reprojected_points = this->interpolate_stroke_depth(
           C, last_stroke_placement_point_, start_depth, end_depth);
-      /* Only reproject newly added points next time a hit point is found. */
-      if (!reprojected_points.is_empty() && !last_stroke_placement_depth_) {
-        last_stroke_placement_point_ = reprojected_points.one_after_last();
-      }
 
-      last_stroke_placement_depth_ = new_stroke_placement_depth;
+      /* Only update depth on the first hit. */
+      if (!last_stroke_placement_depth_) {
+        /* Keep reprojecting all points from the first hit onward. */
+        if (!reprojected_points.is_empty()) {
+          last_stroke_placement_point_ = reprojected_points.one_after_last();
+        }
+        last_stroke_placement_depth_ = new_stroke_placement_depth;
+      }
       break;
     }
     case StrokeSnapMode::FirstPoint: {
@@ -1199,7 +1204,7 @@ IndexRange PaintOperation::interpolate_stroke_depth(const bContext &C,
   /* Point slice relative to the curve, valid for 2D coordinate array. */
   const IndexRange active_curve_points = active_points.shift(-all_points.start());
 
-  MutableSpan<float> depths = stroke_placement_depths_.as_mutable_span().slice(
+  MutableSpan<std::optional<float>> depths = stroke_placement_depths_.as_mutable_span().slice(
       active_curve_points);
   MutableSpan<float3> positions = drawing.strokes_for_write().positions_for_write().slice(
       active_points);
@@ -1209,7 +1214,7 @@ IndexRange PaintOperation::interpolate_stroke_depth(const bContext &C,
   for (const int i : positions.index_range()) {
     /* Update the placement depth for later reprojection (active smoothing). */
     depths[i] = math::interpolate(from_depth, to_depth, float(i) * step_size);
-    positions[i] = placement_.place(final_coords[i], depths[i]);
+    positions[i] = placement_.place(final_coords[i], *depths[i]);
   }
 
   return active_points;
