@@ -30,7 +30,7 @@ namespace blender::compositor {
 RealizeOnDomainOperation::RealizeOnDomainOperation(Context &context,
                                                    Domain target_domain,
                                                    ResultType type)
-    : SimpleOperation(context), target_domain_(domain)
+    : SimpleOperation(context), target_domain_(target_domain)
 {
   InputDescriptor input_descriptor;
   input_descriptor.type = type;
