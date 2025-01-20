@@ -757,15 +757,18 @@ static void add_flat_items_for_panel(bNode &node,
       add_flat_items_for_socket(node, *socket_decl, &panel_decl, prev_socket_decl, r_items);
       prev_socket_decl = socket_decl;
     }
-    else if (const auto *sub_panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl))
-    {
-      add_flat_items_for_panel(node, *sub_panel_decl, panel_visibility, r_items);
-    }
-    else if (dynamic_cast<const nodes::SeparatorDeclaration *>(item_decl)) {
-      add_flat_items_for_separator(r_items);
-    }
-    else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl)) {
-      add_flat_items_for_layout(node, *layout_decl, r_items);
+    else {
+      if (const auto *sub_panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl)) {
+        add_flat_items_for_panel(node, *sub_panel_decl, panel_visibility, r_items);
+      }
+      else if (dynamic_cast<const nodes::SeparatorDeclaration *>(item_decl)) {
+        add_flat_items_for_separator(r_items);
+      }
+      else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl))
+      {
+        add_flat_items_for_layout(node, *layout_decl, r_items);
+      }
+      prev_socket_decl = nullptr;
     }
   }
   r_items.append({flat_item::PanelContentEnd{&panel_decl}});
@@ -791,14 +794,18 @@ static Vector<FlatNodeItem> make_flat_node_items(bNode &node)
       add_flat_items_for_socket(node, *socket_decl, nullptr, prev_socket_decl, items);
       prev_socket_decl = socket_decl;
     }
-    else if (const auto *panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl)) {
-      add_flat_items_for_panel(node, *panel_decl, panel_visibility, items);
-    }
-    else if (dynamic_cast<const nodes::SeparatorDeclaration *>(item_decl)) {
-      add_flat_items_for_separator(items);
-    }
-    else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl)) {
-      add_flat_items_for_layout(node, *layout_decl, items);
+    else {
+      if (const auto *panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl)) {
+        add_flat_items_for_panel(node, *panel_decl, panel_visibility, items);
+      }
+      else if (dynamic_cast<const nodes::SeparatorDeclaration *>(item_decl)) {
+        add_flat_items_for_separator(items);
+      }
+      else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl))
+      {
+        add_flat_items_for_layout(node, *layout_decl, items);
+      }
+      prev_socket_decl = nullptr;
     }
   }
   return items;
