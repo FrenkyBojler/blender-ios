@@ -48,6 +48,7 @@ namespace greasepencil {
 
 /* Get list of drawings the tool should be operating on. */
 Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_stroke_operation(const bContext &C);
+Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_with_masking_for_stroke_operation(const bContext &C);
 /* Get the brush radius accounting for pen pressure. */
 float brush_radius(const Scene &scene, const Brush &brush, float pressure);
 
@@ -170,7 +171,7 @@ class GreasePencilStrokeOperationCommon : public GreasePencilStrokeOperation {
   /** Previous mouse position for computing the direction. */
   float2 prev_mouse_position;
 
-  /* When auto-masking is used, this contains the index mask of the elements are affected. */
+  /* When auto-masking is used, this contains the index mask of the elements that are affected. */
   struct AutoMaskingInfo {
     IndexMask point_mask;
     IndexMaskMemory memory;
@@ -186,7 +187,7 @@ class GreasePencilStrokeOperationCommon : public GreasePencilStrokeOperation {
   float2 mouse_delta(const InputSample &input_sample) const;
 
   void init_stroke(const bContext &C, const InputSample &start_sample);
-  void init_automasking_info(const bContext &C, const InputSample &start_sample);
+  void init_auto_masking(const bContext &C, const InputSample &start_sample);
   void stroke_extended(const InputSample &extension_sample);
 
   void foreach_editable_drawing_with_automask(

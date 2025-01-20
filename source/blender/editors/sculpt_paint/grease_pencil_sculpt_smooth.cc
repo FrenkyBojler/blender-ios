@@ -57,6 +57,7 @@ void SmoothOperation::on_stroke_begin(const bContext &C, const InputSample &star
   else {
     this->init_stroke(C, start_sample);
   }
+  this->init_auto_masking(C, start_sample);
 }
 
 void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)

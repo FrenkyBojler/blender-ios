@@ -34,6 +34,7 @@ class ThicknessOperation : public GreasePencilStrokeOperationCommon {
 void ThicknessOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
   this->init_stroke(C, start_sample);
+  this->init_auto_masking(C, start_sample);
 }
 
 void ThicknessOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)

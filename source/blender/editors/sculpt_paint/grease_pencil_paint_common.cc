@@ -37,6 +37,20 @@ Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_stroke_operation(c
   Object &ob_orig = *CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
 
+  /* Apply to all editable drawings. */
+  return ed::greasepencil::retrieve_editable_drawings_with_falloff(scene, grease_pencil);
+}
+
+Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_with_masking_for_stroke_operation(
+    const bContext &C)
+{
+  using namespace blender::bke::greasepencil;
+
+  const Scene &scene = *CTX_data_scene(&C);
+  const ToolSettings &ts = *CTX_data_tool_settings(&C);
+  Object &ob_orig = *CTX_data_active_object(&C);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
+
   const bool active_layer_masking = (ts.gp_sculpt.flag &
                                      GP_SCULPT_SETT_FLAG_AUTOMASK_LAYER_ACTIVE) != 0;
 
@@ -393,35 +407,6 @@ float2 GreasePencilStrokeOperationCommon::mouse_delta(const InputSample &input_s
   return input_sample.mouse_position - this->prev_mouse_position;
 }
 
-static IndexMask point_mask_for_automasking(const GreasePencilStrokeParams &params,
-                                            const bool use_selection_masking,
-                                            IndexMaskMemory &memory)
-{
-  const IndexMask editable_points =
-      use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_points(
-                                  params.ob_orig, params.drawing, params.layer_index, memory) :
-                              ed::greasepencil::retrieve_editable_points(
-                                  params.ob_orig, params.drawing, params.layer_index, memory);
-  const bool use_active_material_masking = (params.toolsettings.gp_sculpt.flag &
-                                            GP_SCULPT_SETT_FLAG_AUTOMASK_MATERIAL_ACTIVE) != 0;
-  if (use_active_material_masking) {
-    const int active_material_index = math::max(params.ob_orig.actcol - 1, 0);
-
-    const bke::greasepencil::Drawing &drawing = params.drawing;
-    const bke::CurvesGeometry &curves = drawing.strokes();
-    const bke::AttributeAccessor attributes = curves.attributes();
-
-    const VArray<int> materials = *attributes.lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Point, 0);
-    const IndexMask active_material_mask = IndexMask::from_predicate(
-        curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
-          return active_material_index == materials[point_i];
-        });
-    return IndexMask::from_intersection(active_material_mask, editable_points, memory);
-  }
-  return editable_points;
-}
-
 void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
     const bContext &C,
     FunctionRef<bool(const GreasePencilStrokeParams &params, const IndexMask &point_mask)> fn)
@@ -436,15 +421,11 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
   Object &object = *CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
-  const bool use_sculpt_selection_masking =
-      (eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt) &
-       (GP_SCULPT_MASK_SELECTMODE_POINT | GP_SCULPT_MASK_SELECTMODE_STROKE |
-        GP_SCULPT_MASK_SELECTMODE_SEGMENT)) != 0;
-
   std::atomic<bool> changed = false;
-  const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
+  const Vector<MutableDrawingInfo> drawings = get_drawings_with_masking_for_stroke_operation(C);
   for (const int64_t i : drawings.index_range()) {
     const MutableDrawingInfo &info = drawings[i];
+    const AutoMaskingInfo &auto_mask_info = this->auto_masking_info_per_drawing[i];
     GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
         scene,
         depsgraph,
@@ -456,14 +437,7 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
         info.multi_frame_falloff,
         info.drawing);
 
-    IndexMaskMemory memory;
-    const IndexMask point_mask = point_mask_for_automasking(
-        params, use_sculpt_selection_masking, memory);
-    if (point_mask.is_empty()) {
-      continue;
-    }
-
-    if (fn(params, point_mask)) {
+    if (fn(params, auto_mask_info.point_mask)) {
       changed = true;
     }
   }
@@ -490,18 +464,12 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
   Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
-  const bool use_selection_masking =
-      (eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt) &
-       (GP_SCULPT_MASK_SELECTMODE_POINT | GP_SCULPT_MASK_SELECTMODE_STROKE |
-        GP_SCULPT_MASK_SELECTMODE_SEGMENT)) != 0;
-
   std::atomic<bool> changed = false;
-  const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
+  const Vector<MutableDrawingInfo> drawings = get_drawings_with_masking_for_stroke_operation(C);
   threading::parallel_for_each(drawings.index_range(), [&](const int i) {
     const MutableDrawingInfo &info = drawings[i];
     const Layer &layer = grease_pencil.layer(info.layer_index);
-    // const AutoMaskingInfo &automask_info = this->auto_masking_info_per_drawing[i];
-
+    const AutoMaskingInfo &auto_mask_info = this->auto_masking_info_per_drawing[i];
     const GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
         scene,
         depsgraph,
@@ -513,15 +481,8 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
         info.multi_frame_falloff,
         info.drawing);
 
-    IndexMaskMemory memory;
-    const IndexMask point_mask = point_mask_for_automasking(params, use_selection_masking, memory);
-    if (point_mask.is_empty()) {
-      return;
-    }
-
     const DeltaProjectionFunc projection_fn = get_screen_projection_fn(params, object_eval, layer);
-
-    if (fn(params, point_mask, projection_fn)) {
+    if (fn(params, auto_mask_info.point_mask, projection_fn)) {
       changed = true;
     }
   });
@@ -622,34 +583,205 @@ void GreasePencilStrokeOperationCommon::init_stroke(const bContext &C,
   this->prev_mouse_position = start_sample.mouse_position;
 }
 
-// static void get_automasking_mask_from_start_sample() {}
+static IndexMask point_mask_for_automasking(const GreasePencilStrokeParams &params,
+                                            const bool use_selection_masking,
+                                            const IndexMask &init_point_mask,
+                                            IndexMaskMemory &memory)
+{
+  const IndexMask editable_points =
+      use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_points(
+                                  params.ob_orig, params.drawing, params.layer_index, memory) :
+                              ed::greasepencil::retrieve_editable_points(
+                                  params.ob_orig, params.drawing, params.layer_index, memory);
+  const eGP_Sculpt_SettingsFlag sculpt_settings_flag = eGP_Sculpt_SettingsFlag(
+      params.toolsettings.gp_sculpt.flag);
+  const bool use_active_material_masking = (sculpt_settings_flag &
+                                            GP_SCULPT_SETT_FLAG_AUTOMASK_MATERIAL_ACTIVE) != 0;
 
-void GreasePencilStrokeOperationCommon::init_automasking_info(const bContext &C,
-                                                              const InputSample &start_sample)
+  const bool use_auto_mask_stroke = (sculpt_settings_flag & GP_SCULPT_SETT_FLAG_AUTOMASK_STROKE);
+  const bool use_auto_mask_layer = (sculpt_settings_flag &
+                                    GP_SCULPT_SETT_FLAG_AUTOMASK_LAYER_STROKE);
+  const bool use_auto_mask_material = (sculpt_settings_flag &
+                                       GP_SCULPT_SETT_FLAG_AUTOMASK_MATERIAL_STROKE);
+  if (use_active_material_masking) {
+    const int active_material_index = math::max(params.ob_orig.actcol - 1, 0);
+
+    const bke::greasepencil::Drawing &drawing = params.drawing;
+    const bke::CurvesGeometry &curves = drawing.strokes();
+    const bke::AttributeAccessor attributes = curves.attributes();
+
+    const VArray<int> materials = *attributes.lookup_or_default<int>(
+        "material_index", bke::AttrDomain::Point, 0);
+    const IndexMask active_material_mask = IndexMask::from_predicate(
+        curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+          return active_material_index == materials[point_i];
+        });
+    return IndexMask::from_intersection(active_material_mask, editable_points, memory);
+  }
+  return editable_points;
+}
+
+void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
+                                                          const InputSample &start_sample)
 {
   const Scene &scene = *CTX_data_scene(&C);
+  ARegion &region = *CTX_wm_region(&C);
+  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
+  Object &object = *CTX_data_active_object(&C);
   Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
+  Paint &paint = *BKE_paint_get_active_from_context(&C);
+  const Brush &brush = *BKE_paint_brush(&paint);
 
-  const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
+  const eGP_Sculpt_SelectMaskFlag sculpt_selection_flag = eGP_Sculpt_SelectMaskFlag(
+      scene.toolsettings->gpencil_selectmode_sculpt);
+  const bool use_sculpt_selection_masking = (sculpt_selection_flag &
+                                             (GP_SCULPT_MASK_SELECTMODE_POINT |
+                                              GP_SCULPT_MASK_SELECTMODE_STROKE |
+                                              GP_SCULPT_MASK_SELECTMODE_SEGMENT)) != 0;
+
+  const eGP_Sculpt_SettingsFlag sculpt_settings_flag = eGP_Sculpt_SettingsFlag(
+      scene.toolsettings->gp_sculpt.flag);
+  const bool use_auto_mask_stroke = (sculpt_settings_flag & GP_SCULPT_SETT_FLAG_AUTOMASK_STROKE);
+  const bool use_auto_mask_layer = (sculpt_settings_flag &
+                                    GP_SCULPT_SETT_FLAG_AUTOMASK_LAYER_STROKE);
+  const bool use_auto_mask_material = (sculpt_settings_flag &
+                                       GP_SCULPT_SETT_FLAG_AUTOMASK_MATERIAL_STROKE);
+  const bool use_active_auto_masking = use_auto_mask_stroke || use_auto_mask_layer ||
+                                       use_auto_mask_material;
+
+  const float radius = brush_radius(scene, brush);
+  const int2 mval_i = int2(math::round(start_sample.mouse_position));
+
+  const Vector<MutableDrawingInfo> drawings = get_drawings_with_masking_for_stroke_operation(C);
 
   this->auto_masking_info_per_drawing.reinitialize(drawings.size());
+
+  // Vector<MutableDrawingInfo> masked_drawings;
+  // Vector<Vector<int>> masked_strokes_per_masked_drawing;
+  VectorSet<int> masked_material_indices;
+  // if (use_active_auto_masking) {
+  for (const int drawing_i : drawings.index_range()) {
+    const MutableDrawingInfo &drawing_info = drawings[drawing_i];
+    AutoMaskingInfo &automask_info = this->auto_masking_info_per_drawing[drawing_i];
+    GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
+        scene,
+        depsgraph,
+        region,
+        rv3d,
+        object,
+        drawing_info.layer_index,
+        drawing_info.frame_number,
+        drawing_info.multi_frame_falloff,
+        drawing_info.drawing);
+    automask_info.point_mask = point_selection_mask(
+        params, use_sculpt_selection_masking, automask_info.memory);
+    if (automask_info.point_mask.is_empty()) {
+      continue;
+    }
+
+    if (use_active_auto_masking) {
+      Array<float2> view_positions = calculate_view_positions(params, automask_info.point_mask);
+      const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+
+      IndexMaskMemory memory;
+      const IndexMask stroke_selection = stroke_selection_mask(
+          params, use_sculpt_selection_masking, memory);
+      const IndexMask strokes_under_brush = IndexMask::from_predicate(
+          stroke_selection, GrainSize(512), memory, [&](const int curve_i) {
+            for (const int point_i : points_by_curve[curve_i]) {
+              const float distance = math::distance(mval_i, int2(view_positions[point_i]));
+              if (distance <= radius) {
+                return true;
+              }
+            }
+            return false;
+          });
+      if (strokes_under_brush.is_empty()) {
+        continue;
+      }
+
+      if (use_auto_mask_stroke) {
+        // Vector<int> stroke_indices(strokes_under_brush.size());
+        // strokes_under_brush.to_indices(stroke_indices.as_mutable_span());
+        // masked_strokes_per_masked_drawing.append(std::move(stroke_indices));
+      }
+
+      if (use_auto_mask_material) {
+        VArray<int> material_indices = *curves.attributes().lookup<int>("material_index");
+        strokes_under_brush.foreach_index(
+            [&](const int curve_i) { masked_material_indices.add(material_indices[curve_i]); });
+      }
+    }
+  }
+  // }
+  // else {
+  //   for (const int drawing_i : drawings.index_range()) {
+  //     const MutableDrawingInfo &drawing_info = drawings[drawing_i];
+  //     AutoMaskingInfo &automask_info = this->auto_masking_info_per_drawing[drawing_i];
+  //   }
+  // }
+
   threading::parallel_for_each(drawings.index_range(), [&](const int drawing_i) {
     const MutableDrawingInfo &drawing_info = drawings[drawing_i];
     AutoMaskingInfo &automask_info = this->auto_masking_info_per_drawing[drawing_i];
 
-    // GreasePencilStrokeParams params = {*scene.toolsettings,
-    //                                    region,
-    //                                    rv3d,
-    //                                    scene,
-    //                                    ob_orig,
-    //                                    ob_eval,
-    //                                    layer,
-    //                                    info.layer_index,
-    //                                    info.frame_number,
-    //                                    info.multi_frame_falloff,
-    //                                    info.drawing};
+    // GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
+    //     scene,
+    //     depsgraph,
+    //     region,
+    //     rv3d,
+    //     object,
+    //     drawing_info.layer_index,
+    //     drawing_info.frame_number,
+    //     drawing_info.multi_frame_falloff,
+    //     drawing_info.drawing);
 
-    // automask_info.point_mask = get_automasking_mask_from_start_sample(automask_info.memory);
+    // IndexMaskMemory selection_memory;
+    // const IndexMask selection = point_selection_mask(
+    //     params, use_sculpt_selection_masking, selection_memory);
+    // if (selection.is_empty()) {
+    //   automask_info.point_mask = {};
+    //   return false;
+    // }
+
+    if (use_active_auto_masking) {
+      // Array<float2> view_positions = calculate_view_positions(params, selection);
+      // const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
+      // const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      if (use_auto_mask_stroke) {
+
+        /* Find the strokes under the brush and add them to the mask. */
+        IndexMaskMemory memory;
+        const IndexMask strokes_under_brush = IndexMask::from_predicate(
+            curves.curves_range(), GrainSize(512), memory, [&](const int curve_i) {
+              for (const int point_i : points_by_curve[curve_i]) {
+                const float distance = math::distance(mval_i, int2(view_positions[point_i]));
+                if (distance <= radius) {
+                  return true;
+                }
+              }
+              return false;
+            });
+      }
+      if (use_auto_mask_material) {
+      }
+    }
+
+    // automask_info.point_mask = selection;
+
+    // if (use_auto_mask_stroke || use_auto_mask_layer || use_auto_mask_material) {
+    //   Array<float2> view_positions = calculate_view_positions(params, selection);
+    //   automask_info.point_mask = IndexMask::from_predicate(
+    //       selection, GrainSize(1024), automask_info.memory, [&](const int point_i) {
+    //         const float distance = math::distance(mval_i, int2(view_positions[point_i]));
+    //         return distance <= radius;
+    //       });
+    // }
+    // else {
+    //   automask_info.point_mask = drawing_info.drawing.strokes().curves_range();
+    // }
+    return true;
   });
 }
 

@@ -42,6 +42,7 @@ static float2 rotate_by_angle(const float2 &vec, const float angle)
 void TwistOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
   this->init_stroke(C, start_sample);
+  this->init_auto_masking(C, start_sample);
 }
 
 void TwistOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
