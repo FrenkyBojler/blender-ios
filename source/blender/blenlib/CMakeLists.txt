@@ -359,6 +359,7 @@ set(SRC
   BLI_shared_cache.hh
   BLI_simd.hh
   BLI_smaa_textures.h
+  BLI_smart_ptr_span.hh
   BLI_sort.h
   BLI_sort.hh
   BLI_sort_utils.h
@@ -584,6 +585,7 @@ if(WITH_GTESTS)
     tests/BLI_serialize_test.cc
     tests/BLI_session_uid_test.cc
     tests/BLI_set_test.cc
+    tests/BLI_smart_ptr_span_test.cc
     tests/BLI_span_test.cc
     tests/BLI_stack_cxx_test.cc
     tests/BLI_stack_test.cc
