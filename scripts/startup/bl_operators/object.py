@@ -271,6 +271,7 @@ class SubdivisionSet(Operator):
                         elif obj.mode == 'OBJECT':
                             if mod.levels != level:
                                 mod.levels = level
+                            mod.render_levels = render_level
                         return
                     else:
                         if obj.mode == 'SCULPT':
