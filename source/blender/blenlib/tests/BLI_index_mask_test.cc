@@ -1222,4 +1222,28 @@ TEST(index_mask, SliceAndShift)
   }
 }
 
+TEST(index_mask, IndexRangeToMaskSegments)
+{
+  auto test_range = [](const IndexRange range) {
+    Vector<IndexMaskSegment> segments;
+    index_range_to_mask_segments(range, segments);
+    IndexMaskMemory memory;
+    const IndexMask mask = IndexMask::from_segments(segments, memory);
+    const std::optional<IndexRange> new_range = mask.to_range();
+    EXPECT_TRUE(new_range.has_value());
+    EXPECT_EQ(range, *new_range);
+  };
+
+  test_range(IndexRange::from_begin_size(1'000, 0));
+
+  test_range(IndexRange::from_begin_end_inclusive(0, 10));
+  test_range(IndexRange::from_begin_end_inclusive(0, 10'000));
+  test_range(IndexRange::from_begin_end_inclusive(0, 100'000));
+  test_range(IndexRange::from_begin_end_inclusive(0, 1'000'000));
+
+  test_range(IndexRange::from_begin_end_inclusive(50'000, 1'000'000));
+  test_range(IndexRange::from_begin_end_inclusive(999'999, 1'000'000));
+  test_range(IndexRange::from_begin_end_inclusive(1'000'000, 1'000'000));
+}
+
 }  // namespace blender::index_mask::tests
