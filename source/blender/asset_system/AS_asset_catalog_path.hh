@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup asset_system
@@ -8,7 +10,6 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_sys_types.h"
 
 #include <string>
 
@@ -27,7 +28,7 @@ namespace blender::asset_system {
  * - Only slashes are used as path component separators.
  * - All paths are absolute, so there is no need for a leading slash.
  *
- * See https://wiki.blender.org/wiki/Source/Architecture/Asset_System/Catalogs
+ * See https://developer.blender.org/docs/features/asset_system/backend/asset_catalogs/
  *
  * Paths are stored as byte sequences, and assumed to be UTF-8.
  */

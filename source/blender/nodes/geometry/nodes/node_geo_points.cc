@@ -1,6 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_pointcloud.h"
+#include <memory>
+
+#include "BKE_pointcloud.hh"
 #include "DNA_pointcloud_types.h"
 
 #include "BLI_task.hh"
@@ -11,21 +15,19 @@ namespace blender::nodes::node_geo_points_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>(N_("Count"))
-      .default_value(1)
-      .description(N_("The number of points to create"))
-      .min(0);
-  b.add_input<decl::Vector>(N_("Position"))
-      .supports_field()
+  b.add_input<decl::Int>("Count").default_value(1).min(0).description(
+      "The number of points to create");
+  b.add_input<decl::Vector>("Position")
       .default_value(float3(0.0f))
-      .description(N_("The positions of the new points"));
-  b.add_input<decl::Float>(N_("Radius"))
+      .supports_field()
+      .description("The positions of the new points");
+  b.add_input<decl::Float>("Radius")
       .min(0.0f)
       .default_value(0.1f)
-      .supports_field()
       .subtype(PROP_DISTANCE)
-      .description(N_("The radii of the new points"));
-  b.add_output<decl::Geometry>(N_("Geometry"));
+      .supports_field()
+      .description("The radii of the new points");
+  b.add_output<decl::Geometry>("Points", "Geometry");
 }
 
 class PointsFieldContext : public FieldContext {
@@ -33,9 +35,7 @@ class PointsFieldContext : public FieldContext {
   int points_num_;
 
  public:
-  PointsFieldContext(const int points_num) : points_num_(points_num)
-  {
-  }
+  PointsFieldContext(const int points_num) : points_num_(points_num) {}
 
   int64_t points_num() const
   {
@@ -43,7 +43,7 @@ class PointsFieldContext : public FieldContext {
   }
 
   GVArray get_varray_for_input(const FieldInput &field_input,
-                               const IndexMask mask,
+                               const IndexMask &mask,
                                ResourceScope & /*scope*/) const
   {
     const bke::IDAttributeFieldInput *id_field_input =
@@ -73,30 +73,31 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   PointCloud *points = BKE_pointcloud_new_nomain(count);
   MutableAttributeAccessor attributes = points->attributes_for_write();
-  AttributeWriter<float3> output_position = attributes.lookup_or_add_for_write<float3>(
-      "position", ATTR_DOMAIN_POINT);
   AttributeWriter<float> output_radii = attributes.lookup_or_add_for_write<float>(
-      "radius", ATTR_DOMAIN_POINT);
+      "radius", AttrDomain::Point);
 
   PointsFieldContext context{count};
   fn::FieldEvaluator evaluator{context, count};
-  evaluator.add_with_destination(position_field, output_position.varray);
+  evaluator.add_with_destination(position_field, points->positions_for_write());
   evaluator.add_with_destination(radius_field, output_radii.varray);
   evaluator.evaluate();
 
-  output_position.finish();
   output_radii.finish();
-  params.set_output("Geometry", GeometrySet::create_with_pointcloud(points));
+  params.set_output("Geometry", GeometrySet::from_pointcloud(points));
 }
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodePoints", GEO_NODE_POINTS);
+  ntype.ui_name = "Points";
+  ntype.ui_description = "Generate a point cloud with positions and radii defined by fields";
+  ntype.enum_name_legacy = "POINTS";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
+}
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_points_cc
-
-void register_node_type_geo_points()
-{
-  namespace file_ns = blender::nodes::node_geo_points_cc;
-  static bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_POINTS, "Points", NODE_CLASS_GEOMETRY);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
-}

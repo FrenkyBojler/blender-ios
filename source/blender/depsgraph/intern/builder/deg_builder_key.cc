@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -9,7 +10,7 @@
 
 #include "intern/builder/deg_builder_key.h"
 
-#include "RNA_path.h"
+#include "RNA_path.hh"
 
 namespace blender::deg {
 
@@ -69,8 +70,7 @@ string OperationKey::identifier() const
 RNAPathKey::RNAPathKey(ID *id, const char *path, RNAPointerSource source) : id(id), source(source)
 {
   /* Create ID pointer for root of path lookup. */
-  PointerRNA id_ptr;
-  RNA_id_pointer_create(id, &id_ptr);
+  PointerRNA id_ptr = RNA_id_pointer_create(id);
   /* Try to resolve path. */
   int index;
   if (!RNA_path_resolve_full(&id_ptr, path, &ptr, &prop, &index)) {
@@ -82,6 +82,19 @@ RNAPathKey::RNAPathKey(ID *id, const char *path, RNAPointerSource source) : id(i
 RNAPathKey::RNAPathKey(ID *id, const PointerRNA &ptr, PropertyRNA *prop, RNAPointerSource source)
     : id(id), ptr(ptr), prop(prop), source(source)
 {
+}
+
+RNAPathKey::RNAPathKey(const PointerRNA &target_prop,
+                       const char *rna_path_from_target_prop,
+                       const RNAPointerSource source)
+    : id(target_prop.owner_id), source(source)
+{
+  /* Try to resolve path. */
+  int index;
+  if (!RNA_path_resolve_full(&target_prop, rna_path_from_target_prop, &ptr, &prop, &index)) {
+    ptr = PointerRNA_NULL;
+    prop = nullptr;
+  }
 }
 
 string RNAPathKey::identifier() const

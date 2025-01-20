@@ -1,21 +1,23 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "testing/testing.h"
-
-#include "BKE_idtype.h"
-#include "BKE_lattice.h"
-
-#include "MEM_guardedalloc.h"
-
-#include "DNA_lattice_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_object_types.h"
-
-#include "BLI_rand.hh"
 
 #define DO_PERF_TESTS 0
 
 #if DO_PERF_TESTS
+
+#  include "BKE_idtype.hh"
+#  include "BKE_lattice.hh"
+
+#  include "MEM_guardedalloc.h"
+
+#  include "DNA_lattice_types.h"
+#  include "DNA_mesh_types.h"
+#  include "DNA_object_types.h"
+
+#  include "BLI_rand.hh"
+
 namespace blender::bke::tests {
 
 struct LatticeDeformTestContext {
@@ -39,7 +41,7 @@ static void test_lattice_deform_init(LatticeDeformTestContext *ctx,
     ctx->coords[index][2] = (rng->get_float() - 0.5f) * 10;
   }
   IDType_ID_LT.init_data(&ctx->lattice.id);
-  strcpy(ctx->lattice.id.name, "LTLattice");
+  STRNCPY(ctx->lattice.id.name, "LTLattice");
   IDType_ID_OB.init_data(&ctx->ob_lattice.id);
   ctx->ob_lattice.type = OB_LATTICE;
   ctx->ob_lattice.data = &ctx->lattice;

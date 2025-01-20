@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2007 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -14,14 +15,29 @@
 #include "DNA_ID.h"
 
 #ifdef __cplusplus
-extern "C" {
+#  include <mutex>
+using std_mutex_type = std::mutex;
+#else
+#  define std_mutex_type void
 #endif
+
+/** Workaround to forward-declare C++ type in C header. */
+#ifdef __cplusplus
+namespace blender::bke {
+class WindowManagerRuntime;
+}
+using WindowManagerRuntimeHandle = blender::bke::WindowManagerRuntime;
+#else   // __cplusplus
+typedef struct WindowManagerRuntimeHandle WindowManagerRuntimeHandle;
+#endif  // __cplusplus
 
 /* Defined here: */
 
+struct wmNotifier;
 struct wmWindow;
 struct wmWindowManager;
 
+struct wmEvent_ConsecutiveData;
 struct wmEvent;
 struct wmKeyConfig;
 struct wmKeyMap;
@@ -55,6 +71,7 @@ typedef enum eReportType {
   RPT_ERROR_INVALID_CONTEXT = (1 << 7),
   RPT_ERROR_OUT_OF_MEMORY = (1 << 8),
 } eReportType;
+ENUM_OPERATORS(eReportType, RPT_ERROR_OUT_OF_MEMORY)
 
 #define RPT_DEBUG_ALL (RPT_DEBUG)
 #define RPT_INFO_ALL (RPT_INFO)
@@ -73,7 +90,7 @@ enum ReportListFlags {
   RPT_PRINT_HANDLED_BY_OWNER = (1 << 4),
 };
 
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* These two lines with # tell `makesdna` this struct can be excluded. */
 #
 #
 typedef struct Report {
@@ -99,18 +116,21 @@ typedef struct ReportList {
   int flag;
   char _pad[4];
   struct wmTimer *reporttimer;
+
+  /** Mutex for thread-safety, runtime only. */
+  std_mutex_type *lock;
 } ReportList;
 
-/* timer customdata to control reports display */
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* Timer custom-data to control reports display. */
+/* These two lines with # tell `makesdna` this struct can be excluded. */
 #
 #
 typedef struct ReportTimerInfo {
-  float col[4];
   float widthfac;
+  float flash_progress;
 } ReportTimerInfo;
 
-//#ifdef WITH_XR_OPENXR
+// #ifdef WITH_XR_OPENXR
 typedef struct wmXrData {
   /** Runtime information for managing Blender specific behaviors. */
   struct wmXrRuntimeData *runtime;
@@ -118,7 +138,7 @@ typedef struct wmXrData {
    * even before the session runs. */
   XrSessionSettings session_settings;
 } wmXrData;
-//#endif
+// #endif
 
 /* reports need to be before wmWindowManager */
 
@@ -138,7 +158,8 @@ typedef struct wmWindowManager {
   ListBase windows;
 
   /** Set on file read. */
-  short initialized;
+  uint8_t init_flag;
+  char _pad0[1];
   /** Indicator whether data was saved. */
   short file_saved;
   /** Operator stack depth to avoid nested undo pushes. */
@@ -163,8 +184,13 @@ typedef struct wmWindowManager {
    */
   struct GSet *notifier_queue_set;
 
-  /** Information and error reports. */
-  struct ReportList reports;
+  /** The current notifier in the `notifier_queue` being handled (clear instead of freeing). */
+  const struct wmNotifier *notifier_current;
+
+  /** Available/pending extensions updates. */
+  int extensions_updates;
+  /** Number of blocked & installed extensions. */
+  int extensions_blocked;
 
   /** Threaded jobs manager. */
   ListBase jobs;
@@ -175,8 +201,12 @@ typedef struct wmWindowManager {
   /** Active dragged items. */
   ListBase drags;
 
-  /** Known key configurations. */
+  /**
+   * Known key configurations.
+   * This includes all the #wmKeyConfig members (`defaultconf`, `addonconf`, etc).
+   */
   ListBase keyconfigs;
+
   /** Default configuration. */
   struct wmKeyConfig *defaultconf;
   /** Addon configuration. */
@@ -188,25 +218,34 @@ typedef struct wmWindowManager {
   ListBase timers;
   /** Timer for auto save. */
   struct wmTimer *autosavetimer;
+  /** Auto-save timer was up, but it wasn't possible to auto-save in the current mode. */
+  char autosave_scheduled;
+  char _pad2[7];
 
   /** All undo history (runtime only). */
   struct UndoStack *undo_stack;
 
-  /** Indicates whether interface is locked for user interaction. */
-  char is_interface_locked;
-  char _pad[7];
-
   struct wmMsgBus *message_bus;
 
-  //#ifdef WITH_XR_OPENXR
+  // #ifdef WITH_XR_OPENXR
   wmXrData xr;
-  //#endif
+  // #endif
+
+  WindowManagerRuntimeHandle *runtime;
 } wmWindowManager;
 
-/** #wmWindowManager.initialized */
+#define WM_KEYCONFIG_ARRAY_P(wm) &(wm)->defaultconf, &(wm)->addonconf, &(wm)->userconf
+
+/** #wmWindowManager.extensions_updates */
 enum {
-  WM_WINDOW_IS_INIT = (1 << 0),
-  WM_KEYCONFIG_IS_INIT = (1 << 1),
+  WM_EXTENSIONS_UPDATE_UNSET = -2,
+  WM_EXTENSIONS_UPDATE_CHECKING = -1,
+};
+
+/** #wmWindowManager.init_flag */
+enum {
+  WM_INIT_FLAG_WINDOW = (1 << 0),
+  WM_INIT_FLAG_KEYCONFIG = (1 << 1),
 };
 
 /** #wmWindowManager.outliner_sync_select_dirty */
@@ -264,9 +303,20 @@ typedef struct wmWindow {
 
   /** Window-ID also in screens, is for retrieving this window after read. */
   int winid;
-  /** Window coords. */
-  short posx, posy, sizex, sizey;
-  /** Borderless, full. */
+  /** Window coords (in pixels). */
+  short posx, posy;
+  /**
+   * Window size (in pixels).
+   *
+   * \note Loading a window typically uses the size & position saved in the blend-file,
+   * there is an exception for startup files which works as follows:
+   * Setting the window size to zero before `ghostwin` has been set has a special meaning,
+   * it causes the window size to be initialized to `wm_init_state.size`.
+   * These default to the main screen size but can be overridden by the `--window-geometry`
+   * command line argument.
+   */
+  short sizex, sizey;
+  /** Normal, maximized, full-screen, #GHOST_TWindowState. */
   char windowstate;
   /** Set to 1 if an active window, for quick rejects. */
   char active;
@@ -280,6 +330,15 @@ typedef struct wmWindow {
   short grabcursor;
   /** Internal: tag this for extra mouse-move event,
    * makes cursors/buttons active on UI switching. */
+
+  /** Internal, lock pie creation from this event until released. */
+  short pie_event_type_lock;
+  /**
+   * Exception to the above rule for nested pies, store last pie event for operators
+   * that spawn a new pie right after destruction of last pie.
+   */
+  short pie_event_type_last;
+
   char addmousemove;
   char tag_cursor_refresh;
 
@@ -292,19 +351,16 @@ typedef struct wmWindow {
   /**
    * Enable when the drag was handled,
    * to avoid mouse-motion continually triggering drag events which are not handled
-   * but add overhead to gizmo handling (for example), see T87511.
+   * but add overhead to gizmo handling (for example), see #87511.
    */
   char event_queue_check_drag_handled;
 
-  char _pad0[1];
-
-  /** Internal, lock pie creation from this event until released. */
-  short pie_event_type_lock;
-  /**
-   * Exception to the above rule for nested pies, store last pie event for operators
-   * that spawn a new pie right after destruction of last pie.
-   */
-  short pie_event_type_last;
+  /** The last event type (that passed #WM_event_consecutive_gesture_test check). */
+  char event_queue_consecutive_gesture_type;
+  /** The cursor location when `event_queue_consecutive_gesture_type` was set. */
+  int event_queue_consecutive_gesture_xy[2];
+  /** See #WM_event_consecutive_data_get and related API. Freed when consecutive events end. */
+  struct wmEvent_ConsecutiveData *event_queue_consecutive_gesture_data;
 
   /**
    * Storage for event system.
@@ -323,12 +379,21 @@ typedef struct wmWindow {
    *   left/right modifiers then release one. See note in #wm_event_add_ghostevent for details.
    */
   struct wmEvent *eventstate;
-  /** Keep the last handled event in `event_queue` here (owned and must be freed). */
+  /**
+   * Keep the last handled event in `event_queue` here (owned and must be freed).
+   *
+   * \warning This must only to be used for event queue logic.
+   * User interactions should use `eventstate` instead (if the event isn't passed to the function).
+   */
   struct wmEvent *event_last_handled;
 
-  /* Input Method Editor data - complex character input (especially for Asian character input)
-   * Currently WIN32 and APPLE, runtime-only data. */
-  struct wmIMEData *ime_data;
+  /**
+   * Input Method Editor data - complex character input (especially for Asian character input)
+   * Currently WIN32 and APPLE, runtime-only data.
+   */
+  const struct wmIMEData *ime_data;
+  char ime_data_is_composing;
+  char _pad1[7];
 
   /** All events #wmEvent (ghost level events were handled). */
   ListBase event_queue;
@@ -343,18 +408,25 @@ typedef struct wmWindow {
   /** Properties for stereoscopic displays. */
   struct Stereo3dFormat *stereo3d_format;
 
-  /* custom drawing callbacks */
+  /** Custom drawing callbacks. */
   ListBase drawcalls;
 
-  /* Private runtime info to show text in the status bar. */
+  /** Private runtime info to show text in the status bar. */
   void *cursor_keymap_status;
+
+  /**
+   * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
+   * Used to detect double-click events.
+   */
+  uint64_t eventstate_prev_press_time_ms;
+
 } wmWindow;
 
 #ifdef ime_data
 #  undef ime_data
 #endif
 
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* These two lines with # tell `makesdna` this struct can be excluded. */
 /* should be something like DNA_EXCLUDE
  * but the preprocessor first removes all comments, spaces etc */
 #
@@ -477,7 +549,7 @@ typedef struct wmKeyMap {
   /** See above. */
   short regionid;
   /** Optional, see: #wmOwnerID. */
-  char owner_id[64];
+  char owner_id[128];
 
   /** General flags. */
   short flag;
@@ -620,20 +692,16 @@ enum {
    * This difference can be important because previous settings may be used,
    * even with #PROP_SKIP_SAVE the repeat last operator will use the previous settings.
    * Unlike #OP_IS_REPEAT the selection (and context generally) may be different each time.
-   * See T60777 for an example of when this is needed.
+   * See #60777 for an example of when this is needed.
    */
-  OP_IS_REPEAT_LAST = (1 << 1),
+  OP_IS_REPEAT_LAST = (1 << 2),
 
   /** When the cursor is grabbed */
-  OP_IS_MODAL_GRAB_CURSOR = (1 << 2),
+  OP_IS_MODAL_GRAB_CURSOR = (1 << 3),
 
   /**
    * Allow modal operators to have the region under the cursor for their context
    * (the region-type is maintained to prevent errors).
    */
-  OP_IS_MODAL_CURSOR_REGION = (1 << 3),
+  OP_IS_MODAL_CURSOR_REGION = (1 << 4),
 };
-
-#ifdef __cplusplus
-}
-#endif

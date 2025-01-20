@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -11,68 +12,14 @@
 
 #include <math.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef __MATH_COLOR_INLINE_C__
 #  define __MATH_COLOR_INLINE_C__
 
 /******************************** Color Space ********************************/
-
-#  ifdef BLI_HAVE_SSE2
-
-MALWAYS_INLINE __m128 srgb_to_linearrgb_v4_simd(const __m128 c)
-{
-  __m128 cmp = _mm_cmplt_ps(c, _mm_set1_ps(0.04045f));
-  __m128 lt = _mm_max_ps(_mm_mul_ps(c, _mm_set1_ps(1.0f / 12.92f)), _mm_set1_ps(0.0f));
-  __m128 gtebase = _mm_mul_ps(_mm_add_ps(c, _mm_set1_ps(0.055f)),
-                              _mm_set1_ps(1.0f / 1.055f)); /* FMA. */
-  __m128 gte = _bli_math_fastpow24(gtebase);
-  return _bli_math_blend_sse(cmp, lt, gte);
-}
-
-MALWAYS_INLINE __m128 linearrgb_to_srgb_v4_simd(const __m128 c)
-{
-  __m128 cmp = _mm_cmplt_ps(c, _mm_set1_ps(0.0031308f));
-  __m128 lt = _mm_max_ps(_mm_mul_ps(c, _mm_set1_ps(12.92f)), _mm_set1_ps(0.0f));
-  __m128 gte = _mm_add_ps(_mm_mul_ps(_mm_set1_ps(1.055f), _bli_math_fastpow512(c)),
-                          _mm_set1_ps(-0.055f));
-  return _bli_math_blend_sse(cmp, lt, gte);
-}
-
-MINLINE void srgb_to_linearrgb_v3_v3(float linear[3], const float srgb[3])
-{
-  float r[4] = {srgb[0], srgb[1], srgb[2], 1.0f};
-  __m128 *rv = (__m128 *)&r;
-  *rv = srgb_to_linearrgb_v4_simd(*rv);
-  linear[0] = r[0];
-  linear[1] = r[1];
-  linear[2] = r[2];
-}
-
-MINLINE void linearrgb_to_srgb_v3_v3(float srgb[3], const float linear[3])
-{
-  float r[4] = {linear[0], linear[1], linear[2], 1.0f};
-  __m128 *rv = (__m128 *)&r;
-  *rv = linearrgb_to_srgb_v4_simd(*rv);
-  srgb[0] = r[0];
-  srgb[1] = r[1];
-  srgb[2] = r[2];
-}
-
-#  else  /* BLI_HAVE_SSE2 */
-
-MINLINE void srgb_to_linearrgb_v3_v3(float linear[3], const float srgb[3])
-{
-  linear[0] = srgb_to_linearrgb(srgb[0]);
-  linear[1] = srgb_to_linearrgb(srgb[1]);
-  linear[2] = srgb_to_linearrgb(srgb[2]);
-}
-
-MINLINE void linearrgb_to_srgb_v3_v3(float srgb[3], const float linear[3])
-{
-  srgb[0] = linearrgb_to_srgb(linear[0]);
-  srgb[1] = linearrgb_to_srgb(linear[1]);
-  srgb[2] = linearrgb_to_srgb(linear[2]);
-}
-#  endif /* BLI_HAVE_SSE2 */
 
 MINLINE void srgb_to_linearrgb_v4(float linear[4], const float srgb[4])
 {
@@ -378,4 +325,8 @@ MINLINE void premul_float_to_straight_uchar(unsigned char *result, const float c
   }
 }
 
-#endif /* __MATH_COLOR_INLINE_C__ */
+#endif /* !__MATH_COLOR_INLINE_C__ */
+
+#ifdef __cplusplus
+}
+#endif

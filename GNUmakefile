@@ -1,6 +1,8 @@
+# SPDX-FileCopyrightText: 2011-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# This Makefile does an out-of-source CMake build in ../build_`OS`_`CPU`
+# This Makefile does an out-of-source CMake build in ../build_`OS`
 # eg:
 #   ../build_linux_i386
 # This is for users who like to configure & build blender with a single command.
@@ -33,13 +35,12 @@ Other Convenience Targets
    * deps:          Build library dependencies (intended only for platform maintainers).
 
                     The existence of locally build dependencies overrides the pre-built dependencies from subversion.
-                    These must be manually removed from '../lib/' to go back to using the pre-compiled libraries.
+                    These must be manually removed from 'lib/' to go back to using the pre-compiled libraries.
 
 Project Files
    Generate project files for development environments.
 
    * project_qtcreator:     QtCreator Project Files.
-   * project_netbeans:      NetBeans Project Files.
    * project_eclipse:       Eclipse CDT4 Project Files.
 
 Package Targets
@@ -57,10 +58,8 @@ Static Source Code Checking
 
    * check_cppcheck:        Run blender source through cppcheck (C & C++).
    * check_clang_array:     Run blender source through clang array checking script (C & C++).
+   * check_struct_comments: Check struct member comments are correct (C & C++).
    * check_deprecated:      Check if there is any deprecated code to remove.
-   * check_splint:          Run blenders source through splint (C only).
-   * check_sparse:          Run blenders source through sparse (C only).
-   * check_smatch:          Run blenders source through smatch (C only).
    * check_descriptions:    Check for duplicate/invalid descriptions.
    * check_licenses:        Check license headers follow the SPDX license specification,
                             using one of the accepted licenses in 'doc/license/SPDX-license-identifiers.txt'
@@ -69,23 +68,24 @@ Static Source Code Checking
    * check_cmake:           Runs our own cmake file checker which detects errors in the cmake file list definitions.
    * check_pep8:            Checks all Python script are pep8 which are tagged to use the stricter formatting.
    * check_mypy:            Checks all Python scripts using mypy,
-                            see: source/tools/check_source/check_mypy_config.py scripts which are included.
+                            see: tools/check_source/check_mypy_config.py scripts which are included.
 
 Documentation Checking
 
-   * check_wiki_file_structure:
-     Check the WIKI documentation for the source-tree's file structure
+   * check_docs_file_structure:
+     Check the documentation for the source-tree's file structure
      matches Blender's source-code.
-     See: https://wiki.blender.org/wiki/Source/File_Structure
+     See: https://developer.blender.org/docs/features/code_layout/
 
 Spell Checkers
    This runs the spell checker from the developer tools repositor.
 
-   * check_spelling_c:      Check for spelling errors (C/C++ only),
-   * check_spelling_osl:    Check for spelling errors (OSL only).
-   * check_spelling_py:     Check for spelling errors (Python only).
+   * check_spelling_c:       Check for spelling errors (C/C++ only),
+   * check_spelling_py:      Check for spelling errors (Python only).
+   * check_spelling_shaders: Check for spelling errors (GLSL,OSL & MSL only).
+   * check_spelling_cmake:   Check for spelling errors (CMake only).
 
-   Note: an additional word-list is maintained at: 'source/tools/check_source/check_spelling_c_config.py'
+   Note: an additional word-list is maintained at: 'tools/check_source/check_spelling_c_config.py'
 
    Note: that spell checkers can take a 'CHECK_SPELLING_CACHE' filepath argument,
    so re-running does not need to re-check unchanged files.
@@ -95,15 +95,6 @@ Spell Checkers
 
 Utilities
    Not associated with building Blender.
-
-   * icons:
-     Updates PNG icons from SVG files.
-
-     Optionally pass in variables: 'BLENDER_BIN', 'INKSCAPE_BIN'
-     otherwise default paths are used.
-
-     Example
-        make icons INKSCAPE_BIN=/path/to/inkscape
 
    * icons_geom:
      Updates Geometry icons from BLEND file.
@@ -130,6 +121,10 @@ Utilities
      Format source code using clang-format & autopep8 (uses PATHS if passed in). For example::
 
         make format PATHS="source/blender/blenlib source/blender/blenkernel"
+
+   * license:
+     Create a combined file with all the license information relative to the libraries and other
+     code depedencies.
 
 Environment Variables
 
@@ -165,6 +160,19 @@ OS:=$(shell uname -s)
 OS_NCASE:=$(shell uname -s | tr '[A-Z]' '[a-z]')
 CPU:=$(shell uname -m)
 
+# Use our OS and CPU architecture naming conventions.
+ifeq ($(CPU),x86_64)
+	CPU:=x64
+endif
+ifeq ($(CPU),aarch64)
+	CPU:=arm64
+endif
+ifeq ($(OS_NCASE),darwin)
+	OS_LIBDIR:=macos
+else
+	OS_LIBDIR:=$(OS_NCASE)
+endif
+
 
 # Source and Build DIR's
 BLENDER_DIR:=$(shell pwd -P)
@@ -182,53 +190,59 @@ endif
 DEPS_SOURCE_DIR:=$(BLENDER_DIR)/build_files/build_environment
 
 ifndef DEPS_BUILD_DIR
-	DEPS_BUILD_DIR:=$(BUILD_DIR)/deps
+	DEPS_BUILD_DIR:=$(BUILD_DIR)/deps_$(CPU)
 endif
 
 ifndef DEPS_INSTALL_DIR
-	DEPS_INSTALL_DIR:=$(shell dirname "$(BLENDER_DIR)")/lib/$(OS_NCASE)
+	DEPS_INSTALL_DIR:=$(BLENDER_DIR)/lib/$(OS_LIBDIR)_$(CPU)
+endif
 
-	# Add processor type to directory name, except for darwin x86_64
-	# which by convention does not have it.
-	ifeq ($(OS_NCASE),darwin)
-		ifneq ($(CPU),x86_64)
-			DEPS_INSTALL_DIR:=$(DEPS_INSTALL_DIR)_$(CPU)
+# Set the LIBDIR, an empty string when not found.
+LIBDIR:=$(wildcard $(BLENDER_DIR)/lib/${OS_LIBDIR}_${CPU})
+ifeq (, $(LIBDIR))
+	LIBDIR:=$(wildcard $(BLENDER_DIR)/lib/${OS_LIBDIR})
+endif
+
+# Find the newest Python version bundled in `LIBDIR`.
+PY_LIB_VERSION:=3.15
+ifeq (, $(wildcard $(LIBDIR)/python/bin/python$(PY_LIB_VERSION)))
+	PY_LIB_VERSION:=3.14
+	ifeq (, $(wildcard $(LIBDIR)/python/bin/python$(PY_LIB_VERSION)))
+		PY_LIB_VERSION:=3.13
+		ifeq (, $(wildcard $(LIBDIR)/python/bin/python$(PY_LIB_VERSION)))
+			PY_LIB_VERSION:=3.12
+			ifeq (, $(wildcard $(LIBDIR)/python/bin/python$(PY_LIB_VERSION)))
+				PY_LIB_VERSION:=3.11
+				ifeq (, $(wildcard $(LIBDIR)/python/bin/python$(PY_LIB_VERSION)))
+					PY_LIB_VERSION:=3.10
+				endif
+			endif
 		endif
-	else
-		DEPS_INSTALL_DIR:=$(DEPS_INSTALL_DIR)_$(CPU)
 	endif
 endif
 
 # Allow to use alternative binary (pypy3, etc)
 ifndef PYTHON
-	PYTHON:=python3
-endif
-
-# For macOS python3 is not installed by default, so fallback to python binary
-# in libraries, or python 2 for running make update to get it.
-ifeq ($(OS_NCASE),darwin)
-	ifeq (, $(shell command -v $(PYTHON)))
-		PYTHON:=$(DEPS_INSTALL_DIR)/python/bin/python3.10
+	# If not overriden, first try using Python from LIBDIR.
+	PYTHON:=$(LIBDIR)/python/bin/python$(PY_LIB_VERSION)
+	ifeq (, $(wildcard $(PYTHON)))
+		# If not available, use system python3 or python command.
+		PYTHON:=python3
 		ifeq (, $(shell command -v $(PYTHON)))
 			PYTHON:=python
 		endif
+	else
+		# Don't generate __pycache__ files in lib folder, they
+		# can interfere with updates.
+		PYTHON:=$(PYTHON) -B
 	endif
-endif
-
-# Set the LIBDIR, an empty string when not found.
-LIBDIR:=$(wildcard ../lib/${OS_NCASE}_${CPU})
-ifeq (, $(LIBDIR))
-	LIBDIR:=$(wildcard ../lib/${OS_NCASE}_${CPU}_glibc_228)
-endif
-ifeq (, $(LIBDIR))
-	LIBDIR:=$(wildcard ../lib/${OS_NCASE})
 endif
 
 # Use the autopep8 module in ../lib/ (which can be executed via Python directly).
 # Otherwise the "autopep8" command can be used.
 ifndef AUTOPEP8
 	ifneq (, $(LIBDIR))
-		AUTOPEP8:=$(wildcard $(LIBDIR)/python/lib/python3.10/site-packages/autopep8.py)
+		AUTOPEP8:=$(wildcard $(LIBDIR)/python/lib/python$(PY_LIB_VERSION)/site-packages/autopep8.py)
 	endif
 	ifeq (, $(AUTOPEP8))
 		AUTOPEP8:=autopep8
@@ -299,7 +313,11 @@ else
 	ifneq ("$(wildcard $(DEPS_BUILD_DIR)/build.ninja)","")
 		DEPS_BUILD_COMMAND:=ninja
 	else
-		DEPS_BUILD_COMMAND:=make -s
+		ifeq ($(OS), Darwin)
+			DEPS_BUILD_COMMAND:=make -s
+		else
+			DEPS_BUILD_COMMAND:="$(BLENDER_DIR)/build_files/build_environment/linux/make_deps_wrapper.sh" -s
+		endif
 	endif
 endif
 
@@ -398,7 +416,7 @@ endif
 
 deps: .FORCE
 	@echo
-	@echo Configuring dependencies in \"$(DEPS_BUILD_DIR)\"
+	@echo Configuring dependencies in \"$(DEPS_BUILD_DIR)\", install to \"$(DEPS_INSTALL_DIR)\"
 
 	@cmake -H"$(DEPS_SOURCE_DIR)" \
 	       -B"$(DEPS_BUILD_DIR)" \
@@ -444,10 +462,7 @@ test: .FORCE
 #
 
 project_qtcreator: .FORCE
-	$(PYTHON) build_files/cmake/cmake_qtcreator_project.py --build-dir "$(BUILD_DIR)"
-
-project_netbeans: .FORCE
-	$(PYTHON) build_files/cmake/cmake_netbeans_project.py "$(BUILD_DIR)"
+	$(PYTHON) tools/utils_ide/cmake_qtcreator_project.py --build-dir "$(BUILD_DIR)"
 
 project_eclipse: .FORCE
 	cmake -G"Eclipse CDT4 - Unix Makefiles" -H"$(BLENDER_DIR)" -B"$(BUILD_DIR)"
@@ -461,71 +476,75 @@ check_cppcheck: .FORCE
 	@$(CMAKE_CONFIG)
 	@cd "$(BUILD_DIR)" ; \
 	$(PYTHON) \
-	    "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_cppcheck.py" 2> \
-	    "$(BLENDER_DIR)/check_cppcheck.txt"
-	@echo "written: check_cppcheck.txt"
+	    "$(BLENDER_DIR)/tools/check_source/static_check_cppcheck.py"
+
+check_struct_comments: .FORCE
+	@$(CMAKE_CONFIG)
+	@cd "$(BUILD_DIR)" ; \
+	$(PYTHON) \
+	    "$(BLENDER_DIR)/tools/check_source/static_check_clang.py" \
+	    --checks=struct_comments --match=".*" --jobs=$(NPROCS)
 
 check_clang_array: .FORCE
 	@$(CMAKE_CONFIG)
 	@cd "$(BUILD_DIR)" ; \
-	$(PYTHON) "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_clang_array.py"
-
-check_splint: .FORCE
-	@$(CMAKE_CONFIG)
-	@cd "$(BUILD_DIR)" ; \
-	$(PYTHON) "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_splint.py"
-
-check_sparse: .FORCE
-	@$(CMAKE_CONFIG)
-	@cd "$(BUILD_DIR)" ; \
-	$(PYTHON) "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_sparse.py"
-
-check_smatch: .FORCE
-	@$(CMAKE_CONFIG)
-	@cd "$(BUILD_DIR)" ; \
-	$(PYTHON) "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_smatch.py"
+	$(PYTHON) "$(BLENDER_DIR)/tools/check_source/static_check_clang_array.py"
 
 check_mypy: .FORCE
-	@$(PYTHON) "$(BLENDER_DIR)/source/tools/check_source/check_mypy.py"
+	@$(PYTHON) "$(BLENDER_DIR)/tools/check_source/check_mypy.py"
 
-check_wiki_file_structure: .FORCE
+check_docs_file_structure: .FORCE
 	@PYTHONIOENCODING=utf_8 $(PYTHON) \
-	    "$(BLENDER_DIR)/source/tools/check_wiki/check_wiki_file_structure.py"
+	    "$(BLENDER_DIR)/tools/check_docs/check_docs_code_layout.py"
 
 check_spelling_py: .FORCE
-	@cd "$(BUILD_DIR)" ; \
-	PYTHONIOENCODING=utf_8 $(PYTHON) \
-	    "$(BLENDER_DIR)/source/tools/check_source/check_spelling.py" \
-	    "$(BLENDER_DIR)/release/scripts"
+	@PYTHONIOENCODING=utf_8 $(PYTHON) \
+	    "$(BLENDER_DIR)/tools/check_source/check_spelling.py" \
+	    --cache-file=$(CHECK_SPELLING_CACHE) \
+	    --match=".*\.(py)$$" \
+	    "$(BLENDER_DIR)/scripts" \
+	    "$(BLENDER_DIR)/source" \
+	    "$(BLENDER_DIR)/tools"
 
 check_spelling_c: .FORCE
-	@cd "$(BUILD_DIR)" ; \
-	PYTHONIOENCODING=utf_8 $(PYTHON) \
-	    "$(BLENDER_DIR)/source/tools/check_source/check_spelling.py" \
+	@PYTHONIOENCODING=utf_8 $(PYTHON) \
+	    "$(BLENDER_DIR)/tools/check_source/check_spelling.py" \
 	    --cache-file=$(CHECK_SPELLING_CACHE) \
+	    --match=".*\.(c|cc|cpp|cxx|h|hh|hpp|hxx|inl|m|mm)$$" \
 	    "$(BLENDER_DIR)/source" \
 	    "$(BLENDER_DIR)/intern/cycles" \
 	    "$(BLENDER_DIR)/intern/guardedalloc" \
-	    "$(BLENDER_DIR)/intern/ghost" \
+	    "$(BLENDER_DIR)/intern/ghost"
 
-check_spelling_osl: .FORCE
-	@cd "$(BUILD_DIR)" ; \
-	PYTHONIOENCODING=utf_8 $(PYTHON) \
-	    "$(BLENDER_DIR)/source/tools/check_source/check_spelling.py" \
+check_spelling_shaders: .FORCE
+	@PYTHONIOENCODING=utf_8 $(PYTHON) \
+	    "$(BLENDER_DIR)/tools/check_source/check_spelling.py" \
 	    --cache-file=$(CHECK_SPELLING_CACHE) \
-	    "$(BLENDER_DIR)/intern/cycles/kernel/shaders"
+	    --match=".*\.(osl|metal|msl|glsl)$$" \
+	    "$(BLENDER_DIR)/intern/" \
+	    "$(BLENDER_DIR)/source/"
+
+check_spelling_cmake: .FORCE
+	@PYTHONIOENCODING=utf_8 $(PYTHON) \
+	    "$(BLENDER_DIR)/tools/check_source/check_spelling.py" \
+	    --cache-file=$(CHECK_SPELLING_CACHE) \
+	    --match=".*\.(cmake)$$" \
+	    --match=".*\bCMakeLists\.(txt)$$" \
+	    "$(BLENDER_DIR)/build_files/" \
+	    "$(BLENDER_DIR)/intern/" \
+	    "$(BLENDER_DIR)/source/"
 
 check_descriptions: .FORCE
-	@$(BLENDER_BIN) --background -noaudio --factory-startup --python \
-	    "$(BLENDER_DIR)/source/tools/check_source/check_descriptions.py"
+	@$(BLENDER_BIN) --background --factory-startup --python \
+	    "$(BLENDER_DIR)/tools/check_source/check_descriptions.py"
 
 check_deprecated: .FORCE
 	@PYTHONIOENCODING=utf_8 $(PYTHON) \
-	    source/tools/check_source/check_deprecated.py
+	    tools/check_source/check_deprecated.py
 
 check_licenses: .FORCE
 	@PYTHONIOENCODING=utf_8 $(PYTHON) \
-	    "$(BLENDER_DIR)/source/tools/check_source/check_licenses.py" \
+	    "$(BLENDER_DIR)/tools/check_source/check_licenses.py" \
 	    "--show-headers=$(SHOW_HEADERS)"
 
 check_pep8: .FORCE
@@ -534,7 +553,7 @@ check_pep8: .FORCE
 
 check_cmake: .FORCE
 	@PYTHONIOENCODING=utf_8 $(PYTHON) \
-	    source/tools/check_source/check_cmake_consistency.py
+	    tools/check_source/check_cmake_consistency.py
 
 
 # -----------------------------------------------------------------------------
@@ -551,16 +570,6 @@ source_archive_complete: .FORCE
 # This assumes CMake is still using a default `PACKAGE_DIR` variable:
 	@$(PYTHON) ./build_files/utils/make_source_archive.py --include-packages "$(BUILD_DIR)/source_archive/packages"
 
-
-INKSCAPE_BIN?="inkscape"
-icons: .FORCE
-	@BLENDER_BIN=$(BLENDER_BIN) INKSCAPE_BIN=$(INKSCAPE_BIN) \
-	    "$(BLENDER_DIR)/release/datafiles/blender_icons_update.py"
-	@INKSCAPE_BIN=$(INKSCAPE_BIN) \
-	    "$(BLENDER_DIR)/release/datafiles/prvicons_update.py"
-	@INKSCAPE_BIN=$(INKSCAPE_BIN) \
-	    "$(BLENDER_DIR)/release/datafiles/alert_icons_update.py"
-
 icons_geom: .FORCE
 	@BLENDER_BIN=$(BLENDER_BIN) \
 	    "$(BLENDER_DIR)/release/datafiles/blender_icons_geom_update.py"
@@ -572,9 +581,11 @@ update_code: .FORCE
 	@$(PYTHON) ./build_files/utils/make_update.py --no-libraries
 
 format: .FORCE
-	@PATH="${LIBDIR}/llvm/bin/:$(PATH)" $(PYTHON) source/tools/utils_maintenance/clang_format_paths.py $(PATHS)
-	@$(PYTHON) source/tools/utils_maintenance/autopep8_format_paths.py --autopep8-command="$(AUTOPEP8)" $(PATHS)
+	@PATH="${LIBDIR}/llvm/bin/:$(PATH)" $(PYTHON) tools/utils_maintenance/clang_format_paths.py $(PATHS)
+	@$(PYTHON) tools/utils_maintenance/autopep8_format_paths.py --autopep8-command="$(AUTOPEP8)" $(PATHS)
 
+license: .FORCE
+	@$(PYTHON) tools/utils_maintenance/make_license.py
 
 # -----------------------------------------------------------------------------
 # Documentation
@@ -584,7 +595,7 @@ format: .FORCE
 doc_py: .FORCE
 	@ASAN_OPTIONS=halt_on_error=0:${ASAN_OPTIONS} \
 	$(BLENDER_BIN) \
-	    --background -noaudio --factory-startup \
+	    --background --factory-startup \
 	    --python doc/python_api/sphinx_doc_gen.py
 	@sphinx-build -b html -j $(NPROCS) doc/python_api/sphinx-in doc/python_api/sphinx-out
 	@echo "docs written into: '$(BLENDER_DIR)/doc/python_api/sphinx-out/index.html'"
@@ -595,7 +606,7 @@ doc_doxy: .FORCE
 
 doc_dna: .FORCE
 	@$(BLENDER_BIN) \
-	    --background -noaudio --factory-startup \
+	    --background --factory-startup \
 	    --python doc/blender_file_format/BlendFileDnaExporter_25.py
 	@echo "docs written into: '$(BLENDER_DIR)/doc/blender_file_format/dna.html'"
 

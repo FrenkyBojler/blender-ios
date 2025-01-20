@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2011 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -20,6 +21,7 @@ struct MovieClipUser;
 struct MovieDistortion;
 struct MovieReconstructContext;
 struct MovieTracking;
+struct MovieTrackingCamera;
 struct MovieTrackingMarker;
 struct MovieTrackingObject;
 struct MovieTrackingPlaneMarker;
@@ -73,7 +75,7 @@ void BKE_tracking_settings_init(struct MovieTracking *tracking);
  * Get transformation matrix for a given object which is used
  * for parenting motion tracker reconstruction to 3D world.
  */
-void BKE_tracking_get_camera_object_matrix(struct Object *camera_object, float mat[4][4]);
+void BKE_tracking_get_camera_object_matrix(const struct Object *camera_object, float mat[4][4]);
 /**
  * Get projection matrix for camera specified by given tracking object
  * and frame number.
@@ -215,7 +217,7 @@ bool BKE_tracking_track_has_enabled_marker_at_frame(struct MovieTrackingTrack *t
  * \note frame number should be in clip space, not scene space.
  */
 typedef enum eTrackClearAction {
-  /* Clear path from `ref_frame+1` up to the . */
+  /* Clear path from `ref_frame+1` up to the. */
   TRACK_CLEAR_UPTO,
   /* Clear path from the beginning up to `ref_frame-1`. */
   TRACK_CLEAR_REMAINED,
@@ -463,6 +465,16 @@ void BKE_tracking_camera_principal_point_pixel_get(struct MovieClip *clip,
 void BKE_tracking_camera_principal_point_pixel_set(struct MovieClip *clip,
                                                    const float principal_point_pixel[2]);
 
+/* Compares distortion related parameters of camera. Ideally, this implementation will be
+ * abstracted away in the future, but for now, one needs to be careful about it and handle any
+ * extra parameters of distortions models. */
+bool BKE_tracking_camera_distortion_equal(const struct MovieTrackingCamera *a,
+                                          const struct MovieTrackingCamera *b);
+/* Hashes distortion related parameters of camera. Ideally, this implementation will be
+ * abstracted away in the future, but for now, one needs to be careful about it and handle any
+ * extra parameters of distortions models. */
+uint64_t BKE_tracking_camera_distortion_hash(const struct MovieTrackingCamera *camera);
+
 /* --------------------------------------------------------------------
  * (Un)distortion.
  */
@@ -513,12 +525,17 @@ struct ImBuf *BKE_tracking_distort_frame(struct MovieTracking *tracking,
                                          int calibration_height,
                                          float overscan);
 
-void BKE_tracking_max_distortion_delta_across_bound(struct MovieTracking *tracking,
-                                                    int image_width,
-                                                    int image_height,
-                                                    struct rcti *rect,
-                                                    bool undistort,
-                                                    float delta[2]);
+/* Given the size of an image that will be distorted/undistorted by the given tracking, compute the
+ * number of pixels that the image will grow/shrink by in each of the four bounds of the image as a
+ * result of the distortion/undistortion. The deltas for the bounds are positive for expansion and
+ * negative for shrinking. */
+void BKE_tracking_distortion_bounds_deltas(MovieTracking *tracking,
+                                           const int size[2],
+                                           const bool undistort,
+                                           int *r_right,
+                                           int *r_left,
+                                           int *r_bottom,
+                                           int *r_top);
 
 /* --------------------------------------------------------------------
  * Image sampling.
@@ -776,11 +793,11 @@ struct MovieTrackingObject *BKE_tracking_find_object_for_plane_track(
 void BKE_tracking_get_rna_path_for_track(const struct MovieTracking *tracking,
                                          const struct MovieTrackingTrack *track,
                                          char *rna_path,
-                                         size_t rna_path_len);
+                                         size_t rna_path_maxncpy);
 void BKE_tracking_get_rna_path_prefix_for_track(const struct MovieTracking *tracking,
                                                 const struct MovieTrackingTrack *track,
                                                 char *rna_path,
-                                                size_t rna_path_len);
+                                                size_t rna_path_maxncpy);
 void BKE_tracking_get_rna_path_for_plane_track(const struct MovieTracking *tracking,
                                                const struct MovieTrackingPlaneTrack *plane_track,
                                                char *rna_path,
@@ -789,7 +806,7 @@ void BKE_tracking_get_rna_path_prefix_for_plane_track(
     const struct MovieTracking *tracking,
     const struct MovieTrackingPlaneTrack *plane_track,
     char *rna_path,
-    size_t rna_path_len);
+    size_t rna_path_maxncpy);
 
 /* --------------------------------------------------------------------
  * Utility macros.

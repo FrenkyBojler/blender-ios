@@ -1,9 +1,8 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
 
-if(WITH_GTESTS)
-  Include(GTestTesting)
-
+if(WITH_GTESTS AND WITH_CYCLES_LOGGING)
   # Otherwise we get warnings here that we can't fix in external projects
   remove_strict_flags()
 endif()
@@ -31,9 +30,12 @@ set(SRC
   integrator_adaptive_sampling_test.cpp
   integrator_render_scheduler_test.cpp
   integrator_tile_test.cpp
+  kernel_camera_projection_test.cpp
   render_graph_finalize_test.cpp
   util_aligned_malloc_test.cpp
+  util_ies_test.cpp
   util_math_test.cpp
+  util_math_fast_test.cpp
   util_md5_test.cpp
   util_path_test.cpp
   util_string_test.cpp
@@ -49,10 +51,11 @@ if(NOT APPLE)
     list(APPEND SRC
       util_float8_avx2_test.cpp
     )
-    set_source_files_properties(util_float8_avx2_test.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX2_KERNEL_FLAGS}")
+    set_source_files_properties(util_float8_avx2_test.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX2_FLAGS}")
   endif()
 endif()
 
-if(WITH_GTESTS)
-  blender_src_gtest(cycles "${SRC}" "${LIB}")
+if(WITH_GTESTS AND WITH_CYCLES_LOGGING)
+  set(INC_SYS )
+  blender_add_test_suite_executable(cycles "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 endif()

@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2016 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2016 Blender Foundation. All rights reserved.
 
 set(INC
   src
@@ -28,6 +29,8 @@ set(SRC
   src/config_hurd.h
   src/config_linux.h
   src/config_mac.h
+  src/config_netbsd.h
+  src/config_openbsd.h
 
   src/base/commandlineflags.h
   src/base/googleinit.h
@@ -45,6 +48,11 @@ set(SRC
 set(LIB
 )
 
+# Suppress warnings as GLOG has it's own define.
+if(HAVE_EXECINFO_H)
+  remove_definitions(-DHAVE_EXECINFO_H)
+endif()
+
 if(NOT WITH_SYSTEM_GFLAGS)
   list(APPEND LIB
     extern_gflags
@@ -59,6 +67,7 @@ if(WIN32)
     src/windows/glog/vlog_is_on.h
     src/windows/glog/logging.h
     src/windows/glog/log_severity.h
+    src/windows/glog/stl_logging.h
     src/windows/port.h
     src/windows/config.h
   )
@@ -79,6 +88,7 @@ else()
     include/glog/logging.h
     include/glog/log_severity.h
     include/glog/raw_logging.h
+    include/glog/stl_logging.h
     include/glog/vlog_is_on.h
   )
 endif()

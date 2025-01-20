@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -8,7 +10,7 @@
  * Functions for generating and handling UUID structs according to RFC4122.
  *
  * Note that these are true UUIDs, not to be confused with the "session uuid" defined in
- * `BLI_session_uuid.h`.
+ * `BLI_session_uid.h`.
  */
 #include "DNA_uuid_types.h"
 
@@ -37,7 +39,7 @@ bool BLI_uuid_equal(bUUID uuid1, bUUID uuid2);
 /**
  * Format UUID as string.
  * The buffer must be at least 37 bytes (36 bytes for the UUID + terminating 0).
- * Use `UUID_STRING_LEN` from DNA_uuid_types.h if you want to use a constant for this.
+ * Use `UUID_STRING_SIZE` from DNA_uuid_types.h if you want to use a constant for this.
  */
 void BLI_uuid_format(char *buffer, bUUID uuid) ATTR_NONNULL();
 
@@ -55,7 +57,10 @@ bool BLI_uuid_parse_string(bUUID *uuid, const char *buffer) ATTR_NONNULL();
 }
 
 #  include <initializer_list>
-#  include <ostream>
+#  include <iosfwd>
+#  include <string>
+
+#  include "BLI_string_ref.hh"
 
 /** Output the UUID as formatted ASCII string, see #BLI_uuid_format(). */
 std::ostream &operator<<(std::ostream &stream, bUUID uuid);
@@ -76,7 +81,10 @@ class bUUID : public ::bUUID {
   bUUID(std::initializer_list<uint32_t> field_values);
 
   /** Initialize by parsing the string; undefined behavior when the string is invalid. */
-  explicit bUUID(const std::string &string_formatted_uuid);
+  explicit bUUID(const StringRefNull string_formatted_uuid);
+
+  /** Return the UUID as formatted ASCII string, see #BLI_uuid_format(). */
+  std::string str() const;
 
   uint64_t hash() const;
 };  // namespace blender

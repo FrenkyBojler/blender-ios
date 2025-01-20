@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -9,9 +10,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
-#include "gpu_vertex_buffer_private.hh"
+#include "GPU_vertex_buffer.hh"
 
 namespace blender {
 namespace gpu {
@@ -25,7 +26,7 @@ class GLVertBuf : public VertBuf {
   /** OpenGL buffer handle. Init on first upload. Immutable after that. */
   GLuint vbo_id_ = 0;
   /** Texture used if the buffer is bound as buffer texture. Init on first use. */
-  struct ::GPUTexture *buffer_texture_ = nullptr;
+  ::GPUTexture *buffer_texture_ = nullptr;
   /** Defines whether the buffer handle is wrapped by this GLVertBuf, i.e. we do not own it and
    * should not free it. */
   bool is_wrapper_ = false;
@@ -37,8 +38,7 @@ class GLVertBuf : public VertBuf {
 
   void update_sub(uint start, uint len, const void *data) override;
 
-  const void *read() const override;
-  void *unmap(const void *mapped_data) const override;
+  void read(void *data) const override;
 
   void wrap_handle(uint64_t handle) override;
 

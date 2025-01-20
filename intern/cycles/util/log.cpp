@@ -1,12 +1,13 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "util/log.h"
 
 #include "util/math.h"
 #include "util/string.h"
 
-#include <stdio.h>
+#include <cstdio>
 #ifdef _MSC_VER
 #  define snprintf _snprintf
 #endif
@@ -18,7 +19,7 @@ static bool is_verbosity_set()
 {
   using CYCLES_GFLAGS_NAMESPACE::GetCommandLineOption;
 
-  std::string verbosity;
+  string verbosity;
   if (!GetCommandLineOption("v", &verbosity)) {
     return false;
   }
@@ -56,7 +57,7 @@ void util_logging_start()
 #endif
 }
 
-void util_logging_verbosity_set(int verbosity)
+void util_logging_verbosity_set(const int verbosity)
 {
 #ifdef WITH_CYCLES_LOGGING
   using CYCLES_GFLAGS_NAMESPACE::SetCommandLineOption;

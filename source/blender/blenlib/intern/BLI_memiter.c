@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -33,7 +35,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_strict_flags.h" /* keep last */
+#include "BLI_strict_flags.h" /* Keep last. */
 
 /* TODO: Valgrind. */
 
@@ -68,7 +70,7 @@ typedef struct BLI_memiter_chunk {
 
 typedef struct BLI_memiter {
   /* A pointer to 'head' is needed so we can iterate in the order allocated. */
-  struct BLI_memiter_chunk *head, *tail;
+  BLI_memiter_chunk *head, *tail;
   data_t *data_curr;
   data_t *data_last;
   /* Used unless a large element is requested.
@@ -82,7 +84,7 @@ typedef struct BLI_memiter {
 
 BLI_INLINE uint data_offset_from_size(uint size)
 {
-  return (PADUP(size, (uint)sizeof(data_t))) / (uint)sizeof(data_t);
+  return PADUP(size, (uint)sizeof(data_t)) / (uint)sizeof(data_t);
 }
 
 static void memiter_set_rewind_offset(BLI_memiter *mi)
@@ -131,7 +133,7 @@ BLI_memiter *BLI_memiter_create(uint chunk_size_min)
 void *BLI_memiter_alloc(BLI_memiter *mi, uint elem_size)
 {
   const uint data_offset = data_offset_from_size(elem_size);
-  data_t *data_curr_next = mi->data_curr + (1 + data_offset);
+  data_t *data_curr_next = LIKELY(mi->data_curr) ? mi->data_curr + (1 + data_offset) : NULL;
 
   if (UNLIKELY(mi->data_curr == NULL) || (data_curr_next > mi->data_last)) {
 

@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2019, NVIDIA Corporation.
- * Copyright 2019-2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2019 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2019-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -44,12 +45,13 @@ typedef unsigned long long uint64_t;
 #define ccl_global
 #define ccl_inline_constant static __constant__
 #define ccl_device_constant __constant__ __device__
+#define ccl_static_constexpr static constexpr
 #define ccl_constant const
 #define ccl_gpu_shared __shared__
 #define ccl_private
+#define ccl_ray_data ccl_private
 #define ccl_may_alias
 #define ccl_restrict __restrict__
-#define ccl_loop_no_unroll
 #define ccl_align(n) __align__(n)
 
 /* Zero initialize structs to help the compiler figure out scoping */

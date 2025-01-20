@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
 
 function(cycles_set_solution_folder target)
   if(IDE_GROUP_PROJECTS_IN_FOLDERS)
@@ -77,10 +78,11 @@ macro(cycles_external_libraries_append libraries)
   if(APPLE)
     list(APPEND ${libraries} "-framework Foundation")
     if(WITH_USD)
-      list(APPEND ${libraries} "-framework CoreVideo -framework Cocoa")
+      list(APPEND ${libraries} "-framework CoreVideo -framework Cocoa -framework OpenGL")
     endif()
-    if(WITH_CYCLES_STANDALONE_GUI OR WITH_USD)
-      list(APPEND ${libraries} "-framework OpenGL")
+  elseif(WIN32)
+    if(WITH_USD)
+      list(APPEND ${libraries} "opengl32")
     endif()
   elseif(UNIX)
     if(WITH_USD)
@@ -91,10 +93,13 @@ macro(cycles_external_libraries_append libraries)
     list(APPEND ${libraries} ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES})
   endif()
   if(WITH_CYCLES_OSL)
-    list(APPEND ${libraries} ${OSL_LIBRARIES} ${CLANG_LIBRARIES} ${LLVM_LIBRARY})
+    list(APPEND ${libraries} ${OSL_LIBRARIES})
   endif()
   if(WITH_CYCLES_EMBREE)
     list(APPEND ${libraries} ${EMBREE_LIBRARIES})
+    if(EMBREE_SYCL_SUPPORT)
+      list(APPEND ${libraries} ${SYCL_LIBRARIES})
+    endif()
   endif()
   if(WITH_OPENSUBDIV)
     list(APPEND ${libraries} ${OPENSUBDIV_LIBRARIES})
@@ -107,7 +112,10 @@ macro(cycles_external_libraries_append libraries)
     endif()
   endif()
   if(WITH_OPENVDB)
-    list(APPEND ${libraries} ${OPENVDB_LIBRARIES} ${BLOSC_LIBRARIES})
+    list(APPEND ${libraries} ${OPENVDB_LIBRARIES})
+    if(DEFINED BLOSC_LIBRARIES)
+      list(APPEND ${libraries} ${BLOSC_LIBRARIES})
+    endif()
   endif()
   if(WITH_OPENIMAGEDENOISE)
     list(APPEND ${libraries} ${OPENIMAGEDENOISE_LIBRARIES})
@@ -121,15 +129,19 @@ macro(cycles_external_libraries_append libraries)
     list(APPEND ${libraries} ${ALEMBIC_LIBRARIES})
   endif()
   if(WITH_PATH_GUIDING)
-    target_link_libraries(${target} ${OPENPGL_LIBRARIES})
+    list(APPEND ${libraries} ${OPENPGL_LIBRARIES})
   endif()
-
+  if(WITH_WEBP)
+    list(APPEND ${libraries} ${WEBP_LIBRARIES})
+  endif()
+  if(UNIX AND NOT APPLE)
+    list(APPEND ${libraries} "-lm -lc -lutil")
+  endif()
   list(APPEND ${libraries}
     ${OPENIMAGEIO_LIBRARIES}
     ${PNG_LIBRARIES}
     ${JPEG_LIBRARIES}
     ${TIFF_LIBRARY}
-    ${WEBP_LIBRARIES}
     ${OPENJPEG_LIBRARIES}
     ${OPENEXR_LIBRARIES}
     ${OPENEXR_LIBRARIES} # For circular dependencies between libs.
@@ -165,6 +177,9 @@ macro(cycles_external_libraries_append libraries)
   if(UNIX AND NOT APPLE)
     if(CYCLES_STANDALONE_REPOSITORY)
       list(APPEND ${libraries} extern_libc_compat)
+      # Hack to solve linking order issue where external libs depend on
+      # on our compatibility lib.
+      list(APPEND ${libraries} $<TARGET_FILE:extern_libc_compat>)
     else()
       list(APPEND ${libraries} bf_intern_libc_compat)
     endif()

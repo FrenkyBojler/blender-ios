@@ -1,26 +1,37 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_shader_util.hh"
+#include "node_util.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "BKE_texture.h"
+
+#include "NOD_multi_function.hh"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_tex_magic_cc {
 
 static void sh_node_tex_magic_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>(N_("Vector")).implicit_field(implicit_field_inputs::position);
-  b.add_input<decl::Float>(N_("Scale")).min(-1000.0f).max(1000.0f).default_value(5.0f);
-  b.add_input<decl::Float>(N_("Distortion")).min(-1000.0f).max(1000.0f).default_value(1.0f);
-  b.add_output<decl::Color>(N_("Color")).no_muted_links();
-  b.add_output<decl::Float>(N_("Fac")).no_muted_links();
+  b.add_input<decl::Vector>("Vector").implicit_field(implicit_field_inputs::position);
+  b.add_input<decl::Float>("Scale").min(-1000.0f).max(1000.0f).default_value(5.0f).description(
+      "Scale of the texture");
+  b.add_input<decl::Float>("Distortion")
+      .min(-1000.0f)
+      .max(1000.0f)
+      .default_value(1.0f)
+      .description("Amount of distortion");
+  b.add_output<decl::Color>("Color").no_muted_links();
+  b.add_output<decl::Float>("Fac").no_muted_links();
 }
 
 static void node_shader_buts_tex_magic(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "turbulence_depth", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "turbulence_depth", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static void node_shader_init_tex_magic(bNodeTree * /*ntree*/, bNode *node)
@@ -68,7 +79,7 @@ class MagicFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float3> &vector = params.readonly_single_input<float3>(0, "Vector");
     const VArray<float> &scale = params.readonly_single_input<float>(1, "Scale");
@@ -80,7 +91,7 @@ class MagicFunction : public mf::MultiFunction {
 
     const bool compute_factor = !r_fac.is_empty();
 
-    for (int64_t i : mask) {
+    mask.foreach_index([&](const int64_t i) {
       const float3 co = vector[i] * scale[i];
       const float distort = distortion[i];
       float x = sinf((co[0] + co[1] + co[2]) * 5.0f);
@@ -148,11 +159,11 @@ class MagicFunction : public mf::MultiFunction {
       }
 
       r_color[i] = ColorGeometry4f(0.5f - x, 0.5f - y, 0.5f - z, 1.0f);
-    }
+    });
     if (compute_factor) {
-      for (int64_t i : mask) {
+      mask.foreach_index([&](const int64_t i) {
         r_fac[i] = (r_color[i].r + r_color[i].g + r_color[i].b) * (1.0f / 3.0f);
-      }
+      });
     }
   }
 };
@@ -170,16 +181,20 @@ void register_node_type_sh_tex_magic()
 {
   namespace file_ns = blender::nodes::node_shader_tex_magic_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_TEX_MAGIC, "Magic Texture", NODE_CLASS_TEXTURE);
+  sh_fn_node_type_base(&ntype, "ShaderNodeTexMagic", SH_NODE_TEX_MAGIC);
+  ntype.ui_name = "Magic Texture";
+  ntype.ui_description = "Generate a psychedelic color texture";
+  ntype.enum_name_legacy = "TEX_MAGIC";
+  ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::sh_node_tex_magic_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_magic;
   ntype.initfunc = file_ns::node_shader_init_tex_magic;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeTexMagic", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_magic;
   ntype.build_multi_function = file_ns::sh_node_magic_tex_build_multi_function;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

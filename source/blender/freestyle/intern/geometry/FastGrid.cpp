@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2009-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -9,7 +11,7 @@
 
 #include "FastGrid.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BLI_utildefines.h"
 
 namespace Freestyle {

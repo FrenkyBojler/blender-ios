@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2008-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -48,12 +50,12 @@ void NodeCamera::accept(SceneVisitor &v)
   v.visitNodeCamera(*this);
 }
 
-void NodeCamera::setModelViewMatrix(double modelview_matrix[16])
+void NodeCamera::setModelViewMatrix(const double modelview_matrix[16])
 {
   memcpy(modelview_matrix_, modelview_matrix, sizeof(double[16]));
 }
 
-void NodeCamera::setProjectionMatrix(double projection_matrix[16])
+void NodeCamera::setProjectionMatrix(const double projection_matrix[16])
 {
   memcpy(projection_matrix_, projection_matrix, sizeof(double[16]));
 }
@@ -91,9 +93,7 @@ NodeOrthographicCamera::NodeOrthographicCamera(
   projection_matrix_[11] = -(zFar + zNear) / (zFar - zNear);
 }
 
-NodePerspectiveCamera::NodePerspectiveCamera() : NodeCamera(NodeCamera::PERSPECTIVE)
-{
-}
+NodePerspectiveCamera::NodePerspectiveCamera() : NodeCamera(NodeCamera::PERSPECTIVE) {}
 
 NodePerspectiveCamera::NodePerspectiveCamera(double fovy, double aspect, double zNear, double zFar)
     : NodeCamera(NodeCamera::PERSPECTIVE)

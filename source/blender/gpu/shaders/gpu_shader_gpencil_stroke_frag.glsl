@@ -1,12 +1,19 @@
+/* SPDX-FileCopyrightText: 2018-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "infos/gpu_shader_gpencil_stroke_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(gpu_shader_gpencil_stroke)
 
 void main()
 {
   const vec2 center = vec2(0, 0.5);
-  vec4 tColor = vec4(geometry_out.mColor);
+  vec4 tColor = interp.mColor;
   /* if alpha < 0, then encap */
-  if (geometry_out.mColor.a < 0) {
+  if (tColor.a < 0) {
     tColor.a = tColor.a * -1.0;
-    float dist = length(geometry_out.mTexCoord - center);
+    float dist = length(interp.mTexCoord - center);
     if (dist > 0.25) {
       discard;
     }

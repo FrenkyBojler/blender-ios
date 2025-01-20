@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,14 +20,16 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char DensityLowerThanUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    DensityLowerThanUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > :class:`DensityLowerThanUP1D`\n"
     "\n"
     ".. method:: __init__(threshold, sigma=2.0)\n"
     "\n"
     "   Builds a DensityLowerThanUP1D object.\n"
     "\n"
-    "   :arg threshold: The value of the threshold density.  Any Interface1D\n"
+    "   :arg threshold: The value of the threshold density. Any Interface1D\n"
     "      having a density lower than this threshold will match.\n"
     "   :type threshold: float\n"
     "   :arg sigma: The sigma value defining the density evaluation window\n"
@@ -40,7 +44,7 @@ static char DensityLowerThanUP1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True if the density is lower than a threshold.\n"
-    "   :rtype: bool\n";
+    "   :rtype: bool\n");
 
 static int DensityLowerThanUP1D___init__(BPy_DensityLowerThanUP1D *self,
                                          PyObject *args,
@@ -59,7 +63,7 @@ static int DensityLowerThanUP1D___init__(BPy_DensityLowerThanUP1D *self,
 /*-----------------------BPy_DensityLowerThanUP1D type definition ------------------------------*/
 
 PyTypeObject DensityLowerThanUP1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "DensityLowerThanUP1D",
     /*tp_basicsize*/ sizeof(BPy_DensityLowerThanUP1D),
     /*tp_itemsize*/ 0,

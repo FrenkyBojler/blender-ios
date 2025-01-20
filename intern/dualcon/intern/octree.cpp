@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 #include "octree.h"
 #include <Eigen/Dense>
@@ -323,16 +323,18 @@ void Octree::addTriangle(Triangle *trian, int triind)
 
   /* Project the triangle's coordinates into the grid */
   for (i = 0; i < 3; i++) {
-    for (j = 0; j < 3; j++)
+    for (j = 0; j < 3; j++) {
       trian->vt[i][j] = dimen * (trian->vt[i][j] - origin[j]) / range;
+    }
   }
 
   /* Generate projections */
   int64_t cube[2][3] = {{0, 0, 0}, {dimen, dimen, dimen}};
   int64_t trig[3][3];
   for (i = 0; i < 3; i++) {
-    for (j = 0; j < 3; j++)
+    for (j = 0; j < 3; j++) {
       trig[i][j] = (int64_t)(trian->vt[i][j]);
+    }
   }
 
   /* Add triangle to the octree */
@@ -377,22 +379,27 @@ InternalNode *Octree::addTriangle(InternalNode *node, CubeTriangleIsect *p, int 
       /* Pruning using intersection test */
       if (subp->isIntersecting()) {
         if (!node->has_child(i)) {
-          if (height == 1)
+          if (height == 1) {
             node = addLeafChild(node, i, count, createLeaf(0));
-          else
+          }
+          else {
             node = addInternalChild(node, i, count, createInternal(0));
+          }
         }
         Node *chd = node->get_child(count);
 
-        if (node->is_child_leaf(i))
+        if (node->is_child_leaf(i)) {
           node->set_child(count, (Node *)updateCell(&chd->leaf, subp));
-        else
+        }
+        else {
           node->set_child(count, (Node *)addTriangle(&chd->internal, subp, height - 1));
+        }
       }
     }
 
-    if (node->has_child(i))
+    if (node->has_child(i)) {
       count++;
+    }
   }
 
   delete subp;
@@ -443,10 +450,12 @@ void Octree::preparePrimalEdgesMask(InternalNode *node)
   int count = 0;
   for (int i = 0; i < 8; i++) {
     if (node->has_child(i)) {
-      if (node->is_child_leaf(i))
+      if (node->is_child_leaf(i)) {
         createPrimalEdgesMask(&node->get_child(count)->leaf);
-      else
+      }
+      else {
         preparePrimalEdgesMask(&node->get_child(count)->internal);
+      }
 
       count++;
     }
@@ -897,12 +906,10 @@ void Octree::printPath(PathElement *path)
 void Octree::printPaths(PathList *path)
 {
   PathList *iter = path;
-  int i = 0;
   while (iter != NULL) {
     dc_printf("Path %d:\n", i);
     printPath(iter);
     iter = iter->next;
-    i++;
   }
 }
 
@@ -1256,12 +1263,12 @@ Node *Octree::connectFace(
 
     updateParent(&newnode->internal, len, st);
 
-    int flag = 0;
     // Add the cells to the rings and fill in the patch
     PathElement *newEleN;
     if (curEleN->pos[0] != stN[0] || curEleN->pos[1] != stN[1] || curEleN->pos[2] != stN[2]) {
       if (curEleN->next->pos[0] != stN[0] || curEleN->next->pos[1] != stN[1] ||
-          curEleN->next->pos[2] != stN[2]) {
+          curEleN->next->pos[2] != stN[2])
+      {
         newEleN = new PathElement;
         newEleN->next = curEleN->next;
         newEleN->pos[0] = stN[0];
@@ -1286,7 +1293,6 @@ Node *Octree::connectFace(
                            alpha);
 
       curEleN = newEleN;
-      flag++;
     }
 
     PathElement *newEleP;
@@ -1316,7 +1322,6 @@ Node *Octree::connectFace(
                            alpha);
 
       curEleP = newEleP;
-      flag++;
     }
 
     /*
@@ -1542,6 +1547,8 @@ void Octree::getFacePoint(PathElement *leaf, int dir, int &x, int &y, float &p, 
   float avg[3] = {0, 0, 0};
   float off[3];
   int num = 0, num2 = 0;
+
+  (void)num2;  // Unused in release builds.
 
   LeafNode *leafnode = locateLeaf(leaf->pos);
   for (int i = 0; i < 4; i++) {
@@ -2016,8 +2023,9 @@ int Octree::floodFill(LeafNode *leaf, int st[3], int len, int /*height*/, int th
 
         // cells
         LeafNode *cs[2];
-        for (j = 0; j < 2; j++)
+        for (j = 0; j < 2; j++) {
           cs[j] = locateLeaf(cst[j]);
+        }
 
         // Middle sign
         int s = getSign(cs[0], 0);
@@ -2195,8 +2203,9 @@ static void solve_least_squares(const float halfA[],
   b2 = b2 + A * -mp;
   result = pinv * b2 + mp;
 
-  for (int i = 0; i < 3; i++)
+  for (int i = 0; i < 3; i++) {
     rvalue[i] = result(i);
+  }
 }
 
 static void mass_point(float mp[3], const float pts[12][3], const int parity[12])
@@ -2305,7 +2314,8 @@ void Octree::computeMinimizer(const LeafNode *leaf, int st[3], int len, float rv
 
       if (rvalue[0] < st[0] - nh1 || rvalue[1] < st[1] - nh1 || rvalue[2] < st[2] - nh1 ||
 
-          rvalue[0] > st[0] + nh2 || rvalue[1] > st[1] + nh2 || rvalue[2] > st[2] + nh2) {
+          rvalue[0] > st[0] + nh2 || rvalue[1] > st[1] + nh2 || rvalue[2] > st[2] + nh2)
+      {
         // Use mass point instead
         rvalue[0] = mp[0];
         rvalue[1] = mp[1];

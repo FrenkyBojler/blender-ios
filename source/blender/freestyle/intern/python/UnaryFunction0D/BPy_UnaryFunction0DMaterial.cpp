@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2008-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -30,21 +32,22 @@ int UnaryFunction0DMaterial_Init(PyObject *module)
   if (PyType_Ready(&UnaryFunction0DMaterial_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&UnaryFunction0DMaterial_Type);
-  PyModule_AddObject(module, "UnaryFunction0DMaterial", (PyObject *)&UnaryFunction0DMaterial_Type);
+  PyModule_AddObjectRef(
+      module, "UnaryFunction0DMaterial", (PyObject *)&UnaryFunction0DMaterial_Type);
 
   if (PyType_Ready(&MaterialF0D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&MaterialF0D_Type);
-  PyModule_AddObject(module, "MaterialF0D", (PyObject *)&MaterialF0D_Type);
+  PyModule_AddObjectRef(module, "MaterialF0D", (PyObject *)&MaterialF0D_Type);
 
   return 0;
 }
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char UnaryFunction0DMaterial___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    UnaryFunction0DMaterial___doc__,
     "Class hierarchy: :class:`UnaryFunction0D` > :class:`UnaryFunction0DMaterial`\n"
     "\n"
     "Base class for unary functions (functors) that work on\n"
@@ -52,7 +55,7 @@ static char UnaryFunction0DMaterial___doc__[] =
     "\n"
     ".. method:: __init__()\n"
     "\n"
-    "   Default constructor.\n";
+    "   Default constructor.\n");
 
 static int UnaryFunction0DMaterial___init__(BPy_UnaryFunction0DMaterial *self,
                                             PyObject *args,
@@ -88,7 +91,8 @@ static PyObject *UnaryFunction0DMaterial___call__(BPy_UnaryFunction0DMaterial *s
   PyObject *obj;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "O!", (char **)kwlist, &Interface0DIterator_Type, &obj)) {
+          args, kwds, "O!", (char **)kwlist, &Interface0DIterator_Type, &obj))
+  {
     return nullptr;
   }
 
@@ -109,7 +113,7 @@ static PyObject *UnaryFunction0DMaterial___call__(BPy_UnaryFunction0DMaterial *s
 /*-----------------------BPy_UnaryFunction0DMaterial type definition ----------------------------*/
 
 PyTypeObject UnaryFunction0DMaterial_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "UnaryFunction0DMaterial",
     /*tp_basicsize*/ sizeof(BPy_UnaryFunction0DMaterial),
     /*tp_itemsize*/ 0,

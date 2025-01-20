@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -16,7 +18,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char FalseBP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    FalseBP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.BinaryPredicate1D` > :class:`FalseBP1D`\n"
     "\n"
     ".. method:: __call__(inter1, inter2)\n"
@@ -28,7 +32,7 @@ static char FalseBP1D___doc__[] =
     "   :arg inter2: The second Interface1D object.\n"
     "   :type inter2: :class:`freestyle.types.Interface1D`\n"
     "   :return: False.\n"
-    "   :rtype: bool\n";
+    "   :rtype: bool\n");
 
 static int FalseBP1D___init__(BPy_FalseBP1D *self, PyObject *args, PyObject *kwds)
 {
@@ -44,7 +48,8 @@ static int FalseBP1D___init__(BPy_FalseBP1D *self, PyObject *args, PyObject *kwd
 /*-----------------------BPy_FalseBP1D type definition ------------------------------*/
 
 PyTypeObject FalseBP1D_Type = {
-    /*tp_name*/ PyVarObject_HEAD_INIT(nullptr, 0) "FalseBP1D",
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "FalseBP1D",
     /*tp_basicsize*/ sizeof(BPy_FalseBP1D),
     /*tp_itemsize*/ 0,
     /*tp_dealloc*/ nullptr,
@@ -80,7 +85,7 @@ PyTypeObject FalseBP1D_Type = {
     /*tp_dictoffset*/ 0,
     /*tp_init*/ (initproc)FalseBP1D___init__,
     /*tp_alloc*/ nullptr,
-    nullptr, /*tp_new*/
+    /*tp_new*/ nullptr,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////

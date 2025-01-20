@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bmesh
@@ -7,24 +9,20 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_linklist.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_utildefines_stack.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 
-#include "DNA_meshdata_types.h"
+#include "bmesh.hh"
 
-#include "bmesh.h"
-#include "intern/bmesh_private.h"
-
-BMUVOffsets BM_uv_map_get_offsets(const BMesh *bm)
+BMUVOffsets BM_uv_map_get_offsets_from_layer(const BMesh *bm, const int layer)
 {
   using namespace blender;
   using namespace blender::bke;
-  const int layer_index = CustomData_get_active_layer_index(&bm->ldata, CD_PROP_FLOAT2);
+  const int layer_index = CustomData_get_layer_index_n(&bm->ldata, CD_PROP_FLOAT2, layer);
   if (layer_index == -1) {
     return {-1, -1, -1, -1};
   }
@@ -42,6 +40,15 @@ BMUVOffsets BM_uv_map_get_offsets(const BMesh *bm)
       &bm->ldata, CD_PROP_BOOL, BKE_uv_map_pin_name_get(name, buffer));
 
   return offsets;
+}
+
+BMUVOffsets BM_uv_map_get_offsets(const BMesh *bm)
+{
+  const int layer = CustomData_get_active_layer(&bm->ldata, CD_PROP_FLOAT2);
+  if (layer == -1) {
+    return {-1, -1, -1, -1};
+  }
+  return BM_uv_map_get_offsets_from_layer(bm, layer);
 }
 
 static void uv_aspect(const BMLoop *l,
@@ -168,7 +175,7 @@ bool BM_edge_uv_share_vert_check(BMEdge *e, BMLoop *l_a, BMLoop *l_b, const int 
     return false;
   }
 
-  /* No need for NULL checks, these will always succeed. */
+  /* No need for null checks, these will always succeed. */
   const BMLoop *l_other_a = BM_loop_other_vert_loop_by_edge(l_a, e);
   const BMLoop *l_other_b = BM_loop_other_vert_loop_by_edge(l_b, e);
 
@@ -196,6 +203,5 @@ bool BM_face_uv_point_inside_test(const BMFace *f, const float co[2], const int 
     projverts[i] = BM_ELEM_CD_GET_FLOAT2_P(l_iter, cd_loop_uv_offset);
   }
 
-  return isect_point_poly_v2(
-      co, reinterpret_cast<const float(*)[2]>(projverts.data()), f->len, false);
+  return isect_point_poly_v2(co, reinterpret_cast<const float(*)[2]>(projverts.data()), f->len);
 }

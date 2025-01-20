@@ -1,20 +1,23 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup balembic
  */
 
 #include "abc_reader_camera.h"
-#include "abc_reader_transform.h"
 #include "abc_util.h"
 
 #include "DNA_camera_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_camera.h"
-#include "BKE_object.h"
+#include "BLI_math_base.h"
 
-#include "BLI_math.h"
+#include "BKE_camera.h"
+#include "BKE_object.hh"
+
+#include "BLT_translation.hh"
 
 using Alembic::AbcGeom::CameraSample;
 using Alembic::AbcGeom::ICamera;
@@ -42,17 +45,17 @@ bool AbcCameraReader::valid() const
 bool AbcCameraReader::accepts_object_type(
     const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
     const Object *const ob,
-    const char **err_str) const
+    const char **r_err_str) const
 {
   if (!Alembic::AbcGeom::ICamera::matches(alembic_header)) {
-    *err_str =
+    *r_err_str = RPT_(
         "Object type mismatch, Alembic object path pointed to Camera when importing, but not any "
-        "more.";
+        "more");
     return false;
   }
 
   if (ob->type != OB_CAMERA) {
-    *err_str = "Object type mismatch, Alembic object path points to Camera.";
+    *r_err_str = RPT_("Object type mismatch, Alembic object path points to Camera");
     return false;
   }
 
@@ -61,7 +64,7 @@ bool AbcCameraReader::accepts_object_type(
 
 void AbcCameraReader::readObjectData(Main *bmain, const ISampleSelector &sample_sel)
 {
-  Camera *bcam = static_cast<Camera *>(BKE_camera_add(bmain, m_data_name.c_str()));
+  Camera *bcam = BKE_camera_add(bmain, m_data_name.c_str());
 
   CameraSample cam_sample;
   m_schema.get(cam_sample, sample_sel);
@@ -69,7 +72,8 @@ void AbcCameraReader::readObjectData(Main *bmain, const ISampleSelector &sample_
   ICompoundProperty customDataContainer = m_schema.getUserProperties();
 
   if (customDataContainer.valid() && customDataContainer.getPropertyHeader("stereoDistance") &&
-      customDataContainer.getPropertyHeader("eyeSeparation")) {
+      customDataContainer.getPropertyHeader("eyeSeparation"))
+  {
     IFloatProperty convergence_plane(customDataContainer, "stereoDistance");
     IFloatProperty eye_separation(customDataContainer, "eyeSeparation");
 

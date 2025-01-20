@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char CurveNatureF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    CurveNatureF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DEdgeNature` > :class:`CurveNatureF0D`\n"
     "\n"
@@ -35,7 +39,7 @@ static char CurveNatureF0D___doc__[] =
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The nature of the 1D element to which the pointed Interface0D\n"
     "      belongs.\n"
-    "   :rtype: :class:`freestyle.types.Nature`\n";
+    "   :rtype: :class:`freestyle.types.Nature`\n");
 
 static int CurveNatureF0D___init__(BPy_CurveNatureF0D *self, PyObject *args, PyObject *kwds)
 {
@@ -52,7 +56,7 @@ static int CurveNatureF0D___init__(BPy_CurveNatureF0D *self, PyObject *args, PyO
 /*-----------------------BPy_CurveNatureF0D type definition ------------------------------*/
 
 PyTypeObject CurveNatureF0D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "CurveNatureF0D",
     /*tp_basicsize*/ sizeof(BPy_CurveNatureF0D),
     /*tp_itemsize*/ 0,

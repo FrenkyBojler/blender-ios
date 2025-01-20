@@ -1,5 +1,10 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_shape_lib.glsl)
+#pragma once
+
+#include "common_shape_lib.glsl"
 
 /* ---------------------------------------------------------------------- */
 /** \name Axis Aligned Bound Box
@@ -8,6 +13,14 @@
 struct AABB {
   vec3 min, max;
 };
+
+AABB shape_aabb(vec3 min, vec3 max)
+{
+  AABB aabb;
+  aabb.min = min;
+  aabb.max = max;
+  return aabb;
+}
 
 AABB aabb_init_min_max()
 {

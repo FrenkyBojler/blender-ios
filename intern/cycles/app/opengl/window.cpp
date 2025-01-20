@@ -1,14 +1,14 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "app/opengl/window.h"
 
 #include "util/string.h"
 #include "util/thread.h"
-#include "util/time.h"
 #include "util/version.h"
 
 #include <SDL.h>
@@ -41,7 +41,7 @@ struct Window {
 
 /* public */
 
-static void window_display_text(int x, int y, const char *text)
+static void window_display_text(int /*x*/, int /*y*/, const char *text)
 {
 /* Not currently supported, need to add text rendering support. */
 #if 0
@@ -63,7 +63,7 @@ static void window_display_text(int x, int y, const char *text)
              bitmap + 1);
   }
 #else
-  static string last_text = "";
+  static string last_text;
 
   if (text != last_text) {
     printf("%s\n", text);
@@ -116,7 +116,7 @@ void window_display_help()
   glColor3f(0.8f, 0.8f, 0.8f);
 #endif
 
-  string info = string("Cycles Renderer ") + CYCLES_VERSION_STRING;
+  const string info = string("Cycles Renderer ") + CYCLES_VERSION_STRING;
 
   window_display_text(x1 + 20, y2 - 20, info.c_str());
   window_display_text(x1 + 20, y2 - 40, "(C) 2011-2016 Blender Foundation");
@@ -173,14 +173,15 @@ static void window_display()
 
   glRasterPos3f(0, 0, 0);
 
-  if (V.display)
+  if (V.display) {
     V.display();
+  }
 
   SDL_GL_SwapWindow(V.window);
   window_opengl_context_disable();
 }
 
-static void window_reshape(int width, int height)
+static void window_reshape(const int width, const int height)
 {
   if (V.width != width || V.height != height) {
     if (V.resize) {
@@ -194,19 +195,21 @@ static void window_reshape(int width, int height)
 
 static bool window_keyboard(unsigned char key)
 {
-  if (V.keyboard)
+  if (V.keyboard) {
     V.keyboard(key);
+  }
 
   if (key == 'q') {
-    if (V.exitf)
+    if (V.exitf) {
       V.exitf();
+    }
     return true;
   }
 
   return false;
 }
 
-static void window_mouse(int button, int state, int x, int y)
+static void window_mouse(const int button, const int state, const int x, int y)
 {
   if (button == SDL_BUTTON_LEFT) {
     if (state == SDL_MOUSEBUTTONDOWN) {
@@ -230,14 +233,15 @@ static void window_mouse(int button, int state, int x, int y)
   }
 }
 
-static void window_motion(int x, int y)
+static void window_motion(const int x, const int y)
 {
   const int but = V.mouseBut0 ? 0 : 2;
   const int distX = x - V.mouseX;
   const int distY = y - V.mouseY;
 
-  if (V.motion)
+  if (V.motion) {
     V.motion(distX, distY, but);
+  }
 
   V.mouseX = x;
   V.mouseY = y;
@@ -257,8 +261,8 @@ void window_opengl_context_disable()
 }
 
 void window_main_loop(const char *title,
-                      int width,
-                      int height,
+                      const int width,
+                      const int height,
                       WindowInitFunc initf,
                       WindowExitFunc exitf,
                       WindowResizeFunc resize,
@@ -314,7 +318,8 @@ void window_main_loop(const char *title,
       }
       else if (event.type == SDL_WINDOWEVENT) {
         if (event.window.event == SDL_WINDOWEVENT_RESIZED ||
-            event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+            event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+        {
           window_reshape(event.window.data1, event.window.data2);
         }
       }
@@ -335,7 +340,7 @@ void window_main_loop(const char *title,
       window_display();
     }
 
-    SDL_WaitEventTimeout(NULL, 100);
+    SDL_WaitEventTimeout(nullptr, 100);
   }
 
   SDL_GL_DeleteContext(V.gl_context);

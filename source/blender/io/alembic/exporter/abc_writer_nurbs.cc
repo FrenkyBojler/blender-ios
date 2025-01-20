@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup balembic
@@ -12,7 +14,8 @@
 
 #include "BLI_listbase.h"
 
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
+#include "BKE_object_types.hh"
 
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.alembic"};
@@ -26,9 +29,7 @@ using Alembic::AbcGeom::OCompoundProperty;
 using Alembic::AbcGeom::ONuPatch;
 using Alembic::AbcGeom::ONuPatchSchema;
 
-ABCNurbsWriter::ABCNurbsWriter(const ABCWriterConstructorArgs &args) : ABCAbstractWriter(args)
-{
-}
+ABCNurbsWriter::ABCNurbsWriter(const ABCWriterConstructorArgs &args) : ABCAbstractWriter(args) {}
 
 void ABCNurbsWriter::create_alembic_objects(const HierarchyContext *context)
 {
@@ -112,8 +113,8 @@ void ABCNurbsWriter::do_write(HierarchyContext &context)
   Curve *curve = static_cast<Curve *>(context.object->data);
   ListBase *nulb;
 
-  if (context.object->runtime.curve_cache->deformed_nurbs.first != nullptr) {
-    nulb = &context.object->runtime.curve_cache->deformed_nurbs;
+  if (context.object->runtime->curve_cache->deformed_nurbs.first != nullptr) {
+    nulb = &context.object->runtime->curve_cache->deformed_nurbs;
   }
   else {
     nulb = BKE_curve_nurbs_get(curve);

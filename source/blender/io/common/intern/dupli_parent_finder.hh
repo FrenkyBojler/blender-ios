@@ -1,10 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 #include "IO_dupli_persistent_id.hh"
 
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 
 #include <map>
 #include <set>

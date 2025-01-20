@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -11,13 +12,15 @@
 
 #include <cstring>
 
+#include "BLI_listbase.h"
+
 #include "DNA_anim_types.h"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 
 #include "intern/builder/deg_builder_relations.h"
-#include "intern/depsgraph_relation.h"
-#include "intern/node/deg_node.h"
+#include "intern/depsgraph_relation.hh"
+#include "intern/node/deg_node.hh"
 
 namespace blender::deg {
 
@@ -52,7 +55,7 @@ bool DriverDescriptor::determine_relations_needed()
     return true;
   }
 
-  /* Drivers on Booleans and Enums (when used as bitflags) can write to the same memory location,
+  /* Drivers on Booleans and Enums (when used as bit-flags) can write to the same memory location,
    * so they need relations between each other. */
   return ELEM(RNA_property_type(property_rna_), PROP_BOOLEAN, PROP_ENUM);
 }
@@ -163,8 +166,7 @@ void DepsgraphRelationBuilder::build_driver_relations(IDNode *id_node)
   /* Mapping from RNA prefix -> set of driver descriptors: */
   Map<string, Vector<DriverDescriptor>> driver_groups;
 
-  PointerRNA id_ptr;
-  RNA_id_pointer_create(id_orig, &id_ptr);
+  PointerRNA id_ptr = RNA_id_pointer_create(id_orig);
 
   LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
     if (fcu->rna_path == nullptr) {
@@ -197,7 +199,7 @@ void DepsgraphRelationBuilder::build_driver_relations(IDNode *id_node)
         const DriverDescriptor &driver_to = prefix_group[to_index];
         Node *op_to = get_node(driver_to.depsgraph_key());
 
-        /* Duplicate drivers can exist (see T78615), but cannot be distinguished by OperationKey
+        /* Duplicate drivers can exist (see #78615), but cannot be distinguished by OperationKey
          * and thus have the same depsgraph node. Relations between those drivers should not be
          * created. This not something that is expected to happen (both the UI and the Python API
          * prevent duplicate drivers), it did happen in a file and it is easy to deal with here. */

@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __ATTRIBUTE_H__
-#define __ATTRIBUTE_H__
+#pragma once
 
 #include "scene/image.h"
 
@@ -54,7 +54,7 @@ class Attribute {
   bool modified;
 
   Attribute(ustring name,
-            TypeDesc type,
+            const TypeDesc type,
             AttributeElement element,
             Geometry *geom,
             AttributePrimitive prim);
@@ -63,9 +63,9 @@ class Attribute {
   Attribute &operator=(const Attribute &other) = delete;
   ~Attribute();
 
-  void set(ustring name, TypeDesc type, AttributeElement element);
+  void set(ustring name, const TypeDesc type, AttributeElement element);
   void resize(Geometry *geom, AttributePrimitive prim, bool reserve_only);
-  void resize(size_t num_elements);
+  void resize(const size_t num_elements);
 
   size_t data_sizeof() const;
   size_t element_size(Geometry *geom, AttributePrimitive prim) const;
@@ -73,7 +73,7 @@ class Attribute {
 
   char *data()
   {
-    return (buffer.size()) ? &buffer[0] : NULL;
+    return (!buffer.empty()) ? buffer.data() : nullptr;
   }
   float2 *data_float2()
   {
@@ -115,7 +115,7 @@ class Attribute {
 
   const char *data() const
   {
-    return (buffer.size()) ? &buffer[0] : NULL;
+    return (!buffer.empty()) ? buffer.data() : nullptr;
   }
   const float2 *data_float2() const
   {
@@ -149,18 +149,18 @@ class Attribute {
   }
 
   void zero_data(void *dst);
-  void add_with_weight(void *dst, void *src, float weight);
+  void add_with_weight(void *dst, void *src, const float weight);
 
   void add(const float &f);
   void add(const float2 &f);
   void add(const float3 &f);
   void add(const uchar4 &f);
-  void add(const Transform &tfm);
+  void add(const Transform &f);
   void add(const char *data);
 
   void set_data_from(Attribute &&other);
 
-  static bool same_storage(TypeDesc a, TypeDesc b);
+  static bool same_storage(const TypeDesc a, const TypeDesc b);
   static const char *standard_name(AttributeStandard std);
   static AttributeStandard name_standard(const char *name);
 
@@ -185,7 +185,7 @@ class AttributeSet {
   AttributeSet(AttributeSet &&) = default;
   ~AttributeSet();
 
-  Attribute *add(ustring name, TypeDesc type, AttributeElement element);
+  Attribute *add(ustring name, const TypeDesc type, AttributeElement element);
   Attribute *find(ustring name) const;
   void remove(ustring name);
 
@@ -266,5 +266,3 @@ class AttributeRequestSet {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __ATTRIBUTE_H__ */

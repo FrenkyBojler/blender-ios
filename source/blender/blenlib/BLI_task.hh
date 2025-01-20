@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -30,45 +32,102 @@
 #  endif
 #endif
 
+#include "BLI_function_ref.hh"
 #include "BLI_index_range.hh"
 #include "BLI_lazy_threading.hh"
+#include "BLI_span.hh"
+#include "BLI_task_size_hints.hh"
 #include "BLI_utildefines.h"
+
+namespace blender {
+
+/**
+ * Wrapper type around an integer to differentiate it from other parameters in a function call.
+ */
+struct GrainSize {
+  int64_t value;
+
+  explicit constexpr GrainSize(const int64_t grain_size) : value(grain_size) {}
+};
+
+}  // namespace blender
 
 namespace blender::threading {
 
 template<typename Range, typename Function>
-void parallel_for_each(Range &&range, const Function &function)
+inline void parallel_for_each(Range &&range, const Function &function)
 {
 #ifdef WITH_TBB
   tbb::parallel_for_each(range, function);
 #else
-  for (auto &value : range) {
+  for (auto &&value : range) {
     function(value);
   }
 #endif
 }
 
+namespace detail {
+void parallel_for_impl(IndexRange range,
+                       int64_t grain_size,
+                       FunctionRef<void(IndexRange)> function,
+                       const TaskSizeHints &size_hints);
+void memory_bandwidth_bound_task_impl(FunctionRef<void()> function);
+}  // namespace detail
+
+/**
+ * Executes the given function for sub-ranges of the given range, potentially in parallel.
+ * This is the main primitive for parallelizing code.
+ *
+ * \param range: The indices that should be iterated over in parallel.
+ * \param grain_size: The approximate amount of work that should be scheduled at once.
+ *   For example of the range is [0 - 1000] and the grain size is 200, then the function will be
+ *   called 5 times with [0 - 200], [201 - 400], ... (approximately). The `size_hints` parameter
+ *   can be used to adjust how the work is split up if the tasks have different sizes.
+ * \param function: A callback that actually does the work in parallel. It should have one
+ *   #IndexRange parameter.
+ * \param size_hints: Can be used to specify the size of the tasks *relative to* each other and the
+ *   grain size. If all tasks have approximately the same size, this can be ignored. Otherwise, one
+ *   can use `threading::individual_task_sizes(...)` or `threading::accumulated_task_sizes(...)`.
+ *   If the grain size is e.g. 200 and each task has the size 100, then only two tasks will be
+ *   scheduled at once.
+ */
 template<typename Function>
-void parallel_for(IndexRange range, int64_t grain_size, const Function &function)
+inline void parallel_for(const IndexRange range,
+                         const int64_t grain_size,
+                         const Function &function,
+                         const TaskSizeHints &size_hints = detail::TaskSizeHints_Static(1))
 {
-  if (range.size() == 0) {
+  if (range.is_empty()) {
     return;
   }
-#ifdef WITH_TBB
   /* Invoking tbb for small workloads has a large overhead. */
-  if (range.size() >= grain_size) {
-    lazy_threading::send_hint();
-    tbb::parallel_for(
-        tbb::blocked_range<int64_t>(range.first(), range.one_after_last(), grain_size),
-        [&](const tbb::blocked_range<int64_t> &subrange) {
-          function(IndexRange(subrange.begin(), subrange.size()));
-        });
+  if (use_single_thread(size_hints, range, grain_size)) {
+    function(range);
     return;
   }
-#else
-  UNUSED_VARS(grain_size);
-#endif
-  function(range);
+  detail::parallel_for_impl(range, grain_size, function, size_hints);
+}
+
+/**
+ * Move the sub-range boundaries down to the next aligned index. The "global" begin and end
+ * remain fixed though.
+ */
+inline IndexRange align_sub_range(const IndexRange unaligned_range,
+                                  const int64_t alignment,
+                                  const IndexRange global_range)
+{
+  const int64_t global_begin = global_range.start();
+  const int64_t global_end = global_range.one_after_last();
+  const int64_t alignment_mask = ~(alignment - 1);
+
+  const int64_t unaligned_begin = unaligned_range.start();
+  const int64_t unaligned_end = unaligned_range.one_after_last();
+  const int64_t aligned_begin = std::max(global_begin, unaligned_begin & alignment_mask);
+  const int64_t aligned_end = unaligned_end == global_end ?
+                                  unaligned_end :
+                                  std::max(global_begin, unaligned_end & alignment_mask);
+  const IndexRange aligned_range = IndexRange::from_begin_end(aligned_begin, aligned_end);
+  return aligned_range;
 }
 
 /**
@@ -79,34 +138,23 @@ void parallel_for(IndexRange range, int64_t grain_size, const Function &function
  * larger, which means that work is distributed less evenly.
  */
 template<typename Function>
-void parallel_for_aligned(const IndexRange range,
-                          const int64_t grain_size,
-                          const int64_t alignment,
-                          const Function &function)
+inline void parallel_for_aligned(const IndexRange range,
+                                 const int64_t grain_size,
+                                 const int64_t alignment,
+                                 const Function &function)
 {
-  const int64_t global_begin = range.start();
-  const int64_t global_end = range.one_after_last();
-  const int64_t alignment_mask = ~(alignment - 1);
   parallel_for(range, grain_size, [&](const IndexRange unaligned_range) {
-    /* Move the sub-range boundaries down to the next aligned index. The "global" begin and end
-     * remain fixed though. */
-    const int64_t unaligned_begin = unaligned_range.start();
-    const int64_t unaligned_end = unaligned_range.one_after_last();
-    const int64_t aligned_begin = std::max(global_begin, unaligned_begin & alignment_mask);
-    const int64_t aligned_end = unaligned_end == global_end ?
-                                    unaligned_end :
-                                    std::max(global_begin, unaligned_end & alignment_mask);
-    const IndexRange aligned_range{aligned_begin, aligned_end - aligned_begin};
+    const IndexRange aligned_range = align_sub_range(unaligned_range, alignment, range);
     function(aligned_range);
   });
 }
 
 template<typename Value, typename Function, typename Reduction>
-Value parallel_reduce(IndexRange range,
-                      int64_t grain_size,
-                      const Value &identity,
-                      const Function &function,
-                      const Reduction &reduction)
+inline Value parallel_reduce(IndexRange range,
+                             int64_t grain_size,
+                             const Value &identity,
+                             const Function &function,
+                             const Reduction &reduction)
 {
 #ifdef WITH_TBB
   if (range.size() >= grain_size) {
@@ -125,11 +173,30 @@ Value parallel_reduce(IndexRange range,
   return function(range, identity);
 }
 
+template<typename Value, typename Function, typename Reduction>
+inline Value parallel_reduce_aligned(const IndexRange range,
+                                     const int64_t grain_size,
+                                     const int64_t alignment,
+                                     const Value &identity,
+                                     const Function &function,
+                                     const Reduction &reduction)
+{
+  parallel_reduce(
+      range,
+      grain_size,
+      identity,
+      [&](const IndexRange unaligned_range, const Value &ident) {
+        const IndexRange aligned_range = align_sub_range(unaligned_range, alignment, range);
+        function(aligned_range, ident);
+      },
+      reduction);
+}
+
 /**
  * Execute all of the provided functions. The functions might be executed in parallel or in serial
  * or some combination of both.
  */
-template<typename... Functions> void parallel_invoke(Functions &&...functions)
+template<typename... Functions> inline void parallel_invoke(Functions &&...functions)
 {
 #ifdef WITH_TBB
   tbb::parallel_invoke(std::forward<Functions>(functions)...);
@@ -144,7 +211,7 @@ template<typename... Functions> void parallel_invoke(Functions &&...functions)
  * tasks.
  */
 template<typename... Functions>
-void parallel_invoke(const bool use_threading, Functions &&...functions)
+inline void parallel_invoke(const bool use_threading, Functions &&...functions)
 {
   if (use_threading) {
     lazy_threading::send_hint();
@@ -156,7 +223,7 @@ void parallel_invoke(const bool use_threading, Functions &&...functions)
 }
 
 /** See #BLI_task_isolate for a description of what isolating a task means. */
-template<typename Function> void isolate_task(const Function &function)
+template<typename Function> inline void isolate_task(const Function &function)
 {
 #ifdef WITH_TBB
   lazy_threading::ReceiverIsolation isolation;
@@ -164,6 +231,28 @@ template<typename Function> void isolate_task(const Function &function)
 #else
   function();
 #endif
+}
+
+/**
+ * Should surround parallel code that is highly bandwidth intensive, e.g. it just fills a buffer
+ * with no or just few additional operations. If the buffers are large, it's beneficial to limit
+ * the number of threads doing the work because that just creates more overhead on the hardware
+ * level and doesn't provide a notable performance benefit beyond a certain point.
+ */
+template<typename Function>
+inline void memory_bandwidth_bound_task(const int64_t approximate_bytes_touched,
+                                        const Function &function)
+{
+  /* Don't limit threading when all touched memory can stay in the CPU cache, because there a much
+   * higher memory bandwidth is available compared to accessing RAM. This value is supposed to be
+   * on the order of the L3 cache size. Accessing that value is not quite straight forward and even
+   * if it was, it's not clear if using the exact cache size would be beneficial because there is
+   * often more stuff going on the CPU at the same time. */
+  if (approximate_bytes_touched <= 8 * 1024 * 1024) {
+    function();
+    return;
+  }
+  detail::memory_bandwidth_bound_task_impl(function);
 }
 
 }  // namespace blender::threading

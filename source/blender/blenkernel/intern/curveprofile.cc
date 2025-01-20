@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -12,14 +13,15 @@
 #include "DNA_curve_types.h"
 #include "DNA_curveprofile_types.h"
 
+#include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 #include "BKE_curveprofile.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 /** Number of points in high resolution table is dynamic up to a maximum. */
 #define PROF_TABLE_MAX 512
@@ -28,7 +30,7 @@
 /** \name Data Handling
  * \{ */
 
-struct CurveProfile *BKE_curveprofile_add(eCurveProfilePresets preset)
+CurveProfile *BKE_curveprofile_add(eCurveProfilePresets preset)
 {
   CurveProfile *profile = MEM_cnew<CurveProfile>(__func__);
 
@@ -79,15 +81,15 @@ CurveProfile *BKE_curveprofile_copy(const CurveProfile *profile)
   return nullptr;
 }
 
-void BKE_curveprofile_blend_write(struct BlendWriter *writer, const struct CurveProfile *profile)
+void BKE_curveprofile_blend_write(BlendWriter *writer, const CurveProfile *profile)
 {
   BLO_write_struct(writer, CurveProfile, profile);
   BLO_write_struct_array(writer, CurveProfilePoint, profile->path_len, profile->path);
 }
 
-void BKE_curveprofile_blend_read(struct BlendDataReader *reader, struct CurveProfile *profile)
+void BKE_curveprofile_blend_read(BlendDataReader *reader, CurveProfile *profile)
 {
-  BLO_read_data_address(reader, &profile->path);
+  BLO_read_struct_array(reader, CurveProfilePoint, profile->path_len, &profile->path);
   profile->table = nullptr;
   profile->segments = nullptr;
 
@@ -105,7 +107,7 @@ void BKE_curveprofile_blend_read(struct BlendDataReader *reader, struct CurvePro
 /** \name Editing
  * \{ */
 
-bool BKE_curveprofile_move_handle(struct CurveProfilePoint *point,
+bool BKE_curveprofile_move_handle(CurveProfilePoint *point,
                                   const bool handle_1,
                                   const bool snap,
                                   const float delta[2])
@@ -145,8 +147,8 @@ bool BKE_curveprofile_move_handle(struct CurveProfilePoint *point,
   return false;
 }
 
-bool BKE_curveprofile_move_point(struct CurveProfile *profile,
-                                 struct CurveProfilePoint *point,
+bool BKE_curveprofile_move_point(CurveProfile *profile,
+                                 CurveProfilePoint *point,
                                  const bool snap,
                                  const float delta[2])
 {
@@ -537,7 +539,7 @@ static bool is_curved_edge(CurveProfilePoint *path, int i)
 
 /**
  * Used to set bezier handle locations in the sample creation process. Reduced copy of
- * #calchandleNurb_intern code in curve.c, mostly changed by removing the third dimension.
+ * #calchandleNurb_intern code in `curve.cc`, mostly changed by removing the third dimension.
  */
 static void point_calculate_handle(CurveProfilePoint *point,
                                    const CurveProfilePoint *prev,
@@ -702,7 +704,7 @@ static void create_samples(CurveProfile *profile,
   int n_left;
   if (n_segments >= totedges) {
     if (sample_straight_edges) {
-      /* Assign an even number to each edge if it’s possible, then add the remainder of sampled
+      /* Assign an even number to each edge if it's possible, then add the remainder of sampled
        * points starting with the most curved edges. */
       int n_common = n_segments / totedges;
       n_left = n_segments % totedges;
@@ -966,7 +968,7 @@ static void curveprofile_make_segments_table(CurveProfile *profile)
 void BKE_curveprofile_update(CurveProfile *profile, const int update_flags)
 {
   CurveProfilePoint *points = profile->path;
-  rctf *clipr = &profile->clip_rect;
+  const rctf *clipr = &profile->clip_rect;
 
   profile->changed_timestamp++;
 
@@ -1028,31 +1030,31 @@ void BKE_curveprofile_evaluate_length_portion(const CurveProfile *profile,
 
   /* Find the last point along the path with a lower length portion than the input. */
   int i = 0;
-  float length_travelled = 0.0f;
-  while (length_travelled < requested_length) {
+  float length_traveled = 0.0f;
+  while (length_traveled < requested_length) {
     /* Check if we reached the last point before the final one. */
     if (i == BKE_curveprofile_table_size(profile) - 2) {
       break;
     }
     float new_length = curveprofile_distance_to_next_table_point(profile, i);
-    if (length_travelled + new_length >= requested_length) {
+    if (length_traveled + new_length >= requested_length) {
       break;
     }
-    length_travelled += new_length;
+    length_traveled += new_length;
     i++;
   }
 
   /* Now travel the remaining distance of length portion down the path to the next point and
    * find the location where we stop. */
   float distance_to_next_point = curveprofile_distance_to_next_table_point(profile, i);
-  float lerp_factor = (requested_length - length_travelled) / distance_to_next_point;
+  float lerp_factor = (requested_length - length_traveled) / distance_to_next_point;
 
 #ifdef DEBUG_CURVEPROFILE_EVALUATE
   printf("CURVEPROFILE EVALUATE\n");
   printf("  length portion input: %f\n", double(length_portion));
   printf("  requested path length: %f\n", double(requested_length));
   printf("  distance to next point: %f\n", double(distance_to_next_point));
-  printf("  length travelled: %f\n", double(length_travelled));
+  printf("  length traveled: %f\n", double(length_traveled));
   printf("  lerp-factor: %f\n", double(lerp_factor));
   printf("  ith point (%f, %f)\n", double(profile->path[i].x), double(profile->path[i].y));
   printf("  next point(%f, %f)\n", double(profile->path[i + 1].x), double(profile->path[i + 1].y));

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -22,7 +23,7 @@
  * \{ */
 
 struct uiUndoStack_Text_State {
-  struct uiUndoStack_Text_State *next, *prev;
+  uiUndoStack_Text_State *next, *prev;
   int cursor_index;
   char text[0];
 };
@@ -97,7 +98,7 @@ void ui_textedit_undo_push(uiUndoStack_Text *stack, const char *text, int cursor
 
 uiUndoStack_Text *ui_textedit_undo_stack_create()
 {
-  uiUndoStack_Text *stack = MEM_new<uiUndoStack_Text>(__func__);
+  uiUndoStack_Text *stack = MEM_cnew<uiUndoStack_Text>(__func__);
   stack->current = nullptr;
   BLI_listbase_clear(&stack->states);
 

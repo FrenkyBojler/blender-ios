@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2018-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
 Call as follows:
-python collada_mesh_simple.py --blender PATH_TO_BLENDER_EXE --testdir PATH_TO_SVN/lib/tests/collada/mesh
+python collada_mesh_simple.py --blender PATH_TO_BLENDER_EXE --testdir tests/data/collada/mesh
 """
 
 import sys
@@ -31,7 +33,7 @@ def with_tempdir(wrapped):
     @functools.wraps(wrapped)
     def decorator(*args, **kwargs):
         dirname = tempfile.mkdtemp(prefix='blender-collada-test')
-        #print("Using tempdir %s" % dirname)
+        # print("Using tempdir %s" % dirname)
         try:
             retval = wrapped(*args, pathlib.Path(dirname), **kwargs)
         except:
@@ -105,7 +107,7 @@ class MeshExportTest4(AbstractColladaTest):
         outfile = tempdir / Path("%s_out.dae" % test)
 
         bpy.ops.wm.collada_export(
-            filepath="%s" % str(outfile),
+            filepath=str(outfile),
             check_existing=True,
             filemode=8,
             display_type='DEFAULT',
@@ -149,7 +151,7 @@ class MeshExportTest3(AbstractColladaTest):
         outfile = tempdir / Path("%s_out.dae" % test)
 
         bpy.ops.wm.collada_export(
-            filepath="%s" % str(outfile),
+            filepath=str(outfile),
             check_existing=True,
             filemode=8,
             display_type='DEFAULT',
@@ -193,7 +195,7 @@ class MeshExportTest2(AbstractColladaTest):
         outfile = tempdir / Path("%s_out.dae" % test)
 
         bpy.ops.wm.collada_export(
-            filepath="%s" % str(outfile),
+            filepath=str(outfile),
             check_existing=True,
             filemode=8,
             display_type='DEFAULT',
@@ -237,7 +239,7 @@ class MeshExportTest1(AbstractColladaTest):
         outfile = tempdir / Path("%s_out.dae" % test)
 
         bpy.ops.wm.collada_export(
-            filepath="%s" % str(outfile),
+            filepath=str(outfile),
             check_existing=True,
             filemode=8,
             display_type='DEFAULT',

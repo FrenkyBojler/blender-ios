@@ -1,12 +1,15 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "BLI_array.hh"
 #include "BLI_generic_virtual_array.hh"
-#include "BLI_strict_flags.h"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 #include "BLI_virtual_array.hh"
 #include "testing/testing.h"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 namespace blender::tests {
 
@@ -30,6 +33,7 @@ TEST(virtual_array, Single)
   EXPECT_EQ(varray.get(3), 10);
   EXPECT_FALSE(varray.is_span());
   EXPECT_TRUE(varray.is_single());
+  EXPECT_EQ(varray.get_internal_single(), 10);
 }
 
 TEST(virtual_array, Array)
@@ -183,15 +187,18 @@ TEST(virtual_array, MutableToImmutable)
 
 TEST(virtual_array, MaterializeCompressed)
 {
+  IndexMaskMemory memory;
   {
     std::array<int, 10> array = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90};
     VArray<int> varray = VArray<int>::ForSpan(array);
     std::array<int, 3> compressed_array;
-    varray.materialize_compressed({3, 6, 7}, compressed_array);
+    varray.materialize_compressed(IndexMask::from_indices<int>({3, 6, 7}, memory),
+                                  compressed_array);
     EXPECT_EQ(compressed_array[0], 30);
     EXPECT_EQ(compressed_array[1], 60);
     EXPECT_EQ(compressed_array[2], 70);
-    varray.materialize_compressed_to_uninitialized({2, 8, 9}, compressed_array);
+    varray.materialize_compressed_to_uninitialized(IndexMask::from_indices<int>({2, 8, 9}, memory),
+                                                   compressed_array);
     EXPECT_EQ(compressed_array[0], 20);
     EXPECT_EQ(compressed_array[1], 80);
     EXPECT_EQ(compressed_array[2], 90);
@@ -199,12 +206,14 @@ TEST(virtual_array, MaterializeCompressed)
   {
     VArray<int> varray = VArray<int>::ForSingle(4, 10);
     std::array<int, 3> compressed_array;
-    varray.materialize_compressed({2, 6, 7}, compressed_array);
+    varray.materialize_compressed(IndexMask::from_indices<int>({2, 6, 7}, memory),
+                                  compressed_array);
     EXPECT_EQ(compressed_array[0], 4);
     EXPECT_EQ(compressed_array[1], 4);
     EXPECT_EQ(compressed_array[2], 4);
     compressed_array.fill(0);
-    varray.materialize_compressed_to_uninitialized({0, 1, 2}, compressed_array);
+    varray.materialize_compressed_to_uninitialized(IndexMask::from_indices<int>({0, 1, 2}, memory),
+                                                   compressed_array);
     EXPECT_EQ(compressed_array[0], 4);
     EXPECT_EQ(compressed_array[1], 4);
     EXPECT_EQ(compressed_array[2], 4);
@@ -212,11 +221,13 @@ TEST(virtual_array, MaterializeCompressed)
   {
     VArray<int> varray = VArray<int>::ForFunc(10, [](const int64_t i) { return int(i * i); });
     std::array<int, 3> compressed_array;
-    varray.materialize_compressed({5, 7, 8}, compressed_array);
+    varray.materialize_compressed(IndexMask::from_indices<int>({5, 7, 8}, memory),
+                                  compressed_array);
     EXPECT_EQ(compressed_array[0], 25);
     EXPECT_EQ(compressed_array[1], 49);
     EXPECT_EQ(compressed_array[2], 64);
-    varray.materialize_compressed_to_uninitialized({1, 2, 3}, compressed_array);
+    varray.materialize_compressed_to_uninitialized(IndexMask::from_indices<int>({1, 2, 3}, memory),
+                                                   compressed_array);
     EXPECT_EQ(compressed_array[0], 1);
     EXPECT_EQ(compressed_array[1], 4);
     EXPECT_EQ(compressed_array[2], 9);

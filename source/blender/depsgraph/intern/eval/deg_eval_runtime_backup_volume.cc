@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -13,15 +14,13 @@
 
 #include "DNA_volume_types.h"
 
-#include "BKE_volume.h"
+#include "BKE_volume.hh"
 
 #include <cstdio>
 
 namespace blender::deg {
 
-VolumeBackup::VolumeBackup(const Depsgraph * /*depsgraph*/) : grids(nullptr)
-{
-}
+VolumeBackup::VolumeBackup(const Depsgraph * /*depsgraph*/) : grids(nullptr) {}
 
 void VolumeBackup::init_from_volume(Volume *volume)
 {
@@ -29,8 +28,8 @@ void VolumeBackup::init_from_volume(Volume *volume)
   BLI_STATIC_ASSERT(sizeof(filepath) == sizeof(volume->filepath),
                     "VolumeBackup filepath length wrong");
 
-  grids = volume->runtime.grids;
-  volume->runtime.grids = nullptr;
+  grids = volume->runtime->grids;
+  volume->runtime->grids = nullptr;
 }
 
 void VolumeBackup::restore_to_volume(Volume *volume)

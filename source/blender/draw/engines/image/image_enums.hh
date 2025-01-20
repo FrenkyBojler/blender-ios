@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
@@ -9,16 +10,16 @@
 
 #include "BLI_utildefines.h"
 
-namespace blender::draw::image_engine {
+namespace blender::image_engine {
 
 /* Shader parameters. */
 enum class ImageDrawFlags {
-  Default = 0,
-  ShowAlpha = (1 << 0),
-  ApplyAlpha = (1 << 1),
-  Shuffling = (1 << 2),
-  Depth = (1 << 3)
+  DEFAULT = 0,
+  SHOW_ALPHA = (1 << 0),
+  APPLY_ALPHA = (1 << 1),
+  SHUFFLING = (1 << 2),
+  DEPTH = (1 << 3)
 };
-ENUM_OPERATORS(ImageDrawFlags, ImageDrawFlags::Depth);
+ENUM_OPERATORS(ImageDrawFlags, ImageDrawFlags::DEPTH);
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine

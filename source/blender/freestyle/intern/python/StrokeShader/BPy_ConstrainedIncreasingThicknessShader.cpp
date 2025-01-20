@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ConstrainedIncreasingThicknessShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ConstrainedIncreasingThicknessShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > "
     ":class:`ConstrainedIncreasingThicknessShader`\n"
     "\n"
@@ -42,7 +46,7 @@ static char ConstrainedIncreasingThicknessShader___doc__[] =
     "   fat short lines.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int ConstrainedIncreasingThicknessShader___init__(
     BPy_ConstrainedIncreasingThicknessShader *self, PyObject *args, PyObject *kwds)
@@ -60,7 +64,7 @@ static int ConstrainedIncreasingThicknessShader___init__(
 /*-----------------------BPy_ConstrainedIncreasingThicknessShader type definition ---------------*/
 
 PyTypeObject ConstrainedIncreasingThicknessShader_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "ConstrainedIncreasingThicknessShader",
     /*tp_basicsize*/ sizeof(BPy_ConstrainedIncreasingThicknessShader),
     /*tp_itemsize*/ 0,

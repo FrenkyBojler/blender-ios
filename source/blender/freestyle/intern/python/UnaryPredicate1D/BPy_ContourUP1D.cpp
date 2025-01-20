@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -16,18 +18,20 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ContourUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ContourUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > :class:`ContourUP1D`\n"
     "\n"
     ".. method:: __call__(inter)\n"
     "\n"
-    "   Returns true if the Interface1D is a contour.  An Interface1D is a\n"
+    "   Returns true if the Interface1D is a contour. An Interface1D is a\n"
     "   contour if it is bordered by a different shape on each of its sides.\n"
     "\n"
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True if the Interface1D is a contour, false otherwise.\n"
-    "   :rtype: bool\n";
+    "   :rtype: bool\n");
 
 static int ContourUP1D___init__(BPy_ContourUP1D *self, PyObject *args, PyObject *kwds)
 {
@@ -43,7 +47,7 @@ static int ContourUP1D___init__(BPy_ContourUP1D *self, PyObject *args, PyObject 
 /*-----------------------BPy_ContourUP1D type definition ------------------------------*/
 
 PyTypeObject ContourUP1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "ContourUP1D",
     /*tp_basicsize*/ sizeof(BPy_ContourUP1D),
     /*tp_itemsize*/ 0,

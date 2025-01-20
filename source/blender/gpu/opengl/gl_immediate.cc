@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 by Mike Erwin. All rights reserved. */
+/* SPDX-FileCopyrightText: 2016 by Mike Erwin. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -7,9 +8,11 @@
  * Mimics old style opengl immediate mode drawing.
  */
 
+#include "GPU_capabilities.hh"
+
 #include "gpu_context_private.hh"
 #include "gpu_shader_private.hh"
-#include "gpu_vertex_format_private.h"
+#include "gpu_vertex_format_private.hh"
 
 #include "gl_context.hh"
 #include "gl_debug.hh"
@@ -68,6 +71,15 @@ uchar *GLImmediate::begin()
   /* Does the current buffer have enough room? */
   const size_t available_bytes = buffer_size() - buffer_offset();
 
+#ifndef NDEBUG
+  if (unwrap(this->shader)->is_polyline) {
+    /* Silence error. These are bound inside `immEnd()`. */
+    GLContext::get()->bound_ssbo_slots |= 1 << GPU_SSBO_POLYLINE_POS_BUF_SLOT;
+    GLContext::get()->bound_ssbo_slots |= 1 << GPU_SSBO_POLYLINE_COL_BUF_SLOT;
+    GLContext::get()->bound_ssbo_slots |= 1 << GPU_SSBO_INDEX_BUF_SLOT;
+  }
+#endif
+
   GL_CHECK_RESOURCES("Immediate");
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo_id());
@@ -79,15 +91,21 @@ uchar *GLImmediate::begin()
     recreate_buffer = true;
   }
   else if (bytes_needed < DEFAULT_INTERNAL_BUFFER_SIZE &&
-           buffer_size() > DEFAULT_INTERNAL_BUFFER_SIZE) {
+           buffer_size() > DEFAULT_INTERNAL_BUFFER_SIZE)
+  {
     /* shrink the internal buffer */
     buffer_size() = DEFAULT_INTERNAL_BUFFER_SIZE;
     recreate_buffer = true;
   }
 
-  /* ensure vertex data is aligned */
-  /* Might waste a little space, but it's safe. */
-  const uint pre_padding = padding(buffer_offset(), vertex_format.stride);
+  uint vert_alignment = vertex_format.stride;
+  if (unwrap(this->shader)->is_polyline) {
+    /* Polyline needs to bind the buffer as SSBO.
+     * The start of the range needs to match the SSBO alignment requirements. */
+    vert_alignment = ceil_to_multiple_u(vert_alignment, GPU_storage_buffer_alignment());
+  }
+  /* Ensure vertex data is aligned. Might waste a little space, but it's safe. */
+  const uint pre_padding = padding(buffer_offset(), vert_alignment);
 
   if (!recreate_buffer && ((bytes_needed + pre_padding) <= available_bytes)) {
     buffer_offset() += pre_padding;
@@ -133,7 +151,26 @@ void GLImmediate::end()
   }
   glUnmapBuffer(GL_ARRAY_BUFFER);
 
-  if (vertex_len > 0) {
+  if (vertex_len == 0) {
+    /* NOOP. Nothing to draw. */
+  }
+  else if (unwrap(this->shader)->is_polyline) {
+    GLintptr offset = buffer_offset();
+    GLenum target = GL_SHADER_STORAGE_BUFFER;
+    glBindBufferRange(target, GPU_SSBO_POLYLINE_POS_BUF_SLOT, vbo_id(), offset, buffer_bytes_used);
+    glBindBufferRange(target, GPU_SSBO_POLYLINE_COL_BUF_SLOT, vbo_id(), offset, buffer_bytes_used);
+    /* Not used. Satisfy the binding. */
+    glBindBufferRange(target, GPU_SSBO_INDEX_BUF_SLOT, vbo_id(), offset, buffer_bytes_used);
+
+    this->polyline_draw_workaround(0);
+
+#ifndef NDEBUG
+    GLContext::get()->bound_ssbo_slots &= ~(1 << GPU_SSBO_POLYLINE_POS_BUF_SLOT);
+    GLContext::get()->bound_ssbo_slots &= ~(1 << GPU_SSBO_POLYLINE_COL_BUF_SLOT);
+    GLContext::get()->bound_ssbo_slots &= ~(1 << GPU_SSBO_INDEX_BUF_SLOT);
+#endif
+  }
+  else {
     GLContext::get()->state_manager->apply_state();
 
     /* We convert the offset in vertex offset from the buffer's start.
@@ -145,15 +182,10 @@ void GLImmediate::end()
     /* Update matrices. */
     GPU_shader_bind(shader);
 
-#ifdef __APPLE__
-    glDisable(GL_PRIMITIVE_RESTART);
-#endif
     glDrawArrays(to_gl(prim_type), 0, vertex_len);
-#ifdef __APPLE__
-    glEnable(GL_PRIMITIVE_RESTART);
-#endif
+
     /* These lines are causing crash on startup on some old GPU + drivers.
-     * They are not required so just comment them. (T55722) */
+     * They are not required so just comment them. (#55722) */
     // glBindBuffer(GL_ARRAY_BUFFER, 0);
     // glBindVertexArray(0);
   }

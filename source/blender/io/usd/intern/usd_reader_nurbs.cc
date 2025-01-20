@@ -1,12 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Adapted from the Blender Alembic importer implementation.
- * Modifications Copyright 2021 Tangent Animation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2021 Tangent Animation. All rights reserved.
+ * SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Adapted from the Blender Alembic importer implementation. */
 
-#include "usd_reader_nurbs.h"
+#include "usd_reader_nurbs.hh"
 
-#include "BKE_curve.h"
-#include "BKE_mesh.h"
-#include "BKE_object.h"
+#include "BKE_curve.hh"
+#include "BKE_geometry_set.hh"
+#include "BKE_mesh.hh"
+#include "BKE_object.hh"
 
 #include "BLI_listbase.h"
 
@@ -15,10 +19,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include <pxr/base/vt/array.h>
 #include <pxr/base/vt/types.h>
-#include <pxr/base/vt/value.h>
-#include <pxr/usd/sdf/types.h>
 
 #include <pxr/usd/usdGeom/curves.h>
 
@@ -41,16 +42,16 @@ static bool set_knots(const pxr::VtDoubleArray &knots, float *&nu_knots)
 
 namespace blender::io::usd {
 
-void USDNurbsReader::create_object(Main *bmain, const double /* motionSampleTime */)
+void USDNurbsReader::create_object(Main *bmain, const double /*motionSampleTime*/)
 {
-  curve_ = BKE_curve_add(bmain, name_.c_str(), OB_CURVES_LEGACY);
+  Curve *cu = BKE_curve_add(bmain, name_.c_str(), OB_CURVES_LEGACY);
 
-  curve_->flag |= CU_3D;
-  curve_->actvert = CU_ACT_NONE;
-  curve_->resolu = 2;
+  cu->flag |= CU_3D;
+  cu->actvert = CU_ACT_NONE;
+  cu->resolu = 2;
 
   object_ = BKE_object_add_only_object(bmain, OB_CURVES_LEGACY, name_.c_str());
-  object_->data = curve_;
+  object_->data = cu;
 }
 
 void USDNurbsReader::read_object_data(Main *bmain, const double motionSampleTime)
@@ -67,8 +68,6 @@ void USDNurbsReader::read_object_data(Main *bmain, const double motionSampleTime
 
 void USDNurbsReader::read_curve_sample(Curve *cu, const double motionSampleTime)
 {
-  curve_prim_ = pxr::UsdGeomNurbsCurves(prim_);
-
   pxr::UsdAttribute widthsAttr = curve_prim_.GetWidthsAttr();
   pxr::UsdAttribute vertexAttr = curve_prim_.GetCurveVertexCountsAttr();
   pxr::UsdAttribute pointsAttr = curve_prim_.GetPointsAttr();
@@ -95,11 +94,11 @@ void USDNurbsReader::read_curve_sample(Curve *cu, const double motionSampleTime)
    * Perhaps to be replaced by Blender USD Schema. */
   if (!usdNormals.empty()) {
     /* Set extrusion to 1. */
-    curve_->extrude = 1.0f;
+    cu->extrude = 1.0f;
   }
   else {
     /* Set bevel depth to 1. */
-    curve_->bevel_radius = 1.0f;
+    cu->bevel_radius = 1.0f;
   }
 
   size_t idx = 0;
@@ -126,13 +125,14 @@ void USDNurbsReader::read_curve_sample(Curve *cu, const double motionSampleTime)
 
     /* TODO(makowalski): investigate setting Cyclic U and Endpoint U options. */
 #if 0
-     if (knots.size() > 3) {
-       if ((knots[0] == knots[1]) && (knots[knots.size()] == knots[knots.size() - 1])) {
-         nu->flagu |= CU_NURB_ENDPOINT;
-       } else {
-         nu->flagu |= CU_NURB_CYCLIC;
-       }
-     }
+    if (knots.size() > 3) {
+      if ((knots[0] == knots[1]) && (knots[knots.size()] == knots[knots.size() - 1])) {
+        nu->flagu |= CU_NURB_ENDPOINT;
+      }
+      else {
+        nu->flagu |= CU_NURB_CYCLIC;
+      }
+    }
 #endif
 
     float weight = 1.0f;
@@ -164,24 +164,32 @@ void USDNurbsReader::read_curve_sample(Curve *cu, const double motionSampleTime)
   }
 }
 
-Mesh *USDNurbsReader::read_mesh(struct Mesh * /* existing_mesh */,
-                                const double motionSampleTime,
-                                const int /* read_flag */,
-                                const char ** /* err_str */)
+void USDNurbsReader::read_geometry(bke::GeometrySet &geometry_set,
+                                   const USDMeshReadParams params,
+                                   const char **r_err_str)
 {
-  pxr::UsdGeomCurves curve_prim_(prim_);
+  BLI_assert(geometry_set.has_mesh());
+  Mesh *new_mesh = read_mesh(nullptr, params, r_err_str);
+  geometry_set.replace_mesh(new_mesh);
+}
 
-  pxr::UsdAttribute widthsAttr = curve_prim_.GetWidthsAttr();
-  pxr::UsdAttribute vertexAttr = curve_prim_.GetCurveVertexCountsAttr();
-  pxr::UsdAttribute pointsAttr = curve_prim_.GetPointsAttr();
+Mesh *USDNurbsReader::read_mesh(Mesh * /*existing_mesh*/,
+                                const USDMeshReadParams params,
+                                const char ** /*r_err_str*/)
+{
+  pxr::UsdGeomCurves curve_prim(prim_);
+
+  pxr::UsdAttribute widthsAttr = curve_prim.GetWidthsAttr();
+  pxr::UsdAttribute vertexAttr = curve_prim.GetCurveVertexCountsAttr();
+  pxr::UsdAttribute pointsAttr = curve_prim.GetPointsAttr();
 
   pxr::VtIntArray usdCounts;
 
-  vertexAttr.Get(&usdCounts, motionSampleTime);
+  vertexAttr.Get(&usdCounts, params.motion_sample_time);
   int num_subcurves = usdCounts.size();
 
   pxr::VtVec3fArray usdPoints;
-  pointsAttr.Get(&usdPoints, motionSampleTime);
+  pointsAttr.Get(&usdPoints, params.motion_sample_time);
 
   int vertex_idx = 0;
   int curve_idx;
@@ -205,7 +213,7 @@ Mesh *USDNurbsReader::read_mesh(struct Mesh * /* existing_mesh */,
 
   if (!same_topology) {
     BKE_nurbList_free(&curve->nurb);
-    read_curve_sample(curve, motionSampleTime);
+    read_curve_sample(curve, params.motion_sample_time);
   }
   else {
     Nurb *nurbs = static_cast<Nurb *>(curve->nurb.first);

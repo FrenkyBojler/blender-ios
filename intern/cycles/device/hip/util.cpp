@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifdef WITH_HIP
 
@@ -15,7 +16,7 @@ HIPContextScope::HIPContextScope(HIPDevice *device) : device(device)
 
 HIPContextScope::~HIPContextScope()
 {
-  hip_device_assert(device, hipCtxPopCurrent(NULL));
+  hip_device_assert(device, hipCtxPopCurrent(nullptr));
 }
 
 #  ifndef WITH_HIP_DYNLOAD

@@ -1,6 +1,7 @@
+# SPDX-FileCopyrightText: 2022 Blender Authors
+#
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import enum
 import time
 
@@ -112,6 +113,9 @@ else:
 
         def category(self):
             return "eevee"
+
+        def use_background(self):
+            return False
 
         def run(self, env, device_id):
             args = {}

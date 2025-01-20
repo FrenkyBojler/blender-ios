@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -19,7 +21,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char SpatialNoiseShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    SpatialNoiseShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`SpatialNoiseShader`\n"
     "\n"
     "[Geometry shader]\n"
@@ -41,11 +45,11 @@ static char SpatialNoiseShader___doc__[] =
     "\n"
     ".. method:: shade(stroke)\n"
     "\n"
-    "   Spatial Noise stroke shader.  Moves the vertices to make the stroke\n"
+    "   Spatial Noise stroke shader. Moves the vertices to make the stroke\n"
     "   more noisy.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int SpatialNoiseShader___init__(BPy_SpatialNoiseShader *self,
                                        PyObject *args,
@@ -67,7 +71,8 @@ static int SpatialNoiseShader___init__(BPy_SpatialNoiseShader *self,
                                    &PyBool_Type,
                                    &obj4,
                                    &PyBool_Type,
-                                   &obj5)) {
+                                   &obj5))
+  {
     return -1;
   }
   self->py_ss.ss = new SpatialNoiseShader(
@@ -78,7 +83,7 @@ static int SpatialNoiseShader___init__(BPy_SpatialNoiseShader *self,
 /*-----------------------BPy_SpatialNoiseShader type definition ------------------------------*/
 
 PyTypeObject SpatialNoiseShader_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "SpatialNoiseShader",
     /*tp_basicsize*/ sizeof(BPy_SpatialNoiseShader),
     /*tp_itemsize*/ 0,

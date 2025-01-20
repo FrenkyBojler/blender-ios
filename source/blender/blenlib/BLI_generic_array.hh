@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -41,13 +43,9 @@ class GArray {
    * allowed to be null. This default constructor exists so `GArray` can be used in containers,
    * but the type should be supplied before doing anything else to the array.
    */
-  GArray(Allocator allocator = {}) noexcept : allocator_(allocator)
-  {
-  }
+  GArray(Allocator allocator = {}) noexcept : allocator_(allocator) {}
 
-  GArray(NoExceptConstructor, Allocator allocator = {}) noexcept : GArray(allocator)
-  {
-  }
+  GArray(NoExceptConstructor, Allocator allocator = {}) noexcept : GArray(allocator) {}
 
   /**
    * Create and allocate a new array, with elements default constructed
@@ -96,14 +94,13 @@ class GArray {
   /**
    * Create an array by copying values from another generic array.
    */
-  GArray(const GArray &other) : GArray(other.as_span(), other.allocator())
-  {
-  }
+  GArray(const GArray &other) : GArray(other.as_span(), other.allocator()) {}
 
   /**
    * Create an array by taking ownership of another array's data, clearing the data in the other.
    */
-  GArray(GArray &&other) : GArray(other.type(), other.data(), other.size(), other.allocator())
+  GArray(GArray &&other)
+      : type_(other.type_), data_(other.data_), size_(other.size_), allocator_(other.allocator_)
   {
     other.data_ = nullptr;
     other.size_ = 0;
@@ -172,14 +169,14 @@ class GArray {
 
   operator GSpan() const
   {
-    BLI_assert(type_ != nullptr);
-    return GSpan(*type_, data_, size_);
+    BLI_assert(size_ == 0 || type_ != nullptr);
+    return GSpan(type_, data_, size_);
   }
 
   operator GMutableSpan()
   {
-    BLI_assert(type_ != nullptr);
-    return GMutableSpan(*type_, data_, size_);
+    BLI_assert(size_ == 0 || type_ != nullptr);
+    return GMutableSpan(type_, data_, size_);
   }
 
   GSpan as_span() const

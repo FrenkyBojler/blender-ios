@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -7,7 +8,7 @@
  * \ingroup sim
  */
 
-#include "stdio.h"
+#include <stdio.h>
 
 #include "BLI_utildefines.h"
 
@@ -17,7 +18,7 @@
 extern "C" {
 #endif
 
-//#define IMPLICIT_SOLVER_EIGEN
+// #define IMPLICIT_SOLVER_EIGEN
 #define IMPLICIT_SOLVER_BLENDER
 
 #define CLOTH_ROOT_FRAME /* enable use of root frame coordinate transform */
@@ -27,12 +28,12 @@ extern "C" {
 #define CLOTH_FORCE_SPRING_STRUCTURAL
 #define CLOTH_FORCE_SPRING_SHEAR
 #define CLOTH_FORCE_SPRING_BEND
-#define CLOTH_FORCE_SPRING_GOAL
-#define CLOTH_FORCE_EFFECTORS
+// #define CLOTH_FORCE_SPRING_GOAL /* UNUSED. */
+// #define CLOTH_FORCE_EFFECTORS /* UNUSED. */
 
-//#define IMPLICIT_PRINT_SOLVER_INPUT_OUTPUT
+// #define IMPLICIT_PRINT_SOLVER_INPUT_OUTPUT
 
-//#define IMPLICIT_ENABLE_EIGEN_DEBUG
+// #define IMPLICIT_ENABLE_EIGEN_DEBUG
 
 struct Implicit_Data;
 

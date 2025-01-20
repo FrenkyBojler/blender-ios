@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -16,20 +18,14 @@ namespace Freestyle {
 
 class WXEdgeBuilder : public WingedEdgeBuilder {
  public:
-  WXEdgeBuilder() : WingedEdgeBuilder()
-  {
-  }
-  virtual ~WXEdgeBuilder()
-  {
-  }
+  WXEdgeBuilder() : WingedEdgeBuilder() {}
+  virtual ~WXEdgeBuilder() {}
   VISIT_DECL(IndexedFaceSet);
 
  protected:
-  virtual void buildWVertices(WShape &shape, const float *vertices, unsigned vsize);
+  virtual void buildWVertices(WShape &shape, const float *vertices, uint vsize);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WXEdgeBuilder")
-#endif
 };
 
 } /* namespace Freestyle */

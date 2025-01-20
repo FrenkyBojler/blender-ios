@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "blender/CCL_api.h"
 #include "util/log.h"
@@ -14,7 +15,7 @@ void CCL_start_debug_logging()
   ccl::util_logging_start();
 }
 
-void CCL_logging_verbosity_set(int verbosity)
+void CCL_logging_verbosity_set(const int verbosity)
 {
   ccl::util_logging_verbosity_set(verbosity);
 }

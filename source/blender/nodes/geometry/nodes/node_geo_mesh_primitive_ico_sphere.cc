@@ -1,12 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "DNA_mesh_types.h"
 
-#include "BKE_lib_id.h"
-#include "BKE_material.h"
-#include "BKE_mesh.h"
+#include "BKE_lib_id.hh"
+#include "BKE_material.hh"
+#include "BKE_mesh.hh"
 
-#include "bmesh.h"
+#include "GEO_randomize.hh"
+
+#include "bmesh.hh"
 
 #include "node_geometry_util.hh"
 
@@ -14,24 +18,58 @@ namespace blender::nodes::node_geo_mesh_primitive_ico_sphere_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>(N_("Radius"))
+  b.add_input<decl::Float>("Radius")
       .default_value(1.0f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
-      .description(N_("Distance from the generated points to the origin"));
-  b.add_input<decl::Int>(N_("Subdivisions"))
+      .description("Distance from the generated points to the origin");
+  b.add_input<decl::Int>("Subdivisions")
       .default_value(1)
       .min(1)
       .max(7)
-      .description(N_("Number of subdivisions on top of the basic icosahedron"));
-  b.add_output<decl::Geometry>(N_("Mesh"));
-  b.add_output<decl::Vector>(N_("UV Map")).field_on_all();
+      .description("Number of subdivisions on top of the basic icosahedron");
+  b.add_output<decl::Geometry>("Mesh");
+  b.add_output<decl::Vector>("UV Map").field_on_all();
+}
+
+static Bounds<float3> calculate_bounds_ico_sphere(const float radius, const int subdivisions)
+{
+  const float delta_phi = (2.0f * M_PI) / 5.0f;
+  const float theta = std::cos(std::atan(0.5f));
+  const float ro = radius * std::sin(delta_phi);
+
+  float x_max = radius;
+  float x_min = -radius;
+  float y_max = radius;
+  float y_min = -radius;
+
+  if (subdivisions == 1) {
+    x_max = radius * theta;
+    x_min = -x_max;
+    y_max = ro * theta;
+    y_min = -y_max;
+  }
+  else if (subdivisions == 2) {
+    x_max = ro;
+    x_min = -x_max;
+  }
+
+  const float3 bounds_min(x_min, y_min, -radius);
+  const float3 bounds_max(x_max, y_max, radius);
+
+  return {bounds_min, bounds_max};
 }
 
 static Mesh *create_ico_sphere_mesh(const int subdivisions,
                                     const float radius,
-                                    const AttributeIDRef &uv_map_id)
+                                    const std::optional<std::string> &uv_map_id)
 {
+  if (subdivisions >= 3) {
+    /* Most nodes don't need this because they internally use multi-threading which triggers
+     * lazy-threading without any extra code. */
+    lazy_threading::send_hint();
+  }
+
   const float4x4 transform = float4x4::identity();
 
   const bool create_uv_map = bool(uv_map_id);
@@ -65,13 +103,17 @@ static Mesh *create_ico_sphere_mesh(const int subdivisions,
    * have a simple utility for that yet though so there is some overhead right now. */
   MutableAttributeAccessor attributes = mesh->attributes_for_write();
   if (create_uv_map) {
-    const VArraySpan<float2> orig_uv_map = attributes.lookup<float2>("UVMap");
+    const VArraySpan orig_uv_map = *attributes.lookup<float2>("UVMap");
     SpanAttributeWriter<float2> uv_map = attributes.lookup_or_add_for_write_only_span<float2>(
-        uv_map_id, ATTR_DOMAIN_CORNER);
+        *uv_map_id, AttrDomain::Corner);
     uv_map.span.copy_from(orig_uv_map);
     uv_map.finish();
   }
   attributes.remove("UVMap");
+
+  geometry::debug_randomize_mesh_order(mesh);
+
+  mesh->bounds_set_eager(calculate_bounds_ico_sphere(radius, subdivisions));
 
   return mesh;
 }
@@ -81,30 +123,26 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int subdivisions = std::min(params.extract_input<int>("Subdivisions"), 10);
   const float radius = params.extract_input<float>("Radius");
 
-  AutoAnonymousAttributeID uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
+  std::optional<std::string> uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
       "UV Map");
 
-  Mesh *mesh = create_ico_sphere_mesh(subdivisions, radius, uv_map_id.get());
-  params.set_output("Mesh", GeometrySet::create_with_mesh(mesh));
-
-  if (uv_map_id) {
-    params.set_output("UV Map",
-                      AnonymousAttributeFieldInput::Create<float3>(
-                          std::move(uv_map_id), params.attribute_producer_name()));
-  }
+  Mesh *mesh = create_ico_sphere_mesh(subdivisions, radius, uv_map_id);
+  params.set_output("Mesh", GeometrySet::from_mesh(mesh));
 }
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  geo_node_type_base(&ntype, "GeometryNodeMeshIcoSphere", GEO_NODE_MESH_PRIMITIVE_ICO_SPHERE);
+  ntype.ui_name = "Ico Sphere";
+  ntype.ui_description = "Generate a spherical mesh that consists of equally sized triangles";
+  ntype.enum_name_legacy = "MESH_PRIMITIVE_ICO_SPHERE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
+}
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_mesh_primitive_ico_sphere_cc
-
-void register_node_type_geo_mesh_primitive_ico_sphere()
-{
-  namespace file_ns = blender::nodes::node_geo_mesh_primitive_ico_sphere_cc;
-
-  static bNodeType ntype;
-
-  geo_node_type_base(
-      &ntype, GEO_NODE_MESH_PRIMITIVE_ICO_SPHERE, "Ico Sphere", NODE_CLASS_GEOMETRY);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
-}

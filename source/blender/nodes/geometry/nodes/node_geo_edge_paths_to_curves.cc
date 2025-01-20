@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
 
@@ -12,28 +14,27 @@ namespace blender::nodes::node_geo_edge_paths_to_curves_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Mesh")).supported_type(GEO_COMPONENT_TYPE_MESH);
-  b.add_input<decl::Bool>(N_("Start Vertices")).default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>(N_("Next Vertex Index")).default_value(-1).hide_value().field_on_all();
-  b.add_output<decl::Geometry>(N_("Curves")).propagate_all();
+  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Bool>("Start Vertices").default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Int>("Next Vertex Index").default_value(-1).hide_value().field_on_all();
+  b.add_output<decl::Geometry>("Curves").propagate_all();
 }
 
-static Curves *edge_paths_to_curves_convert(
-    const Mesh &mesh,
-    const IndexMask start_verts_mask,
-    const Span<int> next_indices,
-    const AnonymousAttributePropagationInfo &propagation_info)
+static Curves *edge_paths_to_curves_convert(const Mesh &mesh,
+                                            const IndexMask &start_verts_mask,
+                                            const Span<int> next_indices,
+                                            const AttributeFilter &attribute_filter)
 {
   Vector<int> vert_indices;
   Vector<int> curve_offsets;
-  Array<bool> visited(mesh.totvert, false);
-  for (const int first_vert : start_verts_mask) {
+  Array<bool> visited(mesh.verts_num, false);
+  start_verts_mask.foreach_index([&](const int first_vert) {
     const int second_vert = next_indices[first_vert];
     if (first_vert == second_vert) {
-      continue;
+      return;
     }
-    if (second_vert < 0 || second_vert >= mesh.totvert) {
-      continue;
+    if (second_vert < 0 || second_vert >= mesh.verts_num) {
+      return;
     }
 
     curve_offsets.append(vert_indices.size());
@@ -44,7 +45,7 @@ static Curves *edge_paths_to_curves_convert(
       visited[current_vert] = true;
       vert_indices.append(current_vert);
       const int next_vert = next_indices[current_vert];
-      if (next_vert < 0 || next_vert >= mesh.totvert) {
+      if (next_vert < 0 || next_vert >= mesh.verts_num) {
         break;
       }
       current_vert = next_vert;
@@ -55,13 +56,13 @@ static Curves *edge_paths_to_curves_convert(
     for (const int vert_in_curve : vert_indices.as_span().take_back(points_in_curve_num)) {
       visited[vert_in_curve] = false;
     }
-  }
+  });
 
   if (vert_indices.is_empty()) {
     return nullptr;
   }
   Curves *curves_id = bke::curves_new_nomain(geometry::create_curve_from_vert_indices(
-      mesh, vert_indices, curve_offsets, IndexRange(0), propagation_info));
+      mesh.attributes(), vert_indices, curve_offsets, IndexRange(0), attribute_filter));
   return curves_id;
 }
 
@@ -70,14 +71,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    const Mesh *mesh = geometry_set.get_mesh_for_read();
+    const Mesh *mesh = geometry_set.get_mesh();
     if (mesh == nullptr) {
-      geometry_set.keep_only({GEO_COMPONENT_TYPE_INSTANCES});
+      geometry_set.keep_only({GeometryComponent::Type::Instance});
       return;
     }
 
-    bke::MeshFieldContext context{*mesh, ATTR_DOMAIN_POINT};
-    fn::FieldEvaluator evaluator{context, mesh->totvert};
+    const bke::MeshFieldContext context{*mesh, AttrDomain::Point};
+    fn::FieldEvaluator evaluator{context, mesh->verts_num};
     evaluator.add(params.get_input<Field<int>>("Next Vertex Index"));
     evaluator.add(params.get_input<Field<bool>>("Start Vertices"));
     evaluator.evaluate();
@@ -85,29 +86,31 @@ static void node_geo_exec(GeoNodeExecParams params)
     IndexMask start_verts = evaluator.get_evaluated_as_mask(1);
 
     if (start_verts.is_empty()) {
-      geometry_set.keep_only({GEO_COMPONENT_TYPE_INSTANCES});
+      geometry_set.keep_only({GeometryComponent::Type::Instance});
       return;
     }
 
     geometry_set.replace_curves(edge_paths_to_curves_convert(
-        *mesh, start_verts, next_vert, params.get_output_propagation_info("Curves")));
-    geometry_set.keep_only({GEO_COMPONENT_TYPE_CURVE, GEO_COMPONENT_TYPE_INSTANCES});
+        *mesh, start_verts, next_vert, params.get_attribute_filter("Curves")));
+    geometry_set.keep_only({GeometryComponent::Type::Curve, GeometryComponent::Type::Instance});
   });
 
   params.set_output("Curves", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_edge_paths_to_curves_cc
-
-void register_node_type_geo_edge_paths_to_curves()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_edge_paths_to_curves_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(
-      &ntype, GEO_NODE_EDGE_PATHS_TO_CURVES, "Edge Paths to Curves", NODE_CLASS_GEOMETRY);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeEdgePathsToCurves", GEO_NODE_EDGE_PATHS_TO_CURVES);
+  ntype.ui_name = "Edge Paths to Curves";
+  ntype.ui_description = "Output curves following paths across mesh edges";
+  ntype.enum_name_legacy = "EDGE_PATHS_TO_CURVES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_edge_paths_to_curves_cc

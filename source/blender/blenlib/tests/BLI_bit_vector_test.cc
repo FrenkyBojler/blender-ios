@@ -1,12 +1,15 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-
-#include "BLI_bit_vector.hh"
-#include "BLI_exception_safety_test_utils.hh"
-#include "BLI_strict_flags.h"
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
-namespace blender::tests {
+#include "BLI_bit_vector.hh"
+#include "BLI_exception_safety_test_utils.hh"
+
+#include "BLI_strict_flags.h" /* Keep last. */
+
+namespace blender::bits::tests {
 
 TEST(bit_vector, DefaultConstructor)
 {
@@ -183,4 +186,4 @@ TEST(bit_vector, AppendMany)
   EXPECT_TRUE(vec[5]);
 }
 
-}  // namespace blender::tests
+}  // namespace blender::bits::tests

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: BSD-3-Clause
- * Copyright 2001 Robert Penner. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001 Robert Penner. All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause */
 
 /** \file
  * \ingroup bli
@@ -9,7 +10,7 @@
 
 #include "BLI_easing.h" /* own include */
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 /* blend if (amplitude < fabsf(change) */
 #define USE_ELASTIC_BLEND

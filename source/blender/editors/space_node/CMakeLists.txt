@@ -1,36 +1,22 @@
+# SPDX-FileCopyrightText: 2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
-  ../../asset_system
-  ../../blenfont
-  ../../blenkernel
-  ../../blenlib
-  ../../blenloader
-  ../../blentranslation
+  ../io
   ../../compositor
-  ../../depsgraph
-  ../../draw
-  ../../functions
-  ../../gpu
-  ../../imbuf
-  ../../makesdna
   ../../makesrna
-  ../../nodes
-  ../../render
-  ../../windowmanager
-  ../../../../intern/guardedalloc
 
-  # dna_type_offsets.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
+set(INC_SYS
+)
 
 set(SRC
   add_menu_assets.cc
-  add_node_search.cc
   clipboard.cc
   drawnode.cc
   link_drag_search.cc
@@ -44,6 +30,7 @@ set(SRC
   node_ops.cc
   node_relationships.cc
   node_select.cc
+  node_shader_preview.cc
   node_templates.cc
   node_view.cc
   space_node.cc
@@ -52,14 +39,28 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::animrig
+  PRIVATE bf::asset_system
+  PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
+  PRIVATE bf::draw
   bf_editor_screen
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::guardedalloc
+  bf_compositor
+  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
-
-if(WITH_COMPOSITOR_CPU)
-  add_definitions(-DWITH_COMPOSITOR_CPU)
-endif()
 
 if(WITH_OPENIMAGEDENOISE)
   add_definitions(-DWITH_OPENIMAGEDENOISE)
@@ -69,23 +70,29 @@ if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
+if(WITH_OPENVDB)
+  list(APPEND INC
+    ../../../../intern/openvdb
+  )
+  list(APPEND INC_SYS
+    ${OPENVDB_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    bf_intern_openvdb
+    ${OPENVDB_LIBRARIES}
+  )
+  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
+endif()
+
 if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
   if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the stl versions.
+    # TBB includes `Windows.h` which will define min/max macros
+    # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
 endif()
 
 blender_add_lib(bf_editor_space_node "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.hh dna_type_offsets.h
 add_dependencies(bf_editor_space_node bf_rna)

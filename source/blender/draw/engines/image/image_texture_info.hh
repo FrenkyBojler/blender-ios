@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
@@ -10,12 +11,16 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_rect.h"
 
-#include "GPU_batch.h"
-#include "GPU_texture.h"
+#include "GPU_batch.hh"
+#include "GPU_texture.hh"
 
-namespace blender::draw::image_engine {
+#include "DRW_gpu_wrapper.hh"
+#include "DRW_render.hh"
 
-struct TextureInfo {
+namespace blender::image_engine {
+using namespace blender::draw;
+
+struct TextureInfo : NonCopyable {
   /**
    * \brief does this texture need a full update.
    *
@@ -24,36 +29,38 @@ struct TextureInfo {
   bool need_full_update : 1;
 
   /** \brief area of the texture in screen space. */
-  rctf clipping_bounds;
+  rcti clipping_bounds;
   /** \brief uv area of the texture in screen space. */
   rctf clipping_uv_bounds;
+
+  /* Which tile of the screen is used with this texture. Used to safely calculate the correct
+   * offset of the textures. */
+  int2 tile_id;
 
   /**
    * \brief Batch to draw the associated text on the screen.
    *
    * Contains a VBO with `pos` and `uv`.
-   * `pos` (2xF32) is relative to the origin of the space.
+   * `pos` (2xI32) is relative to the origin of the space.
    * `uv` (2xF32) reflect the uv bounds.
    */
-  GPUBatch *batch = nullptr;
+  gpu::Batch *batch = nullptr;
 
   /**
    * \brief GPU Texture for a partial region of the image editor.
    */
-  GPUTexture *texture = nullptr;
+  Texture texture = {"Image.Tile"};
 
   int2 last_texture_size = int2(0);
+
+  TextureInfo() = default;
+  TextureInfo(TextureInfo &&other) = default;
 
   ~TextureInfo()
   {
     if (batch != nullptr) {
       GPU_batch_discard(batch);
       batch = nullptr;
-    }
-
-    if (texture != nullptr) {
-      GPU_texture_free(texture);
-      texture = nullptr;
     }
   }
 
@@ -68,43 +75,22 @@ struct TextureInfo {
     return int2(clipping_bounds.xmin, clipping_bounds.ymin);
   }
 
-  /**
-   * \brief Update the region bounds from the uv bounds by applying the given transform matrix.
-   */
-  void update_region_bounds_from_uv_bounds(const float4x4 &uv_to_region)
-  {
-    float3 bottom_left_uv = float3(clipping_uv_bounds.xmin, clipping_uv_bounds.ymin, 0.0f);
-    float3 top_right_uv = float3(clipping_uv_bounds.xmax, clipping_uv_bounds.ymax, 0.0f);
-    float3 bottom_left_region = math::transform_point(uv_to_region, bottom_left_uv);
-    float3 top_right_region = math::transform_point(uv_to_region, top_right_uv);
-    BLI_rctf_init(&clipping_bounds,
-                  bottom_left_region.x,
-                  top_right_region.x,
-                  bottom_left_region.y,
-                  top_right_region.y);
-  }
-
   void ensure_gpu_texture(int2 texture_size)
   {
-    const bool is_allocated = texture != nullptr;
+    const bool is_allocated = texture.is_valid();
     const bool resolution_changed = assign_if_different(last_texture_size, texture_size);
     const bool should_be_freed = is_allocated && resolution_changed;
     const bool should_be_created = !is_allocated || resolution_changed;
 
     if (should_be_freed) {
-      GPU_texture_free(texture);
-      texture = nullptr;
+      texture.free();
     }
 
     if (should_be_created) {
-      texture = DRW_texture_create_2d_ex(UNPACK2(texture_size),
-                                         GPU_RGBA16F,
-                                         GPU_TEXTURE_USAGE_GENERAL,
-                                         static_cast<DRWTextureFlag>(0),
-                                         nullptr);
+      texture.ensure_2d(GPU_RGBA16F, texture_size, GPU_TEXTURE_USAGE_SHADER_READ);
     }
     need_full_update |= should_be_created;
   }
 };
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine

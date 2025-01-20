@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2008-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -196,7 +198,8 @@ Smoother::Smoother(Stroke &ioStroke)
   StrokeInternal::StrokeVertexIterator v, vend;
   int i = 0;
   for (v = ioStroke.strokeVerticesBegin(), vend = ioStroke.strokeVerticesEnd(); v != vend;
-       ++v, ++i) {
+       ++v, ++i)
+  {
     _vertex[i] = (v)->getPoint();
   }
   Vec2r vec_tmp(_vertex[0] - _vertex[_nbVertices - 1]);

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef __MEMORYALLOCATOR_H__
 #define __MEMORYALLOCATOR_H__
@@ -20,9 +22,7 @@
  */
 class VirtualMemoryAllocator {
  public:
-  virtual ~VirtualMemoryAllocator()
-  {
-  }
+  virtual ~VirtualMemoryAllocator() {}
 
   virtual void *allocate() = 0;
   virtual void deallocate(void *obj) = 0;
@@ -33,9 +33,7 @@ class VirtualMemoryAllocator {
   virtual int getAll() = 0;
   virtual int getBytes() = 0;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("DUALCON:VirtualMemoryAllocator")
-#endif
 };
 
 /**
@@ -194,9 +192,7 @@ template<int N> class MemoryAllocator : public VirtualMemoryAllocator {
     return N;
   };
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("DUALCON:MemoryAllocator")
-#endif
 };
 
 #endif /* __MEMORYALLOCATOR_H__ */

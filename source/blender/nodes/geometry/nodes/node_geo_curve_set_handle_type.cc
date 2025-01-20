@@ -1,11 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <atomic>
 
 #include "BKE_curves.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -15,15 +17,15 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveSetHandles)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Curve")).supported_type(GEO_COMPONENT_TYPE_CURVE);
-  b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().field_on_all();
-  b.add_output<decl::Geometry>(N_("Curve")).propagate_all();
+  b.add_input<decl::Geometry>("Curve").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+  b.add_output<decl::Geometry>("Curve").propagate_all();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "handle_type", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "handle_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -51,23 +53,28 @@ static HandleType handle_type_from_input_type(GeometryNodeCurveHandleType type)
   return BEZIER_HANDLE_AUTO;
 }
 
-static void set_handle_type(bke::CurvesGeometry &curves,
+static void set_handle_type(Curves &curves_id,
                             const GeometryNodeCurveHandleMode mode,
                             const HandleType new_handle_type,
                             const Field<bool> &selection_field)
 {
-  bke::CurvesFieldContext field_context{curves, ATTR_DOMAIN_POINT};
+  bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+  const bke::CurvesFieldContext field_context{curves_id, AttrDomain::Point};
   fn::FieldEvaluator evaluator{field_context, curves.points_num()};
   evaluator.set_selection(selection_field);
   evaluator.evaluate();
   const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
 
   if (mode & GEO_NODE_CURVE_HANDLE_LEFT) {
-    curves.handle_types_left_for_write().fill_indices(selection, new_handle_type);
+    index_mask::masked_fill<int8_t>(
+        curves.handle_types_left_for_write(), new_handle_type, selection);
   }
   if (mode & GEO_NODE_CURVE_HANDLE_RIGHT) {
-    curves.handle_types_right_for_write().fill_indices(selection, new_handle_type);
+    index_mask::masked_fill<int8_t>(
+        curves.handle_types_right_for_write(), new_handle_type, selection);
   }
+
+  curves.tag_topology_changed();
 
   /* Eagerly calculate automatically derived handle positions if necessary. */
   if (ELEM(new_handle_type, BEZIER_HANDLE_AUTO, BEZIER_HANDLE_VECTOR, BEZIER_HANDLE_ALIGN)) {
@@ -99,33 +106,36 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
       has_bezier = true;
 
-      set_handle_type(curves, mode, new_handle_type, selection_field);
+      set_handle_type(*curves_id, mode, new_handle_type, selection_field);
     }
   });
 
   if (has_curves && !has_bezier) {
-    params.error_message_add(NodeWarningType::Info, TIP_("Input curves do not have Bezier type"));
+    params.error_message_add(NodeWarningType::Info, TIP_("Input curves do not have Bézier type"));
   }
 
   params.set_output("Curve", std::move(geometry_set));
 }
-}  // namespace blender::nodes::node_geo_curve_set_handle_type_cc
 
-void register_node_type_geo_curve_set_handle_type()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_curve_set_handle_type_cc;
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeCurveSetHandles", GEO_NODE_CURVE_SET_HANDLE_TYPE);
+  ntype.ui_name = "Set Handle Type";
+  ntype.ui_description = "Set the handle type for the control points of a Bézier curve";
+  ntype.enum_name_legacy = "CURVE_SET_HANDLES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.initfunc = node_init;
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryCurveSetHandles",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
+  ntype.draw_buttons = node_layout;
 
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_SET_HANDLE_TYPE, "Set Handle Type", NODE_CLASS_GEOMETRY);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.initfunc = file_ns::node_init;
-  node_type_storage(&ntype,
-                    "NodeGeometryCurveSetHandles",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
-  ntype.draw_buttons = file_ns::node_layout;
-
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_curve_set_handle_type_cc

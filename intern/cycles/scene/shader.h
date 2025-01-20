@@ -1,12 +1,14 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __SHADER_H__
-#define __SHADER_H__
+#pragma once
 
 #ifdef WITH_OSL
 /* So no context pollution happens from indirectly included windows.h */
-#  include "util/windows.h"
+#  ifdef _WIN32
+#    include "util/windows.h"
+#  endif
 #  include <OSL/oslexec.h>
 #endif
 
@@ -20,6 +22,7 @@
 #include "util/string.h"
 #include "util/thread.h"
 #include "util/types.h"
+#include "util/unique_ptr.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -69,13 +72,14 @@ class Shader : public Node {
   NODE_DECLARE
 
   /* shader graph */
-  ShaderGraph *graph;
+  unique_ptr<ShaderGraph> graph;
 
   NODE_SOCKET_API(int, pass_id)
 
   /* sampling */
   NODE_SOCKET_API(EmissionSampling, emission_sampling_method)
   NODE_SOCKET_API(bool, use_transparent_shadow)
+  NODE_SOCKET_API(bool, use_bump_map_correction)
   NODE_SOCKET_API(bool, heterogeneous_volume)
   NODE_SOCKET_API(VolumeSampling, volume_sampling_method)
   NODE_SOCKET_API(int, volume_interpolation_method)
@@ -112,7 +116,6 @@ class Shader : public Node {
   bool has_surface_spatial_varying;
   bool has_volume_spatial_varying;
   bool has_volume_attribute_dependency;
-  bool has_integrator_dependency;
 
   float3 emission_estimate;
   EmissionSampling emission_sampling;
@@ -133,7 +136,6 @@ class Shader : public Node {
 #endif
 
   Shader();
-  ~Shader();
 
   /* Estimate emission of this shader based on the shader graph. This works only in very simple
    * cases. But it helps improve light importance sampling in common cases.
@@ -142,7 +144,7 @@ class Shader : public Node {
    * entirely for a light. */
   void estimate_emission();
 
-  void set_graph(ShaderGraph *graph);
+  void set_graph(unique_ptr<ShaderGraph> &&graph);
   void tag_update(Scene *scene);
   void tag_used(Scene *scene);
 
@@ -167,7 +169,6 @@ class ShaderManager {
   enum : uint32_t {
     SHADER_ADDED = (1 << 0),
     SHADER_MODIFIED = (1 << 2),
-    INTEGRATOR_MODIFIED = (1 << 3),
 
     /* tag everything in the manager for an update */
     UPDATE_ALL = ~0u,
@@ -175,7 +176,7 @@ class ShaderManager {
     UPDATE_NONE = 0u,
   };
 
-  static ShaderManager *create(int shadingsystem, Device *device);
+  static unique_ptr<ShaderManager> create(const int shadingsystem, Device *device);
   virtual ~ShaderManager();
 
   virtual void reset(Scene *scene) = 0;
@@ -212,12 +213,12 @@ class ShaderManager {
 
   static void free_memory();
 
-  float linear_rgb_to_gray(float3 c);
-  float3 rec709_to_scene_linear(float3 c);
+  float linear_rgb_to_gray(const float3 c);
+  float3 rec709_to_scene_linear(const float3 c);
 
   string get_cryptomatte_materials(Scene *scene);
 
-  void tag_update(Scene *scene, uint32_t flag);
+  void tag_update(Scene *scene, const uint32_t flag);
 
   bool need_update() const;
 
@@ -228,10 +229,22 @@ class ShaderManager {
 
   uint32_t update_flags;
 
-  typedef unordered_map<ustring, uint64_t, ustringHash> AttributeIDMap;
+  using AttributeIDMap = unordered_map<ustring, uint64_t>;
   AttributeIDMap unique_attribute_id;
 
   static thread_mutex lookup_table_mutex;
+
+  unordered_map<const float *, size_t> bsdf_tables;
+
+  template<std::size_t n>
+  size_t ensure_bsdf_table(DeviceScene *dscene, Scene *scene, const float (&table)[n])
+  {
+    return ensure_bsdf_table_impl(dscene, scene, table, n);
+  }
+  size_t ensure_bsdf_table_impl(DeviceScene *dscene,
+                                Scene *scene,
+                                const float *table,
+                                const size_t n);
 
   uint get_graph_kernel_features(ShaderGraph *graph);
 
@@ -241,6 +254,7 @@ class ShaderManager {
   float3 xyz_to_g;
   float3 xyz_to_b;
   float3 rgb_to_y;
+  float3 white_xyz;
   float3 rec709_to_r;
   float3 rec709_to_g;
   float3 rec709_to_b;
@@ -248,5 +262,3 @@ class ShaderManager {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __SHADER_H__ */

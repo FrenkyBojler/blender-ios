@@ -1,11 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
  */
 
 #pragma once
+
+#include <stddef.h>
 
 #include "BLI_compiler_attrs.h"
 
@@ -48,7 +51,7 @@ void BLI_memarena_merge(MemArena *ma_dst, MemArena *ma_src) ATTR_NONNULL(1, 2);
 
 /**
  * Clear for reuse, avoids re-allocation when an arena may
- * otherwise be free'd and recreated.
+ * otherwise be freed and recreated.
  */
 void BLI_memarena_clear(MemArena *ma) ATTR_NONNULL(1);
 

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edarmature
@@ -11,7 +13,7 @@
 extern "C" {
 #endif
 
-//#define RIGID_DEFORM
+// #define RIGID_DEFORM
 
 struct Mesh;
 struct Object;
@@ -37,15 +39,15 @@ float laplacian_system_get_solution(LaplacianSystem *sys, int v);
 /* Heat Weighting */
 
 void heat_bone_weighting(struct Object *ob,
-                         struct Mesh *me,
+                         struct Mesh *mesh,
                          float (*verts)[3],
                          int numbones,
                          struct bDeformGroup **dgrouplist,
                          struct bDeformGroup **dgroupflip,
                          float (*root)[3],
                          float (*tip)[3],
-                         const int *selected,
-                         const char **error_str);
+                         const bool *selected,
+                         const char **r_error_str);
 
 #ifdef RIGID_DEFORM
 /* As-Rigid-As-Possible Deformation */
@@ -61,4 +63,4 @@ void rigid_deform_end(int cancel);
 
 /* Harmonic Coordinates */
 
-/* ED_mesh_deform_bind_callback(...) defined in ED_armature.h */
+/* ED_mesh_deform_bind_callback(...) defined in ED_armature.hh */

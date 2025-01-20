@@ -1,16 +1,25 @@
+# SPDX-FileCopyrightText: 2014-2024 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2014 Blender Foundation. All rights reserved.
 
 set(INC
   .
   ..
   ../..
-  ../../../makesdna
-  ../../../../../intern/atomic
-  ../../../../../intern/guardedalloc
 )
 
-include_directories(${INC})
+set(INC_SYS
+)
 
-blender_test_performance(BLI_ghash_performance "bf_blenlib")
-blender_test_performance(BLI_task_performance "bf_blenlib")
+set(LIB
+  PRIVATE bf_blenlib
+  PRIVATE bf::dna
+  PRIVATE PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::atomic
+)
+
+set(SRC
+  BLI_map_performance_test.cc
+)
+
+blender_add_test_performance_executable(BLI_map_performance "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

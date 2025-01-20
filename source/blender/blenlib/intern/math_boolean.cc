@@ -1,10 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
  */
 
-#include "BLI_hash.hh"
 #include "BLI_math_boolean.hh"
 #include "BLI_math_mpq.hh"
 #include "BLI_math_vector_types.hh"
@@ -157,12 +158,12 @@ static RobustInitCaller init_caller;
  * thus forcing them to be stored to memory and rounded off.  This isn't
  * a great solution, though, as it slows the arithmetic down.
  *
- * To try this out, write "#define INEXACT volatile" below.  Normally,
+ * To try this out, write "#define INEXACT volatile" below. Normally,
  * however, INEXACT should be defined to be nothing.  ("#define INEXACT".)
  */
 
 #define INEXACT /* Nothing */
-/* #define INEXACT volatile */
+// #define INEXACT volatile
 
 /* Which of the following two methods of finding the absolute values is
  * fastest is compiler-dependent.  A few compilers can inline and optimize
@@ -172,7 +173,7 @@ static RobustInitCaller init_caller;
  */
 
 #define Absolute(a) ((a) >= 0.0 ? (a) : -(a))
-/* #define Absolute(a)  fabs(a) */
+// #define Absolute(a)  fabs(a)
 
 /* Many of the operations are broken up into two pieces, a main part that
  * performs an approximate operation, and a "tail" that computes the
@@ -412,7 +413,6 @@ static double isperrboundA, isperrboundB, isperrboundC;
  *
  *  Don't change this routine unless you fully understand it.
  */
-
 void exactinit()
 {
   double half;
@@ -891,7 +891,8 @@ static double orient3dadapt(
 
   if ((adxtail == 0.0) && (bdxtail == 0.0) && (cdxtail == 0.0) && (adytail == 0.0) &&
       (bdytail == 0.0) && (cdytail == 0.0) && (adztail == 0.0) && (bdztail == 0.0) &&
-      (cdztail == 0.0)) {
+      (cdztail == 0.0))
+  {
     return det;
   }
 
@@ -1419,7 +1420,8 @@ static double incircleadapt(
   Two_Diff_Tail(pc[0], pd[0], cdx, cdxtail);
   Two_Diff_Tail(pc[1], pd[1], cdy, cdytail);
   if ((adxtail == 0.0) && (bdxtail == 0.0) && (cdxtail == 0.0) && (adytail == 0.0) &&
-      (bdytail == 0.0) && (cdytail == 0.0)) {
+      (bdytail == 0.0) && (cdytail == 0.0))
+  {
     return det;
   }
 
@@ -2322,7 +2324,8 @@ static double insphereadapt(const double *pa,
   Two_Diff_Tail(pd[2], pe[2], dez, deztail);
   if ((aextail == 0.0) && (aeytail == 0.0) && (aeztail == 0.0) && (bextail == 0.0) &&
       (beytail == 0.0) && (beztail == 0.0) && (cextail == 0.0) && (ceytail == 0.0) &&
-      (ceztail == 0.0) && (dextail == 0.0) && (deytail == 0.0) && (deztail == 0.0)) {
+      (ceztail == 0.0) && (dextail == 0.0) && (deytail == 0.0) && (deztail == 0.0))
+  {
     return det;
   }
 

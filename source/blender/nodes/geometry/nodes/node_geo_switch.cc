@@ -1,18 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_geometry_util.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
-#include "BKE_material.h"
-
+#include "NOD_rna_define.hh"
+#include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "FN_multi_function_signature.hh"
+#include "RNA_enum_types.hh"
 
 namespace blender::nodes::node_geo_switch_cc {
 
@@ -20,62 +19,32 @@ NODE_STORAGE_FUNCS(NodeSwitch)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bool>(N_("Switch")).default_value(false).supports_field();
-  b.add_input<decl::Bool>(N_("Switch"), "Switch_001").default_value(false);
+  auto &switch_decl = b.add_input<decl::Bool>("Switch");
+  const bNode *node = b.node_or_null();
+  if (!node) {
+    return;
+  }
+  const NodeSwitch &storage = node_storage(*node);
+  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(storage.input_type);
 
-  b.add_input<decl::Float>(N_("False")).supports_field();
-  b.add_input<decl::Float>(N_("True")).supports_field();
-  b.add_input<decl::Int>(N_("False"), "False_001").min(-100000).max(100000).supports_field();
-  b.add_input<decl::Int>(N_("True"), "True_001").min(-100000).max(100000).supports_field();
-  b.add_input<decl::Bool>(N_("False"), "False_002")
-      .default_value(false)
-      .hide_value()
-      .supports_field();
-  b.add_input<decl::Bool>(N_("True"), "True_002")
-      .default_value(true)
-      .hide_value()
-      .supports_field();
-  b.add_input<decl::Vector>(N_("False"), "False_003").supports_field();
-  b.add_input<decl::Vector>(N_("True"), "True_003").supports_field();
-  b.add_input<decl::Color>(N_("False"), "False_004")
-      .default_value({0.8f, 0.8f, 0.8f, 1.0f})
-      .supports_field();
-  b.add_input<decl::Color>(N_("True"), "True_004")
-      .default_value({0.8f, 0.8f, 0.8f, 1.0f})
-      .supports_field();
-  b.add_input<decl::String>(N_("False"), "False_005").supports_field();
-  b.add_input<decl::String>(N_("True"), "True_005").supports_field();
+  auto &false_decl = b.add_input(socket_type, "False");
+  auto &true_decl = b.add_input(socket_type, "True");
+  auto &output_decl = b.add_output(socket_type, "Output");
 
-  b.add_input<decl::Geometry>(N_("False"), "False_006");
-  b.add_input<decl::Geometry>(N_("True"), "True_006");
-  b.add_input<decl::Object>(N_("False"), "False_007");
-  b.add_input<decl::Object>(N_("True"), "True_007");
-  b.add_input<decl::Collection>(N_("False"), "False_008");
-  b.add_input<decl::Collection>(N_("True"), "True_008");
-  b.add_input<decl::Texture>(N_("False"), "False_009");
-  b.add_input<decl::Texture>(N_("True"), "True_009");
-  b.add_input<decl::Material>(N_("False"), "False_010");
-  b.add_input<decl::Material>(N_("True"), "True_010");
-  b.add_input<decl::Image>(N_("False"), "False_011");
-  b.add_input<decl::Image>(N_("True"), "True_011");
-
-  b.add_output<decl::Float>(N_("Output")).dependent_field().reference_pass_all();
-  b.add_output<decl::Int>(N_("Output"), "Output_001").dependent_field().reference_pass_all();
-  b.add_output<decl::Bool>(N_("Output"), "Output_002").dependent_field().reference_pass_all();
-  b.add_output<decl::Vector>(N_("Output"), "Output_003").dependent_field().reference_pass_all();
-  b.add_output<decl::Color>(N_("Output"), "Output_004").dependent_field().reference_pass_all();
-  b.add_output<decl::String>(N_("Output"), "Output_005").dependent_field().reference_pass_all();
-  b.add_output<decl::Geometry>(N_("Output"), "Output_006").propagate_all();
-  b.add_output<decl::Object>(N_("Output"), "Output_007");
-  b.add_output<decl::Collection>(N_("Output"), "Output_008");
-  b.add_output<decl::Texture>(N_("Output"), "Output_009");
-  b.add_output<decl::Material>(N_("Output"), "Output_010");
-  b.add_output<decl::Image>(N_("Output"), "Output_011");
+  if (socket_type_supports_fields(socket_type)) {
+    switch_decl.supports_field();
+    false_decl.supports_field();
+    true_decl.supports_field();
+    output_decl.dependent_field().reference_pass_all();
+  }
+  if (socket_type == SOCK_GEOMETRY) {
+    output_decl.propagate_all();
+  }
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "input_type", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -83,31 +52,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   NodeSwitch *data = MEM_cnew<NodeSwitch>(__func__);
   data->input_type = SOCK_GEOMETRY;
   node->storage = data;
-}
-
-static void node_update(bNodeTree *ntree, bNode *node)
-{
-  const NodeSwitch &storage = node_storage(*node);
-  int index = 0;
-  bNodeSocket *field_switch = static_cast<bNodeSocket *>(node->inputs.first);
-  bNodeSocket *non_field_switch = static_cast<bNodeSocket *>(field_switch->next);
-
-  const bool fields_type = ELEM(
-      storage.input_type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING);
-
-  nodeSetSocketAvailability(ntree, field_switch, fields_type);
-  nodeSetSocketAvailability(ntree, non_field_switch, !fields_type);
-
-  LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, &node->inputs, index) {
-    if (index <= 1) {
-      continue;
-    }
-    nodeSetSocketAvailability(ntree, socket, socket->type == storage.input_type);
-  }
-
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
-    nodeSetSocketAvailability(ntree, socket, socket->type == storage.input_type);
-  }
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
@@ -149,163 +93,185 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 }
 
-template<typename T> void switch_fields(GeoNodeExecParams &params, const StringRef suffix)
-{
-  if (params.lazy_require_input("Switch")) {
-    return;
-  }
+class LazyFunctionForSwitchNode : public LazyFunction {
+ private:
+  bool can_be_field_ = false;
+  const CPPType *base_type_;
 
-  const std::string name_false = "False" + suffix;
-  const std::string name_true = "True" + suffix;
-  const std::string name_output = "Output" + suffix;
+ public:
+  LazyFunctionForSwitchNode(const bNode &node)
+  {
+    const NodeSwitch &storage = node_storage(node);
+    const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.input_type);
+    can_be_field_ = socket_type_supports_fields(data_type);
 
-  Field<bool> switches_field = params.get_input<Field<bool>>("Switch");
-  if (switches_field.node().depends_on_input()) {
-    /* The switch has to be incorporated into the field. Both inputs have to be evaluated. */
-    const bool require_false = params.lazy_require_input(name_false);
-    const bool require_true = params.lazy_require_input(name_true);
-    if (require_false | require_true) {
-      return;
-    }
-
-    Field<T> falses_field = params.extract_input<Field<T>>(name_false);
-    Field<T> trues_field = params.extract_input<Field<T>>(name_true);
-
-    static auto switch_fn = mf::build::SI3_SO<bool, T, T, T>(
-        "Switch", [](bool condition, const T &false_value, const T &true_value) {
-          return condition ? true_value : false_value;
-        });
-
-    auto switch_op = std::make_shared<FieldOperation>(FieldOperation(
-        std::move(switch_fn),
-        {std::move(switches_field), std::move(falses_field), std::move(trues_field)}));
-
-    params.set_output(name_output, Field<T>(switch_op, 0));
-  }
-  else {
-    /* The switch input is constant, so just evaluate and forward one of the inputs. */
-    const bool switch_value = fn::evaluate_constant_field(switches_field);
-    if (switch_value) {
-      params.set_input_unused(name_false);
-      if (params.lazy_require_input(name_true)) {
-        return;
+    const bke::bNodeSocketType *socket_type = nullptr;
+    for (const bNodeSocket *socket : node.output_sockets()) {
+      if (socket->type == data_type) {
+        socket_type = socket->typeinfo;
+        break;
       }
-      params.set_output(name_output, params.extract_input<Field<T>>(name_true));
+    }
+    BLI_assert(socket_type != nullptr);
+    const CPPType &cpp_type = *socket_type->geometry_nodes_cpp_type;
+    base_type_ = socket_type->base_cpp_type;
+
+    debug_name_ = node.name;
+    inputs_.append_as("Condition", CPPType::get<SocketValueVariant>());
+    inputs_.append_as("False", cpp_type, lf::ValueUsage::Maybe);
+    inputs_.append_as("True", cpp_type, lf::ValueUsage::Maybe);
+    outputs_.append_as("Value", cpp_type);
+  }
+
+  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  {
+    SocketValueVariant condition_variant = params.get_input<SocketValueVariant>(0);
+    if (condition_variant.is_context_dependent_field() && can_be_field_) {
+      this->execute_field(condition_variant.get<Field<bool>>(), params);
     }
     else {
-      params.set_input_unused(name_true);
-      if (params.lazy_require_input(name_false)) {
-        return;
+      this->execute_single(condition_variant.get<bool>(), params);
+    }
+  }
+
+  static constexpr int false_input_index = 1;
+  static constexpr int true_input_index = 2;
+
+  void execute_single(const bool condition, lf::Params &params) const
+  {
+    const int input_to_forward = condition ? true_input_index : false_input_index;
+    const int input_to_ignore = condition ? false_input_index : true_input_index;
+
+    params.set_input_unused(input_to_ignore);
+    void *value_to_forward = params.try_get_input_data_ptr_or_request(input_to_forward);
+    if (value_to_forward == nullptr) {
+      /* Try again when the value is available. */
+      return;
+    }
+
+    const CPPType &type = *outputs_[0].type;
+    void *output_ptr = params.get_output_data_ptr(0);
+    type.move_construct(value_to_forward, output_ptr);
+    params.output_set(0);
+  }
+
+  void execute_field(Field<bool> condition, lf::Params &params) const
+  {
+    /* When the condition is a non-constant field, we need both inputs. */
+    auto *false_value_variant = params.try_get_input_data_ptr_or_request<SocketValueVariant>(
+        false_input_index);
+    auto *true_value_variant = params.try_get_input_data_ptr_or_request<SocketValueVariant>(
+        true_input_index);
+    if (ELEM(nullptr, false_value_variant, true_value_variant)) {
+      /* Try again when inputs are available. */
+      return;
+    }
+
+    const MultiFunction &switch_multi_function = this->get_switch_multi_function();
+
+    GField false_field = false_value_variant->extract<GField>();
+    GField true_field = true_value_variant->extract<GField>();
+
+    GField output_field{FieldOperation::Create(
+        switch_multi_function,
+        {std::move(condition), std::move(false_field), std::move(true_field)})};
+
+    void *output_ptr = params.get_output_data_ptr(0);
+    new (output_ptr) SocketValueVariant(std::move(output_field));
+    params.output_set(0);
+  }
+
+  const MultiFunction &get_switch_multi_function() const
+  {
+    const MultiFunction *switch_multi_function = nullptr;
+    base_type_->to_static_type_tag<float,
+                                   int,
+                                   bool,
+                                   float3,
+                                   ColorGeometry4f,
+                                   std::string,
+                                   math::Quaternion,
+                                   float4x4>([&](auto type_tag) {
+      using T = typename decltype(type_tag)::type;
+      if constexpr (std::is_void_v<T>) {
+        BLI_assert_unreachable();
       }
-      params.set_output(name_output, params.extract_input<Field<T>>(name_false));
-    }
+      else {
+        static auto switch_fn = mf::build::SI3_SO<bool, T, T, T>(
+            "Switch", [](const bool condition, const T &false_value, const T &true_value) {
+              return condition ? true_value : false_value;
+            });
+        switch_multi_function = &switch_fn;
+      }
+    });
+    BLI_assert(switch_multi_function != nullptr);
+    return *switch_multi_function;
   }
-}
+};
 
-template<typename T> void switch_no_fields(GeoNodeExecParams &params, const StringRef suffix)
+static void node_rna(StructRNA *srna)
 {
-  if (params.lazy_require_input("Switch_001")) {
-    return;
-  }
-  bool switch_value = params.get_input<bool>("Switch_001");
-
-  const std::string name_false = "False" + suffix;
-  const std::string name_true = "True" + suffix;
-  const std::string name_output = "Output" + suffix;
-
-  if (switch_value) {
-    params.set_input_unused(name_false);
-    if (params.lazy_require_input(name_true)) {
-      return;
-    }
-    params.set_output(name_output, params.extract_input<T>(name_true));
-  }
-  else {
-    params.set_input_unused(name_true);
-    if (params.lazy_require_input(name_false)) {
-      return;
-    }
-    params.set_output(name_output, params.extract_input<T>(name_false));
-  }
+  RNA_def_node_enum(
+      srna,
+      "input_type",
+      "Input Type",
+      "",
+      rna_enum_node_socket_data_type_items,
+      NOD_storage_enum_accessors(input_type),
+      SOCK_GEOMETRY,
+      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+        *r_free = true;
+        return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                 [](const EnumPropertyItem &item) -> bool {
+                                   return ELEM(item.value,
+                                               SOCK_FLOAT,
+                                               SOCK_INT,
+                                               SOCK_BOOLEAN,
+                                               SOCK_ROTATION,
+                                               SOCK_MATRIX,
+                                               SOCK_VECTOR,
+                                               SOCK_STRING,
+                                               SOCK_RGBA,
+                                               SOCK_GEOMETRY,
+                                               SOCK_OBJECT,
+                                               SOCK_COLLECTION,
+                                               SOCK_MATERIAL,
+                                               SOCK_IMAGE,
+                                               SOCK_MENU);
+                                 });
+      });
 }
 
-static void node_geo_exec(GeoNodeExecParams params)
+static void register_node()
 {
-  const NodeSwitch &storage = node_storage(params.node());
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.input_type);
+  static blender::bke::bNodeType ntype;
 
-  switch (data_type) {
+  geo_node_type_base(&ntype, "GeometryNodeSwitch", GEO_NODE_SWITCH);
+  ntype.ui_name = "Switch";
+  ntype.ui_description = "Switch between two inputs";
+  ntype.enum_name_legacy = "SWITCH";
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.declare = node_declare;
+  ntype.initfunc = node_init;
+  blender::bke::node_type_storage(
+      &ntype, "NodeSwitch", node_free_standard_storage, node_copy_standard_storage);
+  ntype.gather_link_search_ops = node_gather_link_searches;
+  ntype.draw_buttons = node_layout;
+  blender::bke::node_register_type(&ntype);
 
-    case SOCK_FLOAT: {
-      switch_fields<float>(params, "");
-      break;
-    }
-    case SOCK_INT: {
-      switch_fields<int>(params, "_001");
-      break;
-    }
-    case SOCK_BOOLEAN: {
-      switch_fields<bool>(params, "_002");
-      break;
-    }
-    case SOCK_VECTOR: {
-      switch_fields<float3>(params, "_003");
-      break;
-    }
-    case SOCK_RGBA: {
-      switch_fields<ColorGeometry4f>(params, "_004");
-      break;
-    }
-    case SOCK_STRING: {
-      switch_fields<std::string>(params, "_005");
-      break;
-    }
-    case SOCK_GEOMETRY: {
-      switch_no_fields<GeometrySet>(params, "_006");
-      break;
-    }
-    case SOCK_OBJECT: {
-      switch_no_fields<Object *>(params, "_007");
-      break;
-    }
-    case SOCK_COLLECTION: {
-      switch_no_fields<Collection *>(params, "_008");
-      break;
-    }
-    case SOCK_TEXTURE: {
-      switch_no_fields<Tex *>(params, "_009");
-      break;
-    }
-    case SOCK_MATERIAL: {
-      switch_no_fields<Material *>(params, "_010");
-      break;
-    }
-    case SOCK_IMAGE: {
-      switch_no_fields<Image *>(params, "_011");
-      break;
-    }
-    default:
-      BLI_assert_unreachable();
-      break;
-  }
+  node_rna(ntype.rna_ext.srna);
 }
+NOD_REGISTER_NODE(register_node)
 
 }  // namespace blender::nodes::node_geo_switch_cc
 
-void register_node_type_geo_switch()
+namespace blender::nodes {
+
+std::unique_ptr<LazyFunction> get_switch_node_lazy_function(const bNode &node)
 {
-  namespace file_ns = blender::nodes::node_geo_switch_cc;
-
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_SWITCH, "Switch", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::node_declare;
-  ntype.initfunc = file_ns::node_init;
-  ntype.updatefunc = file_ns::node_update;
-  node_type_storage(&ntype, "NodeSwitch", node_free_standard_storage, node_copy_standard_storage);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.geometry_node_execute_supports_laziness = true;
-  ntype.gather_link_search_ops = file_ns::node_gather_link_searches;
-  ntype.draw_buttons = file_ns::node_layout;
-  nodeRegisterType(&ntype);
+  using namespace node_geo_switch_cc;
+  BLI_assert(node.type_legacy == GEO_NODE_SWITCH);
+  return std::make_unique<LazyFunctionForSwitchNode>(node);
 }
+
+}  // namespace blender::nodes

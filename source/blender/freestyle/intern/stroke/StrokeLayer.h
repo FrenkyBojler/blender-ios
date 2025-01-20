@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -9,9 +11,7 @@
 
 #include <deque>
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -25,9 +25,7 @@ class StrokeLayer {
   stroke_container _strokes;
 
  public:
-  StrokeLayer()
-  {
-  }
+  StrokeLayer() {}
 
   StrokeLayer(const stroke_container &iStrokes)
   {
@@ -81,9 +79,7 @@ class StrokeLayer {
     _strokes.push_back(iStroke);
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:StrokeLayer")
-#endif
 };
 
 } /* namespace Freestyle */

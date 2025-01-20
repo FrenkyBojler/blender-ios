@@ -1,10 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-FileCopyrightText: 1999 Stephane Popinet
+ * SPDX-FileCopyrightText: 2000-2003 `Bruno Levy <levy@loria.fr>`
+ * SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
  * The Original Code is:
- *     GTS - Library for the manipulation of triangulated surfaces
- *     Copyright 1999 Stephane Popinet
- * and:
- *     OGF/Graphite: Geometry and Graphics Programming Library + Utilities
- *     Copyright 2000-2003 Bruno Levy <levy@loria.fr> */
+ * - GTS - Library for the manipulation of triangulated surfaces.
+ * - OGF/Graphite: Geometry and Graphics Programming Library + Utilities.
+ */
 
 #pragma once
 
@@ -19,9 +22,7 @@
 #include "../system/FreestyleConfig.h"
 #include "../system/Precision.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -72,23 +73,20 @@ class CurvatureInfo {
   real dKr;  // radial curvature
   Vec3r er;  // radial curvature direction
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:CurvatureInfo")
-#endif
 };
 
 class Face_Curvature_Info {
  public:
-  Face_Curvature_Info()
-  {
-  }
+  Face_Curvature_Info() {}
 
   ~Face_Curvature_Info()
   {
     for (vector<CurvatureInfo *>::iterator ci = vec_curvature_info.begin(),
                                            ciend = vec_curvature_info.end();
          ci != ciend;
-         ++ci) {
+         ++ci)
+    {
       delete (*ci);
     }
     vec_curvature_info.clear();
@@ -96,9 +94,7 @@ class Face_Curvature_Info {
 
   vector<CurvatureInfo *> vec_curvature_info;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Face_Curvature_Info")
-#endif
 };
 
 /**

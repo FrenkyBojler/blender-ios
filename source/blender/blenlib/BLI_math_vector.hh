@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -7,7 +8,6 @@
  * \ingroup bli
  */
 
-#include <cmath>
 #include <type_traits>
 
 #include "BLI_math_base.hh"
@@ -16,32 +16,6 @@
 #include "BLI_utildefines.h"
 
 namespace blender::math {
-
-/**
- * Returns true if all components are exactly equal to 0.
- */
-template<typename T, int Size> [[nodiscard]] inline bool is_zero(const VecBase<T, Size> &a)
-{
-  for (int i = 0; i < Size; i++) {
-    if (a[i] != T(0)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-/**
- * Returns true if at least one component is exactly equal to 0.
- */
-template<typename T, int Size> [[nodiscard]] inline bool is_any_zero(const VecBase<T, Size> &a)
-{
-  for (int i = 0; i < Size; i++) {
-    if (a[i] == T(0)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 /**
  * Returns true if the given vectors are equal within the given epsilon.
@@ -76,31 +50,19 @@ template<typename T, int Size> [[nodiscard]] inline VecBase<T, Size> abs(const V
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> sign(const VecBase<T, Size> &a)
 {
-  VecBase<T, Size> result;
-  for (int i = 0; i < Size; i++) {
-    result[i] = math::sign(a[i]);
-  }
-  return result;
+  BLI_UNROLL_MATH_VEC_OP_VEC(math::sign, a);
 }
 
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> min(const VecBase<T, Size> &a, const VecBase<T, Size> &b)
 {
-  VecBase<T, Size> result;
-  for (int i = 0; i < Size; i++) {
-    result[i] = a[i] < b[i] ? a[i] : b[i];
-  }
-  return result;
+  BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::min, a, b);
 }
 
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> max(const VecBase<T, Size> &a, const VecBase<T, Size> &b)
 {
-  VecBase<T, Size> result;
-  for (int i = 0; i < Size; i++) {
-    result[i] = a[i] > b[i] ? a[i] : b[i];
-  }
-  return result;
+  BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::max, a, b);
 }
 
 template<typename T, int Size>
@@ -110,7 +72,7 @@ template<typename T, int Size>
 {
   VecBase<T, Size> result = a;
   for (int i = 0; i < Size; i++) {
-    result[i] = std::clamp(result[i], min[i], max[i]);
+    result[i] = math::clamp(result[i], min[i], max[i]);
   }
   return result;
 }
@@ -120,7 +82,24 @@ template<typename T, int Size>
 {
   VecBase<T, Size> result = a;
   for (int i = 0; i < Size; i++) {
-    result[i] = std::clamp(result[i], min, max);
+    result[i] = math::clamp(result[i], min, max);
+  }
+  return result;
+}
+
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> step(const VecBase<T, Size> &edge,
+                                           const VecBase<T, Size> &value)
+{
+  BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::step, edge, value);
+}
+
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> step(const T &edge, const VecBase<T, Size> &value)
+{
+  VecBase<T, Size> result = value;
+  for (int i = 0; i < Size; i++) {
+    result[i] = math::step(edge, result[i]);
   }
   return result;
 }
@@ -128,12 +107,7 @@ template<typename T, int Size>
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> mod(const VecBase<T, Size> &a, const VecBase<T, Size> &b)
 {
-  VecBase<T, Size> result;
-  for (int i = 0; i < Size; i++) {
-    BLI_assert(b[i] != 0);
-    result[i] = std::fmod(a[i], b[i]);
-  }
-  return result;
+  BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::mod, a, b);
 }
 
 template<typename T, int Size>
@@ -142,7 +116,7 @@ template<typename T, int Size>
   BLI_assert(b != 0);
   VecBase<T, Size> result;
   for (int i = 0; i < Size; i++) {
-    result[i] = std::fmod(a[i], b);
+    result[i] = math::mod(a[i], b);
   }
   return result;
 }
@@ -154,11 +128,7 @@ template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> safe_mod(const VecBase<T, Size> &a,
                                                const VecBase<T, Size> &b)
 {
-  VecBase<T, Size> result;
-  for (int i = 0; i < Size; i++) {
-    result[i] = (b[i] != 0) ? std::fmod(a[i], b[i]) : 0;
-  }
-  return result;
+  BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::safe_mod, a, b);
 }
 
 /**
@@ -172,9 +142,76 @@ template<typename T, int Size>
   }
   VecBase<T, Size> result;
   for (int i = 0; i < Size; i++) {
-    result[i] = std::fmod(a[i], b);
+    result[i] = math::mod(a[i], b);
   }
   return result;
+}
+
+/**
+ * Return the value of x raised to the y power.
+ * The result is undefined if x < 0 or if x = 0 and y <= 0.
+ */
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> pow(const VecBase<T, Size> &x, const T &y)
+{
+  VecBase<T, Size> result;
+  for (int i = 0; i < Size; i++) {
+    result[i] = math::pow(x[i], y);
+  }
+  return result;
+}
+
+/**
+ * Return the value of x raised to the y power.
+ * The result is x if x < 0 or if x = 0 and y <= 0.
+ */
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> safe_pow(const VecBase<T, Size> &x, const T &y)
+{
+  VecBase<T, Size> result;
+  for (int i = 0; i < Size; i++) {
+    result[i] = math::safe_pow(x[i], y);
+  }
+  return result;
+}
+
+/**
+ * Return the value of x raised to the y power.
+ * The result is the given fallback if x < 0 or if x = 0 and y <= 0.
+ */
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> fallback_pow(const VecBase<T, Size> &x,
+                                                   const T &y,
+                                                   const VecBase<T, Size> &fallback)
+{
+  VecBase<T, Size> result;
+  for (int i = 0; i < Size; i++) {
+    result[i] = math::fallback_pow(x[i], y, fallback[i]);
+  }
+  return result;
+}
+
+/**
+ * Return the value of x raised to the y power.
+ * The result is undefined if x < 0 or if x = 0 and y <= 0.
+ */
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> pow(const VecBase<T, Size> &x, const VecBase<T, Size> &y)
+{
+  BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::pow, x, y);
+}
+
+/** Per-element square. */
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> square(const VecBase<T, Size> &a)
+{
+  BLI_UNROLL_MATH_VEC_OP_VEC(math::square, a);
+}
+
+/* Per-element exponent. */
+template<typename T, int Size> [[nodiscard]] inline VecBase<T, Size> exp(const VecBase<T, Size> &x)
+{
+  BLI_UNROLL_MATH_VEC_OP_VEC(math::exp, x);
 }
 
 /**
@@ -213,7 +250,7 @@ template<typename T, int Size>
 }
 
 template<typename T, int Size>
-void min_max(const VecBase<T, Size> &vector, VecBase<T, Size> &min, VecBase<T, Size> &max)
+inline void min_max(const VecBase<T, Size> &vector, VecBase<T, Size> &min, VecBase<T, Size> &max)
 {
   min = math::min(vector, min);
   max = math::max(vector, max);
@@ -226,11 +263,7 @@ template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> safe_divide(const VecBase<T, Size> &a,
                                                   const VecBase<T, Size> &b)
 {
-  VecBase<T, Size> result;
-  for (int i = 0; i < Size; i++) {
-    result[i] = (b[i] == 0) ? 0 : a[i] / b[i];
-  }
-  return result;
+  BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::safe_divide, a, b);
 }
 
 /**
@@ -245,31 +278,68 @@ template<typename T, int Size>
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> floor(const VecBase<T, Size> &a)
 {
-  VecBase<T, Size> result;
-  for (int i = 0; i < Size; i++) {
-    result[i] = std::floor(a[i]);
-  }
-  return result;
+  BLI_UNROLL_MATH_VEC_OP_VEC(math::floor, a);
+}
+
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> round(const VecBase<T, Size> &a)
+{
+  BLI_UNROLL_MATH_VEC_OP_VEC(math::round, a);
 }
 
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> ceil(const VecBase<T, Size> &a)
 {
+  BLI_UNROLL_MATH_VEC_OP_VEC(math::ceil, a);
+}
+
+/**
+ * Per-element square root.
+ * Negative elements are evaluated to NaN.
+ */
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> sqrt(const VecBase<T, Size> &a)
+{
+  BLI_UNROLL_MATH_VEC_OP_VEC(math::sqrt, a);
+}
+
+/**
+ * Per-element square root.
+ * Negative elements are evaluated to zero.
+ */
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> safe_sqrt(const VecBase<T, Size> &a)
+{
   VecBase<T, Size> result;
   for (int i = 0; i < Size; i++) {
-    result[i] = std::ceil(a[i]);
+    result[i] = a[i] >= T(0) ? math ::sqrt(a[i]) : T(0);
   }
   return result;
+}
+
+/**
+ * Per-element inverse.
+ * Zero elements are evaluated to NaN.
+ */
+template<typename T, int Size> [[nodiscard]] inline VecBase<T, Size> rcp(const VecBase<T, Size> &a)
+{
+  BLI_UNROLL_MATH_VEC_OP_VEC(math::rcp, a);
+}
+
+/**
+ * Per-element inverse.
+ * Zero elements are evaluated to zero.
+ */
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> safe_rcp(const VecBase<T, Size> &a)
+{
+  BLI_UNROLL_MATH_VEC_OP_VEC(math::safe_rcp, a);
 }
 
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> fract(const VecBase<T, Size> &a)
 {
-  VecBase<T, Size> result;
-  for (int i = 0; i < Size; i++) {
-    result[i] = a[i] - std::floor(a[i]);
-  }
-  return result;
+  BLI_UNROLL_MATH_VEC_OP_VEC(math::fract, a);
 }
 
 /**
@@ -293,9 +363,9 @@ template<typename T, int Size>
  */
 template<typename T, int Size> [[nodiscard]] inline T length_manhattan(const VecBase<T, Size> &a)
 {
-  T result = std::abs(a[0]);
+  T result = math::abs(a[0]);
   for (int i = 1; i < Size; i++) {
-    result += std::abs(a[i]);
+    result += math::abs(a[i]);
   }
   return result;
 }
@@ -307,7 +377,7 @@ template<typename T, int Size> [[nodiscard]] inline T length_squared(const VecBa
 
 template<typename T, int Size> [[nodiscard]] inline T length(const VecBase<T, Size> &a)
 {
-  return std::sqrt(length_squared(a));
+  return math::sqrt(length_squared(a));
 }
 
 /** Return true if each individual column is unit scaled. Mainly for assert usage. */
@@ -317,8 +387,8 @@ template<typename T, int Size> [[nodiscard]] inline bool is_unit_scale(const Vec
    * normalized and in the case we don't want NAN to be raising asserts since there
    * is nothing to be done in that case. */
   const T test_unit = math::length_squared(v);
-  return (!(std::abs(test_unit - T(1)) >= AssertUnitEpsilon<T>::value) ||
-          !(std::abs(test_unit) >= AssertUnitEpsilon<T>::value));
+  return (!(math::abs(test_unit - T(1)) >= AssertUnitEpsilon<T>::value) ||
+          !(math::abs(test_unit) >= AssertUnitEpsilon<T>::value));
 }
 
 template<typename T, int Size>
@@ -451,6 +521,30 @@ template<typename T> [[nodiscard]] inline VecBase<T, 3> cross_poly(Span<VecBase<
 }
 
 /**
+ * Return normal vector to a triangle.
+ * The result is not normalized and can be degenerate.
+ */
+template<typename T>
+[[nodiscard]] inline VecBase<T, 3> cross_tri(const VecBase<T, 3> &v1,
+                                             const VecBase<T, 3> &v2,
+                                             const VecBase<T, 3> &v3)
+{
+  return cross(v1 - v2, v2 - v3);
+}
+
+/**
+ * Return normal vector to a triangle.
+ * The result is normalized but can still be degenerate.
+ */
+template<typename T>
+[[nodiscard]] inline VecBase<T, 3> normal_tri(const VecBase<T, 3> &v1,
+                                              const VecBase<T, 3> &v2,
+                                              const VecBase<T, 3> &v3)
+{
+  return normalize(cross_tri(v1, v2, v3));
+}
+
+/**
  * Per component linear interpolation.
  * \param t: interpolation factor. Return \a a if equal 0. Return \a b if equal 1.
  * Outside of [0..1] range, use linear extrapolation.
@@ -494,6 +588,66 @@ template<typename T> [[nodiscard]] inline int dominant_axis(const VecBase<T, 3> 
 }
 
 /**
+ * \return the maximum component of a vector.
+ */
+template<typename T, int Size> [[nodiscard]] inline T reduce_max(const VecBase<T, Size> &a)
+{
+  T result = a[0];
+  for (int i = 1; i < Size; i++) {
+    if (a[i] > result) {
+      result = a[i];
+    }
+  }
+  return result;
+}
+
+/**
+ * \return the minimum component of a vector.
+ */
+template<typename T, int Size> [[nodiscard]] inline T reduce_min(const VecBase<T, Size> &a)
+{
+  T result = a[0];
+  for (int i = 1; i < Size; i++) {
+    if (a[i] < result) {
+      result = a[i];
+    }
+  }
+  return result;
+}
+
+/**
+ * \return the sum of the components of a vector.
+ */
+template<typename T, int Size> [[nodiscard]] inline T reduce_add(const VecBase<T, Size> &a)
+{
+  T result = a[0];
+  for (int i = 1; i < Size; i++) {
+    result += a[i];
+  }
+  return result;
+}
+
+/**
+ * \return the product of the components of a vector.
+ */
+template<typename T, int Size> [[nodiscard]] inline T reduce_mul(const VecBase<T, Size> &a)
+{
+  T result = a[0];
+  for (int i = 1; i < Size; i++) {
+    result *= a[i];
+  }
+  return result;
+}
+
+/**
+ * \return the average of the components of a vector.
+ */
+template<typename T, int Size> [[nodiscard]] inline T average(const VecBase<T, Size> &a)
+{
+  return reduce_add(a) * (T(1) / T(Size));
+}
+
+/**
  * Calculates a perpendicular vector to \a v.
  * \note Returned vector can be in any perpendicular direction.
  * \note Returned vector might not the same length as \a v.
@@ -530,11 +684,53 @@ template<typename T, int Size>
                                    const T epsilon = T(0))
 {
   for (int i = 0; i < Size; i++) {
-    if (std::abs(a[i] - b[i]) > epsilon) {
+    if (math::abs(a[i] - b[i]) > epsilon) {
       return false;
     }
   }
   return true;
+}
+
+/**
+ * Return true if the absolute values of all components are smaller than given epsilon (0 by
+ * default).
+ *
+ * \note Does not compute the actual length of the vector, for performance.
+ */
+template<typename T, int Size>
+[[nodiscard]] inline bool is_zero(const VecBase<T, Size> &a, const T epsilon = T(0))
+{
+  for (int i = 0; i < Size; i++) {
+    if (math::abs(a[i]) > epsilon) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Returns true if at least one component is exactly equal to 0.
+ */
+template<typename T, int Size> [[nodiscard]] inline bool is_any_zero(const VecBase<T, Size> &a)
+{
+  for (int i = 0; i < Size; i++) {
+    if (a[i] == T(0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Return true if the squared length of the vector is (almost) equal to 1 (with a
+ * `10 * std::numeric_limits<T>::epsilon()` epsilon error by default).
+ */
+template<typename T, int Size>
+[[nodiscard]] inline bool is_unit(const VecBase<T, Size> &a,
+                                  const T epsilon = T(10) * std::numeric_limits<T>::epsilon())
+{
+  const T length = length_squared(a);
+  return math::abs(length - T(1)) <= epsilon;
 }
 
 /** Intersections. */

@@ -1,19 +1,11 @@
+# SPDX-FileCopyrightText: 2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blenlib
-  ../../blentranslation
-  ../../depsgraph
-  ../../gpu
-  ../../makesdna
   ../../makesrna
-  ../../windowmanager
-  ../../../../intern/clog
-  ../../../../intern/guardedalloc
-  ../../../../extern/curve_fit_nd
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -21,28 +13,35 @@ set(INC_SYS
 )
 
 set(SRC
-  curve_ops.c
-  editcurve.c
-  editcurve_add.c
-  editcurve_paint.c
-  editcurve_pen.c
-  editcurve_query.c
-  editcurve_select.c
+  curve_ops.cc
+  editcurve.cc
+  editcurve_add.cc
+  editcurve_paint.cc
+  editcurve_pen.cc
+  editcurve_query.cc
+  editcurve_select.cc
   editcurve_undo.cc
-  editfont.c
-  editfont_undo.c
+  editfont.cc
+  editfont_undo.cc
 
-  curve_intern.h
+  curve_intern.hh
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
-  extern_curve_fit_nd
+  PRIVATE bf::blenkernel
+  PRIVATE bf::animrig
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
+  PRIVATE bf::extern::curve_fit_nd
+  PRIVATE bf::gpu
+  PRIVATE bf::intern::clog
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
-
 
 blender_add_lib(bf_editor_curve "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_curve bf_rna)

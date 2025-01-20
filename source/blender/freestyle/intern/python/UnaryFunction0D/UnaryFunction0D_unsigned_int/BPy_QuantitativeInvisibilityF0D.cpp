@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char QuantitativeInvisibilityF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    QuantitativeInvisibilityF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DUnsigned` > :class:`QuantitativeInvisibilityF0D`\n"
     "\n"
@@ -30,17 +34,17 @@ static char QuantitativeInvisibilityF0D___doc__[] =
     "\n"
     "   Returns the quantitative invisibility of the\n"
     "   :class:`freestyle.types.Interface0D` pointed by the\n"
-    "   Interface0DIterator.  This evaluation can be ambiguous (in the case of\n"
-    "   a :class:`freestyle.types.TVertex` for example).  This functor tries\n"
+    "   Interface0DIterator. This evaluation can be ambiguous (in the case of\n"
+    "   a :class:`freestyle.types.TVertex` for example). This functor tries\n"
     "   to remove this ambiguity using the context offered by the 1D element\n"
-    "   to which the Interface0D belongs to.  However, there still can be\n"
+    "   to which the Interface0D belongs to. However, there still can be\n"
     "   problematic cases, and the user willing to deal with this cases in a\n"
     "   specific way should implement its own getQIF0D functor.\n"
     "\n"
     "   :arg it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The quantitative invisibility of the pointed Interface0D.\n"
-    "   :rtype: int\n";
+    "   :rtype: int\n");
 
 static int QuantitativeInvisibilityF0D___init__(BPy_QuantitativeInvisibilityF0D *self,
                                                 PyObject *args,
@@ -59,7 +63,7 @@ static int QuantitativeInvisibilityF0D___init__(BPy_QuantitativeInvisibilityF0D 
 /*-----------------------BPy_QuantitativeInvisibilityF0D type definition ------------------------*/
 
 PyTypeObject QuantitativeInvisibilityF0D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "QuantitativeInvisibilityF0D",
     /*tp_basicsize*/ sizeof(BPy_QuantitativeInvisibilityF0D),
     /*tp_itemsize*/ 0,

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 by Mike Erwin. All rights reserved. */
+/* SPDX-FileCopyrightText: 2016 by Mike Erwin. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -17,19 +18,27 @@
 #include "BLI_hash.h"
 #include "BLI_utildefines.h"
 
-#include "GPU_shader.h"
-#include "GPU_vertex_format.h" /* GPU_VERT_ATTR_MAX_LEN */
+#include "GPU_shader.hh"
+#include "GPU_vertex_format.hh" /* GPU_VERT_ATTR_MAX_LEN */
 #include "gpu_shader_create_info.hh"
 
 namespace blender::gpu {
 
-typedef struct ShaderInput {
+struct ShaderInput {
   uint32_t name_offset;
   uint32_t name_hash;
+  /**
+   * Location is openGl legacy and its legacy usages should be phased out in Blender 3.7.
+   *
+   * Vulkan backend use location to encode the descriptor set binding. This binding is different
+   * than the binding stored in the binding attribute. In Vulkan the binding inside a descriptor
+   * set must be unique. In future the location will also be used to select the right descriptor
+   * set.
+   */
   int32_t location;
   /** Defined at interface creation or in shader. Only for Samplers, UBOs and Vertex Attributes. */
   int32_t binding;
-} ShaderInput;
+};
 
 /**
  * Implementation of Shader interface.
@@ -39,7 +48,7 @@ class ShaderInterface {
   friend shader::ShaderCreateInfo;
   /* TODO(fclem): should be protected. */
  public:
-  /** Flat array. In this order: Attributes, Ubos, Uniforms. */
+  /** Flat array. In this order: Attributes, Ubos, Uniforms, SSBOs, Constants. */
   ShaderInput *inputs_ = nullptr;
   /** Buffer containing all inputs names separated by '\0'. */
   char *name_buffer_ = nullptr;
@@ -48,16 +57,18 @@ class ShaderInterface {
   uint ubo_len_ = 0;
   uint uniform_len_ = 0;
   uint ssbo_len_ = 0;
+  uint constant_len_ = 0;
   /** Enabled bind-points that needs to be fed with data. */
   uint16_t enabled_attr_mask_ = 0;
   uint16_t enabled_ubo_mask_ = 0;
   uint8_t enabled_ima_mask_ = 0;
   uint64_t enabled_tex_mask_ = 0;
   uint16_t enabled_ssbo_mask_ = 0;
+  /* Bitmask to apply to enabled_ssbo_mask_ to get attributes that are sourced from SSBOs. */
+  uint16_t ssbo_attr_mask_ = 0;
   /** Location of builtin uniforms. Fast access, no lookup needed. */
   int32_t builtins_[GPU_NUM_UNIFORMS];
   int32_t builtin_blocks_[GPU_NUM_UNIFORM_BLOCKS];
-  int32_t builtin_buffers_[GPU_NUM_STORAGE_BUFFERS];
 
   /**
    * Currently only used for `GPU_shader_get_attribute_info`.
@@ -66,13 +77,12 @@ class ShaderInterface {
    */
   uint8_t attr_types_[GPU_VERT_ATTR_MAX_LEN];
 
- public:
   ShaderInterface();
   virtual ~ShaderInterface();
 
-  void debug_print();
+  void debug_print() const;
 
-  inline const ShaderInput *attr_get(const char *name) const
+  inline const ShaderInput *attr_get(const StringRefNull name) const
   {
     return input_lookup(inputs_, attr_len_, name);
   }
@@ -81,7 +91,7 @@ class ShaderInterface {
     return input_lookup(inputs_, attr_len_, binding);
   }
 
-  inline const ShaderInput *ubo_get(const char *name) const
+  inline const ShaderInput *ubo_get(const StringRefNull name) const
   {
     return input_lookup(inputs_ + attr_len_, ubo_len_, name);
   }
@@ -90,7 +100,7 @@ class ShaderInterface {
     return input_lookup(inputs_ + attr_len_, ubo_len_, binding);
   }
 
-  inline const ShaderInput *uniform_get(const char *name) const
+  inline const ShaderInput *uniform_get(const StringRefNull name) const
   {
     return input_lookup(inputs_ + attr_len_ + ubo_len_, uniform_len_, name);
   }
@@ -100,13 +110,19 @@ class ShaderInterface {
     return input_lookup(inputs_ + attr_len_ + ubo_len_, uniform_len_, binding);
   }
 
-  inline const ShaderInput *ssbo_get(const char *name) const
+  inline const ShaderInput *ssbo_get(const StringRefNull name) const
   {
     return input_lookup(inputs_ + attr_len_ + ubo_len_ + uniform_len_, ssbo_len_, name);
   }
   inline const ShaderInput *ssbo_get(const int binding) const
   {
     return input_lookup(inputs_ + attr_len_ + ubo_len_ + uniform_len_, ssbo_len_, binding);
+  }
+
+  inline const ShaderInput *constant_get(const StringRefNull name) const
+  {
+    return input_lookup(
+        inputs_ + attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_, constant_len_, name);
   }
 
   inline const char *input_name_get(const ShaderInput *input) const
@@ -128,17 +144,9 @@ class ShaderInterface {
     return builtin_blocks_[builtin];
   }
 
-  /* Returns binding position. */
-  inline int32_t ssbo_builtin(const GPUStorageBufferBuiltin builtin) const
-  {
-    BLI_assert(builtin >= 0 && builtin < GPU_NUM_STORAGE_BUFFERS);
-    return builtin_buffers_[builtin];
-  }
-
  protected:
   static inline const char *builtin_uniform_name(GPUUniformBuiltin u);
   static inline const char *builtin_uniform_block_name(GPUUniformBlockBuiltin u);
-  static inline const char *builtin_storage_block_name(GPUStorageBufferBuiltin u);
 
   inline uint32_t set_input_name(ShaderInput *input, char *name, uint32_t name_len) const;
   inline void copy_input_name(ShaderInput *input,
@@ -154,7 +162,7 @@ class ShaderInterface {
  private:
   inline const ShaderInput *input_lookup(const ShaderInput *const inputs,
                                          uint inputs_len,
-                                         const char *name) const;
+                                         StringRefNull name) const;
 
   inline const ShaderInput *input_lookup(const ShaderInput *const inputs,
                                          uint inputs_len,
@@ -234,18 +242,6 @@ inline const char *ShaderInterface::builtin_uniform_block_name(GPUUniformBlockBu
   }
 }
 
-inline const char *ShaderInterface::builtin_storage_block_name(GPUStorageBufferBuiltin u)
-{
-  switch (u) {
-    case GPU_STORAGE_BUFFER_DEBUG_VERTS:
-      return "drw_debug_verts_buf";
-    case GPU_STORAGE_BUFFER_DEBUG_PRINT:
-      return "drw_debug_print_buf";
-    default:
-      return nullptr;
-  }
-}
-
 /* Returns string length including '\0' terminator. */
 inline uint32_t ShaderInterface::set_input_name(ShaderInput *input,
                                                 char *name,
@@ -279,16 +275,16 @@ inline void ShaderInterface::copy_input_name(ShaderInput *input,
 
 inline const ShaderInput *ShaderInterface::input_lookup(const ShaderInput *const inputs,
                                                         const uint inputs_len,
-                                                        const char *name) const
+                                                        const StringRefNull name) const
 {
-  const uint name_hash = BLI_hash_string(name);
+  const uint name_hash = BLI_hash_string(name.c_str());
   /* Simple linear search for now. */
   for (int i = inputs_len - 1; i >= 0; i--) {
     if (inputs[i].name_hash == name_hash) {
       if ((i > 0) && UNLIKELY(inputs[i - 1].name_hash == name_hash)) {
         /* Hash collision resolve. */
         for (; i >= 0 && inputs[i].name_hash == name_hash; i--) {
-          if (STREQ(name, name_buffer_ + inputs[i].name_offset)) {
+          if (name == (name_buffer_ + inputs[i].name_offset)) {
             return inputs + i; /* not found */
           }
         }
@@ -298,7 +294,7 @@ inline const ShaderInput *ShaderInterface::input_lookup(const ShaderInput *const
       /* This is a bit dangerous since we could have a hash collision.
        * where the asked uniform that does not exist has the same hash
        * as a real uniform. */
-      BLI_assert(STREQ(name, name_buffer_ + inputs[i].name_offset));
+      BLI_assert(name == (name_buffer_ + inputs[i].name_offset));
       return inputs + i;
     }
   }

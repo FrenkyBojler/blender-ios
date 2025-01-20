@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2022 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(BOOST_ADDRESS_MODEL 64)
@@ -8,7 +10,10 @@ else()
 endif()
 
 if(WIN32)
-  if(MSVC_VERSION GREATER_EQUAL 1920) # 2019
+  if(MSVC_TOOLSET_VERSION GREATER_EQUAL 143) # 2022
+    set(BOOST_TOOLSET toolset=msvc-14.3)
+    set(BOOST_COMPILER_STRING -vc143)
+  elseif(MSVC_TOOLSET_VERSION GREATER_EQUAL 142) # 2019
     set(BOOST_TOOLSET toolset=msvc-14.2)
     set(BOOST_COMPILER_STRING -vc142)
   else() # 2017

@@ -1,6 +1,9 @@
+/* SPDX-FileCopyrightText: 2016-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
+#include "common_view_clipping_lib.glsl"
+#include "common_view_lib.glsl"
 
 #define no_active_weight 666.0
 
@@ -25,10 +28,11 @@ void main()
   gl_Position = point_world_to_ndc(world_pos);
 
   if (useWeight) {
-    finalColor = vec4(weight_to_rgb(color), 1.0);
+    finalColor = vec4(weight_to_rgb(selection), 1.0);
   }
   else {
-    finalColor = mix(colorWire, colorVertexSelect, color);
+    vec4 use_color = useGreasePencil ? colorGpencilVertexSelect : colorVertexSelect;
+    finalColor = mix(colorWireEdit, use_color, selection);
   }
 
   view_clipping_distances(world_pos);

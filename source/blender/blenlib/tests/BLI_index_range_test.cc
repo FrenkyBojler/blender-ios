@@ -1,9 +1,13 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
+#include "testing/testing.h"
 
 #include "BLI_index_range.hh"
-#include "BLI_strict_flags.h"
 #include "BLI_vector.hh"
-#include "testing/testing.h"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 namespace blender::tests {
 
@@ -17,6 +21,86 @@ TEST(index_range, DefaultConstructor)
     vector.append(value);
   }
   EXPECT_EQ(vector.size(), 0);
+}
+
+TEST(index_range, FromBeginSize)
+{
+  {
+    const IndexRange range = IndexRange::from_begin_size(0, 0);
+    EXPECT_TRUE(range.is_empty());
+  }
+  {
+    const IndexRange range = IndexRange::from_begin_size(0, 10);
+    EXPECT_EQ(range.size(), 10);
+    EXPECT_EQ(range.first(), 0);
+  }
+  {
+    const IndexRange range = IndexRange::from_begin_size(4, 10);
+    EXPECT_EQ(range.size(), 10);
+    EXPECT_EQ(range.first(), 4);
+    EXPECT_EQ(range.last(), 13);
+  }
+}
+
+TEST(index_range, FromBeginEnd)
+{
+  {
+    const IndexRange range = IndexRange::from_begin_end(0, 0);
+    EXPECT_TRUE(range.is_empty());
+  }
+  {
+    const IndexRange range = IndexRange::from_begin_end(0, 10);
+    EXPECT_EQ(range.size(), 10);
+    EXPECT_EQ(range.first(), 0);
+  }
+  {
+    const IndexRange range = IndexRange::from_begin_end(4, 10);
+    EXPECT_EQ(range.size(), 6);
+    EXPECT_EQ(range.first(), 4);
+    EXPECT_EQ(range.last(), 9);
+  }
+}
+
+TEST(index_range, FromBeginEndInclusive)
+{
+  {
+    const IndexRange range = IndexRange::from_begin_end_inclusive(0, 0);
+    EXPECT_EQ(range.size(), 1);
+    EXPECT_EQ(range.first(), 0);
+  }
+  {
+    const IndexRange range = IndexRange::from_begin_end_inclusive(100, 200);
+    EXPECT_EQ(range.size(), 101);
+    EXPECT_EQ(range.first(), 100);
+    EXPECT_EQ(range.last(), 200);
+  }
+}
+
+TEST(index_range, FromEndSize)
+{
+  {
+    const IndexRange range = IndexRange::from_end_size(0, 0);
+    EXPECT_TRUE(range.is_empty());
+  }
+  {
+    const IndexRange range = IndexRange::from_end_size(100, 20);
+    EXPECT_EQ(range.first(), 80);
+    EXPECT_EQ(range.last(), 99);
+  }
+}
+
+TEST(index_range, FromSingle)
+{
+  {
+    const IndexRange range = IndexRange::from_single(0);
+    EXPECT_EQ(range.size(), 1);
+    EXPECT_EQ(range.first(), 0);
+  }
+  {
+    const IndexRange range = IndexRange::from_single(100);
+    EXPECT_EQ(range.size(), 1);
+    EXPECT_EQ(range.first(), 100);
+  }
 }
 
 TEST(index_range, SingleElementRange)
@@ -219,17 +303,6 @@ TEST(index_range, TakeBackLargeN)
   EXPECT_EQ(slice.size(), 4);
 }
 
-TEST(index_range, AsSpan)
-{
-  IndexRange range = IndexRange(4, 6);
-  Span<int64_t> span = range.as_span();
-  EXPECT_EQ(span.size(), 6);
-  EXPECT_EQ(span[0], 4);
-  EXPECT_EQ(span[1], 5);
-  EXPECT_EQ(span[2], 6);
-  EXPECT_EQ(span[3], 7);
-}
-
 TEST(index_range, constexpr_)
 {
   constexpr IndexRange range = IndexRange(1, 1);
@@ -287,6 +360,24 @@ TEST(index_range, SplitByAlignment)
   {
     AlignedIndexRanges ranges = split_index_range_by_alignment(IndexRange(3, 5), 8);
     EXPECT_EQ(ranges.prefix, IndexRange(3, 5));
+    EXPECT_EQ(ranges.aligned, IndexRange());
+    EXPECT_EQ(ranges.suffix, IndexRange());
+  }
+  {
+    AlignedIndexRanges ranges = split_index_range_by_alignment(IndexRange(64), 64);
+    EXPECT_EQ(ranges.prefix, IndexRange());
+    EXPECT_EQ(ranges.aligned, IndexRange(64));
+    EXPECT_EQ(ranges.suffix, IndexRange());
+  }
+  {
+    AlignedIndexRanges ranges = split_index_range_by_alignment(IndexRange(64, 64), 64);
+    EXPECT_EQ(ranges.prefix, IndexRange());
+    EXPECT_EQ(ranges.aligned, IndexRange(64, 64));
+    EXPECT_EQ(ranges.suffix, IndexRange());
+  }
+  {
+    AlignedIndexRanges ranges = split_index_range_by_alignment(IndexRange(4, 8), 64);
+    EXPECT_EQ(ranges.prefix, IndexRange(4, 8));
     EXPECT_EQ(ranges.aligned, IndexRange());
     EXPECT_EQ(ranges.suffix, IndexRange());
   }

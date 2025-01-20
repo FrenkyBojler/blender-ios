@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2006-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup intern_memutil
@@ -23,20 +25,12 @@ template<typename _Tp> struct MEM_Allocator {
     typedef MEM_Allocator<_Tp1> other;
   };
 
-  MEM_Allocator() throw()
-  {
-  }
-  MEM_Allocator(const MEM_Allocator &) throw()
-  {
-  }
+  MEM_Allocator() throw() {}
+  MEM_Allocator(const MEM_Allocator &) throw() {}
 
-  template<typename _Tp1> MEM_Allocator(const MEM_Allocator<_Tp1>) throw()
-  {
-  }
+  template<typename _Tp1> MEM_Allocator(const MEM_Allocator<_Tp1>) throw() {}
 
-  ~MEM_Allocator() throw()
-  {
-  }
+  ~MEM_Allocator() throw() {}
 
   pointer address(reference __x) const
   {
@@ -53,8 +47,9 @@ template<typename _Tp> struct MEM_Allocator {
   _Tp *allocate(size_type __n, const void * = 0)
   {
     _Tp *__ret = NULL;
-    if (__n)
+    if (__n) {
       __ret = static_cast<_Tp *>(MEM_mallocN(__n * sizeof(_Tp), "STL MEM_Allocator"));
+    }
     return __ret;
   }
 

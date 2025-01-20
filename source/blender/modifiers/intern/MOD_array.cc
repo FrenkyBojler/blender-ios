@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup modifiers
@@ -11,42 +12,44 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
+#include "BLI_span.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_curve_types.h"
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_anim_path.h"
-#include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_displist.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_mesh.h"
-#include "BKE_modifier.h"
+#include "BKE_attribute.hh"
+#include "BKE_curve.hh"
+#include "BKE_customdata.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_wrapper.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object_deform.h"
-#include "BKE_screen.h"
+#include "BKE_object_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
-#include "MOD_ui_common.h"
-#include "MOD_util.h"
+#include "MOD_ui_common.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
 
-static void initData(ModifierData *md)
+#include "GEO_mesh_merge_by_distance.hh"
+
+using namespace blender;
+
+static void init_data(ModifierData *md)
 {
   ArrayModifierData *amd = (ArrayModifierData *)md;
 
@@ -59,17 +62,17 @@ static void initData(ModifierData *md)
   md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT | UI_SUBPANEL_DATA_EXPAND_1;
 }
 
-static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
+static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   ArrayModifierData *amd = (ArrayModifierData *)md;
 
-  walk(userData, ob, (ID **)&amd->start_cap, IDWALK_CB_NOP);
-  walk(userData, ob, (ID **)&amd->end_cap, IDWALK_CB_NOP);
-  walk(userData, ob, (ID **)&amd->curve_ob, IDWALK_CB_NOP);
-  walk(userData, ob, (ID **)&amd->offset_ob, IDWALK_CB_NOP);
+  walk(user_data, ob, (ID **)&amd->start_cap, IDWALK_CB_NOP);
+  walk(user_data, ob, (ID **)&amd->end_cap, IDWALK_CB_NOP);
+  walk(user_data, ob, (ID **)&amd->curve_ob, IDWALK_CB_NOP);
+  walk(user_data, ob, (ID **)&amd->offset_ob, IDWALK_CB_NOP);
 }
 
-static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
+static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
   ArrayModifierData *amd = (ArrayModifierData *)md;
   bool need_transform_dependency = false;
@@ -125,7 +128,7 @@ static int svert_sum_cmp(const void *e1, const void *e2)
 }
 
 static void svert_from_mvert(SortVertsElem *sv,
-                             const float (*vert_positions)[3],
+                             const Span<float3> vert_positions,
                              const int i_begin,
                              const int i_end)
 {
@@ -145,14 +148,14 @@ static void svert_from_mvert(SortVertsElem *sv,
  * The `int doubles_map[verts_source_num]` array must have been allocated by caller.
  */
 static void dm_mvert_map_doubles(int *doubles_map,
-                                 const float (*vert_positions)[3],
+                                 const Span<float3> vert_positions,
                                  const int target_start,
                                  const int target_verts_num,
                                  const int source_start,
                                  const int source_verts_num,
                                  const float dist)
 {
-  const float dist3 = (float(M_SQRT3) + 0.00005f) * dist; /* Just above sqrt(3) */
+  const float dist3 = (float(M_SQRT3) + 0.00005f) * dist; /* Just above `sqrt(3)`. */
   int i_source, i_target, i_target_low_bound, target_end, source_end;
   SortVertsElem *sve_source, *sve_target, *sve_target_low_bound;
   bool target_scan_completed;
@@ -183,7 +186,8 @@ static void dm_mvert_map_doubles(int *doubles_map,
   /* Scan source vertices, in #SortVertsElem sorted array,
    * all the while maintaining the lower bound of possible doubles in target vertices. */
   for (i_source = 0, sve_source = sorted_verts_source; i_source < source_verts_num;
-       i_source++, sve_source++) {
+       i_source++, sve_source++)
+  {
     int best_target_vertex = -1;
     float best_dist_sq = dist * dist;
     float sve_source_sumco;
@@ -204,7 +208,8 @@ static void dm_mvert_map_doubles(int *doubles_map,
     /* Skip all target vertices that are more than dist3 lower in terms of sumco */
     /* and advance the overall lower bound, applicable to all remaining vertices as well. */
     while ((i_target_low_bound < target_verts_num) &&
-           (sve_target_low_bound->sum_co < sve_source_sumco - dist3)) {
+           (sve_target_low_bound->sum_co < sve_source_sumco - dist3))
+    {
       i_target_low_bound++;
       sve_target_low_bound++;
     }
@@ -237,10 +242,12 @@ static void dm_mvert_map_doubles(int *doubles_map,
          * But if other potential targets are farther,
          * then there will be no mapping at all for this source. */
         while (best_target_vertex != -1 &&
-               !ELEM(doubles_map[best_target_vertex], -1, best_target_vertex)) {
+               !ELEM(doubles_map[best_target_vertex], -1, best_target_vertex))
+        {
           if (compare_len_v3v3(vert_positions[sve_source->vertex_num],
                                vert_positions[doubles_map[best_target_vertex]],
-                               dist)) {
+                               dist))
+          {
             best_target_vertex = doubles_map[best_target_vertex];
           }
           else {
@@ -265,37 +272,38 @@ static void mesh_merge_transform(Mesh *result,
                                  uint cap_verts_index,
                                  uint cap_edges_index,
                                  int cap_loops_index,
-                                 int cap_polys_index,
+                                 int cap_faces_index,
                                  int cap_nverts,
                                  int cap_nedges,
                                  int cap_nloops,
-                                 int cap_npolys,
+                                 int cap_nfaces,
                                  int *remap,
                                  int remap_len,
-                                 const bool recalc_normals_later)
+                                 MutableSpan<float3> dst_vert_normals)
 {
+  using namespace blender;
   int *index_orig;
   int i;
-  MEdge *me;
-  MLoop *ml;
-  MPoly *mp;
-  float(*result_positions)[3] = BKE_mesh_vert_positions_for_write(result);
-  MEdge *result_edges = BKE_mesh_edges_for_write(result);
-  MPoly *result_polys = BKE_mesh_polys_for_write(result);
-  MLoop *result_loops = BKE_mesh_loops_for_write(result);
+  int2 *edge;
+  const blender::Span<int> cap_face_offsets = cap_mesh->face_offsets();
+  blender::MutableSpan<float3> result_positions = result->vert_positions_for_write();
+  blender::MutableSpan<int2> result_edges = result->edges_for_write();
+  blender::MutableSpan<int> result_face_offsets = result->face_offsets_for_write();
+  blender::MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
+  blender::MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
 
-  CustomData_copy_data(&cap_mesh->vdata, &result->vdata, 0, cap_verts_index, cap_nverts);
-  CustomData_copy_data(&cap_mesh->edata, &result->edata, 0, cap_edges_index, cap_nedges);
-  CustomData_copy_data(&cap_mesh->ldata, &result->ldata, 0, cap_loops_index, cap_nloops);
-  CustomData_copy_data(&cap_mesh->pdata, &result->pdata, 0, cap_polys_index, cap_npolys);
+  CustomData_copy_data(&cap_mesh->vert_data, &result->vert_data, 0, cap_verts_index, cap_nverts);
+  CustomData_copy_data(&cap_mesh->edge_data, &result->edge_data, 0, cap_edges_index, cap_nedges);
+  CustomData_copy_data(
+      &cap_mesh->corner_data, &result->corner_data, 0, cap_loops_index, cap_nloops);
+  CustomData_copy_data(&cap_mesh->face_data, &result->face_data, 0, cap_faces_index, cap_nfaces);
 
   for (i = 0; i < cap_nverts; i++) {
     mul_m4_v3(cap_offset, result_positions[cap_verts_index + i]);
   }
 
   /* We have to correct normals too, if we do not tag them as dirty later! */
-  if (!recalc_normals_later) {
-    float(*dst_vert_normals)[3] = BKE_mesh_vertex_normals_for_write(result);
+  if (!dst_vert_normals.is_empty()) {
     for (i = 0; i < cap_nverts; i++) {
       mul_mat3_m4_v3(cap_offset, dst_vert_normals[cap_verts_index + i]);
       normalize_v3(dst_vert_normals[cap_verts_index + i]);
@@ -303,52 +311,62 @@ static void mesh_merge_transform(Mesh *result,
   }
 
   /* remap the vertex groups if necessary */
-  if (BKE_mesh_deform_verts(result) != nullptr) {
-    MDeformVert *dvert = BKE_mesh_deform_verts_for_write(result);
+  if (!result->deform_verts().is_empty()) {
+    MDeformVert *dvert = result->deform_verts_for_write().data();
     BKE_object_defgroup_index_map_apply(&dvert[cap_verts_index], cap_nverts, remap, remap_len);
   }
 
   /* adjust cap edge vertex indices */
-  me = result_edges + cap_edges_index;
-  for (i = 0; i < cap_nedges; i++, me++) {
-    me->v1 += cap_verts_index;
-    me->v2 += cap_verts_index;
+  edge = &result_edges[cap_edges_index];
+  for (i = 0; i < cap_nedges; i++, edge++) {
+    (*edge) += cap_verts_index;
   }
 
-  /* adjust cap poly loopstart indices */
-  mp = result_polys + cap_polys_index;
-  for (i = 0; i < cap_npolys; i++, mp++) {
-    mp->loopstart += cap_loops_index;
+  /* Adjust cap face loop-start indices. */
+  for (i = 0; i < cap_nfaces; i++) {
+    result_face_offsets[cap_faces_index + i] = cap_face_offsets[i] + cap_loops_index;
   }
 
   /* adjust cap loop vertex and edge indices */
-  ml = result_loops + cap_loops_index;
-  for (i = 0; i < cap_nloops; i++, ml++) {
-    ml->v += cap_verts_index;
-    ml->e += cap_edges_index;
+  for (i = 0; i < cap_nloops; i++) {
+    result_corner_verts[cap_loops_index + i] += cap_verts_index;
+    result_corner_edges[cap_loops_index + i] += cap_edges_index;
+  }
+
+  const bke::AttributeAccessor cap_attributes = cap_mesh->attributes();
+  if (const VArray cap_material_indices = *cap_attributes.lookup<int>("material_index",
+                                                                      bke::AttrDomain::Face))
+  {
+    bke::MutableAttributeAccessor result_attributes = result->attributes_for_write();
+    bke::SpanAttributeWriter<int> result_material_indices =
+        result_attributes.lookup_or_add_for_write_span<int>("material_index",
+                                                            bke::AttrDomain::Face);
+    cap_material_indices.materialize(
+        result_material_indices.span.slice(cap_faces_index, cap_nfaces));
+    result_material_indices.finish();
   }
 
   /* Set #CD_ORIGINDEX. */
   index_orig = static_cast<int *>(
-      CustomData_get_layer_for_write(&result->vdata, CD_ORIGINDEX, result->totvert));
+      CustomData_get_layer_for_write(&result->vert_data, CD_ORIGINDEX, result->verts_num));
   if (index_orig) {
     copy_vn_i(index_orig + cap_verts_index, cap_nverts, ORIGINDEX_NONE);
   }
 
   index_orig = static_cast<int *>(
-      CustomData_get_layer_for_write(&result->edata, CD_ORIGINDEX, result->totedge));
+      CustomData_get_layer_for_write(&result->edge_data, CD_ORIGINDEX, result->edges_num));
   if (index_orig) {
     copy_vn_i(index_orig + cap_edges_index, cap_nedges, ORIGINDEX_NONE);
   }
 
   index_orig = static_cast<int *>(
-      CustomData_get_layer_for_write(&result->pdata, CD_ORIGINDEX, result->totpoly));
+      CustomData_get_layer_for_write(&result->face_data, CD_ORIGINDEX, result->faces_num));
   if (index_orig) {
-    copy_vn_i(index_orig + cap_polys_index, cap_npolys, ORIGINDEX_NONE);
+    copy_vn_i(index_orig + cap_faces_index, cap_nfaces, ORIGINDEX_NONE);
   }
 
   index_orig = static_cast<int *>(
-      CustomData_get_layer_for_write(&result->ldata, CD_ORIGINDEX, result->totloop));
+      CustomData_get_layer_for_write(&result->corner_data, CD_ORIGINDEX, result->corners_num));
   if (index_orig) {
     copy_vn_i(index_orig + cap_loops_index, cap_nloops, ORIGINDEX_NONE);
   }
@@ -356,11 +374,16 @@ static void mesh_merge_transform(Mesh *result,
 
 static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
                                    const ModifierEvalContext *ctx,
-                                   const Mesh *mesh)
+                                   Mesh *mesh)
 {
-  MEdge *me;
-  MLoop *ml;
-  MPoly *mp;
+  /* NOTE(@ideasman4): the `mesh` may be empty, the following code must account for this,
+   * merging start/end caps into the empty mesh. Avoid an early return here as it can cause
+   * problems if the expected custom-data layers don't exist in the resulting mesh,
+   * see: #107353, #132991. */
+
+  using namespace blender;
+
+  int2 *edge;
   int i, j, c, count;
   float length = amd->length;
   /* offset matrix */
@@ -373,13 +396,13 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   int tot_doubles;
 
   const bool use_merge = (amd->flags & MOD_ARR_MERGE) != 0;
-  const bool use_recalc_normals = BKE_mesh_vertex_normals_are_dirty(mesh) || use_merge;
+  const bool use_recalc_normals = BKE_mesh_vert_normals_are_dirty(mesh) || use_merge;
   const bool use_offset_ob = ((amd->offset_type & MOD_ARR_OFF_OBJ) && amd->offset_ob != nullptr);
 
-  int start_cap_nverts = 0, start_cap_nedges = 0, start_cap_npolys = 0, start_cap_nloops = 0;
-  int end_cap_nverts = 0, end_cap_nedges = 0, end_cap_npolys = 0, end_cap_nloops = 0;
-  int result_nverts = 0, result_nedges = 0, result_npolys = 0, result_nloops = 0;
-  int chunk_nverts, chunk_nedges, chunk_nloops, chunk_npolys;
+  int start_cap_nverts = 0, start_cap_nedges = 0, start_cap_nfaces = 0, start_cap_nloops = 0;
+  int end_cap_nverts = 0, end_cap_nedges = 0, end_cap_nfaces = 0, end_cap_nloops = 0;
+  int result_nverts = 0, result_nedges = 0, result_nfaces = 0, result_nloops = 0;
+  int chunk_nverts, chunk_nedges, chunk_nloops, chunk_nfaces;
   int first_chunk_start, first_chunk_nverts, last_chunk_start, last_chunk_nverts;
 
   Mesh *result, *start_cap_mesh = nullptr, *end_cap_mesh = nullptr;
@@ -389,10 +412,10 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   int *vgroup_end_cap_remap = nullptr;
   int vgroup_end_cap_remap_len = 0;
 
-  chunk_nverts = mesh->totvert;
-  chunk_nedges = mesh->totedge;
-  chunk_nloops = mesh->totloop;
-  chunk_npolys = mesh->totpoly;
+  chunk_nverts = mesh->verts_num;
+  chunk_nedges = mesh->edges_num;
+  chunk_nloops = mesh->corners_num;
+  chunk_nfaces = mesh->faces_num;
 
   count = amd->count;
 
@@ -405,10 +428,11 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
 
     start_cap_mesh = BKE_modifier_get_evaluated_mesh_from_evaluated_object(start_cap_ob);
     if (start_cap_mesh) {
-      start_cap_nverts = start_cap_mesh->totvert;
-      start_cap_nedges = start_cap_mesh->totedge;
-      start_cap_nloops = start_cap_mesh->totloop;
-      start_cap_npolys = start_cap_mesh->totpoly;
+      BKE_mesh_wrapper_ensure_mdata(start_cap_mesh);
+      start_cap_nverts = start_cap_mesh->verts_num;
+      start_cap_nedges = start_cap_mesh->edges_num;
+      start_cap_nloops = start_cap_mesh->corners_num;
+      start_cap_nfaces = start_cap_mesh->faces_num;
     }
   }
   Object *end_cap_ob = amd->end_cap;
@@ -420,31 +444,26 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
 
     end_cap_mesh = BKE_modifier_get_evaluated_mesh_from_evaluated_object(end_cap_ob);
     if (end_cap_mesh) {
-      end_cap_nverts = end_cap_mesh->totvert;
-      end_cap_nedges = end_cap_mesh->totedge;
-      end_cap_nloops = end_cap_mesh->totloop;
-      end_cap_npolys = end_cap_mesh->totpoly;
+      BKE_mesh_wrapper_ensure_mdata(end_cap_mesh);
+      end_cap_nverts = end_cap_mesh->verts_num;
+      end_cap_nedges = end_cap_mesh->edges_num;
+      end_cap_nloops = end_cap_mesh->corners_num;
+      end_cap_nfaces = end_cap_mesh->faces_num;
     }
   }
 
   /* Build up offset array, accumulating all settings options. */
 
   unit_m4(offset);
-  const MEdge *src_edges = BKE_mesh_edges(mesh);
-  const MPoly *src_polys = BKE_mesh_polys(mesh);
-  const MLoop *src_loops = BKE_mesh_loops(mesh);
 
   if (amd->offset_type & MOD_ARR_OFF_CONST) {
     add_v3_v3(offset[3], amd->offset);
   }
 
   if (amd->offset_type & MOD_ARR_OFF_RELATIVE) {
-    float min[3], max[3];
-    INIT_MINMAX(min, max);
-    BKE_mesh_minmax(mesh, min, max);
-
+    const Bounds<float3> bounds = *mesh->bounds_min_max();
     for (j = 3; j--;) {
-      offset[3][j] += amd->scale[j] * (max[j] - min[j]);
+      offset[3][j] += amd->scale[j] * (bounds.max[j] - bounds.min[j]);
     }
   }
 
@@ -453,13 +472,13 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
     float result_mat[4][4];
 
     if (ctx->object) {
-      invert_m4_m4(obinv, ctx->object->object_to_world);
+      invert_m4_m4(obinv, ctx->object->object_to_world().ptr());
     }
     else {
       unit_m4(obinv);
     }
 
-    mul_m4_series(result_mat, offset, obinv, amd->offset_ob->object_to_world);
+    mul_m4_series(result_mat, offset, obinv, amd->offset_ob->object_to_world().ptr());
     copy_m4_m4(offset, result_mat);
   }
 
@@ -469,9 +488,9 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
 
   if (amd->fit_type == MOD_ARR_FITCURVE && amd->curve_ob != nullptr) {
     Object *curve_ob = amd->curve_ob;
-    CurveCache *curve_cache = curve_ob->runtime.curve_cache;
+    CurveCache *curve_cache = curve_ob->runtime->curve_cache;
     if (curve_cache != nullptr && curve_cache->anim_path_accum_length != nullptr) {
-      float scale_fac = mat4_to_scale(curve_ob->object_to_world);
+      float scale_fac = mat4_to_scale(curve_ob->object_to_world().ptr());
       length = scale_fac * BKE_anim_path_get_length(curve_cache);
     }
   }
@@ -495,7 +514,8 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
        * vertices.
        */
       if ((size_t(count) * size_t(chunk_nverts) + size_t(start_cap_nverts) +
-           size_t(end_cap_nverts)) > max_verts_num) {
+           size_t(end_cap_nverts)) > max_verts_num)
+      {
         count = 1;
         offset_is_too_small = true;
       }
@@ -517,7 +537,8 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
    * vertices.
    */
   else if ((size_t(count) * size_t(chunk_nverts) + size_t(start_cap_nverts) +
-            size_t(end_cap_nverts)) > max_verts_num) {
+            size_t(end_cap_nverts)) > max_verts_num)
+  {
     count = 1;
     BKE_modifier_set_error(ctx->object,
                            &amd->modifier,
@@ -529,19 +550,20 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
     count = 1;
   }
 
-  /* The number of verts, edges, loops, polys, before eventually merging doubles */
+  /* The number of verts, edges, loops, faces, before eventually merging doubles */
   result_nverts = chunk_nverts * count + start_cap_nverts + end_cap_nverts;
   result_nedges = chunk_nedges * count + start_cap_nedges + end_cap_nedges;
   result_nloops = chunk_nloops * count + start_cap_nloops + end_cap_nloops;
-  result_npolys = chunk_npolys * count + start_cap_npolys + end_cap_npolys;
+  result_nfaces = chunk_nfaces * count + start_cap_nfaces + end_cap_nfaces;
 
   /* Initialize a result dm */
   result = BKE_mesh_new_nomain_from_template(
-      mesh, result_nverts, result_nedges, 0, result_nloops, result_npolys);
-  float(*result_positions)[3] = BKE_mesh_vert_positions_for_write(result);
-  MEdge *result_edges = BKE_mesh_edges_for_write(result);
-  MPoly *result_polys = BKE_mesh_polys_for_write(result);
-  MLoop *result_loops = BKE_mesh_loops_for_write(result);
+      mesh, result_nverts, result_nedges, result_nfaces, result_nloops);
+  blender::MutableSpan<float3> result_positions = result->vert_positions_for_write();
+  blender::MutableSpan<int2> result_edges = result->edges_for_write();
+  blender::MutableSpan<int> result_face_offsets = result->face_offsets_for_write();
+  blender::MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
+  blender::MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
 
   if (use_merge) {
     /* Will need full_doubles_map for handling merge */
@@ -550,76 +572,76 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   }
 
   /* copy customdata to original geometry */
-  CustomData_copy_data(&mesh->vdata, &result->vdata, 0, 0, chunk_nverts);
-  CustomData_copy_data(&mesh->edata, &result->edata, 0, 0, chunk_nedges);
-  CustomData_copy_data(&mesh->ldata, &result->ldata, 0, 0, chunk_nloops);
-  CustomData_copy_data(&mesh->pdata, &result->pdata, 0, 0, chunk_npolys);
+  CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, 0, chunk_nverts);
+  CustomData_copy_data(&mesh->edge_data, &result->edge_data, 0, 0, chunk_nedges);
+  CustomData_copy_data(&mesh->corner_data, &result->corner_data, 0, 0, chunk_nloops);
+  CustomData_copy_data(&mesh->face_data, &result->face_data, 0, 0, chunk_nfaces);
 
-  /* Subdivision-surface for eg won't have mesh data in the custom-data arrays.
-   * Now add #position/#MEdge/#MPoly layers. */
-  if (!CustomData_has_layer(&mesh->edata, CD_MEDGE)) {
-    memcpy(result_edges, src_edges, sizeof(MEdge) * mesh->totedge);
-  }
-  if (!CustomData_has_layer(&mesh->pdata, CD_MPOLY)) {
-    memcpy(result_loops, src_loops, sizeof(MLoop) * mesh->totloop);
-    memcpy(result_polys, src_polys, sizeof(MPoly) * mesh->totpoly);
-  }
+  result_face_offsets.take_front(mesh->faces_num).copy_from(mesh->face_offsets().drop_back(1));
 
   /* Remember first chunk, in case of cap merge */
   first_chunk_start = 0;
   first_chunk_nverts = chunk_nverts;
 
   unit_m4(current_offset);
-  const float(*src_vert_normals)[3] = nullptr;
-  float(*dst_vert_normals)[3] = nullptr;
+  blender::Span<blender::float3> src_vert_normals;
+  Vector<float3> dst_vert_normals;
   if (!use_recalc_normals) {
-    src_vert_normals = BKE_mesh_vertex_normals_ensure(mesh);
-    dst_vert_normals = BKE_mesh_vertex_normals_for_write(result);
-    BKE_mesh_vertex_normals_clear_dirty(result);
+    src_vert_normals = mesh->vert_normals();
+    dst_vert_normals.reinitialize(result->verts_num);
+    dst_vert_normals.as_mutable_span()
+        .take_front(src_vert_normals.size())
+        .copy_from(src_vert_normals);
   }
 
   for (c = 1; c < count; c++) {
     /* copy customdata to new geometry */
-    CustomData_copy_data(&mesh->vdata, &result->vdata, 0, c * chunk_nverts, chunk_nverts);
-    CustomData_copy_data(&mesh->edata, &result->edata, 0, c * chunk_nedges, chunk_nedges);
-    CustomData_copy_data(&mesh->ldata, &result->ldata, 0, c * chunk_nloops, chunk_nloops);
-    CustomData_copy_data(&mesh->pdata, &result->pdata, 0, c * chunk_npolys, chunk_npolys);
-
-    const int vert_offset = c * chunk_nverts;
+    CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, c * chunk_nverts, chunk_nverts);
+    CustomData_copy_data(&mesh->edge_data, &result->edge_data, 0, c * chunk_nedges, chunk_nedges);
+    CustomData_copy_data(
+        &mesh->corner_data, &result->corner_data, 0, c * chunk_nloops, chunk_nloops);
+    CustomData_copy_data(&mesh->face_data, &result->face_data, 0, c * chunk_nfaces, chunk_nfaces);
 
     /* recalculate cumulative offset here */
     mul_m4_m4m4(current_offset, current_offset, offset);
 
-    /* apply offset to all new verts */
-    for (i = 0; i < chunk_nverts; i++) {
-      const int i_dst = vert_offset + i;
-      mul_m4_v3(current_offset, result_positions[i_dst]);
+    if (chunk_nverts) {
+      /* Apply offset to all new verts. */
+      const int vert_offset = c * chunk_nverts;
+      for (i = 0; i < chunk_nverts; i++) {
+        const int i_dst = vert_offset + i;
+        mul_m4_v3(current_offset, result_positions[i_dst]);
 
-      /* We have to correct normals too, if we do not tag them as dirty! */
-      if (!use_recalc_normals) {
-        copy_v3_v3(dst_vert_normals[i_dst], src_vert_normals[i]);
-        mul_mat3_m4_v3(current_offset, dst_vert_normals[i_dst]);
-        normalize_v3(dst_vert_normals[i_dst]);
+        /* We have to correct normals too, if we do not tag them as dirty! */
+        if (!dst_vert_normals.is_empty()) {
+          copy_v3_v3(dst_vert_normals[i_dst], src_vert_normals[i]);
+          mul_mat3_m4_v3(current_offset, dst_vert_normals[i_dst]);
+          normalize_v3(dst_vert_normals[i_dst]);
+        }
       }
     }
 
-    /* adjust edge vertex indices */
-    me = result_edges + c * chunk_nedges;
-    for (i = 0; i < chunk_nedges; i++, me++) {
-      me->v1 += c * chunk_nverts;
-      me->v2 += c * chunk_nverts;
+    if (chunk_nedges) {
+      /* Adjust edge vertex indices. */
+      edge = &result_edges[c * chunk_nedges];
+      for (i = 0; i < chunk_nedges; i++, edge++) {
+        (*edge) += c * chunk_nverts;
+      }
     }
 
-    mp = result_polys + c * chunk_npolys;
-    for (i = 0; i < chunk_npolys; i++, mp++) {
-      mp->loopstart += c * chunk_nloops;
+    if (chunk_nfaces) {
+      for (i = 0; i < chunk_nfaces; i++) {
+        result_face_offsets[c * chunk_nfaces + i] = result_face_offsets[i] + c * chunk_nloops;
+      }
     }
 
-    /* adjust loop vertex and edge indices */
-    ml = result_loops + c * chunk_nloops;
-    for (i = 0; i < chunk_nloops; i++, ml++) {
-      ml->v += c * chunk_nverts;
-      ml->e += c * chunk_nedges;
+    if (chunk_nloops) {
+      /* Adjust loop vertex and edge indices. */
+      const int chunk_corner_start = c * chunk_nloops;
+      for (i = 0; i < chunk_nloops; i++) {
+        result_corner_verts[chunk_corner_start + i] += c * chunk_nverts;
+        result_corner_edges[chunk_corner_start + i] += c * chunk_nedges;
+      }
     }
 
     /* Handle merge between chunk n and n-1 */
@@ -639,7 +661,8 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
                * close enough from current vert (otherwise no mapping at all). */
               if (compare_len_v3v3(result_positions[this_chunk_index],
                                    result_positions[full_doubles_map[target]],
-                                   amd->merge_dist)) {
+                                   amd->merge_dist))
+              {
                 target = full_doubles_map[target];
               }
               else {
@@ -664,10 +687,10 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
 
   /* handle UVs */
   if (chunk_nloops > 0 && is_zero_v2(amd->uv_offset) == false) {
-    const int totuv = CustomData_number_of_layers(&result->ldata, CD_PROP_FLOAT2);
+    const int totuv = CustomData_number_of_layers(&result->corner_data, CD_PROP_FLOAT2);
     for (i = 0; i < totuv; i++) {
-      blender::float2 *dmloopuv = static_cast<blender::float2 *>(
-          CustomData_get_layer_n_for_write(&result->ldata, CD_PROP_FLOAT2, i, result->totloop));
+      blender::float2 *dmloopuv = static_cast<blender::float2 *>(CustomData_get_layer_n_for_write(
+          &result->corner_data, CD_PROP_FLOAT2, i, result->corners_num));
       dmloopuv += chunk_nloops;
       for (c = 1; c < count; c++) {
         const float uv_offset[2] = {
@@ -679,6 +702,37 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
           (*dmloopuv)[0] += uv_offset[0];
           (*dmloopuv)[1] += uv_offset[1];
         }
+      }
+    }
+  }
+
+  if (!use_merge && !mesh->runtime->subsurf_optimal_display_edges.is_empty()) {
+    const BoundedBitSpan src = mesh->runtime->subsurf_optimal_display_edges;
+
+    result->runtime->subsurf_optimal_display_edges.resize(result->edges_num);
+    MutableBoundedBitSpan dst = result->runtime->subsurf_optimal_display_edges;
+    for (const int i : IndexRange(count)) {
+      dst.slice({i * mesh->edges_num, mesh->edges_num}).copy_from(src);
+    }
+
+    if (start_cap_mesh) {
+      MutableBitSpan cap_bits = dst.slice(
+          {result_nedges - start_cap_nedges - end_cap_nedges, start_cap_mesh->edges_num});
+      if (start_cap_mesh->runtime->subsurf_optimal_display_edges.is_empty()) {
+        cap_bits.set_all(true);
+      }
+      else {
+        cap_bits.copy_from(start_cap_mesh->runtime->subsurf_optimal_display_edges);
+      }
+    }
+    if (end_cap_mesh) {
+      MutableBitSpan cap_bits = dst.slice(
+          {result_nedges - end_cap_nedges, end_cap_mesh->edges_num});
+      if (end_cap_mesh->runtime->subsurf_optimal_display_edges.is_empty()) {
+        cap_bits.set_all(true);
+      }
+      else {
+        cap_bits.copy_from(end_cap_mesh->runtime->subsurf_optimal_display_edges);
       }
     }
   }
@@ -710,14 +764,14 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
                          result_nverts - start_cap_nverts - end_cap_nverts,
                          result_nedges - start_cap_nedges - end_cap_nedges,
                          result_nloops - start_cap_nloops - end_cap_nloops,
-                         result_npolys - start_cap_npolys - end_cap_npolys,
+                         result_nfaces - start_cap_nfaces - end_cap_nfaces,
                          start_cap_nverts,
                          start_cap_nedges,
                          start_cap_nloops,
-                         start_cap_npolys,
+                         start_cap_nfaces,
                          vgroup_start_cap_remap,
                          vgroup_start_cap_remap_len,
-                         use_recalc_normals);
+                         dst_vert_normals);
     /* Identify doubles with first chunk */
     if (use_merge) {
       dm_mvert_map_doubles(full_doubles_map,
@@ -740,14 +794,14 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
                          result_nverts - end_cap_nverts,
                          result_nedges - end_cap_nedges,
                          result_nloops - end_cap_nloops,
-                         result_npolys - end_cap_npolys,
+                         result_nfaces - end_cap_nfaces,
                          end_cap_nverts,
                          end_cap_nedges,
                          end_cap_nloops,
-                         end_cap_npolys,
+                         end_cap_nfaces,
                          vgroup_end_cap_remap,
                          vgroup_end_cap_remap_len,
-                         use_recalc_normals);
+                         dst_vert_normals);
     /* Identify doubles with last chunk */
     if (use_merge) {
       dm_mvert_map_doubles(full_doubles_map,
@@ -761,6 +815,10 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   }
   /* done capping */
 
+  if (!dst_vert_normals.is_empty()) {
+    blender::bke::mesh_vert_normals_assign(*result, std::move(dst_vert_normals));
+  }
+
   /* Handle merging */
   tot_doubles = 0;
   if (use_merge) {
@@ -769,7 +827,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
       if (new_i != -1) {
         /* We have to follow chains of doubles
          * (merge start/end especially is likely to create some),
-         * those are not supported at all by BKE_mesh_merge_verts! */
+         * those are not supported at all by `geometry::mesh_merge_verts`! */
         while (!ELEM(full_doubles_map[new_i], -1, new_i)) {
           new_i = full_doubles_map[new_i];
         }
@@ -783,8 +841,10 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
       }
     }
     if (tot_doubles > 0) {
-      result = BKE_mesh_merge_verts(
-          result, full_doubles_map, tot_doubles, MESH_MERGE_VERTS_DUMP_IF_EQUAL);
+      Mesh *tmp = result;
+      result = geometry::mesh_merge_verts(
+          *tmp, MutableSpan<int>{full_doubles_map, result->verts_num}, tot_doubles, false);
+      BKE_id_free(nullptr, tmp);
     }
     MEM_freeN(full_doubles_map);
   }
@@ -799,13 +859,13 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   return result;
 }
 
-static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
+static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
   ArrayModifierData *amd = (ArrayModifierData *)md;
   return arrayModifier_doArray(amd, ctx, mesh);
 }
 
-static bool isDisabled(const Scene * /*scene*/, ModifierData *md, bool /*useRenderParams*/)
+static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
   ArrayModifierData *amd = (ArrayModifierData *)md;
 
@@ -837,17 +897,17 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "fit_type", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "fit_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   int fit_type = RNA_enum_get(ptr, "fit_type");
   if (fit_type == MOD_ARR_FIXEDCOUNT) {
-    uiItemR(layout, ptr, "count", 0, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (fit_type == MOD_ARR_FITLENGTH) {
-    uiItemR(layout, ptr, "fit_length", 0, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "fit_length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (fit_type == MOD_ARR_FITCURVE) {
-    uiItemR(layout, ptr, "curve", 0, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   modifier_panel_end(layout, ptr);
@@ -859,7 +919,7 @@ static void relative_offset_header_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_relative_offset", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_relative_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void relative_offset_draw(const bContext * /*C*/, Panel *panel)
@@ -873,7 +933,7 @@ static void relative_offset_draw(const bContext * /*C*/, Panel *panel)
   uiLayout *col = uiLayoutColumn(layout, false);
 
   uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_relative_offset"));
-  uiItemR(col, ptr, "relative_offset_displace", 0, IFACE_("Factor"), ICON_NONE);
+  uiItemR(col, ptr, "relative_offset_displace", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
 }
 
 static void constant_offset_header_draw(const bContext * /*C*/, Panel *panel)
@@ -882,7 +942,7 @@ static void constant_offset_header_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_constant_offset", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_constant_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void constant_offset_draw(const bContext * /*C*/, Panel *panel)
@@ -896,7 +956,7 @@ static void constant_offset_draw(const bContext * /*C*/, Panel *panel)
   uiLayout *col = uiLayoutColumn(layout, false);
 
   uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_constant_offset"));
-  uiItemR(col, ptr, "constant_offset_displace", 0, IFACE_("Distance"), ICON_NONE);
+  uiItemR(col, ptr, "constant_offset_displace", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
 }
 
 /**
@@ -908,7 +968,7 @@ static void object_offset_header_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_object_offset", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_object_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void object_offset_draw(const bContext * /*C*/, Panel *panel)
@@ -922,7 +982,7 @@ static void object_offset_draw(const bContext * /*C*/, Panel *panel)
   uiLayout *col = uiLayoutColumn(layout, false);
 
   uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_object_offset"));
-  uiItemR(col, ptr, "offset_object", 0, IFACE_("Object"), ICON_NONE);
+  uiItemR(col, ptr, "offset_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
 }
 
 static void symmetry_panel_header_draw(const bContext * /*C*/, Panel *panel)
@@ -931,7 +991,7 @@ static void symmetry_panel_header_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_merge_vertices", 0, IFACE_("Merge"), ICON_NONE);
+  uiItemR(layout, ptr, "use_merge_vertices", UI_ITEM_NONE, IFACE_("Merge"), ICON_NONE);
 }
 
 static void symmetry_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -944,8 +1004,13 @@ static void symmetry_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayout *col = uiLayoutColumn(layout, false);
   uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_merge_vertices"));
-  uiItemR(col, ptr, "merge_threshold", 0, IFACE_("Distance"), ICON_NONE);
-  uiItemR(col, ptr, "use_merge_vertices_cap", 0, IFACE_("First and Last Copies"), ICON_NONE);
+  uiItemR(col, ptr, "merge_threshold", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
+  uiItemR(col,
+          ptr,
+          "use_merge_vertices_cap",
+          UI_ITEM_NONE,
+          IFACE_("First and Last Copies"),
+          ICON_NONE);
 }
 
 static void uv_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -972,11 +1037,11 @@ static void caps_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "start_cap", 0, IFACE_("Cap Start"), ICON_NONE);
-  uiItemR(col, ptr, "end_cap", 0, IFACE_("End"), ICON_NONE);
+  uiItemR(col, ptr, "start_cap", UI_ITEM_NONE, IFACE_("Cap Start"), ICON_NONE);
+  uiItemR(col, ptr, "end_cap", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   PanelType *panel_type = modifier_panel_register(region_type, eModifierType_Array, panel_draw);
   modifier_subpanel_register(region_type,
@@ -1000,36 +1065,38 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_Array = {
+    /*idname*/ "Array",
     /*name*/ N_("Array"),
-    /*structName*/ "ArrayModifierData",
-    /*structSize*/ sizeof(ArrayModifierData),
+    /*struct_name*/ "ArrayModifierData",
+    /*struct_size*/ sizeof(ArrayModifierData),
     /*srna*/ &RNA_ArrayModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
         eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_ARRAY,
 
-    /*copyData*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ BKE_modifier_copydata_generic,
 
-    /*deformVerts*/ nullptr,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ nullptr,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ modifyMesh,
-    /*modifyGeometrySet*/ nullptr,
+    /*deform_verts*/ nullptr,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ modify_mesh,
+    /*modify_geometry_set*/ nullptr,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ nullptr,
-    /*freeData*/ nullptr,
-    /*isDisabled*/ isDisabled,
-    /*updateDepsgraph*/ updateDepsgraph,
-    /*dependsOnTime*/ nullptr,
-    /*dependsOnNormals*/ nullptr,
-    /*foreachIDLink*/ foreachIDLink,
-    /*foreachTexLink*/ nullptr,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ nullptr,
-    /*blendRead*/ nullptr,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ nullptr,
+    /*free_data*/ nullptr,
+    /*is_disabled*/ is_disabled,
+    /*update_depsgraph*/ update_depsgraph,
+    /*depends_on_time*/ nullptr,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_tex_link*/ nullptr,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

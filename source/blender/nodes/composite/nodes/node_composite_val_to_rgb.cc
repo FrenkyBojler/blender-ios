@@ -1,23 +1,28 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup cmpnodes
  */
 
 #include "BLI_assert.h"
+#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 
-#include "IMB_colormanagement.h"
+#include "FN_multi_function_builder.hh"
 
-#include "BKE_colorband.h"
+#include "NOD_multi_function.hh"
 
-#include "GPU_material.h"
+#include "IMB_colormanagement.hh"
+
+#include "BKE_colorband.hh"
+
+#include "GPU_material.hh"
 
 #include "COM_shader_node.hh"
 
 #include "node_composite_util.hh"
-
-#include "BKE_colorband.h"
 
 /* **************** VALTORGB ******************** */
 
@@ -25,14 +30,14 @@ namespace blender::nodes::node_composite_color_ramp_cc {
 
 static void cmp_node_valtorgb_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>(N_("Fac"))
+  b.add_input<decl::Float>("Fac")
       .default_value(0.5f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .compositor_domain_priority(1);
-  b.add_output<decl::Color>(N_("Image")).compositor_domain_priority(0);
-  b.add_output<decl::Float>(N_("Alpha"));
+  b.add_output<decl::Color>("Image").compositor_domain_priority(0);
+  b.add_output<decl::Float>("Alpha");
 }
 
 static void node_composit_init_valtorgb(bNodeTree * /*ntree*/, bNode *node)
@@ -40,7 +45,12 @@ static void node_composit_init_valtorgb(bNodeTree * /*ntree*/, bNode *node)
   node->storage = BKE_colorband_add(true);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
+
+static ColorBand *get_color_band(const bNode &node)
+{
+  return static_cast<ColorBand *>(node.storage);
+}
 
 class ColorRampShaderNode : public ShaderNode {
  public:
@@ -51,7 +61,7 @@ class ColorRampShaderNode : public ShaderNode {
     GPUNodeStack *inputs = get_inputs_array();
     GPUNodeStack *outputs = get_outputs_array();
 
-    struct ColorBand *color_band = get_color_band();
+    ColorBand *color_band = get_color_band(bnode());
 
     /* Common / easy case optimization. */
     if ((color_band->tot <= 2) && (color_band->color_mode == COLBAND_BLEND_RGB)) {
@@ -92,6 +102,10 @@ class ColorRampShaderNode : public ShaderNode {
                          GPU_uniform(&color_band->data[0].r),
                          GPU_uniform(&color_band->data[1].r));
           return;
+        case COLBAND_INTERP_B_SPLINE:
+        case COLBAND_INTERP_CARDINAL:
+          /* Not optimized yet. Fallback to gradient texture. */
+          break;
         default:
           BLI_assert_unreachable();
           return;
@@ -111,16 +125,25 @@ class ColorRampShaderNode : public ShaderNode {
 
     GPU_stack_link(material, &bnode(), "valtorgb", inputs, outputs, tex, GPU_constant(&layer));
   }
-
-  struct ColorBand *get_color_band()
-  {
-    return static_cast<struct ColorBand *>(bnode().storage);
-  }
 };
 
 static ShaderNode *get_compositor_shader_node(DNode node)
 {
   return new ColorRampShaderNode(node);
+}
+
+static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+{
+  ColorBand *color_band = get_color_band(builder.node());
+  builder.construct_and_set_matching_fn_cb([=]() {
+    return mf::build::SI1_SO2<float, float4, float>(
+        "Color Ramp",
+        [=](const float factor, float4 &color, float &alpha) -> void {
+          BKE_colorband_evaluate(color_band, factor, color);
+          alpha = color.w;
+        },
+        mf::build::exec_presets::AllSpanOrSingle());
+  });
 }
 
 }  // namespace blender::nodes::node_composite_color_ramp_cc
@@ -129,16 +152,22 @@ void register_node_type_cmp_valtorgb()
 {
   namespace file_ns = blender::nodes::node_composite_color_ramp_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_VALTORGB, "ColorRamp", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, "CompositorNodeValToRGB", CMP_NODE_VALTORGB);
+  ntype.ui_name = "Color Ramp";
+  ntype.ui_description = "Map values to colors with the use of a gradient";
+  ntype.enum_name_legacy = "VALTORGB";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_valtorgb_declare;
-  node_type_size(&ntype, 240, 200, 320);
+  blender::bke::node_type_size(&ntype, 240, 200, 320);
   ntype.initfunc = file_ns::node_composit_init_valtorgb;
-  node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      &ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
+  ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 
 /* **************** RGBTOBW ******************** */
@@ -147,13 +176,13 @@ namespace blender::nodes::node_composite_rgb_to_bw_cc {
 
 static void cmp_node_rgbtobw_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>(N_("Image"))
+  b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
       .compositor_domain_priority(0);
-  b.add_output<decl::Float>(N_("Val"));
+  b.add_output<decl::Float>("Val");
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class RGBToBWShaderNode : public ShaderNode {
  public:
@@ -181,18 +210,38 @@ static ShaderNode *get_compositor_shader_node(DNode node)
   return new RGBToBWShaderNode(node);
 }
 
+static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+{
+  float3 luminance_coefficients;
+  IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
+
+  builder.construct_and_set_matching_fn_cb([=]() {
+    return mf::build::SI1_SO<float4, float>(
+        "RGB to BW",
+        [=](const float4 &color) -> float {
+          return math::dot(color.xyz(), luminance_coefficients);
+        },
+        mf::build::exec_presets::AllSpanOrSingle());
+  });
+}
+
 }  // namespace blender::nodes::node_composite_rgb_to_bw_cc
 
 void register_node_type_cmp_rgbtobw()
 {
   namespace file_ns = blender::nodes::node_composite_rgb_to_bw_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_RGBTOBW, "RGB to BW", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, "CompositorNodeRGBToBW", CMP_NODE_RGBTOBW);
+  ntype.ui_name = "RGB to BW";
+  ntype.ui_description = "Convert RGB input into grayscale using luminance";
+  ntype.enum_name_legacy = "RGBTOBW";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_rgbtobw_declare;
-  node_type_size_preset(&ntype, NODE_SIZE_DEFAULT);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
+  ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

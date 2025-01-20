@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2020-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2020-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -20,7 +21,7 @@ class Volume : public Mesh {
   NODE_SOCKET_API(bool, object_space)
   NODE_SOCKET_API(float, velocity_scale)
 
-  virtual void clear(bool preserve_shaders = false) override;
+  void clear(bool preserve_shaders = false) override;
 };
 
 CCL_NAMESPACE_END

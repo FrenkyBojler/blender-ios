@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -10,10 +11,6 @@
 
 #include "DNA_listBase.h"
 #include "DNA_object_force_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct Collection;
 
@@ -87,10 +84,10 @@ typedef enum eRigidBodyWorld_Flag {
 /* ******************************** */
 /* RigidBody Object */
 
-/* Container for data that is shared among CoW copies.
+/* Container for data that is shared among evaluated copies.
  *
  * This is placed in a separate struct so that, for example, the physics_shape
- * pointer can be replaced without having to update all CoW copies. */
+ * pointer can be replaced without having to update all evaluated copies. */
 #
 #
 typedef struct RigidBodyOb_Shared {
@@ -205,11 +202,11 @@ typedef enum eRigidBody_Shape {
 } eRigidBody_Shape;
 
 typedef enum eRigidBody_MeshSource {
-  /* base mesh */
+  /** Base mesh. */
   RBO_MESH_BASE = 0,
-  /* only deformations */
+  /** Only deformations. */
   RBO_MESH_DEFORM = 1,
-  /* final derived mesh */
+  /** Final evaluated mesh. */
   RBO_MESH_FINAL = 2,
 } eRigidBody_MeshSource;
 
@@ -356,7 +353,3 @@ typedef enum eRigidBodyCon_Flag {
 } eRigidBodyCon_Flag;
 
 /* ******************************** */
-
-#ifdef __cplusplus
-}
-#endif

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -19,11 +20,11 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "GPU_texture.h"
-#include "GPU_vertex_format.h"
+#include "GPU_texture.hh"
+#include "GPU_vertex_format.hh"
 
-#include "gpu_material_library.h"
-#include "gpu_node_graph.h"
+#include "gpu_material_library.hh"
+#include "gpu_node_graph.hh"
 
 /* Node Link Functions */
 
@@ -87,9 +88,10 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const eGPUType
           input->layer_attr->users++;
           break;
         case GPU_SOURCE_TEX:
-        case GPU_SOURCE_TEX_TILED_MAPPING:
           input->texture->users++;
           break;
+        case GPU_SOURCE_TEX_TILED_MAPPING:
+          /* Already handled by GPU_SOURCE_TEX. */
         default:
           break;
       }
@@ -149,7 +151,7 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const eGPUType
     case GPU_NODE_LINK_DIFFERENTIATE_FLOAT_FN:
       input->source = GPU_SOURCE_FUNCTION_CALL;
       /* NOTE(@fclem): End of function call is the return variable set during codegen. */
-      SNPRINTF(input->function_call, "dF_branch(%s(), ", link->function_name);
+      SNPRINTF(input->function_call, "dF_branch_incomplete(%s(), ", link->function_name);
       break;
     default:
       break;
@@ -168,9 +170,10 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const eGPUType
 static const char *gpu_uniform_set_function_from_type(eNodeSocketDatatype type)
 {
   switch (type) {
-    /* For now INT is supported as float. */
+    /* For now INT & BOOL are supported as float. */
     case SOCK_INT:
     case SOCK_FLOAT:
+    case SOCK_BOOLEAN:
       return "set_value";
     case SOCK_VECTOR:
       return "set_rgb";
@@ -231,7 +234,8 @@ static void gpu_node_input_socket(
     gpu_node_input_link(node, sock->link, sock->type);
   }
   else if ((material != nullptr) &&
-           (gpu_uniformbuffer_link(material, bnode, sock, index, SOCK_IN) != nullptr)) {
+           (gpu_uniformbuffer_link(material, bnode, sock, index, SOCK_IN) != nullptr))
+  {
     gpu_node_input_link(node, sock->link, sock->type);
   }
   else {
@@ -301,7 +305,7 @@ static bool uniform_attr_list_cmp(const void *a, const void *b)
   return attr_a || attr_b;
 }
 
-struct GHash *GPU_uniform_attr_list_hash_new(const char *info)
+GHash *GPU_uniform_attr_list_hash_new(const char *info)
 {
   return BLI_ghash_new(uniform_attr_list_hash, uniform_attr_list_cmp, info);
 }
@@ -340,18 +344,19 @@ void gpu_node_graph_finalize_uniform_attrs(GPUNodeGraph *graph)
 
 /* Attributes and Textures */
 
-static char attr_prefix_get(GPUMaterialAttribute *attr)
+static char attr_prefix_get(const GPUMaterialAttribute *attr)
 {
   if (attr->is_default_color) {
     return 'c';
+  }
+  if (attr->is_hair_length) {
+    return 'l';
   }
   switch (attr->type) {
     case CD_TANGENT:
       return 't';
     case CD_AUTO_FROM_NAME:
       return 'a';
-    case CD_HAIRLENGTH:
-      return 'l';
     default:
       BLI_assert_msg(0, "GPUVertAttr Prefix type not found : This should not happen!");
       return '\0';
@@ -379,14 +384,16 @@ static void attr_input_name(GPUMaterialAttribute *attr)
 static GPUMaterialAttribute *gpu_node_graph_add_attribute(GPUNodeGraph *graph,
                                                           eCustomDataType type,
                                                           const char *name,
-                                                          const bool is_default_color)
+                                                          const bool is_default_color,
+                                                          const bool is_hair_length)
 {
   /* Find existing attribute. */
   int num_attributes = 0;
   GPUMaterialAttribute *attr = static_cast<GPUMaterialAttribute *>(graph->attributes.first);
   for (; attr; attr = attr->next) {
     if (attr->type == type && STREQ(attr->name, name) &&
-        attr->is_default_color == is_default_color) {
+        attr->is_default_color == is_default_color && attr->is_hair_length == is_hair_length)
+    {
       break;
     }
     num_attributes++;
@@ -396,6 +403,7 @@ static GPUMaterialAttribute *gpu_node_graph_add_attribute(GPUNodeGraph *graph,
   if (attr == nullptr) {
     attr = MEM_cnew<GPUMaterialAttribute>(__func__);
     attr->is_default_color = is_default_color;
+    attr->is_hair_length = is_hair_length;
     attr->type = type;
     STRNCPY(attr->name, name);
     attr_input_name(attr);
@@ -474,17 +482,18 @@ static GPULayerAttr *gpu_node_graph_add_layer_attribute(GPUNodeGraph *graph, con
 static GPUMaterialTexture *gpu_node_graph_add_texture(GPUNodeGraph *graph,
                                                       Image *ima,
                                                       ImageUser *iuser,
-                                                      struct GPUTexture **colorband,
-                                                      struct GPUTexture **sky,
-                                                      GPUNodeLinkType link_type,
-                                                      eGPUSamplerState sampler_state)
+                                                      GPUTexture **colorband,
+                                                      GPUTexture **sky,
+                                                      bool is_tiled,
+                                                      GPUSamplerState sampler_state)
 {
   /* Find existing texture. */
   int num_textures = 0;
   GPUMaterialTexture *tex = static_cast<GPUMaterialTexture *>(graph->textures.first);
   for (; tex; tex = tex->next) {
     if (tex->ima == ima && tex->colorband == colorband && tex->sky == sky &&
-        tex->sampler_state == sampler_state) {
+        tex->sampler_state == sampler_state)
+    {
       break;
     }
     num_textures++;
@@ -501,10 +510,9 @@ static GPUMaterialTexture *gpu_node_graph_add_texture(GPUNodeGraph *graph,
     tex->colorband = colorband;
     tex->sky = sky;
     tex->sampler_state = sampler_state;
-    BLI_snprintf(tex->sampler_name, sizeof(tex->sampler_name), "samp%d", num_textures);
-    if (ELEM(link_type, GPU_NODE_LINK_IMAGE_TILED, GPU_NODE_LINK_IMAGE_TILED_MAPPING)) {
-      BLI_snprintf(
-          tex->tiled_mapping_name, sizeof(tex->tiled_mapping_name), "tsamp%d", num_textures);
+    SNPRINTF(tex->sampler_name, "samp%d", num_textures);
+    if (is_tiled) {
+      SNPRINTF(tex->tiled_mapping_name, "tsamp%d", num_textures);
     }
     BLI_addtail(&graph->textures, tex);
   }
@@ -519,7 +527,7 @@ static GPUMaterialTexture *gpu_node_graph_add_texture(GPUNodeGraph *graph,
 GPUNodeLink *GPU_attribute(GPUMaterial *mat, const eCustomDataType type, const char *name)
 {
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
-  GPUMaterialAttribute *attr = gpu_node_graph_add_attribute(graph, type, name, false);
+  GPUMaterialAttribute *attr = gpu_node_graph_add_attribute(graph, type, name, false, false);
 
   if (type == CD_ORCO) {
     /* OPTI: orco might be computed from local positions and needs object infos. */
@@ -541,12 +549,28 @@ GPUNodeLink *GPU_attribute(GPUMaterial *mat, const eCustomDataType type, const c
 GPUNodeLink *GPU_attribute_default_color(GPUMaterial *mat)
 {
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
-  GPUMaterialAttribute *attr = gpu_node_graph_add_attribute(graph, CD_AUTO_FROM_NAME, "", true);
+  GPUMaterialAttribute *attr = gpu_node_graph_add_attribute(
+      graph, CD_AUTO_FROM_NAME, "", true, false);
   if (attr == nullptr) {
     static const float zero_data[GPU_MAX_CONSTANT_DATA] = {0.0f};
     return GPU_constant(zero_data);
   }
   attr->is_default_color = true;
+  GPUNodeLink *link = gpu_node_link_create();
+  link->link_type = GPU_NODE_LINK_ATTR;
+  link->attr = attr;
+  return link;
+}
+
+GPUNodeLink *GPU_attribute_hair_length(GPUMaterial *mat)
+{
+  GPUNodeGraph *graph = gpu_material_node_graph(mat);
+  GPUMaterialAttribute *attr = gpu_node_graph_add_attribute(
+      graph, CD_AUTO_FROM_NAME, "", false, true);
+  if (attr == nullptr) {
+    static const float zero_data[GPU_MAX_CONSTANT_DATA] = {0.0f};
+    return GPU_constant(zero_data);
+  }
   GPUNodeLink *link = gpu_node_link_create();
   link->link_type = GPU_NODE_LINK_ATTR;
   link->attr = attr;
@@ -625,13 +649,13 @@ GPUNodeLink *GPU_differentiate_float_function(const char *function_name)
 GPUNodeLink *GPU_image(GPUMaterial *mat,
                        Image *ima,
                        ImageUser *iuser,
-                       eGPUSamplerState sampler_state)
+                       GPUSamplerState sampler_state)
 {
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
   GPUNodeLink *link = gpu_node_link_create();
   link->link_type = GPU_NODE_LINK_IMAGE;
   link->texture = gpu_node_graph_add_texture(
-      graph, ima, iuser, nullptr, nullptr, link->link_type, sampler_state);
+      graph, ima, iuser, nullptr, nullptr, false, sampler_state);
   return link;
 }
 
@@ -640,51 +664,48 @@ GPUNodeLink *GPU_image_sky(GPUMaterial *mat,
                            int height,
                            const float *pixels,
                            float *layer,
-                           eGPUSamplerState sampler_state)
+                           GPUSamplerState sampler_state)
 {
-  struct GPUTexture **sky = gpu_material_sky_texture_layer_set(mat, width, height, pixels, layer);
+  GPUTexture **sky = gpu_material_sky_texture_layer_set(mat, width, height, pixels, layer);
 
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
   GPUNodeLink *link = gpu_node_link_create();
   link->link_type = GPU_NODE_LINK_IMAGE_SKY;
   link->texture = gpu_node_graph_add_texture(
-      graph, nullptr, nullptr, nullptr, sky, link->link_type, sampler_state);
+      graph, nullptr, nullptr, nullptr, sky, false, sampler_state);
   return link;
 }
 
-GPUNodeLink *GPU_image_tiled(GPUMaterial *mat,
-                             Image *ima,
-                             ImageUser *iuser,
-                             eGPUSamplerState sampler_state)
+void GPU_image_tiled(GPUMaterial *mat,
+                     Image *ima,
+                     ImageUser *iuser,
+                     GPUSamplerState sampler_state,
+                     GPUNodeLink **r_image_tiled_link,
+                     GPUNodeLink **r_image_tiled_mapping_link)
 {
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
-  GPUNodeLink *link = gpu_node_link_create();
-  link->link_type = GPU_NODE_LINK_IMAGE_TILED;
-  link->texture = gpu_node_graph_add_texture(
-      graph, ima, iuser, nullptr, nullptr, link->link_type, sampler_state);
-  return link;
+  GPUMaterialTexture *texture = gpu_node_graph_add_texture(
+      graph, ima, iuser, nullptr, nullptr, true, sampler_state);
+
+  (*r_image_tiled_link) = gpu_node_link_create();
+  (*r_image_tiled_link)->link_type = GPU_NODE_LINK_IMAGE_TILED;
+  (*r_image_tiled_link)->texture = texture;
+
+  (*r_image_tiled_mapping_link) = gpu_node_link_create();
+  (*r_image_tiled_mapping_link)->link_type = GPU_NODE_LINK_IMAGE_TILED_MAPPING;
+  (*r_image_tiled_mapping_link)->texture = texture;
 }
 
-GPUNodeLink *GPU_image_tiled_mapping(GPUMaterial *mat, Image *ima, ImageUser *iuser)
+GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *r_row)
 {
-  GPUNodeGraph *graph = gpu_material_node_graph(mat);
-  GPUNodeLink *link = gpu_node_link_create();
-  link->link_type = GPU_NODE_LINK_IMAGE_TILED_MAPPING;
-  link->texture = gpu_node_graph_add_texture(
-      graph, ima, iuser, nullptr, nullptr, link->link_type, GPU_SAMPLER_MAX);
-  return link;
-}
-
-GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *row)
-{
-  struct GPUTexture **colorband = gpu_material_ramp_texture_row_set(mat, size, pixels, row);
+  GPUTexture **colorband = gpu_material_ramp_texture_row_set(mat, size, pixels, r_row);
   MEM_freeN(pixels);
 
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
   GPUNodeLink *link = gpu_node_link_create();
   link->link_type = GPU_NODE_LINK_COLORBAND;
   link->texture = gpu_node_graph_add_texture(
-      graph, nullptr, nullptr, colorband, nullptr, link->link_type, GPU_SAMPLER_MAX);
+      graph, nullptr, nullptr, colorband, nullptr, false, GPUSamplerState::internal_sampler());
   return link;
 }
 
@@ -816,9 +837,7 @@ bool GPU_stack_link(GPUMaterial *material,
 
 static void gpu_inputs_free(ListBase *inputs)
 {
-  GPUInput *input;
-
-  for (input = static_cast<GPUInput *>(inputs->first); input; input = input->next) {
+  LISTBASE_FOREACH (GPUInput *, input, inputs) {
     switch (input->source) {
       case GPU_SOURCE_ATTR:
         input->attr->users--;
@@ -830,9 +849,10 @@ static void gpu_inputs_free(ListBase *inputs)
         input->layer_attr->users--;
         break;
       case GPU_SOURCE_TEX:
-      case GPU_SOURCE_TEX_TILED_MAPPING:
         input->texture->users--;
         break;
+      case GPU_SOURCE_TEX_TILED_MAPPING:
+        /* Already handled by GPU_SOURCE_TEX. */
       default:
         break;
     }
@@ -847,11 +867,9 @@ static void gpu_inputs_free(ListBase *inputs)
 
 static void gpu_node_free(GPUNode *node)
 {
-  GPUOutput *output;
-
   gpu_inputs_free(&node->inputs);
 
-  for (output = static_cast<GPUOutput *>(node->outputs.first); output; output = output->next) {
+  LISTBASE_FOREACH (GPUOutput *, output, &node->outputs) {
     if (output->link) {
       output->link->output = nullptr;
       gpu_node_link_free(output->link);
@@ -864,9 +882,7 @@ static void gpu_node_free(GPUNode *node)
 
 void gpu_node_graph_free_nodes(GPUNodeGraph *graph)
 {
-  GPUNode *node;
-
-  while ((node = static_cast<GPUNode *>(BLI_pophead(&graph->nodes)))) {
+  while (GPUNode *node = static_cast<GPUNode *>(BLI_pophead(&graph->nodes))) {
     gpu_node_free(node);
   }
 
@@ -939,7 +955,8 @@ void gpu_node_graph_prune_unused(GPUNodeGraph *graph)
   }
 
   for (GPUNode *node = static_cast<GPUNode *>(graph->nodes.first), *next = nullptr; node;
-       node = next) {
+       node = next)
+  {
     next = node->next;
 
     if (node->tag == GPU_NODE_TAG_NONE) {
@@ -951,7 +968,8 @@ void gpu_node_graph_prune_unused(GPUNodeGraph *graph)
   for (GPUMaterialAttribute *attr = static_cast<GPUMaterialAttribute *>(graph->attributes.first),
                             *next = nullptr;
        attr;
-       attr = next) {
+       attr = next)
+  {
     next = attr->next;
     if (attr->users == 0) {
       BLI_freelinkN(&graph->attributes, attr);
@@ -961,7 +979,8 @@ void gpu_node_graph_prune_unused(GPUNodeGraph *graph)
   for (GPUMaterialTexture *tex = static_cast<GPUMaterialTexture *>(graph->textures.first),
                           *next = nullptr;
        tex;
-       tex = next) {
+       tex = next)
+  {
     next = tex->next;
     if (tex->users == 0) {
       BLI_freelinkN(&graph->textures, tex);
@@ -982,4 +1001,23 @@ void gpu_node_graph_prune_unused(GPUNodeGraph *graph)
       BLI_freelinkN(&graph->layer_attrs, attr);
     }
   }
+}
+
+void gpu_node_graph_optimize(GPUNodeGraph *graph)
+{
+  /* Replace all uniform node links with constant. */
+  LISTBASE_FOREACH (GPUNode *, node, &graph->nodes) {
+    LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
+      if (input->link) {
+        if (input->link->link_type == GPU_NODE_LINK_UNIFORM) {
+          input->link->link_type = GPU_NODE_LINK_CONSTANT;
+        }
+      }
+      if (input->source == GPU_SOURCE_UNIFORM) {
+        input->source = (input->type == GPU_CLOSURE) ? GPU_SOURCE_STRUCT : GPU_SOURCE_CONSTANT;
+      }
+    }
+  }
+
+  /* TODO: Consider performing other node graph optimizations here. */
 }

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: BSD-3-Clause
- * Copyright 2012-2013 Lukas Hosek and Alexander Wilkie. All rights reserved. */
+/* SPDX-FileCopyrightText: 2012-2013 Lukas Hosek and Alexander Wilkie. All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause */
 
 /* ============================================================================
 
@@ -75,7 +76,7 @@ the model.
  * \ingroup intern_sky_modal
  */
 
-// Uses Sep 9 pattern / Aug 23 mean dataset
+/* Uses Sep 9 pattern / Aug 23 mean dataset. */
 
 static const double datasetXYZ1[] = {
     // albedo 0, turbidity 1

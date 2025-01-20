@@ -1,12 +1,11 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2019-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2019-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "blender/viewport.h"
 #include "blender/util.h"
 
 #include "scene/pass.h"
-
-#include "util/log.h"
 
 CCL_NAMESPACE_BEGIN
 

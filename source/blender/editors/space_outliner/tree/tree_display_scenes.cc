@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -6,16 +8,14 @@
 
 #include "DNA_space_types.h"
 
-#include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_mempool.h"
 
-#include "BKE_main.h"
+#include "BKE_main.hh"
 
 #include "../outliner_intern.hh"
 #include "common.hh"
 #include "tree_display.hh"
-#include "tree_element.hh"
 
 namespace blender::ed::outliner {
 
@@ -26,12 +26,12 @@ TreeDisplayScenes::TreeDisplayScenes(SpaceOutliner &space_outliner)
 {
 }
 
-bool TreeDisplayScenes::supportsModeColumn() const
+bool TreeDisplayScenes::supports_mode_column() const
 {
   return true;
 }
 
-ListBase TreeDisplayScenes::buildTree(const TreeSourceData &source_data)
+ListBase TreeDisplayScenes::build_tree(const TreeSourceData &source_data)
 {
   /* On first view we open scenes. */
   const int show_opened = !space_outliner_.treestore ||
@@ -40,8 +40,7 @@ ListBase TreeDisplayScenes::buildTree(const TreeSourceData &source_data)
 
   for (ID *id : List<ID>(source_data.bmain->scenes)) {
     Scene *scene = reinterpret_cast<Scene *>(id);
-    TreeElement *te = outliner_add_element(
-        &space_outliner_, &tree, scene, nullptr, TSE_SOME_ID, 0);
+    TreeElement *te = add_element(&tree, id, nullptr, nullptr, TSE_SOME_ID, 0);
     TreeStoreElem *tselem = TREESTORE(te);
 
     /* New scene elements open by default */

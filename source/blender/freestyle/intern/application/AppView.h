@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -13,11 +15,9 @@
 #include "../scene_graph/NodeDrawingStyle.h"
 #include "../system/Precision.h"
 
-#include "BLI_math.h"
+#include "BLI_math_base.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -30,11 +30,11 @@ class AppView {
 
  public:
   // inherited
-  inline unsigned int width()
+  inline uint width()
   {
     return _width;
   }
-  inline unsigned int height()
+  inline uint height()
   {
     return _height;
   }
@@ -46,11 +46,11 @@ class AppView {
   {
     return _thickness;
   }
-  inline void setWidth(unsigned int width)
+  inline void setWidth(uint width)
   {
     _width = width;
   }
-  inline void setHeight(unsigned int height)
+  inline void setHeight(uint height)
   {
     _height = height;
   }
@@ -64,7 +64,7 @@ class AppView {
   }
 
  protected:
-  unsigned int _width, _height;
+  uint _width, _height;
   BBox<Vec2i> _border;
   float _thickness;
 
@@ -200,7 +200,7 @@ class AppView {
 
   inline real GetFovyDegrees() const
   {
-    return _Fovy * 180.0 / M_PI;  // TODO: Use RAD2DEG here too?
+    return _Fovy * 180.0 / M_PI; /* TODO: Use RAD2DEG here too? */
   }
 
   BBox<Vec3r> scene3DBBox() const
@@ -251,9 +251,7 @@ class AppView {
   NodeGroup _p2DNode;
   NodeDrawingStyle *_p2DSelectionNode;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:AppView")
-#endif
 };
 
 } /* namespace Freestyle */

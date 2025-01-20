@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -13,18 +15,19 @@ void register_node_type_sh_background();
 void register_node_type_sh_bevel();
 void register_node_type_sh_blackbody();
 void register_node_type_sh_brightcontrast();
-void register_node_type_sh_bsdf_anisotropic();
 void register_node_type_sh_bsdf_diffuse();
 void register_node_type_sh_bsdf_glass();
 void register_node_type_sh_bsdf_glossy();
 void register_node_type_sh_bsdf_hair_principled();
 void register_node_type_sh_bsdf_hair();
+void register_node_type_sh_bsdf_metallic();
 void register_node_type_sh_bsdf_principled();
+void register_node_type_sh_bsdf_ray_portal();
 void register_node_type_sh_bsdf_refraction();
 void register_node_type_sh_bsdf_toon();
 void register_node_type_sh_bsdf_translucent();
 void register_node_type_sh_bsdf_transparent();
-void register_node_type_sh_bsdf_velvet();
+void register_node_type_sh_bsdf_sheen();
 void register_node_type_sh_bump();
 void register_node_type_sh_camera();
 void register_node_type_sh_clamp();
@@ -82,11 +85,11 @@ void register_node_type_sh_tex_brick();
 void register_node_type_sh_tex_checker();
 void register_node_type_sh_tex_coord();
 void register_node_type_sh_tex_environment();
+void register_node_type_sh_tex_gabor();
 void register_node_type_sh_tex_gradient();
 void register_node_type_sh_tex_ies();
 void register_node_type_sh_tex_image();
 void register_node_type_sh_tex_magic();
-void register_node_type_sh_tex_musgrave();
 void register_node_type_sh_tex_noise();
 void register_node_type_sh_tex_pointdensity();
 void register_node_type_sh_tex_sky();

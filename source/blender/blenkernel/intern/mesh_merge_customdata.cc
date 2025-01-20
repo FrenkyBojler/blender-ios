@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -6,20 +8,15 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
-#include "BLI_math.h"
+#include "BLI_math_base.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_customdata.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_mapping.h"
-#include "BLI_memarena.h"
+#include "BKE_customdata.hh"
+#include "BKE_mesh.hh"
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 using namespace blender;
 
@@ -34,7 +31,7 @@ static int compare_v2_classify(const float uv_a[2], const float uv_b[2])
   if (uv_a[0] == uv_b[0] && uv_a[1] == uv_b[1]) {
     return CMP_EQUAL;
   }
-  /* NOTE(@campbellbarton): that the ULP value is the primary value used to compare relative
+  /* NOTE(@ideasman42): that the ULP value is the primary value used to compare relative
    * values as the absolute value doesn't account for float precision at difference scales.
    * - For subdivision-surface ULP of 3 is sufficient,
    *   although this value is extremely small.
@@ -52,7 +49,8 @@ static int compare_v2_classify(const float uv_a[2], const float uv_b[2])
   const int diff_ulp = 12;
 
   if (compare_ff_relative(uv_a[0], uv_b[0], diff_abs, diff_ulp) &&
-      compare_ff_relative(uv_a[1], uv_b[1], diff_abs, diff_ulp)) {
+      compare_ff_relative(uv_a[1], uv_b[1], diff_abs, diff_ulp))
+  {
     return CMP_CLOSE;
   }
   return CMP_APART;
@@ -63,7 +61,7 @@ static void merge_uvs_for_vertex(const Span<int> loops_for_vert, Span<float2 *> 
   if (loops_for_vert.size() <= 1) {
     return;
   }
-  /* Manipulate a copy of the loop indices, de-duplicating UVs per layer.  */
+  /* Manipulate a copy of the loop indices, de-duplicating UVs per layer. */
   Vector<int, 32> loops_merge;
   loops_merge.reserve(loops_for_vert.size());
   for (float2 *mloopuv : mloopuv_layers) {
@@ -102,44 +100,31 @@ static void merge_uvs_for_vertex(const Span<int> loops_for_vert, Span<float2 *> 
   }
 }
 
-void BKE_mesh_merge_customdata_for_apply_modifier(Mesh *me)
+void BKE_mesh_merge_customdata_for_apply_modifier(Mesh *mesh)
 {
-  if (me->totloop == 0) {
+  if (mesh->corners_num == 0) {
     return;
   }
-  const int mloopuv_layers_num = CustomData_number_of_layers(&me->ldata, CD_PROP_FLOAT2);
+  const int mloopuv_layers_num = CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2);
   if (mloopuv_layers_num == 0) {
     return;
   }
 
-  int *vert_map_mem;
-  struct MeshElemMap *vert_to_loop;
-  BKE_mesh_vert_loop_map_create(&vert_to_loop,
-                                &vert_map_mem,
-                                BKE_mesh_polys(me),
-                                BKE_mesh_loops(me),
-                                me->totvert,
-                                me->totpoly,
-                                me->totloop);
+  const GroupedSpan<int> vert_to_corner = mesh->vert_to_corner_map();
 
   Vector<float2 *> mloopuv_layers;
   mloopuv_layers.reserve(mloopuv_layers_num);
   for (int a = 0; a < mloopuv_layers_num; a++) {
-    float2 *mloopuv = static_cast<float2 *>(
-        CustomData_get_layer_n_for_write(&me->ldata, CD_PROP_FLOAT2, a, me->totloop));
+    float2 *mloopuv = static_cast<float2 *>(CustomData_get_layer_n_for_write(
+        &mesh->corner_data, CD_PROP_FLOAT2, a, mesh->corners_num));
     mloopuv_layers.append_unchecked(mloopuv);
   }
 
   Span<float2 *> mloopuv_layers_as_span = mloopuv_layers.as_span();
 
-  threading::parallel_for(IndexRange(me->totvert), 1024, [&](IndexRange range) {
+  threading::parallel_for(IndexRange(mesh->verts_num), 1024, [&](IndexRange range) {
     for (const int64_t v_index : range) {
-      MeshElemMap &loops_for_vert = vert_to_loop[v_index];
-      Span<int> loops_for_vert_span(loops_for_vert.indices, loops_for_vert.count);
-      merge_uvs_for_vertex(loops_for_vert_span, mloopuv_layers_as_span);
+      merge_uvs_for_vertex(vert_to_corner[v_index], mloopuv_layers_as_span);
     }
   });
-
-  MEM_freeN(vert_to_loop);
-  MEM_freeN(vert_map_mem);
 }

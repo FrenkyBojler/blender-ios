@@ -1,19 +1,43 @@
-diff -Naur org/kernels/rtcore_config.h.in embree-3.13.4/kernels/rtcore_config.h.in
---- org/kernels/rtcore_config.h.in      2022-06-14 22:13:52 -0600
-+++ embree-3.13.4/kernels/rtcore_config.h.in    2022-06-24 15:20:12 -0600
-@@ -14,6 +14,7 @@
- #cmakedefine01 EMBREE_MIN_WIDTH
- #define RTC_MIN_WIDTH EMBREE_MIN_WIDTH
-
-+#cmakedefine EMBREE_STATIC_LIB
- #cmakedefine EMBREE_API_NAMESPACE
-
- #if defined(EMBREE_API_NAMESPACE)
+diff --git a/common/cmake/dpcpp.cmake b/common/cmake/dpcpp.cmake
+index 4113610c5..12c24fb11 100644
+--- a/common/cmake/dpcpp.cmake
++++ b/common/cmake/dpcpp.cmake
+@@ -45,7 +45,7 @@ IF (EMBREE_SYCL_SUPPORT)
+ 
+   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-sycl")   # makes dpcpp compiler compatible with clang++
+   
+-  SET(CMAKE_CXX_FLAGS_SYCL "-fsycl -fsycl-unnamed-lambda -Xclang -fsycl-allow-func-ptr")
++  SET(CMAKE_CXX_FLAGS_SYCL "-fsycl -nolibsycl -fsycl-unnamed-lambda -Xclang -fsycl-allow-func-ptr")
+   SET(CMAKE_CXX_FLAGS_SYCL "${CMAKE_CXX_FLAGS_SYCL} -Wno-mismatched-tags -Wno-pessimizing-move -Wno-reorder -Wno-unneeded-internal-declaration -Wno-delete-non-abstract-non-virtual-dtor -Wno-dangling-field -Wno-unknown-pragmas -Wno-logical-op-parentheses")
+   
+   IF (SYCL_ONEAPI_ICX AND WIN32)
+diff --git a/common/simd/arm/sse2neon.h b/common/simd/arm/sse2neon.h
+index b18d41e78..35e50a6e3 100644
+--- a/common/simd/arm/sse2neon.h
++++ b/common/simd/arm/sse2neon.h
+@@ -9038,7 +9038,7 @@ FORCE_INLINE int _sse2neon_sido_negative(int res, int lb, int imm8, int bound)
+ FORCE_INLINE int _sse2neon_clz(unsigned int x)
+ {
+ #if _MSC_VER
+-    DWORD cnt = 0;
++    unsigned long cnt = 0;
+     if (_BitScanForward(&cnt, x))
+         return cnt;
+     return 32;
+@@ -9050,7 +9050,7 @@ FORCE_INLINE int _sse2neon_clz(unsigned int x)
+ FORCE_INLINE int _sse2neon_ctz(unsigned int x)
+ {
+ #if _MSC_VER
+-    DWORD cnt = 0;
++    unsigned long cnt = 0;
+     if (_BitScanReverse(&cnt, x))
+         return 31 - cnt;
+     return 32;
 diff --git a/kernels/CMakeLists.txt b/kernels/CMakeLists.txt
-index 7c2f43d..106b1d5 100644
+index 7d1386853..6bfc8a9c6 100644
 --- a/kernels/CMakeLists.txt
 +++ b/kernels/CMakeLists.txt
-@@ -201,6 +201,12 @@ embree_files(EMBREE_LIBRARY_FILES_AVX512 ${AVX512})
+@@ -213,6 +213,12 @@ embree_files(EMBREE_LIBRARY_FILES_AVX512 ${AVX512})
  #message("AVX2: ${EMBREE_LIBRARY_FILES_AVX2}")
  #message("AVX512: ${EMBREE_LIBRARY_FILES_AVX512}")
  
@@ -26,7 +50,7 @@ index 7c2f43d..106b1d5 100644
  # replaces all .cpp files with a dummy file that includes that .cpp file
  # this is to work around an ICC name mangling issue related to lambda functions under windows
  MACRO (CreateISADummyFiles list isa)
-@@ -277,7 +283,7 @@ IF (EMBREE_ISA_AVX  AND EMBREE_LIBRARY_FILES_AVX)
+@@ -311,7 +317,7 @@ IF (EMBREE_ISA_AVX  AND EMBREE_LIBRARY_FILES_AVX)
    ENDIF()
  ENDIF()
  

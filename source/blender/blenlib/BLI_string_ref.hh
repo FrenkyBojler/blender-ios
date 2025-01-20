@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -30,7 +32,6 @@
  */
 
 #include <cstring>
-#include <sstream>
 #include <string>
 #include <string_view>
 
@@ -104,12 +105,15 @@ class StringRefBase {
 
 /**
  * References a null-terminated const char array.
+ *
+ * StringRefNull can be compared with StringRef and StringRefNull.
  */
 class StringRefNull : public StringRefBase {
 
  public:
   constexpr StringRefNull();
   constexpr StringRefNull(const char *str, int64_t size);
+  StringRefNull(std::nullptr_t) = delete;
   StringRefNull(const char *str);
   StringRefNull(const std::string &str);
 
@@ -119,6 +123,8 @@ class StringRefNull : public StringRefBase {
 
 /**
  * References a const char array. It might not be null terminated.
+ *
+ * StringRef can be compared with StringRef and StringRefNull.
  */
 class StringRef : public StringRefBase {
  public:
@@ -422,9 +428,7 @@ constexpr StringRef StringRefBase::trim(StringRef characters_to_remove) const
 /** \name #StringRefNull Inline Methods
  * \{ */
 
-constexpr StringRefNull::StringRefNull() : StringRefBase("", 0)
-{
-}
+constexpr StringRefNull::StringRefNull() : StringRefBase("", 0) {}
 
 /**
  * Construct a StringRefNull from a null terminated c-string. This invokes undefined behavior
@@ -433,7 +437,7 @@ constexpr StringRefNull::StringRefNull() : StringRefBase("", 0)
 constexpr StringRefNull::StringRefNull(const char *str, const int64_t size)
     : StringRefBase(str, size)
 {
-  BLI_assert(int64_t(strlen(str)) == size);
+  BLI_assert(int64_t(std::char_traits<char>::length(str)) == size);
 }
 
 /**
@@ -450,7 +454,8 @@ inline StringRefNull::StringRefNull(const char *str) : StringRefBase(str, int64_
  * Reference a std::string. Remember that when the std::string is destructed, the StringRefNull
  * will point to uninitialized memory.
  */
-inline StringRefNull::StringRefNull(const std::string &str) : StringRefNull(str.c_str())
+inline StringRefNull::StringRefNull(const std::string &str)
+    : StringRefNull(str.c_str(), int64_t(str.size()))
 {
 }
 
@@ -481,16 +486,12 @@ constexpr const char *StringRefNull::c_str() const
 /** \name #StringRef Inline Methods
  * \{ */
 
-constexpr StringRef::StringRef() : StringRefBase(nullptr, 0)
-{
-}
+constexpr StringRef::StringRef() : StringRefBase(nullptr, 0) {}
 
 /**
  * StringRefNull can be converted into StringRef, but not the other way around.
  */
-constexpr StringRef::StringRef(StringRefNull other) : StringRefBase(other.data(), other.size())
-{
-}
+constexpr StringRef::StringRef(StringRefNull other) : StringRefBase(other.data(), other.size()) {}
 
 /**
  * Create a StringRef from a null-terminated c-string.
@@ -577,17 +578,8 @@ constexpr StringRef::StringRef(std::string_view view)
 /** \name Operator Overloads
  * \{ */
 
-inline std::ostream &operator<<(std::ostream &stream, StringRef ref)
-{
-  stream << std::string(ref);
-  return stream;
-}
-
-inline std::ostream &operator<<(std::ostream &stream, StringRefNull ref)
-{
-  stream << std::string(ref.data(), size_t(ref.size()));
-  return stream;
-}
+std::ostream &operator<<(std::ostream &stream, StringRef ref);
+std::ostream &operator<<(std::ostream &stream, StringRefNull ref);
 
 /**
  * Adding two #StringRefs will allocate an std::string.
@@ -601,7 +593,10 @@ inline std::string operator+(StringRef a, StringRef b)
 /* This does not compare StringRef and std::string_view, because of ambiguous overloads. This is
  * not a problem when std::string_view is only used at api boundaries. To compare a StringRef and a
  * std::string_view, one should convert the std::string_view to StringRef (which is very cheap).
- * Ideally, we only use StringRef in our code to avoid this problem altogether. */
+ * Ideally, we only use StringRef in our code to avoid this problem altogether.
+ *
+ * NOTE: these functions are also suitable for StringRefNull comparisons, as these are
+ * implicitly converted to StringRef by the compiler. */
 constexpr bool operator==(StringRef a, StringRef b)
 {
   return std::string_view(a) == std::string_view(b);
@@ -630,6 +625,20 @@ constexpr bool operator<=(StringRef a, StringRef b)
 constexpr bool operator>=(StringRef a, StringRef b)
 {
   return std::string_view(a) >= std::string_view(b);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Formatting
+ * \{ */
+
+/**
+ * Support using the `fmt` library with #StringRef and implicitly also #StringRefNull.
+ */
+inline std::string_view format_as(StringRef str)
+{
+  return str;
 }
 
 /** \} */

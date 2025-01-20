@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spnode
@@ -7,15 +8,13 @@
 
 #include "DNA_node_types.h"
 
-#include "BKE_context.h"
+#include "ED_node_c.hh"
+#include "ED_screen.hh"
 
-#include "ED_node.h" /* own include */
-#include "ED_screen.h"
+#include "RNA_access.hh"
 
-#include "RNA_access.h"
-
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "node_intern.hh" /* own include */
 
@@ -64,6 +63,8 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_group_separate);
   WM_operatortype_append(NODE_OT_group_edit);
 
+  WM_operatortype_append(NODE_OT_default_group_width_set);
+
   WM_operatortype_append(NODE_OT_link_viewer);
 
   WM_operatortype_append(NODE_OT_insert_offset);
@@ -76,13 +77,13 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_backimage_fit);
   WM_operatortype_append(NODE_OT_backimage_sample);
 
-  WM_operatortype_append(NODE_OT_add_search);
   WM_operatortype_append(NODE_OT_add_group);
   WM_operatortype_append(NODE_OT_add_group_asset);
   WM_operatortype_append(NODE_OT_add_object);
   WM_operatortype_append(NODE_OT_add_collection);
   WM_operatortype_append(NODE_OT_add_file);
   WM_operatortype_append(NODE_OT_add_mask);
+  WM_operatortype_append(NODE_OT_add_material);
 
   WM_operatortype_append(NODE_OT_new_node_tree);
 
@@ -103,26 +104,26 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_viewer_border);
   WM_operatortype_append(NODE_OT_clear_viewer_border);
 
-  WM_operatortype_append(NODE_OT_switch_view_update);
-
-  WM_operatortype_append(NODE_OT_tree_socket_add);
-  WM_operatortype_append(NODE_OT_tree_socket_remove);
-  WM_operatortype_append(NODE_OT_tree_socket_change_type);
-  WM_operatortype_append(NODE_OT_tree_socket_move);
-
   WM_operatortype_append(NODE_OT_cryptomatte_layer_add);
   WM_operatortype_append(NODE_OT_cryptomatte_layer_remove);
+
+  for (bke::bNodeType *ntype : bke::node_types_get()) {
+    if (ntype->register_operators) {
+      ntype->register_operators();
+    }
+  }
 }
 
 void node_keymap(wmKeyConfig *keyconf)
 {
   /* Entire Editor only ----------------- */
-  WM_keymap_ensure(keyconf, "Node Generic", SPACE_NODE, 0);
+  WM_keymap_ensure(keyconf, "Node Generic", SPACE_NODE, RGN_TYPE_WINDOW);
 
   /* Main Region only ----------------- */
-  WM_keymap_ensure(keyconf, "Node Editor", SPACE_NODE, 0);
+  WM_keymap_ensure(keyconf, "Node Editor", SPACE_NODE, RGN_TYPE_WINDOW);
 
   node_link_modal_keymap(keyconf);
+  node_resize_modal_keymap(keyconf);
 }
 
 }  // namespace blender::ed::space_node
@@ -148,7 +149,6 @@ void ED_operatormacros_node()
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   mot = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
   WM_operatortype_macro_define(ot, "NODE_OT_attach");
-  WM_operatortype_macro_define(ot, "NODE_OT_insert_offset");
 
   /* NODE_OT_translate_attach with remove_on_cancel set to true. */
   ot = WM_operatortype_append_macro("NODE_OT_translate_attach_remove_on_cancel",
@@ -159,7 +159,6 @@ void ED_operatormacros_node()
   RNA_boolean_set(mot->ptr, "remove_on_cancel", true);
   RNA_boolean_set(mot->ptr, "view2d_edge_pan", true);
   WM_operatortype_macro_define(ot, "NODE_OT_attach");
-  WM_operatortype_macro_define(ot, "NODE_OT_insert_offset");
 
   /* NOTE: Currently not in a default keymap or menu due to messy keymaps
    * and tricky invoke functionality.
@@ -205,7 +204,6 @@ void ED_operatormacros_node()
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "NODE_OT_links_detach");
   WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-  WM_operatortype_macro_define(ot, "NODE_OT_insert_offset");
 
   ot = WM_operatortype_append_macro("NODE_OT_move_detach_links_release",
                                     "Detach",

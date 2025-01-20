@@ -1,5 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
 #include "BLI_task.hh"
 
 #include "BKE_curves.hh"
@@ -10,19 +13,14 @@ namespace blender::nodes::node_geo_curve_spline_parameter_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>(N_("Factor"))
-      .field_source()
-      .description(
-          N_("For points, the portion of the spline's total length at the control point. For "
-             "Splines, the factor of that spline within the entire curve"));
-  b.add_output<decl::Float>(N_("Length"))
-      .field_source()
-      .description(
-          N_("For points, the distance along the control point's spline, For splines, the "
-             "distance along the entire curve"));
-  b.add_output<decl::Int>(N_("Index"))
-      .field_source()
-      .description(N_("Each control point's index on its spline"));
+  b.add_output<decl::Float>("Factor").field_source().description(
+      "For points, the portion of the spline's total length at the control point. For "
+      "Splines, the factor of that spline within the entire curve");
+  b.add_output<decl::Float>("Length").field_source().description(
+      "For points, the distance along the control point's spline, For splines, the "
+      "distance along the entire curve");
+  b.add_output<decl::Int>("Index").field_source().description(
+      "Each control point's index on its spline");
 }
 
 /**
@@ -45,6 +43,31 @@ static Array<float> accumulated_lengths_curve_domain(const bke::CurvesGeometry &
   return lengths;
 }
 
+static Array<float> calculate_curve_parameters(const bke::CurvesGeometry &curves)
+{
+  const VArray<bool> cyclic = curves.cyclic();
+  Array<float> lengths = accumulated_lengths_curve_domain(curves);
+
+  const int last_index = curves.curves_num() - 1;
+  const float total_length = lengths.last() + curves.evaluated_length_total_for_curve(
+                                                  last_index, cyclic[last_index]);
+  if (total_length > 0.0f) {
+    const float factor = 1.0f / total_length;
+    for (float &value : lengths) {
+      value *= factor;
+    }
+  }
+  else {
+    /* It is arbitrary what to do in those rare cases when all the points are
+     * in the same position. In this case we are just arbitrarily giving a valid
+     * value in the range based on the curve index. */
+    for (const int i : lengths.index_range()) {
+      lengths[i] = i / (lengths.size() - 1.0f);
+    }
+  }
+  return lengths;
+}
+
 /**
  * Return the length of each control point along each curve, starting at zero for the first point.
  * Importantly, this is different than the length at each evaluated point. The implementation is
@@ -55,7 +78,9 @@ static Array<float> accumulated_lengths_curve_domain(const bke::CurvesGeometry &
  *  - NURBS Curves: Treat the control points as if they were a poly curve, because there
  *    is no obvious mapping from each control point to a specific evaluated point.
  */
-static Array<float> curve_length_point_domain(const bke::CurvesGeometry &curves)
+static Array<float> calculate_point_lengths(
+    const bke::CurvesGeometry &curves,
+    const FunctionRef<void(MutableSpan<float>, float)> postprocess_lengths_for_curve)
 {
   curves.ensure_evaluated_lengths();
   const OffsetIndices points_by_curve = curves.points_by_curve();
@@ -68,26 +93,33 @@ static Array<float> curve_length_point_domain(const bke::CurvesGeometry &curves)
   threading::parallel_for(curves.curves_range(), 128, [&](IndexRange range) {
     for (const int i_curve : range) {
       const IndexRange points = points_by_curve[i_curve];
-      const Span<float> evaluated_lengths = curves.evaluated_lengths_for_curve(i_curve,
-                                                                               cyclic[i_curve]);
+      const bool is_cyclic = cyclic[i_curve];
+      const Span<float> evaluated_lengths = curves.evaluated_lengths_for_curve(i_curve, is_cyclic);
       MutableSpan<float> lengths = result.as_mutable_span().slice(points);
       lengths.first() = 0.0f;
+      const float last_evaluated_length = evaluated_lengths.is_empty() ? 0.0f :
+                                                                         evaluated_lengths.last();
+
+      float total;
       switch (types[i_curve]) {
         case CURVE_TYPE_CATMULL_ROM: {
           const int resolution = resolutions[i_curve];
           for (const int i : IndexRange(points.size()).drop_back(1)) {
             lengths[i + 1] = evaluated_lengths[resolution * (i + 1) - 1];
           }
+          total = last_evaluated_length;
           break;
         }
         case CURVE_TYPE_POLY:
           lengths.drop_front(1).copy_from(evaluated_lengths.take_front(lengths.size() - 1));
+          total = last_evaluated_length;
           break;
         case CURVE_TYPE_BEZIER: {
           const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(i_curve);
           for (const int i : IndexRange(points.size()).drop_back(1)) {
             lengths[i + 1] = evaluated_lengths[offsets[i + 1] - 1];
           }
+          total = last_evaluated_length;
           break;
         }
         case CURVE_TYPE_NURBS: {
@@ -98,134 +130,71 @@ static Array<float> curve_length_point_domain(const bke::CurvesGeometry &curves)
             length += math::distance(positions[i], positions[i + 1]);
           }
           lengths.last() = length;
+          if (is_cyclic) {
+            length += math::distance(positions.first(), positions.last());
+          }
+          total = length;
           break;
         }
       }
+      postprocess_lengths_for_curve(lengths, total);
     }
   });
   return result;
 }
 
-static VArray<float> construct_curve_parameter_varray(const bke::CurvesGeometry &curves,
-                                                      const IndexMask /*mask*/,
-                                                      const eAttrDomain domain)
+static void convert_lengths_to_factors(MutableSpan<float> lengths, const float total_curve_length)
 {
-  const VArray<bool> cyclic = curves.cyclic();
-
-  if (domain == ATTR_DOMAIN_POINT) {
-    Array<float> result = curve_length_point_domain(curves);
-    MutableSpan<float> lengths = result.as_mutable_span();
-    const OffsetIndices points_by_curve = curves.points_by_curve();
-
-    threading::parallel_for(curves.curves_range(), 1024, [&](IndexRange range) {
-      for (const int i_curve : range) {
-        MutableSpan<float> curve_lengths = lengths.slice(points_by_curve[i_curve]);
-        const float total_length = curve_lengths.last();
-        if (total_length > 0.0f) {
-          const float factor = 1.0f / total_length;
-          for (float &value : curve_lengths) {
-            value *= factor;
-          }
-        }
-        else if (curve_lengths.size() == 1) {
-          /* The curve is a single point. */
-          curve_lengths[0] = 0.0f;
-        }
-        else {
-          /* It is arbitrary what to do in those rare cases when all the points are
-           * in the same position. In this case we are just arbitrarily giving a valid
-           * value in the range based on the point index. */
-          for (const int i : curve_lengths.index_range()) {
-            curve_lengths[i] = i / (curve_lengths.size() - 1.0f);
-          }
-        }
-      }
-    });
-    return VArray<float>::ForContainer(std::move(result));
-  }
-
-  if (domain == ATTR_DOMAIN_CURVE) {
-    Array<float> lengths = accumulated_lengths_curve_domain(curves);
-
-    const int last_index = curves.curves_num() - 1;
-    const float total_length = lengths.last() + curves.evaluated_length_total_for_curve(
-                                                    last_index, cyclic[last_index]);
-    if (total_length > 0.0f) {
-      const float factor = 1.0f / total_length;
-      for (float &value : lengths) {
-        value *= factor;
-      }
+  if (total_curve_length > 0.0f) {
+    const float factor = 1.0f / total_curve_length;
+    for (float &value : lengths.drop_front(1)) {
+      value *= factor;
     }
-    else {
-      /* It is arbitrary what to do in those rare cases when all the points are
-       * in the same position. In this case we are just arbitrarily giving a valid
-       * value in the range based on the curve index. */
-      for (const int i : lengths.index_range()) {
-        lengths[i] = i / (lengths.size() - 1.0f);
-      }
+  }
+  else if (lengths.size() == 1) {
+    /* The curve is a single point. */
+    lengths[0] = 0.0f;
+  }
+  else {
+    /* It is arbitrary what to do in those rare cases when all the
+     * points are in the same position. In this case we are just
+     * arbitrarily giving a valid
+     * value in the range based on the point index. */
+    for (const int i : lengths.index_range()) {
+      lengths[i] = i / (lengths.size() - 1.0f);
     }
-    return VArray<float>::ForContainer(std::move(lengths));
   }
-  return {};
 }
-
-static VArray<float> construct_curve_length_parameter_varray(const bke::CurvesGeometry &curves,
-                                                             const IndexMask /*mask*/,
-                                                             const eAttrDomain domain)
+static Array<float> calculate_point_parameters(const bke::CurvesGeometry &curves)
 {
-  curves.ensure_evaluated_lengths();
-
-  if (domain == ATTR_DOMAIN_POINT) {
-    Array<float> lengths = curve_length_point_domain(curves);
-    return VArray<float>::ForContainer(std::move(lengths));
-  }
-
-  if (domain == ATTR_DOMAIN_CURVE) {
-    Array<float> lengths = accumulated_lengths_curve_domain(curves);
-    return VArray<float>::ForContainer(std::move(lengths));
-  }
-
-  return {};
-}
-
-static VArray<int> construct_index_on_spline_varray(const bke::CurvesGeometry &curves,
-                                                    const IndexMask /*mask*/,
-                                                    const eAttrDomain domain)
-{
-  if (domain == ATTR_DOMAIN_POINT) {
-    Array<int> result(curves.points_num());
-    MutableSpan<int> span = result.as_mutable_span();
-    const OffsetIndices points_by_curve = curves.points_by_curve();
-    threading::parallel_for(curves.curves_range(), 1024, [&](IndexRange range) {
-      for (const int i_curve : range) {
-        MutableSpan<int> indices = span.slice(points_by_curve[i_curve]);
-        for (const int i : indices.index_range()) {
-          indices[i] = i;
-        }
-      }
-    });
-    return VArray<int>::ForContainer(std::move(result));
-  }
-  return {};
+  return calculate_point_lengths(curves, convert_lengths_to_factors);
 }
 
 class CurveParameterFieldInput final : public bke::CurvesFieldInput {
  public:
-  CurveParameterFieldInput() : bke::CurvesFieldInput(CPPType::get<float>(), "Curve Parameter node")
+  CurveParameterFieldInput()
+      : bke::CurvesFieldInput(CPPType::get<float>(), "Spline Parameter node")
   {
     category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
-                                 const eAttrDomain domain,
-                                 IndexMask mask) const final
+                                 const AttrDomain domain,
+                                 const IndexMask & /*mask*/) const final
   {
-    return construct_curve_parameter_varray(curves, mask, domain);
+    switch (domain) {
+      case AttrDomain::Point:
+        return VArray<float>::ForContainer(calculate_point_parameters(curves));
+      case AttrDomain::Curve:
+        return VArray<float>::ForContainer(calculate_curve_parameters(curves));
+      default:
+        BLI_assert_unreachable();
+        return {};
+    }
   }
 
   uint64_t hash() const override
   {
-    /* Some random constant hash. */
     return 29837456298;
   }
 
@@ -244,15 +213,23 @@ class CurveLengthParameterFieldInput final : public bke::CurvesFieldInput {
   }
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
-                                 const eAttrDomain domain,
-                                 IndexMask mask) const final
+                                 const AttrDomain domain,
+                                 const IndexMask & /*mask*/) const final
   {
-    return construct_curve_length_parameter_varray(curves, mask, domain);
+    switch (domain) {
+      case AttrDomain::Point:
+        return VArray<float>::ForContainer(calculate_point_lengths(
+            curves, [](MutableSpan<float> /*lengths*/, const float /*total*/) {}));
+      case AttrDomain::Curve:
+        return VArray<float>::ForContainer(accumulated_lengths_curve_domain(curves));
+      default:
+        BLI_assert_unreachable();
+        return {};
+    }
   }
 
   uint64_t hash() const override
   {
-    /* Some random constant hash. */
     return 345634563454;
   }
 
@@ -270,26 +247,36 @@ class IndexOnSplineFieldInput final : public bke::CurvesFieldInput {
   }
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
-                                 const eAttrDomain domain,
-                                 IndexMask mask) const final
+                                 const AttrDomain domain,
+                                 const IndexMask & /*mask*/) const final
   {
-    return construct_index_on_spline_varray(curves, mask, domain);
+    if (domain != AttrDomain::Point) {
+      return {};
+    }
+    Array<int> result(curves.points_num());
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    threading::parallel_for(curves.curves_range(), 1024, [&](IndexRange range) {
+      for (const int i_curve : range) {
+        MutableSpan<int> indices = result.as_mutable_span().slice(points_by_curve[i_curve]);
+        array_utils::fill_index_range(indices);
+      }
+    });
+    return VArray<int>::ForContainer(std::move(result));
   }
 
-  uint64_t hash() const override
+  uint64_t hash() const final
   {
-    /* Some random constant hash. */
     return 4536246522;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldNode &other) const final
   {
     return dynamic_cast<const IndexOnSplineFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const CurvesGeometry & /*curves*/) const
+  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -303,16 +290,18 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Index", std::move(index_on_spline_field));
 }
 
-}  // namespace blender::nodes::node_geo_curve_spline_parameter_cc
-
-void register_node_type_geo_curve_spline_parameter()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_curve_spline_parameter_cc;
-
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_SPLINE_PARAMETER, "Spline Parameter", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeSplineParameter", GEO_NODE_CURVE_SPLINE_PARAMETER);
+  ntype.ui_name = "Spline Parameter";
+  ntype.ui_description = "Retrieve how far along each spline a control point is";
+  ntype.enum_name_legacy = "SPLINE_PARAMETER";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_curve_spline_parameter_cc

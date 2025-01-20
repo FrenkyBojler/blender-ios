@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup balembic
@@ -9,9 +11,9 @@
 
 #include "DNA_object_types.h"
 
-#include "BLI_utildefines.h"
+#include "BLT_translation.hh"
 
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
 using Alembic::Abc::ISampleSelector;
 
@@ -38,17 +40,17 @@ bool AbcEmptyReader::valid() const
 bool AbcEmptyReader::accepts_object_type(
     const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
     const Object *const ob,
-    const char **err_str) const
+    const char **r_err_str) const
 {
   if (!Alembic::AbcGeom::IXform::matches(alembic_header)) {
-    *err_str =
+    *r_err_str = RPT_(
         "Object type mismatch, Alembic object path pointed to XForm when importing, but not any "
-        "more.";
+        "more");
     return false;
   }
 
   if (ob->type != OB_EMPTY) {
-    *err_str = "Object type mismatch, Alembic object path points to XForm.";
+    *r_err_str = RPT_("Object type mismatch, Alembic object path points to XForm");
     return false;
   }
 

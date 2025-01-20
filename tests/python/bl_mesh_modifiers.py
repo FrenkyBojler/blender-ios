@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2012-2022 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # Currently this script only generates images from different modifier
@@ -45,7 +47,7 @@ def render_gl(context, filepath, shade):
 
     # stop to inspect!
     # if filepath == "test_cube_shell_solidify_subsurf_wp_wire":
-    #     assert(0)
+    #     assert False
     # else:
     #     return
 

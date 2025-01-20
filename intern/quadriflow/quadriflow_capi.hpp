@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef QUADRIFLOW_CAPI_HPP
 #define QUADRIFLOW_CAPI_HPP
@@ -9,8 +10,8 @@ extern "C" {
 #endif
 
 typedef struct QuadriflowRemeshData {
-  float *verts;
-  int *faces;
+  const float *verts;
+  const int *faces;
   int totfaces;
   int totverts;
 

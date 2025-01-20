@@ -1,26 +1,28 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 /** \file
  * \ingroup bli
  *
- * A virtual array is a data structure that behaves similar to an array, but its elements are
+ * A virtual array is a data structure that behaves similarly to an array, but its elements are
  * accessed through virtual methods. This improves the decoupling of a function from its callers,
  * because it does not have to know exactly how the data is laid out in memory, or if it is stored
  * in memory at all. It could just as well be computed on the fly.
  *
  * Taking a virtual array as parameter instead of a more specific non-virtual type has some
- * tradeoffs. Access to individual elements of the individual elements is higher due to function
+ * tradeoffs. Access to individual elements of the individual elements is slower due to function
  * call overhead. On the other hand, potential callers don't have to convert the data into the
  * specific format required for the function. This can be a costly conversion if only few of the
  * elements are accessed in the end.
  *
  * Functions taking a virtual array as input can still optimize for different data layouts. For
- * example, they can check if the array is stored as an array internally or if it is the same
- * element for all indices. Whether it is worth to optimize for different data layouts in a
+ * example, they can check if the array references contiguous memory internally or if it is the
+ * same value for all indices. Whether it is worth optimizing for different data layouts in a
  * function has to be decided on a case by case basis. One should always do some benchmarking to
- * see of the increased compile time and binary size is worth it.
+ * see if the increased compile time and binary size is worth it.
  */
 
 #include <optional>
@@ -38,7 +40,7 @@ class GVArray;
 class GVMutableArray;
 
 /**
- * Is used to quickly check if a varray is a span or single value. This struct also allows
+ * Used to quickly check if a varray is a span or a single value. This struct also allows
  * retrieving multiple pieces of data with a single virtual method call.
  */
 struct CommonVArrayInfo {
@@ -55,7 +57,7 @@ struct CommonVArrayInfo {
   bool may_have_ownership = true;
 
   /**
-   * Points either to nothing, a single value or array of values, depending on #type.
+   * Points either to nothing, a single value, or an array of values, depending on #type.
    * If this is a span of a mutable virtual array, it is safe to cast away const.
    */
   const void *data;
@@ -107,7 +109,7 @@ template<typename T> class VArrayImpl {
    * Copy values from the virtual array into the provided span. The index of the value in the
    * virtual array is the same as the index in the span.
    */
-  virtual void materialize(IndexMask mask, T *dst) const
+  virtual void materialize(const IndexMask &mask, T *dst) const
   {
     mask.foreach_index([&](const int64_t i) { dst[i] = this->get(i); });
   }
@@ -115,7 +117,7 @@ template<typename T> class VArrayImpl {
   /**
    * Same as #materialize but #r_span is expected to be uninitialized.
    */
-  virtual void materialize_to_uninitialized(IndexMask mask, T *dst) const
+  virtual void materialize_to_uninitialized(const IndexMask &mask, T *dst) const
   {
     mask.foreach_index([&](const int64_t i) { new (dst + i) T(this->get(i)); });
   }
@@ -125,25 +127,18 @@ template<typename T> class VArrayImpl {
    * in virtual array is not the same as the index in the output span. Instead, the span is filled
    * without gaps.
    */
-  virtual void materialize_compressed(IndexMask mask, T *dst) const
+  virtual void materialize_compressed(const IndexMask &mask, T *dst) const
   {
-    mask.to_best_mask_type([&](auto best_mask) {
-      for (const int64_t i : IndexRange(best_mask.size())) {
-        dst[i] = this->get(best_mask[i]);
-      }
-    });
+    mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = this->get(i); });
   }
 
   /**
    * Same as #materialize_compressed but #r_span is expected to be uninitialized.
    */
-  virtual void materialize_compressed_to_uninitialized(IndexMask mask, T *dst) const
+  virtual void materialize_compressed_to_uninitialized(const IndexMask &mask, T *dst) const
   {
-    mask.to_best_mask_type([&](auto best_mask) {
-      for (const int64_t i : IndexRange(best_mask.size())) {
-        new (dst + i) T(this->get(best_mask[i]));
-      }
-    });
+    mask.foreach_index(
+        [&](const int64_t i, const int64_t pos) { new (dst + pos) T(this->get(i)); });
   }
 
   /**
@@ -210,9 +205,7 @@ template<typename T> class VArrayImpl_For_Span : public VMutableArrayImpl<T> {
   }
 
  protected:
-  VArrayImpl_For_Span(const int64_t size) : VMutableArrayImpl<T>(size)
-  {
-  }
+  VArrayImpl_For_Span(const int64_t size) : VMutableArrayImpl<T>(size) {}
 
   T get(const int64_t index) const final
   {
@@ -229,32 +222,26 @@ template<typename T> class VArrayImpl_For_Span : public VMutableArrayImpl<T> {
     return CommonVArrayInfo(CommonVArrayInfo::Type::Span, true, data_);
   }
 
-  void materialize(IndexMask mask, T *dst) const override
+  void materialize(const IndexMask &mask, T *dst) const override
   {
-    mask.foreach_index([&](const int64_t i) { dst[i] = data_[i]; });
+    mask.foreach_index_optimized<int64_t>([&](const int64_t i) { dst[i] = data_[i]; });
   }
 
-  void materialize_to_uninitialized(IndexMask mask, T *dst) const override
+  void materialize_to_uninitialized(const IndexMask &mask, T *dst) const override
   {
-    mask.foreach_index([&](const int64_t i) { new (dst + i) T(data_[i]); });
+    mask.foreach_index_optimized<int64_t>([&](const int64_t i) { new (dst + i) T(data_[i]); });
   }
 
-  void materialize_compressed(IndexMask mask, T *dst) const override
+  void materialize_compressed(const IndexMask &mask, T *dst) const override
   {
-    mask.to_best_mask_type([&](auto best_mask) {
-      for (const int64_t i : IndexRange(best_mask.size())) {
-        dst[i] = data_[best_mask[i]];
-      }
-    });
+    mask.foreach_index_optimized<int64_t>(
+        [&](const int64_t i, const int64_t pos) { dst[pos] = data_[i]; });
   }
 
-  void materialize_compressed_to_uninitialized(IndexMask mask, T *dst) const override
+  void materialize_compressed_to_uninitialized(const IndexMask &mask, T *dst) const override
   {
-    mask.to_best_mask_type([&](auto best_mask) {
-      for (const int64_t i : IndexRange(best_mask.size())) {
-        new (dst + i) T(data_[best_mask[i]]);
-      }
-    });
+    mask.foreach_index_optimized<int64_t>(
+        [&](const int64_t i, const int64_t pos) { new (dst + pos) T(data_[i]); });
   }
 };
 
@@ -327,22 +314,22 @@ template<typename T> class VArrayImpl_For_Single final : public VArrayImpl<T> {
     return CommonVArrayInfo(CommonVArrayInfo::Type::Single, true, &value_);
   }
 
-  void materialize(IndexMask mask, T *dst) const override
+  void materialize(const IndexMask &mask, T *dst) const override
   {
     mask.foreach_index([&](const int64_t i) { dst[i] = value_; });
   }
 
-  void materialize_to_uninitialized(IndexMask mask, T *dst) const override
+  void materialize_to_uninitialized(const IndexMask &mask, T *dst) const override
   {
     mask.foreach_index([&](const int64_t i) { new (dst + i) T(value_); });
   }
 
-  void materialize_compressed(IndexMask mask, T *dst) const override
+  void materialize_compressed(const IndexMask &mask, T *dst) const override
   {
     initialized_fill_n(dst, mask.size(), value_);
   }
 
-  void materialize_compressed_to_uninitialized(IndexMask mask, T *dst) const override
+  void materialize_compressed_to_uninitialized(const IndexMask &mask, T *dst) const override
   {
     uninitialized_fill_n(dst, mask.size(), value_);
   }
@@ -371,32 +358,25 @@ template<typename T, typename GetFunc> class VArrayImpl_For_Func final : public 
     return get_func_(index);
   }
 
-  void materialize(IndexMask mask, T *dst) const override
+  void materialize(const IndexMask &mask, T *dst) const override
   {
     mask.foreach_index([&](const int64_t i) { dst[i] = get_func_(i); });
   }
 
-  void materialize_to_uninitialized(IndexMask mask, T *dst) const override
+  void materialize_to_uninitialized(const IndexMask &mask, T *dst) const override
   {
     mask.foreach_index([&](const int64_t i) { new (dst + i) T(get_func_(i)); });
   }
 
-  void materialize_compressed(IndexMask mask, T *dst) const override
+  void materialize_compressed(const IndexMask &mask, T *dst) const override
   {
-    mask.to_best_mask_type([&](auto best_mask) {
-      for (const int64_t i : IndexRange(best_mask.size())) {
-        dst[i] = get_func_(best_mask[i]);
-      }
-    });
+    mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = get_func_(i); });
   }
 
-  void materialize_compressed_to_uninitialized(IndexMask mask, T *dst) const override
+  void materialize_compressed_to_uninitialized(const IndexMask &mask, T *dst) const override
   {
-    mask.to_best_mask_type([&](auto best_mask) {
-      for (const int64_t i : IndexRange(best_mask.size())) {
-        new (dst + i) T(get_func_(best_mask[i]));
-      }
-    });
+    mask.foreach_index(
+        [&](const int64_t i, const int64_t pos) { new (dst + pos) T(get_func_(i)); });
   }
 };
 
@@ -434,32 +414,27 @@ class VArrayImpl_For_DerivedSpan final : public VMutableArrayImpl<ElemT> {
     SetFunc(data_[index], std::move(value));
   }
 
-  void materialize(IndexMask mask, ElemT *dst) const override
+  void materialize(const IndexMask &mask, ElemT *dst) const override
   {
-    mask.foreach_index([&](const int64_t i) { dst[i] = GetFunc(data_[i]); });
+    mask.foreach_index_optimized<int64_t>([&](const int64_t i) { dst[i] = GetFunc(data_[i]); });
   }
 
-  void materialize_to_uninitialized(IndexMask mask, ElemT *dst) const override
+  void materialize_to_uninitialized(const IndexMask &mask, ElemT *dst) const override
   {
-    mask.foreach_index([&](const int64_t i) { new (dst + i) ElemT(GetFunc(data_[i])); });
+    mask.foreach_index_optimized<int64_t>(
+        [&](const int64_t i) { new (dst + i) ElemT(GetFunc(data_[i])); });
   }
 
-  void materialize_compressed(IndexMask mask, ElemT *dst) const override
+  void materialize_compressed(const IndexMask &mask, ElemT *dst) const override
   {
-    mask.to_best_mask_type([&](auto best_mask) {
-      for (const int64_t i : IndexRange(best_mask.size())) {
-        dst[i] = GetFunc(data_[best_mask[i]]);
-      }
-    });
+    mask.foreach_index_optimized<int64_t>(
+        [&](const int64_t i, const int64_t pos) { dst[pos] = GetFunc(data_[i]); });
   }
 
-  void materialize_compressed_to_uninitialized(IndexMask mask, ElemT *dst) const override
+  void materialize_compressed_to_uninitialized(const IndexMask &mask, ElemT *dst) const override
   {
-    mask.to_best_mask_type([&](auto best_mask) {
-      for (const int64_t i : IndexRange(best_mask.size())) {
-        new (dst + i) ElemT(GetFunc(data_[best_mask[i]]));
-      }
-    });
+    mask.foreach_index_optimized<int64_t>(
+        [&](const int64_t i, const int64_t pos) { new (dst + pos) ElemT(GetFunc(data_[i])); });
   }
 };
 
@@ -672,6 +647,20 @@ template<typename T> class VArrayCommon {
     }
     return impl_->size();
   }
+  /**
+   * Get the first element.
+   */
+  T first() const
+  {
+    return (*this)[0];
+  }
+  /**
+   * Get the nth last element.
+   */
+  T last(const int64_t n = 0) const
+  {
+    return (*this)[this->size() - 1 - n];
+  }
 
   /** True when the size is zero or when there is no virtual array. */
   bool is_empty() const
@@ -747,7 +736,7 @@ template<typename T> class VArrayCommon {
   }
 
   /** Copy some indices of the virtual array into a span. */
-  void materialize(IndexMask mask, MutableSpan<T> r_span) const
+  void materialize(const IndexMask &mask, MutableSpan<T> r_span) const
   {
     BLI_assert(mask.min_array_size() <= this->size());
     impl_->materialize(mask, r_span.data());
@@ -758,19 +747,19 @@ template<typename T> class VArrayCommon {
     this->materialize_to_uninitialized(IndexMask(this->size()), r_span);
   }
 
-  void materialize_to_uninitialized(IndexMask mask, MutableSpan<T> r_span) const
+  void materialize_to_uninitialized(const IndexMask &mask, MutableSpan<T> r_span) const
   {
     BLI_assert(mask.min_array_size() <= this->size());
     impl_->materialize_to_uninitialized(mask, r_span.data());
   }
 
   /** Copy some elements of the virtual array into a span. */
-  void materialize_compressed(IndexMask mask, MutableSpan<T> r_span) const
+  void materialize_compressed(const IndexMask &mask, MutableSpan<T> r_span) const
   {
     impl_->materialize_compressed(mask, r_span.data());
   }
 
-  void materialize_compressed_to_uninitialized(IndexMask mask, MutableSpan<T> r_span) const
+  void materialize_compressed_to_uninitialized(const IndexMask &mask, MutableSpan<T> r_span) const
   {
     impl_->materialize_compressed_to_uninitialized(mask, r_span.data());
   }
@@ -797,12 +786,9 @@ template<typename T> class VMutableArray;
  * construct the virtual array first and then move it into the vector.
  */
 namespace varray_tag {
-struct span {
-};
-struct single_ref {
-};
-struct single {
-};
+struct span {};
+struct single_ref {};
+struct single {};
 }  // namespace varray_tag
 
 /**
@@ -818,20 +804,16 @@ template<typename T> class VArray : public VArrayCommon<T> {
   VArray(const VArray &other) = default;
   VArray(VArray &&other) noexcept = default;
 
-  VArray(const VArrayImpl<T> *impl) : VArrayCommon<T>(impl)
-  {
-  }
+  VArray(const VArrayImpl<T> *impl) : VArrayCommon<T>(impl) {}
 
-  VArray(std::shared_ptr<const VArrayImpl<T>> impl) : VArrayCommon<T>(std::move(impl))
-  {
-  }
+  VArray(std::shared_ptr<const VArrayImpl<T>> impl) : VArrayCommon<T>(std::move(impl)) {}
 
-  VArray(varray_tag::span /* tag */, Span<T> span)
+  VArray(varray_tag::span /*tag*/, Span<T> span)
   {
     this->template emplace<VArrayImpl_For_Span_final<T>>(span);
   }
 
-  VArray(varray_tag::single /* tag */, T value, const int64_t size)
+  VArray(varray_tag::single /*tag*/, T value, const int64_t size)
   {
     this->template emplace<VArrayImpl_For_Single<T>>(std::move(value), size);
   }
@@ -918,9 +900,7 @@ template<typename T> class VMutableArray : public VArrayCommon<T> {
   VMutableArray(const VMutableArray &other) = default;
   VMutableArray(VMutableArray &&other) noexcept = default;
 
-  VMutableArray(const VMutableArrayImpl<T> *impl) : VArrayCommon<T>(impl)
-  {
-  }
+  VMutableArray(const VMutableArrayImpl<T> *impl) : VArrayCommon<T>(impl) {}
 
   VMutableArray(std::shared_ptr<const VMutableArrayImpl<T>> impl)
       : VArrayCommon<T>(std::move(impl))
@@ -965,7 +945,7 @@ template<typename T> class VMutableArray : public VArrayCommon<T> {
   }
 
   /** Convert to a #VArray by moving. */
-  operator VArray<T>() &&noexcept
+  operator VArray<T>() && noexcept
   {
     VArray<T> varray;
     varray.move_from(std::move(*this));
@@ -1055,7 +1035,9 @@ template<typename T> class VArraySpan final : public Span<T> {
  public:
   VArraySpan() = default;
 
-  VArraySpan(VArray<T> varray) : Span<T>(), varray_(std::move(varray))
+  VArraySpan(const VArray<T> &varray) : VArraySpan(VArray<T>(varray)) {}
+
+  VArraySpan(VArray<T> &&varray) : Span<T>(), varray_(std::move(varray))
   {
     if (!varray_) {
       return;
@@ -1101,6 +1083,10 @@ template<typename T> class VArraySpan final : public Span<T> {
     return *this;
   }
 };
+
+namespace internal {
+void print_mutable_varray_span_warning();
+}
 
 /**
  * Same as #VArraySpan, but for a mutable span.
@@ -1172,7 +1158,7 @@ template<typename T> class MutableVArraySpan final : public MutableSpan<T> {
     if (varray_) {
       if (show_not_saved_warning_) {
         if (!save_has_been_called_) {
-          std::cout << "Warning: Call `save()` to make sure that changes persist in all cases.\n";
+          internal::print_mutable_varray_span_warning();
         }
       }
     }
@@ -1233,6 +1219,19 @@ template<typename T> class SingleAsSpan {
   }
 };
 
+template<typename T> class VArrayRef {
+ private:
+  const VArray<T> &ref_;
+
+ public:
+  VArrayRef(const VArray<T> &ref) : ref_(ref) {}
+
+  const T operator[](const int64_t index) const
+  {
+    return ref_[index];
+  }
+};
+
 /** To be used with #call_with_devirtualized_parameters. */
 template<typename T, bool UseSingle, bool UseSpan> struct VArrayDevirtualizer {
   const VArray<T> &varray;
@@ -1268,11 +1267,12 @@ inline void devirtualize_varray(const VArray<T> &varray, const Func &func, bool 
 {
   if (enable) {
     if (call_with_devirtualized_parameters(
-            std::make_tuple(VArrayDevirtualizer<T, true, true>{varray}), func)) {
+            std::make_tuple(VArrayDevirtualizer<T, true, true>{varray}), func))
+    {
       return;
     }
   }
-  func(varray);
+  func(VArrayRef<T>(varray));
 }
 
 /**
@@ -1290,11 +1290,12 @@ inline void devirtualize_varray2(const VArray<T1> &varray1,
     if (call_with_devirtualized_parameters(
             std::make_tuple(VArrayDevirtualizer<T1, true, true>{varray1},
                             VArrayDevirtualizer<T2, true, true>{varray2}),
-            func)) {
+            func))
+    {
       return;
     }
   }
-  func(varray1, varray2);
+  func(VArrayRef<T1>(varray1), VArrayRef<T2>(varray2));
 }
 
 }  // namespace blender

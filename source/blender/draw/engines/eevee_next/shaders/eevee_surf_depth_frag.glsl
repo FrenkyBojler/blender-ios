@@ -1,70 +1,35 @@
+/* SPDX-FileCopyrightText: 2017-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
  * Depth shader that can stochastically discard transparent pixel.
  */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
-#pragma BLENDER_REQUIRE(common_hair_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_nodetree_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surf_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_velocity_lib.glsl)
+#include "infos/eevee_material_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_clip_plane)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_surf_depth)
+
+#include "common_hair_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "eevee_nodetree_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_surf_lib.glsl"
+#include "eevee_transparency_lib.glsl"
+#include "eevee_velocity_lib.glsl"
 
 vec4 closure_to_rgba(Closure cl)
 {
   vec4 out_color;
   out_color.rgb = g_emission;
-  out_color.a = saturate(1.0 - avg(g_transmittance));
+  out_color.a = saturate(1.0 - average(g_transmittance));
 
   /* Reset for the next closure tree. */
-  closure_weights_reset();
+  closure_weights_reset(0.0);
 
   return out_color;
-}
-
-/* From the paper "Hashed Alpha Testing" by Chris Wyman and Morgan McGuire. */
-float hash(vec2 a)
-{
-  return fract(1e4 * sin(17.0 * a.x + 0.1 * a.y) * (0.1 + abs(sin(13.0 * a.y + a.x))));
-}
-
-float hash3d(vec3 a)
-{
-  return hash(vec2(hash(a.xy), a.z));
-}
-
-float hashed_alpha_threshold(float hash_scale, float hash_offset, vec3 P)
-{
-  /* Find the discretized derivatives of our coordinates. */
-  float max_deriv = max(length(dFdx(P)), length(dFdy(P)));
-  float pix_scale = 1.0 / (hash_scale * max_deriv);
-  /* Find two nearest log-discretized noise scales. */
-  float pix_scale_log = log2(pix_scale);
-  vec2 pix_scales;
-  pix_scales.x = exp2(floor(pix_scale_log));
-  pix_scales.y = exp2(ceil(pix_scale_log));
-  /* Compute alpha thresholds at our two noise scales. */
-  vec2 alpha;
-  alpha.x = hash3d(floor(pix_scales.x * P));
-  alpha.y = hash3d(floor(pix_scales.y * P));
-  /* Factor to interpolate lerp with. */
-  float fac = fract(log2(pix_scale));
-  /* Interpolate alpha threshold from noise at two scales. */
-  float x = mix(alpha.x, alpha.y, fac);
-  /* Pass into CDF to compute uniformly distrib threshold. */
-  float a = min(fac, 1.0 - fac);
-  float one_a = 1.0 - a;
-  float denom = 1.0 / (2 * a * one_a);
-  float one_x = (1 - x);
-  vec3 cases = vec3((x * x) * denom, (x - 0.5 * a) / one_a, 1.0 - (one_x * one_x * denom));
-  /* Find our final, uniformly distributed alpha threshold. */
-  float threshold = (x < one_a) ? ((x < a) ? cases.x : cases.y) : cases.z;
-  /* Jitter the threshold for TAA accumulation. */
-  threshold = fract(threshold + hash_offset);
-  /* Avoids threshold == 0. */
-  threshold = clamp(threshold, 1.0e-6, 1.0);
-  return threshold;
 }
 
 void main()
@@ -72,13 +37,29 @@ void main()
 #ifdef MAT_TRANSPARENT
   init_globals();
 
-  nodetree_surface();
+  nodetree_surface(0.0);
 
+#  ifdef MAT_FORWARD
+  /* Pre-pass only allows fully opaque areas to cut through all transparent layers. */
+  float threshold = 0.0;
+#  else
   float noise_offset = sampling_rng_1D_get(SAMPLING_TRANSPARENCY);
-  float random_threshold = hashed_alpha_threshold(1.0, noise_offset, g_data.P);
+  float threshold = transparency_hashed_alpha_threshold(
+      uniform_buf.pipeline.alpha_hash_scale, noise_offset, g_data.P);
+#  endif
 
-  float transparency = avg(g_transmittance);
-  if (transparency > random_threshold) {
+  float transparency = average(g_transmittance);
+  if (transparency > threshold) {
+    discard;
+    return;
+  }
+#endif
+
+#ifdef MAT_CLIP_PLANE
+  /* Do not use hardware clip planes as they modify the rasterization (some GPUs add vertices).
+   * This would in turn create a discrepancy between the pre-pass depth and the G-buffer depth
+   * which exhibits missing pixels data. */
+  if (clip_interp.clip_distance > 0.0) {
     discard;
     return;
   }

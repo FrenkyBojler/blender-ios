@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __IMAGE_OIIO__
-#define __IMAGE_OIIO__
+#pragma once
 
 #include "scene/image.h"
 
@@ -11,7 +11,7 @@ CCL_NAMESPACE_BEGIN
 class OIIOImageLoader : public ImageLoader {
  public:
   OIIOImageLoader(const string &filepath);
-  ~OIIOImageLoader();
+  ~OIIOImageLoader() override;
 
   bool load_metadata(const ImageDeviceFeatures &features, ImageMetaData &metadata) override;
 
@@ -31,5 +31,3 @@ class OIIOImageLoader : public ImageLoader {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __IMAGE_OIIO__ */

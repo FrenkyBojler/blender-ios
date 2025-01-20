@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2018 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2018 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup intern_eigen
@@ -13,7 +14,8 @@
 #  pragma GCC diagnostic ignored "-Wlogical-op"
 #endif
 
-#ifdef __EIGEN3_MATRIX_C_API_CC__ /* quiet warning */
+#ifdef __EIGEN3_MATRIX_C_API_CC__
+/* Quiet warning. */
 #endif
 
 #include <Eigen/Core>

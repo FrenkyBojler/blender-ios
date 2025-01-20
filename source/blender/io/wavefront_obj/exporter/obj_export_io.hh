@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup obj
@@ -7,18 +9,16 @@
 #pragma once
 
 #include <cstdio>
-#include <string>
 #include <type_traits>
-#include <vector>
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_fileops.h"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
+#include "BLI_vector.hh"
 
 /* SEP macro from BLI path utils clashes with SEP symbol in fmt headers. */
 #undef SEP
-#define FMT_HEADER_ONLY
 #include <fmt/format.h>
 
 namespace blender::io::obj {
@@ -32,28 +32,28 @@ namespace blender::io::obj {
  */
 class FormatHandler : NonCopyable, NonMovable {
  private:
-  typedef std::vector<char> VectorChar;
-  std::vector<VectorChar> blocks_;
+  using VectorChar = Vector<char>;
+  Vector<VectorChar> blocks_;
   size_t buffer_chunk_size_;
 
  public:
-  FormatHandler(size_t buffer_chunk_size = 64 * 1024) : buffer_chunk_size_(buffer_chunk_size)
-  {
-  }
+  FormatHandler(size_t buffer_chunk_size = 64 * 1024) : buffer_chunk_size_(buffer_chunk_size) {}
 
   /* Write contents to the buffer(s) into a file, and clear the buffers. */
   void write_to_file(FILE *f)
   {
-    for (const auto &b : blocks_)
+    for (const auto &b : blocks_) {
       fwrite(b.data(), 1, b.size(), f);
+    }
     blocks_.clear();
   }
 
   std::string get_as_string() const
   {
     std::string s;
-    for (const auto &b : blocks_)
+    for (const auto &b : blocks_) {
       s.append(b.data(), b.size());
+    }
     return s;
   }
   size_t get_block_count() const
@@ -85,27 +85,27 @@ class FormatHandler : NonCopyable, NonMovable {
   {
     write_impl("vn {:.4f} {:.4f} {:.4f}\n", x, y, z);
   }
-  void write_obj_poly_begin()
+  void write_obj_face_begin()
   {
     write_impl("f");
   }
-  void write_obj_poly_end()
+  void write_obj_face_end()
   {
     write_obj_newline();
   }
-  void write_obj_poly_v_uv_normal(int v, int uv, int n)
+  void write_obj_face_v_uv_normal(int v, int uv, int n)
   {
     write_impl(" {}/{}/{}", v, uv, n);
   }
-  void write_obj_poly_v_normal(int v, int n)
+  void write_obj_face_v_normal(int v, int n)
   {
     write_impl(" {}//{}", v, n);
   }
-  void write_obj_poly_v_uv(int v, int uv)
+  void write_obj_face_v_uv(int v, int uv)
   {
     write_impl(" {}/{}", v, uv);
   }
-  void write_obj_poly_v(int v)
+  void write_obj_face_v(int v)
   {
     write_impl(" {}", v);
   }
@@ -202,20 +202,20 @@ class FormatHandler : NonCopyable, NonMovable {
    * If not, add a new block with max of block size & the amount of space needed. */
   void ensure_space(size_t at_least)
   {
-    if (blocks_.empty() || (blocks_.back().capacity() - blocks_.back().size() < at_least)) {
-      VectorChar &b = blocks_.emplace_back(VectorChar());
-      b.reserve(std::max(at_least, buffer_chunk_size_));
+    if (blocks_.is_empty() || (blocks_.last().capacity() - blocks_.last().size() < at_least)) {
+      blocks_.append(VectorChar());
+      blocks_.last().reserve(std::max(at_least, buffer_chunk_size_));
     }
   }
 
-  template<typename... T> void write_impl(const char *fmt, T &&...args)
+  template<typename... T> void write_impl(fmt::format_string<T...> fmt, T &&...args)
   {
     /* Format into a local buffer. */
     fmt::memory_buffer buf;
     fmt::format_to(fmt::appender(buf), fmt, std::forward<T>(args)...);
     size_t len = buf.size();
     ensure_space(len);
-    VectorChar &bb = blocks_.back();
+    VectorChar &bb = blocks_.last();
     bb.insert(bb.end(), buf.begin(), buf.end());
   }
 };

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -7,17 +8,13 @@
 
 #include <stdlib.h>
 
-#if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 8))
-/* do nothing! */
-#else
+#include "BLI_utildefines.h"
 
-#  include "BLI_utildefines.h"
+#include "BLI_sort.h"
 
-#  include "BLI_sort.h"
-
-#  ifdef min /* For MSVC. */
-#    undef min
-#  endif
+#ifdef min /* For MSVC. */
+#  undef min
+#endif
 
 /* Maintained by FreeBSD. */
 /* clang-format off */
@@ -27,7 +24,7 @@
  * with only very minor edits, see:
  * http://github.com/freebsd/freebsd/blob/master/sys/libkern/qsort.c
  *
- * \note modified to use glibc arg order for callbacks.
+ * \note modified to use GLIBC argument order for callbacks.
  */
 BLI_INLINE char *med3(char *a, char *b, char *c, BLI_sort_cmp_t cmp, void *thunk);
 BLI_INLINE void  swapfunc(char *a, char *b, int n, int swaptype);
@@ -165,5 +162,3 @@ loop:
 }
 
 /* clang-format on */
-
-#endif /* __GLIBC__ */

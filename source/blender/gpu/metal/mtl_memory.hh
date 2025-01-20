@@ -1,15 +1,20 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
+#include "BLI_map.hh"
+
+#include "mtl_common.hh"
+
 #include <atomic>
+#include <ctime>
 #include <functional>
 #include <map>
 #include <mutex>
 #include <set>
 #include <unordered_map>
-
-#include "mtl_common.hh"
 
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
@@ -88,16 +93,13 @@
  * performance considerations. */
 #define MTL_DEBUG_MEMORY_STATISTICS 0
 
-/* Allows a scratch buffer to temporarily grow beyond its maximum, which allows submission
- * of one-time-use data packets which are too large. */
-#define MTL_SCRATCH_BUFFER_ALLOW_TEMPORARY_EXPANSION 1
-
 namespace blender::gpu {
 
 /* Forward Declarations. */
 class MTLContext;
 class MTLCommandBufferManager;
 class MTLUniformBuf;
+class MTLStorageBuf;
 
 /* -------------------------------------------------------------------- */
 /** \name Memory Management.
@@ -105,6 +107,11 @@ class MTLUniformBuf;
 
 /* MTLBuffer allocation wrapper. */
 class MTLBuffer {
+
+ public:
+  /* NOTE: ListBase API is not used due to custom destructor operation required to release
+   * Metal objective C buffer resource. */
+  gpu::MTLBuffer *next, *prev;
 
  private:
   /* Metal resource. */
@@ -176,6 +183,8 @@ class MTLBuffer {
 
   /* Safety check to ensure buffers are not used after free. */
   void debug_ensure_used();
+
+  MEM_CXX_CLASS_ALLOC_FUNCS("MTLBuffer");
 };
 
 /* View into part of an MTLBuffer. */
@@ -203,6 +212,8 @@ class MTLCircularBuffer {
 
   /* Wrapped MTLBuffer allocation handled. */
   gpu::MTLBuffer *cbuffer_;
+  /* Allocated SSBO that serves as source for cbuffer. */
+  MTLStorageBuf *ssbo_source_ = nullptr;
 
   /* Current offset where next allocation will begin. */
   uint64_t current_offset_;
@@ -231,17 +242,20 @@ class MTLCircularBuffer {
 struct MTLBufferHandle {
   gpu::MTLBuffer *buffer;
   uint64_t buffer_size;
+  time_t insert_time;
 
   inline MTLBufferHandle(gpu::MTLBuffer *buf)
   {
     this->buffer = buf;
     this->buffer_size = this->buffer->get_size();
+    this->insert_time = std::time(nullptr);
   }
 
   inline MTLBufferHandle(uint64_t compare_size)
   {
     this->buffer = nullptr;
     this->buffer_size = compare_size;
+    this->insert_time = 0;
   }
 };
 
@@ -252,31 +266,32 @@ struct CompareMTLBuffer {
   }
 };
 
-/* An MTLSafeFreeList is a temporary list of gpu::MTLBuffers which have
+/**
+ * An #MTLSafeFreeList is a temporary list of #gpu::MTLBuffers which have
  * been freed by the high level backend, but are pending GPU work execution before
- * the gpu::MTLBuffers can be returned to the Memory manager pools.
+ * the #gpu::MTLBuffers can be returned to the Memory manager pools.
  * This list is implemented as a chunked linked-list.
  *
- * Only a single MTLSafeFreeList is active at one time and is associated with current command
- * buffer submissions. If an MTLBuffer is freed during the lifetime of a command buffer, it could
- * still possibly be in-use and as such, the MTLSafeFreeList will increment its reference count for
- * each command buffer submitted while the current pool is active.
+ * Only a single #MTLSafeFreeList is active at one time and is associated with current command
+ * buffer submissions. If an #MTLBuffer is freed during the lifetime of a command buffer, it could
+ * still possibly be in-use and as such, the #MTLSafeFreeList will increment its reference count
+ * for each command buffer submitted while the current pool is active.
  *
- * -- Reference count is incremented upon MTLCommandBuffer commit.
- * -- Reference count is decremented in the MTLCommandBuffer completion callback handler.
+ * - Reference count is incremented upon #MTLCommandBuffer commit.
+ * - Reference count is decremented in the #MTLCommandBuffer completion callback handler.
  *
- * A new MTLSafeFreeList will begin each render step (frame). This pooling of buffers, rather than
+ * A new #MTLSafeFreeList will begin each render step (frame). This pooling of buffers, rather than
  * individual buffer resource tracking reduces performance overhead.
  *
- *  * The reference count starts at 1 to ensure that the reference count cannot prematurely reach
- *  zero until any command buffers have been submitted. This additional decrement happens
- *  when the next MTLSafeFreeList is created, to allow the existing pool to be released once
- *  the reference count hits zero after submitted command buffers complete.
+ * - The reference count starts at 1 to ensure that the reference count cannot prematurely reach
+ *   zero until any command buffers have been submitted. This additional decrement happens
+ *   when the next #MTLSafeFreeList is created, to allow the existing pool to be released once
+ *   the reference count hits zero after submitted command buffers complete.
  *
  * NOTE: the Metal API independently tracks resources used by command buffers for the purpose of
  * keeping resources alive while in-use by the driver and CPU, however, this differs from the
- * MTLSafeFreeList mechanism in the Metal backend, which exists for the purpose of allowing
- * previously allocated MTLBuffer resources to be re-used. This allows us to save on the expensive
+ * #MTLSafeFreeList mechanism in the Metal backend, which exists for the purpose of allowing
+ * previously allocated #MTLBuffer resources to be re-used. This allows us to save on the expensive
  * cost of memory allocation.
  */
 class MTLSafeFreeList {
@@ -287,17 +302,17 @@ class MTLSafeFreeList {
   std::atomic<bool> in_free_queue_;
   std::atomic<bool> referenced_by_workload_;
   std::recursive_mutex lock_;
-
   /* Linked list of next MTLSafeFreeList chunk if current chunk is full. */
-  std::atomic<int> has_next_pool_;
   std::atomic<MTLSafeFreeList *> next_;
 
   /* Lockless list. MAX_NUM_BUFFERS_ within a chunk based on considerations
-   * for performance and memory.
+   * for performance and memory. Higher chunk counts are preferable for efficiently
+   * performing block operations such as copying several objects simultaneously.
+   *
    * MIN_BUFFER_FLUSH_COUNT refers to the minimum count of buffers in the MTLSafeFreeList
    * before buffers are returned to global memory pool. This is set at a point to reduce
    * overhead of small pool flushes, while ensuring floating memory overhead is not excessive. */
-  static const int MAX_NUM_BUFFERS_ = 1024;
+  static const int MAX_NUM_BUFFERS_ = 8192;
   static const int MIN_BUFFER_FLUSH_COUNT = 120;
   std::atomic<int> current_list_index_;
   gpu::MTLBuffer *safe_free_pool_[MAX_NUM_BUFFERS_];
@@ -305,8 +320,8 @@ class MTLSafeFreeList {
  public:
   MTLSafeFreeList();
 
-  /* Add buffer to Safe Free List, can be called from secondary threads.
-   * Performs a lockless list insert. */
+  /* Can be used from multiple threads. Performs insertion into Safe Free List with the least
+   * amount of threading synchronization. */
   void insert_buffer(gpu::MTLBuffer *buffer);
 
   /* Whether we need to start a new safe free list, or can carry on using the existing one. */
@@ -321,12 +336,15 @@ class MTLSafeFreeList {
   void flag_in_queue()
   {
     in_free_queue_ = true;
-    if (has_next_pool_) {
+    if (current_list_index_ >= MTLSafeFreeList::MAX_NUM_BUFFERS_) {
       MTLSafeFreeList *next_pool = next_.load();
-      BLI_assert(next_pool != nullptr);
-      next_pool->flag_in_queue();
+      if (next_pool) {
+        next_pool->flag_in_queue();
+      }
     }
   }
+
+  MEM_CXX_CLASS_ALLOC_FUNCS("MTLSafeFreeList");
 };
 
 /* MTLBuffer pools. */
@@ -352,12 +370,11 @@ class MTLBufferPool {
 
   /* Debug statistics. */
   std::atomic<int> per_frame_allocation_count_;
-  std::atomic<int64_t> allocations_in_pool_;
   std::atomic<int64_t> buffers_in_pool_;
 #endif
 
   /* Metal resources. */
-  bool ensure_initialised_ = false;
+  bool initialized_ = false;
   id<MTLDevice> device_ = nil;
 
   /* The buffer selection aims to pick a buffer which meets the minimum size requirements.
@@ -384,7 +401,10 @@ class MTLBufferPool {
 
   std::mutex buffer_pool_lock_;
   blender::Map<MTLBufferResourceOptions, MTLBufferPoolOrderedList *> buffer_pools_;
-  blender::Vector<gpu::MTLBuffer *> allocations_;
+
+  /* Linked list to track all existing allocations. Prioritizing fast insert/deletion. */
+  gpu::MTLBuffer *allocations_list_base_;
+  uint allocations_list_size_;
 
   /* Maintain a queue of all MTLSafeFreeList's that have been released
    * by the GPU and are ready to have their buffers re-inserted into the
@@ -397,6 +417,10 @@ class MTLBufferPool {
   /* MTLBuffer::free() can be called from separate threads, due to usage within animation
    * system/worker threads. */
   std::atomic<MTLSafeFreeList *> current_free_list_;
+  std::atomic<int64_t> allocations_in_pool_;
+
+  /* Previous list, to be released after one full frame. */
+  MTLSafeFreeList *prev_free_buffer_list_ = nullptr;
 
  public:
   void init(id<MTLDevice> device);
@@ -426,6 +450,11 @@ class MTLBufferPool {
   void ensure_buffer_pool(MTLResourceOptions options);
   void insert_buffer_into_pool(MTLResourceOptions options, gpu::MTLBuffer *buffer);
   void free();
+
+  /* Allocations list. */
+  void allocations_list_insert(gpu::MTLBuffer *buffer);
+  void allocations_list_delete(gpu::MTLBuffer *buffer);
+  void allocations_list_delete_all();
 };
 
 /* Scratch buffers are circular-buffers used for temporary data within the current frame.
@@ -486,6 +515,12 @@ class MTLScratchBufferManager {
    * This call will perform a partial flush of the buffer starting from
    * the last offset the data was flushed from, to the current offset. */
   void flush_active_scratch_buffer();
+
+  /* Bind the whole scratch buffer as a SSBO resource. */
+  void bind_as_ssbo(int slot);
+  void unbind_as_ssbo();
+
+  MEM_CXX_CLASS_ALLOC_FUNCS("MTLBufferPool");
 };
 
 /** \} */

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifdef WITH_CUDA
 
@@ -23,15 +24,15 @@ class CUDADeviceGraphicsInterop : public DeviceGraphicsInterop {
   CUDADeviceGraphicsInterop(const CUDADeviceGraphicsInterop &other) = delete;
   CUDADeviceGraphicsInterop(CUDADeviceGraphicsInterop &&other) noexcept = delete;
 
-  ~CUDADeviceGraphicsInterop();
+  ~CUDADeviceGraphicsInterop() override;
 
   CUDADeviceGraphicsInterop &operator=(const CUDADeviceGraphicsInterop &other) = delete;
   CUDADeviceGraphicsInterop &operator=(CUDADeviceGraphicsInterop &&other) = delete;
 
-  virtual void set_display_interop(const DisplayDriver::GraphicsInterop &display_interop) override;
+  void set_display_interop(const DisplayDriver::GraphicsInterop &display_interop) override;
 
-  virtual device_ptr map() override;
-  virtual void unmap() override;
+  device_ptr map() override;
+  void unmap() override;
 
  protected:
   CUDADeviceQueue *queue_ = nullptr;

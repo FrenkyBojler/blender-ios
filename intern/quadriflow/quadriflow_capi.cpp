@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <unordered_map>
 
@@ -19,9 +20,7 @@ struct ObjVertex {
   uint32_t n = (uint32_t)-1;
   uint32_t uv = (uint32_t)-1;
 
-  ObjVertex()
-  {
-  }
+  ObjVertex() {}
 
   ObjVertex(uint32_t pi)
   {

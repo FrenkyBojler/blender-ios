@@ -1,5 +1,7 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
+
 from __future__ import annotations
 
 bl_info = {
@@ -47,7 +49,8 @@ class CyclesRender(bpy.types.RenderEngine):
     bl_use_custom_freestyle = True
     bl_use_alembic_procedural = True
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.session = None
 
     def __del__(self):
@@ -106,7 +109,7 @@ class CyclesRender(bpy.types.RenderEngine):
             from . import osl
             osl.update_script_node(node, self.report)
         else:
-            self.report({'ERROR'}, "OSL support disabled in this build.")
+            self.report({'ERROR'}, "OSL support disabled in this build")
 
     def update_render_passes(self, scene, srl):
         engine.register_passes(self, scene, srl)
@@ -152,7 +155,6 @@ def unregister():
     from . import operators
     from . import properties
     from . import presets
-    import atexit
 
     bpy.app.handlers.version_update.remove(version_update.do_versions)
 

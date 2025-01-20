@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation.
- */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eevee
@@ -10,11 +10,10 @@
 
 #pragma once
 
-#include "BKE_colortools.h"
 #include "BLI_system.h"
 #include "BLI_vector.hh"
 #include "DNA_scene_types.h"
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "eevee_shader_shared.hh"
 
@@ -31,7 +30,12 @@ class Sampling {
   /* High number of sample for viewport infinite rendering. */
   static constexpr uint64_t infinite_sample_count_ = 0xFFFFFFu;
   /* During interactive rendering, loop over the first few samples. */
-  static constexpr uint64_t interactive_sample_max_ = 8;
+  static constexpr uint64_t interactive_sample_aa_ = 8;
+  static constexpr uint64_t interactive_sample_raytrace_ = 32;
+  static constexpr uint64_t interactive_sample_volume_ = 32;
+  static constexpr uint64_t interactive_sample_max_ = interactive_sample_aa_ *
+                                                      interactive_sample_raytrace_ *
+                                                      interactive_sample_volume_;
 
   /** 0 based current sample. Might not increase sequentially in viewport. */
   uint64_t sample_ = 0;
@@ -61,51 +65,48 @@ class Sampling {
 
   SamplingDataBuf data_;
 
+  ClampData &clamp_data_;
+
  public:
-  Sampling(Instance &inst) : inst_(inst){};
+  Sampling(Instance &inst, ClampData &clamp_data) : inst_(inst), clamp_data_(clamp_data){};
   ~Sampling(){};
 
   void init(const Scene *scene);
+  void init(const Object &probe_object);
   void end_sync();
   void step();
 
   /* Viewport Only: Function to call to notify something in the scene changed.
    * This will reset accumulation. Do not call after end_sync() or during sample rendering. */
-  void reset()
-  {
-    reset_ = true;
-  }
+  void reset();
 
   /* Viewport Only: true if an update happened in the scene and accumulation needs reset. */
-  bool is_reset() const
+  bool is_reset() const;
+
+  template<typename PassType> void bind_resources(PassType &pass)
   {
-    return reset_;
+    pass.bind_ssbo(SAMPLING_BUF_SLOT, &data_);
   }
 
-  void bind_resources(DRWShadingGroup *grp)
-  {
-    DRW_shgroup_storage_block_ref(grp, "sampling_buf", &data_);
-  }
-
-  template<typename T> void bind_resources(draw::detail::PassBase<T> *pass)
-  {
-    /* Storage Buf. */
-    pass->bind_ssbo(SAMPLING_BUF_SLOT, &data_);
-  }
-
-  /* Returns a pseudo random number in [0..1] range. Each dimension are de-correlated. */
+  /* Returns a pseudo random number in [0..1] range. Each dimension are de-correlated.
+   * WARNING: Don't use during init or sync,
+   * results are only valid during render, after step() has been called. */
   float rng_get(eSamplingDimension dimension) const
   {
     return data_.dimensions[dimension];
   }
 
-  /* Returns a pseudo random number in [0..1] range. Each dimension are de-correlated. */
+  /* Returns a pseudo random number in [0..1] range. Each dimension are de-correlated.
+   * WARNING: Don't use during init or sync,
+   * results are only valid during render, after step() has been called. */
   float2 rng_2d_get(eSamplingDimension starting_dimension) const
   {
     return *reinterpret_cast<const float2 *>(&data_.dimensions[starting_dimension]);
   }
 
-  /* Returns a pseudo random number in [0..1] range. Each dimension are de-correlated. */
+  /* Returns a pseudo random number in [0..1] range. Each dimension are de-correlated.
+   * WARNING: Don't use during init or sync,
+   * results are only valid during render, after step() has been called. */
   float3 rng_3d_get(eSamplingDimension starting_dimension) const
   {
     return *reinterpret_cast<const float3 *>(&data_.dimensions[starting_dimension]);
@@ -129,9 +130,16 @@ class Sampling {
     return interactive_mode_;
   }
 
+  /* Target sample count. */
   uint64_t sample_count() const
   {
     return sample_count_;
+  }
+
+  /* 0 based current sample. Might not increase sequentially in viewport. */
+  uint64_t sample_index() const
+  {
+    return sample_;
   }
 
   /* Return true if we are starting a new motion blur step. We need to run sync again since
@@ -157,6 +165,20 @@ class Sampling {
    * Returns point in a disk of radius 1 and centered on the origin.
    */
   static float2 sample_disk(const float2 &rand);
+
+  /**
+   * Uniform hemisphere distribution.
+   * \a rand is 2 random float in the [0..1] range.
+   * Returns point on a Z positive hemisphere of radius 1 and centered on the origin.
+   */
+  static float3 sample_hemisphere(const float2 &rand);
+
+  /**
+   * Uniform sphere distribution.
+   * \a rand is 2 random float in the [0..1] range.
+   * Returns point on the sphere of radius 1 and centered on the origin.
+   */
+  static float3 sample_sphere(const float2 &rand);
 
   /**
    * Uniform disc distribution using Fibonacci spiral sampling.
@@ -188,7 +210,16 @@ class Sampling {
   }
 
   /* Cumulative Distribution Function Utils. */
+
+  /**
+   * Creates a discrete cumulative distribution function table from a given curvemapping.
+   * Output cdf vector is expected to already be sized according to the wanted resolution.
+   */
   static void cdf_from_curvemapping(const CurveMapping &curve, Vector<float> &cdf);
+  /**
+   * Inverts a cumulative distribution function.
+   * Output vector is expected to already be sized according to the wanted resolution.
+   */
   static void cdf_invert(Vector<float> &cdf, Vector<float> &inverted_cdf);
 };
 

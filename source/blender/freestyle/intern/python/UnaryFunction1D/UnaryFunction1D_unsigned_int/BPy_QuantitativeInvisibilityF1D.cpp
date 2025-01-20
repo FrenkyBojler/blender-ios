@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,7 +22,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char QuantitativeInvisibilityF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    QuantitativeInvisibilityF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DUnsigned` > :class:`QuantitativeInvisibilityF1D`\n"
     "\n"
@@ -36,14 +40,14 @@ static char QuantitativeInvisibilityF1D___doc__[] =
     "\n"
     "   Returns the Quantitative Invisibility of an Interface1D element. If\n"
     "   the Interface1D is a :class:`freestyle.types.ViewEdge`, then there is\n"
-    "   no ambiguity concerning the result.  But, if the Interface1D results\n"
+    "   no ambiguity concerning the result. But, if the Interface1D results\n"
     "   of a chaining (chain, stroke), then it might be made of several 1D\n"
     "   elements of different Quantitative Invisibilities.\n"
     "\n"
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The Quantitative Invisibility of the Interface1D.\n"
-    "   :rtype: int\n";
+    "   :rtype: int\n");
 
 static int QuantitativeInvisibilityF1D___init__(BPy_QuantitativeInvisibilityF1D *self,
                                                 PyObject *args,
@@ -53,7 +57,8 @@ static int QuantitativeInvisibilityF1D___init__(BPy_QuantitativeInvisibilityF1D 
   PyObject *obj = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj)) {
+          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj))
+  {
     return -1;
   }
   IntegrationType t = (obj) ? IntegrationType_from_BPy_IntegrationType(obj) : MEAN;
@@ -64,7 +69,7 @@ static int QuantitativeInvisibilityF1D___init__(BPy_QuantitativeInvisibilityF1D 
 /*-----------------------BPy_QuantitativeInvisibilityF1D type definition ------------------------*/
 
 PyTypeObject QuantitativeInvisibilityF1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "QuantitativeInvisibilityF1D",
     /*tp_basicsize*/ sizeof(BPy_QuantitativeInvisibilityF1D),
     /*tp_itemsize*/ 0,

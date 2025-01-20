@@ -1,85 +1,87 @@
+# SPDX-FileCopyrightText: 2024 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2006 Blender Foundation. All rights reserved.
+
+add_subdirectory(movie)
 
 set(INC
-  .
-  ../blenkernel
-  ../blenlib
-  ../blenloader
-  ../gpu
-  ../makesdna
+  PUBLIC .
+  ./movie
   ../makesrna
-  ../sequencer
-  ../../../intern/guardedalloc
   ../../../intern/memutil
 )
 
 set(INC_SYS
   ${JPEG_INCLUDE_DIR}
-  ${PNG_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
+  ${OPENIMAGEIO_INCLUDE_DIRS}
 )
 
 set(SRC
-  intern/allocimbuf.c
-  intern/anim_movie.c
-  intern/bmp.c
-  intern/colormanagement.c
-  intern/colormanagement_inline.c
-  intern/divers.c
-  intern/filetype.c
-  intern/filter.c
-  intern/imageprocess.c
-  intern/indexer.c
-  intern/iris.c
-  intern/jpeg.c
-  intern/metadata.c
-  intern/module.c
+  intern/allocimbuf.cc
+  intern/colormanagement.cc
+  intern/colormanagement_inline.h
+  intern/divers.cc
+  intern/filetype.cc
+  intern/filter.cc
+  intern/format_bmp.cc
+  intern/format_dds.cc
+  intern/format_hdr.cc
+  intern/format_png.cc
+  intern/format_psd.cc
+  intern/format_svg.cc
+  intern/format_targa.cc
+  intern/format_tiff.cc
+  intern/imageprocess.cc
+  intern/interp.cc
+  intern/iris.cc
+  intern/jpeg.cc
+  intern/metadata.cc
+  intern/module.cc
   intern/moviecache.cc
-  intern/png.c
-  intern/readimage.c
-  intern/rectop.c
-  intern/rotate.c
-  intern/scaling.c
-  intern/stereoimbuf.c
-  intern/targa.c
-  intern/thumbs.c
-  intern/thumbs_blend.c
-  intern/thumbs_font.c
+  intern/readimage.cc
+  intern/rectop.cc
+  intern/rotate.cc
+  intern/scaling.cc
+  intern/stereoimbuf.cc
+  intern/thumbs.cc
+  intern/thumbs_blend.cc
+  intern/thumbs_font.cc
   intern/transform.cc
-  intern/util.c
-  intern/util_gpu.c
-  intern/writeimage.c
+  intern/util.cc
+  intern/util_gpu.cc
+  intern/writeimage.cc
 
-  IMB_colormanagement.h
-  IMB_imbuf.h
-  IMB_imbuf_types.h
-  IMB_metadata.h
-  IMB_moviecache.h
-  IMB_openexr.h
-  IMB_thumbs.h
-  intern/IMB_allocimbuf.h
-  intern/IMB_anim.h
-  intern/IMB_colormanagement_intern.h
-  intern/IMB_filetype.h
-  intern/IMB_filter.h
-  intern/IMB_indexer.h
-  intern/imbuf.h
-
-  # orphan include
-  ../../../intern/ffmpeg/ffmpeg_compat.h
+  IMB_colormanagement.hh
+  IMB_imbuf.hh
+  IMB_imbuf_enums.h
+  IMB_imbuf_types.hh
+  IMB_interp.hh
+  IMB_metadata.hh
+  IMB_moviecache.hh
+  IMB_openexr.hh
+  IMB_thumbs.hh
+  intern/IMB_allocimbuf.hh
+  intern/IMB_colormanagement_intern.hh
+  intern/IMB_filetype.hh
+  intern/IMB_filter.hh
+  intern/imbuf.hh
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
-  bf_blenloader
-  bf_intern_guardedalloc
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::dna
+  PRIVATE bf::gpu
+  bf_imbuf_openimageio
+  PRIVATE bf::intern::guardedalloc
   bf_intern_memutil
   bf_intern_opencolorio
+  PRIVATE bf::extern::nanosvg
 
-  ${PNG_LIBRARIES}
   ${JPEG_LIBRARIES}
+  PRIVATE bf::sequencer
 )
 
 if(WITH_IMAGE_OPENEXR)
@@ -93,25 +95,13 @@ else()
   )
 endif()
 
-if(WITH_IMAGE_TIFF)
+# OpenImageIO headers include `Imath` headers when there is no SSE support for
+# matrix operations. This depends on the specific architecture and compiler
+# flags, most reliable is to always include the `Imath` headers if we have them.
+if(DEFINED IMATH_INCLUDE_DIRS)
   list(APPEND INC_SYS
-    ${TIFF_INCLUDE_DIR}
+    ${IMATH_INCLUDE_DIRS}
   )
-  list(APPEND SRC
-    intern/tiff.c
-  )
-  list(APPEND LIB
-    ${TIFF_LIBRARY}
-  )
-  add_definitions(-DWITH_TIFF)
-endif()
-
-
-if(WITH_OPENIMAGEIO)
-  list(APPEND LIB
-    bf_imbuf_openimageio
-  )
-  add_definitions(-DWITH_OPENIMAGEIO)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
@@ -119,7 +109,7 @@ if(WITH_IMAGE_OPENJPEG)
     ${OPENJPEG_INCLUDE_DIRS}
   )
   list(APPEND SRC
-    intern/jp2.c
+    intern/jp2.cc
   )
   list(APPEND LIB
     ${OPENJPEG_LIBRARIES}
@@ -128,54 +118,19 @@ if(WITH_IMAGE_OPENJPEG)
   add_definitions(-DWITH_OPENJPEG ${OPENJPEG_DEFINES})
 endif()
 
-if(WITH_CODEC_AVI)
-  list(APPEND INC
-    ../io/avi
-  )
-  list(APPEND LIB
-    bf_avi
-  )
-  add_definitions(-DWITH_AVI)
-endif()
-
-if(WITH_CODEC_FFMPEG)
-  list(APPEND INC
-    ../../../intern/ffmpeg
-  )
-  list(APPEND INC_SYS
-    ${FFMPEG_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFMPEG_LIBRARIES}
-    ${OPENJPEG_LIBRARIES}
-  )
-  add_definitions(-DWITH_FFMPEG)
-endif()
-
-if(WITH_IMAGE_DDS)
-  list(APPEND LIB
-    bf_imbuf_dds
-  )
-  add_definitions(-DWITH_DDS)
-endif()
-
 if(WITH_IMAGE_CINEON)
+  list(APPEND SRC
+    intern/format_dpx.cc
+  )
   list(APPEND LIB
     bf_imbuf_cineon
   )
   add_definitions(-DWITH_CINEON)
 endif()
 
-if(WITH_IMAGE_HDR)
-  list(APPEND SRC
-    intern/radiance_hdr.c
-  )
-  add_definitions(-DWITH_HDR)
-endif()
-
 if(WITH_IMAGE_WEBP)
   list(APPEND SRC
-    intern/webp.c
+    intern/webp.cc
   )
   list(APPEND INC_SYS
     ${WEBP_INCLUDE_DIRS}
@@ -196,10 +151,24 @@ if(WIN32)
   )
 endif()
 
+if(WIN32)
+  add_definitions(-DNOMINMAX)
+endif()
+
 # no need to compile object files for inline headers.
 set_source_files_properties(
-  intern/colormanagement_inline.c
+  intern/colormanagement_inline.cc
   PROPERTIES HEADER_FILE_ONLY TRUE
 )
 
 blender_add_lib(bf_imbuf "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::imbuf ALIAS bf_imbuf)
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    tests/IMB_scaling_test.cc
+    tests/IMB_transform_test.cc
+  )
+  blender_add_test_suite_lib(imbuf "${TEST_SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+  add_subdirectory(tests/performance)
+endif()

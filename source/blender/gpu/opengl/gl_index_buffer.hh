@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -9,7 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "gpu_index_buffer_private.hh"
+#include "GPU_index_buffer.hh"
 
 #include <epoxy/gl.h>
 
@@ -29,7 +30,7 @@ class GLIndexBuf : public IndexBuf {
   void bind();
   void bind_as_ssbo(uint binding) override;
 
-  const uint32_t *read() const override;
+  void read(uint32_t *data) const override;
 
   void *offset_ptr(uint additional_vertex_offset) const
   {

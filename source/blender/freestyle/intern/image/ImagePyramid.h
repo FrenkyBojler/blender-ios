@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -11,9 +13,7 @@
 
 #include "../system/FreestyleConfig.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -24,21 +24,19 @@ class ImagePyramid {
   std::vector<GrayImage *> _levels;
 
  public:
-  ImagePyramid()
-  {
-  }
+  ImagePyramid() {}
   ImagePyramid(const ImagePyramid &iBrother);
-  // ImagePyramid(const GrayImage& level0, unsigned nbLevels);
+  // ImagePyramid(const GrayImage& level0, uint nbLevels);
   virtual ~ImagePyramid();
 
   /** Builds the pyramid.
    * must be overloaded by inherited classes.
    * if nbLevels==0, the complete pyramid is built
    */
-  virtual void BuildPyramid(const GrayImage &level0, unsigned nbLevels) = 0;
+  virtual void BuildPyramid(const GrayImage &level0, uint nbLevels) = 0;
 
   /** Builds a pyramid without copying the base level */
-  virtual void BuildPyramid(GrayImage *level0, unsigned nbLevels) = 0;
+  virtual void BuildPyramid(GrayImage *level0, uint nbLevels) = 0;
 
   virtual GrayImage *getLevel(int l);
   /** Returns the pixel x,y using bilinear interpolation.
@@ -63,9 +61,7 @@ class ImagePyramid {
     return _levels.size();
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:ImagePyramid")
-#endif
 };
 
 class GaussianPyramid : public ImagePyramid {
@@ -78,15 +74,13 @@ class GaussianPyramid : public ImagePyramid {
     _sigma = iSigma;
   }
 
-  GaussianPyramid(const GrayImage &level0, unsigned nbLevels, float iSigma = 1.0f);
-  GaussianPyramid(GrayImage *level0, unsigned nbLevels, float iSigma = 1.0f);
+  GaussianPyramid(const GrayImage &level0, uint nbLevels, float iSigma = 1.0f);
+  GaussianPyramid(GrayImage *level0, uint nbLevels, float iSigma = 1.0f);
   GaussianPyramid(const GaussianPyramid &iBrother);
-  virtual ~GaussianPyramid()
-  {
-  }
+  virtual ~GaussianPyramid() {}
 
-  virtual void BuildPyramid(const GrayImage &level0, unsigned nbLevels);
-  virtual void BuildPyramid(GrayImage *level0, unsigned nbLevels);
+  virtual void BuildPyramid(const GrayImage &level0, uint nbLevels);
+  virtual void BuildPyramid(GrayImage *level0, uint nbLevels);
 
   /* accessors */
   inline float getSigma() const

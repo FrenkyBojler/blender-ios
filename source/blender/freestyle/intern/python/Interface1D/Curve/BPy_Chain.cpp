@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,24 +22,26 @@ using namespace Freestyle;
 
 /*----------------------Chain methods ----------------------------*/
 
-PyDoc_STRVAR(Chain_doc,
-             "Class hierarchy: :class:`Interface1D` > :class:`Curve` > :class:`Chain`\n"
-             "\n"
-             "Class to represent a 1D elements issued from the chaining process.  A\n"
-             "Chain is the last step before the :class:`Stroke` and is used in the\n"
-             "Splitting and Creation processes.\n"
-             "\n"
-             ".. method:: __init__()\n"
-             "            __init__(brother)\n"
-             "            __init__(id)\n"
-             "\n"
-             "   Builds a :class:`Chain` using the default constructor,\n"
-             "   copy constructor or from an :class:`Id`.\n"
-             "\n"
-             "   :arg brother: A Chain object.\n"
-             "   :type brother: :class:`Chain`\n"
-             "   :arg id: An Id object.\n"
-             "   :type id: :class:`Id`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Chain_doc,
+    "Class hierarchy: :class:`Interface1D` > :class:`Curve` > :class:`Chain`\n"
+    "\n"
+    "Class to represent a 1D elements issued from the chaining process. A\n"
+    "Chain is the last step before the :class:`Stroke` and is used in the\n"
+    "Splitting and Creation processes.\n"
+    "\n"
+    ".. method:: __init__()\n"
+    "            __init__(brother)\n"
+    "            __init__(id)\n"
+    "\n"
+    "   Builds a :class:`Chain` using the default constructor,\n"
+    "   copy constructor or from an :class:`Id`.\n"
+    "\n"
+    "   :arg brother: A Chain object.\n"
+    "   :type brother: :class:`Chain`\n"
+    "   :arg id: An Id object.\n"
+    "   :type id: :class:`Id`");
 
 static int Chain_init(BPy_Chain *self, PyObject *args, PyObject *kwds)
 {
@@ -54,7 +58,8 @@ static int Chain_init(BPy_Chain *self, PyObject *args, PyObject *kwds)
     }
   }
   else if ((void)PyErr_Clear(),
-           PyArg_ParseTupleAndKeywords(args, kwds, "O!", (char **)kwlist_2, &Id_Type, &obj)) {
+           PyArg_ParseTupleAndKeywords(args, kwds, "O!", (char **)kwlist_2, &Id_Type, &obj))
+  {
     self->c = new Chain(*(((BPy_Id *)obj)->id));
   }
   else {
@@ -67,16 +72,18 @@ static int Chain_init(BPy_Chain *self, PyObject *args, PyObject *kwds)
   return 0;
 }
 
-PyDoc_STRVAR(Chain_push_viewedge_back_doc,
-             ".. method:: push_viewedge_back(viewedge, orientation)\n"
-             "\n"
-             "   Adds a ViewEdge at the end of the Chain.\n"
-             "\n"
-             "   :arg viewedge: The ViewEdge that must be added.\n"
-             "   :type viewedge: :class:`ViewEdge`\n"
-             "   :arg orientation: The orientation with which the ViewEdge must be\n"
-             "      processed.\n"
-             "   :type orientation: bool");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Chain_push_viewedge_back_doc,
+    ".. method:: push_viewedge_back(viewedge, orientation)\n"
+    "\n"
+    "   Adds a ViewEdge at the end of the Chain.\n"
+    "\n"
+    "   :arg viewedge: The ViewEdge that must be added.\n"
+    "   :type viewedge: :class:`ViewEdge`\n"
+    "   :arg orientation: The orientation with which the ViewEdge must be\n"
+    "      processed.\n"
+    "   :type orientation: bool");
 
 static PyObject *Chain_push_viewedge_back(BPy_Chain *self, PyObject *args, PyObject *kwds)
 {
@@ -84,7 +91,8 @@ static PyObject *Chain_push_viewedge_back(BPy_Chain *self, PyObject *args, PyObj
   PyObject *obj1 = nullptr, *obj2 = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "O!O!", (char **)kwlist, &ViewEdge_Type, &obj1, &PyBool_Type, &obj2)) {
+          args, kwds, "O!O!", (char **)kwlist, &ViewEdge_Type, &obj1, &PyBool_Type, &obj2))
+  {
     return nullptr;
   }
   ViewEdge *ve = ((BPy_ViewEdge *)obj1)->ve;
@@ -93,16 +101,18 @@ static PyObject *Chain_push_viewedge_back(BPy_Chain *self, PyObject *args, PyObj
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(Chain_push_viewedge_front_doc,
-             ".. method:: push_viewedge_front(viewedge, orientation)\n"
-             "\n"
-             "   Adds a ViewEdge at the beginning of the Chain.\n"
-             "\n"
-             "   :arg viewedge: The ViewEdge that must be added.\n"
-             "   :type viewedge: :class:`ViewEdge`\n"
-             "   :arg orientation: The orientation with which the ViewEdge must be\n"
-             "      processed.\n"
-             "   :type orientation: bool");
+PyDoc_STRVAR(
+    /* Wrap. */
+    Chain_push_viewedge_front_doc,
+    ".. method:: push_viewedge_front(viewedge, orientation)\n"
+    "\n"
+    "   Adds a ViewEdge at the beginning of the Chain.\n"
+    "\n"
+    "   :arg viewedge: The ViewEdge that must be added.\n"
+    "   :type viewedge: :class:`ViewEdge`\n"
+    "   :arg orientation: The orientation with which the ViewEdge must be\n"
+    "      processed.\n"
+    "   :type orientation: bool");
 
 static PyObject *Chain_push_viewedge_front(BPy_Chain *self, PyObject *args, PyObject *kwds)
 {
@@ -110,7 +120,8 @@ static PyObject *Chain_push_viewedge_front(BPy_Chain *self, PyObject *args, PyOb
   PyObject *obj1 = nullptr, *obj2 = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "O!O!", (char **)kwlist, &ViewEdge_Type, &obj1, &PyBool_Type, &obj2)) {
+          args, kwds, "O!O!", (char **)kwlist, &ViewEdge_Type, &obj1, &PyBool_Type, &obj2))
+  {
     return nullptr;
   }
   ViewEdge *ve = ((BPy_ViewEdge *)obj1)->ve;
@@ -134,7 +145,7 @@ static PyMethodDef BPy_Chain_methods[] = {
 /*-----------------------BPy_Chain type definition ------------------------------*/
 
 PyTypeObject Chain_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "Chain",
     /*tp_basicsize*/ sizeof(BPy_Chain),
     /*tp_itemsize*/ 0,

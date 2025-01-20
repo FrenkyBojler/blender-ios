@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edtransform
@@ -9,30 +10,35 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_rect.h"
 
-#include "BKE_context.h"
-#include "BKE_node.h"
+#include "BKE_context.hh"
+#include "BKE_main_invariants.hh"
+#include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_node_tree_update.h"
-#include "BKE_report.h"
 
 #include "ED_node.hh"
 
-#include "UI_interface.h"
-#include "UI_view2d.h"
+#include "UI_view2d.hh"
 
-#include "transform.h"
-#include "transform_convert.h"
-#include "transform_snap.h"
+#include "transform.hh"
+#include "transform_convert.hh"
+#include "transform_snap.hh"
+
+#include "WM_api.hh"
+
+namespace blender::ed::transform {
 
 struct TransCustomDataNode {
   View2DEdgePanData edgepan_data;
 
   /* Compare if the view has changed so we can update with `transformViewUpdate`. */
   rctf viewrect_prev;
+
+  bool is_new_node;
 };
 
 /* -------------------------------------------------------------------- */
@@ -44,27 +50,19 @@ static void create_transform_data_for_node(TransData &td,
                                            bNode &node,
                                            const float dpi_fac)
 {
-  float locx, locy;
+  /* Account for parents (nested nodes). */
+  float2 loc = float2(node.location) * dpi_fac;
 
-  /* account for parents (nested nodes) */
-  if (node.parent) {
-    nodeToView(node.parent, node.locx, node.locy, &locx, &locy);
-  }
-  else {
-    locx = node.locx;
-    locy = node.locy;
-  }
-
-  /* use top-left corner as the transform origin for nodes */
+  /* Use top-left corner as the transform origin for nodes. */
   /* Weirdo - but the node system is a mix of free 2d elements and DPI sensitive UI. */
-  td2d.loc[0] = locx * dpi_fac;
-  td2d.loc[1] = locy * dpi_fac;
+  td2d.loc[0] = loc.x;
+  td2d.loc[1] = loc.y;
   td2d.loc[2] = 0.0f;
-  td2d.loc2d = td2d.loc; /* current location */
+  td2d.loc2d = td2d.loc; /* Current location. */
 
   td.loc = td2d.loc;
   copy_v3_v3(td.iloc, td.loc);
-  /* use node center instead of origin (top-left corner) */
+  /* Use node center instead of origin (top-left corner). */
   td.center[0] = td2d.loc[0];
   td.center[1] = td2d.loc[1];
   td.center[2] = 0.0f;
@@ -96,15 +94,13 @@ static bool is_node_parent_select(const bNode *node)
 
 static void createTransNodeData(bContext * /*C*/, TransInfo *t)
 {
-  using namespace blender;
-  using namespace blender::ed;
   SpaceNode *snode = static_cast<SpaceNode *>(t->area->spacedata.first);
   bNodeTree *node_tree = snode->edittree;
   if (!node_tree) {
     return;
   }
 
-  /* Custom data to enable edge panning during the node transform */
+  /* Custom data to enable edge panning during the node transform. */
   TransCustomDataNode *customdata = MEM_cnew<TransCustomDataNode>(__func__);
   UI_view2d_edge_pan_init(t->context,
                           &customdata->edgepan_data,
@@ -115,13 +111,10 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
                           NODE_EDGE_PAN_DELAY,
                           NODE_EDGE_PAN_ZOOM_INFLUENCE);
   customdata->viewrect_prev = customdata->edgepan_data.initial_rect;
+  customdata->is_new_node = t->remove_on_cancel;
 
-  if (t->modifiers & MOD_NODE_ATTACH) {
-    space_node::node_insert_on_link_flags_set(*snode, *t->region);
-  }
-  else {
-    space_node::node_insert_on_link_flags_clear(*snode->edittree);
-  }
+  space_node::node_insert_on_link_flags_set(
+      *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
 
   t->custom.type.data = customdata;
   t->custom.type.use_free = true;
@@ -142,7 +135,7 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
   tc->data_2d = MEM_cnew_array<TransData2D>(tc->data_len, __func__);
 
   for (const int i : nodes.index_range()) {
-    create_transform_data_for_node(tc->data[i], tc->data_2d[i], *nodes[i], UI_DPI_FAC);
+    create_transform_data_for_node(tc->data[i], tc->data_2d[i], *nodes[i], UI_SCALE_FAC);
   }
 }
 
@@ -154,10 +147,9 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
 
 static void node_snap_grid_apply(TransInfo *t)
 {
-  using namespace blender;
-
   if (!(transform_snap_is_active(t) &&
-        (t->tsnap.mode & (SCE_SNAP_MODE_INCREMENT | SCE_SNAP_MODE_GRID)))) {
+        (t->tsnap.mode & (SCE_SNAP_TO_INCREMENT | SCE_SNAP_TO_GRID))))
+  {
     return;
   }
 
@@ -194,10 +186,20 @@ static void node_snap_grid_apply(TransInfo *t)
   }
 }
 
+static void move_child_nodes(bNode &node, const float2 &delta)
+{
+  for (bNode *child : node.direct_children_in_frame()) {
+    child->location[0] += delta.x;
+    child->location[1] += delta.y;
+    if (child->is_frame()) {
+      move_child_nodes(*child, delta);
+    }
+  }
+}
+
 static void flushTransNodes(TransInfo *t)
 {
-  using namespace blender::ed;
-  const float dpi_fac = UI_DPI_FAC;
+  const float dpi_fac = UI_SCALE_FAC;
   SpaceNode *snode = static_cast<SpaceNode *>(t->area->spacedata.first);
 
   TransCustomDataNode *customdata = (TransCustomDataNode *)t->custom.type.data;
@@ -207,10 +209,10 @@ static void flushTransNodes(TransInfo *t)
       UI_view2d_edge_pan_cancel(t->context, &customdata->edgepan_data);
     }
     else {
-      /* Edge panning functions expect window coordinates, mval is relative to region */
+      /* Edge panning functions expect window coordinates, mval is relative to region. */
       const int xy[2] = {
-          t->region->winrct.xmin + t->mval[0],
-          t->region->winrct.ymin + t->mval[1],
+          t->region->winrct.xmin + int(t->mval[0]),
+          t->region->winrct.ymin + int(t->mval[1]),
       };
       UI_view2d_edge_pan_apply(t->context, &customdata->edgepan_data, xy);
     }
@@ -221,7 +223,7 @@ static void flushTransNodes(TransInfo *t)
     if (!BLI_rctf_compare(&customdata->viewrect_prev, &t->region->v2d.cur, FLT_EPSILON)) {
       /* Additional offset due to change in view2D rect. */
       BLI_rctf_transform_pt_v(&t->region->v2d.cur, &customdata->viewrect_prev, offset, offset);
-      tranformViewUpdate(t);
+      transformViewUpdate(t);
       customdata->viewrect_prev = t->region->v2d.cur;
     }
   }
@@ -229,36 +231,30 @@ static void flushTransNodes(TransInfo *t)
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     node_snap_grid_apply(t);
 
-    /* flush to 2d vector from internally used 3d vector */
+    /* Flush to 2d vector from internally used 3d vector. */
     for (int i = 0; i < tc->data_len; i++) {
       TransData *td = &tc->data[i];
       TransData2D *td2d = &tc->data_2d[i];
       bNode *node = static_cast<bNode *>(td->extra);
 
-      float loc[2];
-      add_v2_v2v2(loc, td2d->loc, offset);
+      float2 loc = float2(td2d->loc) + offset;
 
       /* Weirdo - but the node system is a mix of free 2d elements and DPI sensitive UI. */
-      loc[0] /= dpi_fac;
-      loc[1] /= dpi_fac;
+      loc /= dpi_fac;
 
-      /* account for parents (nested nodes) */
-      if (node->parent) {
-        nodeFromView(node->parent, loc[0], loc[1], &loc[0], &loc[1]);
+      if (node->is_frame()) {
+        const float2 delta = loc - float2(node->location);
+        move_child_nodes(*node, delta);
       }
 
-      node->locx = loc[0];
-      node->locy = loc[1];
+      node->location[0] = loc.x;
+      node->location[1] = loc.y;
     }
 
-    /* handle intersection with noodles */
+    /* Handle intersection with noodles. */
     if (tc->data_len == 1) {
-      if (t->modifiers & MOD_NODE_ATTACH) {
-        space_node::node_insert_on_link_flags_set(*snode, *t->region);
-      }
-      else {
-        space_node::node_insert_on_link_flags_clear(*snode->edittree);
-      }
+      space_node::node_insert_on_link_flags_set(
+          *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
     }
   }
 }
@@ -271,7 +267,6 @@ static void flushTransNodes(TransInfo *t)
 
 static void special_aftertrans_update__node(bContext *C, TransInfo *t)
 {
-  using namespace blender::ed;
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = (SpaceNode *)t->area->spacedata.first;
   bNodeTree *ntree = snode->edittree;
@@ -279,32 +274,42 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   const bool canceled = (t->state == TRANS_CANCEL);
 
   if (canceled && t->remove_on_cancel) {
-    /* remove selected nodes on cancel */
+    /* Remove selected nodes on cancel. */
     if (ntree) {
       LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
         if (node->flag & NODE_SELECT) {
-          nodeRemoveNode(bmain, ntree, node, true);
+          bke::node_remove_node(bmain, ntree, node, true);
         }
       }
-      ED_node_tree_propagate_change(C, bmain, ntree);
+      BKE_main_ensure_invariants(*bmain, ntree->id);
     }
   }
 
   if (!canceled) {
     ED_node_post_apply_transform(C, snode->edittree);
     if (t->modifiers & MOD_NODE_ATTACH) {
-      space_node::node_insert_on_link_flags(*bmain, *snode);
+      const TransCustomDataNode &customdata = *(TransCustomDataNode *)t->custom.type.data;
+      space_node::node_insert_on_link_flags(*bmain, *snode, customdata.is_new_node);
     }
   }
 
   space_node::node_insert_on_link_flags_clear(*ntree);
+
+  wmOperatorType *ot = WM_operatortype_find("NODE_OT_insert_offset", true);
+  BLI_assert(ot);
+  PointerRNA ptr;
+  WM_operator_properties_create_ptr(&ptr, ot);
+  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_properties_free(&ptr);
 }
 
 /** \} */
 
+}  // namespace blender::ed::transform
+
 TransConvertTypeInfo TransConvertType_Node = {
     /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*createTransData*/ createTransNodeData,
-    /*recalcData*/ flushTransNodes,
-    /*special_aftertrans_update*/ special_aftertrans_update__node,
+    /*create_trans_data*/ blender::ed::transform::createTransNodeData,
+    /*recalc_data*/ blender::ed::transform::flushTransNodes,
+    /*special_aftertrans_update*/ blender::ed::transform::special_aftertrans_update__node,
 };

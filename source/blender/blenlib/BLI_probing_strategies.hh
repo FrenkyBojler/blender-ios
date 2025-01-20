@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -41,6 +43,8 @@
  *   probing might work best.
  */
 
+#include <limits>
+
 #include "BLI_sys_types.h"
 
 namespace blender {
@@ -55,9 +59,7 @@ class LinearProbingStrategy {
   uint64_t hash_;
 
  public:
-  LinearProbingStrategy(const uint64_t hash) : hash_(hash)
-  {
-  }
+  LinearProbingStrategy(const uint64_t hash) : hash_(hash) {}
 
   void next()
   {

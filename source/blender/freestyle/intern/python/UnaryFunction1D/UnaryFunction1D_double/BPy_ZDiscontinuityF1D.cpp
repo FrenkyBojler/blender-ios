@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,7 +22,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ZDiscontinuityF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ZDiscontinuityF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DDouble` > :class:`ZDiscontinuityF1D`\n"
     "\n"
@@ -35,7 +39,7 @@ static char ZDiscontinuityF1D___doc__[] =
     ".. method:: __call__(inter)\n"
     "\n"
     "   Returns a real value giving the distance between an Interface1D\n"
-    "   and the shape that lies behind (occludee).  This distance is\n"
+    "   and the shape that lies behind (occludee). This distance is\n"
     "   evaluated in the camera space and normalized between 0 and 1.\n"
     "   Therefore, if no object is occluded by the shape to which the\n"
     "   Interface1D belongs to, 1 is returned.\n"
@@ -43,7 +47,7 @@ static char ZDiscontinuityF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The normalized distance between the Interface1D and the occludee.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int ZDiscontinuityF1D___init__(BPy_ZDiscontinuityF1D *self, PyObject *args, PyObject *kwds)
 {
@@ -51,7 +55,8 @@ static int ZDiscontinuityF1D___init__(BPy_ZDiscontinuityF1D *self, PyObject *arg
   PyObject *obj = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj)) {
+          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj))
+  {
     return -1;
   }
   IntegrationType t = (obj) ? IntegrationType_from_BPy_IntegrationType(obj) : MEAN;
@@ -62,7 +67,7 @@ static int ZDiscontinuityF1D___init__(BPy_ZDiscontinuityF1D *self, PyObject *arg
 /*-----------------------BPy_ZDiscontinuityF1D type definition ------------------------------*/
 
 PyTypeObject ZDiscontinuityF1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "ZDiscontinuityF1D",
     /*tp_basicsize*/ sizeof(BPy_ZDiscontinuityF1D),
     /*tp_itemsize*/ 0,

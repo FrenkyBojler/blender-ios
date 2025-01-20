@@ -1,16 +1,14 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2019-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2019-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __BLENDER_VIEWPORT_H__
-#define __BLENDER_VIEWPORT_H__
+#pragma once
 
-#include "MEM_guardedalloc.h"
+#include "RNA_blender_cpp.hh"
 
-#include "RNA_access.h"
-#include "RNA_blender_cpp.h"
-#include "RNA_types.h"
+#include "kernel/types.h"
 
-#include "scene/film.h"
+#include "util/param.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -46,5 +44,3 @@ class BlenderViewportParameters {
 };
 
 CCL_NAMESPACE_END
-
-#endif

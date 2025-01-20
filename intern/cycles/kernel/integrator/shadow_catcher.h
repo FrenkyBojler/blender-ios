@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
-#include "kernel/integrator/path_state.h"
-#include "kernel/integrator/state_util.h"
+#include "kernel/integrator/state_flow.h"
 
 CCL_NAMESPACE_BEGIN
 

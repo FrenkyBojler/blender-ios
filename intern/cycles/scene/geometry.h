@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __GEOMETRY_H__
-#define __GEOMETRY_H__
+#pragma once
 
 #include "graph/node.h"
 
@@ -29,6 +29,38 @@ class SceneParams;
 class Shader;
 class Volume;
 struct PackedBVH;
+
+/* Set of flags used to help determining what data has been modified or needs reallocation, so we
+ * can decide which device data to free or update. */
+enum {
+  DEVICE_CURVE_DATA_MODIFIED = (1 << 0),
+  DEVICE_MESH_DATA_MODIFIED = (1 << 1),
+  DEVICE_POINT_DATA_MODIFIED = (1 << 2),
+
+  ATTR_FLOAT_MODIFIED = (1 << 3),
+  ATTR_FLOAT2_MODIFIED = (1 << 4),
+  ATTR_FLOAT3_MODIFIED = (1 << 5),
+  ATTR_FLOAT4_MODIFIED = (1 << 6),
+  ATTR_UCHAR4_MODIFIED = (1 << 7),
+
+  CURVE_DATA_NEED_REALLOC = (1 << 8),
+  MESH_DATA_NEED_REALLOC = (1 << 9),
+  POINT_DATA_NEED_REALLOC = (1 << 10),
+
+  ATTR_FLOAT_NEEDS_REALLOC = (1 << 11),
+  ATTR_FLOAT2_NEEDS_REALLOC = (1 << 12),
+  ATTR_FLOAT3_NEEDS_REALLOC = (1 << 13),
+  ATTR_FLOAT4_NEEDS_REALLOC = (1 << 14),
+
+  ATTR_UCHAR4_NEEDS_REALLOC = (1 << 15),
+
+  ATTRS_NEED_REALLOC = (ATTR_FLOAT_NEEDS_REALLOC | ATTR_FLOAT2_NEEDS_REALLOC |
+                        ATTR_FLOAT3_NEEDS_REALLOC | ATTR_FLOAT4_NEEDS_REALLOC |
+                        ATTR_UCHAR4_NEEDS_REALLOC),
+  DEVICE_MESH_DATA_NEEDS_REALLOC = (MESH_DATA_NEED_REALLOC | ATTRS_NEED_REALLOC),
+  DEVICE_POINT_DATA_NEEDS_REALLOC = (POINT_DATA_NEED_REALLOC | ATTRS_NEED_REALLOC),
+  DEVICE_CURVE_DATA_NEEDS_REALLOC = (CURVE_DATA_NEED_REALLOC | ATTRS_NEED_REALLOC),
+};
 
 /* Geometry
  *
@@ -67,7 +99,7 @@ class Geometry : public Node {
   static const uint MAX_MOTION_STEPS = 129;
 
   /* BVH */
-  BVH *bvh;
+  unique_ptr<BVH> bvh;
   size_t attr_map_offset;
   size_t prim_offset;
 
@@ -84,7 +116,7 @@ class Geometry : public Node {
 
   /* Constructor/Destructor */
   explicit Geometry(const NodeType *node_type, const Type type);
-  virtual ~Geometry();
+  ~Geometry() override;
 
   /* Geometry */
   virtual void clear(bool preserve_shaders = false);
@@ -102,15 +134,15 @@ class Geometry : public Node {
 
   /* Convert between normalized -1..1 motion time and index in the
    * VERTEX_MOTION attribute. */
-  float motion_time(int step) const;
-  int motion_step(float time) const;
+  float motion_time(const int step) const;
+  int motion_step(const float time) const;
 
   /* BVH */
   void compute_bvh(Device *device,
                    DeviceScene *dscene,
                    SceneParams *params,
                    Progress *progress,
-                   size_t n,
+                   const size_t n,
                    size_t total);
 
   virtual PrimitiveType primitive_type() const = 0;
@@ -206,7 +238,7 @@ class GeometryManager {
   void device_free(Device *device, DeviceScene *dscene, bool force_free);
 
   /* Updates */
-  void tag_update(Scene *scene, uint32_t flag);
+  void tag_update(Scene *scene, const uint32_t flag);
 
   bool need_update() const;
 
@@ -263,5 +295,3 @@ class GeometryManager {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __GEOMETRY_H__ */

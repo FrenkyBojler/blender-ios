@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -6,6 +8,8 @@
  * \ingroup bli
  * \brief Efficient in-memory storage of multiple similar arrays.
  */
+
+#include "BLI_sys_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -86,7 +90,7 @@ size_t BLI_array_store_state_size_get(BArrayState *state);
 /**
  * Fill in existing allocated memory with the contents of \a state.
  */
-void BLI_array_store_state_data_get(BArrayState *state, void *data);
+void BLI_array_store_state_data_get(const BArrayState *state, void *data);
 /**
  * Allocate an array for \a state and return it.
  */

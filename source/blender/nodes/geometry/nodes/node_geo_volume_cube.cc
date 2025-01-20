@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/openvdb.h>
@@ -9,47 +11,44 @@
 
 #include "node_geometry_util.hh"
 
-#include "DNA_mesh_types.h"
-
 #include "BLI_task.hh"
 
 #include "BKE_geometry_set.hh"
-#include "BKE_lib_id.h"
-#include "BKE_mesh.h"
-#include "BKE_volume.h"
+#include "BKE_lib_id.hh"
+#include "BKE_volume.hh"
+#include "BKE_volume_openvdb.hh"
 
 namespace blender::nodes::node_geo_volume_cube_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>(N_("Density"))
-      .description(N_("Volume density per voxel"))
-      .supports_field()
-      .default_value(1.0f);
-  b.add_input<decl::Float>(N_("Background"))
-      .description(N_("Value for voxels outside of the cube"));
+  b.add_input<decl::Float>("Density")
+      .default_value(1.0f)
+      .description("Volume density per voxel")
+      .supports_field();
+  b.add_input<decl::Float>("Background").description("Value for voxels outside of the cube");
 
-  b.add_input<decl::Vector>(N_("Min"))
-      .description(N_("Minimum boundary of volume"))
-      .default_value(float3(-1.0f));
-  b.add_input<decl::Vector>(N_("Max"))
-      .description(N_("Maximum boundary of volume"))
-      .default_value(float3(1.0f));
+  b.add_input<decl::Vector>("Min")
+      .default_value(float3(-1.0f))
+      .description("Minimum boundary of volume");
+  b.add_input<decl::Vector>("Max")
+      .default_value(float3(1.0f))
+      .description("Maximum boundary of volume");
 
-  b.add_input<decl::Int>(N_("Resolution X"))
-      .description(N_("Number of voxels in the X axis"))
+  b.add_input<decl::Int>("Resolution X")
       .default_value(32)
-      .min(2);
-  b.add_input<decl::Int>(N_("Resolution Y"))
-      .description(N_("Number of voxels in the Y axis"))
+      .min(2)
+      .description("Number of voxels in the X axis");
+  b.add_input<decl::Int>("Resolution Y")
       .default_value(32)
-      .min(2);
-  b.add_input<decl::Int>(N_("Resolution Z"))
-      .description(N_("Number of voxels in the Z axis"))
+      .min(2)
+      .description("Number of voxels in the Y axis");
+  b.add_input<decl::Int>("Resolution Z")
       .default_value(32)
-      .min(2);
+      .min(2)
+      .description("Number of voxels in the Z axis");
 
-  b.add_output<decl::Geometry>(N_("Volume"));
+  b.add_output<decl::Geometry>("Volume").translation_context(BLT_I18NCONTEXT_ID_ID);
 }
 
 static float map(const float x,
@@ -79,7 +78,7 @@ class Grid3DFieldContext : public FieldContext {
   }
 
   GVArray get_varray_for_input(const FieldInput &field_input,
-                               const IndexMask /*mask*/,
+                               const IndexMask & /*mask*/,
                                ResourceScope & /*scope*/) const
   {
     const bke::AttributeFieldInput *attribute_field_input =
@@ -128,8 +127,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  if (bounds_min.x == bounds_max.x || bounds_min.y == bounds_max.y ||
-      bounds_min.z == bounds_max.z) {
+  if (bounds_min.x == bounds_max.x || bounds_min.y == bounds_max.y || bounds_min.z == bounds_max.z)
+  {
     params.error_message_add(NodeWarningType::Error,
                              TIP_("Bounding box volume must be greater than 0"));
     params.set_default_remaining_outputs();
@@ -175,23 +174,25 @@ static void node_geo_exec(GeoNodeExecParams params)
   r_geometry_set.replace_volume(volume);
   params.set_output("Volume", r_geometry_set);
 #else
-  params.set_default_remaining_outputs();
-  params.error_message_add(NodeWarningType::Error,
-                           TIP_("Disabled, Blender was compiled without OpenVDB"));
+  node_geo_exec_with_missing_openvdb(params);
 #endif
 }
 
-}  // namespace blender::nodes::node_geo_volume_cube_cc
-
-void register_node_type_geo_volume_cube()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_volume_cube_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_VOLUME_CUBE, "Volume Cube", NODE_CLASS_GEOMETRY);
-
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeVolumeCube", GEO_NODE_VOLUME_CUBE);
+  ntype.ui_name = "Volume Cube";
+  ntype.ui_description =
+      "Generate a dense volume with a field that controls the density at each grid voxel based on "
+      "its position";
+  ntype.enum_name_legacy = "VOLUME_CUBE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_volume_cube_cc

@@ -1,9 +1,13 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
+#include "testing/testing.h"
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_utils.hh"
-#include "BLI_strict_flags.h"
-#include "testing/testing.h"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 namespace blender::tests {
 
@@ -12,9 +16,7 @@ class TestBaseClass {
 };
 
 class TestChildClass : public TestBaseClass {
-  void mymethod() override
-  {
-  }
+  void mymethod() override {}
 };
 
 static_assert(is_convertible_pointer_v<int *, int *>);

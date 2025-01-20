@@ -1,9 +1,13 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
+#include "testing/testing.h"
 
 #include "BLI_span.hh"
-#include "BLI_strict_flags.h"
 #include "BLI_vector.hh"
-#include "testing/testing.h"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 namespace blender::tests {
 
@@ -164,6 +168,18 @@ TEST(span, Contains)
   EXPECT_FALSE(a_span.contains(8));
 }
 
+TEST(mutable_span, Contains)
+{
+  Vector<int> a = {4, 5, 6, 7};
+  MutableSpan<int> a_span = a;
+  EXPECT_TRUE(a_span.contains(4));
+  EXPECT_TRUE(a_span.contains(5));
+  EXPECT_TRUE(a_span.contains(6));
+  EXPECT_TRUE(a_span.contains(7));
+  EXPECT_FALSE(a_span.contains(3));
+  EXPECT_FALSE(a_span.contains(8));
+}
+
 TEST(span, Count)
 {
   Vector<int> a = {2, 3, 4, 3, 3, 2, 2, 2, 2};
@@ -225,7 +241,7 @@ TEST(span, FillIndices)
 {
   std::array<int, 5> a = {0, 0, 0, 0, 0};
   MutableSpan<int> a_span(a);
-  a_span.fill_indices({0, 2, 3}, 1);
+  a_span.fill_indices(Span({0, 2, 3}), 1);
   EXPECT_EQ(a[0], 1);
   EXPECT_EQ(a[1], 0);
   EXPECT_EQ(a[2], 1);
@@ -258,17 +274,6 @@ TEST(span, FirstLast_OneElement)
   EXPECT_EQ(a_span.first(), 3);
   EXPECT_EQ(a_span.last(), 3);
   EXPECT_EQ(a_span.last(0), 3);
-}
-
-TEST(span, Get)
-{
-  std::array<int, 3> a = {5, 6, 7};
-  Span<int> a_span(a);
-  EXPECT_EQ(a_span.get(0, 42), 5);
-  EXPECT_EQ(a_span.get(1, 42), 6);
-  EXPECT_EQ(a_span.get(2, 42), 7);
-  EXPECT_EQ(a_span.get(3, 42), 42);
-  EXPECT_EQ(a_span.get(4, 42), 42);
 }
 
 TEST(span, ContainsPtr)

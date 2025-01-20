@@ -1,20 +1,15 @@
+/* SPDX-FileCopyrightText: 2017-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* Values in GPU_shader.h. */
-#define GPU_KEYFRAME_SHAPE_DIAMOND (1u << 0)
-#define GPU_KEYFRAME_SHAPE_CIRCLE (1u << 1)
-#define GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL (1u << 2)
-#define GPU_KEYFRAME_SHAPE_CLIPPED_HORIZONTAL (1u << 3)
-#define GPU_KEYFRAME_SHAPE_INNER_DOT (1u << 4)
-#define GPU_KEYFRAME_SHAPE_ARROW_END_MAX (1u << 8)
-#define GPU_KEYFRAME_SHAPE_ARROW_END_MIN (1u << 9)
-#define GPU_KEYFRAME_SHAPE_ARROW_END_MIXED (1u << 10)
-#define GPU_KEYFRAME_SHAPE_SQUARE \
-  (GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL | GPU_KEYFRAME_SHAPE_CLIPPED_HORIZONTAL)
+#include "infos/gpu_shader_keyframe_shape_info.hh"
 
-const float diagonal_scale = sqrt(0.5);
+FRAGMENT_SHADER_CREATE_INFO(gpu_shader_keyframe_shape)
 
-const float minmax_bias = 0.7;
-const float minmax_scale = sqrt(1.0 / (1.0 + 1.0 / minmax_bias));
+#define diagonal_scale sqrt(0.5)
+
+#define minmax_bias 0.7
+#define minmax_scale sqrt(1.0 / (1.0 + 1.0 / minmax_bias))
 
 bool test(uint bit)
 {

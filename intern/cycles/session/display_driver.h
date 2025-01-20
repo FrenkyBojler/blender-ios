@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2021-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2021-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -66,7 +67,7 @@ class DisplayDriver {
    * account progressive resolution changes, which may be equal to or smaller than the params.size.
    * For efficiency, changes in this resolution should be handled without re-allocating resources,
    * but rather by using a subset of the full resolution buffer. */
-  virtual bool update_begin(const Params &params, int width, int height) = 0;
+  virtual bool update_begin(const Params &params, const int width, const int height) = 0;
   virtual void update_end() = 0;
 
   /* Optionally flush outstanding display commands before ending the render loop. */

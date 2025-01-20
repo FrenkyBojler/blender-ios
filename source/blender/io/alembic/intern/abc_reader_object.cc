@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup balembic
@@ -11,17 +13,19 @@
 #include "DNA_cachefile_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_space_types.h" /* for FILE_MAX */
+#include "DNA_object_types.h"
 
 #include "BKE_constraint.h"
-#include "BKE_lib_id.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_lib_id.hh"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
+#include "BKE_object_types.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 using Alembic::AbcGeom::IObject;
 using Alembic::AbcGeom::IXform;
@@ -33,6 +37,7 @@ AbcObjectReader::AbcObjectReader(const IObject &object, ImportSettings &settings
     : m_object(nullptr),
       m_iobject(object),
       m_settings(&settings),
+      m_is_reading_a_file_sequence(settings.is_sequence),
       m_min_time(std::numeric_limits<chrono_t>::max()),
       m_max_time(std::numeric_limits<chrono_t>::min()),
       m_refcount(0),
@@ -116,30 +121,32 @@ static Imath::M44d blend_matrices(const Imath::M44d &m0,
 
 Imath::M44d get_matrix(const IXformSchema &schema, const chrono_t time)
 {
-  Alembic::AbcGeom::index_t i0, i1;
-  Alembic::AbcGeom::XformSample s0, s1;
+  Alembic::AbcGeom::ISampleSelector selector(time);
 
-  const double weight = get_weight_and_index(
-      time, schema.getTimeSampling(), schema.getNumSamples(), i0, i1);
+  const std::optional<SampleInterpolationSettings> interpolation_settings =
+      get_sample_interpolation_settings(
+          selector, schema.getTimeSampling(), schema.getNumSamples());
 
-  schema.get(s0, Alembic::AbcGeom::ISampleSelector(i0));
-
-  if (i0 != i1) {
-    schema.get(s1, Alembic::AbcGeom::ISampleSelector(i1));
-    return blend_matrices(s0.getMatrix(), s1.getMatrix(), weight);
+  if (!interpolation_settings.has_value()) {
+    /* No interpolation, just read the current time. */
+    Alembic::AbcGeom::XformSample s0;
+    schema.get(s0, selector);
+    return s0.getMatrix();
   }
 
-  return s0.getMatrix();
+  Alembic::AbcGeom::XformSample s0, s1;
+  schema.get(s0, Alembic::AbcGeom::ISampleSelector(interpolation_settings->index));
+  schema.get(s1, Alembic::AbcGeom::ISampleSelector(interpolation_settings->ceil_index));
+  return blend_matrices(s0.getMatrix(), s1.getMatrix(), interpolation_settings->weight);
 }
 
-struct Mesh *AbcObjectReader::read_mesh(struct Mesh *existing_mesh,
-                                        const Alembic::Abc::ISampleSelector & /*sample_sel*/,
-                                        int /*read_flag*/,
-                                        const char * /*velocity_name*/,
-                                        const float /*velocity_scale*/,
-                                        const char ** /*err_str*/)
+void AbcObjectReader::read_geometry(bke::GeometrySet & /*geometry_set*/,
+                                    const Alembic::Abc::ISampleSelector & /*sample_sel*/,
+                                    int /*read_flag*/,
+                                    const char * /*velocity_name*/,
+                                    const float /*velocity_scale*/,
+                                    const char ** /*r_err_str*/)
 {
-  return existing_mesh;
 }
 
 bool AbcObjectReader::topology_changed(const Mesh * /*existing_mesh*/,
@@ -165,13 +172,13 @@ void AbcObjectReader::setupObjectTransform(const chrono_t time)
 
   /* Apply the matrix to the object. */
   BKE_object_apply_mat4(m_object, transform_from_alembic, true, false);
-  BKE_object_to_mat4(m_object, m_object->object_to_world);
+  BKE_object_to_mat4(m_object, m_object->runtime->object_to_world.ptr());
 
   if (!is_constant || m_settings->always_add_cache_reader) {
     bConstraint *con = BKE_constraint_add_for_object(
         m_object, nullptr, CONSTRAINT_TYPE_TRANSFORM_CACHE);
     bTransformCacheConstraint *data = static_cast<bTransformCacheConstraint *>(con->data);
-    BLI_strncpy(data->object_path, m_iobject.getFullName().c_str(), FILE_MAX);
+    STRNCPY(data->object_path, m_iobject.getFullName().c_str());
 
     data->cache_file = m_settings->cache_file;
     id_us_plus(&data->cache_file->id);
@@ -261,13 +268,14 @@ void AbcObjectReader::addCacheModifier()
 {
   ModifierData *md = BKE_modifier_new(eModifierType_MeshSequenceCache);
   BLI_addtail(&m_object->modifiers, md);
+  BKE_modifiers_persistent_uid_init(*m_object, *md);
 
   MeshSeqCacheModifierData *mcmd = reinterpret_cast<MeshSeqCacheModifierData *>(md);
 
   mcmd->cache_file = m_settings->cache_file;
   id_us_plus(&mcmd->cache_file->id);
 
-  BLI_strncpy(mcmd->object_path, m_iobject.getFullName().c_str(), FILE_MAX);
+  STRNCPY(mcmd->object_path, m_iobject.getFullName().c_str());
 }
 
 chrono_t AbcObjectReader::minTime() const

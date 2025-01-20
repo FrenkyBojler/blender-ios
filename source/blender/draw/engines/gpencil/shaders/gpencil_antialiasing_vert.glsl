@@ -1,5 +1,12 @@
+/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_smaa_lib.glsl)
+#include "infos/gpencil_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(gpencil_antialiasing_stage_1)
+
+#include "gpu_shader_smaa_lib.glsl"
 
 void main()
 {

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,7 +22,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetProjectedYF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetProjectedYF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DDouble` > :class:`GetProjectedYF1D`\n"
     "\n"
@@ -39,7 +43,7 @@ static char GetProjectedYF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The projected Y 3D coordinate of an Interface1D.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int GetProjectedYF1D___init__(BPy_GetProjectedYF1D *self, PyObject *args, PyObject *kwds)
 {
@@ -47,7 +51,8 @@ static int GetProjectedYF1D___init__(BPy_GetProjectedYF1D *self, PyObject *args,
   PyObject *obj = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj)) {
+          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj))
+  {
     return -1;
   }
   IntegrationType t = (obj) ? IntegrationType_from_BPy_IntegrationType(obj) : MEAN;
@@ -58,7 +63,7 @@ static int GetProjectedYF1D___init__(BPy_GetProjectedYF1D *self, PyObject *args,
 /*-----------------------BPy_GetProjectedYF1D type definition ------------------------------*/
 
 PyTypeObject GetProjectedYF1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GetProjectedYF1D",
     /*tp_basicsize*/ sizeof(BPy_GetProjectedYF1D),
     /*tp_itemsize*/ 0,

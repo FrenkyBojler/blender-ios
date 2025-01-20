@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -7,9 +8,13 @@
  * \ingroup bli
  */
 
+#include "BLI_sys_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern const uchar BLI_noise_hash_uchar_512[512]; /* Quiet warning. */
 
 float BLI_noise_hnoise(float noisesize, float x, float y, float z);
 float BLI_noise_hnoisep(float noisesize, float x, float y, float z);

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup blenlib
@@ -12,8 +13,8 @@
 #include "BLI_math_color.h"
 #include "BLI_sys_types.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
 
 #include <type_traits>
 
@@ -86,12 +87,23 @@ struct FloatTraits {
   }
 };
 
-static float get_luminance(ColorPaint4f c)
+template<typename T> struct TraitsType {
+  using type = void;
+};
+template<> struct TraitsType<ColorPaint4f> {
+  using type = FloatTraits;
+};
+template<> struct TraitsType<ColorPaint4b> {
+  using type = ByteTraits;
+};
+template<typename T> using Traits = typename TraitsType<T>::type;
+
+static inline float get_luminance(ColorPaint4f c)
 {
   return IMB_colormanagement_get_luminance(&c.r);
 }
 
-static int get_luminance(ColorPaint4b c)
+static inline int get_luminance(ColorPaint4b c)
 {
   return IMB_colormanagement_get_luminance_byte(&c.r);
 }

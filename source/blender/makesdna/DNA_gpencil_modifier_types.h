@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -8,10 +10,6 @@
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct LatticeDeformData;
 struct ShrinkwrapTreeData;
@@ -89,7 +87,7 @@ typedef struct NoiseGpencilModifierData {
   char layername[64];
   /** Material name. */
   char materialname[64] DNA_DEPRECATED;
-  /** Optional vertexgroup name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -175,7 +173,7 @@ typedef struct ThickGpencilModifierData {
   char layername[64];
   /** Material name. */
   char materialname[64] DNA_DEPRECATED;
-  /** Optional vertexgroup name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -308,7 +306,7 @@ typedef struct OpacityGpencilModifierData {
   char layername[64];
   /** Material name. */
   char materialname[64] DNA_DEPRECATED;
-  /** Optional vertexgroup name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -322,7 +320,7 @@ typedef struct OpacityGpencilModifierData {
   /** Custom index for passes. */
   int layer_pass;
 
-  float hardeness;
+  float hardness;
   struct CurveMapping *curve_intensity;
 } OpacityGpencilModifierData;
 
@@ -457,11 +455,11 @@ typedef struct BuildGpencilModifierData {
    */
   short time_alignment;
 
-  /* Speed factor for GP_BUILD_TIMEMODE_DRAWSPEED. */
+  /** Speed factor for #GP_BUILD_TIMEMODE_DRAWSPEED. */
   float speed_fac;
-  /* Maxmium time gap between strokes for GP_BUILD_TIMEMODE_DRAWSPEED. */
+  /** Maximum time gap between strokes for #GP_BUILD_TIMEMODE_DRAWSPEED. */
   float speed_maxgap;
-  /* Which time mode should be used. */
+  /** Which time mode should be used. */
   short time_mode;
   char _pad[6];
 
@@ -473,7 +471,7 @@ typedef struct BuildGpencilModifierData {
 
   /** Weight fading at the end of the stroke. */
   float fade_fac;
-  /** Target vertexgroup name, MAX_VGROUP_NAME. */
+  /** Target vertex-group name, #MAX_VGROUP_NAME. */
   char target_vgname[64];
   /** Fading strength of opacity and thickness */
   float fade_opacity_strength;
@@ -508,11 +506,11 @@ typedef enum eBuildGpencil_TimeAlignment {
 } eBuildGpencil_TimeAlignment;
 
 typedef enum eBuildGpencil_TimeMode {
-  /* Use a number of frames build. */
+  /** Use a number of frames build. */
   GP_BUILD_TIMEMODE_FRAMES = 0,
-  /* Use manual percentage to build. */
+  /** Use manual percentage to build. */
   GP_BUILD_TIMEMODE_PERCENTAGE = 1,
-  /* Use factor of recorded speed to build. */
+  /** Use factor of recorded speed to build. */
   GP_BUILD_TIMEMODE_DRAWSPEED = 2,
 } eBuildGpencil_TimeMode;
 
@@ -536,7 +534,7 @@ typedef struct LatticeGpencilModifierData {
   char layername[64];
   /** Material name. */
   char materialname[64] DNA_DEPRECATED;
-  /** Optional vertexgroup name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -685,7 +683,7 @@ typedef struct HookGpencilModifierData {
   char layername[64];
   /** Material name. */
   char materialname[64] DNA_DEPRECATED;
-  /** Optional vertexgroup name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -694,7 +692,7 @@ typedef struct HookGpencilModifierData {
   char _pad[4];
 
   int flag;
-  /** Use enums from WarpGpencilModifier (exact same functionality). */
+  /** #eHookGpencil_Falloff. */
   char falloff_type;
   char _pad1[3];
   /** Matrix making current transform unmodified. */
@@ -790,7 +788,7 @@ typedef struct OffsetGpencilModifierData {
   char layername[64];
   /** Material name. */
   char materialname[64] DNA_DEPRECATED;
-  /** Optional vertexgroup name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -832,7 +830,7 @@ typedef struct SmoothGpencilModifierData {
   char layername[64];
   /** Material name. */
   char materialname[64] DNA_DEPRECATED;
-  /** Optional vertexgroup name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -871,7 +869,7 @@ typedef struct ArmatureGpencilModifierData {
   struct Object *object;
   /** Stored input of previous modifier, for vertex-group blending. */
   float (*vert_coords_prev)[3];
-  /** MAX_VGROUP_NAME. */
+  /** #MAX_VGROUP_NAME. */
   char vgname[64];
 
 } ArmatureGpencilModifierData;
@@ -919,7 +917,7 @@ typedef struct TintGpencilModifierData {
   char layername[64];
   /** Material name. */
   char materialname[64] DNA_DEPRECATED;
-  /** Optional vertexgroup name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -965,7 +963,7 @@ typedef struct TextureGpencilModifierData {
   char layername[64];
   /** Material name. */
   char materialname[64] DNA_DEPRECATED;
-  /** Optional vertexgroup name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -1010,13 +1008,13 @@ typedef enum eTextureGpencil_Mode {
 
 typedef struct WeightProxGpencilModifierData {
   GpencilModifierData modifier;
-  /** Target vertexgroup name, MAX_VGROUP_NAME. */
+  /** Target vertex-group name, #MAX_VGROUP_NAME. */
   char target_vgname[64];
   /** Material for filtering. */
   struct Material *material;
   /** Layer name. */
   char layername[64];
-  /** Optional vertexgroup filter name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group filter name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -1036,13 +1034,13 @@ typedef struct WeightProxGpencilModifierData {
 
 typedef struct WeightAngleGpencilModifierData {
   GpencilModifierData modifier;
-  /** Target vertexgroup name, MAX_VGROUP_NAME. */
+  /** Target vertex-group name, #MAX_VGROUP_NAME. */
   char target_vgname[64];
   /** Material for filtering. */
   struct Material *material;
   /** Layer name. */
   char layername[64];
-  /** Optional vertexgroup filter name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group filter name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -1075,51 +1073,6 @@ typedef enum eGpencilModifierSpace {
   GP_SPACE_WORLD = 1,
 } eGpencilModifierSpace;
 
-typedef enum eLineartGpencilModifierSource {
-  LRT_SOURCE_COLLECTION = 0,
-  LRT_SOURCE_OBJECT = 1,
-  LRT_SOURCE_SCENE = 2,
-} eLineartGpencilModifierSource;
-
-typedef enum eLineartGpencilModifierShadowFilter {
-  /* These options need to be ordered in this way because those latter options requires line art to
-   * run a few extra stages. Having those values set up this way will allow
-   * #BKE_gpencil_get_lineart_modifier_limits() to find out maximum stages needed in multiple
-   * cached line art modifiers. */
-  LRT_SHADOW_FILTER_NONE = 0,
-  LRT_SHADOW_FILTER_ILLUMINATED = 1,
-  LRT_SHADOW_FILTER_SHADED = 2,
-  LRT_SHADOW_FILTER_ILLUMINATED_ENCLOSED_SHAPES = 3,
-} eLineartGpencilModifierShadowFilter;
-
-typedef enum eLineartGpencilModifierSilhouetteFilter {
-  LRT_SILHOUETTE_FILTER_NONE = 0,
-  LRT_SILHOUETTE_FILTER_GROUP = (1 << 0),
-  LRT_SILHOUETTE_FILTER_INDIVIDUAL = (1 << 1),
-} eLineartGpencilModifierSilhouetteFilter;
-
-/* This enum is for modifier internal state only. */
-typedef enum eLineArtGPencilModifierFlags {
-  /* These two moved to #eLineartMainFlags to keep consistent with flag variable purpose. */
-  /* LRT_GPENCIL_INVERT_SOURCE_VGROUP = (1 << 0), */
-  /* LRT_GPENCIL_MATCH_OUTPUT_VGROUP = (1 << 1), */
-  LRT_GPENCIL_BINARY_WEIGHTS = (1 << 2) /* Deprecated, this is removed for lack of use case. */,
-  LRT_GPENCIL_IS_BAKED = (1 << 3),
-  LRT_GPENCIL_USE_CACHE = (1 << 4),
-  LRT_GPENCIL_OFFSET_TOWARDS_CUSTOM_CAMERA = (1 << 5),
-  LRT_GPENCIL_INVERT_COLLECTION = (1 << 6),
-  LRT_GPENCIL_INVERT_SILHOUETTE_FILTER = (1 << 7),
-} eLineArtGPencilModifierFlags;
-
-typedef enum eLineartGpencilMaskSwitches {
-  LRT_GPENCIL_MATERIAL_MASK_ENABLE = (1 << 0),
-  /** When set, material mask bit comparisons are done with bit wise "AND" instead of "OR". */
-  LRT_GPENCIL_MATERIAL_MASK_MATCH = (1 << 1),
-  LRT_GPENCIL_INTERSECTION_MATCH = (1 << 2),
-} eLineartGpencilMaskSwitches;
-
-struct LineartCache;
-
 struct LineartCache;
 
 typedef struct LineartGpencilModifierData {
@@ -1127,7 +1080,7 @@ typedef struct LineartGpencilModifierData {
 
   uint16_t edge_types; /* line type enable flags, bits in eLineartEdgeFlag */
 
-  /** Object or Collection, from #eLineartGpencilModifierSource. */
+  /** Object or Collection, from #GreasePencilLineartModifierSource. */
   char source_type;
 
   char use_multiple_levels;
@@ -1166,7 +1119,7 @@ typedef struct LineartGpencilModifierData {
   float opacity;
   short thickness;
 
-  unsigned char mask_switches; /* #eLineartGpencilMaskSwitches */
+  unsigned char mask_switches; /* #GreasePencilLineartMaskSwitches */
   unsigned char material_mask_bits;
   unsigned char intersection_mask;
 
@@ -1209,7 +1162,7 @@ typedef struct LineartGpencilModifierData {
   char _pad2[6];
 
   struct LineartCache *cache;
-  /* Keep a pointer to the render buffer so we can call destroy from ModifierData. */
+  /** Keep a pointer to the render buffer so we can call destroy from #ModifierData. */
   struct LineartData *la_data_ptr;
 
 } LineartGpencilModifierData;
@@ -1224,7 +1177,7 @@ typedef struct ShrinkwrapGpencilModifierData {
   struct Material *material;
   /** Layer name. */
   char layername[64];
-  /** Optional vertexgroup filter name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group filter name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -1245,8 +1198,9 @@ typedef struct ShrinkwrapGpencilModifierData {
   /** Axis to project over. */
   char proj_axis;
 
-  /** If using projection over vertex normal this controls the level of subsurface that must be
-   * done before getting the vertex coordinates and normal
+  /**
+   * If using projection over vertex normal this controls the level of subsurface that must be
+   * done before getting the vertex coordinates and normal.
    */
   char subsurf_levels;
   char _pad[6];
@@ -1274,7 +1228,7 @@ typedef struct EnvelopeGpencilModifierData {
   struct Material *material;
   /** Layer name. */
   char layername[64];
-  /** Optional vertexgroup name, MAX_VGROUP_NAME. */
+  /** Optional vertex-group name, #MAX_VGROUP_NAME. */
   char vgname[64];
   /** Custom index for passes. */
   int pass_index;
@@ -1311,7 +1265,3 @@ typedef enum eEnvelopeGpencil_Mode {
   GP_ENVELOPE_SEGMENTS = 1,
   GP_ENVELOPE_FILLS = 2,
 } eEnvelopeGpencil_Mode;
-
-#ifdef __cplusplus
-}
-#endif

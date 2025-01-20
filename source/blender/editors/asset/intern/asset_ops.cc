@@ -1,74 +1,74 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edasset
  */
 
-#include "AS_asset_library.h"
 #include "AS_asset_library.hh"
+#include "AS_asset_representation.hh"
 
-#include "BKE_bpath.h"
-#include "BKE_context.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_bpath.hh"
+#include "BKE_context.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_preferences.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
-#include "BLI_fileops.h" /* MSVC needs this for `PATH_MAX` */
 #include "BLI_fnmatch.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 
-#include "ED_asset.h"
-#include "ED_asset_catalog.hh"
-#include "ED_screen.h"
-#include "ED_util.h"
+#include "ED_asset.hh"
+#include "ED_screen.hh"
 /* XXX needs access to the file list, should all be done via the asset system in future. */
-#include "ED_fileselect.h"
+#include "ED_fileselect.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "DNA_space_types.h"
 
-using namespace blender;
-
+namespace blender::ed::asset {
 /* -------------------------------------------------------------------- */
 
-using PointerRNAVec = blender::Vector<PointerRNA>;
-
-/**
- * Return the IDs to operate on as PointerRNA vector. Either a single one ("id" context member) or
- * multiple ones ("selected_ids" context member).
- */
-static PointerRNAVec asset_operation_get_ids_from_context(const bContext *C)
+static Vector<PointerRNA> get_single_id_vec_from_context(const bContext *C)
 {
-  PointerRNAVec ids;
-
+  Vector<PointerRNA> ids;
   PointerRNA idptr = CTX_data_pointer_get_type(C, "id", &RNA_ID);
   if (idptr.data) {
-    /* Single ID. */
     ids.append(idptr);
   }
-  else {
-    ListBase list;
-    CTX_data_selected_ids(C, &list);
-    LISTBASE_FOREACH (CollectionPointerLink *, link, &list) {
-      ids.append(link->ptr);
-    }
-    BLI_freelistN(&list);
-  }
-
   return ids;
 }
 
 /**
- * Information about what's contained in a #PointerRNAVec, returned by
+ * Return the IDs to operate on as PointerRNA vector. Prioritizes multiple selected ones
+ * ("selected_ids" context member) over a single active one ("id" context member), since usually
+ * batch operations are more useful.
+ */
+static Vector<PointerRNA> asset_operation_get_ids_from_context(const bContext *C)
+{
+  Vector<PointerRNA> ids;
+
+  /* "selected_ids" context member. */
+  CTX_data_selected_ids(C, &ids);
+  if (!ids.is_empty()) {
+    return ids;
+  }
+
+  /* "id" context member. */
+  return get_single_id_vec_from_context(C);
+}
+
+/**
+ * Information about what's contained in a #Vector<PointerRNA>, returned by
  * #asset_operation_get_id_vec_stats_from_context().
  */
 struct IDVecStats {
@@ -81,18 +81,17 @@ struct IDVecStats {
  * Helper to report stats about the IDs in context. Operator polls use this, also to report a
  * helpful disabled hint to the user.
  */
-static IDVecStats asset_operation_get_id_vec_stats_from_context(const bContext *C)
+static IDVecStats asset_operation_get_id_vec_stats_from_ids(const Span<PointerRNA> id_pointers)
 {
-  PointerRNAVec pointers = asset_operation_get_ids_from_context(C);
   IDVecStats stats;
 
-  stats.is_single = pointers.size() == 1;
+  stats.is_single = id_pointers.size() == 1;
 
-  for (PointerRNA &ptr : pointers) {
+  for (const PointerRNA &ptr : id_pointers) {
     BLI_assert(RNA_struct_is_ID(ptr.type));
 
     ID *id = static_cast<ID *>(ptr.data);
-    if (ED_asset_type_is_supported(id)) {
+    if (id_type_is_supported(id)) {
       stats.has_supported_type = true;
     }
     if (ID_IS_ASSET(id)) {
@@ -118,7 +117,7 @@ static const char *asset_operation_unsupported_type_msg(const bool is_single)
 
 class AssetMarkHelper {
  public:
-  void operator()(const bContext &C, PointerRNAVec &ids);
+  void operator()(const bContext &C, Span<PointerRNA> ids);
 
   void reportResults(ReportList &reports) const;
   bool wasSuccessful() const;
@@ -133,9 +132,9 @@ class AssetMarkHelper {
   Stats stats;
 };
 
-void AssetMarkHelper::operator()(const bContext &C, PointerRNAVec &ids)
+void AssetMarkHelper::operator()(const bContext &C, const Span<PointerRNA> ids)
 {
-  for (PointerRNA &ptr : ids) {
+  for (const PointerRNA &ptr : ids) {
     BLI_assert(RNA_struct_is_ID(ptr.type));
 
     ID *id = static_cast<ID *>(ptr.data);
@@ -144,8 +143,8 @@ void AssetMarkHelper::operator()(const bContext &C, PointerRNAVec &ids)
       continue;
     }
 
-    if (ED_asset_mark_id(id)) {
-      ED_asset_generate_preview(&C, id);
+    if (mark_id(id)) {
+      generate_preview(&C, id);
 
       stats.last_id = id;
       stats.tot_created++;
@@ -183,10 +182,8 @@ void AssetMarkHelper::reportResults(ReportList &reports) const
   }
 }
 
-static int asset_mark_exec(bContext *C, wmOperator *op)
+static int asset_mark_exec(const bContext *C, const wmOperator *op, const Span<PointerRNA> ids)
 {
-  PointerRNAVec ids = asset_operation_get_ids_from_context(C);
-
   AssetMarkHelper mark_helper;
   mark_helper(*C, ids);
   mark_helper.reportResults(*op->reports);
@@ -201,9 +198,9 @@ static int asset_mark_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bool asset_mark_poll(bContext *C)
+static bool asset_mark_poll(bContext *C, const Span<PointerRNA> ids)
 {
-  IDVecStats ctx_stats = asset_operation_get_id_vec_stats_from_context(C);
+  IDVecStats ctx_stats = asset_operation_get_id_vec_stats_from_ids(ids);
 
   if (!ctx_stats.has_supported_type) {
     CTX_wm_operator_poll_msg_set(C, asset_operation_unsupported_type_msg(ctx_stats.is_single));
@@ -221,8 +218,33 @@ static void ASSET_OT_mark(wmOperatorType *ot)
       "customizable metadata (like previews, descriptions and tags)";
   ot->idname = "ASSET_OT_mark";
 
-  ot->exec = asset_mark_exec;
-  ot->poll = asset_mark_poll;
+  ot->exec = [](bContext *C, wmOperator *op) -> int {
+    return asset_mark_exec(C, op, asset_operation_get_ids_from_context(C));
+  };
+  ot->poll = [](bContext *C) -> bool {
+    return asset_mark_poll(C, asset_operation_get_ids_from_context(C));
+  };
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/**
+ * Variant of #ASSET_OT_mark that only works on the "id" context member.
+ */
+static void ASSET_OT_mark_single(wmOperatorType *ot)
+{
+  ot->name = "Mark as Single Asset";
+  ot->description =
+      "Enable easier reuse of a data-block through the Asset Browser, with the help of "
+      "customizable metadata (like previews, descriptions and tags)";
+  ot->idname = "ASSET_OT_mark_single";
+
+  ot->exec = [](bContext *C, wmOperator *op) -> int {
+    return asset_mark_exec(C, op, get_single_id_vec_from_context(C));
+  };
+  ot->poll = [](bContext *C) -> bool {
+    return asset_mark_poll(C, get_single_id_vec_from_context(C));
+  };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -233,11 +255,9 @@ class AssetClearHelper {
   const bool set_fake_user_;
 
  public:
-  AssetClearHelper(const bool set_fake_user) : set_fake_user_(set_fake_user)
-  {
-  }
+  AssetClearHelper(const bool set_fake_user) : set_fake_user_(set_fake_user) {}
 
-  void operator()(PointerRNAVec &ids);
+  void operator()(Span<PointerRNA> ids);
 
   void reportResults(const bContext *C, ReportList &reports) const;
   bool wasSuccessful() const;
@@ -251,9 +271,9 @@ class AssetClearHelper {
   Stats stats;
 };
 
-void AssetClearHelper::operator()(PointerRNAVec &ids)
+void AssetClearHelper::operator()(const Span<PointerRNA> ids)
 {
-  for (PointerRNA &ptr : ids) {
+  for (const PointerRNA &ptr : ids) {
     BLI_assert(RNA_struct_is_ID(ptr.type));
 
     ID *id = static_cast<ID *>(ptr.data);
@@ -261,7 +281,7 @@ void AssetClearHelper::operator()(PointerRNAVec &ids)
       continue;
     }
 
-    if (!ED_asset_clear_id(id)) {
+    if (!clear_id(id)) {
       continue;
     }
 
@@ -277,11 +297,9 @@ void AssetClearHelper::operator()(PointerRNAVec &ids)
 void AssetClearHelper::reportResults(const bContext *C, ReportList &reports) const
 {
   if (!wasSuccessful()) {
-    bool is_valid;
     /* Dedicated error message for when there is an active asset detected, but it's not an ID local
      * to this file. Helps users better understanding what's going on. */
-    if (AssetHandle active_asset = CTX_wm_asset_handle(C, &is_valid);
-        is_valid && !ED_asset_handle_get_local_id(&active_asset)) {
+    if (AssetRepresentationHandle *active_asset = CTX_wm_asset(C); !active_asset->is_local_id()) {
       BKE_report(&reports,
                  RPT_ERROR,
                  "No asset data-blocks from the current file selected (assets must be stored in "
@@ -297,7 +315,7 @@ void AssetClearHelper::reportResults(const bContext *C, ReportList &reports) con
         &reports, RPT_INFO, "Data-block '%s' is not an asset anymore", stats.last_id->name + 2);
   }
   else {
-    BKE_reportf(&reports, RPT_INFO, "%i data-blocks are no assets anymore", stats.tot_cleared);
+    BKE_reportf(&reports, RPT_INFO, "%i data-blocks are not assets anymore", stats.tot_cleared);
   }
 }
 
@@ -306,10 +324,8 @@ bool AssetClearHelper::wasSuccessful() const
   return stats.tot_cleared > 0;
 }
 
-static int asset_clear_exec(bContext *C, wmOperator *op)
+static int asset_clear_exec(const bContext *C, const wmOperator *op, const Span<PointerRNA> ids)
 {
-  PointerRNAVec ids = asset_operation_get_ids_from_context(C);
-
   const bool set_fake_user = RNA_boolean_get(op->ptr, "set_fake_user");
   AssetClearHelper clear_helper(set_fake_user);
   clear_helper(ids);
@@ -325,13 +341,13 @@ static int asset_clear_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bool asset_clear_poll(bContext *C)
+static bool asset_clear_poll(bContext *C, const Span<PointerRNA> ids)
 {
-  IDVecStats ctx_stats = asset_operation_get_id_vec_stats_from_context(C);
+  IDVecStats ctx_stats = asset_operation_get_id_vec_stats_from_ids(ids);
 
   if (!ctx_stats.has_asset) {
-    const char *msg_single = TIP_("Data-block is not marked as asset");
-    const char *msg_multiple = TIP_("No data-block selected that is marked as asset");
+    const char *msg_single = N_("Data-block is not marked as asset");
+    const char *msg_multiple = N_("No data-block selected that is marked as asset");
     CTX_wm_operator_poll_msg_set(C, ctx_stats.is_single ? msg_single : msg_multiple);
     return false;
   }
@@ -343,20 +359,22 @@ static bool asset_clear_poll(bContext *C)
   return true;
 }
 
-static char *asset_clear_get_description(struct bContext * /*C*/,
-                                         struct wmOperatorType * /*op*/,
-                                         struct PointerRNA *values)
+static std::string asset_clear_get_description(bContext * /*C*/,
+                                               wmOperatorType * /*ot*/,
+                                               PointerRNA *ptr)
 {
-  const bool set_fake_user = RNA_boolean_get(values, "set_fake_user");
+  const bool set_fake_user = RNA_boolean_get(ptr, "set_fake_user");
   if (!set_fake_user) {
-    return nullptr;
+    return "";
   }
-
-  return BLI_strdup(
-      TIP_("Delete all asset metadata, turning the selected asset data-blocks back into normal "
-           "data-blocks, and set Fake User to ensure the data-blocks will still be saved"));
+  return TIP_(
+      "Delete all asset metadata, turning the selected asset data-blocks back into normal "
+      "data-blocks, and set Fake User to ensure the data-blocks will still be saved");
 }
 
+/**
+ * Variant of #ASSET_OT_clear that only works on the "id" context member.
+ */
 static void ASSET_OT_clear(wmOperatorType *ot)
 {
   ot->name = "Clear Asset";
@@ -366,8 +384,36 @@ static void ASSET_OT_clear(wmOperatorType *ot)
   ot->get_description = asset_clear_get_description;
   ot->idname = "ASSET_OT_clear";
 
-  ot->exec = asset_clear_exec;
-  ot->poll = asset_clear_poll;
+  ot->exec = [](bContext *C, wmOperator *op) -> int {
+    return asset_clear_exec(C, op, asset_operation_get_ids_from_context(C));
+  };
+  ot->poll = [](bContext *C) -> bool {
+    return asset_clear_poll(C, asset_operation_get_ids_from_context(C));
+  };
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna,
+                  "set_fake_user",
+                  false,
+                  "Set Fake User",
+                  "Ensure the data-block is saved, even when it is no longer marked as asset");
+}
+
+static void ASSET_OT_clear_single(wmOperatorType *ot)
+{
+  ot->name = "Clear Single Asset";
+  ot->description =
+      "Delete all asset metadata and turn the asset data-block back into a normal data-block";
+  ot->get_description = asset_clear_get_description;
+  ot->idname = "ASSET_OT_clear_single";
+
+  ot->exec = [](bContext *C, wmOperator *op) -> int {
+    return asset_clear_exec(C, op, get_single_id_vec_from_context(C));
+  };
+  ot->poll = [](bContext *C) -> bool {
+    return asset_clear_poll(C, get_single_id_vec_from_context(C));
+  };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -393,7 +439,7 @@ static bool asset_library_refresh_poll(bContext *C)
     return false;
   }
 
-  return ED_assetlist_storage_has_list_for_library(library);
+  return list::storage_has_list_for_library(library);
 }
 
 static int asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
@@ -407,7 +453,7 @@ static int asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
   else {
     /* Execution mode #2: Outside the Asset Browser, use the asset list. */
     const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
-    ED_assetlist_clear(library, C);
+    list::clear(library, C);
   }
 
   return OPERATOR_FINISHED;
@@ -418,7 +464,7 @@ static int asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
  * used for the asset-view template. Once the asset list design is used by the Asset Browser, this
  * can be simplified to just that case.
  */
-static void ASSET_OT_library_refresh(struct wmOperatorType *ot)
+static void ASSET_OT_library_refresh(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Refresh Asset Library";
@@ -438,11 +484,11 @@ static bool asset_catalog_operator_poll(bContext *C)
   if (!sfile) {
     return false;
   }
-  const AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
+  const asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
   if (!asset_library) {
     return false;
   }
-  if (ED_asset_catalogs_read_only(*asset_library)) {
+  if (catalogs_read_only(*asset_library)) {
     CTX_wm_operator_poll_msg_set(C, "Asset catalogs cannot be edited in this asset library");
     return false;
   }
@@ -452,11 +498,11 @@ static bool asset_catalog_operator_poll(bContext *C)
 static int asset_catalog_new_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
-  struct AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
+  asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
   char *parent_path = RNA_string_get_alloc(op->ptr, "parent_path", nullptr, 0, nullptr);
 
-  blender::asset_system::AssetCatalog *new_catalog = ED_asset_catalog_add(
-      asset_library, "Catalog", parent_path);
+  asset_system::AssetCatalog *new_catalog = catalog_add(
+      asset_library, DATA_("Catalog"), parent_path);
 
   if (sfile) {
     ED_fileselect_activate_asset_catalog(sfile, new_catalog->catalog_id);
@@ -470,7 +516,7 @@ static int asset_catalog_new_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void ASSET_OT_catalog_new(struct wmOperatorType *ot)
+static void ASSET_OT_catalog_new(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "New Asset Catalog";
@@ -492,14 +538,14 @@ static void ASSET_OT_catalog_new(struct wmOperatorType *ot)
 static int asset_catalog_delete_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
-  struct AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
+  asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
   char *catalog_id_str = RNA_string_get_alloc(op->ptr, "catalog_id", nullptr, 0, nullptr);
   asset_system::CatalogID catalog_id;
   if (!BLI_uuid_parse_string(&catalog_id, catalog_id_str)) {
     return OPERATOR_CANCELLED;
   }
 
-  ED_asset_catalog_remove(asset_library, catalog_id);
+  catalog_remove(asset_library, catalog_id);
 
   MEM_freeN(catalog_id_str);
 
@@ -509,7 +555,7 @@ static int asset_catalog_delete_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void ASSET_OT_catalog_delete(struct wmOperatorType *ot)
+static void ASSET_OT_catalog_delete(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Delete Asset Catalog";
@@ -528,12 +574,16 @@ static void ASSET_OT_catalog_delete(struct wmOperatorType *ot)
 static asset_system::AssetCatalogService *get_catalog_service(bContext *C)
 {
   const SpaceFile *sfile = CTX_wm_space_file(C);
-  if (!sfile) {
+  if (!sfile || ED_fileselect_is_file_browser(sfile)) {
     return nullptr;
   }
 
-  AssetLibrary *asset_lib = ED_fileselect_active_asset_library_get(sfile);
-  return AS_asset_library_get_catalog_service(asset_lib);
+  asset_system::AssetLibrary *asset_lib = ED_fileselect_active_asset_library_get(sfile);
+  if (asset_lib) {
+    return &asset_lib->catalog_service();
+  }
+
+  return nullptr;
 }
 
 static int asset_catalog_undo_exec(bContext *C, wmOperator * /*op*/)
@@ -554,7 +604,7 @@ static bool asset_catalog_undo_poll(bContext *C)
   return catalog_service && catalog_service->is_undo_possbile();
 }
 
-static void ASSET_OT_catalog_undo(struct wmOperatorType *ot)
+static void ASSET_OT_catalog_undo(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Undo Catalog Edits";
@@ -584,7 +634,7 @@ static bool asset_catalog_redo_poll(bContext *C)
   return catalog_service && catalog_service->is_redo_possbile();
 }
 
-static void ASSET_OT_catalog_redo(struct wmOperatorType *ot)
+static void ASSET_OT_catalog_redo(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Redo Catalog Edits";
@@ -612,7 +662,7 @@ static bool asset_catalog_undo_push_poll(bContext *C)
   return get_catalog_service(C) != nullptr;
 }
 
-static void ASSET_OT_catalog_undo_push(struct wmOperatorType *ot)
+static void ASSET_OT_catalog_undo_push(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Store undo snapshot for asset catalog edits";
@@ -652,9 +702,9 @@ static bool asset_catalogs_save_poll(bContext *C)
 static int asset_catalogs_save_exec(bContext *C, wmOperator * /*op*/)
 {
   const SpaceFile *sfile = CTX_wm_space_file(C);
-  ::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
+  asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
 
-  ED_asset_catalogs_save_from_main_path(asset_library, CTX_data_main(C));
+  catalogs_save_from_main_path(asset_library, CTX_data_main(C));
 
   WM_event_add_notifier_ex(
       CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
@@ -662,7 +712,7 @@ static int asset_catalogs_save_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static void ASSET_OT_catalogs_save(struct wmOperatorType *ot)
+static void ASSET_OT_catalogs_save(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Save Asset Catalogs";
@@ -679,10 +729,10 @@ static void ASSET_OT_catalogs_save(struct wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 
 static bool could_be_asset_bundle(const Main *bmain);
-static const bUserAssetLibrary *selected_asset_library(struct wmOperator *op);
-static bool is_contained_in_selected_asset_library(struct wmOperator *op, const char *filepath);
-static bool set_filepath_for_asset_lib(const Main *bmain, struct wmOperator *op);
-static bool has_external_files(Main *bmain, struct ReportList *reports);
+static const bUserAssetLibrary *selected_asset_library(wmOperator *op);
+static bool is_contained_in_selected_asset_library(wmOperator *op, const char *filepath);
+static bool set_filepath_for_asset_lib(const Main *bmain, wmOperator *op);
+static bool has_external_files(Main *bmain, ReportList *reports);
 
 static bool asset_bundle_install_poll(bContext *C)
 {
@@ -701,7 +751,7 @@ static bool asset_bundle_install_poll(bContext *C)
   }
 
   /* Check whether this file is already located inside any asset library. */
-  const struct bUserAssetLibrary *asset_lib = BKE_preferences_asset_library_containing_path(
+  const bUserAssetLibrary *asset_lib = BKE_preferences_asset_library_containing_path(
       &U, bmain->filepath);
   if (asset_lib) {
     return false;
@@ -710,9 +760,7 @@ static bool asset_bundle_install_poll(bContext *C)
   return true;
 }
 
-static int asset_bundle_install_invoke(struct bContext *C,
-                                       struct wmOperator *op,
-                                       const struct wmEvent * /*event*/)
+static int asset_bundle_install_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   Main *bmain = CTX_data_main(C);
   if (has_external_files(bmain, op->reports)) {
@@ -737,7 +785,7 @@ static int asset_bundle_install_exec(bContext *C, wmOperator *op)
   }
 
   /* Check file path, copied from #wm_file_write(). */
-  char filepath[PATH_MAX];
+  char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
   const size_t len = strlen(filepath);
 
@@ -788,7 +836,7 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
                                                                  PropertyRNA * /*prop*/,
                                                                  bool *r_free)
 {
-  const EnumPropertyItem *items = ED_asset_library_reference_to_rna_enum_itemf(false);
+  const EnumPropertyItem *items = library_reference_to_rna_enum_itemf(false);
   if (!items) {
     *r_free = false;
     return nullptr;
@@ -798,7 +846,7 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
   return items;
 }
 
-static void ASSET_OT_bundle_install(struct wmOperatorType *ot)
+static void ASSET_OT_bundle_install(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Copy to Asset Library";
@@ -812,7 +860,7 @@ static void ASSET_OT_bundle_install(struct wmOperatorType *ot)
   ot->invoke = asset_bundle_install_invoke;
   ot->poll = asset_bundle_install_poll;
 
-  ot->prop = RNA_def_property(ot->srna, "asset_library_ref", PROP_ENUM, PROP_NONE);
+  ot->prop = RNA_def_property(ot->srna, "asset_library_reference", PROP_ENUM, PROP_NONE);
   RNA_def_property_flag(ot->prop, PROP_HIDDEN);
   RNA_def_enum_funcs(ot->prop, rna_asset_library_reference_itemf);
 
@@ -833,29 +881,29 @@ static bool could_be_asset_bundle(const Main *bmain)
   return fnmatch("*_bundle.blend", bmain->filepath, FNM_CASEFOLD) == 0;
 }
 
-static const bUserAssetLibrary *selected_asset_library(struct wmOperator *op)
+static const bUserAssetLibrary *selected_asset_library(wmOperator *op)
 {
-  const int enum_value = RNA_enum_get(op->ptr, "asset_library_ref");
-  const AssetLibraryReference lib_ref = ED_asset_library_reference_from_enum_value(enum_value);
-  const bUserAssetLibrary *lib = BKE_preferences_asset_library_find_from_index(
+  const int enum_value = RNA_enum_get(op->ptr, "asset_library_reference");
+  const AssetLibraryReference lib_ref = library_reference_from_enum_value(enum_value);
+  const bUserAssetLibrary *lib = BKE_preferences_asset_library_find_index(
       &U, lib_ref.custom_library_index);
   return lib;
 }
 
-static bool is_contained_in_selected_asset_library(struct wmOperator *op, const char *filepath)
+static bool is_contained_in_selected_asset_library(wmOperator *op, const char *filepath)
 {
   const bUserAssetLibrary *lib = selected_asset_library(op);
   if (!lib) {
     return false;
   }
-  return BLI_path_contains(lib->path, filepath);
+  return BLI_path_contains(lib->dirpath, filepath);
 }
 
 /**
- * Set the "filepath" RNA property based on selected "asset_library_ref".
+ * Set the "filepath" RNA property based on selected "asset_library_reference".
  * \return true if ok, false if error.
  */
-static bool set_filepath_for_asset_lib(const Main *bmain, struct wmOperator *op)
+static bool set_filepath_for_asset_lib(const Main *bmain, wmOperator *op)
 {
   /* Find the directory path of the selected asset library. */
   const bUserAssetLibrary *lib = selected_asset_library(op);
@@ -869,20 +917,21 @@ static bool set_filepath_for_asset_lib(const Main *bmain, struct wmOperator *op)
     return false;
   }
 
-  char file_path[PATH_MAX];
-  BLI_path_join(file_path, sizeof(file_path), lib->path, blend_filename);
+  char file_path[FILE_MAX];
+  BLI_path_join(file_path, sizeof(file_path), lib->dirpath, blend_filename);
   RNA_string_set(op->ptr, "filepath", file_path);
 
   return true;
 }
 
 struct FileCheckCallbackInfo {
-  struct ReportList *reports;
+  ReportList *reports;
   Set<std::string> external_files;
 };
 
 static bool external_file_check_callback(BPathForeachPathData *bpath_data,
                                          char * /*path_dst*/,
+                                         size_t /*path_dst_maxncpy*/,
                                          const char *path_src)
 {
   FileCheckCallbackInfo *callback_info = static_cast<FileCheckCallbackInfo *>(
@@ -898,9 +947,9 @@ static bool external_file_check_callback(BPathForeachPathData *bpath_data,
  *
  * \return true when there are external files, false otherwise.
  */
-static bool has_external_files(Main *bmain, struct ReportList *reports)
+static bool has_external_files(Main *bmain, ReportList *reports)
 {
-  struct FileCheckCallbackInfo callback_info = {reports, Set<std::string>()};
+  FileCheckCallbackInfo callback_info = {reports, Set<std::string>()};
 
   eBPathForeachFlag flag = static_cast<eBPathForeachFlag>(
       BKE_BPATH_FOREACH_PATH_SKIP_PACKED          /* Packed files are fine. */
@@ -946,10 +995,12 @@ static bool has_external_files(Main *bmain, struct ReportList *reports)
 
 /* -------------------------------------------------------------------- */
 
-void ED_operatortypes_asset()
+void operatortypes_asset()
 {
   WM_operatortype_append(ASSET_OT_mark);
+  WM_operatortype_append(ASSET_OT_mark_single);
   WM_operatortype_append(ASSET_OT_clear);
+  WM_operatortype_append(ASSET_OT_clear_single);
 
   WM_operatortype_append(ASSET_OT_catalog_new);
   WM_operatortype_append(ASSET_OT_catalog_delete);
@@ -961,3 +1012,5 @@ void ED_operatortypes_asset()
 
   WM_operatortype_append(ASSET_OT_library_refresh);
 }
+
+}  // namespace blender::ed::asset

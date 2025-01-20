@@ -1,5 +1,7 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
+
 from __future__ import annotations
 
 from bl_operators.presets import AddPresetBase
@@ -54,6 +56,7 @@ class AddPresetSampling(AddPresetBase, Operator):
         "cycles.denoiser",
         "cycles.denoising_input_passes",
         "cycles.denoising_prefilter",
+        "cycles.denoising_quality",
     ]
 
     preset_subdir = "cycles/sampling"
@@ -78,6 +81,7 @@ class AddPresetViewportSampling(AddPresetBase, Operator):
         "cycles.preview_denoiser",
         "cycles.preview_denoising_input_passes",
         "cycles.preview_denoising_prefilter",
+        "cycles.preview_denoising_quality",
         "cycles.preview_denoising_start_sample",
     ]
 

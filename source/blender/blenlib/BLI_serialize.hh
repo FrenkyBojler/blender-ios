@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -57,7 +59,7 @@
  * `serialize`/`deserialize` methods should be implemented.
  */
 
-#include <ostream>
+#include <iosfwd>
 
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
@@ -78,6 +80,7 @@ enum class eValueType {
   Boolean,
   Double,
   Dictionary,
+  Enum,
 };
 
 class Value;
@@ -87,12 +90,8 @@ template<typename T, eValueType V> class PrimitiveValue;
 using IntValue = PrimitiveValue<int64_t, eValueType::Int>;
 using DoubleValue = PrimitiveValue<double, eValueType::Double>;
 using BooleanValue = PrimitiveValue<bool, eValueType::Boolean>;
-
-template<typename Container, eValueType V, typename ContainerItem = typename Container::value_type>
-class ContainerValue;
-/* ArrayValue stores its items as shared pointer as it shares data with a lookup table that can
- * be created by calling `create_lookup`. */
-using ArrayValue = ContainerValue<Vector<std::shared_ptr<Value>>, eValueType::Array>;
+using EnumValue = PrimitiveValue<int, eValueType::Enum>;
+class ArrayValue;
 
 /**
  * Class containing a (de)serializable value.
@@ -116,9 +115,7 @@ class Value {
 
  protected:
   Value() = delete;
-  explicit Value(eValueType type) : type_(type)
-  {
-  }
+  explicit Value(eValueType type) : type_(type) {}
 
  public:
   virtual ~Value() = default;
@@ -152,6 +149,12 @@ class Value {
   const BooleanValue *as_boolean_value() const;
 
   /**
+   * Casts to a EnumValue.
+   * Will return nullptr when it is a different type.
+   */
+  const EnumValue *as_enum_value() const;
+
+  /**
    * Casts to an ArrayValue.
    * Will return nullptr when it is a different type.
    */
@@ -177,9 +180,7 @@ class PrimitiveValue : public Value {
   T inner_value_{};
 
  public:
-  explicit PrimitiveValue(const T value) : Value(V), inner_value_(value)
-  {
-  }
+  explicit PrimitiveValue(const T value) : Value(V), inner_value_(value) {}
 
   const T value() const
   {
@@ -189,9 +190,7 @@ class PrimitiveValue : public Value {
 
 class NullValue : public Value {
  public:
-  NullValue() : Value(eValueType::Null)
-  {
-  }
+  NullValue() : Value(eValueType::Null) {}
 };
 
 class StringValue : public Value {
@@ -199,9 +198,7 @@ class StringValue : public Value {
   std::string string_;
 
  public:
-  StringValue(const StringRef string) : Value(eValueType::String), string_(string)
-  {
-  }
+  StringValue(std::string string) : Value(eValueType::String), string_(std::move(string)) {}
 
   const std::string &value() const
   {
@@ -209,75 +206,70 @@ class StringValue : public Value {
   }
 };
 
-/**
- * Template for arrays and objects.
- *
- * Both ArrayValue and DictionaryValue store their values in an array.
- */
-template<
-    /** The container type where the elements are stored in. */
-    typename Container,
-
-    /** ValueType representing the value (object/array). */
-    eValueType V,
-
-    /** Type of the data inside the container. */
-    typename ContainerItem>
-class ContainerValue : public Value {
- public:
-  using Items = Container;
-  using Item = ContainerItem;
-
- private:
-  Container inner_value_;
+class ArrayValue : public Value {
+  Vector<std::shared_ptr<Value>> values_;
 
  public:
-  ContainerValue() : Value(V)
-  {
-  }
+  ArrayValue() : Value(eValueType::Array) {}
 
-  const Container &elements() const
-  {
-    return inner_value_;
-  }
+  void append(std::shared_ptr<Value> value);
+  void append_bool(bool value);
+  void append_int(int value);
+  void append_double(double value);
+  void append_str(std::string value);
+  void append_null();
+  std::shared_ptr<DictionaryValue> append_dict();
+  std::shared_ptr<ArrayValue> append_array();
 
-  Container &elements()
+  Span<std::shared_ptr<Value>> elements() const
   {
-    return inner_value_;
+    return values_;
   }
 };
-
-/**
- * Internal storage type for DictionaryValue.
- *
- * The elements are stored as an key value pair. The value is a shared pointer so it can be shared
- * when using `DictionaryValue::create_lookup`.
- */
-using DictionaryElementType = std::pair<std::string, std::shared_ptr<Value>>;
 
 /**
  * Object is a key-value container where the key must be a std::string.
  * Internally it is stored in a blender::Vector to ensure the order of keys.
  */
-class DictionaryValue
-    : public ContainerValue<Vector<DictionaryElementType>, eValueType::Dictionary> {
+class DictionaryValue : public Value {
  public:
-  using LookupValue = std::shared_ptr<Value>;
-  using Lookup = Map<std::string, LookupValue>;
+  /**
+   * Elements are stored as an key value pair. The value is a shared pointer so it can be
+   * shared when using `DictionaryValue::create_lookup`.
+   */
+  using Item = std::pair<std::string, std::shared_ptr<Value>>;
+  using Lookup = Map<std::string, std::shared_ptr<Value>>;
+
+ private:
+  Vector<Item> values_;
+
+ public:
+  DictionaryValue() : Value(eValueType::Dictionary) {}
 
   /**
    * Return a lookup map to quickly lookup by key.
    *
    * The lookup is owned by the caller.
    */
-  const Lookup create_lookup() const
+  Lookup create_lookup() const;
+
+  const std::shared_ptr<Value> *lookup(const StringRef key) const;
+  std::optional<StringRefNull> lookup_str(const StringRef key) const;
+  std::optional<int64_t> lookup_int(const StringRef key) const;
+  std::optional<double> lookup_double(const StringRef key) const;
+  const DictionaryValue *lookup_dict(const StringRef key) const;
+  const ArrayValue *lookup_array(const StringRef key) const;
+  Span<Item> elements() const
   {
-    Lookup result;
-    for (const Item &item : elements()) {
-      result.add_as(item.first, item.second);
-    }
-    return result;
+    return values_;
   }
+
+  void append(std::string key, std::shared_ptr<Value> value);
+  void append_int(std::string key, int64_t value);
+  void append_double(std::string key, double value);
+  void append_str(std::string key, std::string value);
+  std::shared_ptr<DictionaryValue> append_dict(std::string key);
+  std::shared_ptr<ArrayValue> append_array(std::string key);
 };
 
 /**
@@ -307,7 +299,14 @@ class JsonFormatter : public Formatter {
 
  public:
   void serialize(std::ostream &os, const Value &value) override;
+  /**
+   * \return The de-serialized value or null on failure to parse the JSON contents. Typically this
+   *         indicates a malformed file.
+   */
   std::unique_ptr<Value> deserialize(std::istream &is) override;
 };
+
+void write_json_file(StringRef path, const Value &value);
+std::shared_ptr<Value> read_json_file(StringRef path);
 
 }  // namespace blender::io::serialize

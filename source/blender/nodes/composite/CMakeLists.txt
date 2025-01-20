@@ -1,30 +1,19 @@
+# SPDX-FileCopyrightText: 2021 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2021 Blender Foundation. All rights reserved.
 
 set(INC
   .
   ..
   ../intern
   ../../editors/include
-  ../../blenkernel
-  ../../blenlib
-  ../../blentranslation
-  ../../depsgraph
-  ../../functions
-  ../../gpu
-  ../../imbuf
-  ../../makesdna
+  ../../compositor
   ../../makesrna
-  ../../render
-  ../../windowmanager
-  ../../compositor/realtime_compositor
-  ../../compositor/realtime_compositor/algorithms
-  ../../compositor/realtime_compositor/cached_resources
-  ../../../../intern/guardedalloc
+  ../../compositor/algorithms
+  ../../compositor/cached_resources
+  ../../compositor/utilities
 
-  # dna_type_offsets.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -64,6 +53,7 @@ set(SRC
   nodes/node_composite_double_edge_mask.cc
   nodes/node_composite_ellipsemask.cc
   nodes/node_composite_exposure.cc
+  nodes/node_composite_file_output.cc
   nodes/node_composite_filter.cc
   nodes/node_composite_flip.cc
   nodes/node_composite_gamma.cc
@@ -76,6 +66,7 @@ set(SRC
   nodes/node_composite_invert.cc
   nodes/node_composite_keying.cc
   nodes/node_composite_keyingscreen.cc
+  nodes/node_composite_kuwahara.cc
   nodes/node_composite_lensdist.cc
   nodes/node_composite_levels.cc
   nodes/node_composite_luma_matte.cc
@@ -89,7 +80,6 @@ set(SRC
   nodes/node_composite_moviedistortion.cc
   nodes/node_composite_normal.cc
   nodes/node_composite_normalize.cc
-  nodes/node_composite_output_file.cc
   nodes/node_composite_pixelate.cc
   nodes/node_composite_planetrackdeform.cc
   nodes/node_composite_posterize.cc
@@ -105,7 +95,7 @@ set(SRC
   nodes/node_composite_sepcomb_ycca.cc
   nodes/node_composite_sepcomb_yuva.cc
   nodes/node_composite_setalpha.cc
-  nodes/node_composite_split_viewer.cc
+  nodes/node_composite_split.cc
   nodes/node_composite_stabilize2d.cc
   nodes/node_composite_sunbeams.cc
   nodes/node_composite_switch.cc
@@ -130,32 +120,56 @@ set(SRC
 )
 
 set(LIB
-  bf_realtime_compositor
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::extern::fmtlib
+  bf_compositor
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
+
+if(WITH_OPENCOLORIO)
+  add_definitions(-DWITH_OCIO)
+endif()
 
 if(WITH_IMAGE_OPENEXR)
   add_definitions(-DWITH_OPENEXR)
 endif()
 
-if(WITH_COMPOSITOR_CPU)
-  list(APPEND INC
-    ../../compositor
-  )
-  add_definitions(-DWITH_COMPOSITOR_CPU)
-endif()
-
 if(WITH_OPENIMAGEDENOISE)
   add_definitions(-DWITH_OPENIMAGEDENOISE)
+  add_definitions(-DOIDN_STATIC_LIB)
+  list(APPEND INC_SYS
+    ${OPENIMAGEDENOISE_INCLUDE_DIRS}
+    ${TBB_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${OPENIMAGEDENOISE_LIBRARIES}
+    ${TBB_LIBRARIES}
+  )
+endif()
+
+
+if(WITH_FFTW3)
+  list(APPEND INC_SYS
+    ${FFTW3_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${FFTW3_LIBRARIES}
+  )
+  add_definitions(-DWITH_FFTW3)
 endif()
 
 blender_add_lib(bf_nodes_composite "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-if(WITH_UNITY_BUILD)
-  set_target_properties(bf_nodes_composite PROPERTIES UNITY_BUILD ON)
-  set_target_properties(bf_nodes_composite PROPERTIES UNITY_BUILD_BATCH_SIZE 10)
-endif()
+blender_set_target_unity_build(bf_nodes_composite 10)
 
-# Needed so we can use dna_type_offsets.h for defaults initialization.
-add_dependencies(bf_nodes_composite bf_dna)
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_nodes_composite bf_rna)

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -16,20 +18,22 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ExternalContourUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ExternalContourUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > :class:`ExternalContourUP1D`\n"
     "\n"
     ".. method:: __call__(inter)\n"
     "\n"
-    "   Returns true if the Interface1D is an external contour.  An\n"
-    "   Interface1D is an external contour if it is bordered by no shape on\n"
+    "   Returns true if the Interface1D is an external contour.\n"
+    "   An Interface1D is an external contour if it is bordered by no shape on\n"
     "   one of its sides.\n"
     "\n"
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True if the Interface1D is an external contour, false\n"
     "      otherwise.\n"
-    "   :rtype: bool\n";
+    "   :rtype: bool\n");
 
 static int ExternalContourUP1D___init__(BPy_ExternalContourUP1D *self,
                                         PyObject *args,
@@ -47,7 +51,7 @@ static int ExternalContourUP1D___init__(BPy_ExternalContourUP1D *self,
 /*-----------------------BPy_ExternalContourUP1D type definition ------------------------------*/
 
 PyTypeObject ExternalContourUP1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "ExternalContourUP1D",
     /*tp_basicsize*/ sizeof(BPy_ExternalContourUP1D),
     /*tp_itemsize*/ 0,

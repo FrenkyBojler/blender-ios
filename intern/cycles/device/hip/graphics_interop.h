@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifdef WITH_HIP
 
@@ -21,15 +22,15 @@ class HIPDeviceGraphicsInterop : public DeviceGraphicsInterop {
   HIPDeviceGraphicsInterop(const HIPDeviceGraphicsInterop &other) = delete;
   HIPDeviceGraphicsInterop(HIPDeviceGraphicsInterop &&other) noexcept = delete;
 
-  ~HIPDeviceGraphicsInterop();
+  ~HIPDeviceGraphicsInterop() override;
 
   HIPDeviceGraphicsInterop &operator=(const HIPDeviceGraphicsInterop &other) = delete;
   HIPDeviceGraphicsInterop &operator=(HIPDeviceGraphicsInterop &&other) = delete;
 
-  virtual void set_display_interop(const DisplayDriver::GraphicsInterop &display_interop) override;
+  void set_display_interop(const DisplayDriver::GraphicsInterop &display_interop) override;
 
-  virtual device_ptr map() override;
-  virtual void unmap() override;
+  device_ptr map() override;
+  void unmap() override;
 
  protected:
   HIPDeviceQueue *queue_ = nullptr;

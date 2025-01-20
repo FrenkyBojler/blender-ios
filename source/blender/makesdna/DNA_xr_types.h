@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -7,10 +9,6 @@
 #pragma once
 
 #include "DNA_view3d_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* -------------------------------------------------------------------- */
 
@@ -94,7 +92,7 @@ typedef enum eXrHapticFlag {
 } eXrHapticFlag;
 
 /**
- * For axis-based inputs (thumb-stick/track-pad/etc).
+ * For axis-based inputs (thumbstick/trackpad/etc).
  * Determines the region for action execution (mutually exclusive per axis).
  */
 typedef enum eXrAxisFlag {
@@ -206,7 +204,3 @@ typedef struct XrActionMap {
 } XrActionMap;
 
 /* -------------------------------------------------------------------- */
-
-#ifdef __cplusplus
-}
-#endif

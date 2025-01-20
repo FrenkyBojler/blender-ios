@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2009 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edrend
@@ -10,6 +11,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_ID.h"
 #include "DNA_curve_types.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
@@ -23,74 +25,94 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
-#include "BKE_brush.h"
-#include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_editmesh.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
+#include "BKE_appdir.hh"
+#include "BKE_blender_copybuffer.hh"
+#include "BKE_blendfile.hh"
+#include "BKE_brush.hh"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_global.hh"
+#include "BKE_image.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_lib_remap.hh"
+#include "BKE_lightprobe.h"
 #include "BKE_linestyle.h"
-#include "BKE_main.h"
-#include "BKE_material.h"
-#include "BKE_node.h"
-#include "BKE_object.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
+#include "BKE_material.hh"
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
+#include "BKE_node_tree_update.hh"
+#include "BKE_object.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_texture.h"
-#include "BKE_vfont.h"
-#include "BKE_workspace.h"
+#include "BKE_vfont.hh"
+#include "BKE_workspace.hh"
 #include "BKE_world.h"
 
-#include "NOD_composite.h"
+#include "NOD_composite.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #ifdef WITH_FREESTYLE
 #  include "BKE_freestyle.h"
 #  include "FRS_freestyle.h"
-#  include "RNA_enum_types.h"
+#  include "RNA_enum_types.hh"
 #endif
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_curve.h"
-#include "ED_mesh.h"
-#include "ED_node.h"
-#include "ED_object.h"
-#include "ED_paint.h"
-#include "ED_render.h"
-#include "ED_scene.h"
-#include "ED_screen.h"
+#include "ED_curve.hh"
+#include "ED_mesh.hh"
+#include "ED_node.hh"
+#include "ED_object.hh"
+#include "ED_paint.hh"
+#include "ED_render.hh"
+#include "ED_scene.hh"
+#include "ED_screen.hh"
 
-#include "RNA_define.h"
-#include "RNA_prototypes.h"
+#include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#include "engines/eevee/eevee_lightcache.h"
+#include "engines/eevee_next/eevee_lightcache.hh"
 
 #include "render_intern.hh" /* own include */
+
+using blender::Vector;
 
 static bool object_materials_supported_poll_ex(bContext *C, const Object *ob);
 
 /* -------------------------------------------------------------------- */
 /** \name Local Utilities
  * \{ */
+
+static void material_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filepath_maxncpy)
+{
+  BLI_path_join(filepath, filepath_maxncpy, BKE_tempdir_base(), "copybuffer_material.blend");
+}
 
 static bool object_array_for_shading_edit_mode_enabled_filter(const Object *ob, void *user_data)
 {
@@ -103,10 +125,10 @@ static bool object_array_for_shading_edit_mode_enabled_filter(const Object *ob, 
   return false;
 }
 
-static Object **object_array_for_shading_edit_mode_enabled(bContext *C, uint *r_objects_len)
+static Vector<Object *> object_array_for_shading_edit_mode_enabled(bContext *C)
 {
-  return ED_object_array_in_mode_or_selected(
-      C, object_array_for_shading_edit_mode_enabled_filter, C, r_objects_len);
+  return blender::ed::object::objects_in_mode_or_selected(
+      C, object_array_for_shading_edit_mode_enabled_filter, C);
 }
 
 static bool object_array_for_shading_edit_mode_disabled_filter(const Object *ob, void *user_data)
@@ -120,10 +142,10 @@ static bool object_array_for_shading_edit_mode_disabled_filter(const Object *ob,
   return false;
 }
 
-static Object **object_array_for_shading_edit_mode_disabled(bContext *C, uint *r_objects_len)
+static Vector<Object *> object_array_for_shading_edit_mode_disabled(bContext *C)
 {
-  return ED_object_array_in_mode_or_selected(
-      C, object_array_for_shading_edit_mode_disabled_filter, C, r_objects_len);
+  return blender::ed::object::objects_in_mode_or_selected(
+      C, object_array_for_shading_edit_mode_disabled_filter, C);
 }
 
 /** \} */
@@ -148,12 +170,12 @@ static bool object_materials_supported_poll_ex(bContext *C, const Object *ob)
 
   /* Material linked to obdata. */
   const ID *data = static_cast<ID *>(ob->data);
-  return (data && !ID_IS_LINKED(data) && !ID_IS_OVERRIDE_LIBRARY(data));
+  return (data && ID_IS_EDITABLE(data) && !ID_IS_OVERRIDE_LIBRARY(data));
 }
 
 static bool object_materials_supported_poll(bContext *C)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
   return object_materials_supported_poll_ex(C, ob);
 }
 
@@ -166,7 +188,7 @@ static bool object_materials_supported_poll(bContext *C)
 static int material_slot_add_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
 
   if (!ob) {
     return OPERATOR_CANCELLED;
@@ -176,7 +198,7 @@ static int material_slot_add_exec(bContext *C, wmOperator * /*op*/)
 
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
-    ED_paint_proj_mesh_data_check(scene, ob, nullptr, nullptr, nullptr, nullptr);
+    ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
@@ -210,13 +232,13 @@ void OBJECT_OT_material_slot_add(wmOperatorType *ot)
 
 static int material_slot_remove_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
 
   if (!ob) {
     return OPERATOR_CANCELLED;
   }
 
-  /* Removing material slots in edit mode screws things up, see bug T21822. */
+  /* Removing material slots in edit mode screws things up, see bug #21822. */
   if (ob == CTX_data_edit_object(C)) {
     BKE_report(op->reports, RPT_ERROR, "Unable to remove material slot in edit mode");
     return OPERATOR_CANCELLED;
@@ -226,7 +248,7 @@ static int material_slot_remove_exec(bContext *C, wmOperator *op)
 
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
-    ED_paint_proj_mesh_data_check(scene, ob, nullptr, nullptr, nullptr, nullptr);
+    ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
@@ -267,10 +289,8 @@ static int material_slot_assign_exec(bContext *C, wmOperator * /*op*/)
   Object *obact = CTX_data_active_object(C);
   const Material *mat_active = obact ? BKE_object_material_get(obact, obact->actcol) : nullptr;
 
-  uint objects_len = 0;
-  Object **objects = object_array_for_shading_edit_mode_enabled(C, &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = object_array_for_shading_edit_mode_enabled(C);
+  for (Object *ob : objects) {
     short mat_nr_active = -1;
 
     if (ob->totcol == 0) {
@@ -312,11 +332,10 @@ static int material_slot_assign_exec(bContext *C, wmOperator * /*op*/)
       }
     }
     else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
-      Nurb *nu;
       ListBase *nurbs = BKE_curve_editNurbs_get((Curve *)ob->data);
 
       if (nurbs) {
-        for (nu = static_cast<Nurb *>(nurbs->first); nu; nu = nu->next) {
+        LISTBASE_FOREACH (Nurb *, nu, nurbs) {
           if (ED_curve_nurb_select_check(v3d, nu)) {
             changed = true;
             nu->mat_nr = mat_nr_active;
@@ -331,7 +350,7 @@ static int material_slot_assign_exec(bContext *C, wmOperator * /*op*/)
       if (ef && BKE_vfont_select_get(ob, &selstart, &selend)) {
         for (i = selstart; i <= selend; i++) {
           changed = true;
-          ef->textbufinfo[i].mat_nr = mat_nr_active + 1;
+          ef->textbufinfo[i].mat_nr = mat_nr_active;
         }
       }
     }
@@ -342,7 +361,6 @@ static int material_slot_assign_exec(bContext *C, wmOperator * /*op*/)
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
     }
   }
-  MEM_freeN(objects);
 
   return (changed_multi) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -374,33 +392,17 @@ static int material_slot_de_select(bContext *C, bool select)
   Object *obact = CTX_data_active_object(C);
   const Material *mat_active = obact ? BKE_object_material_get(obact, obact->actcol) : nullptr;
 
-  uint objects_len = 0;
-  Object **objects = object_array_for_shading_edit_mode_enabled(C, &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
-    short mat_nr_active = -1;
-
+  Vector<Object *> objects = object_array_for_shading_edit_mode_enabled(C);
+  for (Object *ob : objects) {
     if (ob->totcol == 0) {
       continue;
     }
-    if (obact && (mat_active == BKE_object_material_get(ob, obact->actcol))) {
-      /* Avoid searching since there may be multiple slots with the same material.
-       * For the active object or duplicates: match the material slot index first. */
-      mat_nr_active = obact->actcol - 1;
-    }
-    else {
-      /* Find the first matching material.
-       * NOTE: there may be multiple but that's not a common use case. */
-      for (int i = 0; i < ob->totcol; i++) {
-        const Material *mat = BKE_object_material_get(ob, i + 1);
-        if (mat_active == mat) {
-          mat_nr_active = i;
-          break;
-        }
-      }
-      if (mat_nr_active == -1) {
-        continue;
-      }
+
+    const short mat_nr_active = BKE_object_material_index_get_with_hint(
+        ob, mat_active, obact ? obact->actcol - 1 : -1);
+
+    if (mat_nr_active == -1) {
+      continue;
     }
 
     bool changed = false;
@@ -414,13 +416,12 @@ static int material_slot_de_select(bContext *C, bool select)
     }
     else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
       ListBase *nurbs = BKE_curve_editNurbs_get((Curve *)ob->data);
-      Nurb *nu;
       BPoint *bp;
       BezTriple *bezt;
       int a;
 
       if (nurbs) {
-        for (nu = static_cast<Nurb *>(nurbs->first); nu; nu = nu->next) {
+        LISTBASE_FOREACH (Nurb *, nu, nurbs) {
           if (nu->mat_nr == mat_nr_active) {
             if (nu->bezt) {
               a = nu->pntsu;
@@ -469,8 +470,6 @@ static int material_slot_de_select(bContext *C, bool select)
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
     }
   }
-
-  MEM_freeN(objects);
 
   return (changed_multi) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -522,7 +521,7 @@ void OBJECT_OT_material_slot_deselect(wmOperatorType *ot)
 static int material_slot_copy_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
   Material ***matar_obdata;
 
   if (!ob || !(matar_obdata = BKE_object_material_array_p(ob))) {
@@ -544,6 +543,18 @@ static int material_slot_copy_exec(bContext *C, wmOperator * /*op*/)
       /* If we are using the same obdata, we only assign slots in ob_iter that are using object
        * materials, and not obdata ones. */
       const bool is_same_obdata = ob->data == ob_iter->data;
+
+      /* If we are using the same obdata, make the target object inherit the matbits of the active
+       * object. Without this, object material slots are not copied unless the target object
+       * already had its material slot link set to object. */
+      if (is_same_obdata) {
+        for (int i = ob->totcol; i--;) {
+          if (ob->matbits[i]) {
+            ob_iter->matbits[i] = ob->matbits[i];
+          }
+        }
+      }
+
       BKE_object_material_array_assign(bmain, ob_iter, &matar, ob->totcol, is_same_obdata);
 
       if (ob_iter->totcol == ob->totcol) {
@@ -582,7 +593,7 @@ void OBJECT_OT_material_slot_copy(wmOperatorType *ot)
 
 static int material_slot_move_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
 
   uint *slot_remap;
   int index_pair[2];
@@ -663,7 +674,7 @@ void OBJECT_OT_material_slot_move(wmOperatorType *ot)
 
 static int material_slot_remove_unused_exec(bContext *C, wmOperator *op)
 {
-  /* Removing material slots in edit mode screws things up, see bug T21822. */
+  /* Removing material slots in edit mode screws things up, see bug #21822. */
   Object *ob_active = CTX_data_active_object(C);
   if (ob_active && BKE_object_is_in_editmode(ob_active)) {
     BKE_report(op->reports, RPT_ERROR, "Unable to remove material slot in edit mode");
@@ -673,10 +684,8 @@ static int material_slot_remove_unused_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   int removed = 0;
 
-  uint objects_len = 0;
-  Object **objects = object_array_for_shading_edit_mode_disabled(C, &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *ob = objects[ob_index];
+  Vector<Object *> objects = object_array_for_shading_edit_mode_disabled(C);
+  for (Object *ob : objects) {
     int actcol = ob->actcol;
     for (int slot = 1; slot <= ob->totcol; slot++) {
       while (slot <= ob->totcol && !BKE_object_material_slot_used(ob, slot)) {
@@ -694,7 +703,6 @@ static int material_slot_remove_unused_exec(bContext *C, wmOperator *op)
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
-  MEM_freeN(objects);
 
   if (!removed) {
     return OPERATOR_CANCELLED;
@@ -704,7 +712,7 @@ static int material_slot_remove_unused_exec(bContext *C, wmOperator *op)
 
   if (ob_active->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
-    ED_paint_proj_mesh_data_check(scene, ob_active, nullptr, nullptr, nullptr, nullptr);
+    ED_paint_proj_mesh_data_check(*scene, *ob_active, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
@@ -741,7 +749,7 @@ static int new_material_exec(bContext *C, wmOperator * /*op*/)
   Material *ma = static_cast<Material *>(
       CTX_data_pointer_get_type(C, "material", &RNA_Material).data);
   Main *bmain = CTX_data_main(C);
-  PointerRNA ptr, idptr;
+  PointerRNA ptr;
   PropertyRNA *prop;
 
   /* hook into UI */
@@ -758,7 +766,7 @@ static int new_material_exec(bContext *C, wmOperator * /*op*/)
   }
   else {
     const char *name = DATA_("Material");
-    if (!(ob != nullptr && ob->type == OB_GPENCIL)) {
+    if (!(ob != nullptr && ob->type == OB_GREASE_PENCIL)) {
       ma = BKE_material_add(bmain, name);
     }
     else {
@@ -771,7 +779,7 @@ static int new_material_exec(bContext *C, wmOperator * /*op*/)
   if (prop) {
     if (ob != nullptr) {
       /* Add slot follows user-preferences for creating new slots,
-       * RNA pointer assignment doesn't, see: T60014. */
+       * RNA pointer assignment doesn't, see: #60014. */
       if (BKE_object_material_get_p(ob, ob->actcol) == nullptr) {
         BKE_object_material_slot_add(bmain, ob);
       }
@@ -781,7 +789,11 @@ static int new_material_exec(bContext *C, wmOperator * /*op*/)
      * pointer use also increases user, so this compensates it */
     id_us_min(&ma->id);
 
-    RNA_id_pointer_create(&ma->id, &idptr);
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, ma->id, *ptr.owner_id);
+    }
+
+    PointerRNA idptr = RNA_id_pointer_create(&ma->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
     RNA_property_update(C, &ptr, prop);
   }
@@ -816,7 +828,7 @@ static int new_texture_exec(bContext *C, wmOperator * /*op*/)
 {
   Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data);
   Main *bmain = CTX_data_main(C);
-  PointerRNA ptr, idptr;
+  PointerRNA ptr;
   PropertyRNA *prop;
 
   /* add or copy texture */
@@ -835,7 +847,11 @@ static int new_texture_exec(bContext *C, wmOperator * /*op*/)
      * pointer use also increases user, so this compensates it */
     id_us_min(&tex->id);
 
-    RNA_id_pointer_create(&tex->id, &idptr);
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, tex->id, *ptr.owner_id);
+    }
+
+    PointerRNA idptr = RNA_id_pointer_create(&tex->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
     RNA_property_update(C, &ptr, prop);
   }
@@ -869,7 +885,7 @@ static int new_world_exec(bContext *C, wmOperator * /*op*/)
 {
   World *wo = static_cast<World *>(CTX_data_pointer_get_type(C, "world", &RNA_World).data);
   Main *bmain = CTX_data_main(C);
-  PointerRNA ptr, idptr;
+  PointerRNA ptr;
   PropertyRNA *prop;
 
   /* add or copy world */
@@ -892,7 +908,11 @@ static int new_world_exec(bContext *C, wmOperator * /*op*/)
      * pointer use also increases user, so this compensates it */
     id_us_min(&wo->id);
 
-    RNA_id_pointer_create(&wo->id, &idptr);
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, wo->id, *ptr.owner_id);
+    }
+
+    PointerRNA idptr = RNA_id_pointer_create(&wo->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
     RNA_property_update(C, &ptr, prop);
   }
@@ -1039,7 +1059,7 @@ static int view_layer_add_aov_exec(bContext *C, wmOperator * /*op*/)
     ntreeCompositUpdateRLayers(scene->nodetree);
   }
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
@@ -1091,7 +1111,7 @@ static int view_layer_remove_aov_exec(bContext *C, wmOperator * /*op*/)
     ntreeCompositUpdateRLayers(scene->nodetree);
   }
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
@@ -1129,7 +1149,7 @@ static int view_layer_add_lightgroup_exec(bContext *C, wmOperator *op)
   if (RNA_struct_property_is_set(op->ptr, "name")) {
     RNA_string_get(op->ptr, "name", name);
     /* Ensure that there are no dots in the name. */
-    BLI_str_replace_char(name, '.', '_');
+    BLI_string_replace_char(name, '.', '_');
     LISTBASE_FOREACH (ViewLayerLightgroup *, lightgroup, &view_layer->lightgroups) {
       if (STREQ(lightgroup->name, name)) {
         return OPERATOR_CANCELLED;
@@ -1143,7 +1163,7 @@ static int view_layer_add_lightgroup_exec(bContext *C, wmOperator *op)
     ntreeCompositUpdateRLayers(scene->nodetree);
   }
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
@@ -1167,7 +1187,7 @@ void SCENE_OT_view_layer_add_lightgroup(wmOperatorType *ot)
   ot->prop = RNA_def_string(ot->srna,
                             "name",
                             nullptr,
-                            sizeof(((ViewLayerLightgroup *)nullptr)->name),
+                            sizeof(ViewLayerLightgroup::name),
                             "Name",
                             "Name of newly created lightgroup");
 }
@@ -1193,7 +1213,7 @@ static int view_layer_remove_lightgroup_exec(bContext *C, wmOperator * /*op*/)
     ntreeCompositUpdateRLayers(scene->nodetree);
   }
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
@@ -1220,19 +1240,19 @@ void SCENE_OT_view_layer_remove_lightgroup(wmOperatorType *ot)
 /** \name View Layer Add Used Lightgroups Operator
  * \{ */
 
-static GSet *get_used_lightgroups(Scene *scene)
+static blender::Set<blender::StringRefNull> get_used_lightgroups(Scene *scene)
 {
-  GSet *used_lightgroups = BLI_gset_str_new(__func__);
+  blender::Set<blender::StringRefNull> used_lightgroups;
 
   FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
     if (ob->lightgroup && ob->lightgroup->name[0]) {
-      BLI_gset_add(used_lightgroups, ob->lightgroup->name);
+      used_lightgroups.add_as(ob->lightgroup->name);
     }
   }
   FOREACH_SCENE_OBJECT_END;
 
   if (scene->world && scene->world->lightgroup && scene->world->lightgroup->name[0]) {
-    BLI_gset_add(used_lightgroups, scene->world->lightgroup->name);
+    used_lightgroups.add_as(scene->world->lightgroup->name);
   }
 
   return used_lightgroups;
@@ -1243,21 +1263,21 @@ static int view_layer_add_used_lightgroups_exec(bContext *C, wmOperator * /*op*/
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  GSet *used_lightgroups = get_used_lightgroups(scene);
-  GSET_FOREACH_BEGIN (const char *, used_lightgroup, used_lightgroups) {
-    if (!BLI_findstring(
-            &view_layer->lightgroups, used_lightgroup, offsetof(ViewLayerLightgroup, name))) {
-      BKE_view_layer_add_lightgroup(view_layer, used_lightgroup);
+  blender::Set<blender::StringRefNull> used_lightgroups = get_used_lightgroups(scene);
+  for (const blender::StringRefNull used_lightgroup : used_lightgroups) {
+    if (!BLI_findstring(&view_layer->lightgroups,
+                        used_lightgroup.c_str(),
+                        offsetof(ViewLayerLightgroup, name)))
+    {
+      BKE_view_layer_add_lightgroup(view_layer, used_lightgroup.c_str());
     }
   }
-  GSET_FOREACH_END();
-  BLI_gset_free(used_lightgroups, nullptr);
 
   if (scene->nodetree) {
     ntreeCompositUpdateRLayers(scene->nodetree);
   }
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
@@ -1289,19 +1309,18 @@ static int view_layer_remove_unused_lightgroups_exec(bContext *C, wmOperator * /
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  GSet *used_lightgroups = get_used_lightgroups(scene);
+  blender::Set<blender::StringRefNull> used_lightgroups = get_used_lightgroups(scene);
   LISTBASE_FOREACH_MUTABLE (ViewLayerLightgroup *, lightgroup, &view_layer->lightgroups) {
-    if (!BLI_gset_haskey(used_lightgroups, lightgroup->name)) {
+    if (!used_lightgroups.contains_as(lightgroup->name)) {
       BKE_view_layer_remove_lightgroup(view_layer, lightgroup);
     }
   }
-  BLI_gset_free(used_lightgroups, nullptr);
 
   if (scene->nodetree) {
     ntreeCompositUpdateRLayers(scene->nodetree);
   }
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
@@ -1330,112 +1349,102 @@ void SCENE_OT_view_layer_remove_unused_lightgroups(wmOperatorType *ot)
 
 enum {
   LIGHTCACHE_SUBSET_ALL = 0,
-  LIGHTCACHE_SUBSET_DIRTY,
-  LIGHTCACHE_SUBSET_CUBE,
+  LIGHTCACHE_SUBSET_SELECTED,
+  LIGHTCACHE_SUBSET_ACTIVE,
 };
 
-static void light_cache_bake_tag_cache(Scene *scene, wmOperator *op)
-{
-  if (scene->eevee.light_cache_data != nullptr) {
-    int subset = RNA_enum_get(op->ptr, "subset");
-    switch (subset) {
-      case LIGHTCACHE_SUBSET_ALL:
-        scene->eevee.light_cache_data->flag |= LIGHTCACHE_UPDATE_GRID | LIGHTCACHE_UPDATE_CUBE;
-        break;
-      case LIGHTCACHE_SUBSET_CUBE:
-        scene->eevee.light_cache_data->flag |= LIGHTCACHE_UPDATE_CUBE;
-        break;
-      case LIGHTCACHE_SUBSET_DIRTY:
-        /* Leave tag untouched. */
-        break;
-    }
-  }
-}
-
-/** Catch escape key to cancel. */
-static int light_cache_bake_modal(bContext *C, wmOperator *op, const wmEvent *event)
-{
-  Scene *scene = (Scene *)op->customdata;
-
-  /* no running blender, remove handler and pass through */
-  if (0 == WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER)) {
-    LightCache *lcache = scene->eevee.light_cache_data;
-    if (lcache && (lcache->flag & LIGHTCACHE_INVALID)) {
-      BKE_report(op->reports, RPT_ERROR, "Lightcache cannot allocate resources");
-      return OPERATOR_CANCELLED;
-    }
-    return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
-  }
-
-  /* running render */
-  switch (event->type) {
-    case EVT_ESCKEY:
-      return OPERATOR_RUNNING_MODAL;
-  }
-  return OPERATOR_PASS_THROUGH;
-}
-
-static void light_cache_bake_cancel(bContext *C, wmOperator *op)
-{
-  wmWindowManager *wm = CTX_wm_manager(C);
-  Scene *scene = (Scene *)op->customdata;
-
-  /* kill on cancel, because job is using op->reports */
-  WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_RENDER);
-}
-
-/* executes blocking render */
-static int light_cache_bake_exec(bContext *C, wmOperator *op)
+static blender::Vector<Object *> lightprobe_cache_irradiance_volume_subset_get(bContext *C,
+                                                                               wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
-  G.is_break = false;
+  auto is_irradiance_volume = [](Object *ob) -> bool {
+    return ob->type == OB_LIGHTPROBE &&
+           static_cast<LightProbe *>(ob->data)->type == LIGHTPROBE_TYPE_VOLUME;
+  };
 
-  /* TODO: abort if selected engine is not eevee. */
-  void *rj = EEVEE_lightbake_job_data_alloc(bmain, view_layer, scene, false, scene->r.cfra);
+  blender::Vector<Object *> probes;
 
-  light_cache_bake_tag_cache(scene, op);
+  auto irradiance_volume_setup = [&](Object *ob) {
+    BKE_lightprobe_cache_free(ob);
+    BKE_lightprobe_cache_create(ob);
+    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SHADING);
+    probes.append(ob);
+  };
 
-  bool stop = false, do_update;
-  float progress; /* Not actually used. */
-  EEVEE_lightbake_job(rj, &stop, &do_update, &progress);
-  EEVEE_lightbake_job_data_free(rj);
+  int subset = RNA_enum_get(op->ptr, "subset");
+  switch (subset) {
+    case LIGHTCACHE_SUBSET_ALL: {
+      FOREACH_OBJECT_BEGIN (scene, view_layer, ob) {
+        if (is_irradiance_volume(ob)) {
+          irradiance_volume_setup(ob);
+        }
+      }
+      FOREACH_OBJECT_END;
+      break;
+    }
+    case LIGHTCACHE_SUBSET_SELECTED: {
+      ObjectsInViewLayerParams parameters;
+      parameters.filter_fn = nullptr;
+      parameters.no_dup_data = true;
+      Vector<Object *> objects = BKE_view_layer_array_selected_objects_params(
+          view_layer, nullptr, &parameters);
+      for (Object *ob : objects) {
+        if (is_irradiance_volume(ob)) {
+          irradiance_volume_setup(ob);
+        }
+      }
+      break;
+    }
+    case LIGHTCACHE_SUBSET_ACTIVE: {
+      Object *active_ob = CTX_data_active_object(C);
+      if (is_irradiance_volume(active_ob)) {
+        irradiance_volume_setup(active_ob);
+      }
+      break;
+    }
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
 
-  /* No redraw needed, we leave state as we entered it. */
-  ED_update_for_newframe(bmain, CTX_data_depsgraph_pointer(C));
-
-  WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
-
-  return OPERATOR_FINISHED;
+  return probes;
 }
 
-static int light_cache_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+struct BakeOperatorData {
+  /* Store actual owner of job, so modal operator could check for it,
+   * the reason of this is that active scene could change when rendering
+   * several layers from compositor #31800. */
+  Scene *scene;
+
+  std::string report;
+};
+
+static int lightprobe_cache_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  int delay = RNA_int_get(op->ptr, "delay");
 
-  wmJob *wm_job = EEVEE_lightbake_job_create(
-      wm, win, bmain, view_layer, scene, delay, scene->r.cfra);
+  blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(C, op);
 
-  if (!wm_job) {
+  if (probes.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  /* add modal handler for ESC */
+  BakeOperatorData *data = MEM_new<BakeOperatorData>(__func__);
+  data->scene = scene;
+  data->report = "";
+
+  wmJob *wm_job = EEVEE_NEXT_lightbake_job_create(
+      wm, win, bmain, view_layer, scene, probes, data->report, scene->r.cfra, 0);
+
   WM_event_add_modal_handler(C, op);
 
-  light_cache_bake_tag_cache(scene, op);
-
-  /* store actual owner of job, so modal operator could check for it,
-   * the reason of this is that active scene could change when rendering
-   * several layers from compositor T31800. */
-  op->customdata = scene;
+  op->customdata = static_cast<void *>(data);
 
   WM_jobs_start(wm, wm_job);
 
@@ -1444,48 +1453,98 @@ static int light_cache_bake_invoke(bContext *C, wmOperator *op, const wmEvent * 
   return OPERATOR_RUNNING_MODAL;
 }
 
-void SCENE_OT_light_cache_bake(wmOperatorType *ot)
+static int lightprobe_cache_bake_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  BakeOperatorData *data = static_cast<BakeOperatorData *>(op->customdata);
+  Scene *scene = data->scene;
+
+  /* No running bake, remove handler and pass through. */
+  if (0 == WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_LIGHT_BAKE)) {
+    std::string report = data->report;
+
+    MEM_delete(data);
+    op->customdata = nullptr;
+
+    if (!report.empty()) {
+      BKE_report(op->reports, RPT_ERROR, report.c_str());
+      return OPERATOR_CANCELLED;
+    }
+    return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
+  }
+
+  /* Running bake. */
+  switch (event->type) {
+    case EVT_ESCKEY:
+      return OPERATOR_RUNNING_MODAL;
+  }
+  return OPERATOR_PASS_THROUGH;
+}
+
+static void lightprobe_cache_bake_cancel(bContext *C, wmOperator *op)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  Scene *scene = static_cast<BakeOperatorData *>(op->customdata)->scene;
+
+  /* Kill on cancel, because job is using op->reports. */
+  WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_LIGHT_BAKE);
+}
+
+/* Executes blocking bake. */
+static int lightprobe_cache_bake_exec(bContext *C, wmOperator *op)
+{
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+
+  G.is_break = false;
+
+  blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(C, op);
+
+  std::string report;
+  void *rj = EEVEE_NEXT_lightbake_job_data_alloc(
+      bmain, view_layer, scene, probes, report, scene->r.cfra);
+  /* Do the job. */
+  wmJobWorkerStatus worker_status = {};
+  EEVEE_NEXT_lightbake_job(rj, &worker_status);
+  /* Move baking data to original object and then free it. */
+  EEVEE_NEXT_lightbake_update(rj);
+  EEVEE_NEXT_lightbake_job_data_free(rj);
+
+  if (!report.empty()) {
+    BKE_report(op->reports, RPT_ERROR, report.c_str());
+    return OPERATOR_CANCELLED;
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_lightprobe_cache_bake(wmOperatorType *ot)
 {
   static const EnumPropertyItem light_cache_subset_items[] = {
-      {LIGHTCACHE_SUBSET_ALL,
-       "ALL",
+      {LIGHTCACHE_SUBSET_ALL, "ALL", 0, "All Volumes", "Bake all light probe volumes"},
+      {LIGHTCACHE_SUBSET_SELECTED,
+       "SELECTED",
        0,
-       "All Light Probes",
-       "Bake both irradiance grids and reflection cubemaps"},
-      {LIGHTCACHE_SUBSET_DIRTY,
-       "DIRTY",
+       "Selected Only",
+       "Only bake selected light probe volumes"},
+      {LIGHTCACHE_SUBSET_ACTIVE,
+       "ACTIVE",
        0,
-       "Dirty Only",
-       "Only bake light probes that are marked as dirty"},
-      {LIGHTCACHE_SUBSET_CUBE,
-       "CUBEMAPS",
-       0,
-       "Cubemaps Only",
-       "Try to only bake reflection cubemaps if irradiance grids are up to date"},
+       "Active Only",
+       "Only bake the active light probe volume"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   /* identifiers */
   ot->name = "Bake Light Cache";
-  ot->idname = "SCENE_OT_light_cache_bake";
-  ot->description = "Bake the active view layer lighting";
+  ot->idname = "OBJECT_OT_lightprobe_cache_bake";
+  ot->description = "Bake irradiance volume light cache";
 
   /* api callbacks */
-  ot->invoke = light_cache_bake_invoke;
-  ot->modal = light_cache_bake_modal;
-  ot->cancel = light_cache_bake_cancel;
-  ot->exec = light_cache_bake_exec;
-
-  ot->prop = RNA_def_int(ot->srna,
-                         "delay",
-                         0,
-                         0,
-                         2000,
-                         "Delay",
-                         "Delay in millisecond before baking starts",
-                         0,
-                         2000);
-  RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
+  ot->invoke = lightprobe_cache_bake_invoke;
+  ot->modal = lightprobe_cache_bake_modal;
+  ot->cancel = lightprobe_cache_bake_cancel;
+  ot->exec = lightprobe_cache_bake_exec;
 
   ot->prop = RNA_def_enum(
       ot->srna, "subset", light_cache_subset_items, 0, "Subset", "Subset of probes to update");
@@ -1498,47 +1557,65 @@ void SCENE_OT_light_cache_bake(wmOperatorType *ot)
 /** \name Light Cache Free Operator
  * \{ */
 
-static bool light_cache_free_poll(bContext *C)
+static int lightprobe_cache_free_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
-  return scene->eevee.light_cache_data;
-}
-
-static int light_cache_free_exec(bContext *C, wmOperator * /*op*/)
-{
-  Scene *scene = CTX_data_scene(C);
-
-  /* kill potential bake job first (see T57011) */
+  /* Kill potential bake job first (see #57011). */
   wmWindowManager *wm = CTX_wm_manager(C);
   WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_LIGHT_BAKE);
 
-  if (!scene->eevee.light_cache_data) {
-    return OPERATOR_CANCELLED;
+  blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(C, op);
+
+  for (Object *object : probes) {
+    if (object->lightprobe_cache == nullptr) {
+      continue;
+    }
+    BKE_lightprobe_cache_free(object);
+    DEG_id_tag_update(&object->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SHADING);
   }
 
-  EEVEE_lightcache_free(scene->eevee.light_cache_data);
-  scene->eevee.light_cache_data = nullptr;
-
-  EEVEE_lightcache_info_update(&scene->eevee);
-
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
-
-  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, scene);
 
   return OPERATOR_FINISHED;
 }
 
-void SCENE_OT_light_cache_free(wmOperatorType *ot)
+void OBJECT_OT_lightprobe_cache_free(wmOperatorType *ot)
 {
+  static const EnumPropertyItem lightprobe_subset_items[] = {
+      {LIGHTCACHE_SUBSET_ALL,
+       "ALL",
+       0,
+       "All Light Probes",
+       "Delete all light probes' baked lighting data"},
+      {LIGHTCACHE_SUBSET_SELECTED,
+       "SELECTED",
+       0,
+       "Selected Only",
+       "Only delete selected light probes' baked lighting data"},
+      {LIGHTCACHE_SUBSET_ACTIVE,
+       "ACTIVE",
+       0,
+       "Active Only",
+       "Only delete the active light probe's baked lighting data"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   /* identifiers */
   ot->name = "Delete Light Cache";
-  ot->idname = "SCENE_OT_light_cache_free";
+  ot->idname = "OBJECT_OT_lightprobe_cache_free";
   ot->description = "Delete cached indirect lighting";
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* api callbacks */
-  ot->exec = light_cache_free_exec;
-  ot->poll = light_cache_free_poll;
+  ot->exec = lightprobe_cache_free_exec;
+
+  ot->prop = RNA_def_enum(ot->srna,
+                          "subset",
+                          lightprobe_subset_items,
+                          LIGHTCACHE_SUBSET_SELECTED,
+                          "Subset",
+                          "Subset of probes to update");
 }
 
 /** \} */
@@ -1557,12 +1634,16 @@ static bool render_view_remove_poll(bContext *C)
 
 static int render_view_add_exec(bContext *C, wmOperator * /*op*/)
 {
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
   BKE_scene_add_render_view(scene, nullptr);
   scene->r.actview = BLI_listbase_count(&scene->r.views) - 1;
 
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_main_ensure_invariants(*bmain);
 
   return OPERATOR_FINISHED;
 }
@@ -1589,6 +1670,7 @@ void SCENE_OT_render_view_add(wmOperatorType *ot)
 
 static int render_view_remove_exec(bContext *C, wmOperator * /*op*/)
 {
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   SceneRenderView *rv = static_cast<SceneRenderView *>(
       BLI_findlink(&scene->r.views, scene->r.actview));
@@ -1598,6 +1680,9 @@ static int render_view_remove_exec(bContext *C, wmOperator * /*op*/)
   }
 
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_main_ensure_invariants(*bmain);
 
   return OPERATOR_FINISHED;
 }
@@ -1692,7 +1777,7 @@ static int freestyle_module_remove_exec(bContext *C, wmOperator * /*op*/)
 
   BKE_freestyle_module_delete(&view_layer->freestyle_config, module);
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   return OPERATOR_FINISHED;
@@ -1722,7 +1807,7 @@ static int freestyle_module_move_exec(bContext *C, wmOperator *op)
   int dir = RNA_enum_get(op->ptr, "direction");
 
   if (BKE_freestyle_module_move(&view_layer->freestyle_config, module, dir)) {
-    DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
     WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
   }
 
@@ -1778,7 +1863,7 @@ static int freestyle_lineset_add_exec(bContext *C, wmOperator * /*op*/)
 
   BKE_freestyle_lineset_add(bmain, &view_layer->freestyle_config, nullptr);
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   return OPERATOR_FINISHED;
@@ -1829,7 +1914,7 @@ void SCENE_OT_freestyle_lineset_copy(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Copy Line Set";
   ot->idname = "SCENE_OT_freestyle_lineset_copy";
-  ot->description = "Copy the active line set to a buffer";
+  ot->description = "Copy the active line set to the internal clipboard";
 
   /* api callbacks */
   ot->exec = freestyle_lineset_copy_exec;
@@ -1852,7 +1937,7 @@ static int freestyle_lineset_paste_exec(bContext *C, wmOperator * /*op*/)
 
   FRS_paste_active_lineset(&view_layer->freestyle_config);
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   return OPERATOR_FINISHED;
@@ -1863,7 +1948,7 @@ void SCENE_OT_freestyle_lineset_paste(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Paste Line Set";
   ot->idname = "SCENE_OT_freestyle_lineset_paste";
-  ot->description = "Paste the buffer content to the active line set";
+  ot->description = "Paste the internal clipboard content to the active line set";
 
   /* api callbacks */
   ot->exec = freestyle_lineset_paste_exec;
@@ -1886,7 +1971,7 @@ static int freestyle_lineset_remove_exec(bContext *C, wmOperator * /*op*/)
 
   FRS_delete_active_lineset(&view_layer->freestyle_config);
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   return OPERATOR_FINISHED;
@@ -1920,7 +2005,7 @@ static int freestyle_lineset_move_exec(bContext *C, wmOperator *op)
   int dir = RNA_enum_get(op->ptr, "direction");
 
   if (FRS_move_active_lineset(&view_layer->freestyle_config, dir)) {
-    DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
     WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
   }
 
@@ -1977,7 +2062,7 @@ static int freestyle_linestyle_new_exec(bContext *C, wmOperator *op)
     lineset->linestyle = (FreestyleLineStyle *)BKE_id_copy(bmain, &lineset->linestyle->id);
   }
   else {
-    lineset->linestyle = BKE_linestyle_new(bmain, "LineStyle");
+    lineset->linestyle = BKE_linestyle_new(bmain, DATA_("LineStyle"));
   }
   DEG_id_tag_update(&lineset->linestyle->id, 0);
   WM_event_add_notifier(C, NC_LINESTYLE, lineset->linestyle);
@@ -2444,7 +2529,7 @@ static int texture_slot_move_exec(bContext *C, wmOperator *op)
     MTex **mtex_ar, *mtexswap;
     short act;
     int type = RNA_enum_get(op->ptr, "type");
-    struct AnimData *adt = BKE_animdata_from_id(id);
+    AnimData *adt = BKE_animdata_from_id(id);
 
     give_active_mtex(id, &mtex_ar, &act);
 
@@ -2516,9 +2601,10 @@ void TEXTURE_OT_slot_move(wmOperatorType *ot)
 /** \name Material Copy Operator
  * \{ */
 
-/* material copy/paste */
-static int copy_material_exec(bContext *C, wmOperator * /*op*/)
+static int copy_material_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender::bke::blendfile;
+
   Material *ma = static_cast<Material *>(
       CTX_data_pointer_get_type(C, "material", &RNA_Material).data);
 
@@ -2526,7 +2612,23 @@ static int copy_material_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  BKE_material_copybuf_copy(CTX_data_main(C), ma);
+  Main *bmain = CTX_data_main(C);
+  PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
+
+  /* Add the material to the copybuffer (and all of its dependencies). */
+  copybuffer.id_add(
+      &ma->id,
+      PartialWriteContext::IDAddOptions{(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+                                         PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
+                                         PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
+      nullptr);
+
+  char filepath[FILE_MAX];
+  material_copybuffer_filepath_get(filepath, sizeof(filepath));
+  copybuffer.write(filepath, *op->reports);
+
+  /* We are all done! */
+  BKE_report(op->reports, RPT_INFO, "Copied material to internal clipboard");
 
   return OPERATOR_FINISHED;
 }
@@ -2552,18 +2654,191 @@ void MATERIAL_OT_copy(wmOperatorType *ot)
 /** \name Material Paste Operator
  * \{ */
 
-static int paste_material_exec(bContext *C, wmOperator * /*op*/)
+/**
+ * Clear ID's as freeing the data-block doesn't handle reference counting.
+ */
+static int paste_material_nodetree_ids_decref(LibraryIDLinkCallbackData *cb_data)
 {
+  if (cb_data->cb_flag & IDWALK_CB_USER) {
+    id_us_min(*cb_data->id_pointer);
+  }
+  *cb_data->id_pointer = nullptr;
+  return IDWALK_RET_NOP;
+}
+
+/**
+ * Re-map ID's from the clipboard to ID's in `bmain`, by name.
+ */
+static int paste_material_nodetree_ids_relink_or_clear(LibraryIDLinkCallbackData *cb_data)
+{
+  Main *bmain = static_cast<Main *>(cb_data->user_data);
+  ID **id_p = cb_data->id_pointer;
+  if (*id_p) {
+    if (cb_data->cb_flag & IDWALK_CB_USER) {
+      id_us_min(*id_p);
+    }
+    ListBase *lb = which_libbase(bmain, GS((*id_p)->name));
+    ID *id_local = static_cast<ID *>(
+        BLI_findstring(lb, (*id_p)->name + 2, offsetof(ID, name) + 2));
+    *id_p = id_local;
+    if (cb_data->cb_flag & IDWALK_CB_USER) {
+      id_us_plus(id_local);
+    }
+    else if (cb_data->cb_flag & IDWALK_CB_USER_ONE) {
+      id_us_ensure_real(id_local);
+    }
+    id_lib_extern(id_local);
+  }
+  return IDWALK_RET_NOP;
+}
+
+static int paste_material_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
   Material *ma = static_cast<Material *>(
       CTX_data_pointer_get_type(C, "material", &RNA_Material).data);
 
   if (ma == nullptr) {
+    BKE_report(op->reports, RPT_WARNING, "Cannot paste without a material");
     return OPERATOR_CANCELLED;
   }
 
-  BKE_material_copybuf_paste(CTX_data_main(C), ma);
+  /* Read copy buffer .blend file. */
+  char filepath[FILE_MAX];
+  Main *temp_bmain = BKE_main_new();
 
-  DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+  STRNCPY(temp_bmain->filepath, BKE_main_blendfile_path_from_global());
+
+  material_copybuffer_filepath_get(filepath, sizeof(filepath));
+
+  /* NOTE(@ideasman42) The node tree might reference different kinds of ID types.
+   * It's not clear-cut which ID types should be included, although it's unlikely
+   * users would want an entire scene & it's objects to be included.
+   * Filter a subset of ID types with some reasons for including them. */
+  const uint64_t ntree_filter = (
+      /* Material is necessary for reading the clipboard. */
+      FILTER_ID_MA |
+      /* Node-groups. */
+      FILTER_ID_NT |
+      /* Image textures. */
+      FILTER_ID_IM |
+      /* Internal text (scripts). */
+      FILTER_ID_TXT |
+      /* Texture coordinates may reference objects.
+       * Note that object data is *not* included. */
+      FILTER_ID_OB);
+
+  if (!BKE_copybuffer_read(temp_bmain, filepath, op->reports, ntree_filter)) {
+    BKE_report(op->reports, RPT_ERROR, "Internal clipboard is empty");
+    BKE_main_free(temp_bmain);
+    return OPERATOR_CANCELLED;
+  }
+
+  /* There may be multiple materials,
+   * check for a property that marks this as the active material. */
+  Material *ma_from = nullptr;
+  LISTBASE_FOREACH (Material *, ma_iter, &temp_bmain->materials) {
+    if (ma_iter->id.flag & ID_FLAG_CLIPBOARD_MARK) {
+      ma_from = ma_iter;
+      break;
+    }
+  }
+
+  /* Make sure data from this file is usable for material paste. */
+  if (ma_from == nullptr) {
+    BKE_report(op->reports, RPT_ERROR, "Internal clipboard is not from a material");
+    BKE_main_free(temp_bmain);
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Keep animation by moving local animation to the paste node-tree. */
+  if (ma->nodetree && ma_from->nodetree) {
+    BLI_assert(ma_from->nodetree->adt == nullptr);
+    std::swap(ma->nodetree->adt, ma_from->nodetree->adt);
+  }
+
+  /* Needed to update #SpaceNode::nodetree else a stale pointer is used. */
+  if (ma->nodetree) {
+    bNodeTree *nodetree = ma->nodetree;
+    BKE_libblock_remap(bmain, ma->nodetree, ma_from->nodetree, ID_REMAP_FORCE_UI_POINTERS);
+
+    /* Free & clear data here, so user counts are handled, otherwise it's
+     * freed as part of #BKE_main_free which doesn't handle user-counts. */
+    /* Walk over all the embedded nodes ID's (non-recursively). */
+    BKE_library_foreach_ID_link(
+        bmain, &nodetree->id, paste_material_nodetree_ids_decref, nullptr, IDWALK_NOP);
+
+    blender::bke::node_tree_free_embedded_tree(nodetree);
+    MEM_freeN(nodetree);
+    ma->nodetree = nullptr;
+  }
+
+/* Swap data-block content, while swapping isn't always needed,
+ * it means memory is properly freed in the case of allocations.. */
+#define SWAP_MEMBER(member) std::swap(ma->member, ma_from->member)
+
+  /* Intentionally skip:
+   * - Texture painting slots.
+   * - Preview render.
+   * - Grease pencil styles (we could although they reference many ID's themselves).
+   */
+  SWAP_MEMBER(flag);
+  SWAP_MEMBER(r);
+  SWAP_MEMBER(g);
+  SWAP_MEMBER(b);
+  SWAP_MEMBER(a);
+  SWAP_MEMBER(specr);
+  SWAP_MEMBER(specg);
+  SWAP_MEMBER(specb);
+  SWAP_MEMBER(spec);
+  SWAP_MEMBER(roughness);
+  SWAP_MEMBER(metallic);
+  SWAP_MEMBER(use_nodes);
+  SWAP_MEMBER(index);
+  SWAP_MEMBER(nodetree);
+  SWAP_MEMBER(line_col);
+  SWAP_MEMBER(line_priority);
+  SWAP_MEMBER(vcol_alpha);
+
+  SWAP_MEMBER(alpha_threshold);
+  SWAP_MEMBER(refract_depth);
+  SWAP_MEMBER(blend_method);
+  SWAP_MEMBER(blend_shadow);
+  SWAP_MEMBER(blend_flag);
+
+  SWAP_MEMBER(lineart);
+
+#undef SWAP_MEMBER
+
+  /* The node-tree from the clipboard is now assigned to the local material,
+   * however the ID's it references are still part of `temp_bmain`.
+   * These data-blocks references must be cleared or replaces with references to `bmain`.
+   * TODO(@ideasman42): support merging indirectly referenced data-blocks besides the material,
+   * this would be useful for pasting materials with node-groups between files. */
+  if (ma->nodetree) {
+    /* This implicitly points to local data, assign after remapping. */
+    ma->nodetree->owner_id = nullptr;
+
+    /* Map remote ID's to local ones. */
+    BKE_library_foreach_ID_link(
+        bmain, &ma->nodetree->id, paste_material_nodetree_ids_relink_or_clear, bmain, IDWALK_NOP);
+
+    ma->nodetree->owner_id = &ma->id;
+  }
+  BKE_main_free(temp_bmain);
+
+  /* Important to run this when the embedded tree if freed,
+   * otherwise the depsgraph holds a reference to the (now freed) `ma->nodetree`.
+   * Also run this when a new node-tree is set to ensure it's accounted for.
+   * This also applies to animation data which is likely to be stored in the depsgraph.
+   * Always call instead of checking when it *might* be needed. */
+  DEG_relations_tag_update(bmain);
+
+  /* There are some custom updates to the node tree above, better do a full update pass. */
+  BKE_ntree_update_tag_all(ma->nodetree);
+  BKE_main_ensure_invariants(*bmain);
+
+  DEG_id_tag_update(&ma->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, ma);
 
   return OPERATOR_FINISHED;
@@ -2578,6 +2853,7 @@ void MATERIAL_OT_paste(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = paste_material_exec;
+  ot->poll = object_materials_supported_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -2643,7 +2919,7 @@ static void paste_mtex_copybuf(ID *id)
 
   if (mtex) {
     if (*mtex == nullptr) {
-      *mtex = MEM_new<MTex>("mtex copy");
+      *mtex = static_cast<MTex *>(MEM_callocN(sizeof(MTex), "mtex copy"));
     }
     else if ((*mtex)->tex) {
       id_us_min(&(*mtex)->tex->id);
@@ -2651,7 +2927,22 @@ static void paste_mtex_copybuf(ID *id)
 
     **mtex = blender::dna::shallow_copy(mtexcopybuf);
 
-    id_us_plus((ID *)mtexcopybuf.tex);
+    /* NOTE(@ideasman42): the simple memory copy has no special handling for ID data-blocks.
+     * Ideally this would use `BKE_copybuffer_*` API's, however for common using
+     * copy-pasting between slots, the case a users expects to copy between files
+     * seems quite niche. So, do primitive ID validation. */
+
+    /* WARNING: This isn't a fool-proof solution as it's possible memory locations are reused,
+     * or that the ID was relocated in memory since it was copied.
+     * it does however guard against references to dangling pointers. */
+    if ((*mtex)->tex && (BLI_findindex(&G_MAIN->textures, (*mtex)->tex) == -1)) {
+      (*mtex)->tex = nullptr;
+    }
+    if ((*mtex)->object && (BLI_findindex(&G_MAIN->objects, (*mtex)->object) == -1)) {
+      (*mtex)->object = nullptr;
+    }
+    id_us_plus((ID *)(*mtex)->tex);
+    id_lib_extern((ID *)(*mtex)->object);
   }
 }
 

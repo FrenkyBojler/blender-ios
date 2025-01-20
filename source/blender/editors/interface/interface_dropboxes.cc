@@ -1,25 +1,30 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
  */
 
-#include "BKE_context.h"
+#include <fmt/format.h>
 
-#include "BLI_string.h"
-#include "BLT_translation.h"
+#include "BKE_context.hh"
+
+#include "BLT_translation.hh"
 
 #include "DNA_material_types.h"
 #include "DNA_space_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
+
+using namespace blender::ui;
 
 /* -------------------------------------------------------------------- */
 /** \name View Drag/Drop Callbacks
@@ -28,28 +33,35 @@
 static bool ui_view_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   const ARegion *region = CTX_wm_region(C);
-  const uiViewItemHandle *hovered_item = UI_region_views_find_item_at(region, event->xy);
-  if (!hovered_item) {
+
+  std::unique_ptr<DropTargetInterface> drop_target = region_views_find_drop_target_at(region,
+                                                                                      event->xy);
+  if (!drop_target) {
     return false;
   }
 
   if (drag->drop_state.free_disabled_info) {
     MEM_SAFE_FREE(drag->drop_state.disabled_info);
   }
-
   drag->drop_state.free_disabled_info = false;
-  return UI_view_item_can_drop(hovered_item, drag, &drag->drop_state.disabled_info);
+
+  return drop_target->can_drop(*drag, &drag->drop_state.disabled_info);
 }
 
-static char *ui_view_drop_tooltip(bContext *C, wmDrag *drag, const int xy[2], wmDropBox * /*drop*/)
+static std::string ui_view_drop_tooltip(bContext *C,
+                                        wmDrag *drag,
+                                        const int xy[2],
+                                        wmDropBox * /*drop*/)
 {
+  const wmWindow *win = CTX_wm_window(C);
   const ARegion *region = CTX_wm_region(C);
-  const uiViewItemHandle *hovered_item = UI_region_views_find_item_at(region, xy);
-  if (!hovered_item) {
-    return nullptr;
+  std::unique_ptr<DropTargetInterface> drop_target = region_views_find_drop_target_at(region, xy);
+
+  if (drop_target == nullptr) {
+    return {};
   }
 
-  return UI_view_item_drop_tooltip(hovered_item, drag);
+  return drop_target_tooltip(*region, *drop_target, *drag, *win->eventstate);
 }
 
 /** \} */
@@ -58,7 +70,7 @@ static char *ui_view_drop_tooltip(bContext *C, wmDrag *drag, const int xy[2], wm
 /** \name Name Drag/Drop Callbacks
  * \{ */
 
-static bool ui_drop_name_poll(struct bContext *C, wmDrag *drag, const wmEvent * /*event*/)
+static bool ui_drop_name_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
   return UI_but_active_drop_name(C) && (drag->type == WM_DRAG_ID);
 }
@@ -78,19 +90,30 @@ static void ui_drop_name_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 static bool ui_drop_material_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
   PointerRNA mat_slot = CTX_data_pointer_get_type(C, "material_slot", &RNA_MaterialSlot);
-  return WM_drag_is_ID_type(drag, ID_MA) && !RNA_pointer_is_null(&mat_slot);
+  if (RNA_pointer_is_null(&mat_slot)) {
+    return false;
+  }
+  PointerRNA ob_ptr = CTX_data_pointer_get_type(C, "object", &RNA_Object);
+  if (RNA_pointer_is_null(&ob_ptr)) {
+    return false;
+  }
+
+  Object *ob = static_cast<Object *>(ob_ptr.data);
+
+  return WM_drag_is_ID_type(drag, ID_MA) && ID_IS_EDITABLE(&ob->id) &&
+         !ID_IS_OVERRIDE_LIBRARY(&ob->id);
 }
 
-static void ui_drop_material_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
+static void ui_drop_material_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
-  const ID *id = WM_drag_get_local_ID_or_import_from_asset(drag, ID_MA);
-  RNA_int_set(drop->ptr, "session_uuid", int(id->session_uuid));
+  const ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, ID_MA);
+  RNA_int_set(drop->ptr, "session_uid", int(id->session_uid));
 }
 
-static char *ui_drop_material_tooltip(bContext *C,
-                                      wmDrag *drag,
-                                      const int /*xy*/[2],
-                                      struct wmDropBox * /*drop*/)
+static std::string ui_drop_material_tooltip(bContext *C,
+                                            wmDrag *drag,
+                                            const int /*xy*/[2],
+                                            wmDropBox * /*drop*/)
 {
   PointerRNA rna_ptr = CTX_data_pointer_get_type(C, "object", &RNA_Object);
   Object *ob = (Object *)rna_ptr.data;
@@ -105,25 +128,23 @@ static char *ui_drop_material_tooltip(bContext *C,
   Material *prev_mat_in_slot = (Material *)rna_prev_material.data;
   const char *dragged_material_name = WM_drag_get_item_name(drag);
 
-  char *result;
   if (prev_mat_in_slot) {
-    const char *tooltip = TIP_("Drop %s on slot %d (replacing %s) of %s");
-    result = BLI_sprintfN(tooltip,
-                          dragged_material_name,
-                          target_slot,
-                          prev_mat_in_slot->id.name + 2,
-                          ob->id.name + 2);
+    return fmt::format(fmt::runtime(TIP_("Drop {} on slot {} (replacing {}) of {}")),
+                       dragged_material_name,
+                       target_slot,
+                       prev_mat_in_slot->id.name + 2,
+                       ob->id.name + 2);
   }
-  else if (target_slot == ob->actcol) {
-    const char *tooltip = TIP_("Drop %s on slot %d (active slot) of %s");
-    result = BLI_sprintfN(tooltip, dragged_material_name, target_slot, ob->id.name + 2);
+  if (target_slot == ob->actcol) {
+    return fmt::format(fmt::runtime(TIP_("Drop {} on slot {} (active slot) of {}")),
+                       dragged_material_name,
+                       target_slot,
+                       ob->id.name + 2);
   }
-  else {
-    const char *tooltip = TIP_("Drop %s on slot %d of %s");
-    result = BLI_sprintfN(tooltip, dragged_material_name, target_slot, ob->id.name + 2);
-  }
-
-  return result;
+  return fmt::format(fmt::runtime(TIP_("Drop {} on slot {} of {}")),
+                     dragged_material_name,
+                     target_slot,
+                     ob->id.name + 2);
 }
 
 /** \} */
@@ -134,7 +155,7 @@ static char *ui_drop_material_tooltip(bContext *C,
 
 void ED_dropboxes_ui()
 {
-  ListBase *lb = WM_dropboxmap_find("User Interface", SPACE_EMPTY, 0);
+  ListBase *lb = WM_dropboxmap_find("User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
   WM_dropbox_add(lb, "UI_OT_view_drop", ui_view_drop_poll, nullptr, nullptr, ui_view_drop_tooltip);
   WM_dropbox_add(lb,

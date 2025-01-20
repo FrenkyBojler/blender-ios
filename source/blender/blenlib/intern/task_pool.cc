@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -6,6 +8,7 @@
  * Task pool to run tasks in parallel.
  */
 
+#include <atomic>
 #include <cstdlib>
 #include <memory>
 #include <utility>
@@ -14,7 +17,6 @@
 
 #include "DNA_listBase.h"
 
-#include "BLI_math.h"
 #include "BLI_mempool.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -25,10 +27,11 @@
 #  include <tbb/task_group.h>
 #endif
 
-/* Task
+/**
+ * Task
  *
- * Unit of work to execute. This is a C++ class to work with TBB. */
-
+ * Unit of work to execute. This is a C++ class to work with TBB.
+ */
 class Task {
  public:
   TaskPool *pool;
@@ -76,7 +79,12 @@ class Task {
     other.freedata = nullptr;
   }
 
-#if defined(WITH_TBB) && TBB_INTERFACE_VERSION_MAJOR < 10
+/* TBB has a check in `tbb/include/task_group.h` where `__TBB_CPP11_RVALUE_REF_PRESENT` should
+ * evaluate to true as with the other MSVC build. However, because of the clang compiler
+ * it does not and we attempt to call a deleted constructor in the tbb_task_pool_run function.
+ * This check fixes this issue and keeps our Task constructor valid. */
+#if (defined(WITH_TBB) && TBB_INTERFACE_VERSION_MAJOR < 10) || \
+    (defined(_MSC_VER) && defined(__clang__) && TBB_INTERFACE_VERSION_MAJOR < 12)
   Task(const Task &other)
       : pool(other.pool),
         run(other.run),
@@ -384,54 +392,38 @@ static TaskPool *task_pool_create_ex(void *userdata, TaskPoolType type, eTaskPri
   return pool;
 }
 
-/**
- * Create a normal task pool. Tasks will be executed as soon as they are added.
- */
 TaskPool *BLI_task_pool_create(void *userdata, eTaskPriority priority)
 {
   return task_pool_create_ex(userdata, TASK_POOL_TBB, priority);
 }
 
-/**
- * Create a background task pool.
- * In multi-threaded context, there is no differences with #BLI_task_pool_create(),
- * but in single-threaded case it is ensured to have at least one worker thread to run on
- * (i.e. you don't have to call #BLI_task_pool_work_and_wait
- * on it to be sure it will be processed).
- *
- * \note Background pools are non-recursive
- * (that is, you should not create other background pools in tasks assigned to a background pool,
- * they could end never being executed, since the 'fallback' background thread is already
- * busy with parent task in single-threaded context).
- */
 TaskPool *BLI_task_pool_create_background(void *userdata, eTaskPriority priority)
 {
+  /* NOTE: In multi-threaded context, there is no differences with #BLI_task_pool_create(),
+   * but in single-threaded case it is ensured to have at least one worker thread to run on
+   * (i.e. you don't have to call #BLI_task_pool_work_and_wait
+   * on it to be sure it will be processed).
+   *
+   * NOTE: Background pools are non-recursive
+   * (that is, you should not create other background pools in tasks assigned to a background pool,
+   * they could end never being executed, since the 'fallback' background thread is already
+   * busy with parent task in single-threaded context). */
   return task_pool_create_ex(userdata, TASK_POOL_BACKGROUND, priority);
 }
 
-/**
- * Similar to BLI_task_pool_create() but does not schedule any tasks for execution
- * for until BLI_task_pool_work_and_wait() is called. This helps reducing threading
- * overhead when pushing huge amount of small initial tasks from the main thread.
- */
 TaskPool *BLI_task_pool_create_suspended(void *userdata, eTaskPriority priority)
 {
+  /* NOTE: Similar to #BLI_task_pool_create() but does not schedule any tasks for execution
+   * for until BLI_task_pool_work_and_wait() is called. This helps reducing threading
+   * overhead when pushing huge amount of small initial tasks from the main thread. */
   return task_pool_create_ex(userdata, TASK_POOL_TBB_SUSPENDED, priority);
 }
 
-/**
- * Single threaded task pool that executes pushed task immediately, for
- * debugging purposes.
- */
 TaskPool *BLI_task_pool_create_no_threads(void *userdata)
 {
   return task_pool_create_ex(userdata, TASK_POOL_NO_THREADS, TASK_PRIORITY_HIGH);
 }
 
-/**
- * Task pool that executes one task after the other, possibly on different threads
- * but never in parallel.
- */
 TaskPool *BLI_task_pool_create_background_serial(void *userdata, eTaskPriority priority)
 {
   return task_pool_create_ex(userdata, TASK_POOL_BACKGROUND_SERIAL, priority);

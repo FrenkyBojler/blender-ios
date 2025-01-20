@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -9,7 +11,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "GPU_state.h"
+#include "GPU_state.hh"
 #include "gpu_state_private.hh"
 
 #include "mtl_pso_descriptor_state.hh"
@@ -22,7 +24,7 @@ class MTLContext;
 /**
  * State manager keeping track of the draw state and applying it before drawing.
  * Metal Implementation.
- **/
+ */
 class MTLStateManager : public StateManager {
 
  private:
@@ -43,7 +45,7 @@ class MTLStateManager : public StateManager {
 
   void issue_barrier(eGPUBarrier barrier_bits) override;
 
-  void texture_bind(Texture *tex, eGPUSamplerState sampler, int unit) override;
+  void texture_bind(Texture *tex, GPUSamplerState sampler, int unit) override;
   void texture_unbind(Texture *tex) override;
   void texture_unbind_all() override;
 
@@ -63,7 +65,7 @@ class MTLStateManager : public StateManager {
   void set_write_mask(const eGPUWriteMask value);
   void set_depth_test(const eGPUDepthTest value);
   void set_stencil_test(const eGPUStencilTest test, const eGPUStencilOp operation);
-  void set_stencil_mask(const eGPUStencilTest test, const GPUStateMutable state);
+  void set_stencil_mask(const eGPUStencilTest test, const GPUStateMutable &state);
   void set_clip_distances(const int new_dist_len, const int old_dist_len);
   void set_logic_op(const bool enable);
   void set_facing(const bool invert);
@@ -98,7 +100,7 @@ class MTLFence : public Fence {
 
  public:
   MTLFence() : Fence(){};
-  ~MTLFence();
+  ~MTLFence() override;
 
   void signal() override;
   void wait() override;

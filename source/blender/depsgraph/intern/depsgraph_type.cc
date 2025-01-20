@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -13,13 +14,13 @@
 
 #include "DNA_customdata_types.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "intern/depsgraph_type.h"
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_factory.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/depsgraph_type.hh"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_factory.hh"
+#include "intern/node/deg_node_operation.hh"
 
 namespace deg = blender::deg;
 
@@ -31,9 +32,7 @@ void DEG_register_node_types()
   deg::deg_register_operation_depsnodes();
 }
 
-void DEG_free_node_types()
-{
-}
+void DEG_free_node_types() {}
 
 deg::DEGCustomDataMeshMasks::DEGCustomDataMeshMasks(const CustomData_MeshMasks *other)
     : vert_mask(other->vmask),

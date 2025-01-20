@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -17,9 +18,9 @@ struct NodeEnum {
   {
     return left.empty();
   }
-  void insert(const char *x, int y)
+  void insert(const char *x, const int y)
   {
-    ustring ustr_x(x);
+    const ustring ustr_x(x);
 
     left[ustr_x] = y;
     right[y] = ustr_x;
@@ -29,7 +30,7 @@ struct NodeEnum {
   {
     return left.find(x) != left.end();
   }
-  bool exists(int y) const
+  bool exists(const int y) const
   {
     return right.find(y) != right.end();
   }
@@ -47,17 +48,17 @@ struct NodeEnum {
     return right.find(y)->second;
   }
 
-  unordered_map<ustring, int, ustringHash>::const_iterator begin() const
+  unordered_map<ustring, int>::const_iterator begin() const
   {
     return left.begin();
   }
-  unordered_map<ustring, int, ustringHash>::const_iterator end() const
+  unordered_map<ustring, int>::const_iterator end() const
   {
     return left.end();
   }
 
  private:
-  unordered_map<ustring, int, ustringHash> left;
+  unordered_map<ustring, int> left;
   unordered_map<int, ustring> right;
 };
 

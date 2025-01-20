@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2012-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -17,7 +19,8 @@ void NodeDrawingStyle::accept(SceneVisitor &v)
   v.visitNodeDrawingStyleBefore(*this);
   v.visitDrawingStyle(_DrawingStyle);
   for (vector<Node *>::iterator node = _Children.begin(), end = _Children.end(); node != end;
-       ++node) {
+       ++node)
+  {
     (*node)->accept(v);
   }
   v.visitNodeDrawingStyleAfter(*this);

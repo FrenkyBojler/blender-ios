@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -133,8 +135,10 @@ class IndexRangeCyclic {
     }
 
     const int num_remaining = iterator_size - num_until_loop;
-    const int num_full_cycles = num_remaining /
-                                iterable_range_size; /* Integer division (rounded down). */
+
+    /* Integer division (rounded down). */
+    const int num_full_cycles = num_remaining / iterable_range_size;
+
     const int end_index = num_remaining - num_full_cycles * iterable_range_size;
     return IndexRangeCyclic(start_index, end_index, iterable_range_size, num_full_cycles + 1);
   }
@@ -466,63 +470,22 @@ class IndexRangeCyclic {
 /** \name Utility Functions
  * \{ */
 
-/**
- * Copy the provided point attribute values between all curves in the #curve_ranges index
- * ranges, assuming that all curves have the same number of control points in #src_curves
- * and #dst_curves.
- */
-void copy_point_data(OffsetIndices<int> src_points_by_curve,
-                     OffsetIndices<int> dst_points_by_curve,
-                     Span<IndexRange> curve_ranges,
-                     GSpan src,
-                     GMutableSpan dst);
-
-void copy_point_data(OffsetIndices<int> src_points_by_curve,
-                     OffsetIndices<int> dst_points_by_curve,
-                     IndexMask src_curve_selection,
-                     GSpan src,
-                     GMutableSpan dst);
-
-template<typename T>
-void copy_point_data(OffsetIndices<int> src_points_by_curve,
-                     OffsetIndices<int> dst_points_by_curve,
-                     IndexMask src_curve_selection,
-                     Span<T> src,
-                     MutableSpan<T> dst)
-{
-  copy_point_data(src_points_by_curve,
-                  dst_points_by_curve,
-                  src_curve_selection,
-                  GSpan(src),
-                  GMutableSpan(dst));
-}
+IndexMask curve_to_point_selection(OffsetIndices<int> points_by_curve,
+                                   const IndexMask &curve_selection,
+                                   IndexMaskMemory &memory);
 
 void fill_points(OffsetIndices<int> points_by_curve,
-                 IndexMask curve_selection,
+                 const IndexMask &curve_selection,
                  GPointer value,
                  GMutableSpan dst);
 
 template<typename T>
 void fill_points(const OffsetIndices<int> points_by_curve,
-                 IndexMask curve_selection,
+                 const IndexMask &curve_selection,
                  const T &value,
                  MutableSpan<T> dst)
 {
   fill_points(points_by_curve, curve_selection, &value, dst);
-}
-
-void fill_points(const OffsetIndices<int> points_by_curve,
-                 Span<IndexRange> curve_ranges,
-                 GPointer value,
-                 GMutableSpan dst);
-
-template<typename T>
-void fill_points(const OffsetIndices<int> points_by_curve,
-                 Span<IndexRange> curve_ranges,
-                 const T &value,
-                 MutableSpan<T> dst)
-{
-  fill_points(points_by_curve, curve_ranges, &value, dst);
 }
 
 /**
@@ -536,32 +499,42 @@ void fill_points(const OffsetIndices<int> points_by_curve,
  */
 bke::CurvesGeometry copy_only_curve_domain(const bke::CurvesGeometry &src_curves);
 
-/**
- * Copy the number of points in every curve in the mask to the corresponding index in #sizes.
- */
-void copy_curve_sizes(OffsetIndices<int> points_by_curve, IndexMask mask, MutableSpan<int> sizes);
-
-/**
- * Copy the number of points in every curve in #curve_ranges to the corresponding index in
- * #sizes.
- */
-void copy_curve_sizes(OffsetIndices<int> points_by_curve,
-                      Span<IndexRange> curve_ranges,
-                      MutableSpan<int> sizes);
-
 IndexMask indices_for_type(const VArray<int8_t> &types,
                            const std::array<int, CURVE_TYPES_NUM> &type_counts,
                            const CurveType type,
-                           const IndexMask selection,
-                           Vector<int64_t> &r_indices);
+                           const IndexMask &selection,
+                           IndexMaskMemory &memory);
 
 void foreach_curve_by_type(const VArray<int8_t> &types,
                            const std::array<int, CURVE_TYPES_NUM> &type_counts,
-                           IndexMask selection,
+                           const IndexMask &selection,
                            FunctionRef<void(IndexMask)> catmull_rom_fn,
                            FunctionRef<void(IndexMask)> poly_fn,
                            FunctionRef<void(IndexMask)> bezier_fn,
                            FunctionRef<void(IndexMask)> nurbs_fn);
+namespace bezier {
+
+/**
+ * Return a flat array of all the bezier positions including the left and right handles.
+ * The layout is
+ * `[handle_position_left#0, position#0, handle_position_right#0, handle_position_left#1,
+ *   position#1, handle_position_right#1, ...]`
+ */
+Array<float3> retrieve_all_positions(const bke::CurvesGeometry &curves,
+                                     const IndexMask &curves_selection);
+
+/**
+ * Write to `handle_position_left`, `position`, and `handle_position_right` from a lat array of
+ * positions.
+ * \param curves_selection: The curves to write to.
+ * \param all_positions: All positions of the selected bezier curves. The size of \a all_positions
+ * must be equal to 3 * the size of \a curves_selection.
+ */
+void write_all_positions(bke::CurvesGeometry &curves,
+                         const IndexMask &curves_selection,
+                         Span<float3> all_positions);
+
+}  // namespace bezier
 
 /** \} */
 

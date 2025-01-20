@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char StrokeTextureStepShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeTextureStepShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`StrokeTextureStepShader`\n"
     "\n"
     "[Texture shader]\n"
@@ -35,7 +39,7 @@ static char StrokeTextureStepShader___doc__[] =
     "   Assigns a spacing factor to the texture coordinates of the Stroke.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int StrokeTextureStepShader___init__(BPy_StrokeTextureStepShader *self,
                                             PyObject *args,
@@ -54,7 +58,7 @@ static int StrokeTextureStepShader___init__(BPy_StrokeTextureStepShader *self,
 /*-----------------------BPy_StrokeTextureStepShader type definition ----------------------------*/
 
 PyTypeObject StrokeTextureStepShader_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "StrokeTextureStepShader",
     /*tp_basicsize*/ sizeof(BPy_StrokeTextureStepShader),
     /*tp_itemsize*/ 0,

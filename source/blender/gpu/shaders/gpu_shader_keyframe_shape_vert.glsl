@@ -1,20 +1,15 @@
+/* SPDX-FileCopyrightText: 2017-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* Values in GPU_shader.h. */
-#define GPU_KEYFRAME_SHAPE_DIAMOND (1u << 0)
-#define GPU_KEYFRAME_SHAPE_CIRCLE (1u << 1)
-#define GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL (1u << 2)
-#define GPU_KEYFRAME_SHAPE_CLIPPED_HORIZONTAL (1u << 3)
-#define GPU_KEYFRAME_SHAPE_INNER_DOT (1u << 4)
-#define GPU_KEYFRAME_SHAPE_ARROW_END_MAX (1u << 8)
-#define GPU_KEYFRAME_SHAPE_ARROW_END_MIN (1u << 9)
-#define GPU_KEYFRAME_SHAPE_ARROW_END_MIXED (1u << 10)
-#define GPU_KEYFRAME_SHAPE_SQUARE \
-  (GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL | GPU_KEYFRAME_SHAPE_CLIPPED_HORIZONTAL)
+#include "infos/gpu_shader_keyframe_shape_info.hh"
 
-const float line_falloff = 1.0;
-const float circle_scale = sqrt(2.0 / 3.1416);
-const float square_scale = sqrt(0.5);
-const float diagonal_scale = sqrt(0.5);
+VERTEX_SHADER_CREATE_INFO(gpu_shader_keyframe_shape)
+
+#define line_falloff 1.0
+#define circle_scale sqrt(2.0 / 3.1416)
+#define square_scale sqrt(0.5)
+#define diagonal_scale sqrt(0.5)
 
 bool test(uint bit)
 {
@@ -44,7 +39,8 @@ void main()
   finalFlags = flags;
 
   if (!test(GPU_KEYFRAME_SHAPE_DIAMOND | GPU_KEYFRAME_SHAPE_CIRCLE |
-            GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL | GPU_KEYFRAME_SHAPE_CLIPPED_HORIZONTAL)) {
+            GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL | GPU_KEYFRAME_SHAPE_CLIPPED_HORIZONTAL))
+  {
     finalFlags |= GPU_KEYFRAME_SHAPE_DIAMOND;
   }
 

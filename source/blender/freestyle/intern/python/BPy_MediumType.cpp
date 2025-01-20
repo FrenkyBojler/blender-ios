@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,18 +20,20 @@ using namespace Freestyle;
 
 /*-----------------------BPy_MediumType type definition ------------------------------*/
 
-PyDoc_STRVAR(MediumType_doc,
-             "Class hierarchy: int > :class:`MediumType`\n"
-             "\n"
-             "The different blending modes available to simulate the interaction\n"
-             "media-medium:\n"
-             "\n"
-             "* Stroke.DRY_MEDIUM: To simulate a dry medium such as Pencil or Charcoal.\n"
-             "* Stroke.HUMID_MEDIUM: To simulate ink painting (color subtraction blending).\n"
-             "* Stroke.OPAQUE_MEDIUM: To simulate an opaque medium (oil, spray...).");
+PyDoc_STRVAR(
+    /* Wrap. */
+    MediumType_doc,
+    "Class hierarchy: int > :class:`MediumType`\n"
+    "\n"
+    "The different blending modes available to simulate the interaction\n"
+    "media-medium:\n"
+    "\n"
+    "* Stroke.DRY_MEDIUM: To simulate a dry medium such as Pencil or Charcoal.\n"
+    "* Stroke.HUMID_MEDIUM: To simulate ink painting (color subtraction blending).\n"
+    "* Stroke.OPAQUE_MEDIUM: To simulate an opaque medium (oil, spray...).");
 
 PyTypeObject MediumType_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "MediumType",
     /*tp_basicsize*/ sizeof(PyLongObject),
     /*tp_itemsize*/ 0,
@@ -71,16 +75,6 @@ PyTypeObject MediumType_Type = {
 
 /*-----------------------BPy_IntegrationType instance definitions -------------------------*/
 
-PyLongObject _BPy_MediumType_DRY_MEDIUM = {
-    PyVarObject_HEAD_INIT(&MediumType_Type, 1){Stroke::DRY_MEDIUM},
-};
-PyLongObject _BPy_MediumType_HUMID_MEDIUM = {
-    PyVarObject_HEAD_INIT(&MediumType_Type, 1){Stroke::HUMID_MEDIUM},
-};
-PyLongObject _BPy_MediumType_OPAQUE_MEDIUM = {
-    PyVarObject_HEAD_INIT(&MediumType_Type, 1){Stroke::OPAQUE_MEDIUM},
-};
-
 //-------------------MODULE INITIALIZATION--------------------------------
 
 int MediumType_Init(PyObject *module)
@@ -92,8 +86,7 @@ int MediumType_Init(PyObject *module)
   if (PyType_Ready(&MediumType_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&MediumType_Type);
-  PyModule_AddObject(module, "MediumType", (PyObject *)&MediumType_Type);
+  PyModule_AddObjectRef(module, "MediumType", (PyObject *)&MediumType_Type);
 
   return 0;
 }

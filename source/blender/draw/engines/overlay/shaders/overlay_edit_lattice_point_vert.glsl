@@ -1,15 +1,18 @@
+/* SPDX-FileCopyrightText: 2017-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
+#include "common_view_clipping_lib.glsl"
+#include "common_view_lib.glsl"
 
 void main()
 {
   GPU_INTEL_VERTEX_SHADER_WORKAROUND
 
-  if ((data & VERT_SELECTED) != 0) {
+  if ((data & VERT_SELECTED) != 0u) {
     finalColor = colorVertexSelect;
   }
-  else if ((data & VERT_ACTIVE) != 0) {
+  else if ((data & VERT_ACTIVE) != 0u) {
     finalColor = colorEditMeshActive;
   }
   else {

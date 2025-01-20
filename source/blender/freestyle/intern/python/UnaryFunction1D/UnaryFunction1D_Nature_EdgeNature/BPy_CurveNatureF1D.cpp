@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,7 +22,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char CurveNatureF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    CurveNatureF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DEdgeNature` > :class:`CurveNatureF1D`\n"
     "\n"
@@ -35,17 +39,17 @@ static char CurveNatureF1D___doc__[] =
     ".. method:: __call__(inter)\n"
     "\n"
     "   Returns the nature of the Interface1D (silhouette, ridge, crease, and\n"
-    "   so on).  Except if the Interface1D is a\n"
+    "   so on). Except if the Interface1D is a\n"
     "   :class:`freestyle.types.ViewEdge`, this result might be ambiguous.\n"
     "   Indeed, the Interface1D might result from the gathering of several 1D\n"
-    "   elements, each one being of a different nature.  An integration\n"
+    "   elements, each one being of a different nature. An integration\n"
     "   method, such as the MEAN, might give, in this case, irrelevant\n"
     "   results.\n"
     "\n"
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The nature of the Interface1D.\n"
-    "   :rtype: :class:`freestyle.types.Nature`\n";
+    "   :rtype: :class:`freestyle.types.Nature`\n");
 
 static int CurveNatureF1D___init__(BPy_CurveNatureF1D *self, PyObject *args, PyObject *kwds)
 {
@@ -53,7 +57,8 @@ static int CurveNatureF1D___init__(BPy_CurveNatureF1D *self, PyObject *args, PyO
   PyObject *obj = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj)) {
+          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj))
+  {
     return -1;
   }
   IntegrationType t = (obj) ? IntegrationType_from_BPy_IntegrationType(obj) : MEAN;
@@ -64,7 +69,7 @@ static int CurveNatureF1D___init__(BPy_CurveNatureF1D *self, PyObject *args, PyO
 /*-----------------------BPy_CurveNatureF1D type definition ------------------------------*/
 
 PyTypeObject CurveNatureF1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "CurveNatureF1D",
     /*tp_basicsize*/ sizeof(BPy_CurveNatureF1D),
     /*tp_itemsize*/ 0,

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup asset_system
@@ -58,7 +60,7 @@ bool AssetCatalogTreeItem::has_children() const
   return !children_.empty();
 }
 
-void AssetCatalogTreeItem::foreach_item_recursive(AssetCatalogTreeItem::ChildMap &children,
+void AssetCatalogTreeItem::foreach_item_recursive(const AssetCatalogTreeItem::ChildMap &children,
                                                   const ItemIterFn callback)
 {
   for (auto &[key, item] : children) {
@@ -67,7 +69,7 @@ void AssetCatalogTreeItem::foreach_item_recursive(AssetCatalogTreeItem::ChildMap
   }
 }
 
-void AssetCatalogTreeItem::foreach_child(const ItemIterFn callback)
+void AssetCatalogTreeItem::foreach_child(const ItemIterFn callback) const
 {
   for (auto &[key, item] : children_) {
     callback(item);
@@ -113,12 +115,12 @@ void AssetCatalogTree::insert_item(const AssetCatalog &catalog)
   });
 }
 
-void AssetCatalogTree::foreach_item(AssetCatalogTreeItem::ItemIterFn callback)
+void AssetCatalogTree::foreach_item(AssetCatalogTreeItem::ItemIterFn callback) const
 {
   AssetCatalogTreeItem::foreach_item_recursive(root_items_, callback);
 }
 
-void AssetCatalogTree::foreach_root_item(const ItemIterFn callback)
+void AssetCatalogTree::foreach_root_item(const ItemIterFn callback) const
 {
   for (auto &[key, item] : root_items_) {
     callback(item);
@@ -130,10 +132,10 @@ bool AssetCatalogTree::is_empty() const
   return root_items_.empty();
 }
 
-AssetCatalogTreeItem *AssetCatalogTree::find_item(const AssetCatalogPath &path)
+const AssetCatalogTreeItem *AssetCatalogTree::find_item(const AssetCatalogPath &path) const
 {
-  AssetCatalogTreeItem *result = nullptr;
-  this->foreach_item([&](AssetCatalogTreeItem &item) {
+  const AssetCatalogTreeItem *result = nullptr;
+  this->foreach_item([&](const AssetCatalogTreeItem &item) {
     if (result) {
       /* There is no way to stop iteration. */
       return;
@@ -145,10 +147,10 @@ AssetCatalogTreeItem *AssetCatalogTree::find_item(const AssetCatalogPath &path)
   return result;
 }
 
-AssetCatalogTreeItem *AssetCatalogTree::find_root_item(const AssetCatalogPath &path)
+const AssetCatalogTreeItem *AssetCatalogTree::find_root_item(const AssetCatalogPath &path) const
 {
-  AssetCatalogTreeItem *result = nullptr;
-  this->foreach_root_item([&](AssetCatalogTreeItem &item) {
+  const AssetCatalogTreeItem *result = nullptr;
+  this->foreach_root_item([&](const AssetCatalogTreeItem &item) {
     if (result) {
       /* There is no way to stop iteration. */
       return;

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -11,13 +12,16 @@
 #include "BLI_blenlib.h"
 #include "BLI_math_base.h"
 
+#include "BKE_global.hh"
+
 #include "gpu_backend.hh"
-#include "gpu_node_graph.h"
+#include "gpu_node_graph.hh"
 
-#include "GPU_context.h"
-#include "GPU_material.h"
+#include "GPU_context.hh"
+#include "GPU_material.hh"
 
-#include "GPU_uniform_buffer.h"
+#include "GPU_uniform_buffer.hh"
+#include "gpu_context_private.hh"
 #include "gpu_uniform_buffer_private.hh"
 
 /* -------------------------------------------------------------------- */
@@ -33,7 +37,7 @@ UniformBuf::UniformBuf(size_t size, const char *name)
 
   size_in_bytes_ = size;
 
-  BLI_strncpy(name_, name, sizeof(name_));
+  STRNCPY(name_, name);
 }
 
 UniformBuf::~UniformBuf()
@@ -63,7 +67,8 @@ static eGPUType get_padded_gpu_type(LinkData *link)
   }
   /* Unless the vec3 is followed by a float we need to treat it as a vec4. */
   if (gputype == GPU_VEC3 && (link->next != nullptr) &&
-      (((GPUInput *)link->next->data)->type != GPU_FLOAT)) {
+      (((GPUInput *)link->next->data)->type != GPU_FLOAT))
+  {
     gputype = GPU_VEC4;
   }
   return gputype;
@@ -99,7 +104,7 @@ static void buffer_from_list_inputs_sort(ListBase *inputs)
     return;
   }
 
-  /* Creates a lookup table for the different types; */
+  /* Creates a lookup table for the different types. */
   LinkData *inputs_lookup[MAX_UBO_GPU_TYPE + 1] = {nullptr};
   eGPUType cur_type = static_cast<eGPUType>(MAX_UBO_GPU_TYPE + 1);
 
@@ -192,6 +197,12 @@ GPUUniformBuf *GPU_uniformbuf_create_ex(size_t size, const void *data, const cha
   if (data != nullptr) {
     ubo->update(data);
   }
+  else if (G.debug & G_DEBUG_GPU) {
+    /* Fill the buffer with poison values.
+     * (NaN for floats, -1 for `int` and "max value" for `uint`). */
+    blender::Vector<uchar> uninitialized_data(size, 0xFF);
+    ubo->update(uninitialized_data.data());
+  }
   return wrap(ubo);
 }
 
@@ -238,9 +249,9 @@ void GPU_uniformbuf_unbind(GPUUniformBuf *ubo)
   unwrap(ubo)->unbind();
 }
 
-void GPU_uniformbuf_unbind_all()
+void GPU_uniformbuf_debug_unbind_all()
 {
-  /* FIXME */
+  Context::get()->debug_unbind_all_ubo();
 }
 
 void GPU_uniformbuf_clear_to_zero(GPUUniformBuf *ubo)

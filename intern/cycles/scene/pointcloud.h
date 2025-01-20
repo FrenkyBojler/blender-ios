@@ -1,12 +1,10 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
-#ifndef __POINTCLOUD_H__
-#  define __POINTCLOUD_H__
-
-#  include "scene/geometry.h"
+#include "scene/geometry.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -27,17 +25,17 @@ class PointCloud : public Geometry {
 
     float4 motion_key(const float3 *points,
                       const float *radius,
-                      const float3 *point_steps,
-                      size_t num_points,
-                      size_t num_steps,
-                      float time,
+                      const float4 *point_steps,
+                      const size_t num_points,
+                      const size_t num_steps,
+                      const float time,
                       size_t p) const;
     float4 point_for_step(const float3 *points,
                           const float *radius,
-                          const float3 *point_steps,
-                          size_t num_points,
-                          size_t num_steps,
-                          size_t step,
+                          const float4 *point_steps,
+                          const size_t num_points,
+                          const size_t num_steps,
+                          const size_t step,
                           size_t p) const;
   };
 
@@ -47,14 +45,15 @@ class PointCloud : public Geometry {
 
   /* Constructor/Destructor */
   PointCloud();
-  ~PointCloud();
+  ~PointCloud() override;
 
   /* Geometry */
-  void clear(const bool preserver_shaders = false) override;
+  void clear_non_sockets();
+  void clear(const bool preserve_shaders = false) override;
 
-  void resize(int numpoints);
-  void reserve(int numpoints);
-  void add_point(float3 loc, float radius, int shader = 0);
+  void resize(const int numpoints);
+  void reserve(const int numpoints);
+  void add_point(const float3 co, const float radius, const int shader = 0);
 
   void copy_center_to_motion_step(const int motion_step);
 
@@ -62,7 +61,7 @@ class PointCloud : public Geometry {
   void apply_transform(const Transform &tfm, const bool apply_to_motion) override;
 
   /* Points */
-  Point get_point(int i) const
+  Point get_point(const int i) const
   {
     Point point = {i};
     return point;
@@ -97,5 +96,3 @@ class PointCloud : public Geometry {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __POINTCLOUD_H__ */

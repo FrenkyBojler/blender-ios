@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char IncreasingThicknessShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    IncreasingThicknessShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`IncreasingThicknessShader`\n"
     "\n"
     "[Thickness shader]\n"
@@ -37,11 +41,11 @@ static char IncreasingThicknessShader___doc__[] =
     "   Assigns thicknesses values such as the thickness increases from a\n"
     "   thickness value A to a thickness value B between the first vertex\n"
     "   to the midpoint vertex and then decreases from B to a A between\n"
-    "   this midpoint vertex and the last vertex.  The thickness is\n"
+    "   this midpoint vertex and the last vertex. The thickness is\n"
     "   linearly interpolated from A to B.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int IncreasingThicknessShader___init__(BPy_IncreasingThicknessShader *self,
                                               PyObject *args,
@@ -60,7 +64,7 @@ static int IncreasingThicknessShader___init__(BPy_IncreasingThicknessShader *sel
 /*-----------------------BPy_IncreasingThicknessShader type definition --------------------------*/
 
 PyTypeObject IncreasingThicknessShader_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "IncreasingThicknessShader",
     /*tp_basicsize*/ sizeof(BPy_IncreasingThicknessShader),
     /*tp_itemsize*/ 0,

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -7,9 +9,7 @@
  * \brief Class to define the drawing style of a node
  */
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -32,9 +32,7 @@ class DrawingStyle {
 
   inline explicit DrawingStyle(const DrawingStyle &iBrother);
 
-  virtual ~DrawingStyle()
-  {
-  }
+  virtual ~DrawingStyle() {}
 
   /** operators */
   inline DrawingStyle &operator=(const DrawingStyle &ds);
@@ -85,9 +83,7 @@ class DrawingStyle {
   float PointSize;
   bool LightingEnabled;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:DrawingStyle")
-#endif
 };
 
 DrawingStyle::DrawingStyle(const DrawingStyle &iBrother)

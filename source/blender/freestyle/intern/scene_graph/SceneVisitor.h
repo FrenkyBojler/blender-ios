@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -9,22 +11,14 @@
 
 #include "../system/FreestyleConfig.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
 #define VISIT_COMPLETE_DEF(type) \
-  virtual void visit##type(type &) \
-  { \
-  } \
-  virtual void visit##type##Before(type &) \
-  { \
-  } \
-  virtual void visit##type##After(type &) \
-  { \
-  }
+  virtual void visit##type(type &) {} \
+  virtual void visit##type##Before(type &) {} \
+  virtual void visit##type##After(type &) {}
 
 #define VISIT_DECL(type) virtual void visit##type(type &)
 
@@ -53,19 +47,11 @@ class FrsMaterial;
 
 class SceneVisitor {
  public:
-  SceneVisitor()
-  {
-  }
-  virtual ~SceneVisitor()
-  {
-  }
+  SceneVisitor() {}
+  virtual ~SceneVisitor() {}
 
-  virtual void beginScene()
-  {
-  }
-  virtual void endScene()
-  {
-  }
+  virtual void beginScene() {}
+  virtual void endScene() {}
 
   //
   // visitClass methods
@@ -90,9 +76,7 @@ class SceneVisitor {
   VISIT_COMPLETE_DEF(DrawingStyle)
   VISIT_COMPLETE_DEF(FrsMaterial)
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:SceneVisitor")
-#endif
 };
 
 } /* namespace Freestyle */

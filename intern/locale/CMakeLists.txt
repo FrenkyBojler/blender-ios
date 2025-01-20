@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2012 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2012 Blender Foundation. All rights reserved.
 
 set(INC
   .
@@ -21,7 +22,7 @@ if(WIN32)
   # This is set in platform_win32.cmake, will exist for 3.4+ library
   # folders which are dynamic, but not for 3.3 which will be static.
   if(EXISTS ${BOOST_34_TRIGGER_FILE})
-    add_definitions (-DBOOST_ALL_DYN_LINK=1)
+    add_definitions(-DBOOST_ALL_DYN_LINK=1)
   endif()
 endif()
 

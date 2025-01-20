@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetCurvilinearAbscissaF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetCurvilinearAbscissaF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DFloat` > :class:`GetCurvilinearAbscissaF0D`\n"
     "\n"
@@ -35,7 +39,7 @@ static char GetCurvilinearAbscissaF0D___doc__[] =
     "   :arg it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The curvilinear abscissa of the pointed Interface0D.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int GetCurvilinearAbscissaF0D___init__(BPy_GetCurvilinearAbscissaF0D *self,
                                               PyObject *args,
@@ -54,7 +58,7 @@ static int GetCurvilinearAbscissaF0D___init__(BPy_GetCurvilinearAbscissaF0D *sel
 /*-----------------------BPy_GetCurvilinearAbscissaF0D type definition --------------------------*/
 
 PyTypeObject GetCurvilinearAbscissaF0D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GetCurvilinearAbscissaF0D",
     /*tp_basicsize*/ sizeof(BPy_GetCurvilinearAbscissaF0D),
     /*tp_itemsize*/ 0,

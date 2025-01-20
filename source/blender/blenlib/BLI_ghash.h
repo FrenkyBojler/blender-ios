@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -393,7 +394,7 @@ bool BLI_gset_ensure_p_ex(GSet *gs, const void *key, void ***r_key);
  *
  * \returns true if a new key has been added.
  */
-bool BLI_gset_reinsert(GSet *gh, void *key, GSetKeyFreeFP keyfreefp);
+bool BLI_gset_reinsert(GSet *gs, void *key, GSetKeyFreeFP keyfreefp);
 /**
  * Replaces the key to the set if it's found.
  * Matching #BLI_ghash_replace_key
@@ -498,20 +499,20 @@ int BLI_gset_buckets_len(const GSet *gs);
  *
  * Smaller is better!
  */
-double BLI_ghash_calc_quality_ex(GHash *gh,
+double BLI_ghash_calc_quality_ex(const GHash *gh,
                                  double *r_load,
                                  double *r_variance,
                                  double *r_prop_empty_buckets,
                                  double *r_prop_overloaded_buckets,
                                  int *r_biggest_bucket);
-double BLI_gset_calc_quality_ex(GSet *gs,
+double BLI_gset_calc_quality_ex(const GSet *gs,
                                 double *r_load,
                                 double *r_variance,
                                 double *r_prop_empty_buckets,
                                 double *r_prop_overloaded_buckets,
                                 int *r_biggest_bucket);
-double BLI_ghash_calc_quality(GHash *gh);
-double BLI_gset_calc_quality(GSet *gs);
+double BLI_ghash_calc_quality(const GHash *gh);
+double BLI_gset_calc_quality(const GSet *gs);
 #endif /* GHASH_INTERNAL_API */
 
 /** \} */
@@ -547,7 +548,7 @@ double BLI_gset_calc_quality(GSet *gs);
 /* -------------------------------------------------------------------- */
 /** \name GHash/GSet Utils
  *
- * Defined in `BLI_ghash_utils.c`
+ * Defined in `BLI_ghash_utils.cc`
  * \{ */
 
 /**
@@ -571,7 +572,7 @@ bool BLI_ghashutil_ptrcmp(const void *a, const void *b);
  */
 unsigned int BLI_ghashutil_strhash_n(const char *key, size_t n);
 #define BLI_ghashutil_strhash(key) \
-  (CHECK_TYPE_ANY(key, char *, const char *, const char *const), BLI_ghashutil_strhash_p(key))
+  (CHECK_TYPE_ANY(key, char *, const char *), BLI_ghashutil_strhash_p(key))
 unsigned int BLI_ghashutil_strhash_p(const void *ptr);
 unsigned int BLI_ghashutil_strhash_p_murmur(const void *ptr);
 bool BLI_ghashutil_strcmp(const void *a, const void *b);

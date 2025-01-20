@@ -1,14 +1,9 @@
+# SPDX-FileCopyrightText: 2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   .
-  ../../blenkernel
-  ../../blenlib
-  ../../bmesh
-  ../../depsgraph
-  ../../imbuf
-  ../../makesdna
-  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -16,34 +11,39 @@ set(INC_SYS
 )
 
 set(SRC
-  mathutils.c
-  mathutils_Color.c
-  mathutils_Euler.c
-  mathutils_Matrix.c
-  mathutils_Quaternion.c
-  mathutils_Vector.c
-  mathutils_bvhtree.c
-  mathutils_geometry.c
-  mathutils_interpolate.c
-  mathutils_kdtree.c
-  mathutils_noise.c
+  mathutils.cc
+  mathutils_Color.cc
+  mathutils_Euler.cc
+  mathutils_Matrix.cc
+  mathutils_Quaternion.cc
+  mathutils_Vector.cc
+  mathutils_bvhtree.cc
+  mathutils_geometry.cc
+  mathutils_interpolate.cc
+  mathutils_kdtree.cc
+  mathutils_noise.cc
 
-  mathutils.h
-  mathutils_Color.h
-  mathutils_Euler.h
-  mathutils_Matrix.h
-  mathutils_Quaternion.h
-  mathutils_Vector.h
-  mathutils_bvhtree.h
-  mathutils_geometry.h
-  mathutils_interpolate.h
-  mathutils_kdtree.h
-  mathutils_noise.h
+  mathutils.hh
+  mathutils_Color.hh
+  mathutils_Euler.hh
+  mathutils_Matrix.hh
+  mathutils_Quaternion.hh
+  mathutils_Vector.hh
+  mathutils_bvhtree.hh
+  mathutils_geometry.hh
+  mathutils_interpolate.hh
+  mathutils_kdtree.hh
+  mathutils_noise.hh
 )
 
 set(LIB
-  bf_blenlib
-  bf_imbuf
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::guardedalloc
   bf_python_ext
 
   ${PYTHON_LINKFLAGS}

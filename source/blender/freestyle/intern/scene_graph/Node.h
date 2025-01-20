@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -25,18 +27,14 @@ using namespace Geometry;
 
 class Node : public BaseObject {
  public:
-  inline Node() : BaseObject()
-  {
-  }
+  inline Node() : BaseObject() {}
 
   inline Node(const Node &iBrother) : BaseObject()
   {
     _BBox = iBrother.bbox();
   }
 
-  virtual ~Node()
-  {
-  }
+  virtual ~Node() {}
 
   /** Accept the corresponding visitor
    *  Each inherited node must overload this method
@@ -92,9 +90,7 @@ class Node : public BaseObject {
  private:
   BBox<Vec3r> _BBox;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Node")
-#endif
 };
 
 } /* namespace Freestyle */

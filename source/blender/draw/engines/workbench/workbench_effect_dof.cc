@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
@@ -18,7 +20,7 @@
 #include "workbench_private.hh"
 
 #include "BKE_camera.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 namespace blender::workbench {
 /**
@@ -51,15 +53,6 @@ static void square_to_circle(float x, float y, float &r, float &T)
       }
     }
   }
-}
-
-DofPass::~DofPass()
-{
-  DRW_SHADER_FREE_SAFE(prepare_sh_);
-  DRW_SHADER_FREE_SAFE(downsample_sh_);
-  DRW_SHADER_FREE_SAFE(blur1_sh_);
-  DRW_SHADER_FREE_SAFE(blur2_sh_);
-  DRW_SHADER_FREE_SAFE(resolve_sh_);
 }
 
 void DofPass::setup_samples()
@@ -109,27 +102,20 @@ void DofPass::init(const SceneState &scene_state)
     return;
   }
 
-  if (prepare_sh_ == nullptr) {
-    prepare_sh_ = GPU_shader_create_from_info_name("workbench_effect_dof_prepare");
-    downsample_sh_ = GPU_shader_create_from_info_name("workbench_effect_dof_downsample");
-    blur1_sh_ = GPU_shader_create_from_info_name("workbench_effect_dof_blur1");
-    blur2_sh_ = GPU_shader_create_from_info_name("workbench_effect_dof_blur2");
-    resolve_sh_ = GPU_shader_create_from_info_name("workbench_effect_dof_resolve");
-  }
-
   offset_ = scene_state.sample / float(scene_state.samples_len);
 
   int2 half_res = scene_state.resolution / 2;
   half_res = {max_ii(half_res.x, 1), max_ii(half_res.y, 1)};
 
-  source_tx_.ensure_2d(GPU_RGBA16F, half_res, GPU_TEXTURE_USAGE_SHADER_READ, nullptr, 3);
+  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
+  source_tx_.ensure_2d(GPU_RGBA16F, half_res, usage, nullptr, 3);
   source_tx_.ensure_mip_views();
   source_tx_.filter_mode(true);
-  coc_halfres_tx_.ensure_2d(GPU_RG8, half_res, GPU_TEXTURE_USAGE_SHADER_READ, nullptr, 3);
+  coc_halfres_tx_.ensure_2d(GPU_RG8, half_res, usage, nullptr, 3);
   coc_halfres_tx_.ensure_mip_views();
   coc_halfres_tx_.filter_mode(true);
 
-  Camera *camera = scene_state.camera;
+  const Camera *camera = scene_state.camera;
 
   /* Parameters */
   float fstop = camera->dof.aperture_fstop;
@@ -173,11 +159,11 @@ void DofPass::sync(SceneResources &resources)
     return;
   }
 
-  eGPUSamplerState sampler_state = GPU_SAMPLER_FILTER | GPU_SAMPLER_MIPMAP;
+  GPUSamplerState sampler_state = {GPU_SAMPLER_FILTERING_LINEAR | GPU_SAMPLER_FILTERING_MIPMAP};
 
   down_ps_.init();
   down_ps_.state_set(DRW_STATE_WRITE_COLOR);
-  down_ps_.shader_set(prepare_sh_);
+  down_ps_.shader_set(ShaderCache::get().dof_prepare.get());
   down_ps_.bind_texture("sceneColorTex", &resources.color_tx);
   down_ps_.bind_texture("sceneDepthTex", &resources.depth_tx);
   down_ps_.push_constant("invertedViewportSize", float2(DRW_viewport_invert_size_get()));
@@ -187,14 +173,14 @@ void DofPass::sync(SceneResources &resources)
 
   down2_ps_.init();
   down2_ps_.state_set(DRW_STATE_WRITE_COLOR);
-  down2_ps_.shader_set(downsample_sh_);
+  down2_ps_.shader_set(ShaderCache::get().dof_downsample.get());
   down2_ps_.bind_texture("sceneColorTex", &source_tx_, sampler_state);
   down2_ps_.bind_texture("inputCocTex", &coc_halfres_tx_, sampler_state);
   down2_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
   blur_ps_.init();
   blur_ps_.state_set(DRW_STATE_WRITE_COLOR);
-  blur_ps_.shader_set(blur1_sh_);
+  blur_ps_.shader_set(ShaderCache::get().dof_blur1.get());
   blur_ps_.bind_ubo("samples", samples_buf_);
   blur_ps_.bind_texture("noiseTex", resources.jitter_tx);
   blur_ps_.bind_texture("inputCocTex", &coc_halfres_tx_, sampler_state);
@@ -205,7 +191,7 @@ void DofPass::sync(SceneResources &resources)
 
   blur2_ps_.init();
   blur2_ps_.state_set(DRW_STATE_WRITE_COLOR);
-  blur2_ps_.shader_set(blur2_sh_);
+  blur2_ps_.shader_set(ShaderCache::get().dof_blur2.get());
   blur2_ps_.bind_texture("inputCocTex", &coc_halfres_tx_, sampler_state);
   blur2_ps_.bind_texture("blurTex", &blur_tx_);
   blur2_ps_.push_constant("invertedViewportSize", float2(DRW_viewport_invert_size_get()));
@@ -213,7 +199,7 @@ void DofPass::sync(SceneResources &resources)
 
   resolve_ps_.init();
   resolve_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_CUSTOM);
-  resolve_ps_.shader_set(resolve_sh_);
+  resolve_ps_.shader_set(ShaderCache::get().dof_resolve.get());
   resolve_ps_.bind_texture("halfResColorTex", &source_tx_, sampler_state);
   resolve_ps_.bind_texture("sceneDepthTex", &resources.depth_tx);
   resolve_ps_.push_constant("invertedViewportSize", float2(DRW_viewport_invert_size_get()));

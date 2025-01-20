@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 by Mike Erwin. All rights reserved. */
+/* SPDX-FileCopyrightText: 2016 by Mike Erwin. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -11,10 +12,10 @@
 
 #include <optional>
 
-#include "GPU_batch.h"
-#include "GPU_primitive.h"
-#include "GPU_shader.h"
-#include "GPU_vertex_format.h"
+#include "GPU_batch.hh"
+#include "GPU_primitive.hh"
+#include "GPU_shader.hh"
+#include "GPU_vertex_format.hh"
 
 namespace blender::gpu {
 
@@ -39,7 +40,7 @@ class Immediate {
   bool strict_vertex_len = true;
 
   /** Batch in construction when using #immBeginBatch. */
-  GPUBatch *batch = nullptr;
+  Batch *batch = nullptr;
 
   /** Wide Line workaround. */
 
@@ -50,12 +51,14 @@ class Immediate {
   /** Uniform color: Kept here to update the wide-line shader just before #immBegin. */
   float uniform_color[4];
 
- public:
-  Immediate(){};
-  virtual ~Immediate(){};
+  Immediate() = default;
+  virtual ~Immediate() = default;
 
   virtual uchar *begin() = 0;
   virtual void end() = 0;
+
+  /* To be called after polyline SSBO binding. */
+  void polyline_draw_workaround(uint64_t offset);
 };
 
 }  // namespace blender::gpu

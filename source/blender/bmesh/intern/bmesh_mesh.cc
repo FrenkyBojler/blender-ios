@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bmesh
@@ -9,16 +11,20 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_listBase.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_customdata.h"
-#include "BKE_mesh.h"
+#include "BKE_customdata.hh"
+#include "BKE_mesh.hh"
 
-#include "bmesh.h"
+#include "bmesh.hh"
+
+using blender::Array;
+using blender::float3;
+using blender::MutableSpan;
 
 const BMAllocTemplate bm_mesh_allocsize_default = {512, 1024, 2048, 512};
 const BMAllocTemplate bm_mesh_chunksize_default = {512, 1024, 2048, 512};
@@ -122,7 +128,7 @@ void BM_mesh_elem_toolflags_clear(BMesh *bm)
   }
 }
 
-BMesh *BM_mesh_create(const BMAllocTemplate *allocsize, const struct BMeshCreateParams *params)
+BMesh *BM_mesh_create(const BMAllocTemplate *allocsize, const BMeshCreateParams *params)
 {
   /* allocate the structure */
   BMesh *bm = static_cast<BMesh *>(MEM_callocN(sizeof(BMesh), __func__));
@@ -237,6 +243,7 @@ void BM_mesh_data_free(BMesh *bm)
 void BM_mesh_clear(BMesh *bm)
 {
   const bool use_toolflags = bm->use_toolflags;
+  void *py_handle = bm->py_handle;
 
   /* free old mesh */
   BM_mesh_data_free(bm);
@@ -246,6 +253,8 @@ void BM_mesh_clear(BMesh *bm)
   bm_mempool_init(bm, &bm_mesh_allocsize_default, use_toolflags);
 
   bm->use_toolflags = use_toolflags;
+  bm->py_handle = py_handle;
+
   bm->toolflag_index = 0;
   bm->totflags = 0;
 
@@ -278,8 +287,8 @@ void bmesh_edit_begin(BMesh * /*bm*/, BMOpTypeFlag /*type_flag*/)
    * until this is shown to be better for certain types of mesh edits. */
 #ifdef BMOP_UNTAN_MULTIRES_ENABLED
   /* switch multires data out of tangent space */
-  if ((type_flag & BMO_OPTYPE_FLAG_UNTAN_MULTIRES) &&
-      CustomData_has_layer(&bm->ldata, CD_MDISPS)) {
+  if ((type_flag & BMO_OPTYPE_FLAG_UNTAN_MULTIRES) && CustomData_has_layer(&bm->ldata, CD_MDISPS))
+  {
     bmesh_mdisps_space_set(bm, MULTIRES_SPACE_TANGENT, MULTIRES_SPACE_ABSOLUTE);
 
     /* ensure correct normals, if possible */
@@ -332,7 +341,7 @@ void bmesh_edit_end(BMesh *bm, BMOpTypeFlag type_flag)
 void BM_mesh_elem_index_ensure_ex(BMesh *bm, const char htype, int elem_offset[4])
 {
 
-#ifdef DEBUG
+#ifndef NDEBUG
   BM_ELEM_INDEX_VALIDATE(bm, "Should Never Fail!", __func__);
 #endif
 
@@ -378,7 +387,8 @@ void BM_mesh_elem_index_ensure_ex(BMesh *bm, const char htype, int elem_offset[4
 
   if (htype & (BM_FACE | BM_LOOP)) {
     if ((bm->elem_index_dirty & (BM_FACE | BM_LOOP)) ||
-        (elem_offset && (elem_offset[2] || elem_offset[3]))) {
+        (elem_offset && (elem_offset[2] || elem_offset[3])))
+    {
       BMIter iter;
       BMElem *ele;
 
@@ -510,7 +520,7 @@ void BM_mesh_elem_index_validate(
   }
 
 #if 0 /* mostly annoying, even in debug mode */
-#  ifdef DEBUG
+#  ifndef NDEBUG
   if (is_any_error == 0) {
     fprintf(stderr, "Valid Index Success: at %s, %s, '%s', '%s'\n", location, func, msg_a, msg_b);
   }
@@ -763,7 +773,8 @@ void BM_mesh_remap(BMesh *bm, const uint *vert_idx, const uint *edge_idx, const 
                         static_cast<void **>(MEM_mallocN(sizeof(void *) * totvert, __func__)) :
                         nullptr;
     for (i = totvert, ve = verts_copy + totvert - 1, vep = verts_pool + totvert - 1; i--;
-         ve--, vep--) {
+         ve--, vep--)
+    {
       *ve = **vep;
       // printf("*vep: %p, verts_pool[%d]: %p\n", *vep, i, verts_pool[i]);
       if (cd_vert_pyptr != -1) {
@@ -819,7 +830,8 @@ void BM_mesh_remap(BMesh *bm, const uint *vert_idx, const uint *edge_idx, const 
                         static_cast<void **>(MEM_mallocN(sizeof(void *) * totedge, __func__)) :
                         nullptr;
     for (i = totedge, ed = edges_copy + totedge - 1, edp = edges_pool + totedge - 1; i--;
-         ed--, edp--) {
+         ed--, edp--)
+    {
       *ed = **edp;
       if (cd_edge_pyptr != -1) {
         void **pyptr = static_cast<void **>(BM_ELEM_CD_GET_VOID_P(((BMElem *)ed), cd_edge_pyptr));
@@ -874,7 +886,8 @@ void BM_mesh_remap(BMesh *bm, const uint *vert_idx, const uint *edge_idx, const 
                         static_cast<void **>(MEM_mallocN(sizeof(void *) * totface, __func__)) :
                         nullptr;
     for (i = totface, fa = faces_copy + totface - 1, fap = faces_pool + totface - 1; i--;
-         fa--, fap--) {
+         fa--, fap--)
+    {
       *fa = **fap;
       if (cd_poly_pyptr != -1) {
         void **pyptr = static_cast<void **>(BM_ELEM_CD_GET_VOID_P(((BMElem *)fa), cd_poly_pyptr));
@@ -987,8 +1000,7 @@ void BM_mesh_remap(BMesh *bm, const uint *vert_idx, const uint *edge_idx, const 
 
   /* Selection history */
   {
-    BMEditSelection *ese;
-    for (ese = static_cast<BMEditSelection *>(bm->selected.first); ese; ese = ese->next) {
+    LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
       switch (ese->htype) {
         case BM_VERT:
           if (vptr_map) {
@@ -1031,7 +1043,7 @@ void BM_mesh_remap(BMesh *bm, const uint *vert_idx, const uint *edge_idx, const 
 }
 
 void BM_mesh_rebuild(BMesh *bm,
-                     const struct BMeshCreateParams *params,
+                     const BMeshCreateParams *params,
                      BLI_mempool *vpool_dst,
                      BLI_mempool *epool_dst,
                      BLI_mempool *lpool_dst,
@@ -1311,7 +1323,7 @@ void BM_mesh_toolflags_set(BMesh *bm, bool use_toolflags)
     bm->etoolflagpool = nullptr;
     bm->ftoolflagpool = nullptr;
   }
-  struct BMeshCreateParams params = {};
+  BMeshCreateParams params = {};
   params.use_toolflags = use_toolflags;
 
   BM_mesh_rebuild(bm, &params, vpool_dst, epool_dst, nullptr, fpool_dst);
@@ -1323,23 +1335,31 @@ void BM_mesh_toolflags_set(BMesh *bm, bool use_toolflags)
 /** \name BMesh Coordinate Access
  * \{ */
 
-void BM_mesh_vert_coords_get(BMesh *bm, float (*vert_coords)[3])
+void BM_mesh_vert_coords_get(BMesh *bm, MutableSpan<float3> positions)
 {
   BMIter iter;
   BMVert *v;
   int i;
   BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
-    copy_v3_v3(vert_coords[i], v->co);
+    positions[i] = v->co;
   }
 }
 
-float (*BM_mesh_vert_coords_alloc(BMesh *bm, int *r_vert_len))[3]
+void BM_mesh_vert_normals_get(BMesh *bm, MutableSpan<float3> normals)
 {
-  float(*vert_coords)[3] = static_cast<float(*)[3]>(
-      MEM_mallocN(bm->totvert * sizeof(*vert_coords), __func__));
-  BM_mesh_vert_coords_get(bm, vert_coords);
-  *r_vert_len = bm->totvert;
-  return vert_coords;
+  BMIter iter;
+  BMVert *v;
+  int i;
+  BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
+    normals[i] = v->no;
+  }
+}
+
+Array<float3> BM_mesh_vert_coords_alloc(BMesh *bm)
+{
+  Array<float3> positions(bm->totvert);
+  BM_mesh_vert_coords_get(bm, positions);
+  return positions;
 }
 
 void BM_mesh_vert_coords_apply(BMesh *bm, const float (*vert_coords)[3])

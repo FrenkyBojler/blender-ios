@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -44,9 +45,10 @@ void *BLI_findlink(const struct ListBase *listbase, int number) ATTR_WARN_UNUSED
     ATTR_NONNULL(1);
 
 /**
- * Returns the nth element after \a link, numbering from 0.
+ * Returns the element before/after \a link that is \a step links away, numbering from 0. \a step
+ * is allowed to be negative. Returns NULL when the link is out-of-bounds.
  */
-void *BLI_findlinkfrom(struct Link *start, int number) ATTR_WARN_UNUSED_RESULT;
+void *BLI_findlinkfrom(struct Link *start, int step) ATTR_WARN_UNUSED_RESULT;
 
 /**
  * Finds the first element of \a listbase which contains the null-terminated
@@ -62,6 +64,12 @@ void *BLI_findstring(const struct ListBase *listbase,
 void *BLI_findstring_ptr(const struct ListBase *listbase,
                          const char *id,
                          int offset) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
+/**
+ * Finds the first element in the listbase after the given \a link element which contains a pointer
+ * to the null-terminated string \a id at the specified offset, returning NULL if not found.
+ */
+void *BLI_listbase_findafter_string_ptr(struct Link *link, const char *id, const int offset);
+
 /**
  * Finds the first element of listbase which contains the specified pointer value
  * at the specified offset, returning NULL if not found.
@@ -136,6 +144,8 @@ void BLI_freelistN(struct ListBase *listbase) ATTR_NONNULL(1);
 void BLI_addtail(struct ListBase *listbase, void *vlink) ATTR_NONNULL(1);
 /**
  * Removes \a vlink from \a listbase. Assumes it is linked into there!
+ *
+ * \warning Does _not_ clear the `prev`/`next` pointers of the removed `vlink`.
  */
 void BLI_remlink(struct ListBase *listbase, void *vlink) ATTR_NONNULL(1);
 /**
@@ -213,6 +223,17 @@ void BLI_freelist(struct ListBase *listbase) ATTR_NONNULL(1);
 int BLI_listbase_count_at_most(const struct ListBase *listbase,
                                int count_max) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 /**
+ * Returns true when the number of items in `listbase` matches `count_cmp`.
+ *
+ * \note Use to avoid redundant looping.
+ */
+BLI_INLINE bool BLI_listbase_count_is_equal_to(const struct ListBase *listbase,
+                                               const int count_cmp)
+{
+  return BLI_listbase_count_at_most(listbase, count_cmp + 1) == count_cmp;
+}
+
+/**
  * Returns the number of elements in \a listbase.
  */
 int BLI_listbase_count(const struct ListBase *listbase) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
@@ -282,6 +303,12 @@ BLI_INLINE void BLI_listbase_clear(struct ListBase *lb)
 {
   lb->first = lb->last = (void *)0;
 }
+
+/**
+ * Validate the integrity of a given ListBase.
+ * \return true if everything is OK, false otherwise.
+ */
+bool BLI_listbase_validate(struct ListBase *lb);
 
 /**
  * Equality check for ListBase.
@@ -382,4 +409,16 @@ BLI_INLINE bool operator==(const ListBase &a, const ListBase &b)
 {
   return BLI_listbase_equal(&a, &b);
 }
+
+template<typename T, typename Fn> T *BLI_listbase_find(const ListBase &listbase, Fn &&predicate)
+{
+  LISTBASE_FOREACH (T *, link, &listbase) {
+    const T &value = *static_cast<const T *>(link);
+    if (predicate(value)) {
+      return link;
+    }
+  }
+  return nullptr;
+}
+
 #endif

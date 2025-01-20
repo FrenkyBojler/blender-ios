@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 #include <chrono>
-#include <iostream>
 #include <string>
 
 #include "BLI_sys_types.h"
@@ -27,15 +28,7 @@ class ScopedTimer {
     start_ = Clock::now();
   }
 
-  ~ScopedTimer()
-  {
-    const TimePoint end = Clock::now();
-    const Nanoseconds duration = end - start_;
-
-    std::cout << "Timer '" << name_ << "' took ";
-    print_duration(duration);
-    std::cout << '\n';
-  }
+  ~ScopedTimer();
 };
 
 class ScopedTimerAveraged {

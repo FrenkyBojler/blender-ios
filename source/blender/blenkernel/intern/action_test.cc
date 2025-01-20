@@ -1,7 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_action.h"
+#include "BLI_string.h"
+
+#include "BKE_action.hh"
+
+#include "ANIM_action.hh"
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
@@ -52,10 +57,10 @@ TEST(action_groups, ReconstructGroupsWithReordering)
   bActionGroup groupB = {nullptr};
   bActionGroup groupC = {nullptr};
   bActionGroup groupD = {nullptr};
-  strcpy(groupA.name, "groupA");
-  strcpy(groupB.name, "groupB");
-  strcpy(groupC.name, "groupC");
-  strcpy(groupD.name, "groupD");
+  STRNCPY(groupA.name, "groupA");
+  STRNCPY(groupB.name, "groupB");
+  STRNCPY(groupC.name, "groupC");
+  STRNCPY(groupD.name, "groupD");
 
   BLI_addtail(&action.groups, &groupA);
   BLI_addtail(&action.groups, &groupB);
@@ -144,7 +149,7 @@ void add_keyframe(FCurve *fcu, float x, float y)
   BezTriple the_keyframe;
   memset(&the_keyframe, 0, sizeof(the_keyframe));
 
-  /* Copied from insert_vert_fcurve() in keyframing.c. */
+  /* Copied from insert_vert_fcurve() in `keyframing.cc`. */
   the_keyframe.vec[0][0] = x - 1.0f;
   the_keyframe.vec[0][1] = y;
   the_keyframe.vec[1][0] = x;
@@ -160,13 +165,10 @@ void add_keyframe(FCurve *fcu, float x, float y)
 
 TEST(action_assets, BKE_action_has_single_frame)
 {
-  /* NULL action. */
-  EXPECT_FALSE(BKE_action_has_single_frame(nullptr)) << "NULL Action cannot have a single frame.";
-
   /* No FCurves. */
   {
     const bAction empty = {{nullptr}};
-    EXPECT_FALSE(BKE_action_has_single_frame(&empty))
+    EXPECT_FALSE(empty.wrap().has_single_frame())
         << "Action without FCurves cannot have a single frame.";
   }
 
@@ -179,7 +181,7 @@ TEST(action_assets, BKE_action_has_single_frame)
     bAction action = {{nullptr}};
     BLI_addtail(&action.curves, &fcu);
 
-    EXPECT_TRUE(BKE_action_has_single_frame(&action))
+    EXPECT_TRUE(action.wrap().has_single_frame())
         << "Action with one FCurve and one key should have single frame.";
   }
 
@@ -196,12 +198,12 @@ TEST(action_assets, BKE_action_has_single_frame)
     BLI_addtail(&action.curves, &fcu1);
     BLI_addtail(&action.curves, &fcu2);
 
-    EXPECT_TRUE(BKE_action_has_single_frame(&action))
+    EXPECT_TRUE(action.wrap().has_single_frame())
         << "Two FCurves with keys on the same frame should have single frame.";
 
     /* Modify the 2nd curve so it's keyed on a different frame. */
     fcu2.bezt[0].vec[1][0] = 2.0f;
-    EXPECT_FALSE(BKE_action_has_single_frame(&action))
+    EXPECT_FALSE(action.wrap().has_single_frame())
         << "Two FCurves with keys on different frames should have animation.";
   }
 
@@ -215,7 +217,7 @@ TEST(action_assets, BKE_action_has_single_frame)
     bAction action = {{nullptr}};
     BLI_addtail(&action.curves, &fcu);
 
-    EXPECT_FALSE(BKE_action_has_single_frame(&action))
+    EXPECT_FALSE(action.wrap().has_single_frame())
         << "Action with one FCurve and two keys must have animation.";
   }
 }

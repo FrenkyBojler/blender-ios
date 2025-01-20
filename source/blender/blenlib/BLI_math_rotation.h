@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -7,7 +8,7 @@
  * \ingroup bli
  */
 
-#include "BLI_math_base.h"
+#include "BLI_math_base.h"  // IWYU pragma: keep
 #include "BLI_utildefines.h"
 #include "DNA_vec_types.h"
 
@@ -304,6 +305,13 @@ void rotate_eul(float beul[3], char axis, float angle);
 
 /* Order independent. */
 
+/**
+ * Manipulate `eul` so it's close to `oldrot` while representing the same rotation
+ * with the aim of having the minimum difference between all axes.
+ *
+ * This is typically done so interpolating the values between two euler rotations
+ * doesn't add undesired rotation (even rotating multiple times around one axis).
+ */
 void compatible_eul(float eul[3], const float oldrot[3]);
 
 void add_eul_euleul(float r_eul[3], float a[3], float b[3], short order);
@@ -403,6 +411,11 @@ void rotate_eulO(float beul[3], short order, char axis, float angle);
 void copy_dq_dq(DualQuat *r, const DualQuat *dq);
 void normalize_dq(DualQuat *dq, float totweight);
 void add_weighted_dq_dq(DualQuat *dq_sum, const DualQuat *dq, float weight);
+void add_weighted_dq_dq_pivot(DualQuat *dq_sum,
+                              const DualQuat *dq,
+                              const float pivot[3],
+                              float weight,
+                              bool compute_scale_matrix);
 void mul_v3m3_dq(float r[3], float R[3][3], DualQuat *dq);
 
 void mat4_to_dquat(DualQuat *dq, const float basemat[4][4], const float mat[4][4]);

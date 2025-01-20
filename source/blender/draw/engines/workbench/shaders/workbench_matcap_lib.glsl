@@ -1,3 +1,14 @@
+/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
+
+#include "infos/workbench_prepass_info.hh"
+
+#ifdef GPU_LIBRARY_SHADER
+SHADER_LIBRARY_CREATE_INFO(workbench_prepass)
+#endif
 
 vec2 matcap_uv_compute(vec3 I, vec3 N, bool flipped)
 {

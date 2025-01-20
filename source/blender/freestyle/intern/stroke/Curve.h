@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -11,7 +13,7 @@
 
 #include "../geometry/Geom.h"
 
-//#include "../scene_graph/FrsMaterial.h"
+// #include "../scene_graph/FrsMaterial.h"
 
 #include "../view_map/Interface0D.h"
 #include "../view_map/Interface1D.h"
@@ -20,9 +22,7 @@
 
 #include "../system/BaseIterator.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -302,7 +302,7 @@ class CurvePoint : public Interface0D {
   const SShape *shape() const;
   // float shape_importance() const;
 
-  // const unsigned qi() const;
+  // const uint qi() const;
   occluder_container::const_iterator occluders_begin() const;
   occluder_container::const_iterator occluders_end() const;
   bool occluders_empty() const;
@@ -332,9 +332,7 @@ class CurvePoint : public Interface0D {
   Vec2d directionFredo() const;
 #endif
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:CurvePoint")
-#endif
 };
 
 /**********************************/
@@ -379,7 +377,7 @@ class Curve : public Interface1D {
   vertex_container _Vertices;
   double _Length;
   Id _Id;
-  unsigned _nSegments;  // number of segments
+  uint _nSegments;  // number of segments
 
  public:
   /** Default Constructor. */
@@ -488,7 +486,7 @@ class Curve : public Interface1D {
   }
 
   /** Returns the number of segments in the polyline constituting the Curve. */
-  inline unsigned int nSegments() const
+  inline uint nSegments() const
   {
     return _nSegments;
   }
@@ -581,9 +579,7 @@ class Curve : public Interface1D {
    */
   virtual Interface0DIterator pointsEnd(float t = 0.0f);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Curve")
-#endif
 };
 
 } /* namespace Freestyle */

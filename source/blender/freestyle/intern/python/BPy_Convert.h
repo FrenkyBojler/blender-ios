@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -63,18 +65,17 @@ extern "C" {
 // CurveInternal::CurvePointIterator
 #include "../stroke/CurveIterators.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-#include "generic/python_utildefines.h"
-#include "mathutils/mathutils.h"
+#include "generic/python_utildefines.hh"
+#include "mathutils/mathutils.hh"
 
 //==============================
 // C++ => Python
 //==============================
+
+PyObject *PyLong_subtype_new(PyTypeObject *ty, long value);
+void PyLong_subtype_add_to_dict(PyObject *dict, PyTypeObject *ty, const char *attr, long value);
 
 PyObject *PyBool_from_bool(bool b);
 PyObject *Vector_from_Vec2f(Freestyle::Geometry::Vec2f &v);
@@ -97,7 +98,7 @@ PyObject *BPy_Interface0D_from_Interface0D(Freestyle::Interface0D &if0D);
 PyObject *BPy_Interface1D_from_Interface1D(Freestyle::Interface1D &if1D);
 PyObject *BPy_IntegrationType_from_IntegrationType(Freestyle::IntegrationType i);
 PyObject *BPy_FrsMaterial_from_FrsMaterial(const Freestyle::FrsMaterial &m);
-PyObject *BPy_Nature_from_Nature(unsigned short n);
+PyObject *BPy_Nature_from_Nature(ushort n);
 PyObject *BPy_MediumType_from_MediumType(Freestyle::Stroke::MediumType n);
 PyObject *BPy_SShape_from_SShape(Freestyle::SShape &ss);
 PyObject *BPy_Stroke_from_Stroke(Freestyle::Stroke &s);
@@ -160,7 +161,3 @@ int convert_v3(PyObject *obj, void *v);
 int convert_v2(PyObject *obj, void *v);
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

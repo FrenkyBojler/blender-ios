@@ -1,23 +1,25 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_function_util.hh"
 
 #include "BLI_math_vector.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 namespace blender::nodes::node_fn_input_color_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Color>(N_("Color"));
+  b.add_output<decl::Color>("Color");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiTemplateColorPicker(layout, ptr, "color", true, false, false, true);
-  uiItemR(layout, ptr, "color", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  uiTemplateColorPicker(layout, ptr, "value", true, false, false, true);
+  uiItemR(layout, ptr, "value", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
@@ -35,20 +37,22 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
-}  // namespace blender::nodes::node_fn_input_color_cc
-
-void register_node_type_fn_input_color()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_fn_input_color_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  fn_node_type_base(&ntype, FN_NODE_INPUT_COLOR, "Color", NODE_CLASS_INPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.initfunc = file_ns::node_init;
-  node_type_storage(
+  fn_node_type_base(&ntype, "FunctionNodeInputColor", FN_NODE_INPUT_COLOR);
+  ntype.ui_name = "Color";
+  ntype.enum_name_legacy = "INPUT_COLOR";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.declare = node_declare;
+  ntype.initfunc = node_init;
+  blender::bke::node_type_storage(
       &ntype, "NodeInputColor", node_free_standard_storage, node_copy_standard_storage);
-  ntype.build_multi_function = file_ns::node_build_multi_function;
-  ntype.draw_buttons = file_ns::node_layout;
-  nodeRegisterType(&ntype);
+  ntype.build_multi_function = node_build_multi_function;
+  ntype.draw_buttons = node_layout;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_input_color_cc

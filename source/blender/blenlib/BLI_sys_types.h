@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -25,7 +26,7 @@ extern "C" {
     defined(__FreeBSD_kernel__) || defined(__HAIKU__)
 
 /* Linux-i386, Linux-Alpha, Linux-PPC */
-#  include <stdint.h>
+#  include <stdint.h>  // IWYU pragma: export
 
 /* XXX */
 #  ifndef UINT64_MAX
@@ -38,29 +39,29 @@ typedef uint64_t u_int64_t;
 
 #elif defined(__APPLE__)
 
-#  include <inttypes.h>
+#  include <inttypes.h>  // IWYU pragma: export
 
 /* MSVC >= 2010 */
 #elif defined(_MSC_VER)
-#  include <stdint.h>
+#  include <stdint.h>  // IWYU pragma: export
 
 #else
 
 /* FreeBSD, Solaris */
-#  include <stdint.h>
-#  include <sys/types.h>
+#  include <stdint.h>     // IWYU pragma: export
+#  include <sys/types.h>  // IWYU pragma: export
 
 #endif /* ifdef platform for types */
 
-#include <stdbool.h>
-#include <stddef.h> /* size_t define */
+#include <stdbool.h>  // IWYU pragma: export
+#include <stddef.h>   // IWYU pragma: export
 
 #ifndef __cplusplus
 /* The <uchar.h> standard header is missing on some systems. */
-#  if defined(__APPLE__) || defined(__NetBSD__)
+#  if defined(__APPLE__) || defined(__NetBSD__) || defined(__OpenBSD__)
 typedef unsigned int char32_t;
 #  else
-#    include <uchar.h>
+#    include <uchar.h>  // IWYU pragma: export
 #  endif
 #endif
 

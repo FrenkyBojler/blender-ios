@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -9,7 +10,7 @@
 
 #include <stdio.h>
 
-#include "BLI_math.h"
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -17,7 +18,7 @@
 
 #include "DNA_userdef_types.h" /* for eTimecodeStyles only */
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 size_t BLI_timecode_string_from_time(char *str,
                                      const size_t maxncpy,
@@ -73,7 +74,8 @@ size_t BLI_timecode_string_from_time(char *str,
        *   within this length. Hours will only be included if relevant.
        * - Only show frames when zoomed in enough for them to be relevant
        *   (using separator of '+' for frames).
-       *   When showing frames, use slightly different display to avoid confusion with mm:ss format
+       *   When showing frames, use slightly different display
+       *   to avoid confusion with `mm:ss` format.
        */
       if (brevity_level <= 0) {
         /* include "frames" in display */

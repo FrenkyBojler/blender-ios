@@ -1,10 +1,24 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
  */
 
 #pragma once
+
+#include "BLI_assert.h"
+#include "BLI_compiler_compat.h"
+
+#include "CCGSubSurf_intern.h"
+
+#include <math.h>
+#include <string.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 BLI_INLINE int ccg_gridsize(int level)
 {
@@ -251,3 +265,7 @@ BLI_INLINE void VertDataAvg4(float v[],
     v[i] = (a[i] + b[i] + c[i] + d[i]) * 0.25f;
   }
 }
+
+#ifdef __cplusplus
+}
+#endif

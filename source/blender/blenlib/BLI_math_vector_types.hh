@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -8,10 +9,10 @@
  */
 
 #include <array>
-#include <cmath>
-#include <iostream>
+#include <ostream>
 #include <type_traits>
 
+#include "BLI_math_vector_unroll.hh"
 #include "BLI_utildefines.h"
 
 namespace blender {
@@ -40,21 +41,6 @@ template<typename T> struct vec_struct_base<T, 4> {
   T x, y, z, w;
 };
 
-template<class Fn, size_t... I> void unroll_impl(Fn fn, std::index_sequence<I...> /*indices*/)
-{
-  (fn(I), ...);
-}
-
-/**
- * Variadic templates are used to unroll loops manually. This helps GCC avoid branching during math
- * operations and makes the code generation more explicit and predictable. Unrolling should always
- * be worth it because the vector size is expected to be small.
- */
-template<int N, class Fn> void unroll(Fn fn)
-{
-  unroll_impl(fn, std::make_index_sequence<N>());
-}
-
 namespace math {
 
 template<typename T> uint64_t vector_hash(const T &vec)
@@ -79,6 +65,12 @@ template<typename T> uint64_t vector_hash(const T &vec)
 
 template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> {
 
+  BLI_STATIC_ASSERT(alignof(T) <= sizeof(T),
+                    "VecBase is not compatible with aligned type for now.");
+
+/* Workaround issue with template BLI_ENABLE_IF((Size == 2)) not working. */
+#define BLI_ENABLE_IF_VEC(_size, _test) int S = _size, BLI_ENABLE_IF((S _test))
+
   static constexpr int type_length = Size;
 
   using base_type = T;
@@ -86,7 +78,7 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
 
   VecBase() = default;
 
-  explicit VecBase(T value)
+  template<BLI_ENABLE_IF_VEC(Size, > 1)> explicit VecBase(T value)
   {
     for (int i = 0; i < Size; i++) {
       (*this)[i] = value;
@@ -98,28 +90,30 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
   {
   }
 
-/* Workaround issue with template BLI_ENABLE_IF((Size == 2)) not working. */
-#define BLI_ENABLE_IF_VEC(_size, _test) int S = _size, BLI_ENABLE_IF((S _test))
+  template<BLI_ENABLE_IF_VEC(Size, == 1)> VecBase(T _x)
+  {
+    this->x = _x;
+  }
 
   template<BLI_ENABLE_IF_VEC(Size, == 2)> VecBase(T _x, T _y)
   {
-    (*this)[0] = _x;
-    (*this)[1] = _y;
+    this->x = _x;
+    this->y = _y;
   }
 
   template<BLI_ENABLE_IF_VEC(Size, == 3)> VecBase(T _x, T _y, T _z)
   {
-    (*this)[0] = _x;
-    (*this)[1] = _y;
-    (*this)[2] = _z;
+    this->x = _x;
+    this->y = _y;
+    this->z = _z;
   }
 
   template<BLI_ENABLE_IF_VEC(Size, == 4)> VecBase(T _x, T _y, T _z, T _w)
   {
-    (*this)[0] = _x;
-    (*this)[1] = _y;
-    (*this)[2] = _z;
-    (*this)[3] = _w;
+    this->x = _x;
+    this->y = _y;
+    this->z = _z;
+    this->w = _w;
   }
 
   /** Mixed scalar-vector constructors. */
@@ -176,39 +170,69 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
 
   /** Swizzling. */
 
-  template<BLI_ENABLE_IF_VEC(Size, >= 3)> VecBase<T, 2> xy() const
+  template<BLI_ENABLE_IF_VEC(Size, >= 2)> VecBase<T, 2> xy() const
   {
     return *reinterpret_cast<const VecBase<T, 2> *>(this);
   }
 
-  template<BLI_ENABLE_IF_VEC(Size, >= 4)> VecBase<T, 3> xyz() const
+  template<BLI_ENABLE_IF_VEC(Size, >= 3)> VecBase<T, 2> yz() const
+  {
+    return *reinterpret_cast<const VecBase<T, 2> *>(&((*this)[1]));
+  }
+
+  template<BLI_ENABLE_IF_VEC(Size, >= 4)> VecBase<T, 2> zw() const
+  {
+    return *reinterpret_cast<const VecBase<T, 2> *>(&((*this)[2]));
+  }
+
+  template<BLI_ENABLE_IF_VEC(Size, >= 3)> VecBase<T, 3> xyz() const
   {
     return *reinterpret_cast<const VecBase<T, 3> *>(this);
+  }
+
+  template<BLI_ENABLE_IF_VEC(Size, >= 4)> VecBase<T, 3> yzw() const
+  {
+    return *reinterpret_cast<const VecBase<T, 3> *>(&((*this)[1]));
+  }
+
+  template<BLI_ENABLE_IF_VEC(Size, >= 4)> VecBase<T, 4> xyzw() const
+  {
+    return *reinterpret_cast<const VecBase<T, 4> *>(this);
   }
 
 #undef BLI_ENABLE_IF_VEC
 
   /** Conversion from pointers (from C-style vectors). */
 
+  /* False positive warning with GCC: it sees array access like [3] but
+   * input is only a 3-element array. But it fails to realize that the
+   * [3] access is within "if constexpr (Size == 4)" check already. */
+#ifdef __GNUC__
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+
   VecBase(const T *ptr)
   {
-    unroll<Size>([&](auto i) { (*this)[i] = ptr[i]; });
+    BLI_UNROLL_MATH_VEC_OP_INIT_INDEX(ptr);
   }
 
   template<typename U, BLI_ENABLE_IF((std::is_convertible_v<U, T>))> explicit VecBase(const U *ptr)
   {
-    unroll<Size>([&](auto i) { (*this)[i] = ptr[i]; });
+    BLI_UNROLL_MATH_VEC_OP_INIT_INDEX(ptr);
   }
 
-  VecBase(const T (*ptr)[Size]) : VecBase(static_cast<const T *>(ptr[0]))
-  {
-  }
+  VecBase(const T (*ptr)[Size]) : VecBase(static_cast<const T *>(ptr[0])) {}
+
+#ifdef __GNUC__
+#  pragma GCC diagnostic pop
+#endif
 
   /** Conversion from other vector types. */
 
   template<typename U> explicit VecBase(const VecBase<U, Size> &vec)
   {
-    unroll<Size>([&](auto i) { (*this)[i] = T(vec[i]); });
+    BLI_UNROLL_MATH_VEC_OP_INIT_VECTOR(vec);
   }
 
   /** C-style pointer dereference. */
@@ -247,104 +271,82 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
 
   friend VecBase operator+(const VecBase &a, const VecBase &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] + b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_VEC(+, a, b);
   }
 
   friend VecBase operator+(const VecBase &a, const T &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] + b; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(+, a, b);
   }
 
   friend VecBase operator+(const T &a, const VecBase &b)
   {
-    return b + a;
+    BLI_UNROLL_MATH_VEC_OP_SCALAR_VEC(+, a, b);
   }
 
   VecBase &operator+=(const VecBase &b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] += b[i]; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_VEC(+=, b);
   }
 
   VecBase &operator+=(const T &b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] += b; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_SCALAR(+=, b);
   }
 
   friend VecBase operator-(const VecBase &a)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = -a[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC(-, a);
   }
 
   friend VecBase operator-(const VecBase &a, const VecBase &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] - b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_VEC(-, a, b);
   }
 
   friend VecBase operator-(const VecBase &a, const T &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] - b; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(-, a, b);
   }
 
   friend VecBase operator-(const T &a, const VecBase &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a - b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_SCALAR_VEC(-, a, b);
   }
 
   VecBase &operator-=(const VecBase &b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] -= b[i]; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_VEC(-=, b);
   }
 
   VecBase &operator-=(const T &b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] -= b; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_SCALAR(-=, b);
   }
 
   friend VecBase operator*(const VecBase &a, const VecBase &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] * b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_VEC(*, a, b);
   }
 
   template<typename FactorT> friend VecBase operator*(const VecBase &a, FactorT b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] * b; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(*, a, b);
   }
 
   friend VecBase operator*(T a, const VecBase &b)
   {
-    return b * a;
+    BLI_UNROLL_MATH_VEC_OP_SCALAR_VEC(*, a, b);
   }
 
   VecBase &operator*=(T b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] *= b; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_SCALAR(*=, b);
   }
 
   VecBase &operator*=(const VecBase &b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] *= b[i]; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_VEC(*=, b);
   }
 
   friend VecBase operator/(const VecBase &a, const VecBase &b)
@@ -352,17 +354,13 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
     for (int i = 0; i < Size; i++) {
       BLI_assert(b[i] != T(0));
     }
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] / b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_VEC(/, a, b);
   }
 
   friend VecBase operator/(const VecBase &a, T b)
   {
     BLI_assert(b != T(0));
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] / b; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(/, a, b);
   }
 
   friend VecBase operator/(T a, const VecBase &b)
@@ -370,179 +368,145 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
     for (int i = 0; i < Size; i++) {
       BLI_assert(b[i] != T(0));
     }
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a / b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_SCALAR_VEC(/, a, b);
   }
 
   VecBase &operator/=(T b)
   {
     BLI_assert(b != T(0));
-    unroll<Size>([&](auto i) { (*this)[i] /= b; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_SCALAR(/=, b);
   }
 
   VecBase &operator/=(const VecBase &b)
   {
-    BLI_assert(b != T(0));
-    unroll<Size>([&](auto i) { (*this)[i] /= b[i]; });
-    return *this;
+    for (int i = 0; i < Size; i++) {
+      BLI_assert(b[i] != T(0));
+    }
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_VEC(/=, b);
   }
 
   /** Binary operators. */
 
   BLI_INT_OP(T) friend VecBase operator&(const VecBase &a, const VecBase &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] & b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_VEC(&, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator&(const VecBase &a, T b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] & b; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(&, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator&(T a, const VecBase &b)
   {
-    return b & a;
+    BLI_UNROLL_MATH_VEC_OP_SCALAR_VEC(&, a, b);
   }
 
   BLI_INT_OP(T) VecBase &operator&=(T b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] &= b; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_SCALAR(&=, b);
   }
 
   BLI_INT_OP(T) VecBase &operator&=(const VecBase &b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] &= b[i]; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_VEC(&=, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator|(const VecBase &a, const VecBase &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] | b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_VEC(|, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator|(const VecBase &a, T b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] | b; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(|, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator|(T a, const VecBase &b)
   {
-    return b | a;
+    BLI_UNROLL_MATH_VEC_OP_SCALAR_VEC(|, a, b);
   }
 
   BLI_INT_OP(T) VecBase &operator|=(T b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] |= b; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_SCALAR(|=, b);
   }
 
   BLI_INT_OP(T) VecBase &operator|=(const VecBase &b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] |= b[i]; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_VEC(|=, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator^(const VecBase &a, const VecBase &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] ^ b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_VEC(^, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator^(const VecBase &a, T b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] ^ b; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(^, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator^(T a, const VecBase &b)
   {
-    return b ^ a;
+    BLI_UNROLL_MATH_VEC_OP_SCALAR_VEC(^, a, b);
   }
 
   BLI_INT_OP(T) VecBase &operator^=(T b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] ^= b; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_SCALAR(^=, b);
   }
 
   BLI_INT_OP(T) VecBase &operator^=(const VecBase &b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] ^= b[i]; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_VEC(^=, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator~(const VecBase &a)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = ~a[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC(~, a);
   }
 
   /** Bit-shift operators. */
 
   BLI_INT_OP(T) friend VecBase operator<<(const VecBase &a, const VecBase &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] << b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_VEC(<<, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator<<(const VecBase &a, T b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] << b; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(<<, a, b);
   }
 
   BLI_INT_OP(T) VecBase &operator<<=(T b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] <<= b; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_SCALAR(<<=, b);
   }
 
   BLI_INT_OP(T) VecBase &operator<<=(const VecBase &b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] <<= b[i]; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_VEC(<<=, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator>>(const VecBase &a, const VecBase &b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] >> b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_VEC(>>, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator>>(const VecBase &a, T b)
   {
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] >> b; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(>>, a, b);
   }
 
   BLI_INT_OP(T) VecBase &operator>>=(T b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] >>= b; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_SCALAR(>>=, b);
   }
 
   BLI_INT_OP(T) VecBase &operator>>=(const VecBase &b)
   {
-    unroll<Size>([&](auto i) { (*this)[i] >>= b[i]; });
-    return *this;
+    BLI_UNROLL_MATH_VEC_OP_ASSIGN_VEC(>>=, b);
   }
 
   /** Modulo operators. */
@@ -552,25 +516,21 @@ template<typename T, int Size> struct VecBase : public vec_struct_base<T, Size> 
     for (int i = 0; i < Size; i++) {
       BLI_assert(b[i] != T(0));
     }
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] % b[i]; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_VEC(%, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator%(const VecBase &a, T b)
   {
     BLI_assert(b != 0);
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a[i] % b; });
-    return result;
+    BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(%, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator%(T a, const VecBase &b)
   {
-    BLI_assert(b != T(0));
-    VecBase result;
-    unroll<Size>([&](auto i) { result[i] = a % b[i]; });
-    return result;
+    for (int i = 0; i < Size; i++) {
+      BLI_assert(b[i] != T(0));
+    }
+    BLI_UNROLL_MATH_VEC_OP_SCALAR_VEC(%, a, b);
   }
 
 #undef BLI_INT_OP
@@ -622,8 +582,11 @@ template<typename T> struct AssertUnitEpsilon {
 
 }  // namespace math
 
+using char2 = blender::VecBase<int8_t, 2>;
 using char3 = blender::VecBase<int8_t, 3>;
+using char4 = blender::VecBase<int8_t, 4>;
 
+using uchar2 = blender::VecBase<uint8_t, 2>;
 using uchar3 = blender::VecBase<uint8_t, 3>;
 using uchar4 = blender::VecBase<uint8_t, 4>;
 
@@ -637,11 +600,13 @@ using uint4 = VecBase<uint32_t, 4>;
 
 using short2 = blender::VecBase<int16_t, 2>;
 using short3 = blender::VecBase<int16_t, 3>;
+using short4 = blender::VecBase<int16_t, 4>;
 
 using ushort2 = VecBase<uint16_t, 2>;
 using ushort3 = blender::VecBase<uint16_t, 3>;
 using ushort4 = blender::VecBase<uint16_t, 4>;
 
+using float1 = VecBase<float, 1>;
 using float2 = VecBase<float, 2>;
 using float3 = VecBase<float, 3>;
 using float4 = VecBase<float, 4>;

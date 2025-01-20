@@ -1,23 +1,19 @@
+# SPDX-FileCopyrightText: 2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blenlib
-  ../../blentranslation
-  ../../bmesh
-  ../../depsgraph
   ../../io/alembic
   ../../io/collada
   ../../io/common
-  ../../io/gpencil
+  ../../io/grease_pencil
+  ../../io/ply
   ../../io/stl
   ../../io/usd
   ../../io/wavefront_obj
-  ../../makesdna
   ../../makesrna
-  ../../windowmanager
-  ../../../../intern/guardedalloc
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -25,70 +21,92 @@ set(INC_SYS
 )
 
 set(SRC
-  io_alembic.c
-  io_cache.c
-  io_collada.c
-  io_gpencil_export.c
-  io_gpencil_import.c
-  io_gpencil_utils.c
-  io_obj.c
-  io_ops.c
-  io_stl_ops.c
-  io_usd.c
+  io_alembic.cc
+  io_cache.cc
+  io_collada.cc
+  io_drop_import_file.cc
+  io_grease_pencil.cc
+  io_obj.cc
+  io_ops.cc
+  io_ply_ops.cc
+  io_stl_ops.cc
+  io_usd.cc
+  io_utils.cc
 
-  io_alembic.h
-  io_cache.h
-  io_collada.h
-  io_gpencil.h
-  io_obj.h
-  io_ops.h
-  io_stl_ops.h
-  io_usd.h
+  io_alembic.hh
+  io_cache.hh
+  io_collada.hh
+  io_drop_import_file.hh
+  io_grease_pencil.hh
+  io_obj.hh
+  io_ops.hh
+  io_ply_ops.hh
+  io_stl_ops.hh
+  io_usd.hh
+  io_utils.hh
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
+  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::clog
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_OPENCOLLADA)
   list(APPEND LIB
-    bf_collada
+    bf_io_collada
   )
   add_definitions(-DWITH_COLLADA)
 endif()
 
 if(WITH_IO_WAVEFRONT_OBJ)
   list(APPEND LIB
-    bf_wavefront_obj
+    bf_io_wavefront_obj
   )
   add_definitions(-DWITH_IO_WAVEFRONT_OBJ)
 endif()
 
+if(WITH_IO_PLY)
+  list(APPEND LIB
+    bf_io_ply
+  )
+  add_definitions(-DWITH_IO_PLY)
+endif()
+
 if(WITH_IO_STL)
   list(APPEND LIB
-    bf_stl
+    bf_io_stl
   )
   add_definitions(-DWITH_IO_STL)
 endif()
 
-if(WITH_IO_GPENCIL)
+if(WITH_IO_GREASE_PENCIL)
   list(APPEND LIB
-    bf_gpencil
+    bf_io_grease_pencil
   )
-  add_definitions(-DWITH_IO_GPENCIL)
+  add_definitions(-DWITH_IO_GREASE_PENCIL)
 endif()
 
 if(WITH_ALEMBIC)
   list(APPEND LIB
-    bf_alembic
+    bf_io_alembic
   )
   add_definitions(-DWITH_ALEMBIC)
 endif()
 
 if(WITH_USD)
+  list(APPEND INC_SYS
+    ${USD_INCLUDE_DIRS}
+  )
   list(APPEND LIB
-    bf_usd
+    bf_io_usd
   )
   add_definitions(-DWITH_USD)
 endif()

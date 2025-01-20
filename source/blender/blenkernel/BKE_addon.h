@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 /** \file
@@ -14,8 +16,8 @@ struct bAddon;
 
 #ifdef __RNA_TYPES_H__
 typedef struct bAddonPrefType {
-  /* type info */
-  char idname[64]; /* best keep the same size as #BKE_ST_MAXNAME */
+  /** Type info, match #bAddon::module. */
+  char idname[128];
 
   /* RNA integration */
   ExtensionRNA rna_ext;
@@ -33,7 +35,7 @@ void BKE_addon_pref_type_init(void);
 void BKE_addon_pref_type_free(void);
 
 struct bAddon *BKE_addon_new(void);
-struct bAddon *BKE_addon_find(struct ListBase *addon_list, const char *module);
+struct bAddon *BKE_addon_find(const struct ListBase *addon_list, const char *module);
 struct bAddon *BKE_addon_ensure(struct ListBase *addon_list, const char *module);
 bool BKE_addon_remove_safe(struct ListBase *addon_list, const char *module);
 void BKE_addon_free(struct bAddon *addon);

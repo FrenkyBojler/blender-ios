@@ -1,9 +1,14 @@
+/* SPDX-FileCopyrightText: 2021-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* To be compiled with common_subdiv_lib.glsl */
 
-layout(std430, binding = 1) readonly buffer inputEdgeOrigIndex
+#ifndef LINES_LOOSE
+
+layout(std430, binding = 1) readonly buffer inputEdgeDrawFlag
 {
-  int input_origindex[];
+  int input_edge_draw_flag[];
 };
 
 layout(std430, binding = 2) readonly restrict buffer extraCoarseFaceData
@@ -11,15 +16,21 @@ layout(std430, binding = 2) readonly restrict buffer extraCoarseFaceData
   uint extra_coarse_face_data[];
 };
 
+#endif
+
 layout(std430, binding = 3) writeonly buffer outputLinesIndices
 {
   uint output_lines[];
 };
 
+#ifdef LINES_LOOSE
+
 layout(std430, binding = 4) readonly buffer LinesLooseFlags
 {
   uint lines_loose_flags[];
 };
+
+#endif
 
 #ifndef LINES_LOOSE
 
@@ -32,11 +43,9 @@ void emit_line(uint line_offset, uint quad_index, uint start_loop_index, uint co
 {
   uint vertex_index = start_loop_index + corner_index;
 
-  uint coarse_quad_index = coarse_polygon_index_from_subdiv_quad_index(quad_index,
-                                                                       coarse_poly_count);
+  uint coarse_quad_index = coarse_face_index_from_subdiv_quad_index(quad_index, coarse_face_count);
 
-  if (use_hide && is_face_hidden(coarse_quad_index) ||
-      (input_origindex[vertex_index] == ORIGINDEX_NONE && optimal_display)) {
+  if (use_hide && is_face_hidden(coarse_quad_index) || (input_edge_draw_flag[vertex_index] == 0)) {
     output_lines[line_offset + 0] = 0xffffffff;
     output_lines[line_offset + 1] = 0xffffffff;
   }

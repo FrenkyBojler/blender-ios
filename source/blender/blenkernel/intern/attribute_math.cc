@@ -1,8 +1,79 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "BLI_array_utils.hh"
+#include "BLI_math_euler.hh"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_quaternion.hh"
 
 #include "BKE_attribute_math.hh"
 
-namespace blender::attribute_math {
+namespace blender::bke::attribute_math {
+
+template<>
+math::Quaternion mix2(const float factor, const math::Quaternion &a, const math::Quaternion &b)
+{
+  return math::interpolate(a, b, factor);
+}
+
+template<>
+math::Quaternion mix3(const float3 &weights,
+                      const math::Quaternion &v0,
+                      const math::Quaternion &v1,
+                      const math::Quaternion &v2)
+{
+  const float3 expmap_mixed = mix3(weights, v0.expmap(), v1.expmap(), v2.expmap());
+  return math::Quaternion::expmap(expmap_mixed);
+}
+
+template<>
+math::Quaternion mix4(const float4 &weights,
+                      const math::Quaternion &v0,
+                      const math::Quaternion &v1,
+                      const math::Quaternion &v2,
+                      const math::Quaternion &v3)
+{
+  const float3 expmap_mixed = mix4(weights, v0.expmap(), v1.expmap(), v2.expmap(), v3.expmap());
+  return math::Quaternion::expmap(expmap_mixed);
+}
+
+template<> float4x4 mix2(const float factor, const float4x4 &a, const float4x4 &b)
+{
+  return math::interpolate(a, b, factor);
+}
+
+template<>
+float4x4 mix3(const float3 &weights, const float4x4 &v0, const float4x4 &v1, const float4x4 &v2)
+{
+  const float3 location = mix3(weights, v0.location(), v1.location(), v2.location());
+  const math::Quaternion rotation = mix3(
+      weights,
+      math::normalized_to_quaternion_safe(math::normalize(float3x3(v0))),
+      math::normalized_to_quaternion_safe(math::normalize(float3x3(v1))),
+      math::normalized_to_quaternion_safe(math::normalize(float3x3(v2))));
+  const float3 scale = mix3(weights, math::to_scale(v0), math::to_scale(v1), math::to_scale(v2));
+  return math::from_loc_rot_scale<float4x4>(location, rotation, scale);
+}
+
+template<>
+float4x4 mix4(const float4 &weights,
+              const float4x4 &v0,
+              const float4x4 &v1,
+              const float4x4 &v2,
+              const float4x4 &v3)
+{
+  const float3 location = mix4(
+      weights, v0.location(), v1.location(), v2.location(), v3.location());
+  const math::Quaternion rotation = mix4(weights,
+                                         math::to_quaternion(v0),
+                                         math::to_quaternion(v1),
+                                         math::to_quaternion(v2),
+                                         math::to_quaternion(v3));
+  const float3 scale = mix4(
+      weights, math::to_scale(v0), math::to_scale(v1), math::to_scale(v2), math::to_scale(v3));
+  return math::from_loc_rot_scale<float4x4>(location, rotation, scale);
+}
 
 ColorGeometry4fMixer::ColorGeometry4fMixer(MutableSpan<ColorGeometry4f> buffer,
                                            ColorGeometry4f default_color)
@@ -11,7 +82,7 @@ ColorGeometry4fMixer::ColorGeometry4fMixer(MutableSpan<ColorGeometry4f> buffer,
 }
 
 ColorGeometry4fMixer::ColorGeometry4fMixer(MutableSpan<ColorGeometry4f> buffer,
-                                           const IndexMask mask,
+                                           const IndexMask &mask,
                                            const ColorGeometry4f default_color)
     : buffer_(buffer), default_color_(default_color), total_weights_(buffer.size(), 0.0f)
 {
@@ -47,7 +118,7 @@ void ColorGeometry4fMixer::finalize()
   this->finalize(buffer_.index_range());
 }
 
-void ColorGeometry4fMixer::finalize(const IndexMask mask)
+void ColorGeometry4fMixer::finalize(const IndexMask &mask)
 {
   mask.foreach_index([&](const int64_t i) {
     const float weight = total_weights_[i];
@@ -72,7 +143,7 @@ ColorGeometry4bMixer::ColorGeometry4bMixer(MutableSpan<ColorGeometry4b> buffer,
 }
 
 ColorGeometry4bMixer::ColorGeometry4bMixer(MutableSpan<ColorGeometry4b> buffer,
-                                           const IndexMask mask,
+                                           const IndexMask &mask,
                                            const ColorGeometry4b default_color)
     : buffer_(buffer),
       default_color_(default_color),
@@ -109,7 +180,7 @@ void ColorGeometry4bMixer::finalize()
   this->finalize(buffer_.index_range());
 }
 
-void ColorGeometry4bMixer::finalize(const IndexMask mask)
+void ColorGeometry4bMixer::finalize(const IndexMask &mask)
 {
   mask.foreach_index([&](const int64_t i) {
     const float weight = total_weights_[i];
@@ -128,4 +199,101 @@ void ColorGeometry4bMixer::finalize(const IndexMask mask)
   });
 }
 
-}  // namespace blender::attribute_math
+float4x4Mixer::float4x4Mixer(MutableSpan<float4x4> buffer)
+    : float4x4Mixer(buffer, buffer.index_range())
+{
+}
+
+float4x4Mixer::float4x4Mixer(MutableSpan<float4x4> buffer, const IndexMask & /*mask*/)
+    : buffer_(buffer),
+      total_weights_(buffer.size(), 0.0f),
+      location_buffer_(buffer.size(), float3(0)),
+      expmap_buffer_(buffer.size(), float3(0)),
+      scale_buffer_(buffer.size(), float3(0))
+{
+}
+
+void float4x4Mixer::float4x4Mixer::set(int64_t index, const float4x4 &value, const float weight)
+{
+  location_buffer_[index] = value.location() * weight;
+  expmap_buffer_[index] = math::to_quaternion(value).expmap() * weight;
+  scale_buffer_[index] = math::to_scale(value) * weight;
+  total_weights_[index] = weight;
+}
+
+void float4x4Mixer::mix_in(int64_t index, const float4x4 &value, float weight)
+{
+  float3 location;
+  math::Quaternion rotation;
+  float3 scale;
+  math::to_loc_rot_scale_safe<true>(value, location, rotation, scale);
+
+  location_buffer_[index] += location * weight;
+  expmap_buffer_[index] += rotation.expmap() * weight;
+  scale_buffer_[index] += scale * weight;
+  total_weights_[index] += weight;
+}
+
+void float4x4Mixer::finalize()
+{
+  this->finalize(buffer_.index_range());
+}
+
+void float4x4Mixer::finalize(const IndexMask &mask)
+{
+  mask.foreach_index([&](const int64_t i) {
+    const float weight = total_weights_[i];
+    if (weight > 0.0f) {
+      const float weight_inv = math::rcp(weight);
+      buffer_[i] = math::from_loc_rot_scale<float4x4>(
+          location_buffer_[i] * weight_inv,
+          math::Quaternion::expmap(expmap_buffer_[i] * weight_inv),
+          scale_buffer_[i] * weight_inv);
+    }
+    else {
+      buffer_[i] = float4x4::identity();
+    }
+  });
+}
+
+void gather(const GSpan src, const Span<int> map, GMutableSpan dst)
+{
+  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
+    using T = decltype(dummy);
+    array_utils::gather(src.typed<T>(), map, dst.typed<T>());
+  });
+}
+
+void gather(const GVArray &src, const Span<int> map, GMutableSpan dst)
+{
+  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
+    using T = decltype(dummy);
+    array_utils::gather(src.typed<T>(), map, dst.typed<T>());
+  });
+}
+
+void gather_group_to_group(const OffsetIndices<int> src_offsets,
+                           const OffsetIndices<int> dst_offsets,
+                           const IndexMask &selection,
+                           const GSpan src,
+                           GMutableSpan dst)
+{
+  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
+    using T = decltype(dummy);
+    array_utils::gather_group_to_group(
+        src_offsets, dst_offsets, selection, src.typed<T>(), dst.typed<T>());
+  });
+}
+
+void gather_to_groups(const OffsetIndices<int> dst_offsets,
+                      const IndexMask &src_selection,
+                      const GSpan src,
+                      GMutableSpan dst)
+{
+  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
+    using T = decltype(dummy);
+    array_utils::gather_to_groups(dst_offsets, src_selection, src.typed<T>(), dst.typed<T>());
+  });
+}
+
+}  // namespace blender::bke::attribute_math

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,6 +22,7 @@ using namespace Freestyle;
 /*----------------------NonTVertex methods ----------------------------*/
 
 PyDoc_STRVAR(
+    /* Wrap. */
     NonTVertex_doc,
     "Class hierarchy: :class:`Interface0D` > :class:`ViewVertex` > :class:`NonTVertex`\n"
     "\n"
@@ -58,10 +61,12 @@ static int NonTVertex_init(BPy_NonTVertex *self, PyObject *args, PyObject *kwds)
 
 /*----------------------NonTVertex get/setters ----------------------------*/
 
-PyDoc_STRVAR(NonTVertex_svertex_doc,
-             "The SVertex on top of which this NonTVertex is built.\n"
-             "\n"
-             ":type: :class:`SVertex`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    NonTVertex_svertex_doc,
+    "The SVertex on top of which this NonTVertex is built.\n"
+    "\n"
+    ":type: :class:`SVertex`");
 
 static PyObject *NonTVertex_svertex_get(BPy_NonTVertex *self, void * /*closure*/)
 {
@@ -94,7 +99,8 @@ static PyGetSetDef BPy_NonTVertex_getseters[] = {
 /*-----------------------BPy_NonTVertex type definition ------------------------------*/
 
 PyTypeObject NonTVertex_Type = {
-    /*tp_name*/ PyVarObject_HEAD_INIT(nullptr, 0) "NonTVertex",
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "NonTVertex",
     /*tp_basicsize*/ sizeof(BPy_NonTVertex),
     /*tp_itemsize*/ 0,
     /*tp_dealloc*/ nullptr,
@@ -130,7 +136,7 @@ PyTypeObject NonTVertex_Type = {
     /*tp_dictoffset*/ 0,
     /*tp_init*/ (initproc)NonTVertex_init,
     /*tp_alloc*/ nullptr,
-    nullptr, /*tp_new*/
+    /*tp_new*/ nullptr,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////

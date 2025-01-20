@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup modifiers
@@ -10,30 +12,23 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_mesh.h"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_mesh.hh"
+#include "BKE_modifier.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
-#include "MOD_modifiertypes.h"
-#include "MOD_ui_common.h"
+#include "MOD_ui_common.hh"
 
 static Mesh *triangulate_mesh(Mesh *mesh,
                               const int quad_method,
@@ -41,10 +36,9 @@ static Mesh *triangulate_mesh(Mesh *mesh,
                               const int min_vertices,
                               const int flag)
 {
+  using namespace blender;
   Mesh *result;
   BMesh *bm;
-  int edges_num, i;
-  MEdge *me;
   CustomData_MeshMasks cd_mask_extra{};
   cd_mask_extra.vmask = CD_MASK_ORIGINDEX;
   cd_mask_extra.emask = CD_MASK_ORIGINDEX;
@@ -53,9 +47,9 @@ static Mesh *triangulate_mesh(Mesh *mesh,
   bool keep_clnors = (flag & MOD_TRIANGULATE_KEEP_CUSTOMLOOP_NORMALS) != 0;
 
   if (keep_clnors) {
-    BKE_mesh_calc_normals_split(mesh);
-    /* We need that one to 'survive' to/from BMesh conversions. */
-    CustomData_clear_layer_flag(&mesh->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
+    void *data = CustomData_add_layer(
+        &mesh->corner_data, CD_NORMAL, CD_CONSTRUCT, mesh->corners_num);
+    memcpy(data, mesh->corner_normals().data(), mesh->corner_normals().size_in_bytes());
     cd_mask_extra.lmask |= CD_MASK_NORMAL;
   }
 
@@ -74,29 +68,18 @@ static Mesh *triangulate_mesh(Mesh *mesh,
   BM_mesh_free(bm);
 
   if (keep_clnors) {
-    float(*lnors)[3] = static_cast<float(*)[3]>(
-        CustomData_get_layer_for_write(&result->ldata, CD_NORMAL, result->totloop));
-    BLI_assert(lnors != nullptr);
-
-    BKE_mesh_set_custom_normals(result, lnors);
-
-    /* Do some cleanup, we do not want those temp data to stay around. */
-    CustomData_set_layer_flag(&mesh->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
-    CustomData_set_layer_flag(&result->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
-  }
-
-  edges_num = result->totedge;
-  me = BKE_mesh_edges_for_write(result);
-
-  /* force drawing of all edges (seems to be omitted in CDDM_from_bmesh) */
-  for (i = 0; i < edges_num; i++, me++) {
-    me->flag |= ME_EDGEDRAW;
+    bke::mesh_set_custom_normals_normalized(
+        *result,
+        {static_cast<float3 *>(
+             CustomData_get_layer_for_write(&result->corner_data, CD_NORMAL, result->corners_num)),
+         result->corners_num});
+    CustomData_free_layers(&result->corner_data, CD_NORMAL, result->corners_num);
   }
 
   return result;
 }
 
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
   TriangulateModifierData *tmd = (TriangulateModifierData *)md;
 
@@ -108,12 +91,13 @@ static void initData(ModifierData *md)
   md->mode |= eModifierMode_Editmode;
 }
 
-static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
+static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
 {
   TriangulateModifierData *tmd = (TriangulateModifierData *)md;
   Mesh *result;
   if (!(result = triangulate_mesh(
-            mesh, tmd->quad_method, tmd->ngon_method, tmd->min_vertices, tmd->flag))) {
+            mesh, tmd->quad_method, tmd->ngon_method, tmd->min_vertices, tmd->flag)))
+  {
     return mesh;
   }
 
@@ -129,50 +113,52 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "quad_method", 0, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "ngon_method", 0, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "min_vertices", 0, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "keep_custom_normals", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "quad_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "ngon_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "min_vertices", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "keep_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_Triangulate, panel_draw);
 }
 
 ModifierTypeInfo modifierType_Triangulate = {
+    /*idname*/ "Triangulate",
     /*name*/ N_("Triangulate"),
-    /*structName*/ "TriangulateModifierData",
-    /*structSize*/ sizeof(TriangulateModifierData),
+    /*struct_name*/ "TriangulateModifierData",
+    /*struct_size*/ sizeof(TriangulateModifierData),
     /*srna*/ &RNA_TriangulateModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_EnableInEditmode |
         eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_TRIANGULATE,
 
-    /*copyData*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ BKE_modifier_copydata_generic,
 
-    /*deformVerts*/ nullptr,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ nullptr,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ modifyMesh,
-    /*modifyGeometrySet*/ nullptr,
+    /*deform_verts*/ nullptr,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ modify_mesh,
+    /*modify_geometry_set*/ nullptr,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ nullptr,  // requiredDataMask,
-    /*freeData*/ nullptr,
-    /*isDisabled*/ nullptr,
-    /*updateDepsgraph*/ nullptr,
-    /*dependsOnTime*/ nullptr,
-    /*dependsOnNormals*/ nullptr,
-    /*foreachIDLink*/ nullptr,
-    /*foreachTexLink*/ nullptr,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ nullptr,
-    /*blendRead*/ nullptr,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ nullptr,  // required_data_mask,
+    /*free_data*/ nullptr,
+    /*is_disabled*/ nullptr,
+    /*update_depsgraph*/ nullptr,
+    /*depends_on_time*/ nullptr,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ nullptr,
+    /*foreach_tex_link*/ nullptr,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

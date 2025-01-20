@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,7 +22,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char Normal2DF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    Normal2DF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DVec2f` > :class:`Normal2DF1D`\n"
     "\n"
@@ -39,7 +43,7 @@ static char Normal2DF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The 2D normal for the Interface1D.\n"
-    "   :rtype: :class:`mathutils.Vector`\n";
+    "   :rtype: :class:`mathutils.Vector`\n");
 
 static int Normal2DF1D___init__(BPy_Normal2DF1D *self, PyObject *args, PyObject *kwds)
 {
@@ -47,7 +51,8 @@ static int Normal2DF1D___init__(BPy_Normal2DF1D *self, PyObject *args, PyObject 
   PyObject *obj = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj)) {
+          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj))
+  {
     return -1;
   }
   IntegrationType t = (obj) ? IntegrationType_from_BPy_IntegrationType(obj) : MEAN;
@@ -58,7 +63,7 @@ static int Normal2DF1D___init__(BPy_Normal2DF1D *self, PyObject *args, PyObject 
 /*-----------------------BPy_Normal2DF1D type definition ------------------------------*/
 
 PyTypeObject Normal2DF1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "Normal2DF1D",
     /*tp_basicsize*/ sizeof(BPy_Normal2DF1D),
     /*tp_itemsize*/ 0,

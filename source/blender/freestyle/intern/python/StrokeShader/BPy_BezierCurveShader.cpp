@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char BezierCurveShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    BezierCurveShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`BezierCurveShader`\n"
     "\n"
     "[Geometry shader]\n"
@@ -27,7 +31,7 @@ static char BezierCurveShader___doc__[] =
     "\n"
     "   Builds a BezierCurveShader object.\n"
     "\n"
-    "   :arg error: The error we're allowing for the approximation.  This\n"
+    "   :arg error: The error we're allowing for the approximation. This\n"
     "     error is the max distance allowed between the new curve and the\n"
     "     original geometry.\n"
     "   :type error: float\n"
@@ -38,7 +42,7 @@ static char BezierCurveShader___doc__[] =
     "   Bezier Curve approximation of the original backbone geometry.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int BezierCurveShader___init__(BPy_BezierCurveShader *self, PyObject *args, PyObject *kwds)
 {
@@ -55,7 +59,7 @@ static int BezierCurveShader___init__(BPy_BezierCurveShader *self, PyObject *arg
 /*-----------------------BPy_BezierCurveShader type definition ------------------------------*/
 
 PyTypeObject BezierCurveShader_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "BezierCurveShader",
     /*tp_basicsize*/ sizeof(BPy_BezierCurveShader),
     /*tp_itemsize*/ 0,

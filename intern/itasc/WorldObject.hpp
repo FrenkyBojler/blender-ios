@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: LGPL-2.1-or-later
- * Copyright 2009 Ruben Smits. */
+/* SPDX-FileCopyrightText: 2009 Ruben Smits
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later */
 
 /** \file
  * \ingroup intern_itasc
@@ -16,10 +17,10 @@ public:
     WorldObject();
     virtual ~WorldObject();
 
-	virtual void updateCoordinates(const Timestamp& timestamp) {};
-	virtual void updateKinematics(const Timestamp& timestamp) {};
-	virtual void pushCache(const Timestamp& timestamp) {};
-	virtual void initCache(Cache *_cache) {};
+	virtual void updateCoordinates(const Timestamp & /*timestamp*/){};
+	virtual void updateKinematics(const Timestamp & /*timestamp*/){};
+	virtual void pushCache(const Timestamp & /*timestamp*/){};
+	virtual void initCache(Cache * /*cache*/){};
 protected:
 	virtual void updateJacobian() {}
 

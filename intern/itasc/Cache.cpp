@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: LGPL-2.1-or-later
- * Copyright 2009 Benoit Bolsee. */
+/* SPDX-FileCopyrightText: 2009 Benoit Bolsee
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later */
 
 /** \file
  * \ingroup intern_itasc
@@ -213,8 +214,10 @@ int Cache::addChannel(const void *device, const char *name, unsigned int maxItem
 		entry = new CacheEntry();
 		if (entry == NULL)
 			return -1;
-		if (!m_cache.insert(CacheMap::value_type(device,entry)).second)
+		if (!m_cache.insert(CacheMap::value_type(device,entry)).second) {
+			delete entry;
 			return -1;
+		}
 	} else {
 		entry = it->second;
 	}

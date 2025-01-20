@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -29,32 +31,31 @@ int UnaryPredicate0D_Init(PyObject *module)
   if (PyType_Ready(&UnaryPredicate0D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&UnaryPredicate0D_Type);
-  PyModule_AddObject(module, "UnaryPredicate0D", (PyObject *)&UnaryPredicate0D_Type);
+  PyModule_AddObjectRef(module, "UnaryPredicate0D", (PyObject *)&UnaryPredicate0D_Type);
 
   if (PyType_Ready(&FalseUP0D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&FalseUP0D_Type);
-  PyModule_AddObject(module, "FalseUP0D", (PyObject *)&FalseUP0D_Type);
+  PyModule_AddObjectRef(module, "FalseUP0D", (PyObject *)&FalseUP0D_Type);
 
   if (PyType_Ready(&TrueUP0D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&TrueUP0D_Type);
-  PyModule_AddObject(module, "TrueUP0D", (PyObject *)&TrueUP0D_Type);
+  PyModule_AddObjectRef(module, "TrueUP0D", (PyObject *)&TrueUP0D_Type);
 
   return 0;
 }
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char UnaryPredicate0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    UnaryPredicate0D___doc__,
     "Base class for unary predicates that work on\n"
-    ":class:`Interface0DIterator`.  A UnaryPredicate0D is a functor that\n"
+    ":class:`Interface0DIterator`. A UnaryPredicate0D is a functor that\n"
     "evaluates a condition on an Interface0DIterator and returns true or\n"
-    "false depending on whether this condition is satisfied or not.  The\n"
-    "UnaryPredicate0D is used by invoking its __call__() method.  Any\n"
+    "false depending on whether this condition is satisfied or not. The\n"
+    "UnaryPredicate0D is used by invoking its __call__() method. Any\n"
     "inherited class must overload the __call__() method.\n"
     "\n"
     ".. method:: __init__()\n"
@@ -69,7 +70,7 @@ static char UnaryPredicate0D___doc__[] =
     "      which we wish to evaluate the predicate.\n"
     "   :type it: :class:`Interface0DIterator`\n"
     "   :return: True if the condition is satisfied, false otherwise.\n"
-    "   :rtype: bool\n";
+    "   :rtype: bool\n");
 
 static int UnaryPredicate0D___init__(BPy_UnaryPredicate0D *self, PyObject *args, PyObject *kwds)
 {
@@ -102,7 +103,8 @@ static PyObject *UnaryPredicate0D___call__(BPy_UnaryPredicate0D *self,
   PyObject *py_if0D_it;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "O!", (char **)kwlist, &Interface0DIterator_Type, &py_if0D_it)) {
+          args, kwds, "O!", (char **)kwlist, &Interface0DIterator_Type, &py_if0D_it))
+  {
     return nullptr;
   }
 
@@ -129,10 +131,12 @@ static PyObject *UnaryPredicate0D___call__(BPy_UnaryPredicate0D *self,
 
 /*----------------------UnaryPredicate0D get/setters ----------------------------*/
 
-PyDoc_STRVAR(UnaryPredicate0D_name_doc,
-             "The name of the unary 0D predicate.\n"
-             "\n"
-             ":type: str");
+PyDoc_STRVAR(
+    /* Wrap. */
+    UnaryPredicate0D_name_doc,
+    "The name of the unary 0D predicate.\n"
+    "\n"
+    ":type: str");
 
 static PyObject *UnaryPredicate0D_name_get(BPy_UnaryPredicate0D *self, void * /*closure*/)
 {
@@ -151,7 +155,7 @@ static PyGetSetDef BPy_UnaryPredicate0D_getseters[] = {
 /*-----------------------BPy_UnaryPredicate0D type definition ------------------------------*/
 
 PyTypeObject UnaryPredicate0D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "UnaryPredicate0D",
     /*tp_basicsize*/ sizeof(BPy_UnaryPredicate0D),
     /*tp_itemsize*/ 0,

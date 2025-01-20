@@ -1,9 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "NOD_rna_define.hh"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -13,37 +17,37 @@ NODE_STORAGE_FUNCS(NodeGeometryCurvePrimitiveBezierSegment)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>(N_("Resolution"))
+  b.add_input<decl::Int>("Resolution")
       .default_value(16)
       .min(1)
       .max(256)
       .subtype(PROP_UNSIGNED)
-      .description(N_("The number of evaluated points on the curve"));
-  b.add_input<decl::Vector>(N_("Start"))
+      .description("The number of evaluated points on the curve");
+  b.add_input<decl::Vector>("Start")
       .default_value({-1.0f, 0.0f, 0.0f})
       .subtype(PROP_TRANSLATION)
-      .description(N_("Position of the start control point of the curve"));
-  b.add_input<decl::Vector>(N_("Start Handle"))
+      .description("Position of the start control point of the curve");
+  b.add_input<decl::Vector>("Start Handle")
       .default_value({-0.5f, 0.5f, 0.0f})
       .subtype(PROP_TRANSLATION)
       .description(
-          N_("Position of the start handle used to define the shape of the curve. In Offset mode, "
-             "relative to Start point"));
-  b.add_input<decl::Vector>(N_("End Handle"))
+          "Position of the start handle used to define the shape of the curve. In Offset mode, "
+          "relative to Start point");
+  b.add_input<decl::Vector>("End Handle")
       .subtype(PROP_TRANSLATION)
       .description(
-          N_("Position of the end handle used to define the shape of the curve. In Offset mode, "
-             "relative to End point"));
-  b.add_input<decl::Vector>(N_("End"))
+          "Position of the end handle used to define the shape of the curve. In Offset mode, "
+          "relative to End point");
+  b.add_input<decl::Vector>("End")
       .default_value({1.0f, 0.0f, 0.0f})
       .subtype(PROP_TRANSLATION)
-      .description(N_("Position of the end control point of the curve"));
-  b.add_output<decl::Geometry>(N_("Curve"));
+      .description("Position of the end control point of the curve");
+  b.add_output<decl::Geometry>("Curve");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -107,25 +111,56 @@ static void node_geo_exec(GeoNodeExecParams params)
       params.extract_input<float3>("End Handle"),
       std::max(params.extract_input<int>("Resolution"), 1),
       mode);
-  params.set_output("Curve", GeometrySet::create_with_curves(curves));
+  params.set_output("Curve", GeometrySet::from_curves(curves));
 }
+
+static void node_rna(StructRNA *srna)
+{
+  static const EnumPropertyItem mode_items[] = {
+
+      {GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT_POSITION,
+       "POSITION",
+       ICON_NONE,
+       "Position",
+       "The start and end handles are fixed positions"},
+      {GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT_OFFSET,
+       "OFFSET",
+       ICON_NONE,
+       "Offset",
+       "The start and end handles are offsets from the spline's control points"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  RNA_def_node_enum(srna,
+                    "mode",
+                    "Mode",
+                    "Method used to determine control handles",
+                    mode_items,
+                    NOD_storage_enum_accessors(mode),
+                    GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT_POSITION);
+}
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(
+      &ntype, "GeometryNodeCurvePrimitiveBezierSegment", GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT);
+  ntype.ui_name = "Bézier Segment";
+  ntype.ui_description = "Generate a 2D Bézier spline from the given control points and handles";
+  ntype.enum_name_legacy = "CURVE_PRIMITIVE_BEZIER_SEGMENT";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.initfunc = node_init;
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryCurvePrimitiveBezierSegment",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
+  ntype.declare = node_declare;
+  ntype.draw_buttons = node_layout;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
+}
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_curve_primitive_bezier_segment_cc
-
-void register_node_type_geo_curve_primitive_bezier_segment()
-{
-  namespace file_ns = blender::nodes::node_geo_curve_primitive_bezier_segment_cc;
-
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT, "Bezier Segment", NODE_CLASS_GEOMETRY);
-  ntype.initfunc = file_ns::node_init;
-  node_type_storage(&ntype,
-                    "NodeGeometryCurvePrimitiveBezierSegment",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
-  ntype.declare = file_ns::node_declare;
-  ntype.draw_buttons = file_ns::node_layout;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
-}

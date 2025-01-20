@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -21,26 +23,28 @@ using namespace Freestyle;
 
 /*----------------------FEdgeSmooth methods ----------------------------*/
 
-PyDoc_STRVAR(FEdgeSmooth_doc,
-             "Class hierarchy: :class:`Interface1D` > :class:`FEdge` > :class:`FEdgeSmooth`\n"
-             "\n"
-             "Class defining a smooth edge.  This kind of edge typically runs across\n"
-             "a face of the input mesh.  It can be a silhouette, a ridge or valley,\n"
-             "a suggestive contour.\n"
-             "\n"
-             ".. method:: __init__()\n"
-             "            __init__(brother)\n"
-             "            __init__(first_vertex, second_vertex)\n"
-             "\n"
-             "   Builds an :class:`FEdgeSmooth` using the default constructor,\n"
-             "   copy constructor, or between two :class:`SVertex`.\n"
-             "\n"
-             "   :arg brother: An FEdgeSmooth object.\n"
-             "   :type brother: :class:`FEdgeSmooth`\n"
-             "   :arg first_vertex: The first SVertex object.\n"
-             "   :type first_vertex: :class:`SVertex`\n"
-             "   :arg second_vertex: The second SVertex object.\n"
-             "   :type second_vertex: :class:`SVertex`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FEdgeSmooth_doc,
+    "Class hierarchy: :class:`Interface1D` > :class:`FEdge` > :class:`FEdgeSmooth`\n"
+    "\n"
+    "Class defining a smooth edge. This kind of edge typically runs across\n"
+    "a face of the input mesh. It can be a silhouette, a ridge or valley,\n"
+    "a suggestive contour.\n"
+    "\n"
+    ".. method:: __init__()\n"
+    "            __init__(brother)\n"
+    "            __init__(first_vertex, second_vertex)\n"
+    "\n"
+    "   Builds an :class:`FEdgeSmooth` using the default constructor,\n"
+    "   copy constructor, or between two :class:`SVertex`.\n"
+    "\n"
+    "   :arg brother: An FEdgeSmooth object.\n"
+    "   :type brother: :class:`FEdgeSmooth`\n"
+    "   :arg first_vertex: The first SVertex object.\n"
+    "   :type first_vertex: :class:`SVertex`\n"
+    "   :arg second_vertex: The second SVertex object.\n"
+    "   :type second_vertex: :class:`SVertex`");
 
 static int FEdgeSmooth_init(BPy_FEdgeSmooth *self, PyObject *args, PyObject *kwds)
 {
@@ -48,8 +52,8 @@ static int FEdgeSmooth_init(BPy_FEdgeSmooth *self, PyObject *args, PyObject *kwd
   static const char *kwlist_2[] = {"first_vertex", "second_vertex", nullptr};
   PyObject *obj1 = nullptr, *obj2 = nullptr;
 
-  if (PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist_1, &FEdgeSmooth_Type, &obj1)) {
+  if (PyArg_ParseTupleAndKeywords(args, kwds, "|O!", (char **)kwlist_1, &FEdgeSmooth_Type, &obj1))
+  {
     if (!obj1) {
       self->fes = new FEdgeSmooth();
     }
@@ -58,14 +62,9 @@ static int FEdgeSmooth_init(BPy_FEdgeSmooth *self, PyObject *args, PyObject *kwd
     }
   }
   else if ((void)PyErr_Clear(),
-           PyArg_ParseTupleAndKeywords(args,
-                                       kwds,
-                                       "O!O!",
-                                       (char **)kwlist_2,
-                                       &SVertex_Type,
-                                       &obj1,
-                                       &SVertex_Type,
-                                       &obj2)) {
+           PyArg_ParseTupleAndKeywords(
+               args, kwds, "O!O!", (char **)kwlist_2, &SVertex_Type, &obj1, &SVertex_Type, &obj2))
+  {
     self->fes = new FEdgeSmooth(((BPy_SVertex *)obj1)->sv, ((BPy_SVertex *)obj2)->sv);
   }
   else {
@@ -140,10 +139,12 @@ void FEdgeSmooth_mathutils_register_callback()
 
 /*----------------------FEdgeSmooth get/setters ----------------------------*/
 
-PyDoc_STRVAR(FEdgeSmooth_normal_doc,
-             "The normal of the face that this FEdge is running across.\n"
-             "\n"
-             ":type: :class:`mathutils.Vector`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FEdgeSmooth_normal_doc,
+    "The normal of the face that this FEdge is running across.\n"
+    "\n"
+    ":type: :class:`mathutils.Vector`");
 
 static PyObject *FEdgeSmooth_normal_get(BPy_FEdgeSmooth *self, void * /*closure*/)
 {
@@ -161,10 +162,12 @@ static int FEdgeSmooth_normal_set(BPy_FEdgeSmooth *self, PyObject *value, void *
   return 0;
 }
 
-PyDoc_STRVAR(FEdgeSmooth_material_index_doc,
-             "The index of the material of the face that this FEdge is running across.\n"
-             "\n"
-             ":type: int");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FEdgeSmooth_material_index_doc,
+    "The index of the material of the face that this FEdge is running across.\n"
+    "\n"
+    ":type: int");
 
 static PyObject *FEdgeSmooth_material_index_get(BPy_FEdgeSmooth *self, void * /*closure*/)
 {
@@ -183,20 +186,24 @@ static int FEdgeSmooth_material_index_set(BPy_FEdgeSmooth *self,
   return 0;
 }
 
-PyDoc_STRVAR(FEdgeSmooth_material_doc,
-             "The material of the face that this FEdge is running across.\n"
-             "\n"
-             ":type: :class:`Material`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FEdgeSmooth_material_doc,
+    "The material of the face that this FEdge is running across.\n"
+    "\n"
+    ":type: :class:`Material`");
 
 static PyObject *FEdgeSmooth_material_get(BPy_FEdgeSmooth *self, void * /*closure*/)
 {
   return BPy_FrsMaterial_from_FrsMaterial(self->fes->frs_material());
 }
 
-PyDoc_STRVAR(FEdgeSmooth_face_mark_doc,
-             "The face mark of the face that this FEdge is running across.\n"
-             "\n"
-             ":type: bool");
+PyDoc_STRVAR(
+    /* Wrap. */
+    FEdgeSmooth_face_mark_doc,
+    "The face mark of the face that this FEdge is running across.\n"
+    "\n"
+    ":type: bool");
 
 static PyObject *FEdgeSmooth_face_mark_get(BPy_FEdgeSmooth *self, void * /*closure*/)
 {
@@ -239,7 +246,7 @@ static PyGetSetDef BPy_FEdgeSmooth_getseters[] = {
 /*-----------------------BPy_FEdgeSmooth type definition ------------------------------*/
 
 PyTypeObject FEdgeSmooth_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "FEdgeSmooth",
     /*tp_basicsize*/ sizeof(BPy_FEdgeSmooth),
     /*tp_itemsize*/ 0,

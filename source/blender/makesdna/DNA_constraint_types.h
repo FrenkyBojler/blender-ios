@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -12,11 +13,6 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct Action;
 struct Ipo;
 struct Text;
 
@@ -29,7 +25,7 @@ typedef struct bConstraintChannel {
   char name[30];
 } bConstraintChannel;
 
-/* A Constraint */
+/** A Constraint. */
 typedef struct bConstraint {
   struct bConstraint *next, *prev;
 
@@ -96,7 +92,7 @@ typedef struct bConstraintTarget {
   short flag;
   /** Type of target (eConstraintObType). */
   short type;
-  /** Rotation order for target (as defined in BLI_math.h). */
+  /** Rotation order for target (as defined in BLI_math_rotation.h). */
   short rotOrder;
   /** Weight for armature deform. */
   float weight;
@@ -243,7 +239,7 @@ typedef struct bArmatureConstraint {
   ListBase targets;
 } bArmatureConstraint;
 
-/* Single-target subobject constraints --------------------- */
+/* Single-target sub-object constraints --------------------- */
 
 /* Track To Constraint */
 typedef struct bTrackToConstraint {
@@ -326,15 +322,22 @@ typedef struct bActionConstraint {
   short type;
   /** Was used in versions prior to the Constraints recode. */
   short local;
+  /** 'Start' frame in the Action. */
   int start;
+  /** 'End' frame in the Action. */
   int end;
+  /** 'Start' value of the target property. Note that this may be larger than `max`. */
   float min;
+  /** 'End' value of the target property. Note that this may be smaller than `min`. */
   float max;
   int flag;
   char mix_mode;
   char _pad[3];
   float eval_time; /* Only used when flag ACTCON_USE_EVAL_TIME is set. */
   struct bAction *act;
+  int32_t action_slot_handle;
+  char last_slot_identifier[66]; /* MAX_ID_NAME */
+  char _pad1[2];
   /** MAX_ID_NAME-2. */
   char subtarget[64];
 } bActionConstraint;
@@ -388,7 +391,7 @@ typedef struct bStretchToConstraint {
   char subtarget[64];
 } bStretchToConstraint;
 
-/* Rigid Body constraint */
+/* DEPRECATED: Rigid Body constraint */
 typedef struct bRigidBodyJointConstraint {
   struct Object *tar;
   struct Object *child;
@@ -425,7 +428,7 @@ typedef struct bChildOfConstraint {
   char _pad[4];
   /** Parent-inverse matrix to use. */
   float invmat[4][4];
-  /** String to specify a subobject target, MAX_ID_NAME-2. */
+  /** String to specify a sub-object target, `MAX_ID_NAME - 2`. */
   char subtarget[64];
 } bChildOfConstraint;
 
@@ -625,73 +628,57 @@ typedef struct bTransformCacheConstraint {
 typedef enum eBConstraint_Types {
   /** Invalid/legacy constraint */
   CONSTRAINT_TYPE_NULL = 0,
-  /** Unimplemented non longer :) - during constraints recode, Aligorith */
   CONSTRAINT_TYPE_CHILDOF = 1,
   CONSTRAINT_TYPE_TRACKTO = 2,
   CONSTRAINT_TYPE_KINEMATIC = 3,
   CONSTRAINT_TYPE_FOLLOWPATH = 4,
-  /** Unimplemented no longer :) - Aligorith */
   CONSTRAINT_TYPE_ROTLIMIT = 5,
-  /** Unimplemented no longer :) - Aligorith */
   CONSTRAINT_TYPE_LOCLIMIT = 6,
-  /** Unimplemented no longer :) - Aligorith */
   CONSTRAINT_TYPE_SIZELIMIT = 7,
   CONSTRAINT_TYPE_ROTLIKE = 8,
   CONSTRAINT_TYPE_LOCLIKE = 9,
   CONSTRAINT_TYPE_SIZELIKE = 10,
-  /** Unimplemented no longer :) - Aligorith. Scripts */
   CONSTRAINT_TYPE_PYTHON = 11,
   CONSTRAINT_TYPE_ACTION = 12,
-  /** New Tracking constraint that locks an axis in place - theeth */
   CONSTRAINT_TYPE_LOCKTRACK = 13,
-  /** limit distance */
   CONSTRAINT_TYPE_DISTLIMIT = 14,
-  /** claiming this to be mine :) is in tuhopuu bjornmose */
   CONSTRAINT_TYPE_STRETCHTO = 15,
   /** floor constraint */
   CONSTRAINT_TYPE_MINMAX = 16,
   /* CONSTRAINT_TYPE_DEPRECATED = 17 */
-  /** clampto constraint */
   CONSTRAINT_TYPE_CLAMPTO = 18,
   /** transformation (loc/rot/size -> loc/rot/size) constraint */
   CONSTRAINT_TYPE_TRANSFORM = 19,
   /** shrinkwrap (loc/rot) constraint */
   CONSTRAINT_TYPE_SHRINKWRAP = 20,
-  /** New Tracking constraint that minimizes twisting */
+  /** Tracking constraint that minimizes twisting */
   CONSTRAINT_TYPE_DAMPTRACK = 21,
-  /** Spline-IK - Align 'n' bones to a curve */
   CONSTRAINT_TYPE_SPLINEIK = 22,
   /** Copy transform matrix */
   CONSTRAINT_TYPE_TRANSLIKE = 23,
   /** Maintain volume during scaling */
   CONSTRAINT_TYPE_SAMEVOL = 24,
-  /** Pivot Constraint */
   CONSTRAINT_TYPE_PIVOT = 25,
-  /** Follow Track Constraint */
   CONSTRAINT_TYPE_FOLLOWTRACK = 26,
-  /** Camera Solver Constraint */
   CONSTRAINT_TYPE_CAMERASOLVER = 27,
-  /** Object Solver Constraint */
   CONSTRAINT_TYPE_OBJECTSOLVER = 28,
-  /** Transform Cache Constraint */
   CONSTRAINT_TYPE_TRANSFORM_CACHE = 29,
-  /** Armature Deform Constraint */
   CONSTRAINT_TYPE_ARMATURE = 30,
 
-  /* NOTE: no constraints are allowed to be added after this */
+  /* This should be the last entry in this list. */
   NUM_CONSTRAINT_TYPES,
 } eBConstraint_Types;
 
 /* bConstraint->flag */
 /* flags 0x2 (1 << 1) and 0x8 (1 << 3) were used in past */
 /* flag 0x20 (1 << 5) was used to indicate that a constraint was evaluated
- *                  using a 'local' hack for posebones only. */
+ *                    using a 'local' hack for pose-bones only. */
 typedef enum eBConstraint_Flags {
 #ifdef DNA_DEPRECATED_ALLOW
   /* Expansion for old box constraint layouts. Just for versioning. */
   CONSTRAINT_EXPAND_DEPRECATED = (1 << 0),
 #endif
-  /* pre-check for illegal object name or bone name */
+  /* Constraint is disabled because it is considered invalid. `is_valid` in RNA. */
   CONSTRAINT_DISABLE = (1 << 2),
   /* to indicate which Ipo should be shown, maybe for 3d access later too */
   CONSTRAINT_ACTIVE = (1 << 4),
@@ -699,7 +686,7 @@ typedef enum eBConstraint_Flags {
   CONSTRAINT_SPACEONCE = (1 << 6),
   /* influence ipo is on constraint itself, not in action channel */
   CONSTRAINT_OWN_IPO = (1 << 7),
-  /* indicates that constraint is temporarily disabled (only used in GE) */
+  /* Constraint is disabled by the user or the animation system (eye icon in the interface). */
   CONSTRAINT_OFF = (1 << 9),
   /* use bbone curve shape when calculating headtail values (also used by dependency graph!) */
   CONSTRAINT_BBONE_SHAPE = (1 << 10),
@@ -1001,52 +988,52 @@ typedef enum eKinematic_Flags {
   CONSTRAINT_IK_TARGETAXIS = (1 << 14),
 } eKinematic_Flags;
 
-/* bSplineIKConstraint->flag */
+/** #bSplineIKConstraint::flag */
 typedef enum eSplineIK_Flags {
-  /* chain has been attached to spline */
+  /** Chain has been attached to spline. */
   CONSTRAINT_SPLINEIK_BOUND = (1 << 0),
-  /* root of chain is not influenced by the constraint */
+  /** Root of chain is not influenced by the constraint. */
   CONSTRAINT_SPLINEIK_NO_ROOT = (1 << 1),
 #ifdef DNA_DEPRECATED_ALLOW
-  /* bones in the chain should not scale to fit the curve */
+  /** Bones in the chain should not scale to fit the curve. */
   CONSTRAINT_SPLINEIK_SCALE_LIMITED = (1 << 2),
 #endif
-  /* evenly distribute the bones along the path regardless of length */
+  /** Evenly distribute the bones along the path regardless of length. */
   CONSTRAINT_SPLINEIK_EVENSPLITS = (1 << 3),
-  /* don't adjust the x and z scaling of the bones by the curve radius */
+  /** Don't adjust the X and Z scaling of the bones by the curve radius. */
   CONSTRAINT_SPLINEIK_NO_CURVERAD = (1 << 4),
 
-  /* for "volumetric" xz scale mode, limit the minimum or maximum scale values */
+  /** For "volumetric" XZ scale mode, limit the minimum or maximum scale values. */
   CONSTRAINT_SPLINEIK_USE_BULGE_MIN = (1 << 5),
   CONSTRAINT_SPLINEIK_USE_BULGE_MAX = (1 << 6),
 
-  /* apply volume preservation over original scaling of the bone */
+  /** Apply volume preservation over original scaling of the bone. */
   CONSTRAINT_SPLINEIK_USE_ORIGINAL_SCALE = (1 << 7),
 } eSplineIK_Flags;
 
-/* bSplineIKConstraint->xzScaleMode */
+/** #bSplineIKConstraint::xzScaleMode */
 typedef enum eSplineIK_XZScaleModes {
-  /* no x/z scaling */
+  /** No X/Z scaling. */
   CONSTRAINT_SPLINEIK_XZS_NONE = 0,
-  /* bones in the chain should take their x/z scales from the original scaling */
+  /** Bones in the chain should take their X/Z scales from the original scaling. */
   CONSTRAINT_SPLINEIK_XZS_ORIGINAL = 1,
-  /* x/z scales are the inverse of the y-scale */
+  /** X/Z scales are the inverse of the Y-scale. */
   CONSTRAINT_SPLINEIK_XZS_INVERSE = 2,
-  /* x/z scales are computed using a volume preserving technique (from Stretch To constraint) */
+  /** X/Z scales are computed using a volume preserving technique (from Stretch To constraint). */
   CONSTRAINT_SPLINEIK_XZS_VOLUMETRIC = 3,
 } eSplineIK_XZScaleModes;
 
-/* bSplineIKConstraint->yScaleMode */
+/** #bSplineIKConstraint::yScaleMode */
 typedef enum eSplineIK_YScaleModes {
-  /* no y scaling */
+  /** No Y scaling. */
   CONSTRAINT_SPLINEIK_YS_NONE = 0,
-  /* bones in the chain should be scaled to fit the length of the curve */
+  /** Bones in the chain should be scaled to fit the length of the curve. */
   CONSTRAINT_SPLINEIK_YS_FIT_CURVE = 1,
-  /* bones in the chain should take their y scales from the original scaling */
+  /** Bones in the chain should take their y scales from the original scaling. */
   CONSTRAINT_SPLINEIK_YS_ORIGINAL = 2,
 } eSplineIK_YScaleModes;
 
-/* bArmatureConstraint -> flag */
+/** #bArmatureConstraint::flag */
 typedef enum eArmature_Flags {
   /** use dual quaternion blending */
   CONSTRAINT_ARMATURE_QUATERNION = (1 << 0),
@@ -1071,7 +1058,7 @@ typedef enum eTransformLimits_Flags2 {
   LIMIT_TRANSFORM = (1 << 1),
 } eTransformLimits_Flags2;
 
-/* transform limiting constraints -> flag (own flags). */
+/* transform limiting constraints -> flag. */
 typedef enum eTransformLimits_Flags {
   LIMIT_XMIN = (1 << 0),
   LIMIT_XMAX = (1 << 1),
@@ -1081,11 +1068,16 @@ typedef enum eTransformLimits_Flags {
   LIMIT_ZMAX = (1 << 5),
 } eTransformLimits_Flags;
 
-/* limit rotation constraint -> flag (own flags). */
+/* limit rotation constraint -> flag. */
 typedef enum eRotLimit_Flags {
   LIMIT_XROT = (1 << 0),
   LIMIT_YROT = (1 << 1),
   LIMIT_ZROT = (1 << 2),
+
+  /* Use the legacy behavior of the Limit Rotation constraint. See the
+   * implementation of `rotlimit_evaluate()` in constraint.cc for more
+   * details. */
+  LIMIT_ROT_LEGACY_BEHAVIOR = (1 << 3),
 } eRotLimit_Flags;
 
 /* distance limit constraint */
@@ -1126,24 +1118,27 @@ typedef enum eChildOf_Flags {
   CHILDOF_SET_INVERSE = (1 << 9),
 } eChildOf_Flags;
 
-/* Pivot Constraint */
-/* Restrictions for Pivot Constraint axis to consider for enabling constraint */
+/**
+ * Pivot Constraint
+ *
+ * Restrictions for Pivot Constraint axis to consider for enabling constraint.
+ */
 typedef enum ePivotConstraint_Axis {
-  /* do not consider this activity-clamping */
+  /** Do not consider this activity-clamping. */
   PIVOTCON_AXIS_NONE = -1,
 
-  /* consider -ve x-axis rotations */
+  /** Consider -VE X-axis rotations. */
   PIVOTCON_AXIS_X_NEG = 0,
-  /* consider -ve y-axis rotations */
+  /** Consider -VE Y-axis rotations. */
   PIVOTCON_AXIS_Y_NEG = 1,
-  /* consider -ve z-axis rotations */
+  /** Consider -VE Z-axis rotations. */
   PIVOTCON_AXIS_Z_NEG = 2,
 
-  /* consider +ve x-axis rotations */
+  /** Consider +VE X-axis rotations. */
   PIVOTCON_AXIS_X = 3,
-  /* consider +ve y-axis rotations */
+  /** Consider +VE Y-axis rotations. */
   PIVOTCON_AXIS_Y = 4,
-  /* consider +ve z-axis rotations */
+  /** Consider +VE Z-axis rotations. */
   PIVOTCON_AXIS_Z = 5,
 } ePivotConstraint_Axis;
 
@@ -1184,7 +1179,3 @@ typedef enum eStretchTo_Flags {
   STRETCHTOCON_USE_BULGE_MIN = (1 << 0),
   STRETCHTOCON_USE_BULGE_MAX = (1 << 1),
 } eStretchTo_Flags;
-
-#ifdef __cplusplus
-}
-#endif

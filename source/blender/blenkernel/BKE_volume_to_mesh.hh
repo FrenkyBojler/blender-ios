@@ -1,7 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
+#include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 
 #include "DNA_modifier_types.h"
@@ -37,16 +40,23 @@ struct OpenVDBMeshData {
   }
 };
 
-struct Mesh *volume_to_mesh(const openvdb::GridBase &grid,
-                            const VolumeToMeshResolution &resolution,
-                            float threshold,
-                            float adaptivity);
+Mesh *volume_to_mesh(const openvdb::GridBase &grid,
+                     const VolumeToMeshResolution &resolution,
+                     float threshold,
+                     float adaptivity);
+
+Mesh *volume_grid_to_mesh(const openvdb::GridBase &grid, float threshold, float adaptivity);
+
+struct VolumeToMeshDataResult {
+  OpenVDBMeshData data;
+  std::string error;
+};
 
 /**
  * Convert an OpenVDB volume grid to corresponding mesh data: vertex positions and quad and
  * triangle indices.
  */
-struct OpenVDBMeshData volume_to_mesh_data(const openvdb::GridBase &grid,
+VolumeToMeshDataResult volume_to_mesh_data(const openvdb::GridBase &grid,
                                            const VolumeToMeshResolution &resolution,
                                            float threshold,
                                            float adaptivity);
@@ -56,15 +66,15 @@ struct OpenVDBMeshData volume_to_mesh_data(const openvdb::GridBase &grid,
  * This can be used to add mesh data from a grid into an existing mesh rather than merging multiple
  * meshes later on.
  */
-void fill_mesh_from_openvdb_data(const Span<openvdb::Vec3s> vdb_verts,
-                                 const Span<openvdb::Vec3I> vdb_tris,
-                                 const Span<openvdb::Vec4I> vdb_quads,
+void fill_mesh_from_openvdb_data(Span<openvdb::Vec3s> vdb_verts,
+                                 Span<openvdb::Vec3I> vdb_tris,
+                                 Span<openvdb::Vec4I> vdb_quads,
                                  int vert_offset,
-                                 int poly_offset,
+                                 int face_offset,
                                  int loop_offset,
                                  MutableSpan<float3> vert_positions,
-                                 MutableSpan<MPoly> polys,
-                                 MutableSpan<MLoop> loops);
+                                 MutableSpan<int> face_offsets,
+                                 MutableSpan<int> corner_verts);
 
 #endif
 

@@ -1,16 +1,21 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "device/cuda/device.h"
+#include "device/device.h"
 
 #include "util/log.h"
 
 #ifdef WITH_CUDA
 #  include "device/cuda/device_impl.h"
-#  include "device/device.h"
+
+#  include "integrator/denoiser_oidn_gpu.h"  // IWYU pragma: keep
 
 #  include "util/string.h"
-#  include "util/windows.h"
+#  ifdef _WIN32
+#    include "util/windows.h"
+#  endif
 #endif /* WITH_CUDA */
 
 CCL_NAMESPACE_BEGIN
@@ -23,8 +28,9 @@ bool device_cuda_init()
   static bool initialized = false;
   static bool result = false;
 
-  if (initialized)
+  if (initialized) {
     return result;
+  }
 
   initialized = true;
   int cuew_result = cuewInit(CUEW_INIT_CUDA);
@@ -34,7 +40,7 @@ bool device_cuda_init()
       VLOG_INFO << "Found precompiled kernels";
       result = true;
     }
-    else if (cuewCompilerPath() != NULL) {
+    else if (cuewCompilerPath() != nullptr) {
       VLOG_INFO << "Found CUDA compiler " << cuewCompilerPath();
       result = true;
     }
@@ -56,14 +62,18 @@ bool device_cuda_init()
 #endif /* WITH_CUDA_DYNLOAD */
 }
 
-Device *device_cuda_create(const DeviceInfo &info, Stats &stats, Profiler &profiler)
+unique_ptr<Device> device_cuda_create(const DeviceInfo &info,
+                                      Stats &stats,
+                                      Profiler &profiler,
+                                      bool headless)
 {
 #ifdef WITH_CUDA
-  return new CUDADevice(info, stats, profiler);
+  return make_unique<CUDADevice>(info, stats, profiler, headless);
 #else
   (void)info;
   (void)stats;
   (void)profiler;
+  (void)headless;
 
   LOG(FATAL) << "Request to create CUDA device without compiled-in support. Should never happen.";
 
@@ -75,10 +85,12 @@ Device *device_cuda_create(const DeviceInfo &info, Stats &stats, Profiler &profi
 static CUresult device_cuda_safe_init()
 {
 #  ifdef _WIN32
-  __try {
+  __try
+  {
     return cuInit(0);
   }
-  __except (EXCEPTION_EXECUTE_HANDLER) {
+  __except (EXCEPTION_EXECUTE_HANDLER)
+  {
     /* Ignore crashes inside the CUDA driver and hope we can
      * survive even with corrupted CUDA installs. */
     fprintf(stderr, "Cycles CUDA: driver crashed, continuing without CUDA.\n");
@@ -96,8 +108,9 @@ void device_cuda_info(vector<DeviceInfo> &devices)
 #ifdef WITH_CUDA
   CUresult result = device_cuda_safe_init();
   if (result != CUDA_SUCCESS) {
-    if (result != CUDA_ERROR_NO_DEVICE)
+    if (result != CUDA_ERROR_NO_DEVICE) {
       fprintf(stderr, "CUDA cuInit: %s\n", cuewErrorString(result));
+    }
     return;
   }
 
@@ -157,6 +170,16 @@ void device_cuda_info(vector<DeviceInfo> &devices)
                             (unsigned int)pci_location[1],
                             (unsigned int)pci_location[2]);
 
+#  if defined(WITH_OPENIMAGEDENOISE)
+#    if OIDN_VERSION >= 20300
+    if (oidnIsCUDADeviceSupported(num)) {
+#    else
+    if (OIDNDenoiserGPU::is_device_supported(info)) {
+#    endif
+      info.denoisers |= DENOISER_OPENIMAGEDENOISE;
+    }
+#  endif
+
     /* If device has a kernel timeout and no compute preemption, we assume
      * it is connected to a display and will freeze the display while doing
      * computations. */
@@ -164,6 +187,7 @@ void device_cuda_info(vector<DeviceInfo> &devices)
     cuDeviceGetAttribute(&timeout_attr, CU_DEVICE_ATTRIBUTE_KERNEL_EXEC_TIMEOUT, num);
     cuDeviceGetAttribute(&preempt_attr, CU_DEVICE_ATTRIBUTE_COMPUTE_PREEMPTION_SUPPORTED, num);
 
+#  ifdef _WIN32
     /* The CUDA driver reports compute preemption as not being available on
      * Windows 10 even when it is, due to an issue in application profiles.
      * Detect case where we expect it to be available and override. */
@@ -171,6 +195,7 @@ void device_cuda_info(vector<DeviceInfo> &devices)
       VLOG_INFO << "Assuming device has compute preemption on Windows 10.";
       preempt_attr = 1;
     }
+#  endif
 
     if (timeout_attr && !preempt_attr) {
       VLOG_INFO << "Device is recognized as display.";
@@ -182,11 +207,17 @@ void device_cuda_info(vector<DeviceInfo> &devices)
       VLOG_INFO << "Device has compute preemption or is not used for display.";
       devices.push_back(info);
     }
-    VLOG_INFO << "Added device \"" << name << "\" with id \"" << info.id << "\".";
+    VLOG_INFO << "Added device \"" << info.description << "\" with id \"" << info.id << "\".";
+
+    if (info.denoisers & DENOISER_OPENIMAGEDENOISE) {
+      VLOG_INFO << "Device with id \"" << info.id << "\" supports "
+                << denoiserTypeToHumanReadable(DENOISER_OPENIMAGEDENOISE) << ".";
+    }
   }
 
-  if (!display_devices.empty())
+  if (!display_devices.empty()) {
     devices.insert(devices.end(), display_devices.begin(), display_devices.end());
+  }
 #else  /* WITH_CUDA */
   (void)devices;
 #endif /* WITH_CUDA */
@@ -209,7 +240,7 @@ string device_cuda_capabilities()
     return string("Error getting devices: ") + cuewErrorString(result);
   }
 
-  string capabilities = "";
+  string capabilities;
   for (int num = 0; num < count; num++) {
     char name[256];
     if (cuDeviceGetName(name, 256, num) != CUDA_SUCCESS) {

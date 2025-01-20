@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -8,8 +10,6 @@
 
 #include "BLI_index_mask.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_color.hh"
-#include "BLI_math_vector.hh"
 
 namespace blender::length_parameterize {
 
@@ -30,13 +30,15 @@ inline int segments_num(const int points_num, const bool cyclic)
 template<typename T>
 void accumulate_lengths(const Span<T> values, const bool cyclic, MutableSpan<float> lengths)
 {
-  BLI_assert(lengths.size() == segments_num(values.size(), cyclic));
+  /* For cyclic curves with a single point the lengths array is empty. */
+  BLI_assert(lengths.size() ==
+             (cyclic && values.size() <= 1 ? 0 : segments_num(values.size(), cyclic)));
   float length = 0.0f;
   for (const int i : IndexRange(values.size() - 1)) {
     length += math::distance(values[i], values[i + 1]);
     lengths[i] = length;
   }
-  if (cyclic) {
+  if (cyclic && values.size() > 1) {
     lengths.last() = length + math::distance(values.last(), values.first());
   }
 }
@@ -45,23 +47,23 @@ template<typename T>
 inline void interpolate_to_masked(const Span<T> src,
                                   const Span<int> indices,
                                   const Span<float> factors,
-                                  const IndexMask dst_mask,
+                                  const IndexMask &dst_mask,
                                   MutableSpan<T> dst)
 {
   BLI_assert(indices.size() == factors.size());
   BLI_assert(indices.size() == dst_mask.size());
   const int last_src_index = src.size() - 1;
 
-  dst_mask.to_best_mask_type([&](auto dst_mask) {
-    for (const int i : IndexRange(dst_mask.size())) {
-      const int prev_index = indices[i];
-      const float factor = factors[i];
+  dst_mask.foreach_segment_optimized([&](const auto dst_segment, const int64_t dst_segment_pos) {
+    for (const int i : dst_segment.index_range()) {
+      const int prev_index = indices[dst_segment_pos + i];
+      const float factor = factors[dst_segment_pos + i];
       const bool is_cyclic_case = prev_index == last_src_index;
       if (is_cyclic_case) {
-        dst[dst_mask[i]] = math::interpolate(src.last(), src.first(), factor);
+        dst[dst_segment[i]] = math::interpolate(src.last(), src.first(), factor);
       }
       else {
-        dst[dst_mask[i]] = math::interpolate(src[prev_index], src[prev_index + 1], factor);
+        dst[dst_segment[i]] = math::interpolate(src[prev_index], src[prev_index + 1], factor);
       }
     }
   });
@@ -91,8 +93,6 @@ struct SampleSegmentHint {
  * \param sample_length: The position to sample at.
  * \param r_segment_index: Returns the index of the segment that #sample_length is in.
  * \param r_factor: Returns the position within the segment.
- *
- * \note #sample_length must not be outside of any segment.
  */
 inline void sample_at_length(const Span<float> accumulated_segment_lengths,
                              const float sample_length,
@@ -105,7 +105,6 @@ inline void sample_at_length(const Span<float> accumulated_segment_lengths,
 
   BLI_assert(lengths.size() > 0);
   BLI_assert(sample_length >= 0.0f);
-  BLI_assert(sample_length <= lengths.last() + 0.00001f);
 
   if (hint != nullptr && hint->segment_index >= 0) {
     const float length_in_segment = sample_length - hint->segment_start;
@@ -157,6 +156,20 @@ void sample_uniform(Span<float> accumulated_segment_lengths,
                     bool include_last_point,
                     MutableSpan<int> r_segment_indices,
                     MutableSpan<float> r_factors);
+
+/**
+ * Find evenly spaced samples along the lengths, starting at the end.
+ *
+ * \param accumulated_segment_lengths: The accumulated lengths of the original elements being
+ * sampled. Could be calculated by #accumulate_lengths.
+ * \param include_first_point: Generally false for cyclic sequences and true otherwise.
+ * \param r_segment_indices: The index of the previous point at each sample.
+ * \param r_factors: The portion of the length in each segment at each sample.
+ */
+void sample_uniform_reverse(Span<float> accumulated_segment_lengths,
+                            bool include_first_point,
+                            MutableSpan<int> r_segment_indices,
+                            MutableSpan<float> r_factors);
 
 /**
  * For each provided sample length, find the segment index and interpolation factor.

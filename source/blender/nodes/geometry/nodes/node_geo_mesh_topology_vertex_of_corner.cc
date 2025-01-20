@@ -1,6 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 
 #include "BLI_task.hh"
 
@@ -10,18 +12,12 @@ namespace blender::nodes::node_geo_mesh_topology_vertex_of_corner_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>(N_("Corner Index"))
+  b.add_input<decl::Int>("Corner Index")
       .implicit_field(implicit_field_inputs::index)
-      .description(
-          N_("The corner to retrieve data from. Defaults to the corner from the context"));
-  b.add_output<decl::Int>(N_("Vertex Index"))
+      .description("The corner to retrieve data from. Defaults to the corner from the context");
+  b.add_output<decl::Int>("Vertex Index")
       .field_source_reference_all()
-      .description(N_("The vertex the corner is attached to"));
-}
-
-static int get_loop_vert(const MLoop &loop)
-{
-  return loop.v;
+      .description("The vertex the corner is attached to");
 }
 
 class CornerVertFieldInput final : public bke::MeshFieldInput {
@@ -32,13 +28,13 @@ class CornerVertFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const AttrDomain domain,
+                                 const IndexMask & /*mask*/) const final
   {
-    if (domain != ATTR_DOMAIN_CORNER) {
+    if (domain != AttrDomain::Corner) {
       return {};
     }
-    return VArray<int>::ForDerivedSpan<MLoop, get_loop_vert>(mesh.loops());
+    return VArray<int>::ForSpan(mesh.corner_verts());
   }
 
   uint64_t hash() const final
@@ -48,37 +44,37 @@ class CornerVertFieldInput final : public bke::MeshFieldInput {
 
   bool is_equal_to(const fn::FieldNode &other) const final
   {
-    if (dynamic_cast<const CornerVertFieldInput *>(&other)) {
-      return true;
-    }
-    return false;
+    return dynamic_cast<const CornerVertFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_CORNER;
+    return AttrDomain::Corner;
   }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   params.set_output("Vertex Index",
-                    Field<int>(std::make_shared<FieldAtIndexInput>(
+                    Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                         params.extract_input<Field<int>>("Corner Index"),
                         Field<int>(std::make_shared<CornerVertFieldInput>()),
-                        ATTR_DOMAIN_CORNER)));
+                        AttrDomain::Corner)));
 }
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(
+      &ntype, "GeometryNodeVertexOfCorner", GEO_NODE_MESH_TOPOLOGY_VERTEX_OF_CORNER);
+  ntype.ui_name = "Vertex of Corner";
+  ntype.ui_description = "Retrieve the vertex each face corner is attached to";
+  ntype.enum_name_legacy = "VERTEX_OF_CORNER";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
+}
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_mesh_topology_vertex_of_corner_cc
-
-void register_node_type_geo_mesh_topology_vertex_of_corner()
-{
-  namespace file_ns = blender::nodes::node_geo_mesh_topology_vertex_of_corner_cc;
-
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_MESH_TOPOLOGY_VERTEX_OF_CORNER, "Vertex of Corner", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
-}

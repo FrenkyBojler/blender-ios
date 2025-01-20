@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -7,20 +8,22 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
+#include "BLI_math_vector_types.hh"
+#include "BLI_offset_indices.hh"
+#include "BLI_span.hh"
+#include "BLI_virtual_array.hh"
 
-#include "BKE_multires.h"
+#include "BKE_multires.hh"
 
 struct Depsgraph;
 struct GridPaintMask;
 struct MDisps;
-struct MEdge;
 struct Mesh;
-struct MLoop;
-struct MPoly;
 struct MultiresModifierData;
 struct Object;
+namespace blender::bke::subdiv {
 struct Subdiv;
+}
 struct SubdivCCG;
 
 struct MultiresReshapeContext {
@@ -33,16 +36,17 @@ struct MultiresReshapeContext {
   /* Base mesh from original object.
    * NOTE: Does NOT include any leading modifiers in it. */
   Mesh *base_mesh;
-  const float (*base_positions)[3];
-  const MEdge *base_edges;
-  const MPoly *base_polys;
-  const MLoop *base_loops;
+  blender::Span<blender::float3> base_positions;
+  blender::Span<blender::int2> base_edges;
+  blender::OffsetIndices<int> base_faces;
+  blender::Span<int> base_corner_verts;
+  blender::Span<int> base_corner_edges;
 
   /* Subdivision surface created for multires modifier.
    *
    * The coarse mesh of this subdivision surface is a base mesh with all deformation modifiers
    * leading multires applied on it. */
-  Subdiv *subdiv;
+  blender::bke::subdiv::Subdiv *subdiv;
   bool need_free_subdiv;
 
   struct {
@@ -80,8 +84,8 @@ struct MultiresReshapeContext {
   /* Indexed by face index, gives first grid index of the face. */
   int *face_start_grid_index;
 
-  /* Indexed by grid index, contains face (poly) index in the base mesh from which the grid has
-   * been created (in other words, index of a poly which contains loop corresponding to the grid
+  /* Indexed by grid index, contains face index in the base mesh from which the grid has
+   * been created (in other words, index of a face which contains loop corresponding to the grid
    * index). */
   int *grid_to_face_index;
 
@@ -98,10 +102,10 @@ struct MultiresReshapeContext {
    * to that base face. */
   int *face_ptex_offset;
 
-  /* Vertex crease custom data layer, null if none is present. */
-  const float *cd_vertex_crease;
-  /* Edge crease custom data layer, null if none is present. */
-  const float *cd_edge_crease;
+  /* Vertex crease custom data layer, empty if none is present. */
+  blender::VArraySpan<float> cd_vertex_crease;
+  /* Edge crease custom data layer, empty if none is present. */
+  blender::VArraySpan<float> cd_edge_crease;
 };
 
 /**
@@ -143,9 +147,9 @@ struct ReshapeConstGridElement {
  * Create subdivision surface descriptor which is configured for surface evaluation at a given
  * multi-res modifier.
  */
-Subdiv *multires_reshape_create_subdiv(Depsgraph *depsgraph,
-                                       Object *object,
-                                       const MultiresModifierData *mmd);
+blender::bke::subdiv::Subdiv *multires_reshape_create_subdiv(Depsgraph *depsgraph,
+                                                             Object *object,
+                                                             const MultiresModifierData *mmd);
 
 /**
  * \note Initialized base mesh to object's mesh, the Subdivision is created from the deformed
@@ -175,7 +179,7 @@ bool multires_reshape_context_create_from_modifier(MultiresReshapeContext *resha
 bool multires_reshape_context_create_from_subdiv(MultiresReshapeContext *reshape_context,
                                                  Object *object,
                                                  MultiresModifierData *mmd,
-                                                 Subdiv *subdiv,
+                                                 blender::bke::subdiv::Subdiv *subdiv,
                                                  int top_level);
 
 void multires_reshape_free_original_grids(MultiresReshapeContext *reshape_context);
@@ -334,7 +338,7 @@ void multires_reshape_smooth_object_grids_with_details(
  * Makes it so surface on top level looks smooth. Details are not preserved
  */
 void multires_reshape_smooth_object_grids(const MultiresReshapeContext *reshape_context,
-                                          enum eMultiresSubdivideModeType mode);
+                                          enum MultiresSubdivideModeType mode);
 
 /* --------------------------------------------------------------------
  * Displacement, space conversion.

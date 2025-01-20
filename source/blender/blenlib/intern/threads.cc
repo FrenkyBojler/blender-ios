@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -16,8 +17,7 @@
 #include "BLI_system.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
-
-#include "PIL_time.h"
+#include "BLI_time.h"
 
 /* for checking system threads - BLI_system_thread_count */
 #ifdef WIN32
@@ -63,7 +63,7 @@
  *       // tag job 'processed
  *       BLI_threadpool_insert(&lb, job);
  *     }
- *     else PIL_sleep_ms(50);
+ *     else BLI_time_sleep_ms(50);
  *
  *     // Find if a job is ready, this the do_something_func() should write in job somewhere.
  *     cont = 0;
@@ -104,7 +104,7 @@ static int threads_override_num = 0;
 #define RE_MAX_THREAD BLENDER_MAX_THREADS
 
 struct ThreadSlot {
-  struct ThreadSlot *next, *prev;
+  ThreadSlot *next, *prev;
   void *(*do_thread)(void *);
   void *callerdata;
   pthread_t pthread;
@@ -116,9 +116,7 @@ void BLI_threadapi_init()
   mainid = pthread_self();
 }
 
-void BLI_threadapi_exit()
-{
-}
+void BLI_threadapi_exit() {}
 
 void BLI_threadpool_init(ListBase *threadbase, void *(*do_thread)(void *), int tot)
 {
@@ -412,7 +410,13 @@ void BLI_spin_lock(SpinLock *spin)
 #elif defined(__APPLE__)
   BLI_mutex_lock(spin);
 #elif defined(_MSC_VER)
+#  if defined(_M_ARM64)
+  // InterlockedExchangeAcquire takes a long arg on MSVC ARM64
+  static_assert(sizeof(long) == sizeof(SpinLock));
+  while (InterlockedExchangeAcquire((volatile long *)spin, 1)) {
+#  else
   while (InterlockedExchangeAcquire(spin, 1)) {
+#  endif
     while (*spin) {
       /* Spin-lock hint for processors with hyper-threading. */
       YieldProcessor();
@@ -447,6 +451,7 @@ void BLI_spin_end(SpinLock *spin)
   BLI_mutex_end(spin);
 #elif defined(_MSC_VER)
   /* Nothing to do, spin is a simple integer type. */
+  UNUSED_VARS(spin);
 #else
   pthread_spin_destroy(spin);
 #endif
@@ -499,6 +504,8 @@ struct TicketMutex {
   pthread_cond_t cond;
   pthread_mutex_t mutex;
   uint queue_head, queue_tail;
+  pthread_t owner;
+  bool has_owner;
 };
 
 TicketMutex *BLI_ticket_mutex_alloc()
@@ -519,24 +526,46 @@ void BLI_ticket_mutex_free(TicketMutex *ticket)
   MEM_freeN(ticket);
 }
 
-void BLI_ticket_mutex_lock(TicketMutex *ticket)
+static bool ticket_mutex_lock(TicketMutex *ticket, const bool check_recursive)
 {
   uint queue_me;
 
   pthread_mutex_lock(&ticket->mutex);
+
+  /* Check for recursive locks, for debugging only. */
+  if (check_recursive && ticket->has_owner && pthread_equal(pthread_self(), ticket->owner)) {
+    pthread_mutex_unlock(&ticket->mutex);
+    return false;
+  }
+
   queue_me = ticket->queue_tail++;
 
   while (queue_me != ticket->queue_head) {
     pthread_cond_wait(&ticket->cond, &ticket->mutex);
   }
 
+  ticket->owner = pthread_self();
+  ticket->has_owner = true;
+
   pthread_mutex_unlock(&ticket->mutex);
+  return true;
+}
+
+void BLI_ticket_mutex_lock(TicketMutex *ticket)
+{
+  ticket_mutex_lock(ticket, false);
+}
+
+bool BLI_ticket_mutex_lock_check_recursive(TicketMutex *ticket)
+{
+  return ticket_mutex_lock(ticket, true);
 }
 
 void BLI_ticket_mutex_unlock(TicketMutex *ticket)
 {
   pthread_mutex_lock(&ticket->mutex);
   ticket->queue_head++;
+  ticket->has_owner = false;
   pthread_cond_broadcast(&ticket->cond);
   pthread_mutex_unlock(&ticket->mutex);
 }
@@ -647,7 +676,7 @@ void *BLI_thread_queue_pop(ThreadQueue *queue)
   return work;
 }
 
-static void wait_timeout(struct timespec *timeout, int ms)
+static void wait_timeout(timespec *timeout, int ms)
 {
   ldiv_t div_result;
   long sec, usec, x;
@@ -661,7 +690,7 @@ static void wait_timeout(struct timespec *timeout, int ms)
   }
 #else
   {
-    struct timeval now;
+    timeval now;
     gettimeofday(&now, nullptr);
     sec = now.tv_sec;
     usec = now.tv_usec;
@@ -686,9 +715,9 @@ void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms)
 {
   double t;
   void *work = nullptr;
-  struct timespec timeout;
+  timespec timeout;
 
-  t = PIL_check_seconds_timer();
+  t = BLI_time_now_seconds();
   wait_timeout(&timeout, ms);
 
   /* wait until there is work */
@@ -697,7 +726,7 @@ void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms)
     if (pthread_cond_timedwait(&queue->push_cond, &queue->mutex, &timeout) == ETIMEDOUT) {
       break;
     }
-    if (PIL_check_seconds_timer() - t >= ms * 0.001) {
+    if (BLI_time_now_seconds() - t >= ms * 0.001) {
       break;
     }
   }

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetProjectedXF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetProjectedXF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DDouble` > :class:`GetProjectedXF0D`\n"
     "\n"
@@ -34,7 +38,7 @@ static char GetProjectedXF0D___doc__[] =
     "   :arg it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The X 3D projected coordinate of the pointed Interface0D.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int GetProjectedXF0D___init__(BPy_GetProjectedXF0D *self, PyObject *args, PyObject *kwds)
 {
@@ -51,7 +55,7 @@ static int GetProjectedXF0D___init__(BPy_GetProjectedXF0D *self, PyObject *args,
 /*-----------------------BPy_GetProjectedXF0D type definition ------------------------------*/
 
 PyTypeObject GetProjectedXF0D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GetProjectedXF0D",
     /*tp_basicsize*/ sizeof(BPy_GetProjectedXF0D),
     /*tp_itemsize*/ 0,

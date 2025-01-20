@@ -1,5 +1,8 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
+#include <algorithm>
 
 #include "device/device.h"
 
@@ -13,7 +16,6 @@
 #include "scene/stats.h"
 #include "scene/svm.h"
 
-#include "util/foreach.h"
 #include "util/log.h"
 #include "util/progress.h"
 #include "util/task.h"
@@ -22,24 +24,18 @@ CCL_NAMESPACE_BEGIN
 
 /* Shader Manager */
 
-SVMShaderManager::SVMShaderManager()
-{
-}
+SVMShaderManager::SVMShaderManager() = default;
 
-SVMShaderManager::~SVMShaderManager()
-{
-}
+SVMShaderManager::~SVMShaderManager() = default;
 
-void SVMShaderManager::reset(Scene * /*scene*/)
-{
-}
+void SVMShaderManager::reset(Scene * /*scene*/) {}
 
 void SVMShaderManager::device_update_shader(Scene *scene,
                                             Shader *shader,
-                                            Progress *progress,
+                                            Progress &progress,
                                             array<int4> *svm_nodes)
 {
-  if (progress->get_cancel()) {
+  if (progress.get_cancel()) {
     return;
   }
   assert(shader->graph);
@@ -59,10 +55,11 @@ void SVMShaderManager::device_update_specific(Device *device,
                                               Scene *scene,
                                               Progress &progress)
 {
-  if (!need_update())
+  if (!need_update()) {
     return;
+  }
 
-  scoped_callback_timer timer([scene](double time) {
+  const scoped_callback_timer timer([scene](double time) {
     if (scene->update_stats) {
       scene->update_stats->svm.times.add_entry({"device_update", time});
     }
@@ -72,7 +69,7 @@ void SVMShaderManager::device_update_specific(Device *device,
 
   VLOG_INFO << "Total " << num_shaders << " shaders.";
 
-  double start_time = time_dt();
+  const double start_time = time_dt();
 
   /* test if we need to update */
   device_free(device, dscene, scene);
@@ -81,12 +78,9 @@ void SVMShaderManager::device_update_specific(Device *device,
   TaskPool task_pool;
   vector<array<int4>> shader_svm_nodes(num_shaders);
   for (int i = 0; i < num_shaders; i++) {
-    task_pool.push(function_bind(&SVMShaderManager::device_update_shader,
-                                 this,
-                                 scene,
-                                 scene->shaders[i],
-                                 &progress,
-                                 &shader_svm_nodes[i]));
+    task_pool.push([this, scene, &progress, &shader_svm_nodes, i] {
+      device_update_shader(scene, scene->shaders[i], progress, &shader_svm_nodes[i]);
+    });
   }
   task_pool.wait_work();
 
@@ -117,7 +111,7 @@ void SVMShaderManager::device_update_specific(Device *device,
      * Each compiled shader starts with a jump node that has offsets local
      * to the shader, so copy those and add the offset into the global node list. */
     int4 &global_jump_node = svm_nodes[shader->id];
-    int4 &local_jump_node = shader_svm_nodes[i][0];
+    const int4 &local_jump_node = shader_svm_nodes[i][0];
 
     global_jump_node.x = NODE_SHADER_JUMP;
     global_jump_node.y = local_jump_node.y - 1 + node_offset;
@@ -130,9 +124,9 @@ void SVMShaderManager::device_update_specific(Device *device,
   /* Copy the nodes of each shader into the correct location. */
   svm_nodes += num_shaders;
   for (int i = 0; i < num_shaders; i++) {
-    int shader_size = shader_svm_nodes[i].size() - 1;
+    const int shader_size = shader_svm_nodes[i].size() - 1;
 
-    memcpy(svm_nodes, &shader_svm_nodes[i][1], sizeof(int4) * shader_size);
+    std::copy_n(&shader_svm_nodes[i][1], shader_size, svm_nodes);
     svm_nodes += shader_size;
   }
 
@@ -163,10 +157,11 @@ SVMCompiler::SVMCompiler(Scene *scene) : scene(scene)
 {
   max_stack_use = 0;
   current_type = SHADER_TYPE_SURFACE;
-  current_shader = NULL;
-  current_graph = NULL;
+  current_shader = nullptr;
+  current_graph = nullptr;
   background = false;
   mix_weight_offset = SVM_STACK_INVALID;
+  bump_state_offset = SVM_STACK_INVALID;
   compile_failed = false;
 
   /* This struct has one entry for every node, in order of ShaderNodeType definition. */
@@ -199,23 +194,26 @@ int SVMCompiler::stack_size(SocketType::Type type)
   return size;
 }
 
-int SVMCompiler::stack_find_offset(int size)
+int SVMCompiler::stack_find_offset(const int size)
 {
   int offset = -1;
 
   /* find free space in stack & mark as used */
   for (int i = 0, num_unused = 0; i < SVM_STACK_SIZE; i++) {
-    if (active_stack.users[i])
+    if (active_stack.users[i]) {
       num_unused = 0;
-    else
+    }
+    else {
       num_unused++;
+    }
 
     if (num_unused == size) {
       offset = i + 1 - size;
       max_stack_use = max(i + 1, max_stack_use);
 
-      while (i >= offset)
+      while (i >= offset) {
         active_stack.users[i--] = 1;
+      }
 
       return offset;
     }
@@ -236,12 +234,13 @@ int SVMCompiler::stack_find_offset(SocketType::Type type)
   return stack_find_offset(stack_size(type));
 }
 
-void SVMCompiler::stack_clear_offset(SocketType::Type type, int offset)
+void SVMCompiler::stack_clear_offset(SocketType::Type type, const int offset)
 {
-  int size = stack_size(type);
+  const int size = stack_size(type);
 
-  for (int i = 0; i < size; i++)
+  for (int i = 0; i < size; i++) {
     active_stack.users[offset + i]--;
+  }
 }
 
 int SVMCompiler::stack_assign(ShaderInput *input)
@@ -268,13 +267,15 @@ int SVMCompiler::stack_assign(ShaderInput *input)
         add_node(NODE_VALUE_F, node->get_int(input->socket_type), input->stack_offset);
       }
       else if (input->type() == SocketType::VECTOR || input->type() == SocketType::NORMAL ||
-               input->type() == SocketType::POINT || input->type() == SocketType::COLOR) {
+               input->type() == SocketType::POINT || input->type() == SocketType::COLOR)
+      {
 
         add_node(NODE_VALUE_V, input->stack_offset);
         add_node(NODE_VALUE_V, node->get_float3(input->socket_type));
       }
-      else /* should not get called for closure */
+      else { /* should not get called for closure */
         assert(0);
+      }
     }
   }
 
@@ -284,24 +285,32 @@ int SVMCompiler::stack_assign(ShaderInput *input)
 int SVMCompiler::stack_assign(ShaderOutput *output)
 {
   /* if no stack offset assigned yet, find one */
-  if (output->stack_offset == SVM_STACK_INVALID)
+  if (output->stack_offset == SVM_STACK_INVALID) {
     output->stack_offset = stack_find_offset(output->type());
+  }
 
   return output->stack_offset;
 }
 
+bool SVMCompiler::is_linked(ShaderInput *input)
+{
+  return (input->link || input->constant_folded_in);
+}
+
 int SVMCompiler::stack_assign_if_linked(ShaderInput *input)
 {
-  if (input->link || input->constant_folded_in)
+  if (is_linked(input)) {
     return stack_assign(input);
+  }
 
   return SVM_STACK_INVALID;
 }
 
 int SVMCompiler::stack_assign_if_linked(ShaderOutput *output)
 {
-  if (!output->links.empty())
+  if (!output->links.empty()) {
     return stack_assign(output);
+  }
 
   return SVM_STACK_INVALID;
 }
@@ -314,10 +323,11 @@ void SVMCompiler::stack_link(ShaderInput *input, ShaderOutput *output)
 
     output->stack_offset = input->link->stack_offset;
 
-    int size = stack_size(output->type());
+    const int size = stack_size(output->type());
 
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < size; i++) {
       active_stack.users[output->stack_offset + i]++;
+    }
   }
 }
 
@@ -330,23 +340,26 @@ void SVMCompiler::stack_clear_users(ShaderNode *node, ShaderNodeSet &done)
    * outputs. this used to work, but was disabled because it gave trouble
    * with inputs getting stack positions assigned */
 
-  foreach (ShaderInput *input, node->inputs) {
+  for (ShaderInput *input : node->inputs) {
     ShaderOutput *output = input->link;
 
     if (output && output->stack_offset != SVM_STACK_INVALID) {
       bool all_done = true;
 
       /* optimization we should add: verify if in->parent is actually used */
-      foreach (ShaderInput *in, output->links)
-        if (in->parent != node && done.find(in->parent) == done.end())
+      for (ShaderInput *in : output->links) {
+        if (in->parent != node && done.find(in->parent) == done.end()) {
           all_done = false;
+        }
+      }
 
       if (all_done) {
         stack_clear_offset(output->type(), output->stack_offset);
         output->stack_offset = SVM_STACK_INVALID;
 
-        foreach (ShaderInput *in, output->links)
+        for (ShaderInput *in : output->links) {
           in->stack_offset = SVM_STACK_INVALID;
+        }
       }
     }
   }
@@ -354,7 +367,7 @@ void SVMCompiler::stack_clear_users(ShaderNode *node, ShaderNodeSet &done)
 
 void SVMCompiler::stack_clear_temporary(ShaderNode *node)
 {
-  foreach (ShaderInput *input, node->inputs) {
+  for (ShaderInput *input : node->inputs) {
     if (!input->link && input->stack_offset != SVM_STACK_INVALID) {
       stack_clear_offset(input->type(), input->stack_offset);
       input->stack_offset = SVM_STACK_INVALID;
@@ -362,7 +375,7 @@ void SVMCompiler::stack_clear_temporary(ShaderNode *node)
   }
 }
 
-uint SVMCompiler::encode_uchar4(uint x, uint y, uint z, uint w)
+uint SVMCompiler::encode_uchar4(const uint x, const uint y, uint z, const uint w)
 {
   assert(x <= 255);
   assert(y <= 255);
@@ -372,12 +385,12 @@ uint SVMCompiler::encode_uchar4(uint x, uint y, uint z, uint w)
   return (x) | (y << 8) | (z << 16) | (w << 24);
 }
 
-void SVMCompiler::add_node(int a, int b, int c, int d)
+void SVMCompiler::add_node(const int a, const int b, int c, const int d)
 {
   current_svm_nodes.push_back_slow(make_int4(a, b, c, d));
 }
 
-void SVMCompiler::add_node(ShaderNodeType type, int a, int b, int c)
+void SVMCompiler::add_node(ShaderNodeType type, const int a, int b, const int c)
 {
   svm_node_types_used[type] = true;
   current_svm_nodes.push_back_slow(make_int4(type, a, b, c));
@@ -408,7 +421,7 @@ uint SVMCompiler::attribute(AttributeStandard std)
 
 uint SVMCompiler::attribute_standard(ustring name)
 {
-  AttributeStandard std = Attribute::name_standard(name.c_str());
+  const AttributeStandard std = Attribute::name_standard(name.c_str());
   return (std) ? attribute(std) : attribute(name);
 }
 
@@ -417,10 +430,11 @@ void SVMCompiler::find_dependencies(ShaderNodeSet &dependencies,
                                     ShaderInput *input,
                                     ShaderNode *skip_node)
 {
-  ShaderNode *node = (input->link) ? input->link->parent : NULL;
-  if (node != NULL && done.find(node) == done.end() && node != skip_node &&
-      dependencies.find(node) == dependencies.end()) {
-    foreach (ShaderInput *in, node->inputs) {
+  ShaderNode *node = (input->link) ? input->link->parent : nullptr;
+  if (node != nullptr && done.find(node) == done.end() && node != skip_node &&
+      dependencies.find(node) == dependencies.end())
+  {
+    for (ShaderInput *in : node->inputs) {
       find_dependencies(dependencies, done, in, skip_node);
     }
     dependencies.insert(node);
@@ -434,20 +448,20 @@ void SVMCompiler::generate_node(ShaderNode *node, ShaderNodeSet &done)
   stack_clear_temporary(node);
 
   if (current_type == SHADER_TYPE_SURFACE) {
-    if (node->has_spatial_varying())
+    if (node->has_spatial_varying()) {
       current_shader->has_surface_spatial_varying = true;
-    if (node->get_feature() & KERNEL_FEATURE_NODE_RAYTRACE)
+    }
+    if (node->get_feature() & KERNEL_FEATURE_NODE_RAYTRACE) {
       current_shader->has_surface_raytrace = true;
+    }
   }
   else if (current_type == SHADER_TYPE_VOLUME) {
-    if (node->has_spatial_varying())
+    if (node->has_spatial_varying()) {
       current_shader->has_volume_spatial_varying = true;
-    if (node->has_attribute_dependency())
+    }
+    if (node->has_attribute_dependency()) {
       current_shader->has_volume_attribute_dependency = true;
-  }
-
-  if (node->has_integrator_dependency()) {
-    current_shader->has_integrator_dependency = true;
+    }
   }
 }
 
@@ -460,11 +474,11 @@ void SVMCompiler::generate_svm_nodes(const ShaderNodeSet &nodes, CompilerState *
   do {
     nodes_done = true;
 
-    foreach (ShaderNode *node, nodes) {
+    for (ShaderNode *node : nodes) {
       if (!done_flag[node->id]) {
         bool inputs_done = true;
 
-        foreach (ShaderInput *input, node->inputs) {
+        for (ShaderInput *input : node->inputs) {
           if (input->link && !done_flag[input->link->parent->id]) {
             inputs_done = false;
           }
@@ -492,8 +506,8 @@ void SVMCompiler::generate_closure_node(ShaderNode *node, CompilerState *state)
   }
 
   /* execute dependencies for closure */
-  foreach (ShaderInput *in, node->inputs) {
-    if (in->link != NULL) {
+  for (ShaderInput *in : node->inputs) {
+    if (in->link != nullptr) {
       ShaderNodeSet dependencies;
       find_dependencies(dependencies, state->nodes_done, in);
       generate_svm_nodes(dependencies, state);
@@ -505,10 +519,12 @@ void SVMCompiler::generate_closure_node(ShaderNode *node, CompilerState *state)
                                                                    "SurfaceMixWeight";
   ShaderInput *weight_in = node->input(weight_name);
 
-  if (weight_in && (weight_in->link || node->get_float(weight_in->socket_type) != 1.0f))
+  if (weight_in && (weight_in->link || node->get_float(weight_in->socket_type) != 1.0f)) {
     mix_weight_offset = stack_assign(weight_in);
-  else
+  }
+  else {
     mix_weight_offset = SVM_STACK_INVALID;
+  }
 
   /* compile closure itself */
   generate_node(node, state->nodes_done);
@@ -516,12 +532,14 @@ void SVMCompiler::generate_closure_node(ShaderNode *node, CompilerState *state)
   mix_weight_offset = SVM_STACK_INVALID;
 
   if (current_type == SHADER_TYPE_SURFACE) {
-    if (node->has_surface_transparent())
+    if (node->has_surface_transparent()) {
       current_shader->has_surface_transparent = true;
+    }
     if (node->has_surface_bssrdf()) {
       current_shader->has_surface_bssrdf = true;
-      if (node->has_bssrdf_bump())
+      if (node->has_bssrdf_bump()) {
         current_shader->has_bssrdf_bump = true;
+      }
     }
     if (node->has_bump()) {
       current_shader->has_bump = true;
@@ -538,9 +556,10 @@ void SVMCompiler::generated_shared_closure_nodes(ShaderNode *root_node,
     generate_multi_closure(root_node, node, state);
   }
   else {
-    foreach (ShaderInput *in, node->inputs) {
-      if (in->type() == SocketType::CLOSURE && in->link)
+    for (ShaderInput *in : node->inputs) {
+      if (in->type() == SocketType::CLOSURE && in->link) {
         generated_shared_closure_nodes(root_node, in->link->parent, state, shared);
+      }
     }
   }
 }
@@ -549,13 +568,13 @@ void SVMCompiler::find_aov_nodes_and_dependencies(ShaderNodeSet &aov_nodes,
                                                   ShaderGraph *graph,
                                                   CompilerState *state)
 {
-  foreach (ShaderNode *node, graph->nodes) {
+  for (ShaderNode *node : graph->nodes) {
     if (node->special_type == SHADER_SPECIAL_TYPE_OUTPUT_AOV) {
       OutputAOVNode *aov_node = static_cast<OutputAOVNode *>(node);
       if (aov_node->offset >= 0) {
         aov_nodes.insert(aov_node);
-        foreach (ShaderInput *in, node->inputs) {
-          if (in->link != NULL) {
+        for (ShaderInput *in : node->inputs) {
+          if (in->link != nullptr) {
             find_dependencies(aov_nodes, state->nodes_done, in);
           }
         }
@@ -569,8 +588,9 @@ void SVMCompiler::generate_multi_closure(ShaderNode *root_node,
                                          CompilerState *state)
 {
   /* only generate once */
-  if (state->closure_done.find(node) != state->closure_done.end())
+  if (state->closure_done.find(node) != state->closure_done.end()) {
     return;
+  }
 
   state->closure_done.insert(node);
 
@@ -581,8 +601,9 @@ void SVMCompiler::generate_multi_closure(ShaderNode *root_node,
     ShaderInput *facin = node->input("Fac");
 
     /* skip empty mix/add closure nodes */
-    if (!cl1in->link && !cl2in->link)
+    if (!cl1in->link && !cl2in->link) {
       return;
+    }
 
     if (facin && facin->link) {
       /* mix closure: generate instructions to compute mix weight */
@@ -593,12 +614,14 @@ void SVMCompiler::generate_multi_closure(ShaderNode *root_node,
       /* execute shared dependencies. this is needed to allow skipping
        * of zero weight closures and their dependencies later, so we
        * ensure that they only skip dependencies that are unique to them */
-      ShaderNodeSet cl1deps, cl2deps, shareddeps;
+      ShaderNodeSet cl1deps;
+      ShaderNodeSet cl2deps;
+      ShaderNodeSet shareddeps;
 
       find_dependencies(cl1deps, state->nodes_done, cl1in);
       find_dependencies(cl2deps, state->nodes_done, cl2in);
 
-      ShaderNodeIDComparator node_id_comp;
+      const ShaderNodeIDComparator node_id_comp;
       set_intersection(cl1deps.begin(),
                        cl1deps.end(),
                        cl2deps.begin(),
@@ -611,7 +634,7 @@ void SVMCompiler::generate_multi_closure(ShaderNode *root_node,
        * happens when a node of current subbranch is used by a parent
        * node or so */
       if (root_node != node) {
-        foreach (ShaderInput *in, root_node->inputs) {
+        for (ShaderInput *in : root_node->inputs) {
           ShaderNodeSet rootdeps;
           find_dependencies(rootdeps, state->nodes_done, in, node);
           set_intersection(rootdeps.begin(),
@@ -633,7 +656,7 @@ void SVMCompiler::generate_multi_closure(ShaderNode *root_node,
        * as exclusive deps of one or the other closure, since the need to
        * execute them for AOV writing is not dependent on the closure
        * weights. */
-      if (state->aov_nodes.size()) {
+      if (!state->aov_nodes.empty()) {
         set_intersection(state->aov_nodes.begin(),
                          state->aov_nodes.end(),
                          cl1deps.begin(),
@@ -666,7 +689,7 @@ void SVMCompiler::generate_multi_closure(ShaderNode *root_node,
          */
         svm_node_types_used[NODE_JUMP_IF_ONE] = true;
         current_svm_nodes.push_back_slow(make_int4(NODE_JUMP_IF_ONE, 0, stack_assign(facin), 0));
-        int node_jump_skip_index = current_svm_nodes.size() - 1;
+        const int node_jump_skip_index = current_svm_nodes.size() - 1;
 
         generate_multi_closure(root_node, cl1in->link->parent, state);
 
@@ -682,7 +705,7 @@ void SVMCompiler::generate_multi_closure(ShaderNode *root_node,
          */
         svm_node_types_used[NODE_JUMP_IF_ZERO] = true;
         current_svm_nodes.push_back_slow(make_int4(NODE_JUMP_IF_ZERO, 0, stack_assign(facin), 0));
-        int node_jump_skip_index = current_svm_nodes.size() - 1;
+        const int node_jump_skip_index = current_svm_nodes.size() - 1;
 
         generate_multi_closure(root_node, cl2in->link->parent, state);
 
@@ -698,10 +721,12 @@ void SVMCompiler::generate_multi_closure(ShaderNode *root_node,
       /* execute closures and their dependencies, no runtime checks
        * to skip closures here because was already optimized due to
        * fixed weight or add closure that always needs both */
-      if (cl1in->link)
+      if (cl1in->link) {
         generate_multi_closure(root_node, cl1in->link->parent, state);
-      if (cl2in->link)
+      }
+      if (cl2in->link) {
         generate_multi_closure(root_node, cl2in->link->parent, state);
+      }
     }
   }
   else {
@@ -735,7 +760,7 @@ void SVMCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
 
   /* get input in output node */
   ShaderNode *output = graph->output();
-  ShaderInput *clin = NULL;
+  ShaderInput *clin = nullptr;
 
   switch (type) {
     case SHADER_TYPE_SURFACE:
@@ -759,17 +784,18 @@ void SVMCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
   memset((void *)&active_stack, 0, sizeof(active_stack));
   current_svm_nodes.clear();
 
-  foreach (ShaderNode *node, graph->nodes) {
-    foreach (ShaderInput *input, node->inputs)
+  for (ShaderNode *node : graph->nodes) {
+    for (ShaderInput *input : node->inputs) {
       input->stack_offset = SVM_STACK_INVALID;
-    foreach (ShaderOutput *output, node->outputs)
+    }
+    for (ShaderOutput *output : node->outputs) {
       output->stack_offset = SVM_STACK_INVALID;
+    }
   }
 
   /* for the bump shader we need add a node to store the shader state */
-  bool need_bump_state = (type == SHADER_TYPE_BUMP) &&
-                         (shader->get_displacement_method() == DISPLACE_BOTH);
-  int bump_state_offset = SVM_STACK_INVALID;
+  const bool need_bump_state = (type == SHADER_TYPE_BUMP) &&
+                               (shader->get_displacement_method() == DISPLACE_BOTH);
   if (need_bump_state) {
     bump_state_offset = stack_find_offset(SVM_BUMP_EVAL_STATE_SIZE);
     add_node(NODE_ENTER_BUMP_EVAL, bump_state_offset);
@@ -777,39 +803,38 @@ void SVMCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
 
   if (shader->reference_count()) {
     CompilerState state(graph);
-    if (clin->link) {
-      bool generate = false;
 
-      switch (type) {
-        case SHADER_TYPE_SURFACE: /* generate surface shader */
-          generate = true;
+    switch (type) {
+      case SHADER_TYPE_SURFACE: /* generate surface shader */
+        find_aov_nodes_and_dependencies(state.aov_nodes, graph, &state);
+        if (clin->link) {
           shader->has_surface = true;
           state.node_feature_mask = KERNEL_FEATURE_NODE_MASK_SURFACE;
-          break;
-        case SHADER_TYPE_VOLUME: /* generate volume shader */
-          generate = true;
+        }
+        break;
+      case SHADER_TYPE_VOLUME: /* generate volume shader */
+        if (clin->link) {
           shader->has_volume = true;
           state.node_feature_mask = KERNEL_FEATURE_NODE_MASK_VOLUME;
-          break;
-        case SHADER_TYPE_DISPLACEMENT: /* generate displacement shader */
-          generate = true;
+        }
+        break;
+      case SHADER_TYPE_DISPLACEMENT: /* generate displacement shader */
+        if (clin->link) {
           shader->has_displacement = true;
           state.node_feature_mask = KERNEL_FEATURE_NODE_MASK_DISPLACEMENT;
-          break;
-        case SHADER_TYPE_BUMP: /* generate bump shader */
-          generate = true;
-          state.node_feature_mask = KERNEL_FEATURE_NODE_MASK_BUMP;
-          break;
-        default:
-          break;
-      }
-
-      if (generate) {
-        if (type == SHADER_TYPE_SURFACE) {
-          find_aov_nodes_and_dependencies(state.aov_nodes, graph, &state);
         }
-        generate_multi_closure(clin->link->parent, clin->link->parent, &state);
-      }
+        break;
+      case SHADER_TYPE_BUMP: /* generate bump shader */
+        if (clin->link) {
+          state.node_feature_mask = KERNEL_FEATURE_NODE_MASK_BUMP;
+        }
+        break;
+      default:
+        break;
+    }
+
+    if (clin->link) {
+      generate_multi_closure(clin->link->parent, clin->link->parent, &state);
     }
 
     /* compile output node */
@@ -830,6 +855,7 @@ void SVMCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
   /* add node to restore state after bump shader has finished */
   if (need_bump_state) {
     add_node(NODE_LEAVE_BUMP_EVAL, bump_state_offset);
+    bump_state_offset = SVM_STACK_INVALID;
   }
 
   /* if compile failed, generate empty shader */
@@ -845,27 +871,27 @@ void SVMCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
   }
 }
 
-void SVMCompiler::compile(Shader *shader, array<int4> &svm_nodes, int index, Summary *summary)
+void SVMCompiler::compile(Shader *shader,
+                          array<int4> &svm_nodes,
+                          const int index,
+                          Summary *summary)
 {
   svm_node_types_used[NODE_SHADER_JUMP] = true;
   svm_nodes.push_back_slow(make_int4(NODE_SHADER_JUMP, 0, 0, 0));
 
   /* copy graph for shader with bump mapping */
   ShaderNode *output = shader->graph->output();
-  int start_num_svm_nodes = svm_nodes.size();
+  const int start_num_svm_nodes = svm_nodes.size();
 
   const double time_start = time_dt();
 
-  bool has_bump = (shader->get_displacement_method() != DISPLACE_TRUE) &&
-                  output->input("Surface")->link && output->input("Displacement")->link;
+  const bool has_bump = (shader->get_displacement_method() != DISPLACE_TRUE) &&
+                        output->input("Surface")->link && output->input("Displacement")->link;
 
   /* finalize */
   {
-    scoped_timer timer((summary != NULL) ? &summary->time_finalize : NULL);
-    shader->graph->finalize(scene,
-                            has_bump,
-                            shader->has_integrator_dependency,
-                            shader->get_displacement_method() == DISPLACE_BOTH);
+    const scoped_timer timer((summary != nullptr) ? &summary->time_finalize : nullptr);
+    shader->graph->finalize(scene, has_bump, shader->get_displacement_method() == DISPLACE_BOTH);
   }
 
   current_shader = shader;
@@ -881,20 +907,19 @@ void SVMCompiler::compile(Shader *shader, array<int4> &svm_nodes, int index, Sum
   shader->has_surface_spatial_varying = false;
   shader->has_volume_spatial_varying = false;
   shader->has_volume_attribute_dependency = false;
-  shader->has_integrator_dependency = false;
 
   /* generate bump shader */
   if (has_bump) {
-    scoped_timer timer((summary != NULL) ? &summary->time_generate_bump : NULL);
-    compile_type(shader, shader->graph, SHADER_TYPE_BUMP);
+    const scoped_timer timer((summary != nullptr) ? &summary->time_generate_bump : nullptr);
+    compile_type(shader, shader->graph.get(), SHADER_TYPE_BUMP);
     svm_nodes[index].y = svm_nodes.size();
     svm_nodes.append(current_svm_nodes);
   }
 
   /* generate surface shader */
   {
-    scoped_timer timer((summary != NULL) ? &summary->time_generate_surface : NULL);
-    compile_type(shader, shader->graph, SHADER_TYPE_SURFACE);
+    const scoped_timer timer((summary != nullptr) ? &summary->time_generate_surface : nullptr);
+    compile_type(shader, shader->graph.get(), SHADER_TYPE_SURFACE);
     /* only set jump offset if there's no bump shader, as the bump shader will fall thru to this
      * one if it exists */
     if (!has_bump) {
@@ -905,22 +930,23 @@ void SVMCompiler::compile(Shader *shader, array<int4> &svm_nodes, int index, Sum
 
   /* generate volume shader */
   {
-    scoped_timer timer((summary != NULL) ? &summary->time_generate_volume : NULL);
-    compile_type(shader, shader->graph, SHADER_TYPE_VOLUME);
+    const scoped_timer timer((summary != nullptr) ? &summary->time_generate_volume : nullptr);
+    compile_type(shader, shader->graph.get(), SHADER_TYPE_VOLUME);
     svm_nodes[index].z = svm_nodes.size();
     svm_nodes.append(current_svm_nodes);
   }
 
   /* generate displacement shader */
   {
-    scoped_timer timer((summary != NULL) ? &summary->time_generate_displacement : NULL);
-    compile_type(shader, shader->graph, SHADER_TYPE_DISPLACEMENT);
+    const scoped_timer timer((summary != nullptr) ? &summary->time_generate_displacement :
+                                                    nullptr);
+    compile_type(shader, shader->graph.get(), SHADER_TYPE_DISPLACEMENT);
     svm_nodes[index].w = svm_nodes.size();
     svm_nodes.append(current_svm_nodes);
   }
 
   /* Fill in summary information. */
-  if (summary != NULL) {
+  if (summary != nullptr) {
     summary->time_total = time_dt() - time_start;
     summary->peak_stack_usage = max_stack_use;
     summary->num_svm_nodes = svm_nodes.size() - start_num_svm_nodes;
@@ -946,7 +972,7 @@ SVMCompiler::Summary::Summary()
 
 string SVMCompiler::Summary::full_report() const
 {
-  string report = "";
+  string report;
   report += string_printf("Number of SVM nodes: %d\n", num_svm_nodes);
   report += string_printf("Peak stack usage:    %d\n", peak_stack_usage);
 
@@ -969,7 +995,7 @@ string SVMCompiler::Summary::full_report() const
 SVMCompiler::CompilerState::CompilerState(ShaderGraph *graph)
 {
   int max_id = 0;
-  foreach (ShaderNode *node, graph->nodes) {
+  for (ShaderNode *node : graph->nodes) {
     max_id = max(node->id, max_id);
   }
   nodes_done_flag.resize(max_id + 1, false);

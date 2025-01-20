@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -30,8 +31,18 @@ void DepsgraphNodeBuilder::build_scene_render(Scene *scene, ViewLayer *view_laye
     build_scene_sequencer(scene);
     build_scene_speakers(scene, view_layer);
   }
+  build_scene_camera(scene);
+}
+
+void DepsgraphNodeBuilder::build_scene_camera(Scene *scene)
+{
   if (scene->camera != nullptr) {
-    build_object(-1, scene->camera, DEG_ID_LINKED_DIRECTLY, true);
+    build_object(-1, scene->camera, DEG_ID_LINKED_INDIRECTLY, true);
+  }
+  LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
+    if (!ELEM(marker->camera, nullptr, scene->camera)) {
+      build_object(-1, marker->camera, DEG_ID_LINKED_INDIRECTLY, true);
+    }
   }
 }
 
@@ -42,7 +53,9 @@ void DepsgraphNodeBuilder::build_scene_parameters(Scene *scene)
   }
   build_parameters(&scene->id);
   build_idproperties(scene->id.properties);
-  add_operation_node(&scene->id, NodeType::PARAMETERS, OperationCode::SCENE_EVAL);
+
+  add_operation_node(&scene->id, NodeType::SCENE, OperationCode::SCENE_EVAL);
+
   /* NOTE: This is a bit overkill and can potentially pull a bit too much into the graph, but:
    *
    * - We definitely need an ID node for the scene's compositor, otherwise re-mapping will no

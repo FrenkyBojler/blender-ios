@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2022 Blender Foundation
 
 #####################################################################
 # Cycles Hydra render delegate
@@ -11,6 +12,7 @@ set(INC
 set(INC_SYS
   ${USD_INCLUDE_DIRS}
   ${Epoxy_INCLUDE_DIRS}
+  ${PYTHON_INCLUDE_DIRS}
 )
 
 set(LIB
@@ -18,6 +20,7 @@ set(LIB
   cycles_session
   cycles_graph
   ${Epoxy_LIBRARIES}
+  ${BOOST_PYTHON_LIBRARIES}
 )
 cycles_external_libraries_append(LIB)
 
@@ -50,6 +53,7 @@ set(SRC_HD_CYCLES
   camera.cpp
   field.cpp
   file_reader.cpp
+  geometry.cpp
   instancer.cpp
   light.cpp
   material.cpp
@@ -77,6 +81,12 @@ if(EXISTS ${USD_INCLUDE_DIR}/pxr/imaging/hgiGL)
   list(APPEND SRC_HD_CYCLES display_driver.cpp)
   list(APPEND SRC_HD_CYCLES_HEADERS display_driver.h)
 endif()
+
+# Silence warning from USD headers using deprecated TBB header.
+add_definitions(
+  -D__TBB_show_deprecation_message_atomic_H
+  -D__TBB_show_deprecation_message_task_H
+)
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
@@ -108,11 +118,12 @@ target_link_libraries(cycles_hydra
 )
 
 if(WITH_CYCLES_HYDRA_RENDER_DELEGATE)
-  set(HdCyclesPluginName hdCycles)
-  add_library(${HdCyclesPluginName} SHARED
+  set(SRC_HD_CYCLES_PLUGIN
     plugin.h
     plugin.cpp
   )
+  set(HdCyclesPluginName hdCycles)
+  add_library(${HdCyclesPluginName} SHARED ${SRC_HD_CYCLES_PLUGIN})
 
   set_target_properties(${HdCyclesPluginName}
     PROPERTIES PREFIX ""
@@ -157,7 +168,7 @@ if(WITH_CYCLES_HYDRA_RENDER_DELEGATE)
     set(CYCLES_HYDRA_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/hydra)
   endif()
 
-  # Put the root plugInfo.json one level up
+  # Put the root `plugInfo.json` one level up.
   delayed_install("${CMAKE_CURRENT_SOURCE_DIR}" "plugInfo.json" ${CYCLES_HYDRA_INSTALL_PATH})
   delayed_install("" $<TARGET_FILE:${HdCyclesPluginName}> ${CYCLES_HYDRA_INSTALL_PATH})
 

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -6,8 +8,8 @@
 #include "BCSampleData.h"
 #include "collada_utils.h"
 
-#include "BKE_action.h"
-#include "BKE_lib_id.h"
+#include "BKE_action.hh"
+#include "BKE_lib_id.hh"
 
 #include "BLI_math_rotation.h"
 
@@ -120,9 +122,7 @@ class BCSampleFrameContainer {
   BCSampleFrameMap sample_frames;
 
  public:
-  ~BCSampleFrameContainer()
-  {
-  }
+  ~BCSampleFrameContainer() {}
 
   BCSample &add(Object *ob, int frame_index);
   /** Return either the #BCSampleFrame or NULL if frame does not exist. */

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -7,33 +8,30 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_bitmap.h"
 #include "BLI_boxpack_2d.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_math_base.hh"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 
 #include "DNA_image_types.h"
 #include "DNA_userdef_types.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "BKE_global.h"
-#include "BKE_image.h"
+#include "BKE_global.hh"
+#include "BKE_image.hh"
 #include "BKE_image_partial_update.hh"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 
-#include "GPU_capabilities.h"
-#include "GPU_state.h"
-#include "GPU_texture.h"
-
-#include "PIL_time.h"
+#include "GPU_capabilities.hh"
+#include "GPU_state.hh"
+#include "GPU_texture.hh"
 
 using namespace blender::bke::image::partial_update;
-
-extern "C" {
 
 /* Prototypes. */
 static void gpu_free_unused_buffers();
@@ -50,11 +48,11 @@ bool BKE_image_has_gpu_texture_premultiplied_alpha(Image *image, ImBuf *ibuf)
     }
     /* Generated images use pre multiplied float buffer, but straight alpha for byte buffers. */
     if (image->type == IMA_TYPE_UV_TEST && ibuf) {
-      return ibuf->rect_float != nullptr;
+      return ibuf->float_buffer.data != nullptr;
     }
   }
   if (ibuf) {
-    if (ibuf->rect_float) {
+    if (ibuf->float_buffer.data) {
       return image ? (image->alpha_mode != IMA_ALPHA_STRAIGHT) : false;
     }
 
@@ -111,7 +109,7 @@ static GPUTexture *gpu_texture_create_tile_mapping(Image *ima, const int multivi
     tile_info[3] = tile_runtime->tilearray_size[1] / array_h;
   }
 
-  GPUTexture *tex = GPU_texture_create_1d_array_ex(
+  GPUTexture *tex = GPU_texture_create_1d_array(
       ima->id.name + 2, width, 2, 1, GPU_RGBA32F, GPU_TEXTURE_USAGE_SHADER_READ, data);
   GPU_texture_mipmap_mode(tex, false, false);
 
@@ -211,10 +209,10 @@ static GPUTexture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
 
   /* Upload each tile one by one. */
   LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
-    ImageTile_Runtime *tile_runtime = &tile->runtime;
-    int tilelayer = tile_runtime->tilearray_layer;
-    int *tileoffset = tile_runtime->tilearray_offset;
-    int *tilesize = tile_runtime->tilearray_size;
+    const ImageTile_Runtime *tile_runtime = &tile->runtime;
+    const int tilelayer = tile_runtime->tilearray_layer;
+    const int *tileoffset = tile_runtime->tilearray_offset;
+    const int *tilesize = tile_runtime->tilearray_size;
 
     if (tilesize[0] == 0 || tilesize[1] == 0) {
       continue;
@@ -241,7 +239,7 @@ static GPUTexture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
   }
 
   if (GPU_mipmap_enabled()) {
-    GPU_texture_generate_mipmap(tex);
+    GPU_texture_update_mipmap_chain(tex);
     GPU_texture_mipmap_mode(tex, true, true);
     if (ima) {
       ima->gpuflag |= IMA_GPU_MIPMAP_COMPLETE;
@@ -336,13 +334,30 @@ static void image_gpu_texture_try_partial_update(Image *image, ImageUser *iuser)
   }
 }
 
-static GPUTexture *image_get_gpu_texture(Image *ima,
-                                         ImageUser *iuser,
-                                         ImBuf *ibuf,
-                                         eGPUTextureTarget textarget)
+void BKE_image_ensure_gpu_texture(Image *image, ImageUser *image_user)
 {
+  if (!image) {
+    return;
+  }
+
+  /* Note that the image can cache both stereo views, so we only invalidate the cache if the view
+   * index is more than 2. */
+  if (image->gpu_pass != image_user->pass || image->gpu_layer != image_user->layer ||
+      (image->gpu_view != image_user->multi_index && image_user->multi_index >= 2))
+  {
+    BKE_image_partial_update_mark_full_update(image);
+  }
+}
+
+static ImageGPUTextures image_get_gpu_texture(Image *ima,
+                                              ImageUser *iuser,
+                                              const bool use_viewers,
+                                              const bool use_tile_mapping)
+{
+  ImageGPUTextures result = {};
+
   if (ima == nullptr) {
-    return nullptr;
+    return result;
   }
 
   /* Free any unused GPU textures, since we know we are in a thread with OpenGL
@@ -361,10 +376,14 @@ static GPUTexture *image_get_gpu_texture(Image *ima,
     requested_view = 0;
   }
   if (ima->gpu_pass != requested_pass || ima->gpu_layer != requested_layer ||
-      ima->gpu_view != requested_view) {
+      ima->gpu_view != requested_view)
+  {
     ima->gpu_pass = requested_pass;
     ima->gpu_layer = requested_layer;
     ima->gpu_view = requested_view;
+    /* The cache should be invalidated here, but it is intentionally isn't due to possible
+     * performance implications, see the BKE_image_ensure_gpu_texture function for more
+     * information. */
   }
 #undef GPU_FLAGS_TO_CHECK
 
@@ -377,6 +396,11 @@ static GPUTexture *image_get_gpu_texture(Image *ima,
   /* Tag as in active use for garbage collector. */
   BKE_image_tag_time(ima);
 
+  /* Test if we need to get a tiled array texture. */
+  eGPUTextureTarget textarget = (use_tile_mapping && ima->source == IMA_SRC_TILED) ?
+                                    TEXTARGET_2D_ARRAY :
+                                    TEXTARGET_2D;
+
   /* Test if we already have a texture. */
   int current_view = iuser ? iuser->multi_index : 0;
   if (current_view >= 2) {
@@ -384,7 +408,9 @@ static GPUTexture *image_get_gpu_texture(Image *ima,
   }
   GPUTexture **tex = get_image_gpu_texture_ptr(ima, textarget, current_view);
   if (*tex) {
-    return *tex;
+    result.texture = *tex;
+    result.tile_mapping = *get_image_gpu_texture_ptr(ima, TEXTARGET_TILE_MAPPING, current_view);
+    return result;
   }
 
   /* Check if we have a valid image. If not, we return a dummy
@@ -392,41 +418,45 @@ static GPUTexture *image_get_gpu_texture(Image *ima,
   ImageTile *tile = BKE_image_get_tile(ima, 0);
   if (tile == nullptr) {
     *tex = image_gpu_texture_error_create(textarget);
-    return *tex;
+    result.texture = *tex;
+    return result;
   }
 
   /* check if we have a valid image buffer */
-  ImBuf *ibuf_intern = ibuf;
-  if (ibuf_intern == nullptr) {
-    ibuf_intern = BKE_image_acquire_ibuf(ima, iuser, nullptr);
-    if (ibuf_intern == nullptr) {
-      *tex = image_gpu_texture_error_create(textarget);
-      return *tex;
-    }
+  void *lock;
+  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, (use_viewers) ? &lock : nullptr);
+  if (ibuf == nullptr) {
+    BKE_image_release_ibuf(ima, ibuf, (use_viewers) ? lock : nullptr);
+    *tex = image_gpu_texture_error_create(textarget);
+    result.texture = *tex;
+
+    return result;
   }
 
   if (textarget == TEXTARGET_2D_ARRAY) {
-    *tex = gpu_texture_create_tile_array(ima, ibuf_intern);
-  }
-  else if (textarget == TEXTARGET_TILE_MAPPING) {
-    *tex = gpu_texture_create_tile_mapping(ima, iuser ? iuser->multiview_eye : 0);
+    /* For materials, array and tile mapping in case there are UDIM tiles. */
+    *tex = gpu_texture_create_tile_array(ima, ibuf);
+    result.texture = *tex;
+
+    GPUTexture **tile_mapping_tex = get_image_gpu_texture_ptr(
+        ima, TEXTARGET_TILE_MAPPING, current_view);
+    *tile_mapping_tex = gpu_texture_create_tile_mapping(ima, iuser ? iuser->multiview_eye : 0);
+    result.tile_mapping = *tile_mapping_tex;
   }
   else {
+    /* Single image texture. */
     const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
-    const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(ima,
-                                                                                   ibuf_intern);
+    const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(ima, ibuf);
 
-    *tex = IMB_create_gpu_texture(
-        ima->id.name + 2, ibuf_intern, use_high_bitdepth, store_premultiplied);
+    *tex = IMB_create_gpu_texture(ima->id.name + 2, ibuf, use_high_bitdepth, store_premultiplied);
+    result.texture = *tex;
 
     if (*tex) {
-      GPU_texture_wrap_mode(*tex, true, false);
+      GPU_texture_extend_mode(*tex, GPU_SAMPLER_EXTEND_MODE_REPEAT);
 
       if (GPU_mipmap_enabled()) {
-        GPU_texture_generate_mipmap(*tex);
-        if (ima) {
-          ima->gpuflag |= IMA_GPU_MIPMAP_COMPLETE;
-        }
+        GPU_texture_update_mipmap_chain(*tex);
+        ima->gpuflag |= IMA_GPU_MIPMAP_COMPLETE;
         GPU_texture_mipmap_mode(*tex, true, true);
       }
       else {
@@ -436,29 +466,29 @@ static GPUTexture *image_get_gpu_texture(Image *ima,
   }
 
   if (*tex) {
-    GPU_texture_orig_size_set(*tex, ibuf_intern->x, ibuf_intern->y);
+    GPU_texture_original_size_set(*tex, ibuf->x, ibuf->y);
   }
 
-  if (ibuf != ibuf_intern) {
-    BKE_image_release_ibuf(ima, ibuf_intern, nullptr);
-  }
+  BKE_image_release_ibuf(ima, ibuf, (use_viewers) ? lock : nullptr);
 
-  return *tex;
+  return result;
 }
 
-GPUTexture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser, ImBuf *ibuf)
+GPUTexture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser)
 {
-  return image_get_gpu_texture(image, iuser, ibuf, TEXTARGET_2D);
+  return image_get_gpu_texture(image, iuser, false, false).texture;
 }
 
-GPUTexture *BKE_image_get_gpu_tiles(Image *image, ImageUser *iuser, ImBuf *ibuf)
+GPUTexture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser)
 {
-  return image_get_gpu_texture(image, iuser, ibuf, TEXTARGET_2D_ARRAY);
+  return image_get_gpu_texture(image, iuser, true, false).texture;
 }
 
-GPUTexture *BKE_image_get_gpu_tilemap(Image *image, ImageUser *iuser, ImBuf *ibuf)
+ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
+                                                    ImageUser *iuser,
+                                                    const bool use_tile_mapping)
 {
-  return image_get_gpu_texture(image, iuser, ibuf, TEXTARGET_TILE_MAPPING);
+  return image_get_gpu_texture(image, iuser, false, use_tile_mapping);
 }
 
 /** \} */
@@ -552,7 +582,7 @@ void BKE_image_free_anim_gputextures(Main *bmain)
 void BKE_image_free_old_gputextures(Main *bmain)
 {
   static int lasttime = 0;
-  int ctime = int(PIL_check_seconds_timer());
+  int ctime = int(BLI_time_now_seconds());
 
   /*
    * Run garbage collector once for every collecting period of time
@@ -591,8 +621,8 @@ void BKE_image_free_old_gputextures(Main *bmain)
 /** \name Paint Update
  * \{ */
 
-static ImBuf *update_do_scale(uchar *rect,
-                              float *rect_float,
+static ImBuf *update_do_scale(const uchar *rect,
+                              const float *rect_float,
                               int *x,
                               int *y,
                               int *w,
@@ -624,15 +654,15 @@ static ImBuf *update_do_scale(uchar *rect,
   }
 
   /* Scale pixels. */
-  ImBuf *ibuf = IMB_allocFromBuffer((uint *)rect, rect_float, part_w, part_h, 4);
-  IMB_scaleImBuf(ibuf, *w, *h);
+  ImBuf *ibuf = IMB_allocFromBuffer(rect, rect_float, part_w, part_h, 4);
+  IMB_scale(ibuf, *w, *h, IMBScaleFilter::Box, false);
 
   return ibuf;
 }
 
 static void gpu_texture_update_scaled(GPUTexture *tex,
-                                      uchar *rect,
-                                      float *rect_float,
+                                      const uchar *rect,
+                                      const float *rect_float,
                                       int full_w,
                                       int full_h,
                                       int x,
@@ -660,10 +690,11 @@ static void gpu_texture_update_scaled(GPUTexture *tex,
     ibuf = update_do_scale(rect, rect_float, &x, &y, &w, &h, limit_w, limit_h, full_w, full_h);
   }
 
-  void *data = (ibuf->rect_float) ? (void *)(ibuf->rect_float) : (void *)(ibuf->rect);
-  eGPUDataFormat data_format = (ibuf->rect_float) ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
+  void *data = (ibuf->float_buffer.data) ? (void *)(ibuf->float_buffer.data) :
+                                           (void *)(ibuf->byte_buffer.data);
+  eGPUDataFormat data_format = (ibuf->float_buffer.data) ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
 
-  GPU_texture_update_sub(tex, data_format, data, x, y, layer, w, h, 1);
+  GPU_texture_update_sub(tex, data_format, data, x, y, blender::math::max(layer, 0), w, h, 1);
 
   IMB_freeImBuf(ibuf);
 }
@@ -693,7 +724,7 @@ static void gpu_texture_update_unscaled(GPUTexture *tex,
    * subset of a possible larger buffer than what we are updating. */
   GPU_unpack_row_length_set(tex_stride);
 
-  GPU_texture_update_sub(tex, data_format, data, x, y, layer, w, h, 1);
+  GPU_texture_update_sub(tex, data_format, data, x, y, blender::math::max(layer, 0), w, h, 1);
   /* Restore default. */
   GPU_unpack_row_length_set(0);
 }
@@ -723,8 +754,8 @@ static void gpu_texture_update_from_ibuf(
   }
 
   /* Get texture data pointers. */
-  float *rect_float = ibuf->rect_float;
-  uchar *rect = (uchar *)ibuf->rect;
+  float *rect_float = ibuf->float_buffer.data;
+  uchar *rect = ibuf->byte_buffer.data;
   int tex_stride = ibuf->x;
   int tex_offset = ibuf->channels * (y * ibuf->x + x);
 
@@ -748,12 +779,15 @@ static void gpu_texture_update_from_ibuf(
   }
   else {
     /* Byte image is in original colorspace from the file, and may need conversion. */
-    if (IMB_colormanagement_space_is_data(ibuf->rect_colorspace)) {
-      /* Non-color data, just store buffer as is. */
+    if (IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace) && !scaled) {
+      /* Not scaled Non-color data, just store buffer as is. */
     }
-    else if (IMB_colormanagement_space_is_srgb(ibuf->rect_colorspace) ||
-             IMB_colormanagement_space_is_scene_linear(ibuf->rect_colorspace)) {
-      /* sRGB or scene linear, store as byte texture that the GPU can decode directly. */
+    else if (IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace) ||
+             IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace) ||
+             IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace))
+    {
+      /* sRGB or scene linear or scaled down non-color data, store as byte texture that the GPU
+       * can decode directly. */
       rect = (uchar *)MEM_mallocN(sizeof(uchar[4]) * w * h, __func__);
       if (rect == nullptr) {
         return;
@@ -812,15 +846,15 @@ static void gpu_texture_update_from_ibuf(
   }
 
   /* Free buffers if needed. */
-  if (rect && rect != (uchar *)ibuf->rect) {
+  if (rect && rect != ibuf->byte_buffer.data) {
     MEM_freeN(rect);
   }
-  if (rect_float && rect_float != ibuf->rect_float) {
+  if (rect_float && rect_float != ibuf->float_buffer.data) {
     MEM_freeN(rect_float);
   }
 
   if (GPU_mipmap_enabled()) {
-    GPU_texture_generate_mipmap(tex);
+    GPU_texture_update_mipmap_chain(tex);
   }
   else {
     ima->gpuflag &= ~IMA_GPU_MIPMAP_COMPLETE;
@@ -854,17 +888,13 @@ void BKE_image_update_gputexture(Image *ima, ImageUser *iuser, int x, int y, int
   BKE_image_release_ibuf(ima, ibuf, nullptr);
 }
 
-void BKE_image_update_gputexture_delayed(struct Image *ima,
-                                         struct ImageTile *image_tile,
-                                         struct ImBuf *ibuf,
-                                         int x,
-                                         int y,
-                                         int w,
-                                         int h)
+void BKE_image_update_gputexture_delayed(
+    Image *ima, ImageTile *image_tile, ImBuf *ibuf, int x, int y, int w, int h)
 {
   /* Check for full refresh. */
   if (ibuf != nullptr && ima->source != IMA_SRC_TILED && x == 0 && y == 0 && w == ibuf->x &&
-      h == ibuf->y) {
+      h == ibuf->y)
+  {
     BKE_image_partial_update_mark_full_update(ima);
   }
   else {
@@ -901,4 +931,3 @@ void BKE_image_paint_set_mipmap(Main *bmain, bool mipmap)
 }
 
 /** \} */
-}

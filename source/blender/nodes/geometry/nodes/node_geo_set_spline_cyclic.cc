@@ -1,6 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 
 #include "node_geometry_util.hh"
 
@@ -8,57 +11,78 @@ namespace blender::nodes::node_geo_set_spline_cyclic_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Geometry")).supported_type(GEO_COMPONENT_TYPE_CURVE);
-  b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Bool>(N_("Cyclic")).field_on_all();
-  b.add_output<decl::Geometry>(N_("Geometry")).propagate_all();
+  b.add_input<decl::Geometry>("Geometry")
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Bool>("Cyclic").field_on_all();
+  b.add_output<decl::Geometry>("Geometry").propagate_all();
 }
 
-static void set_cyclic(bke::CurvesGeometry &curves,
-                       const Field<bool> &selection_field,
-                       const Field<bool> &cyclic_field)
+static void set_curve_cyclic(bke::CurvesGeometry &curves,
+                             const fn::FieldContext &field_context,
+                             const Field<bool> &selection,
+                             const Field<bool> &cyclic)
 {
-  if (curves.curves_num() == 0) {
-    return;
+  bke::try_capture_field_on_geometry(curves.attributes_for_write(),
+                                     field_context,
+                                     "cyclic",
+                                     bke::AttrDomain::Curve,
+                                     selection,
+                                     cyclic);
+}
+
+static void set_grease_pencil_cyclic(GreasePencil &grease_pencil,
+                                     const Field<bool> &selection,
+                                     const Field<bool> &cyclic)
+{
+  using namespace blender::bke::greasepencil;
+  for (const int layer_index : grease_pencil.layers().index_range()) {
+    Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
+    if (drawing == nullptr) {
+      continue;
+    }
+    set_curve_cyclic(
+        drawing->strokes_for_write(),
+        bke::GreasePencilLayerFieldContext(grease_pencil, AttrDomain::Curve, layer_index),
+        selection,
+        cyclic);
   }
-  MutableAttributeAccessor attributes = curves.attributes_for_write();
-  AttributeWriter<bool> cyclics = attributes.lookup_or_add_for_write<bool>("cyclic",
-                                                                           ATTR_DOMAIN_CURVE);
-
-  bke::CurvesFieldContext field_context{curves, ATTR_DOMAIN_CURVE};
-  fn::FieldEvaluator evaluator{field_context, curves.curves_num()};
-  evaluator.set_selection(selection_field);
-  evaluator.add_with_destination(cyclic_field, cyclics.varray);
-  evaluator.evaluate();
-
-  cyclics.finish();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  Field<bool> cyclic_field = params.extract_input<Field<bool>>("Cyclic");
+  const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
+  const Field<bool> cyclic = params.extract_input<Field<bool>>("Cyclic");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
-      set_cyclic(curves_id->geometry.wrap(), selection_field, cyclic_field);
+      bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+      const bke::CurvesFieldContext field_context{*curves_id, AttrDomain::Curve};
+      set_curve_cyclic(curves, field_context, selection, cyclic);
+    }
+    if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
+      set_grease_pencil_cyclic(*grease_pencil, selection, cyclic);
     }
   });
 
   params.set_output("Geometry", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_set_spline_cyclic_cc
-
-void register_node_type_geo_set_spline_cyclic()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_set_spline_cyclic_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_SET_SPLINE_CYCLIC, "Set Spline Cyclic", NODE_CLASS_GEOMETRY);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeSetSplineCyclic", GEO_NODE_SET_SPLINE_CYCLIC);
+  ntype.ui_name = "Set Spline Cyclic";
+  ntype.ui_description =
+      "Control whether each spline loops back on itself by changing the \"cyclic\" attribute";
+  ntype.enum_name_legacy = "SET_SPLINE_CYCLIC";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_set_spline_cyclic_cc

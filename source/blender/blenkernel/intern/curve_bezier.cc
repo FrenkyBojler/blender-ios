@@ -1,10 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
  */
 
 #include <algorithm>
+
+#include "BLI_task.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
@@ -111,7 +115,21 @@ static void calculate_point_handles(const HandleType type_left,
     }
     const float3 dir = next_diff / next_len + prev_diff / prev_len;
 
-    /* This magic number is unfortunate, but comes from elsewhere in Blender. */
+    /* The magic number 2.5614 is derived from approximating a circular arc at the control point.
+     * Given the constraints:
+     *
+     * - `P0=(0,1),P1=(c,1),P2=(1,c),P3=(1,0)`.
+     * - The first derivative of the curve must agree with the circular arc derivative at the
+     *   endpoints.
+     * - Minimize the maximum radial drift.
+     *   one can compute `c ≈ 0.5519150244935105707435627`.
+     *   The distance from P0 to P3 is `sqrt(2)`.
+     *
+     * The magic factor for `len` is `(sqrt(2) / 0.5519150244935105707435627) ≈ 2.562375546255352`.
+     * In older code of blender a slightly worse approximation of 2.5614 is used. It's kept
+     * for compatibility.
+     *
+     * See https://spencermortensen.com/articles/bezier-circle/. */
     const float len = math::length(dir) * 2.5614f;
     if (len != 0.0f) {
       if (type_left == BEZIER_HANDLE_AUTO) {
@@ -163,6 +181,17 @@ void set_handle_position(const float3 &position,
   }
 }
 
+void calculate_aligned_handles(const IndexMask &selection,
+                               const Span<float3> positions,
+                               const Span<float3> align_with,
+                               MutableSpan<float3> align_handles)
+{
+  selection.foreach_index_optimized<int>(GrainSize(4096), [&](const int point) {
+    align_handles[point] = calculate_aligned_handle(
+        positions[point], align_with[point], align_handles[point]);
+  });
+}
+
 void calculate_auto_handles(const bool cyclic,
                             const Span<int8_t> types_left,
                             const Span<int8_t> types_right,
@@ -204,31 +233,47 @@ void calculate_auto_handles(const bool cyclic,
                           positions_right.last());
 }
 
-void evaluate_segment(const float3 &point_0,
-                      const float3 &point_1,
-                      const float3 &point_2,
-                      const float3 &point_3,
-                      MutableSpan<float3> result)
+template<typename T>
+void evaluate_segment_ex(
+    const T &point_0, const T &point_1, const T &point_2, const T &point_3, MutableSpan<T> result)
 {
   BLI_assert(result.size() > 0);
   const float inv_len = 1.0f / float(result.size());
   const float inv_len_squared = inv_len * inv_len;
   const float inv_len_cubed = inv_len_squared * inv_len;
 
-  const float3 rt1 = 3.0f * (point_1 - point_0) * inv_len;
-  const float3 rt2 = 3.0f * (point_0 - 2.0f * point_1 + point_2) * inv_len_squared;
-  const float3 rt3 = (point_3 - point_0 + 3.0f * (point_1 - point_2)) * inv_len_cubed;
+  const T rt1 = 3.0f * (point_1 - point_0) * inv_len;
+  const T rt2 = 3.0f * (point_0 - 2.0f * point_1 + point_2) * inv_len_squared;
+  const T rt3 = (point_3 - point_0 + 3.0f * (point_1 - point_2)) * inv_len_cubed;
 
-  float3 q0 = point_0;
-  float3 q1 = rt1 + rt2 + rt3;
-  float3 q2 = 2.0f * rt2 + 6.0f * rt3;
-  float3 q3 = 6.0f * rt3;
+  T q0 = point_0;
+  T q1 = rt1 + rt2 + rt3;
+  T q2 = 2.0f * rt2 + 6.0f * rt3;
+  T q3 = 6.0f * rt3;
   for (const int i : result.index_range()) {
     result[i] = q0;
     q0 += q1;
     q1 += q2;
     q2 += q3;
   }
+}
+template<>
+void evaluate_segment(const float3 &point_0,
+                      const float3 &point_1,
+                      const float3 &point_2,
+                      const float3 &point_3,
+                      MutableSpan<float3> result)
+{
+  evaluate_segment_ex<float3>(point_0, point_1, point_2, point_3, result);
+}
+template<>
+void evaluate_segment(const float2 &point_0,
+                      const float2 &point_1,
+                      const float2 &point_2,
+                      const float2 &point_3,
+                      MutableSpan<float2> result)
+{
+  evaluate_segment_ex<float2>(point_0, point_1, point_2, point_3, result);
 }
 
 void calculate_evaluated_positions(const Span<float3> positions,

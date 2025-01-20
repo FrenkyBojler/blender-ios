@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -8,6 +9,7 @@
  */
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_sys_types.h"
 
 #ifdef __cplusplus
 extern "C" {

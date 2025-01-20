@@ -1,53 +1,45 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup modifiers
  */
 
+#include "BLI_math_matrix.h"
 #include "BLI_utildefines.h"
 
-#include "BLI_math.h"
-
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_editmesh_cache.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_wrapper.h"
-#include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_deform.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_texture.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "RE_texture.h"
 
-#include "MOD_modifiertypes.h"
-#include "MOD_ui_common.h"
-#include "MOD_util.h"
+#include "MOD_modifiertypes.hh"
+#include "MOD_ui_common.hh"
+#include "MOD_util.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
   WaveModifierData *wmd = (WaveModifierData *)md;
 
@@ -56,26 +48,28 @@ static void initData(ModifierData *md)
   MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WaveModifierData), modifier);
 }
 
-static bool dependsOnTime(Scene * /*scene*/, ModifierData * /*md*/)
+static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
 {
   return true;
 }
 
-static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
+static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   WaveModifierData *wmd = (WaveModifierData *)md;
 
-  walk(userData, ob, (ID **)&wmd->texture, IDWALK_CB_USER);
-  walk(userData, ob, (ID **)&wmd->objectcenter, IDWALK_CB_NOP);
-  walk(userData, ob, (ID **)&wmd->map_object, IDWALK_CB_NOP);
+  walk(user_data, ob, (ID **)&wmd->texture, IDWALK_CB_USER);
+  walk(user_data, ob, (ID **)&wmd->objectcenter, IDWALK_CB_NOP);
+  walk(user_data, ob, (ID **)&wmd->map_object, IDWALK_CB_NOP);
 }
 
-static void foreachTexLink(ModifierData *md, Object *ob, TexWalkFunc walk, void *userData)
+static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  walk(userData, ob, md, "texture");
+  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
+  walk(user_data, ob, md, &ptr, prop);
 }
 
-static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
+static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
   WaveModifierData *wmd = (WaveModifierData *)md;
   bool need_transform_relation = false;
@@ -103,7 +97,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   }
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
   WaveModifierData *wmd = (WaveModifierData *)md;
 
@@ -112,17 +106,10 @@ static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_ma
     r_cddata_masks->fmask |= CD_MASK_MTFACE;
   }
 
-  /* ask for vertexgroups if we need them */
+  /* Ask for vertex-groups if we need them. */
   if (wmd->defgrp_name[0] != '\0') {
     r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;
   }
-}
-
-static bool dependsOnNormals(ModifierData *md)
-{
-  WaveModifierData *wmd = (WaveModifierData *)md;
-
-  return (wmd->flag & MOD_WAVE_NORM) != 0;
 }
 
 static void waveModifier_do(WaveModifierData *md,
@@ -144,16 +131,16 @@ static void waveModifier_do(WaveModifierData *md,
   float falloff_fac = 1.0f; /* when falloff == 0.0f this stays at 1.0f */
   const bool invert_group = (wmd->flag & MOD_WAVE_INVERT_VGROUP) != 0;
 
-  const float(*vert_normals)[3] = nullptr;
+  blender::Span<blender::float3> vert_normals;
   if ((wmd->flag & MOD_WAVE_NORM) && (mesh != nullptr)) {
-    vert_normals = BKE_mesh_vertex_normals_ensure(mesh);
+    vert_normals = mesh->vert_normals();
   }
 
   if (wmd->objectcenter != nullptr) {
     float mat[4][4];
     /* get the control object's location in local coordinates */
-    invert_m4_m4(ob->world_to_object, ob->object_to_world);
-    mul_m4_m4m4(mat, ob->world_to_object, wmd->objectcenter->object_to_world);
+    invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+    mul_m4_m4m4(mat, ob->world_to_object().ptr(), wmd->objectcenter->object_to_world().ptr());
 
     wmd->startx = mat[3][0];
     wmd->starty = mat[3][1];
@@ -257,16 +244,15 @@ static void waveModifier_do(WaveModifierData *md,
 
         /* Apply texture. */
         if (tex_co) {
-          Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
           TexResult texres;
-          BKE_texture_get_value(scene, tex_target, tex_co[i], &texres, false);
+          BKE_texture_get_value(tex_target, tex_co[i], &texres, false);
           amplit *= texres.tin;
         }
 
         /* Apply weight & falloff. */
         amplit *= def_weight * falloff_fac;
 
-        if (vert_normals) {
+        if (!vert_normals.is_empty()) {
           /* move along normals */
           if (wmd->flag & MOD_WAVE_NORM_X) {
             co[0] += (lifefac * amplit) * vert_normals[i][0];
@@ -289,62 +275,18 @@ static void waveModifier_do(WaveModifierData *md,
   MEM_SAFE_FREE(tex_co);
 }
 
-static void deformVerts(ModifierData *md,
-                        const ModifierEvalContext *ctx,
-                        Mesh *mesh,
-                        float (*vertexCos)[3],
-                        int verts_num)
+static void deform_verts(ModifierData *md,
+                         const ModifierEvalContext *ctx,
+                         Mesh *mesh,
+                         blender::MutableSpan<blender::float3> positions)
 {
   WaveModifierData *wmd = (WaveModifierData *)md;
-  Mesh *mesh_src = nullptr;
-
-  if (wmd->flag & MOD_WAVE_NORM) {
-    mesh_src = MOD_deform_mesh_eval_get(ctx->object, nullptr, mesh, vertexCos, verts_num, false);
-  }
-  else if (wmd->texture != nullptr || wmd->defgrp_name[0] != '\0') {
-    mesh_src = MOD_deform_mesh_eval_get(ctx->object, nullptr, mesh, nullptr, verts_num, false);
-  }
-
-  waveModifier_do(wmd, ctx, ctx->object, mesh_src, vertexCos, verts_num);
-
-  if (!ELEM(mesh_src, nullptr, mesh)) {
-    BKE_id_free(nullptr, mesh_src);
-  }
-}
-
-static void deformVertsEM(ModifierData *md,
-                          const ModifierEvalContext *ctx,
-                          BMEditMesh *editData,
-                          Mesh *mesh,
-                          float (*vertexCos)[3],
-                          int verts_num)
-{
-  WaveModifierData *wmd = (WaveModifierData *)md;
-  Mesh *mesh_src = nullptr;
-
-  if (wmd->flag & MOD_WAVE_NORM) {
-    mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, vertexCos, verts_num, false);
-  }
-  else if (wmd->texture != nullptr || wmd->defgrp_name[0] != '\0') {
-    mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, nullptr, verts_num, false);
-  }
-
-  /* TODO(@campbellbarton): use edit-mode data only (remove this line). */
-  if (mesh_src != nullptr) {
-    BKE_mesh_wrapper_ensure_mdata(mesh_src);
-  }
-
-  waveModifier_do(wmd, ctx, ctx->object, mesh_src, vertexCos, verts_num);
-
-  if (!ELEM(mesh_src, nullptr, mesh)) {
-    /* Important not to free `vertexCos` owned by the caller. */
-    EditMeshData *edit_data = mesh_src->runtime->edit_data;
-    if (edit_data->vertexCos == vertexCos) {
-      edit_data->vertexCos = nullptr;
-    }
-
-    BKE_id_free(nullptr, mesh_src);
-  }
+  waveModifier_do(wmd,
+                  ctx,
+                  ctx->object,
+                  mesh,
+                  reinterpret_cast<float(*)[3]>(positions.data()),
+                  positions.size());
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -358,15 +300,23 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   row = uiLayoutRowWithHeading(layout, true, IFACE_("Motion"));
-  uiItemR(
-      row, ptr, "use_x", UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE, nullptr, ICON_NONE);
-  uiItemR(
-      row, ptr, "use_y", UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE, nullptr, ICON_NONE);
+  uiItemR(row,
+          ptr,
+          "use_x",
+          UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE,
+          std::nullopt,
+          ICON_NONE);
+  uiItemR(row,
+          ptr,
+          "use_y",
+          UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE,
+          std::nullopt,
+          ICON_NONE);
 
-  uiItemR(layout, ptr, "use_cyclic", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = uiLayoutRowWithHeading(layout, true, IFACE_("Along Normals"));
-  uiItemR(row, ptr, "use_normal", 0, "", ICON_NONE);
+  uiItemR(row, ptr, "use_normal", UI_ITEM_NONE, "", ICON_NONE);
   sub = uiLayoutRow(row, true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_normal"));
   uiItemR(sub, ptr, "use_normal_x", UI_ITEM_R_TOGGLE, "X", ICON_NONE);
@@ -374,12 +324,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiItemR(sub, ptr, "use_normal_z", UI_ITEM_R_TOGGLE, "Z", ICON_NONE);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "falloff_radius", 0, IFACE_("Falloff"), ICON_NONE);
-  uiItemR(col, ptr, "height", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "width", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "narrowness", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "falloff_radius", UI_ITEM_NONE, IFACE_("Falloff"), ICON_NONE);
+  uiItemR(col, ptr, "height", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "width", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "narrowness", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   modifier_panel_end(layout, ptr);
 }
@@ -393,11 +343,11 @@ static void position_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "start_position_object", 0, IFACE_("Object"), ICON_NONE);
+  uiItemR(layout, ptr, "start_position_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
 
   col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "start_position_x", 0, IFACE_("Start Position X"), ICON_NONE);
-  uiItemR(col, ptr, "start_position_y", 0, "Y", ICON_NONE);
+  uiItemR(col, ptr, "start_position_x", UI_ITEM_NONE, IFACE_("Start Position X"), ICON_NONE);
+  uiItemR(col, ptr, "start_position_y", UI_ITEM_NONE, "Y", ICON_NONE);
 }
 
 static void time_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -410,10 +360,10 @@ static void time_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "time_offset", 0, IFACE_("Offset"), ICON_NONE);
-  uiItemR(col, ptr, "lifetime", 0, IFACE_("Life"), ICON_NONE);
-  uiItemR(col, ptr, "damping_time", 0, IFACE_("Damping"), ICON_NONE);
-  uiItemR(col, ptr, "speed", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "time_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
+  uiItemR(col, ptr, "lifetime", UI_ITEM_NONE, IFACE_("Life"), ICON_NONE);
+  uiItemR(col, ptr, "damping_time", UI_ITEM_NONE, IFACE_("Damping"), ICON_NONE);
+  uiItemR(col, ptr, "speed", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 }
 
 static void texture_panel_draw(const bContext *C, Panel *panel)
@@ -426,17 +376,18 @@ static void texture_panel_draw(const bContext *C, Panel *panel)
 
   int texture_coords = RNA_enum_get(ptr, "texture_coords");
 
-  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr, 0, ICON_NONE, nullptr);
+  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "texture_coords", 0, IFACE_("Coordinates"), ICON_NONE);
+  uiItemR(col, ptr, "texture_coords", UI_ITEM_NONE, IFACE_("Coordinates"), ICON_NONE);
   if (texture_coords == MOD_DISP_MAP_OBJECT) {
-    uiItemR(col, ptr, "texture_coords_object", 0, IFACE_("Object"), ICON_NONE);
+    uiItemR(col, ptr, "texture_coords_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
     PointerRNA texture_coords_obj_ptr = RNA_pointer_get(ptr, "texture_coords_object");
     if (!RNA_pointer_is_null(&texture_coords_obj_ptr) &&
-        (RNA_enum_get(&texture_coords_obj_ptr, "type") == OB_ARMATURE)) {
+        (RNA_enum_get(&texture_coords_obj_ptr, "type") == OB_ARMATURE))
+    {
       PointerRNA texture_coords_obj_data_ptr = RNA_pointer_get(&texture_coords_obj_ptr, "data");
       uiItemPointerR(col,
                      ptr,
@@ -449,11 +400,11 @@ static void texture_panel_draw(const bContext *C, Panel *panel)
   }
   else if (texture_coords == MOD_DISP_MAP_UV && RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
     PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
-    uiItemPointerR(col, ptr, "uv_layer", &obj_data_ptr, "uv_layers", nullptr, ICON_NONE);
+    uiItemPointerR(col, ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
   }
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   PanelType *panel_type = modifier_panel_register(region_type, eModifierType_Wave, panel_draw);
   modifier_subpanel_register(
@@ -464,35 +415,37 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_Wave = {
+    /*idname*/ "Wave",
     /*name*/ N_("Wave"),
-    /*structName*/ "WaveModifierData",
-    /*structSize*/ sizeof(WaveModifierData),
+    /*struct_name*/ "WaveModifierData",
+    /*struct_size*/ sizeof(WaveModifierData),
     /*srna*/ &RNA_WaveModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_WAVE,
 
-    /*copyData*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ BKE_modifier_copydata_generic,
 
-    /*deformVerts*/ deformVerts,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ deformVertsEM,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ nullptr,
-    /*modifyGeometrySet*/ nullptr,
+    /*deform_verts*/ deform_verts,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ nullptr,
+    /*modify_geometry_set*/ nullptr,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ requiredDataMask,
-    /*freeData*/ nullptr,
-    /*isDisabled*/ nullptr,
-    /*updateDepsgraph*/ updateDepsgraph,
-    /*dependsOnTime*/ dependsOnTime,
-    /*dependsOnNormals*/ dependsOnNormals,
-    /*foreachIDLink*/ foreachIDLink,
-    /*foreachTexLink*/ foreachTexLink,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ nullptr,
-    /*blendRead*/ nullptr,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ required_data_mask,
+    /*free_data*/ nullptr,
+    /*is_disabled*/ nullptr,
+    /*update_depsgraph*/ update_depsgraph,
+    /*depends_on_time*/ depends_on_time,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_tex_link*/ foreach_tex_link,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

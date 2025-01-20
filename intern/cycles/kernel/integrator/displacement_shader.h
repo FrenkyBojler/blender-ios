@@ -1,9 +1,12 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 /* Functions to evaluate displacement shader. */
 
 #pragma once
+
+#include "kernel/globals.h"
 
 #ifdef __SVM__
 #  include "kernel/svm/svm.h"
@@ -32,7 +35,7 @@ ccl_device void displacement_shader_eval(KernelGlobals kg,
   {
 #ifdef __SVM__
     svm_eval_nodes<KERNEL_FEATURE_NODE_MASK_DISPLACEMENT, SHADER_TYPE_DISPLACEMENT>(
-        kg, state, sd, NULL, 0);
+        kg, state, sd, nullptr, 0);
 #endif
   }
 }

@@ -1,8 +1,10 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2022 NVIDIA Corporation
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "hydra/mesh.h"
+#include "hydra/attribute.h"
 #include "hydra/geometry.inl"
 #include "scene/mesh.h"
 
@@ -53,7 +55,8 @@ VtValue ComputeTriangulatedFaceVaryingPrimvar(VtValue value,
                                               HdMeshUtil &meshUtil)
 {
   if (meshUtil.ComputeTriangulatedFaceVaryingPrimvar(
-          HdGetValueData(value), value.GetArraySize(), valueType, &value)) {
+          HdGetValueData(value), value.GetArraySize(), valueType, &value))
+  {
     return value;
   }
 
@@ -94,9 +97,7 @@ HdCyclesMesh::HdCyclesMesh(const SdfPath &rprimId
 {
 }
 
-HdCyclesMesh::~HdCyclesMesh()
-{
-}
+HdCyclesMesh::~HdCyclesMesh() = default;
 
 HdDirtyBits HdCyclesMesh::GetInitialDirtyBitsMask() const
 {
@@ -115,7 +116,8 @@ HdDirtyBits HdCyclesMesh::_PropagateDirtyBits(HdDirtyBits bits) const
   }
 
   if (bits & (HdChangeTracker::DirtyTopology | HdChangeTracker::DirtyDisplayStyle |
-              HdChangeTracker::DirtySubdivTags)) {
+              HdChangeTracker::DirtySubdivTags))
+  {
     // Do full topology update when display style or subdivision changes
     bits |= HdChangeTracker::DirtyTopology | HdChangeTracker::DirtyDisplayStyle |
             HdChangeTracker::DirtySubdivTags;
@@ -161,7 +163,8 @@ void HdCyclesMesh::PopulatePoints(HdSceneDelegate *sceneDelegate)
   VtValue value;
 
   for (const HdExtComputationPrimvarDescriptor &desc :
-       sceneDelegate->GetExtComputationPrimvarDescriptors(GetId(), HdInterpolationVertex)) {
+       sceneDelegate->GetExtComputationPrimvarDescriptors(GetId(), HdInterpolationVertex))
+  {
     if (desc.name == HdTokens->points) {
       auto valueStore = HdExtComputationUtils::GetComputedPrimvarValues({desc}, sceneDelegate);
       const auto valueStoreIt = valueStore.find(desc.name);
@@ -210,7 +213,8 @@ void HdCyclesMesh::PopulateNormals(HdSceneDelegate *sceneDelegate)
   for (int i = 0; i < HdInterpolationCount && interpolation == HdInterpolationCount; ++i) {
     for (const HdExtComputationPrimvarDescriptor &desc :
          sceneDelegate->GetExtComputationPrimvarDescriptors(GetId(),
-                                                            static_cast<HdInterpolation>(i))) {
+                                                            static_cast<HdInterpolation>(i)))
+    {
       if (desc.name == HdTokens->normals) {
         auto valueStore = HdExtComputationUtils::GetComputedPrimvarValues({desc}, sceneDelegate);
         const auto valueStoreIt = valueStore.find(desc.name);
@@ -272,7 +276,8 @@ void HdCyclesMesh::PopulateNormals(HdSceneDelegate *sceneDelegate)
     TF_VERIFY(normals.size() == static_cast<size_t>(_topology.GetNumFaceVaryings()));
 
     if (!_util.ComputeTriangulatedFaceVaryingPrimvar(
-            normals.data(), normals.size(), HdTypeFloatVec3, &value)) {
+            normals.data(), normals.size(), HdTypeFloatVec3, &value))
+    {
       return;
     }
 
@@ -307,7 +312,8 @@ void HdCyclesMesh::PopulatePrimvars(HdSceneDelegate *sceneDelegate)
 
   for (const auto &interpolation : interpolations) {
     for (const HdPrimvarDescriptor &desc :
-         GetPrimvarDescriptors(sceneDelegate, interpolation.first)) {
+         GetPrimvarDescriptors(sceneDelegate, interpolation.first))
+    {
       // Skip special primvars that are handled separately
       if (desc.name == HdTokens->points || desc.name == HdTokens->normals) {
         continue;
@@ -333,7 +339,8 @@ void HdCyclesMesh::PopulatePrimvars(HdSceneDelegate *sceneDelegate)
         }
       }
       else if (desc.name == HdTokens->displayColor &&
-               interpolation.first == HdInterpolationConstant) {
+               interpolation.first == HdInterpolationConstant)
+      {
         if (value.IsHolding<VtVec3fArray>() && value.GetArraySize() == 1) {
           const GfVec3f color = value.UncheckedGet<VtVec3fArray>()[0];
           _instances[0]->set_color(make_float3(color[0], color[1], color[2]));
@@ -342,7 +349,8 @@ void HdCyclesMesh::PopulatePrimvars(HdSceneDelegate *sceneDelegate)
 
       // Skip attributes that are not needed
       if ((std != ATTR_STD_NONE && _geom->need_attribute(scene, std)) ||
-          _geom->need_attribute(scene, name)) {
+          _geom->need_attribute(scene, name))
+      {
         const HdType valueType = HdGetValueTupleType(value).type;
 
         if (!subdivision) {
@@ -392,7 +400,7 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
   // Initialize lookup table from polygon face to material shader index
   VtIntArray faceShaders(_topology.GetNumFaces(), 0);
 
-  HdGeomSubsets const &geomSubsets = _topology.GetGeomSubsets();
+  const HdGeomSubsets &geomSubsets = _topology.GetGeomSubsets();
   if (!geomSubsets.empty()) {
     array<Node *> usedShaders = std::move(_geom->get_used_shaders());
     // Remove any previous materials except for the material assigned to the prim
@@ -409,7 +417,7 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
         shader = it->second;
       }
       else {
-        const auto material = static_cast<const HdCyclesMaterial *>(
+        const auto *const material = static_cast<const HdCyclesMaterial *>(
             sceneDelegate->GetRenderIndex().GetSprim(HdPrimTypeTokens->material,
                                                      geomSubset.materialId));
 
@@ -421,7 +429,7 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
         }
       }
 
-      for (int face : geomSubset.indices) {
+      for (const int face : geomSubset.indices) {
         faceShaders[face] = shader;
       }
     }
@@ -446,12 +454,12 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
     }
   }
   else {
-    PxOsdSubdivTags subdivTags = GetSubdivTags(sceneDelegate);
+    const PxOsdSubdivTags subdivTags = GetSubdivTags(sceneDelegate);
     _topology.SetSubdivTags(subdivTags);
 
     size_t numNgons = 0;
     size_t numCorners = 0;
-    for (int vertCount : vertCounts) {
+    for (const int vertCount : vertCounts) {
       numNgons += (vertCount == 4) ? 0 : 1;
       numCorners += vertCount;
     }
@@ -461,7 +469,7 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
     // TODO: Handle hole indices
     size_t faceIndex = 0;
     size_t indexOffset = 0;
-    for (int vertCount : vertCounts) {
+    for (const int vertCount : vertCounts) {
       _geom->add_subd_face(&vertIndx[indexOffset], vertCount, faceShaders[faceIndex], smooth);
 
       faceIndex++;
@@ -471,7 +479,7 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
     const VtIntArray creaseLengths = subdivTags.GetCreaseLengths();
     if (!creaseLengths.empty()) {
       size_t numCreases = 0;
-      for (int creaseLength : creaseLengths) {
+      for (const int creaseLength : creaseLengths) {
         numCreases += creaseLength - 1;
       }
 
@@ -483,14 +491,14 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
       indexOffset = 0;
       size_t creaseLengthOffset = 0;
       size_t createWeightOffset = 0;
-      for (int creaseLength : creaseLengths) {
+      for (const int creaseLength : creaseLengths) {
         for (int j = 0; j < creaseLength - 1; ++j, ++createWeightOffset) {
           const int v0 = creaseIndices[indexOffset + j];
           const int v1 = creaseIndices[indexOffset + j + 1];
 
-          float weight = creaseWeights.size() == creaseLengths.size() ?
-                             creaseWeights[creaseLengthOffset] :
-                             creaseWeights[createWeightOffset];
+          const float weight = creaseWeights.size() == creaseLengths.size() ?
+                                   creaseWeights[creaseLengthOffset] :
+                                   creaseWeights[createWeightOffset];
 
           _geom->add_edge_crease(v0, v1, weight);
         }

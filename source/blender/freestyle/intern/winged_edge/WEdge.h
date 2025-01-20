@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -16,11 +18,9 @@
 
 #include "../system/FreestyleConfig.h"
 
-#include "BLI_math.h"
+#include "BLI_math_base.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -56,8 +56,8 @@ class WVertex {
   {
     _Id = 0;
     _Vertex = v;
-    userdata = NULL;
-    _Shape = NULL;
+    userdata = nullptr;
+    _Shape = nullptr;
     _Smooth = true;
     _Border = -1;
   }
@@ -65,9 +65,7 @@ class WVertex {
   /** Copy constructor */
   WVertex(WVertex &iBrother);
   virtual WVertex *duplicate();
-  virtual ~WVertex()
-  {
-  }
+  virtual ~WVertex() {}
 
   /** accessors */
   inline Vec3f &GetVertex()
@@ -138,7 +136,7 @@ class WVertex {
 
   virtual void ResetUserData()
   {
-    userdata = NULL;
+    userdata = nullptr;
   }
 
  public:
@@ -212,9 +210,7 @@ class WVertex {
    protected:
     virtual void increment();
 
-#ifdef WITH_CXX_GUARDEDALLOC
     MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WVertex:incoming_edge_iterator")
-#endif
   };
 
   class face_iterator {
@@ -283,9 +279,7 @@ class WVertex {
       ++_edge_it;
     }
 
-#ifdef WITH_CXX_GUARDEDALLOC
     MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WVertex:face_iterator")
-#endif
   };
 
  public:
@@ -303,9 +297,7 @@ class WVertex {
     return face_iterator(incoming_edges_end());
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WVertex")
-#endif
 };
 
 /**********************************
@@ -342,17 +334,17 @@ class WOEdge {
   inline WOEdge()
   {
 #if 0
-    _paCWEdge = NULL;
-    _pbCWEdge = NULL;
-    _paCCWEdge = NULL;
-    _pbCCWEdge = NULL;
+    _paCWEdge = nullptr;
+    _pbCWEdge = nullptr;
+    _paCCWEdge = nullptr;
+    _pbCCWEdge = nullptr;
 #endif
-    _paVertex = NULL;
-    _pbVertex = NULL;
-    _paFace = NULL;
-    _pbFace = NULL;
-    _pOwner = NULL;
-    userdata = NULL;
+    _paVertex = nullptr;
+    _pbVertex = nullptr;
+    _paFace = nullptr;
+    _pbFace = nullptr;
+    _pOwner = nullptr;
+    userdata = nullptr;
   }
 
   virtual ~WOEdge(){};  // soc
@@ -481,12 +473,10 @@ class WOEdge {
 
   virtual void ResetUserData()
   {
-    userdata = NULL;
+    userdata = nullptr;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WOEdge")
-#endif
 };
 
 /**********************************
@@ -510,18 +500,18 @@ class WEdge {
 
   inline WEdge()
   {
-    _paOEdge = NULL;
-    _pbOEdge = NULL;
+    _paOEdge = nullptr;
+    _pbOEdge = nullptr;
     _nOEdges = 0;
-    userdata = NULL;
+    userdata = nullptr;
   }
 
   inline WEdge(WOEdge *iOEdge)
   {
     _paOEdge = iOEdge;
-    _pbOEdge = NULL;
+    _pbOEdge = nullptr;
     _nOEdges = 1;
-    userdata = NULL;
+    userdata = nullptr;
   }
 
   inline WEdge(WOEdge *iaOEdge, WOEdge *ibOEdge)
@@ -529,7 +519,7 @@ class WEdge {
     _paOEdge = iaOEdge;
     _pbOEdge = ibOEdge;
     _nOEdges = 2;
-    userdata = NULL;
+    userdata = nullptr;
   }
 
   /** Copy constructor */
@@ -540,22 +530,22 @@ class WEdge {
   {
     if (_paOEdge) {
       delete _paOEdge;
-      _paOEdge = NULL;
+      _paOEdge = nullptr;
     }
 
     if (_pbOEdge) {
       delete _pbOEdge;
-      _pbOEdge = NULL;
+      _pbOEdge = nullptr;
     }
   }
 
   /** checks whether two WEdge have a common vertex.
-   *  Returns a pointer on the common vertex if it exists, NULL otherwise.
+   *  Returns a pointer on the common vertex if it exists, nullptr otherwise.
    */
   static inline WVertex *CommonVertex(WEdge *iEdge1, WEdge *iEdge2)
   {
     if (!iEdge1 || !iEdge2) {
-      return NULL;
+      return nullptr;
     }
 
     WVertex *wv1 = iEdge1->GetaOEdge()->GetaVertex();
@@ -569,7 +559,7 @@ class WEdge {
     else if ((wv2 == wv3) || (wv2 == wv4)) {
       return wv2;
     }
-    return NULL;
+    return nullptr;
   }
 
   /** accessors */
@@ -670,12 +660,10 @@ class WEdge {
 
   virtual void ResetUserData()
   {
-    userdata = NULL;
+    userdata = nullptr;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WEdge")
-#endif
 };
 
 /**********************************
@@ -696,23 +684,21 @@ class WFace {
   vector<Vec2f> _VerticesTexCoords;
 
   int _Id;
-  unsigned _FrsMaterialIndex;
+  uint _FrsMaterialIndex;
   bool _Mark;  // Freestyle face mark (if true, feature edges on this face are ignored)
 
  public:
   void *userdata;
   inline WFace()
   {
-    userdata = NULL;
+    userdata = nullptr;
     _FrsMaterialIndex = 0;
   }
 
   /** copy constructor */
   WFace(WFace &iBrother);
   virtual WFace *duplicate();
-  virtual ~WFace()
-  {
-  }
+  virtual ~WFace() {}
 
   /** accessors */
   inline const vector<WOEdge *> &getEdgeList()
@@ -735,7 +721,7 @@ class WFace {
     return _Id;
   }
 
-  inline unsigned frs_materialIndex() const
+  inline uint frs_materialIndex() const
   {
     return _FrsMaterialIndex;
   }
@@ -748,11 +734,11 @@ class WFace {
   const FrsMaterial &frs_material();
 
   /** The vertex of index i corresponds to the a vertex of the edge of index i */
-  inline WVertex *GetVertex(unsigned int index)
+  inline WVertex *GetVertex(uint index)
   {
 #if 0
     if (index >= _OEdgeList.size()) {
-      return NULL;
+      return nullptr;
     }
 #endif
     return _OEdgeList[index]->GetaVertex();
@@ -766,7 +752,8 @@ class WFace {
     int index = 0;
     for (vector<WOEdge *>::iterator woe = _OEdgeList.begin(), woend = _OEdgeList.end();
          woe != woend;
-         woe++) {
+         woe++)
+    {
       if ((*woe)->GetaVertex() == iVertex) {
         return index;
       }
@@ -779,7 +766,8 @@ class WFace {
   {
     for (vector<WOEdge *>::iterator woe = _OEdgeList.begin(), woend = _OEdgeList.end();
          woe != woend;
-         woe++) {
+         woe++)
+    {
       oVertices.push_back((*woe)->GetaVertex());
     }
   }
@@ -788,7 +776,8 @@ class WFace {
   {
     for (vector<WOEdge *>::iterator woe = _OEdgeList.begin(), woend = _OEdgeList.end();
          woe != woend;
-         woe++) {
+         woe++)
+    {
       WFace *af;
       if ((af = (*woe)->GetaFace())) {
         oWFaces.push_back(af);
@@ -800,7 +789,7 @@ class WFace {
   {
 #if 0
     if (index >= _OEdgeList.size()) {
-      return NULL;
+      return nullptr;
     }
 #endif
     return _OEdgeList[index]->GetaFace();
@@ -840,7 +829,8 @@ class WFace {
     int index = 0;
     for (vector<WOEdge *>::const_iterator woe = _OEdgeList.begin(), woend = _OEdgeList.end();
          woe != woend;
-         woe++) {
+         woe++)
+    {
       if ((*woe)->GetaVertex() == iVertex) {
         index = i;
         break;
@@ -871,7 +861,7 @@ class WFace {
       return (*woefirst);
     }
 
-    return NULL;
+    return nullptr;
   }
 
   WOEdge *GetPrevOEdge(WOEdge *iOEdge);
@@ -891,7 +881,8 @@ class WFace {
   {
     for (vector<WOEdge *>::const_iterator woe = _OEdgeList.begin(), woeend = _OEdgeList.end();
          woe != woeend;
-         ++woe) {
+         ++woe)
+    {
       if ((*woe)->GetOwner()->GetbOEdge() == 0) {
         return true;
       }
@@ -925,7 +916,7 @@ class WFace {
     _Id = id;
   }
 
-  inline void setFrsMaterialIndex(unsigned iMaterialIndex)
+  inline void setFrsMaterialIndex(uint iMaterialIndex)
   {
     _FrsMaterialIndex = iMaterialIndex;
   }
@@ -966,12 +957,10 @@ class WFace {
   WShape *getShape();
   virtual void ResetUserData()
   {
-    userdata = NULL;
+    userdata = nullptr;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WFace")
-#endif
 };
 
 /**********************************
@@ -990,7 +979,7 @@ class WShape {
   int _Id;
   string _Name;
   string _LibraryPath;
-  static unsigned _SceneCurrentId;
+  static uint _SceneCurrentId;
 #if 0
   Vec3f _min;
   Vec3f _max;
@@ -1057,7 +1046,7 @@ class WShape {
     return _FaceList;
   }
 
-  inline unsigned GetId()
+  inline uint GetId()
   {
     return _Id;
   }
@@ -1070,7 +1059,7 @@ class WShape {
   }
 #endif
 
-  inline const FrsMaterial &frs_material(unsigned i) const
+  inline const FrsMaterial &frs_material(uint i) const
   {
     return _FrsMaterials[i];
   }
@@ -1098,7 +1087,7 @@ class WShape {
   }
 
   /** modifiers */
-  static inline void setCurrentId(const unsigned id)
+  static inline void setCurrentId(const uint id)
   {
     _SceneCurrentId = id;
   }
@@ -1131,7 +1120,7 @@ class WShape {
   }
 #endif
 
-  inline void setFrsMaterial(const FrsMaterial &frs_material, unsigned i)
+  inline void setFrsMaterial(const FrsMaterial &frs_material, uint i)
   {
     _FrsMaterials[i] = frs_material;
   }
@@ -1168,7 +1157,7 @@ class WShape {
    */
   virtual WFace *MakeFace(vector<WVertex *> &iVertexList,
                           vector<bool> &iFaceEdgeMarksList,
-                          unsigned iMaterialIndex);
+                          uint iMaterialIndex);
 
   /** adds a new face to the shape. The difference with the previous method is that this one is
    * designed to build a WingedEdge structure for which there are per vertex normals, opposed to
@@ -1185,7 +1174,7 @@ class WShape {
                           vector<Vec3f> &iNormalsList,
                           vector<Vec2f> &iTexCoordsList,
                           vector<bool> &iFaceEdgeMarksList,
-                          unsigned iMaterialIndex);
+                          uint iMaterialIndex);
 
   inline void AddEdge(WEdge *iEdge)
   {
@@ -1206,7 +1195,8 @@ class WShape {
   inline void ResetUserData()
   {
     for (vector<WVertex *>::iterator v = _VertexList.begin(), vend = _VertexList.end(); v != vend;
-         v++) {
+         v++)
+    {
       (*v)->ResetUserData();
     }
 
@@ -1237,8 +1227,9 @@ class WShape {
     Vec3f v;
     for (vector<WVertex *>::iterator wv = _VertexList.begin(), wvend = _VertexList.end();
          wv != wvend;
-         wv++) {
-      for (unsigned int i = 0; i < 3; i++) {
+         wv++)
+    {
+      for (uint i = 0; i < 3; i++) {
         v = (*wv)->GetVertex();
         if (v[i] < _min[i]) {
           _min[i] = v[i];
@@ -1276,12 +1267,10 @@ class WShape {
    */
   virtual WFace *MakeFace(vector<WVertex *> &iVertexList,
                           vector<bool> &iFaceEdgeMarksList,
-                          unsigned iMaterialIndex,
+                          uint iMaterialIndex,
                           WFace *face);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WShape")
-#endif
 };
 
 /**********************************
@@ -1324,18 +1313,16 @@ class WingedEdge {
     return _wshapes;
   }
 
-  unsigned getNumFaces()
+  uint getNumFaces()
   {
     return _numFaces;
   }
 
  private:
   vector<WShape *> _wshapes;
-  unsigned _numFaces;
+  uint _numFaces;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WingedEdge")
-#endif
 };
 
 /*

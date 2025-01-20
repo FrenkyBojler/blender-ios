@@ -1,11 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 by Mike Erwin. All rights reserved. */
+/* SPDX-FileCopyrightText: 2016 by Mike Erwin. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
  */
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
 #include "gl_context.hh"
 
@@ -20,8 +21,8 @@ void GLVertBuf::acquire_data()
   }
 
   /* Discard previous data if any. */
-  MEM_SAFE_FREE(data);
-  data = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
+  MEM_SAFE_FREE(data_);
+  data_ = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
 }
 
 void GLVertBuf::resize_data()
@@ -30,7 +31,7 @@ void GLVertBuf::resize_data()
     return;
   }
 
-  data = (uchar *)MEM_reallocN(data, sizeof(uchar) * this->size_alloc_get());
+  data_ = (uchar *)MEM_reallocN(data_, sizeof(uchar) * this->size_alloc_get());
 }
 
 void GLVertBuf::release_data()
@@ -46,7 +47,7 @@ void GLVertBuf::release_data()
     memory_usage -= vbo_size_;
   }
 
-  MEM_SAFE_FREE(data);
+  MEM_SAFE_FREE(data_);
 }
 
 void GLVertBuf::duplicate_data(VertBuf *dst_)
@@ -70,8 +71,8 @@ void GLVertBuf::duplicate_data(VertBuf *dst_)
     memory_usage += dst->vbo_size_;
   }
 
-  if (data != nullptr) {
-    dst->data = (uchar *)MEM_dupallocN(src->data);
+  if (data_ != nullptr) {
+    dst->data_ = (uchar *)MEM_dupallocN(src->data_);
   }
 }
 
@@ -92,16 +93,18 @@ void GLVertBuf::bind()
 
   if (flag & GPU_VERTBUF_DATA_DIRTY) {
     vbo_size_ = this->size_used_get();
+
+    BLI_assert(vbo_size_ != 0);
     /* Orphan the vbo to avoid sync then upload data. */
-    glBufferData(GL_ARRAY_BUFFER, vbo_size_, nullptr, to_gl(usage_));
+    glBufferData(GL_ARRAY_BUFFER, ceil_to_multiple_ul(vbo_size_, 16), nullptr, to_gl(usage_));
     /* Do not transfer data from host to device when buffer is device only. */
     if (usage_ != GPU_USAGE_DEVICE_ONLY) {
-      glBufferSubData(GL_ARRAY_BUFFER, 0, vbo_size_, data);
+      glBufferSubData(GL_ARRAY_BUFFER, 0, vbo_size_, data_);
     }
     memory_usage += vbo_size_;
 
     if (usage_ == GPU_USAGE_STATIC) {
-      MEM_SAFE_FREE(data);
+      MEM_SAFE_FREE(data_);
     }
     flag &= ~GPU_VERTBUF_DATA_DIRTY;
     flag |= GPU_VERTBUF_DATA_UPLOADED;
@@ -113,6 +116,11 @@ void GLVertBuf::bind_as_ssbo(uint binding)
   bind();
   BLI_assert(vbo_id_ != 0);
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, vbo_id_);
+
+#ifndef NDEBUG
+  BLI_assert(binding < 16);
+  GLContext::get()->bound_ssbo_slots |= 1 << binding;
+#endif
 }
 
 void GLVertBuf::bind_as_texture(uint binding)
@@ -120,23 +128,17 @@ void GLVertBuf::bind_as_texture(uint binding)
   bind();
   BLI_assert(vbo_id_ != 0);
   if (buffer_texture_ == nullptr) {
-    buffer_texture_ = GPU_texture_create_from_vertbuf("vertbuf_as_texture", wrap(this));
+    buffer_texture_ = GPU_texture_create_from_vertbuf("vertbuf_as_texture", this);
   }
   GPU_texture_bind(buffer_texture_, binding);
 }
 
-const void *GLVertBuf::read() const
+void GLVertBuf::read(void *data) const
 {
   BLI_assert(is_active());
   void *result = glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
-  return result;
-}
-
-void *GLVertBuf::unmap(const void *mapped_data) const
-{
-  void *result = MEM_mallocN(vbo_size_, __func__);
-  memcpy(result, mapped_data, vbo_size_);
-  return result;
+  memcpy(data, result, size_used_get());
+  glUnmapBuffer(GL_ARRAY_BUFFER);
 }
 
 void GLVertBuf::wrap_handle(uint64_t handle)

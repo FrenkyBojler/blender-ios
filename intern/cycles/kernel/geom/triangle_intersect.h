@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2014-2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2014-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 /* Triangle/Ray intersections.
  *
@@ -9,26 +10,36 @@
 
 #pragma once
 
+#include "kernel/globals.h"
+
+#include "kernel/geom/object.h"
+#include "kernel/geom/triangle.h"
 #include "kernel/sample/lcg.h"
+
+#include "util/math_float3.h"
+#include "util/math_intersect.h"
 
 CCL_NAMESPACE_BEGIN
 
 ccl_device_inline bool triangle_intersect(KernelGlobals kg,
                                           ccl_private Intersection *isect,
-                                          float3 P,
-                                          float3 dir,
-                                          float tmin,
-                                          float tmax,
-                                          uint visibility,
-                                          int object,
-                                          int prim,
-                                          int prim_addr)
+                                          const float3 P,
+                                          const float3 dir,
+                                          const float tmin,
+                                          const float tmax,
+                                          const uint visibility,
+                                          const int object,
+                                          const int prim,
+                                          const int prim_addr)
 {
-  const uint tri_vindex = kernel_data_fetch(tri_vindex, prim).w;
-  const float3 tri_a = kernel_data_fetch(tri_verts, tri_vindex + 0),
-               tri_b = kernel_data_fetch(tri_verts, tri_vindex + 1),
-               tri_c = kernel_data_fetch(tri_verts, tri_vindex + 2);
-  float t, u, v;
+  const uint3 tri_vindex = kernel_data_fetch(tri_vindex, prim);
+  const float3 tri_a = kernel_data_fetch(tri_verts, tri_vindex.x);
+  const float3 tri_b = kernel_data_fetch(tri_verts, tri_vindex.y);
+  const float3 tri_c = kernel_data_fetch(tri_verts, tri_vindex.z);
+
+  float t;
+  float u;
+  float v;
   if (ray_triangle_intersect(P, dir, tmin, tmax, tri_a, tri_b, tri_c, &u, &v, &t)) {
 #ifdef __VISIBILITY_FLAG__
     /* Visibility flag test. we do it here under the assumption
@@ -58,21 +69,24 @@ ccl_device_inline bool triangle_intersect(KernelGlobals kg,
 #ifdef __BVH_LOCAL__
 ccl_device_inline bool triangle_intersect_local(KernelGlobals kg,
                                                 ccl_private LocalIntersection *local_isect,
-                                                float3 P,
-                                                float3 dir,
-                                                int object,
-                                                int prim,
-                                                int prim_addr,
-                                                float tmin,
-                                                float tmax,
+                                                const float3 P,
+                                                const float3 dir,
+                                                const int object,
+                                                const int prim,
+                                                const int prim_addr,
+                                                const float tmin,
+                                                const float tmax,
                                                 ccl_private uint *lcg_state,
-                                                int max_hits)
+                                                const int max_hits)
 {
-  const uint tri_vindex = kernel_data_fetch(tri_vindex, prim).w;
-  const float3 tri_a = kernel_data_fetch(tri_verts, tri_vindex + 0),
-               tri_b = kernel_data_fetch(tri_verts, tri_vindex + 1),
-               tri_c = kernel_data_fetch(tri_verts, tri_vindex + 2);
-  float t, u, v;
+  const uint3 tri_vindex = kernel_data_fetch(tri_vindex, prim);
+  const float3 tri_a = kernel_data_fetch(tri_verts, tri_vindex.x);
+  const float3 tri_b = kernel_data_fetch(tri_verts, tri_vindex.y);
+  const float3 tri_c = kernel_data_fetch(tri_verts, tri_vindex.z);
+
+  float t;
+  float u;
+  float v;
   if (!ray_triangle_intersect(P, dir, tmin, tmax, tri_a, tri_b, tri_c, &u, &v, &t)) {
     return false;
   }
@@ -101,8 +115,9 @@ ccl_device_inline bool triangle_intersect_local(KernelGlobals kg,
        * hits, randomly replace element or skip it */
       hit = lcg_step_uint(lcg_state) % local_isect->num_hits;
 
-      if (hit >= max_hits)
+      if (hit >= max_hits) {
         return false;
+      }
     }
   }
   else {
@@ -136,15 +151,14 @@ ccl_device_inline bool triangle_intersect_local(KernelGlobals kg,
  */
 ccl_device_inline float3 triangle_point_from_uv(KernelGlobals kg,
                                                 ccl_private ShaderData *sd,
-                                                const int isect_object,
                                                 const int isect_prim,
                                                 const float u,
                                                 const float v)
 {
-  const uint tri_vindex = kernel_data_fetch(tri_vindex, isect_prim).w;
-  const packed_float3 tri_a = kernel_data_fetch(tri_verts, tri_vindex + 0),
-                      tri_b = kernel_data_fetch(tri_verts, tri_vindex + 1),
-                      tri_c = kernel_data_fetch(tri_verts, tri_vindex + 2);
+  const uint3 tri_vindex = kernel_data_fetch(tri_vindex, isect_prim);
+  const float3 tri_a = kernel_data_fetch(tri_verts, tri_vindex.x);
+  const float3 tri_b = kernel_data_fetch(tri_verts, tri_vindex.y);
+  const float3 tri_c = kernel_data_fetch(tri_verts, tri_vindex.z);
 
   /* This appears to give slightly better precision than interpolating with w = (1 - u - v). */
   float3 P = tri_a + u * (tri_b - tri_a) + v * (tri_c - tri_a);
@@ -155,6 +169,28 @@ ccl_device_inline float3 triangle_point_from_uv(KernelGlobals kg,
   }
 
   return P;
+}
+
+ccl_device_inline void triangle_shader_setup(KernelGlobals kg, ccl_private ShaderData *sd)
+{
+  sd->shader = kernel_data_fetch(tri_shader, sd->prim);
+
+  sd->P = triangle_point_from_uv(kg, sd, sd->prim, sd->u, sd->v);
+
+  /* Normals. */
+  const float3 Ng = triangle_normal(kg, sd);
+  sd->Ng = Ng;
+  sd->N = Ng;
+
+  /* Smooth normal. */
+  if (sd->shader & SHADER_SMOOTH_NORMAL) {
+    sd->N = triangle_smooth_normal(kg, Ng, sd->prim, sd->u, sd->v);
+  }
+
+#ifdef __DPDU__
+  /* dPdu/dPdv */
+  triangle_dPdudv(kg, sd->prim, &sd->dPdu, &sd->dPdv);
+#endif
 }
 
 CCL_NAMESPACE_END

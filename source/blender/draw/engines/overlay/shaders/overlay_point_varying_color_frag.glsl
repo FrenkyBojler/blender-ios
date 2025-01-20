@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2016-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+#include "select_lib.glsl"
 
 void main()
 {
@@ -5,7 +9,7 @@ void main()
   float dist_squared = dot(centered, centered);
   const float rad_squared = 0.25;
 
-  /* Round point with jaggy edges. */
+  /* Round point with jagged edges. */
   if (dist_squared > rad_squared) {
     discard;
     return;
@@ -21,4 +25,9 @@ void main()
 #else
   fragColor = finalColor;
 #endif
+
+#ifdef LINE_OUTPUT
+  lineOutput = vec4(0.0);
+#endif
+  select_id_output(select_id);
 }

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -44,6 +46,8 @@ class DTreeContext {
   const bNode *parent_node_;
   /* The current node tree. */
   const bNodeTree *btree_;
+  /* The instance key of the parent node. bke::NODE_INSTANCE_KEY_BASE for root contexts. */
+  bNodeInstanceKey instance_key_;
   /* All the children contexts of this context. */
   Map<const bNode *, DTreeContext *> children_;
   DerivedNodeTree *derived_tree_;
@@ -54,6 +58,7 @@ class DTreeContext {
   const bNodeTree &btree() const;
   const DTreeContext *parent_context() const;
   const bNode *parent_node() const;
+  const bNodeInstanceKey instance_key() const;
   const DTreeContext *child_context(const bNode &node) const;
   const DerivedNodeTree &derived_tree() const;
   bool is_root() const;
@@ -74,11 +79,12 @@ class DNode {
 
   const DTreeContext *context() const;
   const bNode *bnode() const;
+  const bNodeInstanceKey instance_key() const;
   const bNode *operator->() const;
   const bNode &operator*() const;
 
-  friend bool operator==(const DNode &a, const DNode &b);
-  friend bool operator!=(const DNode &a, const DNode &b);
+  BLI_STRUCT_EQUALITY_OPERATORS_2(DNode, context_, bnode_)
+
   operator bool() const;
 
   uint64_t hash() const;
@@ -113,8 +119,8 @@ class DSocket {
   const bNodeSocket *operator->() const;
   const bNodeSocket &operator*() const;
 
-  friend bool operator==(const DSocket &a, const DSocket &b);
-  friend bool operator!=(const DSocket &a, const DSocket &b);
+  BLI_STRUCT_EQUALITY_OPERATORS_2(DSocket, context_, bsocket_)
+
   operator bool() const;
 
   uint64_t hash() const;
@@ -189,6 +195,14 @@ class DerivedNodeTree {
   const DTreeContext &root_context() const;
   Span<const bNodeTree *> used_btrees() const;
 
+  /** Returns the active context for the node tree. The active context represents the node tree
+   * currently being edited. In most cases, that would be the top level node tree itself, but in
+   * the case where the user is editing the node tree of a node group, the active context would be
+   * a representation of the node tree of that node group. Note that the context also stores the
+   * group node that the user selected to edit the node tree, so the context fully represents a
+   * particular instance of the node group. */
+  const DTreeContext &active_context() const;
+
   /**
    * \return True when there is a link cycle. Unavailable sockets are ignored.
    */
@@ -203,7 +217,8 @@ class DerivedNodeTree {
  private:
   DTreeContext &construct_context_recursively(DTreeContext *parent_context,
                                               const bNode *parent_node,
-                                              const bNodeTree &btree);
+                                              const bNodeTree &btree,
+                                              const bNodeInstanceKey instance_key);
   void destruct_context_recursively(DTreeContext *context);
 
   void foreach_node_in_context_recursive(const DTreeContext &context,
@@ -236,6 +251,11 @@ inline const DTreeContext *DTreeContext::parent_context() const
 inline const bNode *DTreeContext::parent_node() const
 {
   return parent_node_;
+}
+
+inline const bNodeInstanceKey DTreeContext::instance_key() const
+{
+  return instance_key_;
 }
 
 inline const DTreeContext *DTreeContext::child_context(const bNode &node) const
@@ -275,16 +295,6 @@ inline const bNode *DNode::bnode() const
   return bnode_;
 }
 
-inline bool operator==(const DNode &a, const DNode &b)
-{
-  return a.context_ == b.context_ && a.bnode_ == b.bnode_;
-}
-
-inline bool operator!=(const DNode &a, const DNode &b)
-{
-  return !(a == b);
-}
-
 inline DNode::operator bool() const
 {
   return bnode_ != nullptr;
@@ -303,7 +313,7 @@ inline const bNode &DNode::operator*() const
 
 inline uint64_t DNode::hash() const
 {
-  return get_default_hash_2(context_, bnode_);
+  return get_default_hash(context_, bnode_);
 }
 
 inline DInputSocket DNode::input(int index) const
@@ -359,16 +369,6 @@ inline const bNodeSocket *DSocket::bsocket() const
   return bsocket_;
 }
 
-inline bool operator==(const DSocket &a, const DSocket &b)
-{
-  return a.context_ == b.context_ && a.bsocket_ == b.bsocket_;
-}
-
-inline bool operator!=(const DSocket &a, const DSocket &b)
-{
-  return !(a == b);
-}
-
 inline DSocket::operator bool() const
 {
   return bsocket_ != nullptr;
@@ -387,7 +387,7 @@ inline const bNodeSocket &DSocket::operator*() const
 
 inline uint64_t DSocket::hash() const
 {
-  return get_default_hash_2(context_, bsocket_);
+  return get_default_hash(context_, bsocket_);
 }
 
 inline DNode DSocket::node() const

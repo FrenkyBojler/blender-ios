@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <algorithm> /* std::find */
 #include <map>
@@ -11,12 +12,12 @@
 #include "ExportSettings.h"
 #include "collada_utils.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_constraint.h"
-#include "BKE_key.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_material.h"
+#include "BKE_key.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_material.hh"
 
 #include "BLI_listbase.h"
 
@@ -25,7 +26,9 @@
 #include "DNA_key_types.h"
 #include "DNA_scene_types.h"
 
-#include "ED_object.h"
+#include "ED_object.hh"
+
+#include "ANIM_action_legacy.hh"
 
 static std::string EMPTY_STRING;
 static BCAnimationCurveMap BCEmptyAnimationCurves;
@@ -97,16 +100,13 @@ static bool is_object_keyframe(Object *ob, int frame_index)
   return false;
 }
 
-static void add_keyframes_from(bAction *action, BCFrameSet &frameset)
+static void add_keyframes_from(AnimData *adt, BCFrameSet &frameset)
 {
-  if (action) {
-    FCurve *fcu = nullptr;
-    for (fcu = (FCurve *)action->curves.first; fcu; fcu = fcu->next) {
-      BezTriple *bezt = fcu->bezt;
-      for (int i = 0; i < fcu->totvert; bezt++, i++) {
-        int frame_index = nearbyint(bezt->vec[1][0]);
-        frameset.insert(frame_index);
-      }
+  for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(adt)) {
+    BezTriple *bezt = fcu->bezt;
+    for (int i = 0; i < fcu->totvert; bezt++, i++) {
+      int frame_index = nearbyint(bezt->vec[1][0]);
+      frameset.insert(frame_index);
     }
   }
 }
@@ -153,8 +153,7 @@ BCSample &BCAnimationSampler::sample_object(Object *ob, int frame_index, bool fo
 #endif
 
   if (ob->type == OB_ARMATURE) {
-    bPoseChannel *pchan;
-    for (pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       Bone *bone = pchan->bone;
       Matrix bmat;
       if (bc_bone_matrix_local_get(ob, bone, bmat, for_opensim)) {
@@ -177,7 +176,6 @@ void BCAnimationSampler::sample_scene(BCExportSettings &export_settings, bool ke
   Scene *scene = blender_context.get_scene();
   BCFrameSet scene_sample_frames;
   get_sample_frames(scene_sample_frames, sampling_rate, keyframe_at_end, scene);
-  BCFrameSet::iterator it;
 
   int startframe = scene->r.sfra;
   int endframe = scene->r.efra;
@@ -221,8 +219,7 @@ bool BCAnimationSampler::is_animated_by_constraint(Object *ob,
                                                    ListBase *conlist,
                                                    std::set<Object *> &animated_objects)
 {
-  bConstraint *con;
-  for (con = (bConstraint *)conlist->first; con; con = con->next) {
+  LISTBASE_FOREACH (bConstraint *, con, conlist) {
     ListBase targets = {nullptr, nullptr};
 
     if (!bc_validateConstraints(con)) {
@@ -230,11 +227,10 @@ bool BCAnimationSampler::is_animated_by_constraint(Object *ob,
     }
 
     if (BKE_constraint_targets_get(con, &targets)) {
-      bConstraintTarget *ct;
       Object *obtar;
       bool found = false;
 
-      for (ct = (bConstraintTarget *)targets.first; ct; ct = ct->next) {
+      LISTBASE_FOREACH (bConstraintTarget *, ct, &targets) {
         obtar = ct->tar;
         if (obtar) {
           if (animated_objects.find(obtar) != animated_objects.end()) {
@@ -259,7 +255,7 @@ void BCAnimationSampler::find_depending_animated(std::set<Object *> &animated_ob
     std::set<Object *>::iterator it;
     for (it = candidates.begin(); it != candidates.end(); ++it) {
       Object *cob = *it;
-      ListBase *conlist = ED_object_constraint_active_list(cob);
+      ListBase *conlist = blender::ed::object::constraint_active_list(cob);
       if (is_animated_by_constraint(cob, conlist, animated_objects)) {
         animated_objects.insert(cob);
         candidates.erase(cob);
@@ -280,7 +276,6 @@ void BCAnimationSampler::get_animated_from_export_set(std::set<Object *> &animat
    */
 
   animated_objects.clear();
-  std::set<Object *> static_objects;
   std::set<Object *> candidates;
 
   LinkNode *node;
@@ -399,7 +394,7 @@ void BCAnimationSampler::generate_transforms(Object *ob, Bone *bone, BCAnimation
   std::string prep = "pose.bones[\"" + std::string(bone->name) + "\"].";
   generate_transforms(ob, prep, BC_ANIMATION_TYPE_BONE, curves);
 
-  for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
+  LISTBASE_FOREACH (Bone *, child, &bone->childbase) {
     generate_transforms(ob, child, curves);
   }
 }
@@ -407,13 +402,13 @@ void BCAnimationSampler::generate_transforms(Object *ob, Bone *bone, BCAnimation
 void BCAnimationSampler::initialize_keyframes(BCFrameSet &frameset, Object *ob)
 {
   frameset.clear();
-  add_keyframes_from(bc_getSceneObjectAction(ob), frameset);
-  add_keyframes_from(bc_getSceneCameraAction(ob), frameset);
-  add_keyframes_from(bc_getSceneLightAction(ob), frameset);
+  add_keyframes_from(ob->adt, frameset);
+  add_keyframes_from(bc_getSceneCameraAnimData(ob), frameset);
+  add_keyframes_from(bc_getSceneLightAnimData(ob), frameset);
 
   for (int a = 0; a < ob->totcol; a++) {
     Material *ma = BKE_object_material_get(ob, a + 1);
-    add_keyframes_from(bc_getSceneMaterialAction(ma), frameset);
+    add_keyframes_from(bc_getSceneMaterialAnimData(ma), frameset);
   }
 }
 
@@ -421,23 +416,18 @@ void BCAnimationSampler::initialize_curves(BCAnimationCurveMap &curves, Object *
 {
   BC_animation_type object_type = BC_ANIMATION_TYPE_OBJECT;
 
-  bAction *action = bc_getSceneObjectAction(ob);
-  if (action) {
-    FCurve *fcu = (FCurve *)action->curves.first;
-
-    for (; fcu; fcu = fcu->next) {
-      object_type = BC_ANIMATION_TYPE_OBJECT;
-      if (ob->type == OB_ARMATURE) {
-        char boneName[MAXBONENAME];
-        if (BLI_str_quoted_substr(fcu->rna_path, "pose.bones[", boneName, sizeof(boneName))) {
-          object_type = BC_ANIMATION_TYPE_BONE;
-        }
+  for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(ob->adt)) {
+    object_type = BC_ANIMATION_TYPE_OBJECT;
+    if (ob->type == OB_ARMATURE) {
+      char boneName[MAXBONENAME];
+      if (BLI_str_quoted_substr(fcu->rna_path, "pose.bones[", boneName, sizeof(boneName))) {
+        object_type = BC_ANIMATION_TYPE_BONE;
       }
-
-      /* Adding action curves on object */
-      BCCurveKey key(object_type, fcu->rna_path, fcu->array_index);
-      curves[key] = new BCAnimationCurve(key, ob, fcu);
     }
+
+    /* Adding action curves on object */
+    BCCurveKey key(object_type, fcu->rna_path, fcu->array_index);
+    curves[key] = new BCAnimationCurve(key, ob, fcu);
   }
 
   /* Add missing curves */
@@ -445,29 +435,26 @@ void BCAnimationSampler::initialize_curves(BCAnimationCurveMap &curves, Object *
   generate_transforms(ob, EMPTY_STRING, object_type, curves);
   if (ob->type == OB_ARMATURE) {
     bArmature *arm = (bArmature *)ob->data;
-    for (Bone *root_bone = (Bone *)arm->bonebase.first; root_bone; root_bone = root_bone->next) {
+    LISTBASE_FOREACH (Bone *, root_bone, &arm->bonebase) {
       generate_transforms(ob, root_bone, curves);
     }
   }
 
   /* Add curves on Object->data actions */
-  action = nullptr;
+  AnimData *adt = nullptr;
   if (ob->type == OB_CAMERA) {
-    action = bc_getSceneCameraAction(ob);
+    adt = bc_getSceneCameraAnimData(ob);
     object_type = BC_ANIMATION_TYPE_CAMERA;
   }
   else if (ob->type == OB_LAMP) {
-    action = bc_getSceneLightAction(ob);
+    adt = bc_getSceneLightAnimData(ob);
     object_type = BC_ANIMATION_TYPE_LIGHT;
   }
 
-  if (action) {
-    /* Add light action or Camera action */
-    FCurve *fcu = (FCurve *)action->curves.first;
-    for (; fcu; fcu = fcu->next) {
-      BCCurveKey key(object_type, fcu->rna_path, fcu->array_index);
-      curves[key] = new BCAnimationCurve(key, ob, fcu);
-    }
+  /* Add light action or Camera action */
+  for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(adt)) {
+    BCCurveKey key(object_type, fcu->rna_path, fcu->array_index);
+    curves[key] = new BCAnimationCurve(key, ob, fcu);
   }
 
   /* Add curves on Object->material actions. */
@@ -476,14 +463,11 @@ void BCAnimationSampler::initialize_curves(BCAnimationCurveMap &curves, Object *
     /* Export Material parameter animations. */
     Material *ma = BKE_object_material_get(ob, a + 1);
     if (ma) {
-      action = bc_getSceneMaterialAction(ma);
-      if (action) {
-        /* isMatAnim = true; */
-        FCurve *fcu = (FCurve *)action->curves.first;
-        for (; fcu; fcu = fcu->next) {
-          BCCurveKey key(object_type, fcu->rna_path, fcu->array_index, a);
-          curves[key] = new BCAnimationCurve(key, ob, fcu);
-        }
+      adt = bc_getSceneMaterialAnimData(ma);
+      // isMatAnim = true;
+      for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(adt)) {
+        BCCurveKey key(object_type, fcu->rna_path, fcu->array_index, a);
+        curves[key] = new BCAnimationCurve(key, ob, fcu);
       }
     }
   }

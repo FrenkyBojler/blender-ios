@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2018 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2018 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -8,9 +9,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_linklist_lockfree.h"
-#include "BLI_strict_flags.h"
 
 #include "atomic_ops.h"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 void BLI_linklist_lockfree_init(LockfreeLinkList *list)
 {

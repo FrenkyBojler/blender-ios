@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,7 +22,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char DensityF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    DensityF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DDouble` > :class:`DensityF1D`\n"
     "\n"
@@ -51,7 +55,7 @@ static char DensityF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The density evaluated for an Interface1D.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int DensityF1D___init__(BPy_DensityF1D *self, PyObject *args, PyObject *kwds)
 {
@@ -61,7 +65,8 @@ static int DensityF1D___init__(BPy_DensityF1D *self, PyObject *args, PyObject *k
   float f = 2.0;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|dO!f", (char **)kwlist, &d, &IntegrationType_Type, &obj, &f)) {
+          args, kwds, "|dO!f", (char **)kwlist, &d, &IntegrationType_Type, &obj, &f))
+  {
     return -1;
   }
   IntegrationType t = (obj) ? IntegrationType_from_BPy_IntegrationType(obj) : MEAN;
@@ -72,7 +77,7 @@ static int DensityF1D___init__(BPy_DensityF1D *self, PyObject *args, PyObject *k
 /*-----------------------BPy_DensityF1D type definition ------------------------------*/
 
 PyTypeObject DensityF1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "DensityF1D",
     /*tp_basicsize*/ sizeof(BPy_DensityF1D),
     /*tp_itemsize*/ 0,

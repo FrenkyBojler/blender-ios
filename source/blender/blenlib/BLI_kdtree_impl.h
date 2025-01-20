@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -11,6 +13,11 @@
 #define _BLI_CONCAT_AUX(MACRO_ARG1, MACRO_ARG2) MACRO_ARG1##MACRO_ARG2
 #define _BLI_CONCAT(MACRO_ARG1, MACRO_ARG2) _BLI_CONCAT_AUX(MACRO_ARG1, MACRO_ARG2)
 #define BLI_kdtree_nd_(id) _BLI_CONCAT(KDTREE_PREFIX_ID, _##id)
+
+/* For auto-complete / `clangd`. */
+#ifndef KD_DIMS
+#  define KD_DIMS 0
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,7 +32,10 @@ typedef struct KDTreeNearest {
   float co[KD_DIMS];
 } KDTreeNearest;
 
-KDTree *BLI_kdtree_nd_(new)(unsigned int maxsize);
+/**
+ * \param nodes_len_capacity: The maximum length this KD-tree may hold.
+ */
+KDTree *BLI_kdtree_nd_(new)(unsigned int nodes_len_capacity);
 void BLI_kdtree_nd_(free)(KDTree *tree);
 void BLI_kdtree_nd_(balance)(KDTree *tree) ATTR_NONNULL(1);
 
@@ -60,7 +70,7 @@ void BLI_kdtree_nd_(range_search_cb)(
 int BLI_kdtree_nd_(calc_duplicates_fast)(const KDTree *tree,
                                          float range,
                                          bool use_index_order,
-                                         int *doubles);
+                                         int *duplicates);
 
 int BLI_kdtree_nd_(deduplicate)(KDTree *tree);
 
@@ -104,6 +114,23 @@ inline void BLI_kdtree_nd_(range_search_cb_cpp)(const KDTree *tree,
         return fn(index, co, dist_sq);
       },
       const_cast<Fn *>(&fn));
+}
+
+template<typename Fn>
+inline int BLI_kdtree_nd_(find_nearest_cb_cpp)(const KDTree *tree,
+                                               const float co[KD_DIMS],
+                                               KDTreeNearest *r_nearest,
+                                               Fn &&fn)
+{
+  return BLI_kdtree_nd_(find_nearest_cb)(
+      tree,
+      co,
+      [](void *user_data, const int index, const float *co, const float dist_sq) {
+        Fn &fn = *static_cast<Fn *>(user_data);
+        return fn(index, co, dist_sq);
+      },
+      &fn,
+      r_nearest);
 }
 #endif
 

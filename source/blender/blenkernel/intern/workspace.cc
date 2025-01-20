@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -10,40 +12,37 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_asset.h"
-#include "BKE_global.h"
-#include "BKE_idprop.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
-#include "BKE_viewer_path.h"
-#include "BKE_workspace.h"
+#include "BKE_asset.hh"
+#include "BKE_global.hh"
+#include "BKE_idprop.hh"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_main.hh"
+#include "BKE_viewer_path.hh"
+#include "BKE_workspace.hh"
 
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 
-#include "DEG_depsgraph.h"
-
 #include "MEM_guardedalloc.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 /* -------------------------------------------------------------------- */
 
 static void workspace_init_data(ID *id)
 {
   WorkSpace *workspace = (WorkSpace *)id;
+
+  workspace->runtime = MEM_new<blender::bke::WorkSpaceRuntime>(__func__);
 
   BKE_asset_library_reference_init_default(&workspace->asset_library_ref);
 }
@@ -61,7 +60,9 @@ static void workspace_free_data(ID *id)
     BKE_workspace_tool_remove(workspace, static_cast<bToolRef *>(workspace->tools.first));
   }
 
-  MEM_SAFE_FREE(workspace->status_text);
+  BKE_workspace_status_clear(workspace);
+  MEM_delete(workspace->runtime);
+
   BKE_viewer_path_clear(&workspace->viewer_path);
 }
 
@@ -101,43 +102,44 @@ static void workspace_blend_read_data(BlendDataReader *reader, ID *id)
 {
   WorkSpace *workspace = (WorkSpace *)id;
 
-  BLO_read_list(reader, &workspace->layouts);
-  BLO_read_list(reader, &workspace->hook_layout_relations);
-  BLO_read_list(reader, &workspace->owner_ids);
-  BLO_read_list(reader, &workspace->tools);
+  BLO_read_struct_list(reader, WorkSpaceLayout, &workspace->layouts);
+  BLO_read_struct_list(reader, WorkSpaceDataRelation, &workspace->hook_layout_relations);
+  BLO_read_struct_list(reader, wmOwnerID, &workspace->owner_ids);
+  BLO_read_struct_list(reader, bToolRef, &workspace->tools);
 
   LISTBASE_FOREACH (WorkSpaceDataRelation *, relation, &workspace->hook_layout_relations) {
     /* Parent pointer does not belong to workspace data and is therefore restored in lib_link step
      * of window manager. */
+    /* FIXME: Should not use that untyped #BLO_read_data_address call, especially since it's
+     * reference-counting the matching data in readfile code. Problem currently is that there is no
+     * type info available for this void pointer (_should_ be pointing to a #WorkSpaceLayout ?), so
+     * #BLO_read_get_new_data_address_no_us cannot be used here. */
     BLO_read_data_address(reader, &relation->value);
   }
 
   LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
     tref->runtime = nullptr;
-    BLO_read_data_address(reader, &tref->properties);
+    BLO_read_struct(reader, IDProperty, &tref->properties);
     IDP_BlendDataRead(reader, &tref->properties);
   }
 
-  workspace->status_text = nullptr;
+  workspace->runtime = MEM_new<blender::bke::WorkSpaceRuntime>(__func__);
+
+  /* Do not keep the scene reference when appending a workspace. Setting a scene for a workspace is
+   * a convenience feature, but the workspace should never truly depend on scene data. */
+  if (ID_IS_LINKED(workspace)) {
+    workspace->pin_scene = nullptr;
+  }
 
   id_us_ensure_real(&workspace->id);
 
   BKE_viewer_path_blend_read_data(reader, &workspace->viewer_path);
 }
 
-static void workspace_blend_read_lib(BlendLibReader *reader, ID *id)
+static void workspace_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 {
-  WorkSpace *workspace = (WorkSpace *)id;
+  WorkSpace *workspace = reinterpret_cast<WorkSpace *>(id);
   Main *bmain = BLO_read_lib_get_main(reader);
-
-  /* Do not keep the scene reference when appending a workspace. Setting a scene for a workspace is
-   * a convenience feature, but the workspace should never truly depend on scene data. */
-  if (ID_IS_LINKED(id)) {
-    workspace->pin_scene = nullptr;
-  }
-  else {
-    BLO_read_id_address(reader, nullptr, &workspace->pin_scene);
-  }
 
   /* Restore proper 'parent' pointers to relevant data, and clean up unused/invalid entries. */
   LISTBASE_FOREACH_MUTABLE (WorkSpaceDataRelation *, relation, &workspace->hook_layout_relations) {
@@ -155,8 +157,6 @@ static void workspace_blend_read_lib(BlendLibReader *reader, ID *id)
   }
 
   LISTBASE_FOREACH_MUTABLE (WorkSpaceLayout *, layout, &workspace->layouts) {
-    BLO_read_id_address(reader, id->lib, &layout->screen);
-
     if (layout->screen) {
       if (ID_IS_LINKED(id)) {
         layout->screen->winid = 0;
@@ -172,29 +172,19 @@ static void workspace_blend_read_lib(BlendLibReader *reader, ID *id)
       BKE_workspace_layout_remove(bmain, workspace, layout);
     }
   }
-
-  BKE_viewer_path_blend_read_lib(reader, id->lib, &workspace->viewer_path);
-}
-
-static void workspace_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  WorkSpace *workspace = (WorkSpace *)id;
-
-  LISTBASE_FOREACH (WorkSpaceLayout *, layout, &workspace->layouts) {
-    BLO_expand(expander, BKE_workspace_layout_screen_get(layout));
-  }
 }
 
 IDTypeInfo IDType_ID_WS = {
     /*id_code*/ ID_WS,
     /*id_filter*/ FILTER_ID_WS,
+    /*dependencies_id_types*/ FILTER_ID_SCE,
     /*main_listbase_index*/ INDEX_ID_WS,
     /*struct_size*/ sizeof(WorkSpace),
     /*name*/ "WorkSpace",
-    /*name_plural*/ "workspaces",
+    /*name_plural*/ N_("workspaces"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_WORKSPACE,
     /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NO_MEMFILE_UNDO,
+        IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
     /*asset_type_info*/ nullptr,
 
     /*init_data*/ workspace_init_data,
@@ -208,8 +198,7 @@ IDTypeInfo IDType_ID_WS = {
 
     /*blend_write*/ workspace_blend_write,
     /*blend_read_data*/ workspace_blend_read_data,
-    /*blend_read_lib*/ workspace_blend_read_lib,
-    /*blend_read_expand*/ workspace_blend_read_expand,
+    /*blend_read_after_liblink*/ workspace_blend_read_after_liblink,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -224,7 +213,7 @@ static void workspace_layout_name_set(WorkSpace *workspace,
                                       WorkSpaceLayout *layout,
                                       const char *new_name)
 {
-  BLI_strncpy(layout->name, new_name, sizeof(layout->name));
+  STRNCPY(layout->name, new_name);
   BLI_uniquename(&workspace->layouts,
                  layout,
                  "Layout",
@@ -309,7 +298,8 @@ static bool UNUSED_FUNCTION(workspaces_is_screen_used)
     (const Main *bmain, bScreen *screen)
 {
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;
-       workspace = static_cast<WorkSpace *>(workspace->id.next)) {
+       workspace = static_cast<WorkSpace *>(workspace->id.next))
+  {
     if (workspace_layout_find_exec(workspace, screen)) {
       return true;
     }
@@ -336,7 +326,8 @@ void BKE_workspace_remove(Main *bmain, WorkSpace *workspace)
   for (WorkSpaceLayout *layout = static_cast<WorkSpaceLayout *>(workspace->layouts.first),
                        *layout_next;
        layout;
-       layout = layout_next) {
+       layout = layout_next)
+  {
     layout_next = layout->next;
     BKE_workspace_layout_remove(bmain, workspace, layout);
   }
@@ -349,7 +340,8 @@ WorkSpaceInstanceHook *BKE_workspace_instance_hook_create(const Main *bmain, con
 
   /* set an active screen-layout for each possible window/workspace combination */
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;
-       workspace = static_cast<WorkSpace *>(workspace->id.next)) {
+       workspace = static_cast<WorkSpace *>(workspace->id.next))
+  {
     BKE_workspace_active_layout_set(
         hook, winid, workspace, static_cast<WorkSpaceLayout *>(workspace->layouts.first));
   }
@@ -365,12 +357,14 @@ void BKE_workspace_instance_hook_free(const Main *bmain, WorkSpaceInstanceHook *
 
   /* Free relations for this hook */
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;
-       workspace = static_cast<WorkSpace *>(workspace->id.next)) {
+       workspace = static_cast<WorkSpace *>(workspace->id.next))
+  {
     for (WorkSpaceDataRelation *relation = static_cast<WorkSpaceDataRelation *>(
                                    workspace->hook_layout_relations.first),
                                *relation_next;
          relation;
-         relation = relation_next) {
+         relation = relation_next)
+    {
       relation_next = relation->next;
       if (relation->parent == hook) {
         workspace_relation_remove(&workspace->hook_layout_relations, relation);
@@ -389,7 +383,7 @@ WorkSpaceLayout *BKE_workspace_layout_add(Main *bmain,
   WorkSpaceLayout *layout = MEM_cnew<WorkSpaceLayout>(__func__);
 
   BLI_assert(!workspaces_is_screen_used(bmain, screen));
-#ifndef DEBUG
+#ifdef NDEBUG
   UNUSED_VARS(bmain);
 #endif
   layout->screen = screen;
@@ -417,7 +411,8 @@ void BKE_workspace_relations_free(ListBase *relation_list)
            relation = static_cast<WorkSpaceDataRelation *>(relation_list->first),
           *relation_next;
        relation;
-       relation = relation_next) {
+       relation = relation_next)
+  {
     relation_next = relation->next;
     workspace_relation_remove(relation_list, relation);
   }
@@ -457,7 +452,8 @@ WorkSpaceLayout *BKE_workspace_layout_find_global(const Main *bmain,
   }
 
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;
-       workspace = static_cast<WorkSpace *>(workspace->id.next)) {
+       workspace = static_cast<WorkSpace *>(workspace->id.next))
+  {
     if ((layout = workspace_layout_find_exec(workspace, screen))) {
       if (r_workspace) {
         *r_workspace = workspace;
@@ -499,7 +495,7 @@ WorkSpaceLayout *BKE_workspace_layout_iter_circular(const WorkSpace *workspace,
   return nullptr;
 }
 
-void BKE_workspace_tool_remove(struct WorkSpace *workspace, struct bToolRef *tref)
+void BKE_workspace_tool_remove(WorkSpace *workspace, bToolRef *tref)
 {
   if (tref->runtime) {
     MEM_freeN(tref->runtime);
@@ -509,6 +505,32 @@ void BKE_workspace_tool_remove(struct WorkSpace *workspace, struct bToolRef *tre
   }
   BLI_remlink(&workspace->tools, tref);
   MEM_freeN(tref);
+}
+
+void BKE_workspace_tool_id_replace_table(WorkSpace *workspace,
+                                         const int space_type,
+                                         const int mode,
+                                         const char *idname_prefix_skip,
+                                         const char *replace_table[][2],
+                                         int replace_table_num)
+{
+  const size_t idname_prefix_len = idname_prefix_skip ? strlen(idname_prefix_skip) : 0;
+  const size_t idname_suffix_len = sizeof(bToolRef::idname) - idname_prefix_len;
+
+  LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
+    if (!(tref->space_type == space_type && tref->mode == mode)) {
+      continue;
+    }
+    char *idname_suffix = tref->idname;
+    if (idname_prefix_skip) {
+      if (!STRPREFIX(idname_suffix, idname_prefix_skip)) {
+        continue;
+      }
+      idname_suffix += idname_prefix_len;
+    }
+    BLI_string_replace_table_exact(
+        idname_suffix, idname_suffix_len, replace_table, replace_table_num);
+  }
 }
 
 bool BKE_workspace_owner_id_check(const WorkSpace *workspace, const char *owner_id)
@@ -616,6 +638,17 @@ void BKE_workspace_layout_name_set(WorkSpace *workspace,
 bScreen *BKE_workspace_layout_screen_get(const WorkSpaceLayout *layout)
 {
   return layout->screen;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Status
+ * \{ */
+
+void BKE_workspace_status_clear(WorkSpace *workspace)
+{
+  workspace->runtime->status.clear_and_shrink();
 }
 
 /** \} */

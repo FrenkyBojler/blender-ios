@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2024 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2006 Blender Foundation. All rights reserved.
 
 # avoid noisy warnings
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
@@ -18,18 +19,28 @@ set(INC_SYS
 
 set(SRC
   Alloc.c
+  CpuArch.c
   LzFind.c
+  LzFindMt.c
+  LzFindOpt.c
   LzmaDec.c
   LzmaEnc.c
   LzmaLib.c
+  Threads.c
 
+  7zTypes.h
+  7zWindows.h
   Alloc.h
+  Compiler.h
+  CpuArch.h
   LzFind.h
+  LzFindMt.h
   LzHash.h
   LzmaDec.h
   LzmaEnc.h
   LzmaLib.h
-  Types.h
+  Precomp.h
+  Threads.h
 )
 
 set(LIB

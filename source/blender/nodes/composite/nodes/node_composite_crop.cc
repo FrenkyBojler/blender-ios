@@ -1,22 +1,24 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup cmpnodes
  */
 
+#include "BKE_node.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_vector_types.hh"
 
 #include "DNA_node_types.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "GPU_shader.h"
-#include "GPU_texture.h"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -31,10 +33,10 @@ NODE_STORAGE_FUNCS(NodeTwoXYs)
 
 static void cmp_node_crop_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>(N_("Image"))
+  b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
-  b.add_output<decl::Color>(N_("Image"));
+  b.add_output<decl::Color>("Image");
 }
 
 static void node_composit_init_crop(bNodeTree * /*ntree*/, bNode *node)
@@ -51,8 +53,8 @@ static void node_composit_buts_crop(uiLayout *layout, bContext * /*C*/, PointerR
 {
   uiLayout *col;
 
-  uiItemR(layout, ptr, "use_crop_size", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "relative", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_crop_size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "relative", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
   col = uiLayoutColumn(layout, true);
   if (RNA_boolean_get(ptr, "relative")) {
@@ -69,7 +71,7 @@ static void node_composit_buts_crop(uiLayout *layout, bContext * /*C*/, PointerR
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class CropOperation : public NodeOperation {
  public:
@@ -95,7 +97,17 @@ class CropOperation : public NodeOperation {
    * same domain as the input image. */
   void execute_alpha_crop()
   {
-    GPUShader *shader = shader_manager().get("compositor_alpha_crop");
+    if (this->context().use_gpu()) {
+      this->execute_alpha_crop_gpu();
+    }
+    else {
+      this->execute_alpha_crop_cpu();
+    }
+  }
+
+  void execute_alpha_crop_gpu()
+  {
+    GPUShader *shader = context().get_shader("compositor_alpha_crop");
     GPU_shader_bind(shader);
 
     int2 lower_bound, upper_bound;
@@ -119,8 +131,39 @@ class CropOperation : public NodeOperation {
     GPU_shader_unbind();
   }
 
+  void execute_alpha_crop_cpu()
+  {
+    int2 lower_bound, upper_bound;
+    compute_cropping_bounds(lower_bound, upper_bound);
+
+    const Result &input = get_input("Image");
+
+    const Domain domain = compute_domain();
+    Result &output = get_result("Image");
+    output.allocate_texture(domain);
+
+    parallel_for(domain.size, [&](const int2 texel) {
+      /* The lower bound is inclusive and upper bound is exclusive. */
+      bool is_inside = texel.x >= lower_bound.x && texel.y >= lower_bound.y &&
+                       texel.x < upper_bound.x && texel.y < upper_bound.y;
+      /* Write the pixel color if it is inside the cropping region, otherwise, write zero. */
+      float4 color = is_inside ? input.load_pixel<float4>(texel) : float4(0.0f);
+      output.store_pixel(texel, color);
+    });
+  }
+
   /* Crop the image into a new size that matches the cropping bounds. */
   void execute_image_crop()
+  {
+    if (this->context().use_gpu()) {
+      this->execute_image_crop_gpu();
+    }
+    else {
+      this->execute_image_crop_cpu();
+    }
+  }
+
+  void execute_image_crop_gpu()
   {
     int2 lower_bound, upper_bound;
     compute_cropping_bounds(lower_bound, upper_bound);
@@ -132,7 +175,7 @@ class CropOperation : public NodeOperation {
       return;
     }
 
-    GPUShader *shader = shader_manager().get("compositor_image_crop");
+    GPUShader *shader = context().get_shader("compositor_image_crop");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
@@ -151,6 +194,29 @@ class CropOperation : public NodeOperation {
     input_image.unbind_as_texture();
     output_image.unbind_as_image();
     GPU_shader_unbind();
+  }
+
+  void execute_image_crop_cpu()
+  {
+    int2 lower_bound, upper_bound;
+    compute_cropping_bounds(lower_bound, upper_bound);
+
+    /* The image is cropped into nothing, so just return a single zero value. */
+    if (lower_bound.x == upper_bound.x || lower_bound.y == upper_bound.y) {
+      Result &result = get_result("Image");
+      result.allocate_invalid();
+      return;
+    }
+
+    const Result &input = get_input("Image");
+
+    const int2 size = upper_bound - lower_bound;
+    Result &output = get_result("Image");
+    output.allocate_texture(Domain(size, compute_domain().transformation));
+
+    parallel_for(size, [&](const int2 texel) {
+      output.store_pixel(texel, input.load_pixel<float4>(texel + lower_bound));
+    });
   }
 
   /* If true, the image should actually be cropped into a new size. Otherwise, if false, the region
@@ -225,14 +291,21 @@ void register_node_type_cmp_crop()
 {
   namespace file_ns = blender::nodes::node_composite_crop_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_CROP, "Crop", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodeCrop", CMP_NODE_CROP);
+  ntype.ui_name = "Crop";
+  ntype.ui_description =
+      "Crops image to a smaller region, either making the cropped area transparent or resizing "
+      "the image";
+  ntype.enum_name_legacy = "CROP";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_crop_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_crop;
   ntype.initfunc = file_ns::node_composit_init_crop;
-  node_type_storage(&ntype, "NodeTwoXYs", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      &ntype, "NodeTwoXYs", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -11,7 +13,7 @@
 
 #include "BLI_sys_types.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 namespace Freestyle {
 
@@ -51,7 +53,7 @@ bool CulledOccluderSource::next()
     }
   }
   if (G.debug & G_DEBUG_FREESTYLE) {
-    std::cout << "Finished generating occluders.  Rejected " << rejected << " faces." << std::endl;
+    std::cout << "Finished generating occluders. Rejected " << rejected << " faces." << std::endl;
   }
   return false;
 }
@@ -175,7 +177,7 @@ void CulledOccluderSource::cullViewEdges(ViewMap &viewMap, bool extensiveFEdgeSe
 
     // Either we have run out of FEdges, or we already have the one edge we need to determine
     // visibility Cull all remaining edges.
-    while (!ELEM(fe, NULL, festart)) {
+    while (!ELEM(fe, nullptr, festart)) {
       fe->setIsInImage(false);
       fe = fe->nextEdge();
     }
@@ -237,7 +239,7 @@ void CulledOccluderSource::cullViewEdges(ViewMap &viewMap, bool extensiveFEdgeSe
           expandGridSpaceOccluderProscenium(fe);
         }
         fe = fe->nextEdge();
-      } while (!ELEM(fe, NULL, festart));
+      } while (!ELEM(fe, nullptr, festart));
     }
   }
 

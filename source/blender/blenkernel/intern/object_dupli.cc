@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -9,62 +10,61 @@
 #include <cstddef>
 #include <cstdlib>
 
+#include <fmt/format.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
 
 #include "BLI_array.hh"
-#include "BLI_math.h"
-#include "BLI_math_matrix.hh"
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.hh"
 #include "BLI_rand.h"
 #include "BLI_span.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
-#include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_vfont_types.h"
 #include "DNA_volume_types.h"
 
-#include "BKE_collection.h"
-#include "BKE_duplilist.h"
-#include "BKE_editmesh.h"
-#include "BKE_editmesh_cache.h"
-#include "BKE_geometry_set.h"
+#include "BKE_collection.hh"
+#include "BKE_duplilist.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_editmesh_cache.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_global.h"
-#include "BKE_idprop.h"
+#include "BKE_geometry_set_instances.hh"
+#include "BKE_global.hh"
+#include "BKE_idprop.hh"
 #include "BKE_instances.hh"
-#include "BKE_lattice.h"
-#include "BKE_main.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_iterators.h"
-#include "BKE_mesh_runtime.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_main.hh"
+#include "BKE_mesh.hh"
+#include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_particle.h"
-#include "BKE_scene.h"
-#include "BKE_type_conversions.hh"
-#include "BKE_vfont.h"
+#include "BKE_vfont.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "BLI_hash.h"
 #include "DNA_world_types.h"
 
 #include "NOD_geometry_nodes_log.hh"
-#include "RNA_access.h"
-#include "RNA_path.h"
-#include "RNA_prototypes.h"
-#include "RNA_types.h"
+#include "RNA_access.hh"
+#include "RNA_path.hh"
+#include "RNA_prototypes.hh"
+
+#include "MOD_nodes.hh"
 
 using blender::Array;
 using blender::float2;
@@ -72,6 +72,7 @@ using blender::float3;
 using blender::float4x4;
 using blender::Span;
 using blender::Vector;
+using blender::bke::GeometrySet;
 using blender::bke::InstanceReference;
 using blender::bke::Instances;
 namespace geo_log = blender::nodes::geo_eval_log;
@@ -117,7 +118,7 @@ struct DupliContext {
    * decisions. However, new code uses geometry instances in places that weren't using the dupli
    * system previously. To fix this, keep track of the last dupli generator type that wasn't a
    * geometry set instance.
-   * */
+   */
   Vector<short> *dupli_gen_type_stack;
 
   int persistent_id[MAX_DUPLI_RECUR];
@@ -132,7 +133,8 @@ struct DupliContext {
 };
 
 struct DupliGenerator {
-  short type; /* Dupli Type, see members of #OB_DUPLI. */
+  /** Duplicator Type, see members of #OB_DUPLI. */
+  short type;
   void (*make_duplis)(const DupliContext *ctx);
 };
 
@@ -206,7 +208,26 @@ static bool copy_dupli_context(DupliContext *r_ctx,
   ++r_ctx->level;
 
   if (r_ctx->level == MAX_DUPLI_RECUR - 1) {
-    std::cerr << "Warning: Maximum instance recursion level reached.\n";
+    const blender::StringRef object_name = ob ? ob->id.name + 2 : "";
+    const blender::StringRef geometry_name = geometry ? geometry->name : "";
+
+    if (geometry_name.is_empty() && !object_name.is_empty()) {
+      std::cerr << fmt::format(
+          "Warning: Maximum instance recursion level reached in \"{}\" object.\n", object_name);
+    }
+    if (!geometry_name.is_empty() && object_name.is_empty()) {
+      std::cerr << fmt::format(
+          "Warning: Maximum instance recursion level reached at \"{}\" geometry.\n",
+          geometry_name);
+    }
+    if (!geometry_name.is_empty() && !object_name.is_empty()) {
+      std::cerr << fmt::format(
+          "Warning: Maximum instance recursion level reached at \"{}\" geometry in \"{}\" "
+          "object.\n",
+          geometry_name,
+          object_name);
+    }
+
     return false;
   }
 
@@ -265,7 +286,7 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 
   /* Store geometry set data for attribute lookup in innermost to outermost
    * order, copying only non-null entries to save space. */
-  const int max_instance = sizeof(dob->instance_data) / sizeof(void *);
+  const int max_instance = ARRAY_SIZE(dob->instance_data);
   int next_instance = 0;
   if (geometry != nullptr) {
     dob->instance_idx[next_instance] = int(instance_index);
@@ -406,7 +427,7 @@ static void make_child_duplis(const DupliContext *ctx,
   }
   else {
     /* FIXME: using a mere counter to generate a 'persistent' dupli id is very weak. One possible
-     * better solution could be to use `session_uuid` of ID's instead? */
+     * better solution could be to use `session_uid` of ID's instead? */
     int persistent_dupli_id = 0;
     DEGObjectIterSettings deg_iter_settings{};
     deg_iter_settings.depsgraph = ctx->depsgraph;
@@ -445,17 +466,17 @@ static void make_child_duplis(const DupliContext *ctx,
 
 static const Mesh *mesh_data_from_duplicator_object(Object *ob,
                                                     BMEditMesh **r_em,
-                                                    const float (**r_vert_coords)[3],
-                                                    const float (**r_vert_normals)[3])
+                                                    Span<float3> *r_vert_coords,
+                                                    Span<float3> *r_vert_normals)
 {
   /* Gather mesh info. */
   BMEditMesh *em = BKE_editmesh_from_object(ob);
-  const Mesh *me_eval;
+  const Mesh *mesh_eval;
 
   *r_em = nullptr;
-  *r_vert_coords = nullptr;
+  *r_vert_coords = {};
   if (r_vert_normals != nullptr) {
-    *r_vert_normals = nullptr;
+    *r_vert_normals = {};
   }
 
   /* We do not need any render-specific handling anymore, depsgraph takes care of that. */
@@ -465,27 +486,26 @@ static const Mesh *mesh_data_from_duplicator_object(Object *ob,
   if (em != nullptr) {
     /* Note that this will only show deformation if #eModifierMode_OnCage is enabled.
      * We could change this but it matches 2.7x behavior. */
-    me_eval = BKE_object_get_editmesh_eval_cage(ob);
-    if ((me_eval == nullptr) || (me_eval->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH)) {
-      EditMeshData *emd = me_eval ? me_eval->runtime->edit_data : nullptr;
+    mesh_eval = BKE_object_get_editmesh_eval_cage(ob);
+    if ((mesh_eval == nullptr) || (mesh_eval->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH)) {
+      blender::bke::EditMeshData *emd = mesh_eval ? mesh_eval->runtime->edit_data.get() : nullptr;
 
-      /* Only assign edit-mesh in the case we can't use `me_eval`. */
+      /* Only assign edit-mesh in the case we can't use `mesh_eval`. */
       *r_em = em;
-      me_eval = nullptr;
+      mesh_eval = nullptr;
 
-      if ((emd != nullptr) && (emd->vertexCos != nullptr)) {
-        *r_vert_coords = emd->vertexCos;
+      if ((emd != nullptr) && !emd->vert_positions.is_empty()) {
+        *r_vert_coords = emd->vert_positions;
         if (r_vert_normals != nullptr) {
-          BKE_editmesh_cache_ensure_vert_normals(em, emd);
-          *r_vert_normals = emd->vertexNos;
+          *r_vert_normals = BKE_editmesh_cache_ensure_vert_normals(*em, *emd);
         }
       }
     }
   }
   else {
-    me_eval = BKE_object_get_evaluated_mesh(ob);
+    mesh_eval = BKE_object_get_evaluated_mesh(ob);
   }
-  return me_eval;
+  return mesh_eval;
 }
 
 /** \} */
@@ -508,8 +528,8 @@ static void make_duplis_collection(const DupliContext *ctx)
   /* Combine collection offset and `obmat`. */
   unit_m4(collection_mat);
   sub_v3_v3(collection_mat[3], collection->instance_offset);
-  mul_m4_m4m4(collection_mat, ob->object_to_world, collection_mat);
-  /* Don't access 'ob->object_to_world' from now on. */
+  mul_m4_m4m4(collection_mat, ob->object_to_world().ptr(), collection_mat);
+  /* Don't access 'ob->object_to_world().ptr()' from now on. */
 
   eEvaluationMode mode = DEG_get_mode(ctx->depsgraph);
   FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (collection, cob, mode) {
@@ -517,7 +537,7 @@ static void make_duplis_collection(const DupliContext *ctx)
       float mat[4][4];
 
       /* Collection dupli-offset, should apply after everything else. */
-      mul_m4_m4m4(mat, collection_mat, cob->object_to_world);
+      mul_m4_m4m4(mat, collection_mat, cob->object_to_world().ptr());
 
       make_dupli(ctx, cob, mat, _base_id);
 
@@ -554,7 +574,7 @@ struct VertexDupliData_Mesh {
 
   int totvert;
   Span<float3> vert_positions;
-  const float (*vert_normals)[3];
+  Span<float3> vert_normals;
 
   const float (*orco)[3];
 };
@@ -564,9 +584,9 @@ struct VertexDupliData_EditMesh {
 
   BMEditMesh *em;
 
-  /* Can be nullptr. */
-  const float (*vert_positions_deform)[3];
-  const float (*vert_normals_deform)[3];
+  /* Can be empty. */
+  Span<float3> vert_positions_deform;
+  Span<float3> vert_normals_deform;
 
   /**
    * \note The edit-mesh may assign #DupliObject.orco in cases when a regular mesh wouldn't.
@@ -583,8 +603,8 @@ struct VertexDupliData_EditMesh {
  * currently this is copied from a `short[3]` normal without division.
  * Can be null when \a use_rotation is false.
  */
-static void get_duplivert_transform(const float co[3],
-                                    const float no[3],
+static void get_duplivert_transform(const float3 &co,
+                                    const float3 &no,
                                     const bool use_rotation,
                                     const short axis,
                                     const short upflag,
@@ -610,8 +630,8 @@ static DupliObject *vertex_dupli(const DupliContext *ctx,
                                  Object *inst_ob,
                                  const float child_imat[4][4],
                                  int index,
-                                 const float co[3],
-                                 const float no[3],
+                                 const float3 &co,
+                                 const float3 &no,
                                  const bool use_rotation)
 {
   /* `obmat` is transform to vertex. */
@@ -623,11 +643,11 @@ static DupliObject *vertex_dupli(const DupliContext *ctx,
   /* Make offset relative to inst_ob using relative child transform. */
   mul_mat3_m4_v3(child_imat, obmat[3]);
   /* Apply `obmat` _after_ the local vertex transform. */
-  mul_m4_m4m4(obmat, inst_ob->object_to_world, obmat);
+  mul_m4_m4m4(obmat, inst_ob->object_to_world().ptr(), obmat);
 
   /* Space matrix is constructed by removing `obmat` transform,
    * this yields the world-space transform for recursive duplis. */
-  mul_m4_m4m4(space_mat, obmat, inst_ob->world_to_object);
+  mul_m4_m4m4(space_mat, obmat, inst_ob->world_to_object().ptr());
 
   DupliObject *dob = make_dupli(ctx, inst_ob, obmat, index);
 
@@ -646,10 +666,10 @@ static void make_child_duplis_verts_from_mesh(const DupliContext *ctx,
 
   const int totvert = vdd->totvert;
 
-  invert_m4_m4(inst_ob->world_to_object, inst_ob->object_to_world);
+  invert_m4_m4(inst_ob->runtime->world_to_object.ptr(), inst_ob->object_to_world().ptr());
   /* Relative transform from parent to child space. */
   float child_imat[4][4];
-  mul_m4_m4m4(child_imat, inst_ob->world_to_object, ctx->object->object_to_world);
+  mul_m4_m4m4(child_imat, inst_ob->world_to_object().ptr(), ctx->object->object_to_world().ptr());
 
   for (int i = 0; i < totvert; i++) {
     DupliObject *dob = vertex_dupli(vdd->params.ctx,
@@ -673,23 +693,22 @@ static void make_child_duplis_verts_from_editmesh(const DupliContext *ctx,
   BMEditMesh *em = vdd->em;
   const bool use_rotation = vdd->params.use_rotation;
 
-  invert_m4_m4(inst_ob->world_to_object, inst_ob->object_to_world);
+  invert_m4_m4(inst_ob->runtime->world_to_object.ptr(), inst_ob->object_to_world().ptr());
   /* Relative transform from parent to child space. */
   float child_imat[4][4];
-  mul_m4_m4m4(child_imat, inst_ob->world_to_object, ctx->object->object_to_world);
+  mul_m4_m4m4(child_imat, inst_ob->world_to_object().ptr(), ctx->object->object_to_world().ptr());
 
   BMVert *v;
   BMIter iter;
   int i;
 
-  const float(*vert_positions_deform)[3] = vdd->vert_positions_deform;
-  const float(*vert_normals_deform)[3] = vdd->vert_normals_deform;
-
+  const Span<float3> vert_positions_deform = vdd->vert_positions_deform;
+  const Span<float3> vert_normals_deform = vdd->vert_normals_deform;
   BM_ITER_MESH_INDEX (v, &iter, em->bm, BM_VERTS_OF_MESH, i) {
-    const float *co, *no;
-    if (vert_positions_deform != nullptr) {
+    float3 co, no;
+    if (!vert_positions_deform.is_empty()) {
       co = vert_positions_deform[i];
-      no = vert_normals_deform ? vert_normals_deform[i] : nullptr;
+      no = !vert_normals_deform.is_empty() ? vert_normals_deform[i] : float3(0);
     }
     else {
       co = v->co;
@@ -710,11 +729,11 @@ static void make_duplis_verts(const DupliContext *ctx)
 
   /* Gather mesh info. */
   BMEditMesh *em = nullptr;
-  const float(*vert_positions_deform)[3] = nullptr;
-  const float(*vert_normals_deform)[3] = nullptr;
-  const Mesh *me_eval = mesh_data_from_duplicator_object(
+  Span<float3> vert_positions_deform;
+  Span<float3> vert_normals_deform;
+  const Mesh *mesh_eval = mesh_data_from_duplicator_object(
       parent, &em, &vert_positions_deform, use_rotation ? &vert_normals_deform : nullptr);
-  if (em == nullptr && me_eval == nullptr) {
+  if (em == nullptr && mesh_eval == nullptr) {
     return;
   }
 
@@ -726,17 +745,17 @@ static void make_duplis_verts(const DupliContext *ctx)
     vdd.em = em;
     vdd.vert_positions_deform = vert_positions_deform;
     vdd.vert_normals_deform = vert_normals_deform;
-    vdd.has_orco = (vert_positions_deform != nullptr);
+    vdd.has_orco = !vert_positions_deform.is_empty();
 
     make_child_duplis(ctx, &vdd, make_child_duplis_verts_from_editmesh);
   }
   else {
     VertexDupliData_Mesh vdd{};
     vdd.params = vdd_params;
-    vdd.totvert = me_eval->totvert;
-    vdd.vert_positions = me_eval->vert_positions();
-    vdd.vert_normals = BKE_mesh_vertex_normals_ensure(me_eval);
-    vdd.orco = (const float(*)[3])CustomData_get_layer(&me_eval->vdata, CD_ORCO);
+    vdd.totvert = mesh_eval->verts_num;
+    vdd.vert_positions = mesh_eval->vert_positions();
+    vdd.vert_normals = mesh_eval->vert_normals();
+    vdd.orco = (const float(*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
 
     make_child_duplis(ctx, &vdd, make_child_duplis_verts_from_mesh);
   }
@@ -788,7 +807,7 @@ static void make_duplis_font(const DupliContext *ctx)
   GHash *family_gh;
   Object *ob;
   Curve *cu;
-  struct CharTrans *ct, *chartransdata = nullptr;
+  CharTrans *ct, *chartransdata = nullptr;
   float vec[3], obmat[4][4], pmat[4][4], fsize, xof, yof;
   int text_len, a;
   size_t family_len;
@@ -800,7 +819,7 @@ static void make_duplis_font(const DupliContext *ctx)
     return;
   }
 
-  copy_m4_m4(pmat, par->object_to_world);
+  copy_m4_m4(pmat, par->object_to_world().ptr());
 
   /* In `par` the family name is stored, use this to find the other objects. */
 
@@ -845,7 +864,7 @@ static void make_duplis_font(const DupliContext *ctx)
 
       mul_m4_v3(pmat, vec);
 
-      copy_m4_m4(obmat, par->object_to_world);
+      copy_m4_m4(obmat, par->object_to_world().ptr());
 
       if (UNLIKELY(ct->rot != 0.0f)) {
         float rmat[4][4];
@@ -888,19 +907,21 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
 {
   int component_index = 0;
   if (ctx->object->type != OB_MESH || geometry_set_is_instance) {
-    if (const Mesh *mesh = geometry_set.get_mesh_for_read()) {
+    if (const Mesh *mesh = geometry_set.get_mesh()) {
       make_dupli(ctx, ctx->object, &mesh->id, parent_transform, component_index++);
     }
   }
   if (ctx->object->type != OB_VOLUME || geometry_set_is_instance) {
-    if (const Volume *volume = geometry_set.get_volume_for_read()) {
+    if (const Volume *volume = geometry_set.get_volume()) {
       make_dupli(ctx, ctx->object, &volume->id, parent_transform, component_index++);
     }
   }
   if (!ELEM(ctx->object->type, OB_CURVES_LEGACY, OB_FONT, OB_CURVES) || geometry_set_is_instance) {
-    if (const CurveComponent *component = geometry_set.get_component_for_read<CurveComponent>()) {
+    if (const blender::bke::CurveComponent *component =
+            geometry_set.get_component<blender::bke::CurveComponent>())
+    {
       if (use_new_curves_type) {
-        if (const Curves *curves = component->get_for_read()) {
+        if (const Curves *curves = component->get()) {
           make_dupli(ctx, ctx->object, &curves->id, parent_transform, component_index++);
         }
       }
@@ -912,13 +933,18 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
     }
   }
   if (ctx->object->type != OB_POINTCLOUD || geometry_set_is_instance) {
-    if (const PointCloud *pointcloud = geometry_set.get_pointcloud_for_read()) {
+    if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
       make_dupli(ctx, ctx->object, &pointcloud->id, parent_transform, component_index++);
+    }
+  }
+  if (ctx->object->type != OB_GREASE_PENCIL || geometry_set_is_instance) {
+    if (const GreasePencil *grease_pencil = geometry_set.get_grease_pencil()) {
+      make_dupli(ctx, ctx->object, &grease_pencil->id, parent_transform, component_index++);
     }
   }
   const bool creates_duplis_for_components = component_index >= 1;
 
-  const Instances *instances = geometry_set.get_instances_for_read();
+  const Instances *instances = geometry_set.get_instances();
   if (instances == nullptr) {
     return;
   }
@@ -960,7 +986,8 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
         make_dupli(ctx_for_instance, &object, matrix, id, &geometry_set, i);
 
         float space_matrix[4][4];
-        mul_m4_m4m4(space_matrix, instance_offset_matrices[i].ptr(), object.world_to_object);
+        mul_m4_m4m4(
+            space_matrix, instance_offset_matrices[i].ptr(), object.world_to_object().ptr());
         mul_m4_m4_pre(space_matrix, parent_transform);
         make_recursive_duplis(ctx_for_instance, &object, space_matrix, id, &geometry_set, i);
         break;
@@ -980,7 +1007,8 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
                                 nullptr,
                                 id,
                                 &geometry_set,
-                                i)) {
+                                i))
+        {
           break;
         }
 
@@ -992,7 +1020,7 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
           }
 
           float instance_matrix[4][4];
-          mul_m4_m4m4(instance_matrix, collection_matrix, object->object_to_world);
+          mul_m4_m4m4(instance_matrix, collection_matrix, object->object_to_world().ptr());
 
           make_dupli(&sub_ctx, object, instance_matrix, object_id++);
           make_recursive_duplis(&sub_ctx, object, collection_matrix, object_id++);
@@ -1011,7 +1039,8 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
                                nullptr,
                                id,
                                &geometry_set,
-                               i)) {
+                               i))
+        {
           make_duplis_geometry_set_impl(
               &sub_ctx, reference.geometry_set(), new_transform, true, false);
         }
@@ -1026,8 +1055,9 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
 
 static void make_duplis_geometry_set(const DupliContext *ctx)
 {
-  const GeometrySet *geometry_set = ctx->object->runtime.geometry_set_eval;
-  make_duplis_geometry_set_impl(ctx, *geometry_set, ctx->object->object_to_world, false, false);
+  const GeometrySet *geometry_set = ctx->object->runtime->geometry_set_eval;
+  make_duplis_geometry_set_impl(
+      ctx, *geometry_set, ctx->object->object_to_world().ptr(), false, false);
 }
 
 static const DupliGenerator gen_dupli_geometry_set = {
@@ -1056,8 +1086,8 @@ struct FaceDupliData_Mesh {
   FaceDupliData_Params params;
 
   int totface;
-  const MPoly *mpoly;
-  const MLoop *mloop;
+  blender::OffsetIndices<int> faces;
+  Span<int> corner_verts;
   Span<float3> vert_positions;
   const float (*orco)[3];
   const float2 *mloopuv;
@@ -1070,8 +1100,8 @@ struct FaceDupliData_EditMesh {
 
   bool has_orco, has_uvs;
   int cd_loop_uv_offset;
-  /* Can be nullptr. */
-  const float (*vert_positions_deform)[3];
+  /* Can be empty. */
+  Span<float3> vert_positions_deform;
 };
 
 static void get_dupliface_transform_from_coords(Span<float3> coords,
@@ -1133,11 +1163,11 @@ static DupliObject *face_dupli(const DupliContext *ctx,
   }
 
   /* Apply `obmat` _after_ the local face transform. */
-  mul_m4_m4m4(obmat, inst_ob->object_to_world, obmat);
+  mul_m4_m4m4(obmat, inst_ob->object_to_world().ptr(), obmat);
 
   /* Space matrix is constructed by removing `obmat` transform,
    * this yields the world-space transform for recursive duplis. */
-  mul_m4_m4m4(space_mat, obmat, inst_ob->world_to_object);
+  mul_m4_m4m4(space_mat, obmat, inst_ob->world_to_object().ptr());
 
   DupliObject *dob = make_dupli(ctx, inst_ob, obmat, index);
 
@@ -1155,16 +1185,13 @@ static DupliObject *face_dupli_from_mesh(const DupliContext *ctx,
                                          const float scale_fac,
 
                                          /* Mesh variables. */
-                                         const MPoly *mpoly,
-                                         const MLoop *mloopstart,
+                                         const Span<int> face_verts,
                                          const Span<float3> vert_positions)
 {
-  const int coords_len = mpoly->totloop;
-  Array<float3, 64> coords(coords_len);
+  Array<float3, 64> coords(face_verts.size());
 
-  const MLoop *ml = mloopstart;
-  for (int i = 0; i < coords_len; i++, ml++) {
-    coords[i] = vert_positions[ml->v];
+  for (int i = 0; i < face_verts.size(); i++) {
+    coords[i] = vert_positions[face_verts[i]];
   }
 
   return face_dupli(ctx, inst_ob, child_imat, index, use_scale, scale_fac, coords);
@@ -1179,7 +1206,7 @@ static DupliObject *face_dupli_from_editmesh(const DupliContext *ctx,
 
                                              /* Mesh variables. */
                                              BMFace *f,
-                                             const float (*vert_positions_deform)[3])
+                                             const Span<float3> vert_positions_deform)
 {
   const int coords_len = f->len;
   Array<float3, 64> coords(coords_len);
@@ -1187,7 +1214,7 @@ static DupliObject *face_dupli_from_editmesh(const DupliContext *ctx,
   BMLoop *l_first, *l_iter;
   int i = 0;
   l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-  if (vert_positions_deform != nullptr) {
+  if (!vert_positions_deform.is_empty()) {
     do {
       copy_v3_v3(coords[i++], vert_positions_deform[BM_elem_index_get(l_iter->v)]);
     } while ((l_iter = l_iter->next) != l_first);
@@ -1206,42 +1233,39 @@ static void make_child_duplis_faces_from_mesh(const DupliContext *ctx,
                                               Object *inst_ob)
 {
   FaceDupliData_Mesh *fdd = (FaceDupliData_Mesh *)userdata;
-  const MPoly *mpoly = fdd->mpoly, *mp;
-  const MLoop *mloop = fdd->mloop;
   const float(*orco)[3] = fdd->orco;
   const float2 *mloopuv = fdd->mloopuv;
   const int totface = fdd->totface;
   const bool use_scale = fdd->params.use_scale;
-  int a;
 
   float child_imat[4][4];
 
-  invert_m4_m4(inst_ob->world_to_object, inst_ob->object_to_world);
+  invert_m4_m4(inst_ob->runtime->world_to_object.ptr(), inst_ob->object_to_world().ptr());
   /* Relative transform from parent to child space. */
-  mul_m4_m4m4(child_imat, inst_ob->world_to_object, ctx->object->object_to_world);
+  mul_m4_m4m4(child_imat, inst_ob->world_to_object().ptr(), ctx->object->object_to_world().ptr());
   const float scale_fac = ctx->object->instance_faces_scale;
 
-  for (a = 0, mp = mpoly; a < totface; a++, mp++) {
-    const MLoop *loopstart = mloop + mp->loopstart;
+  for (const int a : blender::IndexRange(totface)) {
+    const blender::IndexRange face = fdd->faces[a];
+    const Span<int> face_verts = fdd->corner_verts.slice(face);
     DupliObject *dob = face_dupli_from_mesh(fdd->params.ctx,
                                             inst_ob,
                                             child_imat,
                                             a,
                                             use_scale,
                                             scale_fac,
-                                            mp,
-                                            loopstart,
+                                            face_verts,
                                             fdd->vert_positions);
 
-    const float w = 1.0f / float(mp->totloop);
+    const float w = 1.0f / float(face.size());
     if (orco) {
-      for (int j = 0; j < mp->totloop; j++) {
-        madd_v3_v3fl(dob->orco, orco[loopstart[j].v], w);
+      for (int j = 0; j < face.size(); j++) {
+        madd_v3_v3fl(dob->orco, orco[face_verts[j]], w);
       }
     }
     if (mloopuv) {
-      for (int j = 0; j < mp->totloop; j++) {
-        madd_v2_v2fl(dob->uv, mloopuv[mp->loopstart + j], w);
+      for (int j = 0; j < face.size(); j++) {
+        madd_v2_v2fl(dob->uv, mloopuv[face[j]], w);
       }
     }
   }
@@ -1259,13 +1283,13 @@ static void make_child_duplis_faces_from_editmesh(const DupliContext *ctx,
   BMIter iter;
   const bool use_scale = fdd->params.use_scale;
 
-  const float(*vert_positions_deform)[3] = fdd->vert_positions_deform;
+  const Span<float3> vert_positions_deform = fdd->vert_positions_deform;
 
-  BLI_assert((vert_positions_deform == nullptr) || (em->bm->elem_index_dirty & BM_VERT) == 0);
+  BLI_assert(vert_positions_deform.is_empty() || (em->bm->elem_index_dirty & BM_VERT) == 0);
 
-  invert_m4_m4(inst_ob->world_to_object, inst_ob->object_to_world);
+  invert_m4_m4(inst_ob->runtime->world_to_object.ptr(), inst_ob->object_to_world().ptr());
   /* Relative transform from parent to child space. */
-  mul_m4_m4m4(child_imat, inst_ob->world_to_object, ctx->object->object_to_world);
+  mul_m4_m4m4(child_imat, inst_ob->world_to_object().ptr(), ctx->object->object_to_world().ptr());
   const float scale_fac = ctx->object->instance_faces_scale;
 
   BM_ITER_MESH_INDEX (f, &iter, em->bm, BM_FACES_OF_MESH, a) {
@@ -1292,10 +1316,10 @@ static void make_duplis_faces(const DupliContext *ctx)
 
   /* Gather mesh info. */
   BMEditMesh *em = nullptr;
-  const float(*vert_positions_deform)[3] = nullptr;
-  const Mesh *me_eval = mesh_data_from_duplicator_object(
+  Span<float3> vert_positions_deform;
+  const Mesh *mesh_eval = mesh_data_from_duplicator_object(
       parent, &em, &vert_positions_deform, nullptr);
-  if (em == nullptr && me_eval == nullptr) {
+  if (em == nullptr && mesh_eval == nullptr) {
     return;
   }
 
@@ -1307,7 +1331,7 @@ static void make_duplis_faces(const DupliContext *ctx)
     fdd.params = fdd_params;
     fdd.em = em;
     fdd.vert_positions_deform = vert_positions_deform;
-    fdd.has_orco = (vert_positions_deform != nullptr);
+    fdd.has_orco = !vert_positions_deform.is_empty();
     fdd.has_uvs = (uv_idx != -1);
     fdd.cd_loop_uv_offset = (uv_idx != -1) ?
                                 CustomData_get_n_offset(&em->bm->ldata, CD_PROP_FLOAT2, uv_idx) :
@@ -1315,17 +1339,17 @@ static void make_duplis_faces(const DupliContext *ctx)
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_editmesh);
   }
   else {
-    const int uv_idx = CustomData_get_render_layer(&me_eval->ldata, CD_PROP_FLOAT2);
+    const int uv_idx = CustomData_get_render_layer(&mesh_eval->corner_data, CD_PROP_FLOAT2);
     FaceDupliData_Mesh fdd{};
     fdd.params = fdd_params;
-    fdd.totface = me_eval->totpoly;
-    fdd.mpoly = me_eval->polys().data();
-    fdd.mloop = me_eval->loops().data();
-    fdd.vert_positions = me_eval->vert_positions();
+    fdd.totface = mesh_eval->faces_num;
+    fdd.faces = mesh_eval->faces();
+    fdd.corner_verts = mesh_eval->corner_verts();
+    fdd.vert_positions = mesh_eval->vert_positions();
     fdd.mloopuv = (uv_idx != -1) ? (const float2 *)CustomData_get_layer_n(
-                                       &me_eval->ldata, CD_PROP_FLOAT2, uv_idx) :
+                                       &mesh_eval->corner_data, CD_PROP_FLOAT2, uv_idx) :
                                    nullptr;
-    fdd.orco = (const float(*)[3])CustomData_get_layer(&me_eval->vdata, CD_ORCO);
+    fdd.orco = (const float(*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
 
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_mesh);
   }
@@ -1333,7 +1357,8 @@ static void make_duplis_faces(const DupliContext *ctx)
 
 static const DupliGenerator gen_dupli_faces = {
     /*type*/ OB_DUPLIFACES,
-    /*make_duplis*/ make_duplis_faces};
+    /*make_duplis*/ make_duplis_faces,
+};
 
 /** \} */
 
@@ -1387,7 +1412,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
   totchild = psys->totchild;
 
   if ((for_render || part->draw_as == PART_DRAW_REND) &&
-      ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR)) {
+      ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR))
+  {
     ParticleSimulationData sim = {nullptr};
     sim.depsgraph = ctx->depsgraph;
     sim.scene = scene;
@@ -1396,7 +1422,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
     sim.psmd = psys_get_modifier(par, psys);
     /* Make sure emitter `world_to_object` is in global coordinates instead of render view
      * coordinates. */
-    invert_m4_m4(par->world_to_object, par->object_to_world);
+    invert_m4_m4(par->runtime->world_to_object.ptr(), par->object_to_world().ptr());
 
     /* First check for loops (particle system object used as dupli-object). */
     if (part->ren_as == PART_DRAW_OB) {
@@ -1448,7 +1474,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         psys_find_group_weights(part);
         LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
           FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
-              part->instance_collection, object, mode) {
+              part->instance_collection, object, mode)
+          {
             if (dw->ob == object) {
               totcollection += dw->count;
               break;
@@ -1458,8 +1485,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         }
       }
       else {
-        FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
-            part->instance_collection, object, mode) {
+        FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (part->instance_collection, object, mode)
+        {
           (void)object;
           totcollection++;
         }
@@ -1473,7 +1500,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         a = 0;
         LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
           FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
-              part->instance_collection, object, mode) {
+              part->instance_collection, object, mode)
+          {
             if (dw->ob == object) {
               for (b = 0; b < dw->count; b++, a++) {
                 oblist[a] = dw->ob;
@@ -1486,8 +1514,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
       }
       else {
         a = 0;
-        FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
-            part->instance_collection, object, mode) {
+        FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (part->instance_collection, object, mode)
+        {
           oblist[a] = object;
           a++;
         }
@@ -1530,12 +1558,13 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
       /* Some hair paths might be non-existent so they can't be used for duplication. */
       if (hair && psys->pathcache &&
           ((a < totpart && psys->pathcache[a]->segments < 0) ||
-           (a >= totpart && psys->childcache[a - totpart]->segments < 0))) {
+           (a >= totpart && psys->childcache[a - totpart]->segments < 0)))
+      {
         continue;
       }
 
       if (part->ren_as == PART_DRAW_GR) {
-        /* Prevent divide by zero below T28336. */
+        /* Prevent divide by zero below #28336. */
         if (totcollection == 0) {
           continue;
         }
@@ -1581,9 +1610,9 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
       if (part->ren_as == PART_DRAW_GR && psys->part->draw & PART_DRAW_WHOLE_GR) {
         b = 0;
-        FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
-            part->instance_collection, object, mode) {
-          copy_m4_m4(tmat, oblist[b]->object_to_world);
+        FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (part->instance_collection, object, mode)
+        {
+          copy_m4_m4(tmat, oblist[b]->object_to_world().ptr());
 
           /* Apply collection instance offset. */
           sub_v3_v3(tmat[3], part->instance_collection->instance_offset);
@@ -1606,7 +1635,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
       }
       else {
         float obmat[4][4];
-        copy_m4_m4(obmat, ob->object_to_world);
+        copy_m4_m4(obmat, ob->object_to_world().ptr());
 
         float vec[3];
         copy_v3_v3(vec, obmat[3]);
@@ -1682,7 +1711,8 @@ static void make_duplis_particles(const DupliContext *ctx)
 
 static const DupliGenerator gen_dupli_particles = {
     /*type*/ OB_DUPLIPARTS,
-    /*make_duplis*/ make_duplis_particles};
+    /*make_duplis*/ make_duplis_particles,
+};
 
 /** \} */
 
@@ -1695,20 +1725,21 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
   int transflag = ctx->object->transflag;
   int visibility_flag = ctx->object->visibility_flag;
 
-  if ((transflag & OB_DUPLI) == 0 && ctx->object->runtime.geometry_set_eval == nullptr) {
+  if ((transflag & OB_DUPLI) == 0 && ctx->object->runtime->geometry_set_eval == nullptr) {
     return nullptr;
   }
 
-  /* Metaball objects can't create instances, but the dupli system is used to "instance" their
+  /* Meta-ball objects can't create instances, but the dupli system is used to "instance" their
    * evaluated mesh to render engines. We need to exit early to avoid recursively instancing the
-   * evaluated metaball mesh on metaball instances that already contribute to the basis. */
+   * evaluated meta-ball mesh on meta-ball instances that already contribute to the basis. */
   if (ctx->object->type == OB_MBALL && ctx->level > 0) {
     return nullptr;
   }
 
   /* Should the dupli's be generated for this object? - Respect restrict flags. */
   if (DEG_get_mode(ctx->depsgraph) == DAG_EVAL_RENDER ? (visibility_flag & OB_HIDE_RENDER) :
-                                                        (visibility_flag & OB_HIDE_VIEWPORT)) {
+                                                        (visibility_flag & OB_HIDE_VIEWPORT))
+  {
     return nullptr;
   }
 
@@ -1720,8 +1751,8 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
     }
   }
 
-  if (ctx->object->runtime.geometry_set_eval != nullptr) {
-    if (BKE_object_has_geometry_set_instances(ctx->object)) {
+  if (ctx->object->runtime->geometry_set_eval != nullptr) {
+    if (blender::bke::object_has_geometry_set_instances(*ctx->object)) {
       return &gen_dupli_geometry_set;
     }
   }
@@ -1788,14 +1819,18 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
       continue;
     }
     NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(md_orig);
-    if (nmd_orig->runtime_eval_log == nullptr) {
+    if (!nmd_orig->runtime->eval_log) {
       continue;
     }
     if (const geo_log::ViewerNodeLog *viewer_log =
-            geo_log::GeoModifierLog::find_viewer_node_log_for_path(*viewer_path)) {
+            geo_log::GeoModifierLog::find_viewer_node_log_for_path(*viewer_path))
+    {
       ctx.preview_base_geometry = &viewer_log->geometry;
-      make_duplis_geometry_set_impl(
-          &ctx, viewer_log->geometry, ob_eval->object_to_world, true, ob_eval->type == OB_CURVES);
+      make_duplis_geometry_set_impl(&ctx,
+                                    viewer_log->geometry,
+                                    ob_eval->object_to_world().ptr(),
+                                    true,
+                                    ob_eval->type == OB_CURVES);
     }
   }
   return duplilist;
@@ -1819,16 +1854,17 @@ static bool find_geonode_attribute_rgba(const DupliObject *dupli,
                                         float r_value[4])
 {
   using namespace blender;
+  using namespace blender::bke;
 
   /* Loop over layers from innermost to outermost. */
-  for (const int i : IndexRange(sizeof(dupli->instance_data) / sizeof(void *))) {
+  for (const int i : IndexRange(ARRAY_SIZE(dupli->instance_data))) {
     /* Skip non-geonode layers. */
     if (dupli->instance_data[i] == nullptr) {
       continue;
     }
 
     const InstancesComponent *component =
-        dupli->instance_data[i]->get_component_for_read<InstancesComponent>();
+        dupli->instance_data[i]->get_component<InstancesComponent>();
 
     if (component == nullptr) {
       continue;
@@ -1836,7 +1872,7 @@ static bool find_geonode_attribute_rgba(const DupliObject *dupli,
 
     /* Attempt to look up the attribute. */
     std::optional<bke::AttributeAccessor> attributes = component->attributes();
-    const VArray data = attributes->lookup<ColorGeometry4f>(name);
+    const VArray data = *attributes->lookup<ColorGeometry4f>(name);
 
     /* If the attribute was found and converted to float RGBA successfully, output it. */
     if (data) {
@@ -1919,19 +1955,21 @@ static bool find_rna_property_rgba(PointerRNA *id_ptr, const char *name, float r
   return false;
 }
 
-static bool find_rna_property_rgba(ID *id, const char *name, float r_data[4])
+static bool find_rna_property_rgba(const ID *id, const char *name, float r_data[4])
 {
-  PointerRNA ptr;
-  RNA_id_pointer_create(id, &ptr);
+  PointerRNA ptr = RNA_id_pointer_create(const_cast<ID *>(id));
   return find_rna_property_rgba(&ptr, name, r_data);
 }
 
-bool BKE_object_dupli_find_rgba_attribute(
-    Object *ob, DupliObject *dupli, Object *dupli_parent, const char *name, float r_value[4])
+bool BKE_object_dupli_find_rgba_attribute(const Object *ob,
+                                          const DupliObject *dupli,
+                                          const Object *dupli_parent,
+                                          const char *name,
+                                          float r_value[4])
 {
   /* Check the dupli particle system. */
   if (dupli && dupli->particle_system) {
-    ParticleSettings *settings = dupli->particle_system->part;
+    const ParticleSettings *settings = dupli->particle_system->part;
 
     if (find_rna_property_rgba(&settings->id, name, r_value)) {
       return true;
@@ -1955,7 +1993,7 @@ bool BKE_object_dupli_find_rgba_attribute(
     }
 
     /* Check the main object data (e.g. mesh). */
-    if (ob->data && find_rna_property_rgba((ID *)ob->data, name, r_value)) {
+    if (ob->data && find_rna_property_rgba((const ID *)ob->data, name, r_value)) {
       return true;
     }
   }
@@ -1964,14 +2002,14 @@ bool BKE_object_dupli_find_rgba_attribute(
   return false;
 }
 
-bool BKE_view_layer_find_rgba_attribute(struct Scene *scene,
-                                        struct ViewLayer *layer,
+bool BKE_view_layer_find_rgba_attribute(const Scene *scene,
+                                        const ViewLayer *layer,
                                         const char *name,
                                         float r_value[4])
 {
   if (layer) {
-    PointerRNA layer_ptr;
-    RNA_pointer_create(&scene->id, &RNA_ViewLayer, layer, &layer_ptr);
+    PointerRNA layer_ptr = RNA_pointer_create(
+        &const_cast<ID &>(scene->id), &RNA_ViewLayer, const_cast<ViewLayer *>(layer));
 
     if (find_rna_property_rgba(&layer_ptr, name, r_value)) {
       return true;

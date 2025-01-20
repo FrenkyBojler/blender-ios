@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2007 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spfile
@@ -10,18 +11,18 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "DNA_space_types.h"
 
-#include "ED_fileselect.h"
+#include "ED_fileselect.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "file_intern.h"
+#include "file_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name FOLDERLIST (previous/next)
@@ -32,7 +33,7 @@ struct FolderList {
   char *foldername;
 };
 
-void folderlist_popdir(struct ListBase *folderlist, char *dir)
+void folderlist_popdir(ListBase *folderlist, char *dir)
 {
   const char *prev_dir;
   FolderList *folder;
@@ -69,7 +70,7 @@ void folderlist_pushdir(ListBase *folderlist, const char *dir)
   }
 
   /* create next folder element */
-  folder = MEM_new<FolderList>(__func__);
+  folder = MEM_cnew<FolderList>(__func__);
   folder->foldername = BLI_strdup(dir);
 
   /* add it to the end of the list */
@@ -88,7 +89,7 @@ const char *folderlist_peeklastdir(ListBase *folderlist)
   return folder->foldername;
 }
 
-bool folderlist_clear_next(struct SpaceFile *sfile)
+bool folderlist_clear_next(SpaceFile *sfile)
 {
   const FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   FolderList *folder;
@@ -112,10 +113,11 @@ bool folderlist_clear_next(struct SpaceFile *sfile)
 void folderlist_free(ListBase *folderlist)
 {
   if (folderlist) {
-    LISTBASE_FOREACH (FolderList *, folder, folderlist) {
+    LISTBASE_FOREACH_MUTABLE (FolderList *, folder, folderlist) {
       MEM_freeN(folder->foldername);
+      MEM_delete(folder);
     }
-    BLI_freelistN(folderlist);
+    BLI_listbase_clear(folderlist);
   }
 }
 

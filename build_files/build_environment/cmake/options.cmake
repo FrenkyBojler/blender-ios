@@ -1,7 +1,10 @@
+# SPDX-FileCopyrightText: 2017-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 if(WIN32)
-  option(ENABLE_MINGW64 "Enable building of ffmpeg/iconv/libsndfile/fftw3 by installing mingw64" ON)
+  option(ENABLE_MSYS2 "Enable building of ffmpeg/libsndfile/fftw3/gmp by installing msys2" ON)
+  option(MSYS2_USE_UPSTREAM_PACKAGES "Use upstream packages to bootstrap msys2, when OFF the blender mirror will be used" OFF)
 endif()
 option(FORCE_CHECK_HASH "Force a check of all hashses during CMake the configure phase" OFF)
 
@@ -16,8 +19,10 @@ message("BuildMode = ${BUILD_MODE}")
 
 if(BUILD_MODE STREQUAL "Debug")
   set(LIBDIR ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+  set(MESON_BUILD_TYPE -Dbuildtype=debug)
 else()
   set(LIBDIR ${CMAKE_CURRENT_BINARY_DIR}/Release)
+  set(MESON_BUILD_TYPE -Dbuildtype=release)
 endif()
 
 set(DOWNLOAD_DIR "${CMAKE_CURRENT_BINARY_DIR}/downloads" CACHE STRING "Path for downloaded files")
@@ -37,7 +42,11 @@ message("PATCH_DIR = ${PATCH_DIR}")
 message("BUILD_DIR = ${BUILD_DIR}")
 
 if(WIN32)
-  set(PATCH_CMD ${DOWNLOAD_DIR}/mingw/mingw64/msys/1.0/bin/patch.exe)
+  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+    set(BLENDER_PLATFORM_ARM ON)
+    set(BLENDER_PLATFORM_WINDOWS_ARM ON)
+  endif()
+  set(PATCH_CMD ${DOWNLOAD_DIR}/msys2/msys64/usr/bin/patch.exe)
   set(LIBEXT ".lib")
   set(SHAREDLIBEXT ".lib")
   set(LIBPREFIX "")
@@ -46,12 +55,13 @@ if(WIN32)
   set(COMMON_DEFINES /DPSAPI_VERSION=2 /DTINYFORMAT_ALLOW_WCHAR_STRINGS)
 
   if(MSVC_VERSION GREATER 1909)
-    set(COMMON_MSVC_FLAGS "/Wv:18") #some deps with warnings as error aren't quite ready for dealing with the new 2017 warnings.
+    # Some deps with warnings as error aren't quite ready for dealing with the new 2017 warnings.
+    set(COMMON_MSVC_FLAGS "/Wv:18")
   endif()
   string(APPEND COMMON_MSVC_FLAGS " /bigobj")
   # To keep MSVC from oversubscribing the CPU, force it to single threaded mode
   # msbuild/ninja will queue as many compile units as there are cores, no need for
-  # msvc to be internally threading as well.
+  # MSVC to be internally threading as well.
   string(APPEND COMMON_MSVC_FLAGS " /cgthreads1 ")
 
   if(WITH_OPTIMIZED_DEBUG)
@@ -72,14 +82,69 @@ if(WIN32)
   set(BLENDER_CMAKE_CXX_FLAGS_RELEASE "/MD ${COMMON_MSVC_FLAGS} /D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS /O2 /Ob2 /D NDEBUG /D PLATFORM_WINDOWS /DPSAPI_VERSION=2 /DTINYFORMAT_ALLOW_WCHAR_STRINGS")
   set(BLENDER_CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MD ${COMMON_MSVC_FLAGS} /D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS /Zi /O2 /Ob1 /D NDEBUG /D PLATFORM_WINDOWS /DPSAPI_VERSION=2 /DTINYFORMAT_ALLOW_WCHAR_STRINGS")
 
+  # Set similar flags for CLANG compilation.
+  set(COMMON_CLANG_FLAGS "-D_DLL -D_MT") # Equivalent to MSVC /MD
+
+  if(WITH_OPTIMIZED_DEBUG)
+    set(BLENDER_CLANG_CMAKE_C_FLAGS_DEBUG "${COMMON_CLANG_FLAGS} -Xclang --dependent-lib=msvcrtd -O2 -D_DEBUG -DPSAPI_VERSION=2 -DTINYFORMAT_ALLOW_WCHAR_STRINGS")
+  else()
+    set(BLENDER_CLANG_CMAKE_C_FLAGS_DEBUG "${COMMON_CLANG_FLAGS} -Xclang --dependent-lib=msvcrtd -g -D_DEBUG -DPSAPI_VERSION=2 -DTINYFORMAT_ALLOW_WCHAR_STRINGS")
+  endif()
+  set(BLENDER_CLANG_CMAKE_C_FLAGS_MINSIZEREL "${COMMON_CLANG_FLAGS} -Xclang --dependent-lib=msvcrt -Os -DNDEBUG -DPSAPI_VERSION=2 -DTINYFORMAT_ALLOW_WCHAR_STRINGS")
+  set(BLENDER_CLANG_CMAKE_C_FLAGS_RELEASE "${COMMON_CLANG_FLAGS}  -Xclang --dependent-lib=msvcrt -O2 -DNDEBUG -DPSAPI_VERSION=2 -DTINYFORMAT_ALLOW_WCHAR_STRINGS")
+  set(BLENDER_CLANG_CMAKE_C_FLAGS_RELWITHDEBINFO "${COMMON_CLANG_FLAGS} -Xclang --dependent-lib=msvcrt -g -O2 -DNDEBUG -DPSAPI_VERSION=2 -DTINYFORMAT_ALLOW_WCHAR_STRINGS")
+
+  if(WITH_OPTIMIZED_DEBUG)
+    set(BLENDER_CLANG_CMAKE_CXX_FLAGS_DEBUG "${COMMON_CLANG_FLAGS} -Xclang --dependent-lib=msvcrtd -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS -O2 -D_DEBUG -DPLATFORM_WINDOWS -DPSAPI_VERSION=2 -DTINYFORMAT_ALLOW_WCHAR_STRINGS -DBOOST_DEBUG_PYTHON -DBOOST_ALL_NO_LIB")
+  else()
+    set(BLENDER_CLANG_CMAKE_CXX_FLAGS_DEBUG "${COMMON_CLANG_FLAG} -Xclang --dependent-lib=msvcrtd -D_DEBUG -DPLATFORM_WINDOWS -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS -g -DPSAPI_VERSION=2 -DTINYFORMAT_ALLOW_WCHAR_STRINGS -DBOOST_DEBUG_PYTHON -DBOOST_ALL_NO_LIB")
+  endif()
+  set(BLENDER_CLANG_CMAKE_CXX_FLAGS_MINSIZEREL "${COMMON_CLANG_FLAGS} -Xclang --dependent-lib=msvcrt -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS -O2 -DNDEBUG  -DPLATFORM_WINDOWS -DPSAPI_VERSION=2 -DTINYFORMAT_ALLOW_WCHAR_STRINGS")
+  set(BLENDER_CLANG_CMAKE_CXX_FLAGS_RELEASE "${COMMON_CLANG_FLAGS} -Xclang --dependent-lib=msvcrt -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS -O2 -DNDEBUG -DPLATFORM_WINDOWS -DPSAPI_VERSION=2 -DTINYFORMAT_ALLOW_WCHAR_STRINGS")
+  set(BLENDER_CLANG_CMAKE_CXX_FLAGS_RELWITHDEBINFO "${COMMON_CLANG_FLAGS} -Xclang --dependent-lib=msvcrt -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS -g -O2 -DNDEBUG -DPLATFORM_WINDOWS -DPSAPI_VERSION=2 -DTINYFORMAT_ALLOW_WCHAR_STRINGS")
+
+  set(DEFAULT_CLANG_CMAKE_FLAGS
+    -DCMAKE_BUILD_TYPE=${BUILD_MODE}
+    -DCMAKE_C_FLAGS_DEBUG=${BLENDER_CLANG_CMAKE_C_FLAGS_DEBUG}
+    -DCMAKE_C_FLAGS_MINSIZEREL=${BLENDER_CLANG_CMAKE_C_FLAGS_MINSIZEREL}
+    -DCMAKE_C_FLAGS_RELEASE=${BLENDER_CLANG_CMAKE_C_FLAGS_RELEASE}
+    -DCMAKE_C_FLAGS_RELWITHDEBINFO=${BLENDER_CLANG_CMAKE_C_FLAGS_RELWITHDEBINFO}
+    -DCMAKE_CXX_FLAGS_DEBUG=${BLENDER_CLANG_CMAKE_CXX_FLAGS_DEBUG}
+    -DCMAKE_CXX_FLAGS_MINSIZEREL=${BLENDER_CLANG_CMAKE_CXX_FLAGS_MINSIZEREL}
+    -DCMAKE_CXX_FLAGS_RELEASE=${BLENDER_CLANG_CMAKE_CXX_FLAGS_RELEASE}
+    -DCMAKE_CXX_FLAGS_RELWITHDEBINFO=${BLENDER_CLANG_CMAKE_CXX_FLAGS_RELWITHDEBINFO}
+    -DCMAKE_CXX_STANDARD=17
+  )
+
   set(PLATFORM_FLAGS)
   set(PLATFORM_CXX_FLAGS)
-  set(PLATFORM_CMAKE_FLAGS)
 
-  set(MINGW_PATH ${DOWNLOAD_DIR}/mingw/mingw64)
+  if(BLENDER_PLATFORM_ARM)
+    # In some cases on ARM64 (unsure why), dep builds using the "Ninja" generator appear to use
+    # the x86 host tools (ie, x86 cl.exe producing ARM64 binaries). This is problematic when
+    # building things like LLVM, as memory is limited to 3GB, giving internal compiler errors.
+    # Here, we set CMAKE_C_COMPILER et al via PLATFORM_CMAKE_FLAGS to point to the ARM64 native
+    # binary, which doesn't have this issue.
+    # We make an assumption that the tools (ie, right now in the code) are the ones we want
+    set(PLATFORM_CMAKE_FLAGS
+      -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+      -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+      -DCMAKE_AR=${CMAKE_AR}
+      -DCMAKE_LINKER=${CMAKE_LINKER}
+      -DCMAKE_MT=${CMAKE_MT}
+      -DCMAKE_RC_COMPILER=${CMAKE_RC_COMPILER}
+    )
+  else()
+    set(PLATFORM_CMAKE_FLAGS)
+  endif()
+
+  set(MINGW_PATH ${DOWNLOAD_DIR}/msys2/msys64/)
   set(MINGW_SHELL ming64sh.cmd)
   set(PERL_SHELL ${DOWNLOAD_DIR}/perl/portableshell.bat)
   set(MINGW_HOST x86_64-w64-mingw32)
+
+  set(MINGW_CFLAGS)
+  set(MINGW_LDFLAGS)
 
   # some build systems like meson will respect the *nix like environment vars
   # like CFLAGS and LDFlags but will still build with the MSVC compiler, so for
@@ -98,16 +163,21 @@ if(WIN32)
     call ${PERL_SHELL} &&
     call ${MINGW_SHELL} &&
     set path &&
-    set CFLAGS=-g &&
-    set LDFLAGS=-Wl,--as-needed -static-libgcc
+    set CC=cl &&
+    set CXX=cl &&
+    set CFLAGS=${MINGW_CFLAGS} &&
+    set LDFLAGS=${MINGW_LDFLAGS}
   )
 
   set(CONFIGURE_ENV_NO_PERL
     cd ${MINGW_PATH} &&
     call ${MINGW_SHELL} &&
     set path &&
-    set CFLAGS=-g &&
-    set LDFLAGS=-Wl,--as-needed -static-libgcc
+    set CC=cl &&
+    set CXX=cl &&
+    set LD=link &&
+    set CFLAGS=${MINGW_CFLAGS} &&
+    set LDFLAGS=${MINGW_LDFLAGS}
   )
 
   set(CONFIGURE_COMMAND sh ./configure)
@@ -129,9 +199,9 @@ else()
 
     set(PLATFORM_CFLAGS "-isysroot ${CMAKE_OSX_SYSROOT} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET} -arch ${CMAKE_OSX_ARCHITECTURES}")
     set(PLATFORM_CXXFLAGS "-isysroot ${CMAKE_OSX_SYSROOT} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET} -std=c++17 -stdlib=libc++ -arch ${CMAKE_OSX_ARCHITECTURES}")
-    set(PLATFORM_LDFLAGS "-isysroot ${CMAKE_OSX_SYSROOT} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET} -arch ${CMAKE_OSX_ARCHITECTURES}")
+    set(PLATFORM_LDFLAGS "-isysroot ${CMAKE_OSX_SYSROOT} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET} -arch ${CMAKE_OSX_ARCHITECTURES} -headerpad_max_install_names")
     if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
-      set(PLATFORM_BUILD_TARGET --build=x86_64-apple-darwin17.0.0) # OS X 10.13
+      set(PLATFORM_BUILD_TARGET --build=x86_64-apple-darwin19.0.0) # OS X 10.15
     else()
       set(PLATFORM_BUILD_TARGET --build=aarch64-apple-darwin20.0.0) # macOS 11.00
     endif()

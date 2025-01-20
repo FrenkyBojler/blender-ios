@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,7 +22,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetShapeF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetShapeF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DVectorViewShape` > :class:`GetShapeF1D`\n"
     "\n"
@@ -35,7 +39,7 @@ static char GetShapeF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: A list of shapes covered by the Interface1D.\n"
-    "   :rtype: list of :class:`freestyle.types.ViewShape` objects\n";
+    "   :rtype: list[:class:`freestyle.types.ViewShape`]\n");
 
 static int GetShapeF1D___init__(BPy_GetShapeF1D *self, PyObject *args, PyObject *kwds)
 {
@@ -51,7 +55,7 @@ static int GetShapeF1D___init__(BPy_GetShapeF1D *self, PyObject *args, PyObject 
 /*-----------------------BPy_GetShapeF1D type definition ------------------------------*/
 
 PyTypeObject GetShapeF1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GetShapeF1D",
     /*tp_basicsize*/ sizeof(BPy_GetShapeF1D),
     /*tp_itemsize*/ 0,

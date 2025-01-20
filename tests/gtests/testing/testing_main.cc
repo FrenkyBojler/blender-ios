@@ -1,11 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2014 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2014 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "testing/testing.h"
 
 #include "MEM_guardedalloc.h"
 
-DEFINE_string(test_assets_dir, "", "lib/tests directory from SVN containing the test assets.");
+DEFINE_string(test_assets_dir, "", "tests/data directory containing the test assets.");
 DEFINE_string(test_release_dir, "", "bin/{blender version} directory of the current build.");
 
 namespace blender::tests {
@@ -13,8 +14,7 @@ namespace blender::tests {
 const std::string &flags_test_asset_dir()
 {
   if (FLAGS_test_assets_dir.empty()) {
-    ADD_FAILURE()
-        << "Pass the flag --test-assets-dir and point to the lib/tests directory from SVN.";
+    ADD_FAILURE() << "Pass the flag --test-assets-dir and point to the tests/data directory.";
   }
   return FLAGS_test_assets_dir;
 }

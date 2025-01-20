@@ -1,8 +1,10 @@
+# SPDX-FileCopyrightText: 2012-2022 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # run this script in the game engine.
 # or on the command line with...
-#  ./blender.bin --background -noaudio --python tests/python/bl_rst_completeness.py
+#  ./blender.bin --background --python tests/python/bl_rst_completeness.py
 '''
 filepath = "/src/blender/tests/python/bl_rst_completeness.py"
 exec(compile(open(filepath).read(), filepath, 'exec'))

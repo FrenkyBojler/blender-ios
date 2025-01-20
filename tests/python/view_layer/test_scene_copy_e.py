@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2017-2022 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # ############################################################
@@ -5,10 +7,11 @@
 # ############################################################
 
 import unittest
-import os
-import sys
 
-from view_layer_common import *
+from view_layer_common import (
+    ViewLayerTesting,
+    setup_extra_arguments,
+)
 
 
 # ############################################################
@@ -21,10 +24,8 @@ class UnitTesting(ViewLayerTesting):
         See if scene copying 'FULL_COPY' is working for scene collections
         with a shared object
         """
-        import os
         import bpy
 
-        scene = bpy.context.scene
         layer = bpy.context.view_layer
 
         original_cube = layer.objects.get('Cube')

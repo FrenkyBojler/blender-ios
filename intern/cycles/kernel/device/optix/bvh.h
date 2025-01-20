@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2021-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2021-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 /* OptiX implementation of ray-scene intersection. */
 
@@ -120,10 +121,11 @@ extern "C" __global__ void __anyhit__kernel_optix_local_hit()
   isect->v = barycentrics.y;
 
   /* Record geometric normal. */
-  const uint tri_vindex = kernel_data_fetch(tri_vindex, prim).w;
-  const float3 tri_a = kernel_data_fetch(tri_verts, tri_vindex + 0);
-  const float3 tri_b = kernel_data_fetch(tri_verts, tri_vindex + 1);
-  const float3 tri_c = kernel_data_fetch(tri_verts, tri_vindex + 2);
+  const packed_uint3 tri_vindex = kernel_data_fetch(tri_vindex, prim);
+  const float3 tri_a = kernel_data_fetch(tri_verts, tri_vindex.x);
+  const float3 tri_b = kernel_data_fetch(tri_verts, tri_vindex.y);
+  const float3 tri_c = kernel_data_fetch(tri_verts, tri_vindex.z);
+
   local_isect->Ng[hit] = normalize(cross(tri_b - tri_a, tri_c - tri_a));
 
   /* Continue tracing (without this the trace call would return after the first hit). */
@@ -182,6 +184,12 @@ extern "C" __global__ void __anyhit__kernel_optix_shadow_all_hit()
     return optixIgnoreIntersection();
   }
 
+#  ifdef __SHADOW_LINKING__
+  if (intersection_skip_shadow_link(nullptr, ray->self, object)) {
+    return optixIgnoreIntersection();
+  }
+#  endif
+
 #  ifndef __TRANSPARENT_SHADOWS__
   /* No transparent shadows support compiled in, make opaque. */
   optixSetPayload_5(true);
@@ -194,7 +202,8 @@ extern "C" __global__ void __anyhit__kernel_optix_shadow_all_hit()
 
   /* If no transparent shadows, all light is blocked and we can stop immediately. */
   if (num_hits >= max_hits ||
-      !(intersection_get_shader_flags(NULL, prim, type) & SD_HAS_TRANSPARENT_SHADOW)) {
+      !(intersection_get_shader_flags(nullptr, prim, type) & SD_HAS_TRANSPARENT_SHADOW))
+  {
     optixSetPayload_5(true);
     return optixTerminateRay();
   }
@@ -324,6 +333,12 @@ extern "C" __global__ void __anyhit__kernel_optix_visibility_test()
   ccl_private Ray *const ray = get_payload_ptr_6<Ray>();
 
   if (visibility & PATH_RAY_SHADOW_OPAQUE) {
+#ifdef __SHADOW_LINKING__
+    if (intersection_skip_shadow_link(nullptr, ray->self, object)) {
+      return optixIgnoreIntersection();
+    }
+#endif
+
     if (intersection_skip_self_shadow(ray->self, object, prim)) {
       return optixIgnoreIntersection();
     }
@@ -396,7 +411,8 @@ ccl_device_inline void optix_intersection_curve(const int prim, const int type)
   Intersection isect;
   isect.t = optixGetRayTmax();
 
-  if (curve_intersect(NULL, &isect, ray_P, ray_D, ray_tmin, isect.t, object, prim, time, type)) {
+  if (curve_intersect(nullptr, &isect, ray_P, ray_D, ray_tmin, isect.t, object, prim, time, type))
+  {
     static_assert(PRIMITIVE_ALL < 128, "Values >= 128 are reserved for OptiX internal use");
     optixReportIntersection(isect.t,
                             type & PRIMITIVE_ALL,
@@ -444,7 +460,8 @@ extern "C" __global__ void __intersection__point()
   Intersection isect;
   isect.t = optixGetRayTmax();
 
-  if (point_intersect(NULL, &isect, ray_P, ray_D, ray_tmin, isect.t, object, prim, time, type)) {
+  if (point_intersect(nullptr, &isect, ray_P, ray_D, ray_tmin, isect.t, object, prim, time, type))
+  {
     static_assert(PRIMITIVE_ALL < 128, "Values >= 128 are reserved for OptiX internal use");
     optixReportIntersection(isect.t, type & PRIMITIVE_ALL);
   }
@@ -454,7 +471,7 @@ extern "C" __global__ void __intersection__point()
 /* Scene intersection. */
 
 ccl_device_intersect bool scene_intersect(KernelGlobals kg,
-                                          ccl_private const Ray *ray,
+                                          const ccl_private Ray *ray,
                                           const uint visibility,
                                           ccl_private Intersection *isect)
 {
@@ -506,13 +523,22 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
   return p5 != PRIMITIVE_NONE;
 }
 
+ccl_device_intersect bool scene_intersect_shadow(KernelGlobals kg,
+                                                 const ccl_private Ray *ray,
+                                                 const uint visibility)
+{
+  Intersection isect;
+  return scene_intersect(kg, ray, visibility, &isect);
+}
+
 #ifdef __BVH_LOCAL__
+template<bool single_hit = false>
 ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
-                                                ccl_private const Ray *ray,
+                                                const ccl_private Ray *ray,
                                                 ccl_private LocalIntersection *local_isect,
-                                                int local_object,
+                                                const int local_object,
                                                 ccl_private uint *lcg_state,
-                                                int max_hits)
+                                                const int max_hits)
 {
   uint p0 = pointer_pack_to_uint_0(lcg_state);
   uint p1 = pointer_pack_to_uint_1(lcg_state);
@@ -556,9 +582,9 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
 #ifdef __SHADOW_RECORD_ALL__
 ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals kg,
                                                      IntegratorShadowState state,
-                                                     ccl_private const Ray *ray,
-                                                     uint visibility,
-                                                     uint max_hits,
+                                                     const ccl_private Ray *ray,
+                                                     const uint visibility,
+                                                     const uint max_hits,
                                                      ccl_private uint *num_recorded_hits,
                                                      ccl_private float *throughput)
 {
@@ -606,7 +632,7 @@ ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals kg,
 
 #ifdef __VOLUME__
 ccl_device_intersect bool scene_intersect_volume(KernelGlobals kg,
-                                                 ccl_private const Ray *ray,
+                                                 const ccl_private Ray *ray,
                                                  ccl_private Intersection *isect,
                                                  const uint visibility)
 {

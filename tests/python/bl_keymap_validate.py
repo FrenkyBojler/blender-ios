@@ -1,6 +1,8 @@
+# SPDX-FileCopyrightText: 2021-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# ./blender.bin --background -noaudio --factory-startup --python tests/python/bl_keymap_validate.py
+# ./blender.bin --background --factory-startup --python tests/python/bl_keymap_validate.py
 #
 
 """
@@ -28,17 +30,14 @@ NOTE:
 import types
 from typing import (
     Any,
-    Dict,
-    Generator,
-    List,
-    Optional,
+)
+from collections.abc import (
+    Iterator,
     Sequence,
-    Tuple,
 )
 
-KeyConfigData = List[Tuple[str, Tuple[Any], Dict[str, Any]]]
+KeyConfigData = list[tuple[str, tuple[Any], dict[str, Any]]]
 
-import os
 import contextlib
 
 import bpy  # type: ignore
@@ -75,16 +74,16 @@ ALLOW_DUPLICATES = {
 def temp_fn_argument_extractor(
         mod: types.ModuleType,
         mod_attr: str,
-) -> Generator[List[Tuple[Tuple[Tuple[Any], ...], Dict[str, Dict[str, Any]]]], None, None]:
+) -> Iterator[list[tuple[tuple[tuple[Any], ...], dict[str, dict[str, Any]]]]]:
     """
-    Temporarily intercept a function, so it's arguments can be extracted.
+    Temporarily intercept a function, so its arguments can be extracted.
     The context manager gives us a list where each item is a tuple of
     arguments & keywords, stored each time the function was called.
     """
     args_collected = []
     real_fn = getattr(mod, mod_attr)
 
-    def wrap_fn(*args: Tuple[Any], **kw: Dict[str, Any]) -> Any:
+    def wrap_fn(*args: tuple[Any], **kw: dict[str, Any]) -> Any:
         args_collected.append((args, kw))
         return real_fn(*args, **kw)
     setattr(mod, mod_attr, wrap_fn)
@@ -99,9 +98,9 @@ def round_float_32(f: float) -> float:
     return unpack("f", pack("f", f))[0]  # type: ignore
 
 
-def report_humanly_readable_difference(a: Any, b: Any) -> Optional[str]:
+def report_humanly_readable_difference(a: Any, b: Any) -> str | None:
     """
-    Compare strings, return None whrn they match,
+    Compare strings, return None when they match,
     otherwise a humanly readable difference message.
     """
     import unittest
@@ -116,7 +115,7 @@ def report_humanly_readable_difference(a: Any, b: Any) -> Optional[str]:
 # -----------------------------------------------------------------------------
 # Keymap Utilities.
 
-def keyconfig_preset_scan() -> List[str]:
+def keyconfig_preset_scan() -> list[str]:
     """
     Return all bundled presets (keymaps), not user presets.
     """
@@ -149,7 +148,7 @@ def keymap_item_property_clean(value: Any) -> Any:
             # Convert to `dict` to de-duplicate.
             dict([(k, keymap_item_property_clean(v)) for k, v in value]).items(),
             # Ignore type checking, these are strings which we know can be sorted.
-            key=lambda item: item[0],  # type: ignore
+            key=lambda item: item[0],
         )
     return value
 
@@ -184,7 +183,7 @@ def keymap_data_clean(keyconfig_data: KeyConfigData, *, relaxed: bool) -> None:
                 items[i] = item_op, item_event, None
 
 
-def keyconfig_config_as_filename_component(values: Sequence[Tuple[str, Any]]) -> str:
+def keyconfig_config_as_filename_component(values: Sequence[tuple[str, Any]]) -> str:
     """
     Takes a configuration, eg:
 
@@ -210,7 +209,7 @@ def keyconfig_activate_and_extract_data(
         filepath: str,
         *,
         relaxed: bool,
-        config: Sequence[Tuple[str, Any]],
+        config: Sequence[tuple[str, Any]],
 ) -> KeyConfigData:
     """
     Activate the key-map by filepath,
@@ -246,7 +245,7 @@ def keyconfig_report_duplicates(keyconfig_data: KeyConfigData) -> str:
     error_text = []
     for km_idname, km_args, km_items_data in keyconfig_data:
         items = tuple(km_items_data["items"])
-        unique: Dict[str, List[int]] = {}
+        unique: dict[str, list[int]] = {}
         for i, (item_op, item_event, item_prop) in enumerate(items):
             # Ensure stable order as `repr` will use order of definition.
             item_event = {key: item_event[key] for key in sorted(item_event.keys())}
@@ -268,8 +267,11 @@ def main() -> None:
 
     argv = (sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
 
-    # Use `argparse` for full arg parsing, for now this is enough.
-    relaxed = "--relaxed" not in argv
+    # Use `argparse` for full argument parsing, for now this is enough.
+    relaxed = "--relaxed" in argv
+
+    # NOTE(@ideasman42): Disable add-on items as they may cause differences in the key-map.
+    __import__("addon_utils").disable_all()
 
     has_error = False
 
@@ -323,6 +325,7 @@ def main() -> None:
                     print(error_text_consistency)
                 if error_text_duplicates:
                     print(error_text_duplicates)
+                has_error = True
             else:
                 print("OK!")
 

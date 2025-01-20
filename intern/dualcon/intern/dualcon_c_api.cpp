@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "ModelReader.h"
 #include "dualcon.h"
@@ -20,7 +22,7 @@ static void veccopy(float dst[3], const float src[3])
 }
 
 #define GET_TRI(_mesh, _n) \
-  (*(DualConTri)(((char *)(_mesh)->looptri) + ((_n) * (_mesh)->tri_stride)))
+  (*(DualConTri)(((char *)(_mesh)->corner_tris) + ((_n) * (_mesh)->tri_stride)))
 
 #define GET_CO(_mesh, _n) (*(DualConCo)(((char *)(_mesh)->co) + ((_n) * (_mesh)->co_stride)))
 
@@ -52,8 +54,9 @@ class DualConInputReader : public ModelReader {
     /* initialize maxsize */
     for (int i = 0; i < 3; i++) {
       float d = max[i] - min[i];
-      if (d > maxsize)
+      if (d > maxsize) {
         maxsize = d;
+      }
     }
 
     /* redo the bounds */
@@ -62,19 +65,21 @@ class DualConInputReader : public ModelReader {
       max[i] = (max[i] + min[i]) / 2 + maxsize / 2;
     }
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++) {
       min[i] -= maxsize * (1 / scale - 1) / 2;
+    }
     maxsize *= 1 / scale;
   }
 
   Triangle *getNextTriangle()
   {
-    if (curtri == input_mesh->tottri)
+    if (curtri == input_mesh->tottri) {
       return NULL;
+    }
 
     Triangle *t = new Triangle();
 
-    unsigned int *tr = GET_TRI(input_mesh, curtri);
+    const unsigned int *tr = GET_TRI(input_mesh, curtri);
     veccopy(t->vt[0], GET_CO(input_mesh, GET_LOOP(input_mesh, tr[0])));
     veccopy(t->vt[1], GET_CO(input_mesh, GET_LOOP(input_mesh, tr[1])));
     veccopy(t->vt[2], GET_CO(input_mesh, GET_LOOP(input_mesh, tr[2])));
@@ -95,10 +100,11 @@ class DualConInputReader : public ModelReader {
 
   int getNextTriangle(int t[3])
   {
-    if (curtri == input_mesh->tottri)
+    if (curtri == input_mesh->tottri) {
       return 0;
+    }
 
-    unsigned int *tr = GET_TRI(input_mesh, curtri);
+    const unsigned int *tr = GET_TRI(input_mesh, curtri);
     t[0] = tr[0];
     t[1] = tr[1];
     t[2] = tr[2];
@@ -131,17 +137,13 @@ class DualConInputReader : public ModelReader {
   }
 
   /* stubs */
-  void printInfo()
-  {
-  }
+  void printInfo() {}
   int getMemory()
   {
     return sizeof(DualConInputReader);
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("DUALCON:DualConInputReader")
-#endif
 };
 
 void *dualcon(const DualConInput *input_mesh,

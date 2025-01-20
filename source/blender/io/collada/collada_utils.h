@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup collada
@@ -29,20 +31,20 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "BLI_linklist.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_idprop.h"
-#include "BKE_main.h"
-#include "BKE_node.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
+#include "BKE_context.hh"
+#include "BKE_idprop.hh"
+#include "BKE_main.hh"
+#include "BKE_node.hh"
+#include "BKE_object.hh"
+#include "BKE_scene.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "BCSampleData.h"
 #include "BlenderContext.h"
@@ -57,49 +59,55 @@ typedef std::map<std::string, Image *> KeyImageMap;
 typedef std::map<COLLADAFW::TextureMapId, std::vector<MTex *>> TexIndexTextureArrayMap;
 typedef std::set<Object *> BCObjectSet;
 
+namespace COLLADAFW {
+class Node;
+}
+class ExtraTags;
+
 extern void bc_update_scene(BlenderContext &blender_context, float ctime);
 
 /* Action helpers */
 
 std::vector<bAction *> bc_getSceneActions(const bContext *C, Object *ob, bool all_actions);
 
-/* Action helpers */
+/* Action and Animdata helpers */
 
+/* Return Object's Action or NULL. */
 inline bAction *bc_getSceneObjectAction(Object *ob)
 {
   return (ob->adt && ob->adt->action) ? ob->adt->action : NULL;
 }
 
-/* Returns Light Action or NULL */
-inline bAction *bc_getSceneLightAction(Object *ob)
+/* Return Light's AnimData or NULL. */
+inline AnimData *bc_getSceneLightAnimData(Object *ob)
 {
   if (ob->type != OB_LAMP) {
     return NULL;
   }
 
   Light *lamp = (Light *)ob->data;
-  return (lamp->adt && lamp->adt->action) ? lamp->adt->action : NULL;
+  return lamp->adt;
 }
 
-/* Return Camera Action or NULL */
-inline bAction *bc_getSceneCameraAction(Object *ob)
+/* Return Camera's AnimData or NULL. */
+inline AnimData *bc_getSceneCameraAnimData(Object *ob)
 {
   if (ob->type != OB_CAMERA) {
     return NULL;
   }
 
-  Camera *camera = (Camera *)ob->data;
-  return (camera->adt && camera->adt->action) ? camera->adt->action : NULL;
+  const Camera *camera = (const Camera *)ob->data;
+  return camera->adt;
 }
 
-/* returns material action or NULL */
-inline bAction *bc_getSceneMaterialAction(Material *ma)
+/* Return Material's AnimData or NULL. */
+inline AnimData *bc_getSceneMaterialAnimData(Material *ma)
 {
   if (ma == NULL) {
     return NULL;
   }
 
-  return (ma->adt && ma->adt->action) ? ma->adt->action : NULL;
+  return ma->adt;
 }
 
 std::string bc_get_action_id(std::string action_name,
@@ -116,6 +124,13 @@ extern bool bc_validateConstraints(bConstraint *con);
 bool bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space = true);
 extern Object *bc_add_object(
     Main *bmain, Scene *scene, ViewLayer *view_layer, int type, const char *name);
+extern Object *bc_add_armature(COLLADAFW::Node *node,
+                               ExtraTags *node_extra_tags,
+                               Main *bmain,
+                               Scene *scene,
+                               ViewLayer *view_layer,
+                               int type,
+                               const char *name);
 extern Mesh *bc_get_mesh_copy(BlenderContext &blender_context,
                               Object *ob,
                               BC_export_mesh_type export_mesh_type,
@@ -125,8 +140,11 @@ extern Mesh *bc_get_mesh_copy(BlenderContext &blender_context,
 extern Object *bc_get_assigned_armature(Object *ob);
 extern bool bc_has_object_type(LinkNode *export_set, short obtype);
 
-extern char *bc_CustomData_get_layer_name(const CustomData *data, int type, int n);
-extern char *bc_CustomData_get_active_layer_name(const CustomData *data, int type);
+extern const char *bc_CustomData_get_layer_name(const CustomData *data,
+                                                eCustomDataType type,
+                                                int n);
+extern const char *bc_CustomData_get_active_layer_name(const CustomData *data,
+                                                       eCustomDataType type);
 
 extern void bc_bubble_sort_by_Object_name(LinkNode *export_set);
 /**
@@ -188,7 +206,7 @@ extern std::string bc_replace_string(std::string data,
                                      const std::string &replacement);
 extern std::string bc_url_encode(std::string data);
 /**
- * Calculate a rescale factor such that the imported scene's scale
+ * Calculate a re-scale factor such that the imported scene's scale
  * is preserved. I.e. 1 meter in the import will also be
  * 1 meter in the current scene.
  */
@@ -216,7 +234,7 @@ extern void bc_rotate_from_reference_quat(float quat_to[4],
                                           float quat_from[4],
                                           float mat_to[4][4]);
 
-extern void bc_triangulate_mesh(Mesh *me);
+extern void bc_triangulate_mesh(Mesh *mesh);
 /**
  * A bone is a leaf when it has no children or all children are not connected.
  */
@@ -357,7 +375,8 @@ class BoneExtended {
   float tail[3];
   float roll;
 
-  int bone_layers;
+  std::vector<std::string> bone_collections;
+
   int use_connect;
   bool has_custom_tail;
   bool has_custom_roll;
@@ -374,9 +393,8 @@ class BoneExtended {
   void set_leaf_bone(bool state);
   bool is_leaf_bone();
 
-  void set_bone_layers(std::string layers, std::vector<std::string> &layer_labels);
-  int get_bone_layers();
-  static std::string get_bone_layers(int bitfield);
+  void set_bone_collections(std::vector<std::string> bone_collections);
+  const std::vector<std::string> &get_bone_collections();
 
   void set_roll(float roll);
   bool has_roll();

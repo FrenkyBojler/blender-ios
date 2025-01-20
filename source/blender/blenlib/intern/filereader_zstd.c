@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -8,10 +9,12 @@
 #include <string.h>
 #include <zstd.h>
 
-#include "BLI_blenlib.h"
-#include "BLI_endian_switch.h"
 #include "BLI_filereader.h"
 #include "BLI_math_base.h"
+
+#ifdef __BIG_ENDIAN__
+#  include "BLI_endian_switch.h"
+#endif
 
 #include "MEM_guardedalloc.h"
 
@@ -172,7 +175,8 @@ static const char *zstd_ensure_cache(ZstdReader *zstd, int frame)
   char *uncompressed_data = MEM_mallocN(uncompressed_size, __func__);
   char *compressed_data = MEM_mallocN(compressed_size, __func__);
   if (zstd->base->seek(zstd->base, zstd->seek.compressed_ofs[frame], SEEK_SET) < 0 ||
-      zstd->base->read(zstd->base, compressed_data, compressed_size) < compressed_size) {
+      zstd->base->read(zstd->base, compressed_data, compressed_size) < compressed_size)
+  {
     MEM_freeN(compressed_data);
     MEM_freeN(uncompressed_data);
     return NULL;
@@ -191,7 +195,7 @@ static const char *zstd_ensure_cache(ZstdReader *zstd, int frame)
   return uncompressed_data;
 }
 
-static ssize_t zstd_read_seekable(FileReader *reader, void *buffer, size_t size)
+static int64_t zstd_read_seekable(FileReader *reader, void *buffer, size_t size)
 {
   ZstdReader *zstd = (ZstdReader *)reader;
 
@@ -242,7 +246,7 @@ static off64_t zstd_seek(FileReader *reader, off64_t offset, int whence)
   return zstd->reader.offset;
 }
 
-static ssize_t zstd_read(FileReader *reader, void *buffer, size_t size)
+static int64_t zstd_read(FileReader *reader, void *buffer, size_t size)
 {
   ZstdReader *zstd = (ZstdReader *)reader;
   ZSTD_outBuffer output = {buffer, size, 0};
@@ -251,7 +255,7 @@ static ssize_t zstd_read(FileReader *reader, void *buffer, size_t size)
     if (zstd->in_buf.pos == zstd->in_buf.size) {
       /* Ran out of buffered input data, read some more. */
       zstd->in_buf.pos = 0;
-      ssize_t readsize = zstd->base->read(
+      int64_t readsize = zstd->base->read(
           zstd->base, (char *)zstd->in_buf.src, zstd->in_buf_max_size);
 
       if (readsize > 0) {
@@ -281,7 +285,7 @@ static void zstd_close(FileReader *reader)
   if (zstd->reader.seek) {
     MEM_freeN(zstd->seek.uncompressed_ofs);
     MEM_freeN(zstd->seek.compressed_ofs);
-    /* When an error has occurred this may be NULL, see: T99744. */
+    /* When an error has occurred this may be NULL, see: #99744. */
     if (zstd->seek.cached_content) {
       MEM_freeN(zstd->seek.cached_content);
     }

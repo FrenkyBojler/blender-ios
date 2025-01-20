@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_geometry_util.hh"
 
@@ -10,22 +12,23 @@ namespace blender::nodes::node_geo_input_instance_rotation_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Vector>(N_("Rotation")).field_source();
+  b.add_output<decl::Rotation>("Rotation").field_source();
 }
 
 class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
  public:
-  InstanceRotationFieldInput() : bke::InstancesFieldInput(CPPType::get<float3>(), "Rotation")
+  InstanceRotationFieldInput()
+      : bke::InstancesFieldInput(CPPType::get<math::Quaternion>(), "Rotation")
   {
   }
 
-  GVArray get_varray_for_context(const bke::Instances &instances, IndexMask /*mask*/) const final
+  GVArray get_varray_for_context(const bke::Instances &instances,
+                                 const IndexMask & /*mask*/) const final
   {
-    auto rotation_fn = [&](const int i) -> float3 {
-      return float3(math::to_euler(instances.transforms()[i]));
-    };
-
-    return VArray<float3>::ForFunc(instances.instances_num(), rotation_fn);
+    const Span<float4x4> transforms = instances.transforms();
+    return VArray<math::Quaternion>::ForFunc(instances.instances_num(), [transforms](const int i) {
+      return math::to_quaternion(math::normalize(transforms[i]));
+    });
   }
 
   uint64_t hash() const override
@@ -41,20 +44,23 @@ class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<float3> rotation{std::make_shared<InstanceRotationFieldInput>()};
+  Field<math::Quaternion> rotation{std::make_shared<InstanceRotationFieldInput>()};
   params.set_output("Rotation", std::move(rotation));
 }
 
-}  // namespace blender::nodes::node_geo_input_instance_rotation_cc
-
-void register_node_type_geo_input_instance_rotation()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_instance_rotation_cc;
-
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_INPUT_INSTANCE_ROTATION, "Instance Rotation", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+      &ntype, "GeometryNodeInputInstanceRotation", GEO_NODE_INPUT_INSTANCE_ROTATION);
+  ntype.ui_name = "Instance Rotation";
+  ntype.ui_description = "Retrieve the rotation of each instance in the geometry";
+  ntype.enum_name_legacy = "INPUT_INSTANCE_ROTATION";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_instance_rotation_cc

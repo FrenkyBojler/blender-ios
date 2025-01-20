@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
 
 #####################################################################
 # Cycles standalone executable
@@ -50,6 +51,22 @@ if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
   list(APPEND LIB ${Epoxy_LIBRARIES} ${SDL2_LIBRARIES})
 endif()
 
+if(WITH_USD)
+  # Silence warning from USD headers using deprecated TBB header.
+  add_definitions(
+    -D__TBB_show_deprecation_message_atomic_H
+    -D__TBB_show_deprecation_message_task_H
+  )
+
+  list(APPEND INC_SYS
+    ${USD_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    cycles_hydra
+    ${USD_LIBRARIES}
+  )
+endif()
+
 cycles_external_libraries_append(LIB)
 
 # Common configuration.
@@ -86,20 +103,61 @@ if(WITH_CYCLES_STANDALONE)
 
   if(APPLE)
     if(WITH_CYCLES_STANDALONE_GUI)
-      set_property(TARGET cycles APPEND_STRING PROPERTY LINK_FLAGS
-        " -framework Cocoa -framework CoreAudio -framework AudioUnit -framework AudioToolbox -framework ForceFeedback -framework CoreVideo")
+      # Frameworks used by SDL.
+      string(CONCAT _cycles_sdl_frameworks
+        " -framework AudioToolbox"
+        " -framework AudioUnit"
+        " -framework Cocoa"
+        " -framework CoreAudio"
+        " -framework CoreHaptics"
+        " -framework CoreVideo"
+        " -framework ForceFeedback"
+        " -framework GameController"
+      )
+      set_property(
+        TARGET cycles
+        APPEND PROPERTY LINK_FLAGS
+        "${_cycles_sdl_frameworks}"
+      )
     endif()
-  endif()
-
-  if(UNIX AND NOT APPLE)
-    set_target_properties(cycles PROPERTIES INSTALL_RPATH $ORIGIN/lib)
   endif()
 
   if(CYCLES_STANDALONE_REPOSITORY)
     cycles_install_libraries(cycles)
+
+    if(WITH_USD AND USD_LIBRARY_DIR)
+      install(DIRECTORY
+        ${USD_LIBRARY_DIR}/usd
+        DESTINATION ${CMAKE_INSTALL_PREFIX}
+      )
+
+      install(DIRECTORY
+        ${USD_LIBRARY_DIR}/../plugin/usd
+        DESTINATION ${CMAKE_INSTALL_PREFIX}
+      )
+    endif()
   endif()
 
-  install(PROGRAMS
-    $<TARGET_FILE:cycles>
+  install(
+    TARGETS cycles
+    DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+  add_test(
+    NAME cycles_version
+    COMMAND ${CMAKE_INSTALL_PREFIX}/$<TARGET_FILE_NAME:cycles> --version)
+endif()
+
+if(WITH_CYCLES_PRECOMPUTE)
+  set(SRC
+    cycles_precompute.cpp
+  )
+
+  add_executable(cycles_precompute ${SRC} ${INC} ${INC_SYS})
+  unset(SRC)
+
+  target_link_libraries(cycles_precompute PRIVATE ${LIB})
+
+  install(
+    TARGETS cycles_precompute
     DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif()

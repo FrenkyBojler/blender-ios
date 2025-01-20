@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2010-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup collada
@@ -8,21 +10,20 @@
 #include "COLLADASWImage.h"
 
 #include "DNA_image_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_texture_types.h"
 
-#include "BKE_customdata.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
-#include "BKE_main.h"
-#include "BKE_mesh.h"
+#include "BKE_customdata.hh"
+#include "BKE_global.hh"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
+#include "BKE_main.hh"
+#include "BKE_mesh.hh"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf_types.hh"
 
 #include "ImageExporter.h"
 #include "MaterialExporter.h"
@@ -61,19 +62,18 @@ void ImagesExporter::export_UV_Image(Image *image, bool use_copies)
   char export_file[FILE_MAX];
 
   /* Destination folder for exported assets */
-  BLI_split_dir_part(this->export_settings.get_filepath(), export_dir, sizeof(export_dir));
+  BLI_path_split_dir_part(this->export_settings.get_filepath(), export_dir, sizeof(export_dir));
 
   if (is_generated || is_dirty || use_copies || is_packed) {
 
     /* make absolute destination path */
 
-    BLI_strncpy(export_file, name.c_str(), sizeof(export_file));
-    BKE_image_path_ensure_ext_from_imformat(export_file, &imageFormat);
+    STRNCPY(export_file, name.c_str());
+    BKE_image_path_ext_from_imformat_ensure(export_file, sizeof(export_file), &imageFormat);
 
     BLI_path_join(export_path, sizeof(export_path), export_dir, export_file);
 
-    /* make dest directory if it doesn't exist */
-    BLI_make_existing_file(export_path);
+    BLI_file_ensure_parent_dir_exists(export_path);
   }
 
   if (is_generated || is_dirty || is_packed) {
@@ -82,18 +82,18 @@ void ImagesExporter::export_UV_Image(Image *image, bool use_copies)
      * So we have to export it. The export will keep the image state intact,
      * so the exported file will not be associated with the image. */
 
-    if (BKE_imbuf_write_as(imbuf, export_path, &imageFormat, true) == 0) {
+    if (BKE_imbuf_write_as(imbuf, export_path, &imageFormat, true) == false) {
       fprintf(stderr, "Collada export: Cannot export image to:\n%s\n", export_path);
       return;
     }
-    BLI_strncpy(export_path, export_file, sizeof(export_path));
+    STRNCPY(export_path, export_file);
   }
   else {
 
     /* make absolute source path */
-    BLI_strncpy(source_path, image->filepath, sizeof(source_path));
+    STRNCPY(source_path, image->filepath);
     BLI_path_abs(source_path, ID_BLEND_PATH_FROM_GLOBAL(&image->id));
-    BLI_path_normalize(nullptr, source_path);
+    BLI_path_normalize(source_path);
 
     if (use_copies) {
 
@@ -113,14 +113,14 @@ void ImagesExporter::export_UV_Image(Image *image, bool use_copies)
         }
       }
 
-      BLI_strncpy(export_path, export_file, sizeof(export_path));
+      STRNCPY(export_path, export_file);
     }
     else {
 
       /* Do not make any copies, but use the source path directly as reference
        * to the original image */
 
-      BLI_strncpy(export_path, source_path, sizeof(export_path));
+      STRNCPY(export_path, source_path);
     }
   }
 

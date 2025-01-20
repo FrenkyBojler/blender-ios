@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2022 NVIDIA Corporation
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "hydra/volume.h"
 #include "hydra/field.h"
@@ -30,9 +31,7 @@ HdCyclesVolume::HdCyclesVolume(const SdfPath &rprimId
 {
 }
 
-HdCyclesVolume::~HdCyclesVolume()
-{
-}
+HdCyclesVolume::~HdCyclesVolume() = default;
 
 HdDirtyBits HdCyclesVolume::GetInitialDirtyBitsMask() const
 {
@@ -46,10 +45,11 @@ void HdCyclesVolume::Populate(HdSceneDelegate *sceneDelegate, HdDirtyBits dirtyB
   Scene *const scene = (Scene *)_geom->get_owner();
 
   if (dirtyBits & HdChangeTracker::DirtyVolumeField) {
-    for (const HdVolumeFieldDescriptor &field :
-         sceneDelegate->GetVolumeFieldDescriptors(GetId())) {
-      if (const auto openvdbAsset = static_cast<HdCyclesField *>(
-              sceneDelegate->GetRenderIndex().GetBprim(_tokens->openvdbAsset, field.fieldId))) {
+    for (const HdVolumeFieldDescriptor &field : sceneDelegate->GetVolumeFieldDescriptors(GetId()))
+    {
+      if (auto *const openvdbAsset = static_cast<HdCyclesField *>(
+              sceneDelegate->GetRenderIndex().GetBprim(_tokens->openvdbAsset, field.fieldId)))
+      {
         const ustring name(field.fieldName.GetString());
 
         AttributeStandard std = ATTR_STD_NONE;
@@ -74,11 +74,11 @@ void HdCyclesVolume::Populate(HdSceneDelegate *sceneDelegate, HdDirtyBits dirtyB
 
         // Skip attributes that are not needed
         if ((std != ATTR_STD_NONE && _geom->need_attribute(scene, std)) ||
-            _geom->need_attribute(scene, name)) {
+            _geom->need_attribute(scene, name))
+        {
           Attribute *const attr = (std != ATTR_STD_NONE) ?
                                       _geom->attributes.add(std) :
-                                      _geom->attributes.add(
-                                          name, TypeDesc::TypeFloat, ATTR_ELEMENT_VOXEL);
+                                      _geom->attributes.add(name, TypeFloat, ATTR_ELEMENT_VOXEL);
           attr->data_voxel() = openvdbAsset->GetImageHandle();
         }
       }

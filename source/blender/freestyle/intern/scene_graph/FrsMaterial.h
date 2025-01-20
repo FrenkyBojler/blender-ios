@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -9,9 +11,7 @@
 
 #include "../system/FreestyleConfig.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -50,9 +50,7 @@ class FrsMaterial {
   inline FrsMaterial(const FrsMaterial &m);
 
   /** Destructor */
-  virtual ~FrsMaterial()
-  {
-  }
+  virtual ~FrsMaterial() {}
 
   /** Returns the line color as a 4 float array */
   inline const float *line() const
@@ -303,9 +301,7 @@ class FrsMaterial {
   float Shininess;
   int Priority;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:FrsMaterial")
-#endif
 };
 
 FrsMaterial::FrsMaterial()

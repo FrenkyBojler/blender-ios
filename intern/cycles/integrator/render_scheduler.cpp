@@ -1,12 +1,15 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "integrator/render_scheduler.h"
 
+#include "scene/integrator.h"
+
 #include "session/session.h"
 #include "session/tile.h"
+
 #include "util/log.h"
-#include "util/math.h"
 #include "util/time.h"
 
 CCL_NAMESPACE_BEGIN
@@ -45,6 +48,11 @@ void RenderScheduler::set_denoiser_params(const DenoiseParams &params)
   denoiser_params_ = params;
 }
 
+bool RenderScheduler::is_denoiser_gpu_used() const
+{
+  return denoiser_params_.use_gpu;
+}
+
 void RenderScheduler::set_limit_samples_per_update(const int limit_samples)
 {
   limit_samples_per_update_ = limit_samples;
@@ -60,19 +68,19 @@ bool RenderScheduler::is_adaptive_sampling_used() const
   return adaptive_sampling_.use;
 }
 
-void RenderScheduler::set_start_sample(int start_sample)
+void RenderScheduler::set_sample_params(const int num_samples,
+                                        const bool use_sample_subset,
+                                        const int sample_subset_offset,
+                                        const int sample_subset_length)
 {
-  start_sample_ = start_sample;
-}
+  sample_offset_ = 0;
+  num_samples_ = min(num_samples, Integrator::MAX_SAMPLES);
 
-int RenderScheduler::get_start_sample() const
-{
-  return start_sample_;
-}
-
-void RenderScheduler::set_num_samples(int num_samples)
-{
-  num_samples_ = num_samples;
+  if (use_sample_subset) {
+    sample_offset_ = sample_subset_offset;
+    num_samples_ = max(
+        min(sample_subset_offset + sample_subset_length, num_samples_) - sample_subset_offset, 0);
+  }
 }
 
 int RenderScheduler::get_num_samples() const
@@ -80,17 +88,12 @@ int RenderScheduler::get_num_samples() const
   return num_samples_;
 }
 
-void RenderScheduler::set_sample_offset(int sample_offset)
-{
-  sample_offset_ = sample_offset;
-}
-
 int RenderScheduler::get_sample_offset() const
 {
   return sample_offset_;
 }
 
-void RenderScheduler::set_time_limit(double time_limit)
+void RenderScheduler::set_time_limit(const double time_limit)
 {
   time_limit_ = time_limit;
 }
@@ -104,7 +107,7 @@ int RenderScheduler::get_rendered_sample() const
 {
   DCHECK_GT(get_num_rendered_samples(), 0);
 
-  return start_sample_ + get_num_rendered_samples() - 1 - sample_offset_;
+  return get_num_rendered_samples() - 1;
 }
 
 int RenderScheduler::get_num_rendered_samples() const
@@ -112,15 +115,11 @@ int RenderScheduler::get_num_rendered_samples() const
   return state_.num_rendered_samples;
 }
 
-void RenderScheduler::reset(const BufferParams &buffer_params, int num_samples, int sample_offset)
+void RenderScheduler::reset(const BufferParams &buffer_params)
 {
   buffer_params_ = buffer_params;
 
   update_start_resolution_divider();
-
-  set_num_samples(num_samples);
-  set_start_sample(sample_offset);
-  set_sample_offset(sample_offset);
 
   /* In background mode never do lower resolution render preview, as it is not really supported
    * by the software. */
@@ -128,9 +127,8 @@ void RenderScheduler::reset(const BufferParams &buffer_params, int num_samples, 
     state_.resolution_divider = 1;
   }
   else {
-    /* NOTE: Divide by 2 because of the way how scheduling works: it advances resolution divider
-     * first and then initialized render work. */
-    state_.resolution_divider = start_resolution_divider_ * 2;
+    state_.user_is_navigating = true;
+    state_.resolution_divider = start_resolution_divider_;
   }
 
   state_.num_rendered_samples = 0;
@@ -175,7 +173,7 @@ void RenderScheduler::reset(const BufferParams &buffer_params, int num_samples, 
 
 void RenderScheduler::reset_for_next_tile()
 {
-  reset(buffer_params_, num_samples_, sample_offset_);
+  reset(buffer_params_);
 }
 
 bool RenderScheduler::render_work_reschedule_on_converge(RenderWork &render_work)
@@ -192,7 +190,8 @@ bool RenderScheduler::render_work_reschedule_on_converge(RenderWork &render_work
 
   state_.path_trace_finished = true;
 
-  bool denoiser_delayed, denoiser_ready_to_display;
+  bool denoiser_delayed;
+  bool denoiser_ready_to_display;
   render_work.tile.denoise = work_need_denoise(denoiser_delayed, denoiser_ready_to_display);
 
   render_work.display.update = work_need_update_display(denoiser_delayed);
@@ -312,7 +311,21 @@ RenderWork RenderScheduler::get_render_work()
   RenderWork render_work;
 
   if (state_.resolution_divider != pixel_size_) {
-    state_.resolution_divider = max(state_.resolution_divider / 2, pixel_size_);
+    if (state_.user_is_navigating) {
+      /* Don't progress the resolution divider as the user is currently navigating in the scene. */
+      state_.user_is_navigating = false;
+    }
+    else {
+      /* If the resolution divider is greater than or equal to default_start_resolution_divider_,
+       * drop the resolution divider down to 4. This is so users with slow hardware and thus high
+       * resolution dividers (E.G. 16), get an update to let them know something is happening
+       * rather than having to wait for the full 1:1 render to show up. */
+      state_.resolution_divider = state_.resolution_divider > default_start_resolution_divider_ ?
+                                      (4 * pixel_size_) :
+                                      1;
+    }
+
+    state_.resolution_divider = max(state_.resolution_divider, pixel_size_);
     state_.num_rendered_samples = 0;
     state_.last_display_update_sample = -1;
   }
@@ -323,7 +336,7 @@ RenderWork RenderScheduler::get_render_work()
   render_work.path_trace.num_samples = get_num_samples_to_path_trace();
   render_work.path_trace.sample_offset = get_sample_offset();
 
-  render_work.init_render_buffers = (render_work.path_trace.start_sample == get_start_sample());
+  render_work.init_render_buffers = (render_work.path_trace.start_sample == get_sample_offset());
 
   /* NOTE: Rebalance scheduler requires current number of samples to not be advanced forward. */
   render_work.rebalance = work_need_rebalance();
@@ -336,7 +349,8 @@ RenderWork RenderScheduler::get_render_work()
   render_work.adaptive_sampling.threshold = work_adaptive_threshold();
   render_work.adaptive_sampling.reset = false;
 
-  bool denoiser_delayed, denoiser_ready_to_display;
+  bool denoiser_delayed;
+  bool denoiser_ready_to_display;
   render_work.tile.denoise = work_need_denoise(denoiser_delayed, denoiser_ready_to_display);
 
   render_work.tile.write = done();
@@ -432,7 +446,7 @@ void RenderScheduler::set_full_frame_render_work(RenderWork *render_work)
 
 /* Knowing time which it took to complete a task at the current resolution divider approximate how
  * long it would have taken to complete it at a final resolution. */
-static double approximate_final_time(const RenderWork &render_work, double time)
+static double approximate_final_time(const RenderWork &render_work, const double time)
 {
   if (render_work.resolution_divider == 1) {
     return time;
@@ -452,13 +466,14 @@ void RenderScheduler::report_work_begin(const RenderWork &render_work)
    * because it might be wrongly 0. Check for whether path tracing is actually happening as it is
    * expected to happen in the first work. */
   if (render_work.resolution_divider == pixel_size_ && render_work.path_trace.num_samples != 0 &&
-      render_work.path_trace.start_sample == get_start_sample()) {
+      render_work.path_trace.start_sample == get_sample_offset())
+  {
     state_.start_render_time = time_dt();
   }
 }
 
 void RenderScheduler::report_path_trace_time(const RenderWork &render_work,
-                                             double time,
+                                             const double time,
                                              bool is_cancelled)
 {
   path_trace_time_.add_wall(time);
@@ -483,7 +498,8 @@ void RenderScheduler::report_path_trace_time(const RenderWork &render_work,
   VLOG_WORK << "Average path tracing time: " << path_trace_time_.get_average() << " seconds.";
 }
 
-void RenderScheduler::report_path_trace_occupancy(const RenderWork &render_work, float occupancy)
+void RenderScheduler::report_path_trace_occupancy(const RenderWork &render_work,
+                                                  const float occupancy)
 {
   state_.occupancy_num_samples = render_work.path_trace.num_samples;
   state_.occupancy = occupancy;
@@ -491,7 +507,7 @@ void RenderScheduler::report_path_trace_occupancy(const RenderWork &render_work,
 }
 
 void RenderScheduler::report_adaptive_filter_time(const RenderWork &render_work,
-                                                  double time,
+                                                  const double time,
                                                   bool is_cancelled)
 {
   adaptive_filter_time_.add_wall(time);
@@ -512,7 +528,7 @@ void RenderScheduler::report_adaptive_filter_time(const RenderWork &render_work,
             << " seconds.";
 }
 
-void RenderScheduler::report_denoise_time(const RenderWork &render_work, double time)
+void RenderScheduler::report_denoise_time(const RenderWork &render_work, const double time)
 {
   denoise_time_.add_wall(time);
 
@@ -531,7 +547,7 @@ void RenderScheduler::report_denoise_time(const RenderWork &render_work, double 
   VLOG_WORK << "Average denoising time: " << denoise_time_.get_average() << " seconds.";
 }
 
-void RenderScheduler::report_display_update_time(const RenderWork &render_work, double time)
+void RenderScheduler::report_display_update_time(const RenderWork &render_work, const double time)
 {
   display_update_time_.add_wall(time);
 
@@ -557,7 +573,7 @@ void RenderScheduler::report_display_update_time(const RenderWork &render_work, 
 }
 
 void RenderScheduler::report_rebalance_time(const RenderWork &render_work,
-                                            double time,
+                                            const double time,
                                             bool balance_changed)
 {
   rebalance_time_.add_wall(time);
@@ -776,7 +792,7 @@ int RenderScheduler::calculate_num_samples_per_update() const
 
 int RenderScheduler::get_start_sample_to_path_trace() const
 {
-  return start_sample_ + state_.num_rendered_samples;
+  return sample_offset_ + state_.num_rendered_samples;
 }
 
 /* Round number of samples to the closest power of two.
@@ -819,7 +835,7 @@ int RenderScheduler::get_num_samples_to_path_trace() const
     return 1;
   }
 
-  int num_samples_per_update = calculate_num_samples_per_update();
+  const int num_samples_per_update = calculate_num_samples_per_update();
   const int path_trace_start_sample = get_start_sample_to_path_trace();
 
   /* Round number of samples to a power of two, so that division of path states into tiles goes in
@@ -830,7 +846,7 @@ int RenderScheduler::get_num_samples_to_path_trace() const
    * more than N samples. */
   const int num_samples_pot = round_num_samples_to_power_of_2(num_samples_per_update);
 
-  const int max_num_samples_to_render = start_sample_ + num_samples_ - path_trace_start_sample;
+  const int max_num_samples_to_render = sample_offset_ + num_samples_ - path_trace_start_sample;
 
   int num_samples_to_render = min(num_samples_pot, max_num_samples_to_render);
 
@@ -840,27 +856,57 @@ int RenderScheduler::get_num_samples_to_path_trace() const
     /* Keep occupancy at about 0.5 (this is more of an empirical figure which seems to match scenes
      * with good performance without forcing occupancy to be higher). */
     int num_samples_to_occupy = state_.occupancy_num_samples;
-    if (state_.occupancy < 0.5f) {
+    if (state_.occupancy > 0 && state_.occupancy < 0.5f) {
       num_samples_to_occupy = lround(state_.occupancy_num_samples * 0.7f / state_.occupancy);
     }
 
-    /* When time limit is used clamp the calculated number of samples to keep occupancy.
-     * This is because time limit causes the last render iteration to happen with less number of
-     * samples, which conflicts with the occupancy (lower number of samples causes lower
-     * occupancy, also the calculation is based on number of previously rendered samples).
+    /* Time limit for path tracing, which constraints the scheduler from "over-scheduling" work
+     * in scenes which have very long path trace times and low occupancy. This allows faster
+     * feedback of render results, and faster canceling when artists notice something is wrong.
      *
-     * When time limit is not used the number of samples per render iteration is either increasing
-     * or stays the same, so there is no need to clamp number of samples calculated for occupancy.
-     */
+     * Additionally, when the time limit is enabled, do not render more samples than it is needed
+     * to reach the time limit. */
+    double path_tracing_time_limit = 0;
+    if (headless_) {
+      /* In the headless (command-line) render "over-scheduling" is not as bad, as it ensures the
+       * best possible render time. */
+    }
+    else if (background_) {
+      /* For the first few seconds prefer quicker updates, giving it a better chance for artists
+       * to cancel render early on when they notice something is wrong. After that increase the
+       * update times a lot, giving the best possible performance on a complicated scenes like
+       * the Spring splash screen (where occupancy is just very bad). */
+      if (state_.start_render_time == 0.0 || time_dt() - state_.start_render_time < 10) {
+        path_tracing_time_limit = 2.0;
+      }
+      else {
+        path_tracing_time_limit = 15.0;
+      }
+    }
+    else {
+      /* Viewport render: prefer faster updates over overall render time reduction. */
+      /* TODO: Look into enabling this entire code-path for the viewport as well, allowing
+       * compensation even in viewport (currently parent scope checks for non-viewport render). */
+      path_tracing_time_limit = guess_display_update_interval_in_seconds();
+    }
     if (time_limit_ != 0.0 && state_.start_render_time != 0.0) {
       const double remaining_render_time = max(
           0.0, time_limit_ - (time_dt() - state_.start_render_time));
-      const double time_per_sample_average = path_trace_time_.get_average();
-      const double predicted_render_time = num_samples_to_occupy * time_per_sample_average;
-
-      if (predicted_render_time > remaining_render_time) {
+      if (path_tracing_time_limit == 0) {
+        path_tracing_time_limit = remaining_render_time;
+      }
+      else {
+        path_tracing_time_limit = min(path_tracing_time_limit, remaining_render_time);
+      }
+    }
+    if (path_tracing_time_limit != 0) {
+      /* Use the per-sample time from the previously rendered batch of samples so that the
+       * correction is applied much quicker. */
+      const double predicted_render_time = num_samples_to_occupy *
+                                           path_trace_time_.get_last_sample_time();
+      if (predicted_render_time > path_tracing_time_limit) {
         num_samples_to_occupy = lround(num_samples_to_occupy *
-                                       (remaining_render_time / predicted_render_time));
+                                       (path_tracing_time_limit / predicted_render_time));
       }
     }
 
@@ -882,39 +928,28 @@ int RenderScheduler::get_num_samples_to_path_trace() const
                                           num_samples_to_render);
 }
 
-int RenderScheduler::get_num_samples_during_navigation(int resolution_divider) const
+int RenderScheduler::get_num_samples_during_navigation(const int resolution_divider) const
 {
   /* Special trick for fast navigation: schedule multiple samples during fast navigation
    * (which will prefer to use lower resolution to keep up with refresh rate). This gives more
-   * usable visual feedback for artists. There are a couple of tricks though. */
+   * usable visual feedback for artists. */
 
   if (is_denoise_active_during_update()) {
     /* When denoising is used during navigation prefer using a higher resolution with less samples
      * (scheduling less samples here will make it so the resolution_divider calculation will use a
-     * lower value for the divider). This is because both OpenImageDenoiser and OptiX denoiser
+     * lower value for the divider). This is because both OpenImageDenoise and OptiX denoiser
      * give visually better results on a higher resolution image with less samples. */
     return 1;
   }
 
-  if (resolution_divider <= pixel_size_) {
-    /* When resolution divider is at or below pixel size, schedule one sample. This doesn't effect
-     * the sample count at this resolution division, but instead assists in the calculation of
-     * the resolution divider. */
-    return 1;
-  }
-
-  if (resolution_divider == pixel_size_ * 2) {
-    /* When resolution divider is the previous step to the final resolution, schedule two samples.
-     * This is so that rendering on lower resolution does not exceed time that it takes to render
-     * first sample at the full resolution. */
-    return 2;
-  }
-
-  /* Always render 4 samples, even if scene is configured for less.
-   * The idea here is to have enough information on the screen. Resolution divider of 2 allows us
-   * to have 4 time extra samples, so overall worst case timing is the same as the final resolution
-   * at one sample. */
-  return 4;
+  /* Schedule samples equal to the resolution divider up to a maximum of 4, limited by the maximum
+   * number of samples overall.
+   * The idea is to have enough information on the screen by increasing the sample count as the
+   * resolution is decreased. */
+  const int max_navigation_samples = min(num_samples_, 4);
+  /* NOTE: Changing this formula will change the formula in
+   * `RenderScheduler::calculate_resolution_divider_for_time()`. */
+  return min(max(1, resolution_divider / pixel_size_), max_navigation_samples);
 }
 
 bool RenderScheduler::work_need_adaptive_filter() const
@@ -969,7 +1004,8 @@ bool RenderScheduler::work_need_denoise(bool &delayed, bool &ready_to_display)
 
   /* Immediately denoise when we reach the start sample or last sample. */
   if (num_samples_finished == denoiser_params_.start_sample ||
-      num_samples_finished == num_samples_) {
+      num_samples_finished == num_samples_)
+  {
     return true;
   }
 
@@ -1071,10 +1107,16 @@ void RenderScheduler::update_start_resolution_divider()
     return;
   }
 
+  /* Calculate the maximum resolution divider possible while keeping the long axis of the viewport
+   * above our preferred minimum axis size (128). */
+  const int long_viewport_axis = max(buffer_params_.width, buffer_params_.height);
+  const int max_res_divider_for_desired_size = long_viewport_axis / 128;
+
   if (start_resolution_divider_ == 0) {
-    /* Resolution divider has never been calculated before: use default resolution, so that we have
-     * somewhat good initial behavior, giving a chance to collect real numbers. */
-    start_resolution_divider_ = default_start_resolution_divider_;
+    /* Resolution divider has never been calculated before: start with a high resolution divider so
+     * that we have a somewhat good initial behavior, giving a chance to collect real numbers. */
+    start_resolution_divider_ = min(default_start_resolution_divider_,
+                                    max_res_divider_for_desired_size);
     VLOG_WORK << "Initial resolution divider is " << start_resolution_divider_;
     return;
   }
@@ -1100,9 +1142,9 @@ void RenderScheduler::update_start_resolution_divider()
   /* TODO(sergey): Need to add hysteresis to avoid resolution divider bouncing around when actual
    * render time is somewhere on a boundary between two resolutions. */
 
-  /* Never increase resolution to higher than the pixel size (which is possible if the scene is
-   * simple and compute device is fast). */
-  start_resolution_divider_ = max(resolution_divider_for_update, pixel_size_);
+  /* Don't let resolution drop below the desired one. It's better to be slow than provide an
+   * unreadable viewport render. */
+  start_resolution_divider_ = min(resolution_divider_for_update, max_res_divider_for_desired_size);
 
   VLOG_WORK << "Calculated resolution divider is " << start_resolution_divider_;
 }
@@ -1113,7 +1155,7 @@ double RenderScheduler::guess_viewport_navigation_update_interval_in_seconds() c
     /* Use lower value than the non-denoised case to allow having more pixels to reconstruct the
      * image from. With the faster updates and extra compute required the resolution becomes too
      * low to give usable feedback. */
-    /* NOTE: Based on performance of OpenImageDenoiser on CPU. For OptiX denoiser or other denoiser
+    /* NOTE: Based on performance of OpenImageDenoise on CPU. For OptiX denoiser or other denoiser
      * on GPU the value might need to become lower for faster navigation. */
     return 1.0 / 12.0;
   }
@@ -1145,7 +1187,7 @@ bool RenderScheduler::is_denoise_active_during_update() const
 bool RenderScheduler::work_is_usable_for_first_render_estimation(const RenderWork &render_work)
 {
   return render_work.resolution_divider == pixel_size_ &&
-         render_work.path_trace.start_sample == start_sample_;
+         render_work.path_trace.start_sample == sample_offset_;
 }
 
 bool RenderScheduler::work_report_reset_average(const RenderWork &render_work)
@@ -1185,29 +1227,30 @@ void RenderScheduler::check_time_limit_reached()
  * Utility functions.
  */
 
-int RenderScheduler::calculate_resolution_divider_for_time(double desired_time, double actual_time)
+int RenderScheduler::calculate_resolution_divider_for_time(const double desired_time,
+                                                           const double actual_time)
 {
-  /* TODO(sergey): There should a non-iterative analytical formula here. */
+  const double ratio_between_times = actual_time / desired_time;
 
-  int resolution_divider = 1;
+  /* We can pass `ratio_between_times` to `get_num_samples_during_navigation()` to get our
+   * navigation samples because the equation for calculating the resolution divider is as follows:
+   * `actual_time / desired_time = sqr(resolution_divider) / sample_count`.
+   * While `resolution_divider` is less than or equal to 4, `resolution_divider = sample_count`
+   * (This relationship is determined in `get_num_samples_during_navigation()`). With some
+   * substitution we end up with `actual_time / desired_time = resolution_divider` while the
+   * resolution divider is less than or equal to 4. Once the resolution divider increases above 4,
+   * the relationship of `actual_time / desired_time = resolution_divider` is no longer true,
+   * however the sample count retrieved from `get_num_samples_during_navigation()` is still
+   * accurate if we continue using this assumption. It should be noted that the interaction between
+   * `pixel_size`, sample count, and resolution divider are automatically accounted for and that's
+   * why `pixel_size` isn't included in any of the equations. */
+  const int navigation_samples = get_num_samples_during_navigation(
+      ceil_to_int(ratio_between_times));
 
-  /* This algorithm iterates through resolution dividers until a divider is found that achieves
-   * the desired render time. A limit of default_start_resolution_divider_ is put in place as the
-   * maximum resolution divider to avoid an unreadable viewport due to a low resolution.
-   * pre_resolution_division_samples and post_resolution_division_samples are used in this
-   * calculation to better predict the performance impact of changing resolution divisions as
-   * the sample count can also change between resolution divisions. */
-  while (actual_time > desired_time && resolution_divider < default_start_resolution_divider_) {
-    int pre_resolution_division_samples = get_num_samples_during_navigation(resolution_divider);
-    resolution_divider = resolution_divider * 2;
-    int post_resolution_division_samples = get_num_samples_during_navigation(resolution_divider);
-    actual_time /= 4.0 * pre_resolution_division_samples / post_resolution_division_samples;
-  }
-
-  return resolution_divider;
+  return ceil_to_int(sqrt(navigation_samples * ratio_between_times));
 }
 
-int calculate_resolution_divider_for_resolution(int width, int height, int resolution)
+int calculate_resolution_divider_for_resolution(int width, int height, const int resolution)
 {
   if (resolution == INT_MAX) {
     return 1;
@@ -1224,7 +1267,9 @@ int calculate_resolution_divider_for_resolution(int width, int height, int resol
   return resolution_divider;
 }
 
-int calculate_resolution_for_divider(int width, int height, int resolution_divider)
+int calculate_resolution_for_divider(const int width,
+                                     const int height,
+                                     const int resolution_divider)
 {
   const int pixel_area = width * height;
   const int resolution = lround(sqrt(pixel_area));

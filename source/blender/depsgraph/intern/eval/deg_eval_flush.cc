@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -16,29 +17,29 @@
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_key.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
+#include "BKE_key.hh"
+#include "BKE_object.hh"
+#include "BKE_scene.hh"
 
 #include "DNA_key_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "DRW_engine.h"
+#include "DRW_engine.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "intern/debug/deg_debug.h"
-#include "intern/depsgraph.h"
-#include "intern/depsgraph_relation.h"
-#include "intern/depsgraph_type.h"
-#include "intern/depsgraph_update.h"
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_factory.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
-#include "intern/node/deg_node_time.h"
+#include "intern/depsgraph.hh"
+#include "intern/depsgraph_relation.hh"
+#include "intern/depsgraph_type.hh"
+#include "intern/depsgraph_update.hh"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_factory.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
+#include "intern/node/deg_node_time.hh"
 
 #include "intern/eval/deg_eval_copy_on_write.h"
 
@@ -178,7 +179,8 @@ inline OperationNode *flush_schedule_children(OperationNode *op_node, FlushQueue
     /* Relation only allows flushes on user changes, but the node was not
      * affected by user. */
     if ((rel->flag & RELATION_FLAG_FLUSH_USER_EDIT_ONLY) &&
-        (op_node->flag & DEPSOP_FLAG_USER_MODIFIED) == 0) {
+        (op_node->flag & DEPSOP_FLAG_USER_MODIFIED) == 0)
+    {
       continue;
     }
     OperationNode *to_node = (OperationNode *)rel->to;
@@ -241,35 +243,11 @@ void flush_editors_id_update(Depsgraph *graph, const DEGEditorUpdateContext *upd
      * time, to distinguish between user edits and initial evaluation when
      * the data-block becomes visible.
      *
-     * TODO: image data-blocks do not use COW, so might not be detected
+     * TODO: image data-blocks do not use copy-on-eval, so might not be detected
      * correctly. */
-    if (deg_copy_on_write_is_expanded(id_cow)) {
+    if (deg_eval_copy_is_expanded(id_cow)) {
       if (graph->is_active && id_node->is_user_modified) {
         deg_editors_id_update(update_ctx, id_orig);
-
-        /* We only want to tag an ID for lib-override auto-refresh if it was actually tagged as
-         * changed. CoW IDs indirectly modified because of changes in other IDs should never
-         * require a lib-override diffing. */
-        if (ID_IS_OVERRIDE_LIBRARY_REAL(id_orig)) {
-          id_orig->tag |= LIB_TAG_OVERRIDE_LIBRARY_AUTOREFRESH;
-        }
-        else if (ID_IS_OVERRIDE_LIBRARY_VIRTUAL(id_orig)) {
-          switch (GS(id_orig->name)) {
-            case ID_KE:
-              ((Key *)id_orig)->from->tag |= LIB_TAG_OVERRIDE_LIBRARY_AUTOREFRESH;
-              break;
-            case ID_GR:
-              BLI_assert(id_orig->flag & LIB_EMBEDDED_DATA);
-              /* TODO. */
-              break;
-            case ID_NT:
-              BLI_assert(id_orig->flag & LIB_EMBEDDED_DATA);
-              /* TODO. */
-              break;
-            default:
-              BLI_assert(0);
-          }
-        }
       }
       /* Inform draw engines that something was changed. */
       flush_engine_data_update(id_cow);
@@ -284,7 +262,7 @@ void invalidate_tagged_evaluated_transform(ID *id)
   switch (id_type) {
     case ID_OB: {
       Object *object = (Object *)id;
-      copy_vn_fl((float *)object->object_to_world, 16, NAN);
+      copy_vn_fl((float *)object->object_to_world().ptr(), 16, NAN);
       break;
     }
     default:
@@ -315,7 +293,7 @@ void invalidate_tagged_evaluated_data(Depsgraph *graph)
       continue;
     }
     ID *id_cow = id_node->id_cow;
-    if (!deg_copy_on_write_is_expanded(id_cow)) {
+    if (!deg_eval_copy_is_expanded(id_cow)) {
       continue;
     }
     for (ComponentNode *comp_node : id_node->components.values()) {

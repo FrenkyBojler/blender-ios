@@ -1,20 +1,20 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup texnodes
  */
 
-#include "NOD_texture.h"
 #include "node_texture_util.hh"
 
-static bNodeSocketTemplate inputs[] = {
+static blender::bke::bNodeSocketTemplate inputs[] = {
     {SOCK_FLOAT, N_("Val"), 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_NONE},
     {SOCK_FLOAT, N_("Nabla"), 0.025f, 0.0f, 0.0f, 0.0f, 0.001f, 0.1f, PROP_UNSIGNED},
     {-1, ""},
 };
 
-static bNodeSocketTemplate outputs[] = {
+static blender::bke::bNodeSocketTemplate outputs[] = {
     {SOCK_VECTOR, N_("Normal")},
     {-1, ""},
 };
@@ -60,13 +60,16 @@ static void exec(void *data,
   tex_output(node, execdata, in, out[0], &normalfn, static_cast<TexCallData *>(data));
 }
 
-void register_node_type_tex_valtonor(void)
+void register_node_type_tex_valtonor()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_VALTONOR, "Value to Normal", NODE_CLASS_CONVERTER);
-  node_type_socket_templates(&ntype, inputs, outputs);
+  tex_node_type_base(&ntype, "TextureNodeValToNor", TEX_NODE_VALTONOR);
+  ntype.ui_name = "Value to Normal";
+  ntype.enum_name_legacy = "VALTONOR";
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.exec_fn = exec;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2019-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2019-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -9,7 +10,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-bool system_windows_version_at_least(int major, int build)
+bool system_windows_version_at_least(const int major, const int build)
 {
 #ifdef _WIN32
   HMODULE hMod = ::GetModuleHandleW(L"ntdll.dll");
@@ -19,7 +20,7 @@ bool system_windows_version_at_least(int major, int build)
 
   typedef NTSTATUS(WINAPI * RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
   RtlGetVersionPtr rtl_get_version = (RtlGetVersionPtr)::GetProcAddress(hMod, "RtlGetVersion");
-  if (rtl_get_version == NULL) {
+  if (rtl_get_version == nullptr) {
     return false;
   }
 

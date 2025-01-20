@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 1991, 1992, 1993, 1996, 1997 Free Software Foundation, Inc. */
+/* SPDX-FileCopyrightText: 1991, 1992, 1993, 1996, 1997 Free Software Foundation, Inc.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -218,7 +219,7 @@ fnmatch (const char *pattern, const char *string, int flags)
   return 0;
 
   if ((flags & FNM_LEADING_DIR) && *n == '/')
-  /* The FNM_LEADING_DIR flag says that "foo*" matches "foobar/frobozz".  */
+  /* The FNM_LEADING_DIR flag says that "foo*" matches "foobar/frobozz". */
   return 0;
 
   return FNM_NOMATCH;

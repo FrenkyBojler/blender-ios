@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup fn
@@ -63,23 +65,14 @@ bool LazyFunction::always_used_inputs_available(const Params &params) const
   return true;
 }
 
-void Params::set_default_remaining_outputs()
-{
-  for (const int i : fn_.outputs().index_range()) {
-    if (this->output_was_set(i)) {
-      continue;
-    }
-    const Output &fn_output = fn_.outputs()[i];
-    const CPPType &type = *fn_output.type;
-    void *data_ptr = this->get_output_data_ptr(i);
-    type.value_initialize(data_ptr);
-    this->output_set(i);
-  }
-}
-
 bool Params::try_enable_multi_threading_impl()
 {
   return false;
+}
+
+destruct_ptr<LocalUserData> UserData::get_local(LinearAllocator<> & /*allocator*/)
+{
+  return {};
 }
 
 }  // namespace blender::fn::lazy_function

@@ -1,6 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_string_utf8.h"
+#include "BLI_string_utils.hh"
 
 #include "node_function_util.hh"
 
@@ -8,11 +10,10 @@ namespace blender::nodes::node_fn_replace_string_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>(N_("String"));
-  b.add_input<decl::String>(N_("Find")).description(N_("The string to find in the input string"));
-  b.add_input<decl::String>(N_("Replace"))
-      .description(N_("The string to replace each match with"));
-  b.add_output<decl::String>(N_("String"));
+  b.add_input<decl::String>("String").hide_label();
+  b.add_input<decl::String>("Find").description("The string to find in the input string");
+  b.add_input<decl::String>("Replace").description("The string to replace each match with");
+  b.add_output<decl::String>("String");
 }
 
 static std::string replace_all(const StringRefNull str,
@@ -22,7 +23,7 @@ static std::string replace_all(const StringRefNull str,
   if (from.is_empty()) {
     return str;
   }
-  char *new_str_ptr = BLI_str_replaceN(str.c_str(), from.c_str(), to.c_str());
+  char *new_str_ptr = BLI_string_replaceN(str.c_str(), from.c_str(), to.c_str());
   std::string new_str{new_str_ptr};
   MEM_freeN(new_str_ptr);
   return new_str;
@@ -37,16 +38,18 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(&substring_fn);
 }
 
-}  // namespace blender::nodes::node_fn_replace_string_cc
-
-void register_node_type_fn_replace_string()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_fn_replace_string_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  fn_node_type_base(&ntype, FN_NODE_REPLACE_STRING, "Replace String", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::node_declare;
-  ntype.build_multi_function = file_ns::node_build_multi_function;
-  nodeRegisterType(&ntype);
+  fn_node_type_base(&ntype, "FunctionNodeReplaceString", FN_NODE_REPLACE_STRING);
+  ntype.ui_name = "Replace String";
+  ntype.enum_name_legacy = "REPLACE_STRING";
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.declare = node_declare;
+  ntype.build_multi_function = node_build_multi_function;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_replace_string_cc

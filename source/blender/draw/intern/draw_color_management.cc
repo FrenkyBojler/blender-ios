@@ -1,27 +1,31 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw
  */
 
-#include "draw_manager.h"
+#include "draw_manager_c.hh"
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
-#include "GPU_batch.h"
-#include "GPU_framebuffer.h"
-#include "GPU_matrix.h"
-#include "GPU_texture.h"
+#include "GPU_batch.hh"
+#include "GPU_framebuffer.hh"
+#include "GPU_matrix.hh"
+#include "GPU_texture.hh"
 
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
+#include "BKE_image.hh"
 
-#include "IMB_colormanagement.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "draw_color_management.h"
+#include "ED_node_c.hh"
+
+#include "draw_color_management.hh"
 
 namespace blender::draw::color_management {
 
@@ -35,7 +39,8 @@ static float dither_get(eDRWColorManagementType color_management_type, const Sce
 {
   if (ELEM(color_management_type,
            eDRWColorManagementType::ViewTransformAndLook,
-           eDRWColorManagementType::UseRenderSettings)) {
+           eDRWColorManagementType::UseRenderSettings))
+  {
     return scene.r.dither_intensity;
   }
   return 0.0f;
@@ -60,21 +65,30 @@ static eDRWColorManagementType drw_color_management_type_for_v3d(const Scene &sc
 
 static eDRWColorManagementType drw_color_management_type_for_space_image(const SpaceImage &sima)
 {
-  Image *image = sima.image;
+  const Image *image = sima.image;
 
   /* Use inverse logic as there isn't a setting for `Color & Alpha`. */
   const eSpaceImage_Flag display_channels_mode = static_cast<eSpaceImage_Flag>(sima.flag);
   const bool display_color_channel = (display_channels_mode & (SI_SHOW_ALPHA | SI_SHOW_ZBUF)) == 0;
 
   if (display_color_channel && image && (image->source != IMA_SRC_GENERATED) &&
-      ((image->flag & IMA_VIEW_AS_RENDER) != 0)) {
+      ((image->flag & IMA_VIEW_AS_RENDER) != 0))
+  {
     return eDRWColorManagementType::UseRenderSettings;
   }
   return eDRWColorManagementType::ViewTransform;
 }
 
-static eDRWColorManagementType drw_color_management_type_for_space_node(const SpaceNode &snode)
+static eDRWColorManagementType drw_color_management_type_for_space_node(Main &bmain,
+                                                                        const SpaceNode &snode)
 {
+  if ((snode.flag & SNODE_BACKDRAW) && ED_node_is_compositor(&snode)) {
+    const Image *image = BKE_image_ensure_viewer(&bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+    if ((image->flag & IMA_VIEW_AS_RENDER) == 0) {
+      return eDRWColorManagementType::ViewTransform;
+    }
+  }
+
   const eSpaceNode_Flag display_channels_mode = static_cast<eSpaceNode_Flag>(snode.flag);
   const bool display_color_channel = (display_channels_mode & SNODE_SHOW_ALPHA) == 0;
   if (display_color_channel) {
@@ -83,7 +97,8 @@ static eDRWColorManagementType drw_color_management_type_for_space_node(const Sp
   return eDRWColorManagementType::ViewTransform;
 }
 
-static eDRWColorManagementType drw_color_management_type_get(const Scene &scene,
+static eDRWColorManagementType drw_color_management_type_get(Main *bmain,
+                                                             const Scene &scene,
                                                              const View3D *v3d,
                                                              const SpaceLink *space_data)
 {
@@ -100,7 +115,7 @@ static eDRWColorManagementType drw_color_management_type_get(const Scene &scene,
       case SPACE_NODE: {
         const SpaceNode *snode = static_cast<const SpaceNode *>(
             static_cast<const void *>(space_data));
-        return drw_color_management_type_for_space_node(*snode);
+        return drw_color_management_type_for_space_node(*bmain, *snode);
       }
     }
   }
@@ -143,9 +158,11 @@ static void viewport_settings_apply(GPUViewport &viewport,
 static void viewport_color_management_set(GPUViewport &viewport)
 {
   const DRWContextState *draw_ctx = DRW_context_state_get();
+  const Depsgraph *depsgraph = draw_ctx->depsgraph;
+  Main *bmain = DEG_get_bmain(depsgraph);
 
   const eDRWColorManagementType color_management_type = drw_color_management_type_get(
-      *draw_ctx->scene, draw_ctx->v3d, draw_ctx->space_data);
+      bmain, *draw_ctx->scene, draw_ctx->v3d, draw_ctx->space_data);
   viewport_settings_apply(viewport, *draw_ctx->scene, color_management_type);
 }
 
@@ -158,24 +175,6 @@ static void viewport_color_management_set(GPUViewport &viewport)
 void DRW_viewport_colormanagement_set(GPUViewport *viewport)
 {
   blender::draw::color_management::viewport_color_management_set(*viewport);
-}
-
-void DRW_transform_none(GPUTexture *tex)
-{
-  drw_state_set(DRW_STATE_WRITE_COLOR);
-
-  GPU_matrix_identity_set();
-  GPU_matrix_identity_projection_set();
-
-  /* Draw as texture for final render (without immediate mode). */
-  GPUBatch *geom = DRW_cache_fullscreen_quad_get();
-  GPU_batch_program_set_builtin(geom, GPU_SHADER_3D_IMAGE_COLOR);
-  GPU_batch_uniform_4f(geom, "color", 1.0f, 1.0f, 1.0f, 1.0f);
-  GPU_batch_texture_bind(geom, "image", tex);
-
-  GPU_batch_draw(geom);
-
-  GPU_texture_unbind(tex);
 }
 
 /** \} */

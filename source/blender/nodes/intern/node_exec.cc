@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2007 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup nodes
@@ -10,20 +11,19 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_global.h"
-#include "BKE_node.h"
+#include "BKE_global.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_node_tree_update.h"
+#include "BKE_node_tree_update.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "node_exec.h"
-#include "node_util.h"
+#include "node_exec.hh"
+#include "node_util.hh"
 
 static int node_exec_socket_use_stack(bNodeSocket *sock)
 {
-  /* NOTE: INT supported as FLOAT. Only for EEVEE. */
-  return ELEM(sock->type, SOCK_INT, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_SHADER);
+  /* NOTE: INT and BOOL supported as FLOAT. Only for EEVEE. */
+  return ELEM(sock->type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_SHADER);
 }
 
 bNodeStack *node_get_socket_stack(bNodeStack *stack, bNodeSocket *sock)
@@ -36,17 +36,15 @@ bNodeStack *node_get_socket_stack(bNodeStack *stack, bNodeSocket *sock)
 
 void node_get_stack(bNode *node, bNodeStack *stack, bNodeStack **in, bNodeStack **out)
 {
-  bNodeSocket *sock;
-
   /* build pointer stack */
   if (in) {
-    for (sock = (bNodeSocket *)node->inputs.first; sock; sock = sock->next) {
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       *(in++) = node_get_socket_stack(stack, sock);
     }
   }
 
   if (out) {
-    for (sock = (bNodeSocket *)node->outputs.first; sock; sock = sock->next) {
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
       *(out++) = node_get_socket_stack(stack, sock);
     }
   }
@@ -56,7 +54,8 @@ static void node_init_input_index(bNodeSocket *sock, int *index)
 {
   /* Only consider existing link if from socket is valid! */
   if (sock->link && !(sock->link->flag & NODE_LINK_MUTED) && sock->link->fromsock &&
-      sock->link->fromsock->stack_index >= 0) {
+      sock->link->fromsock->stack_index >= 0)
+  {
     sock->stack_index = sock->link->fromsock->stack_index;
   }
   else {
@@ -108,10 +107,7 @@ static void node_init_output_index(bNodeSocket *sock, int *index)
 }
 
 /* basic preparation of socket stacks */
-static struct bNodeStack *setup_stack(bNodeStack *stack,
-                                      bNodeTree *ntree,
-                                      bNode *node,
-                                      bNodeSocket *sock)
+static bNodeStack *setup_stack(bNodeStack *stack, bNodeTree *ntree, bNode *node, bNodeSocket *sock)
 {
   bNodeStack *ns = node_get_socket_stack(stack, sock);
   if (!ns) {
@@ -149,7 +145,6 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
   bNode *node;
   bNodeExec *nodeexec;
   bNodeInstanceKey nodekey;
-  bNodeSocket *sock;
   bNodeStack *ns;
   int index;
   /* XXX: texture-nodes have threading issues with muting, have to disable it there. */
@@ -158,7 +153,7 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
   /* Using global main here is likely totally wrong, not sure what to do about that one though...
    * We cannot even check ntree is in global main,
    * since most of the time it won't be (thanks to ntree design)!!! */
-  BKE_ntree_update_main_tree(G.main, ntree, nullptr);
+  BKE_ntree_update_after_single_tree_change(*G.main, *ntree);
 
   ntree->ensure_topology_cache();
   const Span<bNode *> nodelist = ntree->toposort_left_to_right();
@@ -174,17 +169,17 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
     node = nodelist[n];
 
     /* init node socket stack indexes */
-    for (sock = (bNodeSocket *)node->inputs.first; sock; sock = sock->next) {
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       node_init_input_index(sock, &index);
     }
 
-    if (node->flag & NODE_MUTED || node->type == NODE_REROUTE) {
-      for (sock = (bNodeSocket *)node->outputs.first; sock; sock = sock->next) {
+    if (node->is_muted() || node->is_reroute()) {
+      LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
         node_init_output_index_muted(sock, &index, node->runtime->internal_links);
       }
     }
     else {
-      for (sock = (bNodeSocket *)node->outputs.first; sock; sock = sock->next) {
+      LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
         node_init_output_index(sock, &index);
       }
     }
@@ -210,7 +205,7 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
     nodeexec->free_exec_fn = node->typeinfo->free_exec_fn;
 
     /* tag inputs */
-    for (sock = (bNodeSocket *)node->inputs.first; sock; sock = sock->next) {
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       /* disable the node if an input link is invalid */
       if (sock->link && !(sock->link->flag & NODE_LINK_VALID)) {
         node->runtime->need_exec = 0;
@@ -223,12 +218,12 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
     }
 
     /* tag all outputs */
-    for (sock = (bNodeSocket *)node->outputs.first; sock; sock = sock->next) {
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
       /* ns = */ setup_stack(exec->stack, ntree, node, sock);
     }
 
-    nodekey = BKE_node_instance_key(parent_key, ntree, node);
-    nodeexec->data.preview = context->previews ? (bNodePreview *)BKE_node_instance_hash_lookup(
+    nodekey = bke::node_instance_key(parent_key, ntree, node);
+    nodeexec->data.preview = context->previews ? (bNodePreview *)bke::node_instance_hash_lookup(
                                                      context->previews, nodekey) :
                                                  nullptr;
     if (node->typeinfo->init_exec_fn) {

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_task.hh"
 
@@ -12,11 +14,11 @@ namespace blender::nodes::node_geo_translate_instances_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Instances")).only_instances();
-  b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Vector>(N_("Translation")).subtype(PROP_TRANSLATION).field_on_all();
-  b.add_input<decl::Bool>(N_("Local Space")).default_value(true).field_on_all();
-  b.add_output<decl::Geometry>(N_("Instances")).propagate_all();
+  b.add_input<decl::Geometry>("Instances").only_instances();
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Vector>("Translation").subtype(PROP_TRANSLATION).field_on_all();
+  b.add_input<decl::Bool>("Local Space").default_value(true).field_on_all();
+  b.add_output<decl::Geometry>("Instances").propagate_all();
 }
 
 static void translate_instances(GeoNodeExecParams &params, bke::Instances &instances)
@@ -32,17 +34,14 @@ static void translate_instances(GeoNodeExecParams &params, bke::Instances &insta
   const VArray<float3> translations = evaluator.get_evaluated<float3>(0);
   const VArray<bool> local_spaces = evaluator.get_evaluated<bool>(1);
 
-  MutableSpan<float4x4> transforms = instances.transforms();
+  MutableSpan<float4x4> transforms = instances.transforms_for_write();
 
-  threading::parallel_for(selection.index_range(), 1024, [&](IndexRange range) {
-    for (const int i_selection : range) {
-      const int i = selection[i_selection];
-      if (local_spaces[i]) {
-        transforms[i] *= math::from_location<float4x4>(translations[i]);
-      }
-      else {
-        transforms[i].location() += translations[i];
-      }
+  selection.foreach_index(GrainSize(1024), [&](const int64_t i) {
+    if (local_spaces[i]) {
+      transforms[i] *= math::from_location<float4x4>(translations[i]);
+    }
+    else {
+      transforms[i].location() += translations[i];
     }
   });
 }
@@ -56,17 +55,19 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Instances", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_translate_instances_cc
-
-void register_node_type_geo_translate_instances()
+static void register_node()
 {
-  namespace file_ns = blender::nodes::node_geo_translate_instances_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(
-      &ntype, GEO_NODE_TRANSLATE_INSTANCES, "Translate Instances", NODE_CLASS_GEOMETRY);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeTranslateInstances", GEO_NODE_TRANSLATE_INSTANCES);
+  ntype.ui_name = "Translate Instances";
+  ntype.ui_description = "Move top-level geometry instances in local or global space";
+  ntype.enum_name_legacy = "TRANSLATE_INSTANCES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(register_node)
+
+}  // namespace blender::nodes::node_geo_translate_instances_cc

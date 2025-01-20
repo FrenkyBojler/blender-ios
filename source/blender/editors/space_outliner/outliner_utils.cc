@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2017 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2017 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
  */
 
+#include <algorithm>
 #include <cstring>
 
 #include "BLI_listbase.h"
@@ -14,21 +16,21 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_object.h"
-#include "BKE_outliner_treehash.hh"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
-#include "ED_outliner.h"
-#include "ED_screen.h"
+#include "BKE_context.hh"
+#include "BKE_layer.hh"
+#include "BKE_object.hh"
 
-#include "UI_interface.h"
-#include "UI_view2d.h"
+#include "ED_outliner.hh"
+#include "ED_screen.hh"
+
+#include "UI_interface.hh"
+#include "UI_view2d.hh"
 
 #include "outliner_intern.hh"
 #include "tree/tree_display.hh"
-#include "tree/tree_iterator.hh"
 
 namespace blender::ed::outliner {
 
@@ -43,6 +45,7 @@ void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc)
   /* Scene level. */
   tvc->scene = CTX_data_scene(C);
   tvc->view_layer = CTX_data_view_layer(C);
+  tvc->layer_collection = CTX_data_layer_collection(C);
 
   /* Objects. */
   BKE_view_layer_synced_ensure(tvc->scene, tvc->view_layer);
@@ -52,7 +55,8 @@ void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc)
 
     if ((tvc->obact->type == OB_ARMATURE) ||
         /* This could be made into its own function. */
-        ((tvc->obact->type == OB_MESH) && tvc->obact->mode & OB_MODE_WEIGHT_PAINT)) {
+        ((tvc->obact->type == OB_MESH) && tvc->obact->mode & OB_MODE_WEIGHT_PAINT))
+    {
       tvc->ob_pose = BKE_object_pose_armature_get(tvc->obact);
     }
   }
@@ -72,7 +76,8 @@ TreeElement *outliner_find_item_at_y(const SpaceOutliner *space_outliner,
       }
 
       if (BLI_listbase_is_empty(&te_iter->subtree) ||
-          !TSELEM_OPEN(TREESTORE(te_iter), space_outliner)) {
+          !TSELEM_OPEN(TREESTORE(te_iter), space_outliner))
+      {
         /* No need for recursion. */
         continue;
       }
@@ -294,7 +299,8 @@ bool outliner_tree_traverse(const SpaceOutliner *space_outliner,
       /* skip */
     }
     else if (!outliner_tree_traverse(
-                 space_outliner, &subtree, filter_te_flag, filter_tselem_flag, func, customdata)) {
+                 space_outliner, &subtree, filter_te_flag, filter_tselem_flag, func, customdata))
+    {
       return false;
     }
   }
@@ -417,7 +423,7 @@ void outliner_scroll_view(SpaceOutliner *space_outliner, ARegion *region, int de
 {
   int tree_width, tree_height;
   outliner_tree_dimensions(space_outliner, &tree_width, &tree_height);
-  int y_min = MIN2(region->v2d.cur.ymin, -tree_height);
+  int y_min = std::min(int(region->v2d.cur.ymin), -tree_height);
 
   region->v2d.cur.ymax += delta_y;
   region->v2d.cur.ymin += delta_y;
@@ -475,4 +481,43 @@ Base *ED_outliner_give_base_under_cursor(bContext *C, const int mval[2])
   }
 
   return base;
+}
+
+bool ED_outliner_give_rna_under_cursor(bContext *C, const int mval[2], PointerRNA *r_ptr)
+{
+  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+
+  float view_mval[2];
+  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+
+  TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->tree, view_mval[1]);
+  if (!te) {
+    return false;
+  }
+
+  bool success = true;
+  TreeStoreElem *tselem = TREESTORE(te);
+  switch (tselem->type) {
+    case TSE_BONE: {
+      Bone *bone = (Bone *)te->directdata;
+      *r_ptr = RNA_pointer_create(tselem->id, &RNA_Bone, bone);
+      break;
+    }
+    case TSE_POSE_CHANNEL: {
+      bPoseChannel *pchan = (bPoseChannel *)te->directdata;
+      *r_ptr = RNA_pointer_create(tselem->id, &RNA_PoseBone, pchan);
+      break;
+    }
+    case TSE_EBONE: {
+      EditBone *bone = (EditBone *)te->directdata;
+      *r_ptr = RNA_pointer_create(tselem->id, &RNA_EditBone, bone);
+      break;
+    }
+
+    default:
+      success = false;
+      break;
+  }
+  return success;
 }

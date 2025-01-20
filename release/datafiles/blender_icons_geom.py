@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2018-2023 Blender Authors
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -39,6 +41,9 @@ All coordinates are written, then all colors.
 Since this is a binary format which isn't intended for general use
 the ``.dat`` file extension should be used.
 """
+__all__ = (
+    "main",
+)
 
 # This script writes out geometry-icons.
 import bpy
@@ -350,7 +355,7 @@ def main():
         if name.rpartition(".")[2].isdigit():
             continue
 
-        if not ob_eval.data.attributes.active_color:
+        if (not hasattr(ob_eval.data, 'attributes')) or not ob_eval.data.attributes.active_color:
             print("Skipping:", name, "(no vertex colors)")
             continue
 

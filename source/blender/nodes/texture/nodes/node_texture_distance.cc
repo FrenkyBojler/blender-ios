@@ -1,21 +1,22 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup texnodes
  */
 
-#include "NOD_texture.h"
+#include "BLI_math_vector.h"
 #include "node_texture_util.hh"
-#include <math.h>
+#include <cmath>
 
-static bNodeSocketTemplate inputs[] = {
+static blender::bke::bNodeSocketTemplate inputs[] = {
     {SOCK_VECTOR, N_("Coordinate 1"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
     {SOCK_VECTOR, N_("Coordinate 2"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
     {-1, ""},
 };
 
-static bNodeSocketTemplate outputs[] = {
+static blender::bke::bNodeSocketTemplate outputs[] = {
     {SOCK_FLOAT, N_("Value")},
     {-1, ""},
 };
@@ -40,13 +41,16 @@ static void exec(void *data,
   tex_output(node, execdata, in, out[0], &valuefn, static_cast<TexCallData *>(data));
 }
 
-void register_node_type_tex_distance(void)
+void register_node_type_tex_distance()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_DISTANCE, "Distance", NODE_CLASS_CONVERTER);
-  node_type_socket_templates(&ntype, inputs, outputs);
+  tex_node_type_base(&ntype, "TextureNodeDistance", TEX_NODE_DISTANCE);
+  ntype.ui_name = "Distance";
+  ntype.enum_name_legacy = "DISTANCE";
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.exec_fn = exec;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

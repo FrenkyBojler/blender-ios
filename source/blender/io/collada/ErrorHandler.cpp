@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup collada
@@ -17,9 +19,7 @@
 #include "BLI_utildefines.h"
 
 //--------------------------------------------------------------------
-ErrorHandler::ErrorHandler() : mError(false)
-{
-}
+ErrorHandler::ErrorHandler() : mError(false) {}
 
 //--------------------------------------------------------------------
 bool ErrorHandler::handleError(const COLLADASaxFWL::IError *error)
@@ -39,7 +39,8 @@ bool ErrorHandler::handleError(const COLLADASaxFWL::IError *error)
     error_message = parserError.getErrorMessage();
 
     if (parserError.getErrorType() ==
-        GeneratedSaxParser::ParserError::ERROR_VALIDATION_MIN_OCCURS_UNMATCHED) {
+        GeneratedSaxParser::ParserError::ERROR_VALIDATION_MIN_OCCURS_UNMATCHED)
+    {
       if (STREQ(parserError.getElement(), "effect")) {
         isError = false;
       }
@@ -47,21 +48,25 @@ bool ErrorHandler::handleError(const COLLADASaxFWL::IError *error)
 
     else if (parserError.getErrorType() ==
              GeneratedSaxParser::ParserError::
-                 ERROR_VALIDATION_SEQUENCE_PREVIOUS_SIBLING_NOT_PRESENT) {
+                 ERROR_VALIDATION_SEQUENCE_PREVIOUS_SIBLING_NOT_PRESENT)
+    {
       if (!(STREQ(parserError.getElement(), "extra") &&
-            STREQ(parserError.getAdditionalText().c_str(), "sibling: fx_profile_abstract"))) {
+            STREQ(parserError.getAdditionalText().c_str(), "sibling: fx_profile_abstract")))
+      {
         isError = false;
       }
     }
 
     else if (parserError.getErrorType() ==
-             GeneratedSaxParser::ParserError::ERROR_COULD_NOT_OPEN_FILE) {
+             GeneratedSaxParser::ParserError::ERROR_COULD_NOT_OPEN_FILE)
+    {
       isError = true;
       error_context = "File access";
     }
 
     else if (parserError.getErrorType() ==
-             GeneratedSaxParser::ParserError::ERROR_REQUIRED_ATTRIBUTE_MISSING) {
+             GeneratedSaxParser::ParserError::ERROR_REQUIRED_ATTRIBUTE_MISSING)
+    {
       isError = true;
     }
 

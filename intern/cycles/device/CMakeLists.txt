@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
 
 set(INC
   ..
@@ -32,8 +33,6 @@ set(SRC_CPU
   cpu/kernel.cpp
   cpu/kernel.h
   cpu/kernel_function.h
-  cpu/kernel_thread_globals.cpp
-  cpu/kernel_thread_globals.h
 )
 
 set(SRC_CUDA
@@ -64,6 +63,13 @@ set(SRC_HIP
   hip/queue.h
   hip/util.cpp
   hip/util.h
+)
+
+set(SRC_HIPRT
+  hiprt/device_impl.cpp
+  hiprt/device_impl.h
+  hiprt/queue.cpp
+  hiprt/queue.h
 )
 
 set(SRC_ONEAPI
@@ -124,6 +130,7 @@ set(SRC
   ${SRC_CPU}
   ${SRC_CUDA}
   ${SRC_HIP}
+  ${SRC_HIPRT}
   ${SRC_DUMMY}
   ${SRC_MULTI}
   ${SRC_OPTIX}
@@ -176,12 +183,10 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
   else()
     set(cycles_kernel_oneapi_lib ${CMAKE_CURRENT_BINARY_DIR}/../kernel/libcycles_kernel_oneapi${cycles_kernel_oneapi_lib_suffix}.so)
   endif()
-  list(APPEND LIB ${cycles_kernel_oneapi_lib})
-  if(WIN32)
-    list(APPEND LIB debug ${SYCL_LIBRARY_DEBUG} optimized ${SYCL_LIBRARY})
-  else()
-    list(APPEND LIB ${SYCL_LIBRARY})
-  endif()
+  list(APPEND LIB
+    ${cycles_kernel_oneapi_lib}
+    ${SYCL_LIBRARIES}
+  )
   list(APPEND SRC
     ${SRC_ONEAPI}
   )
@@ -195,6 +200,13 @@ if(WITH_OPENIMAGEDENOISE)
     ${OPENIMAGEDENOISE_LIBRARIES}
   )
 endif()
+
+if(WITH_CYCLES_OSL)
+  list(APPEND LIB
+    ${OSL_LIBRARIES}
+  )
+endif()
+
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
@@ -211,6 +223,7 @@ source_group("cpu" FILES ${SRC_CPU})
 source_group("cuda" FILES ${SRC_CUDA})
 source_group("dummy" FILES ${SRC_DUMMY})
 source_group("hip" FILES ${SRC_HIP})
+source_group("hiprt" FILES ${SRC_HIPRT})
 source_group("multi" FILES ${SRC_MULTI})
 source_group("metal" FILES ${SRC_METAL})
 source_group("optix" FILES ${SRC_OPTIX})

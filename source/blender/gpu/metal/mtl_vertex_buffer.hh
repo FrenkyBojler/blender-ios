@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -6,15 +8,14 @@
 
 #pragma once
 
+#include "GPU_vertex_buffer.hh"
+#include "MEM_guardedalloc.h"
+
+#include "mtl_context.hh"
+
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
 #include <QuartzCore/QuartzCore.h>
-
-#include "MEM_guardedalloc.h"
-
-#include "GPU_vertex_buffer.h"
-#include "gpu_vertex_buffer_private.hh"
-#include "mtl_context.hh"
 
 namespace blender::gpu {
 
@@ -22,13 +23,14 @@ class MTLVertBuf : public VertBuf {
   friend class gpu::MTLTexture; /* For buffer texture. */
   friend class MTLShader;       /* For transform feedback. */
   friend class MTLBatch;
-  friend class MTLContext; /* For transform feedback. */
+  friend class MTLContext;    /* For transform feedback. */
+  friend class MTLStorageBuf; /* For bind as SSBO resource access and copy sub. */
 
  private:
-  /** Metal buffer allocation. **/
+  /** Metal buffer allocation. */
   gpu::MTLBuffer *vbo_ = nullptr;
   /** Texture used if the buffer is bound as buffer texture. Init on first use. */
-  struct ::GPUTexture *buffer_texture_ = nullptr;
+  ::GPUTexture *buffer_texture_ = nullptr;
   /** Defines whether the buffer handle is wrapped by this MTLVertBuf, i.e. we do not own it and
    * should not free it. */
   bool is_wrapper_ = false;
@@ -37,6 +39,8 @@ class MTLVertBuf : public VertBuf {
   uint64_t alloc_size_ = 0;
   /** Whether existing allocation has been submitted for use by the GPU. */
   bool contents_in_flight_ = false;
+  /* SSBO wrapper for bind_as_ssbo support. */
+  MTLStorageBuf *ssbo_wrapper_ = nullptr;
 
   /* Fetch Metal buffer and offset into allocation if necessary.
    * Access limited to friend classes. */
@@ -49,15 +53,14 @@ class MTLVertBuf : public VertBuf {
 
  public:
   MTLVertBuf();
-  ~MTLVertBuf();
+  ~MTLVertBuf() override;
 
   void bind();
   void flag_used();
 
   void update_sub(uint start, uint len, const void *data) override;
 
-  const void *read() const override;
-  void *unmap(const void *mapped_data) const override;
+  void read(void *data) const override;
 
   void wrap_handle(uint64_t handle) override;
 

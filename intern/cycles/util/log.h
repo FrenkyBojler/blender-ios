@@ -1,15 +1,15 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __UTIL_LOGGING_H__
-#define __UTIL_LOGGING_H__
+#pragma once
 
 #if defined(WITH_CYCLES_LOGGING) && !defined(__KERNEL_GPU__)
-#  include <gflags/gflags.h>
-#  include <glog/logging.h>
+#  include <gflags/gflags.h>  // IWYU pragma: export
+#  include <glog/logging.h>   // IWYU pragma: export
 #endif
 
-#include <iostream>
+#include <iosfwd>
 
 CCL_NAMESPACE_BEGIN
 
@@ -24,12 +24,8 @@ class StubStream {
 
 class LogMessageVoidify {
  public:
-  LogMessageVoidify()
-  {
-  }
-  void operator&(const StubStream &)
-  {
-  }
+  LogMessageVoidify() {}
+  void operator&(const StubStream &) {}
 };
 
 #  define LOG_SUPPRESS() (true) ? ((void)0) : LogMessageVoidify() & StubStream()
@@ -40,8 +36,7 @@ class LogMessageVoidify {
 
 #  define CHECK(expression) LOG_SUPPRESS()
 
-#  define CHECK_NOTNULL(expression) LOG_SUPPRESS()
-#  define CHECK_NULL(expression) LOG_SUPPRESS()
+#  define CHECK_NOTNULL(expression) (expression)
 
 #  define CHECK_NEAR(actual, expected, eps) LOG_SUPPRESS()
 
@@ -54,8 +49,7 @@ class LogMessageVoidify {
 
 #  define DCHECK(expression) LOG_SUPPRESS()
 
-#  define DCHECK_NOTNULL(expression) LOG_SUPPRESS()
-#  define DCHECK_NULL(expression) LOG_SUPPRESS()
+#  define DCHECK_NOTNULL(expression) (expression)
 
 #  define DCHECK_NEAR(actual, expected, eps) LOG_SUPPRESS()
 
@@ -91,11 +85,9 @@ struct float3;
 
 void util_logging_init(const char *argv0);
 void util_logging_start();
-void util_logging_verbosity_set(int verbosity);
+void util_logging_verbosity_set(const int verbosity);
 
 std::ostream &operator<<(std::ostream &os, const int2 &value);
 std::ostream &operator<<(std::ostream &os, const float3 &value);
 
 CCL_NAMESPACE_END
-
-#endif /* __UTIL_LOGGING_H__ */

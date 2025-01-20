@@ -1,32 +1,31 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_task.hh"
+#include "BLI_array_utils.hh"
 
 #include "DNA_pointcloud_types.h"
 
-#include "BKE_attribute_math.hh"
-#include "BKE_mesh.h"
+#include "BKE_customdata.hh"
+#include "BKE_mesh.hh"
 
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_points_to_vertices_cc {
 
-using blender::Array;
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Points")).supported_type(GEO_COMPONENT_TYPE_POINT_CLOUD);
-  b.add_input<decl::Bool>(N_("Selection")).default_value(true).field_on_all().hide_value();
-  b.add_output<decl::Geometry>(N_("Mesh")).propagate_all();
+  b.add_input<decl::Geometry>("Points").supported_type(GeometryComponent::Type::PointCloud);
+  b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
+  b.add_output<decl::Geometry>("Mesh").propagate_all();
 }
 
 /* One improvement would be to move the attribute arrays directly to the mesh when possible. */
-static void geometry_set_points_to_vertices(
-    GeometrySet &geometry_set,
-    Field<bool> &selection_field,
-    const AnonymousAttributePropagationInfo &propagation_info)
+static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
+                                            Field<bool> &selection_field,
+                                            const AttributeFilter &attribute_filter)
 {
-  const PointCloud *points = geometry_set.get_pointcloud_for_read();
+  const PointCloud *points = geometry_set.get_pointcloud();
   if (points == nullptr) {
     geometry_set.remove_geometry_during_modify();
     return;
@@ -36,40 +35,55 @@ static void geometry_set_points_to_vertices(
     return;
   }
 
-  bke::PointCloudFieldContext field_context{*points};
+  const bke::PointCloudFieldContext field_context{*points};
   fn::FieldEvaluator selection_evaluator{field_context, points->totpoint};
   selection_evaluator.add(selection_field);
   selection_evaluator.evaluate();
   const IndexMask selection = selection_evaluator.get_evaluated_as_mask(0);
 
-  Map<AttributeIDRef, AttributeKind> attributes;
-  geometry_set.gather_attributes_for_propagation({GEO_COMPONENT_TYPE_POINT_CLOUD},
-                                                 GEO_COMPONENT_TYPE_MESH,
+  Map<StringRef, AttributeDomainAndType> attributes;
+  geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::PointCloud},
+                                                 GeometryComponent::Type::Mesh,
                                                  false,
-                                                 propagation_info,
+                                                 attribute_filter,
                                                  attributes);
 
-  Mesh *mesh = BKE_mesh_new_nomain(selection.size(), 0, 0, 0, 0);
-  geometry_set.replace_mesh(mesh);
+  Mesh *mesh;
+  if (selection.size() == points->totpoint) {
+    /* Create a mesh without positions so the attribute can be shared. */
+    mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+    CustomData_free_layer_named(&mesh->vert_data, "position", mesh->verts_num);
+    mesh->verts_num = selection.size();
+  }
+  else {
+    mesh = BKE_mesh_new_nomain(selection.size(), 0, 0, 0);
+  }
 
   const AttributeAccessor src_attributes = points->attributes();
   MutableAttributeAccessor dst_attributes = mesh->attributes_for_write();
 
-  for (Map<AttributeIDRef, AttributeKind>::Item entry : attributes.items()) {
-    const AttributeIDRef attribute_id = entry.key;
+  for (MapItem<StringRef, AttributeDomainAndType> entry : attributes.items()) {
+    const StringRef id = entry.key;
     const eCustomDataType data_type = entry.value.data_type;
-    GVArray src = src_attributes.lookup_or_default(attribute_id, ATTR_DOMAIN_POINT, data_type);
-    GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-        attribute_id, ATTR_DOMAIN_POINT, data_type);
-    if (dst && src) {
-      src.materialize_compressed_to_uninitialized(selection, dst.span.data());
+    const GAttributeReader src = src_attributes.lookup(id);
+    if (selection.size() == points->totpoint && src.sharing_info && src.varray.is_span()) {
+      const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
+                                          *src.sharing_info);
+      dst_attributes.add(id, AttrDomain::Point, data_type, init);
+    }
+    else {
+      GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
+          id, AttrDomain::Point, data_type);
+      array_utils::gather(src.varray, selection, dst.span);
       dst.finish();
     }
   }
 
-  mesh->loose_edges_tag_none();
+  mesh->tag_loose_edges_none();
+  mesh->tag_overlapping_none();
 
-  geometry_set.keep_only_during_modify({GEO_COMPONENT_TYPE_MESH});
+  geometry_set.replace_mesh(mesh);
+  geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -79,23 +93,25 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     geometry_set_points_to_vertices(
-        geometry_set, selection_field, params.get_output_propagation_info("Mesh"));
+        geometry_set, selection_field, params.get_attribute_filter("Mesh"));
   });
 
   params.set_output("Mesh", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_points_to_vertices_cc
-
-void register_node_type_geo_points_to_vertices()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_points_to_vertices_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(
-      &ntype, GEO_NODE_POINTS_TO_VERTICES, "Points to Vertices", NODE_CLASS_GEOMETRY);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodePointsToVertices", GEO_NODE_POINTS_TO_VERTICES);
+  ntype.ui_name = "Points to Vertices";
+  ntype.ui_description = "Generate a mesh vertex for each point cloud point";
+  ntype.enum_name_legacy = "POINTS_TO_VERTICES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_points_to_vertices_cc

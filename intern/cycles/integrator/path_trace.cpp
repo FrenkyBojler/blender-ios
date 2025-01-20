@@ -1,18 +1,22 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "integrator/path_trace.h"
 
 #include "device/cpu/device.h"
 #include "device/device.h"
+
 #include "integrator/pass_accessor.h"
 #include "integrator/path_trace_display.h"
 #include "integrator/path_trace_tile.h"
 #include "integrator/render_scheduler.h"
+
 #include "scene/pass.h"
 #include "scene/scene.h"
+
 #include "session/tile.h"
-#include "util/algorithm.h"
+
 #include "util/log.h"
 #include "util/progress.h"
 #include "util/tbb.h"
@@ -21,11 +25,13 @@
 CCL_NAMESPACE_BEGIN
 
 PathTrace::PathTrace(Device *device,
+                     Device *denoise_device,
                      Film *film,
                      DeviceScene *device_scene,
                      RenderScheduler &render_scheduler,
                      TileManager &tile_manager)
     : device_(device),
+      denoise_device_(denoise_device),
       film_(film),
       device_scene_(device_scene),
       render_scheduler_(render_scheduler),
@@ -37,7 +43,8 @@ PathTrace::PathTrace(Device *device,
     vector<DeviceInfo> cpu_devices;
     device_cpu_info(cpu_devices);
 
-    cpu_device_.reset(device_cpu_create(cpu_devices[0], device->stats, device->profiler));
+    cpu_device_ = device_cpu_create(
+        cpu_devices[0], device->stats, device->profiler, device_->headless);
   }
 
   /* Create path tracing work in advance, so that it can be reused by incremental sampling as much
@@ -154,7 +161,7 @@ void PathTrace::render(const RenderWork &render_work)
 {
   /* Indicate that rendering has started and that it can be requested to cancel. */
   {
-    thread_scoped_lock lock(render_cancel_.mutex);
+    const thread_scoped_lock lock(render_cancel_.mutex);
     if (render_cancel_.is_requested) {
       return;
     }
@@ -166,7 +173,7 @@ void PathTrace::render(const RenderWork &render_work)
   /* Indicate that rendering has finished, making it so thread which requested `cancel()` can carry
    * on. */
   {
-    thread_scoped_lock lock(render_cancel_.mutex);
+    const thread_scoped_lock lock(render_cancel_.mutex);
     render_cancel_.is_rendering = false;
     render_cancel_.condition.notify_one();
   }
@@ -297,7 +304,7 @@ void PathTrace::update_allocated_work_buffer_params()
                                });
 }
 
-static BufferParams scale_buffer_params(const BufferParams &params, int resolution_divider)
+static BufferParams scale_buffer_params(const BufferParams &params, const int resolution_divider)
 {
   BufferParams scaled_params = params;
 
@@ -348,7 +355,8 @@ void PathTrace::update_work_buffer_params_if_needed(const RenderWork &render_wor
   }
 
   if (render_state_.need_reset_params ||
-      render_state_.resolution_divider != render_work.resolution_divider) {
+      render_state_.resolution_divider != render_work.resolution_divider)
+  {
     update_effective_work_buffer_params(render_work);
   }
 
@@ -399,6 +407,8 @@ void PathTrace::path_trace(RenderWork &render_work)
                                     render_work.path_trace.start_sample,
                                     num_samples,
                                     render_work.path_trace.sample_offset);
+
+    DCHECK(isfinite(statistics.occupancy));
 
     const double work_time = time_dt() - work_start_time;
     work_balance_infos_[i].time_spent += work_time;
@@ -481,27 +491,72 @@ void PathTrace::adaptive_sample(RenderWork &render_work)
 
 void PathTrace::set_denoiser_params(const DenoiseParams &params)
 {
-  render_scheduler_.set_denoiser_params(params);
-
   if (!params.use) {
     denoiser_.reset();
     return;
   }
 
+  Device *effective_denoise_device;
+  Device *cpu_fallback_device = cpu_device_.get();
+  const DenoiseParams effective_denoise_params = get_effective_denoise_params(
+      denoise_device_, cpu_fallback_device, params, effective_denoise_device);
+
+  bool need_to_recreate_denoiser = false;
   if (denoiser_) {
     const DenoiseParams old_denoiser_params = denoiser_->get_params();
-    if (old_denoiser_params.type == params.type) {
-      denoiser_->set_params(params);
+
+    const bool is_cpu_denoising = old_denoiser_params.type == DENOISER_OPENIMAGEDENOISE &&
+                                  old_denoiser_params.use_gpu == false;
+    const bool requested_gpu_denoising = effective_denoise_params.type == DENOISER_OPTIX ||
+                                         (effective_denoise_params.type ==
+                                              DENOISER_OPENIMAGEDENOISE &&
+                                          effective_denoise_params.use_gpu == true);
+    if (requested_gpu_denoising && is_cpu_denoising &&
+        effective_denoise_device->info.type == DEVICE_CPU)
+    {
+      /* It won't be possible to use GPU denoising when according to user settings we have
+       * only CPU as available denoising device. So we just exiting early to avoid
+       * unnecessary denoiser recreation or parameters update. */
       return;
+    }
+
+    const bool is_same_denoising_device_type = old_denoiser_params.use_gpu ==
+                                               effective_denoise_params.use_gpu;
+    /* Optix Denoiser is not supporting CPU devices, so use_gpu option is not
+     * shown in the UI and changes in the option value should not be checked. */
+    if (old_denoiser_params.type == effective_denoise_params.type &&
+        (is_same_denoising_device_type || effective_denoise_params.type == DENOISER_OPTIX))
+    {
+      denoiser_->set_params(effective_denoise_params);
+    }
+    else {
+      need_to_recreate_denoiser = true;
+    }
+  }
+  else {
+    /* if there is no denoiser and param.use is true, then we need to create it. */
+    need_to_recreate_denoiser = true;
+  }
+
+  if (need_to_recreate_denoiser) {
+    denoiser_ = Denoiser::create(
+        effective_denoise_device, cpu_fallback_device, effective_denoise_params);
+
+    if (denoiser_) {
+      /* Only take into account the "immediate" cancel to have interactive rendering responding to
+       * navigation as quickly as possible, but allow to run denoiser after user hit Escape key
+       * while doing offline rendering. */
+      denoiser_->is_cancelled_cb = [this]() { return render_cancel_.is_requested; };
     }
   }
 
-  denoiser_ = Denoiser::create(device_, params);
-
-  /* Only take into account the "immediate" cancel to have interactive rendering responding to
-   * navigation as quickly as possible, but allow to run denoiser after user hit Escape key while
-   * doing offline rendering. */
-  denoiser_->is_cancelled_cb = [this]() { return render_cancel_.is_requested; };
+  /* Use actual parameters, if available */
+  if (denoise_device_ && denoiser_) {
+    render_scheduler_.set_denoiser_params(denoiser_->get_params());
+  }
+  else {
+    render_scheduler_.set_denoiser_params(effective_denoise_params);
+  }
 }
 
 void PathTrace::set_adaptive_sampling(const AdaptiveSampling &adaptive_sampling)
@@ -565,7 +620,8 @@ void PathTrace::denoise(const RenderWork &render_work)
   if (denoiser_->denoise_buffer(render_state_.effective_big_tile_params,
                                 buffer_to_denoise,
                                 get_num_samples_in_buffer(),
-                                allow_inplace_modification)) {
+                                allow_inplace_modification))
+  {
     render_state_.has_denoised_result = true;
   }
 
@@ -574,7 +630,7 @@ void PathTrace::denoise(const RenderWork &render_work)
 
 void PathTrace::set_output_driver(unique_ptr<OutputDriver> driver)
 {
-  output_driver_ = move(driver);
+  output_driver_ = std::move(driver);
 }
 
 void PathTrace::set_display_driver(unique_ptr<DisplayDriver> driver)
@@ -585,7 +641,7 @@ void PathTrace::set_display_driver(unique_ptr<DisplayDriver> driver)
   destroy_gpu_resources();
 
   if (driver) {
-    display_ = make_unique<PathTraceDisplay>(move(driver));
+    display_ = make_unique<PathTraceDisplay>(std::move(driver));
   }
   else {
     display_ = nullptr;
@@ -638,7 +694,7 @@ void PathTrace::update_display(const RenderWork &render_work)
   if (output_driver_) {
     VLOG_WORK << "Invoke buffer update callback.";
 
-    PathTraceTile tile(*this);
+    const PathTraceTile tile(*this);
     output_driver_->update_render_tile(tile);
   }
 
@@ -820,7 +876,7 @@ void PathTrace::tile_buffer_write()
     return;
   }
 
-  PathTraceTile tile(*this);
+  const PathTraceTile tile(*this);
   output_driver_->write_render_tile(tile);
 }
 
@@ -840,7 +896,7 @@ void PathTrace::tile_buffer_read()
   });
 
   /* Read (subset of) passes from output driver. */
-  PathTraceTile tile(*this);
+  const PathTraceTile tile(*this);
   if (output_driver_->read_render_tile(tile)) {
     /* Copy buffers to device again. */
     parallel_for_each(path_trace_works_, [](unique_ptr<PathTraceWork> &path_trace_work) {
@@ -952,11 +1008,11 @@ static string get_layer_view_name(const RenderBuffers &buffers)
 {
   string result;
 
-  if (buffers.params.layer.size()) {
+  if (!buffers.params.layer.empty()) {
     result += string(buffers.params.layer);
   }
 
-  if (buffers.params.view.size()) {
+  if (!buffers.params.view.empty()) {
     if (!result.empty()) {
       result += ", ";
     }
@@ -991,8 +1047,11 @@ void PathTrace::process_full_buffer_from_disk(string_view filename)
 
   render_state_.has_denoised_result = false;
 
-  if (denoise_params.use) {
+  if (denoise_params.use && denoiser_) {
     progress_set_status(layer_view_name, "Denoising");
+
+    /* If GPU should be used is not based on file metadata. */
+    denoise_params.use_gpu = render_scheduler_.is_denoiser_gpu_used();
 
     /* Re-use the denoiser as much as possible, avoiding possible device re-initialization.
      *
@@ -1036,7 +1095,12 @@ bool PathTrace::get_render_tile_pixels(const PassAccessor &pass_accessor,
   }
 
   if (big_tile_denoise_work_ && render_state_.has_denoised_result) {
-    return big_tile_denoise_work_->get_render_tile_pixels(pass_accessor, destination);
+    /* Only use the big tile denoised buffer to access the denoised passes.
+     * The guiding passes are allowed to be modified in-place for the needs of the denoiser,
+     * so copy those from the original devices buffers. */
+    if (pass_accessor.get_pass_access_info().mode == PassMode::DENOISED) {
+      return big_tile_denoise_work_->get_render_tile_pixels(pass_accessor, destination);
+    }
   }
 
   bool success = true;
@@ -1144,6 +1208,8 @@ static const char *device_type_for_description(const DeviceType type)
       return "OptiX";
     case DEVICE_HIP:
       return "HIP";
+    case DEVICE_HIPRT:
+      return "HIPRT";
     case DEVICE_ONEAPI:
       return "oneAPI";
     case DEVICE_DUMMY:
@@ -1267,44 +1333,78 @@ void PathTrace::set_guiding_params(const GuidingParams &guiding_params, const bo
   if (guiding_params_.modified(guiding_params)) {
     guiding_params_ = guiding_params;
 
+#  if !(OPENPGL_VERSION_MAJOR == 0 && OPENPGL_VERSION_MINOR <= 5)
+#    define OPENPGL_USE_FIELD_CONFIG
+#  endif
+
     if (guiding_params_.use) {
+#  ifdef OPENPGL_USE_FIELD_CONFIG
+      openpgl::cpp::FieldConfig field_config;
+#  else
       PGLFieldArguments field_args;
+#  endif
       switch (guiding_params_.type) {
         default:
         /* Parallax-aware von Mises-Fisher mixture models. */
         case GUIDING_TYPE_PARALLAX_AWARE_VMM: {
+#  ifdef OPENPGL_USE_FIELD_CONFIG
+          field_config.Init(
+              PGL_SPATIAL_STRUCTURE_TYPE::PGL_SPATIAL_STRUCTURE_KDTREE,
+              PGL_DIRECTIONAL_DISTRIBUTION_TYPE::PGL_DIRECTIONAL_DISTRIBUTION_PARALLAX_AWARE_VMM,
+              guiding_params.deterministic);
+#  else
           pglFieldArgumentsSetDefaults(
               field_args,
               PGL_SPATIAL_STRUCTURE_TYPE::PGL_SPATIAL_STRUCTURE_KDTREE,
               PGL_DIRECTIONAL_DISTRIBUTION_TYPE::PGL_DIRECTIONAL_DISTRIBUTION_PARALLAX_AWARE_VMM);
+#  endif
           break;
         }
         /* Directional quad-trees. */
         case GUIDING_TYPE_DIRECTIONAL_QUAD_TREE: {
+#  ifdef OPENPGL_USE_FIELD_CONFIG
+          field_config.Init(
+              PGL_SPATIAL_STRUCTURE_TYPE::PGL_SPATIAL_STRUCTURE_KDTREE,
+              PGL_DIRECTIONAL_DISTRIBUTION_TYPE::PGL_DIRECTIONAL_DISTRIBUTION_QUADTREE,
+              guiding_params.deterministic);
+#  else
           pglFieldArgumentsSetDefaults(
               field_args,
               PGL_SPATIAL_STRUCTURE_TYPE::PGL_SPATIAL_STRUCTURE_KDTREE,
               PGL_DIRECTIONAL_DISTRIBUTION_TYPE::PGL_DIRECTIONAL_DISTRIBUTION_QUADTREE);
+#  endif
           break;
         }
         /* von Mises-Fisher mixture models. */
         case GUIDING_TYPE_VMM: {
+#  ifdef OPENPGL_USE_FIELD_CONFIG
+          field_config.Init(PGL_SPATIAL_STRUCTURE_TYPE::PGL_SPATIAL_STRUCTURE_KDTREE,
+                            PGL_DIRECTIONAL_DISTRIBUTION_TYPE::PGL_DIRECTIONAL_DISTRIBUTION_VMM,
+                            guiding_params.deterministic);
+#  else
           pglFieldArgumentsSetDefaults(
               field_args,
               PGL_SPATIAL_STRUCTURE_TYPE::PGL_SPATIAL_STRUCTURE_KDTREE,
               PGL_DIRECTIONAL_DISTRIBUTION_TYPE::PGL_DIRECTIONAL_DISTRIBUTION_VMM);
+#  endif
           break;
         }
       }
-#  if OPENPGL_VERSION_MINOR >= 4
+#  ifdef OPENPGL_USE_FIELD_CONFIG
+      field_config.SetSpatialStructureArgMaxDepth(16);
+#  else
       field_args.deterministic = guiding_params.deterministic;
-#  endif
       reinterpret_cast<PGLKDTreeArguments *>(field_args.spatialSturctureArguments)->maxDepth = 16;
+#  endif
       openpgl::cpp::Device *guiding_device = static_cast<openpgl::cpp::Device *>(
           device_->get_guiding_device());
       if (guiding_device) {
         guiding_sample_data_storage_ = make_unique<openpgl::cpp::SampleStorage>();
+#  ifdef OPENPGL_USE_FIELD_CONFIG
+        guiding_field_ = make_unique<openpgl::cpp::Field>(guiding_device, field_config);
+#  else
         guiding_field_ = make_unique<openpgl::cpp::Field>(guiding_device, field_args);
+#  endif
       }
       else {
         guiding_sample_data_storage_ = nullptr;
@@ -1343,7 +1443,7 @@ void PathTrace::guiding_prepare_structures()
      * per update to be limited, for reproducible results and reasonable training size.
      *
      * Idea: we could stochastically discard samples with a probability of 1/num_samples_per_update
-     * we can then update only after the num_samples_per_update iterations are rendered.  */
+     * we can then update only after the num_samples_per_update iterations are rendered. */
     render_scheduler_.set_limit_samples_per_update(4);
   }
   else {
@@ -1365,12 +1465,7 @@ void PathTrace::guiding_update_structures()
 
   /* we wait until we have at least 1024 samples */
   if (num_valid_samples >= 1024) {
-#  if OPENPGL_VERSION_MINOR < 4
-    const size_t num_samples = 1;
-    guiding_field_->Update(*guiding_sample_data_storage_, num_samples);
-#  else
     guiding_field_->Update(*guiding_sample_data_storage_);
-#  endif
     guiding_update_count++;
 
     VLOG_DEBUG << "Path guiding field valid: " << guiding_field_->Validate();

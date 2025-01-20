@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "abc_hierarchy_iterator.h"
 #include "abc_writer_abstract.h"
@@ -18,9 +19,6 @@
 
 #include "BLI_assert.h"
 
-#include "DEG_depsgraph_query.h"
-
-#include "DNA_ID.h"
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 
@@ -84,6 +82,7 @@ std::string ABCHierarchyIterator::make_valid_name(const std::string &name) const
   std::replace(abc_name.begin(), abc_name.end(), ' ', '_');
   std::replace(abc_name.begin(), abc_name.end(), '.', '_');
   std::replace(abc_name.begin(), abc_name.end(), ':', '_');
+  std::replace(abc_name.begin(), abc_name.end(), '/', '_');
   return abc_name;
 }
 
@@ -192,6 +191,7 @@ ABCAbstractWriter *ABCHierarchyIterator::create_data_writer_for_object_type(
     case OB_CAMERA:
       return new ABCCameraWriter(writer_args);
     case OB_CURVES_LEGACY:
+    case OB_CURVES:
       if (params_.curves_as_mesh) {
         return new ABCCurveMeshWriter(writer_args);
       }
@@ -211,7 +211,6 @@ ABCAbstractWriter *ABCHierarchyIterator::create_data_writer_for_object_type(
     case OB_LIGHTPROBE:
     case OB_LATTICE:
     case OB_ARMATURE:
-    case OB_GPENCIL:
       return nullptr;
     case OB_TYPE_MAX:
       BLI_assert_msg(0, "OB_TYPE_MAX should not be used");

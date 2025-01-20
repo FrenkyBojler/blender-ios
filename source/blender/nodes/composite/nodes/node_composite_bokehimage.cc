@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup cmpnodes
@@ -8,13 +9,13 @@
 #include "BLI_math_base.h"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "GPU_shader.h"
+#include "GPU_shader.hh"
 
+#include "COM_bokeh_kernel.hh"
 #include "COM_node_operation.hh"
-#include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
 
@@ -26,7 +27,7 @@ NODE_STORAGE_FUNCS(NodeBokehImage)
 
 static void cmp_node_bokehimage_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Color>(N_("Image"));
+  b.add_output<decl::Color>("Image");
 }
 
 static void node_composit_init_bokehimage(bNodeTree * /*ntree*/, bNode *node)
@@ -42,20 +43,29 @@ static void node_composit_init_bokehimage(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_bokehimage(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "flaps", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "angle", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(
-      layout, ptr, "rounding", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "flaps", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "angle", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout,
+          ptr,
+          "rounding",
+          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+          std::nullopt,
+          ICON_NONE);
   uiItemR(layout,
           ptr,
           "catadioptric",
           UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
-          nullptr,
+          std::nullopt,
           ICON_NONE);
-  uiItemR(layout, ptr, "shift", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(layout,
+          ptr,
+          "shift",
+          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+          std::nullopt,
+          ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class BokehImageOperation : public NodeOperation {
  public:
@@ -63,45 +73,24 @@ class BokehImageOperation : public NodeOperation {
 
   void execute() override
   {
-    GPUShader *shader = shader_manager().get("compositor_bokeh_image");
-    GPU_shader_bind(shader);
+    const Domain domain = compute_domain();
 
-    GPU_shader_uniform_1f(shader, "exterior_angle", get_exterior_angle());
-    GPU_shader_uniform_1f(shader, "rotation", get_rotation());
-    GPU_shader_uniform_1f(shader, "roundness", node_storage(bnode()).rounding);
-    GPU_shader_uniform_1f(shader, "catadioptric", node_storage(bnode()).catadioptric);
-    GPU_shader_uniform_1f(shader, "lens_shift", node_storage(bnode()).lensshift);
+    const Result &bokeh_kernel = context().cache_manager().bokeh_kernels.get(
+        context(),
+        domain.size,
+        node_storage(bnode()).flaps,
+        node_storage(bnode()).angle,
+        node_storage(bnode()).rounding,
+        node_storage(bnode()).catadioptric,
+        node_storage(bnode()).lensshift);
 
     Result &output = get_result("Image");
-    const Domain domain = compute_domain();
-    output.allocate_texture(domain);
-    output.bind_as_image(shader, "output_img");
-
-    compute_dispatch_threads_at_least(shader, domain.size);
-
-    output.unbind_as_image();
-    GPU_shader_unbind();
+    output.wrap_external(bokeh_kernel);
   }
 
   Domain compute_domain() override
   {
     return Domain(int2(512));
-  }
-
-  /* The exterior angle is the angle between each two consecutive vertices of the regular polygon
-   * from its center. */
-  float get_exterior_angle()
-  {
-    return (M_PI * 2.0f) / node_storage(bnode()).flaps;
-  }
-
-  float get_rotation()
-  {
-    /* Offset the rotation such that the second vertex of the regular polygon lies on the positive
-     * y axis, which is 90 degrees minus the angle that it makes with the positive x axis assuming
-     * the first vertex lies on the positive x axis. */
-    const float offset = M_PI_2 - get_exterior_angle();
-    return node_storage(bnode()).angle - offset;
   }
 };
 
@@ -116,16 +105,20 @@ void register_node_type_cmp_bokehimage()
 {
   namespace file_ns = blender::nodes::node_composite_bokehimage_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_BOKEHIMAGE, "Bokeh Image", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeBokehImage", CMP_NODE_BOKEHIMAGE);
+  ntype.ui_name = "Bokeh Image";
+  ntype.ui_description = "Generate image with bokeh shape for use with the Bokeh Blur filter node";
+  ntype.enum_name_legacy = "BOKEHIMAGE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::cmp_node_bokehimage_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_bokehimage;
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = file_ns::node_composit_init_bokehimage;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeBokehImage", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

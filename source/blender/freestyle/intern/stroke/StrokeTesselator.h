@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -11,9 +13,7 @@
 
 #include "../scene_graph/LineRep.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -25,9 +25,7 @@ class StrokeTesselator {
     _overloadFrsMaterial = false;
   }
 
-  virtual ~StrokeTesselator()
-  {
-  }
+  virtual ~StrokeTesselator() {}
 
   /** Builds a line rep contained from a Stroke */
   LineRep *Tesselate(Stroke *iStroke);
@@ -52,9 +50,7 @@ class StrokeTesselator {
   FrsMaterial _FrsMaterial;
   bool _overloadFrsMaterial;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:StrokeTesselator")
-#endif
 };
 
 } /* namespace Freestyle */

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -7,18 +9,16 @@
  * \brief Identification system
  */
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
 /** Class used to tag any object by an id.
- *  It is made of two unsigned integers.
+ *  It is made of two unsigned-integers.
  */
 class Id {
  public:
-  typedef unsigned id_type;
+  typedef uint id_type;
 
   /** Default constructor */
   Id()
@@ -110,9 +110,7 @@ class Id {
   id_type _first;
   id_type _second;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Id")
-#endif
 };
 
 // stream operator

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -10,7 +11,7 @@
 
 #include "DNA_userdef_types.h" /* For `U.glreslimit`. */
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 #include "gpu_context_private.hh"
 
@@ -33,7 +34,7 @@ int GPU_max_texture_size()
   return GCaps.max_texture_size;
 }
 
-int GPU_max_texture_3d_size(void)
+int GPU_max_texture_3d_size()
 {
   return GCaps.max_texture_3d_size;
 }
@@ -68,6 +69,11 @@ int GPU_max_textures_frag()
 int GPU_max_textures()
 {
   return GCaps.max_textures;
+}
+
+int GPU_max_images()
+{
+  return GCaps.max_images;
 }
 
 int GPU_max_work_group_count(int index)
@@ -125,6 +131,11 @@ int GPU_max_samplers()
   return GCaps.max_samplers;
 }
 
+bool GPU_use_parallel_compilation()
+{
+  return GCaps.max_parallel_compilations > 0;
+}
+
 bool GPU_mip_render_workaround()
 {
   return GCaps.mip_render_workaround;
@@ -151,14 +162,14 @@ bool GPU_use_hq_normals_workaround()
   return GCaps.use_hq_normals_workaround;
 }
 
-bool GPU_clear_viewport_workaround()
+bool GPU_stencil_clasify_buffer_workaround()
 {
-  return GCaps.clear_viewport_workaround;
+  return GCaps.stencil_clasify_buffer_workaround;
 }
 
-bool GPU_compute_shader_support()
+bool GPU_vulkan_render_pass_workaround()
 {
-  return GCaps.compute_shader_support;
+  return GCaps.render_pass_workaround;
 }
 
 bool GPU_geometry_shader_support()
@@ -166,19 +177,24 @@ bool GPU_geometry_shader_support()
   return GCaps.geometry_shader_support;
 }
 
-bool GPU_shader_storage_buffer_objects_support()
-{
-  return GCaps.shader_storage_buffer_objects_support;
-}
-
-bool GPU_shader_image_load_store_support()
-{
-  return GCaps.shader_image_load_store_support;
-}
-
 bool GPU_shader_draw_parameters_support()
 {
   return GCaps.shader_draw_parameters_support;
+}
+
+bool GPU_hdr_support()
+{
+  return GCaps.hdr_viewport_support;
+}
+
+bool GPU_texture_view_support()
+{
+  return GCaps.texture_view_support;
+}
+
+bool GPU_stencil_export_support()
+{
+  return GCaps.stencil_export_support;
 }
 
 int GPU_max_shader_storage_buffer_bindings()
@@ -191,14 +207,24 @@ int GPU_max_compute_shader_storage_blocks()
   return GCaps.max_compute_shader_storage_blocks;
 }
 
-int GPU_minimum_per_vertex_stride(void)
+int GPU_minimum_per_vertex_stride()
 {
   return GCaps.minimum_per_vertex_stride;
 }
 
-bool GPU_transform_feedback_support(void)
+bool GPU_transform_feedback_support()
 {
   return GCaps.transform_feedback_support;
+}
+
+size_t GPU_max_storage_buffer_size()
+{
+  return GCaps.max_storage_buffer_size;
+}
+
+size_t GPU_storage_buffer_alignment()
+{
+  return GCaps.storage_buffer_alignment;
 }
 
 /** \} */
@@ -212,14 +238,26 @@ bool GPU_mem_stats_supported()
   return GCaps.mem_stats_support;
 }
 
-void GPU_mem_stats_get(int *totalmem, int *freemem)
+void GPU_mem_stats_get(int *r_totalmem, int *r_freemem)
 {
-  Context::get()->memory_statistics_get(totalmem, freemem);
+  Context::get()->memory_statistics_get(r_totalmem, r_freemem);
 }
 
 bool GPU_stereo_quadbuffer_support()
 {
   return Context::get()->front_right != nullptr;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Creator arguments overrides
+ * \{ */
+
+void GPU_compilation_subprocess_override_set(int count)
+{
+  BLI_assert(GCaps.max_parallel_compilations == -1);
+  GCaps.max_parallel_compilations = count;
 }
 
 /** \} */

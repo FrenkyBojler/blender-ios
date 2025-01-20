@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 by Nicholas Bishop. */
+/* SPDX-FileCopyrightText: 2011 by Nicholas Bishop.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup modifiers
@@ -11,29 +12,26 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_remesh_voxel.h"
-#include "BKE_mesh_runtime.h"
-#include "BKE_screen.h"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_remesh_voxel.hh"
+#include "BKE_mesh_runtime.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
-#include "MOD_modifiertypes.h"
-#include "MOD_ui_common.h"
+#include "MOD_modifiertypes.hh"
+#include "MOD_ui_common.hh"
+
+#include "GEO_randomize.hh"
 
 #include <cstdlib>
 #include <cstring>
@@ -44,7 +42,7 @@
 #  include "dualcon.h"
 #endif
 
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
   RemeshModifierData *rmd = (RemeshModifierData *)md;
 
@@ -59,30 +57,31 @@ static void init_dualcon_mesh(DualConInput *input, Mesh *mesh)
 {
   memset(input, 0, sizeof(DualConInput));
 
-  input->co = (DualConCo)BKE_mesh_vert_positions(mesh);
-  input->co_stride = sizeof(float[3]);
-  input->totco = mesh->totvert;
+  input->co = (DualConCo)mesh->vert_positions().data();
+  input->co_stride = sizeof(blender::float3);
+  input->totco = mesh->verts_num;
 
-  input->mloop = (DualConLoop)BKE_mesh_loops(mesh);
-  input->loop_stride = sizeof(MLoop);
+  input->mloop = (DualConLoop)mesh->corner_verts().data();
+  input->loop_stride = sizeof(int);
 
-  input->looptri = (DualConTri)BKE_mesh_runtime_looptri_ensure(mesh);
-  input->tri_stride = sizeof(MLoopTri);
-  input->tottri = BKE_mesh_runtime_looptri_len(mesh);
+  input->corner_tris = (DualConTri)mesh->corner_tris().data();
+  input->tri_stride = sizeof(blender::int3);
+  input->tottri = BKE_mesh_runtime_corner_tris_len(mesh);
 
-  INIT_MINMAX(input->min, input->max);
-  BKE_mesh_minmax(mesh, input->min, input->max);
+  const blender::Bounds<blender::float3> bounds = *mesh->bounds_min_max();
+  copy_v3_v3(input->min, bounds.min);
+  copy_v3_v3(input->max, bounds.max);
 }
 
 /* simple structure to hold the output: a CDDM and two counters to
  * keep track of the current elements */
-typedef struct {
+struct DualConOutput {
   Mesh *mesh;
-  float (*vert_positions)[3];
-  MPoly *polys;
-  MLoop *loops;
+  blender::float3 *vert_positions;
+  int *face_offsets;
+  int *corner_verts;
   int curvert, curface;
-} DualConOutput;
+};
 
 /* allocate and initialize a DualConOutput */
 static void *dualcon_alloc_output(int totvert, int totquad)
@@ -93,10 +92,10 @@ static void *dualcon_alloc_output(int totvert, int totquad)
     return nullptr;
   }
 
-  output->mesh = BKE_mesh_new_nomain(totvert, 0, 0, 4 * totquad, totquad);
-  output->vert_positions = BKE_mesh_vert_positions_for_write(output->mesh);
-  output->polys = BKE_mesh_polys_for_write(output->mesh);
-  output->loops = BKE_mesh_loops_for_write(output->mesh);
+  output->mesh = BKE_mesh_new_nomain(totvert, 0, totquad, 4 * totquad);
+  output->vert_positions = output->mesh->vert_positions_for_write().data();
+  output->face_offsets = output->mesh->face_offsets_for_write().data();
+  output->corner_verts = output->mesh->corner_verts_for_write().data();
 
   return output;
 }
@@ -105,7 +104,7 @@ static void dualcon_add_vert(void *output_v, const float co[3])
 {
   DualConOutput *output = static_cast<DualConOutput *>(output_v);
 
-  BLI_assert(output->curvert < output->mesh->totvert);
+  BLI_assert(output->curvert < output->mesh->verts_num);
 
   copy_v3_v3(output->vert_positions[output->curvert], co);
   output->curvert++;
@@ -117,23 +116,20 @@ static void dualcon_add_quad(void *output_v, const int vert_indices[4])
   Mesh *mesh = output->mesh;
   int i;
 
-  BLI_assert(output->curface < mesh->totpoly);
+  BLI_assert(output->curface < mesh->faces_num);
   UNUSED_VARS_NDEBUG(mesh);
 
-  MLoop *mloop = output->loops;
-  MPoly *cur_poly = &output->polys[output->curface];
-
-  cur_poly->loopstart = output->curface * 4;
-  cur_poly->totloop = 4;
+  output->face_offsets[output->curface] = output->curface * 4;
   for (i = 0; i < 4; i++) {
-    mloop[output->curface * 4 + i].v = vert_indices[i];
+    output->corner_verts[output->curface * 4 + i] = vert_indices[i];
   }
 
   output->curface++;
 }
 
-static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
+static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
 {
+  using namespace blender;
   RemeshModifierData *rmd;
   DualConOutput *output;
   DualConInput input;
@@ -178,7 +174,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, M
     }
     /* TODO(jbakker): Dualcon crashes when run in parallel. Could be related to incorrect
      * input data or that the library isn't thread safe.
-     * This was identified when changing the task isolation's during T76553. */
+     * This was identified when changing the task isolation's during #76553. */
     static ThreadMutex dualcon_mutex = BLI_MUTEX_INITIALIZER;
     BLI_mutex_lock(&dualcon_mutex);
     output = static_cast<DualConOutput *>(dualcon(&input,
@@ -192,29 +188,23 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, M
                                                   rmd->scale,
                                                   rmd->depth));
     BLI_mutex_unlock(&dualcon_mutex);
-
     result = output->mesh;
     MEM_freeN(output);
   }
 
-  if (rmd->flag & MOD_REMESH_SMOOTH_SHADING) {
-    MPoly *mpoly = BKE_mesh_polys_for_write(result);
-    int i, totpoly = result->totpoly;
-
-    /* Apply smooth shading to output faces */
-    for (i = 0; i < totpoly; i++) {
-      mpoly[i].flag |= ME_SMOOTH;
-    }
-  }
+  bke::mesh_smooth_set(*result, rmd->flag & MOD_REMESH_SMOOTH_SHADING);
 
   BKE_mesh_copy_parameters_for_eval(result, mesh);
-  BKE_mesh_calc_edges(result, true, false);
+  bke::mesh_calc_edges(*result, true, false);
+
+  blender::geometry::debug_randomize_mesh_order(result);
+
   return result;
 }
 
 #else /* !WITH_MOD_REMESH */
 
-static Mesh *modifyMesh(ModifierData * /*md*/, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
+static Mesh *modify_mesh(ModifierData * /*md*/, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
 {
   return mesh;
 }
@@ -232,72 +222,74 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   int mode = RNA_enum_get(ptr, "mode");
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
   if (mode == MOD_REMESH_VOXEL) {
-    uiItemR(col, ptr, "voxel_size", 0, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "adaptivity", 0, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "voxel_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "adaptivity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    uiItemR(col, ptr, "octree_depth", 0, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "scale", 0, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "octree_depth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (mode == MOD_REMESH_SHARP_FEATURES) {
-      uiItemR(col, ptr, "sharpness", 0, nullptr, ICON_NONE);
+      uiItemR(col, ptr, "sharpness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
 
-    uiItemR(layout, ptr, "use_remove_disconnected", 0, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "use_remove_disconnected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     row = uiLayoutRow(layout, false);
     uiLayoutSetActive(row, RNA_boolean_get(ptr, "use_remove_disconnected"));
-    uiItemR(layout, ptr, "threshold", 0, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  uiItemR(layout, ptr, "use_smooth_shade", 0, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 
 #else  /* WITH_MOD_REMESH */
-  uiItemL(layout, TIP_("Built without Remesh modifier"), ICON_NONE);
+  uiItemL(layout, RPT_("Built without Remesh modifier"), ICON_NONE);
 #endif /* WITH_MOD_REMESH */
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_Remesh, panel_draw);
 }
 
 ModifierTypeInfo modifierType_Remesh = {
+    /*idname*/ "Remesh",
     /*name*/ N_("Remesh"),
-    /*structName*/ "RemeshModifierData",
-    /*structSize*/ sizeof(RemeshModifierData),
+    /*struct_name*/ "RemeshModifierData",
+    /*struct_size*/ sizeof(RemeshModifierData),
     /*srna*/ &RNA_RemeshModifier,
-    /*type*/ eModifierTypeType_Nonconstructive,
+    /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_REMESH,
 
-    /*copyData*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ BKE_modifier_copydata_generic,
 
-    /*deformVerts*/ nullptr,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ nullptr,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ modifyMesh,
-    /*modifyGeometrySet*/ nullptr,
+    /*deform_verts*/ nullptr,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ modify_mesh,
+    /*modify_geometry_set*/ nullptr,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ nullptr,
-    /*freeData*/ nullptr,
-    /*isDisabled*/ nullptr,
-    /*updateDepsgraph*/ nullptr,
-    /*dependsOnTime*/ nullptr,
-    /*dependsOnNormals*/ nullptr,
-    /*foreachIDLink*/ nullptr,
-    /*foreachTexLink*/ nullptr,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ nullptr,
-    /*blendRead*/ nullptr,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ nullptr,
+    /*free_data*/ nullptr,
+    /*is_disabled*/ nullptr,
+    /*update_depsgraph*/ nullptr,
+    /*depends_on_time*/ nullptr,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ nullptr,
+    /*foreach_tex_link*/ nullptr,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

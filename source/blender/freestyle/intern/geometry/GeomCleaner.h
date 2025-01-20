@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -11,9 +13,7 @@
 
 #include "../system/FreestyleConfig.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -21,12 +21,8 @@ using namespace Geometry;
 
 class GeomCleaner {
  public:
-  inline GeomCleaner()
-  {
-  }
-  inline ~GeomCleaner()
-  {
-  }
+  inline GeomCleaner() {}
+  inline ~GeomCleaner() {}
 
   /** Sorts an array of Indexed vertices
    *    iVertices
@@ -37,7 +33,7 @@ class GeomCleaner {
    *    iIndices
    *      The array containing the vertex indices
    *      (used to refer to the vertex coordinates in an indexed face).
-   *      Each element is an unsignedeger multiple of 3.
+   *      Each element is a uint multiple of 3.
    *    iISize
    *      The size of iIndices array
    *    oVertices
@@ -50,11 +46,11 @@ class GeomCleaner {
    *      order to match the sorted vertex array.
    */
   static void SortIndexedVertexArray(const float *iVertices,
-                                     unsigned iVSize,
-                                     const unsigned *iIndices,
-                                     unsigned iISize,
+                                     uint iVSize,
+                                     const uint *iIndices,
+                                     uint iISize,
                                      float **oVertices,
-                                     unsigned **oIndices);
+                                     uint **oIndices);
 
   /** Compress a SORTED indexed vertex array by eliminating multiple
    *  appearing occurrences of a single vertex.
@@ -66,7 +62,7 @@ class GeomCleaner {
    *    iIndices
    *      The array containing the vertex indices
    *      (used to refer to the vertex coordinates in an indexed face).
-   *      Each element is an unsignedeger multiple of 3.
+   *      Each element is a uint multiple of 3.
    *    iISize
    *      The size of iIndices array
    *    oVertices
@@ -78,12 +74,12 @@ class GeomCleaner {
    *      The indices array, reorganized to match the compressed oVertices array.
    */
   static void CompressIndexedVertexArray(const float *iVertices,
-                                         unsigned iVSize,
-                                         const unsigned *iIndices,
-                                         unsigned iISize,
+                                         uint iVSize,
+                                         const uint *iIndices,
+                                         uint iISize,
                                          float **oVertices,
-                                         unsigned *oVSize,
-                                         unsigned **oIndices);
+                                         uint *oVSize,
+                                         uint **oIndices);
 
   /** Sorts and compress an array of indexed vertices.
    *    iVertices
@@ -94,7 +90,7 @@ class GeomCleaner {
    *    iIndices
    *      The array containing the vertex indices
    *      (used to refer to the vertex coordinates in an indexed face).
-   *      Each element is an unsignedeger multiple of 3.
+   *      Each element is a uint multiple of 3.
    *    iISize
    *      The size of iIndices array
    *    oVertices
@@ -106,12 +102,12 @@ class GeomCleaner {
    *      The indices array, reorganized to match the sorted and compressed oVertices array.
    */
   static void SortAndCompressIndexedVertexArray(const float *iVertices,
-                                                unsigned iVSize,
-                                                const unsigned *iIndices,
-                                                unsigned iISize,
+                                                uint iVSize,
+                                                const uint *iIndices,
+                                                uint iISize,
                                                 float **oVertices,
-                                                unsigned *oVSize,
-                                                unsigned **oIndices);
+                                                uint *oVSize,
+                                                uint **oIndices);
 
   /** Cleans an indexed vertex array.
    *  (Identical to SortAndCompress except that we use here a hash table to create the new array.)
@@ -123,7 +119,7 @@ class GeomCleaner {
    *    iIndices
    *      The array containing the vertex indices
    *      (used to refer to the vertex coordinates in an indexed face).
-   *      Each element is an unsignedeger multiple of 3.
+   *      Each element is a uint multiple of 3.
    *    iISize
    *      The size of iIndices array
    *    oVertices
@@ -135,16 +131,14 @@ class GeomCleaner {
    *      The indices array, reorganized to match the sorted and compressed oVertices array.
    */
   static void CleanIndexedVertexArray(const float *iVertices,
-                                      unsigned iVSize,
-                                      const unsigned *iIndices,
-                                      unsigned iISize,
+                                      uint iVSize,
+                                      const uint *iIndices,
+                                      uint iISize,
                                       float **oVertices,
-                                      unsigned *oVSize,
-                                      unsigned **oIndices);
+                                      uint *oVSize,
+                                      uint **oIndices);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:GeomCleaner")
-#endif
 };
 
 /** Binary operators */
@@ -155,14 +149,12 @@ class GeomCleaner {
 class IndexedVertex {
  private:
   Vec3f _Vector;
-  unsigned _index;
+  uint _index;
 
  public:
-  inline IndexedVertex()
-  {
-  }
+  inline IndexedVertex() {}
 
-  inline IndexedVertex(Vec3f iVector, unsigned iIndex)
+  inline IndexedVertex(Vec3f iVector, uint iIndex)
   {
     _Vector = iVector;
     _index = iIndex;
@@ -174,7 +166,7 @@ class IndexedVertex {
     return _Vector;
   }
 
-  inline unsigned index()
+  inline uint index()
   {
     return _index;
   }
@@ -200,7 +192,7 @@ class IndexedVertex {
     _Vector = iVector;
   }
 
-  inline void setIndex(unsigned iIndex)
+  inline void setIndex(uint iIndex)
   {
     _index = iIndex;
   }
@@ -213,7 +205,7 @@ class IndexedVertex {
     return *this;
   }
 
-  inline float operator[](const unsigned i)
+  inline float operator[](const uint i)
   {
     return _Vector[i];
   }
@@ -229,9 +221,7 @@ class IndexedVertex {
     return (_Vector == v._Vector);
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:IndexedVertex")
-#endif
 };
 
 #if 0

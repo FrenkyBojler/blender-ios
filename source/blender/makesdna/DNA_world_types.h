@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -9,10 +10,6 @@
 
 #include "DNA_ID.h"
 #include "DNA_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct AnimData;
 struct Ipo;
@@ -32,7 +29,10 @@ typedef struct World {
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /* runtime (must be immediately after id for utilities to use it). */
+  /**
+   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
+   * DRW_drawdatalist_from_id to understand this requirement.
+   */
   DrawDataList drawdata;
 
   char _pad0[4];
@@ -60,7 +60,22 @@ typedef struct World {
 
   /** Assorted settings. */
   short flag;
-  char _pad3[6];
+  char _pad3[2];
+
+  /** Eevee settings. */
+  /**
+   * Resolution of the world probe when baked to a texture. Contains `eLightProbeResolution`.
+   */
+  int probe_resolution;
+  /** Threshold for sun extraction. */
+  float sun_threshold;
+  /** Angle for sun extraction. */
+  float sun_angle;
+  /** Shadow properties for sun extraction. */
+  float sun_shadow_maximum_resolution;
+  float sun_shadow_jitter_overblur;
+  float sun_shadow_filter_radius;
+  char _pad4[4];
 
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
@@ -73,38 +88,65 @@ typedef struct World {
   /* nodes */
   struct bNodeTree *nodetree;
 
-  /* Lightgroup membership information. */
+  /** Light-group membership information. */
   struct LightgroupMembership *lightgroup;
+
+  void *_pad1;
 
   /** Runtime. */
   ListBase gpumaterial;
+  /* The Depsgraph::update_count when this World was last updated. */
+  uint64_t last_update;
+
 } World;
 
 /* **************** WORLD ********************* */
 
-/* mode */
-#define WO_MIST (1 << 0)
-#define WO_MODE_UNUSED_1 (1 << 1) /* cleared */
-#define WO_MODE_UNUSED_2 (1 << 2) /* cleared */
-#define WO_MODE_UNUSED_3 (1 << 3) /* cleared */
-#define WO_MODE_UNUSED_4 (1 << 4) /* cleared */
-#define WO_MODE_UNUSED_5 (1 << 5) /* cleared */
-#define WO_AMB_OCC (1 << 6)
-#define WO_MODE_UNUSED_7 (1 << 7) /* cleared */
+/** #World::mode */
+enum {
+  WO_MIST = 1 << 0,
+  WO_MODE_UNUSED_1 = 1 << 1, /* cleared */
+  WO_MODE_UNUSED_2 = 1 << 2, /* cleared */
+  WO_MODE_UNUSED_3 = 1 << 3, /* cleared */
+  WO_MODE_UNUSED_4 = 1 << 4, /* cleared */
+  WO_MODE_UNUSED_5 = 1 << 5, /* cleared */
+  WO_MODE_UNUSED_6 = 1 << 6, /* cleared */
+  WO_MODE_UNUSED_7 = 1 << 7, /* cleared */
+};
 
+/** #World::mistype */
 enum {
   WO_MIST_QUADRATIC = 0,
   WO_MIST_LINEAR = 1,
   WO_MIST_INVERSE_QUADRATIC = 2,
 };
 
-/* flag */
-#define WO_DS_EXPAND (1 << 0)
-/* NOTE: this must have the same value as MA_DS_SHOW_TEXS,
- * otherwise anim-editors will not read correctly
- */
-#define WO_DS_SHOW_TEXS (1 << 2)
+/** #World::flag */
+enum {
+  WO_DS_EXPAND = 1 << 0,
+  /**
+   * NOTE: this must have the same value as #MA_DS_SHOW_TEXS,
+   * otherwise anim-editors will not read correctly.
+   */
+  WO_DS_SHOW_TEXS = 1 << 2,
+  /**
+   * World uses volume that is created in old version of EEVEE (<4.2). These volumes should be
+   * converted manually. (Ref: #119734).
+   */
+  WO_USE_EEVEE_FINITE_VOLUME = 1 << 3,
+  /**
+   * Use shadowing from the extracted sun light.
+   */
+  WO_USE_SUN_SHADOW = 1 << 4,
+  WO_USE_SUN_SHADOW_JITTER = 1 << 5,
+};
 
-#ifdef __cplusplus
-}
-#endif
+/** #World::probe_resolution. */
+typedef enum eLightProbeResolution {
+  LIGHT_PROBE_RESOLUTION_128 = 7,
+  LIGHT_PROBE_RESOLUTION_256 = 8,
+  LIGHT_PROBE_RESOLUTION_512 = 9,
+  LIGHT_PROBE_RESOLUTION_1024 = 10,
+  LIGHT_PROBE_RESOLUTION_2048 = 11,
+  LIGHT_PROBE_RESOLUTION_4096 = 12,
+} eLightProbeResolution;

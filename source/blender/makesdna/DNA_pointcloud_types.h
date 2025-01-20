@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -10,7 +12,12 @@
 #include "DNA_customdata_types.h"
 
 #ifdef __cplusplus
+#  include <optional>
+
+#  include "BLI_bounds_types.hh"
 #  include "BLI_math_vector_types.hh"
+#  include "BLI_memory_counter_fwd.hh"
+#  include "BLI_span.hh"
 #endif
 
 #ifdef __cplusplus
@@ -27,10 +34,6 @@ using PointCloudRuntimeHandle = blender::bke::PointCloudRuntime;
 typedef struct PointCloudRuntimeHandle PointCloudRuntimeHandle;
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct PointCloud {
   ID id;
   struct AnimData *adt; /* animation data (must be immediately after id) */
@@ -42,6 +45,7 @@ typedef struct PointCloud {
 
   /* Custom Data */
   struct CustomData pdata;
+  /** Set to -1 when none is active. */
   int attributes_active_index;
   int _pad4;
 
@@ -51,13 +55,18 @@ typedef struct PointCloud {
   short _pad3[3];
 
 #ifdef __cplusplus
+  blender::Span<blender::float3> positions() const;
+  blender::MutableSpan<blender::float3> positions_for_write();
+
   blender::bke::AttributeAccessor attributes() const;
   blender::bke::MutableAttributeAccessor attributes_for_write();
 
   void tag_positions_changed();
   void tag_radii_changed();
 
-  bool bounds_min_max(blender::float3 &min, blender::float3 &max) const;
+  std::optional<blender::Bounds<blender::float3>> bounds_min_max() const;
+
+  void count_memory(blender::MemoryCounter &memory) const;
 #endif
 
   PointCloudRuntimeHandle *runtime;
@@ -73,7 +82,3 @@ enum {
 
 /* Only one material supported currently. */
 #define POINTCLOUD_MATERIAL_NR 1
-
-#ifdef __cplusplus
-}
-#endif

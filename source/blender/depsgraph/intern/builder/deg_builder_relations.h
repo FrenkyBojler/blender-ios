@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -10,25 +11,28 @@
 #include <cstdio>
 #include <cstring>
 
-#include "intern/depsgraph_type.h"
+#include "intern/depsgraph_type.hh"
 
 #include "DNA_ID.h"
 
-#include "RNA_path.h"
+#include "RNA_path.hh"
 
+#include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_key.h"
 #include "intern/builder/deg_builder_map.h"
 #include "intern/builder/deg_builder_rna.h"
 #include "intern/builder/deg_builder_stack.h"
-#include "intern/depsgraph.h"
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/depsgraph.hh"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
 
 struct CacheFile;
 struct Camera;
@@ -53,7 +57,6 @@ struct Object;
 struct ParticleSettings;
 struct ParticleSystem;
 struct Scene;
-struct Simulation;
 struct Speaker;
 struct Tex;
 struct VFont;
@@ -125,17 +128,18 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
 
   virtual void build_idproperties(IDProperty *id_property);
 
+  virtual void build_scene_camera(Scene *scene);
   virtual void build_scene_render(Scene *scene, ViewLayer *view_layer);
   virtual void build_scene_parameters(Scene *scene);
   virtual void build_scene_compositor(Scene *scene);
 
-  virtual void build_layer_collections(ListBase *lb);
+  virtual bool build_layer_collection(LayerCollection *layer_collection);
+  virtual void build_view_layer_collections(ViewLayer *view_layer);
+
   virtual void build_view_layer(Scene *scene,
                                 ViewLayer *view_layer,
                                 eDepsNode_LinkedState_Type linked_state);
-  virtual void build_collection(LayerCollection *from_layer_collection,
-                                Object *object,
-                                Collection *collection);
+  virtual void build_collection(LayerCollection *from_layer_collection, Collection *collection);
   virtual void build_object(Object *object);
   virtual void build_object_from_view_layer_base(Object *object);
   virtual void build_object_layer_component_relations(Object *object);
@@ -149,6 +153,13 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_object_data_speaker(Object *object);
   virtual void build_object_parent(Object *object);
   virtual void build_object_pointcache(Object *object);
+  virtual void build_object_instance_collection(Object *object);
+
+  virtual void build_object_shading(Object *object);
+
+  virtual void build_object_light_linking(Object *emitter);
+  virtual void build_light_linking_collection(Object *emitter, Collection *collection);
+
   virtual void build_constraints(ID *id,
                                  NodeType component_type,
                                  const char *component_subdata,
@@ -156,10 +167,20 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                                  RootPChanMap *root_map);
   virtual void build_animdata(ID *id);
   virtual void build_animdata_curves(ID *id);
+  virtual void build_animdata_fcurve_target(ID *id,
+                                            PointerRNA id_ptr,
+                                            ComponentKey &adt_key,
+                                            OperationNode *operation_from,
+                                            FCurve *fcu);
   virtual void build_animdata_curves_targets(ID *id,
                                              ComponentKey &adt_key,
                                              OperationNode *operation_from,
                                              ListBase *curves);
+  virtual void build_animdata_action_targets(ID *id,
+                                             int32_t slot_handle,
+                                             ComponentKey &adt_key,
+                                             OperationNode *operation_from,
+                                             bAction *action);
   virtual void build_animdata_nlastrip_targets(ID *id,
                                                ComponentKey &adt_key,
                                                OperationNode *operation_from,
@@ -171,7 +192,30 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_driver(ID *id, FCurve *fcurve);
   virtual void build_driver_data(ID *id, FCurve *fcurve);
   virtual void build_driver_variables(ID *id, FCurve *fcurve);
-  virtual void build_driver_id_property(ID *id, const char *rna_path);
+
+  virtual void build_driver_scene_camera_variable(const OperationKey &driver_key,
+                                                  const RNAPathKey &self_key,
+                                                  Scene *scene,
+                                                  const char *rna_path);
+  virtual void build_driver_rna_path_variable(const OperationKey &driver_key,
+                                              const RNAPathKey &self_key,
+                                              ID *target_id,
+                                              const PointerRNA &target_prop,
+                                              const char *rna_path);
+
+  /* Build operations of a property value from which is read by a driver target.
+   *
+   * The driver target points to a data-block (or a sub-data-block like View Layer).
+   * This data-block is presented in the interface as a "Prop" and its resolved RNA pointer is
+   * passed here as `target_prop`.
+   *
+   * The tricky part (and a bit confusing naming) is that the driver target accesses a property of
+   * the `target_prop` to get its value. The property which is read to give an actual target value
+   * is denoted by its RNA path relative to the `target_prop`. In the interface it is called "Path"
+   * and here it is called `rna_path_from_target_prop`. */
+  virtual void build_driver_id_property(const PointerRNA &target_prop,
+                                        const char *rna_path_from_target_prop);
+
   virtual void build_parameters(ID *id);
   virtual void build_dimensions(Object *object);
   virtual void build_world(World *world);
@@ -197,12 +241,13 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_shapekeys(Key *key);
   virtual void build_armature(bArmature *armature);
   virtual void build_armature_bones(ListBase *bones);
+  virtual void build_armature_bone_collections(blender::Span<BoneCollection *> collections);
   virtual void build_camera(Camera *camera);
   virtual void build_light(Light *lamp);
   virtual void build_nodetree(bNodeTree *ntree);
   virtual void build_nodetree_socket(bNodeSocket *socket);
-  virtual void build_material(Material *ma);
-  virtual void build_materials(Material **materials, int num_materials);
+  virtual void build_material(Material *ma, ID *owner = nullptr);
+  virtual void build_materials(ID *owner, Material **materials, int num_materials);
   virtual void build_freestyle_lineset(FreestyleLineSet *fls);
   virtual void build_freestyle_linestyle(FreestyleLineStyle *linestyle);
   virtual void build_texture(Tex *tex);
@@ -213,7 +258,6 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_lightprobe(LightProbe *probe);
   virtual void build_speaker(Speaker *speaker);
   virtual void build_sound(bSound *sound);
-  virtual void build_simulation(Simulation *simulation);
   virtual void build_scene_sequencer(Scene *scene);
   virtual void build_scene_audio(Scene *scene);
   virtual void build_scene_speakers(Scene *scene, ViewLayer *view_layer);
@@ -250,6 +294,8 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   Node *get_node(const RNAPathKey &key);
 
   OperationNode *find_node(const OperationKey &key) const;
+  ComponentNode *find_node(const ComponentKey &key) const;
+  bool has_node(const ComponentKey &key) const;
   bool has_node(const OperationKey &key) const;
 
   Relation *add_time_relation(TimeSourceNode *timesrc,
@@ -292,7 +338,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   static void modifier_walk(void *user_data,
                             struct Object *object,
                             struct ID **idpoin,
-                            int cb_flag);
+                            LibraryForeachIDCallbackFlag cb_flag);
 
   static void constraint_walk(bConstraint *con, ID **idpoin, bool is_reference, void *user_data);
 

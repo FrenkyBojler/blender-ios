@@ -1,13 +1,14 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2019, NVIDIA Corporation
- * Copyright 2019-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2019 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2019-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
 #ifdef WITH_OPTIX
 
 #  include "device/cuda/device_impl.h"
-#  include "device/optix/util.h"
+#  include "device/optix/util.h"  // IWYU pragma: keep
 #  include "kernel/osl/globals.h"
 
 CCL_NAMESPACE_BEGIN
@@ -21,6 +22,7 @@ enum {
   PG_RGEN_INTERSECT_SHADOW,
   PG_RGEN_INTERSECT_SUBSURFACE,
   PG_RGEN_INTERSECT_VOLUME_STACK,
+  PG_RGEN_INTERSECT_DEDICATED_LIGHT,
   PG_RGEN_SHADE_BACKGROUND,
   PG_RGEN_SHADE_LIGHT,
   PG_RGEN_SHADE_SURFACE,
@@ -28,6 +30,7 @@ enum {
   PG_RGEN_SHADE_SURFACE_MNEE,
   PG_RGEN_SHADE_VOLUME,
   PG_RGEN_SHADE_SHADOW,
+  PG_RGEN_SHADE_DEDICATED_LIGHT,
   PG_RGEN_EVAL_DISPLACE,
   PG_RGEN_EVAL_BACKGROUND,
   PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY,
@@ -62,9 +65,9 @@ struct SbtRecord {
 
 class OptiXDevice : public CUDADevice {
  public:
-  OptixDeviceContext context = NULL;
+  OptixDeviceContext context = nullptr;
 
-  OptixModule optix_module = NULL; /* All necessary OptiX kernels are in one module. */
+  OptixModule optix_module = nullptr; /* All necessary OptiX kernels are in one module. */
   OptixModule builtin_modules[2] = {};
   OptixPipeline pipelines[NUM_PIPELINES] = {};
   OptixProgramGroup groups[NUM_PROGRAM_GROUPS] = {};
@@ -85,10 +88,10 @@ class OptiXDevice : public CUDADevice {
   thread_mutex delayed_free_bvh_mutex;
 
  public:
-  OptiXDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler);
-  ~OptiXDevice();
+  OptiXDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler, bool headless);
+  ~OptiXDevice() override;
 
-  BVHLayoutMask get_bvh_layout_mask() const override;
+  BVHLayoutMask get_bvh_layout_mask(uint /*kernel_features*/) const override;
 
   string compile_kernel_get_common_cflags(const uint kernel_features);
 
@@ -103,16 +106,16 @@ class OptiXDevice : public CUDADevice {
 
   void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
 
-  void release_optix_bvh(BVH *bvh) override;
+  void release_bvh(BVH *bvh) override;
   void free_bvh_memory_delayed();
 
-  void const_copy_to(const char *name, void *host, size_t size) override;
+  void const_copy_to(const char *name, void *host, const size_t size) override;
 
-  void update_launch_params(size_t offset, void *data, size_t data_size);
+  void update_launch_params(const size_t offset, void *data, const size_t data_size);
 
-  virtual unique_ptr<DeviceQueue> gpu_queue_create() override;
+  unique_ptr<DeviceQueue> gpu_queue_create() override;
 
-  void *get_cpu_osl_memory() override;
+  OSLGlobals *get_cpu_osl_memory() override;
 };
 
 CCL_NAMESPACE_END

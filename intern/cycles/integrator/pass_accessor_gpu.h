@@ -1,9 +1,11 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
 #include "integrator/pass_accessor.h"
+
 #include "kernel/types.h"
 
 CCL_NAMESPACE_BEGIN
@@ -15,7 +17,7 @@ class PassAccessorGPU : public PassAccessor {
  public:
   PassAccessorGPU(DeviceQueue *queue,
                   const PassAccessInfo &pass_access_info,
-                  float exposure,
+                  const float exposure,
                   int num_samples);
 
  protected:

@@ -1,21 +1,21 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __OBJECT_H__
-#define __OBJECT_H__
+#pragma once
 
 #include "graph/node.h"
 
 /* included as Object::set_particle_system defined through NODE_SOCKET_API does
  * not select the right Node::set overload as it does not know that ParticleSystem
  * is a Node */
+#include "scene/geometry.h"
 #include "scene/particles.h"
 #include "scene/scene.h"
 
 #include "util/array.h"
 #include "util/boundbox.h"
 #include "util/param.h"
-#include "util/thread.h"
 #include "util/transform.h"
 #include "util/types.h"
 #include "util/vector.h"
@@ -58,6 +58,8 @@ class Object : public Node {
   NODE_SOCKET_API(bool, is_caustics_caster)
   NODE_SOCKET_API(bool, is_caustics_receiver)
 
+  NODE_SOCKET_API(bool, is_bake_target)
+
   NODE_SOCKET_API(float3, dupli_generated)
   NODE_SOCKET_API(float2, dupli_uv)
 
@@ -67,12 +69,16 @@ class Object : public Node {
   NODE_SOCKET_API(float, ao_distance)
 
   NODE_SOCKET_API(ustring, lightgroup)
+  NODE_SOCKET_API(uint, receiver_light_set)
+  NODE_SOCKET_API(uint64_t, light_set_membership)
+  NODE_SOCKET_API(uint, blocker_shadow_set)
+  NODE_SOCKET_API(uint64_t, shadow_set_membership)
 
   /* Set during device update. */
   bool intersects_volume;
 
   Object();
-  ~Object();
+  ~Object() override;
 
   void tag_update(Scene *scene);
 
@@ -82,8 +88,8 @@ class Object : public Node {
   /* Convert between normalized -1..1 motion time and index
    * in the motion array. */
   bool use_motion() const;
-  float motion_time(int step) const;
-  int motion_step(float time) const;
+  float motion_time(const int step) const;
+  int motion_step(const float time) const;
   void update_motion();
 
   /* Maximum number of motion steps supported (due to Embree). */
@@ -104,6 +110,14 @@ class Object : public Node {
 
   /* Compute step size from attributes, shaders, transforms. */
   float compute_volume_step_size() const;
+
+  /* Check whether this object can be used as light-emissive. */
+  bool usable_as_light() const;
+
+  /* Check whether the object participates in light or shadow linking, either as a receiver/blocker
+   * or emitter. */
+  bool has_light_linking() const;
+  bool has_shadow_linking() const;
 
  protected:
   /* Specifies the position of the object in scene->objects and
@@ -159,7 +173,7 @@ class ObjectManager {
 
   void device_free(Device *device, DeviceScene *dscene, bool force_free);
 
-  void tag_update(Scene *scene, uint32_t flag);
+  void tag_update(Scene *scene, const uint32_t flag);
 
   bool need_update() const;
 
@@ -180,5 +194,3 @@ class ObjectManager {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __OBJECT_H__ */

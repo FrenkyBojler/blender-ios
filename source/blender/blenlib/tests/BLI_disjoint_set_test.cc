@@ -1,9 +1,12 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-
-#include "BLI_disjoint_set.hh"
-#include "BLI_strict_flags.h"
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
+
+#include "BLI_disjoint_set.hh"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 namespace blender::tests {
 

@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-FileCopyrightText: 2011-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 if [ "x$1" = "x--i-really-know-what-im-doing" ] ; then
@@ -8,9 +10,9 @@ else
   exit 1
 fi
 
-BRANCH="master"
+BRANCH="main"
 
-# repo="git://git.blender.org/libmv.git"
+# repo="https://projects.blender.org/blender/libmv.git"
 repo="/home/sergey/Developer/libmv"
 tmp=`mktemp -d`
 
@@ -95,7 +97,7 @@ cat > CMakeLists.txt << EOF
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
-# The Original Code is Copyright (C) 2011, Blender Foundation
+# The Original Code is Copyright (C) 2011, Blender Authors
 # All rights reserved.
 # ***** END GPL LICENSE BLOCK *****
 
@@ -188,8 +190,6 @@ ${third_headers}
 
 
   if(WITH_GTESTS)
-    include(GTestTesting)
-
     blender_add_lib(libmv_test_dataset "./libmv/multiview/test_data_sets.cc" "\${INC}" "\${INC_SYS}" "")
 
 ${tests}

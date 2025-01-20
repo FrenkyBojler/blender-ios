@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2014 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2014 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -7,7 +8,6 @@
 
 #pragma once
 
-#include "BKE_customdata.h"
 #include "BLI_compiler_compat.h"
 
 #ifdef __cplusplus
@@ -17,7 +17,6 @@ extern "C" {
 struct Depsgraph;
 struct Object;
 struct ReportList;
-struct Scene;
 struct SpaceTransform;
 
 /* Warning, those def are stored in files (TransferData modifier), *DO NOT* modify those values. */
@@ -84,7 +83,7 @@ int BKE_object_data_transfer_dttype_to_srcdst_index(int dtdata_type);
        DT_TYPE_FREESTYLE_EDGE)
 #define DT_DATATYPE_IS_LOOP(_dt) \
   ELEM(_dt, DT_TYPE_UV, DT_TYPE_LNOR, DT_TYPE_MLOOPCOL_LOOP, DT_TYPE_MPROPCOL_LOOP)
-#define DT_DATATYPE_IS_POLY(_dt) ELEM(_dt, DT_TYPE_UV, DT_TYPE_SHARP_FACE, DT_TYPE_FREESTYLE_FACE)
+#define DT_DATATYPE_IS_FACE(_dt) ELEM(_dt, DT_TYPE_UV, DT_TYPE_SHARP_FACE, DT_TYPE_FREESTYLE_FACE)
 
 #define DT_DATATYPE_IS_MULTILAYERS(_dt) \
   ELEM(_dt, \
@@ -140,7 +139,6 @@ enum {
  * from \a ob_src, to get (as much as possible) exact copy of source data layout.
  */
 void BKE_object_data_transfer_layout(struct Depsgraph *depsgraph,
-                                     struct Scene *scene,
                                      struct Object *ob_src,
                                      struct Object *ob_dst,
                                      int data_types,
@@ -149,7 +147,6 @@ void BKE_object_data_transfer_layout(struct Depsgraph *depsgraph,
                                      const int tolayers_select[DT_MULTILAYER_INDEX_MAX]);
 
 bool BKE_object_data_transfer_mesh(struct Depsgraph *depsgraph,
-                                   struct Scene *scene,
                                    struct Object *ob_src,
                                    struct Object *ob_dst,
                                    int data_types,
@@ -157,7 +154,7 @@ bool BKE_object_data_transfer_mesh(struct Depsgraph *depsgraph,
                                    int map_vert_mode,
                                    int map_edge_mode,
                                    int map_loop_mode,
-                                   int map_poly_mode,
+                                   int map_face_mode,
                                    struct SpaceTransform *space_transform,
                                    bool auto_transform,
                                    float max_distance,
@@ -171,7 +168,6 @@ bool BKE_object_data_transfer_mesh(struct Depsgraph *depsgraph,
                                    bool invert_vgroup,
                                    struct ReportList *reports);
 bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
-                                 struct Scene *scene,
                                  struct Object *ob_src,
                                  struct Object *ob_dst,
                                  struct Mesh *me_dst,
@@ -180,7 +176,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                  int map_vert_mode,
                                  int map_edge_mode,
                                  int map_loop_mode,
-                                 int map_poly_mode,
+                                 int map_face_mode,
                                  struct SpaceTransform *space_transform,
                                  bool auto_transform,
                                  float max_distance,

@@ -1,9 +1,14 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
+#include "kernel/globals.h"
 #include "kernel/types.h"
+
+#include "kernel/integrator/state.h"
+
 #include "util/atomic.h"
 
 CCL_NAMESPACE_BEGIN

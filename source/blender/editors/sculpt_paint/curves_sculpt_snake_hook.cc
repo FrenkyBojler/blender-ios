@@ -1,42 +1,33 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-
-#include <algorithm>
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "curves_sculpt_intern.hh"
 
-#include "BLI_index_mask_ops.hh"
-#include "BLI_kdtree.h"
-#include "BLI_length_parameterize.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_rand.hh"
 #include "BLI_vector.hh"
 
-#include "PIL_time.h"
+#include "DEG_depsgraph.hh"
 
-#include "DEG_depsgraph.h"
-
-#include "BKE_attribute_math.hh"
-#include "BKE_brush.h"
-#include "BKE_bvhutils.h"
-#include "BKE_context.h"
+#include "BKE_attribute.hh"
+#include "BKE_brush.hh"
+#include "BKE_context.hh"
 #include "BKE_curves.hh"
-#include "BKE_mesh.h"
-#include "BKE_mesh_runtime.h"
-#include "BKE_paint.h"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_runtime.hh"
+#include "BKE_paint.hh"
 
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
-#include "ED_screen.h"
-#include "ED_view3d.h"
+#include "ED_screen.hh"
+#include "ED_view3d.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 /**
  * The code below uses a prefix naming convention to indicate the coordinate space:
@@ -79,14 +70,12 @@ struct SnakeHookOperatorExecutor {
   float brush_radius_factor_;
   float brush_strength_;
 
-  eBrushFalloffShape falloff_shape_;
-
   Object *object_ = nullptr;
   Curves *curves_id_ = nullptr;
   CurvesGeometry *curves_ = nullptr;
 
   VArray<float> curve_factors_;
-  Vector<int64_t> selected_curve_indices_;
+  IndexMaskMemory selected_curve_memory_;
   IndexMask curve_selection_;
 
   CurvesSurfaceTransforms transforms_;
@@ -95,9 +84,7 @@ struct SnakeHookOperatorExecutor {
   float2 brush_pos_re_;
   float2 brush_pos_diff_re_;
 
-  SnakeHookOperatorExecutor(const bContext &C) : ctx_(C)
-  {
-  }
+  SnakeHookOperatorExecutor(const bContext &C) : ctx_(C) {}
 
   void execute(SnakeHookOperation &self,
                const bContext &C,
@@ -115,26 +102,26 @@ struct SnakeHookOperatorExecutor {
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
     brush_strength_ = brush_strength_get(*ctx_.scene, *brush_, stroke_extension);
 
-    falloff_shape_ = static_cast<eBrushFalloffShape>(brush_->falloff_shape);
+    const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
 
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
-    if (curves_->curves_num() == 0) {
+    if (curves_->is_empty()) {
       return;
     }
 
     transforms_ = CurvesSurfaceTransforms(*object_, curves_id_->surface);
 
-    curve_factors_ = curves_->attributes().lookup_or_default(
-        ".selection", ATTR_DOMAIN_CURVE, 1.0f);
-    curve_selection_ = curves::retrieve_selected_curves(*curves_id_, selected_curve_indices_);
+    curve_factors_ = *curves_->attributes().lookup_or_default(
+        ".selection", bke::AttrDomain::Curve, 1.0f);
+    curve_selection_ = curves::retrieve_selected_curves(*curves_id_, selected_curve_memory_);
 
     brush_pos_prev_re_ = self.last_mouse_position_re_;
     brush_pos_re_ = stroke_extension.mouse_position;
     brush_pos_diff_re_ = brush_pos_re_ - brush_pos_prev_re_;
 
     if (stroke_extension.is_first) {
-      if (falloff_shape_ == PAINT_FALLOFF_SHAPE_SPHERE) {
+      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE || (U.uiflag & USER_ORBIT_SELECTION)) {
         std::optional<CurvesBrush3D> brush_3d = sample_curves_3d_brush(*ctx_.depsgraph,
                                                                        *ctx_.region,
                                                                        *ctx_.v3d,
@@ -144,15 +131,18 @@ struct SnakeHookOperatorExecutor {
                                                                        brush_radius_base_re_);
         if (brush_3d.has_value()) {
           self_->brush_3d_ = *brush_3d;
+          remember_stroke_position(
+              *ctx_.scene,
+              math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
         }
       }
       return;
     }
 
-    if (falloff_shape_ == PAINT_FALLOFF_SHAPE_SPHERE) {
+    if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
       this->spherical_snake_hook_with_symmetry();
     }
-    else if (falloff_shape_ == PAINT_FALLOFF_SHAPE_TUBE) {
+    else if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
       this->projected_snake_hook_with_symmetry();
     }
     else {
@@ -183,23 +173,21 @@ struct SnakeHookOperatorExecutor {
 
     MutableSpan<float3> positions_cu = curves_->positions_for_write();
 
-    float4x4 projection;
-    ED_view3d_ob_project_mat_get(ctx_.rv3d, object_, projection.ptr());
+    const float4x4 projection = ED_view3d_ob_project_mat_get(ctx_.rv3d, object_);
 
     const float brush_radius_re = brush_radius_base_re_ * brush_radius_factor_;
     const float brush_radius_sq_re = pow2f(brush_radius_re);
 
-    threading::parallel_for(curves_->curves_range(), 256, [&](const IndexRange curves_range) {
+    curve_selection_.foreach_segment(GrainSize(256), [&](const IndexMaskSegment segment) {
       MoveAndResampleBuffers resample_buffer;
-      for (const int curve_i : curves_range) {
+      for (const int curve_i : segment) {
         const IndexRange points = points_by_curve[curve_i];
         const int last_point_i = points.last();
         const float3 old_pos_cu = deformation.positions[last_point_i];
         const float3 old_symm_pos_cu = math::transform_point(brush_transform_inv, old_pos_cu);
 
-        float2 old_symm_pos_re;
-        ED_view3d_project_float_v2_m4(
-            ctx_.region, old_symm_pos_cu, old_symm_pos_re, projection.ptr());
+        const float2 old_symm_pos_re = ED_view3d_project_float_v2_m4(
+            ctx_.region, old_symm_pos_cu, projection);
 
         const float distance_to_brush_sq_re = math::distance_squared(old_symm_pos_re,
                                                                      brush_pos_prev_re_);
@@ -232,9 +220,6 @@ struct SnakeHookOperatorExecutor {
 
   void spherical_snake_hook_with_symmetry()
   {
-    float4x4 projection;
-    ED_view3d_ob_project_mat_get(ctx_.rv3d, object_, projection.ptr());
-
     float3 brush_start_wo, brush_end_wo;
     ED_view3d_win_to_3d(
         ctx_.v3d,
@@ -275,9 +260,9 @@ struct SnakeHookOperatorExecutor {
     const float3 brush_diff_cu = brush_end_cu - brush_start_cu;
     const float brush_radius_sq_cu = pow2f(brush_radius_cu);
 
-    threading::parallel_for(curves_->curves_range(), 256, [&](const IndexRange curves_range) {
+    curve_selection_.foreach_segment(GrainSize(256), [&](const IndexMaskSegment segment) {
       MoveAndResampleBuffers resample_buffer;
-      for (const int curve_i : curves_range) {
+      for (const int curve_i : segment) {
         const IndexRange points = points_by_curve[curve_i];
         const int last_point_i = points.last();
         const float3 old_pos_cu = deformation.positions[last_point_i];

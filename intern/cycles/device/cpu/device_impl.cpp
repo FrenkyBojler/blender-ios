@@ -1,57 +1,50 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "device/cpu/device_impl.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 
 /* So ImathMath is included before our kernel_cpu_compat. */
 #ifdef WITH_OSL
 /* So no context pollution happens from indirectly included windows.h */
-#  include "util/windows.h"
+#  ifdef _WIN32
+#    include "util/windows.h"
+#  endif
 #  include <OSL/oslexec.h>
 #endif
 
 #ifdef WITH_EMBREE
-#  include <embree3/rtcore.h>
+#  if EMBREE_MAJOR_VERSION >= 4
+#    include <embree4/rtcore.h>
+#  else
+#    include <embree3/rtcore.h>
+#  endif
 #endif
 
 #include "device/cpu/kernel.h"
-#include "device/cpu/kernel_thread_globals.h"
 
 #include "device/device.h"
 
-// clang-format off
-#include "kernel/device/cpu/compat.h"
-#include "kernel/device/cpu/globals.h"
 #include "kernel/device/cpu/kernel.h"
+#include "kernel/globals.h"
 #include "kernel/types.h"
-
-#include "kernel/osl/globals.h"
-// clang-format on
 
 #include "bvh/embree.h"
 
 #include "session/buffers.h"
 
-#include "util/debug.h"
-#include "util/foreach.h"
-#include "util/function.h"
 #include "util/guiding.h"
 #include "util/log.h"
-#include "util/map.h"
-#include "util/openimagedenoise.h"
-#include "util/optimization.h"
 #include "util/progress.h"
-#include "util/system.h"
 #include "util/task.h"
-#include "util/thread.h"
 
 CCL_NAMESPACE_BEGIN
 
-CPUDevice::CPUDevice(const DeviceInfo &info_, Stats &stats_, Profiler &profiler_)
-    : Device(info_, stats_, profiler_), texture_info(this, "texture_info", MEM_GLOBAL)
+CPUDevice::CPUDevice(const DeviceInfo &info_, Stats &stats_, Profiler &profiler_, bool headless_)
+    : Device(info_, stats_, profiler_, headless_), texture_info(this, "texture_info", MEM_GLOBAL)
 {
   /* Pick any kernel, all of them are supposed to have same level of microarchitecture
    * optimization. */
@@ -62,9 +55,6 @@ CPUDevice::CPUDevice(const DeviceInfo &info_, Stats &stats_, Profiler &profiler_
     info.cpu_threads = TaskScheduler::max_concurrency();
   }
 
-#ifdef WITH_OSL
-  kernel_globals.osl = &osl_globals;
-#endif
 #ifdef WITH_EMBREE
   embree_device = rtcNewDevice("verbose=0");
 #endif
@@ -80,7 +70,7 @@ CPUDevice::~CPUDevice()
   texture_info.free();
 }
 
-BVHLayoutMask CPUDevice::get_bvh_layout_mask() const
+BVHLayoutMask CPUDevice::get_bvh_layout_mask(uint /*kernel_features*/) const
 {
   BVHLayoutMask bvh_layout_mask = BVH_LAYOUT_BVH2;
 #ifdef WITH_EMBREE
@@ -184,12 +174,12 @@ void CPUDevice::mem_free(device_memory &mem)
   }
 }
 
-device_ptr CPUDevice::mem_alloc_sub_ptr(device_memory &mem, size_t offset, size_t /*size*/)
+device_ptr CPUDevice::mem_alloc_sub_ptr(device_memory &mem, const size_t offset, size_t /*size*/)
 {
   return (device_ptr)(((char *)mem.device_pointer) + mem.memory_elements_size(offset));
 }
 
-void CPUDevice::const_copy_to(const char *name, void *host, size_t size)
+void CPUDevice::const_copy_to(const char *name, void *host, const size_t size)
 {
 #ifdef WITH_EMBREE
   if (strcmp(name, "data") == 0) {
@@ -261,7 +251,10 @@ void CPUDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 #ifdef WITH_EMBREE
   if (bvh->params.bvh_layout == BVH_LAYOUT_EMBREE ||
       bvh->params.bvh_layout == BVH_LAYOUT_MULTI_OPTIX_EMBREE ||
-      bvh->params.bvh_layout == BVH_LAYOUT_MULTI_METAL_EMBREE) {
+      bvh->params.bvh_layout == BVH_LAYOUT_MULTI_METAL_EMBREE ||
+      bvh->params.bvh_layout == BVH_LAYOUT_MULTI_HIPRT_EMBREE ||
+      bvh->params.bvh_layout == BVH_LAYOUT_MULTI_EMBREEGPU_EMBREE)
+  {
     BVHEmbree *const bvh_embree = static_cast<BVHEmbree *>(bvh);
     if (refit) {
       bvh_embree->refit(progress);
@@ -276,7 +269,9 @@ void CPUDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
   }
   else
 #endif
+  {
     Device::build_bvh(bvh, progress, refit);
+  }
 }
 
 void *CPUDevice::get_guiding_device() const
@@ -297,24 +292,24 @@ void *CPUDevice::get_guiding_device() const
 }
 
 void CPUDevice::get_cpu_kernel_thread_globals(
-    vector<CPUKernelThreadGlobals> &kernel_thread_globals)
+    vector<ThreadKernelGlobalsCPU> &kernel_thread_globals)
 {
   /* Ensure latest texture info is loaded into kernel globals before returning. */
   load_texture_info();
 
   kernel_thread_globals.clear();
-  void *osl_memory = get_cpu_osl_memory();
+  OSLGlobals *osl_globals = get_cpu_osl_memory();
   for (int i = 0; i < info.cpu_threads; i++) {
-    kernel_thread_globals.emplace_back(kernel_globals, osl_memory, profiler);
+    kernel_thread_globals.emplace_back(kernel_globals, osl_globals, profiler, i);
   }
 }
 
-void *CPUDevice::get_cpu_osl_memory()
+OSLGlobals *CPUDevice::get_cpu_osl_memory()
 {
 #ifdef WITH_OSL
   return &osl_globals;
 #else
-  return NULL;
+  return nullptr;
 #endif
 }
 

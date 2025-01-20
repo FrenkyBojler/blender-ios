@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -26,19 +27,19 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_layer.h"
-#include "BKE_main.h"
-#include "BKE_node.h"
+#include "BKE_layer.hh"
+#include "BKE_main.hh"
+#include "BKE_node.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "intern/builder/deg_builder.h"
-#include "intern/depsgraph.h"
-#include "intern/depsgraph_type.h"
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/depsgraph.hh"
+#include "intern/depsgraph_type.hh"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_operation.hh"
 
 namespace blender::deg {
 
@@ -47,7 +48,7 @@ void DepsgraphNodeBuilder::build_layer_collections(ListBase *lb)
   const int visibility_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ? COLLECTION_HIDE_VIEWPORT :
                                                                     COLLECTION_HIDE_RENDER;
 
-  for (LayerCollection *lc = (LayerCollection *)lb->first; lc; lc = lc->next) {
+  LISTBASE_FOREACH (LayerCollection *, lc, lb) {
     if (lc->collection->flag & visibility_flag) {
       continue;
     }
@@ -72,21 +73,24 @@ void DepsgraphNodeBuilder::build_view_layer(Scene *scene,
                                             ViewLayer *view_layer,
                                             eDepsNode_LinkedState_Type linked_state)
 {
-  /* NOTE: Pass view layer index of 0 since after scene CoW there is
+  /* NOTE: Pass view layer index of 0 since after scene evaluated copy there is
    * only one view layer in there. */
   view_layer_index_ = 0;
   /* Scene ID block. */
   IDNode *id_node = add_id_node(&scene->id);
   id_node->linked_state = linked_state;
+
+  add_operation_node(&scene->id, NodeType::HIERARCHY, OperationCode::HIERARCHY);
+
   /* Time source. */
   add_time_source();
   /* Setup currently building context. */
   scene_ = scene;
   view_layer_ = view_layer;
-  /* Get pointer to a CoW version of scene ID. */
+  /* Get pointer to an evaluated version of scene ID. */
   Scene *scene_cow = get_cow_datablock(scene);
   /* Scene objects. */
-  /* NOTE: Base is used for function bindings as-is, so need to pass CoW base,
+  /* NOTE: Base is used for function bindings as-is, so need to pass evaluated base,
    * but object is expected to be an original one. Hence we go into some
    * tricks here iterating over the view layer. */
   int base_index = 0;
@@ -110,9 +114,7 @@ void DepsgraphNodeBuilder::build_view_layer(Scene *scene,
     }
   }
   build_layer_collections(&view_layer->layer_collections);
-  if (scene->camera != nullptr) {
-    build_object(-1, scene->camera, DEG_ID_LINKED_INDIRECTLY, true);
-  }
+  build_scene_camera(scene);
   /* Rigidbody. */
   if (scene->rigidbody_world != nullptr) {
     build_rigidbody(scene);
@@ -140,6 +142,10 @@ void DepsgraphNodeBuilder::build_view_layer(Scene *scene,
   /* Material override. */
   if (view_layer->mat_override != nullptr) {
     build_material(view_layer->mat_override);
+  }
+  /* World override */
+  if (view_layer->world_override != nullptr) {
+    build_world(view_layer->world_override);
   }
   /* Freestyle linesets. */
   LISTBASE_FOREACH (FreestyleLineSet *, fls, &view_layer->freestyle_config.linesets) {

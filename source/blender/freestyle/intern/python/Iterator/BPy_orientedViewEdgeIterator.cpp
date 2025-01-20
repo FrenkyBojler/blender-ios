@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,22 +20,24 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-PyDoc_STRVAR(orientedViewEdgeIterator_doc,
-             "Class hierarchy: :class:`Iterator` > :class:`orientedViewEdgeIterator`\n"
-             "\n"
-             "Class representing an iterator over oriented ViewEdges around a\n"
-             ":class:`ViewVertex`.  This iterator allows a CCW iteration (in the image\n"
-             "plane).  An instance of an orientedViewEdgeIterator can only be\n"
-             "obtained from a ViewVertex by calling edges_begin() or edges_end().\n"
-             "\n"
-             ".. method:: __init__()\n"
-             "            __init__(iBrother)\n"
-             "\n"
-             "   Creates an :class:`orientedViewEdgeIterator` using either the\n"
-             "   default constructor or the copy constructor.\n"
-             "\n"
-             "   :arg iBrother: An orientedViewEdgeIterator object.\n"
-             "   :type iBrother: :class:`orientedViewEdgeIterator`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    orientedViewEdgeIterator_doc,
+    "Class hierarchy: :class:`Iterator` > :class:`orientedViewEdgeIterator`\n"
+    "\n"
+    "Class representing an iterator over oriented ViewEdges around a\n"
+    ":class:`ViewVertex`. This iterator allows a CCW iteration (in the image\n"
+    "plane). An instance of an orientedViewEdgeIterator can only be\n"
+    "obtained from a ViewVertex by calling edges_begin() or edges_end().\n"
+    "\n"
+    ".. method:: __init__()\n"
+    "            __init__(iBrother)\n"
+    "\n"
+    "   Creates an :class:`orientedViewEdgeIterator` using either the\n"
+    "   default constructor or the copy constructor.\n"
+    "\n"
+    "   :arg iBrother: An orientedViewEdgeIterator object.\n"
+    "   :type iBrother: :class:`orientedViewEdgeIterator`");
 
 static int orientedViewEdgeIterator_init(BPy_orientedViewEdgeIterator *self,
                                          PyObject *args,
@@ -43,7 +47,8 @@ static int orientedViewEdgeIterator_init(BPy_orientedViewEdgeIterator *self,
   PyObject *brother = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist, &orientedViewEdgeIterator_Type, &brother)) {
+          args, kwds, "|O!", (char **)kwlist, &orientedViewEdgeIterator_Type, &brother))
+  {
     return -1;
   }
   if (!brother) {
@@ -99,12 +104,14 @@ static PyObject *orientedViewEdgeIterator_iternext(BPy_orientedViewEdgeIterator 
 
 /*----------------------orientedViewEdgeIterator get/setters ----------------------------*/
 
-PyDoc_STRVAR(orientedViewEdgeIterator_object_doc,
-             "The oriented ViewEdge (i.e., a tuple of the pointed ViewEdge and a boolean\n"
-             "value) currently pointed to by this iterator. If the boolean value is true,\n"
-             "the ViewEdge is incoming.\n"
-             "\n"
-             ":type: (:class:`ViewEdge`, bool)");
+PyDoc_STRVAR(
+    /* Wrap. */
+    orientedViewEdgeIterator_object_doc,
+    "The oriented ViewEdge (i.e., a tuple of the pointed ViewEdge and a boolean\n"
+    "value) currently pointed to by this iterator. If the boolean value is true,\n"
+    "the ViewEdge is incoming.\n"
+    "\n"
+    ":type: (:class:`ViewEdge`, bool)");
 
 static PyObject *orientedViewEdgeIterator_object_get(BPy_orientedViewEdgeIterator *self,
                                                      void * /*closure*/)
@@ -128,7 +135,7 @@ static PyGetSetDef BPy_orientedViewEdgeIterator_getseters[] = {
 /*-----------------------BPy_orientedViewEdgeIterator type definition ---------------------------*/
 
 PyTypeObject orientedViewEdgeIterator_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "orientedViewEdgeIterator",
     /*tp_basicsize*/ sizeof(BPy_orientedViewEdgeIterator),
     /*tp_itemsize*/ 0,

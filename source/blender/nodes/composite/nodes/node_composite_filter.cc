@@ -1,14 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup cmpnodes
  */
 
 #include "BLI_math_matrix_types.hh"
+#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -21,16 +24,16 @@ namespace blender::nodes::node_composite_filter_cc {
 
 static void cmp_node_filter_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>(N_("Fac"))
+  b.add_input<decl::Float>("Fac")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .compositor_domain_priority(1);
-  b.add_input<decl::Color>(N_("Image"))
+  b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
-  b.add_output<decl::Color>(N_("Image"));
+  b.add_output<decl::Color>("Image");
 }
 
 static void node_composit_buts_filter(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -38,7 +41,7 @@ static void node_composit_buts_filter(uiLayout *layout, bContext * /*C*/, Pointe
   uiItemR(layout, ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class FilterOperation : public NodeOperation {
  public:
@@ -46,7 +49,24 @@ class FilterOperation : public NodeOperation {
 
   void execute() override
   {
-    GPUShader *shader = shader_manager().get(get_shader_name());
+    Result &input_image = get_input("Image");
+    if (input_image.is_single_value()) {
+      Result &output_image = get_result("Image");
+      input_image.pass_through(output_image);
+      return;
+    }
+
+    if (this->context().use_gpu()) {
+      this->execute_gpu();
+    }
+    else {
+      this->execute_cpu();
+    }
+  }
+
+  void execute_gpu()
+  {
+    GPUShader *shader = context().get_shader(get_shader_name());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_mat3_as_mat4(shader, "ukernel", get_filter_kernel().ptr());
@@ -71,9 +91,89 @@ class FilterOperation : public NodeOperation {
     GPU_shader_unbind();
   }
 
-  CMPNodeFilterMethod get_filter_method()
+  const char *get_shader_name()
   {
-    return (CMPNodeFilterMethod)bnode().custom1;
+    if (this->is_edge_filter()) {
+      return "compositor_edge_filter";
+    }
+    return "compositor_filter";
+  }
+
+  void execute_cpu()
+  {
+    const float3x3 kernel = this->get_filter_kernel();
+
+    const Result &input = get_input("Image");
+    const Result &factor = get_input("Fac");
+
+    const Domain domain = compute_domain();
+    Result &output = get_result("Image");
+    output.allocate_texture(domain);
+
+    if (this->is_edge_filter()) {
+      parallel_for(domain.size, [&](const int2 texel) {
+        /* Compute the dot product between the 3x3 window around the pixel and the edge detection
+         * kernel in the X direction and Y direction. The Y direction kernel is computed by
+         * transposing the given X direction kernel. */
+        float3 color_x = float3(0.0f);
+        float3 color_y = float3(0.0f);
+        for (int j = 0; j < 3; j++) {
+          for (int i = 0; i < 3; i++) {
+            float3 color = input.load_pixel_extended<float4>(texel + int2(i - 1, j - 1)).xyz();
+            color_x += color * kernel[j][i];
+            color_y += color * kernel[i][j];
+          }
+        }
+
+        /* Compute the channel-wise magnitude of the 2D vector composed from the X and Y edge
+         * detection filter results. */
+        float3 magnitude = math::sqrt(color_x * color_x + color_y * color_y);
+
+        /* Mix the channel-wise magnitude with the original color at the center of the kernel using
+         * the input factor. */
+        float4 color = input.load_pixel<float4>(texel);
+        magnitude = math::interpolate(
+            color.xyz(), magnitude, factor.load_pixel<float, true>(texel));
+
+        /* Store the channel-wise magnitude with the original alpha of the input. */
+        output.store_pixel(texel, float4(magnitude, color.w));
+      });
+    }
+    else {
+      parallel_for(domain.size, [&](const int2 texel) {
+        /* Compute the dot product between the 3x3 window around the pixel and the kernel. */
+        float4 color = float4(0.0f);
+        for (int j = 0; j < 3; j++) {
+          for (int i = 0; i < 3; i++) {
+            color += input.load_pixel_extended<float4>(texel + int2(i - 1, j - 1)) * kernel[j][i];
+          }
+        }
+
+        /* Mix with the original color at the center of the kernel using the input factor. */
+        color = math::interpolate(
+            input.load_pixel<float4>(texel), color, factor.load_pixel<float, true>(texel));
+
+        /* Store the color making sure it is not negative. */
+        output.store_pixel(texel, math::max(color, float4(0.0f)));
+      });
+    }
+  }
+
+  bool is_edge_filter()
+  {
+    switch (this->get_filter_method()) {
+      case CMP_NODE_FILTER_LAPLACE:
+      case CMP_NODE_FILTER_SOBEL:
+      case CMP_NODE_FILTER_PREWITT:
+      case CMP_NODE_FILTER_KIRSCH:
+        return true;
+      case CMP_NODE_FILTER_SOFT:
+      case CMP_NODE_FILTER_SHARP_BOX:
+      case CMP_NODE_FILTER_SHADOW:
+      case CMP_NODE_FILTER_SHARP_DIAMOND:
+        return false;
+    }
+    return false;
   }
 
   float3x3 get_filter_kernel()
@@ -128,21 +228,9 @@ class FilterOperation : public NodeOperation {
     }
   }
 
-  const char *get_shader_name()
+  CMPNodeFilterMethod get_filter_method()
   {
-    switch (get_filter_method()) {
-      case CMP_NODE_FILTER_LAPLACE:
-      case CMP_NODE_FILTER_SOBEL:
-      case CMP_NODE_FILTER_PREWITT:
-      case CMP_NODE_FILTER_KIRSCH:
-        return "compositor_edge_filter";
-      case CMP_NODE_FILTER_SOFT:
-      case CMP_NODE_FILTER_SHARP_BOX:
-      case CMP_NODE_FILTER_SHADOW:
-      case CMP_NODE_FILTER_SHARP_DIAMOND:
-      default:
-        return "compositor_filter";
-    }
+    return static_cast<CMPNodeFilterMethod>(bnode().custom1);
   }
 };
 
@@ -157,14 +245,18 @@ void register_node_type_cmp_filter()
 {
   namespace file_ns = blender::nodes::node_composite_filter_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_FILTER, "Filter", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeFilter", CMP_NODE_FILTER);
+  ntype.ui_name = "Filter";
+  ntype.ui_description = "Apply common image enhancement filters";
+  ntype.enum_name_legacy = "FILTER";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_filter_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_filter;
   ntype.labelfunc = node_filter_label;
   ntype.flag |= NODE_PREVIEW;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -21,11 +23,12 @@ using namespace Freestyle;
 //------------------------INSTANCE METHODS ----------------------------------
 
 PyDoc_STRVAR(
+    /* Wrap. */
     SVertexIterator_doc,
     "Class hierarchy: :class:`Iterator` > :class:`SVertexIterator`\n"
     "\n"
     "Class representing an iterator over :class:`SVertex` of a\n"
-    ":class:`ViewEdge`.  An instance of an SVertexIterator can be obtained\n"
+    ":class:`ViewEdge`. An instance of an SVertexIterator can be obtained\n"
     "from a ViewEdge by calling verticesBegin() or verticesEnd().\n"
     "\n"
     ".. method:: __init__()\n"
@@ -56,7 +59,8 @@ static int SVertexIterator_init(BPy_SVertexIterator *self, PyObject *args, PyObj
   float t;
 
   if (PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist_1, &SVertexIterator_Type, &obj1)) {
+          args, kwds, "|O!", (char **)kwlist_1, &SVertexIterator_Type, &obj1))
+  {
     if (!obj1) {
       self->sv_it = new ViewEdgeInternal::SVertexIterator();
     }
@@ -77,7 +81,8 @@ static int SVertexIterator_init(BPy_SVertexIterator *self, PyObject *args, PyObj
                                        &obj3,
                                        &FEdge_Type,
                                        &obj4,
-                                       &t)) {
+                                       &t))
+  {
     self->sv_it = new ViewEdgeInternal::SVertexIterator(((BPy_SVertex *)obj1)->sv,
                                                         ((BPy_SVertex *)obj2)->sv,
                                                         ((BPy_FEdge *)obj3)->fe,
@@ -94,10 +99,12 @@ static int SVertexIterator_init(BPy_SVertexIterator *self, PyObject *args, PyObj
 
 /*----------------------SVertexIterator get/setters ----------------------------*/
 
-PyDoc_STRVAR(SVertexIterator_object_doc,
-             "The SVertex object currently pointed by this iterator.\n"
-             "\n"
-             ":type: :class:`SVertex`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    SVertexIterator_object_doc,
+    "The SVertex object currently pointed by this iterator.\n"
+    "\n"
+    ":type: :class:`SVertex`");
 
 static PyObject *SVertexIterator_object_get(BPy_SVertexIterator *self, void * /*closure*/)
 {
@@ -112,20 +119,24 @@ static PyObject *SVertexIterator_object_get(BPy_SVertexIterator *self, void * /*
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(SVertexIterator_t_doc,
-             "The curvilinear abscissa of the current point.\n"
-             "\n"
-             ":type: float");
+PyDoc_STRVAR(
+    /* Wrap. */
+    SVertexIterator_t_doc,
+    "The curvilinear abscissa of the current point.\n"
+    "\n"
+    ":type: float");
 
 static PyObject *SVertexIterator_t_get(BPy_SVertexIterator *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv_it->t());
 }
 
-PyDoc_STRVAR(SVertexIterator_u_doc,
-             "The point parameter at the current point in the 1D element (0 <= u <= 1).\n"
-             "\n"
-             ":type: float");
+PyDoc_STRVAR(
+    /* Wrap. */
+    SVertexIterator_u_doc,
+    "The point parameter at the current point in the 1D element (0 <= u <= 1).\n"
+    "\n"
+    ":type: float");
 
 static PyObject *SVertexIterator_u_get(BPy_SVertexIterator *self, void * /*closure*/)
 {
@@ -146,7 +157,7 @@ static PyGetSetDef BPy_SVertexIterator_getseters[] = {
 /*-----------------------BPy_SVertexIterator type definition ------------------------------*/
 
 PyTypeObject SVertexIterator_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "SVertexIterator",
     /*tp_basicsize*/ sizeof(BPy_SVertexIterator),
     /*tp_itemsize*/ 0,

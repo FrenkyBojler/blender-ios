@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_mesh.h"
-#include "BKE_mesh_mapping.h"
+#include "BKE_mesh.hh"
 
-#include "BLI_task.hh"
+#include "BLI_array_utils.hh"
 
 #include "node_geometry_util.hh"
 
@@ -11,33 +12,20 @@ namespace blender::nodes::node_geo_mesh_topology_corners_of_vertex_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>(N_("Vertex Index"))
+  b.add_input<decl::Int>("Vertex Index")
       .implicit_field(implicit_field_inputs::index)
-      .description(
-          N_("The vertex to retrieve data from. Defaults to the vertex from the context"));
-  b.add_input<decl::Float>(N_("Weights"))
-      .supports_field()
-      .hide_value()
-      .description(
-          N_("Values used to sort corners attached to the vertex. Uses indices by default"));
-  b.add_input<decl::Int>(N_("Sort Index"))
+      .description("The vertex to retrieve data from. Defaults to the vertex from the context");
+  b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
+      "Values used to sort corners attached to the vertex. Uses indices by default");
+  b.add_input<decl::Int>("Sort Index")
       .min(0)
       .supports_field()
-      .description(N_("Which of the sorted corners to output"));
-  b.add_output<decl::Int>(N_("Corner Index"))
+      .description("Which of the sorted corners to output");
+  b.add_output<decl::Int>("Corner Index")
       .field_source_reference_all()
-      .description(N_("A corner connected to the face, chosen by the sort index"));
-  b.add_output<decl::Int>(N_("Total"))
-      .field_source()
-      .reference_pass({0})
-      .description(N_("The number of faces or corners connected to each vertex"));
-}
-
-static void convert_span(const Span<int> src, MutableSpan<int64_t> dst)
-{
-  for (const int i : src.index_range()) {
-    dst[i] = src[i];
-  }
+      .description("A corner connected to the face, chosen by the sort index");
+  b.add_output<decl::Int>("Total").field_source().reference_pass({0}).description(
+      "The number of faces or corners connected to each vertex");
 }
 
 class CornersOfVertInput final : public bke::MeshFieldInput {
@@ -56,13 +44,11 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
-                                 const IndexMask mask) const final
+                                 const AttrDomain domain,
+                                 const IndexMask &mask) const final
   {
-    const IndexRange vert_range(mesh.totvert);
-    const Span<MLoop> loops = mesh.loops();
-    Array<Vector<int>> vert_to_loop_map = bke::mesh_topology::build_vert_to_loop_map(loops,
-                                                                                     mesh.totvert);
+    const IndexRange vert_range(mesh.verts_num);
+    const GroupedSpan<int> vert_to_corner_map = mesh.vert_to_corner_map();
 
     const bke::MeshFieldContext context{mesh, domain};
     fn::FieldEvaluator evaluator{context, &mask};
@@ -72,21 +58,20 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
     const VArray<int> vert_indices = evaluator.get_evaluated<int>(0);
     const VArray<int> indices_in_sort = evaluator.get_evaluated<int>(1);
 
-    const bke::MeshFieldContext corner_context{mesh, ATTR_DOMAIN_CORNER};
-    fn::FieldEvaluator corner_evaluator{corner_context, loops.size()};
+    const bke::MeshFieldContext corner_context{mesh, AttrDomain::Corner};
+    fn::FieldEvaluator corner_evaluator{corner_context, mesh.corners_num};
     corner_evaluator.add(sort_weight_);
     corner_evaluator.evaluate();
     const VArray<float> all_sort_weights = corner_evaluator.get_evaluated<float>(0);
     const bool use_sorting = !all_sort_weights.is_single();
 
     Array<int> corner_of_vertex(mask.min_array_size());
-    threading::parallel_for(mask.index_range(), 1024, [&](const IndexRange range) {
+    mask.foreach_segment(GrainSize(1024), [&](const IndexMaskSegment segment) {
       /* Reuse arrays to avoid allocation. */
-      Array<int64_t> corner_indices;
       Array<float> sort_weights;
       Array<int> sort_indices;
 
-      for (const int selection_i : mask.slice(range)) {
+      for (const int selection_i : segment) {
         const int vert_i = vert_indices[selection_i];
         const int index_in_sort = indices_in_sort[selection_i];
         if (!vert_range.contains(vert_i)) {
@@ -94,7 +79,7 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
           continue;
         }
 
-        const Span<int> corners = vert_to_loop_map[vert_i];
+        const Span<int> corners = vert_to_corner_map[vert_i];
         if (corners.is_empty()) {
           corner_of_vertex[selection_i] = 0;
           continue;
@@ -102,13 +87,10 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
 
         const int index_in_sort_wrapped = mod_i(index_in_sort, corners.size());
         if (use_sorting) {
-          /* Retrieve the connected edge indices as 64 bit integers for #materialize_compressed. */
-          corner_indices.reinitialize(corners.size());
-          convert_span(corners, corner_indices);
-
           /* Retrieve a compressed array of weights for each edge. */
           sort_weights.reinitialize(corners.size());
-          all_sort_weights.materialize_compressed(IndexMask(corner_indices),
+          IndexMaskMemory memory;
+          all_sort_weights.materialize_compressed(IndexMask::from_indices<int>(corners, memory),
                                                   sort_weights.as_mutable_span());
 
           /* Sort a separate array of compressed indices corresponding to the compressed weights.
@@ -116,11 +98,11 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
            * when accessing values in the sort weights. However, it means a separate array of
            * indices within the compressed array is necessary for sorting. */
           sort_indices.reinitialize(corners.size());
-          std::iota(sort_indices.begin(), sort_indices.end(), 0);
+          array_utils::fill_index_range<int>(sort_indices);
           std::stable_sort(sort_indices.begin(), sort_indices.end(), [&](int a, int b) {
             return sort_weights[a] < sort_weights[b];
           });
-          corner_of_vertex[selection_i] = corner_indices[sort_indices[index_in_sort_wrapped]];
+          corner_of_vertex[selection_i] = corners[sort_indices[index_in_sort_wrapped]];
         }
         else {
           corner_of_vertex[selection_i] = corners[index_in_sort_wrapped];
@@ -152,9 +134,9 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -166,17 +148,14 @@ class CornersOfVertCountInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const AttrDomain domain,
+                                 const IndexMask & /*mask*/) const final
   {
-    if (domain != ATTR_DOMAIN_POINT) {
+    if (domain != AttrDomain::Point) {
       return {};
     }
-    const Span<MLoop> loops = mesh.loops();
-    Array<int> counts(mesh.totvert, 0);
-    for (const int i : loops.index_range()) {
-      counts[loops[i].v]++;
-    }
+    Array<int> counts(mesh.verts_num, 0);
+    array_utils::count_indices(mesh.corner_verts(), counts);
     return VArray<int>::ForContainer(std::move(counts));
   }
 
@@ -187,15 +166,12 @@ class CornersOfVertCountInput final : public bke::MeshFieldInput {
 
   bool is_equal_to(const fn::FieldNode &other) const final
   {
-    if (dynamic_cast<const CornersOfVertCountInput *>(&other)) {
-      return true;
-    }
-    return false;
+    return dynamic_cast<const CornersOfVertCountInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -204,10 +180,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<int> vert_index = params.extract_input<Field<int>>("Vertex Index");
   if (params.output_is_required("Total")) {
     params.set_output("Total",
-                      Field<int>(std::make_shared<FieldAtIndexInput>(
+                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           vert_index,
                           Field<int>(std::make_shared<CornersOfVertCountInput>()),
-                          ATTR_DOMAIN_POINT)));
+                          AttrDomain::Point)));
   }
   if (params.output_is_required("Corner Index")) {
     params.set_output("Corner Index",
@@ -217,16 +193,20 @@ static void node_geo_exec(GeoNodeExecParams params)
                           params.extract_input<Field<float>>("Weights"))));
   }
 }
-}  // namespace blender::nodes::node_geo_mesh_topology_corners_of_vertex_cc
 
-void register_node_type_geo_mesh_topology_corners_of_vertex()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_mesh_topology_corners_of_vertex_cc;
-
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_VERTEX, "Corners of Vertex", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+      &ntype, "GeometryNodeCornersOfVertex", GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_VERTEX);
+  ntype.ui_name = "Corners of Vertex";
+  ntype.ui_description = "Retrieve face corners connected to vertices";
+  ntype.enum_name_legacy = "CORNERS_OF_VERTEX";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_mesh_topology_corners_of_vertex_cc

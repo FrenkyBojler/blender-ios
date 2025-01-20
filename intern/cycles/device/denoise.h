@@ -1,11 +1,10 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
-#include "device/memory.h"
 #include "graph/node.h"
-#include "session/buffers.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -21,7 +20,7 @@ enum DenoiserType {
 /* COnstruct human-readable string which denotes the denoiser type. */
 const char *denoiserTypeToHumanReadable(DenoiserType type);
 
-typedef int DenoiserTypeMask;
+using DenoiserTypeMask = int;
 
 enum DenoiserPrefilter {
   /* Best quality of the result without extra processing time, but requires guiding passes to be
@@ -37,6 +36,13 @@ enum DenoiserPrefilter {
   DENOISER_PREFILTER_ACCURATE = 3,
 
   DENOISER_PREFILTER_NUM,
+};
+
+enum DenoiserQuality {
+  DENOISER_QUALITY_HIGH = 1,
+  DENOISER_QUALITY_BALANCED = 2,
+  DENOISER_QUALITY_FAST = 3,
+  DENOISER_QUALITY_NUM,
 };
 
 /* NOTE: Is not a real scene node. Using Node API for ease of (de)serialization.
@@ -62,20 +68,18 @@ class DenoiseParams : public Node {
   /* Configure the denoiser to use motion vectors, previous image and a temporally stable model. */
   bool temporally_stable = false;
 
+  /* If true, then allow, if supported, OpenImageDenoise to use GPU device.
+   * If false, then OpenImageDenoise will always use CPU regardless of GPU device presence. */
+  bool use_gpu = true;
+
   DenoiserPrefilter prefilter = DENOISER_PREFILTER_FAST;
+  DenoiserQuality quality = DENOISER_QUALITY_HIGH;
 
   static const NodeEnum *get_type_enum();
   static const NodeEnum *get_prefilter_enum();
+  static const NodeEnum *get_quality_enum();
 
   DenoiseParams();
-
-  bool modified(const DenoiseParams &other) const
-  {
-    return !(use == other.use && type == other.type && start_sample == other.start_sample &&
-             use_pass_albedo == other.use_pass_albedo &&
-             use_pass_normal == other.use_pass_normal &&
-             temporally_stable == other.temporally_stable && prefilter == other.prefilter);
-  }
 };
 
 CCL_NAMESPACE_END

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -7,8 +8,6 @@
  * \ingroup bke
  * \brief display list (or rather multi purpose list) stuff.
  */
-#include "BKE_customdata.h"
-#include "DNA_customdata_types.h"
 
 #ifdef __cplusplus
 extern "C" {

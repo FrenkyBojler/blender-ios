@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation.
- */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eevee
@@ -13,7 +13,7 @@
  * under-sampling.
  * - The second one is a post-processing based one. It follows the
  * implementation described in the presentation
- * "Life of a Bokeh - Siggraph 2018" from Guillaume Abadie.
+ * "Life of a Bokeh - SIGGRAPH 2018" from Guillaume Abadie.
  * There are some difference with our actual implementation that prioritize quality.
  */
 
@@ -44,10 +44,6 @@ class DepthOfField {
  private:
   class Instance &inst_;
 
-  /** Samplers */
-  static constexpr eGPUSamplerState gather_bilinear = GPU_SAMPLER_MIPMAP | GPU_SAMPLER_FILTER;
-  static constexpr eGPUSamplerState gather_nearest = GPU_SAMPLER_MIPMAP;
-
   /** Input/Output texture references. */
   GPUTexture *input_color_tx_ = nullptr;
   GPUTexture *output_color_tx_ = nullptr;
@@ -71,7 +67,7 @@ class DepthOfField {
   /** Stabilization (flicker attenuation) of Color and CoC output of the setup pass. */
   TextureFromPool stabilize_output_tx_ = {"dof_taa"};
   GPUTexture *stabilize_input_ = nullptr;
-  bool1 stabilize_valid_history_ = false;
+  bool32_t stabilize_valid_history_ = false;
   int3 dispatch_stabilize_size_ = int3(-1);
   PassSimple stabilize_ps_ = {"Stabilize"};
 
@@ -192,6 +188,10 @@ class DepthOfField {
   void hole_fill_pass_sync();
   void resolve_pass_sync();
 
+  /**
+   * Similar to #Film::update_sample_table()
+   * but with constant filter radius and constant sample count.
+   */
   void update_sample_table();
 };
 

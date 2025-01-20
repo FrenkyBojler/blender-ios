@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation.
- */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eevee
@@ -10,18 +10,29 @@
 
 #include <sstream>
 
-#include "BKE_global.h"
-#include "BKE_object.h"
+#include "BKE_global.hh"
+#include "BKE_object.hh"
 #include "BLI_rect.h"
-#include "DEG_depsgraph_query.h"
+#include "BLT_translation.hh"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_ID.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_modifier_types.h"
+#include "IMB_imbuf_types.hh"
 #include "RE_pipeline.h"
 
+#include "eevee_engine.h"
 #include "eevee_instance.hh"
 
+#include "DNA_particle_types.h"
+
+#include "draw_common.hh"
+
 namespace blender::eevee {
+
+void *Instance::debug_scope_render_sample = nullptr;
+void *Instance::debug_scope_irradiance_setup = nullptr;
+void *Instance::debug_scope_irradiance_sample = nullptr;
 
 /* -------------------------------------------------------------------- */
 /** \name Initialization
@@ -35,16 +46,15 @@ namespace blender::eevee {
 
 void Instance::init(const int2 &output_res,
                     const rcti *output_rect,
+                    const rcti *visible_rect,
                     RenderEngine *render_,
                     Depsgraph *depsgraph_,
-                    const LightProbe *light_probe_,
                     Object *camera_object_,
                     const RenderLayer *render_layer_,
-                    const DRWView *drw_view_,
+                    View *drw_view_,
                     const View3D *v3d_,
                     const RegionView3D *rv3d_)
 {
-  UNUSED_VARS(light_probe_);
   render = render_;
   depsgraph = depsgraph_;
   camera_orig_object = camera_object_;
@@ -53,22 +63,100 @@ void Instance::init(const int2 &output_res,
   v3d = v3d_;
   rv3d = rv3d_;
   manager = DRW_manager_get();
+  update_eval_members();
 
-  if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
-    sampling.reset();
+  info_ = "";
+
+  shaders_are_ready_ = shaders.is_ready(is_image_render());
+  if (!shaders_are_ready_) {
+    return;
   }
 
-  info = "";
-
-  update_eval_members();
+  if (is_viewport()) {
+    if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
+      sampling.reset();
+    }
+    if (output_res != film.display_extent_get()) {
+      sampling.reset();
+    }
+    if (output_rect) {
+      int2 offset = int2(output_rect->xmin, output_rect->ymin);
+      int2 extent = int2(BLI_rcti_size_x(output_rect), BLI_rcti_size_y(output_rect));
+      if (offset != film.get_data().offset || extent != film.get_data().extent) {
+        sampling.reset();
+      }
+    }
+    if (assign_if_different(overlays_enabled_, v3d && !(v3d->flag2 & V3D_HIDE_OVERLAYS))) {
+      sampling.reset();
+    }
+    if (is_painting()) {
+      sampling.reset();
+    }
+    if (is_navigating() && scene->eevee.flag & SCE_EEVEE_SHADOW_JITTERED_VIEWPORT) {
+      sampling.reset();
+    }
+  }
 
   sampling.init(scene);
   camera.init();
   film.init(output_res, output_rect);
+  render_buffers.init();
+  ambient_occlusion.init();
   velocity.init();
+  raytracing.init();
   depth_of_field.init();
+  shadows.init();
   motion_blur.init();
   main_view.init();
+  light_probes.init();
+  planar_probes.init();
+  /* Irradiance Cache needs reflection probes to be initialized. */
+  sphere_probes.init();
+  volume_probes.init();
+  volume.init();
+  lookdev.init(visible_rect);
+
+  /* Pre-compile specialization constants in parallel (if supported). */
+  shaders.precompile_specializations(
+      render_buffers.data.shadow_id, shadows.get_data().ray_count, shadows.get_data().step_count);
+  shaders_are_ready_ = shaders.is_ready(is_image_render());
+}
+
+void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
+{
+  this->depsgraph = depsgraph;
+  this->manager = manager;
+  camera_orig_object = nullptr;
+  render = nullptr;
+  render_layer = nullptr;
+  drw_view = nullptr;
+  v3d = nullptr;
+  rv3d = nullptr;
+  update_eval_members();
+
+  is_light_bake = true;
+  debug_mode = (eDebugMode)G.debug_value;
+  info_ = "";
+
+  shaders.is_ready(true);
+
+  sampling.init(scene);
+  camera.init();
+  /* Film isn't used but init to avoid side effects in other module. */
+  rcti empty_rect{0, 0, 0, 0};
+  film.init(int2(1), &empty_rect);
+  render_buffers.init();
+  velocity.init();
+  depth_of_field.init();
+  shadows.init();
+  main_view.init();
+  light_probes.init();
+  planar_probes.init();
+  /* Irradiance Cache needs reflection probes to be initialized. */
+  sphere_probes.init();
+  volume_probes.init();
+  volume.init();
+  lookdev.init(&empty_rect);
 }
 
 void Instance::set_time(float time)
@@ -87,54 +175,82 @@ void Instance::update_eval_members()
                            nullptr;
 }
 
+void Instance::view_update()
+{
+  if (is_viewport()) {
+    sampling.reset();
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Sync
  *
  * Sync will gather data from the scene that can change over a time step (i.e: motion steps).
- * IMPORTANT: xxx.sync() functions area responsible for creating DRW resources (i.e: DRWView) as
+ * IMPORTANT: xxx.sync() functions area responsible for creating DRW resources as
  * well as querying temp texture pool. All DRWPasses should be ready by the end end_sync().
  * \{ */
 
 void Instance::begin_sync()
 {
+  if (!shaders_are_ready_) {
+    return;
+  }
+
+  /* Needs to be first for sun light parameters. */
+  world.sync();
+
   materials.begin_sync();
   velocity.begin_sync(); /* NOTE: Also syncs camera. */
   lights.begin_sync();
+  shadows.begin_sync();
+  volume.begin_sync();
+  pipelines.begin_sync();
   cryptomatte.begin_sync();
-
-  gpencil_engine_enabled = false;
-
-  scene_sync();
+  sphere_probes.begin_sync();
+  light_probes.begin_sync();
 
   depth_of_field.sync();
+  raytracing.sync();
   motion_blur.sync();
   hiz_buffer.sync();
-  pipelines.sync();
   main_view.sync();
-  world.sync();
   film.sync();
-}
+  ambient_occlusion.sync();
+  volume_probes.sync();
+  lookdev.sync();
 
-void Instance::scene_sync()
-{
-  SceneHandle &sc_handle = sync.sync_scene(scene);
+  use_surfaces = (view_layer->layflag & SCE_LAY_SOLID) != 0;
+  use_curves = (view_layer->layflag & SCE_LAY_STRAND) != 0;
+  use_volumes = (view_layer->layflag & SCE_LAY_VOLUMES) != 0;
 
-  sc_handle.reset_recalc_flag();
+  if (is_light_bake) {
+    /* Do not use render layer visibility during bake.
+     * NOTE: This is arbitrary and could be changed if needed. */
+    use_surfaces = use_curves = use_volumes = true;
+  }
 
-  /* This refers specifically to the Scene camera that can be accessed
-   * via View Layer Attribute nodes, rather than the actual render camera. */
-  if (scene->camera != nullptr) {
-    ObjectHandle &ob_handle = sync.sync_object(scene->camera);
-
-    ob_handle.reset_recalc_flag();
+  if (is_viewport() && velocity.camera_has_motion()) {
+    sampling.reset();
   }
 }
 
-void Instance::object_sync(Object *ob)
+void Instance::object_sync(ObjectRef &ob_ref)
 {
-  const bool is_renderable_type = ELEM(ob->type, OB_CURVES, OB_GPENCIL, OB_MESH, OB_LAMP);
+  if (!shaders_are_ready_) {
+    return;
+  }
+
+  Object *ob = ob_ref.object;
+  const bool is_renderable_type = ELEM(ob->type,
+                                       OB_CURVES,
+                                       OB_GREASE_PENCIL,
+                                       OB_MESH,
+                                       OB_POINTCLOUD,
+                                       OB_VOLUME,
+                                       OB_LAMP,
+                                       OB_LIGHTPROBE);
   const int ob_visibility = DRW_object_visibility_in_active_context(ob);
   const bool partsys_is_visible = (ob_visibility & OB_VISIBLE_PARTICLES) != 0 &&
                                   (ob->type == OB_MESH);
@@ -145,18 +261,16 @@ void Instance::object_sync(Object *ob)
     return;
   }
 
-  /* TODO cleanup. */
-  ObjectRef ob_ref = DRW_object_ref_get(ob);
-  ResourceHandle res_handle = manager->resource_handle(ob_ref);
-
-  ObjectHandle &ob_handle = sync.sync_object(ob);
+  ObjectHandle &ob_handle = sync.sync_object(ob_ref);
 
   if (partsys_is_visible && ob != DRW_context_state_get()->object_edit) {
-    LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-      if (md->type == eModifierType_ParticleSystem) {
-        sync.sync_curves(ob, ob_handle, res_handle, md);
-      }
-    }
+    auto sync_hair =
+        [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
+          ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,
+                                                                         ob->object_to_world());
+          sync.sync_curves(ob, hair_handle, ob_ref, _res_handle, &md, &particle_sys);
+        };
+    foreach_hair_particle_handle(ob, ob_handle, sync_hair);
   }
 
   if (object_is_visible) {
@@ -165,25 +279,28 @@ void Instance::object_sync(Object *ob)
         lights.sync_light(ob, ob_handle);
         break;
       case OB_MESH:
-        sync.sync_mesh(ob, ob_handle, res_handle, ob_ref);
+        if (!sync.sync_sculpt(ob, ob_handle, ob_ref)) {
+          sync.sync_mesh(ob, ob_handle, ob_ref);
+        }
+        break;
+      case OB_POINTCLOUD:
+        sync.sync_point_cloud(ob, ob_handle, ob_ref);
         break;
       case OB_VOLUME:
+        sync.sync_volume(ob, ob_handle, ob_ref);
         break;
       case OB_CURVES:
-        sync.sync_curves(ob, ob_handle, res_handle);
+        sync.sync_curves(ob, ob_handle, ob_ref);
         break;
-      case OB_GPENCIL:
-        sync.sync_gpencil(ob, ob_handle, res_handle);
+      case OB_LIGHTPROBE:
+        light_probes.sync_probe(ob, ob_handle);
         break;
       default:
         break;
     }
   }
-
-  ob_handle.reset_recalc_flag();
 }
 
-/* Wrapper to use with DRW_render_object_iter. */
 void Instance::object_sync_render(void *instance_,
                                   Object *ob,
                                   RenderEngine *engine,
@@ -191,30 +308,81 @@ void Instance::object_sync_render(void *instance_,
 {
   UNUSED_VARS(engine, depsgraph);
   Instance &inst = *reinterpret_cast<Instance *>(instance_);
-  inst.object_sync(ob);
+  ObjectRef ob_ref = DRW_object_ref_get(ob);
+  inst.object_sync(ob_ref);
 }
 
 void Instance::end_sync()
 {
+  if (!shaders_are_ready_) {
+    return;
+  }
+
   velocity.end_sync();
+  volume.end_sync();  /* Needs to be before shadows. */
+  shadows.end_sync(); /* Needs to be before lights. */
   lights.end_sync();
   sampling.end_sync();
+  subsurface.end_sync();
   film.end_sync();
   cryptomatte.end_sync();
+  pipelines.end_sync();
+  light_probes.end_sync();
+  sphere_probes.end_sync();
+  planar_probes.end_sync();
+
+  uniform_data.push_update();
+
+  depsgraph_last_update_ = DEG_get_update_count(depsgraph);
 }
 
 void Instance::render_sync()
 {
+  /* TODO: Remove old draw manager calls. */
   DRW_cache_restart();
 
+  manager->begin_sync();
+
+  draw::hair_init();
+  draw::curves_init();
+
   begin_sync();
+
   DRW_render_object_iter(this, render, depsgraph, object_sync_render);
+
+  draw::hair_update(*manager);
+  draw::curves_update(*manager);
+  draw::hair_free();
+  draw::curves_free();
+
+  velocity.geometry_steps_fill();
+
   end_sync();
 
-  DRW_render_instance_buffer_finish();
-  /* Also we weed to have a correct FBO bound for #DRW_hair_update */
-  // GPU_framebuffer_bind();
-  // DRW_hair_update();
+  manager->end_sync();
+
+  /* TODO: Remove old draw manager calls. */
+  DRW_curves_update(*manager);
+}
+
+bool Instance::needs_lightprobe_sphere_passes() const
+{
+  return sphere_probes.update_probes_this_sample_;
+}
+
+bool Instance::do_lightprobe_sphere_sync() const
+{
+  return (materials.queued_shaders_count == 0) && needs_lightprobe_sphere_passes();
+}
+
+bool Instance::needs_planar_probe_passes() const
+{
+  return planar_probes.update_probes_;
+}
+
+bool Instance::do_planar_probe_sync() const
+{
+  return (materials.queued_shaders_count == 0) && needs_planar_probe_passes();
 }
 
 /** \} */
@@ -223,25 +391,35 @@ void Instance::render_sync()
 /** \name Rendering
  * \{ */
 
-/**
- * Conceptually renders one sample per pixel.
- * Everything based on random sampling should be done here (i.e: DRWViews jitter)
- **/
 void Instance::render_sample()
 {
   if (sampling.finished_viewport()) {
     film.display();
+    lookdev.display();
     return;
   }
 
   /* Motion blur may need to do re-sync after a certain number of sample. */
   if (!is_viewport() && sampling.do_render_sync()) {
     render_sync();
+    while (materials.queued_shaders_count > 0) {
+      /* Leave some time for shaders to compile. */
+      BLI_time_sleep_ms(50);
+      /** WORKAROUND: Re-sync to check if all shaders are already compiled. */
+      render_sync();
+    }
   }
+
+  DebugScope debug_scope(debug_scope_render_sample, "EEVEE.render_sample");
 
   sampling.step();
 
+  capture_view.render_world();
+  capture_view.render_probes();
+
   main_view.render();
+
+  lookdev_view.render();
 
   motion_blur.step();
 }
@@ -249,7 +427,8 @@ void Instance::render_sample()
 void Instance::render_read_result(RenderLayer *render_layer, const char *view_name)
 {
   eViewLayerEEVEEPassType pass_bits = film.enabled_passes_get();
-  for (auto i : IndexRange(EEVEE_RENDER_PASS_MAX_BIT)) {
+
+  for (auto i : IndexRange(EEVEE_RENDER_PASS_MAX_BIT + 1)) {
     eViewLayerEEVEEPassType pass_type = eViewLayerEEVEEPassType(pass_bits & (1 << i));
     if (pass_type == 0) {
       continue;
@@ -266,25 +445,49 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 
       if (result) {
         BLI_mutex_lock(&render->update_render_passes_mutex);
-        /* WORKAROUND: We use texture read to avoid using a framebuffer to get the render result.
+        /* WORKAROUND: We use texture read to avoid using a frame-buffer to get the render result.
          * However, on some implementation, we need a buffer with a few extra bytes for the read to
-         * happen correctly (see GLTexture::read()). So we need a custom memory allocation. */
-        /* Avoid memcpy(), replace the pointer directly. */
-        MEM_SAFE_FREE(rp->rect);
-        rp->rect = result;
+         * happen correctly (see #GLTexture::read()). So we need a custom memory allocation. */
+        /* Avoid `memcpy()`, replace the pointer directly. */
+        RE_pass_set_buffer_data(rp, result);
         BLI_mutex_unlock(&render->update_render_passes_mutex);
       }
     }
   }
 
+  /* AOVs. */
+  LISTBASE_FOREACH (ViewLayerAOV *, aov, &view_layer->aovs) {
+    if ((aov->flag & AOV_CONFLICT) != 0) {
+      continue;
+    }
+    RenderPass *rp = RE_pass_find_by_name(render_layer, aov->name, view_name);
+    if (!rp) {
+      continue;
+    }
+    float *result = film.read_aov(aov);
+
+    if (result) {
+      BLI_mutex_lock(&render->update_render_passes_mutex);
+      /* WORKAROUND: We use texture read to avoid using a frame-buffer to get the render result.
+       * However, on some implementation, we need a buffer with a few extra bytes for the read to
+       * happen correctly (see #GLTexture::read()). So we need a custom memory allocation. */
+      /* Avoid #memcpy(), replace the pointer directly. */
+      RE_pass_set_buffer_data(rp, result);
+      BLI_mutex_unlock(&render->update_render_passes_mutex);
+    }
+  }
+
   /* The vector pass is initialized to weird values. Set it to neutral value if not rendered. */
   if ((pass_bits & EEVEE_RENDER_PASS_VECTOR) == 0) {
-    for (std::string vector_pass_name :
-         Film::pass_to_render_pass_names(EEVEE_RENDER_PASS_VECTOR, view_layer)) {
+    for (const std::string &vector_pass_name :
+         Film::pass_to_render_pass_names(EEVEE_RENDER_PASS_VECTOR, view_layer))
+    {
       RenderPass *vector_rp = RE_pass_find_by_name(
           render_layer, vector_pass_name.c_str(), view_name);
       if (vector_rp) {
-        memset(vector_rp->rect, 0, sizeof(float) * 4 * vector_rp->rectx * vector_rp->recty);
+        memset(vector_rp->ibuf->float_buffer.data,
+               0,
+               sizeof(float) * 4 * vector_rp->rectx * vector_rp->recty);
       }
     }
   }
@@ -296,13 +499,31 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 /** \name Interface
  * \{ */
 
-void Instance::render_frame(RenderLayer *render_layer, const char *view_name)
+void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, const char *view_name)
 {
+  /* TODO: Break on RE_engine_test_break(engine) */
   while (!sampling.finished()) {
     this->render_sample();
 
-    /* TODO(fclem) print progression. */
+    if ((sampling.sample_index() == 1) || ((sampling.sample_index() % 25) == 0) ||
+        sampling.finished())
+    {
+      /* TODO: Use `fmt`. */
+      std::string re_info = "Rendering " + std::to_string(sampling.sample_index()) + " / " +
+                            std::to_string(sampling.sample_count()) + " samples";
+      RE_engine_update_stats(engine, nullptr, re_info.c_str());
+    }
+
+    /* Perform render step between samples to allow
+     * flushing of freed GPUBackend resources. */
+    if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+      GPU_flush();
+    }
+    GPU_render_step();
+
 #if 0
+    /* TODO(fclem) print progression. */
+    RE_engine_update_progress(engine, float(sampling.sample_index()) / float(sampling.sample_count()));
     /* TODO(fclem): Does not currently work. But would be better to just display to 2D view like
      * cycles does. */
     if (G.background == false && first_read) {
@@ -320,15 +541,33 @@ void Instance::render_frame(RenderLayer *render_layer, const char *view_name)
   this->film.cryptomatte_sort();
 
   this->render_read_result(render_layer, view_name);
+
+  if (!info_.empty()) {
+    RE_engine_set_error_message(
+        engine, RPT_("Errors during render. See the System Console for more info."));
+    printf("%s", info_.c_str());
+    info_ = "";
+  }
 }
 
-void Instance::draw_viewport(DefaultFramebufferList *dfbl)
+void Instance::draw_viewport()
 {
-  UNUSED_VARS(dfbl);
+  if (!shaders_are_ready_) {
+    DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+    GPU_framebuffer_clear_color_depth(dfbl->default_fb, float4(0.0f), 1.0f);
+    info_append_i18n("Compiling EEVEE engine shaders");
+    DRW_viewport_request_redraw();
+    return;
+  }
+
   render_sample();
   velocity.step_swap();
 
-  /* Do not request redraw during viewport animation to lock the framerate to the animation
+  if (this->film.is_viewport_compositor_enabled()) {
+    this->film.write_viewport_compositor_passes();
+  }
+
+  /* Do not request redraw during viewport animation to lock the frame-rate to the animation
    * playback rate. This is in order to preserve motion blur aspect and also to avoid TAA reset
    * that can show flickering. */
   if (!sampling.finished_viewport() && !DRW_state_is_playback()) {
@@ -336,9 +575,31 @@ void Instance::draw_viewport(DefaultFramebufferList *dfbl)
   }
 
   if (materials.queued_shaders_count > 0) {
-    std::stringstream ss;
-    ss << "Compiling Shaders (" << materials.queued_shaders_count << " remaining)";
-    info = ss.str();
+    info_append_i18n("Compiling shaders ({} remaining)", materials.queued_shaders_count);
+
+    if (!GPU_use_parallel_compilation() &&
+        GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL))
+    {
+      info_append_i18n(
+          "Increasing Preferences > System > Max Shader Compilation Subprocesses may improve "
+          "compilation time.");
+    }
+    DRW_viewport_request_redraw();
+  }
+  else if (materials.queued_optimize_shaders_count > 0) {
+    info_append_i18n("Optimizing shaders ({} remaining)", materials.queued_optimize_shaders_count);
+  }
+}
+
+void Instance::draw_viewport_image_render()
+{
+  while (!sampling.finished_viewport()) {
+    this->render_sample();
+  }
+  velocity.step_swap();
+
+  if (this->film.is_viewport_compositor_enabled()) {
+    this->film.write_viewport_compositor_passes();
   }
 }
 
@@ -367,6 +628,8 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   CHECK_PASS_LEGACY(Z, SOCK_FLOAT, 1, "Z");
   CHECK_PASS_LEGACY(MIST, SOCK_FLOAT, 1, "Z");
   CHECK_PASS_LEGACY(NORMAL, SOCK_VECTOR, 3, "XYZ");
+  CHECK_PASS_LEGACY(POSITION, SOCK_VECTOR, 3, "XYZ");
+  CHECK_PASS_LEGACY(VECTOR, SOCK_VECTOR, 4, "XYZW");
   CHECK_PASS_LEGACY(DIFFUSE_DIRECT, SOCK_RGBA, 3, "RGB");
   CHECK_PASS_LEGACY(DIFFUSE_COLOR, SOCK_RGBA, 3, "RGB");
   CHECK_PASS_LEGACY(GLOSSY_DIRECT, SOCK_RGBA, 3, "RGB");
@@ -374,9 +637,9 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   CHECK_PASS_EEVEE(VOLUME_LIGHT, SOCK_RGBA, 3, "RGB");
   CHECK_PASS_LEGACY(EMIT, SOCK_RGBA, 3, "RGB");
   CHECK_PASS_LEGACY(ENVIRONMENT, SOCK_RGBA, 3, "RGB");
-  /* TODO: CHECK_PASS_LEGACY(SHADOW, SOCK_RGBA, 3, "RGB");
-   * CHECK_PASS_LEGACY(AO, SOCK_RGBA, 3, "RGB");
-   * When available they should be converted from Value textures to RGB. */
+  CHECK_PASS_LEGACY(SHADOW, SOCK_RGBA, 3, "RGB");
+  CHECK_PASS_LEGACY(AO, SOCK_RGBA, 3, "RGB");
+  CHECK_PASS_EEVEE(TRANSPARENT, SOCK_RGBA, 4, "RGBA");
 
   LISTBASE_FOREACH (ViewLayerAOV *, aov, &view_layer->aovs) {
     if ((aov->flag & AOV_CONFLICT) != 0) {
@@ -400,7 +663,8 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   auto register_cryptomatte_passes = [&](eViewLayerCryptomatteFlags cryptomatte_layer,
                                          eViewLayerEEVEEPassType eevee_pass) {
     if (view_layer->cryptomatte_flag & cryptomatte_layer) {
-      for (std::string pass_name : Film::pass_to_render_pass_names(eevee_pass, view_layer)) {
+      for (const std::string &pass_name : Film::pass_to_render_pass_names(eevee_pass, view_layer))
+      {
         RE_engine_register_pass(
             engine, scene, view_layer, pass_name.c_str(), 4, "rgba", SOCK_RGBA);
       }
@@ -410,6 +674,98 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   register_cryptomatte_passes(VIEW_LAYER_CRYPTOMATTE_ASSET, EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET);
   register_cryptomatte_passes(VIEW_LAYER_CRYPTOMATTE_MATERIAL,
                               EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL);
+}
+
+void Instance::light_bake_irradiance(
+    Object &probe,
+    FunctionRef<void()> context_enable,
+    FunctionRef<void()> context_disable,
+    FunctionRef<bool()> stop,
+    FunctionRef<void(LightProbeGridCacheFrame *, float progress)> result_update)
+{
+  BLI_assert(is_baking());
+
+  auto custom_pipeline_wrapper = [&](FunctionRef<void()> callback) {
+    context_enable();
+    DRW_custom_pipeline_begin(&draw_engine_eevee_next_type, depsgraph);
+    callback();
+    DRW_custom_pipeline_end();
+    context_disable();
+  };
+
+  auto context_wrapper = [&](FunctionRef<void()> callback) {
+    context_enable();
+    callback();
+    context_disable();
+  };
+
+  volume_probes.bake.init(probe);
+
+  custom_pipeline_wrapper([&]() {
+    this->render_sync();
+    while (materials.queued_shaders_count > 0) {
+      /* Leave some time for shaders to compile. */
+      BLI_time_sleep_ms(50);
+      /** WORKAROUND: Re-sync to check if all shaders are already compiled. */
+      this->render_sync();
+    }
+    /* Sampling module needs to be initialized to computing lighting. */
+    sampling.init(probe);
+    sampling.step();
+
+    DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
+
+    capture_view.render_world();
+
+    volume_probes.bake.surfels_create(probe);
+
+    if (volume_probes.bake.should_break()) {
+      return;
+    }
+
+    volume_probes.bake.surfels_lights_eval();
+
+    volume_probes.bake.clusters_build();
+    volume_probes.bake.irradiance_offset();
+  });
+
+  if (volume_probes.bake.should_break()) {
+    return;
+  }
+
+  sampling.init(probe);
+  while (!sampling.finished()) {
+    context_wrapper([&]() {
+      DebugScope debug_scope(debug_scope_irradiance_sample, "EEVEE.irradiance_sample");
+
+      /* Batch ray cast by pack of 16. Avoids too much overhead of the update function & context
+       * switch. */
+      /* TODO(fclem): Could make the number of iteration depend on the computation time. */
+      for (int i = 0; i < 16 && !sampling.finished(); i++) {
+        sampling.step();
+
+        volume_probes.bake.raylists_build();
+        volume_probes.bake.propagate_light();
+        volume_probes.bake.irradiance_capture();
+      }
+
+      LightProbeGridCacheFrame *cache_frame;
+      if (sampling.finished()) {
+        cache_frame = volume_probes.bake.read_result_packed();
+      }
+      else {
+        /* TODO(fclem): Only do this read-back if needed. But it might be tricky to know when. */
+        cache_frame = volume_probes.bake.read_result_unpacked();
+      }
+
+      float progress = sampling.sample_index() / float(sampling.sample_count());
+      result_update(cache_frame, progress);
+    });
+
+    if (stop()) {
+      return;
+    }
+  }
 }
 
 /** \} */

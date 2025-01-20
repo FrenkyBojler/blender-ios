@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "BLI_any.hh"
 #include "BLI_map.hh"
@@ -85,6 +87,15 @@ TEST(any, AssignAny)
   EXPECT_FALSE(z.is<int>());
   EXPECT_TRUE(z.is<Any<>>());
   EXPECT_EQ(z.get<Any<>>().get<int>(), 5);
+}
+
+TEST(any, Allocate)
+{
+  Any<> a;
+  void *vec_mem = a.allocate<Vector<int>>();
+  Vector<int> &vec = *new (vec_mem) Vector<int>(100);
+  EXPECT_EQ(vec.size(), 100);
+  /* Leak detector checks whether the vector is freed again. */
 }
 
 struct ExtraSizeInfo {

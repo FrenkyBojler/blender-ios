@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char PolygonalizationShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    PolygonalizationShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`PolygonalizationShader`\n"
     "\n"
     "[Geometry shader]\n"
@@ -28,8 +32,8 @@ static char PolygonalizationShader___doc__[] =
     "   Builds a PolygonalizationShader object.\n"
     "\n"
     "   :arg error: The error we want our polygonal approximation to have\n"
-    "      with respect to the original geometry.  The smaller, the closer\n"
-    "      the new stroke is to the original one.  This error corresponds to\n"
+    "      with respect to the original geometry. The smaller, the closer\n"
+    "      the new stroke is to the original one. This error corresponds to\n"
     "      the maximum distance between the new stroke and the old one.\n"
     "   :type error: float\n"
     "\n"
@@ -42,7 +46,7 @@ static char PolygonalizationShader___doc__[] =
     "   error is reached.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int PolygonalizationShader___init__(BPy_PolygonalizationShader *self,
                                            PyObject *args,
@@ -61,7 +65,7 @@ static int PolygonalizationShader___init__(BPy_PolygonalizationShader *self,
 /*-----------------------BPy_PolygonalizationShader type definition -----------------------------*/
 
 PyTypeObject PolygonalizationShader_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "PolygonalizationShader",
     /*tp_basicsize*/ sizeof(BPy_PolygonalizationShader),
     /*tp_itemsize*/ 0,

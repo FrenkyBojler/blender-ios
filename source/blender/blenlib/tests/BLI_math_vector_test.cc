@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
-#include "BLI_math.h"
-
+#include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 
 namespace blender::tests {
@@ -27,27 +28,6 @@ TEST(math_vector, ClampVecWithFloats)
   clamp_v2(c, min, max);
   EXPECT_FLOAT_EQ(1.0f, c[0]);
   EXPECT_FLOAT_EQ(1.0f, c[1]);
-}
-
-TEST(math_vector, ClampVecWithVecs)
-{
-  const float min[2] = {0.0f, 2.0f};
-  const float max[2] = {1.0f, 3.0f};
-
-  float a[2] = {-1.0f, -1.0f};
-  clamp_v2_v2v2(a, min, max);
-  EXPECT_FLOAT_EQ(0.0f, a[0]);
-  EXPECT_FLOAT_EQ(2.0f, a[1]);
-
-  float b[2] = {0.5f, 2.5f};
-  clamp_v2_v2v2(b, min, max);
-  EXPECT_FLOAT_EQ(0.5f, b[0]);
-  EXPECT_FLOAT_EQ(2.5f, b[1]);
-
-  float c[2] = {2.0f, 4.0f};
-  clamp_v2_v2v2(c, min, max);
-  EXPECT_FLOAT_EQ(1.0f, c[0]);
-  EXPECT_FLOAT_EQ(3.0f, c[1]);
 }
 
 TEST(math_vector, test_invert_v3_safe)
@@ -132,6 +112,60 @@ TEST(math_vector, Sign)
   EXPECT_FLOAT_EQ(result.x, -1);
   EXPECT_FLOAT_EQ(result.y, 1);
   EXPECT_FLOAT_EQ(result.z, 0);
+}
+
+TEST(math_vector, sqrt)
+{
+  const float3 a(1.0f, 4.0f, 9.0f);
+  const float3 result = math::sqrt(a);
+  EXPECT_NEAR(result.x, 1.0f, 1e-6f);
+  EXPECT_NEAR(result.y, 2.0f, 1e-6f);
+  EXPECT_NEAR(result.z, 3.0f, 1e-6f);
+}
+
+TEST(math_vector, safe_sqrt)
+{
+  const float3 a(1.0f, -4.0f, 9.0f);
+  const float3 result = math::safe_sqrt(a);
+  EXPECT_NEAR(result.x, 1.0f, 1e-6f);
+  EXPECT_NEAR(result.y, 0.0f, 1e-6f);
+  EXPECT_NEAR(result.z, 3.0f, 1e-6f);
+}
+
+TEST(math_vector, rcp)
+{
+  const float3 a(1.0f, 2.0f, 4.0f);
+  const float3 result = math::rcp(a);
+  EXPECT_NEAR(result.x, 1.0f, 1e-6f);
+  EXPECT_NEAR(result.y, 0.5f, 1e-6f);
+  EXPECT_NEAR(result.z, 0.25f, 1e-6f);
+}
+
+TEST(math_vector, safe_rcp)
+{
+  const float3 a(1.0f, 0.0f, 4.0f);
+  const float3 result = math::safe_rcp(a);
+  EXPECT_NEAR(result.x, 1.0f, 1e-6f);
+  EXPECT_NEAR(result.y, 0.0f, 1e-6f);
+  EXPECT_NEAR(result.z, 0.25f, 1e-6f);
+}
+
+TEST(math_vector, exp)
+{
+  const float3 a(1.0f, 2.0f, 3.0f);
+  const float3 result = math::exp(a);
+  EXPECT_NEAR(result.x, 2.718281828459045f, 1e-6f);
+  EXPECT_NEAR(result.y, 7.38905609893065f, 1e-6f);
+  EXPECT_NEAR(result.z, 20.085536923187668f, 1e-6f);
+}
+
+TEST(math_vector, square)
+{
+  const float3 a(1.0f, 2.0f, 3.0f);
+  const float3 result = math::square(a);
+  EXPECT_NEAR(result.x, 1.0f, 1e-6f);
+  EXPECT_NEAR(result.y, 4.0f, 1e-6f);
+  EXPECT_NEAR(result.z, 9.0f, 1e-6f);
 }
 
 }  // namespace blender::tests

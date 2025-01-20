@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 /** \file
  * \ingroup freestyle
- * \brief Interface to 0D elts
+ * \brief Interface to 0D elements.
  */
 
 #include <iostream>
@@ -18,9 +20,7 @@
 
 #include "../winged_edge/Nature.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -41,9 +41,7 @@ class TVertex;
 class Interface0D {
  public:
   /** Default constructor */
-  Interface0D()
-  {
-  }
+  Interface0D() {}
 
   /** Destructor */
   virtual ~Interface0D(){};
@@ -102,9 +100,7 @@ class Interface0D {
   /** Cast the Interface0D in TVertex if it can be. */
   virtual TVertex *castToTVertex();
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Interface0D")
-#endif
 };
 
 //
@@ -114,9 +110,7 @@ class Interface0D {
 
 class Interface0DIteratorNested : public Iterator {
  public:
-  virtual ~Interface0DIteratorNested()
-  {
-  }
+  virtual ~Interface0DIteratorNested() {}
 
   virtual string getExactTypeName() const
   {
@@ -167,7 +161,7 @@ class Interface0DIteratorNested : public Iterator {
  */
 class Interface0DIterator : public Iterator {
  public:
-  Interface0DIterator(Interface0DIteratorNested *it = NULL)
+  Interface0DIterator(Interface0DIteratorNested *it = nullptr)
   {
     _iterator = it;
   }

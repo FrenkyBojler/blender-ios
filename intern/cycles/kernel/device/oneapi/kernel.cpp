@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2021-2022 Intel Corporation */
+/* SPDX-FileCopyrightText: 2021-2022 Intel Corporation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifdef WITH_ONEAPI
 
@@ -8,6 +9,8 @@
 #  include <map>
 #  include <set>
 
+/* <algorithm> is needed until included upstream in sycl/detail/property_list_base.hpp */
+#  include <algorithm>
 #  include <sycl/sycl.hpp>
 
 #  include "kernel/device/oneapi/compat.h"
@@ -16,13 +19,56 @@
 
 #  include "kernel/device/gpu/kernel.h"
 
+#  include "device/kernel.cpp"
+
 static OneAPIErrorCallback s_error_cb = nullptr;
 static void *s_error_user_ptr = nullptr;
+
+#  ifdef WITH_EMBREE_GPU
+static const RTCFeatureFlags CYCLES_ONEAPI_EMBREE_BASIC_FEATURES = (const RTCFeatureFlags)(
+    RTC_FEATURE_FLAG_TRIANGLE | RTC_FEATURE_FLAG_INSTANCE |
+    RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS | RTC_FEATURE_FLAG_POINT |
+    RTC_FEATURE_FLAG_MOTION_BLUR);
+static const RTCFeatureFlags CYCLES_ONEAPI_EMBREE_ALL_FEATURES = (const RTCFeatureFlags)(
+    CYCLES_ONEAPI_EMBREE_BASIC_FEATURES | RTC_FEATURE_FLAG_ROUND_CATMULL_ROM_CURVE |
+    RTC_FEATURE_FLAG_FLAT_CATMULL_ROM_CURVE);
+#  endif
 
 void oneapi_set_error_cb(OneAPIErrorCallback cb, void *user_ptr)
 {
   s_error_cb = cb;
   s_error_user_ptr = user_ptr;
+}
+
+size_t oneapi_suggested_gpu_kernel_size(const DeviceKernel kernel)
+{
+  /* This defines are available only to the device code, so making this function
+   * seems to be the most reasonable way to provide access to them for the host code. */
+  switch (kernel) {
+    case DEVICE_KERNEL_INTEGRATOR_QUEUED_PATHS_ARRAY:
+    case DEVICE_KERNEL_INTEGRATOR_QUEUED_SHADOW_PATHS_ARRAY:
+    case DEVICE_KERNEL_INTEGRATOR_ACTIVE_PATHS_ARRAY:
+    case DEVICE_KERNEL_INTEGRATOR_TERMINATED_PATHS_ARRAY:
+    case DEVICE_KERNEL_INTEGRATOR_TERMINATED_SHADOW_PATHS_ARRAY:
+    case DEVICE_KERNEL_INTEGRATOR_COMPACT_PATHS_ARRAY:
+    case DEVICE_KERNEL_INTEGRATOR_COMPACT_SHADOW_PATHS_ARRAY:
+      return GPU_PARALLEL_ACTIVE_INDEX_DEFAULT_BLOCK_SIZE;
+
+    case DEVICE_KERNEL_INTEGRATOR_SORTED_PATHS_ARRAY:
+    case DEVICE_KERNEL_INTEGRATOR_COMPACT_STATES:
+    case DEVICE_KERNEL_INTEGRATOR_COMPACT_SHADOW_STATES:
+      return GPU_PARALLEL_SORTED_INDEX_DEFAULT_BLOCK_SIZE;
+
+    case DEVICE_KERNEL_INTEGRATOR_SORT_BUCKET_PASS:
+    case DEVICE_KERNEL_INTEGRATOR_SORT_WRITE_PASS:
+      return GPU_PARALLEL_SORT_BLOCK_SIZE;
+
+    case DEVICE_KERNEL_PREFIX_SUM:
+      return GPU_PARALLEL_PREFIX_SUM_DEFAULT_BLOCK_SIZE;
+
+    default:
+      return (size_t)0;
+  }
 }
 
 /* NOTE(@nsirgien): Execution of this simple kernel will check basic functionality like
@@ -77,7 +123,7 @@ bool oneapi_run_test_kernel(SyclQueue *queue_)
     sycl::free(B_device, *queue);
     queue->wait_and_throw();
   }
-  catch (sycl::exception const &e) {
+  catch (const sycl::exception &e) {
     if (s_error_cb) {
       s_error_cb(e.what(), s_error_user_ptr);
     }
@@ -87,69 +133,146 @@ bool oneapi_run_test_kernel(SyclQueue *queue_)
   return is_computation_correct;
 }
 
-/* TODO: Move device information to OneapiDevice initialized on creation and use it. */
-/* TODO: Move below function to oneapi/queue.cpp. */
-size_t oneapi_kernel_preferred_local_size(SyclQueue *queue,
-                                          const DeviceKernel kernel,
-                                          const size_t kernel_global_size)
+bool oneapi_zero_memory_on_device(SyclQueue *queue_, void *device_pointer, const size_t num_bytes)
 {
-  assert(queue);
-  (void)kernel_global_size;
-  const static size_t preferred_work_group_size_intersect_shading = 32;
-  const static size_t preferred_work_group_size_technical = 1024;
-
-  size_t preferred_work_group_size = 0;
-  switch (kernel) {
-    case DEVICE_KERNEL_INTEGRATOR_INIT_FROM_CAMERA:
-    case DEVICE_KERNEL_INTEGRATOR_INIT_FROM_BAKE:
-    case DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST:
-    case DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW:
-    case DEVICE_KERNEL_INTEGRATOR_INTERSECT_SUBSURFACE:
-    case DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK:
-    case DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND:
-    case DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT:
-    case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE:
-    case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE:
-    case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE:
-    case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME:
-    case DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW:
-      preferred_work_group_size = preferred_work_group_size_intersect_shading;
-      break;
-
-    case DEVICE_KERNEL_INTEGRATOR_QUEUED_PATHS_ARRAY:
-    case DEVICE_KERNEL_INTEGRATOR_QUEUED_SHADOW_PATHS_ARRAY:
-    case DEVICE_KERNEL_INTEGRATOR_ACTIVE_PATHS_ARRAY:
-    case DEVICE_KERNEL_INTEGRATOR_TERMINATED_PATHS_ARRAY:
-    case DEVICE_KERNEL_INTEGRATOR_SORTED_PATHS_ARRAY:
-    case DEVICE_KERNEL_INTEGRATOR_COMPACT_PATHS_ARRAY:
-    case DEVICE_KERNEL_INTEGRATOR_COMPACT_STATES:
-    case DEVICE_KERNEL_INTEGRATOR_TERMINATED_SHADOW_PATHS_ARRAY:
-    case DEVICE_KERNEL_INTEGRATOR_COMPACT_SHADOW_PATHS_ARRAY:
-    case DEVICE_KERNEL_INTEGRATOR_COMPACT_SHADOW_STATES:
-    case DEVICE_KERNEL_INTEGRATOR_RESET:
-    case DEVICE_KERNEL_INTEGRATOR_SHADOW_CATCHER_COUNT_POSSIBLE_SPLITS:
-      preferred_work_group_size = preferred_work_group_size_technical;
-      break;
-
-    default:
-      preferred_work_group_size = 512;
-  }
-
-  const size_t limit_work_group_size = reinterpret_cast<sycl::queue *>(queue)
-                                           ->get_device()
-                                           .get_info<sycl::info::device::max_work_group_size>();
-
-  return std::min(limit_work_group_size, preferred_work_group_size);
-}
-
-bool oneapi_load_kernels(SyclQueue *queue_, const uint requested_features)
-{
-#  ifdef SYCL_SKIP_KERNELS_PRELOAD
-  (void)queue_;
-  (void)requested_features;
-#  else
   assert(queue_);
   sycl::queue *queue = reinterpret_cast<sycl::queue *>(queue_);
+  try {
+    queue->memset(device_pointer, 0, num_bytes);
+    queue->wait_and_throw();
+    return true;
+  }
+  catch (const sycl::exception &e) {
+    if (s_error_cb) {
+      s_error_cb(e.what(), s_error_user_ptr);
+    }
+    return false;
+  }
+}
+
+bool oneapi_kernel_is_required_for_features(const std::string &kernel_name,
+                                            const uint kernel_features)
+{
+  /* Skip all non-Cycles kernels */
+  if (kernel_name.find("oneapi_kernel_") == std::string::npos) {
+    return false;
+  }
+
+  if ((kernel_features & KERNEL_FEATURE_NODE_RAYTRACE) == 0 &&
+      kernel_name.find(device_kernel_as_string(DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE)) !=
+          std::string::npos)
+  {
+    return false;
+  }
+
+  if ((kernel_features & KERNEL_FEATURE_MNEE) == 0 &&
+      kernel_name.find(device_kernel_as_string(DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE)) !=
+          std::string::npos)
+  {
+    return false;
+  }
+
+  if ((kernel_features & KERNEL_FEATURE_VOLUME) == 0 &&
+      kernel_name.find(device_kernel_as_string(DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK)) !=
+          std::string::npos)
+  {
+    return false;
+  }
+
+  if (((kernel_features & (KERNEL_FEATURE_PATH_TRACING | KERNEL_FEATURE_BAKING)) == 0) &&
+      ((kernel_name.find(device_kernel_as_string(DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST)) !=
+        std::string::npos) ||
+       (kernel_name.find(device_kernel_as_string(DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW)) !=
+        std::string::npos) ||
+       (kernel_name.find(device_kernel_as_string(DEVICE_KERNEL_INTEGRATOR_INTERSECT_SUBSURFACE)) !=
+        std::string::npos) ||
+       (kernel_name.find(device_kernel_as_string(
+            DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT)) != std::string::npos)))
+  {
+    return false;
+  }
+
+  return true;
+}
+
+bool oneapi_kernel_is_compatible_with_hardware_raytracing(const std::string &kernel_name)
+{
+  /* MNEE and Ray-trace kernels work correctly with Hardware Ray-tracing starting with Embree 4.1.
+   */
+#  if defined(RTC_VERSION) && RTC_VERSION < 40100
+  return (kernel_name.find(device_kernel_as_string(DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE)) ==
+          std::string::npos) &&
+         (kernel_name.find(device_kernel_as_string(
+              DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE)) == std::string::npos);
+#  else
+  return true;
+#  endif
+}
+
+bool oneapi_kernel_has_intersections(const std::string &kernel_name)
+{
+  for (int i = 0; i < (int)DEVICE_KERNEL_NUM; i++) {
+    DeviceKernel kernel = (DeviceKernel)i;
+    if (device_kernel_has_intersection(kernel)) {
+      if (kernel_name.find(device_kernel_as_string(kernel)) != std::string::npos) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool oneapi_load_kernels(SyclQueue *queue_,
+                         const uint kernel_features,
+                         bool use_hardware_raytracing)
+{
+  assert(queue_);
+  sycl::queue *queue = reinterpret_cast<sycl::queue *>(queue_);
+
+#  ifdef WITH_EMBREE_GPU
+  /* For best performance, we always JIT compile the kernels that are using Embree. */
+  if (use_hardware_raytracing) {
+    try {
+      sycl::kernel_bundle<sycl::bundle_state::input> all_kernels_bundle =
+          sycl::get_kernel_bundle<sycl::bundle_state::input>(queue->get_context(),
+                                                             {queue->get_device()});
+
+      for (const sycl::kernel_id &kernel_id : all_kernels_bundle.get_kernel_ids()) {
+        const std::string &kernel_name = kernel_id.get_name();
+
+        if (!oneapi_kernel_is_required_for_features(kernel_name, kernel_features) ||
+            !(oneapi_kernel_has_intersections(kernel_name) &&
+              oneapi_kernel_is_compatible_with_hardware_raytracing(kernel_name)))
+        {
+          continue;
+        }
+
+        sycl::kernel_bundle<sycl::bundle_state::input> one_kernel_bundle_input =
+            sycl::get_kernel_bundle<sycl::bundle_state::input>(queue->get_context(), {kernel_id});
+
+        /* Hair requires embree curves support. */
+        if (kernel_features & KERNEL_FEATURE_HAIR) {
+          one_kernel_bundle_input
+              .set_specialization_constant<ONEAPIKernelContext::oneapi_embree_features>(
+                  CYCLES_ONEAPI_EMBREE_ALL_FEATURES);
+          sycl::build(one_kernel_bundle_input);
+        }
+        else {
+          one_kernel_bundle_input
+              .set_specialization_constant<ONEAPIKernelContext::oneapi_embree_features>(
+                  CYCLES_ONEAPI_EMBREE_BASIC_FEATURES);
+          sycl::build(one_kernel_bundle_input);
+        }
+      }
+    }
+    catch (const sycl::exception &e) {
+      if (s_error_cb) {
+        s_error_cb(e.what(), s_error_user_ptr);
+      }
+      return false;
+    }
+  }
+#  endif
 
   try {
     sycl::kernel_bundle<sycl::bundle_state::input> all_kernels_bundle =
@@ -159,42 +282,47 @@ bool oneapi_load_kernels(SyclQueue *queue_, const uint requested_features)
     for (const sycl::kernel_id &kernel_id : all_kernels_bundle.get_kernel_ids()) {
       const std::string &kernel_name = kernel_id.get_name();
 
-      /* NOTE(@nsirgien): Names in this conditions below should match names from
-       * oneapi_call macro in oneapi_enqueue_kernel below */
-      if (((requested_features & KERNEL_FEATURE_VOLUME) == 0) &&
-          kernel_name.find("oneapi_kernel_integrator_shade_volume") != std::string::npos) {
+      /* In case HWRT is on, compilation of kernels using Embree is already handled in previous
+       * block. */
+      if (!oneapi_kernel_is_required_for_features(kernel_name, kernel_features) ||
+          (use_hardware_raytracing && oneapi_kernel_has_intersections(kernel_name) &&
+           oneapi_kernel_is_compatible_with_hardware_raytracing(kernel_name)))
+      {
         continue;
       }
 
-      if (((requested_features & KERNEL_FEATURE_MNEE) == 0) &&
-          kernel_name.find("oneapi_kernel_integrator_shade_surface_mnee") != std::string::npos) {
+#  ifdef WITH_EMBREE_GPU
+      if (oneapi_kernel_has_intersections(kernel_name)) {
+        sycl::kernel_bundle<sycl::bundle_state::input> one_kernel_bundle_input =
+            sycl::get_kernel_bundle<sycl::bundle_state::input>(queue->get_context(), {kernel_id});
+        one_kernel_bundle_input
+            .set_specialization_constant<ONEAPIKernelContext::oneapi_embree_features>(
+                RTC_FEATURE_FLAG_NONE);
+        sycl::build(one_kernel_bundle_input);
         continue;
       }
-
-      if (((requested_features & KERNEL_FEATURE_NODE_RAYTRACE) == 0) &&
-          kernel_name.find("oneapi_kernel_integrator_shade_surface_raytrace") !=
-              std::string::npos) {
-        continue;
-      }
-
-      sycl::kernel_bundle<sycl::bundle_state::input> one_kernel_bundle =
-          sycl::get_kernel_bundle<sycl::bundle_state::input>(queue->get_context(), {kernel_id});
-      sycl::build(one_kernel_bundle);
+#  endif
+      /* This call will ensure that AoT or cached JIT binaries are available
+       * for execution. It will trigger compilation if it is not already the case. */
+      (void)sycl::get_kernel_bundle<sycl::bundle_state::executable>(queue->get_context(),
+                                                                    {kernel_id});
     }
   }
-  catch (sycl::exception const &e) {
+  catch (const sycl::exception &e) {
     if (s_error_cb) {
       s_error_cb(e.what(), s_error_user_ptr);
     }
     return false;
   }
-#  endif
   return true;
 }
 
 bool oneapi_enqueue_kernel(KernelContext *kernel_context,
-                           int kernel,
-                           size_t global_size,
+                           const int kernel,
+                           const size_t global_size,
+                           const size_t local_size,
+                           const uint kernel_features,
+                           bool use_hardware_raytracing,
                            void **args)
 {
   bool success = true;
@@ -206,38 +334,6 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
     return false;
   }
 
-  size_t local_size = oneapi_kernel_preferred_local_size(
-      kernel_context->queue, device_kernel, global_size);
-  assert(global_size % local_size == 0);
-
-  /* Local size for DEVICE_KERNEL_INTEGRATOR_ACTIVE_PATHS_ARRAY needs to be enforced so we
-   * overwrite it outside of oneapi_kernel_preferred_local_size. */
-  if (device_kernel == DEVICE_KERNEL_INTEGRATOR_ACTIVE_PATHS_ARRAY) {
-    local_size = GPU_PARALLEL_ACTIVE_INDEX_DEFAULT_BLOCK_SIZE;
-  }
-
-  /* Kernels listed below need a specific number of work groups. */
-  if (device_kernel == DEVICE_KERNEL_INTEGRATOR_ACTIVE_PATHS_ARRAY ||
-      device_kernel == DEVICE_KERNEL_INTEGRATOR_QUEUED_PATHS_ARRAY ||
-      device_kernel == DEVICE_KERNEL_INTEGRATOR_QUEUED_SHADOW_PATHS_ARRAY ||
-      device_kernel == DEVICE_KERNEL_INTEGRATOR_TERMINATED_PATHS_ARRAY ||
-      device_kernel == DEVICE_KERNEL_INTEGRATOR_TERMINATED_SHADOW_PATHS_ARRAY ||
-      device_kernel == DEVICE_KERNEL_INTEGRATOR_COMPACT_PATHS_ARRAY ||
-      device_kernel == DEVICE_KERNEL_INTEGRATOR_COMPACT_SHADOW_PATHS_ARRAY) {
-    int num_states = *((int *)(args[0]));
-    /* Round up to the next work-group. */
-    size_t groups_count = (num_states + local_size - 1) / local_size;
-    /* NOTE(@nsirgien): As for now non-uniform work-groups don't work on most oneAPI devices,
-     * we extend work size to fit uniformity requirements. */
-    global_size = groups_count * local_size;
-
-#  ifdef WITH_ONEAPI_SYCL_HOST_TASK
-    /* Path array implementation is serial in case of SYCL Host Task execution. */
-    global_size = 1;
-    local_size = 1;
-#  endif
-  }
-
   /* Let the compiler throw an error if there are any kernels missing in this implementation. */
 #  if defined(_WIN32)
 #    pragma warning(error : 4062)
@@ -246,8 +342,31 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
 #    pragma GCC diagnostic error "-Wswitch"
 #  endif
 
+  int max_shaders = 0;
+
+  if (device_kernel == DEVICE_KERNEL_INTEGRATOR_SORT_BUCKET_PASS ||
+      device_kernel == DEVICE_KERNEL_INTEGRATOR_SORT_WRITE_PASS)
+  {
+    max_shaders = (kernel_context->scene_max_shaders);
+  }
+
   try {
     queue->submit([&](sycl::handler &cgh) {
+#  ifdef WITH_EMBREE_GPU
+      /* Spec says it has no effect if the called kernel doesn't support the below specialization
+       * constant but it can still trigger a recompilation, so we set it only if needed. */
+      if (device_kernel_has_intersection(device_kernel)) {
+        const RTCFeatureFlags used_embree_features = !use_hardware_raytracing ?
+                                                         RTC_FEATURE_FLAG_NONE :
+                                                     !(kernel_features & KERNEL_FEATURE_HAIR) ?
+                                                         CYCLES_ONEAPI_EMBREE_BASIC_FEATURES :
+                                                         CYCLES_ONEAPI_EMBREE_ALL_FEATURES;
+        cgh.set_specialization_constant<ONEAPIKernelContext::oneapi_embree_features>(
+            used_embree_features);
+      }
+#  else
+      (void)kernel_features;
+#  endif
       switch (device_kernel) {
         case DEVICE_KERNEL_INTEGRATOR_RESET: {
           oneapi_call(kg, cgh, global_size, local_size, args, oneapi_kernel_integrator_reset);
@@ -291,6 +410,15 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
                       oneapi_kernel_integrator_intersect_volume_stack);
           break;
         }
+        case DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT: {
+          oneapi_call(kg,
+                      cgh,
+                      global_size,
+                      local_size,
+                      args,
+                      oneapi_kernel_integrator_intersect_dedicated_light);
+          break;
+        }
         case DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND: {
           oneapi_call(
               kg, cgh, global_size, local_size, args, oneapi_kernel_integrator_shade_background);
@@ -328,6 +456,15 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
         case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME: {
           oneapi_call(
               kg, cgh, global_size, local_size, args, oneapi_kernel_integrator_shade_volume);
+          break;
+        }
+        case DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT: {
+          oneapi_call(kg,
+                      cgh,
+                      global_size,
+                      local_size,
+                      args,
+                      oneapi_kernel_integrator_shade_dedicated_light);
           break;
         }
         case DEVICE_KERNEL_INTEGRATOR_QUEUED_PATHS_ARRAY: {
@@ -373,13 +510,31 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
           break;
         }
         case DEVICE_KERNEL_INTEGRATOR_SORT_BUCKET_PASS: {
-          oneapi_call(
-              kg, cgh, global_size, local_size, args, oneapi_kernel_integrator_sort_bucket_pass);
+          sycl::local_accessor<int> local_mem(max_shaders, cgh);
+          oneapi_kernel_integrator_sort_bucket_pass(kg,
+                                                    global_size,
+                                                    local_size,
+                                                    cgh,
+                                                    *(int *)(args[0]),
+                                                    *(int *)(args[1]),
+                                                    *(int *)(args[2]),
+                                                    *(int **)(args[3]),
+                                                    *(int *)(args[4]),
+                                                    local_mem);
           break;
         }
         case DEVICE_KERNEL_INTEGRATOR_SORT_WRITE_PASS: {
-          oneapi_call(
-              kg, cgh, global_size, local_size, args, oneapi_kernel_integrator_sort_write_pass);
+          sycl::local_accessor<int> local_mem(max_shaders, cgh);
+          oneapi_kernel_integrator_sort_write_pass(kg,
+                                                   global_size,
+                                                   local_size,
+                                                   cgh,
+                                                   *(int *)(args[0]),
+                                                   *(int *)(args[1]),
+                                                   *(int *)(args[2]),
+                                                   *(int **)(args[3]),
+                                                   *(int *)(args[4]),
+                                                   local_mem);
           break;
         }
         case DEVICE_KERNEL_INTEGRATOR_COMPACT_PATHS_ARRAY: {
@@ -535,7 +690,7 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
       }
     });
   }
-  catch (sycl::exception const &e) {
+  catch (const sycl::exception &e) {
     if (s_error_cb) {
       s_error_cb(e.what(), s_error_user_ptr);
       success = false;
@@ -549,4 +704,5 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
 #  endif
   return success;
 }
+
 #endif /* WITH_ONEAPI */

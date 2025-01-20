@@ -1,20 +1,21 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup texnodes
  */
 
-#include "NOD_texture.h"
+#include "BLI_math_vector.h"
 #include "node_texture_util.hh"
 
 /* **************** INVERT ******************** */
-static bNodeSocketTemplate inputs[] = {
+static blender::bke::bNodeSocketTemplate inputs[] = {
     {SOCK_RGBA, N_("Color"), 0.0f, 0.0f, 0.0f, 1.0f},
     {-1, ""},
 };
 
-static bNodeSocketTemplate outputs[] = {
+static blender::bke::bNodeSocketTemplate outputs[] = {
     {SOCK_RGBA, N_("Color")},
     {-1, ""},
 };
@@ -45,11 +46,14 @@ static void exec(void *data,
 
 void register_node_type_tex_invert()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_INVERT, "Invert", NODE_CLASS_OP_COLOR);
-  node_type_socket_templates(&ntype, inputs, outputs);
+  tex_node_type_base(&ntype, "TextureNodeInvert", TEX_NODE_INVERT);
+  ntype.ui_name = "Invert Color";
+  ntype.enum_name_legacy = "INVERT";
+  ntype.nclass = NODE_CLASS_OP_COLOR;
+  blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.exec_fn = exec;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

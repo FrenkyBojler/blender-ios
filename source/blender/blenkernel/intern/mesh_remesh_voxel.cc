@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -15,27 +16,26 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
+#include "BLI_array_utils.hh"
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_vector.h"
-#include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
-#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
-#include "BKE_bvhutils.h"
-#include "BKE_customdata.h"
-#include "BKE_editmesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_mapping.h"
-#include "BKE_mesh_remesh_voxel.h" /* own include */
-#include "BKE_mesh_runtime.h"
+#include "BKE_attribute_math.hh"
+#include "BKE_bvhutils.hh"
+#include "BKE_customdata.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_mapping.hh"
+#include "BKE_mesh_remesh_voxel.hh" /* own include */
+#include "BKE_mesh_runtime.hh"
+#include "BKE_mesh_sample.hh"
 
-#include "bmesh_tools.h"
+#include "bmesh_tools.hh"
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/openvdb.h>
@@ -50,6 +50,7 @@
 using blender::Array;
 using blender::float3;
 using blender::IndexRange;
+using blender::int3;
 using blender::MutableSpan;
 using blender::Span;
 
@@ -63,34 +64,23 @@ static Mesh *remesh_quadriflow(const Mesh *input_mesh,
                                void (*update_cb)(void *, float progress, int *cancel),
                                void *update_cb_data)
 {
+  using namespace blender;
+  using namespace blender::bke;
   const Span<float3> input_positions = input_mesh->vert_positions();
-  const Span<MLoop> input_loops = input_mesh->loops();
-  const MLoopTri *looptri = BKE_mesh_runtime_looptri_ensure(input_mesh);
+  const Span<int> input_corner_verts = input_mesh->corner_verts();
+  const Span<int3> corner_tris = input_mesh->corner_tris();
 
   /* Gather the required data for export to the internal quadriflow mesh format. */
-  MVertTri *verttri = (MVertTri *)MEM_callocN(
-      sizeof(*verttri) * BKE_mesh_runtime_looptri_len(input_mesh), "remesh_looptri");
-  BKE_mesh_runtime_verttri_from_looptri(
-      verttri, input_loops.data(), looptri, BKE_mesh_runtime_looptri_len(input_mesh));
-
-  const int totfaces = BKE_mesh_runtime_looptri_len(input_mesh);
-  const int totverts = input_mesh->totvert;
-  Array<int> faces(totfaces * 3);
-
-  for (const int i : IndexRange(totfaces)) {
-    MVertTri &vt = verttri[i];
-    faces[i * 3] = vt.tri[0];
-    faces[i * 3 + 1] = vt.tri[1];
-    faces[i * 3 + 2] = vt.tri[2];
-  }
+  Array<int3> vert_tris(corner_tris.size());
+  mesh::vert_tris_from_corner_tris(input_corner_verts, corner_tris, vert_tris);
 
   /* Fill out the required input data */
   QuadriflowRemeshData qrd;
 
-  qrd.totfaces = totfaces;
-  qrd.totverts = totverts;
-  qrd.verts = (float *)input_positions.data();
-  qrd.faces = faces.data();
+  qrd.totfaces = corner_tris.size();
+  qrd.totverts = input_positions.size();
+  qrd.verts = input_positions.cast<float>().data();
+  qrd.faces = vert_tris.as_span().cast<int>().data();
   qrd.target_faces = target_faces;
 
   qrd.preserve_sharp = preserve_sharp;
@@ -105,8 +95,6 @@ static Mesh *remesh_quadriflow(const Mesh *input_mesh,
   /* Run the remesher */
   QFLOW_quadriflow_remesh(&qrd, update_cb, update_cb_data);
 
-  MEM_freeN(verttri);
-
   if (qrd.out_faces == nullptr) {
     /* The remeshing was canceled */
     return nullptr;
@@ -120,26 +108,25 @@ static Mesh *remesh_quadriflow(const Mesh *input_mesh,
   }
 
   /* Construct the new output mesh */
-  Mesh *mesh = BKE_mesh_new_nomain(qrd.out_totverts, 0, 0, qrd.out_totfaces * 4, qrd.out_totfaces);
+  Mesh *mesh = BKE_mesh_new_nomain(qrd.out_totverts, 0, qrd.out_totfaces, qrd.out_totfaces * 4);
   BKE_mesh_copy_parameters(mesh, input_mesh);
-  MutableSpan<MPoly> polys = mesh->polys_for_write();
-  MutableSpan<MLoop> loops = mesh->loops_for_write();
+  MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
+  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
+
+  blender::offset_indices::fill_constant_group_size(4, 0, face_offsets);
 
   mesh->vert_positions_for_write().copy_from(
       Span(reinterpret_cast<float3 *>(qrd.out_verts), qrd.out_totverts));
 
   for (const int i : IndexRange(qrd.out_totfaces)) {
-    MPoly &poly = polys[i];
     const int loopstart = i * 4;
-    poly.loopstart = loopstart;
-    poly.totloop = 4;
-    loops[loopstart].v = qrd.out_faces[loopstart];
-    loops[loopstart + 1].v = qrd.out_faces[loopstart + 1];
-    loops[loopstart + 2].v = qrd.out_faces[loopstart + 2];
-    loops[loopstart + 3].v = qrd.out_faces[loopstart + 3];
+    corner_verts[loopstart] = qrd.out_faces[loopstart];
+    corner_verts[loopstart + 1] = qrd.out_faces[loopstart + 1];
+    corner_verts[loopstart + 2] = qrd.out_faces[loopstart + 2];
+    corner_verts[loopstart + 3] = qrd.out_faces[loopstart + 3];
   }
 
-  BKE_mesh_calc_edges(mesh, false, false);
+  mesh_calc_edges(*mesh, false, false);
 
   MEM_freeN(qrd.out_faces);
   MEM_freeN(qrd.out_verts);
@@ -187,21 +174,21 @@ static openvdb::FloatGrid::Ptr remesh_voxel_level_set_create(const Mesh *mesh,
                                                              const float voxel_size)
 {
   const Span<float3> positions = mesh->vert_positions();
-  const Span<MLoop> loops = mesh->loops();
-  const Span<MLoopTri> looptris = mesh->looptris();
+  const Span<int> corner_verts = mesh->corner_verts();
+  const Span<int3> corner_tris = mesh->corner_tris();
 
-  std::vector<openvdb::Vec3s> points(mesh->totvert);
-  std::vector<openvdb::Vec3I> triangles(looptris.size());
+  std::vector<openvdb::Vec3s> points(mesh->verts_num);
+  std::vector<openvdb::Vec3I> triangles(corner_tris.size());
 
-  for (const int i : IndexRange(mesh->totvert)) {
+  for (const int i : IndexRange(mesh->verts_num)) {
     const float3 &co = positions[i];
     points[i] = openvdb::Vec3s(co.x, co.y, co.z);
   }
 
-  for (const int i : IndexRange(looptris.size())) {
-    const MLoopTri &loop_tri = looptris[i];
+  for (const int i : IndexRange(corner_tris.size())) {
+    const int3 &tri = corner_tris[i];
     triangles[i] = openvdb::Vec3I(
-        loops[loop_tri.tri[0]].v, loops[loop_tri.tri[1]].v, loops[loop_tri.tri[2]].v);
+        corner_verts[tri[0]], corner_verts[tri[1]], corner_verts[tri[2]]);
   }
 
   openvdb::math::Transform::Ptr transform = openvdb::math::Transform::createLinearTransform(
@@ -217,6 +204,8 @@ static Mesh *remesh_voxel_volume_to_mesh(const openvdb::FloatGrid::Ptr level_set
                                          const float adaptivity,
                                          const bool relax_disoriented_triangles)
 {
+  using namespace blender;
+  using namespace blender::bke;
   std::vector<openvdb::Vec3s> vertices;
   std::vector<openvdb::Vec4I> quads;
   std::vector<openvdb::Vec3I> tris;
@@ -224,38 +213,38 @@ static Mesh *remesh_voxel_volume_to_mesh(const openvdb::FloatGrid::Ptr level_set
       *level_set_grid, vertices, tris, quads, isovalue, adaptivity, relax_disoriented_triangles);
 
   Mesh *mesh = BKE_mesh_new_nomain(
-      vertices.size(), 0, 0, quads.size() * 4 + tris.size() * 3, quads.size() + tris.size());
+      vertices.size(), 0, quads.size() + tris.size(), quads.size() * 4 + tris.size() * 3);
   MutableSpan<float3> vert_positions = mesh->vert_positions_for_write();
-  MutableSpan<MPoly> mesh_polys = mesh->polys_for_write();
-  MutableSpan<MLoop> mesh_loops = mesh->loops_for_write();
+  MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
+  MutableSpan<int> mesh_corner_verts = mesh->corner_verts_for_write();
+
+  const int triangle_loop_start = quads.size() * 4;
+  if (!face_offsets.is_empty()) {
+    blender::offset_indices::fill_constant_group_size(4, 0, face_offsets.take_front(quads.size()));
+    blender::offset_indices::fill_constant_group_size(
+        3, triangle_loop_start, face_offsets.drop_front(quads.size()));
+  }
 
   for (const int i : vert_positions.index_range()) {
     vert_positions[i] = float3(vertices[i].x(), vertices[i].y(), vertices[i].z());
   }
 
   for (const int i : IndexRange(quads.size())) {
-    MPoly &poly = mesh_polys[i];
     const int loopstart = i * 4;
-    poly.loopstart = loopstart;
-    poly.totloop = 4;
-    mesh_loops[loopstart].v = quads[i][0];
-    mesh_loops[loopstart + 1].v = quads[i][3];
-    mesh_loops[loopstart + 2].v = quads[i][2];
-    mesh_loops[loopstart + 3].v = quads[i][1];
+    mesh_corner_verts[loopstart] = quads[i][0];
+    mesh_corner_verts[loopstart + 1] = quads[i][3];
+    mesh_corner_verts[loopstart + 2] = quads[i][2];
+    mesh_corner_verts[loopstart + 3] = quads[i][1];
   }
 
-  const int triangle_loop_start = quads.size() * 4;
   for (const int i : IndexRange(tris.size())) {
-    MPoly &poly = mesh_polys[quads.size() + i];
     const int loopstart = triangle_loop_start + i * 3;
-    poly.loopstart = loopstart;
-    poly.totloop = 3;
-    mesh_loops[loopstart].v = tris[i][2];
-    mesh_loops[loopstart + 1].v = tris[i][1];
-    mesh_loops[loopstart + 2].v = tris[i][0];
+    mesh_corner_verts[loopstart] = tris[i][2];
+    mesh_corner_verts[loopstart + 1] = tris[i][1];
+    mesh_corner_verts[loopstart + 2] = tris[i][0];
   }
 
-  BKE_mesh_calc_edges(mesh, false, false);
+  mesh_calc_edges(*mesh, false, false);
 
   return mesh;
 }
@@ -277,230 +266,330 @@ Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
 #endif
 }
 
-void BKE_mesh_remesh_reproject_paint_mask(Mesh *target, const Mesh *source)
+namespace blender::bke {
+
+static void calc_edge_centers(const Span<float3> positions,
+                              const Span<int2> edges,
+                              MutableSpan<float3> edge_centers)
 {
-  BVHTreeFromMesh bvhtree = {nullptr};
-  BKE_bvhtree_from_mesh_get(&bvhtree, source, BVHTREE_FROM_VERTS, 2);
-  const Span<float3> target_positions = target->vert_positions();
-  const float *source_mask = (const float *)CustomData_get_layer(&source->vdata, CD_PAINT_MASK);
-  if (source_mask == nullptr) {
-    return;
+  for (const int i : edges.index_range()) {
+    edge_centers[i] = math::midpoint(positions[edges[i][0]], positions[edges[i][1]]);
   }
+}
 
-  float *target_mask;
-  if (CustomData_has_layer(&target->vdata, CD_PAINT_MASK)) {
-    target_mask = (float *)CustomData_get_layer(&target->vdata, CD_PAINT_MASK);
+static void calc_face_centers(const Span<float3> positions,
+                              const OffsetIndices<int> faces,
+                              const Span<int> corner_verts,
+                              MutableSpan<float3> face_centers)
+{
+  for (const int i : faces.index_range()) {
+    face_centers[i] = mesh::face_center_calc(positions, corner_verts.slice(faces[i]));
   }
-  else {
-    target_mask = (float *)CustomData_add_layer(
-        &target->vdata, CD_PAINT_MASK, CD_CONSTRUCT, nullptr, target->totvert);
-  }
+}
 
-  blender::threading::parallel_for(IndexRange(target->totvert), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      BVHTreeNearest nearest;
-      nearest.index = -1;
-      nearest.dist_sq = FLT_MAX;
-      BLI_bvhtree_find_nearest(
-          bvhtree.tree, target_positions[i], &nearest, bvhtree.nearest_callback, &bvhtree);
-      if (nearest.index != -1) {
-        target_mask[i] = source_mask[nearest.index];
+static void find_nearest_tris(const Span<float3> positions,
+                              BVHTreeFromMesh &bvhtree,
+                              MutableSpan<int> tris)
+{
+  for (const int i : positions.index_range()) {
+    BVHTreeNearest nearest;
+    nearest.index = -1;
+    nearest.dist_sq = FLT_MAX;
+    BLI_bvhtree_find_nearest(
+        bvhtree.tree, positions[i], &nearest, bvhtree.nearest_callback, &bvhtree);
+    tris[i] = nearest.index;
+  }
+}
+
+static void find_nearest_tris_parallel(const Span<float3> positions,
+                                       BVHTreeFromMesh &bvhtree,
+                                       MutableSpan<int> tris)
+{
+  threading::parallel_for(tris.index_range(), 512, [&](const IndexRange range) {
+    find_nearest_tris(positions.slice(range), bvhtree, tris.slice(range));
+  });
+}
+
+static void find_nearest_verts(const Span<float3> positions,
+                               const Span<int> corner_verts,
+                               const Span<int3> src_corner_tris,
+                               const Span<float3> dst_positions,
+                               const Span<int> nearest_vert_tris,
+                               MutableSpan<int> nearest_verts)
+{
+  threading::parallel_for(dst_positions.index_range(), 512, [&](const IndexRange range) {
+    for (const int dst_vert : range) {
+      const float3 &dst_position = dst_positions[dst_vert];
+      const int3 &src_tri = src_corner_tris[nearest_vert_tris[dst_vert]];
+
+      std::array<float, 3> distances;
+      for (const int i : IndexRange(3)) {
+        const int src_vert = corner_verts[src_tri[i]];
+        distances[i] = math::distance_squared(positions[src_vert], dst_position);
       }
+
+      const int min = std::min_element(distances.begin(), distances.end()) - distances.begin();
+      nearest_verts[dst_vert] = corner_verts[src_tri[min]];
     }
   });
-  free_bvhtree_from_mesh(&bvhtree);
 }
 
-void BKE_remesh_reproject_sculpt_face_sets(Mesh *target, const Mesh *source)
+static void find_nearest_faces(const Span<int> src_tri_faces,
+                               const Span<float3> dst_positions,
+                               const OffsetIndices<int> dst_faces,
+                               const Span<int> dst_corner_verts,
+                               BVHTreeFromMesh &bvhtree,
+                               MutableSpan<int> nearest_faces)
 {
-  using namespace blender;
-  using namespace blender::bke;
-  const AttributeAccessor src_attributes = source->attributes();
-  MutableAttributeAccessor dst_attributes = target->attributes_for_write();
-  const Span<float3> target_positions = target->vert_positions();
-  const Span<MPoly> target_polys = target->polys();
-  const Span<MLoop> target_loops = target->loops();
+  struct TLS {
+    Vector<float3> face_centers;
+    Vector<int> tri_indices;
+  };
+  threading::EnumerableThreadSpecific<TLS> all_tls;
+  threading::parallel_for(dst_faces.index_range(), 512, [&](const IndexRange range) {
+    threading::isolate_task([&] {
+      TLS &tls = all_tls.local();
+      Vector<float3> &face_centers = tls.face_centers;
+      face_centers.reinitialize(range.size());
+      calc_face_centers(dst_positions, dst_faces.slice(range), dst_corner_verts, face_centers);
 
-  const VArray<int> src_face_sets = src_attributes.lookup<int>(".sculpt_face_set",
-                                                               ATTR_DOMAIN_FACE);
-  if (!src_face_sets) {
-    return;
-  }
-  SpanAttributeWriter<int> dst_face_sets = dst_attributes.lookup_or_add_for_write_only_span<int>(
-      ".sculpt_face_set", ATTR_DOMAIN_FACE);
-  if (!dst_face_sets) {
-    return;
-  }
+      Vector<int> &tri_indices = tls.tri_indices;
+      tri_indices.reinitialize(range.size());
+      find_nearest_tris(face_centers, bvhtree, tri_indices);
 
-  const VArraySpan<int> src(src_face_sets);
-  MutableSpan<int> dst = dst_face_sets.span;
+      array_utils::gather(src_tri_faces, tri_indices.as_span(), nearest_faces.slice(range));
+    });
+  });
+}
 
-  const MLoopTri *looptri = BKE_mesh_runtime_looptri_ensure(source);
-  BVHTreeFromMesh bvhtree = {nullptr};
-  BKE_bvhtree_from_mesh_get(&bvhtree, source, BVHTREE_FROM_LOOPTRI, 2);
+static void find_nearest_corners(const Span<float3> src_positions,
+                                 const OffsetIndices<int> src_faces,
+                                 const Span<int> src_corner_verts,
+                                 const Span<int> src_tri_faces,
+                                 const Span<float3> dst_positions,
+                                 const Span<int> dst_corner_verts,
+                                 const Span<int> nearest_vert_tris,
+                                 MutableSpan<int> nearest_corners)
+{
+  threading::parallel_for(nearest_corners.index_range(), 512, [&](const IndexRange range) {
+    Vector<float, 64> distances;
+    for (const int dst_corner : range) {
+      const int dst_vert = dst_corner_verts[dst_corner];
+      const float3 &dst_position = dst_positions[dst_vert];
 
-  blender::threading::parallel_for(IndexRange(target->totpoly), 2048, [&](const IndexRange range) {
-    for (const int i : range) {
-      float from_co[3];
-      BVHTreeNearest nearest;
-      nearest.index = -1;
-      nearest.dist_sq = FLT_MAX;
-      const MPoly *mpoly = &target_polys[i];
-      BKE_mesh_calc_poly_center(mpoly,
-                                &target_loops[mpoly->loopstart],
-                                reinterpret_cast<const float(*)[3]>(target_positions.data()),
-                                from_co);
-      BLI_bvhtree_find_nearest(
-          bvhtree.tree, from_co, &nearest, bvhtree.nearest_callback, &bvhtree);
-      if (nearest.index != -1) {
-        dst[i] = src[looptri[nearest.index].poly];
+      const int src_tri = nearest_vert_tris[dst_vert];
+      const IndexRange src_face = src_faces[src_tri_faces[src_tri]];
+      const Span<int> src_face_verts = src_corner_verts.slice(src_face);
+
+      /* Find the corner in the face that's closest in the closest face. */
+      distances.reinitialize(src_face_verts.size());
+      for (const int i : src_face_verts.index_range()) {
+        const int src_vert = src_face_verts[i];
+        distances[i] = math::distance_squared(src_positions[src_vert], dst_position);
       }
-      else {
-        dst[i] = 1;
-      }
+
+      const int min = std::min_element(distances.begin(), distances.end()) - distances.begin();
+      nearest_corners[dst_corner] = src_face[min];
     }
   });
-  free_bvhtree_from_mesh(&bvhtree);
-  dst_face_sets.finish();
 }
 
-void BKE_remesh_reproject_vertex_paint(Mesh *target, const Mesh *source)
+static void find_nearest_edges(const Span<float3> src_positions,
+                               const Span<int2> src_edges,
+                               const OffsetIndices<int> src_faces,
+                               const Span<int> src_corner_edges,
+                               const Span<int> src_tri_faces,
+                               const Span<float3> dst_positions,
+                               const Span<int2> dst_edges,
+                               BVHTreeFromMesh &bvhtree,
+                               MutableSpan<int> nearest_edges)
 {
-  BVHTreeFromMesh bvhtree = {nullptr};
-  BKE_bvhtree_from_mesh_get(&bvhtree, source, BVHTREE_FROM_VERTS, 2);
+  struct TLS {
+    Vector<float3> edge_centers;
+    Vector<int> tri_indices;
+    Vector<int> face_indices;
+    Vector<float> distances;
+  };
+  threading::EnumerableThreadSpecific<TLS> all_tls;
+  threading::parallel_for(nearest_edges.index_range(), 512, [&](const IndexRange range) {
+    threading::isolate_task([&] {
+      TLS &tls = all_tls.local();
+      Vector<float3> &edge_centers = tls.edge_centers;
+      edge_centers.reinitialize(range.size());
+      calc_edge_centers(dst_positions, dst_edges.slice(range), edge_centers);
 
-  int i = 0;
-  const CustomDataLayer *layer;
+      Vector<int> &tri_indices = tls.tri_indices;
+      tri_indices.reinitialize(range.size());
+      find_nearest_tris_parallel(edge_centers, bvhtree, tri_indices);
 
-  MeshElemMap *source_lmap = nullptr;
-  int *source_lmap_mem = nullptr;
-  MeshElemMap *target_lmap = nullptr;
-  int *target_lmap_mem = nullptr;
+      Vector<int> &face_indices = tls.face_indices;
+      face_indices.reinitialize(range.size());
+      array_utils::gather(src_tri_faces, tri_indices.as_span(), face_indices.as_mutable_span());
 
-  while ((layer = BKE_id_attribute_from_index(
-              const_cast<ID *>(&source->id), i++, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL))) {
-    eAttrDomain domain = BKE_id_attribute_domain(&source->id, layer);
+      /* Find the source edge that's closest to the destination edge in the nearest face. Search
+       * through the whole face instead of just the triangle because the triangle has edges that
+       * might not be actual mesh edges. */
+      Vector<float, 64> distances;
+      for (const int i : range.index_range()) {
+        const int dst_edge = range[i];
+        const float3 &dst_position = edge_centers[i];
 
-    CustomData *target_cdata = domain == ATTR_DOMAIN_POINT ? &target->vdata : &target->ldata;
-    const CustomData *source_cdata = domain == ATTR_DOMAIN_POINT ? &source->vdata : &source->ldata;
+        const int src_face = face_indices[i];
+        const Span<int> src_face_edges = src_corner_edges.slice(src_faces[src_face]);
 
-    /* Check attribute exists in target. */
-    int layer_i = CustomData_get_named_layer_index(target_cdata, layer->type, layer->name);
-    if (layer_i == -1) {
-      int elem_num = domain == ATTR_DOMAIN_POINT ? target->totvert : target->totloop;
+        distances.reinitialize(src_face_edges.size());
+        for (const int i : src_face_edges.index_range()) {
+          const int2 src_edge = src_edges[src_face_edges[i]];
+          const float3 src_center = math::midpoint(src_positions[src_edge[0]],
+                                                   src_positions[src_edge[1]]);
+          distances[i] = math::distance_squared(src_center, dst_position);
+        }
 
-      CustomData_add_layer_named(
-          target_cdata, layer->type, CD_SET_DEFAULT, nullptr, elem_num, layer->name);
-      layer_i = CustomData_get_named_layer_index(target_cdata, layer->type, layer->name);
-    }
-
-    size_t data_size = CustomData_sizeof(layer->type);
-    void *target_data = target_cdata->layers[layer_i].data;
-    void *source_data = layer->data;
-    const Span<float3> target_positions = target->vert_positions();
-
-    if (domain == ATTR_DOMAIN_POINT) {
-      blender::threading::parallel_for(
-          IndexRange(target->totvert), 4096, [&](const IndexRange range) {
-            for (const int i : range) {
-              BVHTreeNearest nearest;
-              nearest.index = -1;
-              nearest.dist_sq = FLT_MAX;
-              BLI_bvhtree_find_nearest(
-                  bvhtree.tree, target_positions[i], &nearest, bvhtree.nearest_callback, &bvhtree);
-              if (nearest.index != -1) {
-                memcpy(POINTER_OFFSET(target_data, size_t(i) * data_size),
-                       POINTER_OFFSET(source_data, size_t(nearest.index) * data_size),
-                       data_size);
-              }
-            }
-          });
-    }
-    else {
-      /* Lazily init vertex -> loop maps. */
-      if (!source_lmap) {
-        BKE_mesh_vert_loop_map_create(&source_lmap,
-                                      &source_lmap_mem,
-                                      source->polys().data(),
-                                      source->loops().data(),
-                                      source->totvert,
-                                      source->totpoly,
-                                      source->totloop);
-
-        BKE_mesh_vert_loop_map_create(&target_lmap,
-                                      &target_lmap_mem,
-                                      target->polys().data(),
-                                      target->loops().data(),
-                                      target->totvert,
-                                      target->totpoly,
-                                      target->totloop);
+        const int min = std::min_element(distances.begin(), distances.end()) - distances.begin();
+        nearest_edges[dst_edge] = src_face_edges[min];
       }
-
-      blender::threading::parallel_for(
-          IndexRange(target->totvert), 2048, [&](const IndexRange range) {
-            for (const int i : range) {
-              BVHTreeNearest nearest;
-              nearest.index = -1;
-              nearest.dist_sq = FLT_MAX;
-              BLI_bvhtree_find_nearest(
-                  bvhtree.tree, target_positions[i], &nearest, bvhtree.nearest_callback, &bvhtree);
-
-              if (nearest.index == -1) {
-                continue;
-              }
-
-              MeshElemMap *source_loops = source_lmap + nearest.index;
-              MeshElemMap *target_loops = target_lmap + i;
-
-              if (target_loops->count == 0 || source_loops->count == 0) {
-                continue;
-              }
-
-              /*
-               * Average color data for loops around the source vertex into
-               * the first target loop around the target vertex
-               */
-
-              CustomData_interp(source_cdata,
-                                target_cdata,
-                                source_loops->indices,
-                                nullptr,
-                                nullptr,
-                                source_loops->count,
-                                target_loops->indices[0]);
-
-              void *elem = POINTER_OFFSET(target_data,
-                                          size_t(target_loops->indices[0]) * data_size);
-
-              /* Copy to rest of target loops. */
-              for (int j = 1; j < target_loops->count; j++) {
-                memcpy(POINTER_OFFSET(target_data, size_t(target_loops->indices[j]) * data_size),
-                       elem,
-                       data_size);
-              }
-            }
-          });
-    }
-  }
-
-  /* Make sure active/default color attribute (names) are brought over. */
-  if (source->active_color_attribute) {
-    MEM_SAFE_FREE(target->active_color_attribute);
-    target->active_color_attribute = BLI_strdup(source->active_color_attribute);
-  }
-  if (source->default_color_attribute) {
-    MEM_SAFE_FREE(target->default_color_attribute);
-    target->default_color_attribute = BLI_strdup(source->default_color_attribute);
-  }
-
-  MEM_SAFE_FREE(source_lmap);
-  MEM_SAFE_FREE(source_lmap_mem);
-  MEM_SAFE_FREE(target_lmap);
-  MEM_SAFE_FREE(target_lmap_mem);
-  free_bvhtree_from_mesh(&bvhtree);
+    });
+  });
 }
 
-struct Mesh *BKE_mesh_remesh_voxel_fix_poles(const Mesh *mesh)
+static void gather_attributes(const Span<StringRef> ids,
+                              const AttributeAccessor src_attributes,
+                              const AttrDomain domain,
+                              const Span<int> index_map,
+                              MutableAttributeAccessor dst_attributes)
+{
+  for (const StringRef id : ids) {
+    const GVArraySpan src = *src_attributes.lookup(id, domain);
+    const eCustomDataType type = cpp_type_to_custom_data_type(src.type());
+    GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(id, domain, type);
+    attribute_math::gather(src, index_map, dst.span);
+    dst.finish();
+  }
+}
+
+void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
+{
+  /* Gather attributes to transfer for each domain. This makes it possible to skip
+   * building index maps and even the main BVH tree if there are no attributes. */
+  const AttributeAccessor src_attributes = src.attributes();
+  Vector<StringRef> point_ids;
+  Vector<StringRef> edge_ids;
+  Vector<StringRef> face_ids;
+  Vector<StringRef> corner_ids;
+  src_attributes.foreach_attribute([&](const AttributeIter &iter) {
+    if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
+      return;
+    }
+    switch (iter.domain) {
+      case AttrDomain::Point:
+        point_ids.append(iter.name);
+        break;
+      case AttrDomain::Edge:
+        edge_ids.append(iter.name);
+        break;
+      case AttrDomain::Face:
+        face_ids.append(iter.name);
+        break;
+      case AttrDomain::Corner:
+        corner_ids.append(iter.name);
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+  });
+
+  if (point_ids.is_empty() && edge_ids.is_empty() && face_ids.is_empty() && corner_ids.is_empty())
+  {
+    return;
+  }
+
+  const Span<float3> src_positions = src.vert_positions();
+  const OffsetIndices src_faces = src.faces();
+  const Span<int> src_corner_verts = src.corner_verts();
+  const Span<int3> src_corner_tris = src.corner_tris();
+
+  /* The main idea in the following code is to trade some complexity in sampling for the benefit of
+   * only using and building a single BVH tree. Since sculpt mode doesn't generally deal with loose
+   * vertices and edges, we use the standard "triangles" BVH which won't contain them. Also, only
+   * relying on a single BVH should reduce memory usage, and work better if the BVH and #pbvh::Tree
+   * are ever merged.
+   *
+   * One key decision is separating building transfer index maps from actually transferring any
+   * attribute data. This is important to keep attribute storage independent from the specifics of
+   * the decisions made here, which mainly results in easier refactoring, more generic code, and
+   * possibly improved performance from lower cache usage in the "complex" sampling part of the
+   * algorithm and the copying itself. */
+  BVHTreeFromMesh bvhtree = src.bvh_corner_tris();
+
+  const Span<float3> dst_positions = dst.vert_positions();
+  const OffsetIndices dst_faces = dst.faces();
+  const Span<int> dst_corner_verts = dst.corner_verts();
+
+  MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
+  if (!point_ids.is_empty() || !corner_ids.is_empty()) {
+    Array<int> vert_nearest_tris(dst_positions.size());
+    find_nearest_tris_parallel(dst_positions, bvhtree, vert_nearest_tris);
+
+    if (!point_ids.is_empty()) {
+      Array<int> map(dst.verts_num);
+      find_nearest_verts(
+          src_positions, src_corner_verts, src_corner_tris, dst_positions, vert_nearest_tris, map);
+      gather_attributes(point_ids, src_attributes, AttrDomain::Point, map, dst_attributes);
+    }
+
+    if (!corner_ids.is_empty()) {
+      const Span<int> src_tri_faces = src.corner_tri_faces();
+      Array<int> map(dst.corners_num);
+      find_nearest_corners(src_positions,
+                           src_faces,
+                           src_corner_verts,
+                           src_tri_faces,
+                           dst_positions,
+                           dst_corner_verts,
+                           vert_nearest_tris,
+                           map);
+      gather_attributes(corner_ids, src_attributes, AttrDomain::Corner, map, dst_attributes);
+    }
+  }
+
+  if (!edge_ids.is_empty()) {
+    const Span<int2> src_edges = src.edges();
+    const Span<int> src_corner_edges = src.corner_edges();
+    const Span<int> src_tri_faces = src.corner_tri_faces();
+    const Span<int2> dst_edges = dst.edges();
+    Array<int> map(dst.edges_num);
+    find_nearest_edges(src_positions,
+                       src_edges,
+                       src_faces,
+                       src_corner_edges,
+                       src_tri_faces,
+                       dst_positions,
+                       dst_edges,
+                       bvhtree,
+                       map);
+    gather_attributes(edge_ids, src_attributes, AttrDomain::Edge, map, dst_attributes);
+  }
+
+  if (!face_ids.is_empty()) {
+    const Span<int> src_tri_faces = src.corner_tri_faces();
+    Array<int> map(dst.faces_num);
+    find_nearest_faces(src_tri_faces, dst_positions, dst_faces, dst_corner_verts, bvhtree, map);
+    gather_attributes(face_ids, src_attributes, AttrDomain::Face, map, dst_attributes);
+  }
+
+  if (src.active_color_attribute) {
+    BKE_id_attributes_active_color_set(&dst.id, src.active_color_attribute);
+  }
+  if (src.default_color_attribute) {
+    BKE_id_attributes_default_color_set(&dst.id, src.default_color_attribute);
+  }
+}
+
+}  // namespace blender::bke
+
+Mesh *BKE_mesh_remesh_voxel_fix_poles(const Mesh *mesh)
 {
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
 

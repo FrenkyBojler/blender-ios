@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include <atomic>
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
-#include "BKE_mesh.h"
 
 #include "node_geometry_util.hh"
 
@@ -11,15 +12,16 @@ namespace blender::nodes::node_geo_mesh_face_group_boundaries_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>(N_("Face Group ID"), "Face Set")
+  b.add_input<decl::Int>("Face Group ID", "Face Set")
       .default_value(0)
       .hide_value()
       .supports_field()
-      .description(N_("An identifier for the group of each face. All contiguous faces with the "
-                      "same value are in the same region"));
-  b.add_output<decl::Bool>(N_("Boundary Edges"))
+      .description(
+          "An identifier for the group of each face. All contiguous faces with the "
+          "same value are in the same region");
+  b.add_output<decl::Bool>("Boundary Edges")
       .field_source_reference_all()
-      .description(N_("The edges that lie on the boundaries between the different face groups"));
+      .description("The edges that lie on the boundaries between the different face groups");
 }
 
 class BoundaryFieldInput final : public bke::MeshFieldInput {
@@ -34,36 +36,72 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const AttrDomain domain,
+                                 const IndexMask & /*mask*/) const final
   {
-    const bke::MeshFieldContext face_context{mesh, ATTR_DOMAIN_FACE};
-    FieldEvaluator face_evaluator{face_context, mesh.totpoly};
+    const bke::MeshFieldContext face_context{mesh, AttrDomain::Face};
+    FieldEvaluator face_evaluator{face_context, mesh.faces_num};
     face_evaluator.add(face_set_);
     face_evaluator.evaluate();
-    const VArray<int> face_set = face_evaluator.get_evaluated<int>(0);
+    const VArray<int> faces_group_id = face_evaluator.get_evaluated<int>(0);
+    if (faces_group_id.is_single()) {
+      return {};
+    }
 
-    Array<bool> boundary(mesh.totedge, false);
-    Array<bool> edge_visited(mesh.totedge, false);
-    Array<int> edge_face_set(mesh.totedge, 0);
-    const Span<MPoly> polys = mesh.polys();
-    const Span<MLoop> loops = mesh.loops();
-    for (const int i : polys.index_range()) {
-      const MPoly &poly = polys[i];
-      for (const MLoop &loop : loops.slice(poly.loopstart, poly.totloop)) {
-        const int edge = loop.e;
-        if (edge_visited[edge]) {
-          if (edge_face_set[edge] != face_set[i]) {
-            /* This edge is connected to two faces on different face sets. */
-            boundary[edge] = true;
+    Array<bool> boundary(mesh.edges_num, false);
+
+    Array<std::atomic<int>> edge_states(mesh.edges_num);
+    /* State is index of face or one of invalid values: */
+    static constexpr int no_face_yet = -1;
+    static constexpr int is_boundary = -2;
+
+    threading::parallel_for(edge_states.index_range(), 4096, [&](const IndexRange range) {
+      for (std::atomic<int> &v : edge_states.as_mutable_span().slice(range)) {
+        v.store(no_face_yet, std::memory_order_relaxed);
+      }
+    });
+
+    const GroupedSpan<int> face_edges(mesh.face_offsets(), mesh.corner_edges());
+    threading::parallel_for(face_edges.index_range(), 2048, [&](const IndexRange range) {
+      for (const int face_i : range) {
+        const int group_id = faces_group_id[face_i];
+        for (const int edge_i : face_edges[face_i]) {
+          std::atomic<int> &edge_state = edge_states[edge_i];
+          while (true) {
+            int edge_state_value = edge_state.load(std::memory_order_relaxed);
+            switch (edge_state_value) {
+              case is_boundary:
+                break;
+              case no_face_yet: {
+                if (edge_state.compare_exchange_weak(edge_state_value,
+                                                     face_i,
+                                                     std::memory_order_relaxed,
+                                                     std::memory_order_relaxed))
+                {
+                  break;
+                }
+                continue;
+              }
+              default: {
+                if (faces_group_id[edge_state_value] == group_id) {
+                  break;
+                }
+                if (edge_state.compare_exchange_weak(
+                        edge_state_value, is_boundary, std::memory_order_release))
+                {
+                  boundary[edge_i] = true;
+                  break;
+                }
+                continue;
+              }
+            }
+            break;
           }
         }
-        edge_visited[edge] = true;
-        edge_face_set[edge] = face_set[i];
       }
-    }
+    });
     return mesh.attributes().adapt_domain<bool>(
-        VArray<bool>::ForContainer(std::move(boundary)), ATTR_DOMAIN_EDGE, domain);
+        VArray<bool>::ForContainer(std::move(boundary)), AttrDomain::Edge, domain);
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -71,9 +109,9 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
     face_set_.node().for_each_field_input_recursive(fn);
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_EDGE;
+    return AttrDomain::Edge;
   }
 };
 
@@ -84,17 +122,21 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Boundary Edges", std::move(face_set_boundaries));
 }
 
-}  // namespace blender::nodes::node_geo_mesh_face_group_boundaries_cc
-
-void register_node_type_geo_mesh_face_group_boundaries()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_mesh_face_group_boundaries_cc;
-
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_MESH_FACE_GROUP_BOUNDARIES, "Face Group Boundaries", NODE_CLASS_INPUT);
-  node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
+      &ntype, "GeometryNodeMeshFaceSetBoundaries", GEO_NODE_MESH_FACE_GROUP_BOUNDARIES);
+  ntype.ui_name = "Face Group Boundaries";
+  ntype.ui_description =
+      "Find edges on the boundaries between groups of faces with the same ID value";
+  ntype.enum_name_legacy = "MESH_FACE_SET_BOUNDARIES";
+  ntype.nclass = NODE_CLASS_INPUT;
+  bke::node_type_size_preset(&ntype, bke::eNodeSizePreset::Middle);
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_mesh_face_group_boundaries_cc

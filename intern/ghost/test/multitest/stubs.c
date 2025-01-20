@@ -1,17 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <stdlib.h>
 
 #include "BLI_utildefines.h"
-#include "IMB_imbuf.h"
+#include "IMB_imbuf.hh"
 
 struct ColorSpace;
 struct ImBuf;
 
-void IMB_freeImBuf(struct ImBuf *UNUSED(ibuf))
-{
-}
+void IMB_freeImBuf(struct ImBuf *UNUSED(ibuf)) {}
 void IMB_colormanagement_display_to_scene_linear_v3(float UNUSED(pixel[3]),
                                                     struct ColorManagedDisplay *UNUSED(display))
 {
@@ -27,9 +26,7 @@ bool IMB_colormanagement_space_is_data(struct ColorSpace *colorspace)
   return false;
 }
 
-void BKE_material_defaults_free_gpu(void)
-{
-}
+void BKE_material_defaults_free_gpu(void) {}
 
 /* Variables. */
 int G;

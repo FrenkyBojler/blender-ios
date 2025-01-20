@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetParameterF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetParameterF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DFloat` > :class:`GetParameterF0D`\n"
     "\n"
@@ -34,7 +38,7 @@ static char GetParameterF0D___doc__[] =
     "   :arg it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The parameter of an Interface0D.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int GetParameterF0D___init__(BPy_GetParameterF0D *self, PyObject *args, PyObject *kwds)
 {
@@ -51,7 +55,8 @@ static int GetParameterF0D___init__(BPy_GetParameterF0D *self, PyObject *args, P
 /*-----------------------BPy_GetParameterF0D type definition ------------------------------*/
 
 PyTypeObject GetParameterF0D_Type = {
-    /*tp_name*/ PyVarObject_HEAD_INIT(nullptr, 0) "GetParameterF0D",
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "GetParameterF0D",
     /*tp_basicsize*/ sizeof(BPy_GetParameterF0D),
     /*tp_itemsize*/ 0,
     /*tp_dealloc*/ nullptr,
@@ -87,7 +92,7 @@ PyTypeObject GetParameterF0D_Type = {
     /*tp_dictoffset*/ 0,
     /*tp_init*/ (initproc)GetParameterF0D___init__,
     /*tp_alloc*/ nullptr,
-    nullptr, /*tp_new*/
+    /*tp_new*/ nullptr,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////

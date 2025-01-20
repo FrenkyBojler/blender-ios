@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -20,14 +22,11 @@ namespace blender::fn::multi_function {
 
 class Context;
 
-class ContextBuilder {
-};
+class ContextBuilder {};
 
 class Context {
  public:
-  Context(ContextBuilder & /*builder*/)
-  {
-  }
+  Context(ContextBuilder & /*builder*/) {}
 };
 
 }  // namespace blender::fn::multi_function

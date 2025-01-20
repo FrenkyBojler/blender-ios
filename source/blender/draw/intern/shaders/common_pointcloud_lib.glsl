@@ -1,29 +1,25 @@
+/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
 
 /* NOTE: To be used with UNIFORM_RESOURCE_ID and INSTANCED_ATTR as define. */
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
+#include "common_view_lib.glsl"
 #ifdef POINTCLOUD_SHADER
 #  define COMMON_POINTCLOUD_LIB
 
-#  ifndef USE_GPU_SHADER_CREATE_INFO
-#    ifndef DRW_SHADER_SHARED_H
-
-in vec4 pos; /* Position and radius. */
-
-/* ---- Instanced attribs ---- */
-
-in vec3 pos_inst;
-in vec3 nor;
-
-#    endif
-#  else
-#    ifndef DRW_POINTCLOUD_INFO
-#      error Ensure createInfo includes `draw_pointcloud`.
-#    endif
-#  endif /* !USE_GPU_SHADER_CREATE_INFO */
+#  ifndef DRW_POINTCLOUD_INFO
+#    error Ensure createInfo includes draw_pointcloud.
+#  endif
 
 int pointcloud_get_point_id()
 {
-  return gl_VertexID / 32;
+#  ifdef GPU_VERTEX_SHADER
+  /* Remove shape indices. */
+  return gl_VertexID >> 3;
+#  endif
+  return 0;
 }
 
 mat3 pointcloud_get_facing_matrix(vec3 p)
@@ -41,7 +37,7 @@ void pointcloud_get_pos_and_radius(out vec3 outpos, out float outradius)
   int id = pointcloud_get_point_id();
   vec4 pos_rad = texelFetch(ptcloud_pos_rad_tx, id);
   outpos = point_object_to_world(pos_rad.xyz);
-  outradius = dot(abs(mat3(ModelMatrix) * pos_rad.www), vec3(1.0 / 3.0));
+  outradius = dot(abs(to_float3x3(ModelMatrix) * pos_rad.www), vec3(1.0 / 3.0));
 }
 
 /* Return world position and normal. */
@@ -53,8 +49,12 @@ void pointcloud_get_pos_nor_radius(out vec3 outpos, out vec3 outnor, out float o
 
   mat3 facing_mat = pointcloud_get_facing_matrix(p);
 
-  /* NOTE: Avoid modulo by non-power-of-two in shader. See Index buffer setup. */
-  int vert_id = gl_VertexID % 32;
+  uint vert_id = 0u;
+#  ifdef GPU_VERTEX_SHADER
+  /* Mask point indices. */
+  vert_id = uint(gl_VertexID) & ~(0xFFFFFFFFu << 3u);
+#  endif
+
   vec3 pos_inst = vec3(0.0);
 
   switch (vert_id) {
@@ -123,7 +123,7 @@ vec4 pointcloud_get_customdata_vec4(const samplerBuffer cd_buf)
   return texelFetch(cd_buf, id).rgba;
 }
 
-vec2 pointcloud_get_barycentric(void)
+vec2 pointcloud_get_barycentric()
 {
   /* TODO: To be implemented. */
   return vec2(0.0);

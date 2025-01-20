@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 by Mike Erwin. All rights reserved. */
+/* SPDX-FileCopyrightText: 2016 by Mike Erwin. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -12,22 +13,23 @@
  * - free can be called from any thread
  */
 
-/* TODO: Create cmake option. */
-#if WITH_OPENGL
-#  define WITH_OPENGL_BACKEND 1
-#endif
+#include "GHOST_C-api.h"
+
+#include "BKE_global.hh"
 
 #include "BLI_assert.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector_set.hh"
 
-#include "GPU_context.h"
-#include "GPU_framebuffer.h"
+#include "GPU_context.hh"
+#include "GPU_framebuffer.hh"
 
+#include "GPU_batch.hh"
 #include "gpu_backend.hh"
-#include "gpu_batch_private.hh"
 #include "gpu_context_private.hh"
-#include "gpu_matrix_private.h"
-#include "gpu_private.h"
+#include "gpu_matrix_private.hh"
+#include "gpu_private.hh"
+#include "gpu_shader_private.hh"
 
 #ifdef WITH_OPENGL_BACKEND
 #  include "gl_backend.hh"
@@ -39,6 +41,7 @@
 #ifdef WITH_METAL_BACKEND
 #  include "mtl_backend.hh"
 #endif
+#include "dummy_backend.hh"
 
 #include <mutex>
 #include <vector>
@@ -72,13 +75,29 @@ Context::Context()
 
 Context::~Context()
 {
+  /* Derived class should have called free_famebuffers already. */
+  BLI_assert(front_left == nullptr);
+  BLI_assert(back_left == nullptr);
+  BLI_assert(front_right == nullptr);
+  BLI_assert(back_right == nullptr);
+
   GPU_matrix_state_discard(matrix_state);
+  GPU_BATCH_DISCARD_SAFE(polyline_batch);
   delete state_manager;
+  delete imm;
+}
+
+void Context::free_framebuffers()
+{
   delete front_left;
   delete back_left;
   delete front_right;
   delete back_right;
-  delete imm;
+
+  front_left = nullptr;
+  back_left = nullptr;
+  front_right = nullptr;
+  back_right = nullptr;
 }
 
 bool Context::is_active_on_thread()
@@ -89,6 +108,22 @@ bool Context::is_active_on_thread()
 Context *Context::get()
 {
   return active_ctx;
+}
+
+Batch *Context::polyline_batch_get()
+{
+  if (polyline_batch) {
+    return polyline_batch;
+  }
+
+  /* TODO(fclem): get rid of this dummy VBO. */
+  GPUVertFormat format = {0};
+  GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, 1);
+
+  polyline_batch = GPU_batch_create_ex(GPU_PRIM_TRIS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+  return polyline_batch;
 }
 
 }  // namespace blender::gpu
@@ -188,7 +223,7 @@ void GPU_context_main_unlock()
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name  GPU Begin/end work blocks
+/** \name GPU Begin/end work blocks
  *
  * Used to explicitly define a per-frame block within which GPU work will happen.
  * Used for global autoreleasepool flushing in Metal
@@ -202,19 +237,27 @@ void GPU_render_begin()
    * but should be fixed for Metal. */
   if (backend) {
     backend->render_begin();
+    printf_begin(active_ctx);
   }
 }
 void GPU_render_end()
 {
   GPUBackend *backend = GPUBackend::get();
   BLI_assert(backend);
-  backend->render_end();
+  if (backend) {
+    printf_end(active_ctx);
+    backend->render_end();
+  }
 }
-void GPU_render_step()
+void GPU_render_step(bool force_resource_release)
 {
   GPUBackend *backend = GPUBackend::get();
   BLI_assert(backend);
-  backend->render_step();
+  if (backend) {
+    printf_end(active_ctx);
+    backend->render_step(force_resource_release);
+    printf_begin(active_ctx);
+  }
 }
 
 /** \} */
@@ -223,13 +266,21 @@ void GPU_render_step()
 /** \name Backend selection
  * \{ */
 
-/* NOTE: To enable Metal API, we need to temporarily change this to `GPU_BACKEND_METAL`.
- * Until a global switch is added, Metal also needs to be enabled in GHOST_ContextCGL:
- * `m_useMetalForRendering = true`. */
 static eGPUBackendType g_backend_type = GPU_BACKEND_OPENGL;
 static std::optional<eGPUBackendType> g_backend_type_override = std::nullopt;
 static std::optional<bool> g_backend_type_supported = std::nullopt;
 static GPUBackend *g_backend = nullptr;
+static GHOST_SystemHandle g_ghost_system = nullptr;
+
+void GPU_backend_ghost_system_set(void *ghost_system_handle)
+{
+  g_ghost_system = reinterpret_cast<GHOST_SystemHandle>(ghost_system_handle);
+}
+
+void *GPU_backend_ghost_system_get()
+{
+  return g_ghost_system;
+}
 
 void GPU_backend_type_selection_set(const eGPUBackendType backend)
 {
@@ -247,32 +298,29 @@ void GPU_backend_type_selection_set_override(const eGPUBackendType backend_type)
   g_backend_type_override = backend_type;
 }
 
-bool GPU_backend_type_selection_is_overridden(void)
+bool GPU_backend_type_selection_is_overridden()
 {
   return g_backend_type_override.has_value();
 }
 
-bool GPU_backend_type_selection_detect(void)
+bool GPU_backend_type_selection_detect()
 {
-  blender::Vector<eGPUBackendType> backends_to_check;
-  if (GPU_backend_type_selection_is_overridden()) {
-    backends_to_check.append(*g_backend_type_override);
+  blender::VectorSet<eGPUBackendType> backends_to_check;
+  if (g_backend_type_override.has_value()) {
+    backends_to_check.add(*g_backend_type_override);
   }
-  else {
-    backends_to_check.append(GPU_BACKEND_OPENGL);
-  }
-
-  /* Add fallback to OpenGL when Metal backend is requested on a platform that doesn't support
-   * metal. */
-  if (backends_to_check[0] == GPU_BACKEND_METAL) {
-    backends_to_check.append(GPU_BACKEND_OPENGL);
-  }
+#if defined(WITH_OPENGL_BACKEND)
+  backends_to_check.add(GPU_BACKEND_OPENGL);
+#elif defined(WITH_METAL_BACKEND)
+  backends_to_check.add(GPU_BACKEND_METAL);
+#endif
 
   for (const eGPUBackendType backend_type : backends_to_check) {
     GPU_backend_type_selection_set(backend_type);
     if (GPU_backend_supported()) {
       return true;
     }
+    G.f |= G_FLAG_GPU_BACKEND_FALLBACK;
   }
 
   GPU_backend_type_selection_set(GPU_BACKEND_NONE);
@@ -290,7 +338,7 @@ static bool gpu_backend_supported()
 #endif
     case GPU_BACKEND_VULKAN:
 #ifdef WITH_VULKAN_BACKEND
-      return true;
+      return VKBackend::is_supported();
 #else
       return false;
 #endif
@@ -300,6 +348,8 @@ static bool gpu_backend_supported()
 #else
       return false;
 #endif
+    case GPU_BACKEND_NONE:
+      return true;
     default:
       BLI_assert(false && "No backend specified");
       return false;
@@ -335,6 +385,9 @@ static void gpu_backend_create()
       g_backend = new MTLBackend;
       break;
 #endif
+    case GPU_BACKEND_NONE:
+      g_backend = new DummyBackend;
+      break;
     default:
       BLI_assert(0);
       break;

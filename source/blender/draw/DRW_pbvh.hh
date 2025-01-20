@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw
@@ -7,83 +8,87 @@
 
 #pragma once
 
-/* Needed for BKE_ccg.h. */
-#include "BLI_assert.h"
-#include "BLI_bitmap.h"
+#include <variant>
 
-#include "BKE_ccg.h"
+#include "BLI_index_mask_fwd.hh"
+#include "BLI_string_ref.hh"
+#include "BLI_struct_equality_utils.hh"
+#include "BLI_vector.hh"
 
-struct PBVHAttrReq;
-struct GPUBatch;
-struct PBVHNode;
-struct PBVHBatches;
-struct PBVHGPUFormat;
-struct GSet;
-struct DMFlagMat;
-struct Mesh;
-struct MLoopTri;
-struct CustomData;
-struct MLoop;
-struct MPoly;
-struct SubdivCCG;
-struct BMesh;
+#include "BKE_paint_bvh.hh"
 
-struct PBVH_GPU_Args {
-  int pbvh_type;
+#include "DNA_customdata_types.h"
 
-  BMesh *bm;
-  const Mesh *me;
-  const float (*vert_positions)[3];
-  const MLoop *mloop;
-  const MPoly *mpoly;
-  int mesh_verts_num, mesh_faces_num, mesh_grids_num;
-  CustomData *vdata, *ldata, *pdata;
-  const float (*vert_normals)[3];
+namespace blender::gpu {
+class Batch;
+class IndexBuf;
+class VertBuf;
+}  // namespace blender::gpu
+struct Object;
+namespace blender::bke {
+enum class AttrDomain : int8_t;
+namespace pbvh {
+class Node;
+class DrawCache;
+class Tree;
+}  // namespace pbvh
+}  // namespace blender::bke
 
-  const char *active_color;
-  const char *render_color;
+namespace blender::draw::pbvh {
 
-  int face_sets_color_seed, face_sets_color_default;
-  int *face_sets; /* for PBVH_FACES and PBVH_GRIDS */
-
-  SubdivCCG *subdiv_ccg;
-  const DMFlagMat *grid_flag_mats;
-  const int *grid_indices;
-  CCGKey ccg_key;
-  CCGElem **grids;
-  void **gridfaces;
-  BLI_bitmap **grid_hidden;
-
-  int *prim_indices;
-  int totprim;
-
-  const bool *hide_poly;
-
-  int node_verts_num;
-
-  const MLoopTri *mlooptri;
-  PBVHNode *node;
-
-  /* BMesh. */
-  GSet *bm_unique_vert, *bm_other_verts, *bm_faces;
-  int cd_mask_layer;
+class GenericRequest {
+ public:
+  std::string name;
+  eCustomDataType type;
+  bke::AttrDomain domain;
+  GenericRequest(const StringRef name, const eCustomDataType type, const bke::AttrDomain domain)
+      : name(name), type(type), domain(domain)
+  {
+  }
+  BLI_STRUCT_EQUALITY_OPERATORS_3(GenericRequest, type, domain, name);
 };
 
-void DRW_pbvh_node_update(PBVHBatches *batches, PBVH_GPU_Args *args);
-void DRW_pbvh_update_pre(PBVHBatches *batches, PBVH_GPU_Args *args);
+enum class CustomRequest : int8_t {
+  Position,
+  Normal,
+  Mask,
+  FaceSet,
+};
 
-void DRW_pbvh_node_gpu_flush(PBVHBatches *batches);
-PBVHBatches *DRW_pbvh_node_create(PBVH_GPU_Args *args);
-void DRW_pbvh_node_free(PBVHBatches *batches);
-GPUBatch *DRW_pbvh_tris_get(PBVHBatches *batches,
-                            PBVHAttrReq *attrs,
-                            int attrs_num,
-                            PBVH_GPU_Args *args,
-                            int *r_prim_count,
-                            bool do_coarse_grids);
-GPUBatch *DRW_pbvh_lines_get(PBVHBatches *batches,
-                             PBVHAttrReq *attrs,
-                             int attrs_num,
-                             PBVH_GPU_Args *args,
-                             int *r_prim_count,
-                             bool do_coarse_grids);
+using AttributeRequest = std::variant<CustomRequest, GenericRequest>;
+
+struct ViewportRequest {
+  Vector<AttributeRequest> attributes;
+  bool use_coarse_grids;
+  BLI_STRUCT_EQUALITY_OPERATORS_2(ViewportRequest, attributes, use_coarse_grids);
+  uint64_t hash() const;
+};
+
+class DrawCache : public bke::pbvh::DrawCache {
+ public:
+  virtual ~DrawCache() = default;
+  /**
+   * Recalculate and copy data as necessary to prepare batches for drawing triangles for a
+   * specific combination of attributes.
+   */
+  virtual Span<gpu::Batch *> ensure_tris_batches(const Object &object,
+                                                 const ViewportRequest &request,
+                                                 const IndexMask &nodes_to_update) = 0;
+  /**
+   * Recalculate and copy data as necessary to prepare batches for drawing wireframe geometry for a
+   * specific combination of attributes.
+   */
+  virtual Span<gpu::Batch *> ensure_lines_batches(const Object &object,
+                                                  const ViewportRequest &request,
+                                                  const IndexMask &nodes_to_update) = 0;
+
+  /**
+   * Return the material index for each node (all faces in a node should have the same material
+   * index, as ensured by the BVH building process).
+   */
+  virtual Span<int> ensure_material_indices(const Object &object) = 0;
+};
+
+DrawCache &ensure_draw_data(std::unique_ptr<bke::pbvh::DrawCache> &ptr);
+
+}  // namespace blender::draw::pbvh

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "scene/background.h"
 #include "device/device.h"
@@ -11,10 +12,8 @@
 #include "scene/shader_nodes.h"
 #include "scene/stats.h"
 
-#include "util/foreach.h"
 #include "util/math.h"
 #include "util/time.h"
-#include "util/types.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -40,7 +39,7 @@ NODE_DEFINE(Background)
 
 Background::Background() : Node(get_node_type())
 {
-  shader = NULL;
+  shader = nullptr;
 }
 
 Background::~Background()
@@ -50,10 +49,11 @@ Background::~Background()
 
 void Background::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 {
-  if (!is_modified())
+  if (!is_modified()) {
     return;
+  }
 
-  scoped_callback_timer timer([scene](double time) {
+  const scoped_callback_timer timer([scene](double time) {
     if (scene->update_stats) {
       scene->update_stats->background.times.add_entry({"device_update", time});
     }
@@ -79,10 +79,12 @@ void Background::device_update(Device *device, DeviceScene *dscene, Scene *scene
     kbackground->transparent_roughness_squared_threshold = -1.0f;
   }
 
-  if (bg_shader->has_volume)
+  if (bg_shader->has_volume) {
     kbackground->volume_shader = kbackground->surface_shader;
-  else
+  }
+  else {
     kbackground->volume_shader = SHADER_NONE;
+  }
 
   kbackground->volume_step_size = volume_step_size * scene->integrator->get_volume_step_rate();
 
@@ -92,16 +94,21 @@ void Background::device_update(Device *device, DeviceScene *dscene, Scene *scene
   }
   /* Background present, check visibilities */
   else {
-    if (!(visibility & PATH_RAY_DIFFUSE))
+    if (!(visibility & PATH_RAY_DIFFUSE)) {
       kbackground->surface_shader |= SHADER_EXCLUDE_DIFFUSE;
-    if (!(visibility & PATH_RAY_GLOSSY))
+    }
+    if (!(visibility & PATH_RAY_GLOSSY)) {
       kbackground->surface_shader |= SHADER_EXCLUDE_GLOSSY;
-    if (!(visibility & PATH_RAY_TRANSMIT))
+    }
+    if (!(visibility & PATH_RAY_TRANSMIT)) {
       kbackground->surface_shader |= SHADER_EXCLUDE_TRANSMIT;
-    if (!(visibility & PATH_RAY_VOLUME_SCATTER))
+    }
+    if (!(visibility & PATH_RAY_VOLUME_SCATTER)) {
       kbackground->surface_shader |= SHADER_EXCLUDE_SCATTER;
-    if (!(visibility & PATH_RAY_CAMERA))
+    }
+    if (!(visibility & PATH_RAY_CAMERA)) {
       kbackground->surface_shader |= SHADER_EXCLUDE_CAMERA;
+    }
   }
 
   /* Light group. */
@@ -116,9 +123,7 @@ void Background::device_update(Device *device, DeviceScene *dscene, Scene *scene
   clear_modified();
 }
 
-void Background::device_free(Device * /*device*/, DeviceScene * /*dscene*/)
-{
-}
+void Background::device_free(Device * /*device*/, DeviceScene * /*dscene*/) {}
 
 void Background::tag_update(Scene *scene)
 {

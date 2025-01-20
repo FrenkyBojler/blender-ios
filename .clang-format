@@ -62,7 +62,7 @@ ContinuationIndentWidth: 4
 BreakBeforeBraces: Custom
 BraceWrapping: {
     AfterClass: 'false',
-    AfterControlStatement: 'false',
+    AfterControlStatement: 'MultiLine',
     AfterEnum : 'false',
     AfterFunction : 'true',
     AfterNamespace : 'false',
@@ -130,7 +130,7 @@ PenaltyReturnTypeOnItsOwnLine: 10000
 #
 PenaltyBreakAssignment: 100
 
-AllowShortFunctionsOnASingleLine: None
+AllowShortFunctionsOnASingleLine: Empty
 
 SortIncludes: true
 
@@ -161,8 +161,6 @@ PenaltyBreakString: 1000000
 # "^\s+[A-Z][A-Z0-9_]+\s*\([^\n]*\)\n\s*\{"
 ForEachMacros:
   - BEGIN_ANIMFILTER_SUBCHANNELS
-  - BKE_pbvh_vertex_iter_begin
-  - BKE_pbvh_face_iter_begin
   - BLI_FOREACH_SPARSE_RANGE
   - BLI_SMALLSTACK_ITER_BEGIN
   - BMO_ITER
@@ -236,6 +234,8 @@ ForEachMacros:
   - LOOP_UNSELECTED_POINTS
   - LOOP_VISIBLE_KEYS
   - LOOP_VISIBLE_POINTS
+  - LIGHT_FOREACH_BEGIN_DIRECTIONAL
+  - LIGHT_FOREACH_BEGIN_LOCAL
   - LISTBASE_CIRCULAR_BACKWARD_BEGIN
   - LISTBASE_CIRCULAR_FORWARD_BEGIN
   - LISTBASE_FOREACH
@@ -255,8 +255,6 @@ ForEachMacros:
   - RNA_PROP_BEGIN
   - RNA_STRUCT_BEGIN
   - RNA_STRUCT_BEGIN_SKIP_RNA_TYPE
-  - SCULPT_VERTEX_DUPLICATES_AND_NEIGHBORS_ITER_BEGIN
-  - SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN
   - SEQ_ALL_BEGIN
   - SEQ_ITERATOR_FOREACH
   - SURFACE_QUAD_ITER_BEGIN
@@ -276,3 +274,7 @@ StatementMacros:
 
 MacroBlockBegin: "^OSL_CLOSURE_STRUCT_BEGIN$"
 MacroBlockEnd: "^OSL_CLOSURE_STRUCT_END$"
+
+# Ensure single new line at the end of source files.
+InsertNewlineAtEOF: True
+KeepEmptyLinesAtEOF: False

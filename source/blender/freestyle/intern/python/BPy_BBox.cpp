@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -25,20 +27,21 @@ int BBox_Init(PyObject *module)
   if (PyType_Ready(&BBox_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&BBox_Type);
-  PyModule_AddObject(module, "BBox", (PyObject *)&BBox_Type);
+  PyModule_AddObjectRef(module, "BBox", (PyObject *)&BBox_Type);
 
   return 0;
 }
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-PyDoc_STRVAR(BBox_doc,
-             "Class for representing a bounding box.\n"
-             "\n"
-             ".. method:: __init__()\n"
-             "\n"
-             "   Default constructor.");
+PyDoc_STRVAR(
+    /* Wrap. */
+    BBox_doc,
+    "Class for representing a bounding box.\n"
+    "\n"
+    ".. method:: __init__()\n"
+    "\n"
+    "   Default constructor.");
 
 static int BBox_init(BPy_BBox *self, PyObject *args, PyObject *kwds)
 {
@@ -65,7 +68,7 @@ static PyObject *BBox_repr(BPy_BBox *self)
 /*-----------------------BPy_BBox type definition ------------------------------*/
 
 PyTypeObject BBox_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "BBox",
     /*tp_basicsize*/ sizeof(BPy_BBox),
     /*tp_itemsize*/ 0,

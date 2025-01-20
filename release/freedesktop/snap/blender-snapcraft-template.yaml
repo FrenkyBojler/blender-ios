@@ -21,8 +21,9 @@ apps:
     blender:
         command: ./blender-wrapper
         desktop: ./blender.desktop
+        common-id: org.blender.Blender
 
-base: core18
+base: core20
 version: '@VERSION@'
 grade: @GRADE@
 

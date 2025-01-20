@@ -1,16 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2012 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2012 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
  */
 
 #include "gpu_context_private.hh"
-#include "gpu_matrix_private.h"
+#include "gpu_matrix_private.hh"
 
 #define SUPPRESS_GENERIC_MATRIX_API
 #define USE_GPU_PY_MATRIX_API /* only so values are declared */
-#include "GPU_matrix.h"
+#include "GPU_matrix.hh"
 #undef USE_GPU_PY_MATRIX_API
 
 #include "BLI_math_matrix.h"
@@ -21,7 +22,7 @@
 
 using namespace blender::gpu;
 
-#define MATRIX_STACK_DEPTH 32
+constexpr static int MATRIX_STACK_DEPTH = 32;
 
 using Mat4 = float[4][4];
 using Mat3 = float[3][3];
@@ -462,7 +463,7 @@ void GPU_matrix_project_3fv(const float world[3],
                             const float model[4][4],
                             const float proj[4][4],
                             const int view[4],
-                            float win[3])
+                            float r_win[3])
 {
   float v[4];
 
@@ -473,16 +474,16 @@ void GPU_matrix_project_3fv(const float world[3],
     mul_v3_fl(v, 1.0f / v[3]);
   }
 
-  win[0] = view[0] + (view[2] * (v[0] + 1)) * 0.5f;
-  win[1] = view[1] + (view[3] * (v[1] + 1)) * 0.5f;
-  win[2] = (v[2] + 1) * 0.5f;
+  r_win[0] = view[0] + (view[2] * (v[0] + 1)) * 0.5f;
+  r_win[1] = view[1] + (view[3] * (v[1] + 1)) * 0.5f;
+  r_win[2] = (v[2] + 1) * 0.5f;
 }
 
 void GPU_matrix_project_2fv(const float world[3],
                             const float model[4][4],
                             const float proj[4][4],
                             const int view[4],
-                            float win[2])
+                            float r_win[2])
 {
   float v[4];
 
@@ -493,8 +494,8 @@ void GPU_matrix_project_2fv(const float world[3],
     mul_v2_fl(v, 1.0f / v[3]);
   }
 
-  win[0] = view[0] + (view[2] * (v[0] + 1)) * 0.5f;
-  win[1] = view[1] + (view[3] * (v[1] + 1)) * 0.5f;
+  r_win[0] = view[0] + (view[2] * (v[0] + 1)) * 0.5f;
+  r_win[1] = view[1] + (view[3] * (v[1] + 1)) * 0.5f;
 }
 
 bool GPU_matrix_unproject_3fv(const float win[3],
@@ -504,7 +505,7 @@ bool GPU_matrix_unproject_3fv(const float win[3],
                               float r_world[3])
 {
   zero_v3(r_world);
-  float in[3] = {
+  const float in[3] = {
       2 * ((win[0] - view[0]) / view[2]) - 1.0f,
       2 * ((win[1] - view[1]) / view[3]) - 1.0f,
       2 * win[2] - 1.0f,
@@ -623,30 +624,31 @@ void GPU_matrix_bind(GPUShader *shader)
   int32_t P_inv = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_PROJECTION_INV);
 
   if (MV != -1) {
-    GPU_shader_uniform_vector(
+    GPU_shader_uniform_float_ex(
         shader, MV, 16, 1, (const float *)GPU_matrix_model_view_get(nullptr));
   }
   if (P != -1) {
-    GPU_shader_uniform_vector(shader, P, 16, 1, (const float *)GPU_matrix_projection_get(nullptr));
+    GPU_shader_uniform_float_ex(
+        shader, P, 16, 1, (const float *)GPU_matrix_projection_get(nullptr));
   }
   if (MVP != -1) {
-    GPU_shader_uniform_vector(
+    GPU_shader_uniform_float_ex(
         shader, MVP, 16, 1, (const float *)GPU_matrix_model_view_projection_get(nullptr));
   }
   if (N != -1) {
-    GPU_shader_uniform_vector(shader, N, 9, 1, (const float *)GPU_matrix_normal_get(nullptr));
+    GPU_shader_uniform_float_ex(shader, N, 9, 1, (const float *)GPU_matrix_normal_get(nullptr));
   }
   if (MV_inv != -1) {
     Mat4 m;
     GPU_matrix_model_view_get(m);
     invert_m4(m);
-    GPU_shader_uniform_vector(shader, MV_inv, 16, 1, (const float *)m);
+    GPU_shader_uniform_float_ex(shader, MV_inv, 16, 1, (const float *)m);
   }
   if (P_inv != -1) {
     Mat4 m;
     GPU_matrix_projection_get(m);
     invert_m4(m);
-    GPU_shader_uniform_vector(shader, P_inv, 16, 1, (const float *)m);
+    GPU_shader_uniform_float_ex(shader, P_inv, 16, 1, (const float *)m);
   }
 
   gpu_matrix_state_active_set_dirty(false);

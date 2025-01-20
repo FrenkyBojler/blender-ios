@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edasset
@@ -8,30 +10,28 @@
  */
 
 #include <new>
+#include <string>
 
-#include "DNA_space_types.h"
+#include "AS_asset_representation.hh"
 
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "BLI_utility_mixins.hh"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "ED_asset_handle.h"
-#include "ED_asset_temp_id_consumer.h"
+#include "ED_asset_temp_id_consumer.hh"
 
-using namespace blender;
+namespace blender::ed::asset {
 
 class AssetTemporaryIDConsumer : NonCopyable, NonMovable {
-  const AssetHandle &handle_;
+  const asset_system::AssetRepresentation *asset_;
   TempLibraryContext *temp_lib_context_ = nullptr;
 
  public:
-  AssetTemporaryIDConsumer(const AssetHandle &handle) : handle_(handle)
-  {
-  }
+  AssetTemporaryIDConsumer(const asset_system::AssetRepresentation *asset) : asset_(asset) {}
   ~AssetTemporaryIDConsumer()
   {
     if (temp_lib_context_) {
@@ -41,20 +41,20 @@ class AssetTemporaryIDConsumer : NonCopyable, NonMovable {
 
   ID *get_local_id()
   {
-    return ED_asset_handle_get_local_id(&handle_);
+    return asset_->local_id();
   }
 
   ID *import_id(ID_Type id_type, Main &bmain, ReportList &reports)
   {
-    const char *asset_name = ED_asset_handle_get_name(&handle_);
-    char blend_file_path[FILE_MAX_LIBEXTRA];
-    ED_asset_handle_get_full_library_path(&handle_, blend_file_path);
+    const char *asset_name = asset_->get_name().c_str();
+    std::string blend_file_path = asset_->full_library_path();
 
     temp_lib_context_ = BLO_library_temp_load_id(
-        &bmain, blend_file_path, id_type, asset_name, &reports);
+        &bmain, blend_file_path.c_str(), id_type, asset_name, &reports);
 
     if (temp_lib_context_ == nullptr || temp_lib_context_->temp_id == nullptr) {
-      BKE_reportf(&reports, RPT_ERROR, "Unable to load %s from %s", asset_name, blend_file_path);
+      BKE_reportf(
+          &reports, RPT_ERROR, "Unable to load %s from %s", asset_name, blend_file_path.c_str());
       return nullptr;
     }
 
@@ -63,26 +63,25 @@ class AssetTemporaryIDConsumer : NonCopyable, NonMovable {
   }
 };
 
-AssetTempIDConsumer *ED_asset_temp_id_consumer_create(const AssetHandle *handle)
+AssetTempIDConsumer *temp_id_consumer_create(const asset_system::AssetRepresentation *asset)
 {
-  if (!handle) {
+  if (!asset) {
     return nullptr;
   }
-  BLI_assert(handle->file_data->asset != nullptr);
   return reinterpret_cast<AssetTempIDConsumer *>(
-      MEM_new<AssetTemporaryIDConsumer>(__func__, *handle));
+      MEM_new<AssetTemporaryIDConsumer>(__func__, asset));
 }
 
-void ED_asset_temp_id_consumer_free(AssetTempIDConsumer **consumer)
+void temp_id_consumer_free(AssetTempIDConsumer **consumer)
 {
   MEM_delete(reinterpret_cast<AssetTemporaryIDConsumer *>(*consumer));
   *consumer = nullptr;
 }
 
-ID *ED_asset_temp_id_consumer_ensure_local_id(AssetTempIDConsumer *consumer_,
-                                              ID_Type id_type,
-                                              Main *bmain,
-                                              ReportList *reports)
+ID *temp_id_consumer_ensure_local_id(AssetTempIDConsumer *consumer_,
+                                     ID_Type id_type,
+                                     Main *bmain,
+                                     ReportList *reports)
 {
   if (!(consumer_ && bmain && reports)) {
     return nullptr;
@@ -94,3 +93,5 @@ ID *ED_asset_temp_id_consumer_ensure_local_id(AssetTempIDConsumer *consumer_,
   }
   return consumer->import_id(id_type, *bmain, *reports);
 }
+
+}  // namespace blender::ed::asset

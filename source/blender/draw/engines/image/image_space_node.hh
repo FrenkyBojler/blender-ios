@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
@@ -7,19 +8,20 @@
 
 #pragma once
 
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
+
 #include "image_private.hh"
 
-namespace blender::draw::image_engine {
+namespace blender::image_engine {
 
 class SpaceNodeAccessor : public AbstractSpaceAccessor {
   SpaceNode *snode;
 
  public:
-  SpaceNodeAccessor(SpaceNode *snode) : snode(snode)
-  {
-  }
+  SpaceNodeAccessor(SpaceNode *snode) : snode(snode) {}
 
-  Image *get_image(Main *bmain) override
+  ::Image *get_image(Main *bmain) override
   {
     return BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   }
@@ -29,12 +31,12 @@ class SpaceNodeAccessor : public AbstractSpaceAccessor {
     return nullptr;
   }
 
-  ImBuf *acquire_image_buffer(Image *image, void **lock) override
+  ImBuf *acquire_image_buffer(::Image *image, void **lock) override
   {
     return BKE_image_acquire_ibuf(image, nullptr, lock);
   }
 
-  void release_buffer(Image *image, ImBuf *ibuf, void *lock) override
+  void release_buffer(::Image *image, ImBuf *ibuf, void *lock) override
   {
     BKE_image_release_ibuf(image, ibuf, lock);
   }
@@ -43,36 +45,36 @@ class SpaceNodeAccessor : public AbstractSpaceAccessor {
   {
     if ((snode->flag & SNODE_USE_ALPHA) != 0) {
       /* Show RGBA */
-      r_shader_parameters.flags |= ImageDrawFlags::ShowAlpha | ImageDrawFlags::ApplyAlpha;
+      r_shader_parameters.flags |= ImageDrawFlags::SHOW_ALPHA | ImageDrawFlags::APPLY_ALPHA;
     }
     else if ((snode->flag & SNODE_SHOW_ALPHA) != 0) {
-      r_shader_parameters.flags |= ImageDrawFlags::Shuffling;
-      copy_v4_fl4(r_shader_parameters.shuffle, 0.0f, 0.0f, 0.0f, 1.0f);
+      r_shader_parameters.flags |= ImageDrawFlags::SHUFFLING;
+      r_shader_parameters.shuffle = float4(0.0f, 0.0f, 0.0f, 1.0f);
     }
     else if ((snode->flag & SNODE_SHOW_R) != 0) {
-      r_shader_parameters.flags |= ImageDrawFlags::Shuffling;
+      r_shader_parameters.flags |= ImageDrawFlags::SHUFFLING;
       if (IMB_alpha_affects_rgb(ibuf)) {
-        r_shader_parameters.flags |= ImageDrawFlags::ApplyAlpha;
+        r_shader_parameters.flags |= ImageDrawFlags::APPLY_ALPHA;
       }
-      copy_v4_fl4(r_shader_parameters.shuffle, 1.0f, 0.0f, 0.0f, 0.0f);
+      r_shader_parameters.shuffle = float4(1.0f, 0.0f, 0.0f, 0.0f);
     }
     else if ((snode->flag & SNODE_SHOW_G) != 0) {
-      r_shader_parameters.flags |= ImageDrawFlags::Shuffling;
+      r_shader_parameters.flags |= ImageDrawFlags::SHUFFLING;
       if (IMB_alpha_affects_rgb(ibuf)) {
-        r_shader_parameters.flags |= ImageDrawFlags::ApplyAlpha;
+        r_shader_parameters.flags |= ImageDrawFlags::APPLY_ALPHA;
       }
-      copy_v4_fl4(r_shader_parameters.shuffle, 0.0f, 1.0f, 0.0f, 0.0f);
+      r_shader_parameters.shuffle = float4(0.0f, 1.0f, 0.0f, 0.0f);
     }
     else if ((snode->flag & SNODE_SHOW_B) != 0) {
-      r_shader_parameters.flags |= ImageDrawFlags::Shuffling;
+      r_shader_parameters.flags |= ImageDrawFlags::SHUFFLING;
       if (IMB_alpha_affects_rgb(ibuf)) {
-        r_shader_parameters.flags |= ImageDrawFlags::ApplyAlpha;
+        r_shader_parameters.flags |= ImageDrawFlags::APPLY_ALPHA;
       }
-      copy_v4_fl4(r_shader_parameters.shuffle, 0.0f, 0.0f, 1.0f, 0.0f);
+      r_shader_parameters.shuffle = float4(0.0f, 0.0f, 1.0f, 0.0f);
     }
     else /* RGB */ {
       if (IMB_alpha_affects_rgb(ibuf)) {
-        r_shader_parameters.flags |= ImageDrawFlags::ApplyAlpha;
+        r_shader_parameters.flags |= ImageDrawFlags::APPLY_ALPHA;
       }
     }
   }
@@ -87,17 +89,22 @@ class SpaceNodeAccessor : public AbstractSpaceAccessor {
    * screen.
    */
   void init_ss_to_texture_matrix(const ARegion *region,
+                                 const float image_offset[2],
                                  const float image_resolution[2],
                                  float r_uv_to_texture[4][4]) const override
   {
     unit_m4(r_uv_to_texture);
     float display_resolution[2];
+    float image_display_offset[2];
     mul_v2_v2fl(display_resolution, image_resolution, snode->zoom);
+    mul_v2_v2fl(image_display_offset, image_offset, snode->zoom);
     const float scale_x = display_resolution[0] / region->winx;
     const float scale_y = display_resolution[1] / region->winy;
-    const float translate_x = ((region->winx - display_resolution[0]) * 0.5f + snode->xof) /
+    const float translate_x = ((region->winx - display_resolution[0]) * 0.5f + snode->xof +
+                               image_display_offset[0]) /
                               region->winx;
-    const float translate_y = ((region->winy - display_resolution[1]) * 0.5f + snode->yof) /
+    const float translate_y = ((region->winy - display_resolution[1]) * 0.5f + snode->yof +
+                               image_display_offset[1]) /
                               region->winy;
 
     r_uv_to_texture[0][0] = scale_x;
@@ -107,4 +114,4 @@ class SpaceNodeAccessor : public AbstractSpaceAccessor {
   }
 };
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine

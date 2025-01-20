@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifdef WITH_HIP
 
@@ -73,7 +74,7 @@ void HIPDeviceQueue::init_execution()
 
 bool HIPDeviceQueue::enqueue(DeviceKernel kernel,
                              const int work_size,
-                             DeviceKernelArguments const &args)
+                             const DeviceKernelArguments &args)
 {
   if (hip_device_->have_error()) {
     return false;
@@ -117,7 +118,7 @@ bool HIPDeviceQueue::enqueue(DeviceKernel kernel,
                                        shared_mem_bytes,
                                        hip_stream_,
                                        const_cast<void **>(args.values),
-                                       0),
+                                       nullptr),
                  "enqueue");
 
   debug_enqueue_end();

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 /** \file
@@ -15,16 +17,16 @@ struct ProjCameraInfo;
 /**
  * Create UV info from the camera, needs to be freed.
  *
- * \param rotmat: can be `obedit->object_to_world` when uv project is used.
+ * \param rotmat: can be `obedit->object_to_world().ptr()` when uv project is used.
  * \param winx, winy: can be from `scene->r.xsch / ysch`.
  */
-struct ProjCameraInfo *BLI_uvproject_camera_info(struct Object *ob,
-                                                 float rotmat[4][4],
+struct ProjCameraInfo *BLI_uvproject_camera_info(const struct Object *ob,
+                                                 const float rotmat[4][4],
                                                  float winx,
                                                  float winy);
 
 /**
- * Apply UV from uvinfo (camera).
+ * Apply UV from #ProjCameraInfo (camera).
  */
 void BLI_uvproject_from_camera(float target[2], float source[3], struct ProjCameraInfo *uci);
 

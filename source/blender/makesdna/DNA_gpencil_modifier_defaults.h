@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -8,7 +10,6 @@
 
 /* Note that some struct members for color-mapping and color-bands are not initialized here. */
 
-/* Struct members on own line. */
 /* clang-format off */
 
 #define _DNA_DEFAULT_ArmatureGpencilModifierData \
@@ -174,7 +175,7 @@
     .factor = 1.0f, \
     .modify_color = GP_MODIFY_COLOR_BOTH, \
     .layer_pass = 0, \
-    .hardeness = 1.0f, \
+    .hardness = 1.0f, \
     .curve_intensity = NULL, \
   }
 
@@ -327,13 +328,13 @@
 
 #define _DNA_DEFAULT_LineartGpencilModifierData \
   { \
-    .edge_types = LRT_EDGE_FLAG_INIT_TYPE, \
+    .edge_types = MOD_LINEART_EDGE_FLAG_INIT_TYPE, \
     .thickness = 25, \
     .opacity = 1.0f, \
-    .flags = LRT_GPENCIL_MATCH_OUTPUT_VGROUP, \
     .crease_threshold = DEG2RAD(140.0f), \
-    .calculation_flags = LRT_ALLOW_DUPLI_OBJECTS | LRT_ALLOW_CLIPPING_BOUNDARIES | \
-                         LRT_USE_CREASE_ON_SHARP_EDGES | LRT_FILTER_FACE_MARK_KEEP_CONTOUR, \
+    .calculation_flags = MOD_LINEART_ALLOW_DUPLI_OBJECTS | MOD_LINEART_ALLOW_CLIPPING_BOUNDARIES | \
+                         MOD_LINEART_USE_CREASE_ON_SHARP_EDGES | MOD_LINEART_FILTER_FACE_MARK_KEEP_CONTOUR | \
+                         MOD_LINEART_MATCH_OUTPUT_VGROUP, \
     /* Do not split by default, this is for better chaining quality. */ \
     .angle_splitting_threshold = 0.0f, \
     .chaining_image_threshold = 0.001f, \

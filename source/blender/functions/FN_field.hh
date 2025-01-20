@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -11,7 +13,7 @@
  * A typical example is a field that computes a displacement vector for every vertex on a mesh
  * based on its position.
  *
- * Fields can be build, composed and evaluated at run-time. They are stored in a directed tree
+ * Fields can be built, composed and evaluated at run-time. They are stored in a directed tree
  * graph data structure, whereby each node is a #FieldNode and edges are dependencies. A #FieldNode
  * has an arbitrary number of inputs and at least one output and a #Field references a specific
  * output of a #FieldNode. The inputs of a #FieldNode are other fields.
@@ -31,6 +33,8 @@
  * Whenever possible, multiple fields should be evaluated together to avoid duplicate work when
  * they share common sub-fields and a common context.
  */
+
+#include <iostream>
 
 #include "BLI_function_ref.hh"
 #include "BLI_generic_virtual_array.hh"
@@ -122,7 +126,7 @@ template<typename NodePtr> class GFieldBase {
 
   uint64_t hash() const
   {
-    return get_default_hash_2(*node_, node_output_index_);
+    return get_default_hash(*node_, node_output_index_);
   }
 
   const CPPType &cpp_type() const
@@ -175,8 +179,7 @@ class GFieldRef : public GFieldBase<const FieldNode *> {
 
 namespace detail {
 /* Utility class to make #is_field_v work. */
-struct TypedFieldBase {
-};
+struct TypedFieldBase {};
 }  // namespace detail
 
 /**
@@ -279,7 +282,7 @@ class FieldInput : public FieldNode {
    * should live at least as long as the passed in #scope. May return null.
    */
   virtual GVArray get_varray_for_context(const FieldContext &context,
-                                         IndexMask mask,
+                                         const IndexMask &mask,
                                          ResourceScope &scope) const = 0;
 
   virtual std::string socket_inspection_name() const;
@@ -325,7 +328,7 @@ class FieldContext {
   virtual ~FieldContext() = default;
 
   virtual GVArray get_varray_for_input(const FieldInput &field_input,
-                                       IndexMask mask,
+                                       const IndexMask &mask,
                                        ResourceScope &scope) const;
 };
 
@@ -333,7 +336,6 @@ class FieldContext {
  * Utility class that makes it easier to evaluate fields.
  */
 class FieldEvaluator : NonMovable, NonCopyable {
- private:
   struct OutputPointerInfo {
     void *dst = nullptr;
     /* When a destination virtual array is provided for an input, this is
@@ -343,7 +345,7 @@ class FieldEvaluator : NonMovable, NonCopyable {
 
   ResourceScope scope_;
   const FieldContext &context_;
-  const IndexMask mask_;
+  const IndexMask &mask_;
   Vector<GField> fields_to_evaluate_;
   Vector<GVMutableArray> dst_varrays_;
   Vector<GVArray> evaluated_varrays_;
@@ -361,7 +363,8 @@ class FieldEvaluator : NonMovable, NonCopyable {
   }
 
   /** Construct a field evaluator for all indices less than #size. */
-  FieldEvaluator(const FieldContext &context, const int64_t size) : context_(context), mask_(size)
+  FieldEvaluator(const FieldContext &context, const int64_t size)
+      : context_(context), mask_(scope_.construct<IndexMask>(size))
   {
   }
 
@@ -455,7 +458,7 @@ class FieldEvaluator : NonMovable, NonCopyable {
     return this->get_evaluated(field_index).typed<T>();
   }
 
-  IndexMask get_evaluated_selection_as_mask();
+  IndexMask get_evaluated_selection_as_mask() const;
 
   /**
    * Retrieve the output of an evaluated boolean field and convert it to a mask, which can be used
@@ -485,7 +488,7 @@ class FieldEvaluator : NonMovable, NonCopyable {
  */
 Vector<GVArray> evaluate_fields(ResourceScope &scope,
                                 Span<GFieldRef> fields_to_evaluate,
-                                IndexMask mask,
+                                const IndexMask &mask,
                                 const FieldContext &context,
                                 Span<GVMutableArray> dst_varrays = {});
 
@@ -527,10 +530,10 @@ class IndexFieldInput final : public FieldInput {
  public:
   IndexFieldInput();
 
-  static GVArray get_index_varray(IndexMask mask);
+  static GVArray get_index_varray(const IndexMask &mask);
 
   GVArray get_varray_for_context(const FieldContext &context,
-                                 IndexMask mask,
+                                 const IndexMask &mask,
                                  ResourceScope &scope) const final;
 
   uint64_t hash() const override;
@@ -540,69 +543,10 @@ class IndexFieldInput final : public FieldInput {
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Value or Field Class
- *
- * Utility class that wraps a single value and a field, to simplify accessing both of the types.
- * \{ */
-
-template<typename T> struct ValueOrField {
-  /** Value that is used when the field is empty. */
-  T value{};
-  Field<T> field;
-
-  ValueOrField() = default;
-
-  ValueOrField(T value) : value(std::move(value))
-  {
-  }
-
-  ValueOrField(Field<T> field) : field(std::move(field))
-  {
-  }
-
-  bool is_field() const
-  {
-    return bool(this->field);
-  }
-
-  Field<T> as_field() const
-  {
-    if (this->field) {
-      return this->field;
-    }
-    return make_constant_field(this->value);
-  }
-
-  T as_value() const
-  {
-    if (this->field) {
-      /* This returns a default value when the field is not constant. */
-      return evaluate_constant_field(this->field);
-    }
-    return this->value;
-  }
-
-  friend std::ostream &operator<<(std::ostream &stream, const ValueOrField<T> &value_or_field)
-  {
-    if (value_or_field.field) {
-      stream << "ValueOrField<T>";
-    }
-    else {
-      stream << value_or_field.value;
-    }
-    return stream;
-  }
-};
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name #FieldNode Inline Methods
  * \{ */
 
-inline FieldNode::FieldNode(const FieldNodeType node_type) : node_type_(node_type)
-{
-}
+inline FieldNode::FieldNode(const FieldNodeType node_type) : node_type_(node_type) {}
 
 inline FieldNodeType FieldNode::node_type() const
 {

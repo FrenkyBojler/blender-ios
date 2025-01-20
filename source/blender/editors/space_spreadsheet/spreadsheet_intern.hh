@@ -1,9 +1,18 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 #include "BKE_geometry_set.hh"
 #include "spreadsheet_cache.hh"
+
+struct ARegionType;
+struct Depsgraph;
+struct Object;
+struct SpaceSpreadsheet;
+
+namespace blender::ed::spreadsheet {
 
 struct SpaceSpreadsheet_Runtime {
  public:
@@ -11,7 +20,7 @@ struct SpaceSpreadsheet_Runtime {
   int tot_rows = 0;
   int tot_columns = 0;
 
-  blender::ed::spreadsheet::SpreadsheetCache cache;
+  SpreadsheetCache cache;
 
   SpaceSpreadsheet_Runtime() = default;
 
@@ -22,17 +31,12 @@ struct SpaceSpreadsheet_Runtime {
   }
 };
 
-struct ARegionType;
-struct bContext;
-
 void spreadsheet_operatortypes();
-void spreadsheet_update_context_path(const bContext *C);
 Object *spreadsheet_get_object_eval(const SpaceSpreadsheet *sspreadsheet,
                                     const Depsgraph *depsgraph);
 
-namespace blender::ed::spreadsheet {
-GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *sspreadsheet,
-                                                 Object *object_eval);
+bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *sspreadsheet,
+                                                      Object *object_eval);
 
 void spreadsheet_data_set_region_panels_register(ARegionType &region_type);
 

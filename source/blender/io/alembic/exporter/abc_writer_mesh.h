@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 /** \file
@@ -55,7 +57,7 @@ class ABCGenericMeshWriter : public ABCAbstractWriter {
   void write_subd(HierarchyContext &context, Mesh *mesh);
   template<typename Schema> void write_face_sets(Object *object, Mesh *mesh, Schema &schema);
 
-  void write_arb_geo_params(Mesh *me);
+  void write_arb_geo_params(Mesh *mesh);
   bool get_velocities(Mesh *mesh, std::vector<Imath::V3f> &vels);
   void get_geo_groups(Object *object,
                       Mesh *mesh,

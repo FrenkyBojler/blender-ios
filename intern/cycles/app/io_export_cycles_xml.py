@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
 
 # XML exporter for generating test files, not intended for end users
 
@@ -71,7 +72,7 @@ class PHYSICS_PT_fluid_export(RenderButtonsPanel, bpy.types.Panel):
 
         cycles = context.scene.cycles_xml
 
-        #layout.prop(cycles, "filepath")
+        # layout.prop(cycles, "filepath")
         layout.operator("export_mesh.cycles_xml")
 
 

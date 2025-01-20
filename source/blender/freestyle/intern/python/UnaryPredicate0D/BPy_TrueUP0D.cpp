@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -16,7 +18,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char TrueUP0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    TrueUP0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate0D` > :class:`TrueUP0D`\n"
     "\n"
     ".. method:: __call__(it)\n"
@@ -26,7 +30,7 @@ static char TrueUP0D___doc__[] =
     "   :arg it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: True.\n"
-    "   :rtype: bool\n";
+    "   :rtype: bool\n");
 
 static int TrueUP0D___init__(BPy_TrueUP0D *self, PyObject *args, PyObject *kwds)
 {
@@ -42,7 +46,8 @@ static int TrueUP0D___init__(BPy_TrueUP0D *self, PyObject *args, PyObject *kwds)
 /*-----------------------BPy_TrueUP0D type definition ------------------------------*/
 
 PyTypeObject TrueUP0D_Type = {
-    /*tp_name*/ PyVarObject_HEAD_INIT(nullptr, 0) "TrueUP0D",
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "TrueUP0D",
     /*tp_basicsize*/ sizeof(BPy_TrueUP0D),
     /*tp_itemsize*/ 0,
     /*tp_dealloc*/ nullptr,

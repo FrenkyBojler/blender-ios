@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup editorui
  *
  * Base class for all views (UIs to display data sets) and view items, supporting common features.
- * https://wiki.blender.org/wiki/Source/Interface/Views
+ * https://developer.blender.org/docs/features/interface/views/
  *
  * One of the most important responsibilities of the base class is managing reconstruction,
  * enabling state that is persistent over reconstructions/redraws. Other features:
@@ -12,50 +14,109 @@
  * - Custom context menus
  * - Notifier listening
  * - Drag controllers (dragging view items)
- * - Drop controllers (dropping onto/into view items)
+ * - Drop targets (dropping onto/into view items)
  */
 
 #pragma once
 
 #include <array>
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "DNA_defs.h"
+#include "DNA_vec_types.h"
 
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 
+#include "UI_interface.hh"
+
+#include "WM_types.hh"
+
 struct bContext;
 struct uiBlock;
+struct uiButViewItem;
 struct uiLayout;
-struct uiViewItemHandle;
-struct wmDrag;
+struct ViewLink;
 struct wmNotifier;
 
 namespace blender::ui {
 
 class AbstractViewItem;
-class AbstractViewItemDropController;
 class AbstractViewItemDragController;
+
+enum class ViewScrollDirection {
+  UP,
+  DOWN,
+};
 
 class AbstractView {
   friend class AbstractViewItem;
+  friend struct ::ViewLink;
 
   bool is_reconstructed_ = false;
   /**
-   * Only one item can be renamed at a time. So rather than giving each item an own rename buffer
+   * Only one item can be renamed at a time. So rather than giving each item its own rename buffer
    * (which just adds unused memory in most cases), have one here that is managed by the view.
    *
    * This fixed-size buffer is needed because that's what the rename button requires. In future we
    * may be able to bind the button to a `std::string` or similar.
    */
   std::unique_ptr<std::array<char, MAX_NAME>> rename_buffer_;
+  /* Search/filter string from the previous redraw, stored to detect changes. */
+  std::string prev_filter_string_;
+
+  bool needs_filtering_ = true;
+
+  /* See #get_bounds(). */
+  std::optional<rcti> bounds_;
+
+  std::string context_menu_title;
+  /** See #set_popup_keep_open(). */
+  bool popup_keep_open_ = false;
 
  public:
   virtual ~AbstractView() = default;
+  /**
+   * If a view wants to support dropping data into it, it has to return a drop target here.
+   * That is an object implementing #DropTargetInterface.
+   *
+   * \note This drop target may be requested for each event. The view doesn't keep the drop target
+   *       around currently. So it cannot contain persistent state.
+   */
+  virtual std::unique_ptr<DropTargetInterface> create_drop_target();
 
   /** Listen to a notifier, returning true if a redraw is needed. */
   virtual bool listen(const wmNotifier &) const;
+
+  /**
+   * Enable filtering. Typically used to enable a filter text button. Triggered on Ctrl+F by
+   * default.
+   * \return True when filtering was enabled successfully.
+   */
+  virtual bool begin_filtering(const bContext &C) const;
+
+  virtual void draw_overlays(const ARegion &region, const uiBlock &block) const;
+
+  virtual void foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const = 0;
+
+  virtual bool supports_scrolling() const;
+  virtual void scroll(ViewScrollDirection direction);
+
+  /**
+   * From the current view state, return certain state that will be written to files (stored in
+   * #ARegion.view_states) to preserve it over UI changes and file loading. The state can be
+   * restored using #persistent_state_apply().
+   *
+   * Return an empty value if there's no state to preserve (default implementation).
+   */
+  virtual std::optional<uiViewState> persistent_state() const;
+  /**
+   * Restore a view state given in \a state, which was created by #persistent_state() for saving in
+   * files, and potentially loaded from a file.
+   */
+  virtual void persistent_state_apply(const uiViewState &state);
 
   /**
    * Makes \a item valid for display in this view. Behavior is undefined for items not registered
@@ -70,9 +131,32 @@ class AbstractView {
   void end_renaming();
   Span<char> get_rename_buffer() const;
   MutableSpan<char> get_rename_buffer();
+  /**
+   * Get the rectangle containing all the view items that are in the layout, in button space.
+   * Updated as part of #UI_block_end(), before that it's unset.
+   */
+  std::optional<rcti> get_bounds() const;
+
+  std::string get_context_menu_title() const;
+  void set_context_menu_title(const std::string &title);
+
+  bool get_popup_keep_open() const;
+  /** If this view is displayed in a popup, don't close it when clicking to activate items. */
+  void set_popup_keep_open();
+
+  void clear_search_highlight();
 
  protected:
   AbstractView() = default;
+
+  /**
+   * Items may want to do additional work when state changes. But these state changes can only be
+   * reliably detected after the view has completed reconstruction (see #is_reconstructed()). So
+   * the actual state changes are done in a delayed manner through this function.
+   *
+   * Overrides should call the base class implementation.
+   */
+  virtual void change_state_delayed();
 
   virtual void update_children_from_old(const AbstractView &old_view) = 0;
 
@@ -88,6 +172,9 @@ class AbstractView {
    * #update_from_old() have finished.
    */
   bool is_reconstructed() const;
+
+  void filter(std::optional<StringRef> filter_str);
+  const AbstractViewItem *search_highlight_item() const;
 };
 
 class AbstractViewItem {
@@ -100,13 +187,36 @@ class AbstractViewItem {
    * If this wasn't done, the behavior of items is undefined.
    */
   AbstractView *view_ = nullptr;
+  /** See #view_item_button() */
+  uiButViewItem *view_item_but_ = nullptr;
+  bool is_activatable_ = true;
+  bool is_interactive_ = true;
   bool is_active_ = false;
   bool is_renaming_ = false;
+  /** See #is_search_highlight(). */
+  bool is_highlighted_search_ = false;
+
+  /** Cache filtered state here to avoid having to re-query. */
+  bool is_filtered_visible_ = true;
 
  public:
   virtual ~AbstractViewItem() = default;
 
   virtual void build_context_menu(bContext &C, uiLayout &column) const;
+
+  /**
+   * Called when the view changes an item's state from inactive to active. Will only be called if
+   * the state change is triggered through the view, not through external changes. E.g. a click on
+   * an item calls it, a change in the value returned by #should_be_active() to reflect an external
+   * state change does not.
+   */
+  virtual void on_activate(bContext &C);
+  /**
+   * If the result is not empty, it controls whether the item should be active or not, usually
+   * depending on the data that the view represents. Note that since this is meant to reflect
+   * externally managed state changes, #on_activate() will never be called if this returns true.
+   */
+  virtual std::optional<bool> should_be_active() const;
 
   /**
    * Queries if the view item supports renaming in principle. Renaming may still fail, e.g. if
@@ -120,7 +230,7 @@ class AbstractViewItem {
    *
    * \return True if the renaming was successful.
    */
-  virtual bool rename(StringRefNull new_name);
+  virtual bool rename(const bContext &C, StringRefNull new_name);
   /**
    * Get the string that should be used for renaming, typically the item's label. This string will
    * not be modified, but if the renaming is canceled, the value will be reset to this.
@@ -133,30 +243,65 @@ class AbstractViewItem {
    */
   virtual std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const;
   /**
-   * If an item wants to support dropping data into it, it has to return a drop controller here.
-   * That is an object implementing #AbstractViewItemDropController.
+   * If an item wants to support dropping data into it, it has to return a drop target here.
+   * That is an object implementing #DropTargetInterface.
    *
-   * \note This drop controller may be requested for each event. The view doesn't keep a drop
-   *       controller around currently. So it can not contain persistent state.
+   * \note This drop target may be requested for each event. The view doesn't keep a drop target
+   *       around currently. So it can not contain persistent state.
    */
-  virtual std::unique_ptr<AbstractViewItemDropController> create_drop_controller() const;
+  virtual std::unique_ptr<DropTargetInterface> create_item_drop_target();
+
+  /**
+   * View types should implement this to return some name or identifier of the item, which is
+   * helpful for debugging (there's nothing to identify the item just from the #AbstractViewItem
+   * otherwise).
+   */
+  virtual std::optional<std::string> debug_name() const;
+
+  bool is_filtered_visible() const;
 
   /** Get the view this item is registered for using #AbstractView::register_item(). */
   AbstractView &get_view() const;
 
   /**
+   * Get the view item button (button of type #UI_BTYPE_VIEW_ITEM) created for this item. Every
+   * visible item gets one during the layout building. Items that are not visible may not have one,
+   * so null is a valid return value.
+   */
+  uiButViewItem *view_item_button() const;
+
+  /** Disable the interacting with this item, meaning the buttons drawn will be disabled and there
+   * will be no mouse hover feedback for the view row. */
+  void disable_interaction();
+  bool is_interactive() const;
+
+  void disable_activatable();
+  /**
+   * Activates this item, deactivates other items, and calls the #AbstractViewItem::on_activate()
+   * function. Should only be called when the item was activated through the view (e.g. through a
+   * click), not if the view reflects an external change (e.g.
+   * #AbstractViewItem::should_be_active() changes from returning false to returning true).
+   *
+   * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise the
+   * actual item state is unknown, possibly calling state-change update functions incorrectly.
+   */
+  void activate(bContext &C);
+  void deactivate();
+  /**
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise we
    * can't be sure about the item state.
    */
   bool is_active() const;
+  /**
+   * Should this item be highlighted as matching search result? Only one item should be highlighted
+   * this way at a time. Pressing enter will activate it.
+   */
+  bool is_search_highlight() const;
 
   bool is_renaming() const;
   void begin_renaming();
   void end_renaming();
-  void rename_apply();
-
-  template<typename ToType = AbstractViewItem>
-  static ToType *from_item_handle(uiViewItemHandle *handle);
+  void rename_apply(const bContext &C);
 
  protected:
   AbstractViewItem() = default;
@@ -180,6 +325,26 @@ class AbstractViewItem {
   virtual void update_from_old(const AbstractViewItem &old);
 
   /**
+   * Like #activate() but does not call #on_activate(). Use it to reflect changes in the active
+   * state that happened externally.
+   * Can be overridden to customize behavior but should always call the base class implementation.
+   * \return true of the item was activated.
+   */
+  virtual bool set_state_active();
+
+  /**
+   * See #AbstractView::change_state_delayed(). Overrides should call the base class
+   * implementation.
+   */
+  virtual void change_state_delayed();
+
+  /**
+   * \note Do not call this directly to avoid constantly rechecking the filter state. Instead use
+   *       #is_filtered_visible() for querying.
+   */
+  virtual bool should_be_filtered_visible(StringRefNull filter_string) const;
+
+  /**
    * Add a text button for renaming the item to \a block. This must be used for the built-in
    * renaming to work. This button is meant to appear temporarily. It is removed when renaming is
    * done.
@@ -187,20 +352,12 @@ class AbstractViewItem {
   void add_rename_button(uiBlock &block);
 };
 
-template<typename ToType> ToType *AbstractViewItem::from_item_handle(uiViewItemHandle *handle)
-{
-  static_assert(std::is_base_of<AbstractViewItem, ToType>::value,
-                "Type must derive from and implement the AbstractViewItem interface");
-
-  return dynamic_cast<ToType *>(reinterpret_cast<AbstractViewItem *>(handle));
-}
-
 /* ---------------------------------------------------------------------- */
 /** \name Drag 'n Drop
  * \{ */
 
 /**
- * Class to enable dragging a view item. An item can return a drop controller for itself by
+ * Class to enable dragging a view item. An item can return a drag controller for itself by
  * implementing #AbstractViewItem::create_drag_controller().
  */
 class AbstractViewItemDragController {
@@ -211,7 +368,7 @@ class AbstractViewItemDragController {
   AbstractViewItemDragController(AbstractView &view);
   virtual ~AbstractViewItemDragController() = default;
 
-  virtual int get_drag_type() const = 0;
+  virtual eWM_DragDataType get_drag_type() const = 0;
   virtual void *create_drag_data() const = 0;
   virtual void on_drag_start();
 
@@ -220,54 +377,7 @@ class AbstractViewItemDragController {
   template<class ViewType> inline ViewType &get_view() const;
 };
 
-/**
- * Class to define the behavior when dropping something onto/into a view item, plus the behavior
- * when dragging over this item. An item can return a drop controller for itself via a custom
- * implementation of #AbstractViewItem::create_drop_controller().
- */
-class AbstractViewItemDropController {
- protected:
-  AbstractView &view_;
-
- public:
-  AbstractViewItemDropController(AbstractView &view);
-  virtual ~AbstractViewItemDropController() = default;
-
-  /**
-   * Check if the data dragged with \a drag can be dropped on the item this controller is for.
-   * \param r_disabled_hint: Return a static string to display to the user, explaining why dropping
-   *                         isn't possible on this item. Shouldn't be done too aggressively, e.g.
-   *                         don't set this if the drag-type can't be dropped here; only if it can
-   *                         but there's another reason it can't be dropped.
-   *                         Can assume this is a non-null pointer.
-   */
-  virtual bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const = 0;
-  /**
-   * Custom text to display when dragging over a view item. Should explain what happens when
-   * dropping the data onto this item. Will only be used if #AbstractViewItem::can_drop()
-   * returns true, so the implementing override doesn't have to check that again.
-   * The returned value must be a translated string.
-   */
-  virtual std::string drop_tooltip(const wmDrag &drag) const = 0;
-  /**
-   * Execute the logic to apply a drop of the data dragged with \a drag onto/into the item this
-   * controller is for.
-   */
-  virtual bool on_drop(struct bContext *C, const wmDrag &drag) = 0;
-
-  /** Request the view the item is registered for as type #ViewType. Throws a `std::bad_cast`
-   * exception if the view is not of the requested type. */
-  template<class ViewType> inline ViewType &get_view() const;
-};
-
 template<class ViewType> ViewType &AbstractViewItemDragController::get_view() const
-{
-  static_assert(std::is_base_of<AbstractView, ViewType>::value,
-                "Type must derive from and implement the ui::AbstractView interface");
-  return dynamic_cast<ViewType &>(view_);
-}
-
-template<class ViewType> ViewType &AbstractViewItemDropController::get_view() const
 {
   static_assert(std::is_base_of<AbstractView, ViewType>::value,
                 "Type must derive from and implement the ui::AbstractView interface");

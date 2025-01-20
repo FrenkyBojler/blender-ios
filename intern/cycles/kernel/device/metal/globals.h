@@ -1,16 +1,20 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2021-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2021-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 /* Constant Globals */
 
 #include "kernel/types.h"
-#include "kernel/util/profiling.h"
 
 #include "kernel/integrator/state.h"
+#include "kernel/util/profiler.h"
+
+#include "util/color.h"
+#include "util/texture.h"
 
 CCL_NAMESPACE_BEGIN
 
-typedef struct KernelParamsMetal {
+struct KernelParamsMetal {
 
 #define KERNEL_DATA_ARRAY(type, name) ccl_global const type *name;
 #include "kernel/data_arrays.h"
@@ -18,14 +22,13 @@ typedef struct KernelParamsMetal {
 
   const IntegratorStateGPU integrator_state;
   const KernelData data;
+};
 
-} KernelParamsMetal;
-
-typedef struct KernelGlobalsGPU {
+struct KernelGlobalsGPU {
   int unused[1];
-} KernelGlobalsGPU;
+};
 
-typedef ccl_global const KernelGlobalsGPU *ccl_restrict KernelGlobals;
+using KernelGlobals = const ccl_global KernelGlobalsGPU *ccl_restrict;
 
 /* Abstraction macros */
 #define kernel_data launch_params_metal.data

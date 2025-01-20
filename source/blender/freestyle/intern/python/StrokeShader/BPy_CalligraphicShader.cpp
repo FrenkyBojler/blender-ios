@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -19,7 +21,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char CalligraphicShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    CalligraphicShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`CalligraphicShader`\n"
     "\n"
     "[Thickness Shader]\n"
@@ -37,7 +41,7 @@ static char CalligraphicShader___doc__[] =
     "   :type orientation: :class:`mathutils.Vector`\n"
     "   :arg clamp: If true, the strokes are drawn in black when the stroke\n"
     "      direction is between -90 and 90 degrees with respect to the main\n"
-    "      direction and drawn in white otherwise.  If false, the strokes\n"
+    "      direction and drawn in white otherwise. If false, the strokes\n"
     "      are always drawn in black.\n"
     "   :type clamp: bool\n"
     "\n"
@@ -49,7 +53,7 @@ static char CalligraphicShader___doc__[] =
     "   perpendicular to this one, and an interpolation in between.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int CalligraphicShader___init__(BPy_CalligraphicShader *self,
                                        PyObject *args,
@@ -62,7 +66,8 @@ static int CalligraphicShader___init__(BPy_CalligraphicShader *self,
   PyObject *obj4 = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "ddO&O!", (char **)kwlist, &d1, &d2, convert_v2, f3, &PyBool_Type, &obj4)) {
+          args, kwds, "ddO&O!", (char **)kwlist, &d1, &d2, convert_v2, f3, &PyBool_Type, &obj4))
+  {
     return -1;
   }
   Vec2f v(f3[0], f3[1]);
@@ -73,7 +78,7 @@ static int CalligraphicShader___init__(BPy_CalligraphicShader *self,
 /*-----------------------BPy_CalligraphicShader type definition ------------------------------*/
 
 PyTypeObject CalligraphicShader_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "CalligraphicShader",
     /*tp_basicsize*/ sizeof(BPy_CalligraphicShader),
     /*tp_itemsize*/ 0,

@@ -1,14 +1,21 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
-#include "RNA_enum_types.h"
+#include "RNA_enum_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
+#include "NOD_inverse_eval_params.hh"
 #include "NOD_socket_search_link.hh"
+#include "NOD_value_elem_eval.hh"
+
+#include "NOD_rna_define.hh"
 
 #include "node_function_util.hh"
 
@@ -17,43 +24,48 @@ namespace blender::nodes::node_fn_boolean_math_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Bool>(N_("Boolean"), "Boolean");
-  b.add_input<decl::Bool>(N_("Boolean"), "Boolean_001");
-  b.add_output<decl::Bool>(N_("Boolean"));
+  b.add_input<decl::Bool>("Boolean", "Boolean");
+  b.add_input<decl::Bool>("Boolean", "Boolean_001");
+  b.add_output<decl::Bool>("Boolean");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "operation", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_update(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sockB = (bNodeSocket *)BLI_findlink(&node->inputs, 1);
 
-  nodeSetSocketAvailability(ntree, sockB, !ELEM(node->custom1, NODE_BOOLEAN_MATH_NOT));
+  bke::node_set_socket_availability(ntree, sockB, !ELEM(node->custom1, NODE_BOOLEAN_MATH_NOT));
 }
 
-static void node_label(const bNodeTree * /*tree*/, const bNode *node, char *label, int maxlen)
+static void node_label(const bNodeTree * /*tree*/,
+                       const bNode *node,
+                       char *label,
+                       int label_maxncpy)
 {
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_boolean_math_items, node->custom1, &name);
   if (!enum_label) {
     name = "Unknown";
   }
-  BLI_strncpy(label, IFACE_(name), maxlen);
+  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   if (!params.node_tree().typeinfo->validate_link(
-          static_cast<eNodeSocketDatatype>(params.other_socket().type), SOCK_BOOLEAN)) {
+          static_cast<eNodeSocketDatatype>(params.other_socket().type), SOCK_BOOLEAN))
+  {
     return;
   }
 
   for (const EnumPropertyItem *item = rna_enum_node_boolean_math_items;
        item->identifier != nullptr;
-       item++) {
+       item++)
+  {
     if (item->name != nullptr && item->identifier[0] != '\0') {
       NodeBooleanMathOperation operation = static_cast<NodeBooleanMathOperation>(item->value);
       params.add_item(IFACE_(item->name), [operation](LinkSearchOpParams &params) {
@@ -118,20 +130,83 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
-}  // namespace blender::nodes::node_fn_boolean_math_cc
-
-void register_node_type_fn_boolean_math()
+static void node_eval_elem(value_elem::ElemEvalParams &params)
 {
-  namespace file_ns = blender::nodes::node_fn_boolean_math_cc;
-
-  static bNodeType ntype;
-
-  fn_node_type_base(&ntype, FN_NODE_BOOLEAN_MATH, "Boolean Math", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::node_declare;
-  ntype.labelfunc = file_ns::node_label;
-  ntype.updatefunc = file_ns::node_update;
-  ntype.build_multi_function = file_ns::node_build_multi_function;
-  ntype.draw_buttons = file_ns::node_layout;
-  ntype.gather_link_search_ops = file_ns::node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  using namespace value_elem;
+  const NodeBooleanMathOperation op = NodeBooleanMathOperation(params.node.custom1);
+  switch (op) {
+    case NODE_BOOLEAN_MATH_NOT: {
+      params.set_output_elem("Boolean", params.get_input_elem<BoolElem>("Boolean"));
+      break;
+    }
+    default: {
+      break;
+    }
+  }
 }
+
+static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
+{
+  using namespace value_elem;
+  const NodeBooleanMathOperation op = NodeBooleanMathOperation(params.node.custom1);
+  switch (op) {
+    case NODE_BOOLEAN_MATH_NOT: {
+      params.set_input_elem("Boolean", params.get_output_elem<BoolElem>("Boolean"));
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+}
+
+static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
+{
+  const NodeBooleanMathOperation op = NodeBooleanMathOperation(params.node.custom1);
+  const StringRef first_input_id = "Boolean";
+  const StringRef output_id = "Boolean";
+  switch (op) {
+    case NODE_BOOLEAN_MATH_NOT: {
+      params.set_input(first_input_id, !params.get_output<bool>(output_id));
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+}
+
+static void node_rna(StructRNA *srna)
+{
+  RNA_def_node_enum(srna,
+                    "operation",
+                    "Operation",
+                    "",
+                    rna_enum_node_boolean_math_items,
+                    NOD_inline_enum_accessors(custom1));
+}
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+
+  fn_node_type_base(&ntype, "FunctionNodeBooleanMath", FN_NODE_BOOLEAN_MATH);
+  ntype.ui_name = "Boolean Math";
+  ntype.enum_name_legacy = "BOOLEAN_MATH";
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.declare = node_declare;
+  ntype.labelfunc = node_label;
+  ntype.updatefunc = node_update;
+  ntype.build_multi_function = node_build_multi_function;
+  ntype.draw_buttons = node_layout;
+  ntype.gather_link_search_ops = node_gather_link_searches;
+  ntype.eval_elem = node_eval_elem;
+  ntype.eval_inverse_elem = node_eval_inverse_elem;
+  ntype.eval_inverse = node_eval_inverse;
+  blender::bke::node_register_type(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
+}
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_boolean_math_cc

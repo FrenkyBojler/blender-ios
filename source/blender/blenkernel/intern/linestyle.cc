@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2010 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2010 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -8,6 +9,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
+
+#include <fmt/format.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -17,27 +21,26 @@
 #include "DNA_texture_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_string_utils.h"
+#include "BLI_math_rotation.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_anim_data.h"
-#include "BKE_colorband.h"
-#include "BKE_colortools.h"
-#include "BKE_context.h"
+#include "BKE_colorband.hh"
+#include "BKE_colortools.hh"
+#include "BKE_context.hh"
 #include "BKE_freestyle.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_linestyle.h"
-#include "BKE_main.h"
-#include "BKE_node.h"
-#include "BKE_node_tree_update.h"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_texture.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 static void linestyle_init_data(ID *id)
 {
@@ -50,57 +53,53 @@ static void linestyle_init_data(ID *id)
   BKE_linestyle_geometry_modifier_add(linestyle, nullptr, LS_MODIFIER_SAMPLING);
 }
 
-static void linestyle_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
+static void linestyle_copy_data(Main *bmain,
+                                std::optional<Library *> owner_library,
+                                ID *id_dst,
+                                const ID *id_src,
+                                const int flag)
 {
   FreestyleLineStyle *linestyle_dst = (FreestyleLineStyle *)id_dst;
   const FreestyleLineStyle *linestyle_src = (const FreestyleLineStyle *)id_src;
 
-  /* We never handle user-count here for own data. */
+  /* Never handle user-count here for own sub-data. */
   const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
-  /* We always need allocation of our private ID data. */
-  const int flag_private_id_data = flag & ~LIB_ID_CREATE_NO_ALLOCATE;
+  /* Always need allocation of the embedded ID data. */
+  const int flag_embedded_id_data = flag_subdata & ~LIB_ID_CREATE_NO_ALLOCATE;
 
   for (int a = 0; a < MAX_MTEX; a++) {
     if (linestyle_src->mtex[a]) {
-      linestyle_dst->mtex[a] = MEM_new<MTex>(__func__);
+      linestyle_dst->mtex[a] = static_cast<MTex *>(MEM_callocN(sizeof(MTex), __func__));
       *linestyle_dst->mtex[a] = blender::dna::shallow_copy(*linestyle_src->mtex[a]);
     }
   }
 
   if (linestyle_src->nodetree) {
-    BKE_id_copy_ex(bmain,
-                   (ID *)linestyle_src->nodetree,
-                   (ID **)&linestyle_dst->nodetree,
-                   flag_private_id_data);
-    linestyle_dst->nodetree->owner_id = &linestyle_dst->id;
+    BKE_id_copy_in_lib(bmain,
+                       owner_library,
+                       &linestyle_src->nodetree->id,
+                       &linestyle_dst->id,
+                       reinterpret_cast<ID **>(&linestyle_dst->nodetree),
+                       flag_embedded_id_data);
   }
 
-  LineStyleModifier *linestyle_modifier;
   BLI_listbase_clear(&linestyle_dst->color_modifiers);
-  for (linestyle_modifier = (LineStyleModifier *)linestyle_src->color_modifiers.first;
-       linestyle_modifier;
-       linestyle_modifier = linestyle_modifier->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, linestyle_modifier, &linestyle_src->color_modifiers) {
     BKE_linestyle_color_modifier_copy(linestyle_dst, linestyle_modifier, flag_subdata);
   }
 
   BLI_listbase_clear(&linestyle_dst->alpha_modifiers);
-  for (linestyle_modifier = (LineStyleModifier *)linestyle_src->alpha_modifiers.first;
-       linestyle_modifier;
-       linestyle_modifier = linestyle_modifier->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, linestyle_modifier, &linestyle_src->alpha_modifiers) {
     BKE_linestyle_alpha_modifier_copy(linestyle_dst, linestyle_modifier, flag_subdata);
   }
 
   BLI_listbase_clear(&linestyle_dst->thickness_modifiers);
-  for (linestyle_modifier = (LineStyleModifier *)linestyle_src->thickness_modifiers.first;
-       linestyle_modifier;
-       linestyle_modifier = linestyle_modifier->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, linestyle_modifier, &linestyle_src->thickness_modifiers) {
     BKE_linestyle_thickness_modifier_copy(linestyle_dst, linestyle_modifier, flag_subdata);
   }
 
   BLI_listbase_clear(&linestyle_dst->geometry_modifiers);
-  for (linestyle_modifier = (LineStyleModifier *)linestyle_src->geometry_modifiers.first;
-       linestyle_modifier;
-       linestyle_modifier = linestyle_modifier->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, linestyle_modifier, &linestyle_src->geometry_modifiers) {
     BKE_linestyle_geometry_modifier_copy(linestyle_dst, linestyle_modifier, flag_subdata);
   }
 }
@@ -116,7 +115,7 @@ static void linestyle_free_data(ID *id)
 
   /* is no lib link block, but linestyle extension */
   if (linestyle->nodetree) {
-    ntreeFreeEmbeddedTree(linestyle->nodetree);
+    blender::bke::node_tree_free_embedded_tree(linestyle->nodetree);
     MEM_freeN(linestyle->nodetree);
     linestyle->nodetree = nullptr;
   }
@@ -155,36 +154,28 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
     if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
       LineStyleColorModifier_DistanceFromObject *p = (LineStyleColorModifier_DistanceFromObject *)
           lsm;
-      if (p->target) {
-        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
-      }
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
     }
   }
   LISTBASE_FOREACH (LineStyleModifier *, lsm, &linestyle->alpha_modifiers) {
     if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
       LineStyleAlphaModifier_DistanceFromObject *p = (LineStyleAlphaModifier_DistanceFromObject *)
           lsm;
-      if (p->target) {
-        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
-      }
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
     }
   }
   LISTBASE_FOREACH (LineStyleModifier *, lsm, &linestyle->thickness_modifiers) {
     if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
       LineStyleThicknessModifier_DistanceFromObject *p =
           (LineStyleThicknessModifier_DistanceFromObject *)lsm;
-      if (p->target) {
-        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
-      }
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
     }
   }
 }
 
 static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modifiers)
 {
-  LineStyleModifier *m;
-
-  for (m = static_cast<LineStyleModifier *>(modifiers->first); m; m = m->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     int struct_nr;
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
@@ -216,7 +207,7 @@ static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modif
     }
     BLO_write_struct_by_id(writer, struct_nr, m);
   }
-  for (m = static_cast<LineStyleModifier *>(modifiers->first); m; m = m->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
         BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_AlongStroke *)m)->color_ramp);
@@ -251,9 +242,7 @@ static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modif
 
 static void write_linestyle_alpha_modifiers(BlendWriter *writer, ListBase *modifiers)
 {
-  LineStyleModifier *m;
-
-  for (m = static_cast<LineStyleModifier *>(modifiers->first); m; m = m->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     int struct_nr;
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
@@ -285,7 +274,7 @@ static void write_linestyle_alpha_modifiers(BlendWriter *writer, ListBase *modif
     }
     BLO_write_struct_by_id(writer, struct_nr, m);
   }
-  for (m = static_cast<LineStyleModifier *>(modifiers->first); m; m = m->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
         BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_AlongStroke *)m)->curve);
@@ -319,9 +308,7 @@ static void write_linestyle_alpha_modifiers(BlendWriter *writer, ListBase *modif
 
 static void write_linestyle_thickness_modifiers(BlendWriter *writer, ListBase *modifiers)
 {
-  LineStyleModifier *m;
-
-  for (m = static_cast<LineStyleModifier *>(modifiers->first); m; m = m->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     int struct_nr;
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
@@ -356,7 +343,7 @@ static void write_linestyle_thickness_modifiers(BlendWriter *writer, ListBase *m
     }
     BLO_write_struct_by_id(writer, struct_nr, m);
   }
-  for (m = static_cast<LineStyleModifier *>(modifiers->first); m; m = m->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
         BKE_curvemapping_blend_write(writer, ((LineStyleThicknessModifier_AlongStroke *)m)->curve);
@@ -388,9 +375,7 @@ static void write_linestyle_thickness_modifiers(BlendWriter *writer, ListBase *m
 
 static void write_linestyle_geometry_modifiers(BlendWriter *writer, ListBase *modifiers)
 {
-  LineStyleModifier *m;
-
-  for (m = static_cast<LineStyleModifier *>(modifiers->first); m; m = m->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     int struct_nr;
     switch (m->type) {
       case LS_MODIFIER_SAMPLING:
@@ -449,10 +434,6 @@ static void linestyle_blend_write(BlendWriter *writer, ID *id, const void *id_ad
   BLO_write_id_struct(writer, FreestyleLineStyle, id_address, &linestyle->id);
   BKE_id_blend_write(writer, &linestyle->id);
 
-  if (linestyle->adt) {
-    BKE_animdata_blend_write(writer, linestyle->adt);
-  }
-
   write_linestyle_color_modifiers(writer, &linestyle->color_modifiers);
   write_linestyle_alpha_modifiers(writer, &linestyle->alpha_modifiers);
   write_linestyle_thickness_modifiers(writer, &linestyle->thickness_modifiers);
@@ -463,8 +444,11 @@ static void linestyle_blend_write(BlendWriter *writer, ID *id, const void *id_ad
     }
   }
   if (linestyle->nodetree) {
-    BLO_write_struct(writer, bNodeTree, linestyle->nodetree);
-    ntreeBlendWrite(writer, linestyle->nodetree);
+    BLO_Write_IDBuffer temp_embedded_id_buffer{linestyle->nodetree->id, writer};
+    BLO_write_struct_at_address(
+        writer, bNodeTree, linestyle->nodetree, temp_embedded_id_buffer.get());
+    blender::bke::node_tree_blend_write(
+        writer, reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get()));
   }
 }
 
@@ -474,44 +458,44 @@ static void direct_link_linestyle_color_modifier(BlendDataReader *reader,
   switch (modifier->type) {
     case LS_MODIFIER_ALONG_STROKE: {
       LineStyleColorModifier_AlongStroke *m = (LineStyleColorModifier_AlongStroke *)modifier;
-      BLO_read_data_address(reader, &m->color_ramp);
+      BLO_read_struct(reader, ColorBand, &m->color_ramp);
       break;
     }
     case LS_MODIFIER_DISTANCE_FROM_CAMERA: {
       LineStyleColorModifier_DistanceFromCamera *m = (LineStyleColorModifier_DistanceFromCamera *)
           modifier;
-      BLO_read_data_address(reader, &m->color_ramp);
+      BLO_read_struct(reader, ColorBand, &m->color_ramp);
       break;
     }
     case LS_MODIFIER_DISTANCE_FROM_OBJECT: {
       LineStyleColorModifier_DistanceFromObject *m = (LineStyleColorModifier_DistanceFromObject *)
           modifier;
-      BLO_read_data_address(reader, &m->color_ramp);
+      BLO_read_struct(reader, ColorBand, &m->color_ramp);
       break;
     }
     case LS_MODIFIER_MATERIAL: {
       LineStyleColorModifier_Material *m = (LineStyleColorModifier_Material *)modifier;
-      BLO_read_data_address(reader, &m->color_ramp);
+      BLO_read_struct(reader, ColorBand, &m->color_ramp);
       break;
     }
     case LS_MODIFIER_TANGENT: {
       LineStyleColorModifier_Tangent *m = (LineStyleColorModifier_Tangent *)modifier;
-      BLO_read_data_address(reader, &m->color_ramp);
+      BLO_read_struct(reader, ColorBand, &m->color_ramp);
       break;
     }
     case LS_MODIFIER_NOISE: {
       LineStyleColorModifier_Noise *m = (LineStyleColorModifier_Noise *)modifier;
-      BLO_read_data_address(reader, &m->color_ramp);
+      BLO_read_struct(reader, ColorBand, &m->color_ramp);
       break;
     }
     case LS_MODIFIER_CREASE_ANGLE: {
       LineStyleColorModifier_CreaseAngle *m = (LineStyleColorModifier_CreaseAngle *)modifier;
-      BLO_read_data_address(reader, &m->color_ramp);
+      BLO_read_struct(reader, ColorBand, &m->color_ramp);
       break;
     }
     case LS_MODIFIER_CURVATURE_3D: {
       LineStyleColorModifier_Curvature_3D *m = (LineStyleColorModifier_Curvature_3D *)modifier;
-      BLO_read_data_address(reader, &m->color_ramp);
+      BLO_read_struct(reader, ColorBand, &m->color_ramp);
       break;
     }
   }
@@ -523,51 +507,51 @@ static void direct_link_linestyle_alpha_modifier(BlendDataReader *reader,
   switch (modifier->type) {
     case LS_MODIFIER_ALONG_STROKE: {
       LineStyleAlphaModifier_AlongStroke *m = (LineStyleAlphaModifier_AlongStroke *)modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_DISTANCE_FROM_CAMERA: {
       LineStyleAlphaModifier_DistanceFromCamera *m = (LineStyleAlphaModifier_DistanceFromCamera *)
           modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_DISTANCE_FROM_OBJECT: {
       LineStyleAlphaModifier_DistanceFromObject *m = (LineStyleAlphaModifier_DistanceFromObject *)
           modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_MATERIAL: {
       LineStyleAlphaModifier_Material *m = (LineStyleAlphaModifier_Material *)modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_TANGENT: {
       LineStyleAlphaModifier_Tangent *m = (LineStyleAlphaModifier_Tangent *)modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_NOISE: {
       LineStyleAlphaModifier_Noise *m = (LineStyleAlphaModifier_Noise *)modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_CREASE_ANGLE: {
       LineStyleAlphaModifier_CreaseAngle *m = (LineStyleAlphaModifier_CreaseAngle *)modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_CURVATURE_3D: {
       LineStyleAlphaModifier_Curvature_3D *m = (LineStyleAlphaModifier_Curvature_3D *)modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
@@ -581,47 +565,47 @@ static void direct_link_linestyle_thickness_modifier(BlendDataReader *reader,
     case LS_MODIFIER_ALONG_STROKE: {
       LineStyleThicknessModifier_AlongStroke *m = (LineStyleThicknessModifier_AlongStroke *)
           modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_DISTANCE_FROM_CAMERA: {
       LineStyleThicknessModifier_DistanceFromCamera *m =
           (LineStyleThicknessModifier_DistanceFromCamera *)modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_DISTANCE_FROM_OBJECT: {
       LineStyleThicknessModifier_DistanceFromObject *m =
           (LineStyleThicknessModifier_DistanceFromObject *)modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_MATERIAL: {
       LineStyleThicknessModifier_Material *m = (LineStyleThicknessModifier_Material *)modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_TANGENT: {
       LineStyleThicknessModifier_Tangent *m = (LineStyleThicknessModifier_Tangent *)modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_CREASE_ANGLE: {
       LineStyleThicknessModifier_CreaseAngle *m = (LineStyleThicknessModifier_CreaseAngle *)
           modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_CURVATURE_3D: {
       LineStyleThicknessModifier_Curvature_3D *m = (LineStyleThicknessModifier_Curvature_3D *)
           modifier;
-      BLO_read_data_address(reader, &m->curve);
+      BLO_read_struct(reader, CurveMapping, &m->curve);
       BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
@@ -637,107 +621,35 @@ static void linestyle_blend_read_data(BlendDataReader *reader, ID *id)
 {
   FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
 
-  BLO_read_data_address(reader, &linestyle->adt);
-  BKE_animdata_blend_read_data(reader, linestyle->adt);
-  BLO_read_list(reader, &linestyle->color_modifiers);
+  BLO_read_struct_list(reader, LineStyleModifier, &linestyle->color_modifiers);
   LISTBASE_FOREACH (LineStyleModifier *, modifier, &linestyle->color_modifiers) {
     direct_link_linestyle_color_modifier(reader, modifier);
   }
-  BLO_read_list(reader, &linestyle->alpha_modifiers);
+  BLO_read_struct_list(reader, LineStyleModifier, &linestyle->alpha_modifiers);
   LISTBASE_FOREACH (LineStyleModifier *, modifier, &linestyle->alpha_modifiers) {
     direct_link_linestyle_alpha_modifier(reader, modifier);
   }
-  BLO_read_list(reader, &linestyle->thickness_modifiers);
+  BLO_read_struct_list(reader, LineStyleModifier, &linestyle->thickness_modifiers);
   LISTBASE_FOREACH (LineStyleModifier *, modifier, &linestyle->thickness_modifiers) {
     direct_link_linestyle_thickness_modifier(reader, modifier);
   }
-  BLO_read_list(reader, &linestyle->geometry_modifiers);
+  BLO_read_struct_list(reader, LineStyleModifier, &linestyle->geometry_modifiers);
   LISTBASE_FOREACH (LineStyleModifier *, modifier, &linestyle->geometry_modifiers) {
     direct_link_linestyle_geometry_modifier(reader, modifier);
   }
   for (int a = 0; a < MAX_MTEX; a++) {
-    BLO_read_data_address(reader, &linestyle->mtex[a]);
-  }
-}
-
-static void linestyle_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
-
-  LISTBASE_FOREACH (LineStyleModifier *, m, &linestyle->color_modifiers) {
-    switch (m->type) {
-      case LS_MODIFIER_DISTANCE_FROM_OBJECT: {
-        LineStyleColorModifier_DistanceFromObject *cm =
-            (LineStyleColorModifier_DistanceFromObject *)m;
-        BLO_read_id_address(reader, linestyle->id.lib, &cm->target);
-        break;
-      }
-    }
-  }
-  LISTBASE_FOREACH (LineStyleModifier *, m, &linestyle->alpha_modifiers) {
-    switch (m->type) {
-      case LS_MODIFIER_DISTANCE_FROM_OBJECT: {
-        LineStyleAlphaModifier_DistanceFromObject *am =
-            (LineStyleAlphaModifier_DistanceFromObject *)m;
-        BLO_read_id_address(reader, linestyle->id.lib, &am->target);
-        break;
-      }
-    }
-  }
-  LISTBASE_FOREACH (LineStyleModifier *, m, &linestyle->thickness_modifiers) {
-    switch (m->type) {
-      case LS_MODIFIER_DISTANCE_FROM_OBJECT: {
-        LineStyleThicknessModifier_DistanceFromObject *tm =
-            (LineStyleThicknessModifier_DistanceFromObject *)m;
-        BLO_read_id_address(reader, linestyle->id.lib, &tm->target);
-        break;
-      }
-    }
-  }
-  for (int a = 0; a < MAX_MTEX; a++) {
-    MTex *mtex = linestyle->mtex[a];
-    if (mtex) {
-      BLO_read_id_address(reader, linestyle->id.lib, &mtex->tex);
-      BLO_read_id_address(reader, linestyle->id.lib, &mtex->object);
-    }
-  }
-}
-
-static void linestyle_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
-
-  for (int a = 0; a < MAX_MTEX; a++) {
-    if (linestyle->mtex[a]) {
-      BLO_expand(expander, linestyle->mtex[a]->tex);
-      BLO_expand(expander, linestyle->mtex[a]->object);
-    }
-  }
-
-  LISTBASE_FOREACH (LineStyleModifier *, m, &linestyle->color_modifiers) {
-    if (m->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-      BLO_expand(expander, ((LineStyleColorModifier_DistanceFromObject *)m)->target);
-    }
-  }
-  LISTBASE_FOREACH (LineStyleModifier *, m, &linestyle->alpha_modifiers) {
-    if (m->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-      BLO_expand(expander, ((LineStyleAlphaModifier_DistanceFromObject *)m)->target);
-    }
-  }
-  LISTBASE_FOREACH (LineStyleModifier *, m, &linestyle->thickness_modifiers) {
-    if (m->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-      BLO_expand(expander, ((LineStyleThicknessModifier_DistanceFromObject *)m)->target);
-    }
+    BLO_read_struct(reader, MTex, &linestyle->mtex[a]);
   }
 }
 
 IDTypeInfo IDType_ID_LS = {
     /*id_code*/ ID_LS,
     /*id_filter*/ FILTER_ID_LS,
+    /*dependencies_id_types*/ FILTER_ID_TE | FILTER_ID_OB,
     /*main_listbase_index*/ INDEX_ID_LS,
     /*struct_size*/ sizeof(FreestyleLineStyle),
     /*name*/ "FreestyleLineStyle",
-    /*name_plural*/ "linestyles",
+    /*name_plural*/ N_("linestyles"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_FREESTYLELINESTYLE,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -753,8 +665,7 @@ IDTypeInfo IDType_ID_LS = {
 
     /*blend_write*/ linestyle_blend_write,
     /*blend_read_data*/ linestyle_blend_read_data,
-    /*blend_read_lib*/ linestyle_blend_read_lib,
-    /*blend_read_expand*/ linestyle_blend_read_expand,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -763,7 +674,7 @@ IDTypeInfo IDType_ID_LS = {
 
 static const char *modifier_name[LS_MODIFIER_NUM] = {
     nullptr,         "Along Stroke",    "Distance from Camera", "Distance from Object",
-    "Material",      "Sampling",        "Bezier Curve",         "Sinus Displacement",
+    "Material",      "Sampling",        "Bézier Curve",         "Sinus Displacement",
     "Spatial Noise", "Perlin Noise 1D", "Perlin Noise 2D",      "Backbone Stretcher",
     "Tip Remover",   "Calligraphy",     "Polygonalization",     "Guiding Lines",
     "Blueprint",     "2D Offset",       "2D Transform",         "Tangent",
@@ -775,7 +686,7 @@ void BKE_linestyle_init(FreestyleLineStyle *linestyle)
   linestyle_init_data(&linestyle->id);
 }
 
-FreestyleLineStyle *BKE_linestyle_new(struct Main *bmain, const char *name)
+FreestyleLineStyle *BKE_linestyle_new(Main *bmain, const char *name)
 {
   FreestyleLineStyle *linestyle;
 
@@ -802,7 +713,7 @@ static LineStyleModifier *new_modifier(const char *name, int type, size_t size)
   }
   m = (LineStyleModifier *)MEM_callocN(size, "line style modifier");
   m->type = type;
-  BLI_strncpy(m->name, name, sizeof(m->name));
+  STRNCPY(m->name, DATA_(name));
   m->influence = 1.0f;
   m->flags = LS_MODIFIER_ENABLED | LS_MODIFIER_EXPANDED;
 
@@ -1907,13 +1818,12 @@ bool BKE_linestyle_geometry_modifier_move(FreestyleLineStyle *linestyle,
 
 void BKE_linestyle_modifier_list_color_ramps(FreestyleLineStyle *linestyle, ListBase *listbase)
 {
-  LineStyleModifier *m;
   ColorBand *color_ramp;
   LinkData *link;
 
   BLI_listbase_clear(listbase);
 
-  for (m = (LineStyleModifier *)linestyle->color_modifiers.first; m; m = m->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, m, &linestyle->color_modifiers) {
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
         color_ramp = ((LineStyleColorModifier_AlongStroke *)m)->color_ramp;
@@ -1936,12 +1846,12 @@ void BKE_linestyle_modifier_list_color_ramps(FreestyleLineStyle *linestyle, List
   }
 }
 
-char *BKE_linestyle_path_to_color_ramp(FreestyleLineStyle *linestyle, ColorBand *color_ramp)
+std::optional<std::string> BKE_linestyle_path_to_color_ramp(FreestyleLineStyle *linestyle,
+                                                            const ColorBand *color_ramp)
 {
-  LineStyleModifier *m;
   bool found = false;
 
-  for (m = (LineStyleModifier *)linestyle->color_modifiers.first; m; m = m->next) {
+  LISTBASE_FOREACH (LineStyleModifier *, m, &linestyle->color_modifiers) {
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
         if (color_ramp == ((LineStyleColorModifier_AlongStroke *)m)->color_ramp) {
@@ -1988,21 +1898,18 @@ char *BKE_linestyle_path_to_color_ramp(FreestyleLineStyle *linestyle, ColorBand 
     if (found) {
       char name_esc[sizeof(m->name) * 2];
       BLI_str_escape(name_esc, m->name, sizeof(name_esc));
-      return BLI_sprintfN("color_modifiers[\"%s\"].color_ramp", name_esc);
+      return fmt::format("color_modifiers[\"{}\"].color_ramp", name_esc);
     }
   }
   printf("BKE_linestyle_path_to_color_ramp: No color ramps correspond to the given pointer.\n");
-  return nullptr;
+  return std::nullopt;
 }
 
 bool BKE_linestyle_use_textures(FreestyleLineStyle *linestyle, const bool use_shading_nodes)
 {
   if (use_shading_nodes) {
     if (linestyle && linestyle->use_nodes && linestyle->nodetree) {
-      bNode *node;
-
-      for (node = static_cast<bNode *>(linestyle->nodetree->nodes.first); node;
-           node = node->next) {
+      LISTBASE_FOREACH (bNode *, node, &linestyle->nodetree->nodes) {
         if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
           return true;
         }
@@ -2025,32 +1932,33 @@ void BKE_linestyle_default_shader(const bContext *C, FreestyleLineStyle *linesty
 
   BLI_assert(linestyle->nodetree == nullptr);
 
-  ntree = ntreeAddTreeEmbedded(nullptr, &linestyle->id, "stroke_shader", "ShaderNodeTree");
+  ntree = blender::bke::node_tree_add_tree_embedded(
+      nullptr, &linestyle->id, "stroke_shader", "ShaderNodeTree");
 
-  uv_along_stroke = nodeAddStaticNode(C, ntree, SH_NODE_UVALONGSTROKE);
-  uv_along_stroke->locx = 0.0f;
-  uv_along_stroke->locy = 300.0f;
+  uv_along_stroke = blender::bke::node_add_static_node(C, ntree, SH_NODE_UVALONGSTROKE);
+  uv_along_stroke->location[0] = 0.0f;
+  uv_along_stroke->location[1] = 300.0f;
   uv_along_stroke->custom1 = 0; /* use_tips */
 
-  input_texture = nodeAddStaticNode(C, ntree, SH_NODE_TEX_IMAGE);
-  input_texture->locx = 200.0f;
-  input_texture->locy = 300.0f;
+  input_texture = blender::bke::node_add_static_node(C, ntree, SH_NODE_TEX_IMAGE);
+  input_texture->location[0] = 200.0f;
+  input_texture->location[1] = 300.0f;
 
-  output_linestyle = nodeAddStaticNode(C, ntree, SH_NODE_OUTPUT_LINESTYLE);
-  output_linestyle->locx = 400.0f;
-  output_linestyle->locy = 300.0f;
+  output_linestyle = blender::bke::node_add_static_node(C, ntree, SH_NODE_OUTPUT_LINESTYLE);
+  output_linestyle->location[0] = 400.0f;
+  output_linestyle->location[1] = 300.0f;
   output_linestyle->custom1 = MA_RAMP_BLEND;
   output_linestyle->custom2 = 0; /* use_clamp */
 
-  nodeSetActive(ntree, input_texture);
+  blender::bke::node_set_active(ntree, input_texture);
 
   fromsock = static_cast<bNodeSocket *>(BLI_findlink(&uv_along_stroke->outputs, 0)); /* UV */
   tosock = static_cast<bNodeSocket *>(BLI_findlink(&input_texture->inputs, 0));      /* UV */
-  nodeAddLink(ntree, uv_along_stroke, fromsock, input_texture, tosock);
+  blender::bke::node_add_link(ntree, uv_along_stroke, fromsock, input_texture, tosock);
 
   fromsock = static_cast<bNodeSocket *>(BLI_findlink(&input_texture->outputs, 0)); /* Color */
   tosock = static_cast<bNodeSocket *>(BLI_findlink(&output_linestyle->inputs, 0)); /* Color */
-  nodeAddLink(ntree, input_texture, fromsock, output_linestyle, tosock);
+  blender::bke::node_add_link(ntree, input_texture, fromsock, output_linestyle, tosock);
 
-  BKE_ntree_update_main_tree(CTX_data_main(C), ntree, nullptr);
+  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
 }

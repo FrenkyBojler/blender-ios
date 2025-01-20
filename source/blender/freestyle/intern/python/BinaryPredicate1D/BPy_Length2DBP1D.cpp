@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -16,7 +18,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char Length2DBP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    Length2DBP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.BinaryPredicate1D` > :class:`Length2DBP1D`\n"
     "\n"
     ".. method:: __call__(inter1, inter2)\n"
@@ -29,7 +33,7 @@ static char Length2DBP1D___doc__[] =
     "   :arg inter2: The second Interface1D object.\n"
     "   :type inter2: :class:`freestyle.types.Interface1D`\n"
     "   :return: True or false.\n"
-    "   :rtype: bool\n";
+    "   :rtype: bool\n");
 
 static int Length2DBP1D___init__(BPy_Length2DBP1D *self, PyObject *args, PyObject *kwds)
 {
@@ -45,7 +49,7 @@ static int Length2DBP1D___init__(BPy_Length2DBP1D *self, PyObject *args, PyObjec
 /*-----------------------BPy_Length2DBP1D type definition ------------------------------*/
 
 PyTypeObject Length2DBP1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "Length2DBP1D",
     /*tp_basicsize*/ sizeof(BPy_Length2DBP1D),
     /*tp_itemsize*/ 0,

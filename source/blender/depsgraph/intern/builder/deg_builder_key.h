@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -8,15 +9,15 @@
 #pragma once
 
 #include "intern/builder/deg_builder_rna.h"
-#include "intern/depsgraph_type.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/depsgraph_type.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
 
 #include "DNA_ID.h"
 
-#include "RNA_access.h"
-#include "RNA_types.h"
+#include "RNA_access.hh"
+#include "RNA_types.hh"
 
 struct ID;
 struct PropertyRNA;
@@ -155,7 +156,7 @@ struct PersistentOperationKey : public OperationKey {
     component_name_storage_ = component_node->name;
     name_storage_ = operation_node->name;
 
-    /* Assign fields used by the #OperationKey API.  */
+    /* Assign fields used by the #OperationKey API. */
     id = id_node->id_orig;
     component_type = component_node->type;
     component_name = component_name_storage_.c_str();
@@ -188,6 +189,9 @@ struct PersistentOperationKey : public OperationKey {
 
 struct RNAPathKey {
   RNAPathKey(ID *id, const char *path, RNAPointerSource source);
+  RNAPathKey(const PointerRNA &target_prop,
+             const char *rna_path_from_target_prop,
+             RNAPointerSource source);
   RNAPathKey(ID *id, const PointerRNA &ptr, PropertyRNA *prop, RNAPointerSource source);
 
   string identifier() const;

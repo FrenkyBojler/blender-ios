@@ -1,20 +1,12 @@
+# SPDX-FileCopyrightText: 2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blenlib
-  ../../blentranslation
-  ../../bmesh
-  ../../depsgraph
-  ../../geometry
-  ../../gpu
-  ../../makesdna
   ../../makesrna
-  ../../windowmanager
   ../../../../intern/eigen
-  ../../../../intern/guardedalloc
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -22,28 +14,44 @@ set(INC_SYS
 )
 
 set(SRC
-  uvedit_buttons.c
+  uvedit_buttons.cc
   uvedit_clipboard.cc
   uvedit_clipboard_graph_iso.cc
-  uvedit_draw.c
+  uvedit_draw.cc
   uvedit_islands.cc
-  uvedit_ops.c
-  uvedit_path.c
-  uvedit_rip.c
-  uvedit_select.c
-  uvedit_smart_stitch.c
+  uvedit_ops.cc
+  uvedit_path.cc
+  uvedit_rip.cc
+  uvedit_select.cc
+  uvedit_smart_stitch.cc
   uvedit_unwrap_ops.cc
 
   uvedit_clipboard_graph_iso.hh
-  uvedit_intern.h
+  uvedit_intern.hh
 )
 
 set(LIB
-  bf_bmesh
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
+
+if(WITH_UV_SLIM)
+  list(APPEND LIB
+    bf_intern_slim
+  )
+  add_definitions(-DWITH_UV_SLIM)
+endif()
 
 
 blender_add_lib(bf_editor_uvedit "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_uvedit bf_rna)

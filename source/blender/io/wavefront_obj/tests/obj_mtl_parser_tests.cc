@@ -1,8 +1,14 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include <gtest/gtest.h>
 
-#include "BKE_appdir.h"
+#include "BLI_fileops.h"
+
+#include "BKE_appdir.hh"
+
+#include "CLG_log.h"
 
 #include "testing/testing.h"
 
@@ -11,14 +17,22 @@
 
 namespace blender::io::obj {
 
-class obj_mtl_parser_test : public testing::Test {
+class OBJMTLParserTest : public testing::Test {
  public:
+  static void SetUpTestCase()
+  {
+    CLG_init();
+  }
+  static void TearDownTestCase()
+  {
+    CLG_exit();
+  }
   void check_string(const char *text, const MTLMaterial *expect, size_t expect_count)
   {
     BKE_tempdir_init(nullptr);
     std::string tmp_dir = BKE_tempdir_base();
     std::string tmp_file_name = "mtl_test.mtl";
-    std::string tmp_file_path = tmp_dir + "/" + tmp_file_name;
+    std::string tmp_file_path = tmp_dir + SEP_STR + tmp_file_name;
     FILE *tmp_file = BLI_fopen(tmp_file_path.c_str(), "wb");
     fputs(text, tmp_file);
     fclose(tmp_file);
@@ -29,7 +43,8 @@ class obj_mtl_parser_test : public testing::Test {
   }
   void check(const char *file, const MTLMaterial *expect, size_t expect_count)
   {
-    std::string obj_dir = blender::tests::flags_test_asset_dir() + "/io_tests/obj/";
+    std::string obj_dir = blender::tests::flags_test_asset_dir() +
+                          (SEP_STR "io_tests" SEP_STR "obj" SEP_STR);
     check_impl(file, obj_dir, expect, expect_count);
   }
   void check_impl(StringRefNull mtl_file_path,
@@ -80,7 +95,7 @@ class obj_mtl_parser_test : public testing::Test {
   }
 };
 
-TEST_F(obj_mtl_parser_test, string_newlines_whitespace)
+TEST_F(OBJMTLParserTest, string_newlines_whitespace)
 {
   const char *text =
       "# a comment\n"
@@ -127,45 +142,7 @@ TEST_F(obj_mtl_parser_test, string_newlines_whitespace)
   check_string(text, mat, ARRAY_SIZE(mat));
 }
 
-TEST_F(obj_mtl_parser_test, cube)
-{
-  MTLMaterial mat;
-  mat.name = "red";
-  mat.ambient_color = {0.2f, 0.2f, 0.2f};
-  mat.color = {1, 0, 0};
-  check("cube.mtl", &mat, 1);
-}
-
-TEST_F(obj_mtl_parser_test, all_objects)
-{
-  MTLMaterial mat[7];
-  for (auto &m : mat) {
-    m.ambient_color = {1, 1, 1};
-    m.spec_color = {0.5f, 0.5f, 0.5f};
-    m.emission_color = {0, 0, 0};
-    m.spec_exponent = 250;
-    m.ior = 1;
-    m.alpha = 1;
-    m.illum_mode = 2;
-  }
-  mat[0].name = "Blue";
-  mat[0].color = {0, 0, 1};
-  mat[1].name = "BlueDark";
-  mat[1].color = {0, 0, 0.5f};
-  mat[2].name = "Green";
-  mat[2].color = {0, 1, 0};
-  mat[3].name = "GreenDark";
-  mat[3].color = {0, 0.5f, 0};
-  mat[4].name = "Material";
-  mat[4].color = {0.8f, 0.8f, 0.8f};
-  mat[5].name = "Red";
-  mat[5].color = {1, 0, 0};
-  mat[6].name = "RedDark";
-  mat[6].color = {0.5f, 0, 0};
-  check("all_objects.mtl", mat, ARRAY_SIZE(mat));
-}
-
-TEST_F(obj_mtl_parser_test, materials)
+TEST_F(OBJMTLParserTest, materials)
 {
   MTLMaterial mat[6];
   mat[0].name = "no_textures_red";
@@ -271,37 +248,7 @@ TEST_F(obj_mtl_parser_test, materials)
   check("materials.mtl", mat, ARRAY_SIZE(mat));
 }
 
-TEST_F(obj_mtl_parser_test, materials_without_pbr)
-{
-  MTLMaterial mat[2];
-  mat[0].name = "Mat1";
-  mat[0].spec_exponent = 360.0f;
-  mat[0].ambient_color = {0.9f, 0.9f, 0.9f};
-  mat[0].color = {0.8f, 0.276449f, 0.101911f};
-  mat[0].spec_color = {0.25f, 0.25f, 0.25f};
-  mat[0].emission_color = {0, 0, 0};
-  mat[0].ior = 1.45f;
-  mat[0].alpha = 1;
-  mat[0].illum_mode = 3;
-
-  mat[1].name = "Mat2";
-  mat[1].ambient_color = {1, 1, 1};
-  mat[1].color = {0.8f, 0.8f, 0.8f};
-  mat[1].spec_color = {0.5f, 0.5f, 0.5f};
-  mat[1].ior = 1.45f;
-  mat[1].alpha = 1;
-  mat[1].illum_mode = 2;
-  {
-    MTLTexMap &ns = mat[1].tex_map_of_type(MTLTexMapType::SpecularExponent);
-    ns.image_path = "../blend_geometry/texture_roughness.png";
-    MTLTexMap &ke = mat[1].tex_map_of_type(MTLTexMapType::Emission);
-    ke.image_path = "../blend_geometry/texture_illum.png";
-  }
-
-  check("materials_without_pbr.mtl", mat, ARRAY_SIZE(mat));
-}
-
-TEST_F(obj_mtl_parser_test, materials_pbr)
+TEST_F(OBJMTLParserTest, materials_pbr)
 {
   MTLMaterial mat[2];
   mat[0].name = "Mat1";
@@ -313,7 +260,7 @@ TEST_F(obj_mtl_parser_test, materials_pbr)
   mat[0].illum_mode = 3;
   mat[0].roughness = 0.4f;
   mat[0].metallic = 0.9f;
-  mat[0].sheen = 0.3f;
+  mat[0].sheen = 0.06f;
   mat[0].cc_thickness = 0.393182f;
   mat[0].cc_roughness = 0.05f;
   mat[0].aniso = 0.2f;

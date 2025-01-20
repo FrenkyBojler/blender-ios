@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup stl
@@ -6,11 +8,7 @@
 
 #pragma once
 
-#include <cstdio>
-
-#include "BKE_mesh.h"
-
-#include "stl_import.hh"
+struct Mesh;
 
 /**
  * ASCII STL spec:
@@ -30,6 +28,6 @@
 
 namespace blender::io::stl {
 
-Mesh *read_stl_ascii(const char *filepath, Main *bmain, char *mesh_name, bool use_custom_normals);
+Mesh *read_stl_ascii(const char *filepath, bool use_custom_normals);
 
 }  // namespace blender::io::stl

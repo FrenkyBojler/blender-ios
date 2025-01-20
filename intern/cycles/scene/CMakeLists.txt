@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2011-2021 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2021 Blender Foundation
 
 set(INC
   ..
@@ -15,8 +16,12 @@ set(SRC
   camera.cpp
   colorspace.cpp
   constant_fold.cpp
+  devicescene.cpp
   film.cpp
   geometry.cpp
+  geometry_attributes.cpp
+  geometry_bvh.cpp
+  geometry_mesh.cpp
   hair.cpp
   image.cpp
   image_oiio.cpp
@@ -55,6 +60,7 @@ set(SRC_HEADERS
   camera.h
   colorspace.h
   constant_fold.h
+  devicescene.h
   film.h
   geometry.h
   hair.h
@@ -101,9 +107,8 @@ endif()
 if(WITH_CYCLES_OSL)
   list(APPEND LIB
     cycles_kernel_osl
+    ${OSL_LIBRARIES}
   )
-
-  set_property(SOURCE osl.cpp PROPERTY COMPILE_FLAGS ${RTTI_DISABLE_FLAGS})
 endif()
 
 if(WITH_OPENCOLORIO)
@@ -127,6 +132,11 @@ if(WITH_OPENVDB)
   list(APPEND LIB
     ${OPENVDB_LIBRARIES}
   )
+
+  # This works around the issue described in #120317 and https://github.com/AcademySoftwareFoundation/openvdb/pull/1786
+  if(MSVC_CLANG)
+    set_source_files_properties(image_vdb.cpp PROPERTIES COMPILE_FLAGS -fno-delayed-template-parsing)
+  endif()
 endif()
 
 if(WITH_ALEMBIC)

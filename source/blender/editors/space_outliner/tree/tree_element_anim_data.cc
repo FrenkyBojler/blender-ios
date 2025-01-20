@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -10,7 +12,7 @@
 #include "DNA_listBase.h"
 #include "DNA_outliner_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "../outliner_intern.hh"
 
@@ -27,31 +29,37 @@ TreeElementAnimData::TreeElementAnimData(TreeElement &legacy_te, AnimData &anim_
   legacy_te.directdata = &anim_data_;
 }
 
-void TreeElementAnimData::expand(SpaceOutliner &space_outliner) const
+void TreeElementAnimData::expand(SpaceOutliner & /*space_outliner*/) const
 {
-  /* Animation data-block itself. */
-  outliner_add_element(
-      &space_outliner, &legacy_te_.subtree, anim_data_.action, &legacy_te_, TSE_SOME_ID, 0);
 
-  expand_drivers(space_outliner);
-  expand_NLA_tracks(space_outliner);
+  if (anim_data_.action) {
+    /* Animation data-block itself. */
+    add_element(&legacy_te_.subtree,
+                reinterpret_cast<ID *>(anim_data_.action),
+                nullptr,
+                &legacy_te_,
+                TSE_SOME_ID,
+                0);
+  }
+
+  expand_drivers();
+  expand_NLA_tracks();
 }
 
-void TreeElementAnimData::expand_drivers(SpaceOutliner &space_outliner) const
+void TreeElementAnimData::expand_drivers() const
 {
   if (BLI_listbase_is_empty(&anim_data_.drivers)) {
     return;
   }
-  outliner_add_element(
-      &space_outliner, &legacy_te_.subtree, &anim_data_, &legacy_te_, TSE_DRIVER_BASE, 0);
+  add_element(&legacy_te_.subtree, nullptr, &anim_data_, &legacy_te_, TSE_DRIVER_BASE, 0);
 }
 
-void TreeElementAnimData::expand_NLA_tracks(SpaceOutliner &space_outliner) const
+void TreeElementAnimData::expand_NLA_tracks() const
 {
   if (BLI_listbase_is_empty(&anim_data_.nla_tracks)) {
     return;
   }
-  outliner_add_element(&space_outliner, &legacy_te_.subtree, &anim_data_, &legacy_te_, TSE_NLA, 0);
+  add_element(&legacy_te_.subtree, nullptr, &anim_data_, &legacy_te_, TSE_NLA, 0);
 }
 
 }  // namespace blender::ed::outliner

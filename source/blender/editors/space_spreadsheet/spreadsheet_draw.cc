@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+#include "UI_view2d.hh"
 
-#include "GPU_immediate.h"
+#include "GPU_immediate.hh"
 
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
@@ -13,7 +15,7 @@
 
 #include "spreadsheet_draw.hh"
 
-#define CELL_RIGHT_PADDING (2.0f * UI_DPI_FAC)
+#define CELL_RIGHT_PADDING (2.0f * UI_SCALE_FAC)
 
 namespace blender::ed::spreadsheet {
 

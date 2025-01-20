@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2020-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # A framework to run regression tests on mesh modifiers and operators based on howardt's mesh_ops_test.py
@@ -43,6 +45,7 @@ class ModifierSpec:
     def __init__(self, modifier_name: str, modifier_type: str, modifier_parameters: dict, frame_end=0):
         """
         Constructs a modifier spec.
+
         :arg modifier_name: str - name of object modifier, e.g. "myFirstSubsurfModif"
         :arg modifier_type: str - type of object modifier, e.g. "SUBSURF"
         :arg modifier_parameters: dict - {name : val} dictionary giving modifier parameters, e.g. {"quality" : 4}
@@ -66,6 +69,7 @@ class ParticleSystemSpec:
     def __init__(self, modifier_name: str, modifier_type: str, modifier_parameters: dict, frame_end: int):
         """
         Constructs a particle system spec.
+
         :arg modifier_name: str - name of object modifier, e.g. "Particles"
         :arg modifier_type: str - type of object modifier, e.g. "PARTICLE_SYSTEM"
         :arg modifier_parameters: dict - {name : val} dictionary giving modifier parameters, e.g. {"seed" : 1}
@@ -97,6 +101,7 @@ class OperatorSpecEditMode:
     ):
         """
         Constructs an OperatorSpecEditMode. Raises ValueError if selec_mode is invalid.
+
         :arg operator_name: str - name of mesh operator from bpy.ops.mesh, e.g. "bevel" or "fill"
         :arg operator_parameters: dict - {name : val} dictionary containing operator parameters.
         :arg select_mode: str - mesh selection mode, must be either 'VERT', 'EDGE' or 'FACE'
@@ -143,7 +148,8 @@ class DeformModifierSpec:
 
     def __init__(self, frame_number: int, modifier_list: list, object_operator_spec: OperatorSpecObjectMode = None):
         """
-        Constructs a Deform Modifier spec (for user input)
+        Constructs a Deform Modifier spec (for user input).
+
         :arg frame_number: int - the frame at which animated keyframe is inserted
         :arg modifier_list: ModifierSpec - contains modifiers
         :arg object_operator_spec: OperatorSpecObjectMode - contains object operators
@@ -161,12 +167,20 @@ class MeshTest(ABC):
     A mesh testing Abstract class that hold common functionalities for testting operations.
     """
 
-    def __init__(self, test_object_name, exp_object_name, test_name=None, threshold=None, do_compare=True):
+    def __init__(
+            self,
+            test_object_name,
+            exp_object_name,
+            test_name=None,
+            threshold=None,
+            allow_index_change=False,
+            do_compare=True):
         """
         :arg test_object_name: str - Name of object of mesh type to run the operations on.
         :arg exp_object_name: str - Name of object of mesh type that has the expected
                                 geometry after running the operations.
         :arg test_name: str - Name of the test.
+        :arg allow_index_change: Allow the test to pass even if the mesh element indices are different.
         :arg threshold: exponent: To allow variations and accept difference to a certain degree.
         :arg do_compare: bool - True if we want to compare the test and expected objects, False otherwise.
         """
@@ -178,6 +192,7 @@ class MeshTest(ABC):
             filepath = bpy.data.filepath
             self.test_name = bpy.path.display_name_from_filepath(filepath)
         self.threshold = threshold
+        self.allow_index_change = allow_index_change
         self.do_compare = do_compare
         self.update = os.getenv("BLENDER_TEST_UPDATE") is not None
         self.verbose = os.getenv("BLENDER_VERBOSE") is not None
@@ -248,7 +263,11 @@ class MeshTest(ABC):
             print("Compare evaluated and expected object in Blender.\n")
             return False
 
-        result = self.compare_meshes(self.evaluated_object, self.expected_object, self.threshold)
+        result = self.compare_meshes(
+            self.evaluated_object,
+            self.expected_object,
+            self.threshold,
+            self.allow_index_change)
 
         # Initializing with True to get correct resultant of result_code booleans.
         success = True
@@ -303,6 +322,7 @@ class MeshTest(ABC):
     def do_selection(self, mesh: bpy.types.Mesh, select_mode: str, selection, select_history: bool):
         """
         Do selection on a mesh.
+
         :arg mesh: bpy.types.Mesh - input mesh
         :arg: select_mode: str - selection mode. Must be 'VERT', 'EDGE' or 'FACE'
         :arg: selection: sequence - indices of selection.
@@ -364,9 +384,10 @@ class MeshTest(ABC):
         self.expected_object = self.evaluated_object
 
     @staticmethod
-    def compare_meshes(evaluated_object, expected_object, threshold):
+    def compare_meshes(evaluated_object, expected_object, threshold, allow_index_change):
         """
         Compares evaluated object mesh with expected object mesh.
+
         :arg evaluated_object: first object for comparison.
         :arg expected_object: second object for comparison.
         :arg threshold: exponent: To allow variations and accept difference to a certain degree.
@@ -377,7 +398,6 @@ class MeshTest(ABC):
         expected_mesh = expected_object.data
         result_codes = {}
 
-        # Mesh Comparison.
         if threshold:
             result_mesh = expected_mesh.unit_test_compare(
                 mesh=evaluated_test_mesh, threshold=threshold)
@@ -387,22 +407,10 @@ class MeshTest(ABC):
 
         if result_mesh == "Same":
             result_codes['Mesh Comparison'] = (True, result_mesh)
+        elif allow_index_change and result_mesh == "The geometries are the same up to a change of indices":
+            result_codes['Mesh Comparison'] = (True, result_mesh)
         else:
             result_codes['Mesh Comparison'] = (False, result_mesh)
-
-        # Selection comparison.
-
-        selected_evaluated_verts = [
-            v.index for v in evaluated_test_mesh.vertices if v.select]
-        selected_expected_verts = [
-            v.index for v in expected_mesh.vertices if v.select]
-
-        if selected_evaluated_verts == selected_expected_verts:
-            result_selection = "Same"
-            result_codes['Selection Comparison'] = (True, result_selection)
-        else:
-            result_selection = "Selection doesn't match."
-            result_codes['Selection Comparison'] = (False, result_selection)
 
         # Validation check.
         result_validation = evaluated_test_mesh.validate(verbose=True)
@@ -436,7 +444,8 @@ class SpecMeshTest(MeshTest):
                  exp_object_name,
                  operations_stack=None,
                  apply_modifier=True,
-                 threshold=None):
+                 threshold=None,
+                 allow_index_change=False):
         """
         Constructor for SpecMeshTest.
 
@@ -450,7 +459,7 @@ class SpecMeshTest(MeshTest):
                              This affects operations of type ModifierSpec and DeformModifierSpec.
         """
 
-        super().__init__(test_object_name, exp_object_name, test_name, threshold)
+        super().__init__(test_object_name, exp_object_name, test_name, threshold, allow_index_change)
         self.test_name = test_name
         if operations_stack is None:
             self.operations_stack = []
@@ -541,6 +550,7 @@ class SpecMeshTest(MeshTest):
     def _add_modifier(self, test_object, modifier_spec: ModifierSpec):
         """
         Add modifier to object.
+
         :arg test_object: bpy.types.Object - Blender object to apply modifier on.
         :arg modifier_spec: ModifierSpec - ModifierSpec object with parameters
         """
@@ -592,15 +602,17 @@ class SpecMeshTest(MeshTest):
                 elif modifier.type == 'CLOTH' or modifier.type == 'SOFT_BODY':
                     test_object.modifiers[test_modifier_name].point_cache.frame_end = frame_end
                     override_setting = modifier.point_cache
-                    override = {'scene': scene, 'active_object': test_object, 'point_cache': override_setting}
-                    bpy.ops.ptcache.bake(override, bake=True)
+                    context_override = {'scene': scene, 'active_object': test_object, 'point_cache': override_setting}
+                    with bpy.context.temp_override(**context_override):
+                        bpy.ops.ptcache.bake(bake=True)
                     break
 
                 elif modifier.type == 'DYNAMIC_PAINT':
                     dynamic_paint_setting = modifier.canvas_settings.canvas_surfaces.active
                     override_setting = dynamic_paint_setting.point_cache
-                    override = {'scene': scene, 'active_object': test_object, 'point_cache': override_setting}
-                    bpy.ops.ptcache.bake(override, bake=True)
+                    context_override = {'scene': scene, 'active_object': test_object, 'point_cache': override_setting}
+                    with bpy.context.temp_override(**context_override):
+                        bpy.ops.ptcache.bake(bake=True)
                     break
 
     def _apply_particle_system(self, test_object, particle_sys_spec: ParticleSystemSpec):
@@ -646,6 +658,7 @@ class SpecMeshTest(MeshTest):
     def _apply_operator_edit_mode(self, test_object, operator: OperatorSpecEditMode):
         """
         Apply operator on test object.
+
         :arg test_object: bpy.types.Object - Blender object to apply operator on.
         :arg operator: OperatorSpecEditMode - OperatorSpecEditMode object with parameters.
         """
@@ -726,6 +739,11 @@ class BlendFileTest(MeshTest):
     blend file i.e. without adding them from scratch or without adding specifications.
     """
 
+    def __init__(self, test_object_name, exp_object_name, threshold=None):
+        super().__init__(test_object_name, exp_object_name, threshold)
+        if bpy.data.objects[test_object_name].get("allow_index_change"):
+            self.allow_index_change = True
+
     def apply_operations(self, evaluated_test_object_name):
 
         BlendFileTest.apply_operations.__doc__ = MeshTest.apply_operations.__doc__
@@ -733,6 +751,32 @@ class BlendFileTest(MeshTest):
         modifiers_list = evaluated_test_object.modifiers
         if not modifiers_list:
             raise Exception("No modifiers are added to test object.")
+        for modifier in modifiers_list:
+            bpy.ops.object.modifier_apply(modifier=modifier.name)
+
+
+class GeoNodesSimulationTest(MeshTest):
+    """
+    A mesh test that works similar to BlendFileTest but evaluates the scene at multiple
+    frames so that simulations can run.
+    """
+
+    def __init__(self, test_object_name, exp_object_name, *, frames_num, **kwargs):
+        super().__init__(test_object_name, exp_object_name, **kwargs)
+        self.frames_num = frames_num
+
+    def apply_operations(self, evaluated_test_object_name):
+        GeoNodesSimulationTest.apply_operations.__doc__ = MeshTest.apply_operations.__doc__
+
+        evaluated_test_object = bpy.data.objects[evaluated_test_object_name]
+        modifiers_list = evaluated_test_object.modifiers
+        if not modifiers_list:
+            raise Exception("The object has no modifiers.")
+
+        scene = bpy.context.scene
+        for frame in range(1, self.frames_num + 1):
+            scene.frame_set(frame)
+
         for modifier in modifiers_list:
             bpy.ops.object.modifier_apply(modifier=modifier.name)
 
@@ -762,9 +806,9 @@ class RunTest:
     def __init__(self, tests, apply_modifiers=False, do_compare=False):
         """
         Construct a test suite.
+
         :arg tests: list - list of modifier or operator test cases. Each element in the list must contain the
-        following
-         in the correct order:
+        following in the correct order:
              0) test_name: str - unique test name
              1) test_object_name: bpy.Types.Object - test object
              2) expected_object_name: bpy.Types.Object - expected object
@@ -825,7 +869,8 @@ class RunTest:
 
     def run_test(self, test_name: str):
         """
-        Run a single test from self.tests list
+        Run a single test from self.tests list.
+
         :arg test_name: int - name of test
         :return: bool - True if test passed, False otherwise.
         """

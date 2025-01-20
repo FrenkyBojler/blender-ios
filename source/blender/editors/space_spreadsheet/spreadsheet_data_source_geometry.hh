@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -7,6 +9,7 @@
 #include "BLI_resource_scope.hh"
 
 #include "BKE_geometry_set.hh"
+#include "BKE_instances.hh"
 
 #include "spreadsheet_data_source.hh"
 
@@ -37,10 +40,16 @@ class ExtraColumns {
 
 class GeometryDataSource : public DataSource {
  private:
-  Object *object_eval_;
-  const GeometrySet geometry_set_;
-  const GeometryComponent *component_;
-  eAttrDomain domain_;
+  /**
+   * Object that contains original data for the geometry component. This is used for selection
+   * filtering. May be null.
+   */
+  Object *object_orig_;
+  const bke::GeometrySet geometry_set_;
+  const bke::GeometryComponent *component_;
+  bke::AttrDomain domain_;
+  /* Layer index for grease pencil component. */
+  int layer_index_;
   ExtraColumns extra_columns_;
 
   /* Some data is computed on the fly only when it is requested. Computing it does not change the
@@ -50,26 +59,23 @@ class GeometryDataSource : public DataSource {
   mutable ResourceScope scope_;
 
  public:
-  GeometryDataSource(Object *object_eval,
-                     GeometrySet geometry_set,
-                     const GeometryComponentType component_type,
-                     const eAttrDomain domain,
+  GeometryDataSource(Object *object_orig,
+                     bke::GeometrySet geometry_set,
+                     const bke::GeometryComponent::Type component_type,
+                     const bke::AttrDomain domain,
+                     const int layer_index = -1,
                      ExtraColumns extra_columns = {})
-      : object_eval_(object_eval),
+      : object_orig_(object_orig),
         geometry_set_(std::move(geometry_set)),
-        component_(geometry_set_.get_component_for_read(component_type)),
+        component_(geometry_set_.get_component(component_type)),
         domain_(domain),
+        layer_index_(layer_index),
         extra_columns_(std::move(extra_columns))
   {
   }
 
-  Object *object_eval() const
-  {
-    return object_eval_;
-  }
-
   bool has_selection_filter() const override;
-  IndexMask apply_selection_filter(Vector<int64_t> &indices) const;
+  IndexMask apply_selection_filter(IndexMaskMemory &memory) const;
 
   void foreach_default_column_ids(
       FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;
@@ -78,16 +84,19 @@ class GeometryDataSource : public DataSource {
       const SpreadsheetColumnID &column_id) const override;
 
   int tot_rows() const override;
+
+ private:
+  std::optional<const bke::AttributeAccessor> get_component_attributes() const;
 };
 
 class VolumeDataSource : public DataSource {
-  const GeometrySet geometry_set_;
-  const VolumeComponent *component_;
+  const bke::GeometrySet geometry_set_;
+  const bke::VolumeComponent *component_;
 
  public:
-  VolumeDataSource(GeometrySet geometry_set)
+  VolumeDataSource(bke::GeometrySet geometry_set)
       : geometry_set_(std::move(geometry_set)),
-        component_(geometry_set_.get_component_for_read<VolumeComponent>())
+        component_(geometry_set_.get_component<bke::VolumeComponent>())
   {
   }
 
@@ -100,6 +109,11 @@ class VolumeDataSource : public DataSource {
   int tot_rows() const override;
 };
 
+int get_instance_reference_icon(const bke::InstanceReference &reference);
+
 std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object *object_eval);
+
+bke::GeometrySet get_geometry_set_for_instance_ids(const bke::GeometrySet &root_geometry,
+                                                   const Span<SpreadsheetInstanceID> instance_ids);
 
 }  // namespace blender::ed::spreadsheet

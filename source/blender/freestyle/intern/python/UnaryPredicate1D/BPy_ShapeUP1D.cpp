@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ShapeUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ShapeUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > :class:`ShapeUP1D`\n"
     "\n"
     ".. method:: __init__(first, second=0)\n"
@@ -39,7 +43,7 @@ static char ShapeUP1D___doc__[] =
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True if Interface1D belongs to the shape of the\n"
     "      user-specified Id.\n"
-    "   :rtype: bool\n";
+    "   :rtype: bool\n");
 
 static int ShapeUP1D___init__(BPy_ShapeUP1D *self, PyObject *args, PyObject *kwds)
 {
@@ -56,7 +60,7 @@ static int ShapeUP1D___init__(BPy_ShapeUP1D *self, PyObject *args, PyObject *kwd
 /*-----------------------BPy_ShapeUP1D type definition ------------------------------*/
 
 PyTypeObject ShapeUP1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "ShapeUP1D",
     /*tp_basicsize*/ sizeof(BPy_ShapeUP1D),
     /*tp_itemsize*/ 0,

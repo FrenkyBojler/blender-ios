@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -8,12 +10,9 @@
 
 #include "DNA_ID.h"
 #include "DNA_customdata_types.h"
+#include "DNA_listBase.h"
 
 #include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifdef __cplusplus
 namespace blender::bke {
@@ -86,6 +85,8 @@ typedef enum NormalMode {
    * is vertical, the X axis is used.
    */
   NORMAL_MODE_Z_UP = 1,
+  /** Interpolate the stored "custom_normal" attribute for the final normals. */
+  NORMAL_MODE_FREE = 2,
 } NormalMode;
 
 /**
@@ -107,18 +108,21 @@ typedef struct CurvesGeometry {
    * Every curve offset must be at least one larger than the previous. In other words, every curve
    * must have at least one point. The first value is 0 and the last value is #point_num.
    *
+   * This array is shared based on the bke::CurvesGeometryRuntime::curve_offsets_sharing_info.
+   * Avoid accessing directly when possible.
+   *
    * \note This is *not* stored as an attribute because its size is one larger than #curve_num.
    */
   int *curve_offsets;
 
   /**
-   * All attributes stored on control points (#ATTR_DOMAIN_POINT).
+   * All attributes stored on control points (#AttrDomain::Point).
    * This might not contain a layer for positions if there are no points.
    */
   CustomData point_data;
 
   /**
-   * All attributes stored on curves (#ATTR_DOMAIN_CURVE).
+   * All attributes stored on curves (#AttrDomain::Curve).
    */
   CustomData curve_data;
 
@@ -130,6 +134,16 @@ typedef struct CurvesGeometry {
    * The number of curves.
    */
   int curve_num;
+
+  /**
+   * List of vertex group (#bDeformGroup) names and flags only.
+   */
+  ListBase vertex_group_names;
+  /** The active index in the #vertex_group_names list. */
+  int vertex_group_active_index;
+
+  /** Set to -1 when none is active. */
+  int attributes_active_index;
 
   /**
    * Runtime data for curves, stored as a pointer to allow defining this as a C++ class.
@@ -156,7 +170,7 @@ typedef struct Curves {
   CurvesGeometry geometry;
 
   int flag;
-  int attributes_active_index;
+  int attributes_active_index_legacy;
 
   /* Materials. */
   struct Material **mat;
@@ -168,7 +182,7 @@ typedef struct Curves {
    */
   char symmetry;
   /**
-   * #eAttrDomain. The active domain for edit/sculpt mode selection. Only one selection mode can
+   * #AttrDomain. The active domain for edit/sculpt mode selection. Only one selection mode can
    * be active at a time.
    */
   char selection_domain;
@@ -190,6 +204,10 @@ typedef struct Curves {
    */
   char *surface_uv_map;
 
+  /* Distance to keep the curves away from the surface. */
+  float surface_collision_distance;
+  char _pad2[4];
+
   /* Draw cache to store data used for viewport drawing. */
   void *batch_cache;
 } Curves;
@@ -197,6 +215,7 @@ typedef struct Curves {
 /** #Curves.flag */
 enum {
   HA_DS_EXPAND = (1 << 0),
+  CV_SCULPT_COLLISION_ENABLED = (1 << 1),
 };
 
 /** #Curves.symmetry */
@@ -209,7 +228,3 @@ ENUM_OPERATORS(eCurvesSymmetryType, CURVES_SYMMETRY_Z)
 
 /* Only one material supported currently. */
 #define CURVES_MATERIAL_NR 1
-
-#ifdef __cplusplus
-}
-#endif

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup collada
@@ -10,15 +12,14 @@
 #include "COLLADAFWNode.h"
 #include "COLLADAFWUniqueId.h"
 
-#include "BKE_context.h"
-#include "BKE_key.h"
+#include "BKE_context.hh"
+#include "BKE_key.hh"
 
 #include "DNA_armature_types.h"
-#include "DNA_key_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "ED_armature.h"
+#include "ED_armature.hh"
 
 #include "AnimationImporter.h"
 #include "ExtraTags.h"
@@ -171,7 +172,7 @@ class ArmatureImporter : private TransformReader {
 
   Object *get_armature_for_joint(COLLADAFW::Node *node);
 
-  void get_rna_path_for_joint(COLLADAFW::Node *node, char *joint_path, size_t count);
+  void get_rna_path_for_joint(COLLADAFW::Node *node, char *joint_path, size_t joint_path_maxncpy);
 
   /** Gives a world-space mat. */
   bool get_joint_bind_mat(float m[4][4], COLLADAFW::Node *joint);

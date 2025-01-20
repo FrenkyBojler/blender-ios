@@ -1,11 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 /** \file
  * \ingroup bke
  */
+
+#include "BLI_function_ref.hh"
 
 #include "DNA_boid_types.h"       /* for #BoidData */
 #include "DNA_pointcache_types.h" /* for #BPHYS_TOT_DATA */
@@ -46,7 +49,6 @@ extern "C" {
 #define PTCACHE_TYPE_SMOKE_HIGHRES 4
 #define PTCACHE_TYPE_DYNAMICPAINT 5
 #define PTCACHE_TYPE_RIGIDBODY 6
-#define PTCACHE_TYPE_SIM_PARTICLES 7
 
 /* high bits reserved for flags that need to be stored in file */
 #define PTCACHE_TYPEFLAG_COMPRESS (1 << 16)
@@ -68,6 +70,7 @@ struct DynamicPaintSurface;
 struct FluidModifierData;
 struct ListBase;
 struct Main;
+struct ModifierData;
 struct Object;
 struct ParticleKey;
 struct ParticleSystem;
@@ -119,14 +122,14 @@ typedef struct PTCacheID {
   unsigned int default_step;
   unsigned int max_step;
 
-  /* flags defined in DNA_object_force_types.h */
+  /** flags defined in `DNA_object_force_types.h`. */
   unsigned int data_types, info_types;
 
-  /* copies point data to cache data */
+  /** Copies point data to cache data. */
   int (*write_point)(int index, void *calldata, void **data, int cfra);
-  /* copies cache cata to point data */
+  /** Copies cache data to point data. */
   void (*read_point)(int index, void *calldata, void **data, float cfra, const float *old_data);
-  /* interpolated between previously read point data and cache data */
+  /** Interpolated between previously read point data and cache data. */
   void (*interpolate_point)(int index,
                             void *calldata,
                             void **data,
@@ -135,32 +138,34 @@ typedef struct PTCacheID {
                             float cfra2,
                             const float *old_data);
 
-  /* copies point data to cache data */
+  /** Copies point data to cache data. */
   int (*write_stream)(PTCacheFile *pf, void *calldata);
-  /* copies cache cata to point data */
+  /** Copies cache data to point data. */
   int (*read_stream)(PTCacheFile *pf, void *calldata);
 
-  /* copies custom extradata to cache data */
+  /** Copies custom #PTCacheMem::extradata to cache data. */
   void (*write_extra_data)(void *calldata, struct PTCacheMem *pm, int cfra);
-  /* copies custom extradata to cache data */
+  /** Copies custom #PTCacheMem::extradata to cache data. */
   void (*read_extra_data)(void *calldata, struct PTCacheMem *pm, float cfra);
-  /* copies custom extradata to cache data */
+  /** Copies custom #PTCacheMem::extradata to cache data */
   void (*interpolate_extra_data)(
       void *calldata, struct PTCacheMem *pm, float cfra, float cfra1, float cfra2);
 
-  /* Total number of simulated points
-   * (the cfra parameter is just for using same function pointer with totwrite). */
+  /**
+   * Total number of simulated points
+   * (the `cfra` parameter is just for using same function pointer with `totwrite`).
+   */
   int (*totpoint)(void *calldata, int cfra);
-  /* report error if number of points does not match */
+  /** Report error if number of points does not match */
   void (*error)(const struct ID *owner_id, void *calldata, const char *message);
-  /* number of points written for current cache frame */
+  /** Number of points written for current cache frame. */
   int (*totwrite)(void *calldata, int cfra);
 
   int (*write_header)(PTCacheFile *pf);
   int (*read_header)(PTCacheFile *pf);
 
   struct PointCache *cache;
-  /* used for setting the current cache from ptcaches list */
+  /** Used for setting the current cache from `ptcaches` list. */
   struct PointCache **cache_ptr;
   struct ListBase *ptcaches;
 } PTCacheID;
@@ -170,9 +175,9 @@ typedef struct PTCacheBaker {
   struct Scene *scene;
   struct ViewLayer *view_layer;
   struct Depsgraph *depsgraph;
-  int bake;
-  int render;
-  int anim_init;
+  bool bake;
+  bool render;
+  bool anim_init;
   int quick_step;
   struct PTCacheID pid;
 
@@ -247,7 +252,7 @@ typedef struct PTCacheEdit {
   struct ParticleSystemModifierData *psmd;
   struct ParticleSystemModifierData *psmd_eval;
   struct KDTree_3d *emitter_field;
-  /* Localspace face centers and normals (average of its verts), from the derived mesh. */
+  /** Local-space face centers and normals (average of its verts), from the derived mesh. */
   float *emitter_cosnos;
   int *mirror_cache;
 
@@ -285,6 +290,12 @@ void BKE_ptcache_ids_from_object(struct ListBase *lb,
                                  struct Scene *scene,
                                  int duplis);
 
+using PointCacheIdFn = blender::FunctionRef<bool(PTCacheID &pid, ModifierData *md)>;
+void BKE_ptcache_foreach_object_cache(struct Object &ob,
+                                      struct Scene &scene,
+                                      bool duplis,
+                                      PointCacheIdFn fn);
+
 /****************** Query functions ****************************/
 
 /**
@@ -294,9 +305,9 @@ bool BKE_ptcache_object_has(struct Scene *scene, struct Object *ob, int duplis);
 
 /************ ID specific functions ************************/
 
-void BKE_ptcache_id_clear(PTCacheID *id, int mode, unsigned int cfra);
-bool BKE_ptcache_id_exist(PTCacheID *id, int cfra);
-int BKE_ptcache_id_reset(struct Scene *scene, PTCacheID *id, int mode);
+void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra);
+bool BKE_ptcache_id_exist(PTCacheID *pid, int cfra);
+int BKE_ptcache_id_reset(struct Scene *scene, PTCacheID *pid, int mode);
 void BKE_ptcache_id_time(PTCacheID *pid,
                          struct Scene *scene,
                          float cfra,
@@ -329,7 +340,7 @@ int BKE_ptcache_mem_pointers_seek(int point_index,
                                   void *cur[BPHYS_TOT_DATA]);
 
 /**
- * Main cache reading call.
+ * Main cache reading call which reads cache from disk or memory.
  * Possible to get old or interpolated result.
  */
 int BKE_ptcache_read(PTCacheID *pid, float cfra, bool no_extrapolate_old);
@@ -341,11 +352,12 @@ int BKE_ptcache_read(PTCacheID *pid, float cfra, bool no_extrapolate_old);
 int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra);
 
 /******************* Allocate & free ***************/
+
 struct PointCache *BKE_ptcache_add(struct ListBase *ptcaches);
 void BKE_ptcache_free_mem(struct ListBase *mem_cache);
 void BKE_ptcache_free(struct PointCache *cache);
 void BKE_ptcache_free_list(struct ListBase *ptcaches);
-/* returns first point cache */
+/** Returns first point cache. */
 struct PointCache *BKE_ptcache_copy_list(struct ListBase *ptcaches_new,
                                          const struct ListBase *ptcaches_old,
                                          int flag);

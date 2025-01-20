@@ -1,4 +1,8 @@
-#pragma BLENDER_REQUIRE(gpu_shader_common_math_utils.glsl)
+/* SPDX-FileCopyrightText: 2019-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "gpu_shader_common_math_utils.glsl"
 
 void node_tex_environment_equirectangular(vec3 co, out vec3 uv)
 {

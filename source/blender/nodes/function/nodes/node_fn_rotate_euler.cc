@@ -1,13 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_listbase.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "RNA_enum_types.h"
+#include "RNA_enum_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "node_function_util.hh"
 
@@ -20,16 +24,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   };
 
   b.is_function_node();
-  b.add_input<decl::Vector>(N_("Rotation")).subtype(PROP_EULER).hide_value();
-  b.add_input<decl::Vector>(N_("Rotate By")).subtype(PROP_EULER).make_available([](bNode &node) {
+  b.add_input<decl::Vector>("Rotation").subtype(PROP_EULER).hide_value();
+  b.add_input<decl::Vector>("Rotate By").subtype(PROP_EULER).make_available([](bNode &node) {
     node.custom1 = FN_NODE_ROTATE_EULER_TYPE_EULER;
   });
-  b.add_input<decl::Vector>(N_("Axis"))
+  b.add_input<decl::Vector>("Axis")
       .default_value({0.0, 0.0, 1.0})
       .subtype(PROP_XYZ)
       .make_available(enable_axis_angle);
-  b.add_input<decl::Float>(N_("Angle")).subtype(PROP_ANGLE).make_available(enable_axis_angle);
-  b.add_output<decl::Vector>(N_("Rotation"));
+  b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE).make_available(enable_axis_angle);
+  b.add_output<decl::Vector>("Rotation");
 }
 
 static void node_update(bNodeTree *ntree, bNode *node)
@@ -38,18 +42,18 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *axis_socket = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 2));
   bNodeSocket *angle_socket = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 3));
 
-  nodeSetSocketAvailability(
+  bke::node_set_socket_availability(
       ntree, rotate_by_socket, ELEM(node->custom1, FN_NODE_ROTATE_EULER_TYPE_EULER));
-  nodeSetSocketAvailability(
+  bke::node_set_socket_availability(
       ntree, axis_socket, ELEM(node->custom1, FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE));
-  nodeSetSocketAvailability(
+  bke::node_set_socket_availability(
       ntree, angle_socket, ELEM(node->custom1, FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE));
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "space", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "rotation_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "space", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
@@ -125,18 +129,21 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
-}  // namespace blender::nodes::node_fn_rotate_euler_cc
-
-void register_node_type_fn_rotate_euler()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_fn_rotate_euler_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  fn_node_type_base(&ntype, FN_NODE_ROTATE_EULER, "Rotate Euler", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::node_declare;
-  ntype.draw_buttons = file_ns::node_layout;
-  ntype.updatefunc = file_ns::node_update;
-  ntype.build_multi_function = file_ns::node_build_multi_function;
-  nodeRegisterType(&ntype);
+  fn_node_type_base(&ntype, "FunctionNodeRotateEuler", FN_NODE_ROTATE_EULER);
+  ntype.ui_name = "Rotate Euler";
+  ntype.enum_name_legacy = "ROTATE_EULER";
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.declare = node_declare;
+  ntype.draw_buttons = node_layout;
+  ntype.updatefunc = node_update;
+  ntype.build_multi_function = node_build_multi_function;
+  ntype.deprecation_notice = N_("Use the \"Rotate Rotation\" node instead");
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_rotate_euler_cc

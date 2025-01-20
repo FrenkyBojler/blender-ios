@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -31,9 +33,7 @@
 #include "../winged_edge/WEdge.h"
 #include "../winged_edge/WXEdge.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -74,9 +74,9 @@ class ViewMapBuilder {
 
   inline ViewMapBuilder()
   {
-    _pProgressBar = NULL;
-    _pRenderMonitor = NULL;
-    _Grid = NULL;
+    _pProgressBar = nullptr;
+    _pRenderMonitor = nullptr;
+    _Grid = nullptr;
     _currentId = 1;
     _currentFId = 0;
     _currentSVertexId = 0;
@@ -88,13 +88,13 @@ class ViewMapBuilder {
   {
     if (_pViewEdgeBuilder) {
       delete _pViewEdgeBuilder;
-      _pViewEdgeBuilder = NULL;
+      _pViewEdgeBuilder = nullptr;
     }
   }
 
   /* Build Grid for ray casting */
   /** Build non-culled Grid in camera space for ray casting */
-  void BuildGrid(WingedEdge &we, const BBox<Vec3r> &bbox, unsigned int sceneNumFaces);
+  void BuildGrid(WingedEdge &we, const BBox<Vec3r> &bbox, uint sceneNumFaces);
 
   /** Compute Shapes from a WingedEdge containing a list of WShapes */
   void computeInitialViewEdges(WingedEdge &);
@@ -148,7 +148,7 @@ class ViewMapBuilder {
                         visibility_algo iAlgo,
                         real epsilon,
                         const BBox<Vec3r> &bbox,
-                        unsigned int sceneNumFaces);
+                        uint sceneNumFaces);
 
   void CullViewEdges(ViewMap *ioViewMap,
                      real viewProscenium[4],
@@ -174,7 +174,7 @@ class ViewMapBuilder {
   void ComputeEdgesVisibility(ViewMap *ioViewMap,
                               WingedEdge &we,
                               const BBox<Vec3r> &bbox,
-                              unsigned int sceneNumFaces,
+                              uint sceneNumFaces,
                               visibility_algo iAlgo = ray_casting,
                               real epsilon = 1.0e-6);
 
@@ -248,24 +248,21 @@ class ViewMapBuilder {
                                   real epsilon,
                                   set<ViewShape *> &oOccluders,
                                   Polygon3r **oaPolygon,
-                                  unsigned timestamp);
+                                  uint timestamp);
   // FIXME
-  void FindOccludee(
-      FEdge *fe, Grid *iGrid, real epsilon, Polygon3r **oaPolygon, unsigned timestamp);
+  void FindOccludee(FEdge *fe, Grid *iGrid, real epsilon, Polygon3r **oaPolygon, uint timestamp);
   void FindOccludee(FEdge *fe,
                     Grid *iGrid,
                     real epsilon,
                     Polygon3r **oaPolygon,
-                    unsigned timestamp,
+                    uint timestamp,
                     Vec3r &u,
                     Vec3r &A,
                     Vec3r &origin,
                     Vec3r &edgeDir,
                     vector<WVertex *> &faceVertices);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:ViewMapBuilder")
-#endif
 };
 
 } /* namespace Freestyle */

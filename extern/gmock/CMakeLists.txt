@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2014 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2014 Blender Foundation. All rights reserved.
 
 set(INC
   .
@@ -26,9 +27,6 @@ set(SRC_HEADERS
   include/gmock/gmock-actions.h
   include/gmock/gmock-cardinalities.h
   include/gmock/gmock-function-mocker.h
-  include/gmock/gmock-generated-actions.h
-  include/gmock/gmock-generated-function-mockers.h
-  include/gmock/gmock-generated-matchers.h
   include/gmock/gmock-matchers.h
   include/gmock/gmock-more-actions.h
   include/gmock/gmock-more-matchers.h

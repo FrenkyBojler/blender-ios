@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 /** \file
@@ -47,7 +48,7 @@ extern void sbFreeSimulation(struct SoftBody *sb);
 
 /**
  * Do one simulation step, reading and writing vertex locs from given array.
- * */
+ */
 extern void sbObjectStep(struct Depsgraph *depsgraph,
                          struct Scene *scene,
                          struct Object *ob,

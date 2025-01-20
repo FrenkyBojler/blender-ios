@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,11 +22,12 @@ using namespace Freestyle;
 //------------------------INSTANCE METHODS ----------------------------------
 
 PyDoc_STRVAR(
+    /* Wrap. */
     AdjacencyIterator_doc,
     "Class hierarchy: :class:`Iterator` > :class:`AdjacencyIterator`\n"
     "\n"
     "Class for representing adjacency iterators used in the chaining\n"
-    "process.  An AdjacencyIterator is created in the increment() and\n"
+    "process. An AdjacencyIterator is created in the increment() and\n"
     "decrement() methods of a :class:`ChainingIterator` and passed to the\n"
     "traverse() method of the ChainingIterator.\n"
     "\n"
@@ -54,7 +57,8 @@ static int AdjacencyIterator_init(BPy_AdjacencyIterator *self, PyObject *args, P
   PyObject *obj1 = nullptr, *obj2 = nullptr, *obj3 = nullptr;
 
   if (PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist_1, &AdjacencyIterator_Type, &obj1)) {
+          args, kwds, "|O!", (char **)kwlist_1, &AdjacencyIterator_Type, &obj1))
+  {
     if (!obj1) {
       self->a_it = new AdjacencyIterator();
       self->at_start = true;
@@ -75,7 +79,8 @@ static int AdjacencyIterator_init(BPy_AdjacencyIterator *self, PyObject *args, P
                                        &PyBool_Type,
                                        &obj2,
                                        &PyBool_Type,
-                                       &obj3)) {
+                                       &obj3))
+  {
     bool restrictToSelection = (!obj2) ? true : bool_from_PyBool(obj2);
     bool restrictToUnvisited = (!obj3) ? true : bool_from_PyBool(obj3);
     self->a_it = new AdjacencyIterator(
@@ -119,10 +124,12 @@ static PyObject *AdjacencyIterator_iternext(BPy_AdjacencyIterator *self)
 
 /*----------------------AdjacencyIterator get/setters ----------------------------*/
 
-PyDoc_STRVAR(AdjacencyIterator_object_doc,
-             "The ViewEdge object currently pointed to by this iterator.\n"
-             "\n"
-             ":type: :class:`ViewEdge`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    AdjacencyIterator_object_doc,
+    "The ViewEdge object currently pointed to by this iterator.\n"
+    "\n"
+    ":type: :class:`ViewEdge`");
 
 static PyObject *AdjacencyIterator_object_get(BPy_AdjacencyIterator *self, void * /*closure*/)
 {
@@ -137,11 +144,13 @@ static PyObject *AdjacencyIterator_object_get(BPy_AdjacencyIterator *self, void 
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(AdjacencyIterator_is_incoming_doc,
-             "True if the current ViewEdge is coming towards the iteration vertex, and\n"
-             "False otherwise.\n"
-             "\n"
-             ":type: bool");
+PyDoc_STRVAR(
+    /* Wrap. */
+    AdjacencyIterator_is_incoming_doc,
+    "True if the current ViewEdge is coming towards the iteration vertex, and\n"
+    "False otherwise.\n"
+    "\n"
+    ":type: bool");
 
 static PyObject *AdjacencyIterator_is_incoming_get(BPy_AdjacencyIterator *self, void * /*closure*/)
 {
@@ -169,7 +178,7 @@ static PyGetSetDef BPy_AdjacencyIterator_getseters[] = {
 /*-----------------------BPy_AdjacencyIterator type definition ------------------------------*/
 
 PyTypeObject AdjacencyIterator_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "AdjacencyIterator",
     /*tp_basicsize*/ sizeof(BPy_AdjacencyIterator),
     /*tp_itemsize*/ 0,

@@ -1,16 +1,22 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 /** \file
  * \ingroup bli
- * \brief Strict compiler flags for areas of code we want
+ * Strict compiler flags for areas of code we want
  * to ensure don't do conversions without us knowing about it.
+ *
+ * \note Typically this include should be ordered as the last include in a C/C++ file
+ * otherwise it can cause warnings in any includes after it which aren't expected
+ * to use strict warnings.
  */
 
 #ifdef __GNUC__
-/* NOTE(@campbellbarton): CLANG behaves slightly differently to GCC,
- * these can be enabled but do so carefully as they can introduce build-errors.  */
+/* NOTE(@ideasman42): CLANG behaves slightly differently to GCC,
+ * these can be enabled but do so carefully as they can introduce build-errors. */
 #  if !defined(__clang__)
 #    pragma GCC diagnostic error "-Wsign-compare"
 #    pragma GCC diagnostic error "-Wconversion"

@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation.
- */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eevee
@@ -16,10 +16,12 @@
 
 #pragma once
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "eevee_camera.hh"
+#include "eevee_depth_of_field.hh"
 #include "eevee_pipeline.hh"
+#include "eevee_renderbuffers.hh"
 #include "eevee_shader.hh"
 #include "eevee_velocity.hh"
 
@@ -41,23 +43,24 @@ class ShadingView {
   /** Matrix to apply to the viewmat. */
   const float4x4 &face_matrix_;
 
-  /** Raytracing persistent buffers. Only opaque and refraction can have surface tracing. */
-  // RaytraceBuffer rt_buffer_opaque_;
-  // RaytraceBuffer rt_buffer_refract_;
+  /** Ray-tracing persistent buffers. Only opaque and refraction can have surface tracing. */
+  RayTraceBuffer rt_buffer_opaque_;
+  RayTraceBuffer rt_buffer_refract_;
   DepthOfFieldBuffer dof_buffer_;
 
-  Framebuffer prepass_fb_;
-  Framebuffer combined_fb_;
+  Framebuffer prepass_fb_ = {"prepass_fb_"};
+  Framebuffer combined_fb_ = {"combined_fb_"};
+  Framebuffer gbuffer_fb_ = {"gbuffer_fb_"};
+  Framebuffer transparent_fb_ = {"transparent"};
   TextureFromPool postfx_tx_;
 
   /** Main views is created from the camera (or is from the viewport). It is not jittered. */
-  DRWView *main_view_ = nullptr;
+  View main_view_ = {"main_view"};
   /** Sub views is jittered versions or the main views. This allows jitter updates without trashing
    * the visibility culling cache. */
-  DRWView *sub_view_ = nullptr;
-  /** Same as sub_view_ but has Depth Of Field jitter applied. */
-  DRWView *render_view_ = nullptr;
-  View render_view_new_;
+  View jitter_view_ = {"jitter_view"};
+  /** Same as jitter_view_ but has Depth Of Field jitter applied. */
+  View render_view_;
 
   /** Render size of the view. Can change between scene sample eval. */
   int2 extent_ = {-1, -1};
@@ -66,7 +69,7 @@ class ShadingView {
 
  public:
   ShadingView(Instance &inst, const char *name, const float4x4 &face_matrix)
-      : inst_(inst), name_(name), face_matrix_(face_matrix), render_view_new_(name){};
+      : inst_(inst), name_(name), face_matrix_(face_matrix), render_view_(name){};
 
   ~ShadingView(){};
 
@@ -76,9 +79,11 @@ class ShadingView {
 
   void render();
 
+ private:
+  void render_transparent_pass(RenderBuffers &rbufs);
+
   GPUTexture *render_postfx(GPUTexture *input_tx);
 
- private:
   void update_view();
 };
 
@@ -138,6 +143,45 @@ class MainView {
   }
 
 #undef shading_views_
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Capture View
+ *
+ * View for capturing cube-map renders outside a ShadingView.
+ * \{ */
+
+class CaptureView {
+ private:
+  Instance &inst_;
+  Framebuffer combined_fb_ = {"Capture.Combined"};
+  Framebuffer gbuffer_fb_ = {"Capture.Gbuffer"};
+
+ public:
+  CaptureView(Instance &inst) : inst_(inst) {}
+  void render_world();
+  void render_probes();
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Lookdev View
+ *
+ * View for rendering the lookdev HDRI spheres.
+ * \{ */
+
+class LookdevView {
+ private:
+  Instance &inst_;
+
+  View view_ = {"Lookdev.View"};
+
+ public:
+  LookdevView(Instance &inst) : inst_(inst) {}
+  void render();
 };
 
 /** \} */

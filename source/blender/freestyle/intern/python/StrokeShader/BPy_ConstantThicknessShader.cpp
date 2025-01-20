@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ConstantThicknessShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ConstantThicknessShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`ConstantThicknessShader`\n"
     "\n"
     "[Thickness shader]\n"
@@ -35,7 +39,7 @@ static char ConstantThicknessShader___doc__[] =
     "   Assigns an absolute constant thickness to every vertex of the Stroke.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int ConstantThicknessShader___init__(BPy_ConstantThicknessShader *self,
                                             PyObject *args,
@@ -54,7 +58,7 @@ static int ConstantThicknessShader___init__(BPy_ConstantThicknessShader *self,
 /*-----------------------BPy_ConstantThicknessShader type definition ----------------------------*/
 
 PyTypeObject ConstantThicknessShader_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "ConstantThicknessShader",
     /*tp_basicsize*/ sizeof(BPy_ConstantThicknessShader),
     /*tp_itemsize*/ 0,

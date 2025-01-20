@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* Use a define instead of `#pragma once` because of `BLI_memory_utils.h` */
 #ifndef __BLI_UTILDEFINES_H__
@@ -12,7 +13,7 @@
 /* avoid many includes for now */
 #include "BLI_compiler_compat.h"
 #include "BLI_sys_types.h"
-#include "BLI_utildefines_variadic.h"
+#include "BLI_utildefines_variadic.h"  // IWYU prama: export
 
 /* We could remove in future. */
 #include "BLI_assert.h"
@@ -21,6 +22,9 @@
 #include "BLI_compiler_typecheck.h"
 
 #ifdef __cplusplus
+#  include <type_traits>
+#  include <utility>
+
 extern "C" {
 #endif
 
@@ -28,84 +32,10 @@ extern "C" {
 /** \name Min/Max Macros
  * \{ */
 
-/* useful for finding bad use of min/max */
-#if 0
-/* gcc only */
-#  define _TYPECHECK(a, b) ((void)(((typeof(a) *)0) == ((typeof(b) *)0)))
-#  define MIN2(x, y) (_TYPECHECK(x, y), (((x) < (y) ? (x) : (y))))
-#  define MAX2(x, y) (_TYPECHECK(x, y), (((x) > (y) ? (x) : (y))))
-#endif
-
-/* min/max */
-#if defined(__GNUC__) || defined(__clang__)
-
-#  define MIN2(a, b) \
-    __extension__({ \
-      typeof(a) a_ = (a); \
-      typeof(b) b_ = (b); \
-      ((a_) < (b_) ? (a_) : (b_)); \
-    })
-
-#  define MAX2(a, b) \
-    __extension__({ \
-      typeof(a) a_ = (a); \
-      typeof(b) b_ = (b); \
-      ((a_) > (b_) ? (a_) : (b_)); \
-    })
-
-#  define MIN3(a, b, c) \
-    __extension__({ \
-      typeof(a) a_ = (a); \
-      typeof(b) b_ = (b); \
-      typeof(c) c_ = (c); \
-      ((a_ < b_) ? ((a_ < c_) ? a_ : c_) : ((b_ < c_) ? b_ : c_)); \
-    })
-
-#  define MAX3(a, b, c) \
-    __extension__({ \
-      typeof(a) a_ = (a); \
-      typeof(b) b_ = (b); \
-      typeof(c) c_ = (c); \
-      ((a_ > b_) ? ((a_ > c_) ? a_ : c_) : ((b_ > c_) ? b_ : c_)); \
-    })
-
-#  define MIN4(a, b, c, d) \
-    __extension__({ \
-      typeof(a) a_ = (a); \
-      typeof(b) b_ = (b); \
-      typeof(c) c_ = (c); \
-      typeof(d) d_ = (d); \
-      ((a_ < b_) ? ((a_ < c_) ? ((a_ < d_) ? a_ : d_) : ((c_ < d_) ? c_ : d_)) : \
-                   ((b_ < c_) ? ((b_ < d_) ? b_ : d_) : ((c_ < d_) ? c_ : d_))); \
-    })
-
-#  define MAX4(a, b, c, d) \
-    __extension__({ \
-      typeof(a) a_ = (a); \
-      typeof(b) b_ = (b); \
-      typeof(c) c_ = (c); \
-      typeof(d) d_ = (d); \
-      ((a_ > b_) ? ((a_ > c_) ? ((a_ > d_) ? a_ : d_) : ((c_ > d_) ? c_ : d_)) : \
-                   ((b_ > c_) ? ((b_ > d_) ? b_ : d_) : ((c_ > d_) ? c_ : d_))); \
-    })
-
-#else
+#ifndef __cplusplus
 #  define MIN2(a, b) ((a) < (b) ? (a) : (b))
 #  define MAX2(a, b) ((a) > (b) ? (a) : (b))
-
-#  define MIN3(a, b, c) (MIN2(MIN2((a), (b)), (c)))
-#  define MIN4(a, b, c, d) (MIN2(MIN2((a), (b)), MIN2((c), (d))))
-
-#  define MAX3(a, b, c) (MAX2(MAX2((a), (b)), (c)))
-#  define MAX4(a, b, c, d) (MAX2(MAX2((a), (b)), MAX2((c), (d))))
 #endif
-
-/* min/max that return a value of our choice */
-#define MAX3_PAIR(cmp_a, cmp_b, cmp_c, ret_a, ret_b, ret_c) \
-  ((cmp_a > cmp_b) ? ((cmp_a > cmp_c) ? ret_a : ret_c) : ((cmp_b > cmp_c) ? ret_b : ret_c))
-
-#define MIN3_PAIR(cmp_a, cmp_b, cmp_c, ret_a, ret_b, ret_c) \
-  ((cmp_a < cmp_b) ? ((cmp_a < cmp_c) ? ret_a : ret_c) : ((cmp_b < cmp_c) ? ret_b : ret_c))
 
 #define INIT_MINMAX(min, max) \
   { \
@@ -117,70 +47,6 @@ extern "C" {
   { \
     (min)[0] = (min)[1] = 1.0e30f; \
     (max)[0] = (max)[1] = -1.0e30f; \
-  } \
-  (void)0
-#define DO_MIN(vec, min) \
-  { \
-    if ((min)[0] > (vec)[0]) { \
-      (min)[0] = (vec)[0]; \
-    } \
-    if ((min)[1] > (vec)[1]) { \
-      (min)[1] = (vec)[1]; \
-    } \
-    if ((min)[2] > (vec)[2]) { \
-      (min)[2] = (vec)[2]; \
-    } \
-  } \
-  (void)0
-#define DO_MAX(vec, max) \
-  { \
-    if ((max)[0] < (vec)[0]) { \
-      (max)[0] = (vec)[0]; \
-    } \
-    if ((max)[1] < (vec)[1]) { \
-      (max)[1] = (vec)[1]; \
-    } \
-    if ((max)[2] < (vec)[2]) { \
-      (max)[2] = (vec)[2]; \
-    } \
-  } \
-  (void)0
-#define DO_MINMAX(vec, min, max) \
-  { \
-    if ((min)[0] > (vec)[0]) { \
-      (min)[0] = (vec)[0]; \
-    } \
-    if ((min)[1] > (vec)[1]) { \
-      (min)[1] = (vec)[1]; \
-    } \
-    if ((min)[2] > (vec)[2]) { \
-      (min)[2] = (vec)[2]; \
-    } \
-    if ((max)[0] < (vec)[0]) { \
-      (max)[0] = (vec)[0]; \
-    } \
-    if ((max)[1] < (vec)[1]) { \
-      (max)[1] = (vec)[1]; \
-    } \
-    if ((max)[2] < (vec)[2]) { \
-      (max)[2] = (vec)[2]; \
-    } \
-  } \
-  (void)0
-#define DO_MINMAX2(vec, min, max) \
-  { \
-    if ((min)[0] > (vec)[0]) { \
-      (min)[0] = (vec)[0]; \
-    } \
-    if ((min)[1] > (vec)[1]) { \
-      (min)[1] = (vec)[1]; \
-    } \
-    if ((max)[0] < (vec)[0]) { \
-      (max)[0] = (vec)[0]; \
-    } \
-    if ((max)[1] < (vec)[1]) { \
-      (max)[1] = (vec)[1]; \
-    } \
   } \
   (void)0
 
@@ -198,17 +64,6 @@ extern "C" {
     sw_ap = (a); \
     (a) = (b); \
     (b) = sw_ap; \
-  } \
-  (void)0
-
-/* swap with a temp value */
-#define SWAP_TVAL(tval, a, b) \
-  { \
-    CHECK_TYPE_PAIR(tval, a); \
-    CHECK_TYPE_PAIR(tval, b); \
-    (tval) = (a); \
-    (a) = (b); \
-    (b) = (tval); \
   } \
   (void)0
 
@@ -297,13 +152,13 @@ extern "C" {
 /* Float equality checks. */
 
 #define IS_EQ(a, b) \
-  (CHECK_TYPE_INLINE(a, double), \
-   CHECK_TYPE_INLINE(b, double), \
+  (CHECK_TYPE_INLINE_NONCONST(a, double), \
+   CHECK_TYPE_INLINE_NONCONST(b, double), \
    ((fabs((double)((a) - (b))) >= (double)FLT_EPSILON) ? false : true))
 
 #define IS_EQF(a, b) \
-  (CHECK_TYPE_INLINE(a, float), \
-   CHECK_TYPE_INLINE(b, float), \
+  (CHECK_TYPE_INLINE_NONCONST(a, float), \
+   CHECK_TYPE_INLINE_NONCONST(b, float), \
    ((fabsf((float)((a) - (b))) >= (float)FLT_EPSILON) ? false : true))
 
 #define IS_EQT(a, b, c) (((a) > (b)) ? ((((a) - (b)) <= (c))) : (((((b) - (a)) <= (c)))))
@@ -321,13 +176,37 @@ extern "C" {
  */
 #define DECIMAL_DIGITS_BOUND(t) (241 * sizeof(t) / 100 + 1)
 
+#ifdef __cplusplus
+inline constexpr int64_t is_power_of_2(const int64_t x)
+{
+  BLI_assert(x >= 0);
+  return (x & (x - 1)) == 0;
+}
+
+inline constexpr int64_t log2_floor(const int64_t x)
+{
+  BLI_assert(x >= 0);
+  return x <= 1 ? 0 : 1 + log2_floor(x >> 1);
+}
+
+inline constexpr int64_t log2_ceil(const int64_t x)
+{
+  BLI_assert(x >= 0);
+  return (is_power_of_2(int(x))) ? log2_floor(x) : log2_floor(x) + 1;
+}
+
+inline constexpr int64_t power_of_2_max(const int64_t x)
+{
+  BLI_assert(x >= 0);
+  return 1ll << log2_ceil(x);
+}
+#endif
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Clamp Macros
  * \{ */
-
-#define CLAMPIS(a, b, c) ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
 
 #define CLAMP(a, b, c) \
   { \
@@ -356,78 +235,6 @@ extern "C" {
   } \
   (void)0
 
-#define CLAMP2(vec, b, c) \
-  { \
-    CLAMP((vec)[0], b, c); \
-    CLAMP((vec)[1], b, c); \
-  } \
-  (void)0
-
-#define CLAMP2_MIN(vec, b) \
-  { \
-    CLAMP_MIN((vec)[0], b); \
-    CLAMP_MIN((vec)[1], b); \
-  } \
-  (void)0
-
-#define CLAMP2_MAX(vec, b) \
-  { \
-    CLAMP_MAX((vec)[0], b); \
-    CLAMP_MAX((vec)[1], b); \
-  } \
-  (void)0
-
-#define CLAMP3(vec, b, c) \
-  { \
-    CLAMP((vec)[0], b, c); \
-    CLAMP((vec)[1], b, c); \
-    CLAMP((vec)[2], b, c); \
-  } \
-  (void)0
-
-#define CLAMP3_MIN(vec, b) \
-  { \
-    CLAMP_MIN((vec)[0], b); \
-    CLAMP_MIN((vec)[1], b); \
-    CLAMP_MIN((vec)[2], b); \
-  } \
-  (void)0
-
-#define CLAMP3_MAX(vec, b) \
-  { \
-    CLAMP_MAX((vec)[0], b); \
-    CLAMP_MAX((vec)[1], b); \
-    CLAMP_MAX((vec)[2], b); \
-  } \
-  (void)0
-
-#define CLAMP4(vec, b, c) \
-  { \
-    CLAMP((vec)[0], b, c); \
-    CLAMP((vec)[1], b, c); \
-    CLAMP((vec)[2], b, c); \
-    CLAMP((vec)[3], b, c); \
-  } \
-  (void)0
-
-#define CLAMP4_MIN(vec, b) \
-  { \
-    CLAMP_MIN((vec)[0], b); \
-    CLAMP_MIN((vec)[1], b); \
-    CLAMP_MIN((vec)[2], b); \
-    CLAMP_MIN((vec)[3], b); \
-  } \
-  (void)0
-
-#define CLAMP4_MAX(vec, b) \
-  { \
-    CLAMP_MAX((vec)[0], b); \
-    CLAMP_MAX((vec)[1], b); \
-    CLAMP_MAX((vec)[2], b); \
-    CLAMP_MAX((vec)[3], b); \
-  } \
-  (void)0
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -449,56 +256,20 @@ extern "C" {
 /** \name Array Macros
  * \{ */
 
-/* array helpers */
-#define ARRAY_LAST_ITEM(arr_start, arr_dtype, arr_len) \
-  (arr_dtype *)((char *)(arr_start) + (sizeof(*((arr_dtype *)NULL)) * (size_t)(arr_len - 1)))
-
 #define ARRAY_HAS_ITEM(arr_item, arr_start, arr_len) \
   (CHECK_TYPE_PAIR_INLINE(arr_start, arr_item), \
-   ((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(arr_len)))
-
-/**
- * \note use faster #ARRAY_DELETE_REORDER_LAST when we can re-order.
- */
-#define ARRAY_DELETE(arr, index, delete_len, arr_len) \
-  { \
-    BLI_assert((&arr[index] >= arr) && ((index) + delete_len <= arr_len)); \
-    memmove(&(arr)[index], \
-            &(arr)[(index) + (delete_len)], \
-            (((arr_len) - (index)) - (delete_len)) * sizeof(*(arr))); \
-  } \
-  ((void)0)
-
-/**
- * Re-ordering array removal.
- *
- * When removing single items this compiles down to:
- * `if (index + 1 != arr_len) { arr[index] = arr[arr_len - 1]; }` (typical reordering removal),
- * with removing multiple items, overlap is detected to avoid memcpy errors.
- */
-#define ARRAY_DELETE_REORDER_LAST(arr, index, delete_len, arr_len) \
-  { \
-    BLI_assert((&arr[index] >= arr) && ((index) + delete_len <= arr_len)); \
-    if ((index) + (delete_len) != (arr_len)) { \
-      if (((delete_len) == 1) || ((delete_len) <= ((arr_len) - ((index) + (delete_len))))) { \
-        memcpy(&(arr)[index], &(arr)[(arr_len) - (delete_len)], (delete_len) * sizeof(*(arr))); \
-      } \
-      else { \
-        memcpy(&(arr)[index], \
-               &(arr)[(arr_len) - ((arr_len) - ((index) + (delete_len)))], \
-               ((arr_len) - ((index) + (delete_len))) * sizeof(*(arr))); \
-      } \
-    } \
-  } \
-  ((void)0)
+   ((size_t)((arr_item) - (arr_start)) < (size_t)(arr_len)))
 
 /* assuming a static array */
-#if defined(__GNUC__) && !defined(__cplusplus) && !defined(__clang__) && !defined(__INTEL_COMPILER)
-#  define ARRAY_SIZE(arr) \
-    ((sizeof(struct { int isnt_array : ((const void *)&(arr) == &(arr)[0]); }) * 0) + \
-     (sizeof(arr) / sizeof(*(arr))))
-#else
-#  define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*(arr)))
+#ifndef __cplusplus
+#  if defined(__GNUC__) && !defined(__cplusplus) && !defined(__clang__) && \
+      !defined(__INTEL_COMPILER)
+#    define ARRAY_SIZE(arr) \
+      ((sizeof(struct { int isnt_array : ((const void *)&(arr) == &(arr)[0]); }) * 0) + \
+       (sizeof(arr) / sizeof(*(arr))))
+#  else
+#    define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*(arr)))
+#  endif
 #endif
 
 /* ARRAY_SET_ITEMS#(v, ...): set indices of array 'v' */
@@ -668,6 +439,9 @@ extern bool BLI_memory_is_zero(const void *arr, size_t arr_size);
 /* UNUSED macro, for function argument */
 #  if defined(__GNUC__) || defined(__clang__)
 #    define UNUSED(x) UNUSED_##x __attribute__((__unused__))
+#  elif defined(_MSC_VER)
+/* NOTE: This suppresses the warning for the line, not the attribute. */
+#    define UNUSED(x) UNUSED_##x __pragma(warning(suppress : 4100))
 #  else
 #    define UNUSED(x) UNUSED_##x
 #  endif
@@ -806,21 +580,15 @@ extern bool BLI_memory_is_zero(const void *arr, size_t arr_size);
     { \
       return a = (_enum_type)(uint64_t(a) & uint64_t(b)); \
     } \
+    inline _enum_type &operator^=(_enum_type &a, _enum_type b) \
+    { \
+      return a = (_enum_type)(uint64_t(a) ^ uint64_t(b)); \
+    } \
     } /* extern "C++" */
 
 #else
 /* Output nothing. */
 #  define ENUM_OPERATORS(_type, _max)
-#endif
-
-/**
- * Utility so function declarations in C headers can use C++ default arguments. The default is then
- * available when included in a C++ file, otherwise the argument has to be set explicitly.
- */
-#ifdef __cplusplus
-#  define CPP_ARG_DEFAULT(default_value) = default_value
-#else
-#  define CPP_ARG_DEFAULT(default_value)
 #endif
 
 /** \} */
@@ -844,7 +612,7 @@ extern bool BLI_memory_is_zero(const void *arr, size_t arr_size);
  */
 #define BLI_ENABLE_IF(condition) typename std::enable_if_t<(condition)> * = nullptr
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 #  define BLI_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
 #elif defined(__has_cpp_attribute)
 #  if __has_cpp_attribute(no_unique_address)
@@ -860,6 +628,44 @@ extern bool BLI_memory_is_zero(const void *arr, size_t arr_size);
 
 #ifdef __cplusplus
 }
+
+namespace blender::blenlib_internal {
+
+/* A replacement for std::is_bounded_array_v until we go C++20. */
+template<class T> struct IsBoundedArray : std::false_type {};
+template<class T, std::size_t N> struct IsBoundedArray<T[N]> : std::true_type {};
+
+}  // namespace blender::blenlib_internal
+
+/**
+ * Size of a bounded array provided as an arg.
+ *
+ * The arg must be a bounded array, such as int[7] or MyType[11].
+ * Returns the number of elements in the array, known at the compile time.
+ */
+template<class T, size_t N> constexpr size_t ARRAY_SIZE(const T (&arg)[N]) noexcept
+{
+  (void)arg;
+  return N;
+}
+
+/**
+ * Number of elements in a type which defines a bounded array.
+ *
+ * For example,
+ *   struct MyType {
+ *     int array[12];
+ *   };
+ *
+ *   `BOUNDED_ARRAY_TYPE_SIZE<decltype(MyType::array)>` returns 12.
+ */
+template<class T>
+constexpr std::enable_if_t<blender::blenlib_internal::IsBoundedArray<T>::value, size_t>
+BOUNDED_ARRAY_TYPE_SIZE() noexcept
+{
+  return sizeof(std::declval<T>()) / sizeof(std::declval<T>()[0]);
+}
+
 #endif
 
 #endif /* __BLI_UTILDEFINES_H__ */

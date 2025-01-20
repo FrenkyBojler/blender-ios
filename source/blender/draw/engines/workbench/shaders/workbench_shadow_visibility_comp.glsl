@@ -1,6 +1,13 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
-#pragma BLENDER_REQUIRE(common_intersect_lib.glsl)
+#include "infos/workbench_shadow_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(workbench_shadow_visibility_compute_dynamic_pass_type)
+
+#include "common_intersect_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
 
 shared uint shared_result;
 
@@ -44,7 +51,7 @@ bool is_visible(IsectBox box)
 
 bool intersects_near_plane(IsectBox box)
 {
-  vec4 near_plane = drw_view_culling.planes[4];
+  vec4 near_plane = drw_view_culling.frustum_planes.planes[4];
   bool on_positive_side = false;
   bool on_negative_side = false;
 
@@ -69,15 +76,19 @@ bool intersects_near_plane(IsectBox box)
 
 void main()
 {
-  if (gl_GlobalInvocationID.x >= resource_len) {
+  if (int(gl_GlobalInvocationID.x) >= resource_len) {
     return;
   }
 
   ObjectBounds bounds = bounds_buf[gl_GlobalInvocationID.x];
-  IsectBox box = isect_data_setup(bounds.bounding_corners[0].xyz,
-                                  bounds.bounding_corners[1].xyz,
-                                  bounds.bounding_corners[2].xyz,
-                                  bounds.bounding_corners[3].xyz);
+  if (!drw_bounds_are_valid(bounds)) {
+    /* Invalid bounding box. */
+    return;
+  }
+  IsectBox box = isect_box_setup(bounds.bounding_corners[0].xyz,
+                                 bounds.bounding_corners[1].xyz,
+                                 bounds.bounding_corners[2].xyz,
+                                 bounds.bounding_corners[3].xyz);
 
 #ifdef DYNAMIC_PASS_SELECTION
   if (is_visible(box)) {

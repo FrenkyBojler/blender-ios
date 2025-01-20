@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,7 +22,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char TimeStampF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    TimeStampF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DVoid` > :class:`TimeStampF1D`\n"
     "\n"
@@ -33,7 +37,7 @@ static char TimeStampF1D___doc__[] =
     "   Returns the time stamp of the Interface1D.\n"
     "\n"
     "   :arg inter: An Interface1D object.\n"
-    "   :type inter: :class:`freestyle.types.Interface1D`\n";
+    "   :type inter: :class:`freestyle.types.Interface1D`\n");
 
 static int TimeStampF1D___init__(BPy_TimeStampF1D *self, PyObject *args, PyObject *kwds)
 {
@@ -49,7 +53,7 @@ static int TimeStampF1D___init__(BPy_TimeStampF1D *self, PyObject *args, PyObjec
 /*-----------------------BPy_TimeStampF1D type definition ------------------------------*/
 
 PyTypeObject TimeStampF1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "TimeStampF1D",
     /*tp_basicsize*/ sizeof(BPy_TimeStampF1D),
     /*tp_itemsize*/ 0,

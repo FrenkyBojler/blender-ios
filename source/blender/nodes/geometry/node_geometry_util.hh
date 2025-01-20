@@ -1,118 +1,85 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
-#include <string.h>
-
-#include "BLI_math_matrix_types.hh"
-#include "BLI_math_vector_types.hh"
-#include "BLI_utildefines.h"
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_node_types.h"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"  // IWYU pragma: export
+#include "BKE_node_socket_value.hh"
 
-#include "BKE_node.h"
-
-#include "BLT_translation.h"
-
-#include "NOD_geometry.h"
 #include "NOD_geometry_exec.hh"
+#include "NOD_register.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
-#include "RNA_access.h"
+#include "node_util.hh"
 
-#include "node_geometry_register.hh"
-#include "node_util.h"
-
+namespace blender {
+namespace bke {
 struct BVHTreeFromMesh;
+}
+namespace nodes {
+class GatherAddNodeSearchParams;
+class GatherLinkSearchOpParams;
+}  // namespace nodes
+}  // namespace blender
 
-void geo_node_type_base(struct bNodeType *ntype, int type, const char *name, short nclass);
-bool geo_node_poll_default(const struct bNodeType *ntype,
-                           const struct bNodeTree *ntree,
+void geo_node_type_base(blender::bke::bNodeType *ntype,
+                        std::string idname,
+                        std::optional<int16_t> legacy_type = std::nullopt);
+bool geo_node_poll_default(const blender::bke::bNodeType *ntype,
+                           const bNodeTree *ntree,
                            const char **r_disabled_hint);
 
 namespace blender::nodes {
 
-void transform_mesh(Mesh &mesh,
-                    const float3 translation,
-                    const float3 rotation,
-                    const float3 scale);
+bool check_tool_context_and_error(GeoNodeExecParams &params);
+void search_link_ops_for_tool_node(GatherLinkSearchOpParams &params);
+void search_link_ops_for_volume_grid_node(GatherLinkSearchOpParams &params);
+void search_link_ops_for_import_node(GatherLinkSearchOpParams &params);
 
-void transform_geometry_set(GeoNodeExecParams &params,
-                            GeometrySet &geometry,
-                            const float4x4 &transform,
-                            const Depsgraph &depsgraph);
-
-Mesh *create_line_mesh(const float3 start, const float3 delta, int count);
-
-Mesh *create_grid_mesh(
-    int verts_x, int verts_y, float size_x, float size_y, const AttributeIDRef &uv_map_id);
-
-struct ConeAttributeOutputs {
-  AutoAnonymousAttributeID top_id;
-  AutoAnonymousAttributeID bottom_id;
-  AutoAnonymousAttributeID side_id;
-  AutoAnonymousAttributeID uv_map_id;
-};
-
-Mesh *create_cylinder_or_cone_mesh(float radius_top,
-                                   float radius_bottom,
-                                   float depth,
-                                   int circle_segments,
-                                   int side_segments,
-                                   int fill_segments,
-                                   GeometryNodeMeshCircleFillType fill_type,
-                                   ConeAttributeOutputs &attribute_outputs);
-
-/**
- * Copies the point domain attributes from `in_component` that are in the mask to `out_component`.
- */
-void copy_point_attributes_based_on_mask(const GeometryComponent &in_component,
-                                         GeometryComponent &result_component,
-                                         Span<bool> masks,
-                                         bool invert);
-/**
- * Returns the parts of the geometry that are on the selection for the given domain. If the domain
- * is not applicable for the component, e.g. face domain for point cloud, nothing happens to that
- * component. If no component can work with the domain, then `error_message` is set to true.
- */
-void separate_geometry(GeometrySet &geometry_set,
-                       eAttrDomain domain,
-                       GeometryNodeDeleteGeometryMode mode,
-                       const Field<bool> &selection_field,
-                       const AnonymousAttributePropagationInfo &propagation_info,
-                       bool &r_is_error);
-
-void get_closest_in_bvhtree(BVHTreeFromMesh &tree_data,
+void get_closest_in_bvhtree(bke::BVHTreeFromMesh &tree_data,
                             const VArray<float3> &positions,
-                            const IndexMask mask,
-                            const MutableSpan<int> r_indices,
-                            const MutableSpan<float> r_distances_sq,
-                            const MutableSpan<float3> r_positions);
+                            const IndexMask &mask,
+                            MutableSpan<int> r_indices,
+                            MutableSpan<float> r_distances_sq,
+                            MutableSpan<float3> r_positions);
 
 int apply_offset_in_cyclic_range(IndexRange range, int start_index, int offset);
 
-std::optional<eCustomDataType> node_data_type_to_custom_data_type(eNodeSocketDatatype type);
-std::optional<eCustomDataType> node_socket_to_custom_data_type(const bNodeSocket &socket);
+void mix_baked_data_item(eNodeSocketDatatype socket_type,
+                         void *prev,
+                         const void *next,
+                         const float factor);
 
-class FieldAtIndexInput final : public bke::GeometryFieldInput {
- private:
-  Field<int> index_field_;
-  GField value_field_;
-  eAttrDomain value_field_domain_;
+namespace enums {
 
- public:
-  FieldAtIndexInput(Field<int> index_field, GField value_field, eAttrDomain value_field_domain);
+const EnumPropertyItem *attribute_type_type_with_socket_fn(bContext * /*C*/,
+                                                           PointerRNA * /*ptr*/,
+                                                           PropertyRNA * /*prop*/,
+                                                           bool *r_free);
 
-  GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
-                                 const IndexMask mask) const final;
+bool generic_attribute_type_supported(const EnumPropertyItem &item);
 
-  std::optional<eAttrDomain> preferred_domain(const GeometryComponent & /*component*/) const final
-  {
-    return value_field_domain_;
-  }
-};
+}  // namespace enums
+
+bool custom_data_type_supports_grids(eCustomDataType data_type);
+const EnumPropertyItem *grid_custom_data_type_items_filter_fn(bContext *C,
+                                                              PointerRNA *ptr,
+                                                              PropertyRNA *prop,
+                                                              bool *r_free);
+const EnumPropertyItem *grid_socket_type_items_filter_fn(bContext *C,
+                                                         PointerRNA *ptr,
+                                                         PropertyRNA *prop,
+                                                         bool *r_free);
+
+void node_geo_exec_with_missing_openvdb(GeoNodeExecParams &params);
+
+void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna);
 
 }  // namespace blender::nodes

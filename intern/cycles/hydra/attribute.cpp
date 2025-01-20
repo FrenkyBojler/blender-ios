@@ -1,11 +1,10 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2022 NVIDIA Corporation
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "hydra/attribute.h"
 #include "scene/attribute.h"
-#include "scene/geometry.h"
-#include "scene/scene.h"
 
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/gf/vec3f.h>

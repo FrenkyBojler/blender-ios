@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup collada
@@ -12,7 +14,7 @@
 #include "COLLADASWLibraryMaterials.h"
 #include "COLLADASWStreamWriter.h"
 
-#include "BKE_material.h"
+#include "BKE_material.hh"
 
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
@@ -34,16 +36,14 @@ class MaterialsExporter : COLLADASW::LibraryMaterials {
   BCExportSettings &export_settings;
 };
 
-// used in forEachMaterialInScene
+/* Used in `forEachMaterialInScene`. */
 template<class Functor> class ForEachMaterialFunctor {
   std::vector<std::string>
       mMat; /* contains list of material names, to avoid duplicate calling of f */
   Functor *f;
 
  public:
-  ForEachMaterialFunctor(Functor *f) : f(f)
-  {
-  }
+  ForEachMaterialFunctor(Functor *f) : f(f) {}
 
   void operator()(Object *ob)
   {

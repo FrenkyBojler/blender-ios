@@ -1,14 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
  */
 
 #pragma once
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /** Settings for off-screen rendering. */
 typedef enum eV3DOffscreenDrawFlag {
@@ -20,6 +18,7 @@ typedef enum eV3DOffscreenDrawFlag {
   V3D_OFSDRAW_XR_SHOW_CONTROLLERS = (1 << 4),
   V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS = (1 << 5),
   V3D_OFSDRAW_SHOW_OBJECT_EXTRAS = (1 << 6),
+  V3D_OFSDRAW_XR_SHOW_PASSTHROUGH = (1 << 7),
 } eV3DOffscreenDrawFlag;
 
 /** #View3DShading.light */
@@ -45,7 +44,3 @@ typedef enum eV3DShadingBackgroundType {
   V3D_SHADING_BACKGROUND_WORLD = 1,
   V3D_SHADING_BACKGROUND_VIEWPORT = 2,
 } eV3DShadingBackgroundType;
-
-#ifdef __cplusplus
-}
-#endif

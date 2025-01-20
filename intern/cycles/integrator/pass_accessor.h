@@ -1,12 +1,11 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
 #include "scene/pass.h"
 #include "util/half.h"
-#include "util/string.h"
-#include "util/types.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -45,7 +44,7 @@ class PassAccessor {
   class Destination {
    public:
     Destination() = default;
-    Destination(float *pixels, int num_components);
+    Destination(float *pixels, const int num_components);
     Destination(const PassType pass_type, half4 *pixels);
 
     /* Destination will be initialized with the number of components which is native for the given
@@ -68,6 +67,10 @@ class PassAccessor {
      * Allows to get pixels of render buffer into a partial slice of the destination. */
     int offset = 0;
 
+    /* Offset in floats from the beginning of pixels storage.
+     * Is ignored for half4 destination. */
+    int pixel_offset = 0;
+
     /* Number of floats per pixel. When zero is the same as `num_components`.
      *
      * NOTE: Is ignored for half4 destination, as the half4 pixels are always 4-component
@@ -83,7 +86,7 @@ class PassAccessor {
   class Source {
    public:
     Source() = default;
-    Source(const float *pixels, int num_components);
+    Source(const float *pixels, const int num_components);
 
     /* CPU-side pointers. only usable by the `PassAccessorCPU`. */
     const float *pixels = nullptr;
@@ -94,7 +97,9 @@ class PassAccessor {
     int offset = 0;
   };
 
-  PassAccessor(const PassAccessInfo &pass_access_info, float exposure, int num_samples);
+  PassAccessor(const PassAccessInfo &pass_access_info,
+               const float exposure,
+               const int num_samples);
 
   virtual ~PassAccessor() = default;
 
@@ -108,6 +113,11 @@ class PassAccessor {
                               const Destination &destination) const;
   /* Set pass data for the given render buffers. Used for baking to read from passes. */
   bool set_render_tile_pixels(RenderBuffers *render_buffers, const Source &source);
+
+  const PassAccessInfo &get_pass_access_info() const
+  {
+    return pass_access_info_;
+  }
 
  protected:
   virtual void init_kernel_film_convert(KernelFilmConvert *kfilm_convert,

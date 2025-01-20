@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -10,9 +12,7 @@
 #include <iostream>
 #include <vector>
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -58,9 +58,7 @@ class StrokeShader {
   }
 
   /** Destructor. */
-  virtual ~StrokeShader()
-  {
-  }
+  virtual ~StrokeShader() {}
 
   /** Returns the string corresponding to the shader's name. */
   virtual string getName() const
@@ -75,9 +73,7 @@ class StrokeShader {
    */
   virtual int shade(Stroke &ioStroke) const;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:StrokeShader")
-#endif
 };
 
 } /* namespace Freestyle */

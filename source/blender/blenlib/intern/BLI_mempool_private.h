@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -48,8 +49,4 @@ void mempool_iter_threadsafe_destroy(ParallelMempoolTaskData *iter_arr) ATTR_NON
  * #BLI_mempool_threadsafe_iter.curchunk_threaded_shared for threaded iteration support.
  * (threaded section noted in comments).
  */
-void *mempool_iter_threadsafe_step(BLI_mempool_threadsafe_iter *iter);
-
-#ifdef __cplusplus
-}
-#endif
+void *mempool_iter_threadsafe_step(BLI_mempool_threadsafe_iter *ts_iter);

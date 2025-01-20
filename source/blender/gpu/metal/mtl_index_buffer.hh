@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -6,9 +8,11 @@
 
 #pragma once
 
+#include "GPU_index_buffer.hh"
 #include "MEM_guardedalloc.h"
-#include "gpu_index_buffer_private.hh"
+
 #include "mtl_context.hh"
+
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
 #include <QuartzCore/QuartzCore.h>
@@ -18,11 +22,15 @@ namespace blender::gpu {
 class MTLIndexBuf : public IndexBuf {
   friend class MTLBatch;
   friend class MTLDrawList;
+  friend class MTLStorageBuf; /* For bind as SSBO resource access. */
 
  private:
   /* Metal buffer resource. */
   gpu::MTLBuffer *ibo_ = nullptr;
   uint64_t alloc_size_ = 0;
+
+  /* SSBO wrapper for bind_as_ssbo support. */
+  MTLStorageBuf *ssbo_wrapper_ = nullptr;
 
 #ifndef NDEBUG
   /* Flags whether point index buffer has been compacted
@@ -45,10 +53,10 @@ class MTLIndexBuf : public IndexBuf {
   bool can_optimize_ = true;
 
  public:
-  ~MTLIndexBuf();
+  ~MTLIndexBuf() override;
 
   void bind_as_ssbo(uint32_t binding) override;
-  const uint32_t *read() const override;
+  void read(uint32_t *data) const override;
 
   void upload_data() override;
   void update_sub(uint32_t start, uint32_t len, const void *data) override;

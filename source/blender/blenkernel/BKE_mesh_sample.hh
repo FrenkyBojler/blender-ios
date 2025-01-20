@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -10,75 +12,58 @@
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "DNA_meshdata_types.h"
+#include "FN_field.hh"
+#include "FN_multi_function.hh"
 
-#include "BKE_attribute.h"
+#include "BKE_attribute_math.hh"
+#include "BKE_geometry_fields.hh"
 
 struct Mesh;
-struct BVHTreeFromMesh;
 
 namespace blender {
 class RandomNumberGenerator;
+namespace bke {
+struct BVHTreeFromMesh;
 }
+}  // namespace blender
 
 namespace blender::bke::mesh_surface_sample {
 
-void sample_point_attribute(const Mesh &mesh,
-                            Span<int> looptri_indices,
+void sample_point_attribute(Span<int> corner_verts,
+                            Span<int3> corner_tris,
+                            Span<int> tri_indices,
                             Span<float3> bary_coords,
                             const GVArray &src,
-                            IndexMask mask,
+                            const IndexMask &mask,
                             GMutableSpan dst);
 
-void sample_corner_attribute(const Mesh &mesh,
-                             Span<int> looptri_indices,
+void sample_point_normals(Span<int> corner_verts,
+                          Span<int3> corner_tris,
+                          Span<int> tri_indices,
+                          Span<float3> bary_coords,
+                          Span<float3> src,
+                          IndexMask mask,
+                          MutableSpan<float3> dst);
+
+void sample_corner_attribute(Span<int3> corner_tris,
+                             Span<int> tri_indices,
                              Span<float3> bary_coords,
                              const GVArray &src,
-                             IndexMask mask,
+                             const IndexMask &mask,
                              GMutableSpan dst);
 
-void sample_face_attribute(const Mesh &mesh,
-                           Span<int> looptri_indices,
+void sample_corner_normals(Span<int3> corner_tris,
+                           Span<int> tri_indices,
+                           Span<float3> bary_coords,
+                           Span<float3> src,
+                           const IndexMask &mask,
+                           MutableSpan<float3> dst);
+
+void sample_face_attribute(Span<int> corner_tri_faces,
+                           Span<int> tri_indices,
                            const GVArray &src,
-                           IndexMask mask,
+                           const IndexMask &mask,
                            GMutableSpan dst);
-
-enum class eAttributeMapMode {
-  INTERPOLATED,
-  NEAREST,
-};
-
-/**
- * A utility class that performs attribute interpolation from a source mesh.
- *
- * The interpolator is only valid as long as the mesh is valid.
- * Barycentric weights are needed when interpolating point or corner domain attributes,
- * these are computed lazily when needed and re-used.
- */
-class MeshAttributeInterpolator {
-  const Mesh *mesh_;
-  const IndexMask mask_;
-  const Span<float3> positions_;
-  const Span<int> looptri_indices_;
-
-  Array<float3> bary_coords_;
-  Array<float3> nearest_weights_;
-
- public:
-  MeshAttributeInterpolator(const Mesh *mesh,
-                            IndexMask mask,
-                            Span<float3> positions,
-                            Span<int> looptri_indices);
-
-  void sample_data(const GVArray &src,
-                   eAttrDomain domain,
-                   eAttributeMapMode mode,
-                   GMutableSpan dst);
-
- protected:
-  Span<float3> ensure_barycentric_coords();
-  Span<float3> ensure_nearest_weights();
-};
 
 /**
  * Find randomly distributed points on the surface of a mesh within a 3D sphere. This does not
@@ -91,12 +76,12 @@ class MeshAttributeInterpolator {
  */
 int sample_surface_points_spherical(RandomNumberGenerator &rng,
                                     const Mesh &mesh,
-                                    Span<int> looptri_indices_to_sample,
+                                    Span<int> tris_to_sample,
                                     const float3 &sample_pos,
                                     float sample_radius,
                                     float approximate_density,
                                     Vector<float3> &r_bary_coords,
-                                    Vector<int> &r_looptri_indices,
+                                    Vector<int> &r_tri_indices,
                                     Vector<float3> &r_positions);
 
 /**
@@ -116,7 +101,7 @@ int sample_surface_points_spherical(RandomNumberGenerator &rng,
 int sample_surface_points_projected(
     RandomNumberGenerator &rng,
     const Mesh &mesh,
-    BVHTreeFromMesh &mesh_bvhtree,
+    bke::BVHTreeFromMesh &mesh_bvhtree,
     const float2 &sample_pos_re,
     float sample_radius_re,
     FunctionRef<void(const float2 &pos_re, float3 &r_start, float3 &r_end)> region_position_to_ray,
@@ -124,23 +109,86 @@ int sample_surface_points_projected(
     int tries_num,
     int max_points,
     Vector<float3> &r_bary_coords,
-    Vector<int> &r_looptri_indices,
+    Vector<int> &r_tri_indices,
     Vector<float3> &r_positions);
 
 float3 compute_bary_coord_in_triangle(Span<float3> vert_positions,
-                                      Span<MLoop> loops,
-                                      const MLoopTri &looptri,
+                                      Span<int> corner_verts,
+                                      const int3 &corner_tri,
                                       const float3 &position);
 
 template<typename T>
-inline T sample_corner_attrribute_with_bary_coords(const float3 &bary_weights,
-                                                   const MLoopTri &looptri,
-                                                   const Span<T> corner_attribute)
+inline T sample_corner_attribute_with_bary_coords(const float3 &bary_weights,
+                                                  const int3 &corner_tri,
+                                                  const Span<T> corner_attribute)
 {
   return attribute_math::mix3(bary_weights,
-                              corner_attribute[looptri.tri[0]],
-                              corner_attribute[looptri.tri[1]],
-                              corner_attribute[looptri.tri[2]]);
+                              corner_attribute[corner_tri[0]],
+                              corner_attribute[corner_tri[1]],
+                              corner_attribute[corner_tri[2]]);
 }
+
+template<typename T>
+inline T sample_corner_attribute_with_bary_coords(const float3 &bary_weights,
+                                                  const int3 &corner_tri,
+                                                  const VArray<T> &corner_attribute)
+{
+  return attribute_math::mix3(bary_weights,
+                              corner_attribute[corner_tri[0]],
+                              corner_attribute[corner_tri[1]],
+                              corner_attribute[corner_tri[2]]);
+}
+
+/**
+ * Calculate barycentric weights from triangle indices and positions within the triangles.
+ */
+class BaryWeightFromPositionFn : public mf::MultiFunction {
+  GeometrySet source_;
+  Span<float3> vert_positions_;
+  Span<int> corner_verts_;
+  Span<int3> corner_tris_;
+
+ public:
+  BaryWeightFromPositionFn(GeometrySet geometry);
+  void call(const IndexMask &mask, mf::Params params, mf::Context context) const;
+};
+
+/**
+ * Calculate face corner weights from triangle indices and positions within the triangles.
+ * The weights are 1 for the nearest corner and 0 for the two others.
+ */
+class CornerBaryWeightFromPositionFn : public mf::MultiFunction {
+  GeometrySet source_;
+  Span<float3> vert_positions_;
+  Span<int> corner_verts_;
+  Span<int3> corner_tris_;
+
+ public:
+  CornerBaryWeightFromPositionFn(GeometrySet geometry);
+  void call(const IndexMask &mask, mf::Params params, mf::Context context) const;
+};
+
+/**
+ * Evaluate an attribute on the input geometry and sample it with input barycentric weights and
+ * triangle indices.
+ */
+class BaryWeightSampleFn : public mf::MultiFunction {
+  mf::Signature signature_;
+
+  GeometrySet source_;
+  Span<int3> corner_tris_;
+  std::optional<bke::MeshFieldContext> source_context_;
+  std::unique_ptr<fn::FieldEvaluator> source_evaluator_;
+  const GVArray *source_data_;
+  AttrDomain domain_;
+
+ public:
+  BaryWeightSampleFn(GeometrySet geometry, fn::GField src_field);
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context context) const;
+
+ private:
+  void evaluate_source(fn::GField src_field);
+};
 
 }  // namespace blender::bke::mesh_surface_sample

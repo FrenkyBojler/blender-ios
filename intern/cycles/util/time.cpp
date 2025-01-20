@@ -1,18 +1,21 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "util/time.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #if !defined(_WIN32)
 #  include <sys/time.h>
 #  include <unistd.h>
 #endif
 
-#include "util/math.h"
 #include "util/string.h"
-#include "util/windows.h"
+
+#ifdef _WIN32
+#  include "util/windows.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -27,7 +30,7 @@ double time_dt()
   return (double)counter / (double)frequency;
 }
 
-void time_sleep(double t)
+void time_sleep(const double t)
 {
   Sleep((int)(t * 1000));
 }
@@ -35,7 +38,7 @@ void time_sleep(double t)
 double time_dt()
 {
   struct timeval now;
-  gettimeofday(&now, NULL);
+  gettimeofday(&now, nullptr);
 
   return now.tv_sec + now.tv_usec * 1e-6;
 }
@@ -44,7 +47,7 @@ double time_dt()
 void time_sleep(double t)
 {
   /* get whole seconds */
-  int s = (int)t;
+  const int s = (int)t;
 
   if (s >= 1) {
     sleep(s);
@@ -54,9 +57,10 @@ void time_sleep(double t)
   }
 
   /* get microseconds */
-  int us = (int)(t * 1e6);
-  if (us > 0)
+  const int us = (int)(t * 1e6);
+  if (us > 0) {
     usleep(us);
+  }
 }
 #endif
 
@@ -72,9 +76,7 @@ string time_human_readable_from_seconds(const double seconds)
   if (h > 0) {
     return string_printf("%.2d:%.2d:%.2d.%.2d", h, m, s, r);
   }
-  else {
-    return string_printf("%.2d:%.2d.%.2d", m, s, r);
-  }
+  return string_printf("%.2d:%.2d.%.2d", m, s, r);
 }
 
 double time_human_readable_to_seconds(const string &time_string)
@@ -96,7 +98,7 @@ double time_human_readable_to_seconds(const string &time_string)
     /* Time string is malformed. */
     return 0.0;
   }
-  else if (fraction_tokens.size() == 1) {
+  if (fraction_tokens.size() == 1) {
     /* There is no fraction of a second specified, the rest of the code
      * handles this normally. */
   }

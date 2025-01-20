@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2016 Blender Authors
+#
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2016 Blender Foundation.
 
 # - Find LOGC4PLUS library
 # Find the native LOGC4PLUS includes and library
@@ -40,7 +41,7 @@ FIND_LIBRARY(LOGC4PLUS_LIBRARY
     ${_logc4plus_SEARCH_DIRS}
   PATH_SUFFIXES
     lib64 lib
-  )
+)
 
 # handle the QUIETLY and REQUIRED arguments and set LOGC4PLUS_FOUND to TRUE if
 # all listed variables are TRUE

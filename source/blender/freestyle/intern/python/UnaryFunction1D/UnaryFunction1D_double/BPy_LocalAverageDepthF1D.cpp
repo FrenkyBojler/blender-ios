@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -20,7 +22,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char LocalAverageDepthF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    LocalAverageDepthF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DDouble` > :class:`LocalAverageDepthF1D`\n"
     "\n"
@@ -37,7 +41,7 @@ static char LocalAverageDepthF1D___doc__[] =
     "\n"
     ".. method:: __call__(inter)\n"
     "\n"
-    "   Returns the average depth evaluated for an Interface1D.  The average\n"
+    "   Returns the average depth evaluated for an Interface1D. The average\n"
     "   depth is evaluated for a set of points along the Interface1D (using\n"
     "   the :class:`freestyle.functions.LocalAverageDepthF0D` functor) with a\n"
     "   user-defined sampling and then integrated into a single value using a\n"
@@ -46,7 +50,7 @@ static char LocalAverageDepthF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The average depth evaluated for the Interface1D.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int LocalAverageDepthF1D___init__(BPy_LocalAverageDepthF1D *self,
                                          PyObject *args,
@@ -57,7 +61,8 @@ static int LocalAverageDepthF1D___init__(BPy_LocalAverageDepthF1D *self,
   double d;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "d|O!", (char **)kwlist, &d, &IntegrationType_Type, &obj)) {
+          args, kwds, "d|O!", (char **)kwlist, &d, &IntegrationType_Type, &obj))
+  {
     return -1;
   }
   IntegrationType t = (obj) ? IntegrationType_from_BPy_IntegrationType(obj) : MEAN;
@@ -68,7 +73,7 @@ static int LocalAverageDepthF1D___init__(BPy_LocalAverageDepthF1D *self,
 /*-----------------------BPy_LocalAverageDepthF1D type definition ------------------------------*/
 
 PyTypeObject LocalAverageDepthF1D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "LocalAverageDepthF1D",
     /*tp_basicsize*/ sizeof(BPy_LocalAverageDepthF1D),
     /*tp_itemsize*/ 0,

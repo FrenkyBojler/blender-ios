@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2011 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -21,9 +22,9 @@ struct MovieDistortion;
 
 /**
  * Checks if image was already loaded, then returns same image otherwise creates new.
- * does not load ibuf itself pass on optional frame for #name images.
+ * does not load ibuf itself pass on optional frame for `filepath` images.
  */
-struct MovieClip *BKE_movieclip_file_add(struct Main *bmain, const char *name);
+struct MovieClip *BKE_movieclip_file_add(struct Main *bmain, const char *filepath);
 struct MovieClip *BKE_movieclip_file_add_exists_ex(struct Main *bmain,
                                                    const char *filepath,
                                                    bool *r_exists);
@@ -45,21 +46,21 @@ struct ImBuf *BKE_movieclip_get_postprocessed_ibuf(struct MovieClip *clip,
                                                    int postprocess_flag);
 struct ImBuf *BKE_movieclip_get_stable_ibuf(struct MovieClip *clip,
                                             const struct MovieClipUser *user,
-                                            float loc[2],
-                                            float *scale,
-                                            float *angle,
-                                            int postprocess_flag);
+                                            int postprocess_flag,
+                                            float r_loc[2],
+                                            float *r_scale,
+                                            float *r_angle);
 struct ImBuf *BKE_movieclip_get_ibuf_flag(struct MovieClip *clip,
                                           const struct MovieClipUser *user,
                                           int flag,
                                           int cache_flag);
 void BKE_movieclip_get_size(struct MovieClip *clip,
                             const struct MovieClipUser *user,
-                            int *width,
-                            int *height);
+                            int *r_width,
+                            int *r_height);
 void BKE_movieclip_get_size_fl(struct MovieClip *clip,
                                const struct MovieClipUser *user,
-                               float size[2]);
+                               float r_size[2]);
 int BKE_movieclip_get_duration(struct MovieClip *clip);
 float BKE_movieclip_get_fps(struct MovieClip *clip);
 void BKE_movieclip_get_aspect(struct MovieClip *clip, float *aspx, float *aspy);
@@ -86,7 +87,7 @@ void BKE_movieclip_build_proxy_frame(struct MovieClip *clip,
                                      int clip_flag,
                                      struct MovieDistortion *distortion,
                                      int cfra,
-                                     int *build_sizes,
+                                     const int *build_sizes,
                                      int build_count,
                                      bool undistorted);
 
@@ -98,7 +99,7 @@ void BKE_movieclip_build_proxy_frame_for_ibuf(struct MovieClip *clip,
                                               struct ImBuf *ibuf,
                                               struct MovieDistortion *distortion,
                                               int cfra,
-                                              int *build_sizes,
+                                              const int *build_sizes,
                                               int build_count,
                                               bool undistorted);
 bool BKE_movieclip_proxy_enabled(struct MovieClip *clip);
@@ -106,9 +107,9 @@ bool BKE_movieclip_proxy_enabled(struct MovieClip *clip);
 float BKE_movieclip_remap_scene_to_clip_frame(const struct MovieClip *clip, float framenr);
 float BKE_movieclip_remap_clip_to_scene_frame(const struct MovieClip *clip, float framenr);
 
-void BKE_movieclip_filename_for_frame(struct MovieClip *clip,
+void BKE_movieclip_filepath_for_frame(struct MovieClip *clip,
                                       const struct MovieClipUser *user,
-                                      char *name);
+                                      char *filepath);
 
 /**
  * Read image buffer from the given movie clip without acquiring the #LOCK_MOVIECLIP lock.

@@ -1,13 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation.
- */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eevee
  */
 
 // #include "BLI_map.hh"
-#include "DEG_depsgraph_query.h"
+#include "BKE_colortools.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "eevee_instance.hh"
 #include "eevee_motion_blur.hh"
@@ -25,8 +26,14 @@ namespace blender::eevee {
 void MotionBlurModule::init()
 {
   const Scene *scene = inst_.scene;
+  const ViewLayer *view_layer = inst_.view_layer;
 
-  enabled_ = (scene->eevee.flag & SCE_EEVEE_MOTION_BLUR_ENABLED) != 0;
+  /* Disable on viewport outside of animation playback,
+   * since it can get distracting while editing the scene. */
+  enabled_ = (scene->r.mode & R_MBLUR) != 0 && (inst_.is_image_render() || inst_.is_playback());
+  if (enabled_) {
+    enabled_ = (view_layer->layflag & SCE_LAY_MOTION_BLUR) != 0;
+  }
 
   if (!enabled_) {
     motion_blur_fx_enabled_ = false;
@@ -41,8 +48,8 @@ void MotionBlurModule::init()
   initial_frame_ = scene->r.cfra;
   initial_subframe_ = scene->r.subframe;
   frame_time_ = initial_frame_ + initial_subframe_;
-  shutter_position_ = scene->eevee.motion_blur_position;
-  shutter_time_ = scene->eevee.motion_blur_shutter;
+  shutter_position_ = scene->r.motion_blur_position;
+  shutter_time_ = scene->r.motion_blur_shutter;
 
   data_.depth_scale = scene->eevee.motion_blur_depth_scale;
   motion_blur_fx_enabled_ = true; /* TODO(fclem): UI option. */
@@ -54,7 +61,7 @@ void MotionBlurModule::init()
   }
 
   /* Without this there is the possibility of the curve table not being allocated. */
-  BKE_curvemapping_changed((struct CurveMapping *)&scene->r.mblur_shutter_curve, false);
+  BKE_curvemapping_changed((CurveMapping *)&scene->r.mblur_shutter_curve, false);
 
   Vector<float> cdf(CM_TABLE);
   Sampling::cdf_from_curvemapping(scene->r.mblur_shutter_curve, cdf);
@@ -71,6 +78,7 @@ void MotionBlurModule::init()
      * function is only called after rendering a sample. */
     inst_.velocity.step_sync(STEP_PREVIOUS, time_steps_[0]);
     inst_.velocity.step_sync(STEP_NEXT, time_steps_[2]);
+    /* Let the main sync loop handle the current step. */
   }
   inst_.set_time(time_steps_[1]);
 }
@@ -102,17 +110,17 @@ void MotionBlurModule::step()
 float MotionBlurModule::shutter_time_to_scene_time(float time)
 {
   switch (shutter_position_) {
-    case SCE_EEVEE_MB_START:
+    case SCE_MB_START:
       /* No offset. */
       break;
-    case SCE_EEVEE_MB_CENTER:
+    case SCE_MB_CENTER:
       time -= 0.5f;
       break;
-    case SCE_EEVEE_MB_END:
+    case SCE_MB_END:
       time -= 1.0;
       break;
     default:
-      BLI_assert(!"Invalid motion blur position enum!");
+      BLI_assert_msg(false, "Invalid motion blur position enum!");
       break;
   }
   time *= shutter_time_;
@@ -124,7 +132,9 @@ void MotionBlurModule::sync()
 {
   /* Disable motion blur in viewport when changing camera projection type.
    * Avoids really high velocities. */
-  if (inst_.velocity.camera_changed_projection()) {
+  if (inst_.velocity.camera_changed_projection() ||
+      (inst_.is_viewport() && (inst_.camera.overscan_changed() || inst_.camera.camera_changed())))
+  {
     motion_blur_fx_enabled_ = false;
   }
 
@@ -132,17 +142,18 @@ void MotionBlurModule::sync()
     return;
   }
 
-  eGPUSamplerState no_filter = GPU_SAMPLER_DEFAULT;
+  GPUSamplerState no_filter = GPUSamplerState::default_sampler();
   RenderBuffers &render_buffers = inst_.render_buffers;
 
   motion_blur_ps_.init();
-  inst_.velocity.bind_resources(&motion_blur_ps_);
-  inst_.sampling.bind_resources(&motion_blur_ps_);
+  motion_blur_ps_.bind_resources(inst_.velocity);
+  motion_blur_ps_.bind_resources(inst_.sampling);
   {
     /* Create max velocity tiles. */
     PassSimple::Sub &sub = motion_blur_ps_.sub("TilesFlatten");
-    eShaderType shader = inst_.is_viewport() ? MOTION_BLUR_TILE_FLATTEN_VIEWPORT :
-                                               MOTION_BLUR_TILE_FLATTEN_RENDER;
+    eGPUTextureFormat vector_tx_format = inst_.render_buffers.vector_tx_format();
+    eShaderType shader = vector_tx_format == GPU_RG16F ? MOTION_BLUR_TILE_FLATTEN_RG :
+                                                         MOTION_BLUR_TILE_FLATTEN_RGBA;
     sub.shader_set(inst_.shaders.static_shader_get(shader));
     sub.bind_ubo("motion_blur_buf", data_);
     sub.bind_texture("depth_tx", &render_buffers.depth_tx);
@@ -191,7 +202,7 @@ void MotionBlurModule::render(View &view, GPUTexture **input_tx, GPUTexture **ou
   if (inst_.is_viewport()) {
     float frame_delta = fabsf(inst_.velocity.step_time_delta_get(STEP_PREVIOUS, STEP_CURRENT));
     /* Avoid highly disturbing blurs, during navigation with high shutter time. */
-    if (frame_delta > 0.0f && !DRW_state_is_navigating()) {
+    if (frame_delta > 0.0f && !inst_.is_navigating()) {
       /* Rescale motion blur intensity to be shutter time relative and avoid long streak when we
        * have frame skipping. Always try to stick to what the render frame would look like. */
       data_.motion_scale = float2(shutter_time_ / frame_delta);
@@ -201,18 +212,15 @@ void MotionBlurModule::render(View &view, GPUTexture **input_tx, GPUTexture **ou
        * Apply motion blur as smoothing and only blur towards last frame. */
       data_.motion_scale = float2(1.0f, 0.0f);
 
-      if (was_navigating_ != DRW_state_is_navigating()) {
+      if (was_navigating_ != inst_.is_navigating()) {
         /* Special case for navigation events that only last for one frame (for instance mouse
          * scroll for zooming). For this case we have to wait for the next frame before enabling
          * the navigation motion blur. */
-        was_navigating_ = DRW_state_is_navigating();
+        was_navigating_ = inst_.is_navigating();
         return;
       }
     }
-    was_navigating_ = DRW_state_is_navigating();
-
-    /* Change texture swizzling to avoid complexity in gather pass shader. */
-    GPU_texture_swizzle_set(inst_.render_buffers.vector_tx, "rgrg");
+    was_navigating_ = inst_.is_navigating();
   }
   else {
     data_.motion_scale = float2(1.0f);
@@ -233,18 +241,13 @@ void MotionBlurModule::render(View &view, GPUTexture **input_tx, GPUTexture **ou
 
   tiles_tx_.acquire(tiles_extent, GPU_RGBA16F);
 
-  GPU_storagebuf_clear_to_zero(tile_indirection_buf_);
+  tile_indirection_buf_.clear_to_zero();
 
   inst_.manager->submit(motion_blur_ps_, view);
 
   tiles_tx_.release();
 
   DRW_stats_group_end();
-
-  if (inst_.is_viewport()) {
-    /* Reset swizzle since this texture might be reused in other places. */
-    GPU_texture_swizzle_set(inst_.render_buffers.vector_tx, "rgba");
-  }
 
   /* Swap buffers so that next effect has the right input. */
   *input_tx = output_color_tx_;

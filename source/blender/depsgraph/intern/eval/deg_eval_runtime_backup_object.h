@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -8,10 +9,13 @@
 #pragma once
 
 #include "DNA_object_types.h"
-#include "DNA_session_uuid_types.h"
+#include "DNA_session_uid_types.h"
 
-#include "BLI_session_uuid.h"
+#include "BKE_object_types.hh"
 
+#include "BLI_session_uid.h"
+
+#include "intern/depsgraph_type.hh"
 #include "intern/eval/deg_eval_runtime_backup_modifier.h"
 #include "intern/eval/deg_eval_runtime_backup_pose.h"
 
@@ -38,11 +42,12 @@ class ObjectRuntimeBackup {
   void restore_modifier_runtime_data(Object *object);
   void restore_pose_channel_runtime_data(Object *object);
 
-  Object_Runtime runtime;
+  bke::ObjectRuntime runtime;
+  optional<LightLinkingRuntime> light_linking_runtime;
   short base_flag;
   unsigned short base_local_view_bits;
-  Map<SessionUUID, ModifierDataBackup> modifier_runtime_data;
-  Map<SessionUUID, bPoseChannel_Runtime> pose_channel_runtime_data;
+  Map<int, ModifierDataBackup> modifier_runtime_data;
+  Map<SessionUID, bPoseChannel_Runtime> pose_channel_runtime_data;
 };
 
 }  // namespace blender::deg

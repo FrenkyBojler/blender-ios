@@ -1,14 +1,10 @@
+# SPDX-FileCopyrightText: 2008 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2008 Blender Foundation. All rights reserved.
 
 set(INC
-  .
-  ../blenkernel
-  ../blenlib
-  ../imbuf
-  ../makesdna
+  PUBLIC .
   ../makesrna
-  ../../../intern/guardedalloc
   ../../../intern/locale
 )
 
@@ -16,16 +12,19 @@ set(INC_SYS
 )
 
 set(SRC
-  intern/blt_lang.c
-  intern/blt_translation.c
+  intern/blt_lang.cc
+  intern/blt_translation.cc
 
-  BLT_lang.h
-  BLT_translation.h
+  BLT_lang.hh
+  BLT_translation.hh
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::dna
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::guardedalloc
 )
 
 if(WITH_INTERNATIONAL)
@@ -42,13 +41,12 @@ if(WITH_PYTHON)
   )
 endif()
 
-if(WIN32 OR APPLE)
-  if(WITH_INPUT_IME)
-    add_definitions(-DWITH_INPUT_IME)
-  endif()
+if(WITH_INPUT_IME)
+  add_definitions(-DWITH_INPUT_IME)
 endif()
 
 blender_add_lib(bf_blentranslation "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::blentranslation ALIAS bf_blentranslation)
 
 if(WITH_INTERNATIONAL)
   add_subdirectory(msgfmt)

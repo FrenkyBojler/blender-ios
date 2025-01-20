@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2019-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* Preferences Data File 'U_default'. */
 
@@ -14,15 +16,14 @@
 
 #include "BKE_blender_version.h"
 
-#include "GPU_platform.h"
+#include "GPU_platform_backend_enum.h"
 
-#include "BLO_readfile.h" /* own include */
+#include "BLO_userdef_default.h" /* own include */
 
 const UserDef U_default = {
     .versionfile = BLENDER_FILE_VERSION,
     .subversionfile = BLENDER_FILE_SUBVERSION,
-    .flag = (USER_AUTOSAVE | USER_TOOLTIPS | USER_RELPATHS | USER_RELEASECONFIRM |
-             USER_SCRIPT_AUTOEXEC_DISABLE | USER_NONEGFRAMES),
+    .flag = (USER_AUTOSAVE | USER_TOOLTIPS | USER_RELPATHS | USER_RELEASECONFIRM),
     .dupflag = USER_DUP_MESH | USER_DUP_CURVE | USER_DUP_SURF | USER_DUP_LATTICE | USER_DUP_FONT |
                USER_DUP_MBALL | USER_DUP_LAMP | USER_DUP_ARM | USER_DUP_CAMERA | USER_DUP_SPEAKER |
                USER_DUP_ACT | USER_DUP_LIGHTPROBE | USER_DUP_GPENCIL | USER_DUP_CURVES |
@@ -30,14 +31,18 @@ const UserDef U_default = {
     .pref_flag = USER_PREF_FLAG_SAVE,
     .savetime = 2,
     .tempdir = "",
+    /* Overwritten by #BKE_appdir_font_folder_default(..)
+     * unless the system font's cannot be found. */
     .fontdir = "//",
     .renderdir = "//",
     .render_cachedir = "",
     .textudir = "//",
-    .pythondir = "",
+    .script_directories = {NULL, NULL},
     .sounddir = "//",
     .i18ndir = "",
     .image_editor = "",
+    .text_editor = "",
+    .text_editor_args = "",
     .anim_player = "",
     .anim_player_preset = 0,
     .v2d_min_gridsize = 45,
@@ -46,9 +51,9 @@ const UserDef U_default = {
     .dbl_click_time = 350,
     .mini_axis_type = USER_MINI_AXIS_TYPE_GIZMO,
     .uiflag = (USER_FILTERFILEEXTS | USER_DRAWVIEWINFO | USER_PLAINMENUS |
-               USER_LOCK_CURSOR_ADJUST | USER_DEPTH_CURSOR | USER_AUTOPERSP | USER_GLOBALUNDO |
-               USER_HIDE_DOT | USER_SHOW_GIZMO_NAVIGATE | USER_SHOW_VIEWPORTNAME | USER_SHOW_FPS |
-               USER_CONTINUOUS_MOUSE | USER_SAVE_PROMPT),
+               USER_LOCK_CURSOR_ADJUST | USER_DEPTH_CURSOR | USER_AUTOPERSP |
+               USER_NODE_AUTO_OFFSET | USER_GLOBALUNDO | USER_SHOW_GIZMO_NAVIGATE |
+               USER_SHOW_VIEWPORTNAME | USER_SHOW_FPS | USER_CONTINUOUS_MOUSE | USER_SAVE_PROMPT),
     .uiflag2 = USER_REGION_OVERLAP,
     .gpu_flag = USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE | USER_GPU_FLAG_SUBDIVISION_EVALUATION,
     .app_flag = 0,
@@ -66,13 +71,14 @@ const UserDef U_default = {
 
     /** Default so DPI is detected automatically. */
     .dpi = 0,
-    .dpi_fac = 0.0,
-    .inv_dpi_fac = 0.0, /* run-time. */
+    .scale_factor = 0.0,
+    .inv_scale_factor = 0.0, /* run-time. */
     .pixelsize = 1,
     .virtual_pixel = 0,
 
     .scrollback = 256,
-    .node_margin = 80,
+    .node_margin = 40,
+    .node_preview_res = 120,
     .transopts = USER_TR_TOOLTIPS,
     .menuthreshold1 = 5,
     .menuthreshold2 = 2,
@@ -95,13 +101,23 @@ const UserDef U_default = {
     .user_menus = {NULL},
 
     .keyconfigstr = "Blender",
+
+    .network_timeout = 10,
+    .network_connection_limit = 5,
+
     .undosteps = 32,
     .undomemory = 0,
     .gp_manhattandist = 1,
     .gp_euclideandist = 2,
     .gp_eraser = 25,
     .gp_settings = 0,
+    .playback_fps_samples = 8,
+#ifdef __APPLE__
+    .gpu_backend = GPU_BACKEND_METAL,
+#else
     .gpu_backend = GPU_BACKEND_OPENGL,
+#endif
+    .max_shader_compilation_subprocesses = 0,
 
     /** Initialized by: #BKE_studiolight_default. */
     .light_param = {{0}},
@@ -124,7 +140,7 @@ const UserDef U_default = {
     .pad_rot_angle = 15,
     .rvisize = 25,
     .rvibright = 8,
-    .recent_files = 10,
+    .recent_files = 20,
     .smooth_viewtx = 200,
     .glreslimit = 0,
     .color_picker_type = USER_CP_CIRCLE_HSV,
@@ -141,18 +157,21 @@ const UserDef U_default = {
     .pressure_softness = 0.0,
     .ndof_sensitivity = 4.0,
     .ndof_orbit_sensitivity = 4.0,
-    .ndof_deadzone = 0.1,
+    .ndof_deadzone = 0.0,
     .ndof_flag = (NDOF_MODE_ORBIT | NDOF_LOCK_HORIZON | NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM |
                   NDOF_SHOULD_ROTATE |
                   /* Software from the driver authors follows this convention
-                   * so invert this by default, see: T67579. */
+                   * so invert this by default, see: #67579. */
                   NDOF_ROTX_INVERT_AXIS | NDOF_ROTY_INVERT_AXIS | NDOF_ROTZ_INVERT_AXIS |
                   NDOF_PANX_INVERT_AXIS | NDOF_PANY_INVERT_AXIS | NDOF_PANZ_INVERT_AXIS |
                   NDOF_ZOOM_INVERT | NDOF_CAMERA_PAN_ZOOM),
     .image_draw_method = IMAGE_DRAW_METHOD_AUTO,
     .glalphaclip = 0.004,
     .autokey_mode = (AUTOKEY_MODE_NORMAL & ~AUTOKEY_ON),
-    .autokey_flag = AUTOKEY_FLAG_XYZ2RGB,
+    .keying_flag = KEYING_FLAG_XYZ2RGB | AUTOKEY_FLAG_INSERTNEEDED,
+    .key_insert_channels = (USER_ANIM_KEY_CHANNEL_LOCATION | USER_ANIM_KEY_CHANNEL_ROTATION |
+                            USER_ANIM_KEY_CHANNEL_SCALE | USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES),
+    .animation_flag = USER_ANIM_HIGH_QUALITY_DRAWING,
     .text_render = 0,
     .navigation_mode = VIEW_NAVIGATION_WALK,
     .view_rotate_sensitivity_turntable = DEG2RAD(0.4),
@@ -201,7 +220,7 @@ const UserDef U_default = {
     .file_space_data =
         {
             .display_type = FILE_VERTICALDISPLAY,
-            .thumbnail_size = 128,
+            .thumbnail_size = 96,
             .sort_type = FILE_SORT_ALPHA,
             .details_flags = FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME,
             .flag = FILE_HIDE_DOT,
@@ -219,8 +238,10 @@ const UserDef U_default = {
 
     .collection_instance_empty_size = 1.0f,
 
-    .statusbar_flag = STATUSBAR_SHOW_VERSION,
+    .statusbar_flag = STATUSBAR_SHOW_VERSION | STATUSBAR_SHOW_EXTENSIONS_UPDATES,
     .file_preview_type = USER_FILE_PREVIEW_AUTO,
+
+    .sequencer_editor_flag = USER_SEQ_ED_SIMPLE_TWEAKING | USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT,
 
     .runtime =
         {

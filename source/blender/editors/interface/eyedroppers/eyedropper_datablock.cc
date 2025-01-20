@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2009 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -19,24 +20,24 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
-#include "BKE_idtype.h"
-#include "BKE_report.h"
-#include "BKE_screen.h"
+#include "BKE_context.hh"
+#include "BKE_idtype.hh"
+#include "BKE_report.hh"
+#include "BKE_screen.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_outliner.h"
-#include "ED_screen.h"
-#include "ED_space_api.h"
-#include "ED_view3d.h"
+#include "ED_outliner.hh"
+#include "ED_screen.hh"
+#include "ED_space_api.hh"
+#include "ED_view3d.hh"
 
 #include "eyedropper_intern.hh"
 #include "interface_intern.hh"
@@ -77,14 +78,15 @@ static int datadropper_init(bContext *C, wmOperator *op)
   st = BKE_spacetype_from_id(SPACE_VIEW3D);
   art = BKE_regiontype_from_id(st, RGN_TYPE_WINDOW);
 
-  DataDropper *ddr = MEM_cnew<DataDropper>(__func__);
+  DataDropper *ddr = MEM_new<DataDropper>(__func__);
 
   uiBut *but = UI_context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
 
   if ((ddr->ptr.data == nullptr) || (ddr->prop == nullptr) ||
       (RNA_property_editable(&ddr->ptr, ddr->prop) == false) ||
-      (RNA_property_type(ddr->prop) != PROP_POINTER)) {
-    MEM_freeN(ddr);
+      (RNA_property_type(ddr->prop) != PROP_POINTER))
+  {
+    MEM_delete(ddr);
     return false;
   }
   op->customdata = ddr;
@@ -116,15 +118,13 @@ static void datadropper_exit(bContext *C, wmOperator *op)
   WM_cursor_modal_restore(win);
 
   if (op->customdata) {
-    DataDropper *ddr = (DataDropper *)op->customdata;
+    DataDropper *ddr = static_cast<DataDropper *>(op->customdata);
 
     if (ddr->art) {
       ED_region_draw_cb_exit(ddr->art, ddr->draw_handle_pixel);
     }
-
-    MEM_freeN(op->customdata);
-
     op->customdata = nullptr;
+    MEM_delete(ddr);
   }
 
   WM_event_add_mousemove(win);
@@ -135,7 +135,7 @@ static void datadropper_exit(bContext *C, wmOperator *op)
  * \brief get the ID from the 3D view or outliner.
  */
 static void datadropper_id_sample_pt(
-    bContext *C, wmWindow *win, ScrArea *area, DataDropper *ddr, const int m_xy[2], ID **r_id)
+    bContext *C, wmWindow *win, ScrArea *area, DataDropper *ddr, const int event_xy[2], ID **r_id)
 {
   wmWindow *win_prev = CTX_wm_window(C);
   ScrArea *area_prev = CTX_wm_area(C);
@@ -145,9 +145,9 @@ static void datadropper_id_sample_pt(
 
   if (area) {
     if (ELEM(area->spacetype, SPACE_VIEW3D, SPACE_OUTLINER)) {
-      ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_WINDOW, m_xy);
+      ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_WINDOW, event_xy);
       if (region) {
-        const int mval[2] = {m_xy[0] - region->winrct.xmin, m_xy[1] - region->winrct.ymin};
+        const int mval[2] = {event_xy[0] - region->winrct.xmin, event_xy[1] - region->winrct.ymin};
         Base *base;
 
         CTX_wm_window_set(C, win);
@@ -175,16 +175,14 @@ static void datadropper_id_sample_pt(
               id = (ID *)ob->data;
             }
             else {
-              BLI_snprintf(
-                  ddr->name, sizeof(ddr->name), "Incompatible, expected a %s", ddr->idcode_name);
+              SNPRINTF(ddr->name, "Incompatible, expected a %s", ddr->idcode_name);
             }
           }
 
-          PointerRNA idptr;
-          RNA_id_pointer_create(id, &idptr);
+          PointerRNA idptr = RNA_id_pointer_create(id);
 
           if (id && RNA_property_pointer_poll(&ddr->ptr, ddr->prop, &idptr)) {
-            BLI_snprintf(ddr->name, sizeof(ddr->name), "%s: %s", ddr->idcode_name, id->name + 2);
+            SNPRINTF(ddr->name, "%s: %s", ddr->idcode_name, id->name + 2);
             *r_id = id;
           }
 
@@ -202,9 +200,7 @@ static void datadropper_id_sample_pt(
 /* sets the ID, returns success */
 static bool datadropper_id_set(bContext *C, DataDropper *ddr, ID *id)
 {
-  PointerRNA ptr_value;
-
-  RNA_id_pointer_create(id, &ptr_value);
+  PointerRNA ptr_value = RNA_id_pointer_create(id);
 
   RNA_property_pointer_set(&ddr->ptr, ddr->prop, ptr_value, nullptr);
 
@@ -216,16 +212,16 @@ static bool datadropper_id_set(bContext *C, DataDropper *ddr, ID *id)
 }
 
 /* single point sample & set */
-static bool datadropper_id_sample(bContext *C, DataDropper *ddr, const int m_xy[2])
+static bool datadropper_id_sample(bContext *C, DataDropper *ddr, const int event_xy[2])
 {
   ID *id = nullptr;
 
-  int mval[2];
+  int event_xy_win[2];
   wmWindow *win;
   ScrArea *area;
-  datadropper_win_area_find(C, m_xy, mval, &win, &area);
+  eyedropper_win_area_find(C, event_xy, event_xy_win, &win, &area);
 
-  datadropper_id_sample_pt(C, win, area, ddr, mval, &id);
+  datadropper_id_sample_pt(C, win, area, ddr, event_xy_win, &id);
   return datadropper_id_set(C, ddr, id);
 }
 
@@ -287,15 +283,15 @@ static int datadropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
   else if (event->type == MOUSEMOVE) {
     ID *id = nullptr;
 
-    int mval[2];
+    int event_xy_win[2];
     wmWindow *win;
     ScrArea *area;
-    datadropper_win_area_find(C, event->xy, mval, &win, &area);
+    eyedropper_win_area_find(C, event->xy, event_xy_win, &win, &area);
 
     /* Set the region for eyedropper cursor text drawing */
     datadropper_set_draw_callback_region(area, ddr);
 
-    datadropper_id_sample_pt(C, win, area, ddr, mval, &id);
+    datadropper_id_sample_pt(C, win, area, ddr, event_xy_win, &id);
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -307,7 +303,7 @@ static int datadropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*eve
   /* init */
   if (datadropper_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
-    /* Workaround for de-activating the button clearing the cursor, see T76794 */
+    /* Workaround for de-activating the button clearing the cursor, see #76794 */
     UI_context_active_but_clear(C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
@@ -342,7 +338,8 @@ static bool datadropper_poll(bContext *C)
   /* data dropper only supports object data */
   if ((CTX_wm_window(C) != nullptr) &&
       (but = UI_context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
-      (but->type == UI_BTYPE_SEARCH_MENU) && (but->flag & UI_BUT_VALUE_CLEAR)) {
+      (but->type == UI_BTYPE_SEARCH_MENU) && (but->flag & UI_BUT_VALUE_CLEAR))
+  {
     if (prop && RNA_property_type(prop) == PROP_POINTER) {
       StructRNA *type = RNA_property_pointer_type(&ptr, prop);
       const short idcode = RNA_type_to_ID_code(type);

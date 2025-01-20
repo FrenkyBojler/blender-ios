@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2010 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2010 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup render
@@ -7,6 +8,10 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
+struct Image;
+struct DerivedMesh;
 struct MultiresBakeRender;
 struct Scene;
 

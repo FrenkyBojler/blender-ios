@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2008-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -31,28 +33,27 @@ int UnaryFunction0DViewShape_Init(PyObject *module)
   if (PyType_Ready(&UnaryFunction0DViewShape_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&UnaryFunction0DViewShape_Type);
-  PyModule_AddObject(
+  PyModule_AddObjectRef(
       module, "UnaryFunction0DViewShape", (PyObject *)&UnaryFunction0DViewShape_Type);
 
   if (PyType_Ready(&GetOccludeeF0D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&GetOccludeeF0D_Type);
-  PyModule_AddObject(module, "GetOccludeeF0D", (PyObject *)&GetOccludeeF0D_Type);
+  PyModule_AddObjectRef(module, "GetOccludeeF0D", (PyObject *)&GetOccludeeF0D_Type);
 
   if (PyType_Ready(&GetShapeF0D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&GetShapeF0D_Type);
-  PyModule_AddObject(module, "GetShapeF0D", (PyObject *)&GetShapeF0D_Type);
+  PyModule_AddObjectRef(module, "GetShapeF0D", (PyObject *)&GetShapeF0D_Type);
 
   return 0;
 }
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char UnaryFunction0DViewShape___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    UnaryFunction0DViewShape___doc__,
     "Class hierarchy: :class:`UnaryFunction0D` > :class:`UnaryFunction0DViewShape`\n"
     "\n"
     "Base class for unary functions (functors) that work on\n"
@@ -60,7 +61,7 @@ static char UnaryFunction0DViewShape___doc__[] =
     "\n"
     ".. method:: __init__()\n"
     "\n"
-    "   Default constructor.\n";
+    "   Default constructor.\n");
 
 static int UnaryFunction0DViewShape___init__(BPy_UnaryFunction0DViewShape *self,
                                              PyObject *args,
@@ -96,7 +97,8 @@ static PyObject *UnaryFunction0DViewShape___call__(BPy_UnaryFunction0DViewShape 
   PyObject *obj;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "O!", (char **)kwlist, &Interface0DIterator_Type, &obj)) {
+          args, kwds, "O!", (char **)kwlist, &Interface0DIterator_Type, &obj))
+  {
     return nullptr;
   }
 
@@ -117,7 +119,7 @@ static PyObject *UnaryFunction0DViewShape___call__(BPy_UnaryFunction0DViewShape 
 /*-----------------------BPy_UnaryFunction0DViewShape type definition ---------------------------*/
 
 PyTypeObject UnaryFunction0DViewShape_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "UnaryFunction0DViewShape",
     /*tp_basicsize*/ sizeof(BPy_UnaryFunction0DViewShape),
     /*tp_itemsize*/ 0,

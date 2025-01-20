@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -48,12 +50,9 @@
  *   memory usage of the map.
  * - The method names don't follow the std::unordered_map names in many cases. Searching for such
  *   names in this file will usually let you discover the new name.
- * - There is a StdUnorderedMapWrapper class, that wraps std::unordered_map and gives it the same
- *   interface as blender::Map. This is useful for benchmarking.
  */
 
 #include <optional>
-#include <unordered_map>
 
 #include "BLI_array.hh"
 #include "BLI_hash.hh"
@@ -62,6 +61,28 @@
 #include "BLI_probing_strategies.hh"
 
 namespace blender {
+
+/**
+ * A key-value-pair stored in a #Map. This is used when looping over Map.items().
+ */
+template<typename Key, typename Value> struct MapItem {
+  const Key &key;
+  const Value &value;
+};
+
+/**
+ * Same as #MapItem, but the value is mutable. The key is still const because changing it might
+ * change its hash value which would lead to undefined behavior in the #Map.
+ */
+template<typename Key, typename Value> struct MutableMapItem {
+  const Key &key;
+  Value &value;
+
+  operator MapItem<Key, Value>() const
+  {
+    return {this->key, this->value};
+  }
+};
 
 template<
     /**
@@ -108,6 +129,8 @@ template<
 class Map {
  public:
   using size_type = int64_t;
+  using Item = MapItem<Key, Value>;
+  using MutableItem = MutableMapItem<Key, Value>;
 
  private:
   /**
@@ -171,9 +194,7 @@ class Map {
   {
   }
 
-  Map(NoExceptConstructor, Allocator allocator = {}) noexcept : Map(allocator)
-  {
-  }
+  Map(NoExceptConstructor, Allocator allocator = {}) noexcept : Map(allocator) {}
 
   ~Map() = default;
 
@@ -201,6 +222,30 @@ class Map {
     hash_ = std::move(other.hash_);
     is_equal_ = std::move(other.is_equal_);
     other.noexcept_reset();
+  }
+
+  /**
+   * Initializes the Map based on some key-value-pairs:
+   *   `Map<int, std::string> map = {{1, "where"}, {3, "when"}, {5, "why"}};`
+   *
+   * If the same key appears multiple times, only the first one is used and the others are ignored.
+   * Note that keys and values are copied. Use the `add_*` functions after the constructor to move
+   * keys and values into the map.
+   */
+  Map(const Span<std::pair<Key, Value>> items, Allocator allocator = {}) : Map(allocator)
+  {
+    for (const std::pair<Key, Value> &item : items) {
+      this->add(item.first, item.second);
+    }
+  }
+
+  /**
+   * This is pretty much the same as the constructor with a #Span above. It helps with type
+   * inferencing when initializer lists are used.
+   */
+  Map(const std::initializer_list<std::pair<Key, Value>> items, Allocator allocator = {})
+      : Map(Span(items), allocator)
+  {
   }
 
   Map &operator=(const Map &other)
@@ -476,6 +521,21 @@ class Map {
   template<typename ForwardKey> Value *lookup_ptr_as(const ForwardKey &key)
   {
     return const_cast<Value *>(const_cast<const Map *>(this)->lookup_ptr_as(key));
+  }
+
+  /**
+   * Returns a copy of the value that corresponds to the given key, or std::nullopt if the key is
+   * not in the map. In some cases, one may not want a copy but an actual reference to the value.
+   * In that case it's better to use #lookup_ptr instead.
+   */
+  std::optional<Value> lookup_try(const Key &key) const
+  {
+    return this->lookup_try_as(key);
+  }
+  template<typename ForwardKey> std::optional<Value> lookup_try_as(const ForwardKey &key) const
+  {
+    const Slot *slot = this->lookup_slot_ptr(key, hash_(key));
+    return (slot != nullptr) ? std::optional<Value>(*slot->value()) : std::nullopt;
   }
 
   /**
@@ -773,21 +833,6 @@ class Map {
     }
   };
 
-  struct Item {
-    const Key &key;
-    const Value &value;
-  };
-
-  struct MutableItem {
-    const Key &key;
-    Value &value;
-
-    operator Item() const
-    {
-      return Item{key, value};
-    }
-  };
-
   class ItemIterator final : public BaseIteratorRange<ItemIterator> {
    public:
     using value_type = Item;
@@ -828,7 +873,7 @@ class Map {
    * Allows writing a range-for loop that iterates over all keys. The iterator is invalidated, when
    * the map is changed.
    */
-  KeyIterator keys() const
+  KeyIterator keys() const &
   {
     return KeyIterator(slots_.data(), slots_.size(), 0);
   }
@@ -837,7 +882,7 @@ class Map {
    * Returns an iterator over all values in the map. The iterator is invalidated, when the map is
    * changed.
    */
-  ValueIterator values() const
+  ValueIterator values() const &
   {
     return ValueIterator(slots_.data(), slots_.size(), 0);
   }
@@ -846,32 +891,41 @@ class Map {
    * Returns an iterator over all values in the map and allows you to change the values. The
    * iterator is invalidated, when the map is changed.
    */
-  MutableValueIterator values()
+  MutableValueIterator values() &
   {
     return MutableValueIterator(slots_.data(), slots_.size(), 0);
   }
 
   /**
-   * Returns an iterator over all key-value-pairs in the map. The key-value-pairs are stored in
-   * a temporary struct with a .key and a .value field.The iterator is invalidated, when the map is
-   * changed.
+   * Returns an iterator over all key-value-pairs in the map. The key-value-pairs are stored in a
+   * #MapItem. The iterator is invalidated, when the map is changed.
    */
-  ItemIterator items() const
+  ItemIterator items() const &
   {
     return ItemIterator(slots_.data(), slots_.size(), 0);
   }
 
   /**
-   * Returns an iterator over all key-value-pairs in the map. The key-value-pairs are stored in
-   * a temporary struct with a .key and a .value field. The iterator is invalidated, when the map
-   * is changed.
+   * Returns an iterator over all key-value-pairs in the map. The key-value-pairs are stored in a
+   * #MutableMapItem. The iterator is invalidated, when the map is changed.
    *
    * This iterator also allows you to modify the value (but not the key).
    */
-  MutableItemIterator items()
+  MutableItemIterator items() &
   {
     return MutableItemIterator(slots_.data(), slots_.size(), 0);
   }
+
+  /**
+   * Avoid common bug when trying to do something like this: `for (auto key : get_map().keys())`.
+   * This does not work, because the compiler does not extend the lifetime of the map for the
+   * duration of the loop.
+   */
+  KeyIterator keys() const && = delete;
+  MutableValueIterator values() && = delete;
+  ValueIterator values() const && = delete;
+  ItemIterator items() const && = delete;
+  MutableItemIterator items() && = delete;
 
   /**
    * Remove the key-value-pair that the iterator is currently pointing at.
@@ -887,12 +941,14 @@ class Map {
   }
 
   /**
-   * Remove all key-value-pairs for that the given predicate is true.
+   * Remove all key-value-pairs for that the given predicate is true and return the number of
+   * removed pairs.
    *
    * This is similar to std::erase_if.
    */
-  template<typename Predicate> void remove_if(Predicate &&predicate)
+  template<typename Predicate> int64_t remove_if(Predicate &&predicate)
   {
+    const int64_t prev_size = this->size();
     for (Slot &slot : slots_) {
       if (slot.is_occupied()) {
         const Key &key = *slot.key();
@@ -903,12 +959,13 @@ class Map {
         }
       }
     }
+    return prev_size - this->size();
   }
 
   /**
    * Print common statistics like size and collision count. This is useful for debugging purposes.
    */
-  void print_stats(StringRef name = "") const
+  void print_stats(const char *name) const
   {
     HashTableStats stats(*this, this->keys());
     stats.print(name);
@@ -977,9 +1034,22 @@ class Map {
   }
 
   /**
-   * Removes all key-value-pairs from the map.
+   * Remove all elements. Under some circumstances #clear_and_keep_capacity may be more efficient.
    */
   void clear()
+  {
+    std::destroy_at(this);
+    new (this) Map(NoExceptConstructor{});
+  }
+
+  /**
+   * Remove all elements, but don't free the underlying memory.
+   *
+   * This can be more efficient than using #clear if approximately the same or more elements are
+   * added again afterwards. If way fewer elements are added instead, the cost of maintaining a
+   * large hash table can lead to very bad worst-case performance.
+   */
+  void clear_and_keep_capacity()
   {
     for (Slot &slot : slots_) {
       slot.~Slot();
@@ -991,21 +1061,39 @@ class Map {
   }
 
   /**
-   * Removes all key-value-pairs from the map and frees any allocated memory.
-   */
-  void clear_and_shrink()
-  {
-    std::destroy_at(this);
-    new (this) Map(NoExceptConstructor{});
-  }
-
-  /**
    * Get the number of collisions that the probing strategy has to go through to find the key or
    * determine that it is not in the map.
    */
   int64_t count_collisions(const Key &key) const
   {
     return this->count_collisions__impl(key, hash_(key));
+  }
+
+  /**
+   * True if both maps have the same key-value-pairs.
+   */
+  friend bool operator==(const Map &a, const Map &b)
+  {
+    if (a.size() != b.size()) {
+      return false;
+    }
+    for (const Item item : a.items()) {
+      const Key &key = item.key;
+      const Value &value_a = item.value;
+      const Value *value_b = b.lookup_ptr(key);
+      if (value_b == nullptr) {
+        return false;
+      }
+      if (value_a != *value_b) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  friend bool operator!=(const Map &a, const Map &b)
+  {
+    return !(a == b);
   }
 
  private:
@@ -1087,6 +1175,7 @@ class Map {
     MAP_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash, std::forward<ForwardValue>(value)...);
+        BLI_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return;
       }
@@ -1102,6 +1191,7 @@ class Map {
     MAP_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash, std::forward<ForwardValue>(value)...);
+        BLI_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return true;
       }
@@ -1157,6 +1247,7 @@ class Map {
     MAP_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash, create_value());
+        BLI_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return *slot.value();
       }
@@ -1175,6 +1266,7 @@ class Map {
     MAP_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash, std::forward<ForwardValue>(value)...);
+        BLI_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return *slot.value();
       }
@@ -1276,74 +1368,5 @@ template<typename Key,
          typename Slot = typename DefaultMapSlot<Key, Value>::type>
 using RawMap =
     Map<Key, Value, InlineBufferCapacity, ProbingStrategy, Hash, IsEqual, Slot, RawAllocator>;
-
-/**
- * A wrapper for std::unordered_map with the API of blender::Map. This can be used for
- * benchmarking.
- */
-template<typename Key, typename Value> class StdUnorderedMapWrapper {
- private:
-  using MapType = std::unordered_map<Key, Value, blender::DefaultHash<Key>>;
-  MapType map_;
-
- public:
-  int64_t size() const
-  {
-    return int64_t(map_.size());
-  }
-
-  bool is_empty() const
-  {
-    return map_.empty();
-  }
-
-  void reserve(int64_t n)
-  {
-    map_.reserve(n);
-  }
-
-  template<typename ForwardKey, typename... ForwardValue>
-  void add_new(ForwardKey &&key, ForwardValue &&...value)
-  {
-    map_.insert({std::forward<ForwardKey>(key), Value(std::forward<ForwardValue>(value)...)});
-  }
-
-  template<typename ForwardKey, typename... ForwardValue>
-  bool add(ForwardKey &&key, ForwardValue &&...value)
-  {
-    return map_
-        .insert({std::forward<ForwardKey>(key), Value(std::forward<ForwardValue>(value)...)})
-        .second;
-  }
-
-  bool contains(const Key &key) const
-  {
-    return map_.find(key) != map_.end();
-  }
-
-  bool remove(const Key &key)
-  {
-    return bool(map_.erase(key));
-  }
-
-  Value &lookup(const Key &key)
-  {
-    return map_.find(key)->second;
-  }
-
-  const Value &lookup(const Key &key) const
-  {
-    return map_.find(key)->second;
-  }
-
-  void clear()
-  {
-    map_.clear();
-  }
-
-  void print_stats(StringRef /*name*/ = "") const
-  {
-  }
-};
 
 }  // namespace blender

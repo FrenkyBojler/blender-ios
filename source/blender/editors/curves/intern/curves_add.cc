@@ -1,19 +1,26 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edcurves
  */
 
+#include "BLI_math_base_safe.h"
 #include "BLI_rand.hh"
 
-#include "BKE_context.h"
+#include "BKE_attribute.hh"
+#include "BKE_context.hh"
 #include "BKE_curves.hh"
-#include "BKE_node.h"
+#include "BKE_main_invariants.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
-#include "ED_curves.h"
-#include "ED_node.h"
-#include "ED_object.h"
+#include "BLT_translation.hh"
+
+#include "ED_curves.hh"
+#include "ED_node.hh"
+#include "ED_object.hh"
 
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
@@ -23,15 +30,13 @@ namespace blender::ed::curves {
 
 static bool has_surface_deformation_node(const bNodeTree &ntree)
 {
-  LISTBASE_FOREACH (const bNode *, node, &ntree.nodes) {
-    if (node->type == GEO_NODE_DEFORM_CURVES_ON_SURFACE) {
-      return true;
-    }
-    if (node->type == NODE_GROUP) {
-      if (node->id != nullptr) {
-        if (has_surface_deformation_node(*reinterpret_cast<const bNodeTree *>(node->id))) {
-          return true;
-        }
+  if (!ntree.nodes_by_type("GeometryNodeDeformCurvesOnSurface").is_empty()) {
+    return true;
+  }
+  for (const bNode *node : ntree.group_nodes()) {
+    if (const bNodeTree *sub_tree = reinterpret_cast<const bNodeTree *>(node->id)) {
+      if (has_surface_deformation_node(*sub_tree)) {
+        return true;
       }
     }
   }
@@ -64,36 +69,44 @@ void ensure_surface_deformation_node_exists(bContext &C, Object &curves_ob)
   Main *bmain = CTX_data_main(&C);
   Scene *scene = CTX_data_scene(&C);
 
-  ModifierData *md = ED_object_modifier_add(
-      nullptr, bmain, scene, &curves_ob, "Surface Deform", eModifierType_Nodes);
+  ModifierData *md = object::modifier_add(
+      nullptr, bmain, scene, &curves_ob, DATA_("Surface Deform"), eModifierType_Nodes);
   NodesModifierData &nmd = *reinterpret_cast<NodesModifierData *>(md);
-  nmd.node_group = ntreeAddTree(bmain, "Surface Deform", "GeometryNodeTree");
+  nmd.node_group = bke::node_tree_add_tree(bmain, DATA_("Surface Deform"), "GeometryNodeTree");
+
+  if (!nmd.node_group->geometry_node_asset_traits) {
+    nmd.node_group->geometry_node_asset_traits = MEM_cnew<GeometryNodeAssetTraits>(__func__);
+  }
+
+  nmd.node_group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 
   bNodeTree *ntree = nmd.node_group;
-  ntreeAddSocketInterface(ntree, SOCK_IN, "NodeSocketGeometry", "Geometry");
-  ntreeAddSocketInterface(ntree, SOCK_OUT, "NodeSocketGeometry", "Geometry");
-  bNode *group_input = nodeAddStaticNode(&C, ntree, NODE_GROUP_INPUT);
-  bNode *group_output = nodeAddStaticNode(&C, ntree, NODE_GROUP_OUTPUT);
-  bNode *deform_node = nodeAddStaticNode(&C, ntree, GEO_NODE_DEFORM_CURVES_ON_SURFACE);
+  ntree->tree_interface.add_socket(
+      "Geometry", "", "NodeSocketGeometry", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+  ntree->tree_interface.add_socket(
+      "Geometry", "", "NodeSocketGeometry", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  bNode *group_input = bke::node_add_static_node(&C, ntree, NODE_GROUP_INPUT);
+  bNode *group_output = bke::node_add_static_node(&C, ntree, NODE_GROUP_OUTPUT);
+  bNode *deform_node = bke::node_add_static_node(&C, ntree, GEO_NODE_DEFORM_CURVES_ON_SURFACE);
 
-  ED_node_tree_propagate_change(&C, bmain, nmd.node_group);
+  BKE_main_ensure_invariants(*bmain, nmd.node_group->id);
 
-  nodeAddLink(ntree,
-              group_input,
-              static_cast<bNodeSocket *>(group_input->outputs.first),
-              deform_node,
-              nodeFindSocket(deform_node, SOCK_IN, "Curves"));
-  nodeAddLink(ntree,
-              deform_node,
-              nodeFindSocket(deform_node, SOCK_OUT, "Curves"),
-              group_output,
-              static_cast<bNodeSocket *>(group_output->inputs.first));
+  bke::node_add_link(ntree,
+                     group_input,
+                     static_cast<bNodeSocket *>(group_input->outputs.first),
+                     deform_node,
+                     bke::node_find_socket(deform_node, SOCK_IN, "Curves"));
+  bke::node_add_link(ntree,
+                     deform_node,
+                     bke::node_find_socket(deform_node, SOCK_OUT, "Curves"),
+                     group_output,
+                     static_cast<bNodeSocket *>(group_output->inputs.first));
 
-  group_input->locx = -200;
-  group_output->locx = 200;
-  deform_node->locx = 0;
+  group_input->location[0] = -200;
+  group_output->location[0] = 200;
+  deform_node->location[0] = 0;
 
-  ED_node_tree_propagate_change(&C, bmain, nmd.node_group);
+  BKE_main_ensure_invariants(*bmain, nmd.node_group->id);
 }
 
 bke::CurvesGeometry primitive_random_sphere(const int curves_size, const int points_per_curve)
@@ -104,7 +117,7 @@ bke::CurvesGeometry primitive_random_sphere(const int curves_size, const int poi
   MutableSpan<float3> positions = curves.positions_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> radius = attributes.lookup_or_add_for_write_only_span<float>(
-      "radius", ATTR_DOMAIN_POINT);
+      "radius", bke::AttrDomain::Point);
 
   for (const int i : offsets.index_range()) {
     offsets[i] = points_per_curve * i;
@@ -119,7 +132,7 @@ bke::CurvesGeometry primitive_random_sphere(const int curves_size, const int poi
     MutableSpan<float> curve_radii = radius.span.slice(points);
 
     const float theta = 2.0f * M_PI * rng.get_float();
-    const float phi = saacosf(2.0f * rng.get_float() - 1.0f);
+    const float phi = safe_acosf(2.0f * rng.get_float() - 1.0f);
 
     float3 no = {std::sin(theta) * std::sin(phi), std::cos(theta) * std::sin(phi), std::cos(phi)};
     no = math::normalize(no);

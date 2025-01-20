@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 /** \file
@@ -15,6 +16,7 @@ struct Text;
 struct TextLine;
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_sys_types.h"
 
 /**
  * \note caller must handle `compiled` member.
@@ -55,7 +57,7 @@ void BKE_text_write(struct Text *text, const char *str, int str_len) ATTR_NONNUL
  * -  2 if filepath on disk has been deleted.
  * - -1 is returned if an error occurs.
  */
-int BKE_text_file_modified_check(struct Text *text);
+int BKE_text_file_modified_check(const struct Text *text);
 void BKE_text_file_modified_ignore(struct Text *text);
 
 char *txt_to_buf(struct Text *text, size_t *r_buf_strlen)
@@ -64,7 +66,7 @@ void txt_clean_text(struct Text *text);
 void txt_order_cursors(struct Text *text, bool reverse);
 int txt_find_string(struct Text *text, const char *findstr, int wrap, int match_case);
 bool txt_has_sel(const struct Text *text);
-int txt_get_span(struct TextLine *from, struct TextLine *to);
+int txt_get_span(const struct TextLine *from, const struct TextLine *to);
 void txt_move_up(struct Text *text, bool sel);
 void txt_move_down(struct Text *text, bool sel);
 void txt_move_left(struct Text *text, bool sel);
@@ -93,7 +95,10 @@ void txt_sel_all(struct Text *text);
 void txt_sel_clear(struct Text *text);
 void txt_sel_line(struct Text *text);
 void txt_sel_set(struct Text *text, int startl, int startc, int endl, int endc);
-char *txt_sel_to_buf(struct Text *text, size_t *r_buf_strlen);
+char *txt_sel_to_buf(const struct Text *text, size_t *r_buf_strlen);
+/**
+ * \param in_buffer: UTF8 encoded text, invalid UTF8 byte-sequences are handled gracefully.
+ */
 void txt_insert_buf(struct Text *text, const char *in_buffer, int in_buffer_len)
     ATTR_NONNULL(1, 2);
 void txt_split_curline(struct Text *text);
@@ -103,17 +108,17 @@ bool txt_add_char(struct Text *text, unsigned int add);
 bool txt_add_raw_char(struct Text *text, unsigned int add);
 bool txt_replace_char(struct Text *text, unsigned int add);
 bool txt_unindent(struct Text *text);
-void txt_comment(struct Text *text);
 void txt_indent(struct Text *text);
-bool txt_uncomment(struct Text *text);
+void txt_comment(struct Text *text, const char *prefix);
+bool txt_uncomment(struct Text *text, const char *prefix);
 void txt_move_lines(struct Text *text, int direction);
 void txt_duplicate_line(struct Text *text);
 int txt_setcurr_tab_spaces(struct Text *text, int space);
 bool txt_cursor_is_line_start(const struct Text *text);
 bool txt_cursor_is_line_end(const struct Text *text);
 
-int txt_calc_tab_left(struct TextLine *tl, int ch);
-int txt_calc_tab_right(struct TextLine *tl, int ch);
+int txt_calc_tab_left(const struct TextLine *tl, int ch);
+int txt_calc_tab_right(const struct TextLine *tl, int ch);
 
 /**
  * Utility functions, could be moved somewhere more generic but are python/text related.
@@ -126,9 +131,16 @@ bool text_check_identifier_nodigit(char ch);
 bool text_check_whitespace(char ch);
 int text_find_identifier_start(const char *str, int i);
 
-/* EVIL: defined in `bpy_interface.c`. */
+/* -------------------------------------------------------------------- */
+/** \name Character Classification
+ *
+ * Defined in `bpy_interface.cc` (not ideal).
+ * \{ */
+
 extern int text_check_identifier_unicode(unsigned int ch);
 extern int text_check_identifier_nodigit_unicode(unsigned int ch);
+
+/** \} */
 
 enum {
   TXT_MOVE_LINE_UP = -1,

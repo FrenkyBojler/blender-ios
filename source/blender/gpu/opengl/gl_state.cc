@@ -1,16 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
  */
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "BLI_math_base.h"
 #include "BLI_math_bits.h"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 #include "gl_context.hh"
 #include "gl_framebuffer.hh"
@@ -29,7 +30,6 @@ GLStateManager::GLStateManager()
   /* Set other states that never change. */
   glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
   glEnable(GL_MULTISAMPLE);
-  glEnable(GL_PRIMITIVE_RESTART);
 
   glDisable(GL_DITHER);
 
@@ -37,12 +37,9 @@ GLStateManager::GLStateManager()
   glPixelStorei(GL_PACK_ALIGNMENT, 1);
   glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-  glPrimitiveRestartIndex((GLuint)0xFFFFFFFF);
-  /* TODO: Should become default. But needs at least GL 4.3 */
-  if (GLContext::fixed_restart_index_support) {
-    /* Takes precedence over #GL_PRIMITIVE_RESTART. */
-    glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
-  }
+  /* Takes precedence over #GL_PRIMITIVE_RESTART.
+   * Sets restart index correctly following the IBO type. */
+  glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 
   /* Limits. */
   glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, line_width_range_);
@@ -160,7 +157,8 @@ void GLStateManager::set_mutable_state(const GPUStateMutable &state)
   }
 
   if (changed.stencil_compare_mask != 0 || changed.stencil_reference != 0 ||
-      changed.stencil_write_mask != 0) {
+      changed.stencil_write_mask != 0)
+  {
     set_stencil_mask((eGPUStencilTest)current_.stencil_test, state);
   }
 
@@ -250,7 +248,7 @@ void GLStateManager::set_stencil_test(const eGPUStencilTest test, const eGPUSten
   }
 }
 
-void GLStateManager::set_stencil_mask(const eGPUStencilTest test, const GPUStateMutable state)
+void GLStateManager::set_stencil_mask(const eGPUStencilTest test, const GPUStateMutable &state)
 {
   GLenum func;
   switch (test) {
@@ -444,7 +442,7 @@ void GLStateManager::set_blend(const eGPUBlend value)
 /** \name Texture State Management
  * \{ */
 
-void GLStateManager::texture_bind(Texture *tex_, eGPUSamplerState sampler_type, int unit)
+void GLStateManager::texture_bind(Texture *tex_, GPUSamplerState sampler_state, int unit)
 {
   BLI_assert(unit < GPU_max_textures());
   GLTexture *tex = static_cast<GLTexture *>(tex_);
@@ -453,12 +451,13 @@ void GLStateManager::texture_bind(Texture *tex_, eGPUSamplerState sampler_type, 
   }
   /* Eliminate redundant binds. */
   if ((textures_[unit] == tex->tex_id_) &&
-      (samplers_[unit] == GLTexture::samplers_[sampler_type])) {
+      (samplers_[unit] == GLTexture::get_sampler(sampler_state)))
+  {
     return;
   }
   targets_[unit] = tex->target_;
   textures_[unit] = tex->tex_id_;
-  samplers_[unit] = GLTexture::samplers_[sampler_type];
+  samplers_[unit] = GLTexture::get_sampler(sampler_state);
   tex->is_bound_ = true;
   dirty_texture_binds_ |= 1ULL << unit;
 }
@@ -556,7 +555,7 @@ uint64_t GLStateManager::bound_texture_slots()
 void GLStateManager::image_bind(Texture *tex_, int unit)
 {
   /* Minimum support is 8 image in the fragment shader. No image for other stages. */
-  BLI_assert(GPU_shader_image_load_store_support() && unit < 8);
+  BLI_assert(unit < 8);
   GLTexture *tex = static_cast<GLTexture *>(tex_);
   if (G.debug & G_DEBUG_GPU) {
     tex->check_feedback_loop();
@@ -607,7 +606,7 @@ void GLStateManager::image_bind_apply()
   int last = 32 - bitscan_reverse_uint(dirty_bind);
   int count = last - first;
 
-  if (GLContext::multi_bind_support) {
+  if (GLContext::multi_bind_image_support) {
     glBindImageTextures(first, count, images_ + first);
   }
   else {

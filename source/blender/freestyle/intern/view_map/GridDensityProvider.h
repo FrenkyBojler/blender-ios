@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -16,11 +18,9 @@
 
 #include "../geometry/BBox.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -30,9 +30,7 @@ class GridDensityProvider {
   GridDensityProvider &operator=(const GridDensityProvider &other);
 
  public:
-  GridDensityProvider(OccluderSource &source) : source(source)
-  {
-  }
+  GridDensityProvider(OccluderSource &source) : source(source) {}
 
   virtual ~GridDensityProvider(){};
 
@@ -41,12 +39,12 @@ class GridDensityProvider {
     return _cellSize;
   }
 
-  unsigned cellsX()
+  uint cellsX()
   {
     return _cellsX;
   }
 
-  unsigned cellsY()
+  uint cellsY()
   {
     return _cellsY;
   }
@@ -113,13 +111,11 @@ class GridDensityProvider {
 
  protected:
   OccluderSource &source;
-  unsigned _cellsX, _cellsY;
+  uint _cellsX, _cellsY;
   float _cellSize;
   float _cellOrigin[2];
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:GridDensityProvider")
-#endif
 };
 
 class GridDensityProviderFactory {
@@ -128,9 +124,7 @@ class GridDensityProviderFactory {
   GridDensityProviderFactory &operator=(const GridDensityProviderFactory &other);
 
  public:
-  GridDensityProviderFactory()
-  {
-  }
+  GridDensityProviderFactory() {}
 
   virtual AutoPtr<GridDensityProvider> newGridDensityProvider(OccluderSource &source,
                                                               const real proscenium[4]) = 0;
@@ -142,13 +136,9 @@ class GridDensityProviderFactory {
 
   virtual AutoPtr<GridDensityProvider> newGridDensityProvider(OccluderSource &source) = 0;
 
-  virtual ~GridDensityProviderFactory()
-  {
-  }
+  virtual ~GridDensityProviderFactory() {}
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:GridDensityProviderFactory")
-#endif
 };
 
 } /* namespace Freestyle */

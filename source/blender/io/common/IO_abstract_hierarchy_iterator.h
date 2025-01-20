@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /*
  * This file contains the AbstractHierarchyIterator. It is intended for exporters for file
@@ -21,7 +22,7 @@
 
 #include "IO_dupli_persistent_id.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include <map>
 #include <set>
@@ -67,9 +68,21 @@ struct HierarchyContext {
    * it's animated. This is necessary when a parent object in Blender is not part of the export. */
   bool animation_check_include_parent;
 
+  /* The flag makes unambiguous the fact that the current context targets object or data. This is
+   * notably used in USDHierarchyIterator::create_usd_export_context: options like
+   * merge_parent_xform option is meaningless for object, it only makes sense for data. */
+  bool is_object_data_context;
+
+  /* This flag tells, within a object data context, if an object is the parent of other objects.
+   * This is useful when exporting UsdGeomGprim: those cannot be nested into each other. For
+   * example, an UsdGeomMesh cannot have other UsdGeomMesh as descendants and other hierarchy
+   * strategies need to be adopted.
+   */
+  bool is_parent;
+
   /*********** Determined during writer creation: ***************/
   float parent_matrix_inv_world[4][4]; /* Inverse of the parent's world matrix. */
-  std::string export_path; /* Hierarchical path, such as "/grandparent/parent/objectname". */
+  std::string export_path; /* Hierarchical path, such as "/grandparent/parent/object_name". */
   ParticleSystem *particle_system; /* Only set for particle/hair writers. */
 
   /* Hierarchical path of the object this object is duplicating; only set when this object should
@@ -262,7 +275,7 @@ class AbstractHierarchyIterator {
 
   void determine_export_paths(const HierarchyContext *parent_context);
   void determine_duplication_references(const HierarchyContext *parent_context,
-                                        std::string indent);
+                                        const std::string &indent);
 
   /* These three functions create writers and call their write() method. */
   void make_writers(const HierarchyContext *parent_context);

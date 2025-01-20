@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -14,9 +16,7 @@
 
 #include "../system/FreestyleConfig.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -57,7 +57,7 @@ class SilhouetteGeomEngine {
   /** retrieves an instance on the singleton */
   static SilhouetteGeomEngine *getInstance()
   {
-    if (_pInstance == NULL) {
+    if (_pInstance == nullptr) {
       _pInstance = new SilhouetteGeomEngine;
     }
     return _pInstance;
@@ -114,9 +114,7 @@ class SilhouetteGeomEngine {
   /** From camera to image */
   static Vec3r CameraToImage(const Vec3r &M);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:SilhouetteGeomEngine")
-#endif
 };
 
 } /* namespace Freestyle */

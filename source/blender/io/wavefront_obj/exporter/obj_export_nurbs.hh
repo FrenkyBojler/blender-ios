@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup obj
@@ -6,9 +8,14 @@
 
 #pragma once
 
+#include "BLI_math_vector_types.hh"
 #include "BLI_utility_mixins.hh"
 
 #include "DNA_curve_types.h"
+
+#include "IO_orientation.hh"
+
+struct OBJExportParams;
 
 namespace blender::io::obj {
 
@@ -31,7 +38,7 @@ class OBJCurve : NonCopyable {
   int total_splines() const;
   /**
    * \param spline_index: Zero-based index of spline of interest.
-   * \return: Total vertices in a spline.
+   * \return Total vertices in a spline.
    */
   int total_spline_vertices(int spline_index) const;
   /**

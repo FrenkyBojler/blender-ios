@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -11,9 +13,7 @@
 #include "Nature.h"
 #include "WEdge.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -35,7 +35,7 @@ class WXVertex : public WVertex {
  public:
   inline WXVertex(const Vec3f &v) : WVertex(v)
   {
-    _curvatures = NULL;
+    _curvatures = nullptr;
   }
 
   /** Copy constructor */
@@ -76,9 +76,7 @@ class WXVertex : public WVertex {
     return _curvatures;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WXVertex")
-#endif
 };
 
 /**********************************
@@ -135,9 +133,7 @@ class WXEdge : public WEdge {
     return clone;
   }
 
-  virtual ~WXEdge()
-  {
-  }
+  virtual ~WXEdge() {}
 
   virtual void Reset()
   {
@@ -182,9 +178,7 @@ class WXEdge : public WEdge {
     _order = i;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WXEdge")
-#endif
 };
 
 /**********************************
@@ -198,7 +192,7 @@ class WXEdge : public WEdge {
 /** Class to store a smooth edge (i.e Hertzman & Zorin smooth silhouette edges) */
 class WXSmoothEdge {
  public:
-  typedef unsigned short Configuration;
+  typedef ushort Configuration;
   static const Configuration EDGE_EDGE = 1;
   static const Configuration VERTEX_EDGE = 2;
   static const Configuration EDGE_VERTEX = 3;
@@ -212,8 +206,8 @@ class WXSmoothEdge {
 
   WXSmoothEdge()
   {
-    _woea = NULL;
-    _woeb = NULL;
+    _woea = nullptr;
+    _woeb = nullptr;
     _ta = 0.0f;
     _tb = 0.0f;
     _front = false;
@@ -230,9 +224,7 @@ class WXSmoothEdge {
     _front = iBrother._front;
   }
 
-  ~WXSmoothEdge()
-  {
-  }
+  ~WXSmoothEdge() {}
 
   inline WOEdge *woea()
   {
@@ -295,9 +287,7 @@ class WXSmoothEdge {
     _config = iConf;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WXSmoothEdge")
-#endif
 };
 
 /* Class to store a value per vertex and a smooth edge.
@@ -318,27 +308,27 @@ class WXFaceLayer {
   // oldtmp values
   // count the number of positive dot products for vertices.
   // if this number is != 0 and !=_DotP.size() -> it is a silhouette fac
-  unsigned _nPosDotP;
+  uint _nPosDotP;
 
-  unsigned _nNullDotP;  // count the number of null dot products for vertices.
-  unsigned _ClosestPointIndex;
+  uint _nNullDotP;  // count the number of null dot products for vertices.
+  uint _ClosestPointIndex;
   bool _viewDependant;
 
   WXFaceLayer(WXFace *iFace, WXNature iNature, bool viewDependant)
   {
     _pWXFace = iFace;
-    _pSmoothEdge = NULL;
+    _pSmoothEdge = nullptr;
     _nPosDotP = 0;
     _nNullDotP = 0;
     _Nature = iNature;
     _viewDependant = viewDependant;
-    userdata = NULL;
+    userdata = nullptr;
   }
 
   WXFaceLayer(const WXFaceLayer &iBrother)
   {
     _pWXFace = iBrother._pWXFace;
-    _pSmoothEdge = NULL;
+    _pSmoothEdge = nullptr;
     _DotP = iBrother._DotP;
     _nPosDotP = iBrother._nPosDotP;
     _nNullDotP = iBrother._nNullDotP;
@@ -347,7 +337,7 @@ class WXFaceLayer {
       _pSmoothEdge = new WXSmoothEdge(*(iBrother._pSmoothEdge));
     }
     _viewDependant = iBrother._viewDependant;
-    userdata = NULL;
+    userdata = nullptr;
   }
 
   virtual ~WXFaceLayer()
@@ -357,7 +347,7 @@ class WXFaceLayer {
     }
     if (_pSmoothEdge) {
       delete _pSmoothEdge;
-      _pSmoothEdge = NULL;
+      _pSmoothEdge = nullptr;
     }
   }
 
@@ -366,12 +356,12 @@ class WXFaceLayer {
     return _DotP[i];
   }
 
-  inline unsigned nPosDotP() const
+  inline uint nPosDotP() const
   {
     return _nPosDotP;
   }
 
-  inline unsigned nNullDotP() const
+  inline uint nNullDotP() const
   {
     return _nNullDotP;
   }
@@ -421,17 +411,17 @@ class WXFaceLayer {
     }
     if (_pSmoothEdge) {
       delete _pSmoothEdge;
-      _pSmoothEdge = NULL;
+      _pSmoothEdge = nullptr;
     }
   }
 
   /** If one of the face layer vertex has a DotP equal to 0, this method returns the vertex where
    * it happens */
-  unsigned int Get0VertexIndex() const;
+  uint Get0VertexIndex() const;
 
   /** In case one of the edge of the triangle is a smooth edge, this method allows to retrieve the
    * concerned edge */
-  unsigned int GetSmoothEdgeIndex() const;
+  uint GetSmoothEdgeIndex() const;
 
   /** retrieves the edges of the triangle for which the signs are different (a null value is not
    * considered) for the dotp values at each edge extremity
@@ -451,12 +441,12 @@ class WXFaceLayer {
     if (iDotP > 0.0f) {
       ++_nPosDotP;
     }
-    if (iDotP == 0.0f) {  // TODO: this comparison is weak, check if it actually works
+    if (iDotP == 0.0f) { /* TODO: this comparison is weak, check if it actually works. */
       ++_nNullDotP;
     }
   }
 
-  inline void ReplaceDotP(unsigned int index, float newDotP)
+  inline void ReplaceDotP(uint index, float newDotP)
   {
     _DotP[index] = newDotP;
     updateDotPInfos();
@@ -470,15 +460,13 @@ class WXFaceLayer {
       if ((*d) > 0.0f) {
         ++_nPosDotP;
       }
-      if ((*d) == 0.0f) {  // TODO: ditto
+      if ((*d) == 0.0f) { /* TODO: ditto. */
         ++_nNullDotP;
       }
     }
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WXFaceLayer")
-#endif
 };  // namespace Freestyle
 
 class WXFace : public WFace {
@@ -507,7 +495,8 @@ class WXFace : public WFace {
     for (vector<WXFaceLayer *>::iterator wxf = iBrother._SmoothLayers.begin(),
                                          wxfend = iBrother._SmoothLayers.end();
          wxf != wxfend;
-         ++wxf) {
+         ++wxf)
+    {
       _SmoothLayers.push_back(new WXFaceLayer(**wxf));
     }
   }
@@ -524,7 +513,8 @@ class WXFace : public WFace {
       for (vector<WXFaceLayer *>::iterator wxf = _SmoothLayers.begin(),
                                            wxfend = _SmoothLayers.end();
            wxf != wxfend;
-           ++wxf) {
+           ++wxf)
+      {
         delete (*wxf);
       }
       _SmoothLayers.clear();
@@ -563,7 +553,8 @@ class WXFace : public WFace {
     for (vector<WXFaceLayer *>::const_iterator wxf = _SmoothLayers.begin(),
                                                wxfend = _SmoothLayers.end();
          wxf != wxfend;
-         ++wxf) {
+         ++wxf)
+    {
       if ((*wxf)->hasSmoothEdge()) {
         return true;
       }
@@ -581,7 +572,8 @@ class WXFace : public WFace {
   {
     for (vector<WXFaceLayer *>::iterator wxf = _SmoothLayers.begin(), wxfend = _SmoothLayers.end();
          wxf != wxfend;
-         ++wxf) {
+         ++wxf)
+    {
       if ((*wxf)->hasSmoothEdge() && ((*wxf)->_Nature & iNature)) {
         oSmoothEdges.push_back((*wxf)->_pSmoothEdge);
       }
@@ -592,7 +584,8 @@ class WXFace : public WFace {
   {
     for (vector<WXFaceLayer *>::iterator wxf = _SmoothLayers.begin(), wxfend = _SmoothLayers.end();
          wxf != wxfend;
-         ++wxf) {
+         ++wxf)
+    {
       if ((*wxf)->hasSmoothEdge() && ((*wxf)->_Nature & iNature)) {
         oSmoothEdgesLayers.push_back((*wxf));
       }
@@ -603,7 +596,8 @@ class WXFace : public WFace {
   {
     for (vector<WXFaceLayer *>::iterator wxf = _SmoothLayers.begin(), wxfend = _SmoothLayers.end();
          wxf != wxfend;
-         ++wxf) {
+         ++wxf)
+    {
       if ((*wxf)->_Nature & iNature) {
         oSmoothLayers.push_back(*wxf);
       }
@@ -649,7 +643,8 @@ class WXFace : public WFace {
     vector<WXFaceLayer *> layersToKeep;
     for (vector<WXFaceLayer *>::iterator wxf = _SmoothLayers.begin(), wxfend = _SmoothLayers.end();
          wxf != wxfend;
-         ++wxf) {
+         ++wxf)
+    {
       if ((*wxf)->isViewDependant()) {
         delete (*wxf);
       }
@@ -665,7 +660,8 @@ class WXFace : public WFace {
   {
     for (vector<WXFaceLayer *>::iterator wxf = _SmoothLayers.begin(), wxfend = _SmoothLayers.end();
          wxf != wxfend;
-         ++wxf) {
+         ++wxf)
+    {
       delete (*wxf);
     }
     _SmoothLayers.clear();
@@ -676,14 +672,13 @@ class WXFace : public WFace {
     WFace::ResetUserData();
     for (vector<WXFaceLayer *>::iterator wxf = _SmoothLayers.begin(), wxfend = _SmoothLayers.end();
          wxf != wxfend;
-         ++wxf) {
-      (*wxf)->userdata = NULL;
+         ++wxf)
+    {
+      (*wxf)->userdata = nullptr;
     }
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WXFace")
-#endif
 };
 
 /**********************************
@@ -722,9 +717,7 @@ class WXShape : public WShape {
     return clone;
   }
 
-  virtual ~WXShape()
-  {
-  }
+  virtual ~WXShape() {}
 
   inline bool getComputeViewIndependentFlag() const
   {
@@ -752,7 +745,7 @@ class WXShape : public WShape {
    */
   virtual WFace *MakeFace(vector<WVertex *> &iVertexList,
                           vector<bool> &iFaceEdgeMarksList,
-                          unsigned iMaterialIndex);
+                          uint iMaterialIndex);
 
   /**
    * Adds a new face to the shape.
@@ -776,7 +769,7 @@ class WXShape : public WShape {
                           vector<Vec3f> &iNormalsList,
                           vector<Vec2f> &iTexCoordsList,
                           vector<bool> &iFaceEdgeMarksList,
-                          unsigned iMaterialIndex);
+                          uint iMaterialIndex);
 
   /** Reset all edges and vertices flags (which might have been set up on a previous pass) */
   virtual void Reset()
@@ -795,9 +788,7 @@ class WXShape : public WShape {
   }
   /** accessors */
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WXShape")
-#endif
 };
 
 /*

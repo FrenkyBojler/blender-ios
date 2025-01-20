@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spfile
@@ -7,14 +8,14 @@
 
 #pragma once
 
+#include "ED_fileselect.hh"
+
 /* XXX could become UserPref */
 #define FSMENU_RECENT_MAX 10
 
-enum FSMenuCategory;
-enum FSMenuInsert;
-
-struct FSMenu;
-struct FSMenuEntry;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Inserts a new fsmenu entry with the given \a path.
@@ -49,7 +50,7 @@ void fsmenu_read_bookmarks(struct FSMenu *fsmenu, const char *filepath);
 /** adds system specific directories */
 void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks);
 
-/** Free's all the memory associated with the fsmenu */
+/** Frees all the memory associated with the `fsmenu`. */
 void fsmenu_free(void);
 
 /** Refresh system directory menu */
@@ -62,3 +63,7 @@ void fsmenu_refresh_bookmarks_status(struct wmWindowManager *wm, struct FSMenu *
 int fsmenu_get_active_indices(struct FSMenu *fsmenu,
                               enum FSMenuCategory category,
                               const char *dir);
+
+#ifdef __cplusplus
+}
+#endif

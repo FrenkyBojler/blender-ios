@@ -1,21 +1,31 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup cmpnodes
  */
 
 #include "BLI_assert.h"
+#include "BLI_math_angle_types.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
+
+#include "COM_algorithm_transform.hh"
 #include "COM_node_operation.hh"
+#include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
 
@@ -25,31 +35,30 @@ namespace blender::nodes::node_composite_scale_cc {
 
 static void cmp_node_scale_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>(N_("Image"))
+  b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
-  b.add_input<decl::Float>(N_("X"))
+  b.add_input<decl::Float>("X")
       .default_value(1.0f)
       .min(0.0001f)
       .max(CMP_SCALE_MAX)
-      .compositor_expects_single_value();
-  b.add_input<decl::Float>(N_("Y"))
+      .compositor_domain_priority(1);
+  b.add_input<decl::Float>("Y")
       .default_value(1.0f)
       .min(0.0001f)
       .max(CMP_SCALE_MAX)
-      .compositor_expects_single_value();
-  b.add_output<decl::Color>(N_("Image"));
+      .compositor_domain_priority(2);
+  b.add_output<decl::Color>("Image");
 }
 
 static void node_composite_update_scale(bNodeTree *ntree, bNode *node)
 {
-  bNodeSocket *sock;
   bool use_xy_scale = ELEM(node->custom1, CMP_NODE_SCALE_RELATIVE, CMP_NODE_SCALE_ABSOLUTE);
 
   /* Only show X/Y scale factor inputs for modes using them! */
-  for (sock = (bNodeSocket *)node->inputs.first; sock; sock = sock->next) {
+  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (STR_ELEM(sock->name, "X", "Y")) {
-      nodeSetSocketAvailability(ntree, sock, use_xy_scale);
+      bke::node_set_socket_availability(ntree, sock, use_xy_scale);
     }
   }
 }
@@ -64,7 +73,7 @@ static void node_composit_buts_scale(uiLayout *layout, bContext * /*C*/, Pointer
             ptr,
             "frame_method",
             UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
-            nullptr,
+            std::nullopt,
             ICON_NONE);
     row = uiLayoutRow(layout, true);
     uiItemR(row, ptr, "offset_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "X", ICON_NONE);
@@ -72,7 +81,7 @@ static void node_composit_buts_scale(uiLayout *layout, bContext * /*C*/, Pointer
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class ScaleOperation : public NodeOperation {
  public:
@@ -80,14 +89,94 @@ class ScaleOperation : public NodeOperation {
 
   void execute() override
   {
+    if (is_variable_size()) {
+      execute_variable_size();
+    }
+    else {
+      execute_constant_size();
+    }
+  }
+
+  void execute_constant_size()
+  {
     Result &input = get_input("Image");
-    Result &result = get_result("Image");
-    input.pass_through(result);
+    Result &output = get_result("Image");
 
+    const float2 scale = get_scale();
+    const math::AngleRadian rotation = 0.0f;
+    const float2 translation = get_translation();
     const float3x3 transformation = math::from_loc_rot_scale<float3x3>(
-        get_translation(), math::AngleRadian(0.0f), get_scale());
+        translation, rotation, scale);
 
-    result.transform(transformation);
+    transform(this->context(),
+              input,
+              output,
+              transformation,
+              input.get_realization_options().interpolation);
+  }
+
+  void execute_variable_size()
+  {
+    if (this->context().use_gpu()) {
+      execute_variable_size_gpu();
+    }
+    else {
+      execute_variable_size_cpu();
+    }
+  }
+
+  void execute_variable_size_gpu()
+  {
+    GPUShader *shader = context().get_shader("compositor_scale_variable");
+    GPU_shader_bind(shader);
+
+    Result &input = get_input("Image");
+    GPU_texture_filter_mode(input, true);
+    GPU_texture_extend_mode(input, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+    input.bind_as_texture(shader, "input_tx");
+
+    Result &x_scale = get_input("X");
+    x_scale.bind_as_texture(shader, "x_scale_tx");
+
+    Result &y_scale = get_input("Y");
+    y_scale.bind_as_texture(shader, "y_scale_tx");
+
+    Result &output = get_result("Image");
+    const Domain domain = compute_domain();
+    output.allocate_texture(domain);
+    output.bind_as_image(shader, "output_img");
+
+    compute_dispatch_threads_at_least(shader, domain.size);
+
+    input.unbind_as_texture();
+    x_scale.unbind_as_texture();
+    y_scale.unbind_as_texture();
+    output.unbind_as_image();
+    GPU_shader_unbind();
+  }
+
+  void execute_variable_size_cpu()
+  {
+    const Result &input = this->get_input("Image");
+    const Result &x_scale = this->get_input("X");
+    const Result &y_scale = this->get_input("Y");
+
+    Result &output = this->get_result("Image");
+    const Domain domain = compute_domain();
+    output.allocate_texture(domain);
+
+    const int2 size = domain.size;
+    parallel_for(size, [&](const int2 texel) {
+      float2 coordinates = (float2(texel) + float2(0.5f)) / float2(size);
+      float2 center = float2(0.5f);
+
+      float2 scale = float2(x_scale.load_pixel<float, true>(texel),
+                            y_scale.load_pixel<float, true>(texel));
+      float2 scaled_coordinates = center +
+                                  (coordinates - center) / math::max(scale, float2(0.0001f));
+
+      output.store_pixel(texel, input.sample_bilinear_zero(scaled_coordinates));
+    });
   }
 
   float2 get_scale()
@@ -110,27 +199,31 @@ class ScaleOperation : public NodeOperation {
   /* Scale by the input factors. */
   float2 get_scale_relative()
   {
-    return float2(get_input("X").get_float_value_default(1.0f),
-                  get_input("Y").get_float_value_default(1.0f));
+    return float2(get_input("X").get_single_value_default(1.0f),
+                  get_input("Y").get_single_value_default(1.0f));
   }
 
   /* Scale such that the new size matches the input absolute size. */
   float2 get_scale_absolute()
   {
     const float2 input_size = float2(get_input("Image").domain().size);
-    const float2 absolute_size = float2(get_input("X").get_float_value_default(1.0f),
-                                        get_input("Y").get_float_value_default(1.0f));
+    const float2 absolute_size = float2(get_input("X").get_single_value_default(1.0f),
+                                        get_input("Y").get_single_value_default(1.0f));
     return absolute_size / input_size;
   }
 
   /* Scale by the render resolution percentage. */
   float2 get_scale_render_percent()
   {
-    return float2(context().get_scene()->r.size / 100.0f);
+    return float2(context().get_render_percentage());
   }
 
   float2 get_scale_render_size()
   {
+    if (!context().is_valid_compositing_region()) {
+      return float2(1.0f);
+    }
+
     switch (get_scale_render_size_method()) {
       case CMP_NODE_SCALE_RENDER_SIZE_STRETCH:
         return get_scale_render_size_stretch();
@@ -189,6 +282,16 @@ class ScaleOperation : public NodeOperation {
     return get_offset() * input_size * get_scale();
   }
 
+  bool is_variable_size()
+  {
+    /* Only relative scaling can be variable. */
+    if (get_scale_method() != CMP_NODE_SCALE_RELATIVE) {
+      return false;
+    }
+
+    return !get_input("X").is_single_value() || !get_input("Y").is_single_value();
+  }
+
   CMPNodeScaleMethod get_scale_method()
   {
     return (CMPNodeScaleMethod)bnode().custom1;
@@ -216,13 +319,17 @@ void register_node_type_cmp_scale()
 {
   namespace file_ns = blender::nodes::node_composite_scale_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_SCALE, "Scale", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodeScale", CMP_NODE_SCALE);
+  ntype.ui_name = "Scale";
+  ntype.ui_description = "Change the size of the image";
+  ntype.enum_name_legacy = "SCALE";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_scale_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_scale;
   ntype.updatefunc = file_ns::node_composite_update_scale;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

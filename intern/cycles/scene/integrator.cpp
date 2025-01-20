@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "device/device.h"
 
@@ -17,7 +18,6 @@
 
 #include "kernel/types.h"
 
-#include "util/foreach.h"
 #include "util/hash.h"
 #include "util/log.h"
 #include "util/task.h"
@@ -60,10 +60,17 @@ NODE_DEFINE(Integrator)
   SOCKET_INT(volume_max_steps, "Volume Max Steps", 1024);
   SOCKET_FLOAT(volume_step_rate, "Volume Step Rate", 1.0f);
 
-  static NodeEnum guiding_ditribution_enum;
-  guiding_ditribution_enum.insert("PARALLAX_AWARE_VMM", GUIDING_TYPE_PARALLAX_AWARE_VMM);
-  guiding_ditribution_enum.insert("DIRECTIONAL_QUAD_TREE", GUIDING_TYPE_DIRECTIONAL_QUAD_TREE);
-  guiding_ditribution_enum.insert("VMM", GUIDING_TYPE_VMM);
+  static NodeEnum guiding_distribution_enum;
+  guiding_distribution_enum.insert("PARALLAX_AWARE_VMM", GUIDING_TYPE_PARALLAX_AWARE_VMM);
+  guiding_distribution_enum.insert("DIRECTIONAL_QUAD_TREE", GUIDING_TYPE_DIRECTIONAL_QUAD_TREE);
+  guiding_distribution_enum.insert("VMM", GUIDING_TYPE_VMM);
+
+  static NodeEnum guiding_directional_sampling_type_enum;
+  guiding_directional_sampling_type_enum.insert("MIS",
+                                                GUIDING_DIRECTIONAL_SAMPLING_TYPE_PRODUCT_MIS);
+  guiding_directional_sampling_type_enum.insert("RIS", GUIDING_DIRECTIONAL_SAMPLING_TYPE_RIS);
+  guiding_directional_sampling_type_enum.insert("ROUGHNESS",
+                                                GUIDING_DIRECTIONAL_SAMPLING_TYPE_ROUGHNESS);
 
   SOCKET_BOOLEAN(use_guiding, "Guiding", false);
   SOCKET_BOOLEAN(deterministic_guiding, "Deterministic Guiding", true);
@@ -76,8 +83,13 @@ NODE_DEFINE(Integrator)
   SOCKET_BOOLEAN(use_guiding_mis_weights, "Use MIS Weights", true);
   SOCKET_ENUM(guiding_distribution_type,
               "Guiding Distribution Type",
-              guiding_ditribution_enum,
+              guiding_distribution_enum,
               GUIDING_TYPE_PARALLAX_AWARE_VMM);
+  SOCKET_ENUM(guiding_directional_sampling_type,
+              "Guiding Directional Sampling Type",
+              guiding_directional_sampling_type_enum,
+              GUIDING_DIRECTIONAL_SAMPLING_TYPE_RIS);
+  SOCKET_FLOAT(guiding_roughness_threshold, "Guiding Roughness Threshold", 0.05f);
 
   SOCKET_BOOLEAN(caustics_reflective, "Reflective Caustics", true);
   SOCKET_BOOLEAN(caustics_refractive, "Refractive Caustics", true);
@@ -96,7 +108,9 @@ NODE_DEFINE(Integrator)
   SOCKET_BOOLEAN(motion_blur, "Motion Blur", false);
 
   SOCKET_INT(aa_samples, "AA Samples", 0);
-  SOCKET_INT(start_sample, "Start Sample", 0);
+  SOCKET_BOOLEAN(use_sample_subset, "Use Sample Subset", false);
+  SOCKET_INT(sample_subset_offset, "Sample Subset Offset", 0);
+  SOCKET_INT(sample_subset_length, "Sample Subset Length", MAX_SAMPLES);
 
   SOCKET_BOOLEAN(use_adaptive_sampling, "Use Adaptive Sampling", true);
   SOCKET_FLOAT(adaptive_threshold, "Adaptive Threshold", 0.01f);
@@ -108,6 +122,9 @@ NODE_DEFINE(Integrator)
   static NodeEnum sampling_pattern_enum;
   sampling_pattern_enum.insert("sobol_burley", SAMPLING_PATTERN_SOBOL_BURLEY);
   sampling_pattern_enum.insert("tabulated_sobol", SAMPLING_PATTERN_TABULATED_SOBOL);
+  sampling_pattern_enum.insert("blue_noise_pure", SAMPLING_PATTERN_BLUE_NOISE_PURE);
+  sampling_pattern_enum.insert("blue_noise_round", SAMPLING_PATTERN_BLUE_NOISE_ROUND);
+  sampling_pattern_enum.insert("blue_noise_first", SAMPLING_PATTERN_BLUE_NOISE_FIRST);
   SOCKET_ENUM(sampling_pattern,
               "Sampling Pattern",
               sampling_pattern_enum,
@@ -115,6 +132,7 @@ NODE_DEFINE(Integrator)
   SOCKET_FLOAT(scrambling_distance, "Scrambling Distance", 1.0f);
 
   static NodeEnum denoiser_type_enum;
+  denoiser_type_enum.insert("none", DENOISER_NONE);
   denoiser_type_enum.insert("optix", DENOISER_OPTIX);
   denoiser_type_enum.insert("openimagedenoise", DENOISER_OPENIMAGEDENOISE);
 
@@ -122,6 +140,11 @@ NODE_DEFINE(Integrator)
   denoiser_prefilter_enum.insert("none", DENOISER_PREFILTER_NONE);
   denoiser_prefilter_enum.insert("fast", DENOISER_PREFILTER_FAST);
   denoiser_prefilter_enum.insert("accurate", DENOISER_PREFILTER_ACCURATE);
+
+  static NodeEnum denoiser_quality_enum;
+  denoiser_quality_enum.insert("high", DENOISER_QUALITY_HIGH);
+  denoiser_quality_enum.insert("balanced", DENOISER_QUALITY_BALANCED);
+  denoiser_quality_enum.insert("fast", DENOISER_QUALITY_FAST);
 
   /* Default to accurate denoising with OpenImageDenoise. For interactive viewport
    * it's best use OptiX and disable the normal pass since it does not always have
@@ -135,24 +158,23 @@ NODE_DEFINE(Integrator)
               "Denoiser Prefilter",
               denoiser_prefilter_enum,
               DENOISER_PREFILTER_ACCURATE);
+  SOCKET_BOOLEAN(denoise_use_gpu, "Denoise on GPU", true);
+  SOCKET_ENUM(denoiser_quality, "Denoiser Quality", denoiser_quality_enum, DENOISER_QUALITY_HIGH);
 
   return type;
 }
 
-Integrator::Integrator() : Node(get_node_type())
-{
-}
+Integrator::Integrator() : Node(get_node_type()) {}
 
-Integrator::~Integrator()
-{
-}
+Integrator::~Integrator() = default;
 
 void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 {
-  if (!is_modified())
+  if (!is_modified()) {
     return;
+  }
 
-  scoped_callback_timer timer([scene](double time) {
+  const scoped_callback_timer timer([scene](double time) {
     if (scene->update_stats) {
       scene->update_stats->integrator.times.add_entry({"device_update", time});
     }
@@ -190,10 +212,11 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
    * transparent shaders in the scene. Otherwise we can disable it
    * to improve performance a bit. */
   kintegrator->transparent_shadows = false;
-  foreach (Shader *shader, scene->shaders) {
+  for (Shader *shader : scene->shaders) {
     /* keep this in sync with SD_HAS_TRANSPARENT_SHADOW in shader.cpp */
     if ((shader->has_surface_transparent && shader->get_use_transparent_shadow()) ||
-        shader->has_volume) {
+        shader->has_volume)
+    {
       kintegrator->transparent_shadows = true;
       break;
     }
@@ -232,7 +255,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
     kintegrator->filter_closures |= FILTER_CLOSURE_TRANSPARENT;
   }
 
-  GuidingParams guiding_params = get_guiding_params(device);
+  const GuidingParams guiding_params = get_guiding_params(device);
   kintegrator->use_guiding = guiding_params.use;
   kintegrator->train_guiding = kintegrator->use_guiding;
   kintegrator->use_surface_guiding = guiding_params.use_surface_guiding;
@@ -242,8 +265,8 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->use_guiding_direct_light = use_guiding_direct_light;
   kintegrator->use_guiding_mis_weights = use_guiding_mis_weights;
   kintegrator->guiding_distribution_type = guiding_params.type;
-
-  kintegrator->seed = seed;
+  kintegrator->guiding_directional_sampling_type = guiding_params.sampling_type;
+  kintegrator->guiding_roughness_threshold = guiding_params.roughness_threshold;
 
   kintegrator->sample_clamp_direct = (sample_clamp_direct == 0.0f) ? FLT_MAX :
                                                                      sample_clamp_direct * 3.0f;
@@ -251,12 +274,38 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
                                            FLT_MAX :
                                            sample_clamp_indirect * 3.0f;
 
+  const int clamped_aa_samples = min(aa_samples, MAX_SAMPLES);
+
   kintegrator->sampling_pattern = sampling_pattern;
   kintegrator->scrambling_distance = scrambling_distance;
-  kintegrator->sobol_index_mask = reverse_integer_bits(next_power_of_two(aa_samples - 1) - 1);
+  kintegrator->sobol_index_mask = reverse_integer_bits(next_power_of_two(clamped_aa_samples - 1) -
+                                                       1);
+  kintegrator->blue_noise_sequence_length = clamped_aa_samples;
+  if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_ROUND) {
+    if (!is_power_of_two(clamped_aa_samples)) {
+      kintegrator->blue_noise_sequence_length = next_power_of_two(clamped_aa_samples);
+    }
+    kintegrator->sampling_pattern = SAMPLING_PATTERN_BLUE_NOISE_PURE;
+  }
+  if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_FIRST) {
+    kintegrator->blue_noise_sequence_length -= 1;
+  }
 
-  kintegrator->use_light_tree = scene->integrator->use_light_tree;
-  if (light_sampling_threshold > 0.0f) {
+  /* The blue-noise sampler needs a randomized seed to scramble properly, providing e.g. 0 won't
+   * work properly. Therefore, hash the seed in those cases. */
+  if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_FIRST ||
+      kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_PURE)
+  {
+    kintegrator->seed = hash_uint(seed);
+  }
+  else {
+    kintegrator->seed = seed;
+  }
+
+  /* NOTE: The kintegrator->use_light_tree is assigned to the efficient value in the light manager,
+   * and the synchronization code is expected to tag the light manager for update when the
+   * `use_light_tree` is changed. */
+  if (light_sampling_threshold > 0.0f && !kintegrator->use_light_tree) {
     kintegrator->light_inv_rr_threshold = scene->film->get_exposure() / light_sampling_threshold;
   }
   else {
@@ -264,22 +313,24 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   }
 
   /* Build pre-tabulated Sobol samples if needed. */
-  int sequence_size = clamp(
-      next_power_of_two(aa_samples - 1), MIN_TAB_SOBOL_SAMPLES, MAX_TAB_SOBOL_SAMPLES);
+  const int sequence_size = clamp(
+      next_power_of_two(clamped_aa_samples - 1), MIN_TAB_SOBOL_SAMPLES, MAX_TAB_SOBOL_SAMPLES);
+  const int table_size = sequence_size * NUM_TAB_SOBOL_PATTERNS * NUM_TAB_SOBOL_DIMENSIONS;
   if (kintegrator->sampling_pattern == SAMPLING_PATTERN_TABULATED_SOBOL &&
-      dscene->sample_pattern_lut.size() !=
-          (sequence_size * NUM_TAB_SOBOL_PATTERNS * NUM_TAB_SOBOL_DIMENSIONS)) {
+      dscene->sample_pattern_lut.size() != table_size)
+  {
     kintegrator->tabulated_sobol_sequence_size = sequence_size;
 
     if (dscene->sample_pattern_lut.size() != 0) {
       dscene->sample_pattern_lut.free();
     }
-    float4 *directions = (float4 *)dscene->sample_pattern_lut.alloc(
-        sequence_size * NUM_TAB_SOBOL_PATTERNS * NUM_TAB_SOBOL_DIMENSIONS);
+    float4 *directions = (float4 *)dscene->sample_pattern_lut.alloc(table_size);
     TaskPool pool;
     for (int j = 0; j < NUM_TAB_SOBOL_PATTERNS; ++j) {
       float4 *sequence = directions + j * sequence_size;
-      pool.push(function_bind(&tabulated_sobol_generate_4D, sequence, sequence_size, j));
+      pool.push([sequence, sequence_size, j] {
+        tabulated_sobol_generate_4D(sequence, sequence_size, j);
+      });
     }
     pool.wait_work();
 
@@ -292,12 +343,12 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   clear_modified();
 }
 
-void Integrator::device_free(Device *, DeviceScene *dscene, bool force_free)
+void Integrator::device_free(Device * /*unused*/, DeviceScene *dscene, bool force_free)
 {
   dscene->sample_pattern_lut.free_if_need_realloc(force_free);
 }
 
-void Integrator::tag_update(Scene *scene, uint32_t flag)
+void Integrator::tag_update(Scene *scene, const uint32_t flag)
 {
   if (flag & UPDATE_ALL) {
     tag_modified();
@@ -307,15 +358,6 @@ void Integrator::tag_update(Scene *scene, uint32_t flag)
     /* tag only the ao_bounces socket as modified so we avoid updating sample_pattern_lut
      * unnecessarily */
     tag_ao_bounces_modified();
-  }
-
-  if (filter_glossy_is_modified()) {
-    foreach (Shader *shader, scene->shaders) {
-      if (shader->has_integrator_dependency) {
-        scene->shader_manager->tag_update(scene, ShaderManager::INTEGRATOR_MODIFIED);
-        break;
-      }
-    }
   }
 
   if (motion_blur_is_modified()) {
@@ -332,6 +374,10 @@ uint Integrator::get_kernel_features() const
     kernel_features |= KERNEL_FEATURE_AO_ADDITIVE;
   }
 
+  if (get_use_light_tree()) {
+    kernel_features |= KERNEL_FEATURE_LIGHT_TREE;
+  }
+
   return kernel_features;
 }
 
@@ -345,12 +391,23 @@ AdaptiveSampling Integrator::get_adaptive_sampling() const
     return adaptive_sampling;
   }
 
-  if (aa_samples > 0 && adaptive_threshold == 0.0f) {
+  const int clamped_aa_samples = min(aa_samples, MAX_SAMPLES);
+
+  if (clamped_aa_samples > 0 && adaptive_threshold == 0.0f) {
     adaptive_sampling.threshold = max(0.001f, 1.0f / (float)aa_samples);
     VLOG_INFO << "Cycles adaptive sampling: automatic threshold = " << adaptive_sampling.threshold;
   }
   else {
     adaptive_sampling.threshold = adaptive_threshold;
+  }
+
+  if (use_sample_subset && clamped_aa_samples > 0) {
+    const int subset_samples = max(
+        min(sample_subset_offset + sample_subset_length, clamped_aa_samples) -
+            sample_subset_offset,
+        0);
+
+    adaptive_sampling.threshold *= sqrtf((float)subset_samples / (float)clamped_aa_samples);
   }
 
   if (adaptive_sampling.threshold > 0 && adaptive_min_samples == 0) {
@@ -386,12 +443,15 @@ DenoiseParams Integrator::get_denoise_params() const
 
   denoise_params.type = denoiser_type;
 
+  denoise_params.use_gpu = denoise_use_gpu;
+
   denoise_params.start_sample = denoise_start_sample;
 
   denoise_params.use_pass_albedo = use_denoise_pass_albedo;
   denoise_params.use_pass_normal = use_denoise_pass_normal;
 
   denoise_params.prefilter = denoiser_prefilter;
+  denoise_params.quality = denoiser_quality;
 
   return denoise_params;
 }
@@ -409,7 +469,9 @@ GuidingParams Integrator::get_guiding_params(const Device *device) const
   guiding_params.type = guiding_distribution_type;
   guiding_params.training_samples = guiding_training_samples;
   guiding_params.deterministic = deterministic_guiding;
-
+  guiding_params.sampling_type = guiding_directional_sampling_type;
+  // In Blender/Cycles the user set roughness is squared to behave more linear.
+  guiding_params.roughness_threshold = guiding_roughness_threshold * guiding_roughness_threshold;
   return guiding_params;
 }
 CCL_NAMESPACE_END

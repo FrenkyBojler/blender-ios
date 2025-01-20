@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
@@ -7,12 +8,12 @@
 
 #pragma once
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_image_partial_update.hh"
 
 struct PartialImageUpdater {
-  struct PartialUpdateUser *user;
-  const struct Image *image;
+  PartialUpdateUser *user;
+  const ::Image *image;
 
   /**
    * \brief Ensure that there is a partial update user for the given image.

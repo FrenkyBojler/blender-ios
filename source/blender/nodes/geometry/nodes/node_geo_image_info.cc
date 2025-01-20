@@ -1,15 +1,15 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
-#include "BLI_path_util.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "MOV_read.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -17,21 +17,19 @@ namespace blender::nodes::node_geo_image_info_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Image>(N_("Image")).hide_label();
-  b.add_input<decl::Int>(N_("Frame"))
-      .min(0)
-      .description(N_("Which frame to use for videos. Note that different frames in videos can "
-                      "have different resolutions"));
+  b.add_input<decl::Image>("Image").hide_label();
+  b.add_input<decl::Int>("Frame").min(0).description(
+      "Which frame to use for videos. Note that different frames in videos can "
+      "have different resolutions");
 
-  b.add_output<decl::Int>(N_("Width"));
-  b.add_output<decl::Int>(N_("Height"));
-  b.add_output<decl::Bool>(N_("Has Alpha"))
-      .description(N_("Whether the image has an alpha channel"));
+  b.add_output<decl::Int>("Width");
+  b.add_output<decl::Int>("Height");
+  b.add_output<decl::Bool>("Has Alpha").description("Whether the image has an alpha channel");
 
-  b.add_output<decl::Int>(N_("Frame Count"))
-      .description(N_("The number of animation frames. If a single image, then 1"));
-  b.add_output<decl::Float>(N_("FPS")).description(
-      N_("Animation playback speed in frames per second. If a single image, then 0"));
+  b.add_output<decl::Int>("Frame Count")
+      .description("The number of animation frames. If a single image, then 1");
+  b.add_output<decl::Float>("FPS").description(
+      "Animation playback speed in frames per second. If a single image, then 0");
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -64,14 +62,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   float fps = 0.0f;
 
   if (ImageAnim *ianim = static_cast<ImageAnim *>(image->anims.first)) {
-    auto *anim = ianim->anim;
+    MovieReader *anim = ianim->anim;
     if (anim) {
-      frames = IMB_anim_get_duration(anim, IMB_TC_NONE);
-
-      short fps_sec = 0;
-      float fps_sec_base = 0.0f;
-      IMB_anim_get_fps(anim, &fps_sec, &fps_sec_base, true);
-      fps = float(fps_sec) / fps_sec_base;
+      frames = MOV_get_duration_frames(anim, IMB_TC_NONE);
+      fps = MOV_get_fps(anim);
     }
   }
 
@@ -79,17 +73,20 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("FPS", fps);
 }
 
-}  // namespace blender::nodes::node_geo_image_info_cc
-
-void register_node_type_geo_image_info()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_image_info_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_IMAGE_INFO, "Image Info", NODE_CLASS_INPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  node_type_size_preset(&ntype, NODE_SIZE_LARGE);
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeImageInfo", GEO_NODE_IMAGE_INFO);
+  ntype.ui_name = "Image Info";
+  ntype.ui_description = "Retrieve information about an image";
+  ntype.enum_name_legacy = "IMAGE_INFO";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_image_info_cc

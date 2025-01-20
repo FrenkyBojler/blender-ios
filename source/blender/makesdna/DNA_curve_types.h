@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -12,11 +13,8 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define MAXTEXTBOX 256 /* used in readfile.c and editfont.c */
+/** Used in `readfile.cc` and `editfont.cc`. */
+#define MAXTEXTBOX 256
 
 struct AnimData;
 struct Curves;
@@ -29,7 +27,7 @@ struct Material;
 struct Object;
 struct VFont;
 
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* These two Lines with # tell `makesdna` this struct can be excluded. */
 #
 #
 typedef struct BevPoint {
@@ -41,7 +39,7 @@ typedef struct BevPoint {
   short dupe_tag;
 } BevPoint;
 
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* These two Lines with # tell `makesdna` this struct can be excluded. */
 #
 #
 typedef struct BevList {
@@ -90,8 +88,11 @@ typedef struct BezTriple {
   /** F1, f2, f3: used for selection status. */
   uint8_t f1, f2, f3;
 
-  /** Hide: used to indicate whether BezTriple is hidden (3D),
-   * type of keyframe (eBezTriple_KeyframeType). */
+  /**
+   * Hide is used to indicate whether BezTriple is hidden (3D).
+   *
+   * \warning For #FCurve this is used to store the key-type, see #BEZKEYTYPE.
+   */
   char hide;
 
   /** Easing: easing type for interpolation mode (eBezTriple_Easing). */
@@ -105,6 +106,13 @@ typedef struct BezTriple {
   char auto_handle_type;
   char _pad[3];
 } BezTriple;
+
+/**
+ * Provide access to Keyframe Type info #eBezTriple_KeyframeType in #BezTriple::hide.
+ * \note this is so that we can change it to another location.
+ */
+#define BEZKEYTYPE(bezt) (eBezTriple_KeyframeType((bezt)->hide))
+#define BEZKEYTYPE_LVALUE(bezt) ((bezt)->hide)
 
 /**
  * \note #BPoint.tilt location in struct is abused by Key system.
@@ -158,18 +166,17 @@ typedef struct Nurb {
 } Nurb;
 
 typedef struct CharInfo {
-  short kern;
-  /** Index start at 1, unlike mesh & nurbs. */
+  float kern;
   short mat_nr;
   char flag;
-  char _pad[3];
+  char _pad[1];
 } CharInfo;
 
 typedef struct TextBox {
   float x, y, w, h;
 } TextBox;
 
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* These two Lines with # tell `makesdna` this struct can be excluded. */
 #
 #
 typedef struct EditNurb {
@@ -283,7 +290,7 @@ typedef struct Curve {
   struct CharInfo curinfo;
   /* font part end */
 
-  /** Current evaltime - for use by Objects parented to curves. */
+  /** Current evaluation-time, for use by Objects parented to curves. */
   float ctime;
   float bevfac1, bevfac2;
   char bevfac1_mapping, bevfac2_mapping;
@@ -504,6 +511,11 @@ typedef enum eBezTriple_KeyframeType {
   BEZT_KEYTYPE_BREAKDOWN = 2, /* 'breakdown' keyframe */
   BEZT_KEYTYPE_JITTER = 3,    /* 'jitter' keyframe (for adding 'filler' secondary motion) */
   BEZT_KEYTYPE_MOVEHOLD = 4,  /* one end of a 'moving hold' */
+  /**
+   * Key set by some automatic helper tool, marking that this key can be erased
+   * and the tool re-run.
+   */
+  BEZT_KEYTYPE_GENERATED = 5,
 } eBezTriple_KeyframeType;
 
 /* checks if the given BezTriple is selected */
@@ -602,12 +614,12 @@ enum {
   CU_CHINFO_OVERFLOW = 1 << 6,
 };
 
+/** User adjustable as styles (not relating to run-time layout calculation). */
+#define CU_CHINFO_STYLE_ALL \
+  (CU_CHINFO_BOLD | CU_CHINFO_ITALIC | CU_CHINFO_UNDERLINE | CU_CHINFO_SMALLCAPS)
+
 /* mixed with KEY_LINEAR but define here since only curve supports */
 #define KEY_CU_EASE 3
 
 /* indicates point has been seen during surface duplication */
-#define SURF_SEEN 4
-
-#ifdef __cplusplus
-}
-#endif
+#define SURF_SEEN (1 << 2)

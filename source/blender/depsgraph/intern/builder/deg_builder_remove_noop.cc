@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -9,13 +10,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_operation.hh"
 
 #include "intern/debug/deg_debug.h"
-#include "intern/depsgraph.h"
-#include "intern/depsgraph_relation.h"
-#include "intern/depsgraph_type.h"
+#include "intern/depsgraph.hh"
+#include "intern/depsgraph_relation.hh"
+#include "intern/depsgraph_type.hh"
 
 namespace blender::deg {
 
@@ -41,7 +42,7 @@ static inline bool is_removable_relation(const Relation *relation)
 
   /* If the relation connects two different IDs there is a high risk that the removal of the
    * relation will make it so visibility flushing is not possible at runtime. This happens with
-   * relations like the DoF on camera of custom shape on bines: such relation do not lead to an
+   * relations like the DoF on camera of custom shape on bones: such relation do not lead to an
    * actual depsgraph evaluation operation as they are handled on render engine level.
    *
    * The indirectly linked objects could have some of their components invisible as well, so

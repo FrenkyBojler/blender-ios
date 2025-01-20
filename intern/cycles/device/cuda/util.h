@@ -1,12 +1,13 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
 #ifdef WITH_CUDA
 
 #  ifdef WITH_CUDA_DYNLOAD
-#    include "cuew.h"
+#    include <cuew.h>
 #  else
 #    include <cuda.h>
 #  endif

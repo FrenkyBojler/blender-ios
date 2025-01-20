@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -11,22 +13,17 @@
 #include <math.h>
 #include <vector>
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
 namespace VecMat {
 
 namespace Internal {
-template<bool B> struct is_false {
-};
+template<bool B> struct is_false {};
 
 template<> struct is_false<false> {
-  static inline void ensure()
-  {
-  }
+  static inline void ensure() {}
 };
 }  // end of namespace Internal
 
@@ -37,14 +34,14 @@ template<> struct is_false<false> {
 //
 /////////////////////////////////////////////////////////////////////////////
 
-template<class T, unsigned N> class Vec {
+template<class T, uint N> class Vec {
  public:
   typedef T value_type;
 
   // constructors
   inline Vec()
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       this->_coord[i] = 0;
     }
   }
@@ -56,37 +53,37 @@ template<class T, unsigned N> class Vec {
 
   template<class U> explicit inline Vec(const U tab[N])
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       this->_coord[i] = (T)tab[i];
     }
   }
 
   template<class U> explicit inline Vec(const std::vector<U> &tab)
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       this->_coord[i] = (T)tab[i];
     }
   }
 
   template<class U> explicit inline Vec(const Vec<U, N> &v)
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       this->_coord[i] = (T)v[i];
     }
   }
 
   // accessors
-  inline value_type operator[](const unsigned i) const
+  inline value_type operator[](const uint i) const
   {
     return this->_coord[i];
   }
 
-  inline value_type &operator[](const unsigned i)
+  inline value_type &operator[](const uint i)
   {
     return this->_coord[i];
   }
 
-  static inline unsigned dim()
+  static inline uint dim()
   {
     return N;
   }
@@ -105,7 +102,7 @@ template<class T, unsigned N> class Vec {
   inline Vec<T, N> &normalize()
   {
     value_type n = norm();
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       this->_coord[i] /= n;
     }
     return *this;
@@ -115,7 +112,7 @@ template<class T, unsigned N> class Vec {
   {
     value_type n = norm();
     if (n) {
-      for (unsigned int i = 0; i < N; i++) {
+      for (uint i = 0; i < N; i++) {
         this->_coord[i] /= n;
       }
     }
@@ -157,7 +154,7 @@ template<class T, unsigned N> class Vec {
   inline value_type operator*(const Vec<T, N> &v) const
   {
     value_type sum = 0;
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       sum += (*this)[i] * v[i];
     }
     return sum;
@@ -166,7 +163,7 @@ template<class T, unsigned N> class Vec {
   template<class U> inline Vec<T, N> &operator=(const Vec<U, N> &v)
   {
     if (this != &v) {
-      for (unsigned int i = 0; i < N; i++) {
+      for (uint i = 0; i < N; i++) {
         this->_coord[i] = (T)v[i];
       }
     }
@@ -175,7 +172,7 @@ template<class T, unsigned N> class Vec {
 
   template<class U> inline Vec<T, N> &operator+=(const Vec<U, N> &v)
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       this->_coord[i] += (T)v[i];
     }
     return *this;
@@ -183,7 +180,7 @@ template<class T, unsigned N> class Vec {
 
   template<class U> inline Vec<T, N> &operator-=(const Vec<U, N> &v)
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       this->_coord[i] -= (T)v[i];
     }
     return *this;
@@ -191,7 +188,7 @@ template<class T, unsigned N> class Vec {
 
   template<class U> inline Vec<T, N> &operator*=(const U r)
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       this->_coord[i] *= r;
     }
     return *this;
@@ -200,7 +197,7 @@ template<class T, unsigned N> class Vec {
   template<class U> inline Vec<T, N> &operator/=(const U r)
   {
     if (r) {
-      for (unsigned int i = 0; i < N; i++) {
+      for (uint i = 0; i < N; i++) {
         this->_coord[i] /= r;
       }
     }
@@ -209,7 +206,7 @@ template<class T, unsigned N> class Vec {
 
   inline bool operator==(const Vec<T, N> &v) const
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       if (this->_coord[i] != v[i]) {
         return false;
       }
@@ -219,7 +216,7 @@ template<class T, unsigned N> class Vec {
 
   inline bool operator!=(const Vec<T, N> &v) const
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       if (this->_coord[i] != v[i]) {
         return true;
       }
@@ -229,7 +226,7 @@ template<class T, unsigned N> class Vec {
 
   inline bool operator<(const Vec<T, N> &v) const
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       if (this->_coord[i] < v[i]) {
         return true;
       }
@@ -245,7 +242,7 @@ template<class T, unsigned N> class Vec {
 
   inline bool operator>(const Vec<T, N> &v) const
   {
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       if (this->_coord[i] > v[i]) {
         return true;
       }
@@ -265,9 +262,7 @@ template<class T, unsigned N> class Vec {
     _dim = N,
   };
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:VecMat:Vec")
-#endif
 };
 
 //
@@ -280,21 +275,13 @@ template<class T> class Vec2 : public Vec<T, 2> {
  public:
   typedef typename Vec<T, 2>::value_type value_type;
 
-  inline Vec2() : Vec<T, 2>()
-  {
-  }
+  inline Vec2() : Vec<T, 2>() {}
 
-  template<class U> explicit inline Vec2(const U tab[2]) : Vec<T, 2>(tab)
-  {
-  }
+  template<class U> explicit inline Vec2(const U tab[2]) : Vec<T, 2>(tab) {}
 
-  template<class U> explicit inline Vec2(const std::vector<U> &tab) : Vec<T, 2>(tab)
-  {
-  }
+  template<class U> explicit inline Vec2(const std::vector<U> &tab) : Vec<T, 2>(tab) {}
 
-  template<class U> inline Vec2(const Vec<U, 2> &v) : Vec<T, 2>(v)
-  {
-  }
+  template<class U> inline Vec2(const Vec<U, 2> &v) : Vec<T, 2>(v) {}
 
   inline Vec2(const value_type x, const value_type y = 0) : Vec<T, 2>()
   {
@@ -367,7 +354,7 @@ template<class T> class Vec2 : public Vec<T, 2> {
   inline value_type operator*(const Vec2<T> &v) const
   {
     value_type sum = 0;
-    for (unsigned int i = 0; i < 2; i++) {
+    for (uint i = 0; i < 2; i++) {
       sum += (*this)[i] * v[i];
     }
     return sum;
@@ -384,21 +371,13 @@ template<class T> class HVec3 : public Vec<T, 4> {
  public:
   typedef typename Vec<T, 4>::value_type value_type;
 
-  inline HVec3() : Vec<T, 4>()
-  {
-  }
+  inline HVec3() : Vec<T, 4>() {}
 
-  template<class U> explicit inline HVec3(const U tab[4]) : Vec<T, 4>(tab)
-  {
-  }
+  template<class U> explicit inline HVec3(const U tab[4]) : Vec<T, 4>(tab) {}
 
-  template<class U> explicit inline HVec3(const std::vector<U> &tab) : Vec<T, 4>(tab)
-  {
-  }
+  template<class U> explicit inline HVec3(const std::vector<U> &tab) : Vec<T, 4>(tab) {}
 
-  template<class U> inline HVec3(const Vec<U, 4> &v) : Vec<T, 4>(v)
-  {
-  }
+  template<class U> inline HVec3(const Vec<U, 4> &v) : Vec<T, 4>(v) {}
 
   inline HVec3(const value_type sx,
                const value_type sy = 0,
@@ -485,21 +464,13 @@ template<class T> class Vec3 : public Vec<T, 3> {
  public:
   typedef typename Vec<T, 3>::value_type value_type;
 
-  inline Vec3() : Vec<T, 3>()
-  {
-  }
+  inline Vec3() : Vec<T, 3>() {}
 
-  template<class U> explicit inline Vec3(const U tab[3]) : Vec<T, 3>(tab)
-  {
-  }
+  template<class U> explicit inline Vec3(const U tab[3]) : Vec<T, 3>(tab) {}
 
-  template<class U> explicit inline Vec3(const std::vector<U> &tab) : Vec<T, 3>(tab)
-  {
-  }
+  template<class U> explicit inline Vec3(const std::vector<U> &tab) : Vec<T, 3>(tab) {}
 
-  template<class U> inline Vec3(const Vec<U, 3> &v) : Vec<T, 3>(v)
-  {
-  }
+  template<class U> inline Vec3(const Vec<U, 3> &v) : Vec<T, 3>(v) {}
 
   template<class U> inline Vec3(const HVec3<U> &v)
   {
@@ -596,7 +567,7 @@ template<class T> class Vec3 : public Vec<T, 3> {
   inline value_type operator*(const Vec3<T> &v) const
   {
     value_type sum = 0;
-    for (unsigned int i = 0; i < 3; i++) {
+    for (uint i = 0; i < 3; i++) {
       sum += (*this)[i] * v[i];
     }
     return sum;
@@ -633,13 +604,13 @@ template<class T> class Vec3 : public Vec<T, 3> {
 // Dirty, but icc under Windows needs this
 #define _SIZE (M * N)
 
-template<class T, unsigned M, unsigned N> class Matrix {
+template<class T, uint M, uint N> class Matrix {
  public:
   typedef T value_type;
 
   inline Matrix()
   {
-    for (unsigned int i = 0; i < _SIZE; i++) {
+    for (uint i = 0; i < _SIZE; i++) {
       this->_coord[i] = 0;
     }
   }
@@ -652,43 +623,43 @@ template<class T, unsigned M, unsigned N> class Matrix {
 
   template<class U> explicit inline Matrix(const U tab[_SIZE])
   {
-    for (unsigned int i = 0; i < _SIZE; i++) {
+    for (uint i = 0; i < _SIZE; i++) {
       this->_coord[i] = tab[i];
     }
   }
 
   template<class U> explicit inline Matrix(const std::vector<U> &tab)
   {
-    for (unsigned int i = 0; i < _SIZE; i++) {
+    for (uint i = 0; i < _SIZE; i++) {
       this->_coord[i] = tab[i];
     }
   }
 
   template<class U> inline Matrix(const Matrix<U, M, N> &m)
   {
-    for (unsigned int i = 0; i < M; i++) {
-      for (unsigned int j = 0; j < N; j++) {
+    for (uint i = 0; i < M; i++) {
+      for (uint j = 0; j < N; j++) {
         this->_coord[i * N + j] = (T)m(i, j);
       }
     }
   }
 
-  inline value_type operator()(const unsigned i, const unsigned j) const
+  inline value_type operator()(const uint i, const uint j) const
   {
     return this->_coord[i * N + j];
   }
 
-  inline value_type &operator()(const unsigned i, const unsigned j)
+  inline value_type &operator()(const uint i, const uint j)
   {
     return this->_coord[i * N + j];
   }
 
-  static inline unsigned rows()
+  static inline uint rows()
   {
     return M;
   }
 
-  static inline unsigned cols()
+  static inline uint cols()
   {
     return N;
   }
@@ -696,8 +667,8 @@ template<class T, unsigned M, unsigned N> class Matrix {
   inline Matrix<T, M, N> &transpose() const
   {
     Matrix<T, N, M> res;
-    for (unsigned int i = 0; i < M; i++) {
-      for (unsigned int j = 0; j < N; j++) {
+    for (uint i = 0; i < M; i++) {
+      for (uint j = 0; j < N; j++) {
         res(j, i) = this->_coord[i * N + j];
       }
     }
@@ -708,8 +679,8 @@ template<class T, unsigned M, unsigned N> class Matrix {
   template<class U> inline Matrix<T, M, N> &operator=(const Matrix<U, M, N> &m)
   {
     if (this != &m) {
-      for (unsigned int i = 0; i < M; i++) {
-        for (unsigned int j = 0; j < N; j++) {
+      for (uint i = 0; i < M; i++) {
+        for (uint j = 0; j < N; j++) {
           this->_coord[i * N + j] = (T)m(i, j);
         }
       }
@@ -719,8 +690,8 @@ template<class T, unsigned M, unsigned N> class Matrix {
 
   template<class U> inline Matrix<T, M, N> &operator+=(const Matrix<U, M, N> &m)
   {
-    for (unsigned int i = 0; i < M; i++) {
-      for (unsigned int j = 0; j < N; j++) {
+    for (uint i = 0; i < M; i++) {
+      for (uint j = 0; j < N; j++) {
         this->_coord[i * N + j] += (T)m(i, j);
       }
     }
@@ -729,8 +700,8 @@ template<class T, unsigned M, unsigned N> class Matrix {
 
   template<class U> inline Matrix<T, M, N> &operator-=(const Matrix<U, M, N> &m)
   {
-    for (unsigned int i = 0; i < M; i++) {
-      for (unsigned int j = 0; j < N; j++) {
+    for (uint i = 0; i < M; i++) {
+      for (uint j = 0; j < N; j++) {
         this->_coord[i * N + j] -= (T)m(i, j);
       }
     }
@@ -739,8 +710,8 @@ template<class T, unsigned M, unsigned N> class Matrix {
 
   template<class U> inline Matrix<T, M, N> &operator*=(const U lambda)
   {
-    for (unsigned int i = 0; i < M; i++) {
-      for (unsigned int j = 0; j < N; j++) {
+    for (uint i = 0; i < M; i++) {
+      for (uint j = 0; j < N; j++) {
         this->_coord[i * N + j] *= lambda;
       }
     }
@@ -750,8 +721,8 @@ template<class T, unsigned M, unsigned N> class Matrix {
   template<class U> inline Matrix<T, M, N> &operator/=(const U lambda)
   {
     if (lambda) {
-      for (unsigned int i = 0; i < M; i++) {
-        for (unsigned int j = 0; j < N; j++) {
+      for (uint i = 0; i < M; i++) {
+        for (uint j = 0; j < N; j++) {
           this->_coord[i * N + j] /= lambda;
         }
       }
@@ -762,9 +733,7 @@ template<class T, unsigned M, unsigned N> class Matrix {
  protected:
   value_type _coord[_SIZE];
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:VecMat:Matrix")
-#endif
 };
 
 #undef _SIZE
@@ -779,30 +748,24 @@ template<class T, unsigned M, unsigned N> class Matrix {
 // Dirty, but icc under Windows needs this
 #define _SIZE (N * N)
 
-template<class T, unsigned N> class SquareMatrix : public Matrix<T, N, N> {
+template<class T, uint N> class SquareMatrix : public Matrix<T, N, N> {
  public:
   typedef T value_type;
 
-  inline SquareMatrix() : Matrix<T, N, N>()
-  {
-  }
+  inline SquareMatrix() : Matrix<T, N, N>() {}
 
-  template<class U> explicit inline SquareMatrix(const U tab[_SIZE]) : Matrix<T, N, N>(tab)
-  {
-  }
+  template<class U> explicit inline SquareMatrix(const U tab[_SIZE]) : Matrix<T, N, N>(tab) {}
 
   template<class U> explicit inline SquareMatrix(const std::vector<U> &tab) : Matrix<T, N, N>(tab)
   {
   }
 
-  template<class U> inline SquareMatrix(const Matrix<U, N, N> &m) : Matrix<T, N, N>(m)
-  {
-  }
+  template<class U> inline SquareMatrix(const Matrix<U, N, N> &m) : Matrix<T, N, N>(m) {}
 
   static inline SquareMatrix<T, N> identity()
   {
     SquareMatrix<T, N> res;
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       res(i, i) = 1;
     }
     return res;
@@ -817,21 +780,21 @@ template<class T, unsigned N> class SquareMatrix : public Matrix<T, N, N> {
 /////////////////////////////////////////////////////////////////////////////
 
 #if 0
-template<class T, unsigned N> inline Vec<T, N> operator+(const Vec<T, N> &v1, const Vec<T, N> &v2)
+template<class T, uint N> inline Vec<T, N> operator+(const Vec<T, N> &v1, const Vec<T, N> &v2)
 {
   Vec<T, N> res(v1);
   res += v2;
   return res;
 }
 
-template<class T, unsigned N> inline Vec<T, N> operator-(const Vec<T, N> &v1, const Vec<T, N> &v2)
+template<class T, uint N> inline Vec<T, N> operator-(const Vec<T, N> &v1, const Vec<T, N> &v2)
 {
   Vec<T, N> res(v1);
   res -= v2;
   return res;
 }
 
-template<class T, unsigned N>
+template<class T, uint N>
 inline Vec<T, N> operator*(const Vec<T, N> &v, const typename Vec<T, N>::value_type r)
 {
   Vec<T, N> res(v);
@@ -840,7 +803,7 @@ inline Vec<T, N> operator*(const Vec<T, N> &v, const typename Vec<T, N>::value_t
 }
 #endif
 
-template<class T, unsigned N>
+template<class T, uint N>
 inline Vec<T, N> operator*(const typename Vec<T, N>::value_type r, const Vec<T, N> &v)
 {
   Vec<T, N> res(v);
@@ -849,7 +812,7 @@ inline Vec<T, N> operator*(const typename Vec<T, N>::value_type r, const Vec<T, 
 }
 
 #if 0
-template<class T, unsigned N>
+template<class T, uint N>
 inline Vec<T, N> operator/(const Vec<T, N> &v, const typename Vec<T, N>::value_type r)
 {
   Vec<T, N> res(v);
@@ -860,11 +823,11 @@ inline Vec<T, N> operator/(const Vec<T, N> &v, const typename Vec<T, N>::value_t
 }
 
 // dot product
-template<class T, unsigned N>
+template<class T, uint N>
 inline typename Vec<T, N>::value_type operator*(const Vec<T, N> &v1, const Vec<T, N> &v2)
 {
   typename Vec<T, N>::value_type sum = 0;
-  for (unsigned int i = 0; i < N; i++) {
+  for (uint i = 0; i < N; i++) {
     sum += v1[i] * v2[i];
   }
   return sum;
@@ -880,9 +843,9 @@ template<typename T> inline Vec3<T> operator^(const Vec<T, 3> &v1, const Vec<T, 
 #endif
 
 // stream operator
-template<class T, unsigned N> inline std::ostream &operator<<(std::ostream &s, const Vec<T, N> &v)
+template<class T, uint N> inline std::ostream &operator<<(std::ostream &s, const Vec<T, N> &v)
 {
-  unsigned int i;
+  uint i;
   s << "[";
   for (i = 0; i < N - 1; i++) {
     s << v[i] << ", ";
@@ -896,7 +859,7 @@ template<class T, unsigned N> inline std::ostream &operator<<(std::ostream &s, c
 //
 /////////////////////////////////////////////////////////////////////////////
 
-template<class T, unsigned M, unsigned N>
+template<class T, uint M, uint N>
 inline Matrix<T, M, N> operator+(const Matrix<T, M, N> &m1, const Matrix<T, M, N> &m2)
 {
   Matrix<T, M, N> res(m1);
@@ -904,7 +867,7 @@ inline Matrix<T, M, N> operator+(const Matrix<T, M, N> &m1, const Matrix<T, M, N
   return res;
 }
 
-template<class T, unsigned M, unsigned N>
+template<class T, uint M, uint N>
 inline Matrix<T, M, N> operator-(const Matrix<T, M, N> &m1, const Matrix<T, M, N> &m2)
 {
   Matrix<T, M, N> res(m1);
@@ -912,7 +875,7 @@ inline Matrix<T, M, N> operator-(const Matrix<T, M, N> &m1, const Matrix<T, M, N
   return res;
 }
 
-template<class T, unsigned M, unsigned N>
+template<class T, uint M, uint N>
 inline Matrix<T, M, N> operator*(const Matrix<T, M, N> &m1,
                                  const typename Matrix<T, M, N>::value_type lambda)
 {
@@ -921,7 +884,7 @@ inline Matrix<T, M, N> operator*(const Matrix<T, M, N> &m1,
   return res;
 }
 
-template<class T, unsigned M, unsigned N>
+template<class T, uint M, uint N>
 inline Matrix<T, M, N> operator*(const typename Matrix<T, M, N>::value_type lambda,
                                  const Matrix<T, M, N> &m1)
 {
@@ -930,7 +893,7 @@ inline Matrix<T, M, N> operator*(const typename Matrix<T, M, N>::value_type lamb
   return res;
 }
 
-template<class T, unsigned M, unsigned N>
+template<class T, uint M, uint N>
 inline Matrix<T, M, N> operator/(const Matrix<T, M, N> &m1,
                                  const typename Matrix<T, M, N>::value_type lambda)
 {
@@ -939,10 +902,10 @@ inline Matrix<T, M, N> operator/(const Matrix<T, M, N> &m1,
   return res;
 }
 
-template<class T, unsigned M, unsigned N, unsigned P>
+template<class T, uint M, uint N, uint P>
 inline Matrix<T, M, P> operator*(const Matrix<T, M, N> &m1, const Matrix<T, N, P> &m2)
 {
-  unsigned int i, j, k;
+  uint i, j, k;
   Matrix<T, M, P> res;
   typename Matrix<T, N, P>::value_type scale;
 
@@ -957,15 +920,15 @@ inline Matrix<T, M, P> operator*(const Matrix<T, M, N> &m1, const Matrix<T, N, P
   return res;
 }
 
-template<class T, unsigned M, unsigned N>
+template<class T, uint M, uint N>
 inline Vec<T, M> operator*(const Matrix<T, M, N> &m, const Vec<T, N> &v)
 {
   Vec<T, M> res;
   typename Matrix<T, M, N>::value_type scale;
 
-  for (unsigned int j = 0; j < M; j++) {
+  for (uint j = 0; j < M; j++) {
     scale = v[j];
-    for (unsigned int i = 0; i < N; i++) {
+    for (uint i = 0; i < N; i++) {
       res[i] += m(i, j) * scale;
     }
   }
@@ -973,10 +936,10 @@ inline Vec<T, M> operator*(const Matrix<T, M, N> &m, const Vec<T, N> &v)
 }
 
 // stream operator
-template<class T, unsigned M, unsigned N>
+template<class T, uint M, uint N>
 inline std::ostream &operator<<(std::ostream &s, const Matrix<T, M, N> &m)
 {
-  unsigned int i, j;
+  uint i, j;
   for (i = 0; i < M; i++) {
     s << "[";
     for (j = 0; j < N - 1; j++) {

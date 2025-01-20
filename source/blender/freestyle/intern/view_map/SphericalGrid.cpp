@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -12,7 +14,7 @@
 
 #include "BLI_sys_types.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 using namespace std;
 
@@ -117,13 +119,13 @@ void SphericalGrid::assignCells(OccluderSource & /*source*/,
   // Now allocate the cell table and fill it with default (empty) cells
   _cells.resize(_cellsX * _cellsY);
   for (cellContainer::iterator i = _cells.begin(), end = _cells.end(); i != end; ++i) {
-    (*i) = NULL;
+    (*i) = nullptr;
   }
 
   // Identify cells that will be used, and set the dimensions for each
   ViewMap::fedges_container &fedges = viewMap->FEdges();
-  for (ViewMap::fedges_container::iterator f = fedges.begin(), fend = fedges.end(); f != fend;
-       ++f) {
+  for (ViewMap::fedges_container::iterator f = fedges.begin(), fend = fedges.end(); f != fend; ++f)
+  {
     if ((*f)->isInImage()) {
       Vec3r point = SphericalGrid::Transform::sphericalProjection((*f)->center3d());
       uint i, j;
@@ -163,14 +165,14 @@ void SphericalGrid::distributePolygons(OccluderSource &source)
     catch (...) {
       // If an exception was thrown, _faces.push_back() cannot have succeeded. Occluder is not
       // owned by anyone, and must be deleted. If the exception was thrown before or during new
-      // OccluderData(), then occluder is NULL, and this delete is harmless.
+      // OccluderData(), then occluder is nullptr, and this delete is harmless.
       delete occluder;
       throw;
     }
     ++nFaces;
   }
   if (G.debug & G_DEBUG_FREESTYLE) {
-    cout << "Distributed " << nFaces << " occluders.  Retained " << nKeptFaces << "." << endl;
+    cout << "Distributed " << nFaces << " occluders. Retained " << nKeptFaces << "." << endl;
   }
 }
 
@@ -178,7 +180,7 @@ void SphericalGrid::reorganizeCells()
 {
   // Sort the occluders by shallowest point
   for (vector<Cell *>::iterator i = _cells.begin(), end = _cells.end(); i != end; ++i) {
-    if (*i != NULL) {
+    if (*i != nullptr) {
       (*i)->indexPolygons();
     }
   }

@@ -1,17 +1,26 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "device/hip/device.h"
+#include "device/device.h"
 
 #include "util/log.h"
 
 #ifdef WITH_HIP
-#  include "device/device.h"
 #  include "device/hip/device_impl.h"
 
+#  include "integrator/denoiser_oidn_gpu.h"  // IWYU pragma: keep
+
 #  include "util/string.h"
-#  include "util/windows.h"
+#  ifdef _WIN32
+#    include "util/windows.h"
+#  endif
 #endif /* WITH_HIP */
+
+#ifdef WITH_HIPRT
+#  include "device/hiprt/device_impl.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -23,8 +32,9 @@ bool device_hip_init()
   static bool initialized = false;
   static bool result = false;
 
-  if (initialized)
+  if (initialized) {
     return result;
+  }
 
   initialized = true;
   int hipew_result = hipewInit(HIPEW_INIT_HIP);
@@ -34,7 +44,7 @@ bool device_hip_init()
       VLOG_INFO << "Found precompiled kernels";
       result = true;
     }
-    else if (hipewCompilerPath() != NULL) {
+    else if (hipewCompilerPath() != nullptr) {
       VLOG_INFO << "Found HIPCC " << hipewCompilerPath();
       result = true;
     }
@@ -63,14 +73,23 @@ bool device_hip_init()
 #endif /* WITH_HIP_DYNLOAD */
 }
 
-Device *device_hip_create(const DeviceInfo &info, Stats &stats, Profiler &profiler)
+unique_ptr<Device> device_hip_create(const DeviceInfo &info,
+                                     Stats &stats,
+                                     Profiler &profiler,
+                                     const bool headless)
 {
-#ifdef WITH_HIP
-  return new HIPDevice(info, stats, profiler);
+#ifdef WITH_HIPRT
+  if (info.use_hardware_raytracing) {
+    return make_unique<HIPRTDevice>(info, stats, profiler, headless);
+  }
+  return make_unique<HIPDevice>(info, stats, profiler, headless);
+#elif defined(WITH_HIP)
+  return make_unique<HIPDevice>(info, stats, profiler, headless);
 #else
   (void)info;
   (void)stats;
   (void)profiler;
+  (void)headless;
 
   LOG(FATAL) << "Request to create HIP device without compiled-in support. Should never happen.";
 
@@ -82,10 +101,12 @@ Device *device_hip_create(const DeviceInfo &info, Stats &stats, Profiler &profil
 static hipError_t device_hip_safe_init()
 {
 #  ifdef _WIN32
-  __try {
+  __try
+  {
     return hipInit(0);
   }
-  __except (EXCEPTION_EXECUTE_HANDLER) {
+  __except (EXCEPTION_EXECUTE_HANDLER)
+  {
     /* Ignore crashes inside the HIP driver and hope we can
      * survive even with corrupted HIP installs. */
     fprintf(stderr, "Cycles HIP: driver crashed, continuing without HIP.\n");
@@ -103,8 +124,9 @@ void device_hip_info(vector<DeviceInfo> &devices)
 #ifdef WITH_HIP
   hipError_t result = device_hip_safe_init();
   if (result != hipSuccess) {
-    if (result != hipErrorNoDevice)
+    if (result != hipErrorNoDevice) {
       fprintf(stderr, "HIP hipInit: %s\n", hipewErrorString(result));
+    }
     return;
   }
 
@@ -114,6 +136,12 @@ void device_hip_info(vector<DeviceInfo> &devices)
     fprintf(stderr, "HIP hipGetDeviceCount: %s\n", hipewErrorString(result));
     return;
   }
+
+#  ifdef WITH_HIPRT
+  const bool has_hardware_raytracing = hiprtewInit();
+#  else
+  const bool has_hardware_raytracing = false;
+#  endif
 
   vector<DeviceInfo> display_devices;
 
@@ -137,8 +165,7 @@ void device_hip_info(vector<DeviceInfo> &devices)
     info.num = num;
 
     info.has_nanovdb = true;
-    info.has_light_tree = false;
-    info.denoisers = 0;
+    info.has_mnee = true;
 
     info.has_gpu_queue = true;
     /* Check if the device has P2P access to any other device in the system. */
@@ -150,6 +177,8 @@ void device_hip_info(vector<DeviceInfo> &devices)
       }
     }
 
+    info.use_hardware_raytracing = has_hardware_raytracing;
+
     int pci_location[3] = {0, 0, 0};
     hipDeviceGetAttribute(&pci_location[0], hipDeviceAttributePciDomainID, num);
     hipDeviceGetAttribute(&pci_location[1], hipDeviceAttributePciBusId, num);
@@ -159,6 +188,19 @@ void device_hip_info(vector<DeviceInfo> &devices)
                             (unsigned int)pci_location[0],
                             (unsigned int)pci_location[1],
                             (unsigned int)pci_location[2]);
+
+    info.denoisers = 0;
+#  if defined(WITH_OPENIMAGEDENOISE)
+    /* Check first if OIDN supports it, not doing so can crash the HIP driver with
+     * "hipErrorNoBinaryForGpu: Unable to find code object for all current devices". */
+#    if OIDN_VERSION >= 20300
+    if (hipSupportsDeviceOIDN(num) && oidnIsHIPDeviceSupported(num)) {
+#    else
+    if (hipSupportsDeviceOIDN(num) && OIDNDenoiserGPU::is_device_supported(info)) {
+#    endif
+      info.denoisers |= DENOISER_OPENIMAGEDENOISE;
+    }
+#  endif
 
     /* If device has a kernel timeout and no compute preemption, we assume
      * it is connected to a display and will freeze the display while doing
@@ -176,11 +218,18 @@ void device_hip_info(vector<DeviceInfo> &devices)
       VLOG_INFO << "Device has compute preemption or is not used for display.";
       devices.push_back(info);
     }
-    VLOG_INFO << "Added device \"" << name << "\" with id \"" << info.id << "\".";
+
+    VLOG_INFO << "Added device \"" << info.description << "\" with id \"" << info.id << "\".";
+
+    if (info.denoisers & DENOISER_OPENIMAGEDENOISE) {
+      VLOG_INFO << "Device with id \"" << info.id << "\" supports "
+                << denoiserTypeToHumanReadable(DENOISER_OPENIMAGEDENOISE) << ".";
+    }
   }
 
-  if (!display_devices.empty())
+  if (!display_devices.empty()) {
     devices.insert(devices.end(), display_devices.begin(), display_devices.end());
+  }
 #else  /* WITH_HIP */
   (void)devices;
 #endif /* WITH_HIP */
@@ -203,7 +252,7 @@ string device_hip_capabilities()
     return string("Error getting devices: ") + hipewErrorString(result);
   }
 
-  string capabilities = "";
+  string capabilities;
   for (int num = 0; num < count; num++) {
     char name[256];
     if (hipDeviceGetName(name, 256, num) != hipSuccess) {

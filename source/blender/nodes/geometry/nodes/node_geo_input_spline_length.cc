@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_geometry_util.hh"
 
@@ -8,8 +10,8 @@ namespace blender::nodes::node_geo_input_spline_length_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>(N_("Length")).field_source();
-  b.add_output<decl::Int>(N_("Point Count")).field_source();
+  b.add_output<decl::Float>("Length").field_source();
+  b.add_output<decl::Int>("Point Count").field_source();
 }
 
 /* --------------------------------------------------------------------
@@ -17,17 +19,17 @@ static void node_declare(NodeDeclarationBuilder &b)
  */
 
 static VArray<int> construct_curve_point_count_gvarray(const bke::CurvesGeometry &curves,
-                                                       const eAttrDomain domain)
+                                                       const AttrDomain domain)
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
-  auto count_fn = [points_by_curve](int64_t i) { return points_by_curve.size(i); };
+  auto count_fn = [points_by_curve](int64_t i) { return points_by_curve[i].size(); };
 
-  if (domain == ATTR_DOMAIN_CURVE) {
+  if (domain == AttrDomain::Curve) {
     return VArray<int>::ForFunc(curves.curves_num(), count_fn);
   }
-  if (domain == ATTR_DOMAIN_POINT) {
+  if (domain == AttrDomain::Point) {
     VArray<int> count = VArray<int>::ForFunc(curves.curves_num(), count_fn);
-    return curves.adapt_domain<int>(std::move(count), ATTR_DOMAIN_CURVE, ATTR_DOMAIN_POINT);
+    return curves.adapt_domain<int>(std::move(count), AttrDomain::Curve, AttrDomain::Point);
   }
 
   return {};
@@ -41,8 +43,8 @@ class SplineCountFieldInput final : public bke::CurvesFieldInput {
   }
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
-                                 const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const AttrDomain domain,
+                                 const IndexMask & /*mask*/) const final
   {
     return construct_curve_point_count_gvarray(curves, domain);
   }
@@ -58,9 +60,9 @@ class SplineCountFieldInput final : public bke::CurvesFieldInput {
     return dynamic_cast<const SplineCountFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
+  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
   {
-    return ATTR_DOMAIN_CURVE;
+    return AttrDomain::Curve;
   }
 };
 
@@ -73,15 +75,19 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Point Count", std::move(spline_count_field));
 }
 
-}  // namespace blender::nodes::node_geo_input_spline_length_cc
-
-void register_node_type_geo_input_spline_length()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_spline_length_cc;
-
-  static bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_SPLINE_LENGTH, "Spline Length", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeSplineLength", GEO_NODE_INPUT_SPLINE_LENGTH);
+  ntype.ui_name = "Spline Length";
+  ntype.ui_description =
+      "Retrieve the total length of each spline, as a distance or as a number of points";
+  ntype.enum_name_legacy = "SPLINE_LENGTH";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_spline_length_cc

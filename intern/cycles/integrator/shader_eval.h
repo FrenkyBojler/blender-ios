@@ -1,13 +1,14 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
+
+#include <functional>
 
 #include "device/memory.h"
 
 #include "kernel/types.h"
-
-#include "util/function.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -30,8 +31,8 @@ class ShaderEval {
   bool eval(const ShaderEvalType type,
             const int max_num_inputs,
             const int num_channels,
-            const function<int(device_vector<KernelShaderEvalInput> &)> &fill_input,
-            const function<void(device_vector<float> &)> &read_output);
+            const std::function<int(device_vector<KernelShaderEvalInput> &)> &fill_input,
+            const std::function<void(device_vector<float> &)> &read_output);
 
  protected:
   bool eval_cpu(Device *device,

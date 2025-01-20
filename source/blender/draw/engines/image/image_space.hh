@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
@@ -7,7 +8,13 @@
 
 #pragma once
 
-namespace blender::draw::image_engine {
+struct ARegion;
+struct ImBuf;
+struct Image;
+struct ImageUser;
+struct Main;
+
+namespace blender::image_engine {
 
 struct ShaderParameters;
 
@@ -28,7 +35,7 @@ class AbstractSpaceAccessor {
    *
    * The return value is optional.
    */
-  virtual Image *get_image(Main *bmain) = 0;
+  virtual ::Image *get_image(Main *bmain) = 0;
 
   /**
    * Return the #ImageUser of the space.
@@ -45,12 +52,12 @@ class AbstractSpaceAccessor {
    * \param lock: pointer to a lock object.
    * \return Image buffer of the given image.
    */
-  virtual ImBuf *acquire_image_buffer(Image *image, void **lock) = 0;
+  virtual ImBuf *acquire_image_buffer(::Image *image, void **lock) = 0;
 
   /**
    * Release a previous locked image from #acquire_image_buffer.
    */
-  virtual void release_buffer(Image *image, ImBuf *image_buffer, void *lock) = 0;
+  virtual void release_buffer(::Image *image, ImBuf *image_buffer, void *lock) = 0;
 
   /**
    * Update the r_shader_parameters with space specific settings.
@@ -69,8 +76,9 @@ class AbstractSpaceAccessor {
    * (0..1) to texture space UV coordinates.
    */
   virtual void init_ss_to_texture_matrix(const ARegion *region,
+                                         const float image_offset[2],
                                          const float image_resolution[2],
                                          float r_uv_to_texture[4][4]) const = 0;
 };
 
-}  // namespace blender::draw::image_engine
+}  // namespace blender::image_engine

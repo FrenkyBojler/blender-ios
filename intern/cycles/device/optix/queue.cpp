@@ -1,12 +1,11 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifdef WITH_OPTIX
 
 #  include "device/optix/queue.h"
 #  include "device/optix/device_impl.h"
-
-#  include "util/time.h"
 
 #  define __KERNEL_OPTIX__
 #  include "kernel/device/optix/globals.h"
@@ -15,9 +14,7 @@ CCL_NAMESPACE_BEGIN
 
 /* CUDADeviceQueue */
 
-OptiXDeviceQueue::OptiXDeviceQueue(OptiXDevice *device) : CUDADeviceQueue(device)
-{
-}
+OptiXDeviceQueue::OptiXDeviceQueue(OptiXDevice *device) : CUDADeviceQueue(device) {}
 
 void OptiXDeviceQueue::init_execution()
 {
@@ -40,7 +37,7 @@ static bool is_optix_specific_kernel(DeviceKernel kernel, bool use_osl)
 
 bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
                                const int work_size,
-                               DeviceKernelArguments const &args)
+                               const DeviceKernelArguments &args)
 {
   OptiXDevice *const optix_device = static_cast<OptiXDevice *>(cuda_device_);
 
@@ -82,7 +79,8 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
   }
   if (kernel == DEVICE_KERNEL_SHADER_EVAL_DISPLACE ||
       kernel == DEVICE_KERNEL_SHADER_EVAL_BACKGROUND ||
-      kernel == DEVICE_KERNEL_SHADER_EVAL_CURVE_SHADOW_TRANSPARENCY) {
+      kernel == DEVICE_KERNEL_SHADER_EVAL_CURVE_SHADOW_TRANSPARENCY)
+  {
     cuda_device_assert(cuda_device_,
                        cuMemcpyHtoDAsync(launch_params_ptr + offsetof(KernelParamsOptiX, offset),
                                          args.values[2],  // &d_offset
@@ -124,6 +122,10 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
       pipeline = optix_device->pipelines[PIP_SHADE];
       sbt_params.raygenRecord = sbt_data_ptr + PG_RGEN_SHADE_SHADOW * sizeof(SbtRecord);
       break;
+    case DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT:
+      pipeline = optix_device->pipelines[PIP_SHADE];
+      sbt_params.raygenRecord = sbt_data_ptr + PG_RGEN_SHADE_DEDICATED_LIGHT * sizeof(SbtRecord);
+      break;
 
     case DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST:
       pipeline = optix_device->pipelines[PIP_INTERSECT];
@@ -140,6 +142,11 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
     case DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK:
       pipeline = optix_device->pipelines[PIP_INTERSECT];
       sbt_params.raygenRecord = sbt_data_ptr + PG_RGEN_INTERSECT_VOLUME_STACK * sizeof(SbtRecord);
+      break;
+    case DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT:
+      pipeline = optix_device->pipelines[PIP_INTERSECT];
+      sbt_params.raygenRecord = sbt_data_ptr +
+                                PG_RGEN_INTERSECT_DEDICATED_LIGHT * sizeof(SbtRecord);
       break;
 
     case DEVICE_KERNEL_SHADER_EVAL_DISPLACE:

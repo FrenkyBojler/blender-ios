@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -16,8 +18,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_heap_simple.h"
-#include "BLI_strict_flags.h"
 #include "BLI_utildefines.h"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 #define HEAP_PARENT(i) (((i)-1) >> 1)
 

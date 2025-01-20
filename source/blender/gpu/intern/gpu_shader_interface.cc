@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 by Mike Erwin. All rights reserved. */
+/* SPDX-FileCopyrightText: 2016 by Mike Erwin. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -28,7 +29,7 @@ ShaderInterface::~ShaderInterface()
 
 static void sort_input_list(MutableSpan<ShaderInput> dst)
 {
-  if (dst.size() == 0) {
+  if (dst.is_empty()) {
     return;
   }
 
@@ -54,15 +55,20 @@ void ShaderInterface::sort_inputs()
   /* Sorts all inputs inside their respective array.
    * This is to allow fast hash collision detection.
    * See `ShaderInterface::input_lookup` for more details. */
-
-  sort_input_list(MutableSpan<ShaderInput>(inputs_, attr_len_));
-  sort_input_list(MutableSpan<ShaderInput>(inputs_ + attr_len_, ubo_len_));
-  sort_input_list(MutableSpan<ShaderInput>(inputs_ + attr_len_ + ubo_len_, uniform_len_));
-  sort_input_list(
-      MutableSpan<ShaderInput>(inputs_ + attr_len_ + ubo_len_ + uniform_len_, ssbo_len_));
+  uint offset = 0;
+  sort_input_list(MutableSpan<ShaderInput>(inputs_ + offset, attr_len_));
+  offset += attr_len_;
+  sort_input_list(MutableSpan<ShaderInput>(inputs_ + offset, ubo_len_));
+  offset += ubo_len_;
+  sort_input_list(MutableSpan<ShaderInput>(inputs_ + offset, uniform_len_));
+  offset += uniform_len_;
+  sort_input_list(MutableSpan<ShaderInput>(inputs_ + offset, ssbo_len_));
+  offset += ssbo_len_;
+  sort_input_list(MutableSpan<ShaderInput>(inputs_ + offset, constant_len_));
+  offset += constant_len_;
 }
 
-void ShaderInterface::debug_print()
+void ShaderInterface::debug_print() const
 {
   Span<ShaderInput> attrs = Span<ShaderInput>(inputs_, attr_len_);
   Span<ShaderInput> ubos = Span<ShaderInput>(inputs_ + attr_len_, ubo_len_);

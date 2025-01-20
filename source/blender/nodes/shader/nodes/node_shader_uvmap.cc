@@ -1,27 +1,31 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_shader_util.hh"
+#include "node_util.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "DNA_customdata_types.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "RNA_access.hh"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_uvmap_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Vector>(N_("UV"));
+  b.add_output<decl::Vector>("UV");
 }
 
 static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "from_instancer", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, 0);
+  uiItemR(layout, ptr, "from_instancer", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
   if (!RNA_boolean_get(ptr, "from_instancer")) {
     PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
@@ -29,11 +33,17 @@ static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *pt
     if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
       PointerRNA eval_obptr;
 
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
-      PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
-      uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_NONE);
+      Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+
+      if (depsgraph) {
+        DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
+        PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
+        uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
+        return;
+      }
     }
+
+    uiItemR(layout, ptr, "uv_map", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_GROUP_UVS);
   }
 }
 
@@ -53,7 +63,7 @@ static int node_shader_gpu_uvmap(GPUMaterial *mat,
 
   /* NOTE: using CD_AUTO_FROM_NAME instead of CD_MTFACE as geometry nodes may overwrite data which
    * will also change the eCustomDataType. This will also make EEVEE and Cycles consistent. See
-   * T93179. */
+   * #93179. */
   GPUNodeLink *mtface = GPU_attribute(mat, CD_AUTO_FROM_NAME, attr->uv_map);
 
   GPU_stack_link(mat, node, "node_uvmap", in, out, mtface);
@@ -63,6 +73,17 @@ static int node_shader_gpu_uvmap(GPUMaterial *mat,
   return 1;
 }
 
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  /* NODE: "From Instances" not implemented */
+  NodeShaderUVMap *attr = static_cast<NodeShaderUVMap *>(node_->storage);
+  NodeItem res = texcoord_node(NodeItem::Type::Vector2, attr->uv_map);
+  return res;
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
 }  // namespace blender::nodes::node_shader_uvmap_cc
 
 /* node type definition */
@@ -70,16 +91,22 @@ void register_node_type_sh_uvmap()
 {
   namespace file_ns = blender::nodes::node_shader_uvmap_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_UVMAP, "UV Map", NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, "ShaderNodeUVMap", SH_NODE_UVMAP);
+  ntype.ui_name = "UV Map";
+  ntype.ui_description =
+      "Retrieve a UV map from the geometry, or the default fallback if none is specified";
+  ntype.enum_name_legacy = "UVMAP";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_uvmap;
-  node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_uvmap;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeShaderUVMap", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_uvmap;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

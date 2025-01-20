@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -23,9 +25,7 @@ class BufferedStyleModule : public StyleModule {
     _buffer = buffer;
   }
 
-  virtual ~BufferedStyleModule()
-  {
-  }
+  virtual ~BufferedStyleModule() {}
 
  protected:
   virtual int interpret()
@@ -38,9 +38,7 @@ class BufferedStyleModule : public StyleModule {
  private:
   string _buffer;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:BufferedStyleModule")
-#endif
 };
 
 class BlenderStyleModule : public StyleModule {
@@ -51,9 +49,7 @@ class BlenderStyleModule : public StyleModule {
     _text = text;
   }
 
-  virtual ~BlenderStyleModule()
-  {
-  }
+  virtual ~BlenderStyleModule() {}
 
  protected:
   virtual int interpret()
@@ -66,9 +62,7 @@ class BlenderStyleModule : public StyleModule {
  private:
   struct Text *_text;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:BlenderStyleModule")
-#endif
 };
 
 } /* namespace Freestyle */

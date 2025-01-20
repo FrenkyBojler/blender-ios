@@ -1,11 +1,13 @@
+/* SPDX-FileCopyrightText: 2017-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 /**
  * Infinite grid:
- * Draw antialiased grid and axes of different sizes with smooth blending between levels of detail.
- * We draw multiple triangles to avoid float precision issues due to perspective interpolation.
- **/
-
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+ * Draw anti-aliased grid and axes of different sizes with smooth blending between levels of
+ * detail. We draw multiple triangles to avoid float precision issues due to perspective
+ * interpolation.
+ */
 
 /**
  * We want to know how much of a pixel is covered by a line.
@@ -18,11 +20,14 @@
  * For an alternate approach, see:
  * https://developer.nvidia.com/gpugems/gpugems2/part-iii-high-quality-rendering/chapter-22-fast-prefiltered-lines
  */
-#define M_1_SQRTPI 0.5641895835477563 /* 1/sqrt(pi) */
+#define M_1_SQRTPI 0.5641895835477563 /* `1/sqrt(pi)`. */
 #define DISC_RADIUS (M_1_SQRTPI * 1.05)
 #define GRID_LINE_SMOOTH_START (0.5 + DISC_RADIUS)
 #define GRID_LINE_SMOOTH_END (0.5 - DISC_RADIUS)
 #define GRID_LINE_STEP(dist) smoothstep(GRID_LINE_SMOOTH_START, GRID_LINE_SMOOTH_END, dist)
+
+#include "common_math_lib.glsl"
+#include "common_view_lib.glsl"
 
 float get_grid(vec2 co, vec2 fwidthCos, vec2 grid_scale)
 {
@@ -81,7 +86,7 @@ void main()
   }
   else {
     dist = gl_FragCoord.z * 2.0 - 1.0;
-    /* Avoid fading in +Z direction in camera view (see T70193). */
+    /* Avoid fading in +Z direction in camera view (see #70193). */
     dist = flag_test(grid_flag, GRID_CAMERA) ? clamp(dist, 0.0, 1.0) : abs(dist);
     fade = 1.0 - smoothstep(0.0, 0.5, dist - 0.5);
     dist = 1.0; /* Avoid branch after. */
@@ -106,7 +111,8 @@ void main()
     if (flag_test(grid_flag, PLANE_IMAGE) &&
         /* Grid begins to appear when the length of one grid unit is at least
          * (256/grid_size) pixels Value of grid_size defined in `overlay_grid.c`. */
-        !flag_test(grid_flag, CUSTOM_GRID)) {
+        !flag_test(grid_flag, CUSTOM_GRID))
+    {
       grid_res = grid_buf.zoom_factor;
     }
 
@@ -197,7 +203,15 @@ void main()
     }
   }
 
-  float scene_depth = texelFetch(depth_tx, ivec2(gl_FragCoord.xy), 0).r;
+  vec2 uv = gl_FragCoord.xy / vec2(textureSize(depth_tx, 0));
+  float scene_depth = texture(depth_tx, uv, 0).r;
+
+  float scene_depth_infront = texture(depth_infront_tx, uv, 0).r;
+  if (scene_depth_infront != 1.0) {
+    /* Treat in front objects as if they were on the near plane to occlude the grid. */
+    scene_depth = 0.0;
+  }
+
   if (flag_test(grid_flag, GRID_BACK)) {
     fade *= (scene_depth == 1.0) ? 1.0 : 0.0;
   }

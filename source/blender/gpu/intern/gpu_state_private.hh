@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -9,14 +10,13 @@
 
 #include "BLI_utildefines.h"
 
-#include "GPU_state.h"
+#include "GPU_state.hh"
 
 #include "gpu_texture_private.hh"
 
 #include <cstring>
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 /* Encapsulate all pipeline state that we need to track.
  * Try to keep small to reduce validation time. */
@@ -92,11 +92,11 @@ union GPUStateMutable {
     uint8_t stencil_write_mask;
     uint8_t stencil_compare_mask;
     uint8_t stencil_reference;
-    uint8_t _pad0;
+    uint8_t _pad0[5];
     /* IMPORTANT: ensure x64 struct alignment. */
   };
   /* Here to allow fast bit-wise ops. */
-  uint64_t data[9];
+  uint64_t data[3];
 };
 
 BLI_STATIC_ASSERT(sizeof(GPUStateMutable) == sizeof(GPUStateMutable::data),
@@ -104,7 +104,7 @@ BLI_STATIC_ASSERT(sizeof(GPUStateMutable) == sizeof(GPUStateMutable::data),
 
 inline bool operator==(const GPUStateMutable &a, const GPUStateMutable &b)
 {
-  return memcmp(&a, &b, sizeof(GPUStateMutable)) == 0;
+  return a.data[0] == b.data[0] && a.data[1] == b.data[1] && a.data[2] == b.data[2];
 }
 
 inline bool operator!=(const GPUStateMutable &a, const GPUStateMutable &b)
@@ -140,16 +140,15 @@ class StateManager {
   GPUStateMutable mutable_state;
   bool use_bgl = false;
 
- public:
   StateManager();
-  virtual ~StateManager(){};
+  virtual ~StateManager() = default;
 
   virtual void apply_state() = 0;
   virtual void force_state() = 0;
 
   virtual void issue_barrier(eGPUBarrier barrier_bits) = 0;
 
-  virtual void texture_bind(Texture *tex, eGPUSamplerState sampler, int unit) = 0;
+  virtual void texture_bind(Texture *tex, GPUSamplerState sampler, int unit) = 0;
   virtual void texture_unbind(Texture *tex) = 0;
   virtual void texture_unbind_all() = 0;
 
@@ -168,8 +167,8 @@ class Fence {
   bool signalled_ = false;
 
  public:
-  Fence(){};
-  virtual ~Fence(){};
+  Fence() = default;
+  virtual ~Fence() = default;
 
   virtual void signal() = 0;
   virtual void wait() = 0;
@@ -189,5 +188,4 @@ static inline const Fence *unwrap(const GPUFence *pixbuf)
   return reinterpret_cast<const Fence *>(pixbuf);
 }
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

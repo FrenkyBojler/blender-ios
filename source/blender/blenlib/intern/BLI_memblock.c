@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -10,15 +11,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "atomic_ops.h"
-
 #include "BLI_utildefines.h"
 
 #include "BLI_memblock.h" /* own include */
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_strict_flags.h" /* keep last */
+#include "BLI_strict_flags.h" /* Keep last. */
 
 #define CHUNK_LIST_SIZE 16
 

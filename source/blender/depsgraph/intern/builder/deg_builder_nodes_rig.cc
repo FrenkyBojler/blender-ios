@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -24,19 +25,20 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
-#include "BKE_armature.h"
+#include "BKE_action.hh"
+#include "BKE_armature.hh"
 #include "BKE_constraint.h"
+#include "BKE_lib_query.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "intern/builder/deg_builder.h"
-#include "intern/depsgraph_type.h"
+#include "intern/depsgraph_type.hh"
 #include "intern/eval/deg_eval_copy_on_write.h"
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_operation.hh"
 
 namespace blender::deg {
 
@@ -47,7 +49,7 @@ void DepsgraphNodeBuilder::build_pose_constraints(Object *object,
   /* Pull indirect dependencies via constraints. */
   BuilderWalkUserData data;
   data.builder = this;
-  BKE_constraints_id_loop(&pchan->constraints, constraint_walk, &data);
+  BKE_constraints_id_loop(&pchan->constraints, constraint_walk, IDWALK_NOP, &data);
 
   /* Create node for constraint stack. */
   Scene *scene_cow = get_cow_datablock(scene_);
@@ -62,7 +64,6 @@ void DepsgraphNodeBuilder::build_pose_constraints(Object *object,
                      });
 }
 
-/* IK Solver Eval Steps */
 void DepsgraphNodeBuilder::build_ik_pose(Object *object, bPoseChannel *pchan, bConstraint *con)
 {
   bKinematicConstraint *data = (bKinematicConstraint *)con->data;
@@ -74,7 +75,8 @@ void DepsgraphNodeBuilder::build_ik_pose(Object *object, bPoseChannel *pchan, bC
   }
 
   if (has_operation_node(
-          &object->id, NodeType::EVAL_POSE, rootchan->name, OperationCode::POSE_IK_SOLVER)) {
+          &object->id, NodeType::EVAL_POSE, rootchan->name, OperationCode::POSE_IK_SOLVER))
+  {
     return;
   }
 
@@ -93,7 +95,6 @@ void DepsgraphNodeBuilder::build_ik_pose(Object *object, bPoseChannel *pchan, bC
                      });
 }
 
-/* Spline IK Eval Steps */
 void DepsgraphNodeBuilder::build_splineik_pose(Object *object,
                                                bPoseChannel *pchan,
                                                bConstraint *con)
@@ -103,10 +104,9 @@ void DepsgraphNodeBuilder::build_splineik_pose(Object *object,
   /* Find the chain's root. */
   bPoseChannel *rootchan = BKE_armature_splineik_solver_find_root(pchan, data);
 
-  if (has_operation_node(&object->id,
-                         NodeType::EVAL_POSE,
-                         rootchan->name,
-                         OperationCode::POSE_SPLINE_IK_SOLVER)) {
+  if (has_operation_node(
+          &object->id, NodeType::EVAL_POSE, rootchan->name, OperationCode::POSE_SPLINE_IK_SOLVER))
+  {
     return;
   }
 

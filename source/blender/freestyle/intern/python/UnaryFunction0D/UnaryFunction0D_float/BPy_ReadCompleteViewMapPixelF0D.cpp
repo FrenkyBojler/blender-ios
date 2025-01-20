@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -18,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ReadCompleteViewMapPixelF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ReadCompleteViewMapPixelF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DFloat` > :class:`ReadCompleteViewMapPixelF0D`\n"
     "\n"
@@ -37,7 +41,7 @@ static char ReadCompleteViewMapPixelF0D___doc__[] =
     "   :arg it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: A pixel in one of the level of the complete viewmap.\n"
-    "   :rtype: float\n";
+    "   :rtype: float\n");
 
 static int ReadCompleteViewMapPixelF0D___init__(BPy_ReadCompleteViewMapPixelF0D *self,
                                                 PyObject *args,
@@ -57,7 +61,7 @@ static int ReadCompleteViewMapPixelF0D___init__(BPy_ReadCompleteViewMapPixelF0D 
 /*-----------------------BPy_ReadCompleteViewMapPixelF0D type definition ------------------------*/
 
 PyTypeObject ReadCompleteViewMapPixelF0D_Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "ReadCompleteViewMapPixelF0D",
     /*tp_basicsize*/ sizeof(BPy_ReadCompleteViewMapPixelF0D),
     /*tp_itemsize*/ 0,

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -8,12 +9,14 @@
  */
 
 #include <Eigen/Core>
+#include <Eigen/Sparse>
 
 namespace Eigen {
 
 namespace internal {
 
-/** \internal Low-level conjugate gradient algorithm
+/**
+ * \internal Low-level conjugate gradient algorithm
  * \param mat: The matrix A
  * \param rhs: The right hand side vector b
  * \param x: On input and initial solution, on output the computed solution.
@@ -71,28 +74,29 @@ EIGEN_DONT_INLINE void constrained_conjugate_gradient(const MatrixType &mat,
 
   VectorType z(n), tmp(n);
   RealScalar absNew = numext::real(
-      residual.dot(p)); /* the square of the absolute value of r scaled by invM */
+      residual.dot(p)); /* The square of the absolute value of `r` scaled by `invM`. */
   int i = 0;
   while (i < maxIters) {
-    tmp.noalias() = filter * (mat * p); /* the bottleneck of the algorithm */
+    tmp.noalias() = filter * (mat * p); /* The bottleneck of the algorithm. */
 
-    Scalar alpha = absNew / p.dot(tmp); /* the amount we travel on dir */
-    x += alpha * p;                     /* update solution */
-    residual -= alpha * tmp;            /* update residue */
+    Scalar alpha = absNew / p.dot(tmp); /* The amount we travel on direction. */
+    x += alpha * p;                     /* Update solution. */
+    residual -= alpha * tmp;            /* Update residue. */
 
     residualNorm2 = residual.squaredNorm();
     if (residualNorm2 < threshold) {
       break;
     }
 
-    z = precond.solve(residual); /* approximately solve for "A z = residual" */
+    z = precond.solve(residual); /* Approximately solve for `A z = residual`. */
 
     RealScalar absOld = absNew;
-    absNew = numext::real(residual.dot(z)); /* update the absolute value of r */
-    RealScalar beta =
-        absNew /
-        absOld; /* calculate the Gram-Schmidt value used to create the new search direction */
-    p = filter * (z + beta * p); /* update search direction */
+    absNew = numext::real(residual.dot(z)); /* Update the absolute value of `r`. */
+
+    /* Calculate the Gram-Schmidt value used to create the new search direction. */
+    RealScalar beta = absNew / absOld;
+
+    p = filter * (z + beta * p); /* Update search direction. */
     i++;
   }
   tol_error = sqrt(residualNorm2 / rhsNorm2);
@@ -103,13 +107,9 @@ EIGEN_DONT_INLINE void constrained_conjugate_gradient(const MatrixType &mat,
 
 #if 0 /* unused */
 template<typename MatrixType> struct MatrixFilter {
-  MatrixFilter() : m_cmat(NULL)
-  {
-  }
+  MatrixFilter() : m_cmat(NULL) {}
 
-  MatrixFilter(const MatrixType &cmat) : m_cmat(&cmat)
-  {
-  }
+  MatrixFilter(const MatrixType &cmat) : m_cmat(&cmat) {}
 
   void setMatrix(const MatrixType &cmat)
   {
@@ -216,11 +216,10 @@ class ConstrainedConjugateGradient
 
  public:
   /** Default constructor. */
-  ConstrainedConjugateGradient() : Base()
-  {
-  }
+  ConstrainedConjugateGradient() : Base() {}
 
-  /** Initialize the solver with matrix \a A for further \c Ax=b solving.
+  /**
+   * Initialize the solver with matrix \a A for further \c Ax=b solving.
    *
    * This constructor is a shortcut for the default constructor followed
    * by a call to compute().
@@ -230,13 +229,9 @@ class ConstrainedConjugateGradient
    * this class becomes invalid. Call compute() to update it with the new
    * matrix A, or modify a copy of A.
    */
-  ConstrainedConjugateGradient(const MatrixType &A) : Base(A)
-  {
-  }
+  ConstrainedConjugateGradient(const MatrixType &A) : Base(A) {}
 
-  ~ConstrainedConjugateGradient()
-  {
-  }
+  ~ConstrainedConjugateGradient() {}
 
   FilterMatrixType &filter()
   {
@@ -247,7 +242,8 @@ class ConstrainedConjugateGradient
     return m_filter;
   }
 
-  /** \returns the solution x of \f$ A x = b \f$ using the current decomposition of A
+  /**
+   * \returns the solution x of \f$ A x = b \f$ using the current decomposition of A
    * \a x0 as an initial solution.
    *
    * \sa compute()

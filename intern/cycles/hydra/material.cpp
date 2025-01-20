@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2022 NVIDIA Corporation
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "hydra/material.h"
 #include "hydra/node_util.h"
@@ -57,7 +58,7 @@ class UsdToCyclesMapping {
 
   virtual std::string parameterName(const TfToken &name,
                                     const ShaderInput *inputConnection,
-                                    VtValue *value = nullptr) const
+                                    VtValue * /*value*/ = nullptr) const
   {
     // UsdNode.name -> Node.input
     // These all follow a simple pattern that we can just remap
@@ -71,7 +72,8 @@ class UsdToCyclesMapping {
       }
       // TODO: Is there a better mapping than 'color'?
       if (name == CyclesMaterialTokens->r || name == CyclesMaterialTokens->g ||
-          name == CyclesMaterialTokens->b) {
+          name == CyclesMaterialTokens->b)
+      {
         return "color";
       }
 
@@ -113,7 +115,7 @@ class UsdToCyclesTexture : public UsdToCyclesMapping {
     if (value) {
       // Remap UsdUVTexture.wrapS and UsdUVTexture.wrapT to cycles_image_texture.extension
       if (name == CyclesMaterialTokens->wrapS || name == CyclesMaterialTokens->wrapT) {
-        std::string valueString = VtValue::Cast<std::string>(*value).Get<std::string>();
+        const std::string valueString = VtValue::Cast<std::string>(*value).Get<std::string>();
 
         // A value of 'repeat' in USD is equivalent to 'periodic' in Cycles
         if (valueString == "repeat") {
@@ -137,7 +139,7 @@ class UsdToCycles {
           {TfToken("diffuseColor"), ustring("base_color")},
           {TfToken("emissiveColor"), ustring("emission")},
           {TfToken("specularColor"), ustring("specular")},
-          {TfToken("clearcoatRoughness"), ustring("clearcoat_roughness")},
+          {TfToken("clearcoatRoughness"), ustring("coat_roughness")},
           {TfToken("opacity"), ustring("alpha")},
           // opacityThreshold
           // occlusion
@@ -168,13 +170,14 @@ class UsdToCycles {
         usdNodeType == CyclesMaterialTokens->UsdPrimvarReader_float2 ||
         usdNodeType == CyclesMaterialTokens->UsdPrimvarReader_float3 ||
         usdNodeType == CyclesMaterialTokens->UsdPrimvarReader_float4 ||
-        usdNodeType == CyclesMaterialTokens->UsdPrimvarReader_int) {
+        usdNodeType == CyclesMaterialTokens->UsdPrimvarReader_int)
+    {
       return &UsdPrimvarReader;
     }
 
     return nullptr;
   }
-  const UsdToCyclesMapping *findCycles(const ustring &cyclesNodeType)
+  const UsdToCyclesMapping *findCycles(const ustring & /*cyclesNodeType*/)
   {
     return nullptr;
   }
@@ -183,13 +186,9 @@ TfStaticData<UsdToCycles> sUsdToCyles;
 
 }  // namespace
 
-HdCyclesMaterial::HdCyclesMaterial(const SdfPath &sprimId) : HdMaterial(sprimId)
-{
-}
+HdCyclesMaterial::HdCyclesMaterial(const SdfPath &sprimId) : HdMaterial(sprimId) {}
 
-HdCyclesMaterial::~HdCyclesMaterial()
-{
-}
+HdCyclesMaterial::~HdCyclesMaterial() = default;
 
 HdDirtyBits HdCyclesMaterial::GetInitialDirtyBitsMask() const
 {
@@ -217,7 +216,6 @@ void HdCyclesMaterial::Sync(HdSceneDelegate *sceneDelegate,
   if (dirtyResource || dirtyParams) {
     value = sceneDelegate->GetMaterialResource(id);
 
-#if 1
     const HdMaterialNetwork2 *network = nullptr;
     std::unique_ptr<HdMaterialNetwork2> networkConverted;
     if (value.IsHolding<HdMaterialNetwork2>()) {
@@ -235,11 +233,11 @@ void HdCyclesMaterial::Sync(HdSceneDelegate *sceneDelegate,
       }
       else {
         networkConverted = std::make_unique<HdMaterialNetwork2>();
-#  if PXR_VERSION >= 2205
+#if PXR_VERSION >= 2205
         *networkConverted = HdConvertToHdMaterialNetwork2(networkOld);
-#  else
+#else
         HdMaterialNetwork2ConvertFromHdMaterialNetworkMap(networkOld, networkConverted.get());
-#  endif
+#endif
         network = networkConverted.get();
       }
     }
@@ -256,7 +254,6 @@ void HdCyclesMaterial::Sync(HdSceneDelegate *sceneDelegate,
         PopulateShaderGraph(*network);
       }
     }
-#endif
   }
 
   if (_shader->is_modified()) {
@@ -418,7 +415,7 @@ void HdCyclesMaterial::PopulateShaderGraph(const HdMaterialNetwork2 &networkMap)
 {
   _nodes.clear();
 
-  auto graph = new ShaderGraph();
+  unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
   // Iterate all the nodes first and build a complete but unconnected graph with parameters set
   for (const auto &nodeEntry : networkMap.nodes) {
@@ -450,11 +447,7 @@ void HdCyclesMaterial::PopulateShaderGraph(const HdMaterialNetwork2 &networkMap)
 
       // If it's a native Cycles' node-type, just do the lookup now.
       if (const NodeType *nodeType = NodeType::find(cyclesType)) {
-        nodeDesc.node = static_cast<ShaderNode *>(nodeType->create(nodeType));
-        nodeDesc.node->set_owner(graph);
-
-        graph->add(nodeDesc.node);
-
+        nodeDesc.node = graph->create_node(nodeType);
         _nodes.emplace(nodePath, nodeDesc);
       }
       else {
@@ -477,7 +470,7 @@ void HdCyclesMaterial::PopulateShaderGraph(const HdMaterialNetwork2 &networkMap)
       continue;
     }
 
-    UpdateConnections(nodeIt->second, nodeEntry.second, nodePath, graph);
+    UpdateConnections(nodeIt->second, nodeEntry.second, nodePath, graph.get());
   }
 
   // Finally connect the terminals to the graph output (Surface, Volume, Displacement)
@@ -496,7 +489,8 @@ void HdCyclesMaterial::PopulateShaderGraph(const HdMaterialNetwork2 &networkMap)
     const char *inputName = nullptr;
     const char *outputName = nullptr;
     if (terminalName == HdMaterialTerminalTokens->surface ||
-        terminalName == CyclesMaterialTokens->cyclesSurface) {
+        terminalName == CyclesMaterialTokens->cyclesSurface)
+    {
       inputName = "Surface";
       // Find default output name based on the node if none is provided
       if (node->type->name == "add_closure" || node->type->name == "mix_closure") {
@@ -510,11 +504,13 @@ void HdCyclesMaterial::PopulateShaderGraph(const HdMaterialNetwork2 &networkMap)
       }
     }
     else if (terminalName == HdMaterialTerminalTokens->displacement ||
-             terminalName == CyclesMaterialTokens->cyclesDisplacement) {
+             terminalName == CyclesMaterialTokens->cyclesDisplacement)
+    {
       inputName = outputName = "Displacement";
     }
     else if (terminalName == HdMaterialTerminalTokens->volume ||
-             terminalName == CyclesMaterialTokens->cyclesVolume) {
+             terminalName == CyclesMaterialTokens->cyclesVolume)
+    {
       inputName = outputName = "Volume";
     }
 
@@ -547,16 +543,14 @@ void HdCyclesMaterial::PopulateShaderGraph(const HdMaterialNetwork2 &networkMap)
 
     OutputAOVNode *aovNode = graph->create_node<OutputAOVNode>();
     aovNode->set_name(instanceId);
-    graph->add(aovNode);
 
     AttributeNode *instanceIdNode = graph->create_node<AttributeNode>();
     instanceIdNode->set_attribute(instanceId);
-    graph->add(instanceIdNode);
 
     graph->connect(instanceIdNode->output("Fac"), aovNode->input("Value"));
   }
 
-  _shader->set_graph(graph);
+  _shader->set_graph(std::move(graph));
 }
 
 void HdCyclesMaterial::Finalize(HdRenderParam *renderParam)

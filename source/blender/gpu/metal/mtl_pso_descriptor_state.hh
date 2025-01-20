@@ -1,18 +1,29 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
  */
 #pragma once
 
-#include "GPU_vertex_format.h"
+#include "BLI_math_bits.h"
+#include "GPU_batch.hh"
+#include "GPU_vertex_format.hh"
 
 #include <Metal/Metal.h>
 
+#include "BLI_vector.hh"
+
+#include "gpu_framebuffer_private.hh"
+#include "gpu_shader_private.hh"
+
 namespace blender::gpu {
 
-/** Vertex attribute and buffer descriptor wrappers
- * for use in PSO construction and caching. */
+/**
+ * Vertex attribute and buffer descriptor wrappers
+ * for use in PSO construction and caching.
+ */
 struct MTLVertexAttributeDescriptorPSO {
   MTLVertexFormat format;
   int offset;
@@ -31,6 +42,14 @@ struct MTLVertexAttributeDescriptorPSO {
     return uint64_t((uint64_t(this->format) ^ (this->offset << 4) ^ (this->buffer_index << 8) ^
                      (this->format_conversion_mode << 12)));
   }
+
+  void reset()
+  {
+    format = MTLVertexFormatInvalid;
+    offset = 0;
+    buffer_index = 0;
+    format_conversion_mode = GPU_FETCH_FLOAT;
+  }
 };
 
 struct MTLVertexBufferLayoutDescriptorPSO {
@@ -48,6 +67,13 @@ struct MTLVertexBufferLayoutDescriptorPSO {
   {
     return uint64_t(uint64_t(this->step_function) ^ (this->step_rate << 4) ^ (this->stride << 8));
   }
+
+  void reset()
+  {
+    step_function = MTLVertexStepFunctionPerVertex;
+    step_rate = 1;
+    stride = 0;
+  }
 };
 
 /* SSBO attribute state caching. */
@@ -60,7 +86,7 @@ struct MTLSSBOAttribute {
   int attribute_format;
   bool is_instance;
 
-  MTLSSBOAttribute(){};
+  MTLSSBOAttribute() = default;
   MTLSSBOAttribute(
       int attribute_ind, int vertexbuffer_ind, int offset, int stride, int format, bool instanced)
       : mtl_attribute_index(attribute_ind),
@@ -74,7 +100,20 @@ struct MTLSSBOAttribute {
 
   bool operator==(const MTLSSBOAttribute &other) const
   {
-    return (memcmp(this, &other, sizeof(MTLSSBOAttribute)) == 0);
+    return (mtl_attribute_index == other.mtl_attribute_index && vbo_id == other.vbo_id &&
+            attribute_offset == other.attribute_offset &&
+            per_vertex_stride == other.per_vertex_stride &&
+            attribute_format == other.attribute_format && is_instance == other.is_instance);
+  }
+
+  void reset()
+  {
+    mtl_attribute_index = 0;
+    vbo_id = 0;
+    attribute_offset = 0;
+    per_vertex_stride = 0;
+    attribute_format = 0;
+    is_instance = false;
   }
 };
 
@@ -89,18 +128,12 @@ struct MTLVertexDescriptor {
   int num_vert_buffers;
   MTLPrimitiveTopologyClass prim_topology_class;
 
-  /* WORKAROUND: SSBO Vertex-fetch attributes -- These follow the same structure
-   * but have slightly different binding rules, passed in via uniform
-   * push constant data block. */
-  bool uses_ssbo_vertex_fetch;
-  MTLSSBOAttribute ssbo_attributes[GPU_VERT_ATTR_MAX_LEN];
-  int num_ssbo_attributes;
-
   bool operator==(const MTLVertexDescriptor &other) const
   {
     if ((this->max_attribute_value != other.max_attribute_value) ||
         (this->total_attributes != other.total_attributes) ||
-        (this->num_vert_buffers != other.num_vert_buffers)) {
+        (this->num_vert_buffers != other.num_vert_buffers))
+    {
       return false;
     }
     if (this->prim_topology_class != other.prim_topology_class) {
@@ -135,8 +168,29 @@ struct MTLVertexDescriptor {
     for (const int b : IndexRange(this->num_vert_buffers)) {
       hash ^= this->buffer_layouts[b].hash() << (b + 10);
     }
+    return hash;
+  }
+};
 
-    /* NOTE: SSBO vertex fetch members not hashed as these will match attribute bindings. */
+struct SpecializationStateDescriptor {
+  Vector<Shader::Constants::Value> values;
+
+  SpecializationStateDescriptor() = default;
+  SpecializationStateDescriptor(Vector<Shader::Constants::Value> source) : values(source) {}
+
+  bool operator==(const SpecializationStateDescriptor &other) const
+  {
+    return values == other.values;
+  }
+
+  uint64_t hash() const
+  {
+    uint64_t hash = values.size();
+    uint seed = 0xFF;
+    for (const Shader::Constants::Value &value : values) {
+      seed = seed << 1;
+      hash ^= seed ^ value.u;
+    }
     return hash;
   }
 };
@@ -148,9 +202,10 @@ struct MTLRenderPipelineStateDescriptor {
    * new PSO for the current shader.
    *
    * Unlike the 'MTLContextGlobalShaderPipelineState', this struct contains a subset of
-   * parameters used to distinguish between unique PSOs. This struct is hash-able and only contains
-   * those parameters which are required by PSO generation. Non-unique state such as bound
-   * resources is not tracked here, as it does not require a unique PSO permutation if changed. */
+   * parameters used to distinguish between unique PSOs. This struct is hash-able and only
+   * contains those parameters which are required by PSO generation. Non-unique state such as
+   * bound resources is not tracked here, as it does not require a unique PSO permutation if
+   * changed. */
 
   /* Input Vertex Descriptor. */
   MTLVertexDescriptor vertex_descriptor;
@@ -180,6 +235,9 @@ struct MTLRenderPipelineStateDescriptor {
   /* Point size required by point primitives. */
   float point_size = 0.0f;
 
+  /* Specialization constants map. */
+  SpecializationStateDescriptor specialization_state;
+
   /* Comparison Operator for caching. */
   bool operator==(const MTLRenderPipelineStateDescriptor &other) const
   {
@@ -202,7 +260,8 @@ struct MTLRenderPipelineStateDescriptor {
         (src_alpha_blend_factor != other.src_alpha_blend_factor) ||
         (src_rgb_blend_factor != other.src_rgb_blend_factor) ||
         (vertex_descriptor.prim_topology_class != other.vertex_descriptor.prim_topology_class) ||
-        (point_size != other.point_size)) {
+        (point_size != other.point_size))
+    {
       return false;
     }
 
@@ -211,6 +270,10 @@ struct MTLRenderPipelineStateDescriptor {
       if (color_attachment_format[c] != other.color_attachment_format[c]) {
         return false;
       }
+    }
+
+    if (!(specialization_state == other.specialization_state)) {
+      return false;
     }
 
     return true;
@@ -241,17 +304,20 @@ struct MTLRenderPipelineStateDescriptor {
       hash ^= uint64_t(this->dest_rgb_blend_factor) << 37;   /* Up to 18 (5 bits). */
       hash ^= uint64_t(this->src_alpha_blend_factor) << 42;  /* Up to 18 (5 bits). */
       hash ^= uint64_t(this->src_rgb_blend_factor) << 47;    /* Up to 18 (5 bits). */
-    }
 
-    for (const uint c : IndexRange(GPU_FB_MAX_COLOR_ATTACHMENT)) {
-      hash ^= uint64_t(this->color_attachment_format[c]) << (c + 52); /* Up to 555 (9 bits). */
+      for (const uint c : IndexRange(GPU_FB_MAX_COLOR_ATTACHMENT)) {
+        hash ^= uint64_t(this->color_attachment_format[c]) << (c + 52); /* Up to 555 (9 bits). */
+      }
     }
 
     hash |= uint64_t((this->blending_enabled && (this->num_color_attachments > 0)) ? 1 : 0) << 62;
-    hash ^= uint64_t(this->point_size);
+    hash ^= uint64_t(float_as_uint(this->point_size));
 
     /* Clipping plane enablement. */
     hash ^= uint64_t(clipping_plane_enable_mask) << 20;
+
+    /* Specialization constants. We can treat the raw bytes as uint. */
+    hash ^= specialization_state.hash();
 
     return hash;
   }
@@ -262,12 +328,35 @@ struct MTLRenderPipelineStateDescriptor {
     vertex_descriptor.total_attributes = 0;
     vertex_descriptor.max_attribute_value = 0;
     vertex_descriptor.num_vert_buffers = 0;
+    vertex_descriptor.prim_topology_class = MTLPrimitiveTopologyClassUnspecified;
     for (int i = 0; i < GPU_VERT_ATTR_MAX_LEN; i++) {
-      vertex_descriptor.attributes[i].format = MTLVertexFormatInvalid;
-      vertex_descriptor.attributes[i].offset = 0;
+      vertex_descriptor.attributes[i].reset();
     }
-    vertex_descriptor.uses_ssbo_vertex_fetch = false;
-    vertex_descriptor.num_ssbo_attributes = 0;
+  }
+};
+
+/* Metal Compute Pipeline State Descriptor containing all unique information which feeds PSO
+ * creation. */
+struct MTLComputePipelineStateDescriptor {
+
+  /* Specialization constants map. */
+  SpecializationStateDescriptor specialization_state;
+
+  MTLComputePipelineStateDescriptor() = default;
+  MTLComputePipelineStateDescriptor(Vector<Shader::Constants::Value> values)
+  {
+    specialization_state.values = values;
+  }
+
+  /* Comparison Operator for caching. */
+  bool operator==(const MTLComputePipelineStateDescriptor &other) const
+  {
+    return (specialization_state == other.specialization_state);
+  }
+
+  uint64_t hash() const
+  {
+    return specialization_state.hash();
   }
 };
 

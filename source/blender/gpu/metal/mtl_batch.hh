@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -9,8 +11,8 @@
 
 #pragma once
 
+#include "GPU_batch.hh"
 #include "MEM_guardedalloc.h"
-#include "gpu_batch_private.hh"
 #include "mtl_index_buffer.hh"
 #include "mtl_primitive.hh"
 #include "mtl_shader.hh"
@@ -40,7 +42,7 @@ class MTLBatch : public Batch {
     VertexBufferID bufferIds[GPU_BATCH_VBO_MAX_LEN] = {};
     /* Cache life index compares a cache entry with the active MTLBatch state.
      * This is initially set to the cache life index of MTLBatch. If the batch has been modified,
-     * this index is incremented to cheaply invalidate existing cache entries.  */
+     * this index is incremented to cheaply invalidate existing cache entries. */
     uint32_t cache_life_index = 0;
   };
 
@@ -76,39 +78,36 @@ class MTLBatch : public Batch {
   uint32_t topology_buffer_output_v_count_ = 0;
 
  public:
-  MTLBatch(){};
-  ~MTLBatch(){};
+  MTLBatch() = default;
+  ~MTLBatch() override = default;
 
   void draw(int v_first, int v_count, int i_first, int i_count) override;
-  void draw_indirect(GPUStorageBuf *indirect_buf, intptr_t offset) override
-  {
-    /* TODO(Metal): Support indirect draw commands. */
-  }
-  void multi_draw_indirect(GPUStorageBuf *indirect_buf,
-                           int count,
-                           intptr_t offset,
-                           intptr_t stride) override
+  void draw_indirect(GPUStorageBuf *indirect_buf, intptr_t offset) override;
+  void multi_draw_indirect(GPUStorageBuf * /*indirect_buf*/,
+                           int /*count*/,
+                           intptr_t /*offset*/,
+                           intptr_t /*stride*/) override
   {
     /* TODO(Metal): Support indirect draw commands. */
   }
 
   /* Returns an initialized RenderComandEncoder for drawing if all is good.
    * Otherwise, nil. */
-  id<MTLRenderCommandEncoder> bind(uint v_first, uint v_count, uint i_first, uint i_count);
-  void unbind();
+  id<MTLRenderCommandEncoder> bind();
+  void unbind(id<MTLRenderCommandEncoder> rec);
 
   /* Convenience getters. */
   MTLIndexBuf *elem_() const
   {
-    return static_cast<MTLIndexBuf *>(unwrap(elem));
+    return static_cast<MTLIndexBuf *>(elem);
   }
   MTLVertBuf *verts_(const int index) const
   {
-    return static_cast<MTLVertBuf *>(unwrap(verts[index]));
+    return static_cast<MTLVertBuf *>(verts[index]);
   }
   MTLVertBuf *inst_(const int index) const
   {
-    return static_cast<MTLVertBuf *>(unwrap(inst[index]));
+    return static_cast<MTLVertBuf *>(inst[index]);
   }
   MTLShader *active_shader_get() const
   {
@@ -118,6 +117,7 @@ class MTLBatch : public Batch {
  private:
   void shader_bind();
   void draw_advanced(int v_first, int v_count, int i_first, int i_count);
+  void draw_advanced_indirect(GPUStorageBuf *indirect_buf, intptr_t offset);
   int prepare_vertex_binding(MTLVertBuf *verts,
                              MTLRenderPipelineStateDescriptor &desc,
                              const MTLShaderInterface *interface,
@@ -126,8 +126,7 @@ class MTLBatch : public Batch {
 
   id<MTLBuffer> get_emulated_toplogy_buffer(GPUPrimType &in_out_prim_type, uint32_t &v_count);
 
-  void prepare_vertex_descriptor_and_bindings(
-      MTLVertBuf **buffers, int &num_buffers, int v_first, int v_count, int i_first, int i_count);
+  void prepare_vertex_descriptor_and_bindings(MTLVertBuf **buffers, int &num_buffers);
 
   MEM_CXX_CLASS_ALLOC_FUNCS("MTLBatch");
 };

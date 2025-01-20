@@ -1,9 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 
 #include "BLI_atomic_disjoint_set.hh"
 #include "BLI_task.hh"
@@ -14,13 +13,14 @@ namespace blender::nodes::node_geo_input_mesh_island_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>(N_("Island Index"))
+  b.add_output<decl::Int>("Island Index")
       .field_source()
-      .description(N_("The index of the each vertex's island. Indices are based on the "
-                      "lowest vertex index contained in each island"));
-  b.add_output<decl::Int>(N_("Island Count"))
+      .description(
+          "The index of the each vertex's island. Indices are based on the "
+          "lowest vertex index contained in each island");
+  b.add_output<decl::Int>("Island Count")
       .field_source()
-      .description(N_("The total number of mesh islands"));
+      .description("The total number of mesh islands");
 }
 
 class IslandFieldInput final : public bke::MeshFieldInput {
@@ -31,23 +31,23 @@ class IslandFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const AttrDomain domain,
+                                 const IndexMask & /*mask*/) const final
   {
-    const Span<MEdge> edges = mesh.edges();
+    const Span<int2> edges = mesh.edges();
 
-    AtomicDisjointSet islands(mesh.totvert);
+    AtomicDisjointSet islands(mesh.verts_num);
     threading::parallel_for(edges.index_range(), 1024, [&](const IndexRange range) {
-      for (const MEdge &edge : edges.slice(range)) {
-        islands.join(edge.v1, edge.v2);
+      for (const int2 &edge : edges.slice(range)) {
+        islands.join(edge[0], edge[1]);
       }
     });
 
-    Array<int> output(mesh.totvert);
+    Array<int> output(mesh.verts_num);
     islands.calc_reduced_ids(output);
 
     return mesh.attributes().adapt_domain<int>(
-        VArray<int>::ForContainer(std::move(output)), ATTR_DOMAIN_POINT, domain);
+        VArray<int>::ForContainer(std::move(output)), AttrDomain::Point, domain);
   }
 
   uint64_t hash() const override
@@ -61,9 +61,9 @@ class IslandFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const IslandFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -75,15 +75,15 @@ class IslandCountFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const AttrDomain domain,
+                                 const IndexMask & /*mask*/) const final
   {
-    const Span<MEdge> edges = mesh.edges();
+    const Span<int2> edges = mesh.edges();
 
-    AtomicDisjointSet islands(mesh.totvert);
+    AtomicDisjointSet islands(mesh.verts_num);
     threading::parallel_for(edges.index_range(), 1024, [&](const IndexRange range) {
-      for (const MEdge &edge : edges.slice(range)) {
-        islands.join(edge.v1, edge.v2);
+      for (const int2 &edge : edges.slice(range)) {
+        islands.join(edge[0], edge[1]);
       }
     });
 
@@ -102,9 +102,9 @@ class IslandCountFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const IslandCountFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -120,15 +120,18 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 }
 
-}  // namespace blender::nodes::node_geo_input_mesh_island_cc
-
-void register_node_type_geo_input_mesh_island()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_mesh_island_cc;
-
-  static bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_MESH_ISLAND, "Mesh Island", NODE_CLASS_INPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeInputMeshIsland", GEO_NODE_INPUT_MESH_ISLAND);
+  ntype.ui_name = "Mesh Island";
+  ntype.ui_description = "Retrieve information about separate connected regions in a mesh";
+  ntype.enum_name_legacy = "MESH_ISLAND";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_mesh_island_cc

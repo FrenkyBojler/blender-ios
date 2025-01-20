@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -56,8 +58,6 @@
 
 #include <algorithm>
 #include <array>
-#include <iostream>
-#include <string>
 #include <vector>
 
 #include "BLI_index_range.hh"
@@ -118,13 +118,9 @@ template<typename T> class Span {
   {
   }
 
-  constexpr Span(const std::vector<T> &vector) : Span(vector.data(), int64_t(vector.size()))
-  {
-  }
+  constexpr Span(const std::vector<T> &vector) : Span(vector.data(), int64_t(vector.size())) {}
 
-  template<std::size_t N> constexpr Span(const std::array<T, N> &array) : Span(array.data(), N)
-  {
-  }
+  template<std::size_t N> constexpr Span(const std::array<T, N> &array) : Span(array.data(), N) {}
 
   /**
    * Support implicit conversions like the one below:
@@ -181,8 +177,8 @@ template<typename T> class Span {
   }
 
   /**
-   * Returns a new Span with n elements removed from the beginning. This invokes undefined
-   * behavior when n is negative.
+   * Returns a new Span with n elements removed from the end. This invokes undefined behavior when
+   * n is negative.
    */
   constexpr Span drop_back(int64_t n) const
   {
@@ -335,18 +331,6 @@ template<typename T> class Span {
   }
 
   /**
-   * Returns the element at the given index. If the index is out of range, return the fallback
-   * value.
-   */
-  constexpr T get(int64_t index, const T &fallback) const
-  {
-    if (index < size_ && index >= 0) {
-      return data_[index];
-    }
-    return fallback;
-  }
-
-  /**
    * Check if the array contains duplicates. Does a linear search for every element. So the total
    * running time is O(n^2). Only use this for small arrays.
    */
@@ -451,29 +435,6 @@ template<typename T> class Span {
   {
     return !(a == b);
   }
-
-  /**
-   * A debug utility to print the content of the Span. Every element will be printed on a
-   * separate line using the given callback.
-   */
-  template<typename PrintLineF> void print_as_lines(std::string name, PrintLineF print_line) const
-  {
-    std::cout << "Span: " << name << " \tSize:" << size_ << '\n';
-    for (const T &value : *this) {
-      std::cout << "  ";
-      print_line(value);
-      std::cout << '\n';
-    }
-  }
-
-  /**
-   * A debug utility to print the content of the span. Every element be printed on a separate
-   * line.
-   */
-  void print_as_lines(std::string name) const
-  {
-    this->print_as_lines(name, [](const T &value) { std::cout << value; });
-  }
 };
 
 /**
@@ -497,13 +458,9 @@ template<typename T> class MutableSpan {
  public:
   constexpr MutableSpan() = default;
 
-  constexpr MutableSpan(T *start, const int64_t size) : data_(start), size_(size)
-  {
-  }
+  constexpr MutableSpan(T *start, const int64_t size) : data_(start), size_(size) {}
 
-  constexpr MutableSpan(std::vector<T> &vector) : MutableSpan(vector.data(), vector.size())
-  {
-  }
+  constexpr MutableSpan(std::vector<T> &vector) : MutableSpan(vector.data(), vector.size()) {}
 
   template<std::size_t N>
   constexpr MutableSpan(std::array<T, N> &array) : MutableSpan(array.data(), N)
@@ -540,6 +497,14 @@ template<typename T> class MutableSpan {
   }
 
   /**
+   * Returns the number of bytes referenced by this Span.
+   */
+  constexpr int64_t size_in_bytes() const
+  {
+    return sizeof(T) * size_;
+  }
+
+  /**
    * Returns true if the size is zero.
    */
   constexpr bool is_empty() const
@@ -550,7 +515,7 @@ template<typename T> class MutableSpan {
   /**
    * Replace all elements in the referenced array with the given value.
    */
-  constexpr void fill(const T &value)
+  constexpr void fill(const T &value) const
   {
     initialized_fill_n(data_, size_, value);
   }
@@ -559,9 +524,10 @@ template<typename T> class MutableSpan {
    * Replace a subset of all elements with the given value. This invokes undefined behavior when
    * one of the indices is out of bounds.
    */
-  constexpr void fill_indices(Span<int64_t> indices, const T &value)
+  template<typename IndexT> constexpr void fill_indices(Span<IndexT> indices, const T &value) const
   {
-    for (int64_t i : indices) {
+    static_assert(std::is_integral_v<IndexT>);
+    for (IndexT i : indices) {
       BLI_assert(i < size_);
       data_[i] = value;
     }
@@ -596,7 +562,8 @@ template<typename T> class MutableSpan {
 
   constexpr T &operator[](const int64_t index) const
   {
-    BLI_assert(index < this->size());
+    BLI_assert(index >= 0);
+    BLI_assert(index < size_);
     return data_[index];
   }
 
@@ -681,7 +648,7 @@ template<typename T> class MutableSpan {
   /**
    * Reverse the data in the MutableSpan.
    */
-  constexpr void reverse()
+  constexpr void reverse() const
   {
     for (const int i : IndexRange(size_ / 2)) {
       std::swap(data_[size_ - 1 - i], data_[i]);
@@ -743,11 +710,34 @@ template<typename T> class MutableSpan {
   }
 
   /**
+   * Does a linear search to see of the value is in the array.
+   * Returns true if it is, otherwise false.
+   */
+  constexpr bool contains(const T &value) const
+  {
+    for (const T &element : *this) {
+      if (element == value) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Does a constant time check to see if the pointer points to a value in the referenced array.
+   * Return true if it is, otherwise false.
+   */
+  constexpr bool contains_ptr(const T *ptr) const
+  {
+    return (this->begin() <= ptr) && (ptr < this->end());
+  }
+
+  /**
    * Copy all values from another span into this span. This invokes undefined behavior when the
    * destination contains uninitialized data and T is not trivially copy constructible.
    * The size of both spans is expected to be the same.
    */
-  constexpr void copy_from(Span<T> values)
+  constexpr void copy_from(Span<T> values) const
   {
     BLI_assert(size_ == values.size());
     initialized_copy_n(values.data(), size_, data_);
@@ -764,17 +754,5 @@ template<typename T> class MutableSpan {
     return MutableSpan<NewT>(reinterpret_cast<NewT *>(data_), new_size);
   }
 };
-
-/** This is defined here, because in `BLI_index_range.hh` `Span` is not yet defined. */
-inline Span<int64_t> IndexRange::as_span() const
-{
-  const int64_t min_required_size = start_ + size_;
-  const int64_t current_array_size = s_current_array_size.load(std::memory_order_acquire);
-  const int64_t *current_array = s_current_array.load(std::memory_order_acquire);
-  if (min_required_size <= current_array_size) {
-    return Span<int64_t>(current_array + start_, size_);
-  }
-  return this->as_span_internal();
-}
 
 } /* namespace blender */

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "stdcycles.h"
 
@@ -50,6 +51,4 @@ surface node_bump(int invert = 0,
   if (use_object_space) {
     NormalOut = normalize(transform("object", "world", NormalOut));
   }
-
-  NormalOut = ensure_valid_reflection(Ng, I, NormalOut);
 }

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -18,9 +20,7 @@
 #include "../system/FreestyleConfig.h"
 #include "../system/StringUtils.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 extern "C" {
 struct MTex;
@@ -298,9 +298,7 @@ class StrokeAttribute {
   Vec2fMap *_userAttributesVec2f;
   Vec3fMap *_userAttributesVec3f;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:StrokeAttribute")
-#endif
 };
 
 //
@@ -364,7 +362,7 @@ class StrokeVertex : public CurvePoint {
     return getPoint2D();
   }
 
-  /** Returns the ith 2D point coordinate (i=0 or 1). */
+  /** Returns the i-th 2D point coordinate (i=0 or 1). */
   inline real operator[](const int i) const
   {
     return _Point2d[i];
@@ -427,7 +425,7 @@ class StrokeVertex : public CurvePoint {
     _Point2d[1] = p[1];
   }
 
-  /** Returns a reference to the ith 2D point coordinate (i=0 or 1) */
+  /** Returns a reference to the i-th 2D point coordinate (i=0 or 1). */
   inline real &operator[](const int i)
   {
     return _Point2d[i];
@@ -456,9 +454,7 @@ class StrokeVertex : public CurvePoint {
   /* interface definition */
   /* inherited */
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:StrokeVertex")
-#endif
 };
 
 //
@@ -527,7 +523,7 @@ class Stroke : public Interface1D {
   float _textureStep;
   // StrokeRenderer *_renderer; // mark implementation OpenGL renderer
   MediumType _mediumType;
-  unsigned int _textureId;
+  uint _textureId;
   MTex *_mtex[MAX_MTEX];
   bNodeTree *_nodeTree;
   bool _tips;
@@ -631,7 +627,7 @@ class Stroke : public Interface1D {
   }
 
   /** Returns the id of the texture used to simulate th marks system for this Stroke */
-  inline unsigned int getTextureId()
+  inline uint getTextureId()
   {
     return _textureId;
   }
@@ -657,7 +653,7 @@ class Stroke : public Interface1D {
   /** Returns true if this Stroke has textures assigned, false otherwise. */
   inline bool hasTex() const
   {
-    return (_mtex[0] != NULL) || _nodeTree;
+    return (_mtex[0] != nullptr) || _nodeTree;
   }
 
   /** Returns true if this Stroke uses a texture with tips, false otherwise. */
@@ -744,7 +740,7 @@ class Stroke : public Interface1D {
   }
 
   /** sets the texture id to be used to simulate the marks system for this Stroke. */
-  inline void setTextureId(unsigned int id)
+  inline void setTextureId(uint id)
   {
     _textureId = id;
   }
@@ -834,13 +830,13 @@ class Stroke : public Interface1D {
   StrokeInternal::StrokeVertexIterator strokeVerticesEnd();
 
   /** Returns the number of StrokeVertex constituting the Stroke. */
-  inline unsigned int strokeVerticesSize() const
+  inline uint strokeVerticesSize() const
   {
     return _Vertices.size();
   }
 
   /** Returns the i-th StrokeVertex constituting the Stroke. */
-  inline StrokeVertex &strokeVerticeAt(unsigned int i)
+  inline StrokeVertex &strokeVerticeAt(uint i)
   {
     return *(_Vertices.at(i));
   }
@@ -855,9 +851,7 @@ class Stroke : public Interface1D {
   virtual Interface0DIterator pointsBegin(float t = 0.0f);
   virtual Interface0DIterator pointsEnd(float t = 0.0f);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Stroke")
-#endif
 };
 
 //

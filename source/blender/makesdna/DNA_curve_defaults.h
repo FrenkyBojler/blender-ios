@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -6,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -20,7 +21,7 @@
     .pathlen = 100, \
     .resolu = 12, \
     .resolv = 12, \
-    .offset = 1.0, \
+    .offset = 0.0, \
     .wordspace = 1.0, \
     .spacing = 1.0f, \
     .linedist = 1.0, \

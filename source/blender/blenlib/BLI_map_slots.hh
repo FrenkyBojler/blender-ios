@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -20,6 +22,7 @@
  * - Implement slot type that stores the hash.
  */
 
+#include "BLI_hash_tables.hh"
 #include "BLI_memory_utils.hh"
 
 namespace blender {
@@ -94,8 +97,8 @@ template<typename Key, typename Value> class SimpleMapSlot {
    * from the other have to moved as well. The other slot stays in the state it was in before. Its
    * optionally stored key and value remain in a moved-from state.
    */
-  SimpleMapSlot(SimpleMapSlot &&other) noexcept(
-      std::is_nothrow_move_constructible_v<Key> &&std::is_nothrow_move_constructible_v<Value>)
+  SimpleMapSlot(SimpleMapSlot &&other) noexcept(std::is_nothrow_move_constructible_v<Key> &&
+                                                std::is_nothrow_move_constructible_v<Value>)
   {
     state_ = other.state_;
     if (other.state_ == Occupied) {

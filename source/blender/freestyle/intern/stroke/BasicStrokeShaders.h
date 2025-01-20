@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -48,9 +50,7 @@ class ConstantThicknessShader : public StrokeShader {
   }
 
   /** Destructor. */
-  virtual ~ConstantThicknessShader()
-  {
-  }
+  virtual ~ConstantThicknessShader() {}
 
   /** Returns the string "ConstantThicknessShader". */
   virtual string getName() const
@@ -68,7 +68,7 @@ class ConstantThicknessShader : public StrokeShader {
 /* [ Thickness Shader ].
  *  Assigns an absolute constant external thickness to every vertices of the Stroke. The external
  * thickness of a point is its thickness from the point to the strip border in the direction
- * pointing outside the object the Stroke delimitates.
+ * pointing outside the object the Stroke delimiters.
  */
 class ConstantExternThicknessShader : public StrokeShader {
  public:
@@ -77,9 +77,7 @@ class ConstantExternThicknessShader : public StrokeShader {
     _thickness = thickness;
   }
 
-  virtual ~ConstantExternThicknessShader()
-  {
-  }
+  virtual ~ConstantExternThicknessShader() {}
 
   virtual string getName() const
   {
@@ -113,9 +111,7 @@ class IncreasingThicknessShader : public StrokeShader {
   }
 
   /** Destructor. */
-  virtual ~IncreasingThicknessShader()
-  {
-  }
+  virtual ~IncreasingThicknessShader() {}
 
   virtual string getName() const
   {
@@ -158,9 +154,7 @@ class ConstrainedIncreasingThicknessShader : public StrokeShader {
   }
 
   /** Destructor. */
-  virtual ~ConstrainedIncreasingThicknessShader()
-  {
-  }
+  virtual ~ConstrainedIncreasingThicknessShader() {}
 
   virtual string getName() const
   {
@@ -191,9 +185,7 @@ class LengthDependingThicknessShader : public StrokeShader {
     _maxThickness = iMaxThickness;
   }
 
-  virtual ~LengthDependingThicknessShader()
-  {
-  }
+  virtual ~LengthDependingThicknessShader() {}
 
   virtual string getName() const
   {
@@ -560,9 +552,7 @@ class TipRemoverShader : public StrokeShader {
   TipRemoverShader(real tipLength);
 
   /** Destructor. */
-  virtual ~TipRemoverShader()
-  {
-  }
+  virtual ~TipRemoverShader() {}
 
   /** The shading method */
   virtual string getName() const
@@ -576,10 +566,11 @@ class TipRemoverShader : public StrokeShader {
   real _tipLength;
 };
 
-/** [ Texture Shader ].
- *  Shader to assign texture to the Stroke material.
+/**
+ * Texture Shader.
+ *
+ * Shader to assign texture to the Stroke material.
  */
-
 class BlenderTextureShader : public StrokeShader {
  private:
   MTex *_mtex;
@@ -593,7 +584,7 @@ class BlenderTextureShader : public StrokeShader {
   BlenderTextureShader(MTex *mtex)
   {
     _mtex = mtex;
-    _nodeTree = NULL;
+    _nodeTree = nullptr;
   }
 
   /** Builds the shader.
@@ -603,7 +594,7 @@ class BlenderTextureShader : public StrokeShader {
   BlenderTextureShader(bNodeTree *nodetree)
   {
     _nodeTree = nodetree;
-    _mtex = NULL;
+    _mtex = nullptr;
   }
 
   virtual string getName() const
@@ -615,10 +606,11 @@ class BlenderTextureShader : public StrokeShader {
   virtual int shade(Stroke &stroke) const;
 };
 
-/** [ Texture Shader ].
- *  Shader to assign texture to the Stroke material.
+/**
+ * Texture Shader.
+ *
+ * Shader to assign texture to the Stroke material.
  */
-
 class StrokeTextureStepShader : public StrokeShader {
  private:
   float _step;

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2008-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -8,7 +10,7 @@
 
 #include "NodeTransform.h"
 
-#include "BLI_math.h"
+#include "BLI_math_base.h"
 #include "BLI_sys_types.h"
 
 namespace Freestyle {
@@ -99,7 +101,8 @@ void NodeTransform::accept(SceneVisitor &v)
 
   v.visitNodeTransformBefore(*this);
   for (vector<Node *>::iterator node = _Children.begin(), end = _Children.end(); node != end;
-       ++node) {
+       ++node)
+  {
     (*node)->accept(v);
   }
   v.visitNodeTransformAfter(*this);

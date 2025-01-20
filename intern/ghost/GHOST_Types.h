@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -9,27 +10,30 @@
 
 #include <stdint.h>
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#else
-/* Convenience unsigned abbreviations (#WITH_CXX_GUARDEDALLOC defines these). */
-typedef unsigned int uint;
-typedef unsigned short ushort;
-typedef unsigned long ulong;
-typedef unsigned char uchar;
+#ifdef WITH_VULKAN_BACKEND
+#  ifdef __APPLE__
+#    include <MoltenVK/vk_mvk_moltenvk.h>
+#  else
+#    include <vulkan/vulkan.h>
+#  endif
 #endif
 
-#if defined(WITH_CXX_GUARDEDALLOC) && defined(__cplusplus)
+/* This is used by `GHOST_C-api.h` too, cannot use C++ conventions. */
+// NOLINTBEGIN: modernize-use-using
+
+#include "MEM_guardedalloc.h"
+
+#if defined(__cplusplus)
 #  define GHOST_DECLARE_HANDLE(name) \
     typedef struct name##__ { \
       int unused; \
       MEM_CXX_CLASS_ALLOC_FUNCS(#name) \
-    } * name
+    } *name
 #else
 #  define GHOST_DECLARE_HANDLE(name) \
     typedef struct name##__ { \
       int unused; \
-    } * name
+    } *name
 #endif
 
 /**
@@ -61,9 +65,9 @@ typedef struct {
 } GHOST_CursorBitmapRef;
 
 typedef enum {
-  GHOST_glStereoVisual = (1 << 0),
-  GHOST_glDebugContext = (1 << 1),
-} GHOST_GLFlags;
+  GHOST_gpuStereoVisual = (1 << 0),
+  GHOST_gpuDebugContext = (1 << 1),
+} GHOST_GPUFlags;
 
 typedef enum GHOST_DialogOptions {
   GHOST_DialogWarning = (1 << 0),
@@ -73,6 +77,59 @@ typedef enum GHOST_DialogOptions {
 typedef void *GHOST_TUserDataPtr;
 
 typedef enum { GHOST_kFailure = 0, GHOST_kSuccess } GHOST_TSuccess;
+
+/**
+ * Static flag (relating to the back-ends support for features).
+ *
+ * \note When adding new capabilities, add to #GHOST_CAPABILITY_FLAG_ALL,
+ * then mask out of from the `getCapabilities(..)` callback with an explanation for why
+ * the feature is not supported.
+ */
+typedef enum {
+  /**
+   * Set when warping the cursor is supported (re-positioning the users cursor).
+   */
+  GHOST_kCapabilityCursorWarp = (1 << 0),
+  /**
+   * Set when getting/setting the window position is supported.
+   */
+  GHOST_kCapabilityWindowPosition = (1 << 1),
+  /**
+   * Set when a separate primary clipboard is supported.
+   * This is a convention for X11/WAYLAND, select text & MMB to paste (without an explicit copy).
+   */
+  GHOST_kCapabilityPrimaryClipboard = (1 << 2),
+  /**
+   * Support for reading the front-buffer.
+   */
+  GHOST_kCapabilityGPUReadFrontBuffer = (1 << 3),
+  /**
+   * Set when there is support for system clipboard copy/paste.
+   */
+  GHOST_kCapabilityClipboardImages = (1 << 4),
+  /**
+   * Support for sampling a color outside of the Blender windows.
+   */
+  GHOST_kCapabilityDesktopSample = (1 << 5),
+  /**
+   * Supports IME text input methods (when `WITH_INPUT_IME` is defined).
+   */
+  GHOST_kCapabilityInputIME = (1 << 6),
+  /**
+   * Support detecting the physical trackpad direction.
+   */
+  GHOST_kCapabilityTrackpadPhysicalDirection = (1 << 7),
+} GHOST_TCapabilityFlag;
+
+/**
+ * Back-ends should use this, masking out features which are not supported
+ * with notes as to why those features cannot be supported.
+ */
+#define GHOST_CAPABILITY_FLAG_ALL \
+  (GHOST_kCapabilityCursorWarp | GHOST_kCapabilityWindowPosition | \
+   GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
+   GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
+   GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -128,14 +185,15 @@ typedef enum {
   GHOST_kModifierKeyNum
 } GHOST_TModifierKey;
 
+/**
+ * \note these values are stored in #wmWindow::windowstate,
+ * don't change, only add new values.
+ */
 typedef enum {
   GHOST_kWindowStateNormal = 0,
-  GHOST_kWindowStateMaximized,
-  GHOST_kWindowStateMinimized,
-  GHOST_kWindowStateFullScreen,
-  GHOST_kWindowStateEmbedded,
-  // GHOST_kWindowStateModified,
-  // GHOST_kWindowStateUnModified,
+  GHOST_kWindowStateMaximized = 1,
+  GHOST_kWindowStateMinimized = 2,
+  GHOST_kWindowStateFullScreen = 3,
 } GHOST_TWindowState;
 
 typedef enum {
@@ -149,11 +207,13 @@ typedef enum { GHOST_kWindowOrderTop = 0, GHOST_kWindowOrderBottom } GHOST_TWind
 
 typedef enum {
   GHOST_kDrawingContextTypeNone = 0,
+#if defined(WITH_OPENGL_BACKEND)
   GHOST_kDrawingContextTypeOpenGL,
+#endif
 #ifdef WIN32
   GHOST_kDrawingContextTypeD3D,
 #endif
-#ifdef __APPLE__
+#if defined(__APPLE__) && defined(WITH_METAL_BACKEND)
   GHOST_kDrawingContextTypeMetal,
 #endif
 #ifdef WITH_VULKAN_BACKEND
@@ -171,26 +231,60 @@ typedef enum {
   /* Trackballs and programmable buttons. */
   GHOST_kButtonMaskButton6,
   GHOST_kButtonMaskButton7,
-  GHOST_kButtonNum
+
+#define GHOST_kButtonNum (int(GHOST_kButtonMaskButton7) + 1)
 } GHOST_TButton;
 
 typedef enum {
   GHOST_kEventUnknown = 0,
 
-  GHOST_kEventCursorMove, /* Mouse move event. */
-  GHOST_kEventButtonDown, /* Mouse button event. */
-  GHOST_kEventButtonUp,   /* Mouse button event. */
-  GHOST_kEventWheel,      /* Mouse wheel event. */
-  GHOST_kEventTrackpad,   /* Trackpad event. */
+  /** Mouse move event.
+   *
+   * \note #GHOST_GetEventData returns #GHOST_TEventCursorData.
+   */
+  GHOST_kEventCursorMove,
+  /** Mouse button down event. */
+  GHOST_kEventButtonDown,
+  /** Mouse button up event. */
+  GHOST_kEventButtonUp,
+  /**
+   * Mouse wheel event.
+   *
+   * \note #GHOST_GetEventData returns #GHOST_TEventWheelData.
+   */
+  GHOST_kEventWheel,
+  /**
+   * Trackpad event.
+   *
+   * \note #GHOST_GetEventData returns #GHOST_TEventTrackpadData.
+   */
+  GHOST_kEventTrackpad,
 
 #ifdef WITH_INPUT_NDOF
-  GHOST_kEventNDOFMotion, /* N degree of freedom device motion event. */
-  GHOST_kEventNDOFButton, /* N degree of freedom device button event. */
+  /**
+   * N degree of freedom device motion event.
+   *
+   * \note #GHOST_GetEventData returns #GHOST_TEventNDOFMotionData.
+   */
+  GHOST_kEventNDOFMotion,
+  /**
+   * N degree of freedom device button event.
+   *
+   * \note #GHOST_GetEventData returns #GHOST_TEventNDOFButtonData.
+   */
+  GHOST_kEventNDOFButton,
 #endif
 
+  /**
+   * Keyboard up/down events.
+   *
+   * Includes repeat events, check #GHOST_TEventKeyData::is_repeat
+   * if detecting repeat events is needed.
+   *
+   * \note #GHOST_GetEventData returns #GHOST_TEventKeyData.
+   */
   GHOST_kEventKeyDown,
   GHOST_kEventKeyUp,
-  //  GHOST_kEventKeyAuto,
 
   GHOST_kEventQuitRequest,
 
@@ -212,17 +306,15 @@ typedef enum {
   GHOST_kEventOpenMainFile, /* Needed for Cocoa to open double-clicked .blend file at startup. */
   GHOST_kEventNativeResolutionChange, /* Needed for Cocoa when window moves to other display. */
 
-  GHOST_kEventTimer,
-
   GHOST_kEventImeCompositionStart,
   GHOST_kEventImeComposition,
   GHOST_kEventImeCompositionEnd,
 
-  GHOST_kNumEventTypes
+#define GHOST_kNumEventTypes (GHOST_kEventImeCompositionEnd + 1)
 } GHOST_TEventType;
 
 typedef enum {
-  GHOST_kStandardCursorFirstCursor = 0,
+#define GHOST_kStandardCursorFirstCursor int(GHOST_kStandardCursorDefault)
   GHOST_kStandardCursorDefault = 0,
   GHOST_kStandardCursorRightArrow,
   GHOST_kStandardCursorLeftArrow,
@@ -261,9 +353,15 @@ typedef enum {
   GHOST_kStandardCursorBottomRightCorner,
   GHOST_kStandardCursorBottomLeftCorner,
   GHOST_kStandardCursorCopy,
+  GHOST_kStandardCursorLeftHandle,
+  GHOST_kStandardCursorRightHandle,
+  GHOST_kStandardCursorBothHandles,
+  GHOST_kStandardCursorHandOpen,
+  GHOST_kStandardCursorHandClosed,
+  GHOST_kStandardCursorHandPoint,
   GHOST_kStandardCursorCustom,
 
-  GHOST_kStandardCursorNumCursors
+#define GHOST_kStandardCursorNumCursors (int(GHOST_kStandardCursorCustom) + 1)
 } GHOST_TStandardCursor;
 
 typedef enum {
@@ -445,7 +543,7 @@ typedef enum {
   GHOST_kAxisY = (1 << 1),
 } GHOST_TAxisFlag;
 
-typedef void *GHOST_TEventDataPtr;
+typedef const void *GHOST_TEventDataPtr;
 
 typedef struct {
   /** The x-coordinate of the cursor position. */
@@ -499,6 +597,8 @@ typedef enum {
   GHOST_kDragnDropTypeBitmap     /* Bitmap image data. */
 } GHOST_TDragnDropTypes;
 
+typedef void *GHOST_TDragnDropDataPtr;
+
 typedef struct {
   /** The x-coordinate of the cursor position. */
   int32_t x;
@@ -507,10 +607,13 @@ typedef struct {
   /** The dropped item type */
   GHOST_TDragnDropTypes dataType;
   /** The "dropped content" */
-  GHOST_TEventDataPtr data;
+  GHOST_TDragnDropDataPtr data;
 } GHOST_TEventDragnDropData;
 
-/** similar to wmImeData */
+/**
+ * \warning this is a duplicate of #wmImeData.
+ * All members must remain aligned and the struct size match!
+ */
 typedef struct {
   /** size_t */
   GHOST_TUserDataPtr result_len, composite_len;
@@ -568,7 +671,7 @@ typedef struct {
   /** The key code. */
   GHOST_TKey key;
 
-  /** The unicode character. if the length is 6, not NULL terminated if all 6 are set. */
+  /** The unicode character. if the length is 6, not nullptr terminated if all 6 are set. */
   char utf8_buf[6];
 
   /**
@@ -603,9 +706,30 @@ typedef struct {
 } GHOST_DisplaySetting;
 
 typedef struct {
+  /** Index of the GPU device in the list provided by the platform. */
+  int index;
+  /** (PCI) Vendor ID of the GPU. */
+  uint vendor_id;
+  /** Device ID of the GPU provided by the vendor. */
+  uint device_id;
+} GHOST_GPUDevice;
+
+typedef struct {
   int flags;
   GHOST_TDrawingContextType context_type;
-} GHOST_GLSettings;
+  GHOST_GPUDevice preferred_device;
+} GHOST_GPUSettings;
+
+#ifdef WITH_VULKAN_BACKEND
+typedef struct {
+  /** Image handle to the image that will be presented to the user. */
+  VkImage image;
+  /** Format of the swap chain. */
+  VkSurfaceFormatKHR surface_format;
+  /** Resolution of the image. */
+  VkExtent2D extent;
+} GHOST_VulkanSwapChainData;
+#endif
 
 typedef enum {
   /** Axis that cursor grab will wrap. */
@@ -670,6 +794,8 @@ typedef void (*GHOST_XrCustomdataFreeFn)(void *customdata);
 typedef void *(*GHOST_XrGraphicsContextBindFn)(void);
 typedef void (*GHOST_XrGraphicsContextUnbindFn)(GHOST_ContextHandle graphics_context);
 typedef void (*GHOST_XrDrawViewFn)(const struct GHOST_XrDrawViewInfo *draw_view, void *customdata);
+typedef bool (*GHOST_XrPassthroughEnabledFn)(void *customdata);
+typedef void (*GHOST_XrDisablePassthroughFn)(void *customdata);
 
 /**
  * An array of #GHOST_TXrGraphicsBinding items defining the candidate bindings to use.
@@ -678,6 +804,7 @@ typedef void (*GHOST_XrDrawViewFn)(const struct GHOST_XrDrawViewInfo *draw_view,
 typedef const GHOST_TXrGraphicsBinding *GHOST_XrGraphicsBindingCandidates;
 
 typedef struct {
+  bool is_active;
   float position[3];
   /* Blender convention (w, x, y, z) */
   float orientation_quat[4];
@@ -815,3 +942,116 @@ typedef struct GHOST_XrControllerModelData {
 } GHOST_XrControllerModelData;
 
 #endif /* WITH_XR_OPENXR */
+
+// NOLINTEND: modernize-use-using
+
+/**
+ * NDOF device button event types.
+ *
+ * SpaceMouse devices ship with an internal identifier number for each button.
+ * Deprecated versions of the 3DxWare SDK have a `virtualkeys.h` header file
+ * where some of these numbers are found but it is basically an arbitrary assignment
+ * made by the vendor (3Dconnexion) since the application has the freedom to override as necessary.
+ */
+typedef enum {
+
+  GHOST_NDOF_BUTTON_NONE = -1,
+  /* Used internally, never sent or used as an index. */
+  GHOST_NDOF_BUTTON_INVALID = 0,
+
+  /* These two are available from any 3Dconnexion device. */
+  GHOST_NDOF_BUTTON_MENU = 1,
+  GHOST_NDOF_BUTTON_FIT = 2,
+
+  /* Standard views. */
+  GHOST_NDOF_BUTTON_TOP = 3,
+  GHOST_NDOF_BUTTON_LEFT = 4,
+  GHOST_NDOF_BUTTON_RIGHT = 5,
+  GHOST_NDOF_BUTTON_FRONT = 6,
+  GHOST_NDOF_BUTTON_BOTTOM = 7,
+  GHOST_NDOF_BUTTON_BACK = 8,
+
+  /* 90 degrees rotations. */
+  GHOST_NDOF_BUTTON_ROLL_CW = 9,
+  GHOST_NDOF_BUTTON_ROLL_CCW = 10,
+
+  /* More views. */
+  GHOST_NDOF_BUTTON_ISO1 = 11,
+  GHOST_NDOF_BUTTON_ISO2 = 12,
+
+  /* General-purpose buttons.
+   * Users can assign functions via keymap editor. */
+  GHOST_NDOF_BUTTON_1 = 13,
+  GHOST_NDOF_BUTTON_2 = 14,
+  GHOST_NDOF_BUTTON_3 = 15,
+  GHOST_NDOF_BUTTON_4 = 16,
+  GHOST_NDOF_BUTTON_5 = 17,
+  GHOST_NDOF_BUTTON_6 = 18,
+  GHOST_NDOF_BUTTON_7 = 19,
+  GHOST_NDOF_BUTTON_8 = 20,
+  GHOST_NDOF_BUTTON_9 = 21,
+  GHOST_NDOF_BUTTON_10 = 22,
+
+  /* Keyboard keys. */
+  GHOST_NDOF_BUTTON_ESC = 23,
+  GHOST_NDOF_BUTTON_ALT = 24,
+  GHOST_NDOF_BUTTON_SHIFT = 25,
+  GHOST_NDOF_BUTTON_CTRL = 26,
+
+  /* Device control. */
+  GHOST_NDOF_BUTTON_ROTATE = 27,
+  GHOST_NDOF_BUTTON_PANZOOM = 28,
+  GHOST_NDOF_BUTTON_DOMINANT = 29,
+  GHOST_NDOF_BUTTON_PLUS = 30,
+  GHOST_NDOF_BUTTON_MINUS = 31,
+
+  /* New spin buttons. */
+  GHOST_NDOF_BUTTON_SPIN_CW = 32,
+  GHOST_NDOF_BUTTON_SPIN_CCW = 33,
+  GHOST_NDOF_BUTTON_TILT_CW = 34,
+  GHOST_NDOF_BUTTON_TILT_CCW = 35,
+
+  /* Keyboard keys. */
+  GHOST_NDOF_BUTTON_ENTER = 36,
+  GHOST_NDOF_BUTTON_DELETE = 37,
+
+  /* Keyboard Pro special buttons. */
+  GHOST_NDOF_BUTTON_KBP_F1 = 41,
+  GHOST_NDOF_BUTTON_KBP_F2 = 42,
+  GHOST_NDOF_BUTTON_KBP_F3 = 43,
+  GHOST_NDOF_BUTTON_KBP_F4 = 44,
+  GHOST_NDOF_BUTTON_KBP_F5 = 45,
+  GHOST_NDOF_BUTTON_KBP_F6 = 46,
+  GHOST_NDOF_BUTTON_KBP_F7 = 47,
+  GHOST_NDOF_BUTTON_KBP_F8 = 48,
+  GHOST_NDOF_BUTTON_KBP_F9 = 49,
+  GHOST_NDOF_BUTTON_KBP_F10 = 50,
+  GHOST_NDOF_BUTTON_KBP_F11 = 51,
+  GHOST_NDOF_BUTTON_KBP_F12 = 52,
+
+  /* General-purpose buttons.
+   * Users can assign functions via keymap editor. */
+  GHOST_NDOF_BUTTON_11 = 77,
+  GHOST_NDOF_BUTTON_12 = 78,
+
+  /* Store views. */
+  GHOST_NDOF_BUTTON_V1 = 103,
+  GHOST_NDOF_BUTTON_V2 = 104,
+  GHOST_NDOF_BUTTON_V3 = 105,
+  GHOST_NDOF_BUTTON_SAVE_V1 = 139,
+  GHOST_NDOF_BUTTON_SAVE_V2 = 140,
+  GHOST_NDOF_BUTTON_SAVE_V3 = 141,
+
+  /* Keyboard keys. */
+  GHOST_NDOF_BUTTON_TAB = 175,
+  GHOST_NDOF_BUTTON_SPACE = 176,
+
+  /* Numpad Pro special buttons. */
+  GHOST_NDOF_BUTTON_NP_F1 = 229,
+  GHOST_NDOF_BUTTON_NP_F2 = 230,
+  GHOST_NDOF_BUTTON_NP_F3 = 231,
+  GHOST_NDOF_BUTTON_NP_F4 = 232,
+
+  GHOST_NDOF_BUTTON_USER = 0x10000
+
+} GHOST_NDOF_ButtonT;

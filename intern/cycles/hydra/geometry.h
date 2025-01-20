@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2022 NVIDIA Corporation
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -26,7 +27,7 @@ template<typename Base, typename CyclesBase> class HdCyclesGeometry : public Bas
 
   PXR_NS::HdDirtyBits GetInitialDirtyBitsMask() const override;
 
-  virtual void Finalize(PXR_NS::HdRenderParam *renderParam) override;
+  void Finalize(PXR_NS::HdRenderParam *renderParam) override;
 
  protected:
   void _InitRepr(const PXR_NS::TfToken &reprToken, PXR_NS::HdDirtyBits *dirtyBits) override;
@@ -46,7 +47,7 @@ template<typename Base, typename CyclesBase> class HdCyclesGeometry : public Bas
  private:
   void Initialize(PXR_NS::HdRenderParam *renderParam);
 
-  void InitializeInstance(int index);
+  void InitializeInstance(const int index);
 
   PXR_NS::GfMatrix4d _geomTransform;
 };

@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2022 NVIDIA Corporation
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "hydra/node_util.h"
 #include "util/transform.h"
@@ -24,7 +25,7 @@ template<typename DstType> DstType convertToCycles(const VtValue &value)
     return value.UncheckedGet<DstType>();
   }
 
-  VtValue castedValue = VtValue::Cast<DstType>(value);
+  const VtValue castedValue = VtValue::Cast<DstType>(value);
   if (castedValue.IsHolding<DstType>()) {
     return castedValue.UncheckedGet<DstType>();
   }
@@ -177,7 +178,7 @@ array<DstType> convertToCyclesArray(const VtValue &value)
   }
 
   if (value.CanCast<SrcArray>()) {
-    VtValue castedValue = VtValue::Cast<SrcArray>(value);
+    const VtValue castedValue = VtValue::Cast<SrcArray>(value);
     const auto &valueData = castedValue.UncheckedGet<SrcArray>();
     array<DstType> cyclesArray;
     cyclesArray.resize(valueData.size());
@@ -367,6 +368,16 @@ VtValue convertFromCyclesArray(const array<SrcType> &value)
   VtArray<DstType> convertedValue;
   convertedValue.resize(value.size());
   std::memcpy(convertedValue.data(), value.data(), value.size() * sizeof(SrcType));
+  return VtValue(convertedValue);
+}
+
+template<> VtValue convertFromCyclesArray<float2, GfVec2f>(const array<float2> &value)
+{
+  VtVec2fArray convertedValue;
+  convertedValue.reserve(value.size());
+  for (const auto &element : value) {
+    convertedValue.push_back(GfVec2f(element.x, element.y));
+  }
   return VtValue(convertedValue);
 }
 

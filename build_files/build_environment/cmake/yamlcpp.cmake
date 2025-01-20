@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2002-2022 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(YAMLCPP_EXTRA_ARGS
@@ -20,6 +22,11 @@ ExternalProject_Add(external_yamlcpp
   URL_HASH ${YAMLCPP_HASH_TYPE}=${YAMLCPP_HASH}
   PREFIX ${BUILD_DIR}/yamlcpp
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/yamlcpp ${DEFAULT_CMAKE_FLAGS} ${YAMLCPP_EXTRA_ARGS}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/yamlcpp
+    ${DEFAULT_CMAKE_FLAGS}
+    ${YAMLCPP_EXTRA_ARGS}
+
   INSTALL_DIR ${LIBDIR}/yamlcpp
 )

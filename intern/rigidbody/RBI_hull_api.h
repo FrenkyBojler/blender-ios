@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup intern_rigidbody
@@ -14,7 +15,7 @@ extern "C" {
 
 typedef struct plConvexHull__ {
   int unused;
-} * plConvexHull;
+} *plConvexHull;
 
 plConvexHull plConvexHullCompute(float (*coords)[3], int count);
 void plConvexHullDelete(plConvexHull hull);

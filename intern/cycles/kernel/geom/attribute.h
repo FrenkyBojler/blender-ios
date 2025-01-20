@@ -1,7 +1,11 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
+
+#include "kernel/globals.h"
+#include "kernel/types.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -16,19 +20,17 @@ CCL_NAMESPACE_BEGIN
 
 /* Patch index for triangle, -1 if not subdivision triangle */
 
-ccl_device_inline uint subd_triangle_patch(KernelGlobals kg, int prim)
+ccl_device_inline uint subd_triangle_patch(KernelGlobals kg, const int prim)
 {
   return (prim != PRIM_NONE) ? kernel_data_fetch(tri_patch, prim) : ~0;
 }
 
-ccl_device_inline uint attribute_primitive_type(KernelGlobals kg, int prim, int type)
+ccl_device_inline uint attribute_primitive_type(KernelGlobals kg, const int prim, const int type)
 {
   if ((type & PRIMITIVE_TRIANGLE) && subd_triangle_patch(kg, prim) != ~0) {
     return ATTR_PRIM_SUBD;
   }
-  else {
-    return ATTR_PRIM_GEOMETRY;
-  }
+  return ATTR_PRIM_GEOMETRY;
 }
 
 ccl_device_inline AttributeDescriptor attribute_not_found()
@@ -40,13 +42,13 @@ ccl_device_inline AttributeDescriptor attribute_not_found()
 
 /* Find attribute based on ID */
 
-ccl_device_inline uint object_attribute_map_offset(KernelGlobals kg, int object)
+ccl_device_inline uint object_attribute_map_offset(KernelGlobals kg, const int object)
 {
   return kernel_data_fetch(objects, object).attribute_map_offset;
 }
 
-ccl_device_inline AttributeDescriptor
-find_attribute(KernelGlobals kg, int object, int prim, int type, uint64_t id)
+ccl_device_inline AttributeDescriptor find_attribute(
+    KernelGlobals kg, const int object, const int prim, const int type, const uint64_t id)
 {
   if (object == OBJECT_NONE) {
     return attribute_not_found();
@@ -62,10 +64,8 @@ find_attribute(KernelGlobals kg, int object, int prim, int type, uint64_t id)
       if (UNLIKELY(attr_map.element == 0)) {
         return attribute_not_found();
       }
-      else {
-        /* Chain jump to a different part of the table. */
-        attr_offset = attr_map.offset;
-      }
+      /* Chain jump to a different part of the table. */
+      attr_offset = attr_map.offset;
     }
     else {
       attr_offset += ATTR_PRIM_TYPES;
@@ -77,13 +77,14 @@ find_attribute(KernelGlobals kg, int object, int prim, int type, uint64_t id)
   desc.element = (AttributeElement)attr_map.element;
 
   if (prim == PRIM_NONE && desc.element != ATTR_ELEMENT_MESH &&
-      desc.element != ATTR_ELEMENT_VOXEL && desc.element != ATTR_ELEMENT_OBJECT) {
+      desc.element != ATTR_ELEMENT_VOXEL && desc.element != ATTR_ELEMENT_OBJECT)
+  {
     return attribute_not_found();
   }
 
   /* return result */
   desc.offset = (attr_map.element == ATTR_ELEMENT_NONE) ? (int)ATTR_STD_NOT_FOUND :
-                                                          (int)attr_map.offset;
+                                                          attr_map.offset;
   desc.type = (NodeAttributeType)attr_map.type;
   desc.flags = (AttributeFlag)attr_map.flags;
 
@@ -91,8 +92,8 @@ find_attribute(KernelGlobals kg, int object, int prim, int type, uint64_t id)
 }
 
 ccl_device_inline AttributeDescriptor find_attribute(KernelGlobals kg,
-                                                     ccl_private const ShaderData *sd,
-                                                     uint64_t id)
+                                                     const ccl_private ShaderData *sd,
+                                                     const uint64_t id)
 {
   return find_attribute(kg, sd->object, sd->prim, sd->type, id);
 }

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw
@@ -10,19 +11,24 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_bitmap.h"
-#include "BLI_math.h"
-#include "BLI_task.h"
+#include "BLI_array_utils.hh"
+#include "BLI_enumerable_thread_specific.hh"
+#include "BLI_index_mask.hh"
+#include "BLI_math_matrix.h"
+#include "BLI_task.hh"
+#include "BLI_virtual_array.hh"
 
 #include "BKE_attribute.hh"
-#include "BKE_editmesh.h"
-#include "BKE_editmesh_cache.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_runtime.h"
+#include "BKE_editmesh.hh"
+#include "BKE_editmesh_cache.hh"
+#include "BKE_material.hh"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_runtime.hh"
+#include "BKE_object.hh"
 
-#include "GPU_batch.h"
+#include "GPU_batch.hh"
 
-#include "ED_mesh.h"
+#include "ED_mesh.hh"
 
 #include "mesh_extractors/extract_mesh.hh"
 
@@ -30,138 +36,122 @@
 /** \name Update Loose Geometry
  * \{ */
 
-static void mesh_render_data_lverts_bm(const MeshRenderData *mr,
-                                       MeshBufferCache *cache,
-                                       BMesh *bm);
-static void mesh_render_data_ledges_bm(const MeshRenderData *mr,
-                                       MeshBufferCache *cache,
-                                       BMesh *bm);
-static void mesh_render_data_loose_geom_mesh(const MeshRenderData *mr, MeshBufferCache *cache);
-static void mesh_render_data_loose_geom_build(const MeshRenderData *mr, MeshBufferCache *cache);
+namespace blender::draw {
 
-static void mesh_render_data_loose_geom_load(MeshRenderData *mr, MeshBufferCache *cache)
+static void extract_set_bits(const BitSpan bits, MutableSpan<int> indices)
 {
-  mr->ledges = cache->loose_geom.edges;
-  mr->lverts = cache->loose_geom.verts;
-  mr->vert_loose_len = cache->loose_geom.vert_len;
-  mr->edge_loose_len = cache->loose_geom.edge_len;
-
-  mr->loop_loose_len = mr->vert_loose_len + (mr->edge_loose_len * 2);
+  int count = 0;
+  for (const int64_t i : bits.index_range()) {
+    if (bits[i]) {
+      indices[count] = int(i);
+      count++;
+    }
+  }
+  BLI_assert(count == indices.size());
 }
 
-static void mesh_render_data_loose_geom_ensure(const MeshRenderData *mr, MeshBufferCache *cache)
+static void mesh_render_data_loose_geom_mesh(const MeshRenderData &mr, MeshBufferCache &cache)
+{
+  const Mesh &mesh = *mr.mesh;
+  const bool no_loose_vert_hint = mesh.runtime->loose_verts_cache.is_cached() &&
+                                  mesh.runtime->loose_verts_cache.data().count == 0;
+  const bool no_loose_edge_hint = mesh.runtime->loose_edges_cache.is_cached() &&
+                                  mesh.runtime->loose_edges_cache.data().count == 0;
+  threading::parallel_invoke(
+      mesh.edges_num > 4096 && !no_loose_vert_hint && !no_loose_edge_hint,
+      [&]() {
+        const bke::LooseEdgeCache &loose_edges = mesh.loose_edges();
+        if (loose_edges.count > 0) {
+          cache.loose_geom.edges.reinitialize(loose_edges.count);
+          extract_set_bits(loose_edges.is_loose_bits, cache.loose_geom.edges);
+        }
+      },
+      [&]() {
+        const bke::LooseVertCache &loose_verts = mesh.loose_verts();
+        if (loose_verts.count > 0) {
+          cache.loose_geom.verts.reinitialize(loose_verts.count);
+          extract_set_bits(loose_verts.is_loose_bits, cache.loose_geom.verts);
+        }
+      });
+}
+
+static void mesh_render_data_loose_verts_bm(const MeshRenderData &mr,
+                                            MeshBufferCache &cache,
+                                            BMesh &bm)
+{
+  int i;
+  BMIter iter;
+  BMVert *vert;
+  int count = 0;
+  Array<int> loose_verts(mr.verts_num);
+  BM_ITER_MESH_INDEX (vert, &iter, &bm, BM_VERTS_OF_MESH, i) {
+    if (vert->e == nullptr) {
+      loose_verts[count] = i;
+      count++;
+    }
+  }
+  if (count < mr.verts_num) {
+    cache.loose_geom.verts = loose_verts.as_span().take_front(count);
+  }
+  else {
+    cache.loose_geom.verts = std::move(loose_verts);
+  }
+}
+
+static void mesh_render_data_loose_edges_bm(const MeshRenderData &mr,
+                                            MeshBufferCache &cache,
+                                            BMesh &bm)
+{
+  int i;
+  BMIter iter;
+  BMEdge *edge;
+  int count = 0;
+  Array<int> loose_edges(mr.edges_num);
+  BM_ITER_MESH_INDEX (edge, &iter, &bm, BM_EDGES_OF_MESH, i) {
+    if (edge->l == nullptr) {
+      loose_edges[count] = i;
+      count++;
+    }
+  }
+  if (count < mr.edges_num) {
+    cache.loose_geom.edges = loose_edges.as_span().take_front(count);
+  }
+  else {
+    cache.loose_geom.edges = std::move(loose_edges);
+  }
+}
+
+static void mesh_render_data_loose_geom_build(const MeshRenderData &mr, MeshBufferCache &cache)
+{
+  if (mr.extract_type == MeshExtractType::Mesh) {
+    mesh_render_data_loose_geom_mesh(mr, cache);
+  }
+  else {
+    BMesh &bm = *mr.bm;
+    mesh_render_data_loose_verts_bm(mr, cache, bm);
+    mesh_render_data_loose_edges_bm(mr, cache, bm);
+  }
+}
+
+static void mesh_render_data_loose_geom_ensure(const MeshRenderData &mr, MeshBufferCache &cache)
 {
   /* Early exit: Are loose geometry already available.
    * Only checking for loose verts as loose edges and verts are calculated at the same time. */
-  if (cache->loose_geom.verts) {
+  if (!cache.loose_geom.verts.is_empty()) {
     return;
   }
   mesh_render_data_loose_geom_build(mr, cache);
 }
 
-static void mesh_render_data_loose_geom_build(const MeshRenderData *mr, MeshBufferCache *cache)
+void mesh_render_data_update_loose_geom(MeshRenderData &mr, MeshBufferCache &cache)
 {
-  cache->loose_geom.vert_len = 0;
-  cache->loose_geom.edge_len = 0;
+  mesh_render_data_loose_geom_ensure(mr, cache);
+  mr.loose_edges = cache.loose_geom.edges;
+  mr.loose_verts = cache.loose_geom.verts;
+  mr.loose_verts_num = cache.loose_geom.verts.size();
+  mr.loose_edges_num = cache.loose_geom.edges.size();
 
-  if (mr->extract_type != MR_EXTRACT_BMESH) {
-    /* Mesh */
-    mesh_render_data_loose_geom_mesh(mr, cache);
-  }
-  else {
-    /* #BMesh */
-    BMesh *bm = mr->bm;
-    mesh_render_data_lverts_bm(mr, cache, bm);
-    mesh_render_data_ledges_bm(mr, cache, bm);
-  }
-}
-
-static void mesh_render_data_loose_geom_mesh(const MeshRenderData *mr, MeshBufferCache *cache)
-{
-  using namespace blender;
-  BLI_bitmap *lvert_map = BLI_BITMAP_NEW(mr->vert_len, __func__);
-
-  const bke::LooseEdgeCache &loose_edges = mr->me->loose_edges();
-  if (loose_edges.count > 0) {
-    cache->loose_geom.edges = static_cast<int *>(
-        MEM_malloc_arrayN(loose_edges.count, sizeof(int), __func__));
-
-    cache->loose_geom.edge_len = 0;
-    for (const int64_t i : loose_edges.is_loose_bits.index_range()) {
-      if (loose_edges.is_loose_bits[i]) {
-        cache->loose_geom.edges[cache->loose_geom.edge_len] = int(i);
-        cache->loose_geom.edge_len++;
-      }
-    }
-  }
-
-  /* Tag verts as not loose. */
-  const Span<MEdge> edges(mr->medge, mr->edge_len);
-  for (const MEdge &edge : edges) {
-    BLI_BITMAP_ENABLE(lvert_map, edge.v1);
-    BLI_BITMAP_ENABLE(lvert_map, edge.v2);
-  }
-
-  cache->loose_geom.verts = static_cast<int *>(
-      MEM_mallocN(mr->vert_len * sizeof(*cache->loose_geom.verts), __func__));
-  for (int v = 0; v < mr->vert_len; v++) {
-    if (!BLI_BITMAP_TEST(lvert_map, v)) {
-      cache->loose_geom.verts[cache->loose_geom.vert_len++] = v;
-    }
-  }
-  if (cache->loose_geom.vert_len < mr->vert_len) {
-    cache->loose_geom.verts = static_cast<int *>(MEM_reallocN(
-        cache->loose_geom.verts, cache->loose_geom.vert_len * sizeof(*cache->loose_geom.verts)));
-  }
-
-  MEM_freeN(lvert_map);
-}
-
-static void mesh_render_data_lverts_bm(const MeshRenderData *mr, MeshBufferCache *cache, BMesh *bm)
-{
-  int elem_id;
-  BMIter iter;
-  BMVert *eve;
-  cache->loose_geom.verts = static_cast<int *>(
-      MEM_mallocN(mr->vert_len * sizeof(*cache->loose_geom.verts), __func__));
-  BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, elem_id) {
-    if (eve->e == nullptr) {
-      cache->loose_geom.verts[cache->loose_geom.vert_len++] = elem_id;
-    }
-  }
-  if (cache->loose_geom.vert_len < mr->vert_len) {
-    cache->loose_geom.verts = static_cast<int *>(MEM_reallocN(
-        cache->loose_geom.verts, cache->loose_geom.vert_len * sizeof(*cache->loose_geom.verts)));
-  }
-}
-
-static void mesh_render_data_ledges_bm(const MeshRenderData *mr, MeshBufferCache *cache, BMesh *bm)
-{
-  int elem_id;
-  BMIter iter;
-  BMEdge *ede;
-  cache->loose_geom.edges = static_cast<int *>(
-      MEM_mallocN(mr->edge_len * sizeof(*cache->loose_geom.edges), __func__));
-  BM_ITER_MESH_INDEX (ede, &iter, bm, BM_EDGES_OF_MESH, elem_id) {
-    if (ede->l == nullptr) {
-      cache->loose_geom.edges[cache->loose_geom.edge_len++] = elem_id;
-    }
-  }
-  if (cache->loose_geom.edge_len < mr->edge_len) {
-    cache->loose_geom.edges = static_cast<int *>(MEM_reallocN(
-        cache->loose_geom.edges, cache->loose_geom.edge_len * sizeof(*cache->loose_geom.edges)));
-  }
-}
-
-void mesh_render_data_update_loose_geom(MeshRenderData *mr,
-                                        MeshBufferCache *cache,
-                                        const eMRIterType iter_type,
-                                        const eMRDataType data_flag)
-{
-  if ((iter_type & (MR_ITER_LEDGE | MR_ITER_LVERT)) || (data_flag & MR_DATA_LOOSE_GEOM)) {
-    mesh_render_data_loose_geom_ensure(mr, cache);
-    mesh_render_data_loose_geom_load(mr, cache);
-  }
+  mr.loose_indices_num = mr.loose_verts_num + (mr.loose_edges_num * 2);
 }
 
 /** \} */
@@ -169,161 +159,201 @@ void mesh_render_data_update_loose_geom(MeshRenderData *mr,
 /* ---------------------------------------------------------------------- */
 /** \name Polygons sorted per material
  *
- * Contains polygon indices sorted based on their material.
+ * Contains face indices sorted based on their material.
  * \{ */
 
-static void mesh_render_data_polys_sorted_load(MeshRenderData *mr, const MeshBufferCache *cache);
-static void mesh_render_data_polys_sorted_ensure(MeshRenderData *mr, MeshBufferCache *cache);
-static void mesh_render_data_polys_sorted_build(MeshRenderData *mr, MeshBufferCache *cache);
-static int *mesh_render_data_mat_tri_len_build(MeshRenderData *mr);
-
-void mesh_render_data_update_polys_sorted(MeshRenderData *mr,
-                                          MeshBufferCache *cache,
-                                          const eMRDataType data_flag)
+static void accumululate_material_counts_bm(
+    const BMesh &bm, threading::EnumerableThreadSpecific<Array<int>> &all_tri_counts)
 {
-  if (data_flag & MR_DATA_POLYS_SORTED) {
-    mesh_render_data_polys_sorted_ensure(mr, cache);
-    mesh_render_data_polys_sorted_load(mr, cache);
-  }
+  threading::parallel_for(IndexRange(bm.totface), 1024, [&](const IndexRange range) {
+    Array<int> &tri_counts = all_tri_counts.local();
+    const short last_index = tri_counts.size() - 1;
+    for (const int i : range) {
+      const BMFace &face = *BM_face_at_index(&const_cast<BMesh &>(bm), i);
+      if (!BM_elem_flag_test(&face, BM_ELEM_HIDDEN)) {
+        const short mat = std::clamp<short>(face.mat_nr, 0, last_index);
+        tri_counts[mat] += face.len - 2;
+      }
+    }
+  });
 }
 
-static void mesh_render_data_polys_sorted_load(MeshRenderData *mr, const MeshBufferCache *cache)
+static void accumululate_material_counts_mesh(
+    const MeshRenderData &mr, threading::EnumerableThreadSpecific<Array<int>> &all_tri_counts)
 {
-  mr->poly_sorted.tri_first_index = cache->poly_sorted.tri_first_index;
-  mr->poly_sorted.mat_tri_len = cache->poly_sorted.mat_tri_len;
-  mr->poly_sorted.visible_tri_len = cache->poly_sorted.visible_tri_len;
-}
-
-static void mesh_render_data_polys_sorted_ensure(MeshRenderData *mr, MeshBufferCache *cache)
-{
-  if (cache->poly_sorted.tri_first_index) {
+  const OffsetIndices faces = mr.faces;
+  const Span<bool> hide_poly = mr.hide_poly;
+  const Span material_indices = mr.material_indices;
+  if (material_indices.is_empty()) {
+    if (!hide_poly.is_empty()) {
+      all_tri_counts.local().first() = threading::parallel_reduce(
+          faces.index_range(),
+          4096,
+          0,
+          [&](const IndexRange range, int count) {
+            for (const int face : range) {
+              if (!hide_poly[face]) {
+                count += bke::mesh::face_triangles_num(faces[face].size());
+              }
+            }
+            return count;
+          },
+          std::plus<int>());
+    }
+    else {
+      all_tri_counts.local().first() = poly_to_tri_count(mr.faces_num, mr.corners_num);
+    }
     return;
   }
-  mesh_render_data_polys_sorted_build(mr, cache);
-}
 
-static void mesh_render_data_polys_sorted_build(MeshRenderData *mr, MeshBufferCache *cache)
-{
-  int *tri_first_index = static_cast<int *>(
-      MEM_mallocN(sizeof(*tri_first_index) * mr->poly_len, __func__));
-  int *mat_tri_len = mesh_render_data_mat_tri_len_build(mr);
-
-  /* Apply offset. */
-  int visible_tri_len = 0;
-  blender::Array<int, 32> mat_tri_offs(mr->mat_len);
-  {
-    for (int i = 0; i < mr->mat_len; i++) {
-      mat_tri_offs[i] = visible_tri_len;
-      visible_tri_len += mat_tri_len[i];
-    }
-  }
-
-  /* Sort per material. */
-  int mat_last = mr->mat_len - 1;
-  if (mr->extract_type == MR_EXTRACT_BMESH) {
-    BMIter iter;
-    BMFace *f;
-    int i;
-    BM_ITER_MESH_INDEX (f, &iter, mr->bm, BM_FACES_OF_MESH, i) {
-      if (!BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
-        const int mat = min_ii(f->mat_nr, mat_last);
-        tri_first_index[i] = mat_tri_offs[mat];
-        mat_tri_offs[mat] += f->len - 2;
-      }
-      else {
-        tri_first_index[i] = -1;
+  threading::parallel_for(material_indices.index_range(), 1024, [&](const IndexRange range) {
+    Array<int> &tri_counts = all_tri_counts.local();
+    const int last_index = tri_counts.size() - 1;
+    if (!hide_poly.is_empty()) {
+      for (const int i : range) {
+        if (!hide_poly[i]) {
+          const int mat = std::clamp(material_indices[i], 0, last_index);
+          tri_counts[mat] += bke::mesh::face_triangles_num(faces[i].size());
+        }
       }
     }
-  }
-  else {
-    for (int i = 0; i < mr->poly_len; i++) {
-      if (!(mr->use_hide && mr->hide_poly && mr->hide_poly[i])) {
-        const MPoly *mp = &mr->mpoly[i];
-        const int mat = min_ii(mr->material_indices ? mr->material_indices[i] : 0, mat_last);
-        tri_first_index[i] = mat_tri_offs[mat];
-        mat_tri_offs[mat] += mp->totloop - 2;
-      }
-      else {
-        tri_first_index[i] = -1;
+    else {
+      for (const int i : range) {
+        const int mat = std::clamp(material_indices[i], 0, last_index);
+        tri_counts[mat] += bke::mesh::face_triangles_num(faces[i].size());
       }
     }
-  }
-
-  cache->poly_sorted.tri_first_index = tri_first_index;
-  cache->poly_sorted.mat_tri_len = mat_tri_len;
-  cache->poly_sorted.visible_tri_len = visible_tri_len;
-}
-
-static void mesh_render_data_mat_tri_len_bm_range_fn(void *__restrict userdata,
-                                                     const int iter,
-                                                     const TaskParallelTLS *__restrict tls)
-{
-  MeshRenderData *mr = static_cast<MeshRenderData *>(userdata);
-  int *mat_tri_len = static_cast<int *>(tls->userdata_chunk);
-
-  BMesh *bm = mr->bm;
-  BMFace *efa = BM_face_at_index(bm, iter);
-  if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-    int mat = min_ii(efa->mat_nr, mr->mat_len - 1);
-    mat_tri_len[mat] += efa->len - 2;
-  }
-}
-
-static void mesh_render_data_mat_tri_len_mesh_range_fn(void *__restrict userdata,
-                                                       const int iter,
-                                                       const TaskParallelTLS *__restrict tls)
-{
-  MeshRenderData *mr = static_cast<MeshRenderData *>(userdata);
-  int *mat_tri_len = static_cast<int *>(tls->userdata_chunk);
-
-  const MPoly *mp = &mr->mpoly[iter];
-  if (!(mr->use_hide && mr->hide_poly && mr->hide_poly[iter])) {
-    int mat = min_ii(mr->material_indices ? mr->material_indices[iter] : 0, mr->mat_len - 1);
-    mat_tri_len[mat] += mp->totloop - 2;
-  }
-}
-
-static void mesh_render_data_mat_tri_len_reduce_fn(const void *__restrict userdata,
-                                                   void *__restrict chunk_join,
-                                                   void *__restrict chunk)
-{
-  const MeshRenderData *mr = static_cast<const MeshRenderData *>(userdata);
-  int *dst_mat_len = static_cast<int *>(chunk_join);
-  int *src_mat_len = static_cast<int *>(chunk);
-  for (int i = 0; i < mr->mat_len; i++) {
-    dst_mat_len[i] += src_mat_len[i];
-  }
-}
-
-static int *mesh_render_data_mat_tri_len_build_threaded(MeshRenderData *mr,
-                                                        int face_len,
-                                                        TaskParallelRangeFunc range_func)
-{
-  /* Extending the #MatOffsetUserData with an int per material slot. */
-  size_t mat_tri_len_size = sizeof(int) * mr->mat_len;
-  int *mat_tri_len = static_cast<int *>(MEM_callocN(mat_tri_len_size, __func__));
-
-  TaskParallelSettings settings;
-  BLI_parallel_range_settings_defaults(&settings);
-  settings.userdata_chunk = mat_tri_len;
-  settings.userdata_chunk_size = mat_tri_len_size;
-  settings.min_iter_per_thread = MIN_RANGE_LEN;
-  settings.func_reduce = mesh_render_data_mat_tri_len_reduce_fn;
-  BLI_task_parallel_range(0, face_len, mr, range_func, &settings);
-
-  return mat_tri_len;
+  });
 }
 
 /* Count how many triangles for each material. */
-static int *mesh_render_data_mat_tri_len_build(MeshRenderData *mr)
+static Array<int> mesh_render_data_mat_tri_len_build(const MeshRenderData &mr)
 {
-  if (mr->extract_type == MR_EXTRACT_BMESH) {
-    BMesh *bm = mr->bm;
-    return mesh_render_data_mat_tri_len_build_threaded(
-        mr, bm->totface, mesh_render_data_mat_tri_len_bm_range_fn);
+  threading::EnumerableThreadSpecific<Array<int>> all_tri_counts(
+      [&]() { return Array<int>(mr.materials_num, 0); });
+
+  if (mr.extract_type == MeshExtractType::BMesh) {
+    accumululate_material_counts_bm(*mr.bm, all_tri_counts);
   }
-  return mesh_render_data_mat_tri_len_build_threaded(
-      mr, mr->poly_len, mesh_render_data_mat_tri_len_mesh_range_fn);
+  else {
+    accumululate_material_counts_mesh(mr, all_tri_counts);
+  }
+
+  Array<int> &tris_num_by_material = all_tri_counts.local();
+  for (const Array<int> &counts : all_tri_counts) {
+    if (&counts != &tris_num_by_material) {
+      for (const int i : tris_num_by_material.index_range()) {
+        tris_num_by_material[i] += counts[i];
+      }
+    }
+  }
+  return std::move(tris_num_by_material);
+}
+
+static Array<int> calc_face_tri_starts_bmesh(const MeshRenderData &mr,
+                                             MutableSpan<int> material_tri_starts)
+{
+  BMesh &bm = *mr.bm;
+  Array<int> face_tri_offsets(bm.totface);
+#ifndef NDEBUG
+  face_tri_offsets.fill(-1);
+#endif
+
+  const int mat_last = mr.materials_num - 1;
+  BMIter iter;
+  BMFace *face;
+  int i;
+  BM_ITER_MESH_INDEX (face, &iter, &bm, BM_FACES_OF_MESH, i) {
+    if (BM_elem_flag_test(face, BM_ELEM_HIDDEN)) {
+      continue;
+    }
+    const int mat = std::clamp(int(face->mat_nr), 0, mat_last);
+    face_tri_offsets[i] = material_tri_starts[mat];
+    material_tri_starts[mat] += face->len - 2;
+  }
+
+  return face_tri_offsets;
+}
+
+static bool mesh_is_single_material(const OffsetIndices<int> material_tri_starts)
+{
+  const int used_materials = std::count_if(
+      material_tri_starts.index_range().begin(),
+      material_tri_starts.index_range().end(),
+      [&](const int i) { return material_tri_starts[i].size() > 0; });
+  return used_materials == 1;
+}
+
+static std::optional<Array<int>> calc_face_tri_starts_mesh(const MeshRenderData &mr,
+                                                           MutableSpan<int> material_tri_starts)
+{
+  const bool single_material = mesh_is_single_material(material_tri_starts.as_span());
+  if (single_material && mr.hide_poly.is_empty()) {
+    return std::nullopt;
+  }
+
+  const OffsetIndices faces = mr.faces;
+  const Span<bool> hide_poly = mr.hide_poly;
+
+  Array<int> face_tri_offsets(faces.size());
+#ifndef NDEBUG
+  face_tri_offsets.fill(-1);
+#endif
+
+  if (single_material) {
+    int offset = 0;
+    for (const int face : faces.index_range()) {
+      if (hide_poly[face]) {
+        continue;
+      }
+      face_tri_offsets[face] = offset;
+      offset += bke::mesh::face_triangles_num(faces[face].size());
+    }
+    return face_tri_offsets;
+  }
+
+  const Span<int> material_indices = mr.material_indices;
+  const int mat_last = mr.materials_num - 1;
+  for (const int face : faces.index_range()) {
+    if (!hide_poly.is_empty() && hide_poly[face]) {
+      continue;
+    }
+    const int mat = std::clamp(material_indices[face], 0, mat_last);
+    face_tri_offsets[face] = material_tri_starts[mat];
+    material_tri_starts[mat] += bke::mesh::face_triangles_num(faces[face].size());
+  }
+
+  return face_tri_offsets;
+}
+
+static SortedFaceData mesh_render_data_faces_sorted_build(const MeshRenderData &mr)
+{
+  SortedFaceData cache;
+  cache.tris_num_by_material = mesh_render_data_mat_tri_len_build(mr);
+  const Span<int> tris_num_by_material = cache.tris_num_by_material;
+
+  Array<int, 32> material_tri_starts(mr.materials_num + 1);
+  material_tri_starts.as_mutable_span().drop_back(1).copy_from(tris_num_by_material);
+  offset_indices::accumulate_counts_to_offsets(material_tri_starts);
+  cache.visible_tris_num = material_tri_starts.last();
+
+  /* Sort per material. */
+  if (mr.extract_type == MeshExtractType::BMesh) {
+    cache.face_tri_offsets = calc_face_tri_starts_bmesh(mr, material_tri_starts);
+  }
+  else {
+    cache.face_tri_offsets = calc_face_tri_starts_mesh(mr, material_tri_starts);
+  }
+  return cache;
+}
+
+const SortedFaceData &mesh_render_data_faces_sorted_ensure(const MeshRenderData &mr,
+                                                           MeshBufferCache &cache)
+{
+  if (cache.face_sorted.visible_tris_num == 0) {
+    cache.face_sorted = mesh_render_data_faces_sorted_build(mr);
+  }
+  return cache.face_sorted;
 }
 
 /** \} */
@@ -332,95 +362,160 @@ static int *mesh_render_data_mat_tri_len_build(MeshRenderData *mr)
 /** \name Mesh/BMesh Interface (indirect, partially cached access to complex data).
  * \{ */
 
-void mesh_render_data_update_looptris(MeshRenderData *mr,
-                                      const eMRIterType iter_type,
-                                      const eMRDataType data_flag)
+const Mesh &editmesh_final_or_this(const Object &object, const Mesh &mesh)
 {
-  if (mr->extract_type != MR_EXTRACT_BMESH) {
-    /* Mesh */
-    if ((iter_type & MR_ITER_LOOPTRI) || (data_flag & MR_DATA_LOOPTRI)) {
-      mr->mlooptri = BKE_mesh_runtime_looptri_ensure(mr->me);
+  if (mesh.runtime->edit_mesh != nullptr) {
+    if (const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(&object)) {
+      return *editmesh_eval_final;
     }
   }
+
+  return mesh;
+}
+
+const CustomData &mesh_cd_ldata_get_from_mesh(const Mesh &mesh)
+{
+  switch (mesh.runtime->wrapper_type) {
+    case ME_WRAPPER_TYPE_SUBD:
+    case ME_WRAPPER_TYPE_MDATA:
+      return mesh.corner_data;
+      break;
+    case ME_WRAPPER_TYPE_BMESH:
+      return mesh.runtime->edit_mesh->bm->ldata;
+      break;
+  }
+
+  BLI_assert(0);
+  return mesh.corner_data;
+}
+
+const CustomData &mesh_cd_pdata_get_from_mesh(const Mesh &mesh)
+{
+  switch (mesh.runtime->wrapper_type) {
+    case ME_WRAPPER_TYPE_SUBD:
+    case ME_WRAPPER_TYPE_MDATA:
+      return mesh.face_data;
+      break;
+    case ME_WRAPPER_TYPE_BMESH:
+      return mesh.runtime->edit_mesh->bm->pdata;
+      break;
+  }
+
+  BLI_assert(0);
+  return mesh.face_data;
+}
+
+const CustomData &mesh_cd_edata_get_from_mesh(const Mesh &mesh)
+{
+  switch (mesh.runtime->wrapper_type) {
+    case ME_WRAPPER_TYPE_SUBD:
+    case ME_WRAPPER_TYPE_MDATA:
+      return mesh.edge_data;
+      break;
+    case ME_WRAPPER_TYPE_BMESH:
+      return mesh.runtime->edit_mesh->bm->edata;
+      break;
+  }
+
+  BLI_assert(0);
+  return mesh.edge_data;
+}
+
+const CustomData &mesh_cd_vdata_get_from_mesh(const Mesh &mesh)
+{
+  switch (mesh.runtime->wrapper_type) {
+    case ME_WRAPPER_TYPE_SUBD:
+    case ME_WRAPPER_TYPE_MDATA:
+      return mesh.vert_data;
+      break;
+    case ME_WRAPPER_TYPE_BMESH:
+      return mesh.runtime->edit_mesh->bm->vdata;
+      break;
+  }
+
+  BLI_assert(0);
+  return mesh.vert_data;
+}
+
+static bool bm_edge_is_sharp(const BMEdge *const &edge)
+{
+  return !BM_elem_flag_test(edge, BM_ELEM_SMOOTH);
+}
+
+static bool bm_face_is_sharp(const BMFace *const &face)
+{
+  return !BM_elem_flag_test(face, BM_ELEM_SMOOTH);
+}
+
+/**
+ * Returns which domain of normals is required because of sharp and smooth flags.
+ * Similar to #Mesh::normals_domain().
+ */
+static bke::MeshNormalDomain bmesh_normals_domain(BMesh *bm)
+{
+  if (bm->totface == 0) {
+    return bke::MeshNormalDomain::Point;
+  }
+
+  if (CustomData_has_layer_named(&bm->ldata, CD_PROP_INT16_2D, "custom_normal")) {
+    return bke::MeshNormalDomain::Corner;
+  }
+
+  BM_mesh_elem_table_ensure(bm, BM_FACE);
+  const VArray<bool> sharp_faces = VArray<bool>::ForDerivedSpan<const BMFace *, bm_face_is_sharp>(
+      Span(bm->ftable, bm->totface));
+  const array_utils::BooleanMix face_mix = array_utils::booleans_mix_calc(sharp_faces);
+  if (face_mix == array_utils::BooleanMix::AllTrue) {
+    return bke::MeshNormalDomain::Face;
+  }
+
+  BM_mesh_elem_table_ensure(bm, BM_EDGE);
+  const VArray<bool> sharp_edges = VArray<bool>::ForDerivedSpan<const BMEdge *, bm_edge_is_sharp>(
+      Span(bm->etable, bm->totedge));
+  const array_utils::BooleanMix edge_mix = array_utils::booleans_mix_calc(sharp_edges);
+  if (edge_mix == array_utils::BooleanMix::AllTrue) {
+    return bke::MeshNormalDomain::Face;
+  }
+
+  if (edge_mix == array_utils::BooleanMix::AllFalse &&
+      face_mix == array_utils::BooleanMix::AllFalse)
+  {
+    return bke::MeshNormalDomain::Point;
+  }
+
+  return bke::MeshNormalDomain::Corner;
+}
+
+void mesh_render_data_update_corner_normals(MeshRenderData &mr)
+{
+  if (mr.extract_type == MeshExtractType::Mesh) {
+    mr.corner_normals = mr.mesh->corner_normals();
+  }
   else {
-    /* #BMesh */
-    if ((iter_type & MR_ITER_LOOPTRI) || (data_flag & MR_DATA_LOOPTRI)) {
-      /* Edit mode ensures this is valid, no need to calculate. */
-      BLI_assert((mr->bm->totloop == 0) || (mr->edit_bmesh->looptris != nullptr));
-    }
+    mr.bm_loop_normals.reinitialize(mr.corners_num);
+    const int clnors_offset = CustomData_get_offset_named(
+        &mr.bm->ldata, CD_PROP_INT16_2D, "custom_normal");
+    BM_loops_calc_normal_vcos(mr.bm,
+                              mr.bm_vert_coords,
+                              mr.bm_vert_normals,
+                              mr.bm_face_normals,
+                              true,
+                              mr.bm_loop_normals,
+                              nullptr,
+                              nullptr,
+                              clnors_offset,
+                              false);
   }
 }
 
-void mesh_render_data_update_normals(MeshRenderData *mr, const eMRDataType data_flag)
+void mesh_render_data_update_face_normals(MeshRenderData &mr)
 {
-  Mesh *me = mr->me;
-  const bool is_auto_smooth = (me->flag & ME_AUTOSMOOTH) != 0;
-  const float split_angle = is_auto_smooth ? me->smoothresh : float(M_PI);
-
-  if (mr->extract_type != MR_EXTRACT_BMESH) {
-    /* Mesh */
-    mr->vert_normals = BKE_mesh_vertex_normals_ensure(mr->me);
-    if (data_flag & (MR_DATA_POLY_NOR | MR_DATA_LOOP_NOR | MR_DATA_TAN_LOOP_NOR)) {
-      mr->poly_normals = BKE_mesh_poly_normals_ensure(mr->me);
-    }
-    if (((data_flag & MR_DATA_LOOP_NOR) && is_auto_smooth) || (data_flag & MR_DATA_TAN_LOOP_NOR)) {
-      mr->loop_normals = static_cast<float(*)[3]>(
-          MEM_mallocN(sizeof(*mr->loop_normals) * mr->loop_len, __func__));
-      short(*clnors)[2] = static_cast<short(*)[2]>(
-          CustomData_get_layer_for_write(&mr->me->ldata, CD_CUSTOMLOOPNORMAL, mr->me->totloop));
-      const bool *sharp_edges = static_cast<const bool *>(
-          CustomData_get_layer_named(&mr->me->edata, CD_PROP_BOOL, "sharp_edge"));
-      BKE_mesh_normals_loop_split(reinterpret_cast<const float(*)[3]>(mr->vert_positions),
-                                  mr->vert_normals,
-                                  mr->vert_len,
-                                  mr->medge,
-                                  mr->edge_len,
-                                  mr->mloop,
-                                  mr->loop_normals,
-                                  mr->loop_len,
-                                  mr->mpoly,
-                                  mr->poly_normals,
-                                  mr->poly_len,
-                                  is_auto_smooth,
-                                  split_angle,
-                                  sharp_edges,
-                                  nullptr,
-                                  nullptr,
-                                  clnors);
-    }
+  if (mr.extract_type == MeshExtractType::Mesh) {
+    /* Eager calculation of face normals can reduce waiting on the lazy cache's lock. */
+    mr.face_normals = mr.mesh->face_normals();
   }
   else {
-    /* #BMesh */
-    if (data_flag & MR_DATA_POLY_NOR) {
-      /* Use #BMFace.no instead. */
-    }
-    if (((data_flag & MR_DATA_LOOP_NOR) && is_auto_smooth) || (data_flag & MR_DATA_TAN_LOOP_NOR)) {
-
-      const float(*vert_coords)[3] = nullptr;
-      const float(*vert_normals)[3] = nullptr;
-      const float(*poly_normals)[3] = nullptr;
-
-      if (mr->edit_data && mr->edit_data->vertexCos) {
-        vert_coords = mr->bm_vert_coords;
-        vert_normals = mr->bm_vert_normals;
-        poly_normals = mr->bm_poly_normals;
-      }
-
-      mr->loop_normals = static_cast<float(*)[3]>(
-          MEM_mallocN(sizeof(*mr->loop_normals) * mr->loop_len, __func__));
-      const int clnors_offset = CustomData_get_offset(&mr->bm->ldata, CD_CUSTOMLOOPNORMAL);
-      BM_loops_calc_normal_vcos(mr->bm,
-                                vert_coords,
-                                vert_normals,
-                                poly_normals,
-                                is_auto_smooth,
-                                split_angle,
-                                mr->loop_normals,
-                                nullptr,
-                                nullptr,
-                                clnors_offset,
-                                false);
-    }
+    /* Use #BMFace.no. */
   }
 }
 
@@ -428,48 +523,47 @@ static void retrieve_active_attribute_names(MeshRenderData &mr,
                                             const Object &object,
                                             const Mesh &mesh)
 {
-  const Mesh *mesh_final = editmesh_final_or_this(&object, &mesh);
-  mr.active_color_name = mesh_final->active_color_attribute;
-  mr.default_color_name = mesh_final->default_color_attribute;
+  const Mesh &mesh_final = editmesh_final_or_this(object, mesh);
+  mr.active_color_name = mesh_final.active_color_attribute;
+  mr.default_color_name = mesh_final.default_color_attribute;
 }
 
-MeshRenderData *mesh_render_data_create(Object *object,
-                                        Mesh *me,
-                                        const bool is_editmode,
-                                        const bool is_paint_mode,
-                                        const bool is_mode_active,
-                                        const float obmat[4][4],
-                                        const bool do_final,
-                                        const bool do_uvedit,
-                                        const ToolSettings *ts)
+std::unique_ptr<MeshRenderData> mesh_render_data_create(Object &object,
+                                                        Mesh &mesh,
+                                                        const bool is_editmode,
+                                                        const bool is_paint_mode,
+                                                        const float4x4 &object_to_world,
+                                                        const bool do_final,
+                                                        const bool do_uvedit,
+                                                        const bool use_hide,
+                                                        const ToolSettings *ts)
 {
-  MeshRenderData *mr = static_cast<MeshRenderData *>(MEM_callocN(sizeof(*mr), __func__));
+  std::unique_ptr<MeshRenderData> mr = std::make_unique<MeshRenderData>();
   mr->toolsettings = ts;
-  mr->mat_len = mesh_render_mat_len_get(object, me);
+  mr->materials_num = BKE_object_material_count_with_fallback_eval(&object);
 
-  copy_m4_m4(mr->obmat, obmat);
+  mr->object_to_world = object_to_world;
 
-  if (is_editmode) {
-    Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(object);
-    Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(object);
+  mr->use_hide = use_hide;
 
-    BLI_assert(editmesh_eval_cage && editmesh_eval_final);
-    mr->bm = me->edit_mesh->bm;
-    mr->edit_bmesh = me->edit_mesh;
-    mr->me = (do_final) ? editmesh_eval_final : editmesh_eval_cage;
-    mr->edit_data = is_mode_active ? mr->me->runtime->edit_data : nullptr;
+  const Mesh *editmesh_orig = BKE_object_get_pre_modified_mesh(&object);
+  if (is_editmode && editmesh_orig) {
+    const Mesh *eval_cage = BKE_object_get_editmesh_eval_cage(&object);
 
-    if (mr->edit_data) {
-      EditMeshData *emd = mr->edit_data;
-      if (emd->vertexCos) {
-        BKE_editmesh_cache_ensure_vert_normals(mr->edit_bmesh, emd);
-        BKE_editmesh_cache_ensure_poly_normals(mr->edit_bmesh, emd);
+    mr->bm = editmesh_orig->runtime->edit_mesh->bm;
+    mr->edit_bmesh = editmesh_orig->runtime->edit_mesh.get();
+    mr->mesh = (do_final) ? &mesh : eval_cage;
+    mr->edit_data = is_editmode ? mr->mesh->runtime->edit_data.get() : nullptr;
+
+    /* If there is no distinct cage, hide unmapped edges that can't be selected. */
+    mr->hide_unmapped_edges = !do_final || &mesh == eval_cage;
+
+    if (bke::EditMeshData *emd = mr->edit_data) {
+      if (!emd->vert_positions.is_empty()) {
+        mr->bm_vert_coords = mr->edit_data->vert_positions;
+        mr->bm_vert_normals = BKE_editmesh_cache_ensure_vert_normals(*mr->edit_bmesh, *emd);
+        mr->bm_face_normals = BKE_editmesh_cache_ensure_face_normals(*mr->edit_bmesh, *emd);
       }
-
-      mr->bm_vert_coords = mr->edit_data->vertexCos;
-      mr->bm_vert_normals = mr->edit_data->vertexNos;
-      mr->bm_poly_normals = mr->edit_data->polyNos;
-      mr->bm_poly_centers = mr->edit_data->polyCos;
     }
 
     int bm_ensure_types = BM_VERT | BM_EDGE | BM_LOOP | BM_FACE;
@@ -482,9 +576,12 @@ MeshRenderData *mesh_render_data_create(Object *object,
     mr->eed_act = BM_mesh_active_edge_get(mr->bm);
     mr->eve_act = BM_mesh_active_vert_get(mr->bm);
 
-    mr->vert_crease_ofs = CustomData_get_offset(&mr->bm->vdata, CD_CREASE);
-    mr->edge_crease_ofs = CustomData_get_offset(&mr->bm->edata, CD_CREASE);
-    mr->bweight_ofs = CustomData_get_offset(&mr->bm->edata, CD_BWEIGHT);
+    mr->vert_crease_ofs = CustomData_get_offset_named(
+        &mr->bm->vdata, CD_PROP_FLOAT, "crease_vert");
+    mr->edge_crease_ofs = CustomData_get_offset_named(
+        &mr->bm->edata, CD_PROP_FLOAT, "crease_edge");
+    mr->bweight_ofs = CustomData_get_offset_named(
+        &mr->bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
 #ifdef WITH_FREESTYLE
     mr->freestyle_edge_ofs = CustomData_get_offset(&mr->bm->edata, CD_FREESTYLE_EDGE);
     mr->freestyle_face_ofs = CustomData_get_offset(&mr->bm->pdata, CD_FREESTYLE_FACE);
@@ -493,109 +590,109 @@ MeshRenderData *mesh_render_data_create(Object *object,
     /* Use bmesh directly when the object is in edit mode unchanged by any modifiers.
      * For non-final UVs, always use original bmesh since the UV editor does not support
      * using the cage mesh with deformed coordinates. */
-    if ((is_mode_active && mr->me->runtime->is_original_bmesh &&
-         mr->me->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) ||
-        (do_uvedit && !do_final)) {
-      mr->extract_type = MR_EXTRACT_BMESH;
+    if ((is_editmode && mr->mesh->runtime->is_original_bmesh &&
+         mr->mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) ||
+        (do_uvedit && !do_final))
+    {
+      mr->extract_type = MeshExtractType::BMesh;
     }
     else {
-      mr->extract_type = MR_EXTRACT_MESH;
+      mr->extract_type = MeshExtractType::Mesh;
 
       /* Use mapping from final to original mesh when the object is in edit mode. */
-      if (is_mode_active && do_final) {
-        mr->v_origindex = static_cast<const int *>(
-            CustomData_get_layer(&mr->me->vdata, CD_ORIGINDEX));
-        mr->e_origindex = static_cast<const int *>(
-            CustomData_get_layer(&mr->me->edata, CD_ORIGINDEX));
-        mr->p_origindex = static_cast<const int *>(
-            CustomData_get_layer(&mr->me->pdata, CD_ORIGINDEX));
+      if (is_editmode && do_final) {
+        mr->orig_index_vert = static_cast<const int *>(
+            CustomData_get_layer(&mr->mesh->vert_data, CD_ORIGINDEX));
+        mr->orig_index_edge = static_cast<const int *>(
+            CustomData_get_layer(&mr->mesh->edge_data, CD_ORIGINDEX));
+        mr->orig_index_face = static_cast<const int *>(
+            CustomData_get_layer(&mr->mesh->face_data, CD_ORIGINDEX));
       }
       else {
-        mr->v_origindex = nullptr;
-        mr->e_origindex = nullptr;
-        mr->p_origindex = nullptr;
+        mr->orig_index_vert = nullptr;
+        mr->orig_index_edge = nullptr;
+        mr->orig_index_face = nullptr;
       }
     }
   }
   else {
-    mr->me = me;
+    mr->mesh = &mesh;
     mr->edit_bmesh = nullptr;
-    mr->extract_type = MR_EXTRACT_MESH;
+    mr->extract_type = MeshExtractType::Mesh;
+    mr->hide_unmapped_edges = false;
 
-    if (is_paint_mode && mr->me) {
-      mr->v_origindex = static_cast<const int *>(
-          CustomData_get_layer(&mr->me->vdata, CD_ORIGINDEX));
-      mr->e_origindex = static_cast<const int *>(
-          CustomData_get_layer(&mr->me->edata, CD_ORIGINDEX));
-      mr->p_origindex = static_cast<const int *>(
-          CustomData_get_layer(&mr->me->pdata, CD_ORIGINDEX));
+    if (is_paint_mode && mr->mesh) {
+      mr->orig_index_vert = static_cast<const int *>(
+          CustomData_get_layer(&mr->mesh->vert_data, CD_ORIGINDEX));
+      mr->orig_index_edge = static_cast<const int *>(
+          CustomData_get_layer(&mr->mesh->edge_data, CD_ORIGINDEX));
+      mr->orig_index_face = static_cast<const int *>(
+          CustomData_get_layer(&mr->mesh->face_data, CD_ORIGINDEX));
     }
     else {
-      mr->v_origindex = nullptr;
-      mr->e_origindex = nullptr;
-      mr->p_origindex = nullptr;
+      mr->orig_index_vert = nullptr;
+      mr->orig_index_edge = nullptr;
+      mr->orig_index_face = nullptr;
     }
   }
 
-  if (mr->extract_type != MR_EXTRACT_BMESH) {
-    /* Mesh */
-    mr->vert_len = mr->me->totvert;
-    mr->edge_len = mr->me->totedge;
-    mr->loop_len = mr->me->totloop;
-    mr->poly_len = mr->me->totpoly;
-    mr->tri_len = poly_to_tri_count(mr->poly_len, mr->loop_len);
+  if (mr->extract_type == MeshExtractType::Mesh) {
+    mr->verts_num = mr->mesh->verts_num;
+    mr->edges_num = mr->mesh->edges_num;
+    mr->faces_num = mr->mesh->faces_num;
+    mr->corners_num = mr->mesh->corners_num;
+    mr->corner_tris_num = poly_to_tri_count(mr->faces_num, mr->corners_num);
 
-    mr->vert_positions = mr->me->vert_positions().data();
-    mr->medge = BKE_mesh_edges(mr->me);
-    mr->mpoly = BKE_mesh_polys(mr->me);
-    mr->mloop = BKE_mesh_loops(mr->me);
+    mr->vert_positions = mr->mesh->vert_positions();
+    mr->edges = mr->mesh->edges();
+    mr->faces = mr->mesh->faces();
+    mr->corner_verts = mr->mesh->corner_verts();
+    mr->corner_edges = mr->mesh->corner_edges();
 
-    mr->v_origindex = static_cast<const int *>(CustomData_get_layer(&mr->me->vdata, CD_ORIGINDEX));
-    mr->e_origindex = static_cast<const int *>(CustomData_get_layer(&mr->me->edata, CD_ORIGINDEX));
-    mr->p_origindex = static_cast<const int *>(CustomData_get_layer(&mr->me->pdata, CD_ORIGINDEX));
+    mr->orig_index_vert = static_cast<const int *>(
+        CustomData_get_layer(&mr->mesh->vert_data, CD_ORIGINDEX));
+    mr->orig_index_edge = static_cast<const int *>(
+        CustomData_get_layer(&mr->mesh->edge_data, CD_ORIGINDEX));
+    mr->orig_index_face = static_cast<const int *>(
+        CustomData_get_layer(&mr->mesh->face_data, CD_ORIGINDEX));
 
-    mr->material_indices = static_cast<const int *>(
-        CustomData_get_layer_named(&me->pdata, CD_PROP_INT32, "material_index"));
+    mr->normals_domain = mr->mesh->normals_domain();
 
-    mr->hide_vert = static_cast<const bool *>(
-        CustomData_get_layer_named(&me->vdata, CD_PROP_BOOL, ".hide_vert"));
-    mr->hide_edge = static_cast<const bool *>(
-        CustomData_get_layer_named(&me->edata, CD_PROP_BOOL, ".hide_edge"));
-    mr->hide_poly = static_cast<const bool *>(
-        CustomData_get_layer_named(&me->pdata, CD_PROP_BOOL, ".hide_poly"));
+    const bke::AttributeAccessor attributes = mr->mesh->attributes();
 
-    mr->select_vert = static_cast<const bool *>(
-        CustomData_get_layer_named(&me->vdata, CD_PROP_BOOL, ".select_vert"));
-    mr->select_edge = static_cast<const bool *>(
-        CustomData_get_layer_named(&me->edata, CD_PROP_BOOL, ".select_edge"));
-    mr->select_poly = static_cast<const bool *>(
-        CustomData_get_layer_named(&me->pdata, CD_PROP_BOOL, ".select_poly"));
+    mr->material_indices = *attributes.lookup<int>("material_index", bke::AttrDomain::Face);
+
+    if (is_editmode || is_paint_mode) {
+      if (use_hide) {
+        mr->hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+        mr->hide_edge = *attributes.lookup<bool>(".hide_edge", bke::AttrDomain::Edge);
+        mr->hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+      }
+
+      mr->select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+      mr->select_edge = *attributes.lookup<bool>(".select_edge", bke::AttrDomain::Edge);
+      mr->select_poly = *attributes.lookup<bool>(".select_poly", bke::AttrDomain::Face);
+    }
+
+    mr->sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
   }
   else {
-    /* #BMesh */
     BMesh *bm = mr->bm;
 
-    mr->vert_len = bm->totvert;
-    mr->edge_len = bm->totedge;
-    mr->loop_len = bm->totloop;
-    mr->poly_len = bm->totface;
-    mr->tri_len = poly_to_tri_count(mr->poly_len, mr->loop_len);
+    mr->verts_num = bm->totvert;
+    mr->edges_num = bm->totedge;
+    mr->faces_num = bm->totface;
+    mr->corners_num = bm->totloop;
+    mr->corner_tris_num = poly_to_tri_count(mr->faces_num, mr->corners_num);
+
+    mr->normals_domain = bmesh_normals_domain(bm);
   }
 
-  retrieve_active_attribute_names(*mr, *object, *me);
+  retrieve_active_attribute_names(*mr, object, *mr->mesh);
 
   return mr;
 }
 
-void mesh_render_data_free(MeshRenderData *mr)
-{
-  MEM_SAFE_FREE(mr->loop_normals);
-
-  /* Loose geometry are owned by #MeshBufferCache. */
-  mr->ledges = nullptr;
-  mr->lverts = nullptr;
-
-  MEM_freeN(mr);
-}
-
 /** \} */
+
+}  // namespace blender::draw

@@ -1,26 +1,27 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-#include "BKE_screen.h"
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "DNA_space_types.h"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
 #include "BLI_listbase.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "spreadsheet_intern.hh"
 #include "spreadsheet_row_filter.hh"
 
-using namespace blender::ed::spreadsheet;
+namespace blender::ed::spreadsheet {
 
 static int row_filter_add_exec(bContext *C, wmOperator * /*op*/)
 {
@@ -80,14 +81,12 @@ static void SPREADSHEET_OT_remove_row_filter_rule(wmOperatorType *ot)
 
 static int select_component_domain_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  GeometryComponentType component_type = static_cast<GeometryComponentType>(
-      RNA_int_get(op->ptr, "component_type"));
-  eAttrDomain attribute_domain = static_cast<eAttrDomain>(
-      RNA_int_get(op->ptr, "attribute_domain_type"));
+  const auto component_type = bke::GeometryComponent::Type(RNA_int_get(op->ptr, "component_type"));
+  bke::AttrDomain domain = bke::AttrDomain(RNA_int_get(op->ptr, "attribute_domain_type"));
 
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
-  sspreadsheet->geometry_component_type = component_type;
-  sspreadsheet->attribute_domain = attribute_domain;
+  sspreadsheet->geometry_component_type = uint8_t(component_type);
+  sspreadsheet->attribute_domain = uint8_t(domain);
 
   /* Refresh header and main region. */
   WM_main_add_notifier(NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
@@ -102,6 +101,7 @@ static void SPREADSHEET_OT_change_spreadsheet_data_source(wmOperatorType *ot)
   ot->idname = "SPREADSHEET_OT_change_spreadsheet_data_source";
 
   ot->invoke = select_component_domain_invoke;
+  ot->poll = ED_operator_spreadsheet_active;
 
   RNA_def_int(ot->srna, "component_type", 0, 0, INT16_MAX, "Component Type", "", 0, INT16_MAX);
   RNA_def_int(ot->srna,
@@ -123,3 +123,5 @@ void spreadsheet_operatortypes()
   WM_operatortype_append(SPREADSHEET_OT_remove_row_filter_rule);
   WM_operatortype_append(SPREADSHEET_OT_change_spreadsheet_data_source);
 }
+
+}  // namespace blender::ed::spreadsheet

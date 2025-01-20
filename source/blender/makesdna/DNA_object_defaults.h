@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -8,7 +10,6 @@
 
 #include "DNA_vec_defaults.h"
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -23,7 +24,6 @@
  \
     .constinv = _DNA_DEFAULT_UNIT_M4, \
     .parentinv = _DNA_DEFAULT_UNIT_M4, \
-    .object_to_world = _DNA_DEFAULT_UNIT_M4, \
  \
     .scale = {1, 1, 1}, \
     .dscale = {1, 1, 1}, \
@@ -37,6 +37,7 @@
     .drotAngle = 0, \
     .quat = _DNA_DEFAULT_UNIT_QT, \
     .dquat = _DNA_DEFAULT_UNIT_QT, \
+    .flag = OB_FLAG_USE_SIMULATION_CACHE, \
     .protectflag = OB_LOCK_ROT4D, \
  \
     .dt = OB_TEXTURE, \
