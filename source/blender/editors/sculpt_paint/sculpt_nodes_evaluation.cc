@@ -14,7 +14,6 @@
 
 #include "BKE_compute_contexts.hh"
 #include "BKE_geometry_fields.hh"
-#include "BKE_geometry_set.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_type_conversions.hh"
