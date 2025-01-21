@@ -43,9 +43,9 @@ class VKCopyImageNode : public VKNodeInfo<VKNodeType::COPY_IMAGE,
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
   template<typename Node, typename Storage>
-  static void set_node_data(Node &node, Storage & /* storage */, const CreateInfo &create_info)
+  static void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info)
   {
-    node.copy_image = create_info.node_data;
+    node.storage_index = storage.copy_image.append_and_get_index(create_info.node_data);
   }
 
   /**

@@ -39,9 +39,21 @@ namespace blender::gpu::render_graph {
  */
 using NodeHandle = uint64_t;
 
+/**
+ * Node storage for nodes that uses large data structs.
+ *
+ * Some node structs are to large to store them as part of the node. The data are stored as a
+ * vector of structs. Typically structs that occupy more than one cache line (64 bytes) should be
+ * considered to be moved here.
+ *
+ */
 struct VKRenderGraphStorage {
   Vector<VKBeginRenderingNode::Data> begin_rendering;
   Vector<VKClearAttachmentsNode::Data> clear_attachments;
+  Vector<VKBlitImageNode::Data> blit_image;
+  Vector<VKCopyBufferToImageNode::Data> copy_buffer_to_image;
+  Vector<VKCopyImageNode::Data> copy_image;
+  Vector<VKCopyImageToBufferNode::Data> copy_image_to_buffer;
   Vector<VKDrawNode::Data> draw;
   Vector<VKDrawIndexedNode::Data> draw_indexed;
   Vector<VKDrawIndexedIndirectNode::Data> draw_indexed_indirect;
@@ -51,6 +63,10 @@ struct VKRenderGraphStorage {
   {
     begin_rendering.clear();
     clear_attachments.clear();
+    blit_image.clear();
+    copy_buffer_to_image.clear();
+    copy_image.clear();
+    copy_image_to_buffer.clear();
     draw.clear();
     draw_indexed.clear();
     draw_indexed_indirect.clear();
@@ -69,13 +85,9 @@ struct VKRenderGraphNode {
   VKNodeType type;
   union {
     VKBeginQueryNode::Data begin_query;
-    VKBlitImageNode::Data blit_image;
     VKClearColorImageNode::Data clear_color_image;
     VKClearDepthStencilImageNode::Data clear_depth_stencil_image;
     VKCopyBufferNode::Data copy_buffer;
-    VKCopyBufferToImageNode::Data copy_buffer_to_image;
-    VKCopyImageNode::Data copy_image;
-    VKCopyImageToBufferNode::Data copy_image_to_buffer;
     VKDispatchNode::Data dispatch;
     VKDispatchIndirectNode::Data dispatch_indirect;
     VKEndQueryNode::Data end_query;
@@ -227,12 +239,12 @@ struct VKRenderGraphNode {
         BUILD_COMMANDS(VKNodeType::FILL_BUFFER, VKFillBufferNode, fill_buffer)
         BUILD_COMMANDS(VKNodeType::UPDATE_BUFFER, VKUpdateBufferNode, update_buffer)
         BUILD_COMMANDS(VKNodeType::COPY_BUFFER, VKCopyBufferNode, copy_buffer)
-        BUILD_COMMANDS(
+        BUILD_COMMANDS_STORAGE(
             VKNodeType::COPY_BUFFER_TO_IMAGE, VKCopyBufferToImageNode, copy_buffer_to_image)
-        BUILD_COMMANDS(VKNodeType::COPY_IMAGE, VKCopyImageNode, copy_image)
-        BUILD_COMMANDS(
+        BUILD_COMMANDS_STORAGE(VKNodeType::COPY_IMAGE, VKCopyImageNode, copy_image)
+        BUILD_COMMANDS_STORAGE(
             VKNodeType::COPY_IMAGE_TO_BUFFER, VKCopyImageToBufferNode, copy_image_to_buffer)
-        BUILD_COMMANDS(VKNodeType::BLIT_IMAGE, VKBlitImageNode, blit_image)
+        BUILD_COMMANDS_STORAGE(VKNodeType::BLIT_IMAGE, VKBlitImageNode, blit_image)
         BUILD_COMMANDS(VKNodeType::RESET_QUERY_POOL, VKResetQueryPoolNode, reset_query_pool)
         BUILD_COMMANDS(VKNodeType::SYNCHRONIZATION, VKSynchronizationNode, synchronization)
         BUILD_COMMANDS(VKNodeType::UPDATE_MIPMAPS, VKUpdateMipmapsNode, update_mipmaps)
@@ -314,5 +326,9 @@ struct VKRenderGraphNode {
     storage_index = -1;
   }
 };
+
+BLI_STATIC_ASSERT(sizeof(VKRenderGraphNode) <= 64,
+                  "VKRenderGraphNode should be kept small. Consider moving data to the "
+                  "VKRenderGraphStorage class.");
 
 }  // namespace blender::gpu::render_graph

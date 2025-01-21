@@ -39,9 +39,9 @@ class VKCopyBufferToImageNode : public VKNodeInfo<VKNodeType::COPY_BUFFER_TO_IMA
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
   template<typename Node, typename Storage>
-  static void set_node_data(Node &node, Storage & /* storage */, const CreateInfo &create_info)
+  static void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info)
   {
-    node.copy_buffer_to_image = create_info.node_data;
+    node.storage_index = storage.copy_buffer_to_image.append_and_get_index(create_info.node_data);
   }
 
   /**
