@@ -44,18 +44,8 @@ void StrengthOperation::on_stroke_extended(const bContext &C, const InputSample 
   const Brush &brush = *BKE_paint_brush(&paint);
   const bool invert = this->is_inverted(brush);
 
-  // const bool use_selection_masking = GPENCIL_ANY_SCULPT_MASK(
-  //     eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
-
   this->foreach_editable_drawing_with_automask(
       C, [&](const GreasePencilStrokeParams &params, const IndexMask &point_mask) {
-        // IndexMaskMemory selection_memory;
-        // const IndexMask selection = point_selection_mask(
-        //     params, use_selection_masking, true, selection_memory);
-        // if (selection.is_empty()) {
-        //   return false;
-        // }
-
         Array<float2> view_positions = calculate_view_positions(params, point_mask);
         MutableSpan<float> opacities = params.drawing.opacities_for_write();
 

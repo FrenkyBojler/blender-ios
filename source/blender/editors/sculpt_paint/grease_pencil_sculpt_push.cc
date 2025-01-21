@@ -47,13 +47,6 @@ void PushOperation::on_stroke_extended(const bContext &C, const InputSample &ext
       [&](const GreasePencilStrokeParams &params,
           const IndexMask &point_mask,
           const DeltaProjectionFunc &projection_fn) {
-        // IndexMaskMemory selection_memory;
-        // const IndexMask selection = point_selection_mask(
-        //     params, use_selection_masking, true, selection_memory);
-        // if (selection.is_empty()) {
-        //   return false;
-        // }
-
         bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
         Array<float2> view_positions = calculate_view_positions(params, point_mask);
         bke::CurvesGeometry &curves = params.drawing.strokes_for_write();

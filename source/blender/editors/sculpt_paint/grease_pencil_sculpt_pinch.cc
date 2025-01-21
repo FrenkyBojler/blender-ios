@@ -42,21 +42,12 @@ void PinchOperation::on_stroke_extended(const bContext &C, const InputSample &ex
   Paint &paint = *BKE_paint_get_active_from_context(&C);
   const Brush &brush = *BKE_paint_brush(&paint);
   const bool invert = this->is_inverted(brush);
-  // const bool use_selection_masking = GPENCIL_ANY_SCULPT_MASK(
-  //     eGP_Sculpt_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_sculpt));
 
   this->foreach_editable_drawing_with_automask(
       C,
       [&](const GreasePencilStrokeParams &params,
           const IndexMask &point_mask,
           const DeltaProjectionFunc &projection_fn) {
-        // IndexMaskMemory selection_memory;
-        // const IndexMask selection = this->point_selection_mask_with_automasking(
-        //     params, use_selection_masking, true, selection_memory);
-        // if (selection.is_empty()) {
-        //   return false;
-        // }
-
         bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
         Array<float2> view_positions = calculate_view_positions(params, point_mask);
         bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
