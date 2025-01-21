@@ -356,7 +356,7 @@ struct PaintOperationExecutor {
     if ((settings_->flag2 & GP_BRUSH_USE_PRESS_AT_STROKE) == 0) {
       /* TODO: This should be exposed as a setting to scale the noise along the stroke. */
       constexpr float noise_scale = 1 / 20.0f;
-      random_factor = noise::perlin(
+      random_factor = noise::perlin_signed(
           float2(distance * noise_scale, self.stroke_random_radius_factor_));
     }
     else {
@@ -367,7 +367,9 @@ struct PaintOperationExecutor {
       random_factor *= BKE_curvemapping_evaluateF(settings_->curve_rand_pressure, 0, pressure);
     }
 
-    return math::interpolate(radius, radius * random_factor, settings_->draw_random_press);
+    const float randomized_radius = math::interpolate(
+        radius, radius * (1.0f + random_factor), settings_->draw_random_press);
+    return math::max(randomized_radius, 0.0f);
   }
 
   float randomize_opacity(PaintOperation &self,
@@ -382,7 +384,7 @@ struct PaintOperationExecutor {
     if ((settings_->flag2 & GP_BRUSH_USE_STRENGTH_AT_STROKE) == 0) {
       /* TODO: This should be exposed as a setting to scale the noise along the stroke. */
       constexpr float noise_scale = 1 / 20.0f;
-      random_factor = noise::perlin(
+      random_factor = noise::perlin_signed(
           float2(distance * noise_scale, self.stroke_random_opacity_factor_));
     }
     else {
@@ -393,7 +395,9 @@ struct PaintOperationExecutor {
       random_factor *= BKE_curvemapping_evaluateF(settings_->curve_rand_strength, 0, pressure);
     }
 
-    return math::interpolate(opacity, opacity * random_factor, settings_->draw_random_strength);
+    const float randomized_opacity = math::interpolate(
+        opacity, opacity + random_factor, settings_->draw_random_strength);
+    return math::clamp(randomized_opacity, 0.0f, 1.0f);
   }
 
   float randomize_rotation(PaintOperation &self, const float pressure)
@@ -403,7 +407,7 @@ struct PaintOperationExecutor {
     }
     float random_factor = 0.0f;
     if ((settings_->flag2 & GP_BRUSH_USE_UV_AT_STROKE) == 0) {
-      random_factor = self.rng_.get_float();
+      random_factor = self.rng_.get_float() * 2.0f - 1.0f;
     }
     else {
       random_factor = self.stroke_random_rotation_factor_;
@@ -413,7 +417,7 @@ struct PaintOperationExecutor {
       random_factor *= BKE_curvemapping_evaluateF(settings_->curve_rand_uv, 0, pressure);
     }
 
-    const float random_rotation = (random_factor * 2.0f - 1.0f) * math::numbers::pi;
+    const float random_rotation = random_factor * math::numbers::pi;
     return math::interpolate(0.0f, random_rotation, settings_->uv_random);
   }
 
@@ -433,7 +437,8 @@ struct PaintOperationExecutor {
 
     float random_hue = 0.0f;
     if ((settings_->flag2 & GP_BRUSH_USE_HUE_AT_STROKE) == 0) {
-      random_hue = noise::perlin(float2(distance * noise_scale, self.stroke_random_hue_factor_));
+      random_hue = noise::perlin_signed(
+          float2(distance * noise_scale, self.stroke_random_hue_factor_));
     }
     else {
       random_hue = self.stroke_random_hue_factor_;
@@ -441,7 +446,7 @@ struct PaintOperationExecutor {
 
     float random_saturation = 0.0f;
     if ((settings_->flag2 & GP_BRUSH_USE_SAT_AT_STROKE) == 0) {
-      random_saturation = noise::perlin(
+      random_saturation = noise::perlin_signed(
           float2(distance * noise_scale, self.stroke_random_sat_factor_));
     }
     else {
@@ -450,7 +455,8 @@ struct PaintOperationExecutor {
 
     float random_value = 0.0f;
     if ((settings_->flag2 & GP_BRUSH_USE_VAL_AT_STROKE) == 0) {
-      random_value = noise::perlin(float2(distance * noise_scale, self.stroke_random_val_factor_));
+      random_value = noise::perlin_signed(
+          float2(distance * noise_scale, self.stroke_random_val_factor_));
     }
     else {
       random_value = self.stroke_random_val_factor_;
@@ -470,7 +476,10 @@ struct PaintOperationExecutor {
     float3 hsv;
     rgb_to_hsv_v(color, hsv);
 
-    hsv[0] += math::interpolate(0.5f, random_hue, settings_->random_hue) - 0.5f;
+    hsv += float3(random_hue * settings_->random_hue,
+                  random_saturation * settings_->random_saturation,
+                  random_value * settings_->random_value);
+
     /* Wrap hue. */
     if (hsv[0] > 1.0f) {
       hsv[0] -= 1.0f;
@@ -478,8 +487,9 @@ struct PaintOperationExecutor {
     else if (hsv[0] < 0.0f) {
       hsv[0] += 1.0f;
     }
-    hsv[1] *= math::interpolate(1.0f, random_saturation * 2.0f, settings_->random_saturation);
-    hsv[2] *= math::interpolate(1.0f, random_value * 2.0f, settings_->random_value);
+
+    hsv[1] = math::clamp(hsv[1], 0.0f, 1.0f);
+    hsv[2] = math::clamp(hsv[2], 0.0f, 1.0f);
 
     ColorGeometry4f random_color;
     hsv_to_rgb_v(hsv, random_color);
@@ -1268,13 +1278,15 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 
   rng_ = RandomNumberGenerator::from_random_seed();
   if ((settings->flag & GP_BRUSH_GROUP_RANDOM) != 0) {
-    stroke_random_radius_factor_ = rng_.get_float();
-    stroke_random_opacity_factor_ = rng_.get_float();
-    stroke_random_rotation_factor_ = rng_.get_float();
+    /* Since we want stroke properties to randomize around set values, it's easier for us to have a
+     * signed value in range (-1,1) in calculations downstream. */
+    stroke_random_radius_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_opacity_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_rotation_factor_ = rng_.get_float() * 2.0f - 1.0f;
 
-    stroke_random_hue_factor_ = rng_.get_float();
-    stroke_random_sat_factor_ = rng_.get_float();
-    stroke_random_val_factor_ = rng_.get_float();
+    stroke_random_hue_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_sat_factor_ = rng_.get_float() * 2.0f - 1.0f;
+    stroke_random_val_factor_ = rng_.get_float() * 2.0f - 1.0f;
   }
 
   Material *material = BKE_grease_pencil_object_material_ensure_from_active_input_brush(
