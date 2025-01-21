@@ -1343,6 +1343,15 @@ static void draw_selected_name(
     info_array[i++] = msg_space;
     info_array[i++] = ob->id.name + 2;
 
+    /* show object data name when not in object mode */
+    if (ob->mode != OB_MODE_OBJECT) {
+      ID *data_id = static_cast<ID *>(ob->data);
+      if (data_id) {
+        info_array[i++] = " | ";
+        info_array[i++] = data_id->name + 2;
+      }
+    }
+
     /* name(s) to display depends on type of object */
     if (ob->type == OB_ARMATURE) {
       bArmature *arm = static_cast<bArmature *>(ob->data);
