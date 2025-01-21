@@ -153,6 +153,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
     for (; surface; surface = surface->next) {
       walk(user_data, ob, (ID **)&surface->brush_group, IDWALK_CB_NOP);
       walk(user_data, ob, (ID **)&surface->init_texture, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&surface->init_wetmap_texture, IDWALK_CB_USER);
       if (surface->effector_weights) {
         walk(user_data, ob, (ID **)&surface->effector_weights->group, IDWALK_CB_USER);
       }
