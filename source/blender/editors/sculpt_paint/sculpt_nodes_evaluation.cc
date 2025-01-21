@@ -5,7 +5,6 @@
 #include <memory>
 #include <variant>
 
-#include "BLI_array_utils.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "DNA_brush_types.h"
 
@@ -23,6 +22,7 @@
 #include "FN_field.hh"
 #include "FN_lazy_function_execute.hh"
 
+#include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "sculpt_intern.hh"
 #include "sculpt_nodes_evaluation.hh"
 
@@ -301,31 +301,35 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 
 class MeshSculptFieldContext : public SculptFieldContext {
  private:
-  const Mesh &mesh_;
   Span<int> indices_;
   Span<float3> vert_positions_;
+  Span<float3> vert_normals_;
 
  public:
   MeshSculptFieldContext(const Depsgraph &depsgraph,
                          const Object &object,
-                         const Mesh &mesh,
                          const Span<int> indices,
                          const Span<float3> vert_positions)
       : SculptFieldContext(depsgraph, object, {}),
-        mesh_(mesh),
         indices_(indices),
-        vert_positions_(vert_positions)
+        vert_positions_(vert_positions),
+        vert_normals_(bke::pbvh::vert_normals_eval(depsgraph, object))
   {
   }
 
-  const Mesh &mesh() const
+  VArray<float3> positions() const override
   {
-    return mesh_;
+    Array<float3> positions(indices_.size());
+    gather_data_mesh(vert_positions_, indices_, positions.as_mutable_span());
+    return VArray<float3>::ForContainer(std::move(positions));
   }
 
-  VArray<float3> positions() const override;
-
-  VArray<float3> normals() const override;
+  VArray<float3> normals() const override
+  {
+    Array<float3> normals(indices_.size());
+    gather_data_mesh(vert_normals_, indices_, normals.as_mutable_span());
+    return VArray<float3>::ForContainer(std::move(normals));
+  }
 
   Span<float3> vert_positions() const
   {
@@ -338,31 +342,6 @@ class MeshSculptFieldContext : public SculptFieldContext {
   }
 };
 
-VArray<float3> MeshSculptFieldContext::positions() const
-{
-  const Span<int> indices = this->indices();
-  const Span<float3> vert_positions = this->vert_positions();
-
-  Array<float3> positions(indices.size());
-  array_utils::gather(vert_positions, indices, positions.as_mutable_span());
-
-  return VArray<float3>::ForContainer(std::move(positions));
-}
-
-VArray<float3> MeshSculptFieldContext::normals() const
-{
-  const Depsgraph &depsgraph = this->depsgraph();
-  const Object &object = this->object();
-  const Span<int> indices = this->indices();
-
-  const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
-  Array<float3> normals(indices.size());
-
-  array_utils::gather(vert_normals, indices, normals.as_mutable_span());
-
-  return VArray<float3>::ForContainer(std::move(normals));
-}
-
 void nodes_evaluate_translations_mesh(const Depsgraph &depsgraph,
                                       const Object &object,
                                       const StrokeCache &cache,
@@ -371,8 +350,7 @@ void nodes_evaluate_translations_mesh(const Depsgraph &depsgraph,
                                       const Span<int> verts,
                                       const MutableSpan<float3> translations)
 {
-  const Mesh *mesh = static_cast<const Mesh *>(object.data);
-  const MeshSculptFieldContext context(depsgraph, object, *mesh, verts, vert_positions);
+  const MeshSculptFieldContext context(depsgraph, object, verts, vert_positions);
   threading::isolate_task([&]() {
     const OutputTranslations output{translations};
     sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
@@ -387,8 +365,7 @@ void nodes_evaluate_factors_mesh(const Depsgraph &depsgraph,
                                  const Span<int> verts,
                                  const MutableSpan<float> factors)
 {
-  const Mesh *mesh = static_cast<const Mesh *>(object.data);
-  const MeshSculptFieldContext context(depsgraph, object, *mesh, verts, vert_positions);
+  const MeshSculptFieldContext context(depsgraph, object, verts, vert_positions);
   threading::isolate_task([&]() {
     const CombineFactors output{factors};
     sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
@@ -419,28 +396,14 @@ class GridsSculptFieldContext : public SculptFieldContext {
     return grids_;
   }
 
-  VArray<float3> normals() const override;
-};
-
-VArray<float3> GridsSculptFieldContext::normals() const
-{
-  const SubdivCCG &subdiv_ccg = this->subdiv_ccg();
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  const Span<int> grids = this->grids();
-  const Span<float3> ccg_normals = subdiv_ccg.normals;
-
-  const int total_vertices = grids.size() * key.grid_area;
-  Array<float3> normals_array(total_vertices);
-  MutableSpan<float3> normals(normals_array);
-
-  for (const int i : grids.index_range()) {
-    const Span<float3> grid_normals = ccg_normals.slice(bke::ccg::grid_range(key, grids[i]));
-    const MutableSpan<float3> node_normals = normals.slice(bke::ccg::grid_range(key, i));
-    node_normals.copy_from(grid_normals);
+  VArray<float3> normals() const override
+  {
+    const int verts_num = grids_.size() * subdiv_ccg_.grid_area;
+    Array<float3> normals(verts_num);
+    gather_grids_normals(subdiv_ccg_, grids_, normals);
+    return VArray<float3>::ForContainer(std::move(normals));
   }
-
-  return VArray<float3>::ForContainer(std::move(normals));
-}
+};
 
 void nodes_evaluate_factors_grids(const Depsgraph &depsgraph,
                                   const Object &object,
@@ -492,22 +455,13 @@ class BMeshSculptFieldContext : public SculptFieldContext {
     return verts_;
   }
 
-  VArray<float3> normals() const override;
-};
-
-VArray<float3> BMeshSculptFieldContext::normals() const
-{
-  const Set<BMVert *, 0> &verts = this->verts();
-  Array<float3> normals(verts.size());
-
-  int i = 0;
-  for (const BMVert *vert : verts) {
-    normals[i] = float3(vert->no);
-    i++;
+  VArray<float3> normals() const override
+  {
+    Array<float3> normals(verts_.size());
+    gather_bmesh_normals(verts_, normals);
+    return VArray<float3>::ForContainer(std::move(normals));
   }
-
-  return VArray<float3>::ForContainer(std::move(normals));
-}
+};
 
 void nodes_evaluate_factors_bmesh(const Depsgraph &depsgraph,
                                   const Object &object,
