@@ -10,6 +10,7 @@
 #include "NOD_socket_usage_inference.hh"
 
 #include "DNA_anim_types.h"
+#include "DNA_material_types.h"
 #include "DNA_node_types.h"
 
 #include "BKE_compute_contexts.hh"
@@ -792,17 +793,34 @@ struct SocketUsageInferencer {
   {
     const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(
         socket.owner_node()->storage);
+    if (storage.data_type == SOCK_RGBA && storage.blend_type != MA_RAMP_BLEND) {
+      return true;
+    }
+
+    const bool clamp_factor = storage.clamp_factor != 0;
     bool only_a = false;
     bool only_b = false;
     if (storage.data_type == SOCK_VECTOR && storage.factor_mode == NODE_MIX_MODE_NON_UNIFORM) {
       const float3 mix_factor = *static_cast<const float3 *>(condition);
-      only_a = float3{0.0f, 0.0f, 0.0f} == mix_factor;
-      only_b = float3{1.0f, 1.0f, 1.0f} == mix_factor;
+      if (clamp_factor) {
+        only_a = mix_factor.x <= 0.0f && mix_factor.y <= 0.0f && mix_factor.z <= 0.0f;
+        only_b = mix_factor.x >= 1.0f && mix_factor.y >= 1.0f && mix_factor.z >= 1.0f;
+      }
+      else {
+        only_a = float3{0.0f, 0.0f, 0.0f} == mix_factor;
+        only_b = float3{1.0f, 1.0f, 1.0f} == mix_factor;
+      }
     }
     else {
       const float mix_factor = *static_cast<const float *>(condition);
-      only_a = mix_factor == 0.0f;
-      only_b = mix_factor == 1.0f;
+      if (clamp_factor) {
+        only_a = mix_factor <= 0.0f;
+        only_b = mix_factor >= 1.0f;
+      }
+      else {
+        only_a = mix_factor == 0.0f;
+        only_b = mix_factor == 1.0f;
+      }
     }
     if (only_a) {
       if (STREQ(socket->name, "B")) {
