@@ -75,93 +75,6 @@ class SculptFieldContext : public fn::FieldContext {
   }
 };
 
-class MeshSculptFieldContext : public SculptFieldContext {
- private:
-  const Mesh &mesh_;
-  Span<int> indices_;
-  Span<float3> vert_positions_;
-
- public:
-  MeshSculptFieldContext(const Depsgraph &depsgraph,
-                         const Object &object,
-                         const Mesh &mesh,
-                         const Span<int> indices,
-                         const Span<float3> vert_positions)
-      : SculptFieldContext(depsgraph, object, {}),
-        mesh_(mesh),
-        indices_(indices),
-        vert_positions_(vert_positions)
-  {
-  }
-
-  const Mesh &mesh() const
-  {
-    return mesh_;
-  }
-
-  VArray<float3> positions() const override;
-
-  VArray<float3> normals() const override;
-
-  Span<float3> vert_positions() const
-  {
-    return vert_positions_;
-  }
-
-  Span<int> indices() const override
-  {
-    return indices_;
-  }
-};
-
-class GridsSculptFieldContext : public SculptFieldContext {
- private:
-  const SubdivCCG &subdiv_ccg_;
-  Span<int> grids_;
-
- public:
-  GridsSculptFieldContext(const Depsgraph &depsgraph,
-                          const Object &object,
-                          const SubdivCCG &subdiv_ccg,
-                          const Span<int> grids,
-                          const Span<float3> positions)
-      : SculptFieldContext(depsgraph, object, positions), subdiv_ccg_(subdiv_ccg), grids_(grids)
-  {
-  }
-
-  const SubdivCCG &subdiv_ccg() const
-  {
-    return subdiv_ccg_;
-  }
-  Span<int> grids() const
-  {
-    return grids_;
-  }
-
-  VArray<float3> normals() const override;
-};
-
-class BMeshSculptFieldContext : public SculptFieldContext {
- private:
-  const Set<BMVert *, 0> &verts_;
-
- public:
-  BMeshSculptFieldContext(const Depsgraph &depsgraph,
-                          const Object &object,
-                          const Set<BMVert *, 0> &verts,
-                          const Span<float3> positions)
-      : SculptFieldContext(depsgraph, object, positions), verts_(verts)
-  {
-  }
-
-  const Set<BMVert *, 0> &verts() const
-  {
-    return verts_;
-  }
-
-  VArray<float3> normals() const override;
-};
-
 static bool is_socket_type_supported(const eNodeSocketDatatype type)
 {
   return ELEM(type, SOCK_VECTOR, SOCK_RGBA, SOCK_FLOAT);
@@ -180,65 +93,6 @@ template<typename T> class SpanFieldInput final : public fn::FieldInput {
     return VArray<T>::ForSpan(data_);
   }
 };
-
-VArray<float3> MeshSculptFieldContext::positions() const
-{
-  const Span<int> indices = this->indices();
-  const Span<float3> vert_positions = this->vert_positions();
-
-  Array<float3> positions(indices.size());
-  array_utils::gather(vert_positions, indices, positions.as_mutable_span());
-
-  return VArray<float3>::ForContainer(std::move(positions));
-}
-
-VArray<float3> MeshSculptFieldContext::normals() const
-{
-  const Depsgraph &depsgraph = this->depsgraph();
-  const Object &object = this->object();
-  const Span<int> indices = this->indices();
-
-  const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
-  Array<float3> normals(indices.size());
-
-  array_utils::gather(vert_normals, indices, normals.as_mutable_span());
-
-  return VArray<float3>::ForContainer(std::move(normals));
-}
-
-VArray<float3> GridsSculptFieldContext::normals() const
-{
-  const SubdivCCG &subdiv_ccg = this->subdiv_ccg();
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  const Span<int> grids = this->grids();
-  const Span<float3> ccg_normals = subdiv_ccg.normals;
-
-  const int total_vertices = grids.size() * key.grid_area;
-  Array<float3> normals_array(total_vertices);
-  MutableSpan<float3> normals(normals_array);
-
-  for (const int i : grids.index_range()) {
-    const Span<float3> grid_normals = ccg_normals.slice(bke::ccg::grid_range(key, grids[i]));
-    const MutableSpan<float3> node_normals = normals.slice(bke::ccg::grid_range(key, i));
-    node_normals.copy_from(grid_normals);
-  }
-
-  return VArray<float3>::ForContainer(std::move(normals));
-}
-
-VArray<float3> BMeshSculptFieldContext::normals() const
-{
-  const Set<BMVert *, 0> &verts = this->verts();
-  Array<float3> normals(verts.size());
-
-  int i = 0;
-  for (const BMVert *vert : verts) {
-    normals[i] = float3(vert->no);
-    i++;
-  }
-
-  return VArray<float3>::ForContainer(std::move(normals));
-}
 
 GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_input,
                                                  const IndexMask &mask,
@@ -445,51 +299,68 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
   }
 }
 
-void nodes_evaluate_factors_mesh(const Depsgraph &depsgraph,
-                                 const Object &object,
-                                 const StrokeCache &cache,
-                                 const Brush &brush,
-                                 const Span<float3> vert_positions,
-                                 const Span<int> verts,
-                                 const MutableSpan<float> factors)
+class MeshSculptFieldContext : public SculptFieldContext {
+ private:
+  const Mesh &mesh_;
+  Span<int> indices_;
+  Span<float3> vert_positions_;
+
+ public:
+  MeshSculptFieldContext(const Depsgraph &depsgraph,
+                         const Object &object,
+                         const Mesh &mesh,
+                         const Span<int> indices,
+                         const Span<float3> vert_positions)
+      : SculptFieldContext(depsgraph, object, {}),
+        mesh_(mesh),
+        indices_(indices),
+        vert_positions_(vert_positions)
+  {
+  }
+
+  const Mesh &mesh() const
+  {
+    return mesh_;
+  }
+
+  VArray<float3> positions() const override;
+
+  VArray<float3> normals() const override;
+
+  Span<float3> vert_positions() const
+  {
+    return vert_positions_;
+  }
+
+  Span<int> indices() const override
+  {
+    return indices_;
+  }
+};
+
+VArray<float3> MeshSculptFieldContext::positions() const
 {
-  const Mesh *mesh = static_cast<const Mesh *>(object.data);
-  const MeshSculptFieldContext context(depsgraph, object, *mesh, verts, vert_positions);
-  threading::isolate_task([&]() {
-    const CombineFactors output{factors};
-    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
-  });
+  const Span<int> indices = this->indices();
+  const Span<float3> vert_positions = this->vert_positions();
+
+  Array<float3> positions(indices.size());
+  array_utils::gather(vert_positions, indices, positions.as_mutable_span());
+
+  return VArray<float3>::ForContainer(std::move(positions));
 }
 
-void nodes_evaluate_factors_grids(const Depsgraph &depsgraph,
-                                  const Object &object,
-                                  const StrokeCache &cache,
-                                  const Brush &brush,
-                                  const SubdivCCG &subdiv_ccg,
-                                  const Span<int> grids,
-                                  const Span<float3> positions,
-                                  const MutableSpan<float> factors)
+VArray<float3> MeshSculptFieldContext::normals() const
 {
-  const GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
-  threading::isolate_task([&]() {
-    const CombineFactors output{factors};
-    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
-  });
-}
+  const Depsgraph &depsgraph = this->depsgraph();
+  const Object &object = this->object();
+  const Span<int> indices = this->indices();
 
-void nodes_evaluate_factors_bmesh(const Depsgraph &depsgraph,
-                                  const Object &object,
-                                  const StrokeCache &cache,
-                                  const Brush &brush,
-                                  const Set<BMVert *, 0> &verts,
-                                  const Span<float3> positions,
-                                  const MutableSpan<float> factors)
-{
-  const BMeshSculptFieldContext context(depsgraph, object, verts, positions);
-  threading::isolate_task([&]() {
-    const CombineFactors output{factors};
-    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
-  });
+  const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
+  Array<float3> normals(indices.size());
+
+  array_utils::gather(vert_normals, indices, normals.as_mutable_span());
+
+  return VArray<float3>::ForContainer(std::move(normals));
 }
 
 void nodes_evaluate_translations_mesh(const Depsgraph &depsgraph,
@@ -508,6 +379,85 @@ void nodes_evaluate_translations_mesh(const Depsgraph &depsgraph,
   });
 }
 
+void nodes_evaluate_factors_mesh(const Depsgraph &depsgraph,
+                                 const Object &object,
+                                 const StrokeCache &cache,
+                                 const Brush &brush,
+                                 const Span<float3> vert_positions,
+                                 const Span<int> verts,
+                                 const MutableSpan<float> factors)
+{
+  const Mesh *mesh = static_cast<const Mesh *>(object.data);
+  const MeshSculptFieldContext context(depsgraph, object, *mesh, verts, vert_positions);
+  threading::isolate_task([&]() {
+    const CombineFactors output{factors};
+    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
+  });
+}
+
+class GridsSculptFieldContext : public SculptFieldContext {
+ private:
+  const SubdivCCG &subdiv_ccg_;
+  Span<int> grids_;
+
+ public:
+  GridsSculptFieldContext(const Depsgraph &depsgraph,
+                          const Object &object,
+                          const SubdivCCG &subdiv_ccg,
+                          const Span<int> grids,
+                          const Span<float3> positions)
+      : SculptFieldContext(depsgraph, object, positions), subdiv_ccg_(subdiv_ccg), grids_(grids)
+  {
+  }
+
+  const SubdivCCG &subdiv_ccg() const
+  {
+    return subdiv_ccg_;
+  }
+  Span<int> grids() const
+  {
+    return grids_;
+  }
+
+  VArray<float3> normals() const override;
+};
+
+VArray<float3> GridsSculptFieldContext::normals() const
+{
+  const SubdivCCG &subdiv_ccg = this->subdiv_ccg();
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  const Span<int> grids = this->grids();
+  const Span<float3> ccg_normals = subdiv_ccg.normals;
+
+  const int total_vertices = grids.size() * key.grid_area;
+  Array<float3> normals_array(total_vertices);
+  MutableSpan<float3> normals(normals_array);
+
+  for (const int i : grids.index_range()) {
+    const Span<float3> grid_normals = ccg_normals.slice(bke::ccg::grid_range(key, grids[i]));
+    const MutableSpan<float3> node_normals = normals.slice(bke::ccg::grid_range(key, i));
+    node_normals.copy_from(grid_normals);
+  }
+
+  return VArray<float3>::ForContainer(std::move(normals));
+}
+
+void nodes_evaluate_factors_grids(const Depsgraph &depsgraph,
+                                  const Object &object,
+                                  const StrokeCache &cache,
+                                  const Brush &brush,
+                                  const SubdivCCG &subdiv_ccg,
+                                  const Span<int> grids,
+                                  const Span<float3> positions,
+                                  const MutableSpan<float> factors)
+{
+  const GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
+  threading::isolate_task([&]() {
+    const CombineFactors output{factors};
+    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
+  });
+}
+
 void nodes_evaluate_translations_grids(const Depsgraph &depsgraph,
                                        const Object &object,
                                        const StrokeCache &cache,
@@ -520,6 +470,56 @@ void nodes_evaluate_translations_grids(const Depsgraph &depsgraph,
   const GridsSculptFieldContext context(depsgraph, object, subdiv_ccg, grids, positions);
   threading::isolate_task([&]() {
     const OutputTranslations output{translations};
+    sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
+  });
+}
+
+class BMeshSculptFieldContext : public SculptFieldContext {
+ private:
+  const Set<BMVert *, 0> &verts_;
+
+ public:
+  BMeshSculptFieldContext(const Depsgraph &depsgraph,
+                          const Object &object,
+                          const Set<BMVert *, 0> &verts,
+                          const Span<float3> positions)
+      : SculptFieldContext(depsgraph, object, positions), verts_(verts)
+  {
+  }
+
+  const Set<BMVert *, 0> &verts() const
+  {
+    return verts_;
+  }
+
+  VArray<float3> normals() const override;
+};
+
+VArray<float3> BMeshSculptFieldContext::normals() const
+{
+  const Set<BMVert *, 0> &verts = this->verts();
+  Array<float3> normals(verts.size());
+
+  int i = 0;
+  for (const BMVert *vert : verts) {
+    normals[i] = float3(vert->no);
+    i++;
+  }
+
+  return VArray<float3>::ForContainer(std::move(normals));
+}
+
+void nodes_evaluate_factors_bmesh(const Depsgraph &depsgraph,
+                                  const Object &object,
+                                  const StrokeCache &cache,
+                                  const Brush &brush,
+                                  const Set<BMVert *, 0> &verts,
+                                  const Span<float3> positions,
+                                  const MutableSpan<float> factors)
+{
+  const BMeshSculptFieldContext context(depsgraph, object, verts, positions);
+  threading::isolate_task([&]() {
+    const CombineFactors output{factors};
     sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
