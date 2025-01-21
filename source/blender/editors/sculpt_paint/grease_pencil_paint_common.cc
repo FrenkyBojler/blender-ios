@@ -33,7 +33,6 @@ Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_stroke_operation(c
   using namespace blender::bke::greasepencil;
 
   const Scene &scene = *CTX_data_scene(&C);
-  const ToolSettings &ts = *CTX_data_tool_settings(&C);
   Object &ob_orig = *CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
 
@@ -581,35 +580,6 @@ void GreasePencilStrokeOperationCommon::init_stroke(const bContext &C,
 
   this->start_mouse_position = start_sample.mouse_position;
   this->prev_mouse_position = start_sample.mouse_position;
-}
-
-static IndexMask point_mask_for_automasking(const GreasePencilStrokeParams &params,
-                                            const bool use_selection_masking,
-                                            const bool use_auto_mask_active_material,
-                                            const IndexMask &init_point_mask,
-                                            IndexMaskMemory &memory)
-{
-  const IndexMask editable_points =
-      use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_points(
-                                  params.ob_orig, params.drawing, params.layer_index, memory) :
-                              ed::greasepencil::retrieve_editable_points(
-                                  params.ob_orig, params.drawing, params.layer_index, memory);
-  if (use_auto_mask_active_material) {
-    const int active_material_index = math::max(params.ob_orig.actcol - 1, 0);
-
-    const bke::greasepencil::Drawing &drawing = params.drawing;
-    const bke::CurvesGeometry &curves = drawing.strokes();
-    const bke::AttributeAccessor attributes = curves.attributes();
-
-    const VArray<int> materials = *attributes.lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Point, 0);
-    const IndexMask active_material_mask = IndexMask::from_predicate(
-        curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
-          return active_material_index == materials[point_i];
-        });
-    return IndexMask::from_intersection(active_material_mask, editable_points, memory);
-  }
-  return editable_points;
 }
 
 void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
