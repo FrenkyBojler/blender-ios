@@ -80,10 +80,11 @@ struct Cache {
   /**
    * Calculates the cavity factor for a set of nodes.
    *
-   * Has no effect on an individual node level if the vertex has already been calculated. This data
-   * is best calculated outside of any loops that affect the stroke's position, as the curvature
-   * calculation is sensitive to small changes, meaning processing inside the normal brush update
-   * step may result in odd artifacts from ordering of position updates.
+   * Has no effect on an individual node level if the factor for a vertex has already been
+   * calculated. This data is best calculated outside of any loops that affect the stroke's
+   * position, as the curvature calculation is sensitive to small changes, meaning processing
+   * inside the normal brush update step may result in odd artifacts from ordering of position
+   * updates.
    *
    * \note Should be called prior to any call that may use the cavity mode.
    */
