@@ -211,9 +211,9 @@ class IndexMask : private IndexMaskData {
                               IndexMaskMemory &memory);
   /** Construct a mask from the ranges referenced by the offset indices. */
   template<typename T>
-  static IndexMask from_offset_indices(OffsetIndices<T> offsets,
-                                       const IndexMask &mask,
-                                       IndexMaskMemory &memory);
+  static IndexMask from_ranges(OffsetIndices<T> offsets,
+                               const IndexMask &mask,
+                               IndexMaskMemory &memory);
   /**
    * Constructs a mask by repeating the indices in the given mask with a stride.
    * For example, with an input mask containing `{3, 5}` and a stride of 10 the resulting mask
