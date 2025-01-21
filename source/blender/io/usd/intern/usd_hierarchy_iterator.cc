@@ -116,6 +116,10 @@ USDExporterContext USDHierarchyIterator::create_usd_export_context(const Hierarc
       can_merge_with_xform = false;
     }
 
+    if (params_.use_instancing && (context->is_prototype() || context->is_instance())) {
+      can_merge_with_xform = false;
+    }
+
     if (can_merge_with_xform) {
       path = path.GetParentPath();
     }
