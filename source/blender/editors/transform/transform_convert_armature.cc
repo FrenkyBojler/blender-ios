@@ -1489,18 +1489,30 @@ void transform_convert_pose_transflags_update(const bContext *C,
   bArmature *arm = static_cast<bArmature *>(ob->data);
   Bone *bone;
 
+  /* (Partial) support for overriding "selected_pose_bones" in context. Fully supporting this
+   * feature isn't trivial as "selected_pose_bones" can contain bones from different objects,
+   * objects which may be in pose-mode but not one of the objects stored in TransInfo for
+   * transformation. So support "selected_pose_bones", but only for selected objects in pose-mode.
+   */
+  blender::Vector<PointerRNA> selected_bones_ctx;
+  CTX_data_selected_pose_bones(C, &selected_bones_ctx);
+
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-    pchan->bone->flag &= ~BONE_TRANSFORM;
-  }
-  CTX_DATA_BEGIN (C, bPoseChannel *, pchan, selected_pose_bones) {
     bone = pchan->bone;
-    if (PBONE_VISIBLE(arm, bone)) {
-      bone->flag |= BONE_TRANSFORM;
-      bone->flag &= ~BONE_HINGE_CHILD_TRANSFORM;
-      bone->flag &= ~BONE_TRANSFORM_CHILD;
+    bone->flag &= ~BONE_TRANSFORM;
+
+    if (std::find_if(
+            selected_bones_ctx.begin(), selected_bones_ctx.end(), [&](const PointerRNA &ptr) {
+              return ptr.data == pchan;
+            }) != selected_bones_ctx.end())
+    {
+      if (PBONE_VISIBLE(arm, bone)) {
+        bone->flag |= BONE_TRANSFORM;
+        bone->flag &= ~BONE_HINGE_CHILD_TRANSFORM;
+        bone->flag &= ~BONE_TRANSFORM_CHILD;
+      }
     }
   }
-  CTX_DATA_END;
 
   /* Make sure no bone can be transformed when a parent is transformed. */
   /* Since pchans are depsgraph sorted, the parents are in beginning of list. */
