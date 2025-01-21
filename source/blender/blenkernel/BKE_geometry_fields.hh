@@ -154,7 +154,7 @@ class SculptFieldContext : public fn::FieldContext {
   const Depsgraph &depsgraph_;
   const Object &object_;
 
-  const Span<float3> positions_;
+  Span<float3> positions_;
 
  public:
   SculptFieldContext(const Depsgraph &depsgraph,
@@ -194,8 +194,8 @@ class SculptFieldContext : public fn::FieldContext {
 class MeshSculptFieldContext : public SculptFieldContext {
  private:
   const Mesh &mesh_;
-  const Span<int> indices_;
-  const Span<float3> vert_positions_;
+  Span<int> indices_;
+  Span<float3> vert_positions_;
 
  public:
   MeshSculptFieldContext(const Depsgraph &depsgraph,
@@ -233,7 +233,7 @@ class MeshSculptFieldContext : public SculptFieldContext {
 class GridsSculptFieldContext : public SculptFieldContext {
  private:
   const SubdivCCG &subdiv_ccg_;
-  const Span<int> grids_;
+  Span<int> grids_;
 
  public:
   GridsSculptFieldContext(const Depsgraph &depsgraph,
