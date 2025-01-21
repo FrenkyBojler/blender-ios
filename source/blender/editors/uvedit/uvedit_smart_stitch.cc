@@ -290,7 +290,7 @@ static void stitch_update_header(StitchStateContainer *ssc, bContext *C)
   status.item_bool(IFACE_("Midpoints"), ssc->midpoints, ICON_EVENT_M);
   status.item_bool(IFACE_("Limit"), ssc->use_limit, ICON_EVENT_L);
   if (ssc->use_limit) {
-    status.item(fmt::format("{} : {:.2f}", IFACE_("Limit Distance"), ssc->limit_dist),
+    status.item(fmt::format("{} ({:.2f})", IFACE_("Limit Distance"), ssc->limit_dist),
                 ICON_EVENT_ALT,
                 ICON_MOUSE_MMB_SCROLL);
   }
