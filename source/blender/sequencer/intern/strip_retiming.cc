@@ -614,7 +614,7 @@ SeqRetimingKey *SEQ_retiming_add_transition(const Scene *scene,
 }
 
 static float strip_retiming_clamp_transition_offset(const Scene *scene,
-                                                    Strip *strip,
+                                                    const Strip *strip,
                                                     SeqRetimingKey *start_key,
                                                     float offset)
 {
