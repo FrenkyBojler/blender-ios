@@ -47,13 +47,20 @@ class CurvesFieldContext : public fn::FieldContext {
  private:
   const CurvesGeometry &curves_;
   AttrDomain domain_;
+  const Curves *curves_id_ = nullptr;
 
  public:
   CurvesFieldContext(const CurvesGeometry &curves, AttrDomain domain);
+  CurvesFieldContext(const Curves &curves_id, AttrDomain domain);
 
   const CurvesGeometry &curves() const
   {
     return curves_;
+  }
+
+  const Curves *curves_id() const
+  {
+    return curves_id_;
   }
 
   AttrDomain domain() const
@@ -149,6 +156,7 @@ class GeometryFieldContext : public fn::FieldContext {
   const void *geometry_;
   const GeometryComponent::Type type_;
   AttrDomain domain_;
+  const Curves *curves_id_ = nullptr;
   /**
    * Only used when the type is grease pencil and the domain is either points or curves
    * (not layers).
@@ -166,6 +174,7 @@ class GeometryFieldContext : public fn::FieldContext {
                        int grease_pencil_layer_index);
   GeometryFieldContext(const Mesh &mesh, AttrDomain domain);
   GeometryFieldContext(const CurvesGeometry &curves, AttrDomain domain);
+  GeometryFieldContext(const Curves &curves_id, AttrDomain domain);
   GeometryFieldContext(const GreasePencil &grease_pencil);
   GeometryFieldContext(const GreasePencil &grease_pencil, AttrDomain domain, int layer_index);
   GeometryFieldContext(const PointCloud &points);
@@ -201,6 +210,7 @@ class GeometryFieldContext : public fn::FieldContext {
   const greasepencil::Drawing *grease_pencil_layer_drawing() const;
   const Instances *instances() const;
   const CurvesGeometry *curves_or_strokes() const;
+  const Curves *curves_id() const;
 };
 
 class GeometryFieldInput : public fn::FieldInput {
@@ -365,11 +375,17 @@ class IDAttributeFieldInput : public GeometryFieldInput {
 
 VArray<float3> curve_normals_varray(const CurvesGeometry &curves, AttrDomain domain);
 
-VArray<float3> mesh_normals_varray(const Mesh &mesh, const IndexMask &mask, AttrDomain domain);
+VArray<float3> mesh_normals_varray(const Mesh &mesh,
+                                   const IndexMask &mask,
+                                   AttrDomain domain,
+                                   bool no_corner_normals = false);
 
 class NormalFieldInput : public GeometryFieldInput {
+  bool legacy_corner_normals_ = false;
+
  public:
-  NormalFieldInput() : GeometryFieldInput(CPPType::get<float3>())
+  NormalFieldInput(const bool legacy_corner_normals = false)
+      : GeometryFieldInput(CPPType::get<float3>()), legacy_corner_normals_(legacy_corner_normals)
   {
     category_ = Category::Generated;
   }

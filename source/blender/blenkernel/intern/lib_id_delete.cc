@@ -33,12 +33,14 @@
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 
+#include "BLO_readfile.hh"
+
 #include "lib_intern.hh"
 
 #include "DEG_depsgraph.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 using namespace blender::bke::id;
@@ -64,6 +66,8 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
     MEM_freeN(id->library_weak_reference);
   }
 
+  BKE_libblock_free_runtime_data(id);
+
   BKE_animdata_free(id, do_id_user);
 }
 
@@ -79,6 +83,15 @@ void BKE_libblock_free_datablock(ID *id, const int /*flag*/)
   }
 
   BLI_assert_msg(0, "IDType Missing IDTypeInfo");
+}
+
+void BKE_libblock_free_runtime_data(ID *id)
+{
+  /* During "normal" file loading this data is released when versioning ends. Some versioning code
+   * also deletes IDs, though. For example, in the startup blend file, brushes that were replaced
+   * by assets are deleted. This means that the regular "delete this ID" flow (aka this code here)
+   * also needs to free this data. */
+  BLO_readfile_id_runtime_data_free(*id);
 }
 
 static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)
@@ -181,6 +194,8 @@ void BKE_id_free_ex(Main *bmain, void *idv, const int flag_orig, const bool use_
     BKE_layer_collection_resync_forbid();
   }
 
+  const ID_Type id_type = GS(static_cast<ID *>(idv)->name);
+
   int flag_final = id_free(bmain, idv, flag_orig, use_flag_from_idtag);
 
   if (bmain) {
@@ -189,7 +204,9 @@ void BKE_id_free_ex(Main *bmain, void *idv, const int flag_orig, const bool use_
     }
 
     if ((flag_final & LIB_ID_FREE_NO_MAIN) == 0) {
-      BKE_main_collection_sync_remap(bmain);
+      if (ELEM(id_type, ID_SCE, ID_GR, ID_OB)) {
+        BKE_main_collection_sync_remap(bmain);
+      }
     }
   }
 }

@@ -25,7 +25,7 @@ void VKStorageBuffer::update(const void *data)
   VKContext &context = *VKContext::get();
   ensure_allocated();
   VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::HostToDevice);
-  staging_buffer.host_buffer_get().update(data);
+  staging_buffer.host_buffer_get().update_immediately(data);
   staging_buffer.copy_to_device(context);
 }
 
@@ -38,41 +38,31 @@ void VKStorageBuffer::ensure_allocated()
 
 void VKStorageBuffer::allocate()
 {
-  const bool is_host_visible = false;
   const VkBufferUsageFlags buffer_usage_flags = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-  buffer_.create(size_in_bytes_, usage_, buffer_usage_flags, is_host_visible);
+  buffer_.create(size_in_bytes_,
+                 usage_,
+                 buffer_usage_flags,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
   debug::object_label(buffer_.vk_handle(), name_);
 }
 
 void VKStorageBuffer::bind(int slot)
 {
   VKContext &context = *VKContext::get();
-  context.state_manager_get().storage_buffer_bind(*this, slot);
-}
-
-void VKStorageBuffer::add_to_descriptor_set(AddToDescriptorSetContext &data,
-                                            int binding,
-                                            shader::ShaderCreateInfo::Resource::BindType bind_type,
-                                            const GPUSamplerState /*sampler_state*/)
-{
-  ensure_allocated();
-  const std::optional<VKDescriptorSet::Location> location =
-      data.shader_interface.descriptor_set_location(bind_type, binding);
-  if (location) {
-    data.descriptor_set.bind(*this, *location);
-    render_graph::VKBufferAccess buffer_access = {};
-    buffer_access.vk_buffer = buffer_.vk_handle();
-    buffer_access.vk_access_flags = data.shader_interface.access_mask(bind_type, binding);
-    data.resource_access_info.buffers.append(buffer_access);
-  }
+  context.state_manager_get().storage_buffer_bind(
+      BindSpaceStorageBuffers::Type::StorageBuffer, this, slot);
 }
 
 void VKStorageBuffer::unbind()
 {
-  unbind_from_active_context();
+  VKContext *context = VKContext::get();
+  if (context) {
+    context->state_manager_get().storage_buffer_unbind(this);
+  }
 }
 
 void VKStorageBuffer::clear(uint32_t clear_value)

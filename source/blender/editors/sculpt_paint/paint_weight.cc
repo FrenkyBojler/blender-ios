@@ -67,8 +67,11 @@
 #include "BKE_ccg.hh"
 #include "bmesh.hh"
 
+#include "RNA_define.hh"
+
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh" /* own include */
+#include "sculpt_automask.hh"
 #include "sculpt_intern.hh"
 
 using namespace blender;
@@ -622,7 +625,7 @@ static void do_weight_paint_vertex_single(const VPaint &wp,
   }
 
   if (!vwpaint::brush_use_accumulate(wp)) {
-    MDeformVert *dvert_prev = ob.sculpt->mode.wpaint.dvert_prev;
+    MDeformVert *dvert_prev = ob.sculpt->mode.wpaint.dvert_prev.data();
     MDeformVert *dv_prev = defweight_prev_init(dvert_prev, wpi.dvert.data(), index);
     if (index_mirr != -1) {
       defweight_prev_init(dvert_prev, wpi.dvert.data(), index_mirr);
@@ -770,7 +773,7 @@ static void do_weight_paint_vertex_multi(const VPaint &wp,
   }
 
   if (!vwpaint::brush_use_accumulate(wp)) {
-    MDeformVert *dvert_prev = ob.sculpt->mode.wpaint.dvert_prev;
+    MDeformVert *dvert_prev = ob.sculpt->mode.wpaint.dvert_prev.data();
     MDeformVert *dv_prev = defweight_prev_init(dvert_prev, wpi.dvert.data(), index);
     if (index_mirr != -1) {
       defweight_prev_init(dvert_prev, wpi.dvert.data(), index_mirr);
@@ -1005,8 +1008,8 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
     wpd->precomputed_weight = (float *)MEM_mallocN(sizeof(float) * mesh.verts_num, __func__);
   }
 
-  if (ob.sculpt->mode.wpaint.dvert_prev != nullptr) {
-    MDeformVert *dv = ob.sculpt->mode.wpaint.dvert_prev;
+  if (!ob.sculpt->mode.wpaint.dvert_prev.is_empty()) {
+    MDeformVert *dv = ob.sculpt->mode.wpaint.dvert_prev.data();
     for (int i = 0; i < mesh.verts_num; i++, dv++) {
       /* Use to show this isn't initialized, never apply to the mesh data. */
       dv->flag = 1;
@@ -1138,7 +1141,7 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
       const Span<int> verts = nodes[i].verts();
       tls.factors.resize(verts.size());
       const MutableSpan<float> factors = tls.factors;
-      fill_factor_from_hide(mesh, verts, factors);
+      fill_factor_from_hide(hide_vert, verts, factors);
       if (!select_vert.is_empty()) {
         filter_factors_with_selection(select_vert, verts, factors);
       }
@@ -1256,7 +1259,7 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
       const Span<int> verts = nodes[i].verts();
       tls.factors.resize(verts.size());
       const MutableSpan<float> factors = tls.factors;
-      fill_factor_from_hide(mesh, verts, factors);
+      fill_factor_from_hide(hide_vert, verts, factors);
       if (!select_vert.is_empty()) {
         filter_factors_with_selection(select_vert, verts, factors);
       }
@@ -1373,7 +1376,7 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
       const Span<int> verts = nodes[i].verts();
       tls.factors.resize(verts.size());
       const MutableSpan<float> factors = tls.factors;
-      fill_factor_from_hide(mesh, verts, factors);
+      fill_factor_from_hide(hide_vert, verts, factors);
       if (!select_vert.is_empty()) {
         filter_factors_with_selection(select_vert, verts, factors);
       }
@@ -1460,7 +1463,7 @@ static float calculate_average_weight(const Depsgraph &depsgraph,
           const Span<int> verts = nodes[i].verts();
           tls.factors.resize(verts.size());
           const MutableSpan<float> factors = tls.factors;
-          fill_factor_from_hide(mesh, verts, factors);
+          fill_factor_from_hide(hide_vert, verts, factors);
           if (!select_vert.is_empty()) {
             filter_factors_with_selection(select_vert, verts, factors);
           }
@@ -1785,7 +1788,7 @@ static void wpaint_do_symmetrical_brush_actions(
 }
 
 static void wpaint_stroke_update_step(bContext *C,
-                                      wmOperator * /*op*/,
+                                      wmOperator *op,
                                       PaintStroke *stroke,
                                       PointerRNA *itemptr)
 {
@@ -1839,7 +1842,7 @@ static void wpaint_stroke_update_step(bContext *C,
   wpi.vgroup_validmap = wpd->vgroup_validmap;
   wpi.vgroup_locked = wpd->vgroup_locked;
   wpi.vgroup_unlocked = wpd->vgroup_unlocked;
-  wpi.do_flip = RNA_boolean_get(itemptr, "pen_flip") || ss.cache->invert;
+  wpi.do_flip = RNA_boolean_get(op->ptr, "pen_flip") || ss.cache->invert;
   wpi.do_multipaint = wpd->do_multipaint;
   wpi.do_auto_normalize = ((ts.auto_normalize != 0) && (wpi.vgroup_validmap != nullptr) &&
                            (wpi.do_multipaint || wpi.vgroup_validmap[wpi.active.index]));
@@ -1990,6 +1993,14 @@ void PAINT_OT_weight_paint(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 
   paint_stroke_operator_properties(ot);
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "override_location",
+      false,
+      "Override Location",
+      "Override the given `location` array by recalculating object space positions from the "
+      "provided `mouse_event` positions");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
 /** \} */

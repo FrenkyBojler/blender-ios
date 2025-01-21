@@ -62,6 +62,16 @@ void InstanceReference::count_memory(MemoryCounter &memory) const
   }
 }
 
+AttributeAccessor Instances::attributes() const
+{
+  return AttributeAccessor(this, instance_attribute_accessor_functions());
+}
+
+MutableAttributeAccessor Instances::attributes_for_write()
+{
+  return MutableAttributeAccessor(this, instance_attribute_accessor_functions());
+}
+
 static void convert_collection_to_instances(const Collection &collection,
                                             bke::Instances &instances)
 {
@@ -129,6 +139,12 @@ bool operator==(const InstanceReference &a, const InstanceReference &b)
     return *a.geometry_set_ == *b.geometry_set_;
   }
   return a.type_ == b.type_ && a.data_ == b.data_;
+}
+
+uint64_t InstanceReference::hash() const
+{
+  const uint64_t geometry_hash = geometry_set_ ? geometry_set_->hash() : 0;
+  return get_default_hash(geometry_hash, type_, data_);
 }
 
 Instances::Instances()

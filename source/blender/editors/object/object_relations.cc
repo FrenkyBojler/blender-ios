@@ -55,7 +55,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh_types.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
@@ -83,6 +83,7 @@
 #include "ED_armature.hh"
 #include "ED_curve.hh"
 #include "ED_gpencil_legacy.hh"
+#include "ED_grease_pencil.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
@@ -620,7 +621,9 @@ bool parent_set(ReportList *reports,
        */
       /* XXX currently this should only happen for meshes, curves, surfaces,        * and lattices
        * - this stuff isn't available for meta-balls yet. */
-      if (ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_LATTICE)) {
+      if (ELEM(
+              ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_LATTICE, OB_GREASE_PENCIL))
+      {
         ModifierData *md;
 
         switch (partype) {
@@ -647,9 +650,18 @@ bool parent_set(ReportList *reports,
             break;
           default: /* armature deform */
             if (BKE_modifiers_is_deformed_by_armature(ob) != par) {
-              md = modifier_add(reports, bmain, scene, ob, nullptr, eModifierType_Armature);
-              if (md) {
-                ((ArmatureModifierData *)md)->object = par;
+              if (ob->type == OB_GREASE_PENCIL) {
+                md = modifier_add(
+                    reports, bmain, scene, ob, nullptr, eModifierType_GreasePencilArmature);
+                if (md) {
+                  ((GreasePencilArmatureModifierData *)md)->object = par;
+                }
+              }
+              else {
+                md = modifier_add(reports, bmain, scene, ob, nullptr, eModifierType_Armature);
+                if (md) {
+                  ((ArmatureModifierData *)md)->object = par;
+                }
               }
             }
             break;
@@ -718,22 +730,20 @@ bool parent_set(ReportList *reports,
           reports, depsgraph, scene, ob, par, ARM_GROUPS_AUTO, xmirror);
       WM_cursor_wait(false);
     }
-    /* get corrected inverse */
+    /* Get corrected inverse. */
     ob->partype = PAROBJECT;
 
     invert_m4_m4(ob->parentinv, BKE_object_calc_parent(depsgraph, scene, ob).ptr());
   }
-  else if (is_armature_parent && (ob->type == OB_GPENCIL_LEGACY) && (par->type == OB_ARMATURE)) {
-    if (partype == PAR_ARMATURE) {
-      ED_gpencil_add_armature(C, reports, ob, par);
+  else if (is_armature_parent && (ob->type == OB_GREASE_PENCIL) && (par->type == OB_ARMATURE)) {
+    if (partype == PAR_ARMATURE_NAME) {
+      ed::greasepencil::add_armature_vertex_groups(*ob, *par);
     }
-    else if (partype == PAR_ARMATURE_NAME) {
-      ED_gpencil_add_armature_weights(C, reports, ob, par, GP_PAR_ARMATURE_NAME);
+    else if (partype == PAR_ARMATURE_ENVELOPE) {
+      ed::greasepencil::add_armature_envelope_weights(*scene, *ob, *par);
     }
-    else if (ELEM(partype, PAR_ARMATURE_AUTO, PAR_ARMATURE_ENVELOPE)) {
-      WM_cursor_wait(true);
-      ED_gpencil_add_armature_weights(C, reports, ob, par, GP_PAR_ARMATURE_AUTO);
-      WM_cursor_wait(false);
+    else if (partype == PAR_ARMATURE_AUTO) {
+      ed::greasepencil::add_armature_automatic_weights(*scene, *ob, *par);
     }
     /* get corrected inverse */
     ob->partype = PAROBJECT;
@@ -904,7 +914,7 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 
   PointerRNA opptr;
 #if 0
-  uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_OBJECT);
+  uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_OBJECT);
 #else
   uiItemFullO_ptr(
       layout, ot, IFACE_("Object"), ICON_NONE, nullptr, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE, &opptr);
@@ -948,7 +958,7 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
     if (child->type == OB_MESH) {
       has_children_of_type.mesh = true;
     }
-    if (child->type == OB_GPENCIL_LEGACY) {
+    if (ELEM(child->type, OB_GREASE_PENCIL)) {
       has_children_of_type.gpencil = true;
     }
     if (child->type == OB_CURVES) {
@@ -958,35 +968,34 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   CTX_DATA_END;
 
   if (parent->type == OB_ARMATURE) {
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_ARMATURE);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_ARMATURE_NAME);
-    if (!has_children_of_type.gpencil) {
-      uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_ARMATURE_ENVELOPE);
-    }
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE_NAME);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE_ENVELOPE);
     if (has_children_of_type.mesh || has_children_of_type.gpencil) {
-      uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_ARMATURE_AUTO);
+      uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE_AUTO);
     }
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_BONE);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_BONE_RELATIVE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_BONE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_BONE_RELATIVE);
   }
   else if (parent->type == OB_CURVES_LEGACY) {
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_CURVE);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_FOLLOW);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_PATH_CONST);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_CURVE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_FOLLOW);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_PATH_CONST);
   }
   else if (parent->type == OB_LATTICE) {
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_LATTICE);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_LATTICE);
   }
   else if (parent->type == OB_MESH) {
     if (has_children_of_type.curves) {
-      uiItemO(layout, "Object (Attach Curves to Surface)", ICON_NONE, "CURVES_OT_surface_set");
+      uiItemO(
+          layout, IFACE_("Object (Attach Curves to Surface)"), ICON_NONE, "CURVES_OT_surface_set");
     }
   }
 
   /* vertex parenting */
   if (OB_TYPE_SUPPORT_PARVERT(parent->type)) {
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_VERTEX);
-    uiItemEnumO_ptr(layout, ot, nullptr, ICON_NONE, "type", PAR_VERTEX_TRI);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_VERTEX);
+    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_VERTEX_TRI);
   }
 
   UI_popup_menu_end(C, pup);
@@ -1559,26 +1568,22 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
               break;
             }
 
-            if (cu_dst->vfont) {
-              id_us_min(&cu_dst->vfont->id);
-            }
-            cu_dst->vfont = cu_src->vfont;
-            id_us_plus((ID *)cu_dst->vfont);
-            if (cu_dst->vfontb) {
-              id_us_min(&cu_dst->vfontb->id);
-            }
-            cu_dst->vfontb = cu_src->vfontb;
-            id_us_plus((ID *)cu_dst->vfontb);
-            if (cu_dst->vfonti) {
-              id_us_min(&cu_dst->vfonti->id);
-            }
-            cu_dst->vfonti = cu_src->vfonti;
-            id_us_plus((ID *)cu_dst->vfonti);
-            if (cu_dst->vfontbi) {
-              id_us_min(&cu_dst->vfontbi->id);
-            }
-            cu_dst->vfontbi = cu_src->vfontbi;
-            id_us_plus((ID *)cu_dst->vfontbi);
+#define CURVE_VFONT_SET(vfont_member) \
+  { \
+    if (cu_dst->vfont_member) { \
+      id_us_min(&cu_dst->vfont_member->id); \
+    } \
+    cu_dst->vfont_member = cu_src->vfont_member; \
+    id_us_plus((ID *)cu_dst->vfont_member); \
+  } \
+  ((void)0)
+
+            CURVE_VFONT_SET(vfont);
+            CURVE_VFONT_SET(vfontb);
+            CURVE_VFONT_SET(vfonti);
+            CURVE_VFONT_SET(vfontbi);
+
+#undef CURVE_VFONT_SET
 
             DEG_id_tag_update(&ob_dst->id,
                               ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
@@ -1725,8 +1730,8 @@ static Collection *single_object_users_collection(Main *bmain,
                                                   const bool copy_collections,
                                                   const bool is_master_collection)
 {
-  /* Generate new copies for objects in given collection and all its children,    * and optionally
-   * also copy collections themselves. */
+  /* Generate new copies for objects in given collection and all its children,    * and
+   * optionally also copy collections themselves. */
   if (copy_collections && !is_master_collection) {
     Collection *collection_new = (Collection *)BKE_id_copy_ex(
         bmain, &collection->id, nullptr, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS);
@@ -1907,13 +1912,6 @@ static void single_obdata_users(
                                                  LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
             break;
           case OB_LIGHTPROBE:
-            ob->data = ID_NEW_SET(ob->data,
-                                  BKE_id_copy_ex(bmain,
-                                                 static_cast<const ID *>(ob->data),
-                                                 nullptr,
-                                                 LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
-            break;
-          case OB_GPENCIL_LEGACY:
             ob->data = ID_NEW_SET(ob->data,
                                   BKE_id_copy_ex(bmain,
                                                  static_cast<const ID *>(ob->data),
@@ -2365,8 +2363,8 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
     id_root = &collection->id;
     user_overrides_from_selected_objects = true;
   }
-  /* Else, poll func ensures us that ID_IS_LINKED(obact) is true, or that it is already an existing
-   * liboverride. */
+  /* Else, poll func ensures us that ID_IS_LINKED(obact) is true, or that it is already an
+   * existing liboverride. */
   else {
     BLI_assert(ID_IS_LINKED(obact) || ID_IS_OVERRIDE_LIBRARY_REAL(obact));
     id_root = &obact->id;
@@ -2423,8 +2421,8 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
   /* For the time being, replace selected linked objects by their overrides in all collections.
-   * While this may not be the absolute best behavior in all cases, in most common one this should
-   * match the expected result. */
+   * While this may not be the absolute best behavior in all cases, in most common one this
+   * should match the expected result. */
   if (user_overrides_objects_uids != nullptr) {
     LISTBASE_FOREACH (Collection *, coll_iter, &bmain->collections) {
       if (ID_IS_LINKED(coll_iter)) {
@@ -2440,6 +2438,9 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
         }
       }
     }
+    /* Also tag the Scene itself for remapping when creating overrides (includes the scene's master
+     * collection too). */
+    scene->id.tag |= ID_TAG_DOIT;
   }
 
   ID *id_root_override;
@@ -2498,8 +2499,8 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
           break;
         }
         case ID_OB: {
-          /* TODO: Not sure how well we can handle this case, when we don't have the collections as
-           * reference containers... */
+          /* TODO: Not sure how well we can handle this case, when we don't have the collections
+           * as reference containers... */
           break;
         }
         default:
@@ -2578,13 +2579,13 @@ static int make_override_library_invoke(bContext *C, wmOperator *op, const wmEve
           potential_root_collections.remove(collection_root_iter);
         }
         else {
-          /* Current potential root is not found in current collection's hierarchy, so the later is
-           * a potential candidate as root collection. */
+          /* Current potential root is not found in current collection's hierarchy, so the later
+           * is a potential candidate as root collection. */
           is_potential_root = true;
         }
       }
-      /* Only add the current collection as potential root if it is not a descendant of any already
-       * known potential root collections. */
+      /* Only add the current collection as potential root if it is not a descendant of any
+       * already known potential root collections. */
       if (is_potential_root && !has_parents_in_potential_roots) {
         potential_root_collections.add_new(collection);
       }
@@ -2923,13 +2924,14 @@ std::string drop_named_material_tooltip(bContext *C, const char *name, const int
   Material *prev_mat = BKE_object_material_get(ob, mat_slot);
 
   if (prev_mat) {
-    return fmt::format(TIP_("Drop {} on {} (slot {}, replacing {})"),
+    return fmt::format(fmt::runtime(TIP_("Drop {} on {} (slot {}, replacing {})")),
                        name,
                        ob->id.name + 2,
                        mat_slot,
                        prev_mat->id.name + 2);
   }
-  return fmt::format(TIP_("Drop {} on {} (slot {})"), name, ob->id.name + 2, mat_slot);
+  return fmt::format(
+      fmt::runtime(TIP_("Drop {} on {} (slot {})")), name, ob->id.name + 2, mat_slot);
 }
 
 static int drop_named_material_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2993,8 +2995,9 @@ std::string drop_geometry_nodes_tooltip(bContext *C, PointerRNA *properties, con
     return {};
   }
 
-  return fmt::format(
-      TIP_("Add modifier with node group \"{}\" on object \"{}\""), id->name, ob->id.name);
+  return fmt::format(fmt::runtime(TIP_("Add modifier with node group \"{}\" on object \"{}\"")),
+                     id->name,
+                     ob->id.name);
 }
 
 static bool check_geometry_node_group_sockets(wmOperator *op, const bNodeTree *tree)
@@ -3080,7 +3083,7 @@ void OBJECT_OT_drop_geometry_nodes(wmOperatorType *ot)
                                   "Session UID of the geometry node group being dropped",
                                   INT32_MIN,
                                   INT32_MAX);
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   RNA_def_boolean(ot->srna,
                   "show_datablock_in_modifier",
                   true,

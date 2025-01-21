@@ -8,15 +8,15 @@
 
 #pragma once
 
-#include "BLI_index_mask_fwd.hh"
-#include "BLI_math_vector.hh"
+#include <cstdint>
 
-#include "DNA_customdata_types.h"
+#include "BLI_index_mask_fwd.hh"
 
 struct BMLogEntry;
 struct Depsgraph;
 struct Mesh;
 struct Object;
+struct Scene;
 struct wmOperator;
 namespace blender::bke::pbvh {
 class Node;
@@ -32,7 +32,6 @@ enum class Type : int8_t {
   Mask,
   DyntopoBegin,
   DyntopoEnd,
-  DyntopoSymmetrize,
   Geometry,
   FaceSet,
   Color,
@@ -60,13 +59,20 @@ void push_nodes(const Depsgraph &depsgraph,
  * redo panels to work; operators that do not support that may use
  * #push_begin_ex instead if so desired.
  */
-void push_begin(Object &ob, const wmOperator *op);
+void push_begin(const Scene &scene, Object &ob, const wmOperator *op);
+
+/**
+ * Pushes an undo step when entering Sculpt mode.
+ *
+ * Similar to geometry_push, this undo type does not need the PBVH to be constructed.
+ */
+void push_enter_sculpt_mode(const Scene &scene, Object &ob, const wmOperator *op);
 
 /**
  * NOTE: #push_begin is preferred since `name`
  * must match operator name for redo panels to work.
  */
-void push_begin_ex(Object &ob, const char *name);
+void push_begin_ex(const Scene &scene, Object &ob, const char *name);
 void push_end(Object &ob);
 void push_end_ex(Object &ob, bool use_nested_undo);
 

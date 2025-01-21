@@ -7,6 +7,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_ordered_edge.hh"
+#include "BLI_rect.h"
 
 #include "pbvh_uv_islands.hh"
 
@@ -850,7 +851,7 @@ static int find_fill_primitive(const MeshData &mesh_data, UVBorderCorner &corner
   if (corner.first->get_uv_vertex(0) == corner.second->get_uv_vertex(1)) {
     return -1;
   }
-  UVVertex *shared_vert = corner.second->get_uv_vertex(0);
+  const UVVertex *shared_vert = corner.second->get_uv_vertex(0);
   for (const int edge_i : mesh_data.vert_to_edge_map[shared_vert->vertex]) {
     const int2 &edge = mesh_data.edges[edge_i];
     if (corner.first->edge->has_same_vertices(edge)) {

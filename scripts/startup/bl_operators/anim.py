@@ -223,7 +223,7 @@ class NLA_OT_bake(Operator):
     )
     clear_constraints: BoolProperty(
         name="Clear Constraints",
-        description="Remove all constraints from keyed object/bones, and do 'visual' keying",
+        description="Remove all constraints from keyed object/bones. To get a correct bake with this setting Visual Keying should be enabled",
         default=False,
     )
     clear_parents: BoolProperty(
@@ -392,7 +392,7 @@ class UpdateAnimatedTransformConstraint(Operator):
         to_paths = {"to_max_x", "to_max_y", "to_max_z", "to_min_x", "to_min_y", "to_min_z"}
         paths = from_paths | to_paths
 
-        def update_cb(base, class_name, old_path, fcurve, options):
+        def update_cb(base, _class_name, old_path, fcurve, options):
             # print(options)
 
             def handle_deg2rad(fcurve):
@@ -413,7 +413,7 @@ class UpdateAnimatedTransformConstraint(Operator):
             data = ...
             try:
                 data = eval("base." + old_path)
-            except BaseException:
+            except Exception:
                 pass
             ret = (data, old_path)
             if isinstance(base, bpy.types.TransformConstraint) and data is not ...:
@@ -430,7 +430,7 @@ class UpdateAnimatedTransformConstraint(Operator):
                     data = ...
                     try:
                         data = eval("base." + new_path)
-                    except BaseException:
+                    except Exception:
                         pass
                     ret = (data, new_path)
                     # print(ret)
@@ -467,7 +467,8 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
 
     bone_type: EnumProperty(
         name="Type",
-        items=_bone_type_enum)
+        items=_bone_type_enum,
+    )
 
     @classmethod
     def poll(cls, context):
@@ -528,7 +529,8 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
                 "Bone colors were synced; "
                 "for {:d} bones this will not be visible due to pose bone color overrides".format(
                     num_pose_color_overrides,
-                ))
+                ),
+            )
 
         return {'FINISHED'}
 
@@ -686,18 +688,21 @@ class ANIM_OT_slot_new_for_id(Operator):
         if not animated_id:
             return False
         if not animated_id.animation_data or not animated_id.animation_data.action:
-            cls.poll_message_set("An action slot can only be created when an action was assigned")
+            cls.poll_message_set("An action slot can only be created when an action is assigned")
             return False
         if not animated_id.animation_data.action.is_action_layered:
             cls.poll_message_set("Action slots are only supported by layered Actions. Upgrade this Action first")
             return False
+        if not animated_id.animation_data.action.is_editable:
+            cls.poll_message_set("Creating a new Slot is not possible on a linked Action")
+            return False
         return True
 
     def execute(self, context):
-        animated_id = getattr(context, "animated_id", None)
+        animated_id = context.animated_id
 
         action = animated_id.animation_data.action
-        slot = action.slots.new(for_id=animated_id)
+        slot = action.slots.new(animated_id.id_type, animated_id.name)
         animated_id.animation_data.action_slot = slot
         return {'FINISHED'}
 
@@ -726,12 +731,33 @@ class ANIM_OT_slot_unassign_from_id(Operator):
         return True
 
     def execute(self, context):
-        animated_id = getattr(context, "animated_id", None)
+        animated_id = context.animated_id
         animated_id.animation_data.action_slot = None
         return {'FINISHED'}
 
 
-class ANIM_OT_slot_unassign_from_nla_strip(Operator):
+class generic_slot_unassign_mixin():
+    context_property_name = ""
+    """Which context attribute to use to get the to-be-manipulated data-block."""
+
+    @classmethod
+    def poll(cls, context):
+        slot_user = getattr(context, cls.context_property_name, None)
+        if not slot_user:
+            return False
+
+        if not slot_user.action_slot:
+            cls.poll_message_set("No Action slot is assigned, so there is nothing to un-assign")
+            return False
+        return True
+
+    def execute(self, context):
+        slot_user = getattr(context, self.context_property_name, None)
+        slot_user.action_slot = None
+        return {'FINISHED'}
+
+
+class ANIM_OT_slot_unassign_from_nla_strip(generic_slot_unassign_mixin, Operator):
     """Un-assign the assigned Action Slot from an NLA strip.
 
     Note that _which_ NLA strip should get this slot unassigned must be set in
@@ -744,21 +770,23 @@ class ANIM_OT_slot_unassign_from_nla_strip(Operator):
     bl_description = "Un-assign the action slot from this NLA strip, effectively making it non-animated"
     bl_options = {'REGISTER', 'UNDO'}
 
-    @classmethod
-    def poll(cls, context):
-        nla_strip = getattr(context, "nla_strip", None)
-        if not nla_strip:
-            return False
+    context_property_name = "nla_strip"
 
-        if not nla_strip.action or not nla_strip.action_slot:
-            cls.poll_message_set("This NLA strip has no Action slot assigned")
-            return False
-        return True
 
-    def execute(self, context):
-        nla_strip = getattr(context, "nla_strip", None)
-        nla_strip.action_slot = None
-        return {'FINISHED'}
+class ANIM_OT_slot_unassign_from_constraint(generic_slot_unassign_mixin, Operator):
+    """Un-assign the assigned Action Slot from an Action constraint.
+
+    Note that _which_ constraint should get this slot unassigned must be set in
+    the "constraint" context pointer, using:
+
+    >>> layout.context_pointer_set("constraint", constraint)
+    """
+    bl_idname = "anim.slot_unassign_from_constraint"
+    bl_label = "Unassign Slot"
+    bl_description = "Un-assign the action slot from this constraint"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    context_property_name = "constraint"
 
 
 classes = (
@@ -773,4 +801,5 @@ classes = (
     ANIM_OT_slot_new_for_id,
     ANIM_OT_slot_unassign_from_id,
     ANIM_OT_slot_unassign_from_nla_strip,
+    ANIM_OT_slot_unassign_from_constraint,
 )

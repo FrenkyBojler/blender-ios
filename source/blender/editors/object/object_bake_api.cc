@@ -6,6 +6,8 @@
  * \ingroup edobj
  */
 
+#include <sys/stat.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_material_types.h"
@@ -17,10 +19,9 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -30,12 +31,12 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
@@ -1414,7 +1415,7 @@ static int bake(const BakeAPIRender *bkr,
   Object *ob_low_eval = nullptr;
 
   BakeHighPolyData *highpoly = nullptr;
-  int tot_highpoly = 0;
+  int highpoly_num = 0;
 
   Mesh *me_low_eval = nullptr;
   Mesh *me_cage_eval = nullptr;
@@ -1449,7 +1450,7 @@ static int bake(const BakeAPIRender *bkr,
   }
 
   if (bkr->is_selected_to_active) {
-    tot_highpoly = 0;
+    highpoly_num = 0;
 
     for (const PointerRNA &ptr : selected_objects) {
       Object *ob_iter = static_cast<Object *>(ptr.data);
@@ -1458,7 +1459,7 @@ static int bake(const BakeAPIRender *bkr,
         continue;
       }
 
-      tot_highpoly++;
+      highpoly_num++;
     }
 
     if (bkr->is_cage && bkr->custom_cage[0] != '\0') {
@@ -1562,7 +1563,7 @@ static int bake(const BakeAPIRender *bkr,
     }
 
     highpoly = static_cast<BakeHighPolyData *>(
-        MEM_callocN(sizeof(BakeHighPolyData) * tot_highpoly, "bake high poly objects"));
+        MEM_callocN(sizeof(BakeHighPolyData) * highpoly_num, "bake high poly objects"));
 
     /* populate highpoly array */
     for (const PointerRNA &ptr : selected_objects) {
@@ -1589,7 +1590,7 @@ static int bake(const BakeAPIRender *bkr,
       i++;
     }
 
-    BLI_assert(i == tot_highpoly);
+    BLI_assert(i == highpoly_num);
 
     if (ob_cage != nullptr) {
       ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
@@ -1608,7 +1609,7 @@ static int bake(const BakeAPIRender *bkr,
             pixel_array_low,
             pixel_array_high,
             highpoly,
-            tot_highpoly,
+            highpoly_num,
             targets.pixels_num,
             ob_cage != nullptr,
             bkr->cage_extrusion,
@@ -1622,10 +1623,10 @@ static int bake(const BakeAPIRender *bkr,
     }
 
     /* the baking itself */
-    for (i = 0; i < tot_highpoly; i++) {
+    for (i = 0; i < highpoly_num; i++) {
       ok = RE_bake_engine(re,
                           depsgraph,
-                          highpoly[i].ob,
+                          highpoly[i].ob_eval,
                           i,
                           pixel_array_high,
                           &targets,
@@ -1756,7 +1757,7 @@ static int bake(const BakeAPIRender *bkr,
 cleanup:
 
   if (highpoly) {
-    for (int i = 0; i < tot_highpoly; i++) {
+    for (int i = 0; i < highpoly_num; i++) {
       if (highpoly[i].mesh != nullptr) {
         BKE_id_free(nullptr, &highpoly[i].mesh->id);
       }

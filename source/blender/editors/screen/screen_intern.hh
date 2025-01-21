@@ -17,9 +17,12 @@ struct bContextDataResult;
 struct bScreen;
 struct Main;
 struct rcti;
+struct ScrArea;
 struct ScrAreaMap;
 struct ScrEdge;
 struct ScrVert;
+struct WorkSpaceLayout;
+struct wmOperatorType;
 struct wmWindow;
 
 /* internal exports only */
@@ -90,8 +93,10 @@ void region_toggle_hidden(bContext *C, ARegion *region, bool do_fade);
  */
 void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir);
 void screen_draw_dock_preview(
-    ScrArea *source, ScrArea *target, AreaDockTarget dock_target, float fac, int x, int y);
-void screen_draw_split_preview(ScrArea *area, eScreenAxis dir_axis, float fac);
+    ScrArea *source, ScrArea *target, AreaDockTarget dock_target, float factor, int x, int y);
+void screen_draw_split_preview(ScrArea *area, eScreenAxis dir_axis, float factor);
+
+void screen_draw_move_highlight(bScreen *screen, eScreenAxis dir_axis);
 
 /* `screen_edit.cc` */
 

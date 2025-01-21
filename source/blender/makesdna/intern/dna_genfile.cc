@@ -23,7 +23,6 @@
 #include "BLI_endian_switch.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_memarena.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_ghash.h"
@@ -1222,8 +1221,8 @@ struct DNA_ReconstructInfo {
 
 static void reconstruct_structs(const DNA_ReconstructInfo *reconstruct_info,
                                 const int blocks,
-                                const int old_struct_nr,
-                                const int new_struct_nr,
+                                const int old_struct_index,
+                                const int new_struct_index,
                                 const char *old_blocks,
                                 char *new_blocks);
 
