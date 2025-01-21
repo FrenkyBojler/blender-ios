@@ -39,15 +39,15 @@ pxr::SdfPath get_unique_path(pxr::UsdStageRefPtr stage, const std::string &path)
 
 namespace blender::io::usd {
 
-/* We need an oredered map so we use std::map. */
+/* We need an ordered map so we use std::map. */
 using PathMap = std::map<pxr::SdfPath, pxr::SdfPath>;
 using PathSet = Set<pxr::SdfPath>;
 
 /* Map an instanceable prim path to a list of prototype prim paths. */
 using ReferencesMap = Map<pxr::SdfPath, Vector<pxr::SdfPath>>;
 
-// Convert the given prototype prim to an instance by deleting its children and making
-// it an instanceable reference to the prim at ref_path.
+/* Convert the given prototype prim to an instance by deleting its children and making
+ * it an instanceable reference to the prim at ref_path. */
 static void convert_proto_to_instance(pxr::UsdStageRefPtr stage,
                                       const pxr::SdfPath &proto_path,
                                       const pxr::SdfPath &ref_path)
@@ -90,7 +90,7 @@ void process_scene_graph_instances(const USDExportParams &export_params, pxr::Us
   pxr::UsdPrimRange range(stage->GetPseudoRoot());
   for (pxr::UsdPrim prim : range) {
     if (prim.IsInstanceable()) {
-      /* Get the prorotypes referenced by this prim. */
+      /* Get the prototypes referenced by this prim. */
       pxr::UsdPrimCompositionQuery query = pxr::UsdPrimCompositionQuery::GetDirectReferences(prim);
       Vector<pxr::SdfPath> references;
       for (const auto &arc : query.GetCompositionArcs()) {
@@ -150,7 +150,7 @@ void process_scene_graph_instances(const USDExportParams &export_params, pxr::Us
     pxr::SdfPath inst_path = item.key;
     pxr::UsdPrim inst_prim = stage->GetPrimAtPath(item.key);
     if (!inst_prim) {
-      CLOG_WARN(&LOG, "Couldn't get prim for instance %s.", inst_path.GetAsString().c_str());
+      CLOG_ERROR(&LOG, "Couldn't get prim for instance %s.", inst_path.GetAsString().c_str());
       continue;
     }
 

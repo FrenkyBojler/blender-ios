@@ -250,30 +250,18 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_particle_writer(
 /* Don't generate data writers for instances. */
 bool USDHierarchyIterator::include_data_writers(const HierarchyContext *context) const
 {
-  if (!context) {
-    return false;
-  }
-
   return !(params_.use_instancing && context->is_instance());
 }
 
 /* Don't generate writers for children of instances. */
 bool USDHierarchyIterator::include_child_writers(const HierarchyContext *context) const
 {
-  if (!context) {
-    return false;
-  }
-
   return !(params_.use_instancing && context->is_instance());
 }
 
 bool USDHierarchyIterator::should_determine_duplication_references(
     const HierarchyContext *parent_context) const
 {
-  if (!parent_context) {
-    return false;
-  }
-
   return !(params_.use_instancing && parent_context->is_instance());
 }
 
