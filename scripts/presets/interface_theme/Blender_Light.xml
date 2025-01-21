@@ -155,7 +155,7 @@
           <ThemeWidgetColors
             outline="#4d4d4dff"
             inner="#999999ff"
-            inner_sel="#999999ff"
+            inner_sel="#b0b0b0ff"
             item="#e6e6e6ff"
             text="#1a1a1a"
             text_sel="#000000"
@@ -276,7 +276,7 @@
             outline="#999999ff"
             inner="#50505000"
             inner_sel="#646464b3"
-            item="#c2c2c299"
+            item="#545454ff"
             text="#000000"
             text_sel="#ffffff"
             show_shaded="FALSE"
@@ -368,12 +368,12 @@
         light="#00000028"
         speaker="#000000"
         vertex="#000000"
-        vertex_select="#ff8500"
-        vertex_active="#000000"
+        vertex_select="#ff7a00"
         vertex_size="3"
         vertex_bevel="#00a5ff"
         vertex_unreferenced="#000000"
-        edge_select="#ffa000"
+        edge_select="#ff9900"
+        edge_mode_select="#ffd800"
         edge_seam="#db2512"
         edge_sharp="#00ffff"
         edge_crease="#cc0099"
@@ -381,7 +381,8 @@
         edge_facesel="#4b4b4b"
         freestyle_edge_mark="#7fff7f"
         face="#00000012"
-        face_select="#ff85004d"
+        face_select="#ffa30033"
+        face_mode_select="#ffb70033"
         face_dot="#ff8500"
         facedot_size="4"
         freestyle_face_mark="#7fff7f33"
@@ -465,8 +466,8 @@
         </space>
         <asset_shelf>
           <ThemeAssetShelf
-            header_back="#1d1d1dff"
-            back="#303030ff"
+            header_back="#adadadff"
+            back="#999999ff"
             >
           </ThemeAssetShelf>
         </asset_shelf>
@@ -679,6 +680,8 @@
         keyframe_jitter_selected="#61c042"
         keyframe_movehold="#5c5656"
         keyframe_movehold_selected="#ffaf23"
+        keyframe_generated="#a7a7a7"
+        keyframe_generated_selected="#C4A05F"
         keyframe_border="#000000ff"
         keyframe_border_selected="#000000ff"
         keyframe_scale_factor="1"
@@ -733,7 +736,6 @@
         grid="#353535ff"
         vertex="#000000"
         vertex_select="#ff8500"
-        vertex_active="#000000"
         vertex_size="3"
         vertex_bevel="#000000"
         vertex_unreferenced="#000000"
@@ -821,7 +823,7 @@
         meta_strip="#5b4d91"
         mask_strip="#8f5656"
         text_strip="#824c8f"
-        active_strip="#d9d9d9"
+        active_strip="#ffffff"
         selected_strip="#ff6a00"
         frame_current="#5680c2"
         time_scrub_background="#292929e6"
@@ -834,6 +836,8 @@
         metadatatext="#ffffff"
         preview_range="#a14d0066"
         row_alternate="#ffffff0d"
+        text_strip_cursor="#71a8ff"
+        selected_text= "#19191a4d"
         >
         <space>
           <ThemeSpaceGeneric
@@ -1166,7 +1170,7 @@
         line_input="#f2f2f2"
         line_info="#95d600"
         line_error="#ff4d84"
-        cursor="#ff0000"
+        cursor="#71a8ff"
         select="#ffffff30"
         >
         <space>

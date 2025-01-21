@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -17,8 +18,6 @@
 #include "DNA_object_types.h"
 
 #include "BLI_index_range.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_rand.hh"
 #include "BLI_span.hh"
@@ -26,21 +25,18 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_curves.hh"
-#include "BKE_customdata.h"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_global.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
-#include "BKE_main.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
+#include "BKE_object_types.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -65,7 +61,11 @@ static void curves_init_data(ID *id)
   new (&curves->geometry) blender::bke::CurvesGeometry();
 }
 
-static void curves_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int /*flag*/)
+static void curves_copy_data(Main * /*bmain*/,
+                             std::optional<Library *> /*owner_library*/,
+                             ID *id_dst,
+                             const ID *id_src,
+                             const int /*flag*/)
 {
   Curves *curves_dst = (Curves *)id_dst;
   const Curves *curves_src = (const Curves *)id_src;
@@ -106,6 +106,9 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 {
   Curves *curves = (Curves *)id;
 
+  /* Only for forward compatibility. */
+  curves->attributes_active_index_legacy = curves->geometry.attributes_active_index;
+
   blender::bke::CurvesGeometry::BlendWriteData write_data =
       curves->geometry.wrap().blend_write_prepare();
 
@@ -128,19 +131,20 @@ static void curves_blend_read_data(BlendDataReader *reader, ID *id)
   /* Geometry */
   curves->geometry.wrap().blend_read(*reader);
 
-  BLO_read_data_address(reader, &curves->surface_uv_map);
+  BLO_read_string(reader, &curves->surface_uv_map);
 
   /* Materials */
-  BLO_read_pointer_array(reader, (void **)&curves->mat);
+  BLO_read_pointer_array(reader, curves->totcol, (void **)&curves->mat);
 }
 
 IDTypeInfo IDType_ID_CV = {
     /*id_code*/ ID_CV,
     /*id_filter*/ FILTER_ID_CV,
+    /*dependencies_id_types*/ FILTER_ID_MA | FILTER_ID_OB,
     /*main_listbase_index*/ INDEX_ID_CV,
     /*struct_size*/ sizeof(Curves),
     /*name*/ "Curves",
-    /*name_plural*/ "hair_curves",
+    /*name_plural*/ N_("hair_curves"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_CURVES,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -163,35 +167,11 @@ IDTypeInfo IDType_ID_CV = {
     /*lib_override_apply_post*/ nullptr,
 };
 
-void *BKE_curves_add(Main *bmain, const char *name)
+Curves *BKE_curves_add(Main *bmain, const char *name)
 {
   Curves *curves = static_cast<Curves *>(BKE_id_new(bmain, ID_CV, name));
 
   return curves;
-}
-
-BoundBox *BKE_curves_boundbox_get(Object *ob)
-{
-  using namespace blender;
-  BLI_assert(ob->type == OB_CURVES);
-  const Curves *curves_id = static_cast<const Curves *>(ob->data);
-
-  if (ob->runtime.bb != nullptr && (ob->runtime.bb->flag & BOUNDBOX_DIRTY) == 0) {
-    return ob->runtime.bb;
-  }
-
-  if (ob->runtime.bb == nullptr) {
-    ob->runtime.bb = MEM_cnew<BoundBox>(__func__);
-    const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-    if (const std::optional<Bounds<float3>> bounds = curves.bounds_min_max()) {
-      BKE_boundbox_init_from_minmax(ob->runtime.bb, bounds->min, bounds->max);
-    }
-    else {
-      BKE_boundbox_init_from_minmax(ob->runtime.bb, float3(-1), float3(1));
-    }
-  }
-
-  return ob->runtime.bb;
 }
 
 bool BKE_curves_attribute_required(const Curves * /*curves*/, const char *name)
@@ -252,7 +232,7 @@ void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
   /* Evaluate modifiers. */
   Curves *curves = static_cast<Curves *>(object->data);
   GeometrySet geometry_set = GeometrySet::from_curves(curves, GeometryOwnershipType::ReadOnly);
-  if (object->mode == OB_MODE_SCULPT_CURVES) {
+  if (ELEM(object->mode, OB_MODE_EDIT, OB_MODE_SCULPT_CURVES)) {
     /* Try to propagate deformation data through modifier evaluation, so that sculpt mode can work
      * on evaluated curves. */
     GeometryComponentEditData &edit_component =
@@ -271,7 +251,7 @@ void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
   else {
     BKE_object_eval_assign_data(object, &curves_eval->id, false);
   }
-  object->runtime.geometry_set_eval = new GeometrySet(std::move(geometry_set));
+  object->runtime->geometry_set_eval = new GeometrySet(std::move(geometry_set));
 }
 
 /* Draw Cache */
@@ -324,7 +304,6 @@ Curves *curves_new_nomain(CurvesGeometry curves)
 void curves_copy_parameters(const Curves &src, Curves &dst)
 {
   dst.flag = src.flag;
-  dst.attributes_active_index = src.attributes_active_index;
   MEM_SAFE_FREE(dst.mat);
   dst.mat = static_cast<Material **>(MEM_malloc_arrayN(src.totcol, sizeof(Material *), __func__));
   dst.totcol = src.totcol;
@@ -336,15 +315,16 @@ void curves_copy_parameters(const Curves &src, Curves &dst)
   if (src.surface_uv_map != nullptr) {
     dst.surface_uv_map = BLI_strdup(src.surface_uv_map);
   }
+  dst.surface_collision_distance = src.surface_collision_distance;
 }
 
 CurvesSurfaceTransforms::CurvesSurfaceTransforms(const Object &curves_ob, const Object *surface_ob)
 {
-  this->curves_to_world = float4x4_view(curves_ob.object_to_world);
+  this->curves_to_world = curves_ob.object_to_world();
   this->world_to_curves = math::invert(this->curves_to_world);
 
   if (surface_ob != nullptr) {
-    this->surface_to_world = float4x4_view(surface_ob->object_to_world);
+    this->surface_to_world = surface_ob->object_to_world();
     this->world_to_surface = math::invert(this->surface_to_world);
     this->surface_to_curves = this->world_to_curves * this->surface_to_world;
     this->curves_to_surface = this->world_to_surface * this->curves_to_world;
@@ -355,8 +335,8 @@ CurvesSurfaceTransforms::CurvesSurfaceTransforms(const Object &curves_ob, const 
 bool CurvesEditHints::is_valid() const
 {
   const int point_num = this->curves_id_orig.geometry.point_num;
-  if (this->positions.has_value()) {
-    if (this->positions->size() != point_num) {
+  if (this->positions().has_value()) {
+    if (this->positions()->size() != point_num) {
       return false;
     }
   }
@@ -368,9 +348,38 @@ bool CurvesEditHints::is_valid() const
   return true;
 }
 
+std::optional<Span<float3>> CurvesEditHints::positions() const
+{
+  if (!this->positions_data.has_value()) {
+    return std::nullopt;
+  }
+  const int points_num = this->curves_id_orig.geometry.wrap().points_num();
+  return Span(static_cast<const float3 *>(this->positions_data.data), points_num);
+}
+
+std::optional<MutableSpan<float3>> CurvesEditHints::positions_for_write()
+{
+  if (!this->positions_data.has_value()) {
+    return std::nullopt;
+  }
+
+  const int points_num = this->curves_id_orig.geometry.wrap().points_num();
+  ImplicitSharingPtrAndData &data = this->positions_data;
+  if (data.sharing_info->is_mutable()) {
+    data.sharing_info->tag_ensured_mutable();
+  }
+  else {
+    auto *new_sharing_info = new ImplicitSharedValue<Array<float3>>(*this->positions());
+    data.sharing_info = ImplicitSharingPtr<>(new_sharing_info);
+    data.data = new_sharing_info->data.data();
+  }
+
+  return MutableSpan(const_cast<float3 *>(static_cast<const float3 *>(data.data)), points_num);
+}
+
 void curves_normals_point_domain_calc(const CurvesGeometry &curves, MutableSpan<float3> normals)
 {
-  const bke::CurvesFieldContext context(curves, ATTR_DOMAIN_POINT);
+  const bke::CurvesFieldContext context(curves, AttrDomain::Point);
   fn::FieldEvaluator evaluator(context, curves.points_num());
   fn::Field<float3> field(std::make_shared<bke::NormalFieldInput>());
   evaluator.add_with_destination(std::move(field), normals);

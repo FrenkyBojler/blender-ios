@@ -14,10 +14,10 @@
 
 struct AnimData;
 struct ImBuf;
+struct MovieReader;
 struct MovieClipProxy;
 struct MovieTrackingMarker;
 struct MovieTrackingTrack;
-struct anim;
 struct bGPdata;
 
 typedef struct MovieClipUser {
@@ -75,7 +75,7 @@ typedef struct MovieClip {
   float aspx, aspy;
 
   /** Movie source data. */
-  struct anim *anim;
+  struct MovieReader *anim;
   /** Cache for different stuff, not in file. */
   struct MovieClipCache *cache;
   /** Grease pencil data. */

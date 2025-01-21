@@ -12,8 +12,9 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_context.h"
-#include "BKE_scene.h"
+#include "BKE_context.hh"
+#include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -21,7 +22,7 @@
 
 #include "WM_api.hh"
 #include "WM_message.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "ED_gizmo_utils.hh"
@@ -32,7 +33,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "mesh_intern.h" /* own include */
+#include "mesh_intern.hh" /* own include */
 
 #include "ED_transform.hh"
 
@@ -46,7 +47,7 @@
 // #define USE_SELECT_CENTER
 
 #ifdef USE_SELECT_CENTER
-#  include "BKE_editmesh.h"
+#  include "BKE_editmesh.hh"
 #endif
 
 static const float dial_angle_partial = M_PI_2;
@@ -367,7 +368,7 @@ static void gizmo_mesh_spin_init_refresh(const bContext *C, wmGizmoGroup *gzgrou
     }
     if (totsel) {
       mul_v3_fl(select_center, 1.0f / totsel);
-      mul_m4_v3(obedit->object_to_world, select_center);
+      mul_m4_v3(obedit->object_to_world().ptr(), select_center);
       copy_v3_v3(ggd->data.select_center, select_center);
       ggd->data.use_select_center = true;
     }
@@ -902,7 +903,7 @@ static void gizmo_mesh_spin_redo_setup(const bContext *C, wmGizmoGroup *gzgroup)
    */
   {
     ARegion *region = CTX_wm_region(C);
-    wmGizmoMap *gzmap = region->gizmo_map;
+    wmGizmoMap *gzmap = region->runtime->gizmo_map;
     wmGizmoGroup *gzgroup_init = WM_gizmomap_group_find(gzmap, "MESH_GGT_spin");
     if (gzgroup_init) {
       GizmoGroupData_SpinInit *ggd_init = static_cast<GizmoGroupData_SpinInit *>(

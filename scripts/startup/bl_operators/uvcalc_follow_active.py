@@ -32,85 +32,97 @@ def extend(obj, EXTEND_MODE, use_uv_selection):
         return STATUS_ERR_NOT_SELECTED  # Active face is not selected.
     if len(f_act.verts) != 4:
         return STATUS_ERR_NOT_QUAD  # Active face is not a quad
-    if not me.uv_layers:
+    uv_act = bm.loops.layers.uv.active  # Always use the active UV layer.
+    if uv_act is None:
         return STATUS_ERR_MISSING_UV_LAYER  # Object's mesh doesn't have any UV layers.
 
-    uv_act = bm.loops.layers.uv.active  # Always use the active UV layer.
-
-    # Construct a set of selected quads.
-    faces = {f for f in bm.faces if len(f.verts) == 4 and f.select}
     if use_uv_selection:
-        # Filter `faces` to extract only UV selected quads.
-        faces = {f for f in faces if is_face_uv_selected(f, uv_act, False)}
+        faces = [
+            f for f in bm.faces
+            if f.select and len(f.verts) == 4 and is_face_uv_selected(f, uv_act, False)
+        ]
+    else:
+        faces = [
+            f for f in bm.faces
+            if f.select and len(f.verts) == 4
+        ]
 
     if not faces:
         return STATUS_ERR_NO_FACES_SELECTED
 
-    def walk_face():
-        from collections import deque
+    # Our own local walker.
 
+    def walk_face_init(faces, f_act):
+        # First tag all faces True (so we don't UV-map them).
         for f in bm.faces:
-            f.tag = f not in faces
+            f.tag = True
+        # Then tag faces argument False.
+        for f in faces:
+            f.tag = False
+        # Tag the active face True since we begin there.
+        f_act.tag = True
 
-        faces_deque = deque()
-        faces_deque.append(f_act)
-        f_act.tag = True  # Queued.
+    def walk_face(f):
+        # All faces in this list must be tagged.
+        f.tag = True
+        faces_a = [f]
+        faces_b = []
 
-        while faces_deque:  # Breadth first search.
-            f = faces_deque.popleft()
-            for l in f.loops:
-                l_edge = l.edge
-                if l_edge.seam:
-                    continue  # Don't walk across seams.
-                if not l_edge.is_manifold:
-                    continue  # Don't walk across non-manifold.
-                l_other = l.link_loop_radial_next  # Manifold implies uniqueness.
-                f_other = l_other.face
-                if f_other.tag:
-                    continue  # Either queued, visited, not selected, or not quad.
-                yield (f, l, f_other)
-                faces_deque.append(f_other)
-                f_other.tag = True  # Queued.
+        while faces_a:
+            for f in faces_a:
+                for l in f.loops:
+                    l_edge = l.edge
+                    if (l_edge.is_manifold is True) and (l_edge.seam is False):
+                        l_other = l.link_loop_radial_next
+                        f_other = l_other.face
+                        if not f_other.tag:
+                            yield (f, l, f_other)
+                            f_other.tag = True
+                            faces_b.append(f_other)
+            # Swap.
+            faces_a, faces_b = faces_b, faces_a
+            faces_b.clear()
 
-    def walk_edgeloop(l):
-        """
-        Could make this a generic function
-        """
-        e_first = l.edge
-        e = None
-        while True:
-            e = l.edge
-            yield e
+    # Utility, only for `walk_edgeloop_all`.
+    def walk_edgeloop_all_impl_loop(loop_stack, edges_visited, l):
+        l_other = l.link_loop_next.link_loop_next
+        l_other_edge = l_other.edge
+        if l_other_edge not in edges_visited:
+            edges_visited.add(l_other_edge)
+            yield l_other_edge
+            if not l_other_edge.is_boundary:
+                loop_stack.append(l_other)
 
-            # Don't step past non-manifold edges.
-            if e.is_manifold:
-                # Walk around the quad and then onto the next face.
-                l = l.link_loop_radial_next
-                if len(l.face.verts) == 4:
-                    l = l.link_loop_next.link_loop_next
-                    if l.edge is e_first:
-                        break
-                else:
-                    break
-            else:
-                break
+    def walk_edgeloop_all(e):
+        # Walks over all edge loops connected by quads (even edges with 3+ users).
+        # Could make this a generic function.
 
-    uv_updates = []
+        loop_stack = []
+        edges_visited = {e}
 
-    def record_and_assign_uv(dest, source):
-        from mathutils import Vector
+        yield e
 
-        if dest[uv_act].uv == source:
-            return  # Already placed correctly, probably a nearby quad.
-        dest_uv_copy = Vector(dest[uv_act].uv)  # Make a copy to prevent aliasing.
-        uv_updates.append([dest.vert, dest_uv_copy, source])  # Record changes.
-        dest[uv_act].uv = source  # Assign updated UV.
+        # This initial iteration is needed because the loops never walk back over the face they come from.
+        for l in e.link_loops:
+            if len(l.face.verts) != 4:
+                continue
+            yield from walk_edgeloop_all_impl_loop(loop_stack, edges_visited, l)
 
-    def extrapolate_uv(fac, l_a_outer, l_a_inner, l_b_outer, l_b_inner):
-        l_a_inner_uv = l_a_inner[uv_act].uv
-        l_a_outer_uv = l_a_outer[uv_act].uv
-        record_and_assign_uv(l_b_inner, l_a_inner_uv)
-        record_and_assign_uv(l_b_outer, l_a_inner_uv * (1 + fac) - l_a_outer_uv * fac)
+        while loop_stack and (l_test := loop_stack.pop()):
+            # Walk around the quad and then onto the next face.
+            l = l_test
+            while (l := l.link_loop_radial_next) is not l_test:
+                if len(l.face.verts) != 4:
+                    continue
+                yield from walk_edgeloop_all_impl_loop(loop_stack, edges_visited, l)
+
+    def extrapolate_uv(
+            fac,
+            l_a_outer, l_a_inner,
+            l_b_outer, l_b_inner,
+    ):
+        l_b_inner[:] = l_a_inner
+        l_b_outer[:] = l_a_inner + ((l_a_inner - l_a_outer) * fac)
 
     def apply_uv(_f_prev, l_prev, _f_next):
         l_a = [None, None, None, None]
@@ -149,6 +161,9 @@ def extend(obj, EXTEND_MODE, use_uv_selection):
             l_b[2] = l_b[1].link_loop_next
             l_b[3] = l_b[2].link_loop_next
 
+        l_a_uv = [l[uv_act].uv for l in l_a]
+        l_b_uv = [l[uv_act].uv for l in l_b]
+
         if EXTEND_MODE == 'LENGTH_AVERAGE':
             d1 = edge_lengths[l_a[1].edge.index][0]
             d2 = edge_lengths[l_b[2].edge.index][0]
@@ -169,8 +184,17 @@ def extend(obj, EXTEND_MODE, use_uv_selection):
         else:
             fac = 1.0
 
-        extrapolate_uv(fac, l_a[3], l_a[0], l_b[3], l_b[0])
-        extrapolate_uv(fac, l_a[2], l_a[1], l_b[2], l_b[1])
+        extrapolate_uv(
+            fac,
+            l_a_uv[3], l_a_uv[0],
+            l_b_uv[3], l_b_uv[0],
+        )
+
+        extrapolate_uv(
+            fac,
+            l_a_uv[2], l_a_uv[1],
+            l_b_uv[2], l_b_uv[1],
+        )
 
     # -------------------------------------------
     # Calculate average length per loop if needed.
@@ -182,36 +206,36 @@ def extend(obj, EXTEND_MODE, use_uv_selection):
         for f in faces:
             # We know it's a quad.
             l_quad = f.loops[:]
-            l_pair_a = (l_quad[0], l_quad[2])
-            l_pair_b = (l_quad[1], l_quad[3])
 
-            for l_pair in (l_pair_a, l_pair_b):
-                if edge_lengths[l_pair[0].edge.index] is None:
+            # The opposite loops `l_quad[2]` & `l_quad[3]` are implicit (walking will handle).
+            for l_init in (l_quad[0], l_quad[1]):
+                # No need to check both because the initializing
+                # one side of the pair will have initialized the second.
+                l_init_edge = l_init.edge
+                if edge_lengths[l_init_edge.index] is not None:
+                    continue
 
-                    edge_length_store = [-1.0]
-                    edge_length_accum = 0.0
-                    edge_length_total = 0
+                edge_length_store = [-1.0]
+                edge_length_accum = 0.0
+                edge_length_total = 0
 
-                    for l in l_pair:
-                        if edge_lengths[l.edge.index] is None:
-                            for e in walk_edgeloop(l):
-                                if edge_lengths[e.index] is None:
-                                    edge_lengths[e.index] = edge_length_store
-                                    edge_length_accum += e.calc_length()
-                                    edge_length_total += 1
+                for e in walk_edgeloop_all(l_init_edge):
+                    # Any previously met edges should have expanded into `l_init_edge`
+                    # (which has no length).
+                    assert edge_lengths[e.index] is None
 
-                    edge_length_store[0] = edge_length_accum / edge_length_total
+                    edge_lengths[e.index] = edge_length_store
+                    edge_length_accum += e.calc_length()
+                    edge_length_total += 1
 
-    for f_triple in walk_face():
+                edge_length_store[0] = edge_length_accum / edge_length_total
+
+    # done with average length
+    # ------------------------
+
+    walk_face_init(faces, f_act)
+    for f_triple in walk_face(f_act):
         apply_uv(*f_triple)
-
-    # Propagate UV changes across boundary of selection.
-    for (v, original_uv, source) in uv_updates:
-        # Visit all loops associated with our vertex.
-        for loop in v.link_loops:
-            # If the loop's UV matches the original, assign the new UV.
-            if loop[uv_act].uv == original_uv:
-                loop[uv_act].uv = source
 
     bmesh.update_edit_mesh(me, loop_triangles=False)
     return STATUS_OK
@@ -219,7 +243,6 @@ def extend(obj, EXTEND_MODE, use_uv_selection):
 
 def main(context, operator):
     use_uv_selection = True
-    view = context.space_data
     if context.space_data and context.space_data.type == 'VIEW_3D':
         use_uv_selection = False  # When called from the 3D editor, UV selection is ignored.
 
@@ -241,6 +264,10 @@ def main(context, operator):
             operator.report({'ERROR'}, "Active face must be a quad")
         elif status & STATUS_ERR_NOT_SELECTED:
             operator.report({'ERROR'}, "Active face not selected")
+        elif status & STATUS_ERR_NO_FACES_SELECTED:
+            operator.report({'ERROR'}, "No selected faces")
+        elif status & STATUS_ERR_MISSING_UV_LAYER:
+            operator.report({'ERROR'}, "No UV layers")
         else:
             assert status & STATUS_ERR_ACTIVE_FACE != 0
             operator.report({'ERROR'}, "No active face")

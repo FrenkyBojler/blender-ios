@@ -11,14 +11,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_scene_types.h"
-
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_layer.h"
+#include "BKE_context.hh"
+#include "BKE_duplilist.hh"
+#include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_pointcache.h"
 
 #include "DEG_depsgraph.hh"
@@ -30,9 +28,9 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "physics_intern.h"
+#include "physics_intern.hh"
 
 static bool ptcache_bake_all_poll(bContext *C)
 {
@@ -56,7 +54,7 @@ static bool ptcache_poll(bContext *C)
     return false;
   }
 
-  if (ID_IS_LINKED(id) && (point_cache->flag & PTCACHE_DISK_CACHE) == false) {
+  if (!ID_IS_EDITABLE(id) && (point_cache->flag & PTCACHE_DISK_CACHE) == false) {
     CTX_wm_operator_poll_msg_set(C, "Linked data-blocks do not allow editing caches");
     return false;
   }
@@ -75,7 +73,7 @@ static bool ptcache_add_remove_poll(bContext *C)
     return false;
   }
 
-  if (ID_IS_OVERRIDE_LIBRARY_REAL(id) || ID_IS_LINKED(id)) {
+  if (ID_IS_OVERRIDE_LIBRARY_REAL(id) || !ID_IS_EDITABLE(id)) {
     CTX_wm_operator_poll_msg_set(
         C, "Linked or library override data-blocks do not allow adding or removing caches");
     return false;
@@ -127,13 +125,13 @@ static void ptcache_job_update(void *customdata, float progress, int *cancel)
   *(job->progress) = progress;
 }
 
-static void ptcache_job_startjob(void *customdata, bool *stop, bool *do_update, float *progress)
+static void ptcache_job_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   PointCacheJob *job = static_cast<PointCacheJob *>(customdata);
 
-  job->stop = stop;
-  job->do_update = do_update;
-  job->progress = progress;
+  job->stop = &worker_status->stop;
+  job->do_update = &worker_status->do_update;
+  job->progress = &worker_status->progress;
 
   G.is_break = false;
 
@@ -144,8 +142,8 @@ static void ptcache_job_startjob(void *customdata, bool *stop, bool *do_update, 
 
   BKE_ptcache_bake(job->baker);
 
-  *do_update = true;
-  *stop = false;
+  worker_status->do_update = true;
+  worker_status->stop = false;
 }
 
 static void ptcache_job_endjob(void *customdata)
@@ -428,7 +426,7 @@ static int ptcache_remove_exec(bContext *C, wmOperator * /*op*/)
     BKE_ptcache_free(pid.cache);
     *(pid.cache_ptr) = static_cast<PointCache *>(pid.ptcaches->first);
 
-    DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
     WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
   }
 

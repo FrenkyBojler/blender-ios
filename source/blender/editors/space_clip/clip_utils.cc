@@ -16,7 +16,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_animsys.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_mask.h"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
@@ -24,21 +24,19 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "ED_clip.hh"
 #include "ED_mask.hh"
-#include "ED_screen.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 bool clip_graph_value_visible(SpaceClip *sc, eClipCurveValueSource value_source)
 {

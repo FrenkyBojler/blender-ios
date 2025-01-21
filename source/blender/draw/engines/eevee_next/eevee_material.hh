@@ -8,11 +8,11 @@
 
 #pragma once
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
-#include "GPU_material.h"
+#include "GPU_material.hh"
 
 #include "eevee_sync.hh"
 
@@ -28,39 +28,115 @@ class Instance;
 enum eMaterialPipeline {
   MAT_PIPE_DEFERRED = 0,
   MAT_PIPE_FORWARD,
-  MAT_PIPE_DEFERRED_PREPASS,
-  MAT_PIPE_DEFERRED_PREPASS_VELOCITY,
-  MAT_PIPE_FORWARD_PREPASS,
-  MAT_PIPE_FORWARD_PREPASS_VELOCITY,
-  MAT_PIPE_VOLUME,
+  /* These all map to the depth shader. */
+  MAT_PIPE_PREPASS_DEFERRED,
+  MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
+  MAT_PIPE_PREPASS_OVERLAP,
+  MAT_PIPE_PREPASS_FORWARD,
+  MAT_PIPE_PREPASS_FORWARD_VELOCITY,
+  MAT_PIPE_PREPASS_PLANAR,
+
+  MAT_PIPE_VOLUME_MATERIAL,
+  MAT_PIPE_VOLUME_OCCUPANCY,
   MAT_PIPE_SHADOW,
   MAT_PIPE_CAPTURE,
 };
 
 enum eMaterialGeometry {
+  /* These maps directly to object types. */
   MAT_GEOM_MESH = 0,
   MAT_GEOM_POINT_CLOUD,
   MAT_GEOM_CURVES,
   MAT_GEOM_GPENCIL,
-  MAT_GEOM_VOLUME_OBJECT,
-  MAT_GEOM_VOLUME_WORLD,
+  MAT_GEOM_VOLUME,
+
+  /* These maps to special shader. */
   MAT_GEOM_WORLD,
+};
+
+static inline bool geometry_type_has_surface(eMaterialGeometry geometry_type)
+{
+  return geometry_type < MAT_GEOM_VOLUME;
+}
+
+enum eMaterialDisplacement {
+  MAT_DISPLACEMENT_BUMP = 0,
+  MAT_DISPLACEMENT_VERTEX_WITH_BUMP,
+};
+
+static inline eMaterialDisplacement to_displacement_type(int displacement_method)
+{
+  switch (displacement_method) {
+    case MA_DISPLACEMENT_DISPLACE:
+      /* Currently unsupported. Revert to vertex displacement + bump. */
+      ATTR_FALLTHROUGH;
+    case MA_DISPLACEMENT_BOTH:
+      return MAT_DISPLACEMENT_VERTEX_WITH_BUMP;
+    default:
+      return MAT_DISPLACEMENT_BUMP;
+  }
+}
+
+enum eMaterialThickness {
+  /* These maps directly to thickness mode. */
+  MAT_THICKNESS_SPHERE = 0,
+  MAT_THICKNESS_SLAB,
+};
+
+static inline eMaterialThickness to_thickness_type(int thickness_mode)
+{
+  switch (thickness_mode) {
+    case MA_THICKNESS_SLAB:
+      return MAT_THICKNESS_SLAB;
+    default:
+      return MAT_THICKNESS_SPHERE;
+  }
+}
+
+enum eMaterialProbe {
+  MAT_PROBE_NONE = 0,
+  MAT_PROBE_REFLECTION,
+  MAT_PROBE_PLANAR,
 };
 
 static inline void material_type_from_shader_uuid(uint64_t shader_uuid,
                                                   eMaterialPipeline &pipeline_type,
-                                                  eMaterialGeometry &geometry_type)
+                                                  eMaterialGeometry &geometry_type,
+                                                  eMaterialDisplacement &displacement_type,
+                                                  eMaterialThickness &thickness_type,
+                                                  bool &transparent_shadows)
 {
   const uint64_t geometry_mask = ((1u << 4u) - 1u);
   const uint64_t pipeline_mask = ((1u << 4u) - 1u);
+  const uint64_t thickness_mask = ((1u << 1u) - 1u);
+  const uint64_t displacement_mask = ((1u << 1u) - 1u);
   geometry_type = static_cast<eMaterialGeometry>(shader_uuid & geometry_mask);
   pipeline_type = static_cast<eMaterialPipeline>((shader_uuid >> 4u) & pipeline_mask);
+  displacement_type = static_cast<eMaterialDisplacement>((shader_uuid >> 8u) & displacement_mask);
+  thickness_type = static_cast<eMaterialThickness>((shader_uuid >> 9u) & thickness_mask);
+  transparent_shadows = (shader_uuid >> 10u) & 1u;
 }
 
-static inline uint64_t shader_uuid_from_material_type(eMaterialPipeline pipeline_type,
-                                                      eMaterialGeometry geometry_type)
+static inline uint64_t shader_uuid_from_material_type(
+    eMaterialPipeline pipeline_type,
+    eMaterialGeometry geometry_type,
+    eMaterialDisplacement displacement_type = MAT_DISPLACEMENT_BUMP,
+    eMaterialThickness thickness_type = MAT_THICKNESS_SPHERE,
+    char blend_flags = 0)
 {
-  return geometry_type | (pipeline_type << 4);
+  BLI_assert(displacement_type < (1 << 1));
+  BLI_assert(thickness_type < (1 << 1));
+  BLI_assert(geometry_type < (1 << 4));
+  BLI_assert(pipeline_type < (1 << 4));
+  uint64_t transparent_shadows = blend_flags & MA_BL_TRANSPARENT_SHADOW ? 1 : 0;
+
+  uint64_t uuid;
+  uuid = geometry_type;
+  uuid |= pipeline_type << 4;
+  uuid |= displacement_type << 8;
+  uuid |= thickness_type << 9;
+  uuid |= transparent_shadows << 10;
+  return uuid;
 }
 
 ENUM_OPERATORS(eClosureBits, CLOSURE_AMBIENT_OCCLUSION)
@@ -74,11 +150,17 @@ static inline eClosureBits shader_closure_bits_from_flag(const GPUMaterial *gpum
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT)) {
     closure_bits |= CLOSURE_TRANSPARENCY;
   }
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSLUCENT)) {
+    closure_bits |= CLOSURE_TRANSLUCENT;
+  }
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_EMISSION)) {
     closure_bits |= CLOSURE_EMISSION;
   }
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_GLOSSY)) {
     closure_bits |= CLOSURE_REFLECTION;
+  }
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_COAT)) {
+    closure_bits |= CLOSURE_CLEARCOAT;
   }
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SUBSURFACE)) {
     closure_bits |= CLOSURE_SSS;
@@ -92,6 +174,9 @@ static inline eClosureBits shader_closure_bits_from_flag(const GPUMaterial *gpum
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_AO)) {
     closure_bits |= CLOSURE_AMBIENT_OCCLUSION;
   }
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA)) {
+    closure_bits |= CLOSURE_SHADER_TO_RGBA;
+  }
   return closure_bits;
 }
 
@@ -101,7 +186,7 @@ static inline eMaterialGeometry to_material_geometry(const Object *ob)
     case OB_CURVES:
       return MAT_GEOM_CURVES;
     case OB_VOLUME:
-      return MAT_GEOM_VOLUME_OBJECT;
+      return MAT_GEOM_VOLUME;
     case OB_GPENCIL_LEGACY:
       return MAT_GEOM_GPENCIL;
     case OB_POINTCLOUD:
@@ -111,26 +196,42 @@ static inline eMaterialGeometry to_material_geometry(const Object *ob)
   }
 }
 
-/** Unique key to identify each material in the hash-map. */
+/**
+ * Unique key to identify each material in the hash-map.
+ * This is above the shader binning.
+ */
 struct MaterialKey {
   ::Material *mat;
   uint64_t options;
 
-  MaterialKey(::Material *mat_, eMaterialGeometry geometry, eMaterialPipeline surface_pipeline)
+  MaterialKey(::Material *mat_,
+              eMaterialGeometry geometry,
+              eMaterialPipeline pipeline,
+              short visibility_flags)
       : mat(mat_)
   {
-    options = shader_uuid_from_material_type(surface_pipeline, geometry);
+    options = shader_uuid_from_material_type(pipeline,
+                                             geometry,
+                                             to_displacement_type(mat_->displacement_method),
+                                             to_thickness_type(mat_->thickness_mode),
+                                             mat_->blend_flag);
+    options = (options << 1) | (visibility_flags & OB_HIDE_CAMERA ? 0 : 1);
+    options = (options << 1) | (visibility_flags & OB_HIDE_SHADOW ? 0 : 1);
+    options = (options << 1) | (visibility_flags & OB_HIDE_PROBE_CUBEMAP ? 0 : 1);
+    options = (options << 1) | (visibility_flags & OB_HIDE_PROBE_PLANAR ? 0 : 1);
   }
 
   uint64_t hash() const
   {
-    BLI_assert(options < sizeof(*mat));
     return uint64_t(mat) + options;
   }
 
   bool operator<(const MaterialKey &k) const
   {
-    return (mat < k.mat) || (options < k.options);
+    if (mat == k.mat) {
+      return options < k.options;
+    }
+    return mat < k.mat;
   }
 
   bool operator==(const MaterialKey &k) const
@@ -146,21 +247,22 @@ struct MaterialKey {
  *
  * \{ */
 
+/**
+ * Key used to find the sub-pass that already renders objects with the same shader.
+ * This avoids the cost associated with shader switching.
+ * This is below the material binning.
+ * Should only include pipeline options that are not baked in the shader itself.
+ */
 struct ShaderKey {
   GPUShader *shader;
   uint64_t options;
 
-  ShaderKey(GPUMaterial *gpumat,
-            eMaterialGeometry geometry,
-            eMaterialPipeline pipeline,
-            char blend_flags,
-            bool probe_capture)
+  ShaderKey(GPUMaterial *gpumat, ::Material *blender_mat, eMaterialProbe probe_capture)
   {
     shader = GPU_material_get_shader(gpumat);
-    options = blend_flags;
-    options = (options << 6u) | shader_uuid_from_material_type(pipeline, geometry);
-    options = (options << 16u) | shader_closure_bits_from_flag(gpumat);
-    options = (options << 1u) | uint64_t(probe_capture);
+    options = uint64_t(shader_closure_bits_from_flag(gpumat));
+    options = (options << 8) | blender_mat->blend_flag;
+    options = (options << 2) | uint64_t(probe_capture);
   }
 
   uint64_t hash() const
@@ -220,7 +322,20 @@ struct MaterialPass {
 
 struct Material {
   bool is_alpha_blend_transparent;
-  MaterialPass shadow, shading, prepass, capture, probe_prepass, probe_shading, volume;
+  bool has_transparent_shadows;
+  bool has_surface;
+  bool has_volume;
+  MaterialPass shadow;
+  MaterialPass shading;
+  MaterialPass prepass;
+  MaterialPass overlap_masking;
+  MaterialPass capture;
+  MaterialPass lightprobe_sphere_prepass;
+  MaterialPass lightprobe_sphere_shading;
+  MaterialPass planar_probe_prepass;
+  MaterialPass planar_probe_shading;
+  MaterialPass volume_occupancy;
+  MaterialPass volume_material;
 };
 
 struct MaterialArray {
@@ -231,7 +346,7 @@ struct MaterialArray {
 class MaterialModule {
  public:
   ::Material *diffuse_mat;
-  ::Material *glossy_mat;
+  ::Material *metallic_mat;
 
   int64_t queued_shaders_count = 0;
   int64_t queued_optimize_shaders_count = 0;
@@ -276,7 +391,7 @@ class MaterialModule {
                                  ::Material *blender_mat,
                                  eMaterialPipeline pipeline_type,
                                  eMaterialGeometry geometry_type,
-                                 bool probe_capture = false);
+                                 eMaterialProbe probe_capture = MAT_PROBE_NONE);
 };
 
 /** \} */

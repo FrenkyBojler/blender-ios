@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_span.hh"
+
 struct Base;
 struct MetaElem;
 struct Object;
@@ -26,8 +28,7 @@ void ED_keymap_metaball(wmKeyConfig *keyconf);
 MetaElem *ED_mball_add_primitive(
     bContext *C, Object *obedit, bool obedit_is_new, float mat[4][4], float dia, int type);
 
-Base *ED_mball_base_and_elem_from_select_buffer(Base **bases,
-                                                uint bases_len,
+Base *ED_mball_base_and_elem_from_select_buffer(blender::Span<Base *> bases,
                                                 const uint select_id,
                                                 MetaElem **r_ml);
 
@@ -37,8 +38,6 @@ Base *ED_mball_base_and_elem_from_select_buffer(Base **bases,
  * \return True when pick finds an element or the selection changed.
  */
 bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Params *params);
-
-bool ED_mball_deselect_all_multi_ex(Base **bases, uint bases_len);
 bool ED_mball_deselect_all_multi(bContext *C);
 
 /**
@@ -51,7 +50,7 @@ void ED_mball_editmball_free(Object *obedit);
 void ED_mball_editmball_make(Object *obedit);
 /**
  * This function is called, when MetaBall Object switched from edit mode to object mode.
- * List of MetaElements is copied from object->data->edit_elems to object->data->elems.
+ * List of MetaElements is copied from `object->data->edit_elems` to `object->data->elems`.
  */
 void ED_mball_editmball_load(Object *obedit);
 

@@ -13,32 +13,28 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_blenlib.h"
 #include "BLI_math_color.h"
 #include "BLI_utildefines.h"
 
 /* Types --------------------------------------------------------------- */
 
 #include "DNA_anim_types.h"
-#include "DNA_cachefile_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_action.h"
 #include "BKE_bake_geometry_nodes_modifier.hh"
-#include "BKE_context.h"
-#include "BKE_node_runtime.hh"
 #include "BKE_pointcache.h"
+
+#include "ANIM_action.hh"
 
 /* Everything from source (BIF, BDR, BSE) ------------------------------ */
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -51,27 +47,19 @@
 
 #include "action_intern.hh"
 
+using namespace blender;
+
 /* -------------------------------------------------------------------- */
 /** \name Channel List
  * \{ */
 
-void draw_channel_names(bContext *C, bAnimContext *ac, ARegion *region)
+void draw_channel_names(bContext *C,
+                        bAnimContext *ac,
+                        ARegion *region,
+                        const ListBase /*bAnimListElem*/ &anim_data)
 {
-  ListBase anim_data = {nullptr, nullptr};
   bAnimListElem *ale;
-  eAnimFilter_Flags filter;
-
   View2D *v2d = &region->v2d;
-  size_t items;
-
-  /* build list of channels to draw */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
-  items = ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
-
-  const int height = ANIM_UI_get_channels_total_height(v2d, items);
-  const float pad_bottom = BLI_listbase_is_empty(ac->markers) ? 0 : UI_MARKER_MARGIN_Y;
-  v2d->tot.ymin = -(height + pad_bottom);
-
   /* need to do a view-sync here, so that the keys area doesn't jump around (it must copy this) */
   UI_view2d_sync(nullptr, ac->area, v2d, V2D_LOCK_COPY);
 
@@ -88,7 +76,8 @@ void draw_channel_names(bContext *C, bAnimContext *ac, ARegion *region)
 
       /* check if visible */
       if (IN_RANGE(ymin, v2d->cur.ymin, v2d->cur.ymax) ||
-          IN_RANGE(ymax, v2d->cur.ymin, v2d->cur.ymax)) {
+          IN_RANGE(ymax, v2d->cur.ymin, v2d->cur.ymax))
+      {
         /* draw all channels using standard channel-drawing API */
         ANIM_channel_draw(ac, ale, ymin, ymax, channel_index);
       }
@@ -106,7 +95,8 @@ void draw_channel_names(bContext *C, bAnimContext *ac, ARegion *region)
 
       /* check if visible */
       if (IN_RANGE(ymin, v2d->cur.ymin, v2d->cur.ymax) ||
-          IN_RANGE(ymax, v2d->cur.ymin, v2d->cur.ymax)) {
+          IN_RANGE(ymax, v2d->cur.ymin, v2d->cur.ymax))
+      {
         /* draw all channels using standard channel-drawing API */
         rctf channel_rect;
         BLI_rctf_init(&channel_rect, 0, v2d->cur.xmax, ymin, ymax);
@@ -117,9 +107,6 @@ void draw_channel_names(bContext *C, bAnimContext *ac, ARegion *region)
     UI_block_end(C, block);
     UI_block_draw(C, block);
   }
-
-  /* Free temporary channels. */
-  ANIM_animdata_freelist(&anim_data);
 }
 
 /** \} */
@@ -152,7 +139,8 @@ static void draw_channel_action_ranges(ListBase *anim_data, View2D *v2d)
 
     /* check if visible */
     if (IN_RANGE(ymin, v2d->cur.ymin, v2d->cur.ymax) ||
-        IN_RANGE(ymax, v2d->cur.ymin, v2d->cur.ymax)) {
+        IN_RANGE(ymax, v2d->cur.ymin, v2d->cur.ymax))
+    {
       /* check if anything to show for this channel */
       if (ale->datatype != ALE_NONE) {
         action = ANIM_channel_action_get(ale);
@@ -238,6 +226,7 @@ static void draw_backdrops(bAnimContext *ac, ListBase &anim_data, View2D *v2d, u
           break;
         }
         case ANIMTYPE_FILLACTD:
+        case ANIMTYPE_FILLACT_LAYERED:
         case ANIMTYPE_DSSKEY:
         case ANIMTYPE_DSWOR: {
           immUniformColor3ubvAlpha(col2b, sel ? col1[3] : col2b[3]);
@@ -280,7 +269,7 @@ static void draw_backdrops(bAnimContext *ac, ListBase &anim_data, View2D *v2d, u
       immRectf(pos, ac->scene->r.sfra, ymin, ac->scene->r.efra, ymax);
 
       /* Color overlay outside the start/end frame range get a more transparent overlay. */
-      immUniformColor3ubvAlpha(color, MIN2(255, color[3] / 2));
+      immUniformColor3ubvAlpha(color, std::min(255, color[3] / 2));
       immRectf(pos, v2d->cur.xmin, ymin, ac->scene->r.sfra, ymax);
       immRectf(pos, ac->scene->r.efra, ymin, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymax);
     }
@@ -299,7 +288,7 @@ static void draw_backdrops(bAnimContext *ac, ListBase &anim_data, View2D *v2d, u
       immRectf(pos, ac->scene->r.sfra, ymin, ac->scene->r.efra, ymax);
 
       /* Color overlay outside the start/end frame range get a more transparent overlay. */
-      immUniformColor3ubvAlpha(color, MIN2(255, color[3] / 2));
+      immUniformColor3ubvAlpha(color, std::min(255, color[3] / 2));
       immRectf(pos, v2d->cur.xmin, ymin, ac->scene->r.sfra, ymax);
       immRectf(pos, ac->scene->r.efra, ymin, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymax);
     }
@@ -359,8 +348,6 @@ static void draw_keyframes(bAnimContext *ac,
       continue;
     }
 
-    AnimData *adt = ANIM_nla_mapping_get(ac, ale);
-
     /* Add channels to list to draw later. */
     switch (ale->datatype) {
       case ALE_ALL:
@@ -383,9 +370,26 @@ static void draw_keyframes(bAnimContext *ac,
                               scale_factor,
                               action_flag);
         break;
+      case ALE_ACTION_LAYERED:
+        ED_add_action_layered_channel(draw_list,
+                                      ale,
+                                      static_cast<bAction *>(ale->key_data),
+                                      ycenter,
+                                      scale_factor,
+                                      action_flag);
+        break;
+      case ALE_ACTION_SLOT:
+        ED_add_action_slot_channel(draw_list,
+                                   ale,
+                                   static_cast<bAction *>(ale->key_data)->wrap(),
+                                   *static_cast<animrig::Slot *>(ale->data),
+                                   ycenter,
+                                   scale_factor,
+                                   action_flag);
+        break;
       case ALE_ACT:
         ED_add_action_channel(draw_list,
-                              adt,
+                              ale,
                               static_cast<bAction *>(ale->key_data),
                               ycenter,
                               scale_factor,
@@ -393,20 +397,21 @@ static void draw_keyframes(bAnimContext *ac,
         break;
       case ALE_GROUP:
         ED_add_action_group_channel(draw_list,
-                                    adt,
+                                    ale,
                                     static_cast<bActionGroup *>(ale->data),
                                     ycenter,
                                     scale_factor,
                                     action_flag);
         break;
-      case ALE_FCURVE:
+      case ALE_FCURVE: {
         ED_add_fcurve_channel(draw_list,
-                              adt,
+                              ale,
                               static_cast<FCurve *>(ale->key_data),
                               ycenter,
                               scale_factor,
                               action_flag);
         break;
+      }
       case ALE_GREASE_PENCIL_CEL:
         ED_add_grease_pencil_cels_channel(draw_list,
                                           ads,
@@ -426,7 +431,8 @@ static void draw_keyframes(bAnimContext *ac,
         break;
       case ALE_GREASE_PENCIL_DATA:
         ED_add_grease_pencil_datablock_channel(draw_list,
-                                               ads,
+                                               ac,
+                                               ale,
                                                static_cast<const GreasePencil *>(ale->data),
                                                ycenter,
                                                scale_factor,
@@ -448,6 +454,9 @@ static void draw_keyframes(bAnimContext *ac,
                                   scale_factor,
                                   action_flag);
         break;
+      case ALE_NONE:
+      case ALE_NLASTRIP:
+        break;
     }
   }
 
@@ -456,25 +465,17 @@ static void draw_keyframes(bAnimContext *ac,
   ED_channel_list_free(draw_list);
 }
 
-void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *region)
+void draw_channel_strips(bAnimContext *ac,
+                         SpaceAction *saction,
+                         ARegion *region,
+                         ListBase *anim_data)
 {
-  ListBase anim_data = {nullptr, nullptr};
   View2D *v2d = &region->v2d;
-
-  /* build list of channels to draw */
-  eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-                              ANIMFILTER_LIST_CHANNELS);
-  size_t items = ANIM_animdata_filter(
-      ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
-
-  const int height = ANIM_UI_get_channels_total_height(v2d, items);
-  const float pad_bottom = BLI_listbase_is_empty(ac->markers) ? 0 : UI_MARKER_MARGIN_Y;
-  v2d->tot.ymin = -(height + pad_bottom);
 
   /* Draw the manual frame ranges for actions in the background of the dopesheet.
    * The action editor has already drawn the range for its action so it's not needed. */
   if (ac->datatype == ANIMCONT_DOPESHEET) {
-    draw_channel_action_ranges(&anim_data, v2d);
+    draw_channel_action_ranges(anim_data, v2d);
   }
 
   /* Draw the background strips. */
@@ -486,7 +487,7 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *region
   GPU_blend(GPU_BLEND_ALPHA);
 
   /* first backdrop strips */
-  draw_backdrops(ac, anim_data, v2d, pos);
+  draw_backdrops(ac, *anim_data, v2d, pos);
 
   GPU_blend(GPU_BLEND_NONE);
 
@@ -501,10 +502,10 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *region
   }
   immUnbindProgram();
 
-  draw_keyframes(ac, v2d, saction, anim_data);
+  draw_keyframes(ac, v2d, saction, *anim_data);
 
   /* free temporary channels used for drawing */
-  ANIM_animdata_freelist(&anim_data);
+  ANIM_animdata_freelist(anim_data);
 }
 
 /** \} */
@@ -720,25 +721,24 @@ static void timeline_cache_draw_single(PTCacheID *pid, float y_offset, float hei
   GPU_matrix_pop();
 }
 
-struct SimulationRange {
+struct CacheRange {
   blender::IndexRange frames;
   blender::bke::bake::CacheStatus status;
 };
 
-static void timeline_cache_draw_simulation_nodes(
-    const blender::Span<SimulationRange> simulation_ranges,
-    const bool all_simulations_baked,
-    float *y_offset,
-    const float line_height,
-    const uint pos_id)
+static void timeline_cache_draw_geometry_nodes(const blender::Span<CacheRange> cache_ranges,
+                                               const bool all_simulations_baked,
+                                               float *y_offset,
+                                               const float line_height,
+                                               const uint pos_id)
 {
-  if (simulation_ranges.is_empty()) {
+  if (cache_ranges.is_empty()) {
     return;
   }
 
   bool has_bake = false;
 
-  for (const SimulationRange &sim_range : simulation_ranges) {
+  for (const CacheRange &sim_range : cache_ranges) {
     switch (sim_range.status) {
       case blender::bke::bake::CacheStatus::Invalid:
       case blender::bke::bake::CacheStatus::Valid:
@@ -750,7 +750,7 @@ static void timeline_cache_draw_simulation_nodes(
   }
 
   blender::Set<int> status_change_frames_set;
-  for (const SimulationRange &sim_range : simulation_ranges) {
+  for (const CacheRange &sim_range : cache_ranges) {
     status_change_frames_set.add(sim_range.frames.first());
     status_change_frames_set.add(sim_range.frames.one_after_last());
   }
@@ -781,7 +781,7 @@ static void timeline_cache_draw_simulation_nodes(
     bool has_bake_at_frame = false;
     bool has_valid_at_frame = false;
     bool has_invalid_at_frame = false;
-    for (const SimulationRange &sim_range : simulation_ranges) {
+    for (const CacheRange &sim_range : cache_ranges) {
       if (sim_range.frames.contains(start_frame)) {
         switch (sim_range.status) {
           case blender::bke::bake::CacheStatus::Invalid:
@@ -867,7 +867,7 @@ void timeline_draw_cache(const SpaceAction *saction, const Object *ob, const Sce
     y_offset += cache_draw_height;
   }
   if (saction->cache_display & TIME_CACHE_SIMULATION_NODES) {
-    blender::Vector<SimulationRange> simulation_ranges;
+    blender::Vector<CacheRange> cache_ranges;
     bool all_simulations_baked = true;
     LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
       if (md->type != eModifierType_Nodes) {
@@ -880,32 +880,43 @@ void timeline_draw_cache(const SpaceAction *saction, const Object *ob, const Sce
       if (!nmd->runtime->cache) {
         continue;
       }
-      if ((nmd->node_group->runtime->runtime_flag & NTREE_RUNTIME_FLAG_HAS_SIMULATION_ZONE) == 0) {
+      if (nmd->node_group->nested_node_refs_num == 0) {
+        /* Skip when there are no bake nodes or simulations. */
         continue;
       }
       const blender::bke::bake::ModifierCache &modifier_cache = *nmd->runtime->cache;
       {
         std::lock_guard lock{modifier_cache.mutex};
-        for (const std::unique_ptr<blender::bke::bake::NodeCache> &node_cache_ptr :
-             modifier_cache.cache_by_id.values())
-        {
-          const blender::bke::bake::NodeCache &node_cache = *node_cache_ptr;
-          if (node_cache.frame_caches.is_empty()) {
+        for (const auto item : modifier_cache.simulation_cache_by_id.items()) {
+          const blender::bke::bake::SimulationNodeCache &node_cache = *item.value;
+          if (node_cache.bake.frames.is_empty()) {
             all_simulations_baked = false;
             continue;
           }
           if (node_cache.cache_status != blender::bke::bake::CacheStatus::Baked) {
             all_simulations_baked = false;
           }
-          const int start_frame = node_cache.frame_caches.first()->frame.frame();
-          const int end_frame = node_cache.frame_caches.last()->frame.frame();
-          const blender::IndexRange frame_range{start_frame, end_frame - start_frame + 1};
-          simulation_ranges.append({frame_range, node_cache.cache_status});
+          cache_ranges.append({node_cache.bake.frame_range(), node_cache.cache_status});
+        }
+        for (const auto item : modifier_cache.bake_cache_by_id.items()) {
+          const NodesModifierBake *bake = nmd->find_bake(item.key);
+          if (!bake) {
+            continue;
+          }
+          if (bake->bake_mode == NODES_MODIFIER_BAKE_MODE_STILL) {
+            continue;
+          }
+          const blender::bke::bake::BakeNodeCache &node_cache = *item.value;
+          if (node_cache.bake.frames.is_empty()) {
+            continue;
+          }
+          cache_ranges.append(
+              {node_cache.bake.frame_range(), blender::bke::bake::CacheStatus::Baked});
         }
       }
     }
-    timeline_cache_draw_simulation_nodes(
-        simulation_ranges, all_simulations_baked, &y_offset, cache_draw_height, pos_id);
+    timeline_cache_draw_geometry_nodes(
+        cache_ranges, all_simulations_baked, &y_offset, cache_draw_height, pos_id);
   }
 
   GPU_blend(GPU_BLEND_NONE);

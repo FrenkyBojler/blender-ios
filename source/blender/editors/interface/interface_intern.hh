@@ -12,8 +12,10 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rect.h"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
+
+#include "BKE_fcurve.hh"
 
 #include "DNA_listBase.h"
 #include "RNA_types.hh"
@@ -27,10 +29,13 @@ struct bContextStore;
 struct ColorManagedDisplay;
 struct CurveMapping;
 struct CurveProfile;
-struct GPUBatch;
+namespace blender::gpu {
+class Batch;
+}
 struct IconTextOverlay;
 struct ID;
 struct ImBuf;
+struct LayoutPanelHeader;
 struct Main;
 struct Scene;
 struct uiHandleButtonData;
@@ -70,7 +75,14 @@ enum {
   UI_SELECT = (1 << 0),
   /** Temporarily hidden (scrolled out of the view). */
   UI_SCROLLED = (1 << 1),
-  UI_ACTIVE = (1 << 2),
+  /**
+   * The button is hovered by the mouse and should be drawn with a hover highlight. Also set
+   * sometimes to highlight buttons without actually hovering it (e.g. for arrow navigation in
+   * menus). UI handling code manages this mostly and usually does this together with making the
+   * button active/focused (see #uiBut::active). This means events will be forwarded to it and
+   * further handlers/shortcuts can be used while hovering it.
+   */
+  UI_HOVER = (1 << 2),
   UI_HAS_ICON = (1 << 3),
   UI_HIDDEN = (1 << 4),
   /** Display selected, doesn't impact interaction. */
@@ -171,34 +183,21 @@ struct uiBut {
   short bit = 0, bitnr = 0, retval = 0, strwidth = 0, alignnr = 0;
   short ofs = 0, pos = 0, selsta = 0, selend = 0;
 
-  char *str = nullptr;
-  char strdata[UI_MAX_NAME_STR] = "";
-  char drawstr[UI_MAX_DRAW_STR] = "";
+  std::string str;
+
+  std::string drawstr;
+
+  char *placeholder = nullptr;
 
   rctf rect = {}; /* block relative coords */
 
   char *poin = nullptr;
   float hardmin = 0, hardmax = 0, softmin = 0, softmax = 0;
 
-  /* both these values use depends on the button type
-   * (polymorphic struct or union would be nicer for this stuff) */
-
   /**
-   * For #uiBut.type:
-   * - UI_BTYPE_LABEL:        Use `(a1 == 1.0f)` to use a2 as a blending factor (imaginative!).
-   * - UI_BTYPE_SCROLL:       Use as scroll size.
-   * - UI_BTYPE_SEARCH_MENU:  Use as number or rows.
+   * Optional color for monochrome icon. Also used as text
+   * color for labels without icons. Set with #UI_but_color_set().
    */
-  float a1 = 0;
-
-  /**
-   * For #uiBut.type:
-   * - UI_BTYPE_HSVCIRCLE:    Use to store the luminosity.
-   * - UI_BTYPE_LABEL:        If `(a1 == 1.0f)` use a2 as a blending factor.
-   * - UI_BTYPE_SEARCH_MENU:  Use as number or columns.
-   */
-  float a2 = 0;
-
   uchar col[4] = {0};
 
   /** See \ref UI_but_func_identity_compare_set(). */
@@ -215,6 +214,8 @@ struct uiBut {
 
   uiButHandleNFunc funcN = nullptr;
   void *func_argN = nullptr;
+  uiButArgNFree func_argN_free_fn;
+  uiButArgNCopy func_argN_copy_fn;
 
   const bContextStore *context = nullptr;
 
@@ -224,6 +225,11 @@ struct uiBut {
   uiButHandleRenameFunc rename_func = nullptr;
   void *rename_arg1 = nullptr;
   void *rename_orig = nullptr;
+
+  /* When defined, and the button edits a string RNA property, the new name is _not_ set at all,
+   * instead this function is called with the new name. */
+  std::function<void(std::string &new_name)> rename_full_func = nullptr;
+  std::string rename_full_new = "";
 
   /** Run an action when holding the button down. */
   uiButHandleHoldFunc hold_func = nullptr;
@@ -252,6 +258,9 @@ struct uiBut {
   uchar unit_type = 0;
   short iconadd = 0;
 
+  /** Affects the order if this uiBut is used in menu-search. */
+  float search_weight = 0.0f;
+
   /** #UI_BTYPE_BLOCK data */
   uiBlockCreateFunc block_create_func = nullptr;
 
@@ -259,6 +268,8 @@ struct uiBut {
   uiMenuCreateFunc menu_create_func = nullptr;
 
   uiMenuStepFunc menu_step_func = nullptr;
+  /** See #UI_but_menu_disable_hover_open(). */
+  bool menu_no_hover_open = false;
 
   /* RNA data */
   PointerRNA rnapoin = {};
@@ -269,6 +280,11 @@ struct uiBut {
   wmOperatorType *optype = nullptr;
   PointerRNA *opptr = nullptr;
   wmOperatorCallContext opcontext = WM_OP_INVOKE_DEFAULT;
+  /**
+   * Keep an operator attached but never actually call it through the button. See
+   * #UI_but_operator_set_never_call().
+   */
+  bool operator_never_call = false;
 
   /** When non-zero, this is the key used to activate a menu items (`a-z` always lower case). */
   uchar menu_key = 0;
@@ -281,8 +297,23 @@ struct uiBut {
   const ImBuf *imb = nullptr;
   float imb_scale = 0;
 
-  /** Active button data (set when the user is hovering or interacting with a button). */
+  /**
+   * Active button data, set when the user is hovering or interacting with a button (#UI_HOVER and
+   * #UI_SELECT state mostly).
+   */
   uiHandleButtonData *active = nullptr;
+  /**
+   * Event handling only supports one active button at a time, but there are cases where that's not
+   * enough. A common one is to keep some filter button active to receive text input, while other
+   * buttons remain active for interaction.
+   *
+   * Buttons that have #semi_modal_state set will be temporarily activated for event handling. If
+   * they don't consume the event (for example text input events) the event will be forwarded to
+   * other buttons.
+   *
+   * Currently only text buttons support this well.
+   */
+  uiHandleButtonData *semi_modal_state = nullptr;
 
   /** Custom button data (borrowed, not owned). */
   void *custom_data = nullptr;
@@ -308,8 +339,14 @@ struct uiBut {
 
 /** Derived struct for #UI_BTYPE_NUM */
 struct uiButNumber : public uiBut {
-  float step_size = 0;
-  float precision = 0;
+  float step_size = 0.0f;
+  float precision = 0.0f;
+};
+
+/** Derived struct for #UI_BTYPE_NUM_SLIDER */
+struct uiButNumberSlider : public uiBut {
+  float step_size = 0.0f;
+  float precision = 0.0f;
 };
 
 /** Derived struct for #UI_BTYPE_COLOR */
@@ -320,7 +357,7 @@ struct uiButColor : public uiBut {
 
 /** Derived struct for #UI_BTYPE_TAB */
 struct uiButTab : public uiBut {
-  struct MenuType *menu = nullptr;
+  MenuType *menu = nullptr;
 };
 
 /** Derived struct for #UI_BTYPE_SEARCH_MENU */
@@ -343,6 +380,9 @@ struct uiButSearch : public uiBut {
   PointerRNA rnasearchpoin = {};
   PropertyRNA *rnasearchprop = nullptr;
 
+  int preview_rows = 0;
+  int preview_cols = 0;
+
   /**
    * The search box only provides suggestions, it does not force
    * the string to match one of the search items when applying.
@@ -352,11 +392,11 @@ struct uiButSearch : public uiBut {
 
 /**
  * Derived struct for #UI_BTYPE_DECORATOR
- * Decorators have own RNA data, using the normal #uiBut RNA members has many side-effects.
+ * Decorators have their own RNA data, using the normal #uiBut RNA members has many side-effects.
  */
 struct uiButDecorator : public uiBut {
-  struct PointerRNA decorated_rnapoin = {};
-  struct PropertyRNA *decorated_rnaprop = nullptr;
+  PointerRNA decorated_rnapoin = {};
+  PropertyRNA *decorated_rnaprop = nullptr;
   int decorated_rnaindex = -1;
 };
 
@@ -368,9 +408,25 @@ struct uiButProgress : public uiBut {
   eButProgressType progress_type = UI_BUT_PROGRESS_TYPE_BAR;
 };
 
+/** Derived struct for #UI_BTYPE_SEPR_LINE. */
+struct uiButSeparatorLine : public uiBut {
+  bool is_vertical;
+};
+
+/** Derived struct for #UI_BTYPE_LABEL. */
+struct uiButLabel : public uiBut {
+  float alpha_factor = 1.0f;
+};
+
+/** Derived struct for #UI_BTYPE_SCROLL. */
+struct uiButScrollBar : public uiBut {
+  /** Actual visual height of UI list (in rows). */
+  float visual_height = -1.0f;
+};
+
 struct uiButViewItem : public uiBut {
-  /* C-Handle to the view item this button was created for. */
-  uiViewItemHandle *view_item = nullptr;
+  /* The view item this button was created for. */
+  blender::ui::AbstractViewItem *view_item = nullptr;
   /* Some items want to have a fixed size for drawing, differing from the interaction rectangle
    * (e.g. so highlights are drawn smaller). */
   int draw_width = 0;
@@ -437,6 +493,9 @@ struct ColorPicker {
   bool use_color_lock;
   bool use_luminosity_lock;
   float luminosity_lock_value;
+
+  /* Alpha component. */
+  bool has_alpha;
 };
 
 struct ColorPickerData {
@@ -518,7 +577,7 @@ struct uiBlock {
 
   ListBase dynamic_listeners; /* #uiBlockDynamicListener */
 
-  char name[UI_MAX_NAME_STR];
+  std::string name;
 
   float winmat[4][4];
 
@@ -534,9 +593,8 @@ struct uiBlock {
 
   uiButHandleNFunc funcN;
   void *func_argN;
-
-  uiMenuHandleFunc butm_func;
-  void *butm_func_arg;
+  uiButArgNFree func_argN_free_fn;
+  uiButArgNCopy func_argN_copy_fn;
 
   uiBlockHandleFunc handle_func;
   void *handle_func_arg;
@@ -548,9 +606,7 @@ struct uiBlock {
   int (*block_event_func)(const bContext *C, uiBlock *, const wmEvent *);
 
   /** Custom extra draw function for custom blocks. */
-  void (*drawextra)(const bContext *C, void *idv, void *arg1, void *arg2, rcti *rect);
-  void *drawextra_arg1;
-  void *drawextra_arg2;
+  std::function<void(const bContext *, rcti *)> drawextra;
 
   int flag;
   short alignnr;
@@ -595,13 +651,14 @@ struct uiBlock {
   /** use so presets can find the operator,
    * across menus and from nested popups which fail for operator context. */
   wmOperator *ui_operator;
+  bool ui_operator_free;
 
   /** XXX hack for dynamic operator enums */
   void *evil_C;
 
   /** unit system, used a lot for numeric buttons so include here
    * rather than fetching through the scene every time. */
-  UnitSettings *unit;
+  const UnitSettings *unit;
   /** \note only accessed by color picker templates. */
   ColorPickerData color_pickers;
 
@@ -632,8 +689,9 @@ void ui_but_to_pixelrect(rcti *rect,
                          const ARegion *region,
                          const uiBlock *block,
                          const uiBut *but);
+rcti ui_to_pixelrect(const ARegion *region, const uiBlock *block, const rctf *src_rect);
 
-void ui_block_to_region_fl(const ARegion *region, const uiBlock *block, float *r_x, float *r_y);
+void ui_block_to_region_fl(const ARegion *region, const uiBlock *block, float *x, float *y);
 void ui_block_to_window_fl(const ARegion *region, const uiBlock *block, float *x, float *y);
 void ui_block_to_window(const ARegion *region, const uiBlock *block, int *x, int *y);
 void ui_block_to_region_rctf(const ARegion *region,
@@ -687,10 +745,9 @@ void ui_but_hsv_set(uiBut *but);
  * For buttons pointing to color for example.
  */
 void ui_but_v3_get(uiBut *but, float vec[3]);
-/**
- * For buttons pointing to color for example.
- */
 void ui_but_v3_set(uiBut *but, const float vec[3]);
+void ui_but_v4_get(uiBut *but, float vec[4]);
+void ui_but_v4_set(uiBut *but, const float vec[4]);
 
 void ui_hsvcircle_vals_from_pos(
     const rcti *rect, float mx, float my, float *r_val_rad, float *r_val_dist);
@@ -698,9 +755,9 @@ void ui_hsvcircle_vals_from_pos(
  * Cursor in HSV circle, in float units -1 to 1, to map on radius.
  */
 void ui_hsvcircle_pos_from_vals(
-    const ColorPicker *cpicker, const rcti *rect, const float *hsv, float *xpos, float *ypos);
+    const ColorPicker *cpicker, const rcti *rect, const float *hsv, float *r_xpos, float *r_ypos);
 void ui_hsvcube_pos_from_vals(
-    const uiButHSVCube *hsv_but, const rcti *rect, const float *hsv, float *xp, float *yp);
+    const uiButHSVCube *hsv_but, const rcti *rect, const float *hsv, float *r_xp, float *r_yp);
 
 /**
  * \param float_precision: For number buttons the precision
@@ -727,7 +784,7 @@ char *ui_but_string_get_dynamic(uiBut *but, int *r_str_size);
  */
 void ui_but_convert_to_unit_alt_name(uiBut *but, char *str, size_t str_maxncpy) ATTR_NONNULL();
 bool ui_but_string_set(bContext *C, uiBut *but, const char *str) ATTR_NONNULL();
-bool ui_but_string_eval_number(bContext *C, const uiBut *but, const char *str, double *value)
+bool ui_but_string_eval_number(bContext *C, const uiBut *but, const char *str, double *r_value)
     ATTR_NONNULL();
 int ui_but_string_get_maxncpy(uiBut *but);
 /**
@@ -741,6 +798,11 @@ void ui_but_active_string_clear_and_exit(bContext *C, uiBut *but) ATTR_NONNULL()
  */
 void ui_but_set_string_interactive(bContext *C, uiBut *but, const char *value);
 uiBut *ui_but_drag_multi_edit_get(uiBut *but);
+
+/**
+ * Get the hint that describes the expected value when empty.
+ */
+const char *ui_but_placeholder_get(uiBut *but);
 
 void ui_def_but_icon(uiBut *but, int icon, int flag);
 /**
@@ -804,7 +866,7 @@ struct uiKeyNavLock {
   /** Set when we're using keyboard-input. */
   bool is_keynav;
   /** Only used to check if we've moved the cursor. */
-  int event_xy[2];
+  blender::int2 event_xy;
 };
 
 using uiBlockHandleCreateFunc = uiBlock *(*)(bContext *C, uiPopupBlockHandle *handle, void *arg1);
@@ -815,7 +877,7 @@ struct uiPopupBlockCreate {
   void *arg;
   uiFreeArgFunc arg_free;
 
-  int event_xy[2];
+  blender::int2 event_xy;
 
   /** Set when popup is initialized from a button. */
   ARegion *butregion;
@@ -838,7 +900,12 @@ struct uiPopupBlockHandle {
 
   /** Store data for refreshing popups. */
   uiPopupBlockCreate popup_create_vars;
-  /** True if we can re-create the popup using #uiPopupBlockHandle.popup_create_vars. */
+  /**
+   * True if we can re-create the popup using #uiPopupBlockHandle.popup_create_vars.
+   *
+   * \note Popups that can refresh are called with #bContext::wm::region_popup set
+   * to the #uiPopupBlockHandle::region both on initial creation and when refreshing.
+   */
   bool can_refresh;
   bool refresh;
 
@@ -896,6 +963,11 @@ void ui_color_picker_hsv_to_rgb(const float r_cp[3], float rgb[3]);
  * or if it's a color picker for such a button.
  */
 bool ui_but_is_color_gamma(uiBut *but);
+
+/**
+ * Returns true if the button represents a color with an Alpha component.
+ */
+bool ui_but_color_has_alpha(uiBut *but);
 
 void ui_scene_linear_to_perceptual_space(uiBut *but, float rgb[3]);
 void ui_perceptual_to_scene_linear_space(uiBut *but, float rgb[3]);
@@ -955,14 +1027,20 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
                                           uiBlockCreateFunc create_func,
                                           uiBlockHandleCreateFunc handle_create_func,
                                           void *arg,
-                                          uiFreeArgFunc arg_free);
+                                          uiFreeArgFunc arg_free,
+                                          bool can_refresh);
 uiPopupBlockHandle *ui_popup_menu_create(
     bContext *C, ARegion *butregion, uiBut *but, uiMenuCreateFunc menu_func, void *arg);
 
 /* `interface_region_popover.cc` */
 
-uiPopupBlockHandle *ui_popover_panel_create(
-    bContext *C, ARegion *butregion, uiBut *but, uiMenuCreateFunc menu_func, void *arg);
+using uiPopoverCreateFunc = std::function<void(bContext *, uiLayout *, PanelType *)>;
+
+uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
+                                            ARegion *butregion,
+                                            uiBut *but,
+                                            uiPopoverCreateFunc popover_func,
+                                            const PanelType *panel_type);
 
 /* `interface_region_menu_pie.cc` */
 
@@ -971,7 +1049,7 @@ uiPopupBlockHandle *ui_popover_panel_create(
  */
 void ui_pie_menu_level_create(uiBlock *block,
                               wmOperatorType *ot,
-                              const char *propname,
+                              const blender::StringRefNull propname,
                               IDProperty *properties,
                               const EnumPropertyItem *items,
                               int totitem,
@@ -1003,17 +1081,24 @@ int ui_handler_panel_region(bContext *C,
 /**
  * Draw a panel integrated in buttons-window, tool/property lists etc.
  */
-void ui_draw_aligned_panel(const uiStyle *style,
+void ui_draw_aligned_panel(const ARegion *region,
+                           const uiStyle *style,
                            const uiBlock *block,
                            const rcti *rect,
                            bool show_pin,
                            bool show_background,
                            bool region_search_filter_active);
+void ui_draw_layout_panels_backdrop(const ARegion *region,
+                                    const Panel *panel,
+                                    const float radius,
+                                    float subpanel_backcolor[4]);
+void ui_panel_drag_collapse_handler_add(const bContext *C, const bool was_open);
 void ui_panel_tag_search_filter_match(Panel *panel);
-
-/* interface_draw.cc */
-
-void ui_draw_dropshadow(const rctf *rct, float radius, float aspect, float alpha, int select);
+/** Toggles layout panel open state and returns the new state. */
+bool ui_layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header);
+LayoutPanelHeader *ui_layout_panel_header_under_mouse(const Panel &panel, const int my);
+/** Apply scroll to layout panels when the main panel is used in popups. */
+void ui_layout_panel_popup_scroll_apply(Panel *panel, const float dy);
 
 /**
  * Draws in resolution of 48x4 colors.
@@ -1039,15 +1124,15 @@ void ui_draw_but_TAB_outline(const rcti *rect,
 void ui_draw_but_HISTOGRAM(ARegion *region,
                            uiBut *but,
                            const uiWidgetColors *wcol,
-                           const rcti *rect);
+                           const rcti *recti);
 void ui_draw_but_WAVEFORM(ARegion *region,
                           uiBut *but,
                           const uiWidgetColors *wcol,
-                          const rcti *rect);
+                          const rcti *recti);
 void ui_draw_but_VECTORSCOPE(ARegion *region,
                              uiBut *but,
                              const uiWidgetColors *wcol,
-                             const rcti *rect);
+                             const rcti *recti);
 void ui_draw_but_COLORBAND(uiBut *but, const uiWidgetColors *wcol, const rcti *rect);
 void ui_draw_but_UNITVEC(uiBut *but, const uiWidgetColors *wcol, const rcti *rect, float radius);
 void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect);
@@ -1062,7 +1147,7 @@ void ui_draw_but_IMAGE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 void ui_draw_but_TRACKPREVIEW(ARegion *region,
                               uiBut *but,
                               const uiWidgetColors *wcol,
-                              const rcti *rect);
+                              const rcti *recti);
 
 /* `interface_undo.cc` */
 
@@ -1072,14 +1157,14 @@ void ui_draw_but_TRACKPREVIEW(ARegion *region,
  * \note The current state should be pushed immediately after calling this.
  */
 uiUndoStack_Text *ui_textedit_undo_stack_create();
-void ui_textedit_undo_stack_destroy(uiUndoStack_Text *undo_stack);
+void ui_textedit_undo_stack_destroy(uiUndoStack_Text *stack);
 /**
  * Push the information in the arguments to a new state in the undo stack.
  *
  * \note Currently the total length of the undo stack is not limited.
  */
-void ui_textedit_undo_push(uiUndoStack_Text *undo_stack, const char *text, int cursor_index);
-const char *ui_textedit_undo(uiUndoStack_Text *undo_stack, int direction, int *r_cursor_index);
+void ui_textedit_undo_push(uiUndoStack_Text *stack, const char *text, int cursor_index);
+const char *ui_textedit_undo(uiUndoStack_Text *stack, int direction, int *r_cursor_index);
 
 /* interface_handlers.cc */
 
@@ -1104,6 +1189,7 @@ void ui_but_activate_over(bContext *C, ARegion *region, uiBut *but);
 void ui_but_execute_begin(bContext *C, ARegion *region, uiBut *but, void **active_back);
 void ui_but_execute_end(bContext *C, ARegion *region, uiBut *but, void *active_back);
 void ui_but_active_free(const bContext *C, uiBut *but);
+void ui_but_semi_modal_state_free(const bContext *C, uiBut *but);
 /**
  * In some cases we may want to update the view (#View2D) in-between layout definition and drawing.
  * E.g. to make sure a button is visible while editing.
@@ -1135,7 +1221,7 @@ uiBut *ui_but_find_new(uiBlock *block_new, const uiBut *but_old);
 
 #ifdef WITH_INPUT_IME
 void ui_but_ime_reposition(uiBut *but, int x, int y, bool complete);
-wmIMEData *ui_but_ime_data_get(uiBut *but);
+const wmIMEData *ui_but_ime_data_get(uiBut *but);
 #endif
 
 /* interface_widgets.cc */
@@ -1173,17 +1259,17 @@ enum {
   ROUNDBOX_TRIA_MAX, /* don't use */
 };
 
-GPUBatch *ui_batch_roundbox_widget_get();
-GPUBatch *ui_batch_roundbox_shadow_get();
+blender::gpu::Batch *ui_batch_roundbox_widget_get();
+blender::gpu::Batch *ui_batch_roundbox_shadow_get();
 
-void ui_draw_menu_back(uiStyle *style, uiBlock *block, rcti *rect);
-void ui_draw_popover_back(ARegion *region, uiStyle *style, uiBlock *block, rcti *rect);
+void ui_draw_menu_back(uiStyle *style, uiBlock *block, const rcti *rect);
+void ui_draw_popover_back(ARegion *region, uiStyle *style, uiBlock *block, const rcti *rect);
 void ui_draw_pie_center(uiBlock *block);
 const uiWidgetColors *ui_tooltip_get_theme();
 
 void ui_draw_widget_menu_back_color(const rcti *rect, bool use_shadow, const float color[4]);
 void ui_draw_widget_menu_back(const rcti *rect, bool use_shadow);
-void ui_draw_tooltip_background(const uiStyle *style, uiBlock *block, rcti *rect);
+void ui_draw_tooltip_background(const uiStyle *style, uiBlock *block, const rcti *rect);
 
 /**
  * Conversion from old to new buttons, so still messy.
@@ -1208,7 +1294,7 @@ enum uiMenuItemSeparatorType {
  * Helper call to draw a menu item without a button.
  *
  * \param but_flag: Button flags (#uiBut.flag) indicating the state of the item, typically
- *                  #UI_ACTIVE, #UI_BUT_DISABLED, #UI_BUT_INACTIVE.
+ *                  #UI_HOVER, #UI_BUT_DISABLED, #UI_BUT_INACTIVE.
  * \param separator_type: The kind of separator which controls if and how the string is clipped.
  * \param r_xmax: The right hand position of the text, this takes into the icon, padding and text
  *                clipping when there is not enough room to display the full text.
@@ -1236,7 +1322,7 @@ void ui_draw_preview_item(const uiFontStyle *fstyle,
  */
 void ui_draw_preview_item_stateless(const uiFontStyle *fstyle,
                                     rcti *rect,
-                                    const char *name,
+                                    blender::StringRef name,
                                     int iconid,
                                     const uchar text_col[4],
                                     eFontStyle_Align text_align,
@@ -1268,8 +1354,10 @@ int ui_id_icon_get(const bContext *C, ID *id, bool big);
 
 /* interface_icons_event.cc */
 
+float ui_event_icon_offset(int icon_id);
+
 void icon_draw_rect_input(
-    float x, float y, int w, int h, float alpha, short event_type, short event_value);
+    float x, float y, int w, int h, int icon_id, float aspect, float alpha, bool inverted);
 
 /* resources.cc */
 
@@ -1390,6 +1478,7 @@ uiBut *ui_list_row_find_index(const ARegion *region,
                               uiBut *listbox) ATTR_WARN_UNUSED_RESULT;
 uiBut *ui_view_item_find_mouse_over(const ARegion *region, const int xy[2]) ATTR_NONNULL(1, 2);
 uiBut *ui_view_item_find_active(const ARegion *region);
+uiBut *ui_view_item_find_search_highlight(const ARegion *region);
 
 using uiButFindPollFn = bool (*)(const uiBut *but, const void *customdata);
 /**
@@ -1410,8 +1499,7 @@ uiBut *ui_list_find_mouse_over_ex(const ARegion *region, const int xy[2])
 
 bool ui_but_contains_password(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 
-size_t ui_but_drawstr_without_sep_char(const uiBut *but, char *str, size_t str_maxncpy)
-    ATTR_NONNULL(1, 2);
+blender::StringRef ui_but_drawstr_without_sep_char(const uiBut *but) ATTR_NONNULL();
 size_t ui_but_drawstr_len_without_sep_char(const uiBut *but);
 size_t ui_but_tip_len_only_first_line(const uiBut *but);
 
@@ -1461,8 +1549,13 @@ void UI_OT_eyedropper_color(wmOperatorType *ot);
 
 /* interface_eyedropper_colorband.c */
 
+namespace blender::ui {
 void UI_OT_eyedropper_colorramp(wmOperatorType *ot);
 void UI_OT_eyedropper_colorramp_point(wmOperatorType *ot);
+
+void UI_OT_eyedropper_bone(wmOperatorType *ot);
+
+}  // namespace blender::ui
 
 /* interface_eyedropper_datablock.c */
 
@@ -1476,9 +1569,12 @@ void UI_OT_eyedropper_depth(wmOperatorType *ot);
 
 void UI_OT_eyedropper_driver(wmOperatorType *ot);
 
-/* interface_eyedropper_gpencil_color.c */
+/* eyedropper_grease_pencil_color.cc */
 
-void UI_OT_eyedropper_gpencil_color(wmOperatorType *ot);
+void UI_OT_eyedropper_grease_pencil_color(wmOperatorType *ot);
+
+/* interface_template_asset_shelf_popover.cc */
+std::optional<blender::StringRefNull> UI_asset_shelf_idname_from_button_context(const uiBut *but);
 
 /* interface_template_asset_view.cc */
 
@@ -1514,18 +1610,22 @@ void ui_interface_tag_script_reload_queries();
 /* interface_view.cc */
 
 void ui_block_free_views(uiBlock *block);
-void ui_block_views_bounds_calc(const uiBlock *block);
+void ui_block_views_end(ARegion *region, const uiBlock *block);
+void ui_block_view_persistent_state_restore(const ARegion &region,
+                                            const uiBlock &block,
+                                            blender::ui::AbstractView &view);
 void ui_block_views_listen(const uiBlock *block, const wmRegionListenerParams *listener_params);
 void ui_block_views_draw_overlays(const ARegion *region, const uiBlock *block);
-uiViewHandle *ui_block_view_find_matching_in_old_block(const uiBlock *new_block,
-                                                       const uiViewHandle *new_view);
+blender::ui::AbstractView *ui_block_view_find_matching_in_old_block(
+    const uiBlock &new_block, const blender::ui::AbstractView &new_view);
 
 uiButViewItem *ui_block_view_find_matching_view_item_but_in_old_block(
-    const uiBlock *new_block, const uiViewItemHandle *new_item_handle);
+    const uiBlock &new_block, const blender::ui::AbstractViewItem &new_item);
 
 /* abstract_view_item.cc */
 
-void ui_view_item_swap_button_pointers(uiViewItemHandle *a_handle, uiViewItemHandle *b_handle);
+void ui_view_item_swap_button_pointers(blender::ui::AbstractViewItem &a,
+                                       blender::ui::AbstractViewItem &b);
 
 /* interface_templates.cc */
 
@@ -1533,3 +1633,59 @@ uiListType *UI_UL_cache_file_layers();
 
 ID *ui_template_id_liboverride_hierarchy_make(
     bContext *C, Main *bmain, ID *owner_id, ID *id, const char **r_undo_push_label);
+
+/* Functions in this namespace are only exposed for unit testing purposes, and
+ * should not be used outside of the files where they are defined. */
+namespace blender::interface::internal {
+
+/**
+ * Get the driver(s) of the given property.
+ *
+ * \note intended to be used in conjunction with `paste_property_drivers()` below.
+ *
+ * \param ptr: The RNA pointer of the property.
+ * \param prop: The property RNA of the property.
+ * \param get_all: Whether to get all drivers of an array property, or just the
+ * one specified by `index`.  Ignored if the property is not an array property.
+ * \param index: Which element of an array property to get.  Ignored if `get_all`
+ * is true or if the property is not an array properly.
+ * \param r_is_array_prop: Output parameter, that stores whether the passed
+ * property is an array property or not.
+ *
+ * \returns A vector of pointers to the drivers of the property.  It will be
+ * zero-sized if no drivers were fetched (e.g. if the property had no drivers).
+ * Otherwise the vector will be the size of the underlying property (e.g. 4 for
+ * an array property with 4 elements, 1 for a non-array property).  For array
+ * properties, elements without drivers will be null.
+ */
+blender::Vector<FCurve *> get_property_drivers(
+    PointerRNA *ptr, PropertyRNA *prop, bool get_all, int index, bool *r_is_array_prop);
+
+/**
+ * Paste the drivers from `src_drivers` to the destination property.
+ *
+ * This function can be used for pasting drivers for all elements of an array
+ * property, just some elements of an array property, or a single driver for a
+ * non-array property.
+ *
+ * \note intended to be used in conjunction with `get_property_drivers()` above.
+ * The destination property should have the same type and (if an array property)
+ * length as the source property passed to `get_property_drivers()`.
+ *
+ * \param src_drivers: The span of drivers to paste.  If `is_array_prop` is
+ * false, this must be a single element.  If `is_array_prop` is true then this
+ * should have the same length as the destination array property.  Nullptr
+ * elements are skipped when pasting.
+ * \param is_array_prop: Whether `src_drivers` are drivers for the elements
+ * of an array property.
+ * \param dst_ptr: The RNA pointer for the destination property.
+ * \param dist_prop: The destination property RNA.
+ *
+ * \returns The number of successfully pasted drivers.
+ */
+int paste_property_drivers(blender::Span<FCurve *> src_drivers,
+                           bool is_array_prop,
+                           PointerRNA *dst_ptr,
+                           PropertyRNA *dst_prop);
+
+}  // namespace blender::interface::internal

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Authors
+/* SPDX-FileCopyrightText: 2009-2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,13 +7,14 @@
  *
  * Main BlenFont (BLF) API, public functions for font handling.
  *
- * Wraps OpenGL and FreeType.
+ * Wraps GPU display and FreeType.
  */
 
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 
 #include <ft2build.h>
 
@@ -24,19 +25,18 @@
 
 #include "BLI_fileops.h"
 #include "BLI_math_rotation.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_threads.h"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
-#include "IMB_colormanagement.h"
+#include "IMB_colormanagement.hh"
 
-#include "GPU_matrix.h"
-#include "GPU_shader.h"
+#include "GPU_matrix.hh"
+#include "GPU_shader.hh"
 
-#include "blf_internal.h"
-#include "blf_internal_types.h"
+#include "blf_internal.hh"
+#include "blf_internal_types.hh"
 
 #define BLF_RESULT_CHECK_INIT(r_info) \
   if (r_info) { \
@@ -50,6 +50,8 @@ FontBLF *global_font[BLF_MAX_FONT] = {nullptr};
 
 int blf_mono_font = -1;
 int blf_mono_font_render = -1;
+
+static std::mutex g_blf_load_mutex;
 
 static FontBLF *blf_get(int fontid)
 {
@@ -106,19 +108,15 @@ void BLF_cache_clear()
   }
 }
 
-bool blf_font_id_is_valid(int fontid)
-{
-  return blf_get(fontid) != nullptr;
-}
-
 static int blf_search_by_mem_name(const char *mem_name)
 {
+  std::lock_guard lock(g_blf_load_mutex);
   for (int i = 0; i < BLF_MAX_FONT; i++) {
     const FontBLF *font = global_font[i];
-    if (font == nullptr || font->mem_name == nullptr) {
+    if ((font == nullptr) || (font->mem_name == nullptr)) {
       continue;
     }
-    if (font && STREQ(font->mem_name, mem_name)) {
+    if (STREQ(font->mem_name, mem_name)) {
       return i;
     }
   }
@@ -128,9 +126,13 @@ static int blf_search_by_mem_name(const char *mem_name)
 
 static int blf_search_by_filepath(const char *filepath)
 {
+  std::lock_guard lock(g_blf_load_mutex);
   for (int i = 0; i < BLF_MAX_FONT; i++) {
     const FontBLF *font = global_font[i];
-    if (font && (BLI_path_cmp(font->filepath, filepath) == 0)) {
+    if ((font == nullptr) || (font->filepath == nullptr)) {
+      continue;
+    }
+    if (BLI_path_cmp(font->filepath, filepath) == 0) {
       return i;
     }
   }
@@ -168,6 +170,11 @@ bool BLF_is_loaded_mem(const char *name)
   return blf_search_by_mem_name(name) >= 0;
 }
 
+bool BLF_is_loaded_id(int fontid)
+{
+  return blf_get(fontid) != nullptr;
+}
+
 int BLF_load(const char *filepath)
 {
   /* check if we already load this font. */
@@ -183,9 +190,7 @@ int BLF_load(const char *filepath)
 
 int BLF_load_unique(const char *filepath)
 {
-  /* Don't search in the cache!! make a new
-   * object font, this is for keep fonts threads safe.
-   */
+  std::lock_guard lock(g_blf_load_mutex);
   int i = blf_search_available();
   if (i == -1) {
     printf("Too many fonts!!!\n");
@@ -211,7 +216,7 @@ int BLF_load_unique(const char *filepath)
   return i;
 }
 
-void BLF_metrics_attach(int fontid, uchar *mem, int mem_size)
+void BLF_metrics_attach(const int fontid, const uchar *mem, const int mem_size)
 {
   FontBLF *font = blf_get(fontid);
 
@@ -224,7 +229,6 @@ int BLF_load_mem(const char *name, const uchar *mem, int mem_size)
 {
   int i = blf_search_by_mem_name(name);
   if (i >= 0) {
-    // font = global_font[i]; /* UNUSED */
     return i;
   }
   return BLF_load_mem_unique(name, mem, mem_size);
@@ -232,10 +236,7 @@ int BLF_load_mem(const char *name, const uchar *mem, int mem_size)
 
 int BLF_load_mem_unique(const char *name, const uchar *mem, int mem_size)
 {
-  /*
-   * Don't search in the cache, make a new object font!
-   * this is to keep the font thread safe.
-   */
+  std::lock_guard lock(g_blf_load_mutex);
   int i = blf_search_available();
   if (i == -1) {
     printf("Too many fonts!!!\n");
@@ -260,6 +261,7 @@ int BLF_load_mem_unique(const char *name, const uchar *mem, int mem_size)
 
 void BLF_unload(const char *filepath)
 {
+  std::lock_guard lock(g_blf_load_mutex);
   for (int i = 0; i < BLF_MAX_FONT; i++) {
     FontBLF *font = global_font[i];
     if (font == nullptr || font->filepath == nullptr) {
@@ -278,8 +280,9 @@ void BLF_unload(const char *filepath)
   }
 }
 
-void BLF_unload_id(int fontid)
+bool BLF_unload_id(int fontid)
 {
+  std::lock_guard lock(g_blf_load_mutex);
   FontBLF *font = blf_get(fontid);
   if (font) {
     BLI_assert(font->reference_count > 0);
@@ -288,8 +291,10 @@ void BLF_unload_id(int fontid)
     if (font->reference_count == 0) {
       blf_font_free(font);
       global_font[fontid] = nullptr;
+      return true;
     }
   }
+  return false;
 }
 
 void BLF_unload_all()
@@ -304,6 +309,15 @@ void BLF_unload_all()
   blf_mono_font = -1;
   blf_mono_font_render = -1;
   BLF_default_set(-1);
+}
+
+void BLF_addref_id(int fontid)
+{
+  std::lock_guard lock(g_blf_load_mutex);
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    font->reference_count++;
+  }
 }
 
 void BLF_enable(int fontid, int option)
@@ -324,6 +338,36 @@ void BLF_disable(int fontid, int option)
   }
 }
 
+void BLF_character_weight(int fontid, int weight)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    font->char_weight = weight;
+  }
+}
+
+int BLF_default_weight(int fontid)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    return font->metrics.weight;
+  }
+  return 400;
+}
+
+bool BLF_has_variable_weight(int fontid)
+{
+  const FontBLF *font = blf_get(fontid);
+  if (font && font->variations) {
+    for (int i = 0; i < int(font->variations->num_axis); i++) {
+      if (font->variations->axis[i].tag == BLF_VARIATION_AXIS_WEIGHT) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void BLF_aspect(int fontid, float x, float y, float z)
 {
   FontBLF *font = blf_get(fontid);
@@ -332,15 +376,6 @@ void BLF_aspect(int fontid, float x, float y, float z)
     font->aspect[0] = x;
     font->aspect[1] = y;
     font->aspect[2] = z;
-  }
-}
-
-void BLF_matrix(int fontid, const float m[16])
-{
-  FontBLF *font = blf_get(fontid);
-
-  if (font) {
-    memcpy(font->m, m, sizeof(font->m));
   }
 }
 
@@ -407,17 +442,6 @@ void BLF_size(int fontid, float size)
     blf_font_size(font, size);
   }
 }
-
-#if BLF_BLUR_ENABLE
-void BLF_blur(int fontid, int size)
-{
-  FontBLF *font = blf_get(fontid);
-
-  if (font) {
-    font->blur = size;
-  }
-}
-#endif
 
 void BLF_color4ubv(int fontid, const uchar rgba[4])
 {
@@ -521,22 +545,18 @@ void BLF_batch_draw_end()
   g_batch.enabled = false;
 }
 
-static void blf_draw_gl__start(const FontBLF *font)
+static void blf_draw_gpu__start(const FontBLF *font)
 {
   /*
    * The pixmap alignment hack is handle
    * in BLF_position (old ui_rasterpos_safe).
    */
 
-  if ((font->flags & (BLF_ROTATION | BLF_MATRIX | BLF_ASPECT)) == 0) {
+  if ((font->flags & (BLF_ROTATION | BLF_ASPECT)) == 0) {
     return; /* glyphs will be translated individually and batched. */
   }
 
   GPU_matrix_push();
-
-  if (font->flags & BLF_MATRIX) {
-    GPU_matrix_mul(font->m);
-  }
 
   GPU_matrix_translate_3f(font->pos[0], font->pos[1], font->pos[2]);
 
@@ -549,40 +569,37 @@ static void blf_draw_gl__start(const FontBLF *font)
   }
 }
 
-static void blf_draw_gl__end(const FontBLF *font)
+static void blf_draw_gpu__end(const FontBLF *font)
 {
-  if ((font->flags & (BLF_ROTATION | BLF_MATRIX | BLF_ASPECT)) != 0) {
+  if ((font->flags & (BLF_ROTATION | BLF_ASPECT)) != 0) {
     GPU_matrix_pop();
   }
 }
 
-void BLF_draw_ex(int fontid, const char *str, const size_t str_len, ResultBLF *r_info)
+void BLF_draw(int fontid, const char *str, const size_t str_len, ResultBLF *r_info)
 {
-  FontBLF *font = blf_get(fontid);
-
   BLF_RESULT_CHECK_INIT(r_info);
 
+  if (str_len == 0 || str[0] == '\0') {
+    return;
+  }
+
+  FontBLF *font = blf_get(fontid);
+
   if (font) {
-    blf_draw_gl__start(font);
+
+    /* Avoid bgl usage to corrupt BLF drawing. */
+    GPU_bgl_end();
+
+    blf_draw_gpu__start(font);
     if (font->flags & BLF_WORD_WRAP) {
       blf_font_draw__wrap(font, str, str_len, r_info);
     }
     else {
       blf_font_draw(font, str, str_len, r_info);
     }
-    blf_draw_gl__end(font);
+    blf_draw_gpu__end(font);
   }
-}
-void BLF_draw(int fontid, const char *str, const size_t str_len)
-{
-  if (str_len == 0 || str[0] == '\0') {
-    return;
-  }
-
-  /* Avoid bgl usage to corrupt BLF drawing. */
-  GPU_bgl_end();
-
-  BLF_draw_ex(fontid, str, str_len, nullptr);
 }
 
 int BLF_draw_mono(int fontid, const char *str, const size_t str_len, int cwidth, int tab_columns)
@@ -595,12 +612,53 @@ int BLF_draw_mono(int fontid, const char *str, const size_t str_len, int cwidth,
   int columns = 0;
 
   if (font) {
-    blf_draw_gl__start(font);
+    blf_draw_gpu__start(font);
     columns = blf_font_draw_mono(font, str, str_len, cwidth, tab_columns);
-    blf_draw_gl__end(font);
+    blf_draw_gpu__end(font);
   }
 
   return columns;
+}
+
+void BLF_draw_svg_icon(uint icon_id,
+                       float x,
+                       float y,
+                       float size,
+                       const float color[4],
+                       float outline_alpha,
+                       bool multicolor,
+                       blender::FunctionRef<void(std::string &)> edit_source_cb)
+{
+#ifndef WITH_HEADLESS
+  FontBLF *font = global_font[0];
+  if (font) {
+    /* Avoid bgl usage to corrupt BLF drawing. */
+    GPU_bgl_end();
+    blf_draw_gpu__start(font);
+    blf_draw_svg_icon(font, icon_id, x, y, size, color, outline_alpha, multicolor, edit_source_cb);
+    blf_draw_gpu__end(font);
+  }
+#else
+  UNUSED_VARS(icon_id, x, y, size, color, outline_alpha, multicolor, edit_source_cb);
+#endif /* WITH_HEADLESS */
+}
+
+blender::Array<uchar> BLF_svg_icon_bitmap(uint icon_id,
+                                          float size,
+                                          int *r_width,
+                                          int *r_height,
+                                          bool multicolor,
+                                          blender::FunctionRef<void(std::string &)> edit_source_cb)
+{
+#ifndef WITH_HEADLESS
+  FontBLF *font = global_font[0];
+  if (font) {
+    return blf_svg_icon_bitmap(font, icon_id, size, r_width, r_height, multicolor, edit_source_cb);
+  }
+#else
+  UNUSED_VARS(icon_id, size, r_width, r_height, multicolor, edit_source_cb);
+#endif /* WITH_HEADLESS */
+  return {};
 }
 
 void BLF_boundbox_foreach_glyph(
@@ -634,14 +692,37 @@ size_t BLF_str_offset_from_cursor_position(int fontid,
 bool BLF_str_offset_to_glyph_bounds(int fontid,
                                     const char *str,
                                     size_t str_offset,
-                                    rcti *glyph_bounds)
+                                    rcti *r_glyph_bounds)
 {
   FontBLF *font = blf_get(fontid);
   if (font) {
-    blf_str_offset_to_glyph_bounds(font, str, str_offset, glyph_bounds);
+    blf_str_offset_to_glyph_bounds(font, str, str_offset, r_glyph_bounds);
     return true;
   }
   return false;
+}
+
+int BLF_str_offset_to_cursor(int fontid,
+                             const char *str,
+                             const size_t str_len,
+                             const size_t str_offset,
+                             const int cursor_width)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    return blf_str_offset_to_cursor(font, str, str_len, str_offset, cursor_width);
+  }
+  return 0;
+}
+
+blender::Vector<blender::Bounds<int>> BLF_str_selection_boxes(
+    int fontid, const char *str, size_t str_len, size_t sel_start, size_t sel_length)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    return blf_str_selection_boxes(font, str, str_len, sel_start, sel_length);
+  }
+  return {};
 }
 
 size_t BLF_width_to_strlen(
@@ -688,7 +769,7 @@ size_t BLF_width_to_rstrlen(
   return 0;
 }
 
-void BLF_boundbox_ex(
+void BLF_boundbox(
     int fontid, const char *str, const size_t str_len, rcti *r_box, ResultBLF *r_info)
 {
   FontBLF *font = blf_get(fontid);
@@ -705,11 +786,6 @@ void BLF_boundbox_ex(
   }
 }
 
-void BLF_boundbox(int fontid, const char *str, const size_t str_len, rcti *r_box)
-{
-  BLF_boundbox_ex(fontid, str, str_len, r_box, nullptr);
-}
-
 void BLF_width_and_height(
     int fontid, const char *str, const size_t str_len, float *r_width, float *r_height)
 {
@@ -723,7 +799,7 @@ void BLF_width_and_height(
   }
 }
 
-float BLF_width_ex(int fontid, const char *str, const size_t str_len, ResultBLF *r_info)
+float BLF_width(int fontid, const char *str, const size_t str_len, ResultBLF *r_info)
 {
   FontBLF *font = blf_get(fontid);
 
@@ -734,11 +810,6 @@ float BLF_width_ex(int fontid, const char *str, const size_t str_len, ResultBLF 
   }
 
   return 0.0f;
-}
-
-float BLF_width(int fontid, const char *str, const size_t str_len)
-{
-  return BLF_width_ex(fontid, str, str_len, nullptr);
 }
 
 float BLF_fixed_width(int fontid)
@@ -752,7 +823,18 @@ float BLF_fixed_width(int fontid)
   return 0.0f;
 }
 
-float BLF_height_ex(int fontid, const char *str, const size_t str_len, ResultBLF *r_info)
+int BLF_glyph_advance(int fontid, const char *str)
+{
+  FontBLF *font = blf_get(fontid);
+
+  if (font) {
+    return blf_font_glyph_advance(font, str);
+  }
+
+  return 0;
+}
+
+float BLF_height(int fontid, const char *str, const size_t str_len, ResultBLF *r_info)
 {
   FontBLF *font = blf_get(fontid);
 
@@ -763,11 +845,6 @@ float BLF_height_ex(int fontid, const char *str, const size_t str_len, ResultBLF
   }
 
   return 0.0f;
-}
-
-float BLF_height(int fontid, const char *str, const size_t str_len)
-{
-  return BLF_height_ex(fontid, str, str_len, nullptr);
 }
 
 int BLF_height_max(int fontid)
@@ -844,13 +921,15 @@ void BLF_wordwrap(int fontid, int wrap_width)
   }
 }
 
-void BLF_shadow(int fontid, int level, const float rgba[4])
+void BLF_shadow(int fontid, FontShadowType type, const float rgba[4])
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->shadow = level;
-    rgba_float_to_uchar(font->shadow_color, rgba);
+    font->shadow = type;
+    if (rgba) {
+      rgba_float_to_uchar(font->shadow_color, rgba);
+    }
   }
 }
 
@@ -864,8 +943,7 @@ void BLF_shadow_offset(int fontid, int x, int y)
   }
 }
 
-void BLF_buffer(
-    int fontid, float *fbuf, uchar *cbuf, int w, int h, int nch, ColorManagedDisplay *display)
+void BLF_buffer(int fontid, float *fbuf, uchar *cbuf, int w, int h, ColorManagedDisplay *display)
 {
   FontBLF *font = blf_get(fontid);
 
@@ -874,7 +952,6 @@ void BLF_buffer(
     font->buf_info.cbuf = cbuf;
     font->buf_info.dims[0] = w;
     font->buf_info.dims[1] = h;
-    font->buf_info.ch = nch;
     font->buf_info.display = display;
   }
 }
@@ -904,7 +981,7 @@ void blf_draw_buffer__start(FontBLF *font)
 }
 void blf_draw_buffer__end() {}
 
-void BLF_draw_buffer_ex(int fontid, const char *str, const size_t str_len, ResultBLF *r_info)
+void BLF_draw_buffer(int fontid, const char *str, const size_t str_len, ResultBLF *r_info)
 {
   FontBLF *font = blf_get(fontid);
 
@@ -919,16 +996,23 @@ void BLF_draw_buffer_ex(int fontid, const char *str, const size_t str_len, Resul
     blf_draw_buffer__end();
   }
 }
-void BLF_draw_buffer(int fontid, const char *str, const size_t str_len)
+
+blender::Vector<blender::StringRef> BLF_string_wrap(int fontid,
+                                                    blender::StringRef str,
+                                                    const int max_pixel_width)
 {
-  BLF_draw_buffer_ex(fontid, str, str_len, nullptr);
+  FontBLF *font = blf_get(fontid);
+  if (!font) {
+    return {};
+  }
+  return blf_font_string_wrap(font, str, max_pixel_width);
 }
 
 char *BLF_display_name_from_file(const char *filepath)
 {
   /* While listing font directories this function can be called simultaneously from a greater
    * number of threads than we want the FreeType cache to keep open at a time. Therefore open
-   * with own FT_Library object and use FreeType calls directly to avoid any contention. */
+   * with a separate FT_Library object and use FreeType calls directly to avoid any contention. */
   char *name = nullptr;
   FT_Library ft_library;
   if (FT_Init_FreeType(&ft_library) == FT_Err_Ok) {
@@ -944,7 +1028,70 @@ char *BLF_display_name_from_file(const char *filepath)
   return name;
 }
 
-#ifdef DEBUG
+char *BLF_display_name_from_id(int fontid)
+{
+  FontBLF *font = blf_get(fontid);
+  if (!font) {
+    return nullptr;
+  }
+
+  return blf_display_name(font);
+}
+
+bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, float *scale)
+{
+  FontBLF *font = blf_get(fontid);
+  if (!font) {
+    return false;
+  }
+
+  if (!blf_ensure_face(font)) {
+    return false;
+  }
+
+  /* Copied without change from vfontdata_freetype.cc to ensure consistent sizing. */
+
+  /* Blender default BFont is not "complete". */
+  const bool complete_font = (font->face->ascender != 0) && (font->face->descender != 0) &&
+                             (font->face->ascender != font->face->descender);
+
+  if (complete_font) {
+    /* We can get descender as well, but we simple store descender in relation to the ascender.
+     * Also note that descender is stored as a negative number. */
+    *ascend_ratio = float(font->face->ascender) / (font->face->ascender - font->face->descender);
+  }
+  else {
+    *ascend_ratio = BLF_VFONT_METRICS_ASCEND_RATIO_DEFAULT;
+    *em_ratio = BLF_VFONT_METRICS_EM_RATIO_DEFAULT;
+  }
+
+  /* Adjust font size */
+  if (font->face->bbox.yMax != font->face->bbox.yMin) {
+    *scale = float(1.0 / double(font->face->bbox.yMax - font->face->bbox.yMin));
+
+    if (complete_font) {
+      *em_ratio = float(font->face->ascender - font->face->descender) /
+                  (font->face->bbox.yMax - font->face->bbox.yMin);
+    }
+  }
+  else {
+    *scale = BLF_VFONT_METRICS_SCALE_DEFAULT;
+  }
+
+  return true;
+}
+
+float BLF_character_to_curves(
+    int fontid, uint unicode, ListBase *nurbsbase, const float scale, bool use_fallback)
+{
+  FontBLF *font = blf_get(fontid);
+  if (!font) {
+    return 0.0f;
+  }
+  return blf_character_to_curves(font, unicode, nurbsbase, scale, use_fallback);
+}
+
+#ifndef NDEBUG
 void BLF_state_print(int fontid)
 {
   FontBLF *font = blf_get(fontid);

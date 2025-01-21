@@ -26,13 +26,18 @@ struct SearchItem {
    * given higher weight.
    */
   int main_group_id;
-  int length;
-  int weight;
+  int main_group_length;
+  int total_length;
+  float weight;
   /**
    * This is a logical time stamp, i.e. the greater it is, the more recent the item was used. The
    * number is not based on an actual clock.
    */
   int recent_time;
+  /**
+   * Deprecated items can still be found via search, but are at the bottom of the list.
+   */
+  bool is_deprecated;
 };
 
 struct RecentCache {
@@ -44,6 +49,17 @@ struct RecentCache {
 };
 
 /**
+ * Sometimes every search item has multiple parts. For example, when using menu search, each nested
+ * menu is a separate part. Usually, one of those parts is highlighted in the UI and should be
+ * prioritized in the search.
+ */
+enum class MainWordsHeuristic {
+  FirstGroup,
+  LastGroup,
+  All,
+};
+
+/**
  * Non templated base class so that its methods can be implemented outside of this header.
  */
 class StringSearchBase {
@@ -51,9 +67,10 @@ class StringSearchBase {
   LinearAllocator<> allocator_;
   Vector<SearchItem> items_;
   const RecentCache *recent_cache_ = nullptr;
+  MainWordsHeuristic main_words_heuristic_;
 
  protected:
-  void add_impl(StringRef str, void *user_data, int weight);
+  void add_impl(StringRef str, void *user_data, float weight);
   Vector<void *> query_impl(StringRef query) const;
 };
 
@@ -69,9 +86,10 @@ class StringSearchBase {
  */
 template<typename T> class StringSearch : private StringSearchBase {
  public:
-  StringSearch(const RecentCache *recent_cache = nullptr)
+  StringSearch(const RecentCache *recent_cache, const MainWordsHeuristic main_words_heuristic)
   {
-    this->recent_cache_ = recent_cache;
+    recent_cache_ = recent_cache;
+    main_words_heuristic_ = main_words_heuristic;
   }
 
   /**
@@ -80,7 +98,7 @@ template<typename T> class StringSearch : private StringSearchBase {
    * \param weight: Can be used to customize the order when multiple items have the same match
    * score.
    */
-  void add(const StringRefNull str, T *user_data, const int weight = 0)
+  void add(const StringRef str, T *user_data, const int weight = 0)
   {
     this->add_impl(str, (void *)user_data, weight);
   }

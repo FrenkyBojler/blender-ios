@@ -8,18 +8,20 @@
 
 #pragma once
 
+#include "BLI_assert.h"
+#include "BLI_map.hh"
+#include "GPU_texture.hh"
+#include "MEM_guardedalloc.h"
+
+#include "gpu_texture_private.hh"
+
+#include <mutex>
+#include <string>
+#include <thread>
+
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
 #include <QuartzCore/QuartzCore.h>
-
-#include "BLI_assert.h"
-#include "MEM_guardedalloc.h"
-#include "gpu_texture_private.hh"
-
-#include "BLI_map.hh"
-#include "GPU_texture.h"
-#include <mutex>
-#include <thread>
 
 @class CAMetalLayer;
 @class MTLCommandQueue;
@@ -42,20 +44,26 @@ struct TextureUpdateRoutineSpecialisation {
   /* Number of channels the destination texture has (min=1, max=4). */
   int component_count_output;
 
+  /* Whether the update routine is a clear, and only the first texel of the input data buffer will
+   * be read. */
+  bool is_clear;
+
   bool operator==(const TextureUpdateRoutineSpecialisation &other) const
   {
     return ((input_data_type == other.input_data_type) &&
             (output_data_type == other.output_data_type) &&
             (component_count_input == other.component_count_input) &&
-            (component_count_output == other.component_count_output));
+            (component_count_output == other.component_count_output) &&
+            (is_clear == other.is_clear));
   }
 
   uint64_t hash() const
   {
     blender::DefaultHash<std::string> string_hasher;
-    return (uint64_t)string_hasher(
-        this->input_data_type + this->output_data_type +
-        std::to_string((this->component_count_input << 8) + this->component_count_output));
+    return (uint64_t)string_hasher(this->input_data_type + this->output_data_type +
+                                   std::to_string((this->component_count_input << 9) |
+                                                  (this->component_count_output << 5) |
+                                                  (this->is_clear ? 1 : 0)));
   }
 };
 
@@ -121,6 +129,8 @@ namespace blender::gpu {
 
 class MTLContext;
 class MTLVertBuf;
+class MTLStorageBuf;
+class MTLBuffer;
 
 /* Metal Texture internal implementation. */
 static const int MTL_MAX_MIPMAP_COUNT = 15; /* Max: 16384x16384 */
@@ -161,12 +171,13 @@ struct MTLSamplerState {
   }
 };
 
-const MTLSamplerState DEFAULT_SAMPLER_STATE = {GPUSamplerState::default_sampler() /*, 0, 9999*/};
+const MTLSamplerState DEFAULT_SAMPLER_STATE = {GPUSamplerState::default_sampler() /*, 0, 9999 */};
 
 class MTLTexture : public Texture {
   friend class MTLContext;
   friend class MTLStateManager;
   friend class MTLFrameBuffer;
+  friend class MTLStorageBuf;
 
  private:
   /* Where the textures data comes from. */
@@ -185,8 +196,18 @@ class MTLTexture : public Texture {
   id<MTLTexture> texture_ = nil;
 
   /* Texture Storage. */
-  id<MTLBuffer> texture_buffer_ = nil;
   size_t aligned_w_ = 0;
+
+  /* Storage buffer view.
+   * Buffer backed textures can be wrapped with a storage buffer instance for direct data
+   * reading/writing. Required for atomic operations on texture data when texture atomics are
+   * unsupported.
+   *
+   * tex_buffer_metadata_ packs 4 parameters required by the shader to perform texture space
+   * remapping: (x, y, z) = (width, height, depth/layers) (w) = aligned width. */
+  MTLBuffer *backing_buffer_ = nullptr;
+  MTLStorageBuf *storage_buffer_ = nullptr;
+  int tex_buffer_metadata_[4];
 
   /* Blit Frame-buffer. */
   GPUFrameBuffer *blit_fb_ = nullptr;
@@ -231,6 +252,9 @@ class MTLTexture : public Texture {
   int mtl_max_mips_ = 1;
   bool has_generated_mips_ = false;
 
+  /* We may modify the requested usage flags so store them separately. */
+  eGPUTextureUsage internal_gpu_image_usage_flags_;
+
   /* VBO. */
   MTLVertBuf *vert_buffer_;
   id<MTLBuffer> vert_buffer_mtl_;
@@ -246,7 +270,7 @@ class MTLTexture : public Texture {
              eGPUTextureFormat format,
              eGPUTextureType type,
              id<MTLTexture> metal_texture);
-  ~MTLTexture();
+  ~MTLTexture() override;
 
   void update_sub(
       int mip, int offset[3], int extent[3], eGPUDataFormat type, const void *data) override;
@@ -272,6 +296,14 @@ class MTLTexture : public Texture {
     return name_;
   }
 
+  bool has_custom_swizzle()
+  {
+    return (mtl_swizzle_mask_.red != MTLTextureSwizzleRed ||
+            mtl_swizzle_mask_.green != MTLTextureSwizzleGreen ||
+            mtl_swizzle_mask_.blue != MTLTextureSwizzleBlue ||
+            mtl_swizzle_mask_.alpha != MTLTextureSwizzleAlpha);
+  }
+
   id<MTLBuffer> get_vertex_buffer() const
   {
     if (resource_mode_ == MTL_TEXTURE_MODE_VBO) {
@@ -280,9 +312,16 @@ class MTLTexture : public Texture {
     return nil;
   }
 
+  MTLStorageBuf *get_storagebuf();
+
+  const int *get_texture_metadata_ptr() const
+  {
+    return tex_buffer_metadata_;
+  }
+
  protected:
   bool init_internal() override;
-  bool init_internal(GPUVertBuf *vbo) override;
+  bool init_internal(VertBuf *vbo) override;
   bool init_internal(GPUTexture *src,
                      int mip_offset,
                      int layer_offset,
@@ -329,7 +368,7 @@ class MTLTexture : public Texture {
             uint src_z_offset,
             uint src_slice,
             uint src_mip,
-            gpu::MTLTexture *dest,
+            gpu::MTLTexture *dst,
             uint dst_x_offset,
             uint dst_y_offset,
             uint dst_z_offset,
@@ -338,7 +377,7 @@ class MTLTexture : public Texture {
             uint width,
             uint height,
             uint depth);
-  void blit(gpu::MTLTexture *dest,
+  void blit(gpu::MTLTexture *dst,
             uint src_x_offset,
             uint src_y_offset,
             uint dst_x_offset,
@@ -348,8 +387,7 @@ class MTLTexture : public Texture {
             uint dst_slice,
             int width,
             int height);
-  GPUFrameBuffer *get_blit_framebuffer(uint dst_slice, uint dst_mip);
-
+  GPUFrameBuffer *get_blit_framebuffer(int dst_slice, uint dst_mip);
   /* Texture Update function Utilities. */
   /* Metal texture updating does not provide the same range of functionality for type conversion
    * and format compatibility as are available in OpenGL. To achieve the same level of
@@ -448,7 +486,7 @@ class MTLPixelBuffer : public PixelBuffer {
   id<MTLBuffer> buffer_ = nil;
 
  public:
-  MTLPixelBuffer(uint size);
+  MTLPixelBuffer(size_t size);
   ~MTLPixelBuffer();
 
   void *map() override;
@@ -615,13 +653,12 @@ inline MTLTextureUsage mtl_usage_from_gpu(eGPUTextureUsage usage)
   if (usage & GPU_TEXTURE_USAGE_ATTACHMENT) {
     mtl_usage = mtl_usage | MTLTextureUsageRenderTarget;
   }
-  if (usage & GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW) {
+  if (usage & GPU_TEXTURE_USAGE_FORMAT_VIEW) {
     mtl_usage = mtl_usage | MTLTextureUsagePixelFormatView;
   }
 #if defined(MAC_OS_VERSION_14_0)
   if (@available(macOS 14.0, *)) {
     if (usage & GPU_TEXTURE_USAGE_ATOMIC) {
-
       mtl_usage = mtl_usage | MTLTextureUsageShaderAtomic;
     }
   }
@@ -645,7 +682,7 @@ inline eGPUTextureUsage gpu_usage_from_mtl(MTLTextureUsage mtl_usage)
     usage = usage | GPU_TEXTURE_USAGE_ATTACHMENT;
   }
   if (mtl_usage & MTLTextureUsagePixelFormatView) {
-    usage = usage | GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW;
+    usage = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
   }
   return usage;
 }

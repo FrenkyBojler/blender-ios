@@ -16,24 +16,16 @@
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_anim_types.h"
 #include "DNA_image_types.h"
-#include "DNA_light_types.h"
 #include "DNA_material_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_texture_types.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "BKE_colorband.h"
-#include "BKE_image.h"
-#include "BKE_material.h"
-#include "BKE_node.h"
-#include "BKE_scene.h"
-#include "BKE_texture.h"
+#include "BKE_colorband.hh"
+#include "BKE_image.hh"
 
 #include "NOD_texture.h"
 
@@ -199,9 +191,9 @@ static float tex_tri(float a)
 static float wood_int(const Tex *tex, float x, float y, float z)
 {
   float wi = 0;
-  /* wave form:   TEX_SIN=0,  TEX_SAW=1,  TEX_TRI=2 */
+  /* wave form: TEX_SIN=0, TEX_SAW=1, TEX_TRI=2. */
   short wf = tex->noisebasis2;
-  /* wood type:   TEX_BAND=0, TEX_RING=1, TEX_BANDNOISE=2, TEX_RINGNOISE=3 */
+  /* wood type: TEX_BAND=0, TEX_RING=1, TEX_BANDNOISE=2, TEX_RINGNOISE=3. */
   short wt = tex->stype;
 
   float (*waveform[3])(float); /* create array of pointers to waveform functions */
@@ -776,8 +768,8 @@ static void do_2d_mapping(
       proj = cubemap_glob(n, texvec[0], texvec[1], texvec[2], &fx, &fy);
 
       if (proj == 1) {
-        SWAP(float, dxt[1], dxt[2]);
-        SWAP(float, dyt[1], dyt[2]);
+        std::swap(dxt[1], dxt[2]);
+        std::swap(dyt[1], dyt[2]);
       }
       else if (proj == 2) {
         float f1 = dxt[0], f2 = dyt[0];
@@ -905,7 +897,7 @@ static int multitex(Tex *tex,
   float tmpvec[3];
   int retval = 0; /* return value, TEX_INT or TEX_RGB. */
 
-  texres->talpha = false; /* is set when image texture returns alpha (considered premul) */
+  texres->talpha = false; /* Is set when image texture returns alpha (considered pre-multiplied) */
 
   if (use_nodes && tex->use_nodes && tex->nodetree) {
     const float cfra = 1.0f; /* This was only set for Blender Internal render before. */
@@ -1219,7 +1211,7 @@ int multitex_ext_safe(Tex *tex,
 
 float texture_value_blend(float tex, float out, float fact, float facg, int blendtype)
 {
-  float in = 0.0, facm, col, scf;
+  float in = 0.0, facm, scf;
   int flip = (facg < 0.0f);
 
   facg = fabsf(facg);
@@ -1227,7 +1219,7 @@ float texture_value_blend(float tex, float out, float fact, float facg, int blen
   fact *= facg;
   facm = 1.0f - fact;
   if (flip) {
-    SWAP(float, fact, facm);
+    std::swap(fact, facm);
   }
 
   switch (blendtype) {
@@ -1277,13 +1269,7 @@ float texture_value_blend(float tex, float out, float fact, float facg, int blen
       break;
 
     case MTEX_LIGHT:
-      col = fact * tex;
-      if (col > out) {
-        in = col;
-      }
-      else {
-        in = out;
-      }
+      in = max_ff(out, tex) * fact + out * facm;
       break;
 
     case MTEX_SOFT_LIGHT:

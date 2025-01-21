@@ -5,12 +5,12 @@
 #include "asset_library_service.hh"
 
 #include "BLI_fileops.h" /* For PATH_MAX (at least on Windows). */
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-#include "BKE_appdir.h"
-#include "BKE_callbacks.h"
-#include "BKE_main.h"
+#include "BKE_appdir.hh"
+#include "BKE_callbacks.hh"
+#include "BKE_main.hh"
 
 #include "DNA_asset_types.h"
 
@@ -62,7 +62,7 @@ class AssetLibraryServiceTest : public testing::Test {
    * The returned path ends in a slash. */
   CatalogFilePath use_temp_path()
   {
-    BKE_tempdir_init("");
+    BKE_tempdir_init(nullptr);
     const CatalogFilePath tempdir = BKE_tempdir_session();
     temp_library_path_ = tempdir + "test-temporary-path" + SEP_STR;
     return temp_library_path_;
@@ -113,8 +113,6 @@ TEST_F(AssetLibraryServiceTest, library_from_reference)
 {
   AssetLibraryService *service = AssetLibraryService::get();
 
-  AssetLibrary *const lib = service->get_asset_library_on_disk_custom(__func__,
-                                                                      asset_library_root_);
   AssetLibrary *const curfile_lib = service->get_asset_library_current_file();
 
   AssetLibraryReference ref{};
@@ -123,12 +121,24 @@ TEST_F(AssetLibraryServiceTest, library_from_reference)
       << "Getting the local (current file) reference without a main saved on disk should return "
          "the current file library";
 
-  Main dummy_main{};
-  std::string dummy_filepath = asset_library_root_ + SEP + "dummy.blend";
-  STRNCPY(dummy_main.filepath, dummy_filepath.c_str());
-  EXPECT_EQ(lib, service->get_asset_library(&dummy_main, ref))
-      << "Getting the local (current file) reference with a main saved on disk should return "
-         "the an asset library for this directory";
+  {
+    Main dummy_main{};
+    std::string dummy_filepath = asset_library_root_ + SEP + "dummy.blend";
+    STRNCPY(dummy_main.filepath, dummy_filepath.c_str());
+
+    AssetLibrary *custom_lib = service->get_asset_library_on_disk_custom(__func__,
+                                                                         asset_library_root_);
+    AssetLibrary *tmp_curfile_lib = service->get_asset_library(&dummy_main, ref);
+
+    /* Requested a current file library with a (fake) file saved in the same directory as a custom
+     * asset library. The resulting library should never match the custom asset library, even
+     * though the paths match. */
+
+    EXPECT_NE(custom_lib, tmp_curfile_lib)
+        << "Getting an asset library from a local (current file) library reference should never "
+           "match any custom asset library";
+    EXPECT_EQ(custom_lib->root_path(), tmp_curfile_lib->root_path());
+  }
 }
 
 TEST_F(AssetLibraryServiceTest, library_path_trailing_slashes)
@@ -163,10 +173,10 @@ TEST_F(AssetLibraryServiceTest, catalogs_loaded)
   AssetLibraryService *const service = AssetLibraryService::get();
   AssetLibrary *const lib = service->get_asset_library_on_disk_custom(__func__,
                                                                       asset_library_root_);
-  AssetCatalogService *const cat_service = lib->catalog_service.get();
+  AssetCatalogService &cat_service = lib->catalog_service();
 
   const bUUID UUID_POSES_ELLIE("df60e1f6-2259-475b-93d9-69a1b4a8db78");
-  EXPECT_NE(nullptr, cat_service->find_catalog(UUID_POSES_ELLIE))
+  EXPECT_NE(nullptr, cat_service.find_catalog(UUID_POSES_ELLIE))
       << "Catalogs should be loaded after getting an asset library from disk.";
 }
 
@@ -178,21 +188,21 @@ TEST_F(AssetLibraryServiceTest, has_any_unsaved_catalogs)
 
   AssetLibrary *const lib = service->get_asset_library_on_disk_custom(__func__,
                                                                       asset_library_root_);
-  AssetCatalogService *const cat_service = lib->catalog_service.get();
+  AssetCatalogService &cat_service = lib->catalog_service();
   EXPECT_FALSE(service->has_any_unsaved_catalogs())
       << "Unchanged AssetLibrary should have no unsaved catalogs";
 
   const bUUID UUID_POSES_ELLIE("df60e1f6-2259-475b-93d9-69a1b4a8db78");
-  cat_service->prune_catalogs_by_id(UUID_POSES_ELLIE);
+  cat_service.prune_catalogs_by_id(UUID_POSES_ELLIE);
   EXPECT_FALSE(service->has_any_unsaved_catalogs())
       << "Deletion of catalogs via AssetCatalogService should not automatically tag as 'unsaved "
          "changes'.";
 
   const bUUID UUID_POSES_RUZENA("79a4f887-ab60-4bd4-94da-d572e27d6aed");
-  AssetCatalog *cat = cat_service->find_catalog(UUID_POSES_RUZENA);
+  AssetCatalog *cat = cat_service.find_catalog(UUID_POSES_RUZENA);
   ASSERT_NE(nullptr, cat) << "Catalog " << UUID_POSES_RUZENA << " should be known";
 
-  cat_service->tag_has_unsaved_changes(cat);
+  cat_service.tag_has_unsaved_changes(cat);
   EXPECT_TRUE(service->has_any_unsaved_catalogs())
       << "Tagging as having unsaved changes of a single catalog service should result in unsaved "
          "changes being reported.";
@@ -214,17 +224,17 @@ TEST_F(AssetLibraryServiceTest, has_any_unsaved_catalogs_after_write)
   EXPECT_FALSE(service->has_any_unsaved_catalogs())
       << "Unchanged AssetLibrary should have no unsaved catalogs";
 
-  AssetCatalogService *const cat_service = lib->catalog_service.get();
-  AssetCatalog *cat = cat_service->find_catalog(UUID_POSES_ELLIE);
+  AssetCatalogService &cat_service = lib->catalog_service();
+  AssetCatalog *cat = cat_service.find_catalog(UUID_POSES_ELLIE);
 
-  cat_service->tag_has_unsaved_changes(cat);
+  cat_service.tag_has_unsaved_changes(cat);
 
   EXPECT_TRUE(service->has_any_unsaved_catalogs())
       << "Tagging as having unsaved changes of a single catalog service should result in unsaved "
          "changes being reported.";
   EXPECT_TRUE(cat->flags.has_unsaved_changes);
 
-  cat_service->write_to_disk(writable_dir + "dummy_path.blend");
+  cat_service.write_to_disk(writable_dir + "dummy_path.blend");
   EXPECT_FALSE(service->has_any_unsaved_catalogs())
       << "Written AssetCatalogService should have no unsaved catalogs";
   EXPECT_FALSE(cat->flags.has_unsaved_changes);

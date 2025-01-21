@@ -16,20 +16,19 @@
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_userdef_types.h"
 
-#include "BLT_translation.h"
-
-#include "BKE_appdir.h"
+#include "BLT_translation.hh"
 
 #include "ED_fileselect.hh"
 
 #ifdef WIN32
+#  include "utfconv.hh"
+
 /* Need to include windows.h so _WIN32_IE is defined. */
 #  include <windows.h>
 /* For SHGetSpecialFolderPath, has to be done before BLI_winstuff
@@ -167,28 +166,28 @@ static void fsmenu_add_windows_quick_access(FSMenu *fsmenu,
                                             FSMenuInsert flag)
 {
   Microsoft::WRL::ComPtr<IShellDispatch> shell;
-  if (FAILED(
-          CoCreateInstance(CLSID_Shell, nullptr, CLSCTX_ALL, IID_PPV_ARGS(shell.GetAddressOf()))))
+  if (CoCreateInstance(CLSID_Shell, nullptr, CLSCTX_ALL, IID_PPV_ARGS(shell.GetAddressOf())) !=
+      S_OK)
   {
     return;
   }
 
   /* Open Quick Access folder. */
   Microsoft::WRL::ComPtr<Folder> dir;
-  if (FAILED(shell->NameSpace(_variant_t(L"shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}"),
-                              dir.GetAddressOf())))
+  if (shell->NameSpace(_variant_t(L"shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}"),
+                       dir.GetAddressOf()) != S_OK)
   {
     return;
   }
 
   /* Get FolderItems. */
   Microsoft::WRL::ComPtr<FolderItems> items;
-  if (FAILED(dir->Items(items.GetAddressOf()))) {
+  if (dir->Items(items.GetAddressOf()) != S_OK) {
     return;
   }
 
   long count = 0;
-  if (FAILED(items->get_Count(&count))) {
+  if (items->get_Count(&count) != S_OK) {
     return;
   }
 
@@ -196,23 +195,23 @@ static void fsmenu_add_windows_quick_access(FSMenu *fsmenu,
   for (long i = 0; i < count; i++) {
     Microsoft::WRL::ComPtr<FolderItem> item;
 
-    if (FAILED(items->Item(_variant_t(i), item.GetAddressOf()))) {
+    if (items->Item(_variant_t(i), item.GetAddressOf()) != S_OK) {
       continue;
     }
 
     VARIANT_BOOL isFolder;
     /* Skip if it's not a folder. */
-    if (FAILED(item->get_IsFolder(&isFolder)) || isFolder == VARIANT_FALSE) {
+    if (item->get_IsFolder(&isFolder) != S_OK || isFolder == VARIANT_FALSE) {
       continue;
     }
 
     _bstr_t path;
-    if (FAILED(item->get_Path(path.GetAddress()))) {
+    if (item->get_Path(path.GetAddress()) != S_OK) {
       continue;
     }
 
     char utf_path[FILE_MAXDIR];
-    BLI_strncpy_wchar_as_utf8(utf_path, path, FILE_MAXDIR);
+    conv_utf_16_to_8(path, utf_path, FILE_MAXDIR);
 
     /* Skip library folders since they are not currently supported. */
     if (!BLI_strcasestr(utf_path, ".library-ms")) {
@@ -233,7 +232,7 @@ static void fsmenu_add_windows_folder(FSMenu *fsmenu,
   LPWSTR pPath;
   char line[FILE_MAXDIR];
   if (SHGetKnownFolderPath(rfid, 0, nullptr, &pPath) == S_OK) {
-    BLI_strncpy_wchar_as_utf8(line, pPath, FILE_MAXDIR);
+    conv_utf_16_to_8(pPath, line, FILE_MAXDIR);
     fsmenu_insert_entry(fsmenu, category, line, name, icon, flag);
   }
   CoTaskMemFree(pPath);
@@ -263,18 +262,19 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
         /* Skip over floppy disks A & B. */
         if (i > 1) {
           /* Friendly volume descriptions without using SHGetFileInfoW (#85689). */
-          BLI_strncpy_wchar_from_utf8(wline, tmps, 4);
+          conv_utf_8_to_16(tmps, wline, 4);
           IShellFolder *desktop;
           if (SHGetDesktopFolder(&desktop) == S_OK) {
             PIDLIST_RELATIVE volume;
             if (desktop->ParseDisplayName(nullptr, nullptr, wline, nullptr, &volume, nullptr) ==
-                S_OK) {
+                S_OK)
+            {
               STRRET volume_name;
               volume_name.uType = STRRET_WSTR;
               if (desktop->GetDisplayNameOf(volume, SHGDN_FORADDRESSBAR, &volume_name) == S_OK) {
                 wchar_t *volume_name_wchar;
                 if (StrRetToStrW(&volume_name, volume, &volume_name_wchar) == S_OK) {
-                  BLI_strncpy_wchar_as_utf8(line, volume_name_wchar, FILE_MAXDIR);
+                  conv_utf_16_to_8(volume_name_wchar, line, FILE_MAXDIR);
                   name = line;
                   CoTaskMemFree(volume_name_wchar);
                 }
@@ -370,7 +370,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
                                 FS_CATEGORY_SYSTEM_BOOKMARKS,
                                 FOLDERID_SkyDrive,
                                 N_("OneDrive"),
-                                ICON_URL,
+                                ICON_INTERNET,
                                 FS_INSERT_LAST);
 
       /* These items are just put in path cache for thumbnail views and if bookmarked. */
@@ -398,7 +398,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
                         ICON_FILE_FOLDER,
                         FS_INSERT_LAST);
 
-    const char *home = BLI_getenv("HOME");
+    const char *home = BLI_dir_home();
     if (home) {
 #  define FS_MACOS_PATH(path, name, icon) \
 \
@@ -538,7 +538,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 #else
   /* unix */
   {
-    const char *home = BLI_getenv("HOME");
+    const char *home = BLI_dir_home();
 
     if (read_bookmarks && home) {
 

@@ -11,14 +11,14 @@
 #include "DNA_ID.h"
 #include "DNA_userdef_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BLI_utildefines.h"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h" /* own include */
+#include "rna_internal.hh" /* own include */
 
 const EnumPropertyItem rna_enum_context_mode_items[] = {
     {CTX_MODE_EDIT_MESH, "EDIT_MESH", 0, "Mesh Edit", ""},
@@ -46,6 +46,9 @@ const EnumPropertyItem rna_enum_context_mode_items[] = {
     {CTX_MODE_VERTEX_GPENCIL_LEGACY, "VERTEX_GPENCIL", 0, "Grease Pencil Vertex Paint", ""},
     {CTX_MODE_SCULPT_CURVES, "SCULPT_CURVES", 0, "Curves Sculpt", ""},
     {CTX_MODE_PAINT_GREASE_PENCIL, "PAINT_GREASE_PENCIL", 0, "Grease Pencil Paint", ""},
+    {CTX_MODE_SCULPT_GREASE_PENCIL, "SCULPT_GREASE_PENCIL", 0, "Grease Pencil Sculpt", ""},
+    {CTX_MODE_WEIGHT_GREASE_PENCIL, "WEIGHT_GREASE_PENCIL", 0, "Grease Pencil Weight Paint", ""},
+    {CTX_MODE_VERTEX_GREASE_PENCIL, "VERTEX_GREASE_PENCIL", 0, "Grease Pencil Vertex Paint", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -54,7 +57,7 @@ const EnumPropertyItem rna_enum_context_mode_items[] = {
 #  include "DNA_asset_types.h"
 
 #  ifdef WITH_PYTHON
-#    include "BPY_extern.h"
+#    include "BPY_extern.hh"
 #  endif
 
 #  include "RE_engine.h"
@@ -118,6 +121,14 @@ static PointerRNA rna_Context_region_data_get(PointerRNA *ptr)
   return PointerRNA_NULL;
 }
 
+static PointerRNA rna_Context_region_popup_get(PointerRNA *ptr)
+{
+  bContext *C = (bContext *)ptr->data;
+  PointerRNA newptr = RNA_pointer_create(
+      (ID *)CTX_wm_screen(C), &RNA_Region, CTX_wm_region_popup(C));
+  return newptr;
+}
+
 static PointerRNA rna_Context_gizmo_group_get(PointerRNA *ptr)
 {
   bContext *C = (bContext *)ptr->data;
@@ -175,15 +186,20 @@ static PointerRNA rna_Context_collection_get(PointerRNA *ptr)
 static PointerRNA rna_Context_layer_collection_get(PointerRNA *ptr)
 {
   bContext *C = (bContext *)ptr->data;
-  ptr->owner_id = &CTX_data_scene(C)->id;
-  return rna_pointer_inherit_refine(ptr, &RNA_LayerCollection, CTX_data_layer_collection(C));
+  Scene *scene = CTX_data_scene(C);
+
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+  return rna_pointer_inherit_refine(
+      &scene_ptr, &RNA_LayerCollection, CTX_data_layer_collection(C));
 }
 
 static PointerRNA rna_Context_tool_settings_get(PointerRNA *ptr)
 {
   bContext *C = (bContext *)ptr->data;
-  ptr->owner_id = &CTX_data_scene(C)->id;
-  return rna_pointer_inherit_refine(ptr, &RNA_ToolSettings, CTX_data_tool_settings(C));
+  Scene *scene = CTX_data_scene(C);
+
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+  return rna_pointer_inherit_refine(&scene_ptr, &RNA_ToolSettings, CTX_data_tool_settings(C));
 }
 
 static PointerRNA rna_Context_preferences_get(PointerRNA * /*ptr*/)
@@ -270,6 +286,13 @@ void RNA_def_context(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_struct_type(prop, "Region");
   RNA_def_property_pointer_funcs(prop, "rna_Context_region_get", nullptr, nullptr, nullptr);
+
+  prop = RNA_def_property(srna, "region_popup", PROP_POINTER, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_struct_type(prop, "Region");
+  RNA_def_property_pointer_funcs(prop, "rna_Context_region_popup_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(
+      prop, "Popup Region", "The temporary region for pop-ups (including menus and pop-overs)");
 
   prop = RNA_def_property(srna, "region_data", PROP_POINTER, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);

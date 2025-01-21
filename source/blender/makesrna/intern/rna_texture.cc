@@ -22,16 +22,17 @@
 
 #include "BLI_utildefines.h"
 
-#include "BKE_node.h"
-#include "BKE_node_tree_update.h"
+#include "BKE_main_invariants.hh"
+#include "BKE_node.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_paint.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -128,14 +129,18 @@ static const EnumPropertyItem blend_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include <fmt/format.h>
+
 #  include "MEM_guardedalloc.h"
 
 #  include "RNA_access.hh"
 
-#  include "BKE_colorband.h"
-#  include "BKE_context.h"
-#  include "BKE_image.h"
-#  include "BKE_main.h"
+#  include "BKE_brush.hh"
+#  include "BKE_colorband.hh"
+#  include "BKE_context.hh"
+#  include "BKE_image.hh"
+#  include "BKE_main.hh"
+#  include "BKE_node_legacy_types.hh"
 #  include "BKE_texture.h"
 
 #  include "DEG_depsgraph.hh"
@@ -190,7 +195,7 @@ static void rna_Texture_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
   }
   else if (GS(id->name) == ID_NT) {
     bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
-    ED_node_tree_propagate_change(nullptr, bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
   }
 }
 
@@ -267,6 +272,7 @@ void rna_TextureSlot_update(bContext *C, PointerRNA *ptr)
       MTex *mtex = static_cast<MTex *>(ptr->data);
       ViewLayer *view_layer = CTX_data_view_layer(C);
       BKE_paint_invalidate_overlay_tex(scene, view_layer, mtex->tex);
+      BKE_brush_tag_unsaved_changes(reinterpret_cast<Brush *>(id));
       WM_main_add_notifier(NC_BRUSH, id);
       break;
     }
@@ -293,7 +299,7 @@ void rna_TextureSlot_update(bContext *C, PointerRNA *ptr)
   }
 }
 
-char *rna_TextureSlot_path(const PointerRNA *ptr)
+std::optional<std::string> rna_TextureSlot_path(const PointerRNA *ptr)
 {
   MTex *mtex = static_cast<MTex *>(ptr->data);
 
@@ -303,7 +309,7 @@ char *rna_TextureSlot_path(const PointerRNA *ptr)
    */
   if (ptr->owner_id) {
     if (GS(ptr->owner_id->name) == ID_BR) {
-      return BLI_strdup("texture_slot");
+      return "texture_slot";
     }
     else {
       PropertyRNA *prop;
@@ -317,7 +323,7 @@ char *rna_TextureSlot_path(const PointerRNA *ptr)
         int index = RNA_property_collection_lookup_index(&id_ptr, prop, ptr);
 
         if (index != -1) {
-          return BLI_sprintfN("texture_slots[%d]", index);
+          return fmt::format("texture_slots[{}]", index);
         }
       }
     }
@@ -328,11 +334,10 @@ char *rna_TextureSlot_path(const PointerRNA *ptr)
     char name_esc[(sizeof(mtex->tex->id.name) - 2) * 2];
 
     BLI_str_escape(name_esc, mtex->tex->id.name + 2, sizeof(name_esc));
-    return BLI_sprintfN("texture_slots[\"%s\"]", name_esc);
+    return fmt::format("texture_slots[\"{}\"]", name_esc);
   }
-  else {
-    return BLI_strdup("texture_slots[0]");
-  }
+
+  return "texture_slots[0]";
 }
 
 static int rna_TextureSlot_name_length(PointerRNA *ptr)
@@ -369,7 +374,7 @@ static int rna_TextureSlot_output_node_get(PointerRNA *ptr)
     bNode *node;
     if (ntree) {
       for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
-        if (node->type == TEX_NODE_OUTPUT) {
+        if (node->type_legacy == TEX_NODE_OUTPUT) {
           if (cur == node->custom1) {
             return cur;
           }
@@ -404,7 +409,7 @@ static const EnumPropertyItem *rna_TextureSlot_output_node_itemf(bContext * /*C*
       RNA_enum_item_add(&item, &totitem, &tmp);
 
       for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
-        if (node->type == TEX_NODE_OUTPUT) {
+        if (node->type_legacy == TEX_NODE_OUTPUT) {
           tmp.value = node->custom1;
           tmp.name = ((TexNodeOutput *)node->storage)->name;
           tmp.identifier = tmp.name;
@@ -922,6 +927,7 @@ static void rna_def_texture_wood(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "stype");
   RNA_def_property_enum_items(prop, prop_wood_stype);
   RNA_def_property_ui_text(prop, "Pattern", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXTURE);
   RNA_def_property_update(prop, 0, "rna_Texture_nodes_update");
 
   prop = RNA_def_property(srna, "noise_basis_2", PROP_ENUM, PROP_NONE);
@@ -991,6 +997,7 @@ static void rna_def_texture_marble(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "stype");
   RNA_def_property_enum_items(prop, prop_marble_stype);
   RNA_def_property_ui_text(prop, "Pattern", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXTURE);
   RNA_def_property_update(prop, 0, "rna_Texture_nodes_update");
 
   prop = RNA_def_property(srna, "noise_basis", PROP_ENUM, PROP_NONE);
@@ -1125,6 +1132,7 @@ static void rna_def_texture_stucci(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "stype");
   RNA_def_property_enum_items(prop, prop_stucci_stype);
   RNA_def_property_ui_text(prop, "Pattern", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXTURE);
   RNA_def_property_update(prop, 0, "rna_Texture_update");
 }
 
@@ -1582,7 +1590,7 @@ static void rna_def_texture(BlenderRNA *brna)
                            "Use Color Ramp",
                            "Map the texture intensity to the color ramp. "
                            "Note that the alpha value is used for image textures, "
-                           "enable \"Calculate Alpha\" for images without an alpha channel");
+                           "enable \"Calculate Alpha\" for images without an alpha channel.");
   RNA_def_property_update(prop, 0, "rna_Texture_update");
 
   prop = RNA_def_property(srna, "color_ramp", PROP_POINTER, PROP_NEVER_NULL);

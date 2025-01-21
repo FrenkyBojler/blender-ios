@@ -6,19 +6,20 @@
  * \ingroup RNA
  */
 
+#include <array>
 #include <cstdlib>
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
-#include "DNA_object_types.h"
+#include "BKE_duplilist.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -27,16 +28,16 @@
 #ifdef RNA_RUNTIME
 
 #  ifdef WITH_PYTHON
-#    include "BPY_extern.h"
+#    include "BPY_extern.hh"
 #  endif
 
 #  include "BLI_iterator.h"
 
 #  include "RNA_access.hh"
 
-#  include "BKE_duplilist.h"
-#  include "BKE_object.h"
-#  include "BKE_scene.h"
+#  include "BKE_duplilist.hh"
+#  include "BKE_object.hh"
+#  include "BKE_scene.hh"
 
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_debug.hh"
@@ -173,7 +174,7 @@ static void rna_DepsgraphObjectInstance_matrix_world_get(PointerRNA *ptr, float 
     /* We can return actual object's matrix here, no reason to return identity matrix
      * when this is not actually an instance... */
     Object *ob = (Object *)di->iter.current;
-    copy_m4_m4((float(*)[4])mat, ob->object_to_world);
+    copy_m4_m4((float(*)[4])mat, ob->object_to_world().ptr());
   }
 }
 
@@ -249,14 +250,23 @@ static bool rna_DepsgraphUpdate_is_updated_geometry_get(PointerRNA *ptr)
 
 /* **************** Depsgraph **************** */
 
-static void rna_Depsgraph_debug_relations_graphviz(Depsgraph *depsgraph, const char *filepath)
+static void rna_Depsgraph_debug_relations_graphviz(Depsgraph *depsgraph,
+                                                   const char *filepath,
+                                                   const char **r_str,
+                                                   int *r_len)
 {
-  FILE *f = fopen(filepath, "w");
-  if (f == nullptr) {
-    return;
+  const std::string dot_str = DEG_debug_graph_to_dot(*depsgraph, "Depsgraph");
+  *r_len = dot_str.size();
+  *r_str = BLI_strdup(dot_str.c_str());
+
+  if (filepath) {
+    FILE *f = fopen(filepath, "w");
+    if (f == nullptr) {
+      return;
+    }
+    fprintf(f, "%s", dot_str.c_str());
+    fclose(f);
   }
-  DEG_debug_relations_graphviz(depsgraph, f, "Depsgraph");
-  fclose(f);
 }
 
 static void rna_Depsgraph_debug_stats_gnuplot(Depsgraph *depsgraph,
@@ -312,8 +322,7 @@ static void rna_Depsgraph_update(Depsgraph *depsgraph, Main *bmain, ReportList *
 static void rna_Depsgraph_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   iter->internal.custom = MEM_callocN(sizeof(BLI_Iterator), __func__);
-  DEGObjectIterData *data = static_cast<DEGObjectIterData *>(
-      MEM_callocN(sizeof(DEGObjectIterData), __func__));
+  DEGObjectIterData *data = MEM_new<DEGObjectIterData>(__func__);
   DEGObjectIterSettings *deg_iter_settings = static_cast<DEGObjectIterSettings *>(
       MEM_callocN(sizeof(DEGObjectIterSettings), __func__));
   deg_iter_settings->depsgraph = (Depsgraph *)ptr->data;
@@ -340,7 +349,7 @@ static void rna_Depsgraph_objects_end(CollectionPropertyIterator *iter)
   DEGObjectIterData *data = (DEGObjectIterData *)((BLI_Iterator *)iter->internal.custom)->data;
   DEG_iterator_objects_end(static_cast<BLI_Iterator *>(iter->internal.custom));
   MEM_freeN(data->settings);
-  MEM_freeN(((BLI_Iterator *)iter->internal.custom)->data);
+  MEM_delete(data);
   MEM_freeN(iter->internal.custom);
 }
 
@@ -368,8 +377,7 @@ struct RNA_Depsgraph_Instances_Iterator {
 
 static void rna_Depsgraph_object_instances_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  RNA_Depsgraph_Instances_Iterator *di_it = static_cast<RNA_Depsgraph_Instances_Iterator *>(
-      MEM_callocN(sizeof(*di_it), __func__));
+  RNA_Depsgraph_Instances_Iterator *di_it = MEM_new<RNA_Depsgraph_Instances_Iterator>(__func__);
   iter->internal.custom = di_it;
   DEGObjectIterSettings *deg_iter_settings = static_cast<DEGObjectIterSettings *>(
       MEM_callocN(sizeof(DEGObjectIterSettings), __func__));
@@ -395,9 +403,7 @@ static void rna_Depsgraph_object_instances_next(CollectionPropertyIterator *iter
 
   /* We need to copy current iterator status to next one being worked on. */
   di_it->iterators[(di_it->counter + 1) % 2].iter = di_it->iterators[di_it->counter % 2].iter;
-  memcpy(static_cast<void *>(&di_it->deg_data[(di_it->counter + 1) % 2]),
-         static_cast<void *>(&di_it->deg_data[di_it->counter % 2]),
-         sizeof(DEGObjectIterData));
+  di_it->deg_data[(di_it->counter + 1) % 2] = di_it->deg_data[di_it->counter % 2];
   di_it->counter++;
 
   di_it->iterators[di_it->counter % 2].iter.data = &di_it->deg_data[di_it->counter % 2];
@@ -436,7 +442,7 @@ static void rna_Depsgraph_object_instances_end(CollectionPropertyIterator *iter)
 #  endif
   }
 
-  MEM_freeN(di_it);
+  MEM_delete(di_it);
 }
 
 static PointerRNA rna_Depsgraph_object_instances_get(CollectionPropertyIterator *iter)
@@ -703,9 +709,16 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 
   func = RNA_def_function(
       srna, "debug_relations_graphviz", "rna_Depsgraph_debug_relations_graphviz");
-  parm = RNA_def_string_file_path(
-      func, "filepath", nullptr, FILE_MAX, "File Name", "Output path for the graphviz debug file");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_string_file_path(func,
+                                  "filepath",
+                                  nullptr,
+                                  FILE_MAX,
+                                  "File Name",
+                                  "Optional output path for the graphviz debug file");
+  parm = RNA_def_string(func, "dot_graph", nullptr, INT32_MAX, "Dot Graph", "Graph in dot format");
+  RNA_def_parameter_flags(parm, PROP_DYNAMIC, ParameterFlag(0));
+  RNA_def_parameter_clear_flags(parm, PROP_NEVER_NULL, ParameterFlag(0));
+  RNA_def_function_output(func, parm);
 
   func = RNA_def_function(srna, "debug_stats_gnuplot", "rna_Depsgraph_debug_stats_gnuplot");
   parm = RNA_def_string_file_path(

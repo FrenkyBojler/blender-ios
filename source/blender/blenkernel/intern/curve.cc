@@ -9,13 +9,13 @@
 #include <cmath> /* floor */
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_endian_switch.h"
 #include "BLI_ghash.h"
 #include "BLI_index_range.hh"
+#include "BLI_math_base_safe.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -23,8 +23,9 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
@@ -39,22 +40,17 @@
 #include "DNA_object_types.h"
 #include "DNA_vfont_types.h"
 
-#include "BKE_anim_data.h"
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 #include "BKE_curveprofile.h"
-#include "BKE_displist.h"
-#include "BKE_idtype.h"
-#include "BKE_key.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
-#include "BKE_object.h"
-#include "BKE_vfont.h"
+#include "BKE_idtype.hh"
+#include "BKE_key.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_object_types.hh"
+#include "BKE_vfont.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
-
-#include "CLG_log.h"
 
 #include "BLO_read_write.hh"
 
@@ -83,7 +79,11 @@ static void curve_init_data(ID *id)
   MEMCPY_STRUCT_AFTER(curve, DNA_struct_default_get(Curve), id);
 }
 
-static void curve_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
+static void curve_copy_data(Main *bmain,
+                            std::optional<Library *> owner_library,
+                            ID *id_dst,
+                            const ID *id_src,
+                            const int flag)
 {
   Curve *curve_dst = (Curve *)id_dst;
   const Curve *curve_src = (const Curve *)id_src;
@@ -101,9 +101,12 @@ static void curve_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int
   curve_dst->bevel_profile = BKE_curveprofile_copy(curve_src->bevel_profile);
 
   if (curve_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
-    BKE_id_copy_ex(bmain, &curve_src->key->id, (ID **)&curve_dst->key, flag);
-    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
-    curve_dst->key->from = &curve_dst->id;
+    BKE_id_copy_in_lib(bmain,
+                       owner_library,
+                       &curve_src->key->id,
+                       &curve_dst->id,
+                       reinterpret_cast<ID **>(&curve_dst->key),
+                       flag);
   }
 
   curve_dst->editnurb = nullptr;
@@ -171,7 +174,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   BLO_write_pointer_array(writer, cu->totcol, cu->mat);
 
   if (cu->vfont) {
-    BLO_write_raw(writer, cu->len + 1, cu->str);
+    BLO_write_string(writer, cu->str);
     BLO_write_struct_array(writer, CharInfo, cu->len_char32 + 1, cu->strinfo);
     BLO_write_struct_array(writer, TextBox, cu->totbox, cu->tb);
   }
@@ -201,16 +204,6 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 }
 
-static void switch_endian_knots(Nurb *nu)
-{
-  if (nu->knotsu) {
-    BLI_endian_switch_float_array(nu->knotsu, KNOTSU(nu));
-  }
-  if (nu->knotsv) {
-    BLI_endian_switch_float_array(nu->knotsv, KNOTSV(nu));
-  }
-}
-
 static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Curve *cu = (Curve *)id;
@@ -218,14 +211,14 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   /* Protect against integer overflow vulnerability. */
   CLAMP(cu->len_char32, 0, INT_MAX - 4);
 
-  BLO_read_pointer_array(reader, (void **)&cu->mat);
+  BLO_read_pointer_array(reader, cu->totcol, (void **)&cu->mat);
 
-  BLO_read_data_address(reader, &cu->str);
-  BLO_read_data_address(reader, &cu->strinfo);
-  BLO_read_data_address(reader, &cu->tb);
+  BLO_read_string(reader, &cu->str);
+  BLO_read_struct_array(reader, CharInfo, cu->len_char32 + 1, &cu->strinfo);
+  BLO_read_struct_array(reader, TextBox, cu->totbox, &cu->tb);
 
   if (cu->vfont == nullptr) {
-    BLO_read_list(reader, &(cu->nurb));
+    BLO_read_struct_list(reader, Nurb, &(cu->nurb));
   }
   else {
     cu->nurb.first = cu->nurb.last = nullptr;
@@ -252,21 +245,17 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   cu->batch_cache = nullptr;
 
   LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
-    BLO_read_data_address(reader, &nu->bezt);
-    BLO_read_data_address(reader, &nu->bp);
-    BLO_read_data_address(reader, &nu->knotsu);
-    BLO_read_data_address(reader, &nu->knotsv);
+    BLO_read_struct_array(reader, BezTriple, nu->pntsu, &nu->bezt);
+    BLO_read_struct_array(reader, BPoint, nu->pntsu * nu->pntsv, &nu->bp);
+    BLO_read_float_array(reader, KNOTSU(nu), &nu->knotsu);
+    BLO_read_float_array(reader, KNOTSV(nu), &nu->knotsv);
     if (cu->vfont == nullptr) {
       nu->charidx = 0;
-    }
-
-    if (BLO_read_requires_endian_switch(reader)) {
-      switch_endian_knots(nu);
     }
   }
   cu->texspace_flag &= ~CU_TEXSPACE_FLAG_AUTO_EVALUATED;
 
-  BLO_read_data_address(reader, &cu->bevel_profile);
+  BLO_read_struct(reader, CurveProfile, &cu->bevel_profile);
   if (cu->bevel_profile != nullptr) {
     BKE_curveprofile_blend_read(reader, cu->bevel_profile);
   }
@@ -275,10 +264,11 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_CU_LEGACY = {
     /*id_code*/ ID_CU_LEGACY,
     /*id_filter*/ FILTER_ID_CU_LEGACY,
+    /*dependencies_id_types*/ FILTER_ID_OB | FILTER_ID_MA | FILTER_ID_VF | FILTER_ID_KE,
     /*main_listbase_index*/ INDEX_ID_CU_LEGACY,
     /*struct_size*/ sizeof(Curve),
     /*name*/ "Curve",
-    /*name_plural*/ "curves",
+    /*name_plural*/ N_("curves"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_CURVE_LEGACY,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -361,12 +351,22 @@ void BKE_curve_init(Curve *cu, const short curve_type)
 
   if (cu->type == OB_FONT) {
     cu->flag |= CU_FRONT | CU_BACK;
-    cu->vfont = cu->vfontb = cu->vfonti = cu->vfontbi = BKE_vfont_builtin_get();
+    cu->vfont = cu->vfontb = cu->vfonti = cu->vfontbi = BKE_vfont_builtin_ensure();
     cu->vfont->id.us += 4;
-    cu->str = (char *)MEM_malloc_arrayN(12, sizeof(uchar), "str");
-    BLI_strncpy(cu->str, "Text", 12);
-    cu->len = cu->len_char32 = cu->pos = 4;
-    cu->strinfo = (CharInfo *)MEM_calloc_arrayN(12, sizeof(CharInfo), "strinfo new");
+
+    const char *str = DATA_("Text");
+    size_t len_bytes;
+    size_t len_char32 = BLI_strlen_utf8_ex(str, &len_bytes);
+
+    cu->str = static_cast<char *>(MEM_malloc_arrayN(len_bytes + 1, sizeof(char), "str"));
+    BLI_strncpy(cu->str, str, len_bytes + 1);
+
+    cu->len = len_bytes;
+    cu->len_char32 = cu->pos = len_char32;
+
+    cu->strinfo = static_cast<CharInfo *>(
+        MEM_calloc_arrayN((len_char32 + 1), sizeof(CharInfo), "strinfo new"));
+
     cu->totbox = cu->actbox = 1;
     cu->tb = (TextBox *)MEM_calloc_arrayN(MAXTEXTBOX, sizeof(TextBox), "textbox");
     cu->tb[0].w = cu->tb[0].h = 0.0;
@@ -462,47 +462,20 @@ void BKE_curve_type_test(Object *ob)
   }
 }
 
-BoundBox *BKE_curve_boundbox_get(Object *ob)
-{
-  /* This is Object-level data access,
-   * DO NOT touch to Mesh's bb, would be totally thread-unsafe. */
-  if (ob->runtime.bb == nullptr || ob->runtime.bb->flag & BOUNDBOX_DIRTY) {
-    Curve *cu = (Curve *)ob->data;
-    float min[3], max[3];
-
-    INIT_MINMAX(min, max);
-    if (!BKE_curve_minmax(cu, true, min, max)) {
-      copy_v3_fl(min, -1.0f);
-      copy_v3_fl(max, 1.0f);
-    }
-
-    if (ob->runtime.bb == nullptr) {
-      ob->runtime.bb = (BoundBox *)MEM_mallocN(sizeof(*ob->runtime.bb), __func__);
-    }
-    BKE_boundbox_init_from_minmax(ob->runtime.bb, min, max);
-    ob->runtime.bb->flag &= ~BOUNDBOX_DIRTY;
-  }
-
-  return ob->runtime.bb;
-}
-
 void BKE_curve_texspace_calc(Curve *cu)
 {
   if (cu->texspace_flag & CU_TEXSPACE_FLAG_AUTO) {
-    float min[3], max[3];
-
-    INIT_MINMAX(min, max);
-    if (!BKE_curve_minmax(cu, true, min, max)) {
-      min[0] = min[1] = min[2] = -1.0f;
-      max[0] = max[1] = max[2] = 1.0f;
+    std::optional<blender::Bounds<blender::float3>> bounds = BKE_curve_minmax(cu, true);
+    if (!bounds) {
+      bounds = blender::Bounds<blender::float3>{float3(-FLT_MAX), -float3(FLT_MAX)};
     }
 
     float texspace_location[3], texspace_size[3];
-    mid_v3_v3v3(texspace_location, min, max);
+    mid_v3_v3v3(texspace_location, bounds->min, bounds->max);
 
-    texspace_size[0] = (max[0] - min[0]) / 2.0f;
-    texspace_size[1] = (max[1] - min[1]) / 2.0f;
-    texspace_size[2] = (max[2] - min[2]) / 2.0f;
+    texspace_size[0] = (bounds->max[0] - bounds->min[0]) / 2.0f;
+    texspace_size[1] = (bounds->max[1] - bounds->min[1]) / 2.0f;
+    texspace_size[2] = (bounds->max[2] - bounds->min[2]) / 2.0f;
 
     for (int a = 0; a < 3; a++) {
       if (texspace_size[a] == 0.0f) {
@@ -614,7 +587,6 @@ void BKE_nurb_free(Nurb *nu)
     MEM_freeN(nu->knotsv);
   }
   nu->knotsv = nullptr;
-  // if (nu->trim.first) freeNurblist(&(nu->trim));
 
   MEM_freeN(nu);
 }
@@ -732,7 +704,7 @@ void BKE_nurb_project_2d(Nurb *nu)
   }
 }
 
-void BKE_nurb_minmax(const Nurb *nu, bool use_radius, float min[3], float max[3])
+static void calc_nurb_minmax(const Nurb *nu, bool use_radius, float min[3], float max[3])
 {
   BezTriple *bezt;
   BPoint *bp;
@@ -1908,7 +1880,7 @@ static void calc_bevel_sin_cos(
     t02 = M_PI_2;
   }
   else {
-    t02 = saacos(t02) / 2.0f;
+    t02 = safe_acosf(t02) / 2.0f;
   }
 
   t02 = sinf(t02);
@@ -2580,7 +2552,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
                                cu->bevfac1_mapping, CU_BEVFAC_MAP_SEGMENT, CU_BEVFAC_MAP_SPLINE) ||
                            ELEM(cu->bevfac2_mapping, CU_BEVFAC_MAP_SEGMENT, CU_BEVFAC_MAP_SPLINE);
 
-  bev = &ob->runtime.curve_cache->bev;
+  bev = &ob->runtime->curve_cache->bev;
 
 #if 0
   /* do we need to calculate the radius for each point? */
@@ -2590,7 +2562,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
 
   /* STEP 1: MAKE POLYS */
 
-  BKE_curve_bevelList_free(&ob->runtime.curve_cache->bev);
+  BKE_curve_bevelList_free(&ob->runtime->curve_cache->bev);
   if (cu->editnurb && ob->type != OB_FONT) {
     is_editmode = true;
   }
@@ -4271,7 +4243,8 @@ void BKE_nurbList_handles_set(ListBase *editnurb,
           while (a--) {
             const short flag = BKE_nurb_bezt_handle_test_calc_flag(bezt, SELECT, handle_mode);
             if (((flag & (1 << 0)) && bezt->h1 != HD_FREE) ||
-                ((flag & (1 << 2)) && bezt->h2 != HD_FREE)) {
+                ((flag & (1 << 2)) && bezt->h2 != HD_FREE))
+            {
               h_new = HD_AUTO;
               break;
             }
@@ -4764,7 +4737,6 @@ bool BKE_nurb_valid_message(const int pnts,
   NURBSValidationStatus status = nurb_check_valid(
       pnts, order, flag, type, is_surf, &points_needed);
 
-  const char *msg_template = nullptr;
   switch (status) {
     case NURBSValidationStatus::Valid:
       message_dst[0] = 0;
@@ -4775,20 +4747,24 @@ bool BKE_nurb_valid_message(const int pnts,
         message_dst[0] = 0;
         return false;
       }
-      msg_template = TIP_("At least two points required");
+      BLI_strncpy(message_dst, RPT_("At least two points required"), maxncpy);
       break;
     case NURBSValidationStatus::MorePointsThanOrderRequired:
-      msg_template = TIP_("Must have more control points than Order");
+      BLI_strncpy(message_dst, RPT_("Must have more control points than Order"), maxncpy);
       break;
     case NURBSValidationStatus::MoreRowsForBezierRequired:
-      msg_template = TIP_("%d more %s row(s) needed for Bezier");
+      BLI_snprintf(message_dst,
+                   maxncpy,
+                   RPT_("%d more %s row(s) needed for Bézier"),
+                   points_needed,
+                   dir == 0 ? "U" : "V");
       break;
     case NURBSValidationStatus::MorePointsForBezierRequired:
-      msg_template = TIP_("%d more point(s) needed for Bezier");
+      BLI_snprintf(
+          message_dst, maxncpy, RPT_("%d more point(s) needed for Bézier"), points_needed);
       break;
   }
 
-  BLI_snprintf(message_dst, maxncpy, msg_template, points_needed, dir == 0 ? "U" : "V");
   return true;
 }
 
@@ -4894,7 +4870,8 @@ bool BKE_nurb_type_convert(Nurb *nu,
       bp = nu->bp;
       while (a--) {
         if ((type == CU_POLY && bezt->h1 == HD_VECT && bezt->h2 == HD_VECT) ||
-            (use_handles == false)) {
+            (use_handles == false))
+        {
           /* vector handle becomes one poly vertex */
           copy_v3_v3(bp->vec, bezt->vec[1]);
           bp->vec[3] = 1.0;
@@ -5108,10 +5085,23 @@ void BKE_curve_nurb_vert_active_validate(Curve *cu)
   }
 }
 
-bool BKE_curve_minmax(Curve *cu, bool use_radius, float min[3], float max[3])
+static std::optional<blender::Bounds<blender::float3>> calc_nurblist_bounds(const ListBase *nurbs,
+                                                                            const bool use_radius)
 {
-  ListBase *nurb_lb = BKE_curve_nurbs_get(cu);
-  ListBase temp_nurb_lb = {nullptr, nullptr};
+  if (BLI_listbase_is_empty(nurbs)) {
+    return std::nullopt;
+  }
+  float3 min(std::numeric_limits<float>::max());
+  float3 max(std::numeric_limits<float>::lowest());
+  LISTBASE_FOREACH (const Nurb *, nu, nurbs) {
+    calc_nurb_minmax(nu, use_radius, min, max);
+  }
+  return blender::Bounds<float3>{min, max};
+}
+
+std::optional<blender::Bounds<blender::float3>> BKE_curve_minmax(const Curve *cu, bool use_radius)
+{
+  const ListBase *nurb_lb = BKE_curve_nurbs_get_for_read(cu);
   const bool is_font = BLI_listbase_is_empty(nurb_lb) && (cu->len != 0);
   /* For font curves we generate temp list of splines.
    *
@@ -5119,18 +5109,20 @@ bool BKE_curve_minmax(Curve *cu, bool use_radius, float min[3], float max[3])
    * often, and it's the only way to get meaningful bounds for fonts.
    */
   if (is_font) {
-    nurb_lb = &temp_nurb_lb;
-    BKE_vfont_to_curve_ex(nullptr, cu, FO_EDIT, nurb_lb, nullptr, nullptr, nullptr, nullptr);
-    use_radius = false;
+    ListBase temp_nurb_lb{};
+    BKE_vfont_to_curve_ex(nullptr,
+                          const_cast<Curve *>(cu),
+                          FO_EDIT,
+                          &temp_nurb_lb,
+                          nullptr,
+                          nullptr,
+                          nullptr,
+                          nullptr);
+    BLI_SCOPED_DEFER([&]() { BKE_nurbList_free(&temp_nurb_lb); });
+    return calc_nurblist_bounds(&temp_nurb_lb, false);
   }
-  /* Do bounding box based on splines. */
-  LISTBASE_FOREACH (const Nurb *, nu, nurb_lb) {
-    BKE_nurb_minmax(nu, use_radius, min, max);
-  }
-  const bool result = (BLI_listbase_is_empty(nurb_lb) == false);
-  /* Cleanup if needed. */
-  BKE_nurbList_free(&temp_nurb_lb);
-  return result;
+
+  return calc_nurblist_bounds(nurb_lb, use_radius);
 }
 
 bool BKE_curve_center_median(Curve *cu, float cent[3])
@@ -5168,18 +5160,6 @@ bool BKE_curve_center_median(Curve *cu, float cent[3])
   }
 
   return (total != 0);
-}
-
-bool BKE_curve_center_bounds(Curve *cu, float cent[3])
-{
-  float min[3], max[3];
-  INIT_MINMAX(min, max);
-  if (BKE_curve_minmax(cu, false, min, max)) {
-    mid_v3_v3v3(cent, min, max);
-    return true;
-  }
-
-  return false;
 }
 
 void BKE_curve_transform_ex(Curve *cu,

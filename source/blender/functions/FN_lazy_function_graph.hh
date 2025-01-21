@@ -209,6 +209,10 @@ class Graph : NonCopyable, NonMovable {
    */
   LinearAllocator<> allocator_;
   /**
+   * Name of the graph for debugging purposes.
+   */
+  StringRefNull name_;
+  /**
    * Contains all nodes in the graph so that it is efficient to iterate over them.
    * The first two nodes are the interface input and output nodes.
    */
@@ -227,8 +231,10 @@ class Graph : NonCopyable, NonMovable {
   int socket_num_ = 0;
 
  public:
-  Graph();
+  Graph(StringRef name = "unknown");
   ~Graph();
+
+  StringRefNull name() const;
 
   /**
    * Get all nodes in the graph. The index in the span corresponds to #Node::index_in_graph.
@@ -238,6 +244,9 @@ class Graph : NonCopyable, NonMovable {
 
   Span<const FunctionNode *> function_nodes() const;
   Span<FunctionNode *> function_nodes();
+
+  Span<GraphInputSocket *> graph_inputs();
+  Span<GraphOutputSocket *> graph_outputs();
 
   Span<const GraphInputSocket *> graph_inputs() const;
   Span<const GraphOutputSocket *> graph_outputs() const;
@@ -486,6 +495,11 @@ inline const LazyFunction &FunctionNode::function() const
 /** \name #Graph Inline Methods
  * \{ */
 
+inline StringRefNull Graph::name() const
+{
+  return name_;
+}
+
 inline Span<const Node *> Graph::nodes() const
 {
   return nodes_;
@@ -504,6 +518,16 @@ inline Span<const FunctionNode *> Graph::function_nodes() const
 inline Span<FunctionNode *> Graph::function_nodes()
 {
   return nodes_.as_span().drop_front(2).cast<FunctionNode *>();
+}
+
+inline Span<GraphInputSocket *> Graph::graph_inputs()
+{
+  return graph_inputs_;
+}
+
+inline Span<GraphOutputSocket *> Graph::graph_outputs()
+{
+  return graph_outputs_;
 }
 
 inline Span<const GraphInputSocket *> Graph::graph_inputs() const

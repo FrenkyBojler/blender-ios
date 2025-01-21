@@ -20,14 +20,19 @@
 #include "BLI_blenlib.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
-#include "BKE_armature.h"
-#include "BKE_fcurve.h"
+#include "BKE_action.hh"
+#include "BKE_armature.hh"
+#include "BKE_fcurve.hh"
+
+#include "ANIM_action_legacy.hh"
+#include "ANIM_pose.hh"
 
 #include "DEG_depsgraph.hh"
+
+using namespace blender;
 
 /* -------------------------------------------------------------------- */
 /** \name Flip the Action (Armature/Pose Objects)
@@ -390,11 +395,11 @@ static void action_flip_pchan_rna_paths(bAction *act)
   const int path_pose_prefix_len = strlen(path_pose_prefix);
 
   /* Tag curves that have renamed f-curves. */
-  LISTBASE_FOREACH (bActionGroup *, agrp, &act->groups) {
+  for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
     agrp->flag &= ~AGRP_TEMP;
   }
 
-  LISTBASE_FOREACH (FCurve *, fcu, &act->curves) {
+  for (FCurve *fcu : blender::animrig::legacy::fcurves_all(act)) {
     if (!STRPREFIX(fcu->rna_path, path_pose_prefix)) {
       continue;
     }
@@ -434,7 +439,7 @@ static void action_flip_pchan_rna_paths(bAction *act)
   }
 
   /* Rename tagged groups. */
-  LISTBASE_FOREACH (bActionGroup *, agrp, &act->groups) {
+  for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
     if ((agrp->flag & AGRP_TEMP) == 0) {
       continue;
     }
@@ -447,18 +452,33 @@ static void action_flip_pchan_rna_paths(bAction *act)
   }
 }
 
-void BKE_action_flip_with_pose(bAction *act, Object *ob_arm)
+void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
 {
-  FCurvePathCache *fcache = BKE_fcurve_pathcache_create(&act->curves);
-  int i;
-  LISTBASE_FOREACH_INDEX (bPoseChannel *, pchan, &ob_arm->pose->chanbase, i) {
-    action_flip_pchan(ob_arm, pchan, fcache);
+  animrig::Action &action = act->wrap();
+  if (action.slot_array_num == 0) {
+    /* Cannot flip an empty action. */
+    return;
   }
-  BKE_fcurve_pathcache_destroy(fcache);
+  blender::Set<animrig::Slot *> flipped_slots;
+  for (Object *object : objects) {
+    animrig::Slot *slot = animrig::generic_slot_for_autoassign(object->id, action, "");
+    if (!slot) {
+      slot = action.slot(0);
+    }
+    if (!flipped_slots.add(slot)) {
+      continue;
+    }
+    Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, slot->handle);
+    FCurvePathCache *fcache = BKE_fcurve_pathcache_create(fcurves);
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
+      action_flip_pchan(object, pchan, fcache);
+    }
+    BKE_fcurve_pathcache_destroy(fcache);
+  }
 
   action_flip_pchan_rna_paths(act);
 
-  DEG_id_tag_update(&act->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&act->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 /** \} */

@@ -17,31 +17,54 @@
 #include "BLI_map.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "BKE_animsys.h"
-#include "BKE_idprop.h"
+#include "BKE_grease_pencil_legacy_convert.hh"
+#include "BKE_idprop.hh"
 #include "BKE_ipo.h"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
-#include "BKE_main.h"
-#include "BKE_main_namemap.h"
+#include "BKE_main.hh"
+#include "BKE_main_namemap.hh"
+#include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_node_tree_update.hh"
+#include "BKE_screen.hh"
 
-#include "SEQ_sequencer.h"
+#include "ANIM_versioning.hh"
+
+#include "NOD_socket.hh"
+
+#include "BLT_translation.hh"
+
+#include "SEQ_sequencer.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 #include "readfile.hh"
 #include "versioning_common.hh"
 
 using blender::Map;
 using blender::StringRef;
 
+short do_versions_new_to_old_idcode_get(const short id_code_new)
+{
+  switch (id_code_new) {
+    case ID_GP:
+      /* ID_GD_LEGACY (Grease Pencil v2) is now converted to ID_GP (Grease Pencil v3). */
+      return ID_GD_LEGACY;
+    default:
+      return ID_LINK_PLACEHOLDER;
+  }
+}
+
 ARegion *do_versions_add_region_if_not_found(ListBase *regionbase,
                                              int region_type,
-                                             const char *allocname,
+                                             const char * /*allocname*/,
                                              int link_after_region_type)
 {
   ARegion *link_after_region = nullptr;
@@ -54,7 +77,7 @@ ARegion *do_versions_add_region_if_not_found(ListBase *regionbase,
     }
   }
 
-  ARegion *new_region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), allocname));
+  ARegion *new_region = BKE_area_region_new();
   new_region->regiontype = region_type;
   BLI_insertlinkafter(regionbase, link_after_region, new_region);
   return new_region;
@@ -62,7 +85,7 @@ ARegion *do_versions_add_region_if_not_found(ListBase *regionbase,
 
 ARegion *do_versions_ensure_region(ListBase *regionbase,
                                    int region_type,
-                                   const char *allocname,
+                                   const char * /*allocname*/,
                                    int link_after_region_type)
 {
   ARegion *link_after_region = nullptr;
@@ -75,7 +98,7 @@ ARegion *do_versions_ensure_region(ListBase *regionbase,
     }
   }
 
-  ARegion *new_region = MEM_cnew<ARegion>(allocname);
+  ARegion *new_region = BKE_area_region_new();
   new_region->regiontype = region_type;
   BLI_insertlinkafter(regionbase, link_after_region, new_region);
   return new_region;
@@ -100,10 +123,7 @@ ID *do_versions_rename_id(Main *bmain,
     }
   }
   if (id != nullptr) {
-    BKE_main_namemap_remove_name(bmain, id, id->name + 2);
-    BLI_strncpy(id->name + 2, name_dst, sizeof(id->name) - 2);
-    /* We know it's unique, this just sorts. */
-    BLI_libblock_ensure_unique_name(bmain, id->name);
+    BKE_libblock_rename(*bmain, *id, name_dst);
   }
   return id;
 }
@@ -152,7 +172,7 @@ void version_node_socket_name(bNodeTree *ntree,
                               const char *new_name)
 {
   for (bNode *node : ntree->all_nodes()) {
-    if (node->type == node_type) {
+    if (node->type_legacy == node_type) {
       change_node_socket_name(&node->inputs, old_name, new_name);
       change_node_socket_name(&node->outputs, old_name, new_name);
     }
@@ -165,7 +185,7 @@ void version_node_input_socket_name(bNodeTree *ntree,
                                     const char *new_name)
 {
   for (bNode *node : ntree->all_nodes()) {
-    if (node->type == node_type) {
+    if (node->type_legacy == node_type) {
       change_node_socket_name(&node->inputs, old_name, new_name);
     }
   }
@@ -177,10 +197,90 @@ void version_node_output_socket_name(bNodeTree *ntree,
                                      const char *new_name)
 {
   for (bNode *node : ntree->all_nodes()) {
-    if (node->type == node_type) {
+    if (node->type_legacy == node_type) {
       change_node_socket_name(&node->outputs, old_name, new_name);
     }
   }
+}
+
+bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
+{
+  blender::bke::bNodeType *ntype = blender::bke::node_type_find(idname);
+
+  bNode *node = MEM_cnew<bNode>(__func__);
+  node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
+  BLI_addtail(&ntree.nodes, node);
+  blender::bke::node_unique_id(&ntree, node);
+
+  STRNCPY(node->idname, idname);
+  STRNCPY_UTF8(node->name, DATA_(ntype->ui_name.c_str()));
+  blender::bke::node_unique_name(&ntree, node);
+
+  node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
+  node->width = ntype->width;
+  node->height = ntype->height;
+  node->color[0] = node->color[1] = node->color[2] = 0.608;
+
+  node->type_legacy = ntype->type_legacy;
+
+  BKE_ntree_update_tag_node_new(&ntree, node);
+  return *node;
+}
+
+bNodeSocket &version_node_add_socket(bNodeTree &ntree,
+                                     bNode &node,
+                                     const eNodeSocketInOut in_out,
+                                     const char *idname,
+                                     const char *identifier)
+{
+  blender::bke::bNodeSocketType *stype = blender::bke::node_socket_type_find(idname);
+
+  bNodeSocket *socket = MEM_cnew<bNodeSocket>(__func__);
+  socket->runtime = MEM_new<blender::bke::bNodeSocketRuntime>(__func__);
+  socket->in_out = in_out;
+  socket->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
+  socket->type = stype->type;
+
+  STRNCPY(socket->idname, idname);
+  STRNCPY(socket->identifier, identifier);
+  STRNCPY(socket->name, identifier);
+
+  if (in_out == SOCK_IN) {
+    BLI_addtail(&node.inputs, socket);
+  }
+  else {
+    BLI_addtail(&node.outputs, socket);
+  }
+
+  node_socket_init_default_value_data(
+      eNodeSocketDatatype(stype->type), stype->subtype, &socket->default_value);
+
+  BKE_ntree_update_tag_socket_new(&ntree, socket);
+  return *socket;
+}
+
+bNodeLink &version_node_add_link(
+    bNodeTree &ntree, bNode &node_a, bNodeSocket &socket_a, bNode &node_b, bNodeSocket &socket_b)
+{
+  BLI_assert(socket_a.in_out != socket_b.in_out);
+  if (socket_a.in_out == SOCK_IN) {
+    return version_node_add_link(ntree, node_b, socket_b, node_a, socket_a);
+  }
+  bNode &node_from = node_a;
+  bNodeSocket &socket_from = socket_a;
+  bNode &node_to = node_b;
+  bNodeSocket &socket_to = socket_b;
+
+  bNodeLink *link = MEM_cnew<bNodeLink>(__func__);
+  link->fromnode = &node_from;
+  link->fromsock = &socket_from;
+  link->tonode = &node_to;
+  link->tosock = &socket_to;
+
+  BLI_addtail(&ntree.links, link);
+
+  BKE_ntree_update_tag_link_added(&ntree, link);
+  return *link;
 }
 
 bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
@@ -191,18 +291,18 @@ bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
                                                   const char *identifier,
                                                   const char *name)
 {
-  bNodeSocket *sock = nodeFindSocket(node, eNodeSocketInOut(in_out), identifier);
+  bNodeSocket *sock = blender::bke::node_find_socket(node, eNodeSocketInOut(in_out), identifier);
   if (sock != nullptr) {
     return sock;
   }
-  return nodeAddStaticSocket(
+  return blender::bke::node_add_static_socket(
       ntree, node, eNodeSocketInOut(in_out), type, subtype, identifier, name);
 }
 
 void version_node_id(bNodeTree *ntree, const int node_type, const char *new_name)
 {
   for (bNode *node : ntree->all_nodes()) {
-    if (node->type == node_type) {
+    if (node->type_legacy == node_type) {
       if (!STREQ(node->idname, new_name)) {
         STRNCPY(node->idname, new_name);
       }
@@ -230,7 +330,7 @@ void version_node_socket_index_animdata(Main *bmain,
       }
 
       for (bNode *node : ntree->all_nodes()) {
-        if (node->type != node_type) {
+        if (node->type_legacy != node_type) {
           continue;
         }
 
@@ -268,9 +368,9 @@ void version_socket_update_is_used(bNodeTree *ntree)
   }
 }
 
-ARegion *do_versions_add_region(int regiontype, const char *name)
+ARegion *do_versions_add_region(int regiontype, const char * /*name*/)
 {
-  ARegion *region = (ARegion *)MEM_callocN(sizeof(ARegion), name);
+  ARegion *region = BKE_area_region_new();
   region->regiontype = regiontype;
   return region;
 }
@@ -283,20 +383,26 @@ void node_tree_relink_with_socket_id_map(bNodeTree &ntree,
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
     if (link->tonode == &old_node) {
       bNodeSocket *old_socket = link->tosock;
-      if (const std::string *new_identifier = map.lookup_ptr_as(old_socket->identifier)) {
-        bNodeSocket *new_socket = nodeFindSocket(&new_node, SOCK_IN, new_identifier->c_str());
-        link->tonode = &new_node;
-        link->tosock = new_socket;
-        old_socket->link = nullptr;
+      if (old_socket->is_available()) {
+        if (const std::string *new_identifier = map.lookup_ptr_as(old_socket->identifier)) {
+          bNodeSocket *new_socket = blender::bke::node_find_socket(
+              &new_node, SOCK_IN, *new_identifier);
+          link->tonode = &new_node;
+          link->tosock = new_socket;
+          old_socket->link = nullptr;
+        }
       }
     }
     if (link->fromnode == &old_node) {
       bNodeSocket *old_socket = link->fromsock;
-      if (const std::string *new_identifier = map.lookup_ptr_as(old_socket->identifier)) {
-        bNodeSocket *new_socket = nodeFindSocket(&new_node, SOCK_OUT, new_identifier->c_str());
-        link->fromnode = &new_node;
-        link->fromsock = new_socket;
-        old_socket->link = nullptr;
+      if (old_socket->is_available()) {
+        if (const std::string *new_identifier = map.lookup_ptr_as(old_socket->identifier)) {
+          bNodeSocket *new_socket = blender::bke::node_find_socket(
+              &new_node, SOCK_OUT, *new_identifier);
+          link->fromnode = &new_node;
+          link->fromsock = new_socket;
+          old_socket->link = nullptr;
+        }
       }
     }
   }
@@ -321,19 +427,20 @@ void add_realize_instances_before_socket(bNodeTree *ntree,
   blender::Vector<bNodeLink *> links = find_connected_links(ntree, geometry_socket);
   for (bNodeLink *link : links) {
     /* If the realize instances node is already before this socket, no need to continue. */
-    if (link->fromnode->type == GEO_NODE_REALIZE_INSTANCES) {
+    if (link->fromnode->type_legacy == GEO_NODE_REALIZE_INSTANCES) {
       return;
     }
 
-    bNode *realize_node = nodeAddStaticNode(nullptr, ntree, GEO_NODE_REALIZE_INSTANCES);
+    bNode *realize_node = blender::bke::node_add_static_node(
+        nullptr, ntree, GEO_NODE_REALIZE_INSTANCES);
     realize_node->parent = node->parent;
-    realize_node->locx = node->locx - 100;
-    realize_node->locy = node->locy;
-    nodeAddLink(ntree,
-                link->fromnode,
-                link->fromsock,
-                realize_node,
-                static_cast<bNodeSocket *>(realize_node->inputs.first));
+    realize_node->locx_legacy = node->locx_legacy - 100;
+    realize_node->locy_legacy = node->locy_legacy;
+    blender::bke::node_add_link(ntree,
+                                link->fromnode,
+                                link->fromsock,
+                                realize_node,
+                                static_cast<bNodeSocket *>(realize_node->inputs.first));
     link->fromnode = realize_node;
     link->fromsock = static_cast<bNodeSocket *>(realize_node->outputs.first);
   }
@@ -370,6 +477,12 @@ IDProperty *version_cycles_properties_from_view_layer(ViewLayer *view_layer)
   return (idprop) ? IDP_GetPropertyTypeFromGroup(idprop, "cycles", IDP_GROUP) : nullptr;
 }
 
+IDProperty *version_cycles_properties_from_render_layer(SceneRenderLayer *render_layer)
+{
+  IDProperty *idprop = render_layer->prop;
+  return (idprop) ? IDP_GetPropertyTypeFromGroup(idprop, "cycles", IDP_GROUP) : nullptr;
+}
+
 float version_cycles_property_float(IDProperty *idprop, const char *name, float default_value)
 {
   IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_FLOAT);
@@ -384,14 +497,11 @@ int version_cycles_property_int(IDProperty *idprop, const char *name, int defaul
 
 void version_cycles_property_int_set(IDProperty *idprop, const char *name, int value)
 {
-  IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_INT);
-  if (prop) {
+  if (IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_INT)) {
     IDP_Int(prop) = value;
   }
   else {
-    IDPropertyTemplate val = {0};
-    val.i = value;
-    IDP_AddToGroup(idprop, IDP_New(IDP_INT, &val, name));
+    IDP_AddToGroup(idprop, blender::bke::idprop::create(name, value).release());
   }
 }
 
@@ -434,7 +544,7 @@ void version_update_node_input(
     }
 
     /* Replace links with updated equivalent */
-    nodeRemLink(ntree, link);
+    blender::bke::node_remove_link(ntree, link);
     update_input_link(fromnode, fromsock, tonode, tosock);
 
     need_update = true;
@@ -444,7 +554,7 @@ void version_update_node_input(
    * Do this after the link update in case it changes the identifier. */
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (check_node(node)) {
-      bNodeSocket *input = nodeFindSocket(node, SOCK_IN, socket_identifier);
+      bNodeSocket *input = blender::bke::node_find_socket(node, SOCK_IN, socket_identifier);
       if (input != nullptr) {
         update_input(node, input);
       }
@@ -456,6 +566,38 @@ void version_update_node_input(
   }
 }
 
+bNode *version_eevee_output_node_get(bNodeTree *ntree, int16_t node_type)
+{
+  bNode *output_node = nullptr;
+  /* NOTE: duplicated from `ntreeShaderOutputNode` with small adjustments so it can be called
+   * during versioning. */
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (node->type_legacy != node_type) {
+      continue;
+    }
+    if (node->custom1 == SHD_OUTPUT_ALL) {
+      if (output_node == nullptr) {
+        output_node = node;
+      }
+      else if (output_node->custom1 == SHD_OUTPUT_ALL) {
+        if ((node->flag & NODE_DO_OUTPUT) && !(output_node->flag & NODE_DO_OUTPUT)) {
+          output_node = node;
+        }
+      }
+    }
+    else if (node->custom1 == SHD_OUTPUT_EEVEE) {
+      if (output_node == nullptr) {
+        output_node = node;
+      }
+      else if ((node->flag & NODE_DO_OUTPUT) && !(output_node->flag & NODE_DO_OUTPUT)) {
+        output_node = node;
+      }
+    }
+  }
+
+  return output_node;
+}
+
 static bool blendfile_or_libraries_versions_atleast(Main *bmain,
                                                     const short versionfile,
                                                     const short subversionfile)
@@ -465,7 +607,7 @@ static bool blendfile_or_libraries_versions_atleast(Main *bmain,
   }
 
   LISTBASE_FOREACH (Library *, library, &bmain->libraries) {
-    if (!MAIN_VERSION_FILE_ATLEAST(library, versionfile, subversionfile)) {
+    if (!LIBRARY_VERSION_FILE_ATLEAST(library, versionfile, subversionfile)) {
       return false;
     }
   }
@@ -473,7 +615,9 @@ static bool blendfile_or_libraries_versions_atleast(Main *bmain,
   return true;
 }
 
-void do_versions_after_setup(Main *new_bmain, BlendFileReadReport *reports)
+void do_versions_after_setup(Main *new_bmain,
+                             BlendfileLinkAppendContext *lapp_context,
+                             BlendFileReadReport *reports)
 {
   /* WARNING: The code below may add IDs. These IDs _will_ be (by definition) conforming to current
    * code's version already, and _must not_ be 'versionned' again.
@@ -504,7 +648,7 @@ void do_versions_after_setup(Main *new_bmain, BlendFileReadReport *reports)
    * the versions of all the linked libraries. */
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 250, 0)) {
-    do_versions_ipos_to_animato(new_bmain);
+    do_versions_ipos_to_layered_actions(new_bmain);
   }
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 250, 0)) {
@@ -525,5 +669,22 @@ void do_versions_after_setup(Main *new_bmain, BlendFileReadReport *reports)
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 302, 3)) {
     /* Does not add any new IDs, but needs the full Main data-base. */
     BKE_lib_override_library_main_hierarchy_root_ensure(new_bmain);
+  }
+
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 402, 22)) {
+    /* Initial auto smooth versioning started at (401, 2), but a bug caused the legacy flag to not
+     * be cleared, so it is re-run in a later version when the bug is fixed and the versioning has
+     * been made idempotent. */
+    BKE_main_mesh_legacy_convert_auto_smooth(*new_bmain);
+  }
+
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 403, 3)) {
+    /* Convert all the legacy grease pencil objects. This does not touch annotations. */
+    blender::bke::greasepencil::convert::legacy_main(*new_bmain, lapp_context, *reports);
+  }
+
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 404, 2)) {
+    /* Version all the action assignments of just-versioned datablocks. */
+    blender::animrig::versioning::convert_legacy_action_assignments(*new_bmain, reports->reports);
   }
 }

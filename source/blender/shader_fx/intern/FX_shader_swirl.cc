@@ -6,21 +6,13 @@
  * \ingroup shader_fx
  */
 
-#include <cstdio>
-
-#include "DNA_gpencil_legacy_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-
 #include "BLI_math_base.h"
-#include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
-#include "BKE_lib_query.h"
-#include "BKE_modifier.h"
+#include "BKE_context.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_modifier.hh"
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 
@@ -32,7 +24,6 @@
 #include "FX_shader_types.h"
 #include "FX_ui_common.h"
 
-#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
 static void init_data(ShaderFxData *md)
@@ -78,9 +69,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "radius", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "angle", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   shaderfx_panel_end(layout, ptr);
 }

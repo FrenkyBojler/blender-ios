@@ -8,20 +8,21 @@
 #ifdef WITH_COLLADA
 #  include "DNA_space_types.h"
 
-#  include "BLT_translation.h"
+#  include "BLT_translation.hh"
 
 #  include "BLI_blenlib.h"
+#  include "BLI_string.h"
 #  include "BLI_utildefines.h"
 
-#  include "BKE_context.h"
-#  include "BKE_main.h"
-#  include "BKE_object.h"
-#  include "BKE_report.h"
+#  include "BKE_context.hh"
+#  include "BKE_file_handler.hh"
+#  include "BKE_report.hh"
 
 #  include "DEG_depsgraph.hh"
 
 #  include "ED_fileselect.hh"
 #  include "ED_object.hh"
+#  include "ED_outliner.hh"
 
 #  include "RNA_access.hh"
 #  include "RNA_define.hh"
@@ -35,6 +36,7 @@
 #  include "collada.h"
 
 #  include "io_collada.hh"
+#  include "io_utils.hh"
 
 static int wm_collada_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
@@ -152,7 +154,7 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
 
   /* get editmode results */
-  ED_object_editmode_load(bmain, CTX_data_edit_object(C));
+  blender::ed::object::editmode_load(bmain, CTX_data_edit_object(C));
 
   // Scene *scene = CTX_data_scene(C);
 
@@ -242,7 +244,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
 
   /* Export Options: */
   row = uiLayoutRow(layout, false);
-  uiItemR(row, imfptr, "prop_bc_export_ui_section", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(row, imfptr, "prop_bc_export_ui_section", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
@@ -251,12 +253,12 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
     /* Export data options. */
     box = uiLayoutBox(layout);
     col = uiLayoutColumn(box, false);
-    uiItemR(col, imfptr, "selected", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, imfptr, "selected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     sub = uiLayoutColumn(col, false);
     uiLayoutSetEnabled(sub, RNA_boolean_get(imfptr, "selected"));
-    uiItemR(sub, imfptr, "include_children", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(sub, imfptr, "include_armatures", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(sub, imfptr, "include_shapekeys", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(sub, imfptr, "include_children", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(sub, imfptr, "include_armatures", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(sub, imfptr, "include_shapekeys", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     box = uiLayoutBox(layout);
     row = uiLayoutRow(box, false);
@@ -276,7 +278,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
     uiItemL(box, IFACE_("Texture Options"), ICON_TEXTURE_DATA);
 
     col = uiLayoutColumn(box, false);
-    uiItemR(col, imfptr, "use_texture_copies", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, imfptr, "use_texture_copies", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     row = uiLayoutRowWithHeading(col, true, IFACE_("UV"));
     uiItemR(row, imfptr, "active_uv_only", UI_ITEM_NONE, IFACE_("Only Selected Map"), ICON_NONE);
   }
@@ -286,7 +288,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
 
     col = uiLayoutColumn(box, false);
 
-    uiItemR(col, imfptr, "triangulate", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, imfptr, "triangulate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     row = uiLayoutRowWithHeading(col, true, IFACE_("Apply Modifiers"));
     uiItemR(row, imfptr, "apply_modifiers", UI_ITEM_NONE, "", ICON_NONE);
@@ -299,7 +301,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
               imfptr,
               "export_animation_transformation_type_selection",
               UI_ITEM_NONE,
-              nullptr,
+              std::nullopt,
               ICON_NONE);
     }
     else {
@@ -307,7 +309,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
               imfptr,
               "export_object_transformation_type_selection",
               UI_ITEM_NONE,
-              nullptr,
+              std::nullopt,
               ICON_NONE);
     }
   }
@@ -317,18 +319,19 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
     uiItemL(box, IFACE_("Armature Options"), ICON_ARMATURE_DATA);
 
     col = uiLayoutColumn(box, false);
-    uiItemR(col, imfptr, "deform_bones_only", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, imfptr, "open_sim", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, imfptr, "deform_bones_only", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, imfptr, "open_sim", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (ui_section == BC_UI_SECTION_ANIMATION) {
     /* Animation options. */
     box = uiLayoutBox(layout);
-    uiItemR(box, imfptr, "include_animations", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(box, imfptr, "include_animations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     col = uiLayoutColumn(box, false);
     row = uiLayoutRow(col, false);
     uiLayoutSetActive(row, include_animations);
-    uiItemR(row, imfptr, "export_animation_type_selection", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+    uiItemR(
+        row, imfptr, "export_animation_type_selection", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
     uiLayoutSetActive(row, include_animations && animation_type == BC_ANIMATION_EXPORT_SAMPLES);
     if (RNA_boolean_get(imfptr, "include_animations")) {
@@ -336,7 +339,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
               imfptr,
               "export_animation_transformation_type_selection",
               UI_ITEM_NONE,
-              nullptr,
+              std::nullopt,
               ICON_NONE);
     }
     else {
@@ -344,7 +347,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
               imfptr,
               "export_object_transformation_type_selection",
               UI_ITEM_NONE,
-              nullptr,
+              std::nullopt,
               ICON_NONE);
     }
 
@@ -353,17 +356,17 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
                       include_animations &&
                           (animation_transformation_type == BC_TRANSFORMATION_TYPE_DECOMPOSED ||
                            animation_type == BC_ANIMATION_EXPORT_KEYS));
-    uiItemR(row, imfptr, "keep_smooth_curves", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(row, imfptr, "keep_smooth_curves", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     sub = uiLayoutColumn(col, false);
     uiLayoutSetActive(sub, sampling && include_animations);
-    uiItemR(sub, imfptr, "sampling_rate", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(sub, imfptr, "keep_keyframes", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(sub, imfptr, "sampling_rate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(sub, imfptr, "keep_keyframes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     sub = uiLayoutColumn(col, false);
     uiLayoutSetActive(sub, include_animations);
-    uiItemR(sub, imfptr, "keep_flat_curves", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(sub, imfptr, "include_all_actions", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(sub, imfptr, "keep_flat_curves", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(sub, imfptr, "include_all_actions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (ui_section == BC_UI_SECTION_COLLADA) {
     /* Collada options: */
@@ -372,11 +375,11 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
     uiItemL(row, IFACE_("Collada Options"), ICON_MODIFIER);
 
     col = uiLayoutColumn(box, false);
-    uiItemR(col, imfptr, "use_object_instantiation", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, imfptr, "use_blender_profile", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, imfptr, "sort_by_name", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, imfptr, "keep_bind_info", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, imfptr, "limit_precision", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, imfptr, "use_object_instantiation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, imfptr, "use_blender_profile", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, imfptr, "sort_by_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, imfptr, "keep_bind_info", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, imfptr, "limit_precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -461,7 +464,7 @@ void WM_OT_collada_export(wmOperatorType *ot)
       {BC_UI_SECTION_COLLADA, "collada", 0, "Extra", "Collada export section"},
       {0, nullptr, 0, nullptr, nullptr}};
 
-  ot->name = "Export COLLADA";
+  ot->name = "Export COLLADA (Legacy)";
   ot->description = "Save a Collada file";
   ot->idname = "WM_OT_collada_export";
 
@@ -494,7 +497,7 @@ void WM_OT_collada_export(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna,
                   "apply_modifiers",
-                  0,
+                  false,
                   "Apply Modifiers",
                   "Apply modifiers to exported mesh (non destructive)");
 
@@ -568,7 +571,7 @@ void WM_OT_collada_export(wmOperatorType *ot)
       true,
       "Include Animations",
       "Export animations if available (exporting animations will enforce the decomposition of "
-      "node transforms into  <translation> <rotation> and <scale> components)");
+      "node transforms into <translation> <rotation> and <scale> components)");
 
   RNA_def_boolean(ot->srna,
                   "include_all_actions",
@@ -596,7 +599,7 @@ void WM_OT_collada_export(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna,
                   "keep_smooth_curves",
-                  0,
+                  false,
                   "Keep Smooth curves",
                   "Export also the curve handles (if available) (this does only work when the "
                   "inverse parent matrix "
@@ -604,47 +607,50 @@ void WM_OT_collada_export(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna,
                   "keep_keyframes",
-                  0,
+                  false,
                   "Keep Keyframes",
                   "Use existing keyframes as additional sample points (this helps when you want "
                   "to keep manual tweaks)");
 
   RNA_def_boolean(ot->srna,
                   "keep_flat_curves",
-                  0,
+                  false,
                   "All Keyed Curves",
                   "Export also curves which have only one key or are totally flat");
 
-  RNA_def_boolean(
-      ot->srna, "active_uv_only", 0, "Only Selected UV Map", "Export only the selected UV Map");
+  RNA_def_boolean(ot->srna,
+                  "active_uv_only",
+                  false,
+                  "Only Selected UV Map",
+                  "Export only the selected UV Map");
 
   RNA_def_boolean(ot->srna,
                   "use_texture_copies",
-                  1,
+                  true,
                   "Copy",
                   "Copy textures to same folder where the .dae file is exported");
 
   RNA_def_boolean(ot->srna,
                   "triangulate",
-                  1,
+                  true,
                   "Triangulate",
                   "Export polygons (quads and n-gons) as triangles");
 
   RNA_def_boolean(ot->srna,
                   "use_object_instantiation",
-                  1,
+                  true,
                   "Use Object Instances",
                   "Instantiate multiple Objects from same Data");
 
   RNA_def_boolean(
       ot->srna,
       "use_blender_profile",
-      1,
+      true,
       "Use Blender Profile",
       "Export additional Blender specific information (for material, shaders, bones, etc.)");
 
   RNA_def_boolean(
-      ot->srna, "sort_by_name", 0, "Sort by Object name", "Sort exported data by Object name");
+      ot->srna, "sort_by_name", false, "Sort by Object name", "Sort exported data by Object name");
 
   RNA_def_int(ot->srna,
               "export_object_transformation_type",
@@ -687,20 +693,20 @@ void WM_OT_collada_export(wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna,
       "open_sim",
-      0,
+      false,
       "Export to SL/OpenSim",
       "Compatibility mode for Second Life, OpenSimulator and other compatible online worlds");
 
   RNA_def_boolean(ot->srna,
                   "limit_precision",
-                  0,
+                  false,
                   "Limit Precision",
                   "Reduce the precision of the exported data to 6 digits");
 
   RNA_def_boolean(
       ot->srna,
       "keep_bind_info",
-      0,
+      false,
       "Keep Bind Info",
       "Store Bindpose information in custom bone properties for later use during Collada export");
 }
@@ -747,6 +753,11 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
 
   if (collada_import(C, &import_settings)) {
     DEG_id_tag_update(&CTX_data_scene(C)->id, ID_RECALC_BASE_FLAGS);
+    Scene *scene = CTX_data_scene(C);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+    ED_outliner_select_sync_from_object_tag(C);
     return OPERATOR_FINISHED;
   }
 
@@ -754,7 +765,7 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static void uiCollada_importSettings(uiLayout *layout, PointerRNA *imfptr)
+static void wm_collada_import_settings(uiLayout *layout, PointerRNA *imfptr)
 {
   uiLayout *box, *col;
 
@@ -765,36 +776,36 @@ static void uiCollada_importSettings(uiLayout *layout, PointerRNA *imfptr)
   box = uiLayoutBox(layout);
   uiItemL(box, IFACE_("Import Data Options"), ICON_MESH_DATA);
 
-  uiItemR(box, imfptr, "import_units", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(box, imfptr, "custom_normals", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(box, imfptr, "import_units", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(box, imfptr, "custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   box = uiLayoutBox(layout);
   uiItemL(box, IFACE_("Armature Options"), ICON_ARMATURE_DATA);
 
   col = uiLayoutColumn(box, false);
-  uiItemR(col, imfptr, "fix_orientation", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "find_chains", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "auto_connect", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "min_chain_length", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, imfptr, "fix_orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, imfptr, "find_chains", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, imfptr, "auto_connect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, imfptr, "min_chain_length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   box = uiLayoutBox(layout);
 
-  uiItemR(box, imfptr, "keep_bind_info", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(box, imfptr, "keep_bind_info", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void wm_collada_import_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiCollada_importSettings(op->layout, op->ptr);
+  wm_collada_import_settings(op->layout, op->ptr);
 }
 
 void WM_OT_collada_import(wmOperatorType *ot)
 {
-  ot->name = "Import COLLADA";
+  ot->name = "Import COLLADA (Legacy)";
   ot->description = "Load a Collada file";
   ot->idname = "WM_OT_collada_import";
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_PRESET;
+  ot->flag = OPTYPE_UNDO | OPTYPE_PRESET;
 
-  ot->invoke = WM_operator_filesel;
+  ot->invoke = blender::ed::io::filesel_drop_import_invoke;
   ot->exec = wm_collada_import_exec;
   ot->poll = WM_operator_winactive;
 
@@ -813,32 +824,32 @@ void WM_OT_collada_import(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna,
                   "import_units",
-                  0,
+                  false,
                   "Import Units",
                   "If disabled match import to Blender's current Unit settings, "
                   "otherwise use the settings from the Imported scene");
 
   RNA_def_boolean(ot->srna,
                   "custom_normals",
-                  1,
+                  true,
                   "Custom Normals",
                   "Import custom normals, if available (otherwise Blender will compute them)");
 
   RNA_def_boolean(ot->srna,
                   "fix_orientation",
-                  0,
+                  false,
                   "Fix Leaf Bones",
                   "Fix Orientation of Leaf Bones (Collada does only support Joints)");
 
   RNA_def_boolean(ot->srna,
                   "find_chains",
-                  0,
+                  false,
                   "Find Bone Chains",
                   "Find best matching Bone Chains and ensure bones in chain are connected");
 
   RNA_def_boolean(ot->srna,
                   "auto_connect",
-                  0,
+                  false,
                   "Auto Connect",
                   "Set use_connect for parent bones which have exactly one child bone");
 
@@ -855,8 +866,22 @@ void WM_OT_collada_import(wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna,
       "keep_bind_info",
-      0,
+      false,
       "Keep Bind Info",
       "Store Bindpose information in custom bone properties for later use during Collada export");
 }
+
+namespace blender::ed::io {
+void collada_file_handler_add()
+{
+  auto fh = std::make_unique<blender::bke::FileHandlerType>();
+  STRNCPY(fh->idname, "IO_FH_collada");
+  STRNCPY(fh->import_operator, "WM_OT_collada_import");
+  STRNCPY(fh->label, "Collada");
+  STRNCPY(fh->file_extensions_str, ".dae");
+  fh->poll_drop = poll_file_object_drop;
+  bke::file_handler_add(std::move(fh));
+}
+}  // namespace blender::ed::io
+
 #endif

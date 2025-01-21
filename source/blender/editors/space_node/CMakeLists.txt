@@ -4,25 +4,11 @@
 
 set(INC
   ../include
-  ../../asset_system
-  ../../blenfont
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
+  ../io
   ../../compositor
-  ../../depsgraph
-  ../../draw
-  ../../functions
-  ../../geometry
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../nodes
-  ../../render
-  ../../windowmanager
-  ../../../../extern/fmtlib/include
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -53,17 +39,28 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::animrig
+  PRIVATE bf::asset_system
+  PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   bf_editor_screen
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
-  extern_fmtlib
+  bf_compositor
+  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
-
-if(WITH_COMPOSITOR_CPU)
-  add_definitions(-DWITH_COMPOSITOR_CPU)
-endif()
 
 if(WITH_OPENIMAGEDENOISE)
   add_definitions(-DWITH_OPENIMAGEDENOISE)
@@ -73,23 +70,29 @@ if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
+if(WITH_OPENVDB)
+  list(APPEND INC
+    ../../../../intern/openvdb
+  )
+  list(APPEND INC_SYS
+    ${OPENVDB_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    bf_intern_openvdb
+    ${OPENVDB_LIBRARIES}
+  )
+  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
+endif()
+
 if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
   if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the stl versions.
+    # TBB includes `Windows.h` which will define min/max macros
+    # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
 endif()
 
 blender_add_lib(bf_editor_space_node "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.hh dna_type_offsets.h
 add_dependencies(bf_editor_space_node bf_rna)

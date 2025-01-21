@@ -13,9 +13,6 @@
 #include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_system.h"
-#include "BLI_utildefines.h"
-
-#include "MEM_guardedalloc.h"
 
 /* for backtrace and gethostname/GetComputerName */
 #if defined(WIN32)
@@ -61,9 +58,9 @@ int BLI_cpu_support_sse2(void)
 #endif
 }
 
-/* Windows stack-walk lives in system_win32.c */
+/* Windows stack-walk lives in system_win32.cc */
 #if !defined(_MSC_VER)
-void BLI_system_backtrace(FILE *fp)
+void BLI_system_backtrace_with_os_info(FILE *fp, const void *UNUSED(os_info))
 {
   /* ----------------------- */
   /* If system as execinfo.h */
@@ -100,7 +97,12 @@ void BLI_system_backtrace(FILE *fp)
 #  endif
 }
 #endif
-/* end BLI_system_backtrace */
+/* end BLI_system_backtrace_with_os_info */
+
+void BLI_system_backtrace(FILE *fp)
+{
+  BLI_system_backtrace_with_os_info(fp, NULL);
+}
 
 /* NOTE: The code for CPU brand string is adopted from Cycles. */
 
@@ -130,6 +132,7 @@ static void __cpuid(
 
 char *BLI_cpu_brand_string(void)
 {
+#if !defined(_M_ARM64)
   char buf[49] = {0};
   int result[4] = {0};
   __cpuid(result, 0x80000000);
@@ -141,19 +144,36 @@ char *BLI_cpu_brand_string(void)
     /* TODO(sergey): Make it a bit more presentable by removing trademark. */
     return brand;
   }
+#else
+  /* No CPUID on ARM64, so we pull from the registry (on Windows) instead. */
+  DWORD processorNameStringLength = 255;
+  char processorNameString[255];
+  if (RegGetValueA(HKEY_LOCAL_MACHINE,
+                   "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
+                   "ProcessorNameString",
+                   RRF_RT_REG_SZ,
+                   NULL,
+                   &processorNameString,
+                   &processorNameStringLength) == ERROR_SUCCESS)
+  {
+    return BLI_strdup(processorNameString);
+  }
+#endif
   return NULL;
 }
 
-int BLI_cpu_support_sse41(void)
+int BLI_cpu_support_sse42(void)
 {
+#if !defined(_M_ARM64)
   int result[4], num;
   __cpuid(result, 0);
   num = result[0];
 
   if (num >= 1) {
     __cpuid(result, 0x00000001);
-    return (result[2] & ((int)1 << 19)) != 0;
+    return (result[2] & ((int)1 << 20)) != 0;
   }
+#endif
   return 0;
 }
 

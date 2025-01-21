@@ -12,16 +12,14 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_linklist.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_appdir.h"
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
+#include "BKE_appdir.hh"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_main.hh"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "RNA_access.hh"
@@ -33,20 +31,18 @@
 #include "WM_types.hh"
 
 #include "ED_asset.hh"
-#include "ED_asset_indexer.h"
+#include "ED_asset_indexer.hh"
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
-#include "IMB_imbuf_types.h"
-#include "IMB_thumbs.h"
+#include "IMB_thumbs.hh"
 
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
 #include "BLO_read_write.hh"
 
-#include "GPU_framebuffer.h"
 #include "file_indexer.hh"
 #include "file_intern.hh" /* own include */
 #include "filelist.hh"
@@ -63,41 +59,41 @@ static SpaceLink *file_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   sfile->spacetype = SPACE_FILE;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "header for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   /* Ignore user preference "USER_HEADER_BOTTOM" here (always show top for new types). */
   region->alignment = RGN_ALIGN_TOP;
 
   /* Tools region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "tools region for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_TOOLS;
   region->alignment = RGN_ALIGN_LEFT;
 
   /* ui list region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "ui region for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_UI;
   region->alignment = RGN_ALIGN_TOP;
   region->flag = RGN_FLAG_DYNAMIC_SIZE | RGN_FLAG_NO_USER_RESIZE;
 
   /* execute region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "execute region for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_EXECUTE;
   region->alignment = RGN_ALIGN_BOTTOM;
   region->flag = RGN_FLAG_DYNAMIC_SIZE | RGN_FLAG_NO_USER_RESIZE;
 
   /* tools props region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "tool props for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_TOOL_PROPS;
   region->alignment = RGN_ALIGN_RIGHT;
   region->flag = RGN_FLAG_HIDDEN;
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
   region->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
@@ -129,7 +125,7 @@ static void file_free(SpaceLink *sl)
   MEM_SAFE_FREE(sfile->params);
   MEM_SAFE_FREE(sfile->asset_params);
   if (sfile->runtime != nullptr) {
-    BKE_reports_clear(&sfile->runtime->is_blendfile_readable_reports);
+    BKE_reports_free(&sfile->runtime->is_blendfile_readable_reports);
   }
   MEM_SAFE_FREE(sfile->runtime);
 
@@ -202,6 +198,7 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
 
 static void file_refresh(const bContext *C, ScrArea *area)
 {
+  using namespace blender::ed;
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -231,7 +228,7 @@ static void file_refresh(const bContext *C, ScrArea *area)
   if (ED_fileselect_is_asset_browser(sfile)) {
     /* Ask the asset code for appropriate ID filter flags for the supported assets, and mask others
      * out. */
-    params->filter_id &= ED_asset_types_supported_as_filter_flags();
+    params->filter_id &= asset::types_supported_as_filter_flags();
   }
 
   filelist_settype(sfile->files, params->type);
@@ -258,8 +255,8 @@ static void file_refresh(const bContext *C, ScrArea *area)
 
   if (ED_fileselect_is_asset_browser(sfile)) {
     const bool use_asset_indexer = !USER_EXPERIMENTAL_TEST(&U, no_asset_indexing);
-    filelist_setindexer(sfile->files,
-                        use_asset_indexer ? &file_indexer_asset : &file_indexer_noop);
+    filelist_setindexer(
+        sfile->files, use_asset_indexer ? &asset::index::file_indexer_asset : &file_indexer_noop);
   }
 
   /* Update the active indices of bookmarks & co. */
@@ -436,12 +433,16 @@ static void file_main_region_init(wmWindowManager *wm, ARegion *region)
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
+  /* Truncate, otherwise these can be on ".5" and give fuzzy text. #77696. */
+  region->v2d.cur.ymin = trunc(region->v2d.cur.ymin);
+  region->v2d.cur.ymax = trunc(region->v2d.cur.ymax);
+
   /* own keymaps */
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser Main", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void file_main_region_listener(const wmRegionListenerParams *listener_params)
@@ -579,7 +580,7 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
 
   /* on first read, find active file */
   if (params->highlight_file == -1) {
-    wmEvent *event = CTX_wm_window(C)->eventstate;
+    const wmEvent *event = CTX_wm_window(C)->eventstate;
     file_highlight_set(sfile, region, event->xy[0], event->xy[1]);
   }
 
@@ -671,7 +672,7 @@ static void file_tools_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymaps */
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void file_tools_region_draw(const bContext *C, ARegion *region)
@@ -721,7 +722,7 @@ static void file_header_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_header_init(region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void file_header_region_draw(const bContext *C, ARegion *region)
@@ -739,10 +740,10 @@ static void file_ui_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser Buttons", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void file_ui_region_draw(const bContext *C, ARegion *region)
@@ -759,7 +760,7 @@ static void file_execution_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void file_execution_region_draw(const bContext *C, ARegion *region)
@@ -797,7 +798,7 @@ static bool filepath_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*even
 
 static void filepath_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 {
-  RNA_string_set(drop->ptr, "filepath", WM_drag_get_path(drag));
+  RNA_string_set(drop->ptr, "filepath", WM_drag_get_single_path(drag));
 }
 
 /* region dropbox definition */
@@ -830,7 +831,25 @@ static void file_space_subtype_item_extend(bContext * /*C*/, EnumPropertyItem **
   RNA_enum_items_add(item, totitem, rna_enum_space_file_browse_mode_items);
 }
 
-static void file_id_remap(ScrArea *area, SpaceLink *sl, const IDRemapper * /*mappings*/)
+static blender::StringRefNull file_space_name_get(const ScrArea *area)
+{
+  SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
+  const int index = RNA_enum_from_value(rna_enum_space_file_browse_mode_items, sfile->browse_mode);
+  const EnumPropertyItem item = rna_enum_space_file_browse_mode_items[index];
+  return item.name;
+}
+
+static int file_space_icon_get(const ScrArea *area)
+{
+  SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
+  const int index = RNA_enum_from_value(rna_enum_space_file_browse_mode_items, sfile->browse_mode);
+  const EnumPropertyItem item = rna_enum_space_file_browse_mode_items[index];
+  return item.icon;
+}
+
+static void file_id_remap(ScrArea *area,
+                          SpaceLink *sl,
+                          const blender::bke::id::IDRemapper & /*mappings*/)
 {
   SpaceFile *sfile = (SpaceFile *)sl;
 
@@ -870,8 +889,8 @@ static void file_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   sfile->previews_timer = nullptr;
   sfile->tags = 0;
   sfile->runtime = nullptr;
-  BLO_read_data_address(reader, &sfile->params);
-  BLO_read_data_address(reader, &sfile->asset_params);
+  BLO_read_struct(reader, FileSelectParams, &sfile->params);
+  BLO_read_struct(reader, FileAssetSelectParams, &sfile->asset_params);
   if (sfile->params) {
     sfile->params->rename_id = nullptr;
   }
@@ -904,7 +923,7 @@ static void file_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 void ED_spacetype_file()
 {
-  SpaceType *st = static_cast<SpaceType *>(MEM_callocN(sizeof(SpaceType), "spacetype file"));
+  std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_FILE;
@@ -923,6 +942,8 @@ void ED_spacetype_file()
   st->space_subtype_item_extend = file_space_subtype_item_extend;
   st->space_subtype_get = file_space_subtype_get;
   st->space_subtype_set = file_space_subtype_set;
+  st->space_name_get = file_space_name_get;
+  st->space_icon_get = file_space_icon_get;
   st->context = file_context;
   st->id_remap = file_id_remap;
   st->foreach_id = file_foreach_id;
@@ -998,17 +1019,12 @@ void ED_spacetype_file()
   file_tool_props_region_panels_register(art);
   file_external_operations_menu_register();
 
-  BKE_spacetype_register(st);
+  BKE_spacetype_register(std::move(st));
 }
 
 void ED_file_init()
 {
   ED_file_read_bookmarks();
-
-  if (G.background == false) {
-    filelist_init_icons();
-  }
-
   IMB_thumb_makedirs();
 }
 
@@ -1023,15 +1039,15 @@ void ED_file_exit()
 
 void ED_file_read_bookmarks()
 {
-  const char *const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
+  const std::optional<std::string> cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
 
   fsmenu_free();
 
   fsmenu_read_system(ED_fsmenu_get(), true);
 
-  if (cfgdir) {
+  if (cfgdir.has_value()) {
     char filepath[FILE_MAX];
-    BLI_path_join(filepath, sizeof(filepath), cfgdir, BLENDER_BOOKMARK_FILE);
+    BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_BOOKMARK_FILE);
     fsmenu_read_bookmarks(ED_fsmenu_get(), filepath);
   }
 }

@@ -8,8 +8,13 @@
  * For this reason, we only dispatch 1 thread group.
  */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_iter_lib.glsl)
+#include "infos/eevee_light_culling_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_light_culling_zbin)
+
+#include "draw_view_lib.glsl"
+#include "eevee_light_iter_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
 
 /* Fits the limit of 32KB. */
 shared uint zbin_max[CULLING_ZBIN_COUNT];
@@ -19,8 +24,6 @@ void main()
 {
   const uint zbin_iter = CULLING_ZBIN_COUNT / gl_WorkGroupSize.x;
   const uint zbin_local = gl_LocalInvocationID.x * zbin_iter;
-
-  uint src_index = gl_GlobalInvocationID.x;
 
   for (uint i = 0u, l = zbin_local; i < zbin_iter; i++, l++) {
     zbin_max[l] = 0x0u;
@@ -34,10 +37,11 @@ void main()
     if (index >= light_cull_buf.visible_count) {
       continue;
     }
-    vec3 P = light_buf[index]._position;
+    LightData light = light_buf[index];
+    vec3 P = light_position_get(light);
     /* TODO(fclem): Could have better bounds for spot and area lights. */
-    float radius = light_buf[index].influence_radius_max;
-    float z_dist = dot(cameraForward, P) - dot(cameraForward, cameraPos);
+    float radius = light_local_data_get(light).influence_radius_max;
+    float z_dist = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
     int z_min = culling_z_to_zbin(
         light_cull_buf.zbin_scale, light_cull_buf.zbin_bias, z_dist + radius);
     int z_max = culling_z_to_zbin(

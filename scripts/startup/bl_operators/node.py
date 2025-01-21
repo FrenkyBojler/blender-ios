@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import bpy
 from bpy.types import (
+    FileHandler,
     Operator,
     PropertyGroup,
 )
@@ -20,7 +21,10 @@ from mathutils import (
     Vector,
 )
 
-from bpy.app.translations import pgettext_tip as tip_
+from bpy.app.translations import (
+    pgettext_tip as tip_,
+    pgettext_rpt as rpt_,
+)
 
 
 class NodeSetting(PropertyGroup):
@@ -55,8 +59,7 @@ class NodeAddOperator:
         # convert mouse position to the View2D for later node placement
         if context.region.type == 'WINDOW':
             # convert mouse position to the View2D for later node placement
-            space.cursor_location_from_region(
-                event.mouse_region_x, event.mouse_region_y)
+            space.cursor_location_from_region(event.mouse_region_x, event.mouse_region_y)
         else:
             space.cursor_location = tree.view_center
 
@@ -94,7 +97,7 @@ class NodeAddOperator:
             except AttributeError as ex:
                 self.report(
                     {'ERROR_INVALID_INPUT'},
-                    tip_("Node has no attribute %s") % setting.name)
+                    rpt_("Node has no attribute {:s}").format(setting.name))
                 print(str(ex))
                 # Continue despite invalid attribute
 
@@ -108,7 +111,7 @@ class NodeAddOperator:
         space = context.space_data
         # needs active node editor and a tree to add nodes to
         return (space and (space.type == 'NODE_EDITOR') and
-                space.edit_tree and not space.edit_tree.library)
+                space.edit_tree and space.edit_tree.is_editable)
 
     # Default invoke stores the mouse position to place the node correctly
     # and optionally invokes the transform operator
@@ -146,7 +149,15 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
 
     @classmethod
     def description(cls, _context, properties):
+        from nodeitems_builtins import node_tree_group_type
+
         nodetype = properties["type"]
+        if nodetype in node_tree_group_type.values():
+            for setting in properties.settings:
+                if setting.name == "node_tree":
+                    node_group = eval(setting.value)
+                    if node_group.description:
+                        return node_group.description
         bl_rna = bpy.types.Node.bl_rna_get_subclass(nodetype)
         if bl_rna is not None:
             return tip_(bl_rna.description)
@@ -162,11 +173,11 @@ class NodeAddZoneOperator(NodeAddOperator):
         default=(150, 0),
     )
 
+    add_default_geometry_link = True
+
     def execute(self, context):
         space = context.space_data
         tree = space.edit_tree
-
-        props = self.properties
 
         self.deselect_nodes(context)
         input_node = self.create_node(context, self.input_node_type)
@@ -180,11 +191,12 @@ class NodeAddZoneOperator(NodeAddOperator):
         input_node.location -= Vector(self.offset)
         output_node.location += Vector(self.offset)
 
-        # Connect geometry sockets by default.
-        # Get the sockets by their types, because the name is not guaranteed due to i18n.
-        from_socket = next(s for s in input_node.outputs if s.type == 'GEOMETRY')
-        to_socket = next(s for s in output_node.inputs if s.type == 'GEOMETRY')
-        tree.links.new(to_socket, from_socket)
+        if self.add_default_geometry_link:
+            # Connect geometry sockets by default if available.
+            # Get the sockets by their types, because the name is not guaranteed due to i18n.
+            from_socket = next(s for s in input_node.outputs if s.type == 'GEOMETRY')
+            to_socket = next(s for s in output_node.inputs if s.type == 'GEOMETRY')
+            tree.links.new(to_socket, from_socket)
 
         return {'FINISHED'}
 
@@ -209,6 +221,17 @@ class NODE_OT_add_repeat_zone(NodeAddZoneOperator, Operator):
     output_node_type = "GeometryNodeRepeatOutput"
 
 
+class NODE_OT_add_foreach_geometry_element_zone(NodeAddZoneOperator, Operator):
+    """Add a For Each Geometry Element zone that allows executing nodes e.g. for each vertex separately"""
+    bl_idname = "node.add_foreach_geometry_element_zone"
+    bl_label = "Add For Each Geometry Element Zone"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    input_node_type = "GeometryNodeForeachGeometryElementInput"
+    output_node_type = "GeometryNodeForeachGeometryElementOutput"
+    add_default_geometry_link = False
+
+
 class NODE_OT_collapse_hide_unused_toggle(Operator):
     """Toggle collapsed nodes and hide unused sockets"""
     bl_idname = "node.collapse_hide_unused_toggle"
@@ -220,7 +243,7 @@ class NODE_OT_collapse_hide_unused_toggle(Operator):
         space = context.space_data
         # needs active node editor and a tree
         return (space and (space.type == 'NODE_EDITOR') and
-                (space.edit_tree and not space.edit_tree.library))
+                (space.edit_tree and space.edit_tree.is_editable))
 
     def execute(self, context):
         space = context.space_data
@@ -272,7 +295,7 @@ class NodeInterfaceOperator():
 
 
 class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
-    '''Add a new item to the interface'''
+    """Add a new item to the interface"""
     bl_idname = "node.interface_item_new"
     bl_label = "New Item"
     bl_options = {'REGISTER', 'UNDO'}
@@ -292,8 +315,10 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
     @staticmethod
     def find_valid_socket_type(tree):
         socket_type = 'NodeSocketFloat'
-        # Try the default float socket type
-        if tree.valid_socket_type(socket_type):
+        # Socket type validation function is only available for custom
+        # node trees. Assume that 'NodeSocketFloat' is valid for
+        # built-in node tree types.
+        if not hasattr(tree, "valid_socket_type") or tree.valid_socket_type(socket_type):
             return socket_type
         # Custom nodes may not support float sockets, search all
         # registered socket subclasses.
@@ -336,7 +361,7 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
 
 
 class NODE_OT_interface_item_duplicate(NodeInterfaceOperator, Operator):
-    '''Add a copy of the active item to the interface'''
+    """Add a copy of the active item to the interface"""
     bl_idname = "node.interface_item_duplicate"
     bl_label = "Duplicate Item"
     bl_options = {'REGISTER', 'UNDO'}
@@ -365,7 +390,7 @@ class NODE_OT_interface_item_duplicate(NodeInterfaceOperator, Operator):
 
 
 class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
-    '''Remove active item from the interface'''
+    """Remove active item from the interface"""
     bl_idname = "node.interface_item_remove"
     bl_label = "Remove Item"
     bl_options = {'REGISTER', 'UNDO'}
@@ -383,12 +408,31 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
         return {'FINISHED'}
 
 
+class NODE_FH_image_node(FileHandler):
+    bl_idname = "NODE_FH_image_node"
+    bl_label = "Image node"
+    bl_import_operator = "node.add_file"
+    bl_file_extensions = ";".join((*bpy.path.extensions_image, *bpy.path.extensions_movie))
+
+    @classmethod
+    def poll_drop(cls, context):
+        return (
+            (context.area is not None) and
+            (context.area.type == 'NODE_EDITOR') and
+            (context.region is not None) and
+            (context.region.type == 'WINDOW')
+        )
+
+
 classes = (
     NodeSetting,
+
+    NODE_FH_image_node,
 
     NODE_OT_add_node,
     NODE_OT_add_simulation_zone,
     NODE_OT_add_repeat_zone,
+    NODE_OT_add_foreach_geometry_element_zone,
     NODE_OT_collapse_hide_unused_toggle,
     NODE_OT_interface_item_new,
     NODE_OT_interface_item_duplicate,

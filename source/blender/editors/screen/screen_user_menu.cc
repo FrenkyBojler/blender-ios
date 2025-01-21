@@ -11,19 +11,17 @@
 #include <cstdio>
 #include <cstring>
 
-#include "DNA_scene_types.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_blender_user_menu.h"
-#include "BKE_context.h"
-#include "BKE_idprop.h"
+#include "BKE_blender_user_menu.hh"
+#include "BKE_context.hh"
+#include "BKE_idprop.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
@@ -36,7 +34,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
@@ -206,6 +204,7 @@ void ED_screen_user_menu_item_remove(ListBase *lb, bUserMenuItem *umi)
 
 static void screen_user_menu_draw(const bContext *C, Menu *menu)
 {
+  using namespace blender;
   /* Enable when we have the ability to edit menus. */
   const bool show_missing = false;
   char label[512];
@@ -219,16 +218,20 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
       continue;
     }
     LISTBASE_FOREACH (bUserMenuItem *, umi, &um->items) {
-      const char *ui_name = umi->ui_name[0] ? umi->ui_name : nullptr;
+      std::optional<StringRefNull> ui_name = umi->ui_name[0] ?
+                                                 std::make_optional<StringRefNull>(umi->ui_name) :
+                                                 std::nullopt;
       if (umi->type == USER_MENU_TYPE_OPERATOR) {
         bUserMenuItem_Op *umi_op = (bUserMenuItem_Op *)umi;
-        wmOperatorType *ot = WM_operatortype_find(umi_op->op_idname, false);
-        if (ot != nullptr) {
+        if (wmOperatorType *ot = WM_operatortype_find(umi_op->op_idname, false)) {
+          if (ui_name) {
+            ui_name = CTX_IFACE_(ot->translation_context, ui_name->c_str());
+          }
           if (umi_op->op_prop_enum[0] == '\0') {
             IDProperty *prop = umi_op->prop ? IDP_CopyProperty(umi_op->prop) : nullptr;
             uiItemFullO_ptr(menu->layout,
                             ot,
-                            CTX_IFACE_(ot->translation_context, ui_name),
+                            ui_name,
                             ICON_NONE,
                             prop,
                             wmOperatorCallContext(umi_op->opcontext),
@@ -238,19 +241,14 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
           else {
             /* umi_op->prop could be used to set other properties but it's currently unsupported.
              */
-            uiItemMenuEnumFullO_ptr(menu->layout,
-                                    C,
-                                    ot,
-                                    umi_op->op_prop_enum,
-                                    CTX_IFACE_(ot->translation_context, ui_name),
-                                    ICON_NONE,
-                                    nullptr);
+            uiItemMenuEnumFullO_ptr(
+                menu->layout, C, ot, umi_op->op_prop_enum, ui_name, ICON_NONE, nullptr);
           }
           is_empty = false;
         }
         else {
           if (show_missing) {
-            SNPRINTF(label, TIP_("Missing: %s"), umi_op->op_idname);
+            SNPRINTF(label, RPT_("Missing: %s"), umi_op->op_idname);
             uiItemL(menu->layout, label, ICON_NONE);
           }
         }
@@ -264,7 +262,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         }
         else {
           if (show_missing) {
-            SNPRINTF(label, TIP_("Missing: %s"), umi_mt->mt_idname);
+            SNPRINTF(label, RPT_("Missing: %s"), umi_mt->mt_idname);
             uiItemL(menu->layout, label, ICON_NONE);
           }
         }
@@ -294,7 +292,8 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
           PropertyRNA *prop = nullptr;
           PointerRNA prop_ptr = ptr;
           if ((data_path == nullptr) ||
-              RNA_path_resolve_full(&ptr, data_path, &prop_ptr, nullptr, nullptr)) {
+              RNA_path_resolve_full(&ptr, data_path, &prop_ptr, nullptr, nullptr))
+          {
             prop = RNA_struct_find_property(&prop_ptr, umi_pr->prop_id);
             if (prop) {
               ok = true;
@@ -312,7 +311,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         }
         if (!ok) {
           if (show_missing) {
-            SNPRINTF(label, TIP_("Missing: %s.%s"), umi_pr->context_data_path, umi_pr->prop_id);
+            SNPRINTF(label, RPT_("Missing: %s.%s"), umi_pr->context_data_path, umi_pr->prop_id);
             uiItemL(menu->layout, label, ICON_NONE);
           }
         }
@@ -327,8 +326,8 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
   }
 
   if (is_empty) {
-    uiItemL(menu->layout, TIP_("No menu items found"), ICON_NONE);
-    uiItemL(menu->layout, TIP_("Right click on buttons to add them to this menu"), ICON_NONE);
+    uiItemL(menu->layout, RPT_("No menu items found"), ICON_NONE);
+    uiItemL(menu->layout, RPT_("Right click on buttons to add them to this menu"), ICON_NONE);
   }
 }
 

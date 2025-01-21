@@ -10,29 +10,27 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "bmesh.h"
-#include "tools/bmesh_wireframe.h"
+#include "bmesh.hh"
+#include "tools/bmesh_wireframe.hh"
 
 static void init_data(ModifierData *md)
 {
@@ -51,11 +49,6 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
   if (wmd->defgrp_name[0] != '\0') {
     r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;
   }
-}
-
-static bool depends_on_normals(ModifierData * /*md*/)
-{
-  return true;
 }
 
 static Mesh *WireframeModifier_do(WireframeModifierData *wmd, Object *ob, Mesh *mesh)
@@ -91,7 +84,7 @@ static Mesh *WireframeModifier_do(WireframeModifierData *wmd, Object *ob, Mesh *
                     defgrp_index,
                     (wmd->flag & MOD_WIREFRAME_INVERT_VGROUP) != 0,
                     wmd->mat_ofs,
-                    MAX2(ob->totcol - 1, 0),
+                    std::max(ob->totcol - 1, 0),
                     false);
 
   result = BKE_mesh_from_bmesh_for_eval_nomain(bm, nullptr, mesh);
@@ -116,7 +109,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   uiItemR(layout, ptr, "thickness", UI_ITEM_NONE, IFACE_("Thickness"), ICON_NONE);
-  uiItemR(layout, ptr, "offset", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   col = uiLayoutColumn(layout, true);
   uiItemR(col, ptr, "use_boundary", UI_ITEM_NONE, IFACE_("Boundary"), ICON_NONE);
@@ -149,7 +142,7 @@ static void vertex_group_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   row = uiLayoutRow(layout, true);
   uiLayoutSetActive(row, has_vertex_group);
@@ -170,7 +163,7 @@ ModifierTypeInfo modifierType_Wireframe = {
     /*struct_name*/ "WireframeModifierData",
     /*struct_size*/ sizeof(WireframeModifierData),
     /*srna*/ &RNA_WireframeModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_WIREFRAME,
 
@@ -189,11 +182,12 @@ ModifierTypeInfo modifierType_Wireframe = {
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ nullptr,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

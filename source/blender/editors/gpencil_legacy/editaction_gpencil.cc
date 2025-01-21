@@ -7,22 +7,19 @@
  */
 
 #include <cmath>
-#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_fcurve.h"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_report.h"
 
 #include "ED_anim_api.hh"
 #include "ED_gpencil_legacy.hh"
@@ -527,8 +524,8 @@ static bool gpencil_frame_snap_cframe(bGPDframe *gpf, Scene *scene)
 static bool gpencil_frame_snap_nearmarker(bGPDframe *gpf, Scene *scene)
 {
   if (gpf->flag & GP_FRAME_SELECT) {
-    gpf->framenum = (int)ED_markers_find_nearest_marker_time(&scene->markers,
-                                                             float(gpf->framenum));
+    gpf->framenum = int(
+        ED_markers_find_nearest_marker_time(&scene->markers, float(gpf->framenum)));
   }
   return false;
 }

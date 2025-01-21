@@ -18,7 +18,7 @@
  * comments: (ton)
  *
  * This system needs recode, a node system should rely on the stack, and
- * callbacks for nodes only should evaluate own node, not recursively go
+ * callbacks for nodes only should evaluate their own node, not recursively go
  * over other previous ones.
  */
 
@@ -28,21 +28,24 @@
 
 #include "node_texture_util.hh"
 #include "node_util.hh"
+#include <optional>
 
-bool tex_node_poll_default(const bNodeType * /*ntype*/,
+bool tex_node_poll_default(const blender::bke::bNodeType * /*ntype*/,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint)
 {
   if (!STREQ(ntree->idname, "TextureNodeTree")) {
-    *r_disabled_hint = TIP_("Not a texture node tree");
+    *r_disabled_hint = RPT_("Not a texture node tree");
     return false;
   }
   return true;
 }
 
-void tex_node_type_base(bNodeType *ntype, int type, const char *name, short nclass)
+void tex_node_type_base(blender::bke::bNodeType *ntype,
+                        std::string idname,
+                        const std::optional<int16_t> legacy_type)
 {
-  blender::bke::node_type_base(ntype, type, name, nclass);
+  blender::bke::node_type_base(ntype, idname, legacy_type);
 
   ntype->poll = tex_node_poll_default;
   ntype->insert_link = node_insert_link_default;
@@ -117,14 +120,14 @@ void tex_output(bNode *node,
 {
   TexDelegate *dg;
 
-  if (node->flag & NODE_MUTED) {
+  if (node->is_muted()) {
     /* do not add a delegate if the node is muted */
     return;
   }
 
   if (!out->data) {
     /* Freed in tex_end_exec (node.cc) */
-    dg = MEM_new<TexDelegate>("tex delegate");
+    dg = MEM_cnew<TexDelegate>("tex delegate");
     out->data = dg;
   }
   else {
@@ -143,7 +146,7 @@ void ntreeTexCheckCyclics(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
 
-    if (node->type == TEX_NODE_TEXTURE && node->id) {
+    if (node->type_legacy == TEX_NODE_TEXTURE && node->id) {
       /* custom2 stops the node from rendering */
       if (node->custom1) {
         node->custom2 = 1;

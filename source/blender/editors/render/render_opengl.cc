@@ -6,47 +6,45 @@
  * \ingroup render
  */
 
-#include <cmath>
 #include <cstddef>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
 #include "BLI_math_color_blend.h"
+#include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
-#include "DNA_camera_types.h"
+#include "BLI_vector.hh"
 
-#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_camera.h"
-#include "BKE_context.h"
-#include "BKE_customdata.h"
-#include "BKE_fcurve.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
-#include "BKE_image_save.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_writeavi.h"
+#include "BKE_context.hh"
+#include "BKE_customdata.hh"
+#include "BKE_fcurve.hh"
+#include "BKE_global.hh"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
+#include "BKE_image_save.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_main.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "DRW_engine.h"
+#include "DRW_engine.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -56,21 +54,26 @@
 #include "ED_view3d.hh"
 #include "ED_view3d_offscreen.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+
+#include "MOV_write.hh"
 
 #include "RE_pipeline.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "SEQ_render.h"
+#include "SEQ_render.hh"
 
-#include "GPU_framebuffer.h"
-#include "GPU_matrix.h"
+#include "ANIM_action_legacy.hh"
+
+#include "GPU_context.hh"
+#include "GPU_framebuffer.hh"
+#include "GPU_matrix.hh"
+#include "GPU_viewport.hh"
 
 #include "render_intern.hh"
 
@@ -78,17 +81,16 @@
 // #define DEBUG_TIME
 
 #ifdef DEBUG_TIME
-#  include "PIL_time.h"
+#  include "BLI_time.h"
 #endif
 
 /* TODO(sergey): Find better approximation of the scheduled frames.
  * For really high-resolution renders it might fail still. */
 #define MAX_SCHEDULED_FRAMES 8
 
-struct OGLRender {
+struct OGLRender : public RenderJobBase {
   Main *bmain;
   Render *re;
-  Scene *scene;
   WorkSpace *workspace;
   ViewLayer *view_layer;
   Depsgraph *depsgraph;
@@ -115,8 +117,9 @@ struct OGLRender {
   int sizex, sizey;
   int write_still;
 
+  GPUViewport *viewport;
+
   ReportList *reports;
-  bMovieHandle *mh;
   int cfrao, nfra;
 
   int totvideos;
@@ -131,10 +134,7 @@ struct OGLRender {
   wmWindowManager *wm;
   wmWindow *win;
 
-  /** Use to check if running modal or not (invoked or executed). */
-  wmTimer *timer;
-
-  void **movie_ctx_arr;
+  blender::Vector<MovieWriter *> movie_writers;
 
   TaskPool *task_pool;
   bool pool_ok;
@@ -149,6 +149,8 @@ struct OGLRender {
 #ifdef DEBUG_TIME
   double time_start;
 #endif
+
+  wmJob *wm_job = nullptr;
 };
 
 static bool screen_opengl_is_multiview(OGLRender *oglrender)
@@ -256,7 +258,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
   RE_ReleaseResult(oglrender->re);
 }
 
-static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, RenderResult *rr)
+static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 {
   Scene *scene = oglrender->scene;
   Object *camera = nullptr;
@@ -326,13 +328,15 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
   }
   else {
     /* shouldn't suddenly give errors mid-render but possible */
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    Depsgraph *depsgraph = oglrender->depsgraph;
     char err_out[256] = "unknown";
     ImBuf *ibuf_view;
     bool draw_sky = (scene->r.alphamode == R_ADDSKY);
     const int alpha_mode = (draw_sky) ? R_ADDSKY : R_ALPHAPREMUL;
     const char *viewname = RE_GetActiveRenderView(oglrender->re);
     View3D *v3d = oglrender->v3d;
+
+    BKE_scene_graph_evaluated_ensure(depsgraph, oglrender->bmain);
 
     if (v3d != nullptr) {
       ARegion *region = oglrender->region;
@@ -348,6 +352,7 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
                                                  viewname,
                                                  true,
                                                  oglrender->ofs,
+                                                 oglrender->viewport,
                                                  err_out);
 
       /* for stamp only */
@@ -368,6 +373,7 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
                                                         alpha_mode,
                                                         viewname,
                                                         oglrender->ofs,
+                                                        oglrender->viewport,
                                                         err_out);
       camera = scene->camera;
     }
@@ -390,11 +396,20 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
       else {
         rect = ibuf_result->byte_buffer.data;
       }
-      BKE_image_stamp_buf(scene, camera, nullptr, rect, rectf, rr->rectx, rr->recty, 4);
+      BKE_image_stamp_buf(scene, camera, nullptr, rect, rectf, rr->rectx, rr->recty);
     }
     RE_render_result_rect_from_ibuf(rr, ibuf_result, oglrender->view_id);
     IMB_freeImBuf(ibuf_result);
   }
+
+  /* Perform render step between renders to allow
+   * flushing of freed GPUBackend resources. */
+  DRW_gpu_context_enable();
+  if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+    GPU_flush();
+  }
+  GPU_render_step(true);
+  DRW_gpu_context_disable();
 }
 
 static void screen_opengl_render_write(OGLRender *oglrender)
@@ -442,7 +457,7 @@ static void UNUSED_FUNCTION(addAlphaOverFloat)(float dest[4], const float source
   dest[3] = (mul * dest[3]) + source[3];
 }
 
-static void screen_opengl_render_apply(const bContext *C, OGLRender *oglrender)
+static void screen_opengl_render_apply(OGLRender *oglrender)
 {
   RenderResult *rr;
   RenderView *rv;
@@ -469,6 +484,7 @@ static void screen_opengl_render_apply(const bContext *C, OGLRender *oglrender)
     for (view_id = 0; view_id < oglrender->views_len; view_id++) {
       context.view_id = view_id;
       context.gpu_offscreen = oglrender->ofs;
+      context.gpu_viewport = oglrender->viewport;
       oglrender->seq_data.ibufs_arr[view_id] = SEQ_render_give_ibuf(
           &context, scene->r.cfra, chanshown);
     }
@@ -481,7 +497,7 @@ static void screen_opengl_render_apply(const bContext *C, OGLRender *oglrender)
     RE_SetActiveRenderView(oglrender->re, rv->name);
     oglrender->view_id = view_id;
     /* render composite */
-    screen_opengl_render_doit(C, oglrender, rr);
+    screen_opengl_render_doit(oglrender, rr);
   }
 
   RE_ReleaseResult(oglrender->re);
@@ -508,7 +524,7 @@ static void gather_frames_to_render_for_adt(const OGLRender *oglrender, const An
   int frame_start = PSFRA;
   int frame_end = PEFRA;
 
-  LISTBASE_FOREACH (FCurve *, fcu, &adt->action->curves) {
+  for (const FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(adt)) {
     if (fcu->driver != nullptr || fcu->fpt != nullptr) {
       /* Drivers have values for any point in time, so to get "the keyed frames" they are
        * useless. Same for baked FCurves, they also have keys for every frame, which is not
@@ -565,7 +581,7 @@ static int gather_frames_to_render_for_id(LibraryIDLinkCallbackData *cb_data)
   ID *id = *id_p;
 
   ID *self_id = cb_data->self_id;
-  const int cb_flag = cb_data->cb_flag;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
   if (cb_flag == IDWALK_CB_LOOPBACK || id == self_id) {
     /* IDs may end up referencing themselves one way or the other, and those
      * (the self_id ones) have always already been processed. */
@@ -759,8 +775,10 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->ofs = ofs;
   oglrender->sizex = sizex;
   oglrender->sizey = sizey;
+  oglrender->viewport = GPU_viewport_create();
   oglrender->bmain = CTX_data_main(C);
   oglrender->scene = scene;
+  oglrender->current_scene = scene;
   oglrender->workspace = workspace;
   oglrender->view_layer = CTX_data_view_layer(C);
   /* NOTE: The depsgraph is not only used to update scene for a new frames, but also to initialize
@@ -786,8 +804,12 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->prevar = prevar;
 
   if (is_view_context) {
-    /* so quad view renders camera */
-    ED_view3d_context_user_region(C, &oglrender->v3d, &oglrender->region);
+    /* Prefer rendering camera in quad view if possible. */
+    if (!ED_view3d_context_user_region(C, &oglrender->v3d, &oglrender->region)) {
+      /* If not get region activated by ED_view3d_context_activate earlier. */
+      oglrender->v3d = CTX_wm_view3d(C);
+      oglrender->region = CTX_wm_region(C);
+    }
 
     oglrender->rv3d = static_cast<RegionView3D *>(oglrender->region->regiondata);
 
@@ -828,8 +850,6 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->win = win;
 
   oglrender->totvideos = 0;
-  oglrender->mh = nullptr;
-  oglrender->movie_ctx_arr = nullptr;
 
   if (is_animation) {
     if (is_render_keyed_only) {
@@ -853,7 +873,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   BLI_condition_init(&oglrender->task_condition);
 
 #ifdef DEBUG_TIME
-  oglrender->time_start = PIL_check_seconds_timer();
+  oglrender->time_start = BLI_time_now_seconds();
 #endif
 
   return true;
@@ -862,7 +882,6 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 {
   Scene *scene = oglrender->scene;
-  int i;
 
   if (oglrender->is_animation) {
     /* Trickery part for movie output:
@@ -889,38 +908,31 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
   BLI_condition_end(&oglrender->task_condition);
 
 #ifdef DEBUG_TIME
-  printf("Total render time: %f\n", PIL_check_seconds_timer() - oglrender->time_start);
+  printf("Total render time: %f\n", BLI_time_now_seconds() - oglrender->time_start);
 #endif
 
   MEM_SAFE_FREE(oglrender->render_frames);
 
-  if (oglrender->mh) {
+  if (!oglrender->movie_writers.is_empty()) {
     if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
-      for (i = 0; i < oglrender->totvideos; i++) {
-        oglrender->mh->end_movie(oglrender->movie_ctx_arr[i]);
-        oglrender->mh->context_free(oglrender->movie_ctx_arr[i]);
+      for (MovieWriter *writer : oglrender->movie_writers) {
+        MOV_write_end(writer);
       }
     }
-
-    if (oglrender->movie_ctx_arr) {
-      MEM_freeN(oglrender->movie_ctx_arr);
-    }
+    oglrender->movie_writers.clear_and_shrink();
   }
 
-  if (oglrender->timer) { /* exec will not have a timer */
+  if (oglrender->wm_job) { /* exec will not have a job */
     Depsgraph *depsgraph = oglrender->depsgraph;
     scene->r.cfra = oglrender->cfrao;
     BKE_scene_graph_update_for_newframe(depsgraph);
-
-    WM_event_timer_remove(oglrender->wm, oglrender->win, oglrender->timer);
   }
-
-  WM_cursor_modal_restore(oglrender->win);
 
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, oglrender->scene);
 
   DRW_gpu_context_enable();
   GPU_offscreen_free(oglrender->ofs);
+  GPU_viewport_free(oglrender->viewport);
   DRW_gpu_context_disable();
 
   if (oglrender->is_sequencer) {
@@ -940,18 +952,19 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 
 static void screen_opengl_render_cancel(bContext *C, wmOperator *op)
 {
-  screen_opengl_render_end(C, static_cast<OGLRender *>(op->customdata));
+  wmWindowManager *wm = CTX_wm_manager(C);
+  OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
+
+  WM_jobs_kill_type(wm, oglrender->scene, WM_JOB_TYPE_RENDER);
+  screen_opengl_render_end(C, oglrender);
 }
 
 /* share between invoke and exec */
 static bool screen_opengl_render_anim_init(bContext *C, wmOperator *op)
 {
   /* initialize animation */
-  OGLRender *oglrender;
-  Scene *scene;
-
-  oglrender = static_cast<OGLRender *>(op->customdata);
-  scene = oglrender->scene;
+  OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
+  Scene *scene = oglrender->scene;
   oglrender->totvideos = BKE_scene_multiview_num_videos_get(&scene->r);
 
   oglrender->reports = op->reports;
@@ -962,34 +975,25 @@ static bool screen_opengl_render_anim_init(bContext *C, wmOperator *op)
 
     BKE_scene_multiview_videos_dimensions_get(
         &scene->r, oglrender->sizex, oglrender->sizey, &width, &height);
-    oglrender->mh = BKE_movie_handle_get(scene->r.im_format.imtype);
-
-    if (oglrender->mh == nullptr) {
-      BKE_report(oglrender->reports, RPT_ERROR, "Movie format unsupported");
-      screen_opengl_render_end(C, oglrender);
-      return false;
-    }
-
-    oglrender->movie_ctx_arr = static_cast<void **>(
-        MEM_mallocN(sizeof(void *) * oglrender->totvideos, "Movies"));
+    oglrender->movie_writers.reserve(oglrender->totvideos);
 
     for (i = 0; i < oglrender->totvideos; i++) {
       Scene *scene_eval = DEG_get_evaluated_scene(oglrender->depsgraph);
       const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, i);
-
-      oglrender->movie_ctx_arr[i] = oglrender->mh->context_create();
-      if (!oglrender->mh->start_movie(oglrender->movie_ctx_arr[i],
-                                      scene_eval,
-                                      &scene->r,
-                                      oglrender->sizex,
-                                      oglrender->sizey,
-                                      oglrender->reports,
-                                      PRVRANGEON != 0,
-                                      suffix))
-      {
+      MovieWriter *writer = MOV_write_begin(scene->r.im_format.imtype,
+                                            scene_eval,
+                                            &scene->r,
+                                            oglrender->sizex,
+                                            oglrender->sizey,
+                                            oglrender->reports,
+                                            PRVRANGEON != 0,
+                                            suffix);
+      if (writer == nullptr) {
+        BKE_report(oglrender->reports, RPT_ERROR, "Movie format unsupported");
         screen_opengl_render_end(C, oglrender);
         return false;
       }
+      oglrender->movie_writers.append(writer);
     }
   }
 
@@ -1039,8 +1043,7 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
                                   rr,
                                   scene,
                                   &scene->r,
-                                  oglrender->mh,
-                                  oglrender->movie_ctx_arr,
+                                  oglrender->movie_writers.data(),
                                   oglrender->totvideos,
                                   PRVRANGEON != 0);
   }
@@ -1065,6 +1068,7 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
     }
   }
   if (reports.list.first != nullptr) {
+    /* TODO: Should rather use new #BKE_reports_move_to_reports ? */
     BLI_spin_lock(&oglrender->reports_lock);
     for (Report *report = static_cast<Report *>(reports.list.first); report != nullptr;
          report = report->next)
@@ -1073,6 +1077,7 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
     }
     BLI_spin_unlock(&oglrender->reports_lock);
   }
+  BKE_reports_free(&reports);
   if (!ok) {
     oglrender->pool_ok = false;
   }
@@ -1099,7 +1104,7 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
     return false;
   }
   Scene *scene = oglrender->scene;
-  WriteTaskData *task_data = MEM_new<WriteTaskData>("write task data");
+  WriteTaskData *task_data = MEM_cnew<WriteTaskData>("write task data");
   task_data->rr = rr;
   memcpy(&task_data->tmp_scene, scene, sizeof(task_data->tmp_scene));
   BLI_mutex_lock(&oglrender->task_mutex);
@@ -1112,9 +1117,8 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
   return true;
 }
 
-static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
+static bool screen_opengl_render_anim_step(OGLRender *oglrender)
 {
-  OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
   Scene *scene = oglrender->scene;
   Depsgraph *depsgraph = oglrender->depsgraph;
   char filepath[FILE_MAX];
@@ -1146,20 +1150,19 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 
     if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {
       BLI_spin_lock(&oglrender->reports_lock);
-      BKE_reportf(op->reports, RPT_INFO, "Skipping existing frame \"%s\"", filepath);
+      BKE_reportf(oglrender->reports, RPT_INFO, "Skipping existing frame \"%s\"", filepath);
       BLI_spin_unlock(&oglrender->reports_lock);
       ok = true;
       goto finally;
     }
   }
 
-  WM_cursor_time(oglrender->win, scene->r.cfra);
-
   BKE_scene_graph_update_for_newframe(depsgraph);
 
   if (view_context) {
     if (oglrender->rv3d->persp == RV3D_CAMOB && oglrender->v3d->camera &&
-        oglrender->v3d->scenelock) {
+        oglrender->v3d->scenelock)
+    {
       /* since BKE_scene_graph_update_for_newframe() is used rather
        * then ED_update_for_newframe() the camera needs to be set */
       if (BKE_scene_camera_switch_update(scene)) {
@@ -1175,7 +1178,7 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
       BLI_BITMAP_TEST_BOOL(oglrender->render_frames, scene->r.cfra - PSFRA))
   {
     /* render into offscreen buffer */
-    screen_opengl_render_apply(C, oglrender);
+    screen_opengl_render_apply(oglrender);
   }
 
   /* save to disk */
@@ -1194,7 +1197,6 @@ finally: /* Step the frame and bail early if needed */
 
   /* stop at the end or on error */
   if (scene->r.cfra >= PEFRA || !ok) {
-    screen_opengl_render_end(C, static_cast<OGLRender *>(op->customdata));
     return false;
   }
 
@@ -1205,42 +1207,62 @@ static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent
 {
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
   const bool anim = RNA_boolean_get(op->ptr, "animation");
-  bool ret;
 
-  switch (event->type) {
-    case EVT_ESCKEY:
-      /* cancel */
-      oglrender->pool_ok = false; /* Flag pool for cancel. */
-      screen_opengl_render_end(C, static_cast<OGLRender *>(op->customdata));
-      return OPERATOR_FINISHED;
-    case TIMER:
-      /* render frame? */
-      if (oglrender->timer == event->customdata) {
-        break;
-      }
-      ATTR_FALLTHROUGH;
-    default:
-      /* nothing to do */
-      return OPERATOR_RUNNING_MODAL;
-  }
-
-  /* run first because screen_opengl_render_anim_step can free oglrender */
-  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, oglrender->scene);
-
-  if (anim == 0) {
-    screen_opengl_render_apply(C, static_cast<OGLRender *>(op->customdata));
-    screen_opengl_render_end(C, static_cast<OGLRender *>(op->customdata));
+  /* Still render completes immediately, but still modal to show some feedback
+   * in case render initialization takes a while. */
+  if (!anim) {
+    screen_opengl_render_apply(oglrender);
+    screen_opengl_render_end(C, oglrender);
     return OPERATOR_FINISHED;
   }
 
-  ret = screen_opengl_render_anim_step(C, op);
-
-  /* stop at the end or on error */
-  if (ret == false) {
-    return OPERATOR_FINISHED;
+  /* no running blender, remove handler and pass through */
+  if (0 == WM_jobs_test(CTX_wm_manager(C), oglrender->scene, WM_JOB_TYPE_RENDER)) {
+    screen_opengl_render_end(C, oglrender);
+    return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
-  return OPERATOR_RUNNING_MODAL;
+  /* catch escape key. */
+  return (event->type == EVT_ESCKEY) ? OPERATOR_RUNNING_MODAL : OPERATOR_PASS_THROUGH;
+}
+
+static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_status)
+{
+  OGLRender *oglrender = static_cast<OGLRender *>(customdata);
+  Scene *scene = oglrender->scene;
+
+  bool canceled = false;
+  bool finished = false;
+
+  while (!finished && !canceled) {
+    /* Render while blocking main thread, since we use 3D viewport resources. */
+    WM_job_main_thread_lock_acquire(oglrender->wm_job);
+
+    if (worker_status->stop || G.is_break) {
+      canceled = true;
+    }
+    else {
+      finished = !screen_opengl_render_anim_step(oglrender);
+      worker_status->progress = float(scene->r.cfra - PSFRA + 1) / float(PEFRA - PSFRA + 1);
+      worker_status->do_update = true;
+    }
+
+    WM_job_main_thread_lock_release(oglrender->wm_job);
+
+    if (worker_status->stop || G.is_break) {
+      canceled = true;
+    }
+  }
+
+  if (canceled) {
+    /* Cancel task pool writing images asynchronously. */
+    oglrender->pool_ok = false;
+  }
+}
+
+static void opengl_render_freejob(void * /*customdata*/)
+{
+  /* Freed by operator. */
 }
 
 static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1264,8 +1286,25 @@ static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEven
   /* View may be changed above #USER_RENDER_DISPLAY_WINDOW. */
   oglrender->win = CTX_wm_window(C);
 
+  /* Setup animation job. */
+  if (anim) {
+    G.is_break = false;
+
+    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+                                CTX_wm_window(C),
+                                oglrender->scene,
+                                "Viewport Render",
+                                WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
+                                WM_JOB_TYPE_RENDER);
+    WM_jobs_customdata_set(wm_job, oglrender, opengl_render_freejob);
+    WM_jobs_timer(wm_job, 0.01f, NC_SCENE | ND_RENDER_RESULT, 0);
+    WM_jobs_callbacks(wm_job, opengl_render_startjob, nullptr, nullptr, nullptr);
+    WM_jobs_start(CTX_wm_manager(C), wm_job);
+
+    oglrender->wm_job = wm_job;
+  }
+
   WM_event_add_modal_handler(C, op);
-  oglrender->timer = WM_event_timer_add(oglrender->wm, oglrender->win, TIMER, 0.01f);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1279,10 +1318,11 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
+
   if (!is_animation) { /* same as invoke */
-    /* render image */
-    screen_opengl_render_apply(C, static_cast<OGLRender *>(op->customdata));
-    screen_opengl_render_end(C, static_cast<OGLRender *>(op->customdata));
+    screen_opengl_render_apply(oglrender);
+    screen_opengl_render_end(C, oglrender);
 
     return OPERATOR_FINISHED;
   }
@@ -1294,19 +1334,17 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
   }
 
   while (ret) {
-    ret = screen_opengl_render_anim_step(C, op);
+    ret = screen_opengl_render_anim_step(oglrender);
   }
 
-  /* no redraw needed, we leave state as we entered it */
-  //  ED_update_for_newframe(C);
-  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, CTX_data_scene(C));
+  screen_opengl_render_end(C, oglrender);
 
   return OPERATOR_FINISHED;
 }
 
-static std::string screen_opengl_render_description(bContext * /*C*/,
-                                                    wmOperatorType * /*ot*/,
-                                                    PointerRNA *ptr)
+static std::string screen_opengl_render_get_description(bContext * /*C*/,
+                                                        wmOperatorType * /*ot*/,
+                                                        PointerRNA *ptr)
 {
   if (!RNA_boolean_get(ptr, "animation")) {
     return "";
@@ -1331,7 +1369,7 @@ void RENDER_OT_opengl(wmOperatorType *ot)
   ot->idname = "RENDER_OT_opengl";
 
   /* api callbacks */
-  ot->get_description = screen_opengl_render_description;
+  ot->get_description = screen_opengl_render_get_description;
   ot->invoke = screen_opengl_render_invoke;
   ot->exec = screen_opengl_render_exec; /* blocking */
   ot->modal = screen_opengl_render_modal;
@@ -1362,7 +1400,7 @@ void RENDER_OT_opengl(wmOperatorType *ot)
       "write_still",
       false,
       "Write Image",
-      "Save rendered the image to the output path (used only when animation is disabled)");
+      "Save the rendered image to the output path (used only when animation is disabled)");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna,
                          "view_context",

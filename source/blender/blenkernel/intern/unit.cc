@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm> /* For `min/max`. */
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -19,7 +20,7 @@
 
 #include "DNA_scene_types.h"
 
-#include "BKE_unit.h" /* own include */
+#include "BKE_unit.hh" /* own include */
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -80,7 +81,10 @@
 
 /* clang-format on */
 
-/* Define a single unit. */
+/* Define a single unit.
+ * When changing the format, please check that the PYGETTEXT_KEYWORDS regex
+ * used to extract the unit names for translation still works
+ * in scripts/modules/bl_i18n_utils/settings.py. */
 struct bUnitDef {
   const char *name;
   /** Abused a bit for the display name. */
@@ -129,7 +133,7 @@ struct bUnitCollection {
 
 #define UNIT_COLLECTION_LENGTH(def) (ARRAY_SIZE(def) - 1)
 
-/* Clang-format wraps this define baddly. */
+/* Clang-format wraps this define badly. */
 /* clang-format off */
 #define NULL_UNIT { \
     /*name*/ nullptr, \
@@ -383,6 +387,62 @@ static bUnitCollection buImperialLenCollection = {
     /*length*/ UNIT_COLLECTION_LENGTH(buImperialLenDef),
 };
 
+/* Wavelengths (scene-independent, with nm as the base unit). */
+static bUnitDef buWavelengthLenDef[] = {
+    {
+        /*name*/ "millimeter",
+        /*name_plural*/ "millimeters",
+        /*name_short*/ "mm",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Millimeters",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e6f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "micrometer",
+        /*name_plural*/ "micrometers",
+        /*name_short*/ "µm",
+        /*name_alt*/ "um",
+        /*name_display*/ "Micrometers",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    /* Base unit. */
+    {
+        /*name*/ "nanometer",
+        /*name_plural*/ "nanometers",
+        /*name_short*/ "nm",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Nanometers",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1.0f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "picometer",
+        /*name_plural*/ "picometers",
+        /*name_short*/ "pm",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Picometers",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    NULL_UNIT,
+};
+static bUnitCollection buWavelengthLenCollection = {
+    /*units*/ buWavelengthLenDef,
+    /*base_unit*/ 2,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buWavelengthLenDef),
+};
+
 /* Areas. */
 static bUnitDef buMetricAreaDef[] = {
     {
@@ -488,7 +548,7 @@ static bUnitDef buImperialAreaDef[] = {
         /*name*/ "square mile",
         /*name_plural*/ "square miles",
         /*name_short*/ "sq mi",
-        /*name_alt*/ "sq m",
+        /*name_alt*/ nullptr,
         /*name_display*/ "Square Miles",
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_MI *UN_SC_MI,
@@ -676,7 +736,7 @@ static bUnitDef buImperialVolDef[] = {
         /*name*/ "cubic mile",
         /*name_plural*/ "cubic miles",
         /*name_short*/ "cu mi",
-        /*name_alt*/ "cu m",
+        /*name_alt*/ nullptr,
         /*name_display*/ "Cubic Miles",
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_MI *UN_SC_MI *UN_SC_MI,
@@ -762,10 +822,10 @@ static bUnitCollection buImperialVolCollection = {
 /* Mass. */
 static bUnitDef buMetricMassDef[] = {
     {
-        /*name*/ "ton",
+        /*name*/ "tonne",
         /*name_plural*/ "tonnes",
-        /*name_short*/ "ton",
-        /*name_alt*/ "t",
+        /*name_short*/ "t",
+        /*name_alt*/ "ton",
         /*name_display*/ "Tonnes",
         /*identifier*/ "TONNES",
         /*scalar*/ UN_SC_MTON,
@@ -851,10 +911,10 @@ static bUnitCollection buMetricMassCollection = {
 static bUnitDef buImperialMassDef[] = {
     {
         /*name*/ "ton",
-        /*name_plural*/ "tonnes",
-        /*name_short*/ "ton",
-        /*name_alt*/ "t",
-        /*name_display*/ "Tonnes",
+        /*name_plural*/ "tons",
+        /*name_short*/ "tn",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Tons",
         /*identifier*/ "TONNES",
         /*scalar*/ UN_SC_ITON,
         /*bias*/ 0.0,
@@ -935,7 +995,7 @@ static bUnitDef buMetricVelDef[] = {
         /*name*/ "kilometer per hour",
         /*name_plural*/ "kilometers per hour",
         /*name_short*/ "km/h",
-        /*name_alt*/ nullptr,
+        /*name_alt*/ "kph",
         /*name_display*/ "Kilometers per hour",
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_KM / 3600.0f,
@@ -1046,8 +1106,8 @@ static bUnitDef buNaturalTimeDef[] = {
     {
         /*name*/ "hour",
         /*name_plural*/ "hours",
-        /*name_short*/ "hr",
-        /*name_alt*/ "h",
+        /*name_short*/ "h",
+        /*name_alt*/ "hr",
         /*name_display*/ "Hours",
         /*identifier*/ "HOURS",
         /*scalar*/ 3600.0,
@@ -1069,8 +1129,8 @@ static bUnitDef buNaturalTimeDef[] = {
     {
         /*name*/ "second",
         /*name_plural*/ "seconds",
-        /*name_short*/ "sec",
-        /*name_alt*/ "s",
+        /*name_short*/ "s",
+        /*name_alt*/ "sec",
         /*name_display*/ "Seconds",
         /*identifier*/ "SECONDS",
         /*scalar*/ 1.0,
@@ -1125,7 +1185,7 @@ static bUnitDef buNaturalRotDef[] = {
         /*name*/ "arcminute",
         /*name_plural*/ "arcminutes",
         /*name_short*/ "'",
-        /*name_alt*/ nullptr,
+        /*name_alt*/ "amin",
         /*name_display*/ "Arcminutes",
         /*identifier*/ "ARCMINUTES",
         /*scalar*/ (M_PI / 180.0) / 60.0,
@@ -1136,7 +1196,7 @@ static bUnitDef buNaturalRotDef[] = {
         /*name*/ "arcsecond",
         /*name_plural*/ "arcseconds",
         /*name_short*/ "\"",
-        /*name_alt*/ nullptr,
+        /*name_alt*/ "asec",
         /*name_display*/ "Arcseconds",
         /*identifier*/ "ARCSECONDS",
         /*scalar*/ (M_PI / 180.0) / 3600.0,
@@ -1146,8 +1206,8 @@ static bUnitDef buNaturalRotDef[] = {
     {
         /*name*/ "radian",
         /*name_plural*/ "radians",
-        /*name_short*/ "r",
-        /*name_alt*/ nullptr,
+        /*name_short*/ "rad",
+        /*name_alt*/ "r",
         /*name_display*/ "Radians",
         /*identifier*/ "RADIANS",
         /*scalar*/ 1.0,
@@ -1399,6 +1459,63 @@ static bUnitCollection buImperialTempCollection = {
     /*length*/ UNIT_COLLECTION_LENGTH(buImperialTempDef),
 };
 
+/* Color Temperature */
+static bUnitDef buColorTempDef[] = {
+    /* Base unit. */
+    {
+        /*name*/ "kelvin",
+        /*name_plural*/ "kelvin",
+        /*name_short*/ "K",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Kelvin",
+        /*identifier*/ "KELVIN",
+        /*scalar*/ 1.0f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    NULL_UNIT,
+};
+static bUnitCollection buColorTempCollection = {
+    /*units*/ buColorTempDef,
+    /*base_unit*/ 0,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buColorTempDef),
+};
+
+/* Frequency */
+static bUnitDef buFrequencyDef[] = {
+    /* Base unit. */
+    {
+        /*name*/ "hertz",
+        /*name_plural*/ "hertz",
+        /*name_short*/ "Hz",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Hertz",
+        /*identifier*/ "HERTZ",
+        /*scalar*/ 1.0f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "kilohertz",
+        /*name_plural*/ "kilohertz",
+        /*name_short*/ "kHz",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Kilohertz",
+        /*identifier*/ "KILOHERTZ",
+        /*scalar*/ 1e3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    NULL_UNIT,
+};
+static bUnitCollection buFrequencyCollection = {
+    /*units*/ buFrequencyDef,
+    /*base_unit*/ 0,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buFrequencyDef),
+};
+
 #define UNIT_SYSTEM_TOT (((sizeof(bUnitSystems) / B_UNIT_TYPE_TOT) / sizeof(void *)) - 1)
 static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
     /* Natural. */
@@ -1416,6 +1533,9 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_CAMERA*/ nullptr,
         /*B_UNIT_POWER*/ nullptr,
         /*B_UNIT_TEMPERATURE*/ nullptr,
+        /*B_UNIT_WAVELENGTH*/ nullptr,
+        /*B_UNIT_COLOR_TEMPERATURE*/ nullptr,
+        /*B_UNIT_FREQUENCY*/ nullptr,
     },
     /* Metric. */
     {
@@ -1432,6 +1552,9 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_CAMERA*/ &buCameraLenCollection,
         /*B_UNIT_POWER*/ &buPowerCollection,
         /*B_UNIT_TEMPERATURE*/ &buMetricTempCollection,
+        /*B_UNIT_WAVELENGTH*/ &buWavelengthLenCollection,
+        /*B_UNIT_COLOR_TEMPERATURE*/ &buColorTempCollection,
+        /*B_UNIT_FREQUENCY*/ &buFrequencyCollection,
     },
     /* Imperial. */
     {
@@ -1448,6 +1571,9 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_CAMERA*/ &buCameraLenCollection,
         /*B_UNIT_POWER*/ &buPowerCollection,
         /*B_UNIT_TEMPERATURE*/ &buImperialTempCollection,
+        /*B_UNIT_WAVELENGTH*/ &buWavelengthLenCollection,
+        /*B_UNIT_COLOR_TEMPERATURE*/ &buColorTempCollection,
+        /*B_UNIT_FREQUENCY*/ &buFrequencyCollection,
     },
     {nullptr},
 };
@@ -1595,7 +1721,7 @@ static size_t unit_as_string(char *str,
 
 static bool unit_should_be_split(int type)
 {
-  return ELEM(type, B_UNIT_LENGTH, B_UNIT_MASS, B_UNIT_TIME, B_UNIT_CAMERA);
+  return ELEM(type, B_UNIT_LENGTH, B_UNIT_MASS, B_UNIT_TIME, B_UNIT_CAMERA, B_UNIT_WAVELENGTH);
 }
 
 struct PreferredUnits {
@@ -1608,15 +1734,15 @@ struct PreferredUnits {
   int temperature;
 };
 
-static PreferredUnits preferred_units_from_UnitSettings(const UnitSettings *settings)
+static PreferredUnits preferred_units_from_UnitSettings(const UnitSettings &settings)
 {
   PreferredUnits units = {0};
-  units.system = settings->system;
-  units.rotation = settings->system_rotation;
-  units.length = settings->length_unit;
-  units.mass = settings->mass_unit;
-  units.time = settings->time_unit;
-  units.temperature = settings->temperature_unit;
+  units.system = settings.system;
+  units.rotation = settings.system_rotation;
+  units.length = settings.length_unit;
+  units.mass = settings.mass_unit;
+  units.time = settings.time_unit;
+  units.temperature = settings.temperature_unit;
   return units;
 }
 
@@ -1657,7 +1783,7 @@ static bool is_valid_unit_collection(const bUnitCollection *usys)
   return usys != nullptr && usys->units[0].name != nullptr;
 }
 
-static const bUnitDef *get_preferred_display_unit_if_used(int type, PreferredUnits units)
+static const bUnitDef *get_preferred_display_unit_if_used(int type, const PreferredUnits &units)
 {
   const bUnitCollection *usys = unit_get_system(units.system, type);
   if (!is_valid_unit_collection(usys)) {
@@ -1673,17 +1799,17 @@ static const bUnitDef *get_preferred_display_unit_if_used(int type, PreferredUni
       if (units.length == USER_UNIT_ADAPTIVE) {
         return nullptr;
       }
-      return usys->units + MIN2(units.length, max_offset);
+      return usys->units + std::min(units.length, max_offset);
     case B_UNIT_MASS:
       if (units.mass == USER_UNIT_ADAPTIVE) {
         return nullptr;
       }
-      return usys->units + MIN2(units.mass, max_offset);
+      return usys->units + std::min(units.mass, max_offset);
     case B_UNIT_TIME:
       if (units.time == USER_UNIT_ADAPTIVE) {
         return nullptr;
       }
-      return usys->units + MIN2(units.time, max_offset);
+      return usys->units + std::min(units.time, max_offset);
     case B_UNIT_ROTATION:
       if (units.rotation == 0) {
         return usys->units + 0;
@@ -1696,7 +1822,7 @@ static const bUnitDef *get_preferred_display_unit_if_used(int type, PreferredUni
       if (units.temperature == USER_UNIT_ADAPTIVE) {
         return nullptr;
       }
-      return usys->units + MIN2(units.temperature, max_offset);
+      return usys->units + std::min(units.temperature, max_offset);
     default:
       break;
   }
@@ -1711,7 +1837,7 @@ static size_t unit_as_string_main(char *str,
                                   int type,
                                   bool split,
                                   bool pad,
-                                  PreferredUnits units)
+                                  const PreferredUnits &units)
 {
   const bUnitCollection *usys = unit_get_system(units.system, type);
   const bUnitDef *main_unit = nullptr;
@@ -1752,12 +1878,50 @@ size_t BKE_unit_value_as_string(char *str,
                                 double value,
                                 int prec,
                                 int type,
-                                const UnitSettings *settings,
+                                const UnitSettings &settings,
                                 bool pad)
 {
-  bool do_split = (settings->flag & USER_UNIT_OPT_SPLIT) != 0;
+  bool do_split = (settings.flag & USER_UNIT_OPT_SPLIT) != 0;
   PreferredUnits units = preferred_units_from_UnitSettings(settings);
   return unit_as_string_main(str, str_maxncpy, value, prec, type, do_split, pad, units);
+}
+
+size_t BKE_unit_value_as_string_scaled(char *str,
+                                       int str_maxncpy,
+                                       double value,
+                                       int prec,
+                                       int type,
+                                       const UnitSettings &settings,
+                                       bool pad)
+{
+  return BKE_unit_value_as_string(
+      str, str_maxncpy, BKE_unit_value_scale(settings, type, value), prec, type, settings, pad);
+}
+
+double BKE_unit_value_scale(const UnitSettings &settings, const int unit_type, double value)
+{
+  if (settings.system == USER_UNIT_NONE) {
+    /* Never apply scale_length when not using a unit setting! */
+    return value;
+  }
+
+  switch (unit_type) {
+    case B_UNIT_LENGTH:
+    case B_UNIT_VELOCITY:
+    case B_UNIT_ACCELERATION:
+      return value * double(settings.scale_length);
+    case B_UNIT_AREA:
+    case B_UNIT_POWER:
+      return value * pow(settings.scale_length, 2);
+    case B_UNIT_VOLUME:
+      return value * pow(settings.scale_length, 3);
+    case B_UNIT_MASS:
+      return value * pow(settings.scale_length, 3);
+    case B_UNIT_CAMERA: /* *Do not* use scene's unit scale for camera focal lens! See #42026. */
+    case B_UNIT_WAVELENGTH: /* Wavelength values are independent of the scene scale. */
+    default:
+      return value;
+  }
 }
 
 BLI_INLINE bool isalpha_or_utf8(const int ch)
@@ -1840,6 +2004,18 @@ static bool ch_is_op(char op)
   }
 }
 
+static bool ch_is_op_unary(char op)
+{
+  switch (op) {
+    case '+':
+    case '-':
+    case '~':
+      return true;
+    default:
+      return false;
+  }
+}
+
 /**
  * Helper function for #unit_distribute_negatives to find the next negative to distribute.
  *
@@ -1909,6 +2085,18 @@ static char *find_next_op(const char *str, char *remaining_str, int remaining_st
 }
 
 /**
+ * Skip over multiple successive unary operators (typically `-`), skipping spaces.
+ * This allows for `--90d` to be handled properly, see: #117783.
+ */
+static char *skip_unary_op(char *str)
+{
+  while (*str == ' ' || ch_is_op_unary(*str)) {
+    str++;
+  }
+  return str;
+}
+
+/**
  * Put parentheses around blocks of values after negative signs to get rid of an implied "+"
  * between numbers without an operation between them. For example:
  *
@@ -1933,8 +2121,9 @@ static bool unit_distribute_negatives(char *str, const int str_maxncpy)
     memmove(remaining_str + 1, remaining_str, remaining_str_maxncpy - 2);
     *remaining_str = '(';
 
-    /* Add the ')' before the next operation or at the end. */
-    remaining_str = find_next_op(str, remaining_str + 1, remaining_str_maxncpy);
+    /* Add the ')' before the next operation or at the end.
+     * Unary operators are skipped to allow `--` to be a supported prefix. */
+    remaining_str = find_next_op(str, skip_unary_op(remaining_str + 1), remaining_str_maxncpy);
     remaining_str_maxncpy = str_maxncpy - int(remaining_str - str);
     memmove(remaining_str + 1, remaining_str, remaining_str_maxncpy - 2);
     *remaining_str = ')';
@@ -2149,7 +2338,7 @@ bool BKE_unit_string_contains_unit(const char *str, int type)
   return false;
 }
 
-double BKE_unit_apply_preferred_unit(const UnitSettings *settings, int type, double value)
+double BKE_unit_apply_preferred_unit(const UnitSettings &settings, int type, double value)
 {
   PreferredUnits units = preferred_units_from_UnitSettings(settings);
   const bUnitDef *unit = get_preferred_display_unit_if_used(type, units);

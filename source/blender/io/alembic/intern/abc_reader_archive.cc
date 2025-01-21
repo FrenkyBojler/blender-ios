@@ -9,17 +9,19 @@
 #include "abc_reader_archive.h"
 
 #include "Alembic/AbcCoreLayer/Read.h"
+#include "Alembic/AbcCoreOgawa/ReadWrite.h"
 
-#include "BKE_main.h"
+#include "BKE_main.hh"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #ifdef WIN32
-#  include "utfconv.h"
+#  include "utfconv.hh"
 #endif
 
 #include <fstream>
+#include <vector>
 
 using Alembic::Abc::ErrorHandler;
 using Alembic::Abc::Exception;

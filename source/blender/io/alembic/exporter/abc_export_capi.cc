@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "ABC_alembic.h"
+#include "IO_subdiv_disabler.hh"
 #include "abc_archive.h"
 #include "abc_hierarchy_iterator.h"
-#include "abc_subdiv_disabler.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -13,17 +13,16 @@
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_blender_version.h"
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
-#include "BKE_scene.h"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_scene.hh"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_timeit.hh"
 
@@ -33,7 +32,6 @@
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.alembic"};
 
-#include <algorithm>
 #include <memory>
 
 struct ExportJobData {
@@ -52,14 +50,27 @@ struct ExportJobData {
 namespace blender::io::alembic {
 
 /* Construct the depsgraph for exporting. */
-static void build_depsgraph(Depsgraph *depsgraph, const bool visible_objects_only)
+static bool build_depsgraph(ExportJobData *job)
 {
-  if (visible_objects_only) {
-    DEG_graph_build_from_view_layer(depsgraph);
+  if (job->params.collection[0]) {
+    Collection *collection = reinterpret_cast<Collection *>(
+        BKE_libblock_find_name(job->bmain, ID_GR, job->params.collection));
+    if (!collection) {
+      WM_reportf(
+          RPT_ERROR, "Alembic Export: Unable to find collection '%s'", job->params.collection);
+      return false;
+    }
+
+    DEG_graph_build_from_collection(job->depsgraph, collection);
+  }
+  else if (job->params.visible_objects_only) {
+    DEG_graph_build_from_view_layer(job->depsgraph);
   }
   else {
-    DEG_graph_build_for_all_objects(depsgraph);
+    DEG_graph_build_for_all_objects(job->depsgraph);
   }
+
+  return true;
 }
 
 static void report_job_duration(const ExportJobData *data)
@@ -70,12 +81,7 @@ static void report_job_duration(const ExportJobData *data)
   std::cout << '\n';
 }
 
-static void export_startjob(void *customdata,
-                            /* Cannot be const, this function implements wm_jobs_start_callback.
-                             * NOLINTNEXTLINE: readability-non-const-parameter. */
-                            bool *stop,
-                            bool *do_update,
-                            float *progress)
+static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   ExportJobData *data = static_cast<ExportJobData *>(customdata);
   data->was_canceled = false;
@@ -85,15 +91,16 @@ static void export_startjob(void *customdata,
   WM_set_locked_interface(data->wm, true);
   G.is_break = false;
 
-  *progress = 0.0f;
-  *do_update = true;
+  worker_status->progress = 0.0f;
+  worker_status->do_update = true;
 
-  build_depsgraph(data->depsgraph, data->params.visible_objects_only);
+  BKE_scene_graph_update_tagged(data->depsgraph, data->bmain);
+
   SubdivModifierDisabler subdiv_disabler(data->depsgraph);
   if (!data->params.apply_subdiv) {
     subdiv_disabler.disable_modifiers();
+    BKE_scene_graph_update_tagged(data->depsgraph, data->bmain);
   }
-  BKE_scene_graph_update_tagged(data->depsgraph, data->bmain);
 
   /* For restoring the current frame after exporting animation is done. */
   Scene *scene = DEG_get_input_scene(data->depsgraph);
@@ -140,7 +147,7 @@ static void export_startjob(void *customdata,
     for (; frame_it != frames_end; frame_it++) {
       double frame = *frame_it;
 
-      if (G.is_break || (stop != nullptr && *stop)) {
+      if (G.is_break || worker_status->stop) {
         break;
       }
 
@@ -154,8 +161,8 @@ static void export_startjob(void *customdata,
       iter.set_export_subset(export_subset);
       iter.iterate_and_write();
 
-      *progress += progress_per_frame;
-      *do_update = true;
+      worker_status->progress += progress_per_frame;
+      worker_status->do_update = true;
     }
   }
   else {
@@ -173,8 +180,8 @@ static void export_startjob(void *customdata,
 
   data->export_ok = !data->was_canceled;
 
-  *progress = 1.0f;
-  *do_update = true;
+  worker_status->progress = 1.0f;
+  worker_status->do_update = true;
 }
 
 static void export_endjob(void *customdata)
@@ -213,10 +220,22 @@ bool ABC_export(Scene *scene,
   job->depsgraph = DEG_graph_new(job->bmain, scene, view_layer, params->evaluation_mode);
   job->params = *params;
 
+  /* Construct the depsgraph for exporting.
+   *
+   * Has to be done from main thread currently, as it may affect Main original data (e.g. when
+   * doing deferred update of the view-layers, see #112534 for details). */
+  if (!blender::io::alembic::build_depsgraph(job)) {
+    return false;
+  }
+
   bool export_ok = false;
   if (as_background_job) {
-    wmJob *wm_job = WM_jobs_get(
-        job->wm, CTX_wm_window(C), scene, "Alembic Export", WM_JOB_PROGRESS, WM_JOB_TYPE_ALEMBIC);
+    wmJob *wm_job = WM_jobs_get(job->wm,
+                                CTX_wm_window(C),
+                                scene,
+                                "Alembic Export",
+                                WM_JOB_PROGRESS,
+                                WM_JOB_TYPE_ALEMBIC_EXPORT);
 
     /* setup job */
     WM_jobs_customdata_set(wm_job, job, MEM_freeN);
@@ -230,11 +249,8 @@ bool ABC_export(Scene *scene,
     WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
   else {
-    /* Fake a job context, so that we don't need null pointer checks while exporting. */
-    bool stop = false, do_update = false;
-    float progress = 0.0f;
-
-    blender::io::alembic::export_startjob(job, &stop, &do_update, &progress);
+    wmJobWorkerStatus worker_status = {};
+    blender::io::alembic::export_startjob(job, &worker_status);
     blender::io::alembic::export_endjob(job);
     export_ok = job->export_ok;
 

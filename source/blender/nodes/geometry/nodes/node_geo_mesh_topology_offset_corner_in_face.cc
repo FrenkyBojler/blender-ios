@@ -3,9 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
-
-#include "BLI_task.hh"
 
 #include "node_geometry_util.hh"
 
@@ -38,10 +35,10 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask &mask) const final
   {
-    const IndexRange corner_range(mesh.totloop);
+    const IndexRange corner_range(mesh.corners_num);
     const OffsetIndices faces = mesh.faces();
 
     const bke::MeshFieldContext context{mesh, domain};
@@ -91,9 +88,9 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_CORNER;
+    return AttrDomain::Corner;
   }
 };
 
@@ -107,14 +104,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  geo_node_type_base(&ntype,
-                     GEO_NODE_MESH_TOPOLOGY_OFFSET_CORNER_IN_FACE,
-                     "Offset Corner in Face",
-                     NODE_CLASS_INPUT);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(
+      &ntype, "GeometryNodeOffsetCornerInFace", GEO_NODE_MESH_TOPOLOGY_OFFSET_CORNER_IN_FACE);
+  ntype.ui_name = "Offset Corner in Face";
+  ntype.ui_description = "Retrieve corners in the same face as another";
+  ntype.enum_name_legacy = "OFFSET_CORNER_IN_FACE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

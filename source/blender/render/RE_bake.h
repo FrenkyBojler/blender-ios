@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "DNA_scene_types.h"
+
 #include "RE_pipeline.h"
 
 struct Depsgraph;
@@ -60,7 +62,7 @@ typedef struct BakePixel {
 typedef struct BakeHighPolyData {
   struct Object *ob;
   struct Object *ob_eval;
-  struct Mesh *me;
+  struct Mesh *mesh;
   bool is_flip_object;
 
   float obmat[4][4];
@@ -89,16 +91,16 @@ bool RE_bake_pixels_populate_from_objects(struct Mesh *me_low,
                                           BakePixel pixel_array_from[],
                                           BakePixel pixel_array_to[],
                                           BakeHighPolyData highpoly[],
-                                          int tot_highpoly,
+                                          int highpoly_num,
                                           size_t pixels_num,
                                           bool is_custom_cage,
                                           float cage_extrusion,
                                           float max_ray_distance,
-                                          float mat_low[4][4],
-                                          float mat_cage[4][4],
+                                          const float mat_low[4][4],
+                                          const float mat_cage[4][4],
                                           struct Mesh *me_cage);
 
-void RE_bake_pixels_populate(struct Mesh *me,
+void RE_bake_pixels_populate(struct Mesh *mesh,
                              struct BakePixel *pixel_array,
                              size_t pixels_num,
                              const struct BakeTargets *targets,
@@ -110,7 +112,7 @@ void RE_bake_margin(struct ImBuf *ibuf,
                     char *mask,
                     int margin,
                     char margin_type,
-                    struct Mesh const *me,
+                    const Mesh *mesh,
                     char const *uv_layer,
                     const float uv_offset[2]);
 
@@ -128,9 +130,9 @@ void RE_bake_normal_world_to_tangent(const BakePixel pixel_array[],
                                      size_t pixels_num,
                                      int depth,
                                      float result[],
-                                     struct Mesh *me,
+                                     struct Mesh *mesh,
                                      const eBakeNormalSwizzle normal_swizzle[3],
-                                     float mat[4][4]);
+                                     const float mat[4][4]);
 void RE_bake_normal_world_to_world(const BakePixel pixel_array[],
                                    size_t pixels_num,
                                    int depth,

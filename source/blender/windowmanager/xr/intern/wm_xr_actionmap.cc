@@ -13,20 +13,17 @@
 #include <cmath>
 #include <cstring>
 
-#include "BKE_context.h"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-
-#include "GHOST_Types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "wm_xr_intern.h"
+#include "wm_xr_intern.hh"
 
 #define WM_XR_ACTIONMAP_STR_DEFAULT "actionmap"
 #define WM_XR_ACTIONMAP_ITEM_STR_DEFAULT "action"
@@ -180,7 +177,7 @@ static void wm_xr_actionmap_item_properties_free(XrActionMapItem *ami)
 {
   if (ami->op_properties_ptr) {
     WM_operator_properties_free(ami->op_properties_ptr);
-    MEM_freeN(ami->op_properties_ptr);
+    MEM_delete(ami->op_properties_ptr);
     ami->op_properties_ptr = nullptr;
     ami->op_properties = nullptr;
   }
@@ -318,8 +315,7 @@ static XrActionMapItem *wm_xr_actionmap_item_copy(XrActionMapItem *ami_src)
   }
 
   if (ami_dst->op_properties) {
-    ami_dst->op_properties_ptr = static_cast<PointerRNA *>(
-        MEM_callocN(sizeof(PointerRNA), "wmOpItemPtr"));
+    ami_dst->op_properties_ptr = MEM_new<PointerRNA>("wmOpItemPtr");
     WM_operator_properties_create(ami_dst->op_properties_ptr, ami_dst->op);
     ami_dst->op_properties = IDP_CopyProperty(ami_src->op_properties);
     ami_dst->op_properties_ptr->data = ami_dst->op_properties;

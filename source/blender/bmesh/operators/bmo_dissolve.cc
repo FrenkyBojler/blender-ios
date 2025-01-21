@@ -8,16 +8,15 @@
  * Removes isolated geometry regions without creating holes in the mesh.
  */
 
-#include "MEM_guardedalloc.h"
-
+#include "BLI_math_base.h"
 #include "BLI_math_vector.h"
 #include "BLI_stack.h"
 #include "BLI_vector.hh"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
-#include "intern/bmesh_operators_private.h"
+#include "intern/bmesh_operators_private.hh"
 
 using blender::Vector;
 
@@ -566,7 +565,8 @@ void bmo_dissolve_degenerate_exec(BMesh *bm, BMOperator *op)
                 /* add a joining edge and tag for removal */
                 BMLoop *l_split;
                 if (BM_face_split(
-                        bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true)) {
+                        bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true))
+                {
                   BMO_edge_flag_enable(bm, l_split->e, EDGE_COLLAPSE);
                   found = true;
                   reset = true;
@@ -582,7 +582,8 @@ void bmo_dissolve_degenerate_exec(BMesh *bm, BMOperator *op)
               BLI_assert(v_new == l_iter->next->v);
               (void)v_new;
               if (BM_face_split(
-                      bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true)) {
+                      bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true))
+              {
                 BMO_edge_flag_enable(bm, l_split->e, EDGE_COLLAPSE);
                 found = true;
               }
@@ -597,7 +598,8 @@ void bmo_dissolve_degenerate_exec(BMesh *bm, BMOperator *op)
               BLI_assert(v_new == l_iter->prev->v);
               (void)v_new;
               if (BM_face_split(
-                      bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true)) {
+                      bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true))
+              {
                 BMO_edge_flag_enable(bm, l_split->e, EDGE_COLLAPSE);
                 found = true;
               }

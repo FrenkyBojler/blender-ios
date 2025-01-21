@@ -170,8 +170,10 @@ class GHOST_ISystem {
 
   /**
    * Returns the system time.
-   * Returns the number of milliseconds since the start of the system process.
-   * Based on ANSI clock() routine.
+   * Returns the number of milliseconds since the start of the system.
+   * \note The exact method used is platform dependent however monotonic methods should be used
+   * instead of wall-clock time.
+   *
    * \return The number of milliseconds.
    */
   virtual uint64_t getMilliSeconds() const = 0;
@@ -558,7 +560,5 @@ class GHOST_ISystem {
   /** Function to call that sets the back-trace. */
   static GHOST_TBacktraceFn m_backtrace_fn;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_ISystem")
-#endif
 };

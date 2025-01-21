@@ -5,6 +5,7 @@
 #pragma once
 
 #include "BLI_bit_span.hh"
+#include "BLI_math_bits.h"
 
 namespace blender::bits {
 
@@ -141,7 +142,7 @@ inline void foreach_1_index_expr(ExprFn &&expr,
     /* Iterate over remaining bits. */
     if (const int64_t final_bits = first_arg.final_bits_num()) {
       BitInt tmp = expr(first_data[full_ints_num] >> first_arg.offset(),
-                        (*args.data()[full_ints_num] >> args.offset())...) &
+                        (args.data()[full_ints_num] >> args.offset())...) &
                    mask_first_n_bits(final_bits);
       const int64_t offset = full_ints_num << BitToIntIndexShift;
       while (tmp != 0) {
@@ -167,9 +168,7 @@ inline void foreach_1_index_expr(ExprFn &&expr,
 }  // namespace detail
 
 template<typename ExprFn, typename FirstBitSpanT, typename... BitSpanT>
-inline void mix_into_first_expr(ExprFn &&expr,
-                                const FirstBitSpanT &first_arg,
-                                const BitSpanT &...args)
+inline void mix_into_first_expr(ExprFn &&expr, FirstBitSpanT &&first_arg, const BitSpanT &...args)
 {
   detail::mix_into_first_expr(expr, to_best_bit_span(first_arg), to_best_bit_span(args)...);
 }
@@ -190,10 +189,27 @@ inline void foreach_1_index_expr(ExprFn &&expr,
       expr, handle, to_best_bit_span(first_arg), to_best_bit_span(args)...);
 }
 
+template<typename BitSpanT> inline void invert(BitSpanT &&data)
+{
+  mix_into_first_expr([](const BitInt x) { return ~x; }, data);
+}
+
 template<typename FirstBitSpanT, typename... BitSpanT>
 inline void inplace_or(FirstBitSpanT &first_arg, const BitSpanT &...args)
 {
   mix_into_first_expr([](const auto... x) { return (x | ...); }, first_arg, args...);
+}
+
+template<typename FirstBitSpanT, typename MaskBitSpanT, typename... BitSpanT>
+inline void inplace_or_masked(FirstBitSpanT &&first_arg,
+                              const MaskBitSpanT &mask,
+                              const BitSpanT &...args)
+{
+  mix_into_first_expr(
+      [](const BitInt a, const BitInt mask, const auto... x) { return a | ((x | ...) & mask); },
+      first_arg,
+      mask,
+      args...);
 }
 
 template<typename FirstBitSpanT, typename... BitSpanT>
@@ -238,9 +254,50 @@ template<typename... BitSpanT> inline bool has_common_set_bits(const BitSpanT &.
   return any_set_expr([](const auto... x) { return (x & ...); }, args...);
 }
 
+template<typename BitSpanT> inline bool any_bit_set(const BitSpanT &arg)
+{
+  return has_common_set_bits(arg);
+}
+
+template<typename... BitSpanT> inline bool has_common_unset_bits(const BitSpanT &...args)
+{
+  return any_set_expr([](const auto... x) { return ~(x | ...); }, args...);
+}
+
+template<typename BitSpanT> inline bool any_bit_unset(const BitSpanT &arg)
+{
+  return has_common_unset_bits(arg);
+}
+
 template<typename BitSpanT, typename Fn> inline void foreach_1_index(const BitSpanT &data, Fn &&fn)
 {
   foreach_1_index_expr([](const BitInt x) { return x; }, fn, data);
+}
+
+template<typename BitSpanT, typename Fn> inline void foreach_0_index(const BitSpanT &data, Fn &&fn)
+{
+  foreach_1_index_expr([](const BitInt x) { return ~x; }, fn, data);
+}
+
+template<typename BitSpanT1, typename BitSpanT2>
+inline bool spans_equal(const BitSpanT1 &a, const BitSpanT2 &b)
+{
+  if (a.size() != b.size()) {
+    return false;
+  }
+  return !any_set_expr([](const BitInt a, const BitInt b) { return a ^ b; }, a, b);
+}
+
+template<typename BitSpanT1, typename BitSpanT2, typename BitSpanT3>
+inline bool spans_equal_masked(const BitSpanT1 &a, const BitSpanT2 &b, const BitSpanT3 &mask)
+{
+  BLI_assert(mask.size() == a.size());
+  BLI_assert(mask.size() == b.size());
+  return !bits::any_set_expr(
+      [](const BitInt a, const BitInt b, const BitInt mask) { return (a ^ b) & mask; },
+      a,
+      b,
+      mask);
 }
 
 }  // namespace blender::bits

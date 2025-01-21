@@ -7,8 +7,13 @@
  *
  * See fragment shader for more infos.
  */
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
+
+#include "infos/eevee_shadow_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(eevee_shadow_page_tile_clear)
+
+#include "eevee_shadow_tilemap_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 void main()
 {
@@ -22,9 +27,9 @@ void main()
 #ifdef PASS_DEPTH_STORE
   /* Load where fragment should write the tile data. */
   uvec3 dst_page_co = shadow_page_unpack(dst_coord_buf[tile_id]);
-  /* Interpolate output texel  */
-  out_texel_xy = (vec2(dst_page_co.xy) + tile_corner) * vec2(SHADOW_PAGE_RES);
-  out_page_z = dst_page_co.z;
+  /* Interpolate output texel. */
+  interp_noperspective.out_texel_xy = (vec2(dst_page_co.xy) + tile_corner) * vec2(SHADOW_PAGE_RES);
+  interp_flat.out_page_z = dst_page_co.z;
 #endif
 
   /* Load where the quad should be positioned. */

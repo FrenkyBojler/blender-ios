@@ -23,7 +23,6 @@ class DATA_PT_context_pointcloud(DataButtonsPanel, Panel):
     bl_options = {'HIDE_HEADER'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -81,13 +80,18 @@ class POINTCLOUD_UL_attributes(UIList):
         # Filtering by name
         if self.filter_name:
             flags = bpy.types.UI_UL_list.filter_items_by_name(
-                self.filter_name, self.bitflag_filter_item, attributes, "name", reverse=self.use_filter_invert)
+                self.filter_name, self.bitflag_filter_item, attributes, "name", reverse=self.use_filter_invert,
+            )
         if not flags:
             flags = [self.bitflag_filter_item] * len(attributes)
 
         # Filtering internal attributes
         for idx, item in enumerate(attributes):
             flags[idx] = 0 if item.is_internal else flags[idx]
+
+        # Reorder by name.
+        if self.use_filter_sort_alpha:
+            indices = bpy.types.UI_UL_list.sort_items_by_name(attributes, "name")
 
         return flags, indices
 
@@ -107,7 +111,6 @@ class DATA_PT_pointcloud_attributes(DataButtonsPanel, Panel):
     bl_label = "Attributes"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
@@ -137,7 +140,6 @@ class DATA_PT_pointcloud_attributes(DataButtonsPanel, Panel):
 class DATA_PT_custom_props_pointcloud(DataButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }

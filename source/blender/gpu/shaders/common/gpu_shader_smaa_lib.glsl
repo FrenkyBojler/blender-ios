@@ -7,6 +7,10 @@
  *
  * SPDX-License-Identifier: MIT AND GPL-2.0-or-later */
 
+#pragma once
+
+#include "gpu_glsl_cpp_stubs.hh"
+
 /**
  *                  _______  ___  ___       ___           ___
  *                 /       ||   \/   |     /   \         /   \
@@ -615,7 +619,7 @@ float mad(float a, float b, float c)
 /**
  * Gathers current pixel, and the top-left neighbors.
  */
-float3 SMAAGatherNeighbours(float2 texcoord, float4 offset[3], SMAATexture2D(tex))
+float3 SMAAGatherNeighbors(float2 texcoord, float4 offset[3], SMAATexture2D(tex))
 {
 #ifdef SMAAGather
   return SMAAGather(tex, texcoord + SMAA_RT_METRICS.xy * float2(-0.5, -0.5)).grb;
@@ -634,8 +638,8 @@ float2 SMAACalculatePredicatedThreshold(float2 texcoord,
                                         float4 offset[3],
                                         SMAATexture2D(predicationTex))
 {
-  float3 neighbours = SMAAGatherNeighbours(texcoord, offset, SMAATexturePass2D(predicationTex));
-  float2 delta = abs(neighbours.xx - neighbours.yz);
+  float3 neighbors = SMAAGatherNeighbors(texcoord, offset, SMAATexturePass2D(predicationTex));
+  float2 delta = abs(neighbors.xx - neighbors.yz);
   float2 edges = step(SMAA_PREDICATION_THRESHOLD, delta);
   return SMAA_PREDICATION_SCALE * SMAA_THRESHOLD * (1.0 - SMAA_PREDICATION_STRENGTH * edges);
 }
@@ -876,8 +880,8 @@ float2 SMAAColorEdgeDetectionPS(float2 texcoord,
  */
 float2 SMAADepthEdgeDetectionPS(float2 texcoord, float4 offset[3], SMAATexture2D(depthTex))
 {
-  float3 neighbours = SMAAGatherNeighbours(texcoord, offset, SMAATexturePass2D(depthTex));
-  float2 delta = abs(neighbours.xx - float2(neighbours.y, neighbours.z));
+  float3 neighbors = SMAAGatherNeighbors(texcoord, offset, SMAATexturePass2D(depthTex));
+  float2 delta = abs(neighbors.xx - float2(neighbors.y, neighbors.z));
   float2 edges = step(SMAA_DEPTH_THRESHOLD, delta);
 
 #  ifdef GPU_FRAGMENT_SHADER
@@ -1359,18 +1363,18 @@ float4 SMAABlendingWeightCalculationPS(float2 texcoord,
     float e2 = SMAASampleLevelZeroOffset(edgesTex, coords.xz, int2(0, 1)).g;
 
     // Get the area for this direction:
-    weights.ba = SMAAArea(SMAATexturePass2D(areaTex), sqrt_d, e1, e2, subsampleIndices.x);
+    weights.zw = SMAAArea(SMAATexturePass2D(areaTex), sqrt_d, e1, e2, subsampleIndices.x);
 
     // Fix corners:
     coords.x = texcoord.x;
 
 #  ifdef GPU_METAL
     /* Partial vector references are unsupported in MSL. */
-    vec2 _weights = weights.ba;
+    vec2 _weights = weights.zw;
     SMAADetectVerticalCornerPattern(SMAATexturePass2D(edgesTex), _weights, coords.xyxz, d);
-    weights.ba = _weights;
+    weights.zw = _weights;
 #  else
-    SMAADetectVerticalCornerPattern(SMAATexturePass2D(edgesTex), weights.ba, coords.xyxz, d);
+    SMAADetectVerticalCornerPattern(SMAATexturePass2D(edgesTex), weights.zw, coords.xyxz, d);
 #  endif
   }
 
