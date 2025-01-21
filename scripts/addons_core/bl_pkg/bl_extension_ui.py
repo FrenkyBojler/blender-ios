@@ -435,6 +435,7 @@ def addons_panel_draw_items(
         addon_extension_block_map,  # `dict[str, PkgBlock_Normalized]`
 
         show_development,  # `bool`
+        window_manager,  # Added window_manager parameter
 ):  # `-> set[str]`
     # NOTE: this duplicates logic from `USERPREF_PT_addons` eventually this logic should be used instead.
     # Don't de-duplicate the logic as this is a temporary state - as long as extensions remains experimental.
@@ -546,6 +547,17 @@ def addons_panel_draw_items(
             addon_type = ADDON_TYPE_LEGACY_USER
         else:
             addon_type = ADDON_TYPE_LEGACY_OTHER
+
+        # Add type filtering
+        if window_manager.addon_filter_type != 'ALL':
+            filter_map = {
+                'EXTENSION': ADDON_TYPE_EXTENSION,
+                'CORE': ADDON_TYPE_LEGACY_CORE, 
+                'USER': ADDON_TYPE_LEGACY_USER,
+                'OTHER': ADDON_TYPE_LEGACY_OTHER,
+            }
+            if addon_type != filter_map.get(window_manager.addon_filter_type):
+                continue
 
         # Draw header.
         col_box = layout.column()
@@ -722,6 +734,7 @@ def addons_panel_draw_impl(
         addon_extension_manifest_map=addon_extension_manifest_map,
         addon_extension_block_map=addon_extension_block_map,
         show_development=show_development,
+        window_manager=context.window_manager,  # Pass window_manager explicitly
     )
 
     # Append missing scripts.
@@ -777,13 +790,11 @@ def addons_panel_draw(panel, context):
     row_a = split.row()
     row_b = split.row()
     row_a.prop(wm, "addon_search", text="", icon='VIEWZOOM', placeholder="Search Add-ons")
-    row_b.prop(view, "show_addons_enabled_only", text="Enabled Only")
+    row_b.prop(wm, "addon_filter_type", text="")
     rowsub = row_b.row(align=True)
-
+    rowsub.prop(view, "show_addons_enabled_only", text="Enabled Only")
     rowsub.popover("USERPREF_PT_addons_tags", text="", icon='TAG')
-
     rowsub.separator()
-
     rowsub.menu("USERPREF_MT_addons_settings", text="", icon='DOWNARROW_HLT')
     del split, row_a, row_b, rowsub
 
@@ -2329,6 +2340,20 @@ def register():
     USERPREF_PT_extensions.append(extensions_panel_draw)
     USERPREF_MT_extensions_active_repo.append(extensions_repo_active_draw)
 
+    # Add the addon type filter property
+    bpy.types.WindowManager.addon_filter_type = bpy.props.EnumProperty(
+        items=[
+            ('ALL', "All", "Show all add-ons", 'BLANK1', 0),
+            ('EXTENSION', addon_type_name[ADDON_TYPE_EXTENSION], "Show only extension add-ons", addon_type_icon[ADDON_TYPE_EXTENSION], 1),
+            ('CORE', addon_type_name[ADDON_TYPE_LEGACY_CORE], "Show only core add-ons", addon_type_icon[ADDON_TYPE_LEGACY_CORE], 2),
+            ('USER', addon_type_name[ADDON_TYPE_LEGACY_USER], "Show only user add-ons", addon_type_icon[ADDON_TYPE_LEGACY_USER], 3),
+            ('OTHER', addon_type_name[ADDON_TYPE_LEGACY_OTHER], "Show only other add-ons", addon_type_icon[ADDON_TYPE_LEGACY_OTHER], 4),
+        ],
+        name="Filter by Type",
+        description="Filter add-ons by their type", 
+        default='ALL'
+    )
+
     for cls in classes:
         bpy.utils.register_class(cls)
 
@@ -2337,6 +2362,8 @@ def unregister():
     USERPREF_PT_addons.remove(addons_panel_draw)
     USERPREF_PT_extensions.remove(extensions_panel_draw)
     USERPREF_MT_extensions_active_repo.remove(extensions_repo_active_draw)
+
+    del bpy.types.WindowManager.addon_filter_type
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
