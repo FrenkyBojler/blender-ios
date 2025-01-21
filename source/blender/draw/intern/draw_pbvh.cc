@@ -751,7 +751,7 @@ BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
       using T = decltype(dummy);
       if constexpr (!std::is_void_v<typename AttributeConverter<T>::VBOType>) {
         const Span<T> src = attribute.typed<T>();
-        switch (domain) {
+        switch (attribute.domain) {
           case bke::AttrDomain::Point:
             extract_data_vert_mesh<T>(faces, corner_verts, src, nodes[i].faces(), *vbos[i]);
             break;
