@@ -144,7 +144,7 @@ static blender::animrig::Action &extract_pose(Main &bmain, blender::Span<Object 
 static void ensure_asset_ui_visible(bContext &C)
 {
   ScrArea *current_area = CTX_wm_area(&C);
-  if (current_area->type->spaceid != SPACE_VIEW3D) {
+  if (!current_area || current_area->type->spaceid != SPACE_VIEW3D) {
     /* Opening the asset shelf will only work from the 3D viewport. */
     return;
   }
