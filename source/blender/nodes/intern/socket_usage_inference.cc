@@ -183,6 +183,10 @@ struct SocketUsageInferencer {
         this->usage_task__input__generic_switch(socket, mix_node__is_socket_selected);
         break;
       }
+      case SH_NODE_MIX_SHADER: {
+        this->usage_task__input__generic_switch(socket, shader_mix_node__is_socket_selected);
+        break;
+      }
       case GEO_NODE_SIMULATION_INPUT: {
         this->usage_task__input__simulation_input_node(socket);
         break;
@@ -807,6 +811,23 @@ struct SocketUsageInferencer {
     }
     if (only_b) {
       if (STREQ(socket->name, "A")) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static bool shader_mix_node__is_socket_selected(const SocketInContext &socket,
+                                                  const void *condition)
+  {
+    const float mix_factor = *static_cast<const float *>(condition);
+    if (mix_factor == 0.0f) {
+      if (STREQ(socket->identifier, "Shader_001")) {
+        return false;
+      }
+    }
+    else if (mix_factor == 1.0f) {
+      if (STREQ(socket->identifier, "Shader")) {
         return false;
       }
     }
