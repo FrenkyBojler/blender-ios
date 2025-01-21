@@ -213,6 +213,19 @@ otherwise Blender's internal initialization won't happen properly:
 
 .. note::
 
+   In case you are using complex/multi-inheritance, ``super()`` may not work. It is best then to
+   explicitly invoke the Blender-defined parent class constructor. For example:
+
+   .. code-block:: python
+
+      import bpy
+      class FancyRaytracer(AwesomeRaytracer, bpy.types.RenderEngine):
+         def __init__(self, *args, **kwargs):
+            bpy.types.RenderEngine.__init__(self, *args, **kwargs)
+            ...
+
+.. note::
+
    Defining a custom ``__new__()`` function is strongly discouraged, not tested, and not considered
    as supported currently.
    Doing so presents a very high risk of crashes or otherwise corruption of Blender internal data.
@@ -226,7 +239,7 @@ otherwise Blender's internal initialization won't happen properly:
    C++-defined Blender types do not define or use a ``__del__()`` (aka ``tp_finalize()``) destructor
    currently.
    As this function
-   `does not exist if not explicitely defined <https://stackoverflow.com/questions/36722390/python-3-super-del>`__,
+   `does not exist if not explicitly defined <https://stackoverflow.com/questions/36722390/python-3-super-del>`__,
    that means that calling ``super().__del__()`` in the ``__del__()`` function of a sub-class will
    fail with the following error:
    ``AttributeError: 'super' object has no attribute '__del__'``.
@@ -426,17 +439,18 @@ and it may be useful to define them as types and remove them on the fly.
 .. code-block:: python
 
    for i in range(10):
-       idname = "object.operator_%d" % i
+       idname = "object.operator_{:d}".format(i)
 
        def func(self, context):
            print("Hello World", self.bl_idname)
            return {'FINISHED'}
 
-       opclass = type("DynOp%d" % i,
-                      (bpy.types.Operator, ),
-                      {"bl_idname": idname, "bl_label": "Test", "execute": func},
-                      )
-       bpy.utils.register_class(opclass)
+       op_class = type(
+           "DynOp{:d}".format(i),
+           (bpy.types.Operator, ),
+           {"bl_idname": idname, "bl_label": "Test", "execute": func},
+       )
+       bpy.utils.register_class(op_class)
 
 .. note::
 
