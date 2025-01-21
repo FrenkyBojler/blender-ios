@@ -3829,42 +3829,6 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Normal Vector", "Normal Vector used to copy, add or multiply");
   RNA_def_property_ui_range(prop, -10000.0, 10000.0, 1, 3);
 
-  /* Select Through */
-  prop = RNA_def_property(srna, "select_through", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "select_through", 0);
-  RNA_def_property_ui_text(
-      prop, "Select Through", "Select occluded objects and mesh elements with drag select");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
-
-  prop = RNA_def_property(srna, "select_through_object", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "select_through_object", 0);
-  RNA_def_property_ui_text(prop, "Select Through Object", "Select through in object mode");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
-
-  prop = RNA_def_property(srna, "select_through_edit", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "select_through_edit", 0);
-  RNA_def_property_ui_text(prop, "Select Through Edit", "Select through in edit mode");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
-
-  prop = RNA_def_property(srna, "select_through_box", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "select_through_box", 0);
-  RNA_def_property_ui_text(
-      prop, "Select Through Box", "Select occluded objects and mesh elements with box select");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
-
-  prop = RNA_def_property(srna, "select_through_lasso", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "select_through_lasso", 0);
-  RNA_def_property_ui_text(
-      prop, "Select Through Lasso", "Select occluded objects and mesh elements with lasso select");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
-
-  prop = RNA_def_property(srna, "select_through_circle", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "select_through_circle", 0);
-  RNA_def_property_ui_text(prop,
-                           "Select Through Circle",
-                           "Select occluded objects and mesh elements with circle select");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
-
   /* Unified Paint Settings */
   prop = RNA_def_property(srna, "unified_paint_settings", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);

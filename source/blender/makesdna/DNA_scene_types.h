@@ -1585,15 +1585,7 @@ typedef struct ToolSettings {
   char gpencil_v3d_align;
   /** General 2D Editor. */
   char gpencil_v2d_align;
-
-  /* Select Through */
-  char select_through;
-  char select_through_object;
-  char select_through_edit;
-  char select_through_box;
-  char select_through_lasso;
-  char select_through_circle;
-  char _pad0[4];
+  char _pad0[2];
 
   /* Annotations. */
   /** Stroke placement settings - 3D View. */

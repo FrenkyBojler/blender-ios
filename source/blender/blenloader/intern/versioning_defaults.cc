@@ -377,13 +377,6 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   if (idprop) {
     IDP_ClearProperty(idprop);
   }
-
-  /* Select through */
-  ts->select_through = true;
-  ts->select_through_object = true;
-  ts->select_through_box = true;
-  ts->select_through_lasso = true;
-  ts->select_through_circle = true;
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)

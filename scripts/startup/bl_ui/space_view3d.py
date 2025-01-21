@@ -920,7 +920,7 @@ class VIEW3D_HT_header(Header):
         sub.active = overlay.show_overlays
         sub.popover(panel="VIEW3D_PT_overlay", text="")
 
-        row = layout.row(align=True)
+        row = layout.row()
         row.active = (object_mode == 'EDIT') or (shading.type in {'WIREFRAME', 'SOLID'})
 
         # While exposing `shading.show_xray(_wireframe)` is correct.
