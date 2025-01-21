@@ -790,10 +790,9 @@ def addons_panel_draw(panel, context):
     row_a = split.row()
     row_b = split.row()
     row_a.prop(wm, "addon_search", text="", icon='VIEWZOOM', placeholder="Search Add-ons")
-    row_b.prop(wm, "addon_filter_type", text="")
     rowsub = row_b.row(align=True)
     rowsub.prop(view, "show_addons_enabled_only", text="Enabled Only")
-    rowsub.popover("USERPREF_PT_addons_tags", text="", icon='TAG')
+    rowsub.popover("USERPREF_PT_addons_filters", text="", icon='FILTER')
     rowsub.separator()
     rowsub.menu("USERPREF_MT_addons_settings", text="", icon='DOWNARROW_HLT')
     del split, row_a, row_b, rowsub
@@ -1736,6 +1735,26 @@ def extensions_panel_draw_impl(
             display_errors.draw(layout_topmost)
 
 
+class USERPREF_PT_addons_filters(Panel):
+    bl_label = "Filter Add-ons by Type and Tags"
+
+    bl_space_type = 'TOPBAR'  # dummy
+    bl_region_type = 'HEADER'
+    bl_ui_units_x = 13
+
+    def draw(self, context):
+        layout = self.layout
+        wm = context.window_manager
+
+        # Type filter
+        layout.prop(wm, "addon_filter_type", text="Type")
+        
+        layout.separator()
+
+        # Tags 
+        tags_panel_draw(layout, context, "addon_tags")
+
+
 class USERPREF_PT_addons_tags(Panel):
     bl_label = "Add-on Tags"
 
@@ -2325,7 +2344,7 @@ def tags_panel_draw(layout, context, tags_attr):
 
 classes = (
     # Pop-overs.
-    USERPREF_PT_addons_tags,
+    USERPREF_PT_addons_filters,
     USERPREF_MT_addons_settings,
 
     USERPREF_PT_extensions_tags,
@@ -2346,8 +2365,8 @@ def register():
             ('ALL', "All", "Show all add-ons", 'BLANK1', 0),
             ('EXTENSION', addon_type_name[ADDON_TYPE_EXTENSION], "Show only extension add-ons", addon_type_icon[ADDON_TYPE_EXTENSION], 1),
             ('CORE', addon_type_name[ADDON_TYPE_LEGACY_CORE], "Show only core add-ons", addon_type_icon[ADDON_TYPE_LEGACY_CORE], 2),
-            ('USER', addon_type_name[ADDON_TYPE_LEGACY_USER], "Show only user add-ons", addon_type_icon[ADDON_TYPE_LEGACY_USER], 3),
-            ('OTHER', addon_type_name[ADDON_TYPE_LEGACY_OTHER], "Show only other add-ons", addon_type_icon[ADDON_TYPE_LEGACY_OTHER], 4),
+            ('USER', addon_type_name[ADDON_TYPE_LEGACY_USER], "Show only legacy user add-ons", addon_type_icon[ADDON_TYPE_LEGACY_USER], 3),
+            ('OTHER', addon_type_name[ADDON_TYPE_LEGACY_OTHER], "Show only legacy other add-ons", addon_type_icon[ADDON_TYPE_LEGACY_OTHER], 4),
         ],
         name="Filter by Type",
         description="Filter add-ons by their type", 
