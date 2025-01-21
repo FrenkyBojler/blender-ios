@@ -40,6 +40,10 @@ void ConversionOperation::execute()
     GPUShader *shader = this->context().get_shader(this->get_conversion_shader_name());
     GPU_shader_bind(shader);
 
+    float luminance_coefficients[3];
+    IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
+    GPU_shader_uniform_3fv(shader, "luminance_coefficients", luminance_coefficients);
+
     input.bind_as_texture(shader, "input_tx");
     result.bind_as_image(shader, "output_img");
 

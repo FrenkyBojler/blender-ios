@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
+#include "gpu_shader_compositor_type_conversion.glsl"
 
 void main()
 {

@@ -17,7 +17,7 @@ namespace blender::compositor {
 
 static void extract_alpha_gpu(Context &context, Result &input, Result &output)
 {
-  GPUShader *shader = context.get_shader("compositor_convert_color_to_alpha");
+  GPUShader *shader = context.get_shader("compositor_extract_alpha");
   GPU_shader_bind(shader);
 
   input.bind_as_texture(shader, "input_tx");

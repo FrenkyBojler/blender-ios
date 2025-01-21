@@ -6,7 +6,7 @@
 
 GPU_SHADER_CREATE_INFO(compositor_convert_shared)
 LOCAL_GROUP_SIZE(16, 16)
-TYPEDEF_SOURCE("gpu_shader_compositor_type_conversion.glsl")
+PUSH_CONSTANT(VEC3, luminance_coefficients)
 COMPUTE_SOURCE("compositor_convert.glsl")
 GPU_SHADER_CREATE_END()
 
@@ -117,16 +117,5 @@ GPU_SHADER_CREATE_INFO(compositor_convert_color_to_vector)
 ADDITIONAL_INFO(compositor_convert_float_shared)
 IMAGE(0, GPU_RGBA16F, WRITE, FLOAT_2D, output_img)
 DEFINE_VALUE("CONVERT_EXPRESSION(value)", "vec4(color_to_vector(value))")
-DO_STATIC_COMPILATION()
-GPU_SHADER_CREATE_END()
-
-/* --------------------------------------------------------------------
- * Color to channel.
- */
-
-GPU_SHADER_CREATE_INFO(compositor_convert_color_to_alpha)
-ADDITIONAL_INFO(compositor_convert_float_shared)
-IMAGE(0, GPU_R16F, WRITE, FLOAT_2D, output_img)
-DEFINE_VALUE("CONVERT_EXPRESSION(value)", "vec4(value.a)")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()

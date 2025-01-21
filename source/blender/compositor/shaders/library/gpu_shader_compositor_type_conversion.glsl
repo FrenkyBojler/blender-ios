@@ -65,8 +65,7 @@ vec4 vector_to_color(vec4 value)
 
 float color_to_float(vec4 value)
 {
-  /* ITU-R BT.709 luminance coefficients. */
-  return (0.2126 * value.r) + (0.7152 * value.g) + (0.0722 * value.b);
+  return dot(value.rgb, luminance_coefficients);
 }
 
 int color_to_int(vec4 value)
