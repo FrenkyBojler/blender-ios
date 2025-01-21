@@ -32,7 +32,7 @@ void foreach_fcurve_in_action(Action &action, FunctionRef<void(FCurve &fcurve)> 
       if (strip->type() != Strip::Type::Keyframe) {
         continue;
       }
-      for (ChannelBag *bag : strip->data<StripKeyframeData>(action).channelbags()) {
+      for (Channelbag *bag : strip->data<StripKeyframeData>(action).channelbags()) {
         for (FCurve *fcu : bag->fcurves()) {
           callback(*fcu);
         }
@@ -56,7 +56,7 @@ void foreach_fcurve_in_action_slot(Action &action,
         if (strip->type() != Strip::Type::Keyframe) {
           continue;
         }
-        for (ChannelBag *bag : strip->data<StripKeyframeData>(action).channelbags()) {
+        for (Channelbag *bag : strip->data<StripKeyframeData>(action).channelbags()) {
           if (bag->slot_handle != handle) {
             continue;
           }
@@ -78,7 +78,7 @@ bool foreach_action_slot_use(
   const auto forward_to_callback = [&](ID & /* animated_id */,
                                        bAction *&action_ptr_ref,
                                        const slot_handle_t &slot_handle_ref,
-                                       char * /*slot_name*/) -> bool {
+                                       char * /*last_slot_identifier*/) -> bool {
     if (!action_ptr_ref) {
       return true;
     }
@@ -89,11 +89,12 @@ bool foreach_action_slot_use(
                                                  forward_to_callback);
 }
 
-bool foreach_action_slot_use_with_references(ID &animated_id,
-                                             FunctionRef<bool(ID &animated_id,
-                                                              bAction *&action_ptr_ref,
-                                                              slot_handle_t &slot_handle_ref,
-                                                              char *slot_name)> callback)
+bool foreach_action_slot_use_with_references(
+    ID &animated_id,
+    FunctionRef<bool(ID &animated_id,
+                     bAction *&action_ptr_ref,
+                     slot_handle_t &slot_handle_ref,
+                     char *last_slot_identifier)> callback)
 {
   AnimData *adt = BKE_animdata_from_id(&animated_id);
 

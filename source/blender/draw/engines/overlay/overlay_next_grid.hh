@@ -35,29 +35,30 @@ class Grid : Overlay {
 
   bool show_axis_z_ = false;
   bool is_xr_ = false;
-  bool is_space_image_ = false;
+  bool is_3d_grid_ = false;
   /* Copy of v3d->dist. */
   float v3d_clip_end_ = 0.0f;
 
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
-  int grid_flag_ = int(0);
-  int zneg_flag_ = int(0);
-  int zpos_flag_ = int(0);
+  int grid_flag_ = 0;
+  int zneg_flag_ = 0;
+  int zpos_flag_ = 0;
 
  public:
   void begin_sync(Resources &res, const State &state) final
   {
-    is_space_image_ = state.is_space_image();
+    is_3d_grid_ = state.is_space_v3d();
 
-    enabled_ = init(state);
+    enabled_ = !state.is_space_node() && init(state);
     if (!enabled_) {
       grid_ps_.init();
       return;
     }
 
     GPUTexture **depth_tx = state.xray_enabled ? &res.xray_depth_tx : &res.depth_tx;
-    GPUTexture **depth_infront_tx = &res.depth_target_in_front_tx;
+    GPUTexture **depth_infront_tx = state.use_in_front ? &res.depth_target_in_front_tx :
+                                                         &res.dummy_depth_tx;
 
     grid_ps_.init();
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
@@ -137,7 +138,7 @@ class Grid : Overlay {
     grid_flag_ = zneg_flag_ = zpos_flag_ = 0;
     show_axis_z_ = false;
 
-    return (state.is_space_image()) ? init_2d(state) : init_3d(state);
+    return (is_3d_grid_) ? init_3d(state) : init_2d(state);
   }
 
   void copy_steps_to_data(Span<float> grid_steps_x, Span<float> grid_steps_y)
@@ -247,7 +248,7 @@ class Grid : Overlay {
 
     /* Z axis if needed */
     if (((rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO)) && show_axis_z) {
-      zpos_flag_ = SHOW_AXIS_Z;
+      zpos_flag_ = zneg_flag_ = SHOW_AXIS_Z;
     }
     else {
       zneg_flag_ = zpos_flag_ = CLIP_ZNEG | CLIP_ZPOS;
@@ -275,7 +276,7 @@ class Grid : Overlay {
   /* Update data that depends on the view. */
   void sync_view(const View &view)
   {
-    if (is_space_image_) {
+    if (!is_3d_grid_) {
       return;
     }
 

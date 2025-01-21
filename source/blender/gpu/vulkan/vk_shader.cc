@@ -839,7 +839,6 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
 {
   std::stringstream ss;
   std::string post_main;
-  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
 
   ss << "\n/* Inputs. */\n";
   for (const ShaderCreateInfo::VertIn &attr : info.vertex_inputs_) {
@@ -851,20 +850,31 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
   for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
     print_interface(ss, "out", *iface, location);
   }
-  if (workarounds.shader_output_layer && bool(info.builtins_ & BuiltinBits::LAYER)) {
-    ss << "layout(location=" << (location++) << ") out int gpu_Layer;\n ";
+
+  const bool has_geometry_stage = do_geometry_shader_injection(&info) ||
+                                  !info.geometry_source_.is_empty();
+  const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
+  const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
+  if (has_geometry_stage) {
+    if (do_layer_output) {
+      ss << "layout(location=" << (location++) << ") out int gpu_Layer;\n ";
+    }
+    if (do_viewport_output) {
+      ss << "layout(location=" << (location++) << ") out int gpu_ViewportIndex;\n";
+    }
   }
-  if (workarounds.shader_output_viewport_index &&
-      bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX))
-  {
-    ss << "layout(location=" << (location++) << ") out int gpu_ViewportIndex;\n";
+  else {
+    if (do_layer_output) {
+      ss << "#define gpu_Layer gl_Layer\n";
+    }
+    if (do_viewport_output) {
+      ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
+    }
   }
   ss << "\n";
 
   /* Retarget depth from -1..1 to 0..1. This will be done by geometry stage, when geometry shaders
    * are used. */
-  const bool has_geometry_stage = do_geometry_shader_injection(&info) ||
-                                  !info.geometry_source_.is_empty();
   const bool retarget_depth = !has_geometry_stage;
   if (retarget_depth) {
     post_main += "gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5;\n";
@@ -938,12 +948,10 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
   for (const StageInterfaceInfo *iface : in_interfaces) {
     print_interface(ss, "in", *iface, location);
   }
-  if (workarounds.shader_output_layer && bool(info.builtins_ & BuiltinBits::LAYER)) {
+  if (bool(info.builtins_ & BuiltinBits::LAYER)) {
     ss << "#define gpu_Layer gl_Layer\n";
   }
-  if (workarounds.shader_output_viewport_index &&
-      bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX))
-  {
+  if (bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX)) {
     ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
 
@@ -965,8 +973,46 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
 
   ss << "\n/* Sub-pass Inputs. */\n";
   const VKShaderInterface &interface = interface_get();
+  const bool use_local_read = !workarounds.dynamic_rendering_local_read;
   const bool use_dynamic_rendering = !workarounds.dynamic_rendering;
-  if (use_dynamic_rendering) {
+
+  if (use_local_read) {
+    uint32_t subpass_input_binding_index = 0;
+    for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
+      std::string input_attachment_name = "gpu_input_attachment_";
+      input_attachment_name += std::to_string(input.index);
+
+      /* Declare global for input. */
+      ss << to_string(input.type) << " " << input.name << ";\n";
+
+      Type component_type = to_component_type(input.type);
+      char typePrefix;
+      switch (component_type) {
+        case Type::INT:
+          typePrefix = 'i';
+          break;
+        case Type::UINT:
+          typePrefix = 'u';
+          break;
+        default:
+          typePrefix = ' ';
+          break;
+      }
+      ss << "layout(input_attachment_index = " << (input.index)
+         << ", binding = " << (subpass_input_binding_index++) << ") uniform " << typePrefix
+         << "subpassInput " << input_attachment_name << "; \n";
+
+      std::stringstream ss_pre;
+      static const std::string swizzle = "xyzw";
+      /* Populate the global before main using subpassLoad. */
+      ss_pre << "  " << input.name << " = " << input.type << "( subpassLoad("
+             << input_attachment_name << ")." << swizzle.substr(0, to_component_count(input.type))
+             << " ); \n";
+
+      pre_main += ss_pre.str();
+    }
+  }
+  else if (use_dynamic_rendering) {
     for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
       std::string image_name = "gpu_subpass_img_";
       image_name += std::to_string(input.index);
@@ -1184,10 +1230,8 @@ std::string VKShader::workaround_geometry_shader_source_create(
   std::stringstream ss;
   const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
 
-  const bool do_layer_workaround = workarounds.shader_output_layer &&
-                                   bool(info.builtins_ & BuiltinBits::LAYER);
-  const bool do_viewport_workaround = workarounds.shader_output_viewport_index &&
-                                      bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
+  const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
+  const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
   const bool do_barycentric_workaround = workarounds.fragment_shader_barycentric &&
                                          bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD);
 
@@ -1210,10 +1254,10 @@ std::string VKShader::workaround_geometry_shader_source_create(
 
   int location_in = location;
   int location_out = location;
-  if (do_layer_workaround) {
+  if (do_layer_output) {
     ss << "layout(location=" << (location_in++) << ") in int gpu_Layer[];\n";
   }
-  if (do_viewport_workaround) {
+  if (do_viewport_output) {
     ss << "layout(location=" << (location_in++) << ") in int gpu_ViewportIndex[];\n";
   }
   if (do_barycentric_workaround) {
@@ -1237,10 +1281,10 @@ std::string VKShader::workaround_geometry_shader_source_create(
       ss << " vec3(" << int(i == 0) << ", " << int(i == 1) << ", " << int(i == 2) << ");\n";
     }
     ss << "  gl_Position = gl_in[" << i << "].gl_Position;\n";
-    if (do_layer_workaround) {
+    if (do_layer_output) {
       ss << "  gl_Layer = gpu_Layer[" << i << "];\n";
     }
-    if (do_viewport_workaround) {
+    if (do_viewport_output) {
       ss << "  gl_ViewportIndex = gpu_ViewportIndex[" << i << "];\n";
     }
     ss << "  gpu_EmitVertex();\n";

@@ -331,30 +331,49 @@ static void set_load_store(VkRenderingAttachmentInfo &r_rendering_attachment,
 void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attachment_state,
                                             Span<GPUAttachmentState> color_attachment_states)
 {
-  /* TODO: this is a fallback implementation. We should also provide support for
-   * `VK_EXT_dynamic_rendering_local_read`. This extension is only supported on Windows
-   * platforms (2024Q2), but would reduce the rendering synchronization overhead. */
-  VKContext &context = *VKContext::get();
-  if (is_rendering_) {
-    rendering_end(context);
-
-    /* TODO: this might need a better implementation:
-     * READ -> DONTCARE
-     * WRITE -> LOAD, STORE based on previous value.
-     * IGNORE -> DONTCARE -> IGNORE */
-    load_stores.fill(default_load_store());
-  }
+  const VKDevice &device = VKBackend::get().device;
+  const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
 
   attachment_states_[GPU_FB_DEPTH_ATTACHMENT] = depth_attachment_state;
   attachment_states_.as_mutable_span()
       .slice(GPU_FB_COLOR_ATTACHMENT0, color_attachment_states.size())
       .copy_from(color_attachment_states);
-  for (int index : IndexRange(color_attachment_states.size())) {
-    if (color_attachment_states[index] == GPU_ATTACHMENT_READ) {
-      VKTexture *texture = unwrap(unwrap(color_tex(index)));
-      if (texture) {
-        context.state_manager_get().texture_bind(
-            texture, GPUSamplerState::default_sampler(), index);
+
+  if (supports_local_read) {
+    VKContext &context = *VKContext::get();
+
+    for (int index : IndexRange(color_attachment_states.size())) {
+      if (color_attachment_states[index] == GPU_ATTACHMENT_READ) {
+        VKTexture *texture = unwrap(unwrap(color_tex(index)));
+        if (texture) {
+          context.state_manager_get().image_bind(texture, index);
+        }
+      }
+    }
+    if (is_rendering_) {
+      is_rendering_ = false;
+      load_stores.fill(default_load_store());
+    }
+  }
+  else {
+    VKContext &context = *VKContext::get();
+    if (is_rendering_) {
+      rendering_end(context);
+
+      /* TODO: this might need a better implementation:
+       * READ -> DONTCARE
+       * WRITE -> LOAD, STORE based on previous value.
+       * IGNORE -> DONTCARE -> IGNORE */
+      load_stores.fill(default_load_store());
+    }
+
+    for (int index : IndexRange(color_attachment_states.size())) {
+      if (color_attachment_states[index] == GPU_ATTACHMENT_READ) {
+        VKTexture *texture = unwrap(unwrap(color_tex(index)));
+        if (texture) {
+          context.state_manager_get().texture_bind(
+              texture, GPUSamplerState::default_sampler(), index);
+        }
       }
     }
   }
@@ -593,6 +612,9 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
       continue;
     }
     VKTexture &color_texture = *unwrap(unwrap(attachment.tex));
+    BLI_assert_msg(color_texture.usage_get() & GPU_TEXTURE_USAGE_ATTACHMENT,
+                   "Texture is used as an attachment, but doesn't have the "
+                   "GPU_TEXTURE_USAGE_ATTACHMENT flag.");
     GPUAttachmentState attachment_state = attachment_states_[color_attachment_index];
     uint32_t layer_base = max_ii(attachment.layer, 0);
     int layer_count = color_texture.layer_count();
@@ -670,6 +692,9 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
     has_depth_attachment = true;
     bool is_stencil_attachment = depth_attachment_index == GPU_FB_DEPTH_STENCIL_ATTACHMENT;
     VKTexture &depth_texture = *unwrap(unwrap(attachment.tex));
+    BLI_assert_msg(depth_texture.usage_get() & GPU_TEXTURE_USAGE_ATTACHMENT,
+                   "Texture is used as an attachment, but doesn't have the "
+                   "GPU_TEXTURE_USAGE_ATTACHMENT flag.");
     VkImageAspectFlags depth_texture_aspect = to_vk_image_aspect_flag_bits(
         depth_texture.device_format_get());
     bool is_depth_stencil_attachment = depth_texture_aspect & VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -796,6 +821,9 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
 void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
                                                        const VKWorkarounds &workarounds)
 {
+  const VKDevice &device = VKBackend::get().device;
+  const bool supports_local_read = !device.workarounds_get().dynamic_rendering_local_read;
+
   depth_attachment_format_ = VK_FORMAT_UNDEFINED;
   stencil_attachment_format_ = VK_FORMAT_UNDEFINED;
 
@@ -815,6 +843,9 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     }
 
     VKTexture &color_texture = *unwrap(unwrap(attachment.tex));
+    BLI_assert_msg(color_texture.usage_get() & GPU_TEXTURE_USAGE_ATTACHMENT,
+                   "Texture is used as an attachment, but doesn't have the "
+                   "GPU_TEXTURE_USAGE_ATTACHMENT flag.");
     /* To support `gpu_Layer` we need to set the layerCount to the number of layers it can
      * access.
      */
@@ -848,7 +879,8 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
       vk_format = image_view.vk_format();
     }
     attachment_info.imageView = vk_image_view;
-    attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    attachment_info.imageLayout = supports_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
+                                                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     set_load_store(attachment_info, load_stores[color_attachment_index]);
 
     access_info.images.append(
@@ -874,6 +906,9 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     }
     bool is_stencil_attachment = depth_attachment_index == GPU_FB_DEPTH_STENCIL_ATTACHMENT;
     VKTexture &depth_texture = *unwrap(unwrap(attachment.tex));
+    BLI_assert_msg(depth_texture.usage_get() & GPU_TEXTURE_USAGE_ATTACHMENT,
+                   "Texture is used as an attachment, but doesn't have the "
+                   "GPU_TEXTURE_USAGE_ATTACHMENT flag.");
     bool is_depth_stencil_attachment = to_vk_image_aspect_flag_bits(
                                            depth_texture.device_format_get()) &
                                        VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -940,8 +975,12 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
 
 void VKFrameBuffer::rendering_ensure(VKContext &context)
 {
-  if (is_rendering_) {
+  if (!dirty_state_ && is_rendering_) {
     return;
+  }
+
+  if (is_rendering_) {
+    rendering_end(context);
   }
 
 #ifndef NDEBUG

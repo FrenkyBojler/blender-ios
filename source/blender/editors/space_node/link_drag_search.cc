@@ -13,6 +13,7 @@
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_screen.hh"
@@ -99,11 +100,11 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
   bNode &group_input = params.add_node("NodeGroupInput");
 
   /* This is necessary to create the new sockets in the other input nodes. */
-  ED_node_tree_propagate_change(&params.C, CTX_data_main(&params.C), &params.node_tree);
+  BKE_main_ensure_invariants(*CTX_data_main(&params.C), params.node_tree.id);
 
   /* Hide the new input in all other group input nodes, to avoid making them taller. */
   for (bNode *node : params.node_tree.all_nodes()) {
-    if (node->type == NODE_GROUP_INPUT) {
+    if (node->is_group_input()) {
       bNodeSocket *new_group_input_socket = bke::node_find_socket(
           node, SOCK_OUT, socket_iface->identifier);
       if (new_group_input_socket) {
@@ -262,7 +263,7 @@ static void gather_socket_link_operations(const bContext &C,
                                           Vector<SocketLinkOperation> &search_link_ops)
 {
   const SpaceNode &snode = *CTX_wm_space_node(&C);
-  NODE_TYPES_BEGIN (node_type) {
+  for (const bke::bNodeType *node_type : bke::node_types_get()) {
     const char *disabled_hint;
     if (node_type->poll && !node_type->poll(node_type, &node_tree, &disabled_hint)) {
       continue;
@@ -279,7 +280,6 @@ static void gather_socket_link_operations(const bContext &C,
       node_type->gather_link_search_ops(params);
     }
   }
-  NODE_TYPES_END;
 
   search_link_ops.append({IFACE_("Reroute"), add_reroute_node_fn});
 
@@ -374,10 +374,10 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
   BLI_assert(new_nodes.size() == 1);
   bNode *new_node = new_nodes.first();
 
-  new_node->locx = storage.cursor.x / UI_SCALE_FAC;
-  new_node->locy = storage.cursor.y / UI_SCALE_FAC + 20;
+  new_node->location[0] = storage.cursor.x / UI_SCALE_FAC;
+  new_node->location[1] = storage.cursor.y / UI_SCALE_FAC + 20;
   if (storage.in_out() == SOCK_IN) {
-    new_node->locx -= new_node->width;
+    new_node->location[0] -= new_node->width;
   }
 
   bke::node_set_selected(new_node, true);
@@ -385,7 +385,7 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
 
   /* Ideally it would be possible to tag the node tree in some way so it updates only after the
    * translate operation is finished, but normally moving nodes around doesn't cause updates. */
-  ED_node_tree_propagate_change(C, &bmain, &node_tree);
+  BKE_main_ensure_invariants(bmain, node_tree.id);
 
   /* Start translation operator with the new node. */
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_translate_attach_remove_on_cancel", true);
