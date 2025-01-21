@@ -29,6 +29,7 @@ else()
       -DOIDN_DEVICE_SYCL=ON
       -DOIDN_DEVICE_SYCL_AOT=OFF
       -DOIDN_DEVICE_CUDA=ON
+      -DCUDAToolkit_ROOT=${CUDAToolkit_ROOT}
       -DOIDN_DEVICE_HIP=ON)
   elseif(UNIX)
     set(OIDN_EXTRA_ARGS
