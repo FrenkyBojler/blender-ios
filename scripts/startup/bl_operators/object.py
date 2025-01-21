@@ -242,6 +242,12 @@ class SubdivisionSet(Operator):
         obs = context.selected_editable_objects
         return (obs is not None)
 
+    def invoke(self, context, event):
+        if not self.properties.is_property_set("render_level"):
+            self.render_level = 2
+
+        return self.execute(context)
+
     def execute(self, context):
         level = self.level
         render_level = self.render_level
@@ -271,7 +277,8 @@ class SubdivisionSet(Operator):
                         elif obj.mode == 'OBJECT':
                             if mod.levels != level:
                                 mod.levels = level
-                            mod.render_levels = render_level
+                            if mod.render_levels != render_level:
+                                mod.render_levels = render_level
                         return
                     else:
                         if obj.mode == 'SCULPT':
@@ -287,8 +294,10 @@ class SubdivisionSet(Operator):
                         mod.levels += level
                         mod.render_levels += render_level
                     else:
-                        mod.levels = level
-                        mod.render_levels = render_level
+                        if mod.levels != level:
+                            mod.levels = level
+                        if mod.render_levels != render_level:
+                            mod.render_levels = render_level
 
                     return
 
