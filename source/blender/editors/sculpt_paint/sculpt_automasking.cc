@@ -1730,7 +1730,7 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
 }
 
 void Cache::calc_cavity_factor(const Depsgraph &depsgraph,
-                               Object &object,
+                               const Object &object,
                                const IndexMask &node_mask)
 {
   if ((this->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) == 0) {
@@ -1740,10 +1740,10 @@ void Cache::calc_cavity_factor(const Depsgraph &depsgraph,
   BLI_assert(!this->cavity_factor.is_empty());
 
   const SculptSession &ss = *object.sculpt;
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
+      const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         const Span<int> verts = nodes[i].verts();
         for (const int vert : verts) {
@@ -1755,7 +1755,7 @@ void Cache::calc_cavity_factor(const Depsgraph &depsgraph,
     case bke::pbvh::Type::Grids: {
       const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-      MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
+      const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         const Span<int> grids = nodes[i].grids();
         for (const int grid : grids) {
@@ -1767,7 +1767,7 @@ void Cache::calc_cavity_factor(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
+      const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         const Set<BMVert *, 0> verts = nodes[i].bm_unique_verts_;
         for (BMVert *vert : verts) {

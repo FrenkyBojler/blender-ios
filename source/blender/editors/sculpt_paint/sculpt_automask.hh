@@ -87,7 +87,9 @@ struct Cache {
    *
    * \note Should be called prior to any call that may use the cavity mode.
    */
-  void calc_cavity_factor(const Depsgraph &depsgraph, Object &object, const IndexMask &node_mask);
+  void calc_cavity_factor(const Depsgraph &depsgraph,
+                          const Object &object,
+                          const IndexMask &node_mask);
 };
 
 /**
