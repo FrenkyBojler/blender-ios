@@ -152,6 +152,12 @@ typedef struct CurvesGeometry {
    */
   CurvesGeometryRuntimeHandle *runtime;
 
+  float *custom_knots;
+
+  int custom_knot_num;
+
+  int32_t _pad;
+
 #ifdef __cplusplus
   blender::bke::CurvesGeometry &wrap();
   const blender::bke::CurvesGeometry &wrap() const;

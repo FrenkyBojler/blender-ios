@@ -47,7 +47,6 @@ constexpr StringRef ATTR_HANDLE_TYPE_RIGHT = "handle_type_right";
 constexpr StringRef ATTR_HANDLE_POSITION_LEFT = "handle_left";
 constexpr StringRef ATTR_HANDLE_POSITION_RIGHT = "handle_right";
 constexpr StringRef ATTR_NURBS_ORDER = "nurbs_order";
-constexpr StringRef ATTR_NURBS_KNOT_SPAN = "nurbs_knot_span";
 constexpr StringRef ATTR_NURBS_WEIGHT = "nurbs_weight";
 constexpr StringRef ATTR_NURBS_KNOTS_MODE = "knots_mode";
 constexpr StringRef ATTR_SURFACE_UV_COORDINATE = "surface_uv_coordinate";
@@ -70,6 +69,9 @@ CurvesGeometry::CurvesGeometry(const int point_num, const int curve_num)
 
   this->attributes_for_write().add<float3>(
       "position", AttrDomain::Point, AttributeInitConstruct());
+
+  this->custom_knots = nullptr;
+  this->custom_knot_num = 0;
 
   if (curve_num > 0) {
     this->curve_offsets = static_cast<int *>(
@@ -98,6 +100,12 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
     other.runtime->curve_offsets_sharing_info->add_user();
   }
 
+  this->custom_knots = other.custom_knots;
+  this->custom_knot_num = other.custom_knot_num;
+  if (other.runtime->custom_knots_sharing_info) {
+    other.runtime->custom_knots_sharing_info->add_user();
+  }
+
   CustomData_init_from(&other.point_data, &this->point_data, CD_MASK_ALL, other.point_num);
   CustomData_init_from(&other.curve_data, &this->curve_data, CD_MASK_ALL, other.curve_num);
 
@@ -112,6 +120,7 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
   this->runtime = MEM_new<CurvesGeometryRuntime>(
       __func__,
       CurvesGeometryRuntime{other.runtime->curve_offsets_sharing_info,
+                            other.runtime->custom_knots_sharing_info,
                             other.runtime->type_counts,
                             other.runtime->evaluated_offsets_cache,
                             other.runtime->nurbs_basis_cache,
@@ -187,6 +196,9 @@ CurvesGeometry::~CurvesGeometry()
   if (this->runtime) {
     implicit_sharing::free_shared_data(&this->curve_offsets,
                                        &this->runtime->curve_offsets_sharing_info);
+
+    implicit_sharing::free_shared_data(&this->custom_knots,
+                                       &this->runtime->custom_knots_sharing_info);
     MEM_delete(this->runtime);
   }
 }
@@ -486,14 +498,31 @@ MutableSpan<float2> CurvesGeometry::surface_uv_coords_for_write()
   return get_mutable_attribute<float2>(*this, AttrDomain::Curve, ATTR_SURFACE_UV_COORDINATE);
 }
 
-Span<float> CurvesGeometry::nurbs_knot_spans() const
+Span<float> CurvesGeometry::nurbs_custom_knots() const
 {
-  return get_span_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_KNOT_SPAN);
+  if (this->custom_knot_num == 0) {
+    return {};
+  }
+  return {this->custom_knots, this->custom_knot_num};
 }
 
-MutableSpan<float> CurvesGeometry::nurbs_knot_spans_for_write()
+MutableSpan<float> CurvesGeometry::nurbs_custom_knots_for_write()
 {
-  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_KNOT_SPAN);
+  if (this->custom_knot_num == 0) {
+    return {};
+  }
+  implicit_sharing::make_trivial_data_mutable(
+      &this->custom_knots, &this->runtime->custom_knots_sharing_info, this->custom_knot_num);
+  return {this->custom_knots, this->custom_knot_num};
+}
+
+void CurvesGeometry::nurbs_custom_knots_resize(int knots_num)
+{
+  implicit_sharing::resize_trivial_array(&this->custom_knots,
+                                         &this->runtime->custom_knots_sharing_info,
+                                         this->custom_knot_num,
+                                         knots_num);
+  this->custom_knot_num = knots_num;
 }
 
 Span<MDeformVert> CurvesGeometry::deform_verts() const
@@ -650,7 +679,8 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
     const VArray<bool> cyclic = this->cyclic();
     const VArray<int8_t> orders = this->nurbs_orders();
     const VArray<int8_t> knots_modes = this->nurbs_knots_modes();
-    const Span<float> knot_spans = this->nurbs_knot_spans();
+    const Span<float> custom_knots = this->nurbs_custom_knots();
+    int custom_knots_offset = 0;
 
     nurbs_mask.foreach_segment(GrainSize(64), [&](const IndexMaskSegment segment) {
       Vector<float, 32> knots;
@@ -666,10 +696,11 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
           r_data[curve_index].invalid = true;
           continue;
         }
-
-        knots.reinitialize(curves::nurbs::knots_num(points.size(), order, is_cyclic));
+        const int knots_num = curves::nurbs::knots_num(points.size(), order, is_cyclic);
+        knots.reinitialize(knots_num);
         if (mode == NURBS_KNOT_MODE_CUSTOM) {
-          curves::nurbs::spans_to_knots(order, knot_spans.slice(points), knots);
+          knots.as_mutable_span().copy_from(custom_knots.slice(custom_knots_offset, knots_num));
+          custom_knots_offset += knots_num;
         }
         else {
           curves::nurbs::calculate_knots(points.size(), mode, order, is_cyclic, knots);
@@ -1289,27 +1320,6 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
   IndexMaskMemory memory;
   const IndexMask points_to_copy = points_to_delete.complement(this->points_range(), memory);
   *this = curves_copy_point_selection(*this, points_to_copy, attribute_filter);
-  ensure_non_cyclic_clamped(this->curves_range(), *this);
-}
-
-void ensure_non_cyclic_clamped(const IndexMask &selection, bke::CurvesGeometry &curves)
-{
-  if (!curves.attributes().contains(ATTR_NURBS_KNOT_SPAN)) {
-    return;
-  }
-  const VArray<int8_t> nurbs_knots_modes = curves.nurbs_knots_modes();
-  const VArray<bool> cyclic = curves.cyclic();
-  const OffsetIndices points_by_curve = curves.points_by_curve();
-  const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
-  MutableSpan<float> knot_spans = curves.nurbs_knot_spans_for_write();
-
-  selection.foreach_index(GrainSize(256), [&](const int curve) {
-    if (!cyclic[curve] && nurbs_knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
-      MutableSpan<float> curve_knot_spans = knot_spans.slice(points_by_curve[curve]);
-      curve_knot_spans[0] = 0.0f;
-      curve_knot_spans.take_back(nurbs_orders[curve] - 2).fill(0.0f);
-    }
-  });
 }
 
 CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,
@@ -1462,7 +1472,6 @@ void CurvesGeometry::remove_attributes_based_on_types()
     attributes.remove(ATTR_NURBS_WEIGHT);
     attributes.remove(ATTR_NURBS_ORDER);
     attributes.remove(ATTR_NURBS_KNOTS_MODE);
-    attributes.remove(ATTR_NURBS_KNOT_SPAN);
   }
   if (!this->has_curve_with_type({CURVE_TYPE_BEZIER, CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_NURBS})) {
     attributes.remove(ATTR_RESOLUTION);

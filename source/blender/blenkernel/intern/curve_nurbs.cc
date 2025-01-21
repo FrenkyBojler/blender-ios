@@ -52,34 +52,6 @@ int knots_num(const int points_num, const int8_t order, const bool cyclic)
   return points_num + order;
 }
 
-void knots_to_spans(const int8_t order, const Span<float> knots, MutableSpan<float> knot_spans)
-{
-  BLI_assert(order > 1);
-  BLI_assert(knots.size() == knot_spans.size() + order);
-
-  const int8_t degree = order - 1;
-  for (const int i : knot_spans.index_range()) {
-    knot_spans[i] = knots[i + degree] - knots[i + degree - 1];
-  }
-}
-
-void spans_to_knots(const int8_t order, const Span<float> knot_spans, MutableSpan<float> knots)
-{
-  BLI_assert(order > 1);
-  BLI_assert(knots.size() == knot_spans.size() + order);
-  const int8_t degree = order - 1;
-
-  knots[0] = 0.0f;
-  Span<float> knot_spans_tail = knot_spans.slice(knot_spans.size() - degree, degree);
-  for (const int i : IndexRange::from_begin_size(1, degree - 1)) {
-    knots[i] = knots[i - 1] + knot_spans_tail[i];
-  }
-
-  for (const int i : IndexRange::from_begin_end(degree, knots.size())) {
-    knots[i] = knots[i - 1] + knot_spans[(i - degree) % knot_spans.size()];
-  }
-}
-
 void calculate_knots(const int points_num,
                      const KnotsMode mode,
                      const int8_t order,

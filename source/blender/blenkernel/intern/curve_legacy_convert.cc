@@ -175,7 +175,7 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
     MutableSpan<int8_t> nurbs_orders = curves.nurbs_orders_for_write();
     MutableSpan<int8_t> nurbs_knots_modes = curves.nurbs_knots_modes_for_write();
 
-    std::atomic<bool> has_custom_knot_curves = false;
+    std::atomic<int> custom_knot_count = 0;
 
     selection.foreach_index(GrainSize(256), [&](const int curve_i) {
       const Nurb &src_curve = *src_curves[curve_i];
@@ -186,7 +186,7 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
       nurbs_orders[curve_i] = src_curve.orderu;
       nurbs_knots_modes[curve_i] = knots_mode_from_legacy(src_curve.flagu);
       if (nurbs_knots_modes[curve_i] & NURBS_KNOT_MODE_CUSTOM) {
-        has_custom_knot_curves = true;
+        custom_knot_count += KNOTSU(&src_curve);
       }
 
       for (const int i : src_points.index_range()) {
@@ -198,20 +198,21 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
       }
     });
 
-    if (!has_custom_knot_curves) {
+    if (custom_knot_count == 0) {
       return;
     }
 
-    MutableSpan<float> knot_spans = curves.nurbs_knot_spans_for_write();
-    selection.foreach_index(GrainSize(256), [&](const int curve_i) {
+    curves.nurbs_custom_knots_resize(custom_knot_count);
+    int custom_knots_offset = 0;
+    MutableSpan<float> custom_knots = curves.nurbs_custom_knots_for_write();
+    selection.foreach_index([&](const int curve_i) {
       if (nurbs_knots_modes[curve_i] & NURBS_KNOT_MODE_CUSTOM) {
         const Nurb &src_curve = *src_curves[curve_i];
-        const Span src_points(src_curve.bp, src_curve.pntsu);
-        const IndexRange points = points_by_curve[curve_i];
+        const int knots_num = KNOTSU(&src_curve);
 
-        curves::nurbs::knots_to_spans(src_curve.orderu,
-                                      Span<float>(src_curve.knotsu, KNOTSU(&src_curve)),
-                                      knot_spans.slice(points));
+        custom_knots.slice(custom_knots_offset, knots_num)
+            .copy_from(Span<float>(src_curve.knotsu, knots_num));
+        custom_knots_offset += knots_num;
       }
     });
   };

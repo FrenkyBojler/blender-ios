@@ -279,12 +279,13 @@ static void populate_curve_props_for_nurbs(const bke::CurvesGeometry &curves,
   orders.resize(num_curves);
 
   const Span<float3> positions = curves.positions();
-  const Span<float> knot_spans = curves.nurbs_knot_spans();
+  const Span<float> custom_knots = curves.nurbs_custom_knots();
 
   VArray<int8_t> geom_orders = curves.nurbs_orders();
   VArray<int8_t> knots_modes = curves.nurbs_knots_modes();
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
+  int custom_knots_offset = 0;
   for (const int i_curve : curves.curves_range()) {
     const IndexRange points = points_by_curve[i_curve];
     for (const int i_point : points) {
@@ -304,7 +305,8 @@ static void populate_curve_props_for_nurbs(const bke::CurvesGeometry &curves,
     Array<float> temp_knots(knots_num);
 
     if (mode == NURBS_KNOT_MODE_CUSTOM) {
-      bke::curves::nurbs::spans_to_knots(order, knot_spans.slice(points), temp_knots);
+      temp_knots.as_mutable_span().copy_from(custom_knots.slice(custom_knots_offset, knots_num));
+      custom_knots_offset += knots_num;
     }
     else {
       bke::curves::nurbs::calculate_knots(tot_points, mode, order, is_cyclic, temp_knots);

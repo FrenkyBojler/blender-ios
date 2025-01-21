@@ -210,12 +210,12 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
                           const Span<int> new_offsets,
                           bke::CurvesGeometry &new_curves)
 {
-  const Span<float> knot_spans = curves.nurbs_knot_spans();
+  const Span<float> knot_spans = curves.nurbs_custom_knots();
   const VArray<bool> cyclic = curves.cyclic();
   const VArray<int8_t> orders = curves.nurbs_orders();
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
-  MutableSpan<float> new_knot_spans = new_curves.nurbs_knot_spans_for_write();
+  MutableSpan<float> new_knot_spans = new_curves.nurbs_custom_knots_for_write();
   custom_knot_curves.foreach_index(GrainSize(64), [&](const int64_t curve) {
     const IndexRange points = points_by_curve[curve];
     const int order = std::min(orders[curve], int8_t(points.size() + 1));

@@ -477,43 +477,4 @@ TEST(curves_geometry, BezierGenericEvaluation)
   }
 }
 
-TEST(curves_geometry, CustomKnots)
-{
-  /* 8 point order 4 curve knots. */
-  static const Span<float> custom_knots(
-      {0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 5.0f, 8.0f, 8.0f, 8.0f, 8.0f});
-  /* Spans between first 8 knots loop shifted to the left by (order - 2). */
-  static const Span<float> expected_spans({0.0f, 1.0f, 1.0f, 1.0f, 2.0f, 3.0f, 0.0f, 0.0f});
-  static const int order = 4;
-
-  Array<float> knot_spans(expected_spans.size());
-  curves::nurbs::knots_to_spans(order, custom_knots, knot_spans);
-  for (const int i : knot_spans.index_range()) {
-    EXPECT_NEAR(knot_spans[i], expected_spans[i], 1e-6f);
-  }
-
-  Array<float> expanded_knots(custom_knots.size());
-  curves::nurbs::spans_to_knots(order, knot_spans, expanded_knots);
-  for (const int i : expanded_knots.index_range()) {
-    EXPECT_NEAR(expanded_knots[i], custom_knots[i], 1e-6f);
-  }
-
-  /* 5 point order 4 curve knots. */
-  static const Span<float> custom_cyclic_knots(
-      {0.0f, 0.5f, 1.5f, 3.0f, 5.0f, 7.5f, 8.0f, 9.0f, 10.5f, 12.5f, 15.0f});
-  /* Spans between first 5 knots loop shifted to the left by (order - 2). */
-  static const Span<float> expected_cyclic_knot_spans{1.5f, 2.0f, 2.5f, 0.5f, 1.0f};
-
-  Array<float> cyclic_knot_spans(expected_cyclic_knot_spans.size());
-  curves::nurbs::knots_to_spans(order, custom_cyclic_knots, cyclic_knot_spans);
-  for (const int i : cyclic_knot_spans.index_range()) {
-    EXPECT_NEAR(cyclic_knot_spans[i], expected_cyclic_knot_spans[i], 1e-6f);
-  }
-
-  Array<float> expanded_cyclic_knots(custom_cyclic_knots.size());
-  curves::nurbs::spans_to_knots(order, cyclic_knot_spans, expanded_cyclic_knots);
-  for (const int i : expanded_cyclic_knots.index_range()) {
-    EXPECT_NEAR(expanded_cyclic_knots[i], custom_cyclic_knots[i], 1e-6f);
-  }
-}
 }  // namespace blender::bke::tests
