@@ -239,14 +239,14 @@ static std::ostream &operator<<(std::ostream &stream, const GPUOutput *output)
 static std::ostream &operator<<(std::ostream &stream, const blender::Span<float> &span)
 {
   stream << (eGPUType)span.size() << "(";
-  for (int i = 0; i < span.size(); i++) {
+  /* Use uint representation to allow exact same bit pattern even if NaN. This is
+   * because we can pass UINTs as floats for constants. */
+  const blender::Span<uint32_t> uint_span = span.cast<uint32_t>();
+  for (const uint32_t &element : uint_span) {
     char formatted_float[32];
-    /* Use uint representation to allow exact same bit pattern even if NaN. This is because we can
-     * pass UINTs as floats for constants. */
-    const uint32_t *uint_vec = reinterpret_cast<const uint32_t *>(span.data());
-    SNPRINTF(formatted_float, "uintBitsToFloat(%uu)", uint_vec[i]);
+    SNPRINTF(formatted_float, "uintBitsToFloat(%uu)", element);
     stream << formatted_float;
-    if (i < span.size() - 1) {
+    if (&element != &uint_span.last()) {
       stream << ", ";
     }
   }
