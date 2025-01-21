@@ -62,6 +62,9 @@ using EvaluationResult = std::variant<CombineFactors, OutputTranslations>;
 /**
  * Evaluates the Geometry Nodes node group associated with the specified brush in the given
  * context.
+ *
+ * TODO: Don't evaluate the node group once for every node. Instead evaluate it at the beginning of
+ * the stroke, and then just evaluate the field for every node by storing it in #StrokeCache.
  */
 static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                   const Object &object,
