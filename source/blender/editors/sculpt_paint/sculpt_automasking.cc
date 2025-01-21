@@ -1758,8 +1758,8 @@ void Cache::calc_cavity_factor(const Depsgraph &depsgraph,
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         const Span<int> grids = nodes[i].grids();
         for (const int grid : grids) {
-          for (const int offset : IndexRange(key.grid_area)) {
-            calc_cavity_factor_grids(key, *this, object, grid * key.grid_area + offset);
+          for (const int vert : bke::ccg::grid_range(subdiv_ccg.grid_area, grid)) {
+            calc_cavity_factor_grids(key, *this, object, vert);
           }
         }
       });
