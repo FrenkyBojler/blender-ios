@@ -113,7 +113,9 @@ def is_not_gpencil_edit_mode(context):
             'EDIT_GPENCIL',
             'PAINT_GREASE_PENCIL',
             'SCULPT_GREASE_PENCIL',
-            'WEIGHT_GREASE_PENCIL'})
+            'WEIGHT_GREASE_PENCIL',
+        }
+    )
     return not is_gpmode
 
 
@@ -893,8 +895,7 @@ class VIEW3D_PT_tools_weight_gradient(Panel, View3DPaintPanel):
         brush = settings.brush
 
         col = layout.column(align=True)
-        row = col.row(align=True)
-        row.prop(brush, "curve_preset", text="")
+        col.prop(brush, "curve_preset", expand=True)
 
         if brush.curve_preset == 'CUSTOM':
             layout.template_curve_mapping(brush, "curve", brush=True)

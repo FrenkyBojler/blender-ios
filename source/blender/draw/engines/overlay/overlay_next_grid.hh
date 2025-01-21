@@ -41,9 +41,9 @@ class Grid : Overlay {
 
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
-  int grid_flag_ = int(0);
-  int zneg_flag_ = int(0);
-  int zpos_flag_ = int(0);
+  int grid_flag_ = 0;
+  int zneg_flag_ = 0;
+  int zpos_flag_ = 0;
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -248,7 +248,7 @@ class Grid : Overlay {
 
     /* Z axis if needed */
     if (((rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO)) && show_axis_z) {
-      zpos_flag_ = SHOW_AXIS_Z;
+      zpos_flag_ = zneg_flag_ = SHOW_AXIS_Z;
     }
     else {
       zneg_flag_ = zpos_flag_ = CLIP_ZNEG | CLIP_ZPOS;
