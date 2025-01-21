@@ -455,10 +455,8 @@ TEST_F(ActionLayersTest, slot_move)
   Slot &slot_cube = action->slot_add_for_id(cube->id);
   Slot &slot_suzanne = action->slot_add_for_id(suzanne->id);
 
-  EXPECT_TRUE(assign_action(action, cube->id));
-  EXPECT_EQ(assign_action_slot(&slot_cube, cube->id), ActionSlotAssignmentResult::OK);
-  EXPECT_TRUE(assign_action(action, suzanne->id));
-  EXPECT_EQ(assign_action_slot(&slot_suzanne, suzanne->id), ActionSlotAssignmentResult::OK);
+  assign_action_and_slot(action, &slot_cube, cube->id);
+  assign_action_and_slot(action, &slot_suzanne, suzanne->id);
 
   const slot_handle_t handle_a = slot_a.handle;
   const slot_handle_t handle_b = slot_b.handle;
