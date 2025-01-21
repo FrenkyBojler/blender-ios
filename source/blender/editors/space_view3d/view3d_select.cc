@@ -569,7 +569,6 @@ static void do_lasso_tag_pose(ViewContext *vc,
                          V3D_PROJ_TEST_CLIP_DEFAULT | V3D_PROJ_TEST_CLIP_CONTENT_DEFAULT);
 }
 
-
 static bool do_lasso_select_objects(ViewContext *vc,
                                     const int mcoords[][2],
                                     const int mcoords_len,
@@ -582,18 +581,18 @@ static bool do_lasso_select_objects(ViewContext *vc,
     changed |= object_deselect_all_visible(vc->scene, vc->view_layer, vc->v3d);
   }
   BKE_view_layer_synced_ensure(vc->scene, vc->view_layer);
-  LISTBASE_FOREACH(Base*, base, BKE_view_layer_object_bases_get(vc->view_layer)) {
+  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(vc->view_layer)) {
     if (BASE_SELECTABLE(v3d, base)) { /* Use this to avoid unnecessary lasso look-ups. */
       float region_co[2];
       const bool is_select = base->flag & BASE_SELECTED;
       const bool is_inside = (ED_view3d_project_base(vc->region, base, region_co) ==
-        V3D_PROJ_RET_OK) &&
-        BLI_lasso_is_point_inside(mcoords,
-          mcoords_len,
-          int(region_co[0]),
-          int(region_co[1]),
-          /* Dummy value. */
-          INT_MAX);
+                              V3D_PROJ_RET_OK) &&
+                            BLI_lasso_is_point_inside(mcoords,
+                                                      mcoords_len,
+                                                      int(region_co[0]),
+                                                      int(region_co[1]),
+                                                      /* Dummy value. */
+                                                      INT_MAX);
       const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
       if (sel_op_result != -1) {
         ED_object_base_select(base, sel_op_result ? BA_SELECT : BA_DESELECT);
@@ -835,7 +834,7 @@ static bool do_lasso_select_mesh(ViewContext *vc,
 
   GPU_matrix_set(vc->rv3d->viewmat);
 
-  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d) && !(ts->select_through && ts->select_through_edit && ts->select_through_lasso);
+  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d);
 
   EditSelectBuf_Cache *esel = static_cast<EditSelectBuf_Cache *>(wm_userdata->data);
   if (use_zbuf) {
@@ -2194,6 +2193,40 @@ static int mixed_bones_object_selectbuffer_extended(ViewContext *vc,
       vc, buffer, buffer_len, mval, select_filter, do_nearest, true, false);
 
   return hits;
+}
+
+/**
+ * Compare result of 'GPU_select': 'GPUSelectResult',
+ * Needed for stable sorting, so cycling through all items near the cursor behaves predictably.
+ */
+static int gpu_select_buffer_depth_id_cmp(const void* sel_a_p, const void* sel_b_p)
+{
+  GPUSelectResult* a = (GPUSelectResult*)sel_a_p;
+  GPUSelectResult* b = (GPUSelectResult*)sel_b_p;
+
+  if (a->depth < b->depth) {
+    return -1;
+  }
+  if (a->depth > b->depth) {
+    return 1;
+  }
+
+  /* Depths match, sort by id. */
+  uint sel_a = a->id;
+  uint sel_b = b->id;
+
+#ifdef __BIG_ENDIAN__
+  BLI_endian_switch_uint32(&sel_a);
+  BLI_endian_switch_uint32(&sel_b);
+#endif
+
+  if (sel_a < sel_b) {
+    return -1;
+  }
+  if (sel_a > sel_b) {
+    return 1;
+  }
+  return 0;
 }
 
 /**
@@ -3786,8 +3819,7 @@ static bool do_mesh_box_select(ViewContext *vc,
 
   GPU_matrix_set(vc->rv3d->viewmat);
 
-  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d) &&
-                        !(ts->select_through && ts->select_through_edit && ts->select_through_box);
+  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d);
 
   EditSelectBuf_Cache *esel = static_cast<EditSelectBuf_Cache *>(wm_userdata->data);
   if (use_zbuf) {
@@ -4015,7 +4047,7 @@ static bool do_object_box_select(bContext *C,
   const eV3DSelectObjectFilter select_filter = ED_view3d_select_filter_from_mode(vc->scene,
                                                                                  vc->obact);
   const int hits = view3d_opengl_select(
-    vc, buffer, (totobj + MAXPICKELEMS), rect, VIEW3D_SELECT_ALL, select_filter);
+      vc, buffer, (totobj + MAXPICKELEMS), rect, VIEW3D_SELECT_ALL, select_filter);
   BKE_view_layer_synced_ensure(vc->scene, vc->view_layer);
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(vc->view_layer)) {
     base->object->id.tag &= ~LIB_TAG_DOIT;
@@ -4447,7 +4479,7 @@ static bool mesh_circle_select(ViewContext *vc,
 
   view3d_userdata_circleselect_init(&data, vc, select, mval, rad);
 
-  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d) && !(ts->select_through && ts->select_through_edit && ts->select_through_circle);
+  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d);
 
   if (use_zbuf) {
     if (wm_userdata->data == nullptr) {
