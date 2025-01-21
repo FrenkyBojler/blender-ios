@@ -587,12 +587,12 @@ static bool do_lasso_select_objects(ViewContext *vc,
       const bool is_select = base->flag & BASE_SELECTED;
       const bool is_inside = (ED_view3d_project_base(vc->region, base, region_co) ==
                               V3D_PROJ_RET_OK) &&
-                            BLI_lasso_is_point_inside(mcoords,
-                                                      mcoords_len,
-                                                      int(region_co[0]),
-                                                      int(region_co[1]),
-                                                      /* Dummy value. */
-                                                      INT_MAX);
+                             BLI_lasso_is_point_inside(mcoords,
+                                                       mcoords_len,
+                                                       int(region_co[0]),
+                                                       int(region_co[1]),
+                                                       /* Dummy value. */
+                                                       INT_MAX);
       const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
       if (sel_op_result != -1) {
         ED_object_base_select(base, sel_op_result ? BA_SELECT : BA_DESELECT);
@@ -2199,10 +2199,10 @@ static int mixed_bones_object_selectbuffer_extended(ViewContext *vc,
  * Compare result of 'GPU_select': 'GPUSelectResult',
  * Needed for stable sorting, so cycling through all items near the cursor behaves predictably.
  */
-static int gpu_select_buffer_depth_id_cmp(const void* sel_a_p, const void* sel_b_p)
+static int gpu_select_buffer_depth_id_cmp(const void *sel_a_p, const void *sel_b_p)
 {
-  GPUSelectResult* a = (GPUSelectResult*)sel_a_p;
-  GPUSelectResult* b = (GPUSelectResult*)sel_b_p;
+  GPUSelectResult *a = (GPUSelectResult *)sel_a_p;
+  GPUSelectResult *b = (GPUSelectResult *)sel_b_p;
 
   if (a->depth < b->depth) {
     return -1;
