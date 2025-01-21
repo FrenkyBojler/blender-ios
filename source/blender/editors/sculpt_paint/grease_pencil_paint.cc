@@ -804,7 +804,9 @@ struct PaintOperationExecutor {
     const float2 coords = extension_sample.mouse_position;
     float3 position;
     if (self.placement_.use_project_to_stroke()) {
-      const std::optional<float> depth = self.placement_.get_depth(coords);
+      const std::optional<float> depth = self.stroke_placement_depths_.is_empty() ?
+                                             std::nullopt :
+                                             self.stroke_placement_depths_.last();
       if (depth) {
         position = self.placement_.place(coords, *depth);
       }
@@ -1021,7 +1023,22 @@ struct PaintOperationExecutor {
     const IndexRange smooth_window = self.screen_space_coords_orig_.index_range().drop_front(
         self.active_smooth_start_index_);
     if (smooth_window.size() < min_active_smoothing_points_num) {
-      self.placement_.project(new_screen_space_coords, new_positions);
+      if (self.placement_.use_project_to_stroke()) {
+        const Span<std::optional<float>> new_depths =
+            self.stroke_placement_depths_.as_mutable_span().take_back(new_points_num);
+        for (const int64_t i : new_positions.index_range()) {
+          const std::optional<float> depth = new_depths[i];
+          if (depth) {
+            new_positions[i] = self.placement_.place(coords, *depth);
+          }
+          else {
+            new_positions[i] = self.placement_.project(coords);
+          }
+        }
+      }
+      else {
+        self.placement_.project(new_screen_space_coords, new_positions);
+      }
     }
     else {
       /* Active smoothing is done in a window at the end of the new stroke.
