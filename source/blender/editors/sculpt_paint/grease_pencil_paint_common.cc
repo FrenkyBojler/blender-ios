@@ -713,7 +713,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
       if (use_auto_mask_stroke) {
         automask_info.point_mask = IndexMask::from_intersection(
             automask_info.point_mask,
-            IndexMask::from_offset_indices(curves.points_by_curve(), strokes_under_brush, memory),
+            IndexMask::from_ranges(curves.points_by_curve(), strokes_under_brush, memory),
             automask_info.memory);
       }
 
@@ -746,7 +746,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
 
       automask_info.point_mask = IndexMask::from_intersection(
           automask_info.point_mask,
-          IndexMask::from_offset_indices(curves.points_by_curve(), masked_curves, memory),
+          IndexMask::from_ranges(curves.points_by_curve(), masked_curves, memory),
           automask_info.memory);
     }
 
