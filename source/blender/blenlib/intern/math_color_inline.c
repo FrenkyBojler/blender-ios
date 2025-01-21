@@ -193,8 +193,8 @@ MINLINE void cpack_cpy_3ub(unsigned char r_col[3], const unsigned int pack)
 /** \name sRGB/Gray-Scale Functions
  *
  * \warning
- * Only use for use for colors known to be in sRGB space, like user interface and themes.
- * Scene should use #IMB_colormanagement_get_luminance instead.
+ * Only use for colors known to be in sRGB space, like user interface and themes.
+ * Scene color should use #IMB_colormanagement_get_luminance instead.
  *
  * \{ */
 

@@ -149,8 +149,8 @@ void rgba_float_to_uchar(unsigned char r_col[4], const float col_f[4]);
 /**
  * Compute luminance using Rec.709 primaries, for sRGB and linear Rec.709.
  *
- * Only use for use for colors known to be in sRGB space, like user interface and themes.
- * Scene should use #IMB_colormanagement_get_luminance instead.
+ * Only use for colors known to be in sRGB space, like user interface and themes.
+ * Scene colors should use #IMB_colormanagement_get_luminance instead.
  */
 MINLINE float srgb_to_grayscale(const float rgb[3]);
 MINLINE unsigned char srgb_to_grayscale_byte(const unsigned char rgb[3]);
