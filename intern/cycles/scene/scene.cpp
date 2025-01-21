@@ -456,6 +456,50 @@ void Scene::enable_update_stats()
   }
 }
 
+#ifdef WITH_METAL
+/* For object & primitive counts above a certain limit, MetalRT requires extended limits to be
+ * enabled at the kernel level, and when building BVHs. Following best practices, this should only
+ * be enabled when necessary. See
+ * https://developer.apple.com/documentation/metal/mtlaccelerationstructureusage/mtlaccelerationstructureusageextendedlimits?language=objc
+ */
+bool Scene::use_metalrt_extended_limits()
+{
+  /* Determine max prim count for all objects. */
+  size_t max_prim_count = 0;
+  for (Object *object : objects) {
+    Geometry *geom = object->get_geometry();
+    if (geom->is_mesh()) {
+      max_prim_count = max(max_prim_count, static_cast<Mesh *>(geom)->num_triangles());
+    }
+    else if (geom->is_hair()) {
+      max_prim_count = max(max_prim_count, static_cast<Hair *>(geom)->num_segments());
+    }
+    else if (geom->is_pointcloud()) {
+      max_prim_count = max(max_prim_count, static_cast<PointCloud *>(geom)->num_points());
+    }
+  }
+
+  /* Debug var to override best-practice logic. */
+  if (const char *str = getenv("CYCLES_METAL_EXTENDED_LIMITS")) {
+    if (atoi(str)) {
+      VLOG_INFO << "Force-enabling MetalRT extended limits";
+      return true;
+    }
+    VLOG_INFO << "Force-disabling MetalRT extended limits";
+    return false;
+  }
+
+  if (max_prim_count >= (1 << 28) || objects.size() >= (1 << 24)) {
+    VLOG_INFO << "Enabling MetalRT extended limits (prims:" << max_prim_count
+              << ", instances:" << objects.size() << ")";
+    return true;
+  }
+  VLOG_INFO << "Not enabling MetalRT extended limits (prims:" << max_prim_count
+            << ", instances:" << objects.size() << ")";
+  return false;
+}
+#endif
+
 void Scene::update_kernel_features()
 {
   if (!need_update()) {
@@ -472,6 +516,10 @@ void Scene::update_kernel_features()
   kernel_features |= KERNEL_FEATURE_PATH_TRACING;
   if (params.hair_shape == CURVE_THICK) {
     kernel_features |= KERNEL_FEATURE_HAIR_THICK;
+  }
+
+  if (use_metalrt_extended_limits()) {
+    kernel_features |= KERNEL_FEATURE_METALRT_EXTENDED_LIMITS;
   }
 
   /* Figure out whether the scene will use shader ray-trace we need at least

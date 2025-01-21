@@ -333,6 +333,9 @@ string MetalDevice::preprocess_source(MetalPipelineType pso_type,
     if (motion_blur) {
       global_defines += "#define __METALRT_MOTION__\n";
     }
+    if (kernel_features & KERNEL_FEATURE_METALRT_EXTENDED_LIMITS) {
+      global_defines += "#define __METALRT_EXTENDED_LIMITS__\n";
+    }
   }
 
 #  ifdef WITH_CYCLES_DEBUG
@@ -1434,6 +1437,7 @@ void MetalDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
     BVHMetal *bvh_metal = static_cast<BVHMetal *>(bvh);
     bvh_metal->motion_blur = motion_blur;
+    bvh_metal->extended_limits = (kernel_features & KERNEL_FEATURE_METALRT_EXTENDED_LIMITS);
     if (bvh_metal->build(progress, mtlDevice, mtlGeneralCommandQueue, refit)) {
 
       if (bvh->params.top_level) {

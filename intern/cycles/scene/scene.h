@@ -238,6 +238,15 @@ class Scene : public NodeOwner {
   bool kernels_loaded;
   uint loaded_kernel_features;
 
+#ifdef WITH_METAL
+  bool use_metalrt_extended_limits();
+#else
+  bool use_metalrt_extended_limits()
+  {
+    return false
+  }
+#endif
+
   void update_kernel_features();
 
   bool has_shadow_catcher_ = false;

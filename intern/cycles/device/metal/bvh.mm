@@ -276,7 +276,10 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
       accelDesc.motionEndBorderMode = MTLMotionBorderModeClamp;
       accelDesc.motionKeyframeCount = num_motion_steps;
     }
-    accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+
+    if (extended_limits) {
+      accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+    }
 
     if (!use_fast_trace_bvh) {
       accelDesc.usage |= (MTLAccelerationStructureUsageRefit |
@@ -613,7 +616,9 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       accelDesc.usage |= (MTLAccelerationStructureUsageRefit |
                           MTLAccelerationStructureUsagePreferFastBuild);
     }
-    accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+    if (extended_limits) {
+      accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+    }
 
     MTLAccelerationStructureSizes accelSizes = [mtl_device
         accelerationStructureSizesWithDescriptor:accelDesc];
@@ -845,7 +850,9 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
       //      accelDesc.motionEndBorderMode = MTLMotionBorderModeVanish;
       accelDesc.motionKeyframeCount = num_motion_steps;
     }
-    accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+    if (extended_limits) {
+      accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+    }
 
     if (!use_fast_trace_bvh) {
       accelDesc.usage |= (MTLAccelerationStructureUsageRefit |
@@ -969,8 +976,8 @@ bool BVHMetal::build_TLAS(Progress &progress,
 
   if (@available(macos 12.0, *)) {
     /* Defined inside available check, for return type to be available. */
-    auto make_null_BLAS = [](id<MTLDevice> mtl_device,
-                             id<MTLCommandQueue> queue) -> id<MTLAccelerationStructure> {
+    auto make_null_BLAS = [this](id<MTLDevice> mtl_device,
+                                 id<MTLCommandQueue> queue) -> id<MTLAccelerationStructure> {
       MTLResourceOptions storage_mode = MTLResourceStorageModeManaged;
       if (mtl_device.hasUnifiedMemory) {
         storage_mode = MTLResourceStorageModeShared;
@@ -995,7 +1002,9 @@ bool BVHMetal::build_TLAS(Progress &progress,
       MTLPrimitiveAccelerationStructureDescriptor *accelDesc =
           [MTLPrimitiveAccelerationStructureDescriptor descriptor];
       accelDesc.geometryDescriptors = @[ geomDesc ];
-      accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+      if (extended_limits) {
+        accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+      }
 
       MTLAccelerationStructureSizes accelSizes = [mtl_device
           accelerationStructureSizesWithDescriptor:accelDesc];
@@ -1248,7 +1257,9 @@ bool BVHMetal::build_TLAS(Progress &progress,
       accelDesc.motionTransformCount = num_motion_transforms;
     }
 
-    accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+    if (extended_limits) {
+      accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+    }
     if (!use_fast_trace_bvh) {
       accelDesc.usage |= (MTLAccelerationStructureUsageRefit |
                           MTLAccelerationStructureUsagePreferFastBuild);

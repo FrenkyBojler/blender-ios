@@ -135,7 +135,10 @@ enum {
   KERNEL_FEATURE_DENOISING = (1U << 29U),
 
   /* Light tree. */
-  KERNEL_FEATURE_LIGHT_TREE = (1U << 30U)
+  KERNEL_FEATURE_LIGHT_TREE = (1U << 30U),
+
+  /* Use MetalRT Extended Limits. */
+  KERNEL_FEATURE_METALRT_EXTENDED_LIMITS = (1U << 31U)
 };
 
 #define KERNEL_FEATURE_AO (KERNEL_FEATURE_AO_PASS | KERNEL_FEATURE_AO_ADDITIVE)
@@ -349,22 +352,29 @@ enum PathRayFlag : uint32_t {
    * Ray visibility.
    *
    * NOTE: Recalculated after a surface bounce.
+   *
+   * On MetalRT, up to 8 visibility bits are supported (unless Extended Limits are enabled).
+   * Ensure that the subset of flags actually used for visibility testing is within the first
+   * 8 bits. Note that PATH_RAY_ALL_VISIBILITY seems to embed some meaning beyond just "flags
+   * used for visibility filtering", because when we reduce this to (1<<8)-1, subtle artifacts
+   * are evident in some scenes, e.g. SSS on Monster.
    */
 
   PATH_RAY_CAMERA = (1U << 0U),
-  PATH_RAY_REFLECT = (1U << 1U),
-  PATH_RAY_TRANSMIT = (1U << 2U),
-  PATH_RAY_DIFFUSE = (1U << 3U),
-  PATH_RAY_GLOSSY = (1U << 4U),
-  PATH_RAY_SINGULAR = (1U << 5U),
-  PATH_RAY_TRANSPARENT = (1U << 6U),
-  PATH_RAY_VOLUME_SCATTER = (1U << 7U),
-  PATH_RAY_IMPORTANCE_BAKE = (1U << 8U),
+  PATH_RAY_TRANSMIT = (1U << 1U),
+  PATH_RAY_DIFFUSE = (1U << 2U),
+  PATH_RAY_GLOSSY = (1U << 3U),
+  PATH_RAY_TRANSPARENT = (1U << 4U),
+  PATH_RAY_VOLUME_SCATTER = (1U << 5U),
 
   /* Shadow ray visibility. */
-  PATH_RAY_SHADOW_OPAQUE = (1U << 9U),
-  PATH_RAY_SHADOW_TRANSPARENT = (1U << 10U),
+  PATH_RAY_SHADOW_OPAQUE = (1U << 6U),
+  PATH_RAY_SHADOW_TRANSPARENT = (1U << 7U),
   PATH_RAY_SHADOW = (PATH_RAY_SHADOW_OPAQUE | PATH_RAY_SHADOW_TRANSPARENT),
+
+  PATH_RAY_REFLECT = (1U << 8U),
+  PATH_RAY_SINGULAR = (1U << 9U),
+  PATH_RAY_IMPORTANCE_BAKE = (1U << 10U),
 
   /* Subset of flags used for ray visibility for intersection.
    *

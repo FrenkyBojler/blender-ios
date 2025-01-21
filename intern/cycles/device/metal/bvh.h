@@ -32,6 +32,8 @@ class BVHMetal : public BVH {
 
   bool motion_blur = false;
 
+  bool extended_limits = false;
+
   bool build(Progress &progress, id<MTLDevice> device, id<MTLCommandQueue> queue, bool refit);
 
   BVHMetal(const BVHParams &params,
