@@ -43,7 +43,7 @@ class VKBlitImageNode : public VKNodeInfo<VKNodeType::BLIT_IMAGE,
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
   template<typename Node, typename Storage>
-  void set_node_data(Node &node, Storage & storage, const CreateInfo &create_info)
+  void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info)
   {
     node.storage_index = storage.blit_image.append_and_get_index(create_info);
   }
