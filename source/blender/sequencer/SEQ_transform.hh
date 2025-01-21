@@ -8,19 +8,21 @@
  * \ingroup sequencer
  */
 
+#include "BLI_span.hh"
+
 struct ListBase;
 struct Scene;
 struct Strip;
 
-bool SEQ_transform_sequence_can_be_translated(const Strip *seq);
+bool SEQ_transform_sequence_can_be_translated(const Strip *strip);
 /**
  * Used so we can do a quick check for single image seq
  * since they work a bit differently to normal image seq's (during transform).
  */
-bool SEQ_transform_single_image_check(const Strip *seq);
+bool SEQ_transform_single_image_check(const Strip *strip);
 bool SEQ_transform_test_overlap(const Scene *scene, ListBase *seqbasep, Strip *test);
 bool SEQ_transform_test_overlap_seq_seq(const Scene *scene, Strip *seq1, Strip *seq2);
-void SEQ_transform_translate_sequence(Scene *evil_scene, Strip *seq, int delta);
+void SEQ_transform_translate_sequence(Scene *evil_scene, Strip *strip, int delta);
 /**
  * \return 0 if there weren't enough space.
  */
@@ -51,10 +53,6 @@ void SEQ_transform_handle_overlap(Scene *scene,
                                   blender::Span<Strip *> transformed_strips,
                                   bool use_sync_markers);
 /**
- * Check if the selected seq's reference unselected seq's.
- */
-bool SEQ_transform_seqbase_isolated_sel_check(ListBase *seqbase);
-/**
  * Move strips and markers (if not locked) that start after timeline_frame by delta frames
  *
  * \param scene: Scene in which strips are located
@@ -71,11 +69,11 @@ void SEQ_transform_offset_after_frame(Scene *scene,
  * Check if `seq` can be moved.
  * This function also checks `SeqTimelineChannel` flag.
  */
-bool SEQ_transform_is_locked(ListBase *channels, const Strip *seq);
+bool SEQ_transform_is_locked(ListBase *channels, const Strip *strip);
 
 /* Image transformation. */
 
-void SEQ_image_transform_mirror_factor_get(const Strip *seq, float r_mirror[2]);
+void SEQ_image_transform_mirror_factor_get(const Strip *strip, float r_mirror[2]);
 /**
  * Get strip transform origin offset from image center
  * NOTE: This function does not apply axis mirror.
@@ -85,7 +83,7 @@ void SEQ_image_transform_mirror_factor_get(const Strip *seq, float r_mirror[2]);
  * \param r_origin: return value
  */
 void SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene,
-                                                      const Strip *seq,
+                                                      const Strip *strip,
                                                       float r_origin[2]);
 /**
  * Get 4 corner points of strip image, optionally without rotation component applied.
@@ -97,7 +95,7 @@ void SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene,
  * \param r_quad: array of 4 2D vectors
  */
 void SEQ_image_transform_quad_get(const Scene *scene,
-                                  const Strip *seq,
+                                  const Strip *strip,
                                   bool apply_rotation,
                                   float r_quad[4][2]);
 /**
@@ -107,7 +105,9 @@ void SEQ_image_transform_quad_get(const Scene *scene,
  * \param seq: Sequence to calculate transformed image quad
  * \param r_quad: array of 4 2D vectors
  */
-void SEQ_image_transform_final_quad_get(const Scene *scene, const Strip *seq, float r_quad[4][2]);
+void SEQ_image_transform_final_quad_get(const Scene *scene,
+                                        const Strip *strip,
+                                        float r_quad[4][2]);
 
 void SEQ_image_preview_unit_to_px(const Scene *scene, const float co_src[2], float co_dst[2]);
 void SEQ_image_preview_unit_from_px(const Scene *scene, const float co_src[2], float co_dst[2]);
@@ -137,5 +137,5 @@ void SEQ_image_transform_bounding_box_from_collection(Scene *scene,
  * \param r_transform_matrix: Return value
  */
 void SEQ_image_transform_matrix_get(const Scene *scene,
-                                    const Strip *seq,
+                                    const Strip *strip,
                                     float r_transform_matrix[4][4]);

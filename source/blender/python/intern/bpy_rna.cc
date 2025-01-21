@@ -16,13 +16,11 @@
 
 #include <cfloat> /* FLT_MIN/MAX */
 #include <cstddef>
-#include <new>
 #include <optional>
 
 #include "RNA_path.hh"
 #include "RNA_types.hh"
 
-#include "BLI_bitmap.h"
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
@@ -8644,6 +8642,7 @@ PyObject *BPY_rna_types()
         &pyrna_prop_Type,
         &pyrna_prop_array_Type,
         &pyrna_prop_collection_Type,
+        &pyrna_prop_collection_idprop_Type,
         &pyrna_func_Type,
     };
 
@@ -9700,6 +9699,20 @@ void BPY_free_srna_pytype(StructRNA *srna)
   }
 }
 
+#define BPY_TYPEDEF_REGISTERABLE_DOC \
+  "type[" \
+  ":class:`bpy.types.Panel` | " \
+  ":class:`bpy.types.UIList` | " \
+  ":class:`bpy.types.Menu` | " \
+  ":class:`bpy.types.Header` | " \
+  ":class:`bpy.types.Operator` | " \
+  ":class:`bpy.types.KeyingSetInfo` | " \
+  ":class:`bpy.types.RenderEngine` | " \
+  ":class:`bpy.types.AssetShelf` | " \
+  ":class:`bpy.types.FileHandler` | " \
+  ":class:`bpy.types.PropertyGroup`" \
+  "]"
+
 /**
  * \warning memory leak!
  *
@@ -9718,13 +9731,10 @@ PyDoc_STRVAR(
     "\n"
     "   Register a subclass of a Blender type class.\n"
     "\n"
-    "   :arg cls: Blender type class in:\n"
-    "      :class:`bpy.types.Panel`, :class:`bpy.types.UIList`,\n"
-    "      :class:`bpy.types.Menu`, :class:`bpy.types.Header`,\n"
-    "      :class:`bpy.types.Operator`, :class:`bpy.types.KeyingSetInfo`,\n"
-    "      :class:`bpy.types.RenderEngine`, :class:`bpy.types.AssetShelf`,\n"
-    "      :class:`bpy.types.FileHandler`\n"
-    "   :type cls: type\n"
+    "   :arg cls: Registerable Blender class type.\n"
+    "   :type cls: " BPY_TYPEDEF_REGISTERABLE_DOC
+    "\n"
+    "\n"
     "   :raises ValueError:\n"
     "      if the class is not a subclass of a registerable blender class.\n"
     "\n"
@@ -9906,7 +9916,8 @@ PyDoc_STRVAR(
     "   :arg cls: Blender type class, \n"
     "      see :mod:`bpy.utils.register_class` for classes which can \n"
     "      be registered.\n"
-    "   :type cls: type\n"
+    "   :type cls: " BPY_TYPEDEF_REGISTERABLE_DOC
+    "\n"
     "\n"
     "   .. note::\n"
     "\n"
