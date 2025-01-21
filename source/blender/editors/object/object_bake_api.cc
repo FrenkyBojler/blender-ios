@@ -1397,6 +1397,10 @@ static int bake(const BakeAPIRender *bkr,
                 const Span<PointerRNA> selected_objects,
                 ReportList *reports)
 {
+/* NOTE(@ideasman42): modify original data temporarily,
+ * needed so animated visibility doesn't cause objects fail to render, see: #107426. */
+#define USE_OBJECT_VISIBLE_FLAG_HACK
+
   Render *re = bkr->render;
   Main *bmain = bkr->main;
   Scene *scene = bkr->scene;
@@ -1490,8 +1494,28 @@ static int bake(const BakeAPIRender *bkr,
     }
   }
 
-  /* Make sure depsgraph is up to date. */
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
+  {
+#ifdef USE_OBJECT_VISIBLE_FLAG_HACK
+    Array<short> ob_visibility_flag_backup(selected_objects.size());
+    int i = 0;
+    for (const PointerRNA &ptr : selected_objects) {
+      Object *ob_iter = static_cast<Object *>(ptr.data);
+      ob_visibility_flag_backup[i++] = ob_iter->visibility_flag;
+      ob_iter->visibility_flag &= ~OB_HIDE_RENDER;
+    }
+#endif
+
+    /* Make sure depsgraph is up to date. */
+    BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+#ifdef USE_OBJECT_VISIBLE_FLAG_HACK
+    i = 0;
+    for (const PointerRNA &ptr : selected_objects) {
+      Object *ob_iter = static_cast<Object *>(ptr.data);
+      ob_iter->visibility_flag = ob_visibility_flag_backup[i++];
+    }
+#endif
+  }
   ob_low_eval = DEG_get_evaluated_object(depsgraph, ob_low);
 
   /* get the mesh as it arrives in the renderer */
