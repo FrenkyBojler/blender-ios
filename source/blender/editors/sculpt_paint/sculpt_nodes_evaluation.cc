@@ -97,29 +97,17 @@ GVArray SculptFieldContext::get_varray_for_input(const fn::FieldInput &field_inp
                                                  const IndexMask &mask,
                                                  ResourceScope &scope) const
 {
-  const bke::AttributeFieldInput *attribute_field_input =
-      dynamic_cast<const bke::AttributeFieldInput *>(&field_input);
-
-  if (attribute_field_input != nullptr) {
-    if (attribute_field_input->attribute_name() == "position") {
+  if (const auto *attr = dynamic_cast<const bke::AttributeFieldInput *>(&field_input)) {
+    if (attr->attribute_name() == "position") {
       return this->positions();
     }
   }
-
-  const bke::NormalFieldInput *normal_field_input = dynamic_cast<const bke::NormalFieldInput *>(
-      &field_input);
-
-  if (normal_field_input != nullptr) {
+  if (dynamic_cast<const bke::NormalFieldInput *>(&field_input)) {
     return this->normals();
   }
-
-  const fn::IndexFieldInput *index_field_input = dynamic_cast<const fn::IndexFieldInput *>(
-      &field_input);
-
-  if (index_field_input != nullptr) {
+  if (dynamic_cast<const fn::IndexFieldInput *>(&field_input)) {
     return VArray<int>::ForSpan(this->indices());
   }
-
   return field_input.get_varray_for_context(*this, mask, scope);
 }
 
