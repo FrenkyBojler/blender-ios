@@ -10,9 +10,9 @@
 
 #include "BLI_math_matrix_types.hh"
 #include "BLI_utildefines.h"
+#include "BLI_vector_set.hh"
 
 #include "GPU_shader.hh"
-
 
 namespace blender::gpu {
 class Batch;
