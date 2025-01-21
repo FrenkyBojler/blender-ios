@@ -476,7 +476,16 @@ ccl_device_forceinline bool background_light_tree_parameters(const float3 centro
                                                              ccl_private float &theta_d)
 {
   if (in_volume_segment) {
-    theta_d = t == FLT_MAX ? 1.0f : t;
+    if (t == FLT_MAX) {
+      /* In world volumes, distant lights can contribute to the lighting of the volume with
+       * specific configurations of procedurally generated volumes. Use a ray length of 1.0 in this
+       * case to give the distant light some weight, but one that isn't too high for a typical
+       * world volume use case. */
+      theta_d = 1.0f;
+    }
+    else {
+      theta_d = t;
+    }
   }
 
   /* Cover the whole sphere */
