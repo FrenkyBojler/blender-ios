@@ -36,21 +36,15 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   switch (RotationSpace(builder.node().custom1)) {
     case RotationSpace::Global: {
       static auto fn = mf::build::SI2_SO<math::Quaternion, math::Quaternion, math::Quaternion>(
-          "Rotate Rotation Global", [](math::Quaternion a, math::Quaternion b) {
-            math::Quaternion result = b * a;
-            result = normalize(result);
-            return result;
-          });
+          "Rotate Rotation Global",
+          [](math::Quaternion a, math::Quaternion b) { return math::normalize(b * a); });
       builder.set_matching_fn(fn);
       break;
     }
     case RotationSpace::Local: {
       static auto fn = mf::build::SI2_SO<math::Quaternion, math::Quaternion, math::Quaternion>(
-          "Rotate Rotation Local", [](math::Quaternion a, math::Quaternion b) {
-            math::Quaternion result = a * b;
-            result = normalize(result);
-            return result;
-          });
+          "Rotate Rotation Local",
+          [](math::Quaternion a, math::Quaternion b) { return math::normalize(b * a); });
       builder.set_matching_fn(fn);
       break;
     }
