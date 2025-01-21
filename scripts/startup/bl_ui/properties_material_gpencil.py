@@ -252,13 +252,13 @@ classes = (
     GPENCIL_UL_matslots,
     GPENCIL_MT_material_context_menu,
     MATERIAL_PT_gpencil_slots,
+    MATERIAL_PT_gpencil_preview,
     MATERIAL_PT_gpencil_material_presets,
     MATERIAL_PT_gpencil_surface,
     MATERIAL_PT_gpencil_strokecolor,
     MATERIAL_PT_gpencil_fillcolor,
     MATERIAL_PT_gpencil_settings,
     MATERIAL_PT_gpencil_animation,
-    MATERIAL_PT_gpencil_preview,
     MATERIAL_PT_gpencil_custom_props,
 )
 
