@@ -86,6 +86,8 @@ void ED_slider_status_string_get(const tSlider *slider,
                                  char *status_string,
                                  size_t size_of_status_string);
 
+void ED_slider_status_get(const tSlider *slider, struct WorkspaceStatus &status);
+
 float ED_slider_factor_get(const tSlider *slider);
 void ED_slider_factor_set(tSlider *slider, float factor);
 
