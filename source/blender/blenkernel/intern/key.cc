@@ -1872,6 +1872,8 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
    * which could cause problems in some cases, see #BKE_keyblock_add_ctime. */
   kb->pos = curpos + 0.1f; /* only used for absolute shape keys */
 
+  kb->curval = 1.0f;
+
   return kb;
 }
 
