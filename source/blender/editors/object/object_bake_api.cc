@@ -1405,6 +1405,10 @@ static int bake(const BakeAPIRender *bkr,
   /* We build a depsgraph for the baking,
    * so we don't need to change the original data to adjust visibility and modifiers. */
   Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
+
+  /* Ensure meshes are generated even for objects with animated visibility, see: #107426. */
+  DEG_disable_visibility_optimization(depsgraph);
+
   DEG_graph_build_from_view_layer(depsgraph);
 
   int op_result = OPERATOR_CANCELLED;
@@ -1586,14 +1590,7 @@ static int bake(const BakeAPIRender *bkr,
        * is overridden by animated visibility, see: #107426.
        *
        * There is also the potential that scripts called from depsgraph callbacks
-       * change this value too, so we can't guarantee the mesh will be available. */
-      if (UNLIKELY(highpoly[i].mesh == nullptr)) {
-        BKE_object_eval_reset(highpoly[i].ob_eval);
-        BKE_object_handle_data_update(depsgraph, scene, highpoly[i].ob_eval);
-        highpoly[i].mesh = BKE_mesh_new_from_object(nullptr, highpoly[i].ob_eval, false, false);
-      }
-
-      /* Avoid crash if evaluating the mesh fails for any reason.
+       * change this value too, so we can't guarantee the mesh will be available.
        * Use an error here instead of a warning so users don't accidentally perform
        * a bake which seems to succeed with invalid results.
        * If visibility could be forced/overridden - it would help avoid the problem. */
