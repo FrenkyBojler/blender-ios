@@ -18,15 +18,15 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_colorband.h"
+#include "BKE_colorband.hh"
 
-#include "IMB_colormanagement.h"
+#include "IMB_colormanagement.hh"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
-#include "draw_manager.h"
+#include "draw_manager_c.hh"
 
-#include "draw_common.h" /* Own include. */
+#include "draw_common_c.hh" /* Own include. */
 
 #ifdef WITH_FLUID
 #  include "manta_fluid_API.h"
@@ -172,19 +172,15 @@ static GPUTexture *create_volume_texture(const int dim[3],
                                          const void *data)
 {
   GPUTexture *tex = nullptr;
-  int final_dim[3] = {UNPACK3(dim)};
+  blender::int3 final_dim = {UNPACK3(dim)};
 
   if (data == nullptr) {
     return nullptr;
   }
 
   while (true) {
-    tex = GPU_texture_create_3d("volume",
-                                UNPACK3(final_dim),
-                                1,
-                                texture_format,
-                                GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW,
-                                nullptr);
+    tex = GPU_texture_create_3d(
+        "volume", UNPACK3(final_dim), 1, texture_format, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
 
     if (tex != nullptr) {
       break;
@@ -203,7 +199,7 @@ static GPUTexture *create_volume_texture(const int dim[3],
     printf("Error: Could not create 3D texture.\n");
     tex = GPU_texture_create_error(3, false);
   }
-  else if (equals_v3v3_int(dim, final_dim)) {
+  else if (blender::int3(dim) == final_dim) {
     /* No need to resize, just upload the data. */
     GPU_texture_update_sub(tex, data_format, data, 0, 0, 0, UNPACK3(final_dim));
   }

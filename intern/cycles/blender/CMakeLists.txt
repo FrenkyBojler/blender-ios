@@ -6,9 +6,6 @@ set(INC
   ..
   ../../mikktspace
   ../../../source/blender/makesrna
-  ../../../source/blender/blenkernel
-  ../../../source/blender/gpu
-  ../../../source/blender/render
   ${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
 
@@ -41,6 +38,7 @@ set(SRC
   viewport.cpp
   volume.cpp
 
+  attribute_convert.h
   CCL_api.h
   device.h
   display_driver.h
@@ -57,9 +55,13 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::render
   cycles_bvh
   cycles_device
   cycles_graph
@@ -113,6 +115,9 @@ endif()
 
 if(WITH_OPENVDB)
   add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
+  list(APPEND INC
+    ../../openvdb
+  )
   list(APPEND INC_SYS
     ${OPENVDB_INCLUDE_DIRS}
   )
@@ -135,6 +140,12 @@ if(WITH_OPENIMAGEDENOISE)
   add_definitions(-DWITH_OPENIMAGEDENOISE)
   list(APPEND INC_SYS
     ${OPENIMAGEDENOISE_INCLUDE_DIRS}
+  )
+endif()
+
+if(WITH_CYCLES_OSL)
+  list(APPEND LIB
+    ${OSL_LIBRARIES}
   )
 endif()
 

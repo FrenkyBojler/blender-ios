@@ -108,7 +108,7 @@ class GHOST_WindowManager {
    * \param osWindow: The OS window object/handle.
    * \return The associated window, null if none corresponds.
    */
-  GHOST_IWindow *getWindowAssociatedWithOSWindow(void *osWindow);
+  GHOST_IWindow *getWindowAssociatedWithOSWindow(const void *osWindow);
 
  protected:
   /** The list of windows managed */
@@ -123,7 +123,5 @@ class GHOST_WindowManager {
   /** Window that was active before entering full-screen state. */
   GHOST_IWindow *m_activeWindowBeforeFullScreen;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_WindowManager")
-#endif
 };

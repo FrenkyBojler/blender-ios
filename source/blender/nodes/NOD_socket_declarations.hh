@@ -18,6 +18,8 @@ class FloatBuilder;
 
 class Float : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_FLOAT;
+
   float default_value = 0.0f;
   float soft_min_value = -FLT_MAX;
   float soft_max_value = FLT_MAX;
@@ -45,6 +47,8 @@ class IntBuilder;
 
 class Int : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_INT;
+
   int default_value = 0;
   int soft_min_value = INT32_MIN;
   int soft_max_value = INT32_MAX;
@@ -72,6 +76,8 @@ class VectorBuilder;
 
 class Vector : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_VECTOR;
+
   float3 default_value = {0, 0, 0};
   float soft_min_value = -FLT_MAX;
   float soft_max_value = FLT_MAX;
@@ -100,6 +106,8 @@ class BoolBuilder;
 
 class Bool : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_BOOLEAN;
+
   bool default_value = false;
   friend BoolBuilder;
 
@@ -120,7 +128,9 @@ class ColorBuilder;
 
 class Color : public SocketDeclaration {
  public:
-  ColorGeometry4f default_value;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_RGBA;
+
+  ColorGeometry4f default_value{0.8f, 0.8f, 0.8f, 1.0f};
 
   friend ColorBuilder;
 
@@ -141,6 +151,8 @@ class RotationBuilder;
 
 class Rotation : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_ROTATION;
+
   math::EulerXYZ default_value;
 
   friend RotationBuilder;
@@ -158,11 +170,32 @@ class RotationBuilder : public SocketDeclarationBuilder<Rotation> {
   RotationBuilder &default_value(const math::EulerXYZ &value);
 };
 
+class MatrixBuilder;
+
+class Matrix : public SocketDeclaration {
+ public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_MATRIX;
+
+  friend MatrixBuilder;
+
+  using Builder = MatrixBuilder;
+
+  bNodeSocket &build(bNodeTree &ntree, bNode &node) const override;
+  bool matches(const bNodeSocket &socket) const override;
+  bNodeSocket &update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const override;
+  bool can_connect(const bNodeSocket &socket) const override;
+};
+
+class MatrixBuilder : public SocketDeclarationBuilder<Matrix> {};
+
 class StringBuilder;
 
 class String : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_STRING;
+
   std::string default_value;
+  PropertySubType subtype = PROP_NONE;
 
   friend StringBuilder;
 
@@ -177,6 +210,30 @@ class String : public SocketDeclaration {
 class StringBuilder : public SocketDeclarationBuilder<String> {
  public:
   StringBuilder &default_value(const std::string value);
+  StringBuilder &subtype(PropertySubType subtype);
+};
+
+class MenuBuilder;
+
+class Menu : public SocketDeclaration {
+ public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_MENU;
+
+  int32_t default_value;
+
+  friend MenuBuilder;
+
+  using Builder = MenuBuilder;
+
+  bNodeSocket &build(bNodeTree &ntree, bNode &node) const override;
+  bool matches(const bNodeSocket &socket) const override;
+  bNodeSocket &update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const override;
+  bool can_connect(const bNodeSocket &socket) const override;
+};
+
+class MenuBuilder : public SocketDeclarationBuilder<Menu> {
+ public:
+  MenuBuilder &default_value(int32_t value);
 };
 
 class IDSocketDeclaration : public SocketDeclaration {
@@ -198,37 +255,56 @@ class IDSocketDeclaration : public SocketDeclaration {
   bool can_connect(const bNodeSocket &socket) const override;
 };
 
+template<typename T> class IDSocketDeclarationBuilder : public SocketDeclarationBuilder<T> {
+ public:
+  IDSocketDeclarationBuilder &default_value_fn(std::function<ID *(const bNode &node)> fn)
+  {
+    this->decl_->default_value_fn = std::move(fn);
+    return *this;
+  }
+};
+
 class Object : public IDSocketDeclaration {
  public:
-  using Builder = SocketDeclarationBuilder<Object>;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_OBJECT;
+
+  using Builder = IDSocketDeclarationBuilder<Object>;
 
   Object();
 };
 
 class Material : public IDSocketDeclaration {
  public:
-  using Builder = SocketDeclarationBuilder<Material>;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_MATERIAL;
+
+  using Builder = IDSocketDeclarationBuilder<Material>;
 
   Material();
 };
 
 class Collection : public IDSocketDeclaration {
  public:
-  using Builder = SocketDeclarationBuilder<Collection>;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_COLLECTION;
+
+  using Builder = IDSocketDeclarationBuilder<Collection>;
 
   Collection();
 };
 
 class Texture : public IDSocketDeclaration {
  public:
-  using Builder = SocketDeclarationBuilder<Texture>;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_TEXTURE;
+
+  using Builder = IDSocketDeclarationBuilder<Texture>;
 
   Texture();
 };
 
 class Image : public IDSocketDeclaration {
  public:
-  using Builder = SocketDeclarationBuilder<Image>;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_IMAGE;
+
+  using Builder = IDSocketDeclarationBuilder<Image>;
 
   Image();
 };
@@ -237,6 +313,8 @@ class ShaderBuilder;
 
 class Shader : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_SHADER;
+
   friend ShaderBuilder;
 
   using Builder = ShaderBuilder;
@@ -246,8 +324,7 @@ class Shader : public SocketDeclaration {
   bool can_connect(const bNodeSocket &socket) const override;
 };
 
-class ShaderBuilder : public SocketDeclarationBuilder<Shader> {
-};
+class ShaderBuilder : public SocketDeclarationBuilder<Shader> {};
 
 class ExtendBuilder;
 
@@ -256,6 +333,8 @@ class Extend : public SocketDeclaration {
   friend ExtendBuilder;
 
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_CUSTOM;
+
   using Builder = ExtendBuilder;
 
   bNodeSocket &build(bNodeTree &ntree, bNode &node) const override;
@@ -264,17 +343,37 @@ class Extend : public SocketDeclaration {
   bool can_connect(const bNodeSocket &socket) const override;
 };
 
-class ExtendBuilder : public SocketDeclarationBuilder<Extend> {
-};
+class ExtendBuilder : public SocketDeclarationBuilder<Extend> {};
+
+class CustomTypeBuilder;
 
 class Custom : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_CUSTOM;
+
+  friend CustomTypeBuilder;
+
+  using Builder = CustomTypeBuilder;
+
   const char *idname_;
+  std::function<void(bNode &node, bNodeSocket &socket, const char *data_path)> init_socket_fn;
 
   bNodeSocket &build(bNodeTree &ntree, bNode &node) const override;
   bool matches(const bNodeSocket &socket) const override;
   bNodeSocket &update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const override;
   bool can_connect(const bNodeSocket &socket) const override;
+};
+
+class CustomTypeBuilder : public SocketDeclarationBuilder<Custom> {
+ public:
+  CustomTypeBuilder &idname(const char *idname);
+
+  CustomTypeBuilder &init_socket_fn(
+      std::function<void(bNode &node, bNodeSocket &socket, const char *data_path)> fn)
+  {
+    decl_->init_socket_fn = std::move(fn);
+    return *this;
+  }
 };
 
 /* -------------------------------------------------------------------- */
@@ -407,6 +506,24 @@ inline StringBuilder &StringBuilder::default_value(std::string value)
   return *this;
 }
 
+inline StringBuilder &StringBuilder::subtype(PropertySubType subtype)
+{
+  decl_->subtype = subtype;
+  return *this;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #MenuBuilder Inline Methods
+ * \{ */
+
+inline MenuBuilder &MenuBuilder::default_value(const int32_t value)
+{
+  decl_->default_value = value;
+  return *this;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -439,6 +556,16 @@ inline Image::Image() : IDSocketDeclaration("NodeSocketImage") {}
 
 /** \} */
 
-SocketDeclarationPtr create_extend_declaration(const eNodeSocketInOut in_out);
+/* -------------------------------------------------------------------- */
+/** \name #CustomTypeBuilder Inline Methods
+ * \{ */
+
+inline CustomTypeBuilder &CustomTypeBuilder::idname(const char *idname)
+{
+  decl_->idname_ = idname;
+  return *this;
+}
+
+/** \} */
 
 }  // namespace blender::nodes::decl

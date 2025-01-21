@@ -8,37 +8,30 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_context.h"
-#include "BKE_report.h"
+#include "SEQ_channels.hh"
+#include "SEQ_iterator.hh"
+#include "SEQ_relations.hh"
+#include "SEQ_sequencer.hh"
+#include "SEQ_transform.hh"
 
-#include "SEQ_channels.h"
-#include "SEQ_iterator.h"
-#include "SEQ_relations.h"
-#include "SEQ_sequencer.h"
-#include "SEQ_time.h"
-#include "SEQ_transform.h"
-#include "SEQ_utils.h"
-
-#include "ED_keyframing.hh"
-
-#include "UI_view2d.hh"
+#include "ANIM_keyframing.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 
 /** Used for sequencer transform. */
 struct TransDataSeq {
-  Sequence *seq;
+  Strip *strip;
   float orig_origin_position[2];
   float orig_translation[2];
   float orig_scale[2];
@@ -46,15 +39,15 @@ struct TransDataSeq {
 };
 
 static TransData *SeqToTransData(const Scene *scene,
-                                 Sequence *seq,
+                                 Strip *strip,
                                  TransData *td,
                                  TransData2D *td2d,
                                  TransDataSeq *tdseq,
                                  int vert_index)
 {
-  const StripTransform *transform = seq->strip->transform;
+  const StripTransform *transform = strip->data->transform;
   float origin[2];
-  SEQ_image_transform_origin_offset_pixelspace_get(scene, seq, origin);
+  SEQ_image_transform_origin_offset_pixelspace_get(scene, strip, origin);
   float vertex[2] = {origin[0], origin[1]};
 
   /* Add control vertex, so rotation and scale can be calculated.
@@ -84,7 +77,7 @@ static TransData *SeqToTransData(const Scene *scene,
   axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation);
   normalize_m3(td->axismtx);
 
-  tdseq->seq = seq;
+  tdseq->strip = strip;
   copy_v2_v2(tdseq->orig_origin_position, origin);
   tdseq->orig_translation[0] = transform->xofs;
   tdseq->orig_translation[1] = transform->yofs;
@@ -126,20 +119,18 @@ static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
 
   ListBase *seqbase = SEQ_active_seqbase_get(ed);
   ListBase *channels = SEQ_channels_displayed_get(ed);
-  SeqCollection *strips = SEQ_query_rendered_strips(
+  blender::VectorSet strips = SEQ_query_rendered_strips(
       t->scene, channels, seqbase, t->scene->r.cfra, 0);
-  SEQ_filter_selected_strips(strips);
+  strips.remove_if([&](Strip *strip) { return (strip->flag & SELECT) == 0; });
 
-  const int count = SEQ_collection_len(strips);
-  if (count == 0) {
-    SEQ_collection_free(strips);
+  if (strips.is_empty()) {
     return;
   }
 
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   tc->custom.type.free_cb = freeSeqData;
 
-  tc->data_len = count * 3; /* 3 vertices per sequence are needed. */
+  tc->data_len = strips.size() * 3; /* 3 vertices per sequence are needed. */
   TransData *td = tc->data = static_cast<TransData *>(
       MEM_callocN(tc->data_len * sizeof(TransData), "TransSeq TransData"));
   TransData2D *td2d = tc->data_2d = static_cast<TransData2D *>(
@@ -147,17 +138,14 @@ static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
   TransDataSeq *tdseq = static_cast<TransDataSeq *>(
       MEM_callocN(tc->data_len * sizeof(TransDataSeq), "TransSeq TransDataSeq"));
 
-  Sequence *seq;
-  SEQ_ITERATOR_FOREACH (seq, strips) {
+  for (Strip *strip : strips) {
     /* One `Sequence` needs 3 `TransData` entries - center point placed in image origin, then 2
      * points offset by 1 in X and Y direction respectively, so rotation and scale can be
      * calculated from these points. */
-    SeqToTransData(t->scene, seq, td++, td2d++, tdseq++, 0);
-    SeqToTransData(t->scene, seq, td++, td2d++, tdseq++, 1);
-    SeqToTransData(t->scene, seq, td++, td2d++, tdseq++, 2);
+    SeqToTransData(t->scene, strip, td++, td2d++, tdseq++, 0);
+    SeqToTransData(t->scene, strip, td++, td2d++, tdseq++, 1);
+    SeqToTransData(t->scene, strip, td++, td2d++, tdseq++, 2);
   }
-
-  SEQ_collection_free(strips);
 }
 
 static bool autokeyframe_sequencer_image(bContext *C,
@@ -165,32 +153,38 @@ static bool autokeyframe_sequencer_image(bContext *C,
                                          StripTransform *transform,
                                          const int tmode)
 {
-  PointerRNA ptr;
   PropertyRNA *prop;
-  RNA_pointer_create(&scene->id, &RNA_SequenceTransform, transform, &ptr);
+  PointerRNA ptr = RNA_pointer_create(&scene->id, &RNA_StripTransform, transform);
 
   const bool around_cursor = scene->toolsettings->sequencer_tool_settings->pivot_point ==
                              V3D_AROUND_CURSOR;
   const bool do_loc = tmode == TFM_TRANSLATION || around_cursor;
   const bool do_rot = tmode == TFM_ROTATION;
   const bool do_scale = tmode == TFM_RESIZE;
+  const bool only_when_keyed = blender::animrig::is_keying_flag(scene,
+                                                                AUTOKEY_FLAG_INSERTAVAILABLE);
 
   bool changed = false;
   if (do_rot) {
     prop = RNA_struct_find_property(&ptr, "rotation");
-    changed |= ED_autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, false);
+    changed |= blender::animrig::autokeyframe_property(
+        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
   if (do_loc) {
     prop = RNA_struct_find_property(&ptr, "offset_x");
-    changed |= ED_autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, false);
+    changed |= blender::animrig::autokeyframe_property(
+        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
     prop = RNA_struct_find_property(&ptr, "offset_y");
-    changed |= ED_autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, false);
+    changed |= blender::animrig::autokeyframe_property(
+        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
   if (do_scale) {
     prop = RNA_struct_find_property(&ptr, "scale_x");
-    changed |= ED_autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, false);
+    changed |= blender::animrig::autokeyframe_property(
+        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
     prop = RNA_struct_find_property(&ptr, "scale_y");
-    changed |= ED_autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, false);
+    changed |= blender::animrig::autokeyframe_property(
+        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
 
   return changed;
@@ -224,10 +218,10 @@ static void recalcData_sequencer_image(TransInfo *t)
     sub_v2_v2(handle_y, origin);
 
     TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
-    Sequence *seq = tdseq->seq;
-    StripTransform *transform = seq->strip->transform;
+    Strip *strip = tdseq->strip;
+    StripTransform *transform = strip->data->transform;
     float mirror[2];
-    SEQ_image_transform_mirror_factor_get(seq, mirror);
+    SEQ_image_transform_mirror_factor_get(strip, mirror);
 
     /* Calculate translation. */
     float translation[2];
@@ -236,8 +230,13 @@ static void recalcData_sequencer_image(TransInfo *t)
     mul_v2_v2(translation, mirror);
     translation[0] *= t->scene->r.yasp / t->scene->r.xasp;
 
-    transform->xofs = tdseq->orig_translation[0] - translation[0];
-    transform->yofs = tdseq->orig_translation[1] - translation[1];
+    /* Round resulting position to integer pixels. Resulting strip
+     * will more often end up using faster interpolation (without bilinear),
+     * and avoids "text edges are too dark" artifacts with light text strips
+     * on light backgrounds. The latter happens because bilinear filtering
+     * does not do full alpha pre-multiplication. */
+    transform->xofs = roundf(tdseq->orig_translation[0] - translation[0]);
+    transform->yofs = roundf(tdseq->orig_translation[1] - translation[1]);
 
     /* Scale. */
     transform->scale_x = tdseq->orig_scale[0] * fabs(len_v2(handle_x));
@@ -248,12 +247,12 @@ static void recalcData_sequencer_image(TransInfo *t)
       transform->rotation = tdseq->orig_rotation - t->values_final[0];
     }
 
-    if ((t->animtimer) && IS_AUTOKEY_ON(t->scene)) {
+    if ((t->animtimer) && blender::animrig::is_autokey_on(t->scene)) {
       animrecord_check_state(t, &t->scene->id);
       autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
     }
 
-    SEQ_relations_invalidate_cache_preprocessed(t->scene, seq);
+    SEQ_relations_invalidate_cache_preprocessed(t->scene, strip);
   }
 }
 
@@ -267,8 +266,8 @@ static void special_aftertrans_update__sequencer_image(bContext * /*C*/, TransIn
 
   for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i++, td++, td2d++) {
     TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
-    Sequence *seq = tdseq->seq;
-    StripTransform *transform = seq->strip->transform;
+    Strip *strip = tdseq->strip;
+    StripTransform *transform = strip->data->transform;
     if (t->state == TRANS_CANCEL) {
       if (t->mode == TFM_ROTATION) {
         transform->rotation = tdseq->orig_rotation;
@@ -276,7 +275,7 @@ static void special_aftertrans_update__sequencer_image(bContext * /*C*/, TransIn
       continue;
     }
 
-    if (IS_AUTOKEY_ON(t->scene)) {
+    if (blender::animrig::is_autokey_on(t->scene)) {
       autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
     }
   }

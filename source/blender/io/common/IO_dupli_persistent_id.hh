@@ -3,13 +3,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
-#include "BKE_duplilist.h"
-
-#include "DNA_object_types.h" /* For MAX_DUPLI_RECUR */
+#include "BKE_duplilist.hh"
 
 #include <array>
-#include <optional>
-#include <ostream>
+#include <string>
 
 namespace blender::io {
 
@@ -17,7 +14,7 @@ namespace blender::io {
 class PersistentID {
  protected:
   constexpr static int array_length_ = MAX_DUPLI_RECUR;
-  typedef std::array<int, array_length_> PIDArray;
+  using PIDArray = std::array<int, array_length_>;
   PIDArray persistent_id_;
 
   explicit PersistentID(const PIDArray &persistent_id_values);
@@ -41,7 +38,6 @@ class PersistentID {
 
   friend bool operator==(const PersistentID &persistent_id_a, const PersistentID &persistent_id_b);
   friend bool operator<(const PersistentID &persistent_id_a, const PersistentID &persistent_id_b);
-  friend std::ostream &operator<<(std::ostream &os, const PersistentID &persistent_id);
 
  private:
   void copy_values_from(const PIDArray &persistent_id_values);

@@ -12,7 +12,6 @@
 #include "blender/sync.h"
 #include "blender/util.h"
 
-#include "util/foreach.h"
 #include "util/task.h"
 
 CCL_NAMESPACE_BEGIN
@@ -56,10 +55,12 @@ array<Node *> BlenderSync::find_used_shaders(BL::Object &b_ob)
   }
 
   if (used_shaders.size() == 0) {
-    if (material_override)
+    if (material_override) {
       find_shader(material_override, used_shaders, default_shader);
-    else
+    }
+    else {
       used_shaders.push_back_slow(default_shader);
+    }
   }
 
   return used_shaders;
@@ -72,12 +73,12 @@ Geometry *BlenderSync::sync_geometry(BL::Depsgraph &b_depsgraph,
                                      TaskPool *task_pool)
 {
   /* Test if we can instance or if the object is modified. */
-  Geometry::Type geom_type = determine_geom_type(b_ob_info, use_particle_hair);
-  BL::ID b_key_id = (b_ob_info.is_real_object_data() &&
-                     BKE_object_is_modified(b_ob_info.real_object)) ?
-                        b_ob_info.real_object :
-                        b_ob_info.object_data;
-  GeometryKey key(b_key_id.ptr.data, geom_type);
+  const Geometry::Type geom_type = determine_geom_type(b_ob_info, use_particle_hair);
+  BL::ID const b_key_id = (b_ob_info.is_real_object_data() &&
+                           BKE_object_is_modified(b_ob_info.real_object)) ?
+                              b_ob_info.real_object :
+                              b_ob_info.object_data;
+  const GeometryKey key(b_key_id.ptr.data, geom_type);
 
   /* Find shader indices. */
   array<Node *> used_shaders = find_used_shaders(b_ob_info.iter_object);
@@ -92,7 +93,7 @@ Geometry *BlenderSync::sync_geometry(BL::Depsgraph &b_depsgraph,
 
   /* Test if we need to sync. */
   bool sync = true;
-  if (geom == NULL) {
+  if (geom == nullptr) {
     /* Add new geometry if it did not exist yet. */
     if (geom_type == Geometry::HAIR) {
       geom = scene->create_node<Hair>();
@@ -128,7 +129,7 @@ Geometry *BlenderSync::sync_geometry(BL::Depsgraph &b_depsgraph,
        * because the shader needs different geometry attributes. */
       bool attribute_recalc = false;
 
-      foreach (Node *node, geom->get_used_shaders()) {
+      for (Node *node : geom->get_used_shaders()) {
         Shader *shader = static_cast<Shader *>(node);
         if (shader->need_update_geometry()) {
           attribute_recalc = true;
@@ -149,8 +150,9 @@ Geometry *BlenderSync::sync_geometry(BL::Depsgraph &b_depsgraph,
   geom->set_used_shaders(used_shaders);
 
   auto sync_func = [=]() mutable {
-    if (progress.get_cancel())
+    if (progress.get_cancel()) {
       return;
+    }
 
     progress.set_sync_status("Synchronizing object", b_ob_info.real_object.name());
 
@@ -186,7 +188,7 @@ Geometry *BlenderSync::sync_geometry(BL::Depsgraph &b_depsgraph,
 void BlenderSync::sync_geometry_motion(BL::Depsgraph &b_depsgraph,
                                        BObjectInfo &b_ob_info,
                                        Object *object,
-                                       float motion_time,
+                                       const float motion_time,
                                        bool use_particle_hair,
                                        TaskPool *task_pool)
 {
@@ -203,18 +205,20 @@ void BlenderSync::sync_geometry_motion(BL::Depsgraph &b_depsgraph,
 
   /* Ensure we only motion sync geometry that also had geometry synced, to avoid
    * unnecessary work and to ensure that its attributes were clear. */
-  if (geometry_synced.find(geom) == geometry_synced.end())
+  if (geometry_synced.find(geom) == geometry_synced.end()) {
     return;
+  }
 
   /* Find time matching motion step required by geometry. */
-  int motion_step = geom->motion_step(motion_time);
+  const int motion_step = geom->motion_step(motion_time);
   if (motion_step < 0) {
     return;
   }
 
   auto sync_func = [=]() mutable {
-    if (progress.get_cancel())
+    if (progress.get_cancel()) {
       return;
+    }
 
     if (b_ob_info.object_data.is_a(&RNA_Curves) || use_particle_hair) {
       Hair *hair = static_cast<Hair *>(geom);

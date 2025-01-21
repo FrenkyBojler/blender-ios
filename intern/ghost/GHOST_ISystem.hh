@@ -170,8 +170,10 @@ class GHOST_ISystem {
 
   /**
    * Returns the system time.
-   * Returns the number of milliseconds since the start of the system process.
-   * Based on ANSI clock() routine.
+   * Returns the number of milliseconds since the start of the system.
+   * \note The exact method used is platform dependent however monotonic methods should be used
+   * instead of wall-clock time.
+   *
    * \return The number of milliseconds.
    */
   virtual uint64_t getMilliSeconds() const = 0;
@@ -332,7 +334,10 @@ class GHOST_ISystem {
   virtual void setAutoFocus(const bool auto_focus) = 0;
 
   /**
-   * Get the Window under the cursor.
+   * Get the Window under the cursor. Although coordinates of the mouse are supplied, platform-
+   * specific implementations are free to ignore these and query the mouse location themselves, due
+   * to them possibly being incorrect under certain conditions, for example when using multiple
+   * monitors that vary in scale and/or DPI.
    * \param x: The x-coordinate of the cursor.
    * \param y: The y-coordinate of the cursor.
    * \return The window under the cursor or nullptr if none.
@@ -470,7 +475,6 @@ class GHOST_ISystem {
   /**
    * Returns the selection buffer
    * \return "unsigned char" from X11 XA_CUT_BUFFER0 buffer
-   *
    */
   virtual char *getClipboard(bool selection) const = 0;
 
@@ -556,7 +560,5 @@ class GHOST_ISystem {
   /** Function to call that sets the back-trace. */
   static GHOST_TBacktraceFn m_backtrace_fn;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_ISystem")
-#endif
 };

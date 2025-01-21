@@ -10,29 +10,22 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_particle.h"
-#include "BKE_screen.h"
 #include "BKE_softbody.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_physics.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_physics.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
@@ -40,12 +33,15 @@
 static void deform_verts(ModifierData * /*md*/,
                          const ModifierEvalContext *ctx,
                          Mesh * /*mesh*/,
-                         float (*vertexCos)[3],
-                         int verts_num)
+                         blender::MutableSpan<blender::float3> positions)
 {
   Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
-  sbObjectStep(
-      ctx->depsgraph, scene, ctx->object, DEG_get_ctime(ctx->depsgraph), vertexCos, verts_num);
+  sbObjectStep(ctx->depsgraph,
+               scene,
+               ctx->object,
+               DEG_get_ctime(ctx->depsgraph),
+               reinterpret_cast<float(*)[3]>(positions.data()),
+               positions.size());
 }
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
@@ -66,7 +62,7 @@ static void update_depsgraph(ModifierData * /*md*/, const ModifierUpdateDepsgrap
     DEG_add_forcefield_relations(
         ctx->node, ctx->object, ctx->object->soft->effector_weights, true, 0, "Softbody Field");
   }
-  /* We need own transformation as well. */
+  /* We need our own transformation as well. */
   DEG_add_depends_on_transform_relation(ctx->node, "SoftBody Modifier");
 }
 
@@ -76,7 +72,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, TIP_("Settings are inside the Physics tab"), ICON_NONE);
+  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
@@ -92,7 +88,7 @@ ModifierTypeInfo modifierType_Softbody = {
     /*struct_name*/ "SoftbodyModifierData",
     /*struct_size*/ sizeof(SoftbodyModifierData),
     /*srna*/ &RNA_SoftBodyModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_RequiresOriginalData | eModifierTypeFlag_Single |
         eModifierTypeFlag_UsesPointCache,
@@ -120,4 +116,5 @@ ModifierTypeInfo modifierType_Softbody = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

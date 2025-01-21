@@ -16,14 +16,11 @@
 #include "BLI_fileops.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_icons.h"
-#include "BKE_lib_id.h"
+#include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
-#include "BKE_main.h"
-#include "BKE_report.h"
-
-#include "BLT_translation.h"
+#include "BKE_preview_image.hh"
+#include "BKE_report.hh"
 
 #include "ED_asset.hh"
 #include "ED_render.hh"
@@ -31,7 +28,7 @@
 #include "ED_util.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 
@@ -51,7 +48,7 @@ static bool lib_id_preview_editing_poll(bContext *C)
   if (!id) {
     return false;
   }
-  if (ID_IS_LINKED(id)) {
+  if (!ID_IS_EDITABLE(id)) {
     CTX_wm_operator_poll_msg_set(C, "Can't edit external library data");
     return false;
   }
@@ -146,8 +143,9 @@ static bool lib_id_generate_preview_poll(bContext *C)
 
   const PointerRNA idptr = CTX_data_pointer_get(C, "id");
   const ID *id = (ID *)idptr.data;
-  if (GS(id->name) == ID_NT) {
-    CTX_wm_operator_poll_msg_set(C, "Can't generate automatic preview for node group");
+  const char *disabled_hint = nullptr;
+  if (!ED_preview_id_is_supported(id, &disabled_hint)) {
+    CTX_wm_operator_poll_msg_set(C, disabled_hint);
     return false;
   }
 
@@ -156,6 +154,7 @@ static bool lib_id_generate_preview_poll(bContext *C)
 
 static int lib_id_generate_preview_exec(bContext *C, wmOperator * /*op*/)
 {
+  using namespace blender::ed;
   PointerRNA idptr = CTX_data_pointer_get(C, "id");
   ID *id = (ID *)idptr.data;
 
@@ -169,7 +168,7 @@ static int lib_id_generate_preview_exec(bContext *C, wmOperator * /*op*/)
   UI_icon_render_id(C, nullptr, id, ICON_SIZE_PREVIEW, true);
 
   WM_event_add_notifier(C, NC_ASSET | NA_EDITED, nullptr);
-  ED_assetlist_storage_tag_main_data_dirty();
+  asset::list::storage_tag_main_data_dirty();
 
   return OPERATOR_FINISHED;
 }
@@ -201,6 +200,7 @@ static bool lib_id_generate_preview_from_object_poll(bContext *C)
 
 static int lib_id_generate_preview_from_object_exec(bContext *C, wmOperator * /*op*/)
 {
+  using namespace blender::ed;
   PointerRNA idptr = CTX_data_pointer_get(C, "id");
   ID *id = (ID *)idptr.data;
 
@@ -213,7 +213,7 @@ static int lib_id_generate_preview_from_object_exec(bContext *C, wmOperator * /*
   UI_icon_render_id_ex(C, nullptr, &object_to_render->id, ICON_SIZE_PREVIEW, true, preview_image);
 
   WM_event_add_notifier(C, NC_ASSET | NA_EDITED, nullptr);
-  ED_assetlist_storage_tag_main_data_dirty();
+  asset::list::storage_tag_main_data_dirty();
 
   return OPERATOR_FINISHED;
 }
@@ -230,6 +230,60 @@ static void ED_OT_lib_id_generate_preview_from_object(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_INTERNAL | OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static bool lib_id_remove_preview_poll(bContext *C)
+{
+  if (!lib_id_preview_editing_poll(C)) {
+    return false;
+  }
+
+  const PointerRNA idptr = CTX_data_pointer_get(C, "id");
+  const ID *id = static_cast<const ID *>(idptr.data);
+  if (!id) {
+    return false;
+  }
+
+  const PreviewImage *preview = BKE_previewimg_id_get(id);
+  if (!preview) {
+    CTX_wm_operator_poll_msg_set(C, "No preview available to remove");
+    return false;
+  }
+
+  return true;
+}
+
+static int lib_id_remove_preview_exec(bContext *C, wmOperator *op)
+{
+  const PointerRNA idptr = CTX_data_pointer_get(C, "id");
+  ID *id = static_cast<ID *>(idptr.data);
+
+  if (!id) {
+    BKE_report(
+        op->reports, RPT_ERROR, "Failed to remove preview: no ID in context (incorrect context?)");
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_previewimg_id_free(id);
+
+  WM_event_add_notifier(C, NC_ASSET | NA_EDITED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static void ED_OT_lib_id_remove_preview(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Remove Preview";
+  ot->description = "Remove the preview of this data-block";
+  ot->idname = "ED_OT_lib_id_remove_preview";
+
+  /* api callbacks */
+  ot->poll = lib_id_remove_preview_poll;
+  ot->exec = lib_id_remove_preview_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_UNDO | OPTYPE_INTERNAL;
 }
 
 /** \} */
@@ -305,7 +359,7 @@ static int lib_id_unlink_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  memset(&idptr, 0, sizeof(idptr));
+  idptr = {};
   RNA_property_pointer_set(&pprop.ptr, pprop.prop, idptr, nullptr);
   RNA_property_update(C, &pprop.ptr, pprop.prop);
 
@@ -348,6 +402,9 @@ static int lib_id_override_editable_toggle_exec(bContext *C, wmOperator * /*op*/
   else {
     /* Reset override, which makes it non-editable (i.e. a system define override). */
     BKE_lib_override_library_id_reset(bmain, id, true);
+
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(C, NC_WINDOW, nullptr);
   }
 
   WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
@@ -404,6 +461,7 @@ void ED_operatortypes_edutils()
   WM_operatortype_append(ED_OT_lib_id_load_custom_preview);
   WM_operatortype_append(ED_OT_lib_id_generate_preview);
   WM_operatortype_append(ED_OT_lib_id_generate_preview_from_object);
+  WM_operatortype_append(ED_OT_lib_id_remove_preview);
 
   WM_operatortype_append(ED_OT_lib_id_fake_user_toggle);
   WM_operatortype_append(ED_OT_lib_id_unlink);

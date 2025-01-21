@@ -9,17 +9,19 @@
 #include "abc_reader_archive.h"
 
 #include "Alembic/AbcCoreLayer/Read.h"
+#include "Alembic/AbcCoreOgawa/ReadWrite.h"
 
-#include "BKE_main.h"
+#include "BKE_main.hh"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #ifdef WIN32
-#  include "utfconv.h"
+#  include "utfconv.hh"
 #endif
 
 #include <fstream>
+#include <vector>
 
 using Alembic::Abc::ErrorHandler;
 using Alembic::Abc::Exception;
@@ -63,7 +65,7 @@ static IArchive open_archive(const std::string &filename,
   return IArchive();
 }
 
-ArchiveReader *ArchiveReader::get(Main *bmain, const std::vector<const char *> &filenames)
+ArchiveReader *ArchiveReader::get(const Main *bmain, const std::vector<const char *> &filenames)
 {
   std::vector<ArchiveReader *> readers;
 
@@ -103,7 +105,7 @@ ArchiveReader::ArchiveReader(const std::vector<ArchiveReader *> &readers) : m_re
   m_archive = IArchive(arPtr, kWrapExisting, ErrorHandler::kThrowPolicy);
 }
 
-ArchiveReader::ArchiveReader(Main *bmain, const char *filename)
+ArchiveReader::ArchiveReader(const Main *bmain, const char *filename)
 {
   char abs_filepath[FILE_MAX];
   STRNCPY(abs_filepath, filename);

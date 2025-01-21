@@ -10,6 +10,7 @@
 
 #include "tree_element.hh"
 
+struct bPoseChannel;
 struct Object;
 
 namespace blender::ed::outliner {
@@ -20,6 +21,15 @@ class TreeElementPoseBase final : public AbstractTreeElement {
  public:
   TreeElementPoseBase(TreeElement &legacy_te, Object &object);
   void expand(SpaceOutliner &) const override;
+};
+
+class TreeElementPoseChannel final : public AbstractTreeElement {
+  /* Not needed right now, avoid unused member variable warning. */
+  // Object &object_;
+  bPoseChannel &pchan_;
+
+ public:
+  TreeElementPoseChannel(TreeElement &legacy_te, Object &object, bPoseChannel &pchan);
 };
 
 }  // namespace blender::ed::outliner

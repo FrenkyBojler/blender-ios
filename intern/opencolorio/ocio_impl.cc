@@ -22,7 +22,9 @@ using namespace OCIO_NAMESPACE;
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_color.h"
+#include "BLI_math_color.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 
 #include "ocio_impl.h"
 
@@ -36,6 +38,10 @@ using namespace OCIO_NAMESPACE;
 #if defined(_MSC_VER)
 #  define __func__ __FUNCTION__
 #endif
+
+using blender::double4x4;
+using blender::float3;
+using blender::float3x3;
 
 static void OCIO_reportError(const char *err)
 {
@@ -56,8 +62,9 @@ OCIO_ConstConfigRcPtr *OCIOImpl::getCurrentConfig(void)
   try {
     *config = GetCurrentConfig();
 
-    if (*config)
+    if (*config) {
       return (OCIO_ConstConfigRcPtr *)config;
+    }
   }
   catch (Exception &exception) {
     OCIO_reportException(exception);
@@ -85,8 +92,9 @@ OCIO_ConstConfigRcPtr *OCIOImpl::configCreateFromEnv(void)
   try {
     *config = Config::CreateFromEnv();
 
-    if (*config)
+    if (*config) {
       return (OCIO_ConstConfigRcPtr *)config;
+    }
   }
   catch (Exception &exception) {
     OCIO_reportException(exception);
@@ -104,8 +112,9 @@ OCIO_ConstConfigRcPtr *OCIOImpl::configCreateFromFile(const char *filename)
   try {
     *config = Config::CreateFromFile(filename);
 
-    if (*config)
+    if (*config) {
       return (OCIO_ConstConfigRcPtr *)config;
+    }
   }
   catch (Exception &exception) {
     OCIO_reportException(exception);
@@ -153,8 +162,9 @@ OCIO_ConstColorSpaceRcPtr *OCIOImpl::configGetColorSpace(OCIO_ConstConfigRcPtr *
   try {
     *cs = (*(ConstConfigRcPtr *)config)->getColorSpace(name);
 
-    if (*cs)
+    if (*cs) {
       return (OCIO_ConstColorSpaceRcPtr *)cs;
+    }
   }
   catch (Exception &exception) {
     OCIO_reportException(exception);
@@ -372,8 +382,9 @@ OCIO_ConstLookRcPtr *OCIOImpl::configGetLook(OCIO_ConstConfigRcPtr *config, cons
   try {
     *look = (*(ConstConfigRcPtr *)config)->getLook(name);
 
-    if (*look)
+    if (*look) {
       return (OCIO_ConstLookRcPtr *)look;
+    }
   }
   catch (Exception &exception) {
     OCIO_reportException(exception);
@@ -522,8 +533,9 @@ OCIO_ConstProcessorRcPtr *OCIOImpl::configGetProcessorWithNames(OCIO_ConstConfig
   try {
     *processor = (*(ConstConfigRcPtr *)config)->getProcessor(srcName, dstName);
 
-    if (*processor)
+    if (*processor) {
       return (OCIO_ConstProcessorRcPtr *)processor;
+    }
   }
   catch (Exception &exception) {
     OCIO_reportException(exception);
@@ -566,22 +578,36 @@ void OCIOImpl::cpuProcessorApply_predivide(OCIO_ConstCPUProcessorRcPtr *cpu_proc
     int channels = img->getNumChannels();
 
     if (channels == 4) {
+      /* Convert from premultiplied alpha to straight alpha. */
       assert(img->isFloat());
-      float *pixels = (float *)img->getData();
-
-      size_t width = img->getWidth();
-      size_t height = img->getHeight();
-
-      for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-          float *pixel = pixels + 4 * (y * width + x);
-
-          cpuProcessorApplyRGBA_predivide(cpu_processor, pixel);
+      float *pixel = (float *)img->getData();
+      size_t pixel_count = img->getWidth() * img->getHeight();
+      for (size_t i = 0; i < pixel_count; i++, pixel += 4) {
+        float alpha = pixel[3];
+        if (alpha != 0.0f && alpha != 1.0f) {
+          float inv_alpha = 1.0f / alpha;
+          pixel[0] *= inv_alpha;
+          pixel[1] *= inv_alpha;
+          pixel[2] *= inv_alpha;
         }
       }
     }
-    else {
-      (*(ConstCPUProcessorRcPtr *)cpu_processor)->apply(*img);
+
+    (*(ConstCPUProcessorRcPtr *)cpu_processor)->apply(*img);
+
+    if (channels == 4) {
+      /* Back to premultiplied alpha. */
+      assert(img->isFloat());
+      float *pixel = (float *)img->getData();
+      size_t pixel_count = img->getWidth() * img->getHeight();
+      for (size_t i = 0; i < pixel_count; i++, pixel += 4) {
+        float alpha = pixel[3];
+        if (alpha != 0.0f && alpha != 1.0f) {
+          pixel[0] *= alpha;
+          pixel[1] *= alpha;
+          pixel[2] *= alpha;
+        }
+      }
     }
   }
   catch (Exception &exception) {
@@ -664,15 +690,18 @@ OCIO_ConstProcessorRcPtr *OCIOImpl::createDisplayProcessor(OCIO_ConstConfigRcPtr
                                                            const char *look,
                                                            const float scale,
                                                            const float exponent,
+                                                           const float temperature,
+                                                           const float tint,
+                                                           const bool use_white_balance,
                                                            const bool inverse)
 
 {
   ConstConfigRcPtr config = *(ConstConfigRcPtr *)config_;
   GroupTransformRcPtr group = GroupTransform::Create();
 
-  /* Exposure. */
-  if (scale != 1.0f) {
-    /* Always apply exposure in scene linear. */
+  /* Linear transforms. */
+  if (scale != 1.0f || use_white_balance) {
+    /* Always apply exposure and/or white balance in scene linear. */
     ColorSpaceTransformRcPtr ct = ColorSpaceTransform::Create();
     ct->setSrc(input);
     ct->setDst(ROLE_SCENE_LINEAR);
@@ -683,9 +712,26 @@ OCIO_ConstProcessorRcPtr *OCIOImpl::createDisplayProcessor(OCIO_ConstConfigRcPtr
 
     /* Apply scale. */
     MatrixTransformRcPtr mt = MatrixTransform::Create();
-    const double matrix[16] = {
-        scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0, 1.0};
-    mt->setMatrix(matrix);
+    float3x3 matrix = float3x3::identity() * scale;
+
+    /* Apply white balance. */
+    if (use_white_balance) {
+      /* Compute white point of the scene space in XYZ.*/
+      float3x3 xyz_to_scene;
+      configGetXYZtoSceneLinear(config_, xyz_to_scene.ptr());
+      float3x3 scene_to_xyz = blender::math::invert(xyz_to_scene);
+      float3 target = scene_to_xyz * float3(1.0f);
+
+      /* Add operations to the matrix.
+       * Note: Since we're multiplying from the right, the operations here will be performed in
+       * reverse list order (scene-to-XYZ, then adaption, then XYZ-to-scene, then exposure). */
+      matrix *= xyz_to_scene;
+      matrix *= blender::math::chromatic_adaption_matrix(
+          blender::math::whitepoint_from_temp_tint(temperature, tint), target);
+      matrix *= scene_to_xyz;
+    }
+
+    mt->setMatrix(double4x4(blender::math::transpose(matrix)).base_ptr());
     group->appendTransform(mt);
   }
 
@@ -738,8 +784,9 @@ OCIO_ConstProcessorRcPtr *OCIOImpl::createDisplayProcessor(OCIO_ConstConfigRcPtr
   try {
     *p = config->getProcessor(group);
 
-    if (*p)
+    if (*p) {
       return (OCIO_ConstProcessorRcPtr *)p;
+    }
   }
   catch (Exception &exception) {
     OCIO_reportException(exception);

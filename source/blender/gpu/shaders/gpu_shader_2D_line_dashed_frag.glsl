@@ -1,9 +1,17 @@
+/* SPDX-FileCopyrightText: 2017-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 /*
  * Fragment Shader for dashed lines, with uniform multi-color(s),
  * or any single-color, and any thickness.
  *
  * Dashed is performed in screen space.
  */
+
+#include "infos/gpu_shader_line_dashed_uniform_color_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(gpu_shader_3D_line_dashed_uniform_color)
 
 void main()
 {

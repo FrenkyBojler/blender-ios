@@ -14,7 +14,7 @@
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 #include "BKE_particle.h"
 
 #include "particle_private.h"
@@ -184,7 +184,7 @@ static void do_kink_spiral(ParticleThreadContext *ctx,
 
   zero_v3(kink_base);
   kink_base[part->kink_axis] = 1.0f;
-  mul_mat3_m4_v3(ctx->sim.ob->object_to_world, kink_base);
+  mul_mat3_m4_v3(ctx->sim.ob->object_to_world().ptr(), kink_base);
 
   /* Fill in invariant part of modifier context. */
   ParticleChildModifierContext modifier_ctx = {nullptr};
@@ -393,7 +393,7 @@ void do_kink(ParticleKey *state,
              float flat,
              short type,
              short axis,
-             float obmat[4][4],
+             const float obmat[4][4],
              int smooth_start)
 {
   float kink[3] = {1.0f, 0.0f, 0.0f}, par_vec[3];
@@ -526,7 +526,7 @@ void do_kink(ParticleKey *state,
       sub_v3_v3v3(par_vec, state->co, state_co);
 
       length = normalize_v3(par_vec);
-      mul_v3_fl(par_vec, MIN2(length, amplitude / 2.0f));
+      mul_v3_fl(par_vec, std::min(length, amplitude / 2.0f));
 
       add_v3_v3v3(state_co, par_co, y_vec);
       add_v3_v3(state_co, z_vec);
@@ -872,7 +872,7 @@ void do_child_modifiers(const ParticleChildModifierContext *modifier_ctx,
               part->kink_flat,
               part->kink,
               part->kink_axis,
-              sim->ob->object_to_world,
+              sim->ob->object_to_world().ptr(),
               smooth_start);
     }
   }

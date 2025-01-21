@@ -6,6 +6,7 @@
  * \ingroup spfile
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -14,16 +15,15 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_ghash.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 
 #include "ED_fileselect.hh"
 
-#include "UI_interface_icons.hh"
 #include "UI_resources.hh"
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -134,11 +134,13 @@ void ED_fsmenu_entry_set_path(FSMenuEntry *fsentry, const char *path)
 
     fsentry->path = (path && path[0]) ? BLI_strdup(path) : nullptr;
 
-    BLI_path_join(tmp_name,
-                  sizeof(tmp_name),
-                  BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, nullptr),
-                  BLENDER_BOOKMARK_FILE);
-    fsmenu_write_file(ED_fsmenu_get(), tmp_name);
+    const std::optional<std::string> user_config_dir = BKE_appdir_folder_id_create(
+        BLENDER_USER_CONFIG, nullptr);
+
+    if (user_config_dir.has_value()) {
+      BLI_path_join(tmp_name, sizeof(tmp_name), user_config_dir->c_str(), BLENDER_BOOKMARK_FILE);
+      fsmenu_write_file(ED_fsmenu_get(), tmp_name);
+    }
   }
 }
 
@@ -162,7 +164,7 @@ static void fsmenu_entry_generate_name(FSMenuEntry *fsentry, char *name, size_t 
     len += 1;
   }
 
-  BLI_strncpy(name, &fsentry->path[offset], MIN2(len, name_size));
+  BLI_strncpy(name, &fsentry->path[offset], std::min(size_t(len), name_size));
   if (!name[0]) {
     name[0] = '/';
     name[1] = '\0';
@@ -198,11 +200,13 @@ void ED_fsmenu_entry_set_name(FSMenuEntry *fsentry, const char *name)
       STRNCPY(fsentry->name, name);
     }
 
-    BLI_path_join(tmp_name,
-                  sizeof(tmp_name),
-                  BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, nullptr),
-                  BLENDER_BOOKMARK_FILE);
-    fsmenu_write_file(ED_fsmenu_get(), tmp_name);
+    const std::optional<std::string> user_config_dir = BKE_appdir_folder_id_create(
+        BLENDER_USER_CONFIG, nullptr);
+
+    if (user_config_dir.has_value()) {
+      BLI_path_join(tmp_name, sizeof(tmp_name), user_config_dir->c_str(), BLENDER_BOOKMARK_FILE);
+      fsmenu_write_file(ED_fsmenu_get(), tmp_name);
+    }
   }
 }
 
@@ -293,14 +297,7 @@ void fsmenu_insert_entry(FSMenu *fsmenu,
   }
 
   fsm_iter = static_cast<FSMenuEntry *>(MEM_mallocN(sizeof(*fsm_iter), "fsme"));
-  if (has_trailing_slash) {
-    fsm_iter->path = BLI_strdup(path);
-  }
-  else {
-    fsm_iter->path = BLI_strdupn(path, path_len + 1);
-    fsm_iter->path[path_len] = SEP;
-    fsm_iter->path[path_len + 1] = '\0';
-  }
+  fsm_iter->path = has_trailing_slash ? BLI_strdup(path) : BLI_string_joinN(path, SEP_STR);
   fsm_iter->save = (flag & FS_INSERT_SAVE) != 0;
 
   /* If entry is also in another list, use that icon and maybe name. */
@@ -599,13 +596,7 @@ int fsmenu_get_active_indices(FSMenu *fsmenu, enum FSMenuCategory category, cons
  * before being defined as unreachable by the OS, we need to validate the bookmarks in an
  * asynchronous job.
  */
-static void fsmenu_bookmark_validate_job_startjob(
-    void *fsmenuv,
-    /* Cannot be const, this function implements wm_jobs_start_callback.
-     * NOLINTNEXTLINE: readability-non-const-parameter. */
-    bool *stop,
-    bool *do_update,
-    float * /*progress*/)
+static void fsmenu_bookmark_validate_job_startjob(void *fsmenuv, wmJobWorkerStatus *worker_status)
 {
   FSMenu *fsmenu = static_cast<FSMenu *>(fsmenuv);
 
@@ -615,13 +606,13 @@ static void fsmenu_bookmark_validate_job_startjob(
   for (size_t i = ARRAY_SIZE(categories); i--;) {
     FSMenuEntry *fsm_iter = ED_fsmenu_get_category(fsmenu, FSMenuCategory(categories[i]));
     for (; fsm_iter; fsm_iter = fsm_iter->next) {
-      if (*stop) {
+      if (worker_status->stop) {
         return;
       }
       /* Note that we do not really need atomics primitives or thread locks here, since this only
        * sets one short, which is assumed to be 'atomic'-enough for us here. */
       fsmenu_entry_refresh_valid(fsm_iter);
-      *do_update = true;
+      worker_status->do_update = true;
     }
   }
 }

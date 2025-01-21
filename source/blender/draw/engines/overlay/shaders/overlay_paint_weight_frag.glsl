@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2018-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 float contours(float value, float steps, float width_px, float max_rel_width, float gradient)
 {
   /* Minimum visible and minimum full strength line width in screen space for fade out. */
@@ -27,7 +31,7 @@ float contours(float value, float steps, float width_px, float max_rel_width, fl
 
   float base_alpha = 1.0 - max(offset * hi_bias, -offset) / min(max_rel_width, rel_width);
 
-  /* Line fadeout when too thin in screen space. */
+  /* Line fade-out when too thin in screen-space. */
   float rel_fade_width = fade_width_px * rel_gradient;
 
   float fade_alpha = (max_rel_width - rel_min_width) / (rel_fade_width - rel_min_width);
@@ -76,7 +80,7 @@ void main()
   /* Weights are available */
   else {
     float weight = weight_interp.x;
-    vec4 weight_color = texture(colorramp, weight, 0);
+    vec4 weight_color = texture(colorramp, weight);
     weight_color = apply_color_fac(weight_color);
 
     /* Contour display */
@@ -95,4 +99,5 @@ void main()
   }
 
   fragColor = vec4(color.rgb, opacity);
+  lineOutput = vec4(0.0);
 }

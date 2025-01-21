@@ -8,17 +8,16 @@
 
 #pragma once
 
+#include <optional>
+
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 
 #include "node_texture_register.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RE_texture.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct bNodeThreadStack;
 
@@ -50,7 +49,7 @@ struct TexParams {
   const MTex *mtex;
 };
 
-typedef void (*TexFn)(float *out, TexParams *params, bNode *node, bNodeStack **in, short thread);
+using TexFn = void (*)(float *out, TexParams *params, bNode *node, bNodeStack **in, short thread);
 
 struct TexDelegate {
   TexCallData *cdata;
@@ -61,10 +60,12 @@ struct TexDelegate {
   int type;
 };
 
-bool tex_node_poll_default(const bNodeType *ntype,
+bool tex_node_poll_default(const blender::bke::bNodeType *ntype,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint);
-void tex_node_type_base(bNodeType *ntype, int type, const char *name, short nclass);
+void tex_node_type_base(blender::bke::bNodeType *ntype,
+                        std::string idname,
+                        std::optional<int16_t> legacy_type = std::nullopt);
 
 void tex_input_rgba(float *out, bNodeStack *in, TexParams *params, short thread);
 void tex_input_vec(float *out, bNodeStack *in, TexParams *params, short thread);
@@ -90,7 +91,3 @@ bNodeTreeExec *ntreeTexBeginExecTree_internal(bNodeExecContext *context,
                                               bNodeTree *ntree,
                                               bNodeInstanceKey parent_key);
 void ntreeTexEndExecTree_internal(bNodeTreeExec *exec);
-
-#ifdef __cplusplus
-}
-#endif

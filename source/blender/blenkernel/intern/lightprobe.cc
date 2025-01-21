@@ -17,16 +17,14 @@
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_anim_data.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_lightprobe.h"
-#include "BKE_main.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 static void lightprobe_init_data(ID *id)
 {
@@ -52,19 +50,14 @@ static void lightprobe_blend_write(BlendWriter *writer, ID *id, const void *id_a
   BKE_id_blend_write(writer, &prb->id);
 }
 
-static void lightprobe_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  LightProbe *prb = (LightProbe *)id;
-  BLO_read_id_address(reader, &prb->id, &prb->visibility_grp);
-}
-
 IDTypeInfo IDType_ID_LP = {
     /*id_code*/ ID_LP,
     /*id_filter*/ FILTER_ID_LP,
+    /*dependencies_id_types*/ FILTER_ID_IM,
     /*main_listbase_index*/ INDEX_ID_LP,
     /*struct_size*/ sizeof(LightProbe),
     /*name*/ "LightProbe",
-    /*name_plural*/ "lightprobes",
+    /*name_plural*/ N_("lightprobes"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_LIGHTPROBE,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -80,8 +73,7 @@ IDTypeInfo IDType_ID_LP = {
 
     /*blend_write*/ lightprobe_blend_write,
     /*blend_read_data*/ nullptr,
-    /*blend_read_lib*/ lightprobe_blend_read_lib,
-    /*blend_read_expand*/ nullptr,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -93,17 +85,17 @@ void BKE_lightprobe_type_set(LightProbe *probe, const short lightprobe_type)
   probe->type = lightprobe_type;
 
   switch (probe->type) {
-    case LIGHTPROBE_TYPE_GRID:
+    case LIGHTPROBE_TYPE_VOLUME:
       probe->distinf = 0.3f;
       probe->falloff = 1.0f;
       probe->clipsta = 0.01f;
       break;
-    case LIGHTPROBE_TYPE_PLANAR:
+    case LIGHTPROBE_TYPE_PLANE:
       probe->distinf = 0.1f;
       probe->falloff = 0.5f;
       probe->clipsta = 0.001f;
       break;
-    case LIGHTPROBE_TYPE_CUBE:
+    case LIGHTPROBE_TYPE_SPHERE:
       probe->attenuation_type = LIGHTPROBE_SHAPE_ELIPSOID;
       break;
     default:
@@ -112,7 +104,7 @@ void BKE_lightprobe_type_set(LightProbe *probe, const short lightprobe_type)
   }
 }
 
-void *BKE_lightprobe_add(Main *bmain, const char *name)
+LightProbe *BKE_lightprobe_add(Main *bmain, const char *name)
 {
   LightProbe *probe;
 
@@ -152,7 +144,7 @@ static void lightprobe_grid_cache_frame_blend_read(BlendDataReader *reader,
     return;
   }
 
-  BLO_read_data_address(reader, &cache->block_infos);
+  BLO_read_struct_array(reader, LightProbeGridCacheFrame, cache->block_len, &cache->block_infos);
 
   int64_t sample_count = BKE_lightprobe_grid_cache_frame_sample_count(cache);
 
@@ -176,7 +168,7 @@ static void lightprobe_grid_cache_frame_blend_read(BlendDataReader *reader,
   BLO_read_float_array(reader, sample_count, &cache->visibility.L1_b);
   BLO_read_float_array(reader, sample_count, &cache->visibility.L1_c);
 
-  BLO_read_data_address(reader, &cache->connectivity.validity);
+  BLO_read_int8_array(reader, sample_count, (int8_t **)&cache->connectivity.validity);
 }
 
 void BKE_lightprobe_cache_blend_write(BlendWriter *writer, LightProbeObjectCache *cache)
@@ -190,7 +182,7 @@ void BKE_lightprobe_cache_blend_write(BlendWriter *writer, LightProbeObjectCache
 void BKE_lightprobe_cache_blend_read(BlendDataReader *reader, LightProbeObjectCache *cache)
 {
   if (cache->grid_static_cache != nullptr) {
-    BLO_read_data_address(reader, &cache->grid_static_cache);
+    BLO_read_struct(reader, LightProbeGridCacheFrame, &cache->grid_static_cache);
     lightprobe_grid_cache_frame_blend_read(reader, cache->grid_static_cache);
   }
 }
@@ -295,5 +287,5 @@ int64_t BKE_lightprobe_grid_cache_frame_sample_count(const LightProbeGridCacheFr
     return cache->block_len * cube_i(cache->block_size);
   }
   /* LIGHTPROBE_CACHE_UNIFORM_GRID */
-  return cache->size[0] * cache->size[1] * cache->size[2];
+  return int64_t(cache->size[0]) * cache->size[1] * cache->size[2];
 }

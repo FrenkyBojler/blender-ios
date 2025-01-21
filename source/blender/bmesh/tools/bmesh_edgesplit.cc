@@ -10,11 +10,12 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "bmesh_edgesplit.h" /* own include */
+#include "bmesh_edgesplit.hh" /* own include */
 
 void BM_mesh_edgesplit(BMesh *bm,
                        const bool use_verts,

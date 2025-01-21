@@ -12,18 +12,18 @@
 
 #include "RNA_define.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "WM_types.hh"
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_idprop.h"
-#  include "BKE_scene.h"
-#  include "BKE_screen.h"
+#  include "BKE_idprop.hh"
+#  include "BKE_scene.hh"
+#  include "BKE_screen.hh"
 #  include "WM_api.hh"
 
-#  include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph_build.hh"
 
 static IDProperty **rna_TimelineMarker_idprops(PointerRNA *ptr)
 {

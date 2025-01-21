@@ -130,6 +130,7 @@ class GHOST_Context : public GHOST_IContext {
     return 0;
   }
 
+#ifdef WITH_VULKAN_BACKEND
   /**
    * Get Vulkan handles for the given context.
    *
@@ -153,6 +154,9 @@ class GHOST_Context : public GHOST_IContext {
    * \param r_queue: After calling this function the VkQueue
    *     referenced by this parameter will contain the VKQueue handle
    *     of the context associated with the `context` parameter.
+   * \param r_queue_mutex: After calling this function the std::mutex referred
+   *     by this parameter will contain the mutex of the context associated
+   *     with the context parameter.
    * \returns GHOST_kFailure when context isn't a Vulkan context.
    *     GHOST_kSuccess when the context is a Vulkan context and the
    *     handles have been set.
@@ -161,62 +165,25 @@ class GHOST_Context : public GHOST_IContext {
                                           void * /*r_physical_device*/,
                                           void * /*r_device*/,
                                           uint32_t * /*r_graphic_queue_family*/,
-                                          void * /*r_queue*/) override
+                                          void * /*r_queue*/,
+                                          void ** /*r_queue_mutex*/) override
   {
     return GHOST_kFailure;
   };
 
-  /**
-   * Return Vulkan command buffer.
-   *
-   * Command buffers are different for each image in the swap chain.
-   * At the start of each frame the correct command buffer should be
-   * retrieved with this function.
-   *
-   * \param r_command_buffer: After calling this function the VkCommandBuffer
-   *     referenced by this parameter will contain the VKCommandBuffer handle
-   *     of the current back buffer (when swap chains are enabled) or
-   *     it will contain a general VkCommandQueue.
-   * \returns GHOST_kFailure when context isn't a Vulkan context.
-   *     GHOST_kSuccess when the context is a Vulkan context and the
-   *     handles have been set.
-   */
-  virtual GHOST_TSuccess getVulkanCommandBuffer(void * /*r_command_buffer*/) override
-  {
-    return GHOST_kFailure;
-  };
-
-  /**
-   * Gets the Vulkan back-buffer related resource handles associated with the Vulkan context.
-   * Needs to be called after each swap event as the back-buffer will change.
-   *
-   * \param r_image: After calling this function the VkImage
-   *     referenced by this parameter will contain the VKImage handle
-   *     of the current back buffer.
-   * \param r_framebuffer: After calling this function the VkFramebuffer
-   *     referenced by this parameter will contain the VKFramebuffer handle
-   *     of the current back buffer.
-   * \param r_render_pass: After calling this function the VkRenderPass
-   *     referenced by this parameter will contain the VKRenderPass handle
-   *     of the current back buffer.
-   * \param r_extent: After calling this function the VkExtent2D
-   *     referenced by this parameter will contain the size of the
-   *     frame buffer and image in pixels.
-   * \param r_fb_id: After calling this function the uint32_t
-   *     referenced by this parameter will contain the id of the
-   *     framebuffer of the current back buffer.
-   * \returns GHOST_kFailure when context isn't a Vulkan context.
-   *     GHOST_kSuccess when the context is a Vulkan context and the
-   *     handles have been set.
-   */
-  virtual GHOST_TSuccess getVulkanBackbuffer(void * /*r_image*/,
-                                             void * /*r_framebuffer*/,
-                                             void * /*r_render_pass*/,
-                                             void * /*r_extent*/,
-                                             uint32_t * /*fb_id*/) override
+  virtual GHOST_TSuccess getVulkanSwapChainFormat(
+      GHOST_VulkanSwapChainData * /*r_swap_chain_data*/) override
   {
     return GHOST_kFailure;
   }
+
+  virtual GHOST_TSuccess setVulkanSwapBuffersCallbacks(
+      std::function<void(const GHOST_VulkanSwapChainData *)> /*swap_buffers_pre_callback*/,
+      std::function<void(void)> /*swap_buffers_post_callback*/) override
+  {
+    return GHOST_kFailure;
+  }
+#endif
 
  protected:
   bool m_stereoVisual;
@@ -224,11 +191,11 @@ class GHOST_Context : public GHOST_IContext {
   /** Caller specified, not for internal use. */
   void *m_user_data = nullptr;
 
+#ifdef WITH_OPENGL_BACKEND
   static void initClearGL();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-  MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_Context")
 #endif
+
+  MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_Context")
 };
 
 #ifdef _WIN32
@@ -236,7 +203,7 @@ bool win32_chk(bool result, const char *file = nullptr, int line = 0, const char
 bool win32_silent_chk(bool result);
 
 #  ifndef NDEBUG
-#    define WIN32_CHK(x) win32_chk((x), __FILE__, __LINE__, #    x)
+#    define WIN32_CHK(x) win32_chk((x), __FILE__, __LINE__, #x)
 #  else
 #    define WIN32_CHK(x) win32_chk(x)
 #  endif

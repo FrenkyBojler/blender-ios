@@ -6,10 +6,14 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 
 #include "DNA_armature_types.h"
+
+#include "ANIM_bone_collections.hh"
 
 #include "testing/testing.h"
 
@@ -26,13 +30,13 @@ static double EXPECT_M3_ORTHOGONAL(const float mat[3][3],
                                    double epsilon_ortho)
 {
   /* Do the checks in double precision to avoid precision issues in the checks themselves. */
-  double dmat[3][3];
-  copy_m3d_m3(dmat, mat);
+  double3x3 dmat;
+  copy_m3d_m3(dmat.ptr(), mat);
 
   /* Check individual axis scaling. */
-  EXPECT_NEAR(len_v3_db(dmat[0]), 1.0, epsilon_scale);
-  EXPECT_NEAR(len_v3_db(dmat[1]), 1.0, epsilon_scale);
-  EXPECT_NEAR(len_v3_db(dmat[2]), 1.0, epsilon_scale);
+  EXPECT_NEAR(math::length(dmat[0]), 1.0, epsilon_scale);
+  EXPECT_NEAR(math::length(dmat[1]), 1.0, epsilon_scale);
+  EXPECT_NEAR(math::length(dmat[2]), 1.0, epsilon_scale);
 
   /* Check orthogonality. */
   EXPECT_NEAR(dot_v3v3_db(dmat[0], dmat[1]), 0.0, epsilon_ortho);
@@ -40,7 +44,7 @@ static double EXPECT_M3_ORTHOGONAL(const float mat[3][3],
   EXPECT_NEAR(dot_v3v3_db(dmat[1], dmat[2]), 0.0, epsilon_ortho);
 
   /* Check determinant to detect flipping and as a secondary volume change check. */
-  double determinant = determinant_m3_array_db(dmat);
+  double determinant = math::determinant(dmat);
 
   EXPECT_NEAR(determinant, 1.0, epsilon_ortho);
 
@@ -357,21 +361,18 @@ class BKE_armature_find_selected_bones_test : public testing::Test {
 
   void SetUp() override
   {
+    memset(&arm, 0, sizeof(arm));
+    memset(&bone1, 0, sizeof(Bone));
+    memset(&bone2, 0, sizeof(Bone));
+    memset(&bone3, 0, sizeof(Bone));
+
     STRNCPY(bone1.name, "bone1");
     STRNCPY(bone2.name, "bone2");
     STRNCPY(bone3.name, "bone3");
 
-    arm.bonebase = {nullptr, nullptr};
-    bone1.childbase = {nullptr, nullptr};
-    bone2.childbase = {nullptr, nullptr};
-    bone3.childbase = {nullptr, nullptr};
-
     BLI_addtail(&arm.bonebase, &bone1);    /* bone1 is root bone. */
     BLI_addtail(&arm.bonebase, &bone2);    /* bone2 is root bone. */
     BLI_addtail(&bone2.childbase, &bone3); /* bone3 has bone2 as parent. */
-
-    /* Make sure the armature & its bones are visible, to make them selectable. */
-    arm.layer = bone1.layer = bone2.layer = bone3.layer = 1;
   }
 };
 

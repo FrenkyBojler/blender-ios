@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2017-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 /**
  * Infinite grid:
  * Draw anti-aliased grid and axes of different sizes with smooth blending between Level of
@@ -5,8 +9,8 @@
  * interpolation.
  */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+#include "common_math_lib.glsl"
+#include "common_view_lib.glsl"
 
 void main()
 {

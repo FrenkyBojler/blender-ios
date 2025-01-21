@@ -9,42 +9,35 @@
 #include "BLI_sys_types.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_gpencil_legacy_types.h"
-#include "DNA_mask_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_dlrbTree.h"
 #include "BLI_math_rotation.h"
 #include "BLI_rect.h"
-#include "BLI_timecode.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_fcurve.h"
-#include "BKE_global.h"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
+#include "BKE_fcurve.hh"
+#include "BKE_global.hh"
 #include "BKE_mask.h"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 
 #include "ED_anim_api.hh"
-#include "ED_keyframes_draw.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_keyframes_keylist.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
 /* *************************************************** */
 /* CURRENT FRAME DRAWING */
@@ -214,41 +207,62 @@ void ANIM_draw_action_framerange(
 /* *************************************************** */
 /* NLA-MAPPING UTILITIES (required for drawing and also editing keyframes). */
 
-AnimData *ANIM_nla_mapping_get(bAnimContext *ac, bAnimListElem *ale)
+bool ANIM_nla_mapping_allowed(const bAnimListElem *ale)
 {
-  /* sanity checks */
-  if (ac == nullptr) {
-    return nullptr;
-  }
+  /* Historically, there was another check in the code that this function replaced:
+   * if (!ELEM(ac->datatype,
+   *           ANIMCONT_ACTION,
+   *           ANIMCONT_SHAPEKEY,
+   *           ANIMCONT_DOPESHEET,
+   *           ANIMCONT_FCURVES,
+   *           ANIMCONT_NLA,
+   *           ANIMCONT_CHANNEL,
+   *           ANIMCONT_TIMELINE))
+   * {
+   *   ... prevent NLA-remapping ...
+   * }
+   *
+   * I (Sybren) suspect that this was actually hiding some animation type check. When that code was
+   * written, I think there was no GreasePencil data showing in the regular Dope Sheet editor.
+   */
 
-  /* abort if rendering - we may get some race condition issues... */
-  if (G.is_rendering) {
-    return nullptr;
-  }
-
-  /* apart from strictly keyframe-related contexts, this shouldn't even happen */
-  /* XXX: nla and channel here may not be necessary... */
-  if (ELEM(ac->datatype,
-           ANIMCONT_ACTION,
-           ANIMCONT_SHAPEKEY,
-           ANIMCONT_DOPESHEET,
-           ANIMCONT_FCURVES,
-           ANIMCONT_NLA,
-           ANIMCONT_CHANNEL,
-           ANIMCONT_TIMELINE))
-  {
-    /* handling depends on the type of animation-context we've got */
-    if (ale) {
+  switch (ale->type) {
+    case ANIMTYPE_NLACURVE:
       /* NLA Control Curves occur on NLA strips,
        * and shouldn't be subjected to this kind of mapping. */
-      if (ale->type != ANIMTYPE_NLACURVE) {
-        return ale->adt;
-      }
+      return false;
+    case ANIMTYPE_FCURVE: {
+      /* The F-Curve data of a driver should never get NLA-remapped. */
+      FCurve *fcurve = static_cast<FCurve *>(ale->key_data);
+      return !fcurve->driver;
     }
+    case ANIMTYPE_DSGPENCIL:
+    case ANIMTYPE_GPDATABLOCK:
+    case ANIMTYPE_GPLAYER:
+    case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
+    case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+    case ANIMTYPE_GREASE_PENCIL_LAYER:
+      /* Grease Pencil doesn't use the NLA, so don't bother remapping. */
+      return false;
+    case ANIMTYPE_MASKDATABLOCK:
+    case ANIMTYPE_MASKLAYER:
+      /* I (Sybren) don't _think_ masks can use the NLA. */
+      return false;
+    default:
+      /* NLA time remapping is the default behavior, and only should be
+       * prohibited for the above types. */
+      return true;
   }
+}
 
-  /* cannot handle... */
-  return nullptr;
+float ANIM_nla_tweakedit_remap(bAnimListElem *ale,
+                               const float cframe,
+                               const eNlaTime_ConvertModes mode)
+{
+  if (!ANIM_nla_mapping_allowed(ale)) {
+    return cframe;
+  }
+  return BKE_nla_tweakedit_remap(ale->adt, cframe, mode);
 }
 
 /* ------------------- */
@@ -318,13 +332,24 @@ void ANIM_nla_mapping_apply_fcurve(AnimData *adt, FCurve *fcu, bool restore, boo
   ANIM_fcurve_keyframes_loop(&ked, fcu, nullptr, map_cb, nullptr);
 }
 
+void ANIM_nla_mapping_apply_if_needed_fcurve(bAnimListElem *ale,
+                                             FCurve *fcu,
+                                             const bool restore,
+                                             const bool only_keys)
+{
+  if (!ANIM_nla_mapping_allowed(ale)) {
+    return;
+  }
+  ANIM_nla_mapping_apply_fcurve(ale->adt, fcu, restore, only_keys);
+}
+
 /* *************************************************** */
 /* UNITS CONVERSION MAPPING (required for drawing and editing keyframes) */
 
-short ANIM_get_normalization_flags(bAnimContext *ac)
+short ANIM_get_normalization_flags(SpaceLink *space_link)
 {
-  if (ac->sl->spacetype == SPACE_GRAPH) {
-    SpaceGraph *sipo = (SpaceGraph *)ac->sl;
+  if (space_link->spacetype == SPACE_GRAPH) {
+    SpaceGraph *sipo = (SpaceGraph *)space_link;
     bool use_normalization = (sipo->flag & SIPO_NORMALIZE) != 0;
     bool freeze_normalization = (sipo->flag & SIPO_NORMALIZE_FREEZE) != 0;
     return use_normalization ? (ANIM_UNITCONV_NORMALIZE |
@@ -336,7 +361,7 @@ short ANIM_get_normalization_flags(bAnimContext *ac)
 }
 
 static void fcurve_scene_coord_range_get(Scene *scene,
-                                         FCurve *fcu,
+                                         const FCurve *fcu,
                                          float *r_min_coord,
                                          float *r_max_coord)
 {
@@ -542,11 +567,11 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
 
   /* sanity checks */
   if (id && fcu && fcu->rna_path) {
-    PointerRNA ptr, id_ptr;
+    PointerRNA ptr;
     PropertyRNA *prop;
 
     /* get RNA property that F-Curve affects */
-    RNA_id_pointer_create(id, &id_ptr);
+    PointerRNA id_ptr = RNA_id_pointer_create(id);
     if (RNA_path_resolve_property(&id_ptr, fcu->rna_path, &ptr, &prop)) {
       /* rotations: radians <-> degrees? */
       if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_ROTATION) {
@@ -588,11 +613,11 @@ static bool find_prev_next_keyframes(bContext *C, int *r_nextfra, int *r_prevfra
   }
 
   /* populate tree with keyframe nodes */
-  scene_to_keylist(&ads, scene, keylist, 0);
+  scene_to_keylist(&ads, scene, keylist, 0, {-FLT_MAX, FLT_MAX});
   gpencil_to_keylist(&ads, scene->gpd, keylist, false);
 
   if (ob) {
-    ob_to_keylist(&ads, ob, keylist, 0);
+    ob_to_keylist(&ads, ob, keylist, 0, {-FLT_MAX, FLT_MAX});
     gpencil_to_keylist(&ads, static_cast<bGPdata *>(ob->data), keylist, false);
   }
 
@@ -706,3 +731,32 @@ void ANIM_center_frame(bContext *C, int smooth_viewtx)
   UI_view2d_smooth_view(C, region, &newrct, smooth_viewtx);
 }
 /* *************************************************** */
+
+rctf ANIM_frame_range_view2d_add_xmargin(const View2D &view_2d, const rctf view_rect)
+{
+  /* Keyframe diamonds seem to be drawn at 10 pixels wide, multiplied by the UI scale. */
+  const float keyframe_size = 10 * UI_SCALE_FAC;
+  const float margin_in_px = 4 * keyframe_size;
+
+  /* This cannot use UI_view2d_scale_get_x(view_2d) because that would use the
+   * current scale of the view, and not the one we'd get once `view_rect` is
+   * applied. And this function should not assume that view_2d.cur == view_rect.
+   *
+   * As an added bonus, the division is inverted (compared to
+   * UI_view2d_scale_get_x()) so that we can multiply with the result instead of
+   * doing yet another division. */
+  const float target_scale = BLI_rctf_size_x(&view_rect) / BLI_rcti_size_x(&view_2d.mask);
+  const float margin_in_frames = margin_in_px * target_scale;
+
+  /* Limit the margin to a maximum of 12.5% of the available size. This will
+   * make the margins smaller when the view gets smaller, but for large views
+   * still retain the fixed size calculated above */
+  const float margin_max = 0.125f * BLI_rctf_size_x(&view_rect);
+  const float margin = std::min(margin_in_frames, margin_max);
+
+  rctf rect_with_margin = view_rect;
+  rect_with_margin.xmin -= margin;
+  rect_with_margin.xmax += margin;
+
+  return rect_with_margin;
+}

@@ -2,6 +2,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "ProgressReport",
+    "ProgressReportSubstep",
+)
+
 import time
 
 
@@ -11,13 +16,13 @@ class ProgressReport:
 
     This object can be used as a context manager.
 
-    It supports multiple levels of 'substeps' - you shall always enter at least one substep (because level 0
+    It supports multiple levels of 'sub-steps' - you shall always enter at least one sub-step (because level 0
     has only one single step, representing the whole 'area' of the progress stuff).
 
-    You should give the expected number of substeps each time you enter a new one (you may then step more or less then
+    You should give the expected number of sub-steps each time you enter a new one (you may then step more or less then
     given number, but this will give incoherent progression).
 
-    Leaving a substep automatically steps by one the parent level.
+    Leaving a sub-step automatically steps by one the parent level.
 
         with ProgressReport() as progress:  # Not giving a WindowManager here will default to console printing.
             progress.enter_substeps(10)
@@ -50,7 +55,7 @@ class ProgressReport:
             self.running = True
         return self
 
-    def __exit__(self, exc_type=None, exc_value=None, traceback=None):
+    def __exit__(self, _exc_type=None, _exc_value=None, _traceback=None):
         self.running = False
         if self.wm:
             self.wm.progress_end()
@@ -76,10 +81,14 @@ class ProgressReport:
             self.wm.progress_update(steps)
         if msg:
             prefix = "  " * (len(self.steps) - 1)
-            print(prefix + "(%8.4f sec | %8.4f sec) %s\nProgress: %6.2f%%\r" %
-                  (tm, loc_tm, msg, steps_percent), end='')
+            print(
+                prefix + "({:8.4f} sec | {:8.4f} sec) {:s}\nProgress: {:6.2f}%\r".format(
+                    tm, loc_tm, msg, steps_percent,
+                ),
+                end="",
+            )
         else:
-            print("Progress: %6.2f%%\r" % (steps_percent,), end='')
+            print("Progress: {:6.2f}%\r".format(steps_percent,), end="")
 
     def enter_substeps(self, nbr, msg=""):
         if msg:
@@ -110,7 +119,7 @@ class ProgressReportSubstep:
 
     Its exit method always ensure ProgressReport is back on 'level' it was before entering this context.
     This means it is especially useful to ensure a coherent behavior around code that could return/continue/break
-    from many places, without having to bother to explicitly leave substep in each and every possible place!
+    from many places, without having to bother to explicitly leave sub-step in each and every possible place!
 
         with ProgressReport() as progress:  # Not giving a WindowManager here will default to console printing.
             with ProgressReportSubstep(progress, 10, final_msg="Finished!") as subprogress1:
@@ -122,7 +131,7 @@ class ProgressReportSubstep:
     __slots__ = ("progress", "nbr", "msg", "final_msg", "level")
 
     def __init__(self, progress, nbr, msg="", final_msg=""):
-        # Allows to generate a subprogress context handler from another one.
+        # Allows to generate a sub-progress context handler from another one.
         progress = getattr(progress, "progress", progress)
 
         self.progress = progress
@@ -135,7 +144,7 @@ class ProgressReportSubstep:
         self.progress.enter_substeps(self.nbr, self.msg)
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, _exc_type, _exc_value, _traceback):
         assert len(self.progress.steps) > self.level
         while len(self.progress.steps) > self.level + 1:
             self.progress.leave_substeps()

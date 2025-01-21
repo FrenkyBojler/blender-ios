@@ -7,12 +7,14 @@
  */
 
 #include "BLI_assert.h"
+#include "BLI_math_angle_types.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "COM_algorithm_transform.hh"
 #include "COM_node_operation.hh"
 
 #include "node_composite_util.hh"
@@ -55,8 +57,7 @@ static void node_composit_buts_transform(uiLayout *layout, bContext * /*C*/, Poi
   uiItemR(layout, ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
-using namespace blender::math;
+using namespace blender::compositor;
 
 class TransformOperation : public NodeOperation {
  public:
@@ -65,18 +66,16 @@ class TransformOperation : public NodeOperation {
   void execute() override
   {
     Result &input = get_input("Image");
-    Result &result = get_result("Image");
-    input.pass_through(result);
+    Result &output = get_result("Image");
 
-    const float2 translation = float2(get_input("X").get_float_value_default(0.0f),
-                                      get_input("Y").get_float_value_default(0.0f));
-    const AngleRadian rotation = AngleRadian(get_input("Angle").get_float_value_default(0.0f));
-    const float2 scale = float2(get_input("Scale").get_float_value_default(1.0f));
+    const float2 translation = float2(get_input("X").get_single_value_default(0.0f),
+                                      get_input("Y").get_single_value_default(0.0f));
+    const math::AngleRadian rotation = get_input("Angle").get_single_value_default(0.0f);
+    const float2 scale = float2(get_input("Scale").get_single_value_default(1.0f));
+    const float3x3 transformation = math::from_loc_rot_scale<float3x3>(
+        translation, rotation, scale);
 
-    const float3x3 transformation = from_loc_rot_scale<float3x3>(translation, rotation, scale);
-
-    result.transform(transformation);
-    result.get_realization_options().interpolation = get_interpolation();
+    transform(this->context(), input, output, transformation, this->get_interpolation());
   }
 
   Interpolation get_interpolation()
@@ -106,12 +105,16 @@ void register_node_type_cmp_transform()
 {
   namespace file_ns = blender::nodes::node_composite_transform_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_TRANSFORM, "Transform", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodeTransform", CMP_NODE_TRANSFORM);
+  ntype.ui_name = "Transform";
+  ntype.ui_description = "Scale, translate and rotate an image";
+  ntype.enum_name_legacy = "TRANSFORM";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_transform_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_transform;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

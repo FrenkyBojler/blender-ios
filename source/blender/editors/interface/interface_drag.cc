@@ -31,12 +31,12 @@ void UI_but_drag_attach_image(uiBut *but, const ImBuf *imb, const float scale)
 
 void UI_but_drag_set_asset(uiBut *but,
                            const blender::asset_system::AssetRepresentation *asset,
-                           int import_type,
+                           int import_method,
                            int icon,
                            const ImBuf *imb,
                            float scale)
 {
-  wmDragAsset *asset_drag = WM_drag_create_asset_data(asset, import_type);
+  wmDragAsset *asset_drag = WM_drag_create_asset_data(asset, import_method);
 
   but->dragtype = WM_DRAG_ASSET;
   ui_def_but_icon(but, icon, 0); /* no flag UI_HAS_ICON, so icon doesn't draw in button */
@@ -64,7 +64,7 @@ void UI_but_drag_set_path(uiBut *but, const char *path)
   if (but->dragflag & UI_BUT_DRAGPOIN_FREE) {
     WM_drag_data_free(but->dragtype, but->dragpoin);
   }
-  but->dragpoin = WM_drag_create_path_data(path);
+  but->dragpoin = WM_drag_create_path_data(blender::Span(&path, 1));
   but->dragflag |= UI_BUT_DRAGPOIN_FREE;
 }
 
@@ -76,11 +76,6 @@ void UI_but_drag_set_name(uiBut *but, const char *name)
     but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
   }
   but->dragpoin = (void *)name;
-}
-
-void UI_but_drag_set_value(uiBut *but)
-{
-  but->dragtype = WM_DRAG_VALUE;
 }
 
 void UI_but_drag_set_image(uiBut *but, const char *path, int icon, const ImBuf *imb, float scale)
@@ -108,7 +103,6 @@ void ui_but_drag_start(bContext *C, uiBut *but)
                                      but->icon,
                                      but->dragtype,
                                      but->dragpoin,
-                                     ui_but_value_get(but),
                                      (but->dragflag & UI_BUT_DRAGPOIN_FREE) ? WM_DRAG_FREE_DATA :
                                                                               WM_DRAG_NOP);
   /* wmDrag has ownership over dragpoin now, stop messing with it. */
@@ -123,6 +117,6 @@ void ui_but_drag_start(bContext *C, uiBut *but)
   /* Special feature for assets: We add another drag item that supports multiple assets. It
    * gets the assets from context. */
   if (ELEM(but->dragtype, WM_DRAG_ASSET, WM_DRAG_ID)) {
-    WM_event_start_drag(C, ICON_NONE, WM_DRAG_ASSET_LIST, nullptr, 0, WM_DRAG_NOP);
+    WM_event_start_drag(C, ICON_NONE, WM_DRAG_ASSET_LIST, nullptr, WM_DRAG_NOP);
   }
 }

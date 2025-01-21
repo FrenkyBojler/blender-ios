@@ -3,8 +3,8 @@ import bpy
 
 def write_some_data(context, filepath, use_some_setting):
     print("running write_some_data...")
-    f = open(filepath, 'w', encoding='utf-8')
-    f.write("Hello World %s" % use_some_setting)
+    f = open(filepath, "w", encoding='utf-8')
+    f.write("Hello World {:s}".format(use_some_setting))
     f.close()
 
     return {'FINISHED'}
@@ -22,7 +22,7 @@ class ExportSomeData(Operator, ExportHelper):
     bl_idname = "export_test.some_data"  # important since its how bpy.ops.import_test.some_data is constructed
     bl_label = "Export Some Data"
 
-    # ExportHelper mixin class uses this
+    # ExportHelper mix-in class uses this.
     filename_ext = ".txt"
 
     filter_glob: StringProperty(

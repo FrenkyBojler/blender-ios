@@ -1,10 +1,18 @@
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
 
 /**
  * Depth of Field utils.
  */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+#include "infos/eevee_common_info.hh"
+
+#include "draw_view_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 /* -------------------------------------------------------------------- */
 /** \name Constants.
@@ -15,43 +23,44 @@
 #endif
 
 #ifdef DOF_RESOLVE_PASS
-const bool is_resolve = true;
+#  define IS_RESOLVE true
 #else
-const bool is_resolve = false;
+#  define IS_RESOLVE false
 #endif
 #ifdef DOF_FOREGROUND_PASS
-const bool is_foreground = DOF_FOREGROUND_PASS;
+#  define IS_FOREGROUND DOF_FOREGROUND_PASS
 #else
-const bool is_foreground = false;
+#  define IS_FOREGROUND false
 #endif
 /* Debug options */
-const bool debug_gather_perf = false;
-const bool debug_scatter_perf = false;
-const bool debug_resolve_perf = false;
+#define debug_gather_perf false
+#define debug_scatter_perf false
+#define debug_resolve_perf false
 
-const bool no_smooth_intersection = false;
-const bool no_gather_occlusion = false;
-const bool no_gather_mipmaps = false;
-const bool no_gather_random = false;
-const bool no_gather_filtering = false;
-const bool no_scatter_occlusion = false;
-const bool no_scatter_pass = false;
-const bool no_foreground_pass = false;
-const bool no_background_pass = false;
-const bool no_slight_focus_pass = false;
-const bool no_focus_pass = false;
-const bool no_hole_fill_pass = false;
+#define no_smooth_intersection false
+#define no_gather_occlusion false
+#define no_gather_mipmaps false
+#define no_gather_random false
+#define no_gather_filtering false
+#define no_scatter_occlusion false
+#define no_scatter_pass false
+#define no_foreground_pass false
+#define no_background_pass false
+#define no_slight_focus_pass false
+#define no_focus_pass false
+#define no_hole_fill_pass false
 
-/* Distribute weights between near/slightfocus/far fields (slide 117). */
-const float dof_layer_threshold = 4.0;
+/* Distribute weights between near/slight-focus/far fields (slide 117). */
+#define dof_layer_threshold (4.0)
 /* Make sure it overlaps. */
-const float dof_layer_offset_fg = 0.5 + 1.0;
+#define dof_layer_offset_fg (0.5 + 1.0)
 /* Extra offset for convolution layers to avoid light leaking from background. */
-const float dof_layer_offset = 0.5 + 0.5;
+#define dof_layer_offset (0.5 + 0.5)
 
-const int dof_max_slight_focus_radius = DOF_MAX_SLIGHT_FOCUS_RADIUS;
+#define dof_max_slight_focus_radius DOF_MAX_SLIGHT_FOCUS_RADIUS
 
-const vec2 quad_offsets[4] = vec2[4](
+const uvec2 quad_offsets_u[4] = uint2_array(uvec2(0, 1), uvec2(1, 1), uvec2(1, 0), uvec2(0, 0));
+const vec2 quad_offsets[4] = float2_array(
     vec2(-0.5, 0.5), vec2(0.5, 0.5), vec2(0.5, -0.5), vec2(-0.5, -0.5));
 
 /** \} */
@@ -111,10 +120,10 @@ float dof_coc_from_depth(DepthOfFieldData dof_data, vec2 uv, float depth)
 {
   if (is_panoramic(dof_data.camera_type)) {
     /* Use radial depth. */
-    depth = -length(get_view_space_from_depth(uv, depth));
+    depth = -length(drw_point_screen_to_view(vec3(uv, depth)));
   }
   else {
-    depth = get_view_z_from_depth(depth);
+    depth = drw_depth_screen_to_view(depth);
   }
   return coc_radius_from_camera_depth(dof_data, depth);
 }
@@ -127,8 +136,8 @@ float dof_coc_from_depth(DepthOfFieldData dof_data, vec2 uv, float depth)
 
 float dof_layer_weight(float coc, const bool is_foreground)
 {
-  /* NOTE: These are fullres pixel CoC value. */
-  if (is_resolve) {
+  /* NOTE: These are full-resolution pixel CoC value. */
+  if (IS_RESOLVE) {
     return saturate(-abs(coc) + dof_layer_threshold + dof_layer_offset) *
            float(is_foreground ? (coc <= 0.5) : (coc > -0.5));
   }
@@ -146,11 +155,11 @@ vec4 dof_layer_weight(vec4 coc)
   return saturate(coc - dof_layer_threshold + dof_layer_offset);
 }
 
-/* NOTE: This is halfres CoC radius. */
+/* NOTE: This is half-resolution CoC radius. */
 float dof_sample_weight(float coc)
 {
 #if 1 /* Optimized */
-  return min(1.0, 1.0 / sqr(coc));
+  return min(1.0, 1.0 / square(coc));
 #else
   /* Full intensity if CoC radius is below the pixel footprint. */
   const float min_coc = 1.0;
@@ -161,7 +170,7 @@ float dof_sample_weight(float coc)
 vec4 dof_sample_weight(vec4 coc)
 {
 #if 1 /* Optimized */
-  return min(vec4(1.0), 1.0 / sqr(coc));
+  return min(vec4(1.0), 1.0 / square(coc));
 #else
   /* Full intensity if CoC radius is below the pixel footprint. */
   const float min_coc = 1.0;
@@ -186,7 +195,7 @@ struct CocTile {
 };
 
 /* WATCH: Might have to change depending on the texture format. */
-const float dof_tile_large_coc = 1024.0;
+#define dof_tile_large_coc 1024.0
 
 /* Init a CoC tile for reduction algorithms. */
 CocTile dof_coc_tile_init()
@@ -213,7 +222,7 @@ CocTile dof_coc_tile_unpack(vec3 fg, vec3 bg)
   return tile;
 }
 
-/* WORKAROUND(fclem): GLSL compilers differs in what qualifiers are requires to pass images as
+/* WORKAROUND(@fclem): GLSL compilers differs in what qualifiers are requires to pass images as
  * parameters. Workaround by using defines. */
 #define dof_coc_tile_load(tiles_fg_img_, tiles_bg_img_, texel_) \
   dof_coc_tile_unpack( \
@@ -276,8 +285,10 @@ CocTilePrediction dof_coc_tile_prediction_get(CocTile tile)
                          dof_do_fast_gather(-tile.fg_min_coc, -tile.fg_max_coc, true);
   predict.do_background = !fg_fully_opaque &&
                           (tile.bg_max_coc > dof_layer_threshold - dof_layer_offset);
+#if 0 /* Unused. */
   bool bg_fully_opaque = predict.do_background &&
                          dof_do_fast_gather(-tile.bg_max_coc, tile.bg_min_coc, false);
+#endif
   predict.do_hole_fill = !fg_fully_opaque && -tile.fg_min_coc > 0.0;
   predict.do_focus = !fg_fully_opaque;
   predict.do_slight_focus = !fg_fully_opaque;

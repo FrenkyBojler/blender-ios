@@ -1,5 +1,12 @@
+/* SPDX-FileCopyrightText: 2020-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(gpu_shader_smaa_lib.glsl)
+#include "infos/gpencil_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(gpencil_antialiasing_stage_1)
+
+#include "gpu_shader_smaa_lib.glsl"
 
 void main()
 {
@@ -31,12 +38,12 @@ void main()
   /* Revealage, how much light passes through. */
   /* Average for alpha channel. */
   out_reveal.a = clamp(dot(out_reveal.rgb, vec3(0.333334)), 0.0, 1.0);
-  /* Color buf is already premultiplied. Just add it to the color. */
+  /* Color buffer is already pre-multiplied. Just add it to the color. */
   /* Add the alpha. */
   out_color.a = 1.0 - out_reveal.a;
 
   if (onlyAlpha) {
-    /* Special case in wireframe xray mode. */
+    /* Special case in wire-frame X-ray mode. */
     out_color = vec4(0.0);
     out_reveal.rgb = out_reveal.aaa;
   }

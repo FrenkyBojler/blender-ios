@@ -21,16 +21,10 @@ unset(OPENCOLLADA_ANIMATION_CLIP CACHE)
 
 set(INC
   .
-  ../../blenkernel
-  ../../blentranslation
-  ../../depsgraph
   ../../editors/include
-  ../../imbuf
-  ../../makesrna
-  ../../windowmanager
   ../../ikplugin
+  ../../makesrna
   ../../../../intern/iksolver/extern
-  ../../bmesh
 )
 
 set(INC_SYS
@@ -115,13 +109,19 @@ set(LIB
   ${PCRE_LIBRARIES}
   ${XML2_LIBRARIES}
   PRIVATE bf::animrig
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_BUILDINFO)
   add_definitions(-DWITH_BUILDINFO)
 endif()
 
-blender_add_lib(bf_collada "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(bf_io_collada "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

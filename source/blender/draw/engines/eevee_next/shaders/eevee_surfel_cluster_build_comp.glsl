@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
  * Takes scene surfel representation and build list of surfels inside 3D cells.
@@ -7,12 +10,16 @@
  * Dispatch 1 thread per surfel.
  */
 
-#pragma BLENDER_REQUIRE(eevee_surfel_list_lib.glsl)
+#include "infos/eevee_lightprobe_volume_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_surfel_cluster_build)
+
+#include "eevee_surfel_list_lib.glsl"
 
 void main()
 {
   int surfel_index = int(gl_GlobalInvocationID.x);
-  if (surfel_index >= capture_info_buf.surfel_len) {
+  if (surfel_index >= int(capture_info_buf.surfel_len)) {
     return;
   }
 

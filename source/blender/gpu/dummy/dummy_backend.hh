@@ -30,7 +30,8 @@ class DummyBackend : public GPUBackend {
              GPU_BACKEND_NONE,
              "Unknown",
              "",
-             "");
+             "",
+             GPU_ARCHITECTURE_IMR);
   }
   void delete_resources() override {}
   void samplers_update() override {}
@@ -46,10 +47,6 @@ class DummyBackend : public GPUBackend {
   {
     return new DummyBatch;
   }
-  DrawList *drawlist_alloc(int /*list_length*/) override
-  {
-    return nullptr;
-  }
   Fence *fence_alloc() override
   {
     return nullptr;
@@ -62,7 +59,7 @@ class DummyBackend : public GPUBackend {
   {
     return nullptr;
   }
-  PixelBuffer *pixelbuf_alloc(uint /*size*/) override
+  PixelBuffer *pixelbuf_alloc(size_t /*size*/) override
   {
     return nullptr;
   }
@@ -78,11 +75,11 @@ class DummyBackend : public GPUBackend {
   {
     return nullptr;
   }
-  UniformBuf *uniformbuf_alloc(int /*size*/, const char * /*name*/) override
+  UniformBuf *uniformbuf_alloc(size_t /*size*/, const char * /*name*/) override
   {
     return nullptr;
   }
-  StorageBuf *storagebuf_alloc(int /*size*/,
+  StorageBuf *storagebuf_alloc(size_t /*size*/,
                                GPUUsageType /*usage*/,
                                const char * /*name*/) override
   {
@@ -92,9 +89,10 @@ class DummyBackend : public GPUBackend {
   {
     return new DummyVertexBuffer;
   }
+  void shader_cache_dir_clear_old() override {}
   void render_begin() override {}
   void render_end() override {}
-  void render_step() override {}
+  void render_step(bool /*force_resource_release*/) override {}
 };
 
 }  // namespace blender::gpu

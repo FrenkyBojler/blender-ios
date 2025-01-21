@@ -8,17 +8,13 @@
 
 #include "DNA_node_types.h"
 
-#include "BLI_listbase.h"
 #include "BLI_rect.h"
-#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_image.h"
-#include "BKE_main.h"
-#include "BKE_node.hh"
+#include "BKE_context.hh"
+#include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "ED_image.hh"
 #include "ED_node.hh" /* own include */
@@ -35,13 +31,43 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "node_intern.hh" /* own include */
 
 namespace blender::ed::space_node {
+
+/* -------------------------------------------------------------------- */
+/** \name Local Functions
+ * \{ */
+
+static bool space_node_active_view_poll(bContext *C)
+{
+  if (!ED_operator_node_active(C)) {
+    return false;
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
+    return false;
+  }
+  return true;
+}
+
+static bool space_node_composite_active_view_poll(bContext *C)
+{
+  if (!composite_node_active(C)) {
+    return false;
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
+    return false;
+  }
+  return true;
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name View All Operator
@@ -63,10 +89,10 @@ bool space_node_view_flag(
   if (snode.edittree) {
     for (const bNode *node : snode.edittree->all_nodes()) {
       if ((node->flag & node_flag) == node_flag) {
-        BLI_rctf_union(&cur_new, &node->runtime->totr);
+        BLI_rctf_union(&cur_new, &node->runtime->draw_bounds);
         tot++;
 
-        if (node->type == NODE_FRAME) {
+        if (node->is_frame()) {
           has_frame = true;
         }
       }
@@ -133,7 +159,7 @@ void NODE_OT_view_all(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = node_view_all_exec;
-  ot->poll = ED_operator_node_active;
+  ot->poll = space_node_active_view_poll;
 
   /* flags */
   ot->flag = 0;
@@ -166,7 +192,7 @@ void NODE_OT_view_selected(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = node_view_selected_exec;
-  ot->poll = ED_operator_node_active;
+  ot->poll = space_node_active_view_poll;
 
   /* flags */
   ot->flag = 0;
@@ -291,7 +317,7 @@ void NODE_OT_backimage_move(wmOperatorType *ot)
   /* api callbacks */
   ot->invoke = snode_bg_viewmove_invoke;
   ot->modal = snode_bg_viewmove_modal;
-  ot->poll = composite_node_active;
+  ot->poll = space_node_composite_active_view_poll;
   ot->cancel = snode_bg_viewmove_cancel;
 
   /* flags */
@@ -328,7 +354,7 @@ void NODE_OT_backimage_zoom(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = backimage_zoom_exec;
-  ot->poll = composite_node_active;
+  ot->poll = space_node_composite_active_view_poll;
 
   /* flags */
   ot->flag = OPTYPE_BLOCKING;
@@ -393,7 +419,7 @@ void NODE_OT_backimage_fit(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = backimage_fit_exec;
-  ot->poll = composite_node_active;
+  ot->poll = space_node_composite_active_view_poll;
 
   /* flags */
   ot->flag = OPTYPE_BLOCKING;
@@ -636,9 +662,9 @@ static int sample_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   info = MEM_cnew<ImageSampleInfo>("ImageSampleInfo");
-  info->art = region->type;
+  info->art = region->runtime->type;
   info->draw_handle = ED_region_draw_cb_activate(
-      region->type, sample_draw, info, REGION_DRAW_POST_PIXEL);
+      region->runtime->type, sample_draw, info, REGION_DRAW_POST_PIXEL);
   op->customdata = info;
 
   sample_apply(C, op, event);
@@ -682,7 +708,7 @@ void NODE_OT_backimage_sample(wmOperatorType *ot)
   ot->invoke = sample_invoke;
   ot->modal = sample_modal;
   ot->cancel = sample_cancel;
-  ot->poll = ED_operator_node_active;
+  ot->poll = space_node_active_view_poll;
 
   /* flags */
   ot->flag = OPTYPE_BLOCKING;

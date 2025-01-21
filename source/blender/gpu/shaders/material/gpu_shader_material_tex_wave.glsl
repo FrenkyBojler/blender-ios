@@ -1,6 +1,10 @@
-#pragma BLENDER_REQUIRE(gpu_shader_common_hash.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_material_noise.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_material_fractal_noise.glsl)
+/* SPDX-FileCopyrightText: 2019-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "gpu_shader_common_hash.glsl"
+#include "gpu_shader_material_fractal_noise.glsl"
+#include "gpu_shader_material_noise.glsl"
 
 float calc_wave(vec3 p,
                 float distortion,
@@ -52,7 +56,7 @@ float calc_wave(vec3 p,
 
   if (distortion != 0.0) {
     n += distortion *
-         (fractal_noise(p * detail_scale, detail, detail_roughness, 2.0, true) * 2.0 - 1.0);
+         (noise_fbm(p * detail_scale, detail, detail_roughness, 2.0, 0.0, 0.0, true) * 2.0 - 1.0);
   }
 
   if (wave_profile == 0) { /* profile sin */

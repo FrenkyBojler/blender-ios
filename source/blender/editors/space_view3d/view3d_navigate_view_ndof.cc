@@ -6,18 +6,14 @@
  * \ingroup spview3d
  */
 
-#include "BKE_context.h"
-
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-
-#include "DEG_depsgraph.h"
 
 #include "WM_api.hh"
 
 #include "ED_screen.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
 /* -------------------------------------------------------------------- */

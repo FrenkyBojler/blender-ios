@@ -10,12 +10,13 @@
 
 #include "BLI_utildefines.h"
 
-#include "BKE_curveprofile.h"
 #include "DNA_curveprofile_types.h"
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "BKE_customdata.hh"
+
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 {
@@ -35,7 +36,6 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
   const int miter_outer = BMO_slot_int_get(op->slots_in, "miter_outer");
   const int miter_inner = BMO_slot_int_get(op->slots_in, "miter_inner");
   const float spread = BMO_slot_float_get(op->slots_in, "spread");
-  const float smoothresh = BMO_slot_float_get(op->slots_in, "smoothresh");
   const CurveProfile *custom_profile = static_cast<const CurveProfile *>(
       BMO_slot_ptr_get(op->slots_in, "custom_profile"));
   const int vmesh_method = BMO_slot_int_get(op->slots_in, "vmesh_method");
@@ -82,9 +82,10 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
                   miter_outer,
                   miter_inner,
                   spread,
-                  smoothresh,
                   custom_profile,
-                  vmesh_method);
+                  vmesh_method,
+                  CustomData_get_offset_named(&bm->vdata, CD_PROP_FLOAT, "bevel_weight_vert"),
+                  CustomData_get_offset_named(&bm->edata, CD_PROP_FLOAT, "bevel_weight_edge"));
 
     BMO_slot_buffer_from_enabled_hflag(bm, op, op->slots_out, "faces.out", BM_FACE, BM_ELEM_TAG);
     BMO_slot_buffer_from_enabled_hflag(bm, op, op->slots_out, "edges.out", BM_EDGE, BM_ELEM_TAG);

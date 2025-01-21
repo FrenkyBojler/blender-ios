@@ -62,7 +62,7 @@ foreach(COMPONENT ${_osl_FIND_COMPONENTS})
       ${_osl_SEARCH_DIRS}
     PATH_SUFFIXES
       lib64 lib
-    )
+  )
 endforeach()
 
 # Note linking order matters, and oslnoise existence depends on version.
@@ -125,7 +125,15 @@ mark_as_advanced(
   OSL_INCLUDE_DIR
   OSL_SHADER_DIR
 )
+
 foreach(COMPONENT ${_osl_FIND_COMPONENTS})
   string(TOUPPER ${COMPONENT} UPPERCOMPONENT)
   mark_as_advanced(OSL_${UPPERCOMPONENT}_LIBRARY)
 endforeach()
+
+unset(COMPONENT)
+unset(UPPERCOMPONENT)
+
+unset(_osl_FIND_COMPONENTS)
+unset(_osl_LIBRARIES)
+unset(_osl_SEARCH_DIRS)

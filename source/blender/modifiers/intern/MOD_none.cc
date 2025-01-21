@@ -12,7 +12,7 @@
 
 #include "UI_resources.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 /* We only need to define is_disabled; because it always returns 1,
  * no other functions will be called
@@ -29,7 +29,7 @@ ModifierTypeInfo modifierType_None = {
     /*struct_name*/ "ModifierData",
     /*struct_size*/ sizeof(ModifierData),
     /*srna*/ &RNA_Modifier,
-    /*type*/ eModifierTypeType_None,
+    /*type*/ ModifierTypeType::None,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_NONE,
 
@@ -55,4 +55,5 @@ ModifierTypeInfo modifierType_None = {
     /*panel_register*/ nullptr,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

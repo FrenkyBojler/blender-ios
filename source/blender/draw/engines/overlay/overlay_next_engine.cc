@@ -8,20 +8,20 @@
  * Engine for drawing a selection map where the pixels indicate the selection indices.
  */
 
-#include "DRW_engine.h"
-#include "DRW_render.h"
+#include "DRW_engine.hh"
+#include "DRW_render.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "ED_view3d.hh"
 
 #include "UI_interface.hh"
 
-#include "BKE_duplilist.h"
-#include "BKE_object.h"
+#include "BKE_duplilist.hh"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 #include "DNA_space_types.h"
 
@@ -41,14 +41,23 @@ using Instance = blender::draw::overlay::Instance;
 
 static void OVERLAY_next_engine_init(void *vedata)
 {
-  if (!GPU_shader_storage_buffer_objects_support()) {
-    return;
-  }
-
   OVERLAY_Data *ved = reinterpret_cast<OVERLAY_Data *>(vedata);
 
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const RegionView3D *rv3d = draw_ctx->rv3d;
+  const View3D *v3d = draw_ctx->v3d;
+  const bool clipping_enabled = RV3D_CLIPPING_ENABLED(v3d, rv3d);
+
+  /* WORKAROUND: Restart the engine when clipping is being toggled. */
+  if (ved->instance != nullptr &&
+      reinterpret_cast<Instance *>(ved->instance)->clipping_enabled() != clipping_enabled)
+  {
+    delete reinterpret_cast<Instance *>(ved->instance);
+    ved->instance = nullptr;
+  }
+
   if (ved->instance == nullptr) {
-    ved->instance = new Instance(select::SelectionType::DISABLED);
+    ved->instance = new Instance(select::SelectionType::DISABLED, clipping_enabled);
   }
 
   reinterpret_cast<Instance *>(ved->instance)->init();
@@ -56,21 +65,16 @@ static void OVERLAY_next_engine_init(void *vedata)
 
 static void OVERLAY_next_cache_init(void *vedata)
 {
-  if (!GPU_shader_storage_buffer_objects_support()) {
-    return;
-  }
   reinterpret_cast<Instance *>(reinterpret_cast<OVERLAY_Data *>(vedata)->instance)->begin_sync();
 }
 
 static void OVERLAY_next_cache_populate(void *vedata, Object *object)
 {
-  if (!GPU_shader_storage_buffer_objects_support()) {
-    return;
-  }
   ObjectRef ref;
   ref.object = object;
   ref.dupli_object = DRW_object_get_dupli(object);
   ref.dupli_parent = DRW_object_get_dupli_parent(object);
+  ref.handle = ResourceHandle(0);
 
   reinterpret_cast<Instance *>(reinterpret_cast<OVERLAY_Data *>(vedata)->instance)
       ->object_sync(ref, *DRW_manager_get());
@@ -78,28 +82,26 @@ static void OVERLAY_next_cache_populate(void *vedata, Object *object)
 
 static void OVERLAY_next_cache_finish(void *vedata)
 {
-  if (!GPU_shader_storage_buffer_objects_support()) {
-    return;
-  }
   reinterpret_cast<Instance *>(reinterpret_cast<OVERLAY_Data *>(vedata)->instance)->end_sync();
 }
 
 static void OVERLAY_next_draw_scene(void *vedata)
 {
-  if (!GPU_shader_storage_buffer_objects_support()) {
-    return;
-  }
-
   reinterpret_cast<Instance *>(reinterpret_cast<OVERLAY_Data *>(vedata)->instance)
       ->draw(*DRW_manager_get());
 }
 
 static void OVERLAY_next_instance_free(void *instance_)
 {
-  auto *instance = (Instance *)instance_;
+  Instance *instance = (Instance *)instance_;
   if (instance != nullptr) {
     delete instance;
   }
+}
+
+static void OVERLAY_next_engine_free()
+{
+  overlay::ShaderModule::module_free();
 }
 
 /** \} */
@@ -116,7 +118,7 @@ DrawEngineType draw_engine_overlay_next_type = {
     /*idname*/ N_("Overlay"),
     /*vedata_size*/ &overlay_data_size,
     /*engine_init*/ &OVERLAY_next_engine_init,
-    /*engine_free*/ nullptr,
+    /*engine_free*/ &OVERLAY_next_engine_free,
     /*instance_free*/ &OVERLAY_next_instance_free,
     /*cache_init*/ &OVERLAY_next_cache_init,
     /*cache_populate*/ &OVERLAY_next_cache_populate,

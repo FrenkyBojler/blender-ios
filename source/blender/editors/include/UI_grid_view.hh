@@ -6,10 +6,12 @@
  * \ingroup editorui
  *
  * API for simple creation of grid UIs, supporting typically needed features.
- * https://wiki.blender.org/wiki/Source/Interface/Views/Grid_Views
+ * https://developer.blender.org/docs/features/interface/views/grid_views/
  */
 
 #pragma once
+
+#include <optional>
 
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
@@ -20,7 +22,6 @@
 
 struct bContext;
 struct uiBlock;
-struct uiButViewItem;
 struct uiLayout;
 struct View2D;
 
@@ -40,13 +41,13 @@ class AbstractGridViewItem : public AbstractViewItem {
  protected:
   /** Reference to a string that uniquely identifies this item in the view. */
   StringRef identifier_{};
-  /** Every visible item gets a button of type #UI_BTYPE_VIEW_ITEM during the layout building. */
-  uiButViewItem *view_item_but_ = nullptr;
 
  public:
   /* virtual */ ~AbstractGridViewItem() override = default;
 
-  virtual void build_grid_tile(uiLayout &layout) const = 0;
+  virtual void build_grid_tile(const bContext &C, uiLayout &layout) const = 0;
+
+  /* virtual */ std::optional<std::string> debug_name() const override;
 
   AbstractGridView &get_view() const;
 
@@ -169,9 +170,10 @@ class GridViewBuilder {
  public:
   GridViewBuilder(uiBlock &block);
 
-  /** Build \a grid_view into the previously provided block, clipped by \a view_bounds (view space,
-   * typically `View2D.cur`). */
-  void build_grid_view(AbstractGridView &grid_view, const View2D &v2d, uiLayout &layout);
+  void build_grid_view(const bContext &C,
+                       AbstractGridView &grid_view,
+                       uiLayout &layout,
+                       std::optional<StringRef> search_string = {});
 };
 
 /** \} */
@@ -199,12 +201,15 @@ class PreviewGridItem : public AbstractGridViewItem {
   bool hide_label_ = false;
 
  public:
-  std::string label{};
+  std::string label;
   int preview_icon_id = ICON_NONE;
 
   PreviewGridItem(StringRef identifier, StringRef label, int preview_icon_id);
 
-  void build_grid_tile(uiLayout &layout) const override;
+  void build_grid_tile(const bContext &C, uiLayout &layout) const override;
+
+  void build_grid_tile_button(uiLayout &layout,
+                              BIFIconID override_preview_icon_id = ICON_NONE) const;
 
   /**
    * Set a custom callback to execute when activating this view item. This way users don't have to

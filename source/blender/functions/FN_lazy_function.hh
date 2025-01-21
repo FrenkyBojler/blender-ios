@@ -49,13 +49,13 @@
 #include <atomic>
 #include <thread>
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #  define FN_LAZY_FUNCTION_DEBUG_THREADS
 #endif
 
 namespace blender::fn::lazy_function {
 
-enum class ValueUsage {
+enum class ValueUsage : uint8_t {
   /**
    * The value is definitely used and therefore has to be computed.
    */
@@ -196,11 +196,6 @@ class Params {
   template<typename T> T *try_get_input_data_ptr(int index) const;
   template<typename T> T *try_get_input_data_ptr_or_request(int index);
   template<typename T> void set_output(int index, T &&value);
-
-  /**
-   * Utility to initialize all outputs that haven't been set yet.
-   */
-  void set_default_remaining_outputs();
 
   /**
    * Returns true when the lazy-function is now allowed to use multi-threading when interacting
@@ -393,39 +388,46 @@ inline Params::Params(const LazyFunction &fn,
 
 inline void *Params::try_get_input_data_ptr(const int index) const
 {
+  BLI_assert(index >= 0 && index < fn_.inputs().size());
   return this->try_get_input_data_ptr_impl(index);
 }
 
 inline void *Params::try_get_input_data_ptr_or_request(const int index)
 {
+  BLI_assert(index >= 0 && index < fn_.inputs().size());
   this->assert_valid_thread();
   return this->try_get_input_data_ptr_or_request_impl(index);
 }
 
 inline void *Params::get_output_data_ptr(const int index)
 {
+  BLI_assert(index >= 0 && index < fn_.outputs().size());
   this->assert_valid_thread();
   return this->get_output_data_ptr_impl(index);
 }
 
 inline void Params::output_set(const int index)
 {
+  BLI_assert(index >= 0 && index < fn_.outputs().size());
   this->assert_valid_thread();
   this->output_set_impl(index);
 }
 
 inline bool Params::output_was_set(const int index) const
 {
+  BLI_assert(index >= 0 && index < fn_.outputs().size());
   return this->output_was_set_impl(index);
 }
 
 inline ValueUsage Params::get_output_usage(const int index) const
 {
+  BLI_assert(index >= 0 && index < fn_.outputs().size());
   return this->get_output_usage_impl(index);
 }
 
 inline void Params::set_input_unused(const int index)
 {
+  BLI_assert(index >= 0 && index < fn_.inputs().size());
   this->assert_valid_thread();
   this->set_input_unused_impl(index);
 }

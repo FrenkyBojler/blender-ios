@@ -7,18 +7,16 @@
  * \ingroup bke
  */
 
-#include <cstddef>
-
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_anim_types.h"
 #include "DNA_boid_types.h"
 #include "DNA_cloth_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_listBase.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -30,15 +28,15 @@
 #include "DNA_texture_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_edgehash.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
 #include "BLI_linklist.h"
+#include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -46,32 +44,24 @@
 #include "BKE_animsys.h"
 #include "BKE_boids.h"
 #include "BKE_collision.h"
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
+#include "BKE_customdata.hh"
 #include "BKE_effect.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh_legacy_convert.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_particle.h"
 
-#include "BKE_bvhutils.h"
-#include "BKE_cloth.h"
-#include "BKE_collection.h"
-#include "BKE_lattice.h"
-#include "BKE_material.h"
+#include "BKE_cloth.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
 #include "BKE_pointcache.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_physics.h"
-#include "DEG_depsgraph_query.h"
-
-#include "PIL_time.h"
-
-#include "RE_texture.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 /* FLUID sim particle import */
 #ifdef WITH_FLUID
@@ -232,7 +222,7 @@ static void realloc_particles(ParticleSimulationData *sim, int new_totpart)
     }
 
     if (psys->particles) {
-      totsaved = MIN2(psys->totpart, totpart);
+      totsaved = std::min(psys->totpart, totpart);
       /* Save old pars. */
       if (totsaved) {
         memcpy(newpars, psys->particles, totsaved * sizeof(ParticleData));
@@ -320,26 +310,26 @@ void psys_calc_dmcache(Object *ob, Mesh *mesh_final, Mesh *mesh_original, Partic
    * nodearray: the array of nodes aligned with the base mesh's elements, so
    *            each original elements can reference its derived elements
    */
-  Mesh *me = (Mesh *)ob->data;
+  Mesh *mesh = (Mesh *)ob->data;
   bool use_modifier_stack = psys->part->use_modifier_stack;
   PARTICLE_P;
 
   /* CACHE LOCATIONS */
-  if (!BKE_mesh_is_deformed_only(mesh_final)) {
+  if (!mesh_final->runtime->deformed_only) {
     /* Will use later to speed up subsurf/evaluated mesh. */
     LinkNode *node, *nodedmelem, **nodearray;
     int totdmelem, totelem, i;
     const int *origindex;
     const int *origindex_poly = nullptr;
     if (psys->part->from == PART_FROM_VERT) {
-      totdmelem = mesh_final->totvert;
+      totdmelem = mesh_final->verts_num;
 
       if (use_modifier_stack) {
         totelem = totdmelem;
         origindex = nullptr;
       }
       else {
-        totelem = me->totvert;
+        totelem = mesh->verts_num;
         origindex = static_cast<const int *>(
             CustomData_get_layer(&mesh_final->vert_data, CD_ORIGINDEX));
       }
@@ -769,10 +759,10 @@ void psys_get_birth_coords(
   /* particles live in global space so    */
   /* let's convert:                       */
   /* -location                            */
-  mul_m4_v3(ob->object_to_world, loc);
+  mul_m4_v3(ob->object_to_world().ptr(), loc);
 
   /* -normal                              */
-  mul_mat3_m4_v3(ob->object_to_world, nor);
+  mul_mat3_m4_v3(ob->object_to_world().ptr(), nor);
   normalize_v3(nor);
 
   /* -tangent                             */
@@ -790,7 +780,7 @@ void psys_get_birth_coords(
     fac = -sinf(float(M_PI) * (part->tanphase + phase));
     madd_v3_v3fl(vtan, utan, fac);
 
-    mul_mat3_m4_v3(ob->object_to_world, vtan);
+    mul_mat3_m4_v3(ob->object_to_world().ptr(), vtan);
 
     copy_v3_v3(utan, nor);
     mul_v3_fl(utan, dot_v3v3(vtan, nor));
@@ -805,7 +795,7 @@ void psys_get_birth_coords(
     r_vel[1] = 2.0f * (psys_frand(psys, p + 11) - 0.5f);
     r_vel[2] = 2.0f * (psys_frand(psys, p + 12) - 0.5f);
 
-    mul_mat3_m4_v3(ob->object_to_world, r_vel);
+    mul_mat3_m4_v3(ob->object_to_world().ptr(), r_vel);
     normalize_v3(r_vel);
   }
 
@@ -815,7 +805,7 @@ void psys_get_birth_coords(
     r_ave[1] = 2.0f * (psys_frand(psys, p + 14) - 0.5f);
     r_ave[2] = 2.0f * (psys_frand(psys, p + 15) - 0.5f);
 
-    mul_mat3_m4_v3(ob->object_to_world, r_ave);
+    mul_mat3_m4_v3(ob->object_to_world().ptr(), r_ave);
     normalize_v3(r_ave);
   }
 
@@ -827,7 +817,7 @@ void psys_get_birth_coords(
     r_rot[3] = 2.0f * (psys_frand(psys, p + 19) - 0.5f);
     normalize_qt(r_rot);
 
-    mat4_to_quat(rot, ob->object_to_world);
+    mat4_to_quat(rot, ob->object_to_world().ptr());
     mul_qt_qtqt(r_rot, r_rot, rot);
   }
 
@@ -841,7 +831,7 @@ void psys_get_birth_coords(
 
     /* boids store direction in ave */
     if (fabsf(nor[2]) == 1.0f) {
-      sub_v3_v3v3(state->ave, loc, ob->object_to_world[3]);
+      sub_v3_v3v3(state->ave, loc, ob->object_to_world().location());
       normalize_v3(state->ave);
     }
     else {
@@ -887,15 +877,15 @@ void psys_get_birth_coords(
 
     /*      *emitter object orientation     */
     if (part->ob_vel[0] != 0.0f) {
-      normalize_v3_v3(vec, ob->object_to_world[0]);
+      normalize_v3_v3(vec, ob->object_to_world().ptr()[0]);
       madd_v3_v3fl(vel, vec, part->ob_vel[0]);
     }
     if (part->ob_vel[1] != 0.0f) {
-      normalize_v3_v3(vec, ob->object_to_world[1]);
+      normalize_v3_v3(vec, ob->object_to_world().ptr()[1]);
       madd_v3_v3fl(vel, vec, part->ob_vel[1]);
     }
     if (part->ob_vel[2] != 0.0f) {
-      normalize_v3_v3(vec, ob->object_to_world[2]);
+      normalize_v3_v3(vec, ob->object_to_world().ptr()[2]);
       madd_v3_v3fl(vel, vec, part->ob_vel[2]);
     }
 
@@ -943,7 +933,7 @@ void psys_get_birth_coords(
         case PART_ROT_OB_X:
         case PART_ROT_OB_Y:
         case PART_ROT_OB_Z:
-          copy_v3_v3(rot_vec, ob->object_to_world[part->rotmode - PART_ROT_OB_X]);
+          copy_v3_v3(rot_vec, ob->object_to_world().ptr()[part->rotmode - PART_ROT_OB_X]);
           use_global_space = false;
           break;
         default:
@@ -970,7 +960,7 @@ void psys_get_birth_coords(
         float q_obmat[4];
         float q_imat[4];
 
-        mat4_to_quat(q_obmat, ob->object_to_world);
+        mat4_to_quat(q_obmat, ob->object_to_world().ptr());
         invert_qt_qt_normalized(q_imat, q_obmat);
 
         if (part->rotmode != PART_ROT_NOR_TAN) {
@@ -1133,7 +1123,7 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
       (sim->psys->pointcache->mem_cache.first))
   {
     float dietime = psys_get_dietime_from_cache(sim->psys->pointcache, p);
-    pa->dietime = MIN2(pa->dietime, dietime);
+    pa->dietime = std::min(pa->dietime, dietime);
   }
 
   if (pa->time > cfra) {
@@ -1574,8 +1564,7 @@ static void integrate_particle(
  * Authors: Simon Clavet, Philippe Beaudoin and Pierre Poulin
  * Website: http://www.iro.umontreal.ca/labs/infographie/papers/Clavet-2005-PVFS/
  *
- * Presented at Siggraph, (2005)
- *
+ * Presented at SIGGRAPH, (2005)
  * \{ */
 
 #define PSYS_FLUID_SPRINGS_INITIAL_SIZE 256
@@ -1666,17 +1655,16 @@ static void sph_springs_modify(ParticleSystem *psys, float dtime)
     }
   }
 }
-static EdgeHash *sph_springhash_build(ParticleSystem *psys)
+static blender::Map<blender::OrderedEdge, int> sph_springhash_build(ParticleSystem *psys)
 {
-  EdgeHash *springhash = nullptr;
+  blender::Map<blender::OrderedEdge, int> springhash;
+  springhash.reserve(psys->tot_fluidsprings);
+
   ParticleSpring *spring;
   int i = 0;
 
-  springhash = BLI_edgehash_new_ex(__func__, psys->tot_fluidsprings);
-
   for (i = 0, spring = psys->fluid_springs; i < psys->tot_fluidsprings; i++, spring++) {
-    BLI_edgehash_insert(
-        springhash, spring->particle_index[0], spring->particle_index[1], POINTER_FROM_INT(i + 1));
+    springhash.add({spring->particle_index[0], spring->particle_index[1]}, i + 1);
   }
 
   return springhash;
@@ -1808,7 +1796,7 @@ static void sph_force_cb(void *sphdata_v, ParticleKey *state, float *force, floa
   SPHRangeData pfr;
   SPHNeighbor *pfn;
   float *gravity = sphdata->gravity;
-  EdgeHash *springhash = sphdata->eh;
+  const std::optional<blender::Map<blender::OrderedEdge, int>> &springhash = sphdata->eh;
 
   float q, u, rij, dv[3];
   float pressure, near_pressure;
@@ -1892,9 +1880,9 @@ static void sph_force_cb(void *sphdata_v, ParticleKey *state, float *force, floa
 
     if (spring_constant > 0.0f) {
       /* Viscoelastic spring force */
-      if (pfn->psys == psys[0] && fluid->flag & SPH_VISCOELASTIC_SPRINGS && springhash) {
-        /* BLI_edgehash_lookup appears to be thread-safe. - z0r */
-        spring_index = POINTER_AS_INT(BLI_edgehash_lookup(springhash, index, pfn->index));
+      if (pfn->psys == psys[0] && fluid->flag & SPH_VISCOELASTIC_SPRINGS && springhash.has_value())
+      {
+        spring_index = springhash->lookup_default({index, pfn->index}, 0);
 
         if (spring_index) {
           spring = psys[0]->fluid_springs + spring_index - 1;
@@ -1904,7 +1892,8 @@ static void sph_force_cb(void *sphdata_v, ParticleKey *state, float *force, floa
                        -10.0f * spring_constant * (1.0f - rij / h) * (spring->rest_length - rij));
         }
         else if (fluid->spring_frames == 0 ||
-                 (pa->prev_state.time - pa->time) <= fluid->spring_frames) {
+                 (pa->prev_state.time - pa->time) <= fluid->spring_frames)
+        {
           ParticleSpring temp_spring;
           temp_spring.particle_index[0] = index;
           temp_spring.particle_index[1] = pfn->index;
@@ -2183,11 +2172,6 @@ static void psys_sph_flush_springs(SPHData *sphdata)
 void psys_sph_finalize(SPHData *sphdata)
 {
   psys_sph_flush_springs(sphdata);
-
-  if (sphdata->eh) {
-    BLI_edgehash_free(sphdata->eh, nullptr);
-    sphdata->eh = nullptr;
-  }
 }
 
 void psys_sph_density(BVHTree *tree, SPHData *sphdata, float co[3], float vars[2])
@@ -2376,7 +2360,7 @@ static void basic_rotate(ParticleSettings *part, ParticleData *pa, float dfra, f
       cross_v3_v3v3(pa->state.ave, pa->prev_state.vel, pa->state.vel);
       normalize_v3(pa->state.ave);
       angle = dot_v3v3(pa->prev_state.vel, pa->state.vel) / (len1 * len2);
-      mul_v3_fl(pa->state.ave, saacos(angle) / dtime);
+      mul_v3_fl(pa->state.ave, safe_acosf(angle) / dtime);
     }
 
     get_angular_velocity_vector(part->avemode, &pa->state, vec);
@@ -2810,19 +2794,19 @@ void BKE_psys_collision_neartest_cb(void *userdata,
 {
   ParticleCollision *col = (ParticleCollision *)userdata;
   ParticleCollisionElement pce;
-  const MVertTri *vt = &col->md->tri[index];
+  const blender::int3 vert_tri = &col->md->vert_tris[index];
   float(*x)[3] = col->md->x;
   float(*v)[3] = col->md->current_v;
   float t = hit->dist / col->original_ray_length;
   int collision = 0;
 
-  pce.x[0] = x[vt->tri[0]];
-  pce.x[1] = x[vt->tri[1]];
-  pce.x[2] = x[vt->tri[2]];
+  pce.x[0] = x[vert_tri[0]];
+  pce.x[1] = x[vert_tri[1]];
+  pce.x[2] = x[vert_tri[2]];
 
-  pce.v[0] = v[vt->tri[0]];
-  pce.v[1] = v[vt->tri[1]];
-  pce.v[2] = v[vt->tri[2]];
+  pce.v[0] = v[vert_tri[0]];
+  pce.v[1] = v[vert_tri[1]];
+  pce.v[2] = v[vert_tri[2]];
 
   pce.tot = 3;
   pce.inside = 0;
@@ -3011,14 +2995,14 @@ static int collision_response(ParticleSimulationData *sim,
 
       /* Convert to angular velocity. */
       cross_v3_v3v3(ave, vr_tan, pce->nor);
-      mul_v3_fl(ave, 1.0f / MAX2(pa->size, 0.001f));
+      mul_v3_fl(ave, 1.0f / std::max(pa->size, 0.001f));
 
       /* only friction will cause change in linear & angular velocity */
       interp_v3_v3v3(pa->state.ave, pa->state.ave, ave, frict);
       interp_v3_v3v3(v0_tan, v0_tan, v1_tan, frict);
     }
     else {
-      /* just basic friction (unphysical due to the friction model used in Blender) */
+      /* Just basic friction (nonphysical due to the friction model used in Blender). */
       interp_v3_v3v3(v0_tan, v0_tan, vc_tan, frict);
     }
   }
@@ -3359,7 +3343,7 @@ static void hair_create_input_mesh(ParticleSimulationData *sim,
   }
   blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
   blender::int2 *edge = mesh->edges_for_write().data();
-  dvert = BKE_mesh_deform_verts_for_write(mesh);
+  dvert = mesh->deform_verts_for_write().data();
 
   if (psys->clmd->hairdata == nullptr) {
     psys->clmd->hairdata = static_cast<ClothHairData *>(
@@ -3400,10 +3384,10 @@ static void hair_create_input_mesh(ParticleSimulationData *sim,
       use_hair = psys_hair_use_simulation(pa, max_length);
 
       psys_mat_hair_to_object(sim->ob, sim->psmd->mesh_final, psys->part->from, pa, hairmat);
-      mul_m4_m4m4(root_mat, sim->ob->object_to_world, hairmat);
+      mul_m4_m4m4(root_mat, sim->ob->object_to_world().ptr(), hairmat);
       normalize_m4(root_mat);
 
-      bending_stiffness = CLAMPIS(
+      bending_stiffness = std::clamp(
           1.0f - part->bending_random * psys_frand(psys, p + 666), 0.0f, 1.0f);
 
       for (k = 0, key = pa->hair; k < pa->totkey; k++, key++) {
@@ -3502,7 +3486,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
   realloc_roots = false;
   if (psys->hair_in_mesh) {
     Mesh *mesh = psys->hair_in_mesh;
-    if (totpoint != mesh->totvert || totedge != mesh->totedge) {
+    if (totpoint != mesh->verts_num || totedge != mesh->edges_num) {
       BKE_id_free(nullptr, mesh);
       psys->hair_in_mesh = nullptr;
       realloc_roots = true;
@@ -3541,7 +3525,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
       sim->ob,
       psys->hair_in_mesh,
       reinterpret_cast<float(*)[3]>(psys->hair_out_mesh->vert_positions_for_write().data()));
-  BKE_mesh_tag_positions_changed(psys->hair_out_mesh);
+  psys->hair_out_mesh->tag_positions_changed();
 
   /* restore cloth effector weights */
   psys->clmd->sim_parms->effector_weights = clmd_effweights;
@@ -3596,7 +3580,7 @@ static void save_hair(ParticleSimulationData *sim, float /*cfra*/)
   HairKey *key, *root;
   PARTICLE_P;
 
-  invert_m4_m4(ob->world_to_object, ob->object_to_world);
+  invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
 
   if (psys->totpart == 0) {
     return;
@@ -3619,7 +3603,7 @@ static void save_hair(ParticleSimulationData *sim, float /*cfra*/)
 
     /* convert from global to geometry space */
     copy_v3_v3(key->co, pa->state.co);
-    mul_m4_v3(ob->world_to_object, key->co);
+    mul_m4_v3(ob->world_to_object().ptr(), key->co);
 
     if (pa->totkey) {
       sub_v3_v3(key->co, root->co);
@@ -4031,7 +4015,7 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
 
       if (part->fluid->solver == SPH_SOLVER_DDR) {
         /* Apply SPH forces using double-density relaxation algorithm
-         * (Clavat et. al.) */
+         * (Clavat et al.) */
 
         TaskParallelSettings settings;
         BLI_parallel_range_settings_defaults(&settings);
@@ -4359,6 +4343,7 @@ static void particles_fluid_step(ParticleSimulationData *sim,
           BLI_snprintf(debugStrBuffer,
                        sizeof(debugStrBuffer),
                        "particles_fluid_step::error - unknown particle system type\n");
+          BLI_rng_free(sim->rng);
           return;
         }
 #  if 0
@@ -4409,7 +4394,8 @@ static void particles_fluid_step(ParticleSimulationData *sim,
           sub_v3_v3v3(size, max, min);
 
           /* Biggest dimension will be used for up-scaling. */
-          max_size = MAX3(size[0] / float(upres), size[1] / float(upres), size[2] / float(upres));
+          max_size = std::max(
+              {size[0] / float(upres), size[1] / float(upres), size[2] / float(upres)});
 
           /* Set particle position. */
           const float posParticle[3] = {posX, posY, posZ};
@@ -4428,7 +4414,7 @@ static void particles_fluid_step(ParticleSimulationData *sim,
           mul_v3_v3(pa->state.co, scaleAbs);
 
           /* Match domain scale. */
-          mul_m4_v3(ob->object_to_world, pa->state.co);
+          mul_m4_v3(ob->object_to_world().ptr(), pa->state.co);
 
           /* Add origin offset to particle position. */
           zero_v3(tmp);
@@ -4696,8 +4682,8 @@ void psys_changed_type(Object *ob, ParticleSystem *psys)
   else {
     free_hair(ob, psys, 1);
 
-    CLAMP(part->path_start, 0.0f, MAX2(100.0f, part->end + part->lifetime));
-    CLAMP(part->path_end, 0.0f, MAX2(100.0f, part->end + part->lifetime));
+    CLAMP(part->path_start, 0.0f, std::max(100.0f, part->end + part->lifetime));
+    CLAMP(part->path_end, 0.0f, std::max(100.0f, part->end + part->lifetime));
   }
 
   psys_reset(psys, PSYS_RESET_ALL);
@@ -5015,7 +5001,7 @@ void particle_system_update(Depsgraph *depsgraph,
 
   /* Save matrix for duplicators,
    * at render-time the actual dupli-object's matrix is used so don't update! */
-  invert_m4_m4(psys->imat, ob->object_to_world);
+  invert_m4_m4(psys->imat, ob->object_to_world().ptr());
 
   BKE_particle_batch_cache_dirty_tag(psys, BKE_PARTICLE_BATCH_DIRTY_ALL);
 }
@@ -5034,7 +5020,7 @@ struct ParticleSystemIDLoopForModifier {
 static void particlesystem_modifiersForeachIDLink(void *user_data,
                                                   Object * /*object*/,
                                                   ID **id_pointer,
-                                                  int cb_flag)
+                                                  const LibraryForeachIDCallbackFlag cb_flag)
 {
   ParticleSystemIDLoopForModifier *data = (ParticleSystemIDLoopForModifier *)user_data;
   data->func(data->psys, id_pointer, data->userdata, cb_flag);

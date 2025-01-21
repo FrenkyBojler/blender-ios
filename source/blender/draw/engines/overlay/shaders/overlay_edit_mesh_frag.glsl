@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2017-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 /**
  * We want to know how much a pixel is covered by a line.
  * We replace the square pixel with a circle of the same area and try to find the intersection
@@ -6,7 +10,7 @@
  * we approximate it by using the smooth-step function and a 1.05 factor to the disc radius.
  */
 
-#define M_1_SQRTPI 0.5641895835477563 /* 1/sqrt(pi) */
+#define M_1_SQRTPI 0.5641895835477563 /* `1/sqrt(pi)`. */
 
 #define DISC_RADIUS (M_1_SQRTPI * 1.05)
 #define GRID_LINE_SMOOTH_START (0.5 - DISC_RADIUS)
@@ -41,4 +45,5 @@ void main()
   fragColor.a *= 1.0 - (geometry_flat_out.finalColorOuter.a > 0.0 ? mix_w_outer : mix_w);
 
   fragColor.a *= test_occlusion() ? alpha : 1.0;
+  lineOutput = vec4(0.0);
 }

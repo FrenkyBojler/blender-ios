@@ -10,29 +10,15 @@
 
 #define SNAP_MIN_DISTANCE 30
 
-/* For enum. */
-#include "DNA_space_types.h"
+#include "transform.hh"
 
 bool peelObjectsTransform(TransInfo *t,
                           const float mval[2],
                           bool use_peel_object,
-                          /* return args */
+                          /* Return args. */
                           float r_loc[3],
                           float r_no[3],
                           float *r_thickness);
-
-eSnapMode snapObjectsTransform(TransInfo *t,
-                               const float mval[2],
-                               float *dist_px,
-                               /* return args */
-                               float r_loc[3],
-                               float r_no[3]);
-bool snapNodesTransform(TransInfo *t,
-                        const blender::float2 &mval,
-                        /* return args */
-                        float r_loc[2],
-                        float *r_dist_px,
-                        char *r_node_border);
 
 bool transformModeUseSnap(const TransInfo *t);
 
@@ -48,16 +34,20 @@ bool transform_snap_is_active(const TransInfo *t);
 
 bool validSnap(const TransInfo *t);
 
+void transform_snap_grid_init(const TransInfo *t, float r_snap[3], float *r_snap_precision);
 void initSnapping(TransInfo *t, wmOperator *op);
 void freeSnapping(TransInfo *t);
+void initSnapAngleIncrements(TransInfo *t);
 bool transform_snap_project_individual_is_active(const TransInfo *t);
 void transform_snap_project_individual_apply(TransInfo *t);
 void transform_snap_mixed_apply(TransInfo *t, float *vec);
 void resetSnapping(TransInfo *t);
 eRedrawFlag handleSnapping(TransInfo *t, const wmEvent *event);
-void drawSnapping(const bContext *C, TransInfo *t);
+void drawSnapping(TransInfo *t);
 bool usingSnappingNormal(const TransInfo *t);
 bool validSnappingNormal(const TransInfo *t);
+
+short *transform_snap_flag_from_spacetype_ptr(TransInfo *t, const struct PropertyRNA **r_prop);
 
 void getSnapPoint(const TransInfo *t, float vec[3]);
 void addSnapPoint(TransInfo *t);
@@ -71,27 +61,18 @@ float transform_snap_distance_len_squared_fn(TransInfo *t, const float p1[3], co
 TransSeqSnapData *transform_snap_sequencer_data_alloc(const TransInfo *t);
 void transform_snap_sequencer_data_free(TransSeqSnapData *data);
 bool transform_snap_sequencer_calc(TransInfo *t);
-void transform_snap_sequencer_apply_translate(TransInfo *t, float *vec);
+void transform_snap_sequencer_apply_seqslide(TransInfo *t, float *vec);
+void transform_snap_sequencer_image_apply_translate(TransInfo *t, float vec[2]);
 
 /* `transform_snap_animation.cc` */
-
-/**
- * This function returns the snapping 'mode' for Animation Editors only.
- * We cannot use the standard snapping due to NLA-strip scaling complexities.
- *
- * TODO: these modifier checks should be accessible from the key-map.
- */
-short getAnimEdit_SnapMode(TransInfo *t);
-void snapFrameTransform(TransInfo *t,
-                        eAnimEdit_AutoSnap autosnap,
-                        float val_initial,
-                        float val_final,
-                        float *r_val_final);
+void snapFrameTransform(
+    TransInfo *t, eSnapMode autosnap, float val_initial, float val_final, float *r_val_final);
 /**
  * This function is used by Animation Editor specific transform functions to do
- * the Snap Keyframe to Nearest Frame/Marker
+ * the Snap Keyframe to Nearest Frame/Marker.
  */
 void transform_snap_anim_flush_data(TransInfo *t,
                                     TransData *td,
-                                    eAnimEdit_AutoSnap autosnap,
+                                    eSnapMode autosnap,
                                     float *r_val_final);
+bool transform_snap_nla_calc(TransInfo *t, float *vec);

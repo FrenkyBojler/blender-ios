@@ -1,30 +1,15 @@
-/**
- * Copyright (C) 2013 Jorge Jimenez <jorge@iryoku.com>
- * Copyright (C) 2013 Jose I. Echevarria <joseignacioechevarria@gmail.com>
- * Copyright (C) 2013 Belen Masia <bmasia@unizar.es>
- * Copyright (C) 2013 Fernando Navarro <fernandn@microsoft.com>
- * Copyright (C) 2013 Diego Gutierrez <diegog@unizar.es>
+/* SPDX-FileCopyrightText: 2013 Jorge Jimenez <jorge@iryoku.com>
+ * SPDX-FileCopyrightText: 2013 Jose I. Echevarria <joseignacioechevarria@gmail.com>
+ * SPDX-FileCopyrightText: 2013 Belen Masia <bmasia@unizar.es>
+ * SPDX-FileCopyrightText: 2013 Fernando Navarro <fernandn@microsoft.com>
+ * SPDX-FileCopyrightText: 2013 Diego Gutierrez <diegog@unizar.es>
+ * SPDX-FileCopyrightText: 2019-2023 Blender Authors
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to
- * do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software. As clarification, there
- * is no requirement that the copyright notice and permission be included in
- * binary distributions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+ * SPDX-License-Identifier: MIT AND GPL-2.0-or-later */
+
+#pragma once
+
+#include "gpu_glsl_cpp_stubs.hh"
 
 /**
  *                  _______  ___  ___       ___           ___
@@ -634,7 +619,7 @@ float mad(float a, float b, float c)
 /**
  * Gathers current pixel, and the top-left neighbors.
  */
-float3 SMAAGatherNeighbours(float2 texcoord, float4 offset[3], SMAATexture2D(tex))
+float3 SMAAGatherNeighbors(float2 texcoord, float4 offset[3], SMAATexture2D(tex))
 {
 #ifdef SMAAGather
   return SMAAGather(tex, texcoord + SMAA_RT_METRICS.xy * float2(-0.5, -0.5)).grb;
@@ -653,8 +638,8 @@ float2 SMAACalculatePredicatedThreshold(float2 texcoord,
                                         float4 offset[3],
                                         SMAATexture2D(predicationTex))
 {
-  float3 neighbours = SMAAGatherNeighbours(texcoord, offset, SMAATexturePass2D(predicationTex));
-  float2 delta = abs(neighbours.xx - neighbours.yz);
+  float3 neighbors = SMAAGatherNeighbors(texcoord, offset, SMAATexturePass2D(predicationTex));
+  float2 delta = abs(neighbors.xx - neighbors.yz);
   float2 edges = step(SMAA_PREDICATION_THRESHOLD, delta);
   return SMAA_PREDICATION_SCALE * SMAA_THRESHOLD * (1.0 - SMAA_PREDICATION_STRENGTH * edges);
 }
@@ -895,8 +880,8 @@ float2 SMAAColorEdgeDetectionPS(float2 texcoord,
  */
 float2 SMAADepthEdgeDetectionPS(float2 texcoord, float4 offset[3], SMAATexture2D(depthTex))
 {
-  float3 neighbours = SMAAGatherNeighbours(texcoord, offset, SMAATexturePass2D(depthTex));
-  float2 delta = abs(neighbours.xx - float2(neighbours.y, neighbours.z));
+  float3 neighbors = SMAAGatherNeighbors(texcoord, offset, SMAATexturePass2D(depthTex));
+  float2 delta = abs(neighbors.xx - float2(neighbors.y, neighbors.z));
   float2 edges = step(SMAA_DEPTH_THRESHOLD, delta);
 
 #  ifdef GPU_FRAGMENT_SHADER
@@ -1378,18 +1363,18 @@ float4 SMAABlendingWeightCalculationPS(float2 texcoord,
     float e2 = SMAASampleLevelZeroOffset(edgesTex, coords.xz, int2(0, 1)).g;
 
     // Get the area for this direction:
-    weights.ba = SMAAArea(SMAATexturePass2D(areaTex), sqrt_d, e1, e2, subsampleIndices.x);
+    weights.zw = SMAAArea(SMAATexturePass2D(areaTex), sqrt_d, e1, e2, subsampleIndices.x);
 
     // Fix corners:
     coords.x = texcoord.x;
 
 #  ifdef GPU_METAL
     /* Partial vector references are unsupported in MSL. */
-    vec2 _weights = weights.ba;
+    vec2 _weights = weights.zw;
     SMAADetectVerticalCornerPattern(SMAATexturePass2D(edgesTex), _weights, coords.xyxz, d);
-    weights.ba = _weights;
+    weights.zw = _weights;
 #  else
-    SMAADetectVerticalCornerPattern(SMAATexturePass2D(edgesTex), weights.ba, coords.xyxz, d);
+    SMAADetectVerticalCornerPattern(SMAATexturePass2D(edgesTex), weights.zw, coords.xyxz, d);
 #  endif
   }
 

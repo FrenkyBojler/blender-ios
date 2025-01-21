@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2017-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 /*
  * Vertex Shader for dashed lines with 3D coordinates,
  * with uniform multi-colors or uniform single-color, and unary thickness.
@@ -5,7 +9,11 @@
  * Dashed is performed in screen space.
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_cfg_world_clip_lib.glsl)
+#include "infos/gpu_shader_line_dashed_uniform_color_info.hh"
+
+#include "gpu_shader_cfg_world_clip_lib.glsl"
+
+VERTEX_SHADER_CREATE_INFO(gpu_shader_3D_line_dashed_uniform_color_clipped)
 
 void main()
 {

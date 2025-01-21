@@ -12,12 +12,10 @@
 #  include "device/hiprt/queue.h"
 
 #  ifdef WITH_HIP_DYNLOAD
-#    include "hiprtew.h"
+#    include <hiprtew.h>
 #  else
 #    include <hiprt/hiprt_types.h>
 #  endif
-
-#  include "kernel/device/hiprt/globals.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -31,29 +29,29 @@ class BVHHIPRT;
 class HIPRTDevice : public HIPDevice {
 
  public:
-  virtual BVHLayoutMask get_bvh_layout_mask(const uint kernel_features) const override;
+  BVHLayoutMask get_bvh_layout_mask(const uint kernel_features) const override;
 
-  HIPRTDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler);
+  HIPRTDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler, bool headless);
 
-  virtual ~HIPRTDevice();
-  virtual unique_ptr<DeviceQueue> gpu_queue_create() override;
+  ~HIPRTDevice() override;
+  unique_ptr<DeviceQueue> gpu_queue_create() override;
   string compile_kernel_get_common_cflags(const uint kernel_features) override;
-  virtual string compile_kernel(const uint kernel_features,
-                                const char *name,
-                                const char *base = "hiprt") override;
+  string compile_kernel(const uint kernel_features,
+                        const char *name,
+                        const char *base = "hiprt") override;
 
-  virtual bool load_kernels(const uint kernel_features) override;
+  bool load_kernels(const uint kernel_features) override;
 
-  virtual void const_copy_to(const char *name, void *host, size_t size) override;
+  void const_copy_to(const char *name, void *host, const size_t size) override;
 
-  virtual void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
+  void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
 
   hiprtContext get_hiprt_context()
   {
     return hiprt_context;
   }
 
-  device_vector<int> global_stack_buffer;
+  hiprtGlobalStackBuffer global_stack_buffer;
 
  protected:
   enum Filter_Function { Closest = 0, Shadows, Local, Volume, Max_Intersect_Filter_Function };
@@ -82,7 +80,11 @@ class HIPRTDevice : public HIPDevice {
    * are defined on the GPU side as members of KernelParamsHIPRT struct the host memory is copied
    * to GPU through const_copy_to() function. */
 
-  device_vector<uint32_t> visibility;
+  /* Originally, visibility was only passed to HIP RT but after a bug report it was noted it was
+   * required for custom primitives (i.e., motion triangles). This buffer, however, has visibility
+   * per object not per primitive so the same buffer as the one that is passed to HIP RT can be
+   * used. */
+  device_vector<uint32_t> prim_visibility;
 
   /* instance_transform_matrix passes transform matrix of instances converted from Cycles Transform
    * format to instanceFrames member of hiprtSceneBuildInput. */
@@ -107,7 +109,7 @@ class HIPRTDevice : public HIPDevice {
    * blas_ptr has all the valid pointers and null pointers and blas for any geometry can be
    * directly retrieved from this array (used in subsurface scattering). */
   device_vector<int> user_instance_id;
-  device_vector<uint64_t> hiprt_blas_ptr;
+  device_vector<hiprtInstance> hiprt_blas_ptr;
   device_vector<uint64_t> blas_ptr;
 
   /* custom_prim_info stores custom information for custom primitives for all the primitives in a

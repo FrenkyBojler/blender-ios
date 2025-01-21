@@ -6,20 +6,20 @@
  * \ingroup depsgraph
  */
 
-#include "intern/node/deg_node.h"
+#include "intern/node/deg_node.hh"
 
 #include <cstdio>
 
 #include "BLI_utildefines.h"
 
-#include "intern/depsgraph.h"
-#include "intern/depsgraph_relation.h"
+#include "intern/depsgraph.hh"
+#include "intern/depsgraph_relation.hh"
 #include "intern/eval/deg_eval_copy_on_write.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_factory.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
-#include "intern/node/deg_node_time.h"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_factory.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
+#include "intern/node/deg_node_time.hh"
 
 namespace blender::deg {
 
@@ -62,8 +62,8 @@ const char *nodeTypeAsString(NodeType type)
       return "SEQUENCER";
     case NodeType::LAYER_COLLECTIONS:
       return "LAYER_COLLECTIONS";
-    case NodeType::COPY_ON_WRITE:
-      return "COPY_ON_WRITE";
+    case NodeType::COPY_ON_EVAL:
+      return "COPY_ON_EVAL";
     case NodeType::OBJECT_FROM_LAYER:
       return "OBJECT_FROM_LAYER";
     case NodeType::HIERARCHY:
@@ -87,8 +87,8 @@ const char *nodeTypeAsString(NodeType type)
       return "IMAGE_ANIMATION";
     case NodeType::BATCH_CACHE:
       return "BATCH_CACHE";
-    case NodeType::DUPLI:
-      return "DUPLI";
+    case NodeType::INSTANCING:
+      return "INSTANCING";
     case NodeType::SYNCHRONIZATION:
       return "SYNCHRONIZATION";
     case NodeType::AUDIO:
@@ -97,6 +97,8 @@ const char *nodeTypeAsString(NodeType type)
       return "ARMATURE";
     case NodeType::GENERIC_DATABLOCK:
       return "GENERIC_DATABLOCK";
+    case NodeType::SCENE:
+      return "SCENE";
     case NodeType::VISIBILITY:
       return "VISIBILITY";
     case NodeType::NTREE_OUTPUT:
@@ -139,18 +141,19 @@ eDepsSceneComponentType nodeTypeToSceneComponent(NodeType type)
     case NodeType::TIMESOURCE:
     case NodeType::ID_REF:
     case NodeType::LAYER_COLLECTIONS:
-    case NodeType::COPY_ON_WRITE:
+    case NodeType::COPY_ON_EVAL:
     case NodeType::OBJECT_FROM_LAYER:
     case NodeType::HIERARCHY:
     case NodeType::AUDIO:
     case NodeType::ARMATURE:
     case NodeType::GENERIC_DATABLOCK:
+    case NodeType::SCENE:
     case NodeType::PARTICLE_SYSTEM:
     case NodeType::PARTICLE_SETTINGS:
     case NodeType::POINT_CACHE:
     case NodeType::IMAGE_ANIMATION:
     case NodeType::BATCH_CACHE:
-    case NodeType::DUPLI:
+    case NodeType::INSTANCING:
     case NodeType::SYNCHRONIZATION:
     case NodeType::UNDEFINED:
     case NodeType::NUM_TYPES:
@@ -222,18 +225,19 @@ eDepsObjectComponentType nodeTypeToObjectComponent(NodeType type)
     case NodeType::ID_REF:
     case NodeType::SEQUENCER:
     case NodeType::LAYER_COLLECTIONS:
-    case NodeType::COPY_ON_WRITE:
+    case NodeType::COPY_ON_EVAL:
     case NodeType::OBJECT_FROM_LAYER:
     case NodeType::HIERARCHY:
     case NodeType::AUDIO:
     case NodeType::ARMATURE:
     case NodeType::GENERIC_DATABLOCK:
+    case NodeType::SCENE:
     case NodeType::PARTICLE_SYSTEM:
     case NodeType::PARTICLE_SETTINGS:
     case NodeType::POINT_CACHE:
     case NodeType::IMAGE_ANIMATION:
     case NodeType::BATCH_CACHE:
-    case NodeType::DUPLI:
+    case NodeType::INSTANCING:
     case NodeType::SYNCHRONIZATION:
     case NodeType::NTREE_OUTPUT:
     case NodeType::NTREE_GEOMETRY_PREPROCESS:

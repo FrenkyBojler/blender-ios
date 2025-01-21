@@ -15,10 +15,6 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct AnimData;
 struct Ipo;
 
@@ -135,6 +131,7 @@ enum {
   KEYBLOCK_MUTE = (1 << 0),
   KEYBLOCK_SEL = (1 << 1),
   KEYBLOCK_LOCKED = (1 << 2),
+  KEYBLOCK_LOCKED_SHAPE = (1 << 3),
 };
 
 #define KEYELEM_FLOAT_LEN_COORD 3
@@ -147,7 +144,3 @@ enum {
 
 #define KEYELEM_ELEM_LEN_BEZTRIPLE 4
 #define KEYELEM_FLOAT_LEN_BEZTRIPLE (KEYELEM_ELEM_LEN_BEZTRIPLE * KEYELEM_ELEM_SIZE_CURVE)
-
-#ifdef __cplusplus
-}
-#endif

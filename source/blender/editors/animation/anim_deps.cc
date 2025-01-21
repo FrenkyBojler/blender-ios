@@ -15,32 +15,36 @@
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mask_types.h"
-#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_set.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
-#include "BKE_anim_data.h"
-#include "BKE_context.h"
-#include "BKE_fcurve.h"
+#include "BKE_action.hh"
+#include "BKE_anim_data.hh"
+#include "BKE_context.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_main.h"
-#include "BKE_node.h"
+#include "BKE_screen.hh"
+#include "BKE_workspace.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
 
-#include "SEQ_sequencer.h"
-#include "SEQ_utils.h"
+#include "SEQ_sequencer.hh"
+#include "SEQ_utils.hh"
 
 #include "ED_anim_api.hh"
+
+#include "ANIM_action.hh"
 
 /* **************************** depsgraph tagging ******************************** */
 
@@ -78,10 +82,10 @@ void ANIM_list_elem_update(Main *bmain, Scene *scene, bAnimListElem *ale)
     /* If we have an fcurve, call the update for the property we
      * are editing, this is then expected to do the proper redraws
      * and depsgraph updates. */
-    PointerRNA id_ptr, ptr;
+    PointerRNA ptr;
     PropertyRNA *prop;
 
-    RNA_id_pointer_create(id, &id_ptr);
+    PointerRNA id_ptr = RNA_id_pointer_create(id);
 
     if (RNA_path_resolve_property(&id_ptr, fcu->rna_path, &ptr, &prop)) {
       RNA_property_update_main(bmain, scene, &ptr, prop);
@@ -140,8 +144,6 @@ static void animchan_sync_group(bAnimContext *ac, bAnimListElem *ale, bActionGro
       bArmature *arm = static_cast<bArmature *>(ob->data);
 
       if (pchan) {
-        bActionGroup *bgrp;
-
         /* if one matches, sync the selection status */
         if ((pchan->bone) && (pchan->bone->flag & BONE_SELECTED)) {
           agrp->flag |= AGRP_SELECTED;
@@ -167,12 +169,8 @@ static void animchan_sync_group(bAnimContext *ac, bAnimListElem *ale, bActionGro
           agrp->flag &= ~AGRP_ACTIVE;
         }
 
-        /* sync group colors */
-        bgrp = (bActionGroup *)BLI_findlink(&ob->pose->agroups, (pchan->agrp_index - 1));
-        if (bgrp) {
-          agrp->customCol = bgrp->customCol;
-          action_group_colors_sync(agrp, bgrp);
-        }
+        /* sync bone color */
+        action_group_colors_set_from_posebone(agrp, pchan);
       }
     }
   }
@@ -184,23 +182,23 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
   BLI_assert(GS(owner_id->name) == ID_SCE);
   Scene *scene = (Scene *)owner_id;
   FCurve *fcu = (FCurve *)ale->data;
-  Sequence *seq = nullptr;
+  Strip *strip = nullptr;
 
   /* Only affect if F-Curve involves sequence_editor.sequences. */
-  char seq_name[sizeof(seq->name)];
-  if (!BLI_str_quoted_substr(fcu->rna_path, "sequences_all[", seq_name, sizeof(seq_name))) {
+  char strip_name[sizeof(strip->name)];
+  if (!BLI_str_quoted_substr(fcu->rna_path, "sequences_all[", strip_name, sizeof(strip_name))) {
     return;
   }
 
   /* Check if this strip is selected. */
   Editing *ed = SEQ_editing_get(scene);
-  seq = SEQ_get_sequence_by_name(ed->seqbasep, seq_name, false);
-  if (seq == nullptr) {
+  strip = SEQ_get_sequence_by_name(ed->seqbasep, strip_name, false);
+  if (strip == nullptr) {
     return;
   }
 
   /* update selection status */
-  if (seq->flag & SELECT) {
+  if (strip->flag & SELECT) {
     fcu->flag |= FCURVE_SELECTED;
   }
   else {
@@ -291,11 +289,57 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
       case ANIMTYPE_GPLAYER:
         animchan_sync_gplayer(ale);
         break;
-      case ANIMTYPE_GREASE_PENCIL_LAYER:
+      case ANIMTYPE_GREASE_PENCIL_LAYER: {
         using namespace blender::bke::greasepencil;
         GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
         Layer *layer = static_cast<Layer *>(ale->data);
         layer->set_selected(grease_pencil->is_layer_active(layer));
+        break;
+      }
+
+      case ANIMTYPE_NONE:
+      case ANIMTYPE_ANIMDATA:
+      case ANIMTYPE_SPECIALDATA__UNUSED:
+      case ANIMTYPE_SUMMARY:
+      case ANIMTYPE_SCENE:
+      case ANIMTYPE_OBJECT:
+      case ANIMTYPE_NLACONTROLS:
+      case ANIMTYPE_NLACURVE:
+      case ANIMTYPE_FILLACT_LAYERED:
+      case ANIMTYPE_ACTION_SLOT:
+      case ANIMTYPE_FILLACTD:
+      case ANIMTYPE_FILLDRIVERS:
+      case ANIMTYPE_DSMAT:
+      case ANIMTYPE_DSLAM:
+      case ANIMTYPE_DSCAM:
+      case ANIMTYPE_DSCACHEFILE:
+      case ANIMTYPE_DSCUR:
+      case ANIMTYPE_DSSKEY:
+      case ANIMTYPE_DSWOR:
+      case ANIMTYPE_DSNTREE:
+      case ANIMTYPE_DSPART:
+      case ANIMTYPE_DSMBALL:
+      case ANIMTYPE_DSARM:
+      case ANIMTYPE_DSMESH:
+      case ANIMTYPE_DSTEX:
+      case ANIMTYPE_DSLAT:
+      case ANIMTYPE_DSLINESTYLE:
+      case ANIMTYPE_DSSPK:
+      case ANIMTYPE_DSGPENCIL:
+      case ANIMTYPE_DSMCLIP:
+      case ANIMTYPE_DSHAIR:
+      case ANIMTYPE_DSPOINTCLOUD:
+      case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_SHAPEKEY:
+      case ANIMTYPE_GPDATABLOCK:
+      case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
+      case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+      case ANIMTYPE_MASKDATABLOCK:
+      case ANIMTYPE_MASKLAYER:
+      case ANIMTYPE_NLATRACK:
+      case ANIMTYPE_NLAACTION:
+      case ANIMTYPE_PALETTE:
+      case ANIMTYPE_NUM_TYPES:
         break;
     }
   }
@@ -379,6 +423,19 @@ void ANIM_animdata_update(bAnimContext *ac, ListBase *anim_data)
         ANIM_list_elem_update(ac->bmain, ac->scene, ale);
       }
     }
+    else if (ELEM(ale->type,
+                  ANIMTYPE_GREASE_PENCIL_LAYER,
+                  ANIMTYPE_GREASE_PENCIL_LAYER_GROUP,
+                  ANIMTYPE_GREASE_PENCIL_DATABLOCK))
+    {
+      if (ale->update & ANIM_UPDATE_DEPS) {
+        ale->update &= ~ANIM_UPDATE_DEPS;
+        ANIM_list_elem_update(ac->bmain, ac->scene, ale);
+      }
+      /* Order appears to be already handled in `grease_pencil_layer_apply_trans_data` when
+       * translating. */
+      ale->update &= ~(ANIM_UPDATE_HANDLES | ANIM_UPDATE_ORDER);
+    }
     else if (ale->update) {
 #if 0
       if (G.debug & G_DEBUG) {
@@ -390,7 +447,7 @@ void ANIM_animdata_update(bAnimContext *ac, ListBase *anim_data)
       }
 #endif
       /* Prevent crashes in cases where it can't be handled */
-      ale->update = 0;
+      ale->update = eAnim_Update_Flags(0);
     }
 
     BLI_assert(ale->update == 0);
@@ -410,4 +467,55 @@ void ANIM_animdata_freelist(ListBase *anim_data)
 #else
   BLI_freelistN(anim_data);
 #endif
+}
+
+void ANIM_deselect_keys_in_animation_editors(bContext *C)
+{
+  using namespace blender;
+
+  wmWindow *ctx_window = CTX_wm_window(C);
+  ScrArea *ctx_area = CTX_wm_area(C);
+  ARegion *ctx_region = CTX_wm_region(C);
+
+  Set<bAction *> dna_actions;
+  LISTBASE_FOREACH (wmWindow *, win, &CTX_wm_manager(C)->windows) {
+    bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
+
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (!ELEM(area->spacetype, SPACE_GRAPH, SPACE_ACTION)) {
+        continue;
+      }
+      ARegion *window_region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+
+      if (!window_region) {
+        continue;
+      }
+
+      CTX_wm_window_set(C, win);
+      CTX_wm_area_set(C, area);
+      CTX_wm_region_set(C, window_region);
+      bAnimContext ac;
+      if (!ANIM_animdata_get_context(C, &ac)) {
+        continue;
+      }
+      ListBase anim_data = {nullptr, nullptr};
+      eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY);
+      ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
+      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+        if (!ale->adt || !ale->adt->action) {
+          continue;
+        }
+        dna_actions.add(ale->adt->action);
+      }
+      ANIM_animdata_freelist(&anim_data);
+    }
+  }
+
+  CTX_wm_window_set(C, ctx_window);
+  CTX_wm_area_set(C, ctx_area);
+  CTX_wm_region_set(C, ctx_region);
+
+  for (bAction *dna_action : dna_actions) {
+    animrig::action_deselect_keys(dna_action->wrap());
+  }
 }

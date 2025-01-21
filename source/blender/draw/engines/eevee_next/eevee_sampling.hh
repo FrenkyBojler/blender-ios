@@ -10,11 +10,10 @@
 
 #pragma once
 
-#include "BKE_colortools.h"
 #include "BLI_system.h"
 #include "BLI_vector.hh"
 #include "DNA_scene_types.h"
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "eevee_shader_shared.hh"
 
@@ -33,8 +32,10 @@ class Sampling {
   /* During interactive rendering, loop over the first few samples. */
   static constexpr uint64_t interactive_sample_aa_ = 8;
   static constexpr uint64_t interactive_sample_raytrace_ = 32;
+  static constexpr uint64_t interactive_sample_volume_ = 32;
   static constexpr uint64_t interactive_sample_max_ = interactive_sample_aa_ *
-                                                      interactive_sample_raytrace_;
+                                                      interactive_sample_raytrace_ *
+                                                      interactive_sample_volume_;
 
   /** 0 based current sample. Might not increase sequentially in viewport. */
   uint64_t sample_ = 0;
@@ -64,8 +65,10 @@ class Sampling {
 
   SamplingDataBuf data_;
 
+  ClampData &clamp_data_;
+
  public:
-  Sampling(Instance &inst) : inst_(inst){};
+  Sampling(Instance &inst, ClampData &clamp_data) : inst_(inst), clamp_data_(clamp_data){};
   ~Sampling(){};
 
   void init(const Scene *scene);
@@ -75,20 +78,14 @@ class Sampling {
 
   /* Viewport Only: Function to call to notify something in the scene changed.
    * This will reset accumulation. Do not call after end_sync() or during sample rendering. */
-  void reset()
-  {
-    reset_ = true;
-  }
+  void reset();
 
   /* Viewport Only: true if an update happened in the scene and accumulation needs reset. */
-  bool is_reset() const
-  {
-    return reset_;
-  }
+  bool is_reset() const;
 
-  template<typename T> void bind_resources(draw::detail::PassBase<T> *pass)
+  template<typename PassType> void bind_resources(PassType &pass)
   {
-    pass->bind_ssbo(SAMPLING_BUF_SLOT, &data_);
+    pass.bind_ssbo(SAMPLING_BUF_SLOT, &data_);
   }
 
   /* Returns a pseudo random number in [0..1] range. Each dimension are de-correlated.
@@ -213,7 +210,16 @@ class Sampling {
   }
 
   /* Cumulative Distribution Function Utils. */
+
+  /**
+   * Creates a discrete cumulative distribution function table from a given curvemapping.
+   * Output cdf vector is expected to already be sized according to the wanted resolution.
+   */
   static void cdf_from_curvemapping(const CurveMapping &curve, Vector<float> &cdf);
+  /**
+   * Inverts a cumulative distribution function.
+   * Output vector is expected to already be sized according to the wanted resolution.
+   */
   static void cdf_invert(Vector<float> &cdf, Vector<float> &inverted_cdf);
 };
 

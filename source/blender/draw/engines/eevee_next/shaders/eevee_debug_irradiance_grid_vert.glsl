@@ -1,6 +1,13 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(eevee_lightprobe_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
+#include "infos/eevee_lightprobe_volume_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(eevee_debug_irradiance_grid)
+
+#include "draw_view_lib.glsl"
+#include "eevee_lightprobe_lib.glsl"
 
 void main()
 {
@@ -20,7 +27,7 @@ void main()
   grid_sample.y = (sample_id / grid_resolution.x) % grid_resolution.y;
   grid_sample.z = (sample_id / (grid_resolution.x * grid_resolution.y));
 
-  vec3 P = lightprobe_irradiance_grid_sample_position(grid_mat, grid_resolution, grid_sample);
+  vec3 P = lightprobe_volume_grid_sample_position(grid_mat, grid_resolution, grid_sample);
 
   vec4 debug_data = texelFetch(debug_data_tx, grid_sample, 0);
   if (debug_mode == DEBUG_IRRADIANCE_CACHE_VALIDITY) {
@@ -46,7 +53,7 @@ void main()
     }
   }
 
-  gl_Position = point_world_to_ndc(P);
+  gl_Position = drw_point_world_to_homogenous(P);
   gl_Position.z -= 2.5e-5;
   gl_PointSize = 3.0;
 }

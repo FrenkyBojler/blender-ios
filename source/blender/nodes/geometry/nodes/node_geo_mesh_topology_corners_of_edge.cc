@@ -13,25 +13,21 @@ namespace blender::nodes::node_geo_mesh_topology_corners_of_edge_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>(N_("Edge Index"))
+  b.add_input<decl::Int>("Edge Index")
       .implicit_field(implicit_field_inputs::index)
-      .description(N_("The edge to retrieve data from. Defaults to the edge from the context"));
-  b.add_input<decl::Float>(N_("Weights"))
-      .supports_field()
-      .hide_value()
-      .description(N_("Values that sort the corners attached to the edge"));
-  b.add_input<decl::Int>(N_("Sort Index"))
+      .description("The edge to retrieve data from. Defaults to the edge from the context");
+  b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
+      "Values that sort the corners attached to the edge");
+  b.add_input<decl::Int>("Sort Index")
       .min(0)
       .supports_field()
-      .description(N_("Which of the sorted corners to output"));
-  b.add_output<decl::Int>(N_("Corner Index"))
+      .description("Which of the sorted corners to output");
+  b.add_output<decl::Int>("Corner Index")
       .field_source_reference_all()
       .description(
-          N_("A corner of the input edge in its face's winding order, chosen by the sort index"));
-  b.add_output<decl::Int>(N_("Total"))
-      .field_source()
-      .reference_pass({0})
-      .description(N_("The number of faces or corners connected to each edge"));
+          "A corner of the input edge in its face's winding order, chosen by the sort index");
+  b.add_output<decl::Int>("Total").field_source().reference_pass({0}).description(
+      "The number of faces or corners connected to each edge");
 }
 
 class CornersOfEdgeInput final : public bke::MeshFieldInput {
@@ -50,15 +46,15 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask &mask) const final
   {
-    const IndexRange edge_range(mesh.totedge);
+    const IndexRange edge_range(mesh.edges_num);
     Array<int> map_offsets;
     Array<int> map_indices;
     const Span<int> corner_edges = mesh.corner_edges();
-    const GroupedSpan<int> edge_to_loop_map = bke::mesh::build_edge_to_loop_map(
-        mesh.corner_edges(), mesh.totedge, map_offsets, map_indices);
+    const GroupedSpan<int> edge_to_loop_map = bke::mesh::build_edge_to_corner_map(
+        mesh.corner_edges(), mesh.edges_num, map_offsets, map_indices);
 
     const bke::MeshFieldContext context{mesh, domain};
     fn::FieldEvaluator evaluator{context, &mask};
@@ -68,7 +64,7 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
     const VArray<int> edge_indices = evaluator.get_evaluated<int>(0);
     const VArray<int> indices_in_sort = evaluator.get_evaluated<int>(1);
 
-    const bke::MeshFieldContext corner_context{mesh, ATTR_DOMAIN_CORNER};
+    const bke::MeshFieldContext corner_context{mesh, AttrDomain::Corner};
     fn::FieldEvaluator corner_evaluator{corner_context, corner_edges.size()};
     corner_evaluator.add(sort_weight_);
     corner_evaluator.evaluate();
@@ -109,7 +105,7 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
            * when accessing values in the sort weights. However, it means a separate array of
            * indices within the compressed array is necessary for sorting. */
           sort_indices.reinitialize(corners.size());
-          std::iota(sort_indices.begin(), sort_indices.end(), 0);
+          array_utils::fill_index_range<int>(sort_indices);
           std::stable_sort(sort_indices.begin(), sort_indices.end(), [&](int a, int b) {
             return sort_weights[a] < sort_weights[b];
           });
@@ -131,9 +127,9 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
     sort_weight_.node().for_each_field_input_recursive(fn);
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_EDGE;
+    return AttrDomain::Edge;
   }
 };
 
@@ -145,13 +141,13 @@ class CornersOfEdgeCountInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    if (domain != ATTR_DOMAIN_EDGE) {
+    if (domain != AttrDomain::Edge) {
       return {};
     }
-    Array<int> counts(mesh.totedge, 0);
+    Array<int> counts(mesh.edges_num, 0);
     array_utils::count_indices(mesh.corner_edges(), counts);
     return VArray<int>::ForContainer(std::move(counts));
   }
@@ -166,9 +162,9 @@ class CornersOfEdgeCountInput final : public bke::MeshFieldInput {
     return dynamic_cast<const CornersOfEdgeCountInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_EDGE;
+    return AttrDomain::Edge;
   }
 };
 
@@ -177,10 +173,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<int> edge_index = params.extract_input<Field<int>>("Edge Index");
   if (params.output_is_required("Total")) {
     params.set_output("Total",
-                      Field<int>(std::make_shared<EvaluateAtIndexInput>(
+                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           edge_index,
                           Field<int>(std::make_shared<CornersOfEdgeCountInput>()),
-                          ATTR_DOMAIN_EDGE)));
+                          AttrDomain::Edge)));
   }
   if (params.output_is_required("Corner Index")) {
     params.set_output("Corner Index",
@@ -193,12 +189,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_EDGE, "Corners of Edge", NODE_CLASS_INPUT);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeCornersOfEdge", GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_EDGE);
+  ntype.ui_name = "Corners of Edge";
+  ntype.ui_description = "Retrieve face corners connected to edges";
+  ntype.enum_name_legacy = "CORNERS_OF_EDGE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

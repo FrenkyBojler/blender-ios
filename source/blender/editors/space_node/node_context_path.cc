@@ -11,15 +11,11 @@
 
 #include "DNA_node_types.h"
 
-#include "BKE_context.h"
-#include "BKE_material.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_context.hh"
+#include "BKE_material.hh"
+#include "BKE_object.hh"
 
-#include "BKE_screen.h"
-
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_screen.hh"
 
@@ -55,9 +51,10 @@ static void context_path_add_node_tree_and_node_groups(const SpaceNode &snode,
                                                        Vector<ui::ContextPathItem> &path,
                                                        const bool skip_base = false)
 {
-  Vector<const bNodeTreePath *> tree_path = snode.treepath;
-  for (const bNodeTreePath *path_item : tree_path.as_span().drop_front(int(skip_base))) {
-    ui::context_path_add_generic(path, RNA_NodeTree, path_item->nodetree, ICON_NODETREE);
+  LISTBASE_FOREACH (const bNodeTreePath *, path_item, &snode.treepath) {
+    if (!(skip_base && path_item == snode.treepath.first)) {
+      ui::context_path_add_generic(path, RNA_NodeTree, path_item->nodetree, ICON_NODETREE);
+    }
   }
 }
 
