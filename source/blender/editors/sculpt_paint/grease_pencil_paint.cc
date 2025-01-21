@@ -1469,33 +1469,27 @@ void append_stroke_from(const bke::CurvesGeometry &src, const int curve, bke::Cu
 
   dst.resize(initial_points_num + points.size(), initial_curves_num + 1);
 
-  Array<int> src_raw_offsets{points.first(), points.one_after_last()};
-  Array<int> dst_raw_offsets{initial_points_num, initial_points_num + int(points.size())};
-
-  OffsetIndices<int> src_point_offsets{src_raw_offsets};
-  OffsetIndices<int> dst_point_offsets{dst_raw_offsets};
+  Array<int> src_offsets{points.first(), points.one_after_last()};
+  Array<int> dst_offsets{initial_points_num, dst.points_num()};
 
   copy_attributes_group_to_group(src.attributes(),
                                  bke::AttrDomain::Point,
                                  bke::AttrDomain::Point,
                                  {},
-                                 src_point_offsets,
-                                 dst_point_offsets,
+                                 src_offsets.as_span(),
+                                 dst_offsets.as_span(),
                                  IndexMask{1},
                                  dst.attributes_for_write());
 
-  src_raw_offsets = {curve, curve + 1};
-  dst_raw_offsets = {initial_curves_num, initial_curves_num + 1};
-
-  OffsetIndices<int> src_curve_offsets{src_raw_offsets};
-  OffsetIndices<int> dst_curve_offsets{dst_raw_offsets};
+  src_offsets = {curve, curve + 1};
+  dst_offsets = {initial_curves_num, dst.curves_num()};
 
   copy_attributes_group_to_group(src.attributes(),
                                  bke::AttrDomain::Curve,
                                  bke::AttrDomain::Curve,
                                  {},
-                                 src_curve_offsets,
-                                 dst_curve_offsets,
+                                 src_offsets.as_span(),
+                                 dst_offsets.as_span(),
                                  IndexMask{1},
                                  dst.attributes_for_write());
 }
