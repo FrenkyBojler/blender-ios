@@ -48,7 +48,8 @@ namespace greasepencil {
 
 /* Get list of drawings the tool should be operating on. */
 Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_stroke_operation(const bContext &C);
-Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_with_masking_for_stroke_operation(const bContext &C);
+Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_with_masking_for_stroke_operation(
+    const bContext &C);
 /* Get the brush radius accounting for pen pressure. */
 float brush_radius(const Scene &scene, const Brush &brush, float pressure);
 
