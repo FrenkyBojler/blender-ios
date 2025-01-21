@@ -572,6 +572,7 @@ static void do_lasso_tag_pose(ViewContext *vc,
 
 static bool do_lasso_select_objects(ViewContext *vc,
                                     const int mcoords[][2],
+                                    const int mcoords_len,
                                     const eSelectOp sel_op)
 {
   View3D *v3d = vc->v3d;
@@ -588,6 +589,7 @@ static bool do_lasso_select_objects(ViewContext *vc,
       const bool is_inside = (ED_view3d_project_base(vc->region, base, region_co) ==
         V3D_PROJ_RET_OK) &&
         BLI_lasso_is_point_inside(mcoords,
+          mcoords_len,
           int(region_co[0]),
           int(region_co[1]),
           /* Dummy value. */
@@ -4013,7 +4015,7 @@ static bool do_object_box_select(bContext *C,
   const eV3DSelectObjectFilter select_filter = ED_view3d_select_filter_from_mode(vc->scene,
                                                                                  vc->obact);
   const int hits = view3d_opengl_select(
-    vc, &buffer, rect, VIEW3D_SELECT_ALL, select_filter);
+    vc, buffer, (totobj + MAXPICKELEMS), rect, VIEW3D_SELECT_ALL, select_filter);
   BKE_view_layer_synced_ensure(vc->scene, vc->view_layer);
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(vc->view_layer)) {
     base->object->id.tag &= ~LIB_TAG_DOIT;
