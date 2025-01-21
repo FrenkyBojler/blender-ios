@@ -1509,12 +1509,6 @@ typedef enum eTimecodeStyles {
   USER_TIMECODE_SUBRIP = 100,
 } eTimecodeStyles;
 
-/** #UserDef.ndof_cor_visibility (3D mouse options) */
-typedef enum eNdof_cor_visibility {
-  COR_ON_ROTATION = (1 << 0),
-  COR_ALWAYS = (1 << 1),
-} eNdof_cor_visibility;
-
 /** #UserDef.ndof_flag (3D mouse options) */
 typedef enum eNdof_Flag {
   NDOF_SHOW_GUIDE = (1 << 0),

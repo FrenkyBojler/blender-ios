@@ -1490,13 +1490,11 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     draw_rotation_guide(rv3d);
   }
 
-  /* Draw this only when orbitting */
-  if (U.ndof_flag & NDOF_MODE_ORBIT) {
-    if ((U.ndof_cor_visibility & COR_ALWAYS) ||
-        ((U.ndof_cor_visibility & COR_ON_ROTATION) && rv3d->rot_angle != 0.0f))
-    {
-      draw_center_of_rotation();
-    }
+  /* Draw this only when orbitting and Auto CoR is enabled */
+  if ((U.ndof_flag & NDOF_MODE_ORBIT) && (U.ndof_flag & NDOF_AUTO_COR) &&
+      (rv3d->rot_angle != 0.0f))
+  {
+    draw_center_of_rotation();
   }
 #endif
 

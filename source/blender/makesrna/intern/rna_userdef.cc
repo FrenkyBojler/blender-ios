@@ -6535,16 +6535,6 @@ static void rna_def_userdef_input(BlenderRNA *brna)
       {0, "TRACKBALL", 0, "Trackball", "Use trackball style rotation in the viewport"},
       {0, nullptr, 0, nullptr, nullptr},
   };
-
-  static const EnumPropertyItem ndof_cor_visibility_items[] = {
-      {0, "HIDE", 0, "Hide", "Hide the center of rotation point"},
-      {COR_ON_ROTATION,
-       "SHOW_ON_MOTION",
-       0,
-       "Show On Motion",
-       "Show the center of rotation point when rotating 3D view"},
-      {COR_ALWAYS, "ALWAYS_SHOW", 0, "Always Show", "Always show the center of rotation point"},
-  };
 #  endif /* WITH_INPUT_NDOF */
 
   static const EnumPropertyItem tablet_api[] = {
@@ -6803,11 +6793,6 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "ndof_flag");
   RNA_def_property_enum_items(prop, ndof_view_rotation_items);
   RNA_def_property_ui_text(prop, "NDOF View Rotation", "Rotation style in the viewport");
-
-  prop = RNA_def_property(srna, "ndof_cor_visibility", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "ndof_cor_visibility");
-  RNA_def_property_enum_items(prop, ndof_cor_visibility_items);
-  RNA_def_property_ui_text(prop, "Center Of Rotation", "");
 
   /* 3D view: Auto center of rotation */
   prop = RNA_def_property(srna, "ndof_auto_cor", PROP_BOOLEAN, PROP_NONE);

@@ -2088,9 +2088,12 @@ class USERPREF_PT_ndof_settings(Panel):
             col.row().prop(props, "ndof_view_navigate_method", expand=True, text="Navigation")
             col.row().prop(props, "ndof_view_rotate_method", expand=True, text="Rotation")
             col.separator()
-            col.prop(props, "ndof_cor_visibility", text="Center Of Rotation")
+
+            col = layout.column(heading="Center of Rotation")
             col.prop(props, "ndof_auto_cor")
-            col.prop(props, "ndof_orbit_selection")
+            auto_cor_col = col.column()
+            auto_cor_col.prop(props, "ndof_orbit_selection")
+            auto_cor_col.enabled = props.ndof_auto_cor
             col.separator()
 
         col.prop(props, "ndof_zoom_invert")
