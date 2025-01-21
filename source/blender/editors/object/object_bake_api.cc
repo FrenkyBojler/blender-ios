@@ -1586,7 +1586,14 @@ static int bake(const BakeAPIRender *bkr,
        * is overridden by animated visibility, see: #107426.
        *
        * There is also the potential that scripts called from depsgraph callbacks
-       * change this value too, so we can't guarantee the mesh will be available.
+       * change this value too, so we can't guarantee the mesh will be available. */
+      if (UNLIKELY(highpoly[i].mesh == nullptr)) {
+        BKE_object_eval_reset(highpoly[i].ob_eval);
+        BKE_object_handle_data_update(depsgraph, scene, highpoly[i].ob_eval);
+        highpoly[i].mesh = BKE_mesh_new_from_object(nullptr, highpoly[i].ob_eval, false, false);
+      }
+
+      /* Avoid crash if evaluating the mesh fails for any reason.
        * Use an error here instead of a warning so users don't accidentally perform
        * a bake which seems to succeed with invalid results.
        * If visibility could be forced/overridden - it would help avoid the problem. */
