@@ -6,6 +6,7 @@
  * \ingroup draw
  */
 
+#include "DNA_customdata_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array_utils.hh"
@@ -23,6 +24,7 @@
 #include "extract_mesh.hh"
 
 #include "GPU_vertex_buffer.hh"
+#include <optional>
 
 namespace blender::draw {
 
@@ -281,6 +283,17 @@ void extract_attributes(const MeshRenderData &mr,
   }
 }
 
+static eCustomDataType lookup_attribute_data_type(const MeshRenderData &mr, const StringRef name)
+{
+  if (mr.extract_type == MeshExtractType::BMesh) {
+    const auto &[layer, domain] = bmesh_attribute_lookup(*mr.bm, name);
+    return eCustomDataType(layer->type);
+  }
+  const bke::AttributeAccessor attributes = mr.mesh->attributes();
+  const std::optional<bke::AttributeMetaData> attribute = attributes.lookup_meta_data(name);
+  return attribute->data_type;
+}
+
 void extract_attributes_subdiv(const MeshRenderData &mr,
                                const DRWSubdivCache &subdiv_cache,
                                const Span<StringRef> requests,
@@ -289,12 +302,13 @@ void extract_attributes_subdiv(const MeshRenderData &mr,
   for (const int i : vbos.index_range()) {
     if (DRW_vbo_requested(vbos[i])) {
       const StringRef request = requests[i];
+      const eCustomDataType data_type = lookup_attribute_data_type(mr, request);
 
       const Mesh *coarse_mesh = subdiv_cache.mesh;
 
       /* Prepare VBO for coarse data. The compute shader only expects floats. */
       gpu::VertBuf *src_data = GPU_vertbuf_calloc();
-      GPUVertFormat coarse_format = init_format_for_attribute(request.cd_type, "data");
+      GPUVertFormat coarse_format = init_format_for_attribute(data_type, "data");
       GPU_vertbuf_init_with_format_ex(*src_data, coarse_format, GPU_USAGE_STATIC);
       GPU_vertbuf_data_alloc(*src_data, uint32_t(coarse_mesh->corners_num));
       init_vbo_for_attribute(mr, *src_data, request, data_type, false, coarse_mesh->corners_num);
@@ -307,7 +321,7 @@ void extract_attributes_subdiv(const MeshRenderData &mr,
 
       /* Ensure data is uploaded properly. */
       GPU_vertbuf_tag_dirty(src_data);
-      bke::attribute_math::convert_to_static_type(request.cd_type, [&](auto dummy) {
+      bke::attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
         using T = decltype(dummy);
         using Converter = AttributeConverter<T>;
         if constexpr (!std::is_void_v<typename Converter::VBOType>) {
