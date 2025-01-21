@@ -2732,6 +2732,24 @@ static void rna_def_movie_types(StructRNA *srna)
   RNA_def_property_float_funcs(prop, "rna_Strip_fps_get", nullptr, nullptr);
 }
 
+static void rna_def_retiming_keys(StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "retiming_keys", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "retiming_keys", nullptr);
+  RNA_def_property_struct_type(prop, "RetimingKey");
+  RNA_def_property_ui_text(prop, "Retiming Keys", "");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_Strip_retiming_keys_begin",
+                                    "rna_iterator_array_next",
+                                    "rna_iterator_array_end",
+                                    "rna_iterator_array_get",
+                                    "rna_Strip_retiming_keys_length",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_srna(prop, "RetimingKeys");
+}
+
 static void rna_def_image(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2760,6 +2778,8 @@ static void rna_def_image(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   RNA_api_strip_elements(brna, prop);
+
+  rna_def_retiming_keys(srna);
 
   /* multiview */
   prop = RNA_def_property(srna, "use_multiview", PROP_BOOLEAN, PROP_NONE);
@@ -2892,6 +2912,7 @@ static void rna_def_scene(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Use Annotations", "Show Annotations in OpenGL previews");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
+  rna_def_retiming_keys(srna);
   rna_def_audio_options(srna);
   rna_def_filter_video(srna);
   rna_def_proxy(srna);
@@ -2933,20 +2954,7 @@ static void rna_def_movie(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
 
-  prop = RNA_def_property(srna, "retiming_keys", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "retiming_keys", nullptr);
-  RNA_def_property_struct_type(prop, "RetimingKey");
-  RNA_def_property_ui_text(prop, "Retiming Keys", "");
-  RNA_def_property_collection_funcs(prop,
-                                    "rna_Strip_retiming_keys_begin",
-                                    "rna_iterator_array_next",
-                                    "rna_iterator_array_end",
-                                    "rna_iterator_array_get",
-                                    "rna_Strip_retiming_keys_length",
-                                    nullptr,
-                                    nullptr,
-                                    nullptr);
-  RNA_api_strip_retiming_keys(brna, prop);
+  rna_def_retiming_keys(srna);
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File", "");
@@ -3092,6 +3100,7 @@ static void rna_def_sound(BlenderRNA *brna)
       prop, "Display Waveform", "Display the audio waveform inside the strip");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
+  rna_def_retiming_keys(srna);
   rna_def_input(srna);
 }
 
@@ -4015,6 +4024,8 @@ void RNA_def_sequencer(BlenderRNA *brna)
   rna_def_effects(brna);
   rna_def_modifiers(brna);
   rna_def_sound_modifiers(brna);
+
+  RNA_api_strip_retiming_keys(brna);
 }
 
 #endif
