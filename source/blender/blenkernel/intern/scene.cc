@@ -2501,7 +2501,7 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
     /* (Re-)build dependency graph if needed. */
     DEG_graph_relations_update(depsgraph);
     /* Uncomment this to check if graph was properly tagged for update. */
-    // DEG_debug_graph_relations_validate(depsgraph, bmain, scene);
+    // DEG_debug_graph_relations_validate(depsgraph, bmain, scene, view_layer);
     /* Flush editing data if needed. */
     prepare_mesh_for_viewport_render(bmain, scene, view_layer);
     /* Update all objects: drivers, matrices, etc. flags set
@@ -2883,32 +2883,6 @@ int BKE_render_preview_pixel_size(const RenderData *r)
     return (U.pixelsize > 1.5f) ? 2 : 1;
   }
   return r->preview_pixel_size;
-}
-
-double BKE_scene_unit_scale(const UnitSettings *unit, const int unit_type, double value)
-{
-  if (unit->system == USER_UNIT_NONE) {
-    /* Never apply scale_length when not using a unit setting! */
-    return value;
-  }
-
-  switch (unit_type) {
-    case B_UNIT_LENGTH:
-    case B_UNIT_VELOCITY:
-    case B_UNIT_ACCELERATION:
-      return value * double(unit->scale_length);
-    case B_UNIT_AREA:
-    case B_UNIT_POWER:
-      return value * pow(unit->scale_length, 2);
-    case B_UNIT_VOLUME:
-      return value * pow(unit->scale_length, 3);
-    case B_UNIT_MASS:
-      return value * pow(unit->scale_length, 3);
-    case B_UNIT_CAMERA: /* *Do not* use scene's unit scale for camera focal lens! See #42026. */
-    case B_UNIT_WAVELENGTH: /* Wavelength values are independent of the scene scale. */
-    default:
-      return value;
-  }
 }
 
 /******************** multiview *************************/

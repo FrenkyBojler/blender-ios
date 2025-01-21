@@ -17,6 +17,7 @@
 #include "BKE_workspace.hh"
 
 #include "BLI_math_vector.h"
+#include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "BLF_api.hh"
@@ -95,7 +96,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
                  0.0f,
                  0.0f,
                  "");
-  /* UI_BTYPE_ROUNDBOX's bg color is set in but->col. */
+  /* #UI_BTYPE_ROUNDBOX's background color is set in `but->col`. */
   copy_v4_v4_uchar(but->col, report_icon_color);
 
   /* Background for the rest of the message. */
@@ -431,7 +432,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
                         0.0f,
                         0.0f,
                         "");
-  /* UI_BTYPE_ROUNDBOX's bg color is set in but->col. */
+  /*# UI_BTYPE_ROUNDBOX's background color is set in `but->col`. */
   UI_GetThemeColorType4ubv(TH_INFO_WARNING, SPACE_INFO, but->col);
 
   if (!warning_message.is_empty()) {
