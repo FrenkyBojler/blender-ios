@@ -153,6 +153,12 @@ CurvesGeometry::CurvesGeometry(CurvesGeometry &&other)
   this->curve_offsets = other.curve_offsets;
   other.curve_offsets = nullptr;
 
+  this->custom_knots = other.custom_knots;
+  other.custom_knots = nullptr;
+
+  this->custom_knot_num = other.custom_knot_num;
+  other.custom_knot_num = 0;
+
   this->point_data = other.point_data;
   CustomData_reset(&other.point_data);
 
@@ -1248,6 +1254,8 @@ std::optional<Bounds<float3>> CurvesGeometry::bounds_min_max() const
 void CurvesGeometry::count_memory(MemoryCounter &memory) const
 {
   memory.add_shared(this->runtime->curve_offsets_sharing_info, this->offsets().size_in_bytes());
+  memory.add_shared(this->runtime->custom_knots_sharing_info,
+                    this->nurbs_custom_knots().size_in_bytes());
   CustomData_count_memory(this->point_data, this->point_num, memory);
   CustomData_count_memory(this->curve_data, this->curve_num, memory);
 }

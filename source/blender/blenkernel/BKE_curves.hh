@@ -290,6 +290,7 @@ class CurvesGeometry : public ::CurvesGeometry {
 
   Span<float> nurbs_custom_knots() const;
   MutableSpan<float> nurbs_custom_knots_for_write();
+  int nurbs_custom_knots_num() const;
   void nurbs_custom_knots_resize(int knots_num);
 
   /**
@@ -891,6 +892,10 @@ inline int CurvesGeometry::points_num() const
 inline int CurvesGeometry::curves_num() const
 {
   return this->curve_num;
+}
+inline int CurvesGeometry::nurbs_custom_knots_num() const
+{
+  return this->custom_knot_num;
 }
 inline bool CurvesGeometry::is_empty() const
 {
