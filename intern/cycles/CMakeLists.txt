@@ -66,7 +66,7 @@ if(WITH_CYCLES_NATIVE_ONLY)
     endif()
     string(APPEND CMAKE_CXX_FLAGS " ${MSVC_NATIVE_ARCH_FLAGS}")
   endif()
-elseif(SSE2NEON_FOUND)
+elseif(SUPPORTS_NEON_BUILD AND SSE2NEON_FOUND)
   # On ARM we use SSE2NEON to compile the cycles SSE kernels into native NEON instructions
   # Disable the CXX_HAS_* flags so we don't add any SSE or AVX compiler flags.
   set(CXX_HAS_SSE42 FALSE)

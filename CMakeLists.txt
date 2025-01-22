@@ -1585,7 +1585,7 @@ endif()
 
 # Enable SSE2NEON SIMD support if found.
 #
-if(SSE2NEON_FOUND)
+if(SUPPORTS_NEON_BUILD AND SSE2NEON_FOUND)
   include_directories(SYSTEM "${SSE2NEON_INCLUDE_DIRS}")
   add_definitions(-DWITH_SSE2NEON)
 endif()
