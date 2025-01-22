@@ -611,18 +611,6 @@ void ensure_nodes_constraints(const Sculpt &sd,
       BMesh &bm = *ss.bm;
       BM_mesh_elem_index_ensure(&bm, BM_VERT);
       BM_mesh_elem_table_ensure(&bm, BM_VERT);
-
-      Span<float3> init_positions;
-      Span<float3> persistent_position;
-      if (brush != nullptr && brush->flag & BRUSH_PERSISTENT) {
-        persistent_position = ss.sculpt_persistent_co;
-      }
-      if (persistent_position.is_empty()) {
-        init_positions = cloth_sim.init_pos;
-      }
-      else {
-        init_positions = persistent_position;
-      }
       uninitialized_nodes.foreach_index([&](const int i) {
         const Set<BMVert *, 0> &bm_verts = BKE_pbvh_bmesh_node_unique_verts(&nodes[i]);
         const Span<int> verts = calc_visible_vert_indices_bmesh(bm_verts, vert_indices);

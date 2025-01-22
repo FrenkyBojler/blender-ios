@@ -156,10 +156,6 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *op)
     node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_topology_update(nodes[i]); });
   }
 
-  ss.sculpt_persistent_co = {};
-  ss.sculpt_persistent_no = {};
-  ss.sculpt_persistent_disp = {};
-
   CLOG_INFO(&LOG, 2, "Detail flood fill took %f seconds.", BLI_time_now_seconds() - start_time);
 
   undo::push_end(ob);

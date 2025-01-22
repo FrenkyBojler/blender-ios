@@ -135,12 +135,7 @@ static int set_persistent_base_exec(bContext *C, wmOperator * /*op*/)
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss->bm;
-      ss->sculpt_persistent_co = BM_mesh_vert_coords_alloc(&bm);
-      ss->sculpt_persistent_no.reinitialize(bm.totvert);
-      BM_mesh_vert_normals_get(&bm, ss->sculpt_persistent_no);
-      ss->sculpt_persistent_disp = {};
-      break;
+      return OPERATOR_CANCELLED;
     }
   }
 

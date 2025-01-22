@@ -5307,9 +5307,6 @@ static void stroke_update_step(bContext *C,
   restore_from_undo_step_if_necessary(depsgraph, sd, ob);
 
   if (dyntopo::stroke_is_dyntopo(ob, brush)) {
-    ss.sculpt_persistent_co = {};
-    ss.sculpt_persistent_no = {};
-    ss.sculpt_persistent_disp = {};
     do_symmetrical_brush_actions(
         depsgraph, scene, sd, ob, dynamic_topology_update, ups, tool_settings.paint_mode);
   }
