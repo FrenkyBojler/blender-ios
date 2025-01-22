@@ -1188,22 +1188,14 @@ static void do_version_glare_node_bloom_strength_recursive(
   node_trees_already_versioned.add_new(node_tree);
 }
 
-static void do_version_viewer_shortcut(Main *bmain)
+static void do_version_viewer_shortcut(bNodeTree *node_tree)
 {
-  blender::Set<bNodeTree *> node_trees_already_versioned;
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    bNodeTree *node_tree = scene->nodetree;
-    if (!node_tree || node_tree->type != NTREE_COMPOSIT) {
+  LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+    if (node->type_legacy != CMP_NODE_VIEWER) {
       continue;
     }
-
-    LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
-      if (!node->is_type("CompositorNodeViewer")) {
-        continue;
-      }
-      /* custom1 was previously used for Tile Order for the Tiled Compositor. */
-      node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
-    }
+    /* custom1 was previously used for Tile Order for the Tiled Compositor. */
+    node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
   }
 }
 
@@ -1511,8 +1503,32 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 24)) {
-    do_version_viewer_shortcut(bmain);
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 25)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (!scene->adt) {
+        continue;
+      }
+      using namespace blender;
+      auto replace_rna_path_prefix =
+          [](FCurve &fcurve, const StringRef old_prefix, const StringRef new_prefix) {
+            const StringRef rna_path = fcurve.rna_path;
+            if (!rna_path.startswith(old_prefix)) {
+              return;
+            }
+            const StringRef tail = rna_path.drop_prefix(old_prefix.size());
+            char *new_rna_path = BLI_strdupcat(new_prefix.data(), tail.data());
+            MEM_freeN(fcurve.rna_path);
+            fcurve.rna_path = new_rna_path;
+          };
+      if (scene->adt->action) {
+        animrig::foreach_fcurve_in_action(scene->adt->action->wrap(), [&](FCurve &fcurve) {
+          replace_rna_path_prefix(fcurve, "sequence_editor.sequences", "sequence_editor.strips");
+        });
+      }
+      LISTBASE_FOREACH (FCurve *, driver, &scene->adt->drivers) {
+        replace_rna_path_prefix(*driver, "sequence_editor.sequences", "sequence_editor.strips");
+      }
+    }
   }
 
   /**
@@ -3614,6 +3630,17 @@ static void version_group_input_socket_data_block_reference(bNodeTree &ntree)
   }
 }
 
+static void version_geometry_normal_input_node(bNodeTree &ntree)
+{
+  if (ntree.type == NTREE_GEOMETRY) {
+    LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
+      if (STREQ(node->idname, "GeometryNodeInputNormal")) {
+        node->custom1 = 1;
+      }
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -5665,6 +5692,35 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         curves->surface_collision_distance = 0.005f;
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 24)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      version_geometry_normal_input_node(*ntree);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 26)) {
+    const Brush *default_brush = DNA_struct_default_get(Brush);
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if ((brush->mask_stencil_dimension[0] == 0) && (brush->mask_stencil_dimension[1] == 0)) {
+        brush->mask_stencil_dimension[0] = default_brush->mask_stencil_dimension[0];
+        brush->mask_stencil_dimension[1] = default_brush->mask_stencil_dimension[1];
+      }
+      if ((brush->mask_stencil_pos[0] == 0) && (brush->mask_stencil_pos[1] == 0)) {
+        brush->mask_stencil_pos[0] = default_brush->mask_stencil_pos[0];
+        brush->mask_stencil_pos[1] = default_brush->mask_stencil_pos[1];
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 27)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        do_version_viewer_shortcut(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
