@@ -703,17 +703,14 @@ static bool region_poll(const bContext *C,
  */
 bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
 {
-  bool any_changed = false;
-
-  /* TODO do this nicer? */
-  // BLI_assert(CTX_wm_screen(C) == screen);
-  // BLI_assert(CTX_wm_area(C) == area);
   bScreen *prev_screen = CTX_wm_screen(C);
   ScrArea *prev_area = CTX_wm_area(C);
+  ARegion *prev_region = CTX_wm_region(C);
 
   CTX_wm_screen_set(C, const_cast<bScreen *>(screen));
   CTX_wm_area_set(C, area);
 
+  bool any_changed = false;
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     const int old_region_flag = region->flag;
 
@@ -743,6 +740,7 @@ bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
 
   CTX_wm_screen_set(C, prev_screen);
   CTX_wm_area_set(C, prev_area);
+  CTX_wm_region_set(C, prev_region);
 
   return any_changed;
 }
@@ -760,8 +758,6 @@ static bool screen_regions_poll(bContext *C, wmWindow *win, const bScreen *scree
 
   bool any_changed = false;
   ED_screen_areas_iter (win, screen, area) {
-    CTX_wm_area_set(C, area);
-
     if (area_regions_poll(C, screen, area)) {
       any_changed = true;
     }
