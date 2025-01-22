@@ -150,11 +150,12 @@ class Fade : Overlay {
    */
   static int effective_mode(const Object *ob, const Object *active_object)
   {
-    if (active_object->mode == OB_MODE_EDIT) {
+    /* Any modes that support multi-object editing should be included here. */
+    if (ELEM(active_object->mode, OB_MODE_EDIT)) {
       return active_object->mode & ob->mode;
     }
 
-    return -1;
+    return active_object == ob ? ob->mode : OB_MODE_OBJECT;
   }
 
   static bool overlay_should_fade_object(const Object *ob, const Object *active_object)
@@ -168,10 +169,6 @@ class Fade : Overlay {
     }
 
     if (active_object->mode == effective_mode(ob, active_object)) {
-      return false;
-    }
-
-    if (active_object == ob) {
       return false;
     }
 
