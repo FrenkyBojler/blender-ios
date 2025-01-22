@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "BLI_math_color.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
