@@ -72,7 +72,7 @@ static bool operator_rigidbody_active_poll(bContext *C)
   return false;
 }
 
-static bool operator_rigidbody_add_poll(bContext *C)
+static bool operator_rigidbody_add_active_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
   if (!operator_rigidbody_editable_poll(scene)) {
@@ -81,6 +81,29 @@ static bool operator_rigidbody_add_poll(bContext *C)
 
   if (ED_operator_object_active_editable(C)) {
     Object *ob = ed::object::context_active_object(C);
+    return (ob && ob->type == OB_MESH);
+  }
+
+  return false;
+}
+
+static bool operator_rigidbody_add_selected_poll(bContext *C)
+{
+  Scene *scene = CTX_data_scene(C);
+  if (!operator_rigidbody_editable_poll(scene)) {
+    return false;
+  }
+
+  blender::Vector<PointerRNA> selected_objects;
+  CTX_data_selected_objects(C, &selected_objects);
+
+  if (selected_objects.is_empty()) {
+    return false;
+  }
+
+  Object *ob = static_cast<Object *>(selected_objects.first().data);
+
+  if (ED_operator_object_active_editable_ex(C, ob)) {
     return (ob && ob->type == OB_MESH);
   }
 
@@ -136,7 +159,7 @@ void RIGIDBODY_OT_object_add(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = rigidbody_object_add_exec;
-  ot->poll = operator_rigidbody_add_poll;
+  ot->poll = operator_rigidbody_add_active_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -231,7 +254,7 @@ void RIGIDBODY_OT_objects_add(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = rigidbody_objects_add_exec;
-  ot->poll = operator_rigidbody_add_poll;
+  ot->poll = operator_rigidbody_add_selected_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
