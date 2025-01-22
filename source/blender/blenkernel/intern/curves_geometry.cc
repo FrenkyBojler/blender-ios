@@ -1650,6 +1650,14 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
 
   BLO_read_struct_list(&reader, bDeformGroup, &this->vertex_group_names);
 
+  if (this->custom_knot_num) {
+    this->runtime->custom_knots_sharing_info = BLO_read_shared(
+        &reader, &this->custom_knots, [&]() {
+          BLO_read_float_array(&reader, this->custom_knot_num, &this->custom_knots);
+          return implicit_sharing::info_for_mem_free(this->custom_knots);
+        });
+  }
+
   /* Recalculate curve type count cache that isn't saved in files. */
   this->update_curve_types();
 }
@@ -1681,6 +1689,15 @@ void CurvesGeometry::blend_write(BlendWriter &writer,
   }
 
   BKE_defbase_blend_write(&writer, &this->vertex_group_names);
+
+  if (this->custom_knot_num) {
+    BLO_write_shared(
+        &writer,
+        this->custom_knots,
+        sizeof(float) * this->custom_knot_num,
+        this->runtime->custom_knots_sharing_info,
+        [&]() { BLO_write_float_array(&writer, this->custom_knot_num, this->custom_knots); });
+  }
 }
 
 /** \} */
