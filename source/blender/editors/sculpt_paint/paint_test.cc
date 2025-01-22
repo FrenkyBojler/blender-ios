@@ -7,7 +7,6 @@
 #include "BKE_cpp_types.hh"
 #include "BKE_idtype.hh"
 #include "BKE_layer.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.h"
 #include "BKE_object.hh"
@@ -65,7 +64,7 @@ class PaintTest : public testing::Test {
     cube = BKE_object_add(bmain, scene, view_layer, OB_MESH, "Test Cube");
 
     cube_mesh = geometry::create_cuboid_mesh(float3(1.0, 1.0, 1.0), 10, 10, 10);
-    BKE_mesh_assign_object(bmain, cube, cube_mesh);
+    BKE_mesh_nomain_to_mesh(cube_mesh, static_cast<Mesh *>(cube->data), cube);
 
     BKE_scene_graph_update_tagged(depsgraph, bmain);
 
@@ -75,7 +74,6 @@ class PaintTest : public testing::Test {
 
   void TearDown() override
   {
-    BKE_id_free(bmain, cube_mesh);
     BKE_main_free(bmain);
   }
 
