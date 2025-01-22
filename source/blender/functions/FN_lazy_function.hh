@@ -46,6 +46,8 @@
 #include "BLI_vector.hh"
 
 #ifndef NDEBUG
+#  include <atomic>
+#  include <thread>
 #  define FN_LAZY_FUNCTION_DEBUG_THREADS
 #endif
 
