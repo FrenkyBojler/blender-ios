@@ -296,7 +296,7 @@ class NODE_MT_geometry_node_GEO_INPUT_SCENE(Menu):
 
     def draw(self, context):
         layout = self.layout
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.geometry_nodes_type != 'MODIFIER':
             node_add_menu.add_node_type(layout, "GeometryNodeTool3DCursor")
         node_add_menu.add_node_type(layout, "GeometryNodeInputActiveCamera")
         node_add_menu.add_node_type(layout, "GeometryNodeCollectionInfo")

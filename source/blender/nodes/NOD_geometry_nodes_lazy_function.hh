@@ -218,6 +218,9 @@ struct GeoNodesSculptData {
 
   int2 mouse_position;
   int2 region_size;
+
+  float3 view_3d_cursor_location;
+  float view_3d_cursor_rotation;
 };
 
 struct GeoNodesCallData {

@@ -4290,6 +4290,9 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
   const ARegion *region = CTX_wm_region(C);
   cache.region_size = region ? int2(region->winx, region->winy) : int2(0);
 
+  cache.view_3d_cursor_location = scene.cursor.location;
+  cache.view_3d_cursor_rotation = scene.cursor.rotation().w;
+
   /* XXX: Use pressure value from first brush step for brushes which don't support strokes (grab,
    * thumb). They depends on initial state and brush coord/pressure/etc.
    * It's more an events design issue, which doesn't split coordinate/pressure/angle changing

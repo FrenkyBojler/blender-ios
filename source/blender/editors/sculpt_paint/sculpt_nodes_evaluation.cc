@@ -130,6 +130,9 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
                                     static_cast<int>(cache.mouse_event.y));
   sculpt_data.region_size = cache.region_size;
 
+  sculpt_data.view_3d_cursor_location = cache.view_3d_cursor_location;
+  sculpt_data.view_3d_cursor_rotation = cache.view_3d_cursor_rotation;
+
   nodes::GeoNodesCallData call_data;
   call_data.root_ntree = tree;
   call_data.side_effect_nodes = {};

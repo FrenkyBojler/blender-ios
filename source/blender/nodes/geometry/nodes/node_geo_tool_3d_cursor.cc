@@ -23,11 +23,19 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  const float4x4 &world_to_object = params.self_object()->world_to_object();
+
+  if (const GeoNodesSculptData *data = params.user_data()->call_data->sculpt_data) {
+    params.set_output("Location",
+                      math::transform_point(world_to_object, data->view_3d_cursor_location));
+    params.set_output("Rotation",
+                      math::to_quaternion(world_to_object) * data->view_3d_cursor_rotation);
+  }
+
   if (!check_tool_context_and_error(params)) {
     return;
   }
   const GeoNodesOperatorData &data = *params.user_data()->call_data->operator_data;
-  const float4x4 &world_to_object = params.self_object()->world_to_object();
 
   const float3 location_global = data.cursor_position;
   params.set_output("Location", math::transform_point(world_to_object, location_global));

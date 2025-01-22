@@ -224,6 +224,10 @@ struct StrokeCache {
 
   int2 region_size;
 
+  /* 3d cursor */
+  float3 view_3d_cursor_location;
+  float view_3d_cursor_rotation;
+
   struct {
     Array<float3> prev_displacement;
     Array<float3> limit_surface_co;
