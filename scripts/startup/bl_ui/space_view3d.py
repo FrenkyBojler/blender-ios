@@ -1083,7 +1083,7 @@ class VIEW3D_HT_header(Header):
         ):
             sub.popover(panel="VIEW3D_PT_overlay_bones", text="", icon='POSE_HLT')
 
-        row = layout.row()
+        row = layout.row(align=True)
         row.active = (object_mode == 'EDIT') or (shading.type in {'WIREFRAME', 'SOLID'})
 
         # While exposing `shading.show_xray(_wireframe)` is correct.
@@ -6863,17 +6863,17 @@ class VIEW3D_PT_select_through(Panel):
         tool_settings = context.tool_settings
 
         row = layout.row()
-        row.prop(tool_settings, "select_through", text="Enable")
+        row.prop(tool_settings, "select_through")
         sub = row.row()
         sub.active = tool_settings.select_through
-        sub.prop(tool_settings, "select_through_object", text="Object")
-        sub.prop(tool_settings, "select_through_edit", text="Edit")
+        sub.prop(tool_settings, "select_through_object")
+        sub.prop(tool_settings, "select_through_mesh")
         row = layout.row()
         sub = row.row(align=True)
         sub.active = tool_settings.select_through
-        sub.prop(tool_settings, "select_through_box", text="Box", toggle=True)
-        sub.prop(tool_settings, "select_through_lasso", text="Lasso", toggle=True)
-        sub.prop(tool_settings, "select_through_circle", text="Circle", toggle=True)
+        sub.prop(tool_settings, "select_through_box", toggle=True)
+        sub.prop(tool_settings, "select_through_lasso", toggle=True)
+        sub.prop(tool_settings, "select_through_circle", toggle=True)
 
 
 class VIEW3D_PT_overlay(Panel):

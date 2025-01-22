@@ -1788,6 +1788,15 @@ typedef struct ToolSettings {
   float snap_angle_increment_3d;
   float snap_angle_increment_3d_precision;
 
+  /* Select Through */
+  char select_through;
+  char select_through_object;
+  char select_through_mesh;
+  char select_through_box;
+  char select_through_lasso;
+  char select_through_circle;
+  char _pad8[2];
+
 } ToolSettings;
 
 /** \} */

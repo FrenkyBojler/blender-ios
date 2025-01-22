@@ -445,6 +445,13 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   ts->unified_paint_settings.flag = default_ups.flag;
   copy_v3_v3(ts->unified_paint_settings.rgb, default_ups.rgb);
   copy_v3_v3(ts->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+
+  /* Select through */
+  ts->select_through = true;
+  ts->select_through_object = true;
+  ts->select_through_box = true;
+  ts->select_through_lasso = true;
+  ts->select_through_circle = true;
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
