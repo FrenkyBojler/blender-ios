@@ -188,10 +188,10 @@ static bool object_deselect_all_except(const Scene *scene, ViewLayer *view_layer
  * Compare result of 'GPU_select': 'GPUSelectResult',
  * Needed for stable sorting, so cycling through all items near the cursor behaves predictably.
  */
-static int gpu_select_buffer_depth_id_cmp(const void* sel_a_p, const void* sel_b_p)
+static int gpu_select_buffer_depth_id_cmp(const void *sel_a_p, const void *sel_b_p)
 {
-  GPUSelectResult* a = (GPUSelectResult*)sel_a_p;
-  GPUSelectResult* b = (GPUSelectResult*)sel_b_p;
+  GPUSelectResult *a = (GPUSelectResult *)sel_a_p;
+  GPUSelectResult *b = (GPUSelectResult *)sel_b_p;
 
   if (a->depth < b->depth) {
     return -1;
@@ -588,37 +588,36 @@ static void do_lasso_tag_pose(const ViewContext *vc, const Span<int2> mcoords)
                          V3D_PROJ_TEST_CLIP_DEFAULT | V3D_PROJ_TEST_CLIP_CONTENT_DEFAULT);
 }
 
-static bool do_lasso_select_objects(const ViewContext* vc,
-  const Span<int2> mcoords,
-  const eSelectOp sel_op)
+static bool do_lasso_select_objects(const ViewContext *vc,
+                                    const Span<int2> mcoords,
+                                    const eSelectOp sel_op)
 {
-  View3D* v3d = vc->v3d;
-  ToolSettings* ts = vc->scene->toolsettings;
+  View3D *v3d = vc->v3d;
+  ToolSettings *ts = vc->scene->toolsettings;
   float region_co[2];
   bool changed = false;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     changed |= object_deselect_all_visible(vc->scene, vc->view_layer, vc->v3d);
   }
   /* default selection of occluded objects */
-  if (ts->select_through && ts->select_through_object &&
-    ts->select_through_lasso) {
+  if (ts->select_through && ts->select_through_object && ts->select_through_lasso) {
     BKE_view_layer_synced_ensure(vc->scene, vc->view_layer);
-    LISTBASE_FOREACH(Base*, base, BKE_view_layer_object_bases_get(vc->view_layer)) {
+    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(vc->view_layer)) {
       if (BASE_SELECTABLE(v3d, base)) { /* Use this to avoid unnecessary lasso look-ups. */
         float region_co[2];
         const bool is_select = base->flag & BASE_SELECTED;
         const bool is_inside = (ED_view3d_project_base(vc->region, base, region_co) ==
-          V3D_PROJ_RET_OK) &&
-          BLI_lasso_is_point_inside(mcoords,
-            int(region_co[0]),
-            int(region_co[1]),
-            /* Dummy value. */
-            INT_MAX);
+                                V3D_PROJ_RET_OK) &&
+                               BLI_lasso_is_point_inside(mcoords,
+                                                         int(region_co[0]),
+                                                         int(region_co[1]),
+                                                         /* Dummy value. */
+                                                         INT_MAX);
         const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
         if (sel_op_result != -1) {
           blender::ed::object::base_select(base,
-            sel_op_result ? blender::ed::object::BA_SELECT :
-            blender::ed::object::BA_DESELECT);
+                                           sel_op_result ? blender::ed::object::BA_SELECT :
+                                                           blender::ed::object::BA_DESELECT);
           changed = true;
         }
       }
@@ -629,28 +628,30 @@ static bool do_lasso_select_objects(const ViewContext* vc,
       WM_main_add_notifier(NC_SCENE | ND_OB_SELECT, vc->scene);
     }
   }
-  /* select near objects only, I think this stopped working because of changes to view3d_opengl_select */
+  /* select near objects only, I think this stopped working because of changes to
+   * view3d_opengl_select */
   else {
     GPUSelectBuffer buffer;
     rcti rect;
-    blender::Vector<Base*> bases;
+    blender::Vector<Base *> bases;
     BLI_lasso_boundbox(&rect, mcoords);
     const eV3DSelectObjectFilter select_filter = ED_view3d_select_filter_from_mode(vc->scene,
-      vc->obact);
+                                                                                   vc->obact);
 
-    const int hits = view3d_opengl_select(vc, &buffer, &rect, VIEW3D_SELECT_PICK_NEAREST, select_filter);
-    
+    const int hits = view3d_opengl_select(
+        vc, &buffer, &rect, VIEW3D_SELECT_PICK_NEAREST, select_filter);
+
     BKE_view_layer_synced_ensure(vc->scene, vc->view_layer);
-    LISTBASE_FOREACH(Base*, base, BKE_view_layer_object_bases_get(vc->view_layer)) {
+    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(vc->view_layer)) {
       base->object->id.tag &= ~ID_TAG_DOIT;
     }
-    ListBase* object_bases = BKE_view_layer_object_bases_get(vc->view_layer);
+    ListBase *object_bases = BKE_view_layer_object_bases_get(vc->view_layer);
 
     if ((hits == -1) && !SEL_OP_USE_OUTSIDE(sel_op)) {
       goto finally;
     }
 
-    LISTBASE_FOREACH(Base*, base, object_bases) {
+    LISTBASE_FOREACH (Base *, base, object_bases) {
       if (BASE_SELECTABLE(v3d, base)) {
         if ((base->object->runtime->select_id & 0x0000FFFF) != 0) {
           bases.append(base);
@@ -660,43 +661,43 @@ static bool do_lasso_select_objects(const ViewContext* vc,
 
     /* The draw order doesn't always match the order we populate the engine, see: T51695. */
     qsort(buffer.storage.data(), hits, sizeof(GPUSelectResult), gpu_select_buffer_depth_id_cmp);
-    for (const GPUSelectResult* buf_iter = buffer.storage.data(), *buf_end = buf_iter + hits;
-      buf_iter < buf_end;
-      buf_iter++)
+    for (const GPUSelectResult *buf_iter = buffer.storage.data(), *buf_end = buf_iter + hits;
+         buf_iter < buf_end;
+         buf_iter++)
     {
-      bPoseChannel* pchan_dummy;
-      Base* base = ED_armature_base_and_pchan_from_select_buffer(
-        bases, buf_iter->id, &pchan_dummy);
+      bPoseChannel *pchan_dummy;
+      Base *base = ED_armature_base_and_pchan_from_select_buffer(
+          bases, buf_iter->id, &pchan_dummy);
 
       if (base != nullptr) {
         base->object->id.tag |= ID_TAG_DOIT;
       }
     }
 
-    for (Base* base = static_cast<Base*>(object_bases->first); base && hits; base = base->next) {
+    for (Base *base = static_cast<Base *>(object_bases->first); base && hits; base = base->next) {
       if (BASE_SELECTABLE(v3d, base)) {
         const bool is_select = base->flag & BASE_SELECTED;
         bool is_inside = false;
 
         is_inside = base->object->id.tag & ID_TAG_DOIT &&
-          (ED_view3d_project_base(vc->region, base, region_co) == -V3D_PROJ_RET_OK) &&
-          BLI_lasso_is_point_inside(mcoords,
-            int(region_co[0]),
-            int(region_co[1]),
-            /* Dummy value. */
-            INT_MAX);
+                    (ED_view3d_project_base(vc->region, base, region_co) == -V3D_PROJ_RET_OK) &&
+                    BLI_lasso_is_point_inside(mcoords,
+                                              int(region_co[0]),
+                                              int(region_co[1]),
+                                              /* Dummy value. */
+                                              INT_MAX);
 
         const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
         if (sel_op_result != -1) {
           blender::ed::object::base_select(base,
-            sel_op_result ? blender::ed::object::BA_SELECT :
-            blender::ed::object::BA_DESELECT);
+                                           sel_op_result ? blender::ed::object::BA_SELECT :
+                                                           blender::ed::object::BA_DESELECT);
           changed = true;
         }
       }
     }
 
-    finally:
+  finally:
     if (changed) {
       DEG_id_tag_update(&vc->scene->id, ID_RECALC_SELECT);
       WM_event_add_notifier(vc->C, NC_SCENE | ND_OB_SELECT, vc->scene);
@@ -704,7 +705,6 @@ static bool do_lasso_select_objects(const ViewContext* vc,
   }
   return changed;
 }
-
 
 /**
  * Use for lasso & box select.
@@ -942,8 +942,9 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
 
   GPU_matrix_set(vc->rv3d->viewmat);
 
-  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d) && (!ts->select_through || !ts->select_through_mesh ||
-    !ts->select_through_lasso);
+  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d) &&
+                        (!ts->select_through || !ts->select_through_mesh ||
+                         !ts->select_through_lasso);
 
   EditSelectBuf_Cache *esel = static_cast<EditSelectBuf_Cache *>(wm_userdata->data);
   if (use_zbuf) {
@@ -3993,8 +3994,9 @@ static bool do_mesh_box_select(const ViewContext *vc,
 
   GPU_matrix_set(vc->rv3d->viewmat);
 
-  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d) && (!ts->select_through || !ts->select_through_mesh ||
-    !ts->select_through_box);
+  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d) &&
+                        (!ts->select_through || !ts->select_through_mesh ||
+                         !ts->select_through_box);
 
   EditSelectBuf_Cache *esel = static_cast<EditSelectBuf_Cache *>(wm_userdata->data);
   if (use_zbuf) {
@@ -4209,17 +4211,17 @@ static bool do_object_box_select(bContext *C,
                                  const eSelectOp sel_op)
 {
   View3D *v3d = vc->v3d;
-  ToolSettings* ts = vc->scene->toolsettings;
+  ToolSettings *ts = vc->scene->toolsettings;
   int hits = 0;
   GPUSelectBuffer buffer;
   const eV3DSelectObjectFilter select_filter = ED_view3d_select_filter_from_mode(vc->scene,
                                                                                  vc->obact);
   /* default selection of occluded objects */
-  if (ts->select_through && ts->select_through_object &&
-    ts->select_through_box) {
+  if (ts->select_through && ts->select_through_object && ts->select_through_box) {
     hits = view3d_opengl_select(vc, &buffer, rect, VIEW3D_SELECT_ALL, select_filter);
   }
-  /* select near objects only, I think this stopped working because of changes to view3d_opengl_select */
+  /* select near objects only, I think this stopped working because of changes to
+   * view3d_opengl_select */
   else {
     hits = view3d_opengl_select(vc, &buffer, rect, VIEW3D_SELECT_PICK_NEAREST, select_filter);
   }
@@ -4670,8 +4672,9 @@ static bool mesh_circle_select(const ViewContext *vc,
 
   view3d_userdata_circleselect_init(&data, vc, select, mval, rad);
 
-  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d) && (!ts->select_through || !ts->select_through_mesh ||
-    !ts->select_through_circle);
+  const bool use_zbuf = !XRAY_FLAG_ENABLED(vc->v3d) &&
+                        (!ts->select_through || !ts->select_through_mesh ||
+                         !ts->select_through_circle);
 
   if (use_zbuf) {
     if (wm_userdata->data == nullptr) {
@@ -5356,7 +5359,7 @@ static bool object_circle_select(const ViewContext *vc,
   Scene *scene = vc->scene;
   ViewLayer *view_layer = vc->view_layer;
   View3D *v3d = vc->v3d;
-  ToolSettings* ts = vc->scene->toolsettings;
+  ToolSettings *ts = vc->scene->toolsettings;
 
   const float radius_squared = rad * rad;
   const float mval_fl[2] = {float(mval[0]), float(mval[1])};
@@ -5367,39 +5370,39 @@ static bool object_circle_select(const ViewContext *vc,
     changed |= object_deselect_all_visible(vc->scene, vc->view_layer, vc->v3d);
   }
   /* default selection of occluded objects */
-  if (ts->select_through && ts->select_through_object &&
-    ts->select_through_circle) {
+  if (ts->select_through && ts->select_through_object && ts->select_through_circle) {
     const bool select = (sel_op != SEL_OP_SUB);
     const int select_flag = select ? BASE_SELECTED : 0;
     BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH(Base*, base, BKE_view_layer_object_bases_get(view_layer)) {
+    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
       if (BASE_SELECTABLE(v3d, base) && ((base->flag & BASE_SELECTED) != select_flag)) {
         float screen_co[2];
         if (ED_view3d_project_float_global(vc->region,
-          base->object->object_to_world().location(),
-          screen_co,
-          V3D_PROJ_TEST_CLIP_DEFAULT) == V3D_PROJ_RET_OK)
+                                           base->object->object_to_world().location(),
+                                           screen_co,
+                                           V3D_PROJ_TEST_CLIP_DEFAULT) == V3D_PROJ_RET_OK)
         {
           if (len_squared_v2v2(mval_fl, screen_co) <= radius_squared) {
             blender::ed::object::base_select(
-              base, select ? blender::ed::object::BA_SELECT : blender::ed::object::BA_DESELECT);
+                base, select ? blender::ed::object::BA_SELECT : blender::ed::object::BA_DESELECT);
             changed = true;
           }
         }
       }
     }
   }
-  /* select near objects only, I think this stopped working because of changes to view3d_opengl_select */
+  /* select near objects only, I think this stopped working because of changes to
+   * view3d_opengl_select */
   else {
     GPUSelectBuffer buffer;
     BKE_object_update_select_id(CTX_data_main(vc->C));
     int point[4][2] = {};
-    const int circle_data[3] = { mval[0], mval[1], int(rad) };
+    const int circle_data[3] = {mval[0], mval[1], int(rad)};
     float region_co[2];
     const bool select = (sel_op != SEL_OP_SUB);
     const int select_flag = select ? BASE_SELECTED : 0;
     rcti rect;
-    blender::Vector<Base*> bases;
+    blender::Vector<Base *> bases;
     for (int i = 0; i < 4; i++) {
       float angle = 6.28f * (i + 1) / 4;
       point[i][0] = circle_data[0] + circle_data[2] * cosf(angle);
@@ -5423,19 +5426,20 @@ static bool object_circle_select(const ViewContext *vc,
     }
 
     const eV3DSelectObjectFilter select_filter = ED_view3d_select_filter_from_mode(scene,
-      vc->obact);
-    const int hits = view3d_opengl_select(vc, &buffer, &rect, VIEW3D_SELECT_PICK_NEAREST, select_filter);
+                                                                                   vc->obact);
+    const int hits = view3d_opengl_select(
+        vc, &buffer, &rect, VIEW3D_SELECT_PICK_NEAREST, select_filter);
 
-    LISTBASE_FOREACH(Base*, base, BKE_view_layer_object_bases_get(view_layer)) {
+    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
       base->object->id.tag &= ~ID_TAG_DOIT;
     }
-    ListBase* object_bases = BKE_view_layer_object_bases_get(view_layer);
+    ListBase *object_bases = BKE_view_layer_object_bases_get(view_layer);
 
     if ((hits == -1) && !SEL_OP_USE_OUTSIDE(sel_op)) {
       goto finally;
     }
 
-    LISTBASE_FOREACH(Base*, base, object_bases) {
+    LISTBASE_FOREACH (Base *, base, object_bases) {
       if (BASE_SELECTABLE(v3d, base)) {
         if ((base->object->runtime->select_id & 0x0000FFFF) != 0) {
           bases.append(base);
@@ -5444,40 +5448,40 @@ static bool object_circle_select(const ViewContext *vc,
     }
     /* The draw order doesn't always match the order we populate the engine, see: T51695. */
     qsort(buffer.storage.data(), hits, sizeof(GPUSelectResult), gpu_select_buffer_depth_id_cmp);
-    for (const GPUSelectResult* buf_iter = buffer.storage.data(), *buf_end = buf_iter + hits;
-      buf_iter < buf_end;
-      buf_iter++)
+    for (const GPUSelectResult *buf_iter = buffer.storage.data(), *buf_end = buf_iter + hits;
+         buf_iter < buf_end;
+         buf_iter++)
     {
-      bPoseChannel* pchan_dummy;
-      Base* base = ED_armature_base_and_pchan_from_select_buffer(
-        bases, buf_iter->id, &pchan_dummy);
+      bPoseChannel *pchan_dummy;
+      Base *base = ED_armature_base_and_pchan_from_select_buffer(
+          bases, buf_iter->id, &pchan_dummy);
       if (base != nullptr) {
         base->object->id.tag |= ID_TAG_DOIT;
       }
     }
 
-    for (Base* base = static_cast<Base*>(object_bases->first); base && hits; base = base->next) {
+    for (Base *base = static_cast<Base *>(object_bases->first); base && hits; base = base->next) {
       if (BASE_SELECTABLE(v3d, base) && ((base->flag & BASE_SELECTED) != select_flag)) {
         const bool is_select = base->flag & BASE_SELECTED;
         bool is_inside = false;
         is_inside = base->object->id.tag & ID_TAG_DOIT &&
-          (ED_view3d_project_float_global(vc->region,
-            base->object->object_to_world()[3],
-            region_co,
-            V3D_PROJ_TEST_CLIP_DEFAULT) ==
-            V3D_PROJ_RET_OK) &&
-          (len_squared_v2v2(mval_fl, region_co) <= radius_squared);
+                    (ED_view3d_project_float_global(vc->region,
+                                                    base->object->object_to_world()[3],
+                                                    region_co,
+                                                    V3D_PROJ_TEST_CLIP_DEFAULT) ==
+                     V3D_PROJ_RET_OK) &&
+                    (len_squared_v2v2(mval_fl, region_co) <= radius_squared);
         const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
 
         if (sel_op_result != -1) {
           blender::ed::object::base_select(
-            base, select ? blender::ed::object::BA_SELECT : blender::ed::object::BA_DESELECT);
+              base, select ? blender::ed::object::BA_SELECT : blender::ed::object::BA_DESELECT);
           changed = true;
         }
       }
     }
 
-    finally:
+  finally:
     if (changed) {
       DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
       WM_event_add_notifier(vc->C, NC_SCENE | ND_OB_SELECT, scene);

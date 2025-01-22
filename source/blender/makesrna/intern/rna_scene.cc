@@ -4137,7 +4137,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "select_through", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "select_through", 0);
   RNA_def_property_ui_text(
-    prop, "Enable", "Select occluded objects and mesh with drag select tools");
+      prop, "Enable", "Select occluded objects and mesh with drag select tools");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
   prop = RNA_def_property(srna, "select_through_object", PROP_BOOLEAN, PROP_NONE);
@@ -4152,21 +4152,17 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "select_through_box", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "select_through_box", 0);
-  RNA_def_property_ui_text(
-    prop, "Box", "Enable select through for box");
+  RNA_def_property_ui_text(prop, "Box", "Enable select through for box");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
   prop = RNA_def_property(srna, "select_through_lasso", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "select_through_lasso", 0);
-  RNA_def_property_ui_text(
-    prop, "Lasso", "Enable select through for lasso");
+  RNA_def_property_ui_text(prop, "Lasso", "Enable select through for lasso");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
   prop = RNA_def_property(srna, "select_through_circle", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "select_through_circle", 0);
-  RNA_def_property_ui_text(prop,
-    "Circle",
-    "Enable select through for circle");
+  RNA_def_property_ui_text(prop, "Circle", "Enable select through for circle");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
   /* Unified Paint Settings */
