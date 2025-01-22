@@ -876,7 +876,6 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
 
   /* drawing */
   oldbut->icon = but->icon;
-  oldbut->iconadd = but->iconadd;
   oldbut->alignnr = but->alignnr;
 
   /* typically the same pointers, but not on undo/redo */
@@ -4000,7 +3999,7 @@ static void ui_but_update_ex(uiBut *but, const bool validate)
           but->drawflag |= UI_BUT_ICON_REVERSE;
         }
 
-        but->iconadd = (but->flag & UI_SELECT) ? 1 : 0;
+        but->drawflag |= UI_BUT_ICON_CONSECUTIVE;
       }
       break;
 

@@ -256,7 +256,6 @@ struct uiBut {
   bool changed = false;
   /** so buttons can support unit systems which are not RNA */
   uchar unit_type = 0;
-  short iconadd = 0;
 
   /** Affects the order if this uiBut is used in menu-search. */
   float search_weight = 0.0f;

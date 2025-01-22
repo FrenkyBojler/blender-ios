@@ -1655,7 +1655,7 @@ static int ui_drag_toggle_but_pushed_state(uiBut *but)
     /* Assume icon identifies a unique state, for buttons that
      * work through functions callbacks and don't have an boolean
      * value that indicates the state. */
-    return but->icon + but->iconadd;
+    return ui_but_icon(but);
   }
   if (ui_but_is_bool(but)) {
     return ui_but_is_pushed(but);
