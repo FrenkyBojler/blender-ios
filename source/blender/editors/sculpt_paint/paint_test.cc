@@ -22,7 +22,8 @@ class PaintBVHTest : public testing::Test {
     BKE_idtype_init();
   }
 
-  void SetUp() override {
+  void SetUp() override
+  {
     cube_mesh = geometry::create_cuboid_mesh(float3(1.0, 1.0, 1.0), 10, 10, 10);
   }
 
