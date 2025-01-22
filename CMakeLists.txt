@@ -100,6 +100,11 @@ if(POLICY CMP0119)
   cmake_policy(SET CMP0119 NEW)
 endif()
 
+# Install DESTINATION paths are normalized.
+if(POLICY CMP0177)
+  cmake_policy(SET CMP0177 NEW)
+endif()
+
 # -----------------------------------------------------------------------------
 # Load Blender's Local Macros
 
@@ -562,13 +567,6 @@ Try to link with static libraries, as much as possible, \
 to make blender more portable across distributions"
     OFF
   )
-  if(WITH_STATIC_LIBS)
-    option(WITH_BOOST_ICU "\
-Boost uses ICU library (required for linking with static Boost built with libicu)."
-      OFF
-    )
-    mark_as_advanced(WITH_BOOST_ICU)
-  endif()
 endif()
 
 # Misc
@@ -837,7 +835,7 @@ option(WITH_GPU_DRAW_TESTS "\
 Enable GPU drawing related unit testing (draw manager)"
   OFF
 )
-option(WITH_COMPOSITOR_REALTIME_TESTS "Enable regression testing for realtime compositor" OFF)
+option(WITH_GPU_COMPOSITOR_TESTS "Enable regression testing for GPU compositor" OFF)
 if(UNIX AND NOT (APPLE OR HAIKU))
   option(WITH_UI_TESTS "\
 Enable user-interface tests using a headless display server. \
@@ -878,6 +876,24 @@ mark_as_advanced(WITH_TESTS_SINGLE_BINARY)
 set(TEST_PYTHON_EXE "" CACHE PATH "Python executable to run unit tests")
 mark_as_advanced(TEST_PYTHON_EXE)
 
+
+# System python tests.
+option(WITH_SYSTEM_PYTHON_TESTS "\
+Enable tests validating some build-related scripts against the 'system' version of Python \
+(buildbots currently can use significantly older versions of Python than Blender's)"
+  OFF
+)
+mark_as_advanced(WITH_SYSTEM_PYTHON_TESTS)
+# We could use `find_package (Python3 COMPONENTS Interpreter)` to set that value automatically.
+# However, on some buildbots this will give the default python version of the current virtual environment,
+# which may differ from the OS default python version.
+# And it would set that global 'python3 exec path' CMake value for all CMake scripts, which could have
+# unexpected and dangerous side effects.
+# So this has to be set explicitly for all builders.
+set(TEST_SYSTEM_PYTHON_EXE "" CACHE PATH "Python executable used to run 'system python' tests")
+mark_as_advanced(TEST_SYSTEM_PYTHON_EXE)
+
+
 # Documentation
 if(UNIX AND NOT APPLE)
   option(WITH_DOC_MANPAGE "Create a manual page (Unix manpage)" OFF)
@@ -902,7 +918,7 @@ if(POLICY CMP0119)
   option(WITH_GPU_SHADER_CPP_COMPILATION "\
   Compiler shaders using C++. \
   Allows testing Metal compilation on other platform and enable C++ IDE support for shader code"
-  OFF
+    OFF
   )
   mark_as_advanced(WITH_GPU_SHADER_CPP_COMPILATION)
 else()
@@ -990,7 +1006,7 @@ set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_VALGRIND OFF)
 
 option(WITH_COMPILER_CODE_COVERAGE "\
 Build and link with code coverage support (only for Debug targets)."
-OFF
+  OFF
 )
 mark_as_advanced(WITH_COMPILER_CODE_COVERAGE)
 
@@ -1254,14 +1270,13 @@ set_and_warn_dependency(WITH_PYTHON WITH_MOD_FLUID     OFF)
 # enable boost for cycles, audaspace or i18n
 # otherwise if the user disabled
 
-set_and_warn_dependency(WITH_BOOST WITH_INTERNATIONAL  OFF)
 set_and_warn_dependency(WITH_BOOST WITH_OPENVDB        OFF)
-set_and_warn_dependency(WITH_BOOST WITH_QUADRIFLOW     OFF)
 set_and_warn_dependency(WITH_BOOST WITH_USD            OFF)
 if(WITH_CYCLES)
-  set_and_warn_dependency(WITH_BOOST   WITH_CYCLES_OSL   OFF)
-  set_and_warn_dependency(WITH_PUGIXML WITH_CYCLES_OSL   OFF)
-  set_and_warn_dependency(WITH_CYCLES_OSL WITH_CYCLES_TEST_OSL   OFF)
+  set_and_warn_dependency(WITH_BOOST   WITH_CYCLES_OSL          OFF)
+  set_and_warn_dependency(WITH_PUGIXML WITH_CYCLES_OSL          OFF)
+  set_and_warn_dependency(WITH_PUGIXML WITH_CYCLES_STANDALONE   OFF)
+  set_and_warn_dependency(WITH_CYCLES_OSL WITH_CYCLES_TEST_OSL  OFF)
 endif()
 
 set_and_warn_dependency(WITH_TBB WITH_CYCLES            OFF)
@@ -1491,16 +1506,6 @@ endif()
 # -----------------------------------------------------------------------------
 # Common Checks for Compatible Options
 
-if(WITH_INTERNATIONAL)
-  if(NOT WITH_BOOST)
-    message(
-      FATAL_ERROR
-      "Internationalization requires WITH_BOOST, the library may not have been found. "
-      "Configure BOOST or disable WITH_INTERNATIONAL"
-    )
-  endif()
-endif()
-
 # Enable SIMD support if detected by `test_sse_support()` or `test_neon_support()`.
 #
 if(WITH_CPU_SIMD)
@@ -1605,19 +1610,9 @@ if(WITH_OPENVDB)
     ${OPENEXR_INCLUDE_DIRS}
   )
 
-  list(APPEND OPENVDB_LIBRARIES ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES})
-
   if(WITH_OPENVDB_BLOSC)
     list(APPEND OPENVDB_DEFINITIONS -DWITH_OPENVDB_BLOSC)
-    # Even when `WITH_OPENVDB_BLOSC` is set, `FindBlosc.cmake` isn't running.
-    # As this might be used at some point, check the libraries are defined.
-    if(DEFINED BLOSC_LIBRARIES)
-      list(APPEND OPENVDB_LIBRARIES ${BLOSC_LIBRARIES})
-    endif()
-    list(APPEND OPENVDB_LIBRARIES ${ZLIB_LIBRARIES})
   endif()
-
-  list(APPEND OPENVDB_LIBRARIES ${BOOST_LIBRARIES} ${TBB_LIBRARIES})
 endif()
 
 # -----------------------------------------------------------------------------
@@ -2227,8 +2222,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
       C_WARN_CLANG_CL_NAN_INFINITY_DISABLED -Wno-nan-infinity-disabled
     )
 
-  add_check_cxx_compiler_flags(
-    CXX_WARNINGS
+    add_check_cxx_compiler_flags(
+      CXX_WARNINGS
       CXX_WARN_CLANG_CL_W3 /W3
       CXX_WARN_CLANG_CL_C++98_COMPAT -Wno-c++98-compat # 352692
       CXX_WARN_CLANG_CL_OLD_STYLE_CAST -Wno-old-style-cast # 178608
@@ -2523,11 +2518,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Visual Studio has all standards it supports available by default
 # Clang on windows copies this behavior and does not support these switches
-if(
-  CMAKE_COMPILER_IS_GNUCC OR
-  (CMAKE_C_COMPILER_ID MATCHES "Clang" AND (NOT MSVC)) OR
-  (CMAKE_C_COMPILER_ID STREQUAL "Intel")
-)
+if(CMAKE_COMPILER_IS_GNUCC OR
+   (CMAKE_C_COMPILER_ID MATCHES "Clang" AND (NOT MSVC)) OR
+   (CMAKE_C_COMPILER_ID STREQUAL "Intel"))
+
   # Use C11 + GNU extensions, works with GCC, Clang, ICC
   string(APPEND CMAKE_C_FLAGS " -std=gnu11")
 endif()
@@ -2547,8 +2541,8 @@ if(WITH_COMPILER_SHORT_FILE_MACRO)
   if(C_MACRO_PREFIX_MAP AND CXX_MACRO_PREFIX_MAP)
     if(APPLE)
       if(XCODE AND ${XCODE_VERSION} VERSION_LESS 12.0)
-      # Developers may have say LLVM Clang-10.0.1 toolchain (which supports the flag)
-      # with Xcode-11 (the Clang of which doesn't support the flag).
+        # Developers may have say LLVM Clang-10.0.1 toolchain (which supports the flag)
+        # with Xcode-11 (the Clang of which doesn't support the flag).
         message(
           WARNING
           "-fmacro-prefix-map flag is NOT supported by Clang shipped with Xcode-${XCODE_VERSION}."

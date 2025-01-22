@@ -10,7 +10,6 @@
 
 #include "DNA_mesh_types.h"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -192,7 +191,7 @@ std::optional<CurvesBrush3D> sample_curves_3d_brush(const Depsgraph &depsgraph,
     const float4x4 world_to_surface_mat = math::invert(surface_to_world_mat);
 
     Mesh *surface_eval = BKE_object_get_evaluated_mesh(surface_object_eval);
-    BVHTreeFromMesh surface_bvh = surface_eval->bvh_corner_tris();
+    bke::BVHTreeFromMesh surface_bvh = surface_eval->bvh_corner_tris();
 
     const float3 center_ray_start_su = math::transform_point(world_to_surface_mat,
                                                              center_ray_start_wo);
@@ -270,7 +269,7 @@ std::optional<CurvesBrush3D> sample_curves_surface_3d_brush(
     const ARegion &region,
     const View3D &v3d,
     const CurvesSurfaceTransforms &transforms,
-    const BVHTreeFromMesh &surface_bvh,
+    const bke::BVHTreeFromMesh &surface_bvh,
     const float2 &brush_pos_re,
     const float brush_radius_re)
 {
@@ -439,9 +438,11 @@ void report_invalid_uv_map(ReportList *reports)
 
 void CurvesConstraintSolver::initialize(const bke::CurvesGeometry &curves,
                                         const IndexMask &curve_selection,
-                                        const bool use_surface_collision)
+                                        const bool use_surface_collision,
+                                        const float surface_collision_distance)
 {
   use_surface_collision_ = use_surface_collision;
+  surface_collision_distance_ = surface_collision_distance;
   segment_lengths_.reinitialize(curves.points_num());
   geometry::curve_constraints::compute_segment_lengths(
       curves.points_by_curve(), curves.positions(), curve_selection, segment_lengths_);
@@ -463,7 +464,8 @@ void CurvesConstraintSolver::solve_step(bke::CurvesGeometry &curves,
         start_positions_,
         *surface,
         transforms,
-        curves.positions_for_write());
+        curves.positions_for_write(),
+        surface_collision_distance_);
     start_positions_ = curves.positions();
   }
   else {

@@ -2907,6 +2907,7 @@ def km_text(params):
 # ------------------------------------------------------------------------------
 # Editor (Sequencer)
 
+
 def km_sequencercommon(params):
     items = []
     keymap = (
@@ -3075,6 +3076,39 @@ def km_sequencer(params):
     return keymap
 
 
+def _seq_preview_text_edit_cursor_move():
+    items = []
+    map = [
+        ('LEFT_ARROW', None, ("type", 'PREVIOUS_CHARACTER')),
+        ('RIGHT_ARROW', None, ("type", 'NEXT_CHARACTER')),
+        ('UP_ARROW', None, ("type", 'PREVIOUS_LINE')),
+        ('DOWN_ARROW', None, ("type", 'NEXT_LINE')),
+        ('HOME', None, ("type", 'LINE_BEGIN')),
+        ('END', None, ("type", 'LINE_END')),
+        ('LEFT_ARROW', 'ctrl', ("type", 'PREVIOUS_WORD')),
+        ('RIGHT_ARROW', 'ctrl', ("type", 'NEXT_WORD')),
+        ('PAGE_UP', None, ("type", 'TEXT_BEGIN')),
+        ('PAGE_DOWN', None, ("type", 'TEXT_END')),
+    ]
+
+    for type, mod, prop in map:
+        if mod:
+            items.append(
+                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', **{mod: True}, "repeat": True},
+                 {"properties": [prop]}))
+            items.append(
+                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', **{mod: True}, "shift": True, "repeat": True},
+                 {"properties": [prop, ('select_text', True)]}))
+        else:
+            items.append(
+                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', "repeat": True},
+                 {"properties": [prop]}))
+            items.append(
+                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', "shift": True, "repeat": True},
+                 {"properties": [prop, ('select_text', True)]}))
+    return items
+
+
 def km_sequencerpreview(params):
     items = []
     keymap = (
@@ -3084,6 +3118,22 @@ def km_sequencerpreview(params):
     )
 
     items.extend([
+        # Text editing.
+        *_seq_preview_text_edit_cursor_move(),
+        ("sequencer.text_delete", {"type": 'DEL', "value": 'PRESS', "repeat": True},
+         {"properties": [("type", 'NEXT_OR_SELECTION')]}),
+        ("sequencer.text_delete", {"type": 'BACK_SPACE', "value": 'PRESS', "repeat": True},
+         {"properties": [("type", 'PREVIOUS_OR_SELECTION')]}),
+        ("sequencer.text_line_break", {"type": 'RET', "value": 'PRESS', "repeat": True}, None),
+        ("sequencer.text_line_break", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "repeat": True}, None),
+        ("sequencer.text_select_all", {"type": 'A', "value": 'PRESS', "ctrl": True}, None),
+        ("sequencer.text_deselect_all", {"type": 'ESC', "value": 'PRESS'}, None),
+        ("sequencer.text_edit_mode_toggle", {"type": 'TAB', "value": 'PRESS'}, None),
+        ("sequencer.text_edit_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
+        ("sequencer.text_edit_paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        ("sequencer.text_edit_cut", {"type": 'X', "value": 'PRESS', "ctrl": True}, None),
+        ("sequencer.text_insert", {"type": 'TEXTINPUT', "value": 'ANY', "any": True, "repeat": True}, None),
+
         # Selection.
         *_template_sequencer_preview_select(
             type=params.select_mouse,
@@ -3767,7 +3817,8 @@ def km_grease_pencil_paint_mode(params):
         *_template_items_hide_reveal_actions("grease_pencil.layer_hide", "grease_pencil.layer_reveal"),
         # Flip primary and secondary color
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
-        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, None),
+        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, {"properties": [("merged", False)]}),
+
 
         # Isolate Layer
         ("grease_pencil.layer_isolate", {"type": 'NUMPAD_ASTERIX', "value": 'PRESS'}, None),
@@ -3794,11 +3845,17 @@ def km_grease_pencil_paint_mode(params):
              "ctrl": True}, {"properties": [("use_selection", False)]}),
             (op_tool_cycle, "builtin.interpolate"), params),
         ("grease_pencil.interpolate_sequence", {"type": 'E', "value": 'PRESS',
-         "shift": True, "ctrl": True}, None),
+         "shift": True, "ctrl": True}, {"properties": [("use_selection", False)]}),
 
         # Lasso/Box erase
         ("grease_pencil.erase_lasso", {"type": 'RIGHTMOUSE', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("grease_pencil.erase_box", {"type": "B", "value": 'PRESS'}, {"properties": [("wait_for_input", True)]}),
+        # Brush size
+        ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
+         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.size")]}),
+        # Brush strength
+        ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
+         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.strength")]}),
 
         *_template_asset_shelf_popup("VIEW3D_AST_brush_gpencil_paint", params.spacebar_action),
 
@@ -3824,12 +3881,6 @@ def km_grease_pencil_brush_stroke(_params):
          {"properties": [("mode", 'SMOOTH')]}),
         ("grease_pencil.brush_stroke", {"type": 'ERASER', "value": 'PRESS'},
          {"properties": [("mode", 'ERASE')]}),
-        # Brush size
-        ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.size")]}),
-        # Brush strength
-        ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
-         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.strength")]}),
         # Increase/Decrease brush size
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
@@ -3891,9 +3942,10 @@ def km_grease_pencil_edit_mode(params):
             params, connected=True, toggle_data_path="tool_settings.use_proportional_edit"),
 
         # Cyclical set
-        ("grease_pencil.cyclical_set", {"type": 'F', "value": 'PRESS'}, {"properties": [("type", "CLOSE")]}),
+        ("grease_pencil.cyclical_set", {"type": 'F', "value": 'PRESS'},
+         {"properties": [("type", "CLOSE"), ("subdivide_cyclic_segment", True)]}),
         ("grease_pencil.cyclical_set", {"type": 'C', "value": 'PRESS',
-         "alt": True}, {"properties": [("type", "TOGGLE")]}),
+         "alt": True}, {"properties": [("type", "TOGGLE"), ("subdivide_cyclic_segment", False)]}),
 
         # Join selection
         ("grease_pencil.join_selection", {"type": 'J', "value": 'PRESS', "ctrl": True},
@@ -3957,7 +4009,7 @@ def km_grease_pencil_edit_mode(params):
              "ctrl": True}, {"properties": [("use_selection", True)]}),
             (op_tool_cycle, "builtin.interpolate"), params),
         ("grease_pencil.interpolate_sequence", {"type": 'E', "value": 'PRESS',
-         "shift": True, "ctrl": True}, None),
+         "shift": True, "ctrl": True}, {"properties": [("use_selection", True)]}),
     ])
 
     return keymap
@@ -4709,7 +4761,8 @@ def km_image_paint(params):
          {"properties": [("mode", 'SMOOTH')]}),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
         ("paint.grab_clone", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
-        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, None),
+        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, {"properties": [("merged", False)]}),
+        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True, "ctrl": True}, {"properties": [("merged", True)]}),
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
@@ -4759,7 +4812,7 @@ def km_vertex_paint(params):
         ("paint.vertex_paint", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
          {"properties": [("mode", 'SMOOTH')]}),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
-        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, None),
+        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, {"properties": [("merged", False)]}),
         ("paint.vertex_color_set", {"type": 'X', "value": 'PRESS', "ctrl": True}, None),
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
@@ -5627,7 +5680,7 @@ def km_edit_curve_legacy(params):
         ("curve.handle_type_set", {"type": 'V', "value": 'PRESS'}, None),
         ("curve.vertex_add", {"type": params.action_mouse, "value": 'CLICK', "ctrl": True}, None),
         *_template_items_select_actions(params, "curve.select_all"),
-        ("curve.select_row", {"type": 'R', "value": 'PRESS', "shift": True}, None),
+        ("curve.select_row", {"type": 'R', "value": 'PRESS', "shift": True, "ctrl": True}, None),
         ("curve.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("curve.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("curve.select_linked", {"type": 'L', "value": 'PRESS', "ctrl": True}, None),
@@ -6399,7 +6452,29 @@ def km_node_link_modal_map(_params):
     return keymap
 
 
+def km_node_resize_modal_map(_params):
+    items = []
+    keymap = (
+        "Node Resize Modal Map",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": items},
+    )
+
+    items.extend([
+        ("BEGIN", {"type": 'LEFTMOUSE', "value": 'PRESS', "any": True}, None),
+        ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'PRESS', "any": True}, None),
+        ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
+        ("SNAP_INVERT_ON", {"type": 'RIGHT_CTRL', "value": 'PRESS', "any": True}, None),
+        ("SNAP_INVERT_OFF", {"type": 'RIGHT_CTRL', "value": 'RELEASE', "any": True}, None),
+        ("SNAP_INVERT_ON", {"type": 'LEFT_CTRL', "value": 'PRESS', "any": True}, None),
+        ("SNAP_INVERT_OFF", {"type": 'LEFT_CTRL', "value": 'RELEASE', "any": True}, None),
+    ])
+
+    return keymap
+
 # Fallback for gizmos that don't have custom a custom key-map.
+
+
 def km_generic_gizmo(_params):
     keymap = (
         "Generic Gizmo",
@@ -8020,6 +8095,8 @@ def km_sequencer_editor_tool_generic_select_preview(params, *, fallback):
         _fallback_id("Sequencer Preview Tool: Tweak", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
+            ("sequencer.text_cursor_set", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+            ("sequencer.text_cursor_set", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, None),
             *([] if (fallback and (params.select_mouse == 'RIGHTMOUSE')) else _template_items_tool_select(
                 params, "sequencer.select", "sequencer.cursor_set", cursor_prioritize=True, fallback=fallback)),
 
@@ -8035,6 +8112,8 @@ def km_sequencer_editor_tool_generic_select_box_preview(params, *, fallback):
         _fallback_id("Sequencer Preview Tool: Select Box", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
+            ("sequencer.text_cursor_set", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+            ("sequencer.text_cursor_set", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, None),
             # Don't use `tool_maybe_tweak_event`, see comment for this slot.
             *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
                 "sequencer.select_box",
@@ -8265,6 +8344,7 @@ def generate_keymaps(params=None):
         km_sculpt_mesh_filter_modal_map(params),
         km_curve_pen_modal_map(params),
         km_node_link_modal_map(params),
+        km_node_resize_modal_map(params),
         km_grease_pencil_primitive_tool_modal_map(params),
         km_grease_pencil_fill_tool_modal_map(params),
         km_grease_pencil_interpolate_tool_modal_map(params),

@@ -9,15 +9,12 @@
 #pragma once
 
 #include <optional>
-#include <queue>
 
-#include "BKE_attribute.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_array.hh"
-#include "BLI_generic_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -47,6 +44,7 @@ struct Node;
 enum class Type : int8_t;
 }  // namespace undo
 }  // namespace blender::ed::sculpt_paint
+struct bContext;
 struct BMLog;
 struct Dial;
 struct DistRayAABB_Precalc;
@@ -55,8 +53,8 @@ struct ImageUser;
 struct Key;
 struct KeyBlock;
 struct Object;
-struct bContext;
 struct PaintModeSettings;
+struct ReportList;
 struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperatorType;
@@ -395,16 +393,13 @@ bool SCULPT_brush_cursor_poll(bContext *C);
 
 namespace blender::ed::sculpt_paint {
 /**
- * Returns true if sculpt session can handle color attributes
- * (pbvh->type() == bke::pbvh::Type::Mesh).  If false an error
- * message will be shown to the user.  Operators should return
- * OPERATOR_CANCELLED in this case.
+ * Returns true if the current Mesh type can handle color attributes. If false an error message
+ * will be shown to the user.  Operators should return OPERATOR_CANCELLED in this case.
  *
- * NOTE: Does not check if a color attribute actually exists.
- * Calling code must handle this itself; in most cases a call to
- * BKE_sculpt_color_layer_create_if_needed() is sufficient.
+ * NOTE: Does not check if a color attribute actually exists. Calling code must handle this itself;
+ * in most cases a call to BKE_sculpt_color_layer_create_if_needed() is sufficient.
  */
-bool color_supported_check(const Object &object, ReportList *reports);
+bool color_supported_check(const Scene &scene, Object &object, ReportList *reports);
 }  // namespace blender::ed::sculpt_paint
 
 /** \} */

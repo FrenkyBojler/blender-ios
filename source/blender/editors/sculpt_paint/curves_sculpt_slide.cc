@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <algorithm>
-
 #include "curves_sculpt_intern.hh"
 
 #include "BLI_math_matrix_types.hh"
@@ -24,10 +22,8 @@
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
-#include "DNA_brush_enums.h"
 #include "DNA_curves_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -107,7 +103,7 @@ struct SlideOperationExecutor {
   Span<int> surface_corner_verts_eval_;
   Span<int3> surface_corner_tris_eval_;
   VArraySpan<float2> surface_uv_map_eval_;
-  BVHTreeFromMesh surface_bvh_eval_;
+  bke::BVHTreeFromMesh surface_bvh_eval_;
 
   VArray<float> curve_factors_;
   IndexMaskMemory selected_curve_memory_;
