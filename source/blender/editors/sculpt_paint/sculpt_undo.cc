@@ -31,13 +31,10 @@
 
 #include <mutex>
 
-#include "MEM_guardedalloc.h"
-
 #include "CLG_log.h"
 
 #include "BLI_array.hh"
 #include "BLI_bit_group_vector.hh"
-#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_string.h"
@@ -355,7 +352,7 @@ static void restore_position_mesh(Object &object,
       const Span<int> verts = unode.vert_indices.as_span().take_front(unode.unique_verts_num);
 
       if (unode.orig_position.is_empty()) {
-        /* When original positions aren't written separately in the the undo step, there are no
+        /* When original positions aren't written separately in the undo step, there are no
          * deform modifiers. Therefore the original and evaluated deform positions will be the
          * same, and modifying the positions from the original mesh is enough. */
         swap_indexed_data(

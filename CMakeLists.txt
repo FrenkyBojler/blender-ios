@@ -100,6 +100,11 @@ if(POLICY CMP0119)
   cmake_policy(SET CMP0119 NEW)
 endif()
 
+# Install DESTINATION paths are normalized.
+if(POLICY CMP0177)
+  cmake_policy(SET CMP0177 NEW)
+endif()
+
 # -----------------------------------------------------------------------------
 # Load Blender's Local Macros
 
@@ -562,13 +567,6 @@ Try to link with static libraries, as much as possible, \
 to make blender more portable across distributions"
     OFF
   )
-  if(WITH_STATIC_LIBS)
-    option(WITH_BOOST_ICU "\
-Boost uses ICU library (required for linking with static Boost built with libicu)."
-      OFF
-    )
-    mark_as_advanced(WITH_BOOST_ICU)
-  endif()
 endif()
 
 # Misc
@@ -1272,9 +1270,7 @@ set_and_warn_dependency(WITH_PYTHON WITH_MOD_FLUID     OFF)
 # enable boost for cycles, audaspace or i18n
 # otherwise if the user disabled
 
-set_and_warn_dependency(WITH_BOOST WITH_INTERNATIONAL  OFF)
 set_and_warn_dependency(WITH_BOOST WITH_OPENVDB        OFF)
-set_and_warn_dependency(WITH_BOOST WITH_QUADRIFLOW     OFF)
 set_and_warn_dependency(WITH_BOOST WITH_USD            OFF)
 if(WITH_CYCLES)
   set_and_warn_dependency(WITH_BOOST   WITH_CYCLES_OSL          OFF)
@@ -1510,16 +1506,6 @@ endif()
 # -----------------------------------------------------------------------------
 # Common Checks for Compatible Options
 
-if(WITH_INTERNATIONAL)
-  if(NOT WITH_BOOST)
-    message(
-      FATAL_ERROR
-      "Internationalization requires WITH_BOOST, the library may not have been found. "
-      "Configure BOOST or disable WITH_INTERNATIONAL"
-    )
-  endif()
-endif()
-
 # Enable SIMD support if detected by `test_sse_support()` or `test_neon_support()`.
 #
 if(WITH_CPU_SIMD)
@@ -1624,19 +1610,9 @@ if(WITH_OPENVDB)
     ${OPENEXR_INCLUDE_DIRS}
   )
 
-  list(APPEND OPENVDB_LIBRARIES ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES})
-
   if(WITH_OPENVDB_BLOSC)
     list(APPEND OPENVDB_DEFINITIONS -DWITH_OPENVDB_BLOSC)
-    # Even when `WITH_OPENVDB_BLOSC` is set, `FindBlosc.cmake` isn't running.
-    # As this might be used at some point, check the libraries are defined.
-    if(DEFINED BLOSC_LIBRARIES)
-      list(APPEND OPENVDB_LIBRARIES ${BLOSC_LIBRARIES})
-    endif()
-    list(APPEND OPENVDB_LIBRARIES ${ZLIB_LIBRARIES})
   endif()
-
-  list(APPEND OPENVDB_LIBRARIES ${BOOST_LIBRARIES} ${TBB_LIBRARIES})
 endif()
 
 # -----------------------------------------------------------------------------
@@ -2542,11 +2518,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Visual Studio has all standards it supports available by default
 # Clang on windows copies this behavior and does not support these switches
-if(
-  CMAKE_COMPILER_IS_GNUCC OR
-  (CMAKE_C_COMPILER_ID MATCHES "Clang" AND (NOT MSVC)) OR
-  (CMAKE_C_COMPILER_ID STREQUAL "Intel")
-)
+if(CMAKE_COMPILER_IS_GNUCC OR
+   (CMAKE_C_COMPILER_ID MATCHES "Clang" AND (NOT MSVC)) OR
+   (CMAKE_C_COMPILER_ID STREQUAL "Intel"))
+
   # Use C11 + GNU extensions, works with GCC, Clang, ICC
   string(APPEND CMAKE_C_FLAGS " -std=gnu11")
 endif()
