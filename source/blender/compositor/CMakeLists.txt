@@ -178,7 +178,6 @@ set(GLSL_SRC
   shaders/compositor_double_edge_mask_compute_gradient.glsl
   shaders/compositor_edge_filter.glsl
   shaders/compositor_ellipse_mask.glsl
-  shaders/compositor_extract_alpha.glsl
   shaders/compositor_filter.glsl
   shaders/compositor_flip.glsl
   shaders/compositor_gamma_correct.glsl

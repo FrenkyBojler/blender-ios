@@ -13,8 +13,6 @@
 
 #include "DNA_customdata_types.h"
 
-#include "IMB_colormanagement.hh"
-
 #include "GPU_context.hh"
 #include "GPU_material.hh"
 #include "GPU_shader.hh"
@@ -67,7 +65,6 @@ void ShaderOperation::execute()
   GPUShader *shader = GPU_material_get_shader(material_);
   GPU_shader_bind(shader);
 
-  this->set_push_constants(shader);
   bind_material_resources(shader);
   bind_inputs(shader);
   bind_outputs(shader);
@@ -78,13 +75,6 @@ void ShaderOperation::execute()
   GPU_texture_image_unbind_all();
   GPU_uniformbuf_debug_unbind_all();
   GPU_shader_unbind();
-}
-
-void ShaderOperation::set_push_constants(GPUShader *shader)
-{
-  float luminance_coefficients[3];
-  IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
-  GPU_shader_uniform_3fv(shader, "luminance_coefficients", luminance_coefficients);
 }
 
 void ShaderOperation::bind_material_resources(GPUShader *shader)
@@ -363,8 +353,9 @@ void ShaderOperation::generate_code(void *thunk,
    * creator. */
   shader_create_info.auto_resource_location(true);
 
-  /* The luminance coefficients are needed for color to float implicit conversion. */
-  shader_create_info.push_constant(Type::VEC3, "luminance_coefficients");
+  /* Add implementation for implicit conversion operations inserted by the code generator. This
+   * file should include the functions [float|vec3|vec4]_from_[float|vec3|vec4]. */
+  shader_create_info.typedef_source("gpu_shader_compositor_type_conversion.glsl");
 
   /* The source shader is a compute shader with a main function that calls the dynamically
    * generated evaluate function. The evaluate function includes the serialized GPU material graph
@@ -601,6 +592,10 @@ void ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
   declare_attributes << "} var_attrs;\n\n";
 
   shader_create_info.compute_source_generated += declare_attributes.str();
+
+  /* The texture loader utilities are needed to sample the input textures and initialize the
+   * attributes. */
+  shader_create_info.typedef_source("gpu_shader_compositor_texture_utilities.glsl");
 
   /* Initialize each member of the previously declared struct by loading its corresponding texture
    * with an appropriate swizzle and cast for its type. */

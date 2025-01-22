@@ -68,7 +68,6 @@
 #include "compositor_double_edge_mask_info.hh"
 #include "compositor_edge_filter_info.hh"
 #include "compositor_ellipse_mask_info.hh"
-#include "compositor_extract_alpha_info.hh"
 #include "compositor_filter_info.hh"
 #include "compositor_flip_info.hh"
 #include "compositor_gamma_correct_info.hh"

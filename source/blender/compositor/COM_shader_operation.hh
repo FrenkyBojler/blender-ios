@@ -80,10 +80,6 @@ class ShaderOperation : public PixelOperation {
   void execute() override;
 
  private:
-  /* Sets any needed push constants. The compiled shader of the material is given as an argument
-   * and assumed to be bound. */
-  void set_push_constants(GPUShader *shader);
-
   /* Bind the uniform buffer of the GPU material as well as any color band textures needed by the
    * GPU material.  The compiled shader of the material is given as an argument and assumed to be
    * bound. */
