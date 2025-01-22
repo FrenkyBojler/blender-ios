@@ -283,8 +283,6 @@ static int paint_mask_extract_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_on_load(C), CTX_data_main(C), ob, nullptr);
-
   GeometryExtractParams params;
   params.mask_threshold = RNA_float_get(op->ptr, "mask_threshold");
   params.num_smooth_iterations = RNA_int_get(op->ptr, "smooth_iterations");
@@ -473,8 +471,6 @@ static int paint_mask_slice_exec(bContext *C, wmOperator *op)
   if (!mesh->attributes().contains(".sculpt_mask")) {
     return OPERATOR_CANCELLED;
   }
-
-  BKE_sculpt_mask_layers_ensure(nullptr, nullptr, &ob, nullptr);
 
   bool create_new_object = RNA_boolean_get(op->ptr, "new_object");
   bool fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
