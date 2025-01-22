@@ -2151,7 +2151,7 @@ static void rna_def_sequence(BlenderRNA *brna)
   prop = RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_LOCK);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
+  RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
   RNA_def_property_ui_text(prop, "Lock", "Lock strip so that it cannot be transformed");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
@@ -3407,7 +3407,7 @@ static void rna_def_text(StructRNA *srna)
 
   prop = RNA_def_property(srna, "font", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "text_font");
-  RNA_def_property_ui_icon(prop, ICON_FILE_FONT, false);
+  RNA_def_property_ui_icon(prop, ICON_FILE_FONT, 0);
   RNA_def_property_ui_text(
       prop, "Font", "Font of the text. Falls back to the UI font by default.");
   RNA_def_property_flag(prop, PROP_EDITABLE);

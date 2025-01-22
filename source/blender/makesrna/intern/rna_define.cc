@@ -1688,6 +1688,7 @@ void RNA_def_property_ui_text(PropertyRNA *prop, const char *name, const char *d
 
 void RNA_def_property_ui_icon(PropertyRNA *prop, int icon, int consecutive)
 {
+  BLI_assert(consecutive >= -1 && consecutive <= 1);
   prop->icon = icon;
   if (consecutive != 0) {
     RNA_def_property_flag(prop, PROP_ICONS_CONSECUTIVE);
