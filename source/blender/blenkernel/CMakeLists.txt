@@ -830,7 +830,6 @@ if(WITH_GTESTS)
     intern/lib_remap_test.cc
     intern/main_test.cc
     intern/nla_test.cc
-    intern/paint_test.cc
     intern/subdiv_ccg_test.cc
     intern/tracking_test.cc
     intern/volume_test.cc
@@ -841,7 +840,6 @@ if(WITH_GTESTS)
   set(TEST_LIB
     ${LIB}
     bf_rna  # RNA_prototypes.hh
-    bf_geometry # Easy primitive creation (e.g. GEO_mesh_primitive_cuboid.hh)
   )
   blender_add_test_suite_lib(blenkernel "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()

@@ -76,8 +76,6 @@ class PaintTest : public testing::Test {
   void TearDown() override
   {
     BKE_id_free(bmain, cube_mesh);
-    BKE_id_free(bmain, cube);
-    BKE_id_free(bmain, scene);
     BKE_main_free(bmain);
   }
 
