@@ -1856,6 +1856,13 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
 
+  prop = RNA_def_property(srna, "match_random_brightness", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag2", GP_BRUSH_MATCH_BRIGHTNESS_RAND);
+  RNA_def_property_ui_icon(prop, ICON_SEQ_LUMA_WAVEFORM, 0);
+  RNA_def_property_ui_text(prop, "Match Brightness", "Makes the randomness match the brightness");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
+
   prop = RNA_def_property(srna, "use_settings_stabilizer", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_BRUSH_STABILIZE_MOUSE);
   RNA_def_property_boolean_default(prop, true);

@@ -2707,6 +2707,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_random(View3DPanel, Panel):
         row.prop(gp_settings, "random_value_factor", slider=True)
         row.prop(gp_settings, "use_stroke_random_val", text="", icon='GP_SELECT_STROKES')
         row.prop(gp_settings, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
+        row.prop(gp_settings, "match_random_brightness", text="", icon='SEQ_LUMA_WAVEFORM')
         if gp_settings.use_random_press_val and self.is_popover is False:
             col1.template_curve_mapping(gp_settings, "curve_random_value", brush=True, use_negative_slope=True)
 

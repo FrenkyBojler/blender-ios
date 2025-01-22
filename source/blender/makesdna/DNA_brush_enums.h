@@ -126,6 +126,8 @@ typedef enum eGPDbrush_Flag2 {
   GP_BRUSH_USE_STRENGTH_RAND_PRESS = (1 << 10),
   /* Brush use UV random pressure */
   GP_BRUSH_USE_UV_RAND_PRESS = (1 << 11),
+  /* Brush match brightness for random Value */
+  GP_BRUSH_MATCH_BRIGHTNESS_RAND = (1 << 12),
 } eGPDbrush_Flag2;
 
 /* BrushGpencilSettings->fill_draw_mode */
