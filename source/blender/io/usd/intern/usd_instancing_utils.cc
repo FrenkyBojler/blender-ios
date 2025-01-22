@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 NVIDIA Corporation. All rights reserved.
+/* SPDX-FileCopyrightText: 2025 NVIDIA Corporation. All rights reserved.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,6 +14,7 @@
 #include <pxr/usd/sdf/path.h>
 #include <pxr/usd/usd/primCompositionQuery.h>
 #include <pxr/usd/usd/primRange.h>
+#include <pxr/usd/usd/references.h>
 
 #include <string>
 
