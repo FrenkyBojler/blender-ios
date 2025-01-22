@@ -479,10 +479,14 @@ struct PaintOperationExecutor {
     hsv[0] += random_hue * settings_->random_hue;
     hsv[1] += random_saturation * settings_->random_saturation;
     if ((settings_->flag2 & GP_BRUSH_MATCH_BRIGHTNESS_RAND) != 0) {
-      /* To match brightness we want the ratio of the original to modified Value to not depend on
-       * the brightness of the input Value, Exp is used because we need a function that is positive
-       * and has the property that 'f(-x) = 1/f(x)*/
-
+      /*
+       * To match relative brightness we want the ratio of the original to modified Value to not
+       * depend on the brightness of the input Value, Exp is used because we need a function that
+       * is positive for all 'x' and has the property that 'f(-x) = 1/f(x)' this is so that
+       * we make the Value on average growth and shrink by the same amount. To detriment the rate
+       * of the Exponential we set slope to match addition for small random values at an arbitrary
+       * Base Value.
+       */
       const float base_value = 0.5f;
       hsv[2] *= exp(random_value * settings_->random_value / base_value);
     }
