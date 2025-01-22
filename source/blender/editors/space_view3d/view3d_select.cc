@@ -5365,7 +5365,6 @@ static bool object_circle_select(const ViewContext *vc,
   const float mval_fl[2] = {float(mval[0]), float(mval[1])};
 
   bool changed = false;
-
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     changed |= object_deselect_all_visible(vc->scene, vc->view_layer, vc->v3d);
   }
