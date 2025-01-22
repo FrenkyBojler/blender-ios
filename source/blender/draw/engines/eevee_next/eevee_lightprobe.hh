@@ -15,6 +15,8 @@
 #include "BLI_bit_vector.hh"
 #include "BLI_map.hh"
 
+#include "DNA_world_types.h"
+
 #include "eevee_defines.hh"
 #include "eevee_sync.hh"
 
@@ -224,7 +226,7 @@ class LightProbeModule {
 
  public:
   LightProbeModule(Instance &inst);
-  ~LightProbeModule(){};
+  ~LightProbeModule() {};
 
   void init();
 

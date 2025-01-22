@@ -6,6 +6,8 @@
  * \ingroup overlay
  */
 
+#include "draw_cache.hh"
+
 #include "overlay_next_private.hh"
 
 namespace blender::draw::overlay {
@@ -848,14 +850,14 @@ ShapeCache::ShapeCache()
       float2(-1.0f, -1.0f) * axis_marker_scale,
       float2(-1.0f, 1.0f) * axis_marker_scale,
 #else /* diamond */
-      float2(-1.0f, 0.0f) * axis_marker_scale,
-      float2(0.0f, 1.0f) * axis_marker_scale,
-      float2(0.0f, 1.0f) * axis_marker_scale,
-      float2(1.0f, 0.0f) * axis_marker_scale,
-      float2(1.0f, 0.0f) * axis_marker_scale,
-      float2(0.0f, -1.0f) * axis_marker_scale,
-      float2(0.0f, -1.0f) * axis_marker_scale,
-      float2(-1.0f, 0.0f) * axis_marker_scale,
+        float2(-1.0f, 0.0f) * axis_marker_scale,
+        float2(0.0f, 1.0f) * axis_marker_scale,
+        float2(0.0f, 1.0f) * axis_marker_scale,
+        float2(1.0f, 0.0f) * axis_marker_scale,
+        float2(1.0f, 0.0f) * axis_marker_scale,
+        float2(0.0f, -1.0f) * axis_marker_scale,
+        float2(0.0f, -1.0f) * axis_marker_scale,
+        float2(-1.0f, 0.0f) * axis_marker_scale,
 #endif
     };
 

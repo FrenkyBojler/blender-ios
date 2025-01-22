@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_context.hh"
+
 #include "DNA_camera_types.h"
 #include "DRW_render.hh"
 #include "draw_manager.hh"
@@ -404,7 +406,7 @@ class ShadowPass {
     VisibilityBuf fail_visibility_buf_ = {};
 
    public:
-    ShadowView() : View("ShadowPass.View"){};
+    ShadowView() : View("ShadowPass.View") {};
 
     void setup(View &view, float3 light_direction, bool force_fail_method);
     bool debug_object_culling(Object *ob);

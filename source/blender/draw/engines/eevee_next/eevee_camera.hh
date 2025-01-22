@@ -8,6 +8,8 @@
  * \ingroup eevee
  */
 
+#include "BLI_math_matrix.h"
+
 #include "eevee_shader_shared.hh"
 
 namespace blender::eevee {
@@ -109,8 +111,8 @@ class Camera {
   bool camera_changed_ = false;
 
  public:
-  Camera(Instance &inst, CameraData &data) : inst_(inst), data_(data){};
-  ~Camera(){};
+  Camera(Instance &inst, CameraData &data) : inst_(inst), data_(data) {};
+  ~Camera() {};
 
   void init();
   void sync();

@@ -8,13 +8,10 @@
 
 #pragma once
 
+#include "DNA_world_types.h"
+
 #include "eevee_lightprobe.hh"
 #include "eevee_shader_shared.hh"
-
-#include "BKE_cryptomatte.hh"
-
-extern "C" {
-}
 
 namespace blender::eevee {
 
@@ -108,7 +105,7 @@ class SphereProbeModule {
   PassSimple viewport_display_ps_ = {"ProbeSphereModule.Viewport Display"};
 
  public:
-  SphereProbeModule(Instance &instance) : instance_(instance){};
+  SphereProbeModule(Instance &instance) : instance_(instance) {};
 
   void init();
   void begin_sync();
