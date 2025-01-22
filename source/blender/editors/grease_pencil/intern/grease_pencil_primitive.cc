@@ -762,6 +762,25 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op)
 {
   PrimitiveToolOperation *ptd = static_cast<PrimitiveToolOperation *>(op->customdata);
 
+  const Scene &scene = *CTX_data_scene(C);
+  const bool do_automerge_endpoints = (scene.toolsettings->gpencil_flags &
+                                       GP_TOOL_FLAG_AUTOMERGE_STROKE) != 0;
+
+  if (do_automerge_endpoints) {
+    const Object &ob = *ptd->vc.obact;
+    const GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob.data);
+    const bke::greasepencil::Layer &active_layer = *grease_pencil->get_active_layer();
+
+    constexpr float merge_distance = 30.0f;
+    const float4x4 layer_to_world = active_layer.to_world_space(ob);
+    const bke::CurvesGeometry &src_curves = ptd->drawing->strokes();
+    const IndexMask selection = IndexRange::from_single(src_curves.curve_num - 1);
+
+    ptd->drawing->strokes_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
+        *CTX_wm_region(C), src_curves, layer_to_world, merge_distance, selection, {});
+    ptd->drawing->tag_topology_changed();
+  }
+
   /* Clear status message area. */
   ED_workspace_status_text(C, nullptr);
 
