@@ -1349,6 +1349,7 @@ GlyphBLF *blf_glyph_ensure(FontBLF *font, GlyphCacheBLF *gc, const uint charcode
   FT_UInt glyph_index = blf_glyph_index_from_charcode(&font_with_glyph, charcode);
 
   if (!glyph_index) {
+    /* 741 = id of ICON_CHAR_NOTDEF */
     return blf_glyph_ensure_icon(gc, 741, false, nullptr);
   }
 
