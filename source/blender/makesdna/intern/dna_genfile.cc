@@ -27,7 +27,6 @@
 #include "BLI_index_range.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_memarena.h"
-#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
 #include "BLI_ghash.h"
@@ -2067,6 +2066,9 @@ static void print_single_struct_recursive(const SDNA &sdna,
                                           const int indent,
                                           fmt::appender &dst);
 
+/**
+ * Uses a heuristic to detect if a char array should be printed as string.
+ */
 static bool char_array_startswith_simple_name(const char *data, const int array_len)
 {
   const int string_length = strnlen(data, array_len);
@@ -2149,9 +2151,10 @@ static void print_single_struct_recursive(const SDNA &sdna,
         case STRUCT_MEMBER_CATEGORY_PRIMITIVE: {
           fmt::format_to(dst, " ");
           const int type_size = sdna.types_size[member.type_index];
+          const eSDNA_Type type = eSDNA_Type(member.type_index);
           for ([[maybe_unused]] const int elem_i : IndexRange(member_array_len)) {
             const void *current_data = POINTER_OFFSET(data, elem_i * type_size);
-            switch (member.type_index) {
+            switch (type) {
               case SDNA_TYPE_CHAR: {
                 const char value = *reinterpret_cast<const char *>(current_data);
                 fmt::format_to(dst, "{}", int(value));
@@ -2182,21 +2185,19 @@ static void print_single_struct_recursive(const SDNA &sdna,
                 fmt::format_to(dst, "{}", *reinterpret_cast<const float *>(current_data));
                 break;
               }
-              case SDNA_TYPE_INT64: {
-                fmt::format_to(dst, "{}", *reinterpret_cast<const int64_t *>(current_data));
-                break;
-              }
-              /* Somehow the types are a bit messed up after VOID, not sure what's going on. */
-              case SDNA_TYPE_VOID:
-              case SDNA_TYPE_UINT64: {
-                fmt::format_to(dst, "{}", *reinterpret_cast<const uint64_t *>(current_data));
-                break;
-              }
               case SDNA_TYPE_DOUBLE: {
                 fmt::format_to(dst, "{}", *reinterpret_cast<const double *>(current_data));
                 break;
               }
-              default: {
+              case SDNA_TYPE_INT64: {
+                fmt::format_to(dst, "{}", *reinterpret_cast<const int64_t *>(current_data));
+                break;
+              }
+              case SDNA_TYPE_UINT64: {
+                fmt::format_to(dst, "{}", *reinterpret_cast<const uint64_t *>(current_data));
+                break;
+              }
+              case SDNA_TYPE_RAW_DATA: {
                 BLI_assert_unreachable();
                 break;
               }
