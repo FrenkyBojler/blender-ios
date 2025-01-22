@@ -820,9 +820,14 @@ static int sequencer_text_edit_paste_exec(bContext *C, wmOperator * /*op*/)
   }
 
   const int max_str_len = sizeof(data->text) - (BLI_strnlen(data->text, sizeof(data->text)) + 1);
-  clipboard_len = std::min(clipboard_len, max_str_len);
+
+  /* Maximum bytes that can be filled into `data->text`. */
+  const int fillable_len = std::min(clipboard_len, max_str_len);
+
+  /* Truncated string could contain invalid utf-8 sequence, thus ensure the length inserted is
+   * always valid. */
   size_t valid_str_len;
-  BLI_strnlen_utf8_ex(clipboard_buf, clipboard_len, &valid_str_len);
+  BLI_strnlen_utf8_ex(clipboard_buf, fillable_len, &valid_str_len);
 
   const seq::CharInfo cur_char = character_at_cursor_offset_get(text, data->cursor_offset);
   char *cursor_addr = const_cast<char *>(cur_char.str_ptr);
