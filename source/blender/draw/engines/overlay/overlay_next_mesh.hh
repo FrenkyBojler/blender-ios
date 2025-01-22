@@ -72,11 +72,11 @@ class Meshes : Overlay {
   bool select_face_ = false;
   bool select_vert_ = false;
 
+  float ndc_offset_factor_ = 0.0f;
+
   /* TODO(fclem): This is quite wasteful and expensive, prefer in shader Z modification like the
    * retopology offset. */
   View view_edit_cage_ = {"view_edit_cage"};
-  View view_edit_edge_ = {"view_edit_edge"};
-  View view_edit_vert_ = {"view_edit_vert"};
   View::OffsetData offset_data_;
 
  public:
@@ -211,6 +211,7 @@ class Meshes : Overlay {
       pass.push_constant("selectEdge", select_edge_);
       pass.push_constant("alpha", alpha);
       pass.push_constant("retopologyOffset", retopology_offset);
+      pass.push_constant("ndc_offset_factor", &state.ndc_offset_factor);
       pass.push_constant("dataMask", int4(data_mask));
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     };
@@ -372,16 +373,16 @@ class Meshes : Overlay {
       return;
     }
 
+    ndc_offset_factor_ = offset_data_.polygon_offset_factor(view.winmat());
+
     view_edit_cage_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 0.5f));
-    view_edit_edge_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.0f));
-    view_edit_vert_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.5f));
 
     manager.submit(edit_mesh_normals_ps_, view);
     manager.submit(edit_mesh_cages_ps_, view_edit_cage_);
-    manager.submit(edit_mesh_edges_ps_, view_edit_edge_);
-    manager.submit(edit_mesh_verts_ps_, view_edit_vert_);
-    manager.submit(edit_mesh_skin_roots_ps_, view_edit_vert_);
-    manager.submit(edit_mesh_facedots_ps_, view_edit_vert_);
+    manager.submit(edit_mesh_edges_ps_, view);
+    manager.submit(edit_mesh_verts_ps_, view);
+    manager.submit(edit_mesh_skin_roots_ps_, view);
+    manager.submit(edit_mesh_facedots_ps_, view);
 
     GPU_debug_group_end();
   }
@@ -398,17 +399,17 @@ class Meshes : Overlay {
 
     GPU_debug_group_begin("Mesh Edit Color Only");
 
+    ndc_offset_factor_ = offset_data_.polygon_offset_factor(view.winmat());
+
     view_edit_cage_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 0.5f));
-    view_edit_edge_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.0f));
-    view_edit_vert_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.5f));
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_mesh_normals_ps_, view);
     manager.submit(edit_mesh_cages_ps_, view_edit_cage_);
-    manager.submit(edit_mesh_edges_ps_, view_edit_edge_);
-    manager.submit(edit_mesh_verts_ps_, view_edit_vert_);
-    manager.submit(edit_mesh_skin_roots_ps_, view_edit_vert_);
-    manager.submit(edit_mesh_facedots_ps_, view_edit_vert_);
+    manager.submit(edit_mesh_edges_ps_, view);
+    manager.submit(edit_mesh_verts_ps_, view);
+    manager.submit(edit_mesh_skin_roots_ps_, view);
+    manager.submit(edit_mesh_facedots_ps_, view);
 
     GPU_debug_group_end();
   }

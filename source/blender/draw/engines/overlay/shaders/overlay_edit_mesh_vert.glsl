@@ -106,6 +106,17 @@ void main()
   finalColor.rgb = mix(finalColor.rgb,
                        non_linear_blend_color(colorEditMeshMiddle.rgb, finalColor.rgb, facing),
                        fresnelMixEdit);
+
+#  if defined(VERT)
+  float eps = 1.5;
+#  elif defined(EDGE)
+  float eps = 1.0;
+#  elif defined(FACEDOT)
+  float eps = 1.0;
+#  else
+  float eps = 0.0;
+#  endif
+  gl_Position.z -= ndc_offset_factor * eps;
 #endif
 
   view_clipping_distances(world_pos);
