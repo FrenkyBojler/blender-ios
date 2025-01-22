@@ -489,7 +489,9 @@ void do_layer_brush(const Depsgraph &depsgraph,
       MutableSpan<float> displacement;
       if (brush.flag & BRUSH_PERSISTENT) {
         if (!persistent_position.is_empty() && !persistent_normal.is_empty()) {
-          ss.sculpt_persistent_disp = Array<float>(positions.size(), 0.0f);
+          if (ss.sculpt_persistent_disp.is_empty()) {
+            ss.sculpt_persistent_disp = Array<float>(positions.size(), 0.0f);
+          }
           use_persistent_base = true;
           displacement = ss.sculpt_persistent_disp;
         }
@@ -527,7 +529,9 @@ void do_layer_brush(const Depsgraph &depsgraph,
       MutableSpan<float> displacement;
       if (brush.flag & BRUSH_PERSISTENT) {
         if (!persistent_position.is_empty() && !persistent_normal.is_empty()) {
-          ss.sculpt_persistent_disp = Array<float>(persistent_position.size(), 0.0f);
+          if (ss.sculpt_persistent_disp.is_empty()) {
+            ss.sculpt_persistent_disp = Array<float>(persistent_position.size(), 0.0f);
+          }
           use_persistent_base = true;
           displacement = ss.sculpt_persistent_disp;
         }
