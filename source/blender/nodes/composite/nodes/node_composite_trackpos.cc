@@ -68,16 +68,7 @@ static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRN
 {
   bNode *node = (bNode *)ptr->data;
 
-  uiTemplateID(layout,
-               C,
-               ptr,
-               "clip",
-               nullptr,
-               "CLIP_OT_open",
-               nullptr,
-               UI_TEMPLATE_ID_FILTER_ALL,
-               false,
-               nullptr);
+  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
   if (node->id) {
     MovieClip *clip = (MovieClip *)node->id;
@@ -101,18 +92,18 @@ static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRN
       uiItemR(layout, ptr, "track_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
     }
 
-    uiItemR(layout, ptr, "position", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "position", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
     if (ELEM(node->custom1,
              CMP_NODE_TRACK_POSITION_RELATIVE_FRAME,
              CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME))
     {
-      uiItemR(layout, ptr, "frame_relative", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+      uiItemR(layout, ptr, "frame_relative", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
     }
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class TrackPositionOperation : public NodeOperation {
  public:
@@ -150,13 +141,13 @@ class TrackPositionOperation : public NodeOperation {
     if (should_compute_x) {
       Result &result = get_result("X");
       result.allocate_single_value();
-      result.set_float_value(position.x);
+      result.set_single_value(position.x);
     }
 
     if (should_compute_y) {
       Result &result = get_result("Y");
       result.allocate_single_value();
-      result.set_float_value(position.y);
+      result.set_single_value(position.y);
     }
   }
 
@@ -184,7 +175,7 @@ class TrackPositionOperation : public NodeOperation {
 
     Result &result = get_result("Speed");
     result.allocate_single_value();
-    result.set_vector_value(speed);
+    result.set_single_value(speed);
   }
 
   void execute_invalid()
@@ -192,17 +183,17 @@ class TrackPositionOperation : public NodeOperation {
     if (should_compute_output("X")) {
       Result &result = get_result("X");
       result.allocate_single_value();
-      result.set_float_value(0.0f);
+      result.set_single_value(0.0f);
     }
     if (should_compute_output("Y")) {
       Result &result = get_result("Y");
       result.allocate_single_value();
-      result.set_float_value(0.0f);
+      result.set_single_value(0.0f);
     }
     if (should_compute_output("Speed")) {
       Result &result = get_result("Speed");
       result.allocate_single_value();
-      result.set_vector_value(float4(0.0f));
+      result.set_single_value(float4(0.0f));
     }
   }
 
@@ -364,7 +355,12 @@ void register_node_type_cmp_trackpos()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_TRACKPOS, "Track Position", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeTrackPos", CMP_NODE_TRACKPOS);
+  ntype.ui_name = "Track Position";
+  ntype.ui_description =
+      "Provide information about motion tracking points, such as x and y values";
+  ntype.enum_name_legacy = "TRACKPOS";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::cmp_node_trackpos_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_trackpos;
   ntype.initfunc_api = file_ns::init;
@@ -372,5 +368,5 @@ void register_node_type_cmp_trackpos()
       &ntype, "NodeTrackPosData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

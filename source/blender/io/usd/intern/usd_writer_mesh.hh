@@ -9,17 +9,18 @@
 
 #include <pxr/usd/usdGeom/mesh.h>
 
-struct Key;
 struct SubsurfModifierData;
 
 namespace blender::bke {
-class AttributeIDRef;
-struct AttributeMetaData;
+class AttributeIter;
 }  // namespace blender::bke
 
 namespace blender::io::usd {
 
 struct USDMeshData;
+
+/* Mapping from material slot number to array of face indices with that material. */
+using MaterialFaceGroups = Map<short, pxr::VtArray<int>>;
 
 /* Writer for USD geometry. Does not assume the object is a mesh object. */
 class USDGenericMeshWriter : public USDAbstractWriter {
@@ -34,34 +35,25 @@ class USDGenericMeshWriter : public USDAbstractWriter {
   virtual void free_export_mesh(Mesh *mesh);
 
  private:
-  /* Mapping from material slot number to array of face indices with that material. */
-  using MaterialFaceGroups = Map<short, pxr::VtIntArray>;
-
   void write_mesh(HierarchyContext &context, Mesh *mesh, const SubsurfModifierData *subsurfData);
   pxr::TfToken get_subdiv_scheme(const SubsurfModifierData *subsurfData);
   void write_subdiv(const pxr::TfToken &subdiv_scheme,
-                    pxr::UsdGeomMesh &usd_mesh,
+                    const pxr::UsdGeomMesh &usd_mesh,
                     const SubsurfModifierData *subsurfData);
   void get_geometry_data(const Mesh *mesh, struct USDMeshData &usd_mesh_data);
   void assign_materials(const HierarchyContext &context,
-                        pxr::UsdGeomMesh usd_mesh,
+                        const pxr::UsdGeomMesh &usd_mesh,
                         const MaterialFaceGroups &usd_face_groups);
-  void write_normals(const Mesh *mesh, pxr::UsdGeomMesh usd_mesh);
-  void write_surface_velocity(const Mesh *mesh, pxr::UsdGeomMesh usd_mesh);
+  void write_normals(const Mesh *mesh, pxr::UsdGeomMesh &usd_mesh);
+  void write_surface_velocity(const Mesh *mesh, const pxr::UsdGeomMesh &usd_mesh);
 
-  void write_custom_data(const Object *obj, const Mesh *mesh, pxr::UsdGeomMesh usd_mesh);
+  void write_custom_data(const Object *obj, const Mesh *mesh, const pxr::UsdGeomMesh &usd_mesh);
   void write_generic_data(const Mesh *mesh,
-                          pxr::UsdGeomMesh usd_mesh,
-                          const bke::AttributeIDRef &attribute_id,
-                          const bke::AttributeMetaData &meta_data);
-  void write_uv_data(const Mesh *mesh,
-                     pxr::UsdGeomMesh usd_mesh,
-                     const bke::AttributeIDRef &attribute_id,
-                     const char *active_set_name);
-  void write_color_data(const Mesh *mesh,
-                        pxr::UsdGeomMesh usd_mesh,
-                        const bke::AttributeIDRef &attribute_id,
-                        const bke::AttributeMetaData &meta_data);
+                          const pxr::UsdGeomMesh &usd_mesh,
+                          const bke::AttributeIter &attr);
+  void write_uv_data(const pxr::UsdGeomMesh &usd_mesh,
+                     const bke::AttributeIter &attr,
+                     const StringRef active_uvmap_name);
 };
 
 class USDMeshWriter : public USDGenericMeshWriter {

@@ -27,7 +27,7 @@
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_sound.h"
@@ -192,41 +192,41 @@ static void SOUND_OT_open_mono(wmOperatorType *ot)
 
 static void sound_update_animation_flags(Scene *scene);
 
-static bool sound_update_animation_flags_fn(Sequence *seq, void *user_data)
+static bool sound_update_animation_flags_fn(Strip *strip, void *user_data)
 {
   const FCurve *fcu;
   Scene *scene = (Scene *)user_data;
   bool driven;
 
-  fcu = id_data_find_fcurve(&scene->id, seq, &RNA_Sequence, "volume", 0, &driven);
+  fcu = id_data_find_fcurve(&scene->id, strip, &RNA_Strip, "volume", 0, &driven);
   if (fcu || driven) {
-    seq->flag |= SEQ_AUDIO_VOLUME_ANIMATED;
+    strip->flag |= SEQ_AUDIO_VOLUME_ANIMATED;
   }
   else {
-    seq->flag &= ~SEQ_AUDIO_VOLUME_ANIMATED;
+    strip->flag &= ~SEQ_AUDIO_VOLUME_ANIMATED;
   }
 
-  fcu = id_data_find_fcurve(&scene->id, seq, &RNA_Sequence, "pitch", 0, &driven);
+  fcu = id_data_find_fcurve(&scene->id, strip, &RNA_Strip, "pitch", 0, &driven);
   if (fcu || driven) {
-    seq->flag |= SEQ_AUDIO_PITCH_ANIMATED;
+    strip->flag |= SEQ_AUDIO_PITCH_ANIMATED;
   }
   else {
-    seq->flag &= ~SEQ_AUDIO_PITCH_ANIMATED;
+    strip->flag &= ~SEQ_AUDIO_PITCH_ANIMATED;
   }
 
-  fcu = id_data_find_fcurve(&scene->id, seq, &RNA_Sequence, "pan", 0, &driven);
+  fcu = id_data_find_fcurve(&scene->id, strip, &RNA_Strip, "pan", 0, &driven);
   if (fcu || driven) {
-    seq->flag |= SEQ_AUDIO_PAN_ANIMATED;
+    strip->flag |= SEQ_AUDIO_PAN_ANIMATED;
   }
   else {
-    seq->flag &= ~SEQ_AUDIO_PAN_ANIMATED;
+    strip->flag &= ~SEQ_AUDIO_PAN_ANIMATED;
   }
 
-  if (seq->type == SEQ_TYPE_SCENE) {
+  if (strip->type == STRIP_TYPE_SCENE) {
     /* TODO(sergey): For now we do manual recursion into the scene strips,
      * but perhaps it should be covered by recursive_apply?
      */
-    sound_update_animation_flags(seq->scene);
+    sound_update_animation_flags(strip->scene);
   }
 
   return true;
@@ -237,10 +237,10 @@ static void sound_update_animation_flags(Scene *scene)
   const FCurve *fcu;
   bool driven;
 
-  if (scene->id.tag & LIB_TAG_DOIT) {
+  if (scene->id.tag & ID_TAG_DOIT) {
     return;
   }
-  scene->id.tag |= LIB_TAG_DOIT;
+  scene->id.tag |= ID_TAG_DOIT;
 
   if (scene->ed != nullptr) {
     SEQ_for_each_callback(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
@@ -259,7 +259,7 @@ static int sound_update_animation_flags_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
 
-  BKE_main_id_tag_idcode(CTX_data_main(C), ID_SCE, LIB_TAG_DOIT, false);
+  BKE_main_id_tag_idcode(CTX_data_main(C), ID_SCE, ID_TAG_DOIT, false);
   sound_update_animation_flags(CTX_data_scene(C));
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   return OPERATOR_FINISHED;
@@ -411,6 +411,7 @@ static int sound_mixdown_exec(bContext *C, wmOperator *op)
 #ifdef WITH_AUDASPACE
 static const EnumPropertyItem container_items[] = {
 #  ifdef WITH_FFMPEG
+    {AUD_CONTAINER_AAC, "AAC", 0, "AAC", "Advanced Audio Coding"},
     {AUD_CONTAINER_AC3, "AC3", 0, "AC3", "Dolby Digital ATRAC 3"},
 #  endif
     {AUD_CONTAINER_FLAC, "FLAC", 0, "FLAC", "Free Lossless Audio Codec"},
@@ -540,12 +541,14 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
       {AUD_CODEC_MP2, "MP2", 0, "MP2", "MPEG-1 Audio Layer II"},
       {AUD_CODEC_MP3, "MP3", 0, "MP3", "MPEG-2 Audio Layer III"},
       {AUD_CODEC_PCM, "PCM", 0, "PCM", "Pulse Code Modulation (RAW)"},
+      {AUD_CODEC_OPUS, "OPUS", 0, "Opus", "Opus Interactive Audio Codec"},
       {AUD_CODEC_VORBIS, "VORBIS", 0, "Vorbis", "Xiph.Org Vorbis Codec"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem ogg_codec_items[] = {
       {AUD_CODEC_FLAC, "FLAC", 0, "FLAC", "Free Lossless Audio Codec"},
+      {AUD_CODEC_OPUS, "OPUS", 0, "Opus", "Opus Interactive Audio Codec"},
       {AUD_CODEC_VORBIS, "VORBIS", 0, "Vorbis", "Xiph.Org Vorbis Codec"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -571,6 +574,11 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
   RNA_def_property_flag(prop_format, PROP_HIDDEN);
 
   switch (container) {
+    case AUD_CONTAINER_AAC:
+      RNA_def_property_enum_items(prop_codec, all_codec_items);
+      RNA_enum_set(op->ptr, "codec", AUD_CODEC_AAC);
+      RNA_enum_set(op->ptr, "format", AUD_FORMAT_FLOAT32);
+      break;
     case AUD_CONTAINER_AC3:
       RNA_def_property_enum_items(prop_codec, all_codec_items);
       RNA_enum_set(op->ptr, "codec", AUD_CODEC_AC3);
@@ -699,7 +707,7 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
       {AUD_CHANNELS_SURROUND51, "SURROUND51", 0, "5.1 Surround", "5.1 surround sound"},
       {AUD_CHANNELS_SURROUND61, "SURROUND61", 0, "6.1 Surround", "6.1 surround sound"},
       {AUD_CHANNELS_SURROUND71, "SURROUND71", 0, "7.1 Surround", "7.1 surround sound"},
-      {0, NULL, 0, NULL, NULL}};
+      {0, nullptr, 0, nullptr, nullptr}};
 
 #endif /* WITH_AUDASPACE */
 
@@ -749,8 +757,8 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
               48000,
               8000,
               192000,
-              "Samplerate",
-              "Samplerate in samples/s",
+              "Sample Rate",
+              "Sample rate in samples/s",
               8000,
               192000);
   RNA_def_int(ot->srna, "bitrate", 192, 32, 512, "Bitrate", "Bitrate in kbit/s", 32, 512);
@@ -768,7 +776,7 @@ static bool sound_poll(bContext *C)
 {
   Editing *ed = CTX_data_scene(C)->ed;
 
-  if (!ed || !ed->act_seq || ed->act_seq->type != SEQ_TYPE_SOUND_RAM) {
+  if (!ed || !ed->act_seq || ed->act_seq->type != STRIP_TYPE_SOUND_RAM) {
     return false;
   }
 
@@ -782,7 +790,7 @@ static int sound_pack_exec(bContext *C, wmOperator *op)
   Editing *ed = CTX_data_scene(C)->ed;
   bSound *sound;
 
-  if (!ed || !ed->act_seq || ed->act_seq->type != SEQ_TYPE_SOUND_RAM) {
+  if (!ed || !ed->act_seq || ed->act_seq->type != STRIP_TYPE_SOUND_RAM) {
     return OPERATOR_CANCELLED;
   }
 
@@ -859,7 +867,7 @@ static int sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent * /*ev
     return sound_unpack_exec(C, op);
   }
 
-  if (!ed || !ed->act_seq || ed->act_seq->type != SEQ_TYPE_SOUND_RAM) {
+  if (!ed || !ed->act_seq || ed->act_seq->type != STRIP_TYPE_SOUND_RAM) {
     return OPERATOR_CANCELLED;
   }
 

@@ -33,7 +33,6 @@
 
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 #include "BKE_report.hh"
@@ -129,7 +128,7 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 
   /* in some cases we create the block before the region,
    * so we set it delayed here if necessary */
-  if (BLI_findindex(&handle->region->uiblocks, block) == -1) {
+  if (BLI_findindex(&handle->region->runtime->uiblocks, block) == -1) {
     UI_block_region_set(block, handle->region);
   }
 

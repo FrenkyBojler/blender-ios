@@ -12,7 +12,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf.hh"
@@ -24,8 +25,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"

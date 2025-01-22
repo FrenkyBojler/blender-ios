@@ -21,6 +21,8 @@
 #include "eevee_raytrace.hh"
 #include "eevee_subsurface.hh"
 
+struct Camera;
+
 namespace blender::eevee {
 
 class Instance;
@@ -36,13 +38,15 @@ class BackgroundPipeline {
  private:
   Instance &inst_;
 
+  PassSimple clear_ps_ = {"World.Background.Clear"};
   PassSimple world_ps_ = {"World.Background"};
 
  public:
   BackgroundPipeline(Instance &inst) : inst_(inst){};
 
   void sync(GPUMaterial *gpumat, float background_opacity, float background_blur);
-  void render(View &view);
+  void clear(View &view);
+  void render(View &view, Framebuffer &combined_fb);
 };
 
 /** \} */
@@ -301,7 +305,7 @@ class DeferredLayer : DeferredLayerBase {
   }
 
   void begin_sync();
-  void end_sync(bool is_first_pass, bool is_last_pass);
+  void end_sync(bool is_first_pass, bool is_last_pass, bool next_layer_has_transmission);
 
   PassMain::Sub *prepass_add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
   PassMain::Sub *material_add(::Material *blender_mat, GPUMaterial *gpumat);
@@ -309,6 +313,11 @@ class DeferredLayer : DeferredLayerBase {
   bool is_empty() const
   {
     return closure_count_ == 0;
+  }
+
+  bool has_transmission() const
+  {
+    return closure_bits_ & CLOSURE_TRANSMISSION;
   }
 
   /* Returns the radiance buffer to feed the next layer. */

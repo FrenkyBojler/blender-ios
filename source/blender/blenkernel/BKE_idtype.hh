@@ -59,7 +59,7 @@ enum {
    *
    * \note The implementation of the expected behaviors related to this characteristic is somewhat
    * fragile and inconsistent currently. In most case though, code is expected to ensure that such
-   * IDs have at least an 'extra user' (#LIB_TAG_EXTRAUSER).
+   * IDs have at least an 'extra user' (#ID_TAG_EXTRAUSER).
    */
   IDTYPE_FLAGS_NEVER_UNUSED = 1 << 6,
 };
@@ -153,7 +153,13 @@ struct IDTypeInfo {
   /** Memory size of a data-block of that type. */
   size_t struct_size;
 
-  /** The user visible name for this data-block, also used as default name for a new data-block. */
+  /**
+   * The user visible name for this data-block, also used as default name for a new data-block.
+   *
+   * \note: Also used for the 'filepath' ID type part when listing IDs in library blend-files
+   * (`my_blendfile.blend/<IDType.name>/my_id_name`, e.g. `boat-v001.blend/Collection/PR-boat` for
+   * the `GRPR-boat` Collection ID in `boat-v001.blend`).
+   */
   const char *name;
   /** Plural version of the user-visible name. */
   const char *name_plural;

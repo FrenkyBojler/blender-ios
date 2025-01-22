@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "usd_writer_abstract.hh"
+#include "usd_attribute_utils.hh"
 #include "usd_utils.hh"
 #include "usd_writer_material.hh"
 
@@ -10,9 +11,9 @@
 #include <pxr/usd/usdGeom/scope.h>
 
 #include "BKE_customdata.hh"
-#include "BKE_report.hh"
 
 #include "BLI_assert.h"
+#include "BLI_bounds_types.hh"
 
 #include "DNA_mesh_types.h"
 
@@ -209,7 +210,7 @@ pxr::SdfPath USDAbstractWriter::get_material_library_path() const
 }
 
 pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material(const HierarchyContext &context,
-                                                             Material *material)
+                                                             Material *material) const
 {
   pxr::UsdStageRefPtr stage = usd_export_context_.stage;
 
@@ -237,7 +238,7 @@ pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material(const HierarchyCont
 
 void USDAbstractWriter::write_visibility(const HierarchyContext &context,
                                          const pxr::UsdTimeCode timecode,
-                                         pxr::UsdGeomImageable &usd_geometry)
+                                         const pxr::UsdGeomImageable &usd_geometry)
 {
   pxr::UsdAttribute attr_visibility = usd_geometry.CreateVisibilityAttr(pxr::VtValue(), true);
 
@@ -261,7 +262,17 @@ bool USDAbstractWriter::mark_as_instance(const HierarchyContext &context, const 
     return false;
   }
 
-  pxr::SdfPath ref_path(context.original_export_path);
+  BLI_assert(!context.original_export_path.empty());
+  BLI_assert(context.original_export_path.front() == '/');
+
+  std::string ref_path_str(usd_export_context_.export_params.root_prim_path);
+  ref_path_str += context.original_export_path;
+
+  pxr::SdfPath ref_path(ref_path_str);
+
+  /* To avoid USD errors, make sure the referenced path exists. */
+  usd_export_context_.stage->DefinePrim(ref_path);
+
   if (!prim.GetReferences().AddInternalReference(ref_path)) {
     /* See this URL for a description for why referencing may fail"
      * https://graphics.pixar.com/usd/docs/api/class_usd_references.html#Usd_Failing_References
@@ -395,26 +406,36 @@ void USDAbstractWriter::write_user_properties(const pxr::UsdPrim &prim,
   }
 }
 
-void USDAbstractWriter::author_extent(const pxr::UsdTimeCode timecode, pxr::UsdGeomBoundable &prim)
+void USDAbstractWriter::author_extent(const pxr::UsdGeomBoundable &boundable,
+                                      const pxr::UsdTimeCode timecode)
 {
   /* Do not use any existing `extentsHint` that may be authored, instead recompute the extent when
    * authoring it. */
   const bool useExtentsHint = false;
   const pxr::TfTokenVector includedPurposes{pxr::UsdGeomTokens->default_};
   pxr::UsdGeomBBoxCache bboxCache(timecode, includedPurposes, useExtentsHint);
-  pxr::GfBBox3d bounds = bboxCache.ComputeLocalBound(prim.GetPrim());
-  if (pxr::GfBBox3d() == bounds) {
-    /* This will occur, for example, if a mesh does not have any vertices. */
-    BKE_reportf(reports(),
-                RPT_WARNING,
-                "USD Export: no bounds could be computed for %s",
-                prim.GetPrim().GetName().GetText());
-    return;
+  pxr::GfBBox3d bounds = bboxCache.ComputeLocalBound(boundable.GetPrim());
+
+  /* Note: An empty 'bounds' is still valid (e.g. a mesh with no vertices). */
+  pxr::VtArray<pxr::GfVec3f> extent{pxr::GfVec3f(bounds.GetRange().GetMin()),
+                                    pxr::GfVec3f(bounds.GetRange().GetMax())};
+
+  pxr::UsdAttribute attr_extent = boundable.CreateExtentAttr(pxr::VtValue(), true);
+  set_attribute(attr_extent, extent, timecode, usd_value_writer_);
+}
+
+void USDAbstractWriter::author_extent(const pxr::UsdGeomBoundable &boundable,
+                                      const std::optional<Bounds<float3>> &bounds,
+                                      const pxr::UsdTimeCode timecode)
+{
+  pxr::VtArray<pxr::GfVec3f> extent(2);
+  if (bounds) {
+    extent[0].Set(bounds->min);
+    extent[1].Set(bounds->max);
   }
 
-  pxr::VtArray<pxr::GfVec3f> extent{(pxr::GfVec3f)bounds.GetRange().GetMin(),
-                                    (pxr::GfVec3f)bounds.GetRange().GetMax()};
-  prim.CreateExtentAttr().Set(extent);
+  pxr::UsdAttribute attr_extent = boundable.CreateExtentAttr(pxr::VtValue(), true);
+  set_attribute(attr_extent, extent, timecode, usd_value_writer_);
 }
 
 }  // namespace blender::io::usd

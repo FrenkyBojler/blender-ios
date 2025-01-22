@@ -102,7 +102,11 @@ void register_node_type_sh_sepcolor()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_SEPARATE_COLOR, "Separate Color", NODE_CLASS_CONVERTER);
+  sh_node_type_base(&ntype, "ShaderNodeSeparateColor", SH_NODE_SEPARATE_COLOR);
+  ntype.ui_name = "Separate Color";
+  ntype.ui_description = "Split a color into its individual components using multiple models";
+  ntype.enum_name_legacy = "SEPARATE_COLOR";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_sepcolor_declare;
   ntype.updatefunc = file_ns::node_sepcolor_update;
   ntype.initfunc = node_combsep_color_init;
@@ -111,7 +115,7 @@ void register_node_type_sh_sepcolor()
   ntype.gpu_fn = file_ns::gpu_shader_sepcolor;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 
 /* **************** COMBINE COLOR ******************** */
@@ -203,7 +207,11 @@ void register_node_type_sh_combcolor()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_COMBINE_COLOR, "Combine Color", NODE_CLASS_CONVERTER);
+  sh_node_type_base(&ntype, "ShaderNodeCombineColor", SH_NODE_COMBINE_COLOR);
+  ntype.ui_name = "Combine Color";
+  ntype.ui_description = "Create a color from individual components using multiple models";
+  ntype.enum_name_legacy = "COMBINE_COLOR";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_combcolor_declare;
   ntype.updatefunc = file_ns::node_combcolor_update;
   ntype.initfunc = node_combsep_color_init;
@@ -212,5 +220,5 @@ void register_node_type_sh_combcolor()
   ntype.gpu_fn = file_ns::gpu_shader_combcolor;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

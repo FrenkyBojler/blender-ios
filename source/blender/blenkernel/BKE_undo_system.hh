@@ -7,7 +7,7 @@
  * \ingroup bke
  */
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
@@ -146,7 +146,7 @@ struct UndoType {
   size_t step_size;
 };
 
-/** #UndoType.flag bitflags. */
+/** #UndoType.flag bit-flags. */
 enum eUndoTypeFlags {
   /**
    * This undo type `encode` callback needs a valid context, it will fail otherwise.

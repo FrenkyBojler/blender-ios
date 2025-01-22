@@ -10,9 +10,7 @@
 
 #include <cstring>
 
-#include "DNA_object_types.h"
 #include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
@@ -161,6 +159,9 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
         break;
       case CTX_MODE_WEIGHT_GREASE_PENCIL:
         km_id = "Grease Pencil Weight Mode";
+        break;
+      case CTX_MODE_VERTEX_GREASE_PENCIL:
+        km_id = "Grease Pencil Vertex Mode";
         break;
     }
   }

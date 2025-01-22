@@ -43,7 +43,7 @@
 #include "DNA_vec_types.h"
 
 #include "BKE_fcurve.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
@@ -133,7 +133,7 @@ struct tPoseSlideOp {
   ARegion *region;
   /** len of the PoseSlideObject array. */
 
-  /** links between posechannels and f-curves for all the pose objects. */
+  /** Links between pose-channels and f-curves for all the pose objects. */
   ListBase pfLinks;
   /** binary tree for quicker searching for keyframes (when applicable) */
   AnimKeylist *keylist;
@@ -149,7 +149,7 @@ struct tPoseSlideOp {
   /** Sliding Mode. */
   ePoseSlide_Modes mode;
   /** unused for now, but can later get used for storing runtime settings.... */
-  short flag;
+  // short flag;
 
   /* Store overlay settings when invoking the operator. Bones will be temporarily hidden. */
   int overlay_flag;
@@ -258,6 +258,10 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   initNumInput(&pso->num);
   pso->num.idx_max = 0;                /* One axis. */
   pso->num.unit_type[0] = B_UNIT_NONE; /* Percentages don't have any units. */
+
+  /* Save current bone visibility. */
+  View3D *v3d = static_cast<View3D *>(pso->area->spacedata.first);
+  pso->overlay_flag = v3d->overlay.flag;
 
   /* Return status is whether we've got all the data we were requested to get. */
   return 1;
@@ -963,7 +967,7 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
     Scene *scene = pso->scene;
     char str_offs[NUM_STR_REP_LEN];
 
-    outputNumInput(&pso->num, str_offs, &scene->unit);
+    outputNumInput(&pso->num, str_offs, scene->unit);
 
     SNPRINTF(status_str, "%s: %s | %s", mode_str, str_offs, limits_str);
   }
@@ -990,8 +994,9 @@ static int pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *
   LISTBASE_FOREACH (tPChanFCurveLink *, pfl, &pso->pfLinks) {
     /* Do this for each F-Curve. */
     LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
+      AnimData *adt = pfl->ob->adt;
       FCurve *fcu = (FCurve *)ld->data;
-      fcurve_to_keylist(pfl->ob->adt, fcu, pso->keylist, 0, {-FLT_MAX, FLT_MAX});
+      fcurve_to_keylist(adt, fcu, pso->keylist, 0, {-FLT_MAX, FLT_MAX}, adt != nullptr);
     }
   }
 
@@ -1061,10 +1066,6 @@ static int pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *
 
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
-
-  /* Save current bone visibility. */
-  View3D *v3d = static_cast<View3D *>(pso->area->spacedata.first);
-  pso->overlay_flag = v3d->overlay.flag;
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1783,7 +1784,7 @@ static void get_keyed_frames_in_range(ListBase *pflinks,
   LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
     LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
       FCurve *fcu = (FCurve *)ld->data;
-      fcurve_to_keylist(nullptr, fcu, keylist, 0, {start_frame, end_frame});
+      fcurve_to_keylist(nullptr, fcu, keylist, 0, {start_frame, end_frame}, false);
     }
   }
   LISTBASE_FOREACH (ActKeyColumn *, column, ED_keylist_listbase(keylist)) {
@@ -1806,7 +1807,7 @@ static void get_selected_frames(ListBase *pflinks, ListBase /*FrameLink*/ *targe
   LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
     LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
       FCurve *fcu = (FCurve *)ld->data;
-      fcurve_to_keylist(nullptr, fcu, keylist, 0, {-FLT_MAX, FLT_MAX});
+      fcurve_to_keylist(nullptr, fcu, keylist, 0, {-FLT_MAX, FLT_MAX}, false);
     }
   }
   LISTBASE_FOREACH (ActKeyColumn *, column, ED_keylist_listbase(keylist)) {

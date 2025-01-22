@@ -26,8 +26,8 @@ static void veccopy(float dst[3], const float src[3])
 
 #define GET_CO(_mesh, _n) (*(DualConCo)(((char *)(_mesh)->co) + ((_n) * (_mesh)->co_stride)))
 
-#define GET_LOOP(_mesh, _n) \
-  (*(DualConLoop)(((char *)(_mesh)->mloop) + ((_n) * (_mesh)->loop_stride)))
+#define GET_CORNER_VERT(_mesh, _n) \
+  (*(DualConCornerVerts)(((char *)(_mesh)->corner_verts) + ((_n) * (_mesh)->corner_verts_stride)))
 
 class DualConInputReader : public ModelReader {
  private:
@@ -79,10 +79,10 @@ class DualConInputReader : public ModelReader {
 
     Triangle *t = new Triangle();
 
-    unsigned int *tr = GET_TRI(input_mesh, curtri);
-    veccopy(t->vt[0], GET_CO(input_mesh, GET_LOOP(input_mesh, tr[0])));
-    veccopy(t->vt[1], GET_CO(input_mesh, GET_LOOP(input_mesh, tr[1])));
-    veccopy(t->vt[2], GET_CO(input_mesh, GET_LOOP(input_mesh, tr[2])));
+    const unsigned int *tr = GET_TRI(input_mesh, curtri);
+    veccopy(t->vt[0], GET_CO(input_mesh, GET_CORNER_VERT(input_mesh, tr[0])));
+    veccopy(t->vt[1], GET_CO(input_mesh, GET_CORNER_VERT(input_mesh, tr[1])));
+    veccopy(t->vt[2], GET_CO(input_mesh, GET_CORNER_VERT(input_mesh, tr[2])));
 
     curtri++;
 
@@ -104,7 +104,7 @@ class DualConInputReader : public ModelReader {
       return 0;
     }
 
-    unsigned int *tr = GET_TRI(input_mesh, curtri);
+    const unsigned int *tr = GET_TRI(input_mesh, curtri);
     t[0] = tr[0];
     t[1] = tr[1];
     t[2] = tr[2];
@@ -143,9 +143,7 @@ class DualConInputReader : public ModelReader {
     return sizeof(DualConInputReader);
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("DUALCON:DualConInputReader")
-#endif
 };
 
 void *dualcon(const DualConInput *input_mesh,

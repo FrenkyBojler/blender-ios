@@ -25,6 +25,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
@@ -82,7 +83,7 @@ static float from_16dot16(FT_Fixed value)
 /** \name Glyph Cache
  * \{ */
 
-static GlyphCacheBLF *blf_glyph_cache_find(FontBLF *font)
+static GlyphCacheBLF *blf_glyph_cache_find(const FontBLF *font)
 {
   for (const std::unique_ptr<GlyphCacheBLF> &gc : font->cache) {
     if (gc->size == font->size && (gc->bold == ((font->flags & BLF_BOLD) != 0)) &&
@@ -151,7 +152,7 @@ void blf_glyph_cache_release(FontBLF *font)
 
 GlyphCacheBLF::~GlyphCacheBLF()
 {
-  this->glyphs.clear_and_shrink();
+  this->glyphs.clear();
   if (this->texture) {
     GPU_texture_free(this->texture);
   }
@@ -351,13 +352,18 @@ static GlyphBLF *blf_glyph_cache_add_blank(GlyphCacheBLF *gc, uint charcode)
   return result;
 }
 
-static GlyphBLF *blf_glyph_cache_add_svg(GlyphCacheBLF *gc, uint charcode, bool color)
+static GlyphBLF *blf_glyph_cache_add_svg(
+    GlyphCacheBLF *gc,
+    uint charcode,
+    bool color,
+    blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr)
 {
-  const char *svg_source = blf_get_icon_svg(int(charcode) - BLF_ICON_OFFSET);
-  /* NanoSVG alters the source file while parsing. */
-  char *writeable = BLI_strdup(svg_source);
-  NSVGimage *image = nsvgParse(writeable, "px", 96.0f);
-  MEM_freeN(writeable);
+  std::string svg_source = blf_get_icon_svg(int(charcode) - BLF_ICON_OFFSET);
+  if (edit_source_cb) {
+    edit_source_cb(svg_source);
+  }
+
+  NSVGimage *image = nsvgParse(svg_source.data(), "px", 96.0f);
 
   if (image == nullptr) {
     return blf_glyph_cache_add_blank(gc, charcode);
@@ -374,23 +380,24 @@ static GlyphBLF *blf_glyph_cache_add_svg(GlyphCacheBLF *gc, uint charcode, bool 
     return blf_glyph_cache_add_blank(gc, charcode);
   }
 
-  const float scale = (gc->size / 1600.0f);
-  const int dest_h = int(ceil(image->height * scale));
+  float scale = (gc->size / 1600.0f);
   const int dest_w = int(ceil(image->width * scale));
+  const int dest_h = int(ceil(image->height * scale));
+  scale = float(dest_w) / image->width;
+
   blender::Array<uchar> render_bmp(dest_w * dest_h * 4);
 
-  /* Icon content has 100 units of padding around them. If
-   * it has a subpixel width, shift by the fractional part. */
-  const float tx = fmod((image->width - 200.0f) * scale, 1.0f);
-  const float ty = fmod((image->height - 200.0f) * scale, 1.0f);
-
-  nsvgRasterize(rast, image, tx, -ty, scale, render_bmp.data(), dest_w, dest_h, dest_w * 4);
+  nsvgRasterize(rast, image, 0.0f, 0.0f, scale, render_bmp.data(), dest_w, dest_h, dest_w * 4);
   nsvgDeleteRasterizer(rast);
-  nsvgDelete(image);
 
   /* Bitmaps vary in size, so calculate the offsets needed when drawn. */
-  const int offset_x = int(round((gc->size - float(dest_w) + tx) / 2.0f));
-  const int offset_y = int(ceil((gc->size + float(dest_h) - ty) / 2.0f));
+  const int offset_x = std::max(int(round((gc->size - (image->width * scale)) / 2.0f)),
+                                int(-100.0f * scale));
+
+  const int offset_y = std::max(int(ceil((gc->size + float(dest_h)) / 2.0f)),
+                                dest_h - int(100.0f * scale));
+
+  nsvgDelete(image);
 
   std::unique_ptr<GlyphBLF> g = std::make_unique<GlyphBLF>();
   g->c = charcode;
@@ -422,8 +429,8 @@ static GlyphBLF *blf_glyph_cache_add_svg(GlyphCacheBLF *gc, uint charcode, bool 
       for (int64_t x = 0; x < int64_t(g->dims[0]); x++) {
         int64_t offs_in = (y * int64_t(dest_w) * 4) + (x * 4);
         int64_t offs_out = (y * int64_t(g->dims[0]) + x);
-        /* Just using the alpha since this is monochrome. */
-        g->bitmap[offs_out] = render_bmp[int64_t(offs_in + 3)];
+        g->bitmap[offs_out] = uchar(float(srgb_to_grayscale_byte(&render_bmp[int64_t(offs_in)])) *
+                                    (float(render_bmp[int64_t(offs_in + 3)]) / 255.0f));
       }
     }
   }
@@ -787,11 +794,11 @@ static FT_UInt blf_glyph_index_from_charcode(FontBLF **font, const uint charcode
     return 0;
   }
 
-  /* First look in currently-loaded cached fonts that match the coverage bit. Super fast. */
+  /* First look in fonts that match the coverage bit. */
   int coverage_bit = blf_charcode_to_coverage_bit(charcode);
   for (int i = 0; i < BLF_MAX_FONT; i++) {
     FontBLF *f = global_font[i];
-    if (!f || f == *font || !(f->face) || !(f->flags & BLF_DEFAULT) ||
+    if (!f || f == *font || !(f->flags & BLF_DEFAULT) ||
         (!((*font)->flags & BLF_MONOSPACED) && (f->flags & BLF_MONOSPACED)) ||
         f->flags & BLF_LAST_RESORT)
     {
@@ -806,25 +813,7 @@ static FT_UInt blf_glyph_index_from_charcode(FontBLF **font, const uint charcode
     }
   }
 
-  /* Next look only in unloaded fonts that match the coverage bit. */
-  for (int i = 0; i < BLF_MAX_FONT; i++) {
-    FontBLF *f = global_font[i];
-    if (!f || f == *font || (f->face) || !(f->flags & BLF_DEFAULT) ||
-        (!((*font)->flags & BLF_MONOSPACED) && (f->flags & BLF_MONOSPACED)) ||
-        f->flags & BLF_LAST_RESORT)
-    {
-      continue;
-    }
-    if (coverage_bit < 0 || blf_font_has_coverage_bit(f, coverage_bit)) {
-      glyph_index = blf_get_char_index(f, charcode);
-      if (glyph_index) {
-        *font = f;
-        return glyph_index;
-      }
-    }
-  }
-
-  /* Last look in anything else. Also check if we have a last-resort font. */
+  /* Next look in the rest. Also check if we have a last-resort font. */
   FontBLF *last_resort = nullptr;
   for (int i = 0; i < BLF_MAX_FONT; i++) {
     FontBLF *f = global_font[i];
@@ -1037,7 +1026,7 @@ static const FT_Var_Axis *blf_var_axis_by_tag(const FT_MM_Var *variations,
  * \param value: New float value. Converted to 16.16 and clamped within allowed range.
  * \return success if able to set this value.
  */
-static bool blf_glyph_set_variation_float(FontBLF *font,
+static bool blf_glyph_set_variation_float(const FontBLF *font,
                                           FT_Fixed coords[],
                                           uint32_t tag,
                                           float *value)
@@ -1061,7 +1050,7 @@ static bool blf_glyph_set_variation_float(FontBLF *font,
  * \param weight: Weight class value (1-1000 allowed, 100-900 typical).
  * \return value set (could be clamped), or current weight if the axis does not exist.
  */
-static float blf_glyph_set_variation_weight(FontBLF *font,
+static float blf_glyph_set_variation_weight(const FontBLF *font,
                                             FT_Fixed coords[],
                                             float current_weight,
                                             float target_weight)
@@ -1080,7 +1069,7 @@ static float blf_glyph_set_variation_weight(FontBLF *font,
  * \param degrees: Slant in clockwise (opposite to spec) degrees.
  * \return value set (could be clamped), or current slant if the axis does not exist.
  */
-static float blf_glyph_set_variation_slant(FontBLF *font,
+static float blf_glyph_set_variation_slant(const FontBLF *font,
                                            FT_Fixed coords[],
                                            float current_degrees,
                                            float target_degrees)
@@ -1099,7 +1088,7 @@ static float blf_glyph_set_variation_slant(FontBLF *font,
  * \param width: Glyph width value. 1.0 is normal, as per spec (which uses percent).
  * \return value set (could be clamped), or current width if the axis does not exist.
  */
-static float blf_glyph_set_variation_width(FontBLF *font,
+static float blf_glyph_set_variation_width(const FontBLF *font,
                                            FT_Fixed coords[],
                                            float current_width,
                                            float target_width)
@@ -1118,7 +1107,7 @@ static float blf_glyph_set_variation_width(FontBLF *font,
  * \param spacing: Glyph spacing value. 0.0 is normal, as per spec.
  * \return value set (could be clamped), or current spacing if the axis does not exist.
  */
-static float blf_glyph_set_variation_spacing(FontBLF *font,
+static float blf_glyph_set_variation_spacing(const FontBLF *font,
                                              FT_Fixed coords[],
                                              float current_spacing,
                                              float target_spacing)
@@ -1137,7 +1126,7 @@ static float blf_glyph_set_variation_spacing(FontBLF *font,
  * \param points: Non-zero size in typographic points.
  * \return success if able to set this value.
  */
-static bool blf_glyph_set_variation_optical_size(FontBLF *font,
+static bool blf_glyph_set_variation_optical_size(const FontBLF *font,
                                                  FT_Fixed coords[],
                                                  const float points)
 {
@@ -1389,13 +1378,16 @@ GlyphBLF *blf_glyph_ensure(FontBLF *font, GlyphCacheBLF *gc, const uint charcode
 }
 
 #ifndef WITH_HEADLESS
-GlyphBLF *blf_glyph_ensure_icon(GlyphCacheBLF *gc, const uint icon_id, bool color)
+GlyphBLF *blf_glyph_ensure_icon(GlyphCacheBLF *gc,
+                                const uint icon_id,
+                                bool color,
+                                blender::FunctionRef<void(std::string &)> edit_source_cb)
 {
   GlyphBLF *g = blf_glyph_cache_find_glyph(gc, icon_id + BLF_ICON_OFFSET, 0);
   if (g) {
     return g;
   }
-  return blf_glyph_cache_add_svg(gc, icon_id + BLF_ICON_OFFSET, color);
+  return blf_glyph_cache_add_svg(gc, icon_id + BLF_ICON_OFFSET, color, edit_source_cb);
 }
 #endif /* WITH_HEADLESS */
 
@@ -1435,29 +1427,29 @@ GlyphBLF::~GlyphBLF()
 /** \name Glyph Bounds Calculation
  * \{ */
 
-static void blf_glyph_calc_rect(rcti *rect, GlyphBLF *g, const int x, const int y)
+static void blf_glyph_calc_rect(const GlyphBLF *g, const int x, const int y, rcti *r_rect)
 {
-  rect->xmin = x + g->pos[0];
-  rect->xmax = rect->xmin + g->dims[0];
-  rect->ymin = y + g->pos[1];
-  rect->ymax = rect->ymin - g->dims[1];
+  r_rect->xmin = x + g->pos[0];
+  r_rect->xmax = r_rect->xmin + g->dims[0];
+  r_rect->ymin = y + g->pos[1];
+  r_rect->ymax = r_rect->ymin - g->dims[1];
 }
 
-static void blf_glyph_calc_rect_test(rcti *rect, GlyphBLF *g, const int x, const int y)
+static void blf_glyph_calc_rect_test(const GlyphBLF *g, const int x, const int y, rcti *r_rect)
 {
   /* Intentionally check with `g->advance`, because this is the
    * width used by BLF_width. This allows that the text slightly
    * overlaps the clipping border to achieve better alignment. */
-  rect->xmin = x + abs(g->pos[0]) + 1;
-  rect->xmax = x + std::min(ft_pix_to_int(g->advance_x), g->dims[0]);
-  rect->ymin = y;
-  rect->ymax = rect->ymin - g->dims[1];
+  r_rect->xmin = x + abs(g->pos[0]) + 1;
+  r_rect->xmax = x + std::min(ft_pix_to_int(g->advance_x), g->dims[0]);
+  r_rect->ymin = y;
+  r_rect->ymax = r_rect->ymin - g->dims[1];
 }
 
 static void blf_glyph_calc_rect_shadow(
-    rcti *rect, GlyphBLF *g, const int x, const int y, FontBLF *font)
+    const GlyphBLF *g, const int x, const int y, const FontBLF *font, rcti *r_rect)
 {
-  blf_glyph_calc_rect(rect, g, x + font->shadow_x, y + font->shadow_y);
+  blf_glyph_calc_rect(g, x + font->shadow_x, y + font->shadow_y, r_rect);
 }
 
 /** \} */
@@ -1547,7 +1539,7 @@ void blf_glyph_draw(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, const int x, 
     }
 
     rcti rect_test;
-    blf_glyph_calc_rect_test(&rect_test, g, int(float(x) * xa), int(float(y) * ya));
+    blf_glyph_calc_rect_test(g, int(float(x) * xa), int(float(y) * ya), &rect_test);
     BLI_rcti_translate(&rect_test, font->pos[0], font->pos[1]);
     if (!BLI_rcti_inside_rcti(&font->clip_rec, &rect_test)) {
       return;
@@ -1561,7 +1553,7 @@ void blf_glyph_draw(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, const int x, 
 
   if (font->flags & BLF_SHADOW) {
     rcti rect_ofs;
-    blf_glyph_calc_rect_shadow(&rect_ofs, g, x, y, font);
+    blf_glyph_calc_rect_shadow(g, x, y, font, &rect_ofs);
 
     blf_texture_draw(g,
                      font->shadow_color,
@@ -1573,7 +1565,7 @@ void blf_glyph_draw(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, const int x, 
   }
 
   rcti rect;
-  blf_glyph_calc_rect(&rect, g, x, y);
+  blf_glyph_calc_rect(g, x, y, &rect);
   blf_texture_draw(
       g, font->color, FontShadowType::None, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 }
@@ -1844,12 +1836,14 @@ static void blf_glyph_to_curves(const FT_Outline &ftoutline,
   MEM_freeN(onpoints);
 }
 
-static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font, const uint charcode)
+static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font,
+                                                 const uint charcode,
+                                                 bool use_fallback)
 {
   /* Glyph might not come from the initial font. */
   FontBLF *font_with_glyph = font;
-  FT_UInt glyph_index = blf_glyph_index_from_charcode(&font_with_glyph, charcode);
-
+  FT_UInt glyph_index = use_fallback ? blf_glyph_index_from_charcode(&font_with_glyph, charcode) :
+                                       blf_get_char_index(font_with_glyph, charcode);
   if (!blf_ensure_face(font_with_glyph)) {
     return nullptr;
   }
@@ -1870,9 +1864,10 @@ static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font, const uint charc
   return glyph;
 }
 
-float blf_character_to_curves(FontBLF *font, uint unicode, ListBase *nurbsbase, const float scale)
+float blf_character_to_curves(
+    FontBLF *font, uint unicode, ListBase *nurbsbase, const float scale, bool use_fallback)
 {
-  FT_GlyphSlot glyph = blf_glyphslot_ensure_outline(font, unicode);
+  FT_GlyphSlot glyph = blf_glyphslot_ensure_outline(font, unicode, use_fallback);
   if (!glyph) {
     return 0.0f;
   }

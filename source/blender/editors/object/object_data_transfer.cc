@@ -18,7 +18,6 @@
 #include "BKE_customdata.hh"
 #include "BKE_data_transfer.h"
 #include "BKE_deform.hh"
-#include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_remap.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -378,11 +377,11 @@ static void data_transfer_exec_preprocess_objects(bContext *C,
                   "Skipping object '%s', linked or override data '%s' cannot be modified",
                   ob->id.name + 2,
                   mesh->id.name + 2);
-      mesh->id.tag &= ~LIB_TAG_DOIT;
+      mesh->id.tag &= ~ID_TAG_DOIT;
       continue;
     }
 
-    mesh->id.tag |= LIB_TAG_DOIT;
+    mesh->id.tag |= ID_TAG_DOIT;
   }
 }
 
@@ -402,8 +401,8 @@ static bool data_transfer_exec_is_object_valid(wmOperator *op,
   }
 
   mesh = static_cast<Mesh *>(ob_dst->data);
-  if (mesh->id.tag & LIB_TAG_DOIT) {
-    mesh->id.tag &= ~LIB_TAG_DOIT;
+  if (mesh->id.tag & ID_TAG_DOIT) {
+    mesh->id.tag &= ~ID_TAG_DOIT;
     return true;
   }
   if (ID_IS_EDITABLE(mesh) && !ID_IS_OVERRIDE_LIBRARY(mesh)) {

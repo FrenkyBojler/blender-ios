@@ -236,6 +236,11 @@ class PartialWriteContext : NonCopyable, NonMovable {
      *
      * \warning By default, when #ADD_DEPENDENCIES is defined, this will also apply to all
      * dependencies as well.
+     *
+     * \note Often required when only a small subset of the ID dependencies are also added to the
+     * context (i.e. many of the added data's ID pointers are set to `nullptr`). Otherwise, some
+     * areas not expecting nullptr (like LibOverride data) may assert or error on load of the
+     * partial written blendfile.
      */
     MAKE_LOCAL = 1 << 0,
     /**
@@ -402,7 +407,7 @@ class PartialWriteContext : NonCopyable, NonMovable {
    * 'fake user' flag, or the (runtime-only, cleared on next file load) 'extra user' tag, depending
    * on whether #SET_FAKE_USER is set or not.
    *
-   * Also handles the setting of the #LIB_CLIPBOARD_MARK flag if #SET_CLIPBOARD_MARK is set.
+   * Also handles the setting of the #ID_FLAG_CLIPBOARD_MARK flag if #SET_CLIPBOARD_MARK is set.
    */
   void process_added_id(ID *ctx_id, const IDAddOperations operations);
   /**
@@ -424,14 +429,7 @@ class PartialWriteContext : NonCopyable, NonMovable {
   Library *ensure_library(StringRefNull library_absolute_path);
 };
 
-}  // namespace blender::bke::blendfile
+ENUM_OPERATORS(PartialWriteContext::IDAddOperations,
+               PartialWriteContext::IDAddOperations::MASK_INHERITED);
 
-void BKE_blendfile_write_partial_tag_ID(ID *id, bool set);
-void BKE_blendfile_write_partial_begin(Main *bmain_src);
-/**
- * \param remap_mode: Choose the kind of path remapping or none #eBLO_WritePathRemap.
- * \return Success.
- */
-bool BKE_blendfile_write_partial(
-    Main *bmain_src, const char *filepath, int write_flags, int remap_mode, ReportList *reports);
-void BKE_blendfile_write_partial_end(Main *bmain_src);
+}  // namespace blender::bke::blendfile

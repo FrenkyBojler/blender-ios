@@ -11,12 +11,8 @@
 #pragma once
 
 #include <array>
-#include <string>
 
-#include "BLI_array.hh"
-#include "BLI_bit_span.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_vector.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_windowmanager_types.h"
@@ -25,10 +21,8 @@
 #include "RNA_types.hh"
 
 struct ID;
-struct ListBase;
 struct Main;
 struct Scene;
-struct ViewLayer;
 
 struct AnimationEvalContext;
 struct NlaKeyframingContext;
@@ -47,7 +41,7 @@ enum class SingleKeyingResult {
   SUCCESS = 0,
   /* TODO: remove `UNKNOWN_FAILURE` and replace all usages with proper, specific
    * cases. This is needed right now as a stop-gap while progressively moving
-   * the keyframing code over to propagate errors properly.*/
+   * the keyframing code over to propagate errors properly. */
   UNKNOWN_FAILURE,
   CANNOT_CREATE_FCURVE,
   FCURVE_NOT_KEYFRAMEABLE,
@@ -126,6 +120,13 @@ void update_autoflags_fcurve_direct(FCurve *fcu, PropertyRNA *prop);
  * animation data (AnimData, Action, ...) is created if it doesn't already
  * exist.
  *
+ * Note that this function was created as part of an ongoing refactor by merging
+ * two other functions that were *almost* identical to each other. There are
+ * still things left over from that which can and should be improved (such as
+ * the partially redundant `scene_frame` and `anim_eval_context`parameters).
+ * Additionally, it's a bit of a mega-function now, and can probably be stripped
+ * down to a clearer core functionality.
+ *
  * \param struct_pointer: RNA pointer to the struct to be keyed. This is often
  * an ID, but not necessarily. For example, pose bones are also common. Note
  * that if you have an `ID` and want to pass it here for keying, you can create
@@ -142,8 +143,6 @@ void update_autoflags_fcurve_direct(FCurve *fcu, PropertyRNA *prop);
  * \param scene_frame: the frame to insert the keys at. This is in scene time,
  * not NLA mapped (NLA mapping is already handled internally by this function).
  * If not given, the evaluation time from `anim_eval_context` is used instead.
- * TODO: this redundancy between `scene_frame` and `anim_eval_context` should
- * be eliminated. We shouldn't need both!
  *
  * \returns A summary of the successful and failed keyframe insertions, with
  * reasons for the failures.
@@ -204,6 +203,14 @@ int clear_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna_
 bool is_keying_flag(const Scene *scene, eKeying_Flag flag);
 
 /**
+ * Checks whether a keyframe exists for the given ID-block one the given frame.
+ *
+ * \param frame: The frame on which to check for a keyframe. This uses a threshold so the float
+ * doesn't need to match exactly.
+ */
+bool id_frame_has_keyframe(ID *id, float frame);
+
+/**
  * Get the settings for key-framing from the given scene.
  */
 eInsertKeyFlags get_keyframing_flags(Scene *scene);
@@ -236,7 +243,7 @@ bool autokeyframe_cfra_can_key(const Scene *scene, ID *id);
  *
  * \param rna_paths: Only inserts keys on those RNA paths.
  */
-void autokeyframe_object(bContext *C, Scene *scene, Object *ob, Span<RNAPath> rna_paths);
+void autokeyframe_object(bContext *C, const Scene *scene, Object *ob, Span<RNAPath> rna_paths);
 /**
  * Auto-keyframing feature - for objects
  *

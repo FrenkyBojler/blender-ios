@@ -26,11 +26,11 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_linestyle.h"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
@@ -257,9 +257,6 @@ static bool buttons_context_path_data(ButsContextPath *path, int type)
   if (RNA_struct_is_a(ptr->type, &RNA_LightProbe) && ELEM(type, -1, OB_LIGHTPROBE)) {
     return true;
   }
-  if (RNA_struct_is_a(ptr->type, &RNA_GreasePencil) && ELEM(type, -1, OB_GPENCIL_LEGACY)) {
-    return true;
-  }
   if (RNA_struct_is_a(ptr->type, &RNA_GreasePencilv3) && ELEM(type, -1, OB_GREASE_PENCIL)) {
     return true;
   }
@@ -301,7 +298,6 @@ static bool buttons_context_path_modifier(ButsContextPath *path)
              OB_FONT,
              OB_SURF,
              OB_LATTICE,
-             OB_GPENCIL_LEGACY,
              OB_GREASE_PENCIL,
              OB_CURVES,
              OB_POINTCLOUD,
@@ -325,7 +321,7 @@ static bool buttons_context_path_shaderfx(ButsContextPath *path)
   if (buttons_context_path_object(path)) {
     Object *ob = static_cast<Object *>(path->ptr[path->len - 1].data);
 
-    if (ob && ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+    if (ob && ob->type == OB_GREASE_PENCIL) {
       return true;
     }
   }
@@ -552,7 +548,7 @@ static bool buttons_context_path(
   Scene *scene = WM_window_get_active_scene(window);
   ViewLayer *view_layer = WM_window_get_active_view_layer(window);
 
-  memset(path, 0, sizeof(*path));
+  *path = {};
   path->flag = flag;
 
   /* If some ID datablock is pinned, set the root pointer. */
@@ -691,7 +687,7 @@ static int buttons_shading_new_context(const bContext *C, int flag)
 void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
 {
   if (!sbuts->path) {
-    sbuts->path = MEM_callocN(sizeof(ButsContextPath), "ButsContextPath");
+    sbuts->path = MEM_new<ButsContextPath>("ButsContextPath");
   }
 
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);

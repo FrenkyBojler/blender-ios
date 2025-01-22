@@ -7,7 +7,7 @@
  */
 
 #include "BKE_attribute.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_index_range.hh"
@@ -149,7 +149,8 @@ static bke::CurvesGeometry reorder_cyclic_curve_points(const bke::CurvesGeometry
    * source indices are not ordered. */
   bke::CurvesGeometry dst_curves(src_curves);
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-  bke::gather_attributes(src_attributes, bke::AttrDomain::Point, {}, {}, indices, dst_attributes);
+  bke::gather_attributes(
+      src_attributes, bke::AttrDomain::Point, bke::AttrDomain::Point, {}, indices, dst_attributes);
 
   return dst_curves;
 }
@@ -177,6 +178,8 @@ static void modify_drawing(const GreasePencilOutlineModifierData &omd,
                            bke::greasepencil::Drawing &drawing,
                            const float4x4 &viewmat)
 {
+  modifier::greasepencil::ensure_no_bezier_curves(drawing);
+
   if (drawing.strokes().curve_num == 0) {
     return;
   }
@@ -257,7 +260,7 @@ static void modify_geometry_set(ModifierData *md,
   const Vector<LayerDrawingInfo> drawings = modifier::greasepencil::get_drawing_infos_by_layer(
       grease_pencil, layer_mask, frame);
   threading::parallel_for_each(drawings, [&](const LayerDrawingInfo &info) {
-    const Layer &layer = *grease_pencil.layer(info.layer_index);
+    const Layer &layer = grease_pencil.layer(info.layer_index);
     const float4x4 viewmat = viewinv * layer.to_world_space(*ctx->object);
     modify_drawing(omd, *ctx, *info.drawing, viewmat);
   });
@@ -272,12 +275,12 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "thickness", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "use_keep_shape", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "subdivision", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "sample_length", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "outline_material", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "use_keep_shape", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "subdivision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "sample_length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "outline_material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   Scene *scene = CTX_data_scene(C);
   if (scene->camera == nullptr) {
@@ -285,7 +288,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

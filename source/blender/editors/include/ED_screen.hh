@@ -10,11 +10,7 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view2d_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_workspace_types.h"
-
-#include "DNA_object_enums.h"
 
 #include "WM_types.hh"
 
@@ -153,15 +149,17 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
 
 void ED_region_clear(const bContext *C, const ARegion *region, int /*ThemeColorID*/ colorid);
 
-void ED_region_info_draw(ARegion *region, const char *text, float fill_color[4], bool full_redraw);
+void ED_region_info_draw(ARegion *region,
+                         const char *text,
+                         const float fill_color[4],
+                         bool full_redraw);
 void ED_region_info_draw_multiline(ARegion *region,
                                    const char *text_array[],
-                                   float fill_color[4],
+                                   const float fill_color[4],
                                    bool full_redraw);
 void ED_region_image_metadata_panel_draw(ImBuf *ibuf, uiLayout *layout);
 void ED_region_grid_draw(ARegion *region, float zoomx, float zoomy, float x0, float y0);
 float ED_region_blend_alpha(ARegion *region);
-void ED_region_visible_rect_calc(ARegion *region, rcti *rect);
 const rcti *ED_region_visible_rect(ARegion *region);
 /**
  * Overlapping regions only in the following restricted cases.
@@ -205,6 +203,10 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf);
 int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco);
 
 /* areas */
+/**
+ * Ensure #ScrArea.type and #ARegion.type are set and valid.
+ */
+void ED_area_and_region_types_init(ScrArea *area);
 /**
  * Called in screen_refresh, or screens_init, also area size changes.
  */
@@ -288,12 +290,17 @@ ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area);
                        (ScrVert *)(screen)->vertbase.first : \
                        vert_name->next)
 
+/**
+ * Update all areas that are supposed to follow the timeline current-frame indicator.
+ */
+void ED_areas_do_frame_follow(bContext *C, bool center_view);
+
 /* screens */
 
 /**
  * File read, set all screens, ....
  */
-void ED_screens_init(Main *bmain, wmWindowManager *wm);
+void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm);
 /**
  * Only for edge lines between areas.
  */
@@ -303,8 +310,8 @@ void ED_screen_draw_edges(wmWindow *win);
  * Make this screen usable.
  * for file read and first use, for scaling window, area moves.
  */
-void ED_screen_refresh(wmWindowManager *wm, wmWindow *win);
-void ED_screen_ensure_updated(bContext *C, wmWindowManager *wm, wmWindow *win, bScreen *screen);
+void ED_screen_refresh(bContext *C, wmWindowManager *wm, wmWindow *win);
+void ED_screen_ensure_updated(bContext *C, wmWindowManager *wm, wmWindow *win);
 void ED_screen_do_listen(bContext *C, const wmNotifier *note);
 /**
  * \brief Change the active screen.
@@ -500,6 +507,7 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph);
 /**
  * Toggle operator.
  */
+void ED_reset_audio_device(bContext *C);
 int ED_screen_animation_play(bContext *C, int sync, int mode);
 /**
  * Find window that owns the animation timer.

@@ -6,264 +6,350 @@
  * \ingroup bke
  */
 
+#include "BLI_assert.h"
 #include "MEM_guardedalloc.h"
 
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
 #include "BKE_colortools.hh"
 #include "BKE_deform.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_lattice.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_material.h"
 #include "BKE_modifier.hh"
-#include "BKE_object.hh"
 #include "BKE_screen.hh"
-
-#include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_query.hh"
+#include "BKE_shrinkwrap.hh"
 
 #include "BLO_read_write.hh"
 
-typedef enum {
-  /** Should not be used, only for None modifier type. */
-  eGpencilModifierTypeType_None,
+/* Check if the type value is valid. */
+static bool gpencil_modifier_type_valid(const int type)
+{
+  return type > 0 && type < NUM_GREASEPENCIL_MODIFIER_TYPES;
+}
 
-  /** Grease pencil modifiers. */
-  eGpencilModifierTypeType_Gpencil,
-} GpencilModifierTypeType;
+/**
+ * Free internal modifier data variables, this function should
+ * not free the md variable itself.
+ */
+static void gpencil_modifier_free_data(GpencilModifierData *md)
+{
+  switch (GpencilModifierType(md->type)) {
+    case eGpencilModifierType_Noise: {
+      NoiseGpencilModifierData *gpmd = (NoiseGpencilModifierData *)md;
 
-typedef enum {
-  /* eGpencilModifierTypeFlag_SupportsMapping = (1 << 0), */ /* UNUSED */
-  eGpencilModifierTypeFlag_SupportsEditmode = (1 << 1),
+      if (gpmd->curve_intensity) {
+        BKE_curvemapping_free(gpmd->curve_intensity);
+      }
+      break;
+    }
+    case eGpencilModifierType_Thick: {
+      ThickGpencilModifierData *gpmd = (ThickGpencilModifierData *)md;
 
-  /**
-   * For modifiers that support edit-mode this determines if the
-   * modifier should be enabled by default in edit-mode. This should
-   * only be used by modifiers that are relatively speedy and
-   * also generally used in edit-mode, otherwise let the user enable it by hand.
-   */
-  eGpencilModifierTypeFlag_EnableInEditmode = (1 << 2),
+      if (gpmd->curve_thickness) {
+        BKE_curvemapping_free(gpmd->curve_thickness);
+      }
+      break;
+    }
+    case eGpencilModifierType_Tint: {
+      TintGpencilModifierData *mmd = (TintGpencilModifierData *)md;
 
-  /**
-   * For modifiers that require original data and so cannot
-   * be placed after any non-deform modifier.
-   */
-  /* eGpencilModifierTypeFlag_RequiresOriginalData = (1 << 3), */ /* UNUSED */
+      MEM_SAFE_FREE(mmd->colorband);
+      if (mmd->curve_intensity) {
+        BKE_curvemapping_free(mmd->curve_intensity);
+      }
+      break;
+    }
+    case eGpencilModifierType_Opacity: {
+      OpacityGpencilModifierData *gpmd = (OpacityGpencilModifierData *)md;
 
-  /** Max one per type. */
-  eGpencilModifierTypeFlag_Single = (1 << 4),
+      if (gpmd->curve_intensity) {
+        BKE_curvemapping_free(gpmd->curve_intensity);
+      }
+      break;
+    }
+    case eGpencilModifierType_Color: {
+      ColorGpencilModifierData *gpmd = (ColorGpencilModifierData *)md;
 
-  /** Can't be added manually by user. */
-  eGpencilModifierTypeFlag_NoUserAdd = (1 << 5),
-  /** Can't be applied. */
-  eGpencilModifierTypeFlag_NoApply = (1 << 6),
-} GpencilModifierTypeFlag;
+      if (gpmd->curve_intensity) {
+        BKE_curvemapping_free(gpmd->curve_intensity);
+      }
+      break;
+    }
+    case eGpencilModifierType_Lattice: {
+      LatticeGpencilModifierData *mmd = (LatticeGpencilModifierData *)md;
+      LatticeDeformData *ldata = (LatticeDeformData *)mmd->cache_data;
 
-typedef struct GpencilModifierTypeInfo {
-  /** The user visible name for this modifier */
-  char name[32];
+      /* free deform data */
+      if (ldata) {
+        BKE_lattice_deform_data_destroy(ldata);
+      }
+      break;
+    }
+    case eGpencilModifierType_Smooth: {
+      SmoothGpencilModifierData *gpmd = (SmoothGpencilModifierData *)md;
 
-  /**
-   * The DNA struct name for the modifier data type, used to
-   * write the DNA data out.
-   */
-  char struct_name[32];
+      if (gpmd->curve_intensity) {
+        BKE_curvemapping_free(gpmd->curve_intensity);
+      }
+      break;
+    }
+    case eGpencilModifierType_Hook: {
+      HookGpencilModifierData *mmd = (HookGpencilModifierData *)md;
 
-  /** The size of the modifier data type, used by allocation. */
-  int struct_size;
+      if (mmd->curfalloff) {
+        BKE_curvemapping_free(mmd->curfalloff);
+      }
+      break;
+    }
+    case eGpencilModifierType_Time: {
+      TimeGpencilModifierData *gpmd = (TimeGpencilModifierData *)md;
 
-  GpencilModifierTypeType type;
-  GpencilModifierTypeFlag flags;
+      MEM_SAFE_FREE(gpmd->segments);
+      break;
+    }
+    case eGpencilModifierType_Dash: {
+      DashGpencilModifierData *dmd = (DashGpencilModifierData *)md;
 
-  /********************* Non-optional functions *********************/
+      MEM_SAFE_FREE(dmd->segments);
+      break;
+    }
+    case eGpencilModifierType_Shrinkwrap: {
+      ShrinkwrapGpencilModifierData *mmd = (ShrinkwrapGpencilModifierData *)md;
 
-  /**
-   * Copy instance data for this modifier type. Should copy all user
-   * level settings to the target modifier.
-   */
-  void (*copy_data)(const struct GpencilModifierData *md, struct GpencilModifierData *target);
+      if (mmd->cache_data) {
+        BKE_shrinkwrap_free_tree(mmd->cache_data);
+        MEM_delete(mmd->cache_data);
+      }
+      break;
+    }
 
-  /**
-   * Callback for GP "stroke" modifiers that operate on the
-   * shape and parameters of the provided strokes (e.g. Thickness, Noise, etc.)
-   *
-   * The gpl parameter contains the GP layer that the strokes come from.
-   * While access is provided to this data, you should not directly access
-   * the gpl->frames data from the modifier. Instead, use the gpf parameter
-   * instead.
-   *
-   * The gps parameter contains the GP stroke to operate on. This is usually a copy
-   * of the original (unmodified and saved to files) stroke data.
-   */
-  void (*deform_stroke)(struct GpencilModifierData *md,
-                        struct Depsgraph *depsgraph,
-                        struct Object *ob,
-                        struct bGPDlayer *gpl,
-                        struct bGPDframe *gpf,
-                        struct bGPDstroke *gps);
+    case eGpencilModifierType_None:
+    case eGpencilModifierType_Subdiv:
+    case eGpencilModifierType_Array:
+    case eGpencilModifierType_Build:
+    case eGpencilModifierType_Simplify:
+    case eGpencilModifierType_Offset:
+    case eGpencilModifierType_Mirror:
+    case eGpencilModifierType_Multiply:
+    case eGpencilModifierType_Texture:
+    case eGpencilModifierType_Lineart:
+    case eGpencilModifierType_Length:
+    case eGpencilModifierType_WeightProximity:
+    case eGpencilModifierType_WeightAngle:
+    case eGpencilModifierType_Envelope:
+    case eGpencilModifierType_Outline:
+    case eGpencilModifierType_Armature:
+      break;
+    case NUM_GREASEPENCIL_MODIFIER_TYPES:
+      BLI_assert_unreachable();
+      break;
+  }
+}
 
-  /**
-   * Callback for GP "geometry" modifiers that create extra geometry
-   * in the frame (e.g. Array)
-   */
-  void (*generate_strokes)(struct GpencilModifierData *md,
-                           struct Depsgraph *depsgraph,
-                           struct Object *ob);
+/**
+ * Should call the given walk function with a pointer to each ID
+ * pointer (i.e. each data-block pointer) that the modifier data
+ * stores. This is used for linking on file load and for
+ * unlinking data-blocks or forwarding data-block references.
+ */
+static void gpencil_modifier_foreach_ID_link(GpencilModifierData *md,
+                                             Object *ob,
+                                             GreasePencilIDWalkFunc walk,
+                                             void *user_data)
+{
+  switch (GpencilModifierType(md->type)) {
+    case eGpencilModifierType_None: {
+      break;
+    }
+    case eGpencilModifierType_Noise: {
+      NoiseGpencilModifierData *mmd = (NoiseGpencilModifierData *)md;
 
-  /**
-   * Bake-down GP modifier's effects into the GP data-block.
-   *
-   * This gets called when the user clicks the "Apply" button in the UI.
-   * As such, this callback needs to go through all layers/frames in the
-   * data-block, mutating the geometry and/or creating new data-blocks/objects
-   */
-  void (*bake_modifier)(struct Main *bmain,
-                        struct Depsgraph *depsgraph,
-                        struct GpencilModifierData *md,
-                        struct Object *ob);
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Subdiv: {
+      SubdivGpencilModifierData *mmd = (SubdivGpencilModifierData *)md;
 
-  /********************* Optional functions *********************/
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Thick: {
+      ThickGpencilModifierData *mmd = (ThickGpencilModifierData *)md;
 
-  /**
-   * Callback for GP "time" modifiers that offset keyframe time
-   * Returns the frame number to be used after apply the modifier. This is
-   * usually an offset of the animation for duplicated data-blocks.
-   *
-   * This function is optional.
-   */
-  int (*remap_time)(struct GpencilModifierData *md,
-                    struct Depsgraph *depsgraph,
-                    struct Scene *scene,
-                    struct Object *ob,
-                    struct bGPDlayer *gpl,
-                    int cfra);
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Tint: {
+      TintGpencilModifierData *mmd = (TintGpencilModifierData *)md;
 
-  /**
-   * Initialize new instance data for this modifier type, this function
-   * should set modifier variables to their default values.
-   *
-   * This function is optional.
-   */
-  void (*init_data)(struct GpencilModifierData *md);
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+      break;
+    }
+    case eGpencilModifierType_Array: {
+      ArrayGpencilModifierData *mmd = (ArrayGpencilModifierData *)md;
 
-  /**
-   * Free internal modifier data variables, this function should
-   * not free the md variable itself.
-   *
-   * This function is optional.
-   */
-  void (*free_data)(struct GpencilModifierData *md);
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+      break;
+    }
+    case eGpencilModifierType_Build: {
+      BuildGpencilModifierData *mmd = (BuildGpencilModifierData *)md;
 
-  /**
-   * Return a boolean value indicating if this modifier is able to be
-   * calculated based on the modifier data. This is *not* regarding the
-   * md->flag, that is tested by the system, this is just if the data
-   * validates (for example, a lattice will return false if the lattice
-   * object is not defined).
-   *
-   * This function is optional (assumes never disabled if not present).
-   */
-  bool (*is_disabled)(struct GpencilModifierData *md, bool use_render_params);
+      walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+      break;
+    }
+    case eGpencilModifierType_Opacity: {
+      OpacityGpencilModifierData *mmd = (OpacityGpencilModifierData *)md;
 
-  /**
-   * Add the appropriate relations to the dependency graph.
-   *
-   * This function is optional.
-   */
-  void (*update_depsgraph)(struct GpencilModifierData *md,
-                           const struct ModifierUpdateDepsgraphContext *ctx,
-                           int mode);
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Color: {
+      ColorGpencilModifierData *mmd = (ColorGpencilModifierData *)md;
 
-  /**
-   * Should return true if the modifier needs to be recalculated on time
-   * changes.
-   *
-   * This function is optional (assumes false if not present).
-   */
-  bool (*depends_on_time)(struct GpencilModifierData *md);
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Lattice: {
+      LatticeGpencilModifierData *mmd = (LatticeGpencilModifierData *)md;
 
-  /**
-   * Should call the given walk function with a pointer to each ID
-   * pointer (i.e. each data-block pointer) that the modifier data
-   * stores. This is used for linking on file load and for
-   * unlinking data-blocks or forwarding data-block references.
-   *
-   * This function is optional.
-   */
-  void (*foreach_ID_link)(struct GpencilModifierData *md,
-                          struct Object *ob,
-                          GreasePencilIDWalkFunc walk,
-                          void *user_data);
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+      break;
+    }
+    case eGpencilModifierType_Simplify: {
+      SimplifyGpencilModifierData *mmd = (SimplifyGpencilModifierData *)md;
 
-  /**
-   * Should call the given walk function for each texture that the
-   * modifier data stores. This is used for finding all textures in
-   * the context for the UI.
-   *
-   * This function is optional. If it is not present, it will be
-   * assumed the modifier has no textures.
-   */
-  void (*foreach_tex_link)(struct GpencilModifierData *md,
-                           struct Object *ob,
-                           GreasePencilTexWalkFunc walk,
-                           void *user_data);
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Smooth: {
+      SmoothGpencilModifierData *mmd = (SmoothGpencilModifierData *)md;
 
-  /* Register the panel types for the modifier's UI. */
-  void (*panel_register)(struct ARegionType *region_type);
-} GpencilModifierTypeInfo;
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Hook: {
+      HookGpencilModifierData *mmd = (HookGpencilModifierData *)md;
 
-static GpencilModifierTypeInfo *modifier_gpencil_types[NUM_GREASEPENCIL_MODIFIER_TYPES] = {
-    nullptr};
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+      break;
+    }
+    case eGpencilModifierType_Offset: {
+      OffsetGpencilModifierData *mmd = (OffsetGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Mirror: {
+      MirrorGpencilModifierData *mmd = (MirrorGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+      break;
+    }
+    case eGpencilModifierType_Armature: {
+      ArmatureGpencilModifierData *mmd = (ArmatureGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+      break;
+    }
+    case eGpencilModifierType_Time: {
+      TimeGpencilModifierData *mmd = (TimeGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Multiply: {
+      MultiplyGpencilModifierData *mmd = (MultiplyGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Texture: {
+      TextureGpencilModifierData *mmd = (TextureGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Lineart: {
+      LineartGpencilModifierData *lmd = (LineartGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&lmd->target_material, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&lmd->source_collection, IDWALK_CB_NOP);
+
+      walk(user_data, ob, (ID **)&lmd->source_object, IDWALK_CB_NOP);
+      walk(user_data, ob, (ID **)&lmd->source_camera, IDWALK_CB_NOP);
+      walk(user_data, ob, (ID **)&lmd->light_contour_object, IDWALK_CB_NOP);
+      break;
+    }
+    case eGpencilModifierType_Length: {
+      LengthGpencilModifierData *mmd = (LengthGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_WeightProximity: {
+      WeightProxGpencilModifierData *mmd = (WeightProxGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+      break;
+    }
+    case eGpencilModifierType_Dash: {
+      DashGpencilModifierData *mmd = (DashGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_WeightAngle: {
+      WeightAngleGpencilModifierData *mmd = (WeightAngleGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Shrinkwrap: {
+      ShrinkwrapGpencilModifierData *mmd = (ShrinkwrapGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->target, IDWALK_CB_NOP);
+      walk(user_data, ob, (ID **)&mmd->aux_target, IDWALK_CB_NOP);
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Envelope: {
+      EnvelopeGpencilModifierData *mmd = (EnvelopeGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      break;
+    }
+    case eGpencilModifierType_Outline: {
+      OutlineGpencilModifierData *mmd = (OutlineGpencilModifierData *)md;
+
+      walk(user_data, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&mmd->outline_material, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+      break;
+    }
+    case NUM_GREASEPENCIL_MODIFIER_TYPES:
+      BLI_assert_unreachable();
+      break;
+  }
+}
 
 /* *************************************************** */
 /* Modifier Methods - Evaluation Loops, etc. */
 
-static const GpencilModifierTypeInfo *BKE_gpencil_modifier_get_info(GpencilModifierType type)
-{
-  /* type unsigned, no need to check < 0 */
-  if (type < NUM_GREASEPENCIL_MODIFIER_TYPES && type > 0 &&
-      modifier_gpencil_types[type]->name[0] != '\0')
-  {
-    return modifier_gpencil_types[type];
-  }
-
-  return nullptr;
-}
-
-void BKE_gpencil_frame_active_set(Depsgraph *depsgraph, bGPdata *gpd)
-{
-  DEG_debug_print_eval(depsgraph, __func__, gpd->id.name, gpd);
-  int ctime = int(DEG_get_ctime(depsgraph));
-
-  /* update active frame */
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    gpl->actframe = BKE_gpencil_layer_frame_get(gpl, ctime, GP_GETFRAME_USE_PREV);
-  }
-
-  if (DEG_is_active(depsgraph)) {
-    bGPdata *gpd_orig = (bGPdata *)DEG_get_original_id(&gpd->id);
-
-    /* sync "actframe" changes back to main-db too,
-     * so that editing tools work with copy-on-evaluation
-     * when the current frame changes
-     */
-    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd_orig->layers) {
-      gpl->actframe = BKE_gpencil_layer_frame_get(gpl, ctime, GP_GETFRAME_USE_PREV);
-    }
-  }
-}
-
 static void modifier_free_data_id_us_cb(void * /*user_data*/,
                                         Object * /*ob*/,
                                         ID **idpoin,
-                                        int cb_flag)
+                                        const LibraryForeachIDCallbackFlag cb_flag)
 {
   ID *id = *idpoin;
   if (id != nullptr && (cb_flag & IDWALK_CB_USER) != 0) {
@@ -273,18 +359,11 @@ static void modifier_free_data_id_us_cb(void * /*user_data*/,
 
 void BKE_gpencil_modifier_free_ex(GpencilModifierData *md, const int flag)
 {
-  const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(
-      GpencilModifierType(md->type));
-
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-    if (mti->foreach_ID_link) {
-      mti->foreach_ID_link(md, nullptr, modifier_free_data_id_us_cb, nullptr);
-    }
+    gpencil_modifier_foreach_ID_link(md, nullptr, modifier_free_data_id_us_cb, nullptr);
   }
 
-  if (mti->free_data) {
-    mti->free_data(md);
-  }
+  gpencil_modifier_free_data(md);
   if (md->error) {
     MEM_freeN(md->error);
   }
@@ -304,88 +383,7 @@ void BKE_gpencil_modifiers_foreach_ID_link(Object *ob,
   GpencilModifierData *md = static_cast<GpencilModifierData *>(ob->greasepencil_modifiers.first);
 
   for (; md; md = md->next) {
-    const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(
-        GpencilModifierType(md->type));
-
-    if (mti->foreach_ID_link) {
-      mti->foreach_ID_link(md, ob, walk, user_data);
-    }
-  }
-}
-
-void BKE_gpencil_modifier_blend_write(BlendWriter *writer, ListBase *modbase)
-{
-  if (modbase == nullptr) {
-    return;
-  }
-
-  LISTBASE_FOREACH (GpencilModifierData *, md, modbase) {
-    const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(
-        GpencilModifierType(md->type));
-    if (mti == nullptr) {
-      return;
-    }
-
-    BLO_write_struct_by_name(writer, mti->struct_name, md);
-
-    if (md->type == eGpencilModifierType_Thick) {
-      ThickGpencilModifierData *gpmd = (ThickGpencilModifierData *)md;
-
-      if (gpmd->curve_thickness) {
-        BKE_curvemapping_blend_write(writer, gpmd->curve_thickness);
-      }
-    }
-    else if (md->type == eGpencilModifierType_Noise) {
-      NoiseGpencilModifierData *gpmd = (NoiseGpencilModifierData *)md;
-
-      if (gpmd->curve_intensity) {
-        BKE_curvemapping_blend_write(writer, gpmd->curve_intensity);
-      }
-    }
-    else if (md->type == eGpencilModifierType_Hook) {
-      HookGpencilModifierData *gpmd = (HookGpencilModifierData *)md;
-
-      if (gpmd->curfalloff) {
-        BKE_curvemapping_blend_write(writer, gpmd->curfalloff);
-      }
-    }
-    else if (md->type == eGpencilModifierType_Tint) {
-      TintGpencilModifierData *gpmd = (TintGpencilModifierData *)md;
-      if (gpmd->colorband) {
-        BLO_write_struct(writer, ColorBand, gpmd->colorband);
-      }
-      if (gpmd->curve_intensity) {
-        BKE_curvemapping_blend_write(writer, gpmd->curve_intensity);
-      }
-    }
-    else if (md->type == eGpencilModifierType_Smooth) {
-      SmoothGpencilModifierData *gpmd = (SmoothGpencilModifierData *)md;
-      if (gpmd->curve_intensity) {
-        BKE_curvemapping_blend_write(writer, gpmd->curve_intensity);
-      }
-    }
-    else if (md->type == eGpencilModifierType_Color) {
-      ColorGpencilModifierData *gpmd = (ColorGpencilModifierData *)md;
-      if (gpmd->curve_intensity) {
-        BKE_curvemapping_blend_write(writer, gpmd->curve_intensity);
-      }
-    }
-    else if (md->type == eGpencilModifierType_Opacity) {
-      OpacityGpencilModifierData *gpmd = (OpacityGpencilModifierData *)md;
-      if (gpmd->curve_intensity) {
-        BKE_curvemapping_blend_write(writer, gpmd->curve_intensity);
-      }
-    }
-    else if (md->type == eGpencilModifierType_Dash) {
-      DashGpencilModifierData *gpmd = (DashGpencilModifierData *)md;
-      BLO_write_struct_array(
-          writer, DashGpencilModifierSegment, gpmd->segments_len, gpmd->segments);
-    }
-    else if (md->type == eGpencilModifierType_Time) {
-      TimeGpencilModifierData *gpmd = (TimeGpencilModifierData *)md;
-      BLO_write_struct_array(
-          writer, TimeGpencilModifierSegment, gpmd->segments_len, gpmd->segments);
-    }
+    gpencil_modifier_foreach_ID_link(md, ob, walk, user_data);
   }
 }
 
@@ -397,7 +395,7 @@ void BKE_gpencil_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb,
     md->error = nullptr;
 
     /* if modifiers disappear, or for upward compatibility */
-    if (nullptr == BKE_gpencil_modifier_get_info(GpencilModifierType(md->type))) {
+    if (!gpencil_modifier_type_valid(md->type)) {
       md->type = eModifierType_None;
     }
 

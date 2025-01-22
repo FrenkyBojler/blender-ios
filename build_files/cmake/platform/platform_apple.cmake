@@ -5,7 +5,7 @@
 # Libraries configuration for Apple.
 
 macro(find_package_wrapper)
-# do nothing, just satisfy the macro
+  # do nothing, just satisfy the macro
 endmacro()
 
 function(print_found_status
@@ -255,24 +255,16 @@ if(WITH_BOOST)
   set(Boost_NO_BOOST_CMAKE ON)
   set(Boost_ROOT ${LIBDIR}/boost)
   set(Boost_NO_SYSTEM_PATHS ON)
-  set(_boost_FIND_COMPONENTS date_time filesystem regex system thread wave)
-  if(WITH_INTERNATIONAL)
-    list(APPEND _boost_FIND_COMPONENTS locale)
-  endif()
-  if(WITH_OPENVDB)
-    list(APPEND _boost_FIND_COMPONENTS iostreams)
-  endif()
+  set(_boost_FIND_COMPONENTS)
   if(WITH_USD AND USD_PYTHON_SUPPORT)
     list(APPEND _boost_FIND_COMPONENTS python${PYTHON_VERSION_NO_DOTS})
   endif()
   set(Boost_NO_WARN_NEW_VERSIONS ON)
   find_package(Boost COMPONENTS ${_boost_FIND_COMPONENTS})
 
-  # Boost Python is separate to avoid linking Python into tests that don't need it.
-  set(BOOST_LIBRARIES ${Boost_LIBRARIES})
+  # Boost Python is the only library Blender directly depends on, though USD headers.
   if(WITH_USD AND USD_PYTHON_SUPPORT)
     set(BOOST_PYTHON_LIBRARIES ${Boost_PYTHON${PYTHON_VERSION_NO_DOTS}_LIBRARY})
-    list(REMOVE_ITEM BOOST_LIBRARIES ${BOOST_PYTHON_LIBRARIES})
   endif()
   set(BOOST_INCLUDE_DIR ${Boost_INCLUDE_DIRS})
   set(BOOST_DEFINITIONS)
@@ -283,8 +275,8 @@ if(WITH_BOOST)
 endif()
 add_bundled_libraries(boost/lib)
 
-if(WITH_INTERNATIONAL OR WITH_CODEC_FFMPEG)
-  string(APPEND PLATFORM_LINKFLAGS " -liconv") # boost_locale and ffmpeg needs it !
+if(WITH_CODEC_FFMPEG)
+  string(APPEND PLATFORM_LINKFLAGS " -liconv") # ffmpeg needs it !
 endif()
 
 if(WITH_PUGIXML)
@@ -533,8 +525,9 @@ if(PLATFORM_BUNDLED_LIBRARIES)
 
   # Environment variables to run precompiled executables that needed libraries.
   list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ":" _library_paths)
-  set(PLATFORM_ENV_BUILD "DYLD_LIBRARY_PATH=\"${_library_paths};$DYLD_LIBRARY_PATH\"")
-  set(PLATFORM_ENV_INSTALL "DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/Blender.app/Contents/Resources/lib/;$DYLD_LIBRARY_PATH")
+  # Intentionally double "$$" which expands into "$" when instantiated.
+  set(PLATFORM_ENV_BUILD "DYLD_LIBRARY_PATH=\"${_library_paths};$$DYLD_LIBRARY_PATH\"")
+  set(PLATFORM_ENV_INSTALL "DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/Blender.app/Contents/Resources/lib/;$$DYLD_LIBRARY_PATH")
   unset(_library_paths)
 endif()
 

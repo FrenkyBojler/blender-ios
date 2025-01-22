@@ -47,7 +47,7 @@
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_idtype.hh"
-#include "BKE_image.h" /* openanim */
+#include "BKE_image.hh" /* openanim */
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
@@ -55,10 +55,13 @@
 #include "BKE_node_tree_update.hh"
 #include "BKE_tracking.h"
 
+#include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
+
+#include "MOV_read.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -234,7 +237,8 @@ static void direct_link_moviePlaneTracks(BlendDataReader *reader, ListBase *plan
   BLO_read_struct_list(reader, MovieTrackingPlaneTrack, plane_tracks_base);
 
   LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, plane_tracks_base) {
-    BLO_read_pointer_array(reader, (void **)&plane_track->point_tracks);
+    BLO_read_pointer_array(
+        reader, plane_track->point_tracksnr, (void **)&plane_track->point_tracks);
     for (int i = 0; i < plane_track->point_tracksnr; i++) {
       BLO_read_struct(reader, MovieTrackingTrack, &plane_track->point_tracks[i]);
     }
@@ -586,7 +590,7 @@ static void movieclip_open_anim_file(MovieClip *clip)
         char dir[FILE_MAX];
         STRNCPY(dir, clip->proxy.dir);
         BLI_path_abs(dir, BKE_main_blendfile_path_from_global());
-        IMB_anim_set_index_dir(clip->anim, dir);
+        MOV_set_custom_proxy_dir(clip->anim, dir);
       }
     }
   }
@@ -606,7 +610,10 @@ static ImBuf *movieclip_load_movie_file(MovieClip *clip,
   if (clip->anim) {
     int fra = framenr - clip->start_frame + clip->frame_offset;
 
-    ibuf = IMB_anim_absolute(clip->anim, fra, IMB_Timecode_Type(tc), IMB_Proxy_Size(proxy));
+    ibuf = MOV_decode_frame(clip->anim, fra, IMB_Timecode_Type(tc), IMB_Proxy_Size(proxy));
+    if (ibuf) {
+      colormanage_imbuf_make_linear(ibuf, clip->colorspace_settings.name);
+    }
   }
 
   return ibuf;
@@ -618,7 +625,7 @@ static void movieclip_calc_length(MovieClip *clip)
     movieclip_open_anim_file(clip);
 
     if (clip->anim) {
-      clip->len = IMB_anim_get_duration(clip->anim, IMB_Timecode_Type(clip->proxy.tc));
+      clip->len = MOV_get_duration_frames(clip->anim, IMB_Timecode_Type(clip->proxy.tc));
     }
   }
   else if (clip->source == MCLIP_SRC_SEQUENCE) {
@@ -1046,7 +1053,7 @@ static ImBuf *get_undistorted_ibuf(MovieClip *clip, MovieDistortion *distortion,
     undistibuf = BKE_tracking_undistort_frame(&clip->tracking, ibuf, ibuf->x, ibuf->y, 0.0f);
   }
 
-  IMB_scaleImBuf(undistibuf, ibuf->x, ibuf->y);
+  IMB_scale(undistibuf, ibuf->x, ibuf->y, IMBScaleFilter::Box, false);
 
   return undistibuf;
 }
@@ -1553,12 +1560,7 @@ float BKE_movieclip_get_fps(MovieClip *clip)
   if (clip->anim == nullptr) {
     return 0.0f;
   }
-  short frs_sec;
-  float frs_sec_base;
-  if (IMB_anim_get_fps(clip->anim, true, &frs_sec, &frs_sec_base)) {
-    return float(frs_sec) / frs_sec_base;
-  }
-  return 0.0f;
+  return MOV_get_fps(clip->anim);
 }
 
 void BKE_movieclip_get_aspect(MovieClip *clip, float *aspx, float *aspy)
@@ -1612,7 +1614,7 @@ static void free_buffers(MovieClip *clip)
   }
 
   if (clip->anim) {
-    IMB_free_anim(clip->anim);
+    MOV_close(clip->anim);
     clip->anim = nullptr;
   }
 
@@ -1756,27 +1758,23 @@ void BKE_movieclip_update_scopes(MovieClip *clip,
   }
 }
 
-static void movieclip_build_proxy_ibuf(
-    MovieClip *clip, ImBuf *ibuf, int cfra, int proxy_render_size, bool undistorted, bool threaded)
+static void movieclip_build_proxy_ibuf(const MovieClip *clip,
+                                       const ImBuf *ibuf,
+                                       int cfra,
+                                       int proxy_render_size,
+                                       bool undistorted,
+                                       bool threaded)
 {
   char filepath[FILE_MAX];
   int quality, rectx, recty;
   int size = rendersize_to_number(proxy_render_size);
-  ImBuf *scaleibuf;
 
   get_proxy_filepath(clip, proxy_render_size, undistorted, cfra, filepath);
 
   rectx = ibuf->x * size / 100.0f;
   recty = ibuf->y * size / 100.0f;
 
-  scaleibuf = IMB_dupImBuf(ibuf);
-
-  if (threaded) {
-    IMB_scaleImBuf_threaded(scaleibuf, short(rectx), short(recty));
-  }
-  else {
-    IMB_scaleImBuf(scaleibuf, short(rectx), short(recty));
-  }
+  ImBuf *scaleibuf = IMB_scale_into_new(ibuf, rectx, recty, IMBScaleFilter::Bilinear, threaded);
 
   quality = clip->proxy.quality;
   scaleibuf->ftype = IMB_FTYPE_JPG;
