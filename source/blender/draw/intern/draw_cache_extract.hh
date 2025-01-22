@@ -8,9 +8,12 @@
 
 #pragma once
 
+#include "BLI_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector_set.hh"
+
+#include "DNA_view3d_enums.h"
 
 #include "GPU_shader.hh"
 
@@ -18,7 +21,11 @@ namespace blender::gpu {
 class Batch;
 class IndexBuf;
 }  // namespace blender::gpu
+struct Mesh;
+struct Object;
+struct Scene;
 struct TaskGraph;
+struct ToolSettings;
 
 namespace blender::draw {
 
