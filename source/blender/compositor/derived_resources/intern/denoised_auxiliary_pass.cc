@@ -21,7 +21,7 @@
 #  include <OpenImageDenoise/oidn.hpp>
 #endif
 
-namespace blender::realtime_compositor {
+namespace blender::compositor {
 
 /* ------------------------------------------------------------------------------------------------
  * Denoised Auxiliary Pass Key.
@@ -73,8 +73,7 @@ DenoisedAuxiliaryPass::DenoisedAuxiliaryPass(Context &context,
                                              const Result &source_result,
                                              const char *pass_name)
 {
-  this->denoised_buffer = static_cast<float *>(
-      GPU_texture_read(source_result.texture(), GPU_DATA_FLOAT, 0));
+  this->denoised_buffer = static_cast<float *>(GPU_texture_read(source_result, GPU_DATA_FLOAT, 0));
 
   if (!is_oidn_supported() || source_result.is_single_value()) {
     return;
@@ -121,4 +120,4 @@ DenoisedAuxiliaryPass &DenoisedAuxiliaryPassContainer::get(Context &context,
   });
 }
 
-}  // namespace blender::realtime_compositor
+}  // namespace blender::compositor

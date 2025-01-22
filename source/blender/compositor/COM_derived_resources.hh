@@ -6,7 +6,7 @@
 
 #include "COM_denoised_auxiliary_pass.hh"
 
-namespace blender::realtime_compositor {
+namespace blender::compositor {
 
 /* -------------------------------------------------------------------------------------------------
  * Derived Resources.
@@ -19,4 +19,4 @@ class DerivedResources {
   DenoisedAuxiliaryPassContainer denoised_auxiliary_passes;
 };
 
-}  // namespace blender::realtime_compositor
+}  // namespace blender::compositor

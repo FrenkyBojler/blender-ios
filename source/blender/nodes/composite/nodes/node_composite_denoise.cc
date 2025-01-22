@@ -7,7 +7,6 @@
  */
 
 #include "BLI_system.h"
-#include "BLI_vector.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -141,6 +140,7 @@ class DenoiseOperation : public NodeOperation {
 
     /* If the albedo input is not a single value input, download the albedo texture, denoise it
      * in-place if denoising auxiliary passes is needed, and set it to the main filter. */
+    float *albedo = nullptr;
     Result &input_albedo = get_input("Albedo");
     if (!input_albedo.is_single_value()) {
       if (this->context().use_gpu()) {
@@ -161,6 +161,7 @@ class DenoiseOperation : public NodeOperation {
         albedoFilter.commit();
         albedoFilter.execute();
       }
+
       filter.setImage("albedo", albedo, oidn::Format::Float3, width, height, 0, pixel_stride);
     }
 
@@ -168,6 +169,7 @@ class DenoiseOperation : public NodeOperation {
      * denoise it in-place if denoising auxiliary passes is needed, and set it to the main filter.
      * Notice that we also consider the albedo input because OIDN doesn't support denoising with
      * only the normal auxiliary pass. */
+    float *normal = nullptr;
     Result &input_normal = get_input("Normal");
     if (albedo && !input_normal.is_single_value()) {
       if (this->context().use_gpu()) {
@@ -188,6 +190,7 @@ class DenoiseOperation : public NodeOperation {
         normalFilter.commit();
         normalFilter.execute();
       }
+
       filter.setImage("normal", normal, oidn::Format::Float3, width, height, 0, pixel_stride);
     }
 

@@ -18,6 +18,7 @@
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
+#include "COM_derived_resources.hh"
 #include "COM_domain.hh"
 #include "COM_meta_data.hh"
 

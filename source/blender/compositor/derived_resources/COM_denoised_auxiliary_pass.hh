@@ -10,7 +10,7 @@
 
 #include "BLI_map.hh"
 
-namespace blender::realtime_compositor {
+namespace blender::compositor {
 
 class Context;
 class Result;
@@ -58,4 +58,4 @@ class DenoisedAuxiliaryPassContainer {
   DenoisedAuxiliaryPass &get(Context &context, const Result &source_result, const char *pass_name);
 };
 
-}  // namespace blender::realtime_compositor
+}  // namespace blender::compositor
