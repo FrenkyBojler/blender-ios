@@ -204,7 +204,7 @@ static void ruler_item_as_string(
           numstr, numstr_size, "%.*f" BLI_STR_UTF8_DEGREE_SIGN, prec, RAD2DEGF(ruler_angle));
     }
     else {
-      BKE_unit_value_as_string_scaled(
+      BKE_unit_value_as_string(
           numstr, numstr_size, double(ruler_angle), prec, B_UNIT_ROTATION, unit, false);
     }
   }
