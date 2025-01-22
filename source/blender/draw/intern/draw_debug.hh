@@ -52,7 +52,7 @@ class DebugDraw {
 
  public:
   DebugDraw();
-  ~DebugDraw() {};
+  ~DebugDraw(){};
 
   /**
    * Resets all buffers and reset model matrix state.

@@ -490,7 +490,7 @@ class ShaderModule {
 
  private:
   ShaderModule(const SelectionType selection_type, const bool clipping_enabled)
-      : selection_type_(selection_type), clipping_enabled_(clipping_enabled) {};
+      : selection_type_(selection_type), clipping_enabled_(clipping_enabled){};
 
   ShaderPtr shader(const char *create_info_name)
   {
@@ -596,7 +596,7 @@ struct Resources : public select::SelectMap {
   Resources(const SelectionType selection_type_,
             ShaderModule &shader_module,
             const ShapeCache &shapes_)
-      : select::SelectMap(selection_type_), shaders(shader_module), shapes(shapes_) {};
+      : select::SelectMap(selection_type_), shaders(shader_module), shapes(shapes_){};
 
   ~Resources()
   {
@@ -880,7 +880,7 @@ template<typename InstanceDataT> struct ShapeInstanceBuf : private select::Selec
   StorageVectorBuffer<InstanceDataT> data_buf;
 
   ShapeInstanceBuf(const SelectionType selection_type, const char *name = nullptr)
-      : select::SelectBuf(selection_type), data_buf(name) {};
+      : select::SelectBuf(selection_type), data_buf(name){};
 
   void clear()
   {
@@ -928,7 +928,7 @@ struct VertexPrimitiveBuf {
   int color_id = 0;
 
   VertexPrimitiveBuf(const SelectionType selection_type, const char *name = nullptr)
-      : select_buf(selection_type), data_buf(name) {};
+      : select_buf(selection_type), data_buf(name){};
 
   void append(const float3 &position, const float4 &color)
   {

@@ -71,10 +71,10 @@ typedef char DRWViewportEmptyList;
 /* Unused members must be either pass list or 'char *' when not used. */
 #define DRW_VIEWPORT_DATA_SIZE(ty) \
   { \
-      DRW_VIEWPORT_LIST_SIZE(*(((ty *)nullptr)->fbl)), \
-      DRW_VIEWPORT_LIST_SIZE(*(((ty *)nullptr)->txl)), \
-      DRW_VIEWPORT_LIST_SIZE(*(((ty *)nullptr)->psl)), \
-      DRW_VIEWPORT_LIST_SIZE(*(((ty *)nullptr)->stl)), \
+    DRW_VIEWPORT_LIST_SIZE(*(((ty *)nullptr)->fbl)), \
+        DRW_VIEWPORT_LIST_SIZE(*(((ty *)nullptr)->txl)), \
+        DRW_VIEWPORT_LIST_SIZE(*(((ty *)nullptr)->psl)), \
+        DRW_VIEWPORT_LIST_SIZE(*(((ty *)nullptr)->stl)), \
   }
 
 struct DrawEngineDataSize {

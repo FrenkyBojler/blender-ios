@@ -177,8 +177,8 @@ class Instance {
         planar_probes(*this),
         volume_probes(*this),
         light_probes(*this),
-        volume(*this, uniform_data.data.volumes) {};
-  ~Instance() {};
+        volume(*this, uniform_data.data.volumes){};
+  ~Instance(){};
 
   /* Render & Viewport. */
   /* TODO(fclem): Split for clarity. */

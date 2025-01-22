@@ -120,7 +120,7 @@ class Manager {
   Object *object_active = nullptr;
 
  public:
-  Manager() {};
+  Manager(){};
   ~Manager();
 
   /**

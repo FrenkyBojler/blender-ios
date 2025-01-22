@@ -226,7 +226,7 @@ class LightProbeModule {
 
  public:
   LightProbeModule(Instance &inst);
-  ~LightProbeModule() {};
+  ~LightProbeModule(){};
 
   void init();
 

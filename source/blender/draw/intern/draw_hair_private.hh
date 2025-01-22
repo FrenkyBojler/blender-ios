@@ -14,7 +14,7 @@ namespace blender::draw {
 
 class CurveRefinePass : public PassSimple {
  public:
-  CurveRefinePass(const char *name) : PassSimple(name) {};
+  CurveRefinePass(const char *name) : PassSimple(name){};
 };
 
 }  // namespace blender::draw
