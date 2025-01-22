@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 
 #include <fmt/format.h>
 
@@ -31,8 +32,8 @@
 
 #include "BLI_ghash.h"
 
-#include "DNA_debug.hh"
 #include "DNA_genfile.h"
+#include "DNA_print.hh"
 #include "DNA_sdna_types.h" /* for SDNA ;-) */
 
 /**
@@ -2220,13 +2221,15 @@ static void print_single_struct_recursive(const SDNA &sdna,
   }
 }
 
-void DNA_struct_debug_print(const SDNA &sdna,
-                            const SDNA_Struct &sdna_struct,
-                            const void *initial_data,
-                            const void *address,
-                            const int64_t element_num,
-                            std::ostream &stream)
+void DNA_print_structs_at_address(const SDNA &sdna,
+                                  const int struct_id,
+                                  const void *initial_data,
+                                  const void *address,
+                                  const int64_t element_num,
+                                  std::ostream &stream)
 {
+  const SDNA_Struct &sdna_struct = *sdna.structs[struct_id];
+
   fmt::memory_buffer buf;
   fmt::appender dst{buf};
 
@@ -2235,6 +2238,12 @@ void DNA_struct_debug_print(const SDNA &sdna,
 
   print_struct_array_recursive(sdna, sdna_struct, initial_data, element_num, 2, dst);
   stream << fmt::to_string(buf);
+}
+
+void DNA_print_struct_by_id(const int struct_id, const void *data)
+{
+  const SDNA &sdna = *DNA_sdna_current_get();
+  DNA_print_structs_at_address(sdna, struct_id, data, data, 1, std::cout);
 }
 
 /** \} */

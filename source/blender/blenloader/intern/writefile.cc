@@ -84,10 +84,10 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_collection_types.h"
-#include "DNA_debug.hh"
 #include "DNA_fileglobal_types.h"
 #include "DNA_genfile.h"
 #include "DNA_key_types.h"
+#include "DNA_print.hh"
 #include "DNA_sdna_types.h"
 
 #include "BLI_bitmap.h"
@@ -772,8 +772,7 @@ static void writestruct_at_address_nr(WriteData *wd,
   }
 
   if (wd->debug_dst) {
-    DNA_struct_debug_print(
-        *wd->sdna, *wd->sdna->structs[struct_nr], data, adr, nr, *wd->debug_dst);
+    DNA_print_structs_at_address(*wd->sdna, struct_nr, data, adr, nr, *wd->debug_dst);
   }
 
   write_bhead(wd, bh);
