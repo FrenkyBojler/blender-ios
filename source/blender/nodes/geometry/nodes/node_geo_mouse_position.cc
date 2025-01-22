@@ -18,6 +18,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  if (const GeoNodesSculptData *data = params.user_data()->call_data->sculpt_data) {
+    params.set_output("Mouse X", data->mouse_position.x);
+    params.set_output("Mouse Y", data->mouse_position.y);
+    params.set_output("Region Width", data->region_size.x);
+    params.set_output("Region Height", data->region_size.y);
+    return;
+  }
+
   if (!check_tool_context_and_error(params)) {
     return;
   }

@@ -304,7 +304,7 @@ class NODE_MT_geometry_node_GEO_INPUT_SCENE(Menu):
         if context.space_data.geometry_nodes_type != 'BRUSH':
             node_add_menu.add_node_type(layout, "GeometryNodeIsViewport")
         node_add_menu.add_node_type(layout, "GeometryNodeInputNamedLayerSelection")
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.geometry_nodes_type != 'MODIFIER':
             node_add_menu.add_node_type(layout, "GeometryNodeToolMousePosition")
         node_add_menu.add_node_type(layout, "GeometryNodeObjectInfo")
         node_add_menu.add_node_type(layout, "GeometryNodeInputSceneTime")

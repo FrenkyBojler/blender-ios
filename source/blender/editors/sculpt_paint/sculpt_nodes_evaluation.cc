@@ -126,6 +126,10 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
     sculpt_data.is_orthographic = false;
   }
 
+  sculpt_data.mouse_position = int2(static_cast<int>(cache.mouse_event.x),
+                                    static_cast<int>(cache.mouse_event.y));
+  sculpt_data.region_size = cache.region_size;
+
   nodes::GeoNodesCallData call_data;
   call_data.root_ntree = tree;
   call_data.side_effect_nodes = {};
