@@ -2061,6 +2061,8 @@ void DNA_sdna_alias_data_ensure_structs_map(SDNA *sdna)
  *
  * \{ */
 
+namespace blender::dna {
+
 static void print_struct_array_recursive(const SDNA &sdna,
                                          const SDNA_Struct &sdna_struct,
                                          const void *initial_data,
@@ -2082,7 +2084,7 @@ static bool char_array_startswith_simple_name(const char *data, const int array_
   if (string_length == array_len) {
     return false;
   }
-  for (const int i : blender::IndexRange(string_length)) {
+  for (const int i : IndexRange(string_length)) {
     const unsigned char c = data[i];
     if (!std::isprint(c)) {
       return false;
@@ -2105,7 +2107,7 @@ static void print_struct_array_recursive(const SDNA &sdna,
 
   const char *struct_name = sdna.types[sdna_struct.type_index];
   const int64_t struct_size = sdna.types_size[sdna_struct.type_index];
-  for (const int64_t i : blender::IndexRange(element_num)) {
+  for (const int64_t i : IndexRange(element_num)) {
     const void *element_data = POINTER_OFFSET(data, i * struct_size);
     fmt::format_to(dst, "{:{}}{}: <{}>\n", "", indent, i, struct_name);
     print_single_struct_recursive(sdna, sdna_struct, element_data, indent + 2, dst);
@@ -2229,12 +2231,12 @@ static void print_single_struct_recursive(const SDNA &sdna,
   }
 }
 
-void DNA_print_structs_at_address(const SDNA &sdna,
-                                  const int struct_id,
-                                  const void *initial_data,
-                                  const void *address,
-                                  const int64_t element_num,
-                                  std::ostream &stream)
+void print_structs_at_address(const SDNA &sdna,
+                              const int struct_id,
+                              const void *initial_data,
+                              const void *address,
+                              const int64_t element_num,
+                              std::ostream &stream)
 {
   const SDNA_Struct &sdna_struct = *sdna.structs[struct_id];
 
@@ -2248,10 +2250,12 @@ void DNA_print_structs_at_address(const SDNA &sdna,
   stream << fmt::to_string(buf);
 }
 
-void DNA_print_struct_by_id(const int struct_id, const void *data)
+void print_struct_by_id(const int struct_id, const void *data)
 {
   const SDNA &sdna = *DNA_sdna_current_get();
-  DNA_print_structs_at_address(sdna, struct_id, data, data, 1, std::cout);
+  print_structs_at_address(sdna, struct_id, data, data, 1, std::cout);
 }
+
+}  // namespace blender::dna
 
 /** \} */
