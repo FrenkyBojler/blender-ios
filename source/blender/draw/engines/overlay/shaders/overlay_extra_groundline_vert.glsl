@@ -17,7 +17,7 @@ void main()
   vec3 inst_pos = data_buf[gl_InstanceID].xyz;
   vec3 p = inst_pos;
   p.z *= (pos.z == 0.0) ? 0.0 : 1.0;
-  float screen_size = mul_project_m4_v3_zfac(p) * sizePixel;
+  float screen_size = mul_project_m4_v3_zfac(globalsBlock.pixel_fac, p) * sizePixel;
   vec3 world_pos = p + screen_pos * screen_size;
 
   gl_Position = drw_point_world_to_homogenous(world_pos);

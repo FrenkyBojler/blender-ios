@@ -122,7 +122,7 @@ void main()
                      sizePixel;
       }
       else {
-        float frustrum_fac = mul_project_m4_v3_zfac(n) * sizePixel;
+        float frustrum_fac = mul_project_m4_v3_zfac(globalsBlock.pixel_fac, n) * sizePixel;
         world_pos += n * normalScreenSize * frustrum_fac;
       }
     }

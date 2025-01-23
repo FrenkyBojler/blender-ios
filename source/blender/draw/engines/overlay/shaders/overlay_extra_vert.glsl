@@ -186,7 +186,7 @@ void main()
     /* Relative to DPI scaling. Have constant screen size. */
     vec3 screen_pos = ViewMatrixInverse[0].xyz * vpos.x + ViewMatrixInverse[1].xyz * vpos.y;
     vec3 p = (obmat * vec4(vofs, 1.0)).xyz;
-    float screen_size = mul_project_m4_v3_zfac(p) * sizePixel;
+    float screen_size = mul_project_m4_v3_zfac(globalsBlock.pixel_fac, p) * sizePixel;
     world_pos = p + screen_pos * screen_size;
   }
   else if ((vclass & VCLASS_SCREENALIGNED) != 0) {
