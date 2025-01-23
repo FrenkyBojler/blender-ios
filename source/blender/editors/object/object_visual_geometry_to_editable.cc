@@ -3,16 +3,18 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_context.hh"
+#include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
-
 #include "BKE_mesh.h"
 #include "BKE_object.hh"
+
 #include "DEG_depsgraph_query.hh"
+#include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 
 #include "ED_screen.hh"
@@ -36,9 +38,31 @@ class GeometryToEditableOp {
   Object *build_object_for_geometry(const Object &src_ob_eval, bke::GeometrySet geometry)
   {
     Object *mesh_ob = nullptr;
+    Object *curves_ob = nullptr;
     if (const Mesh *mesh = geometry.get_mesh_for_write()) {
-      mesh_ob = this->get_or_create_object_for_mesh(src_ob_eval, *mesh, geometry.name);
+      if (mesh->verts_num > 0) {
+        mesh_ob = this->get_or_create_object_for_mesh(src_ob_eval, *mesh, geometry.name);
+      }
     }
+    if (const Curves *curves = geometry.get_curves_for_write()) {
+      if (curves->geometry.curve_num > 0) {
+        curves_ob = this->get_or_create_object_for_curves(src_ob_eval, *curves, geometry.name);
+      }
+    }
+
+    const int num_objects = (mesh_ob != nullptr) + (curves_ob != nullptr);
+    if (num_objects == 0) {
+      return nullptr;
+    }
+    if (num_objects == 1) {
+      if (mesh_ob != nullptr) {
+        return mesh_ob;
+      }
+      if (curves_ob != nullptr) {
+        return curves_ob;
+      }
+    }
+    // TODO: create collection and instance that
     return mesh_ob;
   }
 
@@ -55,8 +79,25 @@ class GeometryToEditableOp {
       Mesh *mesh_to_move_from = BKE_mesh_copy_for_eval(src_mesh);
       BKE_mesh_nomain_to_mesh(mesh_to_move_from, new_mesh, new_ob);
       new_mesh->attributes_for_write().remove_anonymous();
+      /* TODO: Materials. */
       /* TODO: #remove_invalid_attribute_strings */
       /* TODO: #multires_customdata_delete */
+      return new_ob;
+    });
+  }
+
+  Object *get_or_create_object_for_curves(const Object & /*src_ob_eval*/,
+                                          const Curves &src_curves,
+                                          const StringRefNull name)
+  {
+    return new_object_by_generated_geometry_.lookup_or_add_cb(&src_curves.id, [&]() {
+      Curves *new_curves = reinterpret_cast<Curves *>(BKE_id_new(&bmain_, ID_CV, name.c_str()));
+      Object *new_ob = BKE_object_add_only_object(&bmain_, OB_CURVES, name.c_str());
+      new_ob->data = new_curves;
+
+      new_curves->geometry.wrap() = src_curves.geometry.wrap();
+      new_curves->geometry.wrap().attributes_for_write().remove_anonymous();
+      /* TODO: Materials. */
       return new_ob;
     });
   }
