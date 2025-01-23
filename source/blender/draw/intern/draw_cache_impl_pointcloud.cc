@@ -294,7 +294,7 @@ static void pointcloud_extract_position_and_radius(const PointCloud &pointcloud,
 
 static void pointcloud_extract_attribute(const PointCloud &pointcloud,
                                          PointCloudBatchCache &cache,
-                                         const StringRef request_name,
+                                         const StringRef name,
                                          int index)
 {
   gpu::VertBuf &attr_buf = *cache.eval_cache.attributes_buf[index];
@@ -307,7 +307,7 @@ static void pointcloud_extract_attribute(const PointCloud &pointcloud,
    * similar texture state swizzle to map the attribute correctly as for volume attributes, so we
    * can control the conversion ourselves. */
   bke::AttributeReader<ColorGeometry4f> attribute = attributes.lookup_or_default<ColorGeometry4f>(
-      request_name, bke::AttrDomain::Point, {0.0f, 0.0f, 0.0f, 1.0f});
+      name, bke::AttrDomain::Point, {0.0f, 0.0f, 0.0f, 1.0f});
 
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
@@ -333,12 +333,19 @@ gpu::VertBuf *pointcloud_position_and_radius_get(PointCloud *pointcloud)
   return cache->eval_cache.pos_rad;
 }
 
+static void merge_requests(VectorSet<std::string> &merge_into, const Span<StringRef> to_merge)
+{
+  for (const StringRef name : to_merge) {
+    merge_into.add_as(name);
+  }
+}
+
 gpu::Batch **pointcloud_surface_shaded_get(PointCloud *pointcloud,
                                            GPUMaterial **gpu_materials,
                                            int mat_len)
 {
   PointCloudBatchCache *cache = pointcloud_batch_cache_get(*pointcloud);
-  VectorSet<std::string> attrs_needed;
+  VectorSet<StringRef> attrs_needed;
 
   for (GPUMaterial *gpu_material : Span<GPUMaterial *>(gpu_materials, mat_len)) {
     ListBase gpu_attrs = GPU_material_attributes(gpu_material);
@@ -355,11 +362,9 @@ gpu::Batch **pointcloud_surface_shaded_get(PointCloud *pointcloud,
     for (const int i : IndexRange(GPU_MAX_ATTR)) {
       GPU_VERTBUF_DISCARD_SAFE(cache->eval_cache.attributes_buf[i]);
     }
-    /* TODO: Locking and performance. */
-    cache->eval_cache.attr_used = attrs_needed;
+    merge_requests(cache->eval_cache.attr_used, attrs_needed);
   }
-  /* TODO: Locking and performance. */
-  cache->eval_cache.attr_used_over_time = attrs_needed;
+  merge_requests(cache->eval_cache.attr_used, attrs_needed);
 
   DRW_batch_request(&cache->eval_cache.surface_per_mat[0]);
   return cache->eval_cache.surface_per_mat;

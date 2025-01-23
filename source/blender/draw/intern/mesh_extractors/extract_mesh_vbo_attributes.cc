@@ -172,7 +172,7 @@ static void extract_data_bmesh_loop(const BMesh &bm, const int cd_offset, gpu::V
   }
 }
 
-const CustomDataLayer *lookup_layer_by_name(const CustomData &data, const StringRef name)
+static const CustomDataLayer *lookup_layer_by_name(const CustomData &data, const StringRef name)
 {
   const int index = CustomData_get_named_layer_index_notype(&data, name);
   if (index == -1) {
@@ -260,7 +260,7 @@ static void extract_attribute(const MeshRenderData &mr, const StringRef name, gp
 }
 
 void extract_attributes(const MeshRenderData &mr,
-                        const Span<StringRef> requests,
+                        const Span<std::string> requests,
                         const Span<gpu::VertBuf *> vbos)
 {
   for (const int i : vbos.index_range()) {
@@ -283,7 +283,7 @@ static eCustomDataType lookup_attribute_data_type(const MeshRenderData &mr, cons
 
 void extract_attributes_subdiv(const MeshRenderData &mr,
                                const DRWSubdivCache &subdiv_cache,
-                               const Span<StringRef> requests,
+                               const Span<std::string> requests,
                                const Span<gpu::VertBuf *> vbos)
 {
   for (const int i : vbos.index_range()) {

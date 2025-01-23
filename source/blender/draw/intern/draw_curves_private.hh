@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_vector_set.hh"
+
 #include "GPU_shader.hh"
 
 struct Curves;

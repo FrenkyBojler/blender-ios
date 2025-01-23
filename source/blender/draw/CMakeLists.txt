@@ -55,7 +55,6 @@ set(SRC
   intern/mesh_extractors/extract_mesh_vbo_uv.cc
   intern/mesh_extractors/extract_mesh_vbo_vnor.cc
   intern/mesh_extractors/extract_mesh_vbo_weights.cc
-  intern/draw_attributes.cc
   intern/draw_cache_impl_curve.cc
   intern/draw_cache_impl_curves.cc
   intern/draw_cache_impl_grease_pencil.cc

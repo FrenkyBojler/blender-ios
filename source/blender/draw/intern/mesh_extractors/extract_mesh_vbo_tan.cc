@@ -6,12 +6,15 @@
  * \ingroup draw
  */
 
+#include "BKE_customdata.hh"
 #include "BLI_string.h"
 
 #include "BKE_editmesh_tangent.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_tangent.hh"
 
+#include "BLI_vector_set.hh"
+#include "DNA_customdata_types.h"
 #include "extract_mesh.hh"
 
 #include "draw_subdivision.hh"
@@ -35,20 +38,22 @@ static void extract_tan_init_common(const MeshRenderData &mr,
                                                                              &mr.mesh->corner_data;
   const CustomData *cd_vdata = (mr.extract_type == MeshExtractType::BMesh) ? &mr.bm->vdata :
                                                                              &mr.mesh->vert_data;
-  uint32_t tan_layers = cache.cd_used.tan;
+  const VectorSet<std::string> *tan_layers = &cache.attr_used.tangents;
   const float3 *orco_ptr = static_cast<const float3 *>(CustomData_get_layer(cd_vdata, CD_ORCO));
   Span<float3> orco = orco_ptr ? Span(orco_ptr, mr.verts_num) : Span<float3>();
   Array<float3> orco_allocated;
-  bool use_orco_tan = cache.cd_used.tan_orco != 0;
+  bool use_orco_tan = cache.attr_used.tan_orco;
 
   int tan_len = 0;
 
   /* FIXME(#91838): This is to avoid a crash when orco tangent was requested but there are valid
    * uv layers. It would be better to fix the root cause. */
-  if (tan_layers == 0 && use_orco_tan &&
+  VectorSet<std::string> backup_tan_layers;
+  if (tan_layers->is_empty() && use_orco_tan &&
       CustomData_get_layer_index(cd_ldata, CD_PROP_FLOAT2) != -1)
   {
-    tan_layers = 1;
+    backup_tan_layers.add_new(CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2));
+    tan_layers = &backup_tan_layers;
     use_orco_tan = false;
   }
 
@@ -57,9 +62,9 @@ static void extract_tan_init_common(const MeshRenderData &mr,
   const Span<float3> vert_normals = mr.mesh->vert_normals();
 
   for (int i = 0; i < MAX_MTFACE; i++) {
-    if (tan_layers & (1 << i)) {
+    const char *layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
+    if (tan_layers->contains_as(layer_name)) {
       char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-      const char *layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
       GPU_vertformat_safe_attr_name(layer_name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
       /* Tangent layer name. */
       SNPRINTF(attr_name, "t%s", attr_safe_name);

@@ -8,7 +8,7 @@
  * \brief Mesh API for render engines
  */
 
-#include <optional>
+#include <algorithm>
 
 #include "MEM_guardedalloc.h"
 
@@ -22,7 +22,6 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_material.hh"
@@ -201,12 +200,22 @@ static void mesh_batch_cache_discard_batch(MeshBatchCache &cache, const DRWBatch
   }
 }
 
-static void merge_requests(MeshAttributeRequests &a,
-                           const MeshAttributeRequests &b,
-                           std::mutex &mutex)
+static void merge_requests(MeshAttributeRequests &merge_into,
+                           const MeshAttributeRequests &to_merge)
 {
-  std::lock_guard<std::mutex> lock(mutex);
-  // TODO
+  for (const StringRef name : to_merge.generic_requests) {
+    merge_into.generic_requests.add_as(name);
+  }
+  for (const StringRef name : to_merge.uv_maps) {
+    merge_into.uv_maps.add_as(name);
+  }
+  for (const StringRef name : to_merge.tangents) {
+    merge_into.tangents.add_as(name);
+  }
+  merge_into.orco |= to_merge.orco;
+  merge_into.tan_orco |= to_merge.tan_orco;
+  merge_into.sculpt_overlays |= to_merge.sculpt_overlays;
+  merge_into.edit_uv |= to_merge.edit_uv;
 }
 
 static void mesh_cd_calc_edit_uv_layer(const Mesh & /*mesh*/, MeshAttributeRequests *cd_used)
@@ -1163,6 +1172,11 @@ static void init_empty_dummy_batch(gpu::Batch &batch)
   GPU_batch_vertbuf_add(&batch, vbo, true);
 }
 
+static bool set_contains(const VectorSet<std::string> &a, const Span<std::string> b)
+{
+  return std::all_of(b.begin(), b.end(), [&](const StringRef value) { return a.contains(value); });
+}
+
 void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                            Object &ob,
                                            Mesh &mesh,
@@ -1234,7 +1248,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                                          &mesh;
       if (CustomData_get_layer(&me_final->vert_data, CD_ORCO) == nullptr) {
         /* Skip orco calculation */
-        cache.attr_needed.orco = 0;
+        cache.attr_needed.orco = false;
       }
     }
 
@@ -1242,29 +1256,35 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
      */
     /* TODO(fclem): We could be a bit smarter here and only do it per
      * material. */
-    bool attr_overlap = drw_attributes_overlap(&cache.attr_used, &cache.attr_needed);
-    if (attr_overlap == false) {
-      FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
-        if ((cache.attr_used.uv_maps & cache.attr_needed.uv_maps) != cache.attr_needed.uv_maps) {
-          GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.uv);
-          cd_uv_update = true;
-        }
-        if ((cache.attr_used.tangents & cache.attr_needed.tangents) !=
-                cache.attr_needed.tangents ||
-            cache.attr_used.tan_orco != cache.attr_needed.tan_orco)
-        {
-          GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.tan);
-        }
-        if (cache.attr_used.orco != cache.attr_needed.orco) {
-          GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.orco);
-        }
-        if (cache.attr_used.sculpt_overlays != cache.attr_needed.sculpt_overlays) {
-          GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.sculpt_data);
-        }
+    bool any_missing_data = false;
+    FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
+      if (!set_contains(cache.attr_used.uv_maps, cache.attr_needed.uv_maps)) {
+        GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.uv);
+        cd_uv_update = true;
+        any_missing_data = true;
+      }
+      if (!set_contains(cache.attr_used.tangents, cache.attr_needed.tangents) ||
+          cache.attr_used.tan_orco != cache.attr_needed.tan_orco)
+      {
+        GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.tan);
+        any_missing_data = true;
+      }
+      if (cache.attr_used.orco != cache.attr_needed.orco) {
+        GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.orco);
+        any_missing_data = true;
+      }
+      if (cache.attr_used.sculpt_overlays != cache.attr_needed.sculpt_overlays) {
+        GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.sculpt_data);
+        any_missing_data = true;
+      }
+      if (!set_contains(cache.attr_used.generic_requests, cache.attr_needed.generic_requests)) {
         for (int i = 0; i < GPU_MAX_ATTR; i++) {
           GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.attr[i]);
         }
+        any_missing_data = true;
       }
+    }
+    if (any_missing_data) {
       /* We can't discard batches at this point as they have been
        * referenced for drawing. Just clear them in place. */
       for (int i = 0; i < cache.mat_len; i++) {
@@ -1273,10 +1293,10 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       GPU_BATCH_CLEAR_SAFE(cache.batch.surface);
       cache.batch_ready &= ~(MBC_SURFACE);
 
-      merge_requests(cache.attr_used, cache.attr_needed, mesh.runtime->render_mutex);
+      merge_requests(cache.attr_used, cache.attr_needed);
     }
 
-    merge_requests(cache.attr_used_over_time, cache.attr_needed, mesh.runtime->render_mutex);
+    merge_requests(cache.attr_used_over_time, cache.attr_needed);
     cache.attr_needed = {};
   }
 

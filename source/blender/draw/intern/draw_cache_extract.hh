@@ -33,9 +33,9 @@ struct MeshRenderData;
 struct DRWSubdivCache;
 
 struct MeshAttributeRequests {
-  VectorSet<StringRef> generic_requests;
-  VectorSet<StringRef> uv_maps;
-  VectorSet<StringRef> tangents;
+  VectorSet<std::string> generic_requests;
+  VectorSet<std::string> uv_maps;
+  VectorSet<std::string> tangents;
   bool orco = false;
   bool tan_orco = false;
   bool sculpt_overlays = false;
@@ -274,7 +274,22 @@ struct MeshBatchCache {
 
   DRW_MeshWeightState weight_state;
 
-  MeshAttributeRequests attr_used, attr_needed, attr_used_over_time;
+  /**
+   * The attributes needed by viewports (reset once mesh extraction is done).
+   */
+  MeshAttributeRequests attr_needed;
+  /**
+   * The attributes that are extracted aka present in the cache. It should be reset when recreating
+   * the material batches.
+   */
+  MeshAttributeRequests attr_used;
+  /**
+   * Attributes that have been requested between two collect ticks (see U.vbocollectrate). If at
+   * one collect tick #attr_used_over_time differs from #attr_used, it means we have unused
+   * attributes. If the unused attributes are there for more than U.vbotimeout, we discard shaded
+   * tris and re-extract only the needed ones (see #DRW_mesh_batch_cache_free_old).
+   */
+  MeshAttributeRequests attr_used_over_time;
 
   int lastmatch;
 

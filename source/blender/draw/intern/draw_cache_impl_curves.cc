@@ -30,7 +30,6 @@
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
-#include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
 
 #include "GPU_batch.hh"
@@ -653,6 +652,13 @@ static void calc_final_indices(const bke::CurvesGeometry &curves,
   cache.final.proc_hairs = GPU_batch_create_ex(prim_type, vbo, ibo, owns_flag);
 }
 
+static void merge_requests(VectorSet<std::string> &merge_into, const Span<StringRef> to_merge)
+{
+  for (const StringRef name : to_merge) {
+    merge_into.add_as(name);
+  }
+}
+
 static bool ensure_attributes(const Curves &curves,
                               CurvesBatchCache &cache,
                               const GPUMaterial *gpu_material)
@@ -660,14 +666,13 @@ static bool ensure_attributes(const Curves &curves,
   CurvesEvalFinalCache &final_cache = cache.eval_cache.final;
 
   if (gpu_material) {
-    /* The following code should be kept in sync with `mesh_cd_calc_used_gpu_layers`. */
-    VectorSet<std::string> attrs_needed;
+    VectorSet<StringRef> attrs_needed;
     ListBase gpu_attrs = GPU_material_attributes(gpu_material);
     LISTBASE_FOREACH (const GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
       attrs_needed.add_as(gpu_attr->name);
     }
 
-    if (std::any_of(attrs_needed.begin(), attrs_needed.end(), [&](const std::string &name) {
+    if (std::any_of(attrs_needed.begin(), attrs_needed.end(), [&](const StringRef name) {
           return !final_cache.attr_used.contains(name);
         }))
     {
@@ -676,29 +681,27 @@ static bool ensure_attributes(const Curves &curves,
         GPU_VERTBUF_DISCARD_SAFE(final_cache.attributes_buf[i]);
         GPU_VERTBUF_DISCARD_SAFE(cache.eval_cache.proc_attributes_buf[i]);
       }
-      /* TODO: Locking and performance. */
-      final_cache.attr_used = attrs_needed;
+      merge_requests(final_cache.attr_used, attrs_needed);
     }
-    /* TODO: Locking and performance. */
-    final_cache.attr_used_over_time = attrs_needed;
+    merge_requests(final_cache.attr_used_over_time, attrs_needed);
   }
 
   bool need_tf_update = false;
 
   const bke::AttributeAccessor attributes = curves.geometry.wrap().attributes();
   for (const int i : final_cache.attr_used.index_range()) {
-    const StringRef request = final_cache.attr_used[i];
+    const StringRef name = final_cache.attr_used[i];
     if (cache.eval_cache.final.attributes_buf[i] != nullptr) {
       continue;
     }
-    const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(request);
+    const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
     if (!meta_data) {
       continue;
     }
     if (meta_data->domain == bke::AttrDomain::Point) {
       need_tf_update = true;
     }
-    ensure_final_attribute(curves, cache.eval_cache, request, meta_data->domain, i);
+    ensure_final_attribute(curves, cache.eval_cache, name, meta_data->domain, i);
   }
 
   return need_tf_update;

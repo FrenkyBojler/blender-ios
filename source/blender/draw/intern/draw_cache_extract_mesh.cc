@@ -684,7 +684,7 @@ void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
         [](void *__restrict task_data) {
           const TaskData &data = *static_cast<TaskData *>(task_data);
           extract_attributes(data.mr,
-                             {data.cache.attr_used.requests, GPU_MAX_ATTR},
+                             data.cache.attr_used.generic_requests,
                              {data.buffers.vbo.attr, GPU_MAX_ATTR});
         },
         new TaskData{*mr, buffers, cache},
@@ -851,10 +851,8 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
     extract_edituv_points_subdiv(mr, subdiv_cache, *buffers.ibo.edituv_points);
   }
   if (attrs_requested) {
-    extract_attributes_subdiv(mr,
-                              subdiv_cache,
-                              {cache.attr_used.requests, GPU_MAX_ATTR},
-                              {buffers.vbo.attr, GPU_MAX_ATTR});
+    extract_attributes_subdiv(
+        mr, subdiv_cache, cache.attr_used.generic_requests, {buffers.vbo.attr, GPU_MAX_ATTR});
   }
 }
 
