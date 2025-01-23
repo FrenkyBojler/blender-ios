@@ -21,12 +21,12 @@ static CLG_LogRef LOG = {"gpu.vulkan"};
 namespace blender::gpu {
 void VKContext::debug_group_begin(const char *name, int)
 {
-  //render_graph().debug_group_begin(name, debug::get_debug_group_color(name));
+  render_graph().debug_group_begin(name, debug::get_debug_group_color(name));
 }
 
 void VKContext::debug_group_end()
 {
-  //render_graph().debug_group_end();
+  render_graph().debug_group_end();
 }
 
 bool VKContext::debug_capture_begin(const char *title)

@@ -111,6 +111,9 @@ void VKContext::activate()
   if (!render_graph_.has_value()) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
         *device.render_graph_new());
+    for (const StringRef &group : debug_stack) {
+      debug_group_begin(std::string(group).c_str(), 0);
+    }
   }
 
   imm = &thread_data.resource_pool_get().immediate;
@@ -161,6 +164,9 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags)
   if (bool(flags & RenderGraphFlushFlags::RENEW_RENDER_GRAPH)) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
         *device.render_graph_new());
+    for (const StringRef &group : debug_stack) {
+      debug_group_begin(std::string(group).c_str(), 0);
+    }
   }
   return timeline;
 }
