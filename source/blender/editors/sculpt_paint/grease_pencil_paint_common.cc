@@ -694,6 +694,12 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
     }
   }
 
+  /* When we mask by the initial strokes under the cursor, the other masking options don't affect
+   * the resulting mask. So we can skip the second loop. */
+  if (use_auto_mask_stroke) {
+    return;
+  }
+
   threading::parallel_for_each(drawings.index_range(), [&](const int drawing_i) {
     const MutableDrawingInfo &drawing_info = drawings[drawing_i];
     AutoMaskingInfo &automask_info = this->auto_masking_info_per_drawing[drawing_i];
