@@ -5,14 +5,18 @@
 #include <memory>
 #include <variant>
 
+#include "BLI_generic_array.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_math_vector_types.hh"
-#include "DNA_brush_types.h"
 
-#include "FN_multi_function_builder.hh"
+#include "DNA_brush_types.h"
+#include "DNA_mesh_types.h"
+
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
+#include "BKE_attribute.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_node_runtime.hh"
@@ -21,6 +25,7 @@
 
 #include "FN_field.hh"
 #include "FN_lazy_function_execute.hh"
+#include "FN_multi_function_builder.hh"
 
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "sculpt_intern.hh"
@@ -235,7 +240,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
 }
 
 class MeshSculptFieldContext : public fn::FieldContext {
- private:
+  const Mesh &mesh_;
   Span<int> verts_;
   Span<float3> vert_positions_;
   Span<float3> vert_normals_;
@@ -246,6 +251,7 @@ class MeshSculptFieldContext : public fn::FieldContext {
                          const Span<int> verts,
                          const Span<float3> vert_positions)
       : fn::FieldContext(),
+        mesh_(*static_cast<const Mesh *>(object.data)),
         verts_(verts),
         vert_positions_(vert_positions),
         vert_normals_(bke::pbvh::vert_normals_eval(depsgraph, object))
@@ -274,6 +280,14 @@ class MeshSculptFieldContext : public fn::FieldContext {
       if (attr->attribute_name() == "position") {
         return this->positions();
       }
+      if (const bke::GAttributeReader attribute = mesh_.attributes().lookup(
+              attr->attribute_name(), bke::AttrDomain::Point))
+      {
+        GArray<> compressed(attribute.varray.type(), verts_.size());
+        bke::attribute_math::gather(attribute.varray, verts_, compressed.as_mutable_span());
+        return GVArray::ForGArray(std::move(compressed));
+      }
+      return {};
     }
     if (dynamic_cast<const bke::NormalFieldInput *>(&field_input)) {
       return this->normals();
