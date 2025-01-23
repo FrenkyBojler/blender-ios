@@ -123,26 +123,19 @@ static void apply_fcu_segment_function(bAnimContext *ac,
 
 static void common_draw_status_header(bContext *C, tGraphSliderOp *gso, const char *operator_name)
 {
-  char status_str[UI_MAX_DRAW_STR];
-  char mode_str[32];
-  char slider_string[UI_MAX_DRAW_STR];
-
-  ED_slider_status_string_get(gso->slider, slider_string, UI_MAX_DRAW_STR);
-
-  STRNCPY(mode_str, IFACE_(operator_name));
-
+  WorkspaceStatus status(C);
+  status.item(IFACE_(operator_name), ICON_NONE);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Change"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
-
     outputNumInput(&gso->num, str_ofs, gso->scene->unit);
-
-    SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
+    status.item(str_ofs, ICON_NONE);
   }
   else {
-    SNPRINTF(status_str, "%s: %s", mode_str, slider_string);
+    ED_slider_status_get(gso->slider, status);
   }
-
-  ED_workspace_status_text(C, status_str);
 }
 
 /**
@@ -453,26 +446,19 @@ static void decimate_graph_keys(bAnimContext *ac, float factor, float error_sq_m
 /* Draw a percentage indicator in workspace footer. */
 static void decimate_draw_status(bContext *C, tGraphSliderOp *gso)
 {
-  char status_str[UI_MAX_DRAW_STR];
-  char mode_str[32];
-  char slider_string[UI_MAX_DRAW_STR];
-
-  ED_slider_status_string_get(gso->slider, slider_string, UI_MAX_DRAW_STR);
-
-  STRNCPY(mode_str, IFACE_("Decimate Keyframes"));
-
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Decimate Keyframes"), ICON_NONE);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Change"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
-
     outputNumInput(&gso->num, str_ofs, gso->scene->unit);
-
-    SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
+    status.item(str_ofs, ICON_NONE);
   }
   else {
-    SNPRINTF(status_str, "%s: %s", mode_str, slider_string);
+    ED_slider_status_get(gso->slider, status);
   }
-
-  ED_workspace_status_text(C, status_str);
 }
 
 static void decimate_modal_update(bContext *C, wmOperator *op)
@@ -952,36 +938,27 @@ static void ease_graph_keys(bAnimContext *ac, const float factor, const float wi
 
 static void ease_draw_status_header(bContext *C, wmOperator *op)
 {
-  char status_str[UI_MAX_DRAW_STR];
-  char mode_str[32];
-  char slider_string[UI_MAX_DRAW_STR];
-
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
-  ED_slider_status_string_get(gso->slider, slider_string, UI_MAX_DRAW_STR);
-
-  /* Operator specific functionality that extends beyond the slider. */
-  char op_slider_string[UI_MAX_DRAW_STR];
-  if (STREQ(RNA_property_identifier(gso->factor_prop), "factor")) {
-    SNPRINTF(op_slider_string, "%s | %s", slider_string, IFACE_("[TAB] - Modify Sharpness"));
-  }
-  else {
-    SNPRINTF(op_slider_string, "%s | %s", slider_string, IFACE_("[TAB] - Modify Curve Bend"));
-  }
-
-  STRNCPY(mode_str, IFACE_("Ease Keys"));
-
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Ease Keys"), ICON_NONE);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Change"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
-
     outputNumInput(&gso->num, str_ofs, gso->scene->unit);
-
-    SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
+    status.item(str_ofs, ICON_NONE);
   }
   else {
-    SNPRINTF(status_str, "%s: %s", mode_str, op_slider_string);
+    ED_slider_status_get(gso->slider, status);
+    /* Operator specific functionality that extends beyond the slider. */
+    if (STREQ(RNA_property_identifier(gso->factor_prop), "factor")) {
+      status.item(IFACE_("Modify Sharpness"), ICON_EVENT_TAB);
+    }
+    else {
+      status.item(IFACE_("Modify Curve Bend"), ICON_EVENT_TAB);
+    }
   }
-
-  ED_workspace_status_text(C, status_str);
 }
 
 static void ease_modal_update(bContext *C, wmOperator *op)
@@ -1567,26 +1544,20 @@ static void shear_graph_keys(bAnimContext *ac, const float factor, tShearDirecti
 
 static void shear_draw_status_header(bContext *C, tGraphSliderOp *gso)
 {
-  char status_str[UI_MAX_DRAW_STR];
-  char mode_str[32];
-  char slider_string[UI_MAX_DRAW_STR];
-  ED_slider_status_string_get(gso->slider, slider_string, UI_MAX_DRAW_STR);
-
-  STRNCPY(mode_str, IFACE_("Shear Keys"));
-
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Shear Keys"), ICON_NONE);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Change"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
-
     outputNumInput(&gso->num, str_ofs, gso->scene->unit);
-
-    SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
+    status.item(str_ofs, ICON_NONE);
   }
   else {
-    const char *operator_string = IFACE_("D - Toggle Direction");
-    SNPRINTF(status_str, "%s: %s | %s", mode_str, slider_string, operator_string);
+    ED_slider_status_get(gso->slider, status);
+    status.item("Toggle Direction", ICON_EVENT_D);
   }
-
-  ED_workspace_status_text(C, status_str);
 }
 
 static void shear_modal_update(bContext *C, wmOperator *op)
@@ -2442,40 +2413,32 @@ static void scale_from_neighbor_graph_keys(bAnimContext *ac,
 
 static void scale_from_neighbor_draw_status_header(bContext *C, wmOperator *op)
 {
-  char status_str[UI_MAX_DRAW_STR];
-  char mode_str[32];
-  char slider_string[UI_MAX_DRAW_STR];
-
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
-  ED_slider_status_string_get(gso->slider, slider_string, UI_MAX_DRAW_STR);
-
-  /* Operator specific functionality that extends beyond the slider. */
-  char op_slider_string[UI_MAX_DRAW_STR];
-  const FCurveSegmentAnchor anchor = FCurveSegmentAnchor(RNA_enum_get(op->ptr, "anchor"));
-  switch (anchor) {
-    case FCurveSegmentAnchor::LEFT:
-      SNPRINTF(op_slider_string, "%s | %s", slider_string, IFACE_("[D] - Scale From Right End"));
-      break;
-
-    case FCurveSegmentAnchor::RIGHT:
-      SNPRINTF(op_slider_string, "%s | %s", slider_string, IFACE_("[D] - Scale From Left End"));
-      break;
-  }
-
-  STRNCPY(mode_str, IFACE_("Scale from Neighbor Keys"));
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Scale from Neighbor Keys"), ICON_NONE);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Change"), ICON_MOUSE_MOVE);
 
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
-
     outputNumInput(&gso->num, str_ofs, gso->scene->unit);
-
-    SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
+    status.item(str_ofs, ICON_NONE);
   }
   else {
-    SNPRINTF(status_str, "%s: %s", mode_str, op_slider_string);
+    ED_slider_status_get(gso->slider, status);
+    /* Operator specific functionality that extends beyond the slider. */
+    char op_slider_string[UI_MAX_DRAW_STR];
+    const FCurveSegmentAnchor anchor = FCurveSegmentAnchor(RNA_enum_get(op->ptr, "anchor"));
+    switch (anchor) {
+      case FCurveSegmentAnchor::LEFT:
+        status.item(IFACE_("Scale From Right End"), ICON_EVENT_D);
+        break;
+      case FCurveSegmentAnchor::RIGHT:
+        status.item(IFACE_("Scale From Left End"), ICON_EVENT_D);
+        break;
+    }
   }
-
-  ED_workspace_status_text(C, status_str);
 }
 
 static void scale_from_neighbor_modal_update(bContext *C, wmOperator *op)
