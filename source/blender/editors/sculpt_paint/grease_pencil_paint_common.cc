@@ -504,7 +504,7 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
   Object &object = *CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
-  std::atomic<bool> changed = false;
+  bool changed = false;
   const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
   for (const int64_t i : drawings.index_range()) {
     const MutableDrawingInfo &info = drawings[i];
