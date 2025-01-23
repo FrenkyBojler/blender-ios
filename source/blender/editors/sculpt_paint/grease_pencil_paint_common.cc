@@ -688,8 +688,8 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
       }
 
       if (use_auto_mask_material) {
-        VArray<int> material_indices = *attributes.lookup<int>("material_index",
-                                                               bke::AttrDomain::Curve);
+        const VArraySpan<int> material_indices = *attributes.lookup<int>("material_index",
+                                                                         bke::AttrDomain::Curve);
         strokes_under_brush.foreach_index(
             [&](const int curve_i) { masked_material_indices.add(material_indices[curve_i]); });
       }
@@ -707,7 +707,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
 
     if (use_auto_mask_material) {
       const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
-      VArray<int> material_indices = *curves.attributes().lookup<int>("material_index");
+      const VArraySpan<int> material_indices = *curves.attributes().lookup<int>("material_index");
       IndexMaskMemory memory;
       const IndexMask masked_curves = IndexMask::from_predicate(
           curves.curves_range(), GrainSize(1024), memory, [&](const int curve_i) {
