@@ -510,8 +510,14 @@ void smooth_fcurve(FCurve *fcu);
 
 /* ----------- */
 
-void ANIM_fcurves_copybuf_free();
-short copy_animedit_keys(bAnimContext *ac, ListBase *anim_data);
+void ANIM_fcurves_copybuf_reset();
+
+/**
+ * Copy animation keys into the copy buffer.
+ *
+ * \returns Whether anything was copied into the buffer.
+ */
+bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data);
 eKeyPasteError paste_animedit_keys(bAnimContext *ac,
                                    ListBase *anim_data,
                                    eKeyPasteOffset offset_mode,
