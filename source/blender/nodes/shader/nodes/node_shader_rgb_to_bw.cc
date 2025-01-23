@@ -6,6 +6,10 @@
  * \ingroup shdnodes
  */
 
+#include "GPU_material.hh"
+
+#include "IMB_colormanagement.hh"
+
 #include "node_shader_util.hh"
 
 namespace blender::nodes::node_shader_rgb_to_bw_cc {
@@ -22,14 +26,16 @@ static int gpu_shader_rgbtobw(GPUMaterial *mat,
                               GPUNodeStack *in,
                               GPUNodeStack *out)
 {
-  return GPU_stack_link(mat, node, "rgbtobw", in, out);
+  float coefficients[3];
+  IMB_colormanagement_get_luminance_coefficients(coefficients);
+  return GPU_stack_link(mat, node, "rgbtobw", in, out, GPU_constant(coefficients));
 }
 
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  NodeItem color = get_input_value("Color", NodeItem::Type::Color4);
-  return create_node("luminance", NodeItem::Type::Color4, {{"in", color}});
+  NodeItem color = get_input_value("Color", NodeItem::Type::Color3);
+  return create_node("luminance", NodeItem::Type::Color3, {{"in", color}});
 }
 #endif
 NODE_SHADER_MATERIALX_END
