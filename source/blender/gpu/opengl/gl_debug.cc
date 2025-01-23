@@ -405,7 +405,6 @@ void GLContext::debug_group_begin(const char *name, int index)
   TimeQuery query = {};
   query.name = name;
   query.finished = false;
-  query.stack_depth = debug_stack.size();
 
   glGetInteger64v(GL_TIMESTAMP, &query.cpu_start);
   /* Use GL_TIMESTAMP instead of GL_ELAPSED_TIME to support nested debug groups */
@@ -483,18 +482,6 @@ void GLContext::process_frame_timings()
       break;
     }
 
-    GLuint64 begin_timestamp = 0;
-    GLuint64 end_timestamp = 0;
-    glGetQueryObjectui64v(queries.first().start, GL_QUERY_RESULT, &begin_timestamp);
-    glGetQueryObjectui64v(queries[last_query].end, GL_QUERY_RESULT, &end_timestamp);
-
-    float gpu_total_time = (end_timestamp - begin_timestamp) / 1000000.0;
-
-    float cpu_total_time = (queries[last_query].cpu_end - queries.first().cpu_start) / 1000000.0;
-
-    ProfileReport report;
-    report.begin(gpu_total_time, cpu_total_time);
-
     for (TimeQuery &query : queries) {
       GLuint64 gpu_start = 0;
       GLuint64 gpu_end = 0;
@@ -502,11 +489,10 @@ void GLContext::process_frame_timings()
       glGetQueryObjectui64v(query.end, GL_QUERY_RESULT, &gpu_end);
       glDeleteQueries(2, query.handles);
 
-      report.add_group(
-          query.name, query.stack_depth, gpu_start, gpu_end, query.cpu_start, query.cpu_end);
+      ProfileReport::get().add_group(
+          query.name, gpu_start, gpu_end, query.cpu_start, query.cpu_end);
     }
 
-    report.end();
     frame_timings.remove(frame_i--);
   }
 

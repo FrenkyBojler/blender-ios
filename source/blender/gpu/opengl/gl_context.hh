@@ -98,7 +98,6 @@ class GLContext : public Context {
         GLuint start, end;
       };
     };
-    int stack_depth;
     bool finished;
     int64_t cpu_start;
     int64_t cpu_end;
