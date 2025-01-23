@@ -5,6 +5,7 @@
 #include <memory>
 #include <variant>
 
+#include "BLI_array_utils.hh"
 #include "BLI_generic_array.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_math_vector_types.hh"
@@ -293,6 +294,14 @@ class MeshSculptFieldContext : public fn::FieldContext {
       return this->normals();
     }
     if (dynamic_cast<const fn::IndexFieldInput *>(&field_input)) {
+      return VArray<int>::ForSpan(verts_);
+    }
+    if (dynamic_cast<const bke::IDAttributeFieldInput *>(&field_input)) {
+      if (const VArray<int> id = *mesh_.attributes().lookup<int>("id", bke::AttrDomain::Point)) {
+        Array<int> compressed(verts_.size());
+        array_utils::gather(id, verts_, compressed.as_mutable_span());
+        return VArray<int>::ForContainer(std::move(compressed));
+      };
       return VArray<int>::ForSpan(verts_);
     }
     return field_input.get_varray_for_context(*this, mask, scope);
