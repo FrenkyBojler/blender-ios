@@ -163,6 +163,17 @@ int BKE_object_material_count_eval(const Object *ob);
  * empty or if all material indices are negative.
  */
 std::optional<int> BKE_id_material_index_max_eval(const ID &id);
+
+/**
+ * Gets the number of material slots used by the geometry. The corresponding material for each slot
+ * can be retrieved with #BKE_object_material_get_eval.
+ *
+ * These two functions give the same result when the mesh is provided itself, or an object that
+ * uses the mesh.
+ *
+ * NOTE: This may be higher or lower than the number of material slots on the object or
+ * object-data. However, it is always at least 1 (the fallback).
+ */
 int BKE_id_material_used_with_fallback_eval(const ID &id);
 int BKE_object_material_used_with_fallback_eval(const Object &ob);
 
