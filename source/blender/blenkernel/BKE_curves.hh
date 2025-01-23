@@ -305,6 +305,8 @@ class CurvesGeometry : public ::CurvesGeometry {
 
   void count_memory(MemoryCounter &memory) const;
 
+  int material_index_max() const;
+
  private:
   /* --------------------------------------------------------------------
    * Evaluation.

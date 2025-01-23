@@ -155,11 +155,14 @@ Material *BKE_object_material_get_eval(Object *ob, short act);
  * This is the maximum of the number of material slots on the object and geometry.
  */
 int BKE_object_material_count_eval(const Object *ob);
+
 /**
- * Same as #BKE_object_material_count_eval, but returns at least one. This is commonly used in
- * rendering code which has to use a fallback material if there is none.
+ * Returns the maximum material index used by the geometry. This returns zero if the geometry is
+ * empty or if all material indices are negative.
  */
-int BKE_object_material_count_with_fallback_eval(const Object *ob);
+int BKE_id_material_index_max_eval(const ID &id);
+int BKE_id_material_used_with_fallback_eval(const ID &id);
+int BKE_object_material_used_with_fallback_eval(const Object &ob);
 
 void BKE_id_material_eval_assign(ID *id, int slot, Material *material);
 /**

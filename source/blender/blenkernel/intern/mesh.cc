@@ -20,6 +20,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
+#include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
 #include "BLI_endian_switch.h"
 #include "BLI_ghash.h"
@@ -1350,6 +1351,15 @@ void BKE_mesh_transform(Mesh *mesh, const float mat[4][4], bool do_keys)
   }
 
   mesh->tag_positions_changed();
+}
+
+int Mesh::material_index_max() const
+{
+  return *blender::array_utils::max<int>(
+      this->attributes()
+          .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
+          .varray,
+      0);
 }
 
 static void translate_positions(MutableSpan<float3> positions, const float3 &translation)

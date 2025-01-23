@@ -3222,6 +3222,20 @@ void GreasePencil::count_memory(blender::MemoryCounter &memory) const
   }
 }
 
+int GreasePencil::material_index_max_eval() const
+{
+  using namespace blender;
+  using namespace blender::bke;
+  int max_index = 0;
+  for (const greasepencil::Layer *layer : this->layers()) {
+    if (const greasepencil::Drawing *drawing = this->get_eval_drawing(*layer)) {
+      const bke::CurvesGeometry &curves = drawing->strokes();
+      max_index = std::max(max_index, curves.material_index_max());
+    }
+  }
+  return max_index;
+}
+
 blender::Span<const blender::bke::greasepencil::Layer *> GreasePencil::layers() const
 {
   BLI_assert(this->runtime != nullptr);

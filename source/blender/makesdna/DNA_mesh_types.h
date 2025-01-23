@@ -310,6 +310,12 @@ typedef struct Mesh {
   void bounds_set_eager(const blender::Bounds<blender::float3> &bounds);
 
   /**
+   * Get the largest used material index (or zero if the mesh is empty or the material indices are
+   * negative).
+   */
+  int material_index_max() const;
+
+  /**
    * Cached map containing the index of the face using each face corner.
    */
   blender::Span<int> corner_to_face_map() const;

@@ -66,6 +66,8 @@ typedef struct PointCloud {
 
   std::optional<blender::Bounds<blender::float3>> bounds_min_max() const;
 
+  int material_index_max() const;
+
   void count_memory(blender::MemoryCounter &memory) const;
 #endif
 

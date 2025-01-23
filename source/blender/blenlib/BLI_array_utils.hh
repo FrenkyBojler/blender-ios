@@ -308,4 +308,31 @@ bool indexed_data_equal(const Span<T> all_values, const Span<int> indices, const
 
 bool indices_are_range(Span<int> indices, IndexRange range);
 
+/**
+ * Finds the maximum value for elements in the array.
+ */
+template<typename T>
+inline std::optional<T> max(const VArray<T> &values, const std::optional<T> initial = std::nullopt)
+{
+  if (values.is_empty()) {
+    return initial;
+  }
+  const T initial_value = initial.value_or(std::numeric_limits<T>::min());
+  if (const std::optional<T> value = values.get_if_single()) {
+    return std::max(*value, initial_value);
+  }
+  const VArraySpan<int> values_span = values;
+  return threading::parallel_reduce(
+      values_span.index_range(),
+      2048,
+      initial_value,
+      [&](const IndexRange range, int current_max) {
+        for (const int value : values_span.slice(range)) {
+          current_max = std::max(current_max, value);
+        }
+        return current_max;
+      },
+      [](const int a, const int b) { return std::max(a, b); });
+}
+
 }  // namespace blender::array_utils

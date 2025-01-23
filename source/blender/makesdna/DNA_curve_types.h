@@ -315,6 +315,10 @@ typedef struct Curve {
   char _pad3[7];
 
   void *batch_cache;
+
+#ifdef __cplusplus
+  int material_index_max() const;
+#endif
 } Curve;
 
 #define CURVE_VFONT_ANY(cu) ((cu)->vfont), ((cu)->vfontb), ((cu)->vfonti), ((cu)->vfontbi)
