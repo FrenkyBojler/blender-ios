@@ -161,7 +161,7 @@ void GLContext::begin_frame()
 
 void GLContext::end_frame()
 {
-  /* No-op. */
+  process_frame_timings();
 }
 
 /** \} */
