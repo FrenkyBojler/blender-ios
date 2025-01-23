@@ -86,7 +86,6 @@ GPU_SHADER_NAMED_INTERFACE_INFO(overlay_edit_mesh_edge_geom_noperspective_iface,
 NO_PERSPECTIVE(FLOAT, edgeCoord)
 GPU_SHADER_NAMED_INTERFACE_END(geometry_noperspective_out)
 
-/* TODO(pragma37): This one is not selectable? */
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_edge)
 DO_STATIC_COMPILATION()
 DEFINE("EDGE")
@@ -109,6 +108,8 @@ ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(overlay_edit_mesh_common)
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_edge)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_face)
 DO_STATIC_COMPILATION()
@@ -143,6 +144,8 @@ ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(overlay_edit_mesh_common)
 GPU_SHADER_CREATE_END()
 
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_facedot)
+
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_normal)
 PUSH_CONSTANT(IVEC2, gpu_attr_0)
 PUSH_CONSTANT(IVEC2, gpu_attr_1)
@@ -156,6 +159,8 @@ FRAGMENT_OUT(0, VEC4, fragColor)
 VERTEX_SOURCE("overlay_edit_mesh_normal_vert.glsl")
 FRAGMENT_SOURCE("overlay_varying_color.glsl")
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_normal)
 
 GPU_SHADER_CREATE_INFO(overlay_mesh_face_normal)
 DO_STATIC_COMPILATION()
@@ -539,6 +544,8 @@ ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curve_normals)
 
 /** \} */
 

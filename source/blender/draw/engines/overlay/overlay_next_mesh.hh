@@ -135,6 +135,7 @@ class Meshes : Overlay {
                      state.clipping_plane_count);
       pass.shader_set(res.shaders.mesh_edit_depth.get());
       pass.push_constant("retopologyOffset", retopology_offset);
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     }
     {
       /* Normals */
