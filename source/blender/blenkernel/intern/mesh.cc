@@ -167,6 +167,7 @@ static void mesh_copy_data(Main *bmain,
   mesh_dst->runtime->bvh_cache_loose_edges = mesh_src->runtime->bvh_cache_loose_edges;
   mesh_dst->runtime->bvh_cache_loose_edges_no_hidden =
       mesh_src->runtime->bvh_cache_loose_edges_no_hidden;
+  mesh_dst->runtime->max_material_index = mesh_src->runtime->max_material_index;
   if (mesh_src->runtime->bake_materials) {
     mesh_dst->runtime->bake_materials = std::make_unique<blender::bke::bake::BakeMaterialsList>(
         *mesh_src->runtime->bake_materials);
@@ -1355,11 +1356,14 @@ void BKE_mesh_transform(Mesh *mesh, const float mat[4][4], bool do_keys)
 
 int Mesh::material_index_max() const
 {
-  return *blender::array_utils::max<int>(
-      this->attributes()
-          .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
-          .varray,
-      0);
+  this->runtime->max_material_index.ensure([&](int &value) {
+    value = *blender::array_utils::max<int>(
+        this->attributes()
+            .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
+            .varray,
+        0);
+  });
+  return this->runtime->max_material_index.data();
 }
 
 static void translate_positions(MutableSpan<float3> positions, const float3 &translation)

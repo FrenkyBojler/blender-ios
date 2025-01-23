@@ -435,6 +435,8 @@ typedef struct Mesh {
   void tag_topology_changed();
   /** Call when changing the ".hide_vert", ".hide_edge", or ".hide_poly" attributes. */
   void tag_visibility_changed();
+  /** Call when changing the "material_index" attribute. */
+  void tag_material_index_changed();
 #endif
 } Mesh;
 
