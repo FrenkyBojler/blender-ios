@@ -8,20 +8,15 @@
  * Converts the different renderable object types to drawcalls.
  */
 
-#include "eevee_engine.h"
-
-#include "BKE_gpencil_legacy.h"
-#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
-#include "DEG_depsgraph_query.hh"
 #include "DNA_curves_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_volume_types.h"
 
+#include "draw_cache.hh"
 #include "draw_common.hh"
 #include "draw_sculpt.hh"
 
@@ -106,10 +101,9 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
 
   MaterialArray &material_array = inst_.materials.material_array_get(ob, has_motion);
 
-  gpu::Batch **mat_geom = DRW_cache_object_surface_material_get(
-      ob, material_array.gpu_materials.data(), material_array.gpu_materials.size());
-
-  if (mat_geom == nullptr) {
+  Span<gpu::Batch *> mat_geom = DRW_cache_object_surface_material_get(
+      ob, material_array.gpu_materials);
+  if (mat_geom.is_empty()) {
     return;
   }
 

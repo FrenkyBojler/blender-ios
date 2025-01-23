@@ -10,6 +10,7 @@
 /* Shrinkwrap stuff */
 #include "BKE_bvhutils.hh"
 
+#include "BKE_context.hh"
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -29,6 +30,7 @@
  * (So that you don't have to pass an enormous amount of arguments to functions)
  */
 
+struct Depsgraph;
 struct BVHTree;
 struct MDeformVert;
 struct Mesh;
@@ -80,7 +82,7 @@ struct ShrinkwrapTreeData {
   Mesh *mesh;
 
   const BVHTree *bvh;
-  BVHTreeFromMesh treeData;
+  blender::bke::BVHTreeFromMesh treeData;
 
   blender::OffsetIndices<int> faces;
   blender::Span<blender::int2> edges;
@@ -121,13 +123,6 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd,
                                int defgrp_index,
                                float (*vertexCos)[3],
                                int numVerts);
-/* Implementation of the Shrinkwrap Grease Pencil modifier. */
-void shrinkwrapGpencilModifier_deform(ShrinkwrapGpencilModifierData *mmd,
-                                      Object *ob,
-                                      MDeformVert *dvert,
-                                      int defgrp_index,
-                                      float (*vertexCos)[3],
-                                      int numVerts);
 
 struct ShrinkwrapParams {
   /** Shrink target. */

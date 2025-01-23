@@ -8,23 +8,15 @@
  * \brief Mesh API for render engines
  */
 
-#include <memory>
 #include <optional>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_bitmap.h"
-#include "BLI_buffer.h"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
-#include "BLI_map.hh"
-#include "BLI_math_bits.h"
-#include "BLI_math_vector.h"
 #include "BLI_span.hh"
-#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_task.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -32,14 +24,9 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
-#include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_editmesh_cache.hh"
-#include "BKE_editmesh_tangent.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
-#include "BKE_mesh_tangent.hh"
-#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
@@ -48,15 +35,10 @@
 
 #include "atomic_ops.h"
 
-#include "bmesh.hh"
-
 #include "GPU_batch.hh"
 #include "GPU_material.hh"
 
 #include "DRW_render.hh"
-
-#include "ED_mesh.hh"
-#include "ED_uvedit.hh"
 
 #include "draw_cache_extract.hh"
 #include "draw_cache_inline.hh"
@@ -273,8 +255,7 @@ static void mesh_cd_calc_active_mask_uv_layer(const Object &object,
 
 static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
                                                    const Mesh &mesh,
-                                                   const GPUMaterial *const *gpumat_array,
-                                                   int gpumat_array_len,
+                                                   const Span<const GPUMaterial *> materials,
                                                    DRW_Attributes *attributes)
 {
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
@@ -291,8 +272,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
                                                me_final.default_color_attribute :
                                                "";
 
-  for (int i = 0; i < gpumat_array_len; i++) {
-    const GPUMaterial *gpumat = gpumat_array[i];
+  for (const GPUMaterial *gpumat : materials) {
     if (gpumat == nullptr) {
       continue;
     }
@@ -568,7 +548,7 @@ static bool mesh_batch_cache_valid(Object &object, Mesh &mesh)
     return false;
   }
 
-  if (cache->mat_len != mesh_render_mat_len_get(object, mesh)) {
+  if (cache->mat_len != BKE_object_material_count_with_fallback_eval(&object)) {
     return false;
   }
 
@@ -594,7 +574,7 @@ static void mesh_batch_cache_init(Object &object, Mesh &mesh)
     // cache->vert_len = mesh_render_verts_len_get(mesh);
   }
 
-  cache->mat_len = mesh_render_mat_len_get(object, mesh);
+  cache->mat_len = BKE_object_material_count_with_fallback_eval(&object);
   cache->surface_per_mat = Array<gpu::Batch *>(cache->mat_len, nullptr);
   cache->tris_per_mat = Array<gpu::IndexBuf *>(cache->mat_len, nullptr);
 
@@ -951,15 +931,13 @@ gpu::Batch *DRW_mesh_batch_cache_get_edit_mesh_analysis(Mesh &mesh)
 
 void DRW_mesh_get_attributes(const Object &object,
                              const Mesh &mesh,
-                             const GPUMaterial *const *gpumat_array,
-                             int gpumat_array_len,
+                             const Span<const GPUMaterial *> materials,
                              DRW_Attributes *r_attrs,
                              DRW_MeshCDMask *r_cd_needed)
 {
   DRW_Attributes attrs_needed;
   drw_attributes_clear(&attrs_needed);
-  DRW_MeshCDMask cd_needed = mesh_cd_calc_used_gpu_layers(
-      object, mesh, gpumat_array, gpumat_array_len, &attrs_needed);
+  DRW_MeshCDMask cd_needed = mesh_cd_calc_used_gpu_layers(object, mesh, materials, &attrs_needed);
 
   if (r_attrs) {
     *r_attrs = attrs_needed;
@@ -970,31 +948,28 @@ void DRW_mesh_get_attributes(const Object &object,
   }
 }
 
-gpu::Batch **DRW_mesh_batch_cache_get_surface_shaded(Object &object,
-                                                     Mesh &mesh,
-                                                     GPUMaterial **gpumat_array,
-                                                     uint gpumat_array_len)
+Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_shaded(
+    Object &object, Mesh &mesh, const Span<const GPUMaterial *> materials)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   DRW_Attributes attrs_needed;
   drw_attributes_clear(&attrs_needed);
-  DRW_MeshCDMask cd_needed = mesh_cd_calc_used_gpu_layers(
-      object, mesh, gpumat_array, gpumat_array_len, &attrs_needed);
+  DRW_MeshCDMask cd_needed = mesh_cd_calc_used_gpu_layers(object, mesh, materials, &attrs_needed);
 
-  BLI_assert(gpumat_array_len == cache.mat_len);
+  BLI_assert(materials.size() == cache.mat_len);
 
   mesh_cd_layers_type_merge(&cache.cd_needed, cd_needed);
   drw_attributes_merge(&cache.attr_needed, &attrs_needed, mesh.runtime->render_mutex);
   mesh_batch_cache_request_surface_batches(cache);
-  return cache.surface_per_mat.data();
+  return cache.surface_per_mat;
 }
 
-gpu::Batch **DRW_mesh_batch_cache_get_surface_texpaint(Object &object, Mesh &mesh)
+Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_texpaint(Object &object, Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   texpaint_request_active_uv(cache, object, mesh);
   mesh_batch_cache_request_surface_batches(cache);
-  return cache.surface_per_mat.data();
+  return cache.surface_per_mat;
 }
 
 gpu::Batch *DRW_mesh_batch_cache_get_surface_texpaint_single(Object &object, Mesh &mesh)
@@ -1029,11 +1004,6 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_sculpt(Object &object, Mesh &mesh)
 
   mesh_batch_cache_request_surface_batches(cache);
   return cache.batch.surface;
-}
-
-int DRW_mesh_material_count_get(const Object &object, const Mesh &mesh)
-{
-  return mesh_render_mat_len_get(object, mesh);
 }
 
 gpu::Batch *DRW_mesh_batch_cache_get_sculpt_overlays(Mesh &mesh)
@@ -1797,50 +1767,50 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   assert_deps_valid(MBC_EDIT_SELECTION_VERTS,
                     {BUFFER_INDEX(ibo.points), BUFFER_INDEX(vbo.pos), BUFFER_INDEX(vbo.vert_idx)});
   if (DRW_batch_requested(cache.batch.edit_selection_verts, GPU_PRIM_POINTS)) {
-    if (edit_mapping_valid) {
+    if (is_editmode && !edit_mapping_valid) {
+      init_empty_dummy_batch(*cache.batch.edit_selection_verts);
+    }
+    else {
       DRW_ibo_request(cache.batch.edit_selection_verts, &mbuflist->ibo.points);
       DRW_vbo_request(cache.batch.edit_selection_verts, &mbuflist->vbo.pos);
       DRW_vbo_request(cache.batch.edit_selection_verts, &mbuflist->vbo.vert_idx);
-    }
-    else {
-      init_empty_dummy_batch(*cache.batch.edit_selection_verts);
     }
   }
   assert_deps_valid(MBC_EDIT_SELECTION_EDGES,
                     {BUFFER_INDEX(ibo.lines), BUFFER_INDEX(vbo.pos), BUFFER_INDEX(vbo.edge_idx)});
   if (DRW_batch_requested(cache.batch.edit_selection_edges, GPU_PRIM_LINES)) {
-    if (edit_mapping_valid) {
+    if (is_editmode && !edit_mapping_valid) {
+      init_empty_dummy_batch(*cache.batch.edit_selection_edges);
+    }
+    else {
       DRW_ibo_request(cache.batch.edit_selection_edges, &mbuflist->ibo.lines);
       DRW_vbo_request(cache.batch.edit_selection_edges, &mbuflist->vbo.pos);
       DRW_vbo_request(cache.batch.edit_selection_edges, &mbuflist->vbo.edge_idx);
-    }
-    else {
-      init_empty_dummy_batch(*cache.batch.edit_selection_edges);
     }
   }
   assert_deps_valid(MBC_EDIT_SELECTION_FACES,
                     {BUFFER_INDEX(ibo.tris), BUFFER_INDEX(vbo.pos), BUFFER_INDEX(vbo.face_idx)});
   if (DRW_batch_requested(cache.batch.edit_selection_faces, GPU_PRIM_TRIS)) {
-    if (edit_mapping_valid) {
+    if (is_editmode && !edit_mapping_valid) {
+      init_empty_dummy_batch(*cache.batch.edit_selection_faces);
+    }
+    else {
       DRW_ibo_request(cache.batch.edit_selection_faces, &mbuflist->ibo.tris);
       DRW_vbo_request(cache.batch.edit_selection_faces, &mbuflist->vbo.pos);
       DRW_vbo_request(cache.batch.edit_selection_faces, &mbuflist->vbo.face_idx);
-    }
-    else {
-      init_empty_dummy_batch(*cache.batch.edit_selection_faces);
     }
   }
   assert_deps_valid(
       MBC_EDIT_SELECTION_FACEDOTS,
       {BUFFER_INDEX(ibo.fdots), BUFFER_INDEX(vbo.fdots_pos), BUFFER_INDEX(vbo.fdot_idx)});
   if (DRW_batch_requested(cache.batch.edit_selection_fdots, GPU_PRIM_POINTS)) {
-    if (edit_mapping_valid) {
+    if (is_editmode && !edit_mapping_valid) {
+      init_empty_dummy_batch(*cache.batch.edit_selection_fdots);
+    }
+    else {
       DRW_ibo_request(cache.batch.edit_selection_fdots, &mbuflist->ibo.fdots);
       DRW_vbo_request(cache.batch.edit_selection_fdots, &mbuflist->vbo.fdots_pos);
       DRW_vbo_request(cache.batch.edit_selection_fdots, &mbuflist->vbo.fdot_idx);
-    }
-    else {
-      init_empty_dummy_batch(*cache.batch.edit_selection_fdots);
     }
   }
 

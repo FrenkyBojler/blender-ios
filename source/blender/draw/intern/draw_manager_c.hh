@@ -13,9 +13,6 @@
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
-#include "BLI_assert.h"
-#include "BLI_linklist.h"
-#include "BLI_memblock.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 
@@ -23,17 +20,18 @@
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_shader.hh"
-#include "GPU_uniform_buffer.hh"
 #include "GPU_viewport.hh"
 
 #include "draw_instance_data.hh"
-#include "draw_shader_shared.hh"
 
 struct DRWDebugModule;
 struct DRWTexturePool;
 struct DRWUniformChunk;
+struct DRWViewData;
+struct DRWTextStore;
 struct DupliObject;
 struct Object;
+struct Mesh;
 namespace blender::draw {
 struct CurvesUniformBufPool;
 struct DRW_Attributes;
@@ -42,6 +40,7 @@ class CurveRefinePass;
 class View;
 }  // namespace blender::draw
 struct GPUMaterial;
+struct GSet;
 
 /** Use draw manager to call GPU_select, see: #DRW_draw_select_loop */
 #define USE_GPU_SELECT
@@ -60,7 +59,6 @@ struct GPUMaterial;
 #define USE_PROFILE
 
 #ifdef USE_PROFILE
-#  include "BLI_time.h"
 
 #  define PROFILE_TIMER_FALLOFF 0.04
 
@@ -253,8 +251,7 @@ namespace blender::draw {
 
 void DRW_mesh_get_attributes(const Object &object,
                              const Mesh &mesh,
-                             const GPUMaterial *const *gpumat_array,
-                             int gpumat_array_len,
+                             Span<const GPUMaterial *> materials,
                              DRW_Attributes *r_attrs,
                              DRW_MeshCDMask *r_cd_needed);
 

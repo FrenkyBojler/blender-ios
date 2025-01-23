@@ -9,11 +9,12 @@
 #include "DRW_render.hh"
 
 #include "DNA_light_types.h"
+#include "DNA_material_types.h"
 
 #include "BKE_image.hh"
+#include "BKE_material.hh"
 
-#include "BLI_hash.h"
-#include "BLI_math_color.h"
+#include "BLI_math_matrix.h"
 #include "BLI_memblock.h"
 
 #include "GPU_uniform_buffer.hh"
@@ -81,7 +82,7 @@ static void gpencil_shade_color(float color[3])
   else {
     add_v3_fl(color, 0.15f);
   }
-  CLAMP3(color, 0.0f, 1.0f);
+  clamp_v3(color, 0.0f, 1.0f);
 }
 
 /* Apply all overrides from the solid viewport mode to the GPencil material. */
