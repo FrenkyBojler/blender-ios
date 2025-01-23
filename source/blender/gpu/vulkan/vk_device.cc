@@ -8,8 +8,6 @@
 
 #include <sstream>
 
-#include "CLG_log.h"
-
 #include "vk_backend.hh"
 #include "vk_context.hh"
 #include "vk_device.hh"
@@ -26,7 +24,6 @@
 #include "GHOST_C-api.h"
 
 extern "C" char datatoc_glsl_shader_defines_glsl[];
-static CLG_LogRef LOG = {"gpu.vulkan"};
 
 namespace blender::gpu {
 
