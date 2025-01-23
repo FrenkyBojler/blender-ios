@@ -1460,7 +1460,9 @@ static void process_stroke_weights(const Scene &scene,
   });
 }
 
-void append_stroke_from(const bke::CurvesGeometry &src, const int curve, bke::CurvesGeometry &dst)
+static void append_stroke_from(const bke::CurvesGeometry &src,
+                               const int curve,
+                               bke::CurvesGeometry &dst)
 {
   const int initial_points_num = dst.points_num();
   const int initial_curves_num = dst.curves_num();
@@ -1469,8 +1471,8 @@ void append_stroke_from(const bke::CurvesGeometry &src, const int curve, bke::Cu
 
   dst.resize(initial_points_num + points.size(), initial_curves_num + 1);
 
-  Array<int> src_offsets{points.first(), points.one_after_last()};
-  Array<int> dst_offsets{initial_points_num, dst.points_num()};
+  Array<int> src_offsets(points.first(), points.one_after_last());
+  Array<int> dst_offsets(initial_points_num, dst.points_num());
 
   copy_attributes_group_to_group(src.attributes(),
                                  bke::AttrDomain::Point,
@@ -1494,13 +1496,14 @@ void append_stroke_from(const bke::CurvesGeometry &src, const int curve, bke::Cu
                                  dst.attributes_for_write());
 }
 
-static void append_stroke_to_drawings(const bke::CurvesGeometry &src_strokes,
-                                      const int curve,
-                                      const int exclude_frame,
-                                      Span<ed::greasepencil::MutableDrawingInfo> drawings)
+static void append_stroke_to_multiframe_drawings(
+    const bke::CurvesGeometry &src_strokes,
+    const int curve,
+    const int current_frame,
+    Span<ed::greasepencil::MutableDrawingInfo> drawings)
 {
   for (const ed::greasepencil::MutableDrawingInfo &drawing_info : drawings) {
-    if (drawing_info.frame_number == exclude_frame) {
+    if (drawing_info.frame_number == current_frame) {
       continue;
     }
     bke::greasepencil::Drawing &drawing = drawing_info.drawing;
@@ -1606,10 +1609,11 @@ void PaintOperation::on_stroke_done(const bContext &C)
                                         GP_USE_MULTI_FRAME_EDITING) != 0;
 
   if (use_multi_frame_editing) {
-    append_stroke_to_drawings(drawing.strokes(),
-                              active_curve,
-                              scene->r.cfra,
-                              ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil));
+    append_stroke_to_multiframe_drawings(
+        drawing.strokes(),
+        active_curve,
+        scene->r.cfra,
+        ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil));
   }
 
   /* Now we're done drawing. */
