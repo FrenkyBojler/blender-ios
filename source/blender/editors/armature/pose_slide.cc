@@ -892,32 +892,9 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
 {
   WorkspaceStatus status(C);
 
-  switch (pso->mode) {
-    case POSESLIDE_PUSH:
-      status.item(IFACE_("Push Pose"), ICON_NONE);
-      break;
-    case POSESLIDE_RELAX:
-      status.item(IFACE_("Relax Pose"), ICON_NONE);
-      break;
-    case POSESLIDE_BREAKDOWN:
-      status.item(IFACE_("Breakdown"), ICON_NONE);
-      break;
-    case POSESLIDE_BLEND:
-      status.item(IFACE_("Blend to Neighbor"), ICON_NONE);
-      break;
-    case POSESLIDE_BLEND_REST:
-      status.item(IFACE_("Blend Rest"), ICON_NONE);
-      break;
-
-    default:
-      /* Unknown. */
-      status.item(IFACE_("Sliding-Tool"), ICON_NONE);
-      break;
-  }
-
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
-  status.item(IFACE_("Blend"), ICON_MOUSE_MOVE);
+  status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
 
   status.item_bool("", pso->channels == PS_TFM_LOC, ICON_EVENT_G);
   status.item_bool("", pso->channels == PS_TFM_ROT, ICON_EVENT_R);
