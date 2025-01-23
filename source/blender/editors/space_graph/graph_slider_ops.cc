@@ -121,13 +121,14 @@ static void apply_fcu_segment_function(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-static void common_draw_status_header(bContext *C, tGraphSliderOp *gso, const char *operator_name)
+static void common_draw_status_header(bContext *C,
+                                      tGraphSliderOp *gso,
+                                      const char * /*operator_name*/)
 {
   WorkspaceStatus status(C);
-  status.item(IFACE_(operator_name), ICON_NONE);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
-  status.item(IFACE_("Change"), ICON_MOUSE_MOVE);
+  status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
     outputNumInput(&gso->num, str_ofs, gso->scene->unit);
@@ -447,10 +448,9 @@ static void decimate_graph_keys(bAnimContext *ac, float factor, float error_sq_m
 static void decimate_draw_status(bContext *C, tGraphSliderOp *gso)
 {
   WorkspaceStatus status(C);
-  status.item(IFACE_("Decimate Keyframes"), ICON_NONE);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
-  status.item(IFACE_("Change"), ICON_MOUSE_MOVE);
+  status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
     outputNumInput(&gso->num, str_ofs, gso->scene->unit);
@@ -940,10 +940,9 @@ static void ease_draw_status_header(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
   WorkspaceStatus status(C);
-  status.item(IFACE_("Ease Keys"), ICON_NONE);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
-  status.item(IFACE_("Change"), ICON_MOUSE_MOVE);
+  status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
     outputNumInput(&gso->num, str_ofs, gso->scene->unit);
@@ -1545,10 +1544,9 @@ static void shear_graph_keys(bAnimContext *ac, const float factor, tShearDirecti
 static void shear_draw_status_header(bContext *C, tGraphSliderOp *gso)
 {
   WorkspaceStatus status(C);
-  status.item(IFACE_("Shear Keys"), ICON_NONE);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
-  status.item(IFACE_("Change"), ICON_MOUSE_MOVE);
+  status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
     outputNumInput(&gso->num, str_ofs, gso->scene->unit);
@@ -2415,10 +2413,9 @@ static void scale_from_neighbor_draw_status_header(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
   WorkspaceStatus status(C);
-  status.item(IFACE_("Scale from Neighbor Keys"), ICON_NONE);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
-  status.item(IFACE_("Change"), ICON_MOUSE_MOVE);
+  status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
 
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
