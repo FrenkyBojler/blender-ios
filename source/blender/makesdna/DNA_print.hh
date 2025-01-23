@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <iosfwd>
 
-/* for SDNA_TYPE_FROM_STRUCT() macro */
+/* For #SDNA_TYPE_FROM_STRUCT macro. */
 #include "dna_type_offsets.h"
 
 struct SDNA;
