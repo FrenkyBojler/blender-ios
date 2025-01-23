@@ -306,9 +306,9 @@ GreasePencilStrokeParams GreasePencilStrokeParams::from_context(
           drawing};
 }
 
-IndexMask point_selection_mask(const GreasePencilStrokeParams &params,
-                               const bool use_selection_masking,
-                               IndexMaskMemory &memory)
+IndexMask point_mask_for_stroke_operation(const GreasePencilStrokeParams &params,
+                                          const bool use_selection_masking,
+                                          IndexMaskMemory &memory)
 {
   return use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_points(
                                      params.ob_orig, params.drawing, params.layer_index, memory) :
@@ -316,9 +316,9 @@ IndexMask point_selection_mask(const GreasePencilStrokeParams &params,
                                      params.ob_orig, params.drawing, params.layer_index, memory);
 }
 
-IndexMask stroke_selection_mask(const GreasePencilStrokeParams &params,
-                                const bool use_selection_masking,
-                                IndexMaskMemory &memory)
+IndexMask curve_mask_for_stroke_operation(const GreasePencilStrokeParams &params,
+                                          const bool use_selection_masking,
+                                          IndexMaskMemory &memory)
 {
   return use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_strokes(
                                      params.ob_orig, params.drawing, params.layer_index, memory) :
@@ -326,9 +326,9 @@ IndexMask stroke_selection_mask(const GreasePencilStrokeParams &params,
                                      params.ob_orig, params.drawing, params.layer_index, memory);
 }
 
-IndexMask fill_selection_mask(const GreasePencilStrokeParams &params,
-                              const bool use_selection_masking,
-                              IndexMaskMemory &memory)
+IndexMask fill_mask_for_stroke_operation(const GreasePencilStrokeParams &params,
+                                         const bool use_selection_masking,
+                                         IndexMaskMemory &memory)
 {
   return use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_fill_strokes(
                                      params.ob_orig, params.drawing, params.layer_index, memory) :
@@ -632,7 +632,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
         drawing_info.frame_number,
         drawing_info.multi_frame_falloff,
         drawing_info.drawing);
-    automask_info.point_mask = point_selection_mask(
+    automask_info.point_mask = point_mask_for_stroke_operation(
         params, use_sculpt_selection_masking, automask_info.memory);
     if (automask_info.point_mask.is_empty()) {
       continue;
@@ -661,7 +661,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
       Array<float2> view_positions = calculate_view_positions(params, automask_info.point_mask);
 
       IndexMaskMemory memory;
-      const IndexMask stroke_selection = stroke_selection_mask(
+      const IndexMask stroke_selection = curve_mask_for_stroke_operation(
           params, use_sculpt_selection_masking, memory);
       const IndexMask strokes_under_brush = IndexMask::from_predicate(
           stroke_selection, GrainSize(512), memory, [&](const int curve_i) {
