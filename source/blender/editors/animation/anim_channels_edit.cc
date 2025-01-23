@@ -1394,10 +1394,11 @@ static void rearrange_animchannel_flatten_islands(ListBase *islands, ListBase *s
 /* ............................. */
 
 /* get a list of all bAnimListElem's of a certain type which are currently visible */
-static void rearrange_animchannels_filter_visible(ListBase *anim_data_visible,
-                                                  bAnimContext *ac,
-                                                  eAnim_ChannelType type,
-                                                  eAnimFilter_Flags additional_filters)
+static void rearrange_animchannels_filter_visible(
+    ListBase *anim_data_visible,
+    bAnimContext *ac,
+    const eAnim_ChannelType type,
+    const eAnimFilter_Flags additional_filters = eAnimFilter_Flags(0))
 {
   ListBase anim_data = {nullptr, nullptr};
   eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
@@ -1530,8 +1531,7 @@ static void rearrange_nla_tracks(bAnimContext *ac, AnimData *adt, eRearrangeAnim
   }
 
   /* Filter visible data. */
-  rearrange_animchannels_filter_visible(
-      &anim_data_visible, ac, ANIMTYPE_NLATRACK, eAnimFilter_Flags(0));
+  rearrange_animchannels_filter_visible(&anim_data_visible, ac, ANIMTYPE_NLATRACK);
 
   /* perform rearranging on tracks list */
   rearrange_animchannel_islands(
@@ -1574,8 +1574,7 @@ static void rearrange_driver_channels(bAnimContext *ac,
   }
 
   /* Filter visible data. */
-  rearrange_animchannels_filter_visible(
-      &anim_data_visible, ac, ANIMTYPE_FCURVE, eAnimFilter_Flags(0));
+  rearrange_animchannels_filter_visible(&anim_data_visible, ac, ANIMTYPE_FCURVE);
 
   /* perform rearranging on drivers list (drivers are really just F-Curves) */
   rearrange_animchannel_islands(
@@ -1696,18 +1695,18 @@ static bool rearrange_layered_action_slots(bAnimContext *ac, const eRearrangeAni
 {
   /* TODO: the general stucture of this function is basically the same as
    * `rearrange_layered_action_channel_groups()` and
-   * `rearrange_layered_action_fcurves`. It would be nice to DRY them at some
+   * `rearrange_layered_action_fcurves()`. It would be nice to DRY them at some
    * point if we can. */
 
-  ListBase anim_data_visible = {nullptr, nullptr};
+  ListBase anim_data_selected_visible = {nullptr, nullptr};
   rearrange_animchannels_filter_visible(
-      &anim_data_visible, ac, ANIMTYPE_ACTION_SLOT, ANIMFILTER_SEL);
+      &anim_data_selected_visible, ac, ANIMTYPE_ACTION_SLOT, ANIMFILTER_SEL);
 
   int total_moved = 0;
 
   switch (mode) {
     case REARRANGE_ANIMCHAN_UP: {
-      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_visible) {
+      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_selected_visible) {
         BLI_assert(ale->type == ANIMTYPE_ACTION_SLOT);
         blender::animrig::Slot *slot = (blender::animrig::Slot *)ale->data;
         blender::animrig::Action &action = *(blender::animrig::Action *)ale->fcurve_owner_id;
@@ -1731,10 +1730,11 @@ static bool rearrange_layered_action_slots(bAnimContext *ac, const eRearrangeAni
     }
 
     case REARRANGE_ANIMCHAN_TOP: {
-      LISTBASE_FOREACH_BACKWARD (bAnimListElem *, ale, &anim_data_visible) {
+      LISTBASE_FOREACH_BACKWARD (bAnimListElem *, ale, &anim_data_selected_visible) {
         BLI_assert(ale->type == ANIMTYPE_ACTION_SLOT);
-        blender::animrig::Slot *slot = (blender::animrig::Slot *)ale->data;
-        blender::animrig::Action &action = *(blender::animrig::Action *)ale->fcurve_owner_id;
+        blender::animrig::Slot *slot = static_cast<blender::animrig::Slot *>(ale->data);
+        blender::animrig::Action &action = *reinterpret_cast<blender::animrig::Action *>(
+            ale->fcurve_owner_id);
 
         const int current_index = action.slots().first_index_try(slot);
         const int to_index = 0;
@@ -1747,7 +1747,7 @@ static bool rearrange_layered_action_slots(bAnimContext *ac, const eRearrangeAni
     }
 
     case REARRANGE_ANIMCHAN_DOWN: {
-      LISTBASE_FOREACH_BACKWARD (bAnimListElem *, ale, &anim_data_visible) {
+      LISTBASE_FOREACH_BACKWARD (bAnimListElem *, ale, &anim_data_selected_visible) {
         BLI_assert(ale->type == ANIMTYPE_ACTION_SLOT);
         blender::animrig::Slot *slot = (blender::animrig::Slot *)ale->data;
         blender::animrig::Action &action = *(blender::animrig::Action *)ale->fcurve_owner_id;
@@ -1771,7 +1771,7 @@ static bool rearrange_layered_action_slots(bAnimContext *ac, const eRearrangeAni
     }
 
     case REARRANGE_ANIMCHAN_BOTTOM: {
-      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_visible) {
+      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_selected_visible) {
         BLI_assert(ale->type == ANIMTYPE_ACTION_SLOT);
         blender::animrig::Slot *slot = (blender::animrig::Slot *)ale->data;
         blender::animrig::Action &action = *(blender::animrig::Action *)ale->fcurve_owner_id;
@@ -1787,7 +1787,7 @@ static bool rearrange_layered_action_slots(bAnimContext *ac, const eRearrangeAni
     }
   }
 
-  BLI_freelistN(&anim_data_visible);
+  BLI_freelistN(&anim_data_selected_visible);
 
   return total_moved > 0;
 }
@@ -1820,8 +1820,7 @@ static void rearrange_layered_action_channel_groups(bAnimContext *ac,
    * because it's what the legacy code does (see for example
    * `rearrange_animchannel_add_to_islands()`), and we're avoiding diverging
    * unnecessarily from that in case there was a reason for it. */
-  rearrange_animchannels_filter_visible(
-      &anim_data_visible, ac, ANIMTYPE_GROUP, eAnimFilter_Flags(0));
+  rearrange_animchannels_filter_visible(&anim_data_visible, ac, ANIMTYPE_GROUP);
 
   switch (mode) {
     case REARRANGE_ANIMCHAN_UP: {
@@ -1932,8 +1931,7 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
    * because it's what the legacy code does (see for example
    * `rearrange_animchannel_add_to_islands()`), and we're avoiding diverging
    * unnecessarily from that in case there was a reason for it. */
-  rearrange_animchannels_filter_visible(
-      &anim_data_visible, ac, ANIMTYPE_FCURVE, eAnimFilter_Flags(0));
+  rearrange_animchannels_filter_visible(&anim_data_visible, ac, ANIMTYPE_FCURVE);
 
   /* Lambda to either fetch an fcurve's group if it has one, or otherwise
    * construct a fake one representing the ungrouped range at the end of the
@@ -2098,8 +2096,7 @@ static void rearrange_action_channels(bAnimContext *ac, bAction *act, eRearrange
   split_groups_action_temp(act, &tgrp);
 
   /* Filter visible data. */
-  rearrange_animchannels_filter_visible(
-      &anim_data_visible, ac, ANIMTYPE_GROUP, eAnimFilter_Flags(0));
+  rearrange_animchannels_filter_visible(&anim_data_visible, ac, ANIMTYPE_GROUP);
 
   /* Rearrange groups first:
    * - The group's channels will only get considered
@@ -2114,8 +2111,7 @@ static void rearrange_action_channels(bAnimContext *ac, bAction *act, eRearrange
 
   if (do_channels) {
     /* Filter visible data. */
-    rearrange_animchannels_filter_visible(
-        &anim_data_visible, ac, ANIMTYPE_FCURVE, eAnimFilter_Flags(0));
+    rearrange_animchannels_filter_visible(&anim_data_visible, ac, ANIMTYPE_FCURVE);
 
     LISTBASE_FOREACH (bActionGroup *, agrp, &act->groups) {
       /* only consider F-Curves if they're visible (group expanded) */
@@ -2154,8 +2150,7 @@ static void rearrange_nla_control_channels(bAnimContext *ac,
   }
 
   /* Filter visible data. */
-  rearrange_animchannels_filter_visible(
-      &anim_data_visible, ac, ANIMTYPE_NLACURVE, eAnimFilter_Flags(0));
+  rearrange_animchannels_filter_visible(&anim_data_visible, ac, ANIMTYPE_NLACURVE);
 
   /* we cannot rearrange between strips, but within each strip, we can rearrange those curves */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
@@ -2257,8 +2252,7 @@ static void rearrange_gpencil_channels(bAnimContext *ac, eRearrangeAnimChan_Mode
     }
 
     /* Filter visible data. */
-    rearrange_animchannels_filter_visible(
-        &anim_data_visible, ac, ANIMTYPE_GPLAYER, eAnimFilter_Flags(0));
+    rearrange_animchannels_filter_visible(&anim_data_visible, ac, ANIMTYPE_GPLAYER);
 
     /* Rearrange data-block's layers. */
     rearrange_animchannel_islands(
