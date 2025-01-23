@@ -6,6 +6,7 @@
 #include <variant>
 
 #include "BLI_array_utils.hh"
+#include "BLI_assert.h"
 #include "BLI_generic_array.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_math_vector_types.hh"
@@ -41,20 +42,6 @@ static bool is_socket_type_supported(const eNodeSocketDatatype type)
   return ELEM(type, SOCK_VECTOR, SOCK_RGBA, SOCK_FLOAT);
 }
 
-template<typename T> class SpanFieldInput final : public fn::FieldInput {
-  Span<T> data_;
-
- public:
-  SpanFieldInput(Span<T> data) : FieldInput(CPPType::get<T>(), "Span"), data_(data) {}
-
-  GVArray get_varray_for_context(const fn::FieldContext & /*context*/,
-                                 const IndexMask & /*mask*/,
-                                 ResourceScope & /*scope*/) const final
-  {
-    return VArray<T>::ForSpan(data_);
-  }
-};
-
 struct CombineFactors {
   MutableSpan<float> factors;
 };
@@ -64,6 +51,19 @@ struct OutputTranslations {
 };
 
 using EvaluationResult = std::variant<CombineFactors, OutputTranslations>;
+
+class FactorsFieldInput final : public fn::FieldInput {
+ public:
+  FactorsFieldInput() : FieldInput(CPPType::get<float>(), "Input Factors") {}
+
+  GVArray get_varray_for_context(const fn::FieldContext & /*context*/,
+                                 const IndexMask & /*mask*/,
+                                 ResourceScope & /*scope*/) const override
+  {
+    BLI_assert_unreachable();
+    return {};
+  }
+};
 
 /**
  * Evaluates the Geometry Nodes node group associated with the specified brush in the given
@@ -212,7 +212,7 @@ static void sculpt_nodes_evaluate(const Depsgraph &depsgraph,
         [](float a, float b) { return a * b; },
         mf::build::exec_presets::AllSpanOrSingle());
 
-    fn::Field<float> input_factors(std::make_shared<SpanFieldInput<float>>(result->factors));
+    fn::Field<float> input_factors(std::make_shared<FactorsFieldInput>());
     fn::Field<float> final_factor{
         fn::FieldOperation::Create(multiply_fn, {std::move(converted), std::move(input_factors)})};
     fn::FieldEvaluator evaluator{context, result->factors.size()};
@@ -245,17 +245,20 @@ class MeshSculptFieldContext : public fn::FieldContext {
   Span<int> verts_;
   Span<float3> vert_positions_;
   Span<float3> vert_normals_;
+  const EvaluationResult &result_;
 
  public:
   MeshSculptFieldContext(const Depsgraph &depsgraph,
                          const Object &object,
                          const Span<int> verts,
-                         const Span<float3> vert_positions)
+                         const Span<float3> vert_positions,
+                         const EvaluationResult &result)
       : fn::FieldContext(),
         mesh_(*static_cast<const Mesh *>(object.data)),
         verts_(verts),
         vert_positions_(vert_positions),
-        vert_normals_(bke::pbvh::vert_normals_eval(depsgraph, object))
+        vert_normals_(bke::pbvh::vert_normals_eval(depsgraph, object)),
+        result_(result)
   {
   }
 
@@ -301,8 +304,11 @@ class MeshSculptFieldContext : public fn::FieldContext {
         Array<int> compressed(verts_.size());
         array_utils::gather(id, verts_, compressed.as_mutable_span());
         return VArray<int>::ForContainer(std::move(compressed));
-      };
+      }
       return VArray<int>::ForSpan(verts_);
+    }
+    if (dynamic_cast<const FactorsFieldInput *>(&field_input)) {
+      return VArray<float>::ForSpan(std::get<CombineFactors>(result_).factors);
     }
     return field_input.get_varray_for_context(*this, mask, scope);
   }
@@ -316,9 +322,9 @@ void nodes_evaluate_translations_mesh(const Depsgraph &depsgraph,
                                       const Span<int> verts,
                                       const MutableSpan<float3> translations)
 {
-  const MeshSculptFieldContext context(depsgraph, object, verts, vert_positions);
   threading::isolate_task([&]() {
     const OutputTranslations output{translations};
+    const MeshSculptFieldContext context(depsgraph, object, verts, vert_positions, output);
     sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
@@ -331,23 +337,29 @@ void nodes_evaluate_factors_mesh(const Depsgraph &depsgraph,
                                  const Span<int> verts,
                                  const MutableSpan<float> factors)
 {
-  const MeshSculptFieldContext context(depsgraph, object, verts, vert_positions);
   threading::isolate_task([&]() {
     const CombineFactors output{factors};
+    const MeshSculptFieldContext context(depsgraph, object, verts, vert_positions, output);
     sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
 
 class GridsSculptFieldContext : public fn::FieldContext {
   const SubdivCCG &subdiv_ccg_;
-  const Span<float3> positions_;
+  Span<float3> positions_;
   Span<int> grids_;
+  EvaluationResult result_;
 
  public:
   GridsSculptFieldContext(const SubdivCCG &subdiv_ccg,
                           const Span<int> grids,
-                          const Span<float3> positions)
-      : fn::FieldContext(), subdiv_ccg_(subdiv_ccg), positions_(positions), grids_(grids)
+                          const Span<float3> positions,
+                          const EvaluationResult &result)
+      : fn::FieldContext(),
+        subdiv_ccg_(subdiv_ccg),
+        positions_(positions),
+        grids_(grids),
+        result_(result)
   {
   }
 
@@ -371,6 +383,9 @@ class GridsSculptFieldContext : public fn::FieldContext {
     if (dynamic_cast<const bke::NormalFieldInput *>(&field_input)) {
       return this->normals();
     }
+    if (dynamic_cast<const FactorsFieldInput *>(&field_input)) {
+      return VArray<float>::ForSpan(std::get<CombineFactors>(result_).factors);
+    }
     return field_input.get_varray_for_context(*this, mask, scope);
   }
 };
@@ -384,9 +399,9 @@ void nodes_evaluate_factors_grids(const Depsgraph &depsgraph,
                                   const Span<float3> positions,
                                   const MutableSpan<float> factors)
 {
-  const GridsSculptFieldContext context(subdiv_ccg, grids, positions);
   threading::isolate_task([&]() {
     const CombineFactors output{factors};
+    const GridsSculptFieldContext context(subdiv_ccg, grids, positions, output);
     sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
@@ -400,26 +415,24 @@ void nodes_evaluate_translations_grids(const Depsgraph &depsgraph,
                                        const Span<float3> positions,
                                        const MutableSpan<float3> translations)
 {
-  const GridsSculptFieldContext context(subdiv_ccg, grids, positions);
   threading::isolate_task([&]() {
     const OutputTranslations output{translations};
+    const GridsSculptFieldContext context(subdiv_ccg, grids, positions, output);
     sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
 
 class BMeshSculptFieldContext : public fn::FieldContext {
   const Set<BMVert *, 0> &verts_;
-  const Span<float3> positions_;
+  Span<float3> positions_;
+  const EvaluationResult &result_;
 
  public:
-  BMeshSculptFieldContext(const Set<BMVert *, 0> &verts, const Span<float3> positions)
-      : fn::FieldContext(), verts_(verts), positions_(positions)
+  BMeshSculptFieldContext(const Set<BMVert *, 0> &verts,
+                          const Span<float3> positions,
+                          const EvaluationResult &result)
+      : fn::FieldContext(), verts_(verts), positions_(positions), result_(result)
   {
-  }
-
-  const Set<BMVert *, 0> &verts() const
-  {
-    return verts_;
   }
 
   VArray<float3> normals() const
@@ -441,6 +454,9 @@ class BMeshSculptFieldContext : public fn::FieldContext {
     if (dynamic_cast<const bke::NormalFieldInput *>(&field_input)) {
       return this->normals();
     }
+    if (dynamic_cast<const FactorsFieldInput *>(&field_input)) {
+      return VArray<float>::ForSpan(std::get<CombineFactors>(result_).factors);
+    }
     return field_input.get_varray_for_context(*this, mask, scope);
   }
 };
@@ -453,9 +469,9 @@ void nodes_evaluate_factors_bmesh(const Depsgraph &depsgraph,
                                   const Span<float3> positions,
                                   const MutableSpan<float> factors)
 {
-  const BMeshSculptFieldContext context(verts, positions);
   threading::isolate_task([&]() {
     const CombineFactors output{factors};
+    const BMeshSculptFieldContext context(verts, positions, output);
     sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
@@ -468,9 +484,9 @@ void nodes_evaluate_translations_bmesh(const Depsgraph &depsgraph,
                                        const Span<float3> positions,
                                        const MutableSpan<float3> translations)
 {
-  const BMeshSculptFieldContext context(verts, positions);
   threading::isolate_task([&]() {
     const OutputTranslations output{translations};
+    const BMeshSculptFieldContext context(verts, positions, output);
     sculpt_nodes_evaluate(depsgraph, object, cache, brush, context, output);
   });
 }
