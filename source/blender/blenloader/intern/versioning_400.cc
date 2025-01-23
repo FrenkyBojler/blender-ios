@@ -1210,8 +1210,11 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
     /* If that output was versioned before, just connect the existing link. */
     bNodeLink *existing_link = color_to_float_links.lookup_default(link->fromsock, nullptr);
     if (existing_link) {
-      blender::bke::node_add_link(
-          node_tree, existing_link->fromnode, existing_link->fromsock, link->tonode, link->tosock);
+      version_node_add_link(*node_tree,
+                            *existing_link->fromnode,
+                            *existing_link->fromsock,
+                            *link->tonode,
+                            *link->tosock);
       blender::bke::node_remove_link(node_tree, link);
       continue;
     }
@@ -1226,8 +1229,8 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
     /* Link the source socket to the dot product input. */
     bNodeSocket *dot_product_input = version_node_add_socket_if_not_exist(
         node_tree, dot_product_node, SOCK_IN, SOCK_VECTOR, PROP_NONE, "Normal", "Normal");
-    blender::bke::node_add_link(
-        node_tree, link->fromnode, link->fromsock, dot_product_node, dot_product_input);
+    version_node_add_link(
+        *node_tree, *link->fromnode, *link->fromsock, *dot_product_node, *dot_product_input);
 
     /* Assign (-1, -1, -1) to the dot product output, which stores the second vector for the
      * dot product. Notice that negative sign, since the node actually returns negative the dot
@@ -1249,8 +1252,8 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
         node_tree, dot_product_node, SOCK_OUT, SOCK_FLOAT, PROP_NONE, "Dot", "Dot");
     bNodeSocket *multiply_input_a = static_cast<bNodeSocket *>(
         BLI_findlink(&multiply_node->inputs, 0));
-    blender::bke::node_add_link(
-        node_tree, dot_product_node, dot_product_dot_output, multiply_node, multiply_input_a);
+    version_node_add_link(
+        *node_tree, *dot_product_node, *dot_product_dot_output, *multiply_node, *multiply_input_a);
 
     /* Set the second input to  sqrt(3) / 3 as described in the function description. */
     bNodeSocket *multiply_input_b = static_cast<bNodeSocket *>(
@@ -1261,8 +1264,8 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
     /* Link the multiply node output to the link target. */
     bNodeSocket *multiply_output = version_node_add_socket_if_not_exist(
         node_tree, multiply_node, SOCK_OUT, SOCK_FLOAT, PROP_NONE, "Value", "Value");
-    bNodeLink *final_link = blender::bke::node_add_link(
-        node_tree, multiply_node, multiply_output, link->tonode, link->tosock);
+    bNodeLink *final_link = &version_node_add_link(
+        *node_tree, *multiply_node, *multiply_output, *link->tonode, *link->tosock);
 
     /* Add the new link to the cache. */
     color_to_float_links.add_new(link->fromsock, final_link);
