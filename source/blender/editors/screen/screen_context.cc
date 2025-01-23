@@ -42,6 +42,7 @@
 #include "ED_armature.hh"
 #include "ED_clip.hh"
 #include "ED_gpencil_legacy.hh"
+#include "ED_outliner.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_select.hh"
@@ -186,10 +187,21 @@ static eContextResult screen_ctx_selected_editable_objects(const bContext *C,
   Scene *scene = WM_window_get_active_scene(win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   BKE_view_layer_synced_ensure(scene, view_layer);
+  const bool is_space_outliner = CTX_wm_space_outliner(C) != nullptr;
 
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    if (BASE_SELECTED_EDITABLE(v3d, base)) {
-      CTX_data_id_list_add(result, &base->object->id);
+  if (is_space_outliner) {
+    ListBase selected_objects = {nullptr};
+    ED_outliner_selected_objects_get(C, &selected_objects);
+    LISTBASE_FOREACH (LinkData *, link, &selected_objects) {
+      Object *ob = static_cast<Object *>(link->data);
+      CTX_data_id_list_add(result, &ob->id);
+    }
+  }
+  else {
+    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+      if (BASE_SELECTED_EDITABLE(v3d, base)) {
+        CTX_data_id_list_add(result, &base->object->id);
+      }
     }
   }
   CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
