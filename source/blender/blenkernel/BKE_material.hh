@@ -9,6 +9,8 @@
  * \brief General operations, lookup, etc. for materials.
  */
 
+#include <optional>
+
 struct ID;
 struct Main;
 struct Material;
@@ -160,7 +162,7 @@ int BKE_object_material_count_eval(const Object *ob);
  * Returns the maximum material index used by the geometry. This returns zero if the geometry is
  * empty or if all material indices are negative.
  */
-int BKE_id_material_index_max_eval(const ID &id);
+std::optional<int> BKE_id_material_index_max_eval(const ID &id);
 int BKE_id_material_used_with_fallback_eval(const ID &id);
 int BKE_object_material_used_with_fallback_eval(const Object &ob);
 

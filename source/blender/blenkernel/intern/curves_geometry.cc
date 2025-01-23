@@ -1204,13 +1204,12 @@ std::optional<Bounds<float3>> CurvesGeometry::bounds_min_max() const
   return this->runtime->bounds_cache.data();
 }
 
-int CurvesGeometry::material_index_max() const
+std::optional<int> CurvesGeometry::material_index_max() const
 {
-  return *blender::array_utils::max<int>(
+  return blender::bounds::max<int>(
       this->attributes()
           .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Curve, 0)
-          .varray,
-      0);
+          .varray);
 }
 
 void CurvesGeometry::count_memory(MemoryCounter &memory) const

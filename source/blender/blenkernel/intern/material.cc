@@ -800,7 +800,7 @@ int BKE_object_material_count_eval(const Object *ob)
   return std::max(ob->totcol, len_p ? *len_p : 0);
 }
 
-int BKE_id_material_index_max_eval(const ID &id)
+std::optional<int> BKE_id_material_index_max_eval(const ID &id)
 {
   switch (GS(id.name)) {
     case ID_ME:
@@ -814,10 +814,8 @@ int BKE_id_material_index_max_eval(const ID &id)
     case ID_GP:
       return reinterpret_cast<const GreasePencil &>(id).material_index_max_eval();
     case ID_VO:
-      /* All volumes use the first material for now. */
-      return 0;
     case ID_MB:
-      /* TODO: Where is this stored? */
+      /* Always use the first material. */
       return 0;
     case ID_GD_LEGACY:
       /* Is not rendered anymore. */
@@ -831,7 +829,7 @@ int BKE_id_material_index_max_eval(const ID &id)
 
 int BKE_id_material_used_with_fallback_eval(const ID &id)
 {
-  const int max_material_index = BKE_id_material_index_max_eval(id);
+  const int max_material_index = std::max(0, BKE_id_material_index_max_eval(id).value_or(0));
   return max_material_index + 1;
 }
 

@@ -15,7 +15,6 @@
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 
-#include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_vector.hh"
@@ -280,13 +279,15 @@ std::optional<blender::Bounds<blender::float3>> PointCloud::bounds_min_max() con
   return this->runtime->bounds_cache.data();
 }
 
-int PointCloud::material_index_max() const
+std::optional<int> PointCloud::material_index_max() const
 {
-  return *blender::array_utils::max<int>(
+  if (this->totpoint == 0) {
+    return std::nullopt;
+  }
+  return blender::bounds::max<int>(
       this->attributes()
           .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Point, 0)
-          .varray,
-      0);
+          .varray);
 }
 
 void PointCloud::count_memory(blender::MemoryCounter &memory) const
