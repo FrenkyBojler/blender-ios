@@ -11,8 +11,8 @@ set(INC
   ../../makesrna
   ../../compositor/algorithms
   ../../compositor/cached_resources
-  ../../compositor/utilities
   ../../compositor/derived_resources
+  ../../compositor/utilities
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
