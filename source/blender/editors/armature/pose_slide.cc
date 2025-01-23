@@ -890,78 +890,67 @@ static void pose_slide_reset(tPoseSlideOp *pso)
  */
 static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
 {
-  char status_str[UI_MAX_DRAW_STR];
-  char limits_str[UI_MAX_DRAW_STR];
-  char axis_str[50];
-  char mode_str[32];
-  char slider_str[UI_MAX_DRAW_STR];
-  char bone_vis_str[50];
+  WorkspaceStatus status(C);
 
   switch (pso->mode) {
     case POSESLIDE_PUSH:
-      STRNCPY(mode_str, IFACE_("Push Pose"));
+      status.item(IFACE_("Push Pose"), ICON_NONE);
       break;
     case POSESLIDE_RELAX:
-      STRNCPY(mode_str, IFACE_("Relax Pose"));
+      status.item(IFACE_("Relax Pose"), ICON_NONE);
       break;
     case POSESLIDE_BREAKDOWN:
-      STRNCPY(mode_str, IFACE_("Breakdown"));
+      status.item(IFACE_("Breakdown"), ICON_NONE);
       break;
     case POSESLIDE_BLEND:
-      STRNCPY(mode_str, IFACE_("Blend to Neighbor"));
+      status.item(IFACE_("Blend to Neighbor"), ICON_NONE);
+      break;
+    case POSESLIDE_BLEND_REST:
+      status.item(IFACE_("Blend Rest"), ICON_NONE);
       break;
 
     default:
       /* Unknown. */
-      STRNCPY(mode_str, IFACE_("Sliding-Tool"));
+      status.item(IFACE_("Sliding-Tool"), ICON_NONE);
       break;
   }
 
-  switch (pso->axislock) {
-    case PS_LOCK_X:
-      STRNCPY(axis_str, IFACE_("[X]/Y/Z axis only (X to clear)"));
-      break;
-    case PS_LOCK_Y:
-      STRNCPY(axis_str, IFACE_("X/[Y]/Z axis only (Y to clear)"));
-      break;
-    case PS_LOCK_Z:
-      STRNCPY(axis_str, IFACE_("X/Y/[Z] axis only (Z to clear)"));
-      break;
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Blend"), ICON_MOUSE_MOVE);
 
-    default:
-      if (ELEM(pso->channels, PS_TFM_LOC, PS_TFM_ROT, PS_TFM_SIZE)) {
-        STRNCPY(axis_str, IFACE_("X/Y/Z = Axis Constraint"));
-      }
-      else {
-        axis_str[0] = '\0';
-      }
-      break;
-  }
+  status.item_bool("", pso->channels == PS_TFM_LOC, ICON_EVENT_G);
+  status.item_bool("", pso->channels == PS_TFM_ROT, ICON_EVENT_R);
+  status.item_bool("", pso->channels == PS_TFM_SIZE, ICON_EVENT_S);
+  status.item_bool("", pso->channels == PS_TFM_BBONE_SHAPE, ICON_EVENT_B);
+  status.item_bool("", pso->channels == PS_TFM_PROPS, ICON_EVENT_C);
 
   switch (pso->channels) {
     case PS_TFM_LOC:
-      SNPRINTF(limits_str, IFACE_("[G]/R/S/B/C - Location only (G to clear) | %s"), axis_str);
+      status.item("Location only", ICON_NONE);
       break;
     case PS_TFM_ROT:
-      SNPRINTF(limits_str, IFACE_("G/[R]/S/B/C - Rotation only (R to clear) | %s"), axis_str);
+      status.item("Rotation only", ICON_NONE);
       break;
     case PS_TFM_SIZE:
-      SNPRINTF(limits_str, IFACE_("G/R/[S]/B/C - Scale only (S to clear) | %s"), axis_str);
+      status.item("Scale only", ICON_NONE);
       break;
     case PS_TFM_BBONE_SHAPE:
-      STRNCPY(limits_str, IFACE_("G/R/S/[B]/C - Bendy Bone properties only (B to clear) | %s"));
+      status.item("Bendy Bones only", ICON_NONE);
       break;
     case PS_TFM_PROPS:
-      STRNCPY(limits_str, IFACE_("G/R/S/B/[C] - Custom Properties only (C to clear) | %s"));
+      status.item("Custom Properties only", ICON_NONE);
       break;
     default:
-      STRNCPY(limits_str, IFACE_("G/R/S/B/C - Limit to Transform/Property Set"));
+      status.item("Transform limits", ICON_NONE);
       break;
   }
 
-  STRNCPY(bone_vis_str, IFACE_("[H] - Toggle bone visibility"));
-
-  ED_slider_status_string_get(pso->slider, slider_str, sizeof(slider_str));
+  if (ELEM(pso->channels, PS_TFM_LOC, PS_TFM_ROT, PS_TFM_SIZE)) {
+    status.item_bool("", pso->axislock & PS_LOCK_X, ICON_EVENT_X);
+    status.item_bool("", pso->axislock & PS_LOCK_Y, ICON_EVENT_Y);
+    status.item_bool(IFACE_("Axis Constraint"), pso->axislock & PS_LOCK_Z, ICON_EVENT_Z);
+  }
 
   if (hasNumInput(&pso->num)) {
     Scene *scene = pso->scene;
@@ -969,13 +958,13 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
 
     outputNumInput(&pso->num, str_offs, scene->unit);
 
-    SNPRINTF(status_str, "%s: %s | %s", mode_str, str_offs, limits_str);
+    status.item(str_offs, ICON_NONE);
   }
   else {
-    SNPRINTF(status_str, "%s: %s | %s | %s", mode_str, limits_str, slider_str, bone_vis_str);
+    ED_slider_status_get(pso->slider, status);
+    status.item(IFACE_("Toggle bone visibility"), ICON_EVENT_H);
   }
 
-  ED_workspace_status_text(C, status_str);
   ED_area_status_text(pso->area, "");
 }
 
