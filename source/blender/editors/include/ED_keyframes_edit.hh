@@ -510,7 +510,18 @@ void smooth_fcurve(FCurve *fcu);
 
 /* ----------- */
 
+/**
+ * Clear the copy-paste buffer.
+ *
+ * Normally this is not necessary, as `copy_animedit_keys()` will do this for
+ * you.
+ */
 void ANIM_fcurves_copybuf_reset();
+
+/**
+ * Free the copy-paste buffer.
+ */
+void ANIM_fcurves_copybuf_free();
 
 /**
  * Copy animation keys into the copy buffer.

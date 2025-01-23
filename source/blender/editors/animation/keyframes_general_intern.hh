@@ -92,6 +92,11 @@ struct KeyframeCopyBuffer {
   bool is_empty() const;
   bool is_single_fcurve() const;
   bool is_bone(const FCurve &fcurve) const;
+
+  /**
+   * Print the contents of the copy buffer to stdout.
+   */
+  void debug_print() const;
 };
 
 /**

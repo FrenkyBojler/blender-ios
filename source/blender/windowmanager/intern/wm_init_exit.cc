@@ -600,7 +600,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
     blender::draw::DRW_subdiv_free();
   }
 
-  ANIM_fcurves_copybuf_reset();
+  ANIM_fcurves_copybuf_free();
   ANIM_drivers_copybuf_free();
   ANIM_driver_vars_copybuf_free();
   ANIM_fmodifiers_copybuf_free();
