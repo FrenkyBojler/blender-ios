@@ -423,15 +423,15 @@ typedef struct ScrArea {
   /** Rect bound by v1 v2 v3 v4. */
   rcti totrct;
 
+  /** eSpace_Type (SPACE_FOO). */
+  char spacetype;
   /**
    * eSpace_Type (SPACE_FOO).
    *
    * Temporarily used while switching area type, otherwise this should be SPACE_EMPTY.
-   * Also, versioning uses it to nicely replace deprecated * editors.
+   * Also, versioning uses it to nicely replace deprecated editors.
    * It's been there for ages, name doesn't fit any more.
    */
-  char spacetype;
-  /** #eSpace_Type (SPACE_FOO). */
   char butspacetype;
   short butspacetype_subtype;
 
@@ -485,8 +485,6 @@ typedef struct ARegion {
   View2D v2d;
   /** Coordinates of region. */
   rcti winrct;
-  /** Runtime for partial redraw, same or smaller than winrct. */
-  rcti drawrct;
   /** Size. */
   short winx, winy;
   /**
@@ -494,10 +492,7 @@ typedef struct ARegion {
    * where zero represents no scroll - the first category always shows first at the top.
    */
   int category_scroll;
-  char _pad0[4];
 
-  /** Region is currently visible on screen. */
-  short visible;
   /** Window, header, etc. identifier for drawing. */
   short regiontype;
   /** How it should split. */
@@ -511,20 +506,13 @@ typedef struct ARegion {
    */
   short sizex, sizey;
 
-  /** Private, cached notifier events. */
-  short do_draw;
-  /** Private, cached notifier events. */
-  short do_draw_paintcursor;
   /** Private, set for indicate drawing overlapped. */
   short overlap;
   /** Temporary copy of flag settings for clean full-screen. */
   short flagfullscreen;
 
-  /** Callbacks for this region type. */
-  struct ARegionType *type;
+  char _pad[2];
 
-  /** #uiBlock. */
-  ListBase uiblocks;
   /** Panel. */
   ListBase panels;
   /** Stack of panel categories. */
@@ -533,24 +521,12 @@ typedef struct ARegion {
   ListBase ui_lists;
   /** #uiPreview. */
   ListBase ui_previews;
-  /** #wmEventHandler. */
-  ListBase handlers;
-  /** Panel categories runtime. */
-  ListBase panels_category;
   /**
    * Permanent state storage of #ui::AbstractView instances, so hiding regions with views or
    * loading files remembers the view state.
    */
   ListBase view_states; /* #uiViewStateLink */
 
-  /** Gizmo-map of this region. */
-  struct wmGizmoMap *gizmo_map;
-  /** Blend in/out. */
-  struct wmTimer *regiontimer;
-  struct wmDrawBuffer *draw_buffer;
-
-  /** Use this string to draw info. */
-  char *headerstr;
   /** XXX 2.50, need spacedata equivalent? */
   void *regiondata;
 

@@ -9,10 +9,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_index_mask.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.hh"
+#include "BLI_string.h"
 #include "BLI_time.h"
 
 #include "BLT_translation.hh"
@@ -20,6 +21,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
@@ -592,7 +594,7 @@ static void dyntopo_detail_size_edit_cancel(bContext *C, wmOperator *op)
   ARegion *region = CTX_wm_region(C);
   DyntopoDetailSizeEditCustomData *cd = static_cast<DyntopoDetailSizeEditCustomData *>(
       op->customdata);
-  ED_region_draw_cb_exit(region->type, cd->draw_handle);
+  ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
   ss.draw_faded_cursor = false;
   MEM_freeN(op->customdata);
   ED_workspace_status_text(C, nullptr);
@@ -742,7 +744,7 @@ static int dyntopo_detail_size_edit_modal(bContext *C, wmOperator *op, const wmE
       (event->type == EVT_RETKEY && event->val == KM_PRESS) ||
       (event->type == EVT_PADENTER && event->val == KM_PRESS))
   {
-    ED_region_draw_cb_exit(region->type, cd->draw_handle);
+    ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
     if (cd->mode == DETAILING_MODE_RESOLUTION) {
       sd->constant_detail = cd->current_value;
     }
@@ -813,7 +815,7 @@ static int dyntopo_detail_size_edit_invoke(bContext *C, wmOperator *op, const wm
 
   /* Initial operator Custom Data setup. */
   cd->draw_handle = ED_region_draw_cb_activate(
-      region->type, dyntopo_detail_size_edit_draw, cd, REGION_DRAW_POST_VIEW);
+      region->runtime->type, dyntopo_detail_size_edit_draw, cd, REGION_DRAW_POST_VIEW);
   cd->active_object = &active_object;
   cd->init_mval[0] = event->mval[0];
   cd->init_mval[1] = event->mval[1];

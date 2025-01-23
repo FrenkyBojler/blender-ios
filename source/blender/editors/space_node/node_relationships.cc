@@ -15,9 +15,12 @@
 #include "BLI_stack.hh"
 
 #include "BKE_context.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_screen.hh"
 
 #include "ED_node.hh" /* own include */
 #include "ED_render.hh"
@@ -36,11 +39,8 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "BLT_translation.hh"
-
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
-#include "NOD_socket_declarations_geometry.hh"
 
 #include "node_intern.hh" /* own include */
 
@@ -218,7 +218,7 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
 
   /* Always allow linking to an reroute node. The socket type of the reroute sockets might change
    * after the link has been created. */
-  if (node->type == NODE_REROUTE) {
+  if (node->is_reroute()) {
     return (bNodeSocket *)node->outputs.first;
   }
 
@@ -323,17 +323,11 @@ void update_multi_input_indices_for_removed_links(bNode &node)
 static void snode_autoconnect(SpaceNode &snode, const bool allow_multiple, const bool replace)
 {
   bNodeTree *ntree = snode.edittree;
-  Vector<bNode *> sorted_nodes;
-
-  for (bNode *node : ntree->all_nodes()) {
-    if (node->flag & NODE_SELECT) {
-      sorted_nodes.append(node);
-    }
-  }
+  Vector<bNode *> sorted_nodes = get_selected_nodes(*ntree).extract_vector();
 
   /* Sort nodes left to right. */
   std::sort(sorted_nodes.begin(), sorted_nodes.end(), [](const bNode *a, const bNode *b) {
-    return a->locx < b->locx;
+    return a->location[0] < b->location[0];
   });
 
   // int numlinks = 0; /* UNUSED */
@@ -434,7 +428,7 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
                                                 bNode &viewer_node,
                                                 bNodeSocket &src_socket)
 {
-  if (viewer_node.type != GEO_NODE_VIEWER) {
+  if (viewer_node.type_legacy != GEO_NODE_VIEWER) {
     /* In viewer nodes in the compositor, only the first input should be linked to. */
     return (bNodeSocket *)viewer_node.inputs.first;
   }
@@ -461,14 +455,14 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
 
 static bool is_viewer_node(const bNode &node)
 {
-  return ELEM(node.type, CMP_NODE_VIEWER, GEO_NODE_VIEWER);
+  return ELEM(node.type_legacy, CMP_NODE_VIEWER, GEO_NODE_VIEWER);
 }
 
 static bool is_viewer_socket_in_viewer(const bNodeSocket &socket)
 {
   const bNode &node = socket.owner_node();
   BLI_assert(is_viewer_node(node));
-  if (node.typeinfo->type == GEO_NODE_VIEWER) {
+  if (node.typeinfo->type_legacy == GEO_NODE_VIEWER) {
     return true;
   }
   return socket.index() == 0;
@@ -589,7 +583,7 @@ static void finalize_viewer_link(const bContext &C,
   if (snode.edittree->type == NTREE_GEOMETRY) {
     viewer_path::activate_geometry_node(*bmain, snode, viewer_node);
   }
-  ED_node_tree_propagate_change(&C, bmain, snode.edittree);
+  BKE_main_ensure_invariants(*bmain, snode.edittree->id);
 }
 
 static const bNode *find_overlapping_node(const bNodeTree &tree,
@@ -603,7 +597,7 @@ static const bNode *find_overlapping_node(const bNodeTree &tree,
     if (ignored_nodes.contains(node)) {
       continue;
     }
-    if (BLI_rctf_isect(&rect, &node->runtime->totr, nullptr)) {
+    if (BLI_rctf_isect(&rect, &node->runtime->draw_bounds, nullptr)) {
       return node;
     }
   }
@@ -662,16 +656,17 @@ static void position_viewer_node(bNodeTree &tree,
 
   const float default_padding_x = U.node_margin;
   const float default_padding_y = 10;
-  const float viewer_width = BLI_rctf_size_x(&viewer_node.runtime->totr);
-  float viewer_height = BLI_rctf_size_y(&viewer_node.runtime->totr);
+  const float viewer_width = BLI_rctf_size_x(&viewer_node.runtime->draw_bounds);
+  float viewer_height = BLI_rctf_size_y(&viewer_node.runtime->draw_bounds);
   if (viewer_height == 0) {
     /* Can't use if the viewer node has only just been added and the actual height is not yet
      * known. */
     viewer_height = 100;
   }
 
-  const float2 main_candidate{node_to_view.runtime->totr.xmax + default_padding_x,
-                              node_to_view.runtime->totr.ymax + viewer_height + default_padding_y};
+  const float2 main_candidate{node_to_view.runtime->draw_bounds.xmax + default_padding_x,
+                              node_to_view.runtime->draw_bounds.ymax + viewer_height +
+                                  default_padding_y};
 
   std::optional<float2> new_viewer_position;
 
@@ -704,15 +699,15 @@ static void position_viewer_node(bNodeTree &tree,
     new_viewer_position = main_candidate;
   }
 
-  const float2 old_position = float2(viewer_node.locx, viewer_node.locy) * UI_SCALE_FAC;
-  if (old_position.x > node_to_view.runtime->totr.xmax) {
-    if (BLI_rctf_inside_rctf(&region_bounds, &viewer_node.runtime->totr)) {
+  const float2 old_position = float2(viewer_node.location) * UI_SCALE_FAC;
+  if (old_position.x > node_to_view.runtime->draw_bounds.xmax) {
+    if (BLI_rctf_inside_rctf(&region_bounds, &viewer_node.runtime->draw_bounds)) {
       /* Measure distance from right edge of the node to view and the left edge of the
        * viewer node. */
-      const float2 node_to_view_top_right{node_to_view.runtime->totr.xmax,
-                                          node_to_view.runtime->totr.ymax};
-      const float2 node_to_view_bottom_right{node_to_view.runtime->totr.xmax,
-                                             node_to_view.runtime->totr.ymin};
+      const float2 node_to_view_top_right{node_to_view.runtime->draw_bounds.xmax,
+                                          node_to_view.runtime->draw_bounds.ymax};
+      const float2 node_to_view_bottom_right{node_to_view.runtime->draw_bounds.xmax,
+                                             node_to_view.runtime->draw_bounds.ymin};
       const float old_distance = dist_seg_seg_v2(old_position,
                                                  old_position + float2(0, viewer_height),
                                                  node_to_view_top_right,
@@ -727,8 +722,8 @@ static void position_viewer_node(bNodeTree &tree,
     }
   }
 
-  viewer_node.locx = new_viewer_position->x / UI_SCALE_FAC;
-  viewer_node.locy = new_viewer_position->y / UI_SCALE_FAC;
+  viewer_node.location[0] = new_viewer_position->x / UI_SCALE_FAC;
+  viewer_node.location[1] = new_viewer_position->y / UI_SCALE_FAC;
   viewer_node.parent = nullptr;
 }
 
@@ -853,7 +848,7 @@ static int node_active_link_viewer_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  ED_node_tree_propagate_change(C, CTX_data_main(C), snode.edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode.edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -981,14 +976,14 @@ static void draw_draglink_tooltip_activate(const ARegion &region, bNodeLinkDrag 
 {
   if (nldrag.draw_handle == nullptr) {
     nldrag.draw_handle = ED_region_draw_cb_activate(
-        region.type, draw_draglink_tooltip, &nldrag, REGION_DRAW_POST_PIXEL);
+        region.runtime->type, draw_draglink_tooltip, &nldrag, REGION_DRAW_POST_PIXEL);
   }
 }
 
 static void draw_draglink_tooltip_deactivate(const ARegion &region, bNodeLinkDrag &nldrag)
 {
   if (nldrag.draw_handle) {
-    ED_region_draw_cb_exit(region.type, nldrag.draw_handle);
+    ED_region_draw_cb_exit(region.runtime->type, nldrag.draw_handle);
     nldrag.draw_handle = nullptr;
   }
 }
@@ -1235,7 +1230,7 @@ static void add_dragged_links_to_tree(bContext &C, bNodeLinkDrag &nldrag)
     BKE_ntree_update_tag_link_added(&ntree, new_link);
   }
 
-  ED_node_tree_propagate_change(&C, bmain, &ntree);
+  BKE_main_ensure_invariants(*bmain, ntree.id);
 
   /* Ensure drag-link tool-tip is disabled. */
   draw_draglink_tooltip_deactivate(region, nldrag);
@@ -1256,7 +1251,7 @@ static void node_link_cancel(bContext *C, wmOperator *op)
   snode->runtime->linkdrag.reset();
   clear_picking_highlight(&snode->edittree->links);
   BKE_ntree_update_tag_link_removed(snode->edittree);
-  ED_node_tree_propagate_change(C, CTX_data_main(C), snode->edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 }
 
 static void node_link_find_socket(bContext &C, wmOperator &op, const float2 &cursor)
@@ -1435,12 +1430,25 @@ static int node_link_modal(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL;
 }
 
+static void remove_unavailable_links(bNodeTree &tree, bNodeSocket &socket)
+{
+  tree.ensure_topology_cache();
+  Vector<bNodeLink *> links = socket.directly_linked_links();
+  for (bNodeLink *link : links) {
+    if (!link->is_available()) {
+      bke::node_remove_link(&tree, link);
+    }
+  }
+}
+
 static std::unique_ptr<bNodeLinkDrag> node_link_init(ARegion &region,
                                                      SpaceNode &snode,
                                                      const float2 cursor,
                                                      const bool detach)
 {
   if (bNodeSocket *sock = node_find_indicated_socket(snode, region, cursor, SOCK_OUT)) {
+    remove_unavailable_links(*snode.edittree, *sock);
+    snode.edittree->ensure_topology_cache();
     bNode &node = sock->owner_node();
 
     std::unique_ptr<bNodeLinkDrag> nldrag = std::make_unique<bNodeLinkDrag>();
@@ -1472,6 +1480,8 @@ static std::unique_ptr<bNodeLinkDrag> node_link_init(ARegion &region,
   }
 
   if (bNodeSocket *sock = node_find_indicated_socket(snode, region, cursor, SOCK_IN)) {
+    remove_unavailable_links(*snode.edittree, *sock);
+    snode.edittree->ensure_topology_cache();
     bNode &node = sock->owner_node();
     std::unique_ptr<bNodeLinkDrag> nldrag = std::make_unique<bNodeLinkDrag>();
     nldrag->last_node_hovered_while_dragging_a_link = &node;
@@ -1608,7 +1618,7 @@ static int node_make_link_exec(bContext *C, wmOperator *op)
   node_deselect_all_input_sockets(node_tree, false);
   node_deselect_all_output_sockets(node_tree, false);
 
-  ED_node_tree_propagate_change(C, &bmain, &node_tree);
+  BKE_main_ensure_invariants(bmain, node_tree.id);
 
   return OPERATOR_FINISHED;
 }
@@ -1697,7 +1707,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
     update_multi_input_indices_for_removed_links(*node);
   }
 
-  ED_node_tree_propagate_change(C, CTX_data_main(C), snode.edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode.edittree->id);
   if (found) {
     return OPERATOR_FINISHED;
   }
@@ -1724,7 +1734,7 @@ void NODE_OT_links_cut(wmOperatorType *ot)
   /* properties */
   PropertyRNA *prop;
   prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   /* internal */
   RNA_def_int(ot->srna, "cursor", WM_CURSOR_KNIFE, 0, INT_MAX, "Cursor", "", 0, INT_MAX);
@@ -1827,7 +1837,7 @@ static int mute_links_exec(bContext *C, wmOperator *op)
     }
   }
 
-  ED_node_tree_propagate_change(C, CTX_data_main(C), &ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree.id);
   return OPERATOR_FINISHED;
 }
 
@@ -1850,7 +1860,7 @@ void NODE_OT_links_mute(wmOperatorType *ot)
   /* properties */
   PropertyRNA *prop;
   prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   /* internal */
   RNA_def_int(ot->srna, "cursor", WM_CURSOR_MUTE, 0, INT_MAX, "Cursor", "", 0, INT_MAX);
@@ -1875,7 +1885,7 @@ static int detach_links_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(C, CTX_data_main(C), &ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree.id);
   return OPERATOR_FINISHED;
 }
 
@@ -1904,7 +1914,7 @@ static int node_parent_set_exec(bContext *C, wmOperator * /*op*/)
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
   bNode *frame = bke::node_get_active(&ntree);
-  if (!frame || frame->type != NODE_FRAME) {
+  if (!frame || !frame->is_frame()) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2046,7 +2056,7 @@ static int node_join_exec(bContext *C, wmOperator * /*op*/)
   }
 
   tree_draw_order_update(ntree);
-  ED_node_tree_propagate_change(C, &bmain, snode.edittree);
+  BKE_main_ensure_invariants(bmain, snode.edittree->id);
   WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
@@ -2084,7 +2094,7 @@ static bNode *node_find_frame_to_attach(ARegion &region, bNodeTree &ntree, const
     if (!frame->is_frame() || (frame->flag & NODE_SELECT)) {
       continue;
     }
-    if (BLI_rctf_isect_pt_v(&frame->runtime->totr, cursor)) {
+    if (BLI_rctf_isect_pt_v(&frame->runtime->draw_bounds, cursor)) {
       return frame;
     }
   }
@@ -2343,13 +2353,14 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
      * segment. */
     for (int i = 0; i < NODE_LINK_RESOL; i++) {
       /* Check if the node rectangle intersects the line from this point to next one. */
-      if (BLI_rctf_isect_segment(&node_to_insert->runtime->totr, coords[i], coords[i + 1])) {
+      if (BLI_rctf_isect_segment(&node_to_insert->runtime->draw_bounds, coords[i], coords[i + 1]))
+      {
         /* Store the shortest distance to the upper left edge of all intersections found so far. */
-        const float node_xy[] = {node_to_insert->runtime->totr.xmin,
-                                 node_to_insert->runtime->totr.ymax};
+        const float node_xy[] = {node_to_insert->runtime->draw_bounds.xmin,
+                                 node_to_insert->runtime->draw_bounds.ymax};
 
-        /* To be precise coords should be clipped by `select->totr`, but not done since there's no
-         * real noticeable difference. */
+        /* To be precise coords should be clipped by `select->draw_bounds`, but not done since
+         * there's no real noticeable difference. */
         dist = min_ff(dist_squared_to_line_segment_v2(node_xy, coords[i], coords[i + 1]), dist);
       }
     }
@@ -2426,7 +2437,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     best_output = get_main_socket(ntree, *node_to_insert, SOCK_OUT);
   }
 
-  if (node_to_insert->type != NODE_REROUTE) {
+  if (!node_to_insert->is_reroute()) {
     /* Ignore main sockets when the types don't match. */
     if (best_input != nullptr && ntree.typeinfo->validate_link != nullptr &&
         !ntree.typeinfo->validate_link(static_cast<eNodeSocketDatatype>(old_link->fromsock->type),
@@ -2478,7 +2489,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     snode.runtime->iofsd = iofsd;
   }
 
-  ED_node_tree_propagate_change(nullptr, &bmain, &ntree);
+  BKE_main_ensure_invariants(bmain, ntree.id);
 }
 
 /** \} */
@@ -2553,19 +2564,6 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
   for (int priority = maxpriority; priority >= 0; priority--) {
     LISTBASE_FOREACH (bNodeSocket *, sock, sockets) {
       if (!!sock->is_visible() && priority == get_main_socket_priority(sock)) {
-        return sock;
-      }
-    }
-  }
-
-  /* No visible sockets, unhide first of highest priority. */
-  for (int priority = maxpriority; priority >= 0; priority--) {
-    LISTBASE_FOREACH (bNodeSocket *, sock, sockets) {
-      if (sock->flag & SOCK_UNAVAIL) {
-        continue;
-      }
-      if (priority == get_main_socket_priority(sock)) {
-        sock->flag &= ~SOCK_HIDDEN;
         return sock;
       }
     }
@@ -2693,15 +2691,15 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
 
   const float min_margin = U.node_margin * UI_SCALE_FAC;
   const float width = NODE_WIDTH(insert);
-  const bool needs_alignment = (next->runtime->totr.xmin - prev->runtime->totr.xmax) <
-                               (width + (min_margin * 2.0f));
+  const bool needs_alignment = (next->runtime->draw_bounds.xmin -
+                                prev->runtime->draw_bounds.xmax) < (width + (min_margin * 2.0f));
 
   float margin = width;
 
   /* NODE_TEST will be used later, so disable for all nodes */
   bke::node_tree_node_flag_set(ntree, NODE_TEST, false);
 
-  /* `insert.totr` isn't updated yet,
+  /* `insert.draw_bounds` isn't updated yet,
    * so `totr_insert` is used to get the correct world-space coords. */
   rctf totr_insert;
   node_to_updated_rect(insert, totr_insert);
@@ -2721,7 +2719,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     /* check nodes front to back */
     for (bNode *frame : tree_draw_order_calc_nodes_reversed(*ntree)) {
       /* skip selected, those are the nodes we want to attach */
-      if ((frame->type != NODE_FRAME) || (frame->flag & NODE_SELECT)) {
+      if (!frame->is_frame() || (frame->flag & NODE_SELECT)) {
         continue;
       }
 
@@ -2745,8 +2743,8 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
 
   /* *** ensure offset at the left (or right for right_alignment case) of insert_node *** */
 
-  float dist = right_alignment ? totr_insert.xmin - prev->runtime->totr.xmax :
-                                 next->runtime->totr.xmin - totr_insert.xmax;
+  float dist = right_alignment ? totr_insert.xmin - prev->runtime->draw_bounds.xmax :
+                                 next->runtime->draw_bounds.xmin - totr_insert.xmax;
   /* distance between insert_node and prev is smaller than min margin */
   if (dist < min_margin) {
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
@@ -2760,8 +2758,8 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
 
   /* *** ensure offset at the right (or left for right_alignment case) of insert_node *** */
 
-  dist = right_alignment ? next->runtime->totr.xmin - totr_insert.xmax :
-                           totr_insert.xmin - prev->runtime->totr.xmax;
+  dist = right_alignment ? next->runtime->draw_bounds.xmin - totr_insert.xmax :
+                           totr_insert.xmin - prev->runtime->draw_bounds.xmax;
   /* distance between insert_node and next is smaller than min margin */
   if (dist < min_margin) {
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
@@ -2830,7 +2828,7 @@ static int node_insert_offset_modal(bContext *C, wmOperator *op, const wmEvent *
                                        clamped_duration, 0.0f, 1.0f, NODE_INSOFS_ANIM_DURATION) -
                                    BLI_easing_cubic_ease_in_out(
                                        prev_duration, 0.0f, 1.0f, NODE_INSOFS_ANIM_DURATION));
-        node->locx += offset_step;
+        node->location[0] += offset_step;
         redraw = true;
       }
     }

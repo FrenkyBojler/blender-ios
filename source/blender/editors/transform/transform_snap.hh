@@ -10,9 +10,7 @@
 
 #define SNAP_MIN_DISTANCE 30
 
-/* For enum. */
-#include "DNA_scene_types.h"
-#include "DNA_space_types.h"
+#include "transform.hh"
 
 bool peelObjectsTransform(TransInfo *t,
                           const float mval[2],
@@ -21,13 +19,6 @@ bool peelObjectsTransform(TransInfo *t,
                           float r_loc[3],
                           float r_no[3],
                           float *r_thickness);
-
-bool snapNodesTransform(TransInfo *t,
-                        const blender::float2 &mval,
-                        /* Return args. */
-                        float r_loc[2],
-                        float *r_dist_px,
-                        char *r_node_border);
 
 bool transformModeUseSnap(const TransInfo *t);
 

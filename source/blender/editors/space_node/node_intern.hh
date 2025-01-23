@@ -9,10 +9,7 @@
 #pragma once
 
 #include "BLI_compute_context.hh"
-#include "BLI_math_vector.h"
-#include "BLI_math_vector.hh"
 #include "BLI_vector.hh"
-#include "BLI_vector_set.hh"
 
 #include "BKE_node.hh"
 
@@ -138,8 +135,6 @@ ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
 #define NODE_HEIGHT(node) (node.height * UI_SCALE_FAC)
 #define NODE_MARGIN_X (1.2f * U.widget_unit)
 #define NODE_SOCKSIZE (0.25f * U.widget_unit)
-#define NODE_SOCKSIZE_DRAW_MULIPLIER 2.25f
-#define NODE_SOCK_OUTLINE_SCALE 1.0f
 #define NODE_MULTI_INPUT_LINK_GAP (0.25f * U.widget_unit)
 #define NODE_RESIZE_MARGIN (0.20f * U.widget_unit)
 #define NODE_LINK_RESOL 12
@@ -183,9 +178,9 @@ Array<bNode *> tree_draw_order_calc_nodes_reversed(bNodeTree &ntree);
 
 void node_set_cursor(wmWindow &win, ARegion &region, SpaceNode &snode, const float2 &cursor);
 /* DPI scaled coords */
-float2 node_to_view(const bNode &node, const float2 &co);
+float2 node_to_view(const float2 &co);
 void node_to_updated_rect(const bNode &node, rctf &r_rect);
-float2 node_from_view(const bNode &node, const float2 &co);
+float2 node_from_view(const float2 &co);
 
 /* `node_ops.cc` */
 
@@ -238,6 +233,17 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
                                               const bNode *node,
                                               int x,
                                               int y);
+
+/* node socket batched drawing */
+void UI_node_socket_draw_cache_flush();
+void nodesocket_batch_start();
+void nodesocket_batch_end();
+void node_draw_nodesocket(const rctf *rect,
+                          const float color_inner[4],
+                          const float color_outline[4],
+                          float outline_thickness,
+                          int shape,
+                          float aspect);
 
 void nodelink_batch_start(SpaceNode &snode);
 void nodelink_batch_end(SpaceNode &snode);
@@ -295,7 +301,7 @@ void NODE_OT_new_node_tree(wmOperatorType *ot);
 
 /* `node_group.cc` */
 
-const char *node_group_idname(bContext *C);
+StringRef node_group_idname(bContext *C);
 void NODE_OT_group_make(wmOperatorType *ot);
 void NODE_OT_group_insert(wmOperatorType *ot);
 void NODE_OT_group_ungroup(wmOperatorType *ot);
@@ -327,6 +333,7 @@ void NODE_OT_link_viewer(wmOperatorType *ot);
 void NODE_OT_insert_offset(wmOperatorType *ot);
 
 wmKeyMap *node_link_modal_keymap(wmKeyConfig *keyconf);
+wmKeyMap *node_resize_modal_keymap(wmKeyConfig *keyconf);
 
 /* `node_edit.cc` */
 

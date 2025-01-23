@@ -102,6 +102,9 @@ void VKDevice::init(void *ghost_context)
   debug::object_label(vk_handle(), "LogicalDevice");
   debug::object_label(queue_get(), "GenericQueue");
   init_glsl_patch();
+
+  resources.use_dynamic_rendering = !workarounds_.dynamic_rendering;
+  resources.use_dynamic_rendering_local_read = !workarounds_.dynamic_rendering_local_read;
 }
 
 void VKDevice::init_functions()
@@ -196,7 +199,9 @@ void VKDevice::init_dummy_buffer()
 {
   dummy_buffer.create(sizeof(float4x4),
                       GPU_USAGE_DEVICE_ONLY,
-                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   debug::object_label(dummy_buffer.vk_handle(), "DummyBuffer");
   /* Default dummy buffer. Set the 4th element to 1 to fix missing orcos. */
   float data[16] = {
@@ -223,12 +228,6 @@ void VKDevice::init_glsl_patch()
   if (GPU_stencil_export_support()) {
     ss << "#extension GL_ARB_shader_stencil_export: enable\n";
     ss << "#define GPU_ARB_shader_stencil_export 1\n";
-  }
-  if (!workarounds_.shader_output_layer) {
-    ss << "#define gpu_Layer gl_Layer\n";
-  }
-  if (!workarounds_.shader_output_viewport_index) {
-    ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
   if (!workarounds_.fragment_shader_barycentric) {
     ss << "#extension GL_EXT_fragment_shader_barycentric : require\n";
@@ -390,9 +389,12 @@ VKThreadData &VKDevice::current_thread_data()
   return *thread_data;
 }
 
-VKDiscardPool &VKDevice::discard_pool_for_current_thread()
+VKDiscardPool &VKDevice::discard_pool_for_current_thread(bool thread_safe)
 {
-  std::scoped_lock mutex(resources.mutex);
+  std::unique_lock lock(resources.mutex, std::defer_lock);
+  if (!thread_safe) {
+    lock.lock();
+  }
   pthread_t current_thread_id = pthread_self();
   if (BLI_thread_is_main()) {
     for (VKThreadData *thread_data : thread_data_) {
@@ -491,7 +493,7 @@ void VKDevice::debug_print()
   os << " VkDescriptorSetLayouts: " << descriptor_set_layouts_.size() << "\n";
   for (const VKThreadData *thread_data : thread_data_) {
     /* NOTE: Assumption that this is always called form the main thread. This could be solved by
-     * keeping track of the main thread inside the thread data.*/
+     * keeping track of the main thread inside the thread data. */
     const bool is_main = pthread_equal(thread_data->thread_id, pthread_self());
     os << "ThreadData" << (is_main ? " (main-thread)" : "") << ")\n";
     os << " Rendering_depth: " << thread_data->rendering_depth << "\n";
@@ -506,6 +508,17 @@ void VKDevice::debug_print()
   os << "Orphaned data\n";
   debug_print(os, orphaned_data);
   os << "\n";
+}
+
+void VKDevice::free_command_pool_buffers(VkCommandPool vk_command_pool)
+{
+  std::scoped_lock mutex(resources.mutex);
+  for (VKThreadData *thread_data : thread_data_) {
+    for (VKResourcePool &resource_pool : thread_data->resource_pools) {
+      resource_pool.discard_pool.free_command_pool_buffers(vk_command_pool, *this);
+    }
+  }
+  orphaned_data.free_command_pool_buffers(vk_command_pool, *this);
 }
 
 /** \} */

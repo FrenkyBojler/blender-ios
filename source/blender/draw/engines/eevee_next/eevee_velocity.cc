@@ -19,6 +19,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
 
+#include "draw_cache.hh"
 #include "draw_cache_impl.hh"
 
 #include "eevee_instance.hh"
@@ -168,8 +169,14 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
           vel.obj.ofs[STEP_PREVIOUS]) = ob->object_to_world();
     }
     if (vel.obj.ofs[STEP_NEXT] == -1) {
-      vel.obj.ofs[STEP_NEXT] = object_steps_usage[STEP_NEXT]++;
-      object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = ob->object_to_world();
+      if (inst_.is_viewport()) {
+        /* Just set it to 0. motion.next is not meant to be valid in the viewport. */
+        vel.obj.ofs[STEP_NEXT] = 0;
+      }
+      else {
+        vel.obj.ofs[STEP_NEXT] = object_steps_usage[STEP_NEXT]++;
+        object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = ob->object_to_world();
+      }
     }
   }
 
@@ -216,11 +223,11 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
   if (step_ == STEP_CURRENT && has_motion == true && has_deform == false) {
     const float4x4 &obmat_curr = (*object_steps[STEP_CURRENT])[vel.obj.ofs[STEP_CURRENT]];
     const float4x4 &obmat_prev = (*object_steps[STEP_PREVIOUS])[vel.obj.ofs[STEP_PREVIOUS]];
-    const float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
     if (inst_.is_viewport()) {
       has_motion = (obmat_curr != obmat_prev);
     }
     else {
+      const float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
       has_motion = (obmat_curr != obmat_prev || obmat_curr != obmat_next);
     }
   }
@@ -313,6 +320,7 @@ void VelocityModule::step_swap()
     std::swap(geometry_steps[step_a], geometry_steps[step_b]);
     std::swap(camera_steps[step_a], camera_steps[step_b]);
     std::swap(step_time[step_a], step_time[step_b]);
+    std::swap(object_steps_usage[step_a], object_steps_usage[step_b]);
 
     for (VelocityObjectData &vel : velocity_map.values()) {
       vel.obj.ofs[step_a] = vel.obj.ofs[step_b];
@@ -343,6 +351,9 @@ void VelocityModule::begin_sync()
   step_ = STEP_CURRENT;
   step_camera_sync();
   object_steps_usage[step_] = 0;
+
+  /* STEP_NEXT is not used for viewport. (See #131134) */
+  BLI_assert(!inst_.is_viewport() || object_steps_usage[STEP_NEXT] == 0);
 }
 
 void VelocityModule::end_sync()

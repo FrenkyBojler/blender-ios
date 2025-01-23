@@ -5,18 +5,19 @@
 #include "workbench_private.hh"
 
 #include "BKE_camera.h"
+#include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
-#include "BKE_modifier.hh"
-#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
-#include "BKE_particle.h"
 
 #include "DEG_depsgraph_query.hh"
-#include "DNA_fluid_types.h"
+
+#include "DNA_world_types.h"
+
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
+
 #include "GPU_capabilities.hh"
 
 namespace blender::workbench {
@@ -115,9 +116,7 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
     rv3d->rflag &= ~RV3D_GPULIGHT_UPDATE;
   }
 
-  float4x4 matrix;
-  /* TODO(@pragma37): New API? */
-  DRW_view_persmat_get(nullptr, matrix.ptr(), false);
+  float4x4 matrix = View::default_get().persmat();
   if (matrix != view_projection_matrix) {
     view_projection_matrix = matrix;
     reset_taa = true;

@@ -676,10 +676,10 @@ static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value, ReportList *
   /* Layered action. */
   bActionGroup *group = static_cast<bActionGroup *>(value.data);
 
-  BLI_assert(group->channel_bag != nullptr);
-  blender::animrig::ChannelBag &channel_bag = group->channel_bag->wrap();
+  BLI_assert(group->channelbag != nullptr);
+  blender::animrig::Channelbag &channelbag = group->channelbag->wrap();
 
-  if (!channel_bag.fcurve_assign_to_channel_group(*fcu, *group)) {
+  if (!channelbag.fcurve_assign_to_channel_group(*fcu, *group)) {
     printf(
         "ERROR: F-Curve (datapath: '%s') doesn't belong to the same channel bag as "
         "channel group '%s'\n",
@@ -1078,7 +1078,7 @@ static void rna_FModifierStepped_frame_end_set(PointerRNA *ptr, float value)
 }
 
 static BezTriple *rna_FKeyframe_points_insert(
-    ID *id, FCurve *fcu, Main *bmain, float frame, float value, int keyframe_type, int flag)
+    ID *id, FCurve *fcu, Main *bmain, float frame, float value, int flag, int keyframe_type)
 {
   using namespace blender::animrig;
   KeyframeSettings settings = get_keyframe_settings(false);
@@ -1666,6 +1666,7 @@ static void rna_def_fmodifier_noise(BlenderRNA *brna)
       prop,
       "Strength",
       "Amplitude of the noise - the amount that it modifies the underlying curve");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 
   prop = RNA_def_property(srna, "phase", PROP_FLOAT, PROP_NONE);
@@ -1680,10 +1681,39 @@ static void rna_def_fmodifier_noise(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Offset", "Time offset for the noise effect");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 
+  prop = RNA_def_property(srna, "lacunarity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "lacunarity");
+  RNA_def_property_float_default(prop, 2.0);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop,
+                           "Lacunarity",
+                           "Gap between successive frequencies. Depth needs to be greater than 0 "
+                           "for this to have an effect");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+
+  prop = RNA_def_property(srna, "roughness", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "roughness");
+  RNA_def_property_float_default(prop, 0.5);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop,
+                           "Roughness",
+                           "Amount of high frequency detail. Depth needs to be greater than 0 for "
+                           "this to have an effect");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+
   prop = RNA_def_property(srna, "depth", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "depth");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Depth", "Amount of fine level detail present in the noise");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+
+  prop = RNA_def_property(srna, "use_legacy_noise", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "legacy_noise", 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop,
+                           "Legacy Noise",
+                           "Use the legacy way of generating noise. Has the issue that it can "
+                           "produce values outside of -1/1");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 }
 
@@ -2268,6 +2298,7 @@ static void rna_def_fkeyframe(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "hide");
   RNA_def_property_enum_items(prop, rna_enum_beztriple_keyframe_type_items);
   RNA_def_property_ui_text(prop, "Type", "Type of keyframe (for visual purposes only)");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_PROP, "rna_Keyframe_update");
 
   prop = RNA_def_property(srna, "easing", PROP_ENUM, PROP_NONE);

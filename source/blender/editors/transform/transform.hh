@@ -15,8 +15,6 @@
 #include "ED_view3d.hh"
 
 #include "DNA_listBase.h"
-#include "DNA_object_enums.h"
-#include "DNA_scene_types.h"
 
 #include "DEG_depsgraph.hh"
 
@@ -534,7 +532,6 @@ struct TransSnap {
   /** To this point (in global-space). */
   float snap_target[3];
   float snapNormal[3];
-  char snapNodeBorder;
   ListBase points;
   TransSnapPoint *selectedPoint;
   double last;
@@ -607,8 +604,8 @@ struct MouseInput {
    */
   bool use_virtual_mval;
   struct {
-    double prev[2];
-    double accum[2];
+    blender::double2 prev;
+    blender::double2 accum;
   } virtual_mval;
 };
 

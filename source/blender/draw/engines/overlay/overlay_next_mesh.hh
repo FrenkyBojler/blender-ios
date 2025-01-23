@@ -10,23 +10,24 @@
 
 #include <string>
 
-#include "DNA_brush_types.h"
-#include "DNA_mesh_types.h"
-
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
 #include "BKE_mask.h"
 #include "BKE_mesh_types.hh"
+#include "BKE_paint.hh"
 #include "BKE_subdiv_modifier.hh"
-
+#include "DEG_depsgraph_query.hh"
+#include "DNA_brush_types.h"
+#include "DNA_mask_types.h"
+#include "DNA_mesh_types.h"
 #include "ED_image.hh"
-
+#include "ED_view3d.hh"
 #include "GPU_capabilities.hh"
 
 #include "draw_cache_impl.hh"
-
-#include "overlay_next_private.hh"
+#include "draw_manager_text.hh"
+#include "overlay_next_base.hh"
 
 namespace blender::draw::overlay {
 
@@ -34,7 +35,10 @@ constexpr int overlay_edit_text = V3D_OVERLAY_EDIT_EDGE_LEN | V3D_OVERLAY_EDIT_F
                                   V3D_OVERLAY_EDIT_FACE_ANG | V3D_OVERLAY_EDIT_EDGE_ANG |
                                   V3D_OVERLAY_EDIT_INDICES;
 
-class Meshes {
+/**
+ * Draw edit mesh overlays.
+ */
+class Meshes : Overlay {
  private:
   PassSimple edit_mesh_normals_ps_ = {"Normals"};
   PassSimple::Sub *face_normals_ = nullptr;
@@ -73,21 +77,19 @@ class Meshes {
   View view_edit_cage_ = {"view_edit_cage"};
   View view_edit_edge_ = {"view_edit_edge"};
   View view_edit_vert_ = {"view_edit_vert"};
-  float view_dist_ = 0.0f;
-
-  bool enabled_ = false;
+  View::OffsetData offset_data_;
 
  public:
-  void begin_sync(Resources &res, const State &state, const View &view)
+  void begin_sync(Resources &res, const State &state) final
   {
-    enabled_ = state.space_type == SPACE_VIEW3D;
+    enabled_ = state.is_space_v3d();
 
     if (!enabled_) {
       return;
     }
 
-    view_dist_ = state.view_dist_get(view.winmat());
-    xray_enabled_ = state.xray_enabled;
+    offset_data_ = state.offset_data_get();
+    xray_enabled_ = state.xray_flag_enabled;
 
     ToolSettings *tsettings = state.scene->toolsettings;
     select_edge_ = (tsettings->selectmode & SCE_SELECT_EDGE);
@@ -98,7 +100,7 @@ class Meshes {
     show_retopology_ = (edit_flag & V3D_OVERLAY_EDIT_RETOPOLOGY) && !state.xray_enabled;
     show_mesh_analysis_ = (edit_flag & V3D_OVERLAY_EDIT_STATVIS);
     show_face_ = (edit_flag & V3D_OVERLAY_EDIT_FACES);
-    show_face_dots_ = ((edit_flag & V3D_OVERLAY_EDIT_FACE_DOT) || state.xray_enabled) &
+    show_face_dots_ = ((edit_flag & V3D_OVERLAY_EDIT_FACE_DOT) || state.xray_flag_enabled) &
                       select_face_;
     show_weight_ = (edit_flag & V3D_OVERLAY_EDIT_WEIGHT);
 
@@ -111,14 +113,14 @@ class Meshes {
 
     uint4 data_mask = data_mask_get(edit_flag);
 
-    float backwire_opacity = (state.xray_enabled) ? 0.5f : 1.0f;
+    float backwire_opacity = (state.xray_flag_enabled) ? 0.5f : 1.0f;
     float face_alpha = (show_face_) ? 1.0f : 0.0f;
     float retopology_offset = RETOPOLOGY_OFFSET(state.v3d);
     /* Cull back-faces for retopology face pass. This makes it so back-faces are not drawn.
      * Doing so lets us distinguish back-faces from front-faces. */
     DRWState face_culling = (show_retopology_) ? DRW_STATE_CULL_BACK : DRWState(0);
 
-    GPUTexture **depth_tex = (state.xray_enabled) ? &res.depth_tx : &res.dummy_depth_tx;
+    GPUTexture **depth_tex = (state.xray_flag_enabled) ? &res.depth_tx : &res.dummy_depth_tx;
 
     {
       auto &pass = edit_mesh_prepass_ps_;
@@ -136,18 +138,18 @@ class Meshes {
 
       DRWState pass_state = DRW_STATE_WRITE_DEPTH | DRW_STATE_WRITE_COLOR |
                             DRW_STATE_DEPTH_LESS_EQUAL;
-      if (state.xray_enabled) {
+      if (state.xray_flag_enabled) {
         pass_state |= DRW_STATE_BLEND_ALPHA;
       }
 
       auto &pass = edit_mesh_normals_ps_;
       pass.init();
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.state_set(pass_state, state.clipping_plane_count);
 
       auto shader_pass = [&](GPUShader *shader, const char *name) {
         auto &sub = pass.sub(name);
         sub.shader_set(shader);
-        sub.bind_ubo("globalsBlock", &res.globals_buf);
         sub.bind_texture("depthTex", depth_tex);
         sub.push_constant("alpha", backwire_opacity);
         sub.push_constant("isConstantScreenSizeNormals", use_screen_size);
@@ -183,7 +185,7 @@ class Meshes {
                      state.clipping_plane_count);
       pass.shader_set(shadeless ? res.shaders.paint_weight.get() :
                                   res.shaders.paint_weight_fake_shading.get());
-      pass.bind_ubo("globalsBlock", &res.globals_buf);
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.bind_texture("colorramp", &res.weight_ramp_tx);
       pass.push_constant("drawContours", false);
       pass.push_constant("opacity", state.overlay.weight_paint_mode_opacity);
@@ -210,7 +212,7 @@ class Meshes {
       pass.push_constant("alpha", alpha);
       pass.push_constant("retopologyOffset", retopology_offset);
       pass.push_constant("dataMask", int4(data_mask));
-      pass.bind_ubo("globalsBlock", &res.globals_buf);
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     };
 
     {
@@ -268,14 +270,14 @@ class Meshes {
                      state.clipping_plane_count);
       pass.shader_set(res.shaders.mesh_edit_skin_root.get());
       pass.push_constant("retopologyOffset", retopology_offset);
-      pass.bind_ubo("globalsBlock", &res.globals_buf);
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     }
   }
 
   void edit_object_sync(Manager &manager,
                         const ObjectRef &ob_ref,
-                        const State &state,
-                        Resources & /*res*/)
+                        Resources & /*res*/,
+                        const State &state) final
   {
     if (!enabled_) {
       return;
@@ -288,7 +290,7 @@ class Meshes {
     /* WORKAROUND: GPU subdiv uses a different normal format. Remove this once GPU subdiv is
      * refactored. */
     const bool use_gpu_subdiv = BKE_subsurf_modifier_has_gpu_subdiv(static_cast<Mesh *>(ob->data));
-    const bool draw_as_solid = (ob->dt > OB_WIRE);
+    const bool draw_as_solid = (ob->dt > OB_WIRE) && !state.xray_enabled;
 
     if (show_retopology_) {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_edit_triangles(mesh);
@@ -346,12 +348,12 @@ class Meshes {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_edit_skin_roots(mesh);
       edit_mesh_skin_roots_ps_.draw_expand(geom, GPU_PRIM_LINES, 32, 1, res_handle);
     }
-    if (DRW_state_show_text() && (state.overlay.edit_flag & overlay_edit_text)) {
-      DRW_text_edit_mesh_measure_stats(state.region, state.v3d, ob, &state.scene->unit, state.dt);
+    if (state.show_text && (state.overlay.edit_flag & overlay_edit_text)) {
+      DRW_text_edit_mesh_measure_stats(state.region, state.v3d, ob, state.scene->unit, state.dt);
     }
   }
 
-  void draw(Framebuffer &framebuffer, Manager &manager, View &view)
+  void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;
@@ -369,9 +371,9 @@ class Meshes {
       return;
     }
 
-    view_edit_cage_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist_, 0.5f));
-    view_edit_edge_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist_, 1.0f));
-    view_edit_vert_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist_, 1.5f));
+    view_edit_cage_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 0.5f));
+    view_edit_edge_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.0f));
+    view_edit_vert_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.5f));
 
     manager.submit(edit_mesh_normals_ps_, view);
     manager.submit(edit_mesh_faces_ps_, view);
@@ -384,7 +386,7 @@ class Meshes {
     GPU_debug_group_end();
   }
 
-  void draw_color_only(Framebuffer &framebuffer, Manager &manager, View &view)
+  void draw_color_only(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;
@@ -396,9 +398,9 @@ class Meshes {
 
     GPU_debug_group_begin("Mesh Edit Color Only");
 
-    view_edit_cage_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist_, 0.5f));
-    view_edit_edge_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist_, 1.0f));
-    view_edit_vert_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist_, 1.5f));
+    view_edit_cage_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 0.5f));
+    view_edit_edge_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.0f));
+    view_edit_vert_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 1.5f));
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_mesh_normals_ps_, view);
@@ -414,8 +416,9 @@ class Meshes {
 
   static bool mesh_has_edit_cage(const Object *ob)
   {
+    BLI_assert(ob->type == OB_MESH);
     const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
-    if (mesh.runtime->edit_mesh.get() != nullptr) {
+    if (mesh.runtime->edit_mesh != nullptr) {
       const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(ob);
       const Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(ob);
 
@@ -448,7 +451,10 @@ class Meshes {
   }
 };
 
-class MeshUVs {
+/**
+ * Draw edit uv overlays.
+ */
+class MeshUVs : Overlay {
  private:
   PassSimple analysis_ps_ = {"Mesh Analysis"};
 
@@ -507,15 +513,10 @@ class MeshUVs {
   bool show_tiled_image_border_ = false;
   bool show_tiled_image_label_ = false;
 
-  /* Set of original objects that have been drawn. */
-  Set<const Object *> drawn_object_set_;
-
-  bool enabled_ = false;
-
  public:
-  void begin_sync(Resources &res, const State &state)
+  void begin_sync(Resources &res, const State &state) final
   {
-    enabled_ = state.space_type == SPACE_IMAGE;
+    enabled_ = state.is_space_image();
 
     if (!enabled_) {
       return;
@@ -630,7 +631,7 @@ class MeshUVs {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
                      DRW_STATE_BLEND_ALPHA);
       pass.shader_set(res.shaders.uv_wireframe.get());
-      pass.bind_ubo("globalsBlock", &res.globals_buf);
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.push_constant("alpha", space_image->uv_opacity);
       pass.push_constant("doSmoothWire", do_smooth_wire);
     }
@@ -644,7 +645,7 @@ class MeshUVs {
       GPUShader *sh = res.shaders.uv_edit_edge.get();
       pass.specialize_constant(sh, "use_edge_select", !show_vert_);
       pass.shader_set(sh);
-      pass.bind_ubo("globalsBlock", &res.globals_buf);
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.push_constant("lineStyle", int(edit_uv_line_style_from_space_image(space_image)));
       pass.push_constant("alpha", space_image->uv_opacity);
       pass.push_constant("dashLength", dash_length);
@@ -662,7 +663,7 @@ class MeshUVs {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
                      DRW_STATE_BLEND_ALPHA);
       pass.shader_set(res.shaders.uv_edit_vert.get());
-      pass.bind_ubo("globalsBlock", &res.globals_buf);
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.push_constant("pointSize", (point_size + 1.5f) * float(M_SQRT2));
       pass.push_constant("outlineWidth", 0.75f);
       pass.push_constant("color", theme_color);
@@ -676,8 +677,8 @@ class MeshUVs {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
                      DRW_STATE_BLEND_ALPHA);
       pass.shader_set(res.shaders.uv_edit_facedot.get());
-      pass.bind_ubo("globalsBlock", &res.globals_buf);
-      pass.push_constant("pointSize", (point_size + 1.5f) * float(M_SQRT2));
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.push_constant("pointSize", point_size);
     }
 
     if (show_face_) {
@@ -685,7 +686,7 @@ class MeshUVs {
       pass.init();
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS | DRW_STATE_BLEND_ALPHA);
       pass.shader_set(res.shaders.uv_edit_face.get());
-      pass.bind_ubo("globalsBlock", &res.globals_buf);
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.push_constant("uvOpacity", space_image->uv_opacity);
     }
 
@@ -696,7 +697,7 @@ class MeshUVs {
       pass.shader_set(mesh_analysis_type_ == SI_UVDT_STRETCH_ANGLE ?
                           res.shaders.uv_analysis_stretch_angle.get() :
                           res.shaders.uv_analysis_stretch_area.get());
-      pass.bind_ubo("globalsBlock", &res.globals_buf);
+      pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.push_constant("aspect", state.image_uv_aspect);
       pass.push_constant("stretch_opacity", space_image->stretch_opacity);
       pass.push_constant("totalAreaRatio", &total_area_ratio_);
@@ -704,84 +705,71 @@ class MeshUVs {
 
     per_mesh_area_3d_.clear();
     per_mesh_area_2d_.clear();
-
-    drawn_object_set_.clear();
   }
 
-  void edit_object_sync(Manager &manager, const ObjectRef &ob_ref, const State &state)
+  void edit_object_sync(Manager &manager,
+                        const ObjectRef &ob_ref,
+                        Resources & /*res*/,
+                        const State & /*state*/) final
   {
     if (!enabled_ || ob_ref.object->type != OB_MESH) {
       return;
     }
 
-    /* When editing objects that share the same mesh we should only draw the
-     * first object to avoid overlapping UVs. Moreover, only the first evaluated object has the
-     * correct batches with the correct selection state.
-     * To this end, we skip duplicates and use the evaluated object returned by the depsgraph.
-     * See #83187. */
-    Object *object_orig = DEG_get_original_object(ob_ref.object);
-    Object *object_eval = DEG_get_evaluated_object(state.depsgraph, object_orig);
+    Object &ob = *ob_ref.object;
+    Mesh &mesh = *static_cast<Mesh *>(ob.data);
 
-    if (!drawn_object_set_.add(object_orig)) {
-      return;
-    }
+    const bool is_edit_object = DRW_object_is_in_edit_mode(&ob);
+    const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
+                                                                     CD_PROP_FLOAT2) != -1;
+    const bool has_active_edit_uvmap = is_edit_object && (CustomData_get_active_layer(
+                                                              &mesh.runtime->edit_mesh->bm->ldata,
+                                                              CD_PROP_FLOAT2) != -1);
 
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
-    Object &ob = *object_eval;
-    Mesh &mesh = *static_cast<Mesh *>(ob.data);
-
-    if (object_eval != ob_ref.object) {
-      /* We are requesting batches on an evaluated ID that is potentially not iterated over.
-       * So we have to manually call these cache validation and extraction method. */
-      DRW_mesh_batch_cache_validate(ob, mesh);
-    }
-
-    if (show_uv_edit) {
-      gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_edges(ob, mesh);
-      edges_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
-    }
-    if (show_vert_) {
-      gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_verts(ob, mesh);
-      verts_ps_.draw(geom, res_handle);
-    }
-    if (show_face_dots_) {
-      gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_facedots(ob, mesh);
-      facedots_ps_.draw(geom, res_handle);
-    }
-    if (show_face_) {
-      gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_faces(ob, mesh);
-      faces_ps_.draw(geom, res_handle);
-    }
-
-    if (show_mesh_analysis_) {
-      int index_3d, index_2d;
-      if (mesh_analysis_type_ == SI_UVDT_STRETCH_AREA) {
-        index_3d = per_mesh_area_3d_.append_and_get_index(nullptr);
-        index_2d = per_mesh_area_2d_.append_and_get_index(nullptr);
+    if (has_active_edit_uvmap) {
+      if (show_uv_edit) {
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_edges(ob, mesh);
+        edges_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
+      }
+      if (show_vert_) {
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_verts(ob, mesh);
+        verts_ps_.draw(geom, res_handle);
+      }
+      if (show_face_dots_) {
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_facedots(ob, mesh);
+        facedots_ps_.draw(geom, res_handle);
+      }
+      if (show_face_) {
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_faces(ob, mesh);
+        faces_ps_.draw(geom, res_handle);
       }
 
-      gpu::Batch *geom =
-          mesh_analysis_type_ == SI_UVDT_STRETCH_ANGLE ?
-              DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(ob, mesh) :
-              DRW_mesh_batch_cache_get_edituv_faces_stretch_area(
-                  ob, mesh, &per_mesh_area_3d_[index_3d], &per_mesh_area_2d_[index_2d]);
+      if (show_mesh_analysis_) {
+        int index_3d, index_2d;
+        if (mesh_analysis_type_ == SI_UVDT_STRETCH_AREA) {
+          index_3d = per_mesh_area_3d_.append_and_get_index(nullptr);
+          index_2d = per_mesh_area_2d_.append_and_get_index(nullptr);
+        }
 
-      analysis_ps_.draw(geom, res_handle);
+        gpu::Batch *geom =
+            mesh_analysis_type_ == SI_UVDT_STRETCH_ANGLE ?
+                DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(ob, mesh) :
+                DRW_mesh_batch_cache_get_edituv_faces_stretch_area(
+                    ob, mesh, &per_mesh_area_3d_[index_3d], &per_mesh_area_2d_[index_2d]);
+
+        analysis_ps_.draw(geom, res_handle);
+      }
     }
 
-    if (show_wireframe_) {
+    if (show_wireframe_ && (has_active_object_uvmap || has_active_edit_uvmap)) {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_edges(ob, mesh);
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
     }
-
-    if (object_eval != ob_ref.object) {
-      /* TODO(fclem): Refactor. Global access. But as explained above it is a bit complicated. */
-      drw_batch_cache_generate_requested_delayed(&ob);
-    }
   }
 
-  void end_sync(Resources &res, ShapeCache &shapes, const State &state)
+  void end_sync(Resources &res, const State &state) final
   {
     if (!enabled_) {
       return;
@@ -826,7 +814,7 @@ class MeshUVs {
         const float3 tile_location(tile_x, tile_y, 0.0f);
         pass.push_constant("tile_pos", tile_location);
         pass.push_constant("ucolor", is_active ? selected_color : theme_color);
-        pass.draw(shapes.quad_wire.get());
+        pass.draw(res.shapes.quad_wire.get());
 
         /* Note: don't draw label twice for active tile. */
         if (show_tiled_image_label_ && !is_active) {
@@ -843,13 +831,20 @@ class MeshUVs {
       };
 
       ListBaseWrapper<ImageTile> tiles(image->tiles);
-
+      /* image->active_tile_index could point to a non existing ImageTile. To work around this we
+       * get the active tile when looping over all tiles. */
+      const ImageTile *active_tile = nullptr;
+      int tile_index = 0;
       for (const ImageTile *tile : tiles) {
         draw_tile(tile, false);
+        if (tile_index == image->active_tile_index) {
+          active_tile = tile;
+        }
+        tile_index++;
       }
       /* Draw active tile on top. */
-      if (show_tiled_image_active_) {
-        draw_tile(tiles.get(image->active_tile_index), true);
+      if (show_tiled_image_active_ && active_tile != nullptr) {
+        draw_tile(active_tile, true);
       }
     }
 
@@ -875,7 +870,7 @@ class MeshUVs {
         pass.push_constant("ucolor", float4(1.0f, 1.0f, 1.0f, brush->clone.alpha));
         pass.push_constant("brush_offset", float2(brush->clone.offset));
         pass.push_constant("brush_scale", float2(stencil_texture.size().xy()) / size_image);
-        pass.draw(shapes.quad_solid.get());
+        pass.draw(res.shapes.quad_solid.get());
       }
     }
 
@@ -895,11 +890,11 @@ class MeshUVs {
       pass.push_constant("opacity", opacity);
       pass.push_constant("brush_offset", float2(0.0f));
       pass.push_constant("brush_scale", float2(1.0f));
-      pass.draw(shapes.quad_solid.get());
+      pass.draw(res.shapes.quad_solid.get());
     }
   }
 
-  void draw(Framebuffer &framebuffer, Manager &manager, View &view)
+  void draw(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;
@@ -939,7 +934,7 @@ class MeshUVs {
     GPU_debug_group_end();
   }
 
-  void draw_on_render(GPUFrameBuffer *framebuffer, Manager &manager, View &view)
+  void draw_on_render(GPUFrameBuffer *framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;

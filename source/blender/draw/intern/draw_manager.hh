@@ -20,11 +20,9 @@
 #include "GPU_material.hh"
 
 #include "draw_resource.hh"
-#include "draw_sculpt.hh"
 #include "draw_view.hh"
 
 #include <atomic>
-#include <string>
 
 namespace blender::draw {
 
@@ -233,6 +231,10 @@ class Manager {
    * Avoids just in time computation of visibility.
    */
   void compute_visibility(View &view);
+  /**
+   * Same as compute_visibility but only do it if needed.
+   */
+  void ensure_visibility(View &view);
   /**
    * Generate commands for #ResourceHandle for the given #View and #PassMain.
    * The commands needs to be regenerated for any change inside the #Manager, the #PassMain or in

@@ -217,6 +217,17 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
+      case CD_PROP_INT16_2D: {
+        float *attr_x = find_or_add_attribute(iter.name + "_x", size, vertex_offset, r_attributes);
+        float *attr_y = find_or_add_attribute(iter.name + "_y", size, vertex_offset, r_attributes);
+        auto typed = attribute.typed<short2>();
+        for (const int64_t i : ply_to_vertex.index_range()) {
+          int j = ply_to_vertex[i];
+          attr_x[i] = typed[j].x;
+          attr_y[i] = typed[j].y;
+        }
+        break;
+      }
       case CD_PROP_INT32_2D: {
         float *attr_x = find_or_add_attribute(iter.name + "_x", size, vertex_offset, r_attributes);
         float *attr_y = find_or_add_attribute(iter.name + "_y", size, vertex_offset, r_attributes);
@@ -413,7 +424,7 @@ void load_plydata(PlyData &plyData, Depsgraph *depsgraph, const PLYExportParams 
     }
 
     /* Colors */
-    if (export_params.vertex_colors != PLY_VERTEX_COLOR_NONE) {
+    if (export_params.vertex_colors != ePLYVertexColorMode::None) {
       const StringRef name = mesh->active_color_attribute;
       if (!name.is_empty()) {
         const bke::AttributeAccessor attributes = mesh->attributes();
@@ -427,7 +438,7 @@ void load_plydata(PlyData &plyData, Depsgraph *depsgraph, const PLYExportParams 
           plyData.vertex_colors.reserve(vertex_offset + ply_to_vertex.size());
           for (int vertex_index : ply_to_vertex) {
             float4 color = float4(color_attribute[vertex_index]);
-            if (export_params.vertex_colors == PLY_VERTEX_COLOR_SRGB) {
+            if (export_params.vertex_colors == ePLYVertexColorMode::sRGB) {
               linearrgb_to_srgb_v4(color, color);
             }
             plyData.vertex_colors.append(color);
