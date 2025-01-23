@@ -118,6 +118,9 @@ class CurvesGeometryRuntime {
   /** Normal direction vectors for each evaluated point. */
   mutable SharedCache<Vector<float3>> evaluated_normal_cache;
 
+  /** The maximum of the "material_index" attribute. */
+  mutable SharedCache<std::optional<int>> max_material_index_cache;
+
   /** Stores weak references to material data blocks. */
   std::unique_ptr<bake::BakeMaterialsList> bake_materials;
 
