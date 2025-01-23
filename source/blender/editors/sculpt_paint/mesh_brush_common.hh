@@ -12,6 +12,7 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
+#include "BLI_virtual_array.hh"
 
 #include "BKE_subdiv_ccg.hh"
 
@@ -45,6 +46,9 @@ struct SculptSession;
 struct SubdivCCG;
 struct SubdivCCGCoord;
 namespace blender {
+namespace bke {
+class AttributeAccessor;
+}
 namespace bke::pbvh {
 class Node;
 class Tree;
@@ -164,13 +168,7 @@ struct MeshAttributeData {
   VArraySpan<bool> hide_poly;
   VArraySpan<int> face_sets;
 
-  explicit MeshAttributeData(const bke::AttributeAccessor &attributes)
-  {
-    this->mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
-    this->hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
-    this->hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-    this->face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
-  }
+  explicit MeshAttributeData(const Mesh &mesh);
 };
 
 void calc_factors_common_mesh(const Depsgraph &depsgraph,
@@ -424,44 +422,40 @@ OffsetIndices<int> create_node_vert_offsets_bmesh(const Span<bke::pbvh::BMeshNod
                                                   Array<int> &node_data);
 
 /**
- * Find vertices connected to the indexed vertices across faces.
+ * Find vertices connected to the indexed vertices across faces. Neighbors connected across hidden
+ * faces are skipped.
  *
- * Does not handle boundary vertices differently, so this method is generally inappropriate for
- * functions that are related to coordinates. See #calc_vert_neighbors_interior
- *
- * \note A vector allocated per element is typically not a good strategy for performance because
- * of each vector's 24 byte overhead, non-contiguous memory, and the possibility of further heap
- * allocations. However, it's done here for now for two reasons:
- *  1. In typical quad meshes there are just 4 neighbors, which fit in the inline buffer.
- *  2. We want to avoid using edges, and the remaining topology map we have access to is the
- *     vertex to face map. That requires deduplication when building the neighbors, which
- *     requires some intermediate data structure like a vector anyway.
+ * See #calc_vert_neighbors_interior for a version that does extra filtering for boundary vertices.
  */
-void calc_vert_neighbors(OffsetIndices<int> faces,
-                         Span<int> corner_verts,
-                         GroupedSpan<int> vert_to_face,
-                         Span<bool> hide_poly,
-                         Span<int> verts,
-                         MutableSpan<Vector<int>> result);
-void calc_vert_neighbors(const SubdivCCG &subdiv_ccg,
-                         Span<int> grids,
-                         MutableSpan<Vector<SubdivCCGCoord>> result);
-void calc_vert_neighbors(Set<BMVert *, 0> verts, MutableSpan<Vector<BMVert *>> result);
+GroupedSpan<int> calc_vert_neighbors(OffsetIndices<int> faces,
+                                     Span<int> corner_verts,
+                                     GroupedSpan<int> vert_to_face,
+                                     Span<bool> hide_poly,
+                                     Span<int> verts,
+                                     Vector<int> &r_offset_data,
+                                     Vector<int> &r_data);
+GroupedSpan<int> calc_vert_neighbors(const SubdivCCG &subdiv_ccg,
+                                     const Span<int> grids,
+                                     Vector<int> &r_offset_data,
+                                     Vector<int> &r_data);
+GroupedSpan<BMVert *> calc_vert_neighbors(Set<BMVert *, 0> verts,
+                                          Vector<int> &r_offset_data,
+                                          Vector<BMVert *> &r_data);
 
 /**
- * Find vertices connected to the indexed vertices across faces. For boundary vertices (stored in
- * the \a boundary_verts argument), only include other boundary vertices. Also skip connectivity
- * across hidden faces and skip neighbors of corner vertices.
- *
- * \note See #calc_vert_neighbors for information on why we use a Vector per element.
+ * Find vertices connected to the indexed vertices across faces. Neighbors connected across hidden
+ * faces are skipped. For boundary vertices (stored in the \a boundary_verts argument), only
+ * include other boundary vertices. Corner vertices are skipped entirely and will not have neighbor
+ * information populated.
  */
-void calc_vert_neighbors_interior(OffsetIndices<int> faces,
-                                  Span<int> corner_verts,
-                                  GroupedSpan<int> vert_to_face,
-                                  BitSpan boundary_verts,
-                                  Span<bool> hide_poly,
-                                  Span<int> verts,
-                                  MutableSpan<Vector<int>> result);
+GroupedSpan<int> calc_vert_neighbors_interior(const OffsetIndices<int> faces,
+                                              const Span<int> corner_verts,
+                                              const GroupedSpan<int> vert_to_face,
+                                              const BitSpan boundary_verts,
+                                              const Span<bool> hide_poly,
+                                              const Span<int> verts,
+                                              Vector<int> &r_offset_data,
+                                              Vector<int> &r_data);
 void calc_vert_neighbors_interior(OffsetIndices<int> faces,
                                   Span<int> corner_verts,
                                   BitSpan boundary_verts,

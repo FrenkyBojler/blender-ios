@@ -44,7 +44,7 @@
 #include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_particle.h"
@@ -60,6 +60,8 @@
 #include "DEG_depsgraph.hh"
 
 #include "IMB_imbuf.hh" /* For #IMB_init. */
+
+#include "MOV_util.hh"
 
 #include "RE_engine.h"
 #include "RE_texture.h"
@@ -310,7 +312,7 @@ int main(int argc,
   _putenv_s("OMP_WAIT_POLICY", "PASSIVE");
 #  endif
   /* Ensure the OpenMP runtime is initialized as soon as possible to make sure duplicate
-   * libomp/libiomp5 runtime conflicts are detected as soon as a second runtime is initialized.
+   * `libomp/libiomp5` runtime conflicts are detected as soon as a second runtime is initialized.
    * Initialization must be done after setting any relevant environment variables, but before
    * installing signal handlers. */
   omp_get_max_threads();
@@ -495,10 +497,8 @@ int main(int argc,
 
   /* Must be initialized after #BKE_appdir_init to account for color-management paths. */
   IMB_init();
-#ifdef WITH_FFMPEG
   /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
-  IMB_ffmpeg_init();
-#endif
+  MOV_init();
 
   /* After #ARG_PASS_SETTINGS arguments, this is so #WM_main_playanim skips #RNA_init. */
   RNA_init();

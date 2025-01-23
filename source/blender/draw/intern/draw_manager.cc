@@ -6,21 +6,17 @@
  * \ingroup draw
  */
 
-#include "BKE_global.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 
 #include "BLI_math_base.h"
 #include "GPU_compute.hh"
 
-#include "draw_debug.hh"
 #include "draw_defines.hh"
 #include "draw_manager.hh"
 #include "draw_manager_c.hh"
 #include "draw_pass.hh"
 #include "draw_shader.hh"
-#include <iostream>
-#include <string>
 
 namespace blender::draw {
 
@@ -186,7 +182,7 @@ ResourceHandleRange Manager::resource_handle_for_sculpt(const ObjectRef &ref)
 
 void Manager::compute_visibility(View &view)
 {
-  bool freeze_culling = (U.experimental.use_viewport_debug && DST.draw_ctx.v3d &&
+  bool freeze_culling = (USER_EXPERIMENTAL_TEST(&U, use_viewport_debug) && DST.draw_ctx.v3d &&
                          (DST.draw_ctx.v3d->debug_flag & V3D_DEBUG_FREEZE_CULLING) != 0);
 
   BLI_assert_msg(view.manager_fingerprint_ != this->fingerprint_get(),
@@ -197,6 +193,13 @@ void Manager::compute_visibility(View &view)
   view.bind();
   view.compute_visibility(
       bounds_buf.current(), infos_buf.current(), resource_len_, freeze_culling);
+}
+
+void Manager::ensure_visibility(View &view)
+{
+  if (view.manager_fingerprint_ != this->fingerprint_get()) {
+    compute_visibility(view);
+  }
 }
 
 void Manager::generate_commands(PassMain &pass, View &view)

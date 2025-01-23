@@ -37,7 +37,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_image.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
@@ -1010,7 +1010,7 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 void PAINT_OT_texture_paint_toggle(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Texture Paint Toggle";
+  ot->name = "Texture Paint Mode";
   ot->idname = "PAINT_OT_texture_paint_toggle";
   ot->description = "Toggle texture paint mode in 3D view";
 

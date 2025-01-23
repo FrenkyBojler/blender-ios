@@ -50,11 +50,11 @@ static void node_composit_buts_despeckle(uiLayout *layout, bContext * /*C*/, Poi
   uiLayout *col;
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "threshold", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "threshold_neighbor", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "threshold", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "threshold_neighbor", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class DespeckleOperation : public NodeOperation {
  public:
@@ -81,7 +81,7 @@ class DespeckleOperation : public NodeOperation {
     GPUShader *shader = context().get_shader("compositor_despeckle");
     GPU_shader_bind(shader);
 
-    GPU_shader_uniform_1f(shader, "threshold", get_threshold());
+    GPU_shader_uniform_1f(shader, "color_threshold", get_color_threshold());
     GPU_shader_uniform_1f(shader, "neighbor_threshold", get_neighbor_threshold());
 
     const Result &input_image = get_input("Image");
@@ -105,7 +105,7 @@ class DespeckleOperation : public NodeOperation {
 
   void execute_cpu()
   {
-    const float threshold = this->get_threshold();
+    const float color_threshold = this->get_color_threshold();
     const float neighbor_threshold = this->get_neighbor_threshold();
 
     const Result &input = get_input("Image");
@@ -125,7 +125,7 @@ class DespeckleOperation : public NodeOperation {
                                 float3(corner_weight, 1.0f, corner_weight));
 
     parallel_for(domain.size, [&](const int2 texel) {
-      float4 center_color = input.load_pixel(texel);
+      float4 center_color = input.load_pixel<float4>(texel);
 
       /* Go over the pixels in the 3x3 window around the center pixel and compute the total sum of
        * their colors multiplied by their weights. Additionally, for pixels whose colors are not
@@ -137,9 +137,9 @@ class DespeckleOperation : public NodeOperation {
       for (int j = 0; j < 3; j++) {
         for (int i = 0; i < 3; i++) {
           float weight = weights[j][i];
-          float4 color = input.load_pixel_extended(texel + int2(i - 1, j - 1)) * weight;
+          float4 color = input.load_pixel_extended<float4>(texel + int2(i - 1, j - 1)) * weight;
           sum_of_colors += color;
-          if (!math::is_equal(center_color.xyz(), color.xyz(), threshold)) {
+          if (!math::is_equal(center_color.xyz(), color.xyz(), color_threshold)) {
             accumulated_color += color;
             accumulated_weight += weight;
           }
@@ -164,19 +164,21 @@ class DespeckleOperation : public NodeOperation {
 
       /* If the weighted average color of the neighborhood is close enough to the center pixel,
        * then no need to despeckle anything, so write the original center color and return. */
-      if (math::is_equal(center_color.xyz(), (sum_of_colors / sum_of_weights).xyz(), threshold)) {
+      if (math::is_equal(
+              center_color.xyz(), (sum_of_colors / sum_of_weights).xyz(), color_threshold))
+      {
         output.store_pixel(texel, center_color);
         return;
       }
 
       /* We need to despeckle, so write the mean accumulated color. */
-      float factor = factor_image.load_pixel(texel).x;
+      float factor = factor_image.load_pixel<float, true>(texel);
       float4 mean_color = accumulated_color / accumulated_weight;
       output.store_pixel(texel, math::interpolate(center_color, mean_color, factor));
     });
   }
 
-  float get_threshold()
+  float get_color_threshold()
   {
     return bnode().custom3;
   }
@@ -200,7 +202,13 @@ void register_node_type_cmp_despeckle()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_DESPECKLE, "Despeckle", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeDespeckle", CMP_NODE_DESPECKLE);
+  ntype.ui_name = "Despeckle";
+  ntype.ui_description =
+      "Smooth areas of an image in which noise is noticeable, while leaving complex areas "
+      "untouched";
+  ntype.enum_name_legacy = "DESPECKLE";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_despeckle_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_despeckle;
   ntype.flag |= NODE_PREVIEW;

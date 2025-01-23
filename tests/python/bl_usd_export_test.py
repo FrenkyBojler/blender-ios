@@ -186,32 +186,76 @@ class USDExportTest(AbstractUSDTest):
         """Validate correct export of opacity and opacity_threshold parameters to the UsdPreviewSurface shader def"""
 
         # Use the common materials .blend file
-        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_materials_export.blend"))
-        export_path = self.tempdir / "material_opacities.usda"
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_materials_channels.blend"))
+        export_path = self.tempdir / "usd_materials_channels.usda"
         self.export_and_validate(filepath=str(export_path), export_materials=True)
 
-        # Inspect and validate the exported USD for the opaque blend case.
+        # Opaque no-Alpha
         stage = Usd.Stage.Open(str(export_path))
-        shader_prim = stage.GetPrimAtPath("/root/_materials/Material/Principled_BSDF")
+        shader_prim = stage.GetPrimAtPath("/root/_materials/Opaque/Principled_BSDF")
         shader = UsdShade.Shader(shader_prim)
         opacity_input = shader.GetInput('opacity')
         self.assertEqual(opacity_input.HasConnectedSource(), False,
                          "Opacity input should not be connected for opaque material")
         self.assertAlmostEqual(opacity_input.Get(), 1.0, 2, "Opacity input should be set to 1")
 
-        # Inspect and validate the exported USD for the alpha clip w/Round node case.
-        shader_prim = stage.GetPrimAtPath("/root/_materials/Clip_With_Round/Principled_BSDF")
+        # Validate Image Alpha to BSDF Alpha
+        shader_prim = stage.GetPrimAtPath("/root/_materials/Alpha/Principled_BSDF")
+        shader = UsdShade.Shader(shader_prim)
+        opacity_input = shader.GetInput('opacity')
+        opacity_thresh_input = shader.GetInput('opacityThreshold')
+        self.assertEqual(opacity_input.HasConnectedSource(), True, "Alpha input should be connected")
+        self.assertEqual(opacity_thresh_input.Get(), None, "Opacity threshold input should be empty")
+
+        # Validate Image Alpha to BSDF Alpha w/Round
+        shader_prim = stage.GetPrimAtPath("/root/_materials/AlphaClip_Round/Principled_BSDF")
         shader = UsdShade.Shader(shader_prim)
         opacity_input = shader.GetInput('opacity')
         opacity_thresh_input = shader.GetInput('opacityThreshold')
         self.assertEqual(opacity_input.HasConnectedSource(), True, "Alpha input should be connected")
         self.assertAlmostEqual(opacity_thresh_input.Get(), 0.5, 2, "Opacity threshold input should be 0.5")
 
-        # Inspect and validate the exported USD for the alpha clip w/LessThan+Invert node case.
-        shader_prim = stage.GetPrimAtPath("/root/_materials/Clip_With_LessThanInvert/Principled_BSDF")
+        # Validate Image Alpha to BSDF Alpha w/LessThan+Invert
+        shader_prim = stage.GetPrimAtPath("/root/_materials/AlphaClip_LessThan/Principled_BSDF")
         shader = UsdShade.Shader(shader_prim)
         opacity_input = shader.GetInput('opacity')
         opacity_thresh_input = shader.GetInput('opacityThreshold')
+        self.assertEqual(opacity_input.HasConnectedSource(), True, "Alpha input should be connected")
+        self.assertAlmostEqual(opacity_thresh_input.Get(), 0.8, 2, "Opacity threshold input should be 0.8")
+
+        # Validate Image RGB to BSDF Metallic, Roughness, Alpha
+        shader_prim = stage.GetPrimAtPath("/root/_materials/Channel/Principled_BSDF")
+        shader = UsdShade.Shader(shader_prim)
+        metallic_input = shader.GetInput("metallic")
+        roughness_input = shader.GetInput("roughness")
+        opacity_input = shader.GetInput('opacity')
+        opacity_thresh_input = shader.GetInput('opacityThreshold')
+        self.assertEqual(metallic_input.HasConnectedSource(), True, "Metallic input should be connected")
+        self.assertEqual(roughness_input.HasConnectedSource(), True, "Roughness input should be connected")
+        self.assertEqual(opacity_input.HasConnectedSource(), True, "Alpha input should be connected")
+        self.assertEqual(opacity_thresh_input.Get(), None, "Opacity threshold input should be empty")
+
+        # Validate Image RGB to BSDF Metallic, Roughness, Alpha w/Round
+        shader_prim = stage.GetPrimAtPath("/root/_materials/ChannelClip_Round/Principled_BSDF")
+        shader = UsdShade.Shader(shader_prim)
+        metallic_input = shader.GetInput("metallic")
+        roughness_input = shader.GetInput("roughness")
+        opacity_input = shader.GetInput('opacity')
+        opacity_thresh_input = shader.GetInput('opacityThreshold')
+        self.assertEqual(metallic_input.HasConnectedSource(), True, "Metallic input should be connected")
+        self.assertEqual(roughness_input.HasConnectedSource(), True, "Roughness input should be connected")
+        self.assertEqual(opacity_input.HasConnectedSource(), True, "Alpha input should be connected")
+        self.assertAlmostEqual(opacity_thresh_input.Get(), 0.5, 2, "Opacity threshold input should be 0.5")
+
+        # Validate Image RGB to BSDF Metallic, Roughness, Alpha w/LessThan+Invert
+        shader_prim = stage.GetPrimAtPath("/root/_materials/ChannelClip_LessThan/Principled_BSDF")
+        shader = UsdShade.Shader(shader_prim)
+        metallic_input = shader.GetInput("metallic")
+        roughness_input = shader.GetInput("roughness")
+        opacity_input = shader.GetInput('opacity')
+        opacity_thresh_input = shader.GetInput('opacityThreshold')
+        self.assertEqual(metallic_input.HasConnectedSource(), True, "Metallic input should be connected")
+        self.assertEqual(roughness_input.HasConnectedSource(), True, "Roughness input should be connected")
         self.assertEqual(opacity_input.HasConnectedSource(), True, "Alpha input should be connected")
         self.assertAlmostEqual(opacity_thresh_input.Get(), 0.2, 2, "Opacity threshold input should be 0.2")
 
@@ -331,6 +375,34 @@ class USDExportTest(AbstractUSDTest):
         self.assertTrue(stage_path.parent.joinpath(image_path1).is_file())
         self.assertTrue(stage_path.parent.joinpath(image_path2).is_file())
 
+    def test_export_material_textures_mode(self):
+        """Validate the non-default export textures mode options."""
+
+        # Use the common materials .blend file
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_materials_export.blend"))
+
+        # For this test, the "textures" directory should NOT exist and the image paths
+        # should all point to the original test location, not the temp output location.
+        def check_image_paths(stage):
+            orig_tex_path = (self.testdir / "textures")
+            temp_tex_path = (self.tempdir / "textures")
+            self.assertFalse(temp_tex_path.is_dir())
+
+            shader_prim = stage.GetPrimAtPath("/root/_materials/Material/Image_Texture")
+            shader = UsdShade.Shader(shader_prim)
+            filepath = pathlib.Path(shader.GetInput('file').Get().path)
+            self.assertEqual(orig_tex_path, filepath.parent)
+
+        export_file = str(self.tempdir / "usd_materials_texture_preserve.usda")
+        self.export_and_validate(
+            filepath=export_file, export_materials=True, convert_world_material=False, export_textures_mode='PRESERVE')
+        check_image_paths(Usd.Stage.Open(export_file))
+
+        export_file = str(self.tempdir / "usd_materials_texture_keep.usda")
+        self.export_and_validate(
+            filepath=export_file, export_materials=True, convert_world_material=False, export_textures_mode='KEEP')
+        check_image_paths(Usd.Stage.Open(export_file))
+
     def test_export_material_displacement(self):
         """Validate correct export of Displacement information for the UsdPreviewSurface"""
 
@@ -377,6 +449,58 @@ class USDExportTest(AbstractUSDTest):
         shader_surface = UsdShade.Shader(stage.GetPrimAtPath(f"/root/_materials/bad_non_const/Principled_BSDF"))
         input_displacement = shader_surface.GetInput('displacement')
         self.assertTrue(input_displacement.Get() is None)
+
+    def test_export_metaballs(self):
+        """Validate correct export of Metaball objects. These are written out as Meshes."""
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_metaballs.blend"))
+        export_path = self.tempdir / "usd_metaballs.usda"
+        self.export_and_validate(filepath=str(export_path), evaluation_mode="RENDER")
+
+        stage = Usd.Stage.Open(str(export_path))
+
+        # There should be 3 Mesh prims and they should each correspond to the "basis"
+        # metaball (i.e. the ones without any numeric suffix)
+        mesh_prims = [prim for prim in stage.Traverse() if prim.IsA(UsdGeom.Mesh)]
+        prim_names = [prim.GetPath().pathString for prim in mesh_prims]
+        self.assertEqual(len(mesh_prims), 3)
+        self.assertListEqual(
+            sorted(prim_names), ["/root/Ball_A/Ball_A", "/root/Ball_B/Ball_B", "/root/Ball_C/Ball_C"])
+
+        # Make rough check of vertex counts to ensure geometry is present
+        actual_prim_verts = {prim.GetName(): len(UsdGeom.Mesh(prim).GetPointsAttr().Get()) for prim in mesh_prims}
+        expected_prim_verts = {"Ball_A": 2232, "Ball_B": 2876, "Ball_C": 1152}
+        self.assertDictEqual(actual_prim_verts, expected_prim_verts)
+
+    def test_particle_hair(self):
+        """Validate correct export of particle hair emitters."""
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_particle_hair.blend"))
+
+        # Ensure the hair dynamics are baked for all relevant frames...
+        for frame in range(1, 11):
+            bpy.context.scene.frame_set(frame)
+        bpy.context.scene.frame_set(1)
+
+        export_path = self.tempdir / "usd_particle_hair.usda"
+        self.export_and_validate(
+            filepath=str(export_path), export_hair=True, export_animation=True, evaluation_mode="RENDER")
+
+        stage = Usd.Stage.Open(str(export_path))
+        main_prim = stage.GetPrimAtPath("/root/Sphere")
+        hair_prim = stage.GetPrimAtPath("/root/Sphere/ParticleSystem")
+        self.assertTrue(main_prim.IsValid())
+        self.assertTrue(hair_prim.IsValid())
+
+        # Ensure we have 5 frames of rotation data for the main Sphere and 10 frames for the hair data
+        rot_samples = UsdGeom.Xformable(main_prim).GetRotateXYZOp().GetTimeSamples()
+        self.assertEqual(len(rot_samples), 5)
+
+        hair_curves = UsdGeom.BasisCurves(hair_prim)
+        hair_samples = hair_curves.GetPointsAttr().GetTimeSamples()
+        self.assertEqual(hair_curves.GetTypeAttr().Get(), "cubic")
+        self.assertEqual(hair_curves.GetBasisAttr().Get(), "bspline")
+        self.assertEqual(len(hair_samples), 10)
 
     def check_primvar(self, prim, pv_name, pv_typeName, pv_interp, elements_len):
         pv = UsdGeom.PrimvarsAPI(prim).GetPrimvar(pv_name)
@@ -525,6 +649,10 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(UsdGeom.PrimvarsAPI(mesh1).GetPrimvar("test").GetTimeSamples(), [])
         self.assertEqual(UsdGeom.PrimvarsAPI(mesh2).GetPrimvar("test").GetTimeSamples(), [])
         self.assertEqual(UsdGeom.PrimvarsAPI(mesh3).GetPrimvar("test").GetTimeSamples(), sparse_frames)
+        # Extents of the mesh (should be sparsely written)
+        self.assertEqual(UsdGeom.Boundable(mesh1).GetExtentAttr().GetTimeSamples(), sparse_frames)
+        self.assertEqual(UsdGeom.Boundable(mesh2).GetExtentAttr().GetTimeSamples(), [])
+        self.assertEqual(UsdGeom.Boundable(mesh3).GetExtentAttr().GetTimeSamples(), [])
 
         #
         # Validate PointCloud data
@@ -559,6 +687,35 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(UsdGeom.Boundable(points2).GetExtentAttr().GetTimeSamples(), [])
         self.assertEqual(UsdGeom.Boundable(points3).GetExtentAttr().GetTimeSamples(), sparse_frames)
         self.assertEqual(UsdGeom.Boundable(points4).GetExtentAttr().GetTimeSamples(), [])
+
+        #
+        # Validate BasisCurve data
+        #
+        curves1 = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane1/curves1/Curves"))
+        curves2 = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane2/curves2/Curves"))
+        curves3 = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane3/curves3/Curves"))
+        curves4 = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane4/curves4/Curves"))
+
+        # Positions (should be sparsely written)
+        self.assertEqual(curves1.GetPointsAttr().GetTimeSamples(), sparse_frames)
+        self.assertEqual(curves2.GetPointsAttr().GetTimeSamples(), [])
+        self.assertEqual(curves3.GetPointsAttr().GetTimeSamples(), [])
+        self.assertEqual(curves4.GetPointsAttr().GetTimeSamples(), [])
+        # Velocity (should be sparsely written)
+        self.assertEqual(curves1.GetVelocitiesAttr().GetTimeSamples(), [])
+        self.assertEqual(curves2.GetVelocitiesAttr().GetTimeSamples(), sparse_frames)
+        self.assertEqual(curves3.GetVelocitiesAttr().GetTimeSamples(), [])
+        self.assertEqual(curves4.GetVelocitiesAttr().GetTimeSamples(), [])
+        # Radius (should be sparsely written)
+        self.assertEqual(curves1.GetWidthsAttr().GetTimeSamples(), [])
+        self.assertEqual(curves2.GetWidthsAttr().GetTimeSamples(), [])
+        self.assertEqual(curves3.GetWidthsAttr().GetTimeSamples(), sparse_frames)
+        self.assertEqual(curves4.GetWidthsAttr().GetTimeSamples(), [])
+        # Regular primvar (should be sparsely written)
+        self.assertEqual(UsdGeom.PrimvarsAPI(curves1).GetPrimvar("test").GetTimeSamples(), [])
+        self.assertEqual(UsdGeom.PrimvarsAPI(curves2).GetPrimvar("test").GetTimeSamples(), [])
+        self.assertEqual(UsdGeom.PrimvarsAPI(curves3).GetPrimvar("test").GetTimeSamples(), [])
+        self.assertEqual(UsdGeom.PrimvarsAPI(curves4).GetPrimvar("test").GetTimeSamples(), sparse_frames)
 
     def test_export_mesh_subd(self):
         """Test exporting Subdivision Surface attributes and values"""
@@ -683,6 +840,71 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(len(indices2), 15)
         self.assertNotEqual(indices1, indices2)
 
+    def test_export_curves(self):
+        """Test exporting Curve types"""
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_curves_test.blend"))
+        export_path = self.tempdir / "usd_curves_test.usda"
+        self.export_and_validate(filepath=str(export_path), evaluation_mode="RENDER")
+
+        stage = Usd.Stage.Open(str(export_path))
+
+        def check_basis_curve(prim, basis, curve_type, wrap, vert_counts, extent):
+            self.assertEqual(prim.GetBasisAttr().Get(), basis)
+            self.assertEqual(prim.GetTypeAttr().Get(), curve_type)
+            self.assertEqual(prim.GetWrapAttr().Get(), wrap)
+            self.assertEqual(prim.GetWidthsInterpolation(), "varying" if basis == "bezier" else "vertex")
+            self.assertEqual(prim.GetCurveVertexCountsAttr().Get(), vert_counts)
+            usd_extent = prim.GetExtentAttr().Get()
+            self.assertEqual(self.round_vector(usd_extent[0]), extent[0])
+            self.assertEqual(self.round_vector(usd_extent[1]), extent[1])
+
+        def check_nurbs_curve(prim, cyclic, orders, vert_counts, knots_count, extent):
+            self.assertEqual(prim.GetOrderAttr().Get(), orders)
+            self.assertEqual(prim.GetCurveVertexCountsAttr().Get(), vert_counts)
+            self.assertEqual(prim.GetWidthsInterpolation(), "vertex")
+            knots = prim.GetKnotsAttr().Get()
+            usd_extent = prim.GetExtentAttr().Get()
+            self.assertEqual(self.round_vector(usd_extent[0]), extent[0])
+            self.assertEqual(self.round_vector(usd_extent[1]), extent[1])
+
+            curve_count = len(vert_counts)
+            self.assertEqual(len(knots), knots_count * curve_count)
+            if not cyclic:
+                for i in range(0, curve_count):
+                    zeroth_knot = i * len(knots) // curve_count
+                    self.assertEqual(knots[zeroth_knot], knots[zeroth_knot + 1], "Knots start rule violated")
+                    self.assertEqual(
+                        knots[zeroth_knot + knots_count - 1],
+                        knots[zeroth_knot + knots_count - 2],
+                        "Knots end rule violated")
+            else:
+                self.assertEqual(curve_count, 1, "Validation is only correct for 1 cyclic curve currently")
+                self.assertEqual(
+                    knots[0], knots[1] - (knots[knots_count - 2] - knots[knots_count - 3]), "Knots rule violated")
+                self.assertEqual(
+                    knots[knots_count - 1], knots[knots_count - 2] + (knots[2] - knots[1]), "Knots rule violated")
+
+        # Contains 3 CatmullRom curves
+        curve = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/Cube/Curves/Curves"))
+        check_basis_curve(
+            curve, "catmullRom", "cubic", "pinned", [8, 8, 8], [[-0.3784, -0.0866, 1], [0.2714, -0.0488, 1.3]])
+
+        # Contains 1 Bezier curve
+        curve = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/BezierCurve/BezierCurve"))
+        check_basis_curve(curve, "bezier", "cubic", "nonperiodic", [7], [[-2.644, -0.0777, 0], [1, 0.9815, 0]])
+
+        # Contains 1 Bezier curve
+        curve = UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/BezierCircle/BezierCircle"))
+        check_basis_curve(curve, "bezier", "cubic", "periodic", [12], [[-1, -1, 0], [1, 1, 0]])
+
+        # Contains 2 NURBS curves
+        curve = UsdGeom.NurbsCurves(stage.GetPrimAtPath("/root/NurbsCurve/NurbsCurve"))
+        check_nurbs_curve(curve, False, [4, 4], [6, 6], 10, [[-0.75, -1.6898, -0.0117], [2.0896, 0.9583, 0.0293]])
+
+        # Contains 1 NURBS curve
+        curve = UsdGeom.NurbsCurves(stage.GetPrimAtPath("/root/NurbsCircle/NurbsCircle"))
+        check_nurbs_curve(curve, True, [3], [8], 13, [[-1, -1, 0], [1, 1, 0]])
+
     def test_export_animation(self):
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_anim_test.blend"))
         export_path = self.tempdir / "usd_anim_test.usda"
@@ -709,6 +931,7 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(prim.GetTypeName(), "Skeleton")
         prim_skel = UsdSkel.BindingAPI(prim)
         anim = UsdSkel.Animation(prim_skel.GetAnimationSource())
+        self.assertEqual(anim.GetPrim().GetName(), "ArmatureAction_001")
         self.assertEqual(anim.GetJointsAttr().Get(),
                          ['Bone',
                           'Bone/Bone_001',
@@ -718,9 +941,9 @@ class USDExportTest(AbstractUSDTest):
         loc_samples = anim.GetTranslationsAttr().GetTimeSamples()
         rot_samples = anim.GetRotationsAttr().GetTimeSamples()
         scale_samples = anim.GetScalesAttr().GetTimeSamples()
-        self.assertEqual(loc_samples, [1.0, 2.0, 3.0, 4.0, 5.0])
-        self.assertEqual(rot_samples, [1.0, 2.0, 3.0, 4.0, 5.0])
-        self.assertEqual(scale_samples, [1.0, 2.0, 3.0, 4.0, 5.0])
+        self.assertEqual(loc_samples, [])
+        self.assertEqual(rot_samples, [1.0, 2.0, 3.0])
+        self.assertEqual(scale_samples, [])
 
         # Validate the shape key animation
         prim = stage.GetPrimAtPath("/root/cube_anim_keys")
@@ -1079,6 +1302,125 @@ class USDExportTest(AbstractUSDTest):
 
         self.assertTupleEqual(expected, actual)
 
+    def test_export_units(self):
+        """Test specifying stage meters per unit on export."""
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+
+        export_path = self.tempdir / "usd_export_units_test_cm.usda"
+        self.export_and_validate(
+            filepath=str(export_path),
+            convert_scene_units='CENTIMETERS'
+        )
+
+        # Verify that meters per unit were set correctly
+        stage = Usd.Stage.Open(str(export_path))
+        mpu = UsdGeom.GetStageMetersPerUnit(stage)
+        self.assertEqual(mpu, 0.01)
+
+        # Export with default meters units.
+        export_path = self.tempdir / "usd_export_units_test_default.usda"
+        self.export_and_validate(
+            filepath=str(export_path)
+        )
+
+        # Verify that meters per unit were set correctly
+        stage = Usd.Stage.Open(str(export_path))
+        mpu = UsdGeom.GetStageMetersPerUnit(stage)
+        self.assertEqual(mpu, 1.0)
+
+        # Export with custom meters per unit.
+        export_path = self.tempdir / "usd_export_units_test_custom.usda"
+        self.export_and_validate(
+            filepath=str(export_path),
+            convert_scene_units='CUSTOM',
+            meters_per_unit=0.1,
+        )
+
+        # Verify that meters per unit were set correctly
+        stage = Usd.Stage.Open(str(export_path))
+        mpu = UsdGeom.GetStageMetersPerUnit(stage)
+        self.assertAlmostEqual(mpu, 0.1)
+
+    def test_texture_export_hook(self):
+        """Exporting textures from on_material_export USD hook."""
+
+        # Clear USD hook results.
+        ExportTextureUSDHook.exported_textures = {}
+
+        bpy.utils.register_class(ExportTextureUSDHook)
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_materials_export.blend"))
+
+        export_path = self.tempdir / "usd_materials_export.usda"
+
+        self.export_and_validate(
+            filepath=str(export_path),
+            export_materials=True,
+            generate_preview_surface=False,
+        )
+
+        # Verify that the exported texture paths were returned as expected.
+        expected = {'/root/_materials/Transforms': './textures/test_grid_<UDIM>.png',
+                    '/root/_materials/Clip_With_Round': './textures/test_grid_<UDIM>.png',
+                    '/root/_materials/NormalMap': './textures/test_normal.exr',
+                    '/root/_materials/Material': './textures/test_grid_<UDIM>.png',
+                    '/root/_materials/Clip_With_LessThanInvert': './textures/test_grid_<UDIM>.png',
+                    '/root/_materials/NormalMap_Scale_Bias': './textures/test_normal_invertY.exr'}
+
+        self.assertDictEqual(ExportTextureUSDHook.exported_textures,
+                             expected,
+                             "Unexpected texture export paths")
+
+        bpy.utils.unregister_class(ExportTextureUSDHook)
+
+        # Verify that the texture files were copied as expected.
+        tex_names = ['test_grid_1001.png', 'test_grid_1002.png',
+                     'test_normal.exr', 'test_normal_invertY.exr']
+
+        for name in tex_names:
+            tex_path = self.tempdir / "textures" / name
+            self.assertTrue(tex_path.exists(),
+                            f"Exported texture {tex_path} doesn't exist")
+
+    def test_inmem_pack_texture_export_hook(self):
+        """Exporting packed and in memory textures from on_material_export USD hook."""
+
+        # Clear hook results.
+        ExportTextureUSDHook.exported_textures = {}
+
+        bpy.utils.register_class(ExportTextureUSDHook)
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_materials_inmem_pack.blend"))
+
+        export_path = self.tempdir / "usd_materials_inmem_pack.usda"
+
+        self.export_and_validate(
+            filepath=str(export_path),
+            export_materials=True,
+            generate_preview_surface=False,
+        )
+
+        # Verify that the exported texture paths were returned as expected.
+        expected = {'/root/_materials/MAT_pack_udim': './textures/test_grid_<UDIM>.png',
+                    '/root/_materials/MAT_pack_single': './textures/test_single.png',
+                    '/root/_materials/MAT_inmem_udim': './textures/inmem_udim.<UDIM>.png',
+                    '/root/_materials/MAT_inmem_single': './textures/inmem_single.png'}
+
+        self.assertDictEqual(ExportTextureUSDHook.exported_textures,
+                             expected,
+                             "Unexpected texture export paths")
+
+        bpy.utils.unregister_class(ExportTextureUSDHook)
+
+        # Verify that the texture files were copied as expected.
+        tex_names = ['test_grid_1001.png', 'test_grid_1002.png',
+                     'test_single.png',
+                     'inmem_udim.1001.png', 'inmem_udim.1002.png',
+                     'inmem_single.png']
+
+        for name in tex_names:
+            tex_path = self.tempdir / "textures" / name
+            self.assertTrue(tex_path.exists(),
+                            f"Exported texture {tex_path} doesn't exist")
+
 
 class USDHookBase():
     instructions = {}
@@ -1161,6 +1503,36 @@ class USDHook2(USDHookBase, bpy.types.USDHook):
     @staticmethod
     def on_import(import_context):
         return USDHookBase.do_on_import(USDHook2.bl_label, import_context)
+
+
+class ExportTextureUSDHook(bpy.types.USDHook):
+    bl_idname = "export_texture_usd_hook"
+    bl_label = "Export Texture USD Hook"
+
+    exported_textures = {}
+
+    @staticmethod
+    def on_material_export(export_context, bl_material, usd_material):
+        """
+        If a texture image node exists in the given material's
+        node tree, call exprt_texture() on the image and cache
+        the returned path.
+        """
+        tex_image_node = None
+        if bl_material and bl_material.node_tree:
+            for node in bl_material.node_tree.nodes:
+                if node.type == 'TEX_IMAGE':
+                    tex_image_node = node
+
+        if tex_image_node is None:
+            return False
+
+        tex_path = export_context.export_texture(tex_image_node.image)
+
+        ExportTextureUSDHook.exported_textures[usd_material.GetPath()
+                                               .pathString] = tex_path
+
+        return True
 
 
 def main():

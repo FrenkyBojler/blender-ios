@@ -7,7 +7,9 @@
  */
 
 #include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+
 #include "GPU_compute.hh"
 #include "GPU_debug.hh"
 
@@ -36,14 +38,6 @@ void View::sync(const float4x4 &view_mat, const float4x4 &win_mat, int view_id)
   manager_fingerprint_ = 0;
   /* Add 2 to always have a non-null number even in case of overflow. */
   sync_counter_ = (global_sync_counter_ += 2);
-}
-
-void View::sync(const DRWView *view)
-{
-  float4x4 view_mat, win_mat;
-  DRW_view_viewmat_get(view, view_mat.ptr(), false);
-  DRW_view_winmat_get(view, win_mat.ptr(), false);
-  this->sync(view_mat, win_mat);
 }
 
 void View::frustum_boundbox_calc(int view_id)
@@ -314,6 +308,38 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
 VisibilityBuf &View::get_visibility_buffer()
 {
   return visibility_buf_;
+}
+
+blender::draw::View &View::default_get()
+{
+  return *DST.vmempool->default_view;
+}
+
+void View::default_set(const float4x4 &view_mat, const float4x4 &win_mat)
+{
+  DST.vmempool->default_view->sync(view_mat, win_mat);
+}
+
+std::array<float4, 6> View::frustum_planes_get(int view_id)
+{
+  return {culling_[view_id].frustum_planes.planes[0],
+          culling_[view_id].frustum_planes.planes[1],
+          culling_[view_id].frustum_planes.planes[2],
+          culling_[view_id].frustum_planes.planes[3],
+          culling_[view_id].frustum_planes.planes[4],
+          culling_[view_id].frustum_planes.planes[5]};
+}
+
+std::array<float3, 8> View::frustum_corners_get(int view_id)
+{
+  return {culling_[view_id].frustum_corners.corners[0].xyz(),
+          culling_[view_id].frustum_corners.corners[1].xyz(),
+          culling_[view_id].frustum_corners.corners[2].xyz(),
+          culling_[view_id].frustum_corners.corners[3].xyz(),
+          culling_[view_id].frustum_corners.corners[4].xyz(),
+          culling_[view_id].frustum_corners.corners[5].xyz(),
+          culling_[view_id].frustum_corners.corners[6].xyz(),
+          culling_[view_id].frustum_corners.corners[7].xyz()};
 }
 
 }  // namespace blender::draw

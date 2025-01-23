@@ -7,11 +7,10 @@
  */
 
 #include <algorithm>
-#include <limits>
 
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
@@ -233,7 +232,7 @@ blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry 
       const IndexRange points = points_by_curve[curve_i];
       merge_indices_per_curve[curve_i].reinitialize(points.size());
 
-      Array<float> distances_along_curve(points.size());
+      Array<float> distances_along_curve(points.size() + int(cyclic[curve_i]));
       distances_along_curve.first() = 0.0f;
       const Span<float> lengths = src_curves.evaluated_lengths_for_curve(curve_i, cyclic[curve_i]);
       distances_along_curve.as_mutable_span().drop_front(1).copy_from(lengths);
@@ -357,6 +356,8 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
 
   Array<float2> screen_start_points(src_curves.curves_num());
   Array<float2> screen_end_points(src_curves.curves_num());
+  const VArray<bool> cyclic = *src_curves.attributes().lookup_or_default<bool>(
+      "cyclic", bke::AttrDomain::Curve, false);
   /* For comparing screen space positions use a 2D KDTree. Each curve adds 2 points. */
   KDTree_2d *tree = BLI_kdtree_2d_new(2 * src_curves.curves_num());
 
@@ -376,6 +377,9 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
   });
   /* Note: KDTree insertion is not thread-safe, don't parallelize this. */
   for (const int src_i : src_curves.curves_range()) {
+    if (cyclic[src_i] == true) {
+      continue;
+    }
     BLI_kdtree_2d_insert(tree, src_i * 2, screen_start_points[src_i]);
     BLI_kdtree_2d_insert(tree, src_i * 2 + 1, screen_end_points[src_i]);
   }

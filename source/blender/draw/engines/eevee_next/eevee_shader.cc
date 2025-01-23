@@ -11,6 +11,8 @@
 
 #include "GPU_capabilities.hh"
 
+#include "BKE_material.hh"
+
 #include "gpu_shader_create_info.hh"
 
 #include "eevee_shader.hh"
@@ -84,7 +86,7 @@ ShaderModule::~ShaderModule()
   }
 
   for (GPUShader *&shader : shaders_) {
-    DRW_SHADER_FREE_SAFE(shader);
+    GPU_SHADER_FREE_SAFE(shader);
   }
 }
 

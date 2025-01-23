@@ -9,12 +9,9 @@
 
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
-#include "BKE_deform.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
-
-#include "FN_multi_function_builder.hh"
 
 #include "attribute_access_intern.hh"
 
@@ -217,7 +214,7 @@ static Array<float3> curve_normal_point_domain(const CurvesGeometry &curves)
               curves::poly::calculate_normals_minimum(nurbs_tangents, cyclic, curve_normals);
               break;
             case NORMAL_MODE_FREE:
-              custom_normals.materialize(points, curve_normals);
+              custom_normals.materialize(points, results);
               break;
           }
           break;
