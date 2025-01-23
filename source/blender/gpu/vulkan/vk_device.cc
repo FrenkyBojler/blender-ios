@@ -19,7 +19,6 @@
 #include "GPU_capabilities.hh"
 
 #include "BLI_math_matrix_types.hh"
-#include "BLI_time.h"
 
 #include "GHOST_C-api.h"
 
@@ -447,10 +446,8 @@ void VKDevice::submission_runner(TaskPool __restrict *pool, void *task_data)
 
   while (device->lifetime < Lifetime::DEINITIALIZING) {
     VKRenderGraphSubmitTask *submit_task = static_cast<VKRenderGraphSubmitTask *>(
-        BLI_thread_queue_pop_timeout(device->submitted_render_graphs_, 100));
+        BLI_thread_queue_pop_timeout(device->submitted_render_graphs_, 1));
     if (submit_task == nullptr) {
-      // TODO check for timeline signal and reuse/reset command_buffers.
-      BLI_time_sleep_ms(0);
       continue;
     }
 
