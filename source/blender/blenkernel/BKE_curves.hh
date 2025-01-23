@@ -402,6 +402,8 @@ class CurvesGeometry : public ::CurvesGeometry {
    * this in #finish() calls.
    */
   void tag_radii_changed();
+  /** Call after changing the "material_index" attribute. */
+  void tag_material_index_changed();
 
   void translate(const float3 &translation);
   void transform(const float4x4 &matrix);
