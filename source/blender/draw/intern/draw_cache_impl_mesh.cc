@@ -215,34 +215,30 @@ static void merge_requests(MeshAttributeRequests &merge_into,
   merge_into.orco |= to_merge.orco;
   merge_into.tan_orco |= to_merge.tan_orco;
   merge_into.sculpt_overlays |= to_merge.sculpt_overlays;
-  merge_into.edit_uv |= to_merge.edit_uv;
-}
-
-static void mesh_cd_calc_edit_uv_layer(const Mesh & /*mesh*/, MeshAttributeRequests *cd_used)
-{
-  cd_used->edit_uv = true;
 }
 
 static void mesh_cd_calc_active_uv_layer(const Object &object,
                                          const Mesh &mesh,
-                                         MeshAttributeRequests &cd_used)
+                                         MeshAttributeRequests &attr_needed)
 {
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
   const CustomData &cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
   if (const char *layer = CustomData_get_active_layer_name(&cd_ldata, CD_PROP_FLOAT2)) {
-    cd_used.uv_maps.add(layer);
+    std::lock_guard lock{mesh.runtime->render_mutex};
+    attr_needed.uv_maps.add_as(layer);
   }
 }
 
 static void mesh_cd_calc_active_mask_uv_layer(const Object &object,
                                               const Mesh &mesh,
-                                              MeshAttributeRequests &cd_used)
+                                              MeshAttributeRequests &attr_needed)
 {
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
   const CustomData &cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
   int layer = CustomData_get_stencil_layer_index(&cd_ldata, CD_PROP_FLOAT2);
   if (layer != -1) {
-    cd_used.uv_maps.add(cd_ldata.layers[layer].name);
+    std::lock_guard lock{mesh.runtime->render_mutex};
+    attr_needed.uv_maps.add_as(cd_ldata.layers[layer].name);
   }
 }
 
@@ -277,7 +273,7 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
         }
       }
       else if (gpu_attr->is_default_color) {
-        r_attrs->generic_requests.add(default_color_name);
+        r_attrs->generic_requests.add_as(default_color_name);
       }
       else if (gpu_attr->is_uv_map) {
         if (gpu_attr->name[0] == '\0') {
@@ -288,7 +284,7 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
         }
       }
       else {
-        r_attrs->generic_requests.add(gpu_attr->name);
+        r_attrs->generic_requests.add_as(gpu_attr->name);
       }
     }
   }
@@ -581,7 +577,6 @@ static void mesh_batch_cache_discard_uvedit(MeshBatchCache &cache)
 
   /* We discarded the vbo.uv so we need to reset the cd_used flag. */
   cache.attr_used.uv_maps.clear();
-  cache.attr_used.edit_uv = 0;
 }
 
 static void mesh_batch_cache_discard_uvedit_select(MeshBatchCache &cache)
@@ -727,7 +722,6 @@ void DRW_mesh_batch_cache_free(void *batch_cache)
 
 static void texpaint_request_active_uv(MeshBatchCache &cache, Object &object, Mesh &mesh)
 {
-  std::lock_guard lock{mesh.runtime->render_mutex};
   /* Active UV should only be requested when it is available. */
   BLI_assert(!cache.attr_needed.uv_maps.is_empty());
   mesh_cd_calc_active_uv_layer(object, mesh, cache.attr_needed);
@@ -1003,11 +997,9 @@ gpu::Batch *DRW_mesh_batch_cache_get_verts_with_select_id(Mesh &mesh)
 
 static void edituv_request_active_uv(MeshBatchCache &cache, Object &object, Mesh &mesh)
 {
-  std::lock_guard lock{mesh.runtime->render_mutex};
   /* Active UV should only be requested when it is available. */
   BLI_assert(!cache.attr_needed.uv_maps.is_empty());
   mesh_cd_calc_active_uv_layer(object, mesh, cache.attr_needed);
-  mesh_cd_calc_edit_uv_layer(mesh, &cache.attr_needed);
   mesh_cd_calc_active_mask_uv_layer(object, mesh, cache.attr_needed);
 }
 

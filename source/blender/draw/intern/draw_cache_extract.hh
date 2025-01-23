@@ -39,10 +39,6 @@ struct MeshAttributeRequests {
   bool orco = false;
   bool tan_orco = false;
   bool sculpt_overlays = false;
-  /**
-   * Edit uv layer is from the base edit mesh as modifiers could remove it. (see #68857)
-   */
-  bool edit_uv = false;
 };
 
 /* Vertex Group Selection and display options */
@@ -274,22 +270,7 @@ struct MeshBatchCache {
 
   DRW_MeshWeightState weight_state;
 
-  /**
-   * The attributes needed by viewports (reset once mesh extraction is done).
-   */
-  MeshAttributeRequests attr_needed;
-  /**
-   * The attributes that are extracted aka present in the cache. It should be reset when recreating
-   * the material batches.
-   */
-  MeshAttributeRequests attr_used;
-  /**
-   * Attributes that have been requested between two collect ticks (see U.vbocollectrate). If at
-   * one collect tick #attr_used_over_time differs from #attr_used, it means we have unused
-   * attributes. If the unused attributes are there for more than U.vbotimeout, we discard shaded
-   * tris and re-extract only the needed ones (see #DRW_mesh_batch_cache_free_old).
-   */
-  MeshAttributeRequests attr_used_over_time;
+  MeshAttributeRequests attr_used, attr_needed, attr_used_over_time;
 
   int lastmatch;
 

@@ -7,10 +7,8 @@
  */
 
 #include "BKE_attribute.hh"
-#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 
-#include "DNA_customdata_types.h"
 #include "extract_mesh.hh"
 
 #include "draw_subdivision.hh"
@@ -256,19 +254,10 @@ void extract_edituv_stretch_angle_subdiv(const MeshRenderData &mr,
 
   const VectorSet<std::string> &uv_layers = cache.attr_used.uv_maps;
 
-  /* HACK to fix #68857 */
-  StringRef extra_name;
-  if (mr.extract_type == MeshExtractType::BMesh && cache.attr_used.edit_uv) {
-    int layer = CustomData_get_active_layer(cd_ldata, CD_PROP_FLOAT2);
-    if (layer != -1 && !CustomData_layer_is_anonymous(cd_ldata, CD_PROP_FLOAT2, layer)) {
-      extra_name = CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2);
-    }
-  }
-
   int uvs_offset = 0;
   for (int i = 0; i < MAX_MTFACE; i++) {
     const StringRef name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
-    if (uv_layers.contains_as(name) || name == extra_name) {
+    if (uv_layers.contains_as(name)) {
       if (i == CustomData_get_active_layer(cd_ldata, CD_PROP_FLOAT2)) {
         break;
       }

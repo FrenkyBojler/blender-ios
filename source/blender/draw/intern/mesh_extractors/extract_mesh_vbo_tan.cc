@@ -6,15 +6,12 @@
  * \ingroup draw
  */
 
-#include "BKE_customdata.hh"
 #include "BLI_string.h"
 
 #include "BKE_editmesh_tangent.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_tangent.hh"
 
-#include "BLI_vector_set.hh"
-#include "DNA_customdata_types.h"
 #include "extract_mesh.hh"
 
 #include "draw_subdivision.hh"

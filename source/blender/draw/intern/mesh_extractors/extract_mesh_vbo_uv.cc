@@ -11,7 +11,9 @@
 #include "BLI_string.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_customdata.hh"
 
+#include "DNA_customdata_types.h"
 #include "draw_subdivision.hh"
 #include "extract_mesh.hh"
 
@@ -20,35 +22,21 @@ namespace blender::draw {
 /* Initialize the vertex format to be used for UVs. Return true if any UV layer is
  * found, false otherwise. */
 static bool mesh_extract_uv_format_init(GPUVertFormat *format,
-                                        const MeshBatchCache &cache,
-                                        const CustomData *cd_ldata,
-                                        const MeshExtractType extract_type,
-                                        uint32_t &r_uv_layers)
+                                        const VectorSet<std::string> &uv_maps,
+                                        const CustomData *cd_ldata)
 {
   GPU_vertformat_deinterleave(format);
 
-  uint32_t uv_layers = cache.cd_used.uv;
-  /* HACK to fix #68857 */
-  if (extract_type == MeshExtractType::BMesh && cache.cd_used.edit_uv == 1) {
-    int layer = CustomData_get_active_layer(cd_ldata, CD_PROP_FLOAT2);
-    if (layer != -1 && !CustomData_layer_is_anonymous(cd_ldata, CD_PROP_FLOAT2, layer)) {
-      uv_layers |= (1 << layer);
-    }
-  }
-
-  r_uv_layers = 0;
-
   for (int i = 0; i < MAX_MTFACE; i++) {
-    if (uv_layers & (1 << i)) {
+    const char *layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
+    if (uv_maps.contains_as(layer_name)) {
       char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-      const char *layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
 
       /* not all UV layers are guaranteed to exist, since the list of available UV
        * layers is generated for the evaluated mesh, which is needed to show modifier
        * results in editmode, but the actual mesh might be the base mesh.
        */
       if (layer_name) {
-        r_uv_layers |= (1 << i);
         GPU_vertformat_safe_attr_name(layer_name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
         /* UV layer name. */
         SNPRINTF(attr_name, "a%s", attr_safe_name);
@@ -81,34 +69,26 @@ static bool mesh_extract_uv_format_init(GPUVertFormat *format,
 
 void extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &cache, gpu::VertBuf &vbo)
 {
-  GPUVertFormat format = {0};
-
+  const VectorSet<std::string> &uv_maps = cache.attr_used.uv_maps;
   const CustomData *cd_ldata = (mr.extract_type == MeshExtractType::BMesh) ? &mr.bm->ldata :
                                                                              &mr.mesh->corner_data;
+
+  GPUVertFormat format = {0};
   int v_len = mr.corners_num;
-  uint32_t uv_layers = cache.cd_used.uv;
-  if (!mesh_extract_uv_format_init(&format, cache, cd_ldata, mr.extract_type, uv_layers)) {
-    /* VBO will not be used, only allocate minimum of memory. */
-    v_len = 1;
+  if (!mesh_extract_uv_format_init(&format, uv_maps, cd_ldata)) {
+    return;
   }
 
   GPU_vertbuf_init_with_format(vbo, format);
   GPU_vertbuf_data_alloc(vbo, v_len);
 
-  Vector<int> uv_indices;
-  for (const int i : IndexRange(MAX_MTFACE)) {
-    if (uv_layers & (1 << i)) {
-      uv_indices.append(i);
-    }
-  }
-
   MutableSpan<float2> uv_data = vbo.data<float2>();
   threading::memory_bandwidth_bound_task(uv_data.size_in_bytes() * 2, [&]() {
     if (mr.extract_type == MeshExtractType::BMesh) {
       const BMesh &bm = *mr.bm;
-      for (const int i : uv_indices.index_range()) {
+      for (const int i : uv_maps.index_range()) {
         MutableSpan<float2> data = uv_data.slice(i * bm.totloop, bm.totloop);
-        const int offset = CustomData_get_n_offset(cd_ldata, CD_PROP_FLOAT2, uv_indices[i]);
+        const int offset = CustomData_get_offset_named(cd_ldata, CD_PROP_FLOAT2, uv_maps[i]);
         threading::parallel_for(IndexRange(bm.totface), 2048, [&](const IndexRange range) {
           for (const int face_index : range) {
             const BMFace &face = *BM_face_at_index(&const_cast<BMesh &>(bm), face_index);
@@ -124,10 +104,9 @@ void extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &cache, gpu:
     }
     else {
       const bke::AttributeAccessor attributes = mr.mesh->attributes();
-      for (const int i : uv_indices.index_range()) {
-        const StringRef name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, uv_indices[i]);
+      for (const int i : uv_maps.index_range()) {
         const VArray uv_map = *attributes.lookup_or_default<float2>(
-            name, bke::AttrDomain::Corner, float2(0));
+            uv_maps[i], bke::AttrDomain::Corner, float2(0));
         array_utils::copy(uv_map, uv_data.slice(i * mr.corners_num, mr.corners_num));
       }
     }
@@ -138,28 +117,22 @@ void extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
                             const MeshBatchCache &cache,
                             gpu::VertBuf &vbo)
 {
+  const VectorSet<std::string> &uv_maps = cache.attr_used.uv_maps;
   const Mesh *coarse_mesh = subdiv_cache.mesh;
   GPUVertFormat format = {0};
 
-  uint v_len = subdiv_cache.num_subdiv_loops;
-  uint uv_layers;
-  if (!mesh_extract_uv_format_init(
-          &format, cache, &coarse_mesh->corner_data, MeshExtractType::Mesh, uv_layers))
-  {
-    /* TODO(kevindietrich): handle this more gracefully. */
-    v_len = 1;
-  }
-
-  GPU_vertbuf_init_build_on_device(vbo, format, v_len);
-
-  if (uv_layers == 0) {
+  if (!mesh_extract_uv_format_init(&format, uv_maps, &coarse_mesh->corner_data)) {
+    GPU_vertbuf_init_build_on_device(vbo, format, subdiv_cache.num_subdiv_loops);
     return;
   }
+
+  GPU_vertbuf_init_build_on_device(vbo, format, subdiv_cache.num_subdiv_loops);
 
   /* Index of the UV layer in the compact buffer. Used UV layers are stored in a single buffer. */
   int pack_layer_index = 0;
   for (int i = 0; i < MAX_MTFACE; i++) {
-    if (uv_layers & (1 << i)) {
+    const char *name = CustomData_get_layer_name(&coarse_mesh->corner_data, CD_PROP_FLOAT2, i);
+    if (uv_maps.contains_as(name)) {
       const int offset = int(subdiv_cache.num_subdiv_loops) * pack_layer_index++;
       draw_subdiv_extract_uvs(subdiv_cache, &vbo, i, offset);
     }

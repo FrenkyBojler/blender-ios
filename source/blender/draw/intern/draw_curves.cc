@@ -382,11 +382,11 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
                                                        CD_PROP_FLOAT2);
   }
 
-  const DRW_Attributes &attrs = curves_cache->final.attr_used;
-  for (int i = 0; i < attrs.num_requests; i++) {
-    const DRW_AttributeRequest &request = attrs.requests[i];
+  const VectorSet<std::string> &attrs = curves_cache->final.attr_used;
+  for (int i = 0; i < attrs.size(); i++) {
+    const std::string &request = attrs[i];
     char sampler_name[32];
-    drw_curves_get_attribute_sampler_name(request.attribute_name, sampler_name);
+    drw_curves_get_attribute_sampler_name(request, sampler_name);
 
     if (request.domain == bke::AttrDomain::Curve) {
       if (!curves_cache->proc_attributes_buf[i]) {
