@@ -52,7 +52,7 @@ void VKIndexBuffer::upload_data()
 void VKIndexBuffer::bind_as_ssbo(uint binding)
 {
   if (is_subrange_) {
-    static_cast<VKIndexBuffer *>(src_)->bind_as_ssbo(binding);
+    src_->bind_as_ssbo(binding);
     return;
   }
 

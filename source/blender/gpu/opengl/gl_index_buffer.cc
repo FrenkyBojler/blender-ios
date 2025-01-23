@@ -48,7 +48,7 @@ void GLIndexBuf::bind()
 void GLIndexBuf::bind_as_ssbo(uint binding)
 {
   if (is_subrange_) {
-    static_cast<GLIndexBuf *>(src_)->bind_as_ssbo(binding);
+    src_->bind_as_ssbo(binding);
     return;
   }
 
