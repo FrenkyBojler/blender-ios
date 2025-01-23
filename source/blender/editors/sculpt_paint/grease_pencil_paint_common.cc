@@ -702,7 +702,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
 
     if (use_auto_mask_layer && !masked_layer_indices.contains(drawing_info.layer_index)) {
       automask_info.point_mask = {};
-      return false;
+      return;
     }
 
     if (use_auto_mask_material) {
@@ -719,8 +719,6 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
           IndexMask::from_ranges(curves.points_by_curve(), masked_curves, memory),
           automask_info.memory);
     }
-
-    return true;
   });
 }
 
