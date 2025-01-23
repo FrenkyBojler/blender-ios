@@ -25,8 +25,8 @@
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_node_tree_interface.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "RNA_access.hh"
@@ -34,7 +34,6 @@
 
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
-#include "NOD_socket_declarations.hh"
 
 #include "../interface/interface_intern.hh" /* XXX bad level */
 #include "UI_interface.hh"
@@ -78,7 +77,7 @@ static void node_link_item_init(NodeLinkItem &item)
  */
 static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
 {
-  if (ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+  if (node->is_group()) {
     return (node->id == (ID *)item->ngroup);
   }
   return true;
@@ -86,7 +85,7 @@ static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
 
 static void node_link_item_apply(bNodeTree *ntree, bNode *node, NodeLinkItem *item)
 {
-  if (ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+  if (node->is_group()) {
     node->id = (ID *)item->ngroup;
     BKE_ntree_update_tag_node_property(ntree, node);
   }
@@ -179,7 +178,7 @@ static void node_socket_disconnect(Main *bmain,
   sock_to->flag |= SOCK_COLLAPSED;
 
   BKE_ntree_update_tag_node_property(ntree, node_to);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 /* remove all nodes connected to this socket, if they aren't connected to other nodes */
@@ -193,7 +192,7 @@ static void node_socket_remove(Main *bmain, bNodeTree *ntree, bNode *node_to, bN
   sock_to->flag |= SOCK_COLLAPSED;
 
   BKE_ntree_update_tag_node_property(ntree, node_to);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 /* add new node connected to this socket, or replace an existing one */
@@ -247,7 +246,7 @@ static void node_socket_add_replace(const bContext *C,
     }
 
     node_link_item_apply(ntree, node_from, item);
-    ED_node_tree_propagate_change(*bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
   }
 
   bke::node_set_active(ntree, node_from);
@@ -297,7 +296,7 @@ static void node_socket_add_replace(const bContext *C,
 
   BKE_ntree_update_tag_node_property(ntree, node_from);
   BKE_ntree_update_tag_node_property(ntree, node_to);
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 /****************************** Node Link Menu *******************************/
@@ -735,7 +734,7 @@ static void node_panel_toggle_button_cb(bContext *C, void *panel_state_argv, voi
 
   panel_state->flag ^= NODE_PANEL_COLLAPSED;
 
-  ED_node_tree_propagate_change(*bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 
   /* Make sure panel state updates from the Properties Editor, too. */
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_NODE_VIEW, nullptr);

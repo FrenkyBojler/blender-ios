@@ -9,11 +9,9 @@
 
 #include "BLI_color.hh"
 #include "BLI_string.h"
-#include "BLI_system.h"
 #include "BLI_threads.h"
 
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -22,6 +20,7 @@
 #include "BKE_curve.hh"
 #include "BKE_image.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_enum.hh"
 #include "BKE_node_legacy_types.hh"
@@ -30,7 +29,6 @@
 #include "BKE_scene.hh"
 #include "BKE_tracking.h"
 
-#include "BLF_api.hh"
 #include "BLT_translation.hh"
 
 #include "BIF_glutil.hh"
@@ -40,7 +38,6 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
-#include "GPU_platform.hh"
 #include "GPU_shader_shared.hh"
 #include "GPU_state.hh"
 #include "GPU_uniform_buffer.hh"
@@ -68,9 +65,7 @@
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_partial_eval.hh"
-#include "NOD_shader.h"
 #include "NOD_socket.hh"
-#include "NOD_texture.h"
 #include "node_intern.hh" /* own include */
 
 namespace blender::ed::space_node {
@@ -233,7 +228,7 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
 {
   const float size = NODE_RESIZE_MARGIN * math::max(snode.runtime->aspect, 1.0f);
 
-  if (node->type_legacy == NODE_FRAME) {
+  if (node->is_frame()) {
     NodeFrame *data = (NodeFrame *)node->storage;
 
     /* shrinking frame size is determined by child nodes */
@@ -1014,7 +1009,7 @@ static void node_property_update_default(Main *bmain, Scene * /*scene*/, Pointer
   bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
   bNode *node = (bNode *)ptr->data;
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(*bmain);
+  BKE_main_ensure_invariants(*bmain);
 }
 
 static void node_socket_template_properties_update(blender::bke::bNodeType *ntype,
@@ -1288,6 +1283,10 @@ static void std_node_socket_draw(
   bNodeTree *tree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
   int type = sock->typeinfo->type;
   // int subtype = sock->typeinfo->subtype;
+
+  if (sock->is_input() && !sock->affects_node_output()) {
+    uiLayoutSetActive(layout, false);
+  }
 
   /* XXX not nice, eventually give this node its own socket type ... */
   if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
@@ -2376,8 +2375,8 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
                           (field_link ? 0.7f : 1.0f);
   draw_config.has_back_link = gizmo_link;
   draw_config.highlighted = link.flag & NODE_LINK_TEMP_HIGHLIGHT;
-  draw_config.drawarrow = ((link.tonode && (link.tonode->type_legacy == NODE_REROUTE)) &&
-                           (link.fromnode && (link.fromnode->type_legacy == NODE_REROUTE)));
+  draw_config.drawarrow = ((link.tonode && link.tonode->is_reroute()) &&
+                           (link.fromnode && link.fromnode->is_reroute()));
   draw_config.drawmuted = (link.flag & NODE_LINK_MUTED);
 
   UI_GetThemeColor4fv(th_col3, draw_config.outline_color);

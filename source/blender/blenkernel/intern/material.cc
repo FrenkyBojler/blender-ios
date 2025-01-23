@@ -290,7 +290,7 @@ static void nodetree_mark_previews_dirty_reccursive(bNodeTree *tree)
   }
   tree->runtime->previews_refresh_state++;
   for (bNode *node : tree->all_nodes()) {
-    if (node->type_legacy == NODE_GROUP) {
+    if (node->is_group()) {
       bNodeTree *nested_tree = reinterpret_cast<bNodeTree *>(node->id);
       nodetree_mark_previews_dirty_reccursive(nested_tree);
     }
@@ -1322,7 +1322,7 @@ short BKE_object_material_slot_find_index(Object *ob, Material *ma)
   return 0;
 }
 
-bool BKE_object_material_slot_add(Main *bmain, Object *ob)
+bool BKE_object_material_slot_add(Main *bmain, Object *ob, const bool set_active)
 {
   if (ob == nullptr) {
     return false;
@@ -1332,7 +1332,9 @@ bool BKE_object_material_slot_add(Main *bmain, Object *ob)
   }
 
   BKE_object_material_assign(bmain, ob, nullptr, ob->totcol + 1, BKE_MAT_ASSIGN_USERPREF);
-  ob->actcol = ob->totcol;
+  if (set_active) {
+    ob->actcol = ob->totcol;
+  }
   return true;
 }
 
@@ -1476,7 +1478,7 @@ static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
         return false;
       }
     }
-    else if (ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP) && node->id) {
+    else if (node->is_group() && node->id) {
       /* recurse into the node group and see if it contains any textures */
       if (!ntree_foreach_texnode_recursive((bNodeTree *)node->id, callback, userdata, slot_filter))
       {

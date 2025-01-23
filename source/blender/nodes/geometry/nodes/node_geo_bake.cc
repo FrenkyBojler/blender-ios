@@ -135,7 +135,7 @@ static void draw_bake_items(const bContext *C, uiLayout *layout, PointerRNA node
   bNode &node = *static_cast<bNode *>(node_ptr.data);
   NodeGeometryBake &storage = node_storage(node);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "bake_items", false, TIP_("Bake Items"))) {
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "bake_items", false, IFACE_("Bake Items"))) {
     socket_items::ui::draw_items_list_with_operators<BakeItemsAccessor>(C, panel, tree, node);
     socket_items::ui::draw_active_item_props<BakeItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
@@ -568,10 +568,11 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeBake", GEO_NODE_BAKE, NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeBake", GEO_NODE_BAKE);
   ntype.ui_name = "Bake";
   ntype.ui_description = "Cache the incoming data so that it can be used without recomputation";
   ntype.enum_name_legacy = "BAKE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
@@ -878,7 +879,7 @@ void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna)
       bake_rna.owner_id, &RNA_NodesModifierBakeDataBlocks, bake_rna.data);
 
   if (uiLayout *panel = uiLayoutPanel(
-          C, layout, "data_block_references", true, TIP_("Data-Block References")))
+          C, layout, "data_block_references", true, IFACE_("Data-Block References")))
   {
     uiTemplateList(panel,
                    C,

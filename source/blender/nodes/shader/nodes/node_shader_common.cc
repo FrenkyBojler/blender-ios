@@ -13,7 +13,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
-#include "NOD_common.h"
+#include "NOD_common.hh"
 #include "NOD_shader.h"
 #include "node_common.h"
 #include "node_exec.hh"
@@ -28,7 +28,7 @@ static void group_gpu_copy_inputs(bNode *gnode, GPUNodeStack *in, bNodeStack *gs
   bNodeTree *ngroup = (bNodeTree *)gnode->id;
 
   for (bNode *node : ngroup->all_nodes()) {
-    if (node->type_legacy == NODE_GROUP_INPUT) {
+    if (node->is_group_input()) {
       int a;
       LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &node->outputs, a) {
         bNodeStack *ns = node_get_socket_stack(gstack, sock);

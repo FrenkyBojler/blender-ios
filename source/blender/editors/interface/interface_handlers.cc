@@ -1128,6 +1128,9 @@ static void ui_apply_but_funcs_after(bContext *C)
     ui_afterfunc_update_preferences_dirty(&after);
 
     if (after.undostr[0]) {
+      /* Remove "Adjust Last Operation" HUD. Using it would revert this undo push which isn't
+       * obvious, see #78171. */
+      WM_operator_stack_clear(CTX_wm_manager(C));
       ED_undo_push(C, after.undostr);
     }
   }
@@ -8519,7 +8522,7 @@ static void button_tooltip_timer_reset(bContext *C, uiBut *but)
         if (is_label) {
           bScreen *screen = WM_window_get_active_screen(data->window);
           if (screen->tool_tip) {
-            screen->tool_tip->pass = 1;
+            screen->tool_tip->pass = screen->tool_tip->region ? 0 : 1;
           }
         }
       }
@@ -11128,7 +11131,11 @@ static int ui_handle_menu_event(bContext *C,
             /* Accelerator keys that allow "pressing" a menu entry by pressing a single key. */
             for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
               if (!(but_iter->flag & UI_BUT_DISABLED) && but_iter->menu_key == event->type) {
-                if (but_iter->type == UI_BTYPE_BUT) {
+                if (ELEM(but_iter->type,
+                         UI_BTYPE_BUT,
+                         UI_BTYPE_ICON_TOGGLE,
+                         UI_BTYPE_ICON_TOGGLE_N))
+                {
                   UI_but_execute(C, region, but_iter.get());
                 }
                 else {

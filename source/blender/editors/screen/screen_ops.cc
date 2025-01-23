@@ -4260,7 +4260,9 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
         else {
           status.item(IFACE_("Select Location"), ICON_MOUSE_LMB);
           status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
-          status.item_bool(IFACE_("Precision"), event->modifier & KM_ALT, ICON_EVENT_ALT);
+          status.item_bool(CTX_IFACE_(BLT_I18NCONTEXT_ID_SCREEN, "Precision"),
+                           event->modifier & KM_ALT,
+                           ICON_EVENT_ALT);
           status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
         }
       }
@@ -6277,7 +6279,7 @@ static void region_blend_end(bContext *C, ARegion *region, const bool is_running
   else {
     if (rgi->hidden) {
       rgi->region->flag |= rgi->hidden;
-      ED_area_init(CTX_wm_manager(C), CTX_wm_window(C), rgi->area);
+      ED_area_init(C, CTX_wm_window(C), rgi->area);
     }
     /* area decoration needs redraw in end */
     ED_area_tag_redraw(rgi->area);
@@ -6305,7 +6307,7 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
 
   /* blend in, reinitialize regions because it got unhidden */
   if (rgi->hidden == 0) {
-    ED_area_init(wm, win, area);
+    ED_area_init(C, win, area);
   }
   else {
     ED_region_visibility_change_update_ex(C, area, region, true, false);

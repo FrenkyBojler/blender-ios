@@ -22,6 +22,7 @@
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
@@ -32,6 +33,7 @@
 #include "BKE_scene_runtime.hh"
 
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
@@ -459,32 +461,6 @@ bool composite_node_editable(bContext *C)
   return false;
 }
 
-static void send_notifiers_after_tree_change(ID *id, bNodeTree *ntree)
-{
-  WM_main_add_notifier(NC_NODE | NA_EDITED, id);
-
-  if (ntree->type == NTREE_SHADER && id != nullptr) {
-    if (GS(id->name) == ID_MA) {
-      WM_main_add_notifier(NC_MATERIAL | ND_SHADING, id);
-    }
-    else if (GS(id->name) == ID_LA) {
-      WM_main_add_notifier(NC_LAMP | ND_LIGHTING, id);
-    }
-    else if (GS(id->name) == ID_WO) {
-      WM_main_add_notifier(NC_WORLD | ND_WORLD, id);
-    }
-  }
-  else if (ntree->type == NTREE_COMPOSIT) {
-    WM_main_add_notifier(NC_SCENE | ND_NODES, id);
-  }
-  else if (ntree->type == NTREE_TEXTURE) {
-    WM_main_add_notifier(NC_TEXTURE | ND_NODES, id);
-  }
-  else if (ntree->type == NTREE_GEOMETRY) {
-    WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, id);
-  }
-}
-
 /** \} */
 
 }  // namespace blender::ed::space_node
@@ -492,24 +468,6 @@ static void send_notifiers_after_tree_change(ID *id, bNodeTree *ntree)
 /* -------------------------------------------------------------------- */
 /** \name Node Editor Public API Functions
  * \{ */
-
-void ED_node_tree_propagate_change(Main &bmain, bNodeTree *root_ntree)
-{
-  NodeTreeUpdateExtraParams params;
-  params.tree_changed_fn = [](bNodeTree &ntree, ID &owner_id) {
-    blender::ed::space_node::send_notifiers_after_tree_change(&owner_id, &ntree);
-    DEG_id_tag_update(&ntree.id, ID_RECALC_SYNC_TO_EVAL);
-  };
-  params.tree_output_changed_fn = [](bNodeTree &ntree, ID & /*owner_id*/) {
-    DEG_id_tag_update(&ntree.id, ID_RECALC_NTREE_OUTPUT);
-  };
-  if (root_ntree) {
-    BKE_ntree_update_after_single_tree_change(bmain, *root_ntree, params);
-  }
-  else {
-    BKE_ntree_update(bmain, std::nullopt, params);
-  }
-}
 
 void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typeinfo)
 {
@@ -737,9 +695,9 @@ void ED_node_set_active(
   bool do_update = false;
 
   /* Generic node group output: set node as active output. */
-  if (node->type_legacy == NODE_GROUP_OUTPUT) {
+  if (node->is_group_output()) {
     for (bNode *node_iter : ntree->all_nodes()) {
-      if (node_iter->type_legacy == NODE_GROUP_OUTPUT) {
+      if (node_iter->is_group_output()) {
         node_iter->flag &= ~NODE_DO_OUTPUT;
       }
     }
@@ -769,7 +727,7 @@ void ED_node_set_active(
       BKE_ntree_update_tag_active_output_changed(ntree);
     }
 
-    ED_node_tree_propagate_change(*bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
 
     if ((node->flag & NODE_ACTIVE_TEXTURE) && !was_active_texture) {
       /* If active texture changed, free GLSL materials. */
@@ -813,7 +771,7 @@ void ED_node_set_active(
       if (r_active_texture_changed) {
         *r_active_texture_changed = true;
       }
-      ED_node_tree_propagate_change(*bmain, ntree);
+      BKE_main_ensure_invariants(*bmain, ntree->id);
       WM_main_add_notifier(NC_IMAGE, nullptr);
     }
 
@@ -831,7 +789,7 @@ void ED_node_set_active(
       node->flag |= NODE_DO_OUTPUT;
       if (was_output == 0) {
         BKE_ntree_update_tag_active_output_changed(ntree);
-        ED_node_tree_propagate_change(*bmain, ntree);
+        BKE_main_ensure_invariants(*bmain, ntree->id);
       }
 
       /* Adding a node doesn't link this yet. */
@@ -847,11 +805,11 @@ void ED_node_set_active(
 
         node->flag |= NODE_DO_OUTPUT;
         BKE_ntree_update_tag_active_output_changed(ntree);
-        ED_node_tree_propagate_change(*bmain, ntree);
+        BKE_main_ensure_invariants(*bmain, ntree->id);
       }
     }
     else if (do_update) {
-      ED_node_tree_propagate_change(*bmain, ntree);
+      BKE_main_ensure_invariants(*bmain, ntree->id);
     }
   }
   else if (ntree->type == NTREE_GEOMETRY) {
@@ -917,11 +875,13 @@ struct NodeSizeWidget {
   float oldlocx, oldlocy;
   float oldwidth, oldheight;
   int directions;
+  bool precision, snap_to_grid;
 };
 
 static void node_resize_init(
     bContext *C, wmOperator *op, const float2 &cursor, const bNode *node, NodeResizeDirection dir)
 {
+  Scene *scene = CTX_data_scene(C);
   NodeSizeWidget *nsw = MEM_cnew<NodeSizeWidget>(__func__);
 
   op->customdata = nsw;
@@ -935,6 +895,7 @@ static void node_resize_init(
   nsw->oldwidth = node->width;
   nsw->oldheight = node->height;
   nsw->directions = dir;
+  nsw->snap_to_grid = scene->toolsettings->snap_flag_node;
 
   WM_cursor_modal_set(CTX_wm_window(C), node_get_resize_cursor(dir));
   /* add modal handler */
@@ -961,6 +922,36 @@ static void node_resize_exit(bContext *C, wmOperator *op, bool cancel)
   op->customdata = nullptr;
 }
 
+enum class NodeResizeAction : int {
+  Begin = 0,
+  Cancel = 1,
+  SnapInvertOn = 2,
+  SnapInvertOff = 3,
+};
+
+wmKeyMap *node_resize_modal_keymap(wmKeyConfig *keyconf)
+{
+  static const EnumPropertyItem modal_items[] = {
+      {int(NodeResizeAction::Begin), "BEGIN", 0, "Resize Node", ""},
+      {int(NodeResizeAction::Cancel), "CANCEL", 0, "Cancel", ""},
+      {int(NodeResizeAction::SnapInvertOn), "SNAP_INVERT_ON", 0, "Snap Invert", ""},
+      {int(NodeResizeAction::SnapInvertOff), "SNAP_INVERT_OFF", 0, "Snap Invert", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Node Resize Modal Map");
+
+  if (keymap && keymap->modal_items) {
+    return nullptr;
+  }
+
+  keymap = WM_modalkeymap_ensure(keyconf, "Node Resize Modal Map", modal_items);
+
+  WM_modalkeymap_assign(keymap, "NODE_OT_resize");
+
+  return keymap;
+}
+
 /* Compute the nearest 1D coordinate corresponding to the nearest grid in node. */
 static float nearest_node_grid_coord(float co)
 {
@@ -974,14 +965,26 @@ static float nearest_node_grid_coord(float co)
 static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
-  Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
   bNode *node = bke::node_get_active(snode->edittree);
   NodeSizeWidget *nsw = (NodeSizeWidget *)op->customdata;
 
-  bool snap_to_grid = scene->toolsettings->snap_flag_node;
-  if (event->modifier & KM_CTRL) {
-    snap_to_grid = !snap_to_grid;
+  if (event->type == EVT_MODAL_MAP) {
+    switch (NodeResizeAction(event->val)) {
+      case NodeResizeAction::Begin: {
+        return OPERATOR_RUNNING_MODAL;
+      }
+      case NodeResizeAction::Cancel: {
+        node_resize_exit(C, op, true);
+        ED_region_tag_redraw(region);
+        return OPERATOR_CANCELLED;
+      }
+      case NodeResizeAction::SnapInvertOn:
+      case NodeResizeAction::SnapInvertOff: {
+        nsw->snap_to_grid = !nsw->snap_to_grid;
+        return OPERATOR_RUNNING_MODAL;
+      }
+    }
   }
 
   switch (event->type) {
@@ -1003,7 +1006,7 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
           if (nsw->directions & NODE_RESIZE_RIGHT) {
             *pwidth = oldwidth + dx;
 
-            if (snap_to_grid) {
+            if (nsw->snap_to_grid) {
               *pwidth = nearest_node_grid_coord(*pwidth);
             }
             CLAMP(*pwidth, widthmin, widthmax);
@@ -1011,7 +1014,7 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
           if (nsw->directions & NODE_RESIZE_LEFT) {
             float locmax = nsw->oldlocx + oldwidth;
 
-            if (snap_to_grid) {
+            if (nsw->snap_to_grid) {
               dx = nearest_node_grid_coord(dx);
             }
             node->location[0] = nsw->oldlocx + dx;
@@ -1051,18 +1054,8 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
         return OPERATOR_FINISHED;
       }
-      if (event->val == KM_PRESS) {
-        node_resize_exit(C, op, true);
-        ED_region_tag_redraw(region);
-
-        return OPERATOR_CANCELLED;
-      }
       break;
     }
-    case EVT_ESCKEY:
-      node_resize_exit(C, op, true);
-      ED_region_tag_redraw(region);
-      return OPERATOR_CANCELLED;
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -1484,7 +1477,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
   }
 
   tree_draw_order_update(*snode->edittree);
-  ED_node_tree_propagate_change(*bmain, snode->edittree);
+  BKE_main_ensure_invariants(*bmain, snode->edittree->id);
   return OPERATOR_FINISHED;
 }
 
@@ -1547,7 +1540,7 @@ static int node_read_viewlayers_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*bmain, &edit_tree);
+  BKE_main_ensure_invariants(*bmain, edit_tree.id);
 
   return OPERATOR_FINISHED;
 }
@@ -1713,7 +1706,7 @@ static int node_preview_toggle_exec(bContext *C, wmOperator * /*op*/)
 
   node_flag_toggle_exec(snode, NODE_PREVIEW);
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), snode->edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -1764,7 +1757,7 @@ static int node_deactivate_viewer_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), snode.edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode.edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -1843,7 +1836,7 @@ static int node_socket_toggle_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), snode->edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
   WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
   /* Hack to force update of the button state after drawing, see #112462. */
@@ -1887,7 +1880,7 @@ static int node_mute_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*bmain, snode->edittree);
+  BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -1929,7 +1922,7 @@ static int node_delete_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*bmain, snode->edittree);
+  BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -1976,7 +1969,7 @@ static int node_delete_reconnect_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*bmain, snode->edittree);
+  BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -2027,7 +2020,7 @@ static int node_output_file_add_socket_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "file_path", file_path);
   ntreeCompositOutputFileAddSocket(ntree, node, file_path, &scene->r.im_format);
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), snode->edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -2080,7 +2073,7 @@ static int node_output_file_remove_active_socket_exec(bContext *C, wmOperator * 
     return OPERATOR_CANCELLED;
   }
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -2152,7 +2145,7 @@ static int node_output_file_move_active_socket_exec(bContext *C, wmOperator *op)
   }
 
   BKE_ntree_update_tag_node_property(snode->edittree, node);
-  ED_node_tree_propagate_change(*CTX_data_main(C), snode->edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -2435,7 +2428,7 @@ static int viewer_border_exec(bContext *C, wmOperator *op)
         btree->flag |= NTREE_VIEWER_BORDER;
       }
 
-      ED_node_tree_propagate_change(*bmain, btree);
+      BKE_main_ensure_invariants(*bmain, btree->id);
       WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
     }
     else {
@@ -2475,7 +2468,7 @@ static int clear_viewer_border_exec(bContext *C, wmOperator * /*op*/)
   bNodeTree *btree = snode->nodetree;
 
   btree->flag &= ~NTREE_VIEWER_BORDER;
-  ED_node_tree_propagate_change(*CTX_data_main(C), btree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), btree->id);
   WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
@@ -2524,7 +2517,7 @@ static int node_cryptomatte_add_socket_exec(bContext *C, wmOperator * /*op*/)
 
   ntreeCompositCryptomatteAddSocket(ntree, node);
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -2574,7 +2567,7 @@ static int node_cryptomatte_remove_socket_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
 
   return OPERATOR_FINISHED;
 }

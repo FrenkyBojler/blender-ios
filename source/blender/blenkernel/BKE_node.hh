@@ -8,6 +8,8 @@
  * \ingroup bke
  */
 
+#include <optional>
+
 #include "BLI_compiler_compat.h"
 #include "BLI_ghash.h"
 #include "BLI_span.hh"
@@ -538,7 +540,7 @@ Span<bNodeTreeType *> node_tree_types_get();
  */
 void node_tree_set_type(const bContext *C, bNodeTree *ntree);
 
-bNodeTree *node_tree_add_tree(Main *bmain, StringRefNull name, StringRefNull idname);
+bNodeTree *node_tree_add_tree(Main *bmain, StringRef name, StringRef idname);
 
 /**
  * Add a new (non-embedded) node tree, like #node_tree_add_tree, but allows to create it inside a
@@ -587,10 +589,10 @@ void node_tree_set_output(bNodeTree *ntree);
 /**
  * Returns localized tree for execution in threads.
  *
- * \param new_owner_id: the owner ID of the localized nodetree, may be null if unknown or
+ * \param new_owner_id: the owner ID of the localized nodetree, may be nullopt if unknown or
  * irrelevant.
  */
-bNodeTree *node_tree_localize(bNodeTree *ntree, ID *new_owner_id);
+bNodeTree *node_tree_localize(bNodeTree *ntree, std::optional<ID *> new_owner_id);
 
 /**
  * This is only direct data, tree itself should have been written.
@@ -645,7 +647,7 @@ void node_remove_socket(bNodeTree *ntree, bNode *node, bNodeSocket *sock);
 void node_modify_socket_type_static(
     bNodeTree *ntree, bNode *node, bNodeSocket *sock, int type, int subtype);
 
-bNode *node_add_node(const bContext *C, bNodeTree *ntree, StringRefNull idname);
+bNode *node_add_node(const bContext *C, bNodeTree *ntree, StringRef idname);
 bNode *node_add_static_node(const bContext *C, bNodeTree *ntree, int type);
 
 /**
@@ -806,6 +808,8 @@ void node_type_storage(bNodeType *ntype,
 #define NODE_GROUP_INPUT 7
 #define NODE_GROUP_OUTPUT 8
 #define NODE_CUSTOM_GROUP 9
+
+#define NODE_LEGACY_TYPE_GENERATION_START 5000
 
 /** \} */
 
@@ -1165,7 +1169,9 @@ std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket *sock);
 /**
  * Initialize a new node type struct with default values and callbacks.
  */
-void node_type_base(bNodeType *ntype, std::string idname, int type, short nclass);
+void node_type_base(bNodeType *ntype,
+                    std::string idname,
+                    std::optional<int16_t> legacy_type = std::nullopt);
 
 void node_type_socket_templates(bNodeType *ntype,
                                 bNodeSocketTemplate *inputs,
