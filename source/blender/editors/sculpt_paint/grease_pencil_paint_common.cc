@@ -612,9 +612,9 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
 
   const float radius = brush_radius(scene, brush);
   const int2 mval_i = int2(math::round(start_sample.mouse_position));
+  const int active_material_index = math::max(object.actcol - 1, 0);
 
   const Vector<MutableDrawingInfo> drawings = get_drawings_with_masking_for_stroke_operation(C);
-
   this->auto_masking_info_per_drawing.reinitialize(drawings.size());
 
   VectorSet<int> masked_layer_indices;
@@ -643,10 +643,8 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
     const bke::AttributeAccessor attributes = curves.attributes();
 
     if (use_auto_mask_active_material) {
-      const int active_material_index = math::max(params.ob_orig.actcol - 1, 0);
-
       IndexMaskMemory memory;
-      const VArray<int> materials = *attributes.lookup_or_default<int>(
+      const VArraySpan<int> materials = *attributes.lookup_or_default<int>(
           "material_index", bke::AttrDomain::Point, 0);
       const IndexMask active_material_mask = IndexMask::from_predicate(
           curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
@@ -659,7 +657,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
       }
     }
 
-    if (use_auto_mask_stroke || use_auto_mask_material || use_auto_mask_layer) {
+    if (use_auto_mask_layer || use_auto_mask_stroke || use_auto_mask_material) {
       Array<float2> view_positions = calculate_view_positions(params, automask_info.point_mask);
 
       IndexMaskMemory memory;
