@@ -2,14 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_context.hh"
+
 #include "ED_screen.hh"
 
 #include "WM_types.hh"
 
 namespace blender::ed::object {
 
-int visual_geometry_to_editable_exec(bContext *C, wmOperator *op)
+int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
 {
+  Object *ob = CTX_data_active_object(C);
+
   return OPERATOR_FINISHED;
 }
 
