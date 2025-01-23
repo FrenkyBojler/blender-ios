@@ -4,25 +4,35 @@
 
 #pragma once
 
-#include <cstdint>
-#include <memory>
-#include <string>
+#ifdef WITH_OPENIMAGEDENOISE
 
-#include "BLI_map.hh"
+#  include <cstdint>
+#  include <memory>
+#  include <string>
+
+#  include "BLI_map.hh"
+
+#  include <OpenImageDenoise/oidn.hpp>
 
 namespace blender::compositor {
 
 class Context;
 class Result;
 
+enum class DenoisedAuxiliaryPassType : uint8_t {
+  Albedo,
+  Normal,
+};
+
 /* ------------------------------------------------------------------------------------------------
  * Denoised Auxiliary Pass Key.
  */
 class DenoisedAuxiliaryPassKey {
  public:
-  std::string pass_name;
+  DenoisedAuxiliaryPassType type;
+  oidn::Quality quality;
 
-  DenoisedAuxiliaryPassKey(const char *pass_name);
+  DenoisedAuxiliaryPassKey(const DenoisedAuxiliaryPassType type, const oidn::Quality quality);
 
   uint64_t hash() const;
 };
@@ -30,16 +40,19 @@ class DenoisedAuxiliaryPassKey {
 bool operator==(const DenoisedAuxiliaryPassKey &a, const DenoisedAuxiliaryPassKey &b);
 
 /* -------------------------------------------------------------------------------------------------
- * Denoised Result.
+ * Denoised Auxiliary Pass.
  *
- * A derived result that stores a denoised version of the source result, assuming it is either an
- * albedo or a normal pass. */
+ * A derived result that stores a denoised version of the auxiliary pass of the given type using
+ * the given quality. */
 class DenoisedAuxiliaryPass {
  public:
   float *denoised_buffer = nullptr;
 
  public:
-  DenoisedAuxiliaryPass(Context &context, const Result &source_result, const char *pass_name);
+  DenoisedAuxiliaryPass(Context &context,
+                        const Result &pass,
+                        const DenoisedAuxiliaryPassType type,
+                        const oidn::Quality quality);
 
   ~DenoisedAuxiliaryPass();
 };
@@ -54,8 +67,23 @@ class DenoisedAuxiliaryPassContainer {
  public:
   /* Check if there is an available DenoisedAuxiliaryPass derived resource with the given
    * parameters in the container, if one exists, return it, otherwise, return a newly created one
-   * and add it to the container. pass_name is expected to be either "albedo" or "normal". */
-  DenoisedAuxiliaryPass &get(Context &context, const Result &source_result, const char *pass_name);
+   * and add it to the container. */
+  DenoisedAuxiliaryPass &get(Context &context,
+                             const Result &pass,
+                             const DenoisedAuxiliaryPassType type,
+                             const oidn::Quality quality);
 };
 
 }  // namespace blender::compositor
+
+#else
+
+namespace blender::compositor {
+
+/* Building without OIDN, define a dummy container. User is not expected to use it if OIDN is not
+ * available. */
+class DenoisedAuxiliaryPassContainer {};
+
+}  // namespace blender::compositor
+
+#endif

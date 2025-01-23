@@ -1,41 +1,44 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <cstdint>
-#include <memory>
-
-#include "BLI_assert.h"
-#include "BLI_hash.hh"
-#include "BLI_string_ref.hh"
-#include "BLI_system.h"
-#include "BLI_utildefines.h"
-
-#include "GPU_texture.hh"
-
-#include "COM_context.hh"
-#include "COM_denoised_auxiliary_pass.hh"
-#include "COM_result.hh"
-
 #ifdef WITH_OPENIMAGEDENOISE
+
+#  include <cstdint>
+#  include <memory>
+
+#  include "BLI_assert.h"
+#  include "BLI_hash.hh"
+
+#  include "MEM_guardedalloc.h"
+
+#  include "GPU_texture.hh"
+
+#  include "COM_context.hh"
+#  include "COM_denoised_auxiliary_pass.hh"
+#  include "COM_result.hh"
+
 #  include <OpenImageDenoise/oidn.hpp>
-#endif
 
 namespace blender::compositor {
 
 /* ------------------------------------------------------------------------------------------------
  * Denoised Auxiliary Pass Key.
  */
-DenoisedAuxiliaryPassKey::DenoisedAuxiliaryPassKey(const char *pass_name) : pass_name(pass_name) {}
+DenoisedAuxiliaryPassKey::DenoisedAuxiliaryPassKey(const DenoisedAuxiliaryPassType type,
+                                                   const oidn::Quality quality)
+    : type(type), quality(quality)
+{
+}
 
 uint64_t DenoisedAuxiliaryPassKey::hash() const
 {
-  return get_default_hash(pass_name);
+  return get_default_hash(this->type, this->quality);
 }
 
 bool operator==(const DenoisedAuxiliaryPassKey &a, const DenoisedAuxiliaryPassKey &b)
 {
-  return a.pass_name == b.pass_name;
+  return a.type == b.type && a.quality == b.quality;
 }
 
 /* --------------------------------------------------------------------
@@ -53,49 +56,55 @@ bool operator==(const DenoisedAuxiliaryPassKey &a, const DenoisedAuxiliaryPassKe
   return !context->is_canceled();
 }
 
-/* OIDN can be disabled as a build option, so check WITH_OPENIMAGEDENOISE. Additionally, it is
- * only supported at runtime for CPUs that supports SSE4.1, except for MacOS where it is always
- * supported through the Accelerate framework BNNS on macOS. */
-static bool is_oidn_supported()
+const char *get_pass_name(const DenoisedAuxiliaryPassType type)
 {
-#ifndef WITH_OPENIMAGEDENOISE
-  return false;
-#else
-#  ifdef __APPLE__
-  return true;
-#  else
-  return BLI_cpu_support_sse42();
-#  endif
-#endif
+  switch (type) {
+    case DenoisedAuxiliaryPassType::Albedo:
+      return "albedo";
+    case DenoisedAuxiliaryPassType::Normal:
+      return "normal";
+  }
+
+  BLI_assert_unreachable();
+  return "";
 }
 
 DenoisedAuxiliaryPass::DenoisedAuxiliaryPass(Context &context,
-                                             const Result &source_result,
-                                             const char *pass_name)
+                                             const Result &pass,
+                                             const DenoisedAuxiliaryPassType type,
+                                             const oidn::Quality quality)
 {
-  this->denoised_buffer = static_cast<float *>(GPU_texture_read(source_result, GPU_DATA_FLOAT, 0));
-
-  if (!is_oidn_supported() || source_result.is_single_value()) {
-    return;
+  /* Assign the pass data to the denoised buffer since we will be denoising in place. */
+  if (context.use_gpu()) {
+    GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+    this->denoised_buffer = static_cast<float *>(GPU_texture_read(pass, GPU_DATA_FLOAT, 0));
+  }
+  else {
+    this->denoised_buffer = static_cast<float *>(MEM_dupallocN(pass.float_texture()));
   }
 
-  const int width = source_result.domain().size.x;
-  const int height = source_result.domain().size.y;
+  const int width = pass.domain().size.x;
+  const int height = pass.domain().size.y;
   const int pixel_stride = sizeof(float) * 4;
 
-#ifdef WITH_OPENIMAGEDENOISE
   oidn::DeviceRef device = oidn::newDevice(oidn::DeviceType::CPU);
   device.commit();
 
+  /* Denoise the pass in place, so set it to both the input and output. */
   oidn::FilterRef filter = device.newFilter("RT");
-  filter.setImage(
-      pass_name, this->denoised_buffer, oidn::Format::Float3, width, height, 0, pixel_stride);
+  filter.setImage(get_pass_name(type),
+                  this->denoised_buffer,
+                  oidn::Format::Float3,
+                  width,
+                  height,
+                  0,
+                  pixel_stride);
   filter.setImage(
       "output", this->denoised_buffer, oidn::Format::Float3, width, height, 0, pixel_stride);
+  filter.set("quality", quality);
   filter.setProgressMonitorFunction(oidn_progress_monitor_function, &context);
   filter.commit();
   filter.execute();
-#endif
 }
 
 DenoisedAuxiliaryPass::~DenoisedAuxiliaryPass()
@@ -108,16 +117,17 @@ DenoisedAuxiliaryPass::~DenoisedAuxiliaryPass()
  */
 
 DenoisedAuxiliaryPass &DenoisedAuxiliaryPassContainer::get(Context &context,
-                                                           const Result &source_result,
-                                                           const char *pass_name)
+                                                           const Result &pass,
+                                                           const DenoisedAuxiliaryPassType type,
+                                                           const oidn::Quality quality)
 {
-  BLI_assert(ELEM(StringRef(pass_name), "albedo", "normal"));
-
-  const DenoisedAuxiliaryPassKey key(pass_name);
+  const DenoisedAuxiliaryPassKey key(type, quality);
 
   return *map_.lookup_or_add_cb(key, [&]() {
-    return std::make_unique<DenoisedAuxiliaryPass>(context, source_result, pass_name);
+    return std::make_unique<DenoisedAuxiliaryPass>(context, pass, type, quality);
   });
 }
 
 }  // namespace blender::compositor
+
+#endif
