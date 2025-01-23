@@ -2054,6 +2054,13 @@ void DNA_sdna_alias_data_ensure_structs_map(SDNA *sdna)
 #endif
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Print DNA structs
+ *
+ * \{ */
+
 static void print_struct_array_recursive(const SDNA &sdna,
                                          const SDNA_Struct &sdna_struct,
                                          const void *initial_data,
