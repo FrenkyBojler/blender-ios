@@ -2086,6 +2086,9 @@ static bool char_array_startswith_simple_name(const char *data, const int array_
   }
   for (const int i : IndexRange(string_length)) {
     const unsigned char c = data[i];
+    /* This is only a very simple check and does not cover more complex cases with multi-byte UTF-8
+     * characters. It's only a heuristic anyway, making a wrong decision here just means that the
+     * data will be printed differently. */
     if (!std::isprint(c)) {
       return false;
     }
