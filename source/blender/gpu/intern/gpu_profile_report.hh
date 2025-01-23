@@ -9,17 +9,18 @@ namespace blender::gpu {
 class ProfileReport {
  private:
   std::fstream report;
-  bool first_entry = true;
 
   ProfileReport()
   {
     report.open("profile.json", std::ios::out);
-    report << "{\n\"traceEvents\": [\n";
+    report << R"([{"name":"thread_name","ph":"M","pid":1,"tid":1,"args":{"name":"GPU"}})"
+              ",\n";
+    report << R"({"name":"thread_name","ph":"M","pid":1,"tid":2,"args":{"name":"CPU"}})";
   }
 
   ~ProfileReport()
   {
-    report << "\n]\n}\n";
+    report << "\n]\n";
     report.close();
   }
 
@@ -36,26 +37,19 @@ class ProfileReport {
                  uint64_t cpu_start,
                  uint64_t cpu_end)
   {
-    if (!first_entry) {
-      /* Avoid trailing commas. */
-      report << ",\n";
-    }
-    first_entry = false;
+    report << fmt::format(
+        ",\n"
+        R"({{"name":"{}","ph":"X","ts":{},"dur":{},"pid":1,"tid":1}})",
+        name.c_str(),
+        gpu_start / 1000ui64,
+        (gpu_end - gpu_start) / 1000ui64);
 
     report << fmt::format(
-        R"({{"cat":"GPU","pid":1,"tid":{},"ph":"X","ts":{},"dur":{},"name":"{}"}},)"
-        "\n",
-        1,
-        gpu_start,
-        gpu_end - gpu_start,
-        name.c_str());
-
-    report << fmt::format(
-        R"({{"cat":"CPU","pid":2,"tid":{},"ph":"X","ts":{},"dur":{},"name":"{}"}})",
-        1,
-        cpu_start,
-        cpu_end - cpu_start,
-        name.c_str());
+        ",\n"
+        R"({{"name":"{}","ph":"X","ts":{},"dur":{},"pid":1,"tid":2}})",
+        name.c_str(),
+        cpu_start / 1000ui64,
+        (cpu_end - cpu_start) / 1000ui64);
   }
 };
 
