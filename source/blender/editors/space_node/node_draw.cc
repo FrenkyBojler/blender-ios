@@ -406,7 +406,7 @@ static bool node_update_basis_buttons(const bContext &C,
     return false;
   }
 
-  PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
 
   /* Round the node origin because text contents are always pixel-aligned. */
   const float2 loc = math::round(node_to_view(node.location));
@@ -423,7 +423,7 @@ static bool node_update_basis_buttons(const bContext &C,
                                      0,
                                      UI_style_get_dpi());
 
-  if (node.flag & NODE_MUTED) {
+  if (node.is_muted()) {
     uiLayoutSetActive(layout, false);
   }
 
@@ -506,17 +506,17 @@ static bool node_update_basis_socket(const bContext &C,
                                      0,
                                      UI_style_get_dpi());
 
-  if (node.flag & NODE_MUTED) {
+  if (node.is_muted()) {
     uiLayoutSetActive(layout, false);
   }
 
   uiLayout *row = uiLayoutRow(layout, true);
-  PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
   uiLayoutSetContextPointer(row, "node", &nodeptr);
 
   if (input_socket) {
     /* Context pointers for current node and socket. */
-    PointerRNA sockptr = RNA_pointer_create(&ntree.id, &RNA_NodeSocket, input_socket);
+    PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, input_socket);
     uiLayoutSetContextPointer(row, "socket", &sockptr);
 
     uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_EXPAND);
@@ -526,7 +526,7 @@ static bool node_update_basis_socket(const bContext &C,
   }
   else {
     /* Context pointers for current node and socket. */
-    PointerRNA sockptr = RNA_pointer_create(&ntree.id, &RNA_NodeSocket, output_socket);
+    PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, output_socket);
     uiLayoutSetContextPointer(row, "socket", &sockptr);
 
     /* Align output buttons to the right. */
@@ -695,13 +695,19 @@ static void determine_visible_panels(const bNode &node, MutableSpan<bool> r_visi
 static void add_flat_items_for_socket(bNode &node,
                                       const nodes::SocketDeclaration &socket_decl,
                                       const nodes::PanelDeclaration *panel_decl,
+                                      const nodes::SocketDeclaration *prev_socket_decl,
                                       Vector<FlatNodeItem> &r_items)
 {
   bNodeSocket &socket = node.socket_by_decl(socket_decl);
   if (!socket.is_visible()) {
     return;
   }
-  if (!socket_decl.align_with_previous_socket) {
+  if (socket_decl.align_with_previous_socket) {
+    if (!prev_socket_decl || !node.socket_by_decl(*prev_socket_decl).is_visible()) {
+      r_items.append({flat_item::Socket()});
+    }
+  }
+  else {
     r_items.append({flat_item::Socket()});
   }
   flat_item::Socket &item = std::get<flat_item::Socket>(r_items.last().item);
@@ -745,19 +751,24 @@ static void add_flat_items_for_panel(bNode &node,
     return;
   }
   r_items.append({flat_item::PanelContentBegin{&panel_decl}});
+  const nodes::SocketDeclaration *prev_socket_decl = nullptr;
   for (const nodes::ItemDeclaration *item_decl : panel_decl.items) {
     if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
-      add_flat_items_for_socket(node, *socket_decl, &panel_decl, r_items);
+      add_flat_items_for_socket(node, *socket_decl, &panel_decl, prev_socket_decl, r_items);
+      prev_socket_decl = socket_decl;
     }
-    else if (const auto *sub_panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl))
-    {
-      add_flat_items_for_panel(node, *sub_panel_decl, panel_visibility, r_items);
-    }
-    else if (dynamic_cast<const nodes::SeparatorDeclaration *>(item_decl)) {
-      add_flat_items_for_separator(r_items);
-    }
-    else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl)) {
-      add_flat_items_for_layout(node, *layout_decl, r_items);
+    else {
+      if (const auto *sub_panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl)) {
+        add_flat_items_for_panel(node, *sub_panel_decl, panel_visibility, r_items);
+      }
+      else if (dynamic_cast<const nodes::SeparatorDeclaration *>(item_decl)) {
+        add_flat_items_for_separator(r_items);
+      }
+      else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl))
+      {
+        add_flat_items_for_layout(node, *layout_decl, r_items);
+      }
+      prev_socket_decl = nullptr;
     }
   }
   r_items.append({flat_item::PanelContentEnd{&panel_decl}});
@@ -775,19 +786,26 @@ static Vector<FlatNodeItem> make_flat_node_items(bNode &node)
   Array<bool> panel_visibility(panels_num, false);
   determine_visible_panels(node, panel_visibility);
 
+  const nodes::SocketDeclaration *prev_socket_decl = nullptr;
+
   Vector<FlatNodeItem> items;
   for (const nodes::ItemDeclaration *item_decl : node.declaration()->root_items) {
     if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
-      add_flat_items_for_socket(node, *socket_decl, nullptr, items);
+      add_flat_items_for_socket(node, *socket_decl, nullptr, prev_socket_decl, items);
+      prev_socket_decl = socket_decl;
     }
-    else if (const auto *panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl)) {
-      add_flat_items_for_panel(node, *panel_decl, panel_visibility, items);
-    }
-    else if (dynamic_cast<const nodes::SeparatorDeclaration *>(item_decl)) {
-      add_flat_items_for_separator(items);
-    }
-    else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl)) {
-      add_flat_items_for_layout(node, *layout_decl, items);
+    else {
+      if (const auto *panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl)) {
+        add_flat_items_for_panel(node, *panel_decl, panel_visibility, items);
+      }
+      else if (dynamic_cast<const nodes::SeparatorDeclaration *>(item_decl)) {
+        add_flat_items_for_separator(items);
+      }
+      else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl))
+      {
+        add_flat_items_for_layout(node, *layout_decl, items);
+      }
+      prev_socket_decl = nullptr;
     }
   }
   return items;
@@ -1104,10 +1122,10 @@ static void node_update_basis_from_declaration(
                                                0,
                                                0,
                                                UI_style_get_dpi());
-            if (node.flag & NODE_MUTED) {
+            if (node.is_muted()) {
               uiLayoutSetActive(layout, false);
             }
-            PointerRNA node_ptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
+            PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
             uiLayoutSetContextPointer(layout, "node", &node_ptr);
             decl.draw(layout, const_cast<bContext *>(&C), &node_ptr);
             UI_block_align_end(&block);
@@ -1451,7 +1469,7 @@ void node_socket_color_get(const bContext &C,
   }
 
   BLI_assert(RNA_struct_is_a(node_ptr.type, &RNA_Node));
-  PointerRNA ptr = RNA_pointer_create(
+  PointerRNA ptr = RNA_pointer_create_discrete(
       &const_cast<ID &>(ntree.id), &RNA_NodeSocket, &const_cast<bNodeSocket &>(sock));
   sock.typeinfo->draw_color((bContext *)&C, &ptr, &node_ptr, r_color);
 }
@@ -2343,7 +2361,7 @@ static void node_draw_sockets(const bContext &C,
     return;
   }
 
-  PointerRNA nodeptr = RNA_pointer_create(
+  PointerRNA nodeptr = RNA_pointer_create_discrete(
       const_cast<ID *>(&ntree.id), &RNA_Node, const_cast<bNode *>(&node));
 
   const float outline_thickness = NODE_SOCKET_OUTLINE;
@@ -2427,6 +2445,34 @@ static void node_draw_panels_background(const bNode &node)
   }
 }
 
+/**
+ * Note that this is different from #panel_has_input_affecting_node_output in how it treats output
+ * sockets. Within the node UI, the panel should not be grayed out if it has an output socket.
+ * However, the sidebar only shows inputs, so output sockets should be ignored.
+ */
+static bool panel_has_only_inactive_inputs(const bNode &node,
+                                           const nodes::PanelDeclaration &panel_decl)
+{
+  for (const nodes::ItemDeclaration *item_decl : panel_decl.items) {
+    if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
+      if (socket_decl->in_out == SOCK_OUT) {
+        return false;
+      }
+      const bNodeSocket &socket = node.socket_by_decl(*socket_decl);
+      if (socket.affects_node_output()) {
+        return false;
+      }
+    }
+    else if (const auto *sub_panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl))
+    {
+      if (!panel_has_only_inactive_inputs(node, *sub_panel_decl)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block)
 {
   BLI_assert(is_node_panels_supported(node));
@@ -2476,7 +2522,9 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
         0,
         0,
         "");
-    if (node.flag & NODE_MUTED) {
+
+    const bool only_inactive_inputs = panel_has_only_inactive_inputs(node, panel_decl);
+    if (node.is_muted() || only_inactive_inputs) {
       UI_but_flag_enable(label_but, UI_BUT_INACTIVE);
     }
 
@@ -2646,7 +2694,7 @@ static std::optional<std::chrono::nanoseconds> geo_node_get_execution_time(
   if (tree_log == nullptr) {
     return std::nullopt;
   }
-  if (node.type_legacy == NODE_GROUP_OUTPUT) {
+  if (node.is_group_output()) {
     return tree_log->execution_time;
   }
   if (node.is_frame()) {
@@ -3104,7 +3152,7 @@ static void node_draw_extra_info_row(const bNode &node,
         but_text, extra_info_row.tooltip_fn, extra_info_row.tooltip_fn_arg, nullptr);
   }
 
-  if (node.flag & NODE_MUTED) {
+  if (node.is_muted()) {
     UI_but_flag_enable(but_text, UI_BUT_INACTIVE);
     UI_but_flag_enable(but_icon, UI_BUT_INACTIVE);
   }
@@ -3120,7 +3168,7 @@ static void node_draw_extra_info_panel_back(const bNode &node, const rctf &extra
   }
 
   ColorTheme4f color;
-  if (node.flag & NODE_MUTED) {
+  if (node.is_muted()) {
     UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.2f, color);
   }
   else {
@@ -3306,7 +3354,7 @@ static void node_draw_basis(const bContext &C,
     float color_header[4];
 
     /* Muted nodes get a mix of the background with the node color. */
-    if (node.flag & NODE_MUTED) {
+    if (node.is_muted()) {
       UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.1f, color_header);
     }
     else {
@@ -3320,7 +3368,8 @@ static void node_draw_basis(const bContext &C,
   /* Show/hide icons. */
   float iconofs = rct.xmax - 0.35f * U.widget_unit;
 
-  /* Group edit. This icon should be the first for the node groups. */
+  /* Group edit. This icon should be the first for the node groups. Note that we intentionally
+   * don't check for NODE_GROUP_CUSTOM here. */
   if (node.type_legacy == NODE_GROUP) {
     iconofs -= iconbutw;
     UI_block_emboss_set(&block, UI_EMBOSS_NONE);
@@ -3472,12 +3521,12 @@ static void node_draw_basis(const bContext &C,
       const_cast<bNode *>(&node),
       nullptr);
 
-  if (node.flag & NODE_MUTED) {
+  if (node.is_muted()) {
     UI_but_flag_enable(but, UI_BUT_INACTIVE);
   }
 
   /* Wire across the node when muted/disabled. */
-  if (node.flag & NODE_MUTED) {
+  if (node.is_muted()) {
     node_draw_mute_line(C, v2d, snode, node);
   }
 
@@ -3489,7 +3538,7 @@ static void node_draw_basis(const bContext &C,
       UI_GetThemeColorBlend4f(TH_REDALERT, TH_NODE, 0.4f, color);
     }
     /* Muted nodes get a mix of the background with the node color. */
-    else if (node.flag & NODE_MUTED) {
+    else if (node.is_muted()) {
       UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.2f, color);
     }
     else if (node.flag & NODE_CUSTOM_COLOR) {
@@ -3505,7 +3554,7 @@ static void node_draw_basis(const bContext &C,
     }
 
     /* Draw muted nodes slightly transparent so the wires inside are visible. */
-    if (node.flag & NODE_MUTED) {
+    if (node.is_muted()) {
       color[3] -= 0.2f;
     }
 
@@ -3529,7 +3578,7 @@ static void node_draw_basis(const bContext &C,
   {
     float color_underline[4];
 
-    if (node.flag & NODE_MUTED) {
+    if (node.is_muted()) {
       UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.05f, color_underline);
       color_underline[3] = 1.0f;
     }
@@ -3620,7 +3669,7 @@ static void node_draw_hidden(const bContext &C,
   node_draw_shadow(snode, node, hiddenrad, 1.0f);
 
   /* Wire across the node when muted/disabled. */
-  if (node.flag & NODE_MUTED) {
+  if (node.is_muted()) {
     node_draw_mute_line(C, v2d, snode, node);
   }
 
@@ -3631,7 +3680,7 @@ static void node_draw_hidden(const bContext &C,
       /* Use warning color to indicate undefined types. */
       UI_GetThemeColorBlend4f(TH_REDALERT, TH_NODE, 0.4f, color);
     }
-    else if (node.flag & NODE_MUTED) {
+    else if (node.is_muted()) {
       /* Muted nodes get a mix of the background with the node color. */
       UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, 0.1f, 0, color);
     }
@@ -3648,7 +3697,7 @@ static void node_draw_hidden(const bContext &C,
     }
 
     /* Draw muted nodes slightly transparent so the wires inside are visible. */
-    if (node.flag & NODE_MUTED) {
+    if (node.is_muted()) {
       color[3] -= 0.2f;
     }
 
@@ -3740,7 +3789,7 @@ static void node_draw_hidden(const bContext &C,
     UI_draw_roundbox_4fv(&rect, false, hiddenrad + outline_width, color_outline);
   }
 
-  if (node.flag & NODE_MUTED) {
+  if (node.is_muted()) {
     UI_but_flag_enable(but, UI_BUT_INACTIVE);
   }
 
@@ -4264,7 +4313,7 @@ static void reroute_node_draw_body(const bContext &C,
 
   bNodeSocket &sock = *static_cast<bNodeSocket *>(node.inputs.first);
 
-  PointerRNA nodeptr = RNA_pointer_create(
+  PointerRNA nodeptr = RNA_pointer_create_discrete(
       const_cast<ID *>(&ntree.id), &RNA_Node, const_cast<bNode *>(&node));
 
   ColorTheme4f socket_color;

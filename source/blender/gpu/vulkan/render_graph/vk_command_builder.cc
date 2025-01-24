@@ -23,8 +23,6 @@ void VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
                                    VKCommandBufferInterface &command_buffer,
                                    Span<NodeHandle> node_handles)
 {
-  /* Swap chain images layouts needs to be reset as the image layouts are changed externally. */
-  render_graph.resources_.reset_image_layouts();
   groups_init(render_graph, node_handles);
   groups_extract_barriers(
       render_graph, node_handles, command_buffer.use_dynamic_rendering_local_read);
@@ -267,7 +265,8 @@ void VKCommandBuilder::groups_build_commands(VKRenderGraph &render_graph,
         const VKRenderGraphNode &last_node = render_graph.nodes_[group_node_handles.last()];
         bool will_be_suspended = last_node.type != VKNodeType::END_RENDERING;
         if (will_be_suspended) {
-          node.begin_rendering.vk_rendering_info.flags = VK_RENDERING_SUSPENDING_BIT;
+          render_graph.storage_.begin_rendering[node.storage_index].vk_rendering_info.flags =
+              VK_RENDERING_SUSPENDING_BIT;
         }
       }
 
@@ -278,8 +277,9 @@ void VKCommandBuilder::groups_build_commands(VKRenderGraph &render_graph,
         if (!rendering_active) {
           /* Resume rendering scope. */
           VKRenderGraphNode &rendering_node = render_graph.nodes_[rendering_scope];
-          rendering_node.begin_rendering.vk_rendering_info.flags = VK_RENDERING_RESUMING_BIT;
-          rendering_node.build_commands(command_buffer, active_pipelines);
+          render_graph.storage_.begin_rendering[rendering_node.storage_index]
+              .vk_rendering_info.flags = VK_RENDERING_RESUMING_BIT;
+          rendering_node.build_commands(command_buffer, render_graph.storage_, active_pipelines);
           rendering_active = true;
         }
       }
@@ -304,7 +304,7 @@ void VKCommandBuilder::groups_build_commands(VKRenderGraph &render_graph,
                 << ", node_type=" << node.type
                 << ", debug group=" << render_graph.full_debug_group(node_handle) << "\n";
 #endif
-      node.build_commands(command_buffer, active_pipelines);
+      node.build_commands(command_buffer, render_graph.storage_, active_pipelines);
     }
 
     if (rendering_active) {
@@ -319,7 +319,8 @@ void VKCommandBuilder::groups_build_commands(VKRenderGraph &render_graph,
       }
 
       VKRenderGraphNode &rendering_node = render_graph.nodes_[rendering_scope];
-      rendering_node.begin_rendering.vk_rendering_info.flags = VK_RENDERING_RESUMING_BIT;
+      render_graph.storage_.begin_rendering[rendering_node.storage_index].vk_rendering_info.flags =
+          VK_RENDERING_RESUMING_BIT;
     }
 
     /* Record group post barriers. */
@@ -462,12 +463,12 @@ void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_
                                             VkPipelineStageFlagBits(barrier.src_stage_mask);
 
   VkPipelineStageFlags dst_stage_mask = barrier.dst_stage_mask;
-  // TODO: this should be done during barrier extraction making within_rendering obsolete.
+  /* TODO: this should be done during barrier extraction making within_rendering obsolete. */
   if (within_rendering) {
-    /* See: VUID - vkCmdPipelineBarrier - srcStageMask - 09556
-     * If vkCmdPipelineBarrier is called within a render pass instance started with
-     * vkCmdBeginRendering, this command must only specify framebuffer-space stages in
-     * srcStageMask and dstStageMask */
+    /* See: VUID - `vkCmdPipelineBarrier` - `srcStageMask` - 09556
+     * If `vkCmdPipelineBarrier` is called within a render pass instance started with
+     * `vkCmdBeginRendering`, this command must only specify frame-buffer-space stages in
+     * `srcStageMask` and `dstStageMask`. */
     src_stage_mask = dst_stage_mask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
                                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
                                       VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |

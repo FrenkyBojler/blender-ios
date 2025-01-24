@@ -50,8 +50,6 @@ BLOCKLIST_OSL = [
     'image_alpha_ignore.blend',
     'image_log.blend',
     'image_non_color.blend',
-    # Along with differences in image sampling, UDIM in OSL doesn't respect extrapolation settings
-    # This has been reported in 124847 for further investigation
     'image_mapping_udim.blend',
     # OSL handles bump + displacement differently from SVM. There are OSL variants of these tests
     'both_displacement.blend',
@@ -86,8 +84,6 @@ BLOCKLIST_OPTIX_OSL = [
     'texture_coordinate_generated.blend',
     'principled_absorption.blend',
     'denoise_volume.blend',
-    # The Window texture coordinate is blank on the World shader in OptiX OSL. See 132516
-    'texture_coordinate_window.blend',
     # The 3D texture doesn't have the right mappings
     'point_density_.*_object.blend',
     # Dicing tests use wireframe node which doesn't appear to be supported with OptiX OSL
