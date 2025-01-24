@@ -1337,19 +1337,28 @@ static bool is_animating_bone(const bAnimListElem *ale)
   return pchan != nullptr;
 };
 
-bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
-{
-  using namespace blender;
-  using namespace blender::ed::animation;
-  using namespace blender::animrig;
+namespace {
 
-  ANIM_fcurves_copybuf_reset();
+using namespace blender;
+using namespace blender::animrig;
+using namespace blender::ed::animation;
 
-  /* Mapping from action + slot handle to the buffer's internal slot handle. */
+/**
+ * Utility class to help map slots from the Actions data was copied from, to the slots used by the
+ * copy-paste buffer.
+ */
+class SlotMapper {
+ public:
+  KeyframeCopyBuffer &buffer;
+
+  /** Mapping from action + slot handle to the buffer's internal slot handle. */
   Map<std::pair<const Action *, slot_handle_t>, slot_handle_t> orig_to_buffer_slots;
 
-  /** Ensure a ChannelBag exists for the F-Curve this 'ale' points to. */
-  auto channelbag_for_ale = [&orig_to_buffer_slots](const bAnimListElem *ale) -> Channelbag & {
+  /**
+   * Ensure a Channelbag exists in the keyframe copy buffer for the F-Curve this 'ale' points to.
+   */
+  Channelbag &channelbag_for_ale(const bAnimListElem *ale)
+  {
     /* Copying keyframes really only works with F-Curves from Actions. */
     BLI_assert(GS(ale->fcurve_owner_id->name) == ID_AC);
 
@@ -1357,13 +1366,13 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
     const auto orig_action_slot_pair = std::make_pair(&ale_action, ale->slot_handle);
 
     if (const std::optional<slot_handle_t> opt_internal_slot_handle =
-            orig_to_buffer_slots.lookup_try(orig_action_slot_pair))
+            this->orig_to_buffer_slots.lookup_try(orig_action_slot_pair))
     {
       /* There alerady is a slot for this, and that means there is a channelbag too. */
       const slot_handle_t internal_slot_handle = *opt_internal_slot_handle;
-      BLI_assert(keyframe_copy_buffer->slot_identifiers.contains(internal_slot_handle));
+      BLI_assert(this->buffer.slot_identifiers.contains(internal_slot_handle));
 
-      Channelbag *channelbag = keyframe_copy_buffer->keyframe_data.channelbag_for_slot(
+      Channelbag *channelbag = this->buffer.keyframe_data.channelbag_for_slot(
           internal_slot_handle);
       BLI_assert_msg(channelbag, "If the slot exists, so should the channelbag");
 
@@ -1371,22 +1380,34 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
     }
 
     /* Create a new Channelbag for this F-Curve. */
-    const slot_handle_t internal_slot_handle = keyframe_copy_buffer->last_used_slot_handle++;
-    Channelbag &channelbag = keyframe_copy_buffer->keyframe_data.channelbag_for_slot_add(
+    const slot_handle_t internal_slot_handle = this->buffer.last_used_slot_handle++;
+    Channelbag &channelbag = this->buffer.keyframe_data.channelbag_for_slot_add(
         internal_slot_handle);
-    orig_to_buffer_slots.add_new(orig_action_slot_pair, internal_slot_handle);
+    this->orig_to_buffer_slots.add_new(orig_action_slot_pair, internal_slot_handle);
 
     /* Copy some data from the Action slot to our internal bookkeeping. */
     const Slot *ale_slot = ale_action.slot_for_handle(ale->slot_handle);
     BLI_assert_msg(ale_slot, "Slot for copied keyframes is expected to exist.");
 
-    keyframe_copy_buffer->slot_identifiers.add_new(internal_slot_handle, ale_slot->identifier);
+    this->buffer.slot_identifiers.add_new(internal_slot_handle, ale_slot->identifier);
 
     /* ale->id might be nullptr on unassigned slots. */
-    keyframe_copy_buffer->slot_animated_ids.add_new(internal_slot_handle, ale->id);
+    this->buffer.slot_animated_ids.add_new(internal_slot_handle, ale->id);
 
     return channelbag;
-  };
+  }
+};
+
+}  // namespace
+
+bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
+{
+  using namespace blender::ed::animation;
+  using namespace blender::animrig;
+
+  ANIM_fcurves_copybuf_reset();
+
+  SlotMapper slot_mapper{*keyframe_copy_buffer};
 
   LISTBASE_FOREACH (bAnimListElem *, ale, anim_data) {
     BLI_assert(ale->datatype == ALE_FCURVE);
@@ -1409,8 +1430,7 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
       continue;
     }
 
-    /* Find the ChannelBag for this slot. */
-    Channelbag &channelbag = channelbag_for_ale(ale);
+    Channelbag &channelbag = slot_mapper.channelbag_for_ale(ale);
 
     /* Create an F-Curve on this ChannelBag. */
     FCurve &fcurve_copy = *BKE_fcurve_create();
