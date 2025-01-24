@@ -772,7 +772,7 @@ static void writestruct_at_address_nr(WriteData *wd,
   }
 
   if (wd->debug_dst) {
-    DNA_print_structs_at_address(*wd->sdna, struct_nr, data, adr, nr, *wd->debug_dst);
+    blender::dna::print_structs_at_address(*wd->sdna, struct_nr, data, adr, nr, *wd->debug_dst);
   }
 
   write_bhead(wd, bh);
