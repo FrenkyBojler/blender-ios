@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,11 +7,13 @@
 #include <cstdint>
 #include <iosfwd>
 
-/* for SDNA_TYPE_FROM_STRUCT() macro */
+/* For #SDNA_TYPE_FROM_STRUCT macro. */
 #include "dna_type_offsets.h"
 
 struct SDNA;
 struct SDNA_Struct;
+
+namespace blender::dna {
 
 /**
  * Print all members of the struct assuming that the data has the given address. This is mainly
@@ -24,17 +26,19 @@ struct SDNA_Struct;
  * \param element_num: The number of elements in the array, or 1 if there is only one struct.
  * \param stream: Where to print the output.
  */
-void DNA_print_structs_at_address(const SDNA &sdna,
-                                  int struct_id,
-                                  const void *data,
-                                  const void *address,
-                                  int64_t element_num,
-                                  std::ostream &stream);
+void print_structs_at_address(const SDNA &sdna,
+                              int struct_id,
+                              const void *data,
+                              const void *address,
+                              int64_t element_num,
+                              std::ostream &stream);
 
 /**
  * Prints all members of the struct to stdout.
  */
-void DNA_print_struct_by_id(int struct_id, const void *data);
+void print_struct_by_id(int struct_id, const void *data);
+
+}  // namespace blender::dna
 
 /**
  * Prints all members of the struct to stdout.
@@ -43,4 +47,4 @@ void DNA_print_struct_by_id(int struct_id, const void *data);
  *   DNA_print_struct(bNode, node);
  */
 #define DNA_print_struct(struct_name, data_ptr) \
-  DNA_print_struct_by_id(SDNA_TYPE_FROM_STRUCT(struct_name), data_ptr)
+  blender::dna::print_struct_by_id(SDNA_TYPE_FROM_STRUCT(struct_name), data_ptr)
