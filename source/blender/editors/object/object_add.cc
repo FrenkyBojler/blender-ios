@@ -1218,7 +1218,7 @@ static int object_image_add_exec(bContext *C, wmOperator *op)
   }
 
   if (!ED_operator_objectmode(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Adding an image object is only possible in Object Mode");
+    BKE_report(op->reports, RPT_ERROR, "Image objects can only be added in Object Mode");
     return OPERATOR_CANCELLED;
   }
 
