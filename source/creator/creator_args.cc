@@ -2514,7 +2514,8 @@ static int arg_handle_addons_set(int argc, const char **argv, void *data)
 
 static const char arg_handle_profile_gpu_set_doc[] =
     "\n"
-    "\tEnable CPU & GPU performance profiling for GPU debug groups";
+    "\tEnable CPU & GPU performance profiling for GPU debug groups\n"
+    "\t(Outputs a profile.json file in the Trace Event Format to the current directory)";
 static int arg_handle_profile_gpu_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   G.profile_gpu = true;
