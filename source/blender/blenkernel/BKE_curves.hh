@@ -118,6 +118,8 @@ class CurvesGeometryRuntime {
   /** Normal direction vectors for each evaluated point. */
   mutable SharedCache<Vector<float3>> evaluated_normal_cache;
 
+  mutable SharedCache<Vector<int>> custom_knots_offsets_cache;
+
   /** Stores weak references to material data blocks. */
   std::unique_ptr<bake::BakeMaterialsList> bake_materials;
 
@@ -290,6 +292,8 @@ class CurvesGeometry : public ::CurvesGeometry {
 
   Span<float> nurbs_custom_knots() const;
   MutableSpan<float> nurbs_custom_knots_for_write();
+  OffsetIndices<int> nurbs_custom_knots_by_curve() const;
+  IndexMask nurbs_custom_knot_curves(IndexMaskMemory &memory) const;
   int nurbs_custom_knots_num() const;
   void nurbs_custom_knots_resize(int knots_num);
 
