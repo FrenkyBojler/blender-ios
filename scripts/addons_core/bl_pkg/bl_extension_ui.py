@@ -223,7 +223,7 @@ def addon_draw_item_expanded(
         item_warnings,  # `list[str]`
         item_doc_url,  # `str`
         item_tracker_url,  # `str`
-        show_developer_ui, # `bool`
+        show_developer_ui,  # `bool`
 ):
     from bpy.app.translations import (
         contexts as i18n_contexts,
@@ -302,7 +302,7 @@ def addon_draw_item_expanded(
         if show_developer_ui:
             import os
             filepath = os.path.dirname(mod.__file__)
-            row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath=filepath
+            row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = filepath
 
 
 # NOTE: this can be removed once upgrading from 4.1 is no longer relevant.
@@ -442,8 +442,8 @@ def addons_panel_draw_items(
         addon_extension_block_map,  # `dict[str, PkgBlock_Normalized]`
 
         show_development,  # `bool`
-        show_developer_ui, # `bool`
-):  # `-> Set[str]`
+        show_developer_ui,  # `bool`
+):  # `-> set[str]`
     # NOTE: this duplicates logic from `USERPREF_PT_addons` eventually this logic should be used instead.
     # Don't de-duplicate the logic as this is a temporary state - as long as extensions remains experimental.
     import addon_utils
@@ -626,11 +626,11 @@ def addons_panel_draw_error_duplicates(layout):
 
         sub_row = sub_col.row()
         sub_row.label(text="    " + addon_file)
-        sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath=os.path.dirname(addon_file)
+        sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_file)
 
         sub_row = sub_col.row()
         sub_row.label(text="    " + addon_path)
-        sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath=os.path.dirname(addon_path)
+        sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_path)
 
 
 def addons_panel_draw_error_generic(layout, lines):
@@ -650,7 +650,7 @@ def addons_panel_draw_impl(
         enabled_only,  # `bool`
         *,
         show_development,  # `bool`
-        show_developer_ui, # `bool`
+        show_developer_ui,  # `bool`
 ):
     """
     Show all the items... we may want to paginate at some point.
@@ -1278,7 +1278,7 @@ def extension_draw_item(
         repo_index,  # `int`
         repo_item,  # `RepoItem`
         operation_in_progress,  # `bool`
-        extensions_warnings,  # `Dict[str, List[str]]`
+        extensions_warnings,  # `dict[str, List[str]]`
         show_developer_ui,  # `bool`
 ):
     item = item_local or item_remote
@@ -1455,7 +1455,7 @@ def extension_draw_item(
             row.label(text=filepath, translate=False)
 
             if show_developer_ui:
-                row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath=filepath
+                row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = filepath
 
 
 def extensions_panel_draw_impl(
