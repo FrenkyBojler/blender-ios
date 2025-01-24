@@ -42,7 +42,8 @@ class VKShaderCompiler : public ShaderCompiler {
   /**
    * Cached path to the cache folder.
    *
-   * GHOST and BKE_appdir are not thread safe so we ensure this is initialized on the main thread.
+   * GHOST and BKE_appdir are not thread safe. Storing the cache_dir locally to work around
+   * threading issues.
    */
   static std::optional<std::string> cache_dir;
 
