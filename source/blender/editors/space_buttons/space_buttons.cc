@@ -358,8 +358,6 @@ static void buttons_main_region_layout_properties(const bContext *C,
                                                   SpaceProperties *sbuts,
                                                   ARegion *region)
 {
-  buttons_context_compute(C, sbuts);
-
   const char *contexts[2] = {buttons_main_region_context_string(sbuts->mainb), nullptr};
 
   ED_region_panels_layout_ex(
@@ -591,7 +589,7 @@ static eSpaceButtons_Context find_new_properties_tab(const SpaceProperties *sbut
 static void buttons_apply_filter(SpaceProperties *sbuts)
 {
   const bool tab_was_hidden = ((1 << sbuts->mainb) & sbuts->visible_tabs) == 0;
-  if (!tab_was_hidden || buttons_tabs_list_is_empty(sbuts)) {
+  if (!tab_was_hidden) {
     return;
   }
 
@@ -615,6 +613,9 @@ static void buttons_main_region_layout(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
+
+  /* Needed for RNA to get the good values! */
+  buttons_context_compute(C, sbuts);
 
   if (buttons_tabs_list_is_empty(sbuts)) {
     return;
