@@ -42,7 +42,7 @@ std::string asset_tooltip(const asset_system::AssetRepresentation &asset, const 
 
 BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset)
 {
-  if (const PreviewImage *preview = asset.preview_storage()) {
+  if (const PreviewImage *preview = asset.get_preview()) {
     if (!BKE_previewimg_is_invalid(preview)) {
       return preview->runtime->icon_id;
     }
@@ -52,7 +52,7 @@ BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset)
 
 BIFIconID asset_preview_or_icon(const asset_system::AssetRepresentation &asset)
 {
-  const PreviewImage *preview = asset.preview_storage();
+  const PreviewImage *preview = asset.get_preview();
 
   if (preview && BKE_previewimg_is_invalid(preview)) {
     /* Preview image not found. */

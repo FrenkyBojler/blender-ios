@@ -85,7 +85,7 @@ static void asset_view_draw_item(uiList *ui_list,
       const_cast<FileDirEntry *>(asset_handle.file_data));
   uiLayoutSetContextPointer(layout, "active_file", &file_ptr);
 
-  asset->ensure_preview_storage();
+  asset->ensure_previewable();
 
   uiBlock *block = uiLayoutGetBlock(layout);
   const bool show_names = list_data->show_names;

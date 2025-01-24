@@ -74,8 +74,24 @@ class AssetRepresentation : NonCopyable, NonMovable {
    */
   AssetWeakReference make_weak_reference() const;
 
-  PreviewImage *ensure_preview_storage();
-  PreviewImage *preview_storage() const;
+  /**
+   * Makes sure the asset ready to load a preview, if necessary.
+   *
+   * For local IDs it calls #BKE_previewimg_id_ensure(). For others, this sets loading information
+   * to the preview but doesn't actually load it. To load it, attach its
+   * #PreviewImageRuntime::icon_id to a UI button (UI loads it asynchronously then) or call
+   * #BKE_previewimg_ensure() (not asynchronous).
+   *
+   * \returns the prepared preview, same as calling #get_preview().
+   */
+  void ensure_previewable();
+  /**
+   * Get the preview of this asset.
+   *
+   * This will only return a preview for local ID assets or after #ensure_previewable() was
+   * called.
+   */
+  PreviewImage *get_preview() const;
 
   StringRefNull get_name() const;
   ID_Type get_id_type() const;

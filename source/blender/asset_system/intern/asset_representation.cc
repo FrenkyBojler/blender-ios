@@ -61,10 +61,10 @@ AssetWeakReference AssetRepresentation::make_weak_reference() const
   return AssetWeakReference::make_reference(owner_asset_library_, relative_identifier_);
 }
 
-PreviewImage *AssetRepresentation::ensure_preview_storage()
+void AssetRepresentation::ensure_previewable()
 {
   if (ID *id = this->local_id()) {
-    return BKE_previewimg_id_ensure(id);
+    BKE_previewimg_id_ensure(id);
   }
 
   ExternalAsset &extern_asset = std::get<ExternalAsset>(asset_);
@@ -76,10 +76,9 @@ PreviewImage *AssetRepresentation::ensure_preview_storage()
       full_path.c_str(), full_path.c_str(), THB_SOURCE_BLEND, false);
 
   BKE_icon_preview_ensure(nullptr, extern_asset.preview_);
-  return extern_asset.preview_;
 }
 
-PreviewImage *AssetRepresentation::preview_storage() const
+PreviewImage *AssetRepresentation::get_preview() const
 {
   if (const ID *id = this->local_id()) {
     return BKE_previewimg_id_get(id);
