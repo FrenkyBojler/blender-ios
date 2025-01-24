@@ -3858,6 +3858,7 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_Brush_node_group_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_update(prop, NC_BRUSH | ND_DATA, "rna_Brush_update");
+  RNA_def_property_update(prop, NC_NODE, "rna_Brush_update");
 
   /* clone brush */
   prop = RNA_def_property(srna, "clone_image", PROP_POINTER, PROP_NONE);
