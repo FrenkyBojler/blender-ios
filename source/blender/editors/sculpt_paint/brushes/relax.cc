@@ -136,7 +136,7 @@ BLI_NOINLINE static void calc_factors_faces(const Depsgraph &depsgraph,
   scale_factors(factors, strength);
 
   calc_brush_texture_factors(ss, brush, positions_eval, verts, factors);
-  nodes_evaluate_factors_mesh(depsgraph, object, cache, brush, positions_eval, verts, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, cache, positions_eval, verts, factors);
 
   face_set::filter_verts_with_unique_face_sets_mesh(
       vert_to_face_map, attribute_data.face_sets, relax_face_sets, verts, factors);
@@ -256,8 +256,7 @@ BLI_NOINLINE static void calc_factors_grids(const Depsgraph &depsgraph,
   scale_factors(factors, strength);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
-  nodes_evaluate_factors_grids(
-      depsgraph, object, cache, brush, subdiv_ccg, grids, positions, factors);
+  nodes_evaluate_factors_grids(cache, subdiv_ccg, grids, positions, factors);
 
   face_set::filter_verts_with_unique_face_sets_grids(faces,
                                                      corner_verts,
@@ -380,8 +379,7 @@ static void calc_factors_bmesh(const Depsgraph &depsgraph,
   scale_factors(factors, strength);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
-  nodes_evaluate_factors_bmesh(depsgraph, object, cache, brush, verts, positions, factors);
-
+  nodes_evaluate_factors_bmesh(cache, verts, positions, factors);
   face_set::filter_verts_with_unique_face_sets_bmesh(
       face_set_offset, relax_face_sets, verts, factors);
 }

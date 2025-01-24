@@ -27,6 +27,7 @@
 #include "ED_view3d.hh"
 
 namespace blender::ed::sculpt_paint {
+struct NodeFieldEvalData;
 namespace auto_mask {
 struct Cache;
 }
@@ -367,6 +368,9 @@ struct StrokeCache {
   float3 gravity_direction_symm;
 
   std::unique_ptr<auto_mask::Cache> automasking;
+
+  /* Use shared_ptr to avoid the need for full definition in header. */
+  std::shared_ptr<NodeFieldEvalData> node_field_eval_data;
 
   float4x4 stroke_local_mat;
   float multiplane_scrape_angle;

@@ -85,7 +85,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
-  nodes_evaluate_factors_mesh(depsgraph, object, cache, brush, positions, verts, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, cache, positions, verts, factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -134,8 +134,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
-  nodes_evaluate_factors_grids(
-      depsgraph, object, cache, brush, subdiv_ccg, grids, positions, factors);
+  nodes_evaluate_factors_grids(cache, subdiv_ccg, grids, positions, factors);
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
@@ -184,7 +183,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
-  nodes_evaluate_factors_bmesh(depsgraph, object, cache, brush, verts, positions, factors);
+  nodes_evaluate_factors_bmesh(cache, verts, positions, factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 

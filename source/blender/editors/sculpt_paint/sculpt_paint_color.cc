@@ -293,7 +293,7 @@ static void do_color_smooth_task(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
-  nodes_evaluate_factors_mesh(depsgraph, object, cache, brush, vert_positions, verts, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, cache, vert_positions, verts, factors);
   scale_factors(factors, cache.bstrength);
 
   tls.colors.resize(verts.size());
@@ -398,7 +398,7 @@ static void do_paint_brush_task(const Scene &scene,
   }
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
-  nodes_evaluate_factors_mesh(depsgraph, object, cache, brush, vert_positions, verts, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, cache, vert_positions, verts, factors);
   scale_factors(factors, bstrength);
 
   const float density = ss.cache->paint_brush.density;
@@ -716,7 +716,7 @@ static void do_smear_brush_task(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
-  nodes_evaluate_factors_mesh(depsgraph, object, cache, brush, vert_positions, verts, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, cache, vert_positions, verts, factors);
   scale_factors(factors, strength);
 
   float3 brush_delta;

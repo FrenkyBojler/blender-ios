@@ -112,7 +112,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> translations = tls.translations;
   calc_brush_texture_colors(ss, brush, position_data.eval, verts, translations);
   nodes_evaluate_translations_mesh(
-      depsgraph, object, cache, brush, position_data.eval, verts, translations);
+      depsgraph, object, cache, position_data.eval, verts, translations);
   scale_translations(translations, factors);
   for (const int i : verts.index_range()) {
     SCULPT_calc_vertex_displacement(ss, brush, translations[i]);
@@ -156,8 +156,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_brush_texture_colors(ss, brush, positions, translations);
-  nodes_evaluate_translations_grids(
-      depsgraph, object, cache, brush, subdiv_ccg, grids, positions, translations);
+  nodes_evaluate_translations_grids(cache, subdiv_ccg, grids, positions, translations);
   scale_translations(translations, factors);
   for (const int i : positions.index_range()) {
     SCULPT_calc_vertex_displacement(ss, brush, translations[i]);
@@ -200,8 +199,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_brush_texture_colors(ss, brush, positions, translations);
-  nodes_evaluate_translations_bmesh(
-      depsgraph, object, cache, brush, verts, positions, translations);
+  nodes_evaluate_translations_bmesh(cache, verts, positions, translations);
   scale_translations(translations, factors);
   for (const int i : positions.index_range()) {
     SCULPT_calc_vertex_displacement(ss, brush, translations[i]);
