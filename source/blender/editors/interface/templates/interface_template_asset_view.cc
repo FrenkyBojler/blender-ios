@@ -58,8 +58,8 @@ static void asset_view_item_but_drag_set(uiBut *but, AssetHandle *asset_handle)
   UI_but_drag_set_asset(but,
                         asset,
                         import_method,
-                        asset::handle_get_preview_or_type_icon_id(asset_handle),
-                        asset::handle_get_preview_icon_id(asset_handle));
+                        asset::asset_preview_or_icon(*asset),
+                        asset::asset_preview_icon_id(*asset));
 }
 
 static void asset_view_draw_item(uiList *ui_list,
