@@ -1272,12 +1272,10 @@ void KeyframeCopyBuffer::debug_print() const
 
   if (is_empty()) {
     printf("  buffer is empty\n");
-    return;
   }
 
   if (is_single_fcurve()) {
     printf("  buffer has single F-Curve\n");
-    return;
   }
 
   const StripKeyframeData &keyframe_data = this->keyframe_data;
