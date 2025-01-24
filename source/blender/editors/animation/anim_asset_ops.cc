@@ -57,6 +57,8 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
   tmp = {
       ASSET_LIBRARY_LOCAL, "LOCAL", 0, "Current File", "Save the pose asset to the current file"};
   RNA_enum_item_add(&items, &totitem, &tmp);
+  /* Because `ASSET_LIBRARY_LOCAL` will always be created. */
+  *r_free = true;
 
   int i;
   LISTBASE_FOREACH_INDEX (bUserAssetLibrary *, user_library, &U.asset_libraries, i) {
@@ -79,16 +81,12 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
 
   RNA_enum_item_end(&items, &totitem);
 
-  if (!items) {
-    *r_free = false;
-    return nullptr;
-  }
-
-  *r_free = true;
+  BLI_assert(items != nullptr);
   return items;
 }
 
-static blender::animrig::Action &extract_pose(Main &bmain, blender::Span<Object *> pose_objects)
+static blender::animrig::Action &extract_pose(Main &bmain,
+                                              const blender::Span<Object *> pose_objects)
 {
   /* This currently only looks at the pose and not other things that could go onto different
    * slots on the same action. */
@@ -109,7 +107,7 @@ static blender::animrig::Action &extract_pose(Main &bmain, blender::Span<Object 
         continue;
       }
       PointerRNA bone_pointer = RNA_pointer_create(&pose_object->id, &RNA_PoseBone, pose_bone);
-      Vector<RNAPath> rna_paths = construct_rna_paths(&bone_pointer);
+      Vector<RNAPath> rna_paths = construct_keyframing_rna_paths(&bone_pointer);
       for (const RNAPath &rna_path : rna_paths) {
         PointerRNA resolved_pointer;
         PropertyRNA *resolved_property;
@@ -118,18 +116,16 @@ static blender::animrig::Action &extract_pose(Main &bmain, blender::Span<Object 
         {
           continue;
         }
-        Vector<float> values = blender::animrig::get_rna_values(&resolved_pointer,
-                                                                resolved_property);
+        const Vector<float> values = blender::animrig::get_rna_values(&resolved_pointer,
+                                                                      resolved_property);
         const std::optional<std::string> rna_path_id_to_prop = RNA_path_from_ID_to_property(
             &resolved_pointer, resolved_property);
         if (!rna_path_id_to_prop.has_value()) {
           continue;
         }
-        int i = 0;
-        for (const float value : values) {
+        for (const int i : values.index_range()) {
           strip_data.keyframe_insert(
-              &bmain, slot, {rna_path_id_to_prop.value(), i}, {1, value}, key_settings);
-          i++;
+              &bmain, slot, {rna_path_id_to_prop.value(), i}, {1, values[i]}, key_settings);
         }
       }
     }
@@ -203,7 +199,7 @@ static blender::Vector<Object *> get_selected_pose_objects(bContext *C)
 
 static int create_pose_asset_local(bContext *C,
                                    wmOperator *op,
-                                   const char name[MAX_NAME],
+                                   const StringRefNull name,
                                    const AssetLibraryReference lib_ref)
 {
   blender::Vector<Object *> selected_pose_objects = get_selected_pose_objects(C);
@@ -444,7 +440,7 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
       continue;
     }
     PointerRNA bone_pointer = RNA_pointer_create(&pose_object.id, &RNA_PoseBone, pose_bone);
-    Vector<RNAPath> rna_paths = blender::animrig::construct_rna_paths(&bone_pointer);
+    Vector<RNAPath> rna_paths = blender::animrig::construct_keyframing_rna_paths(&bone_pointer);
 
     for (RNAPath &rna_path : rna_paths) {
       PointerRNA resolved_pointer;

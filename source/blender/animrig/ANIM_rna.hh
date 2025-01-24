@@ -27,6 +27,6 @@ Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
 StringRef get_rotation_mode_path(eRotationModes rotation_mode);
 
 /** For the given RNA pointer, construct a vector of valid RNA paths for keyframing. */
-Vector<RNAPath> construct_rna_paths(PointerRNA *ptr);
+Vector<RNAPath> construct_keyframing_rna_paths(PointerRNA *ptr);
 
 }  // namespace blender::animrig

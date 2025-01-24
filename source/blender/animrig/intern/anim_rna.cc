@@ -123,7 +123,7 @@ static bool is_idproperty_keyable(IDProperty *id_prop, PointerRNA *ptr, Property
   return false;
 }
 
-Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
+Vector<RNAPath> construct_keyframing_rna_paths(PointerRNA *ptr)
 {
   eRotationModes rotation_mode;
   IDProperty *properties;

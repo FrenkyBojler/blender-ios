@@ -289,7 +289,7 @@ static int insert_key(bContext *C, wmOperator *op)
       BKE_reportf(op->reports, RPT_ERROR, "'%s' is not editable", selected_id->name + 2);
       continue;
     }
-    Vector<RNAPath> rna_paths = animrig::construct_rna_paths(&id_ptr);
+    Vector<RNAPath> rna_paths = animrig::construct_keyframing_rna_paths(&id_ptr);
 
     combined_result.merge(animrig::insert_keyframes(bmain,
                                                     &id_ptr,
