@@ -7,6 +7,7 @@
  */
 
 #include "BLI_array_utils.hh"
+#include "BLI_math_base.h"
 #include "BLI_ordered_edge.hh"
 #include "BLI_set.hh"
 #include "BLI_task.hh"
@@ -196,7 +197,7 @@ void mesh_calc_edges(Mesh &mesh,
     calc_edges::add_existing_edges_to_hash_maps(mesh, parallel_mask, edge_maps);
   }
   calc_edges::add_face_edges_to_hash_maps(mesh, parallel_mask, edge_maps);
-
+  printf(">> %s;\n", AT);
   Array<int> edge_sizes(edge_maps.size() + 1);
   for (const int i : edge_maps.index_range()) {
     edge_sizes[i] = edge_maps[i].size();
@@ -227,9 +228,10 @@ void mesh_calc_edges(Mesh &mesh,
     }
   });
 
-  if (keep_existing_edges && select_new_edges) {
+  if (keep_existing_edges || select_new_edges) {
     mesh_with_old_edges = mesh_new_no_attributes(0, 0, 0, 0);
     BLI_assert(mesh_with_old_edges != nullptr);
+    CustomData_free(&mesh_with_old_edges->edge_data, 0);
     CustomData_init_from(
         &mesh.edge_data, &mesh_with_old_edges->edge_data, CD_MASK_MESH.emask, mesh.edges_num);
     mesh_with_old_edges->edges_num = mesh.edges_num;

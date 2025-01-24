@@ -43,6 +43,7 @@
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_reference_lifetimes.hh"
 #include "BKE_node_tree_zones.hh"
@@ -54,6 +55,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include <fmt/format.h>
+#include <iostream>
 #include <sstream>
 
 namespace blender::nodes {
@@ -1911,7 +1913,7 @@ struct GeometryNodesLazyFunctionBuilder {
 
     for (const int zone_i : zone_build_order) {
       const bNodeTreeZone &zone = *tree_zones_->zones[zone_i];
-      switch (zone.output_node->type) {
+      switch (zone.output_node->type_legacy) {
         case GEO_NODE_SIMULATION_OUTPUT: {
           this->build_simulation_zone_function(zone);
           break;
@@ -2736,7 +2738,7 @@ struct GeometryNodesLazyFunctionBuilder {
       this->build_muted_node(bnode, graph_params);
       return;
     }
-    switch (node_type->type) {
+    switch (node_type->type_legacy) {
       case NODE_FRAME: {
         /* Ignored. */
         break;

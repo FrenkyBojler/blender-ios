@@ -77,13 +77,11 @@ set(SRC
   algorithms/intern/morphological_distance.cc
   algorithms/intern/morphological_distance_feather.cc
   algorithms/intern/parallel_reduction.cc
-  algorithms/intern/realize_on_domain.cc
   algorithms/intern/recursive_gaussian_blur.cc
   algorithms/intern/smaa.cc
   algorithms/intern/summed_area_table.cc
   algorithms/intern/symmetric_separable_blur.cc
   algorithms/intern/symmetric_separable_blur_variable_size.cc
-  algorithms/intern/transform.cc
   algorithms/intern/van_vliet_gaussian_blur.cc
 
   algorithms/COM_algorithm_compute_preview.hh
@@ -95,13 +93,11 @@ set(SRC
   algorithms/COM_algorithm_morphological_distance.hh
   algorithms/COM_algorithm_morphological_distance_feather.hh
   algorithms/COM_algorithm_parallel_reduction.hh
-  algorithms/COM_algorithm_realize_on_domain.hh
   algorithms/COM_algorithm_recursive_gaussian_blur.hh
   algorithms/COM_algorithm_smaa.hh
   algorithms/COM_algorithm_summed_area_table.hh
   algorithms/COM_algorithm_symmetric_separable_blur.hh
   algorithms/COM_algorithm_symmetric_separable_blur_variable_size.hh
-  algorithms/COM_algorithm_transform.hh
   algorithms/COM_algorithm_van_vliet_gaussian_blur.hh
 
   cached_resources/intern/bokeh_kernel.cc
@@ -193,6 +189,8 @@ set(GLSL_SRC
   shaders/compositor_glare_simple_star_vertical_pass.glsl
   shaders/compositor_glare_streaks_accumulate.glsl
   shaders/compositor_glare_streaks_filter.glsl
+  shaders/compositor_glare_write_glare_output.glsl
+  shaders/compositor_glare_write_highlights_output.glsl
   shaders/compositor_id_mask.glsl
   shaders/compositor_image_crop.glsl
   shaders/compositor_inpaint_compute_boundary.glsl
@@ -246,6 +244,7 @@ set(GLSL_SRC
   shaders/compositor_symmetric_separable_blur_variable_size.glsl
   shaders/compositor_tone_map_photoreceptor.glsl
   shaders/compositor_tone_map_simple.glsl
+  shaders/compositor_translate_wrapped.glsl
   shaders/compositor_van_vliet_gaussian_blur.glsl
   shaders/compositor_van_vliet_gaussian_blur_sum.glsl
   shaders/compositor_write_output.glsl

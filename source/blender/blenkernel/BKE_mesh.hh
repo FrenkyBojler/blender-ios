@@ -13,8 +13,8 @@
 #include "BLI_string_ref.hh"
 
 #include "BKE_attribute_filter.hh"
-#include "BKE_mesh.h"
-#include "BKE_mesh_types.hh"
+#include "BKE_mesh.h"         // IWYU pragma: export
+#include "BKE_mesh_types.hh"  // IWYU pragma: export
 
 namespace blender::bke {
 
