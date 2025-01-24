@@ -26,6 +26,12 @@
 
 namespace blender::ed::object {
 
+struct ComponentObjects {
+  Object *mesh_ob = nullptr;
+  Object *curves_ob = nullptr;
+  Vector<Object *> instance_objects;
+};
+
 class GeometryToEditableOp {
  private:
   Main &bmain_;
@@ -35,16 +41,16 @@ class GeometryToEditableOp {
  public:
   GeometryToEditableOp(Main &bmain) : bmain_(bmain) {}
 
-  Object *build_object_for_geometry(const Object &src_ob_eval, bke::GeometrySet geometry)
+  Object *build_object_for_geometry(const Object &src_ob_eval, const bke::GeometrySet &geometry)
   {
     Object *mesh_ob = nullptr;
     Object *curves_ob = nullptr;
-    if (const Mesh *mesh = geometry.get_mesh_for_write()) {
+    if (const Mesh *mesh = geometry.get_mesh()) {
       if (mesh->verts_num > 0) {
         mesh_ob = this->get_or_create_object_for_mesh(src_ob_eval, *mesh, geometry.name);
       }
     }
-    if (const Curves *curves = geometry.get_curves_for_write()) {
+    if (const Curves *curves = geometry.get_curves()) {
       if (curves->geometry.curve_num > 0) {
         curves_ob = this->get_or_create_object_for_curves(src_ob_eval, *curves, geometry.name);
       }
@@ -66,7 +72,51 @@ class GeometryToEditableOp {
     return mesh_ob;
   }
 
+  Collection *build_collection_for_geometry(const Object &src_ob_eval,
+                                            const bke::GeometrySet &geometry,
+                                            Collection *parent_collection)
+  {
+    ComponentObjects component_objects = this->get_objects_for_geometry(src_ob_eval, geometry);
+    return this->flat_collection_from_geometry_set_objects(
+        component_objects, geometry.name, parent_collection);
+  }
+
  private:
+  Collection *flat_collection_from_geometry_set_objects(const ComponentObjects &component_objects,
+                                                        const StringRefNull name,
+                                                        Collection *parent_collection)
+  {
+    Collection *collection = BKE_collection_add(&bmain_, parent_collection, name.c_str());
+    if (component_objects.mesh_ob != nullptr) {
+      BKE_collection_object_add(&bmain_, collection, component_objects.mesh_ob);
+    }
+    if (component_objects.curves_ob != nullptr) {
+      BKE_collection_object_add(&bmain_, collection, component_objects.curves_ob);
+    }
+    for (Object *instance_object : component_objects.instance_objects) {
+      BKE_collection_object_add(&bmain_, collection, instance_object);
+    }
+    return collection;
+  }
+
+  ComponentObjects get_objects_for_geometry(const Object &src_ob_eval,
+                                            const bke::GeometrySet &geometry)
+  {
+    ComponentObjects objects;
+    if (const Mesh *mesh = geometry.get_mesh()) {
+      if (mesh->verts_num > 0) {
+        objects.mesh_ob = this->get_or_create_object_for_mesh(src_ob_eval, *mesh, geometry.name);
+      }
+    }
+    if (const Curves *curves = geometry.get_curves()) {
+      if (curves->geometry.curve_num > 0) {
+        objects.curves_ob = this->get_or_create_object_for_curves(
+            src_ob_eval, *curves, geometry.name);
+      }
+    }
+    return objects;
+  }
+
   Object *get_or_create_object_for_mesh(const Object & /*src_ob_eval*/,
                                         const Mesh &src_mesh,
                                         const StringRefNull name)
@@ -101,6 +151,12 @@ class GeometryToEditableOp {
       return new_ob;
     });
   }
+
+  // Object *get_or_create_object_for_instances(const Object & /*src_ob_eval*/,
+  //                                            const bke::Instances &src_instances,
+  //                                            const StringRefNull name)
+  // {
+  // }
 };
 
 int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
@@ -120,16 +176,19 @@ int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
   GeometryToEditableOp op(bmain);
 
   bke::GeometrySet geometry_eval = bke::object_get_evaluated_geometry_set(*src_ob_eval);
-  Object *new_ob = op.build_object_for_geometry(*src_ob_eval, geometry_eval);
-  BKE_collection_viewlayer_object_add(&bmain, &view_layer, layer_collection.collection, new_ob);
 
-  BKE_view_layer_base_deselect_all(&scene, &view_layer);
-  BKE_view_layer_synced_ensure(&scene, &view_layer);
-  if (Base *new_base = BKE_view_layer_base_find(&view_layer, new_ob)) {
-    BKE_view_layer_base_select_and_set_active(&view_layer, new_base);
-  }
+  Collection *new_collection = op.build_collection_for_geometry(
+      *src_ob_eval, geometry_eval, layer_collection.collection);
 
-  DEG_id_tag_update(&new_ob->id, 0);
+  /* Add as object. */
+  // Object *new_ob = op.build_object_for_geometry(*src_ob_eval, geometry_eval);
+  // BKE_collection_viewlayer_object_add(&bmain, &view_layer, layer_collection.collection, new_ob);
+  // BKE_view_layer_base_deselect_all(&scene, &view_layer);
+  // BKE_view_layer_synced_ensure(&scene, &view_layer);
+  // if (Base *new_base = BKE_view_layer_base_find(&view_layer, new_ob)) {
+  //   BKE_view_layer_base_select_and_set_active(&view_layer, new_base);
+  // }
+
   DEG_relations_tag_update(&bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, &scene);
   return OPERATOR_FINISHED;
