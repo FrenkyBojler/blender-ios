@@ -47,6 +47,7 @@
 #include "IO_fbx.hh"
 
 #include "fbx_import.hh"
+#include "fbx_import_anim.hh"
 #include "fbx_import_material.hh"
 
 #include "ufbx.h"
@@ -73,13 +74,16 @@ struct FbxImportContext {
     base_dir = basedir;
   }
 
+  void import_globals(Scene *scene);
   void import_materials();
   void import_meshes();
   void import_cameras();
   void import_lights();
-  void import_armatures();
   void import_empties();
+  void import_animation(double fps);
+
   void setup_hierarchy();
+  Object *create_armature_for_deformer(const ufbx_skin_deformer &fskin);
 };
 
 static const char *get_name(const ufbx_string &name, const char *def = "Untitled")
@@ -150,6 +154,14 @@ static void read_custom_properties(const ufbx_props &props, ID &id)
       IDP_AddToGroup(idgroup, idprop);
     }
   }
+}
+
+void FbxImportContext::import_globals(Scene *scene)
+{
+  /* Set scene framerate to that of FBX file. */
+  double fps = this->fbx.settings.frames_per_second;
+  scene->r.frs_sec = roundf(fps);
+  scene->r.frs_sec_base = scene->r.frs_sec / fps;
 }
 
 void FbxImportContext::import_materials()
@@ -424,20 +436,18 @@ void FbxImportContext::import_meshes()
           }
         }
 
-        /* Add armature modifier. */
-        Object *arm_obj = this->element_to_object.lookup_default(&skin->element, nullptr);
-        if (arm_obj != nullptr && arm_obj->type == OB_ARMATURE) {
+        /* Add armature modifier, and create the armature object. */
+        Object *arm_obj = this->create_armature_for_deformer(*skin);
+        BLI_assert(arm_obj == this->element_to_object.lookup_default(&skin->element, nullptr));
+        ModifierData *md = BKE_modifier_new(eModifierType_Armature);
+        STRNCPY(md->name, get_name(skin->name, "Armature"));
+        BLI_addtail(&obj->modifiers, md);
+        BKE_modifiers_persistent_uid_init(*obj, *md);
 
-          ModifierData *md = BKE_modifier_new(eModifierType_Armature);
-          STRNCPY(md->name, get_name(skin->name, "Armature"));
-          BLI_addtail(&obj->modifiers, md);
-          BKE_modifiers_persistent_uid_init(*obj, *md);
+        ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);
+        ad->object = arm_obj;
 
-          ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);
-          ad->object = arm_obj;
-
-          obj->parent = arm_obj;
-        }
+        obj->parent = arm_obj;
       }
 
       /* Assign materials. */
@@ -518,7 +528,11 @@ void FbxImportContext::import_cameras()
     constexpr double m_to_in = 0.0393700787;
     bcam->sensor_x = fcam->film_size_inch.x / m_to_in;
     bcam->sensor_y = fcam->film_size_inch.y / m_to_in;
-    bcam->ortho_scale = fcam->orthographic_extent;
+
+    /* Note: do not use `fcam->orthographic_extent` to match Python importer behavior, which was
+     * not taking ortho units into account. */
+    bcam->ortho_scale = ufbx_find_real(&fcam->props, "OrthoZoom", 1.0);
+
     bcam->shiftx = ufbx_find_real(&fcam->props, "FilmOffsetX", 0.0) / (m_to_in * bcam->sensor_x);
     bcam->shifty = ufbx_find_real(&fcam->props, "FilmOffsetY", 0.0) / (m_to_in * bcam->sensor_x);
     bcam->clip_start = fcam->near_plane * this->fbx.metadata.root_scale;
@@ -583,39 +597,64 @@ void FbxImportContext::import_lights()
   }
 }
 
-void FbxImportContext::import_armatures()
+Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer &fskin)
 {
-  for (const ufbx_skin_deformer *fskin : this->fbx.skin_deformers) {
-    bArmature *arm = BKE_armature_add(bmain, get_name(fskin->name, "Armature"));
-    Object *obj = BKE_object_add_only_object(
-        this->bmain, OB_ARMATURE, get_name(fskin->name, "Armature"));
-    if (this->params.use_custom_props) {
-      read_custom_properties(fskin->props, arm->id);
-    }
-    obj->data = arm;
-
-    ED_armature_to_edit(arm);
-
-    for (const ufbx_skin_cluster *fbone : fskin->clusters) {
-      EditBone *bone = ED_armature_ebone_add(arm, get_name(fbone->bone_node->name, "Bone"));
-      //@TODO: custom props
-      //@TODO: bone matrices
-      bone->flag |= BONE_SELECTED;
-
-      float bone_size = 1.0f;  //@TODO calculate average distance to children
-      /* Zero length bones are automatically collapsed into their parent when you leave edit mode,
-       * so enforce a minimum length. */
-      bone_size = math::max(bone_size, 0.01f);
-      bone->tail[0] = 0.0f;
-      bone->tail[1] = bone_size;
-      bone->tail[2] = 0.0f;
-    }
-
-    ED_armature_from_edit(this->bmain, arm);
-    ED_armature_edit_free(arm);
-
-    this->element_to_object.add(&fskin->element, obj);
+  Object *obj = this->element_to_object.lookup_default(&fskin.element, nullptr);
+  if (obj != nullptr && obj->type == OB_ARMATURE) {
+    return obj;
   }
+
+  /* Figure out "most root" parent of all the bones. */
+  const ufbx_node *armature_parent = nullptr;
+  uint32_t min_bone_depth = std::numeric_limits<uint32_t>::max();
+  for (const ufbx_skin_cluster *fbone : fskin.clusters) {
+    if (fbone->bone_node->parent != nullptr && fbone->bone_node->node_depth < min_bone_depth) {
+      min_bone_depth = fbone->bone_node->node_depth;
+      armature_parent = fbone->bone_node->parent;
+    }
+  }
+
+  /* Create armature. */
+  bArmature *arm = BKE_armature_add(bmain, get_name(fskin.name, "Armature"));
+  obj = BKE_object_add_only_object(
+      this->bmain,
+      OB_ARMATURE,
+      get_name(armature_parent ? armature_parent->name : fskin.name, "Armature"));
+  if (this->params.use_custom_props) {
+    read_custom_properties(fskin.props, arm->id);
+  }
+  obj->data = arm;
+
+  /* Create bones. */
+  ED_armature_to_edit(arm);
+  for (const ufbx_skin_cluster *fbone : fskin.clusters) {
+
+    EditBone *bone = ED_armature_ebone_add(arm, get_name(fbone->bone_node->name, "Bone"));
+    //@TODO: custom props
+    //@TODO: bone matrices
+    bone->flag |= BONE_SELECTED;
+
+    float bone_size = 1.0f;  //@TODO calculate average distance to children
+    /* Zero length bones are automatically collapsed into their parent when you leave edit mode,
+     * so enforce a minimum length. */
+    bone_size = math::max(bone_size, 0.01f);
+    bone->tail[0] = 0.0f;
+    bone->tail[1] = bone_size;
+    bone->tail[2] = 0.0f;
+  }
+
+  ED_armature_from_edit(this->bmain, arm);
+  ED_armature_edit_free(arm);
+
+  /* If the root-most parent of the bones is an empty, use that as the armature object transform,
+   * and mark that empty as processed. */
+  if (armature_parent != nullptr && armature_parent->attrib_type == UFBX_ELEMENT_EMPTY) {
+    node_matrix_to_obj(armature_parent, obj);
+    this->element_to_object.add(&armature_parent->element, obj);
+  }
+
+  this->element_to_object.add(&fskin.element, obj);
+  return obj;
 }
 
 void FbxImportContext::import_empties()
@@ -641,9 +680,34 @@ void FbxImportContext::import_empties()
     }
   }
 
+  /* Create all the empties. */
+  for (const ufbx_empty *fempty : this->fbx.empties) {
+    if (fempty->instances.count == 0) {
+      continue; /* Ignore if not used by any objects. */
+    }
+    const ufbx_node *node = fempty->instances[0];
+    if (!this->element_to_object.contains(&node->element) && !node_to_empty.contains(node)) {
+      Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_name(node->name));
+      obj->data = nullptr;
+      if (this->params.use_custom_props) {
+        read_custom_properties(node->props, obj->id);
+      }
+      node_matrix_to_obj(node, obj);
+      node_to_empty.add(node, obj);
+    }
+  }
+
   /* Add all the created empties to the node->object map. */
   for (const auto &item : node_to_empty.items()) {
     this->element_to_object.add(&item.key->element, item.value);
+  }
+}
+
+void FbxImportContext::import_animation(double fps)
+{
+  if (this->params.use_anim) {
+    io::fbx::import_animations(
+        *this->bmain, this->fbx, this->element_to_object, fps, this->params.anim_offset);
   }
 }
 
@@ -665,7 +729,7 @@ void FbxImportContext::setup_hierarchy()
 
 void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXImportParams &params)
 {
-  UNUSED_VARS(bmain, scene, view_layer, params);
+  UNUSED_VARS(bmain, view_layer, params);
 
   FILE *file = BLI_fopen(params.filepath, "rb");
   if (!file) {
@@ -716,12 +780,13 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   //@TODO: do we need to sort objects by name? (faster to create within blender)
 
   FbxImportContext ctx(bmain, fbx, params);
+  ctx.import_globals(scene);
   ctx.import_materials();
-  ctx.import_armatures();
   ctx.import_meshes();
   ctx.import_cameras();
   ctx.import_lights();
   ctx.import_empties();
+  ctx.import_animation(FPS);
   ctx.setup_hierarchy();
 
   ufbx_free_scene(fbx);

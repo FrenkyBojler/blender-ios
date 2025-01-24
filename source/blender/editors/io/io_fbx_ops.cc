@@ -41,6 +41,8 @@ static int wm_fbx_import_exec(bContext *C, wmOperator *op)
   params.use_custom_props = RNA_boolean_get(op->ptr, "use_custom_props");
   params.use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf");
   params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
+  params.use_anim = RNA_boolean_get(op->ptr, "use_anim");
+  params.anim_offset = RNA_float_get(op->ptr, "anim_offset");
 
   params.reports = op->reports;
 
@@ -95,6 +97,8 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
     uiItemR(col, ptr, "use_custom_props", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "use_subsurf", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "use_anim", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "anim_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -153,6 +157,17 @@ void WM_OT_fbx_import(wmOperatorType *ot)
       "Validate Meshes",
       "Ensure the data is valid "
       "(when disabled, data may be imported which causes crashes displaying or editing)");
+
+  RNA_def_boolean(ot->srna, "use_anim", true, "Import Animation", "Import FBX animation");
+  RNA_def_float(ot->srna,
+                "anim_offset",
+                1.0f,
+                -1e6f,
+                1e6f,
+                "Animation Offset",
+                "Offset to apply to animation during import, in frames",
+                -1e4f,
+                1e4f);
 
   /* Only show `.fbx` files by default. */
   prop = RNA_def_string(ot->srna, "filter_glob", "*.fbx", 0, "Extension Filter", "");

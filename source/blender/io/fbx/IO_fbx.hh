@@ -28,6 +28,9 @@ struct FBXImportParams {
   bool use_subsurf = false;
   bool use_custom_props = true;
 
+  bool use_anim = true;
+  float anim_offset = 1.0f;
+
   ReportList *reports = nullptr;
 };
 

@@ -16,14 +16,17 @@ set(INC_SYS
 set(SRC
   IO_fbx.cc
   importer/fbx_import.cc
+  importer/fbx_import_anim.cc
   importer/fbx_import_material.cc
 
   IO_fbx.hh
   importer/fbx_import.hh
+  importer/fbx_import_anim.hh
   importer/fbx_import_material.hh
 )
 
 set(LIB
+  PRIVATE bf::animrig
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
