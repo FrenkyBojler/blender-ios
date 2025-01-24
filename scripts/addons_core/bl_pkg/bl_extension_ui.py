@@ -223,7 +223,6 @@ def addon_draw_item_expanded(
         item_warnings,  # `list[str]`
         item_doc_url,  # `str`
         item_tracker_url,  # `str`
-        show_developer_ui,  # `bool`
 ):
     from bpy.app.translations import (
         contexts as i18n_contexts,
@@ -300,9 +299,8 @@ def addon_draw_item_expanded(
         row.label(text=mod.__file__, translate=False)
 
         # Add a button to quickly open the add-on's folder for accessing its files and assets.
-        if show_developer_ui:
-            import os
-            row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(mod.__file__)
+        import os
+        row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(mod.__file__)
 
 
 # NOTE: this can be removed once upgrading from 4.1 is no longer relevant.
@@ -442,7 +440,6 @@ def addons_panel_draw_items(
         addon_extension_block_map,  # `dict[str, PkgBlock_Normalized]`
 
         show_development,  # `bool`
-        show_developer_ui,  # `bool`
 ):  # `-> set[str]`
     # NOTE: this duplicates logic from `USERPREF_PT_addons` eventually this logic should be used instead.
     # Don't de-duplicate the logic as this is a temporary state - as long as extensions remains experimental.
@@ -600,7 +597,6 @@ def addons_panel_draw_items(
                 item_doc_url=item_doc_url,
                 # pylint: disable-next=used-before-assignment
                 item_tracker_url=item_tracker_url,
-                show_developer_ui=show_developer_ui,
             )
 
             if is_enabled:
@@ -650,7 +646,6 @@ def addons_panel_draw_impl(
         enabled_only,  # `bool`
         *,
         show_development,  # `bool`
-        show_developer_ui,  # `bool`
 ):
     """
     Show all the items... we may want to paginate at some point.
@@ -740,7 +735,6 @@ def addons_panel_draw_impl(
         addon_extension_manifest_map=addon_extension_manifest_map,
         addon_extension_block_map=addon_extension_block_map,
         show_development=show_development,
-        show_developer_ui=show_developer_ui,
     )
 
     # Append missing scripts.
@@ -816,7 +810,6 @@ def addons_panel_draw(panel, context):
         addon_tags_exclude,
         view.show_addons_enabled_only,
         show_development=prefs.experimental.use_extensions_debug,
-        show_developer_ui=prefs.view.show_developer_ui,
     )
 
 
@@ -1279,7 +1272,6 @@ def extension_draw_item(
         repo_item,  # `RepoItem`
         operation_in_progress,  # `bool`
         extensions_warnings,  # `dict[str, list[str]]`
-        show_developer_ui,  # `bool`
 ):
     item = item_local or item_remote
     is_installed = item_local is not None
@@ -1453,9 +1445,7 @@ def extension_draw_item(
             row = col_b.row()
             dirpath = os.path.join(repo_item.directory, pkg_id)
             row.label(text=dirpath, translate=False)
-
-            if show_developer_ui:
-                row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = dirpath
+            row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = dirpath
 
 
 def extensions_panel_draw_impl(
@@ -1736,7 +1726,6 @@ def extensions_panel_draw_impl(
                 repo_item=params.repos_all[ext_ui.repo_index],
                 operation_in_progress=operation_in_progress,
                 extensions_warnings=extensions_warnings,
-                show_developer_ui=prefs.view.show_developer_ui,
             )
 
     # Finally show any errors in a single panel which can be dismissed.
