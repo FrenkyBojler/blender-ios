@@ -26,7 +26,7 @@ struct CameraInstanceData : public ExtraInstanceData {
   float &volume_end = color_[3];
   float &depth = color_[3];
   float &focus = color_[3];
-  float4x4 &matrix = object_to_world_;
+  float4x4 &matrix = object_to_world;
   float &dist_color_id = matrix[0][3];
   float &corner_x = matrix[0][3];
   float &corner_y = matrix[1][3];
@@ -38,7 +38,7 @@ struct CameraInstanceData : public ExtraInstanceData {
   float &mist_end = matrix[3][3];
 
   CameraInstanceData(const CameraInstanceData &data)
-      : CameraInstanceData(data.object_to_world_, data.color_)
+      : CameraInstanceData(data.object_to_world, data.color_)
   {
   }
 
@@ -88,7 +88,7 @@ class Cameras : Overlay {
   bool extras_enabled_ = false;
   bool motion_tracking_enabled_ = false;
 
-  State::ViewOffsetData offset_data_;
+  View::OffsetData offset_data_;
   float4x4 depth_bias_winmat_;
 
  public:
@@ -99,7 +99,7 @@ class Cameras : Overlay {
     enabled_ = state.is_space_v3d();
     extras_enabled_ = enabled_ && state.show_extras();
     motion_tracking_enabled_ = enabled_ && state.v3d->flag2 & V3D_SHOW_RECONSTRUCTION;
-    images_enabled_ = enabled_ && !res.is_selection();
+    images_enabled_ = enabled_ && !res.is_selection() && !state.is_depth_only_drawing;
     enabled_ = extras_enabled_ || images_enabled_ || motion_tracking_enabled_;
 
     offset_data_ = state.offset_data_get();
@@ -141,8 +141,10 @@ class Cameras : Overlay {
     }
   }
 
-  void object_sync(
-      const ObjectRef &ob_ref, ShapeCache &shapes, Manager &manager, Resources &res, State &state)
+  void object_sync(Manager &manager,
+                   const ObjectRef &ob_ref,
+                   Resources &res,
+                   const State &state) final
   {
     if (!enabled_) {
       return;
@@ -154,10 +156,10 @@ class Cameras : Overlay {
 
     object_sync_motion_paths(ob_ref, res, state);
 
-    object_sync_images(ob_ref, select_id, shapes, manager, state, res);
+    object_sync_images(ob_ref, select_id, manager, state, res);
   }
 
-  void end_sync(Resources &res, ShapeCache &shapes, const State &state)
+  void end_sync(Resources &res, const State &state) final
   {
     if (!extras_enabled_ && !motion_tracking_enabled_) {
       return;
@@ -173,7 +175,7 @@ class Cameras : Overlay {
                              DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_BACK,
                          state.clipping_plane_count);
       sub_pass.shader_set(res.shaders.extra_shape.get());
-      call_buffers_.volume_buf.end_sync(sub_pass, shapes.camera_volume.get());
+      call_buffers_.volume_buf.end_sync(sub_pass, res.shapes.camera_volume.get());
     }
     {
       PassSimple::Sub &sub_pass = ps_.sub("volume_wire");
@@ -181,7 +183,7 @@ class Cameras : Overlay {
                              DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_BACK,
                          state.clipping_plane_count);
       sub_pass.shader_set(res.shaders.extra_shape.get());
-      call_buffers_.volume_wire_buf.end_sync(sub_pass, shapes.camera_volume_wire.get());
+      call_buffers_.volume_wire_buf.end_sync(sub_pass, res.shapes.camera_volume_wire.get());
     }
 
     {
@@ -190,11 +192,11 @@ class Cameras : Overlay {
                              DRW_STATE_DEPTH_LESS_EQUAL,
                          state.clipping_plane_count);
       sub_pass.shader_set(res.shaders.extra_shape.get());
-      call_buffers_.distances_buf.end_sync(sub_pass, shapes.camera_distances.get());
-      call_buffers_.frame_buf.end_sync(sub_pass, shapes.camera_frame.get());
-      call_buffers_.tria_buf.end_sync(sub_pass, shapes.camera_tria.get());
-      call_buffers_.tria_wire_buf.end_sync(sub_pass, shapes.camera_tria_wire.get());
-      call_buffers_.sphere_solid_buf.end_sync(sub_pass, shapes.sphere_low_detail.get());
+      call_buffers_.distances_buf.end_sync(sub_pass, res.shapes.camera_distances.get());
+      call_buffers_.frame_buf.end_sync(sub_pass, res.shapes.camera_frame.get());
+      call_buffers_.tria_buf.end_sync(sub_pass, res.shapes.camera_tria.get());
+      call_buffers_.tria_wire_buf.end_sync(sub_pass, res.shapes.camera_tria_wire.get());
+      call_buffers_.sphere_solid_buf.end_sync(sub_pass, res.shapes.sphere_low_detail.get());
     }
 
     {
@@ -208,7 +210,7 @@ class Cameras : Overlay {
     }
 
     PassSimple::Sub &sub_pass = ps_.sub("empties");
-    Empties::end_sync(res, shapes, state, sub_pass, call_buffers_.empties);
+    Empties::end_sync(res, state, sub_pass, call_buffers_.empties);
   }
 
   void pre_draw(Manager &manager, View &view) final
@@ -222,8 +224,7 @@ class Cameras : Overlay {
     manager.generate_commands(background_ps_, view);
     manager.generate_commands(foreground_ps_, view);
 
-    float view_dist = State::view_dist_get(offset_data_, view.winmat());
-    depth_bias_winmat_ = winmat_polygon_offset(view.winmat(), view_dist, -1.0f);
+    depth_bias_winmat_ = offset_data_.winmat_polygon_offset(view.winmat(), -1.0f);
   }
 
   void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
@@ -278,7 +279,10 @@ class Cameras : Overlay {
     }
 
     Object *ob = ob_ref.object;
-    CameraInstanceData data(ob->object_to_world(), res.object_wire_color(ob_ref, state));
+    float4x4 mat = ob->object_to_world();
+    /* Normalize matrix scale. */
+    mat.view<3, 3>() = math::normalize(mat.view<3, 3>());
+    CameraInstanceData data(mat, res.object_wire_color(ob_ref, state));
 
     const View3D *v3d = state.v3d;
     const Scene *scene = state.scene;
@@ -297,7 +301,7 @@ class Cameras : Overlay {
     const bool is_selection_camera_stereo = is_select && is_camera_view && is_multiview &&
                                             is_stereo3d_view;
 
-    float3 scale = math::to_scale(data.matrix);
+    float3 scale = math::to_scale(ob->object_to_world());
     /* BKE_camera_multiview_model_matrix already accounts for scale, don't do it here. */
     if (is_selection_camera_stereo) {
       scale = float3(1.0f);
@@ -512,9 +516,7 @@ class Cameras : Overlay {
         }
 
         if ((v3d->flag2 & V3D_SHOW_BUNDLENAME) && !is_selection) {
-          DRWTextStore *dt = DRW_text_cache_ensure();
-
-          DRW_text_cache_add(dt,
+          DRW_text_cache_add(state.dt,
                              bundle_mat[3],
                              track->name,
                              strlen(track->name),
@@ -549,7 +551,6 @@ class Cameras : Overlay {
 
   void object_sync_images(const ObjectRef &ob_ref,
                           select::ID select_id,
-                          ShapeCache &shapes,
                           Manager &manager,
                           const State &state,
                           Resources &res)
@@ -606,7 +607,7 @@ class Cameras : Overlay {
         pass.push_constant("depthSet", true);
         pass.push_constant("ucolor", color_premult_alpha);
         ResourceHandle res_handle = manager.resource_handle(mat);
-        pass.draw(shapes.quad_solid.get(), res_handle, select_id.get());
+        pass.draw(res.shapes.quad_solid.get(), res_handle, select_id.get());
       }
     }
   }
@@ -807,7 +808,7 @@ class Cameras : Overlay {
 
         /* Connecting line between cameras. */
         call_buffers_.stereo_connect_lines.append(stereodata.matrix.location(),
-                                                  instdata.object_to_world_.location(),
+                                                  instdata.object_to_world.location(),
                                                   res.theme_settings.color_wire,
                                                   cam_select_id);
       }

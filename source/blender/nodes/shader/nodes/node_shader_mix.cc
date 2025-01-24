@@ -8,7 +8,7 @@
 
 #include <algorithm>
 
-#include "BKE_material.h"
+#include "BKE_material.hh"
 
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_vector.h"
@@ -106,14 +106,14 @@ static void sh_node_mix_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *p
       break;
     case SOCK_RGBA:
       uiItemR(layout, ptr, "blend_type", UI_ITEM_NONE, "", ICON_NONE);
-      uiItemR(layout, ptr, "clamp_result", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, ptr, "clamp_result", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SOCK_ROTATION:
       break;
     default:
       BLI_assert_unreachable();
   }
-  uiItemR(layout, ptr, "clamp_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "clamp_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void sh_node_mix_label(const bNodeTree * /*ntree*/,
@@ -579,8 +579,8 @@ NODE_SHADER_MATERIALX_BEGIN
 
     case SOCK_RGBA:
       factor = get_input_value(0, NodeItem::Type::Float);
-      value1 = get_input_value(6, NodeItem::Type::Color4);
-      value2 = get_input_value(7, NodeItem::Type::Color4);
+      value1 = get_input_value(6, NodeItem::Type::Color3);
+      value2 = get_input_value(7, NodeItem::Type::Color3);
       break;
 
     default:
@@ -610,7 +610,11 @@ void register_node_type_sh_mix()
   namespace file_ns = blender::nodes::node_sh_mix_cc;
 
   static blender::bke::bNodeType ntype;
-  sh_fn_node_type_base(&ntype, SH_NODE_MIX, "Mix", NODE_CLASS_CONVERTER);
+  sh_fn_node_type_base(&ntype, "ShaderNodeMix", SH_NODE_MIX);
+  ntype.ui_name = "Mix";
+  ntype.ui_description = "Mix values by a factor";
+  ntype.enum_name_legacy = "MIX";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_mix_declare;
   ntype.ui_class = file_ns::sh_node_mix_ui_class;
   ntype.gpu_fn = file_ns::gpu_shader_mix;

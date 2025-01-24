@@ -392,7 +392,7 @@ class UpdateAnimatedTransformConstraint(Operator):
         to_paths = {"to_max_x", "to_max_y", "to_max_z", "to_min_x", "to_min_y", "to_min_z"}
         paths = from_paths | to_paths
 
-        def update_cb(base, class_name, old_path, fcurve, options):
+        def update_cb(base, _class_name, old_path, fcurve, options):
             # print(options)
 
             def handle_deg2rad(fcurve):
@@ -467,7 +467,8 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
 
     bone_type: EnumProperty(
         name="Type",
-        items=_bone_type_enum)
+        items=_bone_type_enum,
+    )
 
     @classmethod
     def poll(cls, context):
@@ -528,7 +529,8 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
                 "Bone colors were synced; "
                 "for {:d} bones this will not be visible due to pose bone color overrides".format(
                     num_pose_color_overrides,
-                ))
+                ),
+            )
 
         return {'FINISHED'}
 
@@ -700,7 +702,7 @@ class ANIM_OT_slot_new_for_id(Operator):
         animated_id = context.animated_id
 
         action = animated_id.animation_data.action
-        slot = action.slots.new(for_id=animated_id)
+        slot = action.slots.new(animated_id.id_type, animated_id.name)
         animated_id.animation_data.action_slot = slot
         return {'FINISHED'}
 

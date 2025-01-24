@@ -9,14 +9,19 @@
 #pragma once
 
 #include "BLI_bounds.hh"
+#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_material.hh"
 #include "BKE_object.hh"
+
+#include "DNA_material_types.h"
 
 #include "ED_grease_pencil.hh"
 
+#include "draw_cache.hh"
 #include "draw_manager_text.hh"
 
 #include "overlay_next_base.hh"
@@ -44,7 +49,7 @@ class GreasePencil : Overlay {
   /* TODO(fclem): This is quite wasteful and expensive, prefer in shader Z modification like the
    * retopology offset. */
   View view_edit_cage_ = {"view_edit_cage"};
-  State::ViewOffsetData offset_data_;
+  View::OffsetData offset_data_;
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -75,12 +80,14 @@ class GreasePencil : Overlay {
         break;
       case OB_MODE_VERTEX_GREASE_PENCIL:
         /* Vertex paint mode. */
-        show_lines_ = ED_grease_pencil_vertex_selection_domain_get(ts) == bke::AttrDomain::Point;
-        show_lines_ = show_lines;
+        show_points_ = ts->gpencil_selectmode_vertex &
+                       (GP_VERTEX_MASK_SELECTMODE_POINT | GP_VERTEX_MASK_SELECTMODE_SEGMENT);
+        show_lines_ = show_lines && ts->gpencil_selectmode_vertex;
         break;
       case OB_MODE_EDIT:
         /* Edit mode. */
-        show_points_ = ED_grease_pencil_edit_selection_domain_get(ts) == bke::AttrDomain::Point;
+        show_points_ = ELEM(
+            ts->gpencil_selectmode_edit, GP_SELECTMODE_POINT, GP_SELECTMODE_SEGMENT);
         show_lines_ = show_lines;
         break;
       case OB_MODE_WEIGHT_GREASE_PENCIL:
@@ -91,8 +98,9 @@ class GreasePencil : Overlay {
         break;
       case OB_MODE_SCULPT_GREASE_PENCIL:
         /* Sculpt mode. */
-        show_points_ = ED_grease_pencil_sculpt_selection_domain_get(ts) == bke::AttrDomain::Point;
-        show_lines_ = show_lines && (ts->gpencil_selectmode_sculpt != 0);
+        show_points_ = ts->gpencil_selectmode_sculpt &
+                       (GP_SCULPT_MASK_SELECTMODE_POINT | GP_SCULPT_MASK_SELECTMODE_SEGMENT);
+        show_lines_ = show_lines && ts->gpencil_selectmode_sculpt;
         break;
       default:
         /* Not a Grease Pencil mode. */
@@ -210,7 +218,7 @@ class GreasePencil : Overlay {
       return;
     }
 
-    if ((!state.active_base) || (ob_ref.object != state.active_base->object)) {
+    if (ob_ref.object != state.object_active) {
       /* Only display for the active object. */
       return;
     }
@@ -257,8 +265,7 @@ class GreasePencil : Overlay {
       return;
     }
 
-    float view_dist = State::view_dist_get(offset_data_, view.winmat());
-    view_edit_cage_.sync(view.viewmat(), winmat_polygon_offset(view.winmat(), view_dist, 0.5f));
+    view_edit_cage_.sync(view.viewmat(), offset_data_.winmat_polygon_offset(view.winmat(), 0.5f));
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_grease_pencil_ps_, view_edit_cage_);
@@ -404,11 +411,11 @@ class GreasePencil : Overlay {
     const ToolSettings *ts = scene->toolsettings;
 
     const ::GreasePencil &grease_pencil = *static_cast<::GreasePencil *>(object.data);
-    const blender::bke::greasepencil::Layer &layer = *grease_pencil.get_active_layer();
+    const blender::bke::greasepencil::Layer *active_layer = grease_pencil.get_active_layer();
 
     float4x4 mat = object.object_to_world();
-    if (ts->gp_sculpt.lock_axis != GP_LOCKAXIS_CURSOR) {
-      mat = layer.to_world_space(object);
+    if (active_layer && ts->gp_sculpt.lock_axis != GP_LOCKAXIS_CURSOR) {
+      mat = active_layer->to_world_space(object);
     }
     const View3DCursor *cursor = &scene->cursor;
 
@@ -429,7 +436,8 @@ class GreasePencil : Overlay {
       }
       case GP_LOCKAXIS_VIEW:
         /* view aligned */
-        DRW_view_viewmat_get(nullptr, mat.ptr(), true);
+        /* TODO(fclem): Global access. */
+        mat = blender::draw::View::default_get().viewinv();
         break;
     }
 
@@ -438,8 +446,11 @@ class GreasePencil : Overlay {
     if (ts->gpencil_v3d_align & GP_PROJECT_CURSOR) {
       mat.location() = cursor->location;
     }
+    else if (active_layer) {
+      mat.location() = active_layer->to_world_space(object).location();
+    }
     else {
-      mat.location() = layer.to_world_space(object).location();
+      mat.location() = object.object_to_world().location();
     }
     return mat;
   }

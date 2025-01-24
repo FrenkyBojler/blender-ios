@@ -2,10 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_global.hh"
 #include "BLI_rect.h"
 
-#include "GPU_capabilities.hh"
 #include "GPU_framebuffer.hh"
 
 #include "ED_screen.hh"
@@ -16,6 +14,8 @@
 #include "RE_pipeline.h"
 
 #include "eevee_engine.h" /* Own include. */
+
+#include "draw_view_data.hh"
 
 #include "eevee_instance.hh"
 
@@ -49,7 +49,7 @@ static void eevee_engine_init(void *vedata)
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
   int2 size = int2(GPU_texture_width(dtxl->color), GPU_texture_height(dtxl->color));
 
-  const DRWView *default_view = DRW_view_default_get();
+  draw::View &default_view = draw::View::default_get();
 
   Object *camera = nullptr;
   /* Get render borders. */
@@ -97,7 +97,7 @@ static void eevee_engine_init(void *vedata)
   }
 
   ved->instance->init(
-      size, &rect, &visible_rect, nullptr, depsgraph, camera, nullptr, default_view, v3d, rv3d);
+      size, &rect, &visible_rect, nullptr, depsgraph, camera, nullptr, &default_view, v3d, rv3d);
 }
 
 static void eevee_draw_scene(void *vedata)
@@ -110,8 +110,6 @@ static void eevee_draw_scene(void *vedata)
     ved->instance->draw_viewport();
   }
   STRNCPY(ved->info, ved->instance->info_get());
-  /* Reset view for other following engines. */
-  DRW_view_set_active(nullptr);
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
   GPU_framebuffer_viewport_reset(dfbl->default_fb);
 }

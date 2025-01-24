@@ -1125,6 +1125,9 @@ static void ui_apply_but_funcs_after(bContext *C)
     ui_afterfunc_update_preferences_dirty(&after);
 
     if (after.undostr[0]) {
+      /* Remove "Adjust Last Operation" HUD. Using it would revert this undo push which isn't
+       * obvious, see #78171. */
+      WM_operator_stack_clear(CTX_wm_manager(C));
       ED_undo_push(C, after.undostr);
     }
   }
@@ -3667,7 +3670,7 @@ static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 
   for (uiBut *but = actbut->next; but; but = but->next) {
     if (ui_but_is_editable_as_text(but)) {
-      if (!(but->flag & UI_BUT_DISABLED)) {
+      if (!(but->flag & (UI_BUT_DISABLED | UI_HIDDEN))) {
         data->postbut = but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
@@ -3676,7 +3679,7 @@ static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
   }
   for (uiBut *but = static_cast<uiBut *>(block->buttons.first); but != actbut; but = but->next) {
     if (ui_but_is_editable_as_text(but)) {
-      if (!(but->flag & UI_BUT_DISABLED)) {
+      if (!(but->flag & (UI_BUT_DISABLED | UI_HIDDEN))) {
         data->postbut = but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
@@ -3700,7 +3703,7 @@ static void ui_textedit_prev_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 
   for (uiBut *but = actbut->prev; but; but = but->prev) {
     if (ui_but_is_editable_as_text(but)) {
-      if (!(but->flag & UI_BUT_DISABLED)) {
+      if (!(but->flag & (UI_BUT_DISABLED | UI_HIDDEN))) {
         data->postbut = but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
@@ -3709,7 +3712,7 @@ static void ui_textedit_prev_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
   }
   for (uiBut *but = static_cast<uiBut *>(block->buttons.last); but != actbut; but = but->prev) {
     if (ui_but_is_editable_as_text(but)) {
-      if (!(but->flag & UI_BUT_DISABLED)) {
+      if (!(but->flag & (UI_BUT_DISABLED | UI_HIDDEN))) {
         data->postbut = but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
@@ -6503,7 +6506,10 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
           if (paint != nullptr) {
             Brush *brush = BKE_paint_brush(paint);
 
-            if (brush->flag & BRUSH_USE_GRADIENT) {
+            if (brush == nullptr) {
+              /* Pass. */
+            }
+            else if (brush->flag & BRUSH_USE_GRADIENT) {
               float *target = &brush->gradient->data[brush->gradient->cur].r;
 
               if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
@@ -8190,6 +8196,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 
       /* RMB has two options now */
       if (ui_popup_context_menu_for_button(C, but, event)) {
+        WM_cursor_modal_restore(data->window);
         return WM_UI_HANDLER_BREAK;
       }
     }
@@ -8498,7 +8505,7 @@ static void button_tooltip_timer_reset(bContext *C, uiBut *but)
         if (is_label) {
           bScreen *screen = WM_window_get_active_screen(data->window);
           if (screen->tool_tip) {
-            screen->tool_tip->pass = 1;
+            screen->tool_tip->pass = screen->tool_tip->region ? 0 : 1;
           }
         }
       }
@@ -8922,7 +8929,7 @@ static void button_activate_exit(
 #endif
 
   if (data->changed_cursor) {
-    WM_cursor_modal_restore(data->window);
+    WM_cursor_modal_restore(win);
   }
 
   /* redraw and refresh (for popups) */
@@ -10676,12 +10683,11 @@ static int ui_handle_menu_event(bContext *C,
     else {
       if (event->type == MOUSEMOVE) {
         WM_cursor_set(win, PopupTitleDragCursor);
-        int mdiff[2];
+        blender::int2 mdiff = blender::int2(event->xy) - blender::int2(menu->grab_xy_prev);
 
-        sub_v2_v2v2_int(mdiff, event->xy, menu->grab_xy_prev);
         copy_v2_v2_int(menu->grab_xy_prev, event->xy);
 
-        add_v2_v2v2_int(menu->popup_create_vars.event_xy, menu->popup_create_vars.event_xy, mdiff);
+        menu->popup_create_vars.event_xy += mdiff;
 
         ui_popup_translate(region, mdiff);
       }
@@ -11108,7 +11114,11 @@ static int ui_handle_menu_event(bContext *C,
             /* Accelerator keys that allow "pressing" a menu entry by pressing a single key. */
             LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
               if (!(but_iter->flag & UI_BUT_DISABLED) && but_iter->menu_key == event->type) {
-                if (but_iter->type == UI_BTYPE_BUT) {
+                if (ELEM(but_iter->type,
+                         UI_BTYPE_BUT,
+                         UI_BTYPE_ICON_TOGGLE,
+                         UI_BTYPE_ICON_TOGGLE_N))
+                {
                   UI_but_execute(C, region, but_iter);
                 }
                 else {
@@ -11963,6 +11973,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
         ELEM(but->type, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER, UI_BTYPE_MENU) &&
         (but_other = ui_but_find_mouse_over(region, event)) && (but != but_other) &&
         ELEM(but_other->type, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER, UI_BTYPE_MENU) &&
+        !but_other->menu_no_hover_open &&
         /* Hover-opening menu's doesn't work well for buttons over one another
          * along the same axis the menu is opening on (see #71719). */
         (((data->menu->direction & (UI_DIR_LEFT | UI_DIR_RIGHT)) &&

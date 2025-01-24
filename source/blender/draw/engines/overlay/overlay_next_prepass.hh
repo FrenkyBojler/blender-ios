@@ -20,6 +20,39 @@
 
 namespace blender::draw::overlay {
 
+/* Add prepass which will write to the depth buffer so that the
+ * alpha-under overlays (alpha checker) will draw correctly for external engines.
+ * NOTE: Use the same Z-depth value as in the regular image drawing engine. */
+class ImagePrepass : Overlay {
+ private:
+  PassSimple ps_ = {"ImagePrepass"};
+
+ public:
+  void begin_sync(Resources &res, const State &state) final
+  {
+    enabled_ = state.is_space_image() && state.is_image_valid && !res.is_selection();
+
+    if (!enabled_) {
+      return;
+    }
+
+    ps_.init();
+    ps_.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
+    ps_.shader_set(res.shaders.mesh_edit_depth.get());
+    ps_.draw(res.shapes.image_quad.get());
+  }
+
+  void draw_on_render(GPUFrameBuffer *framebuffer, Manager &manager, View &view) final
+  {
+    if (!enabled_) {
+      return;
+    }
+
+    GPU_framebuffer_bind(framebuffer);
+    manager.submit(ps_, view);
+  }
+};
+
 /**
  * A depth pass that write surface depth when it is needed.
  * It is also used for selecting non overlay-only objects.
@@ -39,7 +72,7 @@ class Prepass : Overlay {
  public:
   void begin_sync(Resources &res, const State &state) final
   {
-    enabled_ = state.is_space_v3d();
+    enabled_ = state.is_space_v3d() && (!state.xray_enabled || res.is_selection());
 
     if (!enabled_) {
       /* Not used. But release the data. */
@@ -136,10 +169,19 @@ class Prepass : Overlay {
   void sculpt_sync(Manager &manager, const ObjectRef &ob_ref, Resources &res)
   {
     ResourceHandle handle = manager.resource_handle_for_sculpt(ob_ref);
-    select::ID select_id = res.select_id(ob_ref);
 
     for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
-      mesh_ps_->draw(batch.batch, handle, select_id.get());
+      select::ID select_id = use_material_slot_selection_ ?
+                                 res.select_id(ob_ref, (batch.material_slot + 1) << 16) :
+                                 res.select_id(ob_ref);
+
+      if (res.is_selection()) {
+        /* Conservative shader needs expanded draw-call. */
+        mesh_ps_->draw_expand(batch.batch, GPU_PRIM_TRIS, 1, 1, handle, select_id.get());
+      }
+      else {
+        mesh_ps_->draw(batch.batch, handle, select_id.get());
+      }
     }
   }
 
@@ -148,7 +190,11 @@ class Prepass : Overlay {
                    Resources &res,
                    const State &state) final
   {
-    if (!enabled_) {
+    bool is_solid = ob_ref.object->dt >= OB_SOLID ||
+                    (state.v3d->shading.type == OB_RENDER &&
+                     !(ob_ref.object->visibility_flag & OB_HIDE_CAMERA));
+
+    if (!enabled_ || !is_solid) {
       return;
     }
 
@@ -170,14 +216,9 @@ class Prepass : Overlay {
       case OB_MESH:
         if (use_material_slot_selection_) {
           /* TODO(fclem): Improve the API. */
-          const int materials_len = DRW_cache_object_material_count_get(ob_ref.object);
-          Array<GPUMaterial *> materials(materials_len);
-          materials.fill(nullptr);
-
-          gpu::Batch **geom_per_mat = DRW_cache_mesh_surface_shaded_get(
-              ob_ref.object, materials.data(), materials_len);
-
-          geom_list = {geom_per_mat, materials_len};
+          const int materials_len = BKE_object_material_used_with_fallback_eval(*ob_ref.object);
+          Array<GPUMaterial *> materials(materials_len, nullptr);
+          geom_list = DRW_cache_mesh_surface_shaded_get(ob_ref.object, materials);
         }
         else {
           geom_single = DRW_cache_mesh_surface_get(ob_ref.object);
@@ -201,6 +242,10 @@ class Prepass : Overlay {
         }
         geom_single = DRW_cache_volume_selection_surface_get(ob_ref.object);
         pass = mesh_ps_;
+        /* TODO(fclem): Get rid of these check and enforce correct API on the batch cache. */
+        if (geom_single == nullptr) {
+          return;
+        }
         break;
       case OB_POINTCLOUD:
         geom_single = point_cloud_sub_pass_setup(*point_cloud_ps_, ob_ref.object);

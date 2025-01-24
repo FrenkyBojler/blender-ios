@@ -9,15 +9,14 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
@@ -91,6 +90,11 @@ bool calc_active_center_for_editmode(Object *obedit, const bool select_only, flo
         return true;
       }
       break;
+    }
+    case OB_GREASE_PENCIL: {
+      copy_v3_v3(r_center, obedit->loc);
+      mul_m4_v3(obedit->world_to_object().ptr(), r_center);
+      return true;
     }
   }
 

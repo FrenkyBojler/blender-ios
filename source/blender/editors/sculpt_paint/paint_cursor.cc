@@ -36,6 +36,7 @@
 #include "NOD_texture.h"
 
 #include "WM_api.hh"
+#include "WM_toolsystem.hh"
 #include "wm_cursors.hh"
 
 #include "IMB_colormanagement.hh"
@@ -63,6 +64,9 @@
 #include "sculpt_pose.hh"
 
 #include "bmesh.hh"
+
+/* Needed for determining tool material/vertex-color pinning. */
+#include "grease_pencil_intern.hh"
 
 /* TODOs:
  *
@@ -571,6 +575,10 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
       !((mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) ||
         (valid && ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED))))
   {
+    return false;
+  }
+
+  if (!WM_toolsystem_active_tool_is_brush(vc->C)) {
     return false;
   }
 
@@ -1221,7 +1229,6 @@ static bool paint_use_2d_cursor(PaintMode mode)
     case PaintMode::SculptGPencil:
     case PaintMode::WeightGPencil:
     case PaintMode::SculptCurves:
-    case PaintMode::SculptGreasePencil:
     case PaintMode::GPencil:
       return true;
     case PaintMode::Invalid:
@@ -1590,8 +1597,8 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext *pcontext)
           (brush->gpencil_brush_type == GPAINT_BRUSH_TYPE_DRAW))
       {
 
-        const bool use_vertex_color = (pcontext->scene->toolsettings->gp_paint->mode ==
-                                       GPPAINT_FLAG_USE_VERTEXCOLOR);
+        const bool use_vertex_color = ed::sculpt_paint::greasepencil::brush_using_vertex_color(
+            pcontext->scene->toolsettings->gp_paint, brush);
         const bool use_vertex_color_stroke = use_vertex_color &&
                                              ELEM(brush->gpencil_settings->vertex_mode,
                                                   GPPAINT_MODE_STROKE,
@@ -1655,11 +1662,13 @@ static void paint_draw_3D_view_inactive_brush_cursor(PaintCursorContext *pcontex
                           pcontext->final_radius,
                           80);
   immUniformColor3fvAlpha(pcontext->outline_col, pcontext->outline_alpha * 0.35f);
-  imm_draw_circle_wire_3d(pcontext->pos,
-                          pcontext->translation[0],
-                          pcontext->translation[1],
-                          pcontext->final_radius * clamp_f(pcontext->brush->alpha, 0.0f, 1.0f),
-                          80);
+  imm_draw_circle_wire_3d(
+      pcontext->pos,
+      pcontext->translation[0],
+      pcontext->translation[1],
+      pcontext->final_radius *
+          clamp_f(BKE_brush_alpha_get(pcontext->scene, pcontext->brush), 0.0f, 1.0f),
+      80);
 }
 
 static void paint_cursor_update_object_space_radius(PaintCursorContext *pcontext)
@@ -1695,7 +1704,12 @@ static void paint_cursor_draw_main_inactive_cursor(PaintCursorContext *pcontext)
   GPU_line_width(1.0f);
   immUniformColor3fvAlpha(pcontext->outline_col, pcontext->outline_alpha * 0.5f);
   imm_draw_circle_wire_3d(
-      pcontext->pos, 0, 0, pcontext->radius * clamp_f(pcontext->brush->alpha, 0.0f, 1.0f), 80);
+      pcontext->pos,
+      0,
+      0,
+      pcontext->radius *
+          clamp_f(BKE_brush_alpha_get(pcontext->scene, pcontext->brush), 0.0f, 1.0f),
+      80);
 }
 
 static void paint_cursor_pose_brush_segments_draw(PaintCursorContext *pcontext)
@@ -2144,6 +2158,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void * /*unused*/)
     return;
   }
   if (paint_cursor_is_3d_view_navigating(&pcontext)) {
+    /* Still draw stencil while navigating. */
+    paint_cursor_check_and_draw_alpha_overlays(&pcontext);
     return;
   }
 

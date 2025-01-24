@@ -19,7 +19,6 @@
 
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
-#include "BLI_string.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_meshdata_types.h"
@@ -912,7 +911,7 @@ static int vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
       Vector<bool> vertex_group_is_included;
       LISTBASE_FOREACH (bDeformGroup *, dg, &curves.vertex_group_names) {
         vertex_group_is_locked.append(object_locked_defgroups.contains(dg->name));
-        /* Dummy, needed for the #normalize_vertex_weights() call.*/
+        /* Dummy, needed for the #normalize_vertex_weights() call. */
         vertex_group_is_included.append(true);
       }
 

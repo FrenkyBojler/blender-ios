@@ -293,21 +293,6 @@ EditBone *add_points_bone(Object *obedit, float head[3], float tail[3])
   return ebo;
 }
 
-static EditBone *get_named_editbone(ListBase *edbo, const char *name)
-{
-  if (!edbo || !name) {
-    return nullptr;
-  }
-
-  LISTBASE_FOREACH (EditBone *, eBone, edbo) {
-    if (STREQ(name, eBone->name)) {
-      return eBone;
-    }
-  }
-
-  return nullptr;
-}
-
 static void pre_edit_bone_duplicate(ListBase *editbones)
 {
   /* clear temp */
@@ -426,7 +411,12 @@ static void update_duplicate_subtarget(EditBone *dup_bone,
        * so, update the constraint to point at the
        * duplicate of the old subtarget.
        */
-      oldtarget = get_named_editbone(&target_armature->bonebase, ct->subtarget);
+
+      /* TODO: support updating sub-targets for multi-object edit mode.
+       * This requires all objects bones to be duplicated before this runs. */
+      oldtarget = (ob == target_ob) ?
+                      ED_armature_ebone_find_name(target_armature->edbo, ct->subtarget) :
+                      nullptr;
       if (oldtarget && oldtarget->temp.ebone) {
         newtarget = oldtarget->temp.ebone;
         STRNCPY(ct->subtarget, newtarget->name);
@@ -519,7 +509,7 @@ static void update_duplicate_action_constraint_settings(
   bAction *act = (bAction *)act_con->act;
   if (act) {
     blender::animrig::Action &action = act->wrap();
-    blender::animrig::ChannelBag *cbag = blender::animrig::channelbag_for_action_slot(
+    blender::animrig::Channelbag *cbag = blender::animrig::channelbag_for_action_slot(
         action, act_con->action_slot_handle);
 
     /* Create a copy and mirror the animation */
@@ -660,6 +650,14 @@ static void update_duplicate_loc_rot_constraint_settings(Object *ob,
 
     min_vec[0] = max_vec[0] * -1;
     max_vec[0] = min_x_copy * -1;
+
+    /* Also flip the enabled axis check-boxes accordingly. */
+    const bool use_max_x = (limit->flag & LIMIT_XMAX);
+    const bool use_min_x = (limit->flag & LIMIT_XMIN);
+    limit->flag |= use_max_x ? LIMIT_XMIN : 0;
+    limit->flag &= (use_max_x && !use_min_x) ? ~LIMIT_XMAX : limit->flag;
+    limit->flag |= use_min_x ? LIMIT_XMAX : 0;
+    limit->flag &= (use_min_x && !use_max_x) ? ~LIMIT_XMIN : limit->flag;
   }
 
   /* convert back to the settings space */
@@ -1053,7 +1051,7 @@ static void copy_pchan(EditBone *src_bone, EditBone *dst_bone, Object *src_ob, O
 
     chanold = BKE_pose_channel_ensure(src_ob->pose, src_bone->name);
     if (chanold) {
-      /* WARNING: this creates a new posechannel, but there will not be an attached bone
+      /* WARNING: this creates a new pose-channel, but there will not be an attached bone
        * yet as the new bones created here are still 'EditBones' not 'Bones'.
        */
       channew = BKE_pose_channel_ensure(dst_ob->pose, dst_bone->name);

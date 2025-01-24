@@ -43,6 +43,7 @@
 
 #include "BKE_global.hh"
 
+#include "BLI_color.hh"
 #include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
@@ -71,6 +72,9 @@ class VKRenderGraph : public NonCopyable {
   Vector<VKRenderGraphNodeLinks> links_;
   /** All nodes inside the graph indexable via NodeHandle. */
   Vector<VKRenderGraphNode> nodes_;
+  /** Storage for large node datas to improve CPU cache pre-loading. */
+  VKRenderGraphStorage storage_;
+
   /** Scheduler decides which nodes to select and in what order to execute them. */
   VKScheduler scheduler_;
   /**
@@ -97,13 +101,24 @@ class VKRenderGraph : public NonCopyable {
    */
   VKResourceStateTracker &resources_;
 
+  struct DebugGroup {
+    std::string name;
+    ColorTheme4f color;
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(DebugGroup, name, color)
+    uint64_t hash() const
+    {
+      return get_default_hash<std::string, ColorTheme4f>(name, color);
+    }
+  };
+
   struct {
-    VectorSet<std::string> group_names;
+    VectorSet<DebugGroup> groups;
 
     /** Current stack of debug group names. */
     Vector<DebugGroupNameID> group_stack;
     /** Has a node been added to the current stack? If not the group stack will be added to
-     * used_groups.*/
+     * used_groups. */
     bool group_used = false;
     /** All used debug groups. */
     Vector<Vector<DebugGroupNameID>> used_groups;
@@ -152,7 +167,7 @@ class VKRenderGraph : public NonCopyable {
       links_.resize(nodes_.size());
     }
     VKRenderGraphNode &node = nodes_[node_handle];
-    node.set_node_data<NodeInfo>(create_info);
+    node.set_node_data<NodeInfo>(storage_, create_info);
 
     VKRenderGraphNodeLinks &node_links = links_[node_handle];
     BLI_assert(node_links.inputs.is_empty());
@@ -210,7 +225,7 @@ class VKRenderGraph : public NonCopyable {
    * After calling this function the mapped memory of the vk_buffer would contain the data of the
    * buffer.
    */
-  void submit_buffer_for_read(VkBuffer vk_buffer);
+  void submit_for_read();
 
   /**
    * Submit partial graph to be able to present the expected result of the rendering commands
@@ -218,7 +233,7 @@ class VKRenderGraph : public NonCopyable {
    * swap chain swap.
    *
    * Pre conditions:
-   * - `vk_swapchain_image` needs to be a created using ResourceOwner::SWAP_CHAIN`.
+   * - `vk_swapchain_image` needs to be registered in VKResourceStateTracker.
    *
    * Post conditions:
    * - `vk_swapchain_image` layout is transitioned to `VK_IMAGE_LAYOUT_SRC_PRESENT`.
@@ -239,7 +254,7 @@ class VKRenderGraph : public NonCopyable {
    *
    * New nodes added to the render graph will be associated with this debug group.
    */
-  void debug_group_begin(const char *name);
+  void debug_group_begin(const char *name, const ColorTheme4f &color);
 
   /**
    * Pop the top of the debugging group stack.
@@ -248,6 +263,12 @@ class VKRenderGraph : public NonCopyable {
    * group.
    */
   void debug_group_end();
+
+  /**
+   * Return the full debug group of the given node_handle. Returns an empty string when debug
+   * groups are not enabled (`--debug-gpu`).
+   */
+  std::string full_debug_group(NodeHandle node_handle) const;
 
   /**
    * Utility function that is used during debugging.
@@ -259,6 +280,11 @@ class VKRenderGraph : public NonCopyable {
   NodeHandle next_node_handle()
   {
     return nodes_.size();
+  }
+
+  bool is_empty()
+  {
+    return nodes_.is_empty();
   }
 
   void debug_print(NodeHandle node_handle) const;

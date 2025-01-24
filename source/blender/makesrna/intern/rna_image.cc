@@ -16,6 +16,7 @@
 
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "BLT_translation.hh"
@@ -25,6 +26,8 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+
+#include "MOV_read.hh"
 
 #include "rna_internal.hh"
 
@@ -252,7 +255,7 @@ static void rna_ImageUser_update(Main *bmain, Scene *scene, PointerRNA *ptr)
     if (GS(id->name) == ID_NT) {
       /* Special update for node-trees. */
       BKE_ntree_update_tag_image_user_changed((bNodeTree *)id, iuser);
-      ED_node_tree_propagate_change(nullptr, bmain, nullptr);
+      BKE_main_ensure_invariants(*bmain);
     }
     else {
       /* Update material or texture for render preview. */
@@ -599,9 +602,9 @@ static int rna_Image_frame_duration_get(PointerRNA *ptr)
   }
 
   if (BKE_image_has_anim(ima)) {
-    ImBufAnim *anim = ((ImageAnim *)ima->anims.first)->anim;
+    MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
     if (anim) {
-      duration = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+      duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
     }
   }
 

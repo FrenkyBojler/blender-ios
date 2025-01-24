@@ -10,7 +10,6 @@
  * Also some operator reports utility functions.
  */
 
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <fmt/format.h>
@@ -1180,7 +1179,9 @@ static void wm_operator_reports(bContext *C,
   }
 
   /* Refresh Info Editor with reports immediately, even if op returned #OPERATOR_CANCELLED. */
-  if ((retval & OPERATOR_CANCELLED) && !BLI_listbase_is_empty(&op->reports->list)) {
+  if ((retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) &&
+      !BLI_listbase_is_empty(&op->reports->list))
+  {
     WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO_REPORT, nullptr);
   }
   /* If the caller owns them, handle this. */
@@ -2656,7 +2657,7 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
 
     if (ot && wm_operator_check_locked_interface(C, ot)) {
       bool use_last_properties = true;
-      PointerRNA tool_properties = {nullptr};
+      PointerRNA tool_properties = {};
 
       bToolRef *keymap_tool = nullptr;
       if (handler_base->type == WM_HANDLER_TYPE_KEYMAP) {
@@ -3182,6 +3183,11 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
   BLI_assert(gzmap != nullptr);
   wmGizmo *gz = wm_gizmomap_highlight_get(gzmap);
 
+  if (gz && ISMOUSE(event->type) && event->val == KM_PRESS) {
+    /* Remove any tooltips on mouse down. #83589 */
+    WM_tooltip_clear(C, CTX_wm_window(C));
+  }
+
   /* Needed so UI blocks over gizmos don't let events fall through to the gizmos,
    * noticeable for the node editor - where dragging on a node should move it, see: #73212.
    * note we still allow for starting the gizmo drag outside, then travel 'inside' the node. */
@@ -3400,6 +3406,8 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
         wmEventHandler_KeymapResult km_result;
         WM_event_get_keymaps_from_handler(wm, win, handler, &km_result);
         eHandlerActionFlag action_iter = WM_HANDLER_CONTINUE;
+        /* Compute in advance, as event may be freed on WM_HANDLER_BREAK. */
+        const bool event_is_timer = ISTIMER(event->type);
         for (int km_index = 0; km_index < km_result.keymaps_len; km_index++) {
           wmKeyMap *keymap = km_result.keymaps[km_index];
           action_iter |= wm_handlers_do_keymap_with_keymap_handler(
@@ -3412,7 +3420,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
 
         /* Clear the tool-tip whenever a key binding is handled, without this tool-tips
          * are kept when a modal operators starts (annoying but otherwise harmless). */
-        if (action & WM_HANDLER_BREAK) {
+        if (action & WM_HANDLER_BREAK && !event_is_timer) {
           /* Window may be gone after file read. */
           if (CTX_wm_window(C) != nullptr) {
             WM_tooltip_clear(C, CTX_wm_window(C));
@@ -3781,23 +3789,29 @@ static void wm_paintcursor_test(bContext *C, const wmEvent *event)
   wmWindowManager *wm = CTX_wm_manager(C);
 
   if (wm->paintcursors.first) {
-    ARegion *region = CTX_wm_region(C);
+    const bScreen *screen = CTX_wm_screen(C);
+    ARegion *region = screen ? screen->active_region : nullptr;
 
     if (region) {
+      ARegion *prev_region = CTX_wm_region(C);
+
+      CTX_wm_region_set(C, region);
       wm_paintcursor_tag(C, wm, region);
+      CTX_wm_region_set(C, prev_region);
     }
 
     /* If previous position was not in current region, we have to set a temp new context. */
     if (region == nullptr || !BLI_rcti_isect_pt_v(&region->winrct, event->prev_xy)) {
-      ScrArea *area = CTX_wm_area(C);
+      ScrArea *prev_area = CTX_wm_area(C);
+      ARegion *prev_region = CTX_wm_region(C);
 
       CTX_wm_area_set(C, area_event_inside(C, event->prev_xy));
       CTX_wm_region_set(C, region_event_inside(C, event->prev_xy));
 
       wm_paintcursor_tag(C, wm, CTX_wm_region(C));
 
-      CTX_wm_area_set(C, area);
-      CTX_wm_region_set(C, region);
+      CTX_wm_area_set(C, prev_area);
+      CTX_wm_region_set(C, prev_region);
     }
   }
 }
@@ -4025,56 +4039,6 @@ void wm_event_do_handlers(bContext *C)
 
     if (screen == nullptr) {
       wm_event_free_all(win);
-    }
-    else {
-      Scene *scene = WM_window_get_active_scene(win);
-      ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-      Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
-      Scene *scene_eval = (depsgraph != nullptr) ? DEG_get_evaluated_scene(depsgraph) : nullptr;
-
-      if (scene_eval != nullptr) {
-        const int is_playing_sound = BKE_sound_scene_playing(scene_eval);
-
-        if (scene_eval->id.recalc & ID_RECALC_FRAME_CHANGE) {
-          /* Ignore seek here, the audio will be updated to the scene frame after jump during next
-           * dependency graph update. */
-        }
-        else if (is_playing_sound != -1) {
-          bool is_playing_screen;
-
-          is_playing_screen = (ED_screen_animation_playing(wm) != nullptr);
-
-          if (((is_playing_sound == 1) && (is_playing_screen == 0)) ||
-              ((is_playing_sound == 0) && (is_playing_screen == 1)))
-          {
-            wmWindow *win_ctx = CTX_wm_window(C);
-            bScreen *screen_stx = CTX_wm_screen(C);
-            Scene *scene_ctx = CTX_data_scene(C);
-
-            CTX_wm_window_set(C, win);
-            CTX_wm_screen_set(C, screen);
-            CTX_data_scene_set(C, scene);
-
-            ED_screen_animation_play(C, -1, 1);
-
-            CTX_data_scene_set(C, scene_ctx);
-            CTX_wm_screen_set(C, screen_stx);
-            CTX_wm_window_set(C, win_ctx);
-          }
-
-          if (is_playing_sound == 0) {
-            const double time = BKE_sound_sync_scene(scene_eval);
-            if (isfinite(time)) {
-              int ncfra = round(time * FPS);
-              if (ncfra != scene->r.cfra) {
-                scene->r.cfra = ncfra;
-                ED_update_for_newframe(CTX_data_main(C), depsgraph);
-                WM_event_add_notifier(C, NC_WINDOW, nullptr);
-              }
-            }
-          }
-        }
-      }
     }
 
     wmEvent *event;
@@ -6679,7 +6643,7 @@ bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *la
                  op->type, items[i].value, true))
     {
       /*  Show text instead */
-      uiItemL(row, fmt::format("{}: {}", *str, items[i].name).c_str(), ICON_NONE);
+      uiItemL(row, fmt::format("{}: {}", *str, items[i].name), ICON_NONE);
     }
   }
   return true;
