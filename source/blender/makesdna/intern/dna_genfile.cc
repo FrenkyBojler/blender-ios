@@ -27,7 +27,6 @@
 #include "BLI_index_range.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_memarena.h"
-#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
 #include "BLI_ghash.h"
