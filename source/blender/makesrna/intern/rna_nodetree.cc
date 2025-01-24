@@ -9939,11 +9939,11 @@ static void def_geo_foreach_geometry_element_input(BlenderRNA *brna, StructRNA *
   def_common_zone_input(brna, srna);
 }
 
-static void def_geo_closure_input(StructRNA *srna)
+static void def_geo_closure_input(BlenderRNA *brna, StructRNA *srna)
 {
   RNA_def_struct_sdna_from(srna, "NodeGeometryClosureInput", "storage");
 
-  def_common_zone_input(srna);
+  def_common_zone_input(brna, srna);
 }
 
 static void rna_def_node_item_array_socket_item_common(StructRNA *srna,
@@ -10370,7 +10370,7 @@ static void rna_def_geo_closure_output_items(BlenderRNA *brna)
       srna, "NodeGeometryClosureOutputItem", "ClosureOutputItemsAccessor");
 }
 
-static void def_geo_closure_output(StructRNA *srna)
+static void def_geo_closure_output(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
 
@@ -10516,7 +10516,7 @@ static void rna_def_geo_evaluate_closure_output_items(BlenderRNA *brna)
       srna, "NodeGeometryEvaluateClosureOutputItem", "EvaluateClosureOutputItemsAccessor");
 }
 
-static void def_geo_evaluate_closure(StructRNA *srna)
+static void def_geo_evaluate_closure(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
 
@@ -10641,7 +10641,7 @@ static void rna_def_geo_combine_bundle_items(BlenderRNA *brna)
       srna, "NodeGeometryCombineBundleItem", "CombineBundleItemsAccessor");
 }
 
-static void rna_def_geo_combine_bundle(StructRNA *srna)
+static void rna_def_geo_combine_bundle(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
 
@@ -10681,7 +10681,7 @@ static void rna_def_geo_separate_bundle_items(BlenderRNA *brna)
       srna, "NodeGeometrySeparateBundleItem", "SeparateBundleItemsAccessor");
 }
 
-static void rna_def_geo_separate_bundle(StructRNA *srna)
+static void rna_def_geo_separate_bundle(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
 
@@ -12803,6 +12803,12 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeVolumeCube");
   define("GeometryNode", "GeometryNodeVolumeToMesh");
   define("GeometryNode", "GeometryNodeWarning");
+  define("GeometryNode", "GeometryNodeSeparateBundle", rna_def_geo_separate_bundle);
+  define("GeometryNode", "GeometryNodeCombineBundle", rna_def_geo_combine_bundle);
+  define("GeometryNode", "GeometryNodeClosureInput", def_geo_closure_input);
+  define("GeometryNode", "GeometryNodeClosureOutput", def_geo_closure_output);
+  define("GeometryNode", "GeometryNodeEvaluateClosure", def_geo_evaluate_closure);
+
 
   /* Node group types are currently defined for each tree type individually. */
   define("ShaderNode", "ShaderNodeGroup", def_group);
