@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "BLI_span.hh"
 #include "DNA_space_types.h"
 #include "MEM_guardedalloc.h"
 
@@ -164,7 +165,7 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 /** \name Property Editor Layout
  * \{ */
 
-static bool ED_buttons_tabs_list_is_empty(const SpaceProperties *sbuts)
+static bool buttons_tabs_list_is_empty(const SpaceProperties *sbuts)
 {
   std::array<short, BCONTEXT_TOT * 2> dummy;
   return ED_buttons_tabs_list(sbuts, dummy) == 0;
@@ -176,7 +177,7 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
                                       &RNA_SpaceProperties,
                                       CTX_wm_space_properties(C));
 
-  for (blender::StringRef item : blender::ed::space_properties::filter_items) {
+  for (blender::StringRef item : blender::ed::properties::filter_items) {
     uiItemR(layout, &ptr, item.data(), UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   }
 }
@@ -418,10 +419,9 @@ static bool property_search_for_context(const bContext *C, ARegion *region, Spac
       C, region, &region->runtime->type->paneltypes, contexts, nullptr);
 }
 
-static void property_search_move_to_next_tab_with_results(
-    SpaceProperties *sbuts,
-    std::array<short, BCONTEXT_TOT * 2> context_tabs_array,
-    const int tabs_len)
+static void property_search_move_to_next_tab_with_results(SpaceProperties *sbuts,
+                                                          blender::Span<short> context_tabs_array,
+                                                          const int tabs_len)
 {
   /* As long as all-tab search in the tool is disabled in the tool context, don't move from it. */
   if (sbuts->mainb == BCONTEXT_TOOL) {
@@ -456,7 +456,7 @@ static void property_search_move_to_next_tab_with_results(
 static void property_search_all_tabs(const bContext *C,
                                      SpaceProperties *sbuts,
                                      ARegion *region_original,
-                                     std::array<short, BCONTEXT_TOT * 2> context_tabs_array,
+                                     blender::Span<short> context_tabs_array,
                                      const int tabs_len)
 {
   /* Use local copies of the area and duplicate the region as a mainly-paranoid protection
@@ -589,10 +589,10 @@ static eSpaceButtons_Context find_new_properties_tab(const SpaceProperties *sbut
 }
 
 /* Change active tab, if it was hidden. */
-static void buttons_check_filter(SpaceProperties *sbuts)
+static void buttons_apply_filter(SpaceProperties *sbuts)
 {
   const bool tab_was_hidden = ((1 << sbuts->mainb) & sbuts->properties_filter) == 0;
-  if (!tab_was_hidden || ED_buttons_tabs_list_is_empty(sbuts)) {
+  if (!tab_was_hidden || buttons_tabs_list_is_empty(sbuts)) {
     return;
   }
 
@@ -617,11 +617,11 @@ static void buttons_main_region_layout(const bContext *C, ARegion *region)
   /* draw entirely, view changes should be handled here */
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
 
-  if (ED_buttons_tabs_list_is_empty(sbuts)) {
+  if (buttons_tabs_list_is_empty(sbuts)) {
     return;
   }
 
-  buttons_check_filter(sbuts);
+  buttons_apply_filter(sbuts);
 
   if (sbuts->mainb == BCONTEXT_TOOL) {
     ED_view3d_buttons_region_layout_ex(C, region, "Tool");
@@ -731,7 +731,6 @@ static void buttons_navigation_bar_region_init(wmWindowManager *wm, ARegion *reg
 static void buttons_navigation_bar_region_draw(const bContext *C, ARegion *region)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
-
   buttons_context_compute(C, sbuts);
 
   LISTBASE_FOREACH (PanelType *, pt, &region->runtime->type->paneltypes) {

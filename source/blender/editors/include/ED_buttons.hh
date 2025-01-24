@@ -17,7 +17,7 @@ struct SpaceProperties;
 struct bContext;
 struct PointerRNA;
 
-namespace blender::ed::space_properties {
+namespace blender::ed::properties {
 
 const std::array<blender::StringRef, BCONTEXT_TOT> filter_items = {
     "show_properties_tool",

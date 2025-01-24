@@ -170,9 +170,6 @@ typedef struct WorkSpace {
    */
   ViewerPath viewer_path;
 
-  int properties_filter;
-  char _pad1[4];
-
 } WorkSpace;
 
 /**

@@ -6,7 +6,6 @@
  * \ingroup RNA
  */
 
-#include <array>
 #include <cstdlib>
 #include <cstring>
 
@@ -498,7 +497,7 @@ const EnumPropertyItem rna_enum_clip_editor_mode_items[] = {
 
 /* Actually populated dynamically through a function,
  * but helps for context-less access (e.g. doc, i18n...). */
-const EnumPropertyItem rna_enum_properties_editor_context_items[] = {
+const EnumPropertyItem buttons_context_items[] = {
     {BCONTEXT_TOOL, "TOOL", ICON_TOOL_SETTINGS, "Tool", "Active Tool and Workspace settings"},
     {BCONTEXT_SCENE, "SCENE", ICON_SCENE_DATA, "Scene", "Scene Properties"},
     {BCONTEXT_RENDER, "RENDER", ICON_SCENE, "Render", "Render Properties"},
@@ -2092,8 +2091,7 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext * /*C*
       continue;
     }
 
-    RNA_enum_items_add_value(
-        &item, &totitem_added, rna_enum_properties_editor_context_items, context_tabs_array[i]);
+    RNA_enum_items_add_value(&item, &totitem_added, buttons_context_items, context_tabs_array[i]);
     add_separator = true;
 
     /* Add the object data icon dynamically for the data tab. */
@@ -5636,9 +5634,9 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 static void rna_def_space_properties_filter(StructRNA *srna)
 {
   for (const int i : blender::IndexRange(BCONTEXT_TOT)) {
-    EnumPropertyItem item = rna_enum_properties_editor_context_items[i];
+    EnumPropertyItem item = buttons_context_items[i];
     const int value = (1 << item.value);
-    const char *prop_name = blender::ed::space_properties::filter_items[i].data();
+    const char *prop_name = blender::ed::properties::filter_items[i].data();
 
     PropertyRNA *prop = RNA_def_property(srna, prop_name, PROP_BOOLEAN, PROP_NONE);
     RNA_def_property_boolean_sdna(prop, nullptr, "properties_filter", value);
@@ -5678,12 +5676,13 @@ static void rna_def_space_properties(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "context", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "mainb");
-  RNA_def_property_enum_items(prop, rna_enum_properties_editor_context_items);
+  RNA_def_property_enum_items(prop, buttons_context_items);
   RNA_def_property_enum_funcs(
       prop, nullptr, "rna_SpaceProperties_context_set", "rna_SpaceProperties_context_itemf");
   RNA_def_property_ui_text(prop, "", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_SpaceProperties_context_update");
 
   rna_def_space_properties_filter(srna);
 
