@@ -105,7 +105,7 @@ static std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Depsgrap
 
   MutableSpan<GMutablePointer> param_outputs = output->scope.construct<Array<GMutablePointer>>(
       num_outputs);
-  MutableSpan<bool> param_set_outputs = output->scope.construct<Array<bool>>(num_outputs);
+  MutableSpan<bool> param_set_outputs = output->scope.construct<Array<bool>>(num_outputs, false);
 
   /* We want to evaluate the main outputs, but don't care about which inputs are used for now. */
   param_output_usages.as_mutable_span().slice(function.outputs.main).fill(lf::ValueUsage::Used);
