@@ -329,7 +329,7 @@ VArray<float> get_influence_vertex_weights(const bke::CurvesGeometry &curves,
   if (influence_data.flag & GREASE_PENCIL_INFLUENCE_INVERT_VERTEX_GROUP) {
     Array<float> influence_weights_inverted(influence_weights.size());
     threading::parallel_for(
-        influence_weights_inverted.index_range(), 4096, [&](const IndexRange range) {
+        influence_weights_inverted.index_range(), 8192, [&](const IndexRange range) {
           for (const int i : range) {
             influence_weights_inverted[i] = 1.0f - influence_weights[i];
           }
