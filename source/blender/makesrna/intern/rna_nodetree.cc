@@ -2706,7 +2706,7 @@ static bNodeSocket *rna_Node_outputs_new(ID *id,
                                          const char *identifier,
                                          const bool use_multi_input)
 {
-  if (!allow_changing_sockets(node)) {
+  if (!allow_adding_sockets(*node)) {
     BKE_report(reports, RPT_ERROR, "Cannot add socket to built-in node");
     return nullptr;
   }
