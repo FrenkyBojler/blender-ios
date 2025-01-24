@@ -144,7 +144,7 @@
  * Generate an additional file next to every saved .blend file that contains the file content in a
  * more human readable form.
  */
-#define GENERATE_DEBUG_BLEND_FILE 0
+#define GENERATE_DEBUG_BLEND_FILE 1
 #define DEBUG_BLEND_FILE_SUFFIX ".debug.txt"
 
 /* ********* my write, buffered writing with minimum size chunks ************ */
@@ -1072,6 +1072,8 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
   }
 }
 
+static void write_id(WriteData *wd, ID *id);
+
 /** Keep it last of `write_*_data` functions. */
 static void write_libraries(WriteData *wd, Main *bmain)
 {
@@ -1139,8 +1141,8 @@ static void write_libraries(WriteData *wd, Main *bmain)
       }
     }
 
-    /* Write placeholders for linked data-blocks that are used. */
-    for (const ID *id : ids_used_from_library) {
+    /* Write placeholders or embedded data for linked data-blocks that are used. */
+    for (ID *id : ids_used_from_library) {
       if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
         CLOG_ERROR(&LOG,
                    "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
@@ -1148,7 +1150,12 @@ static void write_libraries(WriteData *wd, Main *bmain)
                    id->name,
                    library.runtime.filepath_abs);
       }
-      writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);
+      if (ID_IS_LINKED_EMBEDDED(id)) {
+        write_id(wd, id);
+      }
+      else {
+        writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);
+      }
     }
   }
 
