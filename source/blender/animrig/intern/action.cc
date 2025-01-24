@@ -1709,6 +1709,7 @@ Channelbag &StripKeyframeData::channelbag_for_slot_add(const slot_handle_t slot_
 {
   BLI_assert_msg(channelbag_for_slot(slot_handle) == nullptr,
                  "Cannot add channelbag for already-registered slot");
+  BLI_assert_msg(slot_handle != Slot::unassigned, "Cannot add channelbag for 'unassigned' slot");
 
   Channelbag &channels = MEM_new<ActionChannelbag>(__func__)->wrap();
   channels.slot_handle = slot_handle;
