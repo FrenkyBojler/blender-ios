@@ -146,12 +146,8 @@ if(WITH_MANIFOLD)
   add_definitions(-DWITH_MANIFOLD)
 #TODO -- do this properly
   list (APPEND INC
-    "../../../extern/manifold/src/manifold/include"
-    "../../../extern/manifold/src/utilities/include"
-  )
-  list (APPEND INC_SYS
-    "../../../extern/manifold/src/third_party/glm/"
-    "../../../extern/manifold/src/third_party/thrust/"
+    "../../../extern/manifold/include/"
+    "../../../extern/manifold/include/manifold/"
   )
 #TODO -- append to LIB the libraries that actually work
   list (APPEND LIB
