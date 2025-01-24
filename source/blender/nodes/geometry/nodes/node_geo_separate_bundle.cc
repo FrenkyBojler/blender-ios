@@ -96,7 +96,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::SocketListSignature socket_list;
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometrySeparateBundleItem &item = storage.items[i];
-    const char *idname = bke::node_static_socket_type(item.socket_type, 0);
+    const StringRefNull idname = *bke::node_static_socket_type(item.socket_type, 0);
     const bke::bNodeSocketType *stype = bke::node_socket_type_find(idname);
     socket_list.items.append({stype, item.name ? item.name : ""});
   }

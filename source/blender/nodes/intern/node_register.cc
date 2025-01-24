@@ -117,7 +117,7 @@ class ClosureZoneType : public blender::bke::bNodeZoneType {
 
   const int &get_corresponding_output_id(const bNode &input_bnode) const override
   {
-    BLI_assert(input_bnode.type == this->input_type);
+    BLI_assert(input_bnode.type_legacy == this->input_type);
     return static_cast<NodeGeometryClosureInput *>(input_bnode.storage)->output_node_id;
   }
 };

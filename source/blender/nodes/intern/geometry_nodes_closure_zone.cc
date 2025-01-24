@@ -301,13 +301,13 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     bke::SocketListSignature eval_outputs;
     for (const int i : IndexRange(node_storage.input_items.items_num)) {
       const auto &item = node_storage.input_items.items[i];
-      const char *idname = bke::node_static_socket_type(item.socket_type, 0);
+      const StringRefNull idname = *bke::node_static_socket_type(item.socket_type, 0);
       const bke::bNodeSocketType *stype = bke::node_socket_type_find(idname);
       eval_inputs.items.append({stype, item.name});
     }
     for (const int i : IndexRange(node_storage.output_items.items_num)) {
       const auto &item = node_storage.output_items.items[i];
-      const char *idname = bke::node_static_socket_type(item.socket_type, 0);
+      const StringRefNull idname = *bke::node_static_socket_type(item.socket_type, 0);
       const bke::bNodeSocketType *stype = bke::node_socket_type_find(idname);
       eval_outputs.items.append({stype, item.name});
     }

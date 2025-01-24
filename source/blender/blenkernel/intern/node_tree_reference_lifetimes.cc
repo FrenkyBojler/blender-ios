@@ -299,7 +299,7 @@ static Vector<ReferenceSetInfo> find_reference_sets(
 
   if (zones) {
     for (const bNodeTreeZone *zone : zones->zones) {
-      if (zone->output_node->type != GEO_NODE_CLOSURE_OUTPUT) {
+      if (zone->output_node->type_legacy != GEO_NODE_CLOSURE_OUTPUT) {
         continue;
       }
       const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(
@@ -601,7 +601,7 @@ static void prepare_required_data_for_outputs(
       if (!zone->input_node || !zone->output_node) {
         continue;
       }
-      if (zone->output_node->type != GEO_NODE_CLOSURE_OUTPUT) {
+      if (zone->output_node->type_legacy != GEO_NODE_CLOSURE_OUTPUT) {
         continue;
       }
       const Span<int> closure_output_set_sources = output_set_sources_by_closure_zone.lookup(zone);
