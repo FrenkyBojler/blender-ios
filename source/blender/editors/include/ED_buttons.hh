@@ -17,16 +17,38 @@ struct SpaceProperties;
 struct bContext;
 struct PointerRNA;
 
+namespace blender::ed::space_properties {
+
+const std::array<blender::StringRef, BCONTEXT_TOT> filter_items = {
+    "show_properties_tool",
+    "show_properties_scene",
+    "show_properties_render",
+    "show_properties_output",
+    "show_properties_view_layer",
+    "show_properties_world",
+    "show_properties_collection",
+    "show_properties_object",
+    "show_properties_constraints",
+    "show_properties_modifiers",
+    "show_properties_data",
+    "show_properties_bone",
+    "show_properties_bone_constraints",
+    "show_properties_material",
+    "show_properties_texture",
+    "show_properties_particles",
+    "show_properties_physics",
+    "show_properties_effects",
+};
+
+}
 /**
  * Fills an array with the tab context values for the properties editor. -1 signals a separator.
  *
  * \return The total number of items in the array returned.
  */
 int ED_buttons_tabs_list(const SpaceProperties *sbuts,
-                         std::array<short, BCONTEXT_TOT * 2> &context_tabs_array);
-int ED_buttons_tabs_list(const WorkSpace *workspace,
-                         const SpaceProperties *sbuts,
-                         std::array<short, BCONTEXT_TOT * 2> &context_tabs_array);
+                         std::array<short, BCONTEXT_TOT * 2> &context_tabs_array,
+                         bool apply_filter = true);
 void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/);
 bool ED_buttons_tab_has_search_result(SpaceProperties *sbuts, int index);
 

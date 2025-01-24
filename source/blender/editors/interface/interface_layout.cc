@@ -950,7 +950,10 @@ static void ui_item_enum_expand_tabs(uiLayout *layout,
   uiBut *last = static_cast<uiBut *>(block->buttons.last);
 
   ui_item_enum_expand_exec(layout, block, ptr, prop, uiname, h, UI_BTYPE_TAB, icon_only);
-  BLI_assert(last != block->buttons.last);
+
+  if (last == block->buttons.last) {
+    return;
+  }
 
   for (uiBut *tab = last ? last->next : static_cast<uiBut *>(block->buttons.first); tab;
        tab = tab->next)

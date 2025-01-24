@@ -6,6 +6,7 @@
  * \ingroup RNA
  */
 
+#include <array>
 #include <cstdlib>
 #include <cstring>
 
@@ -24,6 +25,7 @@
 #include "BKE_viewer_path.hh"
 
 #include "ED_asset.hh"
+#include "ED_buttons.hh"
 #include "ED_spreadsheet.hh"
 #include "ED_text.hh"
 
@@ -2064,7 +2066,7 @@ static void rna_SpaceProperties_context_set(PointerRNA *ptr, int value)
   sbuts->mainbuser = value;
 }
 
-static const EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext *C,
+static const EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext * /*C*/,
                                                                  PointerRNA *ptr,
                                                                  PropertyRNA * /*prop*/,
                                                                  bool *r_free)
@@ -2076,7 +2078,7 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext *C,
    * is BCONTEXT_TOT * 2, with every tab displayed and a spacer in every other item. */
   std::array<short, BCONTEXT_TOT * 2> context_tabs_array;
 
-  int totitem = ED_buttons_tabs_list(CTX_wm_workspace(C), sbuts, context_tabs_array);
+  int totitem = ED_buttons_tabs_list(sbuts, context_tabs_array);
   BLI_assert(totitem <= context_tabs_array.size());
 
   int totitem_added = 0;
@@ -5631,6 +5633,21 @@ static void rna_def_space_view3d(BlenderRNA *brna)
   RNA_api_region_view3d(srna);
 }
 
+static void rna_def_space_properties_filter(StructRNA *srna)
+{
+  for (const int i : blender::IndexRange(BCONTEXT_TOT)) {
+    EnumPropertyItem item = rna_enum_properties_editor_context_items[i];
+    const int value = (1 << item.value);
+    const char *prop_name = blender::ed::space_properties::filter_items[i].data();
+
+    PropertyRNA *prop = RNA_def_property(srna, prop_name, PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "properties_filter", value);
+    RNA_def_property_ui_text(prop, item.name, "");
+    RNA_def_property_update(
+        prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_SpaceProperties_context_update");
+  }
+}
+
 static void rna_def_space_properties(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -5666,8 +5683,9 @@ static void rna_def_space_properties(BlenderRNA *brna)
       prop, nullptr, "rna_SpaceProperties_context_set", "rna_SpaceProperties_context_itemf");
   RNA_def_property_ui_text(prop, "", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
-  RNA_def_property_update(
-      prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_SpaceProperties_context_update");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
+
+  rna_def_space_properties_filter(srna);
 
   /* pinned data */
   prop = RNA_def_property(srna, "pin_id", PROP_POINTER, PROP_NONE);

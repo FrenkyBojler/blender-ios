@@ -182,9 +182,9 @@ typedef struct SpaceProperties {
 
   /** Context tabs. */
   short mainb, mainbo, mainbuser;
+  int properties_filter;
   /** Preview is signal to refresh. */
   short preview;
-  char _pad[4];
   char flag;
 
   /* eSpaceButtons_OutlinerSync */

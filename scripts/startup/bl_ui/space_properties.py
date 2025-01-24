@@ -72,6 +72,30 @@ class PROPERTIES_PT_options(Panel):
         col.label(text="Sync with Outliner")
         col.row().prop(space, "outliner_sync", expand=True)
 
+        layout.separator()
+
+        layout.use_property_split = True
+        col = layout.column(heading="Show", align=True)
+        col.prop(space, "show_properties_tool")
+        col.prop(space, "show_properties_render")
+        col.prop(space, "show_properties_output")
+        col.prop(space, "show_properties_view_layer")
+        col.prop(space, "show_properties_scene")
+        col.prop(space, "show_properties_world")
+        col.prop(space, "show_properties_collection")
+        col.prop(space, "show_properties_object")
+        col.prop(space, "show_properties_modifiers")
+        col.prop(space, "show_properties_effects")
+        col.prop(space, "show_properties_particles")
+        col.prop(space, "show_properties_physics")
+        col.prop(space, "show_properties_constraints")
+        col.prop(space, "show_properties_data")
+        col.prop(space, "show_properties_bone")
+        col.prop(space, "show_properties_bone_constraints")
+        col.prop(space, "show_properties_material")
+        col.prop(space, "show_properties_texture")
+
+
 
 class PropertiesAnimationMixin:
     """Mix-in class for Animation panels.
