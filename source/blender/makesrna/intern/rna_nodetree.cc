@@ -2397,7 +2397,7 @@ static void rna_Node_parent_set(PointerRNA *ptr, PointerRNA value, ReportList * 
   /* XXX only Frame node allowed for now,
    * in the future should have a poll function or so to test possible attachment.
    */
-  if (parent->type_legacy != NODE_FRAME) {
+  if (!parent->is_frame()) {
     return;
   }
 
@@ -2487,11 +2487,11 @@ static bool rna_Node_parent_poll(PointerRNA *ptr, PointerRNA value)
   /* XXX only Frame node allowed for now,
    * in the future should have a poll function or so to test possible attachment.
    */
-  if (parent->type_legacy != NODE_FRAME) {
+  if (!parent->is_frame()) {
     return false;
   }
 
-  if (node->type_legacy == NODE_FRAME && blender::bke::node_is_parent_and_child(node, parent)) {
+  if (node->is_frame() && blender::bke::node_is_parent_and_child(node, parent)) {
     return false;
   }
 
@@ -4364,7 +4364,7 @@ static void rna_GroupOutput_is_active_output_set(PointerRNA *ptr, bool value)
   if (value) {
     /* Make sure that no other group output is active at the same time. */
     LISTBASE_FOREACH (bNode *, other_node, &ntree->nodes) {
-      if (other_node->type_legacy == NODE_GROUP_OUTPUT) {
+      if (other_node->is_group_output()) {
         other_node->flag &= ~NODE_DO_OUTPUT;
       }
     }
@@ -10642,6 +10642,17 @@ static void def_geo_input_collection(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_geo_input_normal(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "legacy_corner_normals", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Flat Corner Normals",
+      "Always use face normals for the face corner domain, matching old behavior of the node");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_geo_input_object(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -12449,7 +12460,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeInputMeshVertexNeighbors");
   define("GeometryNode", "GeometryNodeInputNamedAttribute");
   define("GeometryNode", "GeometryNodeInputNamedLayerSelection");
-  define("GeometryNode", "GeometryNodeInputNormal");
+  define("GeometryNode", "GeometryNodeInputNormal", def_geo_input_normal);
   define("GeometryNode", "GeometryNodeInputObject", def_geo_input_object);
   define("GeometryNode", "GeometryNodeInputPosition");
   define("GeometryNode", "GeometryNodeInputRadius");

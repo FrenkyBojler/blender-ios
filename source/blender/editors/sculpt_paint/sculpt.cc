@@ -3151,6 +3151,12 @@ static void do_brush_action(const Depsgraph &depsgraph,
     return;
   }
 
+  if (auto_mask::is_enabled(sd, ob, &brush) && ss.cache->automasking &&
+      ss.cache->automasking->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL)
+  {
+    ss.cache->automasking->calc_cavity_factor(depsgraph, ob, node_mask);
+  }
+
   if (!use_pixels) {
     push_undo_nodes(depsgraph, ob, brush, node_mask);
   }
@@ -5541,6 +5547,15 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
   /* Properties. */
 
   paint_stroke_operator_properties(ot);
+
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "override_location",
+      false,
+      "Override Location",
+      "Override the given `location` array by recalculating object space positions from the "
+      "provided `mouse_event` positions");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 
   RNA_def_boolean(ot->srna,
                   "ignore_background_click",
