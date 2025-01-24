@@ -12,6 +12,7 @@
 
 #include "BLI_span.hh"
 #include "DNA_space_types.h"
+#include "DNA_view2d_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
@@ -36,6 +37,7 @@
 
 #include "RNA_prototypes.hh"
 #include "UI_interface_c.hh"
+#include "UI_view2d.hh"
 #include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
@@ -411,7 +413,6 @@ static bool property_search_for_context(const bContext *C, ARegion *region, Spac
     return false;
   }
 
-  buttons_context_compute(C, sbuts);
   return ED_region_property_search(
       C, region, &region->runtime->type->paneltypes, contexts, nullptr);
 }
@@ -618,6 +619,8 @@ static void buttons_main_region_layout(const bContext *C, ARegion *region)
   buttons_context_compute(C, sbuts);
 
   if (buttons_tabs_list_is_empty(sbuts)) {
+    View2D *v2d = UI_view2d_fromcontext(C);
+    v2d->scroll &= ~V2D_SCROLL_VERTICAL;
     return;
   }
 
