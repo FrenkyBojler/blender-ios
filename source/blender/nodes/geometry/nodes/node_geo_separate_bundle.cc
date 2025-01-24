@@ -125,7 +125,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SEPARATE_BUNDLE, "Separate Bundle", NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, "GeometryNodeSeparateBundle", GEO_NODE_SEPARATE_BUNDLE);
+  ntype.ui_name = "Separate Bundle";
+  ntype.ui_description = "Split a bundle into multiple sockets.";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.insert_link = node_insert_link;

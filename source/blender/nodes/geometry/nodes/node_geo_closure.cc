@@ -109,7 +109,9 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_CLOSURE_INPUT, "Closure Input", NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, "GeometryNodeClosureInput", GEO_NODE_CLOSURE_INPUT);
+  ntype.ui_name = "Closure Input";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = nullptr;
   ntype.initfunc = node_init;
@@ -184,7 +186,9 @@ static void node_operators()
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_CLOSURE_OUTPUT, "Closure Output", NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, "GeometryNodeClosureOutput", GEO_NODE_CLOSURE_OUTPUT);
+  ntype.ui_name = "Closure Output";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.labelfunc = input_node::node_label;
