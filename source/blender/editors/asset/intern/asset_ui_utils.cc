@@ -11,8 +11,8 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
-#include "BKE_preview_image.hh"
 #include "BKE_preferences.h"
+#include "BKE_preview_image.hh"
 
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
@@ -43,7 +43,9 @@ std::string asset_tooltip(const asset_system::AssetRepresentation &asset, const 
 BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset)
 {
   if (const PreviewImage *preview = asset.preview_storage()) {
-    return preview->runtime->icon_id;
+    if (!BKE_previewimg_is_invalid(preview)) {
+      return preview->runtime->icon_id;
+    }
   }
   return ICON_NONE;
 }
@@ -51,6 +53,11 @@ BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset)
 BIFIconID asset_preview_or_icon(const asset_system::AssetRepresentation &asset)
 {
   const PreviewImage *preview = asset.preview_storage();
+
+  if (preview && BKE_previewimg_is_invalid(preview)) {
+    /* Preview image not found. */
+    return UI_icon_from_idcode(asset.get_id_type());
+  }
 
   if (preview && !BKE_previewimg_is_finished(preview, ICON_SIZE_PREVIEW)) {
     /* Loading icon. */
@@ -64,7 +71,6 @@ BIFIconID asset_preview_or_icon(const asset_system::AssetRepresentation &asset)
   /* ID type icon. */
   return UI_icon_from_idcode(asset.get_id_type());
 }
-
 
 const bUserAssetLibrary *get_asset_library_from_opptr(PointerRNA &ptr)
 {
