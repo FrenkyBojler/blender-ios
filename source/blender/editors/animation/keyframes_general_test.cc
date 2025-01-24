@@ -36,6 +36,10 @@ struct fcurve_deleter {
 };
 using FCurvePtr = std::unique_ptr<FCurve, fcurve_deleter>;
 
+/**
+ * Create a "fake" F-Curve. It does not belong to any Action, and has no keys.
+ * It just has its RNA path and array index set.
+ */
 FCurvePtr fake_fcurve(const char *rna_path, const int array_index)
 {
   FCurve *fcurve = BKE_fcurve_create();
@@ -48,6 +52,13 @@ FCurvePtr fake_fcurve(const char *rna_path, const int array_index)
   return FCurvePtr(fcurve);
 }
 
+/**
+ * Create a fake F-Curve (see above), and pretend it's been added to the copy buffer.
+ *
+ * This doesn't really add the F-Curve to the copy buffer, but rather just manipulates
+ * `keyframe_copy_buffer->bone_fcurves` and `keyframe_copy_buffer->slot_animated_ids` so that the
+ * F-Curve matching functions can do their work.
+ */
 FCurvePtr fake_fcurve_in_buffer(const char *rna_path,
                                 const int array_index,
                                 const bool is_bone,
@@ -68,6 +79,11 @@ FCurvePtr fake_fcurve_in_buffer(const char *rna_path,
 
 }  // namespace
 
+/**
+ * Keyframe pasting test suite.
+ *
+ * Currently this just tests the name flipping & F-Curve matching, and not the actual copy-pasting.
+ */
 struct keyframes_paste : public testing::Test {
   static void SetUpTestSuite()
   {
