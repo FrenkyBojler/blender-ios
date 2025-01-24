@@ -173,9 +173,8 @@ static bool buttons_tabs_list_is_empty(const SpaceProperties *sbuts)
 
 void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 {
-  PointerRNA ptr = RNA_pointer_create(reinterpret_cast<ID *>(CTX_wm_space_properties(C)),
-                                      &RNA_SpaceProperties,
-                                      CTX_wm_space_properties(C));
+  PointerRNA ptr = RNA_pointer_create(
+      reinterpret_cast<ID *>(CTX_wm_screen(C)), &RNA_SpaceProperties, CTX_wm_space_properties(C));
 
   for (blender::StringRef item : blender::ed::properties::filter_items) {
     uiItemR(layout, &ptr, item.data(), UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
