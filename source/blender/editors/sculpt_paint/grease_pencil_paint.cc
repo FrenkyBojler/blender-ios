@@ -1489,6 +1489,7 @@ static void append_stroke_to_multiframe_drawings(
     const bke::CurvesGeometry &src_strokes,
     const int curve,
     const int current_frame,
+    const bool on_back,
     Span<ed::greasepencil::MutableDrawingInfo> drawings)
 {
   const bke::CurvesGeometry stroke = get_single_stroke(src_strokes, curve);
@@ -1497,7 +1498,7 @@ static void append_stroke_to_multiframe_drawings(
     if (drawing_info.frame_number == current_frame) {
       continue;
     }
-    add_strokes_to_drawing(curve != 0, bke::curves_new_nomain(stroke), drawing_info.drawing);
+    add_strokes_to_drawing(on_back, bke::curves_new_nomain(stroke), drawing_info.drawing);
   }
 }
 
@@ -1601,6 +1602,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
         drawing.strokes(),
         active_curve,
         scene->r.cfra,
+        on_back,
         ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil));
   }
 
