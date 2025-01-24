@@ -1218,6 +1218,6 @@ void animviz_build_motionpath_targets(Object *ob, blender::Vector<MPathTarget *>
  * Free the elements of the vector populated with `animviz_build_motionpath_targets`.
  * After this function the Vector will have a length of 0.
  */
-void animviz_free_motionpath_targets(blender::Vector<MPathTarget *> &r_targets);
+void animviz_free_motionpath_targets(blender::Vector<MPathTarget *> &targets);
 
 /** \} */

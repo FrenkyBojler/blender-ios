@@ -42,8 +42,6 @@ static CLG_LogRef LOG = {"ed.anim.motion_paths"};
 
 /* Motion path needing to be baked (mpt). */
 struct MPathTarget {
-  MPathTarget *next, *prev;
-
   bMotionPath *mpath; /* Motion path in question. */
 
   AnimKeylist *keylist; /* Temp, to know where the keyframes are. */
@@ -93,6 +91,7 @@ void animviz_build_motionpath_targets(Object *ob, blender::Vector<MPathTarget *>
   /* TODO: it would be nice in future to be able to update objects dependent on these bones too? */
 
   MPathTarget *mpt;
+
   /* Object itself first. */
   if ((ob->avs.recalc & ANIMVIZ_RECALC_PATHS) && (ob->mpath)) {
     /* New target for object. */
@@ -119,12 +118,12 @@ void animviz_build_motionpath_targets(Object *ob, blender::Vector<MPathTarget *>
   }
 }
 
-void animviz_free_motionpath_targets(blender::Vector<MPathTarget *> &r_targets)
+void animviz_free_motionpath_targets(blender::Vector<MPathTarget *> &targets)
 {
-  for (MPathTarget *mpath : r_targets) {
-    MEM_freeN(mpath);
+  for (MPathTarget *mpt : targets) {
+    MEM_freeN(mpt);
   }
-  r_targets.reinitialize(0);
+  targets.clear_and_shrink();
 }
 
 /* ........ */
