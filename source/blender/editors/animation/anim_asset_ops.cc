@@ -404,17 +404,17 @@ void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
 }
 
 enum AssetOverwriteMode {
-  OVERWRITE_UPDATE = 0,
+  OVERWRITE_ADJUST = 0,
   OVERWRITE_REPLACE,
   OVERWRITE_ADD,
   OVERWRITE_REMOVE,
 };
 
 static const EnumPropertyItem prop_asset_overwrite_modes[] = {
-    {OVERWRITE_UPDATE,
-     "UPDATE",
+    {OVERWRITE_ADJUST,
+     "ADJUST",
      0,
-     "Update",
+     "Adjust",
      "Update existing channels in the pose asset but don't remove or add any channels"},
     {OVERWRITE_REPLACE,
      "REPLACE",
@@ -519,7 +519,7 @@ static void update_pose_action_from_scene(Main *bmain,
   Vector<PathValue> path_values = generate_path_values(pose_object);
 
   switch (mode) {
-    case OVERWRITE_UPDATE: {
+    case OVERWRITE_ADJUST: {
       for (const PathValue &path_value : path_values) {
         /* Only updating existing channels. */
         if (existing_paths.contains(path_value.rna_path)) {
@@ -589,7 +589,7 @@ static void refresh_asset_library(bContext *C)
   blender::ed::asset::refresh_asset_library(C, *library);
 }
 
-static int pose_asset_overwrite_exec(bContext *C, wmOperator *op)
+static int pose_asset_modify_exec(bContext *C, wmOperator *op)
 {
   bAction *action = action_from_selected_asset(C);
   BLI_assert_msg(action, "Poll should have checked action exists");
@@ -616,7 +616,7 @@ static int pose_asset_overwrite_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bool pose_asset_overwrite_poll(bContext *C)
+static bool pose_asset_modify_poll(bContext *C)
 {
   if (!ED_operator_posemode_context(C)) {
     return false;
@@ -644,31 +644,31 @@ static bool pose_asset_overwrite_poll(bContext *C)
   return true;
 }
 
-static std::string pose_asset_overwrite_description(bContext * /* C */,
-                                                    wmOperatorType * /* ot */,
-                                                    PointerRNA *ptr)
+static std::string pose_asset_modify_description(bContext * /* C */,
+                                                 wmOperatorType * /* ot */,
+                                                 PointerRNA *ptr)
 {
   const int mode = RNA_enum_get(ptr, "mode");
   return std::string(prop_asset_overwrite_modes[mode].description);
 }
 
 /* Calling it overwrite instead of save because we aren't actually saving an opened asset. */
-void POSELIB_OT_asset_overwrite(wmOperatorType *ot)
+void POSELIB_OT_asset_modify(wmOperatorType *ot)
 {
-  ot->name = "Overwrite Pose Asset";
+  ot->name = "Modify Pose Asset";
   ot->description =
       "Update the selected pose asset in the asset library from the currently selected bones. The "
       "mode defines how the asset is updated";
-  ot->idname = "POSELIB_OT_asset_overwrite";
+  ot->idname = "POSELIB_OT_asset_modify";
 
-  ot->exec = pose_asset_overwrite_exec;
-  ot->poll = pose_asset_overwrite_poll;
-  ot->get_description = pose_asset_overwrite_description;
+  ot->exec = pose_asset_modify_exec;
+  ot->poll = pose_asset_modify_poll;
+  ot->get_description = pose_asset_modify_description;
 
   RNA_def_enum(ot->srna,
                "mode",
                prop_asset_overwrite_modes,
-               OVERWRITE_UPDATE,
+               OVERWRITE_ADJUST,
                "Overwrite Mode",
                "Specify which parts of the pose asset are overwritten");
 }

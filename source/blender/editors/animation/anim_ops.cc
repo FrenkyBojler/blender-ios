@@ -962,7 +962,7 @@ void ED_operatortypes_anim()
   WM_operatortype_append(ANIM_OT_merge_animation);
 
   WM_operatortype_append(blender::ed::animrig::POSELIB_OT_create_pose_asset);
-  WM_operatortype_append(blender::ed::animrig::POSELIB_OT_asset_overwrite);
+  WM_operatortype_append(blender::ed::animrig::POSELIB_OT_asset_modify);
   WM_operatortype_append(blender::ed::animrig::POSELIB_OT_asset_delete);
 }
 
