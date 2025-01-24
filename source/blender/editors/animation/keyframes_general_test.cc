@@ -31,6 +31,9 @@ namespace {
 struct fcurve_deleter {
   void operator()(FCurve *fcurve) const
   {
+    /* If this F-Curve was registered as "bone", remove it from that registration as well. */
+    keyframe_copy_buffer->bone_fcurves.remove(fcurve);
+
     BKE_fcurve_free(fcurve);
   }
 };
