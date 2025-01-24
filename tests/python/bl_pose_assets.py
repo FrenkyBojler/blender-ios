@@ -87,6 +87,7 @@ class CreateAssetTest(unittest.TestCase):
             f'pose.bones["{_BONE_NAME_1}"]["float_test"]': (3.14, ),
             # string_test is not here because it should not be keyed.
         }
+        self.assertEqual(len(pose_action.fcurves), 12)
         for fcurve in pose_action.fcurves:
             self.assertTrue(
                 fcurve.data_path in expected_pose_values,
@@ -130,6 +131,7 @@ class CreateAssetTest(unittest.TestCase):
             f'pose.bones["{_BONE_NAME_1}"]["float_test"]': (3.14, ),
             # string_test is not here because it should not be keyed.
         }
+        self.assertEqual(len(pose_action.fcurves), 12)
         for fcurve in pose_action.fcurves:
             self.assertTrue(
                 fcurve.data_path in expected_pose_values,

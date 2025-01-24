@@ -153,7 +153,7 @@ static void ensure_asset_ui_visible(bContext &C)
         SpaceFile *sfile = reinterpret_cast<SpaceFile *>(area->spacedata.first);
         if (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS) {
           /* Asset Browser is open. */
-          // return;
+          return;
         }
         continue;
       }
@@ -410,6 +410,32 @@ enum AssetOverwriteMode {
   OVERWRITE_REMOVE,
 };
 
+static const EnumPropertyItem prop_asset_overwrite_modes[] = {
+    {OVERWRITE_UPDATE,
+     "UPDATE",
+     0,
+     "Update",
+     "Update existing channels in the pose asset but don't remove or add any channels"},
+    {OVERWRITE_REPLACE,
+     "REPLACE",
+     0,
+     "Replace",
+     "Completely replace all channels in the pose asset with the current selection"},
+    {OVERWRITE_ADD,
+     "ADD",
+     0,
+     "Add",
+     "Add channels of the selection to the pose asset. Existing channels will be updated"},
+    {OVERWRITE_REMOVE,
+     "REMOVE",
+     0,
+     "Remove",
+     "Remove channels of the selection from the pose asset"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+/* Gets the selected asset from the given `bContext`. If the asset is an action, returns a pointer
+ * to that action, else returns a nullptr. */
 static bAction *action_from_selected_asset(bContext *C)
 {
   const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
@@ -486,8 +512,8 @@ static void update_pose_action_from_scene(Main *bmain,
   });
 
   KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
-  BLI_assert(action.strip_keyframe_data_array_num == 1);
-  BLI_assert(action.slot_array_num == 1);
+  BLI_assert(action.strip_keyframe_data().size() == 1);
+  BLI_assert(action.slots().size() == 1);
   StripKeyframeData *strip_data = action.strip_keyframe_data()[0];
   Slot *slot = action.slot(0);
   Vector<PathValue> path_values = generate_path_values(pose_object);
@@ -617,30 +643,6 @@ static bool pose_asset_overwrite_poll(bContext *C)
 
   return true;
 }
-
-static const EnumPropertyItem prop_asset_overwrite_modes[] = {
-    {OVERWRITE_UPDATE,
-     "UPDATE",
-     0,
-     "Update",
-     "Update existing channels in the pose asset but don't remove or add any channels"},
-    {OVERWRITE_REPLACE,
-     "REPLACE",
-     0,
-     "Replace",
-     "Completely replace all channels in the pose asset with the current selection"},
-    {OVERWRITE_ADD,
-     "ADD",
-     0,
-     "Add",
-     "Add channels of the selection to the pose asset. Existing channels will be updated"},
-    {OVERWRITE_REMOVE,
-     "REMOVE",
-     0,
-     "Remove",
-     "Remove channels of the selection from the pose asset"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
 
 static std::string pose_asset_overwrite_description(bContext * /* C */,
                                                     wmOperatorType * /* ot */,
