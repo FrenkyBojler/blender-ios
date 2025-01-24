@@ -372,8 +372,7 @@ struct Draw {
     BLI_assert(batch != nullptr);
     this->batch = batch;
     this->handle = handle;
-    BLI_assert(instance_len < SHRT_MAX);
-    this->instance_len = uint16_t(instance_len);
+    this->instance_len = instance_len < USHRT_MAX ? instance_len : USHRT_MAX;
     this->vertex_len = vertex_len;
     this->vertex_first = vertex_first;
     this->expand_prim_type = expanded_prim_type;
