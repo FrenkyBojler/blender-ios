@@ -1267,10 +1267,8 @@ void KeyframeCopyBuffer::debug_print() const
   using namespace blender::animrig;
 
   printf("KeyframeCopyBuffer contents:\n");
-  printf("  frame range: %f - %f\n",
-         keyframe_copy_buffer->first_frame,
-         keyframe_copy_buffer->last_frame);
-  printf("  scene frame: %f\n", keyframe_copy_buffer->current_frame);
+  printf("  frame range: %f - %f\n", this->first_frame, this->last_frame);
+  printf("  scene frame: %f\n", this->current_frame);
 
   if (is_empty()) {
     printf("  buffer is empty\n");
@@ -1282,14 +1280,14 @@ void KeyframeCopyBuffer::debug_print() const
     return;
   }
 
-  const StripKeyframeData &keyframe_data = keyframe_copy_buffer->keyframe_data;
+  const StripKeyframeData &keyframe_data = this->keyframe_data;
   printf("  channelbags: %d\n", keyframe_data.channelbag_array_num);
   for (const Channelbag *channelbag : keyframe_data.channelbags()) {
 
     printf("  - Channelbag for slot \"%s\":\n",
-           keyframe_copy_buffer->slot_identifiers.lookup(channelbag->slot_handle).c_str());
+           this->slot_identifiers.lookup(channelbag->slot_handle).c_str());
     for (const FCurve *fcurve : channelbag->fcurves()) {
-      const bool is_bone = keyframe_copy_buffer->is_bone(*fcurve);
+      const bool is_bone = this->is_bone(*fcurve);
       printf("      %s[%d] %s\n", fcurve->rna_path, fcurve->array_index, is_bone ? "bone" : "");
     }
   }
