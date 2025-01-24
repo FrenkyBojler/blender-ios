@@ -2474,11 +2474,11 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
 
                 sub_row = sub_col.row()
                 sub_row.label(text="    " + addon_file)
-                sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath=os.path.dirname(addon_file)
+                sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_file)
 
                 sub_row = sub_col.row()
                 sub_row.label(text="    " + addon_path)
-                sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath=os.path.dirname(addon_path)
+                sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_path)
 
         if addon_utils.error_encoding:
             self.draw_error(
