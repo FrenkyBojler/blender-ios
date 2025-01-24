@@ -219,7 +219,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_sequencer.selected_text);
   }
 
-  if (!USER_VERSION_ATLEAST(404, 8)) {
+  if (!USER_VERSION_ATLEAST(404, 28)) {
     FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
   }
   /**
