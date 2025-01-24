@@ -1238,7 +1238,7 @@ void smooth_fcurve(FCurve *fcu)
 
 namespace blender::ed::animation {
 
-static KeyframeCopyBuffer *keyframe_copy_buffer = nullptr;
+KeyframeCopyBuffer *keyframe_copy_buffer = nullptr;
 
 bool KeyframeCopyBuffer::is_empty() const
 {
@@ -1471,7 +1471,7 @@ std::optional<std::string> flip_names(const blender::StringRefNull rna_path)
   char bname_new[MAX_VGROUP_NAME * 2];
 
   /* Take a copy so it's 0-terminated. */
-  const std::string bone_name = rna_path.substr(ofs_start, ofs_end);
+  const std::string bone_name = rna_path.substr(ofs_start, ofs_end - ofs_start);
 
   BLI_string_flip_side_name(bname_new, bone_name.c_str(), false, sizeof(bname_new));
 

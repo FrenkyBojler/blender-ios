@@ -99,6 +99,8 @@ struct KeyframeCopyBuffer {
   void debug_print() const;
 };
 
+extern KeyframeCopyBuffer *keyframe_copy_buffer;
+
 /**
  * Flip bone names in the RNA path, returning the flipped path.
  *
