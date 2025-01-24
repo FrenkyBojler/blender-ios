@@ -1346,6 +1346,10 @@ using namespace blender::ed::animation;
 /**
  * Utility class to help map slots from the Actions data was copied from, to the slots used by the
  * copy-paste buffer.
+ *
+ * To the caller, this mapping is implicit, and is just reflected in the returned `Channelbag` for
+ * some `bAnimListElem`. There is a 1:1 mapping in the copy-paste buffer between slots and their
+ * channelbags,
  */
 class SlotMapper {
  public:
