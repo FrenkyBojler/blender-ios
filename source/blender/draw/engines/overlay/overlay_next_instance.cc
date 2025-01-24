@@ -378,6 +378,9 @@ void Instance::draw(Manager &manager)
     draw_scope.begin_capture();
   }
 
+  /* TODO(fclem): To be moved to overlay UBO. */
+  state.ndc_offset_factor = state.offset_data_get().polygon_offset_factor(view.winmat());
+
   resources.pre_draw();
 
   outline.flat_objects_pass_sync(manager, view, resources, state);
@@ -755,7 +758,7 @@ bool Instance::object_is_rendered_transparent(const Object *object, const State 
 
   if (shading.color_type == V3D_SHADING_MATERIAL_COLOR) {
     if (object->type == OB_MESH) {
-      const int materials_num = BKE_object_material_count_eval(object);
+      const int materials_num = BKE_object_material_used_with_fallback_eval(*object);
       for (int i = 0; i < materials_num; i++) {
         Material *mat = BKE_object_material_get_eval(const_cast<Object *>(object), i + 1);
         if (mat && mat->a < 1.0f) {
