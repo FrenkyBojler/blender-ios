@@ -1452,7 +1452,11 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
   }
 
   keyframe_copy_buffer->current_frame = ac->scene->r.cfra;
+
+#ifndef NDEBUG
+  /* TODO: remove this call completely when slot-aware copy-pasting has been implemented. */
   keyframe_copy_buffer->debug_print();
+#endif
 
   return !keyframe_copy_buffer->is_empty();
 }
