@@ -185,7 +185,7 @@ int ED_buttons_tabs_list(const SpaceProperties *sbuts,
                          std::array<short, BCONTEXT_TOT * 2> &context_tabs_array,
                          bool apply_filter)
 {
-  const int filter = sbuts->properties_filter;
+  const int filter = sbuts->visible_tabs;
 
   int length = 0;
   if (sbuts->pathflag & (1 << BCONTEXT_TOOL) && (!apply_filter || filter & (1 << BCONTEXT_TOOL))) {
@@ -590,7 +590,7 @@ static eSpaceButtons_Context find_new_properties_tab(const SpaceProperties *sbut
 /* Change active tab, if it was hidden. */
 static void buttons_apply_filter(SpaceProperties *sbuts)
 {
-  const bool tab_was_hidden = ((1 << sbuts->mainb) & sbuts->properties_filter) == 0;
+  const bool tab_was_hidden = ((1 << sbuts->mainb) & sbuts->visible_tabs) == 0;
   if (!tab_was_hidden || buttons_tabs_list_is_empty(sbuts)) {
     return;
   }

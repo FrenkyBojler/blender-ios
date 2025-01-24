@@ -5710,16 +5710,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
           if (sl->spacetype == SPACE_PROPERTIES) {
             SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
-            sbuts->properties_filter |= (1 << BCONTEXT_TOOL) | (1 << BCONTEXT_SCENE) |
-                                        (1 << BCONTEXT_RENDER) | (1 << BCONTEXT_OUTPUT) |
-                                        (1 << BCONTEXT_VIEW_LAYER) | (1 << BCONTEXT_WORLD) |
-                                        (1 << BCONTEXT_COLLECTION) | (1 << BCONTEXT_OBJECT) |
-                                        (1 << BCONTEXT_CONSTRAINT) | (1 << BCONTEXT_MODIFIER) |
-                                        (1 << BCONTEXT_DATA) | (1 << BCONTEXT_BONE) |
-                                        (1 << BCONTEXT_BONE_CONSTRAINT) |
-                                        (1 << BCONTEXT_MATERIAL) | (1 << BCONTEXT_TEXTURE) |
-                                        (1 << BCONTEXT_PARTICLE) | (1 << BCONTEXT_PHYSICS) |
-                                        (1 << BCONTEXT_SHADERFX);
+            sbuts->visible_tabs |= (1 << BCONTEXT_TOOL) | (1 << BCONTEXT_SCENE) |
+                                   (1 << BCONTEXT_RENDER) | (1 << BCONTEXT_OUTPUT) |
+                                   (1 << BCONTEXT_VIEW_LAYER) | (1 << BCONTEXT_WORLD) |
+                                   (1 << BCONTEXT_COLLECTION) | (1 << BCONTEXT_OBJECT) |
+                                   (1 << BCONTEXT_CONSTRAINT) | (1 << BCONTEXT_MODIFIER) |
+                                   (1 << BCONTEXT_DATA) | (1 << BCONTEXT_BONE) |
+                                   (1 << BCONTEXT_BONE_CONSTRAINT) | (1 << BCONTEXT_MATERIAL) |
+                                   (1 << BCONTEXT_TEXTURE) | (1 << BCONTEXT_PARTICLE) |
+                                   (1 << BCONTEXT_PHYSICS) | (1 << BCONTEXT_SHADERFX);
           }
         }
       }
