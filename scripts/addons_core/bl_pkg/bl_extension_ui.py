@@ -299,10 +299,10 @@ def addon_draw_item_expanded(
         row = col_b.row()
         row.label(text=mod.__file__, translate=False)
 
+        # Add a button to quickly open the add-on's folder for accessing its files and assets.
         if show_developer_ui:
             import os
-            filepath = os.path.dirname(mod.__file__)
-            row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = filepath
+            row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(mod.__file__)
 
 
 # NOTE: this can be removed once upgrading from 4.1 is no longer relevant.
@@ -1278,7 +1278,7 @@ def extension_draw_item(
         repo_index,  # `int`
         repo_item,  # `RepoItem`
         operation_in_progress,  # `bool`
-        extensions_warnings,  # `dict[str, List[str]]`
+        extensions_warnings,  # `dict[str, list[str]]`
         show_developer_ui,  # `bool`
 ):
     item = item_local or item_remote
@@ -1451,11 +1451,11 @@ def extension_draw_item(
         if is_installed:
             col_a.label(text="Path")
             row = col_b.row()
-            filepath = os.path.join(repo_item.directory, pkg_id)
-            row.label(text=filepath, translate=False)
+            dirpath = os.path.join(repo_item.directory, pkg_id)
+            row.label(text=dirpath, translate=False)
 
             if show_developer_ui:
-                row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = filepath
+                row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = dirpath
 
 
 def extensions_panel_draw_impl(
