@@ -1310,6 +1310,33 @@ void ANIM_fcurves_copybuf_free()
 
 /* ------------------- */
 
+static bool is_animating_bone(const bAnimListElem *ale)
+{
+  BLI_assert(ale->datatype == ALE_FCURVE);
+
+  if (!ale->id || GS(ale->id->name) != ID_OB) {
+    return false;
+  }
+
+  Object *ob = reinterpret_cast<Object *>(ale->id);
+  if (ob->type != OB_ARMATURE) {
+    return false;
+  }
+
+  FCurve *fcurve = (FCurve *)ale->key_data;
+  if (!fcurve->rna_path) {
+    return false;
+  }
+
+  char bone_name[sizeof(bPoseChannel::name)];
+  if (!BLI_str_quoted_substr(fcurve->rna_path, "pose.bones[", bone_name, sizeof(bone_name))) {
+    return false;
+  }
+
+  bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
+  return pchan != nullptr;
+};
+
 bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
 {
   using namespace blender;
@@ -1322,7 +1349,7 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
   Map<std::pair<const Action *, slot_handle_t>, slot_handle_t> orig_to_buffer_slots;
 
   /** Ensure a ChannelBag exists for the F-Curve this 'ale' points to. */
-  auto channelbag_for_ale = [&](const bAnimListElem *ale) -> Channelbag & {
+  auto channelbag_for_ale = [&orig_to_buffer_slots](const bAnimListElem *ale) -> Channelbag & {
     /* Copying keyframes really only works with F-Curves from Actions. */
     BLI_assert(GS(ale->fcurve_owner_id->name) == ID_AC);
 
@@ -1359,32 +1386,6 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
     keyframe_copy_buffer->slot_animated_ids.add_new(internal_slot_handle, ale->id);
 
     return channelbag;
-  };
-
-  auto is_animating_bone = [&](const bAnimListElem *ale) {
-    BLI_assert(ale->datatype == ALE_FCURVE);
-
-    if (!ale->id || GS(ale->id->name) != ID_OB) {
-      return false;
-    }
-
-    Object *ob = reinterpret_cast<Object *>(ale->id);
-    if (ob->type != OB_ARMATURE) {
-      return false;
-    }
-
-    FCurve *fcurve = (FCurve *)ale->key_data;
-    if (!fcurve->rna_path) {
-      return false;
-    }
-
-    char bone_name[sizeof(bPoseChannel::name)];
-    if (!BLI_str_quoted_substr(fcurve->rna_path, "pose.bones[", bone_name, sizeof(bone_name))) {
-      return false;
-    }
-
-    bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
-    return pchan != nullptr;
   };
 
   LISTBASE_FOREACH (bAnimListElem *, ale, anim_data) {
