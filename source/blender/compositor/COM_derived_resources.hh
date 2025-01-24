@@ -13,7 +13,7 @@ namespace blender::compositor {
  *
  * Derived resources are resources that are computed from a particular result, stored in it, and
  * freed when the result is freed. The same resources might be needed by multiple operations, so
- * caching them on the result will improve performance at the cost of more memory usage.
+ * caching them on the result will improve performance at the cost of higher memory usage.
  *
  * The DerivedResources class stores instances of the container classes that store derived
  * resources. This is very similar in design to the StaticCacheManager, see its description for
