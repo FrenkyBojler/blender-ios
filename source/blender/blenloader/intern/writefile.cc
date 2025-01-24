@@ -74,8 +74,6 @@
 #  include <unistd.h> /* FreeBSD, for write() and close(). */
 #endif
 
-#include <fmt/format.h>
-
 #include "BLI_utildefines.h"
 
 #include "CLG_log.h"
@@ -87,14 +85,12 @@
 #include "DNA_fileglobal_types.h"
 #include "DNA_genfile.h"
 #include "DNA_key_types.h"
-#include "DNA_print.hh"
 #include "DNA_sdna_types.h"
 
 #include "BLI_bitmap.h"
 #include "BLI_blenlib.h"
 #include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
-#include "BLI_fileops.hh"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_link_utils.h"
 #include "BLI_linklist.h"
@@ -139,13 +135,6 @@
 
 /* Make preferences read-only. */
 #define U (*((const UserDef *)&U))
-
-/**
- * Generate an additional file next to every saved .blend file that contains the file content in a
- * more human readable form.
- */
-#define GENERATE_DEBUG_BLEND_FILE 1
-#define DEBUG_BLEND_FILE_SUFFIX ".debug.txt"
 
 /* ********* my write, buffered writing with minimum size chunks ************ */
 
@@ -413,7 +402,6 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
 
 struct WriteData {
   const SDNA *sdna;
-  std::ostream *debug_dst = nullptr;
 
   struct {
     /** Use for file and memory writing (size stored in max_size). */
@@ -771,10 +759,6 @@ static void writestruct_at_address_nr(WriteData *wd,
     return;
   }
 
-  if (wd->debug_dst) {
-    blender::dna::print_structs_at_address(*wd->sdna, struct_nr, data, adr, nr, *wd->debug_dst);
-  }
-
   write_bhead(wd, bh);
   mywrite(wd, data, size_t(bh.len));
 }
@@ -783,32 +767,6 @@ static void writestruct_nr(
     WriteData *wd, const int filecode, const int struct_nr, const int64_t nr, const void *adr)
 {
   writestruct_at_address_nr(wd, filecode, struct_nr, nr, adr, adr);
-}
-
-static void write_raw_data_in_debug_file(WriteData *wd, const size_t len, const void *adr)
-{
-  fmt::memory_buffer buf;
-  fmt::appender dst{buf};
-
-  fmt::format_to(dst, "<Raw Data> at {} ({} bytes)\n", adr, len);
-
-  constexpr int bytes_per_row = 8;
-  const int len_digits = std::to_string(std::max<size_t>(0, len - 1)).size();
-
-  for (size_t i = 0; i < len; i++) {
-    if (i % bytes_per_row == 0) {
-      fmt::format_to(dst, "  {:{}}: ", i, len_digits);
-    }
-    fmt::format_to(dst, "{:02x} ", reinterpret_cast<const uint8_t *>(adr)[i]);
-    if (i % bytes_per_row == bytes_per_row - 1) {
-      fmt::format_to(dst, "\n");
-    }
-  }
-  if (len % bytes_per_row != 0) {
-    fmt::format_to(dst, "\n");
-  }
-
-  *wd->debug_dst << fmt::to_string(buf);
 }
 
 /**
@@ -836,10 +794,6 @@ static void writedata(WriteData *wd, const int filecode, const size_t len, const
   BLI_STATIC_ASSERT(SDNA_RAW_DATA_STRUCT_INDEX == 0, "'raw data' SDNA struct index should be 0")
   bh.SDNAnr = SDNA_RAW_DATA_STRUCT_INDEX;
   bh.len = int(len);
-
-  if (wd->debug_dst) {
-    write_raw_data_in_debug_file(wd, len, adr);
-  }
 
   write_bhead(wd, bh);
   mywrite(wd, adr, len);
@@ -1436,13 +1390,11 @@ static bool write_file_handle(Main *mainvar,
                               MemFile *current,
                               const int write_flags,
                               const bool use_userdef,
-                              const BlendThumbnail *thumb,
-                              std::ostream *debug_dst)
+                              const BlendThumbnail *thumb)
 {
   WriteData *wd;
 
   wd = mywrite_begin(ww, compare, current);
-  wd->debug_dst = debug_dst;
   BlendWriter writer = {wd};
 
   /* Clear 'directly linked' flag for all linked data, these are not necessarily valid/up-to-date
@@ -1757,17 +1709,9 @@ static bool BLO_write_file_impl(Main *mainvar,
     }
   }
 
-#if GENERATE_DEBUG_BLEND_FILE
-  std::string debug_dst_path = blender::StringRef(filepath) + DEBUG_BLEND_FILE_SUFFIX;
-  blender::fstream debug_dst_file(debug_dst_path, std::ios::out);
-  std::ostream *debug_dst = &debug_dst_file;
-#else
-  std::ostream *debug_dst = nullptr;
-#endif
-
   /* Actual file writing. */
   const bool err = write_file_handle(
-      mainvar, &ww, nullptr, nullptr, write_flags, use_userdef, thumb, debug_dst);
+      mainvar, &ww, nullptr, nullptr, write_flags, use_userdef, thumb);
 
   ww.close();
 
@@ -1829,7 +1773,7 @@ bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, const
   bool use_userdef = false;
 
   const bool err = write_file_handle(
-      mainvar, nullptr, compare, current, write_flags, use_userdef, nullptr, nullptr);
+      mainvar, nullptr, compare, current, write_flags, use_userdef, nullptr);
 
   return (err == 0);
 }
