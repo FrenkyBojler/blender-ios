@@ -185,7 +185,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end)
     render_graph->add_node(end_rendering);
   }
 
-  render_graph->submit();
+  submit(render_graph, command_buffer);
   EXPECT_EQ(5, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
@@ -267,7 +267,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
     render_graph->add_node(end_rendering);
   }
 
-  render_graph->submit();
+  submit(render_graph, command_buffer);
   EXPECT_EQ(7, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
