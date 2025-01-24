@@ -69,7 +69,7 @@ TEST_P(VKRenderGraphTestRender, begin_clear_attachments_end_read_back)
     render_graph->add_node(copy_image_to_buffer);
   }
 
-  render_graph->submit_for_read();
+  submit(render_graph, command_buffer);
 
   EXPECT_EQ(6, log.size());
   EXPECT_EQ(
