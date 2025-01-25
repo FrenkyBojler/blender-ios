@@ -7234,6 +7234,8 @@ void apply_translations(const Span<float3> translations,
 
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
+    BLI_assert(!std::isnan(translations[i].x) && !std::isnan(translations[i].y) &&
+               !std::isnan(translations[i].z));
     positions[vert] += translations[i];
   }
 }
@@ -7250,6 +7252,9 @@ void apply_translations(const Span<float3> translations,
     const Span<float3> grid_translations = translations.slice(bke::ccg::grid_range(key, i));
     MutableSpan<float3> grid_positions = positions.slice(bke::ccg::grid_range(key, grids[i]));
     for (const int offset : grid_positions.index_range()) {
+      BLI_assert(!std::isnan(grid_translations[offset].x) &&
+                 !std::isnan(grid_translations[offset].y) &&
+                 !std::isnan(grid_translations[offset].z));
       grid_positions[offset] += grid_translations[offset];
     }
   }
@@ -7262,6 +7267,8 @@ void apply_translations(const Span<float3> translations, const Set<BMVert *, 0> 
   int i = 0;
   for (BMVert *vert : verts) {
     add_v3_v3(vert->co, translations[i]);
+    BLI_assert(!std::isnan(translations[i].x) && !std::isnan(translations[i].y) &&
+               !std::isnan(translations[i].z));
     i++;
   }
 }
