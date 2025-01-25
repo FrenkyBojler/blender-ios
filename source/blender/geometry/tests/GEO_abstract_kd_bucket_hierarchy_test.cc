@@ -2,11 +2,14 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "GEO_abstract_kd_bucket_hierarchy.hh.hh"
+#include "BLI_map.hh"
+#include "BLI_array.hh"
+#include "BLI_task.hh"
+#include "BLI_assert.h"
+
+#include "GEO_abstract_kd_bucket_hierarchy.hh"
 
 #include "testing/testing.h"
-
-using namespace blender::bke;
 
 namespace blender::geometry::akdbh::tests {
 
@@ -70,7 +73,7 @@ static void test2()
   BLI_assert(total_joints == (8 + 4 + 2 + 1));
 
   Array<int> bucket_indices(total_buckets + 1);
-  const OffsetIndices<int> buckets_offsets = fill_buckets_linear(total_elements, bucket_indices);
+  const OffsetIndices<int> buckets_offsets = fill_bucket_offsets_trivial(total_elements, bucket_indices);
 
   const Array<int> test_indices({0, 12, 25, 37, 50, 62, 75, 87, 100});
   BLI_assert(bucket_indices.as_span() == test_indices.as_span());
