@@ -10,6 +10,7 @@ set(INC
   ../nodes/geometry/include
   ../shader_fx
   ../simulation
+  ../windowmanager
   ../../../intern/eigen
   ../../../intern/ghost
   ../../../intern/iksolver/extern
@@ -180,6 +181,7 @@ set(SRC
   intern/linestyle.cc
   intern/main.cc
   intern/main_idmap.cc
+  intern/main_invariants.cc
   intern/main_namemap.cc
   intern/mask.cc
   intern/mask_evaluate.cc
@@ -208,6 +210,7 @@ set(SRC
   intern/mesh_runtime.cc
   intern/mesh_sample.cc
   intern/mesh_tangent.cc
+  intern/mesh_topology_state.cc
   intern/mesh_tessellate.cc
   intern/mesh_validate.cc
   intern/mesh_wrapper.cc
@@ -432,6 +435,7 @@ set(SRC
   BKE_linestyle.h
   BKE_main.hh
   BKE_main_idmap.hh
+  BKE_main_invariants.hh
   BKE_main_namemap.hh
   BKE_mask.h
   BKE_material.hh
@@ -450,6 +454,7 @@ set(SRC
   BKE_mesh_runtime.hh
   BKE_mesh_sample.hh
   BKE_mesh_tangent.hh
+  BKE_mesh_topology_state.hh
   BKE_mesh_types.hh
   BKE_mesh_wrapper.hh
   BKE_modifier.hh
@@ -457,8 +462,8 @@ set(SRC
   BKE_multires.hh
   BKE_nla.hh
   BKE_node.hh
-  BKE_node_legacy_types.hh
   BKE_node_enum.hh
+  BKE_node_legacy_types.hh
   BKE_node_runtime.hh
   BKE_node_socket_value.hh
   BKE_node_tree_dot_export.hh
