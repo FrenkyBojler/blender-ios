@@ -97,7 +97,6 @@ class PROPERTIES_PT_options(Panel):
         col.prop(space, "show_properties_texture")
 
 
-
 class PropertiesAnimationMixin:
     """Mix-in class for Animation panels.
 
