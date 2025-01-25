@@ -233,21 +233,13 @@ class LinearGizmo : public NodeGizmos {
     static_assert(int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_ARROW) == int(ED_GIZMO_ARROW_STYLE_NORMAL));
     static_assert(int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX) == int(ED_GIZMO_ARROW_STYLE_BOX));
     static_assert(int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CROSS) == int(ED_GIZMO_ARROW_STYLE_CROSS));
-    static_assert(int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CONE) == int(GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CONE));
-    
     RNA_enum_set(gizmo_->ptr, "draw_style", storage.draw_style);
 
     WM_gizmo_set_line_width(gizmo_, 1.0f);
 
-    const float length = (storage.draw_style == GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX) ? 0.8f : 1.0f;
-   
-    if (storage.draw_style == GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CONE) {  /* draw cone style arrow */
-      RNA_enum_set(gizmo_->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_NORMAL);
-      RNA_enum_set(gizmo_->ptr, "draw_options", 0);
-    } else { /* draw normal style arrow */
-      RNA_enum_set(gizmo_->ptr, "draw_style", storage.draw_style);
-      RNA_enum_set(gizmo_->ptr, "draw_options", ED_GIZMO_ARROW_DRAW_FLAG_STEM);
-    }
+    const float length = (storage.draw_style == GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX) ? 0.8f :
+                                                                                        1.0f;
+    RNA_float_set(gizmo_->ptr, "length", length);
 
     const ThemeColorID color_theme_id = get_gizmo_theme_color_id(
         GeometryNodeGizmoColor(storage.color_id));
