@@ -9,6 +9,8 @@
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
+#include "BKE_curves.hh"
+
 /**
  *
  * TODO: Rewrite all of this.
@@ -195,10 +197,8 @@ void calculate_positions(Span<float2> points,
                          MutableSpan<float2> dst_pos);
 
 BooleanResult curve_boolean_calc(const Operation boolean_mode,
-                                 const Span<float2> points,
-                                 const OffsetIndices<int> points_by_curve,
-                                 const IndexRange clipping_shapes,
-                                 const Span<bool> is_fill,
-                                 const Span<bool> is_cyclic);
+                                 const bke::CurvesGeometry &curves,
+                                 const Span<float2> positions_2d,
+                                 const IndexRange clipping_shapes);
 
 }  // namespace blender::geometry::boolean

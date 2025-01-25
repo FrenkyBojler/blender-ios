@@ -37,6 +37,9 @@
 #include "BLI_sort.hh"
 #include "BLI_vector.hh"
 
+#include "BKE_attribute.hh"
+#include "BKE_curves.hh"
+
 #include "GEO_boolean_curves.hh"
 
 namespace blender::geometry::boolean {
@@ -315,7 +318,7 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
     const int curve_i,
     const Span<float2> points,
     const OffsetIndices<int> points_by_curve,
-    const Span<bool> is_fill)
+    const VArray<bool> &is_fill)
 {
   WindingState state_L;
   WindingState state_R;
@@ -484,8 +487,8 @@ BooleanResult execute_boolean(const Operation boolean_mode,
                               const Span<float2> points,
                               const OffsetIndices<int> points_by_curve,
                               const IndexRange clipping_shapes,
-                              const Span<bool> is_fill,
-                              const Span<bool> is_cyclic)
+                              const VArray<bool> &is_fill,
+                              const VArray<bool> &is_cyclic)
 {
   Vector<ExtendedIntersectionPoint> intersections;
   Array<Vector<int>> inters_per_curves(points_by_curve.size());
@@ -715,15 +718,19 @@ BooleanResult execute_boolean(const Operation boolean_mode,
 }
 
 BooleanResult curve_boolean_calc(const Operation boolean_mode,
-                                 const Span<float2> points,
-                                 const OffsetIndices<int> points_by_curve,
-                                 const IndexRange clipping_shapes,
-                                 const Span<bool> is_fill,
-                                 const Span<bool> is_cyclic)
+                                 const bke::CurvesGeometry &curves,
+                                 const Span<float2> positions_2d,
+                                 const IndexRange clipping_shapes)
 {
+  const bke::AttributeAccessor attributes = curves.attributes();
 
-  return execute_boolean(
-      boolean_mode, points, points_by_curve, clipping_shapes, is_fill, is_cyclic);
+  const VArray<bool> is_fills = *attributes.lookup<bool>("is_fill", bke::AttrDomain::Curve);
+  return execute_boolean(boolean_mode,
+                         positions_2d,
+                         curves.points_by_curve(),
+                         clipping_shapes,
+                         is_fills,
+                         curves.cyclic());
 }
 
 }  // namespace blender::geometry::boolean
