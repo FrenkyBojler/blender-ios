@@ -661,7 +661,7 @@ static void strip_image_transform_quad_get_ex(const Scene *scene,
     float3 point = math::transform_point(matrix, quad_temp[i]);
     point *= mirror;
     point *= viewport_pixel_aspect;
-    copy_v2_v2(r_quad[i], quad_temp[i]);
+    copy_v2_v2(r_quad[i], point);
   }
 }
 
