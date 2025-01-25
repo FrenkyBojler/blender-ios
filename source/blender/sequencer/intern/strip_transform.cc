@@ -8,13 +8,12 @@
  * \ingroup bke
  */
 
-#include "BLI_math_matrix.hh"
+#include "BLI_math_vector.hh"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 
@@ -606,7 +605,9 @@ void SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene,
   mul_v2_v2(r_origin, viewport_pixel_aspect);
 }
 
-float4x4 SEQ_image_transform_matrix_get(const Scene *scene, const Strip *strip)
+static float4x4 seq_image_transform_matrix_get_ex(const Scene *scene,
+                                                  const Strip *strip,
+                                                  bool apply_rotation = true)
 {
   float3 image_size{float(scene->r.xsch), float(scene->r.ysch), 0.0f};
   if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
@@ -618,7 +619,7 @@ float4x4 SEQ_image_transform_matrix_get(const Scene *scene, const Strip *strip)
   const float3 origin{
       image_size.x * transform->origin[0], image_size[1] * transform->origin[1], 0.0f};
   const float3 translation{transform->xofs, transform->yofs, 0.0f};
-  const float3 rotation{0.0f, 0.0f, transform->rotation};
+  const float3 rotation{0.0f, 0.0f, apply_rotation ? transform->rotation : 0.0f};
   const float2 scale{transform->scale_x, transform->scale_y};
   const float3 pivot = origin - (image_size / 2);
 
@@ -626,55 +627,40 @@ float4x4 SEQ_image_transform_matrix_get(const Scene *scene, const Strip *strip)
   return math::from_origin_transform(matrix, pivot);
 }
 
+float4x4 SEQ_image_transform_matrix_get(const Scene *scene, const Strip *strip)
+{
+  return seq_image_transform_matrix_get_ex(scene, strip);
+}
+
 static void strip_image_transform_quad_get_ex(const Scene *scene,
                                               const Strip *strip,
                                               bool apply_rotation,
                                               float r_quad[4][2])
 {
-  StripTransform *transform = strip->data->transform;
-  const StripCrop *crop = strip->data->crop;
 
-  float image_size[2] = {float(scene->r.xsch), float(scene->r.ysch)};
+  float3 image_size{float(scene->r.xsch), float(scene->r.ysch), 0.0f};
   if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
-    image_size[0] = strip->data->stripdata->orig_width;
-    image_size[1] = strip->data->stripdata->orig_height;
+    image_size.x = strip->data->stripdata->orig_width;
+    image_size.y = strip->data->stripdata->orig_height;
   }
 
-  float transform_matrix[4][4];
-  float rotation_matrix[3][3];
-  axis_angle_to_mat3_single(rotation_matrix, 'Z', apply_rotation ? transform->rotation : 0.0f);
-  loc_rot_size_to_mat4(transform_matrix,
-                       blender::float3{transform->xofs, transform->yofs, 0.0f},
-                       rotation_matrix,
-                       blender::float3{transform->scale_x, transform->scale_y, 1.0f});
-  const float origin[2] = {image_size[0] * transform->origin[0],
-                           image_size[1] * transform->origin[1]};
-  const float pivot[3] = {origin[0] - (image_size[0] / 2), origin[1] - (image_size[1] / 2), 0.0f};
-  transform_pivot_set_m4(transform_matrix, pivot);
+  const StripCrop *crop = strip->data->crop;
+  float4x3 quad_temp{
+      {(image_size[0] / 2) - crop->right, (image_size[1] / 2) - crop->top, 0.0f},
+      {(image_size[0] / 2) - crop->right, (-image_size[1] / 2) + crop->bottom, 0.0f},
+      {(-image_size[0] / 2) + crop->left, (-image_size[1] / 2) + crop->bottom, 0.0f},
+      {(-image_size[0] / 2) + crop->left, (image_size[1] / 2) - crop->top, 0.0f},
+  };
 
-  float quad_temp[4][3];
-  for (int i = 0; i < 4; i++) {
-    zero_v3(quad_temp[i]);
-  }
-
-  quad_temp[0][0] = (image_size[0] / 2) - crop->right;
-  quad_temp[0][1] = (image_size[1] / 2) - crop->top;
-  quad_temp[1][0] = (image_size[0] / 2) - crop->right;
-  quad_temp[1][1] = (-image_size[1] / 2) + crop->bottom;
-  quad_temp[2][0] = (-image_size[0] / 2) + crop->left;
-  quad_temp[2][1] = (-image_size[1] / 2) + crop->bottom;
-  quad_temp[3][0] = (-image_size[0] / 2) + crop->left;
-  quad_temp[3][1] = (image_size[1] / 2) - crop->top;
-
-  float mirror[2];
+  const float3 viewport_pixel_aspect{scene->r.xasp / scene->r.yasp, 1.0f, 1.0f};
+  const float4x4 matrix = seq_image_transform_matrix_get_ex(scene, strip, apply_rotation);
+  float3 mirror;
   SEQ_image_transform_mirror_factor_get(strip, mirror);
 
-  const float viewport_pixel_aspect[2] = {scene->r.xasp / scene->r.yasp, 1.0f};
-
   for (int i = 0; i < 4; i++) {
-    mul_m4_v3(transform_matrix, quad_temp[i]);
-    mul_v2_v2(quad_temp[i], mirror);
-    mul_v2_v2(quad_temp[i], viewport_pixel_aspect);
+    float3 point = math::transform_point(matrix, quad_temp[i]);
+    point *= mirror;
+    point *= viewport_pixel_aspect;
     copy_v2_v2(r_quad[i], quad_temp[i]);
   }
 }
