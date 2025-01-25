@@ -588,7 +588,6 @@ const EnumPropertyItem rna_enum_geometry_nodes_linear_gizmo_draw_style_items[] =
     {GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_ARROW, "ARROW", 0, "Arrow", ""},
     {GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CROSS, "CROSS", 0, "Cross", ""},
     {GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX, "BOX", 0, "Box", ""},
-    {GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CONE, "CONE", 0, "Cone", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
