@@ -190,13 +190,10 @@ static bool draw_append = false; /* Will be set to true after first call. */
 
 std::ofstream get_file_stream()
 {
-  /* Would like to use BKE_tempdir_base() here, but that brings in dependence on kernel library.
-   * This is just for developer debugging anyway, and should never be called in production Blender.
-   */
 #ifdef WIN32
-  constexpr const char *drawfile = "./polygon_clipping_test_draw.html";
+  constexpr const char *drawfile = "./boolean_curves_test_draw.html";
 #else
-  constexpr const char *drawfile = "/tmp/polygon_clipping_test_draw.html";
+  constexpr const char *drawfile = "/tmp/boolean_curves_test_draw.html";
 #endif
 
   std::ofstream f;
