@@ -6,8 +6,6 @@
  * \ingroup spview3d
  */
 
-#include "DNA_gpencil_legacy_types.h"
-
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_gpencil_geom_legacy.h"
@@ -15,9 +13,9 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "BLI_bounds_types.hh"
-#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
 #include "DEG_depsgraph_query.hh"
@@ -34,6 +32,9 @@
 
 #include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
+
+using blender::float3;
+
 /* -------------------------------------------------------------------- */
 /** \name View All Operator
  *
@@ -67,8 +68,8 @@ static void view3d_object_calc_minmax(Depsgraph *depsgraph,
                                       Scene *scene,
                                       Object *ob_eval,
                                       const bool only_center,
-                                      float min[3],
-                                      float max[3])
+                                      float3 &min,
+                                      float3 &max)
 {
   /* Account for duplis. */
   if (BKE_object_minmax_dupli(depsgraph, scene, ob_eval, min, max, false) == 0) {
@@ -204,7 +205,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op)
   const bool center = RNA_boolean_get(op->ptr, "center");
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
-  float min[3], max[3];
+  float3 min, max;
   bool changed = false;
 
   if (center) {
@@ -309,7 +310,8 @@ static int viewselected_exec(bContext *C, wmOperator *op)
   BKE_view_layer_synced_ensure(scene_eval, view_layer_eval);
   Object *ob_eval = BKE_view_layer_active_object_get(view_layer_eval);
   Object *obedit = CTX_data_edit_object(C);
-  const bool is_face_map = (region->gizmo_map && WM_gizmomap_is_any_selected(region->gizmo_map));
+  const bool is_face_map = (region->runtime->gizmo_map &&
+                            WM_gizmomap_is_any_selected(region->runtime->gizmo_map));
   float3 min, max;
   bool ok = false, ok_dist = true;
   const bool use_all_regions = RNA_boolean_get(op->ptr, "use_all_regions");
@@ -345,7 +347,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
   }
 
   if (is_face_map) {
-    ok = WM_gizmomap_minmax(region->gizmo_map, true, true, min, max);
+    ok = WM_gizmomap_minmax(region->runtime->gizmo_map, true, true, min, max);
   }
   else if (obedit) {
     /* only selected */

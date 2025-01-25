@@ -16,7 +16,6 @@
 #include "BLI_bit_vector.hh"
 #include "BLI_linklist_stack.h"
 #include "BLI_math_vector.hh"
-#include "BLI_task.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_object_types.h"
@@ -26,7 +25,7 @@
 #include "BKE_ccg.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
@@ -1312,15 +1311,11 @@ static void init_from_face_set_boundary(const Depsgraph &depsgraph,
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       threading::parallel_for(IndexRange(totvert), 1024, [&](const IndexRange range) {
         for (const int vert : range) {
+          const SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vert);
           vert_has_face_set[vert] = face_set::vert_has_face_set(
-              subdiv_ccg, face_sets, vert, active_face_set);
+              subdiv_ccg, face_sets, coord.grid_index, active_face_set);
           vert_has_unique_face_set[vert] = face_set::vert_has_unique_face_set(
-              faces,
-              corner_verts,
-              vert_to_face_map,
-              face_sets,
-              subdiv_ccg,
-              SubdivCCGCoord::from_index(key, vert));
+              faces, corner_verts, vert_to_face_map, face_sets, subdiv_ccg, coord);
         }
       });
       break;

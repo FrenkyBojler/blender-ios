@@ -14,7 +14,6 @@
 #include "DNA_view3d_types.h"
 
 #include "ED_screen.hh"
-#include "ED_util.hh"
 #include "ED_view3d.hh"
 
 #include "GPU_debug.hh"
@@ -32,10 +31,15 @@
 #include "BKE_global.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_screen.hh"
+
+#include "DRW_engine.hh"
+#include "DRW_render.hh"
+
+#include "draw_cache.hh"
+#include "draw_view_c.hh"
 
 #include "view3d_intern.hh"
-
-#include "draw_manager_c.hh"
 
 /* ******************** region info ***************** */
 
@@ -288,7 +292,7 @@ void DRW_draw_gizmo_3d()
   /* draw depth culled gizmos - gizmos need to be updated *after* view matrix was set up */
   /* TODO: depth culling gizmos is not yet supported, just drawing _3D here, should
    * later become _IN_SCENE (and draw _3D separate) */
-  WM_gizmomap_draw(region->gizmo_map, draw_ctx->evil_C, WM_GIZMOMAP_DRAWSTEP_3D);
+  WM_gizmomap_draw(region->runtime->gizmo_map, draw_ctx->evil_C, WM_GIZMOMAP_DRAWSTEP_3D);
 }
 
 void DRW_draw_gizmo_2d()
@@ -296,7 +300,7 @@ void DRW_draw_gizmo_2d()
   const DRWContextState *draw_ctx = DRW_context_state_get();
   ARegion *region = draw_ctx->region;
 
-  WM_gizmomap_draw(region->gizmo_map, draw_ctx->evil_C, WM_GIZMOMAP_DRAWSTEP_2D);
+  WM_gizmomap_draw(region->runtime->gizmo_map, draw_ctx->evil_C, WM_GIZMOMAP_DRAWSTEP_2D);
 
   GPU_depth_mask(true);
 }

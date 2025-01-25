@@ -51,10 +51,8 @@
 
 #include "BLF_api.hh"
 
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
@@ -62,7 +60,9 @@
 
 #include "AS_asset_library.hh"
 
-#include "BKE_addon.h"
+#ifndef WITH_CYCLES
+#  include "BKE_addon.h"
+#endif
 #include "BKE_appdir.hh"
 #include "BKE_autoexec.hh"
 #include "BKE_blender.hh"
@@ -816,7 +816,9 @@ static void wm_file_read_post(bContext *C,
 
     /* After load post, so for example the driver namespace can be filled
      * before evaluating the depsgraph. */
-    wm_event_do_depsgraph(C, true);
+    if (!G.background || (G.fileflags & G_BACKGROUND_NO_DEPSGRAPH) == 0) {
+      wm_event_do_depsgraph(C, true);
+    }
 
     ED_editors_init(C);
 
@@ -2315,8 +2317,9 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain)
 
   char filepath[FILE_MAX];
   wm_autosave_location(filepath);
-  /* Save as regular blend file with recovery information. */
-  const int fileflags = (G.fileflags & ~G_FILE_COMPRESS) | G_FILE_RECOVER_WRITE;
+  /* Save as regular blend file with recovery information and always compress them, see: !132685.
+   */
+  const int fileflags = G.fileflags | G_FILE_RECOVER_WRITE | G_FILE_COMPRESS;
 
   /* Error reporting into console. */
   BlendFileWriteParams params{};
@@ -2548,7 +2551,8 @@ static int wm_homefile_write_invoke(bContext *C, wmOperator *op, const wmEvent *
   char display_name[FILE_MAX];
   BLI_path_to_display_name(display_name, sizeof(display_name), IFACE_(U.app_template));
   std::string message = fmt::format(
-      IFACE_("Make the current file the default \"{}\" startup file."), IFACE_(display_name));
+      fmt::runtime(IFACE_("Make the current file the default \"{}\" startup file.")),
+      IFACE_(display_name));
   return WM_operator_confirm_ex(C,
                                 op,
                                 IFACE_("Overwrite Template Startup File"),
@@ -2659,8 +2663,8 @@ static void wm_userpref_update_when_changed(bContext *C,
                                             UserDef *userdef_prev,
                                             UserDef *userdef_curr)
 {
-  PointerRNA ptr_a = RNA_pointer_create(nullptr, &RNA_Preferences, userdef_prev);
-  PointerRNA ptr_b = RNA_pointer_create(nullptr, &RNA_Preferences, userdef_curr);
+  PointerRNA ptr_a = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, userdef_prev);
+  PointerRNA ptr_b = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, userdef_curr);
   const bool is_dirty = userdef_curr->runtime.is_dirty;
 
   rna_struct_update_when_changed(C, bmain, &ptr_a, &ptr_b);
@@ -2734,7 +2738,8 @@ static int wm_userpref_read_invoke(bContext *C, wmOperator *op, const wmEvent * 
   if (template_only) {
     char display_name[FILE_MAX];
     BLI_path_to_display_name(display_name, sizeof(display_name), IFACE_(U.app_template));
-    title = fmt::format(IFACE_("Load Factory \"{}\" Preferences."), IFACE_(display_name));
+    title = fmt::format(fmt::runtime(IFACE_("Load Factory \"{}\" Preferences.")),
+                        IFACE_(display_name));
   }
   else {
     title = IFACE_("Load Factory Blender Preferences");
@@ -2993,7 +2998,7 @@ static int wm_read_factory_settings_invoke(bContext *C, wmOperator *op, const wm
   if (template_only) {
     char display_name[FILE_MAX];
     BLI_path_to_display_name(display_name, sizeof(display_name), IFACE_(U.app_template));
-    title = fmt::format(IFACE_("Load Factory \"{}\" Startup File and Preferences"),
+    title = fmt::format(fmt::runtime(IFACE_("Load Factory \"{}\" Startup File and Preferences")),
                         IFACE_(display_name));
   }
   else {
@@ -3290,7 +3295,7 @@ static void wm_open_mainfile_ui(bContext * /*C*/, wmOperator *op)
   uiLayout *layout = op->layout;
   const char *autoexec_text;
 
-  uiItemR(layout, op->ptr, "load_ui", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "load_ui", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayout *col = uiLayoutColumn(layout, false);
   if (file_info->is_untrusted) {
@@ -3554,7 +3559,7 @@ static void wm_filepath_default(const Main *bmain, char *filepath)
 {
   if (bmain->filepath[0] == '\0') {
     char filename_untitled[FILE_MAXFILE];
-    SNPRINTF(filename_untitled, "%s.blend", DATA_("untitled"));
+    SNPRINTF(filename_untitled, "%s.blend", DATA_("Untitled"));
     BLI_path_filename_ensure(filepath, FILE_MAX, filename_untitled);
   }
 }
@@ -3918,7 +3923,7 @@ static int wm_clear_recent_files_exec(bContext * /*C*/, wmOperator *op)
   else if (include == CLEAR_RECENT_MISSING) {
     LISTBASE_FOREACH_MUTABLE (RecentFile *, recent, &G.recent_files) {
       if (!BLI_exists(recent->filepath)) {
-        BLI_freelinkN(&G.recent_files, recent);
+        wm_history_file_free(recent);
       }
     }
   }
@@ -3935,7 +3940,7 @@ static void wm_clear_recent_files_ui(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropDecorate(layout, false);
 
   uiItemS(layout);
-  uiItemR(layout, op->ptr, "remove", UI_ITEM_R_TOGGLE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "remove", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   uiItemS(layout);
 }
 
@@ -4018,28 +4023,39 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_emboss_set(block, UI_EMBOSS);
 
-  uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
+  const char *title = RPT_(
+      "For security reasons, automatic execution of Python scripts "
+      "in this file was disabled:");
+  const char *message = RPT_("This may lead to unexpected behavior");
+  const char *checkbox_text = RPT_("Permanently allow execution of scripts");
+
+  /* Measure strings to find the longest. */
+  const uiStyle *style = UI_style_get_dpi();
+  UI_fontstyle_set(&style->widget);
+  int text_width = int(BLF_width(style->widget.uifont_id, title, BLF_DRAW_STR_DUMMY_MAX));
+  text_width = std::max(text_width,
+                        int(BLF_width(style->widget.uifont_id, message, BLF_DRAW_STR_DUMMY_MAX)));
+  text_width = std::max(
+      text_width,
+      int(BLF_width(style->widget.uifont_id, checkbox_text, BLF_DRAW_STR_DUMMY_MAX) +
+          (UI_SCALE_FAC * 25.0f)));
+
+  const int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
+                                    text_width + int(style->columnspace * 2.5));
+  const short icon_size = 64 * UI_SCALE_FAC;
+  uiLayout *layout = uiItemsAlertBox(
+      block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
 
   /* Title and explanation text. */
   uiLayout *col = uiLayoutColumn(layout, true);
-  uiItemL_ex(col,
-             RPT_("For security reasons, automatic execution of Python scripts "
-                  "in this file was disabled:"),
-             ICON_NONE,
-             true,
-             false);
+  uiItemL_ex(col, title, ICON_NONE, true, false);
   uiItemL_ex(col, G.autoexec_fail, ICON_NONE, false, true);
-  uiItemL(col, RPT_("This may lead to unexpected behavior"), ICON_NONE);
+  uiItemL(col, message, ICON_NONE);
 
   uiItemS(layout);
 
-  PointerRNA pref_ptr = RNA_pointer_create(nullptr, &RNA_PreferencesFilePaths, &U);
-  uiItemR(layout,
-          &pref_ptr,
-          "use_scripts_auto_execute",
-          UI_ITEM_NONE,
-          RPT_("Permanently allow execution of scripts"),
-          ICON_NONE);
+  PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesFilePaths, &U);
+  uiItemR(layout, &pref_ptr, "use_scripts_auto_execute", UI_ITEM_NONE, checkbox_text, ICON_NONE);
 
   uiItemS_ex(layout, 3.0f);
 
@@ -4352,7 +4368,7 @@ static uiBlock *block_create_save_file_overwrite_dialog(bContext *C, ARegion *re
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
-  uiLayout *layout = uiItemsAlertBox(block, 34, ALERT_ICON_WARNING);
+  uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_WARNING);
 
   /* Title. */
   if (bmain->has_forward_compatibility_issues) {
@@ -4387,7 +4403,7 @@ static uiBlock *block_create_save_file_overwrite_dialog(bContext *C, ARegion *re
     BLI_path_split_file_part(blendfile_path, filename, sizeof(filename));
   }
   else {
-    SNPRINTF(filename, "%s.blend", DATA_("untitled"));
+    SNPRINTF(filename, "%s.blend", DATA_("Untitled"));
     /* Since this dialog should only be shown when re-saving an existing file, current filepath
      * should never be empty. */
     BLI_assert_unreachable();
@@ -4606,7 +4622,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
     BLI_path_split_file_part(blendfile_path, filename, sizeof(filename));
   }
   else {
-    SNPRINTF(filename, "%s.blend", DATA_("untitled"));
+    SNPRINTF(filename, "%s.blend", DATA_("Untitled"));
   }
   uiItemL(layout, filename, ICON_NONE);
 

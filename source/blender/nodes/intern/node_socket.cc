@@ -24,6 +24,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_update.hh"
@@ -328,7 +329,7 @@ static const char *get_current_socket_identifier_for_future_socket(
     const bNodeSocket &socket,
     const Span<const SocketDeclaration *> socket_decls)
 {
-  switch (node.type) {
+  switch (node.type_legacy) {
     case FN_NODE_RANDOM_VALUE: {
       return get_identifier_from_decl({"Min", "Max", "Value"}, socket, socket_decls);
     }
@@ -560,7 +561,7 @@ void node_verify_sockets(bNodeTree *ntree, bNode *node, bool do_id_user)
     if (ntype->inputs && ntype->inputs[0].type >= 0) {
       verify_socket_template_list(ntree, node, SOCK_IN, &node->inputs, ntype->inputs);
     }
-    if (ntype->outputs && ntype->outputs[0].type >= 0 && node->type != CMP_NODE_R_LAYERS) {
+    if (ntype->outputs && ntype->outputs[0].type >= 0 && node->type_legacy != CMP_NODE_R_LAYERS) {
       verify_socket_template_list(ntree, node, SOCK_OUT, &node->outputs, ntype->outputs);
     }
   }
@@ -825,7 +826,7 @@ static void standard_node_socket_interface_init_socket(
     const bNodeTreeInterfaceSocket *interface_socket,
     bNode * /*node*/,
     bNodeSocket *sock,
-    const char * /*data_path*/)
+    StringRefNull /*data_path*/)
 {
   /* initialize the type value */
   sock->type = sock->typeinfo->type;
@@ -849,28 +850,29 @@ void ED_init_standard_node_socket_type(bke::bNodeSocketType *);
 
 static bke::bNodeSocketType *make_standard_socket_type(int type, int subtype)
 {
-  const char *socket_idname = bke::node_static_socket_type(type, subtype);
-  const char *interface_idname = bke::node_static_socket_interface_type_new(type, subtype);
-  const char *socket_label = bke::node_static_socket_label(type, subtype);
-  const char *socket_subtype_label = blender::bke::node_socket_sub_type_label(subtype);
+  const StringRefNull socket_idname = *bke::node_static_socket_type(type, subtype);
+  const StringRefNull interface_idname = *bke::node_static_socket_interface_type_new(type,
+                                                                                     subtype);
+  const StringRefNull socket_label = *bke::node_static_socket_label(type, subtype);
+  const StringRefNull socket_subtype_label = blender::bke::node_socket_sub_type_label(subtype);
   bke::bNodeSocketType *stype;
   StructRNA *srna;
 
-  stype = MEM_cnew<bke::bNodeSocketType>("node socket C type");
-  stype->free_self = (void (*)(bke::bNodeSocketType *stype))MEM_freeN;
-  STRNCPY(stype->idname, socket_idname);
-  STRNCPY(stype->label, socket_label);
-  STRNCPY(stype->subtype_label, socket_subtype_label);
+  stype = MEM_new<bke::bNodeSocketType>(__func__);
+  stype->free_self = [](bke::bNodeSocketType *type) { MEM_delete(type); };
+  stype->idname = socket_idname;
+  stype->label = socket_label;
+  stype->subtype_label = socket_subtype_label;
 
   /* set the RNA type
    * uses the exact same identifier as the socket type idname */
-  srna = stype->ext_socket.srna = RNA_struct_find(socket_idname);
+  srna = stype->ext_socket.srna = RNA_struct_find(socket_idname.c_str());
   BLI_assert(srna != nullptr);
   /* associate the RNA type with the socket type */
   RNA_struct_blender_type_set(srna, stype);
 
   /* set the interface RNA type */
-  srna = stype->ext_interface.srna = RNA_struct_find(interface_idname);
+  srna = stype->ext_interface.srna = RNA_struct_find(interface_idname.c_str());
   BLI_assert(srna != nullptr);
   /* associate the RNA type with the socket type */
   RNA_struct_blender_type_set(srna, stype);
@@ -900,9 +902,9 @@ static bke::bNodeSocketType *make_socket_type_virtual()
   bke::bNodeSocketType *stype;
   StructRNA *srna;
 
-  stype = MEM_cnew<bke::bNodeSocketType>("node socket C type");
-  stype->free_self = (void (*)(bke::bNodeSocketType *stype))MEM_freeN;
-  STRNCPY(stype->idname, socket_idname);
+  stype = MEM_new<bke::bNodeSocketType>(__func__);
+  stype->free_self = [](bke::bNodeSocketType *type) { MEM_delete(type); };
+  stype->idname = socket_idname;
 
   /* set the RNA type
    * uses the exact same identifier as the socket type idname */

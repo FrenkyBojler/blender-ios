@@ -7,18 +7,17 @@
  */
 
 #include "BLI_array.hh"
-#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_lasso_2d.hh"
-#include "BLI_math_geom.h"
 #include "BLI_rect.h"
 #include "BLI_task.hh"
+
+#include "DNA_brush_types.h"
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 #include "BKE_paint.hh"
-#include "BKE_report.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -26,7 +25,6 @@
 #include "ED_view3d.hh"
 
 #include "RNA_access.hh"
-#include "RNA_define.hh"
 
 #include "WM_api.hh"
 

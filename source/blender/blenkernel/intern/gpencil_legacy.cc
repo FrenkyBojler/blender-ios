@@ -17,22 +17,21 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
 
-#include "IMB_interp.hh"
-
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
+#include "DNA_brush_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_space_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
@@ -44,16 +43,16 @@
 #include "BKE_gpencil_legacy.h"
 #include "BKE_icons.h"
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_paint.hh"
 
-#include "BLI_math_color.h"
+#include "DEG_depsgraph.hh"
 
-#include "DEG_depsgraph_query.hh"
+#include "BLI_math_color.h"
 
 #include "BLO_read_write.hh"
 
@@ -144,7 +143,6 @@ static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id
   gpd->runtime.sbuffer = nullptr;
   gpd->runtime.sbuffer_used = 0;
   gpd->runtime.sbuffer_size = 0;
-  gpd->runtime.tot_cp_points = 0;
 
   /* write gpd data block to file */
   BLO_write_id_struct(writer, bGPdata, id_address, &gpd->id);
@@ -199,7 +197,6 @@ void BKE_gpencil_blend_read_data(BlendDataReader *reader, bGPdata *gpd)
   gpd->runtime.sbuffer = nullptr;
   gpd->runtime.sbuffer_used = 0;
   gpd->runtime.sbuffer_size = 0;
-  gpd->runtime.tot_cp_points = 0;
 
   /* Relink palettes (old palettes deprecated, only to convert old files). */
   BLO_read_struct_list(reader, bGPDpalette, &gpd->palettes);

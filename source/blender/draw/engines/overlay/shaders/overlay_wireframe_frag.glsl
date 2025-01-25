@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "common_view_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
+#include "overlay_common_lib.glsl"
 #include "select_lib.glsl"
 
 void main()
@@ -32,7 +32,7 @@ void main()
   fragColor = vec4(mix(final_front_col, rim_col, saturate(fac)), 1.0);
   fragColor *= fragColor;
 
-#elif !defined(SELECT_EDGES)
+#elif !defined(SELECT_ENABLE)
   lineOutput = pack_line_data(gl_FragCoord.xy, edgeStart, edgePos);
   fragColor = finalColor;
 
