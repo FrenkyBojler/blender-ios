@@ -34,7 +34,10 @@ enum eWM_EventHandlerType {
   WM_HANDLER_TYPE_KEYMAP,
 };
 
-using EventHandlerPoll = bool (*)(const ARegion *region, const wmEvent *event);
+using EventHandlerPoll = bool (*)(const wmWindow *win,
+                                  const ScrArea *area,
+                                  const ARegion *region,
+                                  const wmEvent *event);
 
 struct wmEventHandler {
   wmEventHandler *next, *prev;
@@ -93,7 +96,11 @@ struct wmEventHandler_UI {
   struct {
     ScrArea *area;
     ARegion *region;
-    ARegion *menu;
+    /**
+     * Temporary, floating regions stored in #Screen::regionbase.
+     * Used for menus, popovers & dialogs.
+     */
+    ARegion *region_popup;
   } context;
 };
 

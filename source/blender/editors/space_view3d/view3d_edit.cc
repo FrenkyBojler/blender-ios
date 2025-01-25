@@ -14,13 +14,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_camera.h"
 #include "BKE_lib_id.hh"
@@ -40,6 +40,7 @@
 #include "ED_screen.hh"
 #include "ED_transform.hh"
 #include "ED_transform_snap_object_context.hh"
+#include "ED_undo.hh"
 
 #include "view3d_intern.hh" /* own include */
 
@@ -270,8 +271,8 @@ static int render_border_exec(bContext *C, wmOperator *op)
   /* calculate range */
 
   if (rv3d->persp == RV3D_CAMOB) {
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, &vb, false);
+    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &vb);
   }
   else {
     vb.xmin = 0;
@@ -322,6 +323,7 @@ static int render_border_exec(bContext *C, wmOperator *op)
 
   if (rv3d->persp == RV3D_CAMOB) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+    ED_undo_push(C, op->type->name);
   }
   return OPERATOR_FINISHED;
 }
@@ -342,7 +344,9 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
   ot->poll = ED_operator_region_view3d_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* No undo, edited data is usually not undo-able, otherwise (camera view),
+   * a manual undo push is done. */
+  ot->flag = OPTYPE_REGISTER;
 
   /* properties */
   WM_operator_properties_border(ot);
@@ -354,7 +358,7 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
 /** \name Clear Render Border Operator
  * \{ */
 
-static int clear_render_border_exec(bContext *C, wmOperator * /*op*/)
+static int clear_render_border_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d = CTX_wm_view3d(C);
   RegionView3D *rv3d = ED_view3d_context_rv3d(C);
@@ -382,6 +386,7 @@ static int clear_render_border_exec(bContext *C, wmOperator * /*op*/)
 
   if (rv3d->persp == RV3D_CAMOB) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+    ED_undo_push(C, op->type->name);
   }
   return OPERATOR_FINISHED;
 }
@@ -398,7 +403,9 @@ void VIEW3D_OT_clear_render_border(wmOperatorType *ot)
   ot->poll = ED_operator_view3d_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* No undo, edited data is usually not undo-able, otherwise (camera view),
+   * a manual undo push is done. */
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -818,7 +825,7 @@ void VIEW3D_OT_clip_border(wmOperatorType *ot)
 void ED_view3d_cursor3d_position(bContext *C,
                                  const int mval[2],
                                  const bool use_depth,
-                                 float cursor_co[3])
+                                 float r_cursor_co[3])
 {
   ARegion *region = CTX_wm_region(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -832,13 +839,13 @@ void ED_view3d_cursor3d_position(bContext *C,
     return;
   }
 
-  ED_view3d_calc_zfac_ex(rv3d, cursor_co, &flip);
+  ED_view3d_calc_zfac_ex(rv3d, r_cursor_co, &flip);
 
   /* Reset the depth based on the view offset (we _know_ the offset is in front of us). */
   if (flip) {
-    negate_v3_v3(cursor_co, rv3d->ofs);
+    negate_v3_v3(r_cursor_co, rv3d->ofs);
     /* re initialize, no need to check flip again */
-    ED_view3d_calc_zfac(rv3d, cursor_co);
+    ED_view3d_calc_zfac(rv3d, r_cursor_co);
   }
 
   if (use_depth) { /* maybe this should be accessed some other way */
@@ -847,17 +854,17 @@ void ED_view3d_cursor3d_position(bContext *C,
     view3d_operator_needs_opengl(C);
 
     /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
-    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, nullptr);
+    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_ALL, false, nullptr);
 
-    if (ED_view3d_autodist(region, v3d, mval, cursor_co, nullptr)) {
+    if (ED_view3d_autodist(region, v3d, mval, r_cursor_co, nullptr)) {
       depth_used = true;
     }
   }
 
   if (depth_used == false) {
     float depth_pt[3];
-    copy_v3_v3(depth_pt, cursor_co);
-    ED_view3d_win_to_3d_int(v3d, region, depth_pt, mval, cursor_co);
+    copy_v3_v3(depth_pt, r_cursor_co);
+    ED_view3d_win_to_3d_int(v3d, region, depth_pt, mval, r_cursor_co);
   }
 }
 
@@ -865,8 +872,8 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
                                           const int mval[2],
                                           const bool use_depth,
                                           enum eV3DCursorOrient orientation,
-                                          float cursor_co[3],
-                                          float cursor_quat[4])
+                                          float r_cursor_co[3],
+                                          float r_cursor_quat[4])
 {
   Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -878,23 +885,23 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
     return;
   }
 
-  ED_view3d_cursor3d_position(C, mval, use_depth, cursor_co);
+  ED_view3d_cursor3d_position(C, mval, use_depth, r_cursor_co);
 
   if (orientation == V3D_CURSOR_ORIENT_NONE) {
     /* pass */
   }
   else if (orientation == V3D_CURSOR_ORIENT_VIEW) {
-    copy_qt_qt(cursor_quat, rv3d->viewquat);
-    cursor_quat[0] *= -1.0f;
+    copy_qt_qt(r_cursor_quat, rv3d->viewquat);
+    r_cursor_quat[0] *= -1.0f;
   }
   else if (orientation == V3D_CURSOR_ORIENT_XFORM) {
     float mat[3][3];
     ED_transform_calc_orientation_from_type(C, mat);
-    mat3_to_quat(cursor_quat, mat);
+    mat3_to_quat(r_cursor_quat, mat);
   }
   else if (orientation == V3D_CURSOR_ORIENT_GEOM) {
-    copy_qt_qt(cursor_quat, rv3d->viewquat);
-    cursor_quat[0] *= -1.0f;
+    copy_qt_qt(r_cursor_quat, rv3d->viewquat);
+    r_cursor_quat[0] *= -1.0f;
 
     const float mval_fl[2] = {float(mval[0]), float(mval[1])};
     float ray_no[3];
@@ -908,7 +915,7 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
     SnapObjectParams params{};
     params.snap_target_select = SCE_SNAP_TARGET_ALL;
     params.edit_mode_type = SNAP_GEOM_FINAL;
-    params.use_occlusion_test = true;
+    params.occlusion_test = SNAP_OCCLUSION_AS_SEEM;
     if (ED_transform_snap_object_project_view3d_ex(snap_context,
                                                    CTX_data_ensure_evaluated_depsgraph(C),
                                                    region,
@@ -927,16 +934,16 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
                                                    nullptr) != 0)
     {
       if (use_depth) {
-        copy_v3_v3(cursor_co, ray_co);
+        copy_v3_v3(r_cursor_co, ray_co);
       }
 
       /* Math normal (Z). */
       {
         float tquat[4];
         float z_src[3] = {0, 0, 1};
-        mul_qt_v3(cursor_quat, z_src);
+        mul_qt_v3(r_cursor_quat, z_src);
         rotation_between_vecs_to_quat(tquat, z_src, ray_no);
-        mul_qt_qtqt(cursor_quat, tquat, cursor_quat);
+        mul_qt_qtqt(r_cursor_quat, tquat, r_cursor_quat);
       }
 
       /* Match object matrix (X). */
@@ -961,7 +968,7 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
         for (int axis = 0; axis < 2; axis++) {
           float tan_src[3] = {0, 0, 0};
           tan_src[axis] = 1.0f;
-          mul_qt_v3(cursor_quat, tan_src);
+          mul_qt_v3(r_cursor_quat, tan_src);
 
           for (int axis_sign = 0; axis_sign < 2; axis_sign++) {
             float tquat_test[4];
@@ -974,7 +981,7 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
             negate_v3(tan_src);
           }
         }
-        mul_qt_qtqt(cursor_quat, tquat_best, cursor_quat);
+        mul_qt_qtqt(r_cursor_quat, tquat_best, r_cursor_quat);
       }
     }
     ED_transform_snap_object_context_destroy(snap_context);
@@ -995,23 +1002,23 @@ void ED_view3d_cursor3d_update(bContext *C,
   View3DCursor cursor_prev = *cursor_curr;
 
   {
-    float quat[4], quat_prev[4];
-    BKE_scene_cursor_rot_to_quat(cursor_curr, quat);
-    copy_qt_qt(quat_prev, quat);
+    blender::math::Quaternion quat, quat_prev;
+    quat = cursor_curr->rotation();
+    copy_qt_qt(&quat_prev.w, &quat.w);
     ED_view3d_cursor3d_position_rotation(
-        C, mval, use_depth, orientation, cursor_curr->location, quat);
+        C, mval, use_depth, orientation, cursor_curr->location, &quat.w);
 
-    if (!equals_v4v4(quat_prev, quat)) {
+    if (!equals_v4v4(&quat_prev.w, &quat.w)) {
       if ((cursor_curr->rotation_mode == ROT_MODE_AXISANGLE) && RV3D_VIEW_IS_AXIS(rv3d->view)) {
         float tmat[3][3], cmat[3][3];
-        quat_to_mat3(tmat, quat);
+        quat_to_mat3(tmat, &quat.w);
         negate_v3_v3(cursor_curr->rotation_axis, tmat[2]);
         axis_angle_to_mat3(cmat, cursor_curr->rotation_axis, 0.0f);
         cursor_curr->rotation_angle = angle_signed_on_axis_v3v3_v3(
             cmat[0], tmat[0], cursor_curr->rotation_axis);
       }
       else {
-        BKE_scene_cursor_quat_to_rot(cursor_curr, quat, true);
+        cursor_curr->set_rotation(quat, true);
       }
     }
   }
@@ -1047,8 +1054,9 @@ void ED_view3d_cursor3d_update(bContext *C,
 
   {
     wmMsgBus *mbus = CTX_wm_message_bus(C);
-    wmMsgParams_RNA msg_key_params = {{nullptr}};
-    msg_key_params.ptr = RNA_pointer_create(&scene->id, &RNA_View3DCursor, &scene->cursor);
+    wmMsgParams_RNA msg_key_params = {{}};
+    msg_key_params.ptr = RNA_pointer_create_discrete(
+        &scene->id, &RNA_View3DCursor, &scene->cursor);
     WM_msg_publish_rna_params(mbus, &msg_key_params);
   }
 

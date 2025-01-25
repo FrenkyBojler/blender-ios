@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from bpy.types import Header, Menu, Panel
+from bpy.app.translations import contexts as i18n_contexts
 from bl_ui.space_dopesheet import (
     DopesheetFilterPopoverBase,
     dopesheet_filter,
@@ -153,6 +154,10 @@ class GRAPH_MT_view(Menu):
 
         layout.operator("graph.view_selected")
         layout.operator("graph.view_all")
+        if context.scene.use_preview_range:
+            layout.operator("anim.scene_range_frame", text="Frame Preview Range")
+        else:
+            layout.operator("anim.scene_range_frame", text="Frame Scene Range")
         layout.operator("graph.view_frame")
         layout.separator()
 
@@ -205,9 +210,15 @@ class GRAPH_MT_select(Menu):
         props.axis_range = True
         props = layout.operator("graph.select_box", text="Box Select (Include Handles)")
         props.include_handles = True
-
         layout.operator("graph.select_circle")
         layout.operator_menu_enum("graph.select_lasso", "mode")
+
+        layout.separator()
+        layout.operator("graph.select_more", text="More")
+        layout.operator("graph.select_less", text="Less")
+
+        layout.separator()
+        layout.operator("graph.select_linked")
 
         layout.separator()
         layout.operator("graph.select_column", text="Columns on Selected Keys").mode = 'KEYS'
@@ -233,13 +244,6 @@ class GRAPH_MT_select(Menu):
         props.left_handle_action = 'DESELECT'
         props.right_handle_action = 'DESELECT'
         props.key_action = 'SELECT'
-
-        layout.separator()
-        layout.operator("graph.select_more")
-        layout.operator("graph.select_less")
-
-        layout.separator()
-        layout.operator("graph.select_linked")
 
 
 class GRAPH_MT_marker(Menu):
@@ -331,6 +335,7 @@ class GRAPH_MT_key_density(Menu):
 
 class GRAPH_MT_key_blending(Menu):
     bl_label = "Blend"
+    bl_translation_context = i18n_contexts.operator_default
 
     def draw(self, _context):
         layout = self.layout
@@ -351,6 +356,7 @@ class GRAPH_MT_key_blending(Menu):
 
 class GRAPH_MT_key_smoothing(Menu):
     bl_label = "Smooth"
+    bl_translation_context = i18n_contexts.operator_default
 
     def draw(self, _context):
         layout = self.layout
@@ -426,13 +432,17 @@ class GRAPH_MT_key_snap(Menu):
 class GRAPH_MT_view_pie(Menu):
     bl_label = "View"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
 
         pie = layout.menu_pie()
         pie.operator("graph.view_all")
         pie.operator("graph.view_selected", icon='ZOOM_SELECTED')
         pie.operator("graph.view_frame")
+        if context.scene.use_preview_range:
+            pie.operator("anim.scene_range_frame", text="Frame Preview Range")
+        else:
+            pie.operator("anim.scene_range_frame", text="Frame Scene Range")
 
 
 class GRAPH_MT_delete(Menu):

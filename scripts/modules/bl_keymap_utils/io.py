@@ -34,7 +34,7 @@ def repr_f32(f):
         f_test = round(f, i)
         f_test_round = round_float_32(f_test)
         if f_test_round == f_round:
-            return "%.*f" % (i, f_test)
+            return "{:.{:d}f}".format(f_test, i)
     return f_str
 
 
@@ -242,7 +242,7 @@ def _init_properties_from_data(base_props, base_value):
                 setattr(base_props, attr, value)
             except AttributeError:
                 print(f"Warning: property '{attr}' not found in item '{base_props.__class__.__name__}'")
-            except BaseException as ex:
+            except Exception as ex:
                 print(f"Warning: {ex!r}")
 
 

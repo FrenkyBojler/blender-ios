@@ -10,11 +10,16 @@
 
 #pragma once
 
+#include "BLI_span.hh"
+
 #include "GPU_primitive.hh"
 
 #define GPU_TRACK_INDEX_RANGE 1
 
 namespace blender::gpu {
+
+/** Value for invisible elements in a #GPU_PRIM_POINTS index buffer. */
+constexpr uint32_t RESTART_INDEX = 0xFFFFFFFF;
 
 enum GPUIndexBufType {
   GPU_INDEX_U16,
@@ -84,6 +89,10 @@ class IndexBuf {
   {
     return index_base_;
   }
+  bool is_32bit() const
+  {
+    return index_type_ == GPU_INDEX_U32;
+  }
   /* Return size in byte of the drawable data buffer range. Actual buffer size might be bigger. */
   size_t size_get() const
   {
@@ -123,6 +132,16 @@ inline int indices_per_primitive(GPUPrimType prim_type)
       return 3;
     case GPU_PRIM_LINES_ADJ:
       return 4;
+    case GPU_PRIM_TRIS_ADJ:
+      return 6;
+    /** IMPORTANT: These last two expects no restart primitive.
+     * Asserting for this would be too slow. Just don't be stupid.
+     * This is needed for polylines but should be deprecated.
+     * See GPU_batch_draw_expanded_parameter_get */
+    case GPU_PRIM_LINE_STRIP:
+      return 1; /* Minus one for the whole length. */
+    case GPU_PRIM_LINE_LOOP:
+      return 1;
     default:
       return -1;
   }
@@ -154,6 +173,8 @@ blender::gpu::IndexBuf *GPU_indexbuf_build_on_device(uint index_len);
 
 void GPU_indexbuf_init_build_on_device(blender::gpu::IndexBuf *elem, uint index_len);
 
+blender::MutableSpan<uint32_t> GPU_indexbuf_get_data(GPUIndexBufBuilder *);
+
 /*
  * Thread safe.
  *
@@ -180,7 +201,29 @@ void GPU_indexbuf_set_tri_restart(GPUIndexBufBuilder *builder, uint elem);
 
 blender::gpu::IndexBuf *GPU_indexbuf_build(GPUIndexBufBuilder *);
 void GPU_indexbuf_build_in_place(GPUIndexBufBuilder *, blender::gpu::IndexBuf *);
+void GPU_indexbuf_build_in_place_ex(GPUIndexBufBuilder *builder,
+                                    uint index_min,
+                                    uint index_max,
+                                    bool uses_restart_indices,
+                                    blender::gpu::IndexBuf *elem);
 
+/**
+ * Fill an IBO by uploading the referenced data directly to the GPU, bypassing the separate storage
+ * in the IBO. This should be used whenever the equivalent indices already exist in a contiguous
+ * array on the CPU.
+ *
+ * \todo The optimization to avoid the local copy currently isn't implemented.
+ */
+void GPU_indexbuf_build_in_place_from_memory(blender::gpu::IndexBuf *ibo,
+                                             GPUPrimType prim_type,
+                                             const uint32_t *data,
+                                             int32_t data_len,
+                                             int32_t index_min,
+                                             int32_t index_max,
+                                             bool uses_restart_indices);
+
+/** NOTE:
+ * Subranges are not taken into account, the whole buffer will be bound without any offset. */
 void GPU_indexbuf_bind_as_ssbo(blender::gpu::IndexBuf *elem, int binding);
 
 blender::gpu::IndexBuf *GPU_indexbuf_build_curves_on_device(GPUPrimType prim_type,

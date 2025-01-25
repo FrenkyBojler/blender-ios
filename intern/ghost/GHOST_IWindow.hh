@@ -139,7 +139,7 @@ class GHOST_IWindow {
   virtual void clientToScreen(int32_t inX, int32_t inY, int32_t &outX, int32_t &outY) const = 0;
 
   /**
-   * Tells if the ongoing drag'n'drop object can be accepted upon mouse drop
+   * Tells if the ongoing drag & drop object can be accepted upon mouse drop
    */
   virtual void setAcceptDragOperation(bool canAccept) = 0;
 
@@ -364,7 +364,5 @@ class GHOST_IWindow {
   virtual void endIME() = 0;
 #endif /* WITH_INPUT_IME */
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_IWindow")
-#endif
 };

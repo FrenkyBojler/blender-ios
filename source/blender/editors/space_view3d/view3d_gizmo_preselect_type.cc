@@ -12,8 +12,6 @@
  * \note This is a slight misuse of gizmo's, since clicking performs no action.
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_mesh_types.h"
 #include "DNA_view3d_types.h"
 
@@ -267,12 +265,15 @@ static int gizmo_preselect_elem_test_select(bContext *C, wmGizmo *gz, const int 
     ED_region_tag_redraw_editor_overlays(region);
   }
 
-  // return best.eed ? 0 : -1;
-  return -1;
+  return best.ele ? 0 : -1;
 }
 
 static void gizmo_preselect_elem_setup(wmGizmo *gz)
 {
+  /* Needed so it's possible to "highlight" the gizmo without having the
+   * tweak operator attempting to handle it's input. */
+  gz->flag |= WM_GIZMO_HIDDEN_KEYMAP;
+
   MeshElemGizmo3D *gz_ele = (MeshElemGizmo3D *)gz;
   if (gz_ele->psel == nullptr) {
     gz_ele->psel = EDBM_preselect_elem_create();
@@ -425,12 +426,15 @@ static int gizmo_preselect_edgering_test_select(bContext *C, wmGizmo *gz, const 
     ED_region_tag_redraw_editor_overlays(region);
   }
 
-  // return best.eed ? 0 : -1;
-  return -1;
+  return best.eed ? 0 : -1;
 }
 
 static void gizmo_preselect_edgering_setup(wmGizmo *gz)
 {
+  /* Needed so it's possible to "highlight" the gizmo without having the
+   * tweak operator attempting to handle it's input. */
+  gz->flag |= WM_GIZMO_HIDDEN_KEYMAP;
+
   MeshEdgeRingGizmo3D *gz_ring = (MeshEdgeRingGizmo3D *)gz;
   if (gz_ring->psel == nullptr) {
     gz_ring->psel = EDBM_preselect_edgering_create();

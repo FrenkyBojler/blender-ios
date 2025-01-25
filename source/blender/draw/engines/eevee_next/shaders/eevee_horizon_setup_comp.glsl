@@ -8,10 +8,14 @@
  * Dispatched as one thread for each trace resolution pixel.
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_colorspace_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_matrix_lib.glsl)
+#include "infos/eevee_tracing_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_horizon_setup)
+
+#include "draw_view_lib.glsl"
+#include "eevee_colorspace_lib.glsl"
+#include "eevee_gbuffer_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
 
 void main()
 {
@@ -53,7 +57,7 @@ void main()
   vec3 ssP_prev = drw_ndc_to_screen(project_point(uniform_buf.raytrace.radiance_persmat, P));
 
   vec4 radiance = texture(in_radiance_tx, ssP_prev.xy);
-  radiance = colorspace_brightness_clamp_max(radiance, uniform_buf.raytrace.brightness_clamp);
+  radiance = colorspace_brightness_clamp_max(radiance, uniform_buf.clamp.surface_indirect);
 
   imageStore(out_radiance_img, texel, radiance);
 }

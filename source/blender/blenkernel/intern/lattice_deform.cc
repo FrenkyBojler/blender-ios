@@ -18,7 +18,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_simd.h"
+#include "BLI_simd.hh"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
@@ -113,11 +113,12 @@ LatticeDeformData *BKE_lattice_deform_data_create(const Object *oblatt, const Ob
 
   for (w = 0, fw = lt->fw; w < lt->pntsw; w++, fw += lt->dw) {
     for (v = 0, fv = lt->fv; v < lt->pntsv; v++, fv += lt->dv) {
-      for (u = 0, fu = lt->fu; u < lt->pntsu; u++, co += 3, fp += 3, fu += lt->du) {
+      for (u = 0, fu = lt->fu; u < lt->pntsu; u++, fp += 3, fu += lt->du) {
         if (dl) {
           fp[0] = co[0] - fu;
           fp[1] = co[1] - fv;
           fp[2] = co[2] - fw;
+          co += 3;
         }
         else {
           fp[0] = bp->vec[0] - fu;
@@ -339,7 +340,7 @@ static void lattice_deform_coords_impl(const Object *ob_lattice,
                                        const char *defgrp_name,
                                        const float fac,
                                        const Mesh *me_target,
-                                       BMEditMesh *em_target)
+                                       const BMEditMesh *em_target)
 {
   LatticeDeformData *lattice_deform_data;
   const MDeformVert *dvert = nullptr;
@@ -459,7 +460,7 @@ void BKE_lattice_deform_coords_with_editmesh(const Object *ob_lattice,
                                              const short flag,
                                              const char *defgrp_name,
                                              const float fac,
-                                             BMEditMesh *em_target)
+                                             const BMEditMesh *em_target)
 {
   lattice_deform_coords_impl(ob_lattice,
                              ob_target,

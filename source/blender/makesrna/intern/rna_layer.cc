@@ -27,7 +27,7 @@
 #ifdef RNA_RUNTIME
 
 #  ifdef WITH_PYTHON
-#    include "BPY_extern.h"
+#    include "BPY_extern.hh"
 #  endif
 
 #  include "DNA_collection_types.h"
@@ -176,16 +176,16 @@ static PointerRNA rna_ViewLayer_objects_get(CollectionPropertyIterator *iter)
   return rna_pointer_inherit_refine(&iter->parent, &RNA_Object, base->object);
 }
 
-static int rna_ViewLayer_objects_selected_skip(CollectionPropertyIterator *iter, void * /*data*/)
+static bool rna_ViewLayer_objects_selected_skip(CollectionPropertyIterator *iter, void * /*data*/)
 {
   ListBaseIterator *internal = &iter->internal.listbase;
   Base *base = (Base *)internal->link;
 
   if ((base->flag & BASE_SELECTED) != 0) {
-    return 0;
+    return false;
   }
 
-  return 1;
+  return true;
 };
 
 static PointerRNA rna_ViewLayer_depsgraph_get(PointerRNA *ptr)
@@ -386,7 +386,7 @@ void rna_LayerCollection_children_begin(CollectionPropertyIterator *iter, Pointe
   rna_iterator_listbase_begin(iter, &lc->layer_collections, nullptr);
 }
 
-static int rna_LayerCollection_children_lookupint(PointerRNA *ptr, int key, PointerRNA *r_ptr)
+static bool rna_LayerCollection_children_lookupint(PointerRNA *ptr, int key, PointerRNA *r_ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
   LayerCollection *lc = (LayerCollection *)ptr->data;
@@ -398,13 +398,13 @@ static int rna_LayerCollection_children_lookupint(PointerRNA *ptr, int key, Poin
   if (!child) {
     return false;
   }
-  *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_LayerCollection, child);
+  *r_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_LayerCollection, child);
   return true;
 }
 
-static int rna_LayerCollection_children_lookupstring(PointerRNA *ptr,
-                                                     const char *key,
-                                                     PointerRNA *r_ptr)
+static bool rna_LayerCollection_children_lookupstring(PointerRNA *ptr,
+                                                      const char *key,
+                                                      PointerRNA *r_ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
   LayerCollection *lc = (LayerCollection *)ptr->data;
@@ -413,7 +413,7 @@ static int rna_LayerCollection_children_lookupstring(PointerRNA *ptr,
 
   LISTBASE_FOREACH (LayerCollection *, child, &lc->layer_collections) {
     if (STREQ(child->collection->id.name + 2, key)) {
-      *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_LayerCollection, child);
+      *r_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_LayerCollection, child);
       return true;
     }
   }
@@ -574,7 +574,10 @@ static void rna_def_object_base(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "ObjectBase", nullptr);
   RNA_def_struct_sdna(srna, "Base");
-  RNA_def_struct_ui_text(srna, "Object Base", "An object instance in a render layer");
+  RNA_def_struct_ui_text(
+      srna,
+      "Object Base",
+      "An object instance in a View Layer (currently never exposed in Python API)");
   RNA_def_struct_ui_icon(srna, ICON_OBJECT_DATA);
 
   prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);

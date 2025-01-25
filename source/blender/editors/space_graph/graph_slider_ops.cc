@@ -42,6 +42,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ANIM_fcurve.hh"
+
 #include "graph_intern.hh"
 
 /* -------------------------------------------------------------------- */
@@ -132,7 +134,7 @@ static void common_draw_status_header(bContext *C, tGraphSliderOp *gso, const ch
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
 
-    outputNumInput(&gso->num, str_ofs, &gso->scene->unit);
+    outputNumInput(&gso->num, str_ofs, gso->scene->unit);
 
     SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
   }
@@ -157,7 +159,7 @@ static void store_original_bezt_arrays(tGraphSliderOp *gso)
 
   /* Loop through filtered data and copy the curves. */
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
+    const FCurve *fcu = (const FCurve *)ale->key_data;
 
     if (fcu->bezt == nullptr) {
       /* This curve is baked, skip it. */
@@ -339,6 +341,12 @@ static int graph_slider_modal(bContext *C, wmOperator *op, const wmEvent *event)
       break;
     }
 
+    case EVT_TABKEY:
+      /* Switch between acting on different properties. If this is not handled
+       * by the caller, it's explicitly gobbled up here to avoid it being passed
+       * through via the 'default' case. */
+      break;
+
     /* When the mouse is moved, the percentage and the keyframes update. */
     case MOUSEMOVE: {
       if (has_numinput == false) {
@@ -456,7 +464,7 @@ static void decimate_draw_status(bContext *C, tGraphSliderOp *gso)
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
 
-    outputNumInput(&gso->num, str_ofs, &gso->scene->unit);
+    outputNumInput(&gso->num, str_ofs, gso->scene->unit);
 
     SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
   }
@@ -557,7 +565,9 @@ static bool decimate_poll_property(const bContext * /*C*/, wmOperator *op, const
   return true;
 }
 
-static std::string decimate_desc(bContext * /*C*/, wmOperatorType * /*ot*/, PointerRNA *ptr)
+static std::string decimate_get_description(bContext * /*C*/,
+                                            wmOperatorType * /*ot*/,
+                                            PointerRNA *ptr)
 {
 
   if (RNA_enum_get(ptr, "mode") == DECIM_ERROR) {
@@ -594,7 +604,7 @@ void GRAPH_OT_decimate(wmOperatorType *ot)
 
   /* API callbacks */
   ot->poll_property = decimate_poll_property;
-  ot->get_description = decimate_desc;
+  ot->get_description = decimate_get_description;
   ot->invoke = decimate_invoke;
   ot->modal = graph_slider_modal;
   ot->exec = decimate_exec;
@@ -616,8 +626,8 @@ void GRAPH_OT_decimate(wmOperatorType *ot)
                        1.0f / 3.0f,
                        0.0f,
                        1.0f,
-                       "Remove",
-                       "The ratio of remaining keyframes after the operation",
+                       "Factor",
+                       "The ratio of keyframes to remove",
                        0.0f,
                        1.0f);
   RNA_def_float(ot->srna,
@@ -963,7 +973,7 @@ static void ease_draw_status_header(bContext *C, wmOperator *op)
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
 
-    outputNumInput(&gso->num, str_ofs, &gso->scene->unit);
+    outputNumInput(&gso->num, str_ofs, gso->scene->unit);
 
     SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
   }
@@ -1024,6 +1034,7 @@ static int ease_modal(bContext *C, wmOperator *op, const wmEvent *event)
         ED_slider_unit_set(gso->slider, "%");
         gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
       }
+      ED_slider_property_label_set(gso->slider, RNA_property_ui_name(gso->factor_prop));
       ease_modal_update(C, op);
       break;
     }
@@ -1049,6 +1060,7 @@ static int ease_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
+  ED_slider_property_label_set(gso->slider, RNA_property_ui_name(gso->factor_prop));
 
   return invoke_result;
 }
@@ -1457,6 +1469,7 @@ static int time_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   gso->factor_prop = RNA_struct_find_property(op->ptr, "frame_offset");
   time_offset_draw_status_header(C, gso);
   ED_slider_factor_bounds_set(gso->slider, -10, 10);
+  ED_slider_increment_step_set(gso->slider, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
   ED_slider_mode_set(gso->slider, SLIDER_MODE_FLOAT);
   ED_slider_unit_set(gso->slider, "Frames");
@@ -1564,7 +1577,7 @@ static void shear_draw_status_header(bContext *C, tGraphSliderOp *gso)
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
 
-    outputNumInput(&gso->num, str_ofs, &gso->scene->unit);
+    outputNumInput(&gso->num, str_ofs, gso->scene->unit);
 
     SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
   }
@@ -1828,7 +1841,8 @@ static void gaussian_smooth_allocate_operator_data(tGraphSliderOp *gso,
                                (filter_width * 2 + 1);
       float *samples = static_cast<float *>(
           MEM_callocN(sizeof(float) * sample_count, "Smooth FCurve Op Samples"));
-      sample_fcurve_segment(fcu, left_bezt.vec[1][0] - filter_width, 1, samples, sample_count);
+      blender::animrig::sample_fcurve_segment(
+          fcu, left_bezt.vec[1][0] - filter_width, 1, samples, sample_count);
       segment_link->samples = samples;
       BLI_addtail(&segment_links, segment_link);
     }
@@ -1930,7 +1944,8 @@ static void gaussian_smooth_graph_keys(bAnimContext *ac,
                                (filter_width * 2 + 1);
       float *samples = static_cast<float *>(
           MEM_callocN(sizeof(float) * sample_count, "Smooth FCurve Op Samples"));
-      sample_fcurve_segment(fcu, left_bezt.vec[1][0] - filter_width, 1, samples, sample_count);
+      blender::animrig::sample_fcurve_segment(
+          fcu, left_bezt.vec[1][0] - filter_width, 1, samples, sample_count);
       smooth_fcurve_segment(fcu, segment, samples, factor, filter_width, kernel);
       MEM_freeN(samples);
     }
@@ -2069,7 +2084,7 @@ static void btw_smooth_allocate_operator_data(tGraphSliderOp *gso,
           &right_bezt, &left_bezt, filter_order, samples_per_frame);
       float *samples = static_cast<float *>(
           MEM_callocN(sizeof(float) * sample_count, "Btw Smooth FCurve Op Samples"));
-      sample_fcurve_segment(
+      blender::animrig::sample_fcurve_segment(
           fcu, left_bezt.vec[1][0] - filter_order, samples_per_frame, samples, sample_count);
       segment_link->samples = samples;
       segment_link->sample_count = sample_count;
@@ -2159,6 +2174,7 @@ static int btw_smooth_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   const float frame_rate = float(gso->scene->r.frs_sec) / gso->scene->r.frs_sec_base;
   const float sampling_frequency = frame_rate * samples_per_frame;
   ED_slider_factor_bounds_set(gso->slider, 0, sampling_frequency / 2);
+  ED_slider_increment_step_set(gso->slider, sampling_frequency / 20);
   ED_slider_factor_set(gso->slider, RNA_float_get(op->ptr, "cutoff_frequency"));
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_mode_set(gso->slider, SLIDER_MODE_FLOAT);
@@ -2198,7 +2214,7 @@ static void btw_smooth_graph_keys(bAnimContext *ac,
           &right_bezt, &left_bezt, filter_order, samples_per_frame);
       float *samples = static_cast<float *>(
           MEM_callocN(sizeof(float) * sample_count, "Smooth FCurve Op Samples"));
-      sample_fcurve_segment(
+      blender::animrig::sample_fcurve_segment(
           fcu, left_bezt.vec[1][0] - filter_order, samples_per_frame, samples, sample_count);
       butterworth_smooth_fcurve_segment(
           fcu, segment, samples, sample_count, factor, blend_in_out, samples_per_frame, bw_coeff);
@@ -2451,7 +2467,7 @@ static void scale_from_neighbor_draw_status_header(bContext *C, wmOperator *op)
   if (hasNumInput(&gso->num)) {
     char str_ofs[NUM_STR_REP_LEN];
 
-    outputNumInput(&gso->num, str_ofs, &gso->scene->unit);
+    outputNumInput(&gso->num, str_ofs, gso->scene->unit);
 
     SNPRINTF(status_str, "%s: %s", mode_str, str_ofs);
   }

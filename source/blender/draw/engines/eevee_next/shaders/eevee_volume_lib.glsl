@@ -2,16 +2,22 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
+#include "infos/eevee_common_info.hh"
+
+SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
+
 /**
  * The resources expected to be defined are:
  * - uniform_buf.volumes
  */
 
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_spherical_harmonics_lib.glsl)
+#include "draw_view_lib.glsl"
+#include "eevee_light_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_shadow_lib.glsl"
+#include "eevee_spherical_harmonics_lib.glsl"
 
 /* Based on Frosbite Unified Volumetric.
  * https://www.ea.com/frostbite/news/physically-based-unified-volumetric-rendering-in-frostbite */
@@ -184,21 +190,7 @@ vec3 volume_light(LightData light, const bool is_directional, LightVector lv)
 {
   float power = 1.0;
   if (!is_directional) {
-    float volume_radius_squared = light_local_data_get(light).radius_squared;
-    float light_clamp = uniform_buf.volumes.light_clamp;
-    if (light_clamp != 0.0) {
-      /* 0.0 light clamp means it's disabled. */
-      float max_power = reduce_max(light.color) * light.power[LIGHT_VOLUME];
-      if (max_power > 0.0) {
-        /* The limit of the power attenuation function when the distance to the light goes to 0 is
-         * `2 / r^2` where r is the light radius. We need to find the right radius that emits at
-         * most the volume light upper bound. Inverting the function we get: */
-        float min_radius_squared = 1.0 / (0.5 * light_clamp / max_power);
-        /* Square it here to avoid a multiplication inside the shader. */
-        volume_radius_squared = max(volume_radius_squared, min_radius_squared);
-      }
-    }
-
+    float light_radius = light_local_data_get(light).shape_radius;
     /**
      * Using "Point Light Attenuation Without Singularity" from Cem Yuksel
      * http://www.cemyuksel.com/research/pointlightattenuation/pointlightattenuation.pdf
@@ -206,14 +198,14 @@ vec3 volume_light(LightData light, const bool is_directional, LightVector lv)
      */
     float d = lv.dist;
     float d_sqr = square(d);
-    float r_sqr = volume_radius_squared;
+    float r_sqr = square(light_radius);
 
     /* Using reformulation that has better numerical precision. */
     power = 2.0 / (d_sqr + r_sqr + d * sqrt(d_sqr + r_sqr));
 
     if (light.type == LIGHT_RECT || light.type == LIGHT_ELLIPSE) {
       /* Modulate by light plane orientation / solid angle. */
-      power *= saturate(dot(light._back, lv.L));
+      power *= saturate(dot(light_z_axis(light), lv.L));
     }
   }
   return light.color * light.power[LIGHT_VOLUME] * power;

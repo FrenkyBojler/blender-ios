@@ -27,7 +27,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -43,9 +43,9 @@
 
 static bool operator_rigidbody_editable_poll(Scene *scene)
 {
-  if (scene == nullptr || ID_IS_LINKED(scene) || ID_IS_OVERRIDE_LIBRARY(scene) ||
+  if (scene == nullptr || !ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene) ||
       (scene->rigidbody_world != nullptr && scene->rigidbody_world->group != nullptr &&
-       (ID_IS_LINKED(scene->rigidbody_world->group) ||
+       (!ID_IS_EDITABLE(scene->rigidbody_world->group) ||
         ID_IS_OVERRIDE_LIBRARY(scene->rigidbody_world->group))))
   {
     return false;
@@ -93,9 +93,6 @@ bool ED_rigidbody_object_add(Main *bmain, Scene *scene, Object *ob, int type, Re
 void ED_rigidbody_object_remove(Main *bmain, Scene *scene, Object *ob)
 {
   BKE_rigidbody_remove_object(bmain, scene, ob, false);
-
-  DEG_relations_tag_update(bmain);
-  DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 }
 
 /* ********************************************** */
@@ -300,7 +297,8 @@ static int rigidbody_objects_shape_change_exec(bContext *C, wmOperator *op)
   CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     if (ob->rigidbody_object) {
       /* use RNA-system to change the property and perform all necessary changes */
-      PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_RigidBodyObject, ob->rigidbody_object);
+      PointerRNA ptr = RNA_pointer_create_discrete(
+          &ob->id, &RNA_RigidBodyObject, ob->rigidbody_object);
       RNA_enum_set(&ptr, "collision_shape", shape);
 
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
@@ -486,7 +484,8 @@ static int rigidbody_objects_calc_mass_exec(bContext *C, wmOperator *op)
       mass = volume * density;
 
       /* use RNA-system to change the property and perform all necessary changes */
-      PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_RigidBodyObject, ob->rigidbody_object);
+      PointerRNA ptr = RNA_pointer_create_discrete(
+          &ob->id, &RNA_RigidBodyObject, ob->rigidbody_object);
       RNA_float_set(&ptr, "mass", mass);
 
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);

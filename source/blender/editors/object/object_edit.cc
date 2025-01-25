@@ -9,24 +9,22 @@
 #include <cctype>
 #include <cfloat>
 #include <cmath>
-#include <cstddef> /* For `offsetof`. */
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
 #include "BLI_math_rotation.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_armature_types.h"
+#include "DNA_asset_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -34,10 +32,6 @@
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_vfont_types.h"
-#include "DNA_workspace_types.h"
-
-#include "IMB_imbuf_types.hh"
 
 #include "BKE_anim_visualization.h"
 #include "BKE_armature.hh"
@@ -49,15 +43,17 @@
 #include "BKE_editmesh.hh"
 #include "BKE_effect.h"
 #include "BKE_global.hh"
-#include "BKE_image.h"
+#include "BKE_idprop.hh"
+#include "BKE_image.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
@@ -65,15 +61,18 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_softbody.h"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_armature.hh"
+#include "ED_asset.hh"
+#include "ED_asset_menu_utils.hh"
 #include "ED_curve.hh"
 #include "ED_gpencil_legacy.hh"
+#include "ED_grease_pencil.hh"
 #include "ED_image.hh"
 #include "ED_keyframes_keylist.hh"
 #include "ED_lattice.hh"
@@ -102,6 +101,8 @@
 #include "WM_message.hh"
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
+
+#include "MOD_nodes.hh"
 
 #include "object_intern.hh" /* own include */
 
@@ -318,7 +319,7 @@ void OBJECT_OT_hide_view_clear(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_boolean(ot->srna, "select", true, "Select", "");
+  RNA_def_boolean(ot->srna, "select", true, "Select", "Select revealed objects");
 }
 
 static int object_hide_view_set_exec(bContext *C, wmOperator *op)
@@ -327,6 +328,8 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool unselected = RNA_boolean_get(op->ptr, "unselected");
   bool changed = false;
+  const bool confirm = op->flag & OP_IS_INVOKE;
+  uint hide_count = 0;
 
   /* Hide selected or unselected objects. */
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -339,6 +342,7 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
       if (base->flag & BASE_SELECTED) {
         base_select(base, BA_DESELECT);
         base->flag |= BASE_HIDDEN;
+        hide_count++;
         changed = true;
       }
     }
@@ -346,12 +350,17 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
       if (!(base->flag & BASE_SELECTED)) {
         base_select(base, BA_DESELECT);
         base->flag |= BASE_HIDDEN;
+        hide_count++;
         changed = true;
       }
     }
   }
   if (!changed) {
     return OPERATOR_CANCELLED;
+  }
+
+  if (hide_count > 0 && confirm) {
+    BKE_reportf(op->reports, RPT_INFO, "%u object(s) hidden", (hide_count));
   }
 
   BKE_view_layer_need_resync_tag(view_layer);
@@ -583,9 +592,8 @@ static bool editmode_load_free_ex(Main *bmain,
     }
 
     if (free_data) {
-      EDBM_mesh_free_data(mesh->runtime->edit_mesh);
-      MEM_freeN(mesh->runtime->edit_mesh);
-      mesh->runtime->edit_mesh = nullptr;
+      EDBM_mesh_free_data(mesh->runtime->edit_mesh.get());
+      mesh->runtime->edit_mesh.reset();
     }
     /* will be recalculated as needed. */
     {
@@ -710,6 +718,8 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
       obedit->mode &= ~OB_MODE_EDIT;
       /* Also happens when mesh is shared across multiple objects. #69834. */
       DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+      /* Leaving edit mode may modify the original object data; tag that as well. */
+      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
     }
     return true;
   }
@@ -732,6 +742,8 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
 
     /* also flush ob recalc, doesn't take much overhead, but used for particles */
     DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+    /* Leaving edit mode may modify the original object data; tag that as well. */
+    DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
 
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_OBJECT, scene);
 
@@ -786,7 +798,7 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
 {
   bool ok = false;
 
-  if (ELEM(nullptr, ob, ob->data) || ID_IS_LINKED(ob) || ID_IS_OVERRIDE_LIBRARY(ob) ||
+  if (ELEM(nullptr, ob, ob->data) || !ID_IS_EDITABLE(ob) || ID_IS_OVERRIDE_LIBRARY(ob) ||
       ID_IS_OVERRIDE_LIBRARY(ob->data))
   {
     return false;
@@ -879,6 +891,7 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
   }
   else if (ob->type == OB_GREASE_PENCIL) {
     ok = true;
+    blender::ed::greasepencil::ensure_selection_domain(scene->toolsettings, ob);
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_GREASE_PENCIL, scene);
   }
   else if (ob->type == OB_POINTCLOUD) {
@@ -930,7 +943,8 @@ static int editmode_toggle_exec(bContext *C, wmOperator *op)
 
   if (!is_mode_set) {
     editmode_enter_ex(bmain, scene, obact, 0);
-    if (obact->mode & mode_flag) {
+    /* Grease Pencil does not support multi-object editing. */
+    if ((obact->type != OB_GREASE_PENCIL) && ((obact->mode & mode_flag) != 0)) {
       FOREACH_SELECTED_OBJECT_BEGIN (view_layer, v3d, ob) {
         if ((ob != obact) && (ob->type == obact->type)) {
           editmode_enter_ex(bmain, scene, ob, EM_NO_CONTEXT);
@@ -966,7 +980,7 @@ static bool editmode_toggle_poll(bContext *C)
   Object *ob = CTX_data_active_object(C);
 
   /* Covers liboverrides too. */
-  if (ELEM(nullptr, ob, ob->data) || ID_IS_LINKED(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob) ||
+  if (ELEM(nullptr, ob, ob->data) || !ID_IS_EDITABLE(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob) ||
       ID_IS_OVERRIDE_LIBRARY(ob->data))
   {
     return false;
@@ -984,7 +998,7 @@ void OBJECT_OT_editmode_toggle(wmOperatorType *ot)
 {
 
   /* identifiers */
-  ot->name = "Toggle Edit Mode";
+  ot->name = "Edit Mode";
   ot->description = "Toggle object's edit mode";
   ot->idname = "OBJECT_OT_editmode_toggle";
 
@@ -1227,7 +1241,7 @@ void motion_paths_recalc(bContext *C,
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  ListBase targets = {nullptr, nullptr};
+  blender::Vector<MPathTarget *> targets;
   LISTBASE_FOREACH (LinkData *, link, ld_objects) {
     Object *ob = static_cast<Object *>(link->data);
 
@@ -1240,7 +1254,7 @@ void motion_paths_recalc(bContext *C,
       ob->pose->avs.recalc |= ANIMVIZ_RECALC_PATHS;
     }
 
-    animviz_get_object_motionpaths(ob, &targets);
+    animviz_build_motionpath_targets(ob, targets);
   }
 
   Depsgraph *depsgraph;
@@ -1254,14 +1268,13 @@ void motion_paths_recalc(bContext *C,
     free_depsgraph = false;
   }
   else {
-    depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, &targets);
+    depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
     free_depsgraph = true;
   }
 
-  /* recalculate paths, then free */
   animviz_calc_motionpaths(
-      depsgraph, bmain, scene, &targets, object_path_convert_range(range), true);
-  BLI_freelistN(&targets);
+      depsgraph, bmain, scene, targets, object_path_convert_range(range), true);
+  animviz_free_motionpath_targets(targets);
 
   if (range != OBJECT_PATH_CALC_RANGE_CURRENT_FRAME) {
     /* Tag objects for copy-on-eval - so paths will draw/redraw
@@ -1514,9 +1527,9 @@ static int object_clear_paths_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static std::string object_clear_paths_description(bContext * /*C*/,
-                                                  wmOperatorType * /*ot*/,
-                                                  PointerRNA *ptr)
+static std::string object_clear_paths_get_description(bContext * /*C*/,
+                                                      wmOperatorType * /*ot*/,
+                                                      PointerRNA *ptr)
 {
   const bool only_selected = RNA_boolean_get(ptr, "only_selected");
   if (only_selected) {
@@ -1534,7 +1547,7 @@ void OBJECT_OT_paths_clear(wmOperatorType *ot)
   /* api callbacks */
   ot->exec = object_clear_paths_exec;
   ot->poll = ED_operator_object_active_editable;
-  ot->get_description = object_clear_paths_description;
+  ot->get_description = object_clear_paths_get_description;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1554,11 +1567,32 @@ void OBJECT_OT_paths_clear(wmOperatorType *ot)
 /** \name Object Shade Smooth/Flat Operator
  * \{ */
 
+static bool is_smooth_by_angle_modifier(const ModifierData &md)
+{
+  if (md.type != eModifierType_Nodes) {
+    return false;
+  }
+  const NodesModifierData &nmd = reinterpret_cast<const NodesModifierData &>(md);
+  if (!nmd.node_group) {
+    return false;
+  }
+  const LibraryWeakReference *library_ref = nmd.node_group->id.library_weak_reference;
+  if (!library_ref) {
+    return false;
+  }
+  if (!STREQ(library_ref->library_id_name + 2, "Smooth by Angle")) {
+    return false;
+  }
+  return true;
+}
+
 static int shade_smooth_exec(bContext *C, wmOperator *op)
 {
+  const bool use_flat = STREQ(op->idname, "OBJECT_OT_shade_flat");
   const bool use_smooth = STREQ(op->idname, "OBJECT_OT_shade_smooth");
   const bool use_smooth_by_angle = STREQ(op->idname, "OBJECT_OT_shade_smooth_by_angle");
   Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
 
   Vector<PointerRNA> ctx_objects;
 
@@ -1577,11 +1611,26 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
     CTX_data_selected_editable_objects(C, &ctx_objects);
   }
 
+  bool modifier_removed = false;
+
   Set<ID *> object_data;
   for (const PointerRNA &ptr : ctx_objects) {
     Object *ob = static_cast<Object *>(ptr.data);
     if (ID *data = static_cast<ID *>(ob->data)) {
       object_data.add(data);
+
+      if (ob->type == OB_MESH) {
+        if (use_flat || use_smooth) {
+          LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+            if (is_smooth_by_angle_modifier(*md)) {
+              modifier_remove(op->reports, bmain, scene, ob, md);
+              DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+              modifier_removed = true;
+              break;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -1612,10 +1661,14 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       changed_multi = true;
-
       DEG_id_tag_update(data, ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, data);
     }
+  }
+
+  if (modifier_removed) {
+    /* Outliner needs to know. #124302. */
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
   }
 
   if (has_linked_data) {
@@ -1634,7 +1687,8 @@ static bool shade_poll(bContext *C)
   if (obact != nullptr) {
     /* Doesn't handle edit-data, sculpt dynamic-topology, or their undo systems. */
     if (obact->mode & (OB_MODE_EDIT | OB_MODE_SCULPT) || obact->data == nullptr ||
-        ID_IS_OVERRIDE_LIBRARY(obact) || ID_IS_OVERRIDE_LIBRARY(obact->data))
+        !ID_IS_EDITABLE(obact) || !ID_IS_EDITABLE(obact->data) || ID_IS_OVERRIDE_LIBRARY(obact) ||
+        ID_IS_OVERRIDE_LIBRARY(obact->data))
     {
       return false;
     }
@@ -1712,6 +1766,148 @@ void OBJECT_OT_shade_smooth_by_angle(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Object Shade Auto Smooth Operator
+ * \{ */
+
+static int shade_auto_smooth_exec(bContext *C, wmOperator *op)
+{
+  Main &bmain = *CTX_data_main(C);
+  Scene &scene = *CTX_data_scene(C);
+
+  const bool use_auto_smooth = RNA_boolean_get(op->ptr, "use_auto_smooth");
+  const float angle = RNA_float_get(op->ptr, "angle");
+
+  Vector<PointerRNA> ctx_objects;
+  CTX_data_selected_editable_objects(C, &ctx_objects);
+
+  if (use_auto_smooth) {
+    AssetWeakReference asset_weak_ref{};
+    asset_weak_ref.asset_library_type = ASSET_LIBRARY_ESSENTIALS;
+    asset_weak_ref.relative_asset_identifier = BLI_strdup(
+        "geometry_nodes/smooth_by_angle.blend/NodeTree/Smooth by Angle");
+
+    const asset_system::AssetRepresentation *asset_representation =
+        asset::find_asset_from_weak_ref(*C, asset_weak_ref, op->reports);
+    if (!asset_representation) {
+      return OPERATOR_CANCELLED;
+    }
+
+    ID *node_group_id = asset::asset_local_id_ensure_imported(bmain, *asset_representation);
+    if (!node_group_id) {
+      return OPERATOR_CANCELLED;
+    }
+    if (GS(node_group_id->name) != ID_NT) {
+      return OPERATOR_CANCELLED;
+    }
+    bNodeTree *node_group = reinterpret_cast<bNodeTree *>(node_group_id);
+    node_group->ensure_topology_cache();
+
+    const StringRefNull angle_identifier = node_group->interface_inputs()[1]->identifier;
+
+    for (const PointerRNA &ob_ptr : ctx_objects) {
+      Object *object = static_cast<Object *>(ob_ptr.data);
+      if (object->type == OB_MESH) {
+        Mesh *mesh = static_cast<Mesh *>(object->data);
+        bke::mesh_smooth_set(*mesh, true, true);
+        DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
+      }
+      NodesModifierData *smooth_by_angle_nmd = nullptr;
+      LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
+        if (is_smooth_by_angle_modifier(*md)) {
+          smooth_by_angle_nmd = reinterpret_cast<NodesModifierData *>(md);
+          break;
+        }
+      }
+      if (!smooth_by_angle_nmd) {
+        smooth_by_angle_nmd = reinterpret_cast<NodesModifierData *>(
+            modifier_add(op->reports, &bmain, &scene, object, nullptr, eModifierType_Nodes));
+        if (!smooth_by_angle_nmd) {
+          continue;
+        }
+        smooth_by_angle_nmd->modifier.flag |= eModifierFlag_PinLast;
+        smooth_by_angle_nmd->node_group = node_group;
+        id_us_plus(&node_group->id);
+        MOD_nodes_update_interface(object, smooth_by_angle_nmd);
+        smooth_by_angle_nmd->flag |= NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR;
+        STRNCPY(smooth_by_angle_nmd->modifier.name, DATA_(node_group->id.name + 2));
+        BKE_modifier_unique_name(&object->modifiers, &smooth_by_angle_nmd->modifier);
+      }
+
+      IDProperty *angle_prop = IDP_GetPropertyFromGroup(smooth_by_angle_nmd->settings.properties,
+                                                        angle_identifier.c_str());
+      if (angle_prop->type == IDP_FLOAT) {
+        IDP_Float(angle_prop) = angle;
+      }
+      else if (angle_prop->type == IDP_DOUBLE) {
+        IDP_Double(angle_prop) = angle;
+      }
+
+      DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
+      WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
+    }
+  }
+  else {
+    for (const PointerRNA &ob_ptr : ctx_objects) {
+      Object *object = static_cast<Object *>(ob_ptr.data);
+      LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
+        if (is_smooth_by_angle_modifier(*md)) {
+          modifier_remove(op->reports, &bmain, &scene, object, md);
+          break;
+        }
+      }
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void shade_auto_smooth_ui(bContext * /*C*/, wmOperator *op)
+{
+  uiLayout *layout = op->layout;
+
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
+  uiItemR(layout, op->ptr, "use_auto_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayoutSetActive(col, RNA_boolean_get(op->ptr, "use_auto_smooth"));
+  uiItemR(layout, op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+
+void OBJECT_OT_shade_auto_smooth(wmOperatorType *ot)
+{
+  ot->name = "Shade Auto Smooth";
+  ot->description =
+      "Add modifier to automatically set the sharpness of mesh edges based on the angle between "
+      "the neighboring faces";
+  ot->idname = "OBJECT_OT_shade_auto_smooth";
+
+  ot->poll = shade_poll;
+  ot->exec = shade_auto_smooth_exec;
+  ot->ui = shade_auto_smooth_ui;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_boolean(ot->srna,
+                         "use_auto_smooth",
+                         true,
+                         "Auto Smooth",
+                         "Add modifier to set edge sharpness automatically");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_property(ot->srna, "angle", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
+  RNA_def_property_float_default(prop, DEG2RADF(30.0f));
+  RNA_def_property_ui_text(
+      prop, "Angle", "Maximum angle between face normals that will be considered as smooth");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Object Mode Set Operator
  * \{ */
 
@@ -1762,11 +1958,6 @@ static int object_mode_set_exec(bContext *C, wmOperator *op)
   Object *ob = CTX_data_active_object(C);
   eObjectMode mode = eObjectMode(RNA_enum_get(op->ptr, "mode"));
   const bool toggle = RNA_boolean_get(op->ptr, "toggle");
-
-  /* by default the operator assume is a mesh, but if gp object change mode */
-  if ((ob->type == OB_GPENCIL_LEGACY) && (mode == OB_MODE_EDIT)) {
-    mode = OB_MODE_EDIT_GPENCIL_LEGACY;
-  }
 
   if (!mode_compat_test(ob, mode)) {
     return OPERATOR_PASS_THROUGH;
@@ -1948,7 +2139,7 @@ static int move_to_collection_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (ID_IS_LINKED(collection) || ID_IS_OVERRIDE_LIBRARY(collection)) {
+  if (!ID_IS_EDITABLE(collection) || ID_IS_OVERRIDE_LIBRARY(collection)) {
     BKE_report(
         op->reports, RPT_ERROR, "Cannot add objects to a library override or linked collection");
     return OPERATOR_CANCELLED;
@@ -2041,7 +2232,7 @@ static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData 
   int index = menu->index;
   LISTBASE_FOREACH (CollectionChild *, child, &menu->collection->children) {
     Collection *collection = child->collection;
-    MoveToCollectionData *submenu = MEM_cnew<MoveToCollectionData>(__func__);
+    MoveToCollectionData *submenu = MEM_new<MoveToCollectionData>(__func__);
     BLI_addtail(&menu->submenus, submenu);
     submenu->collection = collection;
     submenu->index = ++index;
@@ -2053,10 +2244,11 @@ static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData 
 
 static void move_to_collection_menus_free_recursive(MoveToCollectionData *menu)
 {
-  LISTBASE_FOREACH (MoveToCollectionData *, submenu, &menu->submenus) {
+  LISTBASE_FOREACH_MUTABLE (MoveToCollectionData *, submenu, &menu->submenus) {
     move_to_collection_menus_free_recursive(submenu);
+    MEM_delete(submenu);
   }
-  BLI_freelistN(&menu->submenus);
+  BLI_listbase_clear(&menu->submenus);
 }
 
 static void move_to_collection_menus_free(MoveToCollectionData **menu)
@@ -2066,7 +2258,7 @@ static void move_to_collection_menus_free(MoveToCollectionData **menu)
   }
 
   move_to_collection_menus_free_recursive(*menu);
-  MEM_freeN(*menu);
+  MEM_delete(*menu);
   *menu = nullptr;
 }
 
@@ -2165,7 +2357,7 @@ static int move_to_collection_invoke(bContext *C, wmOperator *op, const wmEvent 
    *
    * So we are left with a memory that will necessarily leak. It's a small leak though. */
   if (master_collection_menu == nullptr) {
-    master_collection_menu = MEM_cnew<MoveToCollectionData>(
+    master_collection_menu = MEM_new<MoveToCollectionData>(
         "MoveToCollectionData menu - expected eventual memleak");
   }
 

@@ -70,12 +70,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SCALE_INSTANCES, "Scale Instances", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeScaleInstances", GEO_NODE_SCALE_INSTANCES);
+  ntype.ui_name = "Scale Instances";
+  ntype.ui_description = "Scale geometry instances in local or global space";
+  ntype.enum_name_legacy = "SCALE_INSTANCES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

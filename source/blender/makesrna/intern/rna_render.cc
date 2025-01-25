@@ -12,16 +12,16 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 #include "DEG_depsgraph.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_scene.hh"
 
 #include "RNA_define.hh"
@@ -137,7 +137,7 @@ static void engine_update(RenderEngine *engine, Main *bmain, Depsgraph *depsgrap
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_update_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -154,7 +154,7 @@ static void engine_render(RenderEngine *engine, Depsgraph *depsgraph)
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_render_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -170,7 +170,7 @@ static void engine_render_frame_finish(RenderEngine *engine)
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_render_frame_finish_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -185,7 +185,7 @@ static void engine_draw(RenderEngine *engine, const bContext *context, Depsgraph
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_draw_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -208,7 +208,7 @@ static void engine_bake(RenderEngine *engine,
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_bake_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -229,7 +229,7 @@ static void engine_view_update(RenderEngine *engine, const bContext *context, De
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_view_update_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -246,7 +246,7 @@ static void engine_view_draw(RenderEngine *engine, const bContext *context, Deps
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_view_draw_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -263,8 +263,8 @@ static void engine_update_script_node(RenderEngine *engine, bNodeTree *ntree, bN
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
-  PointerRNA nodeptr = RNA_pointer_create((ID *)ntree, &RNA_Node, node);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA nodeptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_Node, node);
   func = &rna_RenderEngine_update_script_node_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -280,7 +280,7 @@ static void engine_update_render_passes(RenderEngine *engine, Scene *scene, View
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_update_render_passes_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -327,7 +327,8 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   /* setup dummy engine & engine type to store static properties in */
   dummy_engine.type = &dummy_et;
   dummy_et.flag |= RE_USE_SHADING_NODES_CUSTOM;
-  PointerRNA dummy_engine_ptr = RNA_pointer_create(nullptr, &RNA_RenderEngine, &dummy_engine);
+  PointerRNA dummy_engine_ptr = RNA_pointer_create_discrete(
+      nullptr, &RNA_RenderEngine, &dummy_engine);
 
   /* validate the python class */
   if (validate(&dummy_engine_ptr, data, have_function) != 0) {
@@ -970,7 +971,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
       prop,
       "Use Image Save",
       "Save images/movie to disk while rendering an animation. "
-      "Disabling image saving is only supported when bl_use_postprocess is also disabled");
+      "Disabling image saving is only supported when bl_use_postprocess is also disabled.");
 
   prop = RNA_def_property(srna, "bl_use_gpu_context", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_GPU_CONTEXT);

@@ -8,10 +8,14 @@
  * pass is not conservative enough).
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_debug_gradients_lib.glsl)
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_iter_lib.glsl)
+#include "infos/eevee_light_culling_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_light_culling_debug)
+
+#include "draw_view_lib.glsl"
+#include "eevee_light_iter_lib.glsl"
+#include "eevee_light_lib.glsl"
+#include "gpu_shader_debug_gradients_lib.glsl"
 
 void main()
 {
@@ -25,7 +29,6 @@ void main()
   uint light_cull = 0u;
   vec2 px = gl_FragCoord.xy;
   LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, px, vP_z, l_idx) {
-    LightData light = light_buf[l_idx];
     light_cull |= 1u << l_idx;
     light_count += 1.0;
   }
@@ -37,7 +40,9 @@ void main()
     LightData light = light_buf[l_idx];
     LightVector lv = light_vector_get(light, false, P);
     /* Use light vector as Ng to never cull based on angle to light. */
-    if (light_attenuation_surface(light, false, lv.L, lv).x > LIGHT_ATTENUATION_THRESHOLD) {
+    if (light_attenuation_surface(light, false, false, false, lv.L, lv) >
+        LIGHT_ATTENUATION_THRESHOLD)
+    {
       light_nocull |= 1u << l_idx;
     }
   }

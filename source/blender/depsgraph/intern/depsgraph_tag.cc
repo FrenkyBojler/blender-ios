@@ -14,6 +14,7 @@
 #include <cstring> /* required for memset */
 #include <queue>
 
+#include "BLI_index_range.hh"
 #include "BLI_math_bits.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
@@ -35,7 +36,7 @@
 #include "BKE_node.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_debug.hh"
@@ -239,7 +240,7 @@ void depsgraph_tag_to_component_opcode(const ID *id,
 void id_tag_update_ntree_special(
     Main *bmain, Depsgraph *graph, ID *id, uint flags, eUpdateSource update_source)
 {
-  bNodeTree *ntree = ntreeFromID(id);
+  bNodeTree *ntree = bke::node_tree_from_id(id);
   if (ntree == nullptr) {
     return;
   }
@@ -296,7 +297,7 @@ void depsgraph_tag_component(Depsgraph *graph,
     }
   }
   /* If component depends on copy-on-evaluation, tag it as well. */
-  if (component_node->need_tag_cow_before_update()) {
+  if (component_node->need_tag_cow_before_update(IDRecalcFlag(id_node->id_cow->recalc))) {
     depsgraph_id_tag_copy_on_write(graph, id_node, update_source);
   }
   if (component_type == NodeType::COPY_ON_EVAL) {
@@ -531,8 +532,12 @@ void deg_graph_tag_parameters_if_needed(Main *bmain,
   }
 
   /* Clear flags which are known to not affect parameters usable by drivers. */
-  const uint clean_flags = flags & ~(ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT |
-                                     ID_RECALC_BASE_FLAGS | ID_RECALC_SHADING);
+  const uint clean_flags = flags &
+                           ~(ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT | ID_RECALC_BASE_FLAGS |
+                             ID_RECALC_SHADING |
+                             /* While drivers may use the current-frame, this value is assigned
+                              * explicitly and doesn't require a the scene to be copied again. */
+                             ID_RECALC_FRAME_CHANGE);
 
   if (clean_flags == 0) {
     /* Changes are limited to only things which are not usable by drivers. */
@@ -635,7 +640,6 @@ NodeType geometry_tag_to_component(const ID *id)
         case OB_FONT:
         case OB_LATTICE:
         case OB_MBALL:
-        case OB_GPENCIL_LEGACY:
         case OB_CURVES:
         case OB_POINTCLOUD:
         case OB_VOLUME:
@@ -933,7 +937,7 @@ void DEG_editors_update(Depsgraph *depsgraph, bool time)
 static void deg_graph_clear_id_recalc_flags(ID *id)
 {
   id->recalc &= ~ID_RECALC_ALL;
-  bNodeTree *ntree = ntreeFromID(id);
+  bNodeTree *ntree = blender::bke::node_tree_from_id(id);
   /* Clear embedded node trees too. */
   if (ntree) {
     ntree->id.recalc &= ~ID_RECALC_ALL;
@@ -964,6 +968,14 @@ void DEG_ids_clear_recalc(Depsgraph *depsgraph, const bool backup)
       deg_graph_clear_id_recalc_flags(id_node->id_orig);
     }
   }
+
+  if (backup) {
+    for (const int64_t i : blender::IndexRange(INDEX_ID_MAX)) {
+      if (deg_graph->id_type_updated[i] != 0) {
+        deg_graph->id_type_updated_backup[i] = 1;
+      }
+    }
+  }
   memset(deg_graph->id_type_updated, 0, sizeof(deg_graph->id_type_updated));
 }
 
@@ -975,4 +987,11 @@ void DEG_ids_restore_recalc(Depsgraph *depsgraph)
     id_node->id_cow->recalc |= id_node->id_cow_recalc_backup;
     id_node->id_cow_recalc_backup = 0;
   }
+
+  for (const int64_t i : blender::IndexRange(INDEX_ID_MAX)) {
+    if (deg_graph->id_type_updated_backup[i] != 0) {
+      deg_graph->id_type_updated[i] = 1;
+    }
+  }
+  memset(deg_graph->id_type_updated_backup, 0, sizeof(deg_graph->id_type_updated_backup));
 }

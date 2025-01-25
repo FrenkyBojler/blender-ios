@@ -15,10 +15,14 @@
  * Currently this shader is dispatched with one thread-group for all directional light.
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_matrix_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_iter_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
+#include "infos/eevee_shadow_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_shadow_tilemap_amend)
+
+#include "eevee_light_iter_lib.glsl"
+#include "eevee_shadow_tilemap_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 shared ShadowSamplingTilePacked tiles_local[SHADOW_TILEMAP_RES][SHADOW_TILEMAP_RES];
 
@@ -32,6 +36,10 @@ void main()
     if (light.type != LIGHT_SUN) {
       break;
     }
+    if (light.tilemap_index == LIGHT_NO_SHADOW) {
+      continue;
+    }
+
     ivec2 base_offset_neg = light_sun_data_get(light).clipmap_base_offset_neg;
     ivec2 base_offset_pos = light_sun_data_get(light).clipmap_base_offset_pos;
     /* LOD relative max with respect to clipmap_lod_min. */
@@ -40,9 +48,9 @@ void main()
     /* Iterate in reverse. */
     for (int lod = lod_max; lod >= 0; lod--) {
       int tilemap_index = light.tilemap_index + lod;
-      ivec2 atlas_texel = shadow_tile_coord_in_atlas(tile_co, tilemap_index);
+      uvec2 atlas_texel = shadow_tile_coord_in_atlas(uvec2(tile_co), tilemap_index);
 
-      ShadowSamplingTilePacked tile_packed = imageLoad(tilemaps_img, atlas_texel).x;
+      ShadowSamplingTilePacked tile_packed = imageLoad(tilemaps_img, ivec2(atlas_texel)).x;
       ShadowSamplingTile tile = shadow_sampling_tile_unpack(tile_packed);
 
       if (lod != lod_max && !tile.is_valid) {
@@ -77,7 +85,7 @@ void main()
 
           tile_prev_packed = shadow_sampling_tile_pack(tile_prev);
           /* Replace the missing page with the one from the lower LOD. */
-          imageStore(tilemaps_img, atlas_texel, uvec4(tile_prev_packed));
+          imageStoreFast(tilemaps_img, ivec2(atlas_texel), uvec4(tile_prev_packed));
           /* Push this amended tile to the local tiles. */
           tile_packed = tile_prev_packed;
           tile.is_valid = true;
@@ -87,6 +95,28 @@ void main()
       barrier();
       tiles_local[tile_co.y][tile_co.x] = (tile.is_valid) ? tile_packed : SHADOW_NO_DATA;
       barrier();
+    }
+  }
+  LIGHT_FOREACH_END
+
+  LIGHT_FOREACH_BEGIN_LOCAL_NO_CULL(light_cull_buf, l_idx)
+  {
+    LightData light = light_buf[l_idx];
+    if (light.tilemap_index == LIGHT_NO_SHADOW) {
+      continue;
+    }
+
+    int lod_min = 0;
+    int tilemap_count = light_local_tilemap_count(light);
+    for (int i = 0; i < tilemap_count; i++) {
+      ShadowTileMapData tilemap = tilemaps_buf[light.tilemap_index + i];
+      lod_min = max(lod_min, tilemap.effective_lod_min);
+    }
+    if (lod_min > 0) {
+      /* Override the effective lod min distance in absolute mode (negative).
+       * Note that this only changes the sampling for this AA sample. */
+      const float projection_diagonal = 2.0 * M_SQRT2;
+      light_buf[l_idx].lod_min = -(projection_diagonal / float(SHADOW_MAP_MAX_RES >> lod_min));
     }
   }
   LIGHT_FOREACH_END

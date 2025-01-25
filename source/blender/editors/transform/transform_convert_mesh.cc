@@ -18,7 +18,6 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_memarena.h"
-#include "BLI_utildefines_stack.h"
 
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
@@ -861,18 +860,10 @@ void transform_convert_mesh_islands_calc(BMEditMesh *em,
       }
 
       if (data.axismtx) {
-        if (createSpaceNormalTangent(data.axismtx[i], no, tangent)) {
-          /* Pass. */
-        }
-        else {
-          if (normalize_v3(no) != 0.0f) {
-            axis_dominant_v3_to_m3(data.axismtx[i], no);
-            invert_m3(data.axismtx[i]);
-          }
-          else {
-            unit_m3(data.axismtx[i]);
-          }
-        }
+        normalize_v3(no);
+        normalize_v3(tangent);
+
+        createSpaceNormalTangent_or_fallback(data.axismtx[i], no, tangent);
       }
     }
 
@@ -2376,6 +2367,11 @@ Array<TransDataEdgeSlideVert> transform_mesh_edge_slide_data_create(const TransD
     int td_index_1 = BM_elem_index_get(e->v1);
     int td_index_2 = BM_elem_index_get(e->v2);
 
+    /* This can occur when the mesh has symmetry enabled but is not symmetrical. See #120811. */
+    if (ELEM(-1, td_index_1, td_index_2)) {
+      continue;
+    }
+
     int slot_1 = int(td_connected[td_index_1][0] != -1);
     int slot_2 = int(td_connected[td_index_2][0] != -1);
 
@@ -2426,7 +2422,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_edge_slide_data_create(const TransD
        * Find the best direction to slide among the ones already computed.
        *
        * \param curr_side_other: previous state of the #SlideTempDataMesh where the faces are
-                                 linked to the previous edge.
+       * linked to the previous edge.
        * \param l_src: the source corner in the edge to slide.
        * \param l_dst: the current destination corner.
        */
@@ -2451,7 +2447,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_edge_slide_data_create(const TransD
           int best_dir = -1;
           const BMLoop *l_edge = l_src->next->v == v_dst ? l_src : l_src->prev;
           const BMLoop *l_other = l_edge->radial_next;
-          while (l_other != l_edge) {
+          while (l_other->f != l_edge->f) {
             if (l_other->f == curr_side_other->fdata[0].f) {
               best_dir = 0;
               break;
@@ -2506,15 +2502,21 @@ Array<TransDataEdgeSlideVert> transform_mesh_edge_slide_data_create(const TransD
     } prev = {}, curr = {}, next = {}, next_next = {}, tmp = {};
 
     next.i = td_connected[i_curr][0] != i_prev ? td_connected[i_curr][0] : td_connected[i_curr][1];
-    next.sv = &r_sv[next.i];
-    next.v = static_cast<BMVert *>(next.sv->td->extra);
-    next.vert_is_edge_pair = mesh_vert_is_inner(next.v);
+    if (next.i != -1) {
+      next.sv = &r_sv[next.i];
+      next.v = static_cast<BMVert *>(next.sv->td->extra);
+      next.vert_is_edge_pair = mesh_vert_is_inner(next.v);
+    }
 
     curr.i = i_curr;
-    curr.sv = &r_sv[curr.i];
-    curr.v = static_cast<BMVert *>(curr.sv->td->extra);
-    curr.vert_is_edge_pair = mesh_vert_is_inner(curr.v);
-    curr.e = BM_edge_exists(curr.v, next.v);
+    if (curr.i != -1) {
+      curr.sv = &r_sv[curr.i];
+      curr.v = static_cast<BMVert *>(curr.sv->td->extra);
+      curr.vert_is_edge_pair = mesh_vert_is_inner(curr.v);
+      if (next.i != -1) {
+        curr.e = BM_edge_exists(curr.v, next.v);
+      }
+    }
 
     /* Do not compute `prev` for now. Let the loop calculate `curr` twice. */
     prev.i = -1;
@@ -2594,8 +2596,8 @@ Array<TransDataEdgeSlideVert> transform_mesh_edge_slide_data_create(const TransD
             float3 &dst2 = dst;
             float3 &dst3 = next.fdata[best_dir].dst;
             float3 isect0, isect1;
-            if (isect_line_line_epsilon_v3(dst0, dst1, dst2, dst3, isect0, isect1, FLT_EPSILON) ==
-                2)
+            if (isect_line_line_epsilon_v3(dst0, dst1, dst2, dst3, isect0, isect1, FLT_EPSILON) !=
+                0)
             {
               curr.fdata[best_dir].dst = math::midpoint(isect0, isect1);
             }

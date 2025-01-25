@@ -8,7 +8,7 @@
 
 #include <cstring>
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -41,7 +41,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
@@ -132,7 +132,7 @@ static int objects_add_active_exec(bContext *C, wmOperator *op)
   Collection *single_collection = collection_object_active_find_index(
       bmain, scene, ob, single_collection_index);
   bool is_cycle = false;
-  bool updated = false;
+  bool changed_multi = false;
 
   if (ob == nullptr) {
     return OPERATOR_CANCELLED;
@@ -147,6 +147,7 @@ static int objects_add_active_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    bool changed = false;
     CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
       if (BKE_collection_has_object(collection, base->object)) {
         continue;
@@ -154,14 +155,18 @@ static int objects_add_active_exec(bContext *C, wmOperator *op)
 
       if (!BKE_collection_object_cyclic_check(bmain, base->object, collection)) {
         BKE_collection_object_add(bmain, collection, base->object);
-        DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
-        updated = true;
+        changed = true;
       }
       else {
         is_cycle = true;
       }
     }
     CTX_DATA_END;
+
+    if (changed) {
+      DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+      changed_multi = true;
+    }
   }
   FOREACH_COLLECTION_END;
 
@@ -169,7 +174,7 @@ static int objects_add_active_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_WARNING, "Skipped some collections because of cycle detected");
   }
 
-  if (!updated) {
+  if (!changed_multi) {
     return OPERATOR_CANCELLED;
   }
 
@@ -184,8 +189,11 @@ void COLLECTION_OT_objects_add_active(wmOperatorType *ot)
   PropertyRNA *prop;
 
   /* identifiers */
-  ot->name = "Add Selected to Active Collection";
-  ot->description = "Add the object to an object collection that contains the active object";
+  ot->name = "Add Selected to Active Objects Collection";
+  ot->description =
+      "Add selected objects to one of the collections the active-object is part of. "
+      "Optionally add to \"All Collections\" to ensure selected objects are included in "
+      "the same collections as the active object";
   ot->idname = "COLLECTION_OT_objects_add_active";
 
   /* api callbacks */
@@ -218,7 +226,7 @@ static int objects_remove_active_exec(bContext *C, wmOperator *op)
   int single_collection_index = RNA_enum_get(op->ptr, "collection");
   Collection *single_collection = collection_object_active_find_index(
       bmain, scene, ob, single_collection_index);
-  bool ok = false;
+  bool changed_multi = false;
 
   if (ob == nullptr) {
     return OPERATOR_CANCELLED;
@@ -233,17 +241,22 @@ static int objects_remove_active_exec(bContext *C, wmOperator *op)
 
     if (BKE_collection_has_object(collection, ob)) {
       /* Remove collections from selected objects */
+      bool changed = false;
       CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
         BKE_collection_object_remove(bmain, collection, base->object, false);
-        DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
-        ok = true;
+        changed = true;
       }
       CTX_DATA_END;
+
+      if (changed) {
+        DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+        changed_multi = true;
+      }
     }
   }
   FOREACH_COLLECTION_END;
 
-  if (!ok) {
+  if (!changed_multi) {
     BKE_report(op->reports, RPT_ERROR, "Active object contains no collections");
   }
 
@@ -321,7 +334,7 @@ static int collection_objects_remove_exec(bContext *C, wmOperator *op)
   int single_collection_index = RNA_enum_get(op->ptr, "collection");
   Collection *single_collection = collection_object_active_find_index(
       bmain, scene, ob, single_collection_index);
-  bool updated = false;
+  bool changed_multi = false;
 
   if (ob == nullptr) {
     return OPERATOR_CANCELLED;
@@ -336,16 +349,21 @@ static int collection_objects_remove_exec(bContext *C, wmOperator *op)
     }
 
     /* now remove all selected objects from the collection */
+    bool changed = false;
     CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
       BKE_collection_object_remove(bmain, collection, base->object, false);
-      DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
-      updated = true;
+      changed = true;
     }
     CTX_DATA_END;
+
+    if (changed) {
+      DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+      changed_multi = true;
+    }
   }
   FOREACH_COLLECTION_END;
 
-  if (!updated) {
+  if (!changed_multi) {
     return OPERATOR_CANCELLED;
   }
 
@@ -388,6 +406,7 @@ static int collection_create_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   char name[MAX_ID_NAME - 2]; /* id name */
+  bool changed = false;
 
   RNA_string_get(op->ptr, "name", name);
 
@@ -396,9 +415,13 @@ static int collection_create_exec(bContext *C, wmOperator *op)
 
   CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
     BKE_collection_object_add(bmain, collection, base->object);
-    DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+    changed = true;
   }
   CTX_DATA_END;
+
+  if (changed) {
+    DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+  }
 
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
@@ -424,9 +447,23 @@ void COLLECTION_OT_create(wmOperatorType *ot)
       ot->srna, "name", "Collection", MAX_ID_NAME - 2, "Name", "Name of the new collection");
 }
 
+static bool collection_exporter_common_check(const Collection *collection)
+{
+  return collection != nullptr &&
+         !(ID_IS_LINKED(&collection->id) || ID_IS_OVERRIDE_LIBRARY(&collection->id));
+}
+
 static bool collection_exporter_poll(bContext *C)
 {
-  return CTX_data_collection(C) != nullptr;
+  const Collection *collection = CTX_data_collection(C);
+  return collection_exporter_common_check(collection);
+}
+
+static bool collection_exporter_remove_poll(bContext *C)
+{
+  const Collection *collection = CTX_data_collection(C);
+  return collection_exporter_common_check(collection) &&
+         !BLI_listbase_is_empty(&collection->exporters);
 }
 
 static bool collection_export_all_poll(bContext *C)
@@ -460,11 +497,14 @@ static int collection_exporter_add_exec(bContext *C, wmOperator *op)
   CollectionExport *data = MEM_cnew<CollectionExport>("CollectionExport");
   STRNCPY(data->fh_idname, fh->idname);
 
+  BKE_collection_exporter_name_set(exporters, data, fh->label);
+
   IDPropertyTemplate val{};
   data->export_properties = IDP_New(IDP_GROUP, &val, "export_properties");
   data->flag |= IO_HANDLER_PANEL_OPEN;
 
   BLI_addtail(exporters, data);
+  collection->active_exporter_index = BLI_listbase_count(exporters) - 1;
 
   BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
@@ -508,6 +548,10 @@ static int collection_exporter_remove_exec(bContext *C, wmOperator *op)
 
   MEM_freeN(data);
 
+  const int count = BLI_listbase_count(exporters);
+  const int new_index = count == 0 ? 0 : std::min(collection->active_exporter_index, count - 1);
+  collection->active_exporter_index = new_index;
+
   BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
 
@@ -535,7 +579,7 @@ static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
   /* api callbacks */
   ot->invoke = collection_exporter_remove_invoke;
   ot->exec = collection_exporter_remove_exec;
-  ot->poll = collection_exporter_poll;
+  ot->poll = collection_exporter_remove_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -546,7 +590,8 @@ static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
 static int collection_exporter_export(bContext *C,
                                       wmOperator *op,
                                       CollectionExport *data,
-                                      Collection *collection)
+                                      Collection *collection,
+                                      const bool report_success)
 {
   using namespace blender;
   bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);
@@ -565,7 +610,7 @@ static int collection_exporter_export(bContext *C,
   /* Execute operator with our stored properties. */
   /* TODO: Cascade settings down from parent collections(?) */
   IDProperty *op_props = IDP_CopyProperty(data->export_properties);
-  PointerRNA properties = RNA_pointer_create(nullptr, ot->srna, op_props);
+  PointerRNA properties = RNA_pointer_create_discrete(nullptr, ot->srna, op_props);
   const char *collection_name = collection->id.name + 2;
 
   /* Ensure we have a valid filepath set. Create one if the user has not specified anything yet. */
@@ -576,8 +621,7 @@ static int collection_exporter_export(bContext *C,
         filepath, sizeof(filepath), "//", fh->get_default_filename(collection_name).c_str());
   }
   else {
-    char filename[FILENAME_MAX];
-    BLI_path_split_file_part(filepath, filename, sizeof(filename));
+    const char *filename = BLI_path_basename(filepath);
     if (!filename[0] || !BLI_path_extension(filename)) {
       BKE_reportf(op->reports, RPT_ERROR, "File path '%s' is not a valid file", filepath);
 
@@ -589,11 +633,29 @@ static int collection_exporter_export(bContext *C,
   const Main *bmain = CTX_data_main(C);
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
+  /* Ensure that any properties from when this operator was "last used" are cleared. Save them for
+   * restoration later. Otherwise properties from a regular File->Export may contaminate this
+   * collection export. */
+  IDProperty *last_properties = ot->last_properties;
+  ot->last_properties = nullptr;
+
   RNA_string_set(&properties, "filepath", filepath);
   RNA_string_set(&properties, "collection", collection_name);
   int op_result = WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &properties, nullptr);
 
+  /* Free the "last used" properties that were just set from the collection export and restore the
+   * original "last used" properties. */
+  if (ot->last_properties) {
+    IDP_FreeProperty(ot->last_properties);
+  }
+  ot->last_properties = last_properties;
+
   IDP_FreeProperty(op_props);
+
+  if (report_success && op_result == OPERATOR_FINISHED) {
+    BKE_reportf(op->reports, RPT_INFO, "Exported '%s'", filepath);
+  }
+
   return op_result;
 }
 
@@ -608,7 +670,7 @@ static int collection_exporter_export_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  return collection_exporter_export(C, op, data, collection);
+  return collection_exporter_export(C, op, data, collection, true);
 }
 
 static void COLLECTION_OT_exporter_export(wmOperatorType *ot)
@@ -623,29 +685,58 @@ static void COLLECTION_OT_exporter_export(wmOperatorType *ot)
   ot->poll = collection_exporter_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Exporter index", 0, INT_MAX);
 }
 
-static int collection_export(bContext *C, wmOperator *op, Collection *collection)
+struct CollectionExportStats {
+  int successful_exports_num = 0;
+  int collections_num = 0;
+};
+
+static int collection_export(bContext *C,
+                             wmOperator *op,
+                             Collection *collection,
+                             CollectionExportStats &stats)
 {
   ListBase *exporters = &collection->exporters;
+  int files_num = 0;
 
   LISTBASE_FOREACH (CollectionExport *, data, exporters) {
-    if (collection_exporter_export(C, op, data, collection) != OPERATOR_FINISHED) {
+    if (collection_exporter_export(C, op, data, collection, false) != OPERATOR_FINISHED) {
       /* Do not continue calling exporters if we encounter one that fails. */
       return OPERATOR_CANCELLED;
     }
+    else {
+      files_num++;
+    }
   }
 
+  if (files_num) {
+    stats.successful_exports_num += files_num;
+    stats.collections_num++;
+  }
   return OPERATOR_FINISHED;
 }
 
 static int collection_io_export_all_exec(bContext *C, wmOperator *op)
 {
   Collection *collection = CTX_data_collection(C);
-  return collection_export(C, op, collection);
+  CollectionExportStats stats;
+  int result = collection_export(C, op, collection, stats);
+
+  /* Only report if nothing was cancelled along the way. We don't want this UI report to happen
+   * over-top any reports from the actual failures. */
+  if (result == OPERATOR_FINISHED && stats.successful_exports_num > 0) {
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "Exported %d files from collection '%s'",
+                stats.successful_exports_num,
+                collection->id.name + 2);
+  }
+
+  return result;
 }
 
 static void COLLECTION_OT_export_all(wmOperatorType *ot)
@@ -660,24 +751,29 @@ static void COLLECTION_OT_export_all(wmOperatorType *ot)
   ot->poll = collection_exporter_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 }
 
 static int collection_export_recursive(bContext *C,
                                        wmOperator *op,
-                                       LayerCollection *layer_collection)
+                                       LayerCollection *layer_collection,
+                                       CollectionExportStats &stats)
 {
   /* Skip collections which have been Excluded in the View Layer. */
   if (layer_collection->flag & LAYER_COLLECTION_EXCLUDE) {
     return OPERATOR_FINISHED;
   }
 
-  if (collection_export(C, op, layer_collection->collection) != OPERATOR_FINISHED) {
+  if (!collection_exporter_common_check(layer_collection->collection)) {
+    return OPERATOR_FINISHED;
+  }
+
+  if (collection_export(C, op, layer_collection->collection, stats) != OPERATOR_FINISHED) {
     return OPERATOR_CANCELLED;
   }
 
   LISTBASE_FOREACH (LayerCollection *, child, &layer_collection->layer_collections) {
-    if (collection_export_recursive(C, op, child) != OPERATOR_FINISHED) {
+    if (collection_export_recursive(C, op, child, stats) != OPERATOR_FINISHED) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -688,10 +784,22 @@ static int collection_export_recursive(bContext *C,
 static int wm_collection_export_all_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  CollectionExportStats stats;
   LISTBASE_FOREACH (LayerCollection *, layer_collection, &view_layer->layer_collections) {
-    if (collection_export_recursive(C, op, layer_collection) != OPERATOR_FINISHED) {
+    if (collection_export_recursive(C, op, layer_collection, stats) != OPERATOR_FINISHED) {
       return OPERATOR_CANCELLED;
     }
+  }
+
+  /* Only report if nothing was cancelled along the way. We don't want this UI report to happen
+   * over-top any reports from the actual failures. */
+  if (stats.successful_exports_num > 0) {
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "Exported %d files from %d collections",
+                stats.successful_exports_num,
+                stats.collections_num);
   }
 
   return OPERATOR_FINISHED;
@@ -709,7 +817,7 @@ static void WM_OT_collection_export_all(wmOperatorType *ot)
   ot->poll = collection_export_all_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 }
 
 static void collection_exporter_menu_draw(const bContext * /*C*/, Menu *menu)
@@ -811,7 +919,7 @@ static int collection_link_exec(bContext *C, wmOperator *op)
   }
   /* Linked collections are already checked for by using RNA_collection_local_itemf
    * but operator can be called without invoke */
-  if (ID_IS_LINKED(&collection->id)) {
+  if (!ID_IS_EDITABLE(&collection->id)) {
     BKE_report(op->reports, RPT_ERROR, "Could not add the collection because it is linked");
     return OPERATOR_CANCELLED;
   }
@@ -872,7 +980,7 @@ static int collection_remove_exec(bContext *C, wmOperator *op)
   if (!ob || !collection) {
     return OPERATOR_CANCELLED;
   }
-  if (ID_IS_LINKED(collection) || ID_IS_OVERRIDE_LIBRARY(collection)) {
+  if (!ID_IS_EDITABLE(collection) || ID_IS_OVERRIDE_LIBRARY(collection)) {
     BKE_report(op->reports,
                RPT_ERROR,
                "Cannot remove an object from a linked or library override collection");
@@ -907,12 +1015,15 @@ void OBJECT_OT_collection_remove(wmOperatorType *ot)
 static int collection_unlink_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  Collection *collection = static_cast<Collection *>(
-      CTX_data_pointer_get_type(C, "collection", &RNA_Collection).data);
+  Collection *collection = CTX_data_collection(C);
 
   if (!collection) {
     return OPERATOR_CANCELLED;
   }
+  if (collection->flag & COLLECTION_IS_MASTER) {
+    return OPERATOR_CANCELLED;
+  }
+  BLI_assert((collection->id.flag & ID_FLAG_EMBEDDED_DATA) == 0);
   if (ID_IS_OVERRIDE_LIBRARY(collection) &&
       collection->id.override_library->hierarchy_root != &collection->id)
   {
@@ -932,6 +1043,26 @@ static int collection_unlink_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static bool collection_unlink_poll(bContext *C)
+{
+  Collection *collection = CTX_data_collection(C);
+
+  if (!collection) {
+    return false;
+  }
+  if (collection->flag & COLLECTION_IS_MASTER) {
+    return false;
+  }
+  BLI_assert((collection->id.flag & ID_FLAG_EMBEDDED_DATA) == 0);
+  if (ID_IS_OVERRIDE_LIBRARY(collection) &&
+      collection->id.override_library->hierarchy_root != &collection->id)
+  {
+    return false;
+  }
+
+  return ED_operator_objectmode(C);
+}
+
 void OBJECT_OT_collection_unlink(wmOperatorType *ot)
 {
   /* identifiers */
@@ -941,7 +1072,7 @@ void OBJECT_OT_collection_unlink(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = collection_unlink_exec;
-  ot->poll = ED_operator_objectmode;
+  ot->poll = collection_unlink_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

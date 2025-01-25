@@ -27,7 +27,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
@@ -37,7 +37,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "atomic_ops.h"
 
@@ -46,7 +46,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 #include <cstring>
@@ -109,7 +109,7 @@ static bool driver_get_target_context_property(const DriverTargetContext *driver
       return true;
 
     case DTAR_CONTEXT_PROPERTY_ACTIVE_VIEW_LAYER: {
-      *r_property_ptr = RNA_pointer_create(
+      *r_property_ptr = RNA_pointer_create_discrete(
           &driver_target_context->scene->id, &RNA_ViewLayer, driver_target_context->view_layer);
       return true;
     }
@@ -120,10 +120,7 @@ static bool driver_get_target_context_property(const DriverTargetContext *driver
   /* Reset to a nullptr RNA pointer.
    * This allows to more gracefully handle issues with unsupported configuration (forward
    * compatibility. for example). */
-  /* TODO(sergey): Replace with utility null-RNA-pointer creation once that is available. */
-  r_property_ptr->data = nullptr;
-  r_property_ptr->type = nullptr;
-  r_property_ptr->owner_id = nullptr;
+  *r_property_ptr = PointerRNA_NULL;
 
   return false;
 }
@@ -1128,7 +1125,7 @@ static ExprPyLike_Parsed *driver_compile_simple_expr_impl(ChannelDriver *driver)
   return BLI_expr_pylike_parse(driver->expression, names, names_len + VAR_INDEX_CUSTOM);
 }
 
-static bool driver_check_simple_expr_depends_on_time(ExprPyLike_Parsed *expr)
+static bool driver_check_simple_expr_depends_on_time(const ExprPyLike_Parsed *expr)
 {
   /* Check if the 'frame' parameter is actually used. */
   return BLI_expr_pylike_is_using_param(expr, VAR_INDEX_FRAME);

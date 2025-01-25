@@ -8,10 +8,10 @@
 #pragma once
 
 #include "kernel/closure/bsdf_util.h"
-
-#include "kernel/sample/pattern.h"
-
+#include "kernel/sample/mapping.h"
 #include "kernel/util/lookup_table.h"
+
+#include "util/math_fast.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -29,32 +29,41 @@ enum MicrofacetFresnel {
   F82_TINT,
 };
 
-typedef struct FresnelDielectricTint {
+struct FresnelThinFilm {
+  float thickness;
+  float ior;
+};
+
+struct FresnelDielectricTint {
+  FresnelThinFilm thin_film;
+
   Spectrum reflection_tint;
   Spectrum transmission_tint;
-} FresnelDielectricTint;
+};
 
-typedef struct FresnelConductor {
+struct FresnelConductor {
   Spectrum n, k;
-} FresnelConductor;
+};
 
-typedef struct FresnelGeneralizedSchlick {
+struct FresnelGeneralizedSchlick {
+  FresnelThinFilm thin_film;
+
   Spectrum reflection_tint;
   Spectrum transmission_tint;
   /* Reflectivity at perpendicular (F0) and glancing (F90) angles. */
   Spectrum f0, f90;
   /* Negative exponent signals a special case where the real Fresnel is remapped to F0...F90. */
   float exponent;
-} FresnelGeneralizedSchlick;
+};
 
-typedef struct FresnelF82Tint {
+struct FresnelF82Tint {
   /* Perpendicular reflectivity. */
   Spectrum f0;
   /* Precomputed (1-cos)^6 factor for edge tint. */
   Spectrum b;
-} FresnelF82Tint;
+};
 
-typedef struct MicrofacetBsdf {
+struct MicrofacetBsdf {
   SHADER_CLOSURE_BASE;
 
   float alpha_x, alpha_y, ior;
@@ -66,12 +75,12 @@ typedef struct MicrofacetBsdf {
   float energy_scale;
 
   /* Fresnel model to apply, as well as the extra data for it.
-   * For NONE and DIELECTRIC, no extra storage is needed, so the pointer is NULL for them. */
+   * For NONE and DIELECTRIC, no extra storage is needed, so the pointer is nullptr for them. */
   int fresnel_type;
   ccl_private void *fresnel;
 
   float3 T;
-} MicrofacetBsdf;
+};
 
 static_assert(sizeof(ShaderClosure) >= sizeof(MicrofacetBsdf), "MicrofacetBsdf is too large!");
 
@@ -90,7 +99,7 @@ ccl_device_forceinline float3 microfacet_beckmann_sample_vndf(const float3 wi,
   wi_ = normalize(wi_);
 
   /* 2. sample P22_{wi}(x_slope, y_slope, 1, 1) */
-  float slope_x, slope_y;
+  float2 slope;
   float cos_phi_i = 1.0f;
   float sin_phi_i = 0.0f;
 
@@ -98,8 +107,7 @@ ccl_device_forceinline float3 microfacet_beckmann_sample_vndf(const float3 wi,
     /* Special case (normal incidence). */
     const float r = sqrtf(-logf(rand.x));
     const float phi = M_2PI_F * rand.y;
-    slope_x = r * cosf(phi);
-    slope_y = r * sinf(phi);
+    slope = polar_to_cartesian(r, phi);
   }
   else {
     /* Precomputations. */
@@ -111,7 +119,7 @@ ccl_device_forceinline float3 microfacet_beckmann_sample_vndf(const float3 wi,
     const float exp_a2 = expf(-cot_theta_i * cot_theta_i);
     const float SQRT_PI_INV = 0.56418958354f;
 
-    float invlen = 1.0f / sin_theta_i;
+    const float invlen = 1.0f / sin_theta_i;
     cos_phi_i = wi_.x * invlen;
     sin_phi_i = wi_.y * invlen;
 
@@ -133,7 +141,8 @@ ccl_device_forceinline float3 microfacet_beckmann_sample_vndf(const float3 wi,
     const float K = tan_theta_i * SQRT_PI_INV;
     const float y_approx = rand.x * (1.0f + erf_a + K * (1 - erf_a * erf_a));
     const float y_exact = rand.x * (1.0f + erf_a + K * exp_a2);
-    float b = K > 0 ? (0.5f - sqrtf(K * (K - y_approx + 1.0f) + 0.25f)) / K : y_approx - 1.0f;
+    const float b = K > 0 ? (0.5f - sqrtf(K * (K - y_approx + 1.0f) + 0.25f)) / K :
+                            y_approx - 1.0f;
 
     float inv_erf = fast_ierff(b);
     float2 begin = make_float2(-1.0f, -y_exact);
@@ -160,21 +169,19 @@ ccl_device_forceinline float3 microfacet_beckmann_sample_vndf(const float3 wi,
       current.y = 1.0f + current.x + K * expf(-sqr(inv_erf)) - y_exact;
     }
 
-    slope_x = inv_erf;
-    slope_y = fast_ierff(2.0f * rand.y - 1.0f);
+    slope.x = inv_erf;
+    slope.y = fast_ierff(2.0f * rand.y - 1.0f);
   }
 
   /* 3. rotate */
-  float tmp = cos_phi_i * slope_x - sin_phi_i * slope_y;
-  slope_y = sin_phi_i * slope_x + cos_phi_i * slope_y;
-  slope_x = tmp;
+  slope = make_float2(cos_phi_i * slope.x - sin_phi_i * slope.y,
+                      sin_phi_i * slope.x + cos_phi_i * slope.y);
 
   /* 4. unstretch */
-  slope_x = alpha_x * slope_x;
-  slope_y = alpha_y * slope_y;
+  slope *= make_float2(alpha_x, alpha_y);
 
   /* 5. compute normal */
-  return normalize(make_float3(-slope_x, -slope_y, 1.0f));
+  return normalize(make_float3(-slope.x, -slope.y, 1.0f));
 }
 
 /* GGX VNDF importance sampling algorithm from:
@@ -187,11 +194,12 @@ ccl_device_forceinline float3 microfacet_ggx_sample_vndf(const float3 wi,
                                                          const float2 rand)
 {
   /* Section 3.2: Transforming the view direction to the hemisphere configuration. */
-  float3 wi_ = normalize(make_float3(alpha_x * wi.x, alpha_y * wi.y, wi.z));
+  const float3 wi_ = normalize(make_float3(alpha_x * wi.x, alpha_y * wi.y, wi.z));
 
   /* Section 4.1: Orthonormal basis. */
-  float lensq = sqr(wi_.x) + sqr(wi_.y);
-  float3 T1, T2;
+  const float lensq = sqr(wi_.x) + sqr(wi_.y);
+  float3 T1;
+  float3 T2;
   if (lensq > 1e-7f) {
     T1 = make_float3(-wi_.y, wi_.x, 0.0f) * inversesqrtf(lensq);
     T2 = cross(wi_, T1);
@@ -207,7 +215,7 @@ ccl_device_forceinline float3 microfacet_ggx_sample_vndf(const float3 wi,
   t.y = mix(safe_sqrtf(1.0f - sqr(t.x)), t.y, 0.5f * (1.0f + wi_.z));
 
   /* Section 4.3: Reprojection onto hemisphere. */
-  float3 H_ = t.x * T1 + t.y * T2 + safe_sqrtf(1.0f - len_squared(t)) * wi_;
+  const float3 H_ = to_global(disk_to_hemisphere(t), T1, T2, wi_);
 
   /* Section 3.4: Transforming the normal back to the ellipsoid configuration. */
   return normalize(make_float3(alpha_x * H_.x, alpha_y * H_.y, max(0.0f, H_.z)));
@@ -217,7 +225,8 @@ ccl_device_forceinline float3 microfacet_ggx_sample_vndf(const float3 wi,
  * the incoming angle `cos_theta_i`.
  * Also returns the cosine of the angle between the normal and the refracted ray as `r_cos_theta_t`
  * if provided. */
-ccl_device_forceinline void microfacet_fresnel(ccl_private const MicrofacetBsdf *bsdf,
+ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
+                                               const ccl_private MicrofacetBsdf *bsdf,
                                                const float cos_theta_i,
                                                ccl_private float *r_cos_theta_t,
                                                ccl_private Spectrum *r_reflectance,
@@ -258,13 +267,41 @@ ccl_device_forceinline void microfacet_fresnel(ccl_private const MicrofacetBsdf 
   else if (bsdf->fresnel_type == MicrofacetFresnel::GENERALIZED_SCHLICK) {
     ccl_private FresnelGeneralizedSchlick *fresnel = (ccl_private FresnelGeneralizedSchlick *)
                                                          bsdf->fresnel;
-    float s;
-    if (fresnel->exponent < 0.0f) {
+    Spectrum F;
+    if (fresnel->thin_film.thickness > 0.1f) {
+      /* Iridescence doesn't combine well with the general case. We only expose it through the
+       * Principled BSDF for now, so it's fine to not support custom exponents and F90. */
+      kernel_assert(fresnel->exponent < 0.0f);
+      kernel_assert(fresnel->f90 == one_spectrum());
+      F = fresnel_iridescence(kg,
+                              1.0f,
+                              fresnel->thin_film.ior,
+                              bsdf->ior,
+                              cos_theta_i,
+                              fresnel->thin_film.thickness,
+                              r_cos_theta_t);
+      /* Apply F0 scaling (here per-channel, since iridescence produces colored output).
+       * Note that the usual approach (as used below) cannot be used here, since F may be below
+       * F0_real. Therefore, use a different approach: Scale the result by (F0 / F0_real), with
+       * the strength of the scaling depending on how close F is to F0_real.
+       * There isn't one single "correct" way to do this, it's just for artistic control anyways.
+       */
+      const float F0_real = F0_from_ior(bsdf->ior);
+      if (F0_real > 1e-5f && !isequal(F, one_spectrum())) {
+        FOREACH_SPECTRUM_CHANNEL (i) {
+          const float s = saturatef(inverse_lerp(1.0f, F0_real, GET_SPECTRUM_CHANNEL(F, i)));
+          const float factor = GET_SPECTRUM_CHANNEL(fresnel->f0, i) / F0_real;
+          GET_SPECTRUM_CHANNEL(F, i) *= mix(1.0f, factor, s);
+        }
+      }
+    }
+    else if (fresnel->exponent < 0.0f) {
       /* Special case: Use real Fresnel curve to determine the interpolation between F0 and F90.
-       * Used by Principled v1. */
+       * Used by Principled BSDF. */
       const float F_real = fresnel_dielectric(cos_theta_i, bsdf->ior, r_cos_theta_t);
       const float F0_real = F0_from_ior(bsdf->ior);
-      s = saturatef(inverse_lerp(F0_real, 1.0f, F_real));
+      const float s = saturatef(inverse_lerp(F0_real, 1.0f, F_real));
+      F = mix(fresnel->f0, fresnel->f90, s);
     }
     else {
       /* Regular case: Generalized Schlick term. */
@@ -282,9 +319,10 @@ ccl_device_forceinline void microfacet_fresnel(ccl_private const MicrofacetBsdf 
 
       /* TODO(lukas): Is a special case for exponent==5 worth it? */
       /* When going from a higher to a lower IOR, we must use the transmitted angle. */
-      s = powf(1.0f - ((bsdf->ior < 1.0f) ? cos_theta_t : cos_theta_i), fresnel->exponent);
+      const float fresnel_angle = ((bsdf->ior < 1.0f) ? cos_theta_t : cos_theta_i);
+      const float s = powf(1.0f - fresnel_angle, fresnel->exponent);
+      F = mix(fresnel->f0, fresnel->f90, s);
     }
-    const Spectrum F = mix(fresnel->f0, fresnel->f90, s);
     *r_reflectance = F * fresnel->reflection_tint;
     *r_transmittance = (one_spectrum() - F) * fresnel->transmission_tint;
   }
@@ -305,13 +343,14 @@ ccl_device_forceinline void microfacet_fresnel(ccl_private const MicrofacetBsdf 
 
 ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
                                                       ccl_private MicrofacetBsdf *bsdf,
-                                                      ccl_private const ShaderData *sd,
+                                                      const ccl_private ShaderData *sd,
                                                       const Spectrum Fss)
 {
   const float mu = dot(sd->wi, bsdf->N);
   const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
 
-  float E, E_avg;
+  float E;
+  float E_avg;
   if (bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_ID) {
     E = lookup_table_read_2D(kg, rough, mu, kernel_data.tables.ggx_E, 32, 32);
     E_avg = lookup_table_read(kg, rough, kernel_data.tables.ggx_Eavg, 32);
@@ -326,7 +365,7 @@ ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
       avg_ofs = kernel_data.tables.ggx_glass_inv_Eavg;
     }
     /* TODO: Bias mu towards more precision for low values. */
-    float z = sqrtf(fabsf((ior - 1.0f) / (ior + 1.0f)));
+    const float z = sqrtf(fabsf((ior - 1.0f) / (ior + 1.0f)));
     E = lookup_table_read_3D(kg, rough, mu, z, ofs, 16, 16, 16);
     E_avg = lookup_table_read_2D(kg, rough, z, avg_ofs, 16, 16);
   }
@@ -367,14 +406,15 @@ ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
  * energy-preserving then transmission should just be `1 - reflection`. For dielectric we could
  * probably split the LUT for multiGGX if smooth assumption is not good enough. */
 ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
-                                                    ccl_private const ShaderData *sd,
-                                                    ccl_private const MicrofacetBsdf *bsdf,
+                                                    const ccl_private ShaderData *sd,
+                                                    const ccl_private MicrofacetBsdf *bsdf,
                                                     const bool eval_reflection,
                                                     const bool eval_transmission)
 {
   const float cos_NI = dot(sd->wi, bsdf->N);
-  Spectrum reflectance, transmittance;
-  microfacet_fresnel(bsdf, cos_NI, nullptr, &reflectance, &transmittance);
+  Spectrum reflectance;
+  Spectrum transmittance;
+  microfacet_fresnel(kg, bsdf, cos_NI, nullptr, &reflectance, &transmittance);
 
   reflectance *= (float)eval_reflection;
   transmittance *= (float)eval_transmission;
@@ -384,23 +424,29 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
     ccl_private FresnelGeneralizedSchlick *fresnel = (ccl_private FresnelGeneralizedSchlick *)
                                                          bsdf->fresnel;
 
-    float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
-    float s;
-    if (fresnel->exponent < 0.0f) {
-      float z = sqrtf(fabsf((bsdf->ior - 1.0f) / (bsdf->ior + 1.0f)));
-      s = lookup_table_read_3D(
-          kg, rough, cos_NI, z, kernel_data.tables.ggx_gen_schlick_ior_s, 16, 16, 16);
+    if (fresnel->thin_film.thickness > 0.1f) {
+      /* Precomputing LUTs for thin-film iridescence isn't viable, so fall back to the specular
+       * reflection approximation from the microfacet_fresnel call above in that case. */
     }
     else {
-      float z = 1.0f / (0.2f * fresnel->exponent + 1.0f);
-      s = lookup_table_read_3D(
-          kg, rough, cos_NI, z, kernel_data.tables.ggx_gen_schlick_s, 16, 16, 16);
+      const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
+      float s;
+      if (fresnel->exponent < 0.0f) {
+        const float z = sqrtf(fabsf((bsdf->ior - 1.0f) / (bsdf->ior + 1.0f)));
+        s = lookup_table_read_3D(
+            kg, rough, cos_NI, z, kernel_data.tables.ggx_gen_schlick_ior_s, 16, 16, 16);
+      }
+      else {
+        const float z = 1.0f / (0.2f * fresnel->exponent + 1.0f);
+        s = lookup_table_read_3D(
+            kg, rough, cos_NI, z, kernel_data.tables.ggx_gen_schlick_s, 16, 16, 16);
+      }
+      reflectance = mix(fresnel->f0, fresnel->f90, s) * fresnel->reflection_tint;
     }
-    reflectance = mix(fresnel->f0, fresnel->f90, s) * fresnel->reflection_tint;
   }
   else if (bsdf->fresnel_type == MicrofacetFresnel::F82_TINT) {
     ccl_private FresnelF82Tint *fresnel = (ccl_private FresnelF82Tint *)bsdf->fresnel;
-    float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
+    const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
     const float s = lookup_table_read_3D(
         kg, rough, cos_NI, 0.5f, kernel_data.tables.ggx_gen_schlick_s, 16, 16, 16);
     /* TODO: Precompute B factor term and account for it here. */
@@ -416,66 +462,66 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
  * Eric Heitz, JCGT Vol. 3, No. 2, 2014.
  * https://jcgt.org/published/0003/02/03/ */
 template<MicrofacetType m_type>
-ccl_device_inline float bsdf_lambda_from_sqr_alpha_tan_n(float sqr_alpha_tan_n)
+ccl_device_inline float bsdf_lambda_from_sqr_alpha_tan_n(const float sqr_alpha_tan_n)
 {
   if (m_type == MicrofacetType::GGX) {
     /* Equation 72. */
     return 0.5f * (sqrtf(1.0f + sqr_alpha_tan_n) - 1.0f);
   }
-  else {
-    kernel_assert(m_type == MicrofacetType::BECKMANN);
-    /* Approximation from below Equation 69. */
-    if (sqr_alpha_tan_n < 0.39f) {
-      /* Equivalent to a >= 1.6f, but also handles sqr_alpha_tan_n == 0.0f cleanly. */
-      return 0.0f;
-    }
-
-    const float a = inversesqrtf(sqr_alpha_tan_n);
-    return ((0.396f * a - 1.259f) * a + 1.0f) / ((2.181f * a + 3.535f) * a);
+  kernel_assert(m_type == MicrofacetType::BECKMANN);
+  /* Approximation from below Equation 69. */
+  if (sqr_alpha_tan_n < 0.39f) {
+    /* Equivalent to a >= 1.6f, but also handles sqr_alpha_tan_n == 0.0f cleanly. */
+    return 0.0f;
   }
+
+  const float a = inversesqrtf(sqr_alpha_tan_n);
+  return ((0.396f * a - 1.259f) * a + 1.0f) / ((2.181f * a + 3.535f) * a);
 }
 
-template<MicrofacetType m_type> ccl_device_inline float bsdf_lambda(float alpha2, float cos_N)
+template<MicrofacetType m_type>
+ccl_device_inline float bsdf_lambda(const float alpha2, const float cos_N)
 {
   return bsdf_lambda_from_sqr_alpha_tan_n<m_type>(alpha2 * fmaxf(1.0f / sqr(cos_N) - 1.0f, 0.0f));
 }
 
 template<MicrofacetType m_type>
-ccl_device_inline float bsdf_aniso_lambda(float alpha_x, float alpha_y, float3 V)
+ccl_device_inline float bsdf_aniso_lambda(const float alpha_x, const float alpha_y, const float3 V)
 {
   const float sqr_alpha_tan_n = (sqr(alpha_x * V.x) + sqr(alpha_y * V.y)) / sqr(V.z);
   return bsdf_lambda_from_sqr_alpha_tan_n<m_type>(sqr_alpha_tan_n);
 }
 
 /* Mono-directional shadowing-masking term. */
-template<MicrofacetType m_type> ccl_device_inline float bsdf_G(float alpha2, float cos_N)
+template<MicrofacetType m_type>
+ccl_device_inline float bsdf_G(const float alpha2, const float cos_N)
 {
   return 1.0f / (1.0f + bsdf_lambda<m_type>(alpha2, cos_N));
 }
 
 /* Combined shadowing-masking term. */
 template<MicrofacetType m_type>
-ccl_device_inline float bsdf_G(float alpha2, float cos_NI, float cos_NO)
+ccl_device_inline float bsdf_G(const float alpha2, const float cos_NI, const float cos_NO)
 {
   return 1.0f / (1.0f + bsdf_lambda<m_type>(alpha2, cos_NI) + bsdf_lambda<m_type>(alpha2, cos_NO));
 }
 
 /* Normal distribution function. */
-template<MicrofacetType m_type> ccl_device_inline float bsdf_D(float alpha2, float cos_NH)
+template<MicrofacetType m_type>
+ccl_device_inline float bsdf_D(const float alpha2, const float cos_NH)
 {
-  const float cos_NH2 = sqr(cos_NH);
+  const float cos_NH2 = min(sqr(cos_NH), 1.0f);
+  const float one_minus_cos_NH2 = 1.0f - cos_NH2;
 
   if (m_type == MicrofacetType::BECKMANN) {
-    return expf((1.0f - 1.0f / cos_NH2) / alpha2) / (M_PI_F * alpha2 * sqr(cos_NH2));
+    return 1.0f / (expf(one_minus_cos_NH2 / (cos_NH2 * alpha2)) * M_PI_F * alpha2 * sqr(cos_NH2));
   }
-  else {
-    kernel_assert(m_type == MicrofacetType::GGX);
-    return alpha2 / (M_PI_F * sqr(1.0f + (alpha2 - 1.0f) * cos_NH2));
-  }
+  kernel_assert(m_type == MicrofacetType::GGX);
+  return alpha2 / (M_PI_F * sqr(one_minus_cos_NH2 + alpha2 * cos_NH2));
 }
 
 template<MicrofacetType m_type>
-ccl_device_inline float bsdf_aniso_D(float alpha_x, float alpha_y, float3 H)
+ccl_device_inline float bsdf_aniso_D(const float alpha_x, const float alpha_y, float3 H)
 {
   H /= make_float3(alpha_x, alpha_y, 1.0f);
 
@@ -485,10 +531,8 @@ ccl_device_inline float bsdf_aniso_D(float alpha_x, float alpha_y, float3 H)
   if (m_type == MicrofacetType::BECKMANN) {
     return expf(-(sqr(H.x) + sqr(H.y)) / cos_NH2) / (M_PI_F * alpha2 * sqr(cos_NH2));
   }
-  else {
-    kernel_assert(m_type == MicrofacetType::GGX);
-    return M_1_PI_F / (alpha2 * sqr(len_squared(H)));
-  }
+  kernel_assert(m_type == MicrofacetType::GGX);
+  return M_1_PI_F / (alpha2 * sqr(len_squared(H)));
 }
 
 /* Do not set `SD_BSDF_HAS_EVAL` flag if the squared roughness is below a certain threshold. */
@@ -498,13 +542,14 @@ ccl_device_forceinline int bsdf_microfacet_eval_flag(const ccl_private Microface
 }
 
 template<MicrofacetType m_type>
-ccl_device Spectrum bsdf_microfacet_eval(ccl_private const ShaderClosure *sc,
+ccl_device Spectrum bsdf_microfacet_eval(KernelGlobals kg,
+                                         const ccl_private ShaderClosure *sc,
                                          const float3 Ng,
                                          const float3 wi,
                                          const float3 wo,
                                          ccl_private float *pdf)
 {
-  ccl_private const MicrofacetBsdf *bsdf = (ccl_private const MicrofacetBsdf *)sc;
+  const ccl_private MicrofacetBsdf *bsdf = (const ccl_private MicrofacetBsdf *)sc;
 
   /* Whether the closure has reflective or transmissive lobes. */
   const bool has_reflection = !CLOSURE_IS_REFRACTION(bsdf->type);
@@ -543,26 +588,30 @@ ccl_device Spectrum bsdf_microfacet_eval(ccl_private const ShaderClosure *sc,
 
   /* Compute Fresnel coefficients. */
   const float cos_HI = dot(H, wi);
-  Spectrum reflectance, transmittance;
-  microfacet_fresnel(bsdf, cos_HI, nullptr, &reflectance, &transmittance);
+  Spectrum reflectance;
+  Spectrum transmittance;
+  microfacet_fresnel(kg, bsdf, cos_HI, nullptr, &reflectance, &transmittance);
 
   if (is_zero(reflectance) && is_zero(transmittance)) {
     return zero_spectrum();
   }
 
   const float cos_NH = dot(N, H);
-  float D, lambdaI, lambdaO;
+  float D;
+  float lambdaI;
+  float lambdaO;
 
   /* NOTE: we could add support for anisotropic transmission, although it will make dispersion
    * harder to compute. */
   if (alpha_x == alpha_y || is_transmission) { /* Isotropic. */
-    float alpha2 = alpha_x * alpha_y;
+    const float alpha2 = alpha_x * alpha_y;
     D = bsdf_D<m_type>(alpha2, cos_NH);
     lambdaI = bsdf_lambda<m_type>(alpha2, cos_NI);
     lambdaO = bsdf_lambda<m_type>(alpha2, cos_NO);
   }
   else { /* Anisotropic. */
-    float3 X, Y;
+    float3 X;
+    float3 Y;
     make_orthonormals_tangent(N, bsdf->T, &X, &Y);
 
     const float3 local_H = make_float3(dot(X, H), dot(Y, H), cos_NH);
@@ -575,9 +624,9 @@ ccl_device Spectrum bsdf_microfacet_eval(ccl_private const ShaderClosure *sc,
     lambdaO = bsdf_aniso_lambda<m_type>(alpha_x, alpha_y, local_O);
   }
 
-  float common = D / cos_NI *
-                 (is_transmission ? sqr(bsdf->ior * inv_len_H) * fabsf(cos_HI * dot(H, wo)) :
-                                    0.25f);
+  const float common = D / cos_NI *
+                       (is_transmission ? sqr(bsdf->ior * inv_len_H) * fabsf(cos_HI * dot(H, wo)) :
+                                          0.25f);
 
   const float pdf_reflect = average(reflectance) / average(reflectance + transmittance);
   const float lobe_pdf = is_transmission ? 1.0f - pdf_reflect : pdf_reflect;
@@ -587,9 +636,10 @@ ccl_device Spectrum bsdf_microfacet_eval(ccl_private const ShaderClosure *sc,
 }
 
 template<MicrofacetType m_type>
-ccl_device int bsdf_microfacet_sample(ccl_private const ShaderClosure *sc,
-                                      float3 Ng,
-                                      float3 wi,
+ccl_device int bsdf_microfacet_sample(KernelGlobals kg,
+                                      const ccl_private ShaderClosure *sc,
+                                      const float3 Ng,
+                                      const float3 wi,
                                       const float3 rand,
                                       ccl_private Spectrum *eval,
                                       ccl_private float3 *wo,
@@ -597,7 +647,7 @@ ccl_device int bsdf_microfacet_sample(ccl_private const ShaderClosure *sc,
                                       ccl_private float2 *sampled_roughness,
                                       ccl_private float *eta)
 {
-  ccl_private const MicrofacetBsdf *bsdf = (ccl_private const MicrofacetBsdf *)sc;
+  const ccl_private MicrofacetBsdf *bsdf = (const ccl_private MicrofacetBsdf *)sc;
 
   const float3 N = bsdf->N;
   const float cos_NI = dot(N, wi);
@@ -615,12 +665,14 @@ ccl_device int bsdf_microfacet_sample(ccl_private const ShaderClosure *sc,
   /* Half vector. */
   float3 H;
   /* Needed for anisotropic microfacets later. */
-  float3 local_H, local_I;
+  float3 local_H;
+  float3 local_I;
   if (m_singular) {
     H = N;
   }
   else {
-    float3 X, Y;
+    float3 X;
+    float3 Y;
     if (alpha_x == alpha_y) {
       make_orthonormals(N, &X, &Y);
     }
@@ -632,22 +684,23 @@ ccl_device int bsdf_microfacet_sample(ccl_private const ShaderClosure *sc,
      * space before and after sampling. */
     local_I = make_float3(dot(X, wi), dot(Y, wi), cos_NI);
     if (m_type == MicrofacetType::GGX) {
-      local_H = microfacet_ggx_sample_vndf(local_I, alpha_x, alpha_y, float3_to_float2(rand));
+      local_H = microfacet_ggx_sample_vndf(local_I, alpha_x, alpha_y, make_float2(rand));
     }
     else {
       /* m_type == MicrofacetType::BECKMANN */
-      local_H = microfacet_beckmann_sample_vndf(local_I, alpha_x, alpha_y, float3_to_float2(rand));
+      local_H = microfacet_beckmann_sample_vndf(local_I, alpha_x, alpha_y, make_float2(rand));
     }
 
-    H = X * local_H.x + Y * local_H.y + N * local_H.z;
+    H = to_global(local_H, X, Y, N);
   }
   const float cos_HI = dot(H, wi);
 
   /* The angle between the half vector and the refracted ray. Not used when sampling reflection. */
   float cos_HO;
   /* Compute Fresnel coefficients. */
-  Spectrum reflectance, transmittance;
-  microfacet_fresnel(bsdf, cos_HI, &cos_HO, &reflectance, &transmittance);
+  Spectrum reflectance;
+  Spectrum transmittance;
+  microfacet_fresnel(kg, bsdf, cos_HI, &cos_HO, &reflectance, &transmittance);
 
   if (is_zero(reflectance) && is_zero(transmittance)) {
     return LABEL_NONE;
@@ -680,12 +733,14 @@ ccl_device int bsdf_microfacet_sample(ccl_private const ShaderClosure *sc,
     *eval *= 1e6f;
   }
   else {
-    float D, lambdaI, lambdaO;
+    float D;
+    float lambdaI;
+    float lambdaO;
 
     /* TODO: add support for anisotropic transmission. */
     if (alpha_x == alpha_y || do_refract) { /* Isotropic. */
-      float alpha2 = alpha_x * alpha_y;
-      const float cos_NH = dot(N, H);
+      const float alpha2 = alpha_x * alpha_y;
+      const float cos_NH = local_H.z;
       const float cos_NO = dot(N, *wo);
 
       D = bsdf_D<m_type>(alpha2, cos_NH);
@@ -721,7 +776,7 @@ ccl_device int bsdf_microfacet_sample(ccl_private const ShaderClosure *sc,
 
 ccl_device void bsdf_microfacet_setup_fresnel_conductor(KernelGlobals kg,
                                                         ccl_private MicrofacetBsdf *bsdf,
-                                                        ccl_private const ShaderData *sd,
+                                                        const ccl_private ShaderData *sd,
                                                         ccl_private FresnelConductor *fresnel,
                                                         const bool preserve_energy)
 {
@@ -732,11 +787,11 @@ ccl_device void bsdf_microfacet_setup_fresnel_conductor(KernelGlobals kg,
   if (preserve_energy) {
     /* In order to estimate Fss of the conductor, we fit the F82-tint model to it based on the
      * value at 0° and ~82° and then use the analytic expression for its Fss. */
-    Spectrum F0 = fresnel_conductor(1.0f, fresnel->n, fresnel->k);
-    Spectrum F82 = fresnel_conductor(1.0f / 7.0f, fresnel->n, fresnel->k);
+    const Spectrum F0 = fresnel_conductor(1.0f, fresnel->n, fresnel->k);
+    const Spectrum F82 = fresnel_conductor(1.0f / 7.0f, fresnel->n, fresnel->k);
     /* 0.46266436f is (1 - 1/7)^5, 17.651384f is 1/(1/7 * (1 - 1/7)^6) */
-    Spectrum B = (mix(F0, one_spectrum(), 0.46266436f) - F82) * 17.651384f;
-    Spectrum Fss = saturate(mix(F0, one_spectrum(), 1.0f / 21.0f) - B * (1.0f / 126.0f));
+    const Spectrum B = (mix(F0, one_spectrum(), 0.46266436f) - F82) * 17.651384f;
+    const Spectrum Fss = saturate(mix(F0, one_spectrum(), 1.0f / 21.0f) - B * (1.0f / 126.0f));
     microfacet_ggx_preserve_energy(kg, bsdf, sd, Fss);
   }
 }
@@ -744,7 +799,7 @@ ccl_device void bsdf_microfacet_setup_fresnel_conductor(KernelGlobals kg,
 ccl_device void bsdf_microfacet_setup_fresnel_dielectric_tint(
     KernelGlobals kg,
     ccl_private MicrofacetBsdf *bsdf,
-    ccl_private const ShaderData *sd,
+    const ccl_private ShaderData *sd,
     ccl_private FresnelDielectricTint *fresnel,
     const bool preserve_energy)
 {
@@ -761,7 +816,7 @@ ccl_device void bsdf_microfacet_setup_fresnel_dielectric_tint(
 ccl_device void bsdf_microfacet_setup_fresnel_generalized_schlick(
     KernelGlobals kg,
     ccl_private MicrofacetBsdf *bsdf,
-    ccl_private const ShaderData *sd,
+    const ccl_private ShaderData *sd,
     ccl_private FresnelGeneralizedSchlick *fresnel,
     const bool preserve_energy)
 {
@@ -810,7 +865,7 @@ ccl_device void bsdf_microfacet_setup_fresnel_generalized_schlick(
 
 ccl_device void bsdf_microfacet_setup_fresnel_f82_tint(KernelGlobals kg,
                                                        ccl_private MicrofacetBsdf *bsdf,
-                                                       ccl_private const ShaderData *sd,
+                                                       const ccl_private ShaderData *sd,
                                                        ccl_private FresnelF82Tint *fresnel,
                                                        const Spectrum f82_tint,
                                                        const bool preserve_energy)
@@ -837,14 +892,15 @@ ccl_device void bsdf_microfacet_setup_fresnel_f82_tint(KernelGlobals kg,
   bsdf->sample_weight *= average(bsdf_microfacet_estimate_albedo(kg, sd, bsdf, true, true));
 
   if (preserve_energy) {
-    Spectrum Fss = mix(fresnel->f0, one_spectrum(), 1.0f / 21.0f) - fresnel->b * (1.0f / 126.0f);
+    const Spectrum Fss = mix(fresnel->f0, one_spectrum(), 1.0f / 21.0f) -
+                         fresnel->b * (1.0f / 126.0f);
     microfacet_ggx_preserve_energy(kg, bsdf, sd, Fss);
   }
 }
 
 ccl_device void bsdf_microfacet_setup_fresnel_constant(KernelGlobals kg,
                                                        ccl_private MicrofacetBsdf *bsdf,
-                                                       ccl_private const ShaderData *sd,
+                                                       const ccl_private ShaderData *sd,
                                                        const Spectrum color)
 {
   /* Constant Fresnel is a special case - the color is already baked into the closure's
@@ -857,7 +913,7 @@ ccl_device void bsdf_microfacet_setup_fresnel_constant(KernelGlobals kg,
 
 ccl_device void bsdf_microfacet_setup_fresnel_dielectric(KernelGlobals kg,
                                                          ccl_private MicrofacetBsdf *bsdf,
-                                                         ccl_private const ShaderData *sd)
+                                                         const ccl_private ShaderData *sd)
 {
   bsdf->fresnel_type = MicrofacetFresnel::DIELECTRIC;
   bsdf->sample_weight *= average(bsdf_microfacet_estimate_albedo(kg, sd, bsdf, true, true));
@@ -912,7 +968,7 @@ ccl_device int bsdf_microfacet_ggx_glass_setup(ccl_private MicrofacetBsdf *bsdf)
   return SD_BSDF | SD_BSDF_HAS_TRANSMISSION | bsdf_microfacet_eval_flag(bsdf);
 }
 
-ccl_device void bsdf_microfacet_blur(ccl_private ShaderClosure *sc, float roughness)
+ccl_device void bsdf_microfacet_blur(ccl_private ShaderClosure *sc, const float roughness)
 {
   ccl_private MicrofacetBsdf *bsdf = (ccl_private MicrofacetBsdf *)sc;
 
@@ -920,19 +976,21 @@ ccl_device void bsdf_microfacet_blur(ccl_private ShaderClosure *sc, float roughn
   bsdf->alpha_y = fmaxf(roughness, bsdf->alpha_y);
 }
 
-ccl_device Spectrum bsdf_microfacet_ggx_eval(ccl_private const ShaderClosure *sc,
+ccl_device Spectrum bsdf_microfacet_ggx_eval(KernelGlobals kg,
+                                             const ccl_private ShaderClosure *sc,
                                              const float3 Ng,
                                              const float3 wi,
                                              const float3 wo,
                                              ccl_private float *pdf)
 {
-  ccl_private const MicrofacetBsdf *bsdf = (ccl_private const MicrofacetBsdf *)sc;
-  return bsdf->energy_scale * bsdf_microfacet_eval<MicrofacetType::GGX>(sc, Ng, wi, wo, pdf);
+  const ccl_private MicrofacetBsdf *bsdf = (const ccl_private MicrofacetBsdf *)sc;
+  return bsdf->energy_scale * bsdf_microfacet_eval<MicrofacetType::GGX>(kg, sc, Ng, wi, wo, pdf);
 }
 
-ccl_device int bsdf_microfacet_ggx_sample(ccl_private const ShaderClosure *sc,
-                                          float3 Ng,
-                                          float3 wi,
+ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals kg,
+                                          const ccl_private ShaderClosure *sc,
+                                          const float3 Ng,
+                                          const float3 wi,
                                           const float3 rand,
                                           ccl_private Spectrum *eval,
                                           ccl_private float3 *wo,
@@ -941,9 +999,9 @@ ccl_device int bsdf_microfacet_ggx_sample(ccl_private const ShaderClosure *sc,
                                           ccl_private float *eta)
 {
 
-  int label = bsdf_microfacet_sample<MicrofacetType::GGX>(
-      sc, Ng, wi, rand, eval, wo, pdf, sampled_roughness, eta);
-  *eval *= ((ccl_private const MicrofacetBsdf *)sc)->energy_scale;
+  const int label = bsdf_microfacet_sample<MicrofacetType::GGX>(
+      kg, sc, Ng, wi, rand, eval, wo, pdf, sampled_roughness, eta);
+  *eval *= ((const ccl_private MicrofacetBsdf *)sc)->energy_scale;
   return label;
 }
 
@@ -985,18 +1043,20 @@ ccl_device int bsdf_microfacet_beckmann_glass_setup(ccl_private MicrofacetBsdf *
   return SD_BSDF | SD_BSDF_HAS_TRANSMISSION | bsdf_microfacet_eval_flag(bsdf);
 }
 
-ccl_device Spectrum bsdf_microfacet_beckmann_eval(ccl_private const ShaderClosure *sc,
+ccl_device Spectrum bsdf_microfacet_beckmann_eval(KernelGlobals kg,
+                                                  const ccl_private ShaderClosure *sc,
                                                   const float3 Ng,
                                                   const float3 wi,
                                                   const float3 wo,
                                                   ccl_private float *pdf)
 {
-  return bsdf_microfacet_eval<MicrofacetType::BECKMANN>(sc, Ng, wi, wo, pdf);
+  return bsdf_microfacet_eval<MicrofacetType::BECKMANN>(kg, sc, Ng, wi, wo, pdf);
 }
 
-ccl_device int bsdf_microfacet_beckmann_sample(ccl_private const ShaderClosure *sc,
-                                               float3 Ng,
-                                               float3 wi,
+ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals kg,
+                                               const ccl_private ShaderClosure *sc,
+                                               const float3 Ng,
+                                               const float3 wi,
                                                const float3 rand,
                                                ccl_private Spectrum *eval,
                                                ccl_private float3 *wo,
@@ -1005,7 +1065,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(ccl_private const ShaderClosure *
                                                ccl_private float *eta)
 {
   return bsdf_microfacet_sample<MicrofacetType::BECKMANN>(
-      sc, Ng, wi, rand, eval, wo, pdf, sampled_roughness, eta);
+      kg, sc, Ng, wi, rand, eval, wo, pdf, sampled_roughness, eta);
 }
 
 CCL_NAMESPACE_END

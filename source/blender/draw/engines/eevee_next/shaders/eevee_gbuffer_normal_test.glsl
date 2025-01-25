@@ -7,8 +7,8 @@
  * Comment out for correct compilation error line. */
 #line 9
 
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_test_lib.glsl)
+#include "eevee_gbuffer_lib.glsl"
+#include "gpu_shader_test_lib.glsl"
 
 #define TEST(a, b) if (true)
 
@@ -110,6 +110,11 @@ void main()
   cl3.weight = 1.0;
   cl3.color = vec3(1);
   cl3.N = normalize(vec3(0.3, 0.2, 0.1));
+
+  ClosureUndetermined cl_none = closure_new(CLOSURE_NONE);
+  cl_none.weight = 1.0;
+  cl_none.color = vec3(1);
+  cl_none.N = normalize(vec3(0.0, 0.0, 1.0));
 
   TEST(eevee_gbuffer, NormalReuseDoubleFirst)
   {
@@ -227,5 +232,44 @@ void main()
     EXPECT_NEAR(cl1.N, gbuffer_closure_get(data_out, 0).N, 1e-5);
     EXPECT_NEAR(cl2.N, gbuffer_closure_get(data_out, 1).N, 1e-5);
     EXPECT_NEAR(cl3.N, gbuffer_closure_get(data_out, 2).N, 1e-5);
+  }
+
+  TEST(eevee_gbuffer, NormalReuseSingleHole)
+  {
+    data_in = gbuffer_new();
+    data_in.closure[0] = cl1;
+    data_in.closure[1] = cl_none;
+    data_in.closure[2] = cl3;
+
+    g_data_packed = gbuffer_pack(data_in);
+
+    EXPECT_EQ(g_data_packed.normal_len, 2);
+
+    data_out = gbuffer_read(header_tx, closure_tx, normal_tx, ivec2(0));
+
+    EXPECT_EQ(data_out.closure_count, 2);
+    EXPECT_EQ(data_out.normal_len, 2);
+    EXPECT_NEAR(cl1.N, gbuffer_closure_get(data_out, 0).N, 1e-5);
+    EXPECT_NEAR(cl3.N, gbuffer_closure_get(data_out, 1).N, 1e-5);
+    EXPECT_NEAR(cl3.N, gbuffer_closure_get_by_bin(data_out, 2).N, 1e-5);
+  }
+
+  TEST(eevee_gbuffer, NormalReuseDoubleHole)
+  {
+    data_in = gbuffer_new();
+    data_in.closure[0] = cl_none;
+    data_in.closure[1] = cl_none;
+    data_in.closure[2] = cl3;
+
+    g_data_packed = gbuffer_pack(data_in);
+
+    EXPECT_EQ(g_data_packed.normal_len, 1);
+
+    data_out = gbuffer_read(header_tx, closure_tx, normal_tx, ivec2(0));
+
+    EXPECT_EQ(data_out.closure_count, 1);
+    EXPECT_EQ(data_out.normal_len, 1);
+    EXPECT_NEAR(cl3.N, gbuffer_closure_get(data_out, 0).N, 1e-5);
+    EXPECT_NEAR(cl3.N, gbuffer_closure_get_by_bin(data_out, 2).N, 1e-5);
   }
 }

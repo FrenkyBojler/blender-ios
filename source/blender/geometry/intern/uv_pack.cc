@@ -14,7 +14,6 @@
 #include "BLI_bounds.hh"
 #include "BLI_boxpack_2d.h"
 #include "BLI_convexhull_2d.h"
-#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -23,9 +22,6 @@
 #include "BLI_polyfill_2d_beautify.h"
 #include "BLI_rect.h"
 #include "BLI_vector.hh"
-
-#include "DNA_scene_types.h"
-#include "DNA_space_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -323,6 +319,8 @@ void PackIsland::calculate_pre_rotation_(const UVPackIsland_Params &params)
 
 void PackIsland::finalize_geometry_(const UVPackIsland_Params &params, MemArena *arena, Heap *heap)
 {
+  BLI_assert(BLI_heap_len(heap) == 0);
+
   /* After all the triangles and polygons have been added to a #PackIsland, but before we can start
    * running packing algorithms, there is a one-time finalization process where we can
    * pre-calculate a few quantities about the island, including pre-rotation, bounding box, or
@@ -353,16 +351,16 @@ void PackIsland::finalize_geometry_(const UVPackIsland_Params &params, MemArena 
 
     /* Compute convex hull. */
     int convex_len = BLI_convexhull_2d(source, vert_count, index_map);
-
-    /* Write back. */
-    triangle_vertices_.clear();
-    Array<float2> convexVertices(convex_len);
-    for (int i = 0; i < convex_len; i++) {
-      convexVertices[i] = source[index_map[i]];
+    if (convex_len >= 3) {
+      /* Write back. */
+      triangle_vertices_.clear();
+      float2 *convex_verts = static_cast<float2 *>(
+          BLI_memarena_alloc(arena, sizeof(*convex_verts) * convex_len));
+      for (int i = 0; i < convex_len; i++) {
+        convex_verts[i] = source[index_map[i]];
+      }
+      add_polygon(Span(convex_verts, convex_len), arena, heap);
     }
-    add_polygon(convexVertices, arena, heap);
-
-    BLI_heap_clear(heap, nullptr);
   }
 
   /* Pivot calculation might be performed multiple times during pre-processing.
@@ -1351,7 +1349,7 @@ float Occupancy::trace_island(const PackIsland *island,
 
 static UVPhi find_best_fit_for_island(const PackIsland *island,
                                       const int scan_line,
-                                      Occupancy &occupancy,
+                                      const Occupancy &occupancy,
                                       const float scale,
                                       const int angle_90_multiple,
                                       /* TODO: const bool reflect, */

@@ -233,12 +233,12 @@ static void test_eevee_shadow_tag_update()
 
   {
     ShadowTileMap tilemap(0 * SHADOW_TILEDATA_PER_TILEMAP);
-    tilemap.sync_cubeface(float4x4::identity(), 0.01f, 1.0f, 0.01f, 0.0f, Z_NEG, 0.0f);
+    tilemap.sync_cubeface(LIGHT_OMNI_SPHERE, float4x4::identity(), 0.01f, 1.0f, Z_NEG);
     tilemaps_data.append(tilemap);
   }
   {
     ShadowTileMap tilemap(1 * SHADOW_TILEDATA_PER_TILEMAP);
-    tilemap.sync_orthographic(float4x4::identity(), int2(0), 1, 0.0f, SHADOW_PROJECTION_CLIPMAP);
+    tilemap.sync_orthographic(float4x4::identity(), int2(0), 1, SHADOW_PROJECTION_CLIPMAP);
     tilemaps_data.append(tilemap);
   }
 
@@ -258,7 +258,11 @@ static void test_eevee_shadow_tag_update()
   pass.dispatch(int3(curr_casters_updated.size(), 1, tilemaps_data.size()));
   pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 
-  manager.submit(pass);
+  draw::View view("Test");
+  view.sync(float4x4::identity(),
+            math::projection::orthographic(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f));
+
+  manager.submit(pass, view);
 
   tiles_data.read();
 
@@ -745,6 +749,7 @@ static void test_eevee_shadow_finalize()
   ShadowPageCacheBuf pages_cached_data = {"PagesCachedBuf"};
   ShadowPagesInfoDataBuf pages_infos_data = {"PagesInfosBuf"};
   ShadowStatisticsBuf statistics_buf = {"statistics_buf"};
+  ShadowRenderViewBuf render_views_buf = {"render_views_buf"};
   StorageArrayBuffer<ShadowTileMapClip, SHADOW_MAX_TILEMAP, false> tilemaps_clip = {
       "tilemaps_clip"};
 
@@ -859,23 +864,30 @@ static void test_eevee_shadow_finalize()
   render_map_buf.clear_to_zero();
 
   GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_finalize");
-
   PassSimple pass("Test");
   pass.shader_set(sh);
   pass.bind_ssbo("tilemaps_buf", tilemaps_data);
-  pass.bind_ssbo("tilemaps_clip_buf", tilemaps_clip);
   pass.bind_ssbo("tiles_buf", tiles_data);
-  pass.bind_ssbo("view_infos_buf", shadow_multi_view_buf);
-  pass.bind_ssbo("statistics_buf", statistics_buf);
-  pass.bind_ssbo("clear_dispatch_buf", clear_dispatch_buf);
-  pass.bind_ssbo("tile_draw_buf", tile_draw_buf);
-  pass.bind_ssbo("dst_coord_buf", dst_coord_buf);
-  pass.bind_ssbo("src_coord_buf", src_coord_buf);
-  pass.bind_ssbo("render_map_buf", render_map_buf);
-  pass.bind_ssbo("viewport_index_buf", viewport_index_buf);
   pass.bind_ssbo("pages_infos_buf", pages_infos_data);
+  pass.bind_ssbo("statistics_buf", statistics_buf);
+  pass.bind_ssbo("view_infos_buf", shadow_multi_view_buf);
+  pass.bind_ssbo("render_view_buf", render_views_buf);
+  pass.bind_ssbo("tilemaps_clip_buf", tilemaps_clip);
   pass.bind_image("tilemaps_img", tilemap_tx);
   pass.dispatch(int3(1, 1, tilemaps_data.size()));
+  pass.barrier(GPU_BARRIER_SHADER_STORAGE);
+
+  GPUShader *sh2 = GPU_shader_create_from_info_name("eevee_shadow_tilemap_rendermap");
+  pass.shader_set(sh2);
+  pass.bind_ssbo("statistics_buf", statistics_buf);
+  pass.bind_ssbo("render_view_buf", render_views_buf);
+  pass.bind_ssbo("tiles_buf", tiles_data);
+  pass.bind_ssbo("clear_dispatch_buf", clear_dispatch_buf);
+  pass.bind_ssbo("tile_draw_buf", tile_draw_buf);
+  pass.bind_ssbo("dst_coord_buf", &dst_coord_buf);
+  pass.bind_ssbo("src_coord_buf", &src_coord_buf);
+  pass.bind_ssbo("render_map_buf", &render_map_buf);
+  pass.dispatch(int3(1, 1, SHADOW_VIEW_MAX));
   pass.barrier(GPU_BARRIER_BUFFER_UPDATE | GPU_BARRIER_TEXTURE_UPDATE);
 
   Manager manager;
@@ -1159,6 +1171,7 @@ static void test_eevee_shadow_finalize()
   EXPECT_EQ(statistics_buf.view_needed_count, 5);
 
   GPU_shader_free(sh);
+  GPU_shader_free(sh2);
   DRW_shaders_free();
   GPU_render_end();
 }
@@ -1208,7 +1221,7 @@ static void test_eevee_shadow_tilemap_amend()
   tilemap_data.fill(0);
 
   auto pixel_get = [&](int x, int y, int tilemap_index) -> uint32_t & {
-    /* Note: assumes that tilemap_index is < SHADOW_TILEMAP_PER_ROW. */
+    /* NOTE: assumes that tilemap_index is < SHADOW_TILEMAP_PER_ROW. */
     return tilemap_data[y * SHADOW_TILEMAP_RES * SHADOW_TILEMAP_PER_ROW + x +
                         tilemap_index * SHADOW_TILEMAP_RES];
   };
@@ -1257,12 +1270,14 @@ static void test_eevee_shadow_tilemap_amend()
   /* Needed for validation. But not used since we use directionals. */
   LightCullingZbinBuf culling_zbin_buf = {"LightCull_zbin"};
   LightCullingTileBuf culling_tile_buf = {"LightCull_tile"};
+  ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
 
   GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_amend");
 
   PassSimple pass("Test");
   pass.shader_set(sh);
   pass.bind_image("tilemaps_img", tilemap_tx);
+  pass.bind_ssbo("tilemaps_buf", tilemaps_data);
   pass.bind_ssbo(LIGHT_CULL_BUF_SLOT, culling_data_buf);
   pass.bind_ssbo(LIGHT_BUF_SLOT, culling_light_buf);
   pass.bind_ssbo(LIGHT_ZBIN_BUF_SLOT, culling_zbin_buf);
@@ -1270,8 +1285,12 @@ static void test_eevee_shadow_tilemap_amend()
   pass.dispatch(int3(1));
   pass.barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
+  draw::View view("Test");
+  view.sync(float4x4::identity(),
+            math::projection::orthographic(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f));
+
   Manager manager;
-  manager.submit(pass);
+  manager.submit(pass, view);
 
   {
     uint *pixels = tilemap_tx.read<uint32_t>(GPU_DATA_UINT);
@@ -1280,7 +1299,7 @@ static void test_eevee_shadow_tilemap_amend()
       std::string result = "";
       for (auto y : IndexRange(SHADOW_TILEMAP_RES)) {
         for (auto x : IndexRange(SHADOW_TILEMAP_RES)) {
-          /* Note: assumes that tilemap_index is < SHADOW_TILEMAP_PER_ROW. */
+          /* NOTE: assumes that tilemap_index is < SHADOW_TILEMAP_PER_ROW. */
           int tile_ofs = y * SHADOW_TILEMAP_RES * SHADOW_TILEMAP_PER_ROW + x +
                          tilemap_index * SHADOW_TILEMAP_RES;
           ShadowSamplingTile tile = shadow_sampling_tile_unpack(pixels[tile_ofs]);
@@ -1301,7 +1320,7 @@ static void test_eevee_shadow_tilemap_amend()
       std::string result = "";
       for (auto y : IndexRange(SHADOW_TILEMAP_RES)) {
         for (auto x : IndexRange(SHADOW_TILEMAP_RES)) {
-          /* Note: assumes that tilemap_index is < SHADOW_TILEMAP_PER_ROW. */
+          /* NOTE: assumes that tilemap_index is < SHADOW_TILEMAP_PER_ROW. */
           int tile_ofs = y * SHADOW_TILEMAP_RES * SHADOW_TILEMAP_PER_ROW + x +
                          tilemap_index * SHADOW_TILEMAP_RES;
           ShadowSamplingTile tile = shadow_sampling_tile_unpack(pixels[tile_ofs]);
@@ -1322,7 +1341,7 @@ static void test_eevee_shadow_tilemap_amend()
       std::string result = "";
       for (auto y : IndexRange(SHADOW_TILEMAP_RES)) {
         for (auto x : IndexRange(SHADOW_TILEMAP_RES)) {
-          /* Note: assumes that tilemap_index is < SHADOW_TILEMAP_PER_ROW. */
+          /* NOTE: assumes that tilemap_index is < SHADOW_TILEMAP_PER_ROW. */
           int tile_ofs = y * SHADOW_TILEMAP_RES * SHADOW_TILEMAP_PER_ROW + x +
                          tilemap_index * SHADOW_TILEMAP_RES;
           ShadowSamplingTile tile = shadow_sampling_tile_unpack(pixels[tile_ofs]);
@@ -1541,7 +1560,7 @@ static void test_eevee_shadow_page_mask_ex(int max_view_per_tilemap)
 
   {
     ShadowTileMap tilemap(0);
-    tilemap.sync_cubeface(float4x4::identity(), 0.01f, 1.0f, 0.01f, 0.0f, Z_NEG, 0.0f);
+    tilemap.sync_cubeface(LIGHT_OMNI_SPHERE, float4x4::identity(), 0.01f, 1.0f, Z_NEG);
     tilemaps_data.append(tilemap);
   }
 

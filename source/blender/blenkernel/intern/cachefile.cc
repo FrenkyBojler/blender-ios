@@ -16,7 +16,7 @@
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -117,7 +117,7 @@ static void cache_file_blend_read_data(BlendDataReader *reader, ID *id)
   cache_file->handle_readers = nullptr;
 
   /* relink layers */
-  BLO_read_list(reader, &cache_file->layers);
+  BLO_read_struct_list(reader, CacheFileLayer, &cache_file->layers);
 }
 
 IDTypeInfo IDType_ID_CF = {
@@ -170,7 +170,7 @@ void BKE_cachefile_reader_open(CacheFile *cache_file,
 {
 #if defined(WITH_ALEMBIC) || defined(WITH_USD)
 
-  BLI_assert(cache_file->id.tag & LIB_TAG_COPIED_ON_EVAL);
+  BLI_assert(cache_file->id.tag & ID_TAG_COPIED_ON_EVAL);
 
   if (cache_file->handle == nullptr) {
     return;
@@ -222,7 +222,7 @@ void BKE_cachefile_reader_free(CacheFile *cache_file, CacheReader **reader)
   BLI_spin_lock(&spin);
   if (*reader != nullptr) {
     if (cache_file) {
-      BLI_assert(cache_file->id.tag & LIB_TAG_COPIED_ON_EVAL);
+      BLI_assert(cache_file->id.tag & ID_TAG_COPIED_ON_EVAL);
 
       switch (cache_file->type) {
         case CACHEFILE_TYPE_ALEMBIC:
@@ -335,7 +335,7 @@ void BKE_cachefile_reload(Depsgraph *depsgraph, CacheFile *cache_file)
 
 void BKE_cachefile_eval(Main *bmain, Depsgraph *depsgraph, CacheFile *cache_file)
 {
-  BLI_assert(cache_file->id.tag & LIB_TAG_COPIED_ON_EVAL);
+  BLI_assert(cache_file->id.tag & ID_TAG_COPIED_ON_EVAL);
 
   /* Compute filepath. */
   char filepath[FILE_MAX];

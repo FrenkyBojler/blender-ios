@@ -15,7 +15,7 @@
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
 
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 #  include "BLI_utildefines.h"
 
@@ -76,7 +76,7 @@ static int wm_obj_export_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
-  OBJExportParams export_params{};
+  OBJExportParams export_params;
   export_params.file_base_for_tests[0] = '\0';
   RNA_string_get(op->ptr, "filepath", export_params.filepath);
   export_params.blen_filepath = CTX_data_main(C)->filepath;
@@ -111,95 +111,102 @@ static int wm_obj_export_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "collection", export_params.collection);
 
   OBJ_export(C, &export_params);
-
-  return OPERATOR_FINISHED;
+  return BKE_reports_contain(op->reports, RPT_ERROR) ? OPERATOR_CANCELLED : OPERATOR_FINISHED;
 }
 
-static void ui_obj_export_settings(uiLayout *layout, PointerRNA *imfptr)
+static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  const bool export_animation = RNA_boolean_get(imfptr, "export_animation");
-  const bool export_smooth_groups = RNA_boolean_get(imfptr, "export_smooth_groups");
-  const bool export_materials = RNA_boolean_get(imfptr, "export_materials");
+  const bool export_animation = RNA_boolean_get(ptr, "export_animation");
+  const bool export_smooth_groups = RNA_boolean_get(ptr, "export_smooth_groups");
+  const bool export_materials = RNA_boolean_get(ptr, "export_materials");
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayout *box, *col, *sub;
+  /* Object General options. */
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "OBJ_export_general", false, IFACE_("General"))) {
+    uiLayout *col = uiLayoutColumn(panel, false);
 
-  /* Object Transform options. */
-  box = uiLayoutBox(layout);
-  col = uiLayoutColumn(box, false);
-  sub = uiLayoutColumnWithHeading(col, false, IFACE_("Limit to"));
-  uiItemR(
-      sub, imfptr, "export_selected_objects", UI_ITEM_NONE, IFACE_("Selected Only"), ICON_NONE);
-  uiItemR(sub, imfptr, "global_scale", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(sub, imfptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward Axis"), ICON_NONE);
-  uiItemR(sub, imfptr, "up_axis", UI_ITEM_NONE, IFACE_("Up Axis"), ICON_NONE);
+    if (CTX_wm_space_file(C)) {
+      uiLayout *sub = uiLayoutColumnWithHeading(col, false, IFACE_("Include"));
+      uiItemR(
+          sub, ptr, "export_selected_objects", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
+    }
 
-  col = uiLayoutColumn(box, false);
-  sub = uiLayoutColumn(col, false);
-  sub = uiLayoutColumnWithHeading(col, false, IFACE_("Objects"));
-  uiItemR(sub, imfptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
-  uiItemR(sub, imfptr, "export_eval_mode", UI_ITEM_NONE, IFACE_("Properties"), ICON_NONE);
+    uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward Axis"), ICON_NONE);
+    uiItemR(col, ptr, "up_axis", UI_ITEM_NONE, IFACE_("Up Axis"), ICON_NONE);
+  }
 
   /* Geometry options. */
-  box = uiLayoutBox(layout);
-  col = uiLayoutColumn(box, false);
-  sub = uiLayoutColumnWithHeading(col, false, IFACE_("Geometry"));
-  uiItemR(sub, imfptr, "export_uv", UI_ITEM_NONE, IFACE_("UV Coordinates"), ICON_NONE);
-  uiItemR(sub, imfptr, "export_normals", UI_ITEM_NONE, IFACE_("Normals"), ICON_NONE);
-  uiItemR(sub, imfptr, "export_colors", UI_ITEM_NONE, IFACE_("Colors"), ICON_NONE);
-  uiItemR(sub,
-          imfptr,
-          "export_triangulated_mesh",
-          UI_ITEM_NONE,
-          IFACE_("Triangulated Mesh"),
-          ICON_NONE);
-  uiItemR(
-      sub, imfptr, "export_curves_as_nurbs", UI_ITEM_NONE, IFACE_("Curves as NURBS"), ICON_NONE);
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "OBJ_export_geometry", false, IFACE_("Geometry")))
+  {
+    uiLayout *col = uiLayoutColumn(panel, false);
+    uiItemR(col, ptr, "export_uv", UI_ITEM_NONE, IFACE_("UV Coordinates"), ICON_NONE);
+    uiItemR(col, ptr, "export_normals", UI_ITEM_NONE, IFACE_("Normals"), ICON_NONE);
+    uiItemR(col, ptr, "export_colors", UI_ITEM_NONE, IFACE_("Colors"), ICON_NONE);
+    uiItemR(
+        col, ptr, "export_curves_as_nurbs", UI_ITEM_NONE, IFACE_("Curves as NURBS"), ICON_NONE);
 
-  /* Material options. */
-  box = uiLayoutBox(layout);
-  col = uiLayoutColumn(box, false);
-  sub = uiLayoutColumnWithHeading(col, false, IFACE_("Materials"));
-  uiItemR(sub, imfptr, "export_materials", UI_ITEM_NONE, IFACE_("Export"), ICON_NONE);
-  sub = uiLayoutColumn(sub, false);
-  uiLayoutSetEnabled(sub, export_materials);
-  uiItemR(sub, imfptr, "export_pbr_extensions", UI_ITEM_NONE, IFACE_("PBR Extensions"), ICON_NONE);
-  uiItemR(sub, imfptr, "path_mode", UI_ITEM_NONE, IFACE_("Path Mode"), ICON_NONE);
+    uiItemR(col,
+            ptr,
+            "export_triangulated_mesh",
+            UI_ITEM_NONE,
+            IFACE_("Triangulated Mesh"),
+            ICON_NONE);
+    uiItemR(col, ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
+    uiItemR(col, ptr, "export_eval_mode", UI_ITEM_NONE, IFACE_("Properties"), ICON_NONE);
+  }
 
   /* Grouping options. */
-  box = uiLayoutBox(layout);
-  col = uiLayoutColumn(box, false);
-  sub = uiLayoutColumnWithHeading(col, false, IFACE_("Grouping"));
-  uiItemR(sub, imfptr, "export_object_groups", UI_ITEM_NONE, IFACE_("Object Groups"), ICON_NONE);
-  uiItemR(
-      sub, imfptr, "export_material_groups", UI_ITEM_NONE, IFACE_("Material Groups"), ICON_NONE);
-  uiItemR(sub, imfptr, "export_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
-  uiItemR(sub, imfptr, "export_smooth_groups", UI_ITEM_NONE, IFACE_("Smooth Groups"), ICON_NONE);
-  sub = uiLayoutColumn(sub, false);
-  uiLayoutSetEnabled(sub, export_smooth_groups);
-  uiItemR(sub,
-          imfptr,
-          "smooth_group_bitflags",
-          UI_ITEM_NONE,
-          IFACE_("Smooth Group Bitflags"),
-          ICON_NONE);
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "OBJ_export_grouping", false, IFACE_("Grouping")))
+  {
+    uiLayout *col = uiLayoutColumn(panel, false);
+    uiItemR(col, ptr, "export_object_groups", UI_ITEM_NONE, IFACE_("Object Groups"), ICON_NONE);
+    uiItemR(
+        col, ptr, "export_material_groups", UI_ITEM_NONE, IFACE_("Material Groups"), ICON_NONE);
+    uiItemR(col, ptr, "export_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
+    uiItemR(col, ptr, "export_smooth_groups", UI_ITEM_NONE, IFACE_("Smooth Groups"), ICON_NONE);
+    col = uiLayoutColumn(col, false);
+    uiLayoutSetEnabled(col, export_smooth_groups);
+    uiItemR(col,
+            ptr,
+            "smooth_group_bitflags",
+            UI_ITEM_NONE,
+            IFACE_("Smooth Group Bitflags"),
+            ICON_NONE);
+  }
+
+  /* Material options. */
+  PanelLayout panel = uiLayoutPanel(C, layout, "OBJ_export_materials", false);
+  uiLayoutSetPropSep(panel.header, false);
+  uiItemR(panel.header, ptr, "export_materials", UI_ITEM_NONE, "", ICON_NONE);
+  uiItemL(panel.header, IFACE_("Materials"), ICON_NONE);
+  if (panel.body) {
+    uiLayout *col = uiLayoutColumn(panel.body, false);
+    uiLayoutSetEnabled(col, export_materials);
+
+    uiItemR(col, ptr, "export_pbr_extensions", UI_ITEM_NONE, IFACE_("PBR Extensions"), ICON_NONE);
+    uiItemR(col, ptr, "path_mode", UI_ITEM_NONE, IFACE_("Path Mode"), ICON_NONE);
+  }
 
   /* Animation options. */
-  box = uiLayoutBox(layout);
-  col = uiLayoutColumn(box, false);
-  sub = uiLayoutColumnWithHeading(col, false, IFACE_("Animation"));
-  uiItemR(sub, imfptr, "export_animation", UI_ITEM_NONE, IFACE_("Export"), ICON_NONE);
-  sub = uiLayoutColumn(sub, true);
-  uiLayoutSetEnabled(sub, export_animation);
-  uiItemR(sub, imfptr, "start_frame", UI_ITEM_NONE, IFACE_("Frame Start"), ICON_NONE);
-  uiItemR(sub, imfptr, "end_frame", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+  panel = uiLayoutPanel(C, layout, "OBJ_export_animation", true);
+  uiLayoutSetPropSep(panel.header, false);
+  uiItemR(panel.header, ptr, "export_animation", UI_ITEM_NONE, "", ICON_NONE);
+  uiItemL(panel.header, IFACE_("Animation"), ICON_NONE);
+  if (panel.body) {
+    uiLayout *col = uiLayoutColumn(panel.body, false);
+    uiLayoutSetEnabled(col, export_animation);
+
+    uiItemR(col, ptr, "start_frame", UI_ITEM_NONE, IFACE_("Frame Start"), ICON_NONE);
+    uiItemR(col, ptr, "end_frame", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+  }
 }
 
-static void wm_obj_export_draw(bContext * /*C*/, wmOperator *op)
+static void wm_obj_export_draw(bContext *C, wmOperator *op)
 {
-  ui_obj_export_settings(op->layout, op->ptr);
+  ui_obj_export_settings(C, op->layout, op->ptr);
 }
 
 /**
@@ -385,7 +392,7 @@ void WM_OT_obj_export(wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna, "smooth_group_bitflags", false, "Generate Bitflags for Smooth Groups", "");
 
-  /* Only show .obj or .mtl files by default. */
+  /* Only show `.obj` or `.mtl` files by default. */
   prop = RNA_def_string(ot->srna, "filter_glob", "*.obj;*.mtl", 0, "Extension Filter", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
@@ -395,7 +402,7 @@ void WM_OT_obj_export(wmOperatorType *ot)
 
 static int wm_obj_import_exec(bContext *C, wmOperator *op)
 {
-  OBJImportParams import_params{};
+  OBJImportParams import_params;
   import_params.global_scale = RNA_float_get(op->ptr, "global_scale");
   import_params.clamp_size = RNA_float_get(op->ptr, "clamp_size");
   import_params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
@@ -404,6 +411,7 @@ static int wm_obj_import_exec(bContext *C, wmOperator *op)
   import_params.use_split_groups = RNA_boolean_get(op->ptr, "use_split_groups");
   import_params.import_vertex_groups = RNA_boolean_get(op->ptr, "import_vertex_groups");
   import_params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
+  import_params.close_spline_loops = RNA_boolean_get(op->ptr, "close_spline_loops");
   char separator[2] = {};
   RNA_string_get(op->ptr, "collection_separator", separator);
   import_params.collection_separator = separator[0];
@@ -434,37 +442,33 @@ static int wm_obj_import_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void ui_obj_import_settings(uiLayout *layout, PointerRNA *imfptr)
+static void ui_obj_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayout *box = uiLayoutBox(layout);
-  uiItemL(box, IFACE_("Transform"), ICON_OBJECT_DATA);
-  uiLayout *col = uiLayoutColumn(box, false);
-  uiLayout *sub = uiLayoutColumn(col, false);
-  uiItemR(sub, imfptr, "global_scale", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(sub, imfptr, "clamp_size", UI_ITEM_NONE, nullptr, ICON_NONE);
-  sub = uiLayoutColumn(col, false);
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "OBJ_import_general", false, IFACE_("General"))) {
+    uiLayout *col = uiLayoutColumn(panel, false);
+    uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "clamp_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward Axis"), ICON_NONE);
+    uiItemR(col, ptr, "up_axis", UI_ITEM_NONE, IFACE_("Up Axis"), ICON_NONE);
+  }
 
-  uiItemR(sub, imfptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward Axis"), ICON_NONE);
-  uiItemR(sub, imfptr, "up_axis", UI_ITEM_NONE, IFACE_("Up Axis"), ICON_NONE);
-
-  box = uiLayoutBox(layout);
-  uiItemL(box, IFACE_("Options"), ICON_EXPORT);
-  col = uiLayoutColumn(box, false);
-  uiItemR(col, imfptr, "use_split_objects", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "use_split_groups", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "import_vertex_groups", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "validate_meshes", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "collection_separator", UI_ITEM_NONE, nullptr, ICON_NONE);
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "OBJ_import_options", false, IFACE_("Options"))) {
+    uiLayout *col = uiLayoutColumn(panel, false);
+    uiItemR(col, ptr, "use_split_objects", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "use_split_groups", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "import_vertex_groups", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "close_spline_loops", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "collection_separator", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 }
 
 static void wm_obj_import_draw(bContext *C, wmOperator *op)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  PointerRNA ptr = RNA_pointer_create(&wm->id, op->type->srna, op->properties);
-  ui_obj_import_settings(op->layout, &ptr);
+  ui_obj_import_settings(C, op->layout, op->ptr);
 }
 
 void WM_OT_obj_import(wmOperatorType *ot)
@@ -530,11 +534,19 @@ void WM_OT_obj_import(wmOperatorType *ot)
                   false,
                   "Vertex Groups",
                   "Import OBJ groups as vertex groups");
+  RNA_def_boolean(
+      ot->srna,
+      "validate_meshes",
+      true,
+      "Validate Meshes",
+      "Ensure the data is valid "
+      "(when disabled, data may be imported which causes crashes displaying or editing)");
   RNA_def_boolean(ot->srna,
-                  "validate_meshes",
-                  false,
-                  "Validate Meshes",
-                  "Check imported mesh objects for invalid data (slow)");
+                  "close_spline_loops",
+                  true,
+                  "Detect Cyclic Curves",
+                  "Join curve endpoints if overlapping control points are detected"
+                  "(if disabled, no curves will be cyclic)");
 
   RNA_def_string(ot->srna,
                  "collection_separator",
@@ -543,7 +555,7 @@ void WM_OT_obj_import(wmOperatorType *ot)
                  "Path Separator",
                  "Character used to separate objects name into hierarchical structure");
 
-  /* Only show .obj or .mtl files by default. */
+  /* Only show `.obj` or `.mtl` files by default. */
   prop = RNA_def_string(ot->srna, "filter_glob", "*.obj;*.mtl", 0, "Extension Filter", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }

@@ -674,8 +674,8 @@ void GPU_texture_free(GPUTexture *texture);
  * Create an alias of the source texture data. A view can cover the whole texture or only a range
  * of mip levels and/or array layer range.
  *
- * \a view_format is the format in which the view will interpret the data of \a source_texture . It
- * must match the format of \a source_texture in size (ex: RGBA8 can be reinterpreted as R32UI).
+ * \a view_format is the format in which the view will interpret the data of \a source_texture.
+ * It must match the format of \a source_texture in size (ex: RGBA8 can be reinterpreted as R32UI).
  * See https://www.khronos.org/opengl/wiki/Texture_Storage#View_texture_aliases for an exhaustive
  * list.
  *
@@ -977,17 +977,17 @@ bool GPU_texture_has_integer_format(const GPUTexture *texture);
 /**
  * Return true if the texture format is a float type.
  */
-bool GPU_texture_has_float_format(const GPUTexture *tex);
+bool GPU_texture_has_float_format(const GPUTexture *texture);
 
 /**
  * Return true if the texture format is an integer normalized type.
  */
-bool GPU_texture_has_normalized_format(const GPUTexture *tex);
+bool GPU_texture_has_normalized_format(const GPUTexture *texture);
 
 /**
  * Return true if the texture format is a signed type.
  */
-bool GPU_texture_has_signed_format(const GPUTexture *tex);
+bool GPU_texture_has_signed_format(const GPUTexture *texture);
 
 /**
  * Returns the pixel dimensions of a texture's mip-map level.

@@ -23,11 +23,10 @@
 
 #include "BKE_context.hh"
 #include "BKE_main.hh"
-#include "BKE_report.hh"
-#include "BKE_workspace.h"
+#include "BKE_screen.hh"
+#include "BKE_workspace.hh"
 
 #include "RNA_access.hh"
-#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -41,7 +40,7 @@
 #include "wm_gizmo_wmapi.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -100,11 +99,6 @@ void wm_gizmogroup_free(bContext *C, wmGizmoGroup *gzgroup)
     BPY_DECREF_RNA_INVALIDATE(gzgroup->py_instance);
   }
 #endif
-
-  if (gzgroup->reports && (gzgroup->reports->flag & RPT_FREE)) {
-    BKE_reports_free(gzgroup->reports);
-    MEM_freeN(gzgroup->reports);
-  }
 
   if (gzgroup->customdata_free) {
     gzgroup->customdata_free(gzgroup->customdata);
@@ -280,7 +274,7 @@ void WM_gizmo_group_remove_by_tool(bContext *C,
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
       if (area->runtime.tool == tref) {
         LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-          wmGizmoMap *gzmap = region->gizmo_map;
+          wmGizmoMap *gzmap = region->runtime->gizmo_map;
           if (gzmap && gzmap->type == gzmap_type) {
             wmGizmoGroup *gzgroup, *gzgroup_next;
             for (gzgroup = static_cast<wmGizmoGroup *>(gzmap->groups.first); gzgroup;
@@ -337,7 +331,7 @@ bool wm_gizmogroup_is_any_selected(const wmGizmoGroup *gzgroup)
 static int gizmo_select_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   ARegion *region = CTX_wm_region(C);
-  wmGizmoMap *gzmap = region->gizmo_map;
+  wmGizmoMap *gzmap = region->runtime->gizmo_map;
   wmGizmoMapSelectState *msel = &gzmap->gzmap_context.select;
   wmGizmo *highlight = gzmap->gzmap_context.highlight;
 
@@ -472,6 +466,11 @@ static void gizmo_tweak_finish(bContext *C, wmOperator *op, const bool cancel, b
       wm_gizmomap_modal_set(mtweak->gzmap, C, mtweak->gz_modal, nullptr, false);
     }
   }
+  if (cancel == false) {
+    if (mtweak->gz_modal->flag & WM_GIZMO_NEEDS_UNDO) {
+      ED_undo_push(C, mtweak->gz_modal->parent_gzgroup->type->name);
+    }
+  }
   MEM_freeN(mtweak);
 }
 
@@ -562,7 +561,7 @@ static int gizmo_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
 static int gizmo_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
-  wmGizmoMap *gzmap = region->gizmo_map;
+  wmGizmoMap *gzmap = region->runtime->gizmo_map;
   wmGizmo *gz = gzmap->gzmap_context.highlight;
 
   /* Needed for single click actions which don't enter modal state. */
@@ -621,10 +620,11 @@ void GIZMOGROUP_OT_gizmo_tweak(wmOperatorType *ot)
   ot->poll = ED_operator_region_gizmo_active;
 
 /* TODO(@ideasman42): This causes problems tweaking settings for operators,
- * need to find a way to support this. */
+ * need to find a way to support this. May want to use #WM_GIZMO_NEEDS_UNDO instead. */
 #if 0
   ot->flag = OPTYPE_UNDO;
 #endif
+  ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_XY;
 }
 
 wmKeyMap *wm_gizmogroup_tweak_modal_keymap(wmKeyConfig *keyconf)
@@ -990,7 +990,7 @@ void WM_gizmomaptype_group_init_runtime(const Main *bmain,
       LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
         ListBase *lb = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
         LISTBASE_FOREACH (ARegion *, region, lb) {
-          wmGizmoMap *gzmap = region->gizmo_map;
+          wmGizmoMap *gzmap = region->runtime->gizmo_map;
           if (gzmap && gzmap->type == gzmap_type) {
             WM_gizmomaptype_group_init_runtime_with_region(gzmap_type, gzgt, region);
           }
@@ -1004,7 +1004,7 @@ wmGizmoGroup *WM_gizmomaptype_group_init_runtime_with_region(wmGizmoMapType *gzm
                                                              wmGizmoGroupType *gzgt,
                                                              ARegion *region)
 {
-  wmGizmoMap *gzmap = region->gizmo_map;
+  wmGizmoMap *gzmap = region->runtime->gizmo_map;
   BLI_assert(gzmap && gzmap->type == gzmap_type);
   UNUSED_VARS_NDEBUG(gzmap_type);
 
@@ -1044,7 +1044,7 @@ void WM_gizmomaptype_group_unlink(bContext *C,
       LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
         ListBase *lb = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
         LISTBASE_FOREACH (ARegion *, region, lb) {
-          wmGizmoMap *gzmap = region->gizmo_map;
+          wmGizmoMap *gzmap = region->runtime->gizmo_map;
           if (gzmap && gzmap->type == gzmap_type) {
             wmGizmoGroup *gzgroup, *gzgroup_next;
             for (gzgroup = static_cast<wmGizmoGroup *>(gzmap->groups.first); gzgroup;
@@ -1211,7 +1211,7 @@ void WM_gizmo_group_unlink_delayed_ptr_from_space(wmGizmoGroupType *gzgt,
                                                   ScrArea *area)
 {
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    wmGizmoMap *gzmap = region->gizmo_map;
+    wmGizmoMap *gzmap = region->runtime->gizmo_map;
     if (gzmap && gzmap->type == gzmap_type) {
       LISTBASE_FOREACH (wmGizmoGroup *, gzgroup, &gzmap->groups) {
         if (gzgroup->type == gzgt) {
@@ -1256,7 +1256,7 @@ void WM_gizmo_group_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     if (!gz || gz->parent_gzgroup != gzgroup) {
       wmWindow *win = CTX_wm_window(C);
       ARegion *region = CTX_wm_region(C);
-      BLI_assert(region->gizmo_map == gzmap);
+      BLI_assert(region->runtime->gizmo_map == gzmap);
       /* Check if the tweak event originated from this region. */
       if ((win->eventstate != nullptr) && (win->event_queue_check_drag) &&
           BLI_rcti_isect_pt_v(&region->winrct, win->eventstate->prev_press_xy))

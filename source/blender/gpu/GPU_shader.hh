@@ -10,6 +10,13 @@
 
 #pragma once
 
+#include <optional>
+
+#include "BLI_span.hh"
+#include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
+
+#include "GPU_common_types.hh"
 #include "GPU_shader_builtin.hh"
 
 namespace blender::gpu {
@@ -23,10 +30,10 @@ struct GPUShader;
 
 /* Hardware limit is 16. Position attribute is always needed so we reduce to 15.
  * This makes sure the GPUVertexFormat name buffer does not overflow. */
-#define GPU_MAX_ATTR 15
+constexpr static int GPU_MAX_ATTR = 15;
 
 /* Determined by the maximum uniform buffer size divided by chunk size. */
-#define GPU_MAX_UNIFORM_ATTR 8
+constexpr static int GPU_MAX_UNIFORM_ATTR = 8;
 
 /* -------------------------------------------------------------------- */
 /** \name Creation
@@ -37,6 +44,11 @@ struct GPUShader;
  * Can return a null pointer if compilation fails.
  */
 GPUShader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info);
+
+/**
+ * Same as GPU_shader_create_from_info but will run preprocessor on source strings.
+ */
+GPUShader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *_info);
 
 /**
  * Create a shader using a named #GPUShaderCreateInfo registered at startup.
@@ -58,6 +70,29 @@ const GPUShaderCreateInfo *GPU_shader_create_info_get(const char *info_name);
  * \return true is create info is valid.
  */
 bool GPU_shader_create_info_check_error(const GPUShaderCreateInfo *_info, char r_error[128]);
+
+using BatchHandle = int64_t;
+/**
+ * Request the creation of multiple shaders at once, allowing the backend to use multithreaded
+ * compilation. Returns a handle that can be used to poll if all shaders have been compiled, and to
+ * retrieve the compiled shaders.
+ * NOTE: This function is asynchronous on OpenGL, but it's blocking on Vulkan.
+ * WARNING: The GPUShaderCreateInfo pointers should be valid until `GPU_shader_batch_finalize` has
+ * returned.
+ */
+BatchHandle GPU_shader_batch_create_from_infos(blender::Span<const GPUShaderCreateInfo *> infos);
+/**
+ * Returns true if all the shaders from the batch have finished their compilation.
+ */
+bool GPU_shader_batch_is_ready(BatchHandle handle);
+/**
+ * Retrieve the compiled shaders, in the same order as the `GPUShaderCreateInfo`s.
+ * If the compilation has not finished yet, this call will block the thread until all the shaders
+ * are ready.
+ * Shaders with compilation errors are returned as null pointers.
+ * WARNING: The handle will be invalidated by this call, you can't request the same batch twice.
+ */
+blender::Vector<GPUShader *> GPU_shader_batch_finalize(BatchHandle &handle);
 
 /** \} */
 
@@ -153,6 +188,7 @@ void GPU_shader_uniform_2fv(GPUShader *sh, const char *name, const float data[2]
 void GPU_shader_uniform_3fv(GPUShader *sh, const char *name, const float data[3]);
 void GPU_shader_uniform_4fv(GPUShader *sh, const char *name, const float data[4]);
 void GPU_shader_uniform_2iv(GPUShader *sh, const char *name, const int data[2]);
+void GPU_shader_uniform_3iv(GPUShader *sh, const char *name, const int data[3]);
 void GPU_shader_uniform_mat4(GPUShader *sh, const char *name, const float data[4][4]);
 void GPU_shader_uniform_mat3_as_mat4(GPUShader *sh, const char *name, const float data[3][3]);
 void GPU_shader_uniform_1f_array(GPUShader *sh, const char *name, int len, const float *val);
@@ -167,12 +203,14 @@ void GPU_shader_uniform_4fv_array(GPUShader *sh, const char *name, int len, cons
  * Used to create #GPUVertexFormat from the shader's vertex input layout.
  * \{ */
 
-unsigned int GPU_shader_get_attribute_len(const GPUShader *shader);
+uint GPU_shader_get_attribute_len(const GPUShader *shader);
+uint GPU_shader_get_ssbo_input_len(const GPUShader *shader);
 int GPU_shader_get_attribute(const GPUShader *shader, const char *name);
 bool GPU_shader_get_attribute_info(const GPUShader *shader,
                                    int attr_location,
                                    char r_name[256],
                                    int *r_type);
+bool GPU_shader_get_ssbo_input_info(const GPUShader *shader, int ssbo_location, char r_name[256]);
 
 /** \} */
 
@@ -194,6 +232,34 @@ void GPU_shader_constant_uint(GPUShader *sh, const char *name, unsigned int valu
 void GPU_shader_constant_float(GPUShader *sh, const char *name, float value);
 void GPU_shader_constant_bool(GPUShader *sh, const char *name, bool value);
 
+using SpecializationBatchHandle = int64_t;
+
+struct ShaderSpecialization {
+  GPUShader *shader;
+  blender::Vector<blender::gpu::shader::SpecializationConstant> constants;
+};
+
+/**
+ * Request the compilation of multiple specialization constant variations at once,
+ * allowing the backend to use multi-threaded compilation.
+ * Returns a handle that can be used to poll if all variations have been compiled.
+ * A NULL handle indicates no compilation of any variant was possible (likely due to
+ * some state being currently available) and so no batch was created. Compilation
+ * of the specialized variant will instead occur at draw/dispatch time.
+ * NOTE: This function is asynchronous on OpenGL and Metal and a no-op on Vulkan.
+ * Batches are processed one by one in FIFO order.
+ * WARNING: Binding a specialization before the batch finishes will fail.
+ */
+SpecializationBatchHandle GPU_shader_batch_specializations(
+    blender::Span<ShaderSpecialization> specializations);
+
+/**
+ * Returns true if all the specializations from the batch have finished their compilation.
+ * NOTE: Polling this function is required for the compilation process to keep progressing.
+ * WARNING: Invalidates the handle if it returns true.
+ */
+bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -209,46 +275,38 @@ enum eGPUShaderTFBType {
   GPU_SHADER_TFB_TRIANGLES = 3,
 };
 
-GPUShader *GPU_shader_create(const char *vertcode,
-                             const char *fragcode,
-                             const char *geomcode,
-                             const char *libcode,
-                             const char *defines,
-                             const char *shname);
-GPUShader *GPU_shader_create_compute(const char *computecode,
-                                     const char *libcode,
-                                     const char *defines,
-                                     const char *shname);
-GPUShader *GPU_shader_create_from_python(const char *vertcode,
-                                         const char *fragcode,
-                                         const char *geomcode,
-                                         const char *libcode,
-                                         const char *defines,
-                                         const char *name);
-GPUShader *GPU_shader_create_ex(const char *vertcode,
-                                const char *fragcode,
-                                const char *geomcode,
-                                const char *computecode,
-                                const char *libcode,
-                                const char *defines,
+GPUShader *GPU_shader_create(std::optional<blender::StringRefNull> vertcode,
+                             std::optional<blender::StringRefNull> fragcode,
+                             std::optional<blender::StringRefNull> geomcode,
+                             std::optional<blender::StringRefNull> libcode,
+                             std::optional<blender::StringRefNull> defines,
+                             blender::StringRefNull shname);
+GPUShader *GPU_shader_create_compute(std::optional<blender::StringRefNull> computecode,
+                                     std::optional<blender::StringRefNull> libcode,
+                                     std::optional<blender::StringRefNull> defines,
+                                     blender::StringRefNull shname);
+GPUShader *GPU_shader_create_from_python(std::optional<blender::StringRefNull> vertcode,
+                                         std::optional<blender::StringRefNull> fragcode,
+                                         std::optional<blender::StringRefNull> geomcode,
+                                         std::optional<blender::StringRefNull> libcode,
+                                         std::optional<blender::StringRefNull> defines,
+                                         std::optional<blender::StringRefNull> name);
+GPUShader *GPU_shader_create_ex(std::optional<blender::StringRefNull> vertcode,
+                                std::optional<blender::StringRefNull> fragcode,
+                                std::optional<blender::StringRefNull> geomcode,
+                                std::optional<blender::StringRefNull> computecode,
+                                std::optional<blender::StringRefNull> libcode,
+                                std::optional<blender::StringRefNull> defines,
                                 eGPUShaderTFBType tf_type,
                                 const char **tf_names,
                                 int tf_count,
-                                const char *shname);
+                                blender::StringRefNull shname);
 
 /**
  * Returns true if transform feedback was successfully enabled.
  */
 bool GPU_shader_transform_feedback_enable(GPUShader *shader, blender::gpu::VertBuf *vertbuf);
 void GPU_shader_transform_feedback_disable(GPUShader *shader);
-
-/**
- * SSBO Vertex-fetch is used as an alternative path to geometry shaders wherein the vertex count is
- * expanded up-front. This function fetches the number of specified output vertices per input
- * primitive.
- */
-int GPU_shader_get_ssbo_vertex_fetch_num_verts_per_prim(GPUShader *shader);
-bool GPU_shader_uses_ssbo_vertex_fetch(GPUShader *shader);
 
 /**
  * Shader cache warming.
@@ -337,6 +395,8 @@ int GPU_shader_get_builtin_uniform(GPUShader *shader, int builtin);
  */
 void GPU_shader_compile_static();
 
+void GPU_shader_cache_dir_clear_old();
+
 /** DEPRECATED: Use hard-coded buffer location instead. */
 enum GPUUniformBlockBuiltin {
   GPU_UNIFORM_BLOCK_VIEW = 0, /* viewBlock */
@@ -358,3 +418,11 @@ int GPU_shader_get_builtin_block(GPUShader *shader, int builtin);
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name);
 
 /** \} */
+
+#define GPU_SHADER_FREE_SAFE(shader) \
+  do { \
+    if (shader != nullptr) { \
+      GPU_shader_free(shader); \
+      shader = nullptr; \
+    } \
+  } while (0)

@@ -17,6 +17,7 @@
 #include "BLI_math_rotation.h"
 
 #include "BKE_context.hh"
+#include "BKE_screen.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -210,7 +211,7 @@ static int dot_v3_array_find_max_index(const float dirs[][3],
 static UNUSED_FUNCTION_WITH_RETURN_TYPE(wmGizmoGroup *,
                                         idp_gizmogroup_from_region)(ARegion *region)
 {
-  wmGizmoMap *gzmap = region->gizmo_map;
+  wmGizmoMap *gzmap = region->runtime->gizmo_map;
   return gzmap ? WM_gizmomap_group_find(gzmap, view3d_gzgt_placement_id) : nullptr;
 }
 
@@ -257,8 +258,8 @@ static void draw_line_loop(const float coords[][3], int coords_len, const float 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
 
-  blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(vert, coords_len);
+  blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(*format);
+  GPU_vertbuf_data_alloc(*vert, coords_len);
 
   for (int i = 0; i < coords_len; i++) {
     GPU_vertbuf_attr_set(vert, pos, i, coords[i]);
@@ -290,8 +291,8 @@ static void draw_line_pairs(const float coords_a[][3],
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
 
-  blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(vert, coords_len * 2);
+  blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(*format);
+  GPU_vertbuf_data_alloc(*vert, coords_len * 2);
 
   for (int i = 0; i < coords_len; i++) {
     GPU_vertbuf_attr_set(vert, pos, i * 2, coords_a[i]);
@@ -337,8 +338,8 @@ static void draw_line_bounds(const BoundBox *bounds, const float color[4])
       {3, 7},
   };
 
-  blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(vert, ARRAY_SIZE(edges) * 2);
+  blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(*format);
+  GPU_vertbuf_data_alloc(*vert, ARRAY_SIZE(edges) * 2);
 
   for (int i = 0, j = 0; i < ARRAY_SIZE(edges); i++) {
     GPU_vertbuf_attr_set(vert, pos, j++, bounds->vec[edges[i][0]]);
@@ -742,7 +743,7 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
       /* Be sure to also compute the #V3DSnapCursorData.plane_omat. */
       snap_state->draw_plane = true;
 
-      ED_view3d_cursor_snap_data_update(snap_state_new, C, mval[0], mval[1]);
+      ED_view3d_cursor_snap_data_update(snap_state_new, C, ipd->region, mval[0], mval[1]);
     }
   }
 
@@ -839,7 +840,7 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
   }
 
   ipd->draw_handle_view = ED_region_draw_cb_activate(
-      ipd->region->type, draw_primitive_view, ipd, REGION_DRAW_POST_VIEW);
+      ipd->region->runtime->type, draw_primitive_view, ipd, REGION_DRAW_POST_VIEW);
 
   ED_region_tag_redraw(ipd->region);
 
@@ -918,7 +919,7 @@ static void view3d_interactive_add_exit(bContext *C, wmOperator *op)
 
   if (ipd->region != nullptr) {
     if (ipd->draw_handle_view != nullptr) {
-      ED_region_draw_cb_exit(ipd->region->type, ipd->draw_handle_view);
+      ED_region_draw_cb_exit(ipd->region->runtime->type, ipd->draw_handle_view);
     }
     ED_region_tag_redraw(ipd->region);
   }
@@ -1362,7 +1363,8 @@ static void preview_plane_free_fn(void *customdata)
 
 static bool snap_cursor_poll(ARegion *region, void *data)
 {
-  if (WM_gizmomap_group_find_ptr(region->gizmo_map, (wmGizmoGroupType *)data) == nullptr) {
+  if (WM_gizmomap_group_find_ptr(region->runtime->gizmo_map, (wmGizmoGroupType *)data) == nullptr)
+  {
     /* Wrong viewport. */
     return false;
   }

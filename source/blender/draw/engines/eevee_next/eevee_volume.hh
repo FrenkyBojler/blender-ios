@@ -35,7 +35,12 @@
 
 #pragma once
 
+#include "BLI_set.hh"
+
+#include "DRW_gpu_wrapper.hh"
+
 #include "eevee_shader_shared.hh"
+#include "eevee_sync.hh"
 
 namespace blender::eevee {
 
@@ -53,6 +58,10 @@ class VolumeModule {
   bool enabled_;
   bool use_reprojection_;
   bool use_lights_;
+
+  /* Track added/removed volume objects to reset the accumulation history. */
+  Set<ObjectKey> previous_objects_;
+  Set<ObjectKey> current_objects_;
 
   VolumesInfoData &data_;
 
@@ -77,6 +86,7 @@ class VolumeModule {
   Texture prop_extinction_tx_;
   Texture prop_emission_tx_;
   Texture prop_phase_tx_;
+  Texture prop_phase_weight_tx_;
 
   /* Light Scattering. */
   PassSimple scatter_ps_ = {"Volumes.Scatter"};
@@ -134,12 +144,16 @@ class VolumeModule {
 
   void begin_sync();
 
+  void world_sync(const WorldHandle &world_handle);
+
+  void object_sync(const ObjectHandle &ob_handle);
+
   void end_sync();
 
   /* Render material properties. */
   void draw_prepass(View &main_view);
   /* Compute scattering and integration. */
-  void draw_compute(View &main_view);
+  void draw_compute(View &main_view, int2 extent);
   /* Final image compositing. */
   void draw_resolve(View &view);
 
@@ -163,6 +177,7 @@ class VolumeModule {
     GPUTexture *extinction_tx_ = nullptr;
     GPUTexture *emission_tx_ = nullptr;
     GPUTexture *phase_tx_ = nullptr;
+    GPUTexture *phase_weight_tx_ = nullptr;
     GPUTexture *occupancy_tx_ = nullptr;
 
     template<typename PassType> void bind_resources(PassType &pass)
@@ -171,6 +186,7 @@ class VolumeModule {
       pass.bind_image(VOLUME_PROP_EXTINCTION_IMG_SLOT, &extinction_tx_);
       pass.bind_image(VOLUME_PROP_EMISSION_IMG_SLOT, &emission_tx_);
       pass.bind_image(VOLUME_PROP_PHASE_IMG_SLOT, &phase_tx_);
+      pass.bind_image(VOLUME_PROP_PHASE_WEIGHT_IMG_SLOT, &phase_weight_tx_);
       pass.bind_image(VOLUME_OCCUPANCY_SLOT, &occupancy_tx_);
     }
   } properties;

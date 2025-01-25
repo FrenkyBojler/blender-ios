@@ -17,7 +17,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -31,6 +31,7 @@
 #include "ED_keyframing.hh"
 
 #ifdef RNA_RUNTIME
+#  include "ANIM_action.hh"
 #  include "ANIM_fcurve.hh"
 #endif
 
@@ -53,8 +54,6 @@ const EnumPropertyItem rna_enum_fmodifier_type_items[] = {
      "Reshape F-Curve values, e.g. change amplitude of movements"},
     {FMODIFIER_TYPE_CYCLES, "CYCLES", 0, "Cycles", "Cyclic extend/repeat keyframe sequence"},
     {FMODIFIER_TYPE_NOISE, "NOISE", 0, "Noise", "Add pseudo-random noise on top of F-Curves"},
-    // {FMODIFIER_TYPE_FILTER, "FILTER", 0, "Filter", ""}, /* FIXME: not implemented yet! */
-    // {FMODIFIER_TYPE_PYTHON, "PYTHON", 0, "Python", ""}, /* FIXME: not implemented yet! */
     {FMODIFIER_TYPE_LIMITS,
      "LIMITS",
      0,
@@ -80,7 +79,7 @@ const EnumPropertyItem rna_enum_fcurve_auto_smoothing_items[] = {
      "Continuous Acceleration",
      "Automatic handles are adjusted to avoid jumps in acceleration, resulting "
      "in smoother curves. However, key changes may affect interpolation over a "
-     "larger stretch of the curve"},
+     "larger stretch of the curve."},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -110,6 +109,11 @@ const EnumPropertyItem rna_enum_beztriple_keyframe_type_items[] = {
      ICON_KEYTYPE_JITTER_VEC,
      "Jitter",
      "A filler or baked keyframe for keying on ones, or some other purpose as needed"},
+    {BEZT_KEYTYPE_GENERATED,
+     "GENERATED",
+     ICON_KEYTYPE_GENERATED_VEC,
+     "Generated",
+     "A key generated automatically by a tool, not manually created"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -202,12 +206,6 @@ static StructRNA *rna_FModifierType_refine(PointerRNA *ptr)
       return &RNA_FModifierCycles;
     case FMODIFIER_TYPE_NOISE:
       return &RNA_FModifierNoise;
-#  if 0
-    case FMODIFIER_TYPE_FILTER:
-      return &RNA_FModifierFilter;
-#  endif
-    case FMODIFIER_TYPE_PYTHON:
-      return &RNA_FModifierPython;
     case FMODIFIER_TYPE_LIMITS:
       return &RNA_FModifierLimits;
     case FMODIFIER_TYPE_STEPPED:
@@ -645,25 +643,49 @@ static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value, ReportList *
     printf("ERROR: cannot assign F-Curve to group, since F-Curve is not attached to any ID\n");
     return;
   }
-  /* make sure F-Curve exists in this action first, otherwise we could still have been tricked */
-  else if (BLI_findindex(&act->curves, fcu) == -1) {
-    printf("ERROR: F-Curve (%p) doesn't exist in action '%s'\n", fcu, act->id.name);
+
+  blender::animrig::Action &action = act->wrap();
+
+  /* Legacy action. */
+  if (!action.is_action_layered()) {
+
+    /* make sure F-Curve exists in this action first, otherwise we could still have been tricked */
+    if (BLI_findindex(&act->curves, fcu) == -1) {
+      printf("ERROR: F-Curve (%p) doesn't exist in action '%s'\n", fcu, act->id.name);
+      return;
+    }
+
+    /* try to remove F-Curve from action (including from any existing groups) */
+    action_groups_remove_channel(act, fcu);
+
+    /* add the F-Curve back to the action now in the right place */
+    /* TODO: make the api function handle the case where there isn't any group to assign to. */
+    if (value.data) {
+      /* add to its group using API function, which makes sure everything goes ok */
+      action_groups_add_channel(act, static_cast<bActionGroup *>(value.data), fcu);
+    }
+    else {
+      /* Need to add this back, but it can only go at the end of the list
+       * (or else will corrupt groups). */
+      BLI_addtail(&act->curves, fcu);
+    }
+
     return;
   }
 
-  /* try to remove F-Curve from action (including from any existing groups) */
-  action_groups_remove_channel(act, fcu);
+  /* Layered action. */
+  bActionGroup *group = static_cast<bActionGroup *>(value.data);
 
-  /* add the F-Curve back to the action now in the right place */
-  /* TODO: make the api function handle the case where there isn't any group to assign to. */
-  if (value.data) {
-    /* add to its group using API function, which makes sure everything goes ok */
-    action_groups_add_channel(act, static_cast<bActionGroup *>(value.data), fcu);
-  }
-  else {
-    /* Need to add this back, but it can only go at the end of the list
-     * (or else will corrupt groups). */
-    BLI_addtail(&act->curves, fcu);
+  BLI_assert(group->channelbag != nullptr);
+  blender::animrig::Channelbag &channelbag = group->channelbag->wrap();
+
+  if (!channelbag.fcurve_assign_to_channel_group(*fcu, *group)) {
+    printf(
+        "ERROR: F-Curve (datapath: '%s') doesn't belong to the same channel bag as "
+        "channel group '%s'\n",
+        fcu->rna_path,
+        group->name);
+    return;
   }
 }
 
@@ -751,6 +773,7 @@ static void rna_FCurve_modifiers_remove(FCurve *fcu, ReportList *reports, Pointe
   }
 
   remove_fmodifier(&fcu->modifiers, fcm);
+  DEG_id_tag_update(fcm_ptr->owner_id, ID_RECALC_ANIMATION);
   RNA_POINTER_INVALIDATE(fcm_ptr);
 }
 
@@ -1055,15 +1078,19 @@ static void rna_FModifierStepped_frame_end_set(PointerRNA *ptr, float value)
 }
 
 static BezTriple *rna_FKeyframe_points_insert(
-    ID *id, FCurve *fcu, Main *bmain, float frame, float value, int keyframe_type, int flag)
+    ID *id, FCurve *fcu, Main *bmain, float frame, float value, int flag, int keyframe_type)
 {
   using namespace blender::animrig;
   KeyframeSettings settings = get_keyframe_settings(false);
   settings.keyframe_type = eBezTriple_KeyframeType(keyframe_type);
-  int index = insert_vert_fcurve(fcu, {frame, value}, settings, eInsertKeyFlags(flag));
+  const SingleKeyingResult result = insert_vert_fcurve(
+      fcu, {frame, value}, settings, eInsertKeyFlags(flag));
 
-  if ((fcu->bezt) && (index >= 0)) {
+  if ((fcu->bezt) && (result == SingleKeyingResult::SUCCESS)) {
     rna_tag_animation_update(bmain, id);
+
+    bool replace;
+    const int index = BKE_fcurve_bezt_binarysearch_index(fcu->bezt, frame, fcu->totvert, &replace);
 
     return fcu->bezt + index;
   }
@@ -1533,19 +1560,6 @@ static void rna_def_fmodifier_cycles(BlenderRNA *brna)
 
 /* --------- */
 
-static void rna_def_fmodifier_python(BlenderRNA *brna)
-{
-  StructRNA *srna;
-  // PropertyRNA *prop;
-
-  srna = RNA_def_struct(brna, "FModifierPython", "FModifier");
-  RNA_def_struct_ui_text(
-      srna, "Python F-Modifier", "Perform user-defined operation on the modified F-Curve");
-  RNA_def_struct_sdna_from(srna, "FMod_Python", "data");
-}
-
-/* --------- */
-
 static void rna_def_fmodifier_limits(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -1652,6 +1666,7 @@ static void rna_def_fmodifier_noise(BlenderRNA *brna)
       prop,
       "Strength",
       "Amplitude of the noise - the amount that it modifies the underlying curve");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 
   prop = RNA_def_property(srna, "phase", PROP_FLOAT, PROP_NONE);
@@ -1666,10 +1681,39 @@ static void rna_def_fmodifier_noise(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Offset", "Time offset for the noise effect");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 
+  prop = RNA_def_property(srna, "lacunarity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "lacunarity");
+  RNA_def_property_float_default(prop, 2.0);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop,
+                           "Lacunarity",
+                           "Gap between successive frequencies. Depth needs to be greater than 0 "
+                           "for this to have an effect");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+
+  prop = RNA_def_property(srna, "roughness", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "roughness");
+  RNA_def_property_float_default(prop, 0.5);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop,
+                           "Roughness",
+                           "Amount of high frequency detail. Depth needs to be greater than 0 for "
+                           "this to have an effect");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+
   prop = RNA_def_property(srna, "depth", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "depth");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Depth", "Amount of fine level detail present in the noise");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+
+  prop = RNA_def_property(srna, "use_legacy_noise", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "legacy_noise", 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop,
+                           "Legacy Noise",
+                           "Use the legacy way of generating noise. Has the issue that it can "
+                           "produce values outside of -1/1");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 }
 
@@ -2254,6 +2298,7 @@ static void rna_def_fkeyframe(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "hide");
   RNA_def_property_enum_items(prop, rna_enum_beztriple_keyframe_type_items);
   RNA_def_property_ui_text(prop, "Type", "Type of keyframe (for visual purposes only)");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_PROP, "rna_Keyframe_update");
 
   prop = RNA_def_property(srna, "easing", PROP_ENUM, PROP_NONE);
@@ -2708,7 +2753,6 @@ void RNA_def_fcurve(BlenderRNA *brna)
   rna_def_fmodifier_envelope_ctrl(brna);
 
   rna_def_fmodifier_cycles(brna);
-  rna_def_fmodifier_python(brna);
   rna_def_fmodifier_limits(brna);
   rna_def_fmodifier_noise(brna);
   rna_def_fmodifier_stepped(brna);

@@ -6,6 +6,8 @@
  * \ingroup edobj
  */
 
+#include <sys/stat.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_material_types.h"
@@ -17,23 +19,24 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
+
+#include "BLT_translation.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
@@ -574,7 +577,7 @@ static bool bake_object_check(const Scene *scene,
         continue;
       }
 
-      image->id.tag |= LIB_TAG_DOIT;
+      image->id.tag |= ID_TAG_DOIT;
     }
   }
 
@@ -648,7 +651,7 @@ static bool bake_objects_check(Main *bmain,
                                const eBakeTarget target)
 {
   /* error handling and tag (in case multiple materials share the same image) */
-  BKE_main_id_tag_idcode(bmain, ID_IM, LIB_TAG_DOIT, false);
+  BKE_main_id_tag_idcode(bmain, ID_IM, ID_TAG_DOIT, false);
 
   if (is_selected_to_active) {
     int tot_objects = 0;
@@ -699,7 +702,7 @@ static bool bake_objects_check(Main *bmain,
 static void bake_targets_clear(Main *bmain, const bool is_tangent)
 {
   LISTBASE_FOREACH (Image *, image, &bmain->images) {
-    if ((image->id.tag & LIB_TAG_DOIT) != 0) {
+    if ((image->id.tag & ID_TAG_DOIT) != 0) {
       RE_bake_ibuf_clear(image, is_tangent);
     }
   }
@@ -749,7 +752,7 @@ static bool bake_targets_init_image_textures(const BakeAPIRender *bkr,
       MEM_callocN(sizeof(Image *) * targets->materials_num, __func__));
 
   /* Error handling and tag (in case multiple materials share the same image). */
-  BKE_main_id_tag_idcode(bkr->main, ID_IM, LIB_TAG_DOIT, false);
+  BKE_main_id_tag_idcode(bkr->main, ID_IM, ID_TAG_DOIT, false);
 
   targets->images = nullptr;
 
@@ -761,7 +764,7 @@ static bool bake_targets_init_image_textures(const BakeAPIRender *bkr,
 
     /* Some materials have no image, we just ignore those cases.
      * Also setup each image only once. */
-    if (image && !(image->id.tag & LIB_TAG_DOIT)) {
+    if (image && !(image->id.tag & ID_TAG_DOIT)) {
       LISTBASE_FOREACH (ImageTile *, tile, &image->tiles) {
         /* Add bake image. */
         targets->images = static_cast<BakeImage *>(
@@ -771,7 +774,7 @@ static bool bake_targets_init_image_textures(const BakeAPIRender *bkr,
         targets->images_num++;
       }
 
-      image->id.tag |= LIB_TAG_DOIT;
+      image->id.tag |= ID_TAG_DOIT;
     }
   }
 
@@ -1183,7 +1186,8 @@ static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
   const CustomDataLayer *active_color_layer = BKE_id_attributes_color_find(
       &mesh->id, mesh->active_color_attribute);
   BLI_assert(active_color_layer != nullptr);
-  const bke::AttrDomain domain = BKE_id_attribute_domain(&mesh->id, active_color_layer);
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+  const bke::AttrDomain domain = BKE_attribute_domain(owner, active_color_layer);
 
   const int channels_num = targets->channels_num;
   const bool is_noncolor = targets->is_noncolor;
@@ -1215,7 +1219,7 @@ static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
       }
     }
 
-    if (BMEditMesh *em = mesh->runtime->edit_mesh) {
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
       /* Copy to bmesh. */
       const int active_color_offset = CustomData_get_offset_named(
           &em->bm->vdata, eCustomDataType(active_color_layer->type), active_color_layer->name);
@@ -1250,7 +1254,7 @@ static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
     MEM_SAFE_FREE(num_loops_for_vertex);
   }
   else if (domain == bke::AttrDomain::Corner) {
-    if (BMEditMesh *em = mesh->runtime->edit_mesh) {
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
       /* Copy to bmesh. */
       const int active_color_offset = CustomData_get_offset_named(
           &em->bm->ldata, eCustomDataType(active_color_layer->type), active_color_layer->name);
@@ -1401,6 +1405,10 @@ static int bake(const BakeAPIRender *bkr,
   /* We build a depsgraph for the baking,
    * so we don't need to change the original data to adjust visibility and modifiers. */
   Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
+
+  /* Ensure meshes are generated even for objects with animated visibility, see: #107426. */
+  DEG_disable_visibility_optimization(depsgraph);
+
   DEG_graph_build_from_view_layer(depsgraph);
 
   int op_result = OPERATOR_CANCELLED;
@@ -1411,7 +1419,7 @@ static int bake(const BakeAPIRender *bkr,
   Object *ob_low_eval = nullptr;
 
   BakeHighPolyData *highpoly = nullptr;
-  int tot_highpoly = 0;
+  int highpoly_num = 0;
 
   Mesh *me_low_eval = nullptr;
   Mesh *me_cage_eval = nullptr;
@@ -1446,7 +1454,7 @@ static int bake(const BakeAPIRender *bkr,
   }
 
   if (bkr->is_selected_to_active) {
-    tot_highpoly = 0;
+    highpoly_num = 0;
 
     for (const PointerRNA &ptr : selected_objects) {
       Object *ob_iter = static_cast<Object *>(ptr.data);
@@ -1455,7 +1463,7 @@ static int bake(const BakeAPIRender *bkr,
         continue;
       }
 
-      tot_highpoly++;
+      highpoly_num++;
     }
 
     if (bkr->is_cage && bkr->custom_cage[0] != '\0') {
@@ -1468,6 +1476,13 @@ static int bake(const BakeAPIRender *bkr,
       }
       else {
         ob_cage_eval = DEG_get_evaluated_object(depsgraph, ob_cage);
+        if (ob_cage_eval->id.orig_id != &ob_cage->id) {
+          BKE_reportf(reports,
+                      RPT_ERROR,
+                      "Cage object \"%s\" not found in evaluated scene, it may be hidden",
+                      ob_cage->id.name + 2);
+          goto cleanup;
+        }
         ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
         ob_cage_eval->base_flag &= ~(BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
                                      BASE_ENABLED_RENDER);
@@ -1559,7 +1574,7 @@ static int bake(const BakeAPIRender *bkr,
     }
 
     highpoly = static_cast<BakeHighPolyData *>(
-        MEM_callocN(sizeof(BakeHighPolyData) * tot_highpoly, "bake high poly objects"));
+        MEM_callocN(sizeof(BakeHighPolyData) * highpoly_num, "bake high poly objects"));
 
     /* populate highpoly array */
     for (const PointerRNA &ptr : selected_objects) {
@@ -1569,24 +1584,52 @@ static int bake(const BakeAPIRender *bkr,
         continue;
       }
 
-      /* initialize highpoly_data */
+      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_iter);
+      if (ob_eval->id.orig_id != &ob_iter->id) {
+        BKE_reportf(reports,
+                    RPT_ERROR,
+                    "Object \"%s\" not found in evaluated scene, it may be hidden",
+                    ob_iter->id.name + 2);
+        goto cleanup;
+      }
+
+      ob_eval->visibility_flag &= ~OB_HIDE_RENDER;
+      ob_eval->base_flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT | BASE_ENABLED_RENDER);
+
+      Mesh *mesh_eval = BKE_mesh_new_from_object(nullptr, ob_eval, false, false);
+
+      /* Initialize `highpoly` data. */
       highpoly[i].ob = ob_iter;
-      highpoly[i].ob_eval = DEG_get_evaluated_object(depsgraph, ob_iter);
-      highpoly[i].ob_eval->visibility_flag &= ~OB_HIDE_RENDER;
-      highpoly[i].ob_eval->base_flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                                         BASE_ENABLED_RENDER);
-      highpoly[i].mesh = BKE_mesh_new_from_object(nullptr, highpoly[i].ob_eval, false, false);
+      highpoly[i].ob_eval = ob_eval;
+      highpoly[i].mesh = mesh_eval;
 
       /* Low-poly to high-poly transformation matrix. */
       copy_m4_m4(highpoly[i].obmat, highpoly[i].ob->object_to_world().ptr());
       invert_m4_m4(highpoly[i].imat, highpoly[i].obmat);
 
       highpoly[i].is_flip_object = is_negative_m4(highpoly[i].ob->object_to_world().ptr());
-
       i++;
+
+      /* NOTE(@ideasman42): While ideally this should never happen,
+       * it's possible the `visibility_flag` assignment in this function
+       * is overridden by animated visibility, see: #107426.
+       *
+       * There is also the potential that scripts called from depsgraph callbacks
+       * change this value too, so we can't guarantee the mesh will be available.
+       * Use an error here instead of a warning so users don't accidentally perform
+       * a bake which seems to succeed with invalid results.
+       * If visibility could be forced/overridden - it would help avoid the problem. */
+      if (UNLIKELY(mesh_eval == nullptr)) {
+        BKE_reportf(
+            reports,
+            RPT_ERROR,
+            "Failed to access mesh from object \"%s\", ensure it's visible while rendering",
+            ob_iter->id.name + 2);
+        goto cleanup;
+      }
     }
 
-    BLI_assert(i == tot_highpoly);
+    BLI_assert(i == highpoly_num);
 
     if (ob_cage != nullptr) {
       ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
@@ -1605,7 +1648,7 @@ static int bake(const BakeAPIRender *bkr,
             pixel_array_low,
             pixel_array_high,
             highpoly,
-            tot_highpoly,
+            highpoly_num,
             targets.pixels_num,
             ob_cage != nullptr,
             bkr->cage_extrusion,
@@ -1619,10 +1662,10 @@ static int bake(const BakeAPIRender *bkr,
     }
 
     /* the baking itself */
-    for (i = 0; i < tot_highpoly; i++) {
+    for (i = 0; i < highpoly_num; i++) {
       ok = RE_bake_engine(re,
                           depsgraph,
-                          highpoly[i].ob,
+                          highpoly[i].ob_eval,
                           i,
                           pixel_array_high,
                           &targets,
@@ -1753,7 +1796,7 @@ static int bake(const BakeAPIRender *bkr,
 cleanup:
 
   if (highpoly) {
-    for (int i = 0; i < tot_highpoly; i++) {
+    for (int i = 0; i < highpoly_num; i++) {
       if (highpoly[i].mesh != nullptr) {
         BKE_id_free(nullptr, &highpoly[i].mesh->id);
       }
@@ -2255,24 +2298,27 @@ void OBJECT_OT_bake(wmOperatorType *ot)
                R_BAKE_SPACE_TANGENT,
                "Normal Space",
                "Choose normal space for baking");
-  RNA_def_enum(ot->srna,
-               "normal_r",
-               rna_enum_normal_swizzle_items,
-               R_BAKE_POSX,
-               "R",
-               "Axis to bake in red channel");
-  RNA_def_enum(ot->srna,
-               "normal_g",
-               rna_enum_normal_swizzle_items,
-               R_BAKE_POSY,
-               "G",
-               "Axis to bake in green channel");
-  RNA_def_enum(ot->srna,
-               "normal_b",
-               rna_enum_normal_swizzle_items,
-               R_BAKE_POSZ,
-               "B",
-               "Axis to bake in blue channel");
+  prop = RNA_def_enum(ot->srna,
+                      "normal_r",
+                      rna_enum_normal_swizzle_items,
+                      R_BAKE_POSX,
+                      "R",
+                      "Axis to bake in red channel");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
+  prop = RNA_def_enum(ot->srna,
+                      "normal_g",
+                      rna_enum_normal_swizzle_items,
+                      R_BAKE_POSY,
+                      "G",
+                      "Axis to bake in green channel");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
+  prop = RNA_def_enum(ot->srna,
+                      "normal_b",
+                      rna_enum_normal_swizzle_items,
+                      R_BAKE_POSZ,
+                      "B",
+                      "Axis to bake in blue channel");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_enum(ot->srna,
                "target",
                rna_enum_bake_target_items,

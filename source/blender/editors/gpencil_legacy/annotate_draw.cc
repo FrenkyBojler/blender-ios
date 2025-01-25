@@ -8,12 +8,9 @@
 
 #include <cfloat>
 #include <cmath>
-#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-
-#include "MEM_guardedalloc.h"
 
 #include "BLI_sys_types.h"
 
@@ -40,6 +37,8 @@
 #include "ED_gpencil_legacy.hh"
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
+
+#include "UI_resources.hh"
 
 /* ************************************************** */
 /* GREASE PENCIL DRAWING */
@@ -586,7 +585,12 @@ static void annotation_draw_onionskins(
   float color[4];
 
   /* 1) Draw Previous Frames First */
-  copy_v3_v3(color, gpl->gcolor_prev);
+  if (gpl->onion_flag & GP_LAYER_ONIONSKIN_CUSTOM_COLOR) {
+    copy_v3_v3(color, gpl->gcolor_prev);
+  }
+  else {
+    UI_GetThemeColor3fv(TH_FRAME_BEFORE, color);
+  }
 
   if (gpl->gstep > 0) {
     bGPDframe *gf;
@@ -618,7 +622,12 @@ static void annotation_draw_onionskins(
   }
 
   /* 2) Now draw next frames */
-  copy_v3_v3(color, gpl->gcolor_next);
+  if (gpl->onion_flag & GP_LAYER_ONIONSKIN_CUSTOM_COLOR) {
+    copy_v3_v3(color, gpl->gcolor_next);
+  }
+  else {
+    UI_GetThemeColor3fv(TH_FRAME_AFTER, color);
+  }
 
   if (gpl->gstep_next > 0) {
     bGPDframe *gf;
@@ -901,7 +910,7 @@ void ED_annotation_draw_view3d(
    * deal with the camera border, otherwise map the coords to the camera border. */
   if ((rv3d->persp == RV3D_CAMOB) && !(G.f & G_FLAG_RENDER_VIEWPORT)) {
     rctf rectf;
-    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, &rectf, true); /* no shift */
+    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, true, &rectf);
 
     offsx = round_fl_to_int(rectf.xmin);
     offsy = round_fl_to_int(rectf.ymin);

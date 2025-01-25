@@ -21,7 +21,7 @@ namespace blender::nodes::node_geo_store_named_grid_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Volume");
-  b.add_input<decl::String>("Name");
+  b.add_input<decl::String>("Name").hide_label();
   b.add_output<decl::Geometry>("Volume");
 
   const bNode *node = b.node_or_null();
@@ -34,13 +34,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void search_link_ops(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_new_volume_nodes) {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_new_volume_nodes)) {
     return;
   }
-  params.add_item(IFACE_("Volume"), [](LinkSearchOpParams &params) {
-    bNode &node = params.add_node("GeometryNodeStoreNamedGrid");
-    params.update_and_connect_available_socket(node, "Volume");
-  });
+  if (params.other_socket().type == SOCK_GEOMETRY) {
+    params.add_item(IFACE_("Volume"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeStoreNamedGrid");
+      params.update_and_connect_available_socket(node, "Volume");
+    });
+  }
   if (params.in_out() == SOCK_IN) {
     if (params.other_socket().type == SOCK_STRING) {
       params.add_item(IFACE_("Name"), [](LinkSearchOpParams &params) {
@@ -130,16 +132,19 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_STORE_NAMED_GRID, "Store Named Grid", NODE_CLASS_GEOMETRY);
-
+  geo_node_type_base(&ntype, "GeometryNodeStoreNamedGrid", GEO_NODE_STORE_NAMED_GRID);
+  ntype.ui_name = "Store Named Grid";
+  ntype.ui_description = "Store grid data in a volume geometry with the specified name";
+  ntype.enum_name_legacy = "STORE_NAMED_GRID";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = search_link_ops;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

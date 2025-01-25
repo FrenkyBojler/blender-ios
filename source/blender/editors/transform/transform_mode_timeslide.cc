@@ -14,7 +14,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
@@ -38,7 +38,7 @@ static void headerTimeSlide(TransInfo *t, const float sval, char str[UI_MAX_DRAW
   char tvec[NUM_STR_REP_LEN * 3];
 
   if (hasNumInput(&t->num)) {
-    outputNumInput(&(t->num), tvec, &t->scene->unit);
+    outputNumInput(&(t->num), tvec, t->scene->unit);
   }
   else {
     const float *range = static_cast<const float *>(t->custom.mode.data);

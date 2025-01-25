@@ -4,7 +4,7 @@
 
 #include "BLI_math_vector.hh"
 
-#include "BKE_mesh.hh"
+#include "DNA_mesh_types.h"
 
 #include "node_geometry_util.hh"
 
@@ -20,7 +20,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "The distance a point can be from the surface before the face is no longer "
           "considered planar");
-  b.add_output<decl::Bool>("Planar").field_source();
+  b.add_output<decl::Bool>("Planar")
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .field_source();
 }
 
 class PlanarFieldInput final : public bke::MeshFieldInput {
@@ -107,13 +109,19 @@ static void geo_node_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_INPUT_MESH_FACE_IS_PLANAR, "Is Face Planar", NODE_CLASS_INPUT);
+      &ntype, "GeometryNodeInputMeshFaceIsPlanar", GEO_NODE_INPUT_MESH_FACE_IS_PLANAR);
+  ntype.ui_name = "Is Face Planar";
+  ntype.ui_description =
+      "Retrieve whether all triangles in a face are on the same plane, i.e. whether they have the "
+      "same normal";
+  ntype.enum_name_legacy = "MESH_FACE_IS_PLANAR";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = geo_node_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

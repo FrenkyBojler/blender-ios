@@ -38,7 +38,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ANIM_fcurve.hh"
 
@@ -520,49 +520,39 @@ int ANIM_add_driver(
   return done_tot;
 }
 
-bool ANIM_remove_driver(
-    ReportList * /*reports*/, ID *id, const char rna_path[], int array_index, short /*flag*/)
+bool ANIM_remove_driver(ID *id, const char rna_path[], int array_index)
 {
-  AnimData *adt;
-  FCurve *fcu;
-  bool success = false;
-
-  /* we don't check the validity of the path here yet, but it should be ok... */
-  adt = BKE_animdata_from_id(id);
-
-  if (adt) {
-    if (array_index == -1) {
-      /* step through all drivers, removing all of those with the same base path */
-      FCurve *fcu_iter = static_cast<FCurve *>(adt->drivers.first);
-
-      while ((fcu = BKE_fcurve_iter_step(fcu_iter, rna_path)) != nullptr) {
-        /* Store the next fcurve for looping. */
-        fcu_iter = fcu->next;
-
-        /* remove F-Curve from driver stack, then free it */
-        BLI_remlink(&adt->drivers, fcu);
-        BKE_fcurve_free(fcu);
-
-        /* done successfully */
-        success = true;
-      }
-    }
-    else {
-      /* find the matching driver and remove it only
-       * NOTE: here is one of the places where we don't want new F-Curve + Driver added!
-       *      so 'add' var must be 0
-       */
-      fcu = verify_driver_fcurve(id, rna_path, array_index, DRIVER_FCURVE_LOOKUP_ONLY);
-      if (fcu) {
-        BLI_remlink(&adt->drivers, fcu);
-        BKE_fcurve_free(fcu);
-
-        success = true;
-      }
-    }
+  AnimData *adt = BKE_animdata_from_id(id);
+  if (!adt) {
+    return false;
   }
 
-  return success;
+  if (array_index >= 0) {
+    /* Simple case: Find the matching driver and remove it. */
+    FCurve *fcu = verify_driver_fcurve(id, rna_path, array_index, DRIVER_FCURVE_LOOKUP_ONLY);
+    if (!fcu) {
+      return false;
+    }
+
+    BLI_remlink(&adt->drivers, fcu);
+    BKE_fcurve_free(fcu);
+    return true;
+  }
+
+  /* Step through all drivers, removing all of those with the same RNA path. */
+  bool any_driver_removed = false;
+  FCurve *fcu_iter = static_cast<FCurve *>(adt->drivers.first);
+  FCurve *fcu;
+  while ((fcu = BKE_fcurve_iter_step(fcu_iter, rna_path)) != nullptr) {
+    /* Store the next fcurve for looping. */
+    fcu_iter = fcu->next;
+
+    BLI_remlink(&adt->drivers, fcu);
+    BKE_fcurve_free(fcu);
+
+    any_driver_removed = true;
+  }
+  return any_driver_removed;
 }
 
 /* ************************************************** */
@@ -876,7 +866,7 @@ static const EnumPropertyItem *driver_mapping_type_itemf(bContext *C,
   const EnumPropertyItem *input = prop_driver_create_mapping_types;
   EnumPropertyItem *item = nullptr;
 
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   int index;
 
@@ -913,7 +903,7 @@ static const EnumPropertyItem *driver_mapping_type_itemf(bContext *C,
 
 static bool add_driver_button_poll(bContext *C)
 {
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   int index;
   bool driven, special;
@@ -929,7 +919,7 @@ static bool add_driver_button_poll(bContext *C)
   }
 
   /* Don't do anything if there is an fcurve for animation without a driver. */
-  FCurve *fcu = BKE_fcurve_find_by_rna_context_ui(
+  const FCurve *fcu = BKE_fcurve_find_by_rna_context_ui(
       C, &ptr, prop, index, nullptr, nullptr, &driven, &special);
   return (fcu == nullptr || fcu->driver);
 }
@@ -938,7 +928,7 @@ static bool add_driver_button_poll(bContext *C)
  * (i.e. "manual/add later"). */
 static int add_driver_button_none(bContext *C, wmOperator *op, short mapping_type)
 {
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   int index;
   int success = 0;
@@ -1034,7 +1024,7 @@ static void UNUSED_FUNCTION(ANIM_OT_driver_button_add_menu)(wmOperatorType *ot)
 
 static int add_driver_button_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   int index;
 
@@ -1087,7 +1077,7 @@ void ANIM_OT_driver_button_add(wmOperatorType *ot)
 
 static int remove_driver_button_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   bool changed = false;
   int index;
@@ -1101,7 +1091,7 @@ static int remove_driver_button_exec(bContext *C, wmOperator *op)
 
   if (ptr.owner_id && ptr.data && prop) {
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
-      changed = ANIM_remove_driver(op->reports, ptr.owner_id, path->c_str(), index, 0);
+      changed = ANIM_remove_driver(ptr.owner_id, path->c_str(), index);
     }
   }
 
@@ -1138,7 +1128,7 @@ void ANIM_OT_driver_button_remove(wmOperatorType *ot)
 
 static int edit_driver_button_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   int index;
 
@@ -1171,7 +1161,7 @@ void ANIM_OT_driver_button_edit(wmOperatorType *ot)
 
 static int copy_driver_button_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   bool changed = false;
   int index;
@@ -1210,7 +1200,7 @@ void ANIM_OT_copy_driver_button(wmOperatorType *ot)
 
 static int paste_driver_button_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   bool changed = false;
   int index;

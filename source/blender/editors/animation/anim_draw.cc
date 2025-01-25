@@ -24,7 +24,7 @@
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_mask.h"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_edit.hh"
@@ -207,44 +207,62 @@ void ANIM_draw_action_framerange(
 /* *************************************************** */
 /* NLA-MAPPING UTILITIES (required for drawing and also editing keyframes). */
 
-AnimData *ANIM_nla_mapping_get(bAnimContext *ac, bAnimListElem *ale)
+bool ANIM_nla_mapping_allowed(const bAnimListElem *ale)
 {
-  /* sanity checks */
-  if (ac == nullptr) {
-    return nullptr;
-  }
+  /* Historically, there was another check in the code that this function replaced:
+   * if (!ELEM(ac->datatype,
+   *           ANIMCONT_ACTION,
+   *           ANIMCONT_SHAPEKEY,
+   *           ANIMCONT_DOPESHEET,
+   *           ANIMCONT_FCURVES,
+   *           ANIMCONT_NLA,
+   *           ANIMCONT_CHANNEL,
+   *           ANIMCONT_TIMELINE))
+   * {
+   *   ... prevent NLA-remapping ...
+   * }
+   *
+   * I (Sybren) suspect that this was actually hiding some animation type check. When that code was
+   * written, I think there was no GreasePencil data showing in the regular Dope Sheet editor.
+   */
 
-  /* abort if rendering - we may get some race condition issues... */
-  if (G.is_rendering) {
-    return nullptr;
+  switch (ale->type) {
+    case ANIMTYPE_NLACURVE:
+      /* NLA Control Curves occur on NLA strips,
+       * and shouldn't be subjected to this kind of mapping. */
+      return false;
+    case ANIMTYPE_FCURVE: {
+      /* The F-Curve data of a driver should never get NLA-remapped. */
+      FCurve *fcurve = static_cast<FCurve *>(ale->key_data);
+      return !fcurve->driver;
+    }
+    case ANIMTYPE_DSGPENCIL:
+    case ANIMTYPE_GPDATABLOCK:
+    case ANIMTYPE_GPLAYER:
+    case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
+    case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
+    case ANIMTYPE_GREASE_PENCIL_LAYER:
+      /* Grease Pencil doesn't use the NLA, so don't bother remapping. */
+      return false;
+    case ANIMTYPE_MASKDATABLOCK:
+    case ANIMTYPE_MASKLAYER:
+      /* I (Sybren) don't _think_ masks can use the NLA. */
+      return false;
+    default:
+      /* NLA time remapping is the default behavior, and only should be
+       * prohibited for the above types. */
+      return true;
   }
+}
 
-  /* apart from strictly keyframe-related contexts, this shouldn't even happen */
-  /* XXX: nla and channel here may not be necessary... */
-  if (!ELEM(ac->datatype,
-            ANIMCONT_ACTION,
-            ANIMCONT_SHAPEKEY,
-            ANIMCONT_DOPESHEET,
-            ANIMCONT_FCURVES,
-            ANIMCONT_NLA,
-            ANIMCONT_CHANNEL,
-            ANIMCONT_TIMELINE))
-  {
-    return nullptr;
+float ANIM_nla_tweakedit_remap(bAnimListElem *ale,
+                               const float cframe,
+                               const eNlaTime_ConvertModes mode)
+{
+  if (!ANIM_nla_mapping_allowed(ale)) {
+    return cframe;
   }
-
-  /* handling depends on the type of animation-context we've got */
-  if (!ale) {
-    return nullptr;
-  }
-
-  /* NLA Control Curves occur on NLA strips,
-   * and shouldn't be subjected to this kind of mapping. */
-  if (ale->type == ANIMTYPE_NLACURVE) {
-    return nullptr;
-  }
-
-  return ale->adt;
+  return BKE_nla_tweakedit_remap(ale->adt, cframe, mode);
 }
 
 /* ------------------- */
@@ -314,6 +332,17 @@ void ANIM_nla_mapping_apply_fcurve(AnimData *adt, FCurve *fcu, bool restore, boo
   ANIM_fcurve_keyframes_loop(&ked, fcu, nullptr, map_cb, nullptr);
 }
 
+void ANIM_nla_mapping_apply_if_needed_fcurve(bAnimListElem *ale,
+                                             FCurve *fcu,
+                                             const bool restore,
+                                             const bool only_keys)
+{
+  if (!ANIM_nla_mapping_allowed(ale)) {
+    return;
+  }
+  ANIM_nla_mapping_apply_fcurve(ale->adt, fcu, restore, only_keys);
+}
+
 /* *************************************************** */
 /* UNITS CONVERSION MAPPING (required for drawing and editing keyframes) */
 
@@ -332,7 +361,7 @@ short ANIM_get_normalization_flags(SpaceLink *space_link)
 }
 
 static void fcurve_scene_coord_range_get(Scene *scene,
-                                         FCurve *fcu,
+                                         const FCurve *fcu,
                                          float *r_min_coord,
                                          float *r_max_coord)
 {
@@ -702,3 +731,32 @@ void ANIM_center_frame(bContext *C, int smooth_viewtx)
   UI_view2d_smooth_view(C, region, &newrct, smooth_viewtx);
 }
 /* *************************************************** */
+
+rctf ANIM_frame_range_view2d_add_xmargin(const View2D &view_2d, const rctf view_rect)
+{
+  /* Keyframe diamonds seem to be drawn at 10 pixels wide, multiplied by the UI scale. */
+  const float keyframe_size = 10 * UI_SCALE_FAC;
+  const float margin_in_px = 4 * keyframe_size;
+
+  /* This cannot use UI_view2d_scale_get_x(view_2d) because that would use the
+   * current scale of the view, and not the one we'd get once `view_rect` is
+   * applied. And this function should not assume that view_2d.cur == view_rect.
+   *
+   * As an added bonus, the division is inverted (compared to
+   * UI_view2d_scale_get_x()) so that we can multiply with the result instead of
+   * doing yet another division. */
+  const float target_scale = BLI_rctf_size_x(&view_rect) / BLI_rcti_size_x(&view_2d.mask);
+  const float margin_in_frames = margin_in_px * target_scale;
+
+  /* Limit the margin to a maximum of 12.5% of the available size. This will
+   * make the margins smaller when the view gets smaller, but for large views
+   * still retain the fixed size calculated above */
+  const float margin_max = 0.125f * BLI_rctf_size_x(&view_rect);
+  const float margin = std::min(margin_in_frames, margin_max);
+
+  rctf rect_with_margin = view_rect;
+  rect_with_margin.xmin -= margin;
+  rect_with_margin.xmax += margin;
+
+  return rect_with_margin;
+}

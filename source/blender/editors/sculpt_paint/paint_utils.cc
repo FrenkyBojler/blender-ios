@@ -18,7 +18,6 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
-#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
@@ -32,9 +31,9 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_sample.hh"
 #include "BKE_object.hh"
@@ -46,7 +45,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "IMB_imbuf_types.hh"
 #include "IMB_interp.hh"
@@ -55,9 +54,9 @@
 
 #include "ED_image.hh"
 #include "ED_screen.hh"
+#include "ED_select_utils.hh"
 #include "ED_view3d.hh"
 
-#include "BLI_sys_types.h"
 #include "ED_mesh.hh" /* for face mask functions */
 
 #include "WM_api.hh"
@@ -68,9 +67,9 @@
 bool paint_convert_bb_to_rect(rcti *rect,
                               const float bb_min[3],
                               const float bb_max[3],
-                              const ARegion *region,
-                              RegionView3D *rv3d,
-                              Object *ob)
+                              const ARegion &region,
+                              const RegionView3D &rv3d,
+                              const Object &ob)
 {
   int i, j, k;
 
@@ -81,7 +80,7 @@ bool paint_convert_bb_to_rect(rcti *rect,
     return false;
   }
 
-  const blender::float4x4 projection = ED_view3d_ob_project_mat_get(rv3d, ob);
+  const blender::float4x4 projection = ED_view3d_ob_project_mat_get(&rv3d, &ob);
 
   for (i = 0; i < 2; i++) {
     for (j = 0; j < 2; j++) {
@@ -92,7 +91,7 @@ bool paint_convert_bb_to_rect(rcti *rect,
         vec[1] = j ? bb_min[1] : bb_max[1];
         vec[2] = k ? bb_min[2] : bb_max[2];
         /* convert corner to screen space */
-        const blender::float2 proj = ED_view3d_project_float_v2_m4(region, vec, projection);
+        const blender::float2 proj = ED_view3d_project_float_v2_m4(&region, vec, projection);
         /* expand 2D rectangle */
 
         /* we could project directly to int? */
@@ -109,33 +108,35 @@ bool paint_convert_bb_to_rect(rcti *rect,
 }
 
 void paint_calc_redraw_planes(float planes[4][4],
-                              const ARegion *region,
-                              Object *ob,
-                              const rcti *screen_rect)
+                              const ARegion &region,
+                              const Object &ob,
+                              const rcti &screen_rect)
 {
   BoundBox bb;
   rcti rect;
 
   /* use some extra space just in case */
-  rect = *screen_rect;
+  rect = screen_rect;
   rect.xmin -= 2;
   rect.xmax += 2;
   rect.ymin -= 2;
   rect.ymax += 2;
 
-  ED_view3d_clipping_calc(&bb, planes, region, ob, &rect);
+  ED_view3d_clipping_calc(&bb, planes, &region, &ob, &rect);
 }
 
-float paint_calc_object_space_radius(ViewContext *vc, const float center[3], float pixel_radius)
+float paint_calc_object_space_radius(const ViewContext &vc,
+                                     const blender::float3 &center,
+                                     const float pixel_radius)
 {
-  Object *ob = vc->obact;
+  Object *ob = vc.obact;
   float delta[3], scale, loc[3];
   const float xy_delta[2] = {pixel_radius, 0.0f};
 
   mul_v3_m4v3(loc, ob->object_to_world().ptr(), center);
 
-  const float zfac = ED_view3d_calc_zfac(vc->rv3d, loc);
-  ED_view3d_win_to_delta(vc->region, xy_delta, zfac, delta);
+  const float zfac = ED_view3d_calc_zfac(vc.rv3d, loc);
+  ED_view3d_win_to_delta(vc.region, xy_delta, zfac, delta);
 
   scale = fabsf(mat4_to_scale(ob->object_to_world().ptr()));
   scale = (scale == 0.0f) ? 1.0f : scale;
@@ -182,6 +183,11 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
        0,
        "Smooth",
        "Switch brush to smooth mode for duration of stroke"},
+      {BRUSH_STROKE_ERASE,
+       "ERASE",
+       0,
+       "Erase",
+       "Switch brush to erase mode for duration of stroke"},
       {0},
   };
 
@@ -196,7 +202,14 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
                       BRUSH_STROKE_NORMAL,
                       "Stroke Mode",
                       "Action taken when a paint stroke is made");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
   RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE));
+
+  /* TODO: Pen flip logic should likely be combined into the stroke mode logic instead of being
+   * an entirely separate concept. */
+  prop = RNA_def_boolean(
+      ot->srna, "pen_flip", false, "Pen Flip", "Whether a tablet's eraser mode is being used");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
 /* 3D Paint */
@@ -261,10 +274,6 @@ static int imapaint_pick_face(ViewContext *vc,
     return 0;
   }
 
-  BVHTreeFromMesh mesh_bvh;
-  BKE_bvhtree_from_mesh_get(&mesh_bvh, &mesh, BVHTREE_FROM_CORNER_TRIS, 2);
-  BLI_SCOPED_DEFER([&]() { free_bvhtree_from_mesh(&mesh_bvh); });
-
   float3 start_world, end_world;
   ED_view3d_win_to_segment_clipped(
       vc->depsgraph, vc->region, vc->v3d, float2(mval[0], mval[1]), start_world, end_world, true);
@@ -272,6 +281,8 @@ static int imapaint_pick_face(ViewContext *vc,
   const float4x4 &world_to_object = vc->obact->world_to_object();
   const float3 start_object = math::transform_point(world_to_object, start_world);
   const float3 end_object = math::transform_point(world_to_object, end_world);
+
+  bke::BVHTreeFromMesh mesh_bvh = mesh.bvh_corner_tris();
 
   BVHTreeRayHit ray_hit;
   ray_hit.dist = FLT_MAX;
@@ -287,15 +298,8 @@ static int imapaint_pick_face(ViewContext *vc,
     return 0;
   }
 
-  const Span<float3> positions = mesh.vert_positions();
-  const Span<int> corner_verts = mesh.corner_verts();
-  const Span<int3> corner_tris = mesh.corner_tris();
-  const int3 &tri = corner_tris[ray_hit.index];
-  interp_weights_tri_v3(*r_bary_coord,
-                        positions[corner_verts[tri[0]]],
-                        positions[corner_verts[tri[1]]],
-                        positions[corner_verts[tri[2]]],
-                        ray_hit.co);
+  *r_bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
+      mesh.vert_positions(), mesh.corner_verts(), mesh.corner_tris()[ray_hit.index], ray_hit.co);
 
   *r_tri_index = ray_hit.index;
   *r_face_index = mesh.corner_tri_faces()[ray_hit.index];
@@ -404,7 +408,7 @@ void paint_sample_color(
                 }
                 else {
                   linearrgb_to_srgb_v3_v3(rgba_f, rgba_f);
-                  BKE_brush_color_set(scene, br, rgba_f);
+                  BKE_brush_color_set(scene, paint, br, rgba_f);
                 }
               }
               else {
@@ -417,7 +421,7 @@ void paint_sample_color(
                 else {
                   float rgba_f[3];
                   rgb_uchar_to_float(rgba_f, rgba);
-                  BKE_brush_color_set(scene, br, rgba_f);
+                  BKE_brush_color_set(scene, paint, br, rgba_f);
                 }
               }
               BKE_image_release_ibuf(image, ibuf, nullptr);
@@ -444,7 +448,7 @@ void paint_sample_color(
         copy_v3_v3(color->rgb, rgba_f);
       }
       else {
-        BKE_brush_color_set(scene, br, rgba_f);
+        BKE_brush_color_set(scene, paint, br, rgba_f);
       }
       return;
     }
@@ -461,7 +465,7 @@ void paint_sample_color(
       copy_v3_v3(color->rgb, rgb_fl);
     }
     else {
-      BKE_brush_color_set(scene, br, rgb_fl);
+      BKE_brush_color_set(scene, paint, br, rgb_fl);
     }
   }
 }
@@ -525,6 +529,7 @@ static int brush_sculpt_curves_falloff_preset_exec(bContext *C, wmOperator *op)
   mapping->preset = RNA_enum_get(op->ptr, "shape");
   CurveMap *map = mapping->cm;
   BKE_curvemap_reset(map, &mapping->clipr, mapping->preset, CURVEMAP_SLOPE_POSITIVE);
+  BKE_brush_tag_unsaved_changes(brush);
   return OPERATOR_FINISHED;
 }
 

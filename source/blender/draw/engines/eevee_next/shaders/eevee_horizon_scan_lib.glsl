@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 /**
  * Implementation of Horizon Based Global Illumination and Ambient Occlusion.
  *
@@ -10,9 +12,9 @@
  * by Olivier Therrien, Yannick Levesque, Guillaume Gilet
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_vector_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_fast_lib.glsl)
+#include "gpu_shader_math_fast_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 /**
  * Returns the bitmask for a given ordered pair of angle in [-pi/2..pi/2] range.
@@ -24,7 +26,7 @@ uint horizon_scan_angles_to_bitmask(vec2 theta)
   /* Algorithm 1, line 18. Re-ordered to make sure to clamp to the hemisphere range. */
   vec2 ratio = saturate(theta * M_1_PI + 0.5);
   uint a = uint(floor(float(bitmask_len) * ratio.x));
-  /* The paper is wrong here. The additional half Pi is not needed . */
+  /* The paper is wrong here. The additional half Pi is not needed. */
   uint b = uint(ceil(float(bitmask_len) * (ratio.y - ratio.x)));
   /* Algorithm 1, line 19. */
   return (((b < 32u) ? 1u << b : 0u) - 1u) << a;
@@ -53,12 +55,11 @@ float horizon_scan_bitmask_to_occlusion_uniform(uint bitmask)
  */
 float horizon_scan_bitmask_to_occlusion_cosine(uint bitmask)
 {
-  const int bitmask_len = 32;
   /* This is not described in the paper. Another solution would be to change the sector
    * distribution in `horizon_scan_angles_to_bitmask()` but that requires more computation per
    * samples. The quality difference does not justify it currently. */
-
 #if 0 /* Reference. */
+  const int bitmask_len = 32;
   float visibility = 0.0;
   for (int bit = 0; bit < bitmask_len; bit++) {
     float angle = (((float(bit) + 0.5) / float(bitmask_len)) - 0.5) * M_PI;

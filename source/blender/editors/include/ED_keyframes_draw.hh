@@ -12,6 +12,9 @@
 
 #include "DNA_curve_types.h"
 
+#include "ED_anim_api.hh"
+#include "ED_keyframes_keylist.hh"
+
 struct AnimData;
 struct ChannelDrawList;
 struct FCurve;
@@ -47,7 +50,7 @@ void draw_keyframe_shape(float x,
                          float size,
                          bool sel,
                          eBezTriple_KeyframeType key_type,
-                         short mode,
+                         eKeyframeShapeDrawOpts mode,
                          float alpha,
                          const KeyframeShaderBindings *sh_bindings,
                          short handle_type,
@@ -58,21 +61,36 @@ void draw_keyframe_shape(float x,
 /* Channel Drawing ------------------ */
 /* F-Curve */
 void ED_add_fcurve_channel(ChannelDrawList *draw_list,
-                           AnimData *adt,
+                           bAnimListElem *ale,
                            FCurve *fcu,
                            float ypos,
                            float yscale_fac,
                            int saction_flag);
 /* Action Group Summary */
 void ED_add_action_group_channel(ChannelDrawList *draw_list,
-                                 AnimData *adt,
+                                 bAnimListElem *ale,
                                  bActionGroup *agrp,
                                  float ypos,
                                  float yscale_fac,
                                  int saction_flag);
-/* Action Summary */
+/* Layered Action Summary. */
+void ED_add_action_layered_channel(ChannelDrawList *channel_list,
+                                   bAnimListElem *ale,
+                                   bAction *action,
+                                   const float ypos,
+                                   const float yscale_fac,
+                                   int saction_flag);
+/* Action Slot summary. */
+void ED_add_action_slot_channel(ChannelDrawList *channel_list,
+                                bAnimListElem *ale,
+                                blender::animrig::Action &action,
+                                blender::animrig::Slot &slot,
+                                float ypos,
+                                float yscale_fac,
+                                int saction_flag);
+/* Legacy Action Summary */
 void ED_add_action_channel(ChannelDrawList *draw_list,
-                           AnimData *adt,
+                           bAnimListElem *ale,
                            bAction *act,
                            float ypos,
                            float yscale_fac,
@@ -113,7 +131,8 @@ void ED_add_grease_pencil_layer_group_channel(ChannelDrawList *draw_list,
 
 /* Grease Pencil data channels */
 void ED_add_grease_pencil_datablock_channel(ChannelDrawList *draw_list,
-                                            bDopeSheet *ads,
+                                            bAnimContext *ac,
+                                            bAnimListElem *ale,
                                             const GreasePencil *grease_pencil,
                                             const float ypos,
                                             const float yscale_fac,
@@ -135,5 +154,7 @@ void ED_add_mask_layer_channel(ChannelDrawList *draw_list,
                                int saction_flag);
 
 ChannelDrawList *ED_channel_draw_list_create();
+
 void ED_channel_list_flush(ChannelDrawList *draw_list, View2D *v2d);
+
 void ED_channel_list_free(ChannelDrawList *draw_list);

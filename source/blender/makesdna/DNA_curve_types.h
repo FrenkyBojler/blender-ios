@@ -13,6 +13,10 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
+#ifdef __cplusplus
+#  include <optional>
+#endif
+
 /** Used in `readfile.cc` and `editfont.cc`. */
 #define MAXTEXTBOX 256
 
@@ -315,6 +319,11 @@ typedef struct Curve {
   char _pad3[7];
 
   void *batch_cache;
+
+#ifdef __cplusplus
+  /** Get the largest material index used by the curves or nullopt if there are none. */
+  std::optional<int> material_index_max() const;
+#endif
 } Curve;
 
 #define CURVE_VFONT_ANY(cu) ((cu)->vfont), ((cu)->vfontb), ((cu)->vfonti), ((cu)->vfontbi)
@@ -511,6 +520,11 @@ typedef enum eBezTriple_KeyframeType {
   BEZT_KEYTYPE_BREAKDOWN = 2, /* 'breakdown' keyframe */
   BEZT_KEYTYPE_JITTER = 3,    /* 'jitter' keyframe (for adding 'filler' secondary motion) */
   BEZT_KEYTYPE_MOVEHOLD = 4,  /* one end of a 'moving hold' */
+  /**
+   * Key set by some automatic helper tool, marking that this key can be erased
+   * and the tool re-run.
+   */
+  BEZT_KEYTYPE_GENERATED = 5,
 } eBezTriple_KeyframeType;
 
 /* checks if the given BezTriple is selected */

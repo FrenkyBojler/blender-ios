@@ -7,10 +7,9 @@
  */
 
 #include "BKE_context.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node_tree_interface.hh"
-#include "BKE_node_tree_update.hh"
 
-#include "BLI_color.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -21,7 +20,7 @@
 #include "ED_undo.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -157,7 +156,8 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
     socket_.name = BLI_strdup(new_name.c_str());
     nodetree_.tree_interface.tag_items_changed();
-    ED_node_tree_propagate_change(&C, CTX_data_main(&C), &nodetree_);
+    BKE_main_ensure_invariants(*CTX_data_main(&C), nodetree_.id);
+    ED_undo_push(&const_cast<bContext &>(C), new_name.c_str());
     return true;
   }
   StringRef get_rename_string() const override
@@ -216,7 +216,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
 
     panel_.name = BLI_strdup(new_name.c_str());
     nodetree_.tree_interface.tag_items_changed();
-    ED_node_tree_propagate_change(&C, CTX_data_main(&C), &nodetree_);
+    BKE_main_ensure_invariants(*CTX_data_main(&C), nodetree_.id);
     return true;
   }
   StringRef get_rename_string() const override
@@ -394,7 +394,7 @@ bool NodeSocketDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
   interface.move_item_to_parent(*drag_item, parent, index);
 
   /* General update */
-  ED_node_tree_propagate_change(C, CTX_data_main(C), &nodetree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), nodetree.id);
   ED_undo_push(C, "Insert node group item");
   return true;
 }
@@ -484,7 +484,7 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
   interface.move_item_to_parent(*drag_item, parent, index);
 
   /* General update */
-  ED_node_tree_propagate_change(C, CTX_data_main(C), &nodetree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), nodetree.id);
   ED_undo_push(C, "Insert node group item");
   return true;
 }
@@ -500,7 +500,7 @@ wmDragNodeTreeInterface *NodePanelDropTarget::get_drag_node_tree_declaration(
 
 }  // namespace blender::ui::nodes
 
-void uiTemplateNodeTreeInterface(uiLayout *layout, PointerRNA *ptr)
+void uiTemplateNodeTreeInterface(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   if (!ptr->data) {
     return;
@@ -517,7 +517,8 @@ void uiTemplateNodeTreeInterface(uiLayout *layout, PointerRNA *ptr)
       *block,
       "Node Tree Declaration Tree View",
       std::make_unique<blender::ui::nodes::NodeTreeInterfaceView>(nodetree, interface));
-  tree_view->set_min_rows(3);
+  tree_view->set_context_menu_title("Node Tree Interface");
+  tree_view->set_default_rows(3);
 
-  blender::ui::TreeViewBuilder::build_tree_view(*tree_view, *layout);
+  blender::ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

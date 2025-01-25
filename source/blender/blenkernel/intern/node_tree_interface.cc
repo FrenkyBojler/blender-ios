@@ -2,11 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <queue>
+
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_node.hh"
 #include "BKE_node_enum.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_interface.hh"
 
 #include "BLI_math_vector.h"
@@ -20,6 +23,8 @@
 #include "DNA_material_types.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
+
+using blender::StringRef;
 
 /**
  * These flags are used by the `changed_flag` field in #bNodeTreeInterfaceRuntime.
@@ -39,17 +44,20 @@ namespace socket_types {
  * `NodeSocketFloatUnsigned`, `NodeSocketFloatFactor`. Only the "base type" (`NodeSocketFloat`)
  * is considered valid for interface sockets.
  */
-static const char *try_get_supported_socket_type(const StringRef socket_type)
+static std::optional<StringRef> try_get_supported_socket_type(const StringRef socket_type)
 {
-  /* Make a copy of the string for `.c_str()` until the socket type map uses C++ types. */
-  const std::string idname(socket_type);
-  const bNodeSocketType *typeinfo = nodeSocketTypeFind(idname.c_str());
+  const blender::bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket_type);
   if (typeinfo == nullptr) {
-    return nullptr;
+    return std::nullopt;
   }
   /* For builtin socket types only the base type is supported. */
-  if (nodeIsStaticSocketType(typeinfo)) {
-    return nodeStaticSocketType(typeinfo->type, PROP_NONE);
+  if (node_is_static_socket_type(typeinfo)) {
+    if (const std::optional<StringRefNull> type_name = bke::node_static_socket_type(typeinfo->type,
+                                                                                    PROP_NONE))
+    {
+      return *type_name;
+    }
+    return std::nullopt;
   }
   return typeinfo->idname;
 }
@@ -276,7 +284,7 @@ static void socket_data_copy_ptr(bNodeTreeInterfaceSocket &dst,
 /** \name Write Socket Data to Blend File
  * \{ */
 
-/* Note: no default implementation, every used type must write at least the base struct. */
+/* NOTE: no default implementation, every used type must write at least the base struct. */
 
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueFloat &data)
 {
@@ -347,10 +355,14 @@ static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &soc
 
 template<typename T> void socket_data_read_data_impl(BlendDataReader *reader, T **data)
 {
+  /* FIXME Avoid using low-level untyped read function here. Cannot use the BLO_read_struct
+   * currently (macro expansion would process `T` instead of the actual type). */
   BLO_read_data_address(reader, data);
 }
 template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketValueMenu **data)
 {
+  /* FIXME Avoid using low-level untyped read function here. No type info available here currently.
+   */
   BLO_read_data_address(reader, data);
   /* Clear runtime data. */
   (*data)->enum_items = nullptr;
@@ -359,10 +371,16 @@ template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketV
 
 static void socket_data_read_data(BlendDataReader *reader, bNodeTreeInterfaceSocket &socket)
 {
+  bool data_read = false;
   socket_data_to_static_type_tag(socket.socket_type, [&](auto type_tag) {
     using SocketDataType = typename decltype(type_tag)::type;
     socket_data_read_data_impl(reader, reinterpret_cast<SocketDataType **>(&socket.socket_data));
+    data_read = true;
   });
+  if (!data_read && socket.socket_data) {
+    /* Not sure how this can happen exactly, but it did happen in #127855. */
+    socket.socket_data = nullptr;
+  }
 }
 
 /** \} */
@@ -575,12 +593,12 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
   switch (item.item_type) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-      BLO_read_data_address(reader, &socket.name);
-      BLO_read_data_address(reader, &socket.description);
-      BLO_read_data_address(reader, &socket.socket_type);
-      BLO_read_data_address(reader, &socket.default_attribute_name);
-      BLO_read_data_address(reader, &socket.identifier);
-      BLO_read_data_address(reader, &socket.properties);
+      BLO_read_string(reader, &socket.name);
+      BLO_read_string(reader, &socket.description);
+      BLO_read_string(reader, &socket.socket_type);
+      BLO_read_string(reader, &socket.default_attribute_name);
+      BLO_read_string(reader, &socket.identifier);
+      BLO_read_struct(reader, IDProperty, &socket.properties);
       IDP_BlendDataRead(reader, &socket.properties);
 
       socket_types::socket_data_read_data(reader, socket);
@@ -588,11 +606,12 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
     }
     case NODE_INTERFACE_PANEL: {
       bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
-      BLO_read_data_address(reader, &panel.name);
-      BLO_read_data_address(reader, &panel.description);
-      BLO_read_pointer_array(reader, reinterpret_cast<void **>(&panel.items_array));
+      BLO_read_string(reader, &panel.name);
+      BLO_read_string(reader, &panel.description);
+      BLO_read_pointer_array(
+          reader, panel.items_num, reinterpret_cast<void **>(&panel.items_array));
       for (const int i : blender::IndexRange(panel.items_num)) {
-        BLO_read_data_address(reader, &panel.items_array[i]);
+        BLO_read_struct(reader, NodeEnumItem, &panel.items_array[i]);
         item_read_data(reader, *panel.items_array[i]);
       }
       break;
@@ -645,14 +664,14 @@ static Span<bNodeTreeInterfaceItem *> item_children(bNodeTreeInterfaceItem &item
 
 using namespace blender::bke::node_interface;
 
-bNodeSocketType *bNodeTreeInterfaceSocket::socket_typeinfo() const
+blender::bke::bNodeSocketType *bNodeTreeInterfaceSocket::socket_typeinfo() const
 {
-  return nodeSocketTypeFind(socket_type);
+  return blender::bke::node_socket_type_find(socket_type);
 }
 
 blender::ColorGeometry4f bNodeTreeInterfaceSocket::socket_color() const
 {
-  bNodeSocketType *typeinfo = this->socket_typeinfo();
+  blender::bke::bNodeSocketType *typeinfo = this->socket_typeinfo();
   if (typeinfo && typeinfo->draw_color_simple) {
     float color[4];
     typeinfo->draw_color_simple(typeinfo, color);
@@ -663,10 +682,11 @@ blender::ColorGeometry4f bNodeTreeInterfaceSocket::socket_color() const
   }
 }
 
-bool bNodeTreeInterfaceSocket::set_socket_type(const char *new_socket_type)
+bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
 {
-  const char *idname = socket_types::try_get_supported_socket_type(new_socket_type);
-  if (idname == nullptr) {
+  const std::optional<StringRef> idname = socket_types::try_get_supported_socket_type(
+      new_socket_type);
+  if (!idname) {
     return false;
   }
 
@@ -676,7 +696,7 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const char *new_socket_type)
   }
   MEM_SAFE_FREE(this->socket_type);
 
-  this->socket_type = BLI_strdup(new_socket_type);
+  this->socket_type = BLI_strdupn(new_socket_type.data(), new_socket_type.size());
   this->socket_data = socket_types::make_socket_data(new_socket_type);
 
   return true;
@@ -684,8 +704,9 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const char *new_socket_type)
 
 void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *socket)
 {
-  const char *idname = socket_types::try_get_supported_socket_type(socket->idname);
-  BLI_assert(idname != nullptr);
+  const std::optional<StringRef> idname = socket_types::try_get_supported_socket_type(
+      socket->idname);
+  BLI_assert(idname.has_value());
 
   if (this->socket_data != nullptr) {
     socket_types::socket_data_free(*this, true);
@@ -696,8 +717,8 @@ void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *sock
     this->flag |= NODE_INTERFACE_SOCKET_HIDE_VALUE;
   }
 
-  this->socket_type = BLI_strdup(idname);
-  this->socket_data = socket_types::make_socket_data(idname);
+  this->socket_type = BLI_strdupn(idname->data(), idname->size());
+  this->socket_data = socket_types::make_socket_data(*idname);
   socket_types::socket_data_copy_ptr(*this, socket->default_value, 0);
 }
 
@@ -863,10 +884,6 @@ void bNodeTreeInterfacePanel::add_item(bNodeTreeInterfaceItem &item)
 
 void bNodeTreeInterfacePanel::insert_item(bNodeTreeInterfaceItem &item, int position)
 {
-  /* Are child panels allowed? */
-  BLI_assert(item.item_type != NODE_INTERFACE_PANEL ||
-             (this->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS));
-
   /* Apply any constraints on the item positions. */
   position = find_valid_insert_position_for_item(item, position);
   position = std::min(std::max(position, 0), items_num);
@@ -1032,8 +1049,8 @@ static bNodeTreeInterfaceSocket *make_socket(const int uid,
 {
   BLI_assert(!socket_type.is_empty());
 
-  const char *idname = socket_types::try_get_supported_socket_type(socket_type);
-  if (idname == nullptr) {
+  const std::optional<StringRef> idname = socket_types::try_get_supported_socket_type(socket_type);
+  if (!idname) {
     return nullptr;
   }
 
@@ -1061,19 +1078,33 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
                                                          const StringRef socket_type,
                                                          const StringRef name)
 {
-  NodeTreeInterfaceSocketFlag flag = NodeTreeInterfaceSocketFlag(0);
-  SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_IN, NODE_INTERFACE_SOCKET_INPUT);
-  SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_OUT, NODE_INTERFACE_SOCKET_OUTPUT);
+  ntree.ensure_topology_cache();
+  bNodeTreeInterfaceSocket *iosock = nullptr;
+  if (from_node.is_group()) {
+    if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(from_node.id)) {
+      /* Copy interface socket directly from source group to avoid loosing data in the process. */
+      group->ensure_interface_cache();
+      const bNodeTreeInterfaceSocket &src_io_socket =
+          from_sock.is_input() ? *group->interface_inputs()[from_sock.index()] :
+                                 *group->interface_outputs()[from_sock.index()];
+      iosock = reinterpret_cast<bNodeTreeInterfaceSocket *>(
+          ntree.tree_interface.add_item_copy(src_io_socket.item, nullptr));
+    }
+  }
+  if (!iosock) {
+    NodeTreeInterfaceSocketFlag flag = NodeTreeInterfaceSocketFlag(0);
+    SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_IN, NODE_INTERFACE_SOCKET_INPUT);
+    SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_OUT, NODE_INTERFACE_SOCKET_OUTPUT);
 
-  bNodeTreeInterfaceSocket *iosock = ntree.tree_interface.add_socket(
-      name, from_sock.description, socket_type, flag, nullptr);
+    iosock = ntree.tree_interface.add_socket(
+        name, from_sock.description, socket_type, flag, nullptr);
+  }
   if (iosock == nullptr) {
     return nullptr;
   }
-  const bNodeSocketType *typeinfo = iosock->socket_typeinfo();
+  const blender::bke::bNodeSocketType *typeinfo = iosock->socket_typeinfo();
   if (typeinfo->interface_from_socket) {
     typeinfo->interface_from_socket(&ntree.id, iosock, &from_node, &from_sock);
-    UNUSED_VARS(from_sock);
   }
   return iosock;
 }
@@ -1102,9 +1133,6 @@ void bNodeTreeInterface::init_data()
 {
   this->runtime = MEM_new<blender::bke::bNodeTreeInterfaceRuntime>(__func__);
   this->tag_missing_runtime_data();
-
-  /* Root panel is allowed to contain child panels. */
-  root_panel.flag |= NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS;
 }
 
 void bNodeTreeInterface::copy_data(const bNodeTreeInterface &src, int flag)
@@ -1141,7 +1169,7 @@ void bNodeTreeInterface::read_data(BlendDataReader *reader)
 bNodeTreeInterfaceItem *bNodeTreeInterface::active_item()
 {
   bNodeTreeInterfaceItem *active = nullptr;
-  int count = active_index;
+  int count = this->active_index;
   this->foreach_item([&](bNodeTreeInterfaceItem &item) {
     if (count == 0) {
       active = &item;
@@ -1156,7 +1184,7 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::active_item()
 const bNodeTreeInterfaceItem *bNodeTreeInterface::active_item() const
 {
   const bNodeTreeInterfaceItem *active = nullptr;
-  int count = active_index;
+  int count = this->active_index;
   this->foreach_item([&](const bNodeTreeInterfaceItem &item) {
     if (count == 0) {
       active = &item;
@@ -1170,11 +1198,11 @@ const bNodeTreeInterfaceItem *bNodeTreeInterface::active_item() const
 
 void bNodeTreeInterface::active_item_set(bNodeTreeInterfaceItem *item)
 {
-  active_index = 0;
+  this->active_index = 0;
   int count = 0;
   this->foreach_item([&](bNodeTreeInterfaceItem &titem) {
     if (&titem == item) {
-      active_index = count;
+      this->active_index = count;
       return false;
     }
     ++count;
@@ -1198,7 +1226,7 @@ bNodeTreeInterfaceSocket *bNodeTreeInterface::add_socket(const blender::StringRe
   BLI_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceSocket *new_socket = make_socket(
-      next_uid++, name, description, socket_type, flag);
+      this->next_uid++, name, description, socket_type, flag);
   if (new_socket) {
     parent->add_item(new_socket->item);
   }
@@ -1220,7 +1248,7 @@ bNodeTreeInterfaceSocket *bNodeTreeInterface::insert_socket(const blender::Strin
   BLI_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceSocket *new_socket = make_socket(
-      next_uid++, name, description, socket_type, flag);
+      this->next_uid++, name, description, socket_type, flag);
   if (new_socket) {
     parent->insert_item(new_socket->item, position);
   }
@@ -1239,12 +1267,7 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::add_panel(const blender::StringRef 
   }
   BLI_assert(this->find_item(parent->item));
 
-  if (!(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS)) {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
-
-  bNodeTreeInterfacePanel *new_panel = make_panel(next_uid++, name, description, flag);
+  bNodeTreeInterfacePanel *new_panel = make_panel(this->next_uid++, name, description, flag);
   if (new_panel) {
     parent->add_item(new_panel->item);
   }
@@ -1264,12 +1287,7 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::insert_panel(const blender::StringR
   }
   BLI_assert(this->find_item(parent->item));
 
-  if (!(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS)) {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
-
-  bNodeTreeInterfacePanel *new_panel = make_panel(next_uid++, name, description, flag);
+  bNodeTreeInterfacePanel *new_panel = make_panel(this->next_uid++, name, description, flag);
   if (new_panel) {
     parent->insert_item(new_panel->item, position);
   }
@@ -1284,15 +1302,7 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::add_item_copy(const bNodeTreeInterfa
   if (parent == nullptr) {
     parent = &root_panel;
   }
-  BLI_assert(this->find_item(item));
   BLI_assert(this->find_item(parent->item));
-
-  if (item.item_type == NODE_INTERFACE_PANEL &&
-      !(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-  {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
 
   bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));
   item_types::item_copy(*citem, item, 0, [&]() { return this->next_uid++; });
@@ -1311,13 +1321,6 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::insert_item_copy(const bNodeTreeInte
   }
   BLI_assert(this->find_item(item));
   BLI_assert(this->find_item(parent->item));
-
-  if (item.item_type == NODE_INTERFACE_PANEL &&
-      !(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-  {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
 
   bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));
   item_types::item_copy(*citem, item, 0, [&]() { return this->next_uid++; });
@@ -1380,12 +1383,7 @@ bool bNodeTreeInterface::move_item_to_parent(bNodeTreeInterfaceItem &item,
   if (parent == nullptr) {
     return false;
   }
-  if (item.item_type == NODE_INTERFACE_PANEL && new_parent &&
-      !(new_parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-  {
-    /* Parent does not allow adding child panels. */
-    return false;
-  }
+
   if (parent == new_parent) {
     if (parent->move_item(item, new_position)) {
       this->tag_items_changed();
@@ -1393,7 +1391,7 @@ bool bNodeTreeInterface::move_item_to_parent(bNodeTreeInterfaceItem &item,
     }
   }
   else {
-    /* Note: only remove and reinsert when parents different, otherwise removing the item can
+    /* NOTE: only remove and reinsert when parents different, otherwise removing the item can
      * change the desired target position! */
     if (parent->remove_item(item, false)) {
       new_parent->insert_item(item, new_position);
@@ -1430,13 +1428,13 @@ void bNodeTreeInterface::ensure_items_cache() const
     bNodeTreeInterface &mutable_self = const_cast<bNodeTreeInterface &>(*this);
 
     mutable_self.foreach_item([&](bNodeTreeInterfaceItem &item) {
-      runtime.items_.append(&item);
+      runtime.items_.add_new(&item);
       if (bNodeTreeInterfaceSocket *socket = get_item_as<bNodeTreeInterfaceSocket>(&item)) {
         if (socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
-          runtime.inputs_.append(socket);
+          runtime.inputs_.add_new(socket);
         }
         if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-          runtime.outputs_.append(socket);
+          runtime.outputs_.add_new(socket);
         }
       }
       return true;

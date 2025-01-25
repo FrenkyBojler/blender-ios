@@ -616,6 +616,7 @@ static void rna_def_linestyle_mtex(BlenderRNA *brna)
   prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "texco");
   RNA_def_property_enum_items(prop, texco_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXTURE);
   RNA_def_property_ui_text(prop,
                            "Texture Coordinates",
                            "Texture coordinates used to map the texture onto the background");
@@ -1299,6 +1300,7 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
                            "Error",
                            "Maximum distance allowed between the new Bézier curve and the "
                            "original backbone geometry");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
 
   srna = RNA_def_struct(
@@ -1461,6 +1463,7 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
       prop,
       "Error",
       "Maximum distance between the original stroke and its polygonal approximation");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
 
   srna = RNA_def_struct(

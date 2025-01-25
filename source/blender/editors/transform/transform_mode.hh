@@ -9,6 +9,10 @@
 
 #pragma once
 
+#include "ED_transform.hh"
+
+#include "transform.hh"
+
 struct BMVert;
 struct LinkNode;
 struct TransData;
@@ -67,7 +71,7 @@ bool transform_mode_is_changeable(int mode);
 void protectedTransBits(short protectflag, float vec[3]);
 void protectedSizeBits(short protectflag, float size[3]);
 void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransData *td);
-void constraintSizeLim(const TransInfo *t, TransData *td);
+void constraintSizeLim(const TransInfo *t, const TransDataContainer *tc, TransData *td);
 /**
  * Used by Transform Rotation and Transform Normal Rotation.
  */
@@ -140,6 +144,7 @@ extern TransModeInfo TransMode_rotatenormal;
 /* `transform_mode_edge_seq_slide.cc` */
 
 extern TransModeInfo TransMode_seqslide;
+bool transform_mode_edge_seq_slide_use_restore_handle_selection(const TransInfo *t);
 
 /* `transform_mode_edge_slide.cc` */
 
@@ -149,10 +154,6 @@ void transform_mode_edge_slide_reproject_input(TransInfo *t);
 /* `transform_mode_gpopacity.cc` */
 
 extern TransModeInfo TransMode_gpopacity;
-
-/* `transform_mode_gpshrinkfatten.cc` */
-
-extern TransModeInfo TransMode_gpshrinkfatten;
 
 /* `transform_mode_maskshrinkfatten.cc` */
 

@@ -4,6 +4,11 @@
 
 #ifdef WITH_METAL
 
+#  include <algorithm>
+#  include <chrono>
+#  include <thread>
+#  include <vector>
+
 #  include "scene/hair.h"
 #  include "scene/mesh.h"
 #  include "scene/object.h"
@@ -50,7 +55,7 @@ struct BVHMetalBuildThrottler {
   }
 
   /* Block until we're safely able to wire the requested resources. */
-  void acquire(size_t bytes_to_be_wired)
+  void acquire(const size_t bytes_to_be_wired)
   {
     bool throttled = false;
     while (true) {
@@ -84,7 +89,7 @@ struct BVHMetalBuildThrottler {
   }
 
   /* Notify of resources that have stopped being wired. */
-  void release(size_t bytes_just_unwired)
+  void release(const size_t bytes_just_unwired)
   {
     thread_scoped_lock lock(mutex);
     wired_memory -= bytes_just_unwired;
@@ -119,17 +124,27 @@ BVHMetal::BVHMetal(const BVHParams &params_,
 
 BVHMetal::~BVHMetal()
 {
-  /* Clear point used by enqueueing. */
-  device->release_bvh(this);
+  if (@available(macos 12.0, *)) {
+    set_accel_struct(nil);
+    if (null_BLAS) {
+      [null_BLAS release];
+    }
+  }
+}
 
+API_AVAILABLE(macos(11.0))
+void BVHMetal::set_accel_struct(id<MTLAccelerationStructure> new_accel_struct)
+{
   if (@available(macos 12.0, *)) {
     if (accel_struct) {
       device->stats.mem_free(accel_struct.allocatedSize);
       [accel_struct release];
+      accel_struct = nil;
     }
 
-    if (null_BLAS) {
-      [null_BLAS release];
+    if (new_accel_struct) {
+      accel_struct = new_accel_struct;
+      device->stats.mem_alloc(accel_struct.allocatedSize);
     }
   }
 }
@@ -197,7 +212,7 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
         if (step != center_step) {
           verts = motion_keys->data_float3() + (step > center_step ? step - 1 : step) * num_verts;
         }
-        memcpy(dest_data + num_verts * step, verts, num_verts * sizeof(float3));
+        std::copy_n(verts, num_verts, dest_data + num_verts * step);
       }
       if (storage_mode == MTLResourceStorageModeManaged) {
         [posBuf didModifyRange:NSMakeRange(0, posBuf.length)];
@@ -325,9 +340,7 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
                                 toAccelerationStructure:accel];
           [accelEnc endEncoding];
           [accelCommands addCompletedHandler:^(id<MTLCommandBuffer> /*command_buffer*/) {
-            uint64_t allocated_size = [accel allocatedSize];
-            device->stats.mem_alloc(allocated_size);
-            accel_struct = accel;
+            set_accel_struct(accel);
             [accel_uncompressed release];
 
             /* Signal that we've finished doing GPU acceleration struct build. */
@@ -338,10 +351,7 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
       }
       else {
         /* set our acceleration structure to the uncompressed structure */
-        accel_struct = accel_uncompressed;
-
-        uint64_t allocated_size = [accel_struct allocatedSize];
-        device->stats.mem_alloc(allocated_size);
+        set_accel_struct(accel_uncompressed);
 
         /* Signal that we've finished doing GPU acceleration struct build. */
         g_bvh_build_throttler.release(wired_size);
@@ -663,9 +673,7 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
                                 toAccelerationStructure:accel];
           [accelEnc endEncoding];
           [accelCommands addCompletedHandler:^(id<MTLCommandBuffer> /*command_buffer*/) {
-            uint64_t allocated_size = [accel allocatedSize];
-            device->stats.mem_alloc(allocated_size);
-            accel_struct = accel;
+            set_accel_struct(accel);
             [accel_uncompressed release];
 
             /* Signal that we've finished doing GPU acceleration struct build. */
@@ -676,10 +684,7 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       }
       else {
         /* set our acceleration structure to the uncompressed structure */
-        accel_struct = accel_uncompressed;
-
-        uint64_t allocated_size = [accel_struct allocatedSize];
-        device->stats.mem_alloc(allocated_size);
+        set_accel_struct(accel_uncompressed);
 
         /* Signal that we've finished doing GPU acceleration struct build. */
         g_bvh_build_throttler.release(wired_size);
@@ -785,13 +790,6 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
     if (storage_mode == MTLResourceStorageModeManaged) {
       [aabbBuf didModifyRange:NSMakeRange(0, aabbBuf.length)];
     }
-
-#  if 0
-    for (size_t i=0; i<num_aabbs && i < 400; i++) {
-      MTLAxisAlignedBoundingBox& bb = aabb_data[i];
-      printf("  %d:   %.1f,%.1f,%.1f -- %.1f,%.1f,%.1f\n", int(i), bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z);
-    }
-#  endif
 
     MTLAccelerationStructureGeometryDescriptor *geomDesc;
     if (motion_blur) {
@@ -910,9 +908,7 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
                                 toAccelerationStructure:accel];
           [accelEnc endEncoding];
           [accelCommands addCompletedHandler:^(id<MTLCommandBuffer> /*command_buffer*/) {
-            uint64_t allocated_size = [accel allocatedSize];
-            device->stats.mem_alloc(allocated_size);
-            accel_struct = accel;
+            set_accel_struct(accel);
             [accel_uncompressed release];
 
             /* Signal that we've finished doing GPU acceleration struct build. */
@@ -923,10 +919,7 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
       }
       else {
         /* set our acceleration structure to the uncompressed structure */
-        accel_struct = accel_uncompressed;
-
-        uint64_t allocated_size = [accel_struct allocatedSize];
-        device->stats.mem_alloc(allocated_size);
+        set_accel_struct(accel_uncompressed);
 
         /* Signal that we've finished doing GPU acceleration struct build. */
         g_bvh_build_throttler.release(wired_size);
@@ -1036,10 +1029,6 @@ bool BVHMetal::build_TLAS(Progress &progress,
     for (Object *ob : objects) {
       num_instances++;
 
-      /* Skip motion for non-traceable objects */
-      if (!ob->is_traceable())
-        continue;
-
       if (ob->use_motion()) {
         num_motion_transforms += max((size_t)1, ob->get_motion().size());
       }
@@ -1059,22 +1048,20 @@ bool BVHMetal::build_TLAS(Progress &progress,
     const bool use_fast_trace_bvh = (params.bvh_type == BVH_TYPE_STATIC);
 
     NSMutableArray *all_blas = [NSMutableArray array];
-    unordered_map<BVHMetal const *, int> instance_mapping;
+    unordered_map<const BVHMetal *, int> instance_mapping;
 
     /* Lambda function to build/retrieve the BLAS index mapping */
-    auto get_blas_index = [&](BVHMetal const *blas) {
+    auto get_blas_index = [&](const BVHMetal *blas) {
       auto it = instance_mapping.find(blas);
       if (it != instance_mapping.end()) {
         return it->second;
       }
-      else {
-        int blas_index = (int)[all_blas count];
-        instance_mapping[blas] = blas_index;
-        if (@available(macos 12.0, *)) {
-          [all_blas addObject:(blas ? blas->accel_struct : null_BLAS)];
-        }
-        return blas_index;
+      int blas_index = (int)[all_blas count];
+      instance_mapping[blas] = blas_index;
+      if (@available(macos 12.0, *)) {
+        [all_blas addObject:(blas ? blas->accel_struct : null_BLAS)];
       }
+      return blas_index;
     };
 
     MTLResourceOptions storage_mode;
@@ -1113,10 +1100,10 @@ bool BVHMetal::build_TLAS(Progress &progress,
 
     for (Object *ob : objects) {
       /* Skip non-traceable objects */
-      Geometry const *geom = ob->get_geometry();
-      BVHMetal const *blas = static_cast<BVHMetal const *>(geom->bvh);
-      if (!blas || !blas->accel_struct) {
-        /* Place a degenerate instance, to ensure [[instance_id]] equals ob->get_mtl_device_index()
+      const Geometry *geom = ob->get_geometry();
+      const BVHMetal *blas = static_cast<const BVHMetal *>(geom->bvh.get());
+      if (!blas || !blas->accel_struct || !ob->is_traceable()) {
+        /* Place a degenerate instance, to ensure [[instance_id]] equals ob->get_device_index()
          * in our intersection functions */
         blas = nullptr;
 
@@ -1148,17 +1135,17 @@ bool BVHMetal::build_TLAS(Progress &progress,
       uint32_t primitive_offset = 0;
       int currIndex = instance_index++;
 
-      if (geom->geometry_type == Geometry::HAIR) {
+      if (geom->is_hair()) {
         /* Build BLAS for curve primitives. */
         Hair *const hair = static_cast<Hair *const>(const_cast<Geometry *>(geom));
         primitive_offset = uint32_t(hair->curve_segment_offset);
       }
-      else if (geom->geometry_type == Geometry::MESH || geom->geometry_type == Geometry::VOLUME) {
+      else if (geom->is_mesh() || geom->is_volume()) {
         /* Build BLAS for triangle primitives. */
         Mesh *const mesh = static_cast<Mesh *const>(const_cast<Geometry *>(geom));
         primitive_offset = uint32_t(mesh->prim_offset);
       }
-      else if (geom->geometry_type == Geometry::POINTCLOUD) {
+      else if (geom->is_pointcloud()) {
         /* Build BLAS for points primitives. */
         PointCloud *const pointcloud = static_cast<PointCloud *const>(
             const_cast<Geometry *>(geom));
@@ -1189,7 +1176,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
           for (int i = 0; i < key_count; i++) {
             float *t = (float *)&motion_transforms[motion_transform_index++];
             /* Transpose transform */
-            auto src = (float const *)&keys[i];
+            const auto *src = (const float *)&keys[i];
             for (int i = 0; i < 12; i++) {
               t[i] = src[(i / 3) + 4 * (i % 3)];
             }
@@ -1201,7 +1188,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
           float *t = (float *)&motion_transforms[motion_transform_index++];
           if (ob->get_geometry()->is_instanced()) {
             /* Transpose transform */
-            auto src = (float const *)&ob->get_tfm();
+            const auto *src = (const float *)&ob->get_tfm();
             for (int i = 0; i < 12; i++) {
               t[i] = src[(i / 3) + 4 * (i % 3)];
             }
@@ -1226,7 +1213,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
         float *t = (float *)&desc.transformationMatrix;
         if (ob->get_geometry()->is_instanced()) {
           /* Transpose transform */
-          auto src = (float const *)&ob->get_tfm();
+          const auto *src = (const float *)&ob->get_tfm();
           for (int i = 0; i < 12; i++) {
             t[i] = src[(i / 3) + 4 * (i % 3)];
           }
@@ -1299,11 +1286,8 @@ bool BVHMetal::build_TLAS(Progress &progress,
     [instanceBuf release];
     [scratchBuf release];
 
-    uint64_t allocated_size = [accel allocatedSize];
-    device->stats.mem_alloc(allocated_size);
-
     /* Cache top and bottom-level acceleration structs */
-    accel_struct = accel;
+    set_accel_struct(accel);
 
     unique_blas_array.clear();
     unique_blas_array.reserve(all_blas.count);
@@ -1322,15 +1306,21 @@ bool BVHMetal::build(Progress &progress,
                      bool refit)
 {
   if (@available(macos 12.0, *)) {
-    if (refit && params.bvh_type != BVH_TYPE_STATIC) {
-      assert(accel_struct);
-    }
-    else {
-      if (accel_struct) {
-        device->stats.mem_free(accel_struct.allocatedSize);
-        [accel_struct release];
-        accel_struct = nil;
+    if (refit) {
+      /* It isn't valid to refit a non-existent BVH, or one which wasn't constructed as dynamic.
+       * In such cases, assert in development but try to recover in the wild. */
+      if (params.bvh_type != BVH_TYPE_DYNAMIC) {
+        assert(!"Can't refit static Metal BVH");
+        refit = false;
       }
+      else if (!accel_struct) {
+        assert(!"Can't refit non-existing Metal BVH");
+        refit = false;
+      }
+    }
+
+    if (!refit) {
+      set_accel_struct(nil);
     }
   }
 
@@ -1338,9 +1328,7 @@ bool BVHMetal::build(Progress &progress,
     if (!params.top_level) {
       return build_BLAS(progress, mtl_device, queue, refit);
     }
-    else {
-      return build_TLAS(progress, mtl_device, queue, refit);
-    }
+    return build_TLAS(progress, mtl_device, queue, refit);
   }
 }
 

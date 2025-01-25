@@ -34,7 +34,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_blender_version.h"
 #include "BKE_curve.hh"
@@ -48,7 +48,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subdiv_modifier.hh"
@@ -171,24 +171,6 @@ static void stats_object(Object *ob,
         stats->totlampsel++;
       }
       break;
-    case OB_GPENCIL_LEGACY: {
-      if (is_selected) {
-        bGPdata *gpd = (bGPdata *)ob->data;
-        if (!BLI_gset_add(objects_gset, gpd)) {
-          break;
-        }
-        /* GPXX Review if we can move to other place when object change
-         * maybe to depsgraph evaluation
-         */
-        BKE_gpencil_stats_update(gpd);
-
-        stats->totgplayer += gpd->totlayer;
-        stats->totgpframe += gpd->totframe;
-        stats->totgpstroke += gpd->totstroke;
-        stats->totgppoint += gpd->totpoint;
-      }
-      break;
-    }
     case OB_GREASE_PENCIL: {
       if (!is_selected) {
         break;
@@ -362,25 +344,26 @@ static bool stats_is_object_dynamic_topology_sculpt(const Object *ob)
 
 static void stats_object_sculpt(const Object *ob, SceneStats *stats)
 {
-
-  SculptSession *ss = ob->sculpt;
-
-  if (ss == nullptr || ss->pbvh == nullptr) {
+  const SculptSession *ss = ob->sculpt;
+  const blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(*ob);
+  if (ss == nullptr || pbvh == nullptr) {
     return;
   }
 
-  switch (BKE_pbvh_type(ss->pbvh)) {
-    case PBVH_FACES:
-      stats->totvertsculpt = ss->totvert;
-      stats->totfacesculpt = ss->totfaces;
+  switch (pbvh->type()) {
+    case blender::bke::pbvh::Type::Mesh: {
+      const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+      stats->totvertsculpt = mesh.verts_num;
+      stats->totfacesculpt = mesh.faces_num;
       break;
-    case PBVH_BMESH:
+    }
+    case blender::bke::pbvh::Type::BMesh:
       stats->totvertsculpt = ob->sculpt->bm->totvert;
       stats->tottri = ob->sculpt->bm->totface;
       break;
-    case PBVH_GRIDS:
-      stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(ss->pbvh);
-      stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(ss->pbvh);
+    case blender::bke::pbvh::Type::Grids:
+      stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
+      stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
       break;
   }
 }
@@ -718,7 +701,8 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
     if (info[0]) {
       ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
     }
-    ofs += BLI_snprintf_rlen(info + ofs, len - ofs, IFACE_("%s"), BKE_blender_version_string());
+    ofs += BLI_snprintf_rlen(
+        info + ofs, len - ofs, IFACE_("%s"), BKE_blender_version_string_compact());
   }
 
   return info;
@@ -748,10 +732,10 @@ static void stats_row(int col1,
                       int height)
 {
   *y -= height;
-  BLF_draw_default_shadowed(col1, *y, 0.0f, key, 128);
+  BLF_draw_default(col1, *y, 0.0f, key, 128);
   char values[128];
   SNPRINTF(values, (value2) ? "%s / %s" : "%s", value1, value2);
-  BLF_draw_default_shadowed(col2, *y, 0.0f, values, sizeof(values));
+  BLF_draw_default(col2, *y, 0.0f, values, sizeof(values));
 }
 
 void ED_info_draw_stats(
@@ -768,8 +752,6 @@ void ED_info_draw_stats(
   Object *obedit = OBEDIT_FROM_OBACT(ob);
   eObjectMode object_mode = ob ? (eObjectMode)ob->mode : OB_MODE_OBJECT;
   const int font_id = BLF_default();
-
-  UI_FontThemeColor(font_id, TH_TEXT_HI);
 
   /* Translated labels for each stat row. */
   enum {
@@ -830,11 +812,11 @@ void ED_info_draw_stats(
   }
   else if (!(object_mode & OB_MODE_SCULPT)) {
     /* No objects in scene. */
-    stats_row(col1, labels[OBJ], col2, 0, nullptr, y, height);
+    stats_row(col1, labels[OBJ], col2, stats_fmt.totobj, nullptr, y, height);
     return;
   }
 
-  if ((ob) && ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+  if ((ob) && ob->type == OB_GREASE_PENCIL) {
     stats_row(col1, labels[LAYERS], col2, stats_fmt.totgplayer, nullptr, y, height);
     stats_row(col1, labels[FRAMES], col2, stats_fmt.totgpframe, nullptr, y, height);
     stats_row(col1, labels[STROKES], col2, stats_fmt.totgpstroke, nullptr, y, height);

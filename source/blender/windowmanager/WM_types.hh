@@ -98,7 +98,7 @@ struct ImBuf;
 struct bContext;
 struct bContextStore;
 struct GreasePencil;
-struct GreasePencilLayer;
+struct GreasePencilLayerTreeNode;
 struct ReportList;
 struct wmDrag;
 struct wmDropBox;
@@ -123,12 +123,12 @@ struct wmWindowManager;
 #include "RNA_types.hh"
 
 /* Exported types for WM. */
-#include "gizmo/WM_gizmo_types.hh"
-#include "wm_cursors.hh"
-#include "wm_event_types.hh"
+#include "gizmo/WM_gizmo_types.hh"  // IWYU pragma: export
+#include "wm_cursors.hh"            // IWYU pragma: export
+#include "wm_event_types.hh"        // IWYU pragma: export
 
 /* Include external gizmo API's. */
-#include "gizmo/WM_gizmo_api.hh"
+#include "gizmo/WM_gizmo_api.hh"  // IWYU pragma: export
 
 namespace blender::asset_system {
 class AssetRepresentation;
@@ -196,6 +196,9 @@ enum {
    * Even so, accessing from the menu should behave usefully.
    */
   OPTYPE_DEPENDS_ON_CURSOR = (1 << 11),
+
+  /** Handle events before modal operators without this flag. */
+  OPTYPE_MODAL_PRIORITY = (1 << 12),
 };
 
 /** For #WM_cursor_grab_enable wrap axis. */
@@ -413,7 +416,6 @@ struct wmNotifier {
 #define ND_TOOLSETTINGS (15 << 16)
 #define ND_LAYER (16 << 16)
 #define ND_FRAME_RANGE (17 << 16)
-#define ND_TRANSFORM_DONE (18 << 16)
 #define ND_WORLD (92 << 16)
 #define ND_LAYER_CONTENT (101 << 16)
 
@@ -463,6 +465,7 @@ struct wmNotifier {
 #define ND_NLA_ACTCHANGE (74 << 16)
 #define ND_FCURVES_ORDER (75 << 16)
 #define ND_NLA_ORDER (76 << 16)
+#define ND_KEYFRAME_AUTO (77 << 16)
 
 /* NC_GPENCIL. */
 #define ND_GPENCIL_EDITMODE (85 << 16)
@@ -477,6 +480,7 @@ struct wmNotifier {
 
 /* Influences which menus node assets are included in. */
 #define ND_NODE_ASSET_DATA (1 << 16)
+#define ND_NODE_GIZMO (2 << 16)
 
 /* NC_SPACE. */
 #define ND_SPACE_CONSOLE (1 << 16)     /* General redraw. */
@@ -556,6 +560,10 @@ struct wmNotifier {
 
 /* ************** Gesture Manager data ************** */
 
+namespace blender::wm::gesture {
+constexpr float POLYLINE_CLICK_RADIUS = 15.0f;
+}
+
 /** #wmGesture::type */
 #define WM_GESTURE_LINES 1
 #define WM_GESTURE_RECT 2
@@ -563,6 +571,7 @@ struct wmNotifier {
 #define WM_GESTURE_LASSO 4
 #define WM_GESTURE_CIRCLE 5
 #define WM_GESTURE_STRAIGHTLINE 6
+#define WM_GESTURE_POLYLINE 7
 
 /**
  * wmGesture is registered to #wmWindow.gesture, handled by operator callbacks.
@@ -586,6 +595,8 @@ struct wmGesture {
   int modal_state;
   /** Optional, draw the active side of the straight-line gesture. */
   bool draw_active_side;
+  /** Latest mouse position relative to area. Currently only used by lasso drawing code. */
+  blender::int2 mval;
 
   /**
    * For modal operators which may be running idle, waiting for an event to activate the gesture.
@@ -605,13 +616,16 @@ struct wmGesture {
   /** For gestures that support flip, stores if flip is enabled using the modal keymap
    * toggle. */
   uint use_flip : 1;
+  /** For gestures that support smoothing, stores if smoothing is enabled using the modal keymap
+   * toggle. */
+  uint use_smooth : 1;
 
   /**
    * customdata
    * - for border is a #rcti.
-   * - for circle is #rcti, (xmin, ymin) is center, xmax radius.
+   * - for circle is #rcti, (`xmin`, `ymin`) is center, `xmax` radius.
    * - for lasso is short array.
-   * - for straight line is a #rcti: (xmin, ymin) is start, (xmax, ymax) is end.
+   * - for straight line is a #rcti: (`xmin`, `ymin`) is start, (`xmax`, `ymax`) is end.
    */
   void *customdata;
 
@@ -1158,6 +1172,7 @@ enum eWM_DragDataType {
   WM_DRAG_DATASTACK,
   WM_DRAG_ASSET_CATALOG,
   WM_DRAG_GREASE_PENCIL_LAYER,
+  WM_DRAG_GREASE_PENCIL_GROUP,
   WM_DRAG_NODE_TREE_INTERFACE,
   WM_DRAG_BONE_COLLECTION,
 };
@@ -1215,7 +1230,7 @@ struct wmDragPath {
 
 struct wmDragGreasePencilLayer {
   GreasePencil *grease_pencil;
-  GreasePencilLayer *layer;
+  GreasePencilLayerTreeNode *node;
 };
 
 using WMDropboxTooltipFunc = std::string (*)(bContext *C,
@@ -1257,6 +1272,8 @@ struct wmDragActiveDropState {
    */
   const char *disabled_info;
   bool free_disabled_info;
+
+  std::string tooltip;
 };
 
 struct wmDrag {
@@ -1266,9 +1283,11 @@ struct wmDrag {
   eWM_DragDataType type;
   void *poin;
 
-  /** If no icon but imbuf should be drawn around cursor. */
+  /** If no small icon but imbuf should be drawn around cursor. */
   const ImBuf *imb;
   float imbuf_scale;
+  /** If #imb is not set, draw this as a big preview instead of the small #icon. */
+  int preview_icon_id; /* BIFIconID */
 
   wmDragActiveDropState drop_state;
 

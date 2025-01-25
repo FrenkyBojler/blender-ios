@@ -4,9 +4,12 @@
 
 #pragma once
 
+#include <optional>
+
 #include "MEM_guardedalloc.h"
 
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 #include "BKE_node_socket_value.hh"
 
 #include "NOD_geometry_exec.hh"
@@ -16,15 +19,20 @@
 
 #include "node_util.hh"
 
+namespace blender {
+namespace bke {
 struct BVHTreeFromMesh;
-struct GeometrySet;
-namespace blender::nodes {
+}
+namespace nodes {
 class GatherAddNodeSearchParams;
 class GatherLinkSearchOpParams;
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender
 
-void geo_node_type_base(bNodeType *ntype, int type, const char *name, short nclass);
-bool geo_node_poll_default(const bNodeType *ntype,
+void geo_node_type_base(blender::bke::bNodeType *ntype,
+                        std::string idname,
+                        std::optional<int16_t> legacy_type = std::nullopt);
+bool geo_node_poll_default(const blender::bke::bNodeType *ntype,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint);
 
@@ -33,8 +41,9 @@ namespace blender::nodes {
 bool check_tool_context_and_error(GeoNodeExecParams &params);
 void search_link_ops_for_tool_node(GatherLinkSearchOpParams &params);
 void search_link_ops_for_volume_grid_node(GatherLinkSearchOpParams &params);
+void search_link_ops_for_import_node(GatherLinkSearchOpParams &params);
 
-void get_closest_in_bvhtree(BVHTreeFromMesh &tree_data,
+void get_closest_in_bvhtree(bke::BVHTreeFromMesh &tree_data,
                             const VArray<float3> &positions,
                             const IndexMask &mask,
                             MutableSpan<int> r_indices,
@@ -56,14 +65,6 @@ const EnumPropertyItem *attribute_type_type_with_socket_fn(bContext * /*C*/,
                                                            bool *r_free);
 
 bool generic_attribute_type_supported(const EnumPropertyItem &item);
-
-const EnumPropertyItem *domain_experimental_grease_pencil_version3_fn(bContext * /*C*/,
-                                                                      PointerRNA * /*ptr*/,
-                                                                      PropertyRNA * /*prop*/,
-                                                                      bool *r_free);
-
-const EnumPropertyItem *domain_without_corner_experimental_grease_pencil_version3_fn(
-    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free);
 
 }  // namespace enums
 

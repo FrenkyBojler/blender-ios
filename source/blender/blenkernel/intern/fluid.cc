@@ -15,7 +15,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
@@ -49,8 +49,9 @@
 #  include "DNA_particle_types.h"
 #  include "DNA_scene_types.h"
 
-#  include "BLI_kdopbvh.h"
+#  include "BLI_kdopbvh.hh"
 #  include "BLI_kdtree.h"
+#  include "BLI_math_vector.hh"
 #  include "BLI_threads.h"
 #  include "BLI_voxel.h"
 
@@ -551,7 +552,7 @@ static float calc_voxel_transp(
     float *result, const float *input, int res[3], int *pixel, float *t_ray, float correct);
 static void update_distances(int index,
                              float *distance_map,
-                             BVHTreeFromMesh *tree_data,
+                             blender::bke::BVHTreeFromMesh *tree_data,
                              const float ray_start[3],
                              float surface_thickness,
                              bool use_plane_init);
@@ -854,7 +855,7 @@ static void update_velocities(FluidEffectorSettings *fes,
                               const blender::int3 *corner_tris,
                               float *velocity_map,
                               int index,
-                              BVHTreeFromMesh *tree_data,
+                              blender::bke::BVHTreeFromMesh *tree_data,
                               const float ray_start[3],
                               const float *vert_vel,
                               bool has_velocity)
@@ -893,14 +894,10 @@ static void update_velocities(FluidEffectorSettings *fes,
       mul_v3_fl(hit_vel, fes->vel_multi);
 
       /* Absolute representation of new object velocity. */
-      float abs_hit_vel[3];
-      copy_v3_v3(abs_hit_vel, hit_vel);
-      abs_v3(abs_hit_vel);
+      blender::float3 abs_hit_vel = blender::math::abs(blender::float3(hit_vel));
 
       /* Absolute representation of current object velocity. */
-      float abs_vel[3];
-      copy_v3_v3(abs_vel, &velocity_map[index * 3]);
-      abs_v3(abs_vel);
+      blender::float3 abs_vel = blender::math::abs(blender::float3(&velocity_map[index * 3]));
 
       switch (fes->guide_mode) {
         case FLUID_EFFECTOR_GUIDE_AVERAGED:
@@ -953,7 +950,7 @@ struct ObstaclesFromDMData {
   blender::Span<int> corner_verts;
   blender::Span<blender::int3> corner_tris;
 
-  BVHTreeFromMesh *tree;
+  blender::bke::BVHTreeFromMesh *tree;
   FluidObjectBB *bb;
 
   bool has_velocity;
@@ -1009,13 +1006,12 @@ static void obstacles_from_mesh(Object *coll_ob,
                                 float dt)
 {
   if (fes->mesh) {
-    BVHTreeFromMesh tree_data = {nullptr};
     int numverts, i;
 
     float *vert_vel = nullptr;
     bool has_velocity = false;
 
-    Mesh *mesh = BKE_mesh_copy_for_eval(fes->mesh);
+    Mesh *mesh = BKE_mesh_copy_for_eval(*fes->mesh);
     blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
 
     int min[3], max[3], res[3];
@@ -1079,8 +1075,8 @@ static void obstacles_from_mesh(Object *coll_ob,
 
     /* Skip effector sampling loop if object has disabled effector. */
     bool use_effector = fes->flags & FLUID_EFFECTOR_USE_EFFEC;
-    if (use_effector && BKE_bvhtree_from_mesh_get(&tree_data, mesh, BVHTREE_FROM_CORNER_TRIS, 4)) {
-
+    blender::bke::BVHTreeFromMesh tree_data = mesh->bvh_corner_tris();
+    if (use_effector && tree_data.tree != nullptr) {
       ObstaclesFromDMData data{};
       data.fes = fes;
       data.vert_positions = positions;
@@ -1099,8 +1095,6 @@ static void obstacles_from_mesh(Object *coll_ob,
       settings.min_iter_per_thread = 2;
       BLI_task_parallel_range(min[2], max[2], &data, obstacles_from_mesh_task_cb, &settings);
     }
-    /* Free bvh tree. */
-    free_bvhtree_from_mesh(&tree_data);
 
     if (vert_vel) {
       MEM_freeN(vert_vel);
@@ -1697,7 +1691,7 @@ static void emit_from_particles(Object *flow_ob,
  * positive, inside negative. */
 static void update_distances(int index,
                              float *distance_map,
-                             BVHTreeFromMesh *tree_data,
+                             blender::bke::BVHTreeFromMesh *tree_data,
                              const float ray_start[3],
                              float surface_thickness,
                              bool use_plane_init)
@@ -1810,7 +1804,7 @@ static void sample_mesh(FluidFlowSettings *ffs,
                         const int base_res[3],
                         const float global_size[3],
                         const float flow_center[3],
-                        BVHTreeFromMesh *tree_data,
+                        blender::bke::BVHTreeFromMesh *tree_data,
                         const float ray_start[3],
                         const float *vert_vel,
                         bool has_velocity,
@@ -2005,7 +1999,7 @@ struct EmitFromDMData {
   const MDeformVert *dvert;
   int defgrp_index;
 
-  BVHTreeFromMesh *tree;
+  blender::bke::BVHTreeFromMesh *tree;
   FluidObjectBB *bb;
 
   bool has_velocity;
@@ -2068,7 +2062,6 @@ static void emit_from_mesh(
     Object *flow_ob, FluidDomainSettings *fds, FluidFlowSettings *ffs, FluidObjectBB *bb, float dt)
 {
   if (ffs->mesh) {
-    BVHTreeFromMesh tree_data = {nullptr};
     int i;
 
     float *vert_vel = nullptr;
@@ -2080,7 +2073,7 @@ static void emit_from_mesh(
 
     /* Copy mesh for thread safety as we modify it.
      * Main issue is its VertArray being modified, then replaced and freed. */
-    Mesh *mesh = BKE_mesh_copy_for_eval(ffs->mesh);
+    Mesh *mesh = BKE_mesh_copy_for_eval(*ffs->mesh);
     blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
 
     const blender::Span<int> corner_verts = mesh->corner_verts();
@@ -2147,7 +2140,8 @@ static void emit_from_mesh(
 
     /* Skip flow sampling loop if object has disabled flow. */
     bool use_flow = ffs->flags & FLUID_FLOW_USE_INFLOW;
-    if (use_flow && BKE_bvhtree_from_mesh_get(&tree_data, mesh, BVHTREE_FROM_CORNER_TRIS, 4)) {
+    blender::bke::BVHTreeFromMesh tree_data = mesh->bvh_corner_tris();
+    if (use_flow && tree_data.tree != nullptr) {
 
       EmitFromDMData data{};
       data.fds = fds;
@@ -2173,8 +2167,6 @@ static void emit_from_mesh(
       settings.min_iter_per_thread = 2;
       BLI_task_parallel_range(min[2], max[2], &data, emit_from_mesh_task_cb, &settings);
     }
-    /* Free bvh tree. */
-    free_bvhtree_from_mesh(&tree_data);
 
     if (vert_vel) {
       MEM_freeN(vert_vel);
@@ -3167,8 +3159,8 @@ static void update_effectors_task_cb(void *__restrict userdata,
       mul_v3_fl(retvel, mag);
 
       /* Copy computed force to fluid solver forces. */
-      mul_v3_fl(retvel, 0.2f);     /* Factor from 0e6820cc5d62. */
-      CLAMP3(retvel, -1.0f, 1.0f); /* Restrict forces to +-1 interval. */
+      mul_v3_fl(retvel, 0.2f);       /* Factor from 0e6820cc5d62. */
+      clamp_v3(retvel, -1.0f, 1.0f); /* Restrict forces to +-1 interval. */
       data->force_x[index] = retvel[0];
       data->force_y[index] = retvel[1];
       data->force_z[index] = retvel[2];
@@ -3291,13 +3283,13 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   /* Velocities. */
   /* If needed, vertex velocities will be read too. */
   bool use_speedvectors = fds->flags & FLUID_DOMAIN_USE_SPEED_VECTORS;
-  float(*velarray)[3] = nullptr;
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+  SpanAttributeWriter<float3> velocities;
   float time_mult = fds->dx / (DT_DEFAULT * (25.0f / FPS));
 
   if (use_speedvectors) {
-    CustomDataLayer *velocity_layer = BKE_id_attribute_new(
-        &mesh->id, "velocity", CD_PROP_FLOAT3, AttrDomain::Point, nullptr);
-    velarray = static_cast<float(*)[3]>(velocity_layer->data);
+    velocities = attributes.lookup_or_add_for_write_only_span<float3>("velocity",
+                                                                      AttrDomain::Point);
   }
 
   /* Loop for vertices and normals. */
@@ -3333,23 +3325,22 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
 #  endif
 
     if (use_speedvectors) {
-      velarray[i][0] = manta_liquid_get_vertvel_x_at(fds->fluid, i) * time_mult;
-      velarray[i][1] = manta_liquid_get_vertvel_y_at(fds->fluid, i) * time_mult;
-      velarray[i][2] = manta_liquid_get_vertvel_z_at(fds->fluid, i) * time_mult;
+      velocities.span[i].x = manta_liquid_get_vertvel_x_at(fds->fluid, i) * time_mult;
+      velocities.span[i].y = manta_liquid_get_vertvel_y_at(fds->fluid, i) * time_mult;
+      velocities.span[i].z = manta_liquid_get_vertvel_z_at(fds->fluid, i) * time_mult;
 #  ifdef DEBUG_PRINT
       /* Debugging: Print velocities of vertices. */
-      printf("velarray[%d][0]: %f, velarray[%d][1]: %f, velarray[%d][2]: %f\n",
+      printf("velocities[%d].x: %f, velocities[%d].y: %f, velocities[%d].z: %f\n",
              i,
-             velarray[i][0],
+             velocities.span[i].x,
              i,
-             velarray[i][1],
+             velocities.span[i].y,
              i,
-             velarray[i][2]);
+             velocities.span[i].z);
 #  endif
     }
   }
 
-  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter material_indices = attributes.lookup_or_add_for_write_span<int>(
       "material_index", AttrDomain::Face);
 
@@ -3372,6 +3363,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
 #  endif
   }
 
+  velocities.finish();
   material_indices.finish();
 
   mesh_calc_edges(*mesh, false, false);
@@ -3396,7 +3388,7 @@ static Mesh *create_smoke_geometry(FluidDomainSettings *fds, Mesh *orgmesh, Obje
 
   /* Just copy existing mesh if there is no content or if the adaptive domain is not being used. */
   if (fds->total_cells <= 1 || (fds->flags & FLUID_DOMAIN_USE_ADAPTIVE_DOMAIN) == 0) {
-    return BKE_mesh_copy_for_eval(orgmesh);
+    return BKE_mesh_copy_for_eval(*orgmesh);
   }
 
   result = BKE_mesh_new_nomain(num_verts, 0, num_faces, num_faces * 4);
@@ -3622,7 +3614,7 @@ static void fluid_modifier_processFlow(FluidModifierData *fmd,
     if (fmd->flow->mesh) {
       BKE_id_free(nullptr, fmd->flow->mesh);
     }
-    fmd->flow->mesh = BKE_mesh_copy_for_eval(mesh);
+    fmd->flow->mesh = BKE_mesh_copy_for_eval(*mesh);
   }
 
   if (scene_framenr > fmd->time) {
@@ -3649,7 +3641,7 @@ static void fluid_modifier_processEffector(FluidModifierData *fmd,
     if (fmd->effector->mesh) {
       BKE_id_free(nullptr, fmd->effector->mesh);
     }
-    fmd->effector->mesh = BKE_mesh_copy_for_eval(mesh);
+    fmd->effector->mesh = BKE_mesh_copy_for_eval(*mesh);
   }
 
   if (scene_framenr > fmd->time) {
@@ -4161,7 +4153,7 @@ Mesh *BKE_fluid_modifier_do(
   }
 
   if (!result) {
-    result = BKE_mesh_copy_for_eval(mesh);
+    result = BKE_mesh_copy_for_eval(*mesh);
   }
   else {
     BKE_mesh_copy_parameters_for_eval(result, mesh);
@@ -4485,6 +4477,7 @@ void BKE_fluid_particle_system_create(Main *bmain,
   pfmd->psys = psys;
   BLI_addtail(&ob->modifiers, pfmd);
   BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)pfmd);
+  BKE_modifiers_persistent_uid_init(*ob, pfmd->modifier);
 }
 
 void BKE_fluid_particle_system_destroy(Object *ob, const int particle_type)

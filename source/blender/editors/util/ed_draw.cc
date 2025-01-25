@@ -20,7 +20,8 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
+#include "BKE_screen.hh"
 
 #include "BLF_api.hh"
 
@@ -78,8 +79,15 @@ struct tSlider {
   /** Range of the slider without overshoot. */
   float factor_bounds[2];
 
+  /** Change if the slider range is so large/small that a 0.1 increment is meaningless. */
+  float increment_step;
+
   /* How the factor number is drawn. When drawing percent it is factor*100. */
   SliderMode slider_mode;
+
+  /* Optional string that will display next to the slider to indicate which property is modified
+   * right now. */
+  std::string property_label;
 
   /* What unit to add to the slider. */
   char unit_string[SLIDER_UNIT_STRING_SIZE];
@@ -94,11 +102,11 @@ struct tSlider {
    * This is set by the artist while using the slider. */
   bool overshoot;
 
-  /** Whether keeping CTRL pressed will snap to 10% increments.
+  /** Whether keeping CTRL pressed will snap to multiples of `increment_step`.
    * Default is true. Set to false if the CTRL key is needed for other means. */
   bool allow_increments;
 
-  /** Move factor in 10% steps. */
+  /** Move factor in multiples of `increment_step`. */
   bool increments;
 
   /** Reduces factor delta from mouse movement. */
@@ -224,19 +232,28 @@ static void draw_backdrop(const int fontid,
                           const rctf *main_line_rect,
                           const uint8_t color_bg[4],
                           const short region_y_size,
-                          const float base_tick_height)
+                          const float base_tick_height,
+                          const std::string &property_label)
 {
-  float string_pixel_size[2];
+  float percent_string_pixel_size[2];
   const char *percentage_string_placeholder = "000%%";
   BLF_width_and_height(fontid,
                        percentage_string_placeholder,
                        sizeof(percentage_string_placeholder),
-                       &string_pixel_size[0],
-                       &string_pixel_size[1]);
-  const float pad[2] = {(region_y_size - base_tick_height) / 2, 2.0f * U.pixelsize};
+                       &percent_string_pixel_size[0],
+                       &percent_string_pixel_size[1]);
+
+  float property_name_pixel_size[2];
+  BLF_width_and_height(fontid,
+                       property_label.c_str(),
+                       property_label.size(),
+                       &property_name_pixel_size[0],
+                       &property_name_pixel_size[1]);
+  const float pad[2] = {(region_y_size - base_tick_height) / 2 + 12.0f * U.pixelsize,
+                        2.0f * U.pixelsize};
   rctf backdrop_rect{};
-  backdrop_rect.xmin = main_line_rect->xmin - string_pixel_size[0] - pad[0];
-  backdrop_rect.xmax = main_line_rect->xmax + pad[0];
+  backdrop_rect.xmin = main_line_rect->xmin - property_name_pixel_size[0] - pad[0];
+  backdrop_rect.xmax = main_line_rect->xmax + percent_string_pixel_size[0] + pad[0];
   backdrop_rect.ymin = pad[1];
   backdrop_rect.ymax = region_y_size - pad[1];
   UI_draw_roundbox_3ub_alpha(&backdrop_rect, true, 4.0f, color_bg, color_bg[3]);
@@ -304,7 +321,12 @@ static void slider_draw(const bContext * /*C*/, ARegion *region, void *arg)
     handle_pos_x = main_line_rect.xmin + SLIDE_PIXEL_DISTANCE * range_factor;
   }
 
-  draw_backdrop(fontid, &main_line_rect, color_bg, slider->region_header->winy, base_tick_height);
+  draw_backdrop(fontid,
+                &main_line_rect,
+                color_bg,
+                slider->region_header->winy,
+                base_tick_height,
+                slider->property_label);
 
   draw_main_line(&main_line_rect, slider->factor, slider->overshoot, color_overshoot, color_line);
 
@@ -356,11 +378,25 @@ static void slider_draw(const bContext * /*C*/, ARegion *region, void *arg)
                        &factor_string_pixel_size[0],
                        &factor_string_pixel_size[1]);
 
-  BLF_position(fontid,
-               main_line_rect.xmin - 12.0 * U.pixelsize - factor_string_pixel_size[0],
-               (region->winy / 2) - factor_string_pixel_size[1] / 2,
-               0.0f);
+  const float text_padding = 12.0 * U.pixelsize;
+  const float factor_string_pos_x = main_line_rect.xmax + text_padding;
+  BLF_position(
+      fontid, factor_string_pos_x, (region->winy / 2) - factor_string_pixel_size[1] / 2, 0.0f);
   BLF_draw(fontid, factor_string, sizeof(factor_string));
+
+  if (!slider->property_label.empty()) {
+    float property_name_pixel_size[2];
+    BLF_width_and_height(fontid,
+                         slider->property_label.c_str(),
+                         slider->property_label.length(),
+                         &property_name_pixel_size[0],
+                         &property_name_pixel_size[1]);
+    BLF_position(fontid,
+                 main_line_rect.xmin - text_padding - property_name_pixel_size[0],
+                 (region->winy / 2) - property_name_pixel_size[1] / 2,
+                 0.0f);
+    BLF_draw(fontid, slider->property_label.c_str(), slider->property_label.length());
+  }
 }
 
 static void slider_update_factor(tSlider *slider, const wmEvent *event)
@@ -376,7 +412,7 @@ static void slider_update_factor(tSlider *slider, const wmEvent *event)
   copy_v2fl_v2i(slider->last_cursor, event->xy);
 
   if (slider->increments) {
-    slider->factor = round(slider->factor * 10) / 10;
+    slider->factor = round(slider->factor / slider->increment_step) * slider->increment_step;
   }
 
   if (!slider->overshoot) {
@@ -394,7 +430,7 @@ static void slider_update_factor(tSlider *slider, const wmEvent *event)
 
 tSlider *ED_slider_create(bContext *C)
 {
-  tSlider *slider = static_cast<tSlider *>(MEM_callocN(sizeof(tSlider), "tSlider"));
+  tSlider *slider = MEM_new<tSlider>(__func__);
   slider->scene = CTX_data_scene(C);
   slider->area = CTX_wm_area(C);
   slider->region_header = CTX_wm_region(C);
@@ -415,13 +451,15 @@ tSlider *ED_slider_create(bContext *C)
   slider->raw_factor = 0.5f;
   slider->factor = 0.5;
 
+  slider->increment_step = 0.1f;
+
   /* Add draw callback. Always in header. */
   if (slider->area) {
     LISTBASE_FOREACH (ARegion *, region, &slider->area->regionbase) {
       if (region->regiontype == RGN_TYPE_HEADER) {
         slider->region_header = region;
         slider->draw_handle = ED_region_draw_cb_activate(
-            region->type, slider_draw, slider, REGION_DRAW_POST_PIXEL);
+            region->runtime->type, slider_draw, slider, REGION_DRAW_POST_PIXEL);
       }
     }
   }
@@ -503,7 +541,7 @@ void ED_slider_status_string_get(const tSlider *slider,
       STRNCPY(increments_str, IFACE_(" | [Ctrl] - Increments active"));
     }
     else {
-      STRNCPY(increments_str, IFACE_(" | Ctrl - Hold for 10% increments"));
+      STRNCPY(increments_str, IFACE_(" | Ctrl - Hold for increments"));
     }
   }
   else {
@@ -518,15 +556,31 @@ void ED_slider_status_string_get(const tSlider *slider,
                increments_str);
 }
 
+void ED_slider_status_get(const tSlider *slider, WorkspaceStatus &status)
+{
+  if (slider->allow_overshoot_lower || slider->allow_overshoot_upper) {
+    status.item_bool(IFACE_("Overshoot"), slider->overshoot, ICON_EVENT_E);
+  }
+  else {
+    status.item(IFACE_("Overshoot Disabled"), ICON_INFO);
+  }
+
+  status.item_bool(IFACE_("Precision"), slider->precision, ICON_EVENT_SHIFT);
+
+  if (slider->allow_increments) {
+    status.item_bool(IFACE_("Increments"), slider->increments, ICON_EVENT_CTRL);
+  }
+}
+
 void ED_slider_destroy(bContext *C, tSlider *slider)
 {
   /* Remove draw callback. */
   if (slider->draw_handle) {
-    ED_region_draw_cb_exit(slider->region_header->type, slider->draw_handle);
+    ED_region_draw_cb_exit(slider->region_header->runtime->type, slider->draw_handle);
   }
   ED_area_status_text(slider->area, nullptr);
   ED_workspace_status_text(C, nullptr);
-  MEM_freeN(slider);
+  MEM_delete(slider);
 }
 
 /* Setters & Getters */
@@ -543,6 +597,16 @@ void ED_slider_factor_set(tSlider *slider, const float factor)
   if (!slider->overshoot) {
     slider->factor = clamp_f(slider->factor, slider->factor_bounds[0], slider->factor_bounds[1]);
   }
+}
+
+void ED_slider_increment_step_set(tSlider *slider, const float increment_step)
+{
+  if (increment_step == 0) {
+    /* Because this value is used as a divisor, it cannot be 0. */
+    BLI_assert_unreachable();
+    return;
+  }
+  slider->increment_step = increment_step;
 }
 
 void ED_slider_allow_overshoot_set(tSlider *slider, const bool lower, const bool upper)
@@ -582,6 +646,11 @@ SliderMode ED_slider_mode_get(const tSlider *slider)
 void ED_slider_unit_set(tSlider *slider, const char *unit)
 {
   STRNCPY(slider->unit_string, unit);
+}
+
+void ED_slider_property_label_set(tSlider *slider, const char *property_label)
+{
+  slider->property_label.assign(property_label);
 }
 
 /** \} */
@@ -852,7 +921,7 @@ void ED_region_image_metadata_draw(
   GPU_matrix_translate_2f(x, y);
   GPU_matrix_scale_2f(zoomx, zoomy);
 
-  BLF_size(blf_mono_font, style->widgetlabel.points * UI_SCALE_FAC);
+  BLF_size(blf_mono_font, style->widget.points * UI_SCALE_FAC);
 
   /* *** upper box*** */
 
@@ -867,7 +936,6 @@ void ED_region_image_metadata_draw(
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    GPU_blend(GPU_BLEND_ALPHA);
     immUniformThemeColorAlpha(TH_METADATA_BG, 1.0f);
     immRectf(pos, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
     immUnbindProgram();
@@ -879,7 +947,6 @@ void ED_region_image_metadata_draw(
     metadata_draw_imbuf(ibuf, &rect, blf_mono_font, true);
 
     BLF_disable(blf_mono_font, BLF_CLIPPING);
-    GPU_blend(GPU_BLEND_NONE);
   }
 
   /* *** lower box*** */
@@ -894,7 +961,6 @@ void ED_region_image_metadata_draw(
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    GPU_blend(GPU_BLEND_ALPHA);
     immUniformThemeColorAlpha(TH_METADATA_BG, 1.0f);
     immRectf(pos, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
     immUnbindProgram();
@@ -906,7 +972,6 @@ void ED_region_image_metadata_draw(
     metadata_draw_imbuf(ibuf, &rect, blf_mono_font, false);
 
     BLF_disable(blf_mono_font, BLF_CLIPPING);
-    GPU_blend(GPU_BLEND_NONE);
   }
 
   GPU_matrix_pop();

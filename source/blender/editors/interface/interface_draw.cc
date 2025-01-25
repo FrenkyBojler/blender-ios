@@ -350,7 +350,7 @@ void ui_draw_but_IMAGE(ARegion * /*region*/,
 
   if (w != ibuf->x || h != ibuf->y) {
     /* We scale the bitmap, rather than have OGL do a worse job. */
-    IMB_scaleImBuf(ibuf, w, h);
+    IMB_scale(ibuf, w, h, IMBScaleFilter::Box, false);
   }
 
   float col[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -594,32 +594,51 @@ static void waveform_draw_one(const float *waveform, int waveform_num, const flo
   GPUVertFormat format = {0};
   const uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-  GPU_vertbuf_data_alloc(vbo, waveform_num);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, waveform_num);
 
   GPU_vertbuf_attr_fill(vbo, pos_id, waveform);
 
   /* TODO: store the #blender::gpu::Batch inside the scope. */
   blender::gpu::Batch *batch = GPU_batch_create_ex(
       GPU_PRIM_POINTS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
-  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_UNIFORM_COLOR);
+  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
   GPU_batch_uniform_4f(batch, "color", col[0], col[1], col[2], 1.0f);
+  GPU_batch_uniform_1f(batch, "size", 1.0f);
   GPU_batch_draw(batch);
 
   GPU_batch_discard(batch);
 }
 
-static void waveform_draw_rgb(const float *waveform, int waveform_num, const float *col)
+struct WaveformColorVertex {
+  blender::float2 pos;
+  blender::float4 color;
+};
+static_assert(sizeof(WaveformColorVertex) == 24);
+
+static void waveform_draw_rgb(const float *waveform,
+                              int waveform_num,
+                              const float *col,
+                              float alpha)
 {
   GPUVertFormat format = {0};
-  const uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  const uint col_id = GPU_vertformat_attr_add(&format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  GPU_vertformat_attr_add(&format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
 
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
 
-  GPU_vertbuf_data_alloc(vbo, waveform_num);
-  GPU_vertbuf_attr_fill(vbo, pos_id, waveform);
-  GPU_vertbuf_attr_fill(vbo, col_id, col);
+  GPU_vertbuf_data_alloc(*vbo, waveform_num);
+  WaveformColorVertex *data = vbo->data<WaveformColorVertex>().data();
+  for (int i = 0; i < waveform_num; i++) {
+    memcpy(&data->pos, waveform, sizeof(data->pos));
+    memcpy(&data->color, col, sizeof(float) * 3);
+    data->color.w = alpha;
+    waveform += 2;
+    col += 3;
+    data++;
+  }
+  GPU_vertbuf_tag_dirty(vbo);
+  GPU_vertbuf_use(vbo);
 
   blender::gpu::Batch *batch = GPU_batch_create_ex(
       GPU_PRIM_POINTS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
@@ -635,9 +654,9 @@ static void circle_draw_rgb(float *points, int tot_points, const float *col, GPU
   const uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   const uint col_id = GPU_vertformat_attr_add(&format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
 
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
 
-  GPU_vertbuf_data_alloc(vbo, tot_points);
+  GPU_vertbuf_data_alloc(*vbo, tot_points);
   GPU_vertbuf_attr_fill(vbo, pos_id, points);
   GPU_vertbuf_attr_fill(vbo, col_id, col);
 
@@ -907,6 +926,8 @@ static void vectorscope_draw_target(
   const char labelstr[2] = {label, '\0'};
 
   rgb_to_yuv(colf[0], colf[1], colf[2], &y, &u, &v, BLI_YUV_ITU_BT709);
+  u *= SCOPES_VEC_U_SCALE;
+  v *= SCOPES_VEC_V_SCALE;
 
   if (u > 0 && v >= 0) {
     tangle = atanf(v / u);
@@ -983,7 +1004,7 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
   const float h = BLI_rctf_size_y(&rect);
   const float centerx = rect.xmin + w * 0.5f;
   const float centery = rect.ymin + h * 0.5f;
-  const float diam = (w < h) ? w : h;
+  const float diam = ((w < h) ? w : h) * 0.9f;
 
   const float alpha = scopes->vecscope_alpha;
 
@@ -1000,7 +1021,7 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
   back_rect.ymax = rect.ymax + 1;
   UI_draw_roundbox_4fv(&back_rect, true, 3.0f, color);
 
-  /* need scissor test, hvectorscope can draw outside of boundary */
+  /* need scissor test, vectorscope can draw outside of boundary */
   int scissor[4];
   GPU_scissor_get(scissor);
   GPU_scissor((rect.xmin - 1),
@@ -1037,8 +1058,8 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
       const float x = polar_to_x(centerx, diam, r, a);
       const float y = polar_to_y(centery, diam, r, a);
 
-      const float u = polar_to_x(0.0f, 1.0, 1.0f, a);
-      const float v = polar_to_y(0.0f, 1.0, 1.0f, a);
+      const float u = (x - centerx) / diam / SCOPES_VEC_U_SCALE;
+      const float v = (y - centery) / diam / SCOPES_VEC_V_SCALE;
 
       circle_fill_points[(i + 1) * 2] = x;
       circle_fill_points[(i + 1) * 2 + 1] = y;
@@ -1083,8 +1104,8 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
     circle_points[i * 2] = x;
     circle_points[i * 2 + 1] = y;
 
-    const float u = polar_to_x(0.0f, 1.0, 1.0f, a);
-    const float v = polar_to_y(0.0f, 1.0, 1.0f, a);
+    const float u = (x - centerx) / diam / SCOPES_VEC_U_SCALE;
+    const float v = (y - centery) / diam / SCOPES_VEC_V_SCALE;
     float r, g, b;
     yuv_to_rgb(0.5f, u, v, &r, &g, &b, BLI_YUV_ITU_BT709);
 
@@ -1161,7 +1182,7 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
     const float col[3] = {alpha, alpha, alpha};
     if (scopes->vecscope_mode == SCOPES_VECSCOPE_RGB) {
       GPU_blend(GPU_BLEND_ALPHA);
-      waveform_draw_rgb(scopes->vecscope, scopes->waveform_tot, scopes->vecscope_rgb);
+      waveform_draw_rgb(scopes->vecscope, scopes->waveform_tot, scopes->vecscope_rgb, alpha);
     }
     else if (scopes->vecscope_mode == SCOPES_VECSCOPE_LUMA) {
       GPU_blend(GPU_BLEND_ADDITIVE);
@@ -1775,7 +1796,10 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   format = immVertexFormat();
   pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   const uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+  const uint size = GPU_vertformat_attr_add(format, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+
+  GPU_program_point_size(true);
 
   /* Calculate vertex colors based on text theme. */
   float color_vert[4], color_vert_select[4];
@@ -1790,12 +1814,14 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   }
 
   cmp = cuma->curve;
-  GPU_point_size(max_ff(1.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 4.0f)));
+  const float point_size = max_ff(U.pixelsize * 3.0f,
+                                  min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
   immBegin(GPU_PRIM_POINTS, cuma->totpoint);
   for (int a = 0; a < cuma->totpoint; a++) {
     const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
     const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
     immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_vert_select : color_vert);
+    immAttr1f(size, point_size);
     immVertex2f(pos, fx, fy);
   }
   immEnd();
@@ -1953,13 +1979,13 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
     BLI_polyfill_calc(table_coords, tot_points, -1, tri_indices);
 
     /* Draw the triangles for the profile fill. */
-    immUniformColor3ubvAlpha((const uchar *)wcol->item, 128);
+    immUniformColor3ubvAlpha(wcol->item, 128);
     GPU_blend(GPU_BLEND_ALPHA);
     GPU_polygon_smooth(false);
     immBegin(GPU_PRIM_TRIS, 3 * tot_triangles);
     for (uint i = 0; i < tot_triangles; i++) {
+      const uint *tri = tri_indices[i];
       for (uint j = 0; j < 3; j++) {
-        uint *tri = tri_indices[i];
         fx = rect->xmin + zoomx * (table_coords[tri[j]][0] - offsx);
         fy = rect->ymin + zoomy * (table_coords[tri[j]][1] - offsy);
         immVertex2f(pos, fx, fy);

@@ -10,7 +10,6 @@
 #include "BLI_math_vector.hh"
 
 #include "DNA_mesh_types.h"
-#include "DNA_scene_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
@@ -39,7 +38,7 @@ static int set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
 
   for (Object *object : objects) {
     Mesh &mesh = *static_cast<Mesh *>(object->data);
-    BMEditMesh *em = mesh.runtime->edit_mesh;
+    BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     bool changed = false;
     BMIter iter;

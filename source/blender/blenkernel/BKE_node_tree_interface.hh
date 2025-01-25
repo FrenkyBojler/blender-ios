@@ -9,12 +9,11 @@
 
 #include "BKE_node.hh"
 
-#include <queue>
 #include <type_traits>
 
 #include "BLI_cache_mutex.hh"
 #include "BLI_parameter_pack_utils.hh"
-#include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 namespace blender::bke {
 
@@ -39,10 +38,10 @@ class bNodeTreeInterfaceRuntime {
   CacheMutex items_cache_mutex_;
 
   /* Runtime topology cache for linear access to items. */
-  Vector<bNodeTreeInterfaceItem *> items_;
+  VectorSet<bNodeTreeInterfaceItem *> items_;
   /* Socket-only lists for input/output access by index. */
-  Vector<bNodeTreeInterfaceSocket *> inputs_;
-  Vector<bNodeTreeInterfaceSocket *> outputs_;
+  VectorSet<bNodeTreeInterfaceSocket *> inputs_;
+  VectorSet<bNodeTreeInterfaceSocket *> outputs_;
 };
 
 namespace node_interface {
@@ -106,7 +105,7 @@ struct bNodeSocketStaticTypeInfo {
   const char *label;
 };
 
-/* Note: Socket and interface subtypes could be defined from a single central list,
+/* NOTE: Socket and interface subtypes could be defined from a single central list,
  * but makesrna cannot have a dependency on BKE, so this list would have to live in RNA itself,
  * with BKE etc. accessing the RNA API to get the subtypes info. */
 static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
@@ -124,6 +123,18 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      SOCK_FLOAT,
      PROP_TIME_ABSOLUTE},
     {"NodeSocketFloatDistance", "NodeTreeInterfaceSocketFloatDistance", SOCK_FLOAT, PROP_DISTANCE},
+    {"NodeSocketFloatWavelength",
+     "NodeTreeInterfaceSocketFloatWavelength",
+     SOCK_FLOAT,
+     PROP_WAVELENGTH},
+    {"NodeSocketFloatColorTemperature",
+     "NodeTreeInterfaceSocketFloatColorTemperature",
+     SOCK_FLOAT,
+     PROP_COLOR_TEMPERATURE},
+    {"NodeSocketFloatFrequency",
+     "NodeTreeInterfaceSocketFloatFrequency",
+     SOCK_FLOAT,
+     PROP_FREQUENCY},
     {"NodeSocketInt", "NodeTreeInterfaceSocketInt", SOCK_INT, PROP_NONE},
     {"NodeSocketIntUnsigned", "NodeTreeInterfaceSocketIntUnsigned", SOCK_INT, PROP_UNSIGNED},
     {"NodeSocketIntPercentage", "NodeTreeInterfaceSocketIntPercentage", SOCK_INT, PROP_PERCENTAGE},
@@ -152,6 +163,10 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
     {"NodeSocketVectorXYZ", "NodeTreeInterfaceSocketVectorXYZ", SOCK_VECTOR, PROP_XYZ},
     {"NodeSocketColor", "NodeTreeInterfaceSocketColor", SOCK_RGBA, PROP_NONE},
     {"NodeSocketString", "NodeTreeInterfaceSocketString", SOCK_STRING, PROP_NONE},
+    {"NodeSocketStringFilePath",
+     "NodeTreeInterfaceSocketStringFilePath",
+     SOCK_STRING,
+     PROP_FILEPATH},
     {"NodeSocketShader", "NodeTreeInterfaceSocketShader", SOCK_SHADER, PROP_NONE},
     {"NodeSocketObject", "NodeTreeInterfaceSocketObject", SOCK_OBJECT, PROP_NONE},
     {"NodeSocketImage", "NodeTreeInterfaceSocketImage", SOCK_IMAGE, PROP_NONE},

@@ -12,6 +12,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -390,7 +391,8 @@ static void createTransUVs(bContext *C, TransInfo *t)
     }
 
     if (sima->flag & SI_LIVE_UNWRAP) {
-      ED_uvedit_live_unwrap_begin(t->scene, tc->obedit);
+      wmWindow *win_modal = CTX_wm_window(C);
+      ED_uvedit_live_unwrap_begin(t->scene, tc->obedit, win_modal);
     }
 
   finally:
@@ -945,7 +947,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
        * Find the best direction to slide among the ones already computed.
        *
        * \param curr_prev: prev state of the #SlideTempDataUV where the faces are linked to the
-                           previous edge.
+       * previous edge.
        * \param l_src: the source corner in the edge to slide.
        * \param l_dst: the current destination corner.
        */
