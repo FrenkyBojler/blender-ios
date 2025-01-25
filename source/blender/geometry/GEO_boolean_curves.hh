@@ -9,15 +9,12 @@
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
-/** \file
- * \ingroup bli
- *
- * This header file contains a C++ interface to the 2D Greiner-Hormann clipping algorithm.
- */
-
 /**
  *
- * TODO
+ * TODO: Rewrite all of this.
+ *
+ * This header file contains a C++ interface to the 2D Greiner-Hormann clipping algorithm.
+ *
  *
  * Interface for Polygon Clipping in 2D use the Greiner-Hormann clipping algorithm.
  *
@@ -30,10 +27,9 @@
  *  1: List of Vertex describing how to interpolate any attribute.
  *  2: Offsets to determent the start and end of each polygon of the output.
  *  3: List of Intersection points.
- *
  */
 
-namespace blender::polygonboolean {
+namespace blender::geometry::boolean {
 
 enum class Operation : int8_t {
   /* Intersection of the Subject and the Clipping. */
@@ -205,4 +201,4 @@ BooleanResult curve_boolean_calc(const Operation boolean_mode,
                                  const Span<bool> is_fill,
                                  const Span<bool> is_cyclic);
 
-}  // namespace blender::polygonboolean
+}  // namespace blender::geometry::boolean

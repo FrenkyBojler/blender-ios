@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup bli
- */
-
 /**
  * This is a heavily modified implementation of the Greiner-Hormann clipping algorithm.
  *
@@ -43,7 +39,7 @@
 
 #include "GEO_boolean_curves.hh"
 
-namespace blender::polygonboolean {
+namespace blender::geometry::boolean {
 
 bool Segment::is_loop() const
 {
@@ -730,4 +726,4 @@ BooleanResult curve_boolean_calc(const Operation boolean_mode,
       boolean_mode, points, points_by_curve, clipping_shapes, is_fill, is_cyclic);
 }
 
-}  // namespace blender::polygonboolean
+}  // namespace blender::geometry::boolean

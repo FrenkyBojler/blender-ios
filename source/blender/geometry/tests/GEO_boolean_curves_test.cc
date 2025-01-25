@@ -21,7 +21,9 @@
 
 #include "GEO_boolean_curves.hh"
 
-namespace blender::polygonboolean {
+using namespace blender::geometry::boolean;
+
+namespace blender::geometry::tests {
 
 static void CSS_setup_style(std::ofstream &f)
 {
@@ -374,7 +376,7 @@ void expect_boolean_result_coord(const Span<float2> curve_subj,
   // }
 }
 
-TEST(polygonboolean, Squares)
+TEST(boolean_curves, Squares)
 {
   draw_divider_start("Squares");
 
@@ -456,7 +458,7 @@ TEST(polygonboolean, Squares)
   draw_divider_end();
 }
 
-TEST(polygonboolean, Simple)
+TEST(boolean_curves, Simple)
 {
   draw_divider_start("Simple");
 
@@ -548,7 +550,7 @@ TEST(polygonboolean, Simple)
   draw_divider_end();
 }
 
-TEST(polygonboolean, Complex)
+TEST(boolean_curves, Complex)
 {
   draw_divider_start("Complex");
 
@@ -677,7 +679,7 @@ TEST(polygonboolean, Complex)
   draw_divider_end();
 }
 
-TEST(polygonboolean, Last_Edge_Loop)
+TEST(boolean_curves, Last_Edge_Loop)
 {
   draw_divider_start("Last Edge Loop");
 
@@ -803,7 +805,7 @@ TEST(polygonboolean, Last_Edge_Loop)
   draw_divider_end();
 }
 
-TEST(polygonboolean, Simple_Cuts)
+TEST(boolean_curves, Simple_Cuts)
 {
   draw_divider_start("Cuts");
 
@@ -997,7 +999,7 @@ TEST(polygonboolean, Simple_Cuts)
   draw_divider_end();
 }
 
-TEST(polygonboolean, Squares_With_Holes)
+TEST(boolean_curves, Squares_With_Holes)
 {
   draw_divider_start("Squares With Holes");
 
@@ -1092,4 +1094,4 @@ TEST(polygonboolean, Squares_With_Holes)
   draw_divider_end();
 }
 
-}  // namespace blender::polygonboolean
+}  // namespace blender::geometry::tests
