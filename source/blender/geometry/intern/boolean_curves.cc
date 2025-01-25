@@ -41,7 +41,7 @@
 #include "BLI_sort.hh"
 #include "BLI_vector.hh"
 
-#include "BLI_polygon_clipping_2d.hh"
+#include "GEO_boolean_curves.hh"
 
 namespace blender::polygonboolean {
 

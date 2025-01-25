@@ -128,7 +128,6 @@ set(SRC
   intern/path_utils.cc
   intern/polyfill_2d.cc
   intern/polyfill_2d_beautify.cc
-  intern/polygon_clipping_2d.cc
   intern/quadric.cc
   intern/rand.cc
   intern/rct.cc
@@ -345,7 +344,6 @@ set(SRC
   BLI_path_utils.hh
   BLI_polyfill_2d.h
   BLI_polyfill_2d_beautify.h
-  BLI_polygon_clipping_2d.hh
   BLI_pool.hh
   BLI_probing_strategies.hh
   BLI_quadric.h
@@ -582,7 +580,6 @@ if(WITH_GTESTS)
     tests/BLI_offset_indices_test.cc
     tests/BLI_path_utils_test.cc
     tests/BLI_polyfill_2d_test.cc
-    tests/BLI_polygon_clipping_2d_test.cc
     tests/BLI_pool_test.cc
     tests/BLI_random_access_iterator_mixin_test.cc
     tests/BLI_ressource_strings.h

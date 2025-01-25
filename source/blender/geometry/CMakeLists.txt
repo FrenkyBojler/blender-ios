@@ -17,6 +17,7 @@ set(INC_SYS
 
 set(SRC
   intern/add_curves_on_mesh.cc
+  intern/boolean_curves.cc
   intern/curve_constraints.cc
   intern/extend_curves.cc
   intern/extract_elements.cc
@@ -58,6 +59,7 @@ set(SRC
   intern/volume_grid_resample.cc
 
   GEO_add_curves_on_mesh.hh
+  GEO_boolean_curves.hh
   GEO_curve_constraints.hh
   GEO_extend_curves.hh
   GEO_extract_elements.hh
@@ -147,6 +149,7 @@ if(WITH_GTESTS)
   set(TEST_INC
   )
   set(TEST_SRC
+    tests/GEO_boolean_curves_test.cc
     tests/GEO_merge_curves_test.cc
   )
   set(TEST_LIB
