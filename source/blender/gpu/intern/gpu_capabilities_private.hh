@@ -40,6 +40,7 @@ struct GPUCapabilities {
   int max_shader_storage_buffer_bindings = 0;
   int max_compute_shader_storage_blocks = 0;
   size_t max_storage_buffer_size = 0;
+  size_t storage_buffer_alignment = 256;
   int extensions_len = 0;
   const char *(*extension_get)(int);
 
@@ -51,14 +52,18 @@ struct GPUCapabilities {
   bool texture_view_support = true;
   bool stencil_export_support = false;
 
+  int max_parallel_compilations = -1;
+
   /* OpenGL related workarounds. */
   bool mip_render_workaround = false;
   bool depth_blitting_workaround = false;
   bool use_main_context_workaround = false;
   bool broken_amd_driver = false;
   bool use_hq_normals_workaround = false;
-  bool clear_viewport_workaround = false;
+  bool stencil_clasify_buffer_workaround = false;
+
   /* Vulkan related workarounds. */
+  bool render_pass_workaround = false;
 
   /* Metal related workarounds. */
   /* Minimum per-vertex stride in bytes (For a vertex buffer). */

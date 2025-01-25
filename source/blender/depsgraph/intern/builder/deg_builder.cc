@@ -20,11 +20,11 @@
 #include "BLI_stack.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_collection.hh"
 #include "BKE_lib_id.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "intern/builder/deg_builder_cache.h"
 #include "intern/builder/deg_builder_remove_noop.h"
@@ -73,7 +73,8 @@ bool DepsgraphBuilder::need_pull_base_into_graph(const Base *base)
   /* Simple check: enabled bases are always part of dependency graph. */
   const int base_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ? BASE_ENABLED_VIEWPORT :
                                                               BASE_ENABLED_RENDER;
-  if (base->flag & base_flag) {
+
+  if (!graph_->use_visibility_optimization || (base->flag & base_flag)) {
     return true;
   }
 

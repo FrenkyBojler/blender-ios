@@ -14,9 +14,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "ANIM_animation.hh"
+#include "ANIM_action.hh"
 #include "ANIM_animdata.hh"
 
+#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_text_types.h"
@@ -41,7 +42,7 @@
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_scene.hh"
 
 #include "BLO_read_write.hh"
@@ -100,10 +101,8 @@ void BKE_fcurves_free(ListBase *list)
     return;
   }
 
-  /* Free data - no need to call remlink before freeing each curve,
-   * as we store reference to next, and freeing only touches the curve
-   * it's given.
-   */
+  /* Free data, no need to call #BLI_remlink before freeing each curve,
+   * as we store reference to next, and freeing only touches the curve it's given. */
   FCurve *fcn = nullptr;
   for (FCurve *fcu = static_cast<FCurve *>(list->first); fcu; fcu = fcn) {
     fcn = fcu->next;
@@ -182,28 +181,12 @@ void BKE_fmodifier_name_set(FModifier *fcm, const char *name)
    * Ensure the name is unique. */
   const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(fcm->type);
   ListBase list = BLI_listbase_from_link((Link *)fcm);
-  BLI_uniquename(&list, fcm, DATA_(fmi->name), '.', offsetof(FModifier, name), sizeof(fcm->name));
-}
-
-void BKE_fmodifiers_foreach_id(ListBase *fmodifiers, LibraryForeachIDData *data)
-{
-  LISTBASE_FOREACH (FModifier *, fcm, fmodifiers) {
-    /* library data for specific F-Modifier types */
-    switch (fcm->type) {
-      case FMODIFIER_TYPE_PYTHON: {
-        FMod_Python *fcm_py = (FMod_Python *)fcm->data;
-        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fcm_py->script, IDWALK_CB_NOP);
-
-        BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-            data, IDP_foreach_property(fcm_py->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
-              BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
-            }));
-        break;
-      }
-      default:
-        break;
-    }
-  }
+  BLI_uniquename(&list,
+                 fcm,
+                 CTX_DATA_(BLT_I18NCONTEXT_ID_ACTION, fmi->name),
+                 '.',
+                 offsetof(FModifier, name),
+                 sizeof(fcm->name));
 }
 
 void BKE_fcurve_foreach_id(FCurve *fcu, LibraryForeachIDData *data)
@@ -219,8 +202,6 @@ void BKE_fcurve_foreach_id(FCurve *fcu, LibraryForeachIDData *data)
       DRIVER_TARGETS_LOOPER_END;
     }
   }
-
-  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_fmodifiers_foreach_id(&fcu->modifiers, data));
 }
 
 /* ----------------- Finding F-Curves -------------------------- */
@@ -243,7 +224,7 @@ FCurve *id_data_find_fcurve(
     return nullptr;
   }
 
-  PointerRNA ptr = RNA_pointer_create(id, type, data);
+  PointerRNA ptr = RNA_pointer_create_discrete(id, type, data);
   prop = RNA_struct_find_property(&ptr, prop_name);
   if (prop == nullptr) {
     return nullptr;
@@ -258,7 +239,7 @@ FCurve *id_data_find_fcurve(
    * needs to be re-checked I think?. */
   bool is_driven = false;
   FCurve *fcu = BKE_animadata_fcurve_find_by_rna_path(
-      id, adt, path->c_str(), index, nullptr, &is_driven);
+      adt, path->c_str(), index, nullptr, &is_driven);
   if (is_driven) {
     if (r_driven != nullptr) {
       *r_driven = is_driven;
@@ -314,53 +295,8 @@ FCurve *BKE_fcurve_iter_step(FCurve *fcu_iter, const char rna_path[])
   return nullptr;
 }
 
-int BKE_fcurves_filter(ListBase *dst, ListBase *src, const char *dataPrefix, const char *dataName)
-{
-  int matches = 0;
-
-  /* Sanity checks. */
-  if (ELEM(nullptr, dst, src, dataPrefix, dataName)) {
-    return 0;
-  }
-  if ((dataPrefix[0] == 0) || (dataName[0] == 0)) {
-    return 0;
-  }
-
-  const size_t quotedName_size = strlen(dataName) + 1;
-  char *quotedName = static_cast<char *>(alloca(quotedName_size));
-
-  /* Search each F-Curve one by one. */
-  LISTBASE_FOREACH (FCurve *, fcu, src) {
-    /* Check if quoted string matches the path. */
-    if (fcu->rna_path == nullptr) {
-      continue;
-    }
-    /* Skipping names longer than `quotedName_size` is OK since we're after an exact match. */
-    if (!BLI_str_quoted_substr(fcu->rna_path, dataPrefix, quotedName, quotedName_size)) {
-      continue;
-    }
-    if (!STREQ(quotedName, dataName)) {
-      continue;
-    }
-
-    /* Check if the quoted name matches the required name. */
-    LinkData *ld = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), __func__));
-
-    ld->data = fcu;
-    BLI_addtail(dst, ld);
-
-    matches++;
-  }
-  /* Return the number of matches. */
-  return matches;
-}
-
-FCurve *BKE_animadata_fcurve_find_by_rna_path(const ID *id,
-                                              AnimData *animdata,
-                                              const char *rna_path,
-                                              int rna_index,
-                                              bAction **r_action,
-                                              bool *r_driven)
+FCurve *BKE_animadata_fcurve_find_by_rna_path(
+    AnimData *animdata, const char *rna_path, int rna_index, bAction **r_action, bool *r_driven)
 {
   if (r_driven != nullptr) {
     *r_driven = false;
@@ -369,33 +305,14 @@ FCurve *BKE_animadata_fcurve_find_by_rna_path(const ID *id,
     *r_action = nullptr;
   }
 
-  /* Animation data-block takes priority over Action data-block. */
-  if (animdata->animation) {
-    /* TODO: this branch probably also needs a `Animation *r_anim` parameter for full
-     * compatibility with the Action-based uses.  Even better: change to return a
-     * result struct with all the relevant information/data. */
-    BLI_assert(id);
-    const FCurve *fcu = blender::animrig::fcurve_find_by_rna_path(
-        animdata->animation->wrap(), *id, rna_path, rna_index);
-    if (fcu) {
-      /* The new Animation data-block is stricter with const-ness than older code, hence the
-       * const_cast. */
-      return const_cast<FCurve *>(fcu);
+  FCurve *fcurve = blender::animrig::fcurve_find_in_action_slot(
+      animdata->action, animdata->slot_handle, {rna_path, rna_index});
+  if (fcurve) {
+    /* Action takes priority over drivers. */
+    if (r_action) {
+      *r_action = animdata->action;
     }
-  }
-
-  /* Action takes priority over drivers. */
-  const bool has_action_fcurves = animdata->action != nullptr &&
-                                  !BLI_listbase_is_empty(&animdata->action->curves);
-  if (has_action_fcurves) {
-    FCurve *fcu = BKE_fcurve_find(&animdata->action->curves, rna_path, rna_index);
-
-    if (fcu != nullptr) {
-      if (r_action != nullptr) {
-        *r_action = animdata->action;
-      }
-      return fcu;
-    }
+    return fcurve;
   }
 
   /* If not animated, check if driven. */
@@ -490,7 +407,7 @@ FCurve *BKE_fcurve_find_by_rna_context_ui(bContext * /*C*/,
 
   /* Standard F-Curve from animdata - Animation (Action) or Drivers. */
   FCurve *fcu = BKE_animadata_fcurve_find_by_rna_path(
-      ptr->owner_id, adt, rna_path->c_str(), rnaindex, r_action, r_driven);
+      adt, rna_path->c_str(), rnaindex, r_action, r_driven);
 
   if (fcu != nullptr && r_animdata != nullptr) {
     *r_animdata = adt;
@@ -809,8 +726,8 @@ bool BKE_fcurve_calc_bounds(const FCurve *fcu,
 }
 
 bool BKE_fcurve_calc_range(const FCurve *fcu,
-                           float *r_start,
-                           float *r_end,
+                           float *r_min,
+                           float *r_max,
                            const bool selected_keys_only)
 {
   float min = 0.0f;
@@ -838,8 +755,8 @@ bool BKE_fcurve_calc_range(const FCurve *fcu,
     foundvert = true;
   }
 
-  *r_start = min;
-  *r_end = max;
+  *r_min = min;
+  *r_max = max;
 
   return foundvert;
 }
@@ -1026,6 +943,16 @@ bool BKE_fcurve_has_selected_control_points(const FCurve *fcu)
     }
   }
   return false;
+}
+
+void BKE_fcurve_deselect_all_keys(FCurve &fcu)
+{
+  if (!fcu.bezt) {
+    return;
+  }
+  for (int i = 0; i < fcu.totvert; i++) {
+    BEZT_DESEL_ALL(&fcu.bezt[i]);
+  }
 }
 
 bool BKE_fcurve_is_keyframable(const FCurve *fcu)
@@ -2024,8 +1951,11 @@ void BKE_fcurve_deduplicate_keys(FCurve *fcu)
 /** \name F-Curve Evaluation
  * \{ */
 
-static float fcurve_eval_keyframes_extrapolate(
-    FCurve *fcu, BezTriple *bezts, float evaltime, int endpoint_offset, int direction_to_neighbor)
+static float fcurve_eval_keyframes_extrapolate(const FCurve *fcu,
+                                               const BezTriple *bezts,
+                                               float evaltime,
+                                               int endpoint_offset,
+                                               int direction_to_neighbor)
 {
   /* The first/last keyframe. */
   const BezTriple *endpoint_bezt = bezts + endpoint_offset;
@@ -2337,7 +2267,7 @@ static float fcurve_eval_keyframes_interpolate(const FCurve *fcu,
 }
 
 /* Calculate F-Curve value for 'evaltime' using #BezTriple keyframes. */
-static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime)
+static float fcurve_eval_keyframes(const FCurve *fcu, const BezTriple *bezts, float evaltime)
 {
   if (evaltime <= bezts->vec[1][0]) {
     return fcurve_eval_keyframes_extrapolate(fcu, bezts, evaltime, 0, +1);
@@ -2396,7 +2326,7 @@ static float fcurve_eval_samples(const FCurve *fcu, const FPoint *fpts, float ev
 /* Evaluate and return the value of the given F-Curve at the specified frame ("evaltime")
  * NOTE: this is also used for drivers.
  */
-static float evaluate_fcurve_ex(FCurve *fcu, float evaltime, float cvalue)
+static float evaluate_fcurve_ex(const FCurve *fcu, float evaltime, float cvalue)
 {
   /* Evaluate modifiers which modify time to evaluate the base curve at. */
   FModifiersStackStorage storage;
@@ -2431,14 +2361,14 @@ static float evaluate_fcurve_ex(FCurve *fcu, float evaltime, float cvalue)
   return cvalue;
 }
 
-float evaluate_fcurve(FCurve *fcu, float evaltime)
+float evaluate_fcurve(const FCurve *fcu, float evaltime)
 {
   BLI_assert(fcu->driver == nullptr);
 
   return evaluate_fcurve_ex(fcu, evaltime, 0.0);
 }
 
-float evaluate_fcurve_only_curve(FCurve *fcu, float evaltime)
+float evaluate_fcurve_only_curve(const FCurve *fcu, float evaltime)
 {
   /* Can be used to evaluate the (key-framed) f-curve only.
    * Also works for driver-f-curves when the driver itself is not relevant.
@@ -2565,15 +2495,6 @@ void BKE_fmodifiers_blend_write(BlendWriter *writer, ListBase *fmodifiers)
 
           break;
         }
-        case FMODIFIER_TYPE_PYTHON: {
-          FMod_Python *data = static_cast<FMod_Python *>(fcm->data);
-
-          /* Write ID Properties -- and copy this comment EXACTLY for easy finding
-           * of library blocks that implement this. */
-          IDP_BlendWrite(writer, data->prop);
-
-          break;
-        }
       }
     }
   }
@@ -2582,8 +2503,16 @@ void BKE_fmodifiers_blend_write(BlendWriter *writer, ListBase *fmodifiers)
 void BKE_fmodifiers_blend_read_data(BlendDataReader *reader, ListBase *fmodifiers, FCurve *curve)
 {
   LISTBASE_FOREACH (FModifier *, fcm, fmodifiers) {
+    const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(fcm);
+
     /* relink general data */
-    BLO_read_data_address(reader, &fcm->data);
+    if (fmi) {
+      fcm->data = BLO_read_struct_by_name_array(reader, fmi->struct_name, 1, fcm->data);
+    }
+    else {
+      BLI_assert_unreachable();
+      fcm->data = nullptr;
+    }
     fcm->curve = curve;
 
     /* do relinking of data for specific types */
@@ -2597,14 +2526,6 @@ void BKE_fmodifiers_blend_read_data(BlendDataReader *reader, ListBase *fmodifier
         FMod_Envelope *data = (FMod_Envelope *)fcm->data;
 
         BLO_read_struct_array(reader, FCM_EnvelopeData, data->totvert, &data->data);
-
-        break;
-      }
-      case FMODIFIER_TYPE_PYTHON: {
-        FMod_Python *data = (FMod_Python *)fcm->data;
-
-        BLO_read_struct(reader, IDProperty, &data->prop);
-        IDP_BlendDataRead(reader, &data->prop);
 
         break;
       }
@@ -2685,7 +2606,7 @@ void BKE_fcurve_blend_read_data(BlendDataReader *reader, FCurve *fcu)
 
     /* Give the driver a fresh chance - the operating environment may be different now
      * (addons, etc. may be different) so the driver namespace may be sane now #32155. */
-    driver->flag &= ~DRIVER_FLAG_INVALID;
+    driver->flag &= ~(DRIVER_FLAG_INVALID | DRIVER_FLAG_PYTHON_BLOCKED);
 
     /* relink variables, targets and their paths */
     BLO_read_struct_list(reader, DriverVar, &driver->variables);

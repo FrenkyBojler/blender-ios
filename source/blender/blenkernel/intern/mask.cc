@@ -34,7 +34,7 @@
 #include "BKE_idtype.hh"
 
 #include "BKE_anim_data.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
@@ -959,7 +959,7 @@ Mask *BKE_mask_new(Main *bmain, const char *name)
   Mask *mask;
   char mask_name[MAX_ID_NAME - 2];
 
-  STRNCPY(mask_name, (name && name[0]) ? name : "Mask");
+  STRNCPY(mask_name, (name && name[0]) ? name : DATA_("Mask"));
 
   mask = mask_alloc(bmain, mask_name);
 

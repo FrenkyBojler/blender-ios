@@ -24,7 +24,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -107,7 +107,7 @@ static void deform_verts(ModifierData *md,
 
 static void deform_verts_EM(ModifierData *md,
                             const ModifierEvalContext *ctx,
-                            BMEditMesh *em,
+                            const BMEditMesh *em,
                             Mesh *mesh,
                             blender::MutableSpan<blender::float3> positions)
 {
@@ -140,11 +140,11 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  uiItemR(layout, ptr, "strength", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "strength", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }

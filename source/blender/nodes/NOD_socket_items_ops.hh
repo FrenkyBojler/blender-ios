@@ -9,12 +9,13 @@
 #include "WM_api.hh"
 
 #include "BKE_context.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_node_tree_zones.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_node.hh"
 
@@ -31,14 +32,14 @@ inline PointerRNA get_active_node_to_operate_on(bContext *C, const int node_type
   if (!snode->edittree) {
     return PointerRNA_NULL;
   }
-  if (ID_IS_LINKED(snode->edittree)) {
+  if (!ID_IS_EDITABLE(snode->edittree)) {
     return PointerRNA_NULL;
   }
   const bke::bNodeTreeZones *zones = snode->edittree->zones();
   if (!zones) {
     return PointerRNA_NULL;
   }
-  bNode *active_node = nodeGetActive(snode->edittree);
+  bNode *active_node = bke::node_get_active(snode->edittree);
   if (!active_node) {
     return PointerRNA_NULL;
   }
@@ -48,10 +49,10 @@ inline PointerRNA get_active_node_to_operate_on(bContext *C, const int node_type
       active_node = const_cast<bNode *>(zone->output_node);
     }
   }
-  if (active_node->type != node_type) {
+  if (active_node->type_legacy != node_type) {
     return PointerRNA_NULL;
   }
-  return RNA_pointer_create(&snode->edittree->id, &RNA_Node, active_node);
+  return RNA_pointer_create_discrete(&snode->edittree->id, &RNA_Node, active_node);
 }
 
 inline void update_after_node_change(bContext *C, const PointerRNA node_ptr)
@@ -60,7 +61,7 @@ inline void update_after_node_change(bContext *C, const PointerRNA node_ptr)
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(node_ptr.owner_id);
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  ED_node_tree_propagate_change(nullptr, CTX_data_main(C), ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -147,7 +148,9 @@ inline void add_item(wmOperatorType *ot,
     if constexpr (Accessor::has_type && Accessor::has_name) {
       socket_items::add_item_with_socket_type_and_name<Accessor>(
           node,
-          active_item ? eNodeSocketDatatype(active_item->socket_type) : SOCK_GEOMETRY,
+          active_item ?
+              Accessor::get_socket_type(*active_item) :
+              (Accessor::supports_socket_type(SOCK_GEOMETRY) ? SOCK_GEOMETRY : SOCK_FLOAT),
           /* Empty name so it is based on the type. */
           active_item ? active_item->name : "");
     }
@@ -214,6 +217,27 @@ inline void move_active_item(wmOperatorType *ot,
   };
 
   RNA_def_enum(ot->srna, "direction", direction_items, 0, "Direction", "Move direction");
+}
+
+/**
+ * Creates simple operators for adding, removing and moving items.
+ * The idnames are passed in explicitly, so that they are more searchable compared to when they
+ * would be computed automatically.
+ */
+template<typename Accessor> inline void make_common_operators()
+{
+  WM_operatortype_append([](wmOperatorType *ot) {
+    socket_items::ops::add_item<Accessor>(
+        ot, "Add Item", Accessor::operator_idnames::add_item, "Add item below active item");
+  });
+  WM_operatortype_append([](wmOperatorType *ot) {
+    socket_items::ops::remove_active_item<Accessor>(
+        ot, "Remove Item", Accessor::operator_idnames::remove_item, "Remove active item");
+  });
+  WM_operatortype_append([](wmOperatorType *ot) {
+    socket_items::ops::move_active_item<Accessor>(
+        ot, "Move Item", Accessor::operator_idnames::move_item, "Move active item");
+  });
 }
 
 }  // namespace blender::nodes::socket_items::ops

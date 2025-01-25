@@ -8,8 +8,6 @@
  * Interactions with the underlying platform.
  */
 
-#include "BLI_string.h"
-
 #include "WM_api.hh" /* Own include. */
 
 #ifdef WIN32
@@ -17,16 +15,18 @@
 #elif defined(__APPLE__)
 /* Pass. */
 #else
+#  include "BLI_string.h"
+
 #  include "BKE_context.hh"
 
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_run.hh"
 #endif
 
 /* -------------------------------------------------------------------- */
 /** \name Register File Association
  * \{ */
 
-bool WM_platform_assosiate_set(bool do_register, bool all_users, char **r_error_msg)
+bool WM_platform_associate_set(bool do_register, bool all_users, char **r_error_msg)
 {
   bool result = false;
   *r_error_msg = nullptr;

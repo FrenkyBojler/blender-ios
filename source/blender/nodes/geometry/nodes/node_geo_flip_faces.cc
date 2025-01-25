@@ -41,12 +41,18 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_FLIP_FACES, "Flip Faces", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeFlipFaces", GEO_NODE_FLIP_FACES);
+  ntype.ui_name = "Flip Faces";
+  ntype.ui_description =
+      "Reverse the order of the vertices and edges of selected faces, flipping their normal "
+      "direction";
+  ntype.enum_name_legacy = "FLIP_FACES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

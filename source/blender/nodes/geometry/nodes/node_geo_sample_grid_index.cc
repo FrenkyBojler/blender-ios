@@ -53,7 +53,7 @@ static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeS
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_new_volume_nodes) {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_new_volume_nodes)) {
     return;
   }
   const std::optional<eNodeSocketDatatype> node_type = node_type_for_socket_type(
@@ -69,15 +69,15 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     });
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_INT)) {
-      params.add_item(IFACE_("X"), [node_type](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("X"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSampleGridIndex");
         params.update_and_connect_available_socket(node, "X");
       });
-      params.add_item(IFACE_("Y"), [node_type](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Y"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSampleGridIndex");
         params.update_and_connect_available_socket(node, "Y");
       });
-      params.add_item(IFACE_("Z"), [node_type](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Z"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSampleGridIndex");
         params.update_and_connect_available_socket(node, "Z");
       });
@@ -238,17 +238,20 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_SAMPLE_GRID_INDEX, "Sample Grid Index", NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, "GeometryNodeSampleGridIndex", GEO_NODE_SAMPLE_GRID_INDEX);
+  ntype.ui_name = "Sample Grid Index";
+  ntype.ui_description = "Retrieve volume grid values at specific voxels";
+  ntype.enum_name_legacy = "SAMPLE_GRID_INDEX";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

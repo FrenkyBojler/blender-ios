@@ -35,16 +35,19 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_INPUT_INT, "Integer", 0);
+  fn_node_type_base(&ntype, "FunctionNodeInputInt", FN_NODE_INPUT_INT);
+  ntype.ui_name = "Integer";
+  ntype.enum_name_legacy = "INPUT_INT";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeInputInt", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

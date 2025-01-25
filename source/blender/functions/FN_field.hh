@@ -34,8 +34,6 @@
  * they share common sub-fields and a common context.
  */
 
-#include <iostream>
-
 #include "BLI_function_ref.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_string_ref.hh"
@@ -458,7 +456,7 @@ class FieldEvaluator : NonMovable, NonCopyable {
     return this->get_evaluated(field_index).typed<T>();
   }
 
-  IndexMask get_evaluated_selection_as_mask();
+  IndexMask get_evaluated_selection_as_mask() const;
 
   /**
    * Retrieve the output of an evaluated boolean field and convert it to a mask, which can be used

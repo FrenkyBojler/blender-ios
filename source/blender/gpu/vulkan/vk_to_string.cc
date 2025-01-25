@@ -30,6 +30,11 @@ std::string to_string(VkImage vk_handle)
   return to_string_handle(uint64_t(vk_handle));
 }
 
+std::string to_string(VkImageView vk_handle)
+{
+  return to_string_handle(uint64_t(vk_handle));
+}
+
 std::string to_string(VkRenderPass vk_handle)
 {
   return to_string_handle(uint64_t(vk_handle));
@@ -118,6 +123,9 @@ const char *to_string(const VkImageLayout vk_image_layout)
 
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
       return STRINGIFY(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+    case VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR:
+      return STRINGIFY(VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR);
 
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
       return STRINGIFY(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
@@ -825,7 +833,7 @@ std::string to_string(const VkRenderPassBeginInfo &vk_render_pass_begin_info,
      << to_string(vk_render_pass_begin_info.renderArea, indentation_level + 1);
   ss << std::string(indentation_level * 2, ' ');
   ss << ", clear_value_count=" << vk_render_pass_begin_info.clearValueCount;
-  ss << ", p_clear_values=" << vk_render_pass_begin_info.pClearValues;
+  /*ss << ", p_clear_values=" << vk_render_pass_begin_info.pClearValues;*/
 
   return ss.str();
 }
@@ -835,10 +843,10 @@ std::string to_string(const VkRenderingAttachmentInfo &vk_rendering_attachment_i
 {
   UNUSED_VARS(indentation_level);
   std::stringstream ss;
-  ss << "image_view=" << vk_rendering_attachment_info.imageView;
+  ss << "image_view=" << to_string(vk_rendering_attachment_info.imageView);
   ss << ", image_layout=" << to_string(vk_rendering_attachment_info.imageLayout);
   ss << ", resolve_mode=" << to_string(vk_rendering_attachment_info.resolveMode);
-  ss << ", resolve_image_view=" << vk_rendering_attachment_info.resolveImageView;
+  ss << ", resolve_image_view=" << to_string(vk_rendering_attachment_info.resolveImageView);
   ss << ", resolve_image_layout=" << to_string(vk_rendering_attachment_info.resolveImageLayout);
   ss << ", load_op=" << to_string(vk_rendering_attachment_info.loadOp);
   ss << ", store_op=" << to_string(vk_rendering_attachment_info.storeOp);

@@ -10,8 +10,10 @@
 
 #include <cfloat>
 #include <cmath>
+#include <optional>
 
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 
 #include "DNA_node_types.h"
 
@@ -24,23 +26,27 @@
 #ifdef WITH_MATERIALX
 #  include "materialx/node_parser.h"
 #else
-#  define NODE_SHADER_MATERIALX_BEGIN NodeMaterialXFunction node_shader_materialx = nullptr;
+#  define NODE_SHADER_MATERIALX_BEGIN \
+    blender::bke::NodeMaterialXFunction node_shader_materialx = nullptr;
 #  define NODE_SHADER_MATERIALX_END
 #endif
 
 struct bContext;
 struct bNodeExecContext;
-struct bNodeExecData;
 struct bNodeTreeExec;
 struct GPUNodeLink;
 struct GPUNodeStack;
 struct GPUMaterial;
 
-bool sh_node_poll_default(const bNodeType *ntype,
+bool sh_node_poll_default(const blender::bke::bNodeType *ntype,
                           const bNodeTree *ntree,
                           const char **r_disabled_hint);
-void sh_node_type_base(bNodeType *ntype, int type, const char *name, short nclass);
-void sh_fn_node_type_base(bNodeType *ntype, int type, const char *name, short nclass);
+void sh_node_type_base(blender::bke::bNodeType *ntype,
+                       std::string idname,
+                       std::optional<int16_t> legacy_type = std::nullopt);
+void sh_fn_node_type_base(blender::bke::bNodeType *ntype,
+                          std::string idname,
+                          std::optional<int16_t> legacy_type = std::nullopt);
 bool line_style_shader_nodes_poll(const bContext *C);
 bool world_shader_nodes_poll(const bContext *C);
 bool object_shader_nodes_poll(const bContext *C);

@@ -32,7 +32,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
@@ -102,7 +102,8 @@ static blender::bke::SpanAttributeWriter<blender::float2> get_uv_attribute(
   {
     return attribute;
   }
-  const std::string name = BKE_id_attribute_calc_unique_name(mesh.id, md_name);
+  AttributeOwner owner = AttributeOwner::from_id(&mesh.id);
+  const std::string name = BKE_attribute_calc_unique_name(owner, md_name);
   return attributes.lookup_or_add_for_write_span<float2>(name, bke::AttrDomain::Corner);
 }
 
@@ -304,7 +305,8 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemPointerR(layout, ptr, "uv_layer", &obj_data_ptr, "uv_layers", nullptr, ICON_GROUP_UVS);
+  uiItemPointerR(
+      layout, ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
   /* Aspect and Scale are only used for camera projectors. */
   bool has_camera = false;
@@ -319,17 +321,17 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   sub = uiLayoutColumn(layout, true);
   uiLayoutSetActive(sub, has_camera);
-  uiItemR(sub, ptr, "aspect_x", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(sub, ptr, "aspect_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(sub, ptr, "aspect_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
   sub = uiLayoutColumn(layout, true);
   uiLayoutSetActive(sub, has_camera);
-  uiItemR(sub, ptr, "scale_x", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(sub, ptr, "scale_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(sub, ptr, "scale_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
   uiItemR(layout, ptr, "projector_count", UI_ITEM_NONE, IFACE_("Projectors"), ICON_NONE);
   RNA_BEGIN (ptr, projector_ptr, "projectors") {
-    uiItemR(layout, &projector_ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, &projector_ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   RNA_END;
 

@@ -25,6 +25,8 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
+
 struct BLI_mempool;
 struct BlendThumbnail;
 struct GHash;
@@ -59,7 +61,7 @@ struct MainIDRelationsEntryItem {
   /* Session uid of the `id_pointer`. */
   uint session_uid;
 
-  int usage_flag; /* Using IDWALK_ enums, defined in BKE_lib_query.hh */
+  LibraryForeachIDCallbackFlag usage_flag; /* Using IDWALK_ enums, defined in BKE_lib_query.hh */
 };
 
 struct MainIDRelationsEntry {
@@ -143,6 +145,13 @@ struct Main {
    * could try to use more refined detection on load. */
   bool has_forward_compatibility_issues;
 
+  /**
+   * This file was written by the asset system with the #G_FILE_ASSET_EDIT_FILE flag (now cleared).
+   * It must not be overwritten, except by the asset system itself. Otherwise the file could end up
+   * with user created data that would be lost when the asset system regenerates the file.
+   */
+  bool is_asset_edit_file;
+
   /** Commit timestamp from `buildinfo`. */
   uint64_t build_commit_timestamp;
   /** Commit Hash from `buildinfo`. */
@@ -183,9 +192,37 @@ struct Main {
    */
   bool is_global_main;
 
+  /**
+   * True if the Action Slot-to-ID mapping is dirty.
+   *
+   * If this flag is set, the next call to `animrig::Slot::users(bmain)` and related functions
+   * will trigger a rebuild of the Slot-to-ID mapping. Since constructing this mapping requires
+   * a full scan of the animatable IDs in this `Main` anyway, it is kept as a flag here.
+   *
+   * \note This flag should not be set directly. Use #animrig::Slot::users_invalidate() instead.
+   * That way the handling of this flag is limited to the code in #animrig::Slot.
+   *
+   * \see `blender::animrig::Slot::users_invalidate(Main &bmain)`
+   */
+  bool is_action_slot_to_id_map_dirty;
+
+  /**
+   * The blend-file thumbnail. If set, it will show as image preview of the blend-file in the
+   * system's file-browser.
+   */
   BlendThumbnail *blen_thumb;
 
+  /**
+   * The library matching the current Main.
+   *
+   * Typically `nullptr` (for the `G_MAIN` representing the currently opened blend-file).
+   *
+   * Mainly set and used during the blend-file read/write process when 'split' Mains are used to
+   * isolate and process all linked IDs from a single library.
+   */
   Library *curlib;
+
+  /** Listbase for all ID types, containing all IDs for the current Main. */
   ListBase scenes;
   ListBase libraries;
   ListBase objects;
@@ -210,7 +247,6 @@ struct Main {
   ListBase collections;
   ListBase armatures;
   ListBase actions;
-  ListBase animations;
   ListBase nodetrees;
   ListBase brushes;
   ListBase particles;
@@ -245,8 +281,10 @@ struct Main {
   /** Used for efficient calculations of unique names. */
   UniqueName_Map *name_map;
 
-  /* Used for efficient calculations of unique names. Covers all names in current Main, including
-   * linked data ones. */
+  /**
+   * Used for efficient calculations of unique names. Covers all names in current Main, including
+   * linked data ones.
+   */
   UniqueName_Map *name_map_global;
 
   MainLock *lock;
@@ -258,8 +296,38 @@ struct Main {
  * \note Always generate a non-global Main, use #BKE_blender_globals_main_replace to put a newly
  * created one in `G_MAIN`.
  */
-Main *BKE_main_new();
-void BKE_main_free(Main *mainvar);
+Main *BKE_main_new(void);
+/**
+ * Initialize a Main data-base.
+ *
+ * \note Always generate a non-global Main, use #BKE_blender_globals_main_replace to put a newly
+ * created one in `G_MAIN`.
+ */
+void BKE_main_init(Main &bmain);
+/**
+ * Make given \a bmain empty again, and free all runtime mappings.
+ *
+ * This is similar to a call to #BKE_main_destroy followed by #BKE_main_init, however the internal
+ * #Main::lock is kept unchanged, and the #Main::is_global_main flag is not reset to `true` either.
+ *
+ * \note Unlike #BKE_main_free, only process the given \a bmain, without handling any potential
+ * other linked Main.
+ */
+void BKE_main_clear(Main &bmain);
+/**
+ * Clear and free all data in given \a bmain, but does not free \a bmain itself.
+ *
+ * \note In most cases, #BKE_main_free should be used instead of this function.
+ *
+ * \note Unlike #BKE_main_free, only process the given \a bmain, without handling any potential
+ * other linked Main.
+ */
+void BKE_main_destroy(Main &bmain);
+/**
+ * Completely destroy the given \a bmain, and all its linked 'libraries' ones if any (all other
+ * bmains, following the #Main.next chained list).
+ */
+void BKE_main_free(Main *bmain);
 
 /** Struct packaging log/report info about a Main merge result. */
 struct MainMergeReport {
@@ -301,6 +369,17 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
  */
 bool BKE_main_is_empty(Main *bmain);
 
+/**
+ * Check whether the bmain has issues, e.g. for reporting in the status bar.
+ */
+bool BKE_main_has_issues(const Main *bmain);
+
+/**
+ * Check whether user confirmation should be required when overwriting this `bmain` into its source
+ * blendfile.
+ */
+bool BKE_main_needs_overwrite_confirm(const Main *bmain);
+
 void BKE_main_lock(Main *bmain);
 void BKE_main_unlock(Main *bmain);
 
@@ -321,17 +400,20 @@ GSet *BKE_main_gset_create(Main *bmain, GSet *gset);
 /* Temporary runtime API to allow re-using local (already appended)
  * IDs instead of appending a new copy again. */
 
+struct MainLibraryWeakReferenceMap;
+
 /**
  * Generate a mapping between 'library path' of an ID
  * (as a pair (relative blend file path, id name)), and a current local ID, if any.
  *
  * This uses the information stored in `ID.library_weak_reference`.
  */
-GHash *BKE_main_library_weak_reference_create(Main *bmain) ATTR_NONNULL();
+MainLibraryWeakReferenceMap *BKE_main_library_weak_reference_create(Main *bmain) ATTR_NONNULL();
 /**
  * Destroy the data generated by #BKE_main_library_weak_reference_create.
  */
-void BKE_main_library_weak_reference_destroy(GHash *library_weak_reference_mapping) ATTR_NONNULL();
+void BKE_main_library_weak_reference_destroy(
+    MainLibraryWeakReferenceMap *library_weak_reference_mapping) ATTR_NONNULL();
 /**
  * Search for a local ID matching the given linked ID reference.
  *
@@ -341,9 +423,10 @@ void BKE_main_library_weak_reference_destroy(GHash *library_weak_reference_mappi
  * \param library_id_name: the full ID name, including the leading two chars encoding the ID
  * type.
  */
-ID *BKE_main_library_weak_reference_search_item(GHash *library_weak_reference_mapping,
-                                                const char *library_filepath,
-                                                const char *library_id_name) ATTR_NONNULL();
+ID *BKE_main_library_weak_reference_search_item(
+    MainLibraryWeakReferenceMap *library_weak_reference_mapping,
+    const char *library_filepath,
+    const char *library_id_name) ATTR_NONNULL();
 /**
  * Add the given ID weak library reference to given local ID and the runtime mapping.
  *
@@ -353,10 +436,11 @@ ID *BKE_main_library_weak_reference_search_item(GHash *library_weak_reference_ma
  * \param library_id_name: the full ID name, including the leading two chars encoding the ID type.
  * \param new_id: New local ID matching given weak reference.
  */
-void BKE_main_library_weak_reference_add_item(GHash *library_weak_reference_mapping,
-                                              const char *library_filepath,
-                                              const char *library_id_name,
-                                              ID *new_id) ATTR_NONNULL();
+void BKE_main_library_weak_reference_add_item(
+    MainLibraryWeakReferenceMap *library_weak_reference_mapping,
+    const char *library_filepath,
+    const char *library_id_name,
+    ID *new_id) ATTR_NONNULL();
 /**
  * Update the status of the given ID weak library reference in current local IDs and the runtime
  * mapping.
@@ -371,11 +455,12 @@ void BKE_main_library_weak_reference_add_item(GHash *library_weak_reference_mapp
  * \param old_id: Existing local ID matching given weak reference.
  * \param new_id: New local ID matching given weak reference.
  */
-void BKE_main_library_weak_reference_update_item(GHash *library_weak_reference_mapping,
-                                                 const char *library_filepath,
-                                                 const char *library_id_name,
-                                                 ID *old_id,
-                                                 ID *new_id) ATTR_NONNULL();
+void BKE_main_library_weak_reference_update_item(
+    MainLibraryWeakReferenceMap *library_weak_reference_mapping,
+    const char *library_filepath,
+    const char *library_id_name,
+    ID *old_id,
+    ID *new_id) ATTR_NONNULL();
 /**
  * Remove the given ID weak library reference from the given local ID and the runtime mapping.
  *
@@ -385,10 +470,11 @@ void BKE_main_library_weak_reference_update_item(GHash *library_weak_reference_m
  * \param library_id_name: the full ID name, including the leading two chars encoding the ID type.
  * \param old_id: Existing local ID matching given weak reference.
  */
-void BKE_main_library_weak_reference_remove_item(GHash *library_weak_reference_mapping,
-                                                 const char *library_filepath,
-                                                 const char *library_id_name,
-                                                 ID *old_id) ATTR_NONNULL();
+void BKE_main_library_weak_reference_remove_item(
+    MainLibraryWeakReferenceMap *library_weak_reference_mapping,
+    const char *library_filepath,
+    const char *library_id_name,
+    ID *old_id) ATTR_NONNULL();
 
 /* *** Generic utils to loop over whole Main database. *** */
 
@@ -435,6 +521,18 @@ void BKE_main_library_weak_reference_remove_item(GHash *library_weak_reference_m
   FOREACH_MAIN_LISTBASE_END; \
   } \
   ((void)0)
+
+/**
+ * Generates a raw .blend file thumbnail data from a raw image buffer.
+ *
+ * \param bmain: If not NULL, also store generated data in this Main.
+ * \param rect: RGBA image buffer.
+ * \param size: The size of `rect`.
+ * \return The generated .blend file raw thumbnail data.
+ */
+BlendThumbnail *BKE_main_thumbnail_from_buffer(Main *bmain,
+                                               const uint8_t *rect,
+                                               const int size[2]);
 
 /**
  * Generates a raw .blend file thumbnail data from given image.
@@ -487,7 +585,7 @@ ListBase *which_libbase(Main *bmain, short type);
  * \note The order of each ID type #ListBase in the array is determined by the `INDEX_ID_<IDTYPE>`
  * enum definitions in `DNA_ID.h`. See also the #FOREACH_MAIN_ID_BEGIN macro in `BKE_main.hh`
  */
-int set_listbasepointers(Main *main, ListBase *lb[]);
+int set_listbasepointers(Main *bmain, ListBase *lb[]);
 
 #define MAIN_VERSION_FILE_ATLEAST(main, ver, subver) \
   ((main)->versionfile > (ver) || \

@@ -50,6 +50,9 @@ void drw_attributes_clear(DRW_Attributes *attributes)
 
 void drw_attributes_merge(DRW_Attributes *dst, const DRW_Attributes *src, std::mutex &render_mutex)
 {
+  if (src->num_requests == 0) {
+    return;
+  }
   std::lock_guard lock{render_mutex};
   drw_attributes_merge_requests(src, dst);
 }
@@ -85,14 +88,15 @@ void drw_attributes_add_request(DRW_Attributes *attrs,
   attrs->num_requests += 1;
 }
 
-bool drw_custom_data_match_attribute(const CustomData *custom_data,
+bool drw_custom_data_match_attribute(const CustomData &custom_data,
                                      const char *name,
                                      int *r_layer_index,
                                      eCustomDataType *r_type)
 {
-  const eCustomDataType possible_attribute_types[10] = {
+  const eCustomDataType possible_attribute_types[11] = {
       CD_PROP_BOOL,
       CD_PROP_INT8,
+      CD_PROP_INT16_2D,
       CD_PROP_INT32_2D,
       CD_PROP_INT32,
       CD_PROP_FLOAT,
@@ -105,7 +109,7 @@ bool drw_custom_data_match_attribute(const CustomData *custom_data,
 
   for (int i = 0; i < ARRAY_SIZE(possible_attribute_types); i++) {
     const eCustomDataType attr_type = possible_attribute_types[i];
-    int layer_index = CustomData_get_named_layer(custom_data, attr_type, name);
+    int layer_index = CustomData_get_named_layer(&custom_data, attr_type, name);
     if (layer_index == -1) {
       continue;
     }

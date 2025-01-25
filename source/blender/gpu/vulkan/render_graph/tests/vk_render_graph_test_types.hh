@@ -30,7 +30,14 @@ class CommandBufferLog : public VKCommandBufferInterface {
   bool is_cpu_synchronizing_ = false;
 
  public:
-  CommandBufferLog(Vector<std::string> &log) : log_(log) {}
+  CommandBufferLog(Vector<std::string> &log,
+                   bool use_dynamic_rendering_ = true,
+                   bool use_dynamic_rendering_local_read_ = true)
+      : log_(log)
+  {
+    use_dynamic_rendering = use_dynamic_rendering_;
+    use_dynamic_rendering_local_read = use_dynamic_rendering_local_read_;
+  }
   virtual ~CommandBufferLog() {}
 
   void begin_recording() override
@@ -45,13 +52,13 @@ class CommandBufferLog : public VKCommandBufferInterface {
     is_recording_ = false;
   }
 
-  void submit_with_cpu_synchronization() override
+  void submit_with_cpu_synchronization(VkFence /*vk_fence*/) override
   {
     EXPECT_FALSE(is_recording_);
     EXPECT_FALSE(is_cpu_synchronizing_);
     is_cpu_synchronizing_ = true;
   };
-  void wait_for_cpu_synchronization() override
+  void wait_for_cpu_synchronization(VkFence /*vk_fence*/) override
   {
     EXPECT_FALSE(is_recording_);
     EXPECT_TRUE(is_cpu_synchronizing_);
@@ -116,9 +123,15 @@ class CommandBufferLog : public VKCommandBufferInterface {
             uint32_t first_vertex,
             uint32_t first_instance) override
   {
-    UNUSED_VARS(vertex_count, instance_count, first_vertex, first_instance);
     EXPECT_TRUE(is_recording_);
-    GTEST_FAIL() << __func__ << " not implemented!";
+    std::stringstream ss;
+    ss << "draw(";
+    ss << "vertex_count=" << vertex_count;
+    ss << ", instance_count=" << instance_count;
+    ss << ", first_vertex=" << first_vertex;
+    ss << ", first_instance=" << first_instance;
+    ss << ")";
+    log_.append(ss.str());
   }
 
   void draw_indexed(uint32_t index_count,
@@ -127,9 +140,16 @@ class CommandBufferLog : public VKCommandBufferInterface {
                     int32_t vertex_offset,
                     uint32_t first_instance) override
   {
-    UNUSED_VARS(index_count, instance_count, first_index, vertex_offset, first_instance);
     EXPECT_TRUE(is_recording_);
-    GTEST_FAIL() << __func__ << " not implemented!";
+    std::stringstream ss;
+    ss << "draw_indexed(";
+    ss << "index_count=" << index_count;
+    ss << ", instance_count=" << instance_count;
+    ss << ", first_index=" << first_index;
+    ss << ", vertex_offset=" << vertex_offset;
+    ss << ", first_instance=" << first_instance;
+    ss << ")";
+    log_.append(ss.str());
   }
 
   void draw_indirect(VkBuffer buffer,
@@ -176,6 +196,20 @@ class CommandBufferLog : public VKCommandBufferInterface {
     log_.append(ss.str());
   }
 
+  void update_buffer(VkBuffer dst_buffer,
+                     VkDeviceSize dst_offset,
+                     VkDeviceSize data_size,
+                     const void * /*p_data*/) override
+  {
+    EXPECT_TRUE(is_recording_);
+    std::stringstream ss;
+    ss << "update_buffer(";
+    ss << "dst_buffer=" << to_string(dst_buffer);
+    ss << ", dst_offset=" << dst_offset;
+    ss << ", data_size=" << data_size;
+    ss << ")";
+    log_.append(ss.str());
+  }
   void copy_buffer(VkBuffer src_buffer,
                    VkBuffer dst_buffer,
                    uint32_t region_count,
@@ -332,7 +366,19 @@ class CommandBufferLog : public VKCommandBufferInterface {
   {
     UNUSED_VARS(attachment_count, p_attachments, rect_count, p_rects);
     EXPECT_TRUE(is_recording_);
-    GTEST_FAIL() << __func__ << " not implemented!";
+    std::stringstream ss;
+    ss << "clear_attachments(";
+    for (const VkClearAttachment &attachment :
+         Span<VkClearAttachment>(p_attachments, attachment_count))
+    {
+      ss << " - attachment(" << to_string(attachment, 1) << ")" << std::endl;
+    }
+    for (const VkClearRect &rect : Span<VkClearRect>(p_rects, rect_count)) {
+      ss << " - rect(" << to_string(rect, 1) << ")" << std::endl;
+    }
+    ss << ")";
+
+    log_.append(ss.str());
   }
 
   void pipeline_barrier(VkPipelineStageFlags src_stage_mask,
@@ -378,19 +424,108 @@ class CommandBufferLog : public VKCommandBufferInterface {
     GTEST_FAIL() << __func__ << " not implemented!";
   }
 
-  void begin_render_pass(const VkRenderPassBeginInfo *p_render_pass_begin,
-                         VkSubpassContents contents) override
+  void begin_rendering(const VkRenderingInfo *p_rendering_info) override
   {
-    UNUSED_VARS(p_render_pass_begin, contents);
     EXPECT_TRUE(is_recording_);
-    GTEST_FAIL() << __func__ << " not implemented!";
+    std::stringstream ss;
+    ss << "begin_rendering(";
+    ss << "p_rendering_info=" << to_string(*p_rendering_info);
+    ss << ")";
+    log_.append(ss.str());
+  }
+
+  void end_rendering() override
+  {
+    EXPECT_TRUE(is_recording_);
+    std::stringstream ss;
+    ss << "end_rendering()";
+    log_.append(ss.str());
+  }
+
+  void begin_render_pass(const VkRenderPassBeginInfo *p_render_pass_begin_info) override
+  {
+    EXPECT_TRUE(is_recording_);
+    std::stringstream ss;
+    ss << "begin_render_pass(";
+    ss << "p_render_pass_begin_info=" << to_string(*p_render_pass_begin_info);
+    ss << ")";
+    log_.append(ss.str());
   }
 
   void end_render_pass() override
   {
     EXPECT_TRUE(is_recording_);
-    GTEST_FAIL() << __func__ << " not implemented!";
+    std::stringstream ss;
+    ss << "end_render_pass()";
+    log_.append(ss.str());
   }
+
+  void begin_query(VkQueryPool /*vk_query_pool*/,
+                   uint32_t /*query_index*/,
+                   VkQueryControlFlags /*vk_query_control_flags*/) override
+  {
+  }
+  void end_query(VkQueryPool /*vk_query_pool*/, uint32_t /*query_index*/) override {}
+  void reset_query_pool(VkQueryPool /*vk_query_pool*/,
+                        uint32_t /*first_query*/,
+                        uint32_t /*query_count*/) override
+  {
+  }
+  void begin_debug_utils_label(const VkDebugUtilsLabelEXT * /*vk_debug_utils_label*/) override {}
+  void end_debug_utils_label() override {}
+};
+
+class VKRenderGraphTest : public ::testing::Test {
+ public:
+  VKRenderGraphTest()
+  {
+    resources.use_dynamic_rendering = use_dynamic_rendering;
+    resources.use_dynamic_rendering_local_read = use_dynamic_rendering_local_read;
+    render_graph = std::make_unique<VKRenderGraph>(
+        std::make_unique<CommandBufferLog>(
+            log, use_dynamic_rendering, use_dynamic_rendering_local_read),
+        resources);
+  }
+
+ protected:
+  Vector<std::string> log;
+  VKResourceStateTracker resources;
+  std::unique_ptr<VKRenderGraph> render_graph;
+  bool use_dynamic_rendering = true;
+  bool use_dynamic_rendering_local_read = true;
+};
+
+class VKRenderGraphTest_P : public ::testing::TestWithParam<std::tuple<bool, bool>> {
+ public:
+  VKRenderGraphTest_P()
+  {
+    use_dynamic_rendering = std::get<0>(GetParam());
+    use_dynamic_rendering_local_read = std::get<1>(GetParam());
+    resources.use_dynamic_rendering = use_dynamic_rendering;
+    resources.use_dynamic_rendering_local_read = use_dynamic_rendering_local_read;
+    render_graph = std::make_unique<VKRenderGraph>(
+        std::make_unique<CommandBufferLog>(
+            log, use_dynamic_rendering, use_dynamic_rendering_local_read),
+        resources);
+  }
+
+ protected:
+  VkImageLayout color_attachment_layout() const
+  {
+    return use_dynamic_rendering_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
+                                              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  }
+  std::string color_attachment_layout_str() const
+  {
+    return use_dynamic_rendering_local_read ? "VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR" :
+                                              "VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL";
+  }
+
+  Vector<std::string> log;
+  VKResourceStateTracker resources;
+  std::unique_ptr<VKRenderGraph> render_graph;
+  bool use_dynamic_rendering = true;
+  bool use_dynamic_rendering_local_read = true;
 };
 
 /**

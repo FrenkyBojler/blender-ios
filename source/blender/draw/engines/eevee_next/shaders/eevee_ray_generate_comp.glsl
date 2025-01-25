@@ -7,10 +7,14 @@
  * by the next pass to trace the rays.
  */
 
-#pragma BLENDER_REQUIRE(eevee_gbuffer_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_ray_generate_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_codegen_lib.glsl)
+#include "infos/eevee_tracing_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_ray_generate)
+
+#include "eevee_gbuffer_lib.glsl"
+#include "eevee_ray_generate_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "gpu_shader_codegen_lib.glsl"
 
 void main()
 {
@@ -44,5 +48,5 @@ void main()
    * Limit to the smallest non-0 value that the format can encode.
    * Strangely it does not correspond to the IEEE spec. */
   float inv_pdf = (samp.pdf == 0.0) ? 0.0 : max(6e-8, 1.0 / samp.pdf);
-  imageStore(out_ray_data_img, texel, vec4(samp.direction, inv_pdf));
+  imageStoreFast(out_ray_data_img, texel, vec4(samp.direction, inv_pdf));
 }

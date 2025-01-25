@@ -22,6 +22,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_span.hh"
@@ -38,7 +39,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_anim_visualization.h"
 #include "BKE_armature.hh"
@@ -3020,28 +3021,27 @@ void BKE_pose_where_is(Depsgraph *depsgraph, Scene *scene, Object *ob)
 /** \name Calculate Bounding Box (Armature & Pose)
  * \{ */
 
-std::optional<blender::Bounds<blender::float3>> BKE_armature_min_max(const bPose *pose)
+std::optional<blender::Bounds<blender::float3>> BKE_armature_min_max(const Object *ob)
 {
-  if (BLI_listbase_is_empty(&pose->chanbase)) {
+  std::optional<blender::Bounds<blender::float3>> bounds_world = BKE_pose_minmax(ob, false);
+
+  if (!bounds_world) {
     return std::nullopt;
   }
-  blender::float3 min(std::numeric_limits<float>::max());
-  blender::float3 max(std::numeric_limits<float>::lowest());
-  /* For now, we assume BKE_pose_where_is has already been called
-   * (hence we have valid data in pachan). */
-  LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
-    minmax_v3v3_v3(min, max, pchan->pose_head);
-    minmax_v3v3_v3(min, max, pchan->pose_tail);
-  }
 
-  return blender::Bounds<blender::float3>{min, max};
+  /* NOTE: this is not correct (after rotation the AABB may not be the smallest enclosing AABB any
+   * more), but acceptable because this is called via BKE_object_boundbox_get(), which is called by
+   * BKE_object_minmax(), which does the opposite transform. */
+  return blender::Bounds<blender::float3>{
+      math::transform_point(ob->world_to_object(), bounds_world->min),
+      math::transform_point(ob->world_to_object(), bounds_world->max)};
 }
 
 void BKE_pchan_minmax(const Object *ob,
                       const bPoseChannel *pchan,
                       const bool use_empty_drawtype,
-                      float r_min[3],
-                      float r_max[3])
+                      blender::float3 &r_min,
+                      blender::float3 &r_max)
 {
   using namespace blender;
   const bArmature *arm = static_cast<const bArmature *>(ob->data);
@@ -3062,19 +3062,19 @@ void BKE_pchan_minmax(const Object *ob,
   }
 
   if (bb_custom) {
-    float mat[4][4], smat[4][4], rmat[4][4], tmp[4][4];
-    scale_m4_fl(smat, PCHAN_CUSTOM_BONE_LENGTH(pchan));
-    rescale_m4(smat, pchan->custom_scale_xyz);
-    eulO_to_mat4(rmat, pchan->custom_rotation_euler, ROT_MODE_XYZ);
-    copy_m4_m4(tmp, pchan_tx->pose_mat);
-    translate_m4(tmp,
+    float4x4 mat, smat, rmat, tmp;
+    scale_m4_fl(smat.ptr(), PCHAN_CUSTOM_BONE_LENGTH(pchan));
+    rescale_m4(smat.ptr(), pchan->custom_scale_xyz);
+    eulO_to_mat4(rmat.ptr(), pchan->custom_rotation_euler, ROT_MODE_XYZ);
+    copy_m4_m4(tmp.ptr(), pchan_tx->pose_mat);
+    translate_m4(tmp.ptr(),
                  pchan->custom_translation[0],
                  pchan->custom_translation[1],
                  pchan->custom_translation[2]);
-    mul_m4_series(mat, ob->object_to_world().ptr(), tmp, rmat, smat);
+    mul_m4_series(mat.ptr(), ob->object_to_world().ptr(), tmp.ptr(), rmat.ptr(), smat.ptr());
     BoundBox bb;
     BKE_boundbox_init_from_minmax(&bb, bb_custom->min, bb_custom->max);
-    BKE_boundbox_minmax(&bb, mat, r_min, r_max);
+    BKE_boundbox_minmax(bb, mat, r_min, r_max);
   }
   else {
     float vec[3];
@@ -3085,27 +3085,42 @@ void BKE_pchan_minmax(const Object *ob,
   }
 }
 
-bool BKE_pose_minmax(Object *ob, float r_min[3], float r_max[3], bool use_hidden, bool use_select)
+std::optional<blender::Bounds<blender::float3>> BKE_pose_minmax(const Object *ob,
+                                                                const bool use_select)
 {
-  bool changed = false;
-
-  if (ob->pose) {
-    bArmature *arm = static_cast<bArmature *>(ob->data);
-
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-      /* XXX pchan->bone may be nullptr for duplicated bones, see duplicateEditBoneObjects()
-       * comment (editarmature.c:2592)... Skip in this case too! */
-      if (pchan->bone && (!((use_hidden == false) && (PBONE_VISIBLE(arm, pchan->bone) == false)) &&
-                          !((use_select == true) && ((pchan->bone->flag & BONE_SELECTED) == 0))))
-      {
-
-        BKE_pchan_minmax(ob, pchan, false, r_min, r_max);
-        changed = true;
-      }
-    }
+  if (!ob->pose) {
+    return std::nullopt;
   }
 
-  return changed;
+  blender::float3 min(std::numeric_limits<float>::max());
+  blender::float3 max(std::numeric_limits<float>::lowest());
+
+  BLI_assert(ob->type == OB_ARMATURE);
+  const bArmature *arm = static_cast<const bArmature *>(ob->data);
+
+  bool found_pchan = false;
+  LISTBASE_FOREACH (const bPoseChannel *, pchan, &ob->pose->chanbase) {
+    /* XXX pchan->bone may be nullptr for duplicated bones, see duplicateEditBoneObjects()
+     * comment (editarmature.c:2592)... Skip in this case too! */
+    if (!pchan->bone) {
+      continue;
+    }
+    if (!PBONE_VISIBLE(arm, pchan->bone)) {
+      continue;
+    }
+    if (use_select && !(pchan->bone->flag & BONE_SELECTED)) {
+      continue;
+    }
+
+    BKE_pchan_minmax(ob, pchan, false, min, max);
+    found_pchan = true;
+  }
+
+  if (!found_pchan) {
+    return std::nullopt;
+  }
+
+  return blender::Bounds<blender::float3>(min, max);
 }
 
 /** \} */

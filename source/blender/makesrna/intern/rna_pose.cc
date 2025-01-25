@@ -65,7 +65,7 @@ const EnumPropertyItem rna_enum_color_sets_items[] = {
 #  include "BLI_string_utils.hh"
 
 #  include "BIK_api.h"
-#  include "BKE_action.h"
+#  include "BKE_action.hh"
 #  include "BKE_armature.hh"
 
 #  include "DNA_userdef_types.h"
@@ -602,7 +602,7 @@ static bool rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, Pointe
   bPose *pose = (bPose *)ptr->data;
   bPoseChannel *pchan = BKE_pose_channel_find_name(pose, key);
   if (pchan) {
-    *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_PoseBone, pchan);
+    *r_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_PoseBone, pchan);
     return true;
   }
   else {
@@ -1162,6 +1162,15 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       prop, nullptr, "rna_PoseChannel_custom_shape_transform_set", nullptr, nullptr);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
+  prop = RNA_def_property(srna, "custom_shape_wire_width", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "custom_shape_wire_width");
+  RNA_def_property_ui_text(prop, "Wire Width", "Adjust the line thickness of custom shapes");
+  /* When changing the upper limit of the range, also adjust the WIRE_WIDTH_COMPRESSION in
+   * overlay_shader_shared.h */
+  RNA_def_property_range(prop, 1.0f, 16.0f);
+  RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 1);
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
   prop = RNA_def_property(srna, "color", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "BoneColor");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -1169,16 +1178,14 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 
   /* transform locks */
   prop = RNA_def_property(srna, "lock_location", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "protectflag", OB_LOCK_LOCX);
-  RNA_def_property_array(prop, 3);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "protectflag", OB_LOCK_LOCX, 3);
   RNA_def_property_ui_text(prop, "Lock Location", "Lock editing of location when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "lock_rotation", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "protectflag", OB_LOCK_ROTX);
-  RNA_def_property_array(prop, 3);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "protectflag", OB_LOCK_ROTX, 3);
   RNA_def_property_ui_text(prop, "Lock Rotation", "Lock editing of rotation when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
@@ -1207,8 +1214,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "lock_scale", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "protectflag", OB_LOCK_SCALEX);
-  RNA_def_property_array(prop, 3);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "protectflag", OB_LOCK_SCALEX, 3);
   RNA_def_property_ui_text(prop, "Lock Scale", "Lock editing of scale when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");

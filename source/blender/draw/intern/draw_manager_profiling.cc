@@ -8,8 +8,6 @@
 
 #include <algorithm>
 
-#include "BLI_listbase.h"
-#include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "BKE_global.hh"
@@ -26,6 +24,7 @@
 #include "UI_resources.hh"
 
 #include "draw_manager_profiling.hh"
+#include "draw_view_data.hh"
 
 #define MAX_TIMER_NAME 32
 #define MAX_NESTED_TIMER 8
@@ -196,16 +195,16 @@ void DRW_stats_reset()
 
 static void draw_stat_5row(const rcti *rect, int u, int v, const char *txt, const int size)
 {
-  BLF_draw_default_shadowed(rect->xmin + (1 + u * 5) * U.widget_unit,
-                            rect->ymax - (3 + v) * U.widget_unit,
-                            0.0f,
-                            txt,
-                            size);
+  BLF_draw_default(rect->xmin + (1 + u * 5) * U.widget_unit,
+                   rect->ymax - (3 + v) * U.widget_unit,
+                   0.0f,
+                   txt,
+                   size);
 }
 
 static void draw_stat(const rcti *rect, int u, int v, const char *txt, const int size)
 {
-  BLF_draw_default_shadowed(
+  BLF_draw_default(
       rect->xmin + (1 + u) * U.widget_unit, rect->ymax - (3 + v) * U.widget_unit, 0.0f, txt, size);
 }
 

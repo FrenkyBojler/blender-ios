@@ -404,6 +404,32 @@ float closest_to_line_segment_v3(float r_close[3],
   return lambda;
 }
 
+float closest_ray_to_segment_v3(const float ray_origin[3],
+                                const float ray_direction[3],
+                                const float v0[3],
+                                const float v1[3],
+                                float r_close[3])
+{
+  float lambda;
+  if (!isect_ray_line_v3(ray_origin, ray_direction, v0, v1, &lambda)) {
+    copy_v3_v3(r_close, v0);
+    return 0.0f;
+  }
+
+  if (lambda <= 0.0f) {
+    copy_v3_v3(r_close, v0);
+    return 0.0f;
+  }
+
+  if (lambda >= 1.0f) {
+    copy_v3_v3(r_close, v1);
+    return 1.0f;
+  }
+
+  interp_v3_v3v3(r_close, v0, v1, lambda);
+  return lambda;
+}
+
 void closest_to_plane_v3(float r_close[3], const float plane[4], const float pt[3])
 {
   const float len_sq = len_squared_v3(plane);
@@ -5335,7 +5361,11 @@ bool is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], 
 
     cross_v3_v3v3(plane, v13, v24);
 
-    if (len_squared_v3(plane) < FLT_EPSILON) {
+    /* Ignore planes that are small or (near) zero area,
+     * scale the threshold down as the length of the cross product is also squared.
+     * With this value quads with edges smaller than 1e-05 may be detected as too small. */
+    const float eps_sq = square_f(1e-8f);
+    if (len_squared_v3(plane) < eps_sq) {
       return false;
     }
   }

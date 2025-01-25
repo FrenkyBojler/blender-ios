@@ -39,10 +39,17 @@
 
 #include <mutex>
 #include <optional>
+#include <pthread.h>
 
+#include "BKE_global.hh"
+
+#include "BLI_color.hh"
 #include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
+
+#include "BKE_global.hh"
 
 #include "vk_common.hh"
 
@@ -50,6 +57,7 @@
 #include "vk_command_builder.hh"
 #include "vk_render_graph_links.hh"
 #include "vk_resource_state_tracker.hh"
+#include "vk_resource_tracker.hh"
 
 namespace blender::gpu::render_graph {
 class VKScheduler;
@@ -57,11 +65,16 @@ class VKScheduler;
 class VKRenderGraph : public NonCopyable {
   friend class VKCommandBuilder;
   friend class VKScheduler;
+  using DebugGroupNameID = int64_t;
+  using DebugGroupID = int64_t;
 
   /** All links inside the graph indexable via NodeHandle. */
   Vector<VKRenderGraphNodeLinks> links_;
   /** All nodes inside the graph indexable via NodeHandle. */
   Vector<VKRenderGraphNode> nodes_;
+  /** Storage for large node datas to improve CPU cache pre-loading. */
+  VKRenderGraphStorage storage_;
+
   /** Scheduler decides which nodes to select and in what order to execute them. */
   VKScheduler scheduler_;
   /**
@@ -88,7 +101,41 @@ class VKRenderGraph : public NonCopyable {
    */
   VKResourceStateTracker &resources_;
 
+  struct DebugGroup {
+    std::string name;
+    ColorTheme4f color;
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(DebugGroup, name, color)
+    uint64_t hash() const
+    {
+      return get_default_hash<std::string, ColorTheme4f>(name, color);
+    }
+  };
+
+  struct {
+    VectorSet<DebugGroup> groups;
+
+    /** Current stack of debug group names. */
+    Vector<DebugGroupNameID> group_stack;
+    /** Has a node been added to the current stack? If not the group stack will be added to
+     * used_groups. */
+    bool group_used = false;
+    /** All used debug groups. */
+    Vector<Vector<DebugGroupNameID>> used_groups;
+    /**
+     * Map of a node_handle to an index of debug group in used_groups.
+     *
+     * <source>
+     * int used_group_id = node_group_map[node_handle];
+     * const Vector<DebugGroupNameID> &used_group = used_groups[used_group_id];
+     * </source>
+     */
+    Vector<DebugGroupID> node_group_map;
+  } debug_;
+
  public:
+  VKSubmissionID submission_id;
+
   /**
    * Construct a new render graph instance.
    *
@@ -97,17 +144,6 @@ class VKRenderGraph : public NonCopyable {
    */
   VKRenderGraph(std::unique_ptr<VKCommandBufferInterface> command_buffer,
                 VKResourceStateTracker &resources);
-
-  /**
-   * Free all resources held by the render graph. After calling this function the render graph may
-   * not work as expected, leading to crashes.
-   *
-   * Freeing data of context resources cannot be done inside the destructor due to an issue when
-   * Blender (read window manager) exits. During this phase the backend is deallocated, device is
-   * destroyed, but window manager requires a context so it creates new one. We work around this
-   * issue by ensuring the VKDevice is always in control of releasing resources.
-   */
-  void free_data();
 
  private:
   /**
@@ -118,56 +154,67 @@ class VKRenderGraph : public NonCopyable {
     std::scoped_lock lock(resources_.mutex);
     static VKRenderGraphNode node_template = {};
     NodeHandle node_handle = nodes_.append_and_get_index(node_template);
+#if 0
+    /* Useful during debugging. When a validation error occurs during submission we know the node
+     * type and node handle, but we don't know when and by who that specific node was added to the
+     * render graph. By enabling this part of the code and set the correct node_handle and node
+     * type a debugger can break at the moment the node has been added to the render graph. */
+    if (node_handle == 267 && NodeInfo::node_type == VKNodeType::DRAW) {
+      std::cout << "break\n";
+    }
+#endif
     if (nodes_.size() > links_.size()) {
       links_.resize(nodes_.size());
     }
     VKRenderGraphNode &node = nodes_[node_handle];
+    node.set_node_data<NodeInfo>(storage_, create_info);
+
     VKRenderGraphNodeLinks &node_links = links_[node_handle];
-    node.set_node_data<NodeInfo>(create_info);
+    BLI_assert(node_links.inputs.is_empty());
+    BLI_assert(node_links.outputs.is_empty());
     node.build_links<NodeInfo>(resources_, node_links, create_info);
+
+    if (G.debug & G_DEBUG_GPU) {
+      if (!debug_.group_used) {
+        debug_.group_used = true;
+        debug_.used_groups.append(debug_.group_stack);
+      }
+      if (nodes_.size() > debug_.node_group_map.size()) {
+        debug_.node_group_map.resize(nodes_.size());
+      }
+      debug_.node_group_map[node_handle] = debug_.used_groups.size() - 1;
+    }
   }
 
  public:
-  void add_node(const VKClearColorImageNode::CreateInfo &clear_color_image)
-  {
-    add_node<VKClearColorImageNode>(clear_color_image);
+#define ADD_NODE(NODE_CLASS) \
+  void add_node(const NODE_CLASS::CreateInfo &create_info) \
+  { \
+    add_node<NODE_CLASS>(create_info); \
   }
-  void add_node(const VKClearDepthStencilImageNode::CreateInfo &clear_depth_stencil_image)
-  {
-    add_node<VKClearDepthStencilImageNode>(clear_depth_stencil_image);
-  }
-  void add_node(const VKFillBufferNode::CreateInfo &fill_buffer)
-  {
-    add_node<VKFillBufferNode>(fill_buffer);
-  }
-  void add_node(const VKCopyBufferNode::CreateInfo &copy_buffer)
-  {
-    add_node<VKCopyBufferNode>(copy_buffer);
-  }
-  void add_node(const VKCopyBufferToImageNode::CreateInfo &copy_buffer_to_image)
-  {
-    add_node<VKCopyBufferToImageNode>(copy_buffer_to_image);
-  }
-  void add_node(const VKCopyImageNode::CreateInfo &copy_image_to_buffer)
-  {
-    add_node<VKCopyImageNode>(copy_image_to_buffer);
-  }
-  void add_node(const VKCopyImageToBufferNode::CreateInfo &copy_image_to_buffer)
-  {
-    add_node<VKCopyImageToBufferNode>(copy_image_to_buffer);
-  }
-  void add_node(const VKBlitImageNode::CreateInfo &blit_image)
-  {
-    add_node<VKBlitImageNode>(blit_image);
-  }
-  void add_node(const VKDispatchNode::CreateInfo &dispatch)
-  {
-    add_node<VKDispatchNode>(dispatch);
-  }
-  void add_node(const VKDispatchIndirectNode::CreateInfo &dispatch)
-  {
-    add_node<VKDispatchIndirectNode>(dispatch);
-  }
+  ADD_NODE(VKBeginQueryNode)
+  ADD_NODE(VKBeginRenderingNode)
+  ADD_NODE(VKEndQueryNode)
+  ADD_NODE(VKEndRenderingNode)
+  ADD_NODE(VKClearAttachmentsNode)
+  ADD_NODE(VKClearColorImageNode)
+  ADD_NODE(VKClearDepthStencilImageNode)
+  ADD_NODE(VKFillBufferNode)
+  ADD_NODE(VKCopyBufferNode)
+  ADD_NODE(VKCopyBufferToImageNode)
+  ADD_NODE(VKCopyImageNode)
+  ADD_NODE(VKCopyImageToBufferNode)
+  ADD_NODE(VKBlitImageNode)
+  ADD_NODE(VKDispatchNode)
+  ADD_NODE(VKDispatchIndirectNode)
+  ADD_NODE(VKDrawNode)
+  ADD_NODE(VKDrawIndexedNode)
+  ADD_NODE(VKDrawIndexedIndirectNode)
+  ADD_NODE(VKDrawIndirectNode)
+  ADD_NODE(VKResetQueryPoolNode)
+  ADD_NODE(VKUpdateBufferNode)
+  ADD_NODE(VKUpdateMipmapsNode)
+#undef ADD_NODE
 
   /**
    * Submit partial graph to be able to read the expected result of the rendering commands
@@ -178,7 +225,7 @@ class VKRenderGraph : public NonCopyable {
    * After calling this function the mapped memory of the vk_buffer would contain the data of the
    * buffer.
    */
-  void submit_buffer_for_read(VkBuffer vk_buffer);
+  void submit_for_read();
 
   /**
    * Submit partial graph to be able to present the expected result of the rendering commands
@@ -186,12 +233,61 @@ class VKRenderGraph : public NonCopyable {
    * swap chain swap.
    *
    * Pre conditions:
-   * - `vk_swapchain_image` needs to be a created using ResourceOwner::SWAP_CHAIN`.
+   * - `vk_swapchain_image` needs to be registered in VKResourceStateTracker.
    *
    * Post conditions:
    * - `vk_swapchain_image` layout is transitioned to `VK_IMAGE_LAYOUT_SRC_PRESENT`.
    */
   void submit_for_present(VkImage vk_swapchain_image);
+
+  /**
+   * Submit full graph.
+   */
+  void submit();
+
+  /**  Submit render graph with CPU synchronization event. */
+  void submit_synchronization_event(VkFence vk_fence);
+  /** Wait and reset for a CPU synchronization event. */
+  void wait_synchronization_event(VkFence vk_fence);
+  /**
+   * Push a new debugging group to the stack with the given name.
+   *
+   * New nodes added to the render graph will be associated with this debug group.
+   */
+  void debug_group_begin(const char *name, const ColorTheme4f &color);
+
+  /**
+   * Pop the top of the debugging group stack.
+   *
+   * New nodes added to the render graph will be associated with the parent of the current debug
+   * group.
+   */
+  void debug_group_end();
+
+  /**
+   * Return the full debug group of the given node_handle. Returns an empty string when debug
+   * groups are not enabled (`--debug-gpu`).
+   */
+  std::string full_debug_group(NodeHandle node_handle) const;
+
+  /**
+   * Utility function that is used during debugging.
+   *
+   * When debugging most of the time know the node_handle that is needed after the node has been
+   * constructed. When haunting a bug it is more useful to query what the next node handle will be
+   * so you can step through the node building process.
+   */
+  NodeHandle next_node_handle()
+  {
+    return nodes_.size();
+  }
+
+  bool is_empty()
+  {
+    return nodes_.is_empty();
+  }
+
+  void debug_print(NodeHandle node_handle) const;
 
  private:
   void remove_nodes(Span<NodeHandle> node_handles);

@@ -9,7 +9,6 @@
 #pragma once
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_listbase.h"
 #include "BLI_span.hh"
 
 struct Base;
@@ -202,7 +201,6 @@ void ED_armature_undosys_type(UndoType *ut);
 
 /** Sync selection to parent for connected children. */
 void ED_armature_edit_sync_selection(ListBase *edbo);
-void ED_armature_edit_validate_active(bArmature *arm);
 /**
  * \param clear_connected: When false caller is responsible for keeping the flag in a valid state.
  */
@@ -341,3 +339,7 @@ void ED_mesh_deform_bind_callback(Object *object,
                                   float *vertexcos,
                                   int verts_num,
                                   float cagemat[4][4]);
+
+EditBone *ED_armature_pick_ebone(bContext *C, const int xy[2], bool findunsel, Base **r_base);
+bPoseChannel *ED_armature_pick_pchan(bContext *C, const int xy[2], bool findunsel, Base **r_base);
+Bone *ED_armature_pick_bone(bContext *C, const int xy[2], bool findunsel, Base **r_base);

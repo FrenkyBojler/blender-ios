@@ -10,12 +10,15 @@
 #pragma once
 
 #include <cstdio> /* Include header using off_t before poisoning it below. */
+#include <optional>
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
 
 #include "BLI_filereader.h"
+#include "BLI_map.hh"
+
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h" /* for eReportType */
@@ -23,6 +26,7 @@
 #include "BLO_readfile.hh"
 
 struct BlendFileData;
+struct BlendfileLinkAppendContext;
 struct BlendFileReadParams;
 struct BlendFileReadReport;
 struct BLOCacheStorage;
@@ -34,7 +38,6 @@ struct Main;
 struct MemFile;
 struct Object;
 struct OldNewMap;
-struct ReportList;
 struct UserDef;
 
 enum eFileDataFlag {
@@ -43,27 +46,39 @@ enum eFileDataFlag {
   FD_FLAGS_POINTSIZE_DIFFERS = 1 << 2,
   FD_FLAGS_FILE_OK = 1 << 3,
   FD_FLAGS_IS_MEMFILE = 1 << 4,
-  /* XXX Unused in practice (checked once but never set). */
-  FD_FLAGS_NOT_MY_LIBMAP = 1 << 5,
+  /**
+   * The Blender file is not compatible with current code, but is still likely a blender file
+   * 'from the future'. Improves report to the user.
+   */
+  FD_FLAGS_FILE_FUTURE = 1 << 5,
 };
-ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_NOT_MY_LIBMAP)
+ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_IS_MEMFILE)
 
 /* Disallow since it's 32bit on ms-windows. */
 #ifdef __GNUC__
 #  pragma GCC poison off_t
 #endif
 
+/**
+ * General data used during a blend-file reading.
+ *
+ * Note that this data (and its accesses) are absolutely not thread-safe currently. It should never
+ * be accessed concurrently.
+ */
 struct FileData {
   /** Linked list of BHeadN's. */
-  ListBase bhead_list;
-  enum eFileDataFlag flags;
-  bool is_eof;
+  ListBase bhead_list = {};
+  enum eFileDataFlag flags = eFileDataFlag(0);
+  bool is_eof = false;
 
-  FileReader *file;
+  FileReader *file = nullptr;
 
-  /** Whether we are undoing (< 0) or redoing (> 0), used to choose which 'unchanged' flag to use
-   * to detect unchanged data from memfile. */
-  int undo_direction; /* eUndoStepDir */
+  /**
+   * Whether we are undoing (< 0) or redoing (> 0), used to choose which 'unchanged' flag to use
+   * to detect unchanged data from memfile.
+   * #eUndoStepDir.
+   */
+  int undo_direction = 0;
 
   /** Used for relative paths handling.
    *
@@ -72,26 +87,27 @@ struct FileData {
    * generated the auto-saved one being recovered.
    *
    * NOTE: Currently expected to be the same path as #BlendFileData.filepath. */
-  char relabase[FILE_MAX];
+  char relabase[FILE_MAX] = {};
 
   /** General reading variables. */
-  SDNA *filesdna;
-  const SDNA *memsdna;
+  SDNA *filesdna = nullptr;
+  const SDNA *memsdna = nullptr;
   /** Array of #eSDNA_StructCompare. */
-  const char *compflags;
-  DNA_ReconstructInfo *reconstruct_info;
+  const char *compflags = nullptr;
+  DNA_ReconstructInfo *reconstruct_info = nullptr;
 
-  int fileversion;
+  int fileversion = 0;
   /** Used to retrieve ID names from (bhead+1). */
-  int id_name_offset;
+  int id_name_offset = 0;
   /** Used to retrieve asset data from (bhead+1). NOTE: This may not be available in old files,
    * will be -1 then! */
-  int id_asset_data_offset;
+  int id_asset_data_offset = 0;
   /** For do_versions patching. */
-  int globalf, fileflags;
+  int globalf = 0;
+  int fileflags = 0;
 
   /** Optionally skip some data-blocks when they're not needed. */
-  eBLOReadSkip skip_flags;
+  eBLOReadSkip skip_flags = BLO_READ_SKIP_NONE;
 
   /**
    * Tag to apply to all loaded ID data-blocks.
@@ -99,34 +115,32 @@ struct FileData {
    * \note This is initialized from #LibraryLink_Params.id_tag_extra since passing it as an
    * argument would need an additional argument to be passed around when expanding library data.
    */
-  int id_tag_extra;
+  int id_tag_extra = 0;
 
-  OldNewMap *datamap;
-  OldNewMap *globmap;
+  OldNewMap *datamap = nullptr;
+  OldNewMap *globmap = nullptr;
 
   /**
    * Store mapping from old ID pointers (the values they have in the .blend file) to new ones,
    * typically from value in `bhead->old` to address in memory where the ID was read.
    * Used during library-linking process (see #lib_link_all).
    */
-  OldNewMap *libmap;
+  OldNewMap *libmap = nullptr;
 
-  OldNewMap *packedmap;
-  BLOCacheStorage *cache_storage;
+  BLOCacheStorage *cache_storage = nullptr;
 
-  BHeadSort *bheadmap;
-  int tot_bheadmap;
+  BHeadSort *bheadmap = nullptr;
+  int tot_bheadmap = 0;
 
-  /** See: #USE_GHASH_BHEAD. */
-  GHash *bhead_idname_hash;
+  std::optional<blender::Map<blender::StringRefNull, BHead *>> bhead_idname_map;
 
-  ListBase *mainlist;
+  ListBase *mainlist = nullptr;
   /** Used for undo. */
-  ListBase *old_mainlist;
+  ListBase *old_mainlist = nullptr;
   /**
    * IDMap using UID's as keys of all the old IDs in the old bmain. Used during undo to find a
    * matching old data when reading a new ID. */
-  IDNameLib_Map *old_idmap_uid;
+  IDNameLib_Map *old_idmap_uid = nullptr;
   /**
    * IDMap using uids as keys of the IDs read (or moved) in the new main(s).
    *
@@ -136,9 +150,12 @@ struct FileData {
    *
    * Also used to find current valid pointers (or none) of these 'no undo' IDs existing in
    * read memfile. */
-  IDNameLib_Map *new_idmap_uid;
+  IDNameLib_Map *new_idmap_uid = nullptr;
 
-  BlendFileReadReport *reports;
+  BlendFileReadReport *reports = nullptr;
+
+  /** Opaque handle to the storage system used for non-static allocation strings. */
+  void *storage_handle = nullptr;
 };
 
 #define SIZEOFBLENDERHEADER 12
@@ -160,12 +177,6 @@ FileData *blo_filedata_from_memfile(MemFile *memfile,
                                     const BlendFileReadParams *params,
                                     BlendFileReadReport *reports);
 
-void blo_make_packed_pointer_map(FileData *fd, Main *oldmain) ATTR_NONNULL(1, 2);
-/**
- * Set old main packed data to zero if it has been restored
- * this works because freeing old main only happens after this call.
- */
-void blo_end_packed_pointer_map(FileData *fd, Main *oldmain) ATTR_NONNULL(1, 2);
 /**
  * Build a #GSet of old main (we only care about local data here,
  * so we can do that after #blo_split_main() call.
@@ -247,7 +258,9 @@ void do_versions_after_linking_300(FileData *fd, Main *bmain);
 void do_versions_after_linking_400(FileData *fd, Main *bmain);
 void do_versions_after_linking_cycles(Main *bmain);
 
-void do_versions_after_setup(Main *new_bmain, BlendFileReadReport *reports);
+void do_versions_after_setup(Main *new_bmain,
+                             BlendfileLinkAppendContext *lapp_context,
+                             BlendFileReadReport *reports);
 
 /**
  * Direct data-blocks with global linking.

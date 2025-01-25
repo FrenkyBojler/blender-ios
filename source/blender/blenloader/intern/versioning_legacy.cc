@@ -52,7 +52,7 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_customdata.hh"
@@ -64,6 +64,7 @@
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_object.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
@@ -153,7 +154,7 @@ static void ntree_version_241(bNodeTree *ntree)
 {
   if (ntree->type == NTREE_COMPOSIT) {
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      if (node->type == CMP_NODE_BLUR) {
+      if (node->type_legacy == CMP_NODE_BLUR) {
         if (node->storage == nullptr) {
           NodeBlurData *nbd = static_cast<NodeBlurData *>(
               MEM_callocN(sizeof(NodeBlurData), "node blur patch"));
@@ -163,7 +164,7 @@ static void ntree_version_241(bNodeTree *ntree)
           node->storage = nbd;
         }
       }
-      else if (node->type == CMP_NODE_VECBLUR) {
+      else if (node->type_legacy == CMP_NODE_VECBLUR) {
         if (node->storage == nullptr) {
           NodeBlurData *nbd = static_cast<NodeBlurData *>(
               MEM_callocN(sizeof(NodeBlurData), "node blur patch"));
@@ -181,7 +182,7 @@ static void ntree_version_242(bNodeTree *ntree)
 {
   if (ntree->type == NTREE_COMPOSIT) {
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      if (node->type == CMP_NODE_HUE_SAT) {
+      if (node->type_legacy == CMP_NODE_HUE_SAT) {
         if (node->storage) {
           NodeHueSat *nhs = static_cast<NodeHueSat *>(node->storage);
           if (nhs->val == 0.0f) {
@@ -202,7 +203,7 @@ static void ntree_version_245(FileData *fd, Library * /*lib*/, bNodeTree *ntree)
 
   if (ntree->type == NTREE_COMPOSIT) {
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      if (node->type == CMP_NODE_ALPHAOVER) {
+      if (node->type_legacy == CMP_NODE_ALPHAOVER) {
         if (!node->storage) {
           ntf = static_cast<NodeTwoFloats *>(MEM_callocN(sizeof(NodeTwoFloats), "NodeTwoFloats"));
           node->storage = ntf;
@@ -365,7 +366,7 @@ static void do_version_ntree_242_2(bNodeTree *ntree)
 {
   if (ntree->type == NTREE_COMPOSIT) {
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      if (ELEM(node->type, CMP_NODE_IMAGE, CMP_NODE_VIEWER)) {
+      if (ELEM(node->type_legacy, CMP_NODE_IMAGE, CMP_NODE_VIEWER)) {
         /* only image had storage */
         if (node->storage) {
           NodeImageAnim *nia = static_cast<NodeImageAnim *>(node->storage);
@@ -462,18 +463,18 @@ void blo_do_version_old_trackto_to_constraints(Object *ob)
   ob->track = nullptr;
 }
 
-static bool seq_set_alpha_mode_cb(Sequence *seq, void * /*user_data*/)
+static bool strip_set_alpha_mode_cb(Strip *strip, void * /*user_data*/)
 {
-  if (ELEM(seq->type, SEQ_TYPE_IMAGE, SEQ_TYPE_MOVIE)) {
-    seq->alpha_mode = SEQ_ALPHA_STRAIGHT;
+  if (ELEM(strip->type, STRIP_TYPE_IMAGE, STRIP_TYPE_MOVIE)) {
+    strip->alpha_mode = SEQ_ALPHA_STRAIGHT;
   }
   return true;
 }
 
-static bool seq_set_blend_mode_cb(Sequence *seq, void * /*user_data*/)
+static bool strip_set_blend_mode_cb(Strip *strip, void * /*user_data*/)
 {
-  if (seq->blend_mode == 0) {
-    seq->blend_opacity = 100.0f;
+  if (strip->blend_mode == 0) {
+    strip->blend_opacity = 100.0f;
   }
   return true;
 }
@@ -487,7 +488,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     /* tex->extend and tex->imageflag have changed: */
     Tex *tex = static_cast<Tex *>(bmain->textures.first);
     while (tex) {
-      if (tex->id.tag & LIB_TAG_NEED_LINK) {
+      if (tex->id.tag & ID_TAG_NEED_LINK) {
 
         if (tex->extend == 0) {
           if (tex->xrepeat || tex->yrepeat) {
@@ -780,7 +781,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       sound = static_cast<bSound *>(sound->id.next);
     }
 
-    /* `mesh->subdiv` changed to reflect the actual reparametization
+    /* `mesh->subdiv` changed to reflect the actual reparametrization
      * better, and S-meshes were removed - if it was a S-mesh make
      * it a subsurf, and reset the subdivision level because subsurf
      * takes a lot more work to calculate. */
@@ -1223,7 +1224,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     while (sce) {
       ed = sce->ed;
       if (ed) {
-        SEQ_for_each_callback(&sce->ed->seqbase, seq_set_alpha_mode_cb, nullptr);
+        SEQ_for_each_callback(&sce->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
       }
 
       sce = static_cast<Scene *>(sce->id.next);
@@ -1600,9 +1601,9 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       }
 
       /* uv calculation options moved to toolsettings */
-      if (sce->toolsettings->unwrapper == 0) {
+      if (sce->toolsettings->unwrapper == UVCALC_UNWRAP_METHOD_ANGLE) {
+        sce->toolsettings->unwrapper = UVCALC_UNWRAP_METHOD_CONFORMAL;
         sce->toolsettings->uvcalc_flag = UVCALC_FILLHOLES;
-        sce->toolsettings->unwrapper = 1;
       }
     }
 
@@ -2262,14 +2263,17 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
             MEM_callocN(sizeof(ParticleSystem), "particle_system"));
         psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
 
+        /* Bad, but better not try to change this prehistorical code nowadays. */
+        bmain->is_locked_for_linking = false;
         part = psys->part = BKE_particlesettings_add(bmain, "ParticleSettings");
+        bmain->is_locked_for_linking = true;
 
         /* needed for proper libdata lookup */
         blo_do_versions_oldnewmap_insert(fd->libmap, psys->part, psys->part, 0);
         part->id.lib = ob->id.lib;
 
         part->id.us--;
-        part->id.tag |= (ob->id.tag & LIB_TAG_NEED_LINK);
+        part->id.tag |= (ob->id.tag & ID_TAG_NEED_LINK);
 
         psys->totpart = 0;
         psys->flag = PSYS_CURRENT;
@@ -2448,7 +2452,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
          sce = static_cast<Scene *>(sce->id.next))
     {
       if (sce->ed) {
-        SEQ_for_each_callback(&sce->ed->seqbase, seq_set_blend_mode_cb, nullptr);
+        SEQ_for_each_callback(&sce->ed->seqbase, strip_set_blend_mode_cb, nullptr);
       }
     }
   }
@@ -2604,9 +2608,9 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     while (sce) {
       ed = sce->ed;
       if (ed) {
-        LISTBASE_FOREACH (Sequence *, seq, SEQ_active_seqbase_get(ed)) {
-          if (seq->strip && seq->strip->proxy) {
-            seq->strip->proxy->quality = 90;
+        LISTBASE_FOREACH (Strip *, seq, SEQ_active_seqbase_get(ed)) {
+          if (seq->data && seq->data->proxy) {
+            seq->data->proxy->quality = 90;
           }
         }
       }

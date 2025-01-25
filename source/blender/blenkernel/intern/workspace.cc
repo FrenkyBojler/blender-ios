@@ -110,6 +110,10 @@ static void workspace_blend_read_data(BlendDataReader *reader, ID *id)
   LISTBASE_FOREACH (WorkSpaceDataRelation *, relation, &workspace->hook_layout_relations) {
     /* Parent pointer does not belong to workspace data and is therefore restored in lib_link step
      * of window manager. */
+    /* FIXME: Should not use that untyped #BLO_read_data_address call, especially since it's
+     * reference-counting the matching data in readfile code. Problem currently is that there is no
+     * type info available for this void pointer (_should_ be pointing to a #WorkSpaceLayout ?), so
+     * #BLO_read_get_new_data_address_no_us cannot be used here. */
     BLO_read_data_address(reader, &relation->value);
   }
 
@@ -180,7 +184,7 @@ IDTypeInfo IDType_ID_WS = {
     /*name_plural*/ N_("workspaces"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_WORKSPACE,
     /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NO_MEMFILE_UNDO,
+        IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
     /*asset_type_info*/ nullptr,
 
     /*init_data*/ workspace_init_data,

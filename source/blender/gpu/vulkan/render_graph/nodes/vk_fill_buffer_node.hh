@@ -33,7 +33,8 @@ class VKFillBufferNode : public VKNodeInfo<VKNodeType::FILL_BUFFER,
    * (`VK*Data`/`VK*CreateInfo`) types can be included in the same header file as the logic. The
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
-  template<typename Node> static void set_node_data(Node &node, const CreateInfo &create_info)
+  template<typename Node, typename Storage>
+  static void set_node_data(Node &node, Storage & /* storage */, const CreateInfo &create_info)
   {
     node.fill_buffer = create_info;
   }
@@ -45,7 +46,7 @@ class VKFillBufferNode : public VKNodeInfo<VKNodeType::FILL_BUFFER,
                    VKRenderGraphNodeLinks &node_links,
                    const CreateInfo &create_info) override
   {
-    ResourceWithStamp resource = resources.get_buffer_and_increase_version(create_info.vk_buffer);
+    ResourceWithStamp resource = resources.get_buffer_and_increase_stamp(create_info.vk_buffer);
     node_links.outputs.append({resource, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED});
   }
 
@@ -53,7 +54,7 @@ class VKFillBufferNode : public VKNodeInfo<VKNodeType::FILL_BUFFER,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
-                      const Data &data,
+                      Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
     command_buffer.fill_buffer(data.vk_buffer, 0, data.size, data.data);

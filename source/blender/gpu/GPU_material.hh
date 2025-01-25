@@ -21,7 +21,6 @@
 
 struct GHash;
 struct GPUMaterial;
-struct GPUNode;
 struct GPUNodeLink;
 struct GPUNodeStack;
 struct GPUPass;
@@ -85,13 +84,6 @@ enum eGPUMaterialFlag {
 
   GPU_MATFLAG_BARYCENTRIC = (1 << 20),
 
-  /* Optimization to only add the branches of the principled shader that are necessary. */
-  GPU_MATFLAG_PRINCIPLED_COAT = (1 << 21),
-  GPU_MATFLAG_PRINCIPLED_METALLIC = (1 << 22),
-  GPU_MATFLAG_PRINCIPLED_DIELECTRIC = (1 << 23),
-  GPU_MATFLAG_PRINCIPLED_GLASS = (1 << 24),
-  GPU_MATFLAG_PRINCIPLED_ANY = (1 << 25),
-
   /* Tells the render engine the material was just compiled or updated. */
   GPU_MATFLAG_UPDATED = (1 << 29),
 
@@ -116,7 +108,6 @@ enum eGPUMaterialStatus {
   GPU_MAT_CREATED,
   GPU_MAT_QUEUED,
   GPU_MAT_SUCCESS,
-  GPU_MAT_USE_DEFAULT,
 };
 
 /* GPU_MAT_OPTIMIZATION_SKIP for cases where we do not
@@ -147,8 +138,11 @@ struct GPUCodegenOutput {
 };
 
 using GPUCodegenCallbackFn = void (*)(void *thunk, GPUMaterial *mat, GPUCodegenOutput *codegen);
-/* Should return true if the pass is functionally equivalent to the default Material one. */
-using GPUMaterialCanUseDefaultCallbackFn = bool (*)(GPUMaterial *mat);
+/**
+ * Should return an already compiled pass if it's functionally equivalent to the one being
+ * compiled.
+ */
+using GPUMaterialPassReplacementCallbackFn = GPUPass *(*)(void *thunk, GPUMaterial *mat);
 
 GPUNodeLink *GPU_constant(const float *num);
 GPUNodeLink *GPU_uniform(const float *num);
@@ -187,7 +181,7 @@ GPUNodeLink *GPU_image_sky(GPUMaterial *mat,
                            const float *pixels,
                            float *layer,
                            GPUSamplerState sampler_state);
-GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *row);
+GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *r_row);
 
 /**
  * Create an implementation defined differential calculation of a float function.
@@ -226,10 +220,6 @@ char *GPU_material_split_sub_function(GPUMaterial *material,
                                       GPUNodeLink **link);
 
 bool GPU_material_sss_profile_create(GPUMaterial *material, float radii[3]);
-GPUUniformBuf *GPU_material_sss_profile_get(GPUMaterial *material,
-                                            int sample_len,
-                                            GPUTexture **tex_profile);
-
 /**
  * High level functions to create and use GPU materials.
  */
@@ -252,11 +242,15 @@ GPUMaterial *GPU_material_from_nodetree(
     bool is_lookdev,
     GPUCodegenCallbackFn callback,
     void *thunk,
-    GPUMaterialCanUseDefaultCallbackFn can_use_default_cb = nullptr);
+    GPUMaterialPassReplacementCallbackFn pass_replacement_cb = nullptr);
 
 void GPU_material_compile(GPUMaterial *mat);
 void GPU_material_free_single(GPUMaterial *material);
 void GPU_material_free(ListBase *gpumaterial);
+
+void GPU_material_async_compile(GPUMaterial *mat);
+/** Returns true if the material have finished its compilation. */
+bool GPU_material_async_try_finalize(GPUMaterial *mat);
 
 void GPU_material_acquire(GPUMaterial *mat);
 void GPU_material_release(GPUMaterial *mat);
@@ -321,7 +315,6 @@ GPUUniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material);
  * \param inputs: Items are #LinkData, data is #GPUInput (`BLI_genericNodeN(GPUInput)`).
  */
 void GPU_material_uniform_buffer_create(GPUMaterial *material, ListBase *inputs);
-GPUUniformBuf *GPU_material_create_sss_profile_ubo();
 
 bool GPU_material_has_surface_output(GPUMaterial *mat);
 bool GPU_material_has_volume_output(GPUMaterial *mat);

@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Alpha (b'9a3c7290a9c1')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'9439ff09e962')\n"
 "Report-Msgid-Bugs-To: \n"
 "PO-Revision-Date: 2024-04-29 13:23+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
@@ -25,14 +25,6 @@ msgstr "Ацҵара"
 
 msgid "Subtract"
 msgstr "Ацхра"
-
-
-msgid "New"
-msgstr "Аҿыц"
-
-
-msgid "Empty"
-msgstr "Аҭацәы"
 
 
 msgctxt "ID"
@@ -75,6 +67,10 @@ msgid "Speaker"
 msgstr "Абжьы Ахыҵхырҭа"
 
 
+msgid "Empty"
+msgstr "Аҭацәы"
+
+
 msgid "Edge"
 msgstr "Акьыԥшь"
 
@@ -105,10 +101,6 @@ msgstr "Ихадоу Аҿарԥагақәа"
 
 msgid "Mode"
 msgstr "А́иҿкаашьа"
-
-
-msgid "Marker"
-msgstr "Ашьҭа"
 
 
 msgid "Image"
@@ -171,6 +163,10 @@ msgid "Group"
 msgstr "Агәыԥ"
 
 
+msgid "Roughness"
+msgstr "Аџьаџьара"
+
+
 msgid "Cone"
 msgstr "Аконус"
 
@@ -191,36 +187,8 @@ msgid "Window"
 msgstr "Аԥенџьыр"
 
 
-msgid "Edit Mode"
-msgstr "Аиҭакра Аиҿкаашьа"
-
-
-msgid "Lattice"
-msgstr "Аҭыџьеихац"
-
-
 msgid "Library"
 msgstr "Ашәҟәыԥхьарҭа"
-
-
-msgid "Light"
-msgstr "Алашара"
-
-
-msgid "Mesh"
-msgstr "Аҿарҧага"
-
-
-msgid "Metaball"
-msgstr "Метампыл"
-
-
-msgid "Speaker"
-msgstr "Абжьы Ахыҵхырҭа"
-
-
-msgid "Text"
-msgstr "Аҳәоу"
 
 
 msgid "Local"
@@ -245,10 +213,6 @@ msgid "Cube"
 msgstr "Акуб"
 
 
-msgid "Roughness"
-msgstr "Аџьаџьара"
-
-
 msgid "Specular"
 msgstr "Ацырцырра"
 
@@ -257,12 +221,20 @@ msgid "Edit"
 msgstr "Аиҭакра"
 
 
+msgid "Mesh"
+msgstr "Аҿарҧага"
+
+
 msgid "Circle"
 msgstr "Аицыгьежь"
 
 
 msgid "Object Mode"
 msgstr "Амаҭәар Аиҿкаашьа"
+
+
+msgid "Edit Mode"
+msgstr "Аиҭакра Аиҿкаашьа"
 
 
 msgid "Sculpt Mode"
@@ -281,6 +253,10 @@ msgid "Texture Paint"
 msgstr "Атекстура Ашәра"
 
 
+msgid "Lattice"
+msgstr "Аҭыџьеихац"
+
+
 msgctxt "ID"
 msgid "Empty"
 msgstr "Аҭацәы"
@@ -288,6 +264,22 @@ msgstr "Аҭацәы"
 
 msgid "3D Cursor"
 msgstr "3Д Ахырхага"
+
+
+msgid "Metaball"
+msgstr "Метампыл"
+
+
+msgid "Text"
+msgstr "Аҳәоу"
+
+
+msgid "Light"
+msgstr "Алашара"
+
+
+msgid "Marker"
+msgstr "Ашьҭа"
 
 
 msgid "Keying"
@@ -308,6 +300,10 @@ msgstr "Аихҵәара"
 
 msgid "Ball"
 msgstr "Ампыл"
+
+
+msgid "New"
+msgstr "Аҿыц"
 
 
 msgctxt "Operator"
@@ -350,6 +346,7 @@ msgid "Add Camera"
 msgstr "Ацҵара Акамера"
 
 
+msgctxt "Operator"
 msgid "Monkey"
 msgstr "Амаамын"
 
@@ -379,6 +376,11 @@ msgid "New"
 msgstr "Аҿыц"
 
 
+msgctxt "Operator"
+msgid "Scale"
+msgstr "Ашәага"
+
+
 msgctxt "Sequence"
 msgid "Text"
 msgstr "Аҳәоу"
@@ -386,11 +388,6 @@ msgstr "Аҳәоу"
 
 msgid "Overlays"
 msgstr "Ақәҵакәа"
-
-
-msgctxt "Operator"
-msgid "Scale"
-msgstr "Ашәага"
 
 
 msgid "Playback"
@@ -402,14 +399,18 @@ msgid "Circle"
 msgstr "Аицыгьежь"
 
 
-msgctxt "Sequence"
-msgid "Image"
-msgstr "Асахьанҵа"
-
-
 msgctxt "MovieClip"
 msgid "View"
 msgstr "Аԥшра"
+
+
+msgid "Speaker"
+msgstr "Абжьы Ахыҵхырҭа"
+
+
+msgctxt "Sequence"
+msgid "Image"
+msgstr "Асахьанҵа"
 
 
 msgctxt "WindowManager"
@@ -445,11 +446,6 @@ msgstr "Аҭыԥ"
 msgctxt "Operator"
 msgid "Rotation"
 msgstr "Агьежьра"
-
-
-msgctxt "Image"
-msgid "New"
-msgstr "Аҿыц"
 
 
 msgctxt "Operator"
@@ -493,11 +489,6 @@ msgstr "Аконус"
 
 
 msgctxt "Operator"
-msgid "Monkey"
-msgstr "Амаамын"
-
-
-msgctxt "Operator"
 msgid "Camera"
 msgstr "Акамера"
 
@@ -517,12 +508,22 @@ msgid "Lattice"
 msgstr "Аҭыџьеихац"
 
 
-msgctxt "Object"
+msgctxt "Action"
 msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "Mesh"
+msgctxt "Armature"
+msgid "New"
+msgstr "Аҿыц"
+
+
+msgctxt "Brush"
+msgid "New"
+msgstr "Аҿыц"
+
+
+msgctxt "Camera"
 msgid "New"
 msgstr "Аҿыц"
 
@@ -532,17 +533,17 @@ msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "Metaball"
+msgctxt "FreestyleLineStyle"
 msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "Material"
+msgctxt "GPencil"
 msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "Texture"
+msgctxt "Image"
 msgid "New"
 msgstr "Аҿыц"
 
@@ -557,37 +558,22 @@ msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "Camera"
+msgctxt "LightProbe"
 msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "World"
+msgctxt "Material"
 msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "Screen"
+msgctxt "Mesh"
 msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "Speaker"
-msgid "New"
-msgstr "Аҿыц"
-
-
-msgctxt "Sound"
-msgid "New"
-msgstr "Аҿыц"
-
-
-msgctxt "Armature"
-msgid "New"
-msgstr "Аҿыц"
-
-
-msgctxt "Action"
+msgctxt "Metaball"
 msgid "New"
 msgstr "Аҿыц"
 
@@ -597,7 +583,7 @@ msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "Brush"
+msgctxt "Object"
 msgid "New"
 msgstr "Аҿыц"
 
@@ -607,12 +593,22 @@ msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "GPencil"
+msgctxt "Screen"
 msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "FreestyleLineStyle"
+msgctxt "Sound"
+msgid "New"
+msgstr "Аҿыц"
+
+
+msgctxt "Speaker"
+msgid "New"
+msgstr "Аҿыц"
+
+
+msgctxt "Texture"
 msgid "New"
 msgstr "Аҿыц"
 
@@ -622,7 +618,7 @@ msgid "New"
 msgstr "Аҿыц"
 
 
-msgctxt "LightProbe"
+msgctxt "World"
 msgid "New"
 msgstr "Аҿыц"
 
@@ -705,9 +701,4 @@ msgstr "Аԥшра"
 
 msgid "cursor"
 msgstr "Ахырхага"
-
-
-msgctxt "Action"
-msgid "Group"
-msgstr "Агәыԥ"
 

@@ -16,14 +16,12 @@
 #include <cstddef>
 #include <cstring>
 
-#include "BLI_ghash.h"
-#include "BLI_sys_types.h"
-
 #include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_ghash.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -54,8 +52,8 @@
 #include "ED_screen.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
-#  include "BPY_extern_run.h"
+#  include "BPY_extern.hh"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "BLO_read_write.hh"
@@ -210,6 +208,7 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
   BLI_listbase_clear(&wm->paintcursors);
   BLI_listbase_clear(&wm->notifier_queue);
   wm->notifier_queue_set = nullptr;
+  wm->notifier_current = nullptr;
 
   BLI_listbase_clear(&wm->keyconfigs);
   wm->defaultconf = nullptr;
@@ -228,6 +227,8 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
   wm->winactive = nullptr;
   wm->init_flag = 0;
   wm->op_undo_depth = 0;
+  wm->extensions_updates = WM_EXTENSIONS_UPDATE_UNSET;
+  wm->extensions_blocked = 0;
 
   BLI_assert(wm->runtime == nullptr);
   wm->runtime = MEM_new<blender::bke::WindowManagerRuntime>(__func__);
@@ -254,7 +255,7 @@ IDTypeInfo IDType_ID_WM = {
     /*name_plural*/ N_("window_managers"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_WINDOWMANAGER,
     /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NO_MEMFILE_UNDO,
+        IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
     /*asset_type_info*/ nullptr,
 
     /*init_data*/ nullptr,
@@ -289,7 +290,7 @@ void WM_operator_free(wmOperator *op)
 
   if (op->ptr) {
     op->properties = static_cast<IDProperty *>(op->ptr->data);
-    MEM_freeN(op->ptr);
+    MEM_delete(op->ptr);
   }
 
   if (op->properties) {
@@ -438,7 +439,7 @@ void WM_keyconfig_init(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  /* Create standard key configs. */
+  /* Create standard key configuration. */
   if (wm->defaultconf == nullptr) {
     /* Keep lowercase to match the preset filename. */
     wm->defaultconf = WM_keyconfig_new(wm, WM_KEYCONFIG_STR_DEFAULT, false);
@@ -507,7 +508,7 @@ void WM_check(bContext *C)
   /* Case: file-read. */
   /* NOTE: this runs in background mode to set the screen context cb. */
   if ((wm->init_flag & WM_INIT_FLAG_WINDOW) == 0) {
-    ED_screens_init(bmain, wm);
+    ED_screens_init(C, bmain, wm);
     wm->init_flag |= WM_INIT_FLAG_WINDOW;
   }
 }
@@ -589,6 +590,8 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
     BLI_gset_free(wm->notifier_queue_set, nullptr);
     wm->notifier_queue_set = nullptr;
   }
+  BLI_assert(wm->notifier_current == nullptr);
+  wm->notifier_current = nullptr;
 
   if (wm->message_bus != nullptr) {
     WM_msgbus_destroy(wm->message_bus);

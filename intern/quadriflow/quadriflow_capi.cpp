@@ -20,9 +20,7 @@ struct ObjVertex {
   uint32_t n = (uint32_t)-1;
   uint32_t uv = (uint32_t)-1;
 
-  ObjVertex()
-  {
-  }
+  ObjVertex() {}
 
   ObjVertex(uint32_t pi)
   {
@@ -192,8 +190,11 @@ void QFLOW_quadriflow_remesh(QuadriflowRemeshData *qrd,
     return;
   }
 
-  /* Compute the final quad geomtry using a maxflow solver */
-  field.ComputeIndexMap();
+  /* Compute the final quad geometry using a maxflow solver */
+  if (!field.ComputeIndexMap()) {
+    /* Error computing the result. */
+    return;
+  }
 
   if (check_if_canceled(0.9f, update_cb, update_cb_data)) {
     return;

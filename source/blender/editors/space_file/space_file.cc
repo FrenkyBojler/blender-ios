@@ -59,41 +59,41 @@ static SpaceLink *file_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   sfile->spacetype = SPACE_FILE;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "header for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   /* Ignore user preference "USER_HEADER_BOTTOM" here (always show top for new types). */
   region->alignment = RGN_ALIGN_TOP;
 
   /* Tools region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "tools region for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_TOOLS;
   region->alignment = RGN_ALIGN_LEFT;
 
   /* ui list region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "ui region for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_UI;
   region->alignment = RGN_ALIGN_TOP;
   region->flag = RGN_FLAG_DYNAMIC_SIZE | RGN_FLAG_NO_USER_RESIZE;
 
   /* execute region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "execute region for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_EXECUTE;
   region->alignment = RGN_ALIGN_BOTTOM;
   region->flag = RGN_FLAG_DYNAMIC_SIZE | RGN_FLAG_NO_USER_RESIZE;
 
   /* tools props region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "tool props for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_TOOL_PROPS;
   region->alignment = RGN_ALIGN_RIGHT;
   region->flag = RGN_FLAG_HIDDEN;
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region for file"));
+  region = BKE_area_region_new();
   BLI_addtail(&sfile->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
   region->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
@@ -433,12 +433,16 @@ static void file_main_region_init(wmWindowManager *wm, ARegion *region)
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
+  /* Truncate, otherwise these can be on ".5" and give fuzzy text. #77696. */
+  region->v2d.cur.ymin = trunc(region->v2d.cur.ymin);
+  region->v2d.cur.ymax = trunc(region->v2d.cur.ymax);
+
   /* own keymaps */
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser Main", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void file_main_region_listener(const wmRegionListenerParams *listener_params)
@@ -485,7 +489,7 @@ static void file_main_region_message_subscribe(const wmRegionMessageSubscribePar
 
   /* SpaceFile itself. */
   {
-    PointerRNA ptr = RNA_pointer_create(&screen->id, &RNA_SpaceFileBrowser, sfile);
+    PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceFileBrowser, sfile);
 
     /* All properties for this space type. */
     WM_msg_subscribe_rna(mbus, &ptr, nullptr, &msg_sub_value_area_tag_refresh, __func__);
@@ -493,7 +497,7 @@ static void file_main_region_message_subscribe(const wmRegionMessageSubscribePar
 
   /* FileSelectParams */
   {
-    PointerRNA ptr = RNA_pointer_create(&screen->id, &RNA_FileSelectParams, file_params);
+    PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_FileSelectParams, file_params);
 
     /* All properties for this space type. */
     WM_msg_subscribe_rna(mbus, &ptr, nullptr, &msg_sub_value_area_tag_refresh, __func__);
@@ -501,7 +505,8 @@ static void file_main_region_message_subscribe(const wmRegionMessageSubscribePar
 
   /* Experimental Asset Browser features option. */
   {
-    PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_PreferencesExperimental, &U.experimental);
+    PointerRNA ptr = RNA_pointer_create_discrete(
+        nullptr, &RNA_PreferencesExperimental, &U.experimental);
     PropertyRNA *prop = RNA_struct_find_property(&ptr, "use_extended_asset_browser");
 
     /* All properties for this space type. */
@@ -668,7 +673,7 @@ static void file_tools_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymaps */
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void file_tools_region_draw(const bContext *C, ARegion *region)
@@ -718,7 +723,7 @@ static void file_header_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_header_init(region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void file_header_region_draw(const bContext *C, ARegion *region)
@@ -736,10 +741,10 @@ static void file_ui_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser Buttons", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void file_ui_region_draw(const bContext *C, ARegion *region)
@@ -756,7 +761,7 @@ static void file_execution_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void file_execution_region_draw(const bContext *C, ARegion *region)
@@ -825,6 +830,22 @@ static void file_space_subtype_set(ScrArea *area, int value)
 static void file_space_subtype_item_extend(bContext * /*C*/, EnumPropertyItem **item, int *totitem)
 {
   RNA_enum_items_add(item, totitem, rna_enum_space_file_browse_mode_items);
+}
+
+static blender::StringRefNull file_space_name_get(const ScrArea *area)
+{
+  SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
+  const int index = RNA_enum_from_value(rna_enum_space_file_browse_mode_items, sfile->browse_mode);
+  const EnumPropertyItem item = rna_enum_space_file_browse_mode_items[index];
+  return item.name;
+}
+
+static int file_space_icon_get(const ScrArea *area)
+{
+  SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
+  const int index = RNA_enum_from_value(rna_enum_space_file_browse_mode_items, sfile->browse_mode);
+  const EnumPropertyItem item = rna_enum_space_file_browse_mode_items[index];
+  return item.icon;
 }
 
 static void file_id_remap(ScrArea *area,
@@ -922,6 +943,8 @@ void ED_spacetype_file()
   st->space_subtype_item_extend = file_space_subtype_item_extend;
   st->space_subtype_get = file_space_subtype_get;
   st->space_subtype_set = file_space_subtype_set;
+  st->space_name_get = file_space_name_get;
+  st->space_icon_get = file_space_icon_get;
   st->context = file_context;
   st->id_remap = file_id_remap;
   st->foreach_id = file_foreach_id;
@@ -1003,11 +1026,6 @@ void ED_spacetype_file()
 void ED_file_init()
 {
   ED_file_read_bookmarks();
-
-  if (G.background == false) {
-    filelist_init_icons();
-  }
-
   IMB_thumb_makedirs();
 }
 

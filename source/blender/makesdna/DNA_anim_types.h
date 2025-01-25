@@ -21,13 +21,6 @@
 #  include <type_traits>
 #endif
 
-/* Forward declarations so the actual declarations can happen top-down. */
-struct Animation;
-struct AnimationLayer;
-struct AnimationBinding;
-struct AnimationStrip;
-struct AnimationChannelBag;
-
 /* ************************************************ */
 /* F-Curve DataTypes */
 
@@ -85,9 +78,8 @@ typedef enum eFModifier_Types {
   FMODIFIER_TYPE_ENVELOPE = 3,
   FMODIFIER_TYPE_CYCLES = 4,
   FMODIFIER_TYPE_NOISE = 5,
-  /** Unimplemented - for applying: FFT, high/low pass filters, etc. */
-  FMODIFIER_TYPE_FILTER = 6,
-  FMODIFIER_TYPE_PYTHON = 7,
+  FMODIFIER_TYPE_FILTER = 6, /* Was never implemented, removed in #123906. */
+  FMODIFIER_TYPE_PYTHON = 7, /* Was never implemented, removed in #123906. */
   FMODIFIER_TYPE_LIMITS = 8,
   FMODIFIER_TYPE_STEPPED = 9,
 
@@ -230,14 +222,6 @@ typedef enum eFMod_Cycling_Modes {
   FCM_EXTRAPOLATE_MIRROR,
 } eFMod_Cycling_Modes;
 
-/* Python-script modifier data */
-typedef struct FMod_Python {
-  /** Text buffer containing script to execute. */
-  struct Text *script;
-  /** ID-properties to provide 'custom' settings. */
-  IDProperty *prop;
-} FMod_Python;
-
 /* limits modifier data */
 typedef struct FMod_Limits {
   /** Rect defining the min/max values. */
@@ -261,9 +245,13 @@ typedef struct FMod_Noise {
   float strength;
   float phase;
   float offset;
+  float roughness;
+  float lacunarity;
 
   short depth;
   short modification;
+  char legacy_noise;
+  char _pad[3];
 } FMod_Noise;
 
 /* modification modes */
@@ -304,7 +292,8 @@ typedef enum eFMod_Stepped_Flags {
 
 /* Drivers -------------------------------------- */
 
-/* Driver Target (dtar)
+/**
+ * Driver Target (`dtar`)
  *
  * Defines how to access a dependency needed for a driver variable.
  */
@@ -428,7 +417,7 @@ typedef enum eDriverTarget_ContextProperty {
 #define MAX_DRIVER_TARGETS 8
 
 /**
- * Driver Variable (dvar)
+ * Driver Variable (`dvar`)
  *
  * A 'variable' for use as an input for the driver evaluation.
  * Defines a way of accessing some channel to use, that can be
@@ -503,7 +492,7 @@ typedef enum eDriverVar_Flags {
   DVAR_FLAG_INVALID_EMPTY = (1 << 8),
 } eDriverVar_Flags;
 
-/* All invalid dvar name flags */
+/** All invalid `dvar` name flags. */
 #define DVAR_ALL_INVALID_FLAGS \
   (DVAR_FLAG_INVALID_NAME | DVAR_FLAG_INVALID_START_NUM | DVAR_FLAG_INVALID_START_CHAR | \
    DVAR_FLAG_INVALID_HAS_SPACE | DVAR_FLAG_INVALID_HAS_DOT | DVAR_FLAG_INVALID_HAS_SPECIAL | \
@@ -577,7 +566,8 @@ typedef enum eDriver_Flags {
   DRIVER_FLAG_RECOMPILE = (1 << 3),
   /** The names are cached so they don't need have python unicode versions created each time */
   DRIVER_FLAG_RENAMEVAR = (1 << 4),
-  // DRIVER_FLAG_UNUSED_5 = (1 << 5),
+  /* Set if the driver cannot run because it uses Python which isn't allowed to execute. */
+  DRIVER_FLAG_PYTHON_BLOCKED = (1 << 5),
   /** Include 'self' in the drivers namespace. */
   DRIVER_FLAG_USE_SELF = (1 << 6),
 } eDriver_Flags;
@@ -750,8 +740,34 @@ typedef struct NlaStrip {
 
   /** 'Child' strips (used for 'meta' strips). */
   ListBase strips;
-  /** Action that is referenced by this strip (strip is 'user' of the action). */
+  /**
+   * Action that is referenced by this strip (strip is 'user' of the action).
+   *
+   * \note Most code should not write to this field directly, but use functions from
+   * `blender::animrig::nla` instead, see ANIM_nla.hh.
+   */
   bAction *act;
+
+  /**
+   * Slot Handle to determine which animation data to look at in `act`.
+   *
+   * An NLA strip is limited to using a single slot in the Action.
+   *
+   * \note Most code should not write to this field directly, but use functions from
+   * `blender::animrig::nla` instead, see ANIM_nla.hh.
+   */
+  int32_t action_slot_handle;
+  /**
+   * Slot name, primarily used for mapping to the right slot when assigning
+   * another Action. Should be the same type as #ActionSlot::name.
+   *
+   * \see #ActionSlot::name
+   *
+   * \note Most code should not write to this field directly, but use functions from
+   * `blender::animrig::nla` instead, see ANIM_nla.hh.
+   */
+  char last_slot_identifier[66]; /* MAX_ID_NAME */
+  char _pad0[2];
 
   /** F-Curves for controlling this strip's influence and timing */ /* TODO: move out? */
   ListBase fcurves;
@@ -800,6 +816,12 @@ typedef struct NlaStrip {
 
   void *_pad3;
 } NlaStrip;
+
+#ifdef __cplusplus
+/* Some static assertions that things that should have the same type actually do. */
+static_assert(
+    std::is_same_v<decltype(ActionSlot::handle), decltype(NlaStrip::action_slot_handle)>);
+#endif
 
 /* NLA Strip Blending Mode */
 typedef enum eNlaStrip_Blend_Mode {
@@ -1071,10 +1093,8 @@ typedef enum eInsertKeyFlags {
   INSERTKEY_CYCLE_AWARE = (1 << 9),
   /** don't create new F-Curves (implied by INSERTKEY_REPLACE) */
   INSERTKEY_AVAILABLE = (1 << 10),
-  /* Keep last. */
-  INSERTKEY_MAX,
 } eInsertKeyFlags;
-ENUM_OPERATORS(eInsertKeyFlags, INSERTKEY_MAX);
+ENUM_OPERATORS(eInsertKeyFlags, INSERTKEY_AVAILABLE);
 
 /* ************************************************ */
 /* Animation Data */
@@ -1122,16 +1142,43 @@ typedef struct AnimOverride {
 typedef struct AnimData {
   /**
    * Active action - acts as the 'tweaking track' for the NLA.
-   * Either use BKE_animdata_set_action() to set this, or call
+   *
+   * Legacy Actions: Either use BKE_animdata_set_action() to set this, or call
    * #BKE_animdata_action_ensure_idroot() after setting.
+   *
+   * Layered Actions: never set this directly, use one of the assignment
+   * functions in ANIM_action.hh instead.
    */
   bAction *action;
 
   /**
-   * Temp-storage for the 'real' active action (i.e. the one used before the tweaking-action
-   * took over to be edited in the Animation Editors)
+   * Identifier for which ActionSlot of the above Action is actually animating this
+   * data-block.
+   *
+   * Do not set this directly, use one of the assignment functions in ANIM_action.hh instead.
+   *
+   * This can be set to `blender::animrig::Slot::unassigned` when no slot is assigned. Note that
+   * this field being set to any other value does NOT guarantee that there is a slot with that
+   * handle, as it might have been deleted from the Action.
+   */
+  int32_t slot_handle;
+  /**
+   * Slot name, primarily used for mapping to the right slot when assigning
+   * another Action. Should be the same type as #ActionSlot::name.
+   *
+   * \see #ActionSlot::name
+   */
+  char last_slot_identifier[66]; /* MAX_ID_NAME */
+  uint8_t _pad0[2];
+
+  /**
+   * Temp-storage for the 'real' active action + slot (i.e. the ones used before
+   * NLA Tweak mode took over the Action to be edited in the Animation Editors).
    */
   bAction *tmpact;
+  int32_t tmp_slot_handle;
+  char tmp_last_slot_identifier[66]; /* MAX_ID_NAME */
+  uint8_t _pad1[2];
 
   /* nla-tracks */
   ListBase nla_tracks;
@@ -1158,29 +1205,6 @@ typedef struct AnimData {
   /** Runtime data, for depsgraph evaluation. */
   FCurve **driver_array;
 
-  /**
-   * Active Animation data-block. If this is set, `action` and NLA-related
-   * properties should be ignored. Note that there is plenty of code in Blender
-   * that doesn't check this pointer yet.
-   */
-  struct Animation *animation;
-
-  /**
-   * Identifier for which AnimationBinding of the above Animation is actually animating this
-   * data-block.
-   *
-   * Do not set this directly, use one of the assignment functions in ANIM_animation.hh instead.
-   */
-  int32_t binding_handle;
-  /**
-   * Binding name, primarily used for mapping to the right binding when assigning
-   * another Animation data-block. Should be the same type as #AnimationBinding::name.
-   *
-   * \see #AnimationBinding::name
-   */
-  char binding_name[66];
-  uint8_t _pad0[6];
-
   /* settings for animation evaluation */
   /** User-defined settings. */
   int flag;
@@ -1192,7 +1216,16 @@ typedef struct AnimData {
   short act_extendmode;
   /** Influence for active action. */
   float act_influence;
+
+  uint8_t _pad2[4];
 } AnimData;
+
+#ifdef __cplusplus
+/* Some static assertions that things that should have the same type actually do. */
+static_assert(std::is_same_v<decltype(ActionSlot::handle), decltype(AnimData::slot_handle)>);
+static_assert(
+    std::is_same_v<decltype(ActionSlot::identifier), decltype(AnimData::last_slot_identifier)>);
+#endif
 
 /* Animation Data settings (mostly for NLA) */
 typedef enum eAnimData_Flag {
@@ -1244,188 +1277,3 @@ typedef struct IdAdtTemplate {
 
 /* From: `DNA_object_types.h`, see its doc-string there. */
 #define SELECT 1
-
-/* ************************************************ */
-/* Layered Animation data-types. */
-
-/* Declarations of C++ wrappers. See ANIM_animation.hh for the actual classes. */
-#ifdef __cplusplus
-namespace blender::animrig {
-class Animation;
-class ChannelBag;
-class KeyframeStrip;
-class Layer;
-class Binding;
-class Strip;
-}  // namespace blender::animrig
-#endif
-
-/**
- * Container of layered animation data.
- *
- * \see #blender::animrig::Animation
- */
-typedef struct Animation {
-  ID id;
-
-  struct AnimationLayer **layer_array; /* Array of 'layer_array_num' layers. */
-  int layer_array_num;
-  int layer_active_index; /* Index into layer_array, -1 means 'no active'. */
-
-  struct AnimationBinding **binding_array; /* Array of 'binding_array_num` bindings. */
-  int binding_array_num;
-  int32_t last_binding_handle;
-
-  uint8_t flag;
-  uint8_t _pad0[7];
-
-#ifdef __cplusplus
-  blender::animrig::Animation &wrap();
-  const blender::animrig::Animation &wrap() const;
-#endif
-} Animation;
-
-/**
- * \see #blender::animrig::Layer
- */
-typedef struct AnimationLayer {
-  /** User-Visible identifier, unique within the Animation. */
-  char name[64]; /* MAX_NAME. */
-
-  float influence; /* [0-1] */
-
-  /** \see #blender::animrig::Layer::flags() */
-  uint8_t layer_flags;
-
-  /** \see #blender::animrig::Layer::mixmode() */
-  int8_t layer_mix_mode;
-
-  uint8_t _pad0[2];
-
-  /**
-   * There is always at least one strip.
-   * If there is only one, it can be infinite. This is the default for new layers.
-   */
-  struct AnimationStrip **strip_array; /* Array of 'strip_array_num' strips. */
-  int strip_array_num;
-
-  uint8_t _pad1[4];
-
-#ifdef __cplusplus
-  blender::animrig::Layer &wrap();
-  const blender::animrig::Layer &wrap() const;
-#endif
-} AnimationLayer;
-
-/**
- * \see #blender::animrig::Binding
- */
-typedef struct AnimationBinding {
-  /**
-   * Typically the ID name this binding was created for, including the two
-   * letters indicating the ID type.
-   *
-   * \see #AnimData::binding_name
-   */
-  char name[66]; /* MAX_ID_NAME */
-  uint8_t _pad0[2];
-
-  /**
-   * Type of ID-blocks that this binding can be assigned to.
-   * If 0, will be set to whatever ID is first assigned.
-   */
-  int idtype;
-
-  /**
-   * Identifier of this Binding within the Animation data-block.
-   *
-   * This number allows reorganization of the #Animation::bindings_array without
-   * invalidating references. Also these remain valid when copy-on-evaluate
-   * copies are made.
-   *
-   * Only valid within the Animation data-block that owns this Binding.
-   *
-   * \see #blender::animrig::Animation::binding_for_handle()
-   */
-  int32_t handle;
-
-#ifdef __cplusplus
-  blender::animrig::Binding &wrap();
-  const blender::animrig::Binding &wrap() const;
-#endif
-} AnimationBinding;
-
-/**
- * \see #blender::animrig::Strip
- */
-typedef struct AnimationStrip {
-  /**
-   * \see #blender::animrig::Strip::type()
-   */
-  int8_t strip_type;
-  uint8_t _pad0[3];
-
-  float frame_start; /** Start frame of the strip, in Animation time. */
-  float frame_end;   /** End frame of the strip, in Animation time. */
-
-  /**
-   * Offset applied to the contents of the strip, in frames.
-   *
-   * This offset determines the difference between "Animation time" (which would
-   * typically be the same as the scene time, until the animation system
-   * supports strips referencing other Animation data-blocks).
-   */
-  float frame_offset;
-
-#ifdef __cplusplus
-  blender::animrig::Strip &wrap();
-  const blender::animrig::Strip &wrap() const;
-#endif
-} AnimationStrip;
-
-/**
- * #AnimationStrip::type = #Strip::Type::Keyframe.
- *
- * \see #blender::animrig::KeyframeStrip
- */
-typedef struct KeyframeAnimationStrip {
-  AnimationStrip strip;
-
-  struct AnimationChannelBag **channelbags_array;
-  int channelbags_array_num;
-
-  uint8_t _pad[4];
-
-#ifdef __cplusplus
-  blender::animrig::KeyframeStrip &wrap();
-  const blender::animrig::KeyframeStrip &wrap() const;
-#endif
-} KeyframeAnimationStrip;
-
-/**
- * \see #blender::animrig::ChannelBag
- */
-typedef struct AnimationChannelBag {
-  int32_t binding_handle;
-
-  int fcurve_array_num;
-  FCurve **fcurve_array; /* Array of 'fcurve_array_num' FCurves. */
-
-  /* TODO: Design & implement a way to integrate other channel types as well,
-   * and still have them map to a certain binding */
-#ifdef __cplusplus
-  blender::animrig::ChannelBag &wrap();
-  const blender::animrig::ChannelBag &wrap() const;
-#endif
-} ChannelBag;
-
-#ifdef __cplusplus
-/* Some static assertions that things that should have the same type actually do. */
-static_assert(
-    std::is_same_v<decltype(AnimationBinding::handle), decltype(AnimData::binding_handle)>);
-static_assert(
-    std::is_same_v<decltype(AnimationBinding::handle), decltype(Animation::last_binding_handle)>);
-static_assert(std::is_same_v<decltype(AnimationBinding::handle),
-                             decltype(AnimationChannelBag::binding_handle)>);
-static_assert(std::is_same_v<decltype(AnimationBinding::name), decltype(AnimData::binding_name)>);
-#endif

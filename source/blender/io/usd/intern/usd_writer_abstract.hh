@@ -21,6 +21,10 @@
 struct Material;
 struct ReportList;
 
+namespace blender {
+template<typename T> struct Bounds;
+}
+
 namespace blender::io::usd {
 
 using blender::io::AbstractHierarchyWriter;
@@ -65,7 +69,8 @@ class USDAbstractWriter : public AbstractHierarchyWriter {
 
   /* Returns the parent path of exported materials. */
   pxr::SdfPath get_material_library_path() const;
-  pxr::UsdShadeMaterial ensure_usd_material(const HierarchyContext &context, Material *material);
+  pxr::UsdShadeMaterial ensure_usd_material(const HierarchyContext &context,
+                                            Material *material) const;
 
   void write_id_properties(const pxr::UsdPrim &prim,
                            const ID &id,
@@ -76,7 +81,7 @@ class USDAbstractWriter : public AbstractHierarchyWriter {
 
   void write_visibility(const HierarchyContext &context,
                         const pxr::UsdTimeCode timecode,
-                        pxr::UsdGeomImageable &usd_geometry);
+                        const pxr::UsdGeomImageable &usd_geometry);
 
   /**
    * Turn `prim` into an instance referencing `context.original_export_path`.
@@ -102,7 +107,14 @@ class USDAbstractWriter : public AbstractHierarchyWriter {
    *
    * TODO: also provide method for authoring extentsHint on every prim in a hierarchy.
    */
-  virtual void author_extent(const pxr::UsdTimeCode timecode, pxr::UsdGeomBoundable &prim);
+  void author_extent(const pxr::UsdGeomBoundable &boundable, const pxr::UsdTimeCode timecode);
+
+  /**
+   * Author the `extent` attribute for a boundable prim given the Blender `bounds`.
+   */
+  void author_extent(const pxr::UsdGeomBoundable &boundable,
+                     const std::optional<Bounds<float3>> &bounds,
+                     const pxr::UsdTimeCode timecode);
 };
 
 }  // namespace blender::io::usd

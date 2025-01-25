@@ -6,22 +6,17 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 
-#include "BLI_utildefines.h"
-
 #include "RNA_define.hh"
-
-#include "DNA_action_types.h"
 
 #include "rna_internal.hh" /* own include */
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_action.h"
+#  include "BKE_action.hh"
 
 #  include "DNA_anim_types.h"
 #  include "DNA_curve_types.h"
@@ -32,7 +27,7 @@ static void rna_Action_flip_with_pose(bAction *act, ReportList *reports, Object 
     BKE_report(reports, RPT_ERROR, "Only armature objects are supported");
     return;
   }
-  BKE_action_flip_with_pose(act, ob);
+  BKE_action_flip_with_pose(act, {ob});
 
   /* Only for redraw. */
   WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);

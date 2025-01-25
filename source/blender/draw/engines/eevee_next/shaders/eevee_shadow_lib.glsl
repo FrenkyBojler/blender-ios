@@ -2,9 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_matrix_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
+#pragma once
+
+#include "eevee_shadow_tilemap_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 #define EEVEE_SHADOW_LIB
 
@@ -45,7 +47,9 @@ float shadow_punctual_sample_get(SHADOW_ATLAS_TYPE atlas_tx,
                                  LightData light,
                                  vec3 P)
 {
+  vec3 shadow_position = light_local_data_get(light).shadow_position;
   vec3 lP = transform_point_inversed(light.object_to_world, P);
+  lP -= shadow_position;
   int face_id = shadow_punctual_face_index_get(lP);
   lP = shadow_punctual_local_position_to_face_local(face_id, lP);
   ShadowCoordinates coord = shadow_punctual_coordinates(light, lP, face_id);

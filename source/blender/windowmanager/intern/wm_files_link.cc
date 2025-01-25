@@ -12,27 +12,17 @@
 #include <cerrno>
 #include <cfloat>
 #include <cstddef>
-#include <cstdio>
 #include <cstring>
 
 #include "CLG_log.h"
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_ID.h"
-#include "DNA_collection_types.h"
-#include "DNA_key_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_bitmap.h"
 #include "BLI_blenlib.h"
-#include "BLI_ghash.h"
-#include "BLI_linklist.h"
-#include "BLI_memarena.h"
-#include "BLI_utildefines.h"
+#include "BLI_map.hh"
 
 #include "BLO_readfile.hh"
 
@@ -48,7 +38,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_rigidbody.h"
@@ -277,8 +267,8 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
   /* Tag everything, all untagged data can be made local
    * its also generally useful to know what is new.
    *
-   * Take extra care `BKE_main_id_flag_all(bmain, LIB_TAG_PRE_EXISTING, false)` is called after! */
-  BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, true);
+   * Take extra care `BKE_main_id_flag_all(bmain, ID_TAG_PRE_EXISTING, false)` is called after! */
+  BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
 
   /* We define our working data...
    * Note that here, each item 'uses' one library, and only one. */
@@ -291,7 +281,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
       lapp_context, datatoc_startup_blend, datatoc_startup_blend_size);
 
   if (totfiles != 0) {
-    GHash *libraries = BLI_ghash_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, __func__);
+    blender::Map<std::string, int> libraries;
     int lib_idx = 0;
 
     RNA_BEGIN (op->ptr, itemptr, "files") {
@@ -304,8 +294,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
           continue;
         }
 
-        if (!BLI_ghash_haskey(libraries, libname)) {
-          BLI_ghash_insert(libraries, BLI_strdup(libname), POINTER_FROM_INT(lib_idx));
+        if (libraries.add(libname, lib_idx)) {
           lib_idx++;
           BKE_blendfile_link_append_context_library_add(lapp_context, libname, nullptr);
         }
@@ -325,7 +314,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
           continue;
         }
 
-        lib_idx = POINTER_AS_INT(BLI_ghash_lookup(libraries, libname));
+        lib_idx = libraries.lookup(libname);
 
         item = BKE_blendfile_link_append_context_item_add(
             lapp_context, name, BKE_idtype_idcode_from_name(group), nullptr);
@@ -333,8 +322,6 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
       }
     }
     RNA_END;
-
-    BLI_ghash_free(libraries, MEM_freeN, nullptr);
   }
   else {
     BlendfileLinkAppendContextItem *item;
@@ -349,9 +336,11 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
     /* Early out in case there is nothing to link. */
     BKE_blendfile_link_append_context_free(lapp_context);
     /* Clear pre existing tag. */
-    BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, false);
+    BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
     return OPERATOR_CANCELLED;
   }
+
+  BKE_blendfile_link_append_context_init_done(lapp_context);
 
   /* XXX We'd need re-entrant locking on Main for this to work... */
   // BKE_main_lock(bmain);
@@ -369,11 +358,16 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
     BKE_blendfile_append(lapp_context, op->reports);
   }
 
+  /* Instantiate loose data in the scene (e.g. add object to the active collection). */
+  BKE_blendfile_link_append_instantiate_loose(lapp_context, op->reports);
+
+  BKE_blendfile_link_append_context_finalize(lapp_context);
+
   BKE_blendfile_link_append_context_free(lapp_context);
 
   /* Important we unset, otherwise these object won't
    * link into other scenes from this blend file. */
-  BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, false);
+  BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
 
   /* TODO(sergey): Use proper flag for tagging here. */
 
@@ -528,7 +522,7 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
 {
   const bool do_append = (flag & FILE_LINK) == 0;
   /* Tag everything so we can make local only the new datablock. */
-  BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, true);
+  BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
 
   /* Define working data, with just the one item we want to link. */
   LibraryLink_Params lapp_params;
@@ -543,6 +537,8 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
       lapp_context, id_name, id_code, nullptr);
   BKE_blendfile_link_append_context_item_library_index_enable(lapp_context, item, 0);
 
+  BKE_blendfile_link_append_context_init_done(lapp_context);
+
   /* Link datablock. */
   BKE_blendfile_link(lapp_context, nullptr);
 
@@ -550,12 +546,16 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
     BKE_blendfile_append(lapp_context, nullptr);
   }
 
+  BKE_blendfile_link_append_instantiate_loose(lapp_context, nullptr);
+
+  BKE_blendfile_link_append_context_finalize(lapp_context);
+
   /* Get linked datablock and free working data. */
   ID *id = BKE_blendfile_link_append_context_item_newid_get(lapp_context, item);
 
   BKE_blendfile_link_append_context_free(lapp_context);
 
-  BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, false);
+  BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
 
   return id;
 }
@@ -663,7 +663,7 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports)
 
   /* Important we unset, otherwise these object won't link into other scenes from this blend file.
    */
-  BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, false);
+  BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
 
   /* Recreate dependency graph to include new IDs. */
   DEG_relations_tag_update(bmain);
@@ -802,7 +802,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, bool do_reload)
   /* Important we unset, otherwise these object won't link into other scenes from this blend
    * file.
    */
-  BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, false);
+  BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
 
   /* Recreate dependency graph to include new IDs. */
   DEG_relations_tag_update(bmain);

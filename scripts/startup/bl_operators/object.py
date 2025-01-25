@@ -10,7 +10,10 @@ from bpy.props import (
     IntProperty,
     StringProperty,
 )
-from bpy.app.translations import pgettext_rpt as rpt_
+from bpy.app.translations import (
+    pgettext_rpt as rpt_,
+    contexts as i18n_contexts,
+)
 
 
 class SelectPattern(Operator):
@@ -22,6 +25,7 @@ class SelectPattern(Operator):
 
     pattern: StringProperty(
         name="Pattern",
+        translation_context=i18n_contexts.id_text,
         description="Name filter using '*', '?' and "
         "'[abc]' unix style wildcards",
         maxlen=64,
@@ -286,7 +290,7 @@ class SubdivisionSet(Operator):
                 else:
                     mod = obj.modifiers.new("Subdivision", 'SUBSURF')
                     mod.levels = level
-            except BaseException:
+            except Exception:
                 self.report({'WARNING'}, "Modifiers cannot be added to object: " + obj.name)
 
         for obj in context.selected_editable_objects:
@@ -428,14 +432,18 @@ class ShapeTransfer(Operator):
                     n1loc_to = v1_to + target_normals[i1] * edlen_to
                     n2loc_to = v2_to + target_normals[i2] * edlen_to
 
-                    pt = barycentric_transform(orig_shape_coords[i1],
-                                               v2, v1, n1loc,
-                                               v2_to, v1_to, n1loc_to)
+                    pt = barycentric_transform(
+                        orig_shape_coords[i1],
+                        v2, v1, n1loc,
+                        v2_to, v1_to, n1loc_to,
+                    )
                     median_coords[i1].append(pt)
 
-                    pt = barycentric_transform(orig_shape_coords[i2],
-                                               v1, v2, n2loc,
-                                               v1_to, v2_to, n2loc_to)
+                    pt = barycentric_transform(
+                        orig_shape_coords[i2],
+                        v1, v2, n2loc,
+                        v1_to, v2_to, n2loc_to,
+                    )
                     median_coords[i2].append(pt)
 
             # apply the offsets to the new shape
@@ -516,7 +524,7 @@ class JoinUVs(Operator):
             nbr_loops = len(mesh.loops)
 
             # seems to be the fastest way to create an array
-            uv_array = array.array('f', [0.0] * 2) * nbr_loops
+            uv_array = array.array("f", [0.0] * 2) * nbr_loops
             mesh.uv_layers.active.data.foreach_get("uv", uv_array)
 
             objects = context.selected_editable_objects[:]
@@ -924,7 +932,7 @@ class OBJECT_OT_assign_property_defaults(Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return obj is not None and obj.library is None and obj.mode in {'POSE', 'OBJECT'}
+        return obj is not None and obj.is_editable and obj.mode in {'POSE', 'OBJECT'}
 
     @staticmethod
     def assign_defaults(obj):
@@ -945,7 +953,7 @@ class OBJECT_OT_assign_property_defaults(Operator):
             for pbone in obj.pose.bones:
                 self.assign_defaults(pbone)
 
-        if self.process_data and obj.data and obj.data.library is None:
+        if self.process_data and obj.data and obj.data.is_editable:
             self.assign_defaults(obj.data)
 
             if self.process_bones and isinstance(obj.data, bpy.types.Armature):

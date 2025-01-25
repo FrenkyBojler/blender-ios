@@ -8,14 +8,32 @@
 
 #pragma once
 
+#include "DNA_scene_types.h"
+
+#include "BLI_kdopbvh.hh"
 #include "BLI_map.hh"
 #include "BLI_math_geom.h"
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_vector_types.hh"
+
+#include "ED_transform_snap_object_context.hh"
 
 #define MAX_CLIPPLANE_LEN 6
 
 #define SNAP_TO_EDGE_ELEMENTS \
   (SCE_SNAP_TO_EDGE | SCE_SNAP_TO_EDGE_ENDPOINT | SCE_SNAP_TO_EDGE_MIDPOINT | \
    SCE_SNAP_TO_EDGE_PERPENDICULAR)
+
+struct BMEdge;
+struct BMFace;
+struct BMVert;
+struct Depsgraph;
+struct ID;
+struct ListBase;
+struct Object;
+struct RegionView3D;
+struct Scene;
+struct View3D;
 
 struct SnapObjectContext {
   Scene *scene;
@@ -67,9 +85,10 @@ struct SnapObjectContext {
     /* Read/write. */
     uint object_index;
 
+    eSnapOcclusionTest occlusion_test_edit;
+
     bool has_occlusion_plane;
     bool has_occlusion_plane_in_front;
-    bool use_occlusion_test_edit;
   } runtime;
 
   /* Output. */
@@ -180,7 +199,7 @@ void cb_snap_edge(void *userdata,
                   BVHTreeNearest *nearest);
 
 bool nearest_world_tree(SnapObjectContext *sctx,
-                        BVHTree *tree,
+                        const BVHTree *tree,
                         BVHTree_NearestPointCallback nearest_cb,
                         const blender::float4x4 &obmat,
                         void *treedata,
@@ -235,11 +254,11 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
                             const ID *id,
                             const blender::float4x4 &obmat,
                             eSnapMode snap_to_flag,
-                            int face);
+                            int face_index);
 
 eSnapMode snap_edge_points_mesh(SnapObjectContext *sctx,
                                 const Object *ob_eval,
                                 const ID *id,
                                 const blender::float4x4 &obmat,
                                 float dist_px_sq_orig,
-                                int edge);
+                                int edge_index);

@@ -10,13 +10,7 @@
 
 #include "extract_mesh.hh"
 
-#include "draw_subdivision.hh"
-
 namespace blender::draw {
-
-/* ---------------------------------------------------------------------- */
-/** \name Extract Vertex Normal
- * \{ */
 
 static void extract_vert_normals_mesh(const MeshRenderData &mr,
                                       MutableSpan<GPUPackedNormal> vbo_data)
@@ -25,8 +19,10 @@ static void extract_vert_normals_mesh(const MeshRenderData &mr,
   MutableSpan loose_edge_data = vbo_data.slice(mr.corners_num, mr.loose_edges.size() * 2);
   MutableSpan loose_vert_data = vbo_data.take_back(mr.loose_verts.size());
 
-  Array<GPUPackedNormal> converted(mr.vert_normals.size());
-  convert_normals(mr.vert_normals, converted.as_mutable_span());
+  const Span<float3> vert_normals = mr.mesh->vert_normals();
+
+  Array<GPUPackedNormal> converted(vert_normals.size());
+  convert_normals(vert_normals, converted.as_mutable_span());
   array_utils::gather(converted.as_span(), mr.corner_verts, corners_data);
   extract_mesh_loose_edge_data(converted.as_span(), mr.edges, mr.loose_edges, loose_edge_data);
   array_utils::gather(converted.as_span(), mr.loose_verts, loose_vert_data);
@@ -70,39 +66,23 @@ static void extract_vert_normals_bm(const MeshRenderData &mr,
   });
 }
 
-static void extract_vnor_init(const MeshRenderData &mr,
-                              MeshBatchCache & /*cache*/,
-                              void *buf,
-                              void * /*tls_data*/)
+void extract_vert_normals(const MeshRenderData &mr, gpu::VertBuf &vbo)
 {
-  gpu::VertBuf *vbo = static_cast<gpu::VertBuf *>(buf);
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
     GPU_vertformat_attr_add(&format, "vnor", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
   }
   const int size = mr.corners_num + mr.loose_indices_num;
-  GPU_vertbuf_init_with_format(vbo, &format);
+  GPU_vertbuf_init_with_format(vbo, format);
   GPU_vertbuf_data_alloc(vbo, size);
-  MutableSpan vbo_data(static_cast<GPUPackedNormal *>(GPU_vertbuf_get_data(vbo)), size);
+  MutableSpan vbo_data = vbo.data<GPUPackedNormal>();
 
-  if (mr.extract_type == MR_EXTRACT_MESH) {
+  if (mr.extract_type == MeshExtractType::Mesh) {
     extract_vert_normals_mesh(mr, vbo_data);
   }
   else {
     extract_vert_normals_bm(mr, vbo_data);
   }
 }
-
-constexpr MeshExtract create_extractor_vnor()
-{
-  MeshExtract extractor = {nullptr};
-  extractor.init = extract_vnor_init;
-  extractor.mesh_buffer_offset = offsetof(MeshBufferList, vbo.vnor);
-  return extractor;
-}
-
-/** \} */
-
-const MeshExtract extract_vnor = create_extractor_vnor();
 
 }  // namespace blender::draw

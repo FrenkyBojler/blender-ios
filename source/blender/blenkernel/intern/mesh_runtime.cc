@@ -41,14 +41,6 @@ static void free_mesh_eval(MeshRuntime &mesh_runtime)
   }
 }
 
-static void free_bvh_cache(MeshRuntime &mesh_runtime)
-{
-  if (mesh_runtime.bvh_cache) {
-    bvhcache_free(mesh_runtime.bvh_cache);
-    mesh_runtime.bvh_cache = nullptr;
-  }
-}
-
 static void free_batch_cache(MeshRuntime &mesh_runtime)
 {
   if (mesh_runtime.batch_cache) {
@@ -57,12 +49,24 @@ static void free_batch_cache(MeshRuntime &mesh_runtime)
   }
 }
 
+static void free_bvh_caches(MeshRuntime &mesh_runtime)
+{
+  mesh_runtime.bvh_cache_verts.tag_dirty();
+  mesh_runtime.bvh_cache_edges.tag_dirty();
+  mesh_runtime.bvh_cache_faces.tag_dirty();
+  mesh_runtime.bvh_cache_corner_tris.tag_dirty();
+  mesh_runtime.bvh_cache_corner_tris_no_hidden.tag_dirty();
+  mesh_runtime.bvh_cache_loose_verts.tag_dirty();
+  mesh_runtime.bvh_cache_loose_verts_no_hidden.tag_dirty();
+  mesh_runtime.bvh_cache_loose_edges.tag_dirty();
+  mesh_runtime.bvh_cache_loose_edges_no_hidden.tag_dirty();
+}
+
 MeshRuntime::MeshRuntime() = default;
 
 MeshRuntime::~MeshRuntime()
 {
   free_mesh_eval(*this);
-  free_bvh_cache(*this);
   free_batch_cache(*this);
 }
 
@@ -226,9 +230,38 @@ void Mesh::tag_overlapping_none()
   this->flag |= ME_NO_OVERLAPPING_TOPOLOGY;
 }
 
+namespace blender::bke {
+
+void TrianglesCache::freeze()
+{
+  this->frozen = true;
+  this->dirty_while_frozen = false;
+}
+
+void TrianglesCache::unfreeze()
+{
+  this->frozen = false;
+  if (this->dirty_while_frozen) {
+    this->data.tag_dirty();
+  }
+  this->dirty_while_frozen = false;
+}
+
+void TrianglesCache::tag_dirty()
+{
+  if (this->frozen) {
+    this->dirty_while_frozen = true;
+  }
+  else {
+    this->data.tag_dirty();
+  }
+}
+
+}  // namespace blender::bke
+
 blender::Span<blender::int3> Mesh::corner_tris() const
 {
-  this->runtime->corner_tris_cache.ensure([&](blender::Array<blender::int3> &r_data) {
+  this->runtime->corner_tris_cache.data.ensure([&](blender::Array<blender::int3> &r_data) {
     const Span<float3> positions = this->vert_positions();
     const blender::OffsetIndices faces = this->faces();
     const Span<int> corner_verts = this->corner_verts();
@@ -244,7 +277,7 @@ blender::Span<blender::int3> Mesh::corner_tris() const
     }
   });
 
-  return this->runtime->corner_tris_cache.data();
+  return this->runtime->corner_tris_cache.data.data();
 }
 
 blender::Span<int> Mesh::corner_tri_faces() const
@@ -283,7 +316,7 @@ void BKE_mesh_runtime_clear_cache(Mesh *mesh)
 void BKE_mesh_runtime_clear_geometry(Mesh *mesh)
 {
   /* Tagging shared caches dirty will free the allocated data if there is only one user. */
-  free_bvh_cache(*mesh->runtime);
+  free_bvh_caches(*mesh->runtime);
   mesh->runtime->subdiv_ccg.reset();
   mesh->runtime->bounds_cache.tag_dirty();
   mesh->runtime->vert_to_face_offset_cache.tag_dirty();
@@ -296,9 +329,10 @@ void BKE_mesh_runtime_clear_geometry(Mesh *mesh)
   mesh->runtime->loose_edges_cache.tag_dirty();
   mesh->runtime->loose_verts_cache.tag_dirty();
   mesh->runtime->verts_no_face_cache.tag_dirty();
-  mesh->runtime->corner_tris_cache.tag_dirty();
+  mesh->runtime->corner_tris_cache.data.tag_dirty();
   mesh->runtime->corner_tri_faces_cache.tag_dirty();
   mesh->runtime->shrinkwrap_boundary_cache.tag_dirty();
+  mesh->runtime->max_material_index.tag_dirty();
   mesh->runtime->subsurf_face_dot_tags.clear_and_shrink();
   mesh->runtime->subsurf_optimal_display_edges.clear_and_shrink();
   mesh->flag &= ~ME_NO_OVERLAPPING_TOPOLOGY;
@@ -307,7 +341,7 @@ void BKE_mesh_runtime_clear_geometry(Mesh *mesh)
 void Mesh::tag_edges_split()
 {
   /* Triangulation didn't change because vertex positions and loop vertex indices didn't change. */
-  free_bvh_cache(*this->runtime);
+  free_bvh_caches(*this->runtime);
   this->runtime->vert_normals_cache.tag_dirty();
   this->runtime->subdiv_ccg.reset();
   this->runtime->vert_to_face_offset_cache.tag_dirty();
@@ -363,7 +397,7 @@ void Mesh::tag_positions_changed()
 
 void Mesh::tag_positions_changed_no_normals()
 {
-  free_bvh_cache(*this->runtime);
+  free_bvh_caches(*this->runtime);
   this->runtime->corner_tris_cache.tag_dirty();
   this->runtime->bounds_cache.tag_dirty();
   this->runtime->shrinkwrap_boundary_cache.tag_dirty();
@@ -372,13 +406,25 @@ void Mesh::tag_positions_changed_no_normals()
 void Mesh::tag_positions_changed_uniformly()
 {
   /* The normals and triangulation didn't change, since all verts moved by the same amount. */
-  free_bvh_cache(*this->runtime);
+  free_bvh_caches(*this->runtime);
   this->runtime->bounds_cache.tag_dirty();
 }
 
 void Mesh::tag_topology_changed()
 {
   BKE_mesh_runtime_clear_geometry(this);
+}
+
+void Mesh::tag_visibility_changed()
+{
+  this->runtime->bvh_cache_corner_tris_no_hidden.tag_dirty();
+  this->runtime->bvh_cache_loose_verts_no_hidden.tag_dirty();
+  this->runtime->bvh_cache_loose_edges_no_hidden.tag_dirty();
+}
+
+void Mesh::tag_material_index_changed()
+{
+  this->runtime->max_material_index.tag_dirty();
 }
 
 /** \} */

@@ -21,6 +21,8 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
+
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_key.h"
 #include "intern/builder/deg_builder_map.h"
@@ -32,7 +34,6 @@
 #include "intern/node/deg_node_id.hh"
 #include "intern/node/deg_node_operation.hh"
 
-struct Animation;
 struct CacheFile;
 struct Camera;
 struct Collection;
@@ -175,11 +176,11 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                                              ComponentKey &adt_key,
                                              OperationNode *operation_from,
                                              ListBase *curves);
-  virtual void build_animdata_animation_targets(ID *id,
-                                                int32_t binding_handle,
-                                                ComponentKey &adt_key,
-                                                OperationNode *operation_from,
-                                                Animation *animation);
+  virtual void build_animdata_action_targets(ID *id,
+                                             int32_t slot_handle,
+                                             ComponentKey &adt_key,
+                                             OperationNode *operation_from,
+                                             bAction *action);
   virtual void build_animdata_nlastrip_targets(ID *id,
                                                ComponentKey &adt_key,
                                                OperationNode *operation_from,
@@ -188,7 +189,6 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_animdata_force(ID *id);
   virtual void build_animation_images(ID *id);
   virtual void build_action(bAction *action);
-  virtual void build_animation(Animation *animation);
   virtual void build_driver(ID *id, FCurve *fcurve);
   virtual void build_driver_data(ID *id, FCurve *fcurve);
   virtual void build_driver_variables(ID *id, FCurve *fcurve);
@@ -338,7 +338,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   static void modifier_walk(void *user_data,
                             struct Object *object,
                             struct ID **idpoin,
-                            int cb_flag);
+                            LibraryForeachIDCallbackFlag cb_flag);
 
   static void constraint_walk(bConstraint *con, ID **idpoin, bool is_reference, void *user_data);
 

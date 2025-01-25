@@ -6,9 +6,13 @@
  * Select the visible items inside the active view and put them inside the sorting buffer.
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(draw_math_geom_lib.glsl)
-#pragma BLENDER_REQUIRE(draw_intersect_lib.glsl)
+#include "infos/eevee_light_culling_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_light_culling_select)
+
+#include "draw_intersect_lib.glsl"
+#include "draw_math_geom_lib.glsl"
+#include "draw_view_lib.glsl"
 
 void main()
 {
@@ -21,6 +25,17 @@ void main()
 
   /* Sun lights are packed at the end of the array. Perform early copy. */
   if (is_sun_light(light.type)) {
+    /* First sun-light is reserved for world light. Perform copy from dedicated buffer. */
+    bool is_world_sun_light = light.color.r < 0.0;
+    if (is_world_sun_light) {
+      light.color = sunlight_buf.color;
+      light.object_to_world = sunlight_buf.object_to_world;
+
+      LightSunData sun_data = light_sun_data_get(light);
+      sun_data.direction = transform_z_axis(sunlight_buf.object_to_world);
+      light = light_sun_data_set(light, sun_data);
+      /* NOTE: Use the radius from UI instead of auto sun size for now. */
+    }
     /* NOTE: We know the index because sun lights are packed at the start of the input buffer. */
     out_light_buf[light_cull_buf.local_lights_len + l_idx] = light;
     return;
