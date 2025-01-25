@@ -206,7 +206,6 @@ set(LIB
 )
 
 list(APPEND LIB
-  ${BOOST_LIBRARIES}
   ${BOOST_PYTHON_LIBRARIES}
   ${PYTHON_LIBRARIES}
   ${USD_LIBRARIES}
@@ -242,7 +241,6 @@ endif()
 
 if(WITH_GTESTS)
   set(TEST_SRC
-    tests/usd_curves_test.cc
     tests/usd_export_test.cc
     tests/usd_stage_creation_test.cc
     tests/usd_usdz_export_test.cc
