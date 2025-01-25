@@ -1124,8 +1124,7 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
 
     const blender::float3 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f, 0.0f};
     const float view_aspect = scene->r.xasp / scene->r.yasp;
-    blender::float4x4 transform_mat;
-    SEQ_image_transform_matrix_get(scene, strip, transform_mat.ptr());
+    blender::float4x4 transform_mat = SEQ_image_transform_matrix_get(scene, strip);
     blender::float4x3 selection_quad{
         {character_start.position.x, line_y, 0.0f},
         {character_start.position.x, line_y + text->line_height, 0.0f},
@@ -1169,8 +1168,7 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
 
   const blender::float3 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f, 0.0f};
   const float view_aspect = scene->r.xasp / scene->r.yasp;
-  blender::float4x4 transform_mat;
-  SEQ_image_transform_matrix_get(scene, strip, transform_mat.ptr());
+  blender::float4x4 transform_mat = SEQ_image_transform_matrix_get(scene, strip);
   const blender::int2 cursor_position = strip_text_cursor_offset_to_position(text,
                                                                              data->cursor_offset);
   const float cursor_width = 10;
@@ -1217,8 +1215,7 @@ static void text_edit_draw_box(const bContext *C, const Strip *strip, uint pos)
 
   const blender::float3 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f, 0.0f};
   const float view_aspect = scene->r.xasp / scene->r.yasp;
-  blender::float4x4 transform_mat;
-  SEQ_image_transform_matrix_get(CTX_data_scene(C), strip, transform_mat.ptr());
+  blender::float4x4 transform_mat = SEQ_image_transform_matrix_get(CTX_data_scene(C), strip);
   blender::float4x3 box_quad{
       {float(text->text_boundbox.xmin), float(text->text_boundbox.ymin), 0.0f},
       {float(text->text_boundbox.xmin), float(text->text_boundbox.ymax), 0.0f},

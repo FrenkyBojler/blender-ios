@@ -8,6 +8,7 @@
  * \ingroup bke
  */
 
+#include "BLI_math_matrix.hh"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
@@ -29,6 +30,8 @@
 
 #include "sequencer.hh"
 #include "strip_time.hh"
+
+using namespace blender;
 
 bool SEQ_transform_single_image_check(const Strip *strip)
 {
@@ -603,27 +606,24 @@ void SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene,
   mul_v2_v2(r_origin, viewport_pixel_aspect);
 }
 
-void SEQ_image_transform_matrix_get(const Scene *scene,
-                                    const Strip *strip,
-                                    float r_transform_matrix[4][4])
+float4x4 SEQ_image_transform_matrix_get(const Scene *scene, const Strip *strip)
 {
-  float image_size[2] = {float(scene->r.xsch), float(scene->r.ysch)};
+  float3 image_size{float(scene->r.xsch), float(scene->r.ysch), 0.0f};
   if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
-    image_size[0] = strip->data->stripdata->orig_width;
-    image_size[1] = strip->data->stripdata->orig_height;
+    image_size.x = strip->data->stripdata->orig_width;
+    image_size.y = strip->data->stripdata->orig_height;
   }
 
-  StripTransform *transform = strip->data->transform;
-  float rotation_matrix[3][3];
-  axis_angle_to_mat3_single(rotation_matrix, 'Z', transform->rotation);
-  loc_rot_size_to_mat4(r_transform_matrix,
-                       blender::float3{transform->xofs, transform->yofs, 0.0f},
-                       rotation_matrix,
-                       blender::float3{transform->scale_x, transform->scale_y, 1.0f});
-  const float origin[2] = {image_size[0] * transform->origin[0],
-                           image_size[1] * transform->origin[1]};
-  const float pivot[3] = {origin[0] - (image_size[0] / 2), origin[1] - (image_size[1] / 2), 0.0f};
-  transform_pivot_set_m4(r_transform_matrix, pivot);
+  const StripTransform *transform = strip->data->transform;
+  const float3 origin{
+      image_size.x * transform->origin[0], image_size[1] * transform->origin[1], 0.0f};
+  const float3 translation{transform->xofs, transform->yofs, 0.0f};
+  const float3 rotation{0.0f, 0.0f, transform->rotation};
+  const float2 scale{transform->scale_x, transform->scale_y};
+  const float3 pivot = origin - (image_size / 2);
+
+  const float4x4 matrix = math::from_loc_rot_scale<float4x4>(translation, rotation, scale);
+  return math::from_origin_transform(matrix, pivot);
 }
 
 static void strip_image_transform_quad_get_ex(const Scene *scene,

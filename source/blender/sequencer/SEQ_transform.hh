@@ -8,6 +8,7 @@
  * \ingroup sequencer
  */
 
+#include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
 struct ListBase;
@@ -134,8 +135,5 @@ void SEQ_image_transform_bounding_box_from_collection(Scene *scene,
  *
  * \param scene: Scene in which strips are located
  * \param seq: Strip that is used to construct the matrix
- * \param r_transform_matrix: Return value
  */
-void SEQ_image_transform_matrix_get(const Scene *scene,
-                                    const Strip *strip,
-                                    float r_transform_matrix[4][4]);
+blender::float4x4 SEQ_image_transform_matrix_get(const Scene *scene, const Strip *strip);
