@@ -27,7 +27,7 @@ def get_gpu_device(args: None) -> list:
     import bpy
 
     prefs = bpy.context.preferences
-    if not 'cycles' in prefs.addons.values():
+    if 'cycles' not in prefs.addons.keys():
         return []
     cprefs = prefs.addons['cycles'].preferences
 
