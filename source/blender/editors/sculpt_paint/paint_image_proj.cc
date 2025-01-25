@@ -13,7 +13,6 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <utility>
 
 #include "MEM_guardedalloc.h"
 
@@ -21,7 +20,6 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_bits.h"
@@ -29,6 +27,8 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
 #include "BLI_memarena.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -59,15 +59,17 @@
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_main_invariants.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
@@ -265,6 +267,7 @@ struct ProjPaintState {
   float paint_color_linear[3];
   float dither;
 
+  const Paint *paint;
   Brush *brush;
 
   /**
@@ -5749,6 +5752,7 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
                                  ProjPaintState *ps)
 {
   ProjStrokeHandle *ps_handle = static_cast<ProjStrokeHandle *>(ps_handle_p);
+  const Paint *paint = ps->paint;
   Brush *brush = ps->brush;
   Scene *scene = ps->scene;
 
@@ -5761,6 +5765,7 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
   /* handle gradient and inverted stroke color here */
   if (ELEM(ps->brush_type, IMAGE_PAINT_BRUSH_TYPE_DRAW, IMAGE_PAINT_BRUSH_TYPE_FILL)) {
     paint_brush_color_get(scene,
+                          paint,
                           brush,
                           false,
                           ps->mode == BRUSH_STROKE_INVERT,
@@ -5810,7 +5815,8 @@ void paint_proj_stroke(const bContext *C,
     view3d_operator_needs_opengl(C);
 
     /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
-    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, nullptr);
+    ED_view3d_depth_override(
+        depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, nullptr);
 
     if (!ED_view3d_autodist(region, v3d, mval_i, cursor, nullptr)) {
       return;
@@ -5836,6 +5842,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 
   /* brush */
   ps->mode = BrushStrokeMode(mode);
+  ps->paint = BKE_paint_get_active_from_context(C);
   ps->brush = BKE_paint_brush(&settings->imapaint.paint);
   if (ps->brush) {
     Brush *brush = ps->brush;
@@ -6771,7 +6778,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       }
     }
 
-    ED_node_tree_propagate_change(C, bmain, ntree);
+    BKE_main_ensure_invariants(*bmain);
     /* In case we added more than one node, position them too. */
     blender::bke::node_position_propagate(out_node);
 
@@ -6859,32 +6866,32 @@ static void texture_paint_add_texture_paint_slot_ui(bContext *C, wmOperator *op)
 
   if (ob->mode == OB_MODE_SCULPT) {
     slot_type = (ePaintCanvasSource)RNA_enum_get(op->ptr, "slot_type");
-    uiItemR(layout, op->ptr, "slot_type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "slot_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
-  uiItemR(layout, op->ptr, "name", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   switch (slot_type) {
     case PAINT_CANVAS_SOURCE_IMAGE: {
       uiLayout *col = uiLayoutColumn(layout, true);
-      uiItemR(col, op->ptr, "width", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(col, op->ptr, "height", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(col, op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(col, op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      uiItemR(layout, op->ptr, "alpha", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "generated_type", UI_ITEM_NONE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "float", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
     case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE:
-      uiItemR(layout, op->ptr, "domain", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "data_type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+      uiItemR(layout, op->ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "data_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
       break;
     case PAINT_CANVAS_SOURCE_MATERIAL:
       BLI_assert_unreachable();
       break;
   }
 
-  uiItemR(layout, op->ptr, "color", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 #define IMA_DEF_NAME N_("Untitled")

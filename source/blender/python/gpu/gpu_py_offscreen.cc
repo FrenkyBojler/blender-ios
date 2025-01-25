@@ -15,7 +15,6 @@
 #include <Python.h>
 
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh" /* For #BKE_id_is_in_global_main. */
@@ -322,7 +321,7 @@ PyDoc_STRVAR(
     pygpu_offscreen_width_doc,
     "Width of the texture.\n"
     "\n"
-    ":type: `int`");
+    ":type: int");
 static PyObject *pygpu_offscreen_width_get(BPyGPUOffScreen *self, void * /*type*/)
 {
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self);
@@ -334,7 +333,7 @@ PyDoc_STRVAR(
     pygpu_offscreen_height_doc,
     "Height of the texture.\n"
     "\n"
-    ":type: `int`");
+    ":type: int");
 static PyObject *pygpu_offscreen_height_get(BPyGPUOffScreen *self, void * /*type*/)
 {
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self);
@@ -346,7 +345,7 @@ PyDoc_STRVAR(
     pygpu_offscreen_color_texture_doc,
     "OpenGL bindcode for the color texture.\n"
     "\n"
-    ":type: `int`");
+    ":type: int");
 static PyObject *pygpu_offscreen_color_texture_get(BPyGPUOffScreen *self, void * /*type*/)
 {
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self);

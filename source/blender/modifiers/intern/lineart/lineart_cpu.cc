@@ -37,7 +37,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
@@ -5094,7 +5094,7 @@ bool MOD_lineart_compute_feature_lines_v3(Depsgraph *depsgraph,
   lineart_main_get_view_vector(ld);
 
   LineartModifierRuntime *runtime = reinterpret_cast<LineartModifierRuntime *>(lmd.runtime);
-  blender::Set<const Object *> *included_objects = runtime ? runtime->object_dependencies.get() :
+  blender::Set<const Object *> *included_objects = runtime ? &runtime->object_dependencies :
                                                              nullptr;
 
   lineart_main_load_geometries(depsgraph,

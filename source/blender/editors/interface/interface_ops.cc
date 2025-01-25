@@ -18,8 +18,9 @@
 #include "DNA_object_types.h"   /* for OB_DATA_SUPPORT_ID */
 #include "DNA_screen_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_color.h"
+#include "BLI_rect.h"
+#include "BLI_string.h"
 
 #include "BLF_api.hh"
 #include "BLT_lang.hh"
@@ -33,7 +34,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_remap.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
@@ -90,7 +91,7 @@ static void ui_region_redraw_immediately(bContext *C, ARegion *region)
   WM_draw_region_viewport_bind(region);
   ED_region_do_draw(C, region);
   WM_draw_region_viewport_unbind(region);
-  region->do_draw = 0;
+  region->runtime->do_draw = 0;
 }
 
 /** \} */
@@ -1027,7 +1028,7 @@ static void ui_context_selected_bones_via_pose(bContext *C, blender::Vector<Poin
   if (!lb.is_empty()) {
     for (PointerRNA &ptr : lb) {
       bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr.data);
-      ptr = RNA_pointer_create(ptr.owner_id, &RNA_Bone, pchan->bone);
+      ptr = RNA_pointer_create_discrete(ptr.owner_id, &RNA_Bone, pchan->bone);
     }
   }
 
@@ -1048,7 +1049,7 @@ static void ui_context_fcurve_modifiers_via_fcurve(bContext *C,
     const FCurve *fcu = static_cast<const FCurve *>(ptr.data);
     LISTBASE_FOREACH (FModifier *, mod, &fcu->modifiers) {
       if (STREQ(mod->name, source->name) && mod->type == source->type) {
-        r_lb->append(RNA_pointer_create(ptr.owner_id, &RNA_FModifier, mod));
+        r_lb->append(RNA_pointer_create_discrete(ptr.owner_id, &RNA_FModifier, mod));
         /* Since names are unique it is safe to break here. */
         break;
       }
@@ -1092,7 +1093,7 @@ bool UI_context_copy_to_selected_list(bContext *C,
       }
       else {
         bPoseChannel *pchan = static_cast<bPoseChannel *>(owner_ptr.data);
-        owner_ptr = RNA_pointer_create(owner_ptr.owner_id, &RNA_Bone, pchan->bone);
+        owner_ptr = RNA_pointer_create_discrete(owner_ptr.owner_id, &RNA_Bone, pchan->bone);
         idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
                                                     static_cast<const IDProperty *>(ptr->data));
         if (idpath) {
@@ -1171,15 +1172,15 @@ bool UI_context_copy_to_selected_list(bContext *C,
 
     *r_lb = list_of_things;
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
-    /* Special case when we do this for 'Sequence.lock'.
-     * (if the sequence is locked, it won't be in "selected_editable_sequences"). */
+  else if (RNA_struct_is_a(ptr->type, &RNA_Strip)) {
+    /* Special case when we do this for 'Strip.lock'.
+     * (if the strip is locked, it won't be in "selected_editable_strips"). */
     const char *prop_id = RNA_property_identifier(prop);
     if (STREQ(prop_id, "lock")) {
-      *r_lb = CTX_data_collection_get(C, "selected_sequences");
+      *r_lb = CTX_data_collection_get(C, "selected_strips");
     }
     else {
-      *r_lb = CTX_data_collection_get(C, "selected_editable_sequences");
+      *r_lb = CTX_data_collection_get(C, "selected_editable_strips");
     }
 
     if (is_rna) {
@@ -1222,14 +1223,13 @@ bool UI_context_copy_to_selected_list(bContext *C,
     if (RNA_struct_is_a(ptr->type, &RNA_NodeSocket)) {
       bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
       bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
-      if (blender::bke::node_find_node_try(ntree, sock, &node, nullptr)) {
-        path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Node);
-        if (path) {
-          /* we're good! */
-        }
-        else {
-          node = nullptr;
-        }
+      node = &blender::bke::node_find_node(*ntree, *sock);
+      path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Node);
+      if (path) {
+        /* we're good! */
+      }
+      else {
+        node = nullptr;
       }
     }
     else {
@@ -1241,7 +1241,7 @@ bool UI_context_copy_to_selected_list(bContext *C,
       lb = CTX_data_collection_get(C, "selected_nodes");
       lb.remove_if([&](const PointerRNA &link) {
         bNode *node_data = static_cast<bNode *>(link.data);
-        if (node_data->type != node->type) {
+        if (node_data->type_legacy != node->type_legacy) {
           return true;
         }
         return false;
@@ -1299,18 +1299,18 @@ bool UI_context_copy_to_selected_list(bContext *C,
     }
     else if (GS(id->name) == ID_SCE) {
       /* Sequencer's ID is scene :/ */
-      /* Try to recursively find an RNA_Sequence ancestor,
+      /* Try to recursively find an RNA_Strip ancestor,
        * to handle situations like #41062... */
-      *r_path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Sequence);
+      *r_path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Strip);
       if (r_path->has_value()) {
-        /* Special case when we do this for 'Sequence.lock'.
-         * (if the sequence is locked, it won't be in "selected_editable_sequences"). */
+        /* Special case when we do this for 'Strip.lock'.
+         * (if the strip is locked, it won't be in "selected_editable_strips"). */
         const char *prop_id = RNA_property_identifier(prop);
         if (is_rna && STREQ(prop_id, "lock")) {
-          *r_lb = CTX_data_collection_get(C, "selected_sequences");
+          *r_lb = CTX_data_collection_get(C, "selected_strips");
         }
         else {
-          *r_lb = CTX_data_collection_get(C, "selected_editable_sequences");
+          *r_lb = CTX_data_collection_get(C, "selected_editable_strips");
         }
 
         if (is_rna) {
@@ -1677,7 +1677,7 @@ int paste_property_drivers(blender::Span<FCurve *> src_drivers,
      * quadratic complexity when the drivers are within the same ID, due to this
      * being inside of a loop and doing a linear scan of the drivers to find one
      * that matches.  We should be able to make this more efficient with a
-     * little cleverness .*/
+     * little cleverness. */
     if (driven) {
       FCurve *old_driver = BKE_fcurve_find(&dst_adt->drivers, dst_path->c_str(), dst_index);
       if (old_driver) {

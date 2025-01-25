@@ -14,6 +14,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -429,7 +430,8 @@ static void gizmo_mesh_spin_init_message_subscribe(const bContext *C,
   msg_sub_value_gz_tag_refresh.user_data = gzgroup->parent_gzmap;
   msg_sub_value_gz_tag_refresh.notify = WM_gizmo_do_msg_notify_tag_refresh;
 
-  PointerRNA cursor_ptr = RNA_pointer_create(&scene->id, &RNA_View3DCursor, &scene->cursor);
+  PointerRNA cursor_ptr = RNA_pointer_create_discrete(
+      &scene->id, &RNA_View3DCursor, &scene->cursor);
   /* All cursor properties. */
   WM_msg_subscribe_rna(mbus, &cursor_ptr, nullptr, &msg_sub_value_gz_tag_refresh, __func__);
 
@@ -902,7 +904,7 @@ static void gizmo_mesh_spin_redo_setup(const bContext *C, wmGizmoGroup *gzgroup)
    */
   {
     ARegion *region = CTX_wm_region(C);
-    wmGizmoMap *gzmap = region->gizmo_map;
+    wmGizmoMap *gzmap = region->runtime->gizmo_map;
     wmGizmoGroup *gzgroup_init = WM_gizmomap_group_find(gzmap, "MESH_GGT_spin");
     if (gzgroup_init) {
       GizmoGroupData_SpinInit *ggd_init = static_cast<GizmoGroupData_SpinInit *>(

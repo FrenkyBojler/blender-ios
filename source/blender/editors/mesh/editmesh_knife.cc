@@ -40,6 +40,7 @@
 #include "BKE_layer.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 #include "BKE_unit.hh"
 
 #include "GPU_immediate.hh"
@@ -64,7 +65,6 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "mesh_intern.hh" /* Own include. */
@@ -508,18 +508,13 @@ static void knifetool_draw_visible_distances(const KnifeTool_OpData *kcd)
   /* Calculate distance and convert to string. */
   const float cut_len = len_v3v3(kcd->prev.cage, kcd->curr.cage);
 
-  const UnitSettings *unit = &kcd->scene->unit;
-  if (unit->system == USER_UNIT_NONE) {
+  const UnitSettings &unit = kcd->scene->unit;
+  if (unit.system == USER_UNIT_NONE) {
     SNPRINTF(numstr, "%.*f", distance_precision, cut_len);
   }
   else {
-    BKE_unit_value_as_string(numstr,
-                             sizeof(numstr),
-                             double(cut_len * unit->scale_length),
-                             distance_precision,
-                             B_UNIT_LENGTH,
-                             unit,
-                             false);
+    BKE_unit_value_as_string_scaled(
+        numstr, sizeof(numstr), cut_len, distance_precision, B_UNIT_LENGTH, unit, false);
   }
 
   BLF_enable(blf_mono_font, BLF_ROTATION);
@@ -644,8 +639,8 @@ static void knifetool_draw_angle(const KnifeTool_OpData *kcd,
   float numstr_size[2];
   float posit[2];
 
-  const UnitSettings *unit = &kcd->scene->unit;
-  if (unit->system == USER_UNIT_NONE) {
+  const UnitSettings &unit = kcd->scene->unit;
+  if (unit.system == USER_UNIT_NONE) {
     SNPRINTF(numstr, "%.*f" BLI_STR_UTF8_DEGREE_SIGN, angle_precision, RAD2DEGF(angle));
   }
   else {
@@ -3867,7 +3862,7 @@ static void knifetool_undo(KnifeTool_OpData *kcd)
     }
   }
 
-  if (kcd->mode == MODE_DRAGGING) {
+  if (ELEM(kcd->mode, MODE_DRAGGING, MODE_IDLE)) {
     /* Restore kcd->prev. */
     kcd->prev = undo->pos;
   }
@@ -3923,14 +3918,14 @@ static void knife_init_colors(KnifeColors *colors)
   /* Possible BMESH_TODO: add explicit themes or calculate these by
    * figuring out contrasting colors with grid / edges / verts
    * a la UI_make_axis_color. */
-  UI_GetThemeColorType3ubv(TH_NURB_VLINE, SPACE_VIEW3D, colors->line);
-  UI_GetThemeColorType3ubv(TH_NURB_ULINE, SPACE_VIEW3D, colors->edge);
-  UI_GetThemeColorType3ubv(TH_NURB_SEL_ULINE, SPACE_VIEW3D, colors->edge_extra);
-  UI_GetThemeColorType3ubv(TH_HANDLE_SEL_VECT, SPACE_VIEW3D, colors->curpoint);
-  UI_GetThemeColorType3ubv(TH_HANDLE_SEL_VECT, SPACE_VIEW3D, colors->curpoint_a);
+  UI_GetThemeColorType3ubv(TH_GIZMO_PRIMARY, SPACE_VIEW3D, colors->line);
+  UI_GetThemeColorType3ubv(TH_GIZMO_A, SPACE_VIEW3D, colors->edge);
+  UI_GetThemeColorType3ubv(TH_GIZMO_B, SPACE_VIEW3D, colors->edge_extra);
+  UI_GetThemeColorType3ubv(TH_GIZMO_SECONDARY, SPACE_VIEW3D, colors->curpoint);
+  UI_GetThemeColorType3ubv(TH_GIZMO_SECONDARY, SPACE_VIEW3D, colors->curpoint_a);
   colors->curpoint_a[3] = 102;
-  UI_GetThemeColorType3ubv(TH_ACTIVE_SPLINE, SPACE_VIEW3D, colors->point);
-  UI_GetThemeColorType3ubv(TH_ACTIVE_SPLINE, SPACE_VIEW3D, colors->point_a);
+  UI_GetThemeColorType3ubv(TH_VERTEX, SPACE_VIEW3D, colors->point);
+  UI_GetThemeColorType3ubv(TH_VERTEX, SPACE_VIEW3D, colors->point_a);
   colors->point_a[3] = 102;
 
   UI_GetThemeColorType3ubv(TH_AXIS_X, SPACE_VIEW3D, colors->xaxis);
@@ -4019,7 +4014,7 @@ static void knifetool_init(ViewContext *vc,
 
   if (is_interactive) {
     kcd->draw_handle = ED_region_draw_cb_activate(
-        kcd->region->type, knifetool_draw, kcd, REGION_DRAW_POST_VIEW);
+        kcd->region->runtime->type, knifetool_draw, kcd, REGION_DRAW_POST_VIEW);
 
     knife_init_colors(&kcd->colors);
   }
@@ -4048,7 +4043,7 @@ static void knifetool_exit_ex(KnifeTool_OpData *kcd)
     WM_cursor_modal_restore(kcd->vc.win);
 
     /* Deactivate the extra drawing stuff in 3D-View. */
-    ED_region_draw_cb_exit(kcd->region->type, kcd->draw_handle);
+    ED_region_draw_cb_exit(kcd->region->runtime->type, kcd->draw_handle);
   }
 
   /* Free the custom data. */
