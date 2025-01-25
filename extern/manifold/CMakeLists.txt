@@ -56,6 +56,7 @@ set(SRC
   include/manifold/linalg.h
   include/manifold/manifold.h
   include/manifold/optional_assert.h
+  include/manifold/polygon.h
   include/manifold/vec_view.h
 )
 

@@ -162,6 +162,19 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
   }
 }
 
+/* Create and return the Manifold library's internal #Manifold class instance
+ * to represent \a mesh.
+ * This is done using Manifold's #MeshGL struct, which has linearized
+ * vector of x, y, z coordinates in its #vertProperties,
+ * where the index divided by 3 is the input "vertex index".
+ * It also has a linearized list of the triples of vertex indices that
+ * give the triangulation of the mesh faces, where the index divided
+ * by 3 is the "triangle index".
+ * The #faceID vector is indexed by triangle index, and gives the
+ * original mesh face index, offset by \a faceID_offset.
+ * It also sets up #runIndex and #runOriginalID so that when we
+ * access OriginalId's in the output, they will be \a mesh_index.
+ */
 static Manifold manifold_from_mesh_via_meshgl(const Mesh *mesh, int mesh_index, int faceID_offset)
 {
   constexpr int dbg_level = 0;
@@ -172,19 +185,22 @@ static Manifold manifold_from_mesh_via_meshgl(const Mesh *mesh, int mesh_index, 
   timeit::ScopedTimer timer("manifold from mesh via meshgl");
   const int num_verts = mesh->verts_num;
   MeshGL meshgl;
-  meshgl.numProp = 3;
+  constexpr int num_prop = 3;
+  meshgl.numProp = num_prop;
   meshgl.vertProperties.resize(num_verts * meshgl.numProp);
   Span<float3> vpos = mesh->vert_positions();
   const int grain_size = 10000;
   threading::parallel_for(IndexRange(num_verts), grain_size, [&](const IndexRange range) {
     for (const int i : range) {
       const float3 &pos = vpos[i];
-      meshgl.vertProperties[3 * i] = pos[0];
-      meshgl.vertProperties[3 * i + 1] = pos[1];
-      meshgl.vertProperties[3 * i + 2] = pos[2];
+      meshgl.vertProperties[num_prop * i] = pos[0];
+      meshgl.vertProperties[num_prop * i + 1] = pos[1];
+      meshgl.vertProperties[num_prop * i + 2] = pos[2];
     }
   });
 
+  /* Calling mesh->corner_tris() may cause triangulation to happen,
+   * to populate a triangulation cache for the mesh. */
   Span<int3> corner_tris = mesh->corner_tris();
   Span<int> corner_verts = mesh->corner_verts();
   Span<int> corner_tri_faces = mesh->corner_tri_faces();
