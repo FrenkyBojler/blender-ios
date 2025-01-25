@@ -6,6 +6,8 @@
 
 #include "GEO_mesh_dissolve.hh"
 
+#include "DNA_mesh_types.h"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_mesh_dissolve_boundary_vertices_cc {
@@ -13,7 +15,7 @@ namespace blender::nodes::node_geo_mesh_dissolve_boundary_vertices_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Mesh").supported_type({GeometryComponent::Type::Mesh});
-  b.add_input<decl::Bool>("Selection").hide_value().field_on_all();
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
 
   b.add_output<decl::Geometry>("Mesh").propagate_all();
 }
@@ -51,10 +53,9 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype,
-                     GEO_NODE_DISSOLVE_BOUNDARY_VERTICES,
-                     "Dissolve Boundary Vertices",
-                     NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeDissolveBoundaryVertices");
+  ntype.ui_name = "Dissolve Boundary Vertices";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);
