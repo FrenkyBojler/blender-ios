@@ -614,6 +614,7 @@ def km_uv_editor(params):
          {"properties": [("data_path", "tool_settings.use_proportional_edit")]}),
         ("wm.context_toggle", {"type": 'X', "value": 'PRESS'},
          {"properties": [("data_path", "tool_settings.use_snap")]}),
+        ("uv.pack_islands", {"type": 'P', "value": 'PRESS', "ctrl": True}, None),
         # Tools
         op_tool_cycle("builtin.select_box", {"type": 'Q', "value": 'PRESS'}),
         op_tool_cycle("builtin.move", {"type": 'W', "value": 'PRESS'}),
