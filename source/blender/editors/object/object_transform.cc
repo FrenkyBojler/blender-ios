@@ -8,13 +8,11 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <limits>
 #include <numeric>
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_collection_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_light_types.h"
@@ -39,7 +37,6 @@
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
@@ -51,7 +48,6 @@
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_tracking.h"
@@ -71,6 +67,7 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_armature.hh"
@@ -343,7 +340,7 @@ static int object_clear_transform_generic_exec(bContext *C,
   }
 
   /* get KeyingSet to use */
-  ks = ANIM_get_keyingset_for_autokeying(scene, default_ksName);
+  ks = blender::animrig::get_keyingset_for_autokeying(scene, default_ksName);
 
   if (blender::animrig::is_autokey_on(scene)) {
     ANIM_deselect_keys_in_animation_editors(C);
@@ -1407,7 +1404,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
             /* done */
           }
           else {
-            float min[3], max[3];
+            float3 min, max;
             /* only bounds support */
             INIT_MINMAX(min, max);
             BKE_object_minmax_dupli(depsgraph, scene, ob, min, max, true);
@@ -2088,7 +2085,7 @@ static int object_transform_axis_target_invoke(bContext *C, wmOperator *op, cons
 
   ViewDepths *depths = nullptr;
   ED_view3d_depth_override(
-      vc.depsgraph, vc.region, vc.v3d, nullptr, V3D_DEPTH_NO_GPENCIL, &depths);
+      vc.depsgraph, vc.region, vc.v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, &depths);
 
 #ifdef USE_RENDER_OVERRIDE
   vc.v3d->flag2 = flag2_prev;

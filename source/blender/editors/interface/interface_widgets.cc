@@ -41,7 +41,6 @@
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
-#include "GPU_platform.hh"
 #include "GPU_state.hh"
 
 #ifdef WITH_INPUT_IME
@@ -158,8 +157,8 @@ static void color_blend_v4_v4v4(uchar r_col[4],
 static void color_ensure_contrast_v3(uchar cp[3], const uchar cp_other[3], int contrast)
 {
   BLI_assert(contrast > 0);
-  const int item_value = rgb_to_grayscale_byte(cp);
-  const int inner_value = rgb_to_grayscale_byte(cp_other);
+  const int item_value = srgb_to_grayscale_byte(cp);
+  const int inner_value = srgb_to_grayscale_byte(cp_other);
   const int delta = item_value - inner_value;
   if (delta >= 0) {
     if (contrast > delta) {
@@ -1208,7 +1207,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
 
 #define UI_TEXT_CLIP_MARGIN (0.25f * U.widget_unit / but->block->aspect)
 
-#define PREVIEW_PAD 6
+#define PREVIEW_PAD (0.15f * UI_UNIT_X)
 
 static float widget_alpha_factor(const uiWidgetStateInfo *state)
 {
@@ -2440,7 +2439,7 @@ static void ui_widget_color_disabled(uiWidgetType *wt, const uiWidgetStateInfo *
 
 static void widget_active_color(uiWidgetColors *wcol)
 {
-  const bool dark = (rgb_to_grayscale_byte(wcol->text) > rgb_to_grayscale_byte(wcol->inner));
+  const bool dark = (srgb_to_grayscale_byte(wcol->text) > srgb_to_grayscale_byte(wcol->inner));
   color_mul_hsl_v3(wcol->inner, 1.0f, 1.15f, dark ? 1.2f : 1.1f);
   color_mul_hsl_v3(wcol->outline, 1.0f, 1.15f, 1.15f);
   color_mul_hsl_v3(wcol->text, 1.0f, 1.15f, dark ? 1.25f : 0.8f);
@@ -2611,7 +2610,7 @@ static void widget_state_numslider(uiWidgetType *wt,
     /* Set the slider 'item' so that it reflects state settings too.
      * De-saturate so the color of the slider doesn't conflict with the blend color,
      * which can make the color hard to see when the slider is set to full (see #66102). */
-    wt->wcol.item[0] = wt->wcol.item[1] = wt->wcol.item[2] = rgb_to_grayscale_byte(wt->wcol.item);
+    wt->wcol.item[0] = wt->wcol.item[1] = wt->wcol.item[2] = srgb_to_grayscale_byte(wt->wcol.item);
     color_blend_v3_v3(wt->wcol.item, color_blend, wcol_state->blend);
     color_ensure_contrast_v3(wt->wcol.item, wt->wcol.inner, 30);
   }
@@ -3995,7 +3994,7 @@ static void widget_swatch(uiBut *but,
     const float width = rect->xmax - rect->xmin;
     const float height = rect->ymax - rect->ymin;
     /* find color luminance and change it slightly */
-    float bw = rgb_to_grayscale(col);
+    float bw = srgb_to_grayscale(col);
 
     bw += (bw < 0.5f) ? 0.5f : -0.5f;
 
@@ -4386,6 +4385,11 @@ static void widget_box(uiBut *but,
   widgetbase_draw(&wtb, wcol);
 
   copy_v3_v3_uchar(wcol->inner, old_col);
+
+  /* Flush the cache so that we don't draw over contents. #125035 */
+  GPU_blend(GPU_BLEND_ALPHA);
+  UI_widgetbase_draw_cache_flush();
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void widget_but(uiWidgetColors *wcol,
@@ -5296,7 +5300,7 @@ static void draw_disk_shaded(float start,
   GPUVertFormat *format = immVertexFormat();
   const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   if (shaded) {
-    col = GPU_vertformat_attr_add(format, "color", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+    col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
   }
   else {
@@ -5316,7 +5320,9 @@ static void draw_disk_shaded(float start,
       uchar r_col[4];
       const float fac = (y1 + radius_ext) * radius_ext_scale;
       color_blend_v4_v4v4(r_col, col1, col2, fac);
-      immAttr4ubv(col, r_col);
+      float f_col[4];
+      rgba_uchar_to_float(f_col, r_col);
+      immAttr4fv(col, f_col);
     }
     immVertex2f(pos, c * radius_int, s * radius_int);
 
@@ -5324,7 +5330,9 @@ static void draw_disk_shaded(float start,
       uchar r_col[4];
       const float fac = (y2 + radius_ext) * radius_ext_scale;
       color_blend_v4_v4v4(r_col, col1, col2, fac);
-      immAttr4ubv(col, r_col);
+      float f_col[4];
+      rgba_uchar_to_float(f_col, r_col);
+      immAttr4fv(col, f_col);
     }
     immVertex2f(pos, c * radius_ext, s * radius_ext);
   }

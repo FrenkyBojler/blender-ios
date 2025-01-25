@@ -8,17 +8,22 @@
  * An instance contains all structures needed to do a complete render.
  */
 
-#include <sstream>
-
 #include "BKE_global.hh"
 #include "BKE_object.hh"
+
 #include "BLI_rect.h"
+#include "BLI_time.h"
+
 #include "BLT_translation.hh"
+
 #include "DEG_depsgraph_query.hh"
+
 #include "DNA_ID.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_modifier_types.h"
+
 #include "IMB_imbuf_types.hh"
+
 #include "RE_pipeline.h"
 
 #include "eevee_engine.h"
@@ -27,6 +32,7 @@
 #include "DNA_particle_types.h"
 
 #include "draw_common.hh"
+#include "draw_view_data.hh"
 
 namespace blender::eevee {
 
@@ -51,7 +57,7 @@ void Instance::init(const int2 &output_res,
                     Depsgraph *depsgraph_,
                     Object *camera_object_,
                     const RenderLayer *render_layer_,
-                    const DRWView *drw_view_,
+                    View *drw_view_,
                     const View3D *v3d_,
                     const RegionView3D *rv3d_)
 {
@@ -72,27 +78,29 @@ void Instance::init(const int2 &output_res,
     return;
   }
 
-  if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
-    sampling.reset();
-  }
-  if (output_res != film.display_extent_get()) {
-    sampling.reset();
-  }
-  if (output_rect) {
-    int2 offset = int2(output_rect->xmin, output_rect->ymin);
-    int2 extent = int2(BLI_rcti_size_x(output_rect), BLI_rcti_size_y(output_rect));
-    if (offset != film.get_data().offset || extent != film.get_data().extent) {
+  if (is_viewport()) {
+    if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
       sampling.reset();
     }
-  }
-  if (assign_if_different(overlays_enabled_, v3d && !(v3d->flag2 & V3D_HIDE_OVERLAYS))) {
-    sampling.reset();
-  }
-  if (is_painting()) {
-    sampling.reset();
-  }
-  if (is_navigating() && scene->eevee.flag & SCE_EEVEE_SHADOW_JITTERED_VIEWPORT) {
-    sampling.reset();
+    if (output_res != film.display_extent_get()) {
+      sampling.reset();
+    }
+    if (output_rect) {
+      int2 offset = int2(output_rect->xmin, output_rect->ymin);
+      int2 extent = int2(BLI_rcti_size_x(output_rect), BLI_rcti_size_y(output_rect));
+      if (offset != film.get_data().offset || extent != film.get_data().extent) {
+        sampling.reset();
+      }
+    }
+    if (assign_if_different(overlays_enabled_, v3d && !(v3d->flag2 & V3D_HIDE_OVERLAYS))) {
+      sampling.reset();
+    }
+    if (is_painting()) {
+      sampling.reset();
+    }
+    if (is_navigating() && scene->eevee.flag & SCE_EEVEE_SHADOW_JITTERED_VIEWPORT) {
+      sampling.reset();
+    }
   }
 
   sampling.init(scene);
@@ -175,7 +183,9 @@ void Instance::update_eval_members()
 
 void Instance::view_update()
 {
-  sampling.reset();
+  if (is_viewport()) {
+    sampling.reset();
+  }
 }
 
 /** \} */
@@ -184,7 +194,7 @@ void Instance::view_update()
 /** \name Sync
  *
  * Sync will gather data from the scene that can change over a time step (i.e: motion steps).
- * IMPORTANT: xxx.sync() functions area responsible for creating DRW resources (i.e: DRWView) as
+ * IMPORTANT: xxx.sync() functions area responsible for creating DRW resources as
  * well as querying temp texture pool. All DRWPasses should be ready by the end end_sync().
  * \{ */
 
@@ -232,12 +242,13 @@ void Instance::begin_sync()
   }
 }
 
-void Instance::object_sync(Object *ob)
+void Instance::object_sync(ObjectRef &ob_ref)
 {
   if (!shaders_are_ready_) {
     return;
   }
 
+  Object *ob = ob_ref.object;
   const bool is_renderable_type = ELEM(ob->type,
                                        OB_CURVES,
                                        OB_GREASE_PENCIL,
@@ -246,7 +257,6 @@ void Instance::object_sync(Object *ob)
                                        OB_VOLUME,
                                        OB_LAMP,
                                        OB_LIGHTPROBE);
-  const bool is_drawable_type = is_renderable_type && !ELEM(ob->type, OB_LAMP, OB_LIGHTPROBE);
   const int ob_visibility = DRW_object_visibility_in_active_context(ob);
   const bool partsys_is_visible = (ob_visibility & OB_VISIBLE_PARTICLES) != 0 &&
                                   (ob->type == OB_MESH);
@@ -257,20 +267,14 @@ void Instance::object_sync(Object *ob)
     return;
   }
 
-  /* TODO cleanup. */
-  ObjectRef ob_ref = DRW_object_ref_get(ob);
   ObjectHandle &ob_handle = sync.sync_object(ob_ref);
-  ResourceHandle res_handle = {0};
-  if (is_drawable_type) {
-    res_handle = manager->resource_handle(ob_ref);
-  }
 
   if (partsys_is_visible && ob != DRW_context_state_get()->object_edit) {
     auto sync_hair =
         [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
           ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,
                                                                          ob->object_to_world());
-          sync.sync_curves(ob, hair_handle, _res_handle, ob_ref, &md, &particle_sys);
+          sync.sync_curves(ob, hair_handle, ob_ref, _res_handle, &md, &particle_sys);
         };
     foreach_hair_particle_handle(ob, ob_handle, sync_hair);
   }
@@ -281,18 +285,18 @@ void Instance::object_sync(Object *ob)
         lights.sync_light(ob, ob_handle);
         break;
       case OB_MESH:
-        if (!sync.sync_sculpt(ob, ob_handle, res_handle, ob_ref)) {
-          sync.sync_mesh(ob, ob_handle, res_handle, ob_ref);
+        if (!sync.sync_sculpt(ob, ob_handle, ob_ref)) {
+          sync.sync_mesh(ob, ob_handle, ob_ref);
         }
         break;
       case OB_POINTCLOUD:
-        sync.sync_point_cloud(ob, ob_handle, res_handle, ob_ref);
+        sync.sync_point_cloud(ob, ob_handle, ob_ref);
         break;
       case OB_VOLUME:
-        sync.sync_volume(ob, ob_handle, res_handle, ob_ref);
+        sync.sync_volume(ob, ob_handle, ob_ref);
         break;
       case OB_CURVES:
-        sync.sync_curves(ob, ob_handle, res_handle, ob_ref);
+        sync.sync_curves(ob, ob_handle, ob_ref);
         break;
       case OB_LIGHTPROBE:
         light_probes.sync_probe(ob, ob_handle);
@@ -310,7 +314,8 @@ void Instance::object_sync_render(void *instance_,
 {
   UNUSED_VARS(engine, depsgraph);
   Instance &inst = *reinterpret_cast<Instance *>(instance_);
-  inst.object_sync(ob);
+  ObjectRef ob_ref = DRW_object_ref_get(ob);
+  inst.object_sync(ob_ref);
 }
 
 void Instance::end_sync()
@@ -363,9 +368,7 @@ void Instance::render_sync()
   manager->end_sync();
 
   /* TODO: Remove old draw manager calls. */
-  DRW_render_instance_buffer_finish();
-
-  DRW_curves_update();
+  DRW_curves_update(*manager);
 }
 
 bool Instance::needs_lightprobe_sphere_passes() const
@@ -405,6 +408,12 @@ void Instance::render_sample()
   /* Motion blur may need to do re-sync after a certain number of sample. */
   if (!is_viewport() && sampling.do_render_sync()) {
     render_sync();
+    while (materials.queued_shaders_count > 0) {
+      /* Leave some time for shaders to compile. */
+      BLI_time_sleep_ms(50);
+      /** WORKAROUND: Re-sync to check if all shaders are already compiled. */
+      render_sync();
+    }
   }
 
   DebugScope debug_scope(debug_scope_render_sample, "EEVEE.render_sample");
@@ -500,14 +509,6 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
 {
   /* TODO: Break on RE_engine_test_break(engine) */
   while (!sampling.finished()) {
-    if (materials.queued_shaders_count > 0) {
-      /* Leave some time for shaders to compile. */
-      BLI_time_sleep_ms(50);
-      /** WORKAROUND: Re-sync to check if all shaders are already compiled. */
-      this->render_sync();
-      continue;
-    }
-
     this->render_sample();
 
     if ((sampling.sample_index() == 1) || ((sampling.sample_index() % 25) == 0) ||
@@ -707,9 +708,16 @@ void Instance::light_bake_irradiance(
   volume_probes.bake.init(probe);
 
   custom_pipeline_wrapper([&]() {
-    manager->begin_sync();
-    render_sync();
-    manager->end_sync();
+    this->render_sync();
+    while (materials.queued_shaders_count > 0) {
+      /* Leave some time for shaders to compile. */
+      BLI_time_sleep_ms(50);
+      /** WORKAROUND: Re-sync to check if all shaders are already compiled. */
+      this->render_sync();
+    }
+    /* Sampling module needs to be initialized to computing lighting. */
+    sampling.init(probe);
+    sampling.step();
 
     DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
 

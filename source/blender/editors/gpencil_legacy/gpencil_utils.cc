@@ -46,7 +46,7 @@
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_preview_image.hh"
@@ -161,7 +161,7 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
         /* For now, Grease Pencil data is associated with the space
          * (actually preview region only). */
         if (r_ptr) {
-          *r_ptr = RNA_pointer_create(screen_id, &RNA_SpaceSequenceEditor, sseq);
+          *r_ptr = RNA_pointer_create_discrete(screen_id, &RNA_SpaceSequenceEditor, sseq);
         }
         return &sseq->gpd;
       }
@@ -171,7 +171,7 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
 
         /* For now, Grease Pencil data is associated with the space... */
         if (r_ptr) {
-          *r_ptr = RNA_pointer_create(screen_id, &RNA_SpaceImageEditor, sima);
+          *r_ptr = RNA_pointer_create_discrete(screen_id, &RNA_SpaceImageEditor, sima);
         }
         return &sima->gpd;
       }
@@ -191,7 +191,7 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
             }
 
             if (r_ptr) {
-              *r_ptr = RNA_pointer_create(&clip->id, &RNA_MovieTrackingTrack, track);
+              *r_ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTrackingTrack, track);
             }
             return &track->gpd;
           }
@@ -234,28 +234,10 @@ bGPdata *ED_annotation_data_get_active_direct(ID *screen_id, ScrArea *area, Scen
   return (gpd_ptr) ? *(gpd_ptr) : nullptr;
 }
 
-bGPdata *ED_gpencil_data_get_active(const bContext *C)
-{
-  Object *ob = CTX_data_active_object(C);
-  if ((ob == nullptr) || (ob->type != OB_GPENCIL_LEGACY)) {
-    return nullptr;
-  }
-  return static_cast<bGPdata *>(ob->data);
-}
-
 bGPdata *ED_annotation_data_get_active(const bContext *C)
 {
   bGPdata **gpd_ptr = ED_annotation_data_get_pointers(C, nullptr);
   return (gpd_ptr) ? *(gpd_ptr) : nullptr;
-}
-
-/* -------------------------------------------------------- */
-
-bool ED_gpencil_data_owner_is_annotation(PointerRNA *owner_ptr)
-{
-  /* Key Assumption: If the pointer is an object, we're dealing with a GP Object's data.
-   * Otherwise, the GP data-block is being used for annotations (i.e. everywhere else). */
-  return ((owner_ptr) && (owner_ptr->type != &RNA_Object));
 }
 
 /* ******************************************************** */

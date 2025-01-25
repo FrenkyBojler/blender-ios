@@ -11,7 +11,6 @@
 #include <cstring>
 #include <fmt/format.h>
 
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -22,7 +21,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLF_api.hh"
@@ -1163,7 +1161,8 @@ const char *WM_key_event_string(const short type, const bool compact)
       case EVT_RETKEY:
         return key_event_glyph_or_text(font_id, IFACE_("Enter"), BLI_STR_UTF8_RETURN_SYMBOL);
       case EVT_SPACEKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Space"), BLI_STR_UTF8_OPEN_BOX);
+        return key_event_glyph_or_text(
+            font_id, CTX_IFACE_(BLT_I18NCONTEXT_UI_EVENTS, "Space"), BLI_STR_UTF8_OPEN_BOX);
       case EVT_LEFTARROWKEY:
         return key_event_glyph_or_text(font_id, IFACE_("Left"), BLI_STR_UTF8_LEFTWARDS_ARROW);
       case EVT_UPARROWKEY:
@@ -1337,7 +1336,7 @@ static wmKeyMapItem *wm_keymap_item_find_in_keymap(wmKeyMap *keymap,
             IDProperty *properties_default = IDP_CopyProperty(
                 static_cast<const IDProperty *>(kmi->ptr->data));
 
-            PointerRNA opptr = RNA_pointer_create(nullptr, ot->srna, properties_default);
+            PointerRNA opptr = RNA_pointer_create_discrete(nullptr, ot->srna, properties_default);
             WM_operator_properties_default(&opptr, true);
 
             if (IDP_EqualsProperties_ex(properties, properties_default, is_strict)) {
@@ -1464,7 +1463,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
           found = wm_keymap_item_find_handlers(C,
                                                wm,
                                                win,
-                                               &region->handlers,
+                                               &region->runtime->handlers,
                                                opname,
                                                opcontext,
                                                properties,
@@ -1483,7 +1482,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         found = wm_keymap_item_find_handlers(C,
                                              wm,
                                              win,
-                                             &region->handlers,
+                                             &region->runtime->handlers,
                                              opname,
                                              opcontext,
                                              properties,
@@ -1501,7 +1500,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         found = wm_keymap_item_find_handlers(C,
                                              wm,
                                              win,
-                                             &region->handlers,
+                                             &region->runtime->handlers,
                                              opname,
                                              opcontext,
                                              properties,
@@ -1515,7 +1514,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         found = wm_keymap_item_find_handlers(C,
                                              wm,
                                              win,
-                                             &region->handlers,
+                                             &region->runtime->handlers,
                                              opname,
                                              opcontext,
                                              properties,
@@ -1563,7 +1562,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
       /* Make a copy of the properties and unset the 'ot->prop' one if set. */
       IDProperty *properties_temp = IDP_CopyProperty(properties);
 
-      PointerRNA opptr = RNA_pointer_create(nullptr, ot->srna, properties_temp);
+      PointerRNA opptr = RNA_pointer_create_discrete(nullptr, ot->srna, properties_temp);
 
       if (RNA_property_is_set(&opptr, ot->prop)) {
         /* For operator that has enum menu,
@@ -1585,7 +1584,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
         /* Make a copy of the properties and set unset ones to their default values. */
         IDProperty *properties_default = IDP_CopyProperty(properties);
 
-        PointerRNA opptr = RNA_pointer_create(nullptr, ot->srna, properties_default);
+        PointerRNA opptr = RNA_pointer_create_discrete(nullptr, ot->srna, properties_default);
         WM_operator_properties_default(&opptr, true);
 
         wmKeyMap *km;

@@ -354,7 +354,7 @@ static void segments_from_indices(const Span<T> indices,
           segment_indices.size());
       while (!segment_indices.is_empty()) {
         const int64_t offset = segment_indices[0];
-        const int64_t next_segment_size = binary_search::find_predicate_begin(
+        const int64_t next_segment_size = binary_search::first_if(
             segment_indices.take_front(max_segment_size),
             [&](const T value) { return value - offset >= max_segment_size; });
         for (const int64_t i : IndexRange(next_segment_size)) {
@@ -642,12 +642,34 @@ IndexMask IndexMask::from_bools(const IndexMask &universe,
       universe, GrainSize(512), memory, [&](const int64_t index) { return bools[index]; });
 }
 
+template<typename T>
+IndexMask IndexMask::from_ranges(OffsetIndices<T> offsets,
+                                 const IndexMask &mask,
+                                 IndexMaskMemory &memory)
+{
+  Vector<IndexMaskSegment, 16> segments;
+  mask.foreach_range([&](const IndexRange mask_range) {
+    const IndexRange range = offsets[mask_range];
+    index_range_to_mask_segments(range, segments);
+  });
+  return IndexMask::from_segments(segments, memory);
+}
+
 IndexMask IndexMask::from_union(const IndexMask &mask_a,
                                 const IndexMask &mask_b,
                                 IndexMaskMemory &memory)
 {
+  return IndexMask::from_union({mask_a, mask_b}, memory);
+}
+
+IndexMask IndexMask::from_union(const Span<IndexMask> masks, IndexMaskMemory &memory)
+{
   ExprBuilder builder;
-  const Expr &expr = builder.merge({&mask_a, &mask_b});
+  Vector<ExprBuilder::Term> terms;
+  for (const IndexMask &mask : masks) {
+    terms.append(&mask);
+  }
+  const Expr &expr = builder.merge(terms);
   return evaluate_expression(expr, memory);
 }
 
@@ -836,7 +858,7 @@ std::optional<RawMaskIterator> IndexMask::find(const int64_t query_index) const
 
 std::optional<RawMaskIterator> IndexMask::find_larger_equal(const int64_t query_index) const
 {
-  const int64_t segment_i = binary_search::find_predicate_begin(
+  const int64_t segment_i = binary_search::first_if(
       IndexRange(segments_num_),
       [&](const int64_t seg_i) { return this->segment(seg_i).last() >= query_index; });
   if (segment_i == segments_num_) {
@@ -853,7 +875,7 @@ std::optional<RawMaskIterator> IndexMask::find_larger_equal(const int64_t query_
   }
   /* The query index is somewhere within this segment. */
   const int64_t local_index = query_index - segment.offset();
-  const int64_t index_in_segment = binary_search::find_predicate_begin(
+  const int64_t index_in_segment = binary_search::first_if(
       segment.base_span(), [&](const int16_t i) { return i >= local_index; });
   const int64_t actual_index_in_segment = index_in_segment + segment_begin_index;
   BLI_assert(actual_index_in_segment < max_segment_size);
@@ -1179,5 +1201,11 @@ template IndexMask IndexMask::from_indices(Span<int32_t>, IndexMaskMemory &);
 template IndexMask IndexMask::from_indices(Span<int64_t>, IndexMaskMemory &);
 template void IndexMask::to_indices(MutableSpan<int32_t>) const;
 template void IndexMask::to_indices(MutableSpan<int64_t>) const;
+template IndexMask IndexMask::from_ranges(OffsetIndices<int32_t>,
+                                          const IndexMask &,
+                                          IndexMaskMemory &);
+template IndexMask IndexMask::from_ranges(OffsetIndices<int64_t>,
+                                          const IndexMask &,
+                                          IndexMaskMemory &);
 
 }  // namespace blender::index_mask

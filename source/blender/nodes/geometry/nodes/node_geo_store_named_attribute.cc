@@ -170,7 +170,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     const char *type_name = nullptr;
     RNA_enum_name_from_value(rna_enum_attribute_type_items, data_type, &type_name);
     const std::string message = fmt::format(
-        TIP_("Failed to write to attribute \"{}\" with domain \"{}\" and type \"{}\""),
+        fmt::runtime(
+            TIP_("Failed to write to attribute \"{}\" with domain \"{}\" and type \"{}\"")),
         name,
         TIP_(domain_name),
         TIP_(type_name));
@@ -209,8 +210,12 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_STORE_NAMED_ATTRIBUTE, "Store Named Attribute", NODE_CLASS_ATTRIBUTE);
+  geo_node_type_base(&ntype, "GeometryNodeStoreNamedAttribute", GEO_NODE_STORE_NAMED_ATTRIBUTE);
+  ntype.ui_name = "Store Named Attribute";
+  ntype.ui_description =
+      "Store the result of a field on a geometry as an attribute with the specified name";
+  ntype.enum_name_legacy = "STORE_NAMED_ATTRIBUTE";
+  ntype.nclass = NODE_CLASS_ATTRIBUTE;
   blender::bke::node_type_storage(&ntype,
                                   "NodeGeometryStoreNamedAttribute",
                                   node_free_standard_storage,
