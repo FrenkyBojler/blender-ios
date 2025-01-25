@@ -357,9 +357,7 @@ static bke::CurvesGeometry create_test_curves(Span<int> offsets,
   return curves;
 }
 
-void expect_boolean_result_coord(const Span<float2> curve_subj,
-                                 const Span<float2> curve_clip,
-                                 const BooleanResult &result,
+void expect_boolean_result_coord(const BooleanResult &result,
                                  const Array<Vector<float2>> &expected_points)
 {
   /* TODO */
@@ -404,18 +402,13 @@ TEST(boolean_curves, Squares)
 
   const Array<float2> points_subj = {{0, 0}, {2, 0}, {2, 2}, {0, 2}};
   const Array<float2> points_clip = {{1, 1}, {3, 1}, {3, 3}, {1, 3}};
+  const Array<float2> points = {{0, 0}, {2, 0}, {2, 2}, {0, 2}, {1, 1}, {3, 1}, {3, 3}, {1, 3}};
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
 
   /* TODO */
   const Array<int> points_by_curve(
       {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
-  Array<float2> points(points_subj.size() + points_clip.size());
-  array_utils::copy(points_subj.as_span(),
-                    points.as_mutable_span().slice(IndexRange(points_subj.size())));
-  array_utils::copy(
-      points_clip.as_span(),
-      points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
   const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -425,7 +418,7 @@ TEST(boolean_curves, Squares)
         Operation::Intersect, src_curves, points, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{2, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Intersection",
                  "polygon",
@@ -441,7 +434,7 @@ TEST(boolean_curves, Squares)
 
     const Array<Vector<float2>> expected_points = {
         {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 3}, {3, 3}, {3, 1}, {2, 1}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Union",
                  "polygon",
@@ -457,7 +450,7 @@ TEST(boolean_curves, Squares)
 
     const Array<Vector<float2>> expected_points = {
         {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Difference",
                  "polygon",
@@ -481,18 +474,14 @@ TEST(boolean_curves, Simple)
    */
   const Array<float2> points_subj = {{0, 6}, {8, 6}, {8, 3}, {0, 3}};
   const Array<float2> points_clip = {{6, 0}, {6, 4}, {4, 2}, {2, 4}, {2, 0}};
+  const Array<float2> points = {
+      {0, 6}, {8, 6}, {8, 3}, {0, 3}, {6, 0}, {6, 4}, {4, 2}, {2, 4}, {2, 0}};
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
 
   /* TODO */
   const Array<int> points_by_curve(
       {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
-  Array<float2> points(points_subj.size() + points_clip.size());
-  array_utils::copy(points_subj.as_span(),
-                    points.as_mutable_span().slice(IndexRange(points_subj.size())));
-  array_utils::copy(
-      points_clip.as_span(),
-      points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
   const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -503,7 +492,7 @@ TEST(boolean_curves, Simple)
 
     const Array<Vector<float2>> expected_points = {{{5, 3}, {6, 4}, {6, 3}},
                                                    {{2, 3}, {2, 4}, {3, 3}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Intersection",
                  "polygon",
@@ -520,7 +509,7 @@ TEST(boolean_curves, Simple)
     const Array<Vector<float2>> expected_points = {
         {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}},
         {{3, 3}, {4, 2}, {5, 3}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Union",
                  "polygon",
@@ -538,7 +527,7 @@ TEST(boolean_curves, Simple)
     // const Array<Vector<float2>> expected_points = {
     //     {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}},
     //     {{3, 3}, {4, 2}, {5, 3}}};
-    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    // expect_boolean_result_coord(result, expected_points);
 
     draw_results("Difference",
                  "polygon",
@@ -563,18 +552,14 @@ TEST(boolean_curves, Complex)
    */
   const Array<float2> points_subj = {{14, 1}, {0, 5}, {14, 10}, {5, 6}, {14, 6}, {5, 5}};
   const Array<float2> points_clip = {{9, 13}, {13, 0}, {9, 9}, {6, 0}};
+  const Array<float2> points = {
+      {14, 1}, {0, 5}, {14, 10}, {5, 6}, {14, 6}, {5, 5}, {9, 13}, {13, 0}, {9, 9}, {6, 0}};
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
 
   /* TODO */
   const Array<int> points_by_curve(
       {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
-  Array<float2> points(points_subj.size() + points_clip.size());
-  array_utils::copy(points_subj.as_span(),
-                    points.as_mutable_span().slice(IndexRange(points_subj.size())));
-  array_utils::copy(
-      points_clip.as_span(),
-      points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
   const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -590,7 +575,7 @@ TEST(boolean_curves, Complex)
         {{7.79641, 7.78443}, {7.65714, 7.18095}, {8.52174, 7.56522}, {8.7027, 8.10811}},
         {{10.3333, 6}, {10.5059, 5.61176}, {11.2479, 5.69421}, {11.1538, 6}},
         {{7.38462, 6}, {7.21053, 5.24561}, {7.76923, 5.30769}, {8, 6}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Intersection",
                  "polygon",
@@ -627,7 +612,7 @@ TEST(boolean_curves, Complex)
         {{5, 6}, {7.38462, 6}, {7.65714, 7.18095}},
         {{7.76923, 5.30769}, {7.32258, 3.96774}, {12.2, 1.8}, {10.5059, 5.61176}},
         {{5, 5}, {6.95349, 4.13178}, {7.21053, 5.24561}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Union",
                  "polygon",
@@ -657,7 +642,7 @@ TEST(boolean_curves, Complex)
         {{8.7027, 8.10811}, {8.52174, 7.56522}, {9.45361, 7.97938}, {9.30137, 8.32192}},
         {{14, 6}, {11.2479, 5.69421}, {11.1538, 6}},
         {{8, 6}, {7.76923, 5.30769}, {10.5059, 5.61176}, {10.3333, 6}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Difference",
                  "polygon",
@@ -684,18 +669,14 @@ TEST(boolean_curves, Last_Edge_Loop)
    */
   const Array<float2> points_subj = {{0, 5}, {0, 0}, {7, 0}, {7, 5}};
   const Array<float2> points_clip = {{2, 3}, {0, 7}, {3, 7}, {5, 4}, {6, 6}, {3, 4}, {2, 6}};
+  const Array<float2> points = {
+      {0, 5}, {0, 0}, {7, 0}, {7, 5}, {2, 3}, {0, 7}, {3, 7}, {5, 4}, {6, 6}, {3, 4}, {2, 6}};
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
 
   /* TODO */
   const Array<int> points_by_curve(
       {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
-  Array<float2> points(points_subj.size() + points_clip.size());
-  array_utils::copy(points_subj.as_span(),
-                    points.as_mutable_span().slice(IndexRange(points_subj.size())));
-  array_utils::copy(
-      points_clip.as_span(),
-      points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
   const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -718,7 +699,7 @@ TEST(boolean_curves, Last_Edge_Loop)
     //                                                 {2, 5},
     //                                                 {2, 3},
     //                                                 {1, 5}}};
-    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    // expect_boolean_result_coord(result, expected_points);
 
     draw_results("Intersection",
                  "polygon",
@@ -746,7 +727,7 @@ TEST(boolean_curves, Last_Edge_Loop)
     //                                                 {2, 5},
     //                                                 {2, 3},
     //                                                 {1, 5}}};
-    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    // expect_boolean_result_coord(result, expected_points);
 
     draw_results("Union",
                  "polygon",
@@ -773,7 +754,7 @@ TEST(boolean_curves, Last_Edge_Loop)
                                                     {2, 5},
                                                     {2, 3},
                                                     {1, 5}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Difference",
                  "polygon",
@@ -794,18 +775,14 @@ TEST(boolean_curves, Simple_Cuts)
   {
     const Array<float2> points_subj = {{5, 7}, {3, 6}, {0, 2}, {0, 0}};
     const Array<float2> points_clip = {{1, 6}, {3, 4}, {3, 1}, {0, 4}, {2, 3}};
+    const Array<float2> points = {
+        {5, 7}, {3, 6}, {0, 2}, {0, 0}, {1, 6}, {3, 4}, {3, 1}, {0, 4}, {2, 3}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
 
     /* TODO */
     const Array<int> points_by_curve(
         {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
-    Array<float2> points(points_subj.size() + points_clip.size());
-    array_utils::copy(points_subj.as_span(),
-                      points.as_mutable_span().slice(IndexRange(points_subj.size())));
-    array_utils::copy(
-        points_clip.as_span(),
-        points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -816,7 +793,7 @@ TEST(boolean_curves, Simple_Cuts)
     const Array<Vector<float2>> expected_points = {{{5, 7}, {3, 6}, {2.14286, 4.85714}},
                                                    {{1.61538, 4.15385}, {1.09091, 3.45455}},
                                                    {{0.857143, 3.14286}, {0, 2}, {0, 0}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Simple Cut 1",
                  "cut",
@@ -829,18 +806,13 @@ TEST(boolean_curves, Simple_Cuts)
   {
     const Array<float2> points_subj = {{5, 5}, {3, 5}, {1, 3}, {1, 1}};
     const Array<float2> points_clip = {{5, 6}, {6, 5}, {1, 0}, {0, 1}};
+    const Array<float2> points = {{5, 5}, {3, 5}, {1, 3}, {1, 1}, {5, 6}, {6, 5}, {1, 0}, {0, 1}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
 
     /* TODO */
     const Array<int> points_by_curve(
         {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
-    Array<float2> points(points_subj.size() + points_clip.size());
-    array_utils::copy(points_subj.as_span(),
-                      points.as_mutable_span().slice(IndexRange(points_subj.size())));
-    array_utils::copy(
-        points_clip.as_span(),
-        points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -849,7 +821,7 @@ TEST(boolean_curves, Simple_Cuts)
         Operation::Difference, src_curves, points, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{4, 5}, {3, 5}, {1, 3}, {1, 2}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Simple Cut 2",
                  "cut",
@@ -863,18 +835,25 @@ TEST(boolean_curves, Simple_Cuts)
     const Array<float2> points_subj = {{6, 8}, {4, 7}, {1, 3}, {1, 1}};
     const Array<float2> points_clip = {
         {3, 7}, {5, 5}, {1, 0}, {0, 4}, {2, 3}, {1, 5}, {3, 4}, {2, 6}, {4, 5}};
+    const Array<float2> points = {{6, 8},
+                                  {4, 7},
+                                  {1, 3},
+                                  {1, 1},
+                                  {3, 7},
+                                  {5, 5},
+                                  {1, 0},
+                                  {0, 4},
+                                  {2, 3},
+                                  {1, 5},
+                                  {3, 4},
+                                  {2, 6},
+                                  {4, 5}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
 
     /* TODO */
     const Array<int> points_by_curve(
         {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
-    Array<float2> points(points_subj.size() + points_clip.size());
-    array_utils::copy(points_subj.as_span(),
-                      points.as_mutable_span().slice(IndexRange(points_subj.size())));
-    array_utils::copy(
-        points_clip.as_span(),
-        points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -886,7 +865,7 @@ TEST(boolean_curves, Simple_Cuts)
                                                    {{3.4, 6.2}, {2.90909, 5.54545}},
                                                    {{2.5, 5}, {2.09091, 4.45455}},
                                                    {{1.6, 3.8}, {1.27273, 3.36364}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Simple Cut 3",
                  "cut",
@@ -900,18 +879,25 @@ TEST(boolean_curves, Simple_Cuts)
     const Array<float2> points_subj = {{6, 7}, {4, 6}, {1, 2}, {1, 0}};
     const Array<float2> points_clip = {
         {0, 4}, {2, 2}, {7, 8}, {3, 7}, {4, 5}, {2, 6}, {3, 4}, {1, 5}, {2, 3}};
+    const Array<float2> points = {{6, 7},
+                                  {4, 6},
+                                  {1, 2},
+                                  {1, 0},
+                                  {0, 4},
+                                  {2, 2},
+                                  {7, 8},
+                                  {3, 7},
+                                  {4, 5},
+                                  {2, 6},
+                                  {3, 4},
+                                  {1, 5},
+                                  {2, 3}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
 
     /* TODO */
     const Array<int> points_by_curve(
         {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
-    Array<float2> points(points_subj.size() + points_clip.size());
-    array_utils::copy(points_subj.as_span(),
-                      points.as_mutable_span().slice(IndexRange(points_subj.size())));
-    array_utils::copy(
-        points_clip.as_span(),
-        points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -923,7 +909,7 @@ TEST(boolean_curves, Simple_Cuts)
                                                    {{2.8, 4.4}, {2.63636, 4.18182}},
                                                    {{1.9, 3.2}, {1.81818, 3.09091}},
                                                    {{1.42857, 2.57143}, {1, 2}, {1, 0}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Simple Cut 4",
                  "cut",
@@ -936,18 +922,14 @@ TEST(boolean_curves, Simple_Cuts)
   {
     const Array<float2> points_subj = {{6, 5}, {4, 5}, {1, 2}, {1, 0}};
     const Array<float2> points_clip = {{1, 4}, {3, 1}, {5, 3}, {2, 5}, {3, 3}};
+    const Array<float2> points = {
+        {6, 5}, {4, 5}, {1, 2}, {1, 0}, {1, 4}, {3, 1}, {5, 3}, {2, 5}, {3, 3}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {true, true};
 
     /* TODO */
     const Array<int> points_by_curve(
         {0, int(points_subj.size()), int(points_subj.size() + points_clip.size())});
-    Array<float2> points(points_subj.size() + points_clip.size());
-    array_utils::copy(points_subj.as_span(),
-                      points.as_mutable_span().slice(IndexRange(points_subj.size())));
-    array_utils::copy(
-        points_clip.as_span(),
-        points.as_mutable_span().slice(IndexRange(points_subj.size(), points_clip.size())));
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -958,7 +940,7 @@ TEST(boolean_curves, Simple_Cuts)
     const Array<Vector<float2>> expected_points = {{{4.4, 3.4}, {6, 5}, {4, 5}, {3.2, 4.2}},
                                                    {{2.66667, 3.66667}, {2.33333, 3.33333}},
                                                    {{1.8, 2.8}, {1, 2}, {1, 0}, {2.6, 1.6}}};
-    expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    expect_boolean_result_coord(result, expected_points);
 
     draw_results("Cyclical Cut",
                  "cut",
@@ -1009,7 +991,7 @@ TEST(boolean_curves, Squares_With_Holes)
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    // expect_boolean_result_coord(result, expected_points);
 
     draw_results("Intersection",
                  "polygon",
@@ -1026,7 +1008,7 @@ TEST(boolean_curves, Squares_With_Holes)
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    // expect_boolean_result_coord(result, expected_points);
 
     draw_results("Union",
                  "polygon",
@@ -1043,7 +1025,7 @@ TEST(boolean_curves, Squares_With_Holes)
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(points_subj, points_clip, result, expected_points);
+    // expect_boolean_result_coord(result, expected_points);
 
     draw_results("Difference",
                  "polygon",
