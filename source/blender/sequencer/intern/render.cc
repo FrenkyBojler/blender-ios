@@ -466,7 +466,12 @@ static float4x4 sequencer_image_crop_transform_matrix(const Strip *strip,
                                                       const float preview_scale_factor)
 {
   const StripTransform *transform = strip->data->transform;
-  const float3 image_center_offs{(out->x - in->x) / 2.0f, (out->y - in->y) / 2.0f, 0.0f};
+
+  /* This value is intentionally kept as integer. Otherwise images with odd dimensions would
+   * be translated to center of canvas by non-integer value, which would cause it to be
+   * interpolated. Interpolation with 0 user defined translation is unwanted behavior. */
+  const int3 image_center_offs{(out->x - in->x) / 2, (out->y - in->y) / 2, 0};
+
   const float3 translation{
       transform->xofs * preview_scale_factor, transform->yofs * preview_scale_factor, 0.0f};
   const float3 rotation{0.0f, 0.0f, transform->rotation};
@@ -475,7 +480,7 @@ static float4x4 sequencer_image_crop_transform_matrix(const Strip *strip,
   const float3 pivot = {in->x * transform->origin[0], in->y * transform->origin[1], 0.0f};
 
   const float4x4 matrix = math::from_loc_rot_scale<float4x4>(
-      translation + image_center_offs, rotation, scale);
+      translation + float3(image_center_offs), rotation, scale);
   const float4x4 mat_pivot = math::from_origin_transform(matrix, pivot);
   return math::invert(mat_pivot);
 }
