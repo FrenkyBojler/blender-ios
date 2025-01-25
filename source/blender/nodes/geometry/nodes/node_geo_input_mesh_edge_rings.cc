@@ -307,11 +307,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_MESH_EDGE_RINGS, "Edge Rings", NODE_CLASS_INPUT);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeInputMeshEdgeRings");
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.ui_name = "Edge Rings";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
