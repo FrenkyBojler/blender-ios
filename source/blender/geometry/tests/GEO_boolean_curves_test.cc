@@ -400,8 +400,6 @@ TEST(boolean_curves, Squares)
 {
   draw_divider_start("Squares");
 
-  const Array<float2> points_subj = {{0, 0}, {2, 0}, {2, 2}, {0, 2}};
-  const Array<float2> points_clip = {{1, 1}, {3, 1}, {3, 3}, {1, 3}};
   const Array<float2> points = {{0, 0}, {2, 0}, {2, 2}, {0, 2}, {1, 1}, {3, 1}, {3, 3}, {1, 3}};
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
@@ -471,8 +469,6 @@ TEST(boolean_curves, Simple)
    * Greiner, Günther; Kai Hormann (1998). "Efficient clipping of arbitrary polygons". ACM
    * Transactions on Graphics. 17 (2): 71-83.
    */
-  const Array<float2> points_subj = {{0, 6}, {8, 6}, {8, 3}, {0, 3}};
-  const Array<float2> points_clip = {{6, 0}, {6, 4}, {4, 2}, {2, 4}, {2, 0}};
   const Array<float2> points = {
       {0, 6}, {8, 6}, {8, 3}, {0, 3}, {6, 0}, {6, 4}, {4, 2}, {2, 4}, {2, 0}};
   const Array<bool> is_fill = {true, true};
@@ -548,8 +544,6 @@ TEST(boolean_curves, Complex)
    * Greiner, Günther; Kai Hormann (1998). "Efficient clipping of arbitrary polygons". ACM
    * Transactions on Graphics. 17 (2): 71-83.
    */
-  const Array<float2> points_subj = {{14, 1}, {0, 5}, {14, 10}, {5, 6}, {14, 6}, {5, 5}};
-  const Array<float2> points_clip = {{9, 13}, {13, 0}, {9, 9}, {6, 0}};
   const Array<float2> points = {
       {14, 1}, {0, 5}, {14, 10}, {5, 6}, {14, 6}, {5, 5}, {9, 13}, {13, 0}, {9, 9}, {6, 0}};
   const Array<bool> is_fill = {true, true};
@@ -664,8 +658,6 @@ TEST(boolean_curves, Last_Edge_Loop)
    *   3: Multiple intersection on one edge not in order.
    *   4: Having a self intersection.
    */
-  const Array<float2> points_subj = {{0, 5}, {0, 0}, {7, 0}, {7, 5}};
-  const Array<float2> points_clip = {{2, 3}, {0, 7}, {3, 7}, {5, 4}, {6, 6}, {3, 4}, {2, 6}};
   const Array<float2> points = {
       {0, 5}, {0, 0}, {7, 0}, {7, 5}, {2, 3}, {0, 7}, {3, 7}, {5, 4}, {6, 6}, {3, 4}, {2, 6}};
   const Array<bool> is_fill = {true, true};
@@ -769,8 +761,6 @@ TEST(boolean_curves, Simple_Cuts)
   draw_divider_start("Cuts");
 
   {
-    const Array<float2> points_subj = {{5, 7}, {3, 6}, {0, 2}, {0, 0}};
-    const Array<float2> points_clip = {{1, 6}, {3, 4}, {3, 1}, {0, 4}, {2, 3}};
     const Array<float2> points = {
         {5, 7}, {3, 6}, {0, 2}, {0, 0}, {1, 6}, {3, 4}, {3, 1}, {0, 4}, {2, 3}};
     const Array<bool> is_fill = {false, true};
@@ -799,8 +789,6 @@ TEST(boolean_curves, Simple_Cuts)
                  result);
   }
   {
-    const Array<float2> points_subj = {{5, 5}, {3, 5}, {1, 3}, {1, 1}};
-    const Array<float2> points_clip = {{5, 6}, {6, 5}, {1, 0}, {0, 1}};
     const Array<float2> points = {{5, 5}, {3, 5}, {1, 3}, {1, 1}, {5, 6}, {6, 5}, {1, 0}, {0, 1}};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
@@ -826,9 +814,6 @@ TEST(boolean_curves, Simple_Cuts)
                  result);
   }
   {
-    const Array<float2> points_subj = {{6, 8}, {4, 7}, {1, 3}, {1, 1}};
-    const Array<float2> points_clip = {
-        {3, 7}, {5, 5}, {1, 0}, {0, 4}, {2, 3}, {1, 5}, {3, 4}, {2, 6}, {4, 5}};
     const Array<float2> points = {{6, 8},
                                   {4, 7},
                                   {1, 3},
@@ -869,9 +854,6 @@ TEST(boolean_curves, Simple_Cuts)
                  result);
   }
   {
-    const Array<float2> points_subj = {{6, 7}, {4, 6}, {1, 2}, {1, 0}};
-    const Array<float2> points_clip = {
-        {0, 4}, {2, 2}, {7, 8}, {3, 7}, {4, 5}, {2, 6}, {3, 4}, {1, 5}, {2, 3}};
     const Array<float2> points = {{6, 7},
                                   {4, 6},
                                   {1, 2},
@@ -912,8 +894,6 @@ TEST(boolean_curves, Simple_Cuts)
                  result);
   }
   {
-    const Array<float2> points_subj = {{6, 5}, {4, 5}, {1, 2}, {1, 0}};
-    const Array<float2> points_clip = {{1, 4}, {3, 1}, {5, 3}, {2, 5}, {3, 3}};
     const Array<float2> points = {
         {6, 5}, {4, 5}, {1, 2}, {1, 0}, {1, 4}, {3, 1}, {5, 3}, {2, 5}, {3, 3}};
     const Array<bool> is_fill = {false, true};
