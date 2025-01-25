@@ -3135,7 +3135,6 @@ typedef enum GeometryNodeLinearGizmoDrawStyle {
   GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_ARROW = 0,
   GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CROSS = 1,
   GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_BOX = 2,
-  GEO_NODE_LINEAR_GIZMO_DRAW_STYLE_CONE = 3,
 } GeometryNodeLinearGizmoDrawStyle;
 
 typedef enum NodeGeometryTransformMode {
