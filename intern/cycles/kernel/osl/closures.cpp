@@ -62,6 +62,13 @@ static OSL::ClosureParam *osl_closure_layer_params()
   return params;
 }
 
+static OSL::ClosureParam *osl_closure_debug_params()
+{
+  static OSL::ClosureParam params[] = {CLOSURE_STRING_PARAM(DebugClosure, tag),
+                                       CLOSURE_FINISH_PARAM(DebugClosure)};
+  return params;
+}
+
 void OSLRenderServices::register_closures(OSL::ShadingSystem *ss)
 {
 #define OSL_CLOSURE_STRUCT_BEGIN(Upper, lower) \
@@ -71,6 +78,8 @@ void OSLRenderServices::register_closures(OSL::ShadingSystem *ss)
 #include "closures_template.h"
   ss->register_closure(
       "layer", OSL_CLOSURE_LAYER_ID, osl_closure_layer_params(), nullptr, nullptr);
+  ss->register_closure(
+      "debug", OSL_CLOSURE_DEBUG_ID, osl_closure_debug_params(), nullptr, nullptr);
 }
 
 /* Surface & Background */
@@ -79,6 +88,7 @@ template<>
 void osl_eval_nodes<SHADER_TYPE_SURFACE>(const ThreadKernelGlobalsCPU *kg,
                                          const void *state,
                                          ShaderData *sd,
+                                         ccl_global float *render_buffer,
                                          const uint32_t path_flag)
 {
   /* setup shader globals from shader data */
@@ -172,21 +182,45 @@ void osl_eval_nodes<SHADER_TYPE_SURFACE>(const ThreadKernelGlobalsCPU *kg,
       globals->dPdy = TO_VEC3(dPdy);
     }
 
-    /* surface shader */
+    /* surface shader + AOVs */
     if (kg->osl.globals->surface_state[shader]) {
-      ss->execute(*octx,
-                  *(kg->osl.globals->surface_state[shader]),
-                  kg->osl.thread_index,
-                  0,
-                  *globals,
-                  nullptr,
-                  nullptr);
+      const int num_aovs = kg->osl.globals->layer_indices[shader].size() - 1;
+      if (ss->execute_init(*octx,
+                           *(kg->osl.globals->surface_state[shader]),
+                           kg->osl.thread_index,
+                           0,
+                           *globals,
+                           nullptr,
+                           nullptr))
+      {
+        ss->execute_layer(*octx,
+                          kg->osl.thread_index,
+                          0,
+                          *globals,
+                          nullptr,
+                          nullptr,
+                          kg->osl.globals->layer_indices[shader].back());
+        if (num_aovs && ((path_flag & PATH_RAY_TRANSPARENT_BACKGROUND) ||
+                         !(path_flag & PATH_RAY_SINGLE_PASS_DONE)))
+        {
+          for (int i = 0; i < num_aovs; i++) {
+            ss->execute_layer(*octx,
+                              kg->osl.thread_index,
+                              0,
+                              *globals,
+                              nullptr,
+                              nullptr,
+                              kg->osl.globals->layer_indices[shader][i]);
+          }
+        }
+        ss->execute_cleanup(*octx);
+      }
     }
   }
 
   /* flatten closure tree */
   if (kg->osl.shader_globals.Ci) {
-    flatten_closure_tree(kg, sd, path_flag, kg->osl.shader_globals.Ci);
+    flatten_closure_tree(kg, sd, state, render_buffer, path_flag, kg->osl.shader_globals.Ci);
   }
 }
 
@@ -196,6 +230,7 @@ template<>
 void osl_eval_nodes<SHADER_TYPE_VOLUME>(const ThreadKernelGlobalsCPU *kg,
                                         const void *state,
                                         ShaderData *sd,
+                                        ccl_global float *render_buffer,
                                         const uint32_t path_flag)
 {
   /* setup shader globals from shader data */
@@ -215,25 +250,49 @@ void osl_eval_nodes<SHADER_TYPE_VOLUME>(const ThreadKernelGlobalsCPU *kg,
     kg->osl.shader_globals.shadow_path_state = nullptr;
   }
 
-  /* execute shader */
+  /* execute shader + AOVs */
   OSL::ShadingSystem *ss = (OSL::ShadingSystem *)kg->osl.ss;
   OSL::ShaderGlobals *globals = reinterpret_cast<OSL::ShaderGlobals *>(&kg->osl.shader_globals);
   OSL::ShadingContext *octx = kg->osl.context;
   const int shader = sd->shader & SHADER_MASK;
 
   if (kg->osl.globals->volume_state[shader]) {
-    ss->execute(*octx,
-                *(kg->osl.globals->volume_state[shader]),
-                kg->osl.thread_index,
-                0,
-                *globals,
-                nullptr,
-                nullptr);
+    const int num_aovs = kg->osl.globals->layer_indices[shader].size() - 1;
+    if (ss->execute_init(*octx,
+                         *(kg->osl.globals->volume_state[shader]),
+                         kg->osl.thread_index,
+                         0,
+                         *globals,
+                         nullptr,
+                         nullptr))
+    {
+      ss->execute_layer(*octx,
+                        kg->osl.thread_index,
+                        0,
+                        *globals,
+                        nullptr,
+                        nullptr,
+                        kg->osl.globals->layer_indices[shader].back());
+      if (num_aovs && ((path_flag & PATH_RAY_TRANSPARENT_BACKGROUND) ||
+                       !(path_flag & PATH_RAY_SINGLE_PASS_DONE)))
+      {
+        for (int i = 0; i < num_aovs; i++) {
+          ss->execute_layer(*octx,
+                            kg->osl.thread_index,
+                            0,
+                            *globals,
+                            nullptr,
+                            nullptr,
+                            kg->osl.globals->layer_indices[shader][i]);
+        }
+      }
+      ss->execute_cleanup(*octx);
+    }
   }
 
   /* flatten closure tree */
   if (kg->osl.shader_globals.Ci) {
-    flatten_closure_tree(kg, sd, path_flag, kg->osl.shader_globals.Ci);
+    flatten_closure_tree(kg, sd, state, render_buffer, path_flag, kg->osl.shader_globals.Ci);
   }
 }
 
@@ -243,6 +302,7 @@ template<>
 void osl_eval_nodes<SHADER_TYPE_DISPLACEMENT>(const ThreadKernelGlobalsCPU *kg,
                                               const void *state,
                                               ShaderData *sd,
+                                              ccl_global float *render_buffer,
                                               const uint32_t path_flag)
 {
   /* setup shader globals from shader data */

@@ -204,6 +204,9 @@ void Scene::device_update(Device *device_, Progress &progress)
   if (film->exposure_is_modified()) {
     integrator->tag_modified();
   }
+  if (shader_manager->use_osl() && film->update_output_aovs(this)) {
+    shader_manager->tag_update(this, ccl::ShaderManager::SHADER_MODIFIED);
+  }
 
   progress.set_status("Updating Shaders");
   shader_manager->device_update(device, &dscene, this, progress);

@@ -1,0 +1,8 @@
+/* SPDX-FileCopyrightText: 2024 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
+shader node_output_aov_vector(string Name = "", vector Vector = 0)
+{
+  Ci += color(Vector) * debug(Name);
+}

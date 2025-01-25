@@ -203,7 +203,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   bool have_cryptomatte = false;
   bool have_aov_color = false;
   bool have_aov_value = false;
+  bool have_aov_vector = false;
   bool have_lightgroup = false;
+
+  vector<AOVDescriptor> kernel_aov_descs;
 
   for (size_t i = 0; i < scene->passes.size(); i++) {
     const Pass *pass = scene->passes[i];
@@ -375,12 +378,21 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
           kfilm->pass_aov_color = kfilm->pass_stride;
           have_aov_color = true;
         }
+        kernel_aov_descs.push_back(get_aov_descriptor(scene, pass->get_name()));
         break;
       case PASS_AOV_VALUE:
         if (!have_aov_value) {
           kfilm->pass_aov_value = kfilm->pass_stride;
           have_aov_value = true;
         }
+        kernel_aov_descs.push_back(get_aov_descriptor(scene, pass->get_name()));
+        break;
+      case PASS_AOV_VECTOR:
+        if (!have_aov_vector) {
+          kfilm->pass_aov_vector = kfilm->pass_stride;
+          have_aov_vector = true;
+        }
+        kernel_aov_descs.push_back(get_aov_descriptor(scene, pass->get_name()));
         break;
       case PASS_GUIDING_COLOR:
         kfilm->pass_guiding_color = kfilm->pass_stride;
@@ -413,27 +425,39 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   kfilm->cryptomatte_passes = cryptomatte_passes;
   kfilm->cryptomatte_depth = cryptomatte_depth;
 
+  /* AOV descriptor map for OSL */
+  kernel_aov_descs.push_back(get_aov_descriptor(nullptr, ustring()));  // create a dummy
+  AOVDescriptor *aov_descs = dscene->aov_descs.alloc(kernel_aov_descs.size());
+  std::copy_n(kernel_aov_descs.data(), kernel_aov_descs.size(), aov_descs);
+  dscene->aov_descs.copy_to_device();
+
   clear_modified();
 }
 
-void Film::device_free(Device * /*device*/, DeviceScene * /*dscene*/, Scene *scene)
+void Film::device_free(Device * /*device*/, DeviceScene *dscene, Scene *scene)
 {
   scene->lookup_tables->remove_table(&filter_table_offset_);
+  dscene->aov_descs.free();
 }
 
-int Film::get_aov_offset(Scene *scene, string name, bool &is_color)
+int Film::get_aov_offset(Scene *scene, ustring name, OutputAOVType &output_type)
 {
   int offset_color = 0;
   int offset_value = 0;
+  int offset_vector = 0;
   for (const Pass *pass : scene->passes) {
     if (pass->get_name() == name) {
       if (pass->get_type() == PASS_AOV_VALUE) {
-        is_color = false;
+        output_type = OUTPUT_AOV_TYPE_VALUE;
         return offset_value;
       }
-      if (pass->get_type() == PASS_AOV_COLOR) {
-        is_color = true;
+      else if (pass->get_type() == PASS_AOV_COLOR) {
+        output_type = OUTPUT_AOV_TYPE_COLOR;
         return offset_color;
+      }
+      else if (pass->get_type() == PASS_AOV_VECTOR) {
+        output_type = OUTPUT_AOV_TYPE_VECTOR;
+        return offset_vector;
       }
     }
 
@@ -442,6 +466,9 @@ int Film::get_aov_offset(Scene *scene, string name, bool &is_color)
     }
     else if (pass->get_type() == PASS_AOV_COLOR) {
       offset_color += pass->get_info().num_components;
+    }
+    else if (pass->get_type() == PASS_AOV_VECTOR) {
+      offset_vector += pass->get_info().num_components;
     }
   }
 
@@ -462,6 +489,32 @@ bool Film::update_lightgroups(Scene *scene)
   }
   if (scene->lightgroups != lightgroups) {
     scene->lightgroups = lightgroups;
+    return true;
+  }
+
+  return false;
+}
+
+bool Film::update_output_aovs(Scene *scene)
+{
+  ccl::set<ustring> output_aovs;
+  for (const Pass *pass : scene->passes) {
+    switch (pass->get_type()) {
+      case PASS_AOV_COLOR:
+        output_aovs.insert(pass->get_name());
+        break;
+      case PASS_AOV_VALUE:
+        output_aovs.insert(pass->get_name());
+        break;
+      case PASS_AOV_VECTOR:
+        output_aovs.insert(pass->get_name());
+        break;
+      default:
+        break;
+    }
+  }
+  if (scene->output_aovs != output_aovs) {
+    scene->output_aovs = output_aovs;
     return true;
   }
 
@@ -734,6 +787,20 @@ uint Film::get_kernel_features(const Scene *scene) const
   }
 
   return kernel_features;
+}
+
+AOVDescriptor Film::get_aov_descriptor(Scene *scene, ustring name)
+{
+  AOVDescriptor desc;
+  OutputAOVType type = OUTPUT_AOV_TYPE_NONE;
+  int offset = -1;
+  if (scene) {
+    offset = get_aov_offset(scene, name, type);
+  }
+  desc.name = (uint64_t)name.hash();
+  desc.type = type;
+  desc.offset = offset;
+  return desc;
 }
 
 CCL_NAMESPACE_END

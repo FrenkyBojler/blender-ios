@@ -6584,6 +6584,7 @@ NODE_DEFINE(OutputAOVNode)
 
   SOCKET_IN_COLOR(color, "Color", zero_float3());
   SOCKET_IN_FLOAT(value, "Value", 0.0f);
+  SOCKET_IN_VECTOR(vector, "Vector", zero_float3());
 
   SOCKET_STRING(name, "AOV Name", ustring(""));
 
@@ -6598,15 +6599,18 @@ OutputAOVNode::OutputAOVNode() : ShaderNode(get_node_type())
 
 void OutputAOVNode::simplify_settings(Scene *scene)
 {
-  offset = scene->film->get_aov_offset(scene, name.string(), is_color);
-  if (offset == -1) {
-    offset = scene->film->get_aov_offset(scene, name.string(), is_color);
-  }
+  offset = scene->film->get_aov_offset(scene, name, output_type);
 
-  if (offset == -1 || is_color) {
-    input("Value")->disconnect();
+  if (offset == -1 || output_type == OUTPUT_AOV_TYPE_VALUE) {
+    input("Color")->disconnect();
+    input("Vector")->disconnect();
   }
-  if (offset == -1 || !is_color) {
+  if (offset == -1 || output_type == OUTPUT_AOV_TYPE_COLOR) {
+    input("Value")->disconnect();
+    input("Vector")->disconnect();
+  }
+  if (offset == -1 || output_type == OUTPUT_AOV_TYPE_VECTOR) {
+    input("Value")->disconnect();
     input("Color")->disconnect();
   }
 }
@@ -6615,17 +6619,42 @@ void OutputAOVNode::compile(SVMCompiler &compiler)
 {
   assert(offset >= 0);
 
-  if (is_color) {
-    compiler.add_node(NODE_AOV_COLOR, compiler.stack_assign(input("Color")), offset);
-  }
-  else {
-    compiler.add_node(NODE_AOV_VALUE, compiler.stack_assign(input("Value")), offset);
+  switch (output_type) {
+    case OUTPUT_AOV_TYPE_VALUE:
+      compiler.add_node(NODE_AOV_VALUE, compiler.stack_assign(input("Value")), offset);
+      break;
+    case OUTPUT_AOV_TYPE_COLOR:
+      compiler.add_node(NODE_AOV_COLOR, compiler.stack_assign(input("Color")), offset);
+      break;
+    case OUTPUT_AOV_TYPE_VECTOR:
+      compiler.add_node(NODE_AOV_VECTOR, compiler.stack_assign(input("Vector")), offset);
+      break;
+    default:
+      assert(0);
+      break;
   }
 }
 
-void OutputAOVNode::compile(OSLCompiler & /*compiler*/)
+void OutputAOVNode::compile(OSLCompiler &compiler)
 {
-  /* TODO */
+  assert(offset >= 0);
+
+  compiler.parameter("Name", name);
+
+  switch (output_type) {
+    case OUTPUT_AOV_TYPE_VALUE:
+      compiler.add(this, "node_output_aov_value");
+      break;
+    case OUTPUT_AOV_TYPE_COLOR:
+      compiler.add(this, "node_output_aov_color");
+      break;
+    case OUTPUT_AOV_TYPE_VECTOR:
+      compiler.add(this, "node_output_aov_vector");
+      break;
+    default:
+      assert(0);
+      break;
+  }
 }
 
 /* Math */

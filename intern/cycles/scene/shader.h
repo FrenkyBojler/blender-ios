@@ -116,6 +116,7 @@ class Shader : public Node {
   bool has_surface_spatial_varying;
   bool has_volume_spatial_varying;
   bool has_volume_attribute_dependency;
+  bool has_aovs;
 
   float3 emission_estimate;
   EmissionSampling emission_sampling;
@@ -133,6 +134,7 @@ class Shader : public Node {
   OSL::ShaderGroupRef osl_surface_bump_ref;
   OSL::ShaderGroupRef osl_volume_ref;
   OSL::ShaderGroupRef osl_displacement_ref;
+  vector<int> osl_layer_indices;
 #endif
 
   Shader();

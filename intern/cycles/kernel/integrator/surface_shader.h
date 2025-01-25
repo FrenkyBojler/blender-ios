@@ -9,6 +9,7 @@
 #include "kernel/closure/bsdf.h"
 #include "kernel/closure/emissive.h"
 
+#include "kernel/film/aov_passes.h"
 #include "kernel/film/light_passes.h"
 
 #include "kernel/integrator/guiding.h"
@@ -1176,7 +1177,7 @@ ccl_device void surface_shader_eval(KernelGlobals kg,
 
 #ifdef __OSL__
   if (kernel_data.kernel_features & KERNEL_FEATURE_OSL) {
-    osl_eval_nodes<SHADER_TYPE_SURFACE>(kg, state, sd, path_flag);
+    osl_eval_nodes<SHADER_TYPE_SURFACE>(kg, state, sd, buffer, path_flag);
   }
   else
 #endif

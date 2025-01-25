@@ -13,6 +13,7 @@
 #include "kernel/closure/emissive.h"
 #include "kernel/closure/volume.h"
 
+#include "kernel/film/aov_passes.h"
 #include "kernel/geom/object.h"
 
 #include "kernel/osl/types.h"
@@ -30,6 +31,11 @@ CCL_NAMESPACE_BEGIN
 #define OSL_CLOSURE_STRUCT_ARRAY_MEMBER(Upper, TYPE, type, name, key, size) type name[size];
 
 #include "closures_template.h"
+
+struct ccl_align(8) DebugClosure
+{
+  const ccl_private DeviceString tag;
+};
 
 struct ccl_align(8) LayerClosure
 {

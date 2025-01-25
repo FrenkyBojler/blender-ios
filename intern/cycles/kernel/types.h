@@ -533,6 +533,7 @@ enum PassType {
   PASS_CRYPTOMATTE,
   PASS_AOV_COLOR,
   PASS_AOV_VALUE,
+  PASS_AOV_VECTOR,
   PASS_ADAPTIVE_AUX_BUFFER,
   PASS_SAMPLE_COUNT,
   PASS_DIFFUSE_COLOR,
@@ -633,6 +634,21 @@ enum EmissionSampling {
   EMISSION_SAMPLING_FRONT_BACK = 4,
 
   EMISSION_SAMPLING_NUM
+};
+
+enum OutputAOVType {
+  OUTPUT_AOV_TYPE_NONE = 0,
+  OUTPUT_AOV_TYPE_VALUE = 1,
+  OUTPUT_AOV_TYPE_COLOR = 2,
+  OUTPUT_AOV_TYPE_VECTOR = 3,
+
+  OUTPUT_AOV_TYPE_NUM
+};
+
+struct AOVDescriptor {
+  uint64_t name; /* DeviceString aka ustringhash */
+  OutputAOVType type;
+  int offset;
 };
 
 /* Light Type */

@@ -202,6 +202,7 @@ class OutputAOVNode : public ShaderNode {
 
   NODE_SOCKET_API(float, value)
   NODE_SOCKET_API(float3, color)
+  NODE_SOCKET_API(float3, vector)
 
   NODE_SOCKET_API(ustring, name)
 
@@ -212,7 +213,7 @@ class OutputAOVNode : public ShaderNode {
   }
 
   int offset;
-  bool is_color;
+  OutputAOVType output_type;
 };
 
 class GradientTextureNode : public TextureNode {

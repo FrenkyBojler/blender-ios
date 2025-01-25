@@ -156,6 +156,7 @@ void OSLShaderManager::device_update_specific(Device *device,
       og->volume_state.push_back(shader->osl_volume_ref);
       og->displacement_state.push_back(shader->osl_displacement_ref);
       og->bump_state.push_back(shader->osl_surface_bump_ref);
+      og->layer_indices.push_back(shader->osl_layer_indices);
 
       if (shader == background_shader) {
         og->background_state = shader->osl_surface_ref;
@@ -167,10 +168,22 @@ void OSLShaderManager::device_update_specific(Device *device,
     }
   }
 
+  /* set any AOV outputs so they don't get optimised away  */
+  vector<const char *> renderer_outputs;
+  for (const ustring &output : scene->output_aovs) {
+    renderer_outputs.push_back(output.c_str());
+  }
+
   /* setup shader engine */
-  device->foreach_device([](Device *sub_device) {
+  device->foreach_device([renderer_outputs](Device *sub_device) {
     OSLGlobals *og = sub_device->get_cpu_osl_memory();
     OSL::ShadingSystem *ss = ss_shared[sub_device->info.type].get();
+
+    if (renderer_outputs.size()) {
+      ss->attribute("renderer_outputs",
+                    TypeDesc(TypeDesc::STRING, renderer_outputs.size()),
+                    (const void *)renderer_outputs.data());
+    }
 
     og->ss = ss;
 #  if OIIO_VERSION_MAJOR >= 3
@@ -250,6 +263,7 @@ void OSLShaderManager::device_free(Device *device, DeviceScene *dscene, Scene *s
     og->displacement_state.clear();
     og->bump_state.clear();
     og->background_state.reset();
+    og->layer_indices.clear();
   });
 
   /* Remove any textures specific to an image manager from shared render services textures, since
@@ -565,6 +579,7 @@ const char *OSLShaderManager::shader_load_bytecode(const string &hash, const str
   info.has_surface_emission = (bytecode.find("\"emission\"") != string::npos);
   info.has_surface_transparent = (bytecode.find("\"transparent\"") != string::npos);
   info.has_surface_bssrdf = (bytecode.find("\"bssrdf\"") != string::npos);
+  info.has_aovs = (bytecode.find("\"debug\"") != string::npos);
 
   loaded_shaders[hash] = info;
 
@@ -852,6 +867,18 @@ bool OSLCompiler::node_skip_input(ShaderNode *node, ShaderInput *input)
   {
     return true;
   }
+  else if (node->special_type == SHADER_SPECIAL_TYPE_OUTPUT_AOV) {
+    OutputAOVNode *aov_node = (OutputAOVNode *)node;
+    if (input->name() == "Value" && aov_node->output_type != OUTPUT_AOV_TYPE_VALUE) {
+      return true;
+    }
+    else if (input->name() == "Color" && aov_node->output_type != OUTPUT_AOV_TYPE_COLOR) {
+      return true;
+    }
+    else if (input->name() == "Vector" && aov_node->output_type != OUTPUT_AOV_TYPE_VECTOR) {
+      return true;
+    }
+  }
 
   return false;
 }
@@ -964,6 +991,9 @@ void OSLCompiler::add(ShaderNode *node, const char *name, bool isfilepath)
       }
       current_shader->has_bump = true;             /* can't detect yet */
       current_shader->has_surface_raytrace = true; /* can't detect yet */
+      if (info->has_aovs) {
+        current_shader->has_aovs = true;
+      }
     }
 
     if (node->has_spatial_varying()) {
@@ -1312,6 +1342,41 @@ OSL::ShaderGroupRef OSLCompiler::compile_type(Shader *shader, ShaderGraph *graph
 
   current_group = ss->ShaderGroupBegin(name.str());
 
+  /* Generate AOV shaders first, the last layer is the main shader.
+   * When using OSL's execute_init/execute_layer/execute_cleanup the ordering
+   * can be any form you want, but if you use the execute function directly, it
+   * runs the last shader layer, and we may get into functions which imply that
+   * this is the default layer and not an AOV layer. */
+  if (shader->has_aovs && (type == SHADER_TYPE_SURFACE || type == SHADER_TYPE_VOLUME)) {
+    ShaderNodeSet dependencies;
+    for (ShaderNode *node : graph->nodes) {
+      if (node->special_type == SHADER_SPECIAL_TYPE_OUTPUT_AOV) {
+        OutputAOVNode *aov_node = static_cast<OutputAOVNode *>(node);
+        if (aov_node->offset >= 0) {
+          ShaderInput *input = nullptr;
+          switch (aov_node->output_type) {
+            case OUTPUT_AOV_TYPE_VALUE:
+              input = node->input("Value");
+              break;
+            case OUTPUT_AOV_TYPE_COLOR:
+              input = node->input("Color");
+              break;
+            case OUTPUT_AOV_TYPE_VECTOR:
+              input = node->input("Vector");
+              break;
+            default:
+              break;
+          }
+          if (input) {
+            find_dependencies(dependencies, input);
+            generate_nodes(dependencies);
+          }
+          node->compile(*this);
+        }
+      }
+    }
+  }
+
   ShaderNode *output = graph->output();
   ShaderNodeSet dependencies;
 
@@ -1342,6 +1407,31 @@ OSL::ShaderGroupRef OSLCompiler::compile_type(Shader *shader, ShaderGraph *graph
   else {
     assert(0);
   }
+
+  /* store the indices to the AOV layers */
+  std::vector<const char *> layers;
+  shader->osl_layer_indices.clear();
+  if (shader->has_aovs && (type == SHADER_TYPE_SURFACE || type == SHADER_TYPE_VOLUME)) {
+    for (ShaderNode *node : graph->nodes) {
+      if (node->special_type == SHADER_SPECIAL_TYPE_OUTPUT_AOV) {
+        ustring layername(id(node).c_str());
+        int layer_index = ss->find_layer(*current_group, layername);
+        if (layer_index != -1) {
+          shader->osl_layer_indices.push_back(layer_index);
+          layers.push_back(layername.c_str());
+        }
+      }
+    }
+  }
+  /* the last entry is the main shader layer */
+  ustring layername(id(output).c_str());
+  shader->osl_layer_indices.push_back(ss->find_layer(*current_group, layername));
+  layers.push_back(layername.c_str());
+
+  ss->attribute(current_group.get(),
+                "entry_layers",
+                TypeDesc(TypeDesc::STRING, layers.size()),
+                (const void *)layers.data());
 
   ss->ShaderGroupEnd(*current_group);
 

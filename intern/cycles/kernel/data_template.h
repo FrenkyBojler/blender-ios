@@ -129,6 +129,7 @@ KERNEL_STRUCT_MEMBER(film, int, pass_denoising_depth)
 /* AOVs. */
 KERNEL_STRUCT_MEMBER(film, int, pass_aov_color)
 KERNEL_STRUCT_MEMBER(film, int, pass_aov_value)
+KERNEL_STRUCT_MEMBER(film, int, pass_aov_vector)
 /* Light groups. */
 KERNEL_STRUCT_MEMBER(film, int, pass_lightgroup)
 /* Baking. */

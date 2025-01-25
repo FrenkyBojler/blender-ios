@@ -90,6 +90,9 @@ class DeviceScene {
   /* IES lights */
   device_vector<float> ies_lights;
 
+  /* AOV descs */
+  device_vector<AOVDescriptor> aov_descs;
+
   KernelData data;
 
   DeviceScene(Device *device);

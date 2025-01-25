@@ -90,4 +90,7 @@ KERNEL_DATA_ARRAY(TextureInfo, texture_info)
 /* ies lights */
 KERNEL_DATA_ARRAY(float, ies)
 
+/* AOV descriptors (only used for OSL) */
+KERNEL_DATA_ARRAY(AOVDescriptor, aov_descs)
+
 #undef KERNEL_DATA_ARRAY

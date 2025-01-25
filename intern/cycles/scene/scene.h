@@ -118,6 +118,9 @@ class Scene : public NodeOwner {
   /* Maps from Light group names to their pass ID. */
   map<ustring, int> lightgroups;
 
+  /* Output AOVs to ensure OSL doesn't optimise-out */
+  ccl::set<ustring> output_aovs;
+
   /* data */
   unique_ptr<BVH> bvh;
   unique_ptr<LookupTables> lookup_tables;

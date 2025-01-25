@@ -56,6 +56,9 @@ struct OSLGlobals {
   vector<OSL::ShaderGroupRef> bump_state;
   OSL::ShaderGroupRef background_state;
 
+  /* shader layer IDs (AOVs + main layer on the end) */
+  vector<vector<int>> layer_indices;
+
   /* attributes */
   using ObjectNameMap = unordered_map<OSLUStringHash, int>;
 

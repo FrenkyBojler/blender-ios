@@ -104,6 +104,7 @@ Shader::Shader() : Node(get_node_type())
   has_volume_spatial_varying = false;
   has_volume_attribute_dependency = false;
   has_volume_connected = false;
+  has_aovs = false;
   prev_volume_step_rate = 0.0f;
 
   emission_estimate = zero_float3();
@@ -357,6 +358,14 @@ void Shader::tag_update(Scene *scene)
           break;
         }
       }
+    }
+  }
+
+  /* Tag if there are AOVs */
+  for (ShaderNode *node : graph->nodes) {
+    if (node->special_type == SHADER_SPECIAL_TYPE_OUTPUT_AOV) {
+      has_aovs = true;
+      break;
     }
   }
 

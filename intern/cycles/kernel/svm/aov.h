@@ -48,4 +48,20 @@ ccl_device void svm_node_aov_value(KernelGlobals kg,
     film_write_aov_pass_value(kg, state, render_buffer, node.z, val);
   }
 }
+
+template<uint node_feature_mask, typename ConstIntegratorGenericState>
+ccl_device void svm_node_aov_vector(KernelGlobals kg,
+                                    ConstIntegratorGenericState state,
+                                    ccl_private ShaderData *sd,
+                                    ccl_private float *stack,
+                                    uint4 node,
+                                    ccl_global float *render_buffer)
+{
+  IF_KERNEL_NODES_FEATURE(AOV)
+  {
+    const float3 val = stack_load_float3(stack, node.y);
+    film_write_aov_pass_vector(kg, state, render_buffer, node.z, val);
+  }
+}
+
 CCL_NAMESPACE_END

@@ -1,0 +1,8 @@
+/* SPDX-FileCopyrightText: 2024 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
+shader node_output_aov_value(string Name = "", float Value = 0)
+{
+  Ci += Value * debug(Name);
+}

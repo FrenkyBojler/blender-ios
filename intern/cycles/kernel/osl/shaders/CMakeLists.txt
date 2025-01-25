@@ -67,6 +67,9 @@ set(SRC_OSL
   node_normal.osl
   node_normal_map.osl
   node_object_info.osl
+  node_output_aov_color.osl
+  node_output_aov_value.osl
+  node_output_aov_vector.osl
   node_output_displacement.osl
   node_output_surface.osl
   node_output_volume.osl

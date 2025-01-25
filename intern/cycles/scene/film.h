@@ -66,9 +66,10 @@ class Film : public Node {
   void device_update(Device *device, DeviceScene *dscene, Scene *scene);
   void device_free(Device *device, DeviceScene *dscene, Scene *scene);
 
-  int get_aov_offset(Scene *scene, string name, bool &is_color);
+  int get_aov_offset(Scene *scene, ustring name, OutputAOVType &output_type);
 
   bool update_lightgroups(Scene *scene);
+  bool update_output_aovs(Scene *scene);
 
   /* Update passes so that they contain all passes required for the configured functionality.
    *
@@ -82,6 +83,7 @@ class Film : public Node {
   void add_auto_pass(Scene *scene, PassType type, PassMode mode, const char *name = nullptr);
   void remove_auto_passes(Scene *scene);
   void finalize_passes(Scene *scene, const bool use_denoise);
+  AOVDescriptor get_aov_descriptor(Scene *scene, ustring name);
 };
 
 CCL_NAMESPACE_END

@@ -78,6 +78,7 @@ const NodeEnum *Pass::get_type_enum()
     pass_type_enum.insert("cryptomatte", PASS_CRYPTOMATTE);
     pass_type_enum.insert("aov_color", PASS_AOV_COLOR);
     pass_type_enum.insert("aov_value", PASS_AOV_VALUE);
+    pass_type_enum.insert("aov_vector", PASS_AOV_VECTOR);
     pass_type_enum.insert("adaptive_aux_buffer", PASS_ADAPTIVE_AUX_BUFFER);
     pass_type_enum.insert("sample_count", PASS_SAMPLE_COUNT);
     pass_type_enum.insert("diffuse_color", PASS_DIFFUSE_COLOR);
@@ -325,6 +326,9 @@ PassInfo Pass::get_info(const PassType type, const bool include_albedo, const bo
       break;
     case PASS_AOV_VALUE:
       pass_info.num_components = 1;
+      break;
+    case PASS_AOV_VECTOR:
+      pass_info.num_components = 4;
       break;
 
     case PASS_BAKE_PRIMITIVE:

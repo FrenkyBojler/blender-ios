@@ -12,6 +12,13 @@
  * Holds all variables to execute and use OSL shaders from the kernel.
  */
 
+#include "kernel/globals.h"
+#include "kernel/types.h"
+
+#include "util/atomic.h"
+
+#include "kernel/film/aov_passes.h"
+
 #include "kernel/osl/closures_setup.h"
 #include "kernel/osl/types.h"
 
@@ -65,10 +72,26 @@ ccl_device_inline void shaderdata_to_shaderglobals(KernelGlobals kg,
   globals->Ci = nullptr;
 }
 
+#ifndef __KERNEL_GPU__
+
 ccl_device void flatten_closure_tree(KernelGlobals kg,
                                      ccl_private ShaderData *sd,
+                                     const void *state,
+                                     ccl_global float *render_buffer,
                                      const uint32_t path_flag,
                                      const ccl_private OSLClosure *closure)
+
+#else
+
+template<typename ConstIntegratorGenericState>
+ccl_device void flatten_closure_tree(KernelGlobals kg,
+                                     ccl_private ShaderData *sd,
+                                     ConstIntegratorGenericState state,
+                                     ccl_global float *render_buffer,
+                                     const uint32_t path_flag,
+                                     const ccl_private OSLClosure *closure)
+
+#endif
 {
   int stack_size = 0;
   float3 weight = one_float3();
@@ -97,6 +120,26 @@ ccl_device void flatten_closure_tree(KernelGlobals kg,
         weight_stack[stack_size] = weight;
         closure_stack[stack_size++] = add->closureB;
         continue;
+      }
+      case OSL_CLOSURE_DEBUG_ID: {
+        if (render_buffer) {
+          const ccl_private OSLClosureComponent *comp =
+              static_cast<const ccl_private OSLClosureComponent *>(closure);
+          const ccl_private DebugClosure *debug =
+              reinterpret_cast<const ccl_private DebugClosure *>(comp + 1);
+#ifdef __KERNEL_GPU__
+          AOVDescriptor desc = find_aov(kg, (uint64_t)debug->tag);
+#else
+          AOVDescriptor desc = find_aov(kg, (uint64_t)debug->tag.hash());
+#endif
+          film_write_aov_pass(kg,
+                              (ConstIntegratorState)state,
+                              render_buffer,
+                              desc.type,
+                              desc.offset,
+                              comp->weight);
+        }
+        break;
       }
       case OSL_CLOSURE_LAYER_ID: {
         const ccl_private OSLClosureComponent *comp =
@@ -173,6 +216,7 @@ template<ShaderType type>
 void osl_eval_nodes(const ThreadKernelGlobalsCPU *kg,
                     const void *state,
                     ShaderData *sd,
+                    ccl_global float *render_buffer,
                     uint32_t path_flag);
 
 #else
@@ -181,6 +225,7 @@ template<ShaderType type, typename ConstIntegratorGenericState>
 ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
                                       ConstIntegratorGenericState state,
                                       ccl_private ShaderData *sd,
+                                      ccl_global float *render_buffer,
                                       const uint32_t path_flag)
 {
   ShaderGlobals globals;
@@ -217,7 +262,7 @@ ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
     sd->P = globals.P;
   }
   else if (globals.Ci) {
-    flatten_closure_tree(kg, sd, path_flag, globals.Ci);
+    flatten_closure_tree(kg, sd, state, render_buffer, path_flag, globals.Ci);
   }
 }
 

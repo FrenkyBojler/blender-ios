@@ -46,6 +46,7 @@ struct OSLShaderInfo {
   bool has_surface_emission = false;
   bool has_surface_transparent = false;
   bool has_surface_bssrdf = false;
+  bool has_aovs = false;
 };
 
 /* Shader Manage */
