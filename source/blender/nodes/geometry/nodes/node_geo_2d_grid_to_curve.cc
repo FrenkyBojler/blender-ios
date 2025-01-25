@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -183,7 +183,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_2D_GRID_TO_CURVE, "2D Grid to Curve", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNode2DGridToCurve");
+  ntype.ui_name = "2D Grid to Curve";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);
