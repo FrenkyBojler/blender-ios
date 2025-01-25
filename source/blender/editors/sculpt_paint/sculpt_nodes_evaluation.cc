@@ -13,7 +13,12 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_node_types.h"
 
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
+
+#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -60,6 +65,17 @@ class FactorsFieldInput final : public fn::FieldInput {
   }
 };
 
+static Depsgraph *build_extra_depsgraph(const Depsgraph &depsgraph_active, const Set<ID *> &ids)
+{
+  Depsgraph *depsgraph = DEG_graph_new(DEG_get_bmain(&depsgraph_active),
+                                       DEG_get_input_scene(&depsgraph_active),
+                                       DEG_get_input_view_layer(&depsgraph_active),
+                                       DEG_get_mode(&depsgraph_active));
+  DEG_graph_build_from_ids(depsgraph, Vector<ID *>(ids.begin(), ids.end()));
+  DEG_evaluate_on_refresh(depsgraph);
+  return depsgraph;
+}
+
 /**
  * Evaluates the Geometry Nodes node group associated with the specified brush in the given
  * context.
@@ -72,9 +88,33 @@ static std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Depsgrap
                                                                   const StrokeCache &cache,
                                                                   const OutputType output_type)
 {
-  const bNodeTree *tree = brush.node_group;
-  if (tree == nullptr) {
+  const bNodeTree *orig_tree = brush.node_group;
+  if (orig_tree == nullptr) {
     return {};
+  }
+
+  const bNodeTree *tree = nullptr;
+  Depsgraph *depsgraph_extra = nullptr;
+
+  Set<ID *> extra_ids;
+
+  /* Gather dependencies from the node tree. */
+  for (ID *id : orig_tree->runtime->geometry_nodes_eval_dependencies->ids.values()) {
+    extra_ids.add(id);
+  }
+
+  if (!extra_ids.is_empty()) {
+    extra_ids.add(const_cast<ID *>(&orig_tree->id));
+
+    /* Build a separate depsgraph for the dependencies */
+    depsgraph_extra = build_extra_depsgraph(depsgraph, extra_ids);
+
+    /* Get the depsgraph-evaluated version of the node tree */
+    tree = reinterpret_cast<const bNodeTree *>(
+        DEG_get_evaluated_id(depsgraph_extra, const_cast<ID *>(&orig_tree->id)));
+  }
+  else {
+    tree = orig_tree;
   }
 
   const nodes::GeometryNodesLazyFunctionGraphInfo &lf_graph_info =
@@ -115,6 +155,7 @@ static std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Depsgrap
 
   nodes::GeoNodesSculptData sculpt_data;
   sculpt_data.depsgraph = &depsgraph;
+  sculpt_data.depsgraph_extra = depsgraph_extra;
   sculpt_data.self_object = &object;
 
   if (cache.vc->rv3d) {

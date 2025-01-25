@@ -4146,6 +4146,13 @@ const ID *GeoNodesOperatorDepsgraphs::get_evaluated_id(const ID &id_orig) const
   return nullptr;
 }
 
+GeoNodesSculptData::~GeoNodesSculptData()
+{
+  if (this->depsgraph_extra) {
+    DEG_graph_free(this->depsgraph_extra);
+  }
+}
+
 const Object *GeoNodesCallData::self_object() const
 {
   if (this->modifier_data) {

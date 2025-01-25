@@ -211,6 +211,7 @@ struct GeoNodesOperatorData {
 struct GeoNodesSculptData {
   const Object *self_object = nullptr;
   const Depsgraph *depsgraph = nullptr;
+  Depsgraph *depsgraph_extra = nullptr;
 
   float4x4 view_matrix;
   float4x4 projection_matrix;
@@ -221,6 +222,8 @@ struct GeoNodesSculptData {
 
   float3 view_3d_cursor_location;
   float view_3d_cursor_rotation;
+
+  ~GeoNodesSculptData();
 };
 
 struct GeoNodesCallData {
