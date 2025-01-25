@@ -401,11 +401,9 @@ TEST(boolean_curves, Squares)
   draw_divider_start("Squares");
 
   const Array<float2> points = {{0, 0}, {2, 0}, {2, 2}, {0, 2}, {1, 1}, {3, 1}, {3, 3}, {1, 3}};
+  const Array<int> points_by_curve = {0, 4, 8};
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
-
-  /* TODO */
-  const Array<int> points_by_curve({0, 4, 8});
   const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -471,11 +469,9 @@ TEST(boolean_curves, Simple)
    */
   const Array<float2> points = {
       {0, 6}, {8, 6}, {8, 3}, {0, 3}, {6, 0}, {6, 4}, {4, 2}, {2, 4}, {2, 0}};
+  const Array<int> points_by_curve = {0, 4, 9};
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
-
-  /* TODO */
-  const Array<int> points_by_curve({0, 4, 9});
   const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -546,11 +542,9 @@ TEST(boolean_curves, Complex)
    */
   const Array<float2> points = {
       {14, 1}, {0, 5}, {14, 10}, {5, 6}, {14, 6}, {5, 5}, {9, 13}, {13, 0}, {9, 9}, {6, 0}};
+  const Array<int> points_by_curve = {0, 6, 10};
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
-
-  /* TODO */
-  const Array<int> points_by_curve({0, 6, 10});
   const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -660,11 +654,9 @@ TEST(boolean_curves, Last_Edge_Loop)
    */
   const Array<float2> points = {
       {0, 5}, {0, 0}, {7, 0}, {7, 5}, {2, 3}, {0, 7}, {3, 7}, {5, 4}, {6, 6}, {3, 4}, {2, 6}};
+  const Array<int> points_by_curve = {0, 4, 11};
   const Array<bool> is_fill = {true, true};
   const Array<bool> is_cyclic = {true, true};
-
-  /* TODO */
-  const Array<int> points_by_curve({0, 4, 11});
   const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -763,11 +755,9 @@ TEST(boolean_curves, Simple_Cuts)
   {
     const Array<float2> points = {
         {5, 7}, {3, 6}, {0, 2}, {0, 0}, {1, 6}, {3, 4}, {3, 1}, {0, 4}, {2, 3}};
+    const Array<int> points_by_curve = {0, 4, 9};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
-
-    /* TODO */
-    const Array<int> points_by_curve({0, 4, 9});
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -790,11 +780,9 @@ TEST(boolean_curves, Simple_Cuts)
   }
   {
     const Array<float2> points = {{5, 5}, {3, 5}, {1, 3}, {1, 1}, {5, 6}, {6, 5}, {1, 0}, {0, 1}};
+    const Array<int> points_by_curve = {0, 4, 8};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
-
-    /* TODO */
-    const Array<int> points_by_curve({0, 4, 8});
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -827,11 +815,9 @@ TEST(boolean_curves, Simple_Cuts)
                                   {3, 4},
                                   {2, 6},
                                   {4, 5}};
+    const Array<int> points_by_curve = {0, 4, 13};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
-
-    /* TODO */
-    const Array<int> points_by_curve({0, 4, 13});
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -867,11 +853,9 @@ TEST(boolean_curves, Simple_Cuts)
                                   {3, 4},
                                   {1, 5},
                                   {2, 3}};
+    const Array<int> points_by_curve = {0, 4, 13};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {false, true};
-
-    /* TODO */
-    const Array<int> points_by_curve({0, 4, 13});
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -896,11 +880,9 @@ TEST(boolean_curves, Simple_Cuts)
   {
     const Array<float2> points = {
         {6, 5}, {4, 5}, {1, 2}, {1, 0}, {1, 4}, {3, 1}, {5, 3}, {2, 5}, {3, 3}};
+    const Array<int> points_by_curve = {0, 4, 9};
     const Array<bool> is_fill = {false, true};
     const Array<bool> is_cyclic = {true, true};
-
-    /* TODO */
-    const Array<int> points_by_curve({0, 4, 9});
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(points_by_curve, is_cyclic, is_fill);
@@ -947,8 +929,7 @@ TEST(boolean_curves, Squares_With_Holes)
                                 {3, 6},
                                 {6, 6},
                                 {6, 3}};
-
-  const Array<int> points_by_curve({0, 4, 8, 12, 16});
+  const Array<int> points_by_curve = {0, 4, 8, 12, 16};
   const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 4);
   const Array<bool> is_fill = {true, true, true, true};
   const Array<bool> is_cyclic = {true, true, true, true};
