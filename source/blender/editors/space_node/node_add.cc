@@ -1087,7 +1087,7 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
   }
 
   bke::node_set_active(ntree, color_node);
-  ED_node_tree_propagate_change(C, bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
   DEG_relations_tag_update(bmain);
 
   return OPERATOR_FINISHED;
