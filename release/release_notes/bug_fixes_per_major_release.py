@@ -102,7 +102,7 @@ This script relies on bug reports having enough information in the
 "Broken" and "Working" fields to be sorted. If a bug report does not
 have enough information, it can not be sorted automatically and will
 need to be manually sorted. The recommended process for manually
-sorting this commits is to go to the relevant report that was fixed,
+sorting these commits is to go to the relevant report that was fixed,
 and update the "Broken" and "Working" fields with relevant information.
 
 Figuring out how much information you need to put on a report for this
@@ -145,7 +145,7 @@ sort based on combined information from the Broken and Working fields.
   add something like `Worked: Prior to 4.4 COMMIT_HASH`
 
 Along with those guide lines above, it can be confusing about what to
-do for bug reports for features introduced in this release.
+do for bug reports for features introduced in the current release.
 The broken version is 4.4, so the script can't sort based on that, but
 there is no working version.
 
