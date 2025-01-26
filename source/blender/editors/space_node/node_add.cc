@@ -1056,8 +1056,8 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
     IMB_colormanagement_srgb_to_scene_linear_v3(color, color);
   }
 
-  int color_node_type {};
-  std::string color_socket_name {};
+  int color_node_type{};
+  std::string color_socket_name{};
 
   switch (snode->nodetree->type) {
     case NTREE_SHADER:
@@ -1086,7 +1086,8 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
   if (snode->nodetree->type == NTREE_GEOMETRY) {
     NodeInputColor *input_color_storage = static_cast<NodeInputColor *>(color_node->storage);
     copy_v4_v4(input_color_storage->color, color);
-  } else {
+  }
+  else {
     bNodeSocket *sock = bke::node_find_socket(color_node, SOCK_OUT, color_socket_name);
     if (!sock) {
       BKE_report(op->reports, RPT_WARNING, "Could not find node color socket");

@@ -949,13 +949,8 @@ static void node_dropboxes()
                  node_id_drop_copy,
                  WM_drag_free_imported_drag_ID,
                  nullptr);
-  WM_dropbox_add(lb,
-                 "NODE_OT_add_color",
-                 node_color_drop_poll,
-                 UI_drop_color_copy,
-                 nullptr,
-                 nullptr
-                 );
+  WM_dropbox_add(
+      lb, "NODE_OT_add_color", node_color_drop_poll, UI_drop_color_copy, nullptr, nullptr);
 }
 
 /* ************* end drop *********** */
