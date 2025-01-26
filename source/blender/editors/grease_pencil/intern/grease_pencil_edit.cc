@@ -3959,12 +3959,14 @@ static int grease_pencil_separate_shapes_exec(bContext *C, wmOperator *op)
 
     if (individual) {
       /* Each selected stroke becomes a new shape. */
-      strokes.foreach_index(
+      strokes.foreach_index_optimized<int>(
+          GrainSize(4096),
           [&](const int64_t i, const int64_t pos) { shape_ids.span[i] = pos + new_shape_id; });
     }
     else {
       /* All selected stroke within a shape become a new shape. */
-      strokes.foreach_index([&](const int64_t i) { shape_ids.span[i] += new_shape_id; });
+      strokes.foreach_index_optimized<int>(
+          GrainSize(4096), [&](const int64_t i) { shape_ids.span[i] += new_shape_id; });
     }
 
     shape_ids.finish();
