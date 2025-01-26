@@ -973,8 +973,8 @@ def validate_arguments(args: argparse.Namespace) -> bool:
         print_error("Previous Release Tag", "-pt", "--previous-release-tag")
         should_quit = True
     if args.backport_tasks == []:
-        print("WARING: -bpt/--backport-tasks is not defined.")
-        if not args.silence:
+        print("WARNING: (Optional) -bpt/--backport-tasks is not defined.")
+        if not (args.silence or should_quit):
             yes_no = input("Do you want to proceeed without it? (y/n)")
             if yes_no.lower() == "n":
                 should_quit = True
