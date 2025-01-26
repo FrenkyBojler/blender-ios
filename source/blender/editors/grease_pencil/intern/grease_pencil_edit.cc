@@ -3936,7 +3936,7 @@ static int grease_pencil_separate_shapes_exec(bContext *C, wmOperator *op)
 
   const bool individual = RNA_boolean_get(op->ptr, "individual");
 
-  bool changed = false;
+  std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
@@ -3970,7 +3970,7 @@ static int grease_pencil_separate_shapes_exec(bContext *C, wmOperator *op)
     shape_ids.finish();
     info.drawing.tag_topology_changed();
 
-    changed = true;
+    changed.store(true, std::memory_order_relaxed);
   });
 
   if (changed) {
