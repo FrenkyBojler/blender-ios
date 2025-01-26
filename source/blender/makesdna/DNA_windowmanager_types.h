@@ -137,6 +137,8 @@ typedef struct wmXrData {
   /** Permanent session settings (draw mode, feature toggles, etc). Stored in files and accessible
    * even before the session runs. */
   XrSessionSettings session_settings;
+  char exit_pending;
+  char _pad[7];
 } wmXrData;
 // #endif
 

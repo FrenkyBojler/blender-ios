@@ -50,8 +50,8 @@ static void wm_xr_error_handler(const GHOST_XrError *error)
   WM_report_banner_show(wm, root_win);
 
   if (wm->xr.runtime) {
-    /* Just play safe and destroy the entire runtime data, including context. */
-    wm_xr_runtime_data_free(&wm->xr.runtime);
+    /* We can't delete the context in the middle of a draw, so mark xr for cleanup. */
+    wm->xr.exit_pending = true;
   }
 }
 
@@ -127,6 +127,13 @@ void wm_xr_exit(wmWindowManager *wm)
 bool wm_xr_events_handle(wmWindowManager *wm)
 {
   if (wm->xr.runtime && wm->xr.runtime->context) {
+
+	  if (wm->xr.exit_pending) {
+      wm_xr_runtime_data_free(&wm->xr.runtime);
+      wm->xr.exit_pending = false;
+	    return false;
+	  }
+
     GHOST_XrEventsHandle(wm->xr.runtime->context);
 
     /* Process OpenXR action events. */
