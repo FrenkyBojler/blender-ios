@@ -937,6 +937,15 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(rot_samples, [1.0])
         self.assertEqual(scale_samples, [1.0])
 
+        prim = stage.GetPrimAtPath("/root/cube_anim_xform/cube_anim_child")
+        self.assertEqual(prim.GetTypeName(), "Xform")
+        loc_samples = UsdGeom.Xformable(prim).GetTranslateOp().GetTimeSamples()
+        rot_samples = UsdGeom.Xformable(prim).GetRotateXYZOp().GetTimeSamples()
+        scale_samples = UsdGeom.Xformable(prim).GetScaleOp().GetTimeSamples()
+        self.assertEqual(loc_samples, [1.0])
+        self.assertEqual(rot_samples, [1.0, 2.0, 3.0, 4.0])
+        self.assertEqual(scale_samples, [1.0])
+
         # Validate the armature animation
         prim = stage.GetPrimAtPath("/root/Armature/Armature")
         self.assertEqual(prim.GetTypeName(), "Skeleton")
