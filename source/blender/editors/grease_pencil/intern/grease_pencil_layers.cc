@@ -495,8 +495,12 @@ static int grease_pencil_layer_reveal_exec(bContext *C, wmOperator * /*op*/)
   using namespace blender::bke::greasepencil;
   GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
 
-  if (!grease_pencil.has_active_layer()) {
+  if (!grease_pencil.has_active_layer() && !grease_pencil.has_active_group()) {
     return OPERATOR_CANCELLED;
+  }
+
+  for (LayerGroup *group : grease_pencil.layer_groups_for_write()) {
+    group->set_visible(true);
   }
 
   for (Layer *layer : grease_pencil.layers_for_write()) {
