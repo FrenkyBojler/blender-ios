@@ -35,6 +35,8 @@
 #include "BKE_scene.hh"
 #include "BKE_texture.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "DEG_depsgraph_build.hh"
 
 #include "ED_asset.hh"
@@ -1043,9 +1045,19 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
 
   float color[4];
   RNA_float_get_array(op->ptr, "color", color);
+  const bool gamma = RNA_boolean_get(op->ptr, "gamma");
+  const bool has_alpha = RNA_boolean_get(op->ptr, "has_alpha");
+
+  if (!has_alpha) {
+    color[3] = 1.0f;
+  }
+
+  if (gamma) {
+    IMB_colormanagement_srgb_to_scene_linear_v3(color, color);
+  }
 
   int color_node_type {};
-  StringRefNull color_socket_name;
+  std::string color_socket_name {};
 
   switch (snode->nodetree->type) {
     case NTREE_SHADER:
@@ -1058,7 +1070,6 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
       break;
     case NTREE_GEOMETRY:
       color_node_type = FN_NODE_INPUT_COLOR;
-      // TODO: Stringrefnull handling
       break;
     default:
       return OPERATOR_CANCELLED;
@@ -1071,14 +1082,14 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
   }
 
   /* The Geometry Node color node stores the color value inside the node storage, while
-   * the Compositing and Shading color node store it in the output socket. */
+   * the Compositing and Shading color nodes store it in the output socket. */
   if (snode->nodetree->type == NTREE_GEOMETRY) {
     NodeInputColor *input_color_storage = static_cast<NodeInputColor *>(color_node->storage);
     copy_v4_v4(input_color_storage->color, color);
   } else {
     bNodeSocket *sock = bke::node_find_socket(color_node, SOCK_OUT, color_socket_name);
     if (!sock) {
-      BKE_report(op->reports, RPT_WARNING, "Could not find node collection socket");
+      BKE_report(op->reports, RPT_WARNING, "Could not find node color socket");
       return OPERATOR_CANCELLED;
     }
 
@@ -1139,6 +1150,8 @@ void NODE_OT_add_color(wmOperatorType *ot)
       ot->srna, "color", 4, nullptr, 0.0, FLT_MAX, "Color", "Source color", 0.0, 1.0);
   RNA_def_boolean(
       ot->srna, "gamma", false, "Gamma Corrected", "The source color is gamma corrected");
+  RNA_def_boolean(
+      ot->srna, "has_alpha", false, "Has Alpha", "The source color contains an Alpha component");
 }
 
 /* -------------------------------------------------------------------- */

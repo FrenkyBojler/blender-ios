@@ -3276,6 +3276,7 @@ uiLayout *uiItemsAlertBox(uiBlock *block, const int size, const eAlertIcon icon)
 struct uiDragColorHandle {
   float color[4];
   bool gamma_corrected;
+  bool has_alpha;
 };
 
 void ED_operatortypes_ui();
