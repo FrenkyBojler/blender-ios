@@ -42,7 +42,7 @@ incorrect.
 
 In situations like this it can be easier to simply override the issue that
 the commit claims to fix. This can be done by launching the script with:
-`main.py -o`
+`bug_fixes_per_major_release.py -o`
 
 The script will then ask for the commit hash, then the
 issue number that commit actually fixes then will use that override
