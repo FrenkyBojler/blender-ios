@@ -59,6 +59,25 @@ class VIEW3D_PT_vr_session(Panel):
         col.prop(scene, "vr_actions_enable")
 
 
+class VIEW3D_PT_vr_comfort(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "VR"
+    bl_label = "Comfort Options"
+
+    def draw(self, context):
+        layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        comfort = session_settings.comfort
+        layout.prop(comfort, "locomotion_shading_type")
+        layout.prop(comfort, "locomotion_interval")
+
+
+
 # View.
 class VIEW3D_PT_vr_session_view(Panel):
     bl_space_type = 'VIEW_3D'
@@ -252,6 +271,7 @@ classes = (
     VIEW3D_PT_vr_session,
     VIEW3D_PT_vr_session_view,
     VIEW3D_PT_vr_session_view_object_type_visibility,
+    VIEW3D_PT_vr_comfort,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
     VIEW3D_PT_vr_viewport_feedback,

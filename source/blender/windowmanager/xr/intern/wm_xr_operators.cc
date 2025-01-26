@@ -790,7 +790,24 @@ enum eXrFlyMode {
 struct XrFlyData {
   float viewer_rot[4];
   double time_prev;
+  double locomotion_time_remaining;
+  float comfort_translation[3];
 };
+
+static void wm_xr_fly_apply_comfort_translation(wmOperator *op, wmXrData *xr)
+{
+  XrFlyData *data = static_cast<XrFlyData *>(op->customdata);
+  float *ct = data->comfort_translation;
+
+  float out[3];
+  WM_xr_session_state_nav_location_get(xr, out);
+  out[0] += ct[0];
+  out[1] += ct[1];
+  out[2] += ct[2];
+  WM_xr_session_state_nav_location_set(xr, out);
+
+  ct[0] = ct[1] = ct[2] = 0.0f;
+}
 
 static void wm_xr_fly_init(wmOperator *op, const wmXrData *xr)
 {
@@ -803,8 +820,9 @@ static void wm_xr_fly_init(wmOperator *op, const wmXrData *xr)
   data->time_prev = BLI_time_now_seconds();
 }
 
-static void wm_xr_fly_uninit(wmOperator *op)
+static void wm_xr_fly_uninit(wmOperator *op, wmXrData *xr)
 {
+  wm_xr_fly_apply_comfort_translation(op, xr);
   MEM_SAFE_FREE(op->customdata);
 }
 
@@ -938,15 +956,18 @@ static int wm_xr_navigation_fly_modal(bContext *C, wmOperator *op, const wmEvent
     return OPERATOR_PASS_THROUGH;
   }
 
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
   if (event->val == KM_RELEASE) {
-    wm_xr_fly_uninit(op);
+    wm_xr_fly_uninit(op, xr);
     return OPERATOR_FINISHED;
   }
 
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
   XrFlyData *data = static_cast<XrFlyData *>(op->customdata);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmXrData *xr = &wm->xr;
+
+  xr->runtime->session_state.last_locomotion_time = BLI_time_now_seconds();
+
   eXrFlyMode mode;
   bool turn, locz_lock, dir_lock, speed_frame_based;
   bool speed_interp_cubic = false;
@@ -1029,6 +1050,7 @@ static int wm_xr_navigation_fly_modal(bContext *C, wmOperator *op, const wmEvent
     /* Adjust speed based on last update time. */
     speed *= time_now - data->time_prev;
   }
+  double elapsed = time_now - data->time_prev;
   data->time_prev = time_now;
 
   WM_xr_session_state_nav_location_get(xr, nav_pose.position);
@@ -1096,7 +1118,36 @@ static int wm_xr_navigation_fly_modal(bContext *C, wmOperator *op, const wmEvent
 
   mul_m4_m4m4(out, delta, nav_mat);
 
-  WM_xr_session_state_nav_location_set(xr, out[3]);
+  float locomotion_interval = xr->session_settings.comfort.locomotion_interval;
+  if (!turn && locomotion_interval > 0.0f) {
+    float cp[3];
+    WM_xr_session_state_nav_location_get(xr, cp);
+
+    float *ct = data->comfort_translation;
+    ct[0] += out[3][0] - cp[0];
+    ct[1] += out[3][1] - cp[1];
+    ct[2] += out[3][2] - cp[2];
+
+    if (data->locomotion_time_remaining == 0.0f) {
+      data->locomotion_time_remaining = locomotion_interval;
+    }
+    else {
+      data->locomotion_time_remaining -= elapsed;
+
+      if (data->locomotion_time_remaining <= 0.0f) {
+        wm_xr_fly_apply_comfort_translation(op, xr);
+
+        data->locomotion_time_remaining += locomotion_interval;
+		    if (data->locomotion_time_remaining < 0.0f) {
+          data->locomotion_time_remaining = 0.0f;
+		    }
+      }
+    }
+  }
+  else {
+    WM_xr_session_state_nav_location_set(xr, out[3]);
+  }
+
   if (turn) {
     mat4_to_quat(nav_pose.orientation_quat, out);
     WM_xr_session_state_nav_rotation_set(xr, nav_pose.orientation_quat);
@@ -1108,7 +1159,7 @@ static int wm_xr_navigation_fly_modal(bContext *C, wmOperator *op, const wmEvent
 
   /* XR events currently only support press and release. */
   BLI_assert_unreachable();
-  wm_xr_fly_uninit(op);
+  wm_xr_fly_uninit(op, xr);
   return OPERATOR_CANCELLED;
 }
 

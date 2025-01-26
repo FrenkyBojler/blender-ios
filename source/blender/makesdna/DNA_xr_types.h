@@ -12,6 +12,19 @@
 
 /* -------------------------------------------------------------------- */
 
+typedef struct XrComfortSettings {
+  /** Time between updating camera position due to artificial locomotion. */
+  float locomotion_interval;
+
+  /** Shading type (OB_SOLID, ..) when artificial locomotion has recently occured.
+   * 0 for unchanged shading.
+   */
+  char locomotion_shading_type;
+
+  char _pad[3];
+} XrComfortSettings;
+
+
 typedef struct XrSessionSettings {
   /** Shading settings, struct shared with 3D-View so settings are the same. */
   struct View3DShading shading;
@@ -38,6 +51,8 @@ typedef struct XrSessionSettings {
   /** Object type settings to apply to VR view (unlike shading, not shared with window 3D-View). */
   int object_type_exclude_viewport;
   int object_type_exclude_select;
+
+  XrComfortSettings comfort;
 } XrSessionSettings;
 
 typedef enum eXrSessionFlag {

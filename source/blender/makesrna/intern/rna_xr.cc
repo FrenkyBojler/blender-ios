@@ -2078,9 +2078,46 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
       prop, "rna_XrSessionSettings_icon_from_show_object_viewport_get", nullptr, nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Visibility Icon", "");
+
+  prop = RNA_def_pointer(srna, "comfort", "XrComfortSettings", "",
+                       "Comfort settings for XR sessions");
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
 }
 
 /** \} */
+
+static void rna_def_xr_comfort_settings(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "XrComfortSettings", NULL);
+  RNA_def_struct_ui_text(srna, "XR Comfort Settings", "Comfort options for XR sessions");
+
+  RNA_def_float(srna,
+                "locomotion_interval",
+                0.0f,
+                0.0f,
+                1.0f,
+                "Locomotion Interval",
+                "Time in seconds between artificial locomotion updates to camera position",
+                0.0f,
+                1.0f);
+
+  static const EnumPropertyItem prop_locomotion_shading_type_items[] = {
+      {0, "VIEWPORT", 0, "Viewport", "Use viewport shading mode"},
+      {OB_WIRE, "WIREFRAME", 0, "Wireframe", "Use wireframe shading"},
+      {OB_SOLID, "SOLID", 0, "Solid", "Use solid shading"},
+      {OB_MATERIAL, "MATERIAL", 0, "Material Preview", "Use material preview shading"},
+      {OB_RENDER, "RENDERED", 0, "Rendered", "Use rendered shading"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  RNA_def_enum(srna,
+               "locomotion_shading_type",
+               prop_locomotion_shading_type_items,
+               0,
+               "Locomotion Shading Type",
+               "Shading mode to use during artificial locomotion");
+
+}
 
 /* -------------------------------------------------------------------- */
 /** \name XR Session State
@@ -2555,6 +2592,7 @@ void RNA_def_xr(BlenderRNA *brna)
 
   rna_def_xr_actionmap(brna);
   rna_def_xr_session_settings(brna);
+  rna_def_xr_comfort_settings(brna);
   rna_def_xr_session_state(brna);
   rna_def_xr_eventdata(brna);
 

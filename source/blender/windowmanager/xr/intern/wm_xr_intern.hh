@@ -63,6 +63,9 @@ struct wmXrSessionState {
   float nav_scale_prev;
   bool is_navigation_dirty;
 
+  /* Set to PIL_check_seconds_timer() every time artificial locomotion occurs */
+  double last_locomotion_time;
+
   /** Last known controller data. */
   ListBase controllers; /* #wmXrController. */
 

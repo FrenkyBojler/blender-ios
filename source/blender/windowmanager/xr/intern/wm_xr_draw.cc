@@ -16,6 +16,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_time.h"
 
 #include "ED_view3d_offscreen.hh"
 
@@ -153,6 +154,22 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
     return;
   }
 
+  /* Determine if xr comfort mode needs to be used. */
+  eDrawType draw_type;
+  if (settings->comfort.locomotion_shading_type) {
+    double interval = BLI_time_now_seconds() - session_state->last_locomotion_time;
+    /* If the last locomotion was less than 0.1 seconds ago, use comfort shading. */
+	  if (interval < 0.1) {
+      draw_type = static_cast<eDrawType>(settings->comfort.locomotion_shading_type);
+    }
+    else {
+      draw_type = static_cast<eDrawType>(settings->shading.type);
+	  }
+  }
+  else {
+    draw_type = static_cast<eDrawType>(settings->shading.type);
+  }
+  
   const wmXrViewportPair *vp = static_cast<const wmXrViewportPair *>(
       BLI_findlink(&surface_data->viewports, draw_view->view_idx));
   BLI_assert(vp && vp->offscreen && vp->viewport);
@@ -166,7 +183,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
                                   draw_data->scene,
                                   &settings->shading,
-                                  (eDrawType)settings->shading.type,
+                                  draw_type,
                                   settings->object_type_exclude_viewport,
                                   settings->object_type_exclude_select,
                                   draw_view->width,
