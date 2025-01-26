@@ -200,7 +200,9 @@ del dir_of_script
 
 LIST_OF_OFFICIAL_BLENDER_VERSIONS = (
     # 1.x.
-    '1.0', '1.60', '1.73', '1.80', '2.04',
+    '1.0', '1.60', '1.73', '1.80',
+    # 2.0X.
+    '2.04',
     # 2.2x.
     '2.26', '2.27', '2.28',
     # 2.3x.
@@ -973,7 +975,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
     if args.previous_release_tag is None:
         print_error("Previous Release Tag", "-pt", "--previous-release-tag")
         should_quit = True
-    if args.backport_tasks == []:
+    if len(args.backport_tasks) == 0:
         print("WARNING: (Optional) -bpt/--backport-tasks is not defined.")
         if not (args.silence or should_quit):
             yes_no = input("Do you want to proceeed without it? (y/n)")
