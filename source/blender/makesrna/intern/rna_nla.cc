@@ -12,10 +12,8 @@
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
 
-#ifdef WITH_ANIM_BAKLAVA
-#  include "ANIM_action.hh"
-#  include "ANIM_nla.hh"
-#endif
+#include "ANIM_action.hh"
+#include "ANIM_nla.hh"
 
 #include "BLI_utildefines.h"
 
@@ -484,7 +482,6 @@ static int rna_NlaStrip_action_editable(const PointerRNA *ptr, const char ** /*r
   return PROP_EDITABLE;
 }
 
-#  ifdef WITH_ANIM_BAKLAVA
 static void rna_NlaStrip_action_slot_handle_set(
     PointerRNA *ptr, const blender::animrig::slot_handle_t new_slot_handle)
 {
@@ -493,7 +490,7 @@ static void rna_NlaStrip_action_slot_handle_set(
                                      *ptr->owner_id,
                                      strip->act,
                                      strip->action_slot_handle,
-                                     strip->action_slot_name);
+                                     strip->last_slot_identifier);
 }
 
 static PointerRNA rna_NlaStrip_action_slot_get(PointerRNA *ptr)
@@ -509,17 +506,16 @@ static void rna_NlaStrip_action_slot_set(PointerRNA *ptr, PointerRNA value, Repo
                               *ptr->owner_id,
                               strip->act,
                               strip->action_slot_handle,
-                              strip->action_slot_name,
+                              strip->last_slot_identifier,
                               reports);
 }
 
-static void rna_iterator_nlastrip_action_slots_begin(CollectionPropertyIterator *iter,
-                                                     PointerRNA *ptr)
+static void rna_iterator_nlastrip_action_suitable_slots_begin(CollectionPropertyIterator *iter,
+                                                              PointerRNA *ptr)
 {
   NlaStrip *strip = (NlaStrip *)ptr->data;
-  rna_iterator_generic_action_slots_begin(iter, strip->act);
+  rna_iterator_generic_action_suitable_slots_begin(iter, strip->act);
 }
-#  endif /* WITH_ANIM_BAKLAVA */
 
 static void rna_NlaStrip_action_start_frame_set(PointerRNA *ptr, float value)
 {
@@ -907,7 +903,6 @@ static void rna_def_nlastrip(BlenderRNA *brna)
   RNA_def_property_update(
       prop, NC_ANIMATION | ND_NLA | NA_EDITED, "rna_NlaStrip_dependency_update");
 
-#  ifdef WITH_ANIM_BAKLAVA
   /* This property is not necessary for the Python API (that is better off using
    * slot references/pointers directly), but it is needed for library overrides
    * to work. */
@@ -921,14 +916,14 @@ static void rna_def_nlastrip(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_ANIMATION | ND_NLA_ACTCHANGE, "rna_NlaStrip_dependency_update");
 
-  prop = RNA_def_property(srna, "action_slot_name", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "action_slot_name");
+  prop = RNA_def_property(srna, "last_slot_identifier", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "last_slot_identifier");
   RNA_def_property_ui_text(
       prop,
-      "Action Slot Name",
-      "The name of the action slot. The slot identifies which sub-set of the Action "
-      "is considered to be for this strip, and its name is used to find the right slot "
-      "when assigning an Action.");
+      "Last Action Slot Identifier",
+      "The identifier of the most recently assigned action slot. The slot identifies which "
+      "sub-set of the Action is considered to be for this strip, and its identifier is used to "
+      "find the right slot when assigning an Action.");
 
   prop = RNA_def_property(srna, "action_slot", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "ActionSlot");
@@ -953,10 +948,10 @@ static void rna_def_nlastrip(BlenderRNA *brna)
    * and that's enough. */
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
 
-  prop = RNA_def_property(srna, "action_slots", PROP_COLLECTION, PROP_NONE);
+  prop = RNA_def_property(srna, "action_suitable_slots", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "ActionSlot");
   RNA_def_property_collection_funcs(prop,
-                                    "rna_iterator_nlastrip_action_slots_begin",
+                                    "rna_iterator_nlastrip_action_suitable_slots_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_dereference_get",
@@ -966,7 +961,6 @@ static void rna_def_nlastrip(BlenderRNA *brna)
                                     nullptr);
   RNA_def_property_ui_text(
       prop, "Action Slots", "The list of action slots suitable for this NLA strip");
-#  endif /* WITH_ANIM_BAKLAVA */
 
   /* Action extents */
   prop = RNA_def_property(srna, "action_frame_start", PROP_FLOAT, PROP_TIME);

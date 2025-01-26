@@ -14,13 +14,11 @@
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_duplilist.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_scene.hh"
 
-#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -310,7 +308,7 @@ static void GREASE_PENCIL_OT_bake_grease_pencil_animation(wmOperatorType *ot)
 {
   ot->name = "Bake Object Transform to Grease Pencil";
   ot->idname = "GREASE_PENCIL_OT_bake_grease_pencil_animation";
-  ot->description = "Bake grease pencil object transform to grease pencil keyframes";
+  ot->description = "Bake Grease Pencil object transform to Grease Pencil keyframes";
 
   ot->invoke = bake_grease_pencil_animation_invoke;
   ot->exec = bake_grease_pencil_animation_exec;

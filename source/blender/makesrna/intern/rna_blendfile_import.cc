@@ -10,6 +10,8 @@
 
 #include "BLO_readfile.hh"
 
+#include "BLT_translation.hh"
+
 #include "DNA_space_types.h"
 
 #include "BKE_blendfile_link_append.hh"
@@ -294,6 +296,7 @@ static void rna_def_blendfile_import_item(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_id_type_items);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "ID Type", "ID type of the item");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   RNA_def_property_enum_funcs(prop, "rna_BlendImportContextItem_id_type_get", nullptr, nullptr);
 
   prop = RNA_def_property(srna, "source_libraries", PROP_COLLECTION, PROP_NONE);
@@ -377,8 +380,8 @@ static void rna_def_blendfile_import_item(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Imported ID",
-                           "The imported ID. None until it has been linked or appended. May be "
-                           "the same as `reusable_local_id` when appended");
+                           "The imported ID. None until it has been linked or appended. "
+                           "May be the same as ``reusable_local_id`` when appended");
   RNA_def_property_pointer_funcs(
       prop, "rna_BlendImportContextItem_id_get", nullptr, nullptr, nullptr);
 
@@ -534,7 +537,7 @@ static void rna_def_blendfile_import_context(BlenderRNA *brna)
        "DONE",
        0,
        "",
-       "All data has been imported and is available in the list of `import_items`"},
+       "All data has been imported and is available in the list of ``import_items``"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   prop = RNA_def_property(srna, "process_stage", PROP_ENUM, PROP_NONE);
