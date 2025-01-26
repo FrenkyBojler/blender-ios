@@ -736,8 +736,9 @@ def print_list_of_commits(title: str, dict_of_commits: dict[str, list[CommitInfo
     number_of_commits = 0
     unknown_module_commit_message = ""
     for module in dict_of_commits:
-        number_of_commits += len(dict_of_commits[module])
-        module_label = f"\n## {module}\n"
+        commits_in_this_module = len(dict_of_commits[module])
+        number_of_commits += commits_in_this_module
+        module_label = f"\n## {module}: {commits_in_this_module}\n"
         module_is_unknown = (module == UNKNOWN)
         if module_is_unknown:
             unknown_module_commit_message += module_label
