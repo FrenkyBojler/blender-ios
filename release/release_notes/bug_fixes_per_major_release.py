@@ -672,7 +672,7 @@ def classify_commits(
     number_of_commits = len(list_of_commits)
 
     print("Identifying if fixes are for a bug introduced in this release, or if the bug was there in a previous release.")
-    print("This requires querying information from Gitea, and may take a while.\n")
+    print("This requires querying information from Gitea, and can take a while.\n")
 
     dict_of_backports = get_backports(backport_tasks)
 
