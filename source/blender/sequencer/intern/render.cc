@@ -470,14 +470,14 @@ static float4x4 sequencer_image_crop_transform_matrix(const Strip *strip,
   /* This value is intentionally kept as integer. Otherwise images with odd dimensions would
    * be translated to center of canvas by non-integer value, which would cause it to be
    * interpolated. Interpolation with 0 user defined translation is unwanted behavior. */
-  const int3 image_center_offs{(out->x - in->x) / 2, (out->y - in->y) / 2, 0};
+  const int3 image_center_offs((out->x - in->x) / 2, (out->y - in->y) / 2, 0);
 
-  const float3 translation{
-      transform->xofs * preview_scale_factor, transform->yofs * preview_scale_factor, 0.0f};
-  const float3 rotation{0.0f, 0.0f, transform->rotation};
-  const float2 scale{transform->scale_x * image_scale_factor,
-                     transform->scale_y * image_scale_factor};
-  const float3 pivot = {in->x * transform->origin[0], in->y * transform->origin[1], 0.0f};
+  const float3 translation(
+      transform->xofs * preview_scale_factor, transform->yofs * preview_scale_factor, 0.0f);
+  const float3 rotation(0.0f, 0.0f, transform->rotation);
+  const float2 scale(transform->scale_x * image_scale_factor,
+                     transform->scale_y * image_scale_factor);
+  const float3 pivot(in->x * transform->origin[0], in->y * transform->origin[1], 0.0f);
 
   const float4x4 matrix = math::from_loc_rot_scale<float4x4>(
       translation + float3(image_center_offs), rotation, scale);
@@ -558,11 +558,8 @@ static void sequencer_preprocess_transform_crop(
   const bool do_scale_to_render_size = seq_need_scale_to_render_size(strip, is_proxy_image);
   const float image_scale_factor = do_scale_to_render_size ? 1.0f : preview_scale_factor;
 
-  float transform_matrix[4][4];
-  float4x4 mat = sequencer_image_crop_transform_matrix(
+  float4x4 matrix = sequencer_image_crop_transform_matrix(
       strip, in, out, image_scale_factor, preview_scale_factor);
-
-  memcpy(transform_matrix, mat.base_ptr(), sizeof(transform_matrix));
 
   /* Proxy image is smaller, so crop values must be corrected by proxy scale factor.
    * Proxy scale factor always matches preview_scale_factor. */
@@ -593,7 +590,12 @@ static void sequencer_preprocess_transform_crop(
       break;
   }
 
-  IMB_transform(in, out, IMB_TRANSFORM_MODE_CROP_SRC, filter, transform_matrix, &source_crop);
+  IMB_transform(in,
+                out,
+                IMB_TRANSFORM_MODE_CROP_SRC,
+                filter,
+                (float(*)[4])(matrix.base_ptr()),
+                &source_crop);
 
   if (is_strip_covering_screen(context, strip)) {
     out->planes = in->planes;

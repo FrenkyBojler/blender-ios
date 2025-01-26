@@ -609,18 +609,18 @@ static float4x4 seq_image_transform_matrix_get_ex(const Scene *scene,
                                                   const Strip *strip,
                                                   bool apply_rotation = true)
 {
-  float3 image_size{float(scene->r.xsch), float(scene->r.ysch), 0.0f};
+  float3 image_size(float(scene->r.xsch), float(scene->r.ysch), 0.0f);
   if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
     image_size.x = strip->data->stripdata->orig_width;
     image_size.y = strip->data->stripdata->orig_height;
   }
 
   const StripTransform *transform = strip->data->transform;
-  const float3 origin{
-      image_size.x * transform->origin[0], image_size[1] * transform->origin[1], 0.0f};
-  const float3 translation{transform->xofs, transform->yofs, 0.0f};
-  const float3 rotation{0.0f, 0.0f, apply_rotation ? transform->rotation : 0.0f};
-  const float2 scale{transform->scale_x, transform->scale_y};
+  const float3 origin(
+      image_size.x * transform->origin[0], image_size[1] * transform->origin[1], 0.0f);
+  const float3 translation(transform->xofs, transform->yofs, 0.0f);
+  const float3 rotation(0.0f, 0.0f, apply_rotation ? transform->rotation : 0.0f);
+  const float2 scale(transform->scale_x, transform->scale_y);
   const float3 pivot = origin - (image_size / 2);
 
   const float4x4 matrix = math::from_loc_rot_scale<float4x4>(translation, rotation, scale);
@@ -638,27 +638,27 @@ static void strip_image_transform_quad_get_ex(const Scene *scene,
                                               float r_quad[4][2])
 {
 
-  float3 image_size{float(scene->r.xsch), float(scene->r.ysch), 0.0f};
+  float3 image_size(float(scene->r.xsch), float(scene->r.ysch), 0.0f);
   if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
     image_size.x = strip->data->stripdata->orig_width;
     image_size.y = strip->data->stripdata->orig_height;
   }
 
   const StripCrop *crop = strip->data->crop;
-  float4x3 quad_temp{
+  float3 quad[4]{
       {(image_size[0] / 2) - crop->right, (image_size[1] / 2) - crop->top, 0.0f},
       {(image_size[0] / 2) - crop->right, (-image_size[1] / 2) + crop->bottom, 0.0f},
       {(-image_size[0] / 2) + crop->left, (-image_size[1] / 2) + crop->bottom, 0.0f},
       {(-image_size[0] / 2) + crop->left, (image_size[1] / 2) - crop->top, 0.0f},
   };
 
-  const float3 viewport_pixel_aspect{scene->r.xasp / scene->r.yasp, 1.0f, 1.0f};
+  const float3 viewport_pixel_aspect(scene->r.xasp / scene->r.yasp, 1.0f, 1.0f);
   const float4x4 matrix = seq_image_transform_matrix_get_ex(scene, strip, apply_rotation);
   float3 mirror;
   SEQ_image_transform_mirror_factor_get(strip, mirror);
 
   for (int i = 0; i < 4; i++) {
-    float3 point = math::transform_point(matrix, quad_temp[i]);
+    float3 point = math::transform_point(matrix, quad[i]);
     point *= mirror;
     point *= viewport_pixel_aspect;
     copy_v2_v2(r_quad[i], point);
