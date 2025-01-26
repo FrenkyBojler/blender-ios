@@ -28,6 +28,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_string.h"
 
@@ -91,25 +92,32 @@ static const char *get_name(const ufbx_string &name, const char *def = "Untitled
   return name.length > 0 ? name.data : def;
 }
 
+static void matrix_to_m44(const ufbx_matrix &src, float dst[4][4])
+{
+  dst[0][0] = src.m00;
+  dst[1][0] = src.m01;
+  dst[2][0] = src.m02;
+  dst[3][0] = src.m03;
+  dst[0][1] = src.m10;
+  dst[1][1] = src.m11;
+  dst[2][1] = src.m12;
+  dst[3][1] = src.m13;
+  dst[0][2] = src.m20;
+  dst[1][2] = src.m21;
+  dst[2][2] = src.m22;
+  dst[3][2] = src.m23;
+  dst[0][3] = 0.0f;
+  dst[1][3] = 0.0f;
+  dst[2][3] = 0.0f;
+  dst[3][3] = 1.0f;
+}
+
 static void node_matrix_to_obj(const ufbx_node *node, Object *obj)
 {
-  ufbx_matrix mtx = ufbx_matrix_mul(node->node_depth <= 1 ? &node->node_to_world :
-                                                            &node->node_to_parent,
+  ufbx_matrix mtx = ufbx_matrix_mul(node->is_root ? &node->node_to_world : &node->node_to_parent,
                                     &node->geometry_to_node);
   float obmat[4][4];
-  unit_m4(obmat);
-  obmat[0][0] = mtx.m00;
-  obmat[1][0] = mtx.m01;
-  obmat[2][0] = mtx.m02;
-  obmat[3][0] = mtx.m03;
-  obmat[0][1] = mtx.m10;
-  obmat[1][1] = mtx.m11;
-  obmat[2][1] = mtx.m12;
-  obmat[3][1] = mtx.m13;
-  obmat[0][2] = mtx.m20;
-  obmat[1][2] = mtx.m21;
-  obmat[2][2] = mtx.m22;
-  obmat[3][2] = mtx.m23;
+  matrix_to_m44(mtx, obmat);
   BKE_object_apply_mat4(obj, obmat, true, false);
 }
 
@@ -432,7 +440,8 @@ void FbxImportContext::import_meshes()
         const ufbx_skin_deformer *skin = fmesh->skin_deformers[0];
         if (skin != nullptr) {
           for (const ufbx_skin_cluster *fcluster : skin->clusters) {
-            BKE_object_defgroup_add_name(obj, fcluster->name.data);
+            const char *bone_name = get_name(fcluster->bone_node->name, "Bone");
+            BKE_object_defgroup_add_name(obj, bone_name);
           }
         }
 
@@ -604,14 +613,16 @@ Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer 
     return obj;
   }
 
+  /* Get list of bones sorted in a way so that parents are before children. */
+  Vector<const ufbx_skin_cluster *> fbones(fskin.clusters.begin(), fskin.clusters.end());
+  std::sort(
+      fbones.begin(), fbones.end(), [](const ufbx_skin_cluster *a, const ufbx_skin_cluster *b) {
+        return a->bone_node->node_depth < b->bone_node->node_depth;
+      });
   /* Figure out "most root" parent of all the bones. */
   const ufbx_node *armature_parent = nullptr;
-  uint32_t min_bone_depth = std::numeric_limits<uint32_t>::max();
-  for (const ufbx_skin_cluster *fbone : fskin.clusters) {
-    if (fbone->bone_node->parent != nullptr && fbone->bone_node->node_depth < min_bone_depth) {
-      min_bone_depth = fbone->bone_node->node_depth;
-      armature_parent = fbone->bone_node->parent;
-    }
+  if (!fbones.is_empty()) {
+    armature_parent = fbones[0]->bone_node->parent;
   }
 
   /* Create armature. */
@@ -627,20 +638,54 @@ Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer 
 
   /* Create bones. */
   ED_armature_to_edit(arm);
-  for (const ufbx_skin_cluster *fbone : fskin.clusters) {
+
+  Map<const ufbx_node *, EditBone *> node_to_bone;
+  node_to_bone.reserve(fbones.size());
+
+  for (const ufbx_skin_cluster *fbone : fbones) {
 
     EditBone *bone = ED_armature_ebone_add(arm, get_name(fbone->bone_node->name, "Bone"));
+    node_to_bone.add(fbone->bone_node, bone);
+    /* For all bones, record the whole armature as the owning object. */
+    this->element_to_object.add(&fbone->bone_node->element, obj);
+
     //@TODO: custom props
-    //@TODO: bone matrices
     bone->flag |= BONE_SELECTED;
 
-    float bone_size = 1.0f;  //@TODO calculate average distance to children
+    /* Get average distance to children. */
+    float bone_size = 0.0f;
+    int child_bone_count = 0;
+    for (const ufbx_node *child : fbone->bone_node->children) {
+      if (child->bone) {
+        ufbx_vec3 pos = child->local_transform.translation;
+        bone_size += math::length(float3(pos.x, pos.y, pos.z));
+        child_bone_count++;
+      }
+    }
+    if (child_bone_count > 0) {
+      bone_size /= child_bone_count;
+    }
+
     /* Zero length bones are automatically collapsed into their parent when you leave edit mode,
      * so enforce a minimum length. */
     bone_size = math::max(bone_size, 0.01f);
     bone->tail[0] = 0.0f;
     bone->tail[1] = bone_size;
     bone->tail[2] = 0.0f;
+
+    /* Set bind matrix. */
+    float bind_matrix[4][4];
+    matrix_to_m44(fbone->bind_to_world, bind_matrix);
+    ED_armature_ebone_from_mat4(bone, bind_matrix);
+
+    /* Set bone parent. */
+    const ufbx_node *parent = fbone->bone_node->parent;
+    if (parent != nullptr) {
+      EditBone *parent_bone = node_to_bone.lookup_default(parent, nullptr);
+      if (parent_bone != nullptr) {
+        bone->parent = parent_bone;
+      }
+    }
   }
 
   ED_armature_from_edit(this->bmain, arm);
@@ -714,13 +759,18 @@ void FbxImportContext::import_animation(double fps)
 void FbxImportContext::setup_hierarchy()
 {
   for (const auto &item : this->element_to_object.items()) {
-    if (item.key->type != UFBX_ELEMENT_NODE) {
+    const ufbx_node *node = ufbx_as_node(item.key);
+    if (node == nullptr) {
       continue;
     }
-    const ufbx_node *node = (const ufbx_node *)item.key;
+    if (node->bone != nullptr) {
+      /* If this node is for a bone, do not try to setup object parenting for it
+       * (the object for bone bones is whole armature). */
+      continue;
+    }
     if (node->parent) {
       Object *obj_par = this->element_to_object.lookup_default(&node->parent->element, nullptr);
-      if (obj_par != nullptr) {
+      if (obj_par != nullptr && obj_par != item.value) {
         item.value->parent = obj_par;
       }
     }
@@ -747,6 +797,7 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   opts.clean_skin_weights = true;
   opts.use_blender_pbr_material = true;
   //@TODO: axes according to import settings
+  opts.space_conversion = UFBX_SPACE_CONVERSION_ADJUST_TRANSFORMS;
   opts.target_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;
   opts.target_axes.up = UFBX_COORDINATE_AXIS_POSITIVE_Z;
   opts.target_axes.front = UFBX_COORDINATE_AXIS_NEGATIVE_Y;

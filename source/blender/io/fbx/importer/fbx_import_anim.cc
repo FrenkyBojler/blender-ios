@@ -15,7 +15,7 @@
 #include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
 
-#include "BLI_math_rotation.h"
+#include "BLI_math_quaternion.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 
@@ -24,6 +24,12 @@
 #include "ufbx.h"
 
 namespace blender::io::fbx {
+
+//@TODO: deduplicate with fbx_import.cc
+static const char *get_name(const ufbx_string &name, const char *def = "Untitled")
+{
+  return name.length > 0 ? name.data : def;
+}
 
 /**
  * Ensures that the given ID has an action assigned to it and, for layered
@@ -72,17 +78,20 @@ static void set_curve_sample(FCurve *curve, int64_t key_index, float time, float
 struct ElementAnimations {
   const ufbx_anim_stack *fbx_stack = nullptr;
   const ufbx_anim_layer *fbx_layer = nullptr;
+  const ufbx_element *fbx_elem = nullptr;
   Object *target_obj = nullptr;
+  int64_t order = 0;
   Vector<const ufbx_anim_prop *> props;
   const ufbx_anim_prop *prop_position = nullptr;
   const ufbx_anim_prop *prop_rotation = nullptr;
   const ufbx_anim_prop *prop_scale = nullptr;
 };
 
-static Map<const ufbx_element *, ElementAnimations> gather_animated_properties(
+static Vector<ElementAnimations> gather_animated_properties(
     const ufbx_scene &fbx, const Map<const ufbx_element *, Object *> &element_to_object)
 {
-  Map<const ufbx_element *, ElementAnimations> animations;
+  int64_t order = 0;
+  Map<const ufbx_element *, ElementAnimations> elem_map;
   for (const ufbx_anim_stack *fstack : fbx.anim_stacks) {
     for (const ufbx_anim_layer *flayer : fstack->layers) {
       // printf("fbx: AnimLayer %s\n", flayer->name.data);
@@ -110,7 +119,9 @@ static Map<const ufbx_element *, ElementAnimations> gather_animated_properties(
           continue;
         }
 
-        ElementAnimations &anims = animations.lookup_or_add(fprop.element, ElementAnimations());
+        ElementAnimations &anims = elem_map.lookup_or_add(fprop.element, ElementAnimations());
+        anims.fbx_elem = fprop.element;
+        anims.order = order++;
         if (anims.fbx_stack == nullptr) {
           anims.fbx_stack = fstack;
         }
@@ -132,6 +143,13 @@ static Map<const ufbx_element *, ElementAnimations> gather_animated_properties(
       }
     }
   }
+
+  /* Sort returned result in the original fbx file order. */
+  Vector<ElementAnimations> animations(elem_map.values().begin(), elem_map.values().end());
+  std::sort(
+      animations.begin(),
+      animations.end(),
+      [](const ElementAnimations &a, const ElementAnimations &b) { return a.order < b.order; });
   return animations;
 }
 
@@ -159,34 +177,46 @@ static bAction *create_action(Main &bmain,
   return action;
 }
 
-static void create_transform_curves(const ufbx_element *item_key,
-                                    const ElementAnimations &anim,
+static void create_transform_curves(const ElementAnimations &anim,
                                     bAction *action,
                                     const double fps,
-                                    const float anim_offset,
-                                    const double unit_scale)
+                                    const float anim_offset)
 {
-  std::string rna_position = "location";
+  /* For animated bones, prepend bone path to animation curve path. */
+  std::string rna_prefix = "";
+  bool is_bone = false;
+  const char *bone_name = nullptr;
+  const ufbx_node *fnode = ufbx_as_node(anim.fbx_elem);
+  if (fnode != nullptr && fnode->bone != nullptr) {
+    is_bone = true;
+    bone_name = get_name(fnode->name, "Bone");
+    rna_prefix = std::string("pose.bones[\"") + bone_name + "\"].";
+  }
+
+  std::string rna_position = rna_prefix + "location";
 
   std::string rna_rotation;
   int rot_channels = 3;
-  const eRotationModes rot_mode = static_cast<eRotationModes>(anim.target_obj->rotmode);
+  /* Bones are created with quaternion rotation by default. */
+  eRotationModes rot_mode = is_bone ? ROT_MODE_QUAT :
+                                      static_cast<eRotationModes>(anim.target_obj->rotmode);
+
   switch (rot_mode) {
     case ROT_MODE_QUAT:
-      rna_rotation = "rotation_quaternion";
+      rna_rotation = rna_prefix + "rotation_quaternion";
       rot_channels = 4;
       break;
     case ROT_MODE_AXISANGLE:
-      rna_rotation = "rotation_axis_angle";
+      rna_rotation = rna_prefix + "rotation_axis_angle";
       rot_channels = 4;
       break;
     default:
-      rna_rotation = "rotation_euler";
+      rna_rotation = rna_prefix + "rotation_euler";
       rot_channels = 3;
       break;
   }
 
-  std::string rna_scale = "scale";
+  std::string rna_scale = rna_prefix + "scale";
 
   /* Note: Python importer was always creating all pos/rot/scale curves: "due to all FBX
    * transform magic, we need to add curves for whole loc/rot/scale in any case".
@@ -245,35 +275,31 @@ static void create_transform_curves(const ufbx_element *item_key,
   for (int64_t i = 0; i < sorted_key_times.size(); i++) {
     double t = sorted_key_times[i];
     float tf = float(t * fps + anim_offset);
-    ufbx_transform xform = ufbx_evaluate_transform(
-        anim.fbx_layer->anim, (const ufbx_node *)item_key, t);
-    set_curve_sample(curves_pos[0], i, tf, float(xform.translation.x * unit_scale));
-    set_curve_sample(curves_pos[1], i, tf, float(xform.translation.y * unit_scale));
-    set_curve_sample(curves_pos[2], i, tf, float(xform.translation.z * unit_scale));
+    ufbx_transform xform = ufbx_evaluate_transform(anim.fbx_layer->anim, fnode, t);
+    set_curve_sample(curves_pos[0], i, tf, float(xform.translation.x));
+    set_curve_sample(curves_pos[1], i, tf, float(xform.translation.y));
+    set_curve_sample(curves_pos[2], i, tf, float(xform.translation.z));
 
-    float4 quat(xform.rotation.x, xform.rotation.y, xform.rotation.z, xform.rotation.w);
+    math::Quaternion quat(xform.rotation.w, xform.rotation.x, xform.rotation.y, xform.rotation.z);
     switch (rot_mode) {
       case ROT_MODE_QUAT:
-        set_curve_sample(curves_rot[0], i, tf, quat.x);
-        set_curve_sample(curves_rot[1], i, tf, quat.y);
-        set_curve_sample(curves_rot[2], i, tf, quat.z);
-        set_curve_sample(curves_rot[3], i, tf, quat.w);
+        set_curve_sample(curves_rot[0], i, tf, quat.w);
+        set_curve_sample(curves_rot[1], i, tf, quat.x);
+        set_curve_sample(curves_rot[2], i, tf, quat.y);
+        set_curve_sample(curves_rot[3], i, tf, quat.z);
         break;
       case ROT_MODE_AXISANGLE: {
-        float3 axis;
-        float angle;
-        quat_to_axis_angle(axis, &angle, quat);
-        set_curve_sample(curves_rot[0], i, tf, angle);
-        set_curve_sample(curves_rot[1], i, tf, axis.x);
-        set_curve_sample(curves_rot[2], i, tf, axis.y);
-        set_curve_sample(curves_rot[3], i, tf, axis.z);
+        math::AxisAngle axis_angle = math::to_axis_angle(quat);
+        set_curve_sample(curves_rot[0], i, tf, axis_angle.angle().radian());
+        set_curve_sample(curves_rot[1], i, tf, axis_angle.axis().x);
+        set_curve_sample(curves_rot[2], i, tf, axis_angle.axis().y);
+        set_curve_sample(curves_rot[3], i, tf, axis_angle.axis().z);
       } break;
       default: {
-        float3 euler;
-        quat_to_eul(euler, quat);
-        set_curve_sample(curves_rot[0], i, tf, euler.x);
-        set_curve_sample(curves_rot[1], i, tf, euler.y);
-        set_curve_sample(curves_rot[2], i, tf, euler.z);
+        math::EulerXYZ euler = math::to_euler(quat);
+        set_curve_sample(curves_rot[0], i, tf, euler.x().radian());
+        set_curve_sample(curves_rot[1], i, tf, euler.y().radian());
+        set_curve_sample(curves_rot[2], i, tf, euler.z().radian());
       } break;
     }
 
@@ -310,16 +336,14 @@ void import_animations(Main &bmain,
   /* Note: mixing is completely ignored for now, each layer results in an independent set of
    * actions. */
 
-  Map<const ufbx_element *, ElementAnimations> animations = gather_animated_properties(
-      fbx, element_to_object);
+  Vector<ElementAnimations> animations = gather_animated_properties(fbx, element_to_object);
 
   Map<std::string, bAction *> action_name_map;
-  for (const auto &item : animations.items()) {
-    ElementAnimations &anim = item.value;
+  for (const ElementAnimations &anim : animations) {
     bAction *action = create_action(bmain, anim, action_name_map);
 
     if (anim.prop_position || anim.prop_rotation || anim.prop_scale) {
-      create_transform_curves(item.key, anim, action, fps, anim_offset, fbx.settings.unit_meters);
+      create_transform_curves(anim, action, fps, anim_offset);
     }
   }
 }
