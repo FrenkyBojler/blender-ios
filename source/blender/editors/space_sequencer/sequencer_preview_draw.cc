@@ -7,6 +7,7 @@
  */
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 
@@ -1062,8 +1063,8 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   immUnbindProgram();
 
   /* Outline. */
-  float strip_image_quad[4][2];
-  SEQ_image_transform_final_quad_get(CTX_data_scene(C), strip, strip_image_quad);
+  const std::array<blender::float2, 4> strip_image_quad = SEQ_image_transform_final_quad_get(
+      CTX_data_scene(C), strip);
 
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
@@ -1080,10 +1081,10 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   immUniformColor3fv(col);
   immUniform1f("lineWidth", U.pixelsize);
   immBegin(GPU_PRIM_LINE_LOOP, 4);
-  immVertex2f(pos, strip_image_quad[0][0], strip_image_quad[0][1]);
-  immVertex2f(pos, strip_image_quad[1][0], strip_image_quad[1][1]);
-  immVertex2f(pos, strip_image_quad[2][0], strip_image_quad[2][1]);
-  immVertex2f(pos, strip_image_quad[3][0], strip_image_quad[3][1]);
+  immVertex2f(pos, strip_image_quad[0].x, strip_image_quad[0].y);
+  immVertex2f(pos, strip_image_quad[1].x, strip_image_quad[1].y);
+  immVertex2f(pos, strip_image_quad[2].x, strip_image_quad[2].y);
+  immVertex2f(pos, strip_image_quad[3].x, strip_image_quad[3].y);
   immEnd();
   immUnbindProgram();
   GPU_line_width(1);

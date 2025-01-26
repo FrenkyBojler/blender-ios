@@ -29,6 +29,7 @@
 
 #include "sequencer.hh"
 #include "strip_time.hh"
+#include <array>
 
 using namespace blender;
 
@@ -632,10 +633,9 @@ float4x4 SEQ_image_transform_matrix_get(const Scene *scene, const Strip *strip)
   return seq_image_transform_matrix_get_ex(scene, strip);
 }
 
-static void strip_image_transform_quad_get_ex(const Scene *scene,
-                                              const Strip *strip,
-                                              bool apply_rotation,
-                                              float r_quad[4][2])
+static std::array<float2, 4> strip_image_transform_quad_get_ex(const Scene *scene,
+                                                               const Strip *strip,
+                                                               bool apply_rotation)
 {
 
   float3 image_size(float(scene->r.xsch), float(scene->r.ysch), 0.0f);
@@ -657,25 +657,27 @@ static void strip_image_transform_quad_get_ex(const Scene *scene,
   float3 mirror;
   SEQ_image_transform_mirror_factor_get(strip, mirror);
 
+  std::array<float2, 4> quad_transformed;
+
   for (int i = 0; i < 4; i++) {
     float3 point = math::transform_point(matrix, quad[i]);
     point *= mirror;
     point *= viewport_pixel_aspect;
-    copy_v2_v2(r_quad[i], point);
+    copy_v2_v2(quad_transformed[i], point);
   }
+  return quad_transformed;
 }
 
-void SEQ_image_transform_quad_get(const Scene *scene,
-                                  const Strip *strip,
-                                  bool apply_rotation,
-                                  float r_quad[4][2])
+std::array<float2, 4> SEQ_image_transform_quad_get(const Scene *scene,
+                                                   const Strip *strip,
+                                                   bool apply_rotation)
 {
-  strip_image_transform_quad_get_ex(scene, strip, apply_rotation, r_quad);
+  return strip_image_transform_quad_get_ex(scene, strip, apply_rotation);
 }
 
-void SEQ_image_transform_final_quad_get(const Scene *scene, const Strip *strip, float r_quad[4][2])
+std::array<float2, 4> SEQ_image_transform_final_quad_get(const Scene *scene, const Strip *strip)
 {
-  strip_image_transform_quad_get_ex(scene, strip, true, r_quad);
+  return strip_image_transform_quad_get_ex(scene, strip, true);
 }
 
 void SEQ_image_preview_unit_to_px(const Scene *scene, const float co_src[2], float co_dst[2])
@@ -698,8 +700,7 @@ void SEQ_image_transform_bounding_box_from_collection(Scene *scene,
 {
   INIT_MINMAX2(r_min, r_max);
   for (Strip *strip : strips) {
-    float quad[4][2];
-    SEQ_image_transform_quad_get(scene, strip, apply_rotation, quad);
+    std::array<float2, 4> quad = SEQ_image_transform_quad_get(scene, strip, apply_rotation);
     for (int i = 0; i < 4; i++) {
       minmax_v2v2_v2(r_min, r_max, quad[i]);
     }

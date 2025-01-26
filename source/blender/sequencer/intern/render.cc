@@ -297,13 +297,12 @@ StripScreenQuad get_strip_screen_quad(const SeqRenderData *context, const Strip 
   const int y = context->recty;
   float2 offset{x * 0.5f, y * 0.5f};
 
-  float quad[4][2];
-  SEQ_image_transform_final_quad_get(scene, strip, quad);
+  std::array<float2, 4> quad = SEQ_image_transform_final_quad_get(scene, strip);
   const float scale = SEQ_rendersize_to_scale_factor(context->preview_render_size);
-  return StripScreenQuad{float2(quad[0]) * scale + offset,
-                         float2(quad[1]) * scale + offset,
-                         float2(quad[2]) * scale + offset,
-                         float2(quad[3]) * scale + offset};
+  return StripScreenQuad{quad[0] * scale + offset,
+                         quad[1] * scale + offset,
+                         quad[2] * scale + offset,
+                         quad[3] * scale + offset};
 }
 
 /* Is quad `a` fully contained (i.e. covered by) quad `b`? For that to happen,
