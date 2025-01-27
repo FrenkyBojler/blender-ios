@@ -1056,26 +1056,22 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
     IMB_colormanagement_srgb_to_scene_linear_v3(color, color);
   }
 
-  int color_node_type{};
-  std::string color_socket_name{};
+  bNode *color_node;
 
   switch (snode->nodetree->type) {
     case NTREE_SHADER:
-      color_node_type = SH_NODE_RGB;
-      color_socket_name = "Color";
+      color_node = add_node(*C, "ShaderNodeRGB", snode->runtime->cursor);
       break;
     case NTREE_COMPOSIT:
-      color_node_type = CMP_NODE_RGB;
-      color_socket_name = "RGBA";
+      color_node = add_node(*C, "CompositorNodeRGB", snode->runtime->cursor);
       break;
     case NTREE_GEOMETRY:
-      color_node_type = FN_NODE_INPUT_COLOR;
+      color_node = add_node(*C, "FunctionNodeInputColor", snode->runtime->cursor);
       break;
     default:
       return OPERATOR_CANCELLED;
   }
 
-  bNode *color_node = add_static_node(*C, color_node_type, snode->runtime->cursor);
   if (!color_node) {
     BKE_report(op->reports, RPT_WARNING, "Could not add a color node");
     return OPERATOR_CANCELLED;
@@ -1088,7 +1084,7 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
     copy_v4_v4(input_color_storage->color, color);
   }
   else {
-    bNodeSocket *sock = bke::node_find_socket(color_node, SOCK_OUT, color_socket_name);
+    bNodeSocket *sock = static_cast<bNodeSocket *>(color_node->outputs.first);
     if (!sock) {
       BKE_report(op->reports, RPT_WARNING, "Could not find node color socket");
       return OPERATOR_CANCELLED;
@@ -1099,8 +1095,6 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
   }
 
   bke::node_set_active(ntree, color_node);
-  BKE_main_ensure_invariants(*bmain, ntree->id);
-  DEG_relations_tag_update(bmain);
 
   return OPERATOR_FINISHED;
 }
@@ -1144,8 +1138,6 @@ void NODE_OT_add_color(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
-
-  WM_operator_properties_id_lookup(ot, true);
 
   RNA_def_float_color(
       ot->srna, "color", 4, nullptr, 0.0, FLT_MAX, "Color", "Source color", 0.0, 1.0);
