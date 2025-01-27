@@ -1883,7 +1883,6 @@ def brush_basic_grease_pencil_weight_settings(layout, context, brush, *, compact
 
         # Gradient type: linear/radial
         if brush.gpencil_weight_tool == 'GRADIENT':
-            # Bit of a trick, but the only working way to expose the operator property `type`
             layout.prop(WindowManager.operator_properties_last("grease_pencil.weight_gradient"), "type", expand=True)
 
 

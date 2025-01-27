@@ -123,7 +123,9 @@ class VIEW3D_HT_tool_header(Header):
                     layout.popover("VIEW3D_PT_tools_grease_pencil_sculpt_appearance")
         elif tool_mode == 'WEIGHT_GPENCIL' or tool_mode == 'WEIGHT_GREASE_PENCIL':
             if is_valid_context:
-                layout.popover("VIEW3D_PT_tools_grease_pencil_weight_appearance")
+                brush = context.tool_settings.gpencil_weight_paint.brush
+                if brush.gpencil_weight_tool != 'GRADIENT':
+                    layout.popover("VIEW3D_PT_tools_grease_pencil_weight_appearance")
         elif tool_mode == 'VERTEX_GPENCIL' or tool_mode == 'VERTEX_GREASE_PENCIL':
             if is_valid_context:
                 layout.popover("VIEW3D_PT_tools_grease_pencil_vertex_appearance")
