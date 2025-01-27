@@ -38,6 +38,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 
 #include "GEO_boolean_curves.hh"
@@ -731,6 +732,88 @@ BooleanResult curve_boolean_calc(const Operation boolean_mode,
                          clipping_shapes,
                          is_fills,
                          curves.cyclic());
+}
+
+bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
+                                  const bke::CurvesGeometry &curves,
+                                  const Span<float2> positions_2d,
+                                  const IndexRange clipping_shapes)
+{
+  const bke::AttributeAccessor src_attributes = curves.attributes();
+
+  const VArray<bool> is_fills = *src_attributes.lookup<bool>("is_fill", bke::AttrDomain::Curve);
+  const BooleanResult result = execute_boolean(boolean_mode,
+                                               positions_2d,
+                                               curves.points_by_curve(),
+                                               clipping_shapes,
+                                               is_fills,
+                                               curves.cyclic());
+
+  const OffsetIndices<int> dst_segments_by_curve = OffsetIndices<int>(result.segment_offsets);
+  const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(result.point_offsets);
+
+  bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
+  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
+
+  Array<int> old_by_new_map(dst_points_by_curve.size());
+
+  for (const int i : dst_points_by_curve.index_range()) {
+    const IndexRange segment_range = dst_segments_by_curve[i];
+
+    /* TODO. */
+    old_by_new_map[i] = result.segments[segment_range.first()].curve;
+  }
+
+  bke::gather_attributes(src_attributes,
+                         bke::AttrDomain::Curve,
+                         bke::AttrDomain::Curve,
+                         {},
+                         old_by_new_map,
+                         dst_attributes);
+
+  /* Copy/Interpolate point attributes. */
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, {}))
+  {
+    bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
+      using T = decltype(dummy);
+      auto src_attr = attribute.src.typed<T>();
+      auto dst_attr = attribute.dst.span.typed<T>();
+
+      int i = 0;
+
+      /* TODO. */
+      for (const int curve_i : dst_segments_by_curve.index_range()) {
+        const IndexRange segment_range = dst_segments_by_curve[curve_i];
+        for (const int seg_i : segment_range) {
+          const Segment &segment = result.segments[seg_i];
+
+          if (segment.has_start_intersection()) {
+            dst_attr[i++] = bke::attribute_math::mix2<T>(segment.start_alpha(),
+                                                         src_attr[segment.start_edge().x],
+                                                         src_attr[segment.start_edge().y]);
+          }
+
+          segment.foreach_point(
+              [&](const int index, const int pos) { dst_attr[pos + i] = src_attr[index]; });
+
+          i += segment.points_num();
+
+          if (seg_i == segment_range.last() && segment.has_end_intersection() &&
+              !result.cyclic[curve_i])
+          {
+            dst_attr[i++] = bke::attribute_math::mix2<T>(segment.end_alpha(),
+                                                         src_attr[segment.end_edge().x],
+                                                         src_attr[segment.end_edge().y]);
+          }
+        }
+      }
+    });
+
+    attribute.dst.finish();
+  }
+
+  return dst_curves;
 }
 
 }  // namespace blender::geometry::boolean
