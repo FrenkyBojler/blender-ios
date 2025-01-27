@@ -428,6 +428,7 @@ TEST(string_ref, CopyUtf8Truncated)
     EXPECT_EQ(dst[3], '\0');
   }
   {
+    /* #BLI_STR_UTF8_SUPERSCRIPT_2 is a two-byte code point. */
     StringRef ref(BLI_STR_UTF8_SUPERSCRIPT_2 BLI_STR_UTF8_SUPERSCRIPT_2);
     {
       char dst[1];
