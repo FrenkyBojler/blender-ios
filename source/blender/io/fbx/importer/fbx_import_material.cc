@@ -118,6 +118,7 @@ static void set_bsdf_socket_values(bNode *bsdf, Material *mat, const ufbx_materi
   specular *= 2.0f;
   specular = math::clamp(specular, 0.0f, 1.0f);
   set_socket_float("Specular IOR Level", specular, bsdf);
+  mat->spec = specular; /* For viewport shading. */
 
   /* Rougness: empirical map from FBX shininess (0..100) to (1..0) rougness. */
   /* Note: to match python importer, only manually query for Shininess property;

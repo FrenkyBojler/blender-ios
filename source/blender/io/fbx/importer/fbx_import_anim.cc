@@ -20,16 +20,11 @@
 #include "BLI_string.h"
 
 #include "fbx_import_anim.hh"
+#include "fbx_import_util.hh"
 
 #include "ufbx.h"
 
 namespace blender::io::fbx {
-
-//@TODO: deduplicate with fbx_import.cc
-static const char *get_name(const ufbx_string &name, const char *def = "Untitled")
-{
-  return name.length > 0 ? name.data : def;
-}
 
 /**
  * Ensures that the given ID has an action assigned to it and, for layered
@@ -189,7 +184,7 @@ static void create_transform_curves(const ElementAnimations &anim,
   const ufbx_node *fnode = ufbx_as_node(anim.fbx_elem);
   if (fnode != nullptr && fnode->bone != nullptr) {
     is_bone = true;
-    bone_name = get_name(fnode->name, "Bone");
+    bone_name = get_fbx_name(fnode->name, "Bone");
     rna_prefix = std::string("pose.bones[\"") + bone_name + "\"].";
   }
 

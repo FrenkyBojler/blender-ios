@@ -18,11 +18,18 @@ struct Mesh;
 struct bContext;
 struct ReportList;
 
+enum class eFBXVertexColorMode {
+  None = 0,
+  sRGB = 1,
+  Linear = 2,
+};
+
 struct FBXImportParams {
   char filepath[FILE_MAX] = "";
   eIOAxis forward_axis = IO_AXIS_Y;
   eIOAxis up_axis = IO_AXIS_Z;
   float global_scale = 1.0f;
+  eFBXVertexColorMode vertex_colors = eFBXVertexColorMode::sRGB;
   bool validate_meshes = true;
   bool use_custom_normals = true;
   bool use_subsurf = false;

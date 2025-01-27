@@ -31,6 +31,20 @@
 #  include "io_fbx_ops.hh"
 #  include "io_utils.hh"
 
+static const EnumPropertyItem fbx_vertex_colors_mode[] = {
+    {int(eFBXVertexColorMode::None), "NONE", 0, "None", "Do not import color attributes"},
+    {int(eFBXVertexColorMode::sRGB),
+     "SRGB",
+     0,
+     "sRGB",
+     "Vertex colors in the file are in sRGB color space"},
+    {int(eFBXVertexColorMode::Linear),
+     "LINEAR",
+     0,
+     "Linear",
+     "Vertex colors in the file are in linear color space"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 static int wm_fbx_import_exec(bContext *C, wmOperator *op)
 {
   FBXImportParams params;
@@ -43,6 +57,7 @@ static int wm_fbx_import_exec(bContext *C, wmOperator *op)
   params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
   params.use_anim = RNA_boolean_get(op->ptr, "use_anim");
   params.anim_offset = RNA_float_get(op->ptr, "anim_offset");
+  params.vertex_colors = eFBXVertexColorMode(RNA_enum_get(op->ptr, "import_colors"));
 
   params.reports = op->reports;
 
@@ -89,16 +104,31 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
     uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward Axis"), ICON_NONE);
     uiItemR(col, ptr, "up_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "use_custom_props", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_geometry", false, IFACE_("Geometry")))
+  {
+    uiLayout *col = uiLayoutColumn(panel, false);
+    uiItemR(col, ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "use_subsurf", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "import_colors", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  {
+    PanelLayout panel = uiLayoutPanel(C, layout, "USD_export_materials", true);
+    uiLayoutSetPropSep(panel.header, false);
+    uiItemR(panel.header, ptr, "use_anim", UI_ITEM_NONE, "", ICON_NONE);
+    uiItemL(panel.header, IFACE_("Animation"), ICON_NONE);
+    if (panel.body) {
+      uiLayout *col = uiLayoutColumn(panel.body, false);
+      uiItemR(col, ptr, "anim_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    }
   }
 
   if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_options", false, IFACE_("Options"))) {
     uiLayout *col = uiLayoutColumn(panel, false);
-    uiItemR(col, ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "use_custom_props", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "use_subsurf", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "use_anim", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "anim_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -134,6 +164,12 @@ void WM_OT_fbx_import(wmOperatorType *ot)
   RNA_def_float(ot->srna, "global_scale", 1.0f, 1e-6f, 1e6f, "Scale", "", 0.001f, 1000.0f);
   RNA_def_enum(ot->srna, "forward_axis", io_transform_axis, IO_AXIS_Y, "Forward Axis", "");
   RNA_def_enum(ot->srna, "up_axis", io_transform_axis, IO_AXIS_Z, "Up Axis", "");
+  RNA_def_enum(ot->srna,
+               "import_colors",
+               fbx_vertex_colors_mode,
+               int(eFBXVertexColorMode::sRGB),
+               "Vertex Colors",
+               "Import vertex color attributes");
 
   RNA_def_boolean(ot->srna,
                   "use_custom_normals",

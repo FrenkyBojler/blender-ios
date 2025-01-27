@@ -50,6 +50,7 @@
 #include "fbx_import.hh"
 #include "fbx_import_anim.hh"
 #include "fbx_import_material.hh"
+#include "fbx_import_util.hh"
 
 #include "ufbx.h"
 
@@ -86,11 +87,6 @@ struct FbxImportContext {
   void setup_hierarchy();
   Object *create_armature_for_deformer(const ufbx_skin_deformer &fskin);
 };
-
-static const char *get_name(const ufbx_string &name, const char *def = "Untitled")
-{
-  return name.length > 0 ? name.data : def;
-}
 
 static void matrix_to_m44(const ufbx_matrix &src, float dst[4][4])
 {
@@ -320,21 +316,46 @@ void FbxImportContext::import_meshes()
     /* Colors. */
     std::string first_color_name;
     for (const ufbx_color_set &fcol_set : fmesh->color_sets) {
+      if (this->params.vertex_colors == eFBXVertexColorMode::None) {
+        continue;
+      }
       std::string attr_name = BKE_attribute_calc_unique_name(attr_owner, fcol_set.name.data);
       if (first_color_name.empty()) {
         first_color_name = attr_name;
       }
-      bke::SpanAttributeWriter<ColorGeometry4f> cols =
-          attributes.lookup_or_add_for_write_only_span<ColorGeometry4f>(attr_name,
-                                                                        bke::AttrDomain::Corner);
-      BLI_assert(fcol_set.vertex_color.indices.count == cols.span.size());
-      for (int i = 0; i < fcol_set.vertex_color.indices.count; i++) {
-        int val_idx = fcol_set.vertex_color.indices[i];
-        const ufbx_vec4 &col = fcol_set.vertex_color.values[val_idx];
-        //@TODO: linear/sRGB conversions if needed; use byte color for sRGB
-        cols.span[i] = ColorGeometry4f(col.x, col.y, col.z, col.w);
+      if (this->params.vertex_colors == eFBXVertexColorMode::sRGB) {
+        /* sRGB colors, use 4 bytes per color. */
+        bke::SpanAttributeWriter<ColorGeometry4b> cols =
+            attributes.lookup_or_add_for_write_only_span<ColorGeometry4b>(attr_name,
+                                                                          bke::AttrDomain::Corner);
+        BLI_assert(fcol_set.vertex_color.indices.count == cols.span.size());
+        for (int i = 0; i < fcol_set.vertex_color.indices.count; i++) {
+          int val_idx = fcol_set.vertex_color.indices[i];
+          const ufbx_vec4 &col = fcol_set.vertex_color.values[val_idx];
+          /* Note: color values are expected to already be in sRGB space. */
+          float4 fcol = float4(col.x, col.y, col.z, col.w);
+          uchar4 bcol;
+          rgba_float_to_uchar(bcol, fcol);
+          cols.span[i] = ColorGeometry4b(bcol);
+        }
+        cols.finish();
       }
-      cols.finish();
+      else if (this->params.vertex_colors == eFBXVertexColorMode::Linear) {
+        /* Linear colors, use 4 floats per color. */
+        bke::SpanAttributeWriter<ColorGeometry4f> cols =
+            attributes.lookup_or_add_for_write_only_span<ColorGeometry4f>(attr_name,
+                                                                          bke::AttrDomain::Corner);
+        BLI_assert(fcol_set.vertex_color.indices.count == cols.span.size());
+        for (int i = 0; i < fcol_set.vertex_color.indices.count; i++) {
+          int val_idx = fcol_set.vertex_color.indices[i];
+          const ufbx_vec4 &col = fcol_set.vertex_color.values[val_idx];
+          cols.span[i] = ColorGeometry4f(col.x, col.y, col.z, col.w);
+        }
+        cols.finish();
+      }
+      else {
+        BLI_assert_unreachable();
+      }
     }
     if (!first_color_name.empty()) {
       mesh->active_color_attribute = BLI_strdup(first_color_name.c_str());
@@ -388,7 +409,7 @@ void FbxImportContext::import_meshes()
 
     /* Steps below have to be done on the final mesh in Main. */
     Mesh *mesh_main = static_cast<Mesh *>(
-        BKE_object_obdata_add_from_type(this->bmain, OB_MESH, get_name(fmesh->name, "Mesh")));
+        BKE_object_obdata_add_from_type(this->bmain, OB_MESH, get_fbx_name(fmesh->name, "Mesh")));
     BKE_mesh_nomain_to_mesh(mesh, mesh_main, nullptr);
     mesh = mesh_main;
     if (this->params.use_custom_props) {
@@ -428,7 +449,7 @@ void FbxImportContext::import_meshes()
 
     /* Create objects that use this mesh. */
     for (const ufbx_node *node : fmesh->instances) {
-      Object *obj = BKE_object_add_only_object(this->bmain, OB_MESH, get_name(node->name));
+      Object *obj = BKE_object_add_only_object(this->bmain, OB_MESH, get_fbx_name(node->name));
       obj->data = mesh_main;
 
       if (mesh_key != nullptr) {
@@ -440,7 +461,7 @@ void FbxImportContext::import_meshes()
         const ufbx_skin_deformer *skin = fmesh->skin_deformers[0];
         if (skin != nullptr) {
           for (const ufbx_skin_cluster *fcluster : skin->clusters) {
-            const char *bone_name = get_name(fcluster->bone_node->name, "Bone");
+            const char *bone_name = get_fbx_name(fcluster->bone_node->name, "Bone");
             BKE_object_defgroup_add_name(obj, bone_name);
           }
         }
@@ -449,7 +470,7 @@ void FbxImportContext::import_meshes()
         Object *arm_obj = this->create_armature_for_deformer(*skin);
         BLI_assert(arm_obj == this->element_to_object.lookup_default(&skin->element, nullptr));
         ModifierData *md = BKE_modifier_new(eModifierType_Armature);
-        STRNCPY(md->name, get_name(skin->name, "Armature"));
+        STRNCPY(md->name, get_fbx_name(skin->name, "Armature"));
         BLI_addtail(&obj->modifiers, md);
         BKE_modifiers_persistent_uid_init(*obj, *md);
 
@@ -521,7 +542,7 @@ void FbxImportContext::import_cameras()
     }
     const ufbx_node *node = fcam->instances[0];
 
-    Camera *bcam = BKE_camera_add(this->bmain, get_name(fcam->name, "Camera"));
+    Camera *bcam = BKE_camera_add(this->bmain, get_fbx_name(fcam->name, "Camera"));
     if (this->params.use_custom_props) {
       read_custom_properties(fcam->props, bcam->id);
     }
@@ -547,7 +568,7 @@ void FbxImportContext::import_cameras()
     bcam->clip_start = fcam->near_plane * this->fbx.metadata.root_scale;
     bcam->clip_end = fcam->far_plane * this->fbx.metadata.root_scale;
 
-    Object *obj = BKE_object_add_only_object(this->bmain, OB_CAMERA, get_name(node->name));
+    Object *obj = BKE_object_add_only_object(this->bmain, OB_CAMERA, get_fbx_name(node->name));
     obj->data = bcam;
 
     if (this->params.use_custom_props) {
@@ -566,7 +587,7 @@ void FbxImportContext::import_lights()
     }
     const ufbx_node *node = flight->instances[0];
 
-    Light *lamp = BKE_light_add(this->bmain, get_name(flight->name, "Light"));
+    Light *lamp = BKE_light_add(this->bmain, get_fbx_name(flight->name, "Light"));
     if (this->params.use_custom_props) {
       read_custom_properties(flight->props, lamp->id);
     }
@@ -595,7 +616,7 @@ void FbxImportContext::import_lights()
     }
     //@TODO: if hasattr(lamp, "cycles"): lamp.cycles.cast_shadow = lamp.use_shadow
 
-    Object *obj = BKE_object_add_only_object(this->bmain, OB_LAMP, get_name(node->name));
+    Object *obj = BKE_object_add_only_object(this->bmain, OB_LAMP, get_fbx_name(node->name));
     obj->data = lamp;
 
     if (this->params.use_custom_props) {
@@ -626,11 +647,11 @@ Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer 
   }
 
   /* Create armature. */
-  bArmature *arm = BKE_armature_add(bmain, get_name(fskin.name, "Armature"));
+  bArmature *arm = BKE_armature_add(bmain, get_fbx_name(fskin.name, "Armature"));
   obj = BKE_object_add_only_object(
       this->bmain,
       OB_ARMATURE,
-      get_name(armature_parent ? armature_parent->name : fskin.name, "Armature"));
+      get_fbx_name(armature_parent ? armature_parent->name : fskin.name, "Armature"));
   if (this->params.use_custom_props) {
     read_custom_properties(fskin.props, arm->id);
   }
@@ -644,7 +665,7 @@ Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer 
 
   for (const ufbx_skin_cluster *fbone : fbones) {
 
-    EditBone *bone = ED_armature_ebone_add(arm, get_name(fbone->bone_node->name, "Bone"));
+    EditBone *bone = ED_armature_ebone_add(arm, get_fbx_name(fbone->bone_node->name, "Bone"));
     node_to_bone.add(fbone->bone_node, bone);
     /* For all bones, record the whole armature as the owning object. */
     this->element_to_object.add(&fbone->bone_node->element, obj);
@@ -704,16 +725,20 @@ Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer 
 
 void FbxImportContext::import_empties()
 {
-  /* Ensure we have empties created for all the parent nodes. */
+  /* Make sure that objects we have already created have their parent hierachy as empties. */
   Map<const ufbx_node *, Object *> node_to_empty;
   for (const auto &item : this->element_to_object.items()) {
-    if (item.key->type != UFBX_ELEMENT_NODE) {
+    const ufbx_node *node = ufbx_as_node(item.key);
+    if (node == nullptr) {
       continue;
     }
-    const ufbx_node *node = ((const ufbx_node *)item.key)->parent;
+    if (node->bone != nullptr) {
+      /* No need to create empty parents for bones. */
+      continue;
+    }
     while (node != nullptr && !node->is_root) {
       if (!this->element_to_object.contains(&node->element) && !node_to_empty.contains(node)) {
-        Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_name(node->name));
+        Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_fbx_name(node->name));
         obj->data = nullptr;
         if (this->params.use_custom_props) {
           read_custom_properties(node->props, obj->id);
@@ -732,7 +757,7 @@ void FbxImportContext::import_empties()
     }
     const ufbx_node *node = fempty->instances[0];
     if (!this->element_to_object.contains(&node->element) && !node_to_empty.contains(node)) {
-      Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_name(node->name));
+      Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_fbx_name(node->name));
       obj->data = nullptr;
       if (this->params.use_custom_props) {
         read_custom_properties(node->props, obj->id);
