@@ -863,6 +863,7 @@ void data_xform_tag_update(XFormObjectData *xod_base)
       Curves *curves_id = reinterpret_cast<Curves *>(xod_base->id);
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
       curves.tag_positions_changed();
+      DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
       break;
     }
 
