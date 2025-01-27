@@ -1381,7 +1381,8 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(stats['primary']['primCountsByType']['Mesh'], 1, "Unexpected number of primary meshes")
         self.assertEqual(stats['primary']['primCountsByType']['Points'], 1, "Unexpected number of primary point clouds")
         self.assertEqual(stats['prototypes']['primCountsByType']['Mesh'], 1, "Unexpected number of prototype meshes")
-        self.assertEqual(stats['prototypes']['primCountsByType']['Points'], 1, "Unexpected number of prototype point clouds")
+        self.assertEqual(stats['prototypes']['primCountsByType']['Points'],
+                         1, "Unexpected number of prototype point clouds")
 
         # Get the prototypes root.
         protos_root_path = Sdf.Path("/root/prototypes")
@@ -1407,7 +1408,6 @@ class USDExportTest(AbstractUSDTest):
                     target_path = arc.GetTargetPrimPath()
                     self.assertTrue(target_path.HasPrefix(protos_root_path))
 
-
     def test_export_native_instancing_false(self):
         """Test exporting instanced objects with instancing disabled."""
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "nested_instancing_test.blend"))
@@ -1426,7 +1426,6 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(stats['prototypeCount'], 0, "Unexpected number of prototypes")
         self.assertEqual(stats['primary']['primCountsByType']['Mesh'], 2, "Unexpected number of primary meshes")
         self.assertEqual(stats['primary']['primCountsByType']['Points'], 4, "Unexpected number of primary point clouds")
-
 
     def test_texture_export_hook(self):
         """Exporting textures from on_material_export USD hook."""
