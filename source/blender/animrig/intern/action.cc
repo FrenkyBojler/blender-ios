@@ -62,11 +62,15 @@ namespace {
  * Default identifier for action slots. The first two characters in the identifier indicate the ID
  * type of whatever is animated by it.
  *
- * Since the ID type may not be determined when the slot is created, the prefix starts out at
- * XX. Note that no code should use this XX value; use Slot::has_idtype() instead.
+ * Since the ID type might not be determined when the slot is created, the prefix starts out at
+ * XX (see below). Note that no code should use this XX value; use Slot::has_idtype() instead.
  */
 constexpr const char *slot_default_name = "Slot";
-constexpr const char *slot_unbound_prefix = "XX";
+
+/**
+ * Slot identifier prefix for untyped slots (i.e. where `Slot::has_idtype()` returns `false`).
+ */
+constexpr const char *slot_untyped_prefix = "XX";
 
 constexpr const char *layer_default_name = "Layer";
 
@@ -491,8 +495,8 @@ Slot &Action::slot_add()
 {
   Slot &slot = this->slot_allocate();
 
-  /* Assign the default name and the 'unbound' identifier prefix. */
-  STRNCPY_UTF8(slot.identifier, slot_unbound_prefix);
+  /* Assign the default name and the 'untyped' identifier prefix. */
+  STRNCPY_UTF8(slot.identifier, slot_untyped_prefix);
   BLI_strncpy_utf8(slot.identifier + 2, DATA_(slot_default_name), ARRAY_SIZE(slot.identifier) - 2);
 
   /* Append the Slot to the Action. */
@@ -1115,7 +1119,7 @@ void Slot::users_invalidate(Main &bmain)
 std::string Slot::identifier_prefix_for_idtype() const
 {
   if (!this->has_idtype()) {
-    return slot_unbound_prefix;
+    return slot_untyped_prefix;
   }
 
   char name[3] = {0};
@@ -1146,8 +1150,8 @@ void Slot::identifier_ensure_prefix()
   if (!this->has_idtype()) {
     /* A zero idtype is not going to convert to a two-character string, so we
      * need to explicitly assign the default prefix. */
-    this->identifier[0] = slot_unbound_prefix[0];
-    this->identifier[1] = slot_unbound_prefix[1];
+    this->identifier[0] = slot_untyped_prefix[0];
+    this->identifier[1] = slot_untyped_prefix[1];
     return;
   }
 
@@ -1213,31 +1217,22 @@ Slot *assign_action_ensure_slot_for_keying(Action &action, ID &animated_id)
 
   /* Find a suitable slot, but be stricter about when to allow searching by name
    * than generic_slot_for_autoassign(...). */
-  {
-    if (adt && adt->action == &action) {
-      /* The slot handle is only valid when this action is already assigned.
-       * Otherwise it's meaningless. */
-      slot = action.slot_for_handle(adt->slot_handle);
+  if (adt && adt->action == &action) {
+    /* The slot handle is only valid when this action is already assigned.
+     * Otherwise it's meaningless. */
+    slot = action.slot_for_handle(adt->slot_handle);
 
-      /* If this Action is already assigned, a search by name is inappropriate, as it might
-       * re-assign an intentionally-unassigned slot. */
-    }
-    else {
-      /* Try the slot identifier from the AnimData, if it is set. */
-      if (adt && adt->last_slot_identifier[0]) {
-        slot = action.slot_find_by_identifier(adt->last_slot_identifier);
-      }
-      else {
-        /* Search for the ID name (which includes the ID type). */
-        slot = action.slot_find_by_identifier(animated_id.name);
-      }
-    }
+    /* If this Action is already assigned, a search by name is inappropriate, as it might
+     * re-assign an intentionally-unassigned slot. */
+  }
+  else {
+    /* In this case a by-name search is ok, so defer to generic_slot_for_autoassign(). */
+    slot = generic_slot_for_autoassign(animated_id, action, adt ? adt->last_slot_identifier : "");
   }
 
-  /* As a last resort, if there is only one slot and it has no ID type yet, use
-   * that. This is what gets created for the backwards compatibility RNA API,
-   * for example to allow `action.fcurves.new()`. Key insertion should use that
-   * slot as well. */
+  /* As a last resort, if there is only one slot and it has no ID type yet, use that. This is what
+   * gets created for the backwards compatibility RNA API, for example to allow
+   * `action.fcurves.new()`. Key insertion should use that slot as well. */
   if (!slot && action.slots().size() == 1) {
     Slot *first_slot = action.slot(0);
     if (!first_slot->has_idtype()) {
