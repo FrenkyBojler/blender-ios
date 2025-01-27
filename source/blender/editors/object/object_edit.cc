@@ -1811,7 +1811,7 @@ static int shade_auto_smooth_exec(bContext *C, wmOperator *op)
     }
 
     bNodeTree *node_group = nullptr;
-    while (true) {
+    while (!node_group) {
       ID *node_group_id = asset::asset_local_id_ensure_imported(bmain, *asset_representation);
       if (!node_group_id) {
         return OPERATOR_CANCELLED;
@@ -1826,6 +1826,8 @@ static int shade_auto_smooth_exec(bContext *C, wmOperator *op)
       }
       /* Remove the weak library reference, since the already loaded group is not valid anymore. */
       MEM_SAFE_FREE((node_group_id->library_weak_reference));
+      /* Stay in the loop and load the asset again. */
+      node_group = nullptr;
     }
 
     const StringRefNull angle_identifier = node_group->interface_inputs()[1]->identifier;
