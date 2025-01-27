@@ -723,7 +723,7 @@ static int brush_asset_essentials_override_revert_exec(bContext *C, wmOperator *
   if (std::optional<AssetLibraryReference> affected_library =
           bke::asset_edit_id_get_library_reference(brush->id))
   {
-    refresh_asset_library(C, *affected_library);
+    asset::refresh_asset_library(C, *affected_library);
   }
 
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, nullptr);

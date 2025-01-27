@@ -48,8 +48,6 @@ namespace blender::bke {
 bool asset_edit_id_is_essential_or_override(const ID &id);
 bool asset_edit_id_is_essential_not_override(const ID &id);
 
-static void asset_id_library_tag_editable(Library *lib) {}
-
 static ID *asset_link_id(Main &global_main,
                          const ID_Type id_type,
                          const char *filepath,
