@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "draw_view_lib.glsl"
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_index_load_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
+#include "overlay_common_lib.glsl"
 #include "select_lib.glsl"
 
 struct VertIn {
@@ -38,7 +39,7 @@ VertOut vertex_main(VertIn v_in)
 
   VertOut v_out;
   v_out.world_pos = (model_mat * vec4(v_in.lP, 1.0)).xyz;
-  v_out.gpu_position = point_world_to_ndc(v_out.world_pos);
+  v_out.gpu_position = drw_point_world_to_homogenous(v_out.world_pos);
 
   v_out.finalColor.rgb = mix(state_color.rgb, bone_color.rgb, 0.5);
   v_out.finalColor.a = 1.0;
@@ -157,8 +158,12 @@ void main()
 {
   select_id_set(in_select_buf[gl_InstanceID]);
 
-  /* Line primitive. */
+/* Line primitive. */
+#ifdef FROM_LINE_STRIP
+  const uint input_primitive_vertex_count = 1u;
+#else
   const uint input_primitive_vertex_count = 2u;
+#endif
   /* Triangle list primitive. */
   const uint ouput_primitive_vertex_count = 3u;
   const uint ouput_primitive_count = 2u;
@@ -180,11 +185,22 @@ void main()
   mat4 inst_obmat = data_buf[gl_InstanceID];
   mat4x4 inst_matrix = inst_obmat;
 
-  VertIn vert_in[input_primitive_vertex_count];
+#ifdef FROM_LINE_STRIP
+  uint32_t RESTART_INDEX = gpu_index_16bit ? 0xFFFF : 0xFFFFFFFF;
+  if (gpu_index_load(in_primitive_first_vertex + 0u) == RESTART_INDEX ||
+      gpu_index_load(in_primitive_first_vertex + 1u) == RESTART_INDEX)
+  {
+    /* Discard. */
+    gl_Position = vec4(NAN_FLT);
+    return;
+  }
+#endif
+
+  VertIn vert_in[2];
   vert_in[0] = input_assembly(in_primitive_first_vertex + 0u, inst_matrix);
   vert_in[1] = input_assembly(in_primitive_first_vertex + 1u, inst_matrix);
 
-  VertOut vert_out[input_primitive_vertex_count];
+  VertOut vert_out[2];
   vert_out[0] = vertex_main(vert_in[0]);
   vert_out[1] = vertex_main(vert_in[1]);
 

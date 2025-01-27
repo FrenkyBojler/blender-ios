@@ -133,7 +133,7 @@ struct tPoseSlideOp {
   ARegion *region;
   /** len of the PoseSlideObject array. */
 
-  /** links between posechannels and f-curves for all the pose objects. */
+  /** Links between pose-channels and f-curves for all the pose objects. */
   ListBase pfLinks;
   /** binary tree for quicker searching for keyframes (when applicable) */
   AnimKeylist *keylist;
@@ -458,7 +458,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
   int len = strlen(pfl->pchan_path);
 
   /* Setup pointer RNA for resolving paths. */
-  PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_PoseBone, pfl->pchan);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_PoseBone, pfl->pchan);
 
   /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
    *   so just check for opening pair after the end of the path
@@ -967,7 +967,7 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
     Scene *scene = pso->scene;
     char str_offs[NUM_STR_REP_LEN];
 
-    outputNumInput(&pso->num, str_offs, &scene->unit);
+    outputNumInput(&pso->num, str_offs, scene->unit);
 
     SNPRINTF(status_str, "%s: %s | %s", mode_str, str_offs, limits_str);
   }

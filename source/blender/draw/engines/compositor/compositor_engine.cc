@@ -34,6 +34,8 @@
 #include "GPU_context.hh"
 #include "GPU_texture.hh"
 
+#include "draw_view_data.hh"
+
 #include "compositor_engine.h" /* Own include. */
 
 namespace blender::draw::compositor_engine {
@@ -73,6 +75,12 @@ class Context : public compositor::Context {
   bool use_gpu() const override
   {
     return true;
+  }
+
+  eCompositorDenoiseQaulity get_denoise_quality() const override
+  {
+    return static_cast<eCompositorDenoiseQaulity>(
+        this->get_render_data().compositor_denoise_preview_quality);
   }
 
   bool use_file_output() const override

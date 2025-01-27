@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import math
+import os
 import pathlib
 import sys
 import tempfile
@@ -11,6 +12,10 @@ from pxr import Ar, Gf, Sdf, Usd, UsdGeom, UsdShade
 
 import bpy
 
+sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
+from modules.colored_print import (print_message, use_message_colors)
+
+
 args = None
 
 
@@ -18,6 +23,8 @@ class AbstractUSDTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.testdir = args.testdir
+        if os.environ.get("BLENDER_TEST_COLOR") is not None:
+            use_message_colors()
 
     def setUp(self):
         self._tempdir = tempfile.TemporaryDirectory()
@@ -28,11 +35,20 @@ class AbstractUSDTest(unittest.TestCase):
         self.assertTrue(self.tempdir.exists(),
                         'Temp dir {0} should exist'.format(self.tempdir))
 
+        print_message(self._testMethodName, 'SUCCESS', 'RUN')
+
         # Make sure we always start with a known-empty file.
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
 
     def tearDown(self):
         self._tempdir.cleanup()
+
+        result = self._outcome.result
+        ok = all(test != self for test, _ in result.errors + result.failures)
+        if not ok:
+            print_message(self._testMethodName, 'FAILURE', 'FAILED')
+        else:
+            print_message(self._testMethodName, 'SUCCESS', 'PASSED')
 
 
 class USDImportTest(AbstractUSDTest):
@@ -577,6 +593,7 @@ class USDImportTest(AbstractUSDTest):
 
         # Validate some simple aspects of the animated objects which prove that they're animating.
         ob_xform = bpy.data.objects["cube_anim_xform"]
+        ob_xform_child = bpy.data.objects["cube_anim_child_mesh"]
         ob_shapekeys = bpy.data.objects["cube_anim_keys"]
         ob_arm = bpy.data.objects["column_anim_armature"]
         ob_arm2_side_a = bpy.data.objects["side_a"]
@@ -585,7 +602,10 @@ class USDImportTest(AbstractUSDTest):
 
         bpy.context.scene.frame_set(1)
         self.assertEqual(len(ob_xform.constraints), 1)
+        self.assertEqual(len(ob_xform_child.constraints), 1)
         self.assertEqual(self.round_vector(ob_xform.matrix_world.translation), [0.0, -2.0, 0.0])
+        self.assertEqual(self.round_vector(ob_xform_child.matrix_world.translation), [0.0, -2.0, 1.0])
+        self.assertEqual(self.round_vector(ob_xform_child.matrix_world.to_euler('XYZ')), [0.0, 0.0, 0.0])
         self.assertEqual(self.round_vector(ob_shapekeys.dimensions), [1.0, 1.0, 1.0])
         self.assertEqual(self.round_vector(ob_arm.dimensions), [0.4, 0.4, 3.0])
         self.assertEqual(self.round_vector(ob_arm2_side_a.dimensions), [0.5, 0.0, 0.5])
@@ -595,7 +615,10 @@ class USDImportTest(AbstractUSDTest):
 
         bpy.context.scene.frame_set(5)
         self.assertEqual(len(ob_xform.constraints), 1)
+        self.assertEqual(len(ob_xform_child.constraints), 1)
         self.assertEqual(self.round_vector(ob_xform.matrix_world.translation), [3.0, -2.0, 0.0])
+        self.assertEqual(self.round_vector(ob_xform_child.matrix_world.translation), [3.0, -2.0, 1.0])
+        self.assertEqual(self.round_vector(ob_xform_child.matrix_world.to_euler('XYZ')), [0.0, 1.5708, 0.0])
         self.assertEqual(self.round_vector(ob_shapekeys.dimensions), [0.1, 0.1, 0.1])
         self.assertEqual(self.round_vector(ob_arm.dimensions), [1.65545, 0.4, 2.38953])
         self.assertEqual(self.round_vector(ob_arm2_side_a.dimensions), [0.25, 0.0, 0.25])
@@ -1173,7 +1196,7 @@ class USDImportTest(AbstractUSDTest):
         # Verify all attributes on the Mesh
         # Note: USD does not support signed 8-bit types so there is
         #       currently no equivalent to Blender's INT8 data type
-        # TODO: Blender is missing support for reading USD quat/matrix data types
+        # TODO: Blender is missing support for reading USD matrix data types
         mesh = bpy.data.objects["Mesh"].data
 
         self.check_attribute(mesh, "p_bool", 'POINT', 'BOOLEAN', 4)
@@ -1184,7 +1207,7 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(mesh, "p_color", 'POINT', 'FLOAT_COLOR', 4)
         self.check_attribute(mesh, "p_vec2", 'CORNER', 'FLOAT2', 4)  # TODO: Bug - wrong domain
         self.check_attribute(mesh, "p_vec3", 'POINT', 'FLOAT_VECTOR', 4)
-        self.check_attribute_missing(mesh, "p_quat")
+        self.check_attribute(mesh, "p_quat", 'POINT', 'QUATERNION', 4)
         self.check_attribute_missing(mesh, "p_mat4x4")
 
         self.check_attribute(mesh, "f_bool", 'FACE', 'BOOLEAN', 1)
@@ -1195,7 +1218,7 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(mesh, "f_color", 'FACE', 'FLOAT_COLOR', 1)
         self.check_attribute(mesh, "f_vec2", 'FACE', 'FLOAT2', 1)
         self.check_attribute(mesh, "f_vec3", 'FACE', 'FLOAT_VECTOR', 1)
-        self.check_attribute_missing(mesh, "f_quat")
+        self.check_attribute(mesh, "f_quat", 'FACE', 'QUATERNION', 1)
         self.check_attribute_missing(mesh, "f_mat4x4")
 
         self.check_attribute(mesh, "fc_bool", 'CORNER', 'BOOLEAN', 4)
@@ -1207,7 +1230,7 @@ class USDImportTest(AbstractUSDTest):
         self.check_attribute(mesh, "displayColor", 'CORNER', 'FLOAT_COLOR', 4)
         self.check_attribute(mesh, "fc_vec2", 'CORNER', 'FLOAT2', 4)
         self.check_attribute(mesh, "fc_vec3", 'CORNER', 'FLOAT_VECTOR', 4)
-        self.check_attribute_missing(mesh, "fc_quat")
+        self.check_attribute(mesh, "fc_quat", 'CORNER', 'QUATERNION', 4)
         self.check_attribute_missing(mesh, "fc_mat4x4")
 
         # Find the non "bezier" Curves object -- Has 2 curves (12 vertices each)
@@ -1374,6 +1397,68 @@ class USDImportTest(AbstractUSDTest):
                 usd_test_data = [round(d, 5) for d in UsdGeom.PrimvarsAPI(usd_points[i]).GetPrimvar("test").Get(frame)]
 
                 name = usd_points[i].GetPath().GetParentPath().name
+                self.assertEqual(
+                    blender_pos_data,
+                    usd_pos_data,
+                    f"Frame {frame}: {name} positions do not match")
+                self.assertEqual(
+                    blender_vel_data,
+                    usd_vel_data,
+                    f"Frame {frame}: {name} velocities do not match")
+                self.assertEqual(
+                    blender_radius_data,
+                    usd_radius_data,
+                    f"Frame {frame}: {name} radii do not match")
+                self.assertEqual(
+                    blender_test_data,
+                    usd_test_data,
+                    f"Frame {frame}: {name} test attributes do not match")
+
+        #
+        # Validate Curves data
+        #
+        blender_curves = [
+            bpy.data.objects["Curves"],
+            bpy.data.objects["Curves.001"],
+            bpy.data.objects["Curves.002"],
+            bpy.data.objects["Curves.003"]]
+        usd_curves = [UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane1/curves1/Curves")),
+                      UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane2/curves2/Curves")),
+                      UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane3/curves3/Curves")),
+                      UsdGeom.BasisCurves(stage.GetPrimAtPath("/root/curves_plane4/curves4/Curves"))]
+        curves_num = len(blender_curves)
+
+        # Workaround: GeometrySet processing loses the data-block name on export. This is why the
+        # .001 etc. names are being used above. Since we need the order of Blender objects to match
+        # the order of USD prims, sort by the Y location to make them match in our test setup.
+        blender_curves.sort(key=lambda ob: ob.parent.location.y)
+
+        # A MeshSequenceCache modifier should be present on every imported object
+        for i in range(0, curves_num):
+            self.assertTrue(len(blender_curves[i].modifiers) == 1 and blender_curves[i].modifiers[0].type ==
+                            'MESH_SEQUENCE_CACHE', f"{blender_curves[i].name} has incorrect modifiers")
+
+        # Compare Blender and USD data against each other for every frame
+        for frame in range(1, 16):
+            bpy.context.scene.frame_set(frame)
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            for i in range(0, mesh_num):
+                blender_curves[i] = blender_curves[i].evaluated_get(depsgraph)
+
+            # Check positions, velocity, radius, and test data
+            for i in range(0, mesh_num):
+                blender_pos_data = [self.round_vector(d.vector)
+                                    for d in blender_curves[i].data.attributes["position"].data]
+                blender_vel_data = [self.round_vector(d.vector)
+                                    for d in blender_curves[i].data.attributes["velocity"].data]
+                blender_radius_data = [round(d.value, 5) for d in blender_curves[i].data.attributes["radius"].data]
+                blender_test_data = [round(d.value, 5) for d in blender_curves[i].data.attributes["test"].data]
+                usd_pos_data = [self.round_vector(d) for d in usd_curves[i].GetPointsAttr().Get(frame)]
+                usd_vel_data = [self.round_vector(d) for d in usd_curves[i].GetVelocitiesAttr().Get(frame)]
+                usd_radius_data = [round(d / 2, 5) for d in usd_curves[i].GetWidthsAttr().Get(frame)]
+                usd_test_data = [round(d, 5) for d in UsdGeom.PrimvarsAPI(usd_curves[i]).GetPrimvar("test").Get(frame)]
+
+                name = usd_curves[i].GetPath().GetParentPath().name
                 self.assertEqual(
                     blender_pos_data,
                     usd_pos_data,
@@ -1642,6 +1727,28 @@ class USDImportTest(AbstractUSDTest):
 
         self.assertDictEqual(prim_map, expected_prim_map)
 
+    def test_import_unit_scale(self):
+        """Test importing a USD with 0.01 meters per unit."""
+
+        infile = str(self.testdir / "usd_curve_bezier_all.usda")
+        res = bpy.ops.wm.usd_import(filepath=infile, apply_unit_conversion_scale=True)
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
+
+        # Ensure the root object was scaled by 0.01.
+        root = bpy.data.objects["root"]
+        self.assertEqual(self.round_vector(root.scale), [0.01, 0.01, 0.01])
+
+        # Reimport with unit conversion scale off.
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+
+        infile = str(self.testdir / "usd_curve_bezier_all.usda")
+        res = bpy.ops.wm.usd_import(filepath=infile, apply_unit_conversion_scale=False)
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
+
+        # Ensure the root object has default scale 1.0.
+        root = bpy.data.objects["root"]
+        self.assertEqual(self.round_vector(root.scale), [1.0, 1.0, 1.0])
+
     def test_material_import_usd_hook(self):
         """Test importing color from an mtlx shader."""
 
@@ -1827,7 +1934,7 @@ def main():
     parser.add_argument('--testdir', required=True, type=pathlib.Path)
     args, remaining = parser.parse_known_args(argv)
 
-    unittest.main(argv=remaining)
+    unittest.main(argv=remaining, verbosity=0)
 
 
 if __name__ == "__main__":

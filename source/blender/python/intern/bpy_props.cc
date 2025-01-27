@@ -2716,12 +2716,12 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "None]\n"
 
 #define BPY_PROPDEF_POLL_DOC \
-  "   :arg poll: function to be called to determine whether an item is valid for this " \
-  "property.\n" \
-  "              The function must take 2 values (self, object) and return Bool.\n" \
-  "              Note that the poll return value will be checked only when assigning " \
-  "an item from the UI, but it is still possible to assign an \"invalid\" item to " \
-  "the property directly.\n" \
+  "   :arg poll: Function that determines whether an item is valid for this property.\n" \
+  "      The function must take 2 values (self, object) and return a boolean.\n" \
+  "\n" \
+  "      .. note:: The return value will be checked only when assigning an item from the UI, " \
+  "but it is still possible to assign an \"invalid\" item to the property directly.\n" \
+  "\n" \
   "   :type poll: Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.ID`], " \
   "bool]\n"
 
@@ -2757,11 +2757,11 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
 
 #define BPY_PROPDEF_POINTER_TYPE_DOC \
   "   :arg type: A subclass of a property group or ID types.\n" \
-  "   :type type: :class:`bpy.types.PropertyGroup` | :class:`bpy.types.ID`\n"
+  "   :type type: type[:class:`bpy.types.PropertyGroup` | :class:`bpy.types.ID`]\n"
 
 #define BPY_PROPDEF_COLLECTION_TYPE_DOC \
   "   :arg type: A subclass of a property group.\n" \
-  "   :type type: :class:`bpy.types.PropertyGroup`\n"
+  "   :type type: type[:class:`bpy.types.PropertyGroup`]\n"
 
 #define BPY_PROPDEF_TAGS_DOC \
   "   :arg tags: Enumerator of tags that are defined by parent class.\n" \
@@ -2770,7 +2770,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
 #if 0
 static int bpy_struct_id_used(StructRNA *srna, char *identifier)
 {
-  PointerRNA ptr = RNA_pointer_create(nullptr, srna, nullptr);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, srna, nullptr);
   return (RNA_struct_find_property(&ptr, identifier) != nullptr);
 }
 #endif
@@ -4406,7 +4406,12 @@ PyDoc_STRVAR(
     "   Returns a new pointer property definition.\n"
     "\n" BPY_PROPDEF_POINTER_TYPE_DOC BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC
         BPY_PROPDEF_CTXT_DOC BPY_PROPDEF_OPTIONS_DOC BPY_PROPDEF_OPTIONS_OVERRIDE_DOC
-            BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_POLL_DOC BPY_PROPDEF_UPDATE_DOC);
+            BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_POLL_DOC BPY_PROPDEF_UPDATE_DOC
+    "\n"
+    ".. note:: Pointer properties do not support storing references to embedded IDs "
+    "(e.g. `bpy.types.Scene.collection`, `bpy.types.Material.node_tree`).\n"
+    "   These should exclusively be referenced and accessed through their owner ID "
+    "(e.g. the scene or material).\n");
 PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
   StructRNA *srna;
