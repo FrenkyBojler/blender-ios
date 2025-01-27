@@ -1708,11 +1708,11 @@ static bool rearrange_layered_action_slots(bAnimContext *ac, const eRearrangeAni
     case REARRANGE_ANIMCHAN_UP: {
       LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_selected_visible) {
         BLI_assert(ale->type == ANIMTYPE_ACTION_SLOT);
-        blender::animrig::Slot *slot = &static_cast<ActionSlot *>(ale->data)->wrap();
+        blender::animrig::Slot &slot = static_cast<ActionSlot *>(ale->data)->wrap();
         blender::animrig::Action &action =
             reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
 
-        const int current_index = action.slots().first_index_try(slot);
+        const int current_index = action.slots().first_index_try(&slot);
         const int to_index = current_index - 1;
         BLI_assert(current_index >= 0);
 
@@ -1724,7 +1724,7 @@ static bool rearrange_layered_action_slots(bAnimContext *ac, const eRearrangeAni
           continue;
         }
 
-        action.slot_move(*slot, to_index);
+        action.slot_move(slot, to_index);
         total_moved++;
       }
       break;
