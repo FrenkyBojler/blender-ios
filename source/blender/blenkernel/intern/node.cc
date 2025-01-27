@@ -2773,10 +2773,6 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
     BLI_addtail(&dst_tree->nodes, node_dst);
   }
 
-  if (node_dst->is_type("CompositorNodeViewer")) {
-    node_dst->custom1 = NODE_VIEWER_SHORTCUT_NONE;
-  }
-
   BLI_listbase_clear(&node_dst->inputs);
   LISTBASE_FOREACH (const bNodeSocket *, src_socket, &node_src.inputs) {
     bNodeSocket *dst_socket = static_cast<bNodeSocket *>(MEM_dupallocN(src_socket));
@@ -3688,6 +3684,9 @@ void node_tree_set_output(bNodeTree *ntree)
         /* same type, exception for viewer */
         const bool tnode_is_output = tnode->type_legacy == CMP_NODE_VIEWER;
         const bool compositor_case = is_compositor && tnode_is_output && node_is_output;
+        const bool has_same_shortcut = is_compositor && node != tnode &&
+                                       tnode->custom1 == node->custom1 &&
+                                       tnode->custom1 != NODE_VIEWER_SHORTCUT_NONE;
         if (tnode->type_legacy == node->type_legacy || compositor_case) {
           if (tnode->flag & NODE_DO_OUTPUT) {
             output++;
@@ -3695,6 +3694,9 @@ void node_tree_set_output(bNodeTree *ntree)
               tnode->flag &= ~NODE_DO_OUTPUT;
             }
           }
+        }
+        if (has_same_shortcut) {
+          tnode->custom1 = NODE_VIEWER_SHORTCUT_NONE;
         }
       }
 
