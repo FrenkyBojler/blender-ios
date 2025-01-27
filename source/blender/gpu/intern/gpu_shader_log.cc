@@ -213,7 +213,7 @@ void Shader::print_log(Span<StringRefNull> sources,
     if (!log_item.cursor.file_name_and_error_line.is_empty()) {
       char name_buf[256];
       log_item.cursor.file_name_and_error_line.substr(0, sizeof(name_buf) - 1)
-          .copy_bytes_truncated(name_buf);
+          .copy_utf8_truncated(name_buf);
       BLI_dynstr_appendf(dynstr, "%s%s: %s", info_col, name_buf, reset_col);
     }
     else if (source_index > 0) {

@@ -56,7 +56,7 @@ bDeformGroup *BKE_object_defgroup_new(Object *ob, const StringRef name)
 
   defgroup = MEM_cnew<bDeformGroup>(__func__);
 
-  name.copy_bytes_truncated(defgroup->name);
+  name.copy_utf8_truncated(defgroup->name);
 
   ListBase *defbase = BKE_object_defgroup_list_mutable(ob);
 
