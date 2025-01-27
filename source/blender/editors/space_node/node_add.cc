@@ -1034,7 +1034,7 @@ void NODE_OT_add_material(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Add Material Operator
+/** \name Add Color Operator
  * \{ */
 
 static int node_add_color_exec(bContext *C, wmOperator *op)
