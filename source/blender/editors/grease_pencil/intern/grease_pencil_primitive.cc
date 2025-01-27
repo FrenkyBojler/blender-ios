@@ -1012,7 +1012,8 @@ static void grease_pencil_primitive_change_radius(PrimitiveToolOperation &ptd,
   const float2 mouse_co = float2(event->mval);
   ptd.reference_position_2d.x = std::min(ptd.reference_position_2d.x, mouse_co.x);
   const float2 delta = mouse_co - ptd.reference_position_2d;
-  const int new_value = int(delta.x);
+  /* Clamp to work around brush property getting "stuck" on zero. */
+  const int new_value = std::max(int(delta.x), 1);
 
   PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
   RNA_int_set(&brush_ptr, "size", new_value);
