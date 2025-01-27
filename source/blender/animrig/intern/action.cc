@@ -1230,6 +1230,16 @@ Slot *assign_action_ensure_slot_for_keying(Action &action, ID &animated_id)
     slot = generic_slot_for_autoassign(animated_id, action, adt ? adt->last_slot_identifier : "");
   }
 
+  /* As a last resort, if there is only one slot and it has no ID type yet, use that. This is what
+   * gets created for the backwards compatibility RNA API, for example to allow
+   * `action.fcurves.new()`. Key insertion should use that slot as well. */
+  if (!slot && action.slots().size() == 1) {
+    Slot *first_slot = action.slot(0);
+    if (!first_slot->has_idtype()) {
+      slot = first_slot;
+    }
+  }
+
   /* If no suitable slot was found, create a new one. */
   if (!slot || !slot->is_suitable_for(animated_id)) {
     slot = &action.slot_add_for_id(animated_id);
