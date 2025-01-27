@@ -103,7 +103,6 @@ AssetHandle asset_handle_get_by_index(const AssetLibraryReference *library_refer
 asset_system::AssetRepresentation *asset_get_by_index(
     const AssetLibraryReference &library_reference, int asset_index);
 
-
 /**
  * \return True if the region needs a UI redraw.
  */
