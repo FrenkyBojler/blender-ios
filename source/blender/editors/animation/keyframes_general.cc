@@ -1413,9 +1413,9 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
 
   SlotMapper slot_mapper{*keyframe_copy_buffer};
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, anim_data) {
+  LISTBASE_FOREACH (const bAnimListElem *, ale, anim_data) {
     BLI_assert(ale->datatype == ALE_FCURVE);
-    const FCurve *fcu = static_cast<FCurve *>(ale->key_data);
+    const FCurve *fcu = static_cast<const FCurve *>(ale->key_data);
 
     /* Firstly, check if F-Curve has any selected keyframes. Skip if no selected
      * keyframes found (so no need to create unnecessary copy-buffer data). This
@@ -1463,7 +1463,7 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
 
       /* Use INSERTKEY_FAST as that avoids recalculating handles. They should
        * remain as-is in the buffer. */
-      animrig::insert_bezt_fcurve(&fcurve_copy, bezt, INSERTKEY_FAST);
+      animrig::insert_bezt_fcurve(&fcurve_copy, bezt, INSERTKEY_OVERWRITE_FULL | INSERTKEY_FAST);
 
       /* Keep track of the extremities. */
       const float bezt_frame = bezt->vec[1][0];
@@ -1741,10 +1741,12 @@ static void paste_animedit_keys_fcurve(FCurve *fcu,
 
   /* just start pasting, with the first keyframe on the current frame, and so on */
   for (i = 0, bezt = fcurve_in_copy_buffer.bezt; i < fcurve_in_copy_buffer.totvert; i++, bezt++) {
-    const int bezt_copy_index = blender::animrig::insert_bezt_fcurve(
-        fcu, bezt, INSERTKEY_OVERWRITE_FULL);
+    /* Create a copy to modify, before inserting it into the F-Curve. The
+     * applied offset also determines the frame number of the pasted BezTriple.
+     * If the insertion is done before the offset is applied, it will replace
+     * the original key and _then_ move it to the new position. */
+    BezTriple bezt_copy = *bezt;
 
-    BezTriple &bezt_copy = fcu->bezt[bezt_copy_index];
     if (flip) {
       do_curve_mirror_flippping(*fcu, bezt_copy);
     }
@@ -1755,6 +1757,9 @@ static void paste_animedit_keys_fcurve(FCurve *fcu,
 
     /* Ensure that all pasted data is selected. */
     BEZT_SEL_ALL(&bezt_copy);
+
+    /* Only now that it has the right values, do the pasting into the F-Curve. */
+    blender::animrig::insert_bezt_fcurve(fcu, &bezt_copy, INSERTKEY_OVERWRITE_FULL);
   }
 
   /* recalculate F-Curve's handles? */
