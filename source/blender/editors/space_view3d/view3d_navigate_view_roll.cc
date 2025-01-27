@@ -238,6 +238,14 @@ static int viewroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   else {
     /* makes op->customdata */
     vod = viewops_data_create(C, event, &ViewOpsType_roll, false);
+
+    /* Prevent viewroll from locked regions in quad view. Poll is permissive on this so we can
+     * still angles directly (see above). */
+    if ((vod->rv3d->viewlock & RV3D_LOCK_ROTATION) != 0) {
+      viewops_data_free(C, vod);
+      return OPERATOR_FINISHED;
+    }
+
     const float start_position[2] = {float(BLI_rcti_cent_x(&vod->region->winrct)),
                                      float(BLI_rcti_cent_y(&vod->region->winrct))};
     vod->init.dial = BLI_dial_init(start_position, FLT_EPSILON);
