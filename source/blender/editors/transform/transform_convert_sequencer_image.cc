@@ -6,14 +6,18 @@
  * \ingroup edtransform
  */
 
+#include "BLI_index_range.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_iterator.hh"
@@ -28,10 +32,16 @@
 
 #include "transform.hh"
 #include "transform_convert.hh"
+#include <array>
+
+using namespace blender;
 
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *strip;
+  std::array<float2, 4> quad_orig;
+  float4x4 orig_matrix;
+
   float orig_origin_position[2];
   float orig_translation[2];
   float orig_scale[2];
@@ -77,13 +87,18 @@ static TransData *SeqToTransData(const Scene *scene,
   axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation);
   normalize_m3(td->axismtx);
 
+  // if (vert_index == 0) {
   tdseq->strip = strip;
   copy_v2_v2(tdseq->orig_origin_position, origin);
+  tdseq->quad_orig = SEQ_image_transform_final_quad_get(scene, strip);
+  tdseq->orig_matrix = math::invert(SEQ_image_transform_matrix_get(scene, strip));
+
   tdseq->orig_translation[0] = transform->xofs;
   tdseq->orig_translation[1] = transform->yofs;
   tdseq->orig_scale[0] = transform->scale_x;
   tdseq->orig_scale[1] = transform->scale_y;
   tdseq->orig_rotation = transform->rotation;
+  //}
 
   td->extra = (void *)tdseq;
   td->ext = nullptr;
@@ -119,8 +134,7 @@ static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
 
   ListBase *seqbase = SEQ_active_seqbase_get(ed);
   ListBase *channels = SEQ_channels_displayed_get(ed);
-  blender::VectorSet strips = SEQ_query_rendered_strips(
-      t->scene, channels, seqbase, t->scene->r.cfra, 0);
+  VectorSet strips = SEQ_query_rendered_strips(t->scene, channels, seqbase, t->scene->r.cfra, 0);
   strips.remove_if([&](Strip *strip) { return (strip->flag & SELECT) == 0; });
 
   if (strips.is_empty()) {
@@ -161,74 +175,81 @@ static bool autokeyframe_sequencer_image(bContext *C,
   const bool do_loc = tmode == TFM_TRANSLATION || around_cursor;
   const bool do_rot = tmode == TFM_ROTATION;
   const bool do_scale = tmode == TFM_RESIZE;
-  const bool only_when_keyed = blender::animrig::is_keying_flag(scene,
-                                                                AUTOKEY_FLAG_INSERTAVAILABLE);
+  const bool only_when_keyed = animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTAVAILABLE);
 
   bool changed = false;
   if (do_rot) {
     prop = RNA_struct_find_property(&ptr, "rotation");
-    changed |= blender::animrig::autokeyframe_property(
+    changed |= animrig::autokeyframe_property(
         C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
   if (do_loc) {
     prop = RNA_struct_find_property(&ptr, "offset_x");
-    changed |= blender::animrig::autokeyframe_property(
+    changed |= animrig::autokeyframe_property(
         C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
     prop = RNA_struct_find_property(&ptr, "offset_y");
-    changed |= blender::animrig::autokeyframe_property(
+    changed |= animrig::autokeyframe_property(
         C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
   if (do_scale) {
     prop = RNA_struct_find_property(&ptr, "scale_x");
-    changed |= blender::animrig::autokeyframe_property(
+    changed |= animrig::autokeyframe_property(
         C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
     prop = RNA_struct_find_property(&ptr, "scale_y");
-    changed |= blender::animrig::autokeyframe_property(
+    changed |= animrig::autokeyframe_property(
         C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
 
   return changed;
 }
 
-static void recalcData_sequencer_image(TransInfo *t)
+struct TransformData {
+  float2 origin;
+  float2 handle_x;
+  float2 handle_y;
+};
+
+static TransformData transform_data_get(TransData2D *td2d)
+{
+  TransformData data;
+  /* Origin. */
+  data.origin = {td2d->loc[0], td2d->loc[1]};
+  /* X and Y control points used to read scale and rotation. */
+  data.handle_x = float2((td2d + 1)->loc) - data.origin;
+  data.handle_y = float2((td2d + 2)->loc) - data.origin;
+  return data;
+}
+
+static float3 transform_translation_get(TransInfo *t,
+                                        TransDataSeq *tdseq,
+                                        TransData2D *td2d,
+                                        Strip *strip)
+{
+  TransformData data = transform_data_get(td2d);
+  float2 mirror;
+  SEQ_image_transform_mirror_factor_get(strip, mirror);
+  // float3 translation = (float3(tdseq->orig_origin_position) - data.origin) * float3(mirror);
+  float3 translation = {(tdseq->orig_origin_position[0] - data.origin.x) * mirror.x,
+                        (tdseq->orig_origin_position[1] - data.origin.y) * mirror.y,
+                        0.0f};
+  translation[0] *= t->scene->r.yasp / t->scene->r.xasp;
+  return translation;
+}
+
+static void image_transform_set(TransInfo *t)
 {
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   TransData *td = nullptr;
   TransData2D *td2d = nullptr;
   int i;
 
-  for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i++, td++, td2d++) {
-    /* Origin. */
-    float origin[2];
-    copy_v2_v2(origin, td2d->loc);
-    i++;
-    td++;
-    td2d++;
-
-    /* X and Y control points used to read scale and rotation. */
-    float handle_x[2];
-    copy_v2_v2(handle_x, td2d->loc);
-    sub_v2_v2(handle_x, origin);
-    i++;
-    td++;
-    td2d++;
-
-    float handle_y[2];
-    copy_v2_v2(handle_y, td2d->loc);
-    sub_v2_v2(handle_y, origin);
-
+  for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i += 3, td += 3, td2d += 3) {
     TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
     Strip *strip = tdseq->strip;
     StripTransform *transform = strip->data->transform;
-    float mirror[2];
-    SEQ_image_transform_mirror_factor_get(strip, mirror);
 
     /* Calculate translation. */
-    float translation[2];
-    copy_v2_v2(translation, tdseq->orig_origin_position);
-    sub_v2_v2(translation, origin);
-    mul_v2_v2(translation, mirror);
-    translation[0] *= t->scene->r.yasp / t->scene->r.xasp;
+    float3 translation = transform_translation_get(t, tdseq, td2d, strip);
 
     /* Round resulting position to integer pixels. Resulting strip
      * will more often end up using faster interpolation (without bilinear),
@@ -239,20 +260,109 @@ static void recalcData_sequencer_image(TransInfo *t)
     transform->yofs = roundf(tdseq->orig_translation[1] - translation[1]);
 
     /* Scale. */
-    transform->scale_x = tdseq->orig_scale[0] * fabs(len_v2(handle_x));
-    transform->scale_y = tdseq->orig_scale[1] * fabs(len_v2(handle_y));
+    TransformData data = transform_data_get(td2d);
+    transform->scale_x = tdseq->orig_scale[0] * fabs(math::length(data.handle_x));
+    transform->scale_y = tdseq->orig_scale[1] * fabs(math::length(data.handle_y));
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {
       transform->rotation = tdseq->orig_rotation - t->values_final[0];
     }
 
-    if ((t->animtimer) && blender::animrig::is_autokey_on(t->scene)) {
+    if ((t->animtimer) && animrig::is_autokey_on(t->scene)) {
       animrecord_check_state(t, &t->scene->id);
       autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
     }
 
     SEQ_relations_invalidate_cache_preprocessed(t->scene, strip);
+  }
+}
+
+/* I see 2 ways of doing this:
+  - Get origin point, apply operator translation.
+  - Transform it back to raw image space. Then, we must calculate factor from image size.
+  - Pros:
+    - One matrix to rule them all perhaps
+    - Precision?
+  - Cons:
+    - but may need extending API or duplicating code.
+    - Messy math in raw image space
+
+
+  - Get origin point and Quad, apply operator translation.
+  - Find distance from quad edges and divide by quad size.
+  - Pros:
+    - Doable with current API
+  - Cons:
+    - Geometry API may not cover all calculations
+    - Perhaps less precise
+
+  In both cases I think, that I will need backup quad, to offset image back. Soooo IMO second
+  approach seems quite fine, as I can write absolute origin value. What about mirrored image? eh
+  who the hell knows...gs
+
+*/
+
+static void image_origin_set(TransInfo *t)
+{
+  TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
+  TransData *td = nullptr;
+  TransData2D *td2d = nullptr;
+  int i;
+
+  for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i += 3, td += 3, td2d += 3) {
+    TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
+    Strip *strip = tdseq->strip;
+
+    float3 image_size(float(t->scene->r.xsch), float(t->scene->r.ysch), 0.0f);
+    if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
+      image_size.x = strip->data->stripdata->orig_width;
+      image_size.y = strip->data->stripdata->orig_height;
+    }
+
+    const float3 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f, 1.0f};
+    float2 mirror;
+    SEQ_image_transform_mirror_factor_get(strip, mirror);
+
+    const float3 origin = {tdseq->orig_origin_position[0], tdseq->orig_origin_position[1], 0.0f};
+    const float3 translation = transform_translation_get(t, tdseq, td2d, strip);
+    const float3 origin_pixelspace_unscaled = {(origin.x / viewport_pixel_aspect.x) * mirror.x,
+                                               (origin.y / viewport_pixel_aspect.y) * mirror.y,
+                                               0.0f};
+    const float3 origin_translated = origin_pixelspace_unscaled - translation;
+    const float3 origin_raw_space = math::transform_point(tdseq->orig_matrix, origin_translated);
+    const float3 origin_abs = origin_raw_space + (image_size / 2);
+    const float2 origin_rel = {origin_abs.x / image_size.x, origin_abs.y / image_size.y};
+
+    StripTransform *transform = strip->data->transform;
+    transform->origin[0] = origin_rel.x;
+    transform->origin[1] = origin_rel.y;
+
+    std::array<float2, 4> quad_new;
+
+    /* Pretend that strip has never moved. */
+    // XXX very much not nice!!! Ideally I guess, I would need a way to calculate quad
+    // from matrix or backup StripTransform.
+    transform->xofs = tdseq->orig_translation[0];
+    transform->yofs = tdseq->orig_translation[1];
+    quad_new = SEQ_image_transform_final_quad_get(t->scene, strip);
+
+    // Wellp that doesn't work lol.
+    float2 delta_translation = quad_new[0] - tdseq->quad_orig[0];
+    transform->xofs = tdseq->orig_translation[0] - delta_translation.x;
+    transform->yofs = tdseq->orig_translation[1] - delta_translation.y;
+
+    SEQ_relations_invalidate_cache_preprocessed(t->scene, strip);
+  }
+}
+
+static void recalcData_sequencer_image(TransInfo *t)
+{
+  if ((t->flag & T_ORIGIN) == 0) {
+    image_transform_set(t);
+  }
+  else {
+    image_origin_set(t);
   }
 }
 
@@ -275,7 +385,7 @@ static void special_aftertrans_update__sequencer_image(bContext * /*C*/, TransIn
       continue;
     }
 
-    if (blender::animrig::is_autokey_on(t->scene)) {
+    if (animrig::is_autokey_on(t->scene)) {
       autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
     }
   }

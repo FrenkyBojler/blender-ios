@@ -16,6 +16,7 @@
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
+#include "ED_transform.hh"
 #include "GPU_state.hh"
 
 #include "ED_clip.hh"
@@ -719,6 +720,8 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
         return false;
       }
       return t->vod != nullptr;
+    case TFM_MODAL_ORIGIN:
+      return (t->options & CTX_SEQUENCER_IMAGE) && t->mode == TFM_TRANSLATION;
   }
   return true;
 }
@@ -774,6 +777,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
       {TFM_MODAL_AUTOCONSTRAINTPLANE, "AUTOCONSTRAINPLANE", 0, "Automatic Constraint Plane", ""},
       {TFM_MODAL_PRECISION, "PRECISION", 0, "Precision Mode", ""},
       {TFM_MODAL_PASSTHROUGH_NAVIGATE, "PASSTHROUGH_NAVIGATE", 0, "Navigate", ""},
+      {TFM_MODAL_ORIGIN, "ORIGIN", 0, "Move Origins", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1297,6 +1301,15 @@ int transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
           transform_mode_snap_source_init(t, nullptr);
           t->redraw |= TREDRAW_HARD;
         }
+        break;
+      case TFM_MODAL_ORIGIN:
+        if (t->flag & T_ORIGIN) {
+          t->flag &= ~T_ORIGIN;
+        }
+        else {
+          t->flag |= T_ORIGIN;
+        }
+        t->redraw |= TREDRAW_HARD;
         break;
       default:
         break;

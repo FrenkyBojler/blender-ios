@@ -5874,6 +5874,7 @@ def km_transform_modal_map(params):
         ("AUTOCONSTRAINPLANE", {"type": 'MIDDLEMOUSE', "value": 'ANY', "shift": True, **alt_without_navigaton}, None),
         ("PRECISION", {"type": 'LEFT_SHIFT', "value": 'ANY', "any": True}, None),
         ("PRECISION", {"type": 'RIGHT_SHIFT', "value": 'ANY', "any": True}, None),
+        ("ORIGIN", {"type": 'O', "value": 'PRESS'}, None),
     ])
 
     if params.use_alt_navigation:

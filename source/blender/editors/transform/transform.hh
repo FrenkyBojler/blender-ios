@@ -182,6 +182,9 @@ enum eTFlag {
 
   /** Special flag for when the transform code is called after keys have been duplicated. */
   T_DUPLICATED_KEYFRAMES = 1 << 26,
+
+  /** Transform origin. */
+  T_ORIGIN = 1 << 27,
 };
 ENUM_OPERATORS(eTFlag, T_DUPLICATED_KEYFRAMES);
 
@@ -321,6 +324,7 @@ enum {
   TFM_MODAL_EDIT_SNAP_SOURCE_OFF = 35,
 
   TFM_MODAL_PASSTHROUGH_NAVIGATE = 36,
+  TFM_MODAL_ORIGIN = 37,
 };
 
 /** \} */
