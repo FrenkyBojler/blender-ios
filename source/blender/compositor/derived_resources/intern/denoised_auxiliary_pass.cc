@@ -50,13 +50,13 @@ bool operator==(const DenoisedAuxiliaryPassKey &a, const DenoisedAuxiliaryPassKe
  * stop, so invert the condition. This callback can also be used to track progress using the given
  * n argument, but we currently don't make use of it. See OIDNProgressMonitorFunction in the API
  * for more information. */
-[[maybe_unused]] static bool oidn_progress_monitor_function(void *user_ptr, double /*n*/)
+static bool oidn_progress_monitor_function(void *user_ptr, double /*n*/)
 {
   const Context *context = static_cast<const Context *>(user_ptr);
   return !context->is_canceled();
 }
 
-const char *get_pass_name(const DenoisedAuxiliaryPassType type)
+static const char *get_pass_name(const DenoisedAuxiliaryPassType type)
 {
   switch (type) {
     case DenoisedAuxiliaryPassType::Albedo:
