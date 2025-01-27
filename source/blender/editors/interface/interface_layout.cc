@@ -14,7 +14,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_armature_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
@@ -22,7 +21,6 @@
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
-#include "BLI_memory_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -5016,6 +5014,22 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
   return panel.body;
 }
 
+uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
+                                          uiLayout *layout,
+                                          PointerRNA *open_prop_owner,
+                                          const StringRefNull open_prop_name,
+                                          const StringRefNull bool_prop_name,
+                                          const std::optional<StringRefNull> label)
+{
+  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name.c_str());
+
+  uiLayout *panel_header = panel.header;
+  panel_header->flag &= ~(UI_ITEM_PROP_SEP | UI_ITEM_PROP_DECORATE | UI_ITEM_INSIDE_PROP_SEP);
+  uiItemR(panel_header, open_prop_owner, bool_prop_name, UI_ITEM_NONE, label, ICON_NONE);
+
+  return panel.body;
+}
+
 PanelLayout uiLayoutPanel(const bContext *C,
                           uiLayout *layout,
                           const char *idname,
@@ -5025,7 +5039,7 @@ PanelLayout uiLayoutPanel(const bContext *C,
   BLI_assert(panel != nullptr);
 
   LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(panel, idname, default_closed);
-  PointerRNA state_ptr = RNA_pointer_create(nullptr, &RNA_LayoutPanelState, state);
+  PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
 
   return uiLayoutPanelProp(C, layout, &state_ptr, "is_open");
 }
@@ -6144,7 +6158,7 @@ void uiLayoutSetContextFromBut(uiLayout *layout, uiBut *but)
 
   if (but->rnapoin.data && but->rnaprop) {
     /* TODO: index could be supported as well */
-    PointerRNA ptr_prop = RNA_pointer_create(nullptr, &RNA_Property, but->rnaprop);
+    PointerRNA ptr_prop = RNA_pointer_create_discrete(nullptr, &RNA_Property, but->rnaprop);
     uiLayoutSetContextPointer(layout, "button_prop", &ptr_prop);
     uiLayoutSetContextPointer(layout, "button_pointer", &but->rnapoin);
   }
