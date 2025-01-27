@@ -43,7 +43,7 @@ static fn::Field<int> get_count_input_from_length(const fn::Field<float> &length
           return 1;
         }
         const int count = int(curve_length / sample_length) + 1;
-        return std::max(1, count);
+        return std::max(2, count);
       },
       mf::build::exec_presets::AllSpanOrSingle());
 
