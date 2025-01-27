@@ -410,7 +410,7 @@ TEST(string_ref, Copy)
   StringRef ref("hello");
   char dst[10];
   memset(dst, 0xFF, 10);
-  ref.copy(dst);
+  ref.copy_bytes_truncated(dst);
   EXPECT_EQ(dst[5], '\0');
   EXPECT_EQ(dst[6], 0xFF);
   EXPECT_EQ(ref, dst);

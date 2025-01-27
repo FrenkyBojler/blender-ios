@@ -71,8 +71,10 @@ class StringRefBase {
   constexpr IndexRange index_range() const;
 
   void unsafe_copy(char *dst) const;
-  void copy(char *dst, int64_t dst_size) const;
-  template<size_t N> void copy(char (&dst)[N]) const;
+  void copy_bytes_truncated(char *dst, int64_t dst_size) const;
+  template<size_t N> void copy_bytes_truncated(char (&dst)[N]) const;
+  void copy_utf8_truncated(char *dst, int64_t dst_size) const;
+  template<size_t N> void copy_utf8_truncated(char (&dst)[N]) const;
 
   constexpr bool startswith(StringRef prefix) const;
   constexpr bool endswith(StringRef suffix) const;
@@ -221,27 +223,34 @@ inline void StringRefBase::unsafe_copy(char *dst) const
 }
 
 /**
- * Copy the string into a buffer. The copied string will be null-terminated. This invokes
- * undefined behavior when dst_size is too small. (Should we define the behavior?)
+ * Copy the string into a buffer. The copied string will be null-terminated. If the string does not
+ * fit, it is truncated.
  */
-inline void StringRefBase::copy(char *dst, const int64_t dst_size) const
+inline void StringRefBase::copy_bytes_truncated(char *dst, const int64_t dst_size) const
 {
-  if (size_ < dst_size) {
-    this->unsafe_copy(dst);
-  }
-  else {
-    BLI_assert(false);
-    dst[0] = '\0';
-  }
+  BLI_assert(dst_size >= 1);
+  const int64_t copy_bytes_num = std::min(size_, dst_size - 1);
+  memcpy(dst, data_, copy_bytes_num);
+  dst[copy_bytes_num] = '\0';
 }
 
 /**
- * Copy the string into a char array. The copied string will be null-terminated. This invokes
- * undefined behavior when dst is too small.
+ * Copy the string into a char array. The copied string will be null-terminated. If the string does
+ * not fit, it will be truncated.
  */
-template<size_t N> inline void StringRefBase::copy(char (&dst)[N]) const
+template<size_t N> inline void StringRefBase::copy_bytes_truncated(char (&dst)[N]) const
 {
-  this->copy(dst, N);
+  this->copy_bytes_truncated(dst, N);
+}
+
+/**
+ * Copy the string into a char array. The copied string will be null-terminated. If it does not
+ * fit, it will be truncated while keeping it valid utf-8 (assuming the #StringRef itself is valid
+ * utf-8).
+ */
+template<size_t N> inline void StringRefBase::copy_utf8_truncated(char (&dst)[N]) const
+{
+  this->copy_utf8_truncated(dst, N);
 }
 
 /**
