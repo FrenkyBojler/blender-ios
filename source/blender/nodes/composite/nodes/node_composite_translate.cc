@@ -13,6 +13,7 @@
 #include "UI_resources.hh"
 
 #include "COM_node_operation.hh"
+#include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
 
@@ -218,8 +219,11 @@ void register_node_type_cmp_translate()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_TRANSLATE, "Translate", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodeTranslate", CMP_NODE_TRANSLATE);
+  ntype.ui_name = "Translate";
+  ntype.ui_description = "Offset an image";
   ntype.enum_name_legacy = "TRANSLATE";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_translate_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_translate;
   ntype.initfunc = file_ns::node_composit_init_translate;
