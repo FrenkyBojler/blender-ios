@@ -424,7 +424,7 @@ render_graph::VKRenderGraph *VKDevice::render_graph_new()
   return render_graph;
 }
 
-void VKDevice::submission_runner(TaskPool __restrict *pool, void *task_data)
+void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
 {
   UNUSED_VARS(task_data);
 
