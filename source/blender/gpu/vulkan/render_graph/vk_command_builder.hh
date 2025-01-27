@@ -191,8 +191,8 @@ class VKCommandBuilder {
    * `build_nodes` needs to be called before calling with exact the same parameters.
    */
   void record_commands(VKRenderGraph &render_graph,
-                      VKCommandBufferInterface &command_buffer,
-                      Span<NodeHandle> node_handles);
+                       VKCommandBufferInterface &command_buffer,
+                       Span<NodeHandle> node_handles);
 
  private:
   /**
