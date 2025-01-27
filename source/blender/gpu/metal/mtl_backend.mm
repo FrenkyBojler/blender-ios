@@ -533,6 +533,8 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
    * Not all workarounds are listed here as some capabilities are currently assumed to be present
    * on all devices. */
   if (G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS) {
+    /* Texture gather is supported on AMD, but results are non consistent with Apple Silicon GPUs
+     * and can be disabled. */
     MTLBackend::capabilities.supports_texture_gather = false;
     MTLBackend::capabilities.supports_texture_atomics = false;
   }
