@@ -70,7 +70,7 @@ class StringRefBase {
 
   constexpr IndexRange index_range() const;
 
-  void unsafe_copy(char *dst) const;
+  void copy_unsafe(char *dst) const;
   void copy_bytes_truncated(char *dst, int64_t dst_size) const;
   template<size_t N> void copy_bytes_truncated(char (&dst)[N]) const;
   void copy_utf8_truncated(char *dst, int64_t dst_size) const;
@@ -214,7 +214,7 @@ constexpr IndexRange StringRefBase::index_range() const
  * string, because the copied string will be null-terminated. Only use this when you are
  * absolutely sure that the buffer is large enough.
  */
-inline void StringRefBase::unsafe_copy(char *dst) const
+inline void StringRefBase::copy_unsafe(char *dst) const
 {
   if (size_ > 0) {
     memcpy(dst, data_, size_t(size_));

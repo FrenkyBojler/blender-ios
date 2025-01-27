@@ -30,7 +30,7 @@ void StringRefBase::copy_utf8_truncated(char *dst, const int64_t dst_size) const
 
   /* Common case when the string can just be copied over entirely. */
   if (size_ < dst_size) {
-    this->unsafe_copy(dst);
+    this->copy_unsafe(dst);
     return;
   }
 
