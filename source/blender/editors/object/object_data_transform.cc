@@ -304,7 +304,7 @@ struct XFormObjectData_GreasePencil {
 
 struct CurvesPointCoordinates {
   /* Radius is needs to be stored here as it is tied to object scale. */
-  float co[3];
+  float3 co;
   float radius;
 };
 
@@ -676,7 +676,7 @@ void data_xform_by_mat4(XFormObjectData *xod_base, const float mat[4][4])
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
       MutableSpan<float3> positions = curves.positions_for_write();
       MutableSpan<float> radii = curves.radius_for_write();
-      XFormObjectData_Curves *xod = (XFormObjectData_Curves *)xod_base;
+      XFormObjectData_Curves *xod = reinterpret_cast<XFormObjectData_Curves *>(xod_base);
       CurvesPointCoordinates *cpc = xod->elem_array;
       const float scalef = mat4_to_scale(mat);
       for (const int i : curves.points_range()) {
@@ -792,7 +792,7 @@ void data_xform_restore(XFormObjectData *xod_base)
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
       MutableSpan<float3> positions = curves.positions_for_write();
       MutableSpan<float> radii = curves.radius_for_write();
-      XFormObjectData_Curves *xod = (XFormObjectData_Curves *)xod_base;
+      XFormObjectData_Curves *xod = reinterpret_cast<XFormObjectData_Curves *>(xod_base);
       CurvesPointCoordinates *cpc = xod->elem_array;
       for (const int i : curves.points_range()) {
         positions[i] = float3(cpc->co);
