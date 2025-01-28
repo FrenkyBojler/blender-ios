@@ -45,7 +45,7 @@ class GArray {
    */
   GArray(Allocator allocator = {}) noexcept : allocator_(allocator) {}
 
-  GArray(NoExceptConstructor, Allocator allocator = {}) noexcept : GArray(allocator) {}
+  GArray(NoExceptConstructor /*tag*/, Allocator allocator = {}) noexcept : GArray(allocator) {}
 
   /**
    * Create and allocate a new array, with elements default constructed

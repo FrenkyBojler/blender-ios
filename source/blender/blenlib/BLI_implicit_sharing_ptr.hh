@@ -35,7 +35,7 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
 
   ImplicitSharingPtr(const ImplicitSharingPtr &other) : data_(other.data_)
   {
-    this->add_user(data_);
+    ImplicitSharingPtr::add_user(data_);
   }
 
   ImplicitSharingPtr(ImplicitSharingPtr &&other) : data_(other.data_)
@@ -45,7 +45,7 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
 
   ~ImplicitSharingPtr()
   {
-    this->remove_user_and_delete_if_last(data_);
+    ImplicitSharingPtr::remove_user_and_delete_if_last(data_);
   }
 
   ImplicitSharingPtr &operator=(const ImplicitSharingPtr &other)
@@ -54,9 +54,9 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
       return *this;
     }
 
-    this->remove_user_and_delete_if_last(data_);
+    ImplicitSharingPtr::remove_user_and_delete_if_last(data_);
     data_ = other.data_;
-    this->add_user(data_);
+    ImplicitSharingPtr::add_user(data_);
     return *this;
   }
 
@@ -66,7 +66,7 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
       return *this;
     }
 
-    this->remove_user_and_delete_if_last(data_);
+    ImplicitSharingPtr::remove_user_and_delete_if_last(data_);
     data_ = other.data_;
     other.data_ = nullptr;
     return *this;
@@ -103,7 +103,7 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
 
   void reset()
   {
-    this->remove_user_and_delete_if_last(data_);
+    ImplicitSharingPtr::remove_user_and_delete_if_last(data_);
     data_ = nullptr;
   }
 

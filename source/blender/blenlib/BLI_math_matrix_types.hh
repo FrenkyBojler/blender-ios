@@ -193,8 +193,8 @@ struct alignas(Alignment) MatBase : public vec_struct_base<VecBase<T, NumRow>, N
            int ViewNumRow = NumRow,
            int SrcStartCol = 0,
            int SrcStartRow = 0>
-  const MatView<T, ViewNumCol, ViewNumRow, NumCol, NumRow, SrcStartCol, SrcStartRow, Alignment>
-  view() const
+  MatView<T, ViewNumCol, ViewNumRow, NumCol, NumRow, SrcStartCol, SrcStartRow, Alignment> view()
+      const
   {
     return MatView<T, ViewNumCol, ViewNumRow, NumCol, NumRow, SrcStartCol, SrcStartRow, Alignment>(
         const_cast<MatBase &>(*this));

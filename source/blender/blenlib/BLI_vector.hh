@@ -145,7 +145,7 @@ class Vector {
     UPDATE_VECTOR_SIZE(this);
   }
 
-  Vector(NoExceptConstructor, Allocator allocator = {}) noexcept : Vector(allocator) {}
+  Vector(NoExceptConstructor /*tag*/, Allocator allocator = {}) noexcept : Vector(allocator) {}
 
   /**
    * Create a vector with a specific size.

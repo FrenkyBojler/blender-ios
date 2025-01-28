@@ -11,8 +11,8 @@
  */
 
 /* avoid many includes for now */
-#include "BLI_compiler_compat.h"
-#include "BLI_sys_types.h"
+#include "BLI_compiler_compat.h"       // IWYU prama: export
+#include "BLI_sys_types.h"             // IWYU prama: export
 #include "BLI_utildefines_variadic.h"  // IWYU prama: export
 
 /* We could remove in future. */
@@ -177,25 +177,25 @@ extern "C" {
 #define DECIMAL_DIGITS_BOUND(t) (241 * sizeof(t) / 100 + 1)
 
 #ifdef __cplusplus
-inline constexpr int64_t is_power_of_2(const int64_t x)
+constexpr int64_t is_power_of_2(const int64_t x)
 {
   BLI_assert(x >= 0);
   return (x & (x - 1)) == 0;
 }
 
-inline constexpr int64_t log2_floor(const int64_t x)
+constexpr int64_t log2_floor(const int64_t x)
 {
   BLI_assert(x >= 0);
   return x <= 1 ? 0 : 1 + log2_floor(x >> 1);
 }
 
-inline constexpr int64_t log2_ceil(const int64_t x)
+constexpr int64_t log2_ceil(const int64_t x)
 {
   BLI_assert(x >= 0);
   return (is_power_of_2(int(x))) ? log2_floor(x) : log2_floor(x) + 1;
 }
 
-inline constexpr int64_t power_of_2_max(const int64_t x)
+constexpr int64_t power_of_2_max(const int64_t x)
 {
   BLI_assert(x >= 0);
   return 1ll << log2_ceil(x);

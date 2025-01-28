@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "BLI_cache_mutex.hh"
 
 namespace blender {

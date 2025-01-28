@@ -42,7 +42,7 @@ class BitGroupVector {
  public:
   BitGroupVector(Allocator allocator = {}) noexcept : data_(allocator) {}
 
-  BitGroupVector(NoExceptConstructor, Allocator allocator = {}) noexcept
+  BitGroupVector(NoExceptConstructor /*tag*/, Allocator allocator = {}) noexcept
       : BitGroupVector(allocator)
   {
   }

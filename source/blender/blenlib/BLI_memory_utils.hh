@@ -97,7 +97,7 @@ template<typename T> void uninitialized_fill_n(T *dst, int64_t n, const T &value
 template<typename T> struct DestructValueAtAddress {
   DestructValueAtAddress() = default;
 
-  template<typename U> DestructValueAtAddress(const U &) {}
+  template<typename U> DestructValueAtAddress(const U & /**/) {}
 
   void operator()(T *ptr)
   {
@@ -316,7 +316,7 @@ inline constexpr bool is_same_any_v = (std::is_same_v<T, Args> || ...);
  * Inline buffers for small-object-optimization should be disabled by default for large objects.
  * Otherwise we might get large unexpected allocations on the stack.
  */
-inline constexpr int64_t default_inline_buffer_capacity(size_t element_size)
+constexpr int64_t default_inline_buffer_capacity(const size_t element_size)
 {
   return (int64_t(element_size) < 100) ? 4 : 0;
 }
@@ -352,11 +352,11 @@ Container &move_assign_container(Container &dst, Container &&src) noexcept(
 
   dst.~Container();
   if constexpr (std::is_nothrow_move_constructible_v<Container>) {
-    new (&dst) Container(std::move(src));
+    new (&dst) Container(std::forward<Container>(src));
   }
   else {
     try {
-      new (&dst) Container(std::move(src));
+      new (&dst) Container(std::forward<Container>(src));
     }
     catch (...) {
       new (&dst) Container(NoExceptConstructor());

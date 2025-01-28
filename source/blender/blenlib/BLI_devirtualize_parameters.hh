@@ -33,6 +33,7 @@
  * finding a good compromise for each function.
  */
 
+#include <cstddef>
 #include <tuple>
 
 namespace blender {

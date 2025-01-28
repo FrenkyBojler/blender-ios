@@ -100,7 +100,6 @@ class GVArrayCommon {
   const GVArrayImpl *impl_ = nullptr;
   Storage storage_;
 
- protected:
   GVArrayCommon() = default;
   GVArrayCommon(const GVArrayCommon &other);
   GVArrayCommon(GVArrayCommon &&other) noexcept;

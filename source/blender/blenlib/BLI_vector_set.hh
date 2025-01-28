@@ -166,7 +166,7 @@ class VectorSet {
   {
   }
 
-  VectorSet(NoExceptConstructor, Allocator allocator = {}) : VectorSet(allocator) {}
+  VectorSet(NoExceptConstructor /*tag*/, Allocator allocator = {}) : VectorSet(allocator) {}
 
   VectorSet(Span<Key> keys, Allocator allocator = {}) : VectorSet(NoExceptConstructor(), allocator)
   {
@@ -863,7 +863,6 @@ class VectorSet {
     keys_[last_element_index].~Key();
     slot.remove();
     removed_slots_++;
-    return;
   }
 
   void update_slot_index(const Key &key, const int64_t old_index, const int64_t new_index)

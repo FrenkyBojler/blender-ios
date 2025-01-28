@@ -45,7 +45,7 @@ bool BLI_session_uid_ghash_compare(const void *lhs_v, const void *rhs_v);
 
 namespace blender {
 
-inline const bool operator==(const SessionUID &lhs, const SessionUID &rhs)
+inline bool operator==(const SessionUID &lhs, const SessionUID &rhs)
 {
   return BLI_session_uid_is_equal(&lhs, &rhs);
 }

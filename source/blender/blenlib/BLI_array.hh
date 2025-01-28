@@ -81,7 +81,7 @@ class Array {
     size_ = 0;
   }
 
-  Array(NoExceptConstructor, Allocator allocator = {}) noexcept : Array(allocator) {}
+  Array(NoExceptConstructor /*tag*/, Allocator allocator = {}) noexcept : Array(allocator) {}
 
   /**
    * Create a new array that contains copies of all values.
@@ -149,7 +149,7 @@ class Array {
    * Usage:
    *  Array<std::string> my_strings(10, NoInitialization());
    */
-  Array(int64_t size, NoInitialization, Allocator allocator = {})
+  Array(int64_t size, NoInitialization /*tag*/, Allocator allocator = {})
       : Array(NoExceptConstructor(), allocator)
   {
     BLI_assert(size >= 0);
@@ -418,9 +418,7 @@ class Array {
     if (size <= InlineBufferCapacity) {
       return inline_buffer_;
     }
-    else {
-      return this->allocate(size);
-    }
+    return this->allocate(size);
   }
 
   T *allocate(int64_t size)

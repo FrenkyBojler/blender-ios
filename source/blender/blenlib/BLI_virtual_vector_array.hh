@@ -13,7 +13,9 @@
  * The tradeoffs here are similar to virtual arrays.
  */
 
-#include "BLI_virtual_array.hh"
+#include <cstdint>
+
+#include "BLI_assert.h"
 
 namespace blender {
 

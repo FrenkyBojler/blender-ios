@@ -92,7 +92,9 @@ class BitVector {
     uninitialized_fill_n(data_, IntsInInlineBuffer, BitInt(0));
   }
 
-  BitVector(NoExceptConstructor, Allocator allocator = {}) noexcept : BitVector(allocator) {}
+  BitVector(NoExceptConstructor /*tag*/, Allocator allocator = {}) noexcept : BitVector(allocator)
+  {
+  }
 
   BitVector(const BoundedBitSpan span) : BitVector(NoExceptConstructor())
   {
@@ -349,10 +351,11 @@ class BitVector {
       return;
     }
 
-    const int64_t min_capacity_in_ints = this->required_ints_for_bits(min_capacity_in_bits);
+    const int64_t min_capacity_in_ints = BitVector::required_ints_for_bits(min_capacity_in_bits);
 
     /* At least double the size of the previous allocation. */
-    const int64_t min_new_capacity_in_ints = 2 * this->required_ints_for_bits(capacity_in_bits_);
+    const int64_t min_new_capacity_in_ints = 2 *
+                                             BitVector::required_ints_for_bits(capacity_in_bits_);
 
     const int64_t new_capacity_in_ints = std::max(min_capacity_in_ints, min_new_capacity_in_ints);
     const int64_t ints_to_copy = this->used_ints_amount();
@@ -381,7 +384,7 @@ class BitVector {
 
   int64_t used_ints_amount() const
   {
-    return this->required_ints_for_bits(size_in_bits_);
+    return BitVector::required_ints_for_bits(size_in_bits_);
   }
 };
 

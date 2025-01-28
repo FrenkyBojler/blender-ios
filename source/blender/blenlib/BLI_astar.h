@@ -11,8 +11,6 @@
 
 #include "DNA_listBase.h"
 
-#include "BLI_utildefines.h"
-
 #include "BLI_bitmap.h"
 
 #ifdef __cplusplus
