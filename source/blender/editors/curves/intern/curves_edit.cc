@@ -123,6 +123,11 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
   Vector<IndexRange> src_ranges;
   Vector<int> dst_offsets({0});
   Vector<bool> dst_cyclic;
+  dst_to_src_curve.reserve(curves.curves_num());
+  new_curve_offsets.reserve(curves.curves_num() + 1);
+  src_ranges.reserve(curves.curves_num());
+  dst_offsets.reserve(curves.curves_num() + 1);
+  dst_cyclic.reserve(curves.curves_num());
 
   /* Add the duplicated curves and points. */
   foreach_content_slice_by_offsets(
