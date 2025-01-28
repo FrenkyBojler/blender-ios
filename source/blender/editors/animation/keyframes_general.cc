@@ -1244,17 +1244,17 @@ bool KeyframeCopyBuffer::is_empty() const
 {
   /* No need to check the channelbags for having F-Curves, as they are only
    * added when an F-Curve needs to be stored. */
-  return this->keyframe_data.channelbag_array_num == 0;
+  return this->keyframe_data.channelbags().is_empty();
 }
 
 bool KeyframeCopyBuffer::is_single_fcurve() const
 {
-  if (this->keyframe_data.channelbag_array_num != 1) {
+  if (this->keyframe_data.channelbags().size() != 1) {
     return false;
   }
 
   const animrig::Channelbag *channelbag = this->keyframe_data.channelbag(0);
-  return channelbag->fcurve_array_num == 1;
+  return channelbag->fcurves().size() == 1;
 }
 
 bool KeyframeCopyBuffer::is_bone(const FCurve &fcurve) const
@@ -1279,7 +1279,7 @@ void KeyframeCopyBuffer::debug_print() const
   }
 
   const StripKeyframeData &keyframe_data = this->keyframe_data;
-  printf("  channelbags: %d\n", keyframe_data.channelbag_array_num);
+  printf("  channelbags: %ld\n", keyframe_data.channelbags().size());
   for (const Channelbag *channelbag : keyframe_data.channelbags()) {
 
     printf("  - Channelbag for slot \"%s\":\n",
@@ -1372,7 +1372,7 @@ class SlotMapper {
     if (const std::optional<slot_handle_t> opt_internal_slot_handle =
             this->orig_to_buffer_slots.lookup_try(orig_action_slot_pair))
     {
-      /* There alerady is a slot for this, and that means there is a channelbag too. */
+      /* There already is a slot for this, and that means there is a channelbag too. */
       const slot_handle_t internal_slot_handle = *opt_internal_slot_handle;
       BLI_assert(this->buffer.slot_identifiers.contains(internal_slot_handle));
 
@@ -1384,7 +1384,7 @@ class SlotMapper {
     }
 
     /* Create a new Channelbag for this F-Curve. */
-    const slot_handle_t internal_slot_handle = this->buffer.last_used_slot_handle++;
+    const slot_handle_t internal_slot_handle = ++this->buffer.last_used_slot_handle;
     Channelbag &channelbag = this->buffer.keyframe_data.channelbag_for_slot_add(
         internal_slot_handle);
     this->orig_to_buffer_slots.add_new(orig_action_slot_pair, internal_slot_handle);

@@ -129,7 +129,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
           nullptr, *fcurve_target, *fcurve_in_buffer, unassigned, from_single, to_single, flip);
     };
 
-    /* This only matches when `to_simple` is true. */
+    /* This only matches when `to_single` is true. */
     EXPECT_FALSE(call(false, false, false));
     EXPECT_FALSE(call(false, false, true));
     EXPECT_TRUE(call(false, true, false));
@@ -173,7 +173,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
   {
     ANIM_fcurves_copybuf_reset();
     const bool from_single = false;
-    const bool to_simple = false;
+    const bool to_single = false;
     const bool flip = true;
 
     FCurvePtr fcurve = fake_fcurve("pose.bones[\"hand.L\"].location", 0);
@@ -184,7 +184,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.L\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, is bone";
     EXPECT_TRUE(pastebuf_match_path_full(
@@ -193,7 +193,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, is bone";
 
@@ -203,7 +203,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 0, false),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, is NOT bone";
     EXPECT_TRUE(pastebuf_match_path_full(
@@ -212,7 +212,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.L\"].location", 0, false),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, is NOT bone";
 
@@ -221,7 +221,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
                                           *fake_fcurve_in_buffer("location", 0, false),
                                           unassigned,
                                           from_single,
-                                          to_simple,
+                                          to_single,
                                           flip))
         << "rna path mismatch";
 
@@ -231,7 +231,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 1, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, but array index mismatch";
   }
@@ -241,7 +241,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
   {
     ANIM_fcurves_copybuf_reset();
     const bool from_single = false;
-    const bool to_simple = true;
+    const bool to_single = true;
     const bool flip = true;
 
     FCurvePtr fcurve = fake_fcurve("pose.bones[\"hand.L\"].location", 0);
@@ -252,7 +252,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.L\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, is bone";
     EXPECT_TRUE(pastebuf_match_path_full(
@@ -261,7 +261,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, is bone";
 
@@ -270,7 +270,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
                                          *fake_fcurve_in_buffer("location", 0, false),
                                          unassigned,
                                          from_single,
-                                         to_simple,
+                                         to_single,
                                          flip))
         << "rna path mismatch, ACI is NOT bone";
 
@@ -280,7 +280,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"nose\"].rotation_euler", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "rna path mismatch, ACI is bone";
 
@@ -290,7 +290,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.L\"].location", 1, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, but array index mismatch";
 
@@ -300,7 +300,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 1, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, but array index mismatch";
   }
@@ -308,7 +308,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
   { /* Single (so array indices won't matter) to Many, Flipping bone names requested. */
     ANIM_fcurves_copybuf_reset();
     const bool from_single = true;
-    const bool to_simple = false;
+    const bool to_single = false;
     const bool flip = true;
 
     FCurvePtr fcurve = fake_fcurve("pose.bones[\"hand.L\"].location", 0);
@@ -319,7 +319,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.L\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, is bone";
     EXPECT_TRUE(pastebuf_match_path_full(
@@ -328,7 +328,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, is bone";
 
@@ -337,7 +337,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
                                           *fake_fcurve_in_buffer("location", 0, false),
                                           unassigned,
                                           from_single,
-                                          to_simple,
+                                          to_single,
                                           flip))
         << "rna path mismatch, ACI is NOT bone";
 
@@ -347,7 +347,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"nose\"].rotation_euler", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "rna path mismatch, ACI is bone";
 
@@ -357,7 +357,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.L\"].location", 1, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, but array index mismatch";
 
@@ -367,7 +367,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 1, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, but array index mismatch";
   }
@@ -376,7 +376,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
     /* Single (so array indices won't matter) to Many, NOT flipping bone names. */
     ANIM_fcurves_copybuf_reset();
     const bool from_single = true;
-    const bool to_simple = false;
+    const bool to_single = false;
     const bool flip = false;
 
     FCurvePtr fcurve = fake_fcurve("pose.bones[\"hand.L\"].location", 0);
@@ -387,7 +387,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.L\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, is bone";
     EXPECT_FALSE(pastebuf_match_path_full(
@@ -396,7 +396,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, is bone";
 
@@ -405,7 +405,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
                                           *fake_fcurve_in_buffer("location", 0, false),
                                           unassigned,
                                           from_single,
-                                          to_simple,
+                                          to_single,
                                           flip))
         << "rna path mismatch, ACI is NOT bone";
 
@@ -415,7 +415,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"nose\"].rotation_euler", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "rna path mismatch, ACI is bone";
 
@@ -425,7 +425,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.L\"].location", 1, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, but array index mismatch";
 
@@ -435,7 +435,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 1, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, but array index mismatch";
   }
@@ -444,7 +444,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
   {
     ANIM_fcurves_copybuf_reset();
     const bool from_single = true;
-    const bool to_simple = true;
+    const bool to_single = true;
     const bool flip = true;
 
     FCurvePtr fcurve = fake_fcurve("pose.bones[\"hand.L\"].location", 0);
@@ -455,7 +455,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.L\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, is bone";
     EXPECT_TRUE(pastebuf_match_path_full(
@@ -464,7 +464,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, is bone";
 
@@ -473,7 +473,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
                                          *fake_fcurve_in_buffer("location", 0, false),
                                          unassigned,
                                          from_single,
-                                         to_simple,
+                                         to_single,
                                          flip))
         << "rna path mismatch, ACI is NOT bone";
 
@@ -483,7 +483,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"nose\"].rotation_euler", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "rna path mismatch, ACI is bone";
 
@@ -493,7 +493,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.R\"].location", 1, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, but array index mismatch";
 
@@ -503,7 +503,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_full)
         *fake_fcurve_in_buffer("pose.bones[\"hand.L\"].location", 1, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, but array index mismatch";
   }
@@ -543,7 +543,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
   { /* From Single Channel, so array indices are ignored. */
     ANIM_fcurves_copybuf_reset();
     const bool from_single = true;
-    const bool to_simple = false; /* Doesn't matter, function under test doesn't use this. */
+    const bool to_single = false; /* Doesn't matter, function under test doesn't use this. */
     const bool flip = false;      /* Doesn't matter, function under test doesn't use this. */
 
     FCurvePtr fcurve = fake_fcurve("pose.bones[\"hand.L\"].location", 0);
@@ -554,7 +554,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"hand.L\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, is bone";
 
@@ -564,7 +564,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"hand.R\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, is bone";
 
@@ -574,7 +574,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"hand.L\"].location", 2, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, other array index";
 
@@ -584,7 +584,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"hand.L\"].rotation_euler", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "same bone, other property";
 
@@ -593,7 +593,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
                                               *fake_armob_fcurve("rotation_euler", 0, false),
                                               unassigned,
                                               from_single,
-                                              to_simple,
+                                              to_single,
                                               flip))
         << "other struct, same property name";
 
@@ -603,7 +603,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"missing\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "nonexistent bone, but same property name";
 
@@ -617,7 +617,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"hand.L\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "property name suffix-match";
   }
@@ -625,7 +625,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
   { /* From Multiple Channels, so array indices matter. */
     ANIM_fcurves_copybuf_reset();
     const bool from_single = false;
-    const bool to_simple = false; /* Doesn't matter, function under test doesn't use this. */
+    const bool to_single = false; /* Doesn't matter, function under test doesn't use this. */
     const bool flip = false;      /* Doesn't matter, function under test doesn't use this. */
 
     FCurvePtr fcurve = fake_fcurve("pose.bones[\"hand.L\"].location", 0);
@@ -636,7 +636,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"hand.L\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, is bone";
 
@@ -646,7 +646,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"hand.R\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "flipped path match, is bone";
 
@@ -656,7 +656,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"hand.L\"].location", 2, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "original path match, other array index";
 
@@ -666,7 +666,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"hand.L\"].rotation_euler", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "same bone, other property";
 
@@ -675,7 +675,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
                                               *fake_armob_fcurve("rotation_euler", 0, false),
                                               unassigned,
                                               from_single,
-                                              to_simple,
+                                              to_single,
                                               flip))
         << "other struct, same property name";
 
@@ -685,7 +685,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"missing\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "nonexistent bone, but same property name";
 
@@ -699,7 +699,7 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
         *fake_armob_fcurve("pose.bones[\"hand.L\"].location", 0, true),
         unassigned,
         from_single,
-        to_simple,
+        to_single,
         flip))
         << "property name suffix-match";
   }

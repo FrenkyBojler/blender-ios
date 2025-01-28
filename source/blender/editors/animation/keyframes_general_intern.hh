@@ -61,12 +61,12 @@ struct KeyframeCopyBuffer {
    * Mapping from slot handles to the ID that they were copied from.
    *
    * Multiple IDs can be animated by a single slot, in which case an arbitrary
-   * one is stored here. This opinter only used to resolve RNA paths to find the
+   * one is stored here. This pointer is only used to resolve RNA paths to find the
    * property name, and thus the exact ID doens't matter much.
    *
    * TODO: it would be better to track the ID name here, instead of the pointer.
    * That'll make it safer to work with when pasting into another file, or after
-   * the copied-from ID has been deleted. For now I (SybreN) am trying to keep
+   * the copied-from ID has been deleted. For now I (Sybren) am trying to keep
    * things feature-par with the original code this is replacing.
    */
   Map<animrig::slot_handle_t, ID *> slot_animated_ids;
@@ -110,7 +110,7 @@ extern KeyframeCopyBuffer *keyframe_copy_buffer;
 std::optional<std::string> flip_names(StringRefNull rna_path);
 
 /**
- * Most strict paste buffer matching method: exact matches only.
+ * Most strict paste buffer matching method: exact matches on RNA path and array index only.
  */
 bool pastebuf_match_path_full(Main *bmain,
                               const FCurve &fcurve_to_match,
@@ -121,7 +121,8 @@ bool pastebuf_match_path_full(Main *bmain,
                               bool flip);
 
 /**
- * Medium strict paste buffer matching method: match the property name only.
+ * Medium strict paste buffer matching method: match the property name (so not the entire RNA path)
+ * and the array index.
  */
 bool pastebuf_match_path_property(Main *bmain,
                                   const FCurve &fcurve_to_match,
@@ -132,7 +133,7 @@ bool pastebuf_match_path_property(Main *bmain,
                                   bool flip);
 
 /**
- * Least strict paste buffer matching method: indices only.
+ * Least strict paste buffer matching method: array indices only.
  */
 bool pastebuf_match_index_only(Main *bmain,
                                const FCurve &fcurve_to_match,
