@@ -826,7 +826,22 @@ static bool ndof_get_cor_from_zbuf(bContext *C, float r_cor[3])
   return false;
 }
 
-static void ndof_recalculate_cor(bContext *C, float *cor)
+/*
+ * Auto CoR implements an intelligent way to dynamically choose the Center of Rotation based on objects on the scene
+ * and how close to the particular object is the camera.
+ * In the very beginning, the value of Center of Rotation is the origin (0,0,0).
+ *
+ * Auto CoR algorithm works as following:
+ * 1) Calculate the bounding box of all objects in the scene
+ * 2) If at least 80% of that box is contained in viewport's camera frustum then:
+ *    2a) Store the center of that bounding box as the Center of Rotation
+ * 3) Use Z buffer to find the depth under the middle of the view3d region
+ * 4) If some finite depth value was found then:
+ *    4a) Use that depth to unproject a point from the middle of the region to the 3D space
+ *    4b) Store that point as the Center of Rotation
+ * 5) Since no CoR candidates were found, use the last stored value
+ */
+static bool ndof_recalculate_cor(bContext *C, float *cor)
 {
   float3 r_cor(0);
   if (ndof_get_cor_from_bounding_box(C, r_cor)) {
