@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "BLI_map.hh"
 
 #include "NOD_derived_node_tree.hh"
@@ -118,8 +120,12 @@ class CompileState {
    * be compiled together into a pixel operation. See the discussion in COM_evaluator.hh for more
    * information. */
   PixelCompileUnit pixel_compile_unit_;
-  /* The domain of the pixel compile unit. */
-  Domain pixel_compile_unit_domain_ = Domain::identity();
+  /* Stores whether the current pixel compile unit operates on single values. Only initialized when
+   * the pixel compile unit is not empty. */
+  bool is_pixel_compile_unit_single_value_;
+  /* The domain of the pixel compile unit if it was not a single value. Only initialized when the
+   * pixel compile unit is not empty and is not a single value. */
+  std::optional<Domain> pixel_compile_unit_domain_;
 
  public:
   /* Construct a compile state from the node execution schedule being compiled. */
@@ -148,6 +154,9 @@ class CompileState {
   /* Get a reference to the pixel compile unit. */
   PixelCompileUnit &get_pixel_compile_unit();
 
+  /* Returns true if the pixel compile unit operates on single values. */
+  bool is_pixel_compile_unit_single_value();
+
   /* Clear the compile unit. This should be called once the compile unit is compiled to ready it to
    * track the next potential compile unit. */
   void reset_pixel_compile_unit();
@@ -168,6 +177,11 @@ class CompileState {
   int compute_pixel_node_operation_outputs_count(DNode node);
 
  private:
+  /* Determines if the given pixel node operates on single values or not. The node operates on
+   * single values if all its inputs are single values, and consequently will also output single
+   * values. */
+  bool is_pixel_node_single_value(DNode node);
+
   /* Compute the node domain of the given pixel node. This is analogous to the
    * Operation::compute_domain method, except it is computed from the node itself as opposed to a
    * compiled operation. See the discussion in COM_domain.hh for more information. */
