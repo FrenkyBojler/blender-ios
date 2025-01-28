@@ -152,10 +152,7 @@ struct PrimitiveToolOperation {
   /* Reference mouse position for initial radial control value. */
   float2 reference_position_2d;
   /* Initial value of radius or opacity. */
-  union {
-    int initial_radius;
-    float initial_opacity;
-  };
+  std::variant<int, float> initial_value;
 
   ViewOpsData *vod;
 };
@@ -978,7 +975,7 @@ static void grease_pencil_primitive_init_radius(PrimitiveToolOperation &ptd)
   PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
   const int value = RNA_int_get(&brush_ptr, "size");
 
-  ptd.initial_radius = value;
+  ptd.initial_value.emplace<int>(value);
   ptd.reference_position_2d = ptd.start_position_2d - float2(value, 0.0f);
 }
 
@@ -989,20 +986,20 @@ static void grease_pencil_primitive_init_opacity(PrimitiveToolOperation &ptd)
   PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
   const float value = RNA_float_get(&brush_ptr, "strength");
 
-  ptd.initial_opacity = value;
+  ptd.initial_value.emplace<float>(value);
   ptd.reference_position_2d = ptd.start_position_2d - float2(value * display_size, 0.0f);
 }
 
 static void grease_pencil_primitive_cancel_radius(PrimitiveToolOperation &ptd)
 {
   PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
-  RNA_int_set(&brush_ptr, "size", ptd.initial_radius);
+  RNA_int_set(&brush_ptr, "size", std::get<int>(ptd.initial_value));
 }
 
 static void grease_pencil_primitive_cancel_opacity(PrimitiveToolOperation &ptd)
 {
   PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
-  RNA_float_set(&brush_ptr, "strength", ptd.initial_opacity);
+  RNA_float_set(&brush_ptr, "strength", std::get<float>(ptd.initial_value));
 }
 
 static void grease_pencil_primitive_change_radius(PrimitiveToolOperation &ptd,
