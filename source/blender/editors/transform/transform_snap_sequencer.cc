@@ -6,7 +6,6 @@
  * \ingroup edtransform
  */
 
-#include <array>
 #include <cstddef>
 #include <cstdlib>
 
@@ -171,7 +170,7 @@ static bool seq_snap_source_points_build_preview(const Scene *scene,
   snap_data->source_snap_points.reinitialize(point_count_source);
   int i = 0;
   for (Strip *strip : snap_sources) {
-    const std::array<blender::float2, 4> seq_image_quad = SEQ_image_transform_final_quad_get(
+    const blender::Array<blender::float2> seq_image_quad = SEQ_image_transform_final_quad_get(
         scene, strip);
 
     for (int j = 0; j < 4; j++) {
@@ -450,7 +449,7 @@ static bool seq_snap_target_points_build_preview(const Scene *scene,
 
   if (snap_mode & SEQ_SNAP_TO_STRIPS_PREVIEW) {
     for (Strip *strip : snap_targets) {
-      const std::array<blender::float2, 4> strip_image_quad = SEQ_image_transform_final_quad_get(
+      const blender::Array<blender::float2> strip_image_quad = SEQ_image_transform_final_quad_get(
           scene, strip);
 
       for (int j = 0; j < 4; j++) {

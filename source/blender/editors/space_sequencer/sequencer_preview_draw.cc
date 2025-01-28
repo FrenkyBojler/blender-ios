@@ -1063,7 +1063,7 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   immUnbindProgram();
 
   /* Outline. */
-  const std::array<blender::float2, 4> strip_image_quad = SEQ_image_transform_final_quad_get(
+  const blender::Array<blender::float2> strip_image_quad = SEQ_image_transform_final_quad_get(
       CTX_data_scene(C), strip);
 
   GPU_line_smooth(true);

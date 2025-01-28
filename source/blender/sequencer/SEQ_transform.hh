@@ -8,8 +8,7 @@
  * \ingroup sequencer
  */
 
-#include <array>
-
+#include "BLI_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
@@ -97,9 +96,9 @@ void SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene,
  * \param apply_rotation: Apply sequence rotation transform to the quad
  * \return array of 4 2D vectors
  */
-std::array<blender::float2, 4> SEQ_image_transform_quad_get(const Scene *scene,
-                                                            const Strip *strip,
-                                                            bool apply_rotation);
+blender::Array<blender::float2> SEQ_image_transform_quad_get(const Scene *scene,
+                                                             const Strip *strip,
+                                                             bool apply_rotation);
 /**
  * Get 4 corner points of strip image. Corner vectors are in viewport space.
  *
@@ -107,8 +106,8 @@ std::array<blender::float2, 4> SEQ_image_transform_quad_get(const Scene *scene,
  * \param seq: Sequence to calculate transformed image quad
  * \return array of 4 2D vectors
  */
-std::array<blender::float2, 4> SEQ_image_transform_final_quad_get(const Scene *scene,
-                                                                  const Strip *strip);
+blender::Array<blender::float2> SEQ_image_transform_final_quad_get(const Scene *scene,
+                                                                   const Strip *strip);
 
 void SEQ_image_preview_unit_to_px(const Scene *scene, const float co_src[2], float co_dst[2]);
 void SEQ_image_preview_unit_from_px(const Scene *scene, const float co_src[2], float co_dst[2]);

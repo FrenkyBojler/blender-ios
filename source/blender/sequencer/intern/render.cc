@@ -297,7 +297,7 @@ StripScreenQuad get_strip_screen_quad(const SeqRenderData *context, const Strip 
   const int y = context->recty;
   float2 offset{x * 0.5f, y * 0.5f};
 
-  std::array<float2, 4> quad = SEQ_image_transform_final_quad_get(scene, strip);
+  Array<float2> quad = SEQ_image_transform_final_quad_get(scene, strip);
   const float scale = SEQ_rendersize_to_scale_factor(context->preview_render_size);
   return StripScreenQuad{quad[0] * scale + offset,
                          quad[1] * scale + offset,
