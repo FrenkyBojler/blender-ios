@@ -981,7 +981,7 @@ static void grease_pencil_primitive_init_radius(PrimitiveToolOperation &ptd)
 
 static void grease_pencil_primitive_init_opacity(PrimitiveToolOperation &ptd)
 {
-  const float display_size = 200 * UI_SCALE_FAC;
+  const float display_size = 200.0f * UI_SCALE_FAC;
 
   PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
   const float value = RNA_float_get(&brush_ptr, "strength");
@@ -1019,7 +1019,7 @@ static void grease_pencil_primitive_change_radius(PrimitiveToolOperation &ptd,
 static void grease_pencil_primitive_change_opacity(PrimitiveToolOperation &ptd,
                                                    const wmEvent *event)
 {
-  const float display_size = 200 * UI_SCALE_FAC;
+  const float display_size = 200.0f * UI_SCALE_FAC;
 
   /* Clamp reference position if mouse moves past the limits. */
   const float2 mouse_co = float2(event->mval);
