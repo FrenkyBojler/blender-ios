@@ -9,6 +9,7 @@
  */
 
 #include "BLI_array.hh"
+#include "BLI_bounds_types.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
@@ -120,8 +121,9 @@ float3 SEQ_image_preview_unit_from_px(const Scene *scene, const float3 co_src);
  * \param r_min: Minimum x and y values
  * \param r_max: Maximum x and y values
  */
-void SEQ_image_transform_bounding_box_from_collection(
-    Scene *scene, Span<Strip *> strips, bool apply_rotation, float r_min[2], float r_max[2]);
+Bounds<float3> SEQ_image_transform_bounding_box_from_collection(Scene *scene,
+                                                                Span<Strip *> strips,
+                                                                bool apply_rotation);
 
 /**
  * Get strip image transformation matrix. Pivot point is set to correspond with viewport coordinate

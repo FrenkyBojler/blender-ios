@@ -8,12 +8,14 @@
  * \ingroup bke
  */
 
+#include "BLI_bounds.hh"
+#include "BLI_bounds_types.hh"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 
 #include "SEQ_animation.hh"
@@ -28,6 +30,7 @@
 
 #include "sequencer.hh"
 #include "strip_time.hh"
+#include <limits>
 
 using namespace blender;
 
@@ -675,17 +678,17 @@ float3 SEQ_image_preview_unit_from_px(const Scene *scene, const float3 co_src)
   return {co_src.x / scene->r.xsch, co_src.y / scene->r.ysch, 0.0f};
 }
 
-void SEQ_image_transform_bounding_box_from_collection(Scene *scene,
-                                                      blender::Span<Strip *> strips,
-                                                      bool apply_rotation,
-                                                      float r_min[2],
-                                                      float r_max[2])
+Bounds<float3> SEQ_image_transform_bounding_box_from_collection(Scene *scene,
+                                                                blender::Span<Strip *> strips,
+                                                                bool apply_rotation)
 {
-  INIT_MINMAX2(r_min, r_max);
+  Bounds<float3> box(float3(0.0f), float3(0.0f));
+
   for (Strip *strip : strips) {
     Array<float3> quad = SEQ_image_transform_quad_get(scene, strip, apply_rotation);
-    for (int i = 0; i < 4; i++) {
-      minmax_v2v2_v2(r_min, r_max, quad[i]);
-    }
+    Bounds<float3> strip_box = *blender::bounds::min_max(quad.as_span());
+    box = blender::bounds::merge(box, strip_box);
   }
+
+  return box;
 }

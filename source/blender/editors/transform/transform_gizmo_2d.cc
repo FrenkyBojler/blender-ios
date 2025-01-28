@@ -255,8 +255,9 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
     int selected_strips = strips.size();
     if (selected_strips > 0) {
       has_select = true;
-      SEQ_image_transform_bounding_box_from_collection(
-          scene, strips, selected_strips != 1, r_min, r_max);
+      Bounds<float3> box = SEQ_image_transform_bounding_box_from_collection(scene, strips, true);
+      copy_v2_v2(r_min, box.min);
+      copy_v2_v2(r_max, box.max);
     }
     if (selected_strips > 1) {
       /* Don't draw the cage as transforming multiple strips isn't currently very useful as it
