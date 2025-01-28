@@ -11,7 +11,7 @@
 #include <cstring>
 #include <ctime>
 
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_geom.h"
 #include "BLI_utildefines.h"
 
@@ -466,7 +466,8 @@ static PointerRNA rna_Object_shape_key_add(
   KeyBlock *kb = nullptr;
 
   if ((kb = BKE_object_shapekey_insert(bmain, ob, name, from_mix))) {
-    PointerRNA keyptr = RNA_pointer_create((ID *)BKE_key_from_object(ob), &RNA_ShapeKey, kb);
+    PointerRNA keyptr = RNA_pointer_create_discrete(
+        (ID *)BKE_key_from_object(ob), &RNA_ShapeKey, kb);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -627,7 +628,7 @@ static void rna_Object_ray_cast(Object *ob,
 
     /* No need to managing allocation or freeing of the BVH data.
      * This is generated and freed as needed. */
-    BVHTreeFromMesh treeData = mesh_eval->bvh_corner_tris();
+    blender::bke::BVHTreeFromMesh treeData = mesh_eval->bvh_corner_tris();
 
     /* may fail if the mesh has no faces, in that case the ray-cast misses */
     if (treeData.tree != nullptr) {
@@ -682,7 +683,7 @@ static void rna_Object_closest_point_on_mesh(Object *ob,
   /* No need to managing allocation or freeing of the BVH data.
    * this is generated and freed as needed. */
   Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
-  BVHTreeFromMesh treeData = mesh_eval->bvh_corner_tris();
+  blender::bke::BVHTreeFromMesh treeData = mesh_eval->bvh_corner_tris();
 
   if (treeData.tree == nullptr) {
     BKE_reportf(reports,

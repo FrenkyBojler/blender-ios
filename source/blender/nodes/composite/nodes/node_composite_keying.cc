@@ -67,21 +67,22 @@ static void node_composit_buts_keying(uiLayout *layout, bContext * /*C*/, Pointe
 {
   // bNode *node = (bNode*)ptr->data; /* UNUSED */
 
-  uiItemR(layout, ptr, "blur_pre", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "screen_balance", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "despill_factor", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "despill_balance", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "edge_kernel_radius", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "edge_kernel_tolerance", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "clip_black", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "clip_white", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "dilate_distance", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "feather_falloff", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "feather_distance", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "blur_post", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "blur_pre", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "screen_balance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "despill_factor", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "despill_balance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "edge_kernel_radius", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(
+      layout, ptr, "edge_kernel_tolerance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "clip_black", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "clip_white", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "dilate_distance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "feather_falloff", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "feather_distance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "blur_post", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class KeyingOperation : public NodeOperation {
  public:
@@ -89,6 +90,23 @@ class KeyingOperation : public NodeOperation {
 
   void execute() override
   {
+    Result &input_image = get_result("Image");
+    Result &output_image = get_result("Image");
+    Result &output_matte = get_result("Matte");
+    Result &output_edges = get_result("Edges");
+    if (input_image.is_single_value()) {
+      if (output_image.should_compute()) {
+        input_image.pass_through(output_image);
+      }
+      if (output_matte.should_compute()) {
+        output_matte.allocate_invalid();
+      }
+      if (output_edges.should_compute()) {
+        output_edges.allocate_invalid();
+      }
+      return;
+    }
+
     Result blurred_input = compute_blurred_input();
 
     Result matte = compute_matte(blurred_input);
@@ -98,8 +116,6 @@ class KeyingOperation : public NodeOperation {
     Result tweaked_matte = compute_tweaked_matte(matte);
     matte.release();
 
-    Result &output_image = get_result("Image");
-    Result &output_matte = get_result("Matte");
     if (output_image.should_compute() || output_matte.should_compute()) {
       Result blurred_matte = compute_blurred_matte(tweaked_matte);
       tweaked_matte.release();
@@ -120,6 +136,9 @@ class KeyingOperation : public NodeOperation {
       else {
         feathered_matte.release();
       }
+    }
+    else {
+      tweaked_matte.release();
     }
   }
 
@@ -339,7 +358,7 @@ class KeyingOperation : public NodeOperation {
         return;
       }
 
-      float4 key_color = key.load_pixel<float4>(texel);
+      float4 key_color = key.load_pixel<float4, true>(texel);
       int3 key_saturation_indices = compute_saturation_indices(key_color.xyz());
       float input_saturation = compute_saturation(input_color, key_saturation_indices);
       float key_saturation = compute_saturation(key_color, key_saturation_indices);
@@ -631,7 +650,7 @@ class KeyingOperation : public NodeOperation {
     };
 
     parallel_for(input.domain().size, [&](const int2 texel) {
-      float4 key_color = key.load_pixel<float4>(texel);
+      float4 key_color = key.load_pixel<float4, true>(texel);
       float4 color = input.load_pixel<float4>(texel);
       float matte = matte_image.load_pixel<float>(texel);
 
@@ -662,7 +681,13 @@ void register_node_type_cmp_keying()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_KEYING, "Keying", NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeKeying", CMP_NODE_KEYING);
+  ntype.ui_name = "Keying";
+  ntype.ui_description =
+      "Perform both chroma keying (to remove the backdrop) and despill (to correct color cast "
+      "from the backdrop)";
+  ntype.enum_name_legacy = "KEYING";
+  ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_keying_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_keying;
   ntype.initfunc = file_ns::node_composit_init_keying;

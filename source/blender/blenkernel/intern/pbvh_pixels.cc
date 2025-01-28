@@ -14,9 +14,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
-#include "BLI_task.h"
 
-#include "BKE_global.hh"
 #include "BKE_image_wrappers.hh"
 #include "BKE_paint.hh"
 
@@ -321,7 +319,7 @@ static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_us
           }
           if (image_buffer->byte_buffer.data) {
             uint8_t *dest = &image_buffer->byte_buffer.data[pixel_offset * 4];
-            copy_v4_uchar(dest, 255);
+            dest[0] = dest[1] = dest[2] = dest[3] = 255;
           }
           pixel_offset += 1;
         }

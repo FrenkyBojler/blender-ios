@@ -22,18 +22,13 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_endian_switch.h"
-#include "BLI_ghash.h"
 #include "BLI_hash.h"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_index_range.hh"
-#include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.hh"
-#include "BLI_memarena.h"
 #include "BLI_memory_counter.hh"
-#include "BLI_ordered_edge.hh"
-#include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
@@ -46,6 +41,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_bpath.hh"
@@ -58,7 +54,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
@@ -165,6 +161,7 @@ static void mesh_copy_data(Main *bmain,
   mesh_dst->runtime->bvh_cache_loose_edges = mesh_src->runtime->bvh_cache_loose_edges;
   mesh_dst->runtime->bvh_cache_loose_edges_no_hidden =
       mesh_src->runtime->bvh_cache_loose_edges_no_hidden;
+  mesh_dst->runtime->max_material_index = mesh_src->runtime->max_material_index;
   if (mesh_src->runtime->bake_materials) {
     mesh_dst->runtime->bake_materials = std::make_unique<blender::bke::bake::BakeMaterialsList>(
         *mesh_src->runtime->bake_materials);
@@ -263,6 +260,53 @@ static void mesh_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   }
 }
 
+static void rename_seam_layer_to_old_name(const ListBase vertex_groups,
+                                          const Span<CustomDataLayer> vert_layers,
+                                          MutableSpan<CustomDataLayer> edge_layers,
+                                          const Span<CustomDataLayer> face_layers,
+                                          const Span<CustomDataLayer> corner_layers)
+{
+  CustomDataLayer *seam_layer = nullptr;
+  for (CustomDataLayer &layer : edge_layers) {
+    if (STREQ(layer.name, ".uv_seam")) {
+      return;
+    }
+    if (layer.type == CD_PROP_BOOL && STREQ(layer.name, "uv_seam")) {
+      seam_layer = &layer;
+    }
+  }
+
+  if (!seam_layer) {
+    return;
+  }
+
+  /* Current files are not expected to have a ".uv_seam" attribute (the old name) except in the
+   * rare case users created it themselves. If that happens, avoid renaming the current UV seam
+   * attribute so that at least it's not hidden in the old version. */
+  for (const CustomDataLayer &layer : vert_layers) {
+    if (STREQ(layer.name, ".uv_seam")) {
+      return;
+    }
+  }
+  for (const CustomDataLayer &layer : face_layers) {
+    if (STREQ(layer.name, ".uv_seam")) {
+      return;
+    }
+  }
+  for (const CustomDataLayer &layer : corner_layers) {
+    if (STREQ(layer.name, ".uv_seam")) {
+      return;
+    }
+  }
+  LISTBASE_FOREACH (const bDeformGroup *, vertex_group, &vertex_groups) {
+    if (STREQ(vertex_group->name, ".uv_seam")) {
+      return;
+    }
+  }
+
+  STRNCPY(seam_layer->name, ".uv_seam");
+}
+
 static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   using namespace blender;
@@ -301,6 +345,9 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     CustomData_blend_write_prepare(mesh->corner_data, loop_layers, {});
     CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
     if (!is_undo) {
+      /* Write forward compatible format. To be removed in 5.0. */
+      rename_seam_layer_to_old_name(
+          mesh->vertex_group_names, vert_layers, edge_layers, face_layers, loop_layers);
       mesh_sculpt_mask_to_legacy(vert_layers);
       mesh_custom_normals_to_legacy(loop_layers);
     }
@@ -902,7 +949,7 @@ BMesh *BKE_mesh_to_bmesh_ex(const Mesh *mesh,
 }
 
 BMesh *BKE_mesh_to_bmesh(Mesh *mesh,
-                         Object *ob,
+                         const int active_shapekey,
                          const bool add_key_index,
                          const BMeshCreateParams *params)
 {
@@ -911,7 +958,7 @@ BMesh *BKE_mesh_to_bmesh(Mesh *mesh,
   bmesh_from_mesh_params.calc_vert_normal = false;
   bmesh_from_mesh_params.add_key_index = add_key_index;
   bmesh_from_mesh_params.use_shapekey = true;
-  bmesh_from_mesh_params.active_shapekey = ob->shapenr;
+  bmesh_from_mesh_params.active_shapekey = active_shapekey;
   return BKE_mesh_to_bmesh_ex(mesh, params, &bmesh_from_mesh_params);
 }
 
@@ -1299,6 +1346,36 @@ void BKE_mesh_transform(Mesh *mesh, const float mat[4][4], bool do_keys)
   }
 
   mesh->tag_positions_changed();
+}
+
+std::optional<int> Mesh::material_index_max() const
+{
+  this->runtime->max_material_index.ensure([&](std::optional<int> &value) {
+    if (this->runtime->edit_mesh && this->runtime->edit_mesh->bm) {
+      BMesh *bm = this->runtime->edit_mesh->bm;
+      if (bm->totface == 0) {
+        value = std::nullopt;
+        return;
+      }
+      int max_material_index = 0;
+      BMFace *efa;
+      BMIter iter;
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        max_material_index = std::max<int>(max_material_index, efa->mat_nr);
+      }
+      value = max_material_index;
+      return;
+    }
+    if (this->faces_num == 0) {
+      value = std::nullopt;
+      return;
+    }
+    value = blender::bounds::max<int>(
+        this->attributes()
+            .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
+            .varray);
+  });
+  return this->runtime->max_material_index.data();
 }
 
 static void translate_positions(MutableSpan<float3> positions, const float3 &translation)

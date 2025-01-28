@@ -26,7 +26,7 @@ struct CameraInstanceData : public ExtraInstanceData {
   float &volume_end = color_[3];
   float &depth = color_[3];
   float &focus = color_[3];
-  float4x4 &matrix = object_to_world_;
+  float4x4 &matrix = object_to_world;
   float &dist_color_id = matrix[0][3];
   float &corner_x = matrix[0][3];
   float &corner_y = matrix[1][3];
@@ -38,7 +38,7 @@ struct CameraInstanceData : public ExtraInstanceData {
   float &mist_end = matrix[3][3];
 
   CameraInstanceData(const CameraInstanceData &data)
-      : CameraInstanceData(data.object_to_world_, data.color_)
+      : CameraInstanceData(data.object_to_world, data.color_)
   {
   }
 
@@ -99,7 +99,7 @@ class Cameras : Overlay {
     enabled_ = state.is_space_v3d();
     extras_enabled_ = enabled_ && state.show_extras();
     motion_tracking_enabled_ = enabled_ && state.v3d->flag2 & V3D_SHOW_RECONSTRUCTION;
-    images_enabled_ = enabled_ && !res.is_selection();
+    images_enabled_ = enabled_ && !res.is_selection() && !state.is_depth_only_drawing;
     enabled_ = extras_enabled_ || images_enabled_ || motion_tracking_enabled_;
 
     offset_data_ = state.offset_data_get();
@@ -279,7 +279,10 @@ class Cameras : Overlay {
     }
 
     Object *ob = ob_ref.object;
-    CameraInstanceData data(ob->object_to_world(), res.object_wire_color(ob_ref, state));
+    float4x4 mat = ob->object_to_world();
+    /* Normalize matrix scale. */
+    mat.view<3, 3>() = math::normalize(mat.view<3, 3>());
+    CameraInstanceData data(mat, res.object_wire_color(ob_ref, state));
 
     const View3D *v3d = state.v3d;
     const Scene *scene = state.scene;
@@ -298,7 +301,7 @@ class Cameras : Overlay {
     const bool is_selection_camera_stereo = is_select && is_camera_view && is_multiview &&
                                             is_stereo3d_view;
 
-    float3 scale = math::to_scale(data.matrix);
+    float3 scale = math::to_scale(ob->object_to_world());
     /* BKE_camera_multiview_model_matrix already accounts for scale, don't do it here. */
     if (is_selection_camera_stereo) {
       scale = float3(1.0f);
@@ -805,7 +808,7 @@ class Cameras : Overlay {
 
         /* Connecting line between cameras. */
         call_buffers_.stereo_connect_lines.append(stereodata.matrix.location(),
-                                                  instdata.object_to_world_.location(),
+                                                  instdata.object_to_world.location(),
                                                   res.theme_settings.color_wire,
                                                   cam_select_id);
       }

@@ -12,7 +12,7 @@
 
 #include "BLF_api.hh"
 
-#include "BLI_blenlib.h"
+#include "BLI_string.h"
 
 #include "DNA_collection_types.h"
 #include "DNA_dynamicpaint_types.h"
@@ -37,7 +37,6 @@
 
 #include "BIF_glutil.hh"
 
-#include "ED_datafiles.h"
 #include "ED_keyframes_draw.hh"
 #include "ED_keyframes_keylist.hh"
 #include "ED_render.hh"
@@ -436,15 +435,15 @@ static void vicon_strip_color_draw(
       vicon_strip_color_draw(color, x, y, w, h, alpha); \
     }
 
-DEF_ICON_STRIP_COLOR_DRAW(01, SEQUENCE_COLOR_01);
-DEF_ICON_STRIP_COLOR_DRAW(02, SEQUENCE_COLOR_02);
-DEF_ICON_STRIP_COLOR_DRAW(03, SEQUENCE_COLOR_03);
-DEF_ICON_STRIP_COLOR_DRAW(04, SEQUENCE_COLOR_04);
-DEF_ICON_STRIP_COLOR_DRAW(05, SEQUENCE_COLOR_05);
-DEF_ICON_STRIP_COLOR_DRAW(06, SEQUENCE_COLOR_06);
-DEF_ICON_STRIP_COLOR_DRAW(07, SEQUENCE_COLOR_07);
-DEF_ICON_STRIP_COLOR_DRAW(08, SEQUENCE_COLOR_08);
-DEF_ICON_STRIP_COLOR_DRAW(09, SEQUENCE_COLOR_09);
+DEF_ICON_STRIP_COLOR_DRAW(01, STRIP_COLOR_01);
+DEF_ICON_STRIP_COLOR_DRAW(02, STRIP_COLOR_02);
+DEF_ICON_STRIP_COLOR_DRAW(03, STRIP_COLOR_03);
+DEF_ICON_STRIP_COLOR_DRAW(04, STRIP_COLOR_04);
+DEF_ICON_STRIP_COLOR_DRAW(05, STRIP_COLOR_05);
+DEF_ICON_STRIP_COLOR_DRAW(06, STRIP_COLOR_06);
+DEF_ICON_STRIP_COLOR_DRAW(07, STRIP_COLOR_07);
+DEF_ICON_STRIP_COLOR_DRAW(08, STRIP_COLOR_08);
+DEF_ICON_STRIP_COLOR_DRAW(09, STRIP_COLOR_09);
 
 #  undef DEF_ICON_STRIP_COLOR_DRAW
 
@@ -861,15 +860,15 @@ static void init_internal_icons()
   def_internal_vicon(ICON_COLLECTION_COLOR_07, vicon_collection_color_draw_07);
   def_internal_vicon(ICON_COLLECTION_COLOR_08, vicon_collection_color_draw_08);
 
-  def_internal_vicon(ICON_SEQUENCE_COLOR_01, vicon_strip_color_draw_01);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_02, vicon_strip_color_draw_02);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_03, vicon_strip_color_draw_03);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_04, vicon_strip_color_draw_04);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_05, vicon_strip_color_draw_05);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_06, vicon_strip_color_draw_06);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_07, vicon_strip_color_draw_07);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_08, vicon_strip_color_draw_08);
-  def_internal_vicon(ICON_SEQUENCE_COLOR_09, vicon_strip_color_draw_09);
+  def_internal_vicon(ICON_STRIP_COLOR_01, vicon_strip_color_draw_01);
+  def_internal_vicon(ICON_STRIP_COLOR_02, vicon_strip_color_draw_02);
+  def_internal_vicon(ICON_STRIP_COLOR_03, vicon_strip_color_draw_03);
+  def_internal_vicon(ICON_STRIP_COLOR_04, vicon_strip_color_draw_04);
+  def_internal_vicon(ICON_STRIP_COLOR_05, vicon_strip_color_draw_05);
+  def_internal_vicon(ICON_STRIP_COLOR_06, vicon_strip_color_draw_06);
+  def_internal_vicon(ICON_STRIP_COLOR_07, vicon_strip_color_draw_07);
+  def_internal_vicon(ICON_STRIP_COLOR_08, vicon_strip_color_draw_08);
+  def_internal_vicon(ICON_STRIP_COLOR_09, vicon_strip_color_draw_09);
 
   def_internal_vicon(ICON_LIBRARY_DATA_INDIRECT, vicon_strip_color_draw_library_data_indirect);
   def_internal_vicon(ICON_LIBRARY_DATA_OVERRIDE_NONEDITABLE,
@@ -1005,12 +1004,14 @@ static void icon_create_rect(PreviewImage *prv_img, enum eIconSizes size)
     }
   }
   else if (!prv_img->rect[size]) {
-    prv_img->w[size] = render_size;
-    prv_img->h[size] = render_size;
     prv_img->flag[size] |= PRV_CHANGED;
     prv_img->changed_timestamp[size] = 0;
-    prv_img->rect[size] = static_cast<uint *>(
-        MEM_callocN(render_size * render_size * sizeof(uint), "prv_rect"));
+    if (!ED_preview_use_image_size(prv_img, size)) {
+      prv_img->w[size] = render_size;
+      prv_img->h[size] = render_size;
+      prv_img->rect[size] = static_cast<uint *>(
+          MEM_callocN(render_size * render_size * sizeof(uint), "prv_rect"));
+    }
   }
 }
 
@@ -1468,13 +1469,17 @@ static void icon_draw_size(float x,
   const float fdraw_size = float(draw_size);
 
   Icon *icon = BKE_icon_get(icon_id);
-  alpha *= btheme->tui.icon_alpha;
 
   if (icon == nullptr) {
     if (G.debug & G_DEBUG) {
       printf("%s: Internal error, no icon for icon ID: %d\n", __func__, icon_id);
     }
     return;
+  }
+
+  if (icon->obj_type != ICON_DATA_STUDIOLIGHT) {
+    /* Icon alpha should not apply to MatCap/Studio lighting. #80356. */
+    alpha *= btheme->tui.icon_alpha;
   }
 
   /* scale width and height according to aspect */
@@ -1511,7 +1516,7 @@ static void icon_draw_size(float x,
 #endif
 
     /* If the theme is light, we will adjust the icon colors. */
-    const bool invert = (rgb_to_grayscale_byte(btheme->tui.wcol_toolbar_item.inner) > 128);
+    const bool invert = (srgb_to_grayscale_byte(btheme->tui.wcol_toolbar_item.inner) > 128);
     const bool geom_inverted = di->data.geom.inverted;
 
     /* This could re-generate often if rendered at different sizes in the one interface.
@@ -1581,7 +1586,7 @@ static void icon_draw_size(float x,
       else {
         UI_GetThemeColor4ubv(TH_TEXT, text_color);
       }
-      const bool is_light = rgb_to_grayscale_byte(text_color) > 96;
+      const bool is_light = srgb_to_grayscale_byte(text_color) > 96;
       const float zoom_factor = w / UI_ICON_SIZE;
       uiFontStyle fstyle_small = *UI_FSTYLE_WIDGET;
       fstyle_small.points *= zoom_factor * 0.8f;
@@ -1651,7 +1656,7 @@ static void ui_id_preview_image_render_size(
     const bContext *C, Scene *scene, ID *id, PreviewImage *pi, int size, const bool use_job)
 {
   /* changed only ever set by dynamic icons */
-  if ((pi->flag[size] & PRV_CHANGED) || !pi->rect[size]) {
+  if ((pi->flag[size] & PRV_CHANGED) || (!pi->rect[size] && !BKE_previewimg_is_invalid(pi))) {
     /* create the rect if necessary */
     icon_set_image(C, scene, id, pi, eIconSizes(size), use_job);
 

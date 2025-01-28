@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_generic_virtual_array.hh"
+#include "BLI_math_quaternion.hh"
+#include "BLI_virtual_array.hh"
+
 #include "BKE_attribute_math.hh"
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
@@ -720,6 +724,13 @@ static void tag_component_sharpness_changed(void *owner)
   }
 }
 
+static void tag_material_index_changed(void *owner)
+{
+  if (Mesh *mesh = static_cast<Mesh *>(owner)) {
+    mesh->tag_material_index_changed();
+  }
+}
+
 /**
  * This provider makes vertex groups available as float attributes.
  */
@@ -727,9 +738,6 @@ class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider
  public:
   GAttributeReader try_get_for_read(const void *owner, const StringRef attribute_id) const final
   {
-    if (bke::attribute_name_is_anonymous(attribute_id)) {
-      return {};
-    }
     const Mesh *mesh = static_cast<const Mesh *>(owner);
     if (mesh == nullptr) {
       return {};
@@ -756,9 +764,6 @@ class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider
 
   GAttributeWriter try_get_for_write(void *owner, const StringRef attribute_id) const final
   {
-    if (bke::attribute_name_is_anonymous(attribute_id)) {
-      return {};
-    }
     Mesh *mesh = static_cast<Mesh *>(owner);
     if (mesh == nullptr) {
       return {};
@@ -773,21 +778,16 @@ class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider
     return {varray_for_mutable_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
   }
 
-  bool try_delete(void *owner, const StringRef attribute_id) const final
+  bool try_delete(void *owner, const StringRef name) const final
   {
-    if (bke::attribute_name_is_anonymous(attribute_id)) {
-      return false;
-    }
     Mesh *mesh = static_cast<Mesh *>(owner);
     if (mesh == nullptr) {
       return true;
     }
 
-    const std::string name = attribute_id;
-
     int index;
     bDeformGroup *group;
-    if (!BKE_id_defgroup_name_find(&mesh->id, name.c_str(), &index, &group)) {
+    if (!BKE_id_defgroup_name_find(&mesh->id, name, &index, &group)) {
       return false;
     }
     BLI_remlink(&mesh->vertex_group_names, group);
@@ -911,7 +911,7 @@ static GeometryAttributeProviders create_attribute_providers_for_mesh()
                                                        CD_PROP_INT32,
                                                        BuiltinAttributeProvider::Deletable,
                                                        face_access,
-                                                       nullptr,
+                                                       tag_material_index_changed,
                                                        AttributeValidator{&material_index_clamp});
 
   static const auto int2_index_clamp = mf::build::SI1_SO<int2, int2>(

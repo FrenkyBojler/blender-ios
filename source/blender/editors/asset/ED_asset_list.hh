@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include <string>
-
 #include "BLI_function_ref.hh"
 
 struct AssetHandle;
@@ -40,8 +38,9 @@ asset_system::AssetLibrary *library_get_once_available(
     const AssetLibraryReference &library_reference);
 
 /** Can return false to stop iterating. */
-using AssetListHandleIterFn = FunctionRef<bool(AssetHandle)>;
 using AssetListIterFn = FunctionRef<bool(asset_system::AssetRepresentation &)>;
+using AssetListIndexIterFn =
+    FunctionRef<bool(asset_system::AssetRepresentation &, int asset_index)>;
 
 /**
  * \warning Never keep the asset handle passed to \a fn outside of \a fn's scope. While iterating,
@@ -50,9 +49,7 @@ using AssetListIterFn = FunctionRef<bool(asset_system::AssetRepresentation &)>;
  * file cache with files that will not end up being relevant. With 1000s of assets that can make a
  * difference, since often only a small subset needs to be displayed.
  */
-void iterate(const AssetLibraryReference &library_reference,
-             AssetListHandleIterFn fn,
-             FunctionRef<bool(asset_system::AssetRepresentation &)> prefilter_fn = nullptr);
+void iterate(const AssetLibraryReference &library_reference, AssetListIndexIterFn fn);
 /**
  * \note This override avoids the file caching system, so it's more performant and avoids pitfalls
  * from the other override. Prefer this when access to #AssetRepresentation is enough, and no
@@ -112,7 +109,6 @@ bool asset_image_is_loading(const AssetLibraryReference *library_reference,
 void asset_preview_ensure_requested(const bContext &C,
                                     const AssetLibraryReference *library_reference,
                                     AssetHandle *asset_handle);
-ImBuf *asset_image_get(const AssetHandle *asset_handle);
 
 /**
  * \return True if the region needs a UI redraw.

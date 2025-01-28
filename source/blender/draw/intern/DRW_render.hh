@@ -10,45 +10,9 @@
 
 #pragma once
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_string.h"
+#include "DNA_object_enums.h"
 
-#include "BKE_context.hh"
-#include "BKE_layer.hh"
-#include "BKE_material.h"
-#include "BKE_scene.hh"
-
-#include "BLT_translation.hh"
-
-#include "DNA_light_types.h"
-#include "DNA_material_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_world_types.h"
-
-#include "GPU_framebuffer.hh"
 #include "GPU_material.hh"
-#include "GPU_primitive.hh"
-#include "GPU_shader.hh"
-#include "GPU_storage_buffer.hh"
-#include "GPU_texture.hh"
-#include "GPU_uniform_buffer.hh"
-
-#include "draw_cache.hh"
-#include "draw_common_c.hh"
-#include "draw_view_c.hh"
-
-#include "draw_debug_c.hh"
-#include "draw_manager_profiling.hh"
-#include "draw_state.hh"
-#include "draw_view_data.hh"
-
-#include "MEM_guardedalloc.h"
-
-#include "RE_engine.h"
-
-#include "DEG_depsgraph.hh"
 
 /* Uncomment to track unused resource bindings. */
 // #define DRW_UNUSED_RESOURCE_TRACKING
@@ -62,16 +26,29 @@
 namespace blender::gpu {
 class Batch;
 }
+struct ARegion;
+struct bContext;
+struct Depsgraph;
+struct DefaultFramebufferList;
+struct DefaultTextureList;
+struct DupliObject;
 struct GPUMaterial;
 struct GPUShader;
 struct GPUTexture;
 struct GPUUniformBuf;
 struct Object;
 struct ParticleSystem;
-struct RenderEngineType;
-struct bContext;
 struct rcti;
+struct RegionView3D;
+struct RenderEngine;
+struct RenderEngineType;
+struct RenderLayer;
+struct RenderResult;
+struct SpaceLink;
 struct TaskGraph;
+struct View3D;
+struct ViewLayer;
+struct World;
 namespace blender::draw {
 class TextureFromPool;
 }  // namespace blender::draw
@@ -135,122 +112,6 @@ struct DrawEngineType {
   void (*store_metadata)(void *vedata, RenderResult *render_result);
 };
 
-/* Textures */
-enum DRWTextureFlag {
-  DRW_TEX_FILTER = (1 << 0),
-  DRW_TEX_WRAP = (1 << 1),
-  DRW_TEX_COMPARE = (1 << 2),
-  DRW_TEX_MIPMAP = (1 << 3),
-};
-
-/**
- * Textures from `DRW_texture_pool_query_*` have the options
- * #DRW_TEX_FILTER for color float textures, and no options
- * for depth textures and integer textures.
- */
-GPUTexture *DRW_texture_pool_query_2d(int w,
-                                      int h,
-                                      eGPUTextureFormat format,
-                                      DrawEngineType *engine_type);
-GPUTexture *DRW_texture_pool_query_fullscreen(eGPUTextureFormat format,
-                                              DrawEngineType *engine_type);
-
-GPUTexture *DRW_texture_create_1d(int w,
-                                  eGPUTextureFormat format,
-                                  DRWTextureFlag flags,
-                                  const float *fpixels);
-GPUTexture *DRW_texture_create_2d(
-    int w, int h, eGPUTextureFormat format, DRWTextureFlag flags, const float *fpixels);
-GPUTexture *DRW_texture_create_2d_array(
-    int w, int h, int d, eGPUTextureFormat format, DRWTextureFlag flags, const float *fpixels);
-GPUTexture *DRW_texture_create_3d(
-    int w, int h, int d, eGPUTextureFormat format, DRWTextureFlag flags, const float *fpixels);
-GPUTexture *DRW_texture_create_cube(int w,
-                                    eGPUTextureFormat format,
-                                    DRWTextureFlag flags,
-                                    const float *fpixels);
-GPUTexture *DRW_texture_create_cube_array(
-    int w, int d, eGPUTextureFormat format, DRWTextureFlag flags, const float *fpixels);
-
-void DRW_texture_ensure_fullscreen_2d(GPUTexture **tex,
-                                      eGPUTextureFormat format,
-                                      DRWTextureFlag flags);
-void DRW_texture_ensure_2d(
-    GPUTexture **tex, int w, int h, eGPUTextureFormat format, DRWTextureFlag flags);
-
-/* Explicit parameter variants. */
-GPUTexture *DRW_texture_pool_query_2d_ex(
-    int w, int h, eGPUTextureFormat format, eGPUTextureUsage usage, DrawEngineType *engine_type);
-GPUTexture *DRW_texture_pool_query_fullscreen_ex(eGPUTextureFormat format,
-                                                 eGPUTextureUsage usage,
-                                                 DrawEngineType *engine_type);
-
-GPUTexture *DRW_texture_create_1d_ex(int w,
-                                     eGPUTextureFormat format,
-                                     eGPUTextureUsage usage_flags,
-                                     DRWTextureFlag flags,
-                                     const float *fpixels);
-GPUTexture *DRW_texture_create_2d_ex(int w,
-                                     int h,
-                                     eGPUTextureFormat format,
-                                     eGPUTextureUsage usage_flags,
-                                     DRWTextureFlag flags,
-                                     const float *fpixels);
-GPUTexture *DRW_texture_create_2d_array_ex(int w,
-                                           int h,
-                                           int d,
-                                           eGPUTextureFormat format,
-                                           eGPUTextureUsage usage_flags,
-                                           DRWTextureFlag flags,
-                                           const float *fpixels);
-GPUTexture *DRW_texture_create_3d_ex(int w,
-                                     int h,
-                                     int d,
-                                     eGPUTextureFormat format,
-                                     eGPUTextureUsage usage_flags,
-                                     DRWTextureFlag flags,
-                                     const float *fpixels);
-GPUTexture *DRW_texture_create_cube_ex(int w,
-                                       eGPUTextureFormat format,
-                                       eGPUTextureUsage usage_flags,
-                                       DRWTextureFlag flags,
-                                       const float *fpixels);
-GPUTexture *DRW_texture_create_cube_array_ex(int w,
-                                             int d,
-                                             eGPUTextureFormat format,
-                                             eGPUTextureUsage usage_flags,
-                                             DRWTextureFlag flags,
-                                             const float *fpixels);
-
-void DRW_texture_ensure_fullscreen_2d_ex(GPUTexture **tex,
-                                         eGPUTextureFormat format,
-                                         eGPUTextureUsage usage,
-                                         DRWTextureFlag flags);
-void DRW_texture_ensure_2d_ex(GPUTexture **tex,
-                              int w,
-                              int h,
-                              eGPUTextureFormat format,
-                              eGPUTextureUsage usage,
-                              DRWTextureFlag flags);
-
-void DRW_texture_generate_mipmaps(GPUTexture *tex);
-void DRW_texture_free(GPUTexture *tex);
-#define DRW_TEXTURE_FREE_SAFE(tex) \
-  do { \
-    if (tex != nullptr) { \
-      DRW_texture_free(tex); \
-      tex = nullptr; \
-    } \
-  } while (0)
-
-#define DRW_UBO_FREE_SAFE(ubo) \
-  do { \
-    if (ubo != nullptr) { \
-      GPU_uniformbuf_free(ubo); \
-      ubo = nullptr; \
-    } \
-  } while (0)
-
 /* Shaders */
 void DRW_shader_init();
 void DRW_shader_exit();
@@ -274,21 +135,6 @@ GPUMaterial *DRW_shader_from_material(
     void *thunk,
     GPUMaterialPassReplacementCallbackFn pass_replacement_cb = nullptr);
 void DRW_shader_queue_optimize_material(GPUMaterial *mat);
-void DRW_shader_free(GPUShader *shader);
-#define DRW_SHADER_FREE_SAFE(shader) \
-  do { \
-    if (shader != nullptr) { \
-      DRW_shader_free(shader); \
-      shader = nullptr; \
-    } \
-  } while (0)
-
-/* Batches */
-
-enum eDRWAttrType {
-  DRW_ATTR_INT,
-  DRW_ATTR_FLOAT,
-};
 
 /* Viewport. */
 
@@ -315,10 +161,6 @@ void DRW_render_object_iter(
  * \warning Changing frame might free the #ViewLayerEngineData.
  */
 void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe);
-/**
- * \warning only use for custom pipeline. 99% of the time, you don't want to use this.
- */
-void DRW_render_viewport_size_set(const int size[2]);
 
 /**
  * Assume a valid GL context is bound (and that the gl_context_mutex has been acquired).
@@ -385,14 +227,6 @@ bool DRW_object_is_visible_psys_in_active_context(const Object *object,
 
 Object *DRW_object_get_dupli_parent(const Object *ob);
 DupliObject *DRW_object_get_dupli(const Object *ob);
-
-/* Draw commands */
-
-void DRW_draw_pass(DRWPass *pass);
-/**
- * Draw only a subset of shgroups. Used in special situations as grease pencil strokes.
- */
-void DRW_draw_pass_subset(DRWPass *pass, DRWShadingGroup *start_group, DRWShadingGroup *end_group);
 
 void DRW_draw_callbacks_pre_scene();
 void DRW_draw_callbacks_post_scene();

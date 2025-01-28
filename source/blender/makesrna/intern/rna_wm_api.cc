@@ -222,10 +222,18 @@ static int rna_Operator_confirm(bContext *C,
                                 const char *text_ctxt,
                                 const bool translate)
 {
-  title = RNA_translate_ui_text(title, text_ctxt, nullptr, nullptr, translate);
-  message = RNA_translate_ui_text(message, text_ctxt, nullptr, nullptr, translate);
-  confirm_text = RNA_translate_ui_text(confirm_text, text_ctxt, nullptr, nullptr, translate);
-  return WM_operator_confirm_ex(C, op, title, message, confirm_text, icon);
+  std::optional<blender::StringRefNull> title_str = RNA_translate_ui_text(
+      title, text_ctxt, nullptr, nullptr, translate);
+  std::optional<blender::StringRefNull> message_str = RNA_translate_ui_text(
+      message, text_ctxt, nullptr, nullptr, translate);
+  std::optional<blender::StringRefNull> confirm_text_str = RNA_translate_ui_text(
+      confirm_text, text_ctxt, nullptr, nullptr, translate);
+  return WM_operator_confirm_ex(C,
+                                op,
+                                title_str ? title_str->c_str() : nullptr,
+                                message_str ? message_str->c_str() : nullptr,
+                                confirm_text_str ? confirm_text_str->c_str() : nullptr,
+                                icon);
 }
 
 static int rna_Operator_props_popup(bContext *C, wmOperator *op, wmEvent *event)
@@ -242,14 +250,16 @@ static int rna_Operator_props_dialog_popup(bContext *C,
                                            const char *text_ctxt,
                                            const bool translate)
 {
-  title = RNA_translate_ui_text(title, text_ctxt, nullptr, nullptr, translate);
-  confirm_text = RNA_translate_ui_text(confirm_text, text_ctxt, nullptr, nullptr, translate);
+  std::optional<blender::StringRefNull> title_str = RNA_translate_ui_text(
+      title, text_ctxt, nullptr, nullptr, translate);
+  std::optional<blender::StringRefNull> confirm_text_str = RNA_translate_ui_text(
+      confirm_text, text_ctxt, nullptr, nullptr, translate);
   return WM_operator_props_dialog_popup(
       C,
       op,
       width,
-      title ? std::make_optional<std::string>(title) : std::nullopt,
-      confirm_text ? std::make_optional<std::string>(confirm_text) : std::nullopt,
+      title_str ? std::make_optional<std::string>(*title_str) : std::nullopt,
+      confirm_text_str ? std::make_optional<std::string>(*confirm_text_str) : std::nullopt,
       cancel_default);
 }
 
@@ -443,14 +453,14 @@ static PointerRNA rna_KeyMap_item_find_from_operator(ID *id,
 
   wmKeyMapItem *kmi = WM_key_event_operator_from_keymap(
       km, idname_bl, static_cast<IDProperty *>(properties->data), include_mask, exclude_mask);
-  PointerRNA kmi_ptr = RNA_pointer_create(id, &RNA_KeyMapItem, kmi);
+  PointerRNA kmi_ptr = RNA_pointer_create_discrete(id, &RNA_KeyMapItem, kmi);
   return kmi_ptr;
 }
 
 static PointerRNA rna_KeyMap_item_match_event(ID *id, wmKeyMap *km, bContext *C, wmEvent *event)
 {
   wmKeyMapItem *kmi = WM_event_match_keymap_item(C, km, event);
-  PointerRNA kmi_ptr = RNA_pointer_create(id, &RNA_KeyMapItem, kmi);
+  PointerRNA kmi_ptr = RNA_pointer_create_discrete(id, &RNA_KeyMapItem, kmi);
   return kmi_ptr;
 }
 
@@ -569,8 +579,8 @@ static PointerRNA rna_KeyConfig_find_item_from_operator(wmWindowManager *wm,
                                             include_mask,
                                             exclude_mask,
                                             &km);
-  *km_ptr = RNA_pointer_create(&wm->id, &RNA_KeyMap, km);
-  PointerRNA kmi_ptr = RNA_pointer_create(&wm->id, &RNA_KeyMapItem, kmi);
+  *km_ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMap, km);
+  PointerRNA kmi_ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
   return kmi_ptr;
 }
 
@@ -600,7 +610,7 @@ static PointerRNA rna_PopMenuBegin(bContext *C,
   }
 
   void *data = (void *)UI_popup_menu_begin(C, title, icon);
-  PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPopupMenu, data);
+  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPopupMenu, data);
   return r_ptr;
 }
 
@@ -620,7 +630,7 @@ static PointerRNA rna_PopoverBegin(bContext *C,
   }
 
   void *data = (void *)UI_popover_begin(C, U.widget_unit * ui_units_x, from_active_button);
-  PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPopover, data);
+  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPopover, data);
   return r_ptr;
 }
 
@@ -640,7 +650,7 @@ static PointerRNA rna_PieMenuBegin(
   void *data = (void *)UI_pie_menu_begin(
       C, title, icon, static_cast<const wmEvent *>(event->data));
 
-  PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPieMenu, data);
+  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPieMenu, data);
   return r_ptr;
 }
 

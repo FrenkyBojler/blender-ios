@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_context.hh"
+
 #include "DNA_camera_types.h"
 #include "DRW_render.hh"
 #include "draw_manager.hh"
@@ -33,7 +35,7 @@ class StaticShader : NonCopyable {
 
   ~StaticShader()
   {
-    DRW_SHADER_FREE_SAFE(shader_);
+    GPU_SHADER_FREE_SAFE(shader_);
   }
 
   GPUShader *get()

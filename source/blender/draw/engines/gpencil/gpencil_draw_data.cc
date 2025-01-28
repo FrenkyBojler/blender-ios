@@ -9,11 +9,12 @@
 #include "DRW_render.hh"
 
 #include "DNA_light_types.h"
+#include "DNA_material_types.h"
 
 #include "BKE_image.hh"
+#include "BKE_material.hh"
 
-#include "BLI_hash.h"
-#include "BLI_math_color.h"
+#include "BLI_math_matrix.h"
 #include "BLI_memblock.h"
 
 #include "GPU_uniform_buffer.hh"
@@ -81,7 +82,7 @@ static void gpencil_shade_color(float color[3])
   else {
     add_v3_fl(color, 0.15f);
   }
-  CLAMP3(color, 0.0f, 1.0f);
+  clamp_v3(color, 0.0f, 1.0f);
 }
 
 /* Apply all overrides from the solid viewport mode to the GPencil material. */
@@ -164,7 +165,7 @@ GPENCIL_MaterialPool *gpencil_material_pool_create(GPENCIL_PrivateData *pd,
 {
   GPENCIL_MaterialPool *matpool = pd->last_material_pool;
 
-  int mat_len = max_ii(1, BKE_object_material_count_eval(ob));
+  int mat_len = BKE_object_material_used_with_fallback_eval(*ob);
 
   bool reuse_matpool = matpool && ((matpool->used_count + mat_len) <= GPENCIL_MATERIAL_BUFFER_LEN);
 
@@ -428,13 +429,13 @@ GPENCIL_LightPool *gpencil_light_pool_create(GPENCIL_PrivateData *pd, Object * /
 void gpencil_material_pool_free(void *storage)
 {
   GPENCIL_MaterialPool *matpool = (GPENCIL_MaterialPool *)storage;
-  DRW_UBO_FREE_SAFE(matpool->ubo);
+  GPU_UBO_FREE_SAFE(matpool->ubo);
 }
 
 void gpencil_light_pool_free(void *storage)
 {
   GPENCIL_LightPool *lightpool = (GPENCIL_LightPool *)storage;
-  DRW_UBO_FREE_SAFE(lightpool->ubo);
+  GPU_UBO_FREE_SAFE(lightpool->ubo);
 }
 
 /** \} */

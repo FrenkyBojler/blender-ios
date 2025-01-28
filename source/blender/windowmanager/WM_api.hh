@@ -20,6 +20,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_array.hh"
+#include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
@@ -1033,6 +1034,7 @@ void WM_operator_properties_use_cursor_init(wmOperatorType *ot);
 void WM_operator_properties_border(wmOperatorType *ot);
 void WM_operator_properties_border_to_rcti(wmOperator *op, rcti *r_rect);
 void WM_operator_properties_border_to_rctf(wmOperator *op, rctf *r_rect);
+blender::Bounds<blender::int2> WM_operator_properties_border_to_bounds(wmOperator *op);
 /**
  * Use with #WM_gesture_box_invoke
  */
@@ -1461,6 +1463,7 @@ wmDrag *WM_drag_data_create(
  */
 void WM_event_start_prepared_drag(bContext *C, wmDrag *drag);
 void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale);
+void WM_event_drag_preview_icon(wmDrag *drag, int icon_id);
 void WM_drag_free(wmDrag *drag);
 void WM_drag_data_free(eWM_DragDataType dragtype, void *poin);
 void WM_drag_free_list(ListBase *lb);
@@ -1781,7 +1784,7 @@ ImBuf *WM_clipboard_image_get();
  *
  * \param ibuf: the image to set the clipboard to.
  */
-bool WM_clipboard_image_set(ImBuf *ibuf) ATTR_NONNULL(1);
+bool WM_clipboard_image_set_byte_buffer(ImBuf *ibuf) ATTR_NONNULL(1);
 
 /* Progress. */
 

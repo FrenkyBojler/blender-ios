@@ -9,6 +9,7 @@
 #include "BKE_attribute.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_base.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_span.hh"
 
 #include "DNA_defaults.h"
@@ -308,13 +309,13 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (ELEM(mode, MOD_GREASE_PENCIL_TEXTURE_STROKE, MOD_GREASE_PENCIL_TEXTURE_STROKE_AND_FILL)) {
     col = uiLayoutColumn(layout, false);
     uiItemR(col, ptr, "fit_method", UI_ITEM_NONE, IFACE_("Stroke Fit Method"), ICON_NONE);
-    uiItemR(col, ptr, "uv_offset", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "alignment_rotation", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "uv_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(col, ptr, "alignment_rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "uv_scale", UI_ITEM_NONE, IFACE_("Scale"), ICON_NONE);
   }
 
@@ -324,7 +325,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   if (ELEM(mode, MOD_GREASE_PENCIL_TEXTURE_FILL, MOD_GREASE_PENCIL_TEXTURE_STROKE_AND_FILL)) {
     col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "fill_rotation", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "fill_rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "fill_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
     uiItemR(col, ptr, "fill_scale", UI_ITEM_NONE, IFACE_("Scale"), ICON_NONE);
   }
@@ -334,7 +335,6 @@ static void panel_draw(const bContext *C, Panel *panel)
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_vertex_group_settings(C, influence_panel, ptr);
   }
 
   modifier_panel_end(layout, ptr);

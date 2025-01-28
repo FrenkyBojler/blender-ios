@@ -11,17 +11,16 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_brush_types.h"
-#include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_workspace_types.h"
 
 #include "BLI_fileops.h"
 #include "BLI_function_ref.hh"
@@ -31,6 +30,7 @@
 #include "BLI_system.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
@@ -779,7 +779,7 @@ static void reuse_bmain_data_invalid_local_usages_fix(ReuseOldBMainData *reuse_d
                                     nullptr;
 
     BKE_library_foreach_ID_link(
-        new_bmain, id_iter, reuse_bmain_data_invalid_local_usages_fix_cb, reuse_data, 0);
+        new_bmain, id_iter, reuse_bmain_data_invalid_local_usages_fix_cb, reuse_data, IDWALK_NOP);
 
     /* Liboverrides who lost their reference should not be liboverrides anymore, but regular IDs.
      */
@@ -1154,6 +1154,7 @@ static void setup_app_data(bContext *C,
      * and/or needs to operate over the whole Main data-base
      * (versioning done in file reading code only operates on a per-library basis). */
     BLO_read_do_version_after_setup(bmain, nullptr, reports);
+    BLO_readfile_id_runtime_data_free_all(*bmain);
   }
 
   bmain->recovered = false;
@@ -1202,7 +1203,7 @@ static void setup_app_data(bContext *C,
 
   BLI_assert(BKE_main_namemap_validate(bmain));
 
-  if (mode != LOAD_UNDO && !USER_EXPERIMENTAL_TEST(&U, no_override_auto_resync)) {
+  if (mode != LOAD_UNDO && liboverride::is_auto_resync_enabled()) {
     reports->duration.lib_overrides_resync = BLI_time_now_seconds();
 
     BKE_lib_override_library_main_resync(
@@ -1425,7 +1426,7 @@ UserDef *BKE_blendfile_userdef_read(const char *filepath, ReportList *reports)
       userdef = bfd->user;
     }
     BKE_main_free(bfd->main);
-    MEM_freeN(bfd);
+    MEM_delete(bfd);
   }
 
   return userdef;
@@ -1445,7 +1446,7 @@ UserDef *BKE_blendfile_userdef_read_from_memory(const void *file_buf,
       userdef = bfd->user;
     }
     BKE_main_free(bfd->main);
-    MEM_freeN(bfd);
+    MEM_delete(bfd);
   }
   else {
     BKE_reports_prepend(reports, "Loading failed: ");
@@ -1682,7 +1683,7 @@ WorkspaceConfigFileData *BKE_blendfile_workspace_config_read(const char *filepat
       workspace_config->workspaces = bfd->main->workspaces;
     }
 
-    MEM_freeN(bfd);
+    MEM_delete(bfd);
   }
 
   return workspace_config;
@@ -1793,8 +1794,13 @@ ID *PartialWriteContext::id_add_copy(const ID *id, const bool regenerate_session
   const int copy_flags = (LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT |
                           /* NOTE: Could make this an option if needed in the future */
                           LIB_ID_COPY_ASSET_METADATA);
-  ctx_root_id = BKE_id_copy_in_lib(nullptr, id->lib, id, nullptr, nullptr, copy_flags);
+  ctx_root_id = BKE_id_copy_in_lib(nullptr, id->lib, id, std::nullopt, nullptr, copy_flags);
   ctx_root_id->tag |= ID_TAG_TEMP_MAIN;
+  /* Ensure that the newly copied ID has a library in temp local bmain if it was linked.
+   * While this could be optimized out in case the ID is made local in the context, this adds
+   * complexity as default ID management code like 'make local' code will create invalid bmain
+   * namemap data. */
+  this->ensure_library(ctx_root_id);
   if (regenerate_session_uid) {
     /* Calling #BKE_lib_libblock_session_uid_renew is not needed here, copying already generated a
      * new one. */
@@ -1817,7 +1823,18 @@ void PartialWriteContext::make_local(ID *ctx_id, const int make_local_flags)
   BKE_main_idmap_remove_id(this->bmain.id_map, ctx_id);
   BKE_main_idmap_remove_id(matching_uid_map_, ctx_id);
 
-  BKE_lib_id_make_local(&this->bmain, ctx_id, make_local_flags);
+  if (ID_IS_LINKED(ctx_id)) {
+    BKE_lib_id_make_local(&this->bmain, ctx_id, make_local_flags);
+  }
+  /* NOTE: Cannot rely only on `ID_IS_OVERRIDE_LIBRARY` here, as the reference pointer to the
+   * linked data may have already been cleared out by dependency management in code above that
+   * call. */
+  else if ((ctx_id->override_library || ID_IS_OVERRIDE_LIBRARY(ctx_id)) &&
+           (make_local_flags & LIB_ID_MAKELOCAL_LIBOVERRIDE_CLEAR) != 0)
+
+  {
+    BKE_lib_override_library_make_local(&this->bmain, ctx_id);
+  }
 
   this->preempt_session_uid(ctx_id, ctx_id_session_uid);
   BKE_main_idmap_insert_id(this->bmain.id_map, ctx_id);
@@ -1923,13 +1940,12 @@ ID *PartialWriteContext::id_add(
       return IDWALK_RET_NOP;
     }
 
-    PartialWriteContext::IDAddOperations operations_final = PartialWriteContext::IDAddOperations(
-        options.operations & MASK_INHERITED);
+    PartialWriteContext::IDAddOperations operations_final = (options.operations & MASK_INHERITED);
     if (dependencies_filter_cb) {
       const PartialWriteContext::IDAddOperations operations_per_id = dependencies_filter_cb(
           cb_data, options);
-      operations_final = PartialWriteContext::IDAddOperations(
-          (operations_per_id & MASK_PER_ID_USAGE) | (operations_final & ~MASK_PER_ID_USAGE));
+      operations_final = ((operations_per_id & MASK_PER_ID_USAGE) |
+                          (operations_final & ~MASK_PER_ID_USAGE));
     }
 
     const bool add_dependencies = (operations_final & ADD_DEPENDENCIES) != 0;
@@ -2006,9 +2022,6 @@ ID *PartialWriteContext::id_add(
     const bool do_make_local = (options_final & MAKE_LOCAL) != 0;
     if (do_make_local) {
       this->make_local(ctx_id, make_local_flags);
-    }
-    else {
-      this->ensure_library(ctx_id);
     }
   }
 
@@ -2150,17 +2163,26 @@ bool PartialWriteContext::write(const char *write_filepath,
 
   /* In case the write path is the same as one of the libraries used by this context, make this
    * library local, and delete it (and all of its potentially remaining linked data). */
-  Library *make_local_lib = nullptr;
+  blender::Vector<Library *> make_local_libs;
   LISTBASE_FOREACH (Library *, library, &this->bmain.libraries) {
     if (STREQ(write_filepath, library->runtime.filepath_abs)) {
-      make_local_lib = library;
+      make_local_libs.append(library);
     }
   }
-  if (make_local_lib) {
-    BKE_library_make_local(&this->bmain, make_local_lib, nullptr, false, false, false);
-    BKE_id_delete(&this->bmain, make_local_lib);
-    make_local_lib = nullptr;
+  /* Will likely change in the near future (embedded linked IDs, virtual libraries...), but
+   * currently this should never happen. */
+  if (make_local_libs.size() > 1) {
+    CLOG_WARN(&LOG_PARTIALWRITE,
+              "%d libraries found using the same filepath as destination one ('%s'), should "
+              "never happen.",
+              int32_t(make_local_libs.size()),
+              write_filepath);
   }
+  for (Library *lib : make_local_libs) {
+    BKE_library_make_local(&this->bmain, lib, nullptr, false, false, false);
+    BKE_id_delete(&this->bmain, lib);
+  }
+  make_local_libs.clear();
 
   BLI_assert(this->is_valid());
 

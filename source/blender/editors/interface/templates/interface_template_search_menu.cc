@@ -16,8 +16,6 @@
 
 #include "DNA_action_types.h"
 #include "DNA_node_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_texture_types.h"
 
 #include "BLI_dynstr.h"
 #include "BLI_ghash.h"
@@ -519,7 +517,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
       /* Anything besides #SPACE_EMPTY is fine,
        * as this value is only included in the enum when set. */
       area_dummy.spacetype = SPACE_TOPBAR;
-      PointerRNA ptr = RNA_pointer_create(&screen->id, &RNA_Area, &area_dummy);
+      PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Area, &area_dummy);
       prop_ui_type = RNA_struct_find_property(&ptr, "ui_type");
       RNA_property_enum_items(C,
                               &ptr,
@@ -538,7 +536,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
       ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
       if (region != nullptr) {
-        PointerRNA ptr = RNA_pointer_create(&screen->id, &RNA_Area, area);
+        PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Area, area);
         const int space_type_ui = RNA_property_enum_get(&ptr, prop_ui_type);
 
         const int space_type_ui_index = RNA_enum_from_value(space_type_ui_items, space_type_ui);
@@ -784,18 +782,35 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
 
           uiLayoutSetOperatorContext(sub_layout, WM_OP_INVOKE_REGION_WIN);
 
-          but->menu_create_func(C, sub_layout, but->poin);
+          /* If this is a panel, check it's poll function succeeds before drawing.
+           * otherwise draw(..) may be called in an unsupported context and crash, see: #130744.
+           *
+           * NOTE(@ideasman42): it would be good if the buttons #UI_BUT_DISABLED flag
+           * could be used as a more general way to know if poll succeeded,
+           * at this point it's not set - this could be further investigated. */
+          bool poll_success = true;
+          if (PanelType *pt = UI_but_paneltype_get(but)) {
+            if (pt->poll && (pt->poll(C, pt) == false)) {
+              poll_success = false;
+            }
+          }
+
+          if (poll_success) {
+            but->menu_create_func(C, sub_layout, but->poin);
+          }
 
           UI_block_end(C, sub_block);
 
-          MenuSearch_Parent *menu_parent = (MenuSearch_Parent *)BLI_memarena_calloc(
-              memarena, sizeof(*menu_parent));
-          menu_parent->drawstr = strdup_memarena(memarena, but->drawstr.c_str());
-          menu_parent->parent = current_menu.self_as_parent;
+          if (poll_success) {
+            MenuSearch_Parent *menu_parent = (MenuSearch_Parent *)BLI_memarena_calloc(
+                memarena, sizeof(*menu_parent));
+            menu_parent->drawstr = strdup_memarena(memarena, but->drawstr.c_str());
+            menu_parent->parent = current_menu.self_as_parent;
 
-          LISTBASE_FOREACH (uiBut *, sub_but, &sub_block->buttons) {
-            menu_items_from_ui_create_item_from_button(
-                data, memarena, mt, sub_but, wm_context, menu_parent);
+            LISTBASE_FOREACH (uiBut *, sub_but, &sub_block->buttons) {
+              menu_items_from_ui_create_item_from_button(
+                  data, memarena, mt, sub_but, wm_context, menu_parent);
+            }
           }
 
           if (region) {

@@ -10,7 +10,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 
 #include "MEM_guardedalloc.h"
 
@@ -18,16 +17,14 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_atomic_disjoint_set.hh"
-#include "BLI_bit_span_ops.hh"
-#include "BLI_blenlib.h"
 #include "BLI_dial_2d.h"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_ghash.h"
+#include "BLI_math_axis_angle.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
-#include "BLI_math_rotation.hh"
+#include "BLI_rect.h"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_task.h"
@@ -279,7 +276,7 @@ bool vert_has_face_set(const SubdivCCG &subdiv_ccg,
 bool vert_has_face_set(const int face_set_offset, const BMVert &vert, const int face_set)
 {
   if (face_set_offset == -1) {
-    return false;
+    return face_set == SCULPT_FACE_SET_NONE;
   }
   BMIter iter;
   BMFace *face;
@@ -1156,11 +1153,6 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
       break;
     }
   }
-
-  /* Update normals for potentially-changed positions. Theoretically this may be unnecessary if
-   * the brush restoring to the initial state doesn't use the normals, but we have no easy way to
-   * know that from here. */
-  bke::pbvh::update_normals(depsgraph, object, pbvh);
 }
 
 static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd, Object &object)
@@ -1179,6 +1171,7 @@ static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd,
     case SCULPT_BRUSH_TYPE_DRAW_FACE_SETS:
       if (ss.cache->alt_smooth) {
         restore_position_from_undo_step(depsgraph, object);
+        bke::pbvh::update_normals(depsgraph, object, *bke::object::pbvh_get(object));
       }
       else {
         restore_face_set_from_undo_step(object);
@@ -1186,6 +1179,7 @@ static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd,
       break;
     default:
       restore_position_from_undo_step(depsgraph, object);
+      bke::pbvh::update_normals(depsgraph, object, *bke::object::pbvh_get(object));
       break;
   }
   /* Disable multi-threading when dynamic-topology is enabled. Otherwise,
@@ -2327,30 +2321,30 @@ void sculpt_apply_texture(const SculptSession &ss,
 
 void SCULPT_calc_vertex_displacement(const SculptSession &ss,
                                      const Brush &brush,
-                                     float rgba[3],
-                                     float r_offset[3])
+                                     float translation[3])
 {
-  mul_v3_fl(rgba, ss.cache->bstrength);
+  mul_v3_fl(translation, ss.cache->bstrength);
   /* Handle brush inversion */
   if (ss.cache->bstrength < 0) {
-    rgba[0] *= -1;
-    rgba[1] *= -1;
+    translation[0] *= -1;
+    translation[1] *= -1;
   }
 
   /* Apply texture size */
   for (int i = 0; i < 3; ++i) {
-    rgba[i] *= blender::math::safe_divide(1.0f, pow2f(brush.mtex.size[i]));
+    translation[i] *= blender::math::safe_divide(1.0f, pow2f(brush.mtex.size[i]));
   }
 
   /* Transform vector to object space */
-  mul_mat3_m4_v3(ss.cache->brush_local_mat_inv.ptr(), rgba);
+  mul_mat3_m4_v3(ss.cache->brush_local_mat_inv.ptr(), translation);
 
   /* Handle symmetry */
   if (ss.cache->radial_symmetry_pass) {
-    mul_m4_v3(ss.cache->symm_rot_mat.ptr(), rgba);
+    mul_m4_v3(ss.cache->symm_rot_mat.ptr(), translation);
   }
-  copy_v3_v3(r_offset,
-             blender::ed::sculpt_paint::symmetry_flip(rgba, ss.cache->mirror_symmetry_pass));
+  copy_v3_v3(
+      translation,
+      blender::ed::sculpt_paint::symmetry_flip(translation, ss.cache->mirror_symmetry_pass));
 }
 
 namespace blender::ed::sculpt_paint {
@@ -2594,7 +2588,7 @@ void SCULPT_tilt_apply_to_normal(float r_normal[3],
                                  blender::ed::sculpt_paint::StrokeCache *cache,
                                  const float tilt_strength)
 {
-  if (!U.experimental.use_sculpt_tools_tilt) {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_sculpt_tools_tilt)) {
     return;
   }
   const float rot_max = M_PI_2 * tilt_strength * SCULPT_TILT_SENSITIVITY;
@@ -2638,7 +2632,7 @@ static bool sculpt_needs_pbvh_pixels(PaintModeSettings &paint_mode_settings,
                                      Object &ob)
 {
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
-      U.experimental.use_sculpt_texture_paint)
+      USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint))
   {
     Image *image;
     ImageUser *image_user;
@@ -3156,7 +3150,12 @@ static void do_brush_action(const Depsgraph &depsgraph,
   if (node_mask.is_empty()) {
     return;
   }
-  float location[3];
+
+  if (auto_mask::is_enabled(sd, ob, &brush) && ss.cache->automasking &&
+      ss.cache->automasking->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL)
+  {
+    ss.cache->automasking->calc_cavity_factor(depsgraph, ob, node_mask);
+  }
 
   if (!use_pixels) {
     push_undo_nodes(depsgraph, ob, brush, node_mask);
@@ -3375,10 +3374,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
 
   /* Update average stroke position. */
-  copy_v3_v3(location, ss.cache->location);
-  mul_m4_v3(ob.object_to_world().ptr(), location);
+  const float3 world_location = math::project_point(ob.object_to_world(), ss.cache->location);
 
-  add_v3_v3(ups.average_stroke_accum, location);
+  add_v3_v3(ups.average_stroke_accum, world_location);
   ups.average_stroke_counter++;
   /* Update last stroke position. */
   ups.last_stroke_valid = true;
@@ -5234,23 +5232,21 @@ static void stroke_undo_end(const bContext *C, Brush *brush)
   }
 }
 
-bool SCULPT_handles_colors_report(const Object &object, ReportList *reports)
-{
-  switch (blender::bke::object::pbvh_get(object)->type()) {
-    case blender::bke::pbvh::Type::Mesh:
-      return true;
-    case blender::bke::pbvh::Type::BMesh:
-      BKE_report(reports, RPT_ERROR, "Not supported in dynamic topology mode");
-      return false;
-    case blender::bke::pbvh::Type::Grids:
-      BKE_report(reports, RPT_ERROR, "Not supported in multiresolution mode");
-      return false;
-  }
-  BLI_assert_unreachable();
-  return false;
-}
-
 namespace blender::ed::sculpt_paint {
+
+bool color_supported_check(const Scene &scene, Object &object, ReportList *reports)
+{
+  if (const SculptSession &ss = *object.sculpt; ss.bm) {
+    BKE_report(reports, RPT_ERROR, "Not supported in dynamic topology mode");
+    return false;
+  }
+  else if (BKE_sculpt_multires_active(&scene, &object)) {
+    BKE_report(reports, RPT_ERROR, "Not supported in multiresolution mode");
+    return false;
+  }
+
+  return true;
+}
 
 static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
 {
@@ -5424,7 +5420,7 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent
   Brush &brush = *BKE_paint_brush(&sd.paint);
 
   if (SCULPT_brush_type_is_paint(brush.sculpt_brush_type) &&
-      !SCULPT_handles_colors_report(ob, op->reports))
+      !color_supported_check(scene, ob, op->reports))
   {
     return OPERATOR_CANCELLED;
   }
@@ -5551,6 +5547,15 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
   /* Properties. */
 
   paint_stroke_operator_properties(ot);
+
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "override_location",
+      false,
+      "Override Location",
+      "Override the given `location` array by recalculating object space positions from the "
+      "provided `mouse_event` positions");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 
   RNA_def_boolean(ot->srna,
                   "ignore_background_click",
@@ -6111,6 +6116,15 @@ void SCULPT_cube_tip_init(const Sculpt & /*sd*/,
 
 namespace blender::ed::sculpt_paint {
 
+MeshAttributeData::MeshAttributeData(const Mesh &mesh)
+{
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  this->mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
+  this->hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  this->hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  this->face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+}
+
 void gather_bmesh_positions(const Set<BMVert *, 0> &verts, const MutableSpan<float3> positions)
 {
   BLI_assert(verts.size() == positions.size());
@@ -6450,7 +6464,7 @@ void calc_factors_common_from_orig_data_grids(const Depsgraph &depsgraph,
   fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal_symm, normals, grids, factors);
+    calc_front_face(cache.view_normal_symm, normals, factors);
   }
 
   r_distances.resize(positions.size());

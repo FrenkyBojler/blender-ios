@@ -6,18 +6,22 @@
  * \ingroup eevee
  */
 
+#include "BLI_rect.h"
+
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_studiolight.h"
 
 #include "NOD_shader.h"
 
 #include "GPU_material.hh"
 
-#include "eevee_instance.hh"
+#include "draw_cache.hh"
+#include "draw_view_data.hh"
 
-#include "draw_debug.hh"
+#include "eevee_instance.hh"
 
 namespace blender::eevee {
 
@@ -183,7 +187,7 @@ void LookdevModule::sync()
   for (int index : IndexRange(num_spheres)) {
     if (spheres_[index].color_tx_.ensure_2d(color_format, extent)) {
       /* Request redraw if the light-probe were off and the sampling was already finished. */
-      if (inst_.sampling.finished_viewport()) {
+      if (inst_.is_viewport() && inst_.sampling.finished_viewport()) {
         inst_.sampling.reset();
       }
     }

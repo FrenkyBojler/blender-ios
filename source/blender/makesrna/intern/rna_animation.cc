@@ -8,20 +8,12 @@
 
 #include <cstdlib>
 
-#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
-#include "DNA_scene_types.h"
-
-#include "BLI_listbase_wrapper.hh"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "BKE_nla.hh"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -31,9 +23,6 @@
 #include "WM_types.hh"
 
 #include "ED_keyframing.hh"
-
-#include "ANIM_action.hh"
-#include "ANIM_keyingsets.hh"
 
 using namespace blender;
 
@@ -117,7 +106,9 @@ const EnumPropertyItem rna_enum_keying_flag_api_items[] = {
 #  include "BKE_fcurve.hh"
 #  include "BKE_nla.hh"
 
+#  include "ANIM_action.hh"
 #  include "ANIM_action_legacy.hh"
+#  include "ANIM_keyingsets.hh"
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
@@ -286,7 +277,7 @@ PointerRNA rna_generic_action_slot_get(bAction *dna_action,
   if (!slot) {
     return PointerRNA_NULL;
   }
-  return RNA_pointer_create(&action.id, &RNA_ActionSlot, slot);
+  return RNA_pointer_create_discrete(&action.id, &RNA_ActionSlot, slot);
 }
 
 static PointerRNA rna_AnimData_action_slot_get(PointerRNA *ptr)
@@ -415,7 +406,7 @@ static bool RKS_POLL_rna_internal(KeyingSetInfo *ksi, bContext *C)
   void *ret;
   int ok;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, ksi->rna_ext.srna, ksi);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, ksi->rna_ext.srna, ksi);
   func = &rna_KeyingSetInfo_poll_func; /* RNA_struct_find_function(&ptr, "poll"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -444,7 +435,7 @@ static void RKS_ITER_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, ksi->rna_ext.srna, ksi);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, ksi->rna_ext.srna, ksi);
   func = &rna_KeyingSetInfo_iterator_func; /* RNA_struct_find_function(&ptr, "poll"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -468,7 +459,7 @@ static void RKS_GEN_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks,
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, ksi->rna_ext.srna, ksi);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, ksi->rna_ext.srna, ksi);
   func = &rna_KeyingSetInfo_generate_func; /* RNA_struct_find_generate(&ptr, "poll"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -530,7 +521,7 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   /* setup dummy type info to store static properties in */
   /* TODO: perhaps we want to get users to register
    * as if they're using 'KeyingSet' directly instead? */
-  PointerRNA dummy_ksi_ptr = RNA_pointer_create(nullptr, &RNA_KeyingSetInfo, &dummy_ksi);
+  PointerRNA dummy_ksi_ptr = RNA_pointer_create_discrete(nullptr, &RNA_KeyingSetInfo, &dummy_ksi);
 
   /* validate the python class */
   if (validate(&dummy_ksi_ptr, data, have_function) != 0) {

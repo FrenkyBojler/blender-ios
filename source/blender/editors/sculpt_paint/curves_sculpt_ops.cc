@@ -460,9 +460,9 @@ static void select_random_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiItemR(layout, op->ptr, "seed", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "constant_per_curve", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "partial", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, op->ptr, "constant_per_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, op->ptr, "partial", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_boolean_get(op->ptr, "partial")) {
     uiItemR(layout, op->ptr, "min", UI_ITEM_R_SLIDER, IFACE_("Min"), ICON_NONE);
@@ -1026,7 +1026,7 @@ static int min_distance_edit_invoke(bContext *C, wmOperator *op, const wmEvent *
     return OPERATOR_CANCELLED;
   }
 
-  BVHTreeFromMesh surface_bvh_eval = surface_me_eval->bvh_corner_tris();
+  bke::BVHTreeFromMesh surface_bvh_eval = surface_me_eval->bvh_corner_tris();
 
   const int2 mouse_pos_int_re{event->mval};
   const float2 mouse_pos_re{mouse_pos_int_re};

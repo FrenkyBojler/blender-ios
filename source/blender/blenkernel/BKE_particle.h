@@ -15,7 +15,8 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_map.hh"
 #include "BLI_ordered_edge.hh"
-#include "BLI_utildefines.h"
+
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
 
 #include "DNA_particle_types.h"
 
@@ -533,7 +534,7 @@ void particle_system_update(struct Depsgraph *depsgraph,
 typedef void (*ParticleSystemIDFunc)(struct ParticleSystem *psys,
                                      struct ID **idpoin,
                                      void *userdata,
-                                     int cb_flag);
+                                     LibraryForeachIDCallbackFlag cb_flag);
 
 void BKE_particlesystem_id_loop(struct ParticleSystem *psys,
                                 ParticleSystemIDFunc func,

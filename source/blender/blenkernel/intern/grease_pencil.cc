@@ -23,7 +23,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -58,7 +58,6 @@
 #include "DNA_ID_enums.h"
 #include "DNA_brush_types.h"
 #include "DNA_defaults.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
@@ -635,7 +634,6 @@ Span<float4x2> Drawing::texture_matrices() const
 
 void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &selection)
 {
-  using namespace blender::math;
   CurvesGeometry &curves = this->strokes_for_write();
   MutableAttributeAccessor attributes = curves.attributes_for_write();
   SpanAttributeWriter<float> uv_rotations = attributes.lookup_or_add_for_write_span<float>(
@@ -677,9 +675,9 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
      * And `T()` is transpose and `()^-1` is the inverse.
      */
 
-    const double3x4 transpose_strokemat = transpose(strokemat4x3);
+    const double3x4 transpose_strokemat = math::transpose(strokemat4x3);
     const double3x4 right_inverse = transpose_strokemat *
-                                    invert(strokemat4x3 * transpose_strokemat);
+                                    math::invert(strokemat4x3 * transpose_strokemat);
 
     const float3x2 texture_matrix = float3x2(double4x2(texspace) * right_inverse);
 
@@ -687,15 +685,15 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
     const float2 uv_translation = texture_matrix[2];
 
     /* Solve rotation, the angle of the `u` basis is the rotation. */
-    const float uv_rotation = atan2(texture_matrix[0][1], texture_matrix[0][0]);
+    const float uv_rotation = math::atan2(texture_matrix[0][1], texture_matrix[0][0]);
 
     /* Calculate the determinant to check if the `v` scale is negative. */
-    const float det = determinant(float2x2(texture_matrix));
+    const float det = math::determinant(float2x2(texture_matrix));
 
     /* Solve scale, scaling is the only transformation that changes the length, so scale factor
      * is simply the length. And flip the sign of `v` if the determinant is negative. */
-    const float2 uv_scale = safe_rcp(
-        float2(length(texture_matrix[0]), sign(det) * length(texture_matrix[1])));
+    const float2 uv_scale = math::safe_rcp(float2(
+        math::length(texture_matrix[0]), math::sign(det) * math::length(texture_matrix[1])));
 
     uv_rotations.span[curve_i] = uv_rotation;
     uv_translations.span[curve_i] = uv_translation;
@@ -959,7 +957,7 @@ TreeNode::TreeNode(const TreeNode &other) : TreeNode(GreasePencilLayerTreeNodeTy
 {
   this->GreasePencilLayerTreeNode::name = BLI_strdup_null(other.GreasePencilLayerTreeNode::name);
   this->flag = other.flag;
-  copy_v3_v3_uchar(this->color, other.color);
+  copy_v3_v3(this->color, other.color);
 }
 
 TreeNode::~TreeNode()
@@ -1046,7 +1044,7 @@ LayerMask::~LayerMask()
 
 void LayerRuntime::clear()
 {
-  frames_.clear_and_shrink();
+  frames_.clear();
   sorted_keys_cache_.tag_dirty();
   masks_.clear_and_shrink();
   trans_data_ = {};
@@ -1419,8 +1417,8 @@ void Layer::prepare_for_dna_write()
 void Layer::update_from_dna_read()
 {
   /* Re-create frames data in runtime map. */
-  /* NOTE: Avoid re-allocating runtime data to reduce 'false positive' change detections from
-   * memfile undo. */
+  /* NOTE: Avoid re-allocating runtime data to reduce 'false positive' change detection from
+   * MEMFILE undo. */
   if (runtime) {
     runtime->clear();
   }
@@ -1461,8 +1459,11 @@ void Layer::set_parent_bone_name(const StringRef new_name)
 {
   if (this->parsubstr != nullptr) {
     MEM_freeN(this->parsubstr);
+    this->parsubstr = nullptr;
   }
-  this->parsubstr = BLI_strdupn(new_name.data(), new_name.size());
+  if (!new_name.is_empty()) {
+    this->parsubstr = BLI_strdupn(new_name.data(), new_name.size());
+  }
 }
 
 float4x4 Layer::parent_to_world(const Object &parent) const
@@ -1506,8 +1507,11 @@ void Layer::set_view_layer_name(const StringRef new_name)
 {
   if (this->viewlayername != nullptr) {
     MEM_freeN(this->viewlayername);
+    this->viewlayername = nullptr;
   }
-  this->viewlayername = BLI_strdupn(new_name.data(), new_name.size());
+  if (!new_name.is_empty()) {
+    this->viewlayername = BLI_strdupn(new_name.data(), new_name.size());
+  }
 }
 
 LayerGroup::LayerGroup()
@@ -1582,6 +1586,11 @@ LayerGroup &LayerGroup::operator=(const LayerGroup &other)
   new (this) LayerGroup(other);
 
   return *this;
+}
+
+bool LayerGroup::is_empty() const
+{
+  return BLI_listbase_is_empty(&this->children);
 }
 
 TreeNode &LayerGroup::add_node(TreeNode &node)
@@ -1946,7 +1955,7 @@ void BKE_grease_pencil_copy_layer_parameters(const blender::bke::greasepencil::L
 {
   using namespace blender::bke::greasepencil;
   dst.as_node().flag = src.as_node().flag;
-  copy_v3_v3_uchar(dst.as_node().color, src.as_node().color);
+  copy_v3_v3(dst.as_node().color, src.as_node().color);
 
   dst.blend_mode = src.blend_mode;
   dst.opacity = src.opacity;
@@ -1973,7 +1982,7 @@ void BKE_grease_pencil_copy_layer_group_parameters(
 {
   using namespace blender::bke::greasepencil;
   dst.as_node().flag = src.as_node().flag;
-  copy_v3_v3_uchar(dst.as_node().color, src.as_node().color);
+  copy_v3_v3(dst.as_node().color, src.as_node().color);
   dst.color_tag = src.color_tag;
 }
 
@@ -2036,7 +2045,7 @@ void BKE_grease_pencil_vgroup_name_update(Object *ob, const char *old_name, cons
     Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
     CurvesGeometry &curves = drawing.strokes_for_write();
     LISTBASE_FOREACH (bDeformGroup *, vgroup, &curves.vertex_group_names) {
-      if (strcmp(vgroup->name, old_name) == 0) {
+      if (STREQ(vgroup->name, old_name)) {
         STRNCPY(vgroup->name, new_name);
       }
     }
@@ -2192,9 +2201,9 @@ void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   if (layer_attributes.contains("tint_color") || layer_attributes.contains("radius_offset")) {
     grease_pencil_do_layer_adjustments(*geometry_set.get_grease_pencil_for_write());
   }
-  /* Only add the edit hint component in edit mode for now so users can properly select deformed
-   * drawings. */
-  if (object->mode == OB_MODE_EDIT) {
+  /* Only add the edit hint component in edit mode or sculpt mode for now so users can properly
+   * select deformed drawings. */
+  if (ELEM(object->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL)) {
     GeometryComponentEditData &edit_component =
         geometry_set.get_component_for_write<GeometryComponentEditData>();
     edit_component.grease_pencil_edit_hints_ = std::make_unique<GreasePencilEditHints>(
@@ -2442,7 +2451,11 @@ Material *BKE_grease_pencil_object_material_ensure_from_brush(Main *bmain,
 
     /* check if the material is already on object material slots and add it if missing */
     if (ma && BKE_object_material_index_get(ob, ma) < 0) {
-      BKE_object_material_slot_add(bmain, ob);
+      /* The object's active material is what's used for the unpinned material. Do not touch it
+       * while using a pinned material. */
+      const bool change_active_material = false;
+
+      BKE_object_material_slot_add(bmain, ob, change_active_material);
       BKE_object_material_assign(bmain, ob, ma, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
     }
 
@@ -2796,6 +2809,10 @@ bool GreasePencil::insert_duplicate_frame(blender::bke::greasepencil::Layer &lay
   using namespace blender::bke::greasepencil;
 
   if (!layer.frames().contains(src_frame_number)) {
+    return false;
+  }
+
+  if (layer.is_locked()) {
     return false;
   }
   const GreasePencilFrame src_frame = layer.frames().lookup(src_frame_number);
@@ -3203,6 +3220,28 @@ void GreasePencil::count_memory(blender::MemoryCounter &memory) const
         reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
     drawing.strokes().count_memory(memory);
   }
+}
+
+std::optional<int> GreasePencil::material_index_max_eval() const
+{
+  using namespace blender;
+  using namespace blender::bke;
+  std::optional<int> max_index;
+  for (const greasepencil::Layer *layer : this->layers()) {
+    if (const greasepencil::Drawing *drawing = this->get_eval_drawing(*layer)) {
+      const bke::CurvesGeometry &curves = drawing->strokes();
+      const std::optional<int> max_index_on_layer = curves.material_index_max();
+      if (max_index) {
+        if (max_index_on_layer) {
+          max_index = std::max(*max_index, *max_index_on_layer);
+        }
+      }
+      else {
+        max_index = max_index_on_layer;
+      }
+    }
+  }
+  return max_index;
 }
 
 blender::Span<const blender::bke::greasepencil::Layer *> GreasePencil::layers() const

@@ -125,7 +125,7 @@ void BLO_memfile_write_init(MemFileWriteData *mem_data,
 
 void BLO_memfile_write_finalize(MemFileWriteData *mem_data)
 {
-  mem_data->id_session_uid_mapping.clear_and_shrink();
+  mem_data->id_session_uid_mapping.clear();
 }
 
 void BLO_memfile_chunk_add(MemFileWriteData *mem_data, const char *buf, size_t size)
@@ -180,7 +180,7 @@ Main *BLO_memfile_main_get(MemFile *memfile, Main *bmain, Scene **r_scene)
       *r_scene = bfd->curscene;
     }
 
-    MEM_freeN(bfd);
+    MEM_delete(bfd);
   }
 
   return bmain_undo;

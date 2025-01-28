@@ -8,18 +8,25 @@
 #  include <OSL/oslversion.h>
 #endif
 
+#include "util/defines.h"
+#include "util/types_float3.h"
+
 CCL_NAMESPACE_BEGIN
 
 #if defined(__KERNEL_GPU__)
 /* Strings are represented by their hashes on the GPU. */
-typedef size_t DeviceString;
+using DeviceString = size_t;
 #elif defined(OPENIMAGEIO_USTRING_H)
-typedef ustring DeviceString;
+#  if OSL_LIBRARY_VERSION_CODE >= 11400
+using DeviceString = ustringhash;
+#  else
+using DeviceString = ustring;
+#  endif
 #else
-typedef const char *DeviceString;
+using DeviceString = const char *;
 #endif
 
-ccl_device_inline DeviceString make_string(const char *str, size_t hash)
+ccl_device_inline DeviceString make_string(const char *str, const size_t hash)
 {
 #if defined(__KERNEL_GPU__)
   (void)str;
@@ -55,13 +62,13 @@ struct OSLClosure {
 struct ccl_align(8) OSLClosureMul : public OSLClosure
 {
   packed_float3 weight;
-  ccl_private const OSLClosure *closure;
+  const ccl_private OSLClosure *closure;
 };
 
 struct ccl_align(8) OSLClosureAdd : public OSLClosure
 {
-  ccl_private const OSLClosure *closureA;
-  ccl_private const OSLClosure *closureB;
+  const ccl_private OSLClosure *closureA;
+  const ccl_private OSLClosure *closureB;
 };
 
 struct ccl_align(8) OSLClosureComponent : public OSLClosure

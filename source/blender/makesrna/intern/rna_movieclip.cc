@@ -26,7 +26,9 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_metadata.hh"
+
+#include "MOV_enums.hh"
+#include "MOV_read.hh"
 
 #ifdef RNA_RUNTIME
 
@@ -110,12 +112,12 @@ static PointerRNA rna_MovieClip_metadata_get(MovieClip *clip)
     return PointerRNA_NULL;
   }
 
-  IDProperty *metadata = IMB_anim_load_metadata(clip->anim);
+  IDProperty *metadata = MOV_load_metadata(clip->anim);
   if (metadata == nullptr) {
     return PointerRNA_NULL;
   }
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_IDPropertyWrapPtr, metadata);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_IDPropertyWrapPtr, metadata);
   return ptr;
 }
 

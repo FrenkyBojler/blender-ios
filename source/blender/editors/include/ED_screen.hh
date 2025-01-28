@@ -10,11 +10,7 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view2d_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_workspace_types.h"
-
-#include "DNA_object_enums.h"
 
 #include "WM_types.hh"
 
@@ -214,7 +210,7 @@ void ED_area_and_region_types_init(ScrArea *area);
 /**
  * Called in screen_refresh, or screens_init, also area size changes.
  */
-void ED_area_init(wmWindowManager *wm, wmWindow *win, ScrArea *area);
+void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area);
 void ED_area_exit(bContext *C, ScrArea *area);
 blender::StringRefNull ED_area_name(const ScrArea *area);
 int ED_area_icon(const ScrArea *area);
@@ -295,7 +291,7 @@ ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area);
                        vert_name->next)
 
 /**
- * Update all areas that are supposed to follow the timeline playhead.
+ * Update all areas that are supposed to follow the timeline current-frame indicator.
  */
 void ED_areas_do_frame_follow(bContext *C, bool center_view);
 
