@@ -50,7 +50,6 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_collection.hh"
 #include "BKE_collision.h"
 #include "BKE_curve.hh"
 #include "BKE_customdata.hh"
@@ -755,7 +754,7 @@ static void build_bps_springlist(Object *ob)
         add_bp_springlist(bp, sb->totspring - b);
       }
     } /* For springs. */
-  }   /* For bp. */
+  } /* For bp. */
 }
 
 static void calculate_collision_balls(Object *ob)
@@ -1119,8 +1118,8 @@ static int sb_detect_face_pointCached(const float face_v1[3],
             }
             a--;
           } /* while (a) */
-        }   /* if (vert_positions) */
-      }     /* if (ob->pd && ob->pd->deflect) */
+        } /* if (vert_positions) */
+      } /* if (ob->pd && ob->pd->deflect) */
       BLI_ghashIterator_step(ihash);
     }
   } /* while () */
@@ -1232,7 +1231,7 @@ static int sb_detect_face_collisionCached(const float face_v1[3],
           mima++;
           vt++;
         } /* while a */
-      }   /* if (ob->pd && ob->pd->deflect) */
+      } /* if (ob->pd && ob->pd->deflect) */
       BLI_ghashIterator_step(ihash);
     }
   } /* while () */
@@ -1419,7 +1418,7 @@ static int sb_detect_edge_collisionCached(const float edge_v1[3],
           mima++;
           vt++;
         } /* while a */
-      }   /* if (ob->pd && ob->pd->deflect) */
+      } /* if (ob->pd && ob->pd->deflect) */
       BLI_ghashIterator_step(ihash);
     }
   } /* while () */
@@ -1766,7 +1765,7 @@ static int sb_detect_vertex_collisionCached(float opco[3],
           mima++;
           vt++;
         } /* while a */
-      }   /* if (ob->pd && ob->pd->deflect) */
+      } /* if (ob->pd && ob->pd->deflect) */
       BLI_ghashIterator_step(ihash);
     }
   } /* while () */
@@ -2165,11 +2164,11 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene,
             // sb_spring_force(Object *ob, int bpi, BodySpring *bs, float iks, float forcetime)
             sb_spring_force(ob, ilast - bb, bs, iks, forcetime);
           } /* loop springs. */
-        }   /* existing spring list. */
-      }     /* Any edges. */
+        } /* existing spring list. */
+      } /* Any edges. */
       /* ---springs */
-    }       /* Omit on snap. */
-  }         /* Loop all bp's. */
+    } /* Omit on snap. */
+  } /* Loop all bp's. */
   return 0; /* Done fine. */
 }
 

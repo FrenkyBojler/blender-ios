@@ -17,11 +17,11 @@
 #include "DNA_color_types.h"
 #include "DNA_curve_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_task.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_colortools.hh"
@@ -486,7 +486,7 @@ void BKE_curvemap_handle_set(CurveMap *cuma, int type)
 static void calchandle_curvemap(BezTriple *bezt, const BezTriple *prev, const BezTriple *next)
 {
 /* defines to avoid confusion */
-#define p2_h1 ((p2)-3)
+#define p2_h1 ((p2) - 3)
 #define p2_h2 ((p2) + 3)
 
   const float *p1, *p3;

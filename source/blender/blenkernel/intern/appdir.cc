@@ -17,7 +17,6 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_tempfile.h"
 #include "BLI_utildefines.h"
@@ -29,8 +28,6 @@
 #include "BLT_translation.hh"
 
 #include "GHOST_Path-api.hh"
-
-#include "MEM_guardedalloc.h"
 
 #include "CLG_log.h"
 
@@ -980,13 +977,13 @@ bool BKE_appdir_program_python_search(char *program_filepath,
   /* Check both possible names. */
   const char *python_names[] = {
 #ifdef PYTHON_EXECUTABLE_NAME
-    python_build_def,
+      python_build_def,
 #endif
 #if defined(WIN32) && !defined(NDEBUG)
-    basename_debug,
+      basename_debug,
 #endif
-    python_version,
-    basename,
+      python_version,
+      basename,
   };
   bool is_found = false;
 
