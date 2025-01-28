@@ -18,7 +18,6 @@
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
-#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 #include "editors/sculpt_paint/sculpt_smooth.hh"
 
 #include "bmesh.hh"
