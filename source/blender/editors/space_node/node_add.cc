@@ -1095,6 +1095,7 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
   }
 
   bke::node_set_active(ntree, color_node);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 
   return OPERATOR_FINISHED;
 }
