@@ -4280,6 +4280,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
   SculptSession &ss = *ob.sculpt;
   StrokeCache &cache = *ss.cache;
   Brush &brush = *BKE_paint_brush(&sd.paint);
+  const ARegion &region = *CTX_wm_region(C);
 
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(cache) ||
       !((brush.flag & BRUSH_ANCHORED) ||
@@ -4293,13 +4294,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
   RNA_float_get_array(ptr, "mouse", cache.mouse);
   RNA_float_get_array(ptr, "mouse_event", cache.mouse_event);
 
-  const ARegion *region = CTX_wm_region(C);
-  cache.region_size = region ? int2(region->winx, region->winy) : int2(0);
-
-  cache.view_3d_cursor_location = scene.cursor.location;
-  cache.view_3d_cursor_rotation = scene.cursor.rotation().w;
-
-  cache.node_field_eval_data = prepare_field_eval_data(depsgraph, ob, brush, cache);
+  cache.node_field_eval_data = prepare_field_eval_data(scene, region, depsgraph, ob, brush, cache);
 
   /* XXX: Use pressure value from first brush step for brushes which don't support strokes (grab,
    * thumb). They depends on initial state and brush coord/pressure/etc.

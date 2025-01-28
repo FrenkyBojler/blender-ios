@@ -9,10 +9,12 @@
 
 #include "FN_field.hh"
 
+struct ARegion;
 struct BMVert;
 struct Brush;
 struct Depsgraph;
 struct Object;
+struct Scene;
 struct SubdivCCG;
 
 namespace blender::ed::sculpt_paint {
@@ -24,7 +26,9 @@ struct NodeFieldEvalData {
   fn::GField field;
 };
 
-std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Depsgraph &depsgraph,
+std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
+                                                           const ARegion &region,
+                                                           const Depsgraph &depsgraph,
                                                            const Object &object,
                                                            const Brush &brush,
                                                            const StrokeCache &cache);

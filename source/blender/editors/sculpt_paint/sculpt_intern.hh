@@ -223,12 +223,6 @@ struct StrokeCache {
   /* Position of the mouse event in screen space, not modified by the stroke type. */
   float2 mouse_event;
 
-  int2 region_size;
-
-  /* 3d cursor */
-  float3 view_3d_cursor_location;
-  float view_3d_cursor_rotation;
-
   struct {
     Array<float3> prev_displacement;
     Array<float3> limit_surface_co;

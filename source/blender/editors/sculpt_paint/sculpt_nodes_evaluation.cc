@@ -14,6 +14,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
+#include "DNA_screen_types.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -82,7 +83,9 @@ static Depsgraph *build_extra_depsgraph(const Depsgraph &depsgraph_active, const
  *
  * Outputs a field that can be evaluated later for a specific node.
  */
-static std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Depsgraph &depsgraph,
+static std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
+                                                                  const ARegion &region,
+                                                                  const Depsgraph &depsgraph,
                                                                   const Object &object,
                                                                   const Brush &brush,
                                                                   const StrokeCache &cache,
@@ -158,22 +161,18 @@ static std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Depsgrap
   sculpt_data.depsgraph_extra = depsgraph_extra;
   sculpt_data.self_object = &object;
 
-  if (cache.vc->rv3d) {
-    sculpt_data.view_matrix = float4x4(cache.vc->rv3d->viewmat);
-    sculpt_data.projection_matrix = float4x4(cache.vc->rv3d->winmat);
-    sculpt_data.is_orthographic = !bool(cache.vc->rv3d->is_persp);
-  }
-  else {
-    sculpt_data.view_matrix = float4x4::identity();
-    sculpt_data.projection_matrix = float4x4::identity();
-    sculpt_data.is_orthographic = false;
-  }
+  const RegionView3D &rv3d = reinterpret_cast<const RegionView3D &>(region.regiondata);
+
+  sculpt_data.view_matrix = float4x4(rv3d.viewmat);
+  sculpt_data.projection_matrix = float4x4(rv3d.winmat);
+  sculpt_data.is_orthographic = !bool(rv3d.is_persp);
 
   sculpt_data.mouse_position = int2(int(cache.mouse_event.x), int(cache.mouse_event.y));
-  sculpt_data.region_size = cache.region_size;
 
-  sculpt_data.view_3d_cursor_location = cache.view_3d_cursor_location;
-  sculpt_data.view_3d_cursor_rotation = cache.view_3d_cursor_rotation;
+  sculpt_data.region_size = int2(region.winx, region.winy);
+
+  sculpt_data.view_3d_cursor_location = scene.cursor.location;
+  sculpt_data.view_3d_cursor_rotation = scene.cursor.rotation();
 
   nodes::GeoNodesCallData call_data;
   call_data.root_ntree = tree;
@@ -280,7 +279,9 @@ static std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Depsgrap
   return output;
 }
 
-std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Depsgraph &depsgraph,
+std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
+                                                           const ARegion &region,
+                                                           const Depsgraph &depsgraph,
                                                            const Object &object,
                                                            const Brush &brush,
                                                            const StrokeCache &cache)
@@ -289,9 +290,11 @@ std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Depsgraph &deps
       (brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
        (brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA)))
   {
-    return prepare_field_eval_data(depsgraph, object, brush, cache, OutputType::Translations);
+    return prepare_field_eval_data(
+        scene, region, depsgraph, object, brush, cache, OutputType::Translations);
   }
-  return prepare_field_eval_data(depsgraph, object, brush, cache, OutputType::MixFactors);
+  return prepare_field_eval_data(
+      scene, region, depsgraph, object, brush, cache, OutputType::MixFactors);
 }
 
 class MeshSculptFieldContext : public fn::FieldContext {
