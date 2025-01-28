@@ -286,10 +286,10 @@ std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
                                                            const Brush &brush,
                                                            const StrokeCache &cache)
 {
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW &&
-      (brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
-       (brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA)))
-  {
+  const bool is_VDM_brush = (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW) &&
+                            (brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT) &&
+                            (brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA);
+  if (is_VDM_brush) {
     return prepare_field_eval_data(
         scene, region, depsgraph, object, brush, cache, OutputType::Translations);
   }
