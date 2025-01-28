@@ -6797,11 +6797,16 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   /* 3D view: Auto center of rotation */
   prop = RNA_def_property(srna, "ndof_auto_cor", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_AUTO_COR);
-  RNA_def_property_ui_text(prop, "Auto", "");
+  RNA_def_property_ui_text(prop, "Auto", "Auto sets the center of rotation dynamically. "
+                                         "When the complete model is in view, the center of "
+                                         "volume of the whole model is used as the rotation point. "
+                                         "When you move closer, the center of rotation will be set "
+                                         "on an object close to your center of the view.");
 
   prop = RNA_def_property(srna, "ndof_orbit_selection", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ORBIT_SELECTION);
-  RNA_def_property_ui_text(prop, "Use Selected Item", "");
+  RNA_def_property_ui_text(prop, "Use Selected Item", "Use selected Item forces the rotation center "
+                                                      "to only take the currently selected objects into account.");
 
   /* 3D view: yaw */
   prop = RNA_def_property(srna, "ndof_rotx_invert_axis", PROP_BOOLEAN, PROP_NONE);
