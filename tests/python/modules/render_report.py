@@ -494,7 +494,7 @@ class Report:
                 if not batch:
                     break
 
-            if self.device:
+            if ('cycles' in self.title.lower()) and (self.device):
                 command.extend(['--', '--cycles-device', self.device])
 
             # Run process
