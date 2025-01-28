@@ -551,7 +551,7 @@ class Report:
         all_files = list(blend_list(dirpath, self.device, self.blocklist))
         all_files.sort()
         if not all_files:
-            print_message("No tests found in '{}'!".format(dirpath), 'FAILURE', "==========")
+            print_message("No .blend files found in '{}'!".format(dirpath), 'FAILURE', 'FAILED')
             return False
 
         print_message("Running {} tests from 1 test case." .
