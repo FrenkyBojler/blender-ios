@@ -90,8 +90,7 @@ void ED_sequencer_special_preview_set(bContext *C, const int mval[2])
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
-  eSeqHandle hand_dummy;
-  Strip *strip = find_nearest_seq(scene, &region->v2d, mval, &hand_dummy);
+  Strip *strip = get_strip_under_mouse(scene, &region->v2d, mval);
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND_RAM) {
     sequencer_special_update_set(strip);
   }
