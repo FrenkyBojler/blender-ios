@@ -172,6 +172,9 @@ static void ensure_asset_ui_visible(bContext &C)
 
   /* At this point, no asset shelf or asset browser was visible anywhere. */
   ARegion *shelf_region = BKE_area_find_region_type(current_area, RGN_TYPE_ASSET_SHELF);
+  if (!shelf_region) {
+    return;
+  }
   shelf_region->flag &= ~RGN_FLAG_HIDDEN;
   ED_region_visibility_change_update(&C, CTX_wm_area(&C), shelf_region);
 }
@@ -226,15 +229,15 @@ static int create_pose_asset_local(bContext *C,
   /* I (christoph) don't know if a local library can fail to load. Just being defensive here */
   BLI_assert(library);
   if (catalog_path[0] && library) {
-    const asset_system::AssetCatalog &catalog =
-        blender::ed::asset::library_ensure_catalogs_in_path(*library, catalog_path);
+    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
+        *library, catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
   ensure_asset_ui_visible(*C);
-  blender::ed::asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
+  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
 
-  blender::ed::asset::refresh_asset_library(C, lib_ref);
+  asset::refresh_asset_library(C, lib_ref);
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
 
@@ -251,6 +254,7 @@ static int create_pose_asset_user_library(bContext *C,
 
   const bUserAssetLibrary *user_library = BKE_preferences_asset_library_find_index(
       &U, lib_ref.custom_library_index);
+  BLI_assert_msg(user_library, "The passed lib_ref is expected to be a user library");
   if (!user_library) {
     return OPERATOR_CANCELLED;
   }
@@ -278,8 +282,8 @@ static int create_pose_asset_user_library(bContext *C,
 
   AssetMetaData &meta_data = *pose_action.id.asset_data;
   if (catalog_path[0]) {
-    const asset_system::AssetCatalog &catalog =
-        blender::ed::asset::library_ensure_catalogs_in_path(*library, catalog_path);
+    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
+        *library, catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
@@ -289,11 +293,11 @@ static int create_pose_asset_user_library(bContext *C,
 
   library->catalog_service().write_to_disk(*final_full_asset_filepath);
   ensure_asset_ui_visible(*C);
-  blender::ed::asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
+  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
 
   BKE_id_free(bmain, &pose_action.id);
 
-  blender::ed::asset::refresh_asset_library(C, lib_ref);
+  asset::refresh_asset_library(C, lib_ref);
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
 
@@ -337,7 +341,7 @@ static int pose_asset_create_invoke(bContext *C, wmOperator *op, const wmEvent *
 {
   /* If the library isn't saved from the operator's last execution, use the first library. */
   if (!RNA_struct_property_is_set_ex(op->ptr, "asset_library_reference", false)) {
-    const AssetLibraryReference first_library = blender::ed::asset::user_library_to_library_ref(
+    const AssetLibraryReference first_library = asset::user_library_to_library_ref(
         *static_cast<const bUserAssetLibrary *>(U.asset_libraries.first));
     RNA_enum_set(op->ptr,
                  "asset_library_reference",
@@ -350,10 +354,6 @@ static int pose_asset_create_invoke(bContext *C, wmOperator *op, const wmEvent *
 static bool pose_asset_create_poll(bContext *C)
 {
   if (!ED_operator_posemode_context(C)) {
-    return false;
-  }
-  if (BLI_listbase_is_empty(&U.asset_libraries)) {
-    CTX_wm_operator_poll_msg_set(C, "No asset library available to save to");
     return false;
   }
   return true;
@@ -369,7 +369,7 @@ static void visit_library_prop_catalogs_catalog_for_search_fn(
   const int enum_value = RNA_enum_get(ptr, "asset_library_reference");
   const AssetLibraryReference lib_ref = asset::library_reference_from_enum_value(enum_value);
 
-  blender::ed::asset::visit_library_catalogs_catalog_for_search(
+  asset::visit_library_catalogs_catalog_for_search(
       *CTX_data_main(C), lib_ref, edit_text, visit_fn);
 }
 
@@ -547,12 +547,12 @@ static void update_pose_action_from_scene(Main *bmain,
       break;
     }
     case MODIFY_REPLACE: {
-      Channelbag *channel_bag = strip_data->channelbag_for_slot(slot->handle);
-      if (!channel_bag) {
+      Channelbag *channelbag = strip_data->channelbag_for_slot(slot->handle);
+      if (!channelbag) {
         /* No channels to remove. */
         return;
       }
-      channel_bag->fcurves_clear();
+      channelbag->fcurves_clear();
       for (const PathValue &path_value : path_values) {
         strip_data->keyframe_insert(bmain,
                                     *slot,
@@ -563,8 +563,8 @@ static void update_pose_action_from_scene(Main *bmain,
       break;
     }
     case MODIFY_REMOVE: {
-      Channelbag *channel_bag = strip_data->channelbag_for_slot(slot->handle);
-      if (!channel_bag) {
+      Channelbag *channelbag = strip_data->channelbag_for_slot(slot->handle);
+      if (!channelbag) {
         /* No channels to remove. */
         return;
       }
@@ -575,7 +575,7 @@ static void update_pose_action_from_scene(Main *bmain,
       for (const PathValue &path_value : path_values) {
         if (existing_paths.contains(path_value.rna_path)) {
           FCurve *fcurve = fcurve_map.lookup(path_value.rna_path);
-          channel_bag->fcurve_remove(*fcurve);
+          channelbag->fcurve_remove(*fcurve);
         }
       }
       break;
@@ -589,7 +589,7 @@ static void refresh_asset_library(bContext *C)
   AssetWeakReference asset_reference = asset_handle->make_weak_reference();
   bUserAssetLibrary *library = BKE_preferences_asset_library_find_by_name(
       &U, asset_reference.asset_library_identifier);
-  blender::ed::asset::refresh_asset_library(C, *library);
+  asset::refresh_asset_library(C, *library);
 }
 
 static int pose_asset_modify_exec(bContext *C, wmOperator *op)
@@ -722,7 +722,7 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
     asset::clear_id(&action->id);
   }
 
-  blender::ed::asset::refresh_asset_library(C, *library);
+  asset::refresh_asset_library(C, *library);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
