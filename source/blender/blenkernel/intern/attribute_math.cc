@@ -295,12 +295,11 @@ void gather_ranges_to_groups(const Span<IndexRange> src_ranges,
     Span<T> src_span = src.typed<T>();
     MutableSpan<T> dst_span = dst.typed<T>();
 
-    threading::parallel_for(
-        src_ranges.index_range(), GrainSize(512).value, [&](const IndexRange range) {
-          for (const int i : range) {
-            dst_span.slice(dst_offsets[i]).copy_from(src_span.slice(src_ranges[i]));
-          }
-        });
+    threading::parallel_for(src_ranges.index_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        dst_span.slice(dst_offsets[i]).copy_from(src_span.slice(src_ranges[i]));
+      }
+    });
   });
 }
 

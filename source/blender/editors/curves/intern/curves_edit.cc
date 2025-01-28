@@ -81,14 +81,14 @@ static void foreach_content_slice_by_offsets(
 static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
                                          const IndexRange points,
                                          const int curve,
-                                         const VArray<bool> cyclic,
+                                         const bool cyclic,
                                          Vector<int> &r_new_curve_offsets,
                                          Vector<bool> &r_new_cyclic,
                                          Vector<IndexRange> &r_src_ranges,
                                          Vector<int> &r_dst_offsets,
-                                         Vector<int> &r_curve_map)
+                                         Vector<int> &r_dst_to_src_curve)
 {
-  const bool merge_loop = cyclic[curve] && selected_points.first().size() < points.size() &&
+  const bool merge_loop = cyclic && selected_points.first().size() < points.size() &&
                           selected_points.first().first() == points.first() &&
                           selected_points.last().last() == points.last();
 
@@ -108,8 +108,8 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
     r_new_curve_offsets.last() += merge_to_end.size();
   }
   const int curves_added = selected_points.size() - merge_loop;
-  r_curve_map.append_n_times(curve, curves_added);
-  r_new_cyclic.append_n_times(cyclic[curve] && selected_points.first().size() == points.size(),
+  r_dst_to_src_curve.append_n_times(curve, curves_added);
+  r_new_cyclic.append_n_times(cyclic && selected_points.first().size() == points.size(),
                               curves_added);
 }
 
@@ -118,7 +118,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const VArray<bool> src_cyclic = curves.cyclic();
 
-  Vector<int> curve_map;
+  Vector<int> dst_to_src_curve;
   Vector<int> new_curve_offsets({points_by_curve.data().last()});
   Vector<IndexRange> src_ranges;
   Vector<int> dst_offsets({0});
@@ -132,17 +132,17 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
         curve_offsets_from_selection(ranges_to_duplicate,
                                      points,
                                      curve,
-                                     src_cyclic,
+                                     src_cyclic[curve],
                                      new_curve_offsets,
                                      dst_cyclic,
                                      src_ranges,
                                      dst_offsets,
-                                     curve_map);
+                                     dst_to_src_curve);
       });
 
   const int old_curves_num = curves.curves_num();
   const int old_points_num = curves.points_num();
-  const int num_curves_to_add = curve_map.size();
+  const int num_curves_to_add = dst_to_src_curve.size();
   const int num_points_to_add = mask.size();
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
@@ -170,7 +170,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
         }
         bke::attribute_math::gather(
             attribute.span,
-            curve_map,
+            dst_to_src_curve,
             attribute.span.slice(IndexRange(old_curves_num, num_curves_to_add)));
         break;
       }
