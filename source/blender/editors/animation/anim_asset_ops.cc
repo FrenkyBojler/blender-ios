@@ -405,33 +405,33 @@ void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
   RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
-enum AssetOverwriteMode {
-  OVERWRITE_ADJUST = 0,
-  OVERWRITE_REPLACE,
-  OVERWRITE_ADD,
-  OVERWRITE_REMOVE,
+enum AssetModifyMode {
+  MODIFY_ADJUST = 0,
+  MODIFY_REPLACE,
+  MODIFY_ADD,
+  MODIFY_REMOVE,
 };
 
 static const EnumPropertyItem prop_asset_overwrite_modes[] = {
-    {OVERWRITE_ADJUST,
+    {MODIFY_ADJUST,
      "ADJUST",
      0,
      "Adjust",
      "Update existing channels in the pose asset but don't remove or add any channels"},
-    {OVERWRITE_REPLACE,
+    {MODIFY_REPLACE,
      "REPLACE",
      0,
-     "Replace",
+     "Replace with Selection",
      "Completely replace all channels in the pose asset with the current selection"},
-    {OVERWRITE_ADD,
+    {MODIFY_ADD,
      "ADD",
      0,
-     "Add",
+     "Add Selected Bones",
      "Add channels of the selection to the pose asset. Existing channels will be updated"},
-    {OVERWRITE_REMOVE,
+    {MODIFY_REMOVE,
      "REMOVE",
      0,
-     "Remove",
+     "Remove Selected Bones",
      "Remove channels of the selection from the pose asset"},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -500,7 +500,7 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
 static void update_pose_action_from_scene(Main *bmain,
                                           blender::animrig::Action &action,
                                           Object &pose_object,
-                                          const AssetOverwriteMode mode)
+                                          const AssetModifyMode mode)
 {
   using namespace blender::animrig;
   if (action.slot_array_num < 1) {
@@ -522,7 +522,7 @@ static void update_pose_action_from_scene(Main *bmain,
   Vector<PathValue> path_values = generate_path_values(pose_object);
 
   switch (mode) {
-    case OVERWRITE_ADJUST: {
+    case MODIFY_ADJUST: {
       for (const PathValue &path_value : path_values) {
         /* Only updating existing channels. */
         if (existing_paths.contains(path_value.rna_path)) {
@@ -536,7 +536,7 @@ static void update_pose_action_from_scene(Main *bmain,
       }
       break;
     }
-    case OVERWRITE_ADD: {
+    case MODIFY_ADD: {
       for (const PathValue &path_value : path_values) {
         strip_data->keyframe_insert(bmain,
                                     *slot,
@@ -546,7 +546,7 @@ static void update_pose_action_from_scene(Main *bmain,
       }
       break;
     }
-    case OVERWRITE_REPLACE: {
+    case MODIFY_REPLACE: {
       Channelbag *channel_bag = strip_data->channelbag_for_slot(slot->handle);
       if (!channel_bag) {
         /* No channels to remove. */
@@ -562,7 +562,7 @@ static void update_pose_action_from_scene(Main *bmain,
       }
       break;
     }
-    case OVERWRITE_REMOVE: {
+    case MODIFY_REMOVE: {
       Channelbag *channel_bag = strip_data->channelbag_for_slot(slot->handle);
       if (!channel_bag) {
         /* No channels to remove. */
@@ -603,7 +603,7 @@ static int pose_asset_modify_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  AssetOverwriteMode mode = AssetOverwriteMode(RNA_enum_get(op->ptr, "mode"));
+  AssetModifyMode mode = AssetModifyMode(RNA_enum_get(op->ptr, "mode"));
   update_pose_action_from_scene(bmain, action->wrap(), *pose_object, mode);
 
   asset::generate_preview(C, &action->id);
@@ -671,7 +671,7 @@ void POSELIB_OT_asset_modify(wmOperatorType *ot)
   RNA_def_enum(ot->srna,
                "mode",
                prop_asset_overwrite_modes,
-               OVERWRITE_ADJUST,
+               MODIFY_ADJUST,
                "Overwrite Mode",
                "Specify which parts of the pose asset are overwritten");
 }

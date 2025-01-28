@@ -25,8 +25,8 @@ class VIEW3D_MT_pose_modify(Menu):
         layout = self.layout
 
         layout.operator("poselib.asset_modify", text="Replace").mode = "REPLACE"
-        layout.operator("poselib.asset_modify", text="Add").mode = "ADD"
-        layout.operator("poselib.asset_modify", text="Remove").mode = "REMOVE"
+        layout.operator("poselib.asset_modify", text="Add Selected Bones").mode = "ADD"
+        layout.operator("poselib.asset_modify", text="Remove Selected Bones").mode = "REMOVE"
 
 class PoseLibraryPanel:
     @classmethod
@@ -68,7 +68,7 @@ class VIEW3D_AST_pose_library(bpy.types.AssetShelf):
         props.select = False
 
         layout.separator()
-        layout.operator("poselib.asset_modify")
+        layout.operator("poselib.asset_modify", text="Adjust Pose Asset").mode = 'ADJUST'
         layout.menu("VIEW3D_MT_pose_modify")
         layout.operator("poselib.asset_delete")
 
@@ -107,7 +107,7 @@ def pose_library_asset_browser_context_menu(self: UIList, context: Context) -> N
     props.select = False
 
     layout.separator()
-    layout.operator("poselib.asset_modify")
+    layout.operator("poselib.asset_modify", text="Adjust Pose Asset").mode = 'ADJUST'
     layout.operator("poselib.asset_delete")
 
     layout.separator()
