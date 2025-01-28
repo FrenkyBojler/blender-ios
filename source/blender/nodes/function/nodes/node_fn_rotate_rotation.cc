@@ -28,7 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "rotation_space", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "rotation_space", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -76,7 +76,10 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  fn_node_type_base(&ntype, FN_NODE_ROTATE_ROTATION, "Rotate Rotation", NODE_CLASS_CONVERTER);
+  fn_node_type_base(&ntype, "FunctionNodeRotateRotation", FN_NODE_ROTATE_ROTATION);
+  ntype.ui_name = "Rotate Rotation";
+  ntype.enum_name_legacy = "ROTATE_ROTATION";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.build_multi_function = node_build_multi_function;

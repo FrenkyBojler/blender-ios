@@ -16,7 +16,6 @@
 #include "BLI_math_matrix.h"
 
 #include "DNA_armature_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_meta_types.h"
 
@@ -34,6 +33,7 @@
 #include "BKE_paint.hh"
 #include "BKE_pointcache.h"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
@@ -1156,7 +1156,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   }
   TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get_from_flag(scene,
                                                                                    orient_flag);
-  PointerRNA orient_ref_ptr = RNA_pointer_create(
+  PointerRNA orient_ref_ptr = RNA_pointer_create_discrete(
       &scene->id, &RNA_TransformOrientationSlot, orient_slot);
   const ToolSettings *ts = scene->toolsettings;
 
@@ -1173,7 +1173,8 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   if ((ts->transform_pivot_point == V3D_AROUND_CURSOR) || (orient_slot->type == V3D_ORIENT_CURSOR))
   {
     /* We could be more specific here, for now subscribe to any cursor change. */
-    PointerRNA cursor_ptr = RNA_pointer_create(&scene->id, &RNA_View3DCursor, &scene->cursor);
+    PointerRNA cursor_ptr = RNA_pointer_create_discrete(
+        &scene->id, &RNA_View3DCursor, &scene->cursor);
     WM_msg_subscribe_rna(mbus, &cursor_ptr, nullptr, &msg_sub_value_gz_tag_refresh, __func__);
   }
 
@@ -1190,7 +1191,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
     }
   }
 
-  PointerRNA toolsettings_ptr = RNA_pointer_create(
+  PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(
       &scene->id, &RNA_ToolSettings, scene->toolsettings);
 
   if (ELEM(type_fn, VIEW3D_GGT_xform_gizmo, VIEW3D_GGT_xform_shear)) {
@@ -1213,7 +1214,8 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
     }
   }
 
-  PointerRNA view3d_ptr = RNA_pointer_create(&screen->id, &RNA_SpaceView3D, area->spacedata.first);
+  PointerRNA view3d_ptr = RNA_pointer_create_discrete(
+      &screen->id, &RNA_SpaceView3D, area->spacedata.first);
 
   if (type_fn == VIEW3D_GGT_xform_gizmo) {
     GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);
@@ -1895,7 +1897,7 @@ static void WIDGETGROUP_gizmo_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   ARegion *region = CTX_wm_region(C);
 
   {
-    wmGizmo *gz = WM_gizmomap_get_modal(region->gizmo_map);
+    wmGizmo *gz = WM_gizmomap_get_modal(region->runtime->gizmo_map);
     if (gz && gz->parent_gzgroup == gzgroup) {
       return;
     }
@@ -1966,7 +1968,7 @@ static void WIDGETGROUP_gizmo_draw_prepare(const bContext *C, wmGizmoGroup *gzgr
   /* Re-calculate hidden unless modal. */
   bool is_modal = false;
   {
-    wmGizmo *gz = WM_gizmomap_get_modal(region->gizmo_map);
+    wmGizmo *gz = WM_gizmomap_get_modal(region->runtime->gizmo_map);
     if (gz && gz->parent_gzgroup == gzgroup) {
       is_modal = true;
     }
@@ -2273,7 +2275,7 @@ void VIEW3D_GGT_xform_gizmo_context(wmGizmoGroupType *gzgt)
 
 static wmGizmoGroup *gizmogroup_xform_find(TransInfo *t)
 {
-  wmGizmoMap *gizmo_map = t->region->gizmo_map;
+  wmGizmoMap *gizmo_map = t->region->runtime->gizmo_map;
   if (gizmo_map == nullptr) {
     BLI_assert_msg(false, "#T_NO_GIZMO should already be set to return early before.");
     return nullptr;
@@ -2304,8 +2306,8 @@ static wmGizmoGroup *gizmogroup_xform_find(TransInfo *t)
 
 void transform_gizmo_3d_model_from_constraint_and_mode_init(TransInfo *t)
 {
-  wmGizmo *gizmo_modal_current = t->region && t->region->gizmo_map ?
-                                     WM_gizmomap_get_modal(t->region->gizmo_map) :
+  wmGizmo *gizmo_modal_current = t->region && t->region->runtime->gizmo_map ?
+                                     WM_gizmomap_get_modal(t->region->runtime->gizmo_map) :
                                      nullptr;
   if (!gizmo_modal_current || !ELEM(gizmo_modal_current->parent_gzgroup->type,
                                     g_GGT_xform_gizmo,
@@ -2371,7 +2373,7 @@ void transform_gizmo_3d_model_from_constraint_and_mode_set(TransInfo *t)
     axis_idx = axis_map[trans_mode][con_mode];
   }
 
-  wmGizmo *gizmo_modal_current = WM_gizmomap_get_modal(t->region->gizmo_map);
+  wmGizmo *gizmo_modal_current = WM_gizmomap_get_modal(t->region->runtime->gizmo_map);
   if (axis_idx != -1) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
     float(*mat_cmp)[3] = t->orient[t->orient_curr != O_DEFAULT ? t->orient_curr : O_SCENE].matrix;
@@ -2400,12 +2402,13 @@ void transform_gizmo_3d_model_from_constraint_and_mode_set(TransInfo *t)
       BLI_assert_msg(!gizmo_modal_current || gizmo_modal_current->highlight_part == 0,
                      "Avoid changing the highlight part");
       gizmo_expected->highlight_part = 0;
-      WM_gizmo_modal_set_while_modal(t->region->gizmo_map, t->context, gizmo_expected, &event);
-      WM_gizmo_highlight_set(t->region->gizmo_map, gizmo_expected);
+      WM_gizmo_modal_set_while_modal(
+          t->region->runtime->gizmo_map, t->context, gizmo_expected, &event);
+      WM_gizmo_highlight_set(t->region->runtime->gizmo_map, gizmo_expected);
     }
   }
   else if (gizmo_modal_current) {
-    WM_gizmo_modal_set_while_modal(t->region->gizmo_map, t->context, nullptr, nullptr);
+    WM_gizmo_modal_set_while_modal(t->region->runtime->gizmo_map, t->context, nullptr, nullptr);
   }
 }
 

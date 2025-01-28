@@ -7,6 +7,7 @@ set(INC
   PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
   ../../blenlib
   ../../imbuf
+  ../../imbuf/movie
 )
 
 set(INC_SYS
@@ -17,6 +18,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::dependencies::optional::tbb
+  PRIVATE bf::extern::fmtlib
 )
 
 add_definitions(-DWITH_DNA_GHASH)

@@ -6,8 +6,13 @@
  * \ingroup edgreasepencil
  */
 
+#include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_string.h"
+
 #include "BKE_context.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_object.hh"
 #include "BKE_report.hh"
 
 #include "BLT_translation.hh"
@@ -18,13 +23,80 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+
 #include "UI_interface.hh"
 
 #include "DNA_scene_types.h"
 
 #include "WM_api.hh"
+#include "WM_message.hh"
 
 namespace blender::ed::greasepencil {
+
+/* This utility function is modified from `BKE_object_get_parent_matrix()`. */
+static void get_bone_mat(const Object *parent, const char *parsubstr, float4x4 &r_mat)
+{
+  if (parent->type != OB_ARMATURE) {
+    r_mat = float4x4::identity();
+    return;
+  }
+
+  const bPoseChannel *pchan = BKE_pose_channel_find_name(parent->pose, parsubstr);
+  if (!pchan || !pchan->bone) {
+    r_mat = float4x4::identity();
+    return;
+  }
+
+  if (pchan->bone->flag & BONE_RELATIVE_PARENTING) {
+    r_mat = float4x4(pchan->chan_mat);
+  }
+  else {
+    r_mat = float4x4(pchan->pose_mat);
+  }
+}
+
+bool grease_pencil_layer_parent_set(bke::greasepencil::Layer &layer,
+                                    Object *parent,
+                                    StringRefNull bone,
+                                    const bool keep_transform)
+{
+  if (keep_transform) {
+    /* TODO apply current transform to geometry. */
+  }
+
+  layer.parent = parent;
+  layer.parsubstr = BLI_strdup_null(bone.c_str());
+  /* Calculate inverse parent matrix. */
+  if (parent) {
+    copy_m4_m4(layer.parentinv, parent->world_to_object().ptr());
+    if (layer.parsubstr) {
+      float4x4 bone_mat;
+      get_bone_mat(parent, layer.parsubstr, bone_mat);
+      float4x4 bone_inverse = math::invert(bone_mat) * float4x4(layer.parentinv);
+      copy_m4_m4(layer.parentinv, bone_inverse.ptr());
+    }
+  }
+  else {
+    unit_m4(layer.parentinv);
+  }
+
+  return true;
+}
+
+void grease_pencil_layer_parent_clear(bke::greasepencil::Layer &layer, const bool keep_transform)
+{
+  if (layer.parent == nullptr) {
+    return;
+  }
+  if (keep_transform) {
+    /* TODO apply current transform to geometry. */
+  }
+
+  layer.parent = nullptr;
+  MEM_SAFE_FREE(layer.parsubstr);
+
+  copy_m4_m4(layer.parentinv, float4x4::identity().ptr());
+}
 
 void select_layer_channel(GreasePencil &grease_pencil, bke::greasepencil::Layer *layer)
 {
@@ -51,6 +123,8 @@ static int grease_pencil_layer_add_exec(bContext *C, wmOperator *op)
       op->ptr, "new_layer_name", nullptr, 0, &new_layer_name_length);
   BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(new_layer_name); });
   Layer &new_layer = grease_pencil.add_layer(new_layer_name);
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layers);
 
   if (grease_pencil.has_active_layer()) {
     grease_pencil.move_node_after(new_layer.as_node(),
@@ -58,9 +132,17 @@ static int grease_pencil_layer_add_exec(bContext *C, wmOperator *op)
   }
   else if (grease_pencil.has_active_group()) {
     grease_pencil.move_node_into(new_layer.as_node(), *grease_pencil.get_active_group());
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+                            &grease_pencil.id,
+                            &grease_pencil,
+                            GreasePencilv3LayerGroup,
+                            active);
   }
 
   grease_pencil.set_active_layer(&new_layer);
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+
   grease_pencil.insert_frame(new_layer, scene->r.cfra);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
@@ -109,6 +191,11 @@ static int grease_pencil_layer_remove_exec(bContext *C, wmOperator * /*op*/)
 
   grease_pencil.remove_layer(*grease_pencil.get_active_layer());
 
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layers);
+
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
 
@@ -127,84 +214,6 @@ static void GREASE_PENCIL_OT_layer_remove(wmOperatorType *ot)
   ot->poll = active_grease_pencil_layer_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-static const EnumPropertyItem prop_layer_reorder_location[] = {
-    {LAYER_REORDER_ABOVE, "ABOVE", 0, "Above", ""},
-    {LAYER_REORDER_BELOW, "BELOW", 0, "Below", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
-static int grease_pencil_layer_reorder_exec(bContext *C, wmOperator *op)
-{
-  using namespace blender::bke::greasepencil;
-  Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-
-  if (!grease_pencil.has_active_layer()) {
-    return OPERATOR_CANCELLED;
-  }
-
-  int target_layer_name_length;
-  char *target_layer_name = RNA_string_get_alloc(
-      op->ptr, "target_layer_name", nullptr, 0, &target_layer_name_length);
-  const int reorder_location = RNA_enum_get(op->ptr, "location");
-
-  TreeNode *target_node = grease_pencil.find_node_by_name(target_layer_name);
-  if (!target_node || !target_node->is_layer()) {
-    MEM_SAFE_FREE(target_layer_name);
-    return OPERATOR_CANCELLED;
-  }
-
-  Layer &active_layer = *grease_pencil.get_active_layer();
-  switch (reorder_location) {
-    case LAYER_REORDER_ABOVE: {
-      /* NOTE: The layers are stored from bottom to top, so inserting above (visually), means
-       * inserting the link after the target. */
-      grease_pencil.move_node_after(active_layer.as_node(), *target_node);
-      break;
-    }
-    case LAYER_REORDER_BELOW: {
-      /* NOTE: The layers are stored from bottom to top, so inserting below (visually), means
-       * inserting the link before the target. */
-      grease_pencil.move_node_before(active_layer.as_node(), *target_node);
-      break;
-    }
-    default:
-      BLI_assert_unreachable();
-  }
-
-  MEM_SAFE_FREE(target_layer_name);
-
-  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
-
-  return OPERATOR_FINISHED;
-}
-
-static void GREASE_PENCIL_OT_layer_reorder(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Reorder Layer";
-  ot->idname = "GREASE_PENCIL_OT_layer_reorder";
-  ot->description = "Reorder the active Grease Pencil layer";
-
-  /* callbacks */
-  ot->exec = grease_pencil_layer_reorder_exec;
-  ot->poll = grease_pencil_context_poll;
-
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  PropertyRNA *prop = RNA_def_string(ot->srna,
-                                     "target_layer_name",
-                                     "Layer",
-                                     INT16_MAX,
-                                     "Target Name",
-                                     "Name of the target layer");
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-
-  RNA_def_enum(
-      ot->srna, "location", prop_layer_reorder_location, LAYER_REORDER_ABOVE, "Location", "");
 }
 
 enum class LayerMoveDirection : int8_t { Up = -1, Down = 1 };
@@ -257,6 +266,9 @@ static int grease_pencil_layer_move_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layers);
+
   return OPERATOR_FINISHED;
 }
 
@@ -287,7 +299,18 @@ static int grease_pencil_layer_active_exec(bContext *C, wmOperator *op)
   if (grease_pencil.is_layer_active(&layer)) {
     return OPERATOR_CANCELLED;
   }
+
+  if (grease_pencil.has_active_group()) {
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+                            &grease_pencil.id,
+                            &grease_pencil,
+                            GreasePencilv3LayerGroup,
+                            active);
+  }
   grease_pencil.set_active_layer(&layer);
+
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
 
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
 
@@ -321,21 +344,30 @@ static int grease_pencil_layer_group_add_exec(bContext *C, wmOperator *op)
   char *new_layer_group_name = RNA_string_get_alloc(
       op->ptr, "new_layer_group_name", nullptr, 0, &new_layer_group_name_length);
 
-  LayerGroup &parent_group = [&]() -> LayerGroup & {
-    if (grease_pencil.has_active_layer()) {
-      return grease_pencil.get_active_layer()->parent_group();
-    }
-    return grease_pencil.root_group();
-  }();
-
-  LayerGroup &new_group = grease_pencil.add_layer_group(parent_group, new_layer_group_name);
+  LayerGroup &new_group = grease_pencil.add_layer_group(new_layer_group_name);
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layer_groups);
 
   if (grease_pencil.has_active_layer()) {
     grease_pencil.move_node_after(new_group.as_node(),
                                   grease_pencil.get_active_layer()->as_node());
+    WM_msg_publish_rna_prop(
+        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+  }
+  else if (grease_pencil.has_active_group()) {
+    grease_pencil.move_node_into(new_group.as_node(), *grease_pencil.get_active_group());
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+                            &grease_pencil.id,
+                            &grease_pencil,
+                            GreasePencilv3LayerGroup,
+                            active);
   }
 
   MEM_SAFE_FREE(new_layer_group_name);
+  grease_pencil.set_active_node(&new_group.as_node());
+
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3LayerGroup, active);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
@@ -366,9 +398,8 @@ static void GREASE_PENCIL_OT_layer_group_add(wmOperatorType *ot)
 static int grease_pencil_layer_group_remove_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
-  Object *object = CTX_data_active_object(C);
   const bool keep_children = RNA_boolean_get(op->ptr, "keep_children");
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
 
   if (!grease_pencil.has_active_group()) {
     return OPERATOR_CANCELLED;
@@ -378,6 +409,11 @@ static int grease_pencil_layer_group_remove_exec(bContext *C, wmOperator *op)
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
+
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3LayerGroup, active);
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layer_groups);
 
   return OPERATOR_FINISHED;
 }
@@ -603,6 +639,9 @@ static int grease_pencil_layer_duplicate_exec(bContext *C, wmOperator *op)
   Layer &active_layer = *grease_pencil.get_active_layer();
   Layer &new_layer = grease_pencil.duplicate_layer(active_layer);
 
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layers);
+
   /* Clear source keyframes and recreate them with duplicated drawings. */
   new_layer.frames_for_write().clear();
   for (auto [frame_number, frame] : active_layer.frames().items()) {
@@ -624,6 +663,10 @@ static int grease_pencil_layer_duplicate_exec(bContext *C, wmOperator *op)
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
+
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+
   return OPERATOR_FINISHED;
 }
 
@@ -680,12 +723,18 @@ static int grease_pencil_merge_layer_exec(bContext *C, wmOperator *op)
     /* Map all the other layers to their own index. */
     const Span<const Layer *> layers = grease_pencil.layers();
     for (const int layer_i : layers.index_range()) {
-      if (layer_i != prev_layer_index && layer_i != active_layer_index) {
+      if (layer_i == active_layer_index) {
+        /* Active layer is merged into previous, skip. */
+      }
+      else if (layer_i == prev_layer_index) {
+        /* Previous layer merges itself and the active layer. */
+        src_layer_indices_by_dst_layer.append({prev_layer_index, active_layer_index});
+      }
+      else {
+        /* Other layers remain unchanged. */
         src_layer_indices_by_dst_layer.append({layer_i});
       }
     }
-    /* Map the two layers to one index so they will be merged. */
-    src_layer_indices_by_dst_layer.append({prev_layer_index, active_layer_index});
 
     /* Store the name of the current active layer as the name of the merged layer. */
     merged_layer_name = grease_pencil.layer(prev_layer_index).name();
@@ -721,6 +770,11 @@ static int grease_pencil_merge_layer_exec(bContext *C, wmOperator *op)
 
     /* Remove the active group. */
     grease_pencil.remove_group(active_group, true);
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+                            &grease_pencil.id,
+                            &grease_pencil,
+                            GreasePencilv3LayerGroup,
+                            active);
 
     /* Rename the first node so that the merged layer will have the name of the group. */
     grease_pencil.rename_node(
@@ -748,15 +802,22 @@ static int grease_pencil_merge_layer_exec(bContext *C, wmOperator *op)
   }
 
   GreasePencil *merged_grease_pencil = BKE_grease_pencil_new_nomain();
+  BKE_grease_pencil_copy_parameters(grease_pencil, *merged_grease_pencil);
   ed::greasepencil::merge_layers(
       grease_pencil, src_layer_indices_by_dst_layer, *merged_grease_pencil);
   BKE_grease_pencil_nomain_to_grease_pencil(merged_grease_pencil, &grease_pencil);
+
+  WM_msg_publish_rna_prop(
+      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layers);
 
   /* Try to set the active (merged) layer. */
   TreeNode *node = grease_pencil.find_node_by_name(merged_layer_name);
   if (node && node->is_layer()) {
     Layer &layer = node->as_layer();
     grease_pencil.set_active_layer(&layer);
+
+    WM_msg_publish_rna_prop(
+        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
   }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
@@ -1093,7 +1154,6 @@ void ED_operatortypes_grease_pencil_layers()
   using namespace blender::ed::greasepencil;
   WM_operatortype_append(GREASE_PENCIL_OT_layer_add);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_remove);
-  WM_operatortype_append(GREASE_PENCIL_OT_layer_reorder);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_move);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_active);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_hide);

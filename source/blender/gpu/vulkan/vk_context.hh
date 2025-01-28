@@ -29,7 +29,7 @@ class VKThreadData;
 class VKContext : public Context, NonCopyable {
  private:
   VkExtent2D vk_extent_ = {};
-  VkFormat swap_chain_format_ = {};
+  VkSurfaceFormatKHR swap_chain_format_ = {};
   GPUTexture *surface_texture_ = nullptr;
   void *ghost_context_;
 
@@ -92,7 +92,7 @@ class VKContext : public Context, NonCopyable {
                             VKVertexAttributeObject &vao,
                             render_graph::VKPipelineData &r_pipeline_data);
 
-  void sync_backbuffer();
+  void sync_backbuffer(bool cycle_resource_pool);
 
   static VKContext *get()
   {

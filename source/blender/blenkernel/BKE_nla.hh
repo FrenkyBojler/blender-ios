@@ -13,12 +13,10 @@
 
 #include "DNA_listBase.h"
 
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 
 #include "BLI_function_ref.hh"
-
-/* For blender::animrig::slot_handle_t. */
-#include "ANIM_action.hh"
 
 struct AnimData;
 struct ID;
@@ -468,13 +466,15 @@ void BKE_nla_validate_state(AnimData *adt);
 /* ............ */
 
 /**
- * Check if an action is "stashed" in the NLA already
+ * Check if an action+slot combination is "stashed" in the NLA already.
  *
  * The criteria for this are:
- * 1) The action in question lives in a "stash" track.
+ * 1) The action+slot in question lives in a "stash" track.
  * 2) We only check first-level strips. That is, we will not check inside meta strips.
  */
-bool BKE_nla_action_is_stashed(AnimData *adt, bAction *act);
+bool BKE_nla_action_slot_is_stashed(AnimData *adt,
+                                    bAction *act,
+                                    blender::animrig::slot_handle_t slot_handle);
 /**
  * "Stash" an action (i.e. store it as a track/layer in the NLA, but non-contributing)
  * to retain it in the file for future uses.
@@ -536,13 +536,18 @@ enum eNlaTime_ConvertModes {
 };
 
 /**
- * Non clipped mapping for strip-time <-> global time:
- * `mode = eNlaTime_ConvertModes -> NLATIME_CONVERT_*`
+ * Non clipped mapping for strip-time <-> global time.
  *
  * Public API method - perform this mapping using the given AnimData block
- * and perform any necessary sanity checks on the value
+ * and perform any necessary sanity checks on the value.
+ *
+ * \note Do not call this with an `adt` obtained from an `bAnimListElem`.
+ * Instead, use `ANIM_nla_tweakedit_remap()` for that. This is because not all
+ * data that might be in an `bAnimListElem` should be nla remapped, and this
+ * function cannot account for that, whereas `ANIM_nla_tweakedit_remap()` takes
+ * the `bAnimListElem` directly and makes sure the right thing is done.
  */
-float BKE_nla_tweakedit_remap(AnimData *adt, float cframe, short mode);
+float BKE_nla_tweakedit_remap(AnimData *adt, float cframe, eNlaTime_ConvertModes mode);
 
 /* ----------------------------- */
 /* .blend file API */

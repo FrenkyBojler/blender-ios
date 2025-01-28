@@ -28,7 +28,7 @@
 
 #include "UI_interface.hh"
 
-#include "NOD_common.h"
+#include "NOD_common.hh"
 #include "NOD_geo_bake.hh"
 #include "NOD_geo_simulation.hh"
 #include "NOD_geometry.hh"
@@ -65,7 +65,7 @@ namespace blender::nodes::node_geo_simulation_cc {
 
 static const CPPType &get_simulation_item_cpp_type(const eNodeSocketDatatype socket_type)
 {
-  const char *socket_idname = bke::node_static_socket_type(socket_type, 0);
+  const StringRefNull socket_idname = *bke::node_static_socket_type(socket_type, 0);
   const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket_idname);
   BLI_assert(typeinfo);
   BLI_assert(typeinfo->geometry_nodes_cpp_type);
@@ -199,7 +199,7 @@ static void draw_simulation_state(const bContext *C,
                                   bNode &output_node)
 {
   if (uiLayout *panel = uiLayoutPanel(
-          C, layout, "simulation_state_items", false, TIP_("Simulation State")))
+          C, layout, "simulation_state_items", false, IFACE_("Simulation State")))
   {
     socket_items::ui::draw_items_list_with_operators<SimulationItemsAccessor>(
         C, panel, ntree, output_node);
@@ -209,9 +209,9 @@ static void draw_simulation_state(const bContext *C,
           NodeSimulationItem &active_item = storage.items[storage.active_index];
           uiLayoutSetPropSep(panel, true);
           uiLayoutSetPropDecorate(panel, false);
-          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           if (socket_type_supports_fields(eNodeSocketDatatype(active_item.socket_type))) {
-            uiItemR(panel, item_ptr, "attribute_domain", UI_ITEM_NONE, nullptr, ICON_NONE);
+            uiItemR(panel, item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
         });
   }
@@ -253,7 +253,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
     draw_bake_button_row(ctx, col, true);
     if (const std::optional<std::string> bake_state_str = get_bake_state_string(ctx)) {
       uiLayout *row = uiLayoutRow(col, true);
-      uiItemL(row, bake_state_str->c_str(), ICON_NONE);
+      uiItemL(row, *bake_state_str, ICON_NONE);
     }
   }
   draw_common_bake_settings(C, ctx, layout);
@@ -489,7 +489,11 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_SIMULATION_INPUT, "Simulation Input", NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationInput", GEO_NODE_SIMULATION_INPUT);
+  ntype.ui_name = "Simulation Input";
+  ntype.ui_description = "Input data for the simulation zone";
+  ntype.enum_name_legacy = "SIMULATION_INPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
@@ -863,8 +867,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_SIMULATION_OUTPUT, "Simulation Output", NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationOutput", GEO_NODE_SIMULATION_OUTPUT);
+  ntype.ui_name = "Simulation Output";
+  ntype.ui_description = "Output data from the simulation zone";
+  ntype.enum_name_legacy = "SIMULATION_OUTPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = sim_input_node::node_label;
@@ -891,7 +898,7 @@ std::unique_ptr<LazyFunction> get_simulation_input_lazy_function(
     const bNode &node,
     GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info)
 {
-  BLI_assert(node.type == GEO_NODE_SIMULATION_INPUT);
+  BLI_assert(node.type_legacy == GEO_NODE_SIMULATION_INPUT);
   return std::make_unique<
       node_geo_simulation_cc::sim_input_node::LazyFunctionForSimulationInputNode>(
       node_tree, node, own_lf_graph_info);
@@ -900,7 +907,7 @@ std::unique_ptr<LazyFunction> get_simulation_input_lazy_function(
 std::unique_ptr<LazyFunction> get_simulation_output_lazy_function(
     const bNode &node, GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info)
 {
-  BLI_assert(node.type == GEO_NODE_SIMULATION_OUTPUT);
+  BLI_assert(node.type_legacy == GEO_NODE_SIMULATION_OUTPUT);
   return std::make_unique<
       node_geo_simulation_cc::sim_output_node::LazyFunctionForSimulationOutputNode>(
       node, own_lf_graph_info);

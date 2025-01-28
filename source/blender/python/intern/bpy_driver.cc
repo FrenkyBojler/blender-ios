@@ -15,7 +15,6 @@
 #include "DNA_anim_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math_base.h"
 #include "BLI_string.h"
 
 #include "BKE_animsys.h"
@@ -209,7 +208,7 @@ static void bpy_pydriver_namespace_clear_self()
 
 static PyObject *bpy_pydriver_depsgraph_as_pyobject(Depsgraph *depsgraph)
 {
-  PointerRNA depsgraph_ptr = RNA_pointer_create(nullptr, &RNA_Depsgraph, depsgraph);
+  PointerRNA depsgraph_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
   return pyrna_struct_CreatePyObject(&depsgraph_ptr);
 }
 
@@ -229,7 +228,7 @@ static void bpy_pydriver_namespace_update_depsgraph(Depsgraph *depsgraph)
   }
 
   if ((g_pydriver_state_prev.depsgraph == nullptr) ||
-      (depsgraph != g_pydriver_state_prev.depsgraph->ptr.data))
+      (depsgraph != g_pydriver_state_prev.depsgraph->ptr->data))
   {
     PyObject *item = bpy_pydriver_depsgraph_as_pyobject(depsgraph);
     PyDict_SetItem(bpy_pydriver_Dict, bpy_intern_str_depsgraph, item);
