@@ -1045,8 +1045,8 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
     return;
   }
 
-  float origin[2];
-  SEQ_image_transform_origin_offset_pixelspace_get(CTX_data_scene(C), strip, origin);
+  blender::float3 origin = SEQ_image_transform_origin_offset_pixelspace_get(CTX_data_scene(C),
+                                                                            strip);
 
   /* Origin. */
   GPUVertFormat *format = immVertexFormat();
@@ -1062,7 +1062,7 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   immUnbindProgram();
 
   /* Outline. */
-  const blender::Array<blender::float2> strip_image_quad = SEQ_image_transform_final_quad_get(
+  const blender::Array<blender::float3> strip_image_quad = SEQ_image_transform_final_quad_get(
       CTX_data_scene(C), strip);
 
   GPU_line_smooth(true);

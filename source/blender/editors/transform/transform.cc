@@ -124,7 +124,9 @@ void setTransformViewAspect(TransInfo *t, float r_aspect[3])
   }
   else if (t->spacetype == SPACE_SEQ) {
     if (t->options & CTX_CURSOR) {
-      SEQ_image_preview_unit_to_px(t->scene, r_aspect, r_aspect);
+      float3 aspect = SEQ_image_preview_unit_to_px(t->scene, r_aspect);
+      r_aspect[0] = aspect.x;
+      r_aspect[1] = aspect.y;
     }
   }
   else if (t->spacetype == SPACE_CLIP) {

@@ -442,7 +442,7 @@ void recurs_sel_seq(Strip *strip_meta)
 
 bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point_view[2])
 {
-  const blender::Array<blender::float2> strip_image_quad = SEQ_image_transform_final_quad_get(
+  const blender::Array<blender::float3> strip_image_quad = SEQ_image_transform_final_quad_get(
       scene, strip);
   return isect_point_quad_v2(point_view,
                              strip_image_quad[0],
@@ -796,8 +796,7 @@ static Strip *strip_select_seq_from_preview(
     float center_dist_sq_test = 0.0f;
     if (center) {
       /* Detect overlapping center points (scaled by the zoom level). */
-      float co[2];
-      SEQ_image_transform_origin_offset_pixelspace_get(scene, strip, co);
+      blender::float3 co = SEQ_image_transform_origin_offset_pixelspace_get(scene, strip);
       sub_v2_v2(co, mouseco_view);
       mul_v2_v2(co, center_scale_px);
       center_dist_sq_test = len_squared_v2(co);
@@ -2025,7 +2024,7 @@ static bool strip_box_select_rect_image_isect(const Scene *scene,
                                               const Strip *strip,
                                               const rctf *rect)
 {
-  const blender::Array<blender::float2> strip_image_quad = SEQ_image_transform_final_quad_get(
+  const blender::Array<blender::float3> strip_image_quad = SEQ_image_transform_final_quad_get(
       scene, strip);
   float rect_quad[4][2] = {{rect->xmax, rect->ymax},
                            {rect->xmax, rect->ymin},
