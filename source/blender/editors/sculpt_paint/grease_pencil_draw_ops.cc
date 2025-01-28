@@ -1059,11 +1059,13 @@ static void grease_pencil_fill_status_indicators(bContext &C,
   WorkspaceStatus status(&C);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Fill"), ICON_MOUSE_LMB);
-  status.item(fmt::format("{} ({:.3f})", IFACE_("Length"), op_data.extension_length),
-              ICON_MOUSE_MMB_SCROLL);
-	status.item(
-      fmt::format("{} : {}", IFACE_("Mode"), (is_extend ? IFACE_("Extend") : IFACE_("Radius"))),
+  status.item(
+      fmt::format("{} ({})", IFACE_("Mode"), (is_extend ? IFACE_("Extend") : IFACE_("Radius"))),
       ICON_EVENT_S);
+  status.item(fmt::format("{} ({:.3f})",
+                          is_extend ? IFACE_("Length") : IFACE_("Radius"),
+                          op_data.extension_length),
+              ICON_MOUSE_MMB_SCROLL);
   if (is_extend) {
     status.item_bool(IFACE_("Collision"), op_data.extension_cut, ICON_EVENT_D);
   }
