@@ -2413,9 +2413,17 @@ def draw_device(self, context):
         col = layout.column()
         col.prop(cscene, "feature_set")
 
+        device_supported = show_device_active(context)
         col = layout.column()
-        col.active = show_device_active(context)
+        col.active = device_supported
         col.prop(cscene, "device")
+
+        if not device_supported:
+            sub = layout.column(align=True)
+            sub.active = True
+            sub.label(text="No GPU devices are enabled.", icon='ERROR')
+            sub.label(text="Go to Preferences > System > Cycles Render Devices")
+            sub.label(text="and enable a supported GPU device.")
 
         from . import engine
         if engine.with_osl() and (
