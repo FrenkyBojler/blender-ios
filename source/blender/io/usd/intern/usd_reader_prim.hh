@@ -72,8 +72,8 @@ struct ImportSettings {
 class USDPrimReader {
 
  protected:
-  const std::string &name_;
-  const std::string &prim_path_;
+  std::string name_;
+  std::string prim_path_;
   Object *object_;
   pxr::UsdPrim prim_;
   const USDImportParams &import_params_;
