@@ -192,7 +192,7 @@ ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
 
 #  ifdef __KERNEL_OPTIX__
   uint8_t closure_pool[1024];
-  sd->osl_closure_pool = closure_pool;
+  globals.closure_pool = closure_pool;
 
   unsigned int optix_dc_index = 2 /* NUM_CALLABLE_PROGRAM_GROUPS */ +
                                 (shader + type * kernel_data.max_shaders);
