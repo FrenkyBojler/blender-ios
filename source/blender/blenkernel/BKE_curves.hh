@@ -295,6 +295,7 @@ class CurvesGeometry : public ::CurvesGeometry {
   OffsetIndices<int> nurbs_custom_knots_by_curve() const;
   IndexMask nurbs_custom_knot_curves(IndexMaskMemory &memory) const;
   int nurbs_custom_knots_num() const;
+  void nurbs_custom_knots_update_size();
   void nurbs_custom_knots_resize(int knots_num);
 
   /**

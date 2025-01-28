@@ -556,6 +556,20 @@ OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
   return OffsetIndices<int>(runtime.custom_knots_offsets_cache.data());
 }
 
+void CurvesGeometry::nurbs_custom_knots_update_size()
+{
+  this->runtime->custom_knots_offsets_cache.tag_dirty();
+  const OffsetIndices<int> knots_by_curve = this->nurbs_custom_knots_by_curve();
+  const int knots_num = knots_by_curve.total_size();
+  if (this->custom_knot_num != knots_num) {
+    implicit_sharing::resize_trivial_array(&this->custom_knots,
+                                           &this->runtime->custom_knots_sharing_info,
+                                           this->custom_knot_num,
+                                           knots_num);
+    this->custom_knot_num = knots_num;
+  }
+}
+
 void CurvesGeometry::nurbs_custom_knots_resize(int knots_num)
 {
   implicit_sharing::resize_trivial_array(&this->custom_knots,

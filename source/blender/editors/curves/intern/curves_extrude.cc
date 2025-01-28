@@ -218,9 +218,8 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
   const Span<float> src_knots = curves.nurbs_custom_knots();
   const VArray<int8_t> orders = curves.nurbs_orders();
   const OffsetIndices<int> src_knots_by_curve = curves.nurbs_custom_knots_by_curve();
-  const OffsetIndices<int> dst_knots_by_curve = dst_curves.nurbs_custom_knots_by_curve();
 
-  dst_curves.nurbs_custom_knots_resize(dst_knots_by_curve.total_size());
+  dst_curves.nurbs_custom_knots_update_size();
   MutableSpan<float> dst_knots = dst_curves.nurbs_custom_knots_for_write();
 
   custom_knot_curves.foreach_index(GrainSize(64), [&](const int64_t curve) {
@@ -285,6 +284,7 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
       span_multiplicity[span]++;
     }
 
+    const OffsetIndices<int> dst_knots_by_curve = dst_curves.nurbs_custom_knots_by_curve();
     MutableSpan<float> dst_curve_knots = dst_knots.slice(dst_knots_by_curve[curve]);
     int knot = 0;
     float knot_value = src_curve_knots[knot];
