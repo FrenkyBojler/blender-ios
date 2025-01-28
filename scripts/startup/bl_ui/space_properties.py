@@ -76,6 +76,7 @@ class PROPERTIES_PT_options(Panel):
         layout.separator()
 
         layout.use_property_split = True
+        layout.use_property_decorate = False
         col = layout.column(heading="Visible Tabs", align=True)
         col.prop(space, "show_properties_tool")
         col.prop(space, "show_properties_render")
