@@ -124,6 +124,8 @@ struct ShaderGlobals {
   /* This part is Cycles-specific and ignored by OSL itself. */
 #ifdef __KERNEL_OPTIX__
   ccl_private uint8_t *closure_pool;
+  ConstIntegratorState path_state;
+  ConstIntegratorShadowState shadow_path_state;
 #else
   const ThreadKernelGlobalsCPU *kg;
   const struct IntegratorStateCPU *path_state;
