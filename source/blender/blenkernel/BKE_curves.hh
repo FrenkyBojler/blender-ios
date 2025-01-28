@@ -816,6 +816,11 @@ int calculate_evaluated_num(
  */
 int knots_num(int points_num, int8_t order, bool cyclic);
 
+void copy_custom_knots(const int8_t order,
+                       const bool cyclic,
+                       Span<float> custom_knots,
+                       MutableSpan<float> knots);
+
 /**
  * Calculate the knots for a curve given its properties, based on built-in standards defined by
  * #KnotsMode.

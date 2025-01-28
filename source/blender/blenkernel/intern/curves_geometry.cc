@@ -731,11 +731,11 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
 
     const OffsetIndices<int> points_by_curve = this->points_by_curve();
     const OffsetIndices<int> evaluated_points_by_curve = this->evaluated_points_by_curve();
+    const OffsetIndices<int> custom_knots_by_curve = this->nurbs_custom_knots_by_curve();
     const VArray<bool> cyclic = this->cyclic();
     const VArray<int8_t> orders = this->nurbs_orders();
     const VArray<int8_t> knots_modes = this->nurbs_knots_modes();
     const Span<float> custom_knots = this->nurbs_custom_knots();
-    int custom_knots_offset = 0;
 
     nurbs_mask.foreach_segment(GrainSize(64), [&](const IndexMaskSegment segment) {
       Vector<float, 32> knots;
@@ -754,8 +754,8 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
         const int knots_num = curves::nurbs::knots_num(points.size(), order, is_cyclic);
         knots.reinitialize(knots_num);
         if (mode == NURBS_KNOT_MODE_CUSTOM) {
-          knots.as_mutable_span().copy_from(custom_knots.slice(custom_knots_offset, knots_num));
-          custom_knots_offset += knots_num;
+          bke::curves::nurbs::copy_custom_knots(
+              order, is_cyclic, custom_knots.slice(custom_knots_by_curve[curve_index]), knots);
         }
         else {
           curves::nurbs::calculate_knots(points.size(), mode, order, is_cyclic, knots);

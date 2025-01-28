@@ -260,11 +260,11 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
         first_span_knot += span_multiplicity[span];
         span++;
       }
-      int multiplicity = point - first_span_knot;
 
-      std::array<int, 2> side_spans;
-      int side = 0;
+      int multiplicity = point - first_span_knot;
       int point_span = span;
+      std::array<int, 2> side_spans{point_span, point_span};
+      int side = 0;
       for ([[maybe_unused]] const int i : IndexRange(order)) {
         multiplicity++;
         if (multiplicity > span_multiplicity[point_span]) {
