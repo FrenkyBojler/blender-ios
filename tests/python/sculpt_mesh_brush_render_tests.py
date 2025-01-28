@@ -53,9 +53,6 @@ def prepare_sculpt_scene(context: any):
     bpy.ops.object.subdivision_set(level=5)
     bpy.ops.object.modifier_apply(modifier="Subdivision")
 
-    # Disable brush cursor drawing to ensure tests on other platforms
-    bpy.data.scenes[0].tool_settings.sculpt.show_brush = False
-
     # Enter Sculpt mode
     bpy.ops.object.select_by_type(type='MESH')
     bpy.ops.object.mode_set(mode='SCULPT')
