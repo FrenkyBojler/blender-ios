@@ -1019,7 +1019,6 @@ static int ease_modal(bContext *C, wmOperator *op, const wmEvent *event)
         ED_slider_unit_set(gso->slider, "%");
         gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
       }
-      ED_slider_property_label_set(gso->slider, RNA_property_ui_name(gso->factor_prop));
       ease_modal_update(C, op);
       break;
     }
@@ -1550,7 +1549,7 @@ static void shear_graph_keys(bAnimContext *ac, const float factor, tShearDirecti
   ANIM_animdata_freelist(&anim_data);
 }
 
-static void shear_draw_status_header(bContext *C, tGraphSliderOp *gso)
+static void shear_draw_status_header(bContext *C, tGraphSliderOp *gso, tShearDirection direction)
 {
   WorkspaceStatus status(C);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
@@ -1563,7 +1562,11 @@ static void shear_draw_status_header(bContext *C, tGraphSliderOp *gso)
   }
   else {
     ED_slider_status_get(gso->slider, status);
-    status.item("Toggle Direction", ICON_EVENT_D);
+    status.item(
+        fmt::format("{} ({})",
+                    IFACE_("Direction"),
+                    direction == SHEAR_FROM_LEFT ? IFACE_("From Left") : IFACE_("From Right")),
+        ICON_EVENT_D);
   }
 }
 
@@ -1571,12 +1574,12 @@ static void shear_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  shear_draw_status_header(C, gso);
-
   /* Reset keyframes to the state at invoke. */
   reset_bezts(gso);
   const float factor = slider_factor_get_and_remember(op);
   const tShearDirection direction = tShearDirection(RNA_enum_get(op->ptr, "direction"));
+
+  shear_draw_status_header(C, gso, direction);
 
   shear_graph_keys(&gso->ac, factor, direction);
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
@@ -1616,7 +1619,9 @@ static int shear_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
   gso->modal_update = shear_modal_update;
   gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  shear_draw_status_header(C, gso);
+  const tShearDirection direction = tShearDirection(RNA_enum_get(op->ptr, "direction"));
+
+  shear_draw_status_header(C, gso, direction);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
 
@@ -2435,14 +2440,12 @@ static void scale_from_neighbor_draw_status_header(bContext *C, wmOperator *op)
     ED_slider_status_get(gso->slider, status);
     /* Operator specific functionality that extends beyond the slider. */
     const FCurveSegmentAnchor anchor = FCurveSegmentAnchor(RNA_enum_get(op->ptr, "anchor"));
-    switch (anchor) {
-      case FCurveSegmentAnchor::LEFT:
-        status.item(IFACE_("Scale From Right End"), ICON_EVENT_D);
-        break;
-      case FCurveSegmentAnchor::RIGHT:
-        status.item(IFACE_("Scale From Left End"), ICON_EVENT_D);
-        break;
-    }
+    ED_slider_status_get(gso->slider, status);
+    status.item(fmt::format("{} ({})",
+                            IFACE_("Direction"),
+                            anchor == FCurveSegmentAnchor::LEFT ? IFACE_("From Left") :
+                                                                  IFACE_("From Right")),
+                ICON_EVENT_D);
   }
 }
 
