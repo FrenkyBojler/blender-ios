@@ -108,7 +108,9 @@ def pose_library_asset_browser_context_menu(self: UIList, context: Context) -> N
 
     layout.separator()
     layout.operator("poselib.asset_modify", text="Adjust Pose Asset").mode = 'ADJUST'
-    layout.operator("poselib.asset_delete")
+    layout.menu("VIEW3D_MT_pose_modify")
+    with operator_context(layout, 'INVOKE_DEFAULT'):
+        layout.operator("poselib.asset_delete")
 
     layout.separator()
     layout.operator("asset.assign_action")

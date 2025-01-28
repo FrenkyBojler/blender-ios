@@ -738,7 +738,7 @@ static int pose_asset_delete_invoke(bContext *C, wmOperator *op, const wmEvent *
       IFACE_("Delete Pose Asset"),
       ID_IS_LINKED(action) ?
           IFACE_("Permanently delete pose asset blend file? This cannot be undone.") :
-          IFACE_("Permanently delete pose asset? This cannot be undone."),
+          IFACE_("The asset is local to the file. Deleting it will just clear the asset status."),
       IFACE_("Delete"),
       ALERT_ICON_WARNING,
       false);
