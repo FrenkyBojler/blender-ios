@@ -210,7 +210,10 @@ MeshOffsets::MeshOffsets(Span<const Mesh *> meshes)
  * It also sets up #runIndex and #runOriginalID so that when we
  * access OriginalId's in the output, they will be \a mesh_index.
  */
-static void get_manifold(Manifold &manifold, const Mesh *joined_mesh, int mesh_index, const MeshOffsets &mesh_offsets)
+static void get_manifold(Manifold &manifold,
+                         const Mesh *joined_mesh,
+                         int mesh_index,
+                         const MeshOffsets &mesh_offsets)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
@@ -238,22 +241,25 @@ static void get_manifold(Manifold &manifold, const Mesh *joined_mesh, int mesh_i
   Span<int3> corner_tris = joined_mesh->corner_tris();
   Span<int> corner_verts = joined_mesh->corner_verts();
   Span<int> corner_tri_faces = joined_mesh->corner_tri_faces();
-  const int tris_start = poly_to_tri_count(mesh_offsets.face_start[mesh_index], mesh_offsets.corner_start[mesh_index]);
-  const int tris_end = poly_to_tri_count(mesh_offsets.face_start[mesh_index + 1], mesh_offsets.corner_start[mesh_index + 1]);
+  const int tris_start = poly_to_tri_count(mesh_offsets.face_start[mesh_index],
+                                           mesh_offsets.corner_start[mesh_index]);
+  const int tris_end = poly_to_tri_count(mesh_offsets.face_start[mesh_index + 1],
+                                         mesh_offsets.corner_start[mesh_index + 1]);
   const int tris_num = tris_end - tris_start;
   meshgl.triVerts.resize(3 * tris_num);
   meshgl.faceID.resize(tris_num);
-  threading::parallel_for(IndexRange(tris_start, tris_num), grain_size, [&](const IndexRange range) {
-    for (const int i : range) {
-      const int3 &ctri = corner_tris[i];
-      const int meshgl_i = i - tris_start;
-      const int tv_start = 3 * meshgl_i;
-      meshgl.triVerts[tv_start] = corner_verts[ctri[0]] - vert_start;
-      meshgl.triVerts[tv_start + 1] = corner_verts[ctri[1]] - vert_start;
-      meshgl.triVerts[tv_start + 2] = corner_verts[ctri[2]] - vert_start;
-      meshgl.faceID[meshgl_i] = corner_tri_faces[i];
-    }
-  });
+  threading::parallel_for(
+      IndexRange(tris_start, tris_num), grain_size, [&](const IndexRange range) {
+        for (const int i : range) {
+          const int3 &ctri = corner_tris[i];
+          const int meshgl_i = i - tris_start;
+          const int tv_start = 3 * meshgl_i;
+          meshgl.triVerts[tv_start] = corner_verts[ctri[0]] - vert_start;
+          meshgl.triVerts[tv_start + 1] = corner_verts[ctri[1]] - vert_start;
+          meshgl.triVerts[tv_start + 2] = corner_verts[ctri[2]] - vert_start;
+          meshgl.faceID[meshgl_i] = corner_tri_faces[i];
+        }
+      });
   meshgl.runIndex.resize(2);
   meshgl.runOriginalID.resize(1);
   meshgl.runIndex[0] = 0;
@@ -270,7 +276,9 @@ static void get_manifold(Manifold &manifold, const Mesh *joined_mesh, int mesh_i
 
 /* Get all the Manifold data structures for each Mesh subset of \a joined_mesh that is indicated
  * by a range of offsets in \a mesh_offsets. ß*/
-static void get_manifolds(MutableSpan<Manifold> manifolds, const Mesh *joined_mesh, const MeshOffsets &mesh_offsets)
+static void get_manifolds(MutableSpan<Manifold> manifolds,
+                          const Mesh *joined_mesh,
+                          const MeshOffsets &mesh_offsets)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
@@ -311,7 +319,6 @@ struct OutFace {
   }
 };
 
-
 /* Data needed to build the final output Mesh. */
 struct MeshAssembly {
   /* Vertex positions, linearized (use vertpos_stride to multiply index). */
@@ -331,14 +338,14 @@ struct MeshAssembly {
  * These are created lazily - if their current length is zero, then need to be
  * created. */
 class OutToInMaps {
-public:
+ public:
   Array<int> vertex_map;
   Array<int> face_map;
   Array<int> edge_map;
   Array<int> corner_map;
 
   OutToInMaps(const MeshAssembly *mesh_assembly, const Mesh *joined_mesh, const Mesh *output_mesh)
-    : mesh_assembly_(mesh_assembly), joined_mesh_(joined_mesh), output_mesh_(output_mesh)
+      : mesh_assembly_(mesh_assembly), joined_mesh_(joined_mesh), output_mesh_(output_mesh)
   {
   }
 
@@ -347,7 +354,7 @@ public:
   void ensure_edge_map();
   void ensure_corner_map();
 
-private:
+ private:
   const MeshAssembly *mesh_assembly_;
   const Mesh *joined_mesh_;
   const Mesh *output_mesh_;
@@ -363,11 +370,12 @@ void OutToInMaps::ensure_face_map()
   this->face_map.reinitialize(output_mesh_->faces_num);
   BLI_assert(mesh_assembly_->new_faces.size() == this->face_map.size());
   constexpr int grain_size = 50000;
-  threading::parallel_for(mesh_assembly_->new_faces.index_range(), grain_size, [&](const IndexRange range) {
-    for (const int i : range) {
-      this->face_map[i] = mesh_assembly_->new_faces[i].face_id;
-    }
-  });
+  threading::parallel_for(
+      mesh_assembly_->new_faces.index_range(), grain_size, [&](const IndexRange range) {
+        for (const int i : range) {
+          this->face_map[i] = mesh_assembly_->new_faces[i].face_id;
+        }
+      });
 }
 
 void OutToInMaps::ensure_vertex_map()
@@ -432,25 +440,26 @@ void OutToInMaps::ensure_corner_map()
   Span<int> in_corner_verts = joined_mesh_->corner_verts();
   Span<int> out_corner_verts = output_mesh_->corner_verts();
   constexpr int grain_size = 10000;
-  threading::parallel_for(IndexRange(output_mesh_->faces_num), grain_size, [&](const IndexRange range) {
-    for (const int out_face_index : range) {
-      const int in_face_index = this->face_map[out_face_index];
-      const IndexRange in_face = in_faces[in_face_index];
-      for (const int out_c : out_faces[out_face_index]) {
-        BLI_assert(this->corner_map[out_c] == -1);
-        const int out_v = out_corner_verts[out_c];
-        const int in_v = this->vertex_map[out_v];
-        if (in_v == -1) {
-          continue;
+  threading::parallel_for(
+      IndexRange(output_mesh_->faces_num), grain_size, [&](const IndexRange range) {
+        for (const int out_face_index : range) {
+          const int in_face_index = this->face_map[out_face_index];
+          const IndexRange in_face = in_faces[in_face_index];
+          for (const int out_c : out_faces[out_face_index]) {
+            BLI_assert(this->corner_map[out_c] == -1);
+            const int out_v = out_corner_verts[out_c];
+            const int in_v = this->vertex_map[out_v];
+            if (in_v == -1) {
+              continue;
+            }
+            const int in_face_i = in_corner_verts.slice(in_face).first_index_try(in_v);
+            if (in_face_i != -1) {
+              const int in_c = in_face[in_face_i];
+              this->corner_map[out_c] = in_c;
+            }
+          }
         }
-        const int in_face_i = in_corner_verts.slice(in_face).first_index_try(in_v);
-        if (in_face_i != -1) {
-          const int in_c = in_face[in_face_i];
-          this->corner_map[out_c] = in_c;
-        }
-      }
-    }
-  });
+      });
 }
 
 static bool same_dir(const float3 &p1, const float3 &p2, const float3 &q1, const float3 &q2)
@@ -513,7 +522,8 @@ void OutToInMaps::ensure_edge_map()
     const int in_face_index = this->face_map[out_face_index];
     const IndexRange in_face = in_faces[in_face_index];
     if (dbg_level > 0) {
-      std::cout << "process out_face = " << out_face_index << ", in_face = " << in_face_index << "\n";
+      std::cout << "process out_face = " << out_face_index << ", in_face = " << in_face_index
+                << "\n";
     }
     for (const int out_c : out_faces[out_face_index]) {
       const int in_c = this->corner_map[out_c];
@@ -547,7 +557,8 @@ void OutToInMaps::ensure_edge_map()
       if (dbg_level > 0) {
         std::cout << "  out_v = " << out_v << ", in_e = " << in_e << ", in_v = " << in_v << "\n";
         std::cout << "  out_e_v = " << out_e_v << ", in_e_v = " << in_e_v << "\n";
-        std::cout << "  vertex_map(out_e_v) = " << int2(this->vertex_map[out_e_v[0]], this->vertex_map[out_e_v[1]]) << "\n";
+        std::cout << "  vertex_map(out_e_v) = "
+                  << int2(this->vertex_map[out_e_v[0]], this->vertex_map[out_e_v[1]]) << "\n";
       }
       /* Here out_e_v should hold the output vertices in out_e, with the first
        * one being out_v, the vertex at corner out_c.
@@ -569,7 +580,8 @@ void OutToInMaps::ensure_edge_map()
         if (same_dir(out_positions[out_e_v[0]],
                      out_positions[out_e_v[1]],
                      in_positions[in_e_v[0]],
-                     in_positions[in_e_v[1]])) {
+                     in_positions[in_e_v[1]]))
+        {
           if (dbg_level > 0) {
             std::cout << "  case 2, edge_rep = in_e = " << in_e << "\n";
           }
@@ -591,7 +603,7 @@ void OutToInMaps::ensure_edge_map()
         }
         if (dbg_level > 0) {
           std::cout << "  in_c_prev = " << in_c_prev << ", in_e_prev = " << in_e_prev
-          << ", in_v_prev = " << in_v_prev << "\n";
+                    << ", in_v_prev = " << in_v_prev << "\n";
           std::cout << "  in_e_v_prev = " << in_e_v_prev << "\n";
         }
         if (this->vertex_map[out_e_v[0]] == in_e_v_prev[1]) {
@@ -605,7 +617,8 @@ void OutToInMaps::ensure_edge_map()
             if (same_dir(out_positions[out_e_v[0]],
                          out_positions[out_e_v[1]],
                          in_positions[in_e_v_prev[0]],
-                         in_positions[in_e_v_prev[1]])) {
+                         in_positions[in_e_v_prev[1]]))
+            {
               if (dbg_level > 0) {
                 std::cout << "  case 4, edge_rep = in_e_prev = " << in_e_prev << "\n";
               }
@@ -624,7 +637,6 @@ void OutToInMaps::ensure_edge_map()
     }
   }
 }
-
 
 /* Most input faces should mape to face_group_inline or fewer output triangles. */
 constexpr int face_group_inline = 4;
@@ -994,8 +1006,7 @@ static void merge_out_faces(Vector<OutFace> &faces)
  *      were part of the same input face.
  *  (4) For each face group, remove as many shared edges as possible.
  */
-static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
-                                              const MeshOffsets &mesh_offsets)
+static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffsets &mesh_offsets)
 {
   timeit::ScopedTimer timer("calculating assemble_mesh_from_meshgl");
   constexpr int dbg_level = 0;
@@ -1059,8 +1070,10 @@ static void copy_attribute_using_map(const bke::AttributeIter iter,
   if (!output_attrs.lookup(iter.name, iter.domain, iter.data_type)) {
     return;
   }
-  bke::GSpanAttributeWriter dst_writer = output_attrs.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type);
-  bke::GAttributeReader src_reader = input_attrs.lookup_or_default(iter.name, iter.domain, iter.data_type);
+  bke::GSpanAttributeWriter dst_writer = output_attrs.lookup_or_add_for_write_only_span(
+      iter.name, iter.domain, iter.data_type);
+  bke::GAttributeReader src_reader = input_attrs.lookup_or_default(
+      iter.name, iter.domain, iter.data_type);
   GMutableSpan dst = dst_writer.span;
   std::optional<GVArraySpan> src = *src_reader;
   if (!src.has_value()) {
@@ -1072,7 +1085,7 @@ static void copy_attribute_using_map(const bke::AttributeIter iter,
     for (const int out_elem : range) {
       const int in_elem = out_to_in_map[out_elem];
       if (in_elem != -1) {
-          ty.copy_assign(src.value()[in_elem], dst[out_elem]);
+        ty.copy_assign(src.value()[in_elem], dst[out_elem]);
       }
     }
   });
@@ -1087,7 +1100,8 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
                                           Span<int> out_to_in_face_map)
 {
   timeit::ScopedTimer timer("interpolate corner attributes");
-  /* Make parallel arrays of things needed access and write all corner attributes to interpolate. */
+  /* Make parallel arrays of things needed access and write all corner attributes to interpolate.
+   */
   Vector<bke::AttributeIter> attribute_iters;
   Vector<bke::GSpanAttributeWriter> writers;
   Vector<bke::GAttributeReader> readers;
@@ -1095,21 +1109,25 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
   Vector<GMutableSpan> dsts;
   output_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain != bke::AttrDomain::Corner ||
-        (iter.name == ".corner_vert" || iter.name == ".corner_edge")) {
+        (iter.name == ".corner_vert" || iter.name == ".corner_edge"))
+    {
       return;
     }
-    bke::GAttributeReader reader = input_attrs.lookup_or_default(iter.name, iter.domain, iter.data_type);
+    bke::GAttributeReader reader = input_attrs.lookup_or_default(
+        iter.name, iter.domain, iter.data_type);
     std::optional<GVArraySpan> src = *reader;
     if (!src.has_value()) {
       return;
     }
     attribute_iters.append(iter);
-    writers.append(output_attrs.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
+    writers.append(
+        output_attrs.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
     readers.append(input_attrs.lookup_or_default(iter.name, iter.domain, iter.data_type));
     srcs.append(*readers.last());
     dsts.append(writers.last().span);
   });
-  /* Loop per source face, as there is an expensive weight calculation that needs to be done per face. */
+  /* Loop per source face, as there is an expensive weight calculation that needs to be done per
+   * face. */
   const OffsetIndices<int> output_faces = output_mesh->faces();
   const OffsetIndices<int> input_faces = input_mesh->faces();
   Span<int> input_corner_verts = input_mesh->corner_verts();
@@ -1117,76 +1135,81 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
   Span<int> output_corner_verts = output_mesh->corner_verts();
   Span<float3> output_vert_positions = output_mesh->vert_positions();
   const int grain_size = 5000;
-  threading::parallel_for(out_to_in_face_map.index_range(), grain_size, [&](const IndexRange range) {
-    Vector<float, 20> weights;
-    Vector<float2, 20> cos_2d;
-    float axis_mat[3][3];
-    for (const int out_face_index : range) {
-      /* Are there any corners needing interpolation in this face?
-       * The corners needing interpolation are those whose out_to_in_corner_map entry is -1.
-       */
-      IndexRange out_face = output_faces[out_face_index];
-      if (!std::any_of(out_face.begin(), out_face.end(), [&](int c) {
-        return out_to_in_corner_map[c] == -1;
-      })) {
-        continue;
-      }
-      /* At least one output corner did not map to an input corner. */
-
-      /* First get coordinates of input face projected onto 2d, and make sure that
-       * weights has the right size. */
-      const int in_face_index = out_to_in_face_map[out_face_index];
-      const IndexRange in_face = input_faces[in_face_index];
-      Span<int> in_face_verts = input_corner_verts.slice(in_face);
-      const int in_face_size = in_face.size();
-      weights.resize(in_face_size);
-      cos_2d.resize(in_face_size);
-      float (*cos_2d_p)[2] = reinterpret_cast<float (*)[2]>(cos_2d.data());
-      const float3 axis_dominant = bke::mesh::face_normal_calc(input_vert_positions, in_face_verts);
-      axis_dominant_v3_to_m3(axis_mat, axis_dominant);
-      for (const int i : in_face_verts.index_range()) {
-        float3 co = input_vert_positions[in_face_verts[i]];
-        cos_2d[i] = (float3x3(axis_mat) * co).xy();
-      }
-      /* Now the loop to actually interpolate attributes of the new-vertex corners of the output face. */
-      for (const int out_c : output_faces[out_face_index]) {
-        const int in_c = out_to_in_corner_map[out_c];
-        if (in_c != -1) {
-          continue;
-        }
-        const int out_v = output_corner_verts[out_c];
-        float co[2];
-        mul_v2_m3v3(co, axis_mat, output_vert_positions[out_v]);
-        interp_weights_poly_v2(weights.data(), cos_2d_p, in_face_size, co);
-
-        for (const int attr_index : dsts.index_range()) {
-          std::optional<GVArraySpan> &src_opt = srcs[attr_index];
-          GMutableSpan dst = dsts[attr_index];
-          if (!src_opt.has_value()) {
+  threading::parallel_for(
+      out_to_in_face_map.index_range(), grain_size, [&](const IndexRange range) {
+        Vector<float, 20> weights;
+        Vector<float2, 20> cos_2d;
+        float axis_mat[3][3];
+        for (const int out_face_index : range) {
+          /* Are there any corners needing interpolation in this face?
+           * The corners needing interpolation are those whose out_to_in_corner_map entry is -1.
+           */
+          IndexRange out_face = output_faces[out_face_index];
+          if (!std::any_of(out_face.begin(), out_face.end(), [&](int c) {
+                return out_to_in_corner_map[c] == -1;
+              }))
+          {
             continue;
           }
-          GVArraySpan &src = src_opt.value();
-          const CPPType &ty = dst.type();
-          BUFFER_FOR_CPP_TYPE_VALUE(ty, buffer);
-          BLI_SCOPED_DEFER([&]() { ty.destruct(buffer); });
-          bke::attribute_math::convert_to_static_type(ty, [&](auto dummy) {
-            using T = decltype(dummy);
-            const Span<T> src_typed = src.typed<T>();
-            Array<T,20> in_values(in_face.size());
-            for (const int i : in_values.index_range()) {
-              in_values[i] = src_typed[in_face[i]];
+          /* At least one output corner did not map to an input corner. */
+
+          /* First get coordinates of input face projected onto 2d, and make sure that
+           * weights has the right size. */
+          const int in_face_index = out_to_in_face_map[out_face_index];
+          const IndexRange in_face = input_faces[in_face_index];
+          Span<int> in_face_verts = input_corner_verts.slice(in_face);
+          const int in_face_size = in_face.size();
+          weights.resize(in_face_size);
+          cos_2d.resize(in_face_size);
+          float(*cos_2d_p)[2] = reinterpret_cast<float(*)[2]>(cos_2d.data());
+          const float3 axis_dominant = bke::mesh::face_normal_calc(input_vert_positions,
+                                                                   in_face_verts);
+          axis_dominant_v3_to_m3(axis_mat, axis_dominant);
+          for (const int i : in_face_verts.index_range()) {
+            float3 co = input_vert_positions[in_face_verts[i]];
+            cos_2d[i] = (float3x3(axis_mat) * co).xy();
+          }
+          /* Now the loop to actually interpolate attributes of the new-vertex corners of the
+           * output face. */
+          for (const int out_c : output_faces[out_face_index]) {
+            const int in_c = out_to_in_corner_map[out_c];
+            if (in_c != -1) {
+              continue;
             }
-            bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(static_cast<T *>(buffer), 1)};
-            for (const int i : in_values.index_range()) {
-              mixer.mix_in(0, in_values[i], weights[i]);
+            const int out_v = output_corner_verts[out_c];
+            float co[2];
+            mul_v2_m3v3(co, axis_mat, output_vert_positions[out_v]);
+            interp_weights_poly_v2(weights.data(), cos_2d_p, in_face_size, co);
+
+            for (const int attr_index : dsts.index_range()) {
+              std::optional<GVArraySpan> &src_opt = srcs[attr_index];
+              GMutableSpan dst = dsts[attr_index];
+              if (!src_opt.has_value()) {
+                continue;
+              }
+              GVArraySpan &src = src_opt.value();
+              const CPPType &ty = dst.type();
+              BUFFER_FOR_CPP_TYPE_VALUE(ty, buffer);
+              BLI_SCOPED_DEFER([&]() { ty.destruct(buffer); });
+              bke::attribute_math::convert_to_static_type(ty, [&](auto dummy) {
+                using T = decltype(dummy);
+                const Span<T> src_typed = src.typed<T>();
+                Array<T, 20> in_values(in_face.size());
+                for (const int i : in_values.index_range()) {
+                  in_values[i] = src_typed[in_face[i]];
+                }
+                bke::attribute_math::DefaultMixer<T> mixer{
+                    MutableSpan(static_cast<T *>(buffer), 1)};
+                for (const int i : in_values.index_range()) {
+                  mixer.mix_in(0, in_values[i], weights[i]);
+                }
+                mixer.finalize();
+                ty.copy_assign(buffer, dst[out_c]);
+              });
             }
-            mixer.finalize();
-            ty.copy_assign(buffer, dst[out_c]);
-          });
+          }
         }
-      }
-    }
-  });
+      });
   for (bke::GSpanAttributeWriter &writer : writers) {
     writer.finish();
   }
@@ -1202,7 +1225,8 @@ static void add_edge_attributes_from_mesh(Mesh *to_mesh, const Mesh *from_mesh)
       if (iter.name == ".edge_verts") {
         return;
       }
-      bke::GAttributeWriter writer = to_attrs.lookup_or_add_for_write(iter.name, iter.domain, iter.data_type);
+      bke::GAttributeWriter writer = to_attrs.lookup_or_add_for_write(
+          iter.name, iter.domain, iter.data_type);
       if (writer) {
         writer.finish();
       }
@@ -1310,14 +1334,14 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
     bke::MutableAttributeAccessor output_attrs = mesh->attributes_for_write();
 
     bool need_corner_interpolation = false;
-  
+
     output_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
       if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
         return;
       }
       Span<int> out_to_in_map;
       bool do_copy = true;
-      switch(iter.domain) {
+      switch (iter.domain) {
         case bke::AttrDomain::Point: {
           out_to_in.ensure_vertex_map();
           out_to_in_map = out_to_in.vertex_map.as_span();
@@ -1344,7 +1368,8 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       }
     });
     if (need_corner_interpolation) {
-      interpolate_corner_attributes(output_attrs, join_attrs, mesh, joined_mesh, out_to_in.corner_map, out_to_in.face_map);
+      interpolate_corner_attributes(
+          output_attrs, join_attrs, mesh, joined_mesh, out_to_in.corner_map, out_to_in.face_map);
     }
   }
   return mesh;
@@ -1356,7 +1381,8 @@ static bke::GeometrySet join_meshes(Span<const Mesh *> meshes)
   const int meshes_num = meshes.size();
   Array<bke::GeometrySet> geometries(meshes_num);
   for (const int i : geometries.index_range()) {
-    geometries[i] = bke::GeometrySet::from_mesh(const_cast<Mesh *>(meshes[i]), bke::GeometryOwnershipType::ReadOnly);
+    geometries[i] = bke::GeometrySet::from_mesh(const_cast<Mesh *>(meshes[i]),
+                                                bke::GeometryOwnershipType::ReadOnly);
   }
   return geometry::join_geometries(geometries, {});
 }
@@ -1390,7 +1416,8 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     BLI_assert(joined_mesh != nullptr);
     get_manifolds(manifolds, joined_mesh, mesh_offsets);
     if (std::any_of(manifolds.begin(), manifolds.end(), [](const Manifold &m) {
-        return m.Status() != Manifold::Error::NoError; }))
+          return m.Status() != Manifold::Error::NoError;
+        }))
     {
       std::cout << "Cannot convert Mesh to Manifold, so manifold solver fails\n";
       return nullptr;
