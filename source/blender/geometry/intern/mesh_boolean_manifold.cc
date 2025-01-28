@@ -195,36 +195,6 @@ MeshOffsets::MeshOffsets(Span<const Mesh *> meshes)
   this->corner_offsets = OffsetIndices<int>(this->corner_start);
 }
 
-/* Find the index in offset_indices that the first place
- * with a value >= x. Return -1 if there is no such index.
- * When the argument is a sorted array of range breakpoints, starting at 0,
- * this will return the index of the range that contains x, if there is one. */
-template<typename T> static int which_offset_index(T x, Span<T> offset_indices)
-{
-  /* TODO: use binary search or std::lower if size of offset_indices is not small.
-   * Maybe add this into the mathods for OffsetIndices. */
-  int i = 0;
-  for (; i != offset_indices.size() - 1; i++) {
-    if (x < offset_indices[i + 1]) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-
-/* Return the mesh index and face index within that mesh corresponding to offset-face,
- * a face index in the concatenated index space of all mesh faces. */
-static std::pair<int, int> offset_face_to_mesh_face(int offset_face, Span<int> mesh_face_start)
-{
-  for (int i = 1; i < mesh_face_start.size(); i++) {
-    if (offset_face < mesh_face_start[i]) {
-      return {i - 1, offset_face - mesh_face_start[i - 1]};
-    }
-  }
-  return {mesh_face_start.size() - 1, offset_face - mesh_face_start.last()};
-}
-
 /* Create and return the Manifold library's internal #Manifold class instance
  * to represent the subset \a joined_mesh which came from the input
  * mesh with index \a mesh_index.  We can tell which elements are in the
@@ -298,6 +268,8 @@ static void get_manifold(Manifold &manifold, const Mesh *joined_mesh, int mesh_i
   }
 }
 
+/* Get all the Manifold data structures for each Mesh subset of \a joined_mesh that is indicated
+ * by a range of offsets in \a mesh_offsets. ß*/
 static void get_manifolds(MutableSpan<Manifold> manifolds, const Mesh *joined_mesh, const MeshOffsets &mesh_offsets)
 {
   constexpr int dbg_level = 0;
@@ -323,161 +295,6 @@ static void get_manifolds(MutableSpan<Manifold> manifolds, const Mesh *joined_me
   }
 }
 
-/* Holds data needed to readn and write attributes of a number of input #Meshes
- * and write it to a destination #Mesh. */
-class GAttributeReadWriteSpans {
- public:
-  /* The underlying output Mesh. */
-  Mesh *output_mesh;
-  /* The corresponding write attribute accessor. */
-  bke::MutableAttributeAccessor output_accessor;
-  /* The underlying input Meshes. */
-  Span<const Mesh *> input_meshes;
-  /* Read attribute accessor for each input Mesh. */
-  Vector<bke::AttributeAccessor> input_accessors;
-  /* A set of attributes we want copied. */
-  Vector<StringRef> attrs;
-  /* Parallel array of data_type. */
-  Vector<eCustomDataType> data_types;
-  /* Destination attribute data, one span per attribute we want copied. */
-  Vector<GMutableSpan> dest;
-  /* Correpsonding AttributeWriters. */
-  Vector<bke::GSpanAttributeWriter> dest_writers;
-  /* For each input mesh, the source attribute data parallel to dest. */
-  Array<Vector<std::optional<GVArraySpan>>> sources;
-
-  GAttributeReadWriteSpans(Span<const Mesh *> input_meshes,
-                           Mesh *output_mesh,
-                           bke::AttrDomain domain);
-  ~GAttributeReadWriteSpans();
-
-  int add_attribute(StringRefNull name, bke::AttrDomain domain, eCustomDataType data_type);
-
-  int find_attr_index(const char *name) const;
-};
-
-int GAttributeReadWriteSpans::add_attribute(StringRefNull name,
-                                            bke::AttrDomain domain,
-                                            eCustomDataType data_type)
-{
-  this->attrs.append(name);
-  this->data_types.append(data_type);
-  this->dest_writers.append(
-      this->output_accessor.lookup_or_add_for_write_only_span(name, domain, data_type));
-  this->dest.append(this->dest_writers.last().span);
-  for (int i : this->input_meshes.index_range()) {
-    this->sources[i].append(*this->input_accessors[i].lookup_or_default(name, domain, data_type));
-  }
-  return this->dest_writers.size() - 1;
-}
-
-/* Construct the #GAttributeReadWriteSpans to read from attribuytes of
- * \a input_meshes and write to the attributes of \a output_mesh.
- * Restrict attribtes to those of the given \a domain. */
-GAttributeReadWriteSpans::GAttributeReadWriteSpans(Span<const Mesh *> input_meshes,
-                                                   Mesh *output_mesh,
-                                                   bke::AttrDomain domain)
-    : output_mesh(output_mesh),
-      output_accessor(output_mesh->attributes_for_write()),
-      input_meshes(input_meshes)
-{
-  const int num_mesh = input_meshes.size();
-  this->sources.reinitialize(num_mesh);
-  for (int i : IndexRange(num_mesh)) {
-    this->input_accessors.append(input_meshes[i]->attributes());
-  }
-  this->output_accessor.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain != domain) {
-      return;
-    }
-    this->add_attribute(iter.name, iter.domain, iter.data_type);
-    return;
-  });
-}
-
-/* Destruct a #GAttributeReadWriteSpans : finsish off the writers. */
-GAttributeReadWriteSpans::~GAttributeReadWriteSpans()
-{
-  for (bke::GSpanAttributeWriter &w : dest_writers) {
-    w.finish();
-  }
-}
-
-/* Find the attribute index of the given named attribute in the #GAttributeReadWriteSpans. */
-int GAttributeReadWriteSpans::find_attr_index(const char *name) const
-{
-  for (int i : this->attrs.index_range()) {
-    if (this->attrs[i] == name) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-/* Class to hold the attribute names for attributes we need on each of the domains.
- * We'll omit the attributes "position", ".edge_verts", ".corner_vert", ".corner_edge",
- * which are all used for structure that we set directly in the mesh.
- * This are identfied by the function #BKE_mesh_attribute_required.
- */
-class NeededAttributes {
- public:
-  struct Spec {
-    StringRefNull name;
-    bke::AttrDomain domain;
-    eCustomDataType data_type;
-
-    Spec(bke::AttributeIter iter) : name(iter.name), domain(iter.domain), data_type(iter.data_type)
-    {
-    }
-
-    Spec(StringRefNull name, bke::AttrDomain domain, eCustomDataType type)
-        : name(name), domain(domain), data_type(type)
-    {
-    }
-  };
-  Map<StringRefNull, Spec> attr_map;
-
-  NeededAttributes(Span<const Mesh *> meshes, bool need_material_index);
-
-  int num_attrs_for_domain(bke::AttrDomain domain) const;
-};
-
-/* Get the union of the needed attributes from all the meshes,
- * in a deterministic order, and omitting the structure attributes.
- * If \a need_material_index is true, we need a "material_index" face attribute.
- */
-NeededAttributes::NeededAttributes(Span<const Mesh *> meshes, bool need_material_index)
-{
-  for (const Mesh *mesh : meshes) {
-    bke::AttributeAccessor attrs = mesh->attributes();
-    attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
-      if (BKE_mesh_attribute_required(iter.name.c_str())) {
-        return;
-      }
-      this->attr_map.add(iter.name, Spec(iter));
-    });
-  }
-  if (need_material_index) {
-    if (!this->attr_map.lookup_try("material_index")) {
-      this->attr_map.add(
-          "material_index",
-          NeededAttributes::Spec("material_index", bke::AttrDomain::Face, CD_PROP_INT32));
-    }
-  }
-}
-
-/* Return the number of attributes in the #NeededAttributes that are for \a domain. */
-int NeededAttributes::num_attrs_for_domain(bke::AttrDomain domain) const
-{
-  int sum = 0;
-  this->attr_map.foreach_item([&](const StringRefNull &, const NeededAttributes::Spec &spec) {
-    if (spec.domain == domain) {
-      sum++;
-    }
-  });
-  return sum;
-}
-
 constexpr int inline_outface_size = 8;
 
 struct OutFace {
@@ -494,6 +311,7 @@ struct OutFace {
   }
 };
 
+
 /* Data needed to build the final output Mesh. */
 struct MeshAssembly {
   /* Vertex positions, linearized (use vertpos_stride to multiply index). */
@@ -503,8 +321,6 @@ struct MeshAssembly {
   int num_input_verts;
   /* How many vertices are in the output (i.e., in vertpos). */
   int num_output_verts;
-  /* Map from output vertex index to corresponding input vertex (-1 if none). */
-  Array<int> out_to_in_vert_map;
   /* New faces to output. */
   Vector<OutFace> new_faces;
 };
@@ -521,7 +337,8 @@ public:
   Array<int> edge_map;
   Array<int> corner_map;
 
-  OutToInMaps(const MeshAssembly *ma, const Mesh *jm, const Mesh *om) : mesh_assembly_(ma), joined_mesh_(jm), output_mesh_(om)
+  OutToInMaps(const MeshAssembly *mesh_assembly, const Mesh *joined_mesh, const Mesh *output_mesh)
+    : mesh_assembly_(mesh_assembly), joined_mesh_(joined_mesh), output_mesh_(output_mesh)
   {
   }
 
@@ -808,51 +625,6 @@ void OutToInMaps::ensure_edge_map()
   }
 }
 
-/* Fill the MeshAssembly's out_to_in_vert_map.
- * Do this by finding, for each output face, which verts of the corresponding
- * input face match.
- */
-static void fill_vertex_map(MeshAssembly &ma,
-                            const MeshGL &mgl,
-                            Span<const Mesh *> meshes,
-                            const MeshOffsets &mesh_offsets)
-{
-  timeit::ScopedTimer timer("fill_vertex_map");
-  constexpr int dbg_level = 0;
-  if (dbg_level > 0) {
-    std::cout << "fill_vertex_map\n";
-  }
-  ma.out_to_in_vert_map = Array<int>(ma.num_output_verts, -1);
-  const int tris_num = mgl.NumTri();
-  const int stride = mgl.numProp;
-  for (const int t : IndexRange(tris_num)) {
-    const int faceid = mgl.faceID[t];
-    auto [mesh_index, face_in_mesh] = offset_face_to_mesh_face(faceid, mesh_offsets.face_start);
-    const Mesh *mesh = meshes[mesh_index];
-    const IndexRange orig_face = mesh->faces()[face_in_mesh];
-    Span<int> orig_face_verts = mesh->corner_verts().slice(orig_face);
-    for (const int i : IndexRange(3)) {
-      int v = mgl.triVerts[3 * t + i];
-      if (ma.out_to_in_vert_map[v] != -1) {
-        continue;
-      }
-      int prop_offset = v * stride;
-      float3 pos(mgl.vertProperties[prop_offset],
-                 mgl.vertProperties[prop_offset + 1],
-                 mgl.vertProperties[prop_offset + 2]);
-      auto it = std::find_if(orig_face_verts.begin(), orig_face_verts.end(), [&](int orig_v) {
-        return pos == mesh->vert_positions()[orig_v];
-      });
-      if (it != orig_face_verts.end()) {
-        int orig_v = orig_face_verts[std::distance(orig_face_verts.begin(), it)];
-        ma.out_to_in_vert_map[v] = orig_v + mesh_offsets.vert_start[mesh_index];
-        if (dbg_level > 0) {
-          std::cout << " m[" << v << "] = " << ma.out_to_in_vert_map[v] << "\n";
-        }
-      }
-    }
-  }
-}
 
 /* Most input faces should mape to face_group_inline or fewer output triangles. */
 constexpr int face_group_inline = 4;
@@ -1223,7 +995,6 @@ static void merge_out_faces(Vector<OutFace> &faces)
  *  (4) For each face group, remove as many shared edges as possible.
  */
 static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
-                                              Span<const Mesh *> meshes,
                                               const MeshOffsets &mesh_offsets)
 {
   timeit::ScopedTimer timer("calculating assemble_mesh_from_meshgl");
@@ -1237,7 +1008,7 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
   ma.num_input_verts = mesh_offsets.vert_start.last();
   ma.num_output_verts = ma.vertpos.size() / ma.vertpos_stride;
   const int input_faces_num = mesh_offsets.face_start.last();
-  fill_vertex_map(ma, mgl, meshes, mesh_offsets);
+
   /* For each offset input mesh face, what mgl triangles have it as id? */
   Array<Vector<int, face_group_inline>> face_groups = get_face_groups(mgl, input_faces_num);
   if (dbg_level > 1) {
@@ -1265,7 +1036,6 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl,
     std::cout << "num_input_verts = " << ma.num_input_verts
               << ", num_output_verts = " << ma.num_output_verts << "\n";
     dump_span_with_stride(ma.vertpos, ma.vertpos_stride, "vertpos");
-    dump_span(ma.out_to_in_vert_map.as_span(), "out_to_in_vert_map");
     std::cout << "new_faces:\n";
     for (const int i : ma.new_faces.index_range()) {
       std::cout << i << ": face_id = " << ma.new_faces[i].face_id << "\nverts ";
@@ -1443,18 +1213,18 @@ static void add_edge_attributes_from_mesh(Mesh *to_mesh, const Mesh *from_mesh)
 /* Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
  */
-static Mesh *meshgl_to_mesh_new(const MeshGL &mgl,
-                                Span<const Mesh *> meshes,
-                                const Mesh *joined_mesh,
-                                const MeshOffsets &mesh_offsets)
+static Mesh *meshgl_to_mesh(const MeshGL &mgl,
+                            const Mesh *joined_mesh,
+                            const MeshOffsets &mesh_offsets)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
-    std::cout << "MESHGL_TO_MESH (NEW)\n";
+    std::cout << "MESHGL_TO_MESH\n";
   }
   timeit::ScopedTimer timer("meshgl to mesh from joined_mesh");
   BLI_assert(mgl.mergeFromVert.size() == 0);
-  MeshAssembly ma = assemble_mesh_from_meshgl(mgl, meshes, mesh_offsets);
+
+  MeshAssembly ma = assemble_mesh_from_meshgl(mgl, mesh_offsets);
   const int tot_positions = ma.num_output_verts;
   const int tot_faces = ma.new_faces.size();
 
@@ -1523,6 +1293,8 @@ static Mesh *meshgl_to_mesh_new(const MeshGL &mgl,
     add_edge_attributes_from_mesh(mesh, joined_mesh);
   }
 
+  OutToInMaps out_to_in(&ma, joined_mesh, mesh);
+
   {
     timeit::ScopedTimer timer_a("copying and interpolating attributes");
 
@@ -1537,7 +1309,6 @@ static Mesh *meshgl_to_mesh_new(const MeshGL &mgl,
     bke::AttributeAccessor join_attrs = joined_mesh->attributes();
     bke::MutableAttributeAccessor output_attrs = mesh->attributes_for_write();
 
-    OutToInMaps out_to_in(&ma, joined_mesh, mesh);
     bool need_corner_interpolation = false;
   
     output_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -1642,7 +1413,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     Mesh *mesh_result;
     {
       timeit::ScopedTimer timer_out("MESHGL RESULT TO MESH");
-      mesh_result = meshgl_to_mesh_new(meshgl_result, meshes, joined_mesh, mesh_offsets);
+      mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets);
     }
     /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
     UNUSED_VARS(target_transform);
