@@ -347,7 +347,7 @@ static PointerRNA rna_LineStyle_active_texture_get(PointerRNA *ptr)
   Tex *tex;
 
   tex = give_current_linestyle_texture(linestyle);
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_Texture, tex);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(tex));
 }
 
 static void rna_LineStyle_active_texture_set(PointerRNA *ptr,

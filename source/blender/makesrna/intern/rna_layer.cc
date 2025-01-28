@@ -78,8 +78,8 @@ static PointerRNA rna_LayerObjects_active_object_get(PointerRNA *ptr)
   const Scene *scene = (Scene *)ptr->owner_id;
   ViewLayer *view_layer = (ViewLayer *)ptr->data;
   BKE_view_layer_synced_ensure(scene, view_layer);
-  return RNA_pointer_create_with_ancestors(
-      *ptr, &RNA_Object, BKE_view_layer_active_object_get(view_layer));
+  return RNA_id_pointer_create(
+      reinterpret_cast<ID *>(BKE_view_layer_active_object_get(view_layer)));
 }
 
 static void rna_LayerObjects_active_object_set(PointerRNA *ptr,
@@ -173,7 +173,7 @@ static PointerRNA rna_ViewLayer_objects_get(CollectionPropertyIterator *iter)
 
   /* we are actually iterating a ObjectBase list */
   Base *base = (Base *)internal->link;
-  return RNA_pointer_create_with_ancestors(iter->parent, &RNA_Object, base->object);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(base->object));
 }
 
 static bool rna_ViewLayer_objects_selected_skip(CollectionPropertyIterator *iter, void * /*data*/)
