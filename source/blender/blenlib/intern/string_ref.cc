@@ -34,10 +34,10 @@ void StringRefBase::copy_utf8_truncated(char *dst, const int64_t dst_size) const
     return;
   }
 
-  /* Make a temporary copy because we need the null terminator to use #BLI_strncpy_utf8. Should be
-   * fine performance-wise, because it's rare that the truncation is actually used. */
-  const std::string str_copy(data_, size_);
-  BLI_strncpy_utf8(dst, str_copy.c_str(), dst_size);
+  const int64_t max_copy_num_without_terminator = std::min(size_, dst_size - 1);
+  const size_t new_len = BLI_strncpy_utf8_rlen_unterminated(
+      dst, data_, max_copy_num_without_terminator);
+  dst[new_len] = '\0';
 }
 
 }  // namespace blender
