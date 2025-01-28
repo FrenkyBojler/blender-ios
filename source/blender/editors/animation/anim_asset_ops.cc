@@ -622,6 +622,7 @@ static int pose_asset_modify_exec(bContext *C, wmOperator *op)
 static bool pose_asset_modify_poll(bContext *C)
 {
   if (!ED_operator_posemode_context(C)) {
+    CTX_wm_operator_poll_msg_set(C, "Pose assets can only be modified from Pose Mode");
     return false;
   }
 
@@ -636,6 +637,7 @@ static bool pose_asset_modify_poll(bContext *C)
   }
 
   if (!bke::asset_edit_id_is_editable(action->id)) {
+    CTX_wm_operator_poll_msg_set(C, "Action is not editable");
     return false;
   }
 
@@ -678,10 +680,6 @@ void POSELIB_OT_asset_modify(wmOperatorType *ot)
 
 static bool pose_asset_delete_poll(bContext *C)
 {
-  if (!ED_operator_posemode_context(C)) {
-    return false;
-  }
-
   bAction *action = get_action_of_selected_asset(C);
 
   if (!action) {
@@ -693,6 +691,12 @@ static bool pose_asset_delete_poll(bContext *C)
   }
 
   if (!bke::asset_edit_id_is_editable(action->id)) {
+    CTX_wm_operator_poll_msg_set(C, "Action is not editable");
+    return false;
+  }
+
+  if (!bke::asset_edit_id_is_writable(action->id)) {
+    CTX_wm_operator_poll_msg_set(C, "Asset blend file is not editable");
     return false;
   }
 
