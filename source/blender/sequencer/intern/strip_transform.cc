@@ -593,9 +593,9 @@ float3 SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene, cons
   const float3 image_size = strip_raw_image_size_get(scene, strip);
   const StripTransform *transform = strip->data->transform;
 
-  float3 origin(0.0f);
-  origin[0] = (image_size[0] * transform->origin[0]) - (image_size[0] * 0.5f) + transform->xofs;
-  origin[1] = (image_size[1] * transform->origin[1]) - (image_size[1] * 0.5f) + transform->yofs;
+  float3 origin((image_size[0] * transform->origin[0]) - (image_size[0] * 0.5f) + transform->xofs,
+                (image_size[1] * transform->origin[1]) - (image_size[1] * 0.5f) + transform->yofs,
+                0.0f);
 
   const float3 viewport_pixel_aspect(scene->r.xasp / scene->r.yasp, 1.0f, 1.0f);
   float3 mirror = SEQ_image_transform_mirror_factor_get(strip);

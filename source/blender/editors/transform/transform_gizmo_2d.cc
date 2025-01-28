@@ -271,8 +271,7 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
       if (pivot_point == V3D_AROUND_CURSOR) {
         SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
         float3 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
-        r_center[0] = cursor_pixel.x;
-        r_center[1] = cursor_pixel.y;
+        copy_v2_v2(r_center, cursor_pixel);
       }
       else {
         mid_v2_v2v2(r_center, r_min, r_max);
@@ -382,8 +381,7 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C, float r_pivot[2])
 
     if (pivot_point == V3D_AROUND_CURSOR) {
       float3 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
-      r_pivot[0] = cursor_pixel.x;
-      r_pivot[1] = cursor_pixel.y;
+      copy_v2_v2(r_pivot, cursor_pixel);
 
       Editing *ed = SEQ_editing_get(scene);
       ListBase *seqbase = SEQ_active_seqbase_get(ed);

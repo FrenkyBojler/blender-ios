@@ -3420,8 +3420,7 @@ static int sequencer_set_2d_cursor_exec(bContext *C, wmOperator *op)
   RNA_float_get_array(op->ptr, "location", cursor_pixel);
 
   float3 cursor_region = SEQ_image_preview_unit_from_px(scene, cursor_pixel);
-  sseq->cursor[0] = cursor_region.x;
-  sseq->cursor[1] = cursor_region.y;
+  copy_v2_v2(sseq->cursor, cursor_region);
 
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 

@@ -39,8 +39,8 @@
 #include "transform_snap.hh"
 
 struct TransSeqSnapData {
-  blender::Array<blender::float2> source_snap_points;
-  blender::Array<blender::float2> target_snap_points;
+  blender::Array<blender::float3> source_snap_points;
+  blender::Array<blender::float3> target_snap_points;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("TransSeqSnapData")
 };
@@ -174,15 +174,13 @@ static bool seq_snap_source_points_build_preview(const Scene *scene,
         scene, strip);
 
     for (int j = 0; j < 4; j++) {
-      snap_data->source_snap_points[i][0] = seq_image_quad[j][0];
-      snap_data->source_snap_points[i][1] = seq_image_quad[j][1];
+      snap_data->source_snap_points[i] = seq_image_quad[j];
       i++;
     }
 
     /* Add origins last */
     blender::float3 image_origin = SEQ_image_transform_origin_offset_pixelspace_get(scene, strip);
-    snap_data->source_snap_points[i][0] = image_origin[0];
-    snap_data->source_snap_points[i][1] = image_origin[1];
+    snap_data->source_snap_points[i] = image_origin;
     i++;
 
     BLI_assert(i <= snap_data->source_snap_points.size());
