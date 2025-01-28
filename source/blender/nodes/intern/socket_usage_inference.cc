@@ -208,11 +208,27 @@ struct SocketUsageInferencer {
         this->usage_task__input__capture_attribute_node(socket);
         break;
       }
+      case SH_NODE_OUTPUT_AOV:
+      case SH_NODE_OUTPUT_LIGHT:
+      case SH_NODE_OUTPUT_WORLD:
+      case SH_NODE_OUTPUT_LINESTYLE:
+      case SH_NODE_OUTPUT_MATERIAL:
+      case CMP_NODE_OUTPUT_FILE:
+      case CMP_NODE_COMPOSITE:
+      case TEX_NODE_OUTPUT: {
+        this->usage_task__input__output_node(socket);
+        break;
+      }
       default: {
         this->usage_task__input__fallback(socket);
         break;
       }
     }
+  }
+
+  void usage_task__input__output_node(const SocketInContext &socket)
+  {
+    all_socket_usages_.add_new(socket, true);
   }
 
   /**
@@ -476,6 +492,10 @@ struct SocketUsageInferencer {
         this->value_task__output__group_input_node(socket);
         return;
       }
+      case NODE_REROUTE: {
+        this->value_task__output__reroute_node(socket);
+        return;
+      }
       case GEO_NODE_SWITCH: {
         this->value_task__output__generic_switch(socket, switch__is_socket_selected);
         return;
@@ -544,6 +564,17 @@ struct SocketUsageInferencer {
     const std::optional<const void *> value = all_socket_values_.lookup_try(group_node_input);
     if (!value.has_value()) {
       this->push_value_task(group_node_input);
+      return;
+    }
+    all_socket_values_.add_new(socket, *value);
+  }
+
+  void value_task__output__reroute_node(const SocketInContext &socket)
+  {
+    const SocketInContext input_socket = socket.owner_node().input_socket(0);
+    const std::optional<const void *> value = all_socket_values_.lookup_try(input_socket);
+    if (!value.has_value()) {
+      this->push_value_task(input_socket);
       return;
     }
     all_socket_values_.add_new(socket, *value);
