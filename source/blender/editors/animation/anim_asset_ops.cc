@@ -52,11 +52,11 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
 {
   EnumPropertyItem *items;
   int totitem = 0;
-  EnumPropertyItem tmp;
+  EnumPropertyItem tmp_item;
 
-  tmp = {
+  tmp_item = {
       ASSET_LIBRARY_LOCAL, "LOCAL", 0, "Current File", "Save the pose asset to the current file"};
-  RNA_enum_item_add(&items, &totitem, &tmp);
+  RNA_enum_item_add(&items, &totitem, &tmp_item);
   /* Because `ASSET_LIBRARY_LOCAL` will always be created. */
   *r_free = true;
 
@@ -75,8 +75,9 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
 
     const int enum_value = blender::ed::asset::library_reference_to_enum_value(&library_reference);
     /* Use library path as description, it's a nice hint for users. */
-    tmp = {enum_value, user_library->name, ICON_NONE, user_library->name, user_library->dirpath};
-    RNA_enum_item_add(&items, &totitem, &tmp);
+    tmp_item = {
+        enum_value, user_library->name, ICON_NONE, user_library->name, user_library->dirpath};
+    RNA_enum_item_add(&items, &totitem, &tmp_item);
   }
 
   RNA_enum_item_end(&items, &totitem);
@@ -106,7 +107,8 @@ static blender::animrig::Action &extract_pose(Main &bmain,
       if (!(pose_bone->bone->flag & BONE_SELECTED)) {
         continue;
       }
-      PointerRNA bone_pointer = RNA_pointer_create(&pose_object->id, &RNA_PoseBone, pose_bone);
+      PointerRNA bone_pointer = RNA_pointer_create_discrete(
+          &pose_object->id, &RNA_PoseBone, pose_bone);
       Vector<RNAPath> rna_paths = construct_keyframing_rna_paths(&bone_pointer);
       for (const RNAPath &rna_path : rna_paths) {
         PointerRNA resolved_pointer;
@@ -436,7 +438,7 @@ static const EnumPropertyItem prop_asset_overwrite_modes[] = {
 
 /* Gets the selected asset from the given `bContext`. If the asset is an action, returns a pointer
  * to that action, else returns a nullptr. */
-static bAction *action_from_selected_asset(bContext *C)
+static bAction *get_action_of_selected_asset(bContext *C)
 {
   const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
   if (!asset_handle) {
@@ -465,7 +467,8 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
     if (!(pose_bone->bone->flag & BONE_SELECTED)) {
       continue;
     }
-    PointerRNA bone_pointer = RNA_pointer_create(&pose_object.id, &RNA_PoseBone, pose_bone);
+    PointerRNA bone_pointer = RNA_pointer_create_discrete(
+        &pose_object.id, &RNA_PoseBone, pose_bone);
     Vector<RNAPath> rna_paths = blender::animrig::construct_keyframing_rna_paths(&bone_pointer);
 
     for (RNAPath &rna_path : rna_paths) {
@@ -591,7 +594,7 @@ static void refresh_asset_library(bContext *C)
 
 static int pose_asset_modify_exec(bContext *C, wmOperator *op)
 {
-  bAction *action = action_from_selected_asset(C);
+  bAction *action = get_action_of_selected_asset(C);
   BLI_assert_msg(action, "Poll should have checked action exists");
 
   Main *bmain = CTX_data_main(C);
@@ -622,7 +625,7 @@ static bool pose_asset_modify_poll(bContext *C)
     return false;
   }
 
-  bAction *action = action_from_selected_asset(C);
+  bAction *action = get_action_of_selected_asset(C);
 
   if (!action) {
     return false;
@@ -679,7 +682,7 @@ static bool pose_asset_delete_poll(bContext *C)
     return false;
   }
 
-  bAction *action = action_from_selected_asset(C);
+  bAction *action = get_action_of_selected_asset(C);
 
   if (!action) {
     return false;
@@ -698,7 +701,7 @@ static bool pose_asset_delete_poll(bContext *C)
 
 static int pose_asset_delete_exec(bContext *C, wmOperator *op)
 {
-  bAction *action = action_from_selected_asset(C);
+  bAction *action = get_action_of_selected_asset(C);
   if (!action) {
     return OPERATOR_CANCELLED;
   }
@@ -723,7 +726,7 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
 
 static int pose_asset_delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  bAction *action = action_from_selected_asset(C);
+  bAction *action = get_action_of_selected_asset(C);
 
   return WM_operator_confirm_ex(
       C,
