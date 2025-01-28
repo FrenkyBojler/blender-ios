@@ -4112,8 +4112,9 @@ static void widget_pulldownbut(uiWidgetColors *wcol,
       copy_v3_v3_uchar(wcol->text, wcol->text_sel);
     }
     else {
-      wcol->inner[3] *= 1.0f - back[3];
-      wcol->outline[3] = 0.0f;
+      const float alpha_factor = 1.0f - back[3];
+      wcol->inner[3] *= alpha_factor;
+      wcol->outline[3] *= alpha_factor;
     }
 
     widget_init(&wtb);
