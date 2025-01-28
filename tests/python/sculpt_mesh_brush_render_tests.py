@@ -38,22 +38,26 @@ def prepare_sculpt_scene(context: any):
 
     import bpy
 
-    # Ensure the current mode is object, as it might not be the always the case
+    # Ensure the current mode is object, as it might not always be the case
     # if the benchmark script is run from a non-clean state of the .blend file.
     if context.object:
         bpy.ops.object.mode_set(mode='OBJECT')
 
     # Delete all current objects from the scene.
-    # bpy.ops.object.select_all(action='SELECT')
-    # bpy.ops.object.delete(use_global=False)
-    # bpy.ops.outliner.orphans_purge()
+    bpy.ops.object.select_by_type(type='MESH')
+    bpy.ops.object.delete(use_global=False)
+    bpy.ops.outliner.orphans_purge()
 
+    # Add and subdivide monkey
     bpy.ops.mesh.primitive_monkey_add(size=2, align='WORLD', location=(0, 0, 0), scale=(1, 1, 1,))
-
     bpy.ops.object.subdivision_set(level=5)
     bpy.ops.object.modifier_apply(modifier="Subdivision")
 
-    bpy.ops.object.select_all(action='SELECT')
+    # Disable brush cursor drawing to ensure tests on other platforms
+    bpy.data.scenes[0].tool_settings.sculpt.show_brush = False
+
+    # Enter Sculpt mode
+    bpy.ops.object.select_by_type(type='MESH')
     bpy.ops.object.mode_set(mode='SCULPT')
 
 
