@@ -4,6 +4,7 @@
 
 #include <utility>
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
