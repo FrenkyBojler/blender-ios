@@ -52,7 +52,7 @@ ccl_device_inline void shaderdata_to_shaderglobals(KernelGlobals kg,
   globals->backfacing = (sd->flag & SD_BACKFACING);
 
   /* shader data to be used in services callbacks */
-  globals->renderstate = sd;
+  globals->sd = sd;
 #if OSL_LIBRARY_VERSION_CODE >= 11304
   globals->shadingStateUniform = nullptr;
   globals->thread_index = 0;
@@ -194,12 +194,10 @@ ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
   uint8_t closure_pool[1024];
   globals.closure_pool = closure_pool;
   if (path_flag & PATH_RAY_SHADOW) {
-    globals.path_state = -1;
-    globals.shadow_path_state = state;
+    globals.shade_index = -state - 1;
   }
   else {
-    globals.path_state = state;
-    globals.shadow_path_state = -1;
+    globals.shade_index = state + 1;
   }
 
   unsigned int optix_dc_index = 2 /* NUM_CALLABLE_PROGRAM_GROUPS */ +

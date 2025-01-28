@@ -614,7 +614,7 @@ ccl_device_extern bool osl_get_matrix(ccl_private ShaderGlobals *sg,
   }
   if (from == DeviceStrings::u_shader || from == DeviceStrings::u_object) {
     KernelGlobals kg = nullptr;
-    ccl_private ShaderData *const sd = static_cast<ccl_private ShaderData *>(sg->renderstate);
+    ccl_private ShaderData *const sd = sg->sd;
     int object = sd->object;
 
     if (object != OBJECT_NONE) {
@@ -658,7 +658,7 @@ ccl_device_extern bool osl_get_inverse_matrix(ccl_private ShaderGlobals *sg,
   }
   if (to == DeviceStrings::u_shader || to == DeviceStrings::u_object) {
     KernelGlobals kg = nullptr;
-    ccl_private ShaderData *const sd = static_cast<ccl_private ShaderData *>(sg->renderstate);
+    ccl_private ShaderData *const sd = sg->sd;
     int object = sd->object;
 
     if (object != OBJECT_NONE) {
@@ -1061,8 +1061,8 @@ ccl_device_inline bool get_background_attribute(KernelGlobals kg,
                                                 bool derivatives,
                                                 ccl_private void *val)
 {
-  ConstIntegratorState state = sg->path_state;
-  ConstIntegratorShadowState shadow_state = sg->shadow_path_state;
+  ConstIntegratorState state = (sg->shade_index > 0) ? (sg->shade_index - 1) : -1;
+  ConstIntegratorShadowState shadow_state = (sg->shade_index < 0) ? (-sg->shade_index - 1) : -1;
   if (name == DeviceStrings::u_path_ray_length) {
     /* Ray Length */
     float f = sd->ray_length;
@@ -1367,7 +1367,7 @@ ccl_device_extern bool osl_get_attribute(ccl_private ShaderGlobals *sg,
                                          ccl_private void *res)
 {
   KernelGlobals kg = nullptr;
-  ccl_private ShaderData *const sd = static_cast<ccl_private ShaderData *>(sg->renderstate);
+  ccl_private ShaderData *const sd = sg->sd;
   int object;
 
   if (object_name != DeviceStrings::_emptystring_) {

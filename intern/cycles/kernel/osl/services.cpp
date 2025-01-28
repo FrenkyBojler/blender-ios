@@ -147,13 +147,13 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
 
-  if (globals == nullptr || globals->renderstate == nullptr) {
+  if (globals == nullptr || globals->sd == nullptr) {
     return false;
   }
 
   /* this is only used for shader and object space, we don't really have
    * a concept of shader space, so we just use object space for both. */
-  const ShaderData *sd = globals->renderstate;
+  const ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   const int object = sd->object;
 
@@ -191,13 +191,13 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
 
-  if (globals == nullptr || globals->renderstate == nullptr) {
+  if (globals == nullptr || globals->sd == nullptr) {
     return false;
   }
 
   /* this is only used for shader and object space, we don't really have
    * a concept of shader space, so we just use object space for both. */
-  const ShaderData *sd = globals->renderstate;
+  const ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   const int object = sd->object;
 
@@ -298,13 +298,13 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
 
-  if (globals == nullptr || globals->renderstate == nullptr) {
+  if (globals == nullptr || globals->sd == nullptr) {
     return false;
   }
 
   /* this is only used for shader and object space, we don't really have
    * a concept of shader space, so we just use object space for both. */
-  const ShaderData *sd = globals->renderstate;
+  const ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   const int object = sd->object;
 
@@ -330,13 +330,13 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
 
-  if (globals == nullptr || globals->renderstate == nullptr) {
+  if (globals == nullptr || globals->sd == nullptr) {
     return false;
   }
 
   /* this is only used for shader and object space, we don't really have
    * a concept of shader space, so we just use object space for both. */
-  const ShaderData *sd = globals->renderstate;
+  const ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   const int object = sd->object;
 
@@ -823,7 +823,7 @@ static bool get_object_attribute(const ThreadKernelGlobalsCPU *kg,
 bool OSLRenderServices::get_object_standard_attribute(
     ShaderGlobals *globals, OSLUStringHash name, const TypeDesc type, bool derivatives, void *val)
 {
-  ShaderData *sd = globals->renderstate;
+  ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   /* todo: turn this into hash table? */
 
@@ -997,7 +997,7 @@ bool OSLRenderServices::get_object_standard_attribute(
 bool OSLRenderServices::get_background_attribute(
     ShaderGlobals *globals, OSLUStringHash name, const TypeDesc type, bool derivatives, void *val)
 {
-  ShaderData *sd = globals->renderstate;
+  ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   const IntegratorStateCPU *state = globals->path_state;
   const IntegratorShadowStateCPU *shadow_state = globals->shadow_path_state;
@@ -1078,11 +1078,11 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
 
-  if (globals == nullptr || globals->renderstate == nullptr) {
+  if (globals == nullptr || globals->sd == nullptr) {
     return false;
   }
 
-  ShaderData *sd = globals->renderstate;
+  ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   int object;
 
@@ -1242,7 +1242,7 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
   OSLTextureHandle *handle = (OSLTextureHandle *)texture_handle;
   const OSLTextureHandle::Type texture_type = (handle) ? handle->type : OSLTextureHandle::OIIO;
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-  ShaderData *sd = globals->renderstate;
+  ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kernel_globals = globals->kg;
   const IntegratorStateCPU *state = globals->path_state;
   bool status = false;
@@ -1677,7 +1677,7 @@ bool OSLRenderServices::trace(TraceOpt &options,
 {
   /* todo: options.shader support, maybe options.traceset */
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-  ShaderData *sd = globals->renderstate;
+  ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
 
   /* setup ray */

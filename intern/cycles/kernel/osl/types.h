@@ -103,13 +103,28 @@ struct ShaderGlobals {
   float dtime;
   packed_float3 dPdtime;
   packed_float3 Ps, dPsdx, dPsdy;
-  ccl_private ShaderData *renderstate; /* In OSL this is an opaque pointer */
-  ccl_private OSLTraceData *tracedata; /* In OSL this is an opaque pointer */
-  ccl_private void *objdata;
+
+  /* In OSL this is an opaque pointer named renderstate */
+  ccl_private ShaderData *sd;
+
+  /* In OSL this is an opaque pointer */
+  ccl_private OSLTraceData *tracedata;
+
+  /* In OSL this is an opaque pointer named objdata */
+#ifdef __KERNEL_GPU__
+  ccl_private uint8_t *closure_pool;
+#else
+  const ThreadKernelGlobalsCPU *kg;
+#endif
+
   void *context;
 #if OSL_LIBRARY_VERSION_CODE >= 11304
   void *shadingStateUniform;
   int thread_index;
+
+  /* We use this to encode the path state on GPUs.
+   * Zero means no state, positive means path_state, negative means shadow_path_state.
+   * On CPU, we use pointers in the Cycles-specific section below. */
   int shade_index;
 #endif
   void *renderer;
@@ -122,12 +137,12 @@ struct ShaderGlobals {
   int backfacing;
 
   /* This part is Cycles-specific and ignored by OSL itself. */
-#ifdef __KERNEL_OPTIX__
-  ccl_private uint8_t *closure_pool;
-  ConstIntegratorState path_state;
-  ConstIntegratorShadowState shadow_path_state;
+#ifdef __KERNEL_GPU__
+#  if OSL_LIBRARY_VERSION_CODE < 11304
+  /* shade_index is not part of the regular OSL ShaderGlobals in old versions */
+  int shade_index;
+#  endif
 #else
-  const ThreadKernelGlobalsCPU *kg;
   const struct IntegratorStateCPU *path_state;
   const struct IntegratorShadowStateCPU *shadow_path_state;
 #endif
