@@ -314,6 +314,8 @@ int BLI_str_utf8_invalid_strip(char *str, size_t length)
  *
  * \note currently we don't attempt to deal with invalid utf8 chars.
  * See #BLI_str_utf8_invalid_strip for if that is needed.
+ *
+ * \note the caller is responsible for null terminating the string.
  */
 BLI_INLINE char *str_utf8_copy_max_bytes_impl(char *dst, const char *src, size_t dst_maxncpy)
 {
@@ -336,7 +338,6 @@ BLI_INLINE char *str_utf8_copy_max_bytes_impl(char *dst, const char *src, size_t
     /* clang-format on */
     /* NOLINTEND: bugprone-assignment-in-if-condition */
   }
-  *dst = '\0';
   return dst;
 }
 
@@ -345,11 +346,26 @@ char *BLI_strncpy_utf8(char *__restrict dst, const char *__restrict src, size_t 
   BLI_assert(dst_maxncpy != 0);
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  str_utf8_copy_max_bytes_impl(dst, src, dst_maxncpy);
+  char *dst_end = str_utf8_copy_max_bytes_impl(dst, src, dst_maxncpy);
+  *dst_end = '\0';
   return dst;
 }
 
 size_t BLI_strncpy_utf8_rlen(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
+{
+  BLI_assert(dst_maxncpy != 0);
+  BLI_string_debug_size(dst, dst_maxncpy);
+
+  char *r_dst = dst;
+  dst = str_utf8_copy_max_bytes_impl(dst, src, dst_maxncpy);
+  *dst = '\0';
+
+  return size_t(dst - r_dst);
+}
+
+size_t BLI_strncpy_utf8_rlen_unterminated(char *__restrict dst,
+                                          const char *__restrict src,
+                                          size_t dst_maxncpy)
 {
   BLI_assert(dst_maxncpy != 0);
   BLI_string_debug_size(dst, dst_maxncpy);
