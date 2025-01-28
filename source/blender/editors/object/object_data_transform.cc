@@ -495,11 +495,11 @@ XFormObjectData *data_xform_create_ex(ID *id, bool is_edit_mode)
       memset(xod, 0x0, sizeof(*xod));
 
       const Span<float3> positions = curves.positions();
-      const VArray<float> radii = curves.radius();
+      const VArraySpan<float> radii = curves.radius();
 
       CurvesPointCoordinates *cpc = xod->elem_array;
       for (const int i : curves.points_range()) {
-        copy_v3_v3(cpc->co, positions[i]);
+        cpc->co = positions[i];
         cpc->radius = radii[i];
         cpc++;
       }
@@ -680,7 +680,7 @@ void data_xform_by_mat4(XFormObjectData *xod_base, const float mat[4][4])
       CurvesPointCoordinates *cpc = xod->elem_array;
       const float scalef = mat4_to_scale(mat);
       for (const int i : curves.points_range()) {
-        positions[i] = math::transform_point(float4x4(mat), float3(cpc->co));
+        positions[i] = math::transform_point(float4x4(mat), cpc->co);
         radii[i] = cpc->radius * scalef;
         cpc++;
       }
@@ -795,7 +795,7 @@ void data_xform_restore(XFormObjectData *xod_base)
       XFormObjectData_Curves *xod = reinterpret_cast<XFormObjectData_Curves *>(xod_base);
       CurvesPointCoordinates *cpc = xod->elem_array;
       for (const int i : curves.points_range()) {
-        positions[i] = float3(cpc->co);
+        positions[i] = cpc->co;
         radii[i] = cpc->radius;
         cpc++;
       }
