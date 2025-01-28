@@ -6,7 +6,6 @@
  * \ingroup spseq
  */
 
-#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
