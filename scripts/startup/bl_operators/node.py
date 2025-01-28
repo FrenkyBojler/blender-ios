@@ -427,13 +427,6 @@ class NODE_OT_viewer_shortcut_set(Operator):
                     return nv
         return None
 
-    def check_viewer_connected(self, node):
-        for out in node.outputs:
-            for link in out.links:
-                if link.to_node.type == 'VIEWER':
-                    return True
-        return False
-
     @classmethod
     def poll(self, context):
         return context.space_data.tree_type == 'CompositorNodeTree'

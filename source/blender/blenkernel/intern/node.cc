@@ -3684,7 +3684,7 @@ void node_tree_set_output(bNodeTree *ntree)
         /* same type, exception for viewer */
         const bool tnode_is_output = tnode->type_legacy == CMP_NODE_VIEWER;
         const bool compositor_case = is_compositor && tnode_is_output && node_is_output;
-        const bool has_same_shortcut = is_compositor && node != tnode &&
+        const bool has_same_shortcut = compositor_case && node != tnode &&
                                        tnode->custom1 == node->custom1 &&
                                        tnode->custom1 != NODE_VIEWER_SHORTCUT_NONE;
         if (tnode->type_legacy == node->type_legacy || compositor_case) {
