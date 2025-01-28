@@ -615,30 +615,7 @@ template<typename T> inline void Result::set_single_value(const T &value)
   BLI_assert(this->is_single_value());
   static_assert(Result::is_supported_type<T>());
 
-  if constexpr (std::is_same_v<T, float>) {
-    BLI_assert(type_ == ResultType::Float);
-    float_value_ = value;
-  }
-  else if constexpr (std::is_same_v<T, int>) {
-    BLI_assert(type_ == ResultType::Int);
-    int_value_ = value;
-  }
-  else if constexpr (std::is_same_v<T, float2>) {
-    BLI_assert(type_ == ResultType::Float2);
-    float2_value_ = value;
-  }
-  else if constexpr (std::is_same_v<T, float3>) {
-    BLI_assert(type_ == ResultType::Float3);
-    float3_value_ = value;
-  }
-  else if constexpr (std::is_same_v<T, float4>) {
-    BLI_assert(ELEM(type_, ResultType::Color, ResultType::Vector));
-    color_value_ = value;
-  }
-  else if constexpr (std::is_same_v<T, int2>) {
-    BLI_assert(type_ == ResultType::Int2);
-    int2_value_ = value;
-  }
+  this->get_single_value<T>() = value;
 
   switch (storage_type_) {
     case ResultStorageType::GPU:
