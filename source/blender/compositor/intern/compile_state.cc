@@ -61,8 +61,9 @@ void CompileState::add_node_to_pixel_compile_unit(DNode node)
   pixel_compile_unit_.add_new(node);
 
   /* If this is the first node in the compile unit, then we should initialize the single value
-   * member flag, as well as the domain in case the node was not single value. */
-  if (pixel_compile_unit_.size() == 1) {
+   * type, as well as the domain in case the node was not single value. */
+  const bool is_first_node_in_operation = pixel_compile_unit_.size() == 1;
+  if (is_first_node_in_operation) {
     is_pixel_compile_unit_single_value_ = this->is_pixel_node_single_value(node);
 
     /* If the node was not a single value, compute and initialize the domain. */
@@ -161,10 +162,13 @@ bool CompileState::is_pixel_node_single_value(DNode node)
       continue;
     }
 
-    /* If the output belongs to a node that is part of the pixel compile unit, then this node is a
-     * single value if the compile unit is single value and vice versa otherwise. */
+    /* If the output belongs to a node that is part of the pixel compile unit and that compile unit
+     * is not single value, then the node is not single value. */
     if (pixel_compile_unit_.contains(output.node())) {
-      return is_pixel_compile_unit_single_value_;
+      if (is_pixel_compile_unit_single_value_) {
+        continue;
+      }
+      return false;
     }
 
     const Result &result = get_result_from_output_socket(output);
@@ -200,11 +204,6 @@ Domain CompileState::compute_pixel_node_domain(DNode node)
     /* If the output belongs to a node that is part of the pixel compile unit, then the domain of
      * the input is the domain of the compile unit itself. */
     if (pixel_compile_unit_.contains(output.node())) {
-      /* Single value inputs can't be domain inputs. */
-      if (pixel_compile_unit_domain_->size == int2(1)) {
-        continue;
-      }
-
       /* Notice that the lower the domain priority value is, the higher the priority is, hence the
        * less than comparison. */
       if (input_descriptor.domain_priority < current_domain_priority) {
