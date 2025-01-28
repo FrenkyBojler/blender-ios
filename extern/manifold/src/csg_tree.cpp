@@ -238,7 +238,7 @@ std::shared_ptr<CsgLeafNode> CsgLeafNode::Compose(
         transform(node->pImpl_->halfedge_.begin(),
                   node->pImpl_->halfedge_.end(),
                   combined.halfedge_.begin() + edgeIndices[i],
-                  [nextVert, nextEdge, nextFace](Halfedge edge) {
+                  [nextVert, nextEdge](Halfedge edge) {
                     edge.startVert += nextVert;
                     edge.endVert += nextVert;
                     edge.pairedHalfedge += nextEdge;
