@@ -202,60 +202,98 @@ static IndexRange shift_end_by(const IndexRange &range, const int n)
   return IndexRange::from_begin_size(range.start(), range.size() + n);
 }
 
+static float clamp_to_zero(const float value)
+{
+  return math::abs(value) < 0.000001 ? 0.0 : value;
+}
+
 static void extrude_knots(const bke::CurvesGeometry &curves,
-                          const IndexMask &custom_knot_curves,
                           const OffsetIndices<int> intervals_by_curve,
                           const OffsetIndices<int> copy_intervals,
                           const Span<bool> is_first_selected,
-                          const Span<int> new_offsets,
-                          bke::CurvesGeometry &new_curves)
+                          bke::CurvesGeometry &dst_curves)
 {
-  const Span<float> knot_spans = curves.nurbs_custom_knots();
-  const VArray<bool> cyclic = curves.cyclic();
+  IndexMaskMemory memory;
+  const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
+  const Span<float> src_knots = curves.nurbs_custom_knots();
   const VArray<int8_t> orders = curves.nurbs_orders();
-  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+  const OffsetIndices<int> src_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+  const OffsetIndices<int> dst_knots_by_curve = dst_curves.nurbs_custom_knots_by_curve();
 
-  MutableSpan<float> new_knot_spans = new_curves.nurbs_custom_knots_for_write();
+  dst_curves.nurbs_custom_knots_resize(dst_knots_by_curve.total_size());
+  MutableSpan<float> dst_knots = dst_curves.nurbs_custom_knots_for_write();
+
   custom_knot_curves.foreach_index(GrainSize(64), [&](const int64_t curve) {
-    const IndexRange points = points_by_curve[curve];
-    const int order = std::min(orders[curve], int8_t(points.size() + 1));
-    const int first_index = intervals_by_curve[curve].start();
-    const int first_value = copy_intervals[first_index].start();
+    const int order = orders[curve];
     const bool is_first_interval_selected = is_first_selected[curve];
-    Array<float> curve_knots_buff(points.size());
+    Span<float> src_curve_knots = src_knots.slice(src_knots_by_curve[curve]);
 
-    Span<float> curve_knot_spans = knot_spans.slice(points);
-    /* TODO: Could be 1.0f, but tesselation must divide separate knot spans instead of whole
-     * curve's definition interval. Otherwise with existing big knot spans 1.0f doesn't get
-     * tesselation steps.*/
-    const float max_span = *std::max_element(curve_knot_spans.begin(), curve_knot_spans.end());
-    const float new_span = max_span > 0.0001f ? max_span : 1.0f;
+    Array<float> curve_span_data(src_curve_knots.size() - 1);
+    Array<int> span_multiplicity(curve_span_data.size());
 
-    if (!cyclic[curve]) {
-      MutableSpan<float> buff_span = curve_knots_buff.as_mutable_span();
-      buff_span.copy_from(knot_spans.slice(points));
+    int span = 0;
+    curve_span_data[span] = clamp_to_zero(src_curve_knots[1] - src_curve_knots[0]);
+    span_multiplicity[span] = 1;
 
-      buff_span.first() = new_span;
-      buff_span.take_back(order - 2).fill(new_span);
-      curve_knot_spans = buff_span;
+    for (const int i : src_curve_knots.index_range().drop_back(1).drop_front(1)) {
+      const float span_value = clamp_to_zero(src_curve_knots[i + 1] - src_curve_knots[i]);
+      const bool is_new = curve_span_data[span] != span_value;
+      span += is_new;
+      curve_span_data[span] = span_value;
+      span_multiplicity[span]++;
     }
 
-    for (const int i : intervals_by_curve[curve].drop_back(1)) {
-      const IndexRange src = shift_end_by(copy_intervals[i], 1);
-      const IndexRange dst = src.shift(new_offsets[curve] - first_value + i - first_index);
+    MutableSpan<float> curve_spans = curve_span_data.as_mutable_span().slice(0, span + 1);
+
+    const IndexRange curve_intervals = intervals_by_curve[curve];
+    const Span<int> duplicated_points =
+        copy_intervals.data().slice(curve_intervals).drop_front(1).drop_back(1);
+    const int first_curve_point = copy_intervals.data()[curve_intervals.first()];
+    Vector<int> increase_span_multiplicity;
+    increase_span_multiplicity.reserve(duplicated_points.size());
+    int first_span_knot = 0;
+    span = 0;
+
+    for (const int i : duplicated_points.index_range()) {
       const bool is_selected = bool(i % 2) != is_first_interval_selected;
-      new_knot_spans.slice(dst).copy_from(curve_knot_spans.slice(src.shift(-first_value)));
-      if (is_selected) {
-        new_knot_spans[dst.first()] = new_span;
-        new_knot_spans[dst.last()] = new_span;
+      const int point = duplicated_points[i] - first_curve_point;
+      while (first_span_knot + span_multiplicity[span] <= point) {
+        first_span_knot += span_multiplicity[span];
+        span++;
       }
+      int multiplicity = point - first_span_knot;
+
+      std::array<int, 2> side_spans;
+      int side = 0;
+      int point_span = span;
+      for ([[maybe_unused]] const int i : IndexRange(order)) {
+        multiplicity++;
+        if (multiplicity > span_multiplicity[point_span]) {
+          point_span++;
+          multiplicity = 1;
+        }
+        if (curve_spans[point_span] == 0.0) {
+          continue;
+        }
+        side_spans[side] = point_span;
+        side = 1;
+        side_spans[side] = point_span;
+      }
+      increase_span_multiplicity.append(side_spans[is_selected]);
+    }
+    for (const int span : increase_span_multiplicity) {
+      span_multiplicity[span]++;
     }
 
-    if (!cyclic[curve]) {
-      MutableSpan<float> new_curve_knot_spans = new_knot_spans.slice(
-          IndexRange::from_begin_end(new_offsets[curve], new_offsets[curve + 1]));
-      new_curve_knot_spans.first() = 0.0f;
-      new_curve_knot_spans.take_back(order - 2).fill(0.0f);
+    MutableSpan<float> dst_curve_knots = dst_knots.slice(dst_knots_by_curve[curve]);
+    int knot = 0;
+    float knot_value = src_curve_knots[knot];
+    dst_curve_knots[knot++] = knot_value;
+    for (const int span : curve_spans.index_range()) {
+      for ([[maybe_unused]] const int k : IndexRange(span_multiplicity[span])) {
+        knot_value += curve_spans[span];
+        dst_curve_knots[knot++] = knot_value;
+      }
     }
   });
 }
@@ -362,20 +400,8 @@ static void extrude_curves(Curves &curves_id)
     dst_selections[selection_i].finish();
   }
 
-  const VArray<int8_t> knots_modes = curves.nurbs_knots_modes();
-  const IndexMask custom_knot_curves = IndexMask::from_predicate(
-      curves.curves_range(), GrainSize(512), memory, [&](const int64_t curve) {
-        return knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM;
-      });
-
-  if (custom_knot_curves.size() > 0) {
-    extrude_knots(curves,
-                  custom_knot_curves,
-                  intervals_by_curve,
-                  copy_intervals,
-                  is_first_selected,
-                  new_offsets,
-                  new_curves);
+  if (curves.nurbs_custom_knots_num() > 0) {
+    extrude_knots(curves, intervals_by_curve, copy_intervals, is_first_selected, new_curves);
   }
 
   const OffsetIndices<int> compact_intervals = compress_intervals(intervals_by_curve,

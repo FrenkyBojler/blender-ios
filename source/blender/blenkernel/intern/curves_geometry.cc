@@ -535,11 +535,11 @@ IndexMask CurvesGeometry::nurbs_custom_knot_curves(IndexMaskMemory &memory) cons
 OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
 {
   const CurvesGeometryRuntime &runtime = *this->runtime;
-  if (this->custom_knot_num == 0) {
+  if (this->curve_num == 0) {
     return {};
   }
   runtime.custom_knots_offsets_cache.ensure([&](Vector<int> &r_data) {
-    r_data.resize(this->curves_num() + 1, 0);
+    r_data.resize(this->curve_num + 1, 0);
 
     IndexMaskMemory memory;
     const IndexMask custom_knot_curves = this->nurbs_custom_knot_curves(memory);
@@ -549,8 +549,7 @@ OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
 
     int knot_count = 0;
     custom_knot_curves.foreach_index([&](const int64_t curve) {
-      knot_count += curves::nurbs::knots_num(
-          points_by_curve[curve].size(), orders[curve], cyclic[curve]);
+      knot_count += points_by_curve[curve].size() + orders[curve];
       r_data[curve + 1] = knot_count;
     });
   });
@@ -1162,6 +1161,7 @@ void CurvesGeometry::tag_positions_changed()
 }
 void CurvesGeometry::tag_topology_changed()
 {
+  this->runtime->custom_knots_offsets_cache.tag_dirty();
   this->tag_positions_changed();
   this->runtime->evaluated_offsets_cache.tag_dirty();
   this->runtime->nurbs_basis_cache.tag_dirty();
