@@ -178,7 +178,6 @@ class NODE_HT_header(Header):
                     layout.popover(panel="NODE_PT_geometry_node_tool_options", text="Options")
                 display_pin = False
             else:  # snode.geometry_nodes_type == 'BRUSH'
-                # TODO: Display something when the context has no active brush.
                 settings = context.scene.tool_settings.sculpt
                 brush = settings.brush
                 if brush:

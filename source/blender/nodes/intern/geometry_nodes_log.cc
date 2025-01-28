@@ -731,6 +731,7 @@ Map<const bNodeTreeZone *, GeoTreeLog *> GeoModifierLog::get_tree_log_by_zone_fo
       return log_by_zone;
     }
     case SNODE_GEOMETRY_BRUSH: {
+      /* Not supported currently. */
       return {};
     }
   }
