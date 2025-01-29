@@ -174,7 +174,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
       }
       ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK);
 
-      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     }
   }
   else {
@@ -458,7 +458,7 @@ static bool snap_selected_to_location(bContext *C,
 
       ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK);
 
-      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     }
   }
   else {

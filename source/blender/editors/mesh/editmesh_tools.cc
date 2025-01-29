@@ -4768,7 +4768,8 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
   for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
 
     Object *obedit = objects[ob_index];
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    Mesh &mesh = *static_cast<Mesh *>(obedit->data);
+    BMEditMesh *em = mesh.runtime->edit_mesh.get();
     if (em->bm->totedgesel == 0) {
       continue;
     }

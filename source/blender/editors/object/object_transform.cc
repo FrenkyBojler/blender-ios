@@ -1347,7 +1347,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
       EDBM_mesh_normals_update(em);
       tot_change++;
-      DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
+      DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
     }
   }
 
@@ -1483,7 +1483,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
       if (obedit) {
         if (centermode == GEOMETRY_TO_ORIGIN) {
-          DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
+          DEG_id_tag_update(&cu->id, ID_RECALC_GEOMETRY);
         }
         break;
       }
@@ -1572,7 +1572,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
       if (obedit) {
         if (centermode == GEOMETRY_TO_ORIGIN) {
-          DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
+          DEG_id_tag_update(&mb->id, ID_RECALC_GEOMETRY);
         }
         break;
       }

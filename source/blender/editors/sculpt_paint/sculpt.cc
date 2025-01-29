@@ -768,11 +768,11 @@ void SCULPT_tag_update_overlays(bContext *C)
   Object &ob = *CTX_data_active_object(C);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &ob);
 
-  DEG_id_tag_update(&ob.id, ID_RECALC_SHADING);
+  DEG_id_tag_update(static_cast<ID *>(ob.data), ID_RECALC_SHADING);
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   if (!BKE_sculptsession_use_pbvh_draw(&ob, rv3d)) {
-    DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob.data), ID_RECALC_GEOMETRY);
   }
 }
 
@@ -5033,14 +5033,14 @@ void flush_update_step(bContext *C, UpdateType update_type)
     }
   }
 
-  DEG_id_tag_update(&ob.id, ID_RECALC_SHADING);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_SHADING);
 
   /* Only current viewport matters, slower update for all viewports will
    * be done in sculpt_flush_update_done. */
   if (!use_pbvh_draw) {
     /* Slow update with full dependency graph update and all that comes with it.
      * Needed when there are modifiers or full shading in the 3D viewport. */
-    DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
     ED_region_tag_redraw(&region);
   }
   else {
@@ -5176,7 +5176,7 @@ void flush_update_done(const bContext *C, Object &ob, UpdateType update_type)
   }
 
   if (need_tag) {
-    DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   }
 }
 

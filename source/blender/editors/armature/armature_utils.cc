@@ -779,7 +779,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
     }
   }
 
-  DEG_id_tag_update(&arm->id, 0);
+  DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 void ED_armature_edit_free(bArmature *arm)

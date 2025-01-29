@@ -282,7 +282,7 @@ static int symmetrize_exec(bContext *C, wmOperator *op)
   }
 
   BKE_sculptsession_free_pbvh(ob);
-  DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob.data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &ob);
 
   return OPERATOR_FINISHED;
@@ -864,7 +864,7 @@ static int mask_by_color_invoke(bContext *C, wmOperator *op, const wmEvent *even
   undo::push_end(ob);
 
   flush_update_done(C, ob, UpdateType::Mask);
-  DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob.data), ID_RECALC_GEOMETRY);
 
   return OPERATOR_FINISHED;
 }

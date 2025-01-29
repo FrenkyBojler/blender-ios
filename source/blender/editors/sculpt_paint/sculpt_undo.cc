@@ -585,7 +585,7 @@ static void bmesh_restore_generic(StepData &step_data, Object &object, const Scu
   }
   else {
     BKE_sculptsession_free_pbvh(object);
-    DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(object.data), ID_RECALC_GEOMETRY);
     BM_mesh_normals_update(ss.bm);
   }
 }
@@ -597,7 +597,7 @@ static void bmesh_enable(Object &object, const StepData &step_data)
   Mesh *mesh = static_cast<Mesh *>(object.data);
 
   BKE_sculptsession_free_pbvh(object);
-  DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(object.data), ID_RECALC_GEOMETRY);
 
   /* Create empty BMesh and enable logging. */
   BMeshCreateParams bmesh_create_params{};
@@ -715,10 +715,9 @@ static void geometry_free_data(NodeGeometry *geometry)
 
 static void restore_geometry(StepData &step_data, Object &object)
 {
-  BKE_sculptsession_free_pbvh(object);
-  DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
-
   Mesh *mesh = static_cast<Mesh *>(object.data);
+  BKE_sculptsession_free_pbvh(object);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
   if (step_data.applied) {
     restore_geometry_data(&step_data.geometry_modified, mesh);
@@ -1097,9 +1096,9 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       break;
   }
 
-  DEG_id_tag_update(&object.id, ID_RECALC_SHADING);
+  DEG_id_tag_update(static_cast<ID *>(object.data), ID_RECALC_SHADING);
   if (tag_update) {
-    DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(object.data), ID_RECALC_GEOMETRY);
   }
 }
 
@@ -1872,7 +1871,7 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
     mesh->attributes_for_write().add(
         attr->name, attr->domain, attr->type, bke::AttributeInitDefaultValue());
     layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   }
 
   if (layer) {

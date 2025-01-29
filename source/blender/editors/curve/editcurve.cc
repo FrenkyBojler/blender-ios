@@ -7037,7 +7037,7 @@ int ED_curve_join_objects_exec(bContext *C, wmOperator *op)
 
   DEG_relations_tag_update(bmain); /* because we removed object(s), call before editmode! */
 
-  DEG_id_tag_update(&ob_active->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(&cu->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
 
   WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);

@@ -2494,7 +2494,7 @@ static int vertex_group_add_exec(bContext *C, wmOperator * /*op*/)
 
   BKE_object_defgroup_add(ob);
   DEG_relations_tag_update(CTX_data_main(C));
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
@@ -2600,7 +2600,7 @@ static int vertex_group_remove_exec(bContext *C, wmOperator *op)
     }
   }
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -2646,7 +2646,7 @@ static int vertex_group_assign_exec(bContext *C, wmOperator * /*op*/)
   Scene &scene = *CTX_data_scene(C);
 
   vgroup_assign_verts(ob, scene, ts->vgroup_weight);
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
@@ -2743,7 +2743,7 @@ static int vertex_group_remove_from_exec(bContext *C, wmOperator *op)
     }
   }
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
@@ -2859,7 +2859,7 @@ static int vertex_group_copy_exec(bContext *C, wmOperator * /*op*/)
   Object *ob = context_object(C);
 
   vgroup_duplicate(ob);
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
@@ -2904,7 +2904,7 @@ static int vertex_group_levels_exec(bContext *C, wmOperator *op)
   vgroup_levels_subset(ob, vgroup_validmap, vgroup_tot, subset_count, offset, gain);
   MEM_freeN((void *)vgroup_validmap);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
@@ -2947,7 +2947,7 @@ static int vertex_group_normalize_exec(bContext *C, wmOperator * /*op*/)
   changed = vgroup_normalize(ob);
 
   if (changed) {
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
@@ -3026,7 +3026,7 @@ static int vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
   MEM_freeN((void *)vgroup_validmap);
 
   if (changed) {
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
@@ -3197,7 +3197,7 @@ static int vertex_group_invert_exec(bContext *C, wmOperator *op)
   vgroup_invert_subset(ob, vgroup_validmap, vgroup_tot, subset_count, auto_assign, auto_remove);
   MEM_freeN((void *)vgroup_validmap);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
@@ -3255,7 +3255,7 @@ static int vertex_group_smooth_exec(bContext *C, wmOperator *op)
     vgroup_smooth_subset(ob, vgroup_validmap, vgroup_tot, subset_count, fac, repeat, fac_expand);
     MEM_freeN((void *)vgroup_validmap);
 
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
   }
@@ -3315,7 +3315,7 @@ static int vertex_group_clean_exec(bContext *C, wmOperator *op)
     vgroup_clean_subset(ob, vgroup_validmap, vgroup_tot, subset_count, limit, keep_single);
     MEM_freeN((void *)vgroup_validmap);
 
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
   }
@@ -3375,7 +3375,7 @@ static int vertex_group_quantize_exec(bContext *C, wmOperator *op)
   vgroup_quantize_subset(ob, vgroup_validmap, vgroup_tot, subset_count, steps);
   MEM_freeN((void *)vgroup_validmap);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
@@ -3424,7 +3424,7 @@ static int vertex_group_limit_total_exec(bContext *C, wmOperator *op)
     MEM_freeN((void *)vgroup_validmap);
 
     if (remove_count != 0) {
-      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
     }
@@ -3486,7 +3486,7 @@ static int vertex_group_mirror_exec(bContext *C, wmOperator *op)
 
   ED_mesh_report_mirror(op, totmirr, totfail);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
@@ -3538,7 +3538,7 @@ static int vertex_group_copy_to_selected_exec(bContext *C, wmOperator *op)
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (obact != ob && BKE_object_supports_vertex_groups(ob)) {
       if (vgroup_array_copy(ob, obact)) {
-        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+        DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
         DEG_relations_tag_update(CTX_data_main(C));
         WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
         changed_tot++;
@@ -3591,7 +3591,7 @@ static int set_active_group_exec(bContext *C, wmOperator *op)
   BLI_assert(nr + 1 >= 0);
   BKE_object_defgroup_active_index_set(ob, nr + 1);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
 
   return OPERATOR_FINISHED;
@@ -3831,7 +3831,7 @@ static int vertex_group_sort_exec(bContext *C, wmOperator *op)
   ret = vgroup_do_remap(ob, name_array, op);
 
   if (ret != OPERATOR_CANCELLED) {
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
   }
 
@@ -3892,7 +3892,7 @@ static int vgroup_move_exec(bContext *C, wmOperator *op)
     ret = vgroup_do_remap(ob, name_array, op);
 
     if (ret != OPERATOR_CANCELLED) {
-      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
     }
   }
@@ -4030,7 +4030,7 @@ static int vertex_weight_paste_exec(bContext *C, wmOperator *op)
 
   vgroup_copy_active_to_sel_single(ob, def_nr);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
@@ -4081,7 +4081,7 @@ static int vertex_weight_delete_exec(bContext *C, wmOperator *op)
 
   vgroup_remove_weight(ob, def_nr);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
@@ -4127,7 +4127,7 @@ static int vertex_weight_set_active_exec(bContext *C, wmOperator *op)
 
   if (wg_index != -1) {
     BKE_object_defgroup_active_index_set(ob, wg_index + 1);
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   }
 
@@ -4177,7 +4177,7 @@ static int vertex_weight_normalize_active_vertex_exec(bContext *C, wmOperator * 
   changed = vgroup_normalize_active_vertex(ob, subset_type);
 
   if (changed) {
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
     return OPERATOR_FINISHED;
@@ -4214,7 +4214,7 @@ static int vertex_weight_copy_exec(bContext *C, wmOperator * /*op*/)
 
   vgroup_copy_active_to_sel(ob, subset_type);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;

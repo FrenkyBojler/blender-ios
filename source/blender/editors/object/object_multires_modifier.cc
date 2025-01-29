@@ -129,7 +129,7 @@ static int multires_subdivide_exec(bContext *C, wmOperator *op)
 
   iter_other(CTX_data_main(C), object, true, multires_update_totlevels, &mmd->totlvl);
 
-  DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(object->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
 
   if (object->mode & OB_MODE_SCULPT) {
@@ -210,7 +210,7 @@ static int multires_reshape_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
@@ -390,7 +390,7 @@ static int multires_base_apply_exec(bContext *C, wmOperator *op)
 
   ed::sculpt_paint::undo::push_multires_mesh_end(C, op->type->name);
 
-  DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(object->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
 
   return OPERATOR_FINISHED;
@@ -442,7 +442,7 @@ static int multires_unsubdivide_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(object->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
 
   return OPERATOR_FINISHED;
@@ -496,7 +496,7 @@ static int multires_rebuild_subdiv_exec(bContext *C, wmOperator *op)
 
   BKE_reportf(op->reports, RPT_INFO, "%d new levels rebuilt", new_levels);
 
-  DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(object->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
 
   return OPERATOR_FINISHED;

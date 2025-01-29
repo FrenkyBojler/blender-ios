@@ -522,7 +522,7 @@ static int data_transfer_exec(bContext *C, wmOperator *op)
                                         false,
                                         op->reports))
       {
-        DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
+        DEG_id_tag_update(static_cast<ID *>(ob_dst->data), ID_RECALC_GEOMETRY);
         changed = true;
       }
     }
@@ -849,7 +849,7 @@ static int datalayout_transfer_exec(bContext *C, wmOperator *op)
                                     dtmd->layers_select_src,
                                     dtmd->layers_select_dst);
 
-    DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob_dst->data), ID_RECALC_GEOMETRY);
   }
   else {
     Object *ob_src = ob_act;
@@ -886,7 +886,7 @@ static int datalayout_transfer_exec(bContext *C, wmOperator *op)
                                         layers_select_dst);
       }
 
-      DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
+      DEG_id_tag_update(static_cast<ID *>(ob_dst->data), ID_RECALC_GEOMETRY);
     }
   }
 

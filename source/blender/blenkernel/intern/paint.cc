@@ -2065,7 +2065,7 @@ void BKE_sculptsession_bm_to_me(Object *ob, bool reorder)
 
     /* Ensure the objects evaluated mesh doesn't hold onto arrays
      * now realloc'd in the mesh #34473. */
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   }
 }
 
@@ -2632,7 +2632,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
       }
     }
     /* The evaluated multires CCG must be updated to contain the new data. */
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
     if (depsgraph) {
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
     }

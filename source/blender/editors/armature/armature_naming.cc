@@ -470,7 +470,7 @@ static int armature_flip_names_exec(bContext *C, wmOperator *op)
     BLI_freelistN(&bones_names);
 
     /* since we renamed stuff... */
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(&arm->id, ID_RECALC_GEOMETRY);
 
     /* copied from #rna_Bone_update_renamed */
     /* Redraw Outliner / Dopesheet. */
@@ -562,7 +562,7 @@ static int armature_autoside_names_exec(bContext *C, wmOperator *op)
     changed_multi = true;
 
     /* Since we renamed stuff... */
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(&arm->id, ID_RECALC_GEOMETRY);
 
     /* NOTE: notifier might evolve. */
     WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);

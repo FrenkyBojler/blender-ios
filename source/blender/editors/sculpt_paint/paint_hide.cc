@@ -114,10 +114,10 @@ void tag_update_visibility(const bContext &C)
   Object *ob = CTX_data_active_object(&C);
   WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_SHADING);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SHADING);
   const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
   if (!BKE_sculptsession_use_pbvh_draw(ob, rv3d)) {
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   }
 }
 

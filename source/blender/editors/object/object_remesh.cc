@@ -163,8 +163,8 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
     BKE_sculptsession_free_pbvh(*ob);
   }
 
-  BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
@@ -921,7 +921,7 @@ static void quadriflow_end_job(void *customdata)
 
   switch (qj->success) {
     case 1:
-      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
       WM_reportf(RPT_INFO, "QuadriFlow: Remeshing completed");
       break;
     case 0:

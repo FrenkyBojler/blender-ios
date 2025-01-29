@@ -2423,7 +2423,7 @@ static void rna_Scene_update_active_object_data(bContext *C, PointerRNA * /*ptr*
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   if (ob) {
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
   }
 }

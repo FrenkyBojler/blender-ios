@@ -203,7 +203,7 @@ void ED_mesh_uv_loop_reset_ex(Mesh *mesh, const int layernum)
     }
   }
 
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 }
 
 void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh)
@@ -284,7 +284,7 @@ int ED_mesh_uv_add(
     ED_mesh_uv_loop_reset_ex(mesh, layernum_dst);
   }
 
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, mesh);
 
   return layernum_dst;
@@ -410,7 +410,7 @@ int ED_mesh_color_add(
     BKE_id_attributes_active_color_set(&mesh->id, layer->name);
   }
 
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, mesh);
 
   int dummy;
@@ -439,7 +439,7 @@ bool ED_mesh_color_ensure(Mesh *mesh, const char *name)
   BKE_id_attributes_active_color_set(&mesh->id, unique_name.c_str());
   BKE_id_attributes_default_color_set(&mesh->id, unique_name.c_str());
   BKE_mesh_tessface_clear(mesh);
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
   return true;
 }
@@ -660,7 +660,7 @@ static int mesh_customdata_skin_add_exec(bContext *C, wmOperator * /*op*/)
 
   BKE_mesh_ensure_skin_customdata(mesh);
 
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;
@@ -727,7 +727,7 @@ static int mesh_customdata_custom_splitnormals_add_exec(bContext *C, wmOperator 
     }
   }
 
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;

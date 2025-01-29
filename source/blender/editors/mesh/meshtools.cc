@@ -703,7 +703,7 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
 
   DEG_relations_tag_update(bmain); /* removed objects, need to rebuild dag */
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);

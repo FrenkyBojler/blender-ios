@@ -2950,7 +2950,7 @@ static int drop_named_material_invoke(bContext *C, wmOperator *op, const wmEvent
 
   BKE_object_material_assign(CTX_data_main(C), ob, ma, mat_slot, BKE_MAT_ASSIGN_USERPREF);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_TRANSFORM);
 
   WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);

@@ -224,7 +224,7 @@ static int geometry_extract_apply(bContext *C,
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, new_ob);
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(new_ob->data), BKE_MESH_BATCH_DIRTY_ALL);
   DEG_relations_tag_update(bmain);
-  DEG_id_tag_update(&new_ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(new_ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, new_ob->data);
 
   return OPERATOR_FINISHED;
@@ -526,7 +526,7 @@ static int paint_mask_slice_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, new_ob);
     BKE_mesh_batch_cache_dirty_tag(new_mesh, BKE_MESH_BATCH_DIRTY_ALL);
     DEG_relations_tag_update(&bmain);
-    DEG_id_tag_update(&new_ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(&new_ob_mesh->id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, new_mesh);
   }
 
@@ -546,7 +546,7 @@ static int paint_mask_slice_exec(bContext *C, wmOperator *op)
   }
 
   BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
-  DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;

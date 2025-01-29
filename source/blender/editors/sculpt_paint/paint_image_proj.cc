@@ -6993,7 +6993,7 @@ static int add_simple_uvs_exec(bContext *C, wmOperator * /*op*/)
 
   ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
 
-  DEG_id_tag_update(static_cast<ID *>(ob->data), 0);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
   WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, scene);
   return OPERATOR_FINISHED;

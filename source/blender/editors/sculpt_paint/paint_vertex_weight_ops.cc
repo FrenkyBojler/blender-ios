@@ -730,7 +730,7 @@ static int paint_weight_gradient_modal(bContext *C, wmOperator *op, const wmEven
       MEM_freeN(vert_cache);
     }
 
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   }
   else if (ret & OPERATOR_FINISHED) {
@@ -839,7 +839,7 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
     BKE_mesh_foreach_mapped_vert(mesh_eval, gradientVertUpdate__mapFunc, &data, MESH_FOREACH_NOP);
   }
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   if (is_interactive == false) {

@@ -1408,7 +1408,7 @@ static bool modifier_apply_obdata(ReportList *reports,
 
     MEM_freeN(vertexCos);
 
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(&curve->id, ID_RECALC_GEOMETRY);
   }
   else if (ob->type == OB_LATTICE) {
     Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
@@ -1428,7 +1428,7 @@ static bool modifier_apply_obdata(ReportList *reports,
 
     MEM_freeN(vertexCos);
 
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(&lattice->id, ID_RECALC_GEOMETRY);
   }
   else if (ob->type == OB_CURVES) {
     Curves &curves = *static_cast<Curves *>(ob->data);
@@ -2471,7 +2471,7 @@ static int modifier_convert_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
@@ -2834,6 +2834,7 @@ static void skin_root_clear(BMVert *bm_vert, GSet *visited, const int cd_vert_sk
 static int skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *ob = CTX_data_edit_object(C);
+  Mesh &mesh = *static_cast<Mesh *>(ob->data);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 
@@ -2860,7 +2861,7 @@ static int skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
 
   BLI_gset_free(visited, nullptr);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
@@ -2887,6 +2888,7 @@ enum SkinLooseAction {
 static int skin_loose_mark_clear_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_edit_object(C);
+  Mesh &mesh = *static_cast<Mesh *>(ob->data);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
   SkinLooseAction action = static_cast<SkinLooseAction>(RNA_enum_get(op->ptr, "action"));
@@ -2913,7 +2915,7 @@ static int skin_loose_mark_clear_exec(bContext *C, wmOperator *op)
     }
   }
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
@@ -2943,6 +2945,7 @@ void OBJECT_OT_skin_loose_mark_clear(wmOperatorType *ot)
 static int skin_radii_equalize_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *ob = CTX_data_edit_object(C);
+  Mesh &mesh = *static_cast<Mesh *>(ob->data);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 
@@ -2962,7 +2965,7 @@ static int skin_radii_equalize_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
