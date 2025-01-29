@@ -15,10 +15,9 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "DNA_vec_types.h"
 
-#include "BLI_rect.h"
-
+#include "BKE_image.hh"
 #include "BKE_image_wrappers.hh"
 
 #include "DNA_image_types.h"
@@ -57,7 +56,7 @@ enum class ePartialUpdateCollectResult {
 struct PartialUpdateRegion {
   /** \brief region of the image that has been updated. Region can be bigger than actual changes.
    */
-  struct rcti region;
+  rcti region;
 
   /**
    * \brief Tile number (UDIM) that this region belongs to.

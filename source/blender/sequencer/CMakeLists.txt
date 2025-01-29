@@ -6,7 +6,6 @@ set(INC
   PUBLIC .
   intern
   ../animrig
-  ../imbuf/movie
   ../makesrna
 
   # RNA_prototypes.hh
@@ -71,13 +70,13 @@ set(SRC
   intern/proxy_job.cc
   intern/render.cc
   intern/render.hh
-  intern/sequence_lookup.cc
   intern/sequencer.cc
   intern/sequencer.hh
   intern/sound.cc
   intern/strip_add.cc
   intern/strip_connect.cc
   intern/strip_edit.cc
+  intern/strip_lookup.cc
   intern/strip_relations.cc
   intern/strip_retiming.cc
   intern/strip_select.cc
@@ -98,6 +97,7 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc

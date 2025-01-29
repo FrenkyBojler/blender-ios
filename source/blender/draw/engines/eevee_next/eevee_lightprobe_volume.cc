@@ -8,9 +8,8 @@
 #include "BKE_lightprobe.h"
 
 #include "GPU_capabilities.hh"
-#include "GPU_debug.hh"
 
-#include "BLI_math_rotation.hh"
+#include "draw_manager_profiling.hh"
 
 #include "eevee_instance.hh"
 
@@ -37,7 +36,7 @@ void VolumeProbeModule::init()
   uint atlas_row_count = 0;
 
   if (assign_if_different(irradiance_pool_size_,
-                          (uint)inst_.scene->eevee.gi_irradiance_pool_size) ||
+                          uint(inst_.scene->eevee.gi_irradiance_pool_size)) ||
       !irradiance_atlas_tx_.is_valid())
   {
     irradiance_atlas_tx_.free();

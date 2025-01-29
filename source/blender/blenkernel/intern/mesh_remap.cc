@@ -17,6 +17,7 @@
 #include "BLI_array.hh"
 #include "BLI_astar.h"
 #include "BLI_bit_vector.hh"
+#include "BLI_index_mask.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_solvers.h"
@@ -32,7 +33,6 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_remap.hh" /* own include */
-#include "BKE_mesh_runtime.hh"
 
 #include "BLI_strict_flags.h" /* Keep last. */
 

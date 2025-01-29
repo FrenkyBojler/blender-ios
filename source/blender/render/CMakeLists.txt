@@ -8,10 +8,9 @@ set(INC
   intern
   ../compositor
   ../compositor/cached_resources
-  ../draw
+  ../compositor/derived_resources
   ../draw/intern
   ../gpu/intern
-  ../imbuf/movie
   ../makesrna
   ../simulation
   ../../../intern/mikktspace
@@ -59,9 +58,11 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_compositor
   PRIVATE bf::intern::atomic

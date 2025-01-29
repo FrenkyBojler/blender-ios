@@ -11,7 +11,6 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meta_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
@@ -21,20 +20,23 @@
 
 #include "UI_resources.hh"
 
+#include "BLI_ghash.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_context.hh"
+#include "BKE_material.hh"
 #include "BKE_object.hh"
-#include "BKE_paint.hh"
 
 #include "GPU_batch.hh"
 #include "GPU_batch_utils.hh"
 #include "GPU_capabilities.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
 #include "draw_manager_c.hh"
+
+using blender::Span;
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Defines
@@ -933,20 +935,14 @@ blender::gpu::VertBuf *DRW_cache_object_pos_vertbuf_get(Object *ob)
   }
 }
 
-int DRW_cache_object_material_count_get(const Object *ob)
-{
-  return BKE_object_material_count_with_fallback_eval(ob);
-}
-
-blender::gpu::Batch **DRW_cache_object_surface_material_get(Object *ob,
-                                                            GPUMaterial **gpumat_array,
-                                                            uint gpumat_array_len)
+Span<blender::gpu::Batch *> DRW_cache_object_surface_material_get(
+    Object *ob, const Span<const GPUMaterial *> materials)
 {
   switch (ob->type) {
     case OB_MESH:
-      return DRW_cache_mesh_surface_shaded_get(ob, gpumat_array, gpumat_array_len);
+      return DRW_cache_mesh_surface_shaded_get(ob, materials);
     default:
-      return nullptr;
+      return {};
   }
 }
 
@@ -2860,17 +2856,15 @@ blender::gpu::Batch *DRW_cache_mesh_surface_edges_get(Object *ob)
   return DRW_mesh_batch_cache_get_surface_edges(*ob, *static_cast<Mesh *>(ob->data));
 }
 
-blender::gpu::Batch **DRW_cache_mesh_surface_shaded_get(Object *ob,
-                                                        GPUMaterial **gpumat_array,
-                                                        uint gpumat_array_len)
+Span<blender::gpu::Batch *> DRW_cache_mesh_surface_shaded_get(
+    Object *ob, const blender::Span<const GPUMaterial *> materials)
 {
   using namespace blender::draw;
   BLI_assert(ob->type == OB_MESH);
-  return DRW_mesh_batch_cache_get_surface_shaded(
-      *ob, *static_cast<Mesh *>(ob->data), gpumat_array, gpumat_array_len);
+  return DRW_mesh_batch_cache_get_surface_shaded(*ob, *static_cast<Mesh *>(ob->data), materials);
 }
 
-blender::gpu::Batch **DRW_cache_mesh_surface_texpaint_get(Object *ob)
+Span<blender::gpu::Batch *> DRW_cache_mesh_surface_texpaint_get(Object *ob)
 {
   using namespace blender::draw;
   BLI_assert(ob->type == OB_MESH);
@@ -3294,7 +3288,7 @@ void drw_batch_cache_validate(Object *ob)
   using namespace blender::draw;
   switch (ob->type) {
     case OB_MESH:
-      DRW_mesh_batch_cache_validate(*ob, *(Mesh *)ob->data);
+      DRW_mesh_batch_cache_validate(*(Mesh *)ob->data);
       break;
     case OB_CURVES_LEGACY:
     case OB_FONT:
@@ -3308,7 +3302,7 @@ void drw_batch_cache_validate(Object *ob)
       DRW_curves_batch_cache_validate((Curves *)ob->data);
       break;
     case OB_POINTCLOUD:
-      DRW_pointcloud_batch_cache_validate(*ob, (PointCloud *)ob->data);
+      DRW_pointcloud_batch_cache_validate((PointCloud *)ob->data);
       break;
     case OB_VOLUME:
       DRW_volume_batch_cache_validate((Volume *)ob->data);

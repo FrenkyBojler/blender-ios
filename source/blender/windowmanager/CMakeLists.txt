@@ -8,8 +8,6 @@ set(INC
   gizmo/intern
   ../compositor
   ../editors/include
-  ../draw
-  ../imbuf/movie
   ../makesrna
   ../../../intern/memutil
 
@@ -96,11 +94,13 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   bf_editor_screen
   bf_editor_undo
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig

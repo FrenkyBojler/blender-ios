@@ -9,8 +9,6 @@ set(INC
   ../include
   ../uvedit
   ../../blenlib
-  ../../draw
-  ../../geometry
   ../../makesrna
   ../../../../intern/eigen
   # RNA_prototypes.hh
@@ -178,8 +176,10 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
+  PRIVATE bf::geometry
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
@@ -206,6 +206,7 @@ endif()
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    paint_test.cc
     sculpt_detail_test.cc
   )
   set(TEST_INC

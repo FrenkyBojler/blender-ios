@@ -4,9 +4,7 @@
 
 set(INC
   PUBLIC .
-  ../draw
   ../editors/include
-  ../imbuf/movie
   ../makesrna
 
   # RNA_prototypes.hh
@@ -57,8 +55,10 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib

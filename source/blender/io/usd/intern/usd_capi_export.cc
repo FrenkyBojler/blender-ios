@@ -8,6 +8,7 @@
 #include "usd.hh"
 #include "usd_hierarchy_iterator.hh"
 #include "usd_hook.hh"
+#include "usd_instancing_utils.hh"
 #include "usd_light_convert.hh"
 #include "usd_private.hh"
 
@@ -16,6 +17,7 @@
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usd/stage.h>
+#include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdGeom/tokens.h>
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usdGeom/xformCommonAPI.h>
@@ -167,6 +169,10 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
     return;
   }
 
+  if (params.convert_scene_units) {
+    xf_api.SetScale(pxr::GfVec3f(float(1.0 / get_meters_per_unit(&params))));
+  }
+
   if (params.convert_orientation) {
     float mrot[3][3];
     mat3_from_axis_conversion(IO_AXIS_Y, IO_AXIS_Z, params.forward_axis, params.up_axis, mrot);
@@ -183,7 +189,7 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
 
   for (const auto &path : pxr::SdfPath(params.root_prim_path).GetPrefixes()) {
     auto xform = pxr::UsdGeomXform::Define(stage, path);
-    /* Tag generated prims to allow filtering on import */
+    /* Tag generated primitives to allow filtering on import. */
     xform.GetPrim().SetCustomDataByKey(pxr::TfToken("Blender:generated"), pxr::VtValue(true));
   }
 }
@@ -434,6 +440,9 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
 
   usd_stage->SetMetadata(pxr::UsdGeomTokens->upAxis, upAxis);
 
+  const double meters_per_unit = get_meters_per_unit(&params);
+  pxr::UsdGeomSetStageMetersPerUnit(usd_stage, meters_per_unit);
+
   ensure_root_prim(usd_stage, params);
 
   USDHierarchyIterator iter(bmain, depsgraph, usd_stage, params);
@@ -491,6 +500,10 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
       usd_stage->SetDefaultPrim(prim);
       break;
     }
+  }
+
+  if (params.use_instancing) {
+    process_scene_graph_instances(params, usd_stage);
   }
 
   call_export_hooks(usd_stage, depsgraph, params.worker_status->reports);
@@ -732,6 +745,39 @@ int USD_get_version()
    * So the major version is implicit/invisible in the public version number.
    */
   return PXR_VERSION;
+}
+
+double get_meters_per_unit(const USDExportParams *params)
+{
+  double result;
+  switch (params->convert_scene_units) {
+    case USD_SCENE_UNITS_CENTIMETERS:
+      result = 0.01;
+      break;
+    case USD_SCENE_UNITS_MILLIMETERS:
+      result = 0.001;
+      break;
+    case USD_SCENE_UNITS_KILOMETERS:
+      result = 1000.0;
+      break;
+    case USD_SCENE_UNITS_INCHES:
+      result = 0.0254;
+      break;
+    case USD_SCENE_UNITS_FEET:
+      result = 0.3048;
+      break;
+    case USD_SCENE_UNITS_YARDS:
+      result = 0.9144;
+      break;
+    case USD_SCENE_UNITS_CUSTOM:
+      result = double(params->custom_meters_per_unit);
+      break;
+    default:
+      result = 1.0;
+      break;
+  }
+
+  return result;
 }
 
 }  // namespace blender::io::usd
