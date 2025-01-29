@@ -80,6 +80,9 @@ shader node_texture_coordinate(
     Object += Dx(Object) * BUMP_DX;
     Camera += Dx(Camera) * BUMP_DX;
     Window += Dx(Window) * BUMP_DX;
+    if (getattribute("geom:N", Normal)) {
+      Normal = normalize(Normal + Dx(Normal) * BUMP_DX);
+    }
   }
   else if (bump_offset == "dy") {
     if (!from_dupli) {
@@ -89,6 +92,9 @@ shader node_texture_coordinate(
     Object += Dy(Object) * BUMP_DY;
     Camera += Dy(Camera) * BUMP_DY;
     Window += Dy(Window) * BUMP_DY;
+    if (getattribute("geom:N", Normal)) {
+      Normal = normalize(Normal + Dy(Normal) * BUMP_DY);
+    }
   }
 
   Window[2] = 0.0;

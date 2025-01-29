@@ -4065,6 +4065,12 @@ void TextureCoordinateNode::attributes(Shader *shader, AttributeRequestSet *attr
     }
   }
 
+  if (!output("Normal")->links.empty()) {
+    /* Vertex normal is required to compute derivatives in OSL. */
+    /* TODO: could also check if bump node exists in the map? */
+    attributes->add(ATTR_STD_VERTEX_NORMAL);
+  }
+
   ShaderNode::attributes(shader, attributes);
 }
 
