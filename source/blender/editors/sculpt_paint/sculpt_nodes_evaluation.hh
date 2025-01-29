@@ -32,11 +32,6 @@ std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &scene,
                                                            const Object &object,
                                                            const Brush &brush,
                                                            const StrokeCache &cache);
-std::shared_ptr<NodeFieldEvalData> prepare_field_eval_data_for_translations(
-    const Depsgraph &depsgraph,
-    const Object &object,
-    const Brush &brush,
-    const StrokeCache &cache);
 
 void nodes_evaluate_factors_mesh(const Depsgraph &depsgraph,
                                  const Object &object,
