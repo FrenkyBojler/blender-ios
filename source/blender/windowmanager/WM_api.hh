@@ -394,7 +394,9 @@ ENUM_OPERATORS(eWM_DecorationStyleFlag, WM_DECORATION_COLORED_TITLEBAR)
 eWM_DecorationStyleFlag WM_window_decoration_get_style(const wmWindow *win);
 void WM_window_decoration_set_style(const wmWindow *win, eWM_DecorationStyleFlag style_flags);
 /* Apply decorations to the window using the current flags and settings from the current theme.
- * The screen parameter is optional, and can be passed for enhanced theme settings parsing. */
+ * The screen parameter is optional, and can be passed for enhanced theme settings parsing.
+ * NOTE: Avoid calling this function directly, prefer sending an NC_WINDOW WM notification instead.
+ */
 void WM_window_decoration_apply(const wmWindow *win, const bScreen *screen = nullptr);
 
 /* `wm_files.cc`. */
