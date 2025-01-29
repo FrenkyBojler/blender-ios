@@ -65,8 +65,7 @@ PointerRNA RNA_id_pointer_create(ID *id);
  */
 PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, void *data);
 /**
- * Create a PointerRNA of some data, with ancestors information taken from the given `parent`
- * PointerRNA.
+ * Create a PointerRNA of some data, using the given `parent` as immediate ancestor.
  *
  * This allows the PointerRNA to know to which data it belongs, all the way up to the root owner
  * ID.
@@ -75,10 +74,13 @@ PointerRNA RNA_pointer_create_with_ancestors(const PointerRNA &parent,
                                              StructRNA *type,
                                              void *data);
 /**
- * Create a PointerRNA of some data, with ancestors information generated from the given `id`
- * data-block.
+ * Create a PointerRNA of some data, with the given `id` data-block as single ancestor.
  *
- * This assumes that given `data` is an immediate (RNA-wise) child of the relevant RNA ID struct.
+ * This assumes that given `data` is an immediate (RNA-wise) child of the relevant RNA ID struct,
+ * and is a shortcut for:
+ *
+ *    PointerRNA id_ptr = RNA_id_pointer_create(id);
+ *    PointerRNA ptr = RNA_pointer_create_with_ancestors(id_ptr, &RNA_Type, data);
  */
 PointerRNA RNA_pointer_create_with_ancestors(ID &id, StructRNA *type, void *data);
 
