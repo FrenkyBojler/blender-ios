@@ -1280,9 +1280,9 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
        ob = static_cast<Object *>(ob->id.next))
   {
     if (ID_IS_LINKED(ob)) {
-      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
+      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_ANIMATION);
       if (ID *id = static_cast<ID *>(ob->data)) {
-        DEG_id_tag_update(id, ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
+        DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
       }
     }
   }
