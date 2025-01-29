@@ -2426,6 +2426,8 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
   Main *newmain = BKE_main_new();
   BLI_addtail(fd->mainlist, newmain);
   newmain->curlib = lib;
+  newmain->versionfile = static_cast<Main *>(fd->mainlist->first)->versionfile;
+  newmain->subversionfile = static_cast<Main *>(fd->mainlist->first)->subversionfile;
 
   lib->runtime.parent = nullptr;
 
@@ -3066,6 +3068,11 @@ static BHead *read_libblock(FileData *fd,
     }
 
     return blo_bhead_next(fd, bhead);
+  }
+
+  if (main->curlib) {
+    main->curlib->runtime.versionfile = main->versionfile;
+    main->curlib->runtime.subversionfile = main->subversionfile;
   }
 
   /* Read datablock contents.
@@ -3740,7 +3747,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
             bhead = blo_bhead_next(fd, bhead);
           }
           else {
-            bhead = read_libblock(fd, bfd->main, bhead, ID_TAG_LOCAL, false, nullptr);
+            bhead = read_libblock(
+                fd, static_cast<Main *>(fd->mainlist->last), bhead, ID_TAG_LOCAL, false, nullptr);
           }
         }
         else {
@@ -3781,7 +3789,9 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
   /* Do versioning before read_libraries, but skip in undo case. */
   if (!is_undo) {
     if ((fd->skip_flags & BLO_READ_SKIP_DATA) == 0) {
-      do_versions(fd, nullptr, bfd->main);
+      LISTBASE_FOREACH (Main *, main, fd->mainlist) {
+        do_versions(fd, main->curlib, main);
+      }
     }
 
     if ((fd->skip_flags & BLO_READ_SKIP_USERDEF) == 0) {
