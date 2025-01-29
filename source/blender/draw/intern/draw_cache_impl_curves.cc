@@ -699,6 +699,7 @@ static bool ensure_attributes(const Curves &curves,
       continue;
     }
     if (meta_data->domain == bke::AttrDomain::Point) {
+      final_cache.attribute_point_domain[i] = true;
       need_tf_update = true;
     }
     ensure_final_attribute(curves, cache.eval_cache, name, meta_data->domain, i);

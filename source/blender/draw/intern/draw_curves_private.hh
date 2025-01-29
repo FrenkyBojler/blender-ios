@@ -64,6 +64,7 @@ struct CurvesEvalFinalCache {
   /* Output of the subdivision stage: vertex buffers sized to subdiv level. This is only attributes
    * on point domain. */
   gpu::VertBuf *attributes_buf[GPU_MAX_ATTR];
+  bool attribute_point_domain[GPU_MAX_ATTR];
 };
 
 /* Curves procedural display: Evaluation is done on the GPU. */

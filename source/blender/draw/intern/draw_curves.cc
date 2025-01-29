@@ -280,10 +280,10 @@ static CurvesEvalCache *curves_cache_get(Curves &curves,
   if (final_points_len > 0) {
     cache_update(cache->final.proc_buf, cache->proc_point_buf);
 
-    // const DRW_Attributes &attrs = cache->final.attr_used;
-    for (int i : IndexRange(attrs.num_requests)) {
+    const Span<std::string> attrs = cache->final.attr_used;
+    for (int i : attrs.index_range()) {
       /* Only refine point attributes. */
-      if (attrs.requests[i].domain != bke::AttrDomain::Curve) {
+      if (cache->final.attribute_point_domain[i]) {
         cache_update(cache->final.attributes_buf[i], cache->proc_attributes_buf[i]);
       }
     }
@@ -371,8 +371,8 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
     sub_ps.bind_texture("l", curves_cache->proc_length_buf);
   }
 
-  int curve_data_render_uv = 0;
-  int point_data_render_uv = 0;
+  std::optional<StringRefNull> curve_data_render_uv = 0;
+  std::optional<StringRefNull> point_data_render_uv = 0;
   if (CustomData_has_layer(&curves_id.geometry.curve_data, CD_PROP_FLOAT2)) {
     curve_data_render_uv = CustomData_get_render_layer(&curves_id.geometry.curve_data,
                                                        CD_PROP_FLOAT2);
@@ -382,13 +382,13 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
                                                        CD_PROP_FLOAT2);
   }
 
-  const VectorSet<std::string> &attrs = curves_cache->final.attr_used;
+  const Span<std::string> attrs = curves_cache->final.attr_used;
   for (int i = 0; i < attrs.size(); i++) {
     const std::string &request = attrs[i];
     char sampler_name[32];
     drw_curves_get_attribute_sampler_name(request, sampler_name);
 
-    if (request.domain == bke::AttrDomain::Curve) {
+    if (!curves_cache->final.attribute_point_domain[i]) {
       if (!curves_cache->proc_attributes_buf[i]) {
         continue;
       }
