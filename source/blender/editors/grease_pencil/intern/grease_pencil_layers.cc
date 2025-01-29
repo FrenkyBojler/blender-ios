@@ -1096,6 +1096,8 @@ static void duplicate_layer_and_frames(GreasePencil &dst_grease_pencil,
     Layer &dst_layer = dst_grease_pencil.add_layer(src_layer.name());
     const int dst_layer_index = dst_grease_pencil.layers().size() - 1;
 
+    BKE_grease_pencil_copy_layer_parameters(src_layer, dst_layer);
+
     const bke::AttributeAccessor src_attributes = src_grease_pencil.attributes();
     bke::MutableAttributeAccessor dst_attributes = dst_grease_pencil.attributes_for_write();
     src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
