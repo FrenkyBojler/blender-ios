@@ -6,7 +6,6 @@
  * \ingroup spbuttons
  */
 
-#include <array>
 #include <cstdio>
 #include <cstring>
 
@@ -16,7 +15,6 @@
 #include "DNA_space_types.h"
 #include "DNA_view2d_types.h"
 
-#include "BLI_array_utils.h"
 #include "BLI_bitmap.h"
 #include "BLI_blenlib.h"
 #include "BLI_span.hh"
