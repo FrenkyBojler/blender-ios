@@ -437,7 +437,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
         selected_nodes = context.selected_nodes
 
         if len(selected_nodes) == 0:
-            self.report({'ERROR'}, "Unable to set shortcut, no nodes selected.")
+            self.report({'ERROR'}, "Select a node to assign a shortcut")
             return {'CANCELLED'}
 
         fav_node = selected_nodes[0]
@@ -457,7 +457,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
                 viewer_node = self.get_connected_viewer(fav_node)
 
         if not viewer_node:
-            self.report({'ERROR'}, "Unable to set shortcut, selected node is not a viewer node or does not support viewing.")
+            self.report({'ERROR'}, "Unable to set shortcut, selected node is not a viewer node or does not support viewing")
             return {'CANCELLED'}
 
         # Use the node active status to enable this viewer node and disable others.
@@ -466,7 +466,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
             nodes.active = old_active
 
         viewer_node.ui_shortcut = self.viewer_index
-        self.report({'INFO'}, "Set viewer %s to shortcut %i" % (viewer_node.name, self.viewer_index))
+        self.report({'INFO'}, "Assigned shortcut %i to %s" % (self.viewer_index, viewer_node.name))
 
         return {'FINISHED'}
 
