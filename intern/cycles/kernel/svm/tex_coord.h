@@ -136,7 +136,7 @@ ccl_device_noinline int svm_node_tex_coord_bump_dx(KernelGlobals kg,
     }
     case NODE_TEXCO_NORMAL: {
       /* TODO(weizhen): implement. */
-      if (sd->type == PRIMITIVE_TRIANGLE && sd->shader & SHADER_SMOOTH_NORMAL) {
+      if ((sd->type & PRIMITIVE_TRIANGLE) && (sd->shader & SHADER_SMOOTH_NORMAL)) {
         data = triangle_smooth_normal(kg, sd->Ng, sd->prim, sd->u + sd->du.dx, sd->v + sd->dv.dx);
         if (sd->flag & SD_BACKFACING) {
           data = -data;
@@ -238,7 +238,7 @@ ccl_device_noinline int svm_node_tex_coord_bump_dy(KernelGlobals kg,
     }
     case NODE_TEXCO_NORMAL: {
       /* TODO(weizhen): implement. */
-      if (sd->type == PRIMITIVE_TRIANGLE && sd->shader & SHADER_SMOOTH_NORMAL) {
+      if ((sd->type & PRIMITIVE_TRIANGLE) && (sd->shader & SHADER_SMOOTH_NORMAL)) {
         data = triangle_smooth_normal(kg, sd->Ng, sd->prim, sd->u + sd->du.dy, sd->v + sd->dv.dy);
         if (sd->flag & SD_BACKFACING) {
           data = -data;

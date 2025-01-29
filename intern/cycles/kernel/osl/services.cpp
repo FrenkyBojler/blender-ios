@@ -69,6 +69,7 @@ ustring OSLRenderServices::u_object_color("object:color");
 ustring OSLRenderServices::u_object_alpha("object:alpha");
 ustring OSLRenderServices::u_object_index("object:index");
 ustring OSLRenderServices::u_object_is_light("object:is_light");
+ustring OSLRenderServices::u_bump_map_normal("geom:bump_map_normal");
 ustring OSLRenderServices::u_geom_dupli_generated("geom:dupli_generated");
 ustring OSLRenderServices::u_geom_dupli_uv("geom:dupli_uv");
 ustring OSLRenderServices::u_material_index("material:index");
@@ -990,6 +991,22 @@ bool OSLRenderServices::get_object_standard_attribute(
       return set_attribute_float3(f, type, derivatives, val);
     }
     return false;
+  }
+  if (name == u_bump_map_normal) {
+    if (!(sd->type & PRIMITIVE_TRIANGLE) || !(sd->shader & SHADER_SMOOTH_NORMAL)) {
+      return false;
+    }
+    float3 f[3];
+    f[0] = sd->N;
+    f[1] = triangle_smooth_normal(kg, sd->Ng, sd->prim, sd->u + sd->du.dx, sd->v + sd->dv.dx);
+    f[2] = triangle_smooth_normal(kg, sd->Ng, sd->prim, sd->u + sd->du.dy, sd->v + sd->dv.dy);
+    if (sd->shader & SD_BACKFACING) {
+      f[1] = -f[1];
+      f[2] = -f[2];
+    }
+    f[1] -= f[0];
+    f[2] -= f[0];
+    return set_attribute_float3(f, type, derivatives, val);
   }
   return get_background_attribute(globals, name, type, derivatives, val);
 }
