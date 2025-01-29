@@ -4818,7 +4818,14 @@ static FillGridSplitJoin *edbm_fill_grid_split_join_init(BMEditMesh *em)
   /* Store the island for removal once it has been replaced by new fill_grid geometry . */
   BMO_op_init(em->bm, &split_join->delete_op, 0, "delete");
   BMO_slot_int_set(split_join->delete_op.slots_in, "context", DEL_FACES);
-  BMO_slot_copy(&split_op, slots_out, "geom.out", &split_join->delete_op, slots_in, "geom");
+  BMO_slot_buffer_hflag_enable(
+      em->bm, split_op.slots_out, "geom.out", BM_FACE, BM_ELEM_SELECT, false);
+  BMO_slot_buffer_from_enabled_hflag(em->bm,
+                                     &split_join->delete_op,
+                                     split_join->delete_op.slots_in,
+                                     "geom",
+                                     BM_FACE,
+                                     BM_ELEM_SELECT);
 
   /* Clean up the split operator. */
   BMO_op_finish(em->bm, &split_op);
