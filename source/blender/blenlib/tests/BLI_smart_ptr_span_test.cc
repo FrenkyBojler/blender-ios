@@ -46,13 +46,8 @@ TEST(smart_ptr_span, StartSizeConstructor)
   const SmartPtrSpan unique_ptr_span(vec.begin(), vec.size());
 
   for (const int64_t i : vec.index_range()) {
-    const std::unique_ptr<int> &unique_ptr_ref = unique_ptr_span[i];
-    int *int_ptr = unique_ptr_span[i];
     int &int_ref = unique_ptr_span[i];
-
-    EXPECT_EQ(vec[i].get(), int_ptr);
     EXPECT_EQ(&*vec[i], &int_ref);
-    EXPECT_EQ(&vec[i], &unique_ptr_ref);
   }
 }
 
@@ -63,33 +58,13 @@ TEST(smart_ptr_span, Iterator)
 
   const SmartPtrSpan unique_ptr_span = vec.as_span();
 
-  {
-    int64_t i = 0;
-    /* Iterate as unique pointer. */
-    for (const std::unique_ptr<int> &ptr : unique_ptr_span) {
-      EXPECT_EQ(&vec[i], &ptr);
-      i++;
-    }
-    EXPECT_EQ(i, size);
+  int64_t i = 0;
+  /* Iterate with pointer dereference. */
+  for (const int &ref : unique_ptr_span) {
+    EXPECT_EQ(vec[i].get(), &ref);
+    i++;
   }
-  {
-    int64_t i = 0;
-    /* Iterate as raw pointer. */
-    for (const int *ptr : unique_ptr_span) {
-      EXPECT_EQ(vec[i].get(), ptr);
-      i++;
-    }
-    EXPECT_EQ(i, size);
-  }
-  {
-    int64_t i = 0;
-    /* Iterate with pointer dereference. */
-    for (const int &ref : unique_ptr_span) {
-      EXPECT_EQ(vec[i].get(), &ref);
-      i++;
-    }
-    EXPECT_EQ(i, size);
-  }
+  EXPECT_EQ(i, size);
 }
 
 TEST(smart_ptr_span, IndexOf)
@@ -109,18 +84,8 @@ TEST(smart_ptr_span, ForEach)
 
   const SmartPtrSpan unique_ptr_span = vec.as_span();
 
-  int64_t v = 0;
-  std::for_each(unique_ptr_span.begin(),
-                unique_ptr_span.end(),
-                [&](const std::unique_ptr<int> &i) { v += *i; });
-  EXPECT_EQ(v, 21);
-
-  v = 0;
-  std::for_each(unique_ptr_span.begin(), unique_ptr_span.end(), [&](int *i) { v += *i; });
-  EXPECT_EQ(v, 21);
-
-  v = 0;
-  std::for_each(unique_ptr_span.begin(), unique_ptr_span.end(), [&](int &i) { v += i; });
-  EXPECT_EQ(v, 21);
+  int64_t total = 0;
+  std::for_each(unique_ptr_span.begin(), unique_ptr_span.end(), [&](int &i) { total += i; });
+  EXPECT_EQ(total, 21);
 }
 }  // namespace blender::tests

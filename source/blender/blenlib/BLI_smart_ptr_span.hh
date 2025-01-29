@@ -49,34 +49,6 @@ template<typename SmartPtrType> class SmartPtrSpan {
 
   using smart_ptr_type = SmartPtrType;
 
-  struct SmartPtrWrapper {
-    const SmartPtrType *ptr_;
-    constexpr SmartPtrWrapper(const SmartPtrType *ptr) : ptr_{ptr}
-    {
-      BLI_assert(ptr_);
-    }
-
-    constexpr operator T *() const
-    {
-      return ptr_->get();
-    };
-
-    constexpr operator T &() const
-    {
-      return **ptr_;
-    };
-
-    constexpr operator const SmartPtrType &() const
-    {
-      return *ptr_;
-    };
-
-    constexpr T *operator->() const
-    {
-      return ptr_->get();
-    }
-  };
-
   class Iterator {
    private:
     const SmartPtrType *ptr_;
@@ -111,9 +83,9 @@ template<typename SmartPtrType> class SmartPtrSpan {
       return copy;
     }
 
-    constexpr SmartPtrWrapper operator*()
+    constexpr T &operator*()
     {
-      return ptr_;
+      return **ptr_;
     };
   };
 
@@ -144,11 +116,11 @@ template<typename SmartPtrType> class SmartPtrSpan {
   /**
    * Returns the pointer at the index.
    */
-  constexpr SmartPtrWrapper operator[](int64_t index) const
+  constexpr T &operator[](int64_t index) const
   {
     BLI_assert(index >= 0);
     BLI_assert(index < size());
-    return begin_ + index;
+    return **(begin_ + index);
   }
 
   /**
