@@ -278,12 +278,6 @@ void SEQUENCER_OT_select_box(wmOperatorType *ot);
 void SEQUENCER_OT_select_inverse(wmOperatorType *ot);
 void SEQUENCER_OT_select_grouped(wmOperatorType *ot);
 
-/**
- * Returns strip under the mouse cursor if it exists, disregarding padded strip handles.
- *
- * \return Strip under mouse cursor, or `nullptr` if it does not exist.
- */
-Strip *get_strip_under_mouse(const Scene *scene, const View2D *v2d, const int mval[2]);
 bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point_view[2]);
 
 /* `sequencer_add.cc` */

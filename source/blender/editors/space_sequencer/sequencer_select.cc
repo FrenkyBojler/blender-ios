@@ -311,32 +311,6 @@ Strip *find_neighboring_sequence(Scene *scene, Strip *test, int lr, int sel)
   return nullptr;
 }
 
-Strip *get_strip_under_mouse(const Scene *scene, const View2D *v2d, const int mval[2])
-{
-  float mouse_co[2];
-  UI_view2d_region_to_view(v2d, mval[0], mval[1], &mouse_co[0], &mouse_co[1]);
-
-  Editing *ed = SEQ_editing_get(scene);
-
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
-    if (strip->machine != int(mouse_co[1])) {
-      continue;
-    }
-    if (SEQ_time_left_handle_frame_get(scene, strip) > v2d->cur.xmax) {
-      continue;
-    }
-    if (SEQ_time_right_handle_frame_get(scene, strip) < v2d->cur.xmin) {
-      continue;
-    }
-    rctf body;
-    strip_rectf(scene, strip, &body);
-    if (BLI_rctf_isect_pt_v(&body, mouse_co)) {
-      return strip;
-    }
-  }
-  return nullptr;
-}
-
 #if 0
 static void select_neighbor_from_last(Scene *scene, int lr)
 {
@@ -1619,16 +1593,16 @@ void SEQUENCER_OT_select_less(wmOperatorType *ot)
 static int sequencer_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_scene(C);
-  View2D *v2d = UI_view2d_fromcontext(C);
+  const View2D *v2d = UI_view2d_fromcontext(C);
 
   bool extend = RNA_boolean_get(op->ptr, "extend");
 
-  Strip *mouse_strip;
-  int selected;
+  float mouse_co[2];
+  UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouse_co[0], &mouse_co[1]);
 
   /* This works like UV, not mesh. */
-  mouse_strip = get_strip_under_mouse(scene, v2d, event->mval);
-  if (!mouse_strip) {
+  StripSelection mouse_selection = ED_sequencer_pick_strip_and_handle(scene, v2d, mouse_co);
+  if (!mouse_selection.seq1) {
     return OPERATOR_FINISHED; /* User error as with mesh?? */
   }
 
@@ -1636,10 +1610,11 @@ static int sequencer_select_linked_pick_invoke(bContext *C, wmOperator *op, cons
     ED_sequencer_deselect_all(scene);
   }
 
-  mouse_strip->flag |= SELECT;
-  recurs_sel_seq(mouse_strip);
+  mouse_selection.seq1->flag |= SELECT;
+  recurs_sel_seq(mouse_selection.seq1);
 
-  selected = 1;
+  bool selected;
+  selected = true;
   while (selected) {
     selected = select_linked_internal(scene);
   }
