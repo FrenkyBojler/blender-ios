@@ -8,7 +8,9 @@
 
 #include "intern/builder/deg_builder_transitive.h"
 
-#include "MEM_guardedalloc.h"
+#include "BKE_global.hh"
+
+#include "DEG_depsgraph_debug.hh"
 
 #include "intern/node/deg_node.hh"
 #include "intern/node/deg_node_component.hh"

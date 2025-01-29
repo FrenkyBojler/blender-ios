@@ -8,13 +8,12 @@
 
 #pragma once
 
-#include "intern/node/deg_node_id.hh"
-
 #include <iostream>
 
 #include "DNA_ID.h"
-#include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
+
+#include "intern/builder/deg_builder_relations.h"
 
 namespace blender::deg {
 

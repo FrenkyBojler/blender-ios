@@ -6,8 +6,6 @@
  * \ingroup depsgraph
  */
 
-#include "intern/eval/deg_eval_runtime_backup_object.h"
-
 #include <cstring>
 
 #include "DNA_mesh_types.h"
@@ -16,8 +14,11 @@
 
 #include "BKE_action.hh"
 #include "BKE_mesh_types.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
+
+#include "intern/eval/deg_eval_runtime_backup_object.h"
 
 namespace blender::deg {
 
@@ -146,7 +147,7 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
 void ObjectRuntimeBackup::restore_modifier_runtime_data(Object *object)
 {
   LISTBASE_FOREACH (ModifierData *, modifier_data, &object->modifiers) {
-    optional<ModifierDataBackup> backup = modifier_runtime_data.pop_try(
+    std::optional<ModifierDataBackup> backup = modifier_runtime_data.pop_try(
         modifier_data->persistent_uid);
     if (backup.has_value()) {
       modifier_data->runtime = backup->runtime;
@@ -174,7 +175,7 @@ void ObjectRuntimeBackup::restore_pose_channel_runtime_data(Object *object)
   if (object->pose != nullptr) {
     LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
       const SessionUID &session_uid = pchan->runtime.session_uid;
-      optional<bPoseChannel_Runtime> runtime = pose_channel_runtime_data.pop_try(session_uid);
+      std::optional<bPoseChannel_Runtime> runtime = pose_channel_runtime_data.pop_try(session_uid);
       if (runtime.has_value()) {
         pchan->runtime = *runtime;
       }

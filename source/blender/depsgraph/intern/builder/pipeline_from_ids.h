@@ -29,8 +29,8 @@ class FromIDsBuilderPipeline : public AbstractBuilderPipeline {
   FromIDsBuilderPipeline(::Depsgraph *graph, Span<ID *> ids);
 
  protected:
-  virtual unique_ptr<DepsgraphNodeBuilder> construct_node_builder() override;
-  virtual unique_ptr<DepsgraphRelationBuilder> construct_relation_builder() override;
+  virtual std::unique_ptr<DepsgraphNodeBuilder> construct_node_builder() override;
+  virtual std::unique_ptr<DepsgraphRelationBuilder> construct_relation_builder() override;
 
   virtual void build_nodes(DepsgraphNodeBuilder &node_builder) override;
   virtual void build_relations(DepsgraphRelationBuilder &relation_builder) override;

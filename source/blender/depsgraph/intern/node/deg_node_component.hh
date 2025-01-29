@@ -13,13 +13,6 @@
 #include "intern/node/deg_node_id.hh"
 #include "intern/node/deg_node_operation.hh"
 
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
-
-#include "BKE_object.hh"
-
-#include "DNA_object_types.h"
-
 struct ID;
 struct bPoseChannel;
 
@@ -41,7 +34,7 @@ struct ComponentNode : public Node {
     OperationIDKey(OperationCode opcode);
     OperationIDKey(OperationCode opcode, const char *name, int name_tag);
 
-    string identifier() const;
+    std::string identifier() const;
     bool operator==(const OperationIDKey &other) const;
     uint64_t hash() const;
   };
@@ -53,7 +46,7 @@ struct ComponentNode : public Node {
   /** Initialize 'component' node - from pointer data given. */
   void init(const ID *id, const char *subdata) override;
 
-  virtual string identifier() const override;
+  virtual std::string identifier() const override;
 
   /* Find an existing operation, if requested operation does not exist nullptr will be returned.
    * See #add_operation for the meaning and examples of #name and #name_tag.

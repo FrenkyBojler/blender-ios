@@ -16,9 +16,7 @@
 #include <optional>
 
 #include "DNA_modifier_types.h"
-#include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
@@ -66,6 +64,7 @@
 #include "BKE_curve.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve_driver.h"
+#include "BKE_global.hh"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
@@ -97,6 +96,7 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_debug.hh"
 
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_pchanmap.h"

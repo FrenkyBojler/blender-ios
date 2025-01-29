@@ -8,7 +8,8 @@
 
 #pragma once
 
-#include "intern/depsgraph_type.hh"
+#include "BLI_map.hh"
+#include "BLI_set.hh"
 
 namespace blender::deg {
 

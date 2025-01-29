@@ -10,7 +10,6 @@
 
 #include "BLI_assert.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_volume_types.h"
 

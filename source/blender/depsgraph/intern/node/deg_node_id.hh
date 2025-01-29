@@ -8,8 +8,9 @@
 
 #pragma once
 
-#include "BLI_ghash.h"
+#include "BLI_map.hh"
 #include "BLI_sys_types.h"
+
 #include "DNA_ID.h"
 #include "intern/node/deg_node.hh"
 
@@ -48,7 +49,7 @@ struct IDNode : public Node {
   ~IDNode();
   void destroy();
 
-  virtual string identifier() const override;
+  virtual std::string identifier() const override;
 
   ComponentNode *find_component(NodeType type, const char *name = "") const;
   ComponentNode *add_component(NodeType type, const char *name = "");

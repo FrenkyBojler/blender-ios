@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include "BKE_modifier.hh"
+#include "BLI_vector.hh"
 
-#include "intern/depsgraph_type.hh"
+struct ID;
 
 namespace blender::deg {
 
@@ -19,7 +19,7 @@ struct Depsgraph;
 class AnimationValueBackup {
  public:
   AnimationValueBackup() = default;
-  AnimationValueBackup(const string &rna_path, int array_index, float value);
+  AnimationValueBackup(const std::string &rna_path, int array_index, float value);
 
   AnimationValueBackup(const AnimationValueBackup &other) = default;
   AnimationValueBackup(AnimationValueBackup &&other) noexcept = default;
@@ -27,7 +27,7 @@ class AnimationValueBackup {
   AnimationValueBackup &operator=(const AnimationValueBackup &other) = default;
   AnimationValueBackup &operator=(AnimationValueBackup &&other) = default;
 
-  string rna_path;
+  std::string rna_path;
   int array_index;
   float value;
 };

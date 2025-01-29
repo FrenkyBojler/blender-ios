@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "BLI_span.hh"
-
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 
 #include "intern/builder/deg_builder.h"
@@ -21,6 +19,7 @@
 
 #include "DEG_depsgraph.hh"
 
+struct BoneCollection;
 struct CacheFile;
 struct Camera;
 struct Collection;

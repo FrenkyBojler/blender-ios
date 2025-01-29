@@ -8,9 +8,6 @@
 
 #pragma once
 
-#include "MEM_guardedalloc.h"
-
-#include "intern/depsgraph_type.hh"
 #include "intern/node/deg_node.hh"
 
 struct ID;

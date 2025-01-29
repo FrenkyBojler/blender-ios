@@ -15,11 +15,7 @@
 
 #include "DNA_ID.h"
 
-#include "RNA_path.hh"
-
 #include "BLI_span.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 

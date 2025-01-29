@@ -6,12 +6,11 @@
  * \ingroup depsgraph
  */
 
-#include <memory>
+#include "BLI_vector_set.hh"
+
 #include <mutex>
 
 #include "intern/depsgraph_registry.hh"
-
-#include "BLI_utildefines.h"
 
 #include "intern/depsgraph.hh"
 

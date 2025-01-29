@@ -8,6 +8,8 @@
 
 #include "intern/eval/deg_eval_runtime_backup_sequence.h"
 
+#include "BLI_listbase.h"
+
 #include "DNA_sequence_types.h"
 
 namespace blender::deg {
