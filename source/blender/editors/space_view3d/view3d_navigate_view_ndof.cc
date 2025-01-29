@@ -60,7 +60,10 @@ typedef struct NDOFSession {
   float cor[3];
 } NDOFSession;
 
-static NDOFSession ndof_session = {};
+/* NOTE: CoR is needed in between operator calls because when new CoR can't be found then previous one should be used.
+ * Operator can store information in customdata only during its execution. Perhaps there is a cleaner way to do it,
+ * but I have no idea how - kgalik */
+static NDOFSession g_ndof_session = {};
 
 static bool ndof_has_translate(const wmNDOFMotionData *ndof,
                                const View3D *v3d,
@@ -264,7 +267,7 @@ static void view3d_ndof_orbit(const wmNDOFMotionData *ndof,
     /* Use CoR as a dynamic offset. */
     if (U.ndof_flag & NDOF_AUTO_COR) {
       vod->use_dyn_ofs = true;
-      copy_v3_v3(vod->dyn_ofs, ndof_session.cor);
+      copy_v3_v3(vod->dyn_ofs, g_ndof_session.cor);
     }
     viewrotate_apply_dyn_ofs(vod, rv3d->viewquat);
   }
@@ -753,7 +756,7 @@ static bool ndof_get_cor_from_bounding_box(bContext *C, float r_cor[3])
   }
 
   /* If there are no "interesting" objects in the scene then just use origin point as the CoR. */
-  zero_v3(ndof_session.cor);
+  zero_v3(g_ndof_session.cor);
   return true;
 }
 
@@ -889,8 +892,8 @@ static int ndof_orbit_zoom_invoke_impl(bContext *C,
   if (ndof->progress == P_STARTING) {
     if (U.ndof_flag & NDOF_AUTO_COR) {
       /* If CoR was recalculated then update the point location for drawing. */
-      if (ndof_recalculate_cor(C, ndof_session.cor)) {
-        ED_view3d_set_rotation_center(ndof_session.cor);
+      if (ndof_recalculate_cor(C, g_ndof_session.cor)) {
+        ED_view3d_ndof_save_center_of_rotation_for_drawing(g_ndof_session.cor);
       }
     }
   }

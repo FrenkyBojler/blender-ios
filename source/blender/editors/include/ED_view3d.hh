@@ -1393,5 +1393,5 @@ bool ED_view3d_is_region_xr_mirror_active(const wmWindowManager *wm,
 #endif
 
 #ifdef WITH_INPUT_NDOF
-void ED_view3d_set_rotation_center(const float cor[3]);
+void ED_view3d_ndof_save_center_of_rotation_for_drawing(const blender::float3 &cor);
 #endif

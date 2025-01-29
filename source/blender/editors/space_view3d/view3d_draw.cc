@@ -1025,7 +1025,9 @@ static void draw_view_axis(RegionView3D *rv3d, const rcti *rect)
 }
 
 #ifdef WITH_INPUT_NDOF
-static float center[3] = {0, 0, 0};
+/* NOTE: This static variable could be removed by refactoring how operator data is shared
+ * between the operator and the view-port. */
+static float g_ndof_center_of_rotation[3] = {0, 0, 0};
 
 static void draw_center_of_rotation()
 {
@@ -1042,7 +1044,7 @@ static void draw_center_of_rotation()
   immUniform4fv("color", float4(color));
   immBegin(GPU_PRIM_POINTS, 1);
   immAttr4ubv(col, color);
-  immVertex3fv(pos, center);
+  immVertex3fv(pos, g_ndof_center_of_rotation);
   immEnd();
   immUnbindProgram();
 
@@ -1050,9 +1052,9 @@ static void draw_center_of_rotation()
   GPU_depth_mask(true);
 }
 
-void ED_view3d_set_rotation_center(const float *cor)
+void ED_view3d_ndof_save_center_of_rotation_for_drawing(const blender::float3 &cor)
 {
-  negate_v3_v3(center, cor);
+  negate_v3_v3(g_ndof_center_of_rotation, cor);
 }
 
 /* draw center and axis of rotation for ongoing 3D mouse navigation */
