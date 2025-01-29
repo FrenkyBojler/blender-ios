@@ -154,34 +154,37 @@ class NODE_HT_header(Header):
             NODE_MT_editor_menus.draw_collapsible(context, layout)
             layout.separator_spacer()
 
-            if snode.geometry_nodes_type == 'MODIFIER':
-                ob = context.object
+            match snode.geometry_nodes_type:
+                case 'MODIFIER':
+                    ob = context.object
 
-                row = layout.row()
-                if snode.pin:
-                    row.enabled = False
-                    row.template_ID(snode, "node_tree", new="node.new_geometry_node_group_assign")
-                elif ob:
-                    active_modifier = ob.modifiers.active
-                    if active_modifier and active_modifier.type == 'NODES':
-                        if active_modifier.node_group:
-                            row.template_ID(active_modifier, "node_group", new="object.geometry_node_tree_copy_assign")
+                    row = layout.row()
+                    if snode.pin:
+                        row.enabled = False
+                        row.template_ID(snode, "node_tree", new="node.new_geometry_node_group_assign")
+                    elif ob:
+                        active_modifier = ob.modifiers.active
+                        if active_modifier and active_modifier.type == 'NODES':
+                            if active_modifier.node_group:
+                                row.template_ID(
+                                    active_modifier, "node_group", new="object.geometry_node_tree_copy_assign")
+                            else:
+                                row.template_ID(
+                                    active_modifier, "node_group", new="node.new_geometry_node_group_assign")
                         else:
-                            row.template_ID(active_modifier, "node_group", new="node.new_geometry_node_group_assign")
-                    else:
-                        row.template_ID(snode, "node_tree", new="node.new_geometry_nodes_modifier")
-            elif snode.geometry_nodes_type == 'TOOL':
-                layout.template_ID(snode, "geometry_nodes_tool_tree", new="node.new_geometry_node_group_tool")
-                if snode.node_tree:
-                    layout.popover(panel="NODE_PT_geometry_node_tool_object_types", text="Types")
-                    layout.popover(panel="NODE_PT_geometry_node_tool_mode", text="Modes")
-                    layout.popover(panel="NODE_PT_geometry_node_tool_options", text="Options")
-                display_pin = False
-            else:  # snode.geometry_nodes_type == 'BRUSH'
-                settings = context.scene.tool_settings.sculpt
-                brush = settings.brush
-                if brush:
-                    layout.template_ID(brush, "node_group", new="brush.new_node_group")
+                            row.template_ID(snode, "node_tree", new="node.new_geometry_nodes_modifier")
+                case 'TOOL':
+                    layout.template_ID(snode, "geometry_nodes_tool_tree", new="node.new_geometry_node_group_tool")
+                    if snode.node_tree:
+                        layout.popover(panel="NODE_PT_geometry_node_tool_object_types", text="Types")
+                        layout.popover(panel="NODE_PT_geometry_node_tool_mode", text="Modes")
+                        layout.popover(panel="NODE_PT_geometry_node_tool_options", text="Options")
+                    display_pin = False
+                case 'BRUSH':
+                    settings = context.scene.tool_settings.sculpt
+                    brush = settings.brush
+                    if brush:
+                        layout.template_ID(brush, "node_group", new="brush.new_node_group")
         else:
             # Custom node tree is edited as independent ID block
             NODE_MT_editor_menus.draw_collapsible(context, layout)
