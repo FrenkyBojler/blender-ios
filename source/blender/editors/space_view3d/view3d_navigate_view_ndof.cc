@@ -578,170 +578,26 @@ static bool is_bounding_box_in_frustum(float projmat[4][4], const Bounds<float3>
   return ret == ISECT_AABB_PLANE_IN_FRONT_ALL;
 }
 
-typedef struct CoRFromBBoxParams {
-  Scene *scene;
-  ViewLayer *view_layer;
-  View3D *v3d;
-  RegionView3D *rv3d;
-} CoRBboxTestParams;
-
-static bool view3d_object_skip_minmax(const View3D *v3d,
-                                      const RegionView3D *rv3d,
-                                      const Object *ob,
-                                      const bool skip_camera,
-                                      bool *r_only_center)
-{
-  BLI_assert(ob->id.orig_id == nullptr);
-  *r_only_center = false;
-
-  if (skip_camera && (ob == v3d->camera)) {
-    return true;
-  }
-
-  if ((ob->type == OB_EMPTY) && (ob->empty_drawtype == OB_EMPTY_IMAGE) &&
-      !BKE_object_empty_image_frame_is_visible_in_view3d(ob, rv3d))
-  {
-    *r_only_center = true;
-    return false;
-  }
-
-  /* We are interested in all objects that have some geometry and armature,
-   * thus object types below are filtered out. */
-  if (ob->type >= OB_LAMP && ob->type <= OB_LATTICE) {
-    return true;
-  }
-
-  return false;
-}
-
-static void view3d_object_calc_minmax(Depsgraph *depsgraph,
-                                      Scene *scene,
-                                      Object *ob_eval,
-                                      const bool only_center,
-                                      float min[3],
-                                      float max[3])
-{
-  /* Account for duplis. */
-  if (BKE_object_minmax_dupli(depsgraph, scene, ob_eval, min, max, false) == 0) {
-    /* Use if duplis aren't found. */
-    if (only_center) {
-      minmax_v3v3_v3(min, max, ob_eval->object_to_world().location());
-    }
-    else {
-      BKE_object_minmax(ob_eval, min, max);
-    }
-  }
-}
-
-static bool get_scene_bounding_box(bContext *C, blender::float3& min, blender::float3& max)
-{
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  const Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
-  BKE_view_layer_synced_ensure(scene_eval, view_layer_eval);
-  Object *ob_eval = BKE_view_layer_active_object_get(view_layer_eval);
-  const bool is_face_map = (region->gizmo_map && WM_gizmomap_is_any_selected(region->gizmo_map));
-  bool found = false;
-  const bool skip_camera = ED_view3d_camera_lock_check(v3d, rv3d);
-
-  if (is_face_map) {
-    ob_eval = nullptr;
-  }
-
-  if (ob_eval && (ob_eval->mode & OB_MODE_WEIGHT_PAINT)) {
-    /* hard-coded exception, we look for the one selected armature */
-    /* this is weak code this way, we should make a generic
-     * active/selection callback interface once... */
-    Base *base_eval;
-    for (base_eval = (Base *)BKE_view_layer_object_bases_get(view_layer_eval)->first; base_eval;
-         base_eval = base_eval->next)
-    {
-      /* Don't take invisible objects into account. */
-      if (BASE_VISIBLE(v3d, base_eval) && BASE_EDITABLE(v3d, base_eval)) {
-        if (base_eval->object->type == OB_ARMATURE) {
-          if (base_eval->object->mode & OB_MODE_POSE) {
-            break;
-          }
-        }
-      }
-    }
-    if (base_eval) {
-      ob_eval = base_eval->object;
-    }
-  }
-
-  if (is_face_map) {
-    found = WM_gizmomap_minmax(region->gizmo_map, true, true, min, max);
-  }
-  else if (ob_eval && (ob_eval->mode & OB_MODE_POSE)) {
-    FOREACH_OBJECT_IN_MODE_BEGIN (
-        scene_eval, view_layer_eval, v3d, ob_eval->type, ob_eval->mode, ob_eval_iter)
-    {
-      const std::optional<Bounds<float3>> bounds = BKE_pose_minmax(ob_eval_iter, true);
-      if (bounds) {
-        minmax_v3v3_v3(min, max, bounds->min);
-        minmax_v3v3_v3(min, max, bounds->max);
-        found = true;
-      }
-    }
-    FOREACH_OBJECT_IN_MODE_END;
-  }
-  else if (BKE_paint_select_face_test(ob_eval)) {
-    found = paintface_minmax(ob_eval, min, max);
-  }
-  else if (ob_eval && (ob_eval->mode & OB_MODE_PARTICLE_EDIT)) {
-    found = PE_minmax(depsgraph, scene, CTX_data_view_layer(C), min, max);
-  }
-  else if (ob_eval && (ob_eval->mode & OB_MODE_SCULPT_CURVES)) {
-    FOREACH_OBJECT_IN_MODE_BEGIN (
-        scene_eval, view_layer_eval, v3d, ob_eval->type, ob_eval->mode, ob_eval_iter)
-    {
-      found |= ED_view3d_minmax_verts(scene_eval, ob_eval_iter, min, max);
-    }
-    FOREACH_OBJECT_IN_MODE_END;
-  }
-  else if (ob_eval && (ob_eval->mode & (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT |
-                                        OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)))
-  {
-    BKE_paint_stroke_get_average(scene, ob_eval, min);
-    copy_v3_v3(max, min);
-    found = true;
-  }
-  else {
-    bool has_selected_objects = BKE_layer_collection_has_selected_objects(scene, view_layer_eval, view_layer_eval->active_collection);
-    LISTBASE_FOREACH (Base *, base_eval, BKE_view_layer_object_bases_get(view_layer_eval)) {
-      bool only_center = false;
-      Object *ob = DEG_get_original_object(base_eval->object);
-      /* Don't take invisible objects into account. */
-      if (!BASE_VISIBLE(v3d, base_eval)) {
-        continue;
-      }
-      /* Take all objects into account when none are selected. */
-      if(has_selected_objects && !BASE_SELECTED(v3d, base_eval) && (U.ndof_flag & NDOF_ORBIT_SELECTION)) {
-        continue;
-      }
-      if (view3d_object_skip_minmax(v3d, rv3d, ob, skip_camera, &only_center)) {
-        continue;
-      }
-      view3d_object_calc_minmax(depsgraph, scene, base_eval->object, only_center, min, max);
-      found = true;
-    }
-  }
-
-  return found;
-}
-
 static bool ndof_get_cor_from_bounding_box(bContext *C, float r_cor[3])
 {
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
+
   float3 min, max;
   INIT_MINMAX(min, max);
-  if(get_scene_bounding_box(C, min, max))
+  std::optional<Bounds<float3>> bounding_box = std::nullopt;
+
+  if (U.ndof_flag & NDOF_ORBIT_SELECTION) {
+    bool do_zoom;
+    bounding_box = view3d_calc_minmax_selected(C, area, region, false, false, &do_zoom);
+  }
+  else {
+    bounding_box = view3d_calc_minmax_visible(C, area, region, false, false);
+  }
+
+  if(bounding_box.has_value())
   {
-    Bounds<float3> bounding_box_eval(min, max);
+    Bounds<float3> &bounding_box_eval = bounding_box.value();
 
     /* Scale down the bounding box to provide some offset */
     bounding_box_eval.scale_from_center(float3(0.8));
