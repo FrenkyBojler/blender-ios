@@ -4755,25 +4755,26 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
   return true;
 }
 
-typedef struct SplitJoin {
+struct FillGridSplitJoin {
   BMOperator weld_op;
   BMOperator delete_op;
-} SplitJoin;
+};
 
-/* Split the current selection into a separate island and prepare to rejoin it.
+/**
+ * Split the current selection into a separate island and prepare to rejoin it.
  *
  * This is done only when there are faces selected.  Once split this way, fill_grid will
  * interpolate using only the data from the selected faces, not the data from the surrounding
- * faces.  This matters for  UV edges and face corner colors -- The data from the faces being
+ * faces.  This matters for  UV edges and face corner colors - the data from the faces being
  * replaced is the right data to use for the interpolation.  This relies on the fact that the
- * 'exterior' edge of an island is topologicially the same as the 'interior' edge around a hole.
+ * "exterior" edge of an island is topologically the same as the "interior" edge around a hole.
  *
- * \param em The editmesh to work on
+ * \param em: The edit-mesh to operate on.
  * \return the split join state.
  */
-static SplitJoin *edbm_fill_grid_splitjoin_init(BMEditMesh *em)
+static FillGridSplitJoin *edbm_fill_grid_split_join_init(BMEditMesh *em)
 {
-  SplitJoin *splitjoin = MEM_cnew<SplitJoin>(__func__);
+  FillGridSplitJoin *split_join = MEM_cnew<FillGridSplitJoin>(__func__);
 
   /* Split the selection into an island. */
   BMOperator split_op;
@@ -4784,11 +4785,10 @@ static SplitJoin *edbm_fill_grid_splitjoin_init(BMEditMesh *em)
 
   /* Setup the weld op that will undo the split.
    * Switch the selection to the corresponding edges on the island instead of the edges around the
-   * hole, so fill_grid will interpolate using the face and loop data from the island. Also create
-   * a new map for the weld, which maps pairs of verts instead of pairs of edges.
-   */
-  BMO_op_init(em->bm, &splitjoin->weld_op, 0, "weld_verts");
-  BMOpSlot *weld_target_map = BMO_slot_get(splitjoin->weld_op.slots_in, "targetmap");
+   * hole, so fill_grid will interpolate using the face and loop data from the island.
+   * Also create a new map for the weld, which maps pairs of verts instead of pairs of edges. */
+  BMO_op_init(em->bm, &split_join->weld_op, 0, "weld_verts");
+  BMOpSlot *weld_target_map = BMO_slot_get(split_join->weld_op.slots_in, "targetmap");
   BMOIter siter;
   BMEdge *e;
   BMO_ITER (e, &siter, split_op.slots_out, "boundary_map.out", 0) {
@@ -4806,53 +4806,55 @@ static SplitJoin *edbm_fill_grid_splitjoin_init(BMEditMesh *em)
     if (BM_elem_flag_test(e->v1, BM_ELEM_SELECT)) {
       BM_elem_flag_disable(e->v1, BM_ELEM_SELECT);
       BM_elem_flag_enable(e_dst->v1, BM_ELEM_SELECT);
-      BMO_slot_map_elem_insert(&splitjoin->weld_op, weld_target_map, e->v1, e_dst->v1);
+      BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v1, e_dst->v1);
     }
     if (BM_elem_flag_test(e->v2, BM_ELEM_SELECT)) {
       BM_elem_flag_disable(e->v2, BM_ELEM_SELECT);
       BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
-      BMO_slot_map_elem_insert(&splitjoin->weld_op, weld_target_map, e->v2, e_dst->v2);
+      BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
     }
   }
 
   /* Store the island for removal once it has been replaced by new fill_grid geometry . */
-  BMO_op_init(em->bm, &splitjoin->delete_op, 0, "delete");
-  BMO_slot_int_set(splitjoin->delete_op.slots_in, "context", DEL_FACES);
-  BMO_slot_copy(&split_op, slots_out, "geom.out", &splitjoin->delete_op, slots_in, "geom");
+  BMO_op_init(em->bm, &split_join->delete_op, 0, "delete");
+  BMO_slot_int_set(split_join->delete_op.slots_in, "context", DEL_FACES);
+  BMO_slot_copy(&split_op, slots_out, "geom.out", &split_join->delete_op, slots_in, "geom");
 
   /* Clean up the split operator. */
   BMO_op_finish(em->bm, &split_op);
 
-  return splitjoin;
+  return split_join;
 }
 
-/* Restore the mesh after split and fill_grid.
+/**
+ * Restore the mesh after split and fill_grid.
  *
- * \param em The editmesh to work on
- * \param op the wmOperator being run
- * \param splitjoin the saved split join state.
- * \param changed true, if the fill_grid that was run worked.
+ * \param em: The editmesh to work on
+ * \param op: the wmOperator being run
+ * \param split_join: the saved split join state.
+ * \param changed: true, if the fill_grid that was run worked.
  */
-static void edbm_fill_grid_splitjoin_finish(BMEditMesh *em,
-                                            wmOperator *op,
-                                            SplitJoin *splitjoin,
-                                            bool changed)
+static void edbm_fill_grid_split_join_finish(BMEditMesh *em,
+                                             wmOperator *op,
+                                             FillGridSplitJoin *split_join,
+                                             bool changed)
 {
 
-  /* If fill_grid worked, delete the replaced faces.  Otherwuse, restore original selection. */
+  /* If fill_grid worked, delete the replaced faces. Otherwise, restore original selection. */
   if (changed) {
-    BMO_op_exec(em->bm, &splitjoin->delete_op);
+    BMO_op_exec(em->bm, &split_join->delete_op);
   }
   else {
     BMO_slot_buffer_hflag_enable(
-        em->bm, splitjoin->delete_op.slots_in, "geom", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+        em->bm, split_join->delete_op.slots_in, "geom", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
   }
-  BMO_op_finish(em->bm, &splitjoin->delete_op);
+  BMO_op_finish(em->bm, &split_join->delete_op);
 
-  /* If fill_grid created geometry from faces after those faces had been been split from the rest
-   * of the mesh, the geometry it generated will be inward-facing.  (using the fill_grid on an
-   * island instead of a hole is 'inside out'.) Fix it.  This is the same as
-   * `edbm_flip_normals_face_winding` without the `EDBM_update` since that will happen later. */
+  /* If fill_grid created geometry from faces after those faces had been been split
+   * from the rest of the mesh, the geometry it generated will be inward-facing.
+   * (using the fill_grid on an island instead of a hole is 'inside out'.) Fix it.
+   * This is the same as #edbm_flip_normals_face_winding without the #EDBM_update
+   * since that will happen later. */
   if (changed) {
     BMLoopNorEditDataArray *lnors_ed_arr = flip_custom_normals_init_data(em->bm);
     EDBM_op_callf(em, op, "reverse_faces faces=%hf flip_multires=%b", BM_ELEM_SELECT, true);
@@ -4863,10 +4865,10 @@ static void edbm_fill_grid_splitjoin_finish(BMEditMesh *em,
   }
 
   /* Put the mesh back together. */
-  BMO_op_exec(em->bm, &splitjoin->weld_op);
-  BMO_op_finish(em->bm, &splitjoin->weld_op);
+  BMO_op_exec(em->bm, &split_join->weld_op);
+  BMO_op_finish(em->bm, &split_join->weld_op);
 
-  MEM_freeN(splitjoin);
+  MEM_freeN(split_join);
 }
 
 static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
@@ -4888,9 +4890,9 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
     bool use_prepare = true;
     const bool use_smooth = edbm_add_edge_face__smooth_get(em->bm);
 
-    SplitJoin *splitjoin = nullptr;
+    FillGridSplitJoin *split_join = nullptr;
     if (em->bm->totfacesel != 0) {
-      splitjoin = edbm_fill_grid_splitjoin_init(em);
+      split_join = edbm_fill_grid_split_join_init(em);
     }
 
     const int totedge_orig = em->bm->totedge;
@@ -4944,12 +4946,12 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
     BLI_assert(changed == new_geometry);
 
     /* If a split/join in progress, finish it. */
-    if (splitjoin) {
-      edbm_fill_grid_splitjoin_finish(em, op, splitjoin, changed);
+    if (split_join) {
+      edbm_fill_grid_split_join_finish(em, op, split_join, changed);
     }
 
     /* Update the boject  */
-    if (changed || splitjoin) {
+    if (changed || split_join) {
       EDBMUpdate_Params params{};
       params.calc_looptris = true;
       params.calc_normals = false;
@@ -4957,8 +4959,8 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
     }
     else {
-      /* NOTE: Even if there were no mesh changes, EDBM_op_finish() changed the bmesh pointer
-       * inside of edit mesh, so need to tell evaluated objects to sync new bmesh pointer to their
+      /* NOTE: Even if there were no mesh changes, #EDBM_op_finish() changed the BMesh pointer
+       * inside of edit mesh, so need to tell evaluated objects to sync new BMesh pointer to their
        * edit mesh structures. */
       DEG_id_tag_update(&obedit->id, 0);
     }
