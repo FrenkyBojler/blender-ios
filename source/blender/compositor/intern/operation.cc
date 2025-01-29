@@ -15,6 +15,7 @@
 #include "COM_input_descriptor.hh"
 #include "COM_operation.hh"
 #include "COM_realize_on_domain_operation.hh"
+#include "COM_reduce_to_single_value_operation.hh"
 #include "COM_result.hh"
 #include "COM_simple_operation.hh"
 #include "COM_texture_pool.hh"
@@ -102,6 +103,12 @@ void Operation::add_and_evaluate_input_processors()
    * evaluated first. */
 
   for (const StringRef &identifier : results_mapped_to_inputs_.keys()) {
+    SimpleOperation *single_value = ReduceToSingleValueOperation::construct_if_needed(
+        context(), get_input(identifier));
+    add_and_evaluate_input_processor(identifier, single_value);
+  }
+
+  for (const StringRef &identifier : results_mapped_to_inputs_.keys()) {
     SimpleOperation *conversion = ConversionOperation::construct_if_needed(
         context(), get_input(identifier), get_input_descriptor(identifier));
     add_and_evaluate_input_processor(identifier, conversion);
@@ -139,7 +146,7 @@ void Operation::add_and_evaluate_input_processor(StringRef identifier, SimpleOpe
   processor->evaluate();
 }
 
-void Operation::compute_preview() {};
+void Operation::compute_preview(){};
 
 Result &Operation::get_input(StringRef identifier) const
 {
