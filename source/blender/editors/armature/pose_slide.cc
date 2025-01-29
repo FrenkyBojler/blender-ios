@@ -904,19 +904,19 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
 
   switch (pso->channels) {
     case PS_TFM_LOC:
-      status.item("Location only", ICON_NONE);
+      status.item("Location Only", ICON_NONE);
       break;
     case PS_TFM_ROT:
-      status.item("Rotation only", ICON_NONE);
+      status.item("Rotation Only", ICON_NONE);
       break;
     case PS_TFM_SIZE:
-      status.item("Scale only", ICON_NONE);
+      status.item("Scale Only", ICON_NONE);
       break;
     case PS_TFM_BBONE_SHAPE:
-      status.item("Bendy Bones only", ICON_NONE);
+      status.item("Bendy Bones Only", ICON_NONE);
       break;
     case PS_TFM_PROPS:
-      status.item("Custom Properties only", ICON_NONE);
+      status.item("Custom Properties Only", ICON_NONE);
       break;
     default:
       status.item("Transform limits", ICON_NONE);
@@ -926,7 +926,8 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
   if (ELEM(pso->channels, PS_TFM_LOC, PS_TFM_ROT, PS_TFM_SIZE)) {
     status.item_bool("", pso->axislock & PS_LOCK_X, ICON_EVENT_X);
     status.item_bool("", pso->axislock & PS_LOCK_Y, ICON_EVENT_Y);
-    status.item_bool(IFACE_("Axis Constraint"), pso->axislock & PS_LOCK_Z, ICON_EVENT_Z);
+    status.item_bool("", pso->axislock & PS_LOCK_Z, ICON_EVENT_Z);
+    status.item(pso->axislock == 0 ? IFACE_("Axis Constraint") : IFACE_("Axis Only"), ICON_NONE);
   }
 
   if (hasNumInput(&pso->num)) {
@@ -939,7 +940,9 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
   }
   else {
     ED_slider_status_get(pso->slider, status);
-    status.item(IFACE_("Toggle bone visibility"), ICON_EVENT_H);
+    View3D *v3d = static_cast<View3D *>(pso->area->spacedata.first);
+    status.item_bool(
+        IFACE_("Bone Visibility"), !(v3d->overlay.flag & V3D_OVERLAY_HIDE_BONES), ICON_EVENT_H);
   }
 
   ED_area_status_text(pso->area, "");
