@@ -20,14 +20,11 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_action_types.h"
-#include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_light_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
@@ -38,14 +35,11 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_rotation_types.hh"
-#include "BLI_path_utils.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
-#include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
-#include "BLI_threads.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector_set.hh"
@@ -59,7 +53,6 @@
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
-#include "BKE_cryptomatte.h"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
@@ -74,7 +67,6 @@
 #include "BKE_node_tree_interface.hh"
 #include "BKE_node_tree_reference_lifetimes.hh"
 #include "BKE_node_tree_update.hh"
-#include "BKE_node_tree_zones.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_type_conversions.hh"
 
@@ -92,7 +84,6 @@
 #include "NOD_geo_menu_switch.hh"
 #include "NOD_geo_repeat.hh"
 #include "NOD_geo_simulation.hh"
-#include "NOD_geometry.hh"
 #include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -495,15 +486,15 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
 
   bNodeSocket *sock = MEM_cnew<bNodeSocket>(__func__);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
-  StringRef(stype->idname).copy(sock->idname);
+  StringRef(stype->idname).copy_utf8_truncated(sock->idname);
   sock->in_out = int(in_out);
   sock->type = int(SOCK_CUSTOM); /* int type undefined by default */
   node_socket_set_typeinfo(ntree, sock, stype);
 
   sock->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
 
-  identifier.copy(sock->identifier);
-  name.copy(sock->name);
+  identifier.copy_utf8_truncated(sock->identifier);
+  name.copy_utf8_truncated(sock->name);
   sock->storage = nullptr;
   sock->flag |= SOCK_COLLAPSED;
 
@@ -1154,7 +1145,6 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
           break;
         }
         case CMP_NODE_IMAGE:
-        case CMP_NODE_R_LAYERS:
         case CMP_NODE_VIEWER: {
           ImageUser *iuser = static_cast<ImageUser *>(node->storage);
           iuser->scene = nullptr;
@@ -1498,7 +1488,7 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
   }
 
   if (ntype->initfunc_api) {
-    PointerRNA ptr = RNA_pointer_create(&ntree->id, &RNA_Node, node);
+    PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
 
     /* XXX WARNING: context can be nullptr in case nodes are added in do_versions.
      * Delayed init is not supported for nodes with context-based `initfunc_api` at the moment. */
@@ -1960,11 +1950,11 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
 
   if (identifier[0] != '\0') {
     /* use explicit identifier */
-    identifier.copy(auto_identifier);
+    identifier.copy_utf8_truncated(auto_identifier);
   }
   else {
     /* if no explicit identifier is given, assign a unique identifier based on the name */
-    name.copy(auto_identifier);
+    name.copy_utf8_truncated(auto_identifier);
   }
   /* Make the identifier unique. */
   BLI_uniquename_cb(
@@ -1977,12 +1967,12 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
   STRNCPY(sock->identifier, auto_identifier);
   sock->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
 
-  name.copy(sock->name);
+  name.copy_utf8_truncated(sock->name);
   sock->storage = nullptr;
   sock->flag |= SOCK_COLLAPSED;
   sock->type = SOCK_CUSTOM; /* int type undefined by default */
 
-  idname.copy(sock->idname);
+  idname.copy_utf8_truncated(sock->idname);
   node_socket_set_typeinfo(ntree, sock, node_socket_type_find(idname));
 
   return sock;
@@ -2142,7 +2132,7 @@ void node_modify_socket_type(bNodeTree *ntree,
     }
   }
 
-  idname.copy(sock->idname);
+  idname.copy_utf8_truncated(sock->idname);
   node_socket_set_typeinfo(ntree, sock, socktype);
 }
 
@@ -2166,9 +2156,9 @@ bNodeSocket *node_add_socket(bNodeTree *ntree,
                              const StringRefNull identifier,
                              const StringRefNull name)
 {
-  BLI_assert(node->type_legacy != NODE_FRAME);
-  BLI_assert(!(in_out == SOCK_IN && node->type_legacy == NODE_GROUP_INPUT));
-  BLI_assert(!(in_out == SOCK_OUT && node->type_legacy == NODE_GROUP_OUTPUT));
+  BLI_assert(!node->is_frame());
+  BLI_assert(!(in_out == SOCK_IN && node->is_group_input()));
+  BLI_assert(!(in_out == SOCK_OUT && node->is_group_output()));
 
   ListBase *lb = (in_out == SOCK_IN ? &node->inputs : &node->outputs);
   bNodeSocket *sock = make_socket(ntree, node, in_out, lb, idname, identifier, name);
@@ -2551,7 +2541,7 @@ bNode *node_find_root_parent(bNode *node)
   while (parent_iter->parent != nullptr) {
     parent_iter = parent_iter->parent;
   }
-  if (parent_iter->type_legacy != NODE_FRAME) {
+  if (!parent_iter->is_frame()) {
     return nullptr;
   }
   return parent_iter;
@@ -2691,7 +2681,7 @@ bNode *node_add_node(const bContext *C, bNodeTree *ntree, const StringRef idname
   node_unique_id(ntree, node);
   node->ui_order = ntree->all_nodes().size();
 
-  idname.copy(node->idname);
+  idname.copy_utf8_truncated(node->idname);
   node_set_typeinfo(C, ntree, node, node_type_find(idname));
 
   BKE_ntree_update_tag_node_new(ntree, node);
@@ -2818,7 +2808,8 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
   /* Only call copy function when a copy is made for the main database, not
    * for cases like the dependency graph and localization. */
   if (node_dst->typeinfo->copyfunc_api && !(flag & LIB_ID_CREATE_NO_MAIN)) {
-    PointerRNA ptr = RNA_pointer_create(reinterpret_cast<ID *>(dst_tree), &RNA_Node, node_dst);
+    PointerRNA ptr = RNA_pointer_create_discrete(
+        reinterpret_cast<ID *>(dst_tree), &RNA_Node, node_dst);
 
     node_dst->typeinfo->copyfunc_api(&ptr, &node_src);
   }
@@ -2921,7 +2912,7 @@ void node_socket_move_default_value(Main & /*bmain*/,
     /* Multi input sockets no have value. */
     return;
   }
-  if (ELEM(NODE_REROUTE, dst_node.type_legacy, src_node.type_legacy)) {
+  if (dst_node.is_reroute() || src_node.is_reroute()) {
     /* Reroute node can't have ownership of socket value directly. */
     return;
   }
@@ -3147,7 +3138,7 @@ void node_internal_relink(bNodeTree *ntree, bNode *node)
 
 void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent)
 {
-  BLI_assert(parent->type_legacy == NODE_FRAME);
+  BLI_assert(parent->is_frame());
   BLI_assert(!node_is_parent_and_child(parent, node));
   node->parent = parent;
   BKE_ntree_update_tag_parent_change(ntree, node);
@@ -3156,7 +3147,7 @@ void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent)
 void node_detach_node(bNodeTree *ntree, bNode *node)
 {
   if (node->parent) {
-    BLI_assert(node->parent->type_legacy == NODE_FRAME);
+    BLI_assert(node->parent->is_frame());
     node->parent = nullptr;
     BKE_ntree_update_tag_parent_change(ntree, node);
   }
@@ -3246,7 +3237,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
     BLI_assert(owner_id == nullptr);
   }
 
-  idname.copy(ntree->idname);
+  idname.copy_utf8_truncated(ntree->idname);
   ntree_set_typeinfo(ntree, node_tree_type_find(idname));
 
   return ntree;
@@ -3578,7 +3569,7 @@ void node_remove_node(Main *bmain, bNodeTree *ntree, bNode *node, const bool do_
   if (do_id_user) {
     /* Free callback for NodeCustomGroup. */
     if (node->typeinfo->freefunc_api) {
-      PointerRNA ptr = RNA_pointer_create(&ntree->id, &RNA_Node, node);
+      PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
 
       node->typeinfo->freefunc_api(&ptr);
     }
@@ -3683,6 +3674,9 @@ void node_tree_set_output(bNodeTree *ntree)
         /* same type, exception for viewer */
         const bool tnode_is_output = tnode->type_legacy == CMP_NODE_VIEWER;
         const bool compositor_case = is_compositor && tnode_is_output && node_is_output;
+        const bool has_same_shortcut = compositor_case && node != tnode &&
+                                       tnode->custom1 == node->custom1 &&
+                                       tnode->custom1 != NODE_VIEWER_SHORTCUT_NONE;
         if (tnode->type_legacy == node->type_legacy || compositor_case) {
           if (tnode->flag & NODE_DO_OUTPUT) {
             output++;
@@ -3690,6 +3684,9 @@ void node_tree_set_output(bNodeTree *ntree)
               tnode->flag &= ~NODE_DO_OUTPUT;
             }
           }
+        }
+        if (has_same_shortcut) {
+          tnode->custom1 = NODE_VIEWER_SHORTCUT_NONE;
         }
       }
 
@@ -3699,10 +3696,10 @@ void node_tree_set_output(bNodeTree *ntree)
     }
 
     /* group node outputs use this flag too */
-    if (node->type_legacy == NODE_GROUP_OUTPUT) {
+    if (node->is_group_output()) {
       int output = 0;
       LISTBASE_FOREACH (bNode *, tnode, &ntree->nodes) {
-        if (tnode->type_legacy != NODE_GROUP_OUTPUT) {
+        if (!tnode->is_group_output()) {
           continue;
         }
         if (tnode->flag & NODE_DO_OUTPUT) {
@@ -3764,7 +3761,7 @@ void node_tree_node_flag_set(const bNodeTree *ntree, const int flag, const bool 
   }
 }
 
-bNodeTree *node_tree_localize(bNodeTree *ntree, ID *new_owner_id)
+bNodeTree *node_tree_localize(bNodeTree *ntree, std::optional<ID *> new_owner_id)
 {
   if (ntree == nullptr) {
     return nullptr;
@@ -4338,10 +4335,31 @@ static bool node_poll_instance_default(const bNode *node,
   return node->typeinfo->poll(node->typeinfo, ntree, r_disabled_hint);
 }
 
-void node_type_base(bNodeType *ntype, std::string idname, const int type, const short nclass)
+static int16_t get_next_auto_legacy_type()
+{
+  static std::atomic<int> next_legacy_type = []() {
+    /* Randomize the value a bit to avoid accidentally depending on the generated legacy type to be
+     * stable across Blender sessions. */
+    RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
+    return NODE_LEGACY_TYPE_GENERATION_START + rng.get_int32(100);
+  }();
+  const int new_type = next_legacy_type.fetch_add(1);
+  BLI_assert(new_type <= std::numeric_limits<int16_t>::max());
+  return new_type;
+}
+
+void node_type_base(bNodeType *ntype, std::string idname, std::optional<int16_t> legacy_type)
 {
   ntype->idname = std::move(idname);
-  if (!ELEM(type, NODE_CUSTOM, NODE_UNDEFINED)) {
+
+  if (!legacy_type.has_value()) {
+    /* Still auto-generate a legacy type for this node type if none was specified. This is
+     * necessary because some code checks if two nodes are the same type by comparing their legacy
+     * types. The exact value does not matter, but it must be unique. */
+    legacy_type = get_next_auto_legacy_type();
+  }
+
+  if (!ELEM(*legacy_type, NODE_CUSTOM, NODE_UNDEFINED)) {
     StructRNA *srna = RNA_struct_find(ntype->idname.c_str());
     BLI_assert(srna != nullptr);
     ntype->rna_ext.srna = srna;
@@ -4351,8 +4369,8 @@ void node_type_base(bNodeType *ntype, std::string idname, const int type, const 
   /* make sure we have a valid type (everything registered) */
   BLI_assert(ntype->idname[0] != '\0');
 
-  ntype->type_legacy = type;
-  ntype->nclass = nclass;
+  ntype->type_legacy = *legacy_type;
+  ntype->nclass = NODE_CLASS_CONVERTER;
 
   node_type_base_defaults(ntype);
 

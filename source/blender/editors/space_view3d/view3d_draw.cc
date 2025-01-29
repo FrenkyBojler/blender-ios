@@ -58,7 +58,6 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "GPU_batch.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
@@ -1301,7 +1300,7 @@ static void draw_selected_name(
     const View3D *v3d, Scene *scene, ViewLayer *view_layer, Object *ob, int xoffset, int *yoffset)
 {
   const int cfra = scene->r.cfra;
-  const char *msg_pin = " (Pinned)";
+  const char *msg_pin = " (Soloed)";
   const char *msg_sep = " : ";
   const char *msg_space = " ";
 

@@ -11,8 +11,6 @@
 #include "BLI_index_mask.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -353,7 +351,7 @@ static void grease_pencil_simplify_ui(bContext *C, wmOperator *op)
   uiLayout *layout = op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  PointerRNA ptr = RNA_pointer_create(&wm->id, op->type->srna, op->properties);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
@@ -897,6 +895,37 @@ static const EnumPropertyItem prop_cyclical_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static bke::CurvesGeometry subdivide_last_segement(const bke::CurvesGeometry &curves,
+                                                   const IndexMask &strokes)
+{
+  const VArray<bool> cyclic = curves.cyclic();
+  const Span<float3> positions = curves.positions();
+  curves.ensure_evaluated_lengths();
+
+  Array<int> use_cuts(curves.points_num(), 0);
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+
+  strokes.foreach_index(GrainSize(4096), [&](const int curve_i) {
+    if (cyclic[curve_i]) {
+      const IndexRange points = points_by_curve[curve_i];
+      const float end_distance = math::distance(positions[points.first()],
+                                                positions[points.last()]);
+
+      /* Because the curve is already cyclical the last segment has to be subtracted. */
+      const float curve_length = curves.evaluated_length_total_for_curve(curve_i, true) -
+                                 end_distance;
+
+      /* Calculate cuts to match the average density. */
+      const float point_density = float(points.size()) / curve_length;
+      use_cuts[points.last()] = int(point_density * end_distance);
+    }
+  });
+
+  const VArray<int> cuts = VArray<int>::ForSpan(use_cuts.as_span());
+
+  return geometry::subdivide_curves(curves, strokes, cuts);
+}
+
 static int grease_pencil_cyclical_set_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
@@ -904,6 +933,7 @@ static int grease_pencil_cyclical_set_exec(bContext *C, wmOperator *op)
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const CyclicalMode mode = CyclicalMode(RNA_enum_get(op->ptr, "type"));
+  const bool subdivide_cyclic_segment = RNA_boolean_get(op->ptr, "subdivide_cyclic_segment");
 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -941,6 +971,13 @@ static int grease_pencil_cyclical_set_exec(bContext *C, wmOperator *op)
       }
     }
 
+    if (subdivide_cyclic_segment) {
+      /* Update to properly calculate the lengths. */
+      curves.tag_topology_changed();
+
+      curves = subdivide_last_segement(curves, strokes);
+    }
+
     info.drawing.tag_topology_changed();
     changed = true;
   });
@@ -967,6 +1004,12 @@ static void GREASE_PENCIL_OT_cyclical_set(wmOperatorType *ot)
 
   ot->prop = RNA_def_enum(
       ot->srna, "type", prop_cyclical_types, int(CyclicalMode::TOGGLE), "Type", "");
+
+  RNA_def_boolean(ot->srna,
+                  "subdivide_cyclic_segment",
+                  true,
+                  "Match Point Density",
+                  "Add point in the new segment to keep the same density");
 }
 
 /** \} */
@@ -1906,7 +1949,7 @@ static int grease_pencil_move_to_layer_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (!layer_dst.has_drawing_at(info.frame_number)) {
+    if (!layer_dst.frames().lookup_ptr(info.frame_number)) {
       /* Move geometry to a new drawing in target layer. */
       Drawing &drawing_dst = *grease_pencil.insert_frame(layer_dst, info.frame_number);
       drawing_dst.strokes_for_write() = bke::curves_copy_curve_selection(
@@ -3288,6 +3331,7 @@ static int grease_pencil_snap_to_cursor_exec(bContext *C, wmOperator *op)
       index_mask::masked_fill(positions, cursor_layer, selected_points);
     }
 
+    curves.calculate_bezier_auto_handles();
     drawing_info.drawing.tag_positions_changed();
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     DEG_id_tag_update(&object.id, ID_RECALC_SYNC_TO_EVAL);
