@@ -156,7 +156,7 @@ static PointerRNA rna_ActionSlots_active_get(PointerRNA *ptr)
   if (!active_slot) {
     return PointerRNA_NULL;
   }
-  return RNA_pointer_create(&action.id, &RNA_ActionSlot, active_slot);
+  return RNA_pointer_create_discrete(&action.id, &RNA_ActionSlot, active_slot);
 }
 
 static void rna_ActionSlots_active_set(PointerRNA *ptr,
@@ -304,7 +304,7 @@ int rna_ActionSlot_target_id_type_icon_get(PointerRNA *ptr)
 void rna_ActionSlot_name_display_get(PointerRNA *ptr, char *value)
 {
   animrig::Slot &slot = rna_data_slot(ptr);
-  slot.identifier_without_prefix().unsafe_copy(value);
+  slot.identifier_without_prefix().copy_unsafe(value);
 }
 
 int rna_ActionSlot_name_display_length(PointerRNA *ptr)
@@ -469,7 +469,7 @@ static std::optional<std::string> rna_ActionStrip_path(const PointerRNA *ptr)
       continue;
     }
 
-    PointerRNA layer_ptr = RNA_pointer_create(&action.id, &RNA_ActionLayer, layer);
+    PointerRNA layer_ptr = RNA_pointer_create_discrete(&action.id, &RNA_ActionLayer, layer);
     const std::optional<std::string> layer_path = rna_ActionLayer_path(&layer_ptr);
     BLI_assert_msg(layer_path, "Every animation layer should have a valid RNA path.");
     const std::string strip_path = fmt::format("{}.strips[{}]", *layer_path, index);
@@ -590,7 +590,7 @@ static std::optional<std::string> rna_Channelbag_path(const PointerRNA *ptr)
         continue;
       }
 
-      PointerRNA layer_ptr = RNA_pointer_create(&action.id, &RNA_ActionLayer, layer);
+      PointerRNA layer_ptr = RNA_pointer_create_discrete(&action.id, &RNA_ActionLayer, layer);
       const std::optional<std::string> layer_path = rna_ActionLayer_path(&layer_ptr);
       BLI_assert_msg(layer_path, "Every animation layer should have a valid RNA path.");
       return fmt::format("{}.strips[{}].channelbags[{}]", *layer_path, strip_index, index);
@@ -899,7 +899,7 @@ static PointerRNA rna_iterator_Action_groups_get(CollectionPropertyIterator *ite
     group = static_cast<bActionGroup *>(rna_iterator_listbase_get(iter));
   }
 
-  return RNA_pointer_create(&action.id, &RNA_ActionGroup, group);
+  return RNA_pointer_create_discrete(&action.id, &RNA_ActionGroup, group);
 }
 static int rna_iterator_Action_groups_length(PointerRNA *ptr)
 {
@@ -1036,7 +1036,7 @@ static PointerRNA rna_iterator_Action_fcurves_get(CollectionPropertyIterator *it
     fcurve = static_cast<FCurve *>(rna_iterator_listbase_get(iter));
   }
 
-  return RNA_pointer_create(&action.id, &RNA_FCurve, fcurve);
+  return RNA_pointer_create_discrete(&action.id, &RNA_FCurve, fcurve);
 }
 static int rna_iterator_Action_fcurves_length(PointerRNA *ptr)
 {

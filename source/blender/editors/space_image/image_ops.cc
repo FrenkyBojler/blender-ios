@@ -1527,7 +1527,7 @@ static void image_open_draw(bContext * /*C*/, wmOperator *op)
                    false);
 
   /* image template */
-  PointerRNA imf_ptr = RNA_pointer_create(nullptr, &RNA_ImageFormatSettings, imf);
+  PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, imf);
 
   /* multiview template */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
@@ -2037,7 +2037,8 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
   uiItemS(layout);
 
   /* Image format settings. */
-  PointerRNA imf_ptr = RNA_pointer_create(nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
+  PointerRNA imf_ptr = RNA_pointer_create_discrete(
+      nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
   uiTemplateImageSettings(layout, &imf_ptr, save_as_render);
 
   if (!save_as_render) {
@@ -2980,7 +2981,7 @@ static int image_clipboard_copy_exec(bContext *C, wmOperator *op)
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
   bool changed = false;
   if (ibuf) {
-    /* Clipboard uses byte buffer, so matchsaving an 8 bit PNG for color management. */
+    /* Clipboard uses byte buffer, so match saving an 8 bit PNG for color management. */
     const bool save_as_render = ima->flag & IMA_VIEW_AS_RENDER;
 
     ImageFormatData image_format;

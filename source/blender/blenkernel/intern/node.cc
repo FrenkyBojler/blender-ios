@@ -15,20 +15,16 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#include <limits>
 #include <optional>
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_action_types.h"
-#include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_light_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
@@ -39,14 +35,11 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_rotation_types.hh"
-#include "BLI_path_utils.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
-#include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
-#include "BLI_threads.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector_set.hh"
@@ -60,7 +53,6 @@
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
-#include "BKE_cryptomatte.h"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
@@ -75,7 +67,6 @@
 #include "BKE_node_tree_interface.hh"
 #include "BKE_node_tree_reference_lifetimes.hh"
 #include "BKE_node_tree_update.hh"
-#include "BKE_node_tree_zones.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_type_conversions.hh"
 
@@ -93,7 +84,6 @@
 #include "NOD_geo_menu_switch.hh"
 #include "NOD_geo_repeat.hh"
 #include "NOD_geo_simulation.hh"
-#include "NOD_geometry.hh"
 #include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -496,15 +486,15 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
 
   bNodeSocket *sock = MEM_cnew<bNodeSocket>(__func__);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
-  StringRef(stype->idname).copy(sock->idname);
+  StringRef(stype->idname).copy_utf8_truncated(sock->idname);
   sock->in_out = int(in_out);
   sock->type = int(SOCK_CUSTOM); /* int type undefined by default */
   node_socket_set_typeinfo(ntree, sock, stype);
 
   sock->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
 
-  identifier.copy(sock->identifier);
-  name.copy(sock->name);
+  identifier.copy_utf8_truncated(sock->identifier);
+  name.copy_utf8_truncated(sock->name);
   sock->storage = nullptr;
   sock->flag |= SOCK_COLLAPSED;
 
@@ -1498,7 +1488,7 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
   }
 
   if (ntype->initfunc_api) {
-    PointerRNA ptr = RNA_pointer_create(&ntree->id, &RNA_Node, node);
+    PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
 
     /* XXX WARNING: context can be nullptr in case nodes are added in do_versions.
      * Delayed init is not supported for nodes with context-based `initfunc_api` at the moment. */
@@ -1960,11 +1950,11 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
 
   if (identifier[0] != '\0') {
     /* use explicit identifier */
-    identifier.copy(auto_identifier);
+    identifier.copy_utf8_truncated(auto_identifier);
   }
   else {
     /* if no explicit identifier is given, assign a unique identifier based on the name */
-    name.copy(auto_identifier);
+    name.copy_utf8_truncated(auto_identifier);
   }
   /* Make the identifier unique. */
   BLI_uniquename_cb(
@@ -1977,12 +1967,12 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
   STRNCPY(sock->identifier, auto_identifier);
   sock->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
 
-  name.copy(sock->name);
+  name.copy_utf8_truncated(sock->name);
   sock->storage = nullptr;
   sock->flag |= SOCK_COLLAPSED;
   sock->type = SOCK_CUSTOM; /* int type undefined by default */
 
-  idname.copy(sock->idname);
+  idname.copy_utf8_truncated(sock->idname);
   node_socket_set_typeinfo(ntree, sock, node_socket_type_find(idname));
 
   return sock;
@@ -2142,7 +2132,7 @@ void node_modify_socket_type(bNodeTree *ntree,
     }
   }
 
-  idname.copy(sock->idname);
+  idname.copy_utf8_truncated(sock->idname);
   node_socket_set_typeinfo(ntree, sock, socktype);
 }
 
@@ -2691,7 +2681,7 @@ bNode *node_add_node(const bContext *C, bNodeTree *ntree, const StringRef idname
   node_unique_id(ntree, node);
   node->ui_order = ntree->all_nodes().size();
 
-  idname.copy(node->idname);
+  idname.copy_utf8_truncated(node->idname);
   node_set_typeinfo(C, ntree, node, node_type_find(idname));
 
   BKE_ntree_update_tag_node_new(ntree, node);
@@ -2818,7 +2808,8 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
   /* Only call copy function when a copy is made for the main database, not
    * for cases like the dependency graph and localization. */
   if (node_dst->typeinfo->copyfunc_api && !(flag & LIB_ID_CREATE_NO_MAIN)) {
-    PointerRNA ptr = RNA_pointer_create(reinterpret_cast<ID *>(dst_tree), &RNA_Node, node_dst);
+    PointerRNA ptr = RNA_pointer_create_discrete(
+        reinterpret_cast<ID *>(dst_tree), &RNA_Node, node_dst);
 
     node_dst->typeinfo->copyfunc_api(&ptr, &node_src);
   }
@@ -3246,7 +3237,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
     BLI_assert(owner_id == nullptr);
   }
 
-  idname.copy(ntree->idname);
+  idname.copy_utf8_truncated(ntree->idname);
   ntree_set_typeinfo(ntree, node_tree_type_find(idname));
 
   return ntree;
@@ -3578,7 +3569,7 @@ void node_remove_node(Main *bmain, bNodeTree *ntree, bNode *node, const bool do_
   if (do_id_user) {
     /* Free callback for NodeCustomGroup. */
     if (node->typeinfo->freefunc_api) {
-      PointerRNA ptr = RNA_pointer_create(&ntree->id, &RNA_Node, node);
+      PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
 
       node->typeinfo->freefunc_api(&ptr);
     }
