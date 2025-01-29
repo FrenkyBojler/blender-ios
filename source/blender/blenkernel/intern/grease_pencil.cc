@@ -522,6 +522,11 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           };
 
           for (const int i : result.face.index_range()) {
+            /* If this face does not exist in the original then is must be a hole. */
+            if (result.face_orig[i].is_empty()) {
+              continue;
+            }
+
             if (is_holes) {
               bool is_hole = false;
               /* If any of the original faces are holes then this is a hole. */
