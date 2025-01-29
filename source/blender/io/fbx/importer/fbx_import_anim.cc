@@ -19,10 +19,10 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 
+#include "DNA_key_types.h"
+
 #include "fbx_import_anim.hh"
 #include "fbx_import_util.hh"
-
-#include "ufbx.h"
 
 namespace blender::io::fbx {
 
@@ -41,7 +41,7 @@ static bAction *ensure_action_and_slot_for_id(Main &bmain, ID &id, StringRefNull
   animrig::Slot *slot = animrig::assign_action_ensure_slot_for_keying(action, id);
   BLI_assert(slot != nullptr);
 
-  const std::string slot_name = slot->identifier_prefix_for_idtype() + action_name;
+  const std::string slot_name = slot->idtype_string() + action_name;
   action.slot_identifier_define(*slot, slot_name);
 
   return baction;
@@ -74,33 +74,32 @@ struct ElementAnimations {
   const ufbx_anim_stack *fbx_stack = nullptr;
   const ufbx_anim_layer *fbx_layer = nullptr;
   const ufbx_element *fbx_elem = nullptr;
-  Object *target_obj = nullptr;
+  ID *target_id = nullptr;
+  Object *target_object = nullptr;
   int64_t order = 0;
-  Vector<const ufbx_anim_prop *> props;
   const ufbx_anim_prop *prop_position = nullptr;
   const ufbx_anim_prop *prop_rotation = nullptr;
   const ufbx_anim_prop *prop_scale = nullptr;
+  const ufbx_anim_prop *prop_blend_shape = nullptr;
 };
 
-static Vector<ElementAnimations> gather_animated_properties(
-    const ufbx_scene &fbx, const Map<const ufbx_element *, Object *> &element_to_object)
+static Vector<ElementAnimations> gather_animated_properties(const ufbx_scene &fbx,
+                                                            const FbxElementMapping &mapping)
 {
   int64_t order = 0;
   Map<const ufbx_element *, ElementAnimations> elem_map;
   for (const ufbx_anim_stack *fstack : fbx.anim_stacks) {
     for (const ufbx_anim_layer *flayer : fstack->layers) {
-      // printf("fbx: AnimLayer %s\n", flayer->name.data);
       for (const ufbx_anim_prop &fprop : flayer->anim_props) {
-        // printf("fbx: - prop '%s' el '%s'\n", fprop.prop_name.data, fprop.element->name.data);
         bool supported_prop = false;
-        //@TODO: "DeformPercent" - shape keys, element is keyblock
         //@TODO: "FocalLength", "FocusDistance" - element is camera
         //@TODO: "DiffuseColor" - element is material
         //@TODO: "Visibility"?
         const bool is_position = STREQ(fprop.prop_name.data, "Lcl Translation");
         const bool is_rotation = STREQ(fprop.prop_name.data, "Lcl Rotation");
         const bool is_scale = STREQ(fprop.prop_name.data, "Lcl Scale");
-        if (is_position || is_rotation || is_scale) {
+        const bool is_blend_shape = STREQ(fprop.prop_name.data, "DeformPercent");
+        if (is_position || is_rotation || is_scale || is_blend_shape) {
           supported_prop = true;
         }
 
@@ -109,8 +108,9 @@ static Vector<ElementAnimations> gather_animated_properties(
         }
 
         //@TODO: make this handle non-Object animation (e.g. Materials)
-        Object *target_obj = element_to_object.lookup_default(fprop.element, nullptr);
-        if (target_obj == nullptr) {
+        Object *target_obj = mapping.el_to_object.lookup_default(fprop.element, nullptr);
+        Key *target_key = mapping.el_to_shape_key.lookup_default(fprop.element, nullptr);
+        if (target_obj == nullptr && target_key == nullptr) {
           continue;
         }
 
@@ -123,7 +123,14 @@ static Vector<ElementAnimations> gather_animated_properties(
         if (anims.fbx_layer == nullptr) {
           anims.fbx_layer = flayer;
         }
-        anims.target_obj = target_obj;
+
+        if (target_obj != nullptr) {
+          anims.target_id = &target_obj->id;
+          anims.target_object = target_obj;
+        }
+        else if (target_key != nullptr) {
+          anims.target_id = &target_key->id;
+        }
         if (is_position) {
           anims.prop_position = &fprop;
         }
@@ -133,8 +140,9 @@ static Vector<ElementAnimations> gather_animated_properties(
         if (is_scale) {
           anims.prop_scale = &fprop;
         }
-
-        anims.props.append(&fprop);
+        if (is_blend_shape) {
+          anims.prop_blend_shape = &fprop;
+        }
       }
     }
   }
@@ -153,7 +161,8 @@ static bAction *create_action(Main &bmain,
                               Map<std::string, bAction *> &action_name_map)
 {
   /* Construct action name. */
-  std::string action_name = BKE_id_name(anim.target_obj->id);
+  BLI_assert(anim.target_id != nullptr);
+  std::string action_name = BKE_id_name(*anim.target_id);
   action_name += '|';
   action_name += anim.fbx_stack->name.data;
   if (!STREQ(anim.fbx_stack->name.data, anim.fbx_layer->name.data)) {
@@ -164,12 +173,21 @@ static bAction *create_action(Main &bmain,
   /* Lookup or create an action. */
   bAction *action = action_name_map.lookup_default(action_name, nullptr);
   if (action == nullptr) {
-    action = ensure_action_and_slot_for_id(bmain, anim.target_obj->id, action_name);
+    action = ensure_action_and_slot_for_id(bmain, *anim.target_id, action_name);
     action_name_map.add_new(action_name, action);
   }
-  BLI_assert(anim.target_obj->adt != nullptr);
+  BLI_assert(BKE_animdata_from_id(anim.target_id) != nullptr);
 
   return action;
+}
+
+static void finalize_curve(bAction *action, const ElementAnimations &anim, FCurve *cu)
+{
+  if (cu != nullptr) {
+    BKE_fcurve_handles_recalc(cu);
+    blender::animrig::action_fcurve_attach(
+        action->wrap(), BKE_animdata_from_id(anim.target_id)->slot_handle, *cu, std::nullopt);
+  }
 }
 
 static void create_transform_curves(const ElementAnimations &anim,
@@ -193,8 +211,9 @@ static void create_transform_curves(const ElementAnimations &anim,
   std::string rna_rotation;
   int rot_channels = 3;
   /* Bones are created with quaternion rotation by default. */
-  eRotationModes rot_mode = is_bone ? ROT_MODE_QUAT :
-                                      static_cast<eRotationModes>(anim.target_obj->rotmode);
+  eRotationModes rot_mode = is_bone || anim.target_object == nullptr ?
+                                ROT_MODE_QUAT :
+                                static_cast<eRotationModes>(anim.target_object->rotmode);
 
   switch (rot_mode) {
     case ROT_MODE_QUAT:
@@ -304,34 +323,50 @@ static void create_transform_curves(const ElementAnimations &anim,
   }
 
   /* Finalize and attach the curves. */
-  auto finalize_curve = [action, anim](FCurve *cu) {
-    if (cu != nullptr) {
-      BKE_fcurve_handles_recalc(cu);
-      blender::animrig::action_fcurve_attach(
-          action->wrap(), anim.target_obj->adt->slot_handle, *cu, std::nullopt);
-    }
-  };
   for (FCurve *cu : curves_pos) {
-    finalize_curve(cu);
+    finalize_curve(action, anim, cu);
   }
   for (FCurve *cu : curves_rot) {
-    finalize_curve(cu);
+    finalize_curve(action, anim, cu);
   }
   for (FCurve *cu : curves_scale) {
-    finalize_curve(cu);
+    finalize_curve(action, anim, cu);
   }
+}
+
+static void create_blend_shape_curves(const ElementAnimations &anim,
+                                      bAction *action,
+                                      const double fps,
+                                      const float anim_offset)
+{
+  const ufbx_blend_channel *fchan = ufbx_as_blend_channel(anim.prop_blend_shape->element);
+  BLI_assert(fchan != nullptr);
+  std::string rna_path = std::string("key_blocks[\"") + fchan->target_shape->name.data +
+                         "\"].value";
+  const ufbx_anim_curve *input_curve = anim.prop_blend_shape->anim_value->curves[0];
+  FCurve *curve = create_fcurve(rna_path, 0, input_curve->keyframes.count);
+  for (int i = 0; i < input_curve->keyframes.count; i++) {
+    const ufbx_keyframe &fkey = input_curve->keyframes[i];
+    double t = fkey.time;
+    float tf = float(t * fps + anim_offset);
+    float val = float(fkey.value / 100.0); /* FBX shape weights are 0..100 range. */
+    set_curve_sample(curve, i, tf, val);
+  }
+
+  /* Finalize and attach the curves. */
+  finalize_curve(action, anim, curve);
 }
 
 void import_animations(Main &bmain,
                        const ufbx_scene &fbx,
-                       const Map<const ufbx_element *, Object *> &element_to_object,
+                       const FbxElementMapping &mapping,
                        const double fps,
                        const float anim_offset)
 {
   /* Note: mixing is completely ignored for now, each layer results in an independent set of
    * actions. */
 
-  Vector<ElementAnimations> animations = gather_animated_properties(fbx, element_to_object);
+  Vector<ElementAnimations> animations = gather_animated_properties(fbx, mapping);
 
   Map<std::string, bAction *> action_name_map;
   for (const ElementAnimations &anim : animations) {
@@ -339,6 +374,9 @@ void import_animations(Main &bmain,
 
     if (anim.prop_position || anim.prop_rotation || anim.prop_scale) {
       create_transform_curves(anim, action, fps, anim_offset);
+    }
+    if (anim.prop_blend_shape) {
+      create_blend_shape_curves(anim, action, fps, anim_offset);
     }
   }
 }

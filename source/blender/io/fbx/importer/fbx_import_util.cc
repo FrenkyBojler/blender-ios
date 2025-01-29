@@ -6,7 +6,7 @@
  * \ingroup fbx
  */
 
-#include "ufbx.h"
+#include "fbx_import_util.hh"
 
 namespace blender::io::fbx {
 
