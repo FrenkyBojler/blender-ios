@@ -2432,6 +2432,8 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
   lib->runtime.parent = nullptr;
 
   id_us_ensure_real(&lib->id);
+
+  lib->id.lib = nullptr;
 }
 
 /* Always call this once you have loaded new library data to set the relative paths correctly
