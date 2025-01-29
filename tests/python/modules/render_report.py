@@ -550,7 +550,7 @@ class Report:
         silently_failed_tests = []
         all_files = list(blend_list(dirpath, self.device, self.blocklist))
         all_files.sort()
-        if not all_files:
+        if not list(blend_list(dirpath, self.device, [])):
             print_message("No .blend files found in '{}'!".format(dirpath), 'FAILURE', 'FAILED')
             return False
 
