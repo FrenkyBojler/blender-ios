@@ -364,7 +364,7 @@ static void libblock_remap_data_postprocess_object_update(Main *bmain,
          ob = static_cast<Object *>(ob->id.next))
     {
       if (ob->type == OB_MBALL && BKE_mball_is_basis(ob)) {
-        DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       }
     }
   }
@@ -373,7 +373,7 @@ static void libblock_remap_data_postprocess_object_update(Main *bmain,
          ob = static_cast<Object *>(ob->id.next))
     {
       if (ob->type == OB_MBALL && BKE_mball_is_basis_for(ob, old_ob)) {
-        DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         break; /* There is only one basis... */
       }
     }
