@@ -1102,17 +1102,17 @@ static void duplicate_layer_and_frames(GreasePencil &dst_grease_pencil,
       if (iter.domain != bke::AttrDomain::Layer) {
         return;
       }
-      bke::attribute_math::convert_to_static_type(iter.data_type, [&](auto dummy) {
-        using T = decltype(dummy);
-        bke::AttributeReader<T> reader = src_attributes.lookup<T>(iter.name, iter.domain);
-        BLI_assert(reader);
-        bke::AttributeWriter<T> writer = dst_attributes.lookup_or_add_for_write<T>(iter.name,
-                                                                                   iter.domain);
-        if (writer) {
-          writer.varray.set(dst_layer_index, reader.varray[src_layer_index]);
-        }
-        writer.finish();
-      });
+      bke::GAttributeReader reader = src_attributes.lookup(iter.name, iter.domain, iter.data_type);
+      BLI_assert(reader);
+      bke::GAttributeWriter writer = dst_attributes.lookup_or_add_for_write(
+          iter.name, iter.domain, iter.data_type);
+      if (writer) {
+        const CPPType &cpptype = *bke::custom_data_type_to_cpp_type(iter.data_type);
+        BUFFER_FOR_CPP_TYPE_VALUE(cpptype, buffer);
+        reader.varray.get(src_layer_index, buffer);
+        writer.varray.set_by_copy(dst_layer_index, buffer);
+      }
+      writer.finish();
     });
 
     std::optional<int> frame_select = std::nullopt;
