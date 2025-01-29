@@ -704,8 +704,8 @@ void gather_to_groups(OffsetIndices<int> dst_offsets,
                       GMutableSpan dst);
 
 void gather_ranges_to_groups(Span<IndexRange> src_ranges,
-                             const OffsetIndices<int> dst_offsets,
-                             const GSpan src,
+                             OffsetIndices<int> dst_offsets,
+                             GSpan src,
                              GMutableSpan dst);
 
 /** \} */
