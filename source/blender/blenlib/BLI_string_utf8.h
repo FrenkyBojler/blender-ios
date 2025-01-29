@@ -22,7 +22,7 @@ size_t BLI_strncpy_utf8_rlen(char *__restrict dst,
                              size_t dst_maxncpy) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 2);
 /**
  * A version of #BLI_strncpy_utf8_rlen that doesn't null terminate the string.
- * \note Useful for C++ API's that don't null terminate strings.
+ * \note Useful for C++ APIs that don't null terminate strings.
  */
 size_t BLI_strncpy_utf8_rlen_unterminated(char *__restrict dst,
                                           const char *__restrict src,

@@ -312,6 +312,9 @@ int BLI_str_utf8_invalid_strip(char *str, size_t length)
  *
  * Compatible with #BLI_strncpy, but ensure no partial UTF8 chars.
  *
+ * \param dst_maxncpy: The maximum number of bytes to copy. This does not include the null
+ *   terminator.
+ *
  * \note currently we don't attempt to deal with invalid utf8 chars.
  * See #BLI_str_utf8_invalid_strip for if that is needed.
  *
