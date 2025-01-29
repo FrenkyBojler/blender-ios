@@ -319,13 +319,6 @@ static void node_composit_buts_file_output(uiLayout *layout, bContext * /*C*/, P
 {
   PointerRNA imfptr = RNA_pointer_get(ptr, "format");
   const bool multilayer = RNA_enum_get(&imfptr, "file_format") == R_IMF_IMTYPE_MULTILAYER;
-
-  if (multilayer) {
-    uiItemL(layout, IFACE_("Path:"), ICON_NONE);
-  }
-  else {
-    uiItemL(layout, IFACE_("Base Path:"), ICON_NONE);
-  }
   uiItemR(layout, ptr, "base_path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
@@ -365,8 +358,6 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
   }
 
   uiItemS(layout);
-
-  uiItemO(layout, IFACE_("Add Input"), ICON_ADD, "NODE_OT_output_file_add_socket");
 
   row = uiLayoutRow(layout, false);
   col = uiLayoutColumn(row, true);
@@ -409,54 +400,30 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
     RNA_property_collection_lookup_int(
         ptr, RNA_struct_find_property(ptr, "file_slots"), active_index, &active_input_ptr);
   }
+
+  col = uiLayoutColumn(row, true);
+  uiItemO(col, "", ICON_ADD, "NODE_OT_output_file_add_socket");
+  uiItemO(col, "", ICON_REMOVE, "NODE_OT_output_file_remove_active_socket");
+  uiItemS(col);
+
   /* XXX collection lookup does not return the ID part of the pointer,
    * setting this manually here */
   active_input_ptr.owner_id = ptr->owner_id;
 
-  col = uiLayoutColumn(row, true);
+  uiLayout *sub = uiLayoutColumn(col, true);
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_output_file_move_active_socket", false);
-  uiItemFullO_ptr(col, ot, "", ICON_TRIA_UP, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+  uiItemFullO_ptr(sub, ot, "", ICON_TRIA_UP, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
   RNA_enum_set(&op_ptr, "direction", 1);
   uiItemFullO_ptr(
-      col, ot, "", ICON_TRIA_DOWN, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+      sub, ot, "", ICON_TRIA_DOWN, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
   RNA_enum_set(&op_ptr, "direction", 2);
 
   if (active_input_ptr.data) {
-    if (multilayer) {
-      col = uiLayoutColumn(layout, true);
-
-      uiItemL(col, IFACE_("Layer:"), ICON_NONE);
-      row = uiLayoutRow(col, false);
-      uiItemR(row, &active_input_ptr, "name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-      uiItemFullO(row,
-                  "NODE_OT_output_file_remove_active_socket",
-                  "",
-                  ICON_X,
-                  nullptr,
-                  WM_OP_EXEC_DEFAULT,
-                  UI_ITEM_R_ICON_ONLY,
-                  nullptr);
-    }
-    else {
-      col = uiLayoutColumn(layout, true);
-
-      uiItemL(col, IFACE_("File Subpath:"), ICON_NONE);
-      row = uiLayoutRow(col, false);
-      uiItemR(row, &active_input_ptr, "path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-      uiItemFullO(row,
-                  "NODE_OT_output_file_remove_active_socket",
-                  "",
-                  ICON_X,
-                  nullptr,
-                  WM_OP_EXEC_DEFAULT,
-                  UI_ITEM_R_ICON_ONLY,
-                  nullptr);
-
+    if (!multilayer) {
       /* format details for individual files */
       imfptr = RNA_pointer_get(&active_input_ptr, "format");
 
       col = uiLayoutColumn(layout, true);
-      uiItemL(col, IFACE_("Format:"), ICON_NONE);
       uiItemR(col,
               &active_input_ptr,
               "use_node_format",

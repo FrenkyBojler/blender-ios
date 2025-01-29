@@ -1039,19 +1039,28 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
   /* Override color management */
   if (color_management) {
     uiItemS(col);
-    uiItemR(col, imfptr, "color_management", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(uiLayoutRow(col, true),
+            imfptr,
+            "color_management",
+            UI_ITEM_R_EXPAND,
+            std::nullopt,
+            ICON_NONE);
 
+    uiLayout *flow = uiLayoutGridFlow(col, true, 0, false, false, true);
+
+    PointerRNA display_settings_ptr = RNA_pointer_get(imfptr, "display_settings");
+    uiItemR(flow, &display_settings_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+    PointerRNA view_settings_ptr = RNA_pointer_get(imfptr, "view_settings");
+    uiTemplateColormanagedViewSettings(flow, nullptr, imfptr, "view_settings");
     if (imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
       if (BKE_imtype_requires_linear_float(imf->imtype)) {
         PointerRNA linear_settings_ptr = RNA_pointer_get(imfptr, "linear_colorspace_settings");
         uiItemR(col, &linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
       }
-      else {
-        PointerRNA display_settings_ptr = RNA_pointer_get(imfptr, "display_settings");
-        uiItemR(
-            col, &display_settings_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        uiTemplateColormanagedViewSettings(col, nullptr, imfptr, "view_settings");
-      }
+    }
+    else {
+      uiLayoutSetEnabled(flow, false);
     }
   }
 }
