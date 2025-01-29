@@ -449,7 +449,7 @@ class CommitInfo():
 
 def setup_commit_info(commit: str) -> CommitInfo | None:
     commit_information = CommitInfo(commit)
-    if commit_information.fixed_reports:
+    if len(commit_information.fixed_reports) > 0:
         return commit_information
     return None
 
