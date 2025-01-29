@@ -108,6 +108,23 @@ static void add_eval_dependencies_from_socket(const bNodeSocket &socket,
   }
 }
 
+static void add_eval_dependencies_from_node_data(const bNodeTree &tree,
+                                                 GeometryNodesEvalDependencies &deps)
+{
+  for (const bNode *node : tree.nodes_by_type("GeometryNodeInputObject")) {
+    if (node->is_muted()) {
+      continue;
+    }
+    deps.add_object(reinterpret_cast<Object *>(node->id));
+  }
+  for (const bNode *node : tree.nodes_by_type("GeometryNodeInputCollection")) {
+    if (node->is_muted()) {
+      continue;
+    }
+    deps.add_generic_id(node->id);
+  }
+}
+
 static bool node_needs_own_transform(const bNode &node)
 {
   if (node.is_muted()) {
@@ -146,6 +163,9 @@ static void gather_geometry_nodes_eval_dependencies(
   deps.needs_active_camera |= !ntree.nodes_by_type("GeometryNodeInputActiveCamera").is_empty();
   deps.time_dependent |= !ntree.nodes_by_type("GeometryNodeSimulationInput").is_empty() ||
                          !ntree.nodes_by_type("GeometryNodeInputSceneTime").is_empty();
+
+  add_eval_dependencies_from_node_data(ntree, deps);
+
   for (const bNode *node : ntree.group_nodes()) {
     if (!node->id) {
       continue;
