@@ -48,7 +48,7 @@ static bool is_socket_type_supported(const eNodeSocketDatatype type)
   return ELEM(type, SOCK_VECTOR, SOCK_RGBA, SOCK_FLOAT);
 }
 
-enum class OutputType {
+enum class OutputType : int8_t {
   MixFactors,
   Translations,
 };
