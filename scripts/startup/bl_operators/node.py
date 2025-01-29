@@ -495,7 +495,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
                 viewer_node = n
 
         if not viewer_node:
-            self.report({'WARNING'}, "No preview set for shortcut %i" % self.viewer_index)
+            self.report({'INFO'}, "Shortcut %i is not assigned to a Viewer node yet" % self.viewer_index)
             return {'CANCELLED'}
 
         # Use the node active status to enable this viewer node and disable others.
