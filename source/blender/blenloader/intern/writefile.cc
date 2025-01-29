@@ -1101,7 +1101,18 @@ static void write_libraries(WriteData *wd, Main *bmain)
       if (id->us == 0) {
         continue;
       }
-      ids_used_from_library.append(id);
+      if (ID_IS_LINKED_EMBEDDED(id)) {
+        ids_used_from_library.append(id);
+        continue;
+      }
+      if (id->tag & ID_TAG_EXTERN) {
+        ids_used_from_library.append(id);
+        continue;
+      }
+      if ((id->tag & ID_TAG_INDIRECT) && (id->flag & ID_FLAG_INDIRECT_WEAK_LINK)) {
+        ids_used_from_library.append(id);
+        continue;
+      }
     }
 
     bool should_write_library = false;

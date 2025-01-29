@@ -2426,6 +2426,8 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
   Main *newmain = BKE_main_new();
   BLI_addtail(fd->mainlist, newmain);
   newmain->curlib = lib;
+  /* Temporary until we have multi-library support. Currently, we don't know the library version
+   * otherwise, because we are not actually reading the library .blend file. */
   newmain->versionfile = static_cast<Main *>(fd->mainlist->first)->versionfile;
   newmain->subversionfile = static_cast<Main *>(fd->mainlist->first)->subversionfile;
 
@@ -2433,6 +2435,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
 
   id_us_ensure_real(&lib->id);
 
+  /* Should always be null. */
   lib->id.lib = nullptr;
 }
 
@@ -3073,6 +3076,7 @@ static BHead *read_libblock(FileData *fd,
   }
 
   if (main->curlib) {
+    /* Temporary until we get dedicated Library IDs for embedded data-blocks. */
     main->curlib->runtime.versionfile = main->versionfile;
     main->curlib->runtime.subversionfile = main->subversionfile;
   }
@@ -3749,6 +3753,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
             bhead = blo_bhead_next(fd, bhead);
           }
           else {
+            /* TODO: Needs a special case for ID_LI, because it always needs to be added to the
+             * first main, because it's not within another library. */
             bhead = read_libblock(
                 fd, static_cast<Main *>(fd->mainlist->last), bhead, ID_TAG_LOCAL, false, nullptr);
           }
