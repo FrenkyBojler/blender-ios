@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BKE_screen.hh"
+#include "BLI_vector.hh"
 #include "DNA_space_types.h"
 #include "DNA_workspace_types.h"
 
@@ -19,7 +20,7 @@ struct PointerRNA;
 
 namespace blender::ed::properties {
 
-const std::array<blender::StringRef, BCONTEXT_TOT> filter_items = {
+const std::array<blender::StringRefNull, BCONTEXT_TOT> filter_items = {
     "show_properties_tool",
     "show_properties_scene",
     "show_properties_render",
@@ -46,9 +47,8 @@ const std::array<blender::StringRef, BCONTEXT_TOT> filter_items = {
  *
  * \return The total number of items in the array returned.
  */
-int ED_buttons_tabs_list(const SpaceProperties *sbuts,
-                         std::array<short, BCONTEXT_TOT * 2> &context_tabs_array,
-                         bool apply_filter = true);
+blender::Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpaceProperties *sbuts,
+                                                            bool apply_filter = true);
 void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/);
 bool ED_buttons_tab_has_search_result(SpaceProperties *sbuts, int index);
 

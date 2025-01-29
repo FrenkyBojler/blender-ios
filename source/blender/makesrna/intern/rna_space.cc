@@ -561,6 +561,7 @@ static const EnumPropertyItem rna_enum_curve_display_handle_items[] = {
 #  include "DNA_screen_types.h"
 #  include "DNA_userdef_types.h"
 
+#  include "BLI_index_range.hh"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 
@@ -2075,15 +2076,12 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext * /*C*
 
   /* Although it would never reach this amount, a theoretical maximum number of tabs
    * is BCONTEXT_TOT * 2, with every tab displayed and a spacer in every other item. */
-  std::array<short, BCONTEXT_TOT * 2> context_tabs_array;
-
-  int totitem = ED_buttons_tabs_list(sbuts, context_tabs_array);
-  BLI_assert(totitem <= context_tabs_array.size());
+  const blender::Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
 
   int totitem_added = 0;
   bool add_separator = true;
-  for (int i = 0; i < totitem; i++) {
-    if (context_tabs_array[i] == -1) {
+  for (const eSpaceButtons_Context tab : context_tabs_array) {
+    if (tab == -1) {
       if (add_separator) {
         RNA_enum_item_add_separator(&item, &totitem_added);
         add_separator = false;
@@ -2091,11 +2089,11 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext * /*C*
       continue;
     }
 
-    RNA_enum_items_add_value(&item, &totitem_added, buttons_context_items, context_tabs_array[i]);
+    RNA_enum_items_add_value(&item, &totitem_added, buttons_context_items, tab);
     add_separator = true;
 
     /* Add the object data icon dynamically for the data tab. */
-    if (context_tabs_array[i] == BCONTEXT_DATA) {
+    if (tab == BCONTEXT_DATA) {
       (item + totitem_added - 1)->icon = sbuts->dataicon;
     }
   }
@@ -2122,10 +2120,9 @@ static int rna_SpaceProperties_tab_search_results_getlength(const PointerRNA *pt
 {
   SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
 
-  std::array<short, BCONTEXT_TOT * 2> context_tabs_array; /* Dummy variable. */
-  const int tabs_len = ED_buttons_tabs_list(sbuts, context_tabs_array);
+  const blender::Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
 
-  length[0] = tabs_len;
+  length[0] = context_tabs_array.size();
 
   return length[0];
 }
@@ -2134,10 +2131,9 @@ static void rna_SpaceProperties_tab_search_results_get(PointerRNA *ptr, bool *va
 {
   SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
 
-  std::array<short, BCONTEXT_TOT * 2> context_tabs_array; /* Dummy variable. */
-  const int tabs_len = ED_buttons_tabs_list(sbuts, context_tabs_array);
+  const blender::Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
 
-  for (int i = 0; i < tabs_len; i++) {
+  for (const int i : context_tabs_array.index_range()) {
     values[i] = ED_buttons_tab_has_search_result(sbuts, i);
   }
 }
@@ -5636,7 +5632,7 @@ static void rna_def_space_properties_filter(StructRNA *srna)
   for (const int i : blender::IndexRange(BCONTEXT_TOT)) {
     EnumPropertyItem item = buttons_context_items[i];
     const int value = (1 << item.value);
-    const char *prop_name = blender::ed::properties::filter_items[i].data();
+    const char *prop_name = blender::ed::properties::filter_items[i].c_str();
 
     PropertyRNA *prop = RNA_def_property(srna, prop_name, PROP_BOOLEAN, PROP_NONE);
     RNA_def_property_boolean_sdna(prop, nullptr, "visible_tabs", value);
