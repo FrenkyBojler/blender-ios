@@ -587,9 +587,9 @@ GHOST_TCapabilityFlag GHOST_SystemWin32::getCapabilities() const
                                ~(
                                    /* WIN32 has no support for a primary selection clipboard. */
                                    GHOST_kCapabilityPrimaryClipboard |
-                                   /* This WIN32 backend has not yet implemented custom client-side
-                                    * window decorations. */
-                                   GHOST_kCapabilityClientSideWindowDecorations));
+                                   /* This WIN32 backend has not yet implemented custom window
+                                    * decoration styles. */
+                                   GHOST_kCapabilityCustomWindowDecorationStyles));
 }
 
 GHOST_TSuccess GHOST_SystemWin32::init()

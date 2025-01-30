@@ -592,37 +592,38 @@ void WM_window_set_dpi(const wmWindow *win)
   U.widget_unit = int(roundf(18.0f * U.scale_factor)) + (2 * pixelsize);
 }
 
-eWM_DecorationStyleFlag WM_window_decoration_get_style(const wmWindow *win)
+eWM_WindowDecorationStyleFlag WM_window_get_decoration_style_flags(const wmWindow *win)
 {
-  const GHOST_TWindowDecorationStyleFlags ghost_style_flags = GHOST_GetDecorationStyle(
+  const GHOST_TWindowDecorationStyleFlags ghost_style_flags = GHOST_GetWindowDecorationStyleFlags(
       static_cast<GHOST_WindowHandle>(win->ghostwin));
 
-  eWM_DecorationStyleFlag wm_style_flags = WM_DECORATION_NONE;
+  eWM_WindowDecorationStyleFlag wm_style_flags = WM_DECORATION_STYLE_NONE;
 
   if (ghost_style_flags & GHOST_kDecorationColoredTitleBar) {
-    wm_style_flags |= WM_DECORATION_COLORED_TITLEBAR;
+    wm_style_flags |= WM_DECORATION_STYLE_COLORED_TITLEBAR;
   }
 
   return wm_style_flags;
 }
 
-void WM_window_decoration_set_style(const wmWindow *win, eWM_DecorationStyleFlag style_flags)
+void WM_window_set_decoration_style_flags(const wmWindow *win, eWM_WindowDecorationStyleFlag style_flags)
 {
   unsigned int ghost_style_flags = GHOST_kDecorationNone;
 
-  if (style_flags & WM_DECORATION_COLORED_TITLEBAR) {
+  if (style_flags & WM_DECORATION_STYLE_COLORED_TITLEBAR) {
     ghost_style_flags |= GHOST_kDecorationColoredTitleBar;
   }
 
-  GHOST_SetDecorationStyle(static_cast<GHOST_WindowHandle>(win->ghostwin),
-                           static_cast<GHOST_TWindowDecorationStyleFlags>(ghost_style_flags));
+  GHOST_SetWindowDecorationStyleFlags(
+      static_cast<GHOST_WindowHandle>(win->ghostwin),
+      static_cast<GHOST_TWindowDecorationStyleFlags>(ghost_style_flags));
 }
 
-static void wm_window_decoration_parse_theme(const wmWindow *win, const bScreen *screen)
+static void wm_window_decoration_style_parse_theme(const wmWindow *win, const bScreen *screen)
 {
   /* Set the decoration settings by parsing the current theme.
    * NOTE: screen may be null. In which case, only the window is used as a theme provider. */
-  GHOST_DecorationSettings decoration_settings = {};
+  GHOST_WindowDecorationStyleSettings decoration_settings = {};
 
   /** Colored Titlebar Decoration. */
   /* For main windows, use the topbar color. */
@@ -645,13 +646,14 @@ static void wm_window_decoration_parse_theme(const wmWindow *win, const bScreen 
   copy_v3_v3(decoration_settings.colored_titlebar_bg_color, titlebar_bg_color);
   copy_v3_v3(decoration_settings.colored_titlebar_fg_color, titlebar_fg_color);
 
-  GHOST_SetDecorationSettings(static_cast<GHOST_WindowHandle>(win->ghostwin), decoration_settings);
+  GHOST_SetWindowDecorationStyleSettings(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                                         decoration_settings);
 }
 
-void WM_window_decoration_apply(const wmWindow *win, const bScreen *screen)
+void WM_window_apply_decoration_style(const wmWindow *win, const bScreen *screen)
 {
-  wm_window_decoration_parse_theme(win, screen);
-  GHOST_ApplyDecoration(static_cast<GHOST_WindowHandle>(win->ghostwin));
+  wm_window_decoration_style_parse_theme(win, screen);
+  GHOST_ApplyWindowDecorationStyle(static_cast<GHOST_WindowHandle>(win->ghostwin));
 }
 
 /**
@@ -914,10 +916,10 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
 
     WM_window_set_dpi(win);
 
-    if (WM_capabilities_flag() & WM_CAPABILITY_CLIENT_SIDE_WINDOW_DECORATIONS) {
+    if (WM_capabilities_flag() & WM_CAPABILITY_CUSTOM_WINDOW_DECORATION_STYLES) {
       /* Only decoration style we have for now. */
-      WM_window_decoration_set_style(win, WM_DECORATION_COLORED_TITLEBAR);
-      WM_window_decoration_apply(win);
+      WM_window_set_decoration_style_flags(win, WM_DECORATION_STYLE_COLORED_TITLEBAR);
+      WM_window_apply_decoration_style(win);
     }
   }
 
@@ -2238,8 +2240,8 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   if (ghost_flag & GHOST_kCapabilityTrackpadPhysicalDirection) {
     flag |= WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION;
   }
-  if (ghost_flag & GHOST_kCapabilityClientSideWindowDecorations) {
-    flag |= WM_CAPABILITY_CLIENT_SIDE_WINDOW_DECORATIONS;
+  if (ghost_flag & GHOST_kCapabilityCustomWindowDecorationStyles) {
+    flag |= WM_CAPABILITY_CUSTOM_WINDOW_DECORATION_STYLES;
   }
 
   return flag;

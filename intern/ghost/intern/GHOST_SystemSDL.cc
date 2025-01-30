@@ -792,8 +792,8 @@ GHOST_TCapabilityFlag GHOST_SystemSDL::getCapabilities() const
           GHOST_kCapabilityClipboardImages |
           /* No support yet for IME input methods. */
           GHOST_kCapabilityInputIME |
-          /* No support for custom client-side window decorations. */
-          GHOST_kCapabilityClientSideWindowDecorations));
+          /* No support for custom window decoration styles. */
+          GHOST_kCapabilityCustomWindowDecorationStyles));
 }
 
 char *GHOST_SystemSDL::getClipboard(bool /*selection*/) const

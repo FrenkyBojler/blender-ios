@@ -120,9 +120,9 @@ typedef enum {
    */
   GHOST_kCapabilityTrackpadPhysicalDirection = (1 << 7),
   /**
-   * Support for custom client-side window decorations (CSD).
+   * Support for custom window decoration styles.
    */
-  GHOST_kCapabilityClientSideWindowDecorations = (1 << 8),
+  GHOST_kCapabilityCustomWindowDecorationStyles = (1 << 8),
 } GHOST_TCapabilityFlag;
 
 /**
@@ -134,7 +134,7 @@ typedef enum {
    GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
    GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
    GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection | \
-   GHOST_kCapabilityClientSideWindowDecorations)
+   GHOST_kCapabilityCustomWindowDecorationStyles)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -733,7 +733,7 @@ typedef struct {
 typedef struct {
   float colored_titlebar_bg_color[3];
   float colored_titlebar_fg_color[3];
-} GHOST_DecorationSettings;
+} GHOST_WindowDecorationStyleSettings;
 
 #ifdef WITH_VULKAN_BACKEND
 typedef struct {

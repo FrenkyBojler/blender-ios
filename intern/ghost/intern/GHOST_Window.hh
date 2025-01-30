@@ -90,27 +90,27 @@ class GHOST_Window : public GHOST_IWindow {
   }
 
   /**
-   * Return the current client-side window decoration (CSD) style flags.
+   * Return the current window decoration style flags.
    */
-  virtual GHOST_TWindowDecorationStyleFlags getDecorationStyle() override;
+  virtual GHOST_TWindowDecorationStyleFlags getWindowDecorationStyleFlags() override;
 
   /**
-   * Set the window client-side decorations (CSD) style flags.
-   * \param styleFlags: Decoration style flags.
+   * Set the window decoration style flags.
+   * \param styleFlags: Window decoration style flags.
    */
-  virtual void setDecorationStyle(GHOST_TWindowDecorationStyleFlags styleFlags) override;
+  virtual void setWindowDecorationStyleFlags(GHOST_TWindowDecorationStyleFlags styleFlags) override;
 
   /**
-   * Set the window client-side decorations (CSD) settings.
-   * \param decorationSettings: Decoration settings.
+   * Set the window decoration style settings.
+   * \param decorationSettings: Window decoration style settings.
    */
-  virtual void setDecorationSettings(GHOST_DecorationSettings decorationSettings) override;
+  virtual void setWindowDecorationStyleSettings(
+      GHOST_WindowDecorationStyleSettings decorationSettings) override;
 
   /**
-   * Apply the window client-side decorations (CSD) using the current decoration style flags and
-   * settings.
+   * Apply the window decoration style using the current flags and settings.
    */
-  virtual GHOST_TSuccess applyDecoration() override
+  virtual GHOST_TSuccess applyWindowDecorationStyle() override
   {
     return GHOST_kSuccess;
   }
@@ -436,9 +436,9 @@ class GHOST_Window : public GHOST_IWindow {
   /** Stores whether this is a full screen window. */
   bool m_fullScreen;
 
-  /** Custom Client-Side Window Decorations. (CSD). */
-  GHOST_TWindowDecorationStyleFlags m_windowDecorationFlags;
-  GHOST_DecorationSettings m_windowDecorationSettings;
+  /** Custom Window Decoration Styles. */
+  GHOST_TWindowDecorationStyleFlags m_windowDecorationStyleFlags;
+  GHOST_WindowDecorationStyleSettings m_windowDecorationStyleSettings;
 
   /** Whether to attempt to initialize a context with a stereo frame-buffer. */
   bool m_wantStereoVisual;

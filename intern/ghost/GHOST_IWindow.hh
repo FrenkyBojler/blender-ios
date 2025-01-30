@@ -88,27 +88,26 @@ class GHOST_IWindow {
   virtual GHOST_TSuccess setPath(const char *filepath) = 0;
 
   /**
-   * Return the current client-side window decoration (CSD) style flags.
+   * Return the current window decoration style flags.
    */
-  virtual GHOST_TWindowDecorationStyleFlags getDecorationStyle() = 0;
+  virtual GHOST_TWindowDecorationStyleFlags getWindowDecorationStyleFlags() = 0;
 
   /**
-   * Set the window client-side decorations (CSD) style flags.
-   * \param styleFlags: Decoration style flags.
+   * Set the window decoration style flags.
+   * \param styleFlags: Window decoration style flags.
    */
-  virtual void setDecorationStyle(GHOST_TWindowDecorationStyleFlags styleFlags) = 0;
+  virtual void setWindowDecorationStyleFlags(GHOST_TWindowDecorationStyleFlags styleFlags) = 0;
 
   /**
-   * Set the window client-side decorations (CSD) settings.
-   * \param decorationSettings: Decoration settings.
+   * Set the window decoration style settings.
+   * \param decorationSettings: Window decoration style settings.
    */
-  virtual void setDecorationSettings(GHOST_DecorationSettings decorationSettings) = 0;
+  virtual void setWindowDecorationStyleSettings(GHOST_WindowDecorationStyleSettings decorationSettings) = 0;
 
   /**
-   * Apply the window client-side decorations (CSD) using the current decoration style flags and
-   * settings.
+   * Apply the window decoration style using the current flags and settings.
    */
-  virtual GHOST_TSuccess applyDecoration() = 0;
+  virtual GHOST_TSuccess applyWindowDecorationStyle() = 0;
 
   /**
    * Returns the window rectangle dimensions.

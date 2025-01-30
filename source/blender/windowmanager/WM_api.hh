@@ -185,12 +185,12 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_INPUT_IME = (1 << 6),
   /** Trackpad physical scroll detection. */
   WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION = (1 << 7),
-  /** Support for custom client-side window decorations (CSD). */
-  WM_CAPABILITY_CLIENT_SIDE_WINDOW_DECORATIONS = (1 << 8),
+  /** Support for custom window decoration styles. */
+  WM_CAPABILITY_CUSTOM_WINDOW_DECORATION_STYLES = (1 << 8),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
-ENUM_OPERATORS(eWM_CapabilitiesFlag, WM_CAPABILITY_CLIENT_SIDE_WINDOW_DECORATIONS)
+ENUM_OPERATORS(eWM_CapabilitiesFlag, WM_CAPABILITY_CUSTOM_WINDOW_DECORATION_STYLES)
 
 eWM_CapabilitiesFlag WM_capabilities_flag();
 
@@ -377,25 +377,27 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title = nul
 
 bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
 
-/** Client-Side Window Decorations (CSD). */
+/** Custom Window Decoration Styles. */
 /* Flags for #WM_window_decoration_set_style().
  * NOTE: To be kept in sync with #GHOST_TWindowDecorationFlags. */
-enum eWM_DecorationStyleFlag {
-  /** No Decorations / System Decorations. */
-  WM_DECORATION_NONE = 0,
+enum eWM_WindowDecorationStyleFlag {
+  /** No Decorations. */
+  WM_DECORATION_STYLE_NONE = 0,
   /** Custom Colored Titlebar. */
-  WM_DECORATION_COLORED_TITLEBAR = (1 << 0),
+  WM_DECORATION_STYLE_COLORED_TITLEBAR = (1 << 0),
 };
-ENUM_OPERATORS(eWM_DecorationStyleFlag, WM_DECORATION_COLORED_TITLEBAR)
+ENUM_OPERATORS(eWM_WindowDecorationStyleFlag, WM_DECORATION_STYLE_COLORED_TITLEBAR)
 
-/* Get/set decoration style flags. */
-eWM_DecorationStyleFlag WM_window_decoration_get_style(const wmWindow *win);
-void WM_window_decoration_set_style(const wmWindow *win, eWM_DecorationStyleFlag style_flags);
-/* Apply decorations to the window using the current flags and settings from the current theme.
- * The screen parameter is optional, and can be passed for enhanced theme settings parsing.
+/* Get/set window decoration style flags. */
+eWM_WindowDecorationStyleFlag WM_window_get_decoration_style_flags(const wmWindow *win);
+void WM_window_set_decoration_style_flags(const wmWindow *win,
+                                          eWM_WindowDecorationStyleFlag style_flags);
+/* Apply the window decoration style using the current style flags and by parsing style
+ * settings from the current Blender theme.
+ * The screen parameter is optional, and can be passed for enhanced theme parsing.
  * NOTE: Avoid calling this function directly, prefer sending an NC_WINDOW WM notification instead.
  */
-void WM_window_decoration_apply(const wmWindow *win, const bScreen *screen = nullptr);
+void WM_window_apply_decoration_style(const wmWindow *win, const bScreen *screen = nullptr);
 
 /* `wm_files.cc`. */
 

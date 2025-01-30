@@ -596,29 +596,28 @@ extern char *GHOST_GetTitle(GHOST_WindowHandle windowhandle);
 extern GHOST_TSuccess GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepath);
 
 /**
- * Return the current client-side window decoration style flags.
+ * Return the current window decoration style flags.
  */
-extern GHOST_TWindowDecorationStyleFlags GHOST_GetDecorationStyle(GHOST_WindowHandle windowhandle);
+extern GHOST_TWindowDecorationStyleFlags GHOST_GetWindowDecorationStyleFlags(
+    GHOST_WindowHandle windowhandle);
 
 /**
- * Set the window client-side decorations (CSD) style flags.
- * \param styleFlags: Decoration style flags.
+ * Set the window decoration style flags.
+ * \param styleFlags: Window decoration style flags.
  */
-extern void GHOST_SetDecorationStyle(GHOST_WindowHandle windowhandle,
-                                     GHOST_TWindowDecorationStyleFlags styleFlags);
+extern void GHOST_SetWindowDecorationStyleFlags(GHOST_WindowHandle windowhandle,
+                                                GHOST_TWindowDecorationStyleFlags styleFlags);
 
 /**
- * Set the window client-side decorations (CSD) settings.
- * \param decorationSettings: Decoration settings.
+ * Set the window decoration style settings.
+ * \param decorationSettings: Window decoration style settings.
  */
-extern void GHOST_SetDecorationSettings(GHOST_WindowHandle windowhandle,
-                                        GHOST_DecorationSettings decorationSettings);
+extern void GHOST_SetWindowDecorationStyleSettings(GHOST_WindowHandle windowhandle, GHOST_WindowDecorationStyleSettings decorationSettings);
 
 /**
- * Apply the window client-side decorations (CSD) using the current decoration style flags and
- * settings.
+ * Apply the window decoration style using the current flags and settings.
  */
-extern GHOST_TSuccess GHOST_ApplyDecoration(GHOST_WindowHandle windowhandle);
+extern GHOST_TSuccess GHOST_ApplyWindowDecorationStyle(GHOST_WindowHandle windowhandle);
 
 /**
  * Returns the window rectangle dimensions.

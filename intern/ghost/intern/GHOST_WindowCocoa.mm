@@ -565,11 +565,11 @@ GHOST_TSuccess GHOST_WindowCocoa::setPath(const char *filepath)
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_WindowCocoa::applyDecoration()
+GHOST_TSuccess GHOST_WindowCocoa::applyWindowDecorationStyle()
 {
   @autoreleasepool {
-    if (m_windowDecorationFlags & GHOST_kDecorationColoredTitleBar) {
-      const float *background_color = m_windowDecorationSettings.colored_titlebar_bg_color;
+    if (m_windowDecorationStyleFlags & GHOST_kDecorationColoredTitleBar) {
+      const float *background_color = m_windowDecorationStyleSettings.colored_titlebar_bg_color;
 
       /* Titlebar background color. */
       m_window.backgroundColor = [NSColor colorWithRed:background_color[0]
