@@ -536,7 +536,7 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   write_slots(writer, action.slots());
 
   if (do_write_forward_compat) {
-    /* Set the idroot back to unspecified, as it always should be for layered
+    /* Set the idroot back to 'unspecified', as it always should be for layered
      * Actions. */
     action.idroot = 0;
 
