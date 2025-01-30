@@ -35,6 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Reset the transforms of every child instance in the output. Only used when Separate "
           "Children is enabled");
   b.add_output<decl::Geometry>("Instances");
+  b.add_output<decl::String>("Name");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -152,6 +153,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry = GeometrySet::from_instances(instances.release());
   geometry.name = collection->id.name + 2;
 
+  std::string collection_name = collection->id.name + 2;
+
+  params.set_output("Name", std::move(collection_name));
   params.set_output("Instances", std::move(geometry));
 }
 
