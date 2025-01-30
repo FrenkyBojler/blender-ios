@@ -26,7 +26,12 @@ Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
 /** Get the rna path for the given rotation mode. */
 StringRef get_rotation_mode_path(eRotationModes rotation_mode);
 
-/** For the given RNA pointer, construct a vector of valid RNA paths for keyframing. */
+/**
+ * For the given RNA pointer, construct a vector of valid RNA paths for keyframing. This includes
+ * transforms and ID properties. Not all pointer types are supported. Unsupported pointer types
+ * will return an empty Vector. The paths are relative to the given pointer, as such they need to
+ * be resolved to get full paths for keyframing.
+ */
 Vector<RNAPath> construct_keyframing_rna_paths(PointerRNA *ptr);
 
 }  // namespace blender::animrig

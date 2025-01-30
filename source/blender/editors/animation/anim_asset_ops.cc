@@ -551,7 +551,6 @@ static void update_pose_action_from_scene(Main *bmain,
   foreach_fcurve_in_action_slot(pose_action, slot.handle, [&](FCurve &fcurve) {
     existing_paths.add({fcurve.rna_path, std::nullopt, fcurve.array_index});
   });
-  const KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
 
   switch (mode) {
     case MODIFY_ADJUST: {
