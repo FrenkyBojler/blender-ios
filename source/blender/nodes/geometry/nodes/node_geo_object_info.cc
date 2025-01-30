@@ -40,6 +40,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Location");
   b.add_output<decl::Rotation>("Rotation");
   b.add_output<decl::Vector>("Scale");
+  b.add_output<decl::String>("Name");
   b.add_output<decl::Geometry>("Geometry");
 }
 
@@ -94,10 +95,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   math::Quaternion rotation;
   math::to_loc_rot_scale_safe<true>(output_transform, location, rotation, scale);
 
+  std::string obj_name = object->id.name + 2;
+
   params.set_output("Location", location);
   params.set_output("Rotation", rotation);
   params.set_output("Scale", scale);
   params.set_output("Transform", output_transform);
+  params.set_output("Name", std::move(obj_name));
 
   if (!params.output_is_required("Geometry")) {
     return;
