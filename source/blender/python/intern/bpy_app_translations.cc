@@ -74,8 +74,8 @@ struct MessageKeyRef {
   uint64_t hash() const
   {
     BLI_assert(this->context == BLT_I18NCONTEXT_DEFAULT_BPYRNA ||
-               !BLT_is_default_context(context));
-    return blender::get_default_hash(context, str);
+               !BLT_is_default_context(this->context));
+    return blender::get_default_hash(this->context, this->str);
   }
 };
 
@@ -85,7 +85,7 @@ struct MessageKey {
 
   uint64_t hash() const
   {
-    return blender::get_default_hash(context, str);
+    return blender::get_default_hash(this->context, this->str);
   }
 
   static uint64_t hash_as(const MessageKeyRef &key)
