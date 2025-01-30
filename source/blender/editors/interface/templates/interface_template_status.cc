@@ -224,7 +224,7 @@ static bool uiTemplateInputStatus3DView(bContext *C, uiLayout *row)
     uiItemS_ex(row, 1.0f);
     uiItemL(row, "", ICON_ERROR);
     uiItemS_ex(row, -0.2f);
-    uiItemL(row, "Active Object has negative scale", ICON_NONE);
+    uiItemL(row, IFACE_("Active Object has negative scale"), ICON_NONE);
     uiItemS_ex(row, 1.0f, LayoutSeparatorType::Line);
     uiItemS_ex(row, 0.5f);
     return false;
@@ -236,7 +236,7 @@ static bool uiTemplateInputStatus3DView(bContext *C, uiLayout *row)
     uiItemS_ex(row, 1.0f);
     uiItemL(row, "", ICON_ERROR);
     uiItemS_ex(row, -0.2f);
-    uiItemL(row, "Active Object has non-uniform scale", ICON_NONE);
+    uiItemL(row, IFACE_("Active Object has non-uniform scale"), ICON_NONE);
     uiItemS_ex(row, 1.0f, LayoutSeparatorType::Line);
     uiItemS_ex(row, 0.5f);
     return false;
