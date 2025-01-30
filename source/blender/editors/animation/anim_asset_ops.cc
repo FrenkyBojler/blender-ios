@@ -52,11 +52,16 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
 {
   EnumPropertyItem *items;
   int totitem = 0;
-  EnumPropertyItem tmp_item;
 
-  tmp_item = {
-      ASSET_LIBRARY_LOCAL, "LOCAL", 0, "Current File", "Save the pose asset to the current file"};
-  RNA_enum_item_add(&items, &totitem, &tmp_item);
+  {
+    const EnumPropertyItem local_library_item = {ASSET_LIBRARY_LOCAL,
+                                                 "LOCAL",
+                                                 0,
+                                                 "Current File",
+                                                 "Save the pose asset to the current file"};
+    RNA_enum_item_add(&items, &totitem, &local_library_item);
+  }
+
   /* Because `ASSET_LIBRARY_LOCAL` will always be created. */
   *r_free = true;
 
@@ -75,9 +80,9 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
 
     const int enum_value = blender::ed::asset::library_reference_to_enum_value(&library_reference);
     /* Use library path as description, it's a nice hint for users. */
-    tmp_item = {
+    const EnumPropertyItem user_library_item = {
         enum_value, user_library->name, ICON_NONE, user_library->name, user_library->dirpath};
-    RNA_enum_item_add(&items, &totitem, &tmp_item);
+    RNA_enum_item_add(&items, &totitem, &user_library_item);
   }
 
   RNA_enum_item_end(&items, &totitem);
