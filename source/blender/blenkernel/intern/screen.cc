@@ -27,7 +27,6 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -338,6 +337,7 @@ ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region)
 
   dst->runtime = MEM_new<blender::bke::ARegionRuntime>(__func__);
   dst->runtime->type = region->runtime->type;
+  dst->runtime->do_draw = region->runtime->do_draw;
 
   dst->prev = dst->next = nullptr;
   BLI_listbase_clear(&dst->panels_category_active);
@@ -1252,7 +1252,6 @@ static void direct_link_region(BlendDataReader *reader, ARegion *region, int spa
   region->runtime = MEM_new<blender::bke::ARegionRuntime>(__func__);
   region->v2d.sms = nullptr;
   region->v2d.alpha_hor = region->v2d.alpha_vert = 255; /* visible by default */
-  memset(&region->drawrct, 0, sizeof(region->drawrct));
 }
 
 void BKE_screen_view3d_do_versions_250(View3D *v3d, ListBase *regions)

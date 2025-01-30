@@ -8,16 +8,19 @@
  * Engine for drawing a selection map where the pixels indicate the selection indices.
  */
 
-#include "DNA_screen_types.h"
+#include "BLI_math_matrix.h"
+
+#include "BLT_translation.hh"
 
 #include "ED_view3d.hh"
 
-#include "UI_resources.hh"
+#include "RE_engine.h"
 
 #include "DRW_engine.hh"
 #include "DRW_select_buffer.hh"
 
 #include "draw_cache_impl.hh"
+#include "draw_common_c.hh"
 #include "draw_manager_c.hh"
 
 #include "select_engine.hh"
@@ -130,9 +133,12 @@ static void select_cache_init(void *vedata)
   bool retopology_occlusion = RETOPOLOGY_ENABLED(draw_ctx->v3d) && !XRAY_ENABLED(draw_ctx->v3d);
   float retopology_offset = RETOPOLOGY_OFFSET(draw_ctx->v3d);
 
+  /* Note there might be less than 6 planes, but we always compute the 6 of them for simplicity. */
+  int clipping_plane_count = RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d) ? 6 : 0;
+
   {
     inst.depth_only_ps.init();
-    inst.depth_only_ps.state_set(state);
+    inst.depth_only_ps.state_set(state, clipping_plane_count);
     inst.depth_only = nullptr;
     inst.depth_occlude = nullptr;
     {
@@ -151,7 +157,7 @@ static void select_cache_init(void *vedata)
     }
 
     inst.select_face_ps.init();
-    inst.select_face_ps.state_set(state);
+    inst.select_face_ps.state_set(state, clipping_plane_count);
     inst.select_face_uniform = nullptr;
     inst.select_face_flat = nullptr;
     if (e_data.context.select_mode & SCE_SELECT_FACE) {
@@ -172,7 +178,7 @@ static void select_cache_init(void *vedata)
     inst.select_edge = nullptr;
     if (e_data.context.select_mode & SCE_SELECT_EDGE) {
       auto &sub = inst.select_edge_ps.sub("Sub");
-      sub.state_set(state | DRW_STATE_FIRST_VERTEX_CONVENTION);
+      sub.state_set(state | DRW_STATE_FIRST_VERTEX_CONVENTION, clipping_plane_count);
       sub.shader_set(sh->select_id_flat);
       sub.push_constant("retopologyOffset", retopology_offset);
       inst.select_edge = &sub;
@@ -182,7 +188,7 @@ static void select_cache_init(void *vedata)
     inst.select_vert = nullptr;
     if (e_data.context.select_mode & SCE_SELECT_VERTEX) {
       auto &sub = inst.select_id_vert_ps.sub("Sub");
-      sub.state_set(state);
+      sub.state_set(state, clipping_plane_count);
       sub.shader_set(sh->select_id_flat);
       sub.push_constant("sizeVertex", float(2 * G_draw.block.size_vertex));
       sub.push_constant("retopologyOffset", retopology_offset);
@@ -262,12 +268,13 @@ static void select_draw_scene(void *vedata)
   SELECTID_Instance &inst = *reinterpret_cast<SELECTID_Data *>(vedata)->instance;
 
   {
-    /* Create view with depth offset */
-    const DRWView *view_default = DRW_view_default_get();
     const DRWContextState *draw_ctx = DRW_context_state_get();
-    inst.view_faces.sync(view_default);
-    inst.view_edges.sync(DRW_view_create_with_zoffset(view_default, draw_ctx->rv3d, 1.0f));
-    inst.view_verts.sync(DRW_view_create_with_zoffset(view_default, draw_ctx->rv3d, 1.1f));
+    View::OffsetData offset_data(*draw_ctx->rv3d);
+    /* Create view with depth offset */
+    const View &view = View::default_get();
+    inst.view_faces.sync(view.viewmat(), view.winmat());
+    inst.view_edges.sync(view.viewmat(), offset_data.winmat_polygon_offset(view.winmat(), 1.0f));
+    inst.view_verts.sync(view.viewmat(), offset_data.winmat_polygon_offset(view.winmat(), 1.1f));
   }
 
   {
@@ -304,11 +311,11 @@ static void select_engine_free()
   SelectEngineData &e_data = get_engine_data();
   for (int sh_data_index = 0; sh_data_index < ARRAY_SIZE(e_data.sh_data); sh_data_index++) {
     SELECTID_Shaders *sh_data = &e_data.sh_data[sh_data_index];
-    DRW_SHADER_FREE_SAFE(sh_data->select_id_flat);
-    DRW_SHADER_FREE_SAFE(sh_data->select_id_uniform);
+    GPU_SHADER_FREE_SAFE(sh_data->select_id_flat);
+    GPU_SHADER_FREE_SAFE(sh_data->select_id_uniform);
   }
 
-  DRW_TEXTURE_FREE_SAFE(e_data.texture_u32);
+  GPU_TEXTURE_FREE_SAFE(e_data.texture_u32);
   GPU_FRAMEBUFFER_FREE_SAFE(e_data.framebuffer_select_id);
 }
 

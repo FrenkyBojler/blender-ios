@@ -13,7 +13,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
-#include "BLI_ghash.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
@@ -35,7 +34,6 @@
 
 #include "GPU_batch.hh"
 #include "GPU_capabilities.hh"
-#include "GPU_context.hh"
 #include "GPU_material.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -184,11 +182,11 @@ static void particle_batch_cache_clear_hair(ParticleHairCache *hair_cache)
 
   for (int i = 0; i < MAX_MTFACE; i++) {
     GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_uv_buf[i]);
-    DRW_TEXTURE_FREE_SAFE(hair_cache->uv_tex[i]);
+    GPU_TEXTURE_FREE_SAFE(hair_cache->uv_tex[i]);
   }
   for (int i = 0; i < hair_cache->num_col_layers; i++) {
     GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_col_buf[i]);
-    DRW_TEXTURE_FREE_SAFE(hair_cache->col_tex[i]);
+    GPU_TEXTURE_FREE_SAFE(hair_cache->col_tex[i]);
   }
 
   for (int i = 0; i < MAX_HAIR_SUBDIV; i++) {

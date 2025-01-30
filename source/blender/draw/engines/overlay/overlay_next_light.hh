@@ -8,6 +8,10 @@
 
 #pragma once
 
+#include "DNA_light_types.h"
+
+#include "BLI_math_matrix.h"
+
 #include "overlay_next_base.hh"
 
 namespace blender::draw::overlay {
@@ -74,7 +78,7 @@ class Lights : Overlay {
     float4 &theme_color = data.color_;
 
     /* Pack render data into object matrix. */
-    float4x4 &matrix = data.object_to_world_;
+    float4x4 &matrix = data.object_to_world;
     float &area_size_x = matrix[0].w;
     float &area_size_y = matrix[1].w;
     float &spot_cosine = matrix[0].w;
@@ -92,7 +96,7 @@ class Lights : Overlay {
     clip_end = la.att_dist;
     clip_start = la.clipsta;
 
-    call_buffers_.ground_line_buf.append(float4(matrix.location()), select_id);
+    call_buffers_.ground_line_buf.append(float4(matrix.location(), 0.0f), select_id);
 
     const float4 light_color = {la.r, la.g, la.b, 1.0f};
     const bool show_light_colors = state.show_light_colors();

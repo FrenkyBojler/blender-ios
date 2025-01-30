@@ -18,15 +18,13 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_cloth.hh"
 #include "BKE_collection.hh"
 #include "BKE_modifier.hh"
 
 #include "BKE_collision.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_physics.hh"

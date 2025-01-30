@@ -353,8 +353,16 @@ static void outliner_header_region_listener(const wmRegionListenerParams *params
   /* context changes */
   switch (wmn->category) {
     case NC_SCENE:
-      if (wmn->data == ND_KEYINGSET) {
-        ED_region_tag_redraw(region);
+      switch (wmn->data) {
+        case ND_KEYINGSET:
+          ED_region_tag_redraw(region);
+          break;
+        case ND_LAYER:
+          /* Not needed by blender itself, but requested by add-on developers. #109995 */
+          if ((wmn->subtype == NS_LAYER_COLLECTION) && (wmn->action == NA_ACTIVATED)) {
+            ED_region_tag_redraw(region);
+          }
+          break;
       }
       break;
     case NC_SPACE:
@@ -503,10 +511,12 @@ static void outliner_foreach_id(SpaceLink *space_link, LibraryForeachIDData *dat
     if (TSE_IS_REAL_ID(tselem)) {
       /* NOTE: Outliner ID pointers are never `IDWALK_CB_DIRECT_WEAK_LINK`, they should never
        * enforce keeping a reference to some linked data. */
-      const int cb_flag = (tselem->id != nullptr && allow_pointer_access &&
-                           (tselem->id->flag & ID_FLAG_EMBEDDED_DATA) != 0) ?
-                              IDWALK_CB_EMBEDDED_NOT_OWNING :
-                              IDWALK_CB_NOP;
+      const LibraryForeachIDCallbackFlag cb_flag = (tselem->id != nullptr &&
+                                                    allow_pointer_access &&
+                                                    (tselem->id->flag & ID_FLAG_EMBEDDED_DATA) !=
+                                                        0) ?
+                                                       IDWALK_CB_EMBEDDED_NOT_OWNING :
+                                                       IDWALK_CB_NOP;
       BKE_LIB_FOREACHID_PROCESS_ID(data, tselem->id, cb_flag);
     }
     else if (!is_readonly) {

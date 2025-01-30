@@ -4,10 +4,10 @@
 
 #include <utility>
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
-#include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_type_conversions.hh"
 
@@ -26,9 +26,11 @@
 
 #include "FN_field.hh"
 
-#include "CLG_log.h"
-
 #include "attribute_access_intern.hh"
+
+#ifndef NDEBUG
+#  include <iostream>
+#endif
 
 namespace blender::bke {
 
@@ -419,8 +421,9 @@ bool BuiltinCustomDataLayerProvider::try_create(void *owner,
           name_, *custom_data, data_type_, element_num, initializer, default_value_))
   {
     if (initializer.type != AttributeInit::Type::Construct) {
-      /* Avoid calling update function when values are not initialized. In that case
-       * values must be set elsewhere anyway, which will cause a separate update tag. */
+      /* Avoid calling update function when values are not default-initialized. Without default
+       * initialization or otherwise meaningful initial values, they should be set elsewhere
+       * anyway, which will cause a separate update tag. */
       if (update_on_change_ != nullptr) {
         update_on_change_(owner);
       }
@@ -480,8 +483,12 @@ GAttributeWriter CustomDataAttributeProvider::try_get_for_write(void *owner,
     if (type == nullptr) {
       continue;
     }
+    std::function<void()> tag_modified_fn;
+    if (custom_data_access_.get_tag_modified_function != nullptr) {
+      tag_modified_fn = custom_data_access_.get_tag_modified_function(owner, attribute_id);
+    }
     GMutableSpan data{*type, layer.data, element_num};
-    return {GVMutableArray::ForSpan(data), domain_};
+    return {GVMutableArray::ForSpan(data), domain_, tag_modified_fn};
   }
   return {};
 }
@@ -497,6 +504,13 @@ bool CustomDataAttributeProvider::try_delete(void *owner, const StringRef attrib
     const CustomDataLayer &layer = custom_data->layers[i];
     if (this->type_is_supported(eCustomDataType(layer.type)) && layer.name == attribute_id) {
       CustomData_free_layer(custom_data, eCustomDataType(layer.type), element_num, i);
+      if (custom_data_access_.get_tag_modified_function != nullptr) {
+        if (const std::function<void()> fn = custom_data_access_.get_tag_modified_function(
+                owner, attribute_id))
+        {
+          fn();
+        }
+      }
       return true;
     }
   }
@@ -527,6 +541,18 @@ bool CustomDataAttributeProvider::try_create(void *owner,
   const int element_num = custom_data_access_.get_element_num(owner);
   add_custom_data_layer_from_attribute_init(
       attribute_id, *custom_data, data_type, element_num, initializer, {});
+  if (initializer.type != AttributeInit::Type::Construct) {
+    /* Avoid calling update function when values are not default-initialized. Without default
+     * initialization or otherwise meaningful initial values, they should be set elsewhere
+     * anyway, which will cause a separate update tag. */
+    if (custom_data_access_.get_tag_modified_function != nullptr) {
+      if (const std::function<void()> fn = custom_data_access_.get_tag_modified_function(
+              owner, attribute_id))
+      {
+        fn();
+      }
+    }
+  }
   return true;
 }
 
@@ -846,7 +872,7 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     GVArray src = *iter.get();
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
-    attributes.append({std::move(src), {iter.domain, iter.data_type}, std::move(dst)});
+    attributes.append({std::move(src), iter.name, {iter.domain, iter.data_type}, std::move(dst)});
   });
   return attributes;
 }

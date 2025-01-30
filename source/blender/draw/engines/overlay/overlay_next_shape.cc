@@ -6,6 +6,8 @@
  * \ingroup overlay
  */
 
+#include "draw_cache.hh"
+
 #include "overlay_next_private.hh"
 
 namespace blender::draw::overlay {
@@ -726,7 +728,7 @@ ShapeCache::ShapeCache()
     circle = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
-  /* empty_spehere */
+  /* empty_sphere */
   {
     Vector<Vertex> verts = sphere_axes_circles(1.0f, VCLASS_EMPTY_SCALED, 32);
 
@@ -1026,6 +1028,16 @@ ShapeCache::ShapeCache()
 
     ground_line = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* image_quad */
+  {
+    const Array<float2> quad = {{0.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f}};
+    Vector<Vertex> verts;
+    for (const float2 &point : quad) {
+      verts.append({{point, 0.75f}, VCLASS_NONE});
+    }
+    image_quad = BatchPtr(GPU_batch_create_ex(
+        GPU_PRIM_TRI_STRIP, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
   /* light spot volume */
   {

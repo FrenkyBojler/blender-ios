@@ -14,12 +14,13 @@
 #include <cstring>
 #include <optional>
 
-#include "BLI_blenlib.h"
 #include "BLI_iterator.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
+
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
@@ -33,7 +34,6 @@
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_preview_image.hh"
-#include "BKE_report.hh"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.hh"
 
@@ -239,11 +239,11 @@ static void collection_foreach_id(ID *id, LibraryForeachIDData *data)
   LISTBASE_FOREACH (CollectionParent *, parent, &collection->runtime.parents) {
     /* XXX This is very weak. The whole idea of keeping pointers to private IDs is very bad
      * anyway... */
-    const int cb_flag = ((parent->collection != nullptr &&
-                          (data_flags & IDWALK_NO_ORIG_POINTERS_ACCESS) == 0 &&
-                          (parent->collection->id.flag & ID_FLAG_EMBEDDED_DATA) != 0) ?
-                             IDWALK_CB_EMBEDDED_NOT_OWNING :
-                             IDWALK_CB_NOP);
+    const LibraryForeachIDCallbackFlag cb_flag =
+        ((parent->collection != nullptr && (data_flags & IDWALK_NO_ORIG_POINTERS_ACCESS) == 0 &&
+          (parent->collection->id.flag & ID_FLAG_EMBEDDED_DATA) != 0) ?
+             IDWALK_CB_EMBEDDED_NOT_OWNING :
+             IDWALK_CB_NOP);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(
         data, parent->collection, IDWALK_CB_NEVER_SELF | IDWALK_CB_LOOPBACK | cb_flag);
   }

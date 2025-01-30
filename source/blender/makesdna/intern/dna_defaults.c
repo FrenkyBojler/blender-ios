@@ -61,6 +61,7 @@
 
 #define DNA_DEPRECATED_ALLOW
 
+#include <float.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,11 +70,13 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_endian_switch.h"
+#include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 #include "BLI_memarena.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf_enums.h"
+#include "movie/MOV_enums.hh"
 
 #include "DNA_defaults.h"
 
@@ -149,6 +152,7 @@
   static const struct_name DNA_DEFAULT_##struct_name = _DNA_DEFAULT_##struct_name
 
 /* DNA_action_defaults.h */
+SDNA_DEFAULT_DECL_STRUCT(bAction);
 SDNA_DEFAULT_DECL_STRUCT(ActionLayer);
 SDNA_DEFAULT_DECL_STRUCT(ActionStrip);
 
@@ -399,6 +403,7 @@ extern const bTheme U_theme_default;
 const void *DNA_default_table[SDNA_TYPE_MAX] = {
 
     /* DNA_anim_defaults.h */
+    SDNA_DEFAULT_DECL(bAction),
     SDNA_DEFAULT_DECL(ActionLayer),
     SDNA_DEFAULT_DECL(ActionStrip),
 

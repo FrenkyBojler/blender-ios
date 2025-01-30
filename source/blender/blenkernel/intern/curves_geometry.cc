@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include <mutex>
 #include <utility>
 
 #include "MEM_guardedalloc.h"
@@ -18,7 +17,6 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_memory_counter.hh"
-#include "BLI_multi_value_map.hh"
 #include "BLI_task.hh"
 
 #include "BLO_read_write.hh"
@@ -129,6 +127,7 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
                             other.runtime->evaluated_length_cache,
                             other.runtime->evaluated_tangent_cache,
                             other.runtime->evaluated_normal_cache,
+                            other.runtime->max_material_index_cache,
                             other.runtime->custom_knots_offsets_cache,
                             {},
                             true});
@@ -377,6 +376,15 @@ Span<float3> CurvesGeometry::positions() const
 MutableSpan<float3> CurvesGeometry::positions_for_write()
 {
   return get_mutable_attribute<float3>(*this, AttrDomain::Point, ATTR_POSITION);
+}
+
+VArray<float> CurvesGeometry::radius() const
+{
+  return get_varray_attribute<float>(*this, AttrDomain::Point, ATTR_RADIUS, 0.01f);
+}
+MutableSpan<float> CurvesGeometry::radius_for_write()
+{
+  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_RADIUS);
 }
 
 Span<int> CurvesGeometry::offsets() const
@@ -1179,6 +1187,7 @@ void CurvesGeometry::tag_topology_changed()
   this->tag_positions_changed();
   this->runtime->evaluated_offsets_cache.tag_dirty();
   this->runtime->nurbs_basis_cache.tag_dirty();
+  this->runtime->max_material_index_cache.tag_dirty();
   this->runtime->check_type_counts = true;
 }
 void CurvesGeometry::tag_normals_changed()
@@ -1186,6 +1195,10 @@ void CurvesGeometry::tag_normals_changed()
   this->runtime->evaluated_normal_cache.tag_dirty();
 }
 void CurvesGeometry::tag_radii_changed() {}
+void CurvesGeometry::tag_material_index_changed()
+{
+  this->runtime->max_material_index_cache.tag_dirty();
+}
 
 static void translate_positions(MutableSpan<float3> positions, const float3 &translation)
 {
@@ -1299,6 +1312,17 @@ std::optional<Bounds<float3>> CurvesGeometry::bounds_min_max() const
   this->runtime->bounds_cache.ensure(
       [&](Bounds<float3> &r_bounds) { r_bounds = *bounds::min_max(this->evaluated_positions()); });
   return this->runtime->bounds_cache.data();
+}
+
+std::optional<int> CurvesGeometry::material_index_max() const
+{
+  this->runtime->max_material_index_cache.ensure([&](std::optional<int> &r_max_material_index) {
+    r_max_material_index = blender::bounds::max<int>(
+        this->attributes()
+            .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Curve, 0)
+            .varray);
+  });
+  return this->runtime->max_material_index_cache.data();
 }
 
 void CurvesGeometry::count_memory(MemoryCounter &memory) const

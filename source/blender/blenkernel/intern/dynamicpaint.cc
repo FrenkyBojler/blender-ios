@@ -11,12 +11,15 @@
 #include <cmath>
 #include <cstdio>
 
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
 #include "BLI_kdtree.h"
 #include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -24,12 +27,7 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_anim_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_collection_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_dynamicpaint_types.h"
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -40,7 +38,6 @@
 
 #include "BKE_armature.hh"
 #include "BKE_bvhutils.hh" /* bvh tree */
-#include "BKE_collection.hh"
 #include "BKE_collision.h"
 #include "BKE_colorband.hh"
 #include "BKE_constraint.h"
@@ -52,7 +49,7 @@
 #include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
@@ -3459,7 +3456,7 @@ static void mesh_tris_spherecast_dp(void *userdata,
                                     const BVHTreeRay *ray,
                                     BVHTreeRayHit *hit)
 {
-  const BVHTreeFromMesh *data = (BVHTreeFromMesh *)userdata;
+  const blender::bke::BVHTreeFromMesh *data = (blender::bke::BVHTreeFromMesh *)userdata;
   const blender::Span<blender::float3> positions = data->vert_positions;
   const int3 *corner_tris = data->corner_tris.data();
   const int *corner_verts = data->corner_verts.data();
@@ -3471,7 +3468,7 @@ static void mesh_tris_spherecast_dp(void *userdata,
   t1 = positions[corner_verts[corner_tris[index][1]]];
   t2 = positions[corner_verts[corner_tris[index][2]]];
 
-  dist = bvhtree_ray_tri_intersection(ray, hit->dist, t0, t1, t2);
+  dist = blender::bke::bvhtree_ray_tri_intersection(ray, hit->dist, t0, t1, t2);
 
   if (dist >= 0 && dist < hit->dist) {
     hit->index = index;
@@ -3491,7 +3488,7 @@ static void mesh_tris_nearest_point_dp(void *userdata,
                                        const float co[3],
                                        BVHTreeNearest *nearest)
 {
-  const BVHTreeFromMesh *data = (BVHTreeFromMesh *)userdata;
+  const blender::bke::BVHTreeFromMesh *data = (blender::bke::BVHTreeFromMesh *)userdata;
   const blender::Span<blender::float3> positions = data->vert_positions;
   const int3 *corner_tris = data->corner_tris.data();
   const int *corner_verts = data->corner_verts.data();
@@ -3977,7 +3974,8 @@ static void dynamic_paint_paint_mesh_cell_point_cb_ex(void *__restrict userdata,
   const float *avg_brushNor = data->avg_brushNor;
   const Vec3f *brushVelocity = data->brushVelocity;
 
-  BVHTreeFromMesh *treeData = static_cast<BVHTreeFromMesh *>(data->treeData);
+  blender::bke::BVHTreeFromMesh *treeData = static_cast<blender::bke::BVHTreeFromMesh *>(
+      data->treeData);
 
   const int index = grid->t_index[grid->s_pos[c_index] + id];
   const int samples = bData->s_num[index];
@@ -4311,7 +4309,6 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
   }
 
   {
-    BVHTreeFromMesh treeData = {nullptr};
     float avg_brushNor[3] = {0.0f};
     const float brush_radius = brush->paint_distance * surface->radius_scale;
     int numOfVerts;
@@ -4355,7 +4352,8 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
     /* check bounding box collision */
     if (grid && meshBrush_boundsIntersect(&grid->grid_bounds, &mesh_bb, brush, brush_radius)) {
       /* Build a bvh tree from transformed vertices */
-      if (BKE_bvhtree_from_mesh_get(&treeData, mesh, BVHTREE_FROM_CORNER_TRIS, 4)) {
+      blender::bke::BVHTreeFromMesh treeData = mesh->bvh_corner_tris();
+      if (treeData.tree != nullptr) {
         int c_index;
         int total_cells = grid->dim[0] * grid->dim[1] * grid->dim[2];
 
@@ -4396,8 +4394,6 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
         }
       }
     }
-    /* free bvh tree */
-    free_bvhtree_from_mesh(&treeData);
     BKE_id_free(nullptr, mesh);
   }
 

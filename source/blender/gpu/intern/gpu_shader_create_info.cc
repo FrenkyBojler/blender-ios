@@ -28,6 +28,9 @@
 #undef GPU_SHADER_NAMED_INTERFACE_INFO
 #undef GPU_SHADER_INTERFACE_INFO
 #undef GPU_SHADER_CREATE_INFO
+#undef GPU_SHADER_NAMED_INTERFACE_END
+#undef GPU_SHADER_INTERFACE_END
+#undef GPU_SHADER_CREATE_END
 
 namespace blender::gpu::shader {
 
@@ -35,7 +38,6 @@ using CreateInfoDictionnary = Map<StringRef, ShaderCreateInfo *>;
 using InterfaceDictionnary = Map<StringRef, StageInterfaceInfo *>;
 
 static CreateInfoDictionnary *g_create_infos = nullptr;
-static CreateInfoDictionnary *g_create_infos_unfinalized = nullptr;
 static InterfaceDictionnary *g_interfaces = nullptr;
 
 /* -------------------------------------------------------------------- */
@@ -153,6 +155,7 @@ void ShaderCreateInfo::finalize(const bool recursive)
 
     if (info.early_fragment_test_) {
       early_fragment_test_ = true;
+      depth_write_ = DepthWrite::UNCHANGED;
     }
     /* Modify depth write if has been changed from default.
      * `UNCHANGED` implies gl_FragDepth is not used at all. */
@@ -444,7 +447,6 @@ using namespace blender::gpu::shader;
 void gpu_shader_create_info_init()
 {
   g_create_infos = new CreateInfoDictionnary();
-  g_create_infos_unfinalized = new CreateInfoDictionnary();
   g_interfaces = new InterfaceDictionnary();
 
 #define GPU_SHADER_NAMED_INTERFACE_INFO(_interface, _inst_name) \
@@ -464,6 +466,10 @@ void gpu_shader_create_info_init()
   ShaderCreateInfo &_info = *ptr_##_info; \
   g_create_infos->add_new(#_info, ptr_##_info); \
   _info
+
+#define GPU_SHADER_NAMED_INTERFACE_END(_inst_name) ;
+#define GPU_SHADER_INTERFACE_END() ;
+#define GPU_SHADER_CREATE_END() ;
 
 /* Declare, register and construct the infos. */
 #include "gpu_shader_create_info_list.hh"
@@ -514,10 +520,6 @@ void gpu_shader_create_info_init()
 #endif
   }
 
-  for (auto [key, info] : g_create_infos->items()) {
-    g_create_infos_unfinalized->add_new(key, new ShaderCreateInfo(*info));
-  }
-
   for (ShaderCreateInfo *info : g_create_infos->values()) {
     info->finalize(true);
   }
@@ -535,11 +537,6 @@ void gpu_shader_create_info_exit()
     delete value;
   }
   delete g_create_infos;
-
-  for (auto *value : g_create_infos_unfinalized->values()) {
-    delete value;
-  }
-  delete g_create_infos_unfinalized;
 
   for (auto *value : g_interfaces->values()) {
     delete value;
@@ -661,19 +658,4 @@ const GPUShaderCreateInfo *gpu_shader_create_info_get(const char *info_name)
   }
   ShaderCreateInfo *info = g_create_infos->lookup(info_name);
   return reinterpret_cast<const GPUShaderCreateInfo *>(info);
-}
-
-void gpu_shader_create_info_get_unfinalized_copy(const char *info_name,
-                                                 GPUShaderCreateInfo &r_info)
-{
-  if (g_create_infos_unfinalized->contains(info_name) == false) {
-    std::string msg = std::string("Error: Cannot find shader create info named \"") + info_name +
-                      "\"\n";
-    BLI_assert_msg(0, msg.c_str());
-  }
-  else {
-    ShaderCreateInfo &info = reinterpret_cast<ShaderCreateInfo &>(r_info);
-    info = *g_create_infos_unfinalized->lookup(info_name);
-    BLI_assert(!info.finalized_);
-  }
 }

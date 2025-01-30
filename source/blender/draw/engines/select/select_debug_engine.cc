@@ -8,6 +8,8 @@
  * Engine for debugging the selection map drawing.
  */
 
+#include "BLT_translation.hh"
+
 #include "DNA_ID.h"
 #include "DNA_vec_types.h"
 
@@ -70,7 +72,7 @@ static void select_debug_draw_scene(void * /*vedata*/)
 
 static void select_debug_engine_free()
 {
-  DRW_SHADER_FREE_SAFE(e_data.select_debug_sh);
+  GPU_SHADER_FREE_SAFE(e_data.select_debug_sh);
 }
 
 /** \} */

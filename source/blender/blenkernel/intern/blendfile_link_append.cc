@@ -26,10 +26,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -51,7 +50,7 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -63,6 +62,8 @@
 #include "BLO_writefile.hh"
 
 static CLG_LogRef LOG = {"bke.blendfile_link_append"};
+
+using namespace blender::bke;
 
 /* -------------------------------------------------------------------- */
 /** \name Link/append context implementation and public management API.
@@ -354,7 +355,7 @@ void BKE_blendfile_link_append_context_init_done(BlendfileLinkAppendContext *lap
 {
   BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::Init);
 
-  PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_BlendImportContext, lapp_context);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendImportContext, lapp_context);
   PointerRNA *pointers[1] = {&ctx_ptr};
   BKE_callback_exec(lapp_context->params->bmain, pointers, 1, BKE_CB_EVT_BLENDIMPORT_PRE);
 }
@@ -367,7 +368,7 @@ void BKE_blendfile_link_append_context_finalize(BlendfileLinkAppendContext *lapp
                   BlendfileLinkAppendContext::ProcessStage::Instantiating));
   lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::Done;
 
-  PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_BlendImportContext, lapp_context);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendImportContext, lapp_context);
   PointerRNA *pointers[1] = {&ctx_ptr};
   BKE_callback_exec(lapp_context->params->bmain, pointers, 1, BKE_CB_EVT_BLENDIMPORT_POST);
 }
@@ -1430,6 +1431,8 @@ void BKE_blendfile_append(BlendfileLinkAppendContext *lapp_context, ReportList *
   BlendFileReadReport bf_reports{};
   bf_reports.reports = reports;
   BLO_read_do_version_after_setup(bmain, lapp_context, &bf_reports);
+
+  BLO_readfile_id_runtime_data_free_all(*bmain);
 }
 
 /** \} */
@@ -1598,6 +1601,8 @@ void BKE_blendfile_link(BlendfileLinkAppendContext *lapp_context, ReportList *re
     BlendFileReadReport bf_reports{};
     bf_reports.reports = reports;
     BLO_read_do_version_after_setup(lapp_context->params->bmain, lapp_context, &bf_reports);
+
+    BLO_readfile_id_runtime_data_free_all(*lapp_context->params->bmain);
   }
 }
 
@@ -1997,9 +2002,7 @@ void BKE_blendfile_library_relocate(BlendfileLinkAppendContext *lapp_context,
   BKE_library_main_rebuild_hierarchy(bmain);
 
   /* Resync overrides if needed. */
-  if (!USER_EXPERIMENTAL_TEST(&U, no_override_auto_resync) &&
-      lapp_context->params->context.scene != nullptr)
-  {
+  if (liboverride::is_auto_resync_enabled() && lapp_context->params->context.scene != nullptr) {
     BlendFileReadReport report{};
     report.reports = reports;
     BKE_lib_override_library_main_resync(bmain,

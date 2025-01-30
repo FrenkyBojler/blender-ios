@@ -41,12 +41,13 @@
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 
@@ -66,9 +67,6 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
-#if 0
-#  include "NOD_common.h"
-#endif
 
 #include "BlenderContext.h"
 #include "ExportSettings.h"
@@ -1123,8 +1121,8 @@ static bNode *bc_add_node(
     if (label.length() > 0) {
       STRNCPY(node->label, label.c_str());
     }
-    node->locx = locx;
-    node->locy = locy;
+    node->location[0] = locx;
+    node->location[1] = locy;
     node->flag |= NODE_SELECT;
   }
   return node;
@@ -1305,7 +1303,7 @@ bNode *bc_get_master_shader(Material *ma)
   bNodeTree *nodetree = ma->nodetree;
   if (nodetree) {
     LISTBASE_FOREACH (bNode *, node, &nodetree->nodes) {
-      if (node->typeinfo->type == SH_NODE_BSDF_PRINCIPLED) {
+      if (node->typeinfo->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
         return node;
       }
     }

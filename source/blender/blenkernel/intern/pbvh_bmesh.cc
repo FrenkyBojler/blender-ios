@@ -6,8 +6,6 @@
  * \ingroup bke
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_bounds.hh"
 #include "BLI_ghash.h"
 #include "BLI_heap_simple.h"
@@ -19,7 +17,6 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_ccg.hh"
 #include "BKE_paint_bvh.hh"
 
 #include "bmesh.hh"
@@ -335,7 +332,7 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
   for (BMFace *f : n->bm_faces_) {
     BM_ELEM_CD_SET_INT(f, cd_face_node_offset, DYNTOPO_NODE_NONE);
   }
-  n->bm_faces_.clear_and_shrink();
+  n->bm_faces_.clear();
 
   n->flag_ &= ~Node::Leaf;
   node_changed[node_index] = true;

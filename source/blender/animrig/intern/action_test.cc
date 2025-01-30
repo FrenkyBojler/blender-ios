@@ -12,6 +12,7 @@
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 
+#include "DNA_action_defaults.h"
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 
@@ -27,6 +28,17 @@
 #include "testing/testing.h"
 
 namespace blender::animrig::tests {
+
+TEST(action, low_level_initialisation)
+{
+  bAction *action = static_cast<bAction *>(BKE_id_new_nomain(ID_AC, "ACNewAction"));
+
+  EXPECT_NE(action->last_slot_handle, 0)
+      << "bAction::last_slot_handle should not be initialised to 0";
+
+  BKE_id_free(nullptr, action);
+}
+
 class ActionLayersTest : public testing::Test {
  public:
   Main *bmain;
@@ -275,8 +287,8 @@ TEST_F(ActionLayersTest, add_slot)
 {
   { /* Creating an 'unused' Slot should just be called 'Slot'. */
     Slot &slot = action->slot_add();
-    EXPECT_EQ(1, action->last_slot_handle);
-    EXPECT_EQ(1, slot.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, slot.handle);
 
     EXPECT_STREQ("XXSlot", slot.identifier);
     EXPECT_EQ(0, slot.idtype);
@@ -284,10 +296,26 @@ TEST_F(ActionLayersTest, add_slot)
 
   { /* Creating a Slot for a specific ID should name it after the ID. */
     Slot &slot = action->slot_add_for_id(cube->id);
-    EXPECT_EQ(2, action->last_slot_handle);
-    EXPECT_EQ(2, slot.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, slot.handle);
 
     EXPECT_STREQ(cube->id.name, slot.identifier);
+    EXPECT_EQ(ID_OB, slot.idtype);
+  }
+
+  { /* Creating a Slot for a specific ID that already had a slot assigned before should name it
+     * after that previous slot. This should also ensure that the first two characters are actually
+     * correct for the ID type. */
+    AnimData *adt = BKE_animdata_ensure_id(&cube->id);
+    STRNCPY_UTF8(adt->last_slot_identifier, "$$Kübuš 😹");
+    Slot &slot = action->slot_add_for_id(cube->id);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 3, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 3, slot.handle);
+
+    EXPECT_STREQ("Kübuš 😹", slot.identifier + 2)
+        << "The last-assigned slot name should be reused";
+    EXPECT_STREQ("OBKübuš 😹", slot.identifier)
+        << "The ID type encoded in the slot identifier should be correct";
     EXPECT_EQ(ID_OB, slot.idtype);
   }
 }
@@ -315,20 +343,20 @@ TEST_F(ActionLayersTest, add_slot_multiple)
   EXPECT_TRUE(assign_action(action, suzanne->id));
   EXPECT_EQ(assign_action_slot(&slot_suzanne, suzanne->id), ActionSlotAssignmentResult::OK);
 
-  EXPECT_EQ(2, action->last_slot_handle);
-  EXPECT_EQ(1, slot_cube.handle);
-  EXPECT_EQ(2, slot_suzanne.handle);
+  EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, action->last_slot_handle);
+  EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, slot_cube.handle);
+  EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, slot_suzanne.handle);
 }
 
 TEST_F(ActionLayersTest, slot_remove)
 {
   { /* Canary test: removing a just-created slot on an otherwise empty Action should work. */
     Slot &slot = action->slot_add();
-    EXPECT_EQ(1, slot.handle);
-    EXPECT_EQ(1, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, slot.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, action->last_slot_handle);
 
     EXPECT_TRUE(action->slot_remove(slot));
-    EXPECT_EQ(1, action->last_slot_handle)
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 1, action->last_slot_handle)
         << "Removing a slot should not change the last-used slot handle.";
     EXPECT_EQ(0, action->slot_array_num);
   }
@@ -341,8 +369,8 @@ TEST_F(ActionLayersTest, slot_remove)
   { /* Removing a slot should remove its Channelbag. */
     Slot &slot = action->slot_add();
     const slot_handle_t slot_handle = slot.handle;
-    EXPECT_EQ(2, slot.handle);
-    EXPECT_EQ(2, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, slot.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, action->last_slot_handle);
 
     /* Create an F-Curve in a Channelbag for the slot. */
     action->layer_keystrip_ensure();
@@ -352,7 +380,7 @@ TEST_F(ActionLayersTest, slot_remove)
 
     /* Remove the slot. */
     EXPECT_TRUE(action->slot_remove(slot));
-    EXPECT_EQ(2, action->last_slot_handle)
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 2, action->last_slot_handle)
         << "Removing a slot should not change the last-used slot handle.";
     EXPECT_EQ(0, action->slot_array_num);
 
@@ -365,10 +393,10 @@ TEST_F(ActionLayersTest, slot_remove)
     Slot &slot1 = action->slot_add();
     Slot &slot2 = action->slot_add();
     Slot &slot3 = action->slot_add();
-    EXPECT_EQ(3, slot1.handle);
-    EXPECT_EQ(4, slot2.handle);
-    EXPECT_EQ(5, slot3.handle);
-    EXPECT_EQ(5, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 3, slot1.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 4, slot2.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 5, slot3.handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 5, action->last_slot_handle);
 
     /* For referencing the slot handle after the slot is removed. */
     const slot_handle_t slot2_handle = slot2.handle;
@@ -382,7 +410,7 @@ TEST_F(ActionLayersTest, slot_remove)
 
     /* Remove the slot. */
     EXPECT_TRUE(action->slot_remove(slot2));
-    EXPECT_EQ(5, action->last_slot_handle);
+    EXPECT_EQ(DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE + 5, action->last_slot_handle);
 
     /* Check the correct slot + channel-bag are removed. */
     EXPECT_EQ(action->slot_for_handle(slot1.handle), &slot1);
@@ -418,6 +446,96 @@ TEST_F(ActionLayersTest, slot_remove)
     EXPECT_EQ(5, slot2.handle);
     EXPECT_EQ(5, action->last_slot_handle);
   }
+}
+
+TEST_F(ActionLayersTest, slot_move_to_index)
+{
+  Slot &slot_a = action->slot_add_for_id_type(ID_ME);
+  Slot &slot_b = action->slot_add_for_id_type(ID_CA);
+  Slot &slot_cube = action->slot_add_for_id(cube->id);
+  Slot &slot_suzanne = action->slot_add_for_id(suzanne->id);
+
+  assign_action_and_slot(action, &slot_cube, cube->id);
+  assign_action_and_slot(action, &slot_suzanne, suzanne->id);
+
+  const slot_handle_t handle_a = slot_a.handle;
+  const slot_handle_t handle_b = slot_b.handle;
+  const slot_handle_t handle_cube = slot_cube.handle;
+  const slot_handle_t handle_suzanne = slot_suzanne.handle;
+
+  ASSERT_EQ(action->slot(0)->handle, handle_a);
+  ASSERT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "ME");
+  ASSERT_EQ(action->slot(1)->handle, handle_b);
+  ASSERT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "CA");
+  ASSERT_EQ(action->slot(2)->handle, handle_cube);
+  ASSERT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "OB");
+  ASSERT_EQ(action->slot(2)->users(*bmain)[0], &cube->id);
+  ASSERT_EQ(action->slot(3)->handle, handle_suzanne);
+  ASSERT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "OB");
+  ASSERT_EQ(action->slot(3)->users(*bmain)[0], &suzanne->id);
+
+  /* First "move" a slot to its own location, which should do nothing. */
+  action->slot_move_to_index(slot_b, 1);
+  EXPECT_EQ(action->slot(0)->handle, handle_a);
+  EXPECT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "ME");
+  EXPECT_EQ(action->slot(1)->handle, handle_b);
+  EXPECT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "CA");
+  EXPECT_EQ(action->slot(2)->handle, handle_cube);
+  EXPECT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(2)->users(*bmain)[0], &cube->id);
+  EXPECT_EQ(action->slot(3)->handle, handle_suzanne);
+  EXPECT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(3)->users(*bmain)[0], &suzanne->id);
+
+  /* Then move slots around in various ways. */
+
+  action->slot_move_to_index(slot_a, 2);
+  EXPECT_EQ(action->slot(0)->handle, handle_b);
+  EXPECT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "CA");
+  EXPECT_EQ(action->slot(1)->handle, handle_cube);
+  EXPECT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(1)->users(*bmain)[0], &cube->id);
+  EXPECT_EQ(action->slot(2)->handle, handle_a);
+  EXPECT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "ME");
+  EXPECT_EQ(action->slot(3)->handle, handle_suzanne);
+  EXPECT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(3)->users(*bmain)[0], &suzanne->id);
+
+  action->slot_move_to_index(slot_suzanne, 1);
+  EXPECT_EQ(action->slot(0)->handle, handle_b);
+  EXPECT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "CA");
+  EXPECT_EQ(action->slot(1)->handle, handle_suzanne);
+  EXPECT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(1)->users(*bmain)[0], &suzanne->id);
+  EXPECT_EQ(action->slot(2)->handle, handle_cube);
+  EXPECT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(2)->users(*bmain)[0], &cube->id);
+  EXPECT_EQ(action->slot(3)->handle, handle_a);
+  EXPECT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "ME");
+
+  action->slot_move_to_index(slot_cube, 3);
+  EXPECT_EQ(action->slot(0)->handle, handle_b);
+  EXPECT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "CA");
+  EXPECT_EQ(action->slot(1)->handle, handle_suzanne);
+  EXPECT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(1)->users(*bmain)[0], &suzanne->id);
+  EXPECT_EQ(action->slot(2)->handle, handle_a);
+  EXPECT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "ME");
+  EXPECT_EQ(action->slot(3)->handle, handle_cube);
+  EXPECT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(3)->users(*bmain)[0], &cube->id);
+
+  action->slot_move_to_index(slot_suzanne, 0);
+  EXPECT_EQ(action->slot(0)->handle, handle_suzanne);
+  EXPECT_EQ(action->slot(0)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(0)->users(*bmain)[0], &suzanne->id);
+  EXPECT_EQ(action->slot(1)->handle, handle_b);
+  EXPECT_EQ(action->slot(1)->identifier_prefix_for_idtype(), "CA");
+  EXPECT_EQ(action->slot(2)->handle, handle_a);
+  EXPECT_EQ(action->slot(2)->identifier_prefix_for_idtype(), "ME");
+  EXPECT_EQ(action->slot(3)->handle, handle_cube);
+  EXPECT_EQ(action->slot(3)->identifier_prefix_for_idtype(), "OB");
+  EXPECT_EQ(action->slot(3)->users(*bmain)[0], &cube->id);
 }
 
 TEST_F(ActionLayersTest, action_assign_id)
@@ -596,11 +714,11 @@ TEST_F(ActionLayersTest, rename_slot_identifier_collision)
   EXPECT_STREQ("New Slot Name.001", slot2.identifier);
 }
 
-TEST_F(ActionLayersTest, find_suitable_slot)
+TEST_F(ActionLayersTest, generic_slot_for_autoassign)
 {
   /* ===
    * Empty case, no slots exist yet and the ID doesn't even have an AnimData. */
-  EXPECT_EQ(nullptr, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(nullptr, generic_slot_for_autoassign(cube->id, *this->action, ""));
 
   /* ===
    * Slot exists with the same name & type as the ID, but the ID doesn't have any AnimData yet.
@@ -609,7 +727,7 @@ TEST_F(ActionLayersTest, find_suitable_slot)
   slot.handle = 327;
   STRNCPY_UTF8(slot.identifier, "OBKüüübus");
   slot.idtype = GS(cube->id.name);
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot, generic_slot_for_autoassign(cube->id, *this->action, ""));
 
   /* ===
    * Slot exists with the same name & type as the ID, and the ID has an AnimData with the same
@@ -626,22 +744,55 @@ TEST_F(ActionLayersTest, find_suitable_slot)
   /* Configure adt to use the handle of one slot, and the identifier of the other. */
   adt->slot_handle = other_slot.handle;
   STRNCPY_UTF8(adt->last_slot_identifier, slot.identifier);
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot,
+            generic_slot_for_autoassign(cube->id, *this->action, cube->adt->last_slot_identifier));
 
   /* ===
-   * Same situation as above (AnimData has identifier of one slot, but the handle of another),
-   * except that the Action has already been assigned. In this case the handle should take
-   * precedence. */
-  adt->action = action;
-  id_us_plus(&action->id);
-  EXPECT_EQ(&other_slot, action->find_suitable_slot_for(cube->id));
-
-  /* ===
-   * A slot exists, but doesn't match anything in the action data of the cube. This should fall
-   * back to using the ID name. */
+   * Assigned slot info exists, but doesn't match anything in the action data of the cube. This
+   * should fall back to using the ID name. */
   adt->slot_handle = 161;
   STRNCPY_UTF8(adt->last_slot_identifier, "¿¿What's this??");
-  EXPECT_EQ(&slot, action->find_suitable_slot_for(cube->id));
+  EXPECT_EQ(&slot,
+            generic_slot_for_autoassign(cube->id, *this->action, cube->adt->last_slot_identifier));
+}
+
+TEST_F(ActionLayersTest, generic_slot_for_autoassign_untyped_wildcarding)
+{
+  /* Test the untyped slot "wildcard" behavior, where OBSlot should be chosen when the last slot
+   * identifier was "XXSlot", and vice versa. */
+
+  /* ===
+   * Action has OBSlot, last-used slot is XXSlot. Should pick OBSlot. */
+  AnimData *adt = BKE_animdata_ensure_id(&cube->id);
+  STRNCPY_UTF8(adt->last_slot_identifier, "XXSlot");
+  Slot &ob_slot = action->slot_add_for_id_type(ID_OB);
+  action->slot_identifier_define(ob_slot, "OBSlot");
+
+  EXPECT_EQ(&ob_slot,
+            generic_slot_for_autoassign(cube->id, *this->action, adt->last_slot_identifier));
+
+  /* ===
+   * Action has OBSlot and XXSlot, last-used slot is XXSlot. Should pick OBSlot. */
+  Slot &xx_slot = action->slot_add();
+  action->slot_identifier_define(xx_slot, "XXSlot");
+  ASSERT_FALSE(xx_slot.has_idtype());
+  ASSERT_STREQ("XXSlot", xx_slot.identifier);
+  ASSERT_STREQ("XXSlot", adt->last_slot_identifier);
+  EXPECT_EQ(&ob_slot,
+            generic_slot_for_autoassign(cube->id, *this->action, adt->last_slot_identifier));
+
+  /* ===
+   * Action has OBSlot and XXSlot, last-used slot is OBSlot. Should pick OBSlot. */
+  STRNCPY_UTF8(adt->last_slot_identifier, "OBSlot");
+  EXPECT_EQ(&ob_slot,
+            generic_slot_for_autoassign(cube->id, *this->action, adt->last_slot_identifier));
+
+  /* ===
+   * Action has XXSlot, last-used slot is OBSlot. Should pick XXSlot. */
+  action->slot_remove(ob_slot);
+  ASSERT_STREQ("OBSlot", adt->last_slot_identifier);
+  EXPECT_EQ(&xx_slot,
+            generic_slot_for_autoassign(cube->id, *this->action, adt->last_slot_identifier));
 }
 
 TEST_F(ActionLayersTest, active_slot)
@@ -697,6 +848,63 @@ TEST_F(ActionLayersTest, active_slot)
     EXPECT_FALSE(slot_cube.is_active());
     EXPECT_FALSE(slot_suz.is_active());
     EXPECT_FALSE(slot_bob.is_active());
+  }
+}
+
+TEST_F(ActionLayersTest, assign_action_ensure_slot_for_keying)
+{
+  { /* Slotless Action, should create a typed slot. */
+    Action &action = action_add(*this->bmain, "ACEmpty");
+    Slot *chosen_slot = assign_action_ensure_slot_for_keying(action, cube->id);
+    ASSERT_NE(nullptr, chosen_slot);
+    EXPECT_EQ(ID_OB, chosen_slot->idtype);
+    EXPECT_STREQ("OBKüüübus", chosen_slot->identifier);
+  }
+
+  { /* Single slot with same name as ID, Action not yet assigned. Should assign the Action and the
+       slot. */
+    Action &action = action_add(*this->bmain, "ACAction");
+    const Slot &slot_for_id = action.slot_add_for_id(cube->id);
+    Slot *chosen_slot = assign_action_ensure_slot_for_keying(action, cube->id);
+    ASSERT_NE(nullptr, chosen_slot);
+    EXPECT_EQ(&slot_for_id, chosen_slot) << "The expected slot should be chosen";
+    EXPECT_EQ(cube->adt->action, &action) << "The Action should be assigned";
+    EXPECT_EQ(cube->adt->slot_handle, chosen_slot->handle) << "The chosen slot should be assigned";
+  }
+
+  { /* Single slot with same name as ID, Action already assigned but not the slot. Should create
+     * new slot. */
+    Action &action = action_add(*this->bmain, "ACAction");
+    const Slot &slot_for_id = action.slot_add_for_id(cube->id);
+    ASSERT_EQ(ActionSlotAssignmentResult::OK, assign_action_and_slot(&action, nullptr, cube->id));
+
+    Slot *chosen_slot = assign_action_ensure_slot_for_keying(action, cube->id);
+    ASSERT_NE(nullptr, chosen_slot);
+    EXPECT_NE(&slot_for_id, chosen_slot) << "A new slot should be chosen";
+    EXPECT_STREQ("OBKüüübus.001", chosen_slot->identifier);
+    EXPECT_EQ(cube->adt->action, &action) << "The Action should be assigned";
+    EXPECT_EQ(cube->adt->slot_handle, chosen_slot->handle) << "The chosen slot should be assigned";
+  }
+
+  { /* Single untyped slot, Action already assigned but not the slot. Should assign the untyped
+     * slot. */
+    Action &action = action_add(*this->bmain, "ACAction");
+
+    /* Assign the Action before adding the untyped slot, otherwise the slot gets assigned & thus
+     * typed. */
+    ASSERT_EQ(ActionSlotAssignmentResult::OK, assign_action_and_slot(&action, nullptr, cube->id));
+
+    Slot &untyped_slot = action.slot_add();
+    action.slot_identifier_define(untyped_slot, "XXJust A Slot");
+
+    Slot *chosen_slot = assign_action_ensure_slot_for_keying(action, cube->id);
+
+    ASSERT_NE(nullptr, chosen_slot);
+    EXPECT_EQ(&untyped_slot, chosen_slot) << "The untyped slot should be chosen";
+    EXPECT_TRUE(untyped_slot.has_idtype()) << "Slot should have gotten an ID type";
+    EXPECT_STREQ("OBJust A Slot", untyped_slot.identifier);
+    EXPECT_EQ(cube->adt->action, &action) << "The Action should be assigned";
+    EXPECT_EQ(cube->adt->slot_handle, chosen_slot->handle) << "The chosen slot should be assigned";
   }
 }
 
@@ -1183,7 +1391,7 @@ class ChannelbagTest : public testing::Test {
   }
 };
 
-TEST_F(ChannelbagTest, fcurve_move)
+TEST_F(ChannelbagTest, fcurve_move_to_index)
 {
   FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "group0"});
   FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "group0"});
@@ -1198,7 +1406,7 @@ TEST_F(ChannelbagTest, fcurve_move)
   bActionGroup &group1 = *channelbag->channel_group(1);
 
   /* Moving an fcurve to where it already is should be fine. */
-  channelbag->fcurve_move(fcu0, 0);
+  channelbag->fcurve_move_to_index(fcu0, 0);
   EXPECT_EQ(&fcu0, channelbag->fcurve(0));
   EXPECT_EQ(&fcu1, channelbag->fcurve(1));
   EXPECT_EQ(&fcu2, channelbag->fcurve(2));
@@ -1211,7 +1419,7 @@ TEST_F(ChannelbagTest, fcurve_move)
   EXPECT_EQ(nullptr, fcu4.grp);
 
   /* Move to first. */
-  channelbag->fcurve_move(fcu4, 0);
+  channelbag->fcurve_move_to_index(fcu4, 0);
   EXPECT_EQ(0, group0.fcurve_range_start);
   EXPECT_EQ(2, group0.fcurve_range_length);
   EXPECT_EQ(2, group1.fcurve_range_start);
@@ -1228,7 +1436,7 @@ TEST_F(ChannelbagTest, fcurve_move)
   EXPECT_EQ(nullptr, fcu3.grp);
 
   /* Move to last. */
-  channelbag->fcurve_move(fcu1, 4);
+  channelbag->fcurve_move_to_index(fcu1, 4);
   EXPECT_EQ(0, group0.fcurve_range_start);
   EXPECT_EQ(2, group0.fcurve_range_length);
   EXPECT_EQ(2, group1.fcurve_range_start);
@@ -1245,7 +1453,7 @@ TEST_F(ChannelbagTest, fcurve_move)
   EXPECT_EQ(nullptr, fcu1.grp);
 
   /* Move to middle. */
-  channelbag->fcurve_move(fcu4, 2);
+  channelbag->fcurve_move_to_index(fcu4, 2);
   EXPECT_EQ(0, group0.fcurve_range_start);
   EXPECT_EQ(2, group0.fcurve_range_length);
   EXPECT_EQ(2, group1.fcurve_range_start);
@@ -1581,7 +1789,7 @@ TEST_F(ChannelbagTest, channel_group_fcurve_removal)
   ASSERT_EQ(0, channelbag->channel_groups().size());
 }
 
-TEST_F(ChannelbagTest, channel_group_move)
+TEST_F(ChannelbagTest, channel_group_move_to_index)
 {
   FCurve &fcu0 = channelbag->fcurve_ensure(nullptr, {"fcu0", 0, std::nullopt, "group0"});
   FCurve &fcu1 = channelbag->fcurve_ensure(nullptr, {"fcu1", 0, std::nullopt, "group1"});
@@ -1596,7 +1804,7 @@ TEST_F(ChannelbagTest, channel_group_move)
   bActionGroup &group1 = *channelbag->channel_group(1);
   bActionGroup &group2 = *channelbag->channel_group(2);
 
-  channelbag->channel_group_move(group0, 2);
+  channelbag->channel_group_move_to_index(group0, 2);
   EXPECT_EQ(&group1, channelbag->channel_group(0));
   EXPECT_EQ(&group2, channelbag->channel_group(1));
   EXPECT_EQ(&group0, channelbag->channel_group(2));
@@ -1617,7 +1825,7 @@ TEST_F(ChannelbagTest, channel_group_move)
   EXPECT_EQ(&group0, fcu0.grp);
   EXPECT_EQ(nullptr, fcu4.grp);
 
-  channelbag->channel_group_move(group1, 1);
+  channelbag->channel_group_move_to_index(group1, 1);
   EXPECT_EQ(&group2, channelbag->channel_group(0));
   EXPECT_EQ(&group1, channelbag->channel_group(1));
   EXPECT_EQ(&group0, channelbag->channel_group(2));
@@ -1638,7 +1846,7 @@ TEST_F(ChannelbagTest, channel_group_move)
   EXPECT_EQ(&group0, fcu0.grp);
   EXPECT_EQ(nullptr, fcu4.grp);
 
-  channelbag->channel_group_move(group0, 0);
+  channelbag->channel_group_move_to_index(group0, 0);
   EXPECT_EQ(&group0, channelbag->channel_group(0));
   EXPECT_EQ(&group2, channelbag->channel_group(1));
   EXPECT_EQ(&group1, channelbag->channel_group(2));

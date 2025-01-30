@@ -26,8 +26,6 @@
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_bvh_pixels.hh"
 
-#include "bmesh.hh"
-
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_intern.hh"
@@ -488,7 +486,7 @@ bool SCULPT_paint_image_canvas_get(PaintModeSettings &paint_mode_settings,
 
 bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob)
 {
-  if (!U.experimental.use_sculpt_texture_paint) {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint)) {
     return false;
   }
   if (ob.type != OB_MESH) {
