@@ -614,8 +614,8 @@ class SlotHandleLibraryOverridesTest(unittest.TestCase):
     def setUpClass(cls):
         args.output_dir.mkdir(parents=True, exist_ok=True)
 
-        cls.libfile = args.testdir.resolve() / "liboverride-action-slot.blend"
-        cls.workfile = args.output_dir.resolve() / "liboverride-action-slot-libfile.blend"
+        cls.libfile = args.testdir.resolve() / "liboverride-action-slot-libfile.blend"
+        cls.workfile = args.output_dir.resolve() / "liboverride-action-slot.blend"
 
     @classmethod
     def tearDownClass(cls):
