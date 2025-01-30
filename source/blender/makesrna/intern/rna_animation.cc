@@ -136,16 +136,10 @@ static void rna_AnimData_dependency_update(Main *bmain, Scene *scene, PointerRNA
   rna_AnimData_update(bmain, scene, ptr);
 }
 
-/**
- * Emit a 'diff' for the .slot_handle property whenever the .action property differs.
- *
- * The slot handle is only valid within the context of the assigned action. So when a library
- * override changes the assigned action, the assigned slot should also get an override. This is
- * necessary even when the numerical value of the slot handle is the same in both actions, as the
- * newly chosen slot is independent of the slot that was chosen in the library file.
- */
-static void rna_AnimData_slot_handle_override_diff(Main *bmain,
-                                                   RNAPropertyOverrideDiffContext &rnadiff_ctx)
+void rna_generic_action_slot_handle_override_diff(Main *bmain,
+                                                  RNAPropertyOverrideDiffContext &rnadiff_ctx,
+                                                  const bAction *action_a,
+                                                  const bAction *action_b)
 {
   rna_property_override_diff_default(bmain, rnadiff_ctx);
 
@@ -154,10 +148,7 @@ static void rna_AnimData_slot_handle_override_diff(Main *bmain,
     return;
   }
 
-  const AnimData *adt_a = static_cast<AnimData *>(rnadiff_ctx.prop_a->ptr->data);
-  const AnimData *adt_b = static_cast<AnimData *>(rnadiff_ctx.prop_b->ptr->data);
-
-  if (adt_a->action == adt_b->action) {
+  if (action_a == action_b) {
     /* Action is unchanged, it's fine to mark the slot handle as unchanged as well. */
     return;
   }
@@ -186,6 +177,20 @@ static void rna_AnimData_slot_handle_override_diff(Main *bmain,
         op, LIBOVERRIDE_OP_REPLACE, nullptr, nullptr, {}, {}, -1, -1, true, nullptr, nullptr);
     rnadiff_ctx.report_flag |= RNA_OVERRIDE_MATCH_RESULT_CREATED;
   }
+}
+
+/**
+ * Emit a 'diff' for the .slot_handle property whenever the .action property differs.
+ *
+ * \see rna_generic_action_slot_handle_override_diff()
+ */
+static void rna_AnimData_slot_handle_override_diff(Main *bmain,
+                                                   RNAPropertyOverrideDiffContext &rnadiff_ctx)
+{
+  const AnimData *adt_a = static_cast<AnimData *>(rnadiff_ctx.prop_a->ptr->data);
+  const AnimData *adt_b = static_cast<AnimData *>(rnadiff_ctx.prop_b->ptr->data);
+
+  rna_generic_action_slot_handle_override_diff(bmain, rnadiff_ctx, adt_a->action, adt_b->action);
 }
 
 static int rna_AnimData_action_editable(const PointerRNA *ptr, const char ** /*r_info*/)
