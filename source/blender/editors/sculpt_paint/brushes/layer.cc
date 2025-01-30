@@ -24,6 +24,7 @@
 #include "editors/sculpt_paint/paint_mask.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
+#include "editors/sculpt_paint/sculpt_nodes_evaluation.hh"
 
 #include "bmesh.hh"
 
@@ -156,6 +157,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, cache, position_data.eval, verts, factors);
 
   if (attribute_data.mask.is_empty()) {
     tls.masks.clear();
@@ -254,6 +256,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  nodes_evaluate_factors_grids(cache, subdiv_ccg, grids, positions, factors);
 
   if (subdiv_ccg.masks.is_empty()) {
     tls.masks.clear();
@@ -352,6 +355,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
+  nodes_evaluate_factors_bmesh(cache, verts, positions, factors);
 
   const MutableSpan<float> displacement_factors = gather_data_bmesh(
       layer_displacement_factor.as_span(), verts, tls.displacement_factors);

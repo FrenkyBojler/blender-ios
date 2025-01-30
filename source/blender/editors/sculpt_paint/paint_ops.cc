@@ -964,12 +964,18 @@ static bNodeTree *node_group_add_for_brush(Main *bmain,
 
   /* VDM brush expects a vector output */
   if (is_VDM_brush) {
-    node_group->tree_interface.add_socket(
+    bNodeTreeInterfaceSocket* socket = node_group->tree_interface.add_socket(
         DATA_("Vector"), "", "NodeSocketVector", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+
+    bNodeSocketValueVector* vector_data = static_cast<bNodeSocketValueVector*>(socket->socket_data);
+    copy_v3_v3(vector_data->value, float3(1.0f));
   }
   else {
-    node_group->tree_interface.add_socket(
+    bNodeTreeInterfaceSocket* socket = node_group->tree_interface.add_socket(
         DATA_("Value"), "", "NodeSocketFloat", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+
+    bNodeSocketValueFloat* float_data = static_cast<bNodeSocketValueFloat*>(socket->socket_data);
+    float_data->value = 1.0f;
   }
 
   bke::node_add_node(nullptr, node_group, "NodeGroupOutput");
