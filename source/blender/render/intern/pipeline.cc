@@ -1458,9 +1458,7 @@ bool RE_seq_render_active(Scene *scene, RenderData *rd)
 
 static bool seq_result_needs_float(const ImageFormatData &im_format)
 {
-  const bool is_10_bpp = im_format.depth == R_IMF_CHAN_DEPTH_10;
-  const bool is_12_bpp = im_format.depth == R_IMF_CHAN_DEPTH_12;
-  return is_10_bpp || is_12_bpp;
+  return ELEM(im_format.depth, R_IMF_CHAN_DEPTH_10, R_IMF_CHAN_DEPTH_12);
 }
 
 static ImBuf *seq_process_render_image(ImBuf *src,
