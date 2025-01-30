@@ -427,9 +427,12 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
       t->helpline = HLP_CARROW;
       break;
     case INPUT_NONE:
-    default:
       mi->apply = nullptr;
       t->helpline = HLP_ERROR;
+      break;
+    default:
+      mi->apply = nullptr;
+      t->helpline = HLP_NONE;
       break;
   }
 
