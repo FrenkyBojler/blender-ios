@@ -50,8 +50,6 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include <iostream>
-
 namespace blender::ed::greasepencil {
 
 enum class PrimitiveType : int8_t {
