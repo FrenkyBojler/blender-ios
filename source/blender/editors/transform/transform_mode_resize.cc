@@ -315,9 +315,10 @@ static void initResize(TransInfo *t, wmOperator *op)
     zero_v3(mouse_dir_constraint);
   }
 
-  bool only_location = (t->flag & T_V3D_ALIGN) && (t->options & CTX_OBJECT) &&
-                       (t->settings->transform_pivot_point != V3D_AROUND_CURSOR) && t->context &&
-                       (CTX_DATA_COUNT(t->context, selected_editable_objects) == 1);
+  const bool only_location = (t->flag & T_V3D_ALIGN) && (t->options & CTX_OBJECT) &&
+                             (t->settings->transform_pivot_point != V3D_AROUND_CURSOR) &&
+                             t->context &&
+                             (CTX_DATA_COUNT(t->context, selected_editable_objects) == 1);
   if (only_location) {
     WorkspaceStatus status(t->context);
     status.item(TIP_("Transform is set to only affect location"), ICON_ERROR);
