@@ -5,6 +5,7 @@
 #include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"
 #include "BKE_context.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_icons.h"
 #include "BKE_lib_id.hh"
 #include "BKE_preferences.h"
@@ -509,12 +510,31 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
   return path_values;
 }
 
+static inline void replace_pose_key(Main &bmain,
+                                    blender::animrig::StripKeyframeData &strip_data,
+                                    const blender::animrig::Slot &slot,
+                                    const float2 time_value,
+                                    const blender::animrig::FCurveDescriptor fcurve_descriptor)
+{
+  using namespace blender::animrig;
+  Channelbag &channelbag = strip_data.channelbag_for_slot_ensure(slot);
+  FCurve &fcurve = channelbag.fcurve_ensure(&bmain, fcurve_descriptor);
+
+  /* Clearing all keys beforehand in case the pose was not defined on frame defined in
+   * `time_value`. */
+  BKE_fcurve_delete_keys_all(&fcurve);
+  const KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
+  insert_vert_fcurve(&fcurve, time_value, key_settings, INSERTKEY_NOFLAGS);
+}
+
 static void update_pose_action_from_scene(Main *bmain,
                                           blender::animrig::Action &pose_action,
                                           Object &pose_object,
                                           const AssetModifyMode mode)
 {
   using namespace blender::animrig;
+  /* The frame on which an FCurve has a key to define a pose. */
+  constexpr int pose_frame = 1;
   if (pose_action.slot_array_num < 1) {
     /* All actions should have slots at this point. */
     BLI_assert_unreachable();
@@ -538,23 +558,22 @@ static void update_pose_action_from_scene(Main *bmain,
       for (const PathValue &path_value : path_values) {
         /* Only updating existing channels. */
         if (existing_paths.contains(path_value.rna_path)) {
-          strip_data->keyframe_insert(
-              bmain,
-              slot,
-              {path_value.rna_path.path, path_value.rna_path.index.value()},
-              {1, path_value.value},
-              key_settings);
+          replace_pose_key(*bmain,
+                           *strip_data,
+                           slot,
+                           {pose_frame, path_value.value},
+                           {path_value.rna_path.path, path_value.rna_path.index.value()});
         }
       }
       break;
     }
     case MODIFY_ADD: {
       for (const PathValue &path_value : path_values) {
-        strip_data->keyframe_insert(bmain,
-                                    slot,
-                                    {path_value.rna_path.path, path_value.rna_path.index.value()},
-                                    {1, path_value.value},
-                                    key_settings);
+        replace_pose_key(*bmain,
+                         *strip_data,
+                         slot,
+                         {pose_frame, path_value.value},
+                         {path_value.rna_path.path, path_value.rna_path.index.value()});
       }
       break;
     }
@@ -566,11 +585,11 @@ static void update_pose_action_from_scene(Main *bmain,
       }
       channelbag->fcurves_clear();
       for (const PathValue &path_value : path_values) {
-        strip_data->keyframe_insert(bmain,
-                                    slot,
-                                    {path_value.rna_path.path, path_value.rna_path.index.value()},
-                                    {1, path_value.value},
-                                    key_settings);
+        replace_pose_key(*bmain,
+                         *strip_data,
+                         slot,
+                         {pose_frame, path_value.value},
+                         {path_value.rna_path.path, path_value.rna_path.index.value()});
       }
       break;
     }
