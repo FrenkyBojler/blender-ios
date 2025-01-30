@@ -143,7 +143,7 @@ TEST(std430, compositor_cryptomatte_matte_compute)
   def_attr<Std430>(shader::Type::FLOAT, 32, 12, 140, &offset);
 
   align_end_of_struct<Std430>(&offset);
-  EXPECT_EQ(offset, 140);
+  EXPECT_EQ(offset, 144);
 }
 
 }  // namespace blender::gpu
