@@ -511,6 +511,11 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
     const animrig::Slot &first_slot = *action.slot(0);
 
+    /* The forward-compat animation data we write is for IDs of the type that
+     * the first slot is intended for. Therefore, the Action should have that
+     * `idroot` when loaded in old versions of Blender. */
+    action.idroot = first_slot.idtype;
+
     /* Note: channel group forward-compat data requires that fcurve
      * forward-compat legacy data is also written, and vice-versa. Both have
      * pointers to each other that won't resolve properly when loaded in older
@@ -531,6 +536,10 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   write_slots(writer, action.slots());
 
   if (do_write_forward_compat) {
+    /* Set the idroot back to unspecified, as it always should be for layered
+     * Actions. */
+    action.idroot = 0;
+
     /* The pointers to the first/last FCurve in the `action.curves` have already
      * been written as part of the Action struct data, so they can be cleared
      * here, such that the code writing legacy fcurves below does nothing (as
@@ -687,6 +696,12 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
     /* Should never be stored as part of the forward-compatible data in a
      * layered action, and thus should always be empty here. */
     BLI_assert(BLI_listbase_is_empty(&action.chanbase));
+
+    /* Layered actions should always have `idroot == 0`, but when writing an
+     * action to a blend file `idroot` is typically set otherwise for forward
+     * compatibility reasons (see `action_blend_write()`). So we set it to zero
+     * here to put it back as it should be. */
+    action.idroot = 0;
   }
   else {
     /* Read legacy data. */
