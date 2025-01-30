@@ -249,6 +249,7 @@ void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata)
       drawArrow(pos_id, DOWN);
       break;
     }
+    case HLP_ERROR:
     case HLP_NONE:
       break;
   }
