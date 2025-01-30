@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'efff379ea583')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
+"POT-Creation-Date: 2025-01-27 10:58+0000\n"
 "PO-Revision-Date: 2024-11-23 15:56+0000\n"
 "Last-Translator: Kacper Madej <cacperkacper@yahoo.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -295,6 +295,10 @@ msgid "Active"
 msgstr "Aktywny"
 
 
+msgid "Show Expanded"
+msgstr "Pokaż rozwinięty"
+
+
 msgctxt "ID"
 msgid "Action"
 msgstr "Akcja"
@@ -488,10 +492,6 @@ msgstr "Obszar roboczy"
 msgctxt "ID"
 msgid "World"
 msgstr "Świat"
-
-
-msgid "Show Expanded"
-msgstr "Pokaż rozwinięty"
 
 
 msgid "Add-on"
@@ -13594,11 +13594,6 @@ msgstr "Indeks eksportera"
 
 
 msgctxt "Operator"
-msgid "Add Selected to Active Collection"
-msgstr "Dodaj zaznaczenie do aktywnej kolekcji"
-
-
-msgctxt "Operator"
 msgid "Remove from Collection"
 msgstr "Usuń z kolekcji"
 
@@ -17956,26 +17951,6 @@ msgid "Render settings"
 msgstr "Ustawienia renderowania"
 
 
-msgid "Move along X axis"
-msgstr "Przesuwaj wzdłuż osi X"
-
-
-msgid "Move along Y axis"
-msgstr "Przesuwaj wzdłuż osi Y"
-
-
-msgid "Rotate around image center"
-msgstr "Obróć wokół środka obrazu"
-
-
-msgid "Scale along X axis"
-msgstr "Skaluj wzdłuż osi X"
-
-
-msgid "Scale along Y axis"
-msgstr "Skaluj wzdłuż osi Y"
-
-
 msgid "Show Metadata"
 msgstr "Wyświetl metadane"
 
@@ -18763,6 +18738,26 @@ msgstr "Jednostka miary do przesuwania wejścia"
 
 msgid "Angle of the transition"
 msgstr "Kąt przejścia"
+
+
+msgid "Move along X axis"
+msgstr "Przesuwaj wzdłuż osi X"
+
+
+msgid "Move along Y axis"
+msgstr "Przesuwaj wzdłuż osi Y"
+
+
+msgid "Rotate around image center"
+msgstr "Obróć wokół środka obrazu"
+
+
+msgid "Scale along X axis"
+msgstr "Skaluj wzdłuż osi X"
+
+
+msgid "Scale along Y axis"
+msgstr "Skaluj wzdłuż osi Y"
 
 
 msgctxt "Light"
@@ -22572,20 +22567,8 @@ msgid "No Grease Pencil frame to draw on"
 msgstr "Brak ramki Grease Pencil, na której można rysować"
 
 
-msgid "Line: "
-msgstr "Linia: "
-
-
-msgid "Rectangle: "
-msgstr "Prostokąt: "
-
-
-msgid "Circle: "
-msgstr "Okrąg: "
-
-
-msgid "Curve: "
-msgstr "Krzywa: "
+msgid "Cancel"
+msgstr "Anuluj"
 
 
 msgid "Could not resolve path '%s'"
@@ -22802,10 +22785,6 @@ msgstr "Ponów"
 
 msgid "OK"
 msgstr "OK"
-
-
-msgid "Cancel"
-msgstr "Anuluj"
 
 
 msgid "Menu \"%s\" not found"
@@ -23352,10 +23331,6 @@ msgstr "Kula ico"
 
 msgid "Intersection Type"
 msgstr "Rodzaj przecięcia"
-
-
-msgid "LMB: Click and drag to draw cut line"
-msgstr "LPM: Kliknij i przeciągnij, aby narysować linię cięcia"
 
 
 msgid "Selected edges/faces required"
@@ -24570,10 +24545,6 @@ msgid "Action must have at least one keyframe or F-Modifier"
 msgstr "Akcja musi posiadać przynajmniej jedną klatkę kluczową lub modyfikator F"
 
 
-msgid "Action has already been stashed"
-msgstr "Akcja została już przytrzymana (stashed)"
-
-
 msgid "Keyframe pasting is not available for mask mode"
 msgstr "Wklejanie klatek kluczowych nie dostępne dla trybu maski"
 
@@ -24724,10 +24695,6 @@ msgstr "Nie zaznaczono plików do otwarcia"
 
 msgid "Cannot read '%s': %s"
 msgstr "Nie udało się odczytać '%s': %s"
-
-
-msgid "Use LMB click to define location where place the marker"
-msgstr "Użyj LPM klik do zdefiniowania pozycji markera"
 
 
 msgid "Delete selected tracks?"
@@ -25236,22 +25203,6 @@ msgstr "Nie odnaleziono maski"
 
 msgid "File '%s' could not be loaded"
 msgstr "Plik '%s' nie mógł być załadowany"
-
-
-msgid "Cannot apply effects to audio sequence strips"
-msgstr "Nie można zaaplikować efektów na dźwiękowe paski sekwencji"
-
-
-msgid "At least one selected sequence strip is needed"
-msgstr "Potrzebne są przynajmniej dwa zaznaczone paski sekwencji"
-
-
-msgid "2 selected sequence strips are needed"
-msgstr "Potrzebne są 2 zaznaczone paski sekwencji"
-
-
-msgid "TODO: in what cases does this happen?"
-msgstr "TODO: w jakich przypadkach tak się dzieje?"
 
 
 msgid "No valid inputs to swap"
@@ -26477,32 +26428,8 @@ msgid "Modifier was not found in the stack"
 msgstr "Nie odnaleziono modyfikatora w stosie"
 
 
-msgid "Sequences.new_sound: unable to open sound file"
-msgstr "Sequences.new_sound: otwarcie pliku dźwiękowego niemożliwe"
-
-
 msgid "Blender compiled without Audaspace support"
 msgstr "Kompilacja Blendera nastąpiła bez wspomagania Audaspace"
-
-
-msgid "Sequences.new_effect: end frame not set"
-msgstr "Sequences.new_effect: nie ustawiono klatki końcowej"
-
-
-msgid "Sequences.new_effect: effect takes 1 input sequence"
-msgstr "Sequences.new_effect: efekt używa 1 sekwencji źródłowej"
-
-
-msgid "Sequences.new_effect: effect takes 2 input sequences"
-msgstr "Sequences.new_effect: efekt używa 2 sekwencji źródłowych"
-
-
-msgid "SequenceElements.pop: cannot pop the last element"
-msgstr "SequenceElements.pop: nie można usunąć (pop) ostatniego elementu"
-
-
-msgid "SequenceElements.pop: index out of range"
-msgstr "SequenceElements.pop: indeks spoza zakresu"
 
 
 msgid "Sound not packed"

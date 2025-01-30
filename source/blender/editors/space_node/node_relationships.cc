@@ -218,7 +218,7 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
 
   /* Always allow linking to an reroute node. The socket type of the reroute sockets might change
    * after the link has been created. */
-  if (node->type_legacy == NODE_REROUTE) {
+  if (node->is_reroute()) {
     return (bNodeSocket *)node->outputs.first;
   }
 
@@ -739,7 +739,7 @@ static int view_socket(const bContext &C,
   /* Try to find a viewer that is already active. */
   for (bNode *node : btree.all_nodes()) {
     if (is_viewer_node(*node)) {
-      if (node->flag & NODE_DO_OUTPUT) {
+      if (node->flag & NODE_DO_OUTPUT && node->custom1 == NODE_VIEWER_SHORTCUT_NONE) {
         viewer_node = node;
         break;
       }
@@ -759,7 +759,7 @@ static int view_socket(const bContext &C,
 
   if (viewer_node == nullptr) {
     for (bNode *node : btree.all_nodes()) {
-      if (is_viewer_node(*node)) {
+      if (is_viewer_node(*node) && node->custom1 == NODE_VIEWER_SHORTCUT_NONE) {
         viewer_node = node;
         break;
       }
@@ -1914,7 +1914,7 @@ static int node_parent_set_exec(bContext *C, wmOperator * /*op*/)
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
   bNode *frame = bke::node_get_active(&ntree);
-  if (!frame || frame->type_legacy != NODE_FRAME) {
+  if (!frame || !frame->is_frame()) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2437,7 +2437,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     best_output = get_main_socket(ntree, *node_to_insert, SOCK_OUT);
   }
 
-  if (node_to_insert->type_legacy != NODE_REROUTE) {
+  if (!node_to_insert->is_reroute()) {
     /* Ignore main sockets when the types don't match. */
     if (best_input != nullptr && ntree.typeinfo->validate_link != nullptr &&
         !ntree.typeinfo->validate_link(static_cast<eNodeSocketDatatype>(old_link->fromsock->type),
@@ -2719,7 +2719,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     /* check nodes front to back */
     for (bNode *frame : tree_draw_order_calc_nodes_reversed(*ntree)) {
       /* skip selected, those are the nodes we want to attach */
-      if ((frame->type_legacy != NODE_FRAME) || (frame->flag & NODE_SELECT)) {
+      if (!frame->is_frame() || (frame->flag & NODE_SELECT)) {
         continue;
       }
 

@@ -536,7 +536,7 @@ class AnimDataConvertor {
         this->animdata_dst = BKE_animdata_ensure_id(&this->id_dst);
       }
       auto actions_idroot_ensure = [&](bAction &action) -> bool {
-        action.idroot = GS(this->id_dst.name);
+        BKE_animdata_action_ensure_idroot(&this->id_dst, &action);
         return true;
       };
       this->animdata_action_foreach(*this->animdata_dst, actions_idroot_ensure);
@@ -1592,7 +1592,7 @@ static void legacy_object_modifier_influence(GreasePencilModifierInfluenceData &
 {
   influence.flag = 0;
 
-  layername.copy(influence.layer_name);
+  layername.copy_utf8_truncated(influence.layer_name);
   if (invert_layer) {
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_LAYER_FILTER;
   }
@@ -1619,7 +1619,7 @@ static void legacy_object_modifier_influence(GreasePencilModifierInfluenceData &
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_MATERIAL_PASS_FILTER;
   }
 
-  vertex_group_name.copy(influence.vertex_group_name);
+  vertex_group_name.copy_utf8_truncated(influence.vertex_group_name);
   if (invert_vertex_group) {
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_VERTEX_GROUP;
   }

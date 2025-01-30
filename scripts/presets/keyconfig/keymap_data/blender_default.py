@@ -1397,6 +1397,8 @@ def km_uv_editor(params):
          {"properties": [("clear", False)]}),
         ("uv.pin", {"type": 'P', "value": 'PRESS', "alt": True},
          {"properties": [("clear", True)]}),
+        ("uv.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
+        ("uv.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
         op_menu("IMAGE_MT_uvs_unwrap", {"type": 'U', "value": 'PRESS'}),
         (
             op_menu_pie("IMAGE_MT_uvs_snap_pie", {"type": 'S', "value": 'PRESS', "shift": True})
@@ -2275,6 +2277,34 @@ def km_node_editor(params):
         ("wm.context_toggle", {"type": 'Z', "value": 'PRESS', "alt": True, "shift": True},
          {"properties": [("data_path", "space_data.overlay.show_overlays")]}),
         *_template_items_context_menu("NODE_MT_context_menu", params.context_menu_event),
+        # Viewer shortcuts.
+        ("node.viewer_shortcut_get", {"type": 'ONE', "value": 'PRESS'}, {"properties": [("viewer_index", 1)]}),
+        ("node.viewer_shortcut_set", {"type": 'ONE', "value": 'PRESS',
+         'ctrl': True}, {"properties": [("viewer_index", 1)]}),
+        ("node.viewer_shortcut_get", {"type": 'TWO', "value": 'PRESS'}, {"properties": [("viewer_index", 2)]}),
+        ("node.viewer_shortcut_set", {"type": 'TWO', "value": 'PRESS',
+         'ctrl': True}, {"properties": [("viewer_index", 2)]}),
+        ("node.viewer_shortcut_get", {"type": 'THREE', "value": 'PRESS'}, {"properties": [("viewer_index", 3)]}),
+        ("node.viewer_shortcut_set", {"type": 'THREE', "value": 'PRESS', 'ctrl': True},
+         {"properties": [("viewer_index", 3)]}),
+        ("node.viewer_shortcut_get", {"type": 'FOUR', "value": 'PRESS'}, {"properties": [("viewer_index", 4)]}),
+        ("node.viewer_shortcut_set", {"type": 'FOUR', "value": 'PRESS', 'ctrl': True},
+         {"properties": [("viewer_index", 4)]}),
+        ("node.viewer_shortcut_get", {"type": 'FIVE', "value": 'PRESS'}, {"properties": [("viewer_index", 5)]}),
+        ("node.viewer_shortcut_set", {"type": 'FIVE', "value": 'PRESS', 'ctrl': True},
+         {"properties": [("viewer_index", 5)]}),
+        ("node.viewer_shortcut_get", {"type": 'SIX', "value": 'PRESS'}, {"properties": [("viewer_index", 6)]}),
+        ("node.viewer_shortcut_set", {"type": 'SIX', "value": 'PRESS', 'ctrl': True},
+         {"properties": [("viewer_index", 6)]}),
+        ("node.viewer_shortcut_get", {"type": 'SEVEN', "value": 'PRESS'}, {"properties": [("viewer_index", 7)]}),
+        ("node.viewer_shortcut_set", {"type": 'SEVEN', "value": 'PRESS', 'ctrl': True},
+         {"properties": [("viewer_index", 7)]}),
+        ("node.viewer_shortcut_get", {"type": 'EIGHT', "value": 'PRESS'}, {"properties": [("viewer_index", 8)]}),
+        ("node.viewer_shortcut_set", {"type": 'EIGHT', "value": 'PRESS', 'ctrl': True},
+         {"properties": [("viewer_index", 8)]}),
+        ("node.viewer_shortcut_get", {"type": 'NINE', "value": 'PRESS'}, {"properties": [("viewer_index", 9)]}),
+        ("node.viewer_shortcut_set", {"type": 'NINE', "value": 'PRESS', 'ctrl': True},
+         {"properties": [("viewer_index", 9)]}),
     ])
 
     return keymap
@@ -3845,11 +3875,17 @@ def km_grease_pencil_paint_mode(params):
              "ctrl": True}, {"properties": [("use_selection", False)]}),
             (op_tool_cycle, "builtin.interpolate"), params),
         ("grease_pencil.interpolate_sequence", {"type": 'E', "value": 'PRESS',
-         "shift": True, "ctrl": True}, None),
+         "shift": True, "ctrl": True}, {"properties": [("use_selection", False)]}),
 
         # Lasso/Box erase
         ("grease_pencil.erase_lasso", {"type": 'RIGHTMOUSE', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("grease_pencil.erase_box", {"type": "B", "value": 'PRESS'}, {"properties": [("wait_for_input", True)]}),
+        # Brush size
+        ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
+         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.size")]}),
+        # Brush strength
+        ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
+         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.strength")]}),
 
         *_template_asset_shelf_popup("VIEW3D_AST_brush_gpencil_paint", params.spacebar_action),
 
@@ -3875,12 +3911,6 @@ def km_grease_pencil_brush_stroke(_params):
          {"properties": [("mode", 'SMOOTH')]}),
         ("grease_pencil.brush_stroke", {"type": 'ERASER', "value": 'PRESS'},
          {"properties": [("mode", 'ERASE')]}),
-        # Brush size
-        ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.size")]}),
-        # Brush strength
-        ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
-         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.strength")]}),
         # Increase/Decrease brush size
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
@@ -4009,7 +4039,7 @@ def km_grease_pencil_edit_mode(params):
              "ctrl": True}, {"properties": [("use_selection", True)]}),
             (op_tool_cycle, "builtin.interpolate"), params),
         ("grease_pencil.interpolate_sequence", {"type": 'E', "value": 'PRESS',
-         "shift": True, "ctrl": True}, None),
+         "shift": True, "ctrl": True}, {"properties": [("use_selection", True)]}),
     ])
 
     return keymap
@@ -4076,6 +4106,10 @@ def km_grease_pencil_sculpt_mode(params):
 
         # Active layer
         op_menu("GREASE_PENCIL_MT_layer_active", {"type": 'Y', "value": 'PRESS'}),
+
+        # Auto-masking menu.
+        op_menu_pie("VIEW3D_MT_grease_pencil_sculpt_automasking_pie", {
+                    "type": 'A', "value": 'PRESS', "shift": True, "alt": True}),
 
         *_template_paint_radial_control("gpencil_sculpt_paint"),
         *_template_asset_shelf_popup("VIEW3D_AST_brush_gpencil_sculpt", params.spacebar_action),

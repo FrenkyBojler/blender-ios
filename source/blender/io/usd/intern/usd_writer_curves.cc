@@ -25,6 +25,7 @@
 #include "BLI_span.hh"
 #include "BLI_virtual_array.hh"
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
@@ -339,9 +340,9 @@ void USDCurvesWriter::set_writer_attributes_for_nurbs(
 }
 
 void USDCurvesWriter::set_writer_attributes(pxr::UsdGeomCurves &usd_curves,
-                                            const pxr::VtArray<pxr::GfVec3f> &verts,
-                                            const pxr::VtIntArray &control_point_counts,
-                                            const pxr::VtArray<float> &widths,
+                                            pxr::VtArray<pxr::GfVec3f> &verts,
+                                            pxr::VtIntArray &control_point_counts,
+                                            pxr::VtArray<float> &widths,
                                             const pxr::UsdTimeCode timecode,
                                             const pxr::TfToken interpolation)
 {
@@ -636,6 +637,8 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
 
   auto prim = usd_curves->GetPrim();
   write_id_properties(prim, curves_id->id, timecode);
+
+  this->author_extent(*usd_curves, curves.bounds_min_max(), timecode);
 }
 
 void USDCurvesWriter::assign_materials(const HierarchyContext &context,

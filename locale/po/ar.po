@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'efff379ea583')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
+"POT-Creation-Date: 2025-01-27 10:58+0000\n"
 "PO-Revision-Date: 2024-04-29 13:28+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Arabic <https://translate.blender.org/projects/blender-ui/ui/ar/>\n"
@@ -15904,6 +15904,10 @@ msgid "Material slot name"
 msgstr "ﺔﻣﺎﺨﻟﺍ ﺔﺤﺘﻓ ﻢﺳﺇ"
 
 
+msgid "Names"
+msgstr "ءﺎﻤﺳﺃ"
+
+
 msgid "Bone Roll"
 msgstr "ﺔﻤﻈﻌﻟﺍ ءﺍﻮﺘﻟﺍ"
 
@@ -15914,10 +15918,6 @@ msgstr "ﻱﺫﺎﺣ"
 
 msgid "Proportional Editing Falloff"
 msgstr "ﻲﺒﺴﻨﻟﺍ ﺮﻳﺮﺤﺘﻟﺍ ﻲﺷﻼ﻿ﺗ"
-
-
-msgid "Names"
-msgstr "ءﺎﻤﺳﺃ"
 
 
 msgid "Mirror"
@@ -32334,72 +32334,12 @@ msgid "Disable or enable the render view"
 msgstr "ﺮﻴﻴﺼﺘﻟﺍ ﺮﻈﻨﻣ ﻞﻄّﻋ ﻭﺃ ﻞﻌّﻓ"
 
 
-msgid "Sequence Color Balance Data"
-msgstr "ﻞﺴﻠﺴﺘﻠﻟ ﻥﻮﻠﻟﺍ ﻥﺯﺍﻮﺗ ﺕﺎﻧﺎﻴﺑ"
-
-
-msgid "Sequence Crop"
-msgstr "ﻞﺴﻠﺴﺘﻟﺍ ﺺﻗ"
-
-
 msgid "Sequencer's active strip"
 msgstr "ﻂﺋﺍﺮﺸﻟﺍ ﺭﺮﺤﻤﻟ ﻝﺎﻌﻔﻟﺍ ﻂﻳﺮﺸﻟﺍ"
 
 
 msgid "Proxy Directory"
 msgstr "ﺏﻭﺪﻨﻤﻟﺍ ﺭﺎﺴﻣ"
-
-
-msgid "All Sequences"
-msgstr "ﺕﻼ﻿ﺴﻠﺴﺘﻟﺍ ﻞﻛ"
-
-
-msgid "Mask Strip"
-msgstr "ﻉﺎﻨﻗ ﻂﻳﺮﺷ"
-
-
-msgid "Strip used as mask input for the modifier"
-msgstr "ﺮﻴّﻐﻤﻠﻟ ﻉﺎﻨﻘﻟﺍ ﻞﺧﺪﻛ ﻡﺪﺨﺘﺴﻤﻟﺍ ﻂﻳﺮﺸﻟﺍ"
-
-
-msgid "Mask Input Type"
-msgstr "ﻉﺎﻨﻘﻟﺍ ﻞﺧﺩ ﻉﻮﻧ"
-
-
-msgid "Type of input data used for mask"
-msgstr "ﻉﺎﻨﻘﻠﻟ ﺔﻣﺪﺨﺘﺴﻤﻟﺍ ﻝﺎﺧﺩﻻ﻿ﺍ ﺕﺎﻧﺎﻴﺑ ﻉﻮﻧ"
-
-
-msgid "Use mask ID as mask input"
-msgstr "ﻉﺎﻨﻘﻟﺍ ﻞﺧﺪﻛ ﻉﺎﻨﻘﻟﺍ ﻑﺮﻌﻣ ﻡﺪﺨﺘﺳﺍ"
-
-
-msgid "Mute this modifier"
-msgstr "ﺮﻴّﻐﻤﻟﺍ ﺍﺬﻫ ﺊﻔﻃﺃ"
-
-
-msgid "Mute expanded settings for the modifier"
-msgstr "ﺮﻴّﻐﻤﻠﻟ ﺔﺣﻮﺘﻔﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﻻ﻿ﺍ ﺊﻔﻃﺍ"
-
-
-msgid "Multiply Colors"
-msgstr "ﻥﺍﻮﻟﻻ﻿ﺍ ﻒﻋﺎﺿ"
-
-
-msgid "Overwrite existing proxy files when building"
-msgstr "ءﺎﻨﺒﻟﺍ ﺪﻨﻋ ﺓﺪﺟﺍﻮﺘﻤﻟﺍ ﺏﻭﺪﻨﻤﻟﺍ ﺕﺎﻔﻠﻣ ﻝﺪﺒﺘﺳﺇ"
-
-
-msgid "Use a custom directory to store data"
-msgstr "ﺕﺎﻧﺎﻴﺒﻟﺍ ﻦﻳﺰﺨﺘﻟ ﺺﺼﺨﻣ ﺪﻠﺠﻣ ﻡﺪﺨﺘﺳﺍ"
-
-
-msgid "Translate X"
-msgstr "X ﺡﺯﺇ"
-
-
-msgid "Translate Y"
-msgstr "Y ﺡﺯﺇ"
 
 
 msgid "Show Cache"
@@ -33014,10 +32954,6 @@ msgid "Use Linear Modifiers"
 msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﻞﺒﻗ ﻦﻣ ﻝﺪﻌﻣ"
 
 
-msgid "Effect Sequence"
-msgstr "ﺮﻴﺛﺄﺘﻟﺍ ﻞﺴﻠﺴﺗ"
-
-
 msgid "Representation of alpha information in the RGBA pixels"
 msgstr "ﺔﻴﻓﺎﻔﺸﻟﺍ ﻭ ﻥﺍﻮﻟﻷ﻿ﺍ ﺕﻼ﻿ﺴﻜﺑ ﻲﻓ ﺎﻔﻟﻷ﻿ﺍ ﺕﺎﻣﻮﻠﻌﻣ ﻞﻴﺜﻤﺗ"
 
@@ -33028,6 +32964,10 @@ msgstr "ﺎﻔﻟﻷ﻿ﺍ ﺓﺎﻨﻗ ﻲﻓ ﻒﻋﺎﻀﺗ ﺔﻓﺎﻔﺷ �
 
 msgid "RGB channels in transparent pixels are multiplied by the alpha channel"
 msgstr "ﺎﻔﻟﻷ﻿ﺍ ﺓﺎﻨﻗ ﻲﻓ ﻒﻋﺎﻀﺗ ﺔﻓﺎﻔﺷ ﻥﺍﻮﻟﺃ ﺕﻼ﻿ﺴﻜﺑ"
+
+
+msgid "Multiply Colors"
+msgstr "ﻥﺍﻮﻟﻻ﻿ﺍ ﻒﻋﺎﺿ"
 
 
 msgid "Strobe"
@@ -33054,10 +32994,6 @@ msgid "Reverse Frames"
 msgstr "ﺮﻃﻷ﻿ﺍ ﺲﻜﻋﺇ"
 
 
-msgid "Add Sequence"
-msgstr "ﻞﺴﻠﺴﺗ ﻒﺿﺍ"
-
-
 msgid "Animation End Offset"
 msgstr "ﻙﺮﺤﺘﻟﺍ ﺔﻳﺎﻬﻧ ﺔﺣﺍﺯﺍ"
 
@@ -33074,28 +33010,8 @@ msgid "Animation start offset (trim start)"
 msgstr "(ﺔﻳﺍﺪﺒﻟﺍ ﺺﻗ) ﻙﺮﺤﺘﻟﺍ ﺔﻳﺍﺪﺑ ﺔﺣﺍﺯﺍ"
 
 
-msgid "Alpha Over Sequence"
-msgstr "ﻕﻮﻓ ﺎﻔﻟﺍ ﻞﺴﻠﺴﺗ"
-
-
-msgid "Alpha Under Sequence"
-msgstr "ﺖﺤﺗ ﺎﻔﻟﺍ ﻞﺴﻠﺴﺗ"
-
-
-msgid "Color Sequence"
-msgstr "ﻥﻮﻠﻟﺍ ﻞﺴﻠﺴﺗ"
-
-
 msgid "Cross Sequence"
 msgstr "ﻊﻃﺎﻘﻟﺍ ﻞﺴﻠﺴﺗ"
-
-
-msgid "Gamma Cross Sequence"
-msgstr "ﺓﺭﺎﻧﻻ﻿ﺍ ﻊﻃﺎﻗ ﻞﺴﻠﺴﺗ"
-
-
-msgid "Glow Sequence"
-msgstr "ﺞﻫﻮﻟﺍ ﻞﺴﻠﺴﺗ"
 
 
 msgid "Blur Distance"
@@ -33126,24 +33042,8 @@ msgid "Sequence strip to perform multicam editing"
 msgstr "ﺓﺩﺪﻌﺘﻣ ﺕﺍﺮﻴﻤﻛ ﺮﻳﺮﺤﺘﺑ ﻡﺎﻴﻘﻠﻟ ﻞﺴﻠﺴﺗ ﻂﻳﺮﺷ"
 
 
-msgid "Multiply Sequence"
-msgstr "ﻒﻋﺎﻀﺘﻟﺍ ﻞﺴﻠﺴﺗ"
-
-
-msgid "Over Drop Sequence"
-msgstr "ﻕﻮﻓ ﺖﻠﻓﺍ ﻞﺴﻠﺴﺗ"
-
-
 msgid "Sequence strip to control the speed of other strips"
 msgstr "ﻯﺮﺧﻻ﻿ﺍ ﺔﻃﺮﺷﻻ﻿ﺍ ﺔﻋﺮﺴﺑ ﻢﻜﺤﺘﻤﻟﺍ ﻞﺴﻠﺴﺘﻟﺍ ﻂﻳﺮﺷ"
-
-
-msgid "Subtract Sequence"
-msgstr "ﺡﺮﻃ ﻞﺴﻠﺴﺗ"
-
-
-msgid "Text Sequence"
-msgstr "ﻞﺴﻠﺴﺗ ﺺﻧ"
 
 
 msgid "Sequence strip creating text"
@@ -33158,10 +33058,6 @@ msgid "Outline Width"
 msgstr "ﻂﻴﺤﻤﻟﺍ ﻂﺨﻟﺍ ﺽﺮﻋ"
 
 
-msgid "Transform Sequence"
-msgstr "ﻝﻮّﺤﺗ ﻞﺴﻠﺴﺗ"
-
-
 msgid "Bilinear interpolation"
 msgstr "ﻲﻄﺧ ﺪﻴﻟﻮﺗ"
 
@@ -33170,12 +33066,16 @@ msgid "Bicubic interpolation"
 msgstr "ﻲﺒﻴﻌﻜﺗ ﺪﻴﻟﻮﺗ"
 
 
+msgid "Translate X"
+msgstr "X ﺡﺯﺇ"
+
+
+msgid "Translate Y"
+msgstr "Y ﺡﺯﺇ"
+
+
 msgid "Translation Unit"
 msgstr "ﺔﺣﺍﺯﻹ﻿ﺍ ﺓﺪﺣﻭ"
-
-
-msgid "Wipe Sequence"
-msgstr "ﺢﺴﻤﻟﺍ ﻞﺴﻠﺴﺗ"
 
 
 msgid "Sequence strip creating a wipe transition"
@@ -33186,16 +33086,8 @@ msgid "Blur Width"
 msgstr "ﺏﺎﺒﻀﻟﺍ ﺽﺮﻋ"
 
 
-msgid "Mask Sequence"
-msgstr "ﻉﺎﻨﻘﻟﺍ ﻞﺴﻠﺴﺗ"
-
-
-msgid "Meta Sequence"
-msgstr "ﻊﻤّﺠﺗ ﻞﺴﻠﺴﺗ"
-
-
-msgid "MovieClip Sequence"
-msgstr "ﻢﻠﻔﻟﺍ ﺔﺻﺎﺼﻗ ﻞﺴﻠﺴﺗ"
+msgid "Mask Strip"
+msgstr "ﻉﺎﻨﻗ ﻂﻳﺮﺷ"
 
 
 msgid "Sequence strip to load a video from the clip editor"
@@ -33214,28 +33106,48 @@ msgid "Use the undistorted version of the clip"
 msgstr "ﺔﺻﺎﺼﻘﻠﻟ ﺔﻫﻮّﺸﻣ ﺮﻴﻐﻟﺍ ﺔﺨﺴﻨﻟﺍ ﻡﺪﺨﺘﺳﺍ"
 
 
-msgid "Movie Sequence"
-msgstr "ﻢﻠﻔﻟﺍ ﻞﺴﻠﺴﺗ"
-
-
 msgid "Stream Index"
 msgstr "ﻖﻓﺪﺘﻟﺍ ﺮﺷﺆﻣ"
-
-
-msgid "Scene Sequence"
-msgstr "ﺪﻬﺸﻤﻟﺍ ﻞﺴﻠﺴﺗ"
 
 
 msgid "Camera Override"
 msgstr "ﺍﺮﻴﻣﺎﻜﻟﺍ ﺯﻭﺎﺠﺗ"
 
 
-msgid "Sound Sequence"
-msgstr "ﺕﻮﺼﻟﺍ ﻞﺴﻠﺴﺗ"
-
-
 msgid "Sequence strip defining a sound to be played over a period of time"
 msgstr "ﻦﻣﺰﻟﺍ ﻦﻣ ﺓﺮﺘﻓ ﻰﻠﻋ ﺕﻮﺼﻟﺍ ﺽﺮﻋ ﻒﻳﺮﻌﺘﻟ ﻞﺴﻠﺴﺗ ﻂﻳﺮﺷ"
+
+
+msgid "Strip used as mask input for the modifier"
+msgstr "ﺮﻴّﻐﻤﻠﻟ ﻉﺎﻨﻘﻟﺍ ﻞﺧﺪﻛ ﻡﺪﺨﺘﺴﻤﻟﺍ ﻂﻳﺮﺸﻟﺍ"
+
+
+msgid "Mask Input Type"
+msgstr "ﻉﺎﻨﻘﻟﺍ ﻞﺧﺩ ﻉﻮﻧ"
+
+
+msgid "Type of input data used for mask"
+msgstr "ﻉﺎﻨﻘﻠﻟ ﺔﻣﺪﺨﺘﺴﻤﻟﺍ ﻝﺎﺧﺩﻻ﻿ﺍ ﺕﺎﻧﺎﻴﺑ ﻉﻮﻧ"
+
+
+msgid "Use mask ID as mask input"
+msgstr "ﻉﺎﻨﻘﻟﺍ ﻞﺧﺪﻛ ﻉﺎﻨﻘﻟﺍ ﻑﺮﻌﻣ ﻡﺪﺨﺘﺳﺍ"
+
+
+msgid "Mute this modifier"
+msgstr "ﺮﻴّﻐﻤﻟﺍ ﺍﺬﻫ ﺊﻔﻃﺃ"
+
+
+msgid "Mute expanded settings for the modifier"
+msgstr "ﺮﻴّﻐﻤﻠﻟ ﺔﺣﻮﺘﻔﻤﻟﺍ ﺕﺍﺩﺍﺪﻋﻻ﻿ﺍ ﺊﻔﻃﺍ"
+
+
+msgid "Overwrite existing proxy files when building"
+msgstr "ءﺎﻨﺒﻟﺍ ﺪﻨﻋ ﺓﺪﺟﺍﻮﺘﻤﻟﺍ ﺏﻭﺪﻨﻤﻟﺍ ﺕﺎﻔﻠﻣ ﻝﺪﺒﺘﺳﺇ"
+
+
+msgid "Use a custom directory to store data"
+msgstr "ﺕﺎﻧﺎﻴﺒﻟﺍ ﻦﻳﺰﺨﺘﻟ ﺺﺼﺨﻣ ﺪﻠﺠﻣ ﻡﺪﺨﺘﺳﺍ"
 
 
 msgid "X Mapping"
@@ -35587,11 +35499,6 @@ msgstr "(ﺮﻟﻮﻳ) ﻉﺎﻄﻘﻧﻻ﻿ﺍ ﻲﻔﺼﻣ"
 
 
 msgctxt "Operator"
-msgid "Stash"
-msgstr "ﻥﺰﺧ"
-
-
-msgctxt "Operator"
 msgid "More"
 msgstr "ﺮﺜﻛﺃ"
 
@@ -36874,6 +36781,10 @@ msgid "Nothing selected"
 msgstr "ﺭﺎﺘﺨﻣ ءﻲﺷ ﻻ﻿"
 
 
+msgid "Cancel"
+msgstr "ﻎﻟﺃ"
+
+
 msgid "Pin"
 msgstr "ﺖﺒّﺛ"
 
@@ -36977,10 +36888,6 @@ msgstr "ﻉﻮﻄﺴﻟﺍ"
 
 msgid "OK"
 msgstr "ﺎﻨﺴﺣ"
-
-
-msgid "Cancel"
-msgstr "ﻎﻟﺃ"
 
 
 msgid "Movie"

@@ -1453,7 +1453,7 @@ static wmOperator *wm_operator_create(wmWindowManager *wm,
   else {
     op->properties = blender::bke::idprop::create_group("wmOperatorProperties").release();
   }
-  *op->ptr = RNA_pointer_create(&wm->id, ot->srna, op->properties);
+  *op->ptr = RNA_pointer_create_discrete(&wm->id, ot->srna, op->properties);
 
   /* Initialize error reports. */
   if (reports) {
@@ -1897,7 +1897,7 @@ int WM_operator_name_call_with_properties(bContext *C,
                                           const wmEvent *event)
 {
   wmOperatorType *ot = WM_operatortype_find(opstring, false);
-  PointerRNA props_ptr = RNA_pointer_create(
+  PointerRNA props_ptr = RNA_pointer_create_discrete(
       &static_cast<wmWindowManager *>(G_MAIN->wm.first)->id, ot->srna, properties);
   return WM_operator_name_call_ptr(C, ot, context, &props_ptr, event);
 }
@@ -3182,6 +3182,11 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
   wmGizmoMap *gzmap = handler->gizmo_map;
   BLI_assert(gzmap != nullptr);
   wmGizmo *gz = wm_gizmomap_highlight_get(gzmap);
+
+  if (gz && ISMOUSE(event->type) && event->val == KM_PRESS) {
+    /* Remove any tooltips on mouse down. #83589 */
+    WM_tooltip_clear(C, CTX_wm_window(C));
+  }
 
   /* Needed so UI blocks over gizmos don't let events fall through to the gizmos,
    * noticeable for the node editor - where dragging on a node should move it, see: #73212.
