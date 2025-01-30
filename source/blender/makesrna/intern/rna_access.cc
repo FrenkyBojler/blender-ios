@@ -151,7 +151,8 @@ void rna_pointer_create_with_ancestors(const PointerRNA &parent,
   if (data) {
     if (type && type->flag & STRUCT_ID) {
       /* Currently, assume that an ID PointerRNA never has an ancestor.
-       * NOTE: This may beome an issue for embedded IDs in the future. */
+       * NOTE: This may become an issue for embedded IDs in the future, see also
+       * #PointerRNA::ancestors docs. */
       r_ptr = {static_cast<ID *>(data), type, data};
     }
     else {
@@ -210,6 +211,7 @@ PointerRNA RNA_pointer_create_with_ancestors(ID &id, StructRNA *type, void *data
 PointerRNA RNA_pointer_create_from_ancestor(const PointerRNA &ptr, const int ancestor_idx)
 {
   if (ancestor_idx >= ptr.ancestors.size()) {
+    BLI_assert_unreachable();
     return {};
   }
 

@@ -605,7 +605,8 @@ PropertyDefRNA *rna_find_struct_property_def(StructRNA *srna, PropertyRNA *prop)
  * Internal implementation for #RNA_pointer_create_with_ancestors.
  *
  * Only exposed to RNA code because custom collection lookup functions get an existing PointerRNA
- * data to modify, instead of returning a new one. */
+ * data to modify, instead of returning a new one.
+ */
 void rna_pointer_create_with_ancestors(const PointerRNA &parent,
                                        StructRNA *type,
                                        void *data,

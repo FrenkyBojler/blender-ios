@@ -58,12 +58,20 @@ struct PointerRNA {
    * E.g. Parsing `vgroup = C.object.data.vertices[0].groups[0]` would result in the PointerRNA of
    * `vgroup` having two ancestors: `vertices[0]` and `data` (aka the Mesh ID).
    *
-   * For PointerRNA of IDs, this should always be empty (TODO: unless maybe for embedded IDs? But
-   * should not be needed currently).
+   * By definition, PointerRNA of IDs are currently always 'discrete', i.e. do not have ancestors
+   * information, since an ID PointerRNA should always be its own root.
+   *
+   * \note: Currently, it is assumed that embedded or evaluated IDs can also be discrete
+   * PointerRNA. This should be fine, since they should all have their 'owner ID' or 'orig ID'
+   * pointer info. This may become a problem e.g. if in the future we allow embedded IDs into
+   * sub-structs of IDs.
    *
    * There is no guarantee that this chain is always (fully) valid and will lead to the root owner
    * of the wrapped data (an ID). Depending on how the PointerRNA was created, and the available
-   * information at that time, it could be empty or only feature a partial ancestors chain.
+   * information at that time, it could be empty or only feature a partial ancestors chain. This
+   * can happen if the initial pointer is created as discrete (e.g. from an operator that does not
+   * have access to/knowledge of the whole ancestor chain), and a sub-struct is accessed through
+   * regular RNA property access (like a call to RNA_property_pointer_get etc.).
    */
   blender::Vector<AncestorPointerRNA, ANCESTOR_POINTERRNA_DEFAULT_SIZE> ancestors = {};
 

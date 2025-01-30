@@ -4161,6 +4161,33 @@ static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
   return Py_NewRef(ret_default);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_struct_get_ancestors_doc,
+    ".. method:: rna_ancestors()\n"
+    "\n"
+    "   Return the chain of data containing this struct, if known.\n"
+    "   The first item is the root (typically an ID), the last one is the immediate parent.\n"
+    "   May be empty.\n"
+    "\n"
+    "   :return: a list of this object's ancestors.\n"
+    "   :rtype: list[:class:`bpy.types.bpy_struct`]\n");
+static PyObject *pyrna_struct_get_ancestors(BPy_DummyPointerRNA *self)
+{
+  PyObject *ret;
+  const int ancestors_num(self->ptr->ancestors.size());
+
+  ret = PyList_New(ancestors_num);
+
+  for (int i = 0; i < ancestors_num; i++) {
+    PointerRNA ancestor_ptr = RNA_pointer_create_from_ancestor(self->ptr.value(), i);
+    PyObject *ancestor = pyrna_struct_CreatePyObject(&ancestor_ptr);
+    PyList_SET_ITEM(ret, i, ancestor);
+  }
+
+  return ret;
+}
+
 static void pyrna_dir_members_py__add_keys(PyObject *list, PyObject *dict)
 {
   PyObject *list_tmp;
@@ -5030,28 +5057,6 @@ static PyObject *pyrna_struct_get_id_data(BPy_DummyPointerRNA *self, void * /*cl
 
 PyDoc_STRVAR(
     /* Wrap. */
-    pyrna_struct_get_ancestors_doc,
-    "The chain of data containing this struct, if known. May be empty. *type* "
-    ":class:`bpy.types.bpy_struct`");
-static PyObject *pyrna_struct_get_ancestors(BPy_DummyPointerRNA *self, void * /*closure*/)
-{
-  PyObject *ret;
-
-  /* Include this in case this instance is a subtype of a Python class
-   * In these instances we may want to return a function or variable provided by the subtype. */
-  ret = PyList_New(0);
-
-  for (int ancestor_idx = 0; ancestor_idx < self->ptr->ancestors.size(); ancestor_idx++) {
-    PointerRNA ancestor_ptr = RNA_pointer_create_from_ancestor(self->ptr.value(), ancestor_idx);
-    PyObject *ancestor = pyrna_struct_CreatePyObject(&ancestor_ptr);
-    PyList_APPEND(ret, ancestor);
-  }
-
-  return ret;
-}
-
-PyDoc_STRVAR(
-    /* Wrap. */
     pyrna_struct_get_data_doc,
     "The data this property is using, *type* :class:`bpy.types.bpy_struct`");
 static PyObject *pyrna_struct_get_data(BPy_DummyPointerRNA *self, void * /*closure*/)
@@ -5079,11 +5084,6 @@ static PyGetSetDef pyrna_prop_getseters[] = {
      (setter) nullptr,
      pyrna_struct_get_id_data_doc,
      nullptr},
-    {"rna_ancestors",
-     (getter)pyrna_struct_get_ancestors,
-     (setter) nullptr,
-     pyrna_struct_get_ancestors_doc,
-     nullptr},
     {"data", (getter)pyrna_struct_get_data, (setter) nullptr, pyrna_struct_get_data_doc, nullptr},
     {"rna_type",
      (getter)pyrna_struct_get_rna_type,
@@ -5098,11 +5098,6 @@ static PyGetSetDef pyrna_struct_getseters[] = {
      (getter)pyrna_struct_get_id_data,
      (setter) nullptr,
      pyrna_struct_get_id_data_doc,
-     nullptr},
-    {"rna_ancestors",
-     (getter)pyrna_struct_get_ancestors,
-     (setter) nullptr,
-     pyrna_struct_get_ancestors_doc,
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
@@ -6168,6 +6163,10 @@ static PyMethodDef pyrna_struct_methods[] = {
      (PyCFunction)pyrna_struct_bl_rna_get_subclass,
      METH_VARARGS | METH_CLASS,
      pyrna_struct_bl_rna_get_subclass_doc},
+    {"rna_ancestors",
+     (PyCFunction)pyrna_struct_get_ancestors,
+     METH_NOARGS,
+     pyrna_struct_get_ancestors_doc},
     {"__dir__", (PyCFunction)pyrna_struct_dir, METH_NOARGS, nullptr},
     {"id_properties_ensure",
      (PyCFunction)pyrna_struct_id_properties_ensure,
@@ -6207,6 +6206,10 @@ static PyMethodDef pyrna_prop_methods[] = {
      pyrna_prop_path_from_id_doc},
     {"as_bytes", (PyCFunction)pyrna_prop_as_bytes, METH_NOARGS, pyrna_prop_as_bytes_doc},
     {"update", (PyCFunction)pyrna_prop_update, METH_NOARGS, pyrna_prop_update_doc},
+    {"rna_ancestors",
+     (PyCFunction)pyrna_struct_get_ancestors,
+     METH_NOARGS,
+     pyrna_struct_get_ancestors_doc},
     {"__dir__", (PyCFunction)pyrna_prop_dir, METH_NOARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };

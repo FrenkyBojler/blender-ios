@@ -108,20 +108,21 @@ class TestRnaAncestors(unittest.TestCase):
         def process_pointer_property(self, p_data, ancestors_sub):
             if not p_data:
                 return
-            if not p_data.rna_ancestors:
+            rna_ancestors = p_data.rna_ancestors();
+            if not rna_ancestors:
                 # Do not error for now. Only ensure that if there is a rna_ancestors array, it is valid.
                 return
-            if repr(p_data.rna_ancestors[0]) != ancestors_sub[0]:
+            if repr(rna_ancestors[0]) != ancestors_sub[0]:
                 # Do not error for now. There are valid cases wher the data is 'rebased' on a new 'root' ID.
                 return
             if repr(p_data) in ancestors_sub:
                 # Loop back onto itself, skip.
-                # E.g. Scene.view_layer.depsgraph.view_layer.
+                # E.g. `Scene.view_layer.depsgraph.view_layer`.
                 return
             self.process_rna_struct(p_data, ancestors_sub)
 
         print(struct, "from", ancestors)
-        self.assertEqual([repr(a) for a in struct.rna_ancestors], ancestors)
+        self.assertEqual([repr(a) for a in struct.rna_ancestors()], ancestors)
 
         ancestors_sub = ancestors + [repr(struct)]
 

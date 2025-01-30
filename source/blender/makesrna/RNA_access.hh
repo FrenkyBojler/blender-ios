@@ -49,12 +49,9 @@ PointerRNA RNA_main_pointer_create(Main *main);
 /**
  * Create a PointerRNA for an ID.
  *
- * \note By definition, currently these are always 'discrete', i.e. do not have ancestors
- * information, since an ID PointerRNA should always be its own root.
+ * \note By definition, currently these are always 'discrete' (have no ancestors). See
+ * #PointerRNA::ancestors for details.
  */
-/* TODO: Validate that embedded IDs can also be discrete PointerRNA (should be the case, since they
- * should all have their 'owner ID' pointer info). This may become a problem however if in the
- * future we allow embedded IDs into sub-structs of IDs... */
 PointerRNA RNA_id_pointer_create(ID *id);
 /**
  * Create a 'discrete', isolated PointerRNA of some data. It won't have any ancestor information
@@ -85,7 +82,12 @@ PointerRNA RNA_pointer_create_with_ancestors(const PointerRNA &parent,
 PointerRNA RNA_pointer_create_with_ancestors(ID &id, StructRNA *type, void *data);
 
 /**
- * Create a PointerRNA representing the nth ancestor of the given PointerRNA.
+ * Create a PointerRNA representing the N'th ancestor of the given PointerRNA, where `0` is the
+ * root.
+ *
+ * \note: Typically, the root ancestor should be an ID. But depending on how the PointerRNA and its
+ * ancestors have been created, only part of the ancestor chain may be available, see
+ * #PointerRNA::ancestors for details.
  */
 PointerRNA RNA_pointer_create_from_ancestor(const PointerRNA &ptr, const int ancestor_idx);
 
