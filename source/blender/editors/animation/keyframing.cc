@@ -9,6 +9,8 @@
 #include <cstddef>
 #include <cstdio>
 
+#include <fmt/format.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -224,6 +226,60 @@ static int insert_key_with_keyingset(bContext *C, wmOperator *op, KeyingSet *ks)
   return OPERATOR_FINISHED;
 }
 
+static blender::Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
+{
+  eRotationModes rotation_mode;
+  blender::Vector<RNAPath> paths;
+
+  if (ptr->type == &RNA_PoseBone) {
+    bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
+    rotation_mode = eRotationModes(pchan->rotmode);
+  }
+  else if (ptr->type == &RNA_Object) {
+    Object *ob = static_cast<Object *>(ptr->data);
+    rotation_mode = eRotationModes(ob->rotmode);
+  }
+  else {
+    /* Pointer type not supported. */
+    return paths;
+  }
+
+  eKeyInsertChannels insert_channel_flags = eKeyInsertChannels(U.key_insert_channels);
+  if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_LOCATION) {
+    paths.append({"location"});
+  }
+  if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_ROTATION) {
+    switch (rotation_mode) {
+      case ROT_MODE_QUAT:
+        paths.append({"rotation_quaternion"});
+        break;
+      case ROT_MODE_AXISANGLE:
+        paths.append({"rotation_axis_angle"});
+        break;
+      case ROT_MODE_XYZ:
+      case ROT_MODE_XZY:
+      case ROT_MODE_YXZ:
+      case ROT_MODE_YZX:
+      case ROT_MODE_ZXY:
+      case ROT_MODE_ZYX:
+        paths.append({"rotation_euler"});
+      default:
+        break;
+    }
+  }
+  if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_SCALE) {
+    paths.append({"scale"});
+  }
+  if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_ROTATION_MODE) {
+    paths.append({"rotation_mode"});
+  }
+
+  if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES) {
+    paths.extend(blender::animrig::get_keyable_id_property_paths(*ptr));
+  }
+  return paths;
+}
+
 /* Fill the list with items depending on the mode of the context. */
 static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
 {
@@ -289,7 +345,7 @@ static int insert_key(bContext *C, wmOperator *op)
       BKE_reportf(op->reports, RPT_ERROR, "'%s' is not editable", selected_id->name + 2);
       continue;
     }
-    Vector<RNAPath> rna_paths = animrig::construct_keyframing_rna_paths(&id_ptr);
+    Vector<RNAPath> rna_paths = construct_rna_paths(&id_ptr);
 
     combined_result.merge(animrig::insert_keyframes(bmain,
                                                     &id_ptr,

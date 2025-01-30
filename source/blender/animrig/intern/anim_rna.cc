@@ -91,7 +91,7 @@ StringRef get_rotation_mode_path(const eRotationModes rotation_mode)
   }
 }
 
-static bool is_idproperty_keyable(IDProperty *id_prop, PointerRNA *ptr, PropertyRNA *prop)
+static bool is_idproperty_keyable(const IDProperty *id_prop, PointerRNA *ptr, PropertyRNA *prop)
 {
   /* While you can cast the IDProperty* to a PropertyRNA* and pass it to the RNA_* functions, this
    * does not work because it will not have the right flags set. Instead the resolved
@@ -123,19 +123,16 @@ static bool is_idproperty_keyable(IDProperty *id_prop, PointerRNA *ptr, Property
   return false;
 }
 
-Vector<RNAPath> construct_keyframing_rna_paths(PointerRNA *ptr)
+Vector<RNAPath> get_keyable_id_property_paths(const PointerRNA &ptr)
 {
-  eRotationModes rotation_mode;
   IDProperty *properties;
 
-  if (ptr->type == &RNA_PoseBone) {
-    bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
-    rotation_mode = eRotationModes(pchan->rotmode);
+  if (ptr.type == &RNA_PoseBone) {
+    const bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr.data);
     properties = pchan->prop;
   }
-  else if (ptr->type == &RNA_Object) {
-    Object *ob = static_cast<Object *>(ptr->data);
-    rotation_mode = eRotationModes(ob->rotmode);
+  else if (ptr.type == &RNA_Object) {
+    const Object *ob = static_cast<Object *>(ptr.data);
     properties = ob->id.properties;
   }
   else {
@@ -143,46 +140,12 @@ Vector<RNAPath> construct_keyframing_rna_paths(PointerRNA *ptr)
     return {};
   }
 
-  blender::Vector<RNAPath> paths;
-  eKeyInsertChannels insert_channel_flags = eKeyInsertChannels(U.key_insert_channels);
-  if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_LOCATION) {
-    paths.append({"location"});
-  }
-  if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_ROTATION) {
-    switch (rotation_mode) {
-      case ROT_MODE_QUAT:
-        paths.append({"rotation_quaternion"});
-        break;
-      case ROT_MODE_AXISANGLE:
-        paths.append({"rotation_axis_angle"});
-        break;
-      case ROT_MODE_XYZ:
-      case ROT_MODE_XZY:
-      case ROT_MODE_YXZ:
-      case ROT_MODE_YZX:
-      case ROT_MODE_ZXY:
-      case ROT_MODE_ZYX:
-        paths.append({"rotation_euler"});
-      default:
-        break;
-    }
-  }
-  if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_SCALE) {
-    paths.append({"scale"});
-  }
-  if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_ROTATION_MODE) {
-    paths.append({"rotation_mode"});
-  }
-
-  if (!(insert_channel_flags & USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES)) {
-    return paths;
-  }
-
   if (!properties) {
-    return paths;
+    return {};
   }
 
-  LISTBASE_FOREACH (IDProperty *, id_prop, &properties->data.group) {
+  blender::Vector<RNAPath> paths;
+  LISTBASE_FOREACH (const IDProperty *, id_prop, &properties->data.group) {
     PointerRNA resolved_ptr;
     PropertyRNA *resolved_prop;
     std::string path = id_prop->name;
@@ -190,12 +153,13 @@ Vector<RNAPath> construct_keyframing_rna_paths(PointerRNA *ptr)
      * and once as ID property (with brackets, `["propname"]`).
      * This is required to support IDProperties that have been defined as part of an add-on.
      * Those need to be animated through an RNA path without the brackets. */
-    bool is_resolved = RNA_path_resolve_property(ptr, path.c_str(), &resolved_ptr, &resolved_prop);
+    bool is_resolved = RNA_path_resolve_property(
+        &ptr, path.c_str(), &resolved_ptr, &resolved_prop);
     if (!is_resolved) {
       char name_escaped[MAX_IDPROP_NAME * 2];
       BLI_str_escape(name_escaped, id_prop->name, sizeof(name_escaped));
       path = fmt::format("[\"{}\"]", name_escaped);
-      is_resolved = RNA_path_resolve_property(ptr, path.c_str(), &resolved_ptr, &resolved_prop);
+      is_resolved = RNA_path_resolve_property(&ptr, path.c_str(), &resolved_ptr, &resolved_prop);
     }
     if (!is_resolved) {
       continue;
@@ -204,7 +168,6 @@ Vector<RNAPath> construct_keyframing_rna_paths(PointerRNA *ptr)
       paths.append({path});
     }
   }
-
   return paths;
 }
 

@@ -94,6 +94,48 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
   return items;
 }
 
+static Vector<RNAPath> construct_pose_rna_paths(const PointerRNA &bone_pointer)
+{
+  BLI_assert(bone_pointer.type == &RNA_PoseBone);
+
+  blender::Vector<RNAPath> paths;
+  paths.append({"location"});
+  paths.append({"scale"});
+  bPoseChannel *pose_bone = static_cast<bPoseChannel *>(bone_pointer.data);
+  switch (pose_bone->rotmode) {
+    case ROT_MODE_QUAT:
+      paths.append({"rotation_quaternion"});
+      break;
+    case ROT_MODE_AXISANGLE:
+      paths.append({"rotation_axis_angle"});
+      break;
+    case ROT_MODE_XYZ:
+    case ROT_MODE_XZY:
+    case ROT_MODE_YXZ:
+    case ROT_MODE_YZX:
+    case ROT_MODE_ZXY:
+    case ROT_MODE_ZYX:
+      paths.append({"rotation_euler"});
+    default:
+      break;
+  }
+
+  paths.extend({{"bbone_curveinx"},
+                {"bbone_curveoutx"},
+                {"bbone_curveinz"},
+                {"bbone_curveoutz"},
+                {"bbone_rollin"},
+                {"bbone_rollout"},
+                {"bbone_scalein"},
+                {"bbone_scaleout"},
+                {"bbone_easein"},
+                {"bbone_easeout"}});
+
+  paths.extend(blender::animrig::get_keyable_id_property_paths(bone_pointer));
+
+  return paths;
+}
+
 static blender::animrig::Action &extract_pose(Main &bmain,
                                               const blender::Span<Object *> pose_objects)
 {
@@ -119,7 +161,7 @@ static blender::animrig::Action &extract_pose(Main &bmain,
       }
       PointerRNA bone_pointer = RNA_pointer_create_discrete(
           &pose_object->id, &RNA_PoseBone, pose_bone);
-      Vector<RNAPath> rna_paths = construct_keyframing_rna_paths(&bone_pointer);
+      Vector<RNAPath> rna_paths = construct_pose_rna_paths(bone_pointer);
       for (const RNAPath &rna_path : rna_paths) {
         PointerRNA resolved_pointer;
         PropertyRNA *resolved_property;
@@ -482,7 +524,7 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
     }
     PointerRNA bone_pointer = RNA_pointer_create_discrete(
         &pose_object.id, &RNA_PoseBone, pose_bone);
-    Vector<RNAPath> rna_paths = blender::animrig::construct_keyframing_rna_paths(&bone_pointer);
+    Vector<RNAPath> rna_paths = construct_pose_rna_paths(bone_pointer);
 
     for (RNAPath &rna_path : rna_paths) {
       PointerRNA resolved_pointer;
