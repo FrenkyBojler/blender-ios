@@ -5,44 +5,24 @@
 /** \file
  * \ingroup spview3d
  */
-#include "BKE_armature.hh"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_geom.h"
+#include "BLI_bounds.hh"
+
 #include "BKE_context.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_layer.hh"
 #include "BKE_object.hh"
-#include "BKE_paint.hh"
-#include "BKE_scene.hh"
-#include "BLI_bounds_types.hh"
+
 #include "DEG_depsgraph_query.hh"
-
-#include "ED_mesh.hh"
-#include "ED_particle.hh"
-#include "ED_screen.hh"
-
-#include "BLI_math_rotation.h"
-#include "BLI_math_solvers.h"
-#include "BLI_math_vector.h"
-
-#include "BLI_bounds.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_matrix.hh"
-#include "DNA_camera_types.h"
 
 #include "WM_api.hh"
 
 #include "ED_screen.hh"
-#include "ED_view3d.hh"
 
 #include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
-#include <BKE_camera.h>
-#include <BKE_context.hh>
-#include <BKE_layer.hh>
-#include <BKE_object.hh>
-#include <DEG_depsgraph_query.hh>
-#include <RNA_access.hh>
-
 using namespace blender;
 
 /* -------------------------------------------------------------------- */
@@ -582,9 +562,6 @@ static bool ndof_calc_cor_from_bounding_box(bContext *C, float r_cor[3])
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
-
-  float3 min, max;
-  INIT_MINMAX(min, max);
   std::optional<Bounds<float3>> bounding_box = std::nullopt;
 
   if (U.ndof_flag & NDOF_ORBIT_SELECTION) {
@@ -654,12 +631,8 @@ static bool ndof_get_cor_from_zbuf(bContext *C, float r_cor[3])
 
   const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
-  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
-
-  BKE_view_layer_synced_ensure(scene_eval, view_layer);
 
   if (std::optional<float> depth_near = ndof_read_zbuf(window, region))
   {
