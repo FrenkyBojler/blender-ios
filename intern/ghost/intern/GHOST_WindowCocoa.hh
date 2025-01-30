@@ -94,8 +94,7 @@ class GHOST_WindowCocoa : public GHOST_Window {
   GHOST_TSuccess setPath(const char *filepath) override;
 
   /**
-   * Apply the window client-side decorations (CSD) using the current decoration style flags and
-   * settings.
+   * Apply the window decoration style using the current flags and settings.
    */
   GHOST_TSuccess applyWindowDecorationStyle() override;
 
