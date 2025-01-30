@@ -73,7 +73,7 @@ struct MessageKeyRef {
 
   uint64_t hash() const
   {
-    return get_default_hash(context, str);
+    return blender::get_default_hash(context, str);
   }
 };
 
