@@ -21,6 +21,8 @@
 
 #  define make_float2 float2
 #  define make_float4 float4
+#  define M_PI_F M_PI
+#  define M_TAU_F M_TAU
 #  define ccl_device
 
 using namespace math;

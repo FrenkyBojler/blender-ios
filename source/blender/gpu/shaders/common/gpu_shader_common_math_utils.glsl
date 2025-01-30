@@ -11,8 +11,12 @@
 /* WORKAROUND: To be removed once we port all code to use `gpu_shader_math_base_lib.glsl`. */
 #ifndef GPU_SHADER_MATH_BASE_LIB_GLSL
 
-#  define M_PI 3.14159265358979323846  /* pi */
-#  define M_TAU 6.28318530717958647692 /* tau = 2*pi */
+#  ifndef M_PI
+#    define M_PI 3.14159265358979323846 /* `pi` */
+#  endif
+#  ifndef M_TAU
+#    define M_TAU 6.28318530717958647692 /* `tau = 2*pi` */
+#  endif
 
 float square(float v)
 {

@@ -7,7 +7,12 @@
 
 #define vector3 point
 
-#define M_TAU 6.28318530717958647692 /* tau = 2*pi */
+#ifndef M_PI
+#  define M_PI 3.14159265358979323846 /* `pi` */
+#endif
+#ifndef M_TAU
+#  define M_TAU 6.28318530717958647692 /* `tau = 2*pi` */
+#endif
 
 float safe_divide(float a, float b)
 {

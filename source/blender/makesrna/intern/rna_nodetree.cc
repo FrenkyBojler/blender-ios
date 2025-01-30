@@ -12267,6 +12267,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeTexMagic", def_sh_tex_magic);
   define("ShaderNode", "ShaderNodeTexNoise", def_sh_tex_noise);
   define("ShaderNode", "ShaderNodeTexPointDensity", def_sh_tex_pointdensity);
+  define("ShaderNode", "ShaderNodeTexRoundedPolygon", def_sh_tex_rounded_polygon);
   define("ShaderNode", "ShaderNodeTexSky", def_sh_tex_sky);
   define("ShaderNode", "ShaderNodeTexVoronoi", def_sh_tex_voronoi);
   define("ShaderNode", "ShaderNodeTexWave", def_sh_tex_wave);

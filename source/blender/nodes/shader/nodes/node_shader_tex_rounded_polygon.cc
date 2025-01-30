@@ -52,9 +52,13 @@ static void node_shader_buts_tex_rounded_polygon(uiLayout *layout,
                                                  bContext * /*C*/,
                                                  PointerRNA *ptr)
 {
-  uiItemR(
-      layout, ptr, "normalize_r_gon_parameter", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "elliptical_corners", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout,
+          ptr,
+          "normalize_r_gon_parameter",
+          UI_ITEM_R_SPLIT_EMPTY_NAME,
+          std::nullopt,
+          ICON_NONE);
+  uiItemR(layout, ptr, "elliptical_corners", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static void node_shader_init_tex_rounded_polygon(bNodeTree * /*ntree*/, bNode *node)
@@ -243,8 +247,10 @@ void register_node_type_sh_tex_rounded_polygon()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(
-      &ntype, SH_NODE_TEX_ROUNDED_POLYGON, "Rounded Polygon Texture", NODE_CLASS_TEXTURE);
+  sh_fn_node_type_base(&ntype, "ShaderNodeTexRoundedPolygon");
+  ntype.ui_name = "Rounded Polygon Texture";
+  ntype.ui_description = "Generate Rounded Polygon Texture";
+  ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::sh_node_tex_rounded_polygon_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_rounded_polygon;
   ntype.initfunc = file_ns::node_shader_init_tex_rounded_polygon;
