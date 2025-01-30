@@ -1620,7 +1620,7 @@ void node_tree_set_type(const bContext *C, bNodeTree *ntree)
   }
 }
 
-template<typename T> struct IDNameGetter {
+template<typename T> struct NodeStructIDNameGetter {
   StringRef operator()(const T *value) const
   {
     return StringRef(value->idname);
@@ -1629,13 +1629,13 @@ template<typename T> struct IDNameGetter {
 
 static auto &get_node_tree_type_map()
 {
-  static CustomIDVectorSet<bNodeTreeType *, IDNameGetter<bNodeTreeType>> map;
+  static CustomIDVectorSet<bNodeTreeType *, NodeStructIDNameGetter<bNodeTreeType>> map;
   return map;
 }
 
 static auto &get_node_type_map()
 {
-  static CustomIDVectorSet<bNodeType *, IDNameGetter<bNodeType>> map;
+  static CustomIDVectorSet<bNodeType *, NodeStructIDNameGetter<bNodeType>> map;
   return map;
 }
 
@@ -1647,7 +1647,7 @@ static auto &get_node_type_alias_map()
 
 static auto &get_socket_type_map()
 {
-  static CustomIDVectorSet<bNodeSocketType *, IDNameGetter<bNodeSocketType>> map;
+  static CustomIDVectorSet<bNodeSocketType *, NodeStructIDNameGetter<bNodeSocketType>> map;
   return map;
 }
 
