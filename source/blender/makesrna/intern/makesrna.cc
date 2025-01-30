@@ -616,7 +616,7 @@ static bool rna_color_quantize(PropertyRNA *prop, PropertyDefRNA *dp)
 }
 
 /**
- * Return the identifier for an enum which is defined in "RNA_enum_items.hh".
+ * Return the identifier for an enum which is defined in `RNA_enum_items.hh`.
  *
  * Prevents expanding duplicate enums bloating the binary size.
  */
@@ -1619,7 +1619,7 @@ static char *rna_def_property_begin_func(
     rna_print_data_get(f, dp);
   }
 
-  fprintf(f, "\n    memset(iter, 0, sizeof(*iter));\n");
+  fprintf(f, "\n    *iter = {};\n");
   fprintf(f, "    iter->parent = *ptr;\n");
   fprintf(f, "    iter->prop = &rna_%s_%s;\n", srna->identifier, prop->identifier);
 
@@ -3022,7 +3022,8 @@ static void rna_def_struct_function_impl_cpp(FILE *f, StructRNA *srna, FunctionD
         }
         else {
           fprintf(f,
-                  "\t\tresult = RNA_pointer_create((::ID *) ptr.owner_id, &RNA_%s, retdata);\n",
+                  "\t\tresult = RNA_pointer_create_discrete((::ID *) ptr.owner_id, &RNA_%s, "
+                  "retdata);\n",
                   (const char *)pprop->type);
         }
       }
@@ -3417,17 +3418,28 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 
     if (func->c_ret) {
       dparm = rna_find_parameter_def(func->c_ret);
-      ptrstr = (((dparm->prop->type == PROP_POINTER) &&
-                 !(dparm->prop->flag_parameter & PARM_RNAPTR)) ||
-                (dparm->prop->arraydimension)) ?
-                   "*" :
-                   "";
-      fprintf(f,
-              "\t*((%s%s %s*)_retdata) = %s;\n",
-              rna_type_struct(dparm->prop),
-              rna_parameter_type_name(dparm->prop),
-              ptrstr,
-              func->c_ret->identifier);
+      if ((dparm->prop->type == PROP_POINTER) && (dparm->prop->flag_parameter & PARM_RNAPTR) &&
+          (dparm->prop->flag & PROP_THICK_WRAP))
+      {
+        const char *parameter_type_name = rna_parameter_type_name(dparm->prop);
+        fprintf(f,
+                "\t*reinterpret_cast<%s *>(_retdata) = %s;\n",
+                parameter_type_name,
+                func->c_ret->identifier);
+      }
+      else {
+        ptrstr = (((dparm->prop->type == PROP_POINTER) &&
+                   !(dparm->prop->flag_parameter & PARM_RNAPTR)) ||
+                  (dparm->prop->arraydimension)) ?
+                     "*" :
+                     "";
+        fprintf(f,
+                "\t*((%s%s %s*)_retdata) = %s;\n",
+                rna_type_struct(dparm->prop),
+                rna_parameter_type_name(dparm->prop),
+                ptrstr,
+                func->c_ret->identifier);
+      }
     }
   }
 
@@ -5188,7 +5200,7 @@ static const char *cpp_classes =
     "        } \\\n"
     "        sname##_##identifier##_end(&iter); \\\n"
     "        if (!found) { \\\n"
-    "            memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
+    "            *r_ptr = {}; \\\n"
     "        } \\\n"
     "        return found; \\\n"
     "    } \n"
@@ -5198,7 +5210,7 @@ static const char *cpp_classes =
     "    { \\\n"
     "        bool found = sname##_##identifier##_lookup_int(ptr, key, r_ptr); \\\n"
     "        if (!found) { \\\n"
-    "            memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
+    "            *r_ptr = {}; \\\n"
     "        } \\\n"
     "        return found; \\\n"
     "    } \n"
@@ -5227,7 +5239,7 @@ static const char *cpp_classes =
     "        } \\\n"
     "        sname##_##identifier##_end(&iter); \\\n"
     "        if (!found) { \\\n"
-    "            memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
+    "            *r_ptr = {}; \\\n"
     "        } \\\n"
     "        return found; \\\n"
     "    } \n"
@@ -5237,7 +5249,7 @@ static const char *cpp_classes =
     "    { \\\n"
     "        bool found = sname##_##identifier##_lookup_string(ptr, key, r_ptr); \\\n"
     "        if (!found) { \\\n"
-    "            memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
+    "            *r_ptr = {}; \\\n"
     "        } \\\n"
     "        return found; \\\n"
     "    } \n"

@@ -15,17 +15,12 @@
 
 #include "CLG_log.h"
 
-#include "BLI_array_utils.h"
 #include "BLI_color.hh"
 #include "BLI_color_mix.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -47,10 +42,8 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
-#include "BKE_object_deform.h"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
-#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -71,7 +64,6 @@
 /* For IMB_BlendMode only. */
 #include "IMB_imbuf.hh"
 
-#include "BKE_ccg.hh"
 #include "bmesh.hh"
 
 #include "mesh_brush_common.hh"
@@ -222,7 +214,6 @@ void init_stroke(Depsgraph &depsgraph, Object &ob)
   }
 }
 
-/* Toggle operator for turning vertex paint mode on or off (copied from sculpt.cc) */
 void init_session(
     Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob, eObjectMode object_mode)
 {
@@ -436,7 +427,6 @@ void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache *cache
     cache->saved_active_brush = nullptr;
   }
 }
-/* Initialize the stroke cache invariants from operator properties */
 void update_cache_invariants(
     bContext *C, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2])
 {
@@ -506,7 +496,6 @@ void update_cache_invariants(
   cache->accum = true;
 }
 
-/* Initialize the stroke cache variants from operator properties */
 void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
 {
   using namespace blender;
@@ -577,6 +566,7 @@ void last_stroke_update(Scene &scene, const float location[3])
 }
 
 /* -------------------------------------------------------------------- */
+
 void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
 {
   Main *bmain = CTX_data_main(C);
@@ -653,8 +643,8 @@ static ColorPaint4f vpaint_get_current_col(Scene &scene, VPaint &vp, bool second
 {
   const Brush *brush = BKE_paint_brush_for_read(&vp.paint);
   float color[4];
-  const float *brush_color = secondary ? BKE_brush_secondary_color_get(&scene, brush) :
-                                         BKE_brush_color_get(&scene, brush);
+  const float *brush_color = secondary ? BKE_brush_secondary_color_get(&scene, &vp.paint, brush) :
+                                         BKE_brush_color_get(&scene, &vp.paint, brush);
   IMB_colormanagement_srgb_to_scene_linear_v3(color, brush_color);
 
   color[3] = 1.0f; /* alpha isn't used, could even be removed to speedup paint a little */
@@ -2118,6 +2108,14 @@ void PAINT_OT_vertex_paint(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 
   paint_stroke_operator_properties(ot);
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "override_location",
+      false,
+      "Override Location",
+      "Override the given `location` array by recalculating object space positions from the "
+      "provided `mouse_event` positions");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
 /** \} */
@@ -2317,7 +2315,7 @@ void PAINT_OT_vertex_color_set(wmOperatorType *ot)
   ot->description = "Fill the active vertex color layer with the current paint color";
 
   ot->exec = vertex_color_set_exec;
-  ot->poll = vertex_paint_poll;
+  ot->poll = vertex_paint_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 

@@ -64,6 +64,8 @@ static int view3d_camera_to_view_exec(bContext *C, wmOperator * /*op*/)
   ED_view3d_context_user_region(C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
+  ED_view3d_smooth_view_force_finish(C, v3d, region);
+
   ED_view3d_lastview_store(rv3d);
 
   BKE_object_tfm_protected_backup(v3d->camera, &obtfm);
@@ -233,6 +235,8 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
   /* no nullptr check is needed, poll checks */
   ED_view3d_context_user_region(C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
+
+  ED_view3d_smooth_view_force_finish(C, v3d, region);
 
   if (ob) {
     Object *camera_old = (rv3d->persp == RV3D_CAMOB) ? V3D_CAMERA_SCENE(scene, v3d) : nullptr;
@@ -498,10 +502,6 @@ static bool drw_select_loop_pass(eDRWSelectStage stage, void *user_data)
       /* quirk of GPU_select_end, only take hits value from first call. */
       data->hits = hits;
     }
-    if (data->gpu_select_mode == GPU_SELECT_NEAREST_FIRST_PASS) {
-      data->gpu_select_mode = GPU_SELECT_NEAREST_SECOND_PASS;
-      continue_pass = (hits > 0);
-    }
     data->pass += 1;
   }
   else {
@@ -558,13 +558,10 @@ int view3d_opengl_select_ex(const ViewContext *vc,
   BKE_view_layer_synced_ensure(scene, vc->view_layer);
   const bool use_obedit_skip = (BKE_view_layer_edit_object_get(vc->view_layer) != nullptr) &&
                                (vc->obedit == nullptr);
-  const bool is_pick_select = (U.gpu_flag & USER_GPU_FLAG_NO_DEPT_PICK) == 0;
-  const bool do_passes = ((is_pick_select == false) &&
-                          (select_mode == VIEW3D_SELECT_PICK_NEAREST));
-  const bool use_nearest = (is_pick_select && select_mode == VIEW3D_SELECT_PICK_NEAREST);
+  const bool use_nearest = select_mode == VIEW3D_SELECT_PICK_NEAREST;
   bool draw_surface = true;
 
-  eGPUSelectMode gpu_select_mode;
+  eGPUSelectMode gpu_select_mode = GPU_SELECT_INVALID;
 
   /* case not a box select */
   if (input->xmin == input->xmax) {
@@ -576,24 +573,14 @@ int view3d_opengl_select_ex(const ViewContext *vc,
     rect = *input;
   }
 
-  if (is_pick_select) {
-    if (select_mode == VIEW3D_SELECT_PICK_NEAREST) {
-      gpu_select_mode = GPU_SELECT_PICK_NEAREST;
-    }
-    else if (select_mode == VIEW3D_SELECT_PICK_ALL) {
-      gpu_select_mode = GPU_SELECT_PICK_ALL;
-    }
-    else {
-      gpu_select_mode = GPU_SELECT_ALL;
-    }
+  if (select_mode == VIEW3D_SELECT_PICK_NEAREST) {
+    gpu_select_mode = GPU_SELECT_PICK_NEAREST;
+  }
+  else if (select_mode == VIEW3D_SELECT_PICK_ALL) {
+    gpu_select_mode = GPU_SELECT_PICK_ALL;
   }
   else {
-    if (do_passes) {
-      gpu_select_mode = GPU_SELECT_NEAREST_FIRST_PASS;
-    }
-    else {
-      gpu_select_mode = GPU_SELECT_ALL;
-    }
+    gpu_select_mode = GPU_SELECT_ALL;
   }
 
   /* Important to use 'vc->obact', not 'BKE_view_layer_active_object_get(vc->view_layer)' below,
@@ -628,11 +615,17 @@ int view3d_opengl_select_ex(const ViewContext *vc,
        * the number of items is nearly always 1, maybe 2..3 in rare cases. */
       LinkNode *ob_pose_list = nullptr;
       VirtualModifierData virtual_modifier_data;
-      const ModifierData *md = BKE_modifiers_get_virtual_modifierlist(obact,
-                                                                      &virtual_modifier_data);
+      ModifierData *md = BKE_modifiers_get_virtual_modifierlist(obact, &virtual_modifier_data);
       for (; md; md = md->next) {
         if (md->type == eModifierType_Armature) {
-          ArmatureModifierData *amd = (ArmatureModifierData *)md;
+          ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
+          if (amd->object && (amd->object->mode & OB_MODE_POSE)) {
+            BLI_linklist_prepend_alloca(&ob_pose_list, amd->object);
+          }
+        }
+        else if (md->type == eModifierType_GreasePencilArmature) {
+          GreasePencilArmatureModifierData *amd =
+              reinterpret_cast<GreasePencilArmatureModifierData *>(md);
           if (amd->object && (amd->object->mode & OB_MODE_POSE)) {
             BLI_linklist_prepend_alloca(&ob_pose_list, amd->object);
           }
@@ -815,7 +808,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
                                   ReportList *reports)
 {
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
-  float min[3], max[3], box[3];
+  blender::float3 min, max, box;
   float size = 0.0f;
   uint local_view_bit;
   bool changed = false;
@@ -1114,7 +1107,8 @@ void VIEW3D_OT_localview(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = localview_exec;
-  ot->flag = OPTYPE_UNDO; /* localview changes object layer bitflags */
+  /* Use undo because local-view changes object layer bit-flags. */
+  ot->flag = OPTYPE_UNDO;
 
   ot->poll = ED_operator_view3d_active;
 

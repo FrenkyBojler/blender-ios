@@ -2,17 +2,19 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <queue>
+
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_node.hh"
 #include "BKE_node_enum.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_interface.hh"
 
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
-#include "BLI_vector.hh"
 
 #include "BLO_read_write.hh"
 
@@ -20,6 +22,8 @@
 #include "DNA_material_types.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
+
+using blender::StringRef;
 
 /**
  * These flags are used by the `changed_flag` field in #bNodeTreeInterfaceRuntime.
@@ -39,17 +43,20 @@ namespace socket_types {
  * `NodeSocketFloatUnsigned`, `NodeSocketFloatFactor`. Only the "base type" (`NodeSocketFloat`)
  * is considered valid for interface sockets.
  */
-static const char *try_get_supported_socket_type(const StringRef socket_type)
+static std::optional<StringRef> try_get_supported_socket_type(const StringRef socket_type)
 {
-  /* Make a copy of the string for `.c_str()` until the socket type map uses C++ types. */
-  const std::string idname(socket_type);
-  const blender::bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(idname.c_str());
+  const blender::bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket_type);
   if (typeinfo == nullptr) {
-    return nullptr;
+    return std::nullopt;
   }
   /* For builtin socket types only the base type is supported. */
   if (node_is_static_socket_type(typeinfo)) {
-    return bke::node_static_socket_type(typeinfo->type, PROP_NONE);
+    if (const std::optional<StringRefNull> type_name = bke::node_static_socket_type(typeinfo->type,
+                                                                                    PROP_NONE))
+    {
+      return *type_name;
+    }
+    return std::nullopt;
   }
   return typeinfo->idname;
 }
@@ -674,10 +681,11 @@ blender::ColorGeometry4f bNodeTreeInterfaceSocket::socket_color() const
   }
 }
 
-bool bNodeTreeInterfaceSocket::set_socket_type(const char *new_socket_type)
+bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
 {
-  const char *idname = socket_types::try_get_supported_socket_type(new_socket_type);
-  if (idname == nullptr) {
+  const std::optional<StringRef> idname = socket_types::try_get_supported_socket_type(
+      new_socket_type);
+  if (!idname) {
     return false;
   }
 
@@ -687,7 +695,7 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const char *new_socket_type)
   }
   MEM_SAFE_FREE(this->socket_type);
 
-  this->socket_type = BLI_strdup(new_socket_type);
+  this->socket_type = BLI_strdupn(new_socket_type.data(), new_socket_type.size());
   this->socket_data = socket_types::make_socket_data(new_socket_type);
 
   return true;
@@ -695,8 +703,9 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const char *new_socket_type)
 
 void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *socket)
 {
-  const char *idname = socket_types::try_get_supported_socket_type(socket->idname);
-  BLI_assert(idname != nullptr);
+  const std::optional<StringRef> idname = socket_types::try_get_supported_socket_type(
+      socket->idname);
+  BLI_assert(idname.has_value());
 
   if (this->socket_data != nullptr) {
     socket_types::socket_data_free(*this, true);
@@ -707,8 +716,8 @@ void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *sock
     this->flag |= NODE_INTERFACE_SOCKET_HIDE_VALUE;
   }
 
-  this->socket_type = BLI_strdup(idname);
-  this->socket_data = socket_types::make_socket_data(idname);
+  this->socket_type = BLI_strdupn(idname->data(), idname->size());
+  this->socket_data = socket_types::make_socket_data(*idname);
   socket_types::socket_data_copy_ptr(*this, socket->default_value, 0);
 }
 
@@ -874,10 +883,6 @@ void bNodeTreeInterfacePanel::add_item(bNodeTreeInterfaceItem &item)
 
 void bNodeTreeInterfacePanel::insert_item(bNodeTreeInterfaceItem &item, int position)
 {
-  /* Are child panels allowed? */
-  BLI_assert(item.item_type != NODE_INTERFACE_PANEL ||
-             (this->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS));
-
   /* Apply any constraints on the item positions. */
   position = find_valid_insert_position_for_item(item, position);
   position = std::min(std::max(position, 0), items_num);
@@ -1043,8 +1048,8 @@ static bNodeTreeInterfaceSocket *make_socket(const int uid,
 {
   BLI_assert(!socket_type.is_empty());
 
-  const char *idname = socket_types::try_get_supported_socket_type(socket_type);
-  if (idname == nullptr) {
+  const std::optional<StringRef> idname = socket_types::try_get_supported_socket_type(socket_type);
+  if (!idname) {
     return nullptr;
   }
 
@@ -1072,19 +1077,33 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
                                                          const StringRef socket_type,
                                                          const StringRef name)
 {
-  NodeTreeInterfaceSocketFlag flag = NodeTreeInterfaceSocketFlag(0);
-  SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_IN, NODE_INTERFACE_SOCKET_INPUT);
-  SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_OUT, NODE_INTERFACE_SOCKET_OUTPUT);
+  ntree.ensure_topology_cache();
+  bNodeTreeInterfaceSocket *iosock = nullptr;
+  if (from_node.is_group()) {
+    if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(from_node.id)) {
+      /* Copy interface socket directly from source group to avoid loosing data in the process. */
+      group->ensure_interface_cache();
+      const bNodeTreeInterfaceSocket &src_io_socket =
+          from_sock.is_input() ? *group->interface_inputs()[from_sock.index()] :
+                                 *group->interface_outputs()[from_sock.index()];
+      iosock = reinterpret_cast<bNodeTreeInterfaceSocket *>(
+          ntree.tree_interface.add_item_copy(src_io_socket.item, nullptr));
+    }
+  }
+  if (!iosock) {
+    NodeTreeInterfaceSocketFlag flag = NodeTreeInterfaceSocketFlag(0);
+    SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_IN, NODE_INTERFACE_SOCKET_INPUT);
+    SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_OUT, NODE_INTERFACE_SOCKET_OUTPUT);
 
-  bNodeTreeInterfaceSocket *iosock = ntree.tree_interface.add_socket(
-      name, from_sock.description, socket_type, flag, nullptr);
+    iosock = ntree.tree_interface.add_socket(
+        name, from_sock.description, socket_type, flag, nullptr);
+  }
   if (iosock == nullptr) {
     return nullptr;
   }
   const blender::bke::bNodeSocketType *typeinfo = iosock->socket_typeinfo();
   if (typeinfo->interface_from_socket) {
     typeinfo->interface_from_socket(&ntree.id, iosock, &from_node, &from_sock);
-    UNUSED_VARS(from_sock);
   }
   return iosock;
 }
@@ -1113,9 +1132,6 @@ void bNodeTreeInterface::init_data()
 {
   this->runtime = MEM_new<blender::bke::bNodeTreeInterfaceRuntime>(__func__);
   this->tag_missing_runtime_data();
-
-  /* Root panel is allowed to contain child panels. */
-  root_panel.flag |= NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS;
 }
 
 void bNodeTreeInterface::copy_data(const bNodeTreeInterface &src, int flag)
@@ -1152,7 +1168,7 @@ void bNodeTreeInterface::read_data(BlendDataReader *reader)
 bNodeTreeInterfaceItem *bNodeTreeInterface::active_item()
 {
   bNodeTreeInterfaceItem *active = nullptr;
-  int count = active_index;
+  int count = this->active_index;
   this->foreach_item([&](bNodeTreeInterfaceItem &item) {
     if (count == 0) {
       active = &item;
@@ -1167,7 +1183,7 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::active_item()
 const bNodeTreeInterfaceItem *bNodeTreeInterface::active_item() const
 {
   const bNodeTreeInterfaceItem *active = nullptr;
-  int count = active_index;
+  int count = this->active_index;
   this->foreach_item([&](const bNodeTreeInterfaceItem &item) {
     if (count == 0) {
       active = &item;
@@ -1181,11 +1197,11 @@ const bNodeTreeInterfaceItem *bNodeTreeInterface::active_item() const
 
 void bNodeTreeInterface::active_item_set(bNodeTreeInterfaceItem *item)
 {
-  active_index = 0;
+  this->active_index = 0;
   int count = 0;
   this->foreach_item([&](bNodeTreeInterfaceItem &titem) {
     if (&titem == item) {
-      active_index = count;
+      this->active_index = count;
       return false;
     }
     ++count;
@@ -1209,7 +1225,7 @@ bNodeTreeInterfaceSocket *bNodeTreeInterface::add_socket(const blender::StringRe
   BLI_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceSocket *new_socket = make_socket(
-      next_uid++, name, description, socket_type, flag);
+      this->next_uid++, name, description, socket_type, flag);
   if (new_socket) {
     parent->add_item(new_socket->item);
   }
@@ -1231,7 +1247,7 @@ bNodeTreeInterfaceSocket *bNodeTreeInterface::insert_socket(const blender::Strin
   BLI_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceSocket *new_socket = make_socket(
-      next_uid++, name, description, socket_type, flag);
+      this->next_uid++, name, description, socket_type, flag);
   if (new_socket) {
     parent->insert_item(new_socket->item, position);
   }
@@ -1250,12 +1266,7 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::add_panel(const blender::StringRef 
   }
   BLI_assert(this->find_item(parent->item));
 
-  if (!(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS)) {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
-
-  bNodeTreeInterfacePanel *new_panel = make_panel(next_uid++, name, description, flag);
+  bNodeTreeInterfacePanel *new_panel = make_panel(this->next_uid++, name, description, flag);
   if (new_panel) {
     parent->add_item(new_panel->item);
   }
@@ -1275,12 +1286,7 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::insert_panel(const blender::StringR
   }
   BLI_assert(this->find_item(parent->item));
 
-  if (!(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS)) {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
-
-  bNodeTreeInterfacePanel *new_panel = make_panel(next_uid++, name, description, flag);
+  bNodeTreeInterfacePanel *new_panel = make_panel(this->next_uid++, name, description, flag);
   if (new_panel) {
     parent->insert_item(new_panel->item, position);
   }
@@ -1295,15 +1301,7 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::add_item_copy(const bNodeTreeInterfa
   if (parent == nullptr) {
     parent = &root_panel;
   }
-  BLI_assert(this->find_item(item));
   BLI_assert(this->find_item(parent->item));
-
-  if (item.item_type == NODE_INTERFACE_PANEL &&
-      !(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-  {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
 
   bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));
   item_types::item_copy(*citem, item, 0, [&]() { return this->next_uid++; });
@@ -1322,13 +1320,6 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::insert_item_copy(const bNodeTreeInte
   }
   BLI_assert(this->find_item(item));
   BLI_assert(this->find_item(parent->item));
-
-  if (item.item_type == NODE_INTERFACE_PANEL &&
-      !(parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-  {
-    /* Parent does not allow adding child panels. */
-    return nullptr;
-  }
 
   bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));
   item_types::item_copy(*citem, item, 0, [&]() { return this->next_uid++; });
@@ -1391,12 +1382,7 @@ bool bNodeTreeInterface::move_item_to_parent(bNodeTreeInterfaceItem &item,
   if (parent == nullptr) {
     return false;
   }
-  if (item.item_type == NODE_INTERFACE_PANEL && new_parent &&
-      !(new_parent->flag & NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS))
-  {
-    /* Parent does not allow adding child panels. */
-    return false;
-  }
+
   if (parent == new_parent) {
     if (parent->move_item(item, new_position)) {
       this->tag_items_changed();
@@ -1441,13 +1427,13 @@ void bNodeTreeInterface::ensure_items_cache() const
     bNodeTreeInterface &mutable_self = const_cast<bNodeTreeInterface &>(*this);
 
     mutable_self.foreach_item([&](bNodeTreeInterfaceItem &item) {
-      runtime.items_.append(&item);
+      runtime.items_.add_new(&item);
       if (bNodeTreeInterfaceSocket *socket = get_item_as<bNodeTreeInterfaceSocket>(&item)) {
         if (socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
-          runtime.inputs_.append(socket);
+          runtime.inputs_.add_new(socket);
         }
         if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-          runtime.outputs_.append(socket);
+          runtime.outputs_.add_new(socket);
         }
       }
       return true;

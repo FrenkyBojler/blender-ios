@@ -19,7 +19,6 @@ class USDMeshReader : public USDGeomReader {
  private:
   pxr::UsdGeomMesh mesh_prim_;
 
-  blender::Map<std::string, pxr::TfToken> uv_token_map_;
   blender::Map<const pxr::TfToken, bool> primvar_varying_map_;
 
   /* TODO(makowalski): Is it the best strategy to cache the
@@ -43,9 +42,19 @@ class USDMeshReader : public USDGeomReader {
  public:
   USDMeshReader(const pxr::UsdPrim &prim,
                 const USDImportParams &import_params,
-                const ImportSettings &settings);
+                const ImportSettings &settings)
+      : USDGeomReader(prim, import_params, settings),
+        mesh_prim_(prim),
+        is_left_handed_(false),
+        is_time_varying_(false),
+        is_initial_load_(false)
+  {
+  }
 
-  bool valid() const override;
+  bool valid() const override
+  {
+    return bool(mesh_prim_);
+  }
 
   void create_object(Main *bmain, double motionSampleTime) override;
   void read_object_data(Main *bmain, double motionSampleTime) override;
@@ -77,7 +86,9 @@ class USDMeshReader : public USDGeomReader {
                                            blender::Map<pxr::SdfPath, int> *r_mat_map);
 
   void read_mpolys(Mesh *mesh) const;
+  void read_subdiv();
   void read_vertex_creases(Mesh *mesh, double motionSampleTime);
+  void read_edge_creases(Mesh *mesh, double motionSampleTime);
   void read_velocities(Mesh *mesh, double motionSampleTime);
 
   void read_mesh_sample(ImportSettings *settings,

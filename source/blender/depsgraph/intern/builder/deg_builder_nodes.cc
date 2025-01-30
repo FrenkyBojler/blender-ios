@@ -68,7 +68,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
@@ -76,7 +76,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_light.h"
 #include "BKE_mask.h"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
@@ -418,8 +418,8 @@ void DepsgraphNodeBuilder::begin_build()
   graph_->entry_tags.clear();
 }
 
-/* Util callbacks for `BKE_library_foreach_ID_link`, used to detect when an evaluated ID is using
- * ID pointers that are either:
+/* Utility callbacks for `BKE_library_foreach_ID_link`, used to detect when an evaluated ID is
+ * using ID pointers that are either:
  *  - evaluated ID pointers that do not exist anymore in current depsgraph.
  *  - Orig ID pointers that do have now an evaluated version in current depsgraph.
  * In both cases, it means the evaluated ID user needs to be flushed, to ensure its pointers are
@@ -991,7 +991,6 @@ void DepsgraphNodeBuilder::build_object_data(Object *object)
     case OB_SURF:
     case OB_MBALL:
     case OB_LATTICE:
-    case OB_GPENCIL_LEGACY:
     case OB_CURVES:
     case OB_POINTCLOUD:
     case OB_VOLUME:
@@ -1456,7 +1455,6 @@ void DepsgraphNodeBuilder::build_dimensions(Object *object)
   add_operation_node(&object->id, NodeType::PARAMETERS, OperationCode::DIMENSIONS);
 }
 
-/* Recursively build graph for world */
 void DepsgraphNodeBuilder::build_world(World *world)
 {
   if (built_map_.checkIsBuiltAndTag(world)) {
@@ -1662,7 +1660,6 @@ void DepsgraphNodeBuilder::build_particle_settings(ParticleSettings *particle_se
   }
 }
 
-/* Shape-keys. */
 void DepsgraphNodeBuilder::build_shapekeys(Key *key)
 {
   if (built_map_.checkIsBuiltAndTag(key)) {
@@ -2004,7 +2001,7 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
     else if (id_type == ID_VF) {
       build_vfont((VFont *)id);
     }
-    else if (ELEM(bnode->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+    else if (bnode->is_group()) {
       bNodeTree *group_ntree = (bNodeTree *)id;
       build_nodetree(group_ntree);
     }
@@ -2027,7 +2024,6 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
   /* TODO: link from nodetree to owner_component? */
 }
 
-/* Recursively build graph for material */
 void DepsgraphNodeBuilder::build_material(Material *material)
 {
   if (built_map_.checkIsBuiltAndTag(material)) {
@@ -2060,7 +2056,6 @@ void DepsgraphNodeBuilder::build_materials(Material **materials, int num_materia
   }
 }
 
-/* Recursively build graph for texture */
 void DepsgraphNodeBuilder::build_texture(Tex *texture)
 {
   if (built_map_.checkIsBuiltAndTag(texture)) {
@@ -2241,22 +2236,22 @@ void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
       &vfont->id, NodeType::GENERIC_DATABLOCK, OperationCode::GENERIC_DATABLOCK_UPDATE);
 }
 
-static bool seq_node_build_cb(Sequence *seq, void *user_data)
+static bool strip_node_build_cb(Strip *strip, void *user_data)
 {
   DepsgraphNodeBuilder *nb = (DepsgraphNodeBuilder *)user_data;
-  nb->build_idproperties(seq->prop);
-  if (seq->sound != nullptr) {
-    nb->build_sound(seq->sound);
+  nb->build_idproperties(strip->prop);
+  if (strip->sound != nullptr) {
+    nb->build_sound(strip->sound);
   }
-  if (seq->scene != nullptr) {
-    nb->build_scene_parameters(seq->scene);
+  if (strip->scene != nullptr) {
+    nb->build_scene_parameters(strip->scene);
   }
-  if (seq->type == SEQ_TYPE_SCENE && seq->scene != nullptr) {
-    if (seq->flag & SEQ_SCENE_STRIPS) {
-      nb->build_scene_sequencer(seq->scene);
+  if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
+    if (strip->flag & SEQ_SCENE_STRIPS) {
+      nb->build_scene_sequencer(strip->scene);
     }
-    ViewLayer *sequence_view_layer = BKE_view_layer_default_render(seq->scene);
-    nb->build_scene_speakers(seq->scene, sequence_view_layer);
+    ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
+    nb->build_scene_speakers(strip->scene, sequence_view_layer);
   }
   /* TODO(sergey): Movie clip, scene, camera, mask. */
   return true;
@@ -2279,7 +2274,7 @@ void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
                        SEQ_eval_sequences(depsgraph, scene_cow, &scene_cow->ed->seqbase);
                      });
   /* Make sure data for sequences is in the graph. */
-  SEQ_for_each_callback(&scene->ed->seqbase, seq_node_build_cb, this);
+  SEQ_for_each_callback(&scene->ed->seqbase, strip_node_build_cb, this);
 }
 
 void DepsgraphNodeBuilder::build_scene_audio(Scene *scene)
@@ -2321,7 +2316,7 @@ void DepsgraphNodeBuilder::build_scene_speakers(Scene *scene, ViewLayer *view_la
 void DepsgraphNodeBuilder::modifier_walk(void *user_data,
                                          Object * /*object*/,
                                          ID **idpoin,
-                                         int /*cb_flag*/)
+                                         LibraryForeachIDCallbackFlag /*cb_flag*/)
 {
   BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
   ID *id = *idpoin;

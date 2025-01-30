@@ -17,7 +17,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
@@ -440,7 +440,7 @@ static void node_composit_copy_image(bNodeTree * /*dst_ntree*/,
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class ImageOperation : public NodeOperation {
  public:
@@ -459,21 +459,22 @@ class ImageOperation : public NodeOperation {
       return;
     }
 
-    Result *cached_image = context().cache_manager().cached_images.get(
+    Result cached_image = context().cache_manager().cached_images.get(
         context(), get_image(), get_image_user(), get_pass_name(identifier));
 
     Result &result = get_result(identifier);
-    if (!cached_image || !cached_image->is_allocated()) {
+    if (!cached_image.is_allocated()) {
       result.allocate_invalid();
       return;
     }
 
     /* Alpha is not an actual pass, but one that is extracted from the combined pass. */
     if (identifier == "Alpha") {
-      extract_alpha(context(), *cached_image, result);
+      extract_alpha(context(), cached_image, result);
     }
     else {
-      cached_image->pass_through(result);
+      result.set_precision(cached_image.precision());
+      result.wrap_external(cached_image);
     }
   }
 
@@ -508,7 +509,11 @@ void register_node_type_cmp_image()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_IMAGE, "Image", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeImage", CMP_NODE_IMAGE);
+  ntype.ui_name = "Image";
+  ntype.ui_description = "Input image or movie file";
+  ntype.enum_name_legacy = "IMAGE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.initfunc = file_ns::node_composit_init_image;
   blender::bke::node_type_storage(
       &ntype, "ImageUser", file_ns::node_composit_free_image, file_ns::node_composit_copy_image);
@@ -658,7 +663,7 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
   RNA_string_set(&op_ptr, "scene", scene_name);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class RenderLayerOperation : public NodeOperation {
  public:
@@ -693,10 +698,10 @@ class RenderLayerOperation : public NodeOperation {
         continue;
       }
 
-      this->context().populate_meta_data_for_pass(
-          scene, view_layer, output->identifier, result.meta_data);
+      const char *pass_name = this->get_pass_name(output->identifier);
+      this->context().populate_meta_data_for_pass(scene, view_layer, pass_name, result.meta_data);
 
-      const Result pass = this->context().get_pass(scene, view_layer, output->identifier);
+      const Result pass = this->context().get_pass(scene, view_layer, pass_name);
       this->execute_pass(pass, result);
     }
   }
@@ -786,14 +791,21 @@ class RenderLayerOperation : public NodeOperation {
     /* Special case for alpha output. */
     if (pass.type() == ResultType::Color && result.type() == ResultType::Float) {
       parallel_for(result.domain().size, [&](const int2 texel) {
-        result.store_pixel(texel, float4(pass.load_pixel(texel + lower_bound).w));
+        result.store_pixel(texel, pass.load_pixel<float4>(texel + lower_bound).w);
       });
     }
     else {
       parallel_for(result.domain().size, [&](const int2 texel) {
-        result.store_pixel(texel, pass.load_pixel(texel + lower_bound));
+        result.store_pixel_generic_type(texel, pass.load_pixel_generic_type(texel + lower_bound));
       });
     }
+  }
+
+  /* Get the name of the pass corresponding to the output with the given identifier. */
+  const char *get_pass_name(StringRef identifier)
+  {
+    DOutputSocket output = this->node().output_by_identifier(identifier);
+    return static_cast<NodeImageLayer *>(output->storage)->pass_name;
   }
 };
 
@@ -810,17 +822,23 @@ void register_node_type_cmp_rlayers()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_R_LAYERS, "Render Layers", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeRLayers", CMP_NODE_R_LAYERS);
+  ntype.ui_name = "Render Layers";
+  ntype.ui_description = "Input render passes from a scene render";
+  ntype.enum_name_legacy = "R_LAYERS";
+  ntype.nclass = NODE_CLASS_INPUT;
   blender::bke::node_type_socket_templates(&ntype, nullptr, cmp_node_rlayers_out);
   ntype.draw_buttons = file_ns::node_composit_buts_viewlayers;
   ntype.initfunc_api = file_ns::node_composit_init_rlayers;
   ntype.poll = file_ns::node_composit_poll_rlayers;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  ntype.realtime_compositor_unsupported_message = N_(
-      "Render passes not supported in the Viewport compositor");
+  ntype.compositor_unsupported_message = N_(
+      "Render passes in the Viewport compositor are only supported in EEVEE");
   ntype.flag |= NODE_PREVIEW;
-  blender::bke::node_type_storage(
-      &ntype, nullptr, file_ns::node_composit_free_rlayers, file_ns::node_composit_copy_rlayers);
+  blender::bke::node_type_storage(&ntype,
+                                  std::nullopt,
+                                  file_ns::node_composit_free_rlayers,
+                                  file_ns::node_composit_copy_rlayers);
   ntype.updatefunc = file_ns::cmp_node_rlayers_update;
   ntype.initfunc = node_cmp_rlayers_outputs;
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);

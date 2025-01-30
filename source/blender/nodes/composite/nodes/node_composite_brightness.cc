@@ -45,10 +45,15 @@ static void node_composit_init_brightcontrast(bNodeTree * /*ntree*/, bNode *node
 
 static void node_composit_buts_brightcontrast(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "use_premultiply", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_premultiply", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
+
+static bool get_use_premultiply(const bNode &node)
+{
+  return node.custom1;
+}
 
 class BrightContrastShaderNode : public ShaderNode {
  public:
@@ -59,7 +64,7 @@ class BrightContrastShaderNode : public ShaderNode {
     GPUNodeStack *inputs = get_inputs_array();
     GPUNodeStack *outputs = get_outputs_array();
 
-    const float use_premultiply = get_use_premultiply();
+    const float use_premultiply = get_use_premultiply(bnode());
 
     GPU_stack_link(material,
                    &bnode(),
@@ -67,11 +72,6 @@ class BrightContrastShaderNode : public ShaderNode {
                    inputs,
                    outputs,
                    GPU_constant(&use_premultiply));
-  }
-
-  bool get_use_premultiply()
-  {
-    return bnode().custom1;
   }
 };
 
@@ -131,7 +131,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
       },
       mf::build::exec_presets::SomeSpanOrSingle<0>());
 
-  const bool use_premultiply = builder.node().custom1;
+  const bool use_premultiply = get_use_premultiply(builder.node());
   if (use_premultiply) {
     builder.set_matching_fn(premultiply_used_function);
   }
@@ -148,7 +148,11 @@ void register_node_type_cmp_brightcontrast()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_BRIGHTCONTRAST, "Brightness/Contrast", NODE_CLASS_OP_COLOR);
+  cmp_node_type_base(&ntype, "CompositorNodeBrightContrast", CMP_NODE_BRIGHTCONTRAST);
+  ntype.ui_name = "Brightness/Contrast";
+  ntype.ui_description = "Adjust brightness and contrast";
+  ntype.enum_name_legacy = "BRIGHTCONTRAST";
+  ntype.nclass = NODE_CLASS_OP_COLOR;
   ntype.declare = file_ns::cmp_node_brightcontrast_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_brightcontrast;
   ntype.initfunc = file_ns::node_composit_init_brightcontrast;

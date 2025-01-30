@@ -6,7 +6,6 @@
  * \ingroup edgrease_pencil
  */
 
-#include "BLI_string.h"
 #include "BLI_task.hh"
 
 #include "BKE_context.hh"
@@ -31,9 +30,6 @@
 
 #include "WM_api.hh"
 #include "WM_types.hh"
-
-#include <iostream>
-#include <ostream>
 
 static CLG_LogRef LOG = {"ed.undo.greasepencil"};
 
@@ -274,6 +270,7 @@ class StepObject {
     if (grease_pencil.root_group_ptr) {
       MEM_delete(&grease_pencil.root_group());
     }
+    grease_pencil.set_active_node(nullptr);
 
     grease_pencil.root_group_ptr = MEM_new<bke::greasepencil::LayerGroup>(__func__, root_group_);
     BLI_assert(layers_num_ == grease_pencil.layers().size());

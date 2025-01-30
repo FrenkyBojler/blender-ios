@@ -430,10 +430,10 @@ static PointerRNA rna_Curve_bevelObject_get(PointerRNA *ptr)
   Object *ob = cu->bevobj;
 
   if (ob) {
-    return rna_pointer_inherit_refine(ptr, &RNA_Object, ob);
+    return RNA_id_pointer_create(reinterpret_cast<ID *>(ob));
   }
 
-  return rna_pointer_inherit_refine(ptr, nullptr, nullptr);
+  return PointerRNA_NULL;
 }
 
 static void rna_Curve_bevelObject_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -503,10 +503,10 @@ static PointerRNA rna_Curve_taperObject_get(PointerRNA *ptr)
   Object *ob = cu->taperobj;
 
   if (ob) {
-    return rna_pointer_inherit_refine(ptr, &RNA_Object, ob);
+    return RNA_id_pointer_create(reinterpret_cast<ID *>(ob));
   }
 
-  return rna_pointer_inherit_refine(ptr, nullptr, nullptr);
+  return PointerRNA_NULL;
 }
 
 static void rna_Curve_taperObject_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -752,7 +752,7 @@ static PointerRNA rna_Curve_active_spline_get(PointerRNA *ptr)
     return rna_pointer_inherit_refine(ptr, &RNA_Spline, nu);
   }
 
-  return rna_pointer_inherit_refine(ptr, nullptr, nullptr);
+  return PointerRNA_NULL;
 }
 
 static void rna_Curve_active_spline_set(PointerRNA *ptr,
@@ -1149,8 +1149,9 @@ static void rna_def_font(BlenderRNA * /*brna*/, StructRNA *srna)
   prop = RNA_def_property(srna, "align_x", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "spacemode");
   RNA_def_property_enum_items(prop, prop_align_items);
-  RNA_def_property_ui_text(
-      prop, "Horizontal Alignment", "Text horizontal alignment from the object center");
+  RNA_def_property_ui_text(prop,
+                           "Horizontal Alignment",
+                           "Text horizontal alignment from the object or text box center");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "align_y", PROP_ENUM, PROP_NONE);

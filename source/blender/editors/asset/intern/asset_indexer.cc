@@ -219,7 +219,7 @@ static void init_indexer_entry_from_value(FileIndexerEntry &indexer_entry,
 
   indexer_entry.idcode = GS(idcode_name.data());
 
-  idcode_name.substr(2).copy(indexer_entry.datablock_info.name);
+  idcode_name.substr(2).copy_utf8_truncated(indexer_entry.datablock_info.name);
 
   AssetMetaData *asset_data = BKE_asset_metadata_create();
   indexer_entry.datablock_info.asset_data = asset_data;
@@ -566,8 +566,12 @@ class AssetIndexFile : public AbstractFile {
     JsonFormatter formatter;
     std::ifstream is;
     is.open(this->filename);
+    BLI_SCOPED_DEFER([&]() { is.close(); });
+
     std::unique_ptr<Value> read_data = formatter.deserialize(is);
-    is.close();
+    if (!read_data) {
+      return nullptr;
+    }
 
     return std::make_unique<AssetIndex>(read_data);
   }
@@ -680,6 +684,11 @@ static eFileIndexerResult read_index(const char *filename,
   }
 
   std::unique_ptr<AssetIndex> contents = asset_index_file.read_contents();
+  if (!contents) {
+    CLOG_INFO(&LOG, 3, "Asset file index is ignored; failed to read contents.");
+    return FILE_INDEXER_NEEDS_UPDATE;
+  }
+
   if (!contents->is_latest_version()) {
     CLOG_INFO(&LOG,
               3,

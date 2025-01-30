@@ -3,6 +3,11 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # pylint: disable=missing-function-docstring, missing-module-docstring, missing-class-docstring
 
+__all__ = (
+    "main",
+)
+
+import datetime
 import itertools
 import json
 import os
@@ -12,8 +17,10 @@ import sys
 from pathlib import Path
 
 from typing import (
-    Iterator,
     NamedTuple,
+)
+from collections.abc import (
+    Iterator,
 )
 
 # -----------------------------------------------------------------------------
@@ -37,22 +44,24 @@ INTRODUCTION = r"""<!--
 This document is auto-generated with `make license`.
 To update it, edit (paths relative to Blender projects root):
 
- * For external libraries: ./build_files/build_environment/cmake/versions.cmake
- * For internal libraries: ./extern/*/Blender.README
- * For fonts: ./tools/utils_maintenance/make_license.py
- * To add new licenses: ./release/license/licenses.json
+ * Introduction and formatting: ./tools/utils_maintenance/make_license.py
+ * External libraries: ./build_files/build_environment/cmake/versions.cmake
+ * Internal libraries: ./extern/*/Blender.README
+ * Fonts: ./tools/utils_maintenance/make_license.py
+ * New licenses: ./release/license/licenses.json
 
 Then run `make license` and commit `license.md`.
 
 -->
 # Blender Third-Party Licenses
 
-While Blender itself is released under [GPU-GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html),
+While Blender itself is released under [GPU-GPL 3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html)
+`© 2011-<THIS-YEAR> Blender Foundation`,
 it contains dependencies which have different licenses.
 
 <SPDX:GPL-3.0-or-later>
 
-"""
+""".replace("<THIS-YEAR>", str(datetime.date.today().year))
 
 INTRODUCTION += r"""
 ## Fonts
@@ -242,7 +251,7 @@ class License:
         license_raw = "\n".join(line.rstrip() for line in license_raw.split("\n"))
 
         # Debug option commented out.
-        # This is useful if you want a human-inspectionable document without the licenses.
+        # This is useful if you want a document for human inspection without the licenses.
         # license_raw = "# Debug"
 
         summary_prefix = f"{int_to_superscript(index)} " if index else ""
@@ -527,10 +536,10 @@ def extract_licenses(text: str) -> set[str]:
 
     For example, for the input:
      * <SPDX:GPL-3.0-or-later|link>
-     * <Arev-Fonts>
+     * <Example-Fonts>
 
    The output would be:
-     {"SPDX:GPL-3.0-or-later", "Arev-Fonts"}
+     {"SPDX:GPL-3.0-or-later", "Example-Fonts"}
     """
     # Remove multi-line comments (<!-- ... -->).
     text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)

@@ -22,7 +22,6 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 
@@ -72,7 +71,7 @@ IDProperty *IDP_NewIDPArray(const blender::StringRef name)
       MEM_callocN(sizeof(IDProperty), "IDProperty prop array"));
   prop->type = IDP_IDPARRAY;
   prop->len = 0;
-  name.copy(prop->name);
+  name.copy_utf8_truncated(prop->name);
 
   return prop;
 }
@@ -384,7 +383,7 @@ IDProperty *IDP_NewStringMaxSize(const char *st,
   }
 
   prop->type = IDP_STRING;
-  name.copy(prop->name);
+  name.copy_utf8_truncated(prop->name);
   prop->flag = short(flags);
 
   return prop;
@@ -412,10 +411,11 @@ static IDProperty *IDP_CopyString(const IDProperty *prop, const int flag)
   return newp;
 }
 
-/* FIXME: This function is broken for bytes (in case there are null chars in it), needs a
- * dedicated function which takes directly the size of the byte buffer. */
 void IDP_AssignStringMaxSize(IDProperty *prop, const char *st, const size_t st_maxncpy)
 {
+  /* FIXME: This function is broken for bytes (in case there are null chars in it),
+   * needs a dedicated function which takes directly the size of the byte buffer. */
+
   BLI_assert(prop->type == IDP_STRING);
   const bool is_byte = prop->subtype == IDP_STRING_SUB_BYTE;
   const int stlen = int((st_maxncpy > 0) ? BLI_strnlen(st, st_maxncpy - 1) : strlen(st)) +
@@ -429,9 +429,10 @@ void IDP_AssignStringMaxSize(IDProperty *prop, const char *st, const size_t st_m
   }
 }
 
-/* FIXME: Should never be called for `byte` subtype, needs an assert. */
 void IDP_AssignString(IDProperty *prop, const char *st)
 {
+  /* FIXME: Should never be called for `byte` subtype, needs an assert. */
+
   IDP_AssignStringMaxSize(prop, st, 0);
 }
 
@@ -1086,7 +1087,7 @@ IDProperty *IDP_New(const char type,
   }
 
   prop->type = type;
-  name.copy(prop->name);
+  name.copy_utf8_truncated(prop->name);
   prop->flag = short(flags);
 
   return prop;
