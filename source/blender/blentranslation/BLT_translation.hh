@@ -8,11 +8,12 @@
 
 #pragma once
 
+#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h" /* for bool type */
 
 #define TEXT_DOMAIN_NAME "blender"
 
-bool BLT_is_default_context(const char *msgctxt);
+bool BLT_is_default_context(blender::StringRef msgctxt);
 const char *BLT_pgettext(const char *msgctxt, const char *msgid);
 
 /* Translation */
@@ -152,10 +153,7 @@ struct BLT_i18n_contexts_descriptor {
   const char *value;
 };
 
-#define BLT_I18NCONTEXTS_ITEM(ctxt_id, py_id) \
-  { \
-    #ctxt_id, py_id, ctxt_id \
-  }
+#define BLT_I18NCONTEXTS_ITEM(ctxt_id, py_id) {#ctxt_id, py_id, ctxt_id}
 
 #define BLT_I18NCONTEXTS_DESC \
   { \
