@@ -959,6 +959,9 @@ template<typename T, typename GetIDFn> struct CustomIDEqual {
 /**
  * Used for a set where the key itself isn't used for the hash or equality but some part of the
  * key instead. For example the string identifiers of node types.
+ *
+ * #GetIDFn should have an implementation that returns a hashable and equality comparable type,
+ * i.e. `StringRef operator()(const bNode *value) { return value->idname; }`.
  */
 template<typename T, typename GetIDFn>
 using CustomIDVectorSet =
