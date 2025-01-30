@@ -747,42 +747,36 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
 
       # Overlay
       if(WITH_OPENGL_BACKEND)
-        foreach(render_test ${gpu_render_tests})
-          add_render_test(
-            overlay_${render_test}_opengl
-            ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
-            --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/overlay"
-            --gpu-backend opengl
-            ${_gpu_render_tests_arguments}
-          )
-        endforeach()
+        add_render_test(
+          overlay_${render_test}_opengl
+          ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
+          --testdir "${TEST_SRC_DIR}/overlay"
+          --outdir "${TEST_OUT_DIR}/overlay"
+          --gpu-backend opengl
+          ${_gpu_render_tests_arguments}
+        )
       endif()
 
       if(WITH_METAL_BACKEND)
-        foreach(render_test ${gpu_render_tests})
-          add_render_test(
-            overlay_${render_test}_metal
-            ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
-            --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/overlay"
-            --gpu-backend metal
-            ${_gpu_render_tests_arguments}
-          )
-        endforeach()
+        add_render_test(
+          overlay_${render_test}_metal
+          ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
+          --testdir "${TEST_SRC_DIR}/overlay"
+          --outdir "${TEST_OUT_DIR}/overlay"
+          --gpu-backend metal
+          ${_gpu_render_tests_arguments}
+        )
       endif()
 
       if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
-        foreach(render_test ${gpu_render_tests})
-          add_render_test(
-            overlay_${render_test}_vulkan
-            ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
-            --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/overlay"
-            --gpu-backend vulkan
-            ${_gpu_render_tests_arguments}
-          )
-        endforeach()
+        add_render_test(
+          overlay_${render_test}_vulkan
+          ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
+          --testdir "${TEST_SRC_DIR}/overlay"
+          --outdir "${TEST_OUT_DIR}/overlay"
+          --gpu-backend vulkan
+          ${_gpu_render_tests_arguments}
+        )
       endif()
 
       if(WITH_HYDRA)
