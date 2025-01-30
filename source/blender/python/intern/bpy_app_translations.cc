@@ -73,6 +73,8 @@ struct MessageKeyRef {
 
   uint64_t hash() const
   {
+    BLI_assert(this->context == BLT_I18NCONTEXT_DEFAULT_BPYRNA ||
+               !BLT_is_default_context(context));
     return blender::get_default_hash(context, str);
   }
 };
@@ -235,7 +237,9 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
 
         /* Do not overwrite existing keys! */
         if (BPY_app_translations_py_pgettext(msgctxt, msgid) == msgid) {
-          MessageKey key{msgctxt, msgid};
+          MessageKey key;
+          key.context = BLT_is_default_context(msgctxt) ? BLT_I18NCONTEXT_DEFAULT_BPYRNA : msgctxt;
+          key.str = msgid;
           Py_ssize_t trans_str_len;
           const char *trans_str = PyUnicode_AsUTF8AndSize(trans, &trans_str_len);
           get_translations_cache()->add(key, std::string(trans_str, trans_str_len));
