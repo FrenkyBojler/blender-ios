@@ -93,7 +93,7 @@ StringRef get_rotation_mode_path(const eRotationModes rotation_mode)
 
 static bool is_idproperty_keyable(IDProperty *id_prop, PointerRNA *ptr, PropertyRNA *prop)
 {
-  /* While you can cast the IDProperty* to a PropertyRNA* and pass it to the functions, this
+  /* While you can cast the IDProperty* to a PropertyRNA* and pass it to the RNA_* functions, this
    * does not work because it will not have the right flags set. Instead the resolved
    * PointerRNA and PropertyRNA need to be passed. */
   if (!RNA_property_anim_editable(ptr, prop)) {
@@ -127,7 +127,6 @@ Vector<RNAPath> construct_keyframing_rna_paths(PointerRNA *ptr)
 {
   eRotationModes rotation_mode;
   IDProperty *properties;
-  blender::Vector<RNAPath> paths;
 
   if (ptr->type == &RNA_PoseBone) {
     bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
@@ -141,9 +140,10 @@ Vector<RNAPath> construct_keyframing_rna_paths(PointerRNA *ptr)
   }
   else {
     /* Pointer type not supported. */
-    return paths;
+    return {};
   }
 
+  blender::Vector<RNAPath> paths;
   eKeyInsertChannels insert_channel_flags = eKeyInsertChannels(U.key_insert_channels);
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_LOCATION) {
     paths.append({"location"});
@@ -173,34 +173,38 @@ Vector<RNAPath> construct_keyframing_rna_paths(PointerRNA *ptr)
   if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_ROTATION_MODE) {
     paths.append({"rotation_mode"});
   }
-  if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES) {
-    if (properties) {
-      LISTBASE_FOREACH (IDProperty *, id_prop, &properties->data.group) {
-        PointerRNA resolved_ptr;
-        PropertyRNA *resolved_prop;
-        std::string path = id_prop->name;
-        /* Resolving the path twice, once as RNA property (without brackets, `"propname"`),
-         * and once as ID property (with brackets, `["propname"]`).
-         * This is required to support IDProperties that have been defined as part of an add-on.
-         * Those need to be animated through an RNA path without the brackets. */
-        bool is_resolved = RNA_path_resolve_property(
-            ptr, path.c_str(), &resolved_ptr, &resolved_prop);
-        if (!is_resolved) {
-          char name_escaped[MAX_IDPROP_NAME * 2];
-          BLI_str_escape(name_escaped, id_prop->name, sizeof(name_escaped));
-          path = fmt::format("[\"{}\"]", name_escaped);
-          is_resolved = RNA_path_resolve_property(
-              ptr, path.c_str(), &resolved_ptr, &resolved_prop);
-        }
-        if (!is_resolved) {
-          continue;
-        }
-        if (is_idproperty_keyable(id_prop, &resolved_ptr, resolved_prop)) {
-          paths.append({path});
-        }
-      }
+
+  if (!(insert_channel_flags & USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES)) {
+    return paths;
+  }
+
+  if (!properties) {
+    return paths;
+  }
+
+  LISTBASE_FOREACH (IDProperty *, id_prop, &properties->data.group) {
+    PointerRNA resolved_ptr;
+    PropertyRNA *resolved_prop;
+    std::string path = id_prop->name;
+    /* Resolving the path twice, once as RNA property (without brackets, `"propname"`),
+     * and once as ID property (with brackets, `["propname"]`).
+     * This is required to support IDProperties that have been defined as part of an add-on.
+     * Those need to be animated through an RNA path without the brackets. */
+    bool is_resolved = RNA_path_resolve_property(ptr, path.c_str(), &resolved_ptr, &resolved_prop);
+    if (!is_resolved) {
+      char name_escaped[MAX_IDPROP_NAME * 2];
+      BLI_str_escape(name_escaped, id_prop->name, sizeof(name_escaped));
+      path = fmt::format("[\"{}\"]", name_escaped);
+      is_resolved = RNA_path_resolve_property(ptr, path.c_str(), &resolved_ptr, &resolved_prop);
+    }
+    if (!is_resolved) {
+      continue;
+    }
+    if (is_idproperty_keyable(id_prop, &resolved_ptr, resolved_prop)) {
+      paths.append({path});
     }
   }
+
   return paths;
 }
 
