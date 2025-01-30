@@ -68,7 +68,12 @@ bool wm_xr_init(wmWindowManager *wm)
 
   {
     const GHOST_TXrGraphicsBinding gpu_bindings_candidates[] = {
+#ifdef WITH_OPENGL_BACKEND
         GHOST_kXrGraphicsOpenGL,
+#endif
+#ifdef WITH_VULKAN_BACKEND
+        GHOST_kXrGraphicsVulkan,
+#endif
 #ifdef WIN32
         GHOST_kXrGraphicsD3D11,
 #endif

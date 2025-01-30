@@ -602,6 +602,7 @@ if(WITH_XR_OPENXR)
   )
 
   set(XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_OPENGL)
+  set(XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_VULKAN)
 
   # Add compiler defines as required by the OpenXR specification.
   if(WIN32)
