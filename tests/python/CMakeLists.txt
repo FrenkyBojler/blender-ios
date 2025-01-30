@@ -1080,21 +1080,23 @@ endif()
 # ------------------------------------------------------------------------------
 # SCULPTING RENDER TESTS
 
-if(NOT OPENIMAGEIO_TOOL)
-  message(STATUS "Disabling sculpting render tests because OIIO oiiotool does not exist")
-else()
-  set(render_tests
-          mesh_brushes
-  )
-
-  foreach(render_test ${render_tests})
-    add_render_test(
-            sculpt_render_${render_test}
-            ${CMAKE_CURRENT_LIST_DIR}/sculpt_mesh_brush_render_tests.py
-            --testdir "${TEST_SRC_DIR}/sculpting/${render_test}"
-            --outdir "${TEST_OUT_DIR}/sculpting/"
+if(WITH_GPU_RENDER_TESTS)
+  if(NOT OPENIMAGEIO_TOOL)
+    message(STATUS "Disabling sculpting render tests because OIIO oiiotool does not exist")
+  else()
+    set(render_tests
+      mesh_brushes
     )
-  endforeach()
+
+    foreach(render_test ${render_tests})
+      add_render_test(
+        sculpt_render_${render_test}
+        ${CMAKE_CURRENT_LIST_DIR}/sculpt_mesh_brush_render_tests.py
+        --testdir "${TEST_SRC_DIR}/sculpting/${render_test}"
+        --outdir "${TEST_OUT_DIR}/sculpting"
+      )
+    endforeach()
+  endif()
 endif()
 
 

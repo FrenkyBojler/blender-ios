@@ -143,7 +143,6 @@ def get_arguments(filepath, output_filepath):
         "-P", os.path.realpath(__file__),
         "-o", output_filepath,
         "-f", "1",
-        "-x", "1",
         "-F", "PNG"]
 
     return args
@@ -166,7 +165,7 @@ def main():
     args = parser.parse_args()
 
     from modules import render_report
-    report = render_report.Report("Sculpt - Mesh Brushes", args.outdir, args.oiiotool)
+    report = render_report.Report("Sculpt", args.outdir, args.oiiotool)
     report.set_pixelated(True)
     # Default error tolerances are quite large, lower them.
     report.set_fail_threshold(2.0 / 255.0)
