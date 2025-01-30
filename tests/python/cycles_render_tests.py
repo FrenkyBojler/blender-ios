@@ -59,8 +59,6 @@ BLOCKLIST_OSL = [
     # TODO: Tests that need investigating into why they're failing, and how to fix that.
     # Noise differences due to Principled BSDF mixing/layering used in some of these scenes
     'render_passes_.*.blend',
-    # Noise differences in Principled BSDF mixing/layering
-    'principled_bsdf_.*.blend',
 ]
 
 BLOCKLIST_OPTIX = [
@@ -137,10 +135,10 @@ class CyclesReport(render_report.Report):
     def __init__(self, title, output_dir, oiiotool, device=None, blocklist=[], osl=False):
         # Split device name in format "<device_type>[-<RT>]" into individual
         # tokens, setting the RT suffix to an empty string if its not specified.
-        device, suffix = (device.split("-") + [""])[:2]
+        self.device, suffix = (device.split("-") + [""])[:2]
         self.use_hwrt = (suffix == "RT")
 
-        super().__init__(title, output_dir, oiiotool, device, blocklist)
+        super().__init__(title, output_dir, oiiotool, self.device, blocklist)
 
         if self.use_hwrt:
             self.title = self.title + " RT"
@@ -152,6 +150,9 @@ class CyclesReport(render_report.Report):
 
     def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
         return arguments_cb(filepath, base_output_filepath, self.use_hwrt, self.osl)
+
+    def _get_arguments_suffix(self):
+        return ['--', '--cycles-device', self.device] if self.device else []
 
 
 def get_arguments(filepath, output_filepath, use_hwrt=False, osl=False):
@@ -260,6 +261,11 @@ def main():
     test_dir_name = Path(args.testdir).name
     if (test_dir_name in {'motion_blur', 'integrator'}) or ((args.osl) and (test_dir_name in {'shader', 'hair'})):
         report.set_fail_threshold(0.032)
+
+    # Layer mixing is different between SVM and OSL, so a few tests have
+    # noticably different noise causing OSL Principled BSDF tests to fail.
+    if ((args.osl) and (test_dir_name == 'principled_bsdf')):
+        report.set_fail_threshold(0.06)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 
