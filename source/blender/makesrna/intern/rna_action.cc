@@ -1547,6 +1547,31 @@ static const EnumPropertyItem *rna_ActionSlot_target_id_type_itemf(bContext * /*
   return items;
 }
 
+/* TODO: document this as back-compat, with explanation. */
+static int rna_Action_id_root_get(PointerRNA *ptr)
+{
+  animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
+
+  if (action.slots().is_empty()) {
+    return action.idroot;
+  }
+
+  return action.slot(0)->idtype;
+}
+
+/* TODO: document this as back-compat, with explanation. */
+static void rna_Action_id_root_set(PointerRNA *ptr, int value)
+{
+  animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
+
+  if (action.slots().is_empty()) {
+    action.idroot = value;
+    return;
+  }
+
+  action.slot(0)->idtype = value;
+}
+
 #else
 
 static void rna_def_dopesheet(BlenderRNA *brna)
@@ -2703,7 +2728,10 @@ static void rna_def_action_legacy(BlenderRNA *brna, StructRNA *srna)
   prop = RNA_def_property(srna, "id_root", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "idroot");
   RNA_def_property_enum_items(prop, default_ActionSlot_target_id_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_ActionSlot_target_id_type_itemf");
+  RNA_def_property_enum_funcs(prop,
+                              "rna_Action_id_root_get",
+                              "rna_Action_id_root_set",
+                              "rna_ActionSlot_target_id_type_itemf");
   RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
   RNA_def_property_ui_text(prop,
                            "ID Root Type",
