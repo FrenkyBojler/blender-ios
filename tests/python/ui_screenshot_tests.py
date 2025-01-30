@@ -66,7 +66,7 @@ def main():
     args = parser.parse_args()
 
     from modules import render_report
-    report = render_report.Report("Blender Screenshot", args.outdir, args.oiiotool)
+    report = render_report.Report("Screenshot", args.outdir, args.oiiotool)
     ok = report.run(args.testdir, args.blender, get_arguments)
 
     sys.exit(not ok)

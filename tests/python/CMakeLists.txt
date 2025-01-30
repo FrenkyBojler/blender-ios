@@ -898,26 +898,30 @@ else()
   message(STATUS "Directory named ${TEST_SRC_DIR}/modeling/geometry_nodes/simulation/ not found, disabling tests")
 endif()
 
-
 if(WITH_GPU_RENDER_TESTS)
-  if(WITH_METAL_BACKEND)
-    if(NOT OPENIMAGEIO_TOOL)
-      message(STATUS "Disabling blender_screenshot tests because OIIO oiiotool does not exist")
-    elseif(NOT EXISTS "${TEST_SRC_DIR}/opengl")
-      message(
-              STATUS "Disabling blender_screenshot tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
-      )
-    else()
-      # Use all subdirectories of the `opengl` directory.
-      if(IS_DIRECTORY ${TEST_SRC_DIR}/opengl)
-        add_render_test(
-                blender_screenshot
-                ${CMAKE_CURRENT_LIST_DIR}/ui_screenshot_tests.py
-                --testdir "${TEST_SRC_DIR}/ui_screenshot"
-                --outdir "${TEST_OUT_DIR}/ui_screenshot"
-        )
-      endif()
+  if(NOT OPENIMAGEIO_TOOL)
+    message(STATUS "Disabling screenshot tests because OIIO oiiotool does not exist")
+  else()
+    set(render_tests
+    )
+
+    if(USE_EXPERIMENTAL_TESTS)
+      # The viewport tests are flakey and difficult to keep up to date for use
+      # in a CI environment due to constantly changing UI, but may still be helpful
+      # for local development.
+      #
+      # Additionally, they do not currently succeed in an ASAN build. (2025-01-29)
+      list(APPEND render_tests viewport)
     endif()
+
+    foreach(render_test ${render_tests})
+      add_render_test(
+        screenshot_${render_test}
+        ${CMAKE_CURRENT_LIST_DIR}/ui_screenshot_tests.py
+        --testdir "${TEST_SRC_DIR}/screenshot/${render_test}"
+        --outdir "${TEST_OUT_DIR}/screenshot"
+      )
+    endforeach()
   endif()
 endif()
 
