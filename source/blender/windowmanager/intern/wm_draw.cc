@@ -1251,11 +1251,14 @@ static void wm_draw_surface(bContext *C, wmSurface *surface)
   wm_window_clear_drawable(CTX_wm_manager(C));
   wm_surface_make_drawable(surface);
 
-  GPU_context_begin_frame(surface->blender_gpu_context);
+  /** in surface->draw(C) below, it's possible for the surface to become invalid, such as when an XR
+   * device encounters an exception, so cache the gpu_context fir use by the GPU_context_end_frame below. */
+  GPUContext *gpu_context = surface->blender_gpu_context;
+  GPU_context_begin_frame(gpu_context);
 
   surface->draw(C);
 
-  GPU_context_end_frame(surface->blender_gpu_context);
+  GPU_context_end_frame(gpu_context);
 
   /* Avoid interference with window drawable. */
   wm_surface_clear_drawable();
