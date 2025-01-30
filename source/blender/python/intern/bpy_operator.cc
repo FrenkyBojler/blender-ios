@@ -393,7 +393,7 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 
 static PyObject *pyop_dir(PyObject * /*self*/)
 {
-  const blender::Span<wmOperatorType *> types = WM_registered_operatortypes_get();
+  const blender::Span<wmOperatorType *> types = WM_operatortypes_registered_get();
   PyObject *list = PyList_New(types.size());
 
   int i = 0;

@@ -75,7 +75,7 @@ MenuType *WM_menutype_find(const char *idname, bool quiet)
   return nullptr;
 }
 
-blender::Span<MenuType *> WM_registered_menutypes_get()
+blender::Span<MenuType *> WM_menutypes_registered_get()
 {
   return get_menu_type_map();
 }

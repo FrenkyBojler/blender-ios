@@ -85,7 +85,7 @@ static auto &get_operators_map()
   return map;
 }
 
-blender::Span<wmOperatorType *> WM_registered_operatortypes_get()
+blender::Span<wmOperatorType *> WM_operatortypes_registered_get()
 {
   return get_operators_map();
 }
