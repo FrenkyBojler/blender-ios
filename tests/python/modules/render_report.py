@@ -96,14 +96,11 @@ class Report:
 
     def __init__(self, title, output_dir, oiiotool, variation=None, blocklist=[]):
         self.title = title
-        self.output_dir = output_dir
-        self.global_dir = os.path.dirname(output_dir)
 
-        if os.path.normpath(self.output_dir) == os.path.normpath(self.global_dir):
-            raise ValueError(
-                "Global and output directories are the same! ({})".format(
-                    os.path.normpath(
-                        self.global_dir)))
+        # Normalize the path to avoid output_dir and global_dir being the same when a directory
+        # ends with a trailing slash.
+        self.output_dir = os.path.normpath(output_dir)
+        self.global_dir = os.path.dirname(self.output_dir)
 
         self.reference_dir = 'reference_renders'
         self.reference_override_dir = None
