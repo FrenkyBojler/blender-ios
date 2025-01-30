@@ -1613,8 +1613,7 @@ static int sequencer_select_linked_pick_invoke(bContext *C, wmOperator *op, cons
   mouse_selection.seq1->flag |= SELECT;
   recurs_sel_seq(mouse_selection.seq1);
 
-  bool selected;
-  selected = true;
+  bool selected = true;
   while (selected) {
     selected = select_linked_internal(scene);
   }
