@@ -14,7 +14,7 @@ namespace blender::ed::curves::tests {
 
 static bke::CurvesGeometry create_curves(const Span<Vector<float3>> all_positions,
                                          const int order,
-                                         const Set<int> is_cyclic)
+                                         const Set<int> &is_cyclic)
 {
   Array<int> offsets(all_positions.size() + 1, 0);
   for (const int curve : all_positions.index_range()) {
@@ -42,7 +42,7 @@ static bke::CurvesGeometry create_curves(const Span<Vector<float3>> all_position
 
 static bke::CurvesGeometry create_curves(const Vector<float3> positions,
                                          const int order,
-                                         const Set<int> is_cyclic)
+                                         const Set<int> &is_cyclic)
 {
   return create_curves(Span<Vector<float3>>(&positions, 1), order, is_cyclic);
 }
