@@ -419,7 +419,7 @@ static void initRotation(TransInfo *t, wmOperator * /*op*/)
     status.item(TIP_("Transform is set to only affect location"), ICON_ERROR);
   }
 
-  initMouseInputMode(t, &t->mouse, only_location ? INPUT_NONE : INPUT_ANGLE);
+  initMouseInputMode(t, &t->mouse, only_location ? INPUT_ERROR : INPUT_ANGLE);
 
   t->idx_max = 0;
   t->num.idx_max = 0;

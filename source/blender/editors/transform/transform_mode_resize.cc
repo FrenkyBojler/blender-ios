@@ -324,7 +324,7 @@ static void initResize(TransInfo *t, wmOperator *op)
   }
 
   if (is_zero_v3(mouse_dir_constraint)) {
-    initMouseInputMode(t, &t->mouse, only_location ? INPUT_NONE : INPUT_SPRING_FLIP);
+    initMouseInputMode(t, &t->mouse, only_location ? INPUT_ERROR : INPUT_SPRING_FLIP);
   }
   else {
     int mval_start[2], mval_end[2];
@@ -352,7 +352,7 @@ static void initResize(TransInfo *t, wmOperator *op)
 
     setCustomPoints(t, &t->mouse, mval_end, mval_start);
 
-    initMouseInputMode(t, &t->mouse, only_location ? INPUT_NONE : INPUT_CUSTOM_RATIO);
+    initMouseInputMode(t, &t->mouse, only_location ? INPUT_ERROR : INPUT_CUSTOM_RATIO);
   }
 
   t->num.val_flag[0] |= NUM_NULL_ONE;
