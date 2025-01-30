@@ -146,11 +146,10 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
   {
     int object_defgroup_nr = BKE_object_defgroup_active_index_get(this->object) - 1;
     if (object_defgroup_nr == -1) {
-      Object *modob;
       const ListBase *defbase = BKE_object_defgroup_list(this->object);
-      if ((modob = BKE_modifiers_is_deformed_by_armature(this->object))) {
+      if (const Object *modob = BKE_modifiers_is_deformed_by_armature(this->object)) {
         /* This happens on a Bone select, when no vgroup existed yet. */
-        Bone *actbone = ((bArmature *)modob->data)->act_bone;
+        Bone *actbone = static_cast<bArmature *>(modob->data)->act_bone;
         if (actbone) {
           bPoseChannel *pchan = BKE_pose_channel_find_name(modob->pose, actbone->name);
 
