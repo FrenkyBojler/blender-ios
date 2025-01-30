@@ -95,24 +95,8 @@ ccl_device_inline float squaref(float a)
   return a * a;
 }
 
-ccl_device_inline float fceilf(float a)
-{
-  return ceilf(a);
-}
-
-ccl_device_inline float float_max(float a, float b)
-{
-  return (a > b) ? a : b;
-}
-
-ccl_device_inline float float_min(float a, float b)
-{
-  return (a < b) ? a : b;
-}
-
 #if !defined(__HIP__) && !defined(__KERNEL_ONEAPI__)
 #  ifdef _WIN32
-/* fmaxf and fminf are overridden by macros in compat.h */
 ccl_device_inline float fmaxf(float a, float b)
 {
   return (a > b) ? a : b;

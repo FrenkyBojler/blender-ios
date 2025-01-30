@@ -473,11 +473,6 @@ ccl_device_inline float4 fmod(const float4 a, const float b)
   return make_float4(fmodf(a.x, b), fmodf(a.y, b), fmodf(a.z, b), fmodf(a.w, b));
 }
 
-ccl_device_inline float4 fceilf(const float4 a)
-{
-  return make_float4(fceilf(a.x), fceilf(a.y), fceilf(a.z), fceilf(a.w));
-}
-
 ccl_device_inline float4 floor(const float4 a)
 {
 #  ifdef __KERNEL_SSE__

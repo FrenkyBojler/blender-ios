@@ -216,11 +216,6 @@ ccl_device_inline float2 fabs(const float2 a)
   return make_float2(fabsf(a.x), fabsf(a.y));
 }
 
-ccl_device_inline float2 fceilf(const float2 a)
-{
-  return make_float2(fceilf(a.x), fceilf(a.y));
-}
-
 ccl_device_inline float2 as_float2(const float4 &a)
 {
   return make_float2(a.x, a.y);

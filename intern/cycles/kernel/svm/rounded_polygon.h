@@ -56,7 +56,7 @@ ccl_device_noinline int svm_node_tex_rounded_polygon(
                                               calculate_max_unit_parameter,
                                               normalize_r_gon_parameter,
                                               elliptical_corners,
-                                              float_max(r_gon_sides, 2.0f),
+                                              fmaxf(r_gon_sides, 2.0f),
                                               clamp(r_gon_roundness, 0.0f, 1.0f),
                                               scale * make_float2(coord.x, coord.y));
 
