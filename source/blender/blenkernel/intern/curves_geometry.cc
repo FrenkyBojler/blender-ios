@@ -1334,44 +1334,6 @@ void CurvesGeometry::count_memory(MemoryCounter &memory) const
   CustomData_count_memory(this->curve_data, this->curve_num, memory);
 }
 
-static void foreach_content_slice_by_offsets(
-    const IndexMask &mask,
-    const OffsetIndices<int> offset_indices,
-    FunctionRef<void(Span<IndexRange> selected_points, IndexRange slice_points, int slice)> fn)
-{
-  Vector<IndexRange> ranges;
-  Span<int> offset_data = offset_indices.data();
-
-  int slice = 0;
-
-  int range_first = mask.first();
-  int range_last = mask.first() - 1;
-
-  mask.foreach_index([&](const int64_t index) {
-    if (offset_data[slice + 1] <= index) {
-      if (range_last - range_first >= 0) {
-        ranges.append(IndexRange::from_begin_end_inclusive(range_first, range_last));
-        fn(ranges, offset_indices[slice], slice);
-        ranges.clear();
-      }
-      do {
-        ++slice;
-      } while (offset_data[slice + 1] <= index);
-      range_first = index;
-    }
-    else if (range_last + 1 != index) {
-      ranges.append(IndexRange::from_begin_end_inclusive(range_first, range_last));
-      range_first = index;
-    }
-    range_last = index;
-  });
-
-  if (range_last - range_first >= 0) {
-    ranges.append(IndexRange::from_begin_end_inclusive(range_first, range_last));
-    fn(ranges, offset_indices[slice], slice);
-  }
-}
-
 CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
                                            const IndexMask &points_to_copy,
                                            const AttributeFilter &attribute_filter)
@@ -1439,7 +1401,7 @@ CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
     Vector<float> new_knots;
     new_knots.reserve(dst_knot_count);
 
-    foreach_content_slice_by_offsets(
+    curves::foreach_content_slice_by_offsets(
         custom_knot_points_to_copy,
         points_by_curve,
         [&](Span<IndexRange> ranges_to_copy, IndexRange points, int curve) {

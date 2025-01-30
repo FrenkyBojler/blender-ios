@@ -512,6 +512,12 @@ void foreach_curve_by_type(const VArray<int8_t> &types,
                            FunctionRef<void(IndexMask)> poly_fn,
                            FunctionRef<void(IndexMask)> bezier_fn,
                            FunctionRef<void(IndexMask)> nurbs_fn);
+
+void foreach_content_slice_by_offsets(
+    const IndexMask &mask,
+    OffsetIndices<int> offset_indices,
+    FunctionRef<void(Span<IndexRange> selected_points, IndexRange slice_points, int slice)> fn);
+
 namespace bezier {
 
 /**
@@ -527,8 +533,8 @@ Array<float3> retrieve_all_positions(const bke::CurvesGeometry &curves,
  * Write to `handle_position_left`, `position`, and `handle_position_right` from a lat array of
  * positions.
  * \param curves_selection: The curves to write to.
- * \param all_positions: All positions of the selected bezier curves. The size of \a all_positions
- * must be equal to 3 * the size of \a curves_selection.
+ * \param all_positions: All positions of the selected bezier curves. The size of \a
+ * all_positions must be equal to 3 * the size of \a curves_selection.
  */
 void write_all_positions(bke::CurvesGeometry &curves,
                          const IndexMask &curves_selection,
