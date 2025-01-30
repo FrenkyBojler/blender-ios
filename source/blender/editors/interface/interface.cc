@@ -1024,7 +1024,7 @@ static std::unique_ptr<uiBut> *but_rfind_old_itr(uiBlock *block_old,
 }
 
 /**
- * \return true when \a but_p is set (only done for active buttons).
+ * \return true when \a but is restored from old block (only done for active buttons).
  */
 static bool ui_but_update_from_old_block(const bContext *C,
                                          uiBlock *block,
@@ -1036,11 +1036,12 @@ static bool ui_but_update_from_old_block(const bContext *C,
 #if 0
   /* Simple method - search every time. Keep this for easy testing of the "fast path." */
   oldbut = but_rfind_old_itr(oldblock, but);
-  UNUSED_VARS(oldbut);
+
 #else
   BLI_assert(oldbut == nullptr || but_itr_in_range(oldbut, oldblock));
 
-  /* As long as old and new buttons are aligned, avoid loop-in-loop (calling #ui_but_find_old). */
+  /* As long as old and new buttons are aligned, avoid loop-in-loop (calling #but_rfind_old_itr).
+   */
   if (!LIKELY(but_itr_in_range(oldbut, oldblock) && ui_but_equals_old(but.get(), oldbut->get()))) {
     /* Fallback to block search. */
     oldbut = but_rfind_old_itr(oldblock, but);
@@ -3606,7 +3607,11 @@ static void ui_but_free_type_specific(uiBut *but)
   }
 }
 
-/* can be called with C==nullptr */
+/**
+ * Frees internal data owned by the #but, however this does not free the #but itself, the
+ * #but is managed with a #std::unique_ptr, this must be called before the #std::unique_ptr owner
+ * is destroyed.
+ */
 static void ui_but_free(const bContext *C, uiBut *but)
 {
   if (but->opptr) {
