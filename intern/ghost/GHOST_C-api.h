@@ -612,7 +612,8 @@ extern void GHOST_SetWindowDecorationStyleFlags(GHOST_WindowHandle windowhandle,
  * Set the window decoration style settings.
  * \param decorationSettings: Window decoration style settings.
  */
-extern void GHOST_SetWindowDecorationStyleSettings(GHOST_WindowHandle windowhandle, GHOST_WindowDecorationStyleSettings decorationSettings);
+extern void GHOST_SetWindowDecorationStyleSettings(
+    GHOST_WindowHandle windowhandle, GHOST_WindowDecorationStyleSettings decorationSettings);
 
 /**
  * Apply the window decoration style using the current flags and settings.

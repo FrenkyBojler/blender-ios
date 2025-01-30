@@ -67,7 +67,8 @@ void GHOST_Window::setWindowDecorationStyleFlags(GHOST_TWindowDecorationStyleFla
   m_windowDecorationStyleFlags = styleFlags;
 }
 
-void GHOST_Window::setWindowDecorationStyleSettings(GHOST_WindowDecorationStyleSettings decorationSettings)
+void GHOST_Window::setWindowDecorationStyleSettings(
+    GHOST_WindowDecorationStyleSettings decorationSettings)
 {
   m_windowDecorationStyleSettings = decorationSettings;
 }

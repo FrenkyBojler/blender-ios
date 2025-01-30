@@ -606,7 +606,8 @@ eWM_WindowDecorationStyleFlag WM_window_get_decoration_style_flags(const wmWindo
   return wm_style_flags;
 }
 
-void WM_window_set_decoration_style_flags(const wmWindow *win, eWM_WindowDecorationStyleFlag style_flags)
+void WM_window_set_decoration_style_flags(const wmWindow *win,
+                                          eWM_WindowDecorationStyleFlag style_flags)
 {
   unsigned int ghost_style_flags = GHOST_kDecorationNone;
 

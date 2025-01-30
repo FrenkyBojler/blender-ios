@@ -102,7 +102,8 @@ class GHOST_IWindow {
    * Set the window decoration style settings.
    * \param decorationSettings: Window decoration style settings.
    */
-  virtual void setWindowDecorationStyleSettings(GHOST_WindowDecorationStyleSettings decorationSettings) = 0;
+  virtual void setWindowDecorationStyleSettings(
+      GHOST_WindowDecorationStyleSettings decorationSettings) = 0;
 
   /**
    * Apply the window decoration style using the current flags and settings.

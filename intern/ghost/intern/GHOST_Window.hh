@@ -98,7 +98,8 @@ class GHOST_Window : public GHOST_IWindow {
    * Set the window decoration style flags.
    * \param styleFlags: Window decoration style flags.
    */
-  virtual void setWindowDecorationStyleFlags(GHOST_TWindowDecorationStyleFlags styleFlags) override;
+  virtual void setWindowDecorationStyleFlags(
+      GHOST_TWindowDecorationStyleFlags styleFlags) override;
 
   /**
    * Set the window decoration style settings.
