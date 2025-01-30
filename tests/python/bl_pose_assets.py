@@ -13,11 +13,18 @@ _BONE_NAME_1 = "bone"
 _BONE_NAME_2 = "bone_2"
 _LIB_NAME = "unit_test"
 
-
-def _select_bone(armature_obj, bone_name):
-    armature_obj.pose.bones[bone_name].bone.select = True
-    armature_obj.pose.bones[bone_name].bone.select_head = True
-    armature_obj.pose.bones[bone_name].bone.select_tail = True
+_BBONE_VALUES = {
+    f'pose.bones["{_BONE_NAME_1}"].bbone_curveinx': (0, ),
+    f'pose.bones["{_BONE_NAME_1}"].bbone_curveoutx': (0, ),
+    f'pose.bones["{_BONE_NAME_1}"].bbone_curveinz': (0, ),
+    f'pose.bones["{_BONE_NAME_1}"].bbone_curveoutz': (0, ),
+    f'pose.bones["{_BONE_NAME_1}"].bbone_rollin': (0, ),
+    f'pose.bones["{_BONE_NAME_1}"].bbone_rollout': (0, ),
+    f'pose.bones["{_BONE_NAME_1}"].bbone_scalein': (1, 1, 1),
+    f'pose.bones["{_BONE_NAME_1}"].bbone_scaleout': (1, 1, 1),
+    f'pose.bones["{_BONE_NAME_1}"].bbone_easein': (0, ),
+    f'pose.bones["{_BONE_NAME_1}"].bbone_easeout': (0, ),
+}
 
 
 def _create_armature():
@@ -83,11 +90,13 @@ class CreateAssetTest(unittest.TestCase):
             f'pose.bones["{_BONE_NAME_1}"].location': (1, 1, 2),
             f'pose.bones["{_BONE_NAME_1}"].rotation_quaternion': (1, 0, 0, 0),
             f'pose.bones["{_BONE_NAME_1}"].scale': (1, 1, 1),
+
             f'pose.bones["{_BONE_NAME_1}"]["bool_test"]': (True, ),
             f'pose.bones["{_BONE_NAME_1}"]["float_test"]': (3.14, ),
             # string_test is not here because it should not be keyed.
         }
-        self.assertEqual(len(pose_action.fcurves), 12)
+        expected_pose_values.update(_BBONE_VALUES)
+        self.assertEqual(len(pose_action.fcurves), 26)
         for fcurve in pose_action.fcurves:
             self.assertTrue(
                 fcurve.data_path in expected_pose_values,
@@ -131,7 +140,8 @@ class CreateAssetTest(unittest.TestCase):
             f'pose.bones["{_BONE_NAME_1}"]["float_test"]': (3.14, ),
             # string_test is not here because it should not be keyed.
         }
-        self.assertEqual(len(pose_action.fcurves), 12)
+        expected_pose_values.update(_BBONE_VALUES)
+        self.assertEqual(len(pose_action.fcurves), 26)
         for fcurve in pose_action.fcurves:
             self.assertTrue(
                 fcurve.data_path in expected_pose_values,
