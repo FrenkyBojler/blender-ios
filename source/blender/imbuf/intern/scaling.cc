@@ -374,11 +374,11 @@ static inline float4 load_pixel(const float *ptr)
 }
 static inline float4 load_pixel(const float2 *ptr)
 {
-  return float4(ptr[0]);
+  return float4(ptr[0], 0.0f, 1.0f);
 }
 static inline float4 load_pixel(const float3 *ptr)
 {
-  return float4(ptr[0]);
+  return float4(ptr[0], 1.0f);
 }
 static inline float4 load_pixel(const float4 *ptr)
 {
@@ -879,6 +879,7 @@ ImBuf *IMB_scale_into_new(
 
   /* Create result image. */
   ImBuf *dst = IMB_allocImBuf(newx, newy, ibuf->planes, IB_uninitialized_pixels);
+  dst->channels = ibuf->channels;
   IMB_metadata_copy(dst, ibuf);
   dst->colormanage_flag = ibuf->colormanage_flag;
   if (dst_byte != nullptr) {

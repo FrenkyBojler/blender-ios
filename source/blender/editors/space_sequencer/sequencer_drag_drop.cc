@@ -170,7 +170,6 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
   SeqDropCoords *coords = &g_drop_coords;
   ARegion *region = CTX_wm_region(C);
   Scene *scene = CTX_data_scene(C);
-  eSeqHandle hand;
   View2D *v2d = &region->v2d;
 
   /* Update the position were we would place the strip if we complete the drag and drop action.
@@ -217,26 +216,20 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
     }
   }
 
-  if (strip_len < 1) {
-    /* Only check if there is a strip already under the mouse cursor. */
-    coords->is_intersecting = find_nearest_seq(scene, &region->v2d, mval, &hand);
-  }
-  else {
-    /* Check if there is a strip that would intersect with the new strip(s). */
-    coords->is_intersecting = false;
-    Sequence dummy_seq{};
-    dummy_seq.machine = coords->channel;
-    dummy_seq.start = coords->start_frame;
-    dummy_seq.len = coords->strip_len;
-    dummy_seq.speed_factor = 1.0f;
-    dummy_seq.media_playback_rate = coords->playback_rate;
-    dummy_seq.flag = SEQ_AUTO_PLAYBACK_RATE;
-    Editing *ed = SEQ_editing_ensure(scene);
+  /* Check if there is a strip that would intersect with the new strip(s). */
+  coords->is_intersecting = false;
+  Strip dummy_seq{};
+  dummy_seq.machine = coords->channel;
+  dummy_seq.start = coords->start_frame;
+  dummy_seq.len = coords->strip_len;
+  dummy_seq.speed_factor = 1.0f;
+  dummy_seq.media_playback_rate = coords->playback_rate;
+  dummy_seq.flag = SEQ_AUTO_PLAYBACK_RATE;
+  Editing *ed = SEQ_editing_ensure(scene);
 
-    for (int i = 0; i < coords->channel_len && !coords->is_intersecting; i++) {
-      coords->is_intersecting = SEQ_transform_test_overlap(scene, ed->seqbasep, &dummy_seq);
-      dummy_seq.machine++;
-    }
+  for (int i = 0; i < coords->channel_len && !coords->is_intersecting; i++) {
+    coords->is_intersecting = SEQ_transform_test_overlap(scene, ed->seqbasep, &dummy_seq);
+    dummy_seq.machine++;
   }
 
   return strip_len;
@@ -279,8 +272,8 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 
     /* Get the top most strip channel that is in view. */
     int max_channel = -1;
-    for (Sequence *seq : strips) {
-      max_channel = max_ii(seq->machine, max_channel);
+    for (Strip *strip : strips) {
+      max_channel = max_ii(strip->machine, max_channel);
     }
 
     if (max_channel != -1) {
@@ -406,8 +399,8 @@ static void draw_seq_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, cons
   StripsDrawBatch batch(&region->v2d);
 
   for (int i = 0; i < coords->channel_len; i++) {
-    float y1 = floorf(coords->channel) + i + SEQ_STRIP_OFSBOTTOM;
-    float y2 = floorf(coords->channel) + i + SEQ_STRIP_OFSTOP;
+    float y1 = floorf(coords->channel) + i + STRIP_OFSBOTTOM;
+    float y2 = floorf(coords->channel) + i + STRIP_OFSTOP;
 
     if (coords->type == TH_SEQ_MOVIE && i == 0 && coords->channel_len > 1) {
       /* Assume only video strips occupies two channels.

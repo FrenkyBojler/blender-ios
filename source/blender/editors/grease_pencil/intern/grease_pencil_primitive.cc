@@ -17,7 +17,7 @@
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_paint.hh"
 #include "BKE_screen.hh"
 
@@ -28,7 +28,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "DEG_depsgraph_query.hh"
+#include "DEG_depsgraph.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_material_types.h"
@@ -39,7 +39,7 @@
 #include "ED_view3d.hh"
 
 #include "BLI_array_utils.hh"
-#include "BLI_string.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -74,6 +74,10 @@ enum class OperatorMode : int8_t {
   RotateAll = 5,
   /* Scale all control points. */
   ScaleAll = 6,
+  /* Change brush radius. */
+  ChangeRadius = 7,
+  /* Change brush opacity. */
+  ChangeOpacity = 8,
 };
 
 enum class ControlPointType : int8_t {
@@ -93,6 +97,8 @@ enum class ModalKeyMode : int8_t {
   Scale,
   IncreaseSubdivision,
   DecreaseSubdivision,
+  ChangeRadius,
+  ChangeOpacity,
 };
 
 static constexpr float ui_primary_point_draw_size_px = 8.0f;
@@ -140,6 +146,11 @@ struct PrimitiveToolOperation {
   OperatorMode mode;
   float2 start_position_2d;
   int active_control_point_index;
+
+  /* Reference mouse position for initial radial control value. */
+  float2 reference_position_2d;
+  /* Initial value of radius or opacity. */
+  std::variant<int, float> initial_value;
 
   ViewOpsData *vod;
 };
@@ -586,51 +597,17 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
                                                       wmOperator *op,
                                                       PrimitiveToolOperation &ptd)
 {
-  std::string header;
-
-  switch (ptd.type) {
-    case PrimitiveType::Line: {
-      header += RPT_("Line: ");
-      break;
-    }
-    case (PrimitiveType::Polyline): {
-      header += RPT_("Polyline: ");
-      break;
-    }
-    case (PrimitiveType::Box): {
-      header += RPT_("Rectangle: ");
-      break;
-    }
-    case (PrimitiveType::Circle): {
-      header += RPT_("Circle: ");
-      break;
-    }
-    case (PrimitiveType::Arc): {
-      header += RPT_("Arc: ");
-      break;
-    }
-    case (PrimitiveType::Curve): {
-      header += RPT_("Curve: ");
-      break;
-    }
-  }
-
-  auto get_modal_key_str = [&](ModalKeyMode id) {
-    return WM_modalkeymap_operator_items_to_string(op->type, int(id), true).value_or("");
-  };
-
-  header += fmt::format(fmt::runtime(IFACE_("{}: confirm, {}: cancel, {}: panning, Shift: align")),
-                        get_modal_key_str(ModalKeyMode::Confirm),
-                        get_modal_key_str(ModalKeyMode::Cancel),
-                        get_modal_key_str(ModalKeyMode::Panning));
-
-  header += fmt::format(fmt::runtime(IFACE_(", {}/{}: adjust subdivisions: {}")),
-                        get_modal_key_str(ModalKeyMode::IncreaseSubdivision),
-                        get_modal_key_str(ModalKeyMode::DecreaseSubdivision),
-                        int(ptd.subdivision));
+  WorkspaceStatus status(C);
+  status.opmodal(IFACE_("Confirm"), op->type, int(ModalKeyMode::Confirm));
+  status.opmodal(IFACE_("Cancel"), op->type, int(ModalKeyMode::Cancel));
+  status.opmodal(IFACE_("Panning"), op->type, int(ModalKeyMode::Panning));
+  status.item(IFACE_("Align"), ICON_EVENT_SHIFT);
+  status.opmodal("", op->type, int(ModalKeyMode::IncreaseSubdivision));
+  status.opmodal("", op->type, int(ModalKeyMode::DecreaseSubdivision));
+  status.item(fmt::format("{} ({})", IFACE_("subdivisions"), int(ptd.subdivision)), ICON_NONE);
 
   if (ptd.segments == 1) {
-    header += IFACE_(", Alt: center");
+    status.item(IFACE_("Center"), ICON_EVENT_ALT);
   }
 
   if (ELEM(ptd.type,
@@ -639,16 +616,12 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
            PrimitiveType::Arc,
            PrimitiveType::Curve))
   {
-    header += fmt::format(fmt::runtime(IFACE_(", {}: extrude")),
-                          get_modal_key_str(ModalKeyMode::Extrude));
+    status.opmodal(IFACE_("Extrude"), op->type, int(ModalKeyMode::Extrude));
   }
 
-  header += fmt::format(fmt::runtime(IFACE_(", {}: grab, {}: rotate, {}: scale")),
-                        get_modal_key_str(ModalKeyMode::Grab),
-                        get_modal_key_str(ModalKeyMode::Rotate),
-                        get_modal_key_str(ModalKeyMode::Scale));
-
-  ED_workspace_status_text(C, header.c_str());
+  status.opmodal(IFACE_("Grab"), op->type, int(ModalKeyMode::Grab));
+  status.opmodal(IFACE_("Rotate"), op->type, int(ModalKeyMode::Rotate));
+  status.opmodal(IFACE_("Scale"), op->type, int(ModalKeyMode::Scale));
 }
 
 static void grease_pencil_primitive_update_view(bContext *C, PrimitiveToolOperation &ptd)
@@ -699,9 +672,8 @@ static int grease_pencil_primitive_invoke(bContext *C, wmOperator *op, const wmE
   if (placement.use_project_to_surface()) {
     placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
   }
-  else if (placement.use_project_to_nearest_stroke()) {
+  else if (placement.use_project_to_stroke()) {
     placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
-    placement.set_origin_to_nearest_stroke(start_coords);
   }
 
   ptd.placement = placement;
@@ -996,6 +968,68 @@ static void grease_pencil_primitive_scale_all_update(PrimitiveToolOperation &ptd
   }
 }
 
+static void grease_pencil_primitive_init_radius(PrimitiveToolOperation &ptd)
+{
+  PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
+  const int value = RNA_int_get(&brush_ptr, "size");
+
+  ptd.initial_value.emplace<int>(value);
+  ptd.reference_position_2d = ptd.start_position_2d - float2(value, 0.0f);
+}
+
+static void grease_pencil_primitive_init_opacity(PrimitiveToolOperation &ptd)
+{
+  const float display_size = 200.0f * UI_SCALE_FAC;
+
+  PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
+  const float value = RNA_float_get(&brush_ptr, "strength");
+
+  ptd.initial_value.emplace<float>(value);
+  ptd.reference_position_2d = ptd.start_position_2d - float2(value * display_size, 0.0f);
+}
+
+static void grease_pencil_primitive_cancel_radius(PrimitiveToolOperation &ptd)
+{
+  PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
+  RNA_int_set(&brush_ptr, "size", std::get<int>(ptd.initial_value));
+}
+
+static void grease_pencil_primitive_cancel_opacity(PrimitiveToolOperation &ptd)
+{
+  PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
+  RNA_float_set(&brush_ptr, "strength", std::get<float>(ptd.initial_value));
+}
+
+static void grease_pencil_primitive_change_radius(PrimitiveToolOperation &ptd,
+                                                  const wmEvent *event)
+{
+  /* Clamp reference position if mouse moves past the limits. */
+  const float2 mouse_co = float2(event->mval);
+  ptd.reference_position_2d.x = std::min(ptd.reference_position_2d.x, mouse_co.x);
+  const float2 delta = mouse_co - ptd.reference_position_2d;
+  /* Clamp to work around brush property getting "stuck" on zero. */
+  const int new_value = std::max(int(delta.x), 1);
+
+  PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
+  RNA_int_set(&brush_ptr, "size", new_value);
+}
+
+static void grease_pencil_primitive_change_opacity(PrimitiveToolOperation &ptd,
+                                                   const wmEvent *event)
+{
+  const float display_size = 200.0f * UI_SCALE_FAC;
+
+  /* Clamp reference position if mouse moves past the limits. */
+  const float2 mouse_co = float2(event->mval);
+  ptd.reference_position_2d.x = std::max(std::min(ptd.reference_position_2d.x, mouse_co.x),
+                                         mouse_co.x - display_size);
+  const float2 delta = mouse_co - ptd.reference_position_2d;
+  const float new_value = delta.x / display_size;
+
+  PointerRNA brush_ptr = RNA_id_pointer_create(&ptd.brush->id);
+  RNA_float_set(&brush_ptr, "strength", new_value);
+}
+
 static int primitive_check_ui_hover(const PrimitiveToolOperation &ptd, const wmEvent *event)
 {
   float closest_distance_squared = std::numeric_limits<float>::max();
@@ -1160,6 +1194,26 @@ static int grease_pencil_primitive_event_modal_map(bContext *C,
       }
       return OPERATOR_RUNNING_MODAL;
     }
+    case int(ModalKeyMode::ChangeRadius): {
+      if (ptd.mode == OperatorMode::Idle) {
+        ptd.start_position_2d = float2(event->mval);
+        ptd.mode = OperatorMode::ChangeRadius;
+        grease_pencil_primitive_init_radius(ptd);
+
+        grease_pencil_primitive_save(ptd);
+      }
+      return OPERATOR_RUNNING_MODAL;
+    }
+    case int(ModalKeyMode::ChangeOpacity): {
+      if (ptd.mode == OperatorMode::Idle) {
+        ptd.start_position_2d = float2(event->mval);
+        ptd.mode = OperatorMode::ChangeOpacity;
+        grease_pencil_primitive_init_opacity(ptd);
+
+        grease_pencil_primitive_save(ptd);
+      }
+      return OPERATOR_RUNNING_MODAL;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -1173,7 +1227,9 @@ static int grease_pencil_primitive_mouse_event(PrimitiveToolOperation &ptd, cons
                                        OperatorMode::Extruding,
                                        OperatorMode::DragAll,
                                        OperatorMode::RotateAll,
-                                       OperatorMode::ScaleAll))
+                                       OperatorMode::ScaleAll,
+                                       OperatorMode::ChangeRadius,
+                                       OperatorMode::ChangeOpacity))
   {
     ptd.mode = OperatorMode::Idle;
     return OPERATOR_RUNNING_MODAL;
@@ -1265,6 +1321,14 @@ static void grease_pencil_primitive_operator_update(PrimitiveToolOperation &ptd,
       grease_pencil_primitive_rotate_all_update(ptd, event);
       break;
     }
+    case OperatorMode::ChangeRadius: {
+      grease_pencil_primitive_change_radius(ptd, event);
+      break;
+    }
+    case OperatorMode::ChangeOpacity: {
+      grease_pencil_primitive_change_opacity(ptd, event);
+      break;
+    }
     case OperatorMode::Idle: {
       /* Do nothing. */
       break;
@@ -1329,6 +1393,13 @@ static int grease_pencil_primitive_modal(bContext *C, wmOperator *op, const wmEv
         return OPERATOR_CANCELLED;
       }
       else {
+        if (ptd.mode == OperatorMode::ChangeRadius) {
+          grease_pencil_primitive_cancel_radius(ptd);
+        }
+        if (ptd.mode == OperatorMode::ChangeOpacity) {
+          grease_pencil_primitive_cancel_opacity(ptd);
+        }
+
         ptd.mode = OperatorMode::Idle;
 
         grease_pencil_primitive_load(ptd);
@@ -1535,6 +1606,8 @@ void ED_primitivetool_modal_keymap(wmKeyConfig *keyconf)
        0,
        "Decrease Subdivision",
        ""},
+      {int(ModalKeyMode::ChangeRadius), "CHANGE_RADIUS", 0, "Change Radius", ""},
+      {int(ModalKeyMode::ChangeOpacity), "CHANGE_OPACITY", 0, "Change Opacity", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

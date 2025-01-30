@@ -5,6 +5,7 @@
 #pragma once
 
 #include <type_traits>
+#include <utility>
 
 #include "BLI_assert.h"
 #include "BLI_math_base.hh"
@@ -18,6 +19,7 @@
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
+#include "COM_derived_resources.hh"
 #include "COM_domain.hh"
 #include "COM_meta_data.hh"
 
@@ -33,6 +35,7 @@ enum class ResultType : uint8_t {
    * can encode two 2D vectors, one 3D vector with the last component ignored, or other dimensional
    * data. */
   Float,
+  Int,
   Vector,
   Color,
 
@@ -96,7 +99,11 @@ enum class ResultStorageType : uint8_t {
  *
  * A result can wrap an external texture that is not allocated nor managed by the result. This is
  * set up by a call to the wrap_external method. In that case, when the reference count eventually
- * reach zero, the texture will not be freed. */
+ * reach zero, the texture will not be freed.
+ *
+ * A result may store resources that are computed and cached in case they are needed by multiple
+ * operations. Those are called Derived Resources and can be accessed using the derived_resources
+ * method. */
 class Result {
  private:
   /* The context that the result was created within, this should be initialized during
@@ -142,6 +149,7 @@ class Result {
     float4 color_value_ = float4(0.0f);
     float2 float2_value_;
     float3 float3_value_;
+    int int_value_;
     int2 int2_value_;
   };
   /* The domain of the result. This only matters if the result was a texture. See the discussion in
@@ -161,6 +169,9 @@ class Result {
    * context and should be released back into the pool instead of being freed. For CPU storage,
    * this is irrelevant. */
   bool is_from_pool_ = false;
+  /* Stores resources that are derived from this result. Lazily allocated if needed. See the class
+   * description for more information. */
+  DerivedResources *derived_resources_ = nullptr;
 
  public:
   /* Stores extra information about the result such as image meta data that can eventually be
@@ -204,7 +215,7 @@ class Result {
    * the size of the given domain, and set the domain of the result to the given domain.
    *
    * If from_pool is true, the texture will be allocated from the texture pool of the context,
-   * otherwise, a new texture will be allocated. Pooling should not be be used for persistent
+   * otherwise, a new texture will be allocated. Pooling should not be used for persistent
    * results that might span more than one evaluation, like cached resources. While pooling should
    * be used for most other cases where the result will be allocated then later released in the
    * same evaluation.
@@ -330,6 +341,10 @@ class Result {
    * operation. */
   bool should_compute();
 
+  /* Returns a reference to the derived resources of the result, which is allocated if it was not
+   * allocated already. */
+  DerivedResources &derived_resources();
+
   /* Returns the type of the result. */
   ResultType type() const;
 
@@ -364,9 +379,14 @@ class Result {
   /* Returns a reference to the allocate integer data. */
   int *integer_texture() const;
 
+  /* Returns a reference to the allocated CPU data. The returned data is untyped, use the
+   * float_texture() or the integer_texture() methods for typed data. */
+  void *data() const;
+
   /* Gets the single value stored in the result. Assumes the result stores a value of the given
    * template type. */
-  template<typename T> T get_single_value() const;
+  template<typename T> const T &get_single_value() const;
+  template<typename T> T &get_single_value();
 
   /* Gets the single value stored in the result, if the result is not a single value, the given
    * default value is returned. Assumes the result stores a value of the same type as the template
@@ -501,6 +521,7 @@ inline int64_t Result::channels_count() const
 {
   switch (type_) {
     case ResultType::Float:
+    case ResultType::Int:
       return 1;
     case ResultType::Float2:
     case ResultType::Int2:
@@ -526,7 +547,22 @@ inline int *Result::integer_texture() const
   return integer_texture_;
 }
 
-template<typename T> inline T Result::get_single_value() const
+inline void *Result::data() const
+{
+  switch (storage_type_) {
+    case ResultStorageType::FloatCPU:
+      return this->float_texture();
+    case ResultStorageType::IntegerCPU:
+      return this->integer_texture();
+    case ResultStorageType::GPU:
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
+template<typename T> inline const T &Result::get_single_value() const
 {
   BLI_assert(this->is_single_value());
   static_assert(Result::is_supported_type<T>());
@@ -534,6 +570,10 @@ template<typename T> inline T Result::get_single_value() const
   if constexpr (std::is_same_v<T, float>) {
     BLI_assert(type_ == ResultType::Float);
     return float_value_;
+  }
+  else if constexpr (std::is_same_v<T, int>) {
+    BLI_assert(type_ == ResultType::Int);
+    return int_value_;
   }
   else if constexpr (std::is_same_v<T, float2>) {
     BLI_assert(type_ == ResultType::Float2);
@@ -556,6 +596,11 @@ template<typename T> inline T Result::get_single_value() const
   }
 }
 
+template<typename T> inline T &Result::get_single_value()
+{
+  return const_cast<T &>(std::as_const(*this).get_single_value<T>());
+}
+
 template<typename T> inline T Result::get_single_value_default(const T &default_value) const
 {
   if (this->is_single_value()) {
@@ -570,26 +615,7 @@ template<typename T> inline void Result::set_single_value(const T &value)
   BLI_assert(this->is_single_value());
   static_assert(Result::is_supported_type<T>());
 
-  if constexpr (std::is_same_v<T, float>) {
-    BLI_assert(type_ == ResultType::Float);
-    float_value_ = value;
-  }
-  else if constexpr (std::is_same_v<T, float2>) {
-    BLI_assert(type_ == ResultType::Float2);
-    float2_value_ = value;
-  }
-  else if constexpr (std::is_same_v<T, float3>) {
-    BLI_assert(type_ == ResultType::Float3);
-    float3_value_ = value;
-  }
-  else if constexpr (std::is_same_v<T, float4>) {
-    BLI_assert(ELEM(type_, ResultType::Color, ResultType::Vector));
-    color_value_ = value;
-  }
-  else if constexpr (std::is_same_v<T, int2>) {
-    BLI_assert(type_ == ResultType::Int2);
-    int2_value_ = value;
-  }
+  this->get_single_value<T>() = value;
 
   switch (storage_type_) {
     case ResultStorageType::GPU:
@@ -987,8 +1013,7 @@ template<typename T> constexpr int Result::get_type_channels_count()
 
 template<typename T> constexpr bool Result::is_supported_type()
 {
-  return std::is_same_v<T, float> || std::is_same_v<T, float2> || std::is_same_v<T, float3> ||
-         std::is_same_v<T, float4> || std::is_same_v<T, int2>;
+  return is_same_any_v<T, float, int, float2, float3, float4, int2>;
 }
 
 template<typename T> inline int64_t Result::get_pixel_index(const int2 &texel) const
@@ -1060,6 +1085,9 @@ inline void Result::copy_pixel(float *target, const float *source, const int cha
 inline void Result::copy_pixel(int *target, const int *source, const int channels_count)
 {
   switch (channels_count) {
+    case 1:
+      *target = *source;
+      break;
     case 2:
       copy_v2_v2_int(target, source);
       break;
@@ -1085,6 +1113,7 @@ inline void Result::copy_pixel(float *target, const float *source) const
     case ResultType::Color:
       copy_v4_v4(target, source);
       break;
+    case ResultType::Int:
     case ResultType::Int2:
       BLI_assert_unreachable();
       break;

@@ -10,12 +10,12 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_sys_types.h" /* for intptr_t support */
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h" /* for BLI_assert */
 
 #include "CCGSubSurf.h"
+#include "CCGSubSurf_inline.h"
 #include "CCGSubSurf_intern.h"
 
 /**

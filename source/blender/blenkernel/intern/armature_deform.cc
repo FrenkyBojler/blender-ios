@@ -22,10 +22,8 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_armature_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_listBase.h"
 #include "DNA_mesh_types.h"
@@ -34,14 +32,11 @@
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
-#include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_lattice.hh"
 #include "BKE_mesh.hh"
-
-#include "DEG_depsgraph_build.hh"
 
 #include "CLG_log.h"
 
@@ -497,7 +492,7 @@ static void armature_deform_coords_impl(const Object *ob_arm,
   const bool use_envelope = (deformflag & ARM_DEF_ENVELOPE) != 0;
   const bool use_quaternion = (deformflag & ARM_DEF_QUATERNION) != 0;
   const bool invert_vgroup = (deformflag & ARM_DEF_INVERT_VGROUP) != 0;
-  int defbase_len = 0; /* safety for vertexgroup index overflow */
+  int defbase_len = 0; /* Safety for vertex-group index overflow. */
   bool use_dverts = false;
   int armature_def_nr = -1;
   int cd_dvert_offset = -1;
@@ -519,7 +514,7 @@ static void armature_deform_coords_impl(const Object *ob_arm,
     armature_def_nr = BKE_defgroup_name_index(defbase, defgrp_name);
     defbase_len = BLI_listbase_count(defbase);
 
-    /* get a vertex-deform-index to posechannel array */
+    /* Get a vertex-deform-index to pose-channel array. */
     if (deformflag & ARM_DEF_VGROUP) {
       /* if we have a Mesh, only use dverts if it has them */
       if (em_target) {

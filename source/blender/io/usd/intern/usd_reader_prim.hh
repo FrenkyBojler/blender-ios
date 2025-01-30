@@ -43,9 +43,9 @@ struct ImportSettings {
    * the other import settings are to remain const.
    */
 
-  /* Map a USD material prim path to a Blender material name.
+  /* Map a USD material prim path to a Blender material.
    * This map is updated by readers during stage traversal. */
-  mutable blender::Map<std::string, std::string> usd_path_to_mat_name{};
+  mutable blender::Map<std::string, Material *> usd_path_to_mat{};
   /* Map a material name to Blender material.
    * This map is updated by readers during stage traversal. */
   mutable blender::Map<std::string, Material *> mat_name_to_mat{};
@@ -63,6 +63,9 @@ struct ImportSettings {
   double stage_meters_per_unit = 1.0;
 
   pxr::SdfPath skip_prefix{};
+
+  /* Combined user-specified and unit conversion scales. */
+  double scene_scale = 1.0;
 };
 
 /* Most generic USD Reader. */
