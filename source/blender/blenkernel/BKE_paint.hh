@@ -105,11 +105,9 @@ enum class PaintMode : int8_t {
   WeightGPencil = 9,
   /** Curves. */
   SculptCurves = 10,
-  /** Grease Pencil. */
-  SculptGreasePencil = 11,
 
   /** Keep last. */
-  Invalid = 12,
+  Invalid = 11,
 };
 
 /* overlay invalidation */
@@ -203,6 +201,7 @@ Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer);
 Paint *BKE_paint_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref);
+bool BKE_paint_use_unified_color(const ToolSettings *tool_settings, const Paint *paint);
 
 /* Paint brush retrieval and assignment. */
 
@@ -446,6 +445,12 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 
   /* Boundary Brush Preview */
   std::unique_ptr<SculptBoundaryPreview> boundary_preview;
+
+  /* "Persistent" positions and normals for multires. (For mesh the
+   * ".sculpt_persistent_co" attribute is used, etc.). */
+  blender::Array<blender::float3> sculpt_persistent_co;
+  blender::Array<blender::float3> sculpt_persistent_no;
+  blender::Array<float> sculpt_persistent_disp;
 
   SculptVertexInfo vertex_info = {};
   SculptFakeNeighbors fake_neighbors = {};

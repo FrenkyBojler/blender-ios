@@ -6,14 +6,14 @@
  * \ingroup edtransform
  */
 
-#include "DNA_gpencil_legacy_types.h"
-
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
 #include "BKE_mask.h"
+#include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
 #include "GPU_state.hh"
@@ -564,13 +564,19 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
     }
   }
 
-  switch (value) {
-    case TFM_MODAL_CANCEL: {
-      /* TODO: Canceling with LMB is not possible when the operator is activated
-       * through tweak and the LMB is pressed.
-       * Therefore, this item should not appear in the status bar. */
-      break;
+  /* You cannot cancel or confirm a "release on confirm" operation by clicking the same mouse
+   * button that you started it with. In this case the item should not appear on the status bar. */
+  if (t->flag & T_RELEASE_CONFIRM && ISMOUSE_BUTTON(t->launch_event) &&
+      ELEM(value, TFM_MODAL_CANCEL, TFM_MODAL_CONFIRM))
+  {
+    LISTBASE_FOREACH (const wmKeyMapItem *, kmi, &t->keymap->items) {
+      if (kmi->propvalue == value && kmi->type == t->launch_event && kmi->val == KM_PRESS) {
+        return false;
+      }
     }
+  }
+
+  switch (value) {
     case TFM_MODAL_PROPSIZE:
     case TFM_MODAL_PROPSIZE_UP:
     case TFM_MODAL_PROPSIZE_DOWN: {
@@ -1710,7 +1716,33 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 
   /* Save snapping settings. */
   if ((prop = RNA_struct_find_property(op->ptr, "snap"))) {
-    RNA_property_boolean_set(op->ptr, prop, (t->modifiers & MOD_SNAP) != 0);
+    bool is_snap_enabled = (t->modifiers & MOD_SNAP) != 0;
+
+    /* Update the snap toggle in `ToolSettings`. */
+    if (
+        /* Update only if snapping has changed during a modal operation. */
+        (t->flag & T_MODAL) &&
+        /* Skip updating if the snapping mode does not match the snap types. */
+        transformModeUseSnap(t) &&
+        /* Skip updating the snap toggle if it was not explicitly set by the user. */
+        !(t->modifiers & MOD_SNAP_FORCED) &&
+        /* Skip updating the snap toggle if snapping was enabled via operator properties. */
+        !RNA_property_is_set(op->ptr, prop))
+    {
+      /* Type is #eSnapFlag, but type must match various snap attributes in #ToolSettings. */
+      short *snap_flag_ptr;
+
+      wmMsgParams_RNA msg_key_params = {{}};
+      msg_key_params.ptr = RNA_pointer_create_discrete(&t->scene->id, &RNA_ToolSettings, ts);
+      if ((snap_flag_ptr = transform_snap_flag_from_spacetype_ptr(t, &msg_key_params.prop)) &&
+          (is_snap_enabled != bool(*snap_flag_ptr & SCE_SNAP)))
+      {
+        SET_FLAG_FROM_TEST(*snap_flag_ptr, is_snap_enabled, SCE_SNAP);
+        WM_msg_publish_rna_params(t->mbus, &msg_key_params);
+      }
+    }
+
+    RNA_property_boolean_set(op->ptr, prop, is_snap_enabled);
 
     if ((prop = RNA_struct_find_property(op->ptr, "snap_elements"))) {
       RNA_property_enum_set(op->ptr, prop, t->tsnap.mode);
@@ -1724,24 +1756,6 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
       RNA_boolean_set(op->ptr, "use_snap_nonedit", (target & SCE_SNAP_TARGET_NOT_NONEDITED) == 0);
       RNA_boolean_set(
           op->ptr, "use_snap_selectable", (target & SCE_SNAP_TARGET_ONLY_SELECTABLE) != 0);
-    }
-
-    /* Update `ToolSettings` for properties that change during modal. */
-    if (t->flag & T_MODAL) {
-      /* Do we check for parameter? */
-      if (transformModeUseSnap(t) && !(t->modifiers & MOD_SNAP_FORCED)) {
-        /* Type is #eSnapFlag, but type must match various snap attributes in #ToolSettings. */
-        short *snap_flag_ptr;
-
-        wmMsgParams_RNA msg_key_params = {{nullptr}};
-        msg_key_params.ptr = RNA_pointer_create(&t->scene->id, &RNA_ToolSettings, ts);
-        if ((snap_flag_ptr = transform_snap_flag_from_spacetype_ptr(t, &msg_key_params.prop)) &&
-            (bool(t->modifiers & MOD_SNAP) != bool(*snap_flag_ptr & SCE_SNAP)))
-        {
-          SET_FLAG_FROM_TEST(*snap_flag_ptr, t->modifiers & MOD_SNAP, SCE_SNAP);
-          WM_msg_publish_rna_params(t->mbus, &msg_key_params);
-        }
-      }
     }
   }
 
@@ -1885,9 +1899,9 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   if (t->spacetype == SPACE_VIEW3D) {
     t->draw_handle_view = ED_region_draw_cb_activate(
-        t->region->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
+        t->region->runtime->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
     t->draw_handle_pixel = ED_region_draw_cb_activate(
-        t->region->type, drawTransformPixel, t, REGION_DRAW_POST_PIXEL);
+        t->region->runtime->type, drawTransformPixel, t, REGION_DRAW_POST_PIXEL);
     t->draw_handle_cursor = WM_paint_cursor_activate(
         SPACE_TYPE_ANY, RGN_TYPE_ANY, transform_draw_cursor_poll, transform_draw_cursor_draw, t);
   }
@@ -1900,7 +1914,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
                 SPACE_SEQ))
   {
     t->draw_handle_view = ED_region_draw_cb_activate(
-        t->region->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
+        t->region->runtime->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
     t->draw_handle_cursor = WM_paint_cursor_activate(
         SPACE_TYPE_ANY, RGN_TYPE_ANY, transform_draw_cursor_poll, transform_draw_cursor_draw, t);
   }

@@ -12,9 +12,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
-#include "BKE_modifier.hh"
 #include "BKE_object.hh"
-#include "BKE_scene.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_eval.hh"
 #include "BKE_subdiv_foreach.hh"
@@ -22,9 +20,7 @@
 #include "BKE_subdiv_modifier.hh"
 
 #include "BLI_linklist.h"
-#include "BLI_string.h"
-#include "BLI_string_utils.hh"
-#include "BLI_time.h"
+#include "BLI_threads.h"
 #include "BLI_virtual_array.hh"
 
 #include "DRW_engine.hh"
@@ -42,7 +38,7 @@
 #include "opensubdiv_evaluator_capi.hh"
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_evaluator.hh"
-#  include "opensubdiv_topology_refiner_capi.hh"
+#  include "opensubdiv_topology_refiner.hh"
 #endif
 
 #include "draw_cache_extract.hh"
@@ -820,13 +816,13 @@ static void draw_subdiv_cache_update_extra_coarse_face_data(DRWSubdivCache &cach
     }
     GPU_vertbuf_init_with_format_ex(*cache.extra_coarse_face_data, format, GPU_USAGE_DYNAMIC);
     GPU_vertbuf_data_alloc(*cache.extra_coarse_face_data,
-                           mr.extract_type == MR_EXTRACT_BMESH ? cache.bm->totface :
-                                                                 mesh->faces_num);
+                           mr.extract_type == MeshExtractType::BMesh ? cache.bm->totface :
+                                                                       mesh->faces_num);
   }
 
   MutableSpan<uint32_t> flags_data = cache.extra_coarse_face_data->data<uint32_t>();
 
-  if (mr.extract_type == MR_EXTRACT_BMESH) {
+  if (mr.extract_type == MeshExtractType::BMesh) {
     draw_subdiv_cache_extra_coarse_face_data_bm(cache.bm, mr.efa_act, flags_data);
   }
   else if (mr.orig_index_face != nullptr) {
@@ -2136,7 +2132,6 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
                                                  MeshBufferCache &mbc,
                                                  const bool is_editmode,
                                                  const bool is_paint_mode,
-                                                 const bool edit_mode_active,
                                                  const float4x4 &object_to_world,
                                                  const bool do_final,
                                                  const bool do_uvedit,
@@ -2207,23 +2202,14 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
   runtime_data->stats_totloop = draw_cache.num_subdiv_loops;
 
   draw_cache.use_custom_loop_normals = (runtime_data->use_loop_normals) &&
-                                       CustomData_has_layer(&mesh_eval->corner_data,
-                                                            CD_CUSTOMLOOPNORMAL);
+                                       mesh_eval->attributes().contains("custom_normal");
 
   if (DRW_ibo_requested(mbc.buff.ibo.tris)) {
     draw_subdiv_cache_ensure_mat_offsets(draw_cache, mesh_eval, batch_cache.mat_len);
   }
 
-  std::unique_ptr<MeshRenderData> mr = mesh_render_data_create(ob,
-                                                               mesh,
-                                                               is_editmode,
-                                                               is_paint_mode,
-                                                               edit_mode_active,
-                                                               object_to_world,
-                                                               do_final,
-                                                               do_uvedit,
-                                                               use_hide,
-                                                               ts);
+  std::unique_ptr<MeshRenderData> mr = mesh_render_data_create(
+      ob, mesh, is_editmode, is_paint_mode, object_to_world, do_final, do_uvedit, use_hide, ts);
   draw_cache.use_hide = use_hide;
 
   /* Used for setting loop normals flags. Mapped extraction is only used during edit mode.
@@ -2292,7 +2278,6 @@ void DRW_create_subdivision(Object &ob,
                             MeshBufferCache &mbc,
                             const bool is_editmode,
                             const bool is_paint_mode,
-                            const bool edit_mode_active,
                             const float4x4 &object_to_world,
                             const bool do_final,
                             const bool do_uvedit,
@@ -2316,7 +2301,6 @@ void DRW_create_subdivision(Object &ob,
                                             mbc,
                                             is_editmode,
                                             is_paint_mode,
-                                            edit_mode_active,
                                             object_to_world,
                                             do_final,
                                             do_uvedit,
@@ -2339,6 +2323,12 @@ void DRW_subdiv_free()
 {
   for (int i = 0; i < NUM_SHADERS; ++i) {
     GPU_shader_free(g_subdiv_shaders[i]);
+  }
+
+  for (auto &comp_variants : g_subdiv_custom_data_shaders) {
+    for (GPUShader *shader : comp_variants) {
+      GPU_SHADER_FREE_SAFE(shader);
+    }
   }
 
   DRW_cache_free_old_subdiv();

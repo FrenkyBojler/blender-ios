@@ -6,7 +6,6 @@
  * \ingroup edsculpt
  */
 
-#include <cstddef>
 #include <cstdlib>
 #include <cstring>
 
@@ -15,19 +14,16 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_interp.hh"
 
 #include "DNA_brush_types.h"
-#include "DNA_customdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
@@ -186,9 +182,10 @@ static int palette_color_add_exec(bContext *C, wmOperator * /*op*/)
              PaintMode::Texture2D,
              PaintMode::Vertex,
              PaintMode::Sculpt,
-             PaintMode::GPencil))
+             PaintMode::GPencil,
+             PaintMode::VertexGPencil))
     {
-      copy_v3_v3(color->rgb, BKE_brush_color_get(scene, brush));
+      copy_v3_v3(color->rgb, BKE_brush_color_get(scene, paint, brush));
       color->value = 0.0;
     }
     else if (mode == PaintMode::Weight) {

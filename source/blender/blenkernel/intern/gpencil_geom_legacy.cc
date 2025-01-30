@@ -6,46 +6,25 @@
  * \ingroup bke
  */
 
-#include <algorithm>
 #include <cmath>
-#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array_utils.h"
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
-#include "BLI_hash.h"
-#include "BLI_heap.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_polyfill_2d.h"
 #include "BLI_span.hh"
-#include "BLI_string_utils.hh"
 
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_gpencil_modifier_types.h"
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_scene_types.h"
 
-#include "BKE_attribute.hh"
-#include "BKE_deform.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_material.h"
-#include "BKE_object.hh"
-#include "BKE_object_types.hh"
-
-#include "DEG_depsgraph_query.hh"
 
 using blender::float3;
 using blender::Span;
@@ -259,131 +238,6 @@ void BKE_gpencil_stroke_geometry_update(bGPdata * /*gpd*/, bGPDstroke *gps)
 
   /* calc uv data along the stroke */
   BKE_gpencil_stroke_uv_update(gps);
-}
-
-int BKE_gpencil_stroke_point_count(const bGPdata *gpd)
-{
-  int total_points = 0;
-
-  if (gpd == nullptr) {
-    return 0;
-  }
-
-  LISTBASE_FOREACH (const bGPDlayer *, gpl, &gpd->layers) {
-    /* FIXME: For now, we just skip parented layers.
-     * Otherwise, we have to update each frame to find
-     * the current parent position/effects.
-     */
-    if (gpl->parent) {
-      continue;
-    }
-
-    LISTBASE_FOREACH (const bGPDframe *, gpf, &gpl->frames) {
-      LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-        total_points += gps->totpoints;
-      }
-    }
-  }
-  return total_points;
-}
-
-void BKE_gpencil_point_coords_get(bGPdata *gpd, GPencilPointCoordinates *elem_data)
-{
-  if (gpd == nullptr) {
-    return;
-  }
-
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    /* FIXME: For now, we just skip parented layers.
-     * Otherwise, we have to update each frame to find
-     * the current parent position/effects.
-     */
-    if (gpl->parent) {
-      continue;
-    }
-
-    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-      LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-        bGPDspoint *pt;
-        int i;
-
-        for (pt = gps->points, i = 0; i < gps->totpoints; pt++, i++) {
-          copy_v3_v3(elem_data->co, &pt->x);
-          elem_data->pressure = pt->pressure;
-          elem_data++;
-        }
-      }
-    }
-  }
-}
-
-void BKE_gpencil_point_coords_apply(bGPdata *gpd, const GPencilPointCoordinates *elem_data)
-{
-  if (gpd == nullptr) {
-    return;
-  }
-
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    /* FIXME: For now, we just skip parented layers.
-     * Otherwise, we have to update each frame to find
-     * the current parent position/effects.
-     */
-    if (gpl->parent) {
-      continue;
-    }
-
-    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-      LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-        bGPDspoint *pt;
-        int i;
-
-        for (pt = gps->points, i = 0; i < gps->totpoints; pt++, i++) {
-          copy_v3_v3(&pt->x, elem_data->co);
-          pt->pressure = elem_data->pressure;
-          elem_data++;
-        }
-
-        /* Distortion may mean we need to re-triangulate. */
-        BKE_gpencil_stroke_geometry_update(gpd, gps);
-      }
-    }
-  }
-}
-
-void BKE_gpencil_point_coords_apply_with_mat4(bGPdata *gpd,
-                                              const GPencilPointCoordinates *elem_data,
-                                              const float mat[4][4])
-{
-  if (gpd == nullptr) {
-    return;
-  }
-
-  const float scalef = mat4_to_scale(mat);
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    /* FIXME: For now, we just skip parented layers.
-     * Otherwise, we have to update each frame to find
-     * the current parent position/effects.
-     */
-    if (gpl->parent) {
-      continue;
-    }
-
-    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-      LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-        bGPDspoint *pt;
-        int i;
-
-        for (pt = gps->points, i = 0; i < gps->totpoints; pt++, i++) {
-          mul_v3_m4v3(&pt->x, mat, elem_data->co);
-          pt->pressure = elem_data->pressure * scalef;
-          elem_data++;
-        }
-
-        /* Distortion may mean we need to re-triangulate. */
-        BKE_gpencil_stroke_geometry_update(gpd, gps);
-      }
-    }
-  }
 }
 
 /* Temp data for storing information about an "island" of points

@@ -86,7 +86,7 @@ static void node_shader_buts_tex_voronoi(uiLayout *layout, bContext * /*C*/, Poi
     uiItemR(layout, ptr, "distance", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   }
   if (!ELEM(feature, SHD_VORONOI_N_SPHERE_RADIUS)) {
-    uiItemR(layout, ptr, "normalize", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "normalize", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
 }
 
@@ -818,7 +818,13 @@ void register_node_type_sh_tex_voronoi()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_TEX_VORONOI, "Voronoi Texture", NODE_CLASS_TEXTURE);
+  sh_fn_node_type_base(&ntype, "ShaderNodeTexVoronoi", SH_NODE_TEX_VORONOI);
+  ntype.ui_name = "Voronoi Texture";
+  ntype.ui_description =
+      "Generate Worley noise based on the distance to random points. Typically used to generate "
+      "textures such as stones, water, or biological cells";
+  ntype.enum_name_legacy = "TEX_VORONOI";
+  ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::sh_node_tex_voronoi_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_voronoi;
   ntype.initfunc = file_ns::node_shader_init_tex_voronoi;

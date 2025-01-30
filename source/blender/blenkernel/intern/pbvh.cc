@@ -6,25 +6,17 @@
  * \ingroup bke
  */
 
-#include "MEM_guardedalloc.h"
-
 #include <climits>
 
 #include "BLI_array_utils.hh"
 #include "BLI_bit_span_ops.hh"
-#include "BLI_bitmap.h"
 #include "BLI_bounds.hh"
-#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
-#include "BLI_rand.h"
 #include "BLI_stack.hh"
-#include "BLI_task.h"
 #include "BLI_task.hh"
-#include "BLI_time.h"
-#include "BLI_timeit.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -34,7 +26,6 @@
 #include "BKE_attribute.hh"
 #include "BKE_ccg.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
@@ -43,8 +34,6 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "bmesh.hh"
-
-#include "atomic_ops.h"
 
 #include "pbvh_intern.hh"
 
@@ -1782,7 +1771,7 @@ static void calc_mesh_intersect_data(const Span<int> corner_verts,
                                      const int face_index,
                                      const int tri_index,
                                      const std::array<const float *, 3> co,
-                                     const float *depth,
+                                     const float depth,
                                      int &r_active_vertex,
                                      int &r_active_face_index,
                                      float3 &r_face_normal)
@@ -1791,7 +1780,7 @@ static void calc_mesh_intersect_data(const Span<int> corner_verts,
   float3 nearest_vertex_co(0.0f);
   normal_tri_v3(r_face_normal, co[0], co[1], co[2]);
 
-  const float3 location = ray_start + ray_normal * *depth;
+  const float3 location = ray_start + ray_normal * depth;
   for (int i = 0; i < co.size(); i++) {
     /* Always assign nearest_vertex_co in the first iteration to avoid comparison against
      * uninitialized values. This stores the closest vertex in the current intersecting
@@ -1845,7 +1834,7 @@ bool node_raycast_mesh(const MeshNode &node,
                                    face_i,
                                    tri_i,
                                    co,
-                                   depth,
+                                   *depth,
                                    r_active_vertex,
                                    r_active_face_index,
                                    r_face_normal);
@@ -1876,7 +1865,7 @@ bool node_raycast_mesh(const MeshNode &node,
                                    face_i,
                                    tri_i,
                                    co,
-                                   depth,
+                                   *depth,
                                    r_active_vertex,
                                    r_active_face_index,
                                    r_face_normal);
@@ -1894,7 +1883,7 @@ static void calc_grids_intersect_data(const float3 &ray_start,
                                       const short x,
                                       const short y,
                                       const std::array<const float *, 4> co,
-                                      float *depth,
+                                      const float depth,
                                       SubdivCCGCoord &r_active_vertex,
                                       int &r_active_grid_index,
                                       float3 &r_face_normal)
@@ -1903,7 +1892,7 @@ static void calc_grids_intersect_data(const float3 &ray_start,
   float3 nearest_vertex_co;
   normal_quad_v3(r_face_normal, co[0], co[1], co[2], co[3]);
 
-  const float3 location = ray_start + ray_normal * *depth;
+  const float3 location = ray_start + ray_normal * depth;
 
   constexpr short x_it[4] = {0, 1, 1, 0};
   constexpr short y_it[4] = {1, 1, 0, 0};
@@ -1965,7 +1954,7 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                                       x,
                                       y,
                                       co,
-                                      depth,
+                                      *depth,
                                       r_active_vertex,
                                       r_active_grid_index,
                                       r_face_normal);
@@ -1999,7 +1988,7 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                                       x,
                                       y,
                                       co,
-                                      depth,
+                                      *depth,
                                       r_active_vertex,
                                       r_active_grid_index,
                                       r_face_normal);
@@ -2362,32 +2351,6 @@ bool node_frustum_exclude_aabb(const Node &node, const Span<float4> frustum_plan
 
 }  // namespace blender::bke::pbvh
 
-void BKE_pbvh_draw_debug_cb(blender::bke::pbvh::Tree &pbvh,
-                            void (*draw_fn)(blender::bke::pbvh::Node *node, void *user_data),
-                            void *user_data)
-{
-  blender::bke::pbvh::Node::Flags flag = blender::bke::pbvh::Node::Leaf;
-
-  std::visit(
-      [&](auto &nodes) {
-        for (blender::bke::pbvh::Node &node : nodes) {
-          if (node.flag_ & blender::bke::pbvh::Node::TexLeaf) {
-            flag = blender::bke::pbvh::Node::TexLeaf;
-            break;
-          }
-        }
-
-        for (blender::bke::pbvh::Node &node : nodes) {
-          if (!(node.flag_ & flag)) {
-            continue;
-          }
-
-          draw_fn(&node, user_data);
-        }
-      },
-      pbvh.nodes_);
-}
-
 void BKE_pbvh_vert_coords_apply(blender::bke::pbvh::Tree &pbvh,
                                 const blender::Span<blender::float3> vert_positions)
 {
@@ -2409,6 +2372,10 @@ static Span<float3> vert_positions_eval(const Object &object_orig, const Object 
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
         return mesh_eval->vert_positions();
       }
+    }
+    if (!ss.deform_cos.is_empty()) {
+      BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
+      return ss.deform_cos;
     }
     if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
       return mesh_eval->vert_positions();
@@ -2433,6 +2400,10 @@ static MutableSpan<float3> vert_positions_eval_for_write(Object &object_orig, Ob
         Mesh *mesh_eval_mut = const_cast<Mesh *>(mesh_eval);
         return mesh_eval_mut->vert_positions_for_write();
       }
+    }
+    if (!ss.deform_cos.is_empty()) {
+      BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
+      return ss.deform_cos;
     }
     if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
       Mesh *mesh_eval_mut = const_cast<Mesh *>(mesh_eval);

@@ -24,9 +24,10 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-#include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
+
+#include "BLT_translation.hh"
 
 #include "DNA_customdata_types.h"
 #include "DNA_object_types.h"
@@ -307,7 +308,7 @@ static void face_sets_update(const Depsgraph &depsgraph,
 
       tls.new_face_sets.resize(faces.size());
       MutableSpan<int> new_face_sets = tls.new_face_sets;
-      array_utils::gather(face_sets.span.as_span(), faces, new_face_sets);
+      gather_data_mesh(face_sets.span.as_span(), faces, new_face_sets);
       calc_face_sets(faces, new_face_sets);
       if (array_utils::indexed_data_equal<int>(face_sets.span, faces, new_face_sets)) {
         return;
@@ -327,7 +328,7 @@ static void face_sets_update(const Depsgraph &depsgraph,
 
       tls.new_face_sets.resize(faces.size());
       MutableSpan<int> new_face_sets = tls.new_face_sets;
-      array_utils::gather(face_sets.span.as_span(), faces, new_face_sets);
+      gather_data_mesh(face_sets.span.as_span(), faces, new_face_sets);
       calc_face_sets(faces, new_face_sets);
       if (array_utils::indexed_data_equal<int>(face_sets.span, faces, new_face_sets)) {
         return;
@@ -769,7 +770,7 @@ static int init_op_exec(bContext *C, wmOperator *op)
     }
     case InitMode::UVSeams: {
       const VArraySpan<bool> uv_seams = *mesh->attributes().lookup_or_default<bool>(
-          ".uv_seam", bke::AttrDomain::Edge, false);
+          "uv_seam", bke::AttrDomain::Edge, false);
       init_flood_fill(ob,
                       [&](const int /*from_face*/, const int edge, const int /*to_face*/) -> bool {
                         return !uv_seams[edge];
@@ -922,7 +923,7 @@ static void face_hide_update(const Depsgraph &depsgraph,
 
       tls.new_hide.resize(faces.size());
       MutableSpan<bool> new_hide = tls.new_hide;
-      array_utils::gather(hide_poly.span.as_span(), faces, new_hide);
+      gather_data_mesh(hide_poly.span.as_span(), faces, new_hide);
       calc_hide(faces, new_hide);
       if (array_utils::indexed_data_equal<bool>(hide_poly.span, faces, new_hide)) {
         return;
@@ -942,7 +943,7 @@ static void face_hide_update(const Depsgraph &depsgraph,
 
       tls.new_hide.resize(faces.size());
       MutableSpan<bool> new_hide = tls.new_hide;
-      array_utils::gather(hide_poly.span.as_span(), faces, new_hide);
+      gather_data_mesh(hide_poly.span.as_span(), faces, new_hide);
       calc_hide(faces, new_hide);
       if (array_utils::indexed_data_equal<bool>(hide_poly.span, faces, new_hide)) {
         return;
@@ -1623,7 +1624,8 @@ void SCULPT_OT_face_sets_edit(wmOperatorType *ot)
       {0, nullptr, 0, nullptr, nullptr},
   };
   RNA_def_enum(ot->srna, "mode", modes, int(EditMode::Grow), "Mode", "");
-  RNA_def_float(ot->srna, "strength", 1.0f, 0.0f, 1.0f, "Strength", "", 0.0f, 1.0f);
+  prop = RNA_def_float(ot->srna, "strength", 1.0f, 0.0f, 1.0f, "Strength", "", 0.0f, 1.0f);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
 
   ot->prop = RNA_def_boolean(ot->srna,
                              "modify_hidden",

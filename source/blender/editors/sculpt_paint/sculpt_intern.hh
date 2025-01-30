@@ -9,15 +9,12 @@
 #pragma once
 
 #include <optional>
-#include <queue>
 
-#include "BKE_attribute.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_array.hh"
-#include "BLI_generic_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -47,6 +44,7 @@ struct Node;
 enum class Type : int8_t;
 }  // namespace undo
 }  // namespace blender::ed::sculpt_paint
+struct bContext;
 struct BMLog;
 struct Dial;
 struct DistRayAABB_Precalc;
@@ -55,8 +53,8 @@ struct ImageUser;
 struct Key;
 struct KeyBlock;
 struct Object;
-struct bContext;
 struct PaintModeSettings;
+struct ReportList;
 struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperatorType;
@@ -66,6 +64,15 @@ struct wmOperatorType;
  * \{ */
 
 namespace blender::ed::sculpt_paint {
+
+/** Contains shape key array data for quick access for deformation. */
+struct ShapeKeyData {
+  MutableSpan<float3> active_key_data;
+  bool basis_key_active;
+  Vector<MutableSpan<float3>> dependent_keys;
+
+  static std::optional<ShapeKeyData> from_object(Object &object);
+};
 
 /**
  * This class represents an API to deform original positions based on translations created from
@@ -99,10 +106,7 @@ class PositionDeformData {
    */
   MutableSpan<float3> orig_;
 
-  Key *keys_;
-  KeyBlock *active_key_;
-  bool basis_active_;
-  std::optional<Array<bool>> dependent_keys_;
+  std::optional<ShapeKeyData> shape_key_data_;
 
  public:
   PositionDeformData(const Depsgraph &depsgraph, Object &object_orig);
@@ -387,17 +391,16 @@ bool SCULPT_poll(bContext *C);
  */
 bool SCULPT_brush_cursor_poll(bContext *C);
 
+namespace blender::ed::sculpt_paint {
 /**
- * Returns true if sculpt session can handle color attributes
- * (pbvh->type() == bke::pbvh::Type::Mesh).  If false an error
- * message will be shown to the user.  Operators should return
- * OPERATOR_CANCELLED in this case.
+ * Returns true if the current Mesh type can handle color attributes. If false an error message
+ * will be shown to the user.  Operators should return OPERATOR_CANCELLED in this case.
  *
- * NOTE: Does not check if a color attribute actually exists.
- * Calling code must handle this itself; in most cases a call to
- * BKE_sculpt_color_layer_create_if_needed() is sufficient.
+ * NOTE: Does not check if a color attribute actually exists. Calling code must handle this itself;
+ * in most cases a call to BKE_sculpt_color_layer_create_if_needed() is sufficient.
  */
-bool SCULPT_handles_colors_report(const Object &object, ReportList *reports);
+bool color_supported_check(const Scene &scene, Object &object, ReportList *reports);
+}  // namespace blender::ed::sculpt_paint
 
 /** \} */
 
@@ -680,8 +683,7 @@ void sculpt_apply_texture(const SculptSession &ss,
  */
 void SCULPT_calc_vertex_displacement(const SculptSession &ss,
                                      const Brush &brush,
-                                     float rgba[3],
-                                     float r_offset[3]);
+                                     float translation[3]);
 
 /**
  * Tilts a normal by the x and y tilt values using the view axis.

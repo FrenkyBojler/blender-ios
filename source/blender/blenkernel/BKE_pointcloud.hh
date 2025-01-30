@@ -9,8 +9,6 @@
  * \brief General operations for point clouds.
  */
 
-#include <mutex>
-
 #include "BLI_bounds_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_shared_cache.hh"
@@ -74,3 +72,8 @@ void BKE_pointcloud_batch_cache_free(PointCloud *pointcloud);
 
 extern void (*BKE_pointcloud_batch_cache_dirty_tag_cb)(PointCloud *pointcloud, int mode);
 extern void (*BKE_pointcloud_batch_cache_free_cb)(PointCloud *pointcloud);
+
+namespace blender::bke {
+struct AttributeAccessorFunctions;
+const AttributeAccessorFunctions &pointcloud_attribute_accessor_functions();
+}  // namespace blender::bke

@@ -28,7 +28,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_paint.hh"
 
 #include "WM_api.hh"
@@ -59,6 +59,14 @@ struct PaintSample {
   float pressure;
 };
 
+/**
+ * Common structure for various paint operators (e.g. Sculpt, Grease Pencil, Curves Sculpt)
+ *
+ * Callback functions defined and stored on this struct (e.g. `StrokeGetLocation`) allow each of
+ * these modes to customize specific behavior while still sharing other common handing.
+ *
+ * See #paint_stroke_modal for the majority of the paint operator logic.
+ */
 struct PaintStroke {
   std::unique_ptr<PaintModeData> mode_data;
   void *stroke_cursor;
@@ -132,6 +140,11 @@ static void paint_draw_smooth_cursor(bContext *C, const int x, const int y, void
   const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
   PaintStroke *stroke = static_cast<PaintStroke *>(customdata);
+  const PaintMode mode = BKE_paintmode_get_active_from_context(C);
+
+  if ((mode == PaintMode::GPencil) && (paint->flags & PAINT_SHOW_BRUSH) == 0) {
+    return;
+  }
 
   if (stroke && brush) {
     GPU_line_smooth(true);
@@ -709,7 +722,9 @@ static float paint_space_stroke_spacing(const bContext *C,
   spacing *= stroke->zoom_2d;
 
   if (paint_stroke_use_scene_spacing(brush, mode)) {
-    return size_clamp * spacing / 50.0f;
+    /* Low pressure on size (with tablets) can cause infinite recursion in paint_space_stroke(),
+     * see #129853. */
+    return max_ff(FLT_EPSILON, size_clamp * spacing / 50.0f);
   }
   return max_ff(stroke->zoom_2d, size_clamp * spacing / 50.0f);
 }
@@ -840,6 +855,7 @@ static int paint_space_stroke(bContext *C,
   while (length > 0.0f) {
     const float spacing = paint_space_stroke_spacing_variable(
         C, scene, stroke, pressure, pressure_delta, length);
+    BLI_assert(spacing >= 0.0f);
 
     if (length >= spacing) {
       float2 mouse;
@@ -1042,7 +1058,7 @@ bool paint_space_stroke_enabled(const Brush &br, const PaintMode mode)
     return false;
   }
 
-  if (ELEM(mode, PaintMode::GPencil, PaintMode::SculptGreasePencil)) {
+  if (ELEM(mode, PaintMode::GPencil, PaintMode::SculptGPencil)) {
     /* No spacing needed for now. */
     return false;
   }
@@ -1645,7 +1661,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
 int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
   /* only when executed for the first time */
-  if (stroke->stroke_started == 0) {
+  if (!stroke->stroke_started) {
     PointerRNA firstpoint;
     PropertyRNA *strokeprop = RNA_struct_find_property(op->ptr, "stroke");
 
@@ -1656,14 +1672,29 @@ int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
     }
   }
 
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "override_location");
+  const bool override_location = prop && RNA_property_boolean_get(op->ptr, prop) &&
+                                 stroke->get_location;
   if (stroke->stroke_started) {
     RNA_BEGIN (op->ptr, itemptr, "stroke") {
-      stroke->update_step(C, op, stroke, &itemptr);
+      if (override_location) {
+        float2 mval;
+        RNA_float_get_array(&itemptr, "mouse_event", mval);
+
+        float3 location;
+        if (stroke->get_location(C, location, mval, false)) {
+          RNA_float_set_array(&itemptr, "location", location);
+          stroke->update_step(C, op, stroke, &itemptr);
+        }
+      }
+      else {
+        stroke->update_step(C, op, stroke, &itemptr);
+      }
     }
     RNA_END;
   }
 
-  const bool ok = stroke->stroke_started != 0;
+  const bool ok = stroke->stroke_started;
 
   stroke_done(C, op, stroke);
 

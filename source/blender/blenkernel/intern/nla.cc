@@ -27,7 +27,6 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_sound_types.h"
 #include "DNA_speaker_types.h"
 
 #include "BKE_action.hh"
@@ -781,7 +780,7 @@ float nlastrip_get_frame(NlaStrip *strip, float cframe, short mode)
   }
 }
 
-float BKE_nla_tweakedit_remap(AnimData *adt, float cframe, short mode)
+float BKE_nla_tweakedit_remap(AnimData *adt, const float cframe, const eNlaTime_ConvertModes mode)
 {
   NlaStrip *strip;
 
@@ -1171,7 +1170,7 @@ void BKE_nlameta_flush_transforms(NlaStrip *mstrip)
     /* only if scale changed, need to perform RNA updates */
     if (scaleChanged) {
       /* use RNA updates to compute scale properly */
-      PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_NlaStrip, strip);
+      PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_NlaStrip, strip);
 
       RNA_float_set(&ptr, "frame_start", strip->start);
       RNA_float_set(&ptr, "frame_end", strip->end);
@@ -2115,12 +2114,14 @@ void BKE_nla_validate_state(AnimData *adt)
 /* name of stashed tracks - the translation stuff is included here to save extra work */
 #define STASH_TRACK_NAME DATA_("[Action Stash]")
 
-bool BKE_nla_action_is_stashed(AnimData *adt, bAction *act)
+bool BKE_nla_action_slot_is_stashed(AnimData *adt,
+                                    bAction *act,
+                                    const blender::animrig::slot_handle_t slot_handle)
 {
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
     if (strstr(nlt->name, STASH_TRACK_NAME)) {
       LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {
-        if (strip->act == act) {
+        if (strip->act == act && strip->action_slot_handle == slot_handle) {
           return true;
         }
       }
@@ -2144,7 +2145,7 @@ bool BKE_nla_action_stash(const OwnedAnimData owned_adt, const bool is_liboverri
   }
 
   /* do not add if it is already stashed */
-  if (BKE_nla_action_is_stashed(adt, adt->action)) {
+  if (BKE_nla_action_slot_is_stashed(adt, adt->action, adt->slot_handle)) {
     return false;
   }
 
@@ -2223,7 +2224,7 @@ void BKE_nla_action_pushdown(const OwnedAnimData owned_adt, const bool is_libove
     return;
   }
 
-  /* Add a new NLA strip to the track, which references the active action + slot.*/
+  /* Add a new NLA strip to the track, which references the active action + slot. */
   strip = BKE_nlastack_add_strip(owned_adt, is_liboverride);
   if (strip == nullptr) {
     return;
@@ -2387,7 +2388,7 @@ bool BKE_nla_tweakmode_enter(const OwnedAnimData owned_adt)
           animrig::ActionSlotAssignmentResult::OK)
       {
         printf("NLA tweak-mode enter - could not assign slot %s\n",
-               strip_slot ? strip_slot->name : "-unassigned-");
+               strip_slot ? strip_slot->identifier : "-unassigned-");
         /* There is one other reason this could fail: when already in NLA tweak mode. But since
          * we're here in the code, the ADT_NLA_EDIT_ON flag is not yet set, and thus that shouldn't
          * be the case.
@@ -2469,7 +2470,7 @@ static void nla_tweakmode_exit_nofollowptr(AnimData *adt)
 
   adt->tmpact = nullptr;
   adt->tmp_slot_handle = animrig::Slot::unassigned;
-  STRNCPY(adt->slot_name, adt->tmp_slot_name);
+  STRNCPY(adt->last_slot_identifier, adt->tmp_last_slot_identifier);
 
   adt->act_track = nullptr;
   adt->actstrip = nullptr;
@@ -2502,7 +2503,7 @@ void BKE_nla_tweakmode_exit(const OwnedAnimData owned_adt)
                                                             nullptr,
                                                             owned_adt.adt.action,
                                                             owned_adt.adt.slot_handle,
-                                                            owned_adt.adt.slot_name);
+                                                            owned_adt.adt.last_slot_identifier);
     BLI_assert_msg(unassign_ok,
                    "When exiting tweak mode, unassigning the tweaked Action should work");
     UNUSED_VARS_NDEBUG(unassign_ok);

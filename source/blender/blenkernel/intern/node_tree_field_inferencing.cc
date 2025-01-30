@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
 #include "NOD_geometry.hh"
@@ -43,17 +44,17 @@ static InputSocketFieldType get_interface_input_field_type(const bNode &node,
   if (!is_field_socket_type(socket)) {
     return InputSocketFieldType::None;
   }
-  if (node.type == NODE_REROUTE) {
+  if (node.is_reroute()) {
     return InputSocketFieldType::IsSupported;
   }
-  if (node.type == NODE_GROUP_OUTPUT) {
+  if (node.is_group_output()) {
     /* Outputs always support fields when the data type is correct. */
     return InputSocketFieldType::IsSupported;
   }
   if (node.typeinfo == &blender::bke::NodeTypeUndefined) {
     return InputSocketFieldType::None;
   }
-  if (node.type == NODE_CUSTOM) {
+  if (node.type_legacy == NODE_CUSTOM) {
     return InputSocketFieldType::None;
   }
 
@@ -76,18 +77,18 @@ static OutputFieldDependency get_interface_output_field_dependency(const bNode &
     /* Non-field sockets always output data. */
     return OutputFieldDependency::ForDataSource();
   }
-  if (node.type == NODE_REROUTE) {
+  if (node.is_reroute()) {
     /* The reroute just forwards what is passed in. */
     return OutputFieldDependency::ForDependentField();
   }
-  if (node.type == NODE_GROUP_INPUT) {
+  if (node.is_group_input()) {
     /* Input nodes get special treatment in #determine_group_input_states. */
     return OutputFieldDependency::ForDependentField();
   }
   if (node.typeinfo == &blender::bke::NodeTypeUndefined) {
     return OutputFieldDependency::ForDataSource();
   }
-  if (node.type == NODE_CUSTOM) {
+  if (node.type_legacy == NODE_CUSTOM) {
     return OutputFieldDependency::ForDataSource();
   }
 
@@ -233,7 +234,7 @@ static OutputFieldDependency find_group_output_dependencies(
           field_state_by_socket_id[origin_socket->index_in_tree()];
 
       if (origin_state.is_field_source) {
-        if (origin_node.type == NODE_GROUP_INPUT) {
+        if (origin_node.is_group_input()) {
           /* Found a group input that the group output depends on. */
           linked_input_indices.append_non_duplicates(origin_socket->index());
         }
@@ -354,7 +355,7 @@ static bool propagate_special_data_requirements(
   bool need_update = false;
 
   /* Sync field state between zone nodes and schedule another pass if necessary. */
-  switch (node.type) {
+  switch (node.type_legacy) {
     case GEO_NODE_SIMULATION_INPUT: {
       const NodeGeometrySimulationInput &data = *static_cast<const NodeGeometrySimulationInput *>(
           node.storage);
@@ -576,7 +577,7 @@ static void propagate_field_status_from_left_to_right(
     bool need_update = false;
 
     for (const bNode *node : toposort_result) {
-      if (node->type == NODE_GROUP_INPUT) {
+      if (node->is_group_input()) {
         continue;
       }
 
@@ -673,8 +674,8 @@ static void determine_group_output_states(
   }
 }
 
-static void update_socket_states(const bNodeTree &tree,
-                                 const Span<SocketFieldState> field_state_by_socket_id)
+static Array<FieldSocketState> calc_socket_states(
+    const Span<SocketFieldState> field_state_by_socket_id)
 {
   auto get_state_to_store = [&](const SocketFieldState &state) {
     if (state.is_always_single) {
@@ -689,10 +690,11 @@ static void update_socket_states(const bNodeTree &tree,
     return FieldSocketState::CanBeField;
   };
 
-  for (const bNodeSocket *socket : tree.all_sockets()) {
-    const SocketFieldState &state = field_state_by_socket_id[socket->index_in_tree()];
-    const_cast<bNodeSocket *>(socket)->runtime->field_state = get_state_to_store(state);
+  Array<FieldSocketState> result(field_state_by_socket_id.size());
+  for (const int i : field_state_by_socket_id.index_range()) {
+    result[i] = get_state_to_store(field_state_by_socket_id[i]);
   }
+  return result;
 }
 
 static void prepare_inferencing_interfaces(
@@ -733,13 +735,13 @@ bool update_field_inferencing(const bNodeTree &tree)
   propagate_field_status_from_left_to_right(tree, interface_by_node, field_state_by_socket_id);
   determine_group_output_states(
       tree, *new_inferencing_interface, interface_by_node, field_state_by_socket_id);
-  update_socket_states(tree, field_state_by_socket_id);
 
   /* Update the previous group interface. */
   const bool group_interface_changed = !tree.runtime->field_inferencing_interface ||
                                        *tree.runtime->field_inferencing_interface !=
                                            *new_inferencing_interface;
   tree.runtime->field_inferencing_interface = std::move(new_inferencing_interface);
+  tree.runtime->field_states = calc_socket_states(field_state_by_socket_id);
 
   return group_interface_changed;
 }

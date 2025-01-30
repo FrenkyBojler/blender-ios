@@ -20,7 +20,6 @@
 #include "BLF_api.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_math_vector.hh"
 #include "BLI_rect.h"
 
 #include "BLT_translation.hh"
@@ -587,8 +586,8 @@ void screen_draw_dock_preview(
   screen_draw_area_drag_tip(x,
                             y,
                             source,
-                            dock_target == AreaDockTarget::Center ? IFACE_("Replace Area") :
-                                                                    IFACE_("Split Area"));
+                            dock_target == AreaDockTarget::Center ? IFACE_("Replace this area") :
+                                                                    IFACE_("Move area here"));
 }
 
 void screen_draw_split_preview(ScrArea *area, const eScreenAxis dir_axis, const float factor)

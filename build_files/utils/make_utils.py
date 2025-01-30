@@ -7,13 +7,32 @@
 Utility functions for make update and make tests
 
 WARNING:
-Python 3.9 is used on the built-bot.
+- Python 3.6 is used on the Linux VM (Rocky8) to run "make update" to checkout LFS.
+- Python 3.9 is used on the built-bot.
+
 Take care *not* to use features from the Python version used by Blender!
 
 NOTE:
-Some type annotations are quoted to avoid errors in Python 3.9.
+Some type annotations are quoted to avoid errors in older Python versions.
 These can be unquoted eventually.
 """
+
+__all__ = (
+    "call",
+    "check_output",
+    "command_missing",
+    "git_branch",
+    "git_branch_exists",
+    "git_enable_submodule",
+    "git_get_remote_url",
+    "git_is_remote_repository",
+    "git_remote_exist",
+    "git_set_config",
+    "git_update_submodule",
+    "is_git_submodule_enabled",
+    "parse_blender_version",
+    "remove_directory",
+)
 
 import re
 import os
@@ -29,10 +48,17 @@ from types import (
 from typing import (
     Any,
 )
-from collections.abc import (
-    Callable,
-    Sequence,
-)
+
+if sys.version_info >= (3, 9):
+    from collections.abc import (
+        Callable,
+        Sequence,
+    )
+else:
+    from typing import (
+        Callable,
+        Sequence,
+    )
 
 
 def call(
@@ -292,10 +318,11 @@ def remove_directory(directory: Path) -> None:
     Takes care of clearing read-only attributes which might prevent deletion on
     Windows.
     """
+    # NOTE: unquote typing once Python 3.6x is dropped.
     def remove_readonly(
             func: Callable[..., Any],
             path: str,
-            _: tuple[type[BaseException], BaseException, TracebackType],
+            _: "tuple[type[BaseException], BaseException, TracebackType]",
     ) -> None:
         "Clear the read-only bit and reattempt the removal."
         os.chmod(path, stat.S_IWRITE)
