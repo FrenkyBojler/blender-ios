@@ -40,9 +40,7 @@ int64_t RNAPath::hash() const
   if (key.has_value()) {
     return blender::get_default_hash(path, key.value());
   }
-  else {
-    return blender::get_default_hash(path, index.value_or(0));
-  }
+  return blender::get_default_hash(path, index.value_or(0));
 };
 
 bool operator==(const RNAPath &left, const RNAPath &right)

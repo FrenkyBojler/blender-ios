@@ -34,6 +34,7 @@
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_pose.hh"
 #include "ANIM_rna.hh"
 
 #include "AS_asset_catalog.hh"
@@ -503,28 +504,28 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
 }
 
 static void update_pose_action_from_scene(Main *bmain,
-                                          blender::animrig::Action &action,
+                                          blender::animrig::Action &pose_action,
                                           Object &pose_object,
                                           const AssetModifyMode mode)
 {
   using namespace blender::animrig;
-  if (action.slot_array_num < 1) {
+  if (pose_action.slot_array_num < 1) {
     /* All actions should have slots at this point. */
     BLI_assert_unreachable();
     return;
   }
 
+  Slot &slot = blender::animrig::get_best_pose_slot_for_id(pose_object.id, pose_action);
+  BLI_assert(pose_action.strip_keyframe_data().size() == 1);
+  blender::animrig::assert_baklava_phase_1_invariants(pose_action);
+  StripKeyframeData *strip_data = pose_action.strip_keyframe_data()[0];
+  Vector<PathValue> path_values = generate_path_values(pose_object);
+
   Set<RNAPath> existing_paths;
-  foreach_fcurve_in_action_slot(action, action.slot_array[0]->handle, [&](FCurve &fcurve) {
+  foreach_fcurve_in_action_slot(pose_action, slot.handle, [&](FCurve &fcurve) {
     existing_paths.add({fcurve.rna_path, std::nullopt, fcurve.array_index});
   });
-
-  KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
-  BLI_assert(action.strip_keyframe_data().size() == 1);
-  BLI_assert(action.slots().size() == 1);
-  StripKeyframeData *strip_data = action.strip_keyframe_data()[0];
-  Slot *slot = action.slot(0);
-  Vector<PathValue> path_values = generate_path_values(pose_object);
+  const KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
 
   switch (mode) {
     case MODIFY_ADJUST: {
@@ -533,7 +534,7 @@ static void update_pose_action_from_scene(Main *bmain,
         if (existing_paths.contains(path_value.rna_path)) {
           strip_data->keyframe_insert(
               bmain,
-              *slot,
+              slot,
               {path_value.rna_path.path, path_value.rna_path.index.value()},
               {1, path_value.value},
               key_settings);
@@ -544,7 +545,7 @@ static void update_pose_action_from_scene(Main *bmain,
     case MODIFY_ADD: {
       for (const PathValue &path_value : path_values) {
         strip_data->keyframe_insert(bmain,
-                                    *slot,
+                                    slot,
                                     {path_value.rna_path.path, path_value.rna_path.index.value()},
                                     {1, path_value.value},
                                     key_settings);
@@ -552,7 +553,7 @@ static void update_pose_action_from_scene(Main *bmain,
       break;
     }
     case MODIFY_REPLACE: {
-      Channelbag *channelbag = strip_data->channelbag_for_slot(slot->handle);
+      Channelbag *channelbag = strip_data->channelbag_for_slot(slot.handle);
       if (!channelbag) {
         /* No channels to remove. */
         return;
@@ -560,7 +561,7 @@ static void update_pose_action_from_scene(Main *bmain,
       channelbag->fcurves_clear();
       for (const PathValue &path_value : path_values) {
         strip_data->keyframe_insert(bmain,
-                                    *slot,
+                                    slot,
                                     {path_value.rna_path.path, path_value.rna_path.index.value()},
                                     {1, path_value.value},
                                     key_settings);
@@ -568,15 +569,16 @@ static void update_pose_action_from_scene(Main *bmain,
       break;
     }
     case MODIFY_REMOVE: {
-      Channelbag *channelbag = strip_data->channelbag_for_slot(slot->handle);
+      Channelbag *channelbag = strip_data->channelbag_for_slot(slot.handle);
       if (!channelbag) {
         /* No channels to remove. */
         return;
       }
       Map<RNAPath, FCurve *> fcurve_map;
-      foreach_fcurve_in_action_slot(action, action.slot_array[0]->handle, [&](FCurve &fcurve) {
-        fcurve_map.add({fcurve.rna_path, std::nullopt, fcurve.array_index}, &fcurve);
-      });
+      foreach_fcurve_in_action_slot(
+          pose_action, pose_action.slot_array[0]->handle, [&](FCurve &fcurve) {
+            fcurve_map.add({fcurve.rna_path, std::nullopt, fcurve.array_index}, &fcurve);
+          });
       for (const PathValue &path_value : path_values) {
         if (existing_paths.contains(path_value.rna_path)) {
           FCurve *fcurve = fcurve_map.lookup(path_value.rna_path);
