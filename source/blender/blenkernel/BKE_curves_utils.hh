@@ -533,8 +533,8 @@ Array<float3> retrieve_all_positions(const bke::CurvesGeometry &curves,
  * Write to `handle_position_left`, `position`, and `handle_position_right` from a lat array of
  * positions.
  * \param curves_selection: The curves to write to.
- * \param all_positions: All positions of the selected bezier curves. The size of \a
- * all_positions must be equal to 3 * the size of \a curves_selection.
+ * \param all_positions: All positions of the selected bezier curves. The size of \a all_positions
+ * must be equal to 3 * the size of \a curves_selection.
  */
 void write_all_positions(bke::CurvesGeometry &curves,
                          const IndexMask &curves_selection,
