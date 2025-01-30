@@ -495,7 +495,7 @@ static int grease_pencil_layer_reveal_exec(bContext *C, wmOperator * /*op*/)
   using namespace blender::bke::greasepencil;
   GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
 
-  if (!grease_pencil.active_node) {
+  if (!grease_pencil.get_active_node()) {
     return OPERATOR_CANCELLED;
   }
 
