@@ -513,7 +513,16 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
     /* The forward-compat animation data we write is for IDs of the type that
      * the first slot is intended for. Therefore, the Action should have that
-     * `idroot` when loaded in old versions of Blender. */
+     * `idroot` when loaded in old versions of Blender.
+     *
+     * Note that if there is no slot, this code will never run and therefore the
+     * action will be written with `idroot = 0`. Despite that, old
+     * pre-slotted-action files are still guaranteed to round-trip losslessly,
+     * because old actions (even when empty) are versioned to have one slot with
+     * `idtype` set to whatever the old action's `idroot` was. In other words,
+     * zero-slot actions can only be created via non-legacy features, and
+     * therefore represent animation data that wasn't purely from old files
+     * anyway. */
     action.idroot = first_slot.idtype;
 
     /* Note: channel group forward-compat data requires that fcurve
