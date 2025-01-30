@@ -578,7 +578,7 @@ static bool is_bounding_box_in_frustum(float projmat[4][4], const Bounds<float3>
   return ret == ISECT_AABB_PLANE_IN_FRONT_ALL;
 }
 
-static bool ndof_get_cor_from_bounding_box(bContext *C, float r_cor[3])
+static bool ndof_calc_cor_from_bounding_box(bContext *C, float r_cor[3])
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
@@ -703,7 +703,7 @@ static bool ndof_get_cor_from_zbuf(bContext *C, float r_cor[3])
 static bool ndof_recalculate_cor(bContext *C, float *cor)
 {
   float3 r_cor(0);
-  if (ndof_get_cor_from_bounding_box(C, r_cor)) {
+  if (ndof_calc_cor_from_bounding_box(C, r_cor)) {
     negate_v3_v3(cor, r_cor);
     return true;
   }
