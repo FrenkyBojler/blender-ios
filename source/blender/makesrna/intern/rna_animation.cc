@@ -165,7 +165,9 @@ static void rna_AnimData_slot_handle_override_diff(Main *bmain,
   /* Sign doesn't make sense here, as the numerical values are the same. */
   rnadiff_ctx.comparison = 1;
 
-  /* Taken from rna_property_override_diff_default(). */
+  /* The remainder of this function was taken from rna_property_override_diff_default(). It's just
+   * formatted a little differently to allow for early returns. */
+
   const bool do_create = rnadiff_ctx.liboverride != nullptr &&
                          (rnadiff_ctx.liboverride_flags & RNA_OVERRIDE_COMPARE_CREATE) != 0 &&
                          rnadiff_ctx.rna_path != nullptr;
