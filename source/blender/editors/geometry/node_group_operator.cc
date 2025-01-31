@@ -257,6 +257,79 @@ class MeshState {
   }
 };
 
+static void store_result_mesh_sculpt_mode(const wmOperator &op,
+                                          const Scene &scene,
+                                          const Depsgraph &depsgraph,
+                                          const RegionView3D *rv3d,
+                                          const MeshState &orig_mesh_state,
+                                          Object &object,
+                                          Mesh *new_mesh)
+{
+  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  const bool changed_topology = orig_mesh_state.topology_changed(*new_mesh);
+
+  // TODO: Allow adding the 3 sculpt "built-in" attributes without "changing topology".
+  if (changed_topology || new_mesh->attributes().all_ids() != mesh.attributes().all_ids()) {
+    sculpt_paint::undo::geometry_begin(scene, object, &op);
+    BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
+    sculpt_paint::undo::geometry_end(object);
+    BKE_sculptsession_free_pbvh(object);
+  }
+  else {
+    Vector<StringRef> changed_attributes;
+    new_mesh->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
+      if (ELEM(iter.name, ".edge_verts", ".corner_vert", ".corner_edge")) {
+        return;
+      }
+      const bke::GAttributeReader attribute = iter.get();
+      if (!orig_mesh_state.attribute_changed(iter.name, attribute.sharing_info)) {
+        return;
+      }
+      changed_attributes.append(iter.name);
+    });
+
+    bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+    IndexMaskMemory memory;
+    const IndexMask leaf_nodes = bke::pbvh::all_leaf_nodes(pbvh, memory);
+    if (changed_attributes.as_span() == Span<StringRef>{"position"}) {
+      sculpt_paint::undo::push_begin(scene, object, &op);
+      sculpt_paint::undo::push_nodes(
+          depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::Position);
+      sculpt_paint::undo::push_end(object);
+      mesh.vert_positions_for_write().copy_from(new_mesh->vert_positions());
+      mesh.tag_positions_changed_no_normals();
+      BKE_id_free(nullptr, new_mesh);
+      // BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
+      pbvh.tag_positions_changed(leaf_nodes);
+    }
+    else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_mask"}) {
+      sculpt_paint::undo::push_begin(scene, object, &op);
+      sculpt_paint::undo::push_nodes(
+          depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::Mask);
+      sculpt_paint::undo::push_end(object);
+      BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
+      pbvh.tag_masks_changed(leaf_nodes);
+    }
+    else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_face_set"}) {
+      sculpt_paint::undo::push_begin(scene, object, &op);
+      sculpt_paint::undo::push_nodes(
+          depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::FaceSet);
+      sculpt_paint::undo::push_end(object);
+      BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
+      pbvh.tag_face_sets_changed(leaf_nodes);
+    }
+    else {
+      sculpt_paint::undo::geometry_begin(scene, object, &op);
+      BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
+      sculpt_paint::undo::geometry_end(object);
+      BKE_sculptsession_free_pbvh(object);
+    }
+  }
+  if (!BKE_sculptsession_use_pbvh_draw(&object, rv3d)) {
+    DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
+  }
+}
+
 static void store_result_geometry(const wmOperator &op,
                                   const Depsgraph &depsgraph,
                                   Main &bmain,
@@ -317,69 +390,8 @@ static void store_result_geometry(const wmOperator &op,
         new_mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
       }
 
-      const bool changed_topology = mesh_state.topology_changed(*new_mesh);
-
       if (object.mode == OB_MODE_SCULPT) {
-        // TODO: Allow adding the 3 sculpt "built-in" attributes without "changing topology".
-        if (changed_topology || new_mesh->attributes().all_ids() != mesh.attributes().all_ids()) {
-          sculpt_paint::undo::geometry_begin(scene, object, &op);
-          BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
-          sculpt_paint::undo::geometry_end(object);
-          BKE_sculptsession_free_pbvh(object);
-        }
-        else {
-          Vector<StringRef> changed_attributes;
-          new_mesh->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
-            if (ELEM(iter.name, ".edge_verts", ".corner_vert", ".corner_edge")) {
-              return;
-            }
-            const bke::GAttributeReader attribute = iter.get();
-            if (!mesh_state.attribute_changed(iter.name, attribute.sharing_info)) {
-              return;
-            }
-            changed_attributes.append(iter.name);
-          });
-
-          bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-          IndexMaskMemory memory;
-          const IndexMask leaf_nodes = bke::pbvh::all_leaf_nodes(pbvh, memory);
-          if (changed_attributes.as_span() == Span<StringRef>{"position"}) {
-            sculpt_paint::undo::push_begin(scene, object, &op);
-            sculpt_paint::undo::push_nodes(
-                depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::Position);
-            sculpt_paint::undo::push_end(object);
-            mesh.vert_positions_for_write().copy_from(new_mesh->vert_positions());
-            mesh.tag_positions_changed_no_normals();
-            BKE_id_free(nullptr, new_mesh);
-            // BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
-            pbvh.tag_positions_changed(leaf_nodes);
-          }
-          else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_mask"}) {
-            sculpt_paint::undo::push_begin(scene, object, &op);
-            sculpt_paint::undo::push_nodes(
-                depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::Mask);
-            sculpt_paint::undo::push_end(object);
-            BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
-            pbvh.tag_masks_changed(leaf_nodes);
-          }
-          else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_face_set"}) {
-            sculpt_paint::undo::push_begin(scene, object, &op);
-            sculpt_paint::undo::push_nodes(
-                depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::FaceSet);
-            sculpt_paint::undo::push_end(object);
-            BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
-            pbvh.tag_face_sets_changed(leaf_nodes);
-          }
-          else {
-            sculpt_paint::undo::geometry_begin(scene, object, &op);
-            BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
-            sculpt_paint::undo::geometry_end(object);
-            BKE_sculptsession_free_pbvh(object);
-          }
-        }
-        if (!BKE_sculptsession_use_pbvh_draw(&object, rv3d)) {
-          DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
-        }
+        store_result_mesh_sculpt_mode(op, scene, depsgraph, rv3d, mesh_state, object, new_mesh);
       }
       else if (object.mode == OB_MODE_EDIT) {
         EDBM_mesh_make_from_mesh(&object, new_mesh, scene.toolsettings->selectmode, true);
@@ -391,7 +403,6 @@ static void store_result_geometry(const wmOperator &op,
         BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
         DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
       }
-
       if (has_shape_keys && !mesh.key) {
         BKE_report(op.reports, RPT_WARNING, "Mesh shape key data removed");
       }
