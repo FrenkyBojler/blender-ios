@@ -6,6 +6,7 @@
 #include "BKE_asset_edit.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
+#include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_lib_id.hh"
 #include "BKE_preferences.h"
@@ -269,7 +270,9 @@ static int create_pose_asset_local(bContext *C,
   /* Extract the pose into a new action. */
   blender::animrig::Action &pose_action = extract_pose(*bmain, selected_pose_objects);
   asset::mark_id(&pose_action.id);
-  asset::generate_preview(C, &pose_action.id);
+  if (!G.background) {
+    asset::generate_preview(C, &pose_action.id);
+  }
   BKE_id_rename(*bmain, pose_action.id, name);
 
   /* Add asset to catalog. */
@@ -326,7 +329,9 @@ static int create_pose_asset_user_library(bContext *C,
   /* Temporary action in current main that will be exported and later deleted. */
   blender::animrig::Action &pose_action = extract_pose(*bmain, selected_pose_objects);
   asset::mark_id(&pose_action.id);
-  asset::generate_preview(C, &pose_action.id);
+  if (!G.background) {
+    asset::generate_preview(C, &pose_action.id);
+  }
 
   /* Add asset to catalog. */
   char catalog_path[MAX_NAME];
@@ -679,7 +684,9 @@ static int pose_asset_modify_exec(bContext *C, wmOperator *op)
   AssetModifyMode mode = AssetModifyMode(RNA_enum_get(op->ptr, "mode"));
   update_pose_action_from_scene(bmain, action->wrap(), *pose_object, mode);
 
-  asset::generate_preview(C, &action->id);
+  if (!G.background) {
+    asset::generate_preview(C, &action->id);
+  }
   if (ID_IS_LINKED(action)) {
     /* Not needed for local assets. */
     bke::asset_edit_id_save(*bmain, action->id, *op->reports);
