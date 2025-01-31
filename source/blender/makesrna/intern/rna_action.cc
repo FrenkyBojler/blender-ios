@@ -1552,6 +1552,19 @@ static const EnumPropertyItem *rna_ActionSlot_target_id_type_itemf(bContext * /*
   return items;
 }
 
+static void rna_ActionSlot_target_id_type_set(PointerRNA *ptr, int value)
+{
+  animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
+  animrig::Slot &slot = reinterpret_cast<ActionSlot *>(ptr->data)->wrap();
+
+  if (slot.idtype != 0) {
+    /* Ignore the assignment. */
+    return;
+  }
+
+  action.slot_idtype_define(slot, ID_Type(value));
+}
+
 #else
 
 static void rna_def_dopesheet(BlenderRNA *brna)
@@ -2005,9 +2018,10 @@ static void rna_def_action_slot(BlenderRNA *brna)
   prop = RNA_def_property(srna, "target_id_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "idtype");
   RNA_def_property_enum_items(prop, default_ActionSlot_target_id_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_ActionSlot_target_id_type_itemf");
+  RNA_def_property_enum_funcs(
+      prop, nullptr, "rna_ActionSlot_target_id_type_set", "rna_ActionSlot_target_id_type_itemf");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_ActionSlot_identifier_update");
   RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop, "Target ID Type", "Type of data-block that this slot is intended to animate");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
