@@ -196,7 +196,7 @@ struct _mtl_sampler {
      * Required for pixel location inside the backing texture 2D space, and texture size query.
      *
      * IMPORTANT: Note that the slices are not contiguous in the backing texture as we simply use
-     * if for linear storage.
+     * it for linear storage.
      * For instance, for a [2,2,2] texture store in a [6x4] backing texture:
      *
      * 001122
