@@ -585,7 +585,7 @@ static void update_pose_action_from_scene(Main *bmain,
 
   Slot &slot = blender::animrig::get_best_pose_slot_for_id(pose_object.id, pose_action);
   BLI_assert(pose_action.strip_keyframe_data().size() == 1);
-  blender::animrig::assert_baklava_phase_1_invariants(pose_action);
+  BLI_assert(pose_action.layers().size() == 1);
   StripKeyframeData *strip_data = pose_action.strip_keyframe_data()[0];
   Vector<PathValue> path_values = generate_path_values(pose_object);
 
