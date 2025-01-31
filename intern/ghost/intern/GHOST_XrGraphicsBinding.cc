@@ -24,6 +24,10 @@
 #  include "GHOST_ContextWGL.hh"
 #  include "GHOST_SystemWin32.hh"
 #endif
+#ifdef WITH_VULKAN_BACKEND
+#  include "GHOST_ContextVK.hh"
+#endif
+
 #include "GHOST_C-api.h"
 #include "GHOST_XrException.hh"
 #include "GHOST_Xr_intern.hh"
@@ -299,12 +303,54 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
 
 class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
  public:
-  bool checkVersionRequirements(GHOST_Context & /*ghost_ctx*/,
-                                XrInstance /*instance*/,
-                                XrSystemId /*system_id*/,
-                                std::string * /*r_requirement_info*/) const override
+  bool checkVersionRequirements(GHOST_Context &ghost_ctx,
+                                XrInstance instance,
+                                XrSystemId system_id,
+                                std::string *r_requirement_info) const override
   {
-    return false;
+    /* Retrieve the min and max Vulkan version that the XR platform supports. */
+    static PFN_xrGetVulkanGraphicsRequirementsKHR s_xrGetVulkanGraphicsRequirementsKHR_fn =
+        nullptr;
+    if (s_xrGetVulkanGraphicsRequirementsKHR_fn == nullptr &&
+        XR_FAILED(
+            xrGetInstanceProcAddr(instance,
+                                  "xrGetVulkanGraphicsRequirementsKHR",
+                                  (PFN_xrVoidFunction *)&s_xrGetVulkanGraphicsRequirementsKHR_fn)))
+    {
+      s_xrGetVulkanGraphicsRequirementsKHR_fn = nullptr;
+      *r_requirement_info = std::string(
+          "Unable to retrieve xrGetVulkanGraphicsRequirementsKHR instance function");
+      return false;
+    }
+
+    XrGraphicsRequirementsVulkanKHR xr_graphics_requirements{
+        /* type */ XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR,
+    };
+    if (XR_FAILED(s_xrGetVulkanGraphicsRequirementsKHR_fn(
+            instance, system_id, &xr_graphics_requirements)))
+    {
+      *r_requirement_info = std::string("Unable to retrieve Xr version requirements for Vulkan");
+      return false;
+    }
+
+    if (r_requirement_info) {
+      std::ostringstream strstream;
+      strstream << "Min Vulkan version "
+                << XR_VERSION_MAJOR(xr_graphics_requirements.minApiVersionSupported) << "."
+                << XR_VERSION_MINOR(xr_graphics_requirements.minApiVersionSupported) << std::endl;
+      strstream << "Max Vulkan version "
+                << XR_VERSION_MAJOR(xr_graphics_requirements.maxApiVersionSupported) << "."
+                << XR_VERSION_MINOR(xr_graphics_requirements.maxApiVersionSupported) << std::endl;
+
+      *r_requirement_info = strstream.str();
+    }
+
+    /* Retrieve the current Vulkan version that is being used. */
+    GHOST_ContextVK &context_vk = static_cast<GHOST_ContextVK &>(ghost_ctx);
+    const XrVersion vk_version = XR_MAKE_VERSION(
+        context_vk.m_context_major_version, context_vk.m_context_minor_version, 0);
+    return vk_version >= xr_graphics_requirements.minApiVersionSupported &&
+           vk_version <= xr_graphics_requirements.maxApiVersionSupported;
   }
 
   void initFromGhostContext(GHOST_Context & /*ghost_ctx*/) override {}

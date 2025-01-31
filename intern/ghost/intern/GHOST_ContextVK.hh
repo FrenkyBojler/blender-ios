@@ -59,6 +59,8 @@ struct GHOST_ContextVK_WindowInfo {
 };
 
 class GHOST_ContextVK : public GHOST_Context {
+  friend class GHOST_XrGraphicsBindingVulkan;
+
  public:
   /**
    * Constructor.
