@@ -376,15 +376,16 @@ class LegacyAPIOnLayeredActionTest(unittest.TestCase):
         # proxy for the first slot's target_id_type. This should work for both
         # reading and writing.
 
-        slot = self.action.slots.new('OBJECT', "Slot")
+        slot_1 = self.action.slots.new('OBJECT', "Slot 1")
+        slot_2 = self.action.slots.new('CAMERA', "Slot 2")
 
         self.assertEqual(self.action.id_root, 'OBJECT')
-        self.assertEqual(self.action.id_root, slot.target_id_type)
+        self.assertEqual(self.action.id_root, slot_1.target_id_type)
 
         self.action.id_root = 'MATERIAL'
 
         self.assertEqual(self.action.id_root, 'MATERIAL')
-        self.assertEqual(self.action.id_root, slot.target_id_type)
+        self.assertEqual(self.action.id_root, slot_1.target_id_type)
 
     def test_id_root_on_empty_action(self) -> None:
         # When there are no slots, action.id_root should ignore writes and
