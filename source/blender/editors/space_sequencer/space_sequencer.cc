@@ -6,8 +6,8 @@
  * \ingroup spseq
  */
 
+#include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <cstring>
 
 #include "DNA_gpencil_legacy_types.h"
@@ -16,8 +16,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_base.h"
+#include "BLI_string.h"
 
 #include "BLF_api.hh"
 
@@ -66,7 +66,7 @@ static void sequencer_scopes_tag_refresh(ScrArea *area)
   sseq->runtime->scopes.reference_ibuf = nullptr;
 }
 
-blender::ed::seq::SpaceSeq_Runtime::~SpaceSeq_Runtime() {}
+blender::ed::seq::SpaceSeq_Runtime::~SpaceSeq_Runtime() = default;
 
 /* ******************** manage regions ********************* */
 
@@ -220,8 +220,7 @@ static void sequencer_init(wmWindowManager * /*wm*/, ScrArea *area)
 
 static void sequencer_refresh(const bContext *C, ScrArea *area)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *window = CTX_wm_window(C);
+  const wmWindow *window = CTX_wm_window(C);
   SpaceSeq *sseq = (SpaceSeq *)area->spacedata.first;
   ARegion *region_main = sequencer_find_region(area, RGN_TYPE_WINDOW);
   ARegion *region_preview = sequencer_find_region(area, RGN_TYPE_PREVIEW);
@@ -272,7 +271,7 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
   }
 
   if (view_changed) {
-    ED_area_init(wm, window, area);
+    ED_area_init(const_cast<bContext *>(C), window, area);
     ED_area_tag_redraw(area);
   }
 }
@@ -497,10 +496,7 @@ static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
   /* Add padding to be able to scroll the view so that the collapsed redo panel doesn't occlude any
    * strips. */
   float bottom_channel_padding = UI_MARKER_MARGIN_Y * pixel_view_size_y;
-  if (bottom_channel_padding < 1.0f) {
-    /* Make sure that we can always scroll off at least by one channel. */
-    bottom_channel_padding = 1.0f;
-  }
+  bottom_channel_padding = std::max(bottom_channel_padding, 1.0f);
   /* Add the padding and make sure we have a margin of one channel in each direction. */
   strip_boundbox.ymax += 1.0f + pad_top * pixel_view_size_y;
   strip_boundbox.ymin -= bottom_channel_padding;
@@ -678,6 +674,12 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     return;
   }
 
+  const View2D *v2d = &region->v2d;
+  if (UI_view2d_mouse_in_scrollers(region, v2d, win->eventstate->xy)) {
+    WM_cursor_set(win, wmcursor);
+    return;
+  }
+
   float mouse_co_region[2] = {float(win->eventstate->xy[0] - region->winrct.xmin),
                               float(win->eventstate->xy[1] - region->winrct.ymin)};
   float mouse_co_view[2];
@@ -705,7 +707,6 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     return;
   }
 
-  const View2D *v2d = &region->v2d;
   const float scale_y = UI_view2d_scale_get_y(v2d);
 
   if (!ED_sequencer_can_select_handle(scene, selection.seq1, v2d) || scale_y < 16 * U.pixelsize) {

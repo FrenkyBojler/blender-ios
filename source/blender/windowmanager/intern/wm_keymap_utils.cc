@@ -21,6 +21,7 @@
 #include "RNA_access.hh"
 
 #include "WM_api.hh"
+#include "WM_keymap.hh"
 #include "WM_types.hh"
 
 /* Menu wrapper for #WM_keymap_add_item. */
@@ -168,6 +169,7 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
   else if (sl->spacetype == SPACE_IMAGE) {
     const SpaceImage *sima = (SpaceImage *)sl;
     const eSpaceImage_Mode mode = eSpaceImage_Mode(sima->mode);
+    space_type = SPACE_IMAGE;
     switch (mode) {
       case SI_MODE_VIEW:
         km_id = "Image";

@@ -31,16 +31,14 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_blenlib.h"
 #include "BLI_math_rotation.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
-#include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_vec_types.h"
 
 #include "BKE_fcurve.hh"
 #include "BKE_nla.hh"
@@ -59,7 +57,6 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
 #include "ED_keyframes_edit.hh"
 #include "ED_keyframes_keylist.hh"
@@ -458,7 +455,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
   int len = strlen(pfl->pchan_path);
 
   /* Setup pointer RNA for resolving paths. */
-  PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_PoseBone, pfl->pchan);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_PoseBone, pfl->pchan);
 
   /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
    *   so just check for opening pair after the end of the path

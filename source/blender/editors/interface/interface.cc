@@ -6,6 +6,7 @@
  * \ingroup edinterface
  */
 
+#include <algorithm>
 #include <cctype>
 #include <cfloat>
 #include <climits>
@@ -373,9 +374,7 @@ static void ui_block_bounds_calc_text(uiBlock *block, float offset)
     if (!ELEM(bt->type, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE, UI_BTYPE_SEPR_SPACER)) {
       j = BLF_width(style->widget.uifont_id, bt->drawstr.c_str(), bt->drawstr.size());
 
-      if (j > i) {
-        i = j;
-      }
+      i = std::max(j, i);
     }
 
     /* Skip all buttons that are in a horizontal alignment group.
@@ -389,9 +388,7 @@ static void ui_block_bounds_calc_text(uiBlock *block, float offset)
         col_bt->rect.xmin += x1addval;
         col_bt->rect.xmax += x1addval;
       }
-      if (width > i) {
-        i = width;
-      }
+      i = std::max(width, i);
       /* Give the following code the last button in the alignment group, there might have to be a
        * split immediately after. */
       bt = col_bt ? col_bt->prev : nullptr;
@@ -2953,7 +2950,8 @@ void ui_but_string_get_ex(uiBut *but,
 
       /* uiBut.custom_data points to data this tab represents (e.g. workspace).
        * uiBut.rnapoin/prop store an active value (e.g. active workspace). */
-      PointerRNA ptr = RNA_pointer_create(but->rnapoin.owner_id, ptr_type, but->custom_data);
+      PointerRNA ptr = RNA_pointer_create_discrete(
+          but->rnapoin.owner_id, ptr_type, but->custom_data);
       buf = RNA_struct_name_get_alloc(&ptr, str, str_maxncpy, &buf_len);
     }
     else if (type == PROP_STRING) {
@@ -3265,9 +3263,10 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
           RNA_property_pointer_set(&but->rnapoin, but->rnaprop, rptr, nullptr);
         }
         else if (search_but && search_but->item_active != nullptr) {
-          rptr = RNA_pointer_create(nullptr,
-                                    RNA_property_pointer_type(&but->rnapoin, but->rnaprop),
-                                    search_but->item_active);
+          rptr = RNA_pointer_create_discrete(
+              nullptr,
+              RNA_property_pointer_type(&but->rnapoin, but->rnaprop),
+              search_but->item_active);
           RNA_property_pointer_set(&but->rnapoin, but->rnaprop, rptr, nullptr);
         }
 
@@ -3297,7 +3296,8 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
 
       /* uiBut.custom_data points to data this tab represents (e.g. workspace).
        * uiBut.rnapoin/prop store an active value (e.g. active workspace). */
-      PointerRNA ptr = RNA_pointer_create(but->rnapoin.owner_id, ptr_type, but->custom_data);
+      PointerRNA ptr = RNA_pointer_create_discrete(
+          but->rnapoin.owner_id, ptr_type, but->custom_data);
       prop = RNA_struct_name_property(ptr_type);
       if (RNA_property_editable(&ptr, prop)) {
         RNA_property_string_set(&ptr, prop, str);
@@ -3483,9 +3483,7 @@ void ui_but_range_set_soft(uiBut *but)
         softmin = soft_range_round_down(value_min, softmin);
       }
 
-      if (softmin < double(but->hardmin)) {
-        softmin = double(but->hardmin);
-      }
+      softmin = std::max(softmin, double(but->hardmin));
     }
     if (value_max - 1e-10 > softmax) {
       if (value_max < 0.0) {
@@ -6868,7 +6866,7 @@ std::string UI_but_string_get_rna_tooltip(bContext &C, uiBut &but)
     PointerRNA *opptr = UI_but_operator_ptr_ensure(&but);
     const bContextStore *previous_ctx = CTX_store_get(&C);
     CTX_store_set(&C, but.context);
-    std::string tmp = WM_operatortype_description(&C, but.optype, opptr).c_str();
+    std::string tmp = WM_operatortype_description(&C, but.optype, opptr);
     CTX_store_set(&C, previous_ctx);
     return tmp;
   }

@@ -48,8 +48,11 @@
 #  include "BKE_scene.hh"
 #  include "BKE_sound.h"
 
-#  include "GPU_capabilities.hh"
 #  include "GPU_context.hh"
+#  ifdef WITH_OPENGL_BACKEND
+#    include "GPU_capabilities.hh"
+#    include "GPU_compilation_subprocess.hh"
+#  endif
 
 #  ifdef WITH_PYTHON
 #    include "BPY_extern_python.hh"
@@ -2007,7 +2010,7 @@ static int arg_handle_image_type_set(int argc, const char **argv, void *data)
                 "release.\n");
       }
       else {
-        scene->r.im_format.imtype = imtype_new;
+        BKE_image_format_set(&scene->r.im_format, &scene->id, imtype_new);
         DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
       }
     }
@@ -2434,7 +2437,7 @@ static int arg_handle_python_console_run(int /*argc*/, const char ** /*argv*/, v
 
   return 0;
 #  else
-  UNUSED_VARS(argv, data);
+  UNUSED_VARS(data);
   fprintf(stderr, "This Blender was built without python support\n");
   return 0;
 #  endif /* WITH_PYTHON */

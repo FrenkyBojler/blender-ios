@@ -473,7 +473,7 @@ bool SCULPT_stroke_get_location_ex(bContext *C,
 
 bool SCULPT_stroke_get_location(bContext *C,
                                 float out[3],
-                                const float mouse[2],
+                                const float mval[2],
                                 bool force_original);
 /**
  * Gets the normal, location and active vertex location of the geometry under the cursor. This also
@@ -481,7 +481,7 @@ bool SCULPT_stroke_get_location(bContext *C,
  */
 bool SCULPT_cursor_geometry_info_update(bContext *C,
                                         SculptCursorGeometryInfo *out,
-                                        const float mouse[2],
+                                        const float mval[2],
                                         bool use_sampled_normal);
 
 namespace blender::ed::sculpt_paint {
@@ -689,7 +689,7 @@ bool node_in_sphere(const bke::pbvh::Node &node,
                     const float3 &location,
                     float radius_sq,
                     bool original);
-bool node_in_cylinder(const DistRayAABB_Precalc &dist_ray_precalc,
+bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
                       const bke::pbvh::Node &node,
                       float radius_sq,
                       bool original);
@@ -714,8 +714,7 @@ void sculpt_apply_texture(const SculptSession &ss,
  */
 void SCULPT_calc_vertex_displacement(const SculptSession &ss,
                                      const Brush &brush,
-                                     float rgba[3],
-                                     float r_offset[3]);
+                                     float translation[3]);
 
 /**
  * Tilts a normal by the x and y tilt values using the view axis.

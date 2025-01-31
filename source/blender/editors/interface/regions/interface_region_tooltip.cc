@@ -314,7 +314,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
         float border_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
         float bgcolor[4];
         UI_GetThemeColor4fv(TH_BACK, bgcolor);
-        if (rgb_to_grayscale(bgcolor) > 0.5f) {
+        if (srgb_to_grayscale(bgcolor) > 0.5f) {
           border_color[0] = 0.0f;
           border_color[1] = 0.0f;
           border_color[2] = 0.0f;
@@ -1665,8 +1665,8 @@ static void ui_tooltip_from_image(Image &ima, uiTooltipData &data)
 
   if (ibuf) {
     uiTooltipImage image_data;
-    image_data.width = int(ibuf->x);
-    image_data.height = int(ibuf->y);
+    image_data.width = ibuf->x;
+    image_data.height = ibuf->y;
     image_data.ibuf = ibuf;
     image_data.border = true;
     image_data.background = uiTooltipImageBackground::Checkerboard_Themed;
@@ -1718,13 +1718,13 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
 
     if (ibuf) {
       /* Resize. */
-      float scale = float(200.0f * UI_SCALE_FAC) / float(std::max(ibuf->x, ibuf->y));
+      float scale = (200.0f * UI_SCALE_FAC) / float(std::max(ibuf->x, ibuf->y));
       IMB_scale(ibuf, scale * ibuf->x, scale * ibuf->y, IMBScaleFilter::Box, false);
       IMB_rect_from_float(ibuf);
 
       uiTooltipImage image_data;
-      image_data.width = int(ibuf->x);
-      image_data.height = int(ibuf->y);
+      image_data.width = ibuf->x;
+      image_data.height = ibuf->y;
       image_data.ibuf = ibuf;
       image_data.border = true;
       image_data.background = uiTooltipImageBackground::Checkerboard_Themed;

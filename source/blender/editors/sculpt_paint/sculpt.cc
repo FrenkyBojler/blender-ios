@@ -97,7 +97,6 @@
 
 #include "editors/sculpt_paint/brushes/types.hh"
 #include "mesh_brush_common.hh"
-#include "sculpt_automask.hh"
 
 using blender::float3;
 using blender::MutableSpan;
@@ -117,9 +116,7 @@ float sculpt_calc_radius(const ViewContext &vc,
   if (!BKE_brush_use_locked_size(&scene, &brush)) {
     return paint_calc_object_space_radius(vc, location, BKE_brush_size_get(&scene, &brush));
   }
-  else {
-    return BKE_brush_unprojected_radius_get(&scene, &brush);
-  }
+  return BKE_brush_unprojected_radius_get(&scene, &brush);
 }
 
 bool report_if_shape_key_is_locked(const Object &ob, ReportList *reports)
@@ -1740,7 +1737,7 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
       i++;
       continue;
     }
-    const float3 &normal = vert->no;
+    const float3 normal = vert->no;
     const float distance = std::sqrt(distances_sq[i]);
     const int flip_index = math::dot(view_normal, normal) <= 0.0f;
     if (area_test_r) {
@@ -2412,30 +2409,30 @@ void sculpt_apply_texture(const SculptSession &ss,
 
 void SCULPT_calc_vertex_displacement(const SculptSession &ss,
                                      const Brush &brush,
-                                     float rgba[3],
-                                     float r_offset[3])
+                                     float translation[3])
 {
-  mul_v3_fl(rgba, ss.cache->bstrength);
+  mul_v3_fl(translation, ss.cache->bstrength);
   /* Handle brush inversion */
   if (ss.cache->bstrength < 0) {
-    rgba[0] *= -1;
-    rgba[1] *= -1;
+    translation[0] *= -1;
+    translation[1] *= -1;
   }
 
   /* Apply texture size */
   for (int i = 0; i < 3; ++i) {
-    rgba[i] *= blender::math::safe_divide(1.0f, pow2f(brush.mtex.size[i]));
+    translation[i] *= blender::math::safe_divide(1.0f, pow2f(brush.mtex.size[i]));
   }
 
   /* Transform vector to object space */
-  mul_mat3_m4_v3(ss.cache->brush_local_mat_inv.ptr(), rgba);
+  mul_mat3_m4_v3(ss.cache->brush_local_mat_inv.ptr(), translation);
 
   /* Handle symmetry */
   if (ss.cache->radial_symmetry_pass) {
-    mul_m4_v3(ss.cache->symm_rot_mat.ptr(), rgba);
+    mul_m4_v3(ss.cache->symm_rot_mat.ptr(), translation);
   }
-  copy_v3_v3(r_offset,
-             blender::ed::sculpt_paint::symmetry_flip(rgba, ss.cache->mirror_symmetry_pass));
+  copy_v3_v3(
+      translation,
+      blender::ed::sculpt_paint::symmetry_flip(translation, ss.cache->mirror_symmetry_pass));
 }
 
 namespace blender::ed::sculpt_paint {
@@ -3240,6 +3237,12 @@ static void do_brush_action(const Depsgraph &depsgraph,
   /* Only act if some verts are inside the brush area. */
   if (node_mask.is_empty()) {
     return;
+  }
+
+  if (auto_mask::is_enabled(sd, ob, &brush) && ss.cache->automasking &&
+      ss.cache->automasking->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL)
+  {
+    ss.cache->automasking->calc_cavity_factor(depsgraph, ob, node_mask);
   }
 
   if (!use_pixels) {
@@ -5329,7 +5332,7 @@ bool color_supported_check(const Scene &scene, Object &object, ReportList *repor
     BKE_report(reports, RPT_ERROR, "Not supported in dynamic topology mode");
     return false;
   }
-  else if (BKE_sculpt_multires_active(&scene, &object)) {
+  if (BKE_sculpt_multires_active(&scene, &object)) {
     BKE_report(reports, RPT_ERROR, "Not supported in multiresolution mode");
     return false;
   }
@@ -5884,7 +5887,7 @@ static void fake_neighbor_search(const Depsgraph &depsgraph,
           continue;
         }
         const int island_id = islands::vert_id_get(ss, vert);
-        const float3 &location = BM_vert_at_index(&const_cast<BMesh &>(bm), vert)->co;
+        const float3 location = BM_vert_at_index(&const_cast<BMesh &>(bm), vert)->co;
         IndexMaskMemory memory;
         const IndexMask nodes_in_sphere = bke::pbvh::search_nodes(
             pbvh, memory, [&](const bke::pbvh::Node &node) {

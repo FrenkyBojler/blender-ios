@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include "BLI_listbase.h"
+#include "BLI_math_geom.h"
 #include "BLI_math_half.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -32,6 +33,7 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_unit.hh"
+#include "BKE_viewer_path.hh"
 
 #include "BLF_api.hh"
 
@@ -1300,7 +1302,7 @@ static void draw_selected_name(
     const View3D *v3d, Scene *scene, ViewLayer *view_layer, Object *ob, int xoffset, int *yoffset)
 {
   const int cfra = scene->r.cfra;
-  const char *msg_pin = " (Pinned)";
+  const char *msg_pin = " (Soloed)";
   const char *msg_sep = " : ";
   const char *msg_space = " ";
 

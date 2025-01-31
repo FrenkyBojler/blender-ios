@@ -6,6 +6,8 @@
  * \ingroup overlay
  */
 
+#include "draw_cache.hh"
+
 #include "overlay_next_private.hh"
 
 namespace blender::draw::overlay {
@@ -726,7 +728,7 @@ ShapeCache::ShapeCache()
     circle = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
-  /* empty_spehere */
+  /* empty_sphere */
   {
     Vector<Vertex> verts = sphere_axes_circles(1.0f, VCLASS_EMPTY_SCALED, 32);
 
@@ -983,7 +985,7 @@ ShapeCache::ShapeCache()
   {
     Vector<Vertex> verts;
     for (const uint3 &tri : bone_box_solid_tris) {
-      for (const int i : IndexRange(tri.type_length)) {
+      for (const int i : IndexRange(uint3::type_length)) {
         const int v = tri[i];
         const float x = bone_box_verts[v][2];
         const float y = bone_box_verts[v][0];
