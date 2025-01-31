@@ -2968,7 +2968,7 @@ void ui_item_paneltype_func(bContext *C, uiLayout *layout, void *arg_pt)
 }
 
 static uiBut *ui_item_menu(uiLayout *layout,
-                           const StringRefNull name,
+                           const StringRef name,
                            int icon,
                            uiMenuCreateFunc func,
                            void *arg,
@@ -3043,10 +3043,7 @@ static uiBut *ui_item_menu(uiLayout *layout,
   return but;
 }
 
-void uiItemM_ptr(uiLayout *layout,
-                 MenuType *mt,
-                 const std::optional<StringRefNull> name_opt,
-                 int icon)
+void uiItemM_ptr(uiLayout *layout, MenuType *mt, const std::optional<StringRef> name_opt, int icon)
 {
   uiBlock *block = layout->root->block;
   bContext *C = static_cast<bContext *>(block->evil_C);
@@ -3054,7 +3051,7 @@ void uiItemM_ptr(uiLayout *layout,
     return;
   }
 
-  const StringRefNull name = name_opt.value_or(CTX_IFACE_(mt->translation_context, mt->label));
+  const StringRef name = name_opt.value_or(CTX_IFACE_(mt->translation_context, mt->label));
 
   if (layout->root->type == UI_LAYOUT_MENU && !icon) {
     icon = ICON_BLANK1;
@@ -3072,7 +3069,7 @@ void uiItemM_ptr(uiLayout *layout,
 
 void uiItemM(uiLayout *layout,
              const StringRefNull menuname,
-             const std::optional<StringRefNull> name,
+             const std::optional<StringRef> name,
              int icon)
 {
   MenuType *mt = WM_menutype_find(menuname.c_str(), false);
@@ -4940,7 +4937,7 @@ static void ui_litem_init_from_parent(uiLayout *litem, uiLayout *layout, int ali
 
 static void ui_layout_heading_set(uiLayout *layout, const StringRef heading)
 {
-  heading.copy(layout->heading);
+  heading.copy_utf8_truncated(layout->heading);
 }
 
 uiLayout *uiLayoutRow(uiLayout *layout, bool align)
@@ -5039,7 +5036,7 @@ PanelLayout uiLayoutPanel(const bContext *C,
   BLI_assert(panel != nullptr);
 
   LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(panel, idname, default_closed);
-  PointerRNA state_ptr = RNA_pointer_create(nullptr, &RNA_LayoutPanelState, state);
+  PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
 
   return uiLayoutPanelProp(C, layout, &state_ptr, "is_open");
 }
@@ -6158,7 +6155,7 @@ void uiLayoutSetContextFromBut(uiLayout *layout, uiBut *but)
 
   if (but->rnapoin.data && but->rnaprop) {
     /* TODO: index could be supported as well */
-    PointerRNA ptr_prop = RNA_pointer_create(nullptr, &RNA_Property, but->rnaprop);
+    PointerRNA ptr_prop = RNA_pointer_create_discrete(nullptr, &RNA_Property, but->rnaprop);
     uiLayoutSetContextPointer(layout, "button_prop", &ptr_prop);
     uiLayoutSetContextPointer(layout, "button_pointer", &but->rnapoin);
   }

@@ -351,7 +351,7 @@ static void grease_pencil_simplify_ui(bContext *C, wmOperator *op)
   uiLayout *layout = op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  PointerRNA ptr = RNA_pointer_create(&wm->id, op->type->srna, op->properties);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
@@ -3331,6 +3331,7 @@ static int grease_pencil_snap_to_cursor_exec(bContext *C, wmOperator *op)
       index_mask::masked_fill(positions, cursor_layer, selected_points);
     }
 
+    curves.calculate_bezier_auto_handles();
     drawing_info.drawing.tag_positions_changed();
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     DEG_id_tag_update(&object.id, ID_RECALC_SYNC_TO_EVAL);

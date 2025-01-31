@@ -208,11 +208,27 @@ struct SocketUsageInferencer {
         this->usage_task__input__capture_attribute_node(socket);
         break;
       }
+      case SH_NODE_OUTPUT_AOV:
+      case SH_NODE_OUTPUT_LIGHT:
+      case SH_NODE_OUTPUT_WORLD:
+      case SH_NODE_OUTPUT_LINESTYLE:
+      case SH_NODE_OUTPUT_MATERIAL:
+      case CMP_NODE_OUTPUT_FILE:
+      case CMP_NODE_COMPOSITE:
+      case TEX_NODE_OUTPUT: {
+        this->usage_task__input__output_node(socket);
+        break;
+      }
       default: {
         this->usage_task__input__fallback(socket);
         break;
       }
     }
+  }
+
+  void usage_task__input__output_node(const SocketInContext &socket)
+  {
+    all_socket_usages_.add_new(socket, true);
   }
 
   /**
@@ -284,7 +300,7 @@ struct SocketUsageInferencer {
     }
     this->ensure_animation_data_processed(*group);
 
-    /* The group node input is used iff any of the matching group inputs within the group is
+    /* The group node input is used if any of the matching group inputs within the group is
      * used. */
     const ComputeContext &group_context = scope_.construct<bke::GroupNodeComputeContext>(
         socket.context, *node, node->owner_tree());
@@ -303,7 +319,7 @@ struct SocketUsageInferencer {
       all_socket_usages_.add_new(socket, true);
       return;
     }
-    /* The group output node is used iff the matching output of the parent group node is used. */
+    /* The group output node is used if the matching output of the parent group node is used. */
     const bke::GroupNodeComputeContext &group_context =
         *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
     const bNodeSocket &group_node_output = group_context.caller_group_node()->output_socket(
@@ -476,6 +492,10 @@ struct SocketUsageInferencer {
         this->value_task__output__group_input_node(socket);
         return;
       }
+      case NODE_REROUTE: {
+        this->value_task__output__reroute_node(socket);
+        return;
+      }
       case GEO_NODE_SWITCH: {
         this->value_task__output__generic_switch(socket, switch__is_socket_selected);
         return;
@@ -544,6 +564,17 @@ struct SocketUsageInferencer {
     const std::optional<const void *> value = all_socket_values_.lookup_try(group_node_input);
     if (!value.has_value()) {
       this->push_value_task(group_node_input);
+      return;
+    }
+    all_socket_values_.add_new(socket, *value);
+  }
+
+  void value_task__output__reroute_node(const SocketInContext &socket)
+  {
+    const SocketInContext input_socket = socket.owner_node().input_socket(0);
+    const std::optional<const void *> value = all_socket_values_.lookup_try(input_socket);
+    if (!value.has_value()) {
+      this->push_value_task(input_socket);
       return;
     }
     all_socket_values_.add_new(socket, *value);
