@@ -6315,6 +6315,7 @@ void calc_factors_common_mesh(const Depsgraph &depsgraph,
                               const Brush &brush,
                               const Object &object,
                               const MeshAttributeData &attribute_data,
+                              const Span<float3> vert_positions,
                               const Span<float3> positions,
                               const Span<float3> vert_normals,
                               const bke::pbvh::MeshNode &node,
@@ -6344,7 +6345,7 @@ void calc_factors_common_mesh(const Depsgraph &depsgraph,
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
-  nodes_evaluate_factors_mesh(depsgraph, object, cache, positions, verts, factors);
+  nodes_evaluate_factors_mesh(depsgraph, object, cache, vert_positions, verts, factors);
 }
 
 void calc_factors_common_grids(const Depsgraph &depsgraph,
