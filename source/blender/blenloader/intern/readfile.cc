@@ -2684,7 +2684,10 @@ static void read_undo_move_libmain_data(
 
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (libmain, id_iter) {
-    BKE_main_idmap_insert_id(fd->new_idmap_uid, id_iter);
+    /* Embedded IDs are read from the memfile, so don't add them here already. */
+    if (!ID_IS_LINKED_EMBEDDED(id_iter)) {
+      BKE_main_idmap_insert_id(fd->new_idmap_uid, id_iter);
+    }
   }
   FOREACH_MAIN_ID_END;
 }
@@ -2718,6 +2721,20 @@ static bool read_libblock_undo_restore_library(
                 "    compare with %s -> match (existing libpath: %s)",
                 libmain->curlib ? libmain->curlib->id.name : "<none>",
                 libmain->curlib ? libmain->curlib->runtime.filepath_abs : "<none>");
+
+      {
+        /* The embedded IDs are later read again. So they shouldn't be kept in libmain here. */
+        ListBase *lbarray[INDEX_ID_MAX];
+        int a = set_listbasepointers(libmain, lbarray);
+        while (a--) {
+          LISTBASE_FOREACH_MUTABLE (ID *, id, lbarray[a]) {
+            if (ID_IS_LINKED_EMBEDDED(id)) {
+              BLI_remlink(lbarray[a], id);
+            }
+          }
+        }
+      }
+
       /* In case of a library, we need to re-add its main to fd->mainlist,
        * because if we have later a missing ID_LINK_PLACEHOLDER,
        * we need to get the correct lib it is linked to!
@@ -2886,12 +2903,6 @@ static bool read_libblock_undo_restore(
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
 
   const bool do_partial_undo = (fd->skip_flags & BLO_READ_SKIP_UNDO_OLD_MAIN) == 0;
-#ifndef NDEBUG
-  if (do_partial_undo && (bhead->code != ID_LINK_PLACEHOLDER)) {
-    /* This code should only ever be reached for local data-blocks. */
-    BLI_assert(main->curlib == nullptr);
-  }
-#endif
 
   /* Find the 'current' existing ID we want to reuse instead of the one we
    * would read from the undo memfile. */
@@ -3740,6 +3751,11 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
           bhead = read_libblock(fd, libmain, bhead, 0, true, nullptr);
         }
         break;
+      case ID_LI: {
+        Main *first_bmain = static_cast<Main *>(fd->mainlist->first);
+        bhead = read_libblock(fd, first_bmain, bhead, ID_TAG_LOCAL, false, nullptr);
+        break;
+      }
         /* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
       case ID_SCRN:
         bhead->code = ID_SCR;
@@ -3753,10 +3769,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
             bhead = blo_bhead_next(fd, bhead);
           }
           else {
-            /* TODO: Needs a special case for ID_LI, because it always needs to be added to the
-             * first main, because it's not within another library. */
-            bhead = read_libblock(
-                fd, static_cast<Main *>(fd->mainlist->last), bhead, ID_TAG_LOCAL, false, nullptr);
+            Main *current_main = static_cast<Main *>(fd->mainlist->last);
+            bhead = read_libblock(fd, current_main, bhead, ID_TAG_LOCAL, false, nullptr);
           }
         }
         else {
