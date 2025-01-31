@@ -64,9 +64,12 @@ void ED_nla_postop_refresh(bAnimContext *ac)
 
   /* get blocks to work on */
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
-
+  return;
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     if (!ale->adt) {
+      continue;
+    }
+    if (ale->type != ANIMTYPE_ANIMDATA) {
       continue;
     }
     /* performing auto-blending, extend-mode validation, etc. */
