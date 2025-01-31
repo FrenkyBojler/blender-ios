@@ -302,125 +302,6 @@ static void grease_pencil_primitive_load(PrimitiveToolOperation &ptd)
   array_utils::copy(ptd.temp_control_points.as_span(), ptd.control_points.as_mutable_span());
 }
 
-static void insert_curve_for_primitive(bke::CurvesGeometry &curves, const bool on_back)
-{
-  if (!on_back) {
-    const int num_old_points = curves.points_num();
-    curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
-    curves.offsets_for_write().last(1) = num_old_points;
-    return;
-  }
-
-  curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
-  MutableSpan<int> offsets = curves.offsets_for_write();
-  offsets.first() = 0;
-
-  /* Loop through backwards to not overwrite the data. */
-  for (int i = curves.curves_num() - 2; i >= 0; i--) {
-    offsets[i + 1] = offsets[i] + 1;
-  }
-
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
-    GMutableSpan attribute_data = dst.span;
-
-    bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      MutableSpan<T> span_data = attribute_data.typed<T>();
-
-      /* Loop through backwards to not overwrite the data. */
-      for (int i = span_data.size() - 2; i >= 0; i--) {
-        span_data[i + 1] = span_data[i];
-      }
-    });
-    dst.finish();
-  });
-}
-
-static void update_curve(bke::CurvesGeometry &curves, const bool on_back, int segment_points_num)
-{
-  const int last_curve_index = on_back ? curves.curves_range().first() :
-                                         curves.curves_range().last();
-  const int last_points_num = curves.points_by_curve()[last_curve_index].size();
-  const int added_points_num = segment_points_num - last_points_num;
-  const int new_total_points = curves.points_num() - last_points_num + segment_points_num;
-
-  if (new_total_points == curves.points_num()) {
-    return;
-  }
-
-  if (!on_back) {
-    curves.resize(new_total_points, curves.curves_num());
-    curves.offsets_for_write().last() = curves.points_num();
-    return;
-  }
-
-  /* If we are stretching the first segment, we first resize the curve then relocate attributes to
-   * new positions in the order of back to front. */
-  if (last_points_num < segment_points_num) {
-    curves.resize(new_total_points, curves.curves_num());
-
-    /* Adjust offsets starting with the second segment to accomondate extra points on the
-     * beginning. */
-    MutableSpan<int> offsets = curves.offsets_for_write();
-    for (int i : offsets.index_range().drop_front(1)) {
-      offsets[i] = offsets[i] + added_points_num;
-    }
-
-    /* Relocate attributes. */
-    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-      bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
-      GMutableSpan to_attribute_data = dst.span;
-      if (dst.domain != bke::AttrDomain::Point) {
-        dst.finish();
-        return;
-      }
-
-      bke::attribute_math::convert_to_static_type(to_attribute_data.type(), [&](auto dummy) {
-        using T = decltype(dummy);
-        MutableSpan<T> span_data = to_attribute_data.typed<T>();
-        for (int i = span_data.size() - 1 - added_points_num; i >= 0; i--) {
-          span_data[i + added_points_num] = span_data[i];
-        }
-      });
-      dst.finish();
-    });
-    return;
-  }
-
-  /* If we are shrinking the first segment, we first relocate attributes to their new positions in
-   * the order of front to back, then reduce the size of the `CurvesGeometry`. */
-
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
-    GMutableSpan to_attribute_data = dst.span;
-    if (dst.domain != bke::AttrDomain::Point) {
-      dst.finish();
-      return;
-    }
-
-    bke::attribute_math::convert_to_static_type(to_attribute_data.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      MutableSpan<T> span_data = to_attribute_data.typed<T>();
-      for (int i : span_data.index_range().drop_front(added_points_num)) {
-        span_data[i - added_points_num] = span_data[i];
-      }
-    });
-    dst.finish();
-  });
-
-  MutableSpan<int> offsets = curves.offsets_for_write();
-  for (int i : offsets.index_range().drop_front(1)) {
-    offsets[i] = offsets[i] - added_points_num;
-  }
-
-  curves.resize(new_total_points, curves.curves_num());
-}
-
 static void primitive_calulate_curve_positions(PrimitiveToolOperation &ptd,
                                                Span<float2> control_points,
                                                MutableSpan<float2> new_positions)
@@ -569,13 +450,13 @@ static int grease_pencil_primitive_curve_points_number(PrimitiveToolOperation &p
 
 static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
 {
-  bke::CurvesGeometry &curves = ptd.drawing->strokes_for_write();
-
-  const int new_points_num = grease_pencil_primitive_curve_points_number(ptd);
   const bool on_back = ptd.on_back;
-  update_curve(curves, on_back, new_points_num);
+  const int new_points_num = grease_pencil_primitive_curve_points_number(ptd);
 
-  const int target_curve_index = on_back ? 0 : (curves.curve_num - 1);
+  bke::CurvesGeometry &curves = ptd.drawing->strokes_for_write();
+  const int target_curve_index = on_back ? 0 : curves.curves_range().last();
+  ed::greasepencil::resize_single_curve(curves, on_back == false, new_points_num);
+
   const IndexRange curve_points = curves.points_by_curve()[target_curve_index];
 
   MutableSpan<float3> positions_3d = curves.positions_for_write().slice(curve_points);
@@ -638,7 +519,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   bke::CurvesGeometry &curves = ptd.drawing->strokes_for_write();
 
   const bool on_back = ptd.on_back;
-  insert_curve_for_primitive(curves, on_back);
+  ed::greasepencil::add_single_curve(curves, on_back == false);
 
   const int target_curve_index = on_back ? 0 : (curves.curves_num() - 1);
 
