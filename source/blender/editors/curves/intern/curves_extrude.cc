@@ -204,7 +204,7 @@ static IndexRange shift_end_by(const IndexRange &range, const int n)
 
 static float clamp_to_zero(const float value)
 {
-  return math::abs(value) < 0.000001 ? 0.0 : value;
+  return math::abs(value) < 0.00001 ? 0.0 : value;
 }
 
 static void extrude_knots(const bke::CurvesGeometry &curves,
@@ -228,7 +228,7 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
     Span<float> src_curve_knots = src_knots.slice(src_knots_by_curve[curve]);
 
     Array<float> curve_span_data(src_curve_knots.size() - 1);
-    Array<int> span_multiplicity(curve_span_data.size());
+    Array<int> span_multiplicity(curve_span_data.size(), 0);
 
     int span = 0;
     curve_span_data[span] = clamp_to_zero(src_curve_knots[1] - src_curve_knots[0]);
@@ -236,7 +236,7 @@ static void extrude_knots(const bke::CurvesGeometry &curves,
 
     for (const int i : src_curve_knots.index_range().drop_back(1).drop_front(1)) {
       const float span_value = clamp_to_zero(src_curve_knots[i + 1] - src_curve_knots[i]);
-      const bool is_new = curve_span_data[span] != span_value;
+      const bool is_new = abs(curve_span_data[span] - span_value) >= 0.00001;
       span += is_new;
       curve_span_data[span] = span_value;
       span_multiplicity[span]++;
