@@ -19,8 +19,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_time.h"
@@ -2981,7 +2981,7 @@ static int image_clipboard_copy_exec(bContext *C, wmOperator *op)
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
   bool changed = false;
   if (ibuf) {
-    /* Clipboard uses byte buffer, so matchsaving an 8 bit PNG for color management. */
+    /* Clipboard uses byte buffer, so match saving an 8 bit PNG for color management. */
     const bool save_as_render = ima->flag & IMA_VIEW_AS_RENDER;
 
     ImageFormatData image_format;
