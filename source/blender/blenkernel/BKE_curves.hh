@@ -74,6 +74,7 @@ class CurvesGeometryRuntime {
   /** Implicit sharing user count for #CurvesGeometry::curve_offsets. */
   const ImplicitSharingInfo *curve_offsets_sharing_info = nullptr;
 
+  /** Implicit sharing user count for #CurvesGeometry::custom_knots. */
   const ImplicitSharingInfo *custom_knots_sharing_info = nullptr;
 
   /**
@@ -123,6 +124,10 @@ class CurvesGeometryRuntime {
   /** The maximum of the "material_index" attribute. */
   mutable SharedCache<std::optional<int>> max_material_index_cache;
 
+  /**
+   * Offsets of custom knots in #CurvesGeometry::custom_knots for each curve in #CurvesGeometry.
+   * Fur curves with no custom knots next offset value stays the same.
+   */
   mutable SharedCache<Vector<int>> custom_knots_offsets_cache;
 
   /** Stores weak references to material data blocks. */
@@ -298,12 +303,39 @@ class CurvesGeometry : public ::CurvesGeometry {
   Span<float2> surface_uv_coords() const;
   MutableSpan<float2> surface_uv_coords_for_write();
 
+  /**
+   * Custom knots for NURBS curves with knots mode #NURBS_KNOT_MODE_CUSTOM
+   */
   Span<float> nurbs_custom_knots() const;
   MutableSpan<float> nurbs_custom_knots_for_write();
+
+  /**
+   * The offsets of every curve into arrays on #CurvesGeometry::nurbs_custom_knots.
+   * Curves with knot mode other than #NURBS_KNOT_MODE_CUSTOM will have zero sized #IndexRange.
+   */
   OffsetIndices<int> nurbs_custom_knots_by_curve() const;
+
+  /**
+   * Builds mask of NURBS curves with knot mode #NURBS_KNOT_MODE_CUSTOM.
+   */
   IndexMask nurbs_custom_knot_curves(IndexMaskMemory &memory) const;
+
+  /**
+   * Returns number of curves with knot mode #NURBS_KNOT_MODE_CUSTOM.
+   */
   int nurbs_custom_knots_num() const;
+
+  /**
+   * Resizes custom knots array depending on topological data.
+   * Depends on curve offsets, knot modes, orders and cyclic data.
+   */
   void nurbs_custom_knots_update_size();
+
+  /**
+   * Resizes custom knots array.
+   * Used when knots number is known in advance and knot values are set together with topological
+   * data.
+   */
   void nurbs_custom_knots_resize(int knots_num);
 
   /**
@@ -829,6 +861,10 @@ int calculate_evaluated_num(
  */
 int knots_num(int points_num, int8_t order, bool cyclic);
 
+/**
+ * Copies custom knots into given #MutableSpan.
+ * Adds #order - 1 length tail for cyclic curves.
+ */
 void copy_custom_knots(const int8_t order,
                        const bool cyclic,
                        Span<float> custom_knots,

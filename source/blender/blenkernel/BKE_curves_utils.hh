@@ -512,7 +512,15 @@ void foreach_curve_by_type(const VArray<int8_t> &types,
                            FunctionRef<void(IndexMask)> poly_fn,
                            FunctionRef<void(IndexMask)> bezier_fn,
                            FunctionRef<void(IndexMask)> nurbs_fn);
-
+/**
+ * Calls callback function for each mask's content slice by #OffsetIndices.
+ * Used to handle selected points for each curve separately.
+ *
+ * \param selected_points: Selected points in the current offset range.
+ * \param slice_points: Current offset's #IndexRange.
+ * \param slice: Current offsets's index. Curve index if #CurvesGeometry::points_by_curve() is used
+ * as #offset_indices.
+ */
 void foreach_content_slice_by_offsets(
     const IndexMask &mask,
     OffsetIndices<int> offset_indices,
