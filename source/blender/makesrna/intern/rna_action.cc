@@ -1551,30 +1551,40 @@ static const EnumPropertyItem *rna_ActionSlot_target_id_type_itemf(bContext * /*
  * earlier), we treat `Action.id_root` as a proxy for the `target_id_type`
  * property (`idtype` in DNA) of the Action's first Slot.
  *
- * If the Action has no slots, then we fallback to the actual `id_root`
- * property, which will be cleared on normal Slot creation, or transferred to
- * the new Slot and cleared when a new Slot is created implictily through the
- * other backwards-compatible APIs.
+ * If the Action has no slots, then we fallback to returning 'unspecified' (0).
  *
- * See: `Action::slot_add()` and `animrig::legacy::channelbag_ensure()` */
+ * See `rna_Action_id_root_set()` for the "set" side of this, and some further
+ * explanation of the rationale.
+ */
 static int rna_Action_id_root_get(PointerRNA *ptr)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
 
   if (action.slots().is_empty()) {
-    return action.idroot;
+    return 0;
   }
 
   return action.slot(0)->idtype;
 }
 
-/* See `rna_Action_id_root_get()` for the rationale of this behavior. */
+/* For API backwards compatability with pre-layered-actions (Blender 4.3 and
+ * earlier), we treat `Action.id_root` as a proxy for the `target_id_type`
+ * property (`idtype` in DNA) of the Action's first Slot.
+ *
+ * If the Action has no slots, then we ignore the assignment.
+ *
+ * The rationale for ignoring the assignment in that case is that leaving the
+ * `idroot` as always 'unspecified' will (practically speaking) not break legacy
+ * scripts, since the Action will still be assignable to anything the script
+ * tries to assign it to. And this way the new layered action code doesn't have
+ * to special-case on the weird corner-case of 'id_root' sometimes being
+ * specified under obscure circumstances. */
 static void rna_Action_id_root_set(PointerRNA *ptr, int value)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
 
   if (action.slots().is_empty()) {
-    action.idroot = value;
+    /* Ignore the assignment. */
     return;
   }
 
