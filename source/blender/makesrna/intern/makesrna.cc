@@ -860,11 +860,10 @@ static char *rna_def_property_get_func(
                      "rna_iterator_array_get",
                      "rna_iterator_array_dereference_get"))
         {
-          fprintf(
-              f,
-              "    return RNA_pointer_create_with_parent(iter->parent, &RNA_%s, %s(iter));\n",
-              (cprop->item_type) ? (const char *)cprop->item_type : "UnknownType",
-              manualfunc);
+          fprintf(f,
+                  "    return RNA_pointer_create_with_parent(iter->parent, &RNA_%s, %s(iter));\n",
+                  (cprop->item_type) ? (const char *)cprop->item_type : "UnknownType",
+                  manualfunc);
         }
         else {
           fprintf(f, "    PropCollectionGetFunc fn = %s;\n", manualfunc);
