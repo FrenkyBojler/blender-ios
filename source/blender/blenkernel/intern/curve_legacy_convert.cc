@@ -201,7 +201,7 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
     const OffsetIndices<int> knots_by_curve = curves.nurbs_custom_knots_by_curve();
     MutableSpan<float> custom_knots = curves.nurbs_custom_knots_for_write();
     selection.foreach_index([&](const int curve_i) {
-      if (nurbs_knots_modes[curve_i] & NURBS_KNOT_MODE_CUSTOM) {
+      if (nurbs_knots_modes[curve_i] == NURBS_KNOT_MODE_CUSTOM) {
         const Nurb &src_curve = *src_curves[curve_i];
         const IndexRange knots = knots_by_curve[curve_i];
         custom_knots.slice(knots).copy_from(Span<float>(src_curve.knotsu, knots.size()));

@@ -549,17 +549,18 @@ OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
   runtime.custom_knots_offsets_cache.ensure([&](Vector<int> &r_data) {
     r_data.resize(this->curve_num + 1, 0);
 
-    IndexMaskMemory memory;
-    const IndexMask custom_knot_curves = this->nurbs_custom_knot_curves(memory);
     const OffsetIndices points_by_curve = this->points_by_curve();
+    const VArray<int8_t> knot_modes = this->nurbs_knots_modes();
     const VArray<int8_t> orders = this->nurbs_orders();
     const VArray<bool> cyclic = this->cyclic();
 
     int knot_count = 0;
-    custom_knot_curves.foreach_index([&](const int64_t curve) {
-      knot_count += points_by_curve[curve].size() + orders[curve];
+    for (const int curve : this->curves_range()) {
+      knot_count += knot_modes[curve] == NURBS_KNOT_MODE_CUSTOM ?
+                        points_by_curve[curve].size() + orders[curve] :
+                        0;
       r_data[curve + 1] = knot_count;
-    });
+    }
   });
   return OffsetIndices<int>(runtime.custom_knots_offsets_cache.data());
 }
