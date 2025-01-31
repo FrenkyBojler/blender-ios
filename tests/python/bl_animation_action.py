@@ -270,7 +270,7 @@ class LegacyAPIOnLayeredActionTest(unittest.TestCase):
     - curve_frame_range
     - fcurves
     - groups
-    - id_root (should always be 0 for layered Actions)
+    - id_root
     - flip_with_pose(object)
     """
 
@@ -370,6 +370,31 @@ class LegacyAPIOnLayeredActionTest(unittest.TestCase):
         self.action.groups.remove(group)
         self.assertNotIn(group, self.action.groups[:], "A group should be removable via the legacy API")
         self.assertNotIn(group, channelbag.groups[:], "A group should be removable via the legacy API")
+
+    def test_id_root_on_layered_action(self) -> None:
+        # When there's at least one slot, action.id_root should simply act as a
+        # proxy for the first slot's target_id_type. This should work for both
+        # reading and writing.
+
+        slot = self.action.slots.new('OBJECT', "Slot")
+
+        self.assertEqual(self.action.id_root, 'OBJECT')
+        self.assertEqual(self.action.id_root, slot.target_id_type)
+
+        self.action.id_root = 'MATERIAL'
+
+        self.assertEqual(self.action.id_root, 'MATERIAL')
+        self.assertEqual(self.action.id_root, slot.target_id_type)
+
+    def test_id_root_on_empty_action(self) -> None:
+        # When there are no slots, action.id_root should ignore writes and
+        # should unconditionally yield 'UNSPECIFIED'.
+
+        self.assertEqual(self.action.id_root, 'UNSPECIFIED')
+
+        self.action.id_root = 'OBJECT'
+
+        self.assertEqual(self.action.id_root, 'UNSPECIFIED')
 
 
 class ChannelbagsTest(unittest.TestCase):
