@@ -1547,7 +1547,14 @@ static const EnumPropertyItem *rna_ActionSlot_target_id_type_itemf(bContext * /*
   return items;
 }
 
-/* TODO: document this as back-compat, with explanation. */
+/* For API backwards compatability with pre-layered-actions (Blender 4.3 and
+ * earlier), we treat `Action.id_root` as a proxy for the `target_id_type`
+ * property (`idtype` in DNA) of the Action's first Slot.
+ *
+ * If the Action has no slots, then we fallback to the actual `id_root`
+ * property, which will be cleared on normal Slot creation, or transferred to
+ * the new Slot and cleared when a new Slot is created implictily through the
+ * other backwards-compatible APIs. */
 static int rna_Action_id_root_get(PointerRNA *ptr)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
@@ -1559,7 +1566,7 @@ static int rna_Action_id_root_get(PointerRNA *ptr)
   return action.slot(0)->idtype;
 }
 
-/* TODO: document this as back-compat, with explanation. */
+/* See `rna_Action_id_root_get()` for the rationale of this behavior. */
 static void rna_Action_id_root_set(PointerRNA *ptr, int value)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
