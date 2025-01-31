@@ -564,6 +564,10 @@ void BKE_id_material_resize(Main *bmain, ID *id, short totcol, bool do_id_user)
   if (matar == nullptr) {
     return;
   }
+  if (totcol == *totcolp) {
+    /* Prevent depsgraph update and relations tag when nothing changed. */
+    return;
+  }
 
   if (do_id_user && totcol < (*totcolp)) {
     short i;
@@ -1293,7 +1297,9 @@ void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *
       id_us_plus(&material_orig->id);
     }
   }
-  BKE_object_materials_test(bmain, ob_orig, data_orig);
+  if (*eval_totcol != *orig_totcol) {
+    BKE_object_materials_test(bmain, ob_orig, data_orig);
+  }
 }
 
 void BKE_object_material_array_assign(

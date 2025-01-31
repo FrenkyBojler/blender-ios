@@ -8,6 +8,10 @@
 
 #pragma once
 
+#include <cstdint>
+
+#include "BLI_index_mask_fwd.hh"
+
 struct Depsgraph;
 struct Main;
 struct Mesh;
@@ -71,6 +75,33 @@ void geometry_end(Object &ob);
  */
 void push_multires_mesh_begin(bContext *C, const char *str);
 void push_multires_mesh_end(bContext *C, const char *str);
+
+enum class Type : int8_t {
+  None,
+  Position,
+  HideVert,
+  HideFace,
+  Mask,
+  DyntopoBegin,
+  DyntopoEnd,
+  Geometry,
+  FaceSet,
+  Color,
+};
+
+void push_nodes(const Depsgraph &depsgraph,
+                Object &object,
+                const IndexMask &node_mask,
+                undo::Type type);
+
+/**
+ * Pushes an undo step using the operator name. This is necessary for
+ * redo panels to work; operators that do not support that may use
+ * #push_begin_ex instead if so desired.
+ */
+void push_begin(const Scene &scene, Object &ob, const wmOperator *op);
+
+void push_end(Object &ob);
 
 }  // namespace undo
 
