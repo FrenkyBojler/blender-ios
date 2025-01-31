@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <optional>
@@ -593,8 +594,8 @@ void BKE_id_material_resize(Main *bmain, ID *id, short totcol, bool do_id_user)
 
 void BKE_id_material_append(Main *bmain, ID *id, Material *ma)
 {
-  Material ***matar;
-  if ((matar = BKE_id_material_array_p(id))) {
+  Material ***matar = BKE_id_material_array_p(id);
+  if (matar) {
     short *totcol = BKE_id_material_len_p(id);
     Material **mat = MEM_cnew_array<Material *>((*totcol) + 1, "newmatar");
     if (*totcol) {
@@ -619,8 +620,8 @@ Material *BKE_id_material_pop(Main *bmain, ID *id, int index_i)
 {
   short index = short(index_i);
   Material *ret = nullptr;
-  Material ***matar;
-  if ((matar = BKE_id_material_array_p(id))) {
+  Material ***matar = BKE_id_material_array_p(id);
+  if (matar) {
     short *totcol = BKE_id_material_len_p(id);
     if (index >= 0 && index < (*totcol)) {
       ret = (*matar)[index];
@@ -655,8 +656,8 @@ Material *BKE_id_material_pop(Main *bmain, ID *id, int index_i)
 
 void BKE_id_material_clear(Main *bmain, ID *id)
 {
-  Material ***matar;
-  if ((matar = BKE_id_material_array_p(id))) {
+  Material ***matar = BKE_id_material_array_p(id);
+  if (matar) {
     short *totcol = BKE_id_material_len_p(id);
 
     while ((*totcol)--) {
@@ -696,9 +697,7 @@ Material **BKE_object_material_get_p(Object *ob, short act)
 
   /* Fix inconsistency which may happen when library linked data reduces the number of
    * slots but object was not updated. Ideally should be fixed elsewhere. */
-  if (*totcolp < ob->totcol) {
-    ob->totcol = *totcolp;
-  }
+  ob->totcol = std::min<int>(*totcolp, ob->totcol);
 
   if (slot_index < ob->totcol && ob->matbits && ob->matbits[slot_index]) {
     /* Use object material slot. */
@@ -976,9 +975,7 @@ void BKE_object_material_resize(Main *bmain, Object *ob, const short totcol, boo
   if (ob->totcol && ob->actcol == 0) {
     ob->actcol = 1;
   }
-  if (ob->actcol > ob->totcol) {
-    ob->actcol = ob->totcol;
-  }
+  ob->actcol = std::min(ob->actcol, ob->totcol);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
@@ -1041,9 +1038,7 @@ void BKE_id_material_assign(Main *bmain, ID *id, Material *ma, short act)
   if (act > MAXMAT) {
     return;
   }
-  if (act < 1) {
-    act = 1;
-  }
+  act = std::max<int>(act, 1);
 
   /* test arraylens */
 
@@ -1090,9 +1085,7 @@ static void object_material_assign(
   if (act > MAXMAT) {
     return;
   }
-  if (act < 1) {
-    act = 1;
-  }
+  act = std::max<int>(act, 1);
 
   /* test arraylens */
 
@@ -1324,9 +1317,7 @@ void BKE_object_material_array_assign(
                                to_object_only ? BKE_MAT_ASSIGN_OBJECT : BKE_MAT_ASSIGN_USERPREF);
   }
 
-  if (actcol_orig > ob->totcol) {
-    actcol_orig = ob->totcol;
-  }
+  actcol_orig = std::min(actcol_orig, ob->totcol);
 
   ob->actcol = actcol_orig;
 }
@@ -1403,9 +1394,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
   }
 
   /* can happen on face selection in editmode */
-  if (ob->actcol > ob->totcol) {
-    ob->actcol = ob->totcol;
-  }
+  ob->actcol = std::min(ob->actcol, ob->totcol);
 
   /* we delete the actcol */
   mao = (*matarar)[ob->actcol - 1];
@@ -1444,9 +1433,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
         obt->matbits[a - 1] = obt->matbits[a];
       }
       obt->totcol--;
-      if (obt->actcol > obt->totcol) {
-        obt->actcol = obt->totcol;
-      }
+      obt->actcol = std::min(obt->actcol, obt->totcol);
 
       if (obt->totcol == 0) {
         MEM_freeN(obt->mat);
