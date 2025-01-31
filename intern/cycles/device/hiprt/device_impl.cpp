@@ -228,7 +228,7 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
 
   double starttime = time_dt();
 
-  string compile_command = string_printf("%s -%s -I %s -I %s --%s %s -o \"%s\"",
+  string compile_command = string_printf("%s %s -I %s -I %s --%s %s -o \"%s\"",
                                          hipcc,
                                          options.c_str(),
                                          include_path.c_str(),
@@ -770,14 +770,19 @@ void HIPRTDevice::build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions op
   if (rt_err != hiprtSuccess) {
     set_error(string_printf("Failed to create BLAS!"));
   }
-  bvh->geom_input = geom_input;
   {
     thread_scoped_lock lock(hiprt_mutex);
     if (blas_scratch_buffer_size > scratch_buffer_size) {
       scratch_buffer.alloc(blas_scratch_buffer_size);
-      scratch_buffer_size = blas_scratch_buffer_size;
       scratch_buffer.zero_to_device();
+      if (!scratch_buffer.device_pointer) {
+        hiprtDestroyGeometry(hiprt_context, bvh->hiprt_geom);
+        bvh->hiprt_geom = nullptr;
+        return;
+      }
+      scratch_buffer_size = blas_scratch_buffer_size;
     }
+    bvh->geom_input = geom_input;
     rt_err = hiprtBuildGeometry(hiprt_context,
                                 hiprtBuildOperationBuild,
                                 bvh->geom_input,

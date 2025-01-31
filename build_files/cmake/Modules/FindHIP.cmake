@@ -40,12 +40,7 @@ if(HIP_HIPCC_EXECUTABLE)
   set(HIP_VERSION_MAJOR 0)
   set(HIP_VERSION_MINOR 0)
   set(HIP_VERSION_PATCH 0)
-
-  if(WIN32)
-    set(_hipcc_executable ${HIP_HIPCC_EXECUTABLE}.bat)
-  else()
-    set(_hipcc_executable ${HIP_HIPCC_EXECUTABLE})
-  endif()
+  set(_hipcc_executable ${HIP_HIPCC_EXECUTABLE})
 
   # Get version from the output.
   execute_process(COMMAND ${_hipcc_executable} --version
