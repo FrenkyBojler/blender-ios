@@ -93,12 +93,11 @@ class Context : public compositor::Context {
     return false;
   }
 
-  /* The viewport compositor doesn't really support the composite output, it only displays the
-   * viewer output in the viewport. Settings this to false will make the compositor use the
-   * composite output as fallback viewer if no other viewer exists. */
-  bool use_composite_output() const override
+  /* The viewport compositor does not support viewer outputs, so treat viewers as composite
+   * outputs. */
+  bool treat_viewer_as_composite_output() const override
   {
-    return false;
+    return true;
   }
 
   const RenderData &get_render_data() const override
@@ -214,7 +213,7 @@ class Context : public compositor::Context {
 
   void set_info_message(StringRef message) const override
   {
-    message.copy(info_message_, GPU_INFO_SIZE);
+    message.copy_utf8_truncated(info_message_, GPU_INFO_SIZE);
   }
 
   IDRecalcFlag query_id_recalc_flag(ID *id) const override
