@@ -19,6 +19,7 @@
 #include "WM_api.hh"
 
 #include "BKE_asset.hh"
+#include "BKE_attribute.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -258,6 +259,27 @@ class MeshState {
   }
 };
 
+static void replace_attribute(const bke::AttributeAccessor src_attributes,
+                              const StringRef name,
+                              const bke::AttrDomain domain,
+                              const eCustomDataType data_type,
+                              bke::MutableAttributeAccessor dst_attributes)
+{
+  dst_attributes.remove(name);
+  bke::GAttributeReader src = src_attributes.lookup(name, domain, data_type);
+  if (!src) {
+    return;
+  }
+  if (src.sharing_info && src.varray.is_span()) {
+    const bke::AttributeInitShared init(src.varray.get_internal_span().data(), *src.sharing_info);
+    dst_attributes.add(name, domain, data_type, init);
+  }
+  else {
+    const bke::AttributeInitVArray init(*src);
+    dst_attributes.add(name, domain, data_type, init);
+  }
+}
+
 static void store_sculpt_entire_mesh(const wmOperator &op,
                                      const Scene &scene,
                                      Object &object,
@@ -330,14 +352,11 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       sculpt_paint::undo::push_nodes(
           depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::Mask);
       sculpt_paint::undo::push_end(object);
-      mesh.attributes_for_write().remove(".sculpt_mask");
-      if (bke::AttributeReader mask = new_mesh->attributes().lookup<float>(".sculpt_mask")) {
-        if (mask.domain == bke::AttrDomain::Point && mask.sharing_info && mask.varray.is_span()) {
-          const bke::AttributeInitShared init(mask.varray.get_internal_span().data(),
-                                              *mask.sharing_info);
-          mesh.attributes_for_write().add<float>(".sculpt_mask", bke::AttrDomain::Point, init);
-        }
-      }
+      replace_attribute(new_mesh->attributes(),
+                        ".sculpt_mask",
+                        bke::AttrDomain::Point,
+                        CD_PROP_FLOAT,
+                        mesh.attributes_for_write());
       pbvh.tag_masks_changed(leaf_nodes);
     }
     else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_face_set"}) {
@@ -345,17 +364,11 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       sculpt_paint::undo::push_nodes(
           depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::FaceSet);
       sculpt_paint::undo::push_end(object);
-      mesh.attributes_for_write().remove(".sculpt_face_set");
-      if (bke::AttributeReader face_sets = new_mesh->attributes().lookup<int>(".sculpt_face_set"))
-      {
-        if (face_sets.domain == bke::AttrDomain::Face && face_sets.sharing_info &&
-            face_sets.varray.is_span())
-        {
-          const bke::AttributeInitShared init(face_sets.varray.get_internal_span().data(),
-                                              *face_sets.sharing_info);
-          mesh.attributes_for_write().add<int>(".sculpt_face_set", bke::AttrDomain::Face, init);
-        }
-      }
+      replace_attribute(new_mesh->attributes(),
+                        ".sculpt_face_set",
+                        bke::AttrDomain::Face,
+                        CD_PROP_INT32,
+                        mesh.attributes_for_write());
       pbvh.tag_face_sets_changed(leaf_nodes);
     }
     else {
