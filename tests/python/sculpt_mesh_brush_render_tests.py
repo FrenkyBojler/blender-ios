@@ -168,9 +168,9 @@ def main():
     report = render_report.Report("Sculpt", args.outdir, args.oiiotool)
     report.set_pixelated(True)
     # TODO: Determine what good thresholds are for these tests, currently we have them rather aggressive, but
-    # They do fail at a fail% of 0.01 on the linux build bot (%1.01 failure)
+    # They do report a %1.01 failure rate with the current threshold
     report.set_fail_threshold(2.0 / 255.0)
-    report.set_fail_percent(0.015)
+    report.set_fail_percent(1.5)
     report.set_reference_dir("reference")
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
