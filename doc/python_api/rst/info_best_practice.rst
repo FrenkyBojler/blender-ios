@@ -1,4 +1,3 @@
-
 *************
 Best Practice
 *************
@@ -341,7 +340,7 @@ Value Comparison
 ----------------
 
 Python has two ways to compare values ``a == b`` and ``a is b``,
-the difference is that ``==`` may run the objects comparison function ``__cmp__()`` whereas ``is`` compares identity,
+the difference is that ``==`` may run the objects comparison function ``__eq__()`` whereas ``is`` compares identity,
 this is, that both variables reference the same item in memory.
 
 In cases where you know you are checking for the same value which is referenced from multiple places, ``is`` is faster.
