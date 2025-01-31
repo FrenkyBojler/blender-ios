@@ -1577,7 +1577,7 @@ static int rna_Action_id_root_get(PointerRNA *ptr)
  * `idroot` as always 'unspecified' will (practically speaking) not break legacy
  * scripts, since the Action will still be assignable to anything the script
  * tries to assign it to. And this way the new layered action code doesn't have
- * to special-case on the weird corner-case of 'id_root' sometimes being
+ * to special-case on the weird corner case of 'id_root' sometimes being
  * specified under obscure circumstances. */
 static void rna_Action_id_root_set(PointerRNA *ptr, int value)
 {
