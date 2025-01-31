@@ -281,8 +281,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   const bool changed_topology = orig_mesh_state.topology_changed(*new_mesh);
 
-  // TODO: Allow adding the 3 sculpt "built-in" attributes without "changing topology".
-  if (changed_topology || new_mesh->attributes().all_ids() != mesh.attributes().all_ids()) {
+  if (changed_topology) {
     store_sculpt_entire_mesh(op, scene, object, new_mesh);
   }
   else {
