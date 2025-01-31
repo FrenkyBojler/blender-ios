@@ -126,7 +126,7 @@ class CurvesGeometryRuntime {
 
   /**
    * Offsets of custom knots in #CurvesGeometry::custom_knots for each curve in #CurvesGeometry.
-   * Fur curves with no custom knots next offset value stays the same.
+   * For curves with no custom knots next offset value stays the same.
    */
   mutable SharedCache<Vector<int>> custom_knots_offsets_cache;
 
@@ -304,7 +304,7 @@ class CurvesGeometry : public ::CurvesGeometry {
   MutableSpan<float2> surface_uv_coords_for_write();
 
   /**
-   * Custom knots for NURBS curves with knots mode #NURBS_KNOT_MODE_CUSTOM
+   * Custom knots for NURBS curves with knots mode #NURBS_KNOT_MODE_CUSTOM.
    */
   Span<float> nurbs_custom_knots() const;
   MutableSpan<float> nurbs_custom_knots_for_write();
@@ -332,9 +332,8 @@ class CurvesGeometry : public ::CurvesGeometry {
   void nurbs_custom_knots_update_size();
 
   /**
-   * Resizes custom knots array.
-   * Used when knots number is known in advance and knot values are set together with topological
-   * data.
+   * Resizes custom knots array. Used when knots number is known in advance and knot values are set
+   * together with topological data.
    */
   void nurbs_custom_knots_resize(int knots_num);
 
@@ -862,8 +861,8 @@ int calculate_evaluated_num(
 int knots_num(int points_num, int8_t order, bool cyclic);
 
 /**
- * Copies custom knots into given #MutableSpan.
- * Adds #order - 1 length tail for cyclic curves.
+ * Copies custom knots into given `MutableSpan`.
+ * Adds `order - 1` length tail for cyclic curves.
  */
 void copy_custom_knots(const int8_t order,
                        const bool cyclic,
