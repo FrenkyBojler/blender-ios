@@ -6,6 +6,7 @@
  * \ingroup edcurves
  */
 
+#include "BKE_mesh.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -353,6 +354,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
 
       mesh.tag_positions_changed_no_normals();
       pbvh.tag_positions_changed(leaf_nodes);
+      BKE_mesh_copy_parameters(&mesh, new_mesh);
       BKE_id_free(nullptr, new_mesh);
     }
     else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_mask"}) {
@@ -366,6 +368,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
                         CD_PROP_FLOAT,
                         mesh.attributes_for_write());
       pbvh.tag_masks_changed(leaf_nodes);
+      BKE_mesh_copy_parameters(&mesh, new_mesh);
       BKE_id_free(nullptr, new_mesh);
     }
     else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_face_set"}) {
@@ -379,6 +382,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
                         CD_PROP_INT32,
                         mesh.attributes_for_write());
       pbvh.tag_face_sets_changed(leaf_nodes);
+      BKE_mesh_copy_parameters(&mesh, new_mesh);
       BKE_id_free(nullptr, new_mesh);
     }
     else {
