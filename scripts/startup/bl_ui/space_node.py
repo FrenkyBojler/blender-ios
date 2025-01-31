@@ -181,8 +181,7 @@ class NODE_HT_header(Header):
                         layout.popover(panel="NODE_PT_geometry_node_tool_options", text="Options")
                     display_pin = False
                 case 'BRUSH':
-                    settings = context.scene.tool_settings.sculpt
-                    brush = settings.brush
+                    brush = context.scene.tool_settings.sculpt.brush
                     if brush:
                         layout.template_ID(brush, "node_group", new="brush.new_node_group")
         else:
