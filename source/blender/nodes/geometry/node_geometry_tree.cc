@@ -4,10 +4,6 @@
 
 #include <cstring>
 
-#include "BLI_string.h"
-
-#include "DNA_brush_types.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "NOD_geometry.hh"
