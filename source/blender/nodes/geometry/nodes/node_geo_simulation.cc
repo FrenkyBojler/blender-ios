@@ -199,7 +199,7 @@ static void draw_simulation_state(const bContext *C,
                                   bNode &output_node)
 {
   if (uiLayout *panel = uiLayoutPanel(
-          C, layout, "simulation_state_items", false, TIP_("Simulation State")))
+          C, layout, "simulation_state_items", false, IFACE_("Simulation State")))
   {
     socket_items::ui::draw_items_list_with_operators<SimulationItemsAccessor>(
         C, panel, ntree, output_node);
@@ -489,11 +489,11 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, "GeometryNodeSimulationInput", GEO_NODE_SIMULATION_INPUT, NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationInput", GEO_NODE_SIMULATION_INPUT);
   ntype.ui_name = "Simulation Input";
   ntype.ui_description = "Input data for the simulation zone";
   ntype.enum_name_legacy = "SIMULATION_INPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
@@ -867,11 +867,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, "GeometryNodeSimulationOutput", GEO_NODE_SIMULATION_OUTPUT, NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationOutput", GEO_NODE_SIMULATION_OUTPUT);
   ntype.ui_name = "Simulation Output";
   ntype.ui_description = "Output data from the simulation zone";
   ntype.enum_name_legacy = "SIMULATION_OUTPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = sim_input_node::node_label;

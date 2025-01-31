@@ -11,6 +11,7 @@
 
 #include <fmt/format.h>
 
+#include "BKE_node.hh"
 #include "node_composite_util.hh"
 
 #include "BLI_assert.h"
@@ -187,7 +188,7 @@ void ntreeCompositCryptomatteUpdateLayerNames(bNode *node)
          blender::bke::cryptomatte::BKE_cryptomatte_layer_names_get(*session))
     {
       CryptomatteLayer *layer = MEM_cnew<CryptomatteLayer>(__func__);
-      layer_name.copy(layer->name);
+      layer_name.copy_utf8_truncated(layer->name);
       BLI_addtail(&n->runtime.layers, layer);
     }
   }
@@ -911,12 +912,12 @@ void register_node_type_cmp_cryptomatte()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, "CompositorNodeCryptomatteV2", CMP_NODE_CRYPTOMATTE, NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeCryptomatteV2", CMP_NODE_CRYPTOMATTE);
   ntype.ui_name = "Cryptomatte";
   ntype.ui_description =
       "Generate matte for individual objects and materials using Cryptomatte render passes";
   ntype.enum_name_legacy = "CRYPTOMATTE";
+  ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_cryptomatte_declare;
   blender::bke::node_type_size(&ntype, 240, 100, 700);
   ntype.initfunc = file_ns::node_init_cryptomatte;
@@ -1019,11 +1020,11 @@ void register_node_type_cmp_cryptomatte_legacy()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, "CompositorNodeCryptomatte", CMP_NODE_CRYPTOMATTE_LEGACY, NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeCryptomatte", CMP_NODE_CRYPTOMATTE_LEGACY);
   ntype.ui_name = "Cryptomatte (Legacy)";
   ntype.ui_description = "Deprecated. Use Cryptomatte Node instead";
   ntype.enum_name_legacy = "CRYPTOMATTE";
+  ntype.nclass = NODE_CLASS_MATTE;
   blender::bke::node_type_socket_templates(&ntype, nullptr, file_ns::cmp_node_cryptomatte_out);
   ntype.initfunc = legacy_file_ns::node_init_cryptomatte_legacy;
   blender::bke::node_type_storage(

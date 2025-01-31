@@ -163,7 +163,7 @@ class Action : public ::bAction {
    * \note At the time of writing this comment only a single layer per Action is
    * supported in Blender, but this function does NOT enforce that. Be careful!
    *
-   * \param name The name to give the new layer. If no name is given, a default
+   * \param name: The name to give the new layer. If no name is given, a default
    * name is used. The name may be altered (e.g. appending ".001") to enforce
    * uniqueness within the Action.
    *
@@ -200,7 +200,7 @@ class Action : public ::bAction {
   /**
    * Return the Slot with the given handle.
    *
-   * \param handle can be `Slot::unassigned`, in which case `nullptr` is returned.
+   * \param handle: can be `Slot::unassigned`, in which case `nullptr` is returned.
    *
    * \return `nullptr` when the slot cannot be found, so either the handle was
    * `Slot::unassigned` or some value that does not match any Slot in this Action.
@@ -319,9 +319,18 @@ class Action : public ::bAction {
   bool slot_remove(Slot &slot_to_remove);
 
   /**
+   * Move the given slot to position `to_slot_index` among the slots of the
+   * action.
+   *
+   * `slot` must belong to this action, and `to_slot_index` must be a
+   * valid index in the slot array.
+   */
+  void slot_move_to_index(Slot &slot, int to_slot_index);
+
+  /**
    * Set the active Slot, ensuring only one Slot is flagged as the Active one.
    *
-   * \param slot_handle if #Slot::unassigned, there will not be any active slot.
+   * \param slot_handle: if #Slot::unassigned, there will not be any active slot.
    * Passing an unknown/invalid slot handle will result in no slot being active.
    */
   void slot_active_set(slot_handle_t slot_handle);
@@ -956,6 +965,7 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
    * Should only be called when there is no `Channelbag` for this slot yet.
    */
   Channelbag &channelbag_for_slot_add(const Slot &slot);
+  Channelbag &channelbag_for_slot_add(slot_handle_t slot_handle);
 
   /**
    * Find the channelbag for the given slot, or if none exists, create it.
@@ -1122,7 +1132,7 @@ class Channelbag : public ::ActionChannelbag {
    * `fcurve` must belong to this channel bag, and `to_fcurve_index` must be a
    * valid index in the fcurve array.
    */
-  void fcurve_move(FCurve &fcurve, int to_fcurve_index);
+  void fcurve_move_to_index(FCurve &fcurve, int to_fcurve_index);
 
   /**
    * Remove all F-Curves from this Channelbag.
@@ -1202,7 +1212,7 @@ class Channelbag : public ::ActionChannelbag {
    * `group` must belong to this channel bag, and `to_group_index` must be a
    * valid index in the channel group array.
    */
-  void channel_group_move(bActionGroup &group, int to_group_index);
+  void channel_group_move_to_index(bActionGroup &group, int to_group_index);
 
   /**
    * Assigns the given FCurve to the given channel group.
@@ -1721,7 +1731,7 @@ void action_fcurve_attach(Action &action,
  * The F-Curve must exist on the source Action. All channelbags for all slots
  * are searched for the F-Curve.
  *
- * \param action_slot_dst may not be #Slot::unassigned on layered Actions.
+ * \param action_slot_dst: may not be #Slot::unassigned on layered Actions.
  *
  * \see #blender::animrig::action_fcurve_detach
  */

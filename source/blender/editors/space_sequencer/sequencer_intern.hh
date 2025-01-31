@@ -177,12 +177,12 @@ void channel_draw_context_init(const bContext *C,
 void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
 Strip *find_neighboring_sequence(Scene *scene, Strip *test, int lr, int sel);
 void recurs_sel_seq(Strip *strip_meta);
-int strip_effect_find_selected(Scene *scene,
-                               Strip *activeseq,
-                               int type,
-                               Strip **r_selseq1,
-                               Strip **r_selseq2,
-                               const char **r_error_str);
+bool strip_effect_get_new_inputs(Scene *scene,
+                                 bool ignore_active,
+                                 int strip_type,
+                                 Strip **r_seq1,
+                                 Strip **r_seq2,
+                                 const char **r_error_str);
 
 /* Operator helpers. */
 bool sequencer_edit_poll(bContext *C);
@@ -277,10 +277,7 @@ void SEQUENCER_OT_select_side(wmOperatorType *ot);
 void SEQUENCER_OT_select_box(wmOperatorType *ot);
 void SEQUENCER_OT_select_inverse(wmOperatorType *ot);
 void SEQUENCER_OT_select_grouped(wmOperatorType *ot);
-Strip *find_nearest_seq(const Scene *scene,
-                        const View2D *v2d,
-                        const int mval[2],
-                        eSeqHandle *r_hand);
+
 bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point_view[2]);
 
 /* `sequencer_add.cc` */

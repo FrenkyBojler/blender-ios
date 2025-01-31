@@ -3096,7 +3096,7 @@ static PointerRNA rna_FileBrowser_params_get(PointerRNA *ptr)
     return rna_pointer_inherit_refine(ptr, params_struct, params);
   }
 
-  return rna_pointer_inherit_refine(ptr, nullptr, nullptr);
+  return PointerRNA_NULL;
 }
 
 static void rna_FileBrowser_FSMenuEntry_path_get(PointerRNA *ptr, char *value)
@@ -3205,7 +3205,8 @@ static void rna_FileBrowser_FSMenu_begin(CollectionPropertyIterator *iter, FSMen
 static PointerRNA rna_FileBrowser_FSMenu_get(CollectionPropertyIterator *iter)
 {
   ListBaseIterator *internal = &iter->internal.listbase;
-  PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_FileBrowserFSMenuEntry, internal->link);
+  PointerRNA r_ptr = RNA_pointer_create_discrete(
+      nullptr, &RNA_FileBrowserFSMenuEntry, internal->link);
   return r_ptr;
 }
 
@@ -4365,7 +4366,6 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
   RNA_def_property_boolean_negative_sdna(
       prop, nullptr, "flag", V3D_SHADING_STUDIOLIGHT_VIEW_ROTATION);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_boolean_default(prop, false);
   RNA_def_property_ui_text(
       prop, "World Space Lighting", "Make the HDR rotation fixed and not follow the camera");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D | NS_VIEW3D_SHADING, nullptr);

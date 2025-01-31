@@ -450,8 +450,6 @@ class USERPREF_PT_edit_objects_duplicate_data(EditingPanel, CenterAlignMixIn, Pa
             row_label = row.row()
             row_label.label(text=type_name, icon=type_icon)
 
-            row_label.active = getattr(edit, prop)
-
 
 class USERPREF_PT_edit_cursor(EditingPanel, CenterAlignMixIn, Panel):
     bl_label = "3D Cursor"
@@ -728,7 +726,7 @@ class USERPREF_PT_system_os_settings(SystemPanel, CenterAlignMixIn, Panel):
                 return False
         else:
             # Linux.
-            if bpy.utils.resource_path('SYSTEM'):
+            if not bpy.app.portable:
                 layout.label(text="System Installation")
                 layout.label(text="File association is handled by the package manager")
                 return False
@@ -935,7 +933,7 @@ class USERPREF_PT_viewport_subdivision(ViewportPanel, CenterAlignMixIn, Panel):
     def poll(cls, context):
         import gpu
         backend = gpu.platform.backend_type_get()
-        return backend == "OPENGL"
+        return backend == 'OPENGL'
 
     def draw_centered(self, context, layout):
         prefs = context.preferences
@@ -2473,8 +2471,14 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                 box.separator()
                 sub_col = box.column(align=True)
                 sub_col.label(text=addon_name + ":")
-                sub_col.label(text="    " + addon_file)
-                sub_col.label(text="    " + addon_path)
+
+                sub_row = sub_col.row()
+                sub_row.label(text="    " + addon_file)
+                sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_file)
+
+                sub_row = sub_col.row()
+                sub_row.label(text="    " + addon_path)
+                sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_path)
 
         if addon_utils.error_encoding:
             self.draw_error(

@@ -35,6 +35,14 @@ constexpr const char *DEFAULT_VERSIONED_LAYER_NAME = "Legacy Layer";
 
 bool action_is_layered(const bAction &dna_action)
 {
+  /* NOTE: due to how forward-compatibility is handled when writing Actions to
+   * blend files, it is important that this function does NOT check
+   * `Action.idroot` as part of its determination of whether this is a layered
+   * action or not.
+   *
+   * See: `action_blend_write()` and `action_blend_read_data()`
+   */
+
   const animrig::Action &action = dna_action.wrap();
 
   const bool has_layered_data = action.layer_array_num > 0 || action.slot_array_num > 0;
@@ -156,7 +164,7 @@ void tag_action_users_for_slotted_actions_conversion(Main &bmain)
   auto flag_adt = [](ID &animated_id,
                      bAction *& /*action_ptr_ref*/,
                      slot_handle_t & /*slot_handle_ref*/,
-                     char * /*slot_name*/) -> bool {
+                     char * /*last_slot_identifier*/) -> bool {
     tag_action_user_for_slotted_actions_conversion(animated_id);
 
     /* Once tagged, the foreach loop can stop, because more tagging of the same
