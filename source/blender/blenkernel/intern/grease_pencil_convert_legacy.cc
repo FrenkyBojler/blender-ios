@@ -1592,7 +1592,7 @@ static void legacy_object_modifier_influence(GreasePencilModifierInfluenceData &
 {
   influence.flag = 0;
 
-  layername.copy(influence.layer_name);
+  layername.copy_utf8_truncated(influence.layer_name);
   if (invert_layer) {
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_LAYER_FILTER;
   }
@@ -1619,7 +1619,7 @@ static void legacy_object_modifier_influence(GreasePencilModifierInfluenceData &
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_MATERIAL_PASS_FILTER;
   }
 
-  vertex_group_name.copy(influence.vertex_group_name);
+  vertex_group_name.copy_utf8_truncated(influence.vertex_group_name);
   if (invert_vertex_group) {
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_VERTEX_GROUP;
   }
@@ -2162,6 +2162,23 @@ static void legacy_object_modifier_opacity(ConversionData &conversion_data,
   }
   md_opacity.color_factor = legacy_md_opacity.factor;
   md_opacity.hardness_factor = legacy_md_opacity.hardness;
+
+  /* Account for animation on renamed properties. */
+  char modifier_name[MAX_NAME * 2];
+  BLI_str_escape(modifier_name, md.name, sizeof(modifier_name));
+  AnimDataConvertor anim_convertor_factor(
+      conversion_data, object.id, object.id, {{".factor", ".color_factor"}});
+  anim_convertor_factor.root_path_src = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_factor.root_path_dst = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_factor.fcurves_convert();
+  anim_convertor_factor.fcurves_convert_finalize();
+  AnimDataConvertor anim_convertor_hardness(
+      conversion_data, object.id, object.id, {{".hardness", ".hardness_factor"}});
+  anim_convertor_hardness.root_path_src = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_hardness.root_path_dst = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_hardness.fcurves_convert();
+  anim_convertor_hardness.fcurves_convert_finalize();
+  DEG_relations_tag_update(&conversion_data.bmain);
 
   legacy_object_modifier_influence(md_opacity.influence,
                                    legacy_md_opacity.layername,

@@ -67,6 +67,7 @@ static void add_tree_tag(bNodeTree *ntree, const eNodeTreeChangedFlag flag)
   ntree->runtime->changed_flag |= flag;
   ntree->runtime->topology_cache_mutex.tag_dirty();
   ntree->runtime->tree_zones_cache_mutex.tag_dirty();
+  ntree->runtime->inferenced_input_socket_usage_mutex.tag_dirty();
 }
 
 static void add_node_tag(bNodeTree *ntree, bNode *node, const eNodeTreeChangedFlag flag)
@@ -1546,7 +1547,9 @@ class NodeTreeMainUpdater {
         }
         /* The Normal node has a special case, because the value stored in the first output
          * socket is used as input in the node. */
-        if (node.is_type("ShaderNodeNormal") && socket.index() == 1) {
+        if ((node.is_type("ShaderNodeNormal") || node.is_type("CompositorNodeNormal")) &&
+            socket.index() == 1)
+        {
           BLI_assert(STREQ(socket.name, "Dot"));
           const bNodeSocket &normal_output = node.output_socket(0);
           BLI_assert(STREQ(normal_output.name, "Normal"));

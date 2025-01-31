@@ -69,8 +69,6 @@ static const pxr::TfToken opacity("opacity", pxr::TfToken::Immortal);
 static const pxr::TfToken opacityThreshold("opacityThreshold", pxr::TfToken::Immortal);
 static const pxr::TfToken surface("surface", pxr::TfToken::Immortal);
 static const pxr::TfToken displacement("displacement", pxr::TfToken::Immortal);
-static const pxr::TfToken perspective("perspective", pxr::TfToken::Immortal);
-static const pxr::TfToken orthographic("orthographic", pxr::TfToken::Immortal);
 static const pxr::TfToken rgb("rgb", pxr::TfToken::Immortal);
 static const pxr::TfToken r("r", pxr::TfToken::Immortal);
 static const pxr::TfToken g("g", pxr::TfToken::Immortal);
@@ -88,7 +86,6 @@ static const pxr::TfToken scale("scale", pxr::TfToken::Immortal);
 static const pxr::TfToken bias("bias", pxr::TfToken::Immortal);
 static const pxr::TfToken sRGB("sRGB", pxr::TfToken::Immortal);
 static const pxr::TfToken sourceColorSpace("sourceColorSpace", pxr::TfToken::Immortal);
-static const pxr::TfToken Shader("Shader", pxr::TfToken::Immortal);
 static const pxr::TfToken black("black", pxr::TfToken::Immortal);
 static const pxr::TfToken clamp("clamp", pxr::TfToken::Immortal);
 static const pxr::TfToken repeat("repeat", pxr::TfToken::Immortal);
@@ -1323,6 +1320,7 @@ static void export_texture(const USDExporterContext &usd_export_context, bNode *
                  usd_export_context.export_params.worker_status->reports);
 }
 
+#ifdef WITH_MATERIALX
 static void export_texture(const USDExporterContext &usd_export_context, Image *ima)
 {
   export_texture(ima,
@@ -1330,6 +1328,7 @@ static void export_texture(const USDExporterContext &usd_export_context, Image *
                  usd_export_context.export_params.overwrite_textures,
                  usd_export_context.export_params.worker_status->reports);
 }
+#endif
 
 void export_texture(bNode *node,
                     const pxr::UsdStageRefPtr stage,
