@@ -36,6 +36,8 @@ struct LocalPayload {
   LocalIntersection *local_isect;
 };
 
+#  define HIPRT_RAY_MASK ~0u
+
 #  define SET_HIPRT_RAY(RAY_RT, RAY) \
     RAY_RT.direction = RAY->D; \
     RAY_RT.origin = RAY->P; \
@@ -57,7 +59,7 @@ struct LocalPayload {
           ray_hip, \
           stack, \
           instance_stack, \
-          visibility, \
+          HIPRT_RAY_MASK, \
           hiprtTraversalHintDefault, \
           &payload, \
           kernel_params.FUNCTION_TABLE, \
@@ -70,7 +72,7 @@ struct LocalPayload {
           ray_hip, \
           stack, \
           instance_stack, \
-          visibility, \
+          HIPRT_RAY_MASK, \
           hiprtTraversalHintDefault, \
           &payload, \
           kernel_params.FUNCTION_TABLE, \
@@ -80,14 +82,14 @@ struct LocalPayload {
 #    define GET_TRAVERSAL_ANY_HIT(FUNCTION_TABLE) \
       hiprtSceneTraversalAnyHit traversal(kernel_data.device_bvh, \
                                           ray_hip, \
-                                          visibility, \
+                                          HIPRT_RAY_MASK, \
                                           FUNCTION_TABLE, \
                                           hiprtTraversalHintDefault, \
                                           &payload);
 #    define GET_TRAVERSAL_CLOSEST_HIT(FUNCTION_TABLE) \
       hiprtSceneTraversalClosest traversal(kernel_data.device_bvh, \
                                            ray_hip, \
-                                           visibility, \
+                                           HIPRT_RAY_MASK, \
                                            FUNCTION_TABLE, \
                                            hiprtTraversalHintDefault, \
                                            &payload);
