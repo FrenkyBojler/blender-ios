@@ -1721,6 +1721,7 @@ void resize_single_curve(bke::CurvesGeometry &curves, const bool at_end, const i
     });
   }
   else {
+    /* First move the attribute data, then resize. */
     const int removed_points_num = current_points_num - new_points_num;
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -1735,7 +1736,6 @@ void resize_single_curve(bke::CurvesGeometry &curves, const bool at_end, const i
         using T = decltype(dummy);
         MutableSpan<T> span_data = attribute_data.typed<T>();
 
-        /* Loop through backwards to not overwrite the data. */
         for (const int i :
              span_data.index_range().drop_front(new_points_num).drop_back(removed_points_num))
         {
