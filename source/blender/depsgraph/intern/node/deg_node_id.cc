@@ -8,7 +8,6 @@
 
 #include "intern/node/deg_node_id.hh"
 
-#include <cstdio>
 #include <cstring> /* required for STREQ later on. */
 
 #include "BLI_ghash.h"

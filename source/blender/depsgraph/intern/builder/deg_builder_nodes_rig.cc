@@ -10,7 +10,6 @@
 
 #include "intern/builder/deg_builder_nodes.h"
 
-#include <cstdio>
 #include <cstdlib>
 
 #include "DNA_armature_types.h"

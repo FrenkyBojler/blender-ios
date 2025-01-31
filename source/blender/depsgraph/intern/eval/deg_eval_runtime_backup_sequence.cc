@@ -12,6 +12,8 @@
 
 #include "DNA_sequence_types.h"
 
+#include "BLI_listbase.h"
+
 namespace blender::deg {
 
 SequenceBackup::SequenceBackup(const Depsgraph * /*depsgraph*/)

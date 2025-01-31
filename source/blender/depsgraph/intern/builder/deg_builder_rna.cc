@@ -172,8 +172,7 @@ RNANodeIdentifier RNANodeQuery::construct_node_identifier(const PointerRNA *ptr,
       node_identifier.type = NodeType::PARAMETERS;
     }
     node_identifier.operation_code = OperationCode::ID_PROPERTY;
-    node_identifier.operation_name = RNA_property_identifier(
-        reinterpret_cast<const PropertyRNA *>(prop));
+    node_identifier.operation_name = RNA_property_identifier(prop);
     return node_identifier;
   }
   if (ptr->type == &RNA_PoseBone) {

@@ -17,6 +17,9 @@
 
 #include "DNA_anim_types.h"
 
+#include "RNA_access.hh"
+#include "RNA_path.hh"
+
 #include "BKE_anim_data.hh"
 
 #include "RNA_access.hh"

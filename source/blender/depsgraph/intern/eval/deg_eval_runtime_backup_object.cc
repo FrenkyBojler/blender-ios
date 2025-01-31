@@ -6,6 +6,10 @@
  * \ingroup depsgraph
  */
 
+#include "BLI_session_uid.h"
+
+#include "intern/eval/deg_eval_runtime_backup_object.h"
+
 #include <cstring>
 
 #include "DNA_mesh_types.h"

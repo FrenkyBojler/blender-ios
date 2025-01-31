@@ -6,9 +6,9 @@
  * \ingroup depsgraph
  */
 
-#include "DNA_modifier_types.h"
-
 #pragma once
+
+#include "DNA_modifier_types.h"
 
 struct ModifierData;
 

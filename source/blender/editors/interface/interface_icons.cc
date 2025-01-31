@@ -9,6 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
 #include "BLF_api.hh"
 
@@ -48,7 +49,7 @@
 
 #include "interface_intern.hh"
 
-#include "fmt/format.h"
+#include <fmt/format.h>
 
 struct IconImage {
   int w;
@@ -1548,7 +1549,7 @@ static void icon_draw_size(float x,
                                             0.0f;
     float color[4];
     if (mono_rgba) {
-      rgba_uchar_to_float(color, (const uchar *)mono_rgba);
+      rgba_uchar_to_float(color, mono_rgba);
     }
     else {
       UI_GetThemeColor4fv(TH_TEXT, color);
@@ -1656,7 +1657,7 @@ static void ui_id_preview_image_render_size(
     const bContext *C, Scene *scene, ID *id, PreviewImage *pi, int size, const bool use_job)
 {
   /* changed only ever set by dynamic icons */
-  if ((pi->flag[size] & PRV_CHANGED) || !pi->rect[size]) {
+  if ((pi->flag[size] & PRV_CHANGED) || (!pi->rect[size] && !BKE_previewimg_is_invalid(pi))) {
     /* create the rect if necessary */
     icon_set_image(C, scene, id, pi, eIconSizes(size), use_job);
 

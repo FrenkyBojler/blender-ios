@@ -6,9 +6,10 @@
  * \ingroup depsgraph
  */
 
-#include "BLI_vector_set.hh"
-
 #include <mutex>
+
+#include "BLI_map.hh"
+#include "BLI_vector_set.hh"
 
 #include "intern/depsgraph_registry.hh"
 

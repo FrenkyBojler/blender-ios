@@ -6,7 +6,7 @@
  * \ingroup depsgraph
  */
 
-#include "intern/builder/deg_builder_transitive.h"
+#include "DEG_depsgraph_debug.hh"
 
 #include "BKE_global.hh"
 

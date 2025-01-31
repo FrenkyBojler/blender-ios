@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_session_uid.h"
+#include "DNA_session_uid_types.h"
 
 #include "BLI_map.hh"
 

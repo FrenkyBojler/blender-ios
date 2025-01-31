@@ -8,9 +8,9 @@
  * Implementation of tools for debugging the depsgraph
  */
 
-#include "BKE_global.hh"
-
 #include "DNA_scene_types.h"
+
+#include "BKE_global.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"

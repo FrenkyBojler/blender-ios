@@ -10,6 +10,8 @@
 
 #include <string>
 
+#include "BKE_global.hh"  // IWYU pragma: keep
+
 namespace blender::deg {
 
 class DepsgraphDebug {
@@ -59,8 +61,8 @@ class DepsgraphDebug {
     fflush(stderr); \
   } while (0)
 
-bool terminal_do_color(void);
+bool terminal_do_color();
 std::string color_for_pointer(const void *pointer);
-std::string color_end(void);
+std::string color_end();
 
 }  // namespace blender::deg

@@ -14,9 +14,9 @@
 
 #pragma once
 
+#include <cstdlib>
 #include <functional>
 #include <mutex>
-#include <stdlib.h>
 
 #include "MEM_guardedalloc.h"
 

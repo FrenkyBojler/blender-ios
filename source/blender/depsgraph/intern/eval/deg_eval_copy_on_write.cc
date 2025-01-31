@@ -28,7 +28,6 @@
 #include "BKE_gpencil_legacy.h"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_mesh_types.hh"
 #include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
@@ -65,6 +64,7 @@
 #include "BKE_armature.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcache.h"

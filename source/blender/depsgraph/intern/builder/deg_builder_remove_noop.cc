@@ -21,6 +21,8 @@
 #include "intern/depsgraph.hh"
 #include "intern/depsgraph_relation.hh"
 
+#include "DEG_depsgraph_debug.hh"
+
 namespace blender::deg {
 
 static inline bool is_unused_noop(OperationNode *op_node)

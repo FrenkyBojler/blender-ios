@@ -1253,6 +1253,9 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
   }
   /* NLA strips contain actions. */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
+    if (nlt->flag & NLATRACK_MUTED) {
+      continue;
+    }
     build_animdata_nlastrip_targets(&nlt->strips);
   }
   /* Drivers. */
@@ -1402,7 +1405,7 @@ void DepsgraphNodeBuilder::build_driver_id_property(const PointerRNA &target_pro
   if (ptr.owner_id) {
     build_id(ptr.owner_id);
   }
-  const char *prop_identifier = RNA_property_identifier((PropertyRNA *)prop);
+  const char *prop_identifier = RNA_property_identifier(prop);
   /* Custom properties of bones are placed in their components to improve granularity. */
   if (RNA_struct_is_a(ptr.type, &RNA_PoseBone)) {
     const bPoseChannel *pchan = static_cast<const bPoseChannel *>(ptr.data);
@@ -1716,7 +1719,7 @@ void DepsgraphNodeBuilder::build_object_data_geometry_datablock(ID *obdata)
   }
   OperationNode *op_node;
   /* Make sure we've got an ID node before requesting evaluated pointer. */
-  (void)add_id_node((ID *)obdata);
+  (void)add_id_node(obdata);
   ID *obdata_cow = get_cow_id(obdata);
   build_idproperties(obdata->properties);
   /* Animation. */

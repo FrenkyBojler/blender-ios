@@ -8,11 +8,12 @@
 
 #pragma once
 
-#include "BLI_map.hh"
-#include "BLI_sys_types.h"
+#include "intern/node/deg_node.hh"
 
 #include "DNA_ID.h"
-#include "intern/node/deg_node.hh"
+
+#include "BLI_map.hh"
+#include "BLI_sys_types.h"
 
 namespace blender::deg {
 
@@ -44,17 +45,17 @@ struct IDNode : public Node {
   };
 
   /** Initialize 'id' node - from pointer data given. */
-  virtual void init(const ID *id, const char *subdata) override;
+  void init(const ID *id, const char *subdata) override;
   void init_copy_on_write(Depsgraph &depsgraph, ID *id_cow_hint = nullptr);
-  ~IDNode();
+  ~IDNode() override;
   void destroy();
 
-  virtual std::string identifier() const override;
+  std::string identifier() const override;
 
   ComponentNode *find_component(NodeType type, const char *name = "") const;
   ComponentNode *add_component(NodeType type, const char *name = "");
 
-  virtual void tag_update(Depsgraph *graph, eUpdateSource source) override;
+  void tag_update(Depsgraph *graph, eUpdateSource source) override;
 
   void finalize_build(Depsgraph *graph);
 

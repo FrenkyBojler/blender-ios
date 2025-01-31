@@ -14,7 +14,7 @@
 
 #include "BKE_object_types.hh"
 
-#include "BLI_session_uid.h"
+#include "BLI_map.hh"
 
 #include "BLI_map.hh"
 

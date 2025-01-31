@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <cstdio>
 #include <cstring>
 
 #include "intern/depsgraph_type.hh"
@@ -362,4 +361,4 @@ struct DepsNodeHandle {
 
 }  // namespace blender::deg
 
-#include "intern/builder/deg_builder_relations_impl.h"
+#include "intern/builder/deg_builder_relations_impl.h"  // IWYU pragma: export

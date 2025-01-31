@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "BLI_vector.hh"
 
 struct ID;

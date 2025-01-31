@@ -15,8 +15,6 @@
 
 #include "BKE_volume.hh"
 
-#include <cstdio>
-
 namespace blender::deg {
 
 VolumeBackup::VolumeBackup(const Depsgraph * /*depsgraph*/) : grids(nullptr) {}
