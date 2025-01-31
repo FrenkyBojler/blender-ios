@@ -4172,7 +4172,7 @@ PyDoc_STRVAR(
     "\n"
     "   :return: a list of this object's ancestors.\n"
     "   :rtype: list[:class:`bpy.types.bpy_struct`]\n");
-static PyObject *pyrna_struct_get_ancestors(BPy_DummyPointerRNA *self)
+static PyObject *pyrna_struct_get_ancestors(BPy_StructRNA *self)
 {
   PYRNA_STRUCT_CHECK_OBJ(self);
 
@@ -6208,10 +6208,6 @@ static PyMethodDef pyrna_prop_methods[] = {
      pyrna_prop_path_from_id_doc},
     {"as_bytes", (PyCFunction)pyrna_prop_as_bytes, METH_NOARGS, pyrna_prop_as_bytes_doc},
     {"update", (PyCFunction)pyrna_prop_update, METH_NOARGS, pyrna_prop_update_doc},
-    {"rna_ancestors",
-     (PyCFunction)pyrna_struct_get_ancestors,
-     METH_NOARGS,
-     pyrna_struct_get_ancestors_doc},
     {"__dir__", (PyCFunction)pyrna_prop_dir, METH_NOARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };

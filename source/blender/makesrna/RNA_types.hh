@@ -85,10 +85,10 @@ struct PointerRNA {
       : owner_id(owner_id), type(type), data(data), ancestors{}
   {
   }
-  PointerRNA(ID *owner_id, StructRNA *type, void *data, PointerRNA *parent)
-      : owner_id(owner_id), type(type), data(data), ancestors(parent->ancestors)
+  PointerRNA(ID *owner_id, StructRNA *type, void *data, const PointerRNA &parent)
+      : owner_id(owner_id), type(type), data(data), ancestors(parent.ancestors)
   {
-    this->ancestors.append({parent->type, parent->data});
+    this->ancestors.append({parent.type, parent.data});
   }
   PointerRNA(ID *owner_id, StructRNA *type, void *data, blender::Span<AncestorPointerRNA> parents)
       : owner_id(owner_id), type(type), data(data), ancestors(parents)

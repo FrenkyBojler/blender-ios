@@ -156,7 +156,7 @@ void rna_pointer_create_with_ancestors(const PointerRNA &parent,
       r_ptr = {static_cast<ID *>(data), type, data};
     }
     else {
-      r_ptr = {parent.owner_id, type, data, &const_cast<PointerRNA &>(parent)};
+      r_ptr = {parent.owner_id, type, data, parent};
     }
     rna_pointer_refine(r_ptr);
   }
