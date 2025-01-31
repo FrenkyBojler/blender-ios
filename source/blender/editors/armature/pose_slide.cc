@@ -887,6 +887,28 @@ static void pose_slide_reset(tPoseSlideOp *pso)
  */
 static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
 {
+  const char *mode_st;
+  switch (pso->mode) {
+    case POSESLIDE_PUSH:
+      mode_st = IFACE_("Push Pose");
+      break;
+    case POSESLIDE_RELAX:
+      mode_st = IFACE_("Relax Pose");
+      break;
+    case POSESLIDE_BREAKDOWN:
+      mode_st = IFACE_("Breakdown");
+      break;
+    case POSESLIDE_BLEND:
+      mode_st = IFACE_("Blend to Neighbor");
+      break;
+    default:
+      /* Unknown. */
+      mode_st = IFACE_("Sliding-Tool");
+      break;
+  }
+
+  ED_slider_property_label_set(pso->slider, mode_st);
+
   WorkspaceStatus status(C);
 
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
