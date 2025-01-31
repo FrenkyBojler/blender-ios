@@ -46,13 +46,20 @@ Channelbag &channelbag_ensure(Action &action)
   Slot *slot;
   if (action.slots().is_empty()) {
     slot = &action.slot_add();
+    action.slot_identifier_define(*slot, DEFAULT_LEGACY_SLOT_NAME);
   }
   else {
     slot = action.slot(0);
   }
 
   /* Ensure a Layer + keyframe Strip. */
-  action.layer_keystrip_ensure();
+  if (action.layers().is_empty()) {
+    action.layer_add(DEFAULT_LEGACY_LAYER_NAME);
+  }
+  if (action.layer(0)->strips().is_empty()) {
+    action.layer(0)->strip_add(action, Strip::Type::Keyframe);
+  }
+
   Strip &keystrip = *action.layer(0)->strip(0);
 
   /* Ensure a Channelbag. */
