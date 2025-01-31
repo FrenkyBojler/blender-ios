@@ -334,18 +334,26 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       sculpt_paint::undo::push_end(object);
       CustomData_free_layer_named(&mesh.vert_data, "position", mesh.verts_num);
       mesh.attributes_for_write().remove("position");
-      if (bke::AttributeReader position = new_mesh->attributes().lookup<float3>("position")) {
-        if (position.domain == bke::AttrDomain::Point && position.sharing_info &&
-            position.varray.is_span())
-        {
-          const bke::AttributeInitShared init(position.varray.get_internal_span().data(),
-                                              *position.sharing_info);
-          mesh.attributes_for_write().add<float3>("position", bke::AttrDomain::Point, init);
-        }
+      const bke::AttributeReader position = new_mesh->attributes().lookup<float3>("position");
+      if (position.sharing_info) {
+        /* Use lower level API to add the position attribute to avoid copying the array and to
+         * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed (which
+         * would be called by the attribute API). */
+        CustomData_add_layer_named_with_data(
+            &mesh.vert_data,
+            CD_PROP_FLOAT3,
+            const_cast<float3 *>(position.varray.get_internal_span().data()),
+            mesh.verts_num,
+            "position",
+            position.sharing_info);
       }
+      else {
+        mesh.vert_positions_for_write().copy_from(VArraySpan(*position));
+      }
+
       mesh.tag_positions_changed_no_normals();
-      BKE_id_free(nullptr, new_mesh);
       pbvh.tag_positions_changed(leaf_nodes);
+      BKE_id_free(nullptr, new_mesh);
     }
     else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_mask"}) {
       sculpt_paint::undo::push_begin(scene, object, &op);
@@ -358,6 +366,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
                         CD_PROP_FLOAT,
                         mesh.attributes_for_write());
       pbvh.tag_masks_changed(leaf_nodes);
+      BKE_id_free(nullptr, new_mesh);
     }
     else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_face_set"}) {
       sculpt_paint::undo::push_begin(scene, object, &op);
@@ -370,6 +379,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
                         CD_PROP_INT32,
                         mesh.attributes_for_write());
       pbvh.tag_face_sets_changed(leaf_nodes);
+      BKE_id_free(nullptr, new_mesh);
     }
     else {
       store_sculpt_entire_mesh(op, scene, object, new_mesh);
