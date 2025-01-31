@@ -41,10 +41,10 @@
  * \{ */
 
 struct HudRegionData {
-  short regionid;
+  ARegion *region_op;
 };
 
-static bool last_redo_poll(const bContext *C, short region_type)
+static bool last_redo_poll(const bContext *C, ARegion *region_op)
 {
   wmOperator *op = WM_operator_last_redo(C);
   if (op == nullptr) {
@@ -57,9 +57,6 @@ static bool last_redo_poll(const bContext *C, short region_type)
      * operator call. Otherwise we would be polling the operator with the
      * wrong context.
      */
-    ScrArea *area = CTX_wm_area(C);
-    ARegion *region_op = (region_type != -1) ? BKE_area_find_region_type(area, region_type) :
-                                               nullptr;
     ARegion *region_prev = CTX_wm_region(C);
     CTX_wm_region_set((bContext *)C, region_op);
 
@@ -92,7 +89,7 @@ static bool hud_panel_operator_redo_poll(const bContext *C, PanelType * /*pt*/)
   if (region != nullptr) {
     HudRegionData *hrd = static_cast<HudRegionData *>(region->regiondata);
     if (hrd != nullptr) {
-      return last_redo_poll(C, hrd->regionid);
+      return last_redo_poll(C, hrd->region_op);
     }
   }
   return false;
@@ -159,7 +156,7 @@ static void hud_region_free(ARegion *region)
 static void hud_region_layout(const bContext *C, ARegion *region)
 {
   HudRegionData *hrd = static_cast<HudRegionData *>(region->regiondata);
-  if (hrd == nullptr || !last_redo_poll(C, hrd->regionid)) {
+  if (hrd == nullptr || !last_redo_poll(C, hrd->region_op)) {
     ED_region_tag_redraw(region);
     hud_region_hide(region);
     return;
@@ -313,7 +310,7 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
   const bool was_hidden = region == nullptr || region->runtime->visible == false;
   ARegion *region_op = CTX_wm_region(C);
   BLI_assert((region_op == nullptr) || (region_op->regiontype != RGN_TYPE_HUD));
-  if (!last_redo_poll(C, region_op ? region_op->regiontype : -1)) {
+  if (!last_redo_poll(C, region_op)) {
     if (region) {
       ED_region_tag_redraw(region);
       hud_region_hide(region);
@@ -346,12 +343,7 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
       hrd = MEM_cnew<HudRegionData>(__func__);
       region->regiondata = hrd;
     }
-    if (region_op) {
-      hrd->regionid = region_op->regiontype;
-    }
-    else {
-      hrd->regionid = -1;
-    }
+    hrd->region_op = region_op;
   }
 
   if (init) {
@@ -401,16 +393,16 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
                                (region->flag & RGN_FLAG_TOO_SMALL));
 }
 
-ARegion *ED_area_type_hud_redo_region_find(const ScrArea *area, const ARegion *hud_region)
+ARegion *ED_area_type_hud_redo_region_find(const ARegion *hud_region)
 {
   BLI_assert(hud_region->regiontype == RGN_TYPE_HUD);
   HudRegionData *hrd = static_cast<HudRegionData *>(hud_region->regiondata);
 
-  if (hrd->regionid == -1) {
-    return nullptr;
+  if (hrd != nullptr) {
+    return hrd->region_op;
   }
 
-  return BKE_area_find_region_type(area, hrd->regionid);
+  return nullptr;
 }
 
 /** \} */
