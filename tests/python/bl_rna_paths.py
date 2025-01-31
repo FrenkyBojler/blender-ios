@@ -108,7 +108,7 @@ class TestRnaAncestors(unittest.TestCase):
         def process_pointer_property(self, p_data, ancestors_sub):
             if not p_data:
                 return
-            rna_ancestors = p_data.rna_ancestors();
+            rna_ancestors = p_data.rna_ancestors()
             if not rna_ancestors:
                 # Do not error for now. Only ensure that if there is a rna_ancestors array, it is valid.
                 return

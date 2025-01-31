@@ -4174,6 +4174,8 @@ PyDoc_STRVAR(
     "   :rtype: list[:class:`bpy.types.bpy_struct`]\n");
 static PyObject *pyrna_struct_get_ancestors(BPy_DummyPointerRNA *self)
 {
+  PYRNA_STRUCT_CHECK_OBJ(self);
+
   PyObject *ret;
   const int ancestors_num(self->ptr->ancestors.size());
 
