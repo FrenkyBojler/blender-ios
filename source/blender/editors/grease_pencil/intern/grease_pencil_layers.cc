@@ -615,7 +615,7 @@ static void GREASE_PENCIL_OT_layer_lock_all(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = grease_pencil_layer_lock_all_exec;
-  ot->poll = active_grease_pencil_layer_poll;
+  ot->poll = grease_pencil_context_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
