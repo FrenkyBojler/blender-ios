@@ -6,6 +6,7 @@
 import argparse
 import os
 import platform
+import subprocess
 import sys
 from pathlib import Path
 try:
@@ -99,12 +100,52 @@ def create_argparse():
     parser.add_argument('--gpu-backend')
     return parser
 
+def generate_tests(test_dir, blender, gen_re):
+    import re
+    
+    verbose = os.environ.get("BLENDER_VERBOSE") is not None
+
+    for root, dirs, files in os.walk(test_dir):
+        for filename in files:
+            if not filename.lower().endswith(".blend"):
+                continue
+
+            if re.match(gen_re, filename) is None:
+                continue
+            
+            command = [
+                blender,
+                os.path.join(root, filename),
+                "--python-expr",
+                "import bpy; bpy.data.texts[0].as_module()"
+            ]
+            
+            if verbose:
+                print("Generator Command: ", " ".join(command))
+            
+            crash = False
+            output = None
+            try:
+                completed_process = subprocess.run(command, stdout=subprocess.PIPE)
+                if completed_process.returncode != 0:
+                    crash = True
+                output = completed_process.stdout
+            except Exception as e:
+                if verbose:
+                    print(e)
+                crash = True
+
+            if (verbose or crash) and output:
+                print(output.decode("utf-8", 'ignore'))
 
 def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    report = OverlayReport("Overlay", args.outdir, args.oiiotool, device=args.gpu_backend)
+    gen_re = ".*-gen.blend"
+    generate_tests(args.testdir, args.blender, gen_re)
+
+    report = OverlayReport("Overlay", args.outdir, args.oiiotool, device=args.gpu_backend, blocklist = [gen_re])
     if args.gpu_backend == "vulkan":
         report.set_compare_engine('overlay', 'opengl')
     else:

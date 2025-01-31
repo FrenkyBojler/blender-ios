@@ -493,6 +493,11 @@ class Report:
                 # Only chain multiple commands for batch
                 if not batch:
                     break
+                
+                # Avoid passing a string larger than what the command line can hold.
+                # (Windows's limit is 8191 characters)
+                if len(" ".join(command)) > 8000:
+                    break
 
             if self.device:
                 command.extend(['--', '--cycles-device', self.device])
