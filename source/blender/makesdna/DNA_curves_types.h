@@ -155,7 +155,7 @@ typedef struct CurvesGeometry {
 
   int custom_knot_num;
 
-  int32_t _pad;
+  char _pad[4];
 
 #ifdef __cplusplus
   blender::bke::CurvesGeometry &wrap();
