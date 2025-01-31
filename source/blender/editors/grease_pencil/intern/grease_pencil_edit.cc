@@ -1922,11 +1922,15 @@ static int grease_pencil_move_to_layer_exec(bContext *C, wmOperator *op)
       op->ptr, "target_layer_name", nullptr, 0, &target_layer_name_length);
   BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(target_layer_name); });
   const bool add_new_layer = RNA_boolean_get(op->ptr, "add_new_layer");
+  TreeNode *target_node = nullptr;
+
   if (add_new_layer) {
-    grease_pencil.add_layer(target_layer_name);
+    target_node = &grease_pencil.add_layer(target_layer_name).as_node();
+  }
+  else {
+    target_node = grease_pencil.find_node_by_name(target_layer_name);
   }
 
-  TreeNode *target_node = grease_pencil.find_node_by_name(target_layer_name);
   if (target_node == nullptr || !target_node->is_layer()) {
     BKE_reportf(op->reports, RPT_ERROR, "There is no layer '%s'", target_layer_name);
     return OPERATOR_CANCELLED;
@@ -1964,8 +1968,9 @@ static int grease_pencil_move_to_layer_exec(bContext *C, wmOperator *op)
           curves_src, selected_strokes, {});
       Curves *selected_curves = bke::curves_new_nomain(std::move(selected_elems));
       Curves *layer_curves = bke::curves_new_nomain(std::move(drawing_dst->strokes_for_write()));
-      std::array<bke::GeometrySet, 2> geometry_sets{bke::GeometrySet::from_curves(selected_curves),
-                                                    bke::GeometrySet::from_curves(layer_curves)};
+      std::array<bke::GeometrySet, 2> geometry_sets{
+          bke::GeometrySet::from_curves(layer_curves),
+          bke::GeometrySet::from_curves(selected_curves)};
       bke::GeometrySet joined = geometry::join_geometries(geometry_sets, {});
       drawing_dst->strokes_for_write() = std::move(joined.get_curves_for_write()->geometry.wrap());
 
