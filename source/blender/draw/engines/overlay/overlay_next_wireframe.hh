@@ -12,6 +12,7 @@
 #include "DNA_volume_types.h"
 
 #include "draw_common.hh"
+#include "draw_sculpt.hh"
 
 #include "overlay_next_base.hh"
 #include "overlay_next_mesh.hh"
@@ -90,6 +91,7 @@ class Wireframe : Overlay {
             sub.push_constant("colorType", state.v3d->shading.wire_color_type);
             sub.push_constant("useColoring", use_coloring);
             sub.push_constant("wireStepParam", wire_threshold);
+            sub.push_constant("ndc_offset_factor", &state.ndc_offset_factor);
             sub.push_constant("isHair", false);
             return &sub;
           };

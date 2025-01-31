@@ -8,8 +8,10 @@ set(INC
   intern
   ../compositor
   ../compositor/cached_resources
+  ../compositor/derived_resources
   ../draw/intern
   ../gpu/intern
+  ../makesrna
   ../simulation
   ../../../intern/mikktspace
   ../../../intern/mantaflow/extern
@@ -65,7 +67,6 @@ set(LIB
   bf_compositor
   PRIVATE bf::intern::atomic
   PRIVATE bf::nodes
-  PRIVATE bf::rna
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )

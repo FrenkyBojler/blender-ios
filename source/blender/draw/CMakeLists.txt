@@ -9,10 +9,12 @@ set(INC
   ../editors/include
   ../editors/space_view3d
   ../gpu/intern
+  ../makesrna
   ../render/intern
   ../compositor
   ../compositor/algorithms
   ../compositor/cached_resources
+  ../compositor/derived_resources
 
   ../../../intern/opensubdiv
 )
@@ -309,7 +311,6 @@ set(LIB
   bf_compositor
   PRIVATE bf::nodes
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
@@ -567,7 +568,6 @@ set(GLSL_SRC
   intern/shaders/common_subdiv_vbo_lnor_comp.glsl
   intern/shaders/common_subdiv_vbo_sculpt_data_comp.glsl
   intern/shaders/common_view_clipping_lib.glsl
-  intern/shaders/common_view_lib.glsl
   intern/shaders/draw_command_generate_comp.glsl
   intern/shaders/draw_debug_draw_display_frag.glsl
   intern/shaders/draw_debug_draw_display_vert.glsl
@@ -862,6 +862,7 @@ if(WITH_GTESTS)
       ../gpu/tests
     )
     set(TEST_LIB
+      gpu_tests
     )
     blender_add_test_suite_lib(draw "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
   endif()

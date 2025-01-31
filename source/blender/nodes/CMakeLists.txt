@@ -56,8 +56,11 @@ set(INC
   ../animrig
   ../editors/include
   ../depsgraph
+  ../makesrna
   ../modifiers
 
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -86,9 +89,10 @@ set(SRC
   intern/node_util.cc
   intern/partial_eval.cc
   intern/socket_search_link.cc
+  intern/socket_usage_inference.cc
   intern/value_elem.cc
 
-  NOD_common.h
+  NOD_common.hh
   NOD_composite.hh
   NOD_derived_node_tree.hh
   NOD_geometry.hh
@@ -118,7 +122,7 @@ set(SRC
   NOD_socket_items_ops.hh
   NOD_socket_items_ui.hh
   NOD_socket_search_link.hh
-  NOD_static_types.h
+  NOD_socket_usage_inference.hh
   NOD_texture.h
   NOD_value_elem.hh
   NOD_value_elem_eval.hh
@@ -148,7 +152,6 @@ set(LIB
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
@@ -207,3 +210,6 @@ endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::nodes ALIAS bf_nodes)
+
+# RNA_prototypes.hh
+add_dependencies(bf_nodes bf_rna)

@@ -108,7 +108,7 @@ static int toggle_pin_exec(bContext *C, wmOperator * /*op*/)
 
   /* Create the properties space pointer. */
   bScreen *screen = CTX_wm_screen(C);
-  PointerRNA sbuts_ptr = RNA_pointer_create(&screen->id, &RNA_SpaceProperties, sbuts);
+  PointerRNA sbuts_ptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceProperties, sbuts);
 
   /* Create the new ID pointer and set the pin ID with RNA
    * so we can use the property's RNA update functionality. */
@@ -325,8 +325,8 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   fbo->is_userdef = is_userdef;
   op->customdata = fbo;
 
-  /* Normally ED_fileselect_get_params would handle this but we need to because of stupid
-   * user-prefs exception. - campbell */
+  /* NOTE(@ideasman42): Normally #ED_fileselect_get_params would handle this
+   * but we need to because of stupid user-preferences exception. */
   if ((prop_relpath = RNA_struct_find_property(op->ptr, "relative_path"))) {
     if (!RNA_property_is_set(op->ptr, prop_relpath)) {
       bool is_relative = (U.flag & USER_RELPATHS) != 0;

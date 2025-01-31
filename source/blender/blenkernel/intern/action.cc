@@ -24,7 +24,6 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_endian_switch.h"
 #include "BLI_ghash.h"
 #include "BLI_math_color.h"
@@ -32,12 +31,12 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_session_uid.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
-
-#include "BLO_read_write.hh"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
@@ -64,7 +63,6 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.hh"
 
 #include "BLO_read_write.hh"
 
@@ -72,6 +70,7 @@
 #include "ANIM_action_legacy.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_bonecolor.hh"
+#include "ANIM_versioning.hh"
 
 #include "CLG_log.h"
 
@@ -680,11 +679,14 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
   read_layers(reader, action);
   read_slots(reader, action);
 
-  if (action.is_action_layered()) {
+  if (animrig::versioning::action_is_layered(action)) {
     /* Clear the forward-compatible storage (see action_blend_write_data()). */
-    BLI_listbase_clear(&action.chanbase);
     BLI_listbase_clear(&action.curves);
     BLI_listbase_clear(&action.groups);
+
+    /* Should never be stored as part of the forward-compatible data in a
+     * layered action, and thus should always be empty here. */
+    BLI_assert(BLI_listbase_is_empty(&action.chanbase));
   }
   else {
     /* Read legacy data. */

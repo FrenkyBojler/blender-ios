@@ -4,7 +4,10 @@
 
 set(INC
   ../include
+  ../../makesrna
 
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -38,7 +41,6 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
@@ -51,3 +53,15 @@ if(WITH_TBB)
 endif()
 
 blender_add_lib(bf_editor_curves "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_dependencies(bf_editor_curves bf_rna)
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    tests/curves_edit_test.cc
+  )
+  set(TEST_INC
+  )
+  set(TEST_LIB
+  )
+  blender_add_test_suite_lib(editor_curves "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+endif()

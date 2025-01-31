@@ -4,7 +4,12 @@
 
 set(INC
   PUBLIC .
-  PRIVATE intern
+  intern
+  ../animrig
+  ../makesrna
+
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -65,13 +70,13 @@ set(SRC
   intern/proxy_job.cc
   intern/render.cc
   intern/render.hh
-  intern/sequence_lookup.cc
   intern/sequencer.cc
   intern/sequencer.hh
   intern/sound.cc
   intern/strip_add.cc
   intern/strip_connect.cc
   intern/strip_edit.cc
+  intern/strip_lookup.cc
   intern/strip_relations.cc
   intern/strip_retiming.cc
   intern/strip_select.cc
@@ -84,7 +89,6 @@ set(SRC
 )
 
 set(LIB
-  PRIVATE bf::animrig
   PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
@@ -98,7 +102,6 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
@@ -121,3 +124,6 @@ endif()
 
 blender_add_lib(bf_sequencer "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::sequencer ALIAS bf_sequencer)
+
+# RNA_prototypes.hh
+add_dependencies(bf_sequencer bf_rna)

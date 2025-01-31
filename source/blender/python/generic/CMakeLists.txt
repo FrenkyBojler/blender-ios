@@ -4,6 +4,7 @@
 
 set(INC
   .
+  ../../makesrna
 )
 
 set(INC_SYS
@@ -21,7 +22,7 @@ set(SRC
   py_capi_rna.cc
   py_capi_utils.cc
 
-  bgl.h
+  bgl.hh
   bl_math_py_api.hh
   blf_py_api.hh
   idprop_py_api.hh
@@ -44,7 +45,6 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::rna
 )
 
 # NOTE: use irrespective of `WITH_OPENGL_BACKEND` as the `bgl` module uses this for constants.

@@ -4,7 +4,7 @@
 
 set(INC
   PUBLIC .
-  ../../../intern/locale
+  ../makesrna
 )
 
 set(INC_SYS
@@ -18,20 +18,30 @@ set(SRC
   BLT_translation.hh
 )
 
+if(WITH_INTERNATIONAL)
+  list(APPEND SRC
+    intern/messages.cc
+    intern/messages.hh
+  )
+
+  if(APPLE)
+    list(APPEND SRC
+      intern/messages_apple.mm
+    )
+  endif()
+endif()
+
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::imbuf
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::rna
 )
 
 if(WITH_INTERNATIONAL)
   add_definitions(-DWITH_INTERNATIONAL)
-  list(APPEND LIB
-    bf_intern_locale
-  )
 endif()
 
 if(WITH_PYTHON)

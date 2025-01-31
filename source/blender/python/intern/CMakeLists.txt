@@ -6,8 +6,11 @@ set(INC
   ..
   ../../editors/include
   ../../imbuf/intern/oiio
+  ../../makesrna
   ../../../../intern/mantaflow/extern
   ../../../../intern/opencolorio
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -129,13 +132,16 @@ set(LIB
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
 # Only to check if `buildinfo` is available.
 if(WITH_BUILDINFO)
   add_definitions(-DBUILD_DATE)
+endif()
+
+if(WITH_INSTALL_PORTABLE)
+  add_definitions(-DWITH_INSTALL_PORTABLE)
 endif()
 
 if(WITH_PYTHON_MODULE)
@@ -373,3 +379,6 @@ if(WITH_HYDRA)
 endif()
 
 blender_add_lib(bf_python "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# RNA_prototypes.hh
+add_dependencies(bf_python bf_rna)

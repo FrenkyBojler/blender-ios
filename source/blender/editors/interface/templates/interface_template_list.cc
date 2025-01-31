@@ -121,7 +121,7 @@ static void uilist_draw_item_default(uiList *ui_list,
 
 static void uilist_draw_filter_default(uiList *ui_list, const bContext * /*C*/, uiLayout *layout)
 {
-  PointerRNA listptr = RNA_pointer_create(nullptr, &RNA_UIList, ui_list);
+  PointerRNA listptr = RNA_pointer_create_discrete(nullptr, &RNA_UIList, ui_list);
 
   uiLayout *row = uiLayoutRow(layout, false);
 
@@ -217,8 +217,8 @@ void UI_list_filter_and_sort_items(uiList *ui_list,
   PropertyRNA *prop = RNA_struct_find_property(dataptr, propname);
 
   const bool filter_exclude = (ui_list->filter_flag & UILST_FLT_EXCLUDE) != 0;
-  const bool order_by_name = (ui_list->filter_sort_flag & UILST_FLT_SORT_MASK) ==
-                             UILST_FLT_SORT_ALPHA;
+  const bool order_by_name = (ui_list->filter_sort_flag & UILST_FLT_SORT_ALPHA) &&
+                             !(ui_list->filter_sort_flag & UILST_FLT_SORT_LOCK);
   const int len = RNA_property_collection_length(dataptr, prop);
 
   dyn_data->items_shown = dyn_data->items_len = len;
