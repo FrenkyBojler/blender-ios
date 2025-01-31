@@ -224,6 +224,18 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
   }
 }
 
+static void append_curve_knots(const IndexMask &mask, bke::CurvesGeometry &curves)
+{
+  curves.nurbs_custom_knots_update_size();
+  const int old_curves_num = curves.curves_num() - mask.size();
+  const OffsetIndices<int> knots_by_curve = curves.nurbs_custom_knots_by_curve();
+  MutableSpan<float> knots = curves.nurbs_custom_knots_for_write();
+  mask.foreach_index(GrainSize(512), [&](const int src_curve, const int appended_curve) {
+    const int dst_curve = old_curves_num + appended_curve;
+    knots.slice(knots_by_curve[dst_curve]).copy_from(knots.slice(knots_by_curve[src_curve]));
+  });
+}
+
 void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
 {
   const int orig_points_num = curves.points_num();
@@ -271,6 +283,10 @@ void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
 
   curves.update_curve_types();
   curves.tag_topology_changed();
+
+  if (curves.nurbs_custom_knots_num() > 0) {
+    append_curve_knots(mask, curves);
+  }
 
   for (const StringRef selection_name : get_curves_selection_attribute_names(curves)) {
     bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
