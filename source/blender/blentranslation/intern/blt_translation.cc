@@ -26,6 +26,7 @@
 #endif /* WITH_INTERNATIONAL */
 
 using blender::StringRef;
+using blender::StringRefNull;
 
 bool BLT_is_default_context(const StringRef msgctxt)
 {
@@ -39,26 +40,43 @@ bool BLT_is_default_context(const StringRef msgctxt)
 const char *BLT_pgettext(const char *msgctxt, const char *msgid)
 {
 #ifdef WITH_INTERNATIONAL
-  const char *ret = msgid;
-
-  if (msgid && msgid[0]) {
-    if (BLT_is_default_context(msgctxt)) {
-      msgctxt = BLT_I18NCONTEXT_DEFAULT;
-    }
-
-    ret = blender::locale::translate(0, msgctxt, msgid);
-
-    /* No translation found? Try py script translations. */
-    if (ret == nullptr) {
-#  ifdef WITH_PYTHON
-      ret = BPY_app_translations_py_pgettext(msgctxt, msgid);
-#  else
-      ret = msgid;
-#  endif
-    }
+  if (!msgid || !msgid[0]) {
+    return msgid;
   }
+  if (BLT_is_default_context(msgctxt)) {
+    msgctxt = BLT_I18NCONTEXT_DEFAULT;
+  }
+  if (const char *translation = blender::locale::translate(0, msgctxt, msgid)) {
+    return translation;
+  }
+#  ifdef WITH_PYTHON
+  return BPY_app_translations_py_pgettext(msgctxt, StringRefNull(msgid)).c_str();
+#  else
+  return msgid;
+#  endif
+#else
+  (void)msgctxt;
+  return msgid;
+#endif
+}
 
-  return ret;
+blender::StringRef BLT_pgettext(blender::StringRef msgctxt, blender::StringRef msgid)
+{
+#ifdef WITH_INTERNATIONAL
+  if (msgid.is_empty()) {
+    return msgid;
+  }
+  if (BLT_is_default_context(msgctxt)) {
+    msgctxt = BLT_I18NCONTEXT_DEFAULT;
+  }
+  if (const std::optional<StringRef> translation = blender::locale::translate(0, msgctxt, msgid)) {
+    return *translation;
+  }
+#  ifdef WITH_PYTHON
+  return BPY_app_translations_py_pgettext(msgctxt, msgid);
+#  else
+  return msgid;
+#  endif
 #else
   (void)msgctxt;
   return msgid;
@@ -125,7 +143,37 @@ const char *BLT_translate_do(const char *msgctxt, const char *msgid)
 #endif
 }
 
+StringRef BLT_translate_do(StringRef msgctxt, StringRef msgid)
+{
+#ifdef WITH_INTERNATIONAL
+  if (BLT_translate()) {
+    return BLT_pgettext(msgctxt, msgid);
+  }
+
+  return msgid;
+
+#else
+  (void)msgctxt;
+  return msgid;
+#endif
+}
+
 const char *BLT_translate_do_iface(const char *msgctxt, const char *msgid)
+{
+#ifdef WITH_INTERNATIONAL
+  if (BLT_translate_iface()) {
+    return BLT_pgettext(msgctxt, msgid);
+  }
+
+  return msgid;
+
+#else
+  (void)msgctxt;
+  return msgid;
+#endif
+}
+
+StringRef BLT_translate_do_iface(StringRef msgctxt, StringRef msgid)
 {
 #ifdef WITH_INTERNATIONAL
   if (BLT_translate_iface()) {
@@ -155,6 +203,21 @@ const char *BLT_translate_do_tooltip(const char *msgctxt, const char *msgid)
 #endif
 }
 
+StringRef BLT_translate_do_tooltip(StringRef msgctxt, StringRef msgid)
+{
+#ifdef WITH_INTERNATIONAL
+  if (BLT_translate_tooltips()) {
+    return BLT_pgettext(msgctxt, msgid);
+  }
+
+  return msgid;
+
+#else
+  (void)msgctxt;
+  return msgid;
+#endif
+}
+
 const char *BLT_translate_do_report(const char *msgctxt, const char *msgid)
 {
 #ifdef WITH_INTERNATIONAL
@@ -170,7 +233,37 @@ const char *BLT_translate_do_report(const char *msgctxt, const char *msgid)
 #endif
 }
 
+StringRef BLT_translate_do_report(StringRef msgctxt, StringRef msgid)
+{
+#ifdef WITH_INTERNATIONAL
+  if (BLT_translate_reports()) {
+    return BLT_pgettext(msgctxt, msgid);
+  }
+
+  return msgid;
+
+#else
+  (void)msgctxt;
+  return msgid;
+#endif
+}
+
 const char *BLT_translate_do_new_dataname(const char *msgctxt, const char *msgid)
+{
+#ifdef WITH_INTERNATIONAL
+  if (BLT_translate_new_dataname()) {
+    return BLT_pgettext(msgctxt, msgid);
+  }
+
+  return msgid;
+
+#else
+  (void)msgctxt;
+  return msgid;
+#endif
+}
+
+StringRef BLT_translate_do_new_dataname(StringRef msgctxt, StringRef msgid)
 {
 #ifdef WITH_INTERNATIONAL
   if (BLT_translate_new_dataname()) {

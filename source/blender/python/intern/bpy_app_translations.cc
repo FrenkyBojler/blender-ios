@@ -37,6 +37,9 @@ using blender::StringRefNull;
 
 #endif
 
+using blender::StringRef;
+using blender::StringRefNull;
+
 /* ------------------------------------------------------------------- */
 /** \name Local Struct to Store Translation
  * \{ */
@@ -67,15 +70,19 @@ static BlenderAppTranslations *_translations = nullptr;
 
 #ifdef WITH_INTERNATIONAL
 
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Python'S Messages Cache
+ * \{ */
+
 struct MessageKeyRef {
   StringRef context;
   StringRef str;
 
   uint64_t hash() const
   {
-    BLI_assert(this->context == BLT_I18NCONTEXT_DEFAULT_BPYRNA ||
-               !BLT_is_default_context(this->context));
-    return blender::get_default_hash(this->context, this->str);
+    return get_default_hash(context, str);
   }
 };
 
@@ -85,7 +92,7 @@ struct MessageKey {
 
   uint64_t hash() const
   {
-    return blender::get_default_hash(this->context, this->str);
+    return blender::get_default_hash(context, str);
   }
 
   static uint64_t hash_as(const MessageKeyRef &key)
@@ -103,12 +110,6 @@ inline bool operator==(const MessageKeyRef &a, const MessageKey &b)
 {
   return a.context == b.context && a.str == b.str;
 }
-
-/** \} */
-
-/* ------------------------------------------------------------------- */
-/** \name Python'S Messages Cache
- * \{ */
 
 /**
  * We cache all messages available for a given locale
@@ -236,10 +237,8 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
         }
 
         /* Do not overwrite existing keys! */
-        if (BPY_app_translations_py_pgettext(msgctxt, msgid) == msgid) {
-          MessageKey key;
-          key.context = BLT_is_default_context(msgctxt) ? BLT_I18NCONTEXT_DEFAULT_BPYRNA : msgctxt;
-          key.str = msgid;
+        if (BPY_app_translations_py_pgettext(msgctxt, StringRef(msgid)).data() == msgid) {
+          MessageKey key{msgctxt, msgid};
           Py_ssize_t trans_str_len;
           const char *trans_str = PyUnicode_AsUTF8AndSize(trans, &trans_str_len);
           get_translations_cache()->add(key, std::string(trans_str, trans_str_len));
@@ -254,7 +253,8 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
   MEM_SAFE_FREE(language_variant);
 }
 
-const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *msgid)
+template<typename StringT>
+inline StringT app_translations_py_pgettext(const StringRef msgctxt, const StringT msgid)
 {
 #  define STATIC_LOCALE_SIZE 32 /* Should be more than enough! */
 
@@ -293,6 +293,16 @@ const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *ms
   return result->c_str();
 
 #  undef STATIC_LOCALE_SIZE
+}
+
+StringRef BPY_app_translations_py_pgettext(const StringRef msgctxt, const StringRef msgid)
+{
+  return app_translations_py_pgettext(msgctxt, msgid);
+}
+
+StringRefNull BPY_app_translations_py_pgettext(const StringRef msgctxt, const StringRefNull msgid)
+{
+  return app_translations_py_pgettext(msgctxt, msgid);
 }
 
 #endif /* WITH_INTERNATIONAL */
