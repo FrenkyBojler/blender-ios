@@ -221,6 +221,7 @@ class MeshState {
       }
       const bke::GAttributeReader attribute = iter.get();
       if (!attribute.sharing_info) {
+        /* Results in false positives when an attribute has no sharing info. That is okay. */
         return;
       }
       attribute.sharing_info->add_user();
@@ -257,6 +258,18 @@ class MeshState {
   }
 };
 
+static void store_sculpt_entire_mesh(const wmOperator &op,
+                                     const Scene &scene,
+                                     Object &object,
+                                     Mesh *new_mesh)
+{
+  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  sculpt_paint::undo::geometry_begin(scene, object, &op);
+  BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
+  sculpt_paint::undo::geometry_end(object);
+  BKE_sculptsession_free_pbvh(object);
+}
+
 static void store_result_mesh_sculpt_mode(const wmOperator &op,
                                           const Scene &scene,
                                           const Depsgraph &depsgraph,
@@ -270,13 +283,10 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
 
   // TODO: Allow adding the 3 sculpt "built-in" attributes without "changing topology".
   if (changed_topology || new_mesh->attributes().all_ids() != mesh.attributes().all_ids()) {
-    sculpt_paint::undo::geometry_begin(scene, object, &op);
-    BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
-    sculpt_paint::undo::geometry_end(object);
-    BKE_sculptsession_free_pbvh(object);
+    store_sculpt_entire_mesh(op, scene, object, new_mesh);
   }
   else {
-    Vector<StringRef> changed_attributes;
+    VectorSet<StringRef> changed_attributes;
     new_mesh->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
       if (ELEM(iter.name, ".edge_verts", ".corner_vert", ".corner_edge")) {
         return;
@@ -285,7 +295,12 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       if (!orig_mesh_state.attribute_changed(iter.name, attribute.sharing_info)) {
         return;
       }
-      changed_attributes.append(iter.name);
+      changed_attributes.add(iter.name);
+    });
+    mesh.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
+      if (!new_mesh->attributes().contains(iter.name)) {
+        changed_attributes.add(iter.name);
+      }
     });
 
     bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -296,10 +311,19 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       sculpt_paint::undo::push_nodes(
           depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::Position);
       sculpt_paint::undo::push_end(object);
-      mesh.vert_positions_for_write().copy_from(new_mesh->vert_positions());
+      CustomData_free_layer_named(&mesh.vert_data, "position", mesh.verts_num);
+      mesh.attributes_for_write().remove("position");
+      if (bke::AttributeReader position = new_mesh->attributes().lookup<float3>("position")) {
+        if (position.domain == bke::AttrDomain::Point && position.sharing_info &&
+            position.varray.is_span())
+        {
+          const bke::AttributeInitShared init(position.varray.get_internal_span().data(),
+                                              *position.sharing_info);
+          mesh.attributes_for_write().add<float3>("position", bke::AttrDomain::Point, init);
+        }
+      }
       mesh.tag_positions_changed_no_normals();
       BKE_id_free(nullptr, new_mesh);
-      // BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
       pbvh.tag_positions_changed(leaf_nodes);
     }
     else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_mask"}) {
@@ -307,7 +331,14 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       sculpt_paint::undo::push_nodes(
           depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::Mask);
       sculpt_paint::undo::push_end(object);
-      BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
+      mesh.attributes_for_write().remove(".sculpt_mask");
+      if (bke::AttributeReader mask = new_mesh->attributes().lookup<float>(".sculpt_mask")) {
+        if (mask.domain == bke::AttrDomain::Point && mask.sharing_info && mask.varray.is_span()) {
+          const bke::AttributeInitShared init(mask.varray.get_internal_span().data(),
+                                              *mask.sharing_info);
+          mesh.attributes_for_write().add<float>(".sculpt_mask", bke::AttrDomain::Point, init);
+        }
+      }
       pbvh.tag_masks_changed(leaf_nodes);
     }
     else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_face_set"}) {
@@ -315,14 +346,21 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       sculpt_paint::undo::push_nodes(
           depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::FaceSet);
       sculpt_paint::undo::push_end(object);
-      BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
+      mesh.attributes_for_write().remove(".sculpt_face_set");
+      if (bke::AttributeReader face_sets = new_mesh->attributes().lookup<int>(".sculpt_face_set"))
+      {
+        if (face_sets.domain == bke::AttrDomain::Face && face_sets.sharing_info &&
+            face_sets.varray.is_span())
+        {
+          const bke::AttributeInitShared init(face_sets.varray.get_internal_span().data(),
+                                              *face_sets.sharing_info);
+          mesh.attributes_for_write().add<int>(".sculpt_face_set", bke::AttrDomain::Face, init);
+        }
+      }
       pbvh.tag_face_sets_changed(leaf_nodes);
     }
     else {
-      sculpt_paint::undo::geometry_begin(scene, object, &op);
-      BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
-      sculpt_paint::undo::geometry_end(object);
-      BKE_sculptsession_free_pbvh(object);
+      store_sculpt_entire_mesh(op, scene, object, new_mesh);
     }
   }
   if (!BKE_sculptsession_use_pbvh_draw(&object, rv3d)) {
