@@ -106,6 +106,51 @@ class CreateAssetTest(unittest.TestCase):
             self.assertAlmostEqual(fcurve.keyframe_points[0].co.y,
                                    expected_pose_values[fcurve.data_path][fcurve.array_index], 4)
 
+    def test_create_outside_asset(self):
+        self._armature_object.pose.bones[_BONE_NAME_1].location = (1, 1, 2)
+        self._armature_object.pose.bones[_BONE_NAME_2].location = (-1, 0, 0)
+
+        self._armature_object.pose.bones[_BONE_NAME_1].bone.select = True
+        self._armature_object.pose.bones[_BONE_NAME_2].bone.select = False
+
+        self.assertEqual(len(bpy.data.actions), 0)
+        bpy.ops.poselib.create_pose_asset(
+            pose_name="local_asset",
+            asset_library_reference=_LIB_NAME,
+            catalog_path="unit_test")
+
+        self.assertEqual(len(bpy.data.actions), 0, "The asset should not have been created in this file")
+        actions_folder = os.path.join(self._library.path, "Saved", "Actions")
+        asset_files = os.listdir(actions_folder)
+        self.assertEqual(len(asset_files),
+                         1, "The pose asset file should have been created")
+
+        with bpy.data.libraries.load(os.path.join(actions_folder, asset_files[0])) as (data_from, data_to):
+            self.assertEqual(data_from.actions, ["local_asset"])
+            data_to.actions = data_from.actions
+
+        pose_action = data_to.actions[0]
+
+        self.assertTrue(pose_action.asset_data is not None, "The created action should be marked as an asset")
+        expected_pose_values = {
+            f'pose.bones["{_BONE_NAME_1}"].location': (1, 1, 2),
+            f'pose.bones["{_BONE_NAME_1}"].rotation_quaternion': (1, 0, 0, 0),
+            f'pose.bones["{_BONE_NAME_1}"].scale': (1, 1, 1),
+            f'pose.bones["{_BONE_NAME_1}"]["bool_test"]': (True, ),
+            f'pose.bones["{_BONE_NAME_1}"]["float_test"]': (3.14, ),
+            # string_test is not here because it should not be keyed.
+        }
+        expected_pose_values.update(_BBONE_VALUES)
+        self.assertEqual(len(pose_action.fcurves), 26)
+        for fcurve in pose_action.fcurves:
+            self.assertTrue(
+                fcurve.data_path in expected_pose_values,
+                "Only the selected bone should be in the pose asset")
+            self.assertEqual(len(fcurve.keyframe_points), 1, "Only one key should have been created")
+            self.assertEqual(fcurve.keyframe_points[0].co.x, 1, "Poses should be on the first frame")
+            self.assertAlmostEqual(fcurve.keyframe_points[0].co.y,
+                                   expected_pose_values[fcurve.data_path][fcurve.array_index], 4)
+
 
 def main():
     global args
