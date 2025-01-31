@@ -1995,14 +1995,13 @@ static void rna_def_action_slot(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "identifier", PROP_STRING, PROP_NONE);
   RNA_def_struct_name_property(srna, prop);
-  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_ActionSlot_identifier_set");
   RNA_def_property_string_maxlength(prop, sizeof(ActionSlot::identifier));
-  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_ActionSlot_identifier_update");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop,
       "Slot Identifier",
       "Used when connecting an Action to a data-block, to find the correct slot handle. This is "
-      "the display name, prefixed by two characters determined by the slot's ID type");
+      "the display name, prefixed by two characters determined by the slot's target ID type");
 
   prop = RNA_def_property(srna, "target_id_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "idtype");
