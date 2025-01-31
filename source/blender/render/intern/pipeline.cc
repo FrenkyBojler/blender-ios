@@ -1185,7 +1185,7 @@ static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
  * otherwise. */
 static Scene *get_scene_referenced_by_node(const bNode *node)
 {
-  if (node->flag & NODE_MUTED) {
+  if (node->is_muted()) {
     return nullptr;
   }
 
@@ -1236,13 +1236,13 @@ static bool node_tree_has_composite_output(const bNodeTree *node_tree)
   }
 
   for (const bNode *node : node_tree->all_nodes()) {
-    if (node->flag & NODE_MUTED) {
+    if (node->is_muted()) {
       continue;
     }
     if (node->type_legacy == CMP_NODE_COMPOSITE && node->flag & NODE_DO_OUTPUT) {
       return true;
     }
-    if (ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP) && node->id) {
+    if (node->is_group() && node->id) {
       if (node_tree_has_composite_output(reinterpret_cast<const bNodeTree *>(node->id))) {
         return true;
       }
@@ -1456,6 +1456,47 @@ bool RE_seq_render_active(Scene *scene, RenderData *rd)
   return false;
 }
 
+static bool seq_result_needs_float(const ImageFormatData &im_format)
+{
+  return ELEM(im_format.depth, R_IMF_CHAN_DEPTH_10, R_IMF_CHAN_DEPTH_12);
+}
+
+static ImBuf *seq_process_render_image(ImBuf *src,
+                                       const ImageFormatData &im_format,
+                                       const Scene *scene)
+{
+  if (src == nullptr) {
+    return nullptr;
+  }
+
+  ImBuf *dst = nullptr;
+  if (seq_result_needs_float(im_format) && src->float_buffer.data == nullptr) {
+    /* If render output needs >8-BPP input and we only have 8-BPP, convert to float. */
+    dst = IMB_allocImBuf(src->x, src->y, src->planes, 0);
+    imb_addrectfloatImBuf(dst, src->channels, false);
+    /* Transform from sequencer space to scene linear. */
+    const char *from_colorspace = IMB_colormanagement_get_rect_colorspace(src);
+    const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
+        COLOR_ROLE_SCENE_LINEAR);
+    IMB_colormanagement_transform_from_byte_threaded(dst->float_buffer.data,
+                                                     src->byte_buffer.data,
+                                                     src->x,
+                                                     src->y,
+                                                     src->channels,
+                                                     from_colorspace,
+                                                     to_colorspace);
+  }
+  else {
+    /* Duplicate sequencer output and ensure it is in needed color space. */
+    dst = IMB_dupImBuf(src);
+    SEQ_render_imbuf_from_sequencer_space(scene, dst);
+  }
+  IMB_metadata_copy(dst, src);
+  IMB_freeImBuf(src);
+
+  return dst;
+}
+
 /* Render sequencer strips into render result. */
 static void do_render_sequencer(Render *re)
 {
@@ -1500,16 +1541,7 @@ static void do_render_sequencer(Render *re)
   for (view_id = 0; view_id < tot_views; view_id++) {
     context.view_id = view_id;
     out = SEQ_render_give_ibuf(&context, cfra, 0);
-
-    if (out) {
-      ibuf_arr[view_id] = IMB_dupImBuf(out);
-      IMB_metadata_copy(ibuf_arr[view_id], out);
-      IMB_freeImBuf(out);
-      SEQ_render_imbuf_from_sequencer_space(re->pipeline_scene_eval, ibuf_arr[view_id]);
-    }
-    else {
-      ibuf_arr[view_id] = nullptr;
-    }
+    ibuf_arr[view_id] = seq_process_render_image(out, re->r.im_format, re->pipeline_scene_eval);
   }
 
   rr = re->result;
@@ -1628,7 +1660,7 @@ static bool check_valid_compositing_camera(Scene *scene,
 {
   if (scene->r.scemode & R_DOCOMP && scene->use_nodes) {
     for (bNode *node : scene->nodetree->all_nodes()) {
-      if (node->type_legacy == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
+      if (node->type_legacy == CMP_NODE_R_LAYERS && !node->is_muted()) {
         Scene *sce = node->id ? (Scene *)node->id : scene;
         if (sce->camera == nullptr) {
           sce->camera = BKE_view_layer_camera_find(sce, BKE_view_layer_default_render(sce));
@@ -1742,7 +1774,7 @@ static bool node_tree_has_any_compositor_output(const bNodeTree *ntree)
     if (ELEM(node->type_legacy, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
       return true;
     }
-    if (ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+    if (node->is_group()) {
       if (node->id) {
         if (node_tree_has_any_compositor_output((const bNodeTree *)node->id)) {
           return true;
@@ -2208,21 +2240,29 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
 
     ibuf_arr[2] = IMB_stereo3d_ImBuf(&image_format, ibuf_arr[0], ibuf_arr[1]);
 
-    BLI_assert(movie_writers[0] != nullptr);
-    if (!MOV_write_append(movie_writers[0],
-                          rd,
-                          preview ? scene->r.psfra : scene->r.sfra,
-                          scene->r.cfra,
-                          ibuf_arr[2],
-                          "",
-                          reports))
-    {
+    if (ibuf_arr[2]) {
+      BLI_assert(movie_writers[0] != nullptr);
+      if (!MOV_write_append(movie_writers[0],
+                            rd,
+                            preview ? scene->r.psfra : scene->r.sfra,
+                            scene->r.cfra,
+                            ibuf_arr[2],
+                            "",
+                            reports))
+      {
+        ok = false;
+      }
+    }
+    else {
+      BKE_report(reports, RPT_ERROR, "Failed to create stereo image buffer");
       ok = false;
     }
 
     for (i = 0; i < 3; i++) {
       /* imbuf knows which rects are not part of ibuf */
-      IMB_freeImBuf(ibuf_arr[i]);
+      if (ibuf_arr[i]) {
+        IMB_freeImBuf(ibuf_arr[i]);
+      }
     }
   }
 

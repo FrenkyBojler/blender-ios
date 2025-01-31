@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'efff379ea583')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
-"PO-Revision-Date: 2024-12-30 14:39+0000\n"
+"POT-Creation-Date: 2025-01-27 10:58+0000\n"
+"PO-Revision-Date: 2025-01-27 09:56+0000\n"
 "Last-Translator: Sander Spolspoel <sander@sworl.be>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
 "Language: nl\n"
@@ -2735,12 +2735,12 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Show/Hide"
-msgstr "Toon/Verberg"
-
-
 msgid "Names"
 msgstr "Namen"
+
+
+msgid "Show/Hide"
+msgstr "Toon/Verberg"
 
 
 msgid "Mirror"
@@ -4116,6 +4116,10 @@ msgid "Visible Objects"
 msgstr "Zichtbare Objecten"
 
 
+msgid "Keep Original"
+msgstr "Hou Orgineel"
+
+
 msgid "General"
 msgstr "Algemeen"
 
@@ -5450,10 +5454,6 @@ msgstr "Selecteer Gekoppeld"
 msgctxt "Operator"
 msgid "Apply Visual Transform to Pose"
 msgstr "Pas Visuele Transformatie Toe aan Pose"
-
-
-msgid "Keep Original"
-msgstr "Hou Orgineel"
 
 
 msgctxt "Operator"
@@ -6988,10 +6988,6 @@ msgid "Cross"
 msgstr "Kruisovergang"
 
 
-msgid "Add Sequence"
-msgstr "Voeg Sequentie Toe"
-
-
 msgid "Use Annotations"
 msgstr "Gebruik Annotaties"
 
@@ -8486,10 +8482,6 @@ msgid "To 3D Cursor"
 msgstr "Naar 3D Cursor"
 
 
-msgid "Developer"
-msgstr "Ontwikkelaar"
-
-
 msgid "Material Name"
 msgstr "Materiaal Naam"
 
@@ -8669,6 +8661,10 @@ msgid "Nothing selected"
 msgstr "Niets geselecteerd"
 
 
+msgid "Cancel"
+msgstr "Annuleren"
+
+
 msgid "Pin"
 msgstr "Prik"
 
@@ -8710,10 +8706,6 @@ msgstr "Kopieer Alles naar Geselecteerd"
 
 msgid "OK"
 msgstr "OK"
-
-
-msgid "Cancel"
-msgstr "Annuleren"
 
 
 msgid "Movie"
@@ -8938,6 +8930,18 @@ msgid "No vertex selected"
 msgstr "Geen punten geselecteerd"
 
 
+msgid "Use mouse"
+msgstr "Gebruik muis"
+
+
+msgid "Use Pivot"
+msgstr "Gebruik draaipunt"
+
+
+msgid "Set and use 3D cursor"
+msgstr "Plaats en gebruik 3D cursor"
+
+
 msgid "No edges selected"
 msgstr "Geen randen geselecteerd"
 
@@ -9143,10 +9147,6 @@ msgstr "(leeg)"
 
 msgid "Mask not found"
 msgstr "Masker niet gevonden"
-
-
-msgid "TODO: in what cases does this happen?"
-msgstr "TODO: wanneer gebeurt dit?"
 
 
 msgid "No valid inputs to swap"

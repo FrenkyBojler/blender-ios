@@ -69,8 +69,6 @@ static const pxr::TfToken opacity("opacity", pxr::TfToken::Immortal);
 static const pxr::TfToken opacityThreshold("opacityThreshold", pxr::TfToken::Immortal);
 static const pxr::TfToken surface("surface", pxr::TfToken::Immortal);
 static const pxr::TfToken displacement("displacement", pxr::TfToken::Immortal);
-static const pxr::TfToken perspective("perspective", pxr::TfToken::Immortal);
-static const pxr::TfToken orthographic("orthographic", pxr::TfToken::Immortal);
 static const pxr::TfToken rgb("rgb", pxr::TfToken::Immortal);
 static const pxr::TfToken r("r", pxr::TfToken::Immortal);
 static const pxr::TfToken g("g", pxr::TfToken::Immortal);
@@ -88,7 +86,6 @@ static const pxr::TfToken scale("scale", pxr::TfToken::Immortal);
 static const pxr::TfToken bias("bias", pxr::TfToken::Immortal);
 static const pxr::TfToken sRGB("sRGB", pxr::TfToken::Immortal);
 static const pxr::TfToken sourceColorSpace("sourceColorSpace", pxr::TfToken::Immortal);
-static const pxr::TfToken Shader("Shader", pxr::TfToken::Immortal);
 static const pxr::TfToken black("black", pxr::TfToken::Immortal);
 static const pxr::TfToken clamp("clamp", pxr::TfToken::Immortal);
 static const pxr::TfToken repeat("repeat", pxr::TfToken::Immortal);
@@ -1323,6 +1320,7 @@ static void export_texture(const USDExporterContext &usd_export_context, bNode *
                  usd_export_context.export_params.worker_status->reports);
 }
 
+#ifdef WITH_MATERIALX
 static void export_texture(const USDExporterContext &usd_export_context, Image *ima)
 {
   export_texture(ima,
@@ -1330,6 +1328,7 @@ static void export_texture(const USDExporterContext &usd_export_context, Image *
                  usd_export_context.export_params.overwrite_textures,
                  usd_export_context.export_params.worker_status->reports);
 }
+#endif
 
 void export_texture(bNode *node,
                     const pxr::UsdStageRefPtr stage,
@@ -1412,6 +1411,8 @@ static void create_usd_materialx_material(const USDExporterContext &usd_export_c
                                           const pxr::UsdShadeMaterial &usd_material)
 {
   blender::nodes::materialx::ExportParams export_params = {
+      /* Output surface material node will have this name. */
+      usd_path.GetElementString(),
       /* We want to re-use the same MaterialX document generation code as used by the renderer.
        * While the graph is traversed, we also want it to export the textures out. */
       (usd_export_context.export_image_fn) ? usd_export_context.export_image_fn :
@@ -1426,9 +1427,8 @@ static void create_usd_materialx_material(const USDExporterContext &usd_export_c
       active_uvmap_name,
   };
 
-  std::string material_name = usd_path.GetElementString();
   MaterialX::DocumentPtr doc = blender::nodes::materialx::export_to_materialx(
-      usd_export_context.depsgraph, material, material_name, export_params);
+      usd_export_context.depsgraph, material, export_params);
 
   /* We want to merge the MaterialX graph under the same Material as the USDPreviewSurface
    * This allows for the same material assignment to have two levels of complexity so other

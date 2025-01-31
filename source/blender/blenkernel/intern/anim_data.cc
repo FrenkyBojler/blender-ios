@@ -15,8 +15,6 @@
 #include <cstring>
 #include <optional>
 
-#include "ANIM_action.hh"
-
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -37,7 +35,6 @@
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
-#include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
