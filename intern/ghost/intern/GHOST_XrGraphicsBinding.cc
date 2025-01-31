@@ -297,6 +297,46 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
   GLuint m_fbo = 0;
 };
 
+class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
+ public:
+  bool checkVersionRequirements(GHOST_Context & /*ghost_ctx*/,
+                                XrInstance /*instance*/,
+                                XrSystemId /*system_id*/,
+                                std::string * /*r_requirement_info*/) const override
+  {
+    return false;
+  }
+
+  void initFromGhostContext(GHOST_Context & /*ghost_ctx*/) override {}
+
+  std::optional<int64_t> chooseSwapchainFormat(const std::vector<int64_t> & /*runtime_formats*/,
+                                               GHOST_TXrSwapchainFormat & /*r_format*/,
+                                               bool & /*r_is_srgb_format*/) const override
+  {
+    return std::nullopt;
+  }
+
+  std::vector<XrSwapchainImageBaseHeader *> createSwapchainImages(
+      uint32_t /*image_count*/) override
+  {
+    std::vector<XrSwapchainImageBaseHeader *> base_images;
+
+    return base_images;
+  }
+
+  void submitToSwapchainImage(XrSwapchainImageBaseHeader & /*swapchain_image*/,
+                              const GHOST_XrDrawViewInfo & /*draw_info*/) override
+  {
+  }
+
+  bool needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const override
+  {
+    return ghost_ctx.isUpsideDown();
+  }
+
+ private:
+};
+
 #ifdef WIN32
 static void ghost_format_to_dx_format(GHOST_TXrSwapchainFormat ghost_format,
                                       bool expects_srgb_buffer,
@@ -519,6 +559,8 @@ std::unique_ptr<GHOST_IXrGraphicsBinding> GHOST_XrGraphicsBindingCreateFromType(
   switch (type) {
     case GHOST_kXrGraphicsOpenGL:
       return std::make_unique<GHOST_XrGraphicsBindingOpenGL>();
+    case GHOST_kXrGraphicsVulkan:
+      return std::make_unique<GHOST_XrGraphicsBindingVulkan>();
 #ifdef WIN32
     case GHOST_kXrGraphicsD3D11:
       return std::make_unique<GHOST_XrGraphicsBindingD3D>(context);

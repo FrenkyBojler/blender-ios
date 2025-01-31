@@ -67,6 +67,7 @@ bool wm_xr_init(wmWindowManager *wm)
   GHOST_XrErrorHandler(wm_xr_error_handler, &error_customdata);
 
   {
+    // TODO(jbakker): Only add the ones that are compatible with the active GPU backend.
     const GHOST_TXrGraphicsBinding gpu_bindings_candidates[] = {
 #ifdef WITH_OPENGL_BACKEND
         GHOST_kXrGraphicsOpenGL,
