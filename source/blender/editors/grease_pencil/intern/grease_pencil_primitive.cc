@@ -765,6 +765,7 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op)
   const Scene &scene = *CTX_data_scene(C);
   const bool do_automerge_endpoints = (scene.toolsettings->gpencil_flags &
                                        GP_TOOL_FLAG_AUTOMERGE_STROKE) != 0;
+  const bool on_back = (scene.toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
   if (do_automerge_endpoints) {
     const Object &ob = *ptd->vc.obact;
@@ -773,12 +774,14 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op)
 
     constexpr float merge_distance = 30.0f;
     const float4x4 layer_to_world = active_layer.to_world_space(ob);
-    const bke::CurvesGeometry &src_curves = ptd->drawing->strokes();
-    const IndexMask selection = IndexRange::from_single(src_curves.curve_num - 1);
+    bke::greasepencil::Drawing &src_drawing = *ptd->drawing;
+    const int active_curve = on_back ? src_drawing.strokes().curves_range().first() :
+                                       src_drawing.strokes().curves_range().last();
+    const IndexMask selection = IndexRange::from_single(active_curve);
 
-    ptd->drawing->strokes_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
-        *CTX_wm_region(C), src_curves, layer_to_world, merge_distance, selection, {});
-    ptd->drawing->tag_topology_changed();
+    src_drawing.strokes_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
+        *CTX_wm_region(C), src_drawing.strokes(), layer_to_world, merge_distance, selection, {});
+    src_drawing.tag_topology_changed();
   }
 
   /* Clear status message area. */
