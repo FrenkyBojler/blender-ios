@@ -112,6 +112,8 @@ def generate_tests(test_dir, blender, gen_re):
 
             if re.match(gen_re, filename) is None:
                 continue
+
+            #TODO: Detect if generator file is newer than generated files?
             
             command = [
                 blender,
