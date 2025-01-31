@@ -33,8 +33,8 @@ CCL_NAMESPACE_BEGIN
 
 struct ccl_align(8) LayerClosure
 {
-  const ccl_private OSLClosure *base;
   const ccl_private OSLClosure *top;
+  const ccl_private OSLClosure *base;
 };
 
 /* If we failed to allocate a layer-able closure, we need to zero out the albedo
