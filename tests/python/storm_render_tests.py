@@ -11,18 +11,16 @@ from pathlib import Path
 # Unsupported or broken scenarios for the Storm render engine
 BLOCKLIST_HYDRA = [
     # Corrupted output
-    "image_half.*.blend",
+    "image.*_half.*.blend",
     "image_packed_float.*.blend",
-    "image_packed_half.*.blend",
     # Differences between devices/drivers causing this to fail
     "image.blend",
 ]
 
 BLOCKLIST_USD = [
     # Corrupted output
-    "image_half.*.blend",
+    "image.*_half.*.blend",
     "image_packed_float.*.blend",
-    "image_packed_half.*.blend",
     # Nondeterministic exporting of lights in the scene
     "light_tree_node_subtended_angle.blend",
 ]
