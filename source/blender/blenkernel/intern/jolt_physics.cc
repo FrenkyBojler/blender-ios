@@ -20,6 +20,9 @@
 #  include <Jolt/RegisterTypes.h>
 #endif
 
+#include <cstdarg>
+#include <iostream>
+
 // Disable common warnings triggered by Jolt, you can use JPH_SUPPRESS_WARNING_PUSH /
 // JPH_SUPPRESS_WARNING_POP to store and restore the warning state
 JPH_SUPPRESS_WARNINGS
@@ -30,15 +33,15 @@ namespace blender::bke {
 // Callback for traces, connect this to your own trace function if you have one
 static void TraceImpl(const char *inFMT, ...)
 {
-  //// Format the message
-  // va_list list;
-  // va_start(list, inFMT);
-  // char buffer[1024];
-  // vsnprintf(buffer, sizeof(buffer), inFMT, list);
-  // va_end(list);
+  // Format the message
+  va_list list;
+  va_start(list, inFMT);
+  char buffer[1024];
+  vsnprintf(buffer, sizeof(buffer), inFMT, list);
+  va_end(list);
 
-  //// Print to the TTY
-  // cout << buffer << endl;
+  // Print to the TTY
+  std::cout << buffer << std::endl;
 }
 
 #  ifdef JPH_ENABLE_ASSERTS
