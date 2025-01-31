@@ -143,9 +143,8 @@ def _run(args: dict):
         bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override))
         end = time.time()
 
-    result = {'time': end - start}
     # bpy.ops.wm.save_mainfile(filepath="/home/hans/Documents/test.blend")
-    return result
+    return end - start
 
 
 class SculptBrushTest(api.Test):
@@ -166,9 +165,12 @@ class SculptBrushTest(api.Test):
     def run(self, env, _device_id):
         args = {"mode": self.mode.value}
 
-        result, _ = env.run_in_blender(_run, args, [self.filepath])
+        times = []
+        for _ in range(10):
+            result, _ = env.run_in_blender(_run, args, [self.filepath])
+            times.append(result)
 
-        return result
+        return {'time': sum(times) / len(times)}
 
 
 def generate(env):
