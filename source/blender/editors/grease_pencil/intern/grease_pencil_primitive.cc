@@ -785,14 +785,15 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op)
 
     constexpr float merge_distance = 30.0f;
     const float4x4 layer_to_world = active_layer.to_world_space(ob);
-    bke::greasepencil::Drawing &src_drawing = *ptd->drawing;
-    const int active_curve = on_back ? src_drawing.strokes().curves_range().first() :
-                                       src_drawing.strokes().curves_range().last();
+    bke::greasepencil::Drawing &drawing = *ptd->drawing;
+    const bke::CurvesGeometry &src_curves = drawing.strokes();
+    const int active_curve = on_back ? src_curves.curves_range().first() :
+                                       src_curves.curves_range().last();
     const IndexMask selection = IndexRange::from_single(active_curve);
 
-    src_drawing.strokes_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
-        *CTX_wm_region(C), src_drawing.strokes(), layer_to_world, merge_distance, selection, {});
-    src_drawing.tag_topology_changed();
+    drawing.strokes_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
+        *CTX_wm_region(C), src_curves, layer_to_world, merge_distance, selection, {});
+    drawing.tag_topology_changed();
   }
 
   /* Clear status message area. */
