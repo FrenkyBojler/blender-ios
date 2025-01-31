@@ -3101,8 +3101,8 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
           }
 
           float hit_depth = std::numeric_limits<float>::max();
-          float3 hit_position = float3(0.0f);
-          float3 hit_normal = float3(0.0f);
+          float3 hit_position(0.0f);
+          float3 hit_normal(0.0f);
 
           SnapObjectParams params{};
           params.snap_target_select = SCE_SNAP_TARGET_ALL;
