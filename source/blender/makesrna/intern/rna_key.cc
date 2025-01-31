@@ -621,7 +621,7 @@ static PointerRNA rna_ShapeKey_data_get(CollectionPropertyIterator *iter)
   if (iter->internal.array.free_ptr) {
     ShapeKeyCurvePoint *point = static_cast<ShapeKeyCurvePoint *>(ptr);
 
-    return RNA_pointer_create_with_ancestors(iter->parent, point->type, point->data);
+    return RNA_pointer_create_with_parent(iter->parent, point->type, point->data);
   }
 
   if (GS(key->from->name) == ID_CU_LEGACY) {
@@ -630,7 +630,7 @@ static PointerRNA rna_ShapeKey_data_get(CollectionPropertyIterator *iter)
     type = rna_ShapeKey_curve_point_type(static_cast<Nurb *>(cu->nurb.first));
   }
 
-  return RNA_pointer_create_with_ancestors(iter->parent, type, ptr);
+  return RNA_pointer_create_with_parent(iter->parent, type, ptr);
 }
 
 bool rna_ShapeKey_data_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)

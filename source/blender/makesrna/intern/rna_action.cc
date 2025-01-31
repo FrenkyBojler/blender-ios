@@ -848,7 +848,7 @@ static PointerRNA rna_ActionGroup_channels_get(CollectionPropertyIterator *iter)
       break;
   }
 
-  return RNA_pointer_create_with_ancestors(iter->parent, &RNA_FCurve, fcurve);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_FCurve, fcurve);
 }
 
 /* Use the backward-compatible API only when we're working with the action as a
@@ -904,7 +904,7 @@ static PointerRNA rna_iterator_Action_groups_get(CollectionPropertyIterator *ite
     group = static_cast<bActionGroup *>(rna_iterator_listbase_get(iter));
   }
 
-  return RNA_pointer_create_with_ancestors(iter->parent, &RNA_ActionGroup, group);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_ActionGroup, group);
 }
 static int rna_iterator_Action_groups_length(PointerRNA *ptr)
 {
@@ -1041,7 +1041,7 @@ static PointerRNA rna_iterator_Action_fcurves_get(CollectionPropertyIterator *it
     fcurve = static_cast<FCurve *>(rna_iterator_listbase_get(iter));
   }
 
-  return RNA_pointer_create_with_ancestors(iter->parent, &RNA_FCurve, fcurve);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_FCurve, fcurve);
 }
 static int rna_iterator_Action_fcurves_length(PointerRNA *ptr)
 {
@@ -1238,7 +1238,7 @@ static void rna_Action_pose_markers_remove(bAction *act,
 static PointerRNA rna_Action_active_pose_marker_get(PointerRNA *ptr)
 {
   bAction *act = (bAction *)ptr->data;
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_with_parent(
       *ptr, &RNA_TimelineMarker, BLI_findlink(&act->markers, act->active_marker - 1));
 }
 

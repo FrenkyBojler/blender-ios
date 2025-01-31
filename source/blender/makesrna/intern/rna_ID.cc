@@ -1513,7 +1513,7 @@ static PointerRNA rna_IDPreview_get(PointerRNA *ptr)
   ID *id = (ID *)ptr->data;
   PreviewImage *prv_img = BKE_previewimg_id_get(id);
 
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_ImagePreview, prv_img);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ImagePreview, prv_img);
 }
 
 static IDProperty **rna_IDPropertyWrapPtr_idprops(PointerRNA *ptr)

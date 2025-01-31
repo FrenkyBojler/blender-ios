@@ -279,7 +279,7 @@ static void rna_SequenceEditor_strips_all_next(CollectionPropertyIterator *iter)
 static PointerRNA rna_SequenceEditor_strips_all_get(CollectionPropertyIterator *iter)
 {
   Strip *strip = static_cast<Strip *>(((BLI_Iterator *)iter->internal.custom)->current);
-  return RNA_pointer_create_with_ancestors(iter->parent, &RNA_Strip, strip);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_Strip, strip);
 }
 
 static void rna_SequenceEditor_strips_all_end(CollectionPropertyIterator *iter)
@@ -896,7 +896,7 @@ static PointerRNA rna_SequenceEditor_meta_stack_get(CollectionPropertyIterator *
   ListBaseIterator *internal = &iter->internal.listbase;
   MetaStack *ms = (MetaStack *)internal->link;
 
-  return RNA_pointer_create_with_ancestors(iter->parent, &RNA_Strip, ms->parseq);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_Strip, ms->parseq);
 }
 
 /* TODO: expose strip path setting as a higher level sequencer BKE function. */

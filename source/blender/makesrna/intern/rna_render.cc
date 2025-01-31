@@ -425,7 +425,7 @@ static PointerRNA rna_RenderEngine_render_get(PointerRNA *ptr)
   if (engine->re) {
     RenderData *r = RE_engine_get_render_data(engine->re);
 
-    return RNA_pointer_create_with_ancestors(*ptr, &RNA_RenderSettings, r);
+    return RNA_pointer_create_with_parent(*ptr, &RNA_RenderSettings, r);
   }
   return PointerRNA_NULL;
 }

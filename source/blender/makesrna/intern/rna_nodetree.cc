@@ -1336,7 +1336,7 @@ static PointerRNA rna_NodeTree_active_node_get(PointerRNA *ptr)
 {
   bNodeTree *ntree = static_cast<bNodeTree *>(ptr->data);
   bNode *node = blender::bke::node_get_active(ntree);
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_Node, node);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_Node, node);
 }
 
 static void rna_NodeTree_active_node_set(PointerRNA *ptr,
@@ -3597,7 +3597,7 @@ static void rna_NodeOutputFile_slots_begin(CollectionPropertyIterator *iter, Poi
 static PointerRNA rna_NodeOutputFile_slot_file_get(CollectionPropertyIterator *iter)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(rna_iterator_listbase_get(iter));
-  PointerRNA ptr = RNA_pointer_create_with_ancestors(
+  PointerRNA ptr = RNA_pointer_create_with_parent(
       iter->parent, &RNA_NodeOutputFileSlotFile, sock->storage);
   return ptr;
 }
@@ -4186,7 +4186,7 @@ static const EnumPropertyItem *rna_NodeGeometryCaptureAttributeItem_data_type_it
 static PointerRNA rna_NodeOutputFile_slot_layer_get(CollectionPropertyIterator *iter)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(rna_iterator_listbase_get(iter));
-  PointerRNA ptr = RNA_pointer_create_with_ancestors(
+  PointerRNA ptr = RNA_pointer_create_with_parent(
       iter->parent, &RNA_NodeOutputFileSlotLayer, sock->storage);
   return ptr;
 }

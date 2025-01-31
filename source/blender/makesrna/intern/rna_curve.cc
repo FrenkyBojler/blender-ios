@@ -750,7 +750,7 @@ static PointerRNA rna_Curve_active_spline_get(PointerRNA *ptr)
   nu = static_cast<Nurb *>(BLI_findlink(nurbs, cu->actnu));
 
   if (nu) {
-    return RNA_pointer_create_with_ancestors(*ptr, &RNA_Spline, nu);
+    return RNA_pointer_create_with_parent(*ptr, &RNA_Spline, nu);
   }
 
   return PointerRNA_NULL;

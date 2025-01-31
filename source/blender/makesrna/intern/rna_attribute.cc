@@ -598,7 +598,7 @@ PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter)
   if (type == nullptr) {
     return PointerRNA_NULL;
   }
-  return RNA_pointer_create_with_ancestors(iter->parent, type, layer);
+  return RNA_pointer_create_with_parent(iter->parent, type, layer);
 }
 
 void rna_AttributeGroup_color_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -626,7 +626,7 @@ PointerRNA rna_AttributeGroup_color_iterator_get(CollectionPropertyIterator *ite
   if (type == nullptr) {
     return PointerRNA_NULL;
   }
-  return RNA_pointer_create_with_ancestors(iter->parent, type, layer);
+  return RNA_pointer_create_with_parent(iter->parent, type, layer);
 }
 
 int rna_AttributeGroup_color_length(PointerRNA *ptr)
@@ -678,7 +678,7 @@ static PointerRNA rna_AttributeGroupID_active_get(PointerRNA *ptr)
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
   CustomDataLayer *layer = BKE_attributes_active_get(owner);
 
-  PointerRNA attribute_ptr = RNA_pointer_create_with_ancestors(*ptr, &RNA_Attribute, layer);
+  PointerRNA attribute_ptr = RNA_pointer_create_with_parent(*ptr, &RNA_Attribute, layer);
   return attribute_ptr;
 }
 

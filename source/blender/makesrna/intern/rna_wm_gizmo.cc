@@ -287,7 +287,7 @@ static IDProperty **rna_GizmoProperties_idprops(PointerRNA *ptr)
 static PointerRNA rna_Gizmo_properties_get(PointerRNA *ptr)
 {
   wmGizmo *gz = static_cast<wmGizmo *>(ptr->data);
-  return RNA_pointer_create_with_ancestors(*ptr, gz->type->srna, gz->properties);
+  return RNA_pointer_create_with_parent(*ptr, gz->type->srna, gz->properties);
 }
 
 /* wmGizmo.float */
@@ -410,7 +410,7 @@ static void rna_Gizmo_state_select_set(PointerRNA *ptr, bool value)
 static PointerRNA rna_Gizmo_group_get(PointerRNA *ptr)
 {
   wmGizmo *gz = static_cast<wmGizmo *>(ptr->data);
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_GizmoGroup, gz->parent_gzgroup);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_GizmoGroup, gz->parent_gzgroup);
 }
 
 #  ifdef WITH_PYTHON

@@ -1363,19 +1363,19 @@ static bool rna_MeshDeformModifier_is_bound_get(PointerRNA *ptr)
 static PointerRNA rna_SoftBodyModifier_settings_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_SoftBodySettings, ob->soft);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_SoftBodySettings, ob->soft);
 }
 
 static PointerRNA rna_SoftBodyModifier_point_cache_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_PointCache, ob->soft->shared->pointcache);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PointCache, ob->soft->shared->pointcache);
 }
 
 static PointerRNA rna_CollisionModifier_settings_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_CollisionSettings, ob->pd);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_CollisionSettings, ob->pd);
 }
 
 /* Special update function for setting the number of segments of the modifier that also resamples
@@ -2001,7 +2001,7 @@ static PointerRNA rna_NodesModifier_node_warnings_iterator_get(CollectionPropert
 {
   NodesModifierData *nmd = static_cast<NodesModifierData *>(iter->parent.data);
   blender::Span warnings = get_node_modifier_warnings(*nmd);
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_with_parent(
       iter->parent, &RNA_NodesModifierWarning, (void *)&warnings[iter->internal.count.item]);
 }
 

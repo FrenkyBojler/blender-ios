@@ -1114,7 +1114,7 @@ static PointerRNA rna_Mesh_vertex_color_active_get(PointerRNA *ptr)
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
   CustomDataLayer *layer = BKE_attribute_search_for_write(
       owner, mesh->active_color_attribute, CD_MASK_PROP_BYTE_COLOR, ATTR_DOMAIN_MASK_CORNER);
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_MeshLoopColorLayer, layer);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_MeshLoopColorLayer, layer);
 }
 
 static void rna_Mesh_vertex_color_active_set(PointerRNA *ptr,

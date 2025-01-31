@@ -161,7 +161,7 @@ static PointerRNA rna_Context_scene_get(PointerRNA *ptr)
 static PointerRNA rna_Context_view_layer_get(PointerRNA *ptr)
 {
   bContext *C = (bContext *)ptr->data;
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_id_subdata(
       *reinterpret_cast<ID *>(CTX_data_scene(C)), &RNA_ViewLayer, CTX_data_view_layer(C));
 }
 
@@ -196,7 +196,7 @@ static PointerRNA rna_Context_layer_collection_get(PointerRNA *ptr)
 static PointerRNA rna_Context_tool_settings_get(PointerRNA *ptr)
 {
   bContext *C = (bContext *)ptr->data;
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_id_subdata(
       *reinterpret_cast<ID *>(CTX_data_scene(C)), &RNA_ToolSettings, CTX_data_tool_settings(C));
 }
 

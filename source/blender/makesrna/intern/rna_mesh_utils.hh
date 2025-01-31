@@ -76,7 +76,7 @@
     else { \
       layer = NULL; \
     } \
-    return RNA_pointer_create_with_ancestors(*ptr, &RNA_##layer_rna_type, layer); \
+    return RNA_pointer_create_with_parent(*ptr, &RNA_##layer_rna_type, layer); \
   } \
 \
   [[maybe_unused]] static void rna_Mesh_##collection_name##_##active_type##_set( \

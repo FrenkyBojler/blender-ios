@@ -134,7 +134,7 @@ static PointerRNA rna_GreasePencilLayer_frames_get(CollectionPropertyIterator *i
   const FramesMapKeyT frame_key = *static_cast<FramesMapKeyT *>(rna_iterator_array_get(iter));
   const Layer &layer = static_cast<GreasePencilLayer *>(iter->parent.data)->wrap();
   const GreasePencilFrame *frame = layer.frames().lookup_ptr(frame_key);
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_with_parent(
       iter->parent,
       &RNA_GreasePencilFrame,
       static_cast<void *>(const_cast<GreasePencilFrame *>(frame)));
@@ -208,7 +208,7 @@ static PointerRNA rna_Frame_drawing_get(PointerRNA *ptr)
   }
 
   const Drawing *drawing = grease_pencil.get_drawing_at(*this_layer, frame_number);
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_with_parent(
       *ptr, &RNA_GreasePencilDrawing, static_cast<void *>(const_cast<Drawing *>(drawing)));
 }
 
@@ -547,7 +547,7 @@ static PointerRNA rna_GreasePencilLayer_parent_layer_group_get(PointerRNA *ptr)
   if (!layer_group->as_node().parent_group()) {
     return PointerRNA_NULL;
   }
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_with_parent(
       *ptr, &RNA_GreasePencilLayerGroup, static_cast<void *>(layer_group));
 }
 
@@ -555,7 +555,7 @@ static PointerRNA rna_GreasePencil_active_layer_get(PointerRNA *ptr)
 {
   GreasePencil *grease_pencil = rna_grease_pencil(ptr);
   if (grease_pencil->has_active_layer()) {
-    return RNA_pointer_create_with_ancestors(
+    return RNA_pointer_create_with_parent(
         *ptr, &RNA_GreasePencilLayer, static_cast<void *>(grease_pencil->get_active_layer()));
   }
   return PointerRNA_NULL;
@@ -579,7 +579,7 @@ static PointerRNA rna_GreasePencilLayerGroup_parent_group_get(PointerRNA *ptr)
   if (!parent_group || parent_group == rna_grease_pencil(ptr)->root_group_ptr) {
     return PointerRNA_NULL;
   }
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_with_parent(
       *ptr, &RNA_GreasePencilLayerGroup, static_cast<void *>(parent_group));
 }
 
@@ -587,7 +587,7 @@ static PointerRNA rna_GreasePencil_active_group_get(PointerRNA *ptr)
 {
   GreasePencil *grease_pencil = rna_grease_pencil(ptr);
   if (grease_pencil->has_active_group()) {
-    return RNA_pointer_create_with_ancestors(
+    return RNA_pointer_create_with_parent(
         *ptr, &RNA_GreasePencilLayerGroup, static_cast<void *>(grease_pencil->get_active_group()));
   }
   return PointerRNA_NULL;

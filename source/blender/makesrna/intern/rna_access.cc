@@ -193,14 +193,14 @@ PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, void *data)
   return ptr;
 }
 
-PointerRNA RNA_pointer_create_with_ancestors(const PointerRNA &parent, StructRNA *type, void *data)
+PointerRNA RNA_pointer_create_with_parent(const PointerRNA &parent, StructRNA *type, void *data)
 {
   PointerRNA result;
   rna_pointer_create_with_ancestors(parent, type, data, result);
   return result;
 }
 
-PointerRNA RNA_pointer_create_with_ancestors(ID &id, StructRNA *type, void *data)
+PointerRNA RNA_pointer_create_id_subdata(ID &id, StructRNA *type, void *data)
 {
   PointerRNA parent = RNA_id_pointer_create(&id);
   PointerRNA result;
@@ -215,11 +215,17 @@ PointerRNA RNA_pointer_create_from_ancestor(const PointerRNA &ptr, const int anc
     return {};
   }
 
-  /* NOTE: No call to `rna_pointer_refine` should be needed here. */
+  /* NOTE: No call to `rna_pointer_refine` should be needed here, as ancestors info should have
+   * been created from already refined PointerRNA data. */
   PointerRNA ancestor_ptr{ptr.owner_id,
                           ptr.ancestors[ancestor_idx].type,
                           ptr.ancestors[ancestor_idx].data,
                           ptr.ancestors.as_span().slice(0, ancestor_idx)};
+#ifndef NDEBUG
+  StructRNA *type = ancestor_ptr.type;
+  rna_pointer_refine(ancestor_ptr);
+  BLI_assert(type == ancestor_ptr.type);
+#endif
 
   return ancestor_ptr;
 }
@@ -3929,9 +3935,9 @@ PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop)
 
     /* for groups, data is idprop itself */
     if (pprop->type_fn) {
-      return RNA_pointer_create_with_ancestors(*ptr, pprop->type_fn(ptr), idprop);
+      return RNA_pointer_create_with_parent(*ptr, pprop->type_fn(ptr), idprop);
     }
-    return RNA_pointer_create_with_ancestors(*ptr, pprop->type, idprop);
+    return RNA_pointer_create_with_parent(*ptr, pprop->type, idprop);
   }
   if (pprop->get) {
     return pprop->get(ptr);
@@ -5222,7 +5228,7 @@ void rna_iterator_listbase_end(CollectionPropertyIterator * /*iter*/) {}
 PointerRNA rna_listbase_lookup_int(PointerRNA *ptr, StructRNA *type, ListBase *lb, int index)
 {
   void *data = BLI_findlink(lb, index);
-  return RNA_pointer_create_with_ancestors(*ptr, type, data);
+  return RNA_pointer_create_with_parent(*ptr, type, data);
 }
 
 void rna_iterator_array_begin(CollectionPropertyIterator *iter,
@@ -5305,7 +5311,7 @@ PointerRNA rna_array_lookup_int(
     return PointerRNA_NULL;
   }
 
-  return RNA_pointer_create_with_ancestors(*ptr, type, ((char *)data) + index * itemsize);
+  return RNA_pointer_create_with_parent(*ptr, type, ((char *)data) + index * itemsize);
 }
 
 /* Quick name based property access */

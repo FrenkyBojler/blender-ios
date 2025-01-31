@@ -1130,7 +1130,7 @@ static void rna_Scene_frame_update(Main * /*bmain*/, Scene * /*current_scene*/, 
 static PointerRNA rna_Scene_active_keying_set_get(PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->data;
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_with_parent(
       *ptr, &RNA_KeyingSet, blender::animrig::scene_get_active_keyingset(scene));
 }
 
@@ -1608,7 +1608,7 @@ static PointerRNA rna_RenderSettings_active_view_get(PointerRNA *ptr)
   RenderData *rd = (RenderData *)ptr->data;
   SceneRenderView *srv = static_cast<SceneRenderView *>(BLI_findlink(&rd->views, rd->actview));
 
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_SceneRenderView, srv);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_SceneRenderView, srv);
 }
 
 static void rna_RenderSettings_active_view_set(PointerRNA *ptr,
@@ -2512,7 +2512,7 @@ PointerRNA rna_FreestyleSettings_active_lineset_get(PointerRNA *ptr)
 {
   FreestyleConfig *config = (FreestyleConfig *)ptr->data;
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(config);
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_FreestyleLineSet, lineset);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_FreestyleLineSet, lineset);
 }
 
 void rna_FreestyleSettings_active_lineset_index_range(
@@ -2748,7 +2748,7 @@ static PointerRNA rna_TransformOrientationSlot_get(PointerRNA *ptr)
   else {
     orientation = BKE_scene_transform_orientation_find(scene, orient_slot->index_custom);
   }
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_TransformOrientation, orientation);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_TransformOrientation, orientation);
 }
 
 static const EnumPropertyItem *rna_TransformOrientation_impl_itemf(Scene *scene,

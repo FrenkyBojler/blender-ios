@@ -699,7 +699,7 @@ static int rna_KeyingSet_active_ksPath_editable(const PointerRNA *ptr, const cha
 static PointerRNA rna_KeyingSet_active_ksPath_get(PointerRNA *ptr)
 {
   KeyingSet *ks = (KeyingSet *)ptr->data;
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_with_parent(
       *ptr, &RNA_KeyingSetPath, BLI_findlink(&ks->paths, ks->active_path - 1));
 }
 
@@ -742,7 +742,7 @@ static PointerRNA rna_KeyingSet_typeinfo_get(PointerRNA *ptr)
   if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
     ksi = blender::animrig::keyingset_info_find_name(ks->typeinfo);
   }
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_KeyingSetInfo, ksi);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_KeyingSetInfo, ksi);
 }
 
 static KS_Path *rna_KeyingSet_paths_add(KeyingSet *keyingset,
@@ -863,7 +863,7 @@ static PointerRNA rna_NlaTrack_active_get(PointerRNA *ptr)
 {
   AnimData *adt = (AnimData *)ptr->data;
   NlaTrack *track = BKE_nlatrack_find_active(&adt->nla_tracks);
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_NlaTrack, track);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_NlaTrack, track);
 }
 
 static void rna_NlaTrack_active_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)

@@ -835,13 +835,13 @@ static char *rna_def_property_get_func(
         rna_print_data_get(f, dp);
         if (dp->dnapointerlevel == 0) {
           fprintf(f,
-                  "    return RNA_pointer_create_with_ancestors(*ptr, &RNA_%s, &data->%s);\n",
+                  "    return RNA_pointer_create_with_parent(*ptr, &RNA_%s, &data->%s);\n",
                   (const char *)pprop->type,
                   dp->dnaname);
         }
         else {
           fprintf(f,
-                  "    return RNA_pointer_create_with_ancestors(*ptr, &RNA_%s, data->%s);\n",
+                  "    return RNA_pointer_create_with_parent(*ptr, &RNA_%s, data->%s);\n",
                   (const char *)pprop->type,
                   dp->dnaname);
         }
@@ -862,7 +862,7 @@ static char *rna_def_property_get_func(
         {
           fprintf(
               f,
-              "    return RNA_pointer_create_with_ancestors(iter->parent, &RNA_%s, %s(iter));\n",
+              "    return RNA_pointer_create_with_parent(iter->parent, &RNA_%s, %s(iter));\n",
               (cprop->item_type) ? (const char *)cprop->item_type : "UnknownType",
               manualfunc);
         }
@@ -3025,7 +3025,7 @@ static void rna_def_struct_function_impl_cpp(FILE *f, StructRNA *srna, FunctionD
         }
         else {
           fprintf(f,
-                  "\t\tresult = RNA_pointer_create_with_ancestors(ptr, &RNA_%s, retdata);\n",
+                  "\t\tresult = RNA_pointer_create_with_parent(ptr, &RNA_%s, retdata);\n",
                   (const char *)pprop->type);
         }
       }

@@ -278,7 +278,7 @@ static PointerRNA rna_PoseChannel_bone_get(PointerRNA *ptr)
   /* Replace the id_data pointer with the Armature ID. */
   tmp_ptr.owner_id = static_cast<ID *>(ob->data);
 
-  return RNA_pointer_create_with_ancestors(tmp_ptr, &RNA_Bone, pchan->bone);
+  return RNA_pointer_create_with_parent(tmp_ptr, &RNA_Bone, pchan->bone);
 }
 
 static bool rna_PoseChannel_has_ik_get(PointerRNA *ptr)
@@ -304,7 +304,7 @@ static StructRNA *rna_IKParam_refine(PointerRNA *ptr)
 static PointerRNA rna_Pose_ikparam_get(PointerRNA *ptr)
 {
   bPose *pose = (bPose *)ptr->data;
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_IKParam, pose->ikparam);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_IKParam, pose->ikparam);
 }
 
 static StructRNA *rna_Pose_ikparam_typef(PointerRNA *ptr)
@@ -364,7 +364,7 @@ static PointerRNA rna_PoseChannel_active_constraint_get(PointerRNA *ptr)
 {
   bPoseChannel *pchan = (bPoseChannel *)ptr->data;
   bConstraint *con = BKE_constraints_active_get(&pchan->constraints);
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_Constraint, con);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_Constraint, con);
 }
 
 static void rna_PoseChannel_active_constraint_set(PointerRNA *ptr,

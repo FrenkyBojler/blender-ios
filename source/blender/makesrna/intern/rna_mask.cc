@@ -182,7 +182,7 @@ static PointerRNA rna_Mask_layer_active_get(PointerRNA *ptr)
   Mask *mask = (Mask *)ptr->owner_id;
   MaskLayer *masklay = BKE_mask_layer_active(mask);
 
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_MaskLayer, masklay);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_MaskLayer, masklay);
 }
 
 static void rna_Mask_layer_active_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -217,7 +217,7 @@ static PointerRNA rna_MaskLayer_active_spline_get(PointerRNA *ptr)
 {
   MaskLayer *masklay = (MaskLayer *)ptr->data;
 
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_MaskSpline, masklay->act_spline);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_MaskSpline, masklay->act_spline);
 }
 
 static void rna_MaskLayer_active_spline_set(PointerRNA *ptr,
@@ -240,7 +240,7 @@ static PointerRNA rna_MaskLayer_active_spline_point_get(PointerRNA *ptr)
 {
   MaskLayer *masklay = (MaskLayer *)ptr->data;
 
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_MaskSplinePoint, masklay->act_point);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_MaskSplinePoint, masklay->act_point);
 }
 
 static void rna_MaskLayer_active_spline_point_set(PointerRNA *ptr,

@@ -376,7 +376,7 @@ static PointerRNA rna_AssetHandle_file_data_get(PointerRNA *ptr)
 {
   AssetHandle *asset_handle = static_cast<AssetHandle *>(ptr->data);
   /* Have to cast away const, but the file entry API doesn't allow modifications anyway. */
-  return RNA_pointer_create_with_ancestors(
+  return RNA_pointer_create_with_parent(
       *ptr, &RNA_FileSelectEntry, (FileDirEntry *)asset_handle->file_data);
 }
 
@@ -414,10 +414,10 @@ static PointerRNA rna_AssetRepresentation_metadata_get(PointerRNA *ptr)
 
   if (asset->is_local_id()) {
     PointerRNA id_ptr = RNA_id_pointer_create(asset->local_id());
-    return RNA_pointer_create_with_ancestors(id_ptr, &RNA_AssetMetaData, &asset_data);
+    return RNA_pointer_create_with_parent(id_ptr, &RNA_AssetMetaData, &asset_data);
   }
 
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_AssetMetaData, &asset_data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_AssetMetaData, &asset_data);
 }
 
 static int rna_AssetRepresentation_id_type_get(PointerRNA *ptr)

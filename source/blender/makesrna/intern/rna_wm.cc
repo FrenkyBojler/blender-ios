@@ -688,7 +688,7 @@ static PointerRNA rna_Operator_layout_get(PointerRNA *ptr)
 
 static PointerRNA rna_Operator_options_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_OperatorOptions, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_OperatorOptions, ptr->data);
 }
 
 static PointerRNA rna_Operator_properties_get(PointerRNA *ptr)
@@ -793,7 +793,7 @@ static PointerRNA rna_Event_xr_get(PointerRNA *ptr)
   wmEvent *event = static_cast<wmEvent *>(ptr->data);
   wmXrActionData *actiondata = static_cast<wmXrActionData *>(
       WM_event_is_xr(event) ? event->customdata : nullptr);
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_XrEventData, actiondata);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_XrEventData, actiondata);
 #  else
   UNUSED_VARS(ptr);
   return PointerRNA_NULL;
@@ -958,7 +958,7 @@ static PointerRNA rna_Window_view_layer_get(PointerRNA *ptr)
   Scene *scene = WM_window_get_active_scene(win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
 
-  return RNA_pointer_create_with_ancestors(scene->id, &RNA_ViewLayer, view_layer);
+  return RNA_pointer_create_id_subdata(scene->id, &RNA_ViewLayer, view_layer);
 }
 
 static void rna_Window_view_layer_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -985,7 +985,7 @@ static PointerRNA rna_Window_modal_operators_get(CollectionPropertyIterator *ite
 {
   const wmEventHandler_Op *handler = static_cast<wmEventHandler_Op *>(
       rna_iterator_listbase_get(iter));
-  return RNA_pointer_create_with_ancestors(iter->parent, &RNA_Operator, handler->op);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_Operator, handler->op);
 }
 
 static void rna_KeyMap_modal_event_values_items_begin(CollectionPropertyIterator *iter,
@@ -1013,7 +1013,7 @@ static PointerRNA rna_KeyMapItem_properties_get(PointerRNA *ptr)
     return *(kmi->ptr);
   }
 
-  // return RNA_pointer_create_with_ancestors(*ptr, &RNA_OperatorProperties, op->properties);
+  // return RNA_pointer_create_with_parent(*ptr, &RNA_OperatorProperties, op->properties);
   return PointerRNA_NULL;
 }
 
@@ -1187,7 +1187,7 @@ static PointerRNA rna_WindowManager_active_keyconfig_get(PointerRNA *ptr)
     kc = wm->defaultconf;
   }
 
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_KeyConfig, kc);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_KeyConfig, kc);
 }
 
 static void rna_WindowManager_active_keyconfig_set(PointerRNA *ptr,
@@ -1226,7 +1226,7 @@ static PointerRNA rna_wmKeyConfig_preferences_get(PointerRNA *ptr)
   wmKeyConfigPrefType_Runtime *kpt_rt = BKE_keyconfig_pref_type_find(kc->idname, true);
   if (kpt_rt) {
     wmKeyConfigPref *kpt = BKE_keyconfig_pref_ensure(&U, kc->idname);
-    return RNA_pointer_create_with_ancestors(*ptr, kpt_rt->rna_ext.srna, kpt->prop);
+    return RNA_pointer_create_with_parent(*ptr, kpt_rt->rna_ext.srna, kpt->prop);
   }
   else {
     return PointerRNA_NULL;
@@ -1404,7 +1404,7 @@ static PointerRNA rna_WindowManager_xr_session_state_get(PointerRNA *ptr)
   UNUSED_VARS(wm);
 #  endif
 
-  return RNA_pointer_create_with_ancestors(*ptr, &RNA_XrSessionState, state);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_XrSessionState, state);
 }
 
 #  ifdef WITH_PYTHON
