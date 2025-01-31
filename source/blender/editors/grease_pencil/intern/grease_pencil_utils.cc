@@ -1676,52 +1676,82 @@ void resize_single_curve(bke::CurvesGeometry &curves, const bool at_end, const i
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const int curve_index = at_end ? curves.curves_range().last() : 0;
   const int current_points_num = points_by_curve[curve_index].size();
-  /* Number of points to add (if positive) or number of points to substract (if negative). */
-  const int diff_points_num = new_points_num - current_points_num;
-  if (diff_points_num == 0) {
+  if (new_points_num == current_points_num) {
     return;
   }
 
   if (at_end) {
+    const int diff_points_num = new_points_num - current_points_num;
     curves.resize(curves.points_num() + diff_points_num, curves.curves_num());
     curves.offsets_for_write().last() = curves.points_num();
     return;
   }
 
-  const int last_active_point = points_by_curve[0].last();
+  if (current_points_num < new_points_num) {
+    const int last_active_point = points_by_curve[0].last();
 
-  curves.resize(curves.points_num() + diff_points_num, curves.curves_num());
-  MutableSpan<int> offsets = curves.offsets_for_write();
+    const int added_points_num = new_points_num - current_points_num;
 
-  for (const int src_curve : curves.curves_range().drop_front(1)) {
-    offsets[src_curve] = offsets[src_curve] + diff_points_num;
-  }
-  offsets.last() = curves.points_num();
-
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain != bke::AttrDomain::Point) {
-      return;
+    curves.resize(curves.points_num() + added_points_num, curves.curves_num());
+    MutableSpan<int> offsets = curves.offsets_for_write();
+    for (const int src_curve : curves.curves_range().drop_front(1)) {
+      offsets[src_curve] = offsets[src_curve] + added_points_num;
     }
+    offsets.last() = curves.points_num();
 
-    bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
-    GMutableSpan attribute_data = dst.span;
-
-    bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      MutableSpan<T> span_data = attribute_data.typed<T>();
-
-      /* Loop through backwards to not overwrite the data. */
-      for (const int i : span_data.index_range(). )
-      for (int i = (span_data.size() - 1) - diff_points_num; i >= last_active_point; i--) {
-        span_data[i + diff_points_num] = span_data[i];
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      if (iter.domain != bke::AttrDomain::Point) {
+        return;
       }
-    });
-    dst.finish();
-  });
 
-  curves.tag_topology_changed();
+      bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
+      GMutableSpan attribute_data = dst.span;
+
+      bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
+        using T = decltype(dummy);
+        MutableSpan<T> span_data = attribute_data.typed<T>();
+
+        /* Loop through backwards to not overwrite the data. */
+        for (int i = span_data.size() - 1 - added_points_num; i >= last_active_point; i--) {
+          span_data[i + added_points_num] = span_data[i];
+        }
+      });
+      dst.finish();
+    });
+  }
+  else {
+    const int removed_points_num = current_points_num - new_points_num;
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      if (iter.domain != bke::AttrDomain::Point) {
+        return;
+      }
+
+      bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
+      GMutableSpan attribute_data = dst.span;
+
+      bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
+        using T = decltype(dummy);
+        MutableSpan<T> span_data = attribute_data.typed<T>();
+
+        /* Loop through backwards to not overwrite the data. */
+        for (const int i :
+             span_data.index_range().drop_front(new_points_num).drop_back(removed_points_num))
+        {
+          span_data[i] = span_data[i + removed_points_num];
+        }
+      });
+      dst.finish();
+    });
+
+    curves.resize(curves.points_num() - removed_points_num, curves.curves_num());
+    MutableSpan<int> offsets = curves.offsets_for_write();
+    for (const int src_curve : curves.curves_range().drop_front(1)) {
+      offsets[src_curve] = offsets[src_curve] - removed_points_num;
+    }
+    offsets.last() = curves.points_num();
+  }
 }
 
 }  // namespace blender::ed::greasepencil
