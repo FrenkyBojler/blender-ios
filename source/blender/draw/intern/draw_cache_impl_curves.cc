@@ -45,8 +45,6 @@
 #include "draw_cache_inline.hh"
 #include "draw_curves_private.hh" /* own include */
 
-#include "BLI_timeit.hh"
-
 namespace blender::draw {
 
 #define EDIT_CURVES_NURBS_CONTROL_POINT (1u)
@@ -464,7 +462,6 @@ static void create_lines_ibo_with_cyclic(const OffsetIndices<int> points_by_curv
                                          const VArray<bool> &cyclic,
                                          gpu::IndexBuf &ibo)
 {
-  SCOPED_TIMER_AVERAGED(__func__);
   const array_utils::BooleanMix cyclic_mix = array_utils::booleans_mix_calc(cyclic);
   if (cyclic_mix == array_utils::BooleanMix::AllFalse) {
     create_lines_ibo_no_cyclic(points_by_curve, ibo);
