@@ -1999,10 +1999,8 @@ static void calc_stabilized_plane(const Brush &brush,
   float3 new_plane_center;
 
   if (plane_cache.first_time) {
-    plane_cache.max_normal_index = static_cast<int>(1 +
-                                                    normal_weight * (PLANE_BRUSH_MAX_INDEX - 1));
-    plane_cache.max_center_index = static_cast<int>(1 +
-                                                    center_weight * (PLANE_BRUSH_MAX_INDEX - 1));
+    plane_cache.max_normal_index = int(1 + normal_weight * (PLANE_BRUSH_MAX_INDEX - 1));
+    plane_cache.max_center_index = int(1 + center_weight * (PLANE_BRUSH_MAX_INDEX - 1));
 
     new_plane_normal = plane_normal;
     new_plane_center = plane_center;
