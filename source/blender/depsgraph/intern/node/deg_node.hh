@@ -10,8 +10,6 @@
 
 #include <string>
 
-#include "BLI_vector.hh"
-
 #include "MEM_guardedalloc.h"
 
 #include "intern/depsgraph_type.hh"

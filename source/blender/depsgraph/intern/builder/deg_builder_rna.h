@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "BLI_map.hh"
-
 #include "intern/node/deg_node.hh"
 #include "intern/node/deg_node_operation.hh"
 

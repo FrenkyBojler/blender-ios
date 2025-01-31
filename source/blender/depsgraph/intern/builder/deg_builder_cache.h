@@ -10,10 +10,10 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "RNA_types.hh"
+
 #include "BLI_map.hh"
 #include "BLI_set.hh"
-
-#include "RNA_types.hh"
 
 struct ID;
 struct PointerRNA;

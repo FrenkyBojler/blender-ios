@@ -10,8 +10,6 @@
 
 #include <cstring>
 
-#include "BLI_string.h"
-
 #include "DNA_ID.h"
 #include "DNA_armature_types.h"
 #include "DNA_layer_types.h"

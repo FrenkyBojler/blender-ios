@@ -26,14 +26,12 @@
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
-#include "BKE_global.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
-#include "DEG_depsgraph_debug.hh"
 
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_cache.h"

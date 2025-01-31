@@ -22,8 +22,6 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
-#include "intern/eval/deg_eval_runtime_backup_object.h"
-
 namespace blender::deg {
 
 ObjectRuntimeBackup::ObjectRuntimeBackup(const Depsgraph * /*depsgraph*/)

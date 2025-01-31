@@ -10,7 +10,6 @@
 
 #include "intern/eval/deg_eval_flush.h"
 
-#include <cmath>
 #include <deque>
 
 #include "BLI_listbase.h"

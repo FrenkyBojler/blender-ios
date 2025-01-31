@@ -11,10 +11,9 @@
 #include <optional>
 
 #include "DNA_object_types.h"
+#include "DNA_session_uid_types.h"
 
 #include "BKE_object_types.hh"
-
-#include "BLI_map.hh"
 
 #include "BLI_map.hh"
 

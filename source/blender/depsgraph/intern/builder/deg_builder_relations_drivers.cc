@@ -22,9 +22,6 @@
 
 #include "BKE_anim_data.hh"
 
-#include "RNA_access.hh"
-#include "RNA_path.hh"
-
 #include "intern/builder/deg_builder_relations.h"
 #include "intern/depsgraph_relation.hh"
 #include "intern/node/deg_node.hh"

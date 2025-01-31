@@ -65,7 +65,6 @@
 #include "BKE_curve.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve_driver.h"
-#include "BKE_global.hh"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
