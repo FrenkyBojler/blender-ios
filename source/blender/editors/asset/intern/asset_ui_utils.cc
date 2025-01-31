@@ -43,32 +43,27 @@ std::string asset_tooltip(const asset_system::AssetRepresentation &asset, const 
 BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset)
 {
   if (const PreviewImage *preview = asset.get_preview()) {
+    if (!BKE_previewimg_is_finished(preview, ICON_SIZE_PREVIEW)) {
+      /* Loading icon. */
+      return ICON_TEMP;
+    }
+
     if (!BKE_previewimg_is_invalid(preview)) {
       return preview->runtime->icon_id;
     }
   }
+
   return ICON_NONE;
 }
 
 BIFIconID asset_preview_or_icon(const asset_system::AssetRepresentation &asset)
 {
-  const PreviewImage *preview = asset.get_preview();
-
-  if (preview && BKE_previewimg_is_invalid(preview)) {
-    /* Preview image not found. */
-    return UI_icon_from_idcode(asset.get_id_type());
+  const BIFIconID preview_icon = asset_preview_icon_id(asset);
+  if (preview_icon != ICON_NONE) {
+    return preview_icon;
   }
 
-  if (preview && !BKE_previewimg_is_finished(preview, ICON_SIZE_PREVIEW)) {
-    /* Loading icon. */
-    return ICON_TEMP;
-  }
-
-  if (preview && preview->runtime->icon_id) {
-    return preview->runtime->icon_id;
-  }
-
-  /* ID type icon. */
+  /* Preview image not found or invalid. Use type icon. */
   return UI_icon_from_idcode(asset.get_id_type());
 }
 
