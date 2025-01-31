@@ -29,6 +29,7 @@ extern "C" {
 struct FileData;
 struct GHash;
 struct ID;
+struct ID_Readfile_Data;
 struct Library;
 struct PackedFile;
 struct UniqueName_Map;
@@ -362,7 +363,7 @@ enum {
   LIBOVERRIDE_FLAG_SYSTEM_DEFINED = 1 << 1,
 };
 
-/* watch it: Sequence has identical beginning. */
+/* watch it: Strip has identical beginning. */
 /**
  * ID is the first thing included in all serializable types. It
  * provides a common handle to place all data in double-linked lists.
@@ -402,7 +403,12 @@ typedef struct ID_Runtime {
    * are not owned by any specific depsgraph and thus this pointer is null for those.
    */
   struct Depsgraph *depsgraph;
-  void *_pad;
+
+  /**
+   * This data is only allocated & used during the readfile process. After that, the memory is
+   * freed and the pointer set to `nullptr`.
+   */
+  struct ID_Readfile_Data *readfile_data;
 } ID_Runtime;
 
 typedef struct ID {
@@ -586,6 +592,8 @@ enum {
   PRV_TAG_DEFFERED_RENDERING = (1 << 1),
   /** Deferred preview should be deleted asap. */
   PRV_TAG_DEFFERED_DELETE = (1 << 2),
+  /** This deferred preview could not be loaded (e.g. not found on disk). */
+  PRV_TAG_DEFFERED_INVALID = (1 << 3),
 };
 
 /**
@@ -866,27 +874,6 @@ enum {
    */
   ID_TAG_PRE_EXISTING = 1 << 13,
 
-  /**
-   * Tag used internally in `readfile.cc`, to mark IDs needing to be expanded (only done once).
-   *
-   * RESET_AFTER_USE
-   */
-  ID_TAG_NEED_EXPAND = 1 << 14,
-  /**
-   * Tag used internally in `readfile.cc`, to mark ID placeholders for linked data-blocks needing
-   * to be read.
-   *
-   * RESET_AFTER_USE
-   */
-  ID_TAG_ID_LINK_PLACEHOLDER = 1 << 15,
-  /**
-   * Tag used internally in `readfile.cc`, to mark IDs needing to be 'lib-linked', i.e. to get
-   * their pointers to other data-blocks updated from the 'UID' values stored in `.blend` files to
-   * the new, actual pointers.
-   *
-   * RESET_AFTER_USE
-   */
-  ID_TAG_NEED_LINK = 1 << 16,
   /**
    * ID is being re-used from the old Main (instead of read from memfile), during memfile undo
    * processing, because it was detected as unchanged.

@@ -9,8 +9,6 @@ set(INC
   metal
   opengl
   vulkan
-  ../draw
-  ../imbuf
   ../makesrna
 
   # For theme color access.
@@ -33,8 +31,6 @@ set(INC
   metal/kernels
   shaders/infos
 
-  # For node muting stuff.
-  ../nodes
 
   # For shader includes
   shaders/common
@@ -383,10 +379,13 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::bmesh
   PRIVATE bf::dna
+  PRIVATE bf::draw
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
 )
 
 # Select Backend source based on availability
@@ -753,7 +752,7 @@ target_link_libraries(bf_gpu PUBLIC
 )
 
 if(WITH_OPENGL_BACKEND AND UNIX)
-target_link_libraries(bf_gpu PUBLIC rt)
+  target_link_libraries(bf_gpu PUBLIC rt)
 endif()
 
 if(WITH_OPENCOLORIO)
@@ -812,20 +811,19 @@ if(WITH_GTESTS)
   endif()
 
   # Enable shader validation on build-bot for Metal
-  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS)
+  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS AND
+     NOT (WITH_GTESTS AND WITH_GPU_BACKEND_TESTS)) # Avoid duplicate source file
     list(APPEND TEST_SRC
       tests/shader_create_info_test.cc
     )
   endif()
 
-  if(TEST_SRC)
-    set(TEST_COMMON_SRC
-      tests/gpu_testing.cc
-      tests/gpu_testing.hh
-    )
+  set(TEST_COMMON_SRC
+    tests/gpu_testing.cc
+    tests/gpu_testing.hh
+  )
 
-    blender_add_test_suite_lib(gpu
-      "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}" "${TEST_COMMON_SRC}"
-    )
-  endif()
+  blender_add_test_suite_lib(gpu
+    "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}" "${TEST_COMMON_SRC}"
+  )
 endif()

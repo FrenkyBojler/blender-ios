@@ -58,6 +58,8 @@ ResultType get_node_socket_result_type(const bNodeSocket *socket)
   switch (socket->type) {
     case SOCK_FLOAT:
       return ResultType::Float;
+    case SOCK_INT:
+      return ResultType::Int;
     case SOCK_VECTOR:
       return ResultType::Vector;
     case SOCK_RGBA:
@@ -117,10 +119,8 @@ InputDescriptor input_descriptor_from_input_socket(const bNodeSocket *socket)
   const SocketDeclaration *socket_declaration = node_declaration->inputs[socket->index()];
   input_descriptor.domain_priority = socket_declaration->compositor_domain_priority();
   input_descriptor.expects_single_value = socket_declaration->compositor_expects_single_value();
-
-  input_descriptor.realization_options.realize_on_operation_domain = bool(
-      socket_declaration->compositor_realization_options() &
-      CompositorInputRealizationOptions::RealizeOnOperationDomain);
+  input_descriptor.realization_mode = static_cast<InputRealizationMode>(
+      socket_declaration->compositor_realization_mode());
 
   return input_descriptor;
 }

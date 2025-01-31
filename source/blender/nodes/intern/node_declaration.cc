@@ -690,10 +690,10 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all()
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_realization_options(
-    CompositorInputRealizationOptions value)
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_realization_mode(
+    CompositorInputRealizationMode value)
 {
-  decl_base_->compositor_realization_options_ = value;
+  decl_base_->compositor_realization_mode_ = value;
   return *this;
 }
 
@@ -738,9 +738,9 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::socket_name_ptr(
 {
   /* Doing const-casts here because this data is generally only available as const when creating
    * the declaration, but it's still valid to modify later. */
-  return this->socket_name_ptr(RNA_pointer_create(const_cast<ID *>(id),
-                                                  const_cast<StructRNA *>(srna),
-                                                  const_cast<void *>(data)),
+  return this->socket_name_ptr(RNA_pointer_create_discrete(const_cast<ID *>(id),
+                                                           const_cast<StructRNA *>(srna),
+                                                           const_cast<void *>(data)),
                                property_name);
 }
 
@@ -788,9 +788,9 @@ Span<int> OutputFieldDependency::linked_input_indices() const
   return linked_input_indices_;
 }
 
-const CompositorInputRealizationOptions &SocketDeclaration::compositor_realization_options() const
+const CompositorInputRealizationMode &SocketDeclaration::compositor_realization_mode() const
 {
-  return compositor_realization_options_;
+  return compositor_realization_mode_;
 }
 
 int SocketDeclaration::compositor_domain_priority() const

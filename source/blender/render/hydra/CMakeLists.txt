@@ -44,10 +44,8 @@ endif()
 set(INC
   ../../../../intern/guardedalloc
   ../../blenlib
-  ../../imbuf
   ../../makesdna
   ../../makesrna
-  ../../nodes
   ../../io/usd
   ../../gpu/intern
   ../../python/intern
@@ -69,14 +67,15 @@ set(INC_SYS
 set(LIB
   ${Epoxy_LIBRARIES}
   ${PYTHON_LIBRARIES}
-  ${BOOST_LIBRARIES}
   ${USD_LIBRARIES}
   ${TBB_LIBRARIES}
   PRIVATE bf::blenkernel
   PRIVATE bf::depsgraph
   PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   bf_io_usd
+  PRIVATE bf::nodes
 )
 
 set(SRC

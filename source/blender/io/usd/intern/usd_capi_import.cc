@@ -35,7 +35,6 @@
 #include "DNA_collection_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_listBase.h"
-#include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
@@ -50,6 +49,7 @@
 #include "WM_types.hh"
 
 #include <pxr/usd/usd/stage.h>
+#include <pxr/usd/usdGeom/metrics.h>
 
 #include <fmt/core.h>
 
@@ -100,7 +100,6 @@ struct ImportJobData {
   USDImportParams params;
 
   USDStageReader *archive;
-  ImportedPrimMap prim_map;
 
   bool *stop;
   bool *do_update;
@@ -193,6 +192,11 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     return;
   }
 
+  double scene_scale = data->params.scale;
+  if (data->params.apply_unit_conversion_scale) {
+    scene_scale *= pxr::UsdGeomGetStageMetersPerUnit(stage);
+  }
+
   /* Set up the stage for animated data. */
   if (data->params.set_frame_range) {
     data->scene->r.sfra = stage->GetStartTimeCode();
@@ -204,7 +208,7 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 
   /* Callback function to lazily create a cache file when converting
    * time varying data. */
-  auto get_cache_file = [data]() {
+  auto get_cache_file = [data, scene_scale]() {
     if (!data->cache_file) {
       data->cache_file = static_cast<CacheFile *>(
           BKE_cachefile_add(data->bmain, BLI_path_basename(data->filepath)));
@@ -215,7 +219,7 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
       id_us_min(&data->cache_file->id);
 
       data->cache_file->is_sequence = data->params.is_sequence;
-      data->cache_file->scale = data->params.scale;
+      data->cache_file->scale = scene_scale;
       STRNCPY(data->cache_file->filepath, data->filepath);
     }
     return data->cache_file;
@@ -275,22 +279,9 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     }
 
     Object *ob = reader->object();
-    if (!ob) {
-      continue;
-    }
-
     reader->read_object_data(data->bmain, 0.0);
 
-    /* TODO: Move this outside the loop once when we support reading object data in parallel. */
-    data->prim_map.lookup_or_add_default(reader->object_prim_path())
-        .append(RNA_id_pointer_create(&ob->id));
-    if (ob->data) {
-      data->prim_map.lookup_or_add_default(reader->data_prim_path())
-          .append(RNA_id_pointer_create(static_cast<ID *>(ob->data)));
-    }
-
     USDPrimReader *parent = reader->parent();
-
     if (parent == nullptr) {
       ob->parent = nullptr;
     }
@@ -306,14 +297,6 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
       return;
     }
   }
-
-  archive->settings().usd_path_to_mat_name.foreach_item(
-      [&](const std::string &path, const std::string &name) {
-        Material *mat = archive->settings().mat_name_to_mat.lookup_default(name, nullptr);
-        if (mat) {
-          data->prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(&mat->id));
-        }
-      });
 
   if (data->params.import_skeletons) {
     archive->process_armature_modifiers();
@@ -405,7 +388,7 @@ static void import_endjob(void *customdata)
 
     data->archive->call_material_import_hooks(data->bmain);
 
-    call_import_hooks(data->archive->stage(), data->prim_map, data->params.worker_status->reports);
+    call_import_hooks(data->archive, data->params.worker_status->reports);
 
     if (data->is_background_job) {
       /* Blender already returned from the import operator, so we need to store our own extra undo

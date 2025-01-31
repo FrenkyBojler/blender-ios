@@ -379,7 +379,7 @@ int ED_armature_join_objects_exec(bContext *C, wmOperator *op)
       /* Find the difference matrix */
       mul_m4_m4m4(mat, oimat, ob_iter->object_to_world().ptr());
 
-      /* Copy bones and posechannels from the object to the edit armature */
+      /* Copy bones and pose-channels from the object to the edit armature. */
       for (pchan = static_cast<bPoseChannel *>(opose->chanbase.first); pchan; pchan = pchann) {
         pchann = pchan->next;
         curbone = ED_armature_ebone_find_name(curarm->edbo, pchan->name);
@@ -890,7 +890,7 @@ static int armature_parent_set_exec(bContext *C, wmOperator *op)
   if (actbone->flag & BONE_SELECTED) {
     is_active_only_selected = true;
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (EBONE_EDITABLE(ebone) && (ebone->flag & BONE_SELECTED)) {
+      if (EBONE_EDITABLE(ebone)) {
         if (ebone != actbone) {
           is_active_only_selected = false;
           break;
@@ -922,7 +922,7 @@ static int armature_parent_set_exec(bContext *C, wmOperator *op)
 
     /* Parent selected bones to the active one. */
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (EBONE_EDITABLE(ebone) && (ebone->flag & BONE_SELECTED)) {
+      if (EBONE_EDITABLE(ebone)) {
         if (ebone != actbone) {
           bone_connect_to_new_parent(arm->edbo, ebone, actbone, val);
         }

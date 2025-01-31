@@ -964,12 +964,9 @@ void import_skeleton(Main *bmain,
   }
 }
 
-void import_mesh_skel_bindings(Main *bmain,
-                               Object *mesh_obj,
-                               const pxr::UsdPrim &prim,
-                               ReportList *reports)
+void import_mesh_skel_bindings(Object *mesh_obj, const pxr::UsdPrim &prim, ReportList *reports)
 {
-  if (!(bmain && mesh_obj && mesh_obj->type == OB_MESH && prim)) {
+  if (!(mesh_obj && mesh_obj->type == OB_MESH && prim)) {
     return;
   }
 
@@ -1091,8 +1088,8 @@ void import_mesh_skel_bindings(Main *bmain,
     if (std::find(used_indices.begin(), used_indices.end(), index) == used_indices.end()) {
       /* We haven't accounted for this index yet. */
       if (index < 0 || index >= joints.size()) {
-        CLOG_WARN(&LOG, "Out of bound joint index %d", index);
-        continue;
+        CLOG_ERROR(&LOG, "Out of bound joint index %d for mesh %s", index, mesh_obj->id.name + 2);
+        return;
       }
       used_indices.append(index);
     }

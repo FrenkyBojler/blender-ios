@@ -207,6 +207,17 @@ class Context : public compositor::Context {
     return this->get_render_data().compositor_device == SCE_COMPOSITOR_DEVICE_GPU;
   }
 
+  eCompositorDenoiseQaulity get_denoise_quality() const override
+  {
+    if (this->render_context()) {
+      return static_cast<eCompositorDenoiseQaulity>(
+          this->get_render_data().compositor_denoise_final_quality);
+    }
+
+    return static_cast<eCompositorDenoiseQaulity>(
+        this->get_render_data().compositor_denoise_preview_quality);
+  }
+
   bool use_file_output() const override
   {
     return this->render_context() != nullptr;
@@ -215,11 +226,6 @@ class Context : public compositor::Context {
   bool should_compute_node_previews() const override
   {
     return this->render_context() == nullptr;
-  }
-
-  bool use_composite_output() const override
-  {
-    return true;
   }
 
   const RenderData &get_render_data() const override

@@ -7,15 +7,11 @@ set(INC
   ..
   ../intern
   ../../editors/include
-  ../../blentranslation
-  ../../functions
-  ../../imbuf
-  ../../makesrna
-  ../../render
-  ../../windowmanager
   ../../compositor
+  ../../makesrna
   ../../compositor/algorithms
   ../../compositor/cached_resources
+  ../../compositor/derived_resources
   ../../compositor/utilities
 
   # RNA_prototypes.hh
@@ -127,13 +123,17 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_functions
+  PRIVATE bf::functions
   PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   bf_compositor
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_OPENCOLORIO)

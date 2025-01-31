@@ -16,13 +16,11 @@
 
 #include <cfloat> /* FLT_MIN/MAX */
 #include <cstddef>
-#include <new>
 #include <optional>
 
 #include "RNA_path.hh"
 #include "RNA_types.hh"
 
-#include "BLI_bitmap.h"
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
@@ -1990,7 +1988,7 @@ static int pyrna_py_to_prop(
             /* Error set. */
           }
           else {
-            PointerRNA tmp = RNA_pointer_create(nullptr, ptr_type, nullptr);
+            PointerRNA tmp = RNA_pointer_create_discrete(nullptr, ptr_type, nullptr);
             PyErr_Format(PyExc_TypeError,
                          "%.200s %.200s.%.200s expected a %.200s type, not %.200s",
                          error_prefix,
@@ -4148,7 +4146,7 @@ static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
 
     blender::bke::bNodeType *nt = blender::bke::node_type_find(id);
     if (nt) {
-      PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_Struct, nt->rna_ext.srna);
+      PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, nt->rna_ext.srna);
       return pyrna_struct_CreatePyObject(&ptr);
     }
   }
@@ -4211,7 +4209,7 @@ static void pyrna_dir_members_rna(PyObject *list, PointerRNA *ptr)
   PropertyRNA *iterprop;
 
   {
-    PointerRNA tptr = RNA_pointer_create(nullptr, &RNA_Struct, ptr->type);
+    PointerRNA tptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, ptr->type);
     iterprop = RNA_struct_find_property(&tptr, "functions");
 
     RNA_PROP_BEGIN (&tptr, itemptr, iterprop) {
@@ -4610,7 +4608,7 @@ static PyObject *pyrna_struct_meta_idprop_getattro(PyObject *cls, PyObject *attr
     if (srna) {
       PropertyRNA *prop = RNA_struct_type_find_property_no_base(srna, PyUnicode_AsUTF8(attr));
       if (prop) {
-        PointerRNA tptr = RNA_pointer_create(nullptr, &RNA_Property, prop);
+        PointerRNA tptr = RNA_pointer_create_discrete(nullptr, &RNA_Property, prop);
         ret = pyrna_struct_CreatePyObject(&tptr);
       }
     }
@@ -4897,6 +4895,15 @@ static int pyrna_prop_collection_setattro(BPy_PropertyRNA *self, PyObject *pynam
 /**
  * Odd case, we need to be able return a Python method from a #PyTypeObject.tp_getset.
  */
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_collection_idprop_add_doc,
+    ".. method:: add()\n"
+    "\n"
+    "   This is a function to add a new item to a collection.\n"
+    "\n"
+    "   :return: A newly created item.\n"
+    "   :rtype: Any\n");
 static PyObject *pyrna_prop_collection_idprop_add(BPy_PropertyRNA *self)
 {
   PointerRNA r_ptr;
@@ -4917,6 +4924,15 @@ static PyObject *pyrna_prop_collection_idprop_add(BPy_PropertyRNA *self)
   return pyrna_struct_CreatePyObject(&r_ptr);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_collection_idprop_remove_doc,
+    ".. method:: remove(index)\n"
+    "\n"
+    "   This is a function to remove an item from a collection.\n"
+    "\n"
+    "   :arg index: Index of the item to be removed.\n"
+    "   :type index: int\n");
 static PyObject *pyrna_prop_collection_idprop_remove(BPy_PropertyRNA *self, PyObject *value)
 {
   const int key = PyLong_AsLong(value);
@@ -4941,6 +4957,12 @@ static PyObject *pyrna_prop_collection_idprop_remove(BPy_PropertyRNA *self, PyOb
   Py_RETURN_NONE;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_collection_idprop_clear_doc,
+    ".. method:: clear()\n"
+    "\n"
+    "   This is a function to remove all items from a collection.\n");
 static PyObject *pyrna_prop_collection_idprop_clear(BPy_PropertyRNA *self)
 {
 #ifdef USE_PEDANTIC_WRITE
@@ -4954,6 +4976,17 @@ static PyObject *pyrna_prop_collection_idprop_clear(BPy_PropertyRNA *self)
   Py_RETURN_NONE;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_collection_idprop_move_doc,
+    ".. method:: move(src_index, dst_index)\n"
+    "\n"
+    "   This is a function to move an item in a collection.\n"
+    "\n"
+    "   :arg src_index: Source item index.\n"
+    "   :type src_index: int\n"
+    "   :arg dst_index: Destination item index.\n"
+    "   :type dst_index: int\n");
 static PyObject *pyrna_prop_collection_idprop_move(BPy_PropertyRNA *self, PyObject *args)
 {
   int key = 0, pos = 0;
@@ -5009,7 +5042,7 @@ PyDoc_STRVAR(
     "The property type for introspection");
 static PyObject *pyrna_struct_get_rna_type(BPy_PropertyRNA *self, void * /*closure*/)
 {
-  PointerRNA tptr = RNA_pointer_create(nullptr, &RNA_Property, self->prop);
+  PointerRNA tptr = RNA_pointer_create_discrete(nullptr, &RNA_Property, self->prop);
   return pyrna_struct_Subtype(&tptr);
 }
 
@@ -6184,10 +6217,22 @@ static PyMethodDef pyrna_prop_collection_methods[] = {
 };
 
 static PyMethodDef pyrna_prop_collection_idprop_methods[] = {
-    {"add", (PyCFunction)pyrna_prop_collection_idprop_add, METH_NOARGS, nullptr},
-    {"remove", (PyCFunction)pyrna_prop_collection_idprop_remove, METH_O, nullptr},
-    {"clear", (PyCFunction)pyrna_prop_collection_idprop_clear, METH_NOARGS, nullptr},
-    {"move", (PyCFunction)pyrna_prop_collection_idprop_move, METH_VARARGS, nullptr},
+    {"add",
+     (PyCFunction)pyrna_prop_collection_idprop_add,
+     METH_NOARGS,
+     pyrna_prop_collection_idprop_add_doc},
+    {"remove",
+     (PyCFunction)pyrna_prop_collection_idprop_remove,
+     METH_O,
+     pyrna_prop_collection_idprop_remove_doc},
+    {"clear",
+     (PyCFunction)pyrna_prop_collection_idprop_clear,
+     METH_NOARGS,
+     pyrna_prop_collection_idprop_clear_doc},
+    {"move",
+     (PyCFunction)pyrna_prop_collection_idprop_move,
+     METH_VARARGS,
+     pyrna_prop_collection_idprop_move_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -6345,7 +6390,7 @@ static PyObject *pyrna_param_to_py(PointerRNA *ptr, PropertyRNA *prop, void *dat
              * and will break if a function returns a pointer from
              * another ID block, watch this! - it should at least be
              * easy to debug since they are all ID's */
-            newptr = RNA_pointer_create(ptr->owner_id, ptype, *(void **)data);
+            newptr = RNA_pointer_create_discrete(ptr->owner_id, ptype, *(void **)data);
           }
           newptr_p = &newptr;
         }
@@ -6491,7 +6536,7 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
   /* include the ID pointer for pyrna_param_to_py() so we can include the
    * ID pointer on return values, this only works when returned values have
    * the same ID as the functions. */
-  PointerRNA funcptr = RNA_pointer_create(self_ptr->owner_id, &RNA_Function, self_func);
+  PointerRNA funcptr = RNA_pointer_create_discrete(self_ptr->owner_id, &RNA_Function, self_func);
 
   pyargs_len = PyTuple_GET_SIZE(args);
   pykw_len = kw ? PyDict_Size(kw) : 0;
@@ -7892,7 +7937,7 @@ static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
    * having an instance within a type looks wrong, but this instance _is_ an RNA type. */
 
   /* Python deals with the circular reference. */
-  PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_Struct, srna);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, srna);
 
   /* NOTE: using `pyrna_struct_CreatePyObject(&ptr)` is close to what is needed,
    * however the it isn't correct because the result of:
@@ -8597,6 +8642,7 @@ PyObject *BPY_rna_types()
         &pyrna_prop_Type,
         &pyrna_prop_array_Type,
         &pyrna_prop_collection_Type,
+        &pyrna_prop_collection_idprop_Type,
         &pyrna_func_Type,
     };
 
@@ -9386,7 +9432,7 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
     const bool item_type_valid = (item != nullptr) &&
                                  (is_staticmethod ? PyMethod_Check(item) : PyFunction_Check(item));
     if (item_type_valid) {
-      funcptr = RNA_pointer_create(nullptr, &RNA_Function, func);
+      funcptr = RNA_pointer_create_discrete(nullptr, &RNA_Function, func);
 
       if (is_staticmethod) {
         arg_count =
@@ -9653,6 +9699,21 @@ void BPY_free_srna_pytype(StructRNA *srna)
   }
 }
 
+#define BPY_TYPEDEF_REGISTERABLE_DOC \
+  "type[" \
+  ":class:`bpy.types.Panel` | " \
+  ":class:`bpy.types.UIList` | " \
+  ":class:`bpy.types.Menu` | " \
+  ":class:`bpy.types.Header` | " \
+  ":class:`bpy.types.Operator` | " \
+  ":class:`bpy.types.KeyingSetInfo` | " \
+  ":class:`bpy.types.RenderEngine` | " \
+  ":class:`bpy.types.AssetShelf` | " \
+  ":class:`bpy.types.FileHandler` | " \
+  ":class:`bpy.types.PropertyGroup` | " \
+  ":class:`bpy.types.AddonPreferences`" \
+  "]"
+
 /**
  * \warning memory leak!
  *
@@ -9671,13 +9732,10 @@ PyDoc_STRVAR(
     "\n"
     "   Register a subclass of a Blender type class.\n"
     "\n"
-    "   :arg cls: Blender type class in:\n"
-    "      :class:`bpy.types.Panel`, :class:`bpy.types.UIList`,\n"
-    "      :class:`bpy.types.Menu`, :class:`bpy.types.Header`,\n"
-    "      :class:`bpy.types.Operator`, :class:`bpy.types.KeyingSetInfo`,\n"
-    "      :class:`bpy.types.RenderEngine`, :class:`bpy.types.AssetShelf`,\n"
-    "      :class:`bpy.types.FileHandler`\n"
-    "   :type cls: type\n"
+    "   :arg cls: Registerable Blender class type.\n"
+    "   :type cls: " BPY_TYPEDEF_REGISTERABLE_DOC
+    "\n"
+    "\n"
     "   :raises ValueError:\n"
     "      if the class is not a subclass of a registerable blender class.\n"
     "\n"
@@ -9837,7 +9895,7 @@ static int pyrna_srna_contains_pointer_prop_srna(StructRNA *srna_props,
   LISTBASE_FOREACH (LinkData *, link, lb) {
     prop = (PropertyRNA *)link;
     if (RNA_property_type(prop) == PROP_POINTER && !RNA_property_builtin(prop)) {
-      PointerRNA tptr = RNA_pointer_create(nullptr, &RNA_Struct, srna_props);
+      PointerRNA tptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, srna_props);
 
       if (RNA_property_pointer_type(&tptr, prop) == srna) {
         *r_prop_identifier = RNA_property_identifier(prop);
@@ -9859,7 +9917,8 @@ PyDoc_STRVAR(
     "   :arg cls: Blender type class, \n"
     "      see :mod:`bpy.utils.register_class` for classes which can \n"
     "      be registered.\n"
-    "   :type cls: type\n"
+    "   :type cls: " BPY_TYPEDEF_REGISTERABLE_DOC
+    "\n"
     "\n"
     "   .. note::\n"
     "\n"

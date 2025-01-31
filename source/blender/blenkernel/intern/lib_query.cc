@@ -17,7 +17,6 @@
 #include "BLI_linklist_stack.h"
 #include "BLI_listbase.h"
 #include "BLI_set.hh"
-#include "BLI_utildefines.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_idprop.hh"
@@ -754,16 +753,18 @@ static void lib_query_unused_ids_untag_id(ID &id, UnusedIDsData &data)
   }
 }
 
-/* Certain corner-cases require to consider an ID as used, even if there are no 'real' refcounting
- * usages of these. */
+/**
+ * Certain corner-cases require to consider an ID as used,
+ * even if there are no 'real' reference-counting usages of these.
+ */
 static bool lib_query_unused_ids_has_exception_user(ID &id, UnusedIDsData &data)
 {
   switch (GS(id.name)) {
     case ID_OB: {
       /* FIXME: This is a workaround until Object usages are handled more soundly.
        *
-       * Historically, only refcounting Object usages were the Collection ones. All other
-       * references (e.g. as Constraints or Modifiers targets) did not increase their usercount.
+       * Historically, only reference-counting Object usages were the Collection ones. All other
+       * references (e.g. as Constraints or Modifiers targets) did not increase their user-count.
        *
        * This is not entirely true anymore (e.g. some type-agnostic ID usages like IDPointer custom
        * properties do refcount Object ones too), but there are still many Object usages that
@@ -771,7 +772,7 @@ static bool lib_query_unused_ids_has_exception_user(ID &id, UnusedIDsData &data)
        *
        * This becomes a problem with linked data, as in that case instancing of linked Objects in
        * the scene is not enforced (to avoid cluttering the scene), which leaves some actually used
-       * linked objects with a `0` usercount.
+       * linked objects with a `0` user-count.
        *
        * So this is a special check to consider linked objects as used also in case some other
        * used ID uses them.
@@ -910,7 +911,12 @@ static bool lib_query_unused_ids_tag_recurse(ID *id, UnusedIDsData &data)
     id_relations->tags |= MAINIDRELATIONS_ENTRY_TAGS_PROCESSED;
   }
 
-  return is_part_of_dependency_loop;
+  /* If that ID is part of a dependency loop, but it does have a valid user (which is not part of
+   * that loop), then that dependency loop does not form (or is not part of) an unused archipelago.
+   *
+   * In other words, this current `id` is used, and is therefore a valid user of the 'calling ID'
+   * from previous recursion level.. */
+  return is_part_of_dependency_loop && !has_valid_from_users;
 }
 
 static void lib_query_unused_ids_tag(UnusedIDsData &data)

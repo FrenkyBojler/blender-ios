@@ -44,14 +44,9 @@ endif()
 set(INC
   .
   ../common
-  ../../blenloader
-  ../../blentranslation
   ../../editors/include
-  ../../imbuf
   ../../makesrna
-  ../../nodes
   ../../python/intern
-  ../../windowmanager
   ../../../../intern/utfconv
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -74,6 +69,7 @@ set(SRC
   intern/usd_capi_import.cc
   intern/usd_hierarchy_iterator.cc
   intern/usd_hook.cc
+  intern/usd_instancing_utils.cc
   intern/usd_light_convert.cc
   intern/usd_mesh_utils.cc
   intern/usd_utils.cc
@@ -122,6 +118,7 @@ set(SRC
   intern/usd_hash_types.hh
   intern/usd_hierarchy_iterator.hh
   intern/usd_hook.hh
+  intern/usd_instancing_utils.hh
   intern/usd_light_convert.hh
   intern/usd_mesh_utils.hh
   intern/usd_utils.hh
@@ -195,19 +192,22 @@ endif()
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::animrig
-  bf_imbuf
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
+  PRIVATE bf::windowmanager
 )
 
 list(APPEND LIB
-  ${BOOST_LIBRARIES}
   ${BOOST_PYTHON_LIBRARIES}
   ${PYTHON_LIBRARIES}
   ${USD_LIBRARIES}
@@ -243,7 +243,6 @@ endif()
 
 if(WITH_GTESTS)
   set(TEST_SRC
-    tests/usd_curves_test.cc
     tests/usd_export_test.cc
     tests/usd_stage_creation_test.cc
     tests/usd_usdz_export_test.cc

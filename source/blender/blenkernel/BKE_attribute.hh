@@ -9,7 +9,6 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_generic_pointer.hh"
-#include "BLI_generic_span.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
@@ -17,7 +16,6 @@
 
 #include "DNA_attribute_types.h"
 
-#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.h"
 #include "BKE_attribute_filters.hh"
 
@@ -901,6 +899,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
 struct AttributeTransferData {
   /* Expect that if an attribute exists, it is stored as a contiguous array internally anyway. */
   GVArraySpan src;
+  StringRef name;
   AttributeMetaData meta_data;
   GSpanAttributeWriter dst;
 };

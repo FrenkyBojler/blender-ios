@@ -41,7 +41,6 @@ Project Files
    Generate project files for development environments.
 
    * project_qtcreator:     QtCreator Project Files.
-   * project_netbeans:      NetBeans Project Files.
    * project_eclipse:       Eclipse CDT4 Project Files.
 
 Package Targets
@@ -465,9 +464,6 @@ test: .FORCE
 project_qtcreator: .FORCE
 	$(PYTHON) tools/utils_ide/cmake_qtcreator_project.py --build-dir "$(BUILD_DIR)"
 
-project_netbeans: .FORCE
-	$(PYTHON) tools/utils_ide/cmake_netbeans_project.py "$(BUILD_DIR)"
-
 project_eclipse: .FORCE
 	cmake -G"Eclipse CDT4 - Unix Makefiles" -H"$(BLENDER_DIR)" -B"$(BUILD_DIR)"
 
@@ -506,6 +502,7 @@ check_spelling_py: .FORCE
 	    "$(BLENDER_DIR)/tools/check_source/check_spelling.py" \
 	    --cache-file=$(CHECK_SPELLING_CACHE) \
 	    --match=".*\.(py)$$" \
+	    "$(BLENDER_DIR)/release" \
 	    "$(BLENDER_DIR)/scripts" \
 	    "$(BLENDER_DIR)/source" \
 	    "$(BLENDER_DIR)/tools"
