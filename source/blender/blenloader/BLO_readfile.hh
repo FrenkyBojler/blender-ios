@@ -489,7 +489,7 @@ using BLOExpandDoitCallback = void (*)(void *fdhandle, Main *mainvar, void *idv)
 
 /**
  * Loop over all ID data in Main to mark relations.
- * Set #ID_Readfile_Data::Tags.is_id_need_expand to mark expanding. Flags get
+ * Set #ID_Readfile_Data::Tags.needs_expanding to mark expanding. Flags get
  * cleared after expanding.
  *
  * \param fdhandle: usually file-data, or own handle. May be nullptr.
@@ -552,16 +552,16 @@ struct ID_Readfile_Data {
      * Mark ID placeholders for linked data-blocks needing to be read from their library
      * blendfiles.
      */
-    bool is_id_link_placeholder : 1;
+    bool is_link_placeholder : 1;
     /**
      * Mark IDs needing to be expanded (only done once). See #BLO_expand_main.
      */
-    bool is_id_need_expand : 1;
+    bool needs_expanding : 1;
     /**
      * Mark IDs needing to be 'lib-linked', i.e. to get their pointers to other data-blocks
      * updated from the 'UID' values stored in `.blend` files to the new, actual pointers.
      */
-    bool is_id_need_link : 1;
+    bool needs_linking : 1;
 
     /* Specific ID-type reading/versioning related tags. */
 
