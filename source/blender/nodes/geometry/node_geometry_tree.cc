@@ -4,6 +4,8 @@
 
 #include <cstring>
 
+#include "DNA_brush_types.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "NOD_geometry.hh"
