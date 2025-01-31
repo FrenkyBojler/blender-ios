@@ -1922,7 +1922,7 @@ static int grease_pencil_move_to_layer_exec(bContext *C, wmOperator *op)
       op->ptr, "target_layer_name", nullptr, 0, &target_layer_name_length);
   BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(target_layer_name); });
   const bool add_new_layer = RNA_boolean_get(op->ptr, "add_new_layer");
-  TreeNode *target_node;
+  TreeNode *target_node = nullptr;
 
   if (add_new_layer) {
     target_node = &grease_pencil.add_layer(target_layer_name).as_node();
