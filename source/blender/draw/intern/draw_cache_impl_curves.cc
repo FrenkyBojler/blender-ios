@@ -1007,28 +1007,71 @@ static void create_edit_lines_ibo(const bke::CurvesGeometry &curves, CurvesBatch
   const OffsetIndices points_by_curve = curves.evaluated_points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
 
-  int edges_len = 0;
-  for (const int i : curves.curves_range()) {
-    edges_len += bke::curves::segments_num(points_by_curve[i].size(), cyclic[i]);
+  const array_utils::BooleanMix cyclic_mix = array_utils::booleans_mix_calc(cyclic);
+
+  const int indices_for_cyclic = cyclic_mix == array_utils::BooleanMix::AllFalse ?
+                                     0 :
+                                     curves.curves_num();
+  const int indices_num = points_by_curve.total_size() + curves.curves_num() + indices_for_cyclic;
+
+  GPUIndexBufBuilder builder;
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINE_STRIP, indices_num, points_by_curve.total_size());
+  MutableSpan<uint> data = GPU_indexbuf_get_data(&builder);
+
+  switch (cyclic_mix) {
+    case array_utils::BooleanMix::None:
+      BLI_assert_unreachable();
+      break;
+    case array_utils::BooleanMix::AllFalse:
+      threading::parallel_for(curves.curves_range(), 2048, [&](const IndexRange range) {
+        for (const int curve : range) {
+          const IndexRange points = points_by_curve[curve];
+          const IndexRange indices_range = IndexRange::from_begin_size(points.start() + curve,
+                                                                       points.size() + 1);
+          for (const int i : points.index_range()) {
+            data[indices_range[i]] = points[i];
+          }
+          data[indices_range.last()] = gpu::RESTART_INDEX;
+        }
+      });
+      break;
+    case array_utils::BooleanMix::AllTrue:
+      threading::parallel_for(curves.curves_range(), 2048, [&](const IndexRange range) {
+        for (const int curve : range) {
+          const IndexRange points = points_by_curve[curve];
+          const IndexRange indices_range = IndexRange::from_begin_size(points.start() + curve,
+                                                                       points.size() + 2);
+          for (const int i : points.index_range()) {
+            data[indices_range[i]] = points[i];
+          }
+          data[indices_range.last(1)] = points.first();
+          data[indices_range.last()] = gpu::RESTART_INDEX;
+        }
+      });
+      break;
+    case array_utils::BooleanMix::Mixed:
+      threading::parallel_for(curves.curves_range(), 2048, [&](const IndexRange range) {
+        for (const int curve : range) {
+          const IndexRange points = points_by_curve[curve];
+          const IndexRange indices_range = IndexRange::from_begin_size(points.start() + curve,
+                                                                       points.size() + 1);
+          for (const int i : points.index_range()) {
+            data[indices_range[i]] = points[i];
+          }
+          if (cyclic[curve]) {
+            data[indices_range.last(1)] = points.first();
+          }
+          else {
+            data[indices_range.last(1)] = gpu::RESTART_INDEX;
+          }
+          data[indices_range.last()] = gpu::RESTART_INDEX;
+        }
+      });
+      break;
   }
 
-  const int index_len = edges_len + curves.curves_num() * 2;
-
-  GPUIndexBufBuilder elb;
-  GPU_indexbuf_init_ex(&elb, GPU_PRIM_LINE_STRIP, index_len, points_by_curve.total_size());
-
-  for (const int i : curves.curves_range()) {
-    const IndexRange points = points_by_curve[i];
-    if (cyclic[i] && points.size() > 1) {
-      GPU_indexbuf_add_generic_vert(&elb, points.last());
-    }
-    for (const int i_point : points) {
-      GPU_indexbuf_add_generic_vert(&elb, i_point);
-    }
-    GPU_indexbuf_add_primitive_restart(&elb);
-  }
-
-  GPU_indexbuf_build_in_place(&elb, cache.edit_curves_lines_ibo);
+  GPU_indexbuf_build_in_place_ex(
+      &builder, 0, points_by_curve.total_size(), false, cache.edit_curves_lines_ibo);
 }
 
 static void create_edit_points_position_vbo(
@@ -1045,7 +1088,7 @@ static void create_edit_points_position_vbo(
 
   GPU_vertbuf_init_with_format(*cache.edit_curves_lines_pos, format);
   GPU_vertbuf_data_alloc(*cache.edit_curves_lines_pos, positions.size());
-  GPU_vertbuf_attr_fill(cache.edit_curves_lines_pos, attr_id, positions.data());
+  cache.edit_curves_lines_pos->data<float3>().copy_from(positions);
 }
 
 void DRW_curves_batch_cache_create_requested(Object *ob)
