@@ -718,10 +718,10 @@ ARegionType *ED_area_type_hud(int space_type);
 void ED_area_type_hud_clear(wmWindowManager *wm, ScrArea *area_keep);
 void ED_area_type_hud_ensure(bContext *C, ScrArea *area);
 /**
- * Lookup the region the operation was executed in, and which should be used to redo the
+ * Get the region the operation was executed in, and which should be used to redo the
  * operation.
  */
-ARegion *ED_area_type_hud_redo_region_find(const ARegion *hud_region);
+ARegion *ED_area_type_hud_redo_region_get(const ARegion *hud_region);
 
 /**
  * Default key-maps, bit-flags (matches order of evaluation).

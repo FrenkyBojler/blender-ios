@@ -393,7 +393,7 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
                                (region->flag & RGN_FLAG_TOO_SMALL));
 }
 
-ARegion *ED_area_type_hud_redo_region_find(const ARegion *hud_region)
+ARegion *ED_area_type_hud_redo_region_get(const ARegion *hud_region)
 {
   BLI_assert(hud_region->regiontype == RGN_TYPE_HUD);
   HudRegionData *hrd = static_cast<HudRegionData *>(hud_region->regiondata);
