@@ -61,6 +61,7 @@ class FactorsFieldInput final : public fn::FieldInput {
                                  const IndexMask & /*mask*/,
                                  ResourceScope & /*scope*/) const override
   {
+    /* Factors input should be handled by the field context since the factors vary per BVH node. */
     BLI_assert_unreachable();
     return {};
   }
