@@ -509,7 +509,9 @@ Slot &Action::slot_add()
    * non-zero while it should be zero for layered Actions.
    *
    * And since setting this to 0 when it is already supposed to be 0 is fine,
-   * there is no check for whether this is actually the first layer. */
+   * there is no check for whether this is actually the first layer.
+   *
+   * TODO: additional explanation regarding setting `idroot` manually. */
   this->idroot = 0;
 
   return slot;

@@ -1554,7 +1554,9 @@ static const EnumPropertyItem *rna_ActionSlot_target_id_type_itemf(bContext * /*
  * If the Action has no slots, then we fallback to the actual `id_root`
  * property, which will be cleared on normal Slot creation, or transferred to
  * the new Slot and cleared when a new Slot is created implictily through the
- * other backwards-compatible APIs. */
+ * other backwards-compatible APIs.
+ *
+ * See: `Action::slot_add()` and `animrig::legacy::channelbag_ensure()` */
 static int rna_Action_id_root_get(PointerRNA *ptr)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();

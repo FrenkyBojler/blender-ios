@@ -45,7 +45,14 @@ Channelbag &channelbag_ensure(Action &action)
   /* Ensure a Slot. */
   Slot *slot;
   if (action.slots().is_empty()) {
+    const int idroot = action.idroot;
+
+    /* Note: this also clears the Action's idroot. */
     slot = &action.slot_add();
+
+    /* Transfer the Action's idroot to the new slot. */
+    slot->idtype = idroot;
+    slot->identifier_ensure_prefix();
   }
   else {
     slot = action.slot(0);
