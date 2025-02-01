@@ -660,12 +660,16 @@ void ED_screen_do_listen(bContext *C, const wmNotifier *note)
       }
       break;
     case NC_WINDOW:
-      WM_window_apply_decoration_style(win, screen);
+      if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES) {
+        WM_window_apply_decoration_style(win, screen);
+      }
       screen->do_draw = true;
       break;
     case NC_SCREEN:
       if (note->action == NA_EDITED) {
-        WM_window_apply_decoration_style(win, screen);
+        if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES) {
+          WM_window_apply_decoration_style(win, screen);
+        }
         screen->do_draw = screen->do_refresh = true;
       }
       break;

@@ -653,6 +653,7 @@ static void wm_window_decoration_style_parse_theme(const wmWindow *win, const bS
 
 void WM_window_apply_decoration_style(const wmWindow *win, const bScreen *screen)
 {
+  BLI_assert(WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES);
   wm_window_decoration_style_parse_theme(win, screen);
   GHOST_ApplyWindowDecorationStyle(static_cast<GHOST_WindowHandle>(win->ghostwin));
 }
