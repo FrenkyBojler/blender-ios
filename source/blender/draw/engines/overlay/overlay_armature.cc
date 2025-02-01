@@ -571,9 +571,6 @@ static void drw_shgroup_bone_custom_empty(const Armatures::DrawContext *ctx,
     case OB_PLAINAXES:
       geom = ctx->res->shapes.plain_axes.get();
       break;
-    case OB_CROSS:
-      geom = ctx->res->shapes.cross.get();
-      break;
     case OB_SINGLE_ARROW:
       geom = ctx->res->shapes.single_arrow.get();
       break;
