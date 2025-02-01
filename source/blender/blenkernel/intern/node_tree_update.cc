@@ -939,6 +939,18 @@ class NodeTreeMainUpdater {
         this->set_enum_ptr(*input.default_value_typed<bNodeSocketValueMenu>(), enum_items);
         /* Remove initial user. */
         enum_items->remove_user_and_delete_if_last();
+
+        const bNodeSocket *output = node->output_sockets().first();
+        if (output->type == SOCK_MENU) {
+          constexpr int menu_input = 1;
+          constexpr int extend_input = 1;
+          for (bNodeSocket *case_input : node->input_sockets().drop_front(menu_input).drop_back(extend_input)) {
+            this->update_socket_enum_definition(
+                *case_input->default_value_typed<bNodeSocketValueMenu>(),
+                *output->default_value_typed<bNodeSocketValueMenu>());
+          }
+        }
+
         continue;
       }
 
@@ -959,19 +971,6 @@ class NodeTreeMainUpdater {
             this->update_socket_enum_definition(
                 *input.default_value_typed<bNodeSocketValueMenu>(),
                 *static_cast<bNodeSocketValueMenu *>(iosocket.socket_data));
-          }
-        }
-        continue;
-      }
-
-      if (node->is_type("GeometryNodeMenuSwitch")) {
-        /* First input is always the node's own menu, propagate only to the enum case inputs. */
-        const bNodeSocket *output = node->output_sockets().first();
-        for (bNodeSocket *input : node->input_sockets().drop_front(1)) {
-          if (input->is_available() && input->type == SOCK_MENU) {
-            this->update_socket_enum_definition(
-                *input->default_value_typed<bNodeSocketValueMenu>(),
-                *output->default_value_typed<bNodeSocketValueMenu>());
           }
         }
         continue;
