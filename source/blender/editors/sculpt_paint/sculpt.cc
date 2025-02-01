@@ -2002,8 +2002,8 @@ static void calc_stabilized_plane(const Brush &brush,
     new_plane_normal = plane_normal;
     new_plane_center = plane_center;
 
-    const int max_normal_index = int(1 + normal_weight * (PLANE_BRUSH_MAX_INDEX - 1));
-    const int max_center_index = int(1 + center_weight * (PLANE_BRUSH_MAX_INDEX - 1));
+    const int max_normal_index = int(1 + normal_weight * (plane_brush_max_rolling_average_num - 1));
+    const int max_center_index = int(1 + center_weight * (plane_brush_max_rolling_average_num - 1));
 
     plane_cache.normals.reinitialize(max_normal_index);
     plane_cache.centers.reinitialize(max_center_index);

@@ -152,7 +152,7 @@ enum class TransformDisplacementMode {
 
 namespace blender::ed::sculpt_paint {
 
-static constexpr int PLANE_BRUSH_MAX_INDEX = 20;
+static constexpr int plane_brush_max_rolling_average_num = 20;
 
 /**
  * This structure contains all the temporary data
