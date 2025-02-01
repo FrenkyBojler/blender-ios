@@ -408,7 +408,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
   float height = brush.plane_height;
   float depth = brush.plane_depth;
 
-  const bool flip = brush_flip(brush, *ss.cache) < 0.0f;
+  const bool flip = ss.cache->initial_direction_flipped;
 
   if (flip) {
     switch (brush.plane_inversion_mode) {

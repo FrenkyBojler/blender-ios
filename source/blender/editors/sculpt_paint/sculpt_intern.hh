@@ -328,12 +328,10 @@ struct StrokeCache {
   struct {
     float3 last_normal;
     float3 last_center;
-    std::array<float3, PLANE_BRUSH_MAX_INDEX> normals;
-    std::array<float3, PLANE_BRUSH_MAX_INDEX> centers;
+    Array<float3> normals;
+    Array<float3> centers;
     int normal_index;
     int center_index;
-    int max_normal_index;
-    int max_center_index;
 
     /**
      * True if the current step is the first time the Plane brush is being evaluated.

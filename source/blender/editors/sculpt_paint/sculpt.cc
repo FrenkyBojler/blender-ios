@@ -1999,11 +1999,14 @@ static void calc_stabilized_plane(const Brush &brush,
   float3 new_plane_center;
 
   if (plane_cache.first_time) {
-    plane_cache.max_normal_index = int(1 + normal_weight * (PLANE_BRUSH_MAX_INDEX - 1));
-    plane_cache.max_center_index = int(1 + center_weight * (PLANE_BRUSH_MAX_INDEX - 1));
-
     new_plane_normal = plane_normal;
     new_plane_center = plane_center;
+
+    const int max_normal_index = int(1 + normal_weight * (PLANE_BRUSH_MAX_INDEX - 1));
+    const int max_center_index = int(1 + center_weight * (PLANE_BRUSH_MAX_INDEX - 1));
+
+    plane_cache.normals.reinitialize(max_normal_index);
+    plane_cache.centers.reinitialize(max_center_index);
     plane_cache.normals.fill(plane_normal);
     plane_cache.centers.fill(plane_center);
 
@@ -2029,12 +2032,12 @@ static void calc_stabilized_plane(const Brush &brush,
   plane_cache.normals[plane_cache.normal_index] = new_plane_normal;
   plane_cache.centers[plane_cache.center_index] = new_plane_center;
 
-  plane_cache.normal_index = (plane_cache.normal_index + 1) % plane_cache.max_normal_index;
-  plane_cache.center_index = (plane_cache.center_index + 1) % plane_cache.max_center_index;
+  plane_cache.normal_index = (plane_cache.normal_index + 1) % plane_cache.normals.size();
+  plane_cache.center_index = (plane_cache.center_index + 1) % plane_cache.centers.size();
 
   r_stabilized_normal = float3(0.0f);
 
-  for (int i = 0; i < plane_cache.max_normal_index; i++) {
+  for (const int i : plane_cache.normals.index_range()) {
     r_stabilized_normal += plane_cache.normals[i];
   }
   r_stabilized_normal = math::normalize(r_stabilized_normal);
@@ -2043,13 +2046,13 @@ static void calc_stabilized_plane(const Brush &brush,
   plane_from_point_normal_v3(reference_plane, new_plane_center, r_stabilized_normal);
   float total_signed_distance = 0.0f;
 
-  for (int i = 0; i < plane_cache.max_center_index; i++) {
+  for (const int i : plane_cache.centers.index_range()) {
     float signed_distance = math::dot(r_stabilized_normal, plane_cache.centers[i]) -
                             reference_plane.w;
     total_signed_distance += signed_distance;
   }
 
-  const float avg_signed_distance = total_signed_distance / plane_cache.max_center_index;
+  const float avg_signed_distance = total_signed_distance / plane_cache.centers.size();
   const float new_center_signed_distance = math::dot(r_stabilized_normal, new_plane_center) -
                                            reference_plane.w;
   const float adjusted_distance = new_center_signed_distance - avg_signed_distance;
