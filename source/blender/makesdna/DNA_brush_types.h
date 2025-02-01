@@ -319,9 +319,9 @@ typedef struct Brush {
   /* Plane Brush */
   float plane_height;
   float plane_depth;
-
   float stabilize_normal;
   float stabilize_plane;
+  int plane_inversion_mode;
 
   float texture_sample_bias;
 
@@ -346,8 +346,6 @@ typedef struct Brush {
 
   /* snake hook */
   int snake_hook_deform_type;
-
-  int plane_inversion_mode;
 
   /* pose */
   int pose_deform_type;
