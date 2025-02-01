@@ -495,7 +495,7 @@ class ShaderModule {
 
  private:
   ShaderModule(const SelectionType selection_type, const bool clipping_enabled)
-      : selection_type_(selection_type), clipping_enabled_(clipping_enabled){};
+      : selection_type_(selection_type), clipping_enabled_(clipping_enabled) {};
 
   ShaderPtr shader(const char *create_info_name)
   {
@@ -601,7 +601,7 @@ struct Resources : public select::SelectMap {
   Resources(const SelectionType selection_type_,
             ShaderModule &shader_module,
             const ShapeCache &shapes_)
-      : select::SelectMap(selection_type_), shaders(shader_module), shapes(shapes_){};
+      : select::SelectMap(selection_type_), shaders(shader_module), shapes(shapes_) {};
 
   ~Resources()
   {
@@ -740,13 +740,17 @@ struct Resources : public select::SelectMap {
     }
   }
 
-  const float4 &object_wire_color(const ObjectRef &ob_ref, ThemeColorID theme_id, const State &state) const
+  const float4 &object_wire_color(const ObjectRef &ob_ref,
+                                  ThemeColorID theme_id,
+                                  const State &state) const
   {
     if (UNLIKELY(ob_ref.object->base_flag & BASE_FROM_SET)) {
       return theme_settings.color_wire;
     }
-    else if (state.v3d->shading.wire_color_type == V3D_SHADING_OBJECT_COLOR && (ob_ref.object->base_flag & BASE_SELECTED) == 0) {
-      static float4 object_color;  
+    else if (state.v3d->shading.wire_color_type == V3D_SHADING_OBJECT_COLOR &&
+             (ob_ref.object->base_flag & BASE_SELECTED) == 0)
+    {
+      static float4 object_color;
       object_color = float4(ob_ref.object->color);
       return object_color;
     }
@@ -891,7 +895,7 @@ template<typename InstanceDataT> struct ShapeInstanceBuf : private select::Selec
   StorageVectorBuffer<InstanceDataT> data_buf;
 
   ShapeInstanceBuf(const SelectionType selection_type, const char *name = nullptr)
-      : select::SelectBuf(selection_type), data_buf(name){};
+      : select::SelectBuf(selection_type), data_buf(name) {};
 
   void clear()
   {
@@ -939,7 +943,7 @@ struct VertexPrimitiveBuf {
   int color_id = 0;
 
   VertexPrimitiveBuf(const SelectionType selection_type, const char *name = nullptr)
-      : select_buf(selection_type), data_buf(name){};
+      : select_buf(selection_type), data_buf(name) {};
 
   void append(const float3 &position, const float4 &color)
   {
