@@ -45,31 +45,31 @@ def draw_node_group_add_menu(context, layout):
                 not group.contains_tree(node_tree) and
                 not group.name.startswith('.'))
         ]
-        
-        nearest_groups = [node.node_tree for node in node_tree.nodes if node.bl_idname in node_tree_group_type.values()]
-        other_groups = [group for group in groups if not group in nearest_groups]
-        
-        if nearest_groups:
-            layout.separator()
-            for group in nearest_groups:
-                props = add_node_type(layout, node_tree_group_type[group.bl_idname], label=group.name)
-                ops = props.settings.add()
-                ops.name = "node_tree"
-                ops.value = "bpy.data.node_groups[%r]" % group.name
 
-        if other_groups and nearest_groups:
+        visible_groups = set([node.node_tree for node in node_tree.nodes if node.bl_idname in node_tree_group_type.values()])
+        other_groups = list(set(groups) - visible_groups)
+        visible_groups = list(visible_groups)
+
+        def add_group_node(node_group):
+            props = add_node_type(layout, node_tree_group_type[node_group.bl_idname], label=node_group.name)
+            ops = props.settings.add()
+            ops.name = "node_tree"
+            ops.value = "bpy.data.node_groups[{!r}]".format(node_group.name)
+            ops = props.settings.add()
+            ops.name = "width"
+            ops.value = repr(node_group.default_group_node_width)
+
+        if visible_groups or other_groups:
             layout.separator()
 
-        if other_groups:
+        for group in visible_groups:
+            add_group_node(group)
+
+        if visible_groups and other_groups:
             layout.separator()
-            for group in other_groups:
-                props = add_node_type(layout, node_tree_group_type[group.bl_idname], label=group.name)
-                ops = props.settings.add()
-                ops.name = "node_tree"
-                ops.value = "bpy.data.node_groups[{!r}]".format(group.name)
-                ops = props.settings.add()
-                ops.name = "width"
-                ops.value = repr(group.default_group_node_width)
+
+        for group in other_groups:
+            add_group_node(group)
 
 
 def draw_assets_for_catalog(layout, catalog_path):
@@ -96,8 +96,8 @@ def add_repeat_zone(layout, label):
 def add_foreach_geometry_element_zone(layout, label):
     props = layout.operator(
         "node.add_foreach_geometry_element_zone",
-        text=label,
-        text_ctxt=i18n_contexts.default,
+        text = label,
+        text_ctxt = i18n_contexts.default,
     )
     props.use_transform = True
     return props
@@ -117,6 +117,8 @@ class NODE_MT_category_layout(Menu):
 
 classes = (
     NODE_MT_category_layout,
+
+
 )
 
 if __name__ == "__main__":  # only for live edit.
