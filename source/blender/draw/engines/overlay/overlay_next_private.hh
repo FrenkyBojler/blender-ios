@@ -740,13 +740,17 @@ struct Resources : public select::SelectMap {
     }
   }
 
-  const float4 &object_wire_color(const ObjectRef &ob_ref, ThemeColorID theme_id, const State &state) const
+  const float4 &object_wire_color(const ObjectRef &ob_ref,
+                                  ThemeColorID theme_id,
+                                  const State &state) const
   {
     if (UNLIKELY(ob_ref.object->base_flag & BASE_FROM_SET)) {
       return theme_settings.color_wire;
     }
-    else if (state.v3d->shading.wire_color_type == V3D_SHADING_OBJECT_COLOR && (ob_ref.object->base_flag & BASE_SELECTED) == 0) {
-      static float4 object_color;  
+    else if (state.v3d->shading.wire_color_type == V3D_SHADING_OBJECT_COLOR &&
+             (ob_ref.object->base_flag & BASE_SELECTED) == 0)
+    {
+      static float4 object_color;
       object_color = float4(ob_ref.object->color);
       return object_color;
     }
