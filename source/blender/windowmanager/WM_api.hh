@@ -377,7 +377,8 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title = nul
 
 bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
 
-/** Window Decoration Styles. */
+/* Window Decoration Styles. */
+
 /* Flags for #WM_window_decoration_set_style().
  * NOTE: To be kept in sync with #GHOST_TWindowDecorationFlags. */
 enum eWM_WindowDecorationStyleFlag {

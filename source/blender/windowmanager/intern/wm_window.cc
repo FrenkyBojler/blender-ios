@@ -626,7 +626,7 @@ static void wm_window_decoration_style_parse_theme(const wmWindow *win, const bS
    * NOTE: screen may be null. In which case, only the window is used as a theme provider. */
   GHOST_WindowDecorationStyleSettings decoration_settings = {};
 
-  /** Colored Titlebar Decoration. */
+  /* Colored Titlebar Decoration. */
   /* For main windows, use the topbar color. */
   if (WM_window_should_have_global_areas(win)) {
     UI_SetTheme(SPACE_TOPBAR, RGN_TYPE_HEADER);
