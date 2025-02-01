@@ -5156,6 +5156,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 
   static const EnumPropertyItem bundle_drawtype_items[] = {
       {OB_PLAINAXES, "PLAIN_AXES", 0, "Plain Axes", ""},
+      {OB_CROSS, "CROSS", 0, "Cross", ""},
       {OB_ARROWS, "ARROWS", 0, "Arrows", ""},
       {OB_SINGLE_ARROW, "SINGLE_ARROW", 0, "Single Arrow", ""},
       {OB_CIRCLE, "CIRCLE", 0, "Circle", ""},

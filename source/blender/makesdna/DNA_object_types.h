@@ -615,13 +615,14 @@ enum {
 /** #Object.empty_drawtype: no flags */
 enum {
   OB_ARROWS = 1,
-  OB_PLAINAXES = 2,
-  OB_CIRCLE = 3,
-  OB_SINGLE_ARROW = 4,
-  OB_CUBE = 5,
-  OB_EMPTY_SPHERE = 6,
-  OB_EMPTY_CONE = 7,
-  OB_EMPTY_IMAGE = 8,
+  OB_CROSS = 2,
+  OB_PLAINAXES = 3,
+  OB_CIRCLE = 4,
+  OB_SINGLE_ARROW = 5,
+  OB_CUBE = 6,
+  OB_EMPTY_SPHERE = 7,
+  OB_EMPTY_CONE = 8,
+  OB_EMPTY_IMAGE = 9,
 };
 
 /**

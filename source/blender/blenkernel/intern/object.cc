@@ -3735,6 +3735,7 @@ bool BKE_object_minmax_empty_drawtype(const Object *ob, float r_min[3], float r_
       break;
     }
     case OB_PLAINAXES:
+    case OB_CROSS:
     case OB_CUBE:
     case OB_EMPTY_SPHERE: {
       min = float3(-radius);

@@ -131,6 +131,7 @@ const EnumPropertyItem rna_enum_workspace_object_mode_items[] = {
 
 const EnumPropertyItem rna_enum_object_empty_drawtype_items[] = {
     {OB_PLAINAXES, "PLAIN_AXES", ICON_EMPTY_AXIS, "Plain Axes", ""},
+    {OB_CROSS, "CROSS", ICON_EMPTY_AXIS, "Corss", ""},
     {OB_ARROWS, "ARROWS", ICON_EMPTY_ARROWS, "Arrows", ""},
     {OB_SINGLE_ARROW, "SINGLE_ARROW", ICON_EMPTY_SINGLE_ARROW, "Single Arrow", ""},
     {OB_CIRCLE, "CIRCLE", ICON_MESH_CIRCLE, "Circle", ""},

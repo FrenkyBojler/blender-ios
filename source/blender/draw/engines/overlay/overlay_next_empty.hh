@@ -40,6 +40,7 @@ class Empties : Overlay {
   struct CallBuffers {
     const SelectionType selection_type_;
     EmptyInstanceBuf plain_axes_buf = {selection_type_, "plain_axes_buf"};
+    EmptyInstanceBuf cross_buf = {selection_type_, "cross_buf"};
     EmptyInstanceBuf single_arrow_buf = {selection_type_, "single_arrow_buf"};
     EmptyInstanceBuf cube_buf = {selection_type_, "cube_buf"};
     EmptyInstanceBuf circle_buf = {selection_type_, "circle_buf"};
@@ -99,6 +100,7 @@ class Empties : Overlay {
   static void begin_sync(CallBuffers &call_buffers)
   {
     call_buffers.plain_axes_buf.clear();
+    call_buffers.cross_buf.clear();
     call_buffers.single_arrow_buf.clear();
     call_buffers.cube_buf.clear();
     call_buffers.circle_buf.clear();
@@ -144,6 +146,9 @@ class Empties : Overlay {
       case OB_PLAINAXES:
         call_buffers.plain_axes_buf.append(data, select_id);
         break;
+      case OB_CROSS:
+        call_buffers.cross_buf.append(data, select_id);
+        break;
       case OB_SINGLE_ARROW:
         call_buffers.single_arrow_buf.append(data, select_id);
         break;
@@ -187,6 +192,7 @@ class Empties : Overlay {
     ps.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
 
     call_buffers.plain_axes_buf.end_sync(ps, res.shapes.plain_axes.get());
+    call_buffers.cross_buf.end_sync(ps, res.shapes.cross.get());
     call_buffers.single_arrow_buf.end_sync(ps, res.shapes.single_arrow.get());
     call_buffers.cube_buf.end_sync(ps, res.shapes.cube.get());
     call_buffers.circle_buf.end_sync(ps, res.shapes.circle.get());
