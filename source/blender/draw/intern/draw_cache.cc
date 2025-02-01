@@ -118,6 +118,7 @@ static struct DRWShapeCache {
   blender::gpu::Batch *drw_circle;
   blender::gpu::Batch *drw_normal_arrow;
   blender::gpu::Batch *drw_empty_cube;
+  blender::gpu::Batch *drw_empty_cross;
   blender::gpu::Batch *drw_empty_sphere;
   blender::gpu::Batch *drw_empty_cylinder;
   blender::gpu::Batch *drw_empty_capsule_body;
@@ -972,6 +973,26 @@ blender::gpu::Batch *DRW_cache_plain_axes_get()
     SHC.drw_plain_axes = GPU_batch_create_ex(GPU_PRIM_LINES, vbo, nullptr, GPU_BATCH_OWNS_VBO);
   }
   return SHC.drw_plain_axes;
+}
+
+blender::gpu::Batch *DRW_cache_empty_cross_get()
+{
+  if (!SHC.drw_empty_cross) {
+    GPUVertFormat format = extra_vert_format();
+
+    blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+    GPU_vertbuf_data_alloc(*vbo, 6);
+
+    int v = 0;
+    int flag = VCLASS_EMPTY_SCALED;
+    GPU_vertbuf_vert_set(vbo, v++, Vert{{-1.0f, 0.0f, 0.0f}, flag});
+    GPU_vertbuf_vert_set(vbo, v++, Vert{{1.0f, 0.0f, 0.0f}, flag});
+    GPU_vertbuf_vert_set(vbo, v++, Vert{{0.0f, -1.0f, 0.0f}, flag});
+    GPU_vertbuf_vert_set(vbo, v++, Vert{{0.0f, 1.0f, 0.0f}, flag});
+
+    SHC.drw_empty_cross = GPU_batch_create_ex(GPU_PRIM_LINES, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+  }
+  return SHC.drw_empty_cross;
 }
 
 blender::gpu::Batch *DRW_cache_empty_cube_get()

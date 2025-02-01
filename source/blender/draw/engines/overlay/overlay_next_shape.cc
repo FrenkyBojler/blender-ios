@@ -669,6 +669,17 @@ ShapeCache::ShapeCache()
     plain_axes = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
+  /* cross */
+  {
+    Vector<Vertex> verts;
+    verts.append({{0.0f, -1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, +1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{-1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{+1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+
+    cross = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
   /* single_arrow */
   {
     Vector<Vertex> verts;

@@ -80,6 +80,7 @@ blender::gpu::VertBuf *DRW_cache_object_pos_vertbuf_get(Object *ob);
 
 /* Empties */
 blender::gpu::Batch *DRW_cache_plain_axes_get();
+blender::gpu::Batch *DRW_cache_empty_cross_get();
 blender::gpu::Batch *DRW_cache_single_arrow_get();
 blender::gpu::Batch *DRW_cache_empty_cube_get();
 blender::gpu::Batch *DRW_cache_circle_get();

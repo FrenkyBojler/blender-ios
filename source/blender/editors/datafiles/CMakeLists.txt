@@ -318,6 +318,7 @@ if(WITH_BLENDER)
       editmode_hlt
       empty_arrows
       empty_axis
+      empty_cross
       empty_data
       empty_single_arrow
       error
