@@ -6,22 +6,17 @@
  * \ingroup spseq
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
-
 #include "DNA_scene_types.h"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_report.hh"
 
-#include "SEQ_iterator.h"
-#include "SEQ_proxy.h"
-#include "SEQ_relations.h"
-#include "SEQ_sequencer.h"
+#include "BLT_translation.hh"
+
+#include "SEQ_proxy.hh"
+#include "SEQ_relations.hh"
+#include "SEQ_sequencer.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -32,7 +27,7 @@
 #include "ED_screen.hh"
 
 /* Own include. */
-#include "sequencer_intern.h"
+#include "sequencer_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Rebuild Proxy and Timecode Indices Operator
@@ -51,11 +46,11 @@ static void seq_proxy_build_job(const bContext *C, ReportList *reports)
   wmJob *wm_job = ED_seq_proxy_wm_job_get(C);
   ProxyJob *pj = ED_seq_proxy_job_get(C, wm_job);
 
-  GSet *file_list = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, "file list");
+  blender::Set<std::string> processed_paths;
   bool selected = false; /* Check for no selected strips */
 
-  LISTBASE_FOREACH (Sequence *, seq, SEQ_active_seqbase_get(ed)) {
-    if (!ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE) || (seq->flag & SELECT) == 0) {
+  LISTBASE_FOREACH (Strip *, seq, SEQ_active_seqbase_get(ed)) {
+    if (!ELEM(seq->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE) || (seq->flag & SELECT) == 0) {
       continue;
     }
 
@@ -64,20 +59,18 @@ static void seq_proxy_build_job(const bContext *C, ReportList *reports)
       BKE_reportf(reports, RPT_WARNING, "Proxy is not enabled for %s, skipping", seq->name);
       continue;
     }
-    if (seq->strip->proxy->build_size_flags == 0) {
+    if (seq->data->proxy->build_size_flags == 0) {
       BKE_reportf(reports, RPT_WARNING, "Resolution is not selected for %s, skipping", seq->name);
       continue;
     }
 
     bool success = SEQ_proxy_rebuild_context(
-        pj->main, pj->depsgraph, pj->scene, seq, file_list, &pj->queue, false);
+        pj->main, pj->depsgraph, pj->scene, seq, &processed_paths, &pj->queue, false);
 
-    if (!success && (seq->strip->proxy->build_flags & SEQ_PROXY_SKIP_EXISTING) != 0) {
+    if (!success && (seq->data->proxy->build_flags & SEQ_PROXY_SKIP_EXISTING) != 0) {
       BKE_reportf(reports, RPT_WARNING, "Overwrite is not checked for %s, skipping", seq->name);
     }
   }
-
-  BLI_gset_free(file_list, MEM_freeN);
 
   if (!selected) {
     BKE_reportf(reports, RPT_WARNING, "Select movie or image strips");
@@ -105,32 +98,28 @@ static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /*o*/)
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   Editing *ed = SEQ_editing_get(scene);
-  GSet *file_list;
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  file_list = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, "file list");
+  blender::Set<std::string> processed_paths;
 
-  LISTBASE_FOREACH (Sequence *, seq, SEQ_active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, seq, SEQ_active_seqbase_get(ed)) {
     if (seq->flag & SELECT) {
       ListBase queue = {nullptr, nullptr};
-      bool stop = false, do_update;
-      float progress;
 
-      SEQ_proxy_rebuild_context(bmain, depsgraph, scene, seq, file_list, &queue, false);
+      SEQ_proxy_rebuild_context(bmain, depsgraph, scene, seq, &processed_paths, &queue, false);
 
+      wmJobWorkerStatus worker_status = {};
       LISTBASE_FOREACH (LinkData *, link, &queue) {
         SeqIndexBuildContext *context = static_cast<SeqIndexBuildContext *>(link->data);
-        SEQ_proxy_rebuild(context, &stop, &do_update, &progress);
+        SEQ_proxy_rebuild(context, &worker_status);
         SEQ_proxy_rebuild_finish(context, false);
       }
       SEQ_relations_free_imbuf(scene, &ed->seqbase, false);
     }
   }
-
-  BLI_gset_free(file_list, MEM_freeN);
 
   return OPERATOR_FINISHED;
 }
@@ -140,7 +129,7 @@ void SEQUENCER_OT_rebuild_proxy(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Rebuild Proxy and Timecode Indices";
   ot->idname = "SEQUENCER_OT_rebuild_proxy";
-  ot->description = "Rebuild all selected proxies and timecode indices using the job system";
+  ot->description = "Rebuild all selected proxies and timecode indices";
 
   /* Api callbacks. */
   ot->invoke = sequencer_rebuild_proxy_invoke;
@@ -158,7 +147,8 @@ void SEQUENCER_OT_rebuild_proxy(wmOperatorType *ot)
 
 static int sequencer_enable_proxies_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  return WM_operator_props_dialog_popup(C, op, 200);
+  return WM_operator_props_dialog_popup(
+      C, op, 200, IFACE_("Set Selected Strip Proxies"), IFACE_("Set"));
 }
 
 static int sequencer_enable_proxies_exec(bContext *C, wmOperator *op)
@@ -176,47 +166,47 @@ static int sequencer_enable_proxies_exec(bContext *C, wmOperator *op)
     turnon = false;
   }
 
-  LISTBASE_FOREACH (Sequence *, seq, SEQ_active_seqbase_get(ed)) {
+  LISTBASE_FOREACH (Strip *, seq, SEQ_active_seqbase_get(ed)) {
     if (seq->flag & SELECT) {
-      if (ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE)) {
+      if (ELEM(seq->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
         SEQ_proxy_set(seq, turnon);
-        if (seq->strip->proxy == nullptr) {
+        if (seq->data->proxy == nullptr) {
           continue;
         }
 
         if (proxy_25) {
-          seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_25;
+          seq->data->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_25;
         }
         else {
-          seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_25;
+          seq->data->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_25;
         }
 
         if (proxy_50) {
-          seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_50;
+          seq->data->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_50;
         }
         else {
-          seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_50;
+          seq->data->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_50;
         }
 
         if (proxy_75) {
-          seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_75;
+          seq->data->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_75;
         }
         else {
-          seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_75;
+          seq->data->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_75;
         }
 
         if (proxy_100) {
-          seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_100;
+          seq->data->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_100;
         }
         else {
-          seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_100;
+          seq->data->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_100;
         }
 
         if (!overwrite) {
-          seq->strip->proxy->build_flags |= SEQ_PROXY_SKIP_EXISTING;
+          seq->data->proxy->build_flags |= SEQ_PROXY_SKIP_EXISTING;
         }
         else {
-          seq->strip->proxy->build_flags &= ~SEQ_PROXY_SKIP_EXISTING;
+          seq->data->proxy->build_flags &= ~SEQ_PROXY_SKIP_EXISTING;
         }
       }
     }

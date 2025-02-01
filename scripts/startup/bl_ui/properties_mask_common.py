@@ -2,11 +2,12 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# panels get subclassed (not registered directly)
-# menus are referenced `as is`
+# Panels get sub-classed (not registered directly).
+# Menus are referenced as-is.
 
 from bpy.types import Menu, UIList
 from bpy.app.translations import contexts as i18n_contexts
+from . import anim
 
 
 # Use by both image & clip context menus.
@@ -36,8 +37,7 @@ def draw_mask_context_menu(layout, _context):
 
 
 class MASK_UL_layers(UIList):
-    def draw_item(self, _context, layout, _data, item, icon,
-                  _active_data, _active_propname, _index):
+    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         # assert(isinstance(item, bpy.types.MaskLayer)
         mask = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
@@ -99,8 +99,10 @@ class MASK_PT_layers:
         rows = 4 if active_layer else 1
 
         row = layout.row()
-        row.template_list("MASK_UL_layers", "", mask, "layers",
-                          mask, "active_layer_index", rows=rows)
+        row.template_list(
+            "MASK_UL_layers", "", mask, "layers",
+            mask, "active_layer_index", rows=rows,
+        )
 
         sub = row.column(align=True)
 
@@ -204,18 +206,46 @@ class MASK_PT_point:
             row = col.row()
             row.prop(parent, "type", expand=True)
 
-            col.prop_search(parent, "parent", tracking,
-                            "objects", icon='OBJECT_DATA', text="Object")
+            col.prop_search(parent, "parent", tracking, "objects", icon='OBJECT_DATA', text="Object")
 
             tracks_list = "tracks" if parent.type == 'POINT_TRACK' else "plane_tracks"
 
             if parent.parent in tracking.objects:
                 ob = tracking.objects[parent.parent]
-                col.prop_search(parent, "sub_parent", ob,
-                                tracks_list, icon='ANIM_DATA', text="Track")
+                col.prop_search(
+                    parent, "sub_parent", ob,
+                    tracks_list, icon='ANIM_DATA', text="Track", text_ctxt=i18n_contexts.id_movieclip,
+                )
             else:
-                col.prop_search(parent, "sub_parent", tracking,
-                                tracks_list, icon='ANIM_DATA', text="Track")
+                col.prop_search(
+                    parent, "sub_parent", tracking,
+                    tracks_list, icon='ANIM_DATA', text="Track", text_ctxt=i18n_contexts.id_movieclip,
+                )
+
+
+class MASK_PT_animation:
+    # subclasses must define...
+    # ~ bl_space_type = 'CLIP_EDITOR'
+    # ~ bl_region_type = 'UI'
+    bl_label = "Animation"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        space_data = context.space_data
+        return space_data.mask and space_data.mode == 'MASK'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        # poll() ensures this is not None.
+        sc = context.space_data
+        mask = sc.mask
+
+        col = layout.column(align=True)
+        anim.draw_action_and_slot_selector_for_id(col, mask)
 
 
 class MASK_PT_display:
@@ -245,7 +275,7 @@ class MASK_PT_display:
         sub.active = space_data.show_mask_overlay
         sub.prop(space_data, "mask_overlay_mode", text="")
         row = layout.row()
-        row.active = (space_data.mask_overlay_mode in ['COMBINED'] and space_data.show_mask_overlay)
+        row.active = space_data.show_mask_overlay and (space_data.mask_overlay_mode == 'COMBINED')
         row.prop(space_data, "blend_factor", text="Blending Factor")
 
 

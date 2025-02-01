@@ -8,7 +8,7 @@
 
 #include "intern/builder/deg_builder_nodes.h"
 #include "intern/builder/deg_builder_relations.h"
-#include "intern/depsgraph.h"
+#include "intern/depsgraph.hh"
 
 namespace blender::deg {
 
@@ -81,12 +81,12 @@ FromIDsBuilderPipeline::FromIDsBuilderPipeline(::Depsgraph *graph, Span<ID *> id
 {
 }
 
-unique_ptr<DepsgraphNodeBuilder> FromIDsBuilderPipeline::construct_node_builder()
+std::unique_ptr<DepsgraphNodeBuilder> FromIDsBuilderPipeline::construct_node_builder()
 {
   return std::make_unique<DepsgraphFromIDsNodeBuilder>(bmain_, deg_graph_, &builder_cache_, ids_);
 }
 
-unique_ptr<DepsgraphRelationBuilder> FromIDsBuilderPipeline::construct_relation_builder()
+std::unique_ptr<DepsgraphRelationBuilder> FromIDsBuilderPipeline::construct_relation_builder()
 {
   return std::make_unique<DepsgraphFromIDsRelationBuilder>(
       bmain_, deg_graph_, &builder_cache_, ids_);
@@ -96,7 +96,7 @@ void FromIDsBuilderPipeline::build_nodes(DepsgraphNodeBuilder &node_builder)
 {
   node_builder.build_view_layer(scene_, view_layer_, DEG_ID_LINKED_DIRECTLY);
   for (ID *id : ids_) {
-    node_builder.build_id(id);
+    node_builder.build_id(id, true);
   }
 }
 

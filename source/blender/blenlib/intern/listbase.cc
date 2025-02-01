@@ -19,7 +19,7 @@
 
 #include "BLI_listbase.h"
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 void BLI_movelisttolist(ListBase *dst, ListBase *src)
 {
@@ -70,7 +70,7 @@ void BLI_listbase_split_after(ListBase *original_listbase, ListBase *split_listb
 
   if (vlink == nullptr) {
     /* Move everything into `split_listbase`. */
-    SWAP(ListBase, *original_listbase, *split_listbase);
+    std::swap(*original_listbase, *split_listbase);
     return;
   }
 
@@ -250,8 +250,8 @@ void BLI_listbases_swaplinks(ListBase *listbasea, ListBase *listbaseb, void *vli
 
 void *BLI_pophead(ListBase *listbase)
 {
-  Link *link;
-  if ((link = static_cast<Link *>(listbase->first))) {
+  Link *link = static_cast<Link *>(listbase->first);
+  if (link) {
     BLI_remlink(listbase, link);
   }
   return link;
@@ -259,8 +259,8 @@ void *BLI_pophead(ListBase *listbase)
 
 void *BLI_poptail(ListBase *listbase)
 {
-  Link *link;
-  if ((link = static_cast<Link *>(listbase->last))) {
+  Link *link = static_cast<Link *>(listbase->last);
+  if (link) {
     BLI_remlink(listbase, link);
   }
   return link;
@@ -560,15 +560,22 @@ void *BLI_rfindlink(const ListBase *listbase, int number)
   return link;
 }
 
-void *BLI_findlinkfrom(Link *start, int number)
+void *BLI_findlinkfrom(Link *start, int step)
 {
   Link *link = nullptr;
 
-  if (number >= 0) {
+  if (step >= 0) {
     link = start;
-    while (link != nullptr && number != 0) {
-      number--;
+    while (link != nullptr && step != 0) {
+      step--;
       link = link->next;
+    }
+  }
+  else {
+    link = start;
+    while (link != nullptr && step != 0) {
+      step++;
+      link = link->prev;
     }
   }
 

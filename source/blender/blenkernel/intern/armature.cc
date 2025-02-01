@@ -9,9 +9,10 @@
 #include <cctype>
 #include <cfloat>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -20,11 +21,13 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 
@@ -34,30 +37,30 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
-#include "BKE_anim_data.h"
+#include "BKE_action.hh"
+#include "BKE_anim_data.hh"
 #include "BKE_anim_visualization.h"
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 #include "BKE_constraint.h"
-#include "BKE_curve.h"
-#include "BKE_idprop.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
+#include "BKE_curve.hh"
+#include "BKE_idprop.hh"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_main.hh"
+#include "BKE_object.hh"
+#include "BKE_scene.hh"
 
-#include "ANIM_bone_collections.h"
+#include "ANIM_bone_collections.hh"
 
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "BIK_api.h"
 
 #include "BLO_read_write.hh"
 
-#include "CLG_log.h"
+using namespace blender;
 
 /* -------------------------------------------------------------------- */
 /** \name Prototypes
@@ -83,10 +86,34 @@ static void armature_init_data(ID *id)
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(armature, id));
 
   MEMCPY_STRUCT_AFTER(armature, DNA_struct_default_get(bArmature), id);
+}
 
-  /* Give the Armature its default bone collection. */
-  BoneCollection *default_bonecoll = ANIM_bonecoll_new("");
-  BLI_addhead(&armature->collections, default_bonecoll);
+/**
+ * Copies the bone collection in `bcoll_src` to `bcoll_dst`, re-hooking up all
+ * of the bone relationships to the bones in `armature_dst`.
+ *
+ * \note this function's use case is narrow in scope, intended only for use in
+ * `armature_copy_data()` below.  You probably don't want to use this otherwise.
+ *
+ * \param lib_id_flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
+ */
+static void copy_bone_collection(bArmature *armature_dst,
+                                 BoneCollection *&bcoll_dst,
+                                 const BoneCollection *bcoll_src,
+                                 const int lib_id_flag)
+{
+  bcoll_dst = static_cast<BoneCollection *>(MEM_dupallocN(bcoll_src));
+
+  /* ID properties. */
+  if (bcoll_dst->prop) {
+    bcoll_dst->prop = IDP_CopyProperty_ex(bcoll_dst->prop, lib_id_flag);
+  }
+
+  /* Bone references. */
+  BLI_duplicatelist(&bcoll_dst->bones, &bcoll_dst->bones);
+  LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll_dst->bones) {
+    member->bone = BKE_armature_find_bone_name(armature_dst, member->bone->name);
+  }
 }
 
 /**
@@ -97,9 +124,13 @@ static void armature_init_data(ID *id)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag: Copying options (see BKE_lib_id.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
-static void armature_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int flag)
+static void armature_copy_data(Main * /*bmain*/,
+                               std::optional<Library *> /*owner_library*/,
+                               ID *id_dst,
+                               const ID *id_src,
+                               const int flag)
 {
   bArmature *armature_dst = (bArmature *)id_dst;
   const bArmature *armature_src = (const bArmature *)id_src;
@@ -139,18 +170,20 @@ static void armature_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, c
   armature_dst->act_edbone = nullptr;
 
   /* Duplicate bone collections & assignments. */
-  BLI_duplicatelist(&armature_dst->collections, &armature_src->collections);
-  LISTBASE_FOREACH (BoneCollection *, bcoll, &armature_dst->collections) {
-    /* ID properties. */
-    if (bcoll->prop) {
-      bcoll->prop = IDP_CopyProperty(bcoll->prop);
+  if (armature_src->collection_array) {
+    armature_dst->collection_array = static_cast<BoneCollection **>(
+        MEM_dupallocN(armature_src->collection_array));
+    armature_dst->collection_array_num = armature_src->collection_array_num;
+    for (int i = 0; i < armature_src->collection_array_num; i++) {
+      copy_bone_collection(armature_dst,
+                           armature_dst->collection_array[i],
+                           armature_src->collection_array[i],
+                           flag);
     }
-
-    /* Bone references. */
-    BLI_duplicatelist(&bcoll->bones, &bcoll->bones);
-    LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {
-      member->bone = BKE_armature_find_bone_name(armature_dst, member->bone->name);
-    }
+  }
+  else {
+    armature_dst->collection_array = nullptr;
+    armature_dst->collection_array_num = 0;
   }
 
   ANIM_armature_bonecoll_active_index_set(armature_dst,
@@ -165,17 +198,15 @@ static void armature_free_data(ID *id)
   ANIM_armature_runtime_free(armature);
 
   /* Free all BoneCollectionMembership objects. */
-  LISTBASE_FOREACH_MUTABLE (BoneCollection *, bcoll, &armature->collections) {
-    /* ID properties. */
-    if (bcoll->prop) {
-      IDP_FreeProperty(bcoll->prop);
-      bcoll->prop = nullptr;
+  if (armature->collection_array) {
+    for (BoneCollection *bcoll : armature->collections_span()) {
+      BLI_freelistN(&bcoll->bones);
+      ANIM_bonecoll_free(bcoll, false);
     }
-
-    /* Bone references. */
-    BLI_freelistN(&bcoll->bones);
+    MEM_freeN(armature->collection_array);
   }
-  BLI_freelistN(&armature->collections);
+  armature->collection_array = nullptr;
+  armature->collection_array_num = 0;
 
   BKE_armature_bone_hash_free(armature);
   BKE_armature_bonelist_free(&armature->bonebase, false);
@@ -191,9 +222,9 @@ static void armature_free_data(ID *id)
 static void armature_foreach_id_bone(Bone *bone, LibraryForeachIDData *data)
 {
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-      data,
-      IDP_foreach_property(
-          bone->prop, IDP_TYPE_FILTER_ID, BKE_lib_query_idpropertiesForeachIDLink_callback, data));
+      data, IDP_foreach_property(bone->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+        BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+      }));
 
   LISTBASE_FOREACH (Bone *, curbone, &bone->childbase) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, armature_foreach_id_bone(curbone, data));
@@ -203,21 +234,17 @@ static void armature_foreach_id_bone(Bone *bone, LibraryForeachIDData *data)
 static void armature_foreach_id_editbone(EditBone *edit_bone, LibraryForeachIDData *data)
 {
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-      data,
-      IDP_foreach_property(edit_bone->prop,
-                           IDP_TYPE_FILTER_ID,
-                           BKE_lib_query_idpropertiesForeachIDLink_callback,
-                           data));
+      data, IDP_foreach_property(edit_bone->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+        BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+      }));
 }
 
 static void armature_foreach_id_bone_collection(BoneCollection *bcoll, LibraryForeachIDData *data)
 {
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-      data,
-      IDP_foreach_property(bcoll->prop,
-                           IDP_TYPE_FILTER_ID,
-                           BKE_lib_query_idpropertiesForeachIDLink_callback,
-                           data));
+      data, IDP_foreach_property(bcoll->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+        BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+      }));
 }
 
 static void armature_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -233,7 +260,7 @@ static void armature_foreach_id(ID *id, LibraryForeachIDData *data)
     }
   }
 
-  LISTBASE_FOREACH (BoneCollection *, bcoll, &arm->collections) {
+  for (BoneCollection *bcoll : arm->collections_span()) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
                                             armature_foreach_id_bone_collection(bcoll, data));
   }
@@ -290,32 +317,53 @@ static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_add
   const bArmature_Runtime runtime_backup = arm->runtime;
   memset(&arm->runtime, 0, sizeof(arm->runtime));
 
+  /* Convert BoneCollections over to a listbase for writing. */
+  BoneCollection **collection_array_backup = arm->collection_array;
+  if (arm->collection_array_num > 0) {
+    for (int i = 0; i < arm->collection_array_num - 1; i++) {
+      arm->collection_array[i]->next = arm->collection_array[i + 1];
+      arm->collection_array[i + 1]->prev = arm->collection_array[i];
+    }
+    arm->collections_legacy.first = arm->collection_array[0];
+    arm->collections_legacy.last = arm->collection_array[arm->collection_array_num - 1];
+    arm->collection_array = nullptr;
+  }
+
   BLO_write_id_struct(writer, bArmature, id_address, &arm->id);
   BKE_id_blend_write(writer, &arm->id);
-
-  arm->runtime = runtime_backup;
 
   /* Direct data */
   LISTBASE_FOREACH (Bone *, bone, &arm->bonebase) {
     write_bone(writer, bone);
   }
-  LISTBASE_FOREACH (BoneCollection *, bcoll, &arm->collections) {
+
+  LISTBASE_FOREACH (BoneCollection *, bcoll, &arm->collections_legacy) {
     write_bone_collection(writer, bcoll);
   }
+
+  /* Restore the BoneCollection array and clear the listbase. */
+  arm->collection_array = collection_array_backup;
+  for (int i = 0; i < arm->collection_array_num - 1; i++) {
+    arm->collection_array[i]->next = nullptr;
+    arm->collection_array[i + 1]->prev = nullptr;
+  }
+  BLI_listbase_clear(&arm->collections_legacy);
+
+  arm->runtime = runtime_backup;
 }
 
 static void direct_link_bones(BlendDataReader *reader, Bone *bone)
 {
-  BLO_read_data_address(reader, &bone->parent);
-  BLO_read_data_address(reader, &bone->prop);
+  BLO_read_struct(reader, Bone, &bone->parent);
+  BLO_read_struct(reader, IDProperty, &bone->prop);
   IDP_BlendDataRead(reader, &bone->prop);
 
-  BLO_read_data_address(reader, &bone->bbone_next);
-  BLO_read_data_address(reader, &bone->bbone_prev);
+  BLO_read_struct(reader, Bone, &bone->bbone_next);
+  BLO_read_struct(reader, Bone, &bone->bbone_prev);
 
   bone->flag &= ~(BONE_DRAW_ACTIVE | BONE_DRAW_LOCKED_WEIGHT);
 
-  BLO_read_list(reader, &bone->childbase);
+  BLO_read_struct_list(reader, Bone, &bone->childbase);
 
   LISTBASE_FOREACH (Bone *, child, &bone->childbase) {
     direct_link_bones(reader, child);
@@ -326,19 +374,72 @@ static void direct_link_bones(BlendDataReader *reader, Bone *bone)
 
 static void direct_link_bone_collection(BlendDataReader *reader, BoneCollection *bcoll)
 {
-  BLO_read_data_address(reader, &bcoll->prop);
+  BLO_read_struct(reader, IDProperty, &bcoll->prop);
   IDP_BlendDataRead(reader, &bcoll->prop);
 
-  BLO_read_list(reader, &bcoll->bones);
+  BLO_read_struct_list(reader, BoneCollectionMember, &bcoll->bones);
   LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {
-    BLO_read_data_address(reader, &member->bone);
+    BLO_read_struct(reader, Bone, &member->bone);
+  }
+}
+
+static void read_bone_collections(BlendDataReader *reader, bArmature *arm)
+{
+  /* Read as listbase, but convert to an array on the armature. */
+  BLO_read_struct_list(reader, BoneCollection, &arm->collections_legacy);
+  arm->collection_array_num = BLI_listbase_count(&arm->collections_legacy);
+  arm->collection_array = (BoneCollection **)MEM_malloc_arrayN(
+      arm->collection_array_num, sizeof(BoneCollection *), __func__);
+  {
+    int i;
+    int min_child_index = 0;
+    LISTBASE_FOREACH_INDEX (BoneCollection *, bcoll, &arm->collections_legacy, i) {
+      arm->collection_array[i] = bcoll;
+
+      if (bcoll->child_index > 0) {
+        min_child_index = min_ii(min_child_index, bcoll->child_index);
+      }
+    }
+
+    if (arm->collection_root_count == 0 && arm->collection_array_num > 0) {
+      /* There cannot be zero roots when there are any bone collections. This means the root count
+       * likely got lost for some reason, and should be reconstructed to avoid data corruption when
+       * modifying the array. */
+      if (min_child_index == 0) {
+        /* None of the bone collections had any children, so all are roots. */
+        arm->collection_root_count = arm->collection_array_num;
+      }
+      else {
+        arm->collection_root_count = min_child_index;
+      }
+    }
+  }
+
+  /* We don't need the listbase or prev/next pointers because the
+   * collections are stored in an array. */
+  for (int i = 0; i < arm->collection_array_num - 1; i++) {
+    arm->collection_array[i]->next = nullptr;
+    arm->collection_array[i + 1]->prev = nullptr;
+  }
+  BLI_listbase_clear(&arm->collections_legacy);
+
+  /* Bone collections added via an override can be edited, but ones that already exist in another
+   * blend file (so on the linked Armature) should not be touched. */
+  const bool reset_bcoll_override_flag = ID_IS_LINKED(&arm->id);
+  for (BoneCollection *bcoll : arm->collections_span()) {
+    direct_link_bone_collection(reader, bcoll);
+    if (reset_bcoll_override_flag) {
+      /* The linked Armature may have overrides in the library file already, and
+       * those should *not* be editable here. */
+      bcoll->flags &= ~BONE_COLLECTION_OVERRIDE_LIBRARY_LOCAL;
+    }
   }
 }
 
 static void armature_blend_read_data(BlendDataReader *reader, ID *id)
 {
   bArmature *arm = (bArmature *)id;
-  BLO_read_list(reader, &arm->bonebase);
+  BLO_read_struct_list(reader, Bone, &arm->bonebase);
   arm->bonehash = nullptr;
   arm->edbo = nullptr;
   /* Must always be cleared (armatures don't have their own edit-data). */
@@ -348,13 +449,9 @@ static void armature_blend_read_data(BlendDataReader *reader, ID *id)
     direct_link_bones(reader, bone);
   }
 
-  BLO_read_list(reader, &arm->collections);
-  LISTBASE_FOREACH (BoneCollection *, bcoll, &arm->collections) {
-    direct_link_bone_collection(reader, bcoll);
-  }
-  BLO_read_data_address(reader, &arm->active_collection);
+  read_bone_collections(reader, arm);
 
-  BLO_read_data_address(reader, &arm->act_bone);
+  BLO_read_struct(reader, Bone, &arm->act_bone);
   arm->act_edbone = nullptr;
 
   BKE_armature_bone_hash_make(arm);
@@ -363,13 +460,23 @@ static void armature_blend_read_data(BlendDataReader *reader, ID *id)
   ANIM_armature_runtime_refresh(arm);
 }
 
+static void armature_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *id_old)
+{
+  bArmature *arm_new = (bArmature *)id_new;
+  bArmature *arm_old = (bArmature *)id_old;
+
+  animrig::bonecolls_copy_expanded_flag(arm_new->collections_span(), arm_old->collections_span());
+}
+
 IDTypeInfo IDType_ID_AR = {
     /*id_code*/ ID_AR,
     /*id_filter*/ FILTER_ID_AR,
+    /* IDProps of armature bones can use any type of ID. */
+    /*dependencies_id_types*/ FILTER_ID_ALL,
     /*main_listbase_index*/ INDEX_ID_AR,
     /*struct_size*/ sizeof(bArmature),
     /*name*/ "Armature",
-    /*name_plural*/ "armatures",
+    /*name_plural*/ N_("armatures"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_ARMATURE,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -387,7 +494,7 @@ IDTypeInfo IDType_ID_AR = {
     /*blend_read_data*/ armature_blend_read_data,
     /*blend_read_after_liblink*/ nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    /*blend_read_undo_preserve*/ armature_undo_preserve,
 
     /*lib_override_apply_post*/ nullptr,
 };
@@ -1505,7 +1612,9 @@ int BKE_pchan_bbone_spline_compute(BBoneSplineParameters *param,
   return param->segments;
 }
 
-static void allocate_bbone_cache(bPoseChannel *pchan, int segments)
+static void allocate_bbone_cache(bPoseChannel *pchan,
+                                 const int segments,
+                                 const bool use_boundaries)
 {
   bPoseChannel_Runtime *runtime = &pchan->runtime;
 
@@ -1522,6 +1631,69 @@ static void allocate_bbone_cache(bPoseChannel *pchan, int segments)
     runtime->bbone_dual_quats = static_cast<DualQuat *>(MEM_malloc_arrayN(
         1 + uint(segments), sizeof(DualQuat), "bPoseChannel_Runtime::bbone_dual_quats"));
   }
+
+  /* If the segment count changed, the array was deallocated and nulled above. */
+  if (use_boundaries && !runtime->bbone_segment_boundaries) {
+    runtime->bbone_segment_boundaries = static_cast<bPoseChannel_BBoneSegmentBoundary *>(
+        MEM_malloc_arrayN(1 + uint(segments),
+                          sizeof(bPoseChannel_BBoneSegmentBoundary),
+                          "bPoseChannel_Runtime::bbone_segment_boundaries"));
+  }
+  else if (!use_boundaries) {
+    MEM_SAFE_FREE(runtime->bbone_segment_boundaries);
+  }
+}
+
+/** Computes the B-Bone segment boundary planes for the curved mapping. */
+static void compute_bbone_segment_boundaries(bPoseChannel *pchan)
+{
+  const Bone *bone = pchan->bone;
+  bPoseChannel_Runtime *runtime = &pchan->runtime;
+  const Mat4 *b_bone_rest = runtime->bbone_rest_mats;
+  bPoseChannel_BBoneSegmentBoundary *boundaries = runtime->bbone_segment_boundaries;
+
+  /* Convert joints to pose space. */
+  for (int i = 0; i <= bone->segments; i++) {
+    mul_v3_m4v3(boundaries[i].point, bone->arm_mat, b_bone_rest[i].mat[3]);
+    mul_v3_mat3_m4v3(boundaries[i].plane_normal, bone->arm_mat, b_bone_rest[i].mat[1]);
+    normalize_v3(boundaries[i].plane_normal);
+  }
+
+  /* Precompute coefficients for the mapping calculations. */
+  for (int i = 0; i <= bone->segments; i++) {
+    boundaries[i].plane_offset = dot_v3v3(boundaries[i].point, boundaries[i].plane_normal);
+  }
+
+  /* Precompute the inverted length of the curve. */
+  float arc_length = 0.0f;
+
+  for (int i = 0; i < bone->segments; i++) {
+    arc_length += len_v3v3(boundaries[i + 1].point, boundaries[i].point);
+  }
+
+  runtime->bbone_arc_length_reciprocal = 1.0f / arc_length;
+
+  /* Precompute the BSP depth based widening coefficients.
+   * The actual space partitioning includes two extra virtual segments for the ends. */
+  const int bsp_depth = int(ceilf(log2f(bone->segments + 2)));
+
+  BLI_assert(bsp_depth <= bone->segments);
+
+  /* Maximum half-width of the smoothing band at the bsp tree root plane, in segments.
+   * The tuning coefficient was chosen by trial and error (see PR #110758). */
+  const float tuning_factor = 0.222f;
+  const float straight_length = len_v3v3(boundaries[0].point, boundaries[bone->segments].point);
+  const float max_depth_scale = bone->segments * (straight_length / arc_length) * tuning_factor;
+
+  /* Per tree layer scaling factor, aiming to reduce the radius to 1 segment at the leaf level.
+   * Since depth_scale is actually a reciprocal of the width, this factor is >= 1. */
+  const float scale_factor = powf(max_ff(max_depth_scale, 1.0f), 1.0f / (bsp_depth - 1));
+
+  boundaries[0].depth_scale = bone->segments / max_depth_scale;
+
+  for (int i = 1; i < bsp_depth; i++) {
+    boundaries[i].depth_scale = boundaries[i - 1].depth_scale * scale_factor;
+  }
 }
 
 void BKE_pchan_bbone_segments_cache_compute(bPoseChannel *pchan)
@@ -1533,7 +1705,9 @@ void BKE_pchan_bbone_segments_cache_compute(bPoseChannel *pchan)
   BLI_assert(segments > 1);
 
   /* Allocate the cache if needed. */
-  allocate_bbone_cache(pchan, segments);
+  const bool use_curved_mapping = bone->bbone_mapping_mode == BBONE_MAPPING_CURVED;
+
+  allocate_bbone_cache(pchan, segments, use_curved_mapping);
 
   /* Compute the shape. */
   Mat4 *b_bone = runtime->bbone_pose_mats;
@@ -1544,6 +1718,12 @@ void BKE_pchan_bbone_segments_cache_compute(bPoseChannel *pchan)
 
   BKE_pchan_bbone_spline_setup(pchan, false, true, b_bone);
   BKE_pchan_bbone_spline_setup(pchan, true, true, b_bone_rest);
+
+  /* Compute segment boundaries. */
+  if (runtime->bbone_segment_boundaries) {
+    BLI_assert(use_curved_mapping);
+    compute_bbone_segment_boundaries(pchan);
+  }
 
   /* Compute deform matrices. */
   /* first matrix is the inverse arm_mat, to bring points in local bone space
@@ -1585,7 +1765,9 @@ void BKE_pchan_bbone_segments_cache_copy(bPoseChannel *pchan, bPoseChannel *pcha
     BKE_pose_channel_free_bbone_cache(&pchan->runtime);
   }
   else {
-    allocate_bbone_cache(pchan, segments);
+    const bool use_curved_mapping = runtime_from->bbone_segment_boundaries != nullptr;
+
+    allocate_bbone_cache(pchan, segments, use_curved_mapping);
 
     memcpy(runtime->bbone_rest_mats, runtime_from->bbone_rest_mats, sizeof(Mat4) * (1 + segments));
     memcpy(runtime->bbone_pose_mats, runtime_from->bbone_pose_mats, sizeof(Mat4) * (1 + segments));
@@ -1595,6 +1777,17 @@ void BKE_pchan_bbone_segments_cache_copy(bPoseChannel *pchan, bPoseChannel *pcha
     memcpy(runtime->bbone_dual_quats,
            runtime_from->bbone_dual_quats,
            sizeof(DualQuat) * (1 + segments));
+
+    if (use_curved_mapping) {
+      runtime->bbone_arc_length_reciprocal = runtime_from->bbone_arc_length_reciprocal;
+
+      memcpy(runtime->bbone_segment_boundaries,
+             runtime_from->bbone_segment_boundaries,
+             sizeof(bPoseChannel_BBoneSegmentBoundary) * (1 + segments));
+    }
+    else {
+      BLI_assert(runtime->bbone_segment_boundaries == nullptr);
+    }
   }
 }
 
@@ -1623,10 +1816,11 @@ void BKE_pchan_bbone_deform_clamp_segment_index(const bPoseChannel *pchan,
   *r_blend_next = blend;
 }
 
-void BKE_pchan_bbone_deform_segment_index(const bPoseChannel *pchan,
-                                          const float *co,
-                                          int *r_index,
-                                          float *r_blend_next)
+/** Implementation of the Straight B-Bone segment mapping. */
+static void find_bbone_segment_index_straight(const bPoseChannel *pchan,
+                                              const float *co,
+                                              int *r_index,
+                                              float *r_blend_next)
 {
   const Mat4 *mats = pchan->runtime.bbone_deform_mats;
   const float(*mat)[4] = mats[0].mat;
@@ -1637,6 +1831,147 @@ void BKE_pchan_bbone_deform_segment_index(const bPoseChannel *pchan,
   /* Calculate the indices of the 2 affecting b_bone segments. */
   BKE_pchan_bbone_deform_clamp_segment_index(
       pchan, y / pchan->bone->length, r_index, r_blend_next);
+}
+
+/** Computes signed distance to the segment boundary BSP plane. */
+inline float bbone_segment_bsp_signed_distance(const bPoseChannel_BBoneSegmentBoundary &boundary,
+                                               const float *co)
+{
+  return dot_v3v3(co, boundary.plane_normal) - boundary.plane_offset;
+}
+
+/** Implementation of the Curved B-Bone segment mapping. */
+static void find_bbone_segment_index_curved(const bPoseChannel *pchan,
+                                            const float *co,
+                                            int *r_index,
+                                            float *r_blend_next)
+{
+  const bPoseChannel_BBoneSegmentBoundary *boundaries = pchan->runtime.bbone_segment_boundaries;
+  const int segments = pchan->runtime.bbone_segments;
+
+  /* Saved signed distances from co to each checked boundary plane. */
+  float boundary_dist[MAX_BBONE_SUBDIV + 1];
+
+  /* Stack of BSP plane indices that were checked in the binary search. */
+  int boundary_idx_stack[MAX_BBONE_SUBDIV];
+  int stack_top = -1;
+
+  /* Perform a BSP binary search to narrow things down to one segment.
+   * Checked BSP planes are stored for the smoothing pass later. */
+  int start = -1, end = segments + 1, bias = 0;
+
+  while (end - start > 1) {
+    const int mid = (start + end + bias) / 2;
+
+    BLI_assert(start < mid && mid < end);
+
+    const float dist = bbone_segment_bsp_signed_distance(boundaries[mid], co);
+
+    boundary_idx_stack[++stack_top] = mid;
+    boundary_dist[mid] = dist;
+
+    if (dist < 0) {
+      end = mid;
+      /* Bias division of odd numbers toward the previous split. This should produce
+       * a slightly smoother and more symmetrical evolute boundary near the ends. */
+      bias = 1;
+    }
+    else {
+      start = mid;
+      bias = 0;
+    }
+  }
+
+  /* Compute the mapping from the individual segment, or the curve ends. */
+  const float segment_size = 1.0f / segments;
+  float head_tail;
+
+  if (end <= 0) {
+    head_tail = 0;
+  }
+  else if (start >= segments) {
+    head_tail = 1;
+  }
+  else {
+    /* Linear interpolation between the innermost two planes. */
+    const float d1 = fabsf(boundary_dist[start]);
+    const float d2 = fabsf(boundary_dist[end]);
+    const float t = d1 / (d1 + d2);
+
+    head_tail = segment_size * (start + t);
+  }
+
+  /* Smooth the mapping to suppress discontinuities by using BSP boundaries up the stack.
+   *
+   * This works basically by pulling the mapped position towards the boundary in order to
+   * reduce the gradient slope to the ideal value (the one you get for points directly on
+   * the curve), using heuristic blend strength falloff coefficients based on the distances
+   * to the boundary plane before and after mapping. See PR #110758 for more details, or
+   * https://developer.blender.org/docs/features/animation/b-bone_vertex_mapping/#curved-mapping */
+  const float segment_scale = pchan->runtime.bbone_arc_length_reciprocal;
+
+  for (int i = stack_top; i >= 0; --i) {
+    const int boundary_idx = boundary_idx_stack[i];
+
+    /* Boundary in the head-tail space. */
+    const float boundary_pos = boundary_idx * segment_size;
+
+    /* Distance of the original 3d point (co) from the boundary plane,
+     * mapped to the head-tail space using the ideal slope ratio. */
+    const float point_dist = boundary_dist[boundary_idx] * segment_scale;
+    const float point_dist_abs = fabsf(point_dist);
+
+    /* Distance of the current mapped position from the boundary in the head-tail space. */
+    const float mapped_dist = fabsf(head_tail - boundary_pos);
+
+    /* Only reduce the local gradient slope, don't increase it. This basically limits
+     * smoothing to the inside of the curve, leaving outside as is. */
+    const float slope_gap = mapped_dist - point_dist_abs;
+
+    if (slope_gap <= 0) {
+      continue;
+    }
+
+    /* Only affect points close to the split line; the radius depends on the depth
+     * in the stack using precomputed coefficients. */
+    const float dist_coeff = 1.0f - point_dist_abs * boundaries[i].depth_scale;
+
+    if (dist_coeff <= 0) {
+      continue;
+    }
+
+    /* Asymptotically clamp the slope coefficient to 1. The tune coefficients here and
+     * below control the sharpness of the transition and were chosen by trial and error. */
+    const float slope_tune_coeff = 3.0f;
+    const float scaled_gap = slope_gap * slope_tune_coeff;
+    const float slope_coeff = scaled_gap / (scaled_gap + point_dist_abs);
+
+    /* Smooth the distance based coefficient around zero. */
+    const float dist_tune_coeff = 7.0f;
+    const float dist_coeff_smooth = dist_coeff * dist_coeff * (dist_tune_coeff + 1.0f) /
+                                    (dist_tune_coeff * dist_coeff + 1.0f);
+
+    /* Blend towards the point on the ideal slope. */
+    const float target_pos = boundary_pos + point_dist;
+
+    head_tail = interpf(target_pos, head_tail, slope_coeff * dist_coeff_smooth);
+  }
+
+  /* Calculate the indices of the 2 affecting b_bone segments. */
+  BKE_pchan_bbone_deform_clamp_segment_index(pchan, head_tail, r_index, r_blend_next);
+}
+
+void BKE_pchan_bbone_deform_segment_index(const bPoseChannel *pchan,
+                                          const float *co,
+                                          int *r_index,
+                                          float *r_blend_next)
+{
+  if (pchan->runtime.bbone_segment_boundaries) {
+    find_bbone_segment_index_curved(pchan, co, r_index, r_blend_next);
+  }
+  else {
+    find_bbone_segment_index_straight(pchan, co, r_index, r_blend_next);
+  }
 }
 
 /** \} */
@@ -1655,7 +1990,7 @@ void BKE_armature_mat_world_to_pose(Object *ob, const float inmat[4][4], float o
   }
 
   /* Get inverse of (armature) object's matrix. */
-  invert_m4_m4(obmat, ob->object_to_world);
+  invert_m4_m4(obmat, ob->object_to_world().ptr());
 
   /* multiply given matrix by object's-inverse to find pose-space matrix */
   mul_m4_m4m4(outmat, inmat, obmat);
@@ -2344,6 +2679,12 @@ static int rebuild_pose_bone(
   pchan->bone = bone;
   pchan->parent = parchan;
 
+  /* Prevent custom bone colors from having alpha zero.
+   * Part of the fix for issue #115434. */
+  pchan->color.custom.solid[3] = 255;
+  pchan->color.custom.select[3] = 255;
+  pchan->color.custom.active[3] = 255;
+
   /* We ensure the current pchan is immediately after the one we just generated/updated in the
    * previous call to `rebuild_pose_bone`.
    *
@@ -2624,7 +2965,7 @@ void BKE_pose_where_is(Depsgraph *depsgraph, Scene *scene, Object *ob)
     }
   }
   else {
-    invert_m4_m4(ob->world_to_object, ob->object_to_world); /* world_to_object is needed */
+    invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
 
     /* 1. clear flags */
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
@@ -2674,66 +3015,40 @@ void BKE_pose_where_is(Depsgraph *depsgraph, Scene *scene, Object *ob)
 /** \name Calculate Bounding Box (Armature & Pose)
  * \{ */
 
-static int minmax_armature(Object *ob, float r_min[3], float r_max[3])
+std::optional<blender::Bounds<blender::float3>> BKE_armature_min_max(const Object *ob)
 {
-  /* For now, we assume BKE_pose_where_is has already been called
-   * (hence we have valid data in pachan). */
-  LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-    minmax_v3v3_v3(r_min, r_max, pchan->pose_head);
-    minmax_v3v3_v3(r_min, r_max, pchan->pose_tail);
+  std::optional<blender::Bounds<blender::float3>> bounds_world = BKE_pose_minmax(ob, false);
+
+  if (!bounds_world) {
+    return std::nullopt;
   }
 
-  return (BLI_listbase_is_empty(&ob->pose->chanbase) == false);
-}
-
-static void boundbox_armature(Object *ob)
-{
-  BoundBox *bb;
-  float min[3], max[3];
-
-  if (ob->runtime.bb == nullptr) {
-    ob->runtime.bb = static_cast<BoundBox *>(MEM_callocN(sizeof(BoundBox), "Armature boundbox"));
-  }
-  bb = ob->runtime.bb;
-
-  INIT_MINMAX(min, max);
-  if (!minmax_armature(ob, min, max)) {
-    min[0] = min[1] = min[2] = -1.0f;
-    max[0] = max[1] = max[2] = 1.0f;
-  }
-
-  BKE_boundbox_init_from_minmax(bb, min, max);
-
-  bb->flag &= ~BOUNDBOX_DIRTY;
-}
-
-BoundBox *BKE_armature_boundbox_get(Object *ob)
-{
-  boundbox_armature(ob);
-
-  return ob->runtime.bb;
+  /* NOTE: this is not correct (after rotation the AABB may not be the smallest enclosing AABB any
+   * more), but acceptable because this is called via BKE_object_boundbox_get(), which is called by
+   * BKE_object_minmax(), which does the opposite transform. */
+  return blender::Bounds<blender::float3>{
+      math::transform_point(ob->world_to_object(), bounds_world->min),
+      math::transform_point(ob->world_to_object(), bounds_world->max)};
 }
 
 void BKE_pchan_minmax(const Object *ob,
                       const bPoseChannel *pchan,
                       const bool use_empty_drawtype,
-                      float r_min[3],
-                      float r_max[3])
+                      blender::float3 &r_min,
+                      blender::float3 &r_max)
 {
+  using namespace blender;
   const bArmature *arm = static_cast<const bArmature *>(ob->data);
   Object *ob_custom = (arm->flag & ARM_NO_CUSTOM) ? nullptr : pchan->custom;
   const bPoseChannel *pchan_tx = (ob_custom && pchan->custom_tx) ? pchan->custom_tx : pchan;
-  const BoundBox *bb_custom = nullptr;
-  BoundBox bb_custom_buf;
 
+  std::optional<Bounds<float3>> bb_custom;
   if (ob_custom) {
-    float min[3], max[3];
+    float3 min, max;
     if (use_empty_drawtype && (ob_custom->type == OB_EMPTY) &&
         BKE_object_minmax_empty_drawtype(ob_custom, min, max))
     {
-      memset(&bb_custom_buf, 0x0, sizeof(bb_custom_buf));
-      BKE_boundbox_init_from_minmax(&bb_custom_buf, min, max);
-      bb_custom = &bb_custom_buf;
+      bb_custom.emplace(Bounds<float3>{min, max});
     }
     else {
       bb_custom = BKE_object_boundbox_get(ob_custom);
@@ -2741,48 +3056,65 @@ void BKE_pchan_minmax(const Object *ob,
   }
 
   if (bb_custom) {
-    float mat[4][4], smat[4][4], rmat[4][4], tmp[4][4];
-    scale_m4_fl(smat, PCHAN_CUSTOM_BONE_LENGTH(pchan));
-    rescale_m4(smat, pchan->custom_scale_xyz);
-    eulO_to_mat4(rmat, pchan->custom_rotation_euler, ROT_MODE_XYZ);
-    copy_m4_m4(tmp, pchan_tx->pose_mat);
-    translate_m4(tmp,
+    float4x4 mat, smat, rmat, tmp;
+    scale_m4_fl(smat.ptr(), PCHAN_CUSTOM_BONE_LENGTH(pchan));
+    rescale_m4(smat.ptr(), pchan->custom_scale_xyz);
+    eulO_to_mat4(rmat.ptr(), pchan->custom_rotation_euler, ROT_MODE_XYZ);
+    copy_m4_m4(tmp.ptr(), pchan_tx->pose_mat);
+    translate_m4(tmp.ptr(),
                  pchan->custom_translation[0],
                  pchan->custom_translation[1],
                  pchan->custom_translation[2]);
-    mul_m4_series(mat, ob->object_to_world, tmp, rmat, smat);
-    BKE_boundbox_minmax(bb_custom, mat, r_min, r_max);
+    mul_m4_series(mat.ptr(), ob->object_to_world().ptr(), tmp.ptr(), rmat.ptr(), smat.ptr());
+    BoundBox bb;
+    BKE_boundbox_init_from_minmax(&bb, bb_custom->min, bb_custom->max);
+    BKE_boundbox_minmax(bb, mat, r_min, r_max);
   }
   else {
     float vec[3];
-    mul_v3_m4v3(vec, ob->object_to_world, pchan_tx->pose_head);
+    mul_v3_m4v3(vec, ob->object_to_world().ptr(), pchan_tx->pose_head);
     minmax_v3v3_v3(r_min, r_max, vec);
-    mul_v3_m4v3(vec, ob->object_to_world, pchan_tx->pose_tail);
+    mul_v3_m4v3(vec, ob->object_to_world().ptr(), pchan_tx->pose_tail);
     minmax_v3v3_v3(r_min, r_max, vec);
   }
 }
 
-bool BKE_pose_minmax(Object *ob, float r_min[3], float r_max[3], bool use_hidden, bool use_select)
+std::optional<blender::Bounds<blender::float3>> BKE_pose_minmax(const Object *ob,
+                                                                const bool use_select)
 {
-  bool changed = false;
-
-  if (ob->pose) {
-    bArmature *arm = static_cast<bArmature *>(ob->data);
-
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-      /* XXX pchan->bone may be nullptr for duplicated bones, see duplicateEditBoneObjects()
-       * comment (editarmature.c:2592)... Skip in this case too! */
-      if (pchan->bone && (!((use_hidden == false) && (PBONE_VISIBLE(arm, pchan->bone) == false)) &&
-                          !((use_select == true) && ((pchan->bone->flag & BONE_SELECTED) == 0))))
-      {
-
-        BKE_pchan_minmax(ob, pchan, false, r_min, r_max);
-        changed = true;
-      }
-    }
+  if (!ob->pose) {
+    return std::nullopt;
   }
 
-  return changed;
+  blender::float3 min(std::numeric_limits<float>::max());
+  blender::float3 max(std::numeric_limits<float>::lowest());
+
+  BLI_assert(ob->type == OB_ARMATURE);
+  const bArmature *arm = static_cast<const bArmature *>(ob->data);
+
+  bool found_pchan = false;
+  LISTBASE_FOREACH (const bPoseChannel *, pchan, &ob->pose->chanbase) {
+    /* XXX pchan->bone may be nullptr for duplicated bones, see duplicateEditBoneObjects()
+     * comment (editarmature.c:2592)... Skip in this case too! */
+    if (!pchan->bone) {
+      continue;
+    }
+    if (!PBONE_VISIBLE(arm, pchan->bone)) {
+      continue;
+    }
+    if (use_select && !(pchan->bone->flag & BONE_SELECTED)) {
+      continue;
+    }
+
+    BKE_pchan_minmax(ob, pchan, false, min, max);
+    found_pchan = true;
+  }
+
+  if (!found_pchan) {
+    return std::nullopt;
+  }
+
+  return blender::Bounds<blender::float3>(min, max);
 }
 
 /** \} */
@@ -2827,6 +3159,63 @@ bPoseChannel *BKE_armature_splineik_solver_find_root(bPoseChannel *pchan,
     rootchan = rootchan->parent;
   }
   return rootchan;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name implementations of DNA struct C++ methods.
+ * \{ */
+
+blender::Span<const BoneCollection *> bArmature::collections_span() const
+{
+  return blender::Span(collection_array, collection_array_num);
+}
+
+blender::Span<BoneCollection *> bArmature::collections_span()
+{
+  return blender::Span(collection_array, collection_array_num);
+}
+
+blender::Span<const BoneCollection *> bArmature::collections_roots() const
+{
+  return blender::Span(collection_array, collection_root_count);
+}
+blender::Span<BoneCollection *> bArmature::collections_roots()
+{
+  return blender::Span(collection_array, collection_root_count);
+}
+
+blender::Span<const BoneCollection *> bArmature::collection_children(
+    const BoneCollection *parent) const
+{
+  return blender::Span(&collection_array[parent->child_index], parent->child_count);
+}
+
+blender::Span<BoneCollection *> bArmature::collection_children(BoneCollection *parent)
+{
+  return blender::Span(&collection_array[parent->child_index], parent->child_count);
+}
+
+bool BoneCollection::is_visible() const
+{
+  return this->flags & BONE_COLLECTION_VISIBLE;
+}
+bool BoneCollection::is_visible_ancestors() const
+{
+  return this->flags & BONE_COLLECTION_ANCESTORS_VISIBLE;
+}
+bool BoneCollection::is_visible_with_ancestors() const
+{
+  return this->is_visible() && this->is_visible_ancestors();
+}
+bool BoneCollection::is_solo() const
+{
+  return this->flags & BONE_COLLECTION_SOLO;
+}
+bool BoneCollection::is_expanded() const
+{
+  return this->flags & BONE_COLLECTION_EXPANDED;
 }
 
 /** \} */

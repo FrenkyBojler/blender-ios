@@ -7,14 +7,9 @@
  */
 
 #include <cfloat>
-#include <cmath>
-#include <cstdio>
 #include <cstring>
 
-#include "BLI_utildefines.h"
-
-#include "BKE_context.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "action_intern.hh" /* own include */
 

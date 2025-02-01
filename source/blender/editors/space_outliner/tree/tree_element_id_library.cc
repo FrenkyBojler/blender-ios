@@ -6,10 +6,9 @@
  * \ingroup spoutliner
  */
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_ID.h"
-#include "DNA_listBase.h"
 
 #include "../outliner_intern.hh"
 
@@ -23,18 +22,18 @@ TreeElementIDLibrary::TreeElementIDLibrary(TreeElement &legacy_te, Library &libr
   legacy_te.name = library.filepath;
 }
 
-StringRefNull TreeElementIDLibrary::getWarning() const
+StringRefNull TreeElementIDLibrary::get_warning() const
 {
   Library &library = reinterpret_cast<Library &>(id_);
 
-  if (library.tag & LIBRARY_TAG_RESYNC_REQUIRED) {
-    return TIP_(
+  if (library.runtime.tag & LIBRARY_TAG_RESYNC_REQUIRED) {
+    return RPT_(
         "Contains linked library overrides that need to be resynced, updating the library is "
         "recommended");
   }
 
-  if (library.id.tag & LIB_TAG_MISSING) {
-    return TIP_("Missing library");
+  if (library.id.tag & ID_TAG_MISSING) {
+    return RPT_("Missing library");
   }
 
   return {};

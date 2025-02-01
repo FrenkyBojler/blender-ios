@@ -11,15 +11,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "atomic_ops.h"
-
 #include "BLI_utildefines.h"
 
 #include "BLI_memblock.h" /* own include */
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_strict_flags.h" /* keep last */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 #define CHUNK_LIST_SIZE 16
 

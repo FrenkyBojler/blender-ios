@@ -35,7 +35,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_strict_flags.h" /* keep last */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* TODO: Valgrind. */
 

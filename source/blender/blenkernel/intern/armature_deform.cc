@@ -11,7 +11,6 @@
 #include <cctype>
 #include <cfloat>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -22,25 +21,21 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_armature_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_listBase.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_action.h"
-#include "BKE_armature.h"
-#include "BKE_customdata.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lattice.h"
+#include "BKE_action.hh"
+#include "BKE_armature.hh"
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_lattice.hh"
 #include "BKE_mesh.hh"
-
-#include "DEG_depsgraph_build.h"
 
 #include "CLG_log.h"
 
@@ -54,10 +49,11 @@ static CLG_LogRef LOG = {"bke.armature_deform"};
 static void pchan_deform_accumulate(const DualQuat *deform_dq,
                                     const float deform_mat[4][4],
                                     const float co_in[3],
-                                    float weight,
+                                    const float weight,
                                     float co_accum[3],
                                     DualQuat *dq_accum,
-                                    float mat_accum[3][3])
+                                    float mat_accum[3][3],
+                                    const bool full_deform)
 {
   if (weight == 0.0f) {
     return;
@@ -66,22 +62,7 @@ static void pchan_deform_accumulate(const DualQuat *deform_dq,
   if (dq_accum) {
     BLI_assert(!co_accum);
 
-    if (deform_dq->scale_weight) {
-      /* FIX #32022. */
-      DualQuat mdq = *deform_dq;
-      float dst[3];
-      mul_v3_m4v3(dst, mdq.scale, co_in);
-      sub_v3_v3(dst, co_in);
-      mdq.trans[0] -= .5f * (mdq.quat[1] * dst[0] + mdq.quat[2] * dst[1] + mdq.quat[3] * dst[2]);
-      mdq.trans[1] += .5f * (mdq.quat[0] * dst[0] + mdq.quat[2] * dst[2] - mdq.quat[3] * dst[1]);
-      mdq.trans[2] += .5f * (mdq.quat[0] * dst[1] + mdq.quat[3] * dst[0] - mdq.quat[1] * dst[2]);
-      mdq.trans[3] += .5f * (mdq.quat[0] * dst[2] + mdq.quat[1] * dst[1] - mdq.quat[2] * dst[0]);
-      mdq.scale_weight = 0.0f;
-      add_weighted_dq_dq(dq_accum, &mdq, weight);
-    }
-    else {
-      add_weighted_dq_dq(dq_accum, deform_dq, weight);
-    }
+    add_weighted_dq_dq_pivot(dq_accum, deform_dq, co_in, weight, full_deform);
   }
   else {
     float tmp[3];
@@ -90,7 +71,7 @@ static void pchan_deform_accumulate(const DualQuat *deform_dq,
     sub_v3_v3(tmp, co_in);
     madd_v3_v3fl(co_accum, tmp, weight);
 
-    if (mat_accum) {
+    if (full_deform) {
       float tmpmat[3][3];
       copy_m3_m4(tmpmat, deform_mat);
 
@@ -101,10 +82,11 @@ static void pchan_deform_accumulate(const DualQuat *deform_dq,
 
 static void b_bone_deform(const bPoseChannel *pchan,
                           const float co[3],
-                          float weight,
+                          const float weight,
                           float vec[3],
                           DualQuat *dq,
-                          float defmat[3][3])
+                          float defmat[3][3],
+                          const bool full_deform)
 {
   const DualQuat *quats = pchan->runtime.bbone_dual_quats;
   const Mat4 *mats = pchan->runtime.bbone_deform_mats;
@@ -114,10 +96,16 @@ static void b_bone_deform(const bPoseChannel *pchan,
   /* Calculate the indices of the 2 affecting b_bone segments. */
   BKE_pchan_bbone_deform_segment_index(pchan, co, &index, &blend);
 
+  pchan_deform_accumulate(&quats[index],
+                          mats[index + 1].mat,
+                          co,
+                          weight * (1.0f - blend),
+                          vec,
+                          dq,
+                          defmat,
+                          full_deform);
   pchan_deform_accumulate(
-      &quats[index], mats[index + 1].mat, co, weight * (1.0f - blend), vec, dq, defmat);
-  pchan_deform_accumulate(
-      &quats[index + 1], mats[index + 2].mat, co, weight * blend, vec, dq, defmat);
+      &quats[index + 1], mats[index + 2].mat, co, weight * blend, vec, dq, defmat, full_deform);
 }
 
 float distfactor_to_bone(
@@ -173,8 +161,12 @@ float distfactor_to_bone(
   return 1.0f - (a * a) / (rdist * rdist);
 }
 
-static float dist_bone_deform(
-    const bPoseChannel *pchan, float vec[3], DualQuat *dq, float mat[3][3], const float co[3])
+static float dist_bone_deform(const bPoseChannel *pchan,
+                              float vec[3],
+                              DualQuat *dq,
+                              float mat[3][3],
+                              const float co[3],
+                              const bool full_deform)
 {
   const Bone *bone = pchan->bone;
   float fac, contrib = 0.0;
@@ -191,11 +183,11 @@ static float dist_bone_deform(
     contrib = fac;
     if (contrib > 0.0f) {
       if (bone->segments > 1 && pchan->runtime.bbone_segments == bone->segments) {
-        b_bone_deform(pchan, co, fac, vec, dq, mat);
+        b_bone_deform(pchan, co, fac, vec, dq, mat, full_deform);
       }
       else {
         pchan_deform_accumulate(
-            &pchan->runtime.deform_dual_quat, pchan->chan_mat, co, fac, vec, dq, mat);
+            &pchan->runtime.deform_dual_quat, pchan->chan_mat, co, fac, vec, dq, mat, full_deform);
       }
     }
   }
@@ -204,11 +196,12 @@ static float dist_bone_deform(
 }
 
 static void pchan_bone_deform(const bPoseChannel *pchan,
-                              float weight,
+                              const float weight,
                               float vec[3],
                               DualQuat *dq,
                               float mat[3][3],
                               const float co[3],
+                              const bool full_deform,
                               float *contrib)
 {
   const Bone *bone = pchan->bone;
@@ -218,11 +211,11 @@ static void pchan_bone_deform(const bPoseChannel *pchan,
   }
 
   if (bone->segments > 1 && pchan->runtime.bbone_segments == bone->segments) {
-    b_bone_deform(pchan, co, weight, vec, dq, mat);
+    b_bone_deform(pchan, co, weight, vec, dq, mat, full_deform);
   }
   else {
     pchan_deform_accumulate(
-        &pchan->runtime.deform_dual_quat, pchan->chan_mat, co, weight, vec, dq, mat);
+        &pchan->runtime.deform_dual_quat, pchan->chan_mat, co, weight, vec, dq, mat, full_deform);
   }
 
   (*contrib) += weight;
@@ -286,6 +279,8 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
   float armature_weight = 1.0f; /* default to 1 if no overall def group */
   float prevco_weight = 0.0f;   /* weight for optional cached vertexcos */
 
+  const bool full_deform = vert_deform_mats != nullptr;
+
   if (use_quaternion) {
     memset(&sumdq, 0, sizeof(DualQuat));
     dq = &sumdq;
@@ -294,7 +289,7 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
     zero_v3(sumvec);
     vec = sumvec;
 
-    if (vert_deform_mats) {
+    if (full_deform) {
       zero_m3(summat);
       smat = summat;
     }
@@ -343,19 +338,25 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
     uint j;
     for (j = dvert->totweight; j != 0; j--, dw++) {
       const uint index = dw->def_nr;
-      if (index < data->defbase_len && (pchan = data->pchan_from_defbase[index])) {
-        float weight = dw->weight;
-        const Bone *bone = pchan->bone;
-
-        deformed = 1;
-
-        if (bone && bone->flag & BONE_MULT_VG_ENV) {
-          weight *= distfactor_to_bone(
-              co, bone->arm_head, bone->arm_tail, bone->rad_head, bone->rad_tail, bone->dist);
-        }
-
-        pchan_bone_deform(pchan, weight, vec, dq, smat, co, &contrib);
+      if (index >= data->defbase_len) {
+        continue;
       }
+      pchan = data->pchan_from_defbase[index];
+      if (pchan == nullptr) {
+        continue;
+      }
+
+      float weight = dw->weight;
+      const Bone *bone = pchan->bone;
+
+      deformed = 1;
+
+      if (bone && bone->flag & BONE_MULT_VG_ENV) {
+        weight *= distfactor_to_bone(
+            co, bone->arm_head, bone->arm_tail, bone->rad_head, bone->rad_tail, bone->dist);
+      }
+
+      pchan_bone_deform(pchan, weight, vec, dq, smat, co, full_deform, &contrib);
     }
     /* If there are vertex-groups but not groups with bones (like for soft-body groups). */
     if (deformed == 0 && use_envelope) {
@@ -363,7 +364,7 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
            pchan = pchan->next)
       {
         if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
-          contrib += dist_bone_deform(pchan, vec, dq, smat, co);
+          contrib += dist_bone_deform(pchan, vec, dq, smat, co, full_deform);
         }
       }
     }
@@ -373,7 +374,7 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
          pchan = pchan->next)
     {
       if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
-        contrib += dist_bone_deform(pchan, vec, dq, smat, co);
+        contrib += dist_bone_deform(pchan, vec, dq, smat, co, full_deform);
       }
     }
   }
@@ -385,13 +386,13 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
 
       if (armature_weight != 1.0f) {
         copy_v3_v3(dco, co);
-        mul_v3m3_dq(dco, (vert_deform_mats) ? summat : nullptr, dq);
+        mul_v3m3_dq(dco, full_deform ? summat : nullptr, dq);
         sub_v3_v3(dco, co);
         mul_v3_fl(dco, armature_weight);
         add_v3_v3(co, dco);
       }
       else {
-        mul_v3m3_dq(co, (vert_deform_mats) ? summat : nullptr, dq);
+        mul_v3m3_dq(co, full_deform ? summat : nullptr, dq);
       }
 
       smat = summat;
@@ -401,7 +402,7 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
       add_v3_v3v3(co, vec, co);
     }
 
-    if (vert_deform_mats) {
+    if (full_deform) {
       float pre[3][3], post[3][3], tmpmat[3][3];
 
       copy_m3_m4(pre, data->premat);
@@ -436,7 +437,7 @@ static void armature_vert_task(void *__restrict userdata,
   const MDeformVert *dvert;
   if (data->use_dverts || data->armature_def_nr != -1) {
     if (data->me_target) {
-      BLI_assert(i < data->me_target->totvert);
+      BLI_assert(i < data->me_target->verts_num);
       if (data->dverts != nullptr) {
         dvert = data->dverts + i;
       }
@@ -480,24 +481,23 @@ static void armature_vert_task_editmesh_no_dvert(void *__restrict userdata,
 
 static void armature_deform_coords_impl(const Object *ob_arm,
                                         const Object *ob_target,
+                                        const ListBase *defbase,
                                         float (*vert_coords)[3],
                                         float (*vert_deform_mats)[3][3],
                                         const int vert_coords_len,
                                         const int deformflag,
                                         float (*vert_coords_prev)[3],
                                         const char *defgrp_name,
+                                        blender::Span<MDeformVert> dverts,
                                         const Mesh *me_target,
-                                        BMEditMesh *em_target,
-                                        bGPDstroke *gps_target)
+                                        const BMEditMesh *em_target)
 {
   const bArmature *arm = static_cast<const bArmature *>(ob_arm->data);
   bPoseChannel **pchan_from_defbase = nullptr;
-  const MDeformVert *dverts = nullptr;
   const bool use_envelope = (deformflag & ARM_DEF_ENVELOPE) != 0;
   const bool use_quaternion = (deformflag & ARM_DEF_QUATERNION) != 0;
   const bool invert_vgroup = (deformflag & ARM_DEF_INVERT_VGROUP) != 0;
-  int defbase_len = 0; /* safety for vertexgroup index overflow */
-  int dverts_len = 0;  /* safety for vertexgroup overflow */
+  int defbase_len = 0; /* Safety for vertex-group index overflow. */
   bool use_dverts = false;
   int armature_def_nr = -1;
   int cd_dvert_offset = -1;
@@ -515,39 +515,11 @@ static void armature_deform_coords_impl(const Object *ob_arm,
   }
 
   if (BKE_object_supports_vertex_groups(ob_target)) {
-    const ID *target_data_id = nullptr;
-    if (ob_target->type == OB_MESH) {
-      target_data_id = me_target == nullptr ? (const ID *)ob_target->data : &me_target->id;
-      if (em_target == nullptr) {
-        const Mesh *me = (const Mesh *)target_data_id;
-        dverts = BKE_mesh_deform_verts(me);
-        if (dverts) {
-          dverts_len = me->totvert;
-        }
-      }
-    }
-    else if (ob_target->type == OB_LATTICE) {
-      const Lattice *lt = static_cast<const Lattice *>(ob_target->data);
-      target_data_id = (const ID *)ob_target->data;
-      dverts = lt->dvert;
-      if (dverts) {
-        dverts_len = lt->pntsu * lt->pntsv * lt->pntsw;
-      }
-    }
-    else if (ob_target->type == OB_GPENCIL_LEGACY) {
-      target_data_id = (const ID *)ob_target->data;
-      dverts = gps_target->dvert;
-      if (dverts) {
-        dverts_len = gps_target->totpoints;
-      }
-    }
-
     /* Collect the vertex group names from the evaluated data. */
-    armature_def_nr = BKE_id_defgroup_name_index(target_data_id, defgrp_name);
-    const ListBase *defbase = BKE_id_defgroup_list_get(target_data_id);
+    armature_def_nr = BKE_defgroup_name_index(defbase, defgrp_name);
     defbase_len = BLI_listbase_count(defbase);
 
-    /* get a vertex-deform-index to posechannel array */
+    /* Get a vertex-deform-index to pose-channel array. */
     if (deformflag & ARM_DEF_VGROUP) {
       /* if we have a Mesh, only use dverts if it has them */
       if (em_target) {
@@ -555,9 +527,9 @@ static void armature_deform_coords_impl(const Object *ob_arm,
         use_dverts = (cd_dvert_offset != -1);
       }
       else if (me_target) {
-        use_dverts = (BKE_mesh_deform_verts(me_target) != nullptr);
+        use_dverts = !me_target->deform_verts().is_empty();
       }
-      else if (dverts) {
+      else if (dverts.size() == vert_coords_len) {
         use_dverts = true;
       }
 
@@ -593,16 +565,16 @@ static void armature_deform_coords_impl(const Object *ob_arm,
   data.invert_vgroup = invert_vgroup;
   data.use_dverts = use_dverts;
   data.armature_def_nr = armature_def_nr;
-  data.dverts = dverts;
-  data.dverts_len = dverts_len;
+  data.dverts = dverts.data();
+  data.dverts_len = dverts.size();
   data.pchan_from_defbase = pchan_from_defbase;
   data.defbase_len = defbase_len;
   data.bmesh.cd_dvert_offset = cd_dvert_offset;
 
   float obinv[4][4];
-  invert_m4_m4(obinv, ob_target->object_to_world);
+  invert_m4_m4(obinv, ob_target->object_to_world().ptr());
 
-  mul_m4_m4m4(data.postmat, obinv, ob_arm->object_to_world);
+  mul_m4_m4m4(data.postmat, obinv, ob_arm->object_to_world().ptr());
   invert_m4_m4(data.premat, data.postmat);
 
   if (em_target != nullptr) {
@@ -634,27 +606,37 @@ static void armature_deform_coords_impl(const Object *ob_arm,
   }
 }
 
-void BKE_armature_deform_coords_with_gpencil_stroke(const Object *ob_arm,
-                                                    const Object *ob_target,
-                                                    float (*vert_coords)[3],
-                                                    float (*vert_deform_mats)[3][3],
-                                                    int vert_coords_len,
-                                                    int deformflag,
-                                                    float (*vert_coords_prev)[3],
-                                                    const char *defgrp_name,
-                                                    bGPDstroke *gps_target)
+void BKE_armature_deform_coords_with_curves(
+    const Object &ob_arm,
+    const Object &ob_target,
+    const ListBase *defbase,
+    blender::MutableSpan<blender::float3> vert_coords,
+    std::optional<blender::Span<blender::float3>> vert_coords_prev,
+    std::optional<blender::MutableSpan<blender::float3x3>> vert_deform_mats,
+    blender::Span<MDeformVert> dverts,
+    int deformflag,
+    blender::StringRefNull defgrp_name)
 {
-  armature_deform_coords_impl(ob_arm,
-                              ob_target,
-                              vert_coords,
-                              vert_deform_mats,
-                              vert_coords_len,
-                              deformflag,
-                              vert_coords_prev,
-                              defgrp_name,
-                              nullptr,
-                              nullptr,
-                              gps_target);
+  /* Vertex groups must be provided explicitly, cannot rely on object vertex groups since this is
+   * used for Grease Pencil layers as well. */
+  BLI_assert(dverts.size() == vert_coords.size());
+
+  /* const_cast for old positions for the C API, these are not actually written. */
+  blender::float3 *vert_coords_prev_data = const_cast<blender::float3 *>(vert_coords_prev->data());
+
+  armature_deform_coords_impl(
+      &ob_arm,
+      &ob_target,
+      defbase,
+      reinterpret_cast<float(*)[3]>(vert_coords.data()),
+      vert_deform_mats ? reinterpret_cast<float(*)[3][3]>(vert_deform_mats->data()) : nullptr,
+      vert_coords.size(),
+      deformflag,
+      vert_coords_prev ? reinterpret_cast<float(*)[3]>(vert_coords_prev_data) : nullptr,
+      defgrp_name.c_str(),
+      dverts,
+      nullptr,
+      nullptr);
 }
 
 void BKE_armature_deform_coords_with_mesh(const Object *ob_arm,
@@ -667,16 +649,35 @@ void BKE_armature_deform_coords_with_mesh(const Object *ob_arm,
                                           const char *defgrp_name,
                                           const Mesh *me_target)
 {
+  /* Note armature modifier on legacy curves calls this, so vertex groups are not guaranteed to
+   * exist. */
+  const ID *id_target = static_cast<const ID *>(ob_target->data);
+  const ListBase *defbase = BKE_id_supports_vertex_groups(id_target) ?
+                                BKE_id_defgroup_list_get(id_target) :
+                                nullptr;
+  blender::Span<MDeformVert> dverts;
+  if (ob_target->type == OB_MESH) {
+    if (me_target == nullptr) {
+      me_target = static_cast<const Mesh *>(ob_target->data);
+    }
+    dverts = me_target->deform_verts();
+  }
+  else if (ob_target->type == OB_LATTICE) {
+    const Lattice *lt = static_cast<const Lattice *>(ob_target->data);
+    dverts = blender::Span<MDeformVert>(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
+  }
+
   armature_deform_coords_impl(ob_arm,
                               ob_target,
+                              defbase,
                               vert_coords,
                               vert_deform_mats,
                               vert_coords_len,
                               deformflag,
                               vert_coords_prev,
                               defgrp_name,
+                              dverts,
                               me_target,
-                              nullptr,
                               nullptr);
 }
 
@@ -688,19 +689,21 @@ void BKE_armature_deform_coords_with_editmesh(const Object *ob_arm,
                                               int deformflag,
                                               float (*vert_coords_prev)[3],
                                               const char *defgrp_name,
-                                              BMEditMesh *em_target)
+                                              const BMEditMesh *em_target)
 {
+  const ListBase *defbase = BKE_id_defgroup_list_get(static_cast<const ID *>(ob_target->data));
   armature_deform_coords_impl(ob_arm,
                               ob_target,
+                              defbase,
                               vert_coords,
                               vert_deform_mats,
                               vert_coords_len,
                               deformflag,
                               vert_coords_prev,
                               defgrp_name,
+                              {},
                               nullptr,
-                              em_target,
-                              nullptr);
+                              em_target);
 }
 
 /** \} */

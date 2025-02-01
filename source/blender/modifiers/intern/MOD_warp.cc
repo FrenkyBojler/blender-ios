@@ -14,25 +14,18 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_action.h" /* BKE_pose_channel_find_name */
-#include "BKE_colortools.h"
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_action.hh" /* BKE_pose_channel_find_name */
+#include "BKE_colortools.hh"
+#include "BKE_deform.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_modifier.hh"
 #include "BKE_texture.h"
 
 #include "UI_interface.hh"
@@ -41,10 +34,7 @@
 #include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "RNA_prototypes.hh"
 
 #include "RE_texture.h"
 
@@ -95,11 +85,11 @@ static void matrix_from_obj_pchan(float mat[4][4],
   bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bonename);
   if (pchan) {
     float mat_bone_world[4][4];
-    mul_m4_m4m4(mat_bone_world, ob->object_to_world, pchan->pose_mat);
+    mul_m4_m4m4(mat_bone_world, ob->object_to_world().ptr(), pchan->pose_mat);
     mul_m4_m4m4(mat, obinv, mat_bone_world);
   }
   else {
-    mul_m4_m4m4(mat, obinv, ob->object_to_world);
+    mul_m4_m4m4(mat, obinv, ob->object_to_world().ptr());
   }
 }
 
@@ -139,7 +129,9 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  walk(user_data, ob, md, "texture");
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
+  walk(user_data, ob, md, &ptr, prop);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -215,7 +207,7 @@ static void warpModifier_do(WarpModifierData *wmd,
     BKE_curvemapping_init(wmd->curfalloff);
   }
 
-  invert_m4_m4(obinv, ob->object_to_world);
+  invert_m4_m4(obinv, ob->object_to_world().ptr());
 
   /* Checks that the objects/bones are available. */
   matrix_from_obj_pchan(mat_from, obinv, wmd->object_from, wmd->bone_from);
@@ -338,11 +330,11 @@ static void warpModifier_do(WarpModifierData *wmd,
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         float (*vertexCos)[3],
-                         int verts_num)
+                         blender::MutableSpan<blender::float3> positions)
 {
   WarpModifierData *wmd = (WarpModifierData *)md;
-  warpModifier_do(wmd, ctx, mesh, vertexCos, verts_num);
+  warpModifier_do(
+      wmd, ctx, mesh, reinterpret_cast<float(*)[3]>(positions.data()), positions.size());
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -356,27 +348,28 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "object_from", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "object_from", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   PointerRNA from_obj_ptr = RNA_pointer_get(ptr, "object_from");
   if (!RNA_pointer_is_null(&from_obj_ptr) && RNA_enum_get(&from_obj_ptr, "type") == OB_ARMATURE) {
 
     PointerRNA from_obj_data_ptr = RNA_pointer_get(&from_obj_ptr, "data");
-    uiItemPointerR(col, ptr, "bone_from", &from_obj_data_ptr, "bones", IFACE_("Bone"), ICON_NONE);
+    uiItemPointerR(
+        col, ptr, "bone_from", &from_obj_data_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
   }
 
   col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "object_to", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "object_to", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   PointerRNA to_obj_ptr = RNA_pointer_get(ptr, "object_to");
   if (!RNA_pointer_is_null(&to_obj_ptr) && RNA_enum_get(&to_obj_ptr, "type") == OB_ARMATURE) {
     PointerRNA to_obj_data_ptr = RNA_pointer_get(&to_obj_ptr, "data");
-    uiItemPointerR(col, ptr, "bone_to", &to_obj_data_ptr, "bones", IFACE_("Bone"), ICON_NONE);
+    uiItemPointerR(col, ptr, "bone_to", &to_obj_data_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
   }
 
-  uiItemR(layout, ptr, "use_volume_preserve", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_volume_preserve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "strength", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   modifier_panel_end(layout, ptr);
 }
@@ -391,10 +384,10 @@ static void falloff_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "falloff_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "falloff_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (use_falloff) {
-    uiItemR(layout, ptr, "falloff_radius", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "falloff_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (use_falloff && RNA_enum_get(ptr, "falloff_type") == eWarp_Falloff_Curve) {
@@ -412,7 +405,7 @@ static void texture_panel_draw(const bContext *C, Panel *panel)
 
   int texture_coords = RNA_enum_get(ptr, "texture_coords");
 
-  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr, 0, ICON_NONE, nullptr);
+  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
   uiLayoutSetPropSep(layout, true);
 
@@ -436,7 +429,7 @@ static void texture_panel_draw(const bContext *C, Panel *panel)
   }
   else if (texture_coords == MOD_DISP_MAP_UV && RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
     PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
-    uiItemPointerR(col, ptr, "uv_layer", &obj_data_ptr, "uv_layers", nullptr, ICON_NONE);
+    uiItemPointerR(col, ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
   }
 }
 
@@ -464,7 +457,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   WarpModifierData *wmd = (WarpModifierData *)md;
 
-  BLO_read_data_address(reader, &wmd->curfalloff);
+  BLO_read_struct(reader, CurveMapping, &wmd->curfalloff);
   if (wmd->curfalloff) {
     BKE_curvemapping_blend_read(reader, wmd->curfalloff);
   }
@@ -476,7 +469,7 @@ ModifierTypeInfo modifierType_Warp = {
     /*struct_name*/ "WarpModifierData",
     /*struct_size*/ sizeof(WarpModifierData),
     /*srna*/ &RNA_WarpModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_WARP,
@@ -502,4 +495,5 @@ ModifierTypeInfo modifierType_Warp = {
     /*panel_register*/ panel_register,
     /*blend_write*/ blend_write,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
 };

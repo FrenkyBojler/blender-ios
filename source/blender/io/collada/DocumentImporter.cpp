@@ -10,47 +10,34 @@
  * * name imported objects
  * * import object rotation as euler */
 
-#include <algorithm> /* sort() */
 #include <map>
 #include <string>
 
 #include "COLLADAFWArrayPrimitiveType.h"
 #include "COLLADAFWCamera.h"
-#include "COLLADAFWColorOrTexture.h"
-#include "COLLADAFWIndexList.h"
 #include "COLLADAFWLibraryNodes.h"
 #include "COLLADAFWLight.h"
-#include "COLLADAFWMeshPrimitiveWithFaceVertexCount.h"
-#include "COLLADAFWPolygons.h"
 #include "COLLADAFWRoot.h"
-#include "COLLADAFWSampler.h"
-#include "COLLADAFWStableHeaders.h"
-#include "COLLADAFWTypes.h"
 #include "COLLADAFWVisualScene.h"
 
-#include "COLLADASaxFWLIExtraDataCallbackHandler.h"
 #include "COLLADASaxFWLLoader.h"
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_fileops.h"
-#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_camera.h"
-#include "BKE_collection.h"
-#include "BKE_fcurve.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
+#include "BKE_collection.hh"
+#include "BKE_constraint.h"
+#include "BKE_fcurve.hh"
+#include "BKE_global.hh"
+#include "BKE_image.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_light.h"
-#include "BKE_material.h"
-#include "BKE_scene.h"
+#include "BKE_material.hh"
+#include "BKE_scene.hh"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "DNA_camera_types.h"
 #include "DNA_light_types.h"
@@ -60,13 +47,12 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "DocumentImporter.h"
 #include "ErrorHandler.h"
 #include "ExtraHandler.h"
-#include "TransformReader.h"
 
 #include "Materials.h"
 #include "collada_internal.h"
@@ -76,10 +62,6 @@
  * COLLADA Importer limitations:
  * - no multiple scene import, all objects are added to active scene
  */
-
-// #define COLLADA_DEBUG
-/* creates empties for each imported bone on layer 2, for debugging */
-// #define ARMATURE_TEST
 
 DocumentImporter::DocumentImporter(bContext *C, const ImportSettings *import_settings)
     : import_settings(import_settings),
@@ -182,12 +164,12 @@ void DocumentImporter::finish()
   /** TODO: Break up and put into 2-pass parsing of DAE. */
   std::vector<const COLLADAFW::VisualScene *>::iterator sit;
   for (sit = vscenes.begin(); sit != vscenes.end(); sit++) {
-    PointerRNA sceneptr, unit_settings;
+    PointerRNA unit_settings;
     PropertyRNA *system, *scale;
 
     /* for scene unit settings: system, scale_length */
 
-    RNA_id_pointer_create(&sce->id, &sceneptr);
+    PointerRNA sceneptr = RNA_id_pointer_create(&sce->id);
     unit_settings = RNA_pointer_get(&sceneptr, "unit_settings");
     system = RNA_struct_find_property(&unit_settings, "system");
     scale = RNA_struct_find_property(&unit_settings, "scale_length");
@@ -256,7 +238,7 @@ void DocumentImporter::finish()
   delete objects_to_scale;
 
   /* update scene */
-  DEG_id_tag_update(&sce->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&sce->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(mContext, NC_OBJECT | ND_TRANSFORM, nullptr);
 }
@@ -412,8 +394,8 @@ Object *DocumentImporter::create_instance_node(Object *source_ob,
         }
       }
       /* calc new matrix and apply */
-      mul_m4_m4m4(obn->object_to_world, obn->object_to_world, mat);
-      BKE_object_apply_mat4(obn, obn->object_to_world, false, false);
+      mul_m4_m4m4(obn->runtime->object_to_world.ptr(), obn->object_to_world().ptr(), mat);
+      BKE_object_apply_mat4(obn, obn->object_to_world().ptr(), false, false);
     }
   }
   else {
@@ -456,7 +438,6 @@ Object *DocumentImporter::create_instance_node(Object *source_ob,
 void DocumentImporter::create_constraints(ExtraTags *et, Object *ob)
 {
   if (et && et->isProfile("blender")) {
-    std::string name;
     short type = 0;
     et->setData("type", &type);
     BKE_constraint_add_for_object(ob, "Test_con", type);
@@ -622,7 +603,8 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node,
     if ((geom_done + camera_done + lamp_done + controller_done + inst_done) < 1) {
       /* Check if Object is armature, by checking if immediate child is a JOINT node. */
       if (is_armature(node)) {
-        ob = bc_add_object(bmain, sce, view_layer, OB_ARMATURE, name.c_str());
+        ExtraTags *et = getExtraTags(node->getUniqueId());
+        ob = bc_add_armature(node, et, bmain, sce, view_layer, OB_ARMATURE, name.c_str());
       }
       else {
         ob = bc_add_object(bmain, sce, view_layer, OB_EMPTY, nullptr);
@@ -641,7 +623,7 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node,
 
     for (Object *ob : *objects_done) {
       std::string nodename = node->getName().empty() ? node->getOriginalId() : node->getName();
-      BKE_libblock_rename(bmain, &ob->id, (char *)nodename.c_str());
+      BKE_libblock_rename(*bmain, ob->id, (char *)nodename.c_str());
       object_map.insert(std::pair<COLLADAFW::UniqueId, Object *>(node->getUniqueId(), ob));
       node_map[node->getUniqueId()] = node;
 
@@ -650,7 +632,7 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node,
       }
     }
 
-    /* create_constraints(et,ob); */
+    // create_constraints(et, ob);
   }
 
   for (Object *ob : *objects_done) {
@@ -853,14 +835,17 @@ bool DocumentImporter::writeCamera(const COLLADAFW::Camera *camera)
   switch (type) {
     case COLLADAFW::Camera::ORTHOGRAPHIC: {
       cam->type = CAM_ORTHO;
-    } break;
+      break;
+    }
     case COLLADAFW::Camera::PERSPECTIVE: {
       cam->type = CAM_PERSP;
-    } break;
+      break;
+    }
     case COLLADAFW::Camera::UNDEFINED_CAMERATYPE: {
       fprintf(stderr, "Current camera type is not supported.\n");
       cam->type = CAM_PERSP;
-    } break;
+      break;
+    }
   }
 
   switch (camera->getDescriptionType()) {
@@ -871,7 +856,8 @@ bool DocumentImporter::writeCamera(const COLLADAFW::Camera *camera)
           double aspect = camera->getAspectRatio().getValue();
           double xmag = aspect * ymag;
           cam->ortho_scale = float(xmag);
-        } break;
+          break;
+        }
         case CAM_PERSP:
         default: {
           double yfov = camera->getYFov().getValue();
@@ -881,9 +867,11 @@ bool DocumentImporter::writeCamera(const COLLADAFW::Camera *camera)
 
           double xfov = 2.0f * atanf(aspect * tanf(DEG2RADF(yfov) * 0.5f));
           cam->lens = fov_to_focallength(xfov, cam->sensor_x);
-        } break;
+          break;
+        }
       }
-    } break;
+      break;
+    }
     /* XXX correct way to do following four is probably to get also render
      * size and determine proper settings from that somehow */
     case COLLADAFW::Camera::ASPECTRATIO_AND_X:
@@ -898,9 +886,11 @@ bool DocumentImporter::writeCamera(const COLLADAFW::Camera *camera)
           double x = camera->getXFov().getValue();
           /* X is in degrees, cam->lens is in millimeters. */
           cam->lens = fov_to_focallength(DEG2RADF(x), cam->sensor_x);
-        } break;
+          break;
+        }
       }
-    } break;
+      break;
+    }
     case COLLADAFW::Camera::SINGLE_Y: {
       switch (cam->type) {
         case CAM_ORTHO:
@@ -911,9 +901,11 @@ bool DocumentImporter::writeCamera(const COLLADAFW::Camera *camera)
           double yfov = camera->getYFov().getValue();
           /* yfov is in degrees, cam->lens is in millimeters. */
           cam->lens = fov_to_focallength(DEG2RADF(yfov), cam->sensor_x);
-        } break;
+          break;
+        }
       }
-    } break;
+      break;
+    }
     case COLLADAFW::Camera::UNDEFINED:
       /* read nothing, use blender defaults. */
       break;
@@ -1003,16 +995,12 @@ bool DocumentImporter::writeLight(const COLLADAFW::Light *light)
     et->setData("red", &(lamp->r));
     et->setData("green", &(lamp->g));
     et->setData("blue", &(lamp->b));
-    et->setData("shadow_r", &(lamp->shdwr));
-    et->setData("shadow_g", &(lamp->shdwg));
-    et->setData("shadow_b", &(lamp->shdwb));
     et->setData("energy", &(lamp->energy));
     et->setData("spotsize", &(lamp->spotsize));
     lamp->spotsize = DEG2RADF(lamp->spotsize);
     et->setData("spotblend", &(lamp->spotblend));
     et->setData("clipsta", &(lamp->clipsta));
-    et->setData("clipend", &(lamp->clipend));
-    et->setData("bias", &(lamp->bias));
+    et->setData("clipend", &(lamp->att_dist));
     et->setData("radius", &(lamp->radius));
     et->setData("area_shape", &(lamp->area_shape));
     et->setData("area_size", &(lamp->area_size));
@@ -1020,7 +1008,7 @@ bool DocumentImporter::writeLight(const COLLADAFW::Light *light)
     et->setData("area_sizez", &(lamp->area_sizez));
   }
   else {
-    float d = 25.0f;
+    // float d = 25.0f; /* UNUSED. */
     float e = 1.0f;
 
     if (light->getColor().isValid()) {
@@ -1035,23 +1023,28 @@ bool DocumentImporter::writeLight(const COLLADAFW::Light *light)
     switch (light->getLightType()) {
       case COLLADAFW::Light::AMBIENT_LIGHT: {
         lamp->type = LA_SUN; /* TODO: needs more thoughts. */
-      } break;
+        break;
+      }
       case COLLADAFW::Light::SPOT_LIGHT: {
         lamp->type = LA_SPOT;
         lamp->spotsize = DEG2RADF(light->getFallOffAngle().getValue());
         lamp->spotblend = light->getFallOffExponent().getValue();
-      } break;
+        break;
+      }
       case COLLADAFW::Light::DIRECTIONAL_LIGHT: {
         /* our sun is very strong, so pick a smaller energy level */
         lamp->type = LA_SUN;
-      } break;
+        break;
+      }
       case COLLADAFW::Light::POINT_LIGHT: {
         lamp->type = LA_LOCAL;
-      } break;
+        break;
+      }
       case COLLADAFW::Light::UNDEFINED: {
         fprintf(stderr, "Current light type is not supported.\n");
         lamp->type = LA_LOCAL;
-      } break;
+        break;
+      }
     }
   }
 
@@ -1075,7 +1068,7 @@ bool DocumentImporter::writeAnimationList(const COLLADAFW::AnimationList *animat
     return true;
   }
 
-  /* return true; */
+  // return true;
   return anim_importer.write_animation_list(animationList);
 }
 

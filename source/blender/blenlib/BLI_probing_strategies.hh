@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <numeric>
-
 /** \file
  * \ingroup bli
  *
@@ -42,6 +40,8 @@
  * - When the hash table is very small, having a trivial hash function and then doing linear
  *   probing might work best.
  */
+
+#include <limits>
 
 #include "BLI_sys_types.h"
 
@@ -90,13 +90,10 @@ class QuadraticProbingStrategy {
  private:
   uint64_t original_hash_;
   uint64_t current_hash_;
-  uint64_t iteration_;
+  uint64_t iteration_ = 1;
 
  public:
-  QuadraticProbingStrategy(const uint64_t hash)
-      : original_hash_(hash), current_hash_(hash), iteration_(1)
-  {
-  }
+  QuadraticProbingStrategy(const uint64_t hash) : original_hash_(hash), current_hash_(hash) {}
 
   void next()
   {

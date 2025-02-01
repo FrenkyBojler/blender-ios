@@ -13,24 +13,22 @@
 
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_listBase.h"
-#include "DNA_object_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
 
-#include "BKE_blender_undo.h"
-#include "BKE_context.h"
+#include "BKE_blender_undo.hh"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_undo_system.h"
+#include "BKE_undo_system.hh"
 
 #include "ED_gpencil_legacy.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "gpencil_intern.h"
+#include "gpencil_intern.hh"
 
 struct bGPundonode {
   bGPundonode *next, *prev;

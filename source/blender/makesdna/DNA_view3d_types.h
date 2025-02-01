@@ -16,6 +16,11 @@ struct SpaceLink;
 struct bGPdata;
 struct wmTimer;
 
+#ifdef __cplusplus
+#  include "BLI_math_matrix_types.hh"
+#  include "BLI_math_quaternion_types.hh"
+#endif
+
 #include "DNA_defs.h"
 #include "DNA_image_types.h"
 #include "DNA_listBase.h"
@@ -23,10 +28,6 @@ struct wmTimer;
 #include "DNA_object_types.h"
 #include "DNA_view3d_enums.h"
 #include "DNA_viewer_path_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef struct RegionView3D {
 
@@ -66,7 +67,7 @@ typedef struct RegionView3D {
 
   /** Transform gizmo matrix. */
   float twmat[4][4];
-  /** min/max dot product on twmat xyz axis. */
+  /** min/max dot product on `twmat` XYZ axis. */
   float tw_axis_min[3], tw_axis_max[3];
   float tw_axis_matrix[3][3];
 
@@ -130,6 +131,15 @@ typedef struct View3DCursor {
   short rotation_mode;
 
   char _pad[6];
+
+#ifdef __cplusplus
+  template<typename T> T matrix() const;
+  blender::math::Quaternion rotation() const;
+
+  void set_rotation(const blender::math::Quaternion &quat, bool use_compat);
+  void set_matrix(const blender::float3x3 &mat, bool use_compat);
+  void set_matrix(const blender::float4x4 &mat, bool use_compat);
+#endif
 } View3DCursor;
 
 /** 3D Viewport Shading settings. */
@@ -196,7 +206,6 @@ typedef struct View3DOverlay {
   int edit_flag;
   float normals_length;
   float normals_constant_screen_size;
-  float backwire_opacity;
 
   /** Paint mode settings. */
   int paint_flag;
@@ -229,6 +238,12 @@ typedef struct View3DOverlay {
   float gpencil_grid_opacity;
   float gpencil_fade_layer;
 
+  /* Grease Pencil canvas settings. */
+  float gpencil_grid_color[3];
+  float gpencil_grid_scale[2];
+  float gpencil_grid_offset[2];
+  int gpencil_grid_subdivisions;
+
   /** Factor for mixing vertex paint with original color */
   float gpencil_vertex_paint_opacity;
   /** Handles display type for curves. */
@@ -236,7 +251,6 @@ typedef struct View3DOverlay {
 
   /** Curves sculpt mode settings. */
   float sculpt_curves_cage_opacity;
-  char _pad[4];
 } View3DOverlay;
 
 /** #View3DOverlay.handle_display */
@@ -303,10 +317,10 @@ typedef struct View3D {
   /** Optional string for armature bone to define center, MAXBONENAME. */
   char ob_center_bone[64];
 
-  unsigned short local_view_uuid;
+  unsigned short local_view_uid;
   char _pad6[2];
   int layact DNA_DEPRECATED;
-  unsigned short local_collections_uuid;
+  unsigned short local_collections_uid;
   short _pad7[2];
 
   short debug_flag;
@@ -395,6 +409,8 @@ enum {
   V3D_RUNTIME_XR_SESSION_ROOT = (1 << 0),
   /** Some operators override the depth buffer for dedicated occlusion operations. */
   V3D_RUNTIME_DEPTHBUF_OVERRIDDEN = (1 << 1),
+  /** Local view may have become empty, and may need to be exited. */
+  V3D_RUNTIME_LOCAL_MAYBE_EMPTY = (1 << 2),
 };
 
 /** #RegionView3D::persp */
@@ -485,6 +501,9 @@ enum {
   V3D_FLAG2_UNUSED_15 = 1 << 15, /* cleared */
   V3D_XR_SHOW_CONTROLLERS = 1 << 16,
   V3D_XR_SHOW_CUSTOM_OVERLAYS = 1 << 17,
+  V3D_SHOW_CAMERA_GUIDES = (1 << 18),
+  V3D_SHOW_CAMERA_PASSEPARTOUT = (1 << 19),
+  V3D_XR_SHOW_PASSTHROUGH = 1 << 20,
 };
 
 /** #View3D::gp_flag (short) */
@@ -507,6 +526,8 @@ enum {
   V3D_GP_SHOW_MATERIAL_NAME = 1 << 8,
   /** Show Canvas Grid on Top. */
   V3D_GP_SHOW_GRID_XRAY = 1 << 9,
+  /** Force 3D depth rendering and ignore per-object stroke depth mode. */
+  V3D_GP_FORCE_STROKE_ORDER_3D = 1 << 10,
 };
 
 /** #View3DShading.flag */
@@ -579,6 +600,7 @@ enum {
   V3D_OVERLAY_SCULPT_SHOW_FACE_SETS = (1 << 15),
   V3D_OVERLAY_SCULPT_CURVES_CAGE = (1 << 16),
   V3D_OVERLAY_SHOW_LIGHT_COLORS = (1 << 17),
+  V3D_OVERLAY_VIEWER_ATTRIBUTE_TEXT = (1 << 18),
 };
 
 /** #View3DOverlay.edit_flag */
@@ -591,7 +613,7 @@ enum {
 
   V3D_OVERLAY_EDIT_WEIGHT = (1 << 4),
 
-  V3D_OVERLAY_EDIT_EDGES = (1 << 5),
+  V3D_OVERLAY_EDIT_EDGES_DEPRECATED = (1 << 5),
   V3D_OVERLAY_EDIT_FACES = (1 << 6),
   V3D_OVERLAY_EDIT_FACE_DOT = (1 << 7),
 
@@ -671,6 +693,7 @@ enum {
   V3D_GIZMO_HIDE_NAVIGATE = (1 << 1),
   V3D_GIZMO_HIDE_CONTEXT = (1 << 2),
   V3D_GIZMO_HIDE_TOOL = (1 << 3),
+  V3D_GIZMO_HIDE_MODIFIER = (1 << 4),
 };
 
 /** #View3d.gizmo_show_object */
@@ -722,7 +745,3 @@ typedef enum {
 /** #BKE_screen_view3d_zoom_to_fac() values above */
 #define RV3D_CAMZOOM_MIN_FACTOR 0.1657359312880714853f
 #define RV3D_CAMZOOM_MAX_FACTOR 44.9852813742385702928f
-
-#ifdef __cplusplus
-}
-#endif

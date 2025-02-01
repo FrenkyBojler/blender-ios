@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_string.h"
+
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
@@ -46,10 +48,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .description(
-          "For elliptical hair cross-section, the aspect ratio is the ratio of the minor axis to "
-          "the major axis (the major axis is aligned with the curve normal). Recommended values "
-          "are 0.8~1 for Asian hair, 0.65~0.9 for Caucasian hair, 0.5~0.65 for African hair. Set "
-          "this to 1 for circular cross-section");
+          "The ratio of the minor axis to the major axis of an elliptical cross-section. "
+          "Recommended values are 0.8~1 for Asian hair, 0.65~0.9 for Caucasian hair, 0.5~0.65 for "
+          "African hair. The major axis is aligned with the curve normal, which is not supported "
+          "in particle hair");
   b.add_input<decl::Float>("Roughness")
       .default_value(0.3f)
       .min(0.0f)
@@ -95,7 +97,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .description("Vary roughness values for each strand");
   b.add_input<decl::Float>("Random").hide_value();
-  b.add_input<decl::Float>("Weight").unavailable();
+  b.add_input<decl::Float>("Weight").available(false);
   b.add_input<decl::Float>("Reflection", "R lobe")
       .default_value(1.0f)
       .min(0.0f)
@@ -136,7 +138,7 @@ static void node_shader_init_hair_principled(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeShaderHairPrincipled *data = MEM_cnew<NodeShaderHairPrincipled>(__func__);
 
-  data->model = SHD_PRINCIPLED_HAIR_HUANG;
+  data->model = SHD_PRINCIPLED_HAIR_CHIANG;
   data->parametrization = SHD_PRINCIPLED_HAIR_REFLECTANCE;
 
   node->storage = data;
@@ -152,40 +154,40 @@ static void node_shader_update_hair_principled(bNodeTree *ntree, bNode *node)
 
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (STREQ(sock->name, "Color")) {
-      bke::nodeSetSocketAvailability(
+      bke::node_set_socket_availability(
           ntree, sock, parametrization == SHD_PRINCIPLED_HAIR_REFLECTANCE);
     }
     else if (STREQ(sock->name, "Melanin")) {
-      bke::nodeSetSocketAvailability(
+      bke::node_set_socket_availability(
           ntree, sock, parametrization == SHD_PRINCIPLED_HAIR_PIGMENT_CONCENTRATION);
     }
     else if (STREQ(sock->name, "Melanin Redness")) {
-      bke::nodeSetSocketAvailability(
+      bke::node_set_socket_availability(
           ntree, sock, parametrization == SHD_PRINCIPLED_HAIR_PIGMENT_CONCENTRATION);
     }
     else if (STREQ(sock->name, "Tint")) {
-      bke::nodeSetSocketAvailability(
+      bke::node_set_socket_availability(
           ntree, sock, parametrization == SHD_PRINCIPLED_HAIR_PIGMENT_CONCENTRATION);
     }
     else if (STREQ(sock->name, "Absorption Coefficient")) {
-      bke::nodeSetSocketAvailability(
+      bke::node_set_socket_availability(
           ntree, sock, parametrization == SHD_PRINCIPLED_HAIR_DIRECT_ABSORPTION);
     }
     else if (STREQ(sock->name, "Random Color")) {
-      bke::nodeSetSocketAvailability(
+      bke::node_set_socket_availability(
           ntree, sock, parametrization == SHD_PRINCIPLED_HAIR_PIGMENT_CONCENTRATION);
     }
     else if (STREQ(sock->name, "Radial Roughness")) {
-      bke::nodeSetSocketAvailability(ntree, sock, model == SHD_PRINCIPLED_HAIR_CHIANG);
+      bke::node_set_socket_availability(ntree, sock, model == SHD_PRINCIPLED_HAIR_CHIANG);
     }
     else if (STREQ(sock->name, "Coat")) {
-      bke::nodeSetSocketAvailability(ntree, sock, model == SHD_PRINCIPLED_HAIR_CHIANG);
+      bke::node_set_socket_availability(ntree, sock, model == SHD_PRINCIPLED_HAIR_CHIANG);
     }
     else if (STREQ(sock->name, "Aspect Ratio")) {
-      bke::nodeSetSocketAvailability(ntree, sock, model == SHD_PRINCIPLED_HAIR_HUANG);
+      bke::node_set_socket_availability(ntree, sock, model == SHD_PRINCIPLED_HAIR_HUANG);
     }
     else if (STR_ELEM(sock->name, "Reflection", "Transmission", "Secondary Reflection")) {
-      bke::nodeSetSocketAvailability(ntree, sock, model == SHD_PRINCIPLED_HAIR_HUANG);
+      bke::node_set_socket_availability(ntree, sock, model == SHD_PRINCIPLED_HAIR_HUANG);
     }
   }
 }
@@ -196,6 +198,8 @@ static int node_shader_gpu_hair_principled(GPUMaterial *mat,
                                            GPUNodeStack *in,
                                            GPUNodeStack *out)
 {
+  GPU_material_flag_set(mat, GPU_MATFLAG_DIFFUSE | GPU_MATFLAG_GLOSSY);
+
   return GPU_stack_link(mat, node, "node_bsdf_hair_principled", in, out);
 }
 
@@ -206,19 +210,22 @@ void register_node_type_sh_bsdf_hair_principled()
 {
   namespace file_ns = blender::nodes::node_shader_bsdf_hair_principled_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(
-      &ntype, SH_NODE_BSDF_HAIR_PRINCIPLED, "Principled Hair BSDF", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, "ShaderNodeBsdfHairPrincipled", SH_NODE_BSDF_HAIR_PRINCIPLED);
+  ntype.ui_name = "Principled Hair BSDF";
+  ntype.ui_description = "Physically-based, easy-to-use shader for rendering hair and fur";
+  ntype.enum_name_legacy = "BSDF_HAIR_PRINCIPLED";
+  ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_cycles_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts_principled_hair;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
   ntype.initfunc = file_ns::node_shader_init_hair_principled;
   ntype.updatefunc = file_ns::node_shader_update_hair_principled;
   ntype.gpu_fn = file_ns::node_shader_gpu_hair_principled;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeShaderHairPrincipled", node_free_standard_storage, node_copy_standard_storage);
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

@@ -10,14 +10,16 @@ set(INC_SYS
 )
 
 set(SRC
-  opensubdiv_capi.h
-  opensubdiv_capi_type.h
-  opensubdiv_converter_capi.h
-  opensubdiv_evaluator_capi.h
-  opensubdiv_topology_refiner_capi.h
+  opensubdiv_capi.hh
+  opensubdiv_capi_type.hh
+  opensubdiv_converter_capi.hh
+  opensubdiv_evaluator_capi.hh
+  opensubdiv_evaluator.hh
+  opensubdiv_topology_refiner.hh
 )
 
 set(LIB
+  PRIVATE bf::blenlib
   PRIVATE bf::intern::guardedalloc
 )
 
@@ -37,7 +39,6 @@ if(WITH_OPENSUBDIV)
     # Base.
     internal/base/memory.h
     internal/base/opensubdiv_capi.cc
-    internal/base/type.h
     internal/base/type_convert.cc
     internal/base/type_convert.h
     internal/base/util.cc
@@ -54,7 +55,6 @@ if(WITH_OPENSUBDIV)
     internal/evaluator/evaluator_cache_impl.h
     internal/evaluator/evaluator_capi.cc
     internal/evaluator/evaluator_impl.cc
-    internal/evaluator/evaluator_impl.h
     internal/evaluator/gl_compute_evaluator.cc
     internal/evaluator/gl_compute_evaluator.h
     internal/evaluator/patch_map.cc
@@ -65,18 +65,17 @@ if(WITH_OPENSUBDIV)
     internal/topology/mesh_topology.cc
     internal/topology/mesh_topology_compare.cc
     internal/topology/mesh_topology.h
-    internal/topology/topology_refiner_capi.cc
     internal/topology/topology_refiner_factory.cc
     internal/topology/topology_refiner_impl.cc
     internal/topology/topology_refiner_impl_compare.cc
-    internal/topology/topology_refiner_impl.h
   )
 
   list(APPEND LIB
     ${OPENSUBDIV_LIBRARIES}
+    ${Epoxy_LIBRARIES}
   )
 
-  if(WITH_OPENMP_STATIC)
+  if(WITH_OPENMP AND WITH_OPENMP_STATIC)
     list(APPEND LIB
       ${OpenMP_LIBRARIES}
     )
@@ -90,13 +89,11 @@ if(WITH_OPENSUBDIV)
   data_to_c_simple(
     internal/evaluator/shaders/glsl_compute_kernel.glsl
     SRC
-    STRIP_LEADING_C_COMMENTS
   )
 else()
   list(APPEND SRC
     stub/opensubdiv_stub.cc
     stub/opensubdiv_evaluator_stub.cc
-    stub/opensubdiv_topology_refiner_stub.cc
   )
 endif()
 
@@ -105,10 +102,8 @@ blender_add_lib(bf_intern_opensubdiv "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 # Tests.
 
 if(WITH_GTESTS AND WITH_OPENSUBDIV)
-  include(GTestTesting)
-
   add_definitions(${GFLAGS_DEFINES})
   add_definitions(${GLOG_DEFINES})
 
-  blender_add_test_executable(opensubdiv_mesh_topology_test "internal/topology/mesh_topology_test.cc" "${INC}" "${INC_SYS}" "${LIB};bf_intern_opensubdiv")
+  blender_add_test_executable(opensubdiv_mesh_topology "internal/topology/mesh_topology_test.cc" "${INC}" "${INC_SYS}" "${LIB};bf_intern_opensubdiv")
 endif()

@@ -20,10 +20,8 @@ GHOST_WindowManager::GHOST_WindowManager()
 {
 }
 
-GHOST_WindowManager::~GHOST_WindowManager()
-{
-  /* m_windows is freed by GHOST_System::disposeWindow */
-}
+/* m_windows is freed by GHOST_System::disposeWindow */
+GHOST_WindowManager::~GHOST_WindowManager() = default;
 
 GHOST_TSuccess GHOST_WindowManager::addWindow(GHOST_IWindow *window)
 {
@@ -152,7 +150,7 @@ const std::vector<GHOST_IWindow *> &GHOST_WindowManager::getWindows() const
   return m_windows;
 }
 
-GHOST_IWindow *GHOST_WindowManager::getWindowAssociatedWithOSWindow(void *osWindow)
+GHOST_IWindow *GHOST_WindowManager::getWindowAssociatedWithOSWindow(const void *osWindow)
 {
   std::vector<GHOST_IWindow *>::iterator iter;
 

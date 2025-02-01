@@ -8,15 +8,9 @@
 
 #include <string>
 
-#include "BLI_path_util.h"
-#include "BLI_utildefines.h"
-
-#include "BKE_appdir.h"
-
 namespace blender::io::usd {
 
-class USDStageCreationTest : public testing::Test {
-};
+class USDStageCreationTest : public testing::Test {};
 
 TEST_F(USDStageCreationTest, JSONFileLoadingTest)
 {

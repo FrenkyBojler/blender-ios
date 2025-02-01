@@ -5,11 +5,13 @@
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
-#include "IMB_colormanagement.h"
+#include "IMB_colormanagement.hh"
+
+#include "DEG_depsgraph_query.hh"
 
 namespace blender::nodes::node_shader_tex_environment_cc {
 
@@ -127,6 +129,57 @@ static int node_shader_gpu_tex_environment(GPUMaterial *mat,
   return true;
 }
 
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  NodeItem res = val(MaterialX::Color4(1.0f, 0.0f, 1.0f, 1.0f));
+
+  Image *image = (Image *)node_->id;
+  if (!image) {
+    return res;
+  }
+
+  NodeTexEnvironment *tex_env = static_cast<NodeTexEnvironment *>(node_->storage);
+
+  std::string image_path = image->id.name;
+  if (graph_.export_params.image_fn) {
+    Scene *scene = DEG_get_input_scene(graph_.depsgraph);
+    Main *bmain = DEG_get_bmain(graph_.depsgraph);
+    image_path = graph_.export_params.image_fn(bmain, scene, image, &tex_env->iuser);
+  }
+
+  NodeItem vector = get_input_link("Vector", NodeItem::Type::Vector2);
+  if (!vector) {
+    vector = texcoord_node();
+  }
+  /* TODO: texture-coordinates should be translated to spherical coordinates. */
+
+  std::string filtertype;
+  switch (tex_env->interpolation) {
+    case SHD_INTERP_LINEAR:
+      filtertype = "linear";
+      break;
+    case SHD_INTERP_CLOSEST:
+      filtertype = "closest";
+      break;
+    case SHD_INTERP_CUBIC:
+    case SHD_INTERP_SMART:
+      filtertype = "cubic";
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+
+  res = create_node("image", NodeItem::Type::Color4);
+  res.set_input("file", image_path, NodeItem::Type::Filename);
+  res.set_input("texcoord", vector);
+  res.set_input("filtertype", val(filtertype));
+
+  return res;
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
 }  // namespace blender::nodes::node_shader_tex_environment_cc
 
 /* node type definition */
@@ -134,16 +187,23 @@ void register_node_type_sh_tex_environment()
 {
   namespace file_ns = blender::nodes::node_shader_tex_environment_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_TEX_ENVIRONMENT, "Environment Texture", NODE_CLASS_TEXTURE);
+  sh_node_type_base(&ntype, "ShaderNodeTexEnvironment", SH_NODE_TEX_ENVIRONMENT);
+  ntype.ui_name = "Environment Texture";
+  ntype.ui_description =
+      "Sample an image file as an environment texture. Typically used to light the scene with the "
+      "background node";
+  ntype.enum_name_legacy = "TEX_ENVIRONMENT";
+  ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::node_declare;
   ntype.initfunc = file_ns::node_shader_init_tex_environment;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeTexEnvironment", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_environment;
   ntype.labelfunc = node_image_label;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

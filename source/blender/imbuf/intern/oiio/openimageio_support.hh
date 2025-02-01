@@ -4,18 +4,16 @@
 
 #pragma once
 
-#include <memory>
-
 /* Include our own math header first to avoid warnings about M_PI
  * redefinition between OpenImageIO and Windows headers. */
-#include "BLI_math_base.h"
+#include "BLI_math_base.h"  // IWYU pragma: keep
 #include "BLI_sys_types.h"
 
 #include <OpenImageIO/filesystem.h>
 #include <OpenImageIO/imageio.h>
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 namespace blender::imbuf {
 

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "GEO_mesh_primitive_cuboid.hh"
+#include "GEO_transform.hh"
 
 #include "node_geometry_util.hh"
 
@@ -54,7 +55,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float3 scale = sub_bounds->max - sub_bounds->min;
         const float3 center = sub_bounds->min + scale / 2.0f;
         Mesh *mesh = geometry::create_cuboid_mesh(scale, 2, 2, 2, "uv_map");
-        transform_mesh(*mesh, center, float3(0), float3(1));
+        geometry::transform_mesh(*mesh, center, math::Quaternion::identity(), float3(1));
         sub_geometry.replace_mesh(mesh);
         sub_geometry.keep_only_during_modify({GeometryComponent::Type::Mesh});
       }
@@ -66,12 +67,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_BOUNDING_BOX, "Bounding Box", NODE_CLASS_GEOMETRY);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeBoundBox", GEO_NODE_BOUNDING_BOX);
+  ntype.ui_name = "Bounding Box";
+  ntype.ui_description =
+      "Calculate the limits of a geometry's positions and generate a box mesh with those "
+      "dimensions";
+  ntype.enum_name_legacy = "BOUNDING_BOX";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

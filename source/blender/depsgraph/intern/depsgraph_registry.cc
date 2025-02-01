@@ -6,14 +6,14 @@
  * \ingroup depsgraph
  */
 
-#include <memory>
 #include <mutex>
 
-#include "intern/depsgraph_registry.h"
+#include "BLI_map.hh"
+#include "BLI_vector_set.hh"
 
-#include "BLI_utildefines.h"
+#include "intern/depsgraph_registry.hh"
 
-#include "intern/depsgraph.h"
+#include "intern/depsgraph.hh"
 
 namespace blender::deg {
 

@@ -10,14 +10,16 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array.h"
 #include "BLI_math_vector.h"
 #include "BLI_stack.h"
+#include "BLI_vector.hh"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
-#include "intern/bmesh_operators_private.h"
+#include "intern/bmesh_operators_private.hh"
+
+using blender::Vector;
 
 /* ***_ISGC: mark for garbage-collection */
 
@@ -119,17 +121,8 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
 {
   BMOIter oiter;
   BMFace *f;
-  /* List of face arrays, the first element in each array in the length. */
-  struct {
-    BMFace **faces;
-    int faces_len;
-  } *regions = nullptr, *region;
-  BMFace **faces = nullptr;
-  BLI_array_declare(regions);
-  BLI_array_declare(faces);
   BMFace *act_face = bm->act_face;
   BMWalker regwalker;
-  int i;
 
   const bool use_verts = BMO_slot_bool_get(op->slots_in, "use_verts");
 
@@ -146,9 +139,11 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
 
   BMO_slot_buffer_flag_enable(bm, op->slots_in, "faces", BM_FACE, FACE_MARK | FACE_TAG);
 
+  /* List of regions which are themselves a list of faces. */
+  Vector<Vector<BMFace *>> regions;
+
   /* collect region */
   BMO_ITER (f, &oiter, op->slots_in, "faces", BM_FACE) {
-    BMFace *f_iter;
     if (!BMO_face_flag_test(bm, f, FACE_TAG)) {
       continue;
     }
@@ -168,29 +163,21 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
     if ((faces_init[0] = static_cast<BMFace *>(BMW_begin(&regwalker, f))) &&
         (faces_init[1] = static_cast<BMFace *>(BMW_step(&regwalker))))
     {
+      Vector<BMFace *> faces;
+      faces.append(faces_init[0]);
+      faces.append(faces_init[1]);
 
-      BLI_assert(BLI_array_len(faces) == 0);
-
-      BLI_array_append(faces, faces_init[0]);
-      BLI_array_append(faces, faces_init[1]);
-
+      BMFace *f_iter;
       while ((f_iter = static_cast<BMFace *>(BMW_step(&regwalker)))) {
-        BLI_array_append(faces, f_iter);
+        faces.append(f_iter);
       }
 
-      for (i = 0; i < BLI_array_len(faces); i++) {
-        f_iter = faces[i];
-        BMO_face_flag_disable(bm, f_iter, FACE_TAG);
-        BMO_face_flag_enable(bm, f_iter, FACE_ORIG);
+      for (BMFace *face : faces) {
+        BMO_face_flag_disable(bm, face, FACE_TAG);
+        BMO_face_flag_enable(bm, face, FACE_ORIG);
       }
 
-      region = BLI_array_append_ret(regions);
-      region->faces = faces;
-      region->faces_len = BLI_array_len(faces);
-
-      BLI_array_clear(faces);
-      /* Forces a new allocation. */
-      faces = nullptr;
+      regions.append_as(std::move(faces));
     }
 
     BMW_end(&regwalker);
@@ -199,13 +186,10 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
   /* track how many faces we should end up with */
   int totface_target = bm->totface;
 
-  for (i = 0; i < BLI_array_len(regions); i++) {
-    region = &regions[i];
+  for (Vector<BMFace *> &faces : regions) {
+    const int64_t faces_len = faces.size();
 
-    const int faces_len = region->faces_len;
-    faces = region->faces;
-
-    BMFace *f_new = BM_faces_join(bm, faces, faces_len, true);
+    BMFace *f_new = BM_faces_join(bm, faces.data(), faces_len, true);
     if (f_new != nullptr) {
       /* Maintain the active face. */
       if (act_face && bm->act_face == nullptr) {
@@ -226,8 +210,8 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
        * This could optionally do a partial merge, where some faces are joined. */
 
       /* Prevent these faces from being removed. */
-      for (int j = 0; j < faces_len; j++) {
-        BMO_face_flag_disable(bm, faces[j], FACE_ORIG);
+      for (BMFace *face : faces) {
+        BMO_face_flag_disable(bm, face, FACE_ORIG);
       }
     }
   }
@@ -253,18 +237,11 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
   BLI_assert(!BMO_error_occurred_at_level(bm, BMO_ERROR_FATAL));
 
   BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "region.out", BM_FACE, FACE_NEW);
-
-  /* free/cleanup */
-  for (i = 0; i < BLI_array_len(regions); i++) {
-    MEM_freeN(regions[i].faces);
-  }
-
-  BLI_array_free(regions);
 }
 
 void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 {
-  /* BMOperator fop; */
+  // BMOperator fop;
   BMFace *act_face = bm->act_face;
   BMOIter eiter;
   BMIter iter;
@@ -296,12 +273,17 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
   }
 
   if (use_verts) {
-    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-      BMO_vert_flag_set(bm, v, VERT_MARK, !BM_vert_is_edge_pair(v));
+
+    /* Mark all verts that are candidates to be dissolved. */
+    BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
+      BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
+      BMO_vert_flag_enable(bm, e->v2, VERT_MARK);
     }
   }
 
   /* tag all verts/edges connected to faces */
+  /* Any element tagged with xxx_ISGC is an edge or vert of a face that borders an edge to be
+   * dissolved, and it could end up being cleaned up after a face merge has made it irrelevant. */
   BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
     BMFace *f_pair[2];
     if (BM_edge_face_pair(e, &f_pair[0], &f_pair[1])) {
@@ -317,6 +299,7 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
     }
   }
 
+  /* Merge any face pairs that straddle a selected edge. */
   BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
     BMLoop *l_a, *l_b;
     if (BM_edge_loop_pair(e, &l_a, &l_b)) {
@@ -338,20 +321,23 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
     }
   }
 
-  /* Cleanup geometry (#BM_faces_join_pair, but it removes geometry we're looping on)
-   * so do this in a separate pass instead. */
+  /* Cleanup geometry. Remove any edges that are garbage collectible and that have became
+   * irrelevant (no loops) because of face merges. */
   BM_ITER_MESH_MUTABLE (e, e_next, &iter, bm, BM_EDGES_OF_MESH) {
     if ((e->l == nullptr) && BMO_edge_flag_test(bm, e, EDGE_ISGC)) {
       BM_edge_kill(bm, e);
     }
   }
+
+  /* Cleanup geometry. Remove any verts that are garbage collectible and that that have became
+   * isolated verts (no edges) because of edge dissolves. */
   BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
     if ((v->e == nullptr) && BMO_vert_flag_test(bm, v, VERT_ISGC)) {
       BM_vert_kill(bm, v);
     }
   }
-  /* done with cleanup */
 
+  /* If dissolving verts, then evaluate each VERT_MARK vert. */
   if (use_verts) {
     BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
       if (BMO_vert_flag_test(bm, v, VERT_MARK)) {
@@ -589,7 +575,8 @@ void bmo_dissolve_degenerate_exec(BMesh *bm, BMOperator *op)
                 /* add a joining edge and tag for removal */
                 BMLoop *l_split;
                 if (BM_face_split(
-                        bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true)) {
+                        bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true))
+                {
                   BMO_edge_flag_enable(bm, l_split->e, EDGE_COLLAPSE);
                   found = true;
                   reset = true;
@@ -605,7 +592,8 @@ void bmo_dissolve_degenerate_exec(BMesh *bm, BMOperator *op)
               BLI_assert(v_new == l_iter->next->v);
               (void)v_new;
               if (BM_face_split(
-                      bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true)) {
+                      bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true))
+              {
                 BMO_edge_flag_enable(bm, l_split->e, EDGE_COLLAPSE);
                 found = true;
               }
@@ -620,7 +608,8 @@ void bmo_dissolve_degenerate_exec(BMesh *bm, BMOperator *op)
               BLI_assert(v_new == l_iter->prev->v);
               (void)v_new;
               if (BM_face_split(
-                      bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true)) {
+                      bm, l_iter->f, l_iter->prev, l_iter->next, &l_split, nullptr, true))
+              {
                 BMO_edge_flag_enable(bm, l_split->e, EDGE_COLLAPSE);
                 found = true;
               }

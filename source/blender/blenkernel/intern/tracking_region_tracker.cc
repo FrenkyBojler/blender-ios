@@ -14,14 +14,11 @@
 #include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
 
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
-
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "libmv-capi.h"
 #include "tracking_private.h"

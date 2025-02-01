@@ -8,48 +8,34 @@
  * This is used by alpha blended materials and materials using Shader to RGB nodes.
  */
 
-#pragma BLENDER_REQUIRE(common_hair_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_ambient_occlusion_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_light_eval_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_nodetree_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surf_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_volume_lib.glsl)
+#include "infos/eevee_material_info.hh"
 
-vec4 closure_to_rgba(Closure cl)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_surf_forward)
+
+#include "common_hair_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "eevee_ambient_occlusion_lib.glsl"
+#include "eevee_forward_lib.glsl"
+#include "eevee_nodetree_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_surf_lib.glsl"
+#include "eevee_volume_lib.glsl"
+
+/* Global thickness because it is needed for closure_to_rgba. */
+float g_thickness;
+
+vec4 closure_to_rgba(Closure cl_unused)
 {
-  vec3 diffuse_light = vec3(0.0);
-  vec3 reflection_light = vec3(0.0);
-  vec3 refraction_light = vec3(0.0);
-  float shadow = 1.0;
-
-  float vP_z = dot(cameraForward, g_data.P) - dot(cameraForward, cameraPos);
-
-  light_eval(g_diffuse_data,
-             g_reflection_data,
-             g_data.P,
-             g_data.Ng,
-             cameraVec(g_data.P),
-             vP_z,
-             0.01 /* TODO(fclem) thickness. */,
-             diffuse_light,
-             reflection_light,
-             shadow);
-
-  vec4 out_color;
-  out_color.rgb = g_emission;
-  out_color.rgb += g_diffuse_data.color * g_diffuse_data.weight * diffuse_light;
-  out_color.rgb += g_reflection_data.color * g_reflection_data.weight * reflection_light;
-  out_color.rgb += g_refraction_data.color * g_refraction_data.weight * refraction_light;
-
-  out_color.a = saturate(1.0 - avg(g_transmittance));
+  vec3 radiance, transmittance;
+  forward_lighting_eval(g_thickness, radiance, transmittance);
 
   /* Reset for the next closure tree. */
-  closure_weights_reset();
+  float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
+  float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
+  closure_weights_reset(closure_rand);
 
-  return out_color;
+  return vec4(radiance, saturate(1.0 - average(transmittance)));
 }
 
 void main()
@@ -60,92 +46,36 @@ void main()
   init_globals();
 
   float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
-  g_closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
+  float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
 
   fragment_displacement();
 
-  nodetree_surface();
+  g_thickness = nodetree_thickness() * thickness_mode;
+
+  nodetree_surface(closure_rand);
+
+  eObjectInfoFlag ob_flag = eObjectInfoFlag(floatBitsToUint(drw_infos[resource_id].infos.w));
+  if (flag_test(ob_flag, OBJECT_HOLDOUT)) {
+    g_holdout = 1.0 - average(g_transmittance);
+  }
 
   g_holdout = saturate(g_holdout);
 
-  float thickness = nodetree_thickness();
+  vec3 radiance, transmittance;
+  forward_lighting_eval(g_thickness, radiance, transmittance);
 
-  vec3 diffuse_light = vec3(0.0);
-  vec3 reflection_light = vec3(0.0);
-  vec3 refraction_light = vec3(0.0);
-  float shadow = 1.0;
-
-  float vP_z = dot(cameraForward, g_data.P) - dot(cameraForward, cameraPos);
-
-  light_eval(g_diffuse_data,
-             g_reflection_data,
-             g_data.P,
-             g_data.Ng,
-             cameraVec(g_data.P),
-             vP_z,
-             thickness,
-             diffuse_light,
-             reflection_light,
-             shadow);
-
-  g_diffuse_data.color *= g_diffuse_data.weight;
-  g_reflection_data.color *= g_reflection_data.weight;
-  g_refraction_data.color *= g_refraction_data.weight;
-  diffuse_light *= step(1e-5, g_diffuse_data.weight);
-  reflection_light *= step(1e-5, g_reflection_data.weight);
-  refraction_light *= step(1e-5, g_refraction_data.weight);
-
-  out_radiance.rgb = g_emission;
-  out_radiance.rgb += g_diffuse_data.color * diffuse_light;
-  out_radiance.rgb += g_reflection_data.color * reflection_light;
-  out_radiance.rgb += g_refraction_data.color * refraction_light;
-  out_radiance.a = 0.0;
-
-  vec3 specular_light = reflection_light + refraction_light;
-  vec3 specular_color = g_reflection_data.color + g_refraction_data.color;
-
-  /* TODO(fclem): This feels way too complex for what is it. */
-  bool has_any_bsdf_weight = g_diffuse_data.weight != 0.0 || g_reflection_data.weight != 0.0 ||
-                             g_refraction_data.weight != 0.0;
-  vec3 out_normal = has_any_bsdf_weight ? vec3(0.0) : g_data.N;
-  out_normal += g_diffuse_data.N * g_diffuse_data.weight;
-  out_normal += g_reflection_data.N * g_reflection_data.weight;
-  out_normal += g_refraction_data.N * g_refraction_data.weight;
-  out_normal = safe_normalize(out_normal);
-
-#ifdef MAT_RENDER_PASS_SUPPORT
-  ivec2 out_texel = ivec2(gl_FragCoord.xy);
-  if (imageSize(rp_cryptomatte_img).x > 1) {
-    vec4 cryptomatte_output = vec4(
-        cryptomatte_object_buf[resource_id], node_tree.crypto_hash, 0.0);
-    imageStore(rp_cryptomatte_img, out_texel, cryptomatte_output);
-  }
-  output_renderpass_color(rp_buf.normal_id, vec4(out_normal, 1.0));
-  output_renderpass_color(rp_buf.diffuse_color_id, vec4(g_diffuse_data.color, 1.0));
-  output_renderpass_color(rp_buf.diffuse_light_id, vec4(diffuse_light, 1.0));
-  output_renderpass_color(rp_buf.specular_color_id, vec4(specular_color, 1.0));
-  output_renderpass_color(rp_buf.specular_light_id, vec4(specular_light, 1.0));
-  output_renderpass_color(rp_buf.emission_id, vec4(g_emission, 1.0));
-  output_renderpass_value(rp_buf.shadow_id, shadow);
-  /** NOTE: AO is done on its own pass. */
-#endif
-
-#ifdef MAT_TRANSPARENT
   /* Volumetric resolve and compositing. */
-  vec2 uvs = gl_FragCoord.xy * volumes_info_buf.viewport_size_inv;
+  vec2 uvs = gl_FragCoord.xy * uniform_buf.volumes.main_view_extent_inv;
   VolumeResolveSample vol = volume_resolve(
       vec3(uvs, gl_FragCoord.z), volume_transmittance_tx, volume_scattering_tx);
-
   /* Removes the part of the volume scattering that has
    * already been added to the destination pixels by the opaque resolve.
    * Since we do that using the blending pipeline we need to account for material transmittance. */
   vol.scattering -= vol.scattering * g_transmittance;
+  radiance = radiance * vol.transmittance + vol.scattering;
 
-  out_radiance.rgb = out_radiance.rgb * vol.transmittance + vol.scattering;
-#endif
+  radiance *= 1.0 - saturate(g_holdout);
 
-  out_radiance.rgb *= 1.0 - g_holdout;
-
-  out_transmittance.rgb = g_transmittance;
-  out_transmittance.a = saturate(avg(g_transmittance));
+  out_radiance = vec4(radiance, g_holdout);
+  out_transmittance = vec4(transmittance, saturate(average(transmittance)));
 }

@@ -13,49 +13,47 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include <cstddef>
 #include <cstring>
-
-#include "BLI_ghash.h"
-#include "BLI_sys_types.h"
 
 #include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_ghash.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_idprop.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
-#include "BKE_screen.h"
-#include "BKE_workspace.h"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_idprop.hh"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_main.hh"
+#include "BKE_report.hh"
+#include "BKE_screen.hh"
+#include "BKE_workspace.hh"
 
 #include "WM_api.hh"
+#include "WM_keymap.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
 #include "wm.hh"
 #include "wm_draw.hh"
-#include "wm_event_system.h"
+#include "wm_event_system.hh"
 #include "wm_window.hh"
 #ifdef WITH_XR_OPENXR
-#  include "wm_xr.h"
+#  include "wm_xr.hh"
 #endif
 
-#include "BKE_undo_system.h"
+#include "BKE_undo_system.hh"
 #include "ED_screen.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
-#  include "BPY_extern_run.h"
+#  include "BPY_extern.hh"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "BLO_read_write.hh"
@@ -113,12 +111,14 @@ static void window_manager_blend_write(BlendWriter *writer, ID *id, const void *
 {
   wmWindowManager *wm = (wmWindowManager *)id;
 
+  wm->runtime = nullptr;
+
   BLO_write_id_struct(writer, wmWindowManager, id_address, &wm->id);
   BKE_id_blend_write(writer, &wm->id);
   write_wm_xr_data(writer, &wm->xr);
 
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    /* update deprecated screen member (for so loading in 2.7x uses the correct screen) */
+    /* Update deprecated screen member (for so loading in 2.7x uses the correct screen). */
     win->screen = BKE_workspace_active_screen_get(win->workspace_hook);
 
     BLO_write_struct(writer, wmWindow, win);
@@ -127,7 +127,7 @@ static void window_manager_blend_write(BlendWriter *writer, ID *id, const void *
 
     BKE_screen_area_map_blend_write(writer, &win->global_areas);
 
-    /* data is written, clear deprecated data again */
+    /* Data is written, clear deprecated data again. */
     win->screen = nullptr;
   }
 }
@@ -142,13 +142,13 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
   wmWindowManager *wm = (wmWindowManager *)id;
 
   id_us_ensure_real(&wm->id);
-  BLO_read_list(reader, &wm->windows);
+  BLO_read_struct_list(reader, wmWindow, &wm->windows);
 
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    BLO_read_data_address(reader, &win->parent);
+    BLO_read_struct(reader, wmWindow, &win->parent);
 
     WorkSpaceInstanceHook *hook = win->workspace_hook;
-    BLO_read_data_address(reader, &win->workspace_hook);
+    BLO_read_struct(reader, WorkSpaceInstanceHook, &win->workspace_hook);
 
     /* This will be nullptr for any pre-2.80 blend file. */
     if (win->workspace_hook != nullptr) {
@@ -167,10 +167,12 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
     win->ghostwin = nullptr;
     win->gpuctx = nullptr;
     win->eventstate = nullptr;
+    win->eventstate_prev_press_time_ms = 0;
     win->event_last_handled = nullptr;
     win->cursor_keymap_status = nullptr;
 #if defined(WIN32) || defined(__APPLE__)
     win->ime_data = nullptr;
+    win->ime_data_is_composing = false;
 #endif
 
     BLI_listbase_clear(&win->event_queue);
@@ -190,7 +192,7 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
     win->event_queue_check_drag_handled = 0;
     win->event_queue_consecutive_gesture_type = 0;
     win->event_queue_consecutive_gesture_data = nullptr;
-    BLO_read_data_address(reader, &win->stereo3d_format);
+    BLO_read_struct(reader, Stereo3dFormat, &win->stereo3d_format);
 
     /* Multi-view always fallback to anaglyph at file opening
      * otherwise quad-buffer saved files can break Blender. */
@@ -206,7 +208,7 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
   BLI_listbase_clear(&wm->paintcursors);
   BLI_listbase_clear(&wm->notifier_queue);
   wm->notifier_queue_set = nullptr;
-  BKE_reports_init(&wm->reports, RPT_STORE);
+  wm->notifier_current = nullptr;
 
   BLI_listbase_clear(&wm->keyconfigs);
   wm->defaultconf = nullptr;
@@ -225,7 +227,11 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
   wm->winactive = nullptr;
   wm->init_flag = 0;
   wm->op_undo_depth = 0;
-  wm->is_interface_locked = 0;
+  wm->extensions_updates = WM_EXTENSIONS_UPDATE_UNSET;
+  wm->extensions_blocked = 0;
+
+  BLI_assert(wm->runtime == nullptr);
+  wm->runtime = MEM_new<blender::bke::WindowManagerRuntime>(__func__);
 }
 
 static void window_manager_blend_read_after_liblink(BlendLibReader *reader, ID *id)
@@ -242,13 +248,14 @@ static void window_manager_blend_read_after_liblink(BlendLibReader *reader, ID *
 IDTypeInfo IDType_ID_WM = {
     /*id_code*/ ID_WM,
     /*id_filter*/ FILTER_ID_WM,
+    /*dependencies_id_types*/ FILTER_ID_SCE | FILTER_ID_WS,
     /*main_listbase_index*/ INDEX_ID_WM,
     /*struct_size*/ sizeof(wmWindowManager),
     /*name*/ "WindowManager",
-    /*name_plural*/ "window_managers",
+    /*name_plural*/ N_("window_managers"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_WINDOWMANAGER,
     /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NO_MEMFILE_UNDO,
+        IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
     /*asset_type_info*/ nullptr,
 
     /*init_data*/ nullptr,
@@ -283,7 +290,7 @@ void WM_operator_free(wmOperator *op)
 
   if (op->ptr) {
     op->properties = static_cast<IDProperty *>(op->ptr->data);
-    MEM_freeN(op->ptr);
+    MEM_delete(op->ptr);
   }
 
   if (op->properties) {
@@ -291,7 +298,7 @@ void WM_operator_free(wmOperator *op)
   }
 
   if (op->reports && (op->reports->flag & RPT_FREE)) {
-    BKE_reports_clear(op->reports);
+    BKE_reports_free(op->reports);
     MEM_freeN(op->reports);
   }
 
@@ -342,8 +349,7 @@ void WM_operator_type_set(wmOperator *op, wmOperatorType *ot)
 
 static void wm_reports_free(wmWindowManager *wm)
 {
-  BKE_reports_clear(&wm->reports);
-  WM_event_timer_remove(wm, nullptr, wm->reports.reporttimer);
+  WM_event_timer_remove(wm, nullptr, wm->runtime->reports.reporttimer);
 }
 
 void wm_operator_register(bContext *C, wmOperator *op)
@@ -383,14 +389,30 @@ void WM_operator_stack_clear(wmWindowManager *wm)
 void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot)
 {
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(win);
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      switch (area->spacetype) {
+        case SPACE_FILE: {
+          SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
+          if (sfile->op && sfile->op->type == ot) {
+            /* Freed as part of the handler. */
+            sfile->op = nullptr;
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     ListBase *lb[2] = {&win->handlers, &win->modalhandlers};
     for (int i = 0; i < ARRAY_SIZE(lb); i++) {
       LISTBASE_FOREACH (wmEventHandler *, handler_base, lb[i]) {
         if (handler_base->type == WM_HANDLER_TYPE_OP) {
           wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
           if (handler->op && handler->op->type == ot) {
-            /* don't run op->cancel because it needs the context,
-             * assume whoever unregisters the operator will cleanup */
+            /* Don't run op->cancel because it needs the context,
+             * assume whoever unregisters the operator will cleanup. */
             handler->head.flag |= WM_HANDLER_DO_FREE;
             WM_operator_free(handler->op);
             handler->op = nullptr;
@@ -417,7 +439,7 @@ void WM_keyconfig_init(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  /* Create standard key configs. */
+  /* Create standard key configuration. */
   if (wm->defaultconf == nullptr) {
     /* Keep lowercase to match the preset filename. */
     wm->defaultconf = WM_keyconfig_new(wm, WM_KEYCONFIG_STR_DEFAULT, false);
@@ -431,8 +453,8 @@ void WM_keyconfig_init(bContext *C)
 
   /* Initialize only after python init is done, for keymaps that use python operators. */
   if (CTX_py_init_get(C) && (wm->init_flag & WM_INIT_FLAG_KEYCONFIG) == 0) {
-    /* create default key config, only initialize once,
-     * it's persistent across sessions */
+    /* Create default key config, only initialize once,
+     * it's persistent across sessions. */
     if (!(wm->defaultconf->flag & KEYCONF_INIT_DEFAULT)) {
       wm_window_keymap(wm->defaultconf);
       ED_spacetypes_keymap(wm->defaultconf);
@@ -446,7 +468,7 @@ void WM_keyconfig_init(bContext *C)
     if (!G.background) {
       WM_keyconfig_update_tag(nullptr, nullptr);
     }
-    WM_keyconfig_update(wm);
+    /* Don't call #WM_keyconfig_update here because add-ons have not yet been registered yet. */
 
     wm->init_flag |= WM_INIT_FLAG_KEYCONFIG;
   }
@@ -486,7 +508,7 @@ void WM_check(bContext *C)
   /* Case: file-read. */
   /* NOTE: this runs in background mode to set the screen context cb. */
   if ((wm->init_flag & WM_INIT_FLAG_WINDOW) == 0) {
-    ED_screens_init(bmain, wm);
+    ED_screens_init(C, bmain, wm);
     wm->init_flag |= WM_INIT_FLAG_WINDOW;
   }
 }
@@ -518,9 +540,11 @@ void wm_add_default(Main *bmain, bContext *C)
   wmWindowManager *wm = static_cast<wmWindowManager *>(
       BKE_libblock_alloc(bmain, ID_WM, "WinMan", 0));
   wmWindow *win;
-  bScreen *screen = CTX_wm_screen(C); /* XXX from file read hrmf */
+  bScreen *screen = CTX_wm_screen(C); /* XXX: from file read hrmf. */
   WorkSpace *workspace;
   WorkSpaceLayout *layout = BKE_workspace_layout_find_global(bmain, screen, &workspace);
+
+  BKE_reports_init(&wm->runtime->reports, RPT_STORE);
 
   CTX_wm_manager_set(C, wm);
   win = wm_window_new(bmain, wm, nullptr, false);
@@ -532,6 +556,7 @@ void wm_add_default(Main *bmain, bContext *C)
 
   wm->winactive = win;
   wm->file_saved = 1;
+  wm->runtime = MEM_new<blender::bke::WindowManagerRuntime>(__func__);
   wm_window_make_drawable(wm, win);
 }
 
@@ -565,6 +590,8 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
     BLI_gset_free(wm->notifier_queue_set, nullptr);
     wm->notifier_queue_set = nullptr;
   }
+  BLI_assert(wm->notifier_current == nullptr);
+  wm->notifier_current = nullptr;
 
   if (wm->message_bus != nullptr) {
     WM_msgbus_destroy(wm->message_bus);
@@ -592,6 +619,8 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
   if (C && CTX_wm_manager(C) == wm) {
     CTX_wm_manager_set(C, nullptr);
   }
+
+  MEM_delete(wm->runtime);
 }
 
 void WM_main(bContext *C)

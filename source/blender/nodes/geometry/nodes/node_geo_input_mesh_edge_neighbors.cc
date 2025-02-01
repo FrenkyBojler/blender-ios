@@ -4,7 +4,7 @@
 
 #include "BLI_array_utils.hh"
 
-#include "BKE_mesh.hh"
+#include "DNA_mesh_types.h"
 
 #include "node_geometry_util.hh"
 
@@ -26,13 +26,13 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    Array<int> counts(mesh.totedge, 0);
+    Array<int> counts(mesh.edges_num, 0);
     array_utils::count_indices(mesh.corner_edges(), counts);
     return mesh.attributes().adapt_domain<int>(
-        VArray<int>::ForContainer(std::move(counts)), ATTR_DOMAIN_EDGE, domain);
+        VArray<int>::ForContainer(std::move(counts)), AttrDomain::Edge, domain);
   }
 
   uint64_t hash() const override
@@ -46,9 +46,9 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const EdgeNeighborCountFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_EDGE;
+    return AttrDomain::Edge;
   }
 };
 
@@ -60,12 +60,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_INPUT_MESH_EDGE_NEIGHBORS, "Edge Neighbors", NODE_CLASS_INPUT);
+      &ntype, "GeometryNodeInputMeshEdgeNeighbors", GEO_NODE_INPUT_MESH_EDGE_NEIGHBORS);
+  ntype.ui_name = "Edge Neighbors";
+  ntype.ui_description = "Retrieve the number of faces that use each edge as one of their sides";
+  ntype.enum_name_legacy = "MESH_EDGE_NEIGHBORS";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

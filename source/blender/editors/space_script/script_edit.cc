@@ -6,30 +6,28 @@
  * \ingroup spscript
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_report.h"
+#include "BKE_context.hh"
+#include "BKE_report.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
-#include "wm_event_system.h"
+#include "wm_event_system.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "ED_screen.hh"
 
-#include "script_intern.h" /* own include */
+#include "script_intern.hh" /* own include */
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_run.hh"
 #endif
 
 static int run_pyfile_exec(bContext *C, wmOperator *op)

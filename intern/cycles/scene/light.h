@@ -2,8 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __LIGHT_H__
-#define __LIGHT_H__
+#pragma once
 
 #include "kernel/types.h"
 
@@ -16,6 +15,7 @@
 #include "util/ies.h"
 #include "util/thread.h"
 #include "util/types.h"
+#include "util/unique_ptr.h"
 #include "util/vector.h"
 
 CCL_NAMESPACE_BEGIN
@@ -47,6 +47,8 @@ class Light : public Node {
 
   NODE_SOCKET_API(int, map_resolution)
   NODE_SOCKET_API(float, average_radiance)
+
+  NODE_SOCKET_API(bool, is_sphere)
 
   NODE_SOCKET_API(float, spot_angle)
   NODE_SOCKET_API(float, spot_smooth)
@@ -116,17 +118,16 @@ class LightManager {
   bool need_update_background;
 
   LightManager();
-  ~LightManager();
 
   /* IES texture management */
-  int add_ies(const string &ies);
+  int add_ies(const string &content);
   int add_ies_from_file(const string &filename);
-  void remove_ies(int slot);
+  void remove_ies(const int slot);
 
   void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress);
   void device_free(Device *device, DeviceScene *dscene, const bool free_background = true);
 
-  void tag_update(Scene *scene, uint32_t flag);
+  void tag_update(Scene *scene, const uint32_t flag);
 
   bool need_update() const;
 
@@ -140,7 +141,7 @@ class LightManager {
    */
   void test_enabled_lights(Scene *scene);
 
-  void device_update_lights(Device *device, DeviceScene *dscene, Scene *scene);
+  void device_update_lights(DeviceScene *dscene, Scene *scene);
   void device_update_distribution(Device *device,
                                   DeviceScene *dscene,
                                   Scene *scene,
@@ -158,7 +159,7 @@ class LightManager {
     int users;
   };
 
-  vector<IESSlot *> ies_slots;
+  vector<unique_ptr<IESSlot>> ies_slots;
   thread_mutex ies_mutex;
 
   bool last_background_enabled;
@@ -168,5 +169,3 @@ class LightManager {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __LIGHT_H__ */

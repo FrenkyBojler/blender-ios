@@ -10,6 +10,8 @@
 
 #include "tree_element_id.hh"
 
+struct Tex;
+
 namespace blender::ed::outliner {
 
 class TreeElementIDTexture final : public TreeElementID {
@@ -18,10 +20,10 @@ class TreeElementIDTexture final : public TreeElementID {
  public:
   TreeElementIDTexture(TreeElement &legacy_te, Tex &texture);
 
-  void expand(SpaceOutliner &) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
 
  private:
-  void expand_image(SpaceOutliner &) const;
+  void expand_image() const;
 };
 
 }  // namespace blender::ed::outliner

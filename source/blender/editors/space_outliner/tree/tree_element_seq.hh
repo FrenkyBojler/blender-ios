@@ -12,40 +12,40 @@
 
 #include "tree_element.hh"
 
-struct Sequence;
 struct Strip;
+struct StripData;
 
 namespace blender::ed::outliner {
 
-class TreeElementSequence : public AbstractTreeElement {
-  Sequence &sequence_;
+class TreeElementStrip : public AbstractTreeElement {
+  Strip &strip_;
 
  public:
-  TreeElementSequence(TreeElement &legacy_te, Sequence &sequence);
+  TreeElementStrip(TreeElement &legacy_te, Strip &strip);
 
-  bool expandPoll(const SpaceOutliner &) const override;
-  void expand(SpaceOutliner &) const override;
+  bool expand_poll(const SpaceOutliner & /*soops*/) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
 
-  Sequence &getSequence() const;
-  SequenceType getSequenceType() const;
+  Strip &get_strip() const;
+  StripType get_strip_type() const;
 };
 
 /* -------------------------------------------------------------------- */
 
-class TreeElementSequenceStrip : public AbstractTreeElement {
+class TreeElementStripData : public AbstractTreeElement {
  public:
-  TreeElementSequenceStrip(TreeElement &legacy_te, Strip &strip);
+  TreeElementStripData(TreeElement &legacy_te, StripData &strip);
 };
 
 /* -------------------------------------------------------------------- */
 
-class TreeElementSequenceStripDuplicate : public AbstractTreeElement {
-  Sequence &sequence_;
+class TreeElementStripDuplicate : public AbstractTreeElement {
+  Strip &strip_;
 
  public:
-  TreeElementSequenceStripDuplicate(TreeElement &legacy_te, Sequence &sequence);
+  TreeElementStripDuplicate(TreeElement &legacy_te, Strip &strip);
 
-  Sequence &getSequence() const;
+  Strip &get_strip() const;
 };
 
 }  // namespace blender::ed::outliner

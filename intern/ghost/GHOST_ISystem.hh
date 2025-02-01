@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "GHOST_IContext.hh"
 #include "GHOST_ITimerTask.hh"
@@ -161,7 +161,7 @@ class GHOST_ISystem {
    * Destructor.
    * Protected default constructor to force use of static dispose member.
    */
-  virtual ~GHOST_ISystem() {}
+  virtual ~GHOST_ISystem() = default;
 
  public:
   /***************************************************************************************
@@ -170,8 +170,10 @@ class GHOST_ISystem {
 
   /**
    * Returns the system time.
-   * Returns the number of milliseconds since the start of the system process.
-   * Based on ANSI clock() routine.
+   * Returns the number of milliseconds since the start of the system.
+   * \note The exact method used is platform dependent however monotonic methods should be used
+   * instead of wall-clock time.
+   *
    * \return The number of milliseconds.
    */
   virtual uint64_t getMilliSeconds() const = 0;
@@ -473,7 +475,6 @@ class GHOST_ISystem {
   /**
    * Returns the selection buffer
    * \return "unsigned char" from X11 XA_CUT_BUFFER0 buffer
-   *
    */
   virtual char *getClipboard(bool selection) const = 0;
 
@@ -485,7 +486,7 @@ class GHOST_ISystem {
   /**
    * Returns GHOST_kSuccess if the clipboard contains an image.
    */
-  virtual GHOST_TSuccess hasClipboardImage(void) const = 0;
+  virtual GHOST_TSuccess hasClipboardImage() const = 0;
 
   /**
    * Get image data from the Clipboard
@@ -559,7 +560,5 @@ class GHOST_ISystem {
   /** Function to call that sets the back-trace. */
   static GHOST_TBacktraceFn m_backtrace_fn;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_ISystem")
-#endif
 };

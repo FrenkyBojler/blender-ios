@@ -14,40 +14,29 @@
 #include <Python.h>
 #include <structmember.h>
 
-#include "BLI_utildefines.h"
-
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
-#include "RNA_types.hh"
+#include "RNA_prototypes.hh"
 
-#include "BPY_extern.h"
-#include "bpy_rna.h"
-#include "bpy_utils_previews.h"
+#include "bpy_rna.hh"
+#include "bpy_utils_previews.hh"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/py_capi_utils.hh"
 
-#include "MEM_guardedalloc.h"
+#include "IMB_thumbs.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_thumbs.h"
-
-#include "BKE_icons.h"
-
-#include "DNA_ID.h"
-
-#include "../generic/python_utildefines.h"
+#include "BKE_preview_image.hh"
 
 #define STR_SOURCE_TYPES "'IMAGE', 'MOVIE', 'BLEND', 'FONT'"
 
 PyDoc_STRVAR(
+    /* Wrap. */
     bpy_utils_previews_new_doc,
     ".. method:: new(name)\n"
     "\n"
     "   Generate a new empty preview.\n"
     "\n"
     "   :arg name: The name (unique id) identifying the preview.\n"
-    "   :type name: string\n"
+    "   :type name: str\n"
     "   :return: The Preview matching given name, or a new empty one.\n"
     "   :rtype: :class:`bpy.types.ImagePreview`\n"
     /* This is only true when accessed via 'bpy.utils.previews.ImagePreviewCollection.load',
@@ -57,31 +46,31 @@ static PyObject *bpy_utils_previews_new(PyObject * /*self*/, PyObject *args)
 {
   char *name;
   PreviewImage *prv;
-  PointerRNA ptr;
 
   if (!PyArg_ParseTuple(args, "s:new", &name)) {
     return nullptr;
   }
 
   prv = BKE_previewimg_cached_ensure(name);
-  RNA_pointer_create(nullptr, &RNA_ImagePreview, prv, &ptr);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImagePreview, prv);
 
   return pyrna_struct_CreatePyObject(&ptr);
 }
 
 PyDoc_STRVAR(
+    /* Wrap. */
     bpy_utils_previews_load_doc,
     ".. method:: load(name, filepath, filetype, force_reload=False)\n"
     "\n"
     "   Generate a new preview from given file path.\n"
     "\n"
     "   :arg name: The name (unique id) identifying the preview.\n"
-    "   :type name: string\n"
+    "   :type name: str\n"
     "   :arg filepath: The file path to generate the preview from.\n"
-    "   :type filepath: string or bytes\n"
+    "   :type filepath: str | bytes\n"
     "   :arg filetype: The type of file, needed to generate the preview in [" STR_SOURCE_TYPES
     "].\n"
-    "   :type filetype: string\n"
+    "   :type filetype: str\n"
     "   :arg force_reload: If True, force running thumbnail manager even if preview already "
     "exists in cache.\n"
     "   :type force_reload: bool\n"
@@ -131,19 +120,20 @@ static PyObject *bpy_utils_previews_load(PyObject * /*self*/, PyObject *args)
 
   Py_XDECREF(filepath_data.value_coerce);
 
-  PointerRNA ptr;
-  RNA_pointer_create(nullptr, &RNA_ImagePreview, prv, &ptr);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImagePreview, prv);
   return pyrna_struct_CreatePyObject(&ptr);
 }
 
-PyDoc_STRVAR(bpy_utils_previews_release_doc,
-             ".. method:: release(name)\n"
-             "\n"
-             "   Release (free) a previously created preview.\n"
-             "\n"
-             "\n"
-             "   :arg name: The name (unique id) identifying the preview.\n"
-             "   :type name: string\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_utils_previews_release_doc,
+    ".. method:: release(name)\n"
+    "\n"
+    "   Release (free) a previously created preview.\n"
+    "\n"
+    "\n"
+    "   :arg name: The name (unique id) identifying the preview.\n"
+    "   :type name: str\n");
 static PyObject *bpy_utils_previews_release(PyObject * /*self*/, PyObject *args)
 {
   char *name;
@@ -169,6 +159,7 @@ static PyMethodDef bpy_utils_previews_methods[] = {
 };
 
 PyDoc_STRVAR(
+    /* Wrap. */
     bpy_utils_previews_doc,
     "This object contains basic static methods to handle cached (non-ID) previews in Blender\n"
     "(low-level API, not exposed to final users).");

@@ -15,12 +15,11 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_unit.h"
+#include "BKE_context.hh"
+#include "BKE_report.hh"
+#include "BKE_unit.hh"
 
 #include "DNA_scene_types.h"
 
@@ -28,7 +27,7 @@
 #include "WM_types.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "ED_numinput.hh"
@@ -85,7 +84,7 @@ void initNumInput(NumInput *n)
   n->str_cur = 0;
 }
 
-void outputNumInput(NumInput *n, char *str, UnitSettings *unit_settings)
+void outputNumInput(NumInput *n, char *str, const UnitSettings &unit_settings)
 {
   short j;
   const int ln = NUM_STR_REP_LEN;
@@ -98,7 +97,7 @@ void outputNumInput(NumInput *n, char *str, UnitSettings *unit_settings)
                         j;
 
     /* Use scale_length if needed! */
-    const float fac = float(BKE_scene_unit_scale(unit_settings, n->unit_type[j], 1.0));
+    const float fac = float(BKE_unit_value_scale(unit_settings, n->unit_type[j], 1.0));
 
     if (n->val_flag[i] & NUM_EDITED) {
       /* Get the best precision, allows us to draw '10.0001' as '10' instead! */
@@ -120,7 +119,7 @@ void outputNumInput(NumInput *n, char *str, UnitSettings *unit_settings)
 #endif
 
         if (n->val_flag[i] & NUM_INVALID) {
-          STRNCPY(val, TIP_("Invalid"));
+          STRNCPY(val, RPT_("Invalid"));
         }
         else {
           BKE_unit_value_as_string_adaptive(val,
@@ -265,7 +264,7 @@ static bool editstr_insert_at_cursor(NumInput *n, const char *buf, const int buf
 
 bool user_string_to_number(bContext *C,
                            const char *str,
-                           const UnitSettings *unit,
+                           const UnitSettings &unit,
                            int type,
                            double *r_value,
                            const bool use_single_line_error,
@@ -276,17 +275,17 @@ bool user_string_to_number(bContext *C,
   err_info.use_single_line_error = use_single_line_error;
   err_info.r_string = r_error;
 
-  double unit_scale = BKE_scene_unit_scale(unit, type, 1.0);
+  const double unit_scale = BKE_unit_value_scale(unit, type, 1.0);
   if (BKE_unit_string_contains_unit(str, type)) {
     char str_unit_convert[256];
     STRNCPY(str_unit_convert, str);
     BKE_unit_replace_string(
-        str_unit_convert, sizeof(str_unit_convert), str, unit_scale, unit->system, type);
+        str_unit_convert, sizeof(str_unit_convert), str, unit_scale, unit.system, type);
 
     return BPY_run_string_as_number(C, nullptr, str_unit_convert, &err_info, r_value);
   }
 
-  int success = BPY_run_string_as_number(C, nullptr, str, &err_info, r_value);
+  bool success = BPY_run_string_as_number(C, nullptr, str, &err_info, r_value);
   *r_value = BKE_unit_apply_preferred_unit(unit, type, *r_value);
   *r_value /= unit_scale;
   return success;
@@ -404,7 +403,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
                                  true);
         if (t_cur != cur) {
           if (t_cur < cur) {
-            SWAP(int, t_cur, cur);
+            std::swap(t_cur, cur);
             n->str_cur = cur;
           }
           /* +1 for trailing '\0'. */
@@ -562,7 +561,9 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
       }
     }
 
-    if (!editstr_insert_at_cursor(n, utf8_buf, BLI_str_utf8_size(utf8_buf))) {
+    const int utf8_buf_len = BLI_str_utf8_size_or_error(utf8_buf);
+    BLI_assert(utf8_buf_len != -1);
+    if (!editstr_insert_at_cursor(n, utf8_buf, utf8_buf_len)) {
       return false;
     }
 
@@ -581,13 +582,13 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
 
     double val;
     int success = user_string_to_number(
-        C, n->str, &sce->unit, n->unit_type[idx], &val, false, &error);
+        C, n->str, sce->unit, n->unit_type[idx], &val, false, &error);
 
     if (error) {
       ReportList *reports = CTX_wm_reports(C);
       printf("%s\n", error);
       BKE_report(reports, RPT_ERROR, error);
-      BKE_report(reports, RPT_ERROR, IFACE_("Numeric input evaluation"));
+      BKE_report(reports, RPT_ERROR, "Numeric input evaluation");
       MEM_freeN(error);
     }
 

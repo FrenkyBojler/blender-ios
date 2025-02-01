@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
+#include "gpu_glsl_cpp_stubs.hh"
+
 /* Must match eGPLayerBlendModes */
 #define MODE_REGULAR 0
 #define MODE_HARDLIGHT 1
@@ -16,7 +20,8 @@ void blend_mode_output(
 {
   switch (blend_mode) {
     case MODE_REGULAR:
-      /* Reminder: Blending func is premult alpha blend `(dst.rgba * (1 - src.a) + src.rgb)`. */
+      /* Reminder: Blending func is pre-multiply alpha blend
+       * `(dst.rgba * (1 - src.a) + src.rgb)`. */
       color *= opacity;
       frag_color = color;
       frag_revealage = vec4(0.0, 0.0, 0.0, color.a);

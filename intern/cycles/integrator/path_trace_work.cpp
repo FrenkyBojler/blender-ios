@@ -8,8 +8,10 @@
 #include "integrator/path_trace_work.h"
 #include "integrator/path_trace_work_cpu.h"
 #include "integrator/path_trace_work_gpu.h"
+
 #include "scene/film.h"
 #include "scene/scene.h"
+
 #include "session/buffers.h"
 
 #include "kernel/types.h"
@@ -19,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 unique_ptr<PathTraceWork> PathTraceWork::create(Device *device,
                                                 Film *film,
                                                 DeviceScene *device_scene,
-                                                bool *cancel_requested_flag)
+                                                const bool *cancel_requested_flag)
 {
   if (device->info.type == DEVICE_CPU) {
     return make_unique<PathTraceWorkCPU>(device, film, device_scene, cancel_requested_flag);
@@ -35,7 +37,7 @@ unique_ptr<PathTraceWork> PathTraceWork::create(Device *device,
 PathTraceWork::PathTraceWork(Device *device,
                              Film *film,
                              DeviceScene *device_scene,
-                             bool *cancel_requested_flag)
+                             const bool *cancel_requested_flag)
     : device_(device),
       film_(film),
       device_scene_(device_scene),
@@ -45,7 +47,7 @@ PathTraceWork::PathTraceWork(Device *device,
 {
 }
 
-PathTraceWork::~PathTraceWork() {}
+PathTraceWork::~PathTraceWork() = default;
 
 RenderBuffers *PathTraceWork::get_render_buffers()
 {
@@ -154,6 +156,11 @@ PassAccessor::PassAccessInfo PathTraceWork::get_display_pass_access_info(PassMod
   const BufferParams &params = buffers_->params;
 
   const BufferPass *display_pass = params.get_actual_display_pass(film_->get_display_pass());
+  if (display_pass == nullptr) {
+    /* Happens when interactive session changes display pass but render
+     * buffer does not contain it yet. */
+    return PassAccessor::PassAccessInfo();
+  }
 
   PassAccessor::PassAccessInfo pass_access_info;
   pass_access_info.type = display_pass->type;

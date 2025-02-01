@@ -11,19 +11,21 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
+#include "BLI_set.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_image.h"
+#include "BKE_context.hh"
+#include "BKE_image.hh"
 #include "BKE_movieclip.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_tracking.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
+
+#include "UI_interface_icons.hh"
+#include "UI_resources.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -34,13 +36,13 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "clip_intern.h"
-#include "tracking_ops_intern.h"
+#include "clip_intern.hh"
+#include "tracking_ops_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Add Marker Operator
@@ -146,7 +148,9 @@ void CLIP_OT_add_marker(wmOperatorType *ot)
 
 static int add_marker_at_click_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  ED_workspace_status_text(C, TIP_("Use LMB click to define location where place the marker"));
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Place Marker"), ICON_MOUSE_LMB);
 
   /* Add modal handler for ESC. */
   WM_event_add_modal_handler(C, op);
@@ -244,6 +248,20 @@ static int delete_track_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
+static int delete_track_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Delete selected tracks?"),
+                                  nullptr,
+                                  IFACE_("Delete"),
+                                  ALERT_ICON_NONE,
+                                  false);
+  }
+  return delete_track_exec(C, op);
+}
+
 void CLIP_OT_delete_track(wmOperatorType *ot)
 {
   /* identifiers */
@@ -252,7 +270,7 @@ void CLIP_OT_delete_track(wmOperatorType *ot)
   ot->description = "Delete selected tracks";
 
   /* api callbacks */
-  ot->invoke = WM_operator_confirm_or_exec;
+  ot->invoke = delete_track_invoke;
   ot->exec = delete_track_exec;
   ot->poll = ED_space_clip_tracking_poll;
 
@@ -310,6 +328,20 @@ static int delete_marker_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
+static int delete_marker_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Delete marker for current frame from selected tracks?"),
+                                  nullptr,
+                                  IFACE_("Delete"),
+                                  ALERT_ICON_NONE,
+                                  false);
+  }
+  return delete_marker_exec(C, op);
+}
+
 void CLIP_OT_delete_marker(wmOperatorType *ot)
 {
   /* identifiers */
@@ -318,7 +350,7 @@ void CLIP_OT_delete_marker(wmOperatorType *ot)
   ot->description = "Delete marker for current frame from selected tracks";
 
   /* api callbacks */
-  ot->invoke = WM_operator_confirm_or_exec;
+  ot->invoke = delete_marker_invoke;
   ot->exec = delete_marker_exec;
   ot->poll = ED_space_clip_tracking_poll;
 
@@ -1199,7 +1231,7 @@ static int join_tracks_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  GSet *point_tracks = BLI_gset_ptr_new(__func__);
+  blender::Set<MovieTrackingPlaneTrack *> point_tracks;
 
   LISTBASE_FOREACH_MUTABLE (MovieTrackingTrack *, track, &tracking_object->tracks) {
     if (TRACK_VIEW_SELECTED(sc, track) && track != active_track) {
@@ -1230,7 +1262,7 @@ static int join_tracks_exec(bContext *C, wmOperator *op)
         if (BKE_tracking_plane_track_has_point_track(plane_track, track)) {
           BKE_tracking_plane_track_replace_point_track(plane_track, track, active_track);
           if ((plane_track->flag & PLANE_TRACK_AUTOKEY) == 0) {
-            BLI_gset_insert(point_tracks, plane_track);
+            point_tracks.add(plane_track);
           }
         }
       }
@@ -1244,15 +1276,11 @@ static int join_tracks_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, clip);
   }
 
-  GSetIterator gs_iter;
   int framenr = ED_space_clip_get_clip_frame_number(sc);
-  GSET_ITER (gs_iter, point_tracks) {
-    MovieTrackingPlaneTrack *plane_track = static_cast<MovieTrackingPlaneTrack *>(
-        BLI_gsetIterator_getKey(&gs_iter));
+  for (MovieTrackingPlaneTrack *plane_track : point_tracks) {
     BKE_tracking_track_plane_from_existing_motion(plane_track, framenr);
   }
 
-  BLI_gset_free(point_tracks, nullptr);
   DEG_id_tag_update(&clip->id, 0);
 
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
@@ -1297,7 +1325,7 @@ static int average_tracks_exec(bContext *C, wmOperator *op)
   }
 
   /* Create new empty track, which will be the averaged result.
-   * Makes it simple to average all selection  to it. */
+   * Makes it simple to average all selection to it. */
   MovieTrackingTrack *result_track = BKE_tracking_track_add_empty(tracking,
                                                                   &tracking_object->tracks);
 
@@ -1792,7 +1820,7 @@ static int tracking_object_new_exec(bContext *C, wmOperator * /*op*/)
 
   BKE_tracking_object_add(tracking, "Object");
 
-  DEG_id_tag_update(&clip->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;
@@ -1833,7 +1861,7 @@ static int tracking_object_remove_exec(bContext *C, wmOperator *op)
 
   BKE_tracking_object_delete(tracking, tracking_object);
 
-  DEG_id_tag_update(&clip->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;

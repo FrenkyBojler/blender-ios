@@ -6,8 +6,6 @@
  * \ingroup spoutliner
  */
 
-#include "DNA_listBase.h"
-
 #include "DNA_outliner_types.h"
 
 #include "../outliner_intern.hh"
@@ -25,12 +23,12 @@ TreeElementLabel::TreeElementLabel(TreeElement &legacy_te, const char *label)
   legacy_te_.name = label_.c_str();
 }
 
-void TreeElementLabel::setIcon(const BIFIconID icon)
+void TreeElementLabel::set_icon(const BIFIconID icon)
 {
   icon_ = icon;
 }
 
-std::optional<BIFIconID> TreeElementLabel::getIcon() const
+std::optional<BIFIconID> TreeElementLabel::get_icon() const
 {
   return icon_;
 }

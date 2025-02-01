@@ -6,6 +6,7 @@
  * \ingroup imbuf
  */
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "BLI_math_base.h"
@@ -15,10 +16,10 @@
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "IMB_colormanagement.h"
+#include "IMB_colormanagement.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -340,23 +341,15 @@ void IMB_rectclip(ImBuf *dbuf,
   }
 
   tmp = dbuf->x - *destx;
-  if (*width > tmp) {
-    *width = tmp;
-  }
+  *width = std::min(*width, tmp);
   tmp = dbuf->y - *desty;
-  if (*height > tmp) {
-    *height = tmp;
-  }
+  *height = std::min(*height, tmp);
 
   if (sbuf) {
     tmp = sbuf->x - *srcx;
-    if (*width > tmp) {
-      *width = tmp;
-    }
+    *width = std::min(*width, tmp);
     tmp = sbuf->y - *srcy;
-    if (*height > tmp) {
-      *height = tmp;
-    }
+    *height = std::min(*height, tmp);
   }
 
   if ((*height <= 0) || (*width <= 0)) {
@@ -422,34 +415,22 @@ static void imb_rectclip3(ImBuf *dbuf,
   }
 
   tmp = dbuf->x - *destx;
-  if (*width > tmp) {
-    *width = tmp;
-  }
+  *width = std::min(*width, tmp);
   tmp = dbuf->y - *desty;
-  if (*height > tmp) {
-    *height = tmp;
-  }
+  *height = std::min(*height, tmp);
 
   if (obuf) {
     tmp = obuf->x - *origx;
-    if (*width > tmp) {
-      *width = tmp;
-    }
+    *width = std::min(*width, tmp);
     tmp = obuf->y - *origy;
-    if (*height > tmp) {
-      *height = tmp;
-    }
+    *height = std::min(*height, tmp);
   }
 
   if (sbuf) {
     tmp = sbuf->x - *srcx;
-    if (*width > tmp) {
-      *width = tmp;
-    }
+    *width = std::min(*width, tmp);
     tmp = sbuf->y - *srcy;
-    if (*height > tmp) {
-      *height = tmp;
-    }
+    *height = std::min(*height, tmp);
   }
 
   if ((*height <= 0) || (*width <= 0)) {
@@ -813,7 +794,7 @@ void IMB_rectblend(ImBuf *dbuf,
           else {
             for (x = width; x > 0; x--, dr++, outr++, sr++, cmr++) {
               uchar *src = (uchar *)sr;
-              float mask = float(mask_max) * float(*cmr);
+              float mask = mask_max * float(*cmr);
 
               if (texmaskrect) {
                 mask *= (float(*tmr++) / 65535.0f);
@@ -911,7 +892,7 @@ void IMB_rectblend(ImBuf *dbuf,
           /* No destination mask buffer, do regular blend with mask-texture if present. */
           else {
             for (x = width; x > 0; x--, drf += 4, orf += 4, srf += 4, cmr++) {
-              float mask = float(mask_max) * float(*cmr);
+              float mask = mask_max * float(*cmr);
 
               if (texmaskrect) {
                 mask *= (float(*tmr++) / 65535.0f);
@@ -1098,16 +1079,16 @@ void IMB_rectfill_area_replace(
   CLAMP(y2, 0, height);
 
   if (x1 > x2) {
-    SWAP(int, x1, x2);
+    std::swap(x1, x2);
   }
   if (y1 > y2) {
-    SWAP(int, y1, y2);
+    std::swap(y1, y2);
   }
   if (x1 == x2 || y1 == y2) {
     return;
   }
 
-  uchar col_char[4] = {
+  const uchar col_char[4] = {
       uchar(col[0] * 255), uchar(col[1] * 255), uchar(col[2] * 255), uchar(col[3] * 255)};
 
   for (int y = y1; y < y2; y++) {
@@ -1153,10 +1134,10 @@ void buf_rectfill_area(uchar *rect,
   CLAMP(y2, 0, height);
 
   if (x1 > x2) {
-    SWAP(int, x1, x2);
+    std::swap(x1, x2);
   }
   if (y1 > y2) {
-    SWAP(int, y1, y2);
+    std::swap(y1, y2);
   }
   if (x1 == x2 || y1 == y2) {
     return;

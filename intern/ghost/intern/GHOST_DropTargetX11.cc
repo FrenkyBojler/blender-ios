@@ -99,16 +99,17 @@ GHOST_DropTargetX11::~GHOST_DropTargetX11()
   }
 }
 
-char *GHOST_DropTargetX11::FileUrlDecode(char *fileUrl)
+char *GHOST_DropTargetX11::FileUrlDecode(const char *fileUrl)
 {
   if (strncmp(fileUrl, "file://", 7) == 0) {
-    return GHOST_URL_decode_alloc(fileUrl + 7);
+    const char *file = fileUrl + 7;
+    return GHOST_URL_decode_alloc(file, strlen(file));
   }
 
   return nullptr;
 }
 
-void *GHOST_DropTargetX11::getURIListGhostData(uchar *dropBuffer, int dropBufferSize)
+void *GHOST_DropTargetX11::getURIListGhostData(const uchar *dropBuffer, int dropBufferSize)
 {
   GHOST_TStringArray *strArray = nullptr;
   int totPaths = 0, curLength = 0;
@@ -158,7 +159,7 @@ void *GHOST_DropTargetX11::getURIListGhostData(uchar *dropBuffer, int dropBuffer
   return strArray;
 }
 
-void *GHOST_DropTargetX11::getGhostData(Atom dropType, uchar *dropBuffer, int dropBufferSize)
+void *GHOST_DropTargetX11::getGhostData(Atom dropType, const uchar *dropBuffer, int dropBufferSize)
 {
   void *data = nullptr;
   uchar *tmpBuffer = (uchar *)malloc(dropBufferSize + 1);
@@ -174,7 +175,7 @@ void *GHOST_DropTargetX11::getGhostData(Atom dropType, uchar *dropBuffer, int dr
   }
   else if (dropType == dndTypeURL) {
     /* need to be tested */
-    char *decodedPath = FileUrlDecode((char *)tmpBuffer);
+    char *decodedPath = FileUrlDecode((const char *)tmpBuffer);
 
     if (decodedPath) {
       m_draggedObjectType = GHOST_kDragnDropTypeString;

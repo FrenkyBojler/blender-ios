@@ -25,16 +25,16 @@
 #include "DNA_listBase.h"
 
 #ifdef __cplusplus
-namespace blender::bke {
-struct GeometrySet;
-}
-using GeometrySetHandle = blender::bke::GeometrySet;
-#else
-typedef struct GeometrySetHandle GeometrySetHandle;
+#  include "BLI_math_matrix_types.hh"
 #endif
 
 #ifdef __cplusplus
-extern "C" {
+namespace blender::bke {
+struct ObjectRuntime;
+}
+using ObjectRuntimeHandle = blender::bke::ObjectRuntime;
+#else
+typedef struct ObjectRuntimeHandle ObjectRuntimeHandle;
 #endif
 
 struct AnimData;
@@ -44,9 +44,7 @@ struct Curve;
 struct FluidsimSettings;
 struct Ipo;
 struct LightgroupMembership;
-struct LightProbeGridCacheFrame;
 struct Material;
-struct Mesh;
 struct Object;
 struct PartDeflect;
 struct Path;
@@ -63,6 +61,16 @@ typedef struct bDeformGroup {
   /* need this flag for locking weights */
   char flag, _pad0[7];
 } bDeformGroup;
+
+#ifdef DNA_DEPRECATED_ALLOW
+typedef struct bFaceMap {
+  struct bFaceMap *next, *prev;
+  /** MAX_VGROUP_NAME. */
+  char name[64];
+  char flag;
+  char _pad0[7];
+} bFaceMap;
+#endif
 
 #define MAX_VGROUP_NAME 64
 
@@ -94,130 +102,7 @@ enum {
  */
 typedef struct BoundBox {
   float vec[8][3];
-  int flag;
-  char _pad0[4];
 } BoundBox;
-
-/** #BoundBox.flag */
-enum {
-  /* BOUNDBOX_DISABLED = (1 << 0), */ /* UNUSED */
-  BOUNDBOX_DIRTY = (1 << 1),
-};
-
-struct CustomData_MeshMasks;
-
-/** Not saved in file! */
-typedef struct Object_Runtime {
-  /**
-   * The custom data layer mask that was last used
-   * to calculate data_eval and mesh_deform_eval.
-   */
-  CustomData_MeshMasks last_data_mask;
-
-  /** Did last modifier stack generation need mapping support? */
-  char last_need_mapping;
-
-  char _pad0[3];
-
-  /** Only used for drawing the parent/child help-line. */
-  float parent_display_origin[3];
-
-  /**
-   * Selection id of this object. It might differ between an evaluated and its original object,
-   * when the object is being instanced.
-   */
-  int select_id;
-  char _pad1[3];
-
-  /**
-   * Denotes whether the evaluated data is owned by this object or is referenced and owned by
-   * somebody else.
-   */
-  char is_data_eval_owned;
-
-  /** Start time of the mode transfer overlay animation. */
-  double overlay_mode_transfer_start_time;
-
-  /** Axis aligned bound-box (in local-space). */
-  struct BoundBox *bb;
-
-  /**
-   * Original data pointer, before object->data was changed to point
-   * to data_eval.
-   * Is assigned by dependency graph's copy-on-write evaluation.
-   */
-  struct ID *data_orig;
-  /**
-   * Object data structure created during object evaluation. It has all modifiers applied.
-   * The type is determined by the type of the original object.
-   */
-  struct ID *data_eval;
-
-  /**
-   * Objects can evaluate to a geometry set instead of a single ID. In those cases, the evaluated
-   * geometry set will be stored here. An ID of the correct type is still stored in #data_eval.
-   * #geometry_set_eval might reference the ID pointed to by #data_eval as well, but does not own
-   * the data.
-   */
-  GeometrySetHandle *geometry_set_eval;
-
-  /**
-   * Mesh structure created during object evaluation.
-   * It has deformation only modifiers applied on it.
-   */
-  struct Mesh *mesh_deform_eval;
-
-  /* Evaluated mesh cage in edit mode. */
-  struct Mesh *editmesh_eval_cage;
-
-  /** Cached cage bounding box of `editmesh_eval_cage` for selection. */
-  struct BoundBox *editmesh_bb_cage;
-
-  /**
-   * Original grease pencil bGPdata pointer, before object->data was changed to point
-   * to gpd_eval.
-   * Is assigned by dependency graph's copy-on-write evaluation.
-   */
-  struct bGPdata *gpd_orig;
-  /**
-   * bGPdata structure created during object evaluation.
-   * It has all modifiers applied.
-   */
-  struct bGPdata *gpd_eval;
-
-  /**
-   * This is a mesh representation of corresponding object.
-   * It created when Python calls `object.to_mesh()`.
-   */
-  struct Mesh *object_as_temp_mesh;
-
-  /**
-   * Backup of the object's pose (might be a subset, i.e. not contain all bones).
-   *
-   * Created by `BKE_pose_backup_create_on_object()`. This memory is owned by the Object.
-   * It is freed along with the object, or when `BKE_pose_backup_clear()` is called.
-   */
-  struct PoseBackup *pose_backup;
-
-  /**
-   * This is a curve representation of corresponding object.
-   * It created when Python calls `object.to_curve()`.
-   */
-  struct Curve *object_as_temp_curve;
-
-  /** Runtime evaluated curve-specific data, not stored in the file. */
-  struct CurveCache *curve_cache;
-  void *_pad4;
-
-  unsigned short local_collections_bits;
-  short _pad2[3];
-
-  float (*crazyspace_deform_imats)[3][3];
-  float (*crazyspace_deform_cos)[3];
-  int crazyspace_verts_num;
-
-  int _pad3[3];
-} Object_Runtime;
 
 typedef struct ObjectLineArt {
   short usage;
@@ -311,7 +196,10 @@ typedef struct Object {
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /** Runtime (must be immediately after id for utilities to use it). */
+  /**
+   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
+   * DRW_drawdatalist_from_id to understand this requirement.
+   */
   struct DrawDataList drawdata;
 
   struct SculptSession *sculpt;
@@ -329,7 +217,7 @@ typedef struct Object {
   struct Object *proxy_from DNA_DEPRECATED;
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
-  /* struct Path *path; */
+  // struct Path *path;
   struct bAction *action DNA_DEPRECATED;  /* XXX deprecated... old animation system */
   struct bAction *poselib DNA_DEPRECATED; /* Pre-Blender 3.0 pose library, deprecated in 3.5. */
   /** Pose data, armature objects only. */
@@ -350,6 +238,7 @@ typedef struct Object {
   ListBase constraintChannels DNA_DEPRECATED; /* XXX deprecated... old animation system */
   ListBase effect DNA_DEPRECATED;             /* XXX deprecated... keep for readfile */
   ListBase defbase DNA_DEPRECATED;            /* Only for versioning, moved to object data. */
+  ListBase fmaps DNA_DEPRECATED;              /* For versioning, moved to generic attributes. */
   /** List of ModifierData structures. */
   ListBase modifiers;
   /** List of GpencilModifierData structures. */
@@ -387,9 +276,6 @@ typedef struct Object {
   float rotAxis[3], drotAxis[3];
   /** Axis angle rotation - angle part. */
   float rotAngle, drotAngle;
-  /** Final transformation matrices with constraints & animsys applied. */
-  float object_to_world[4][4];
-  float world_to_object[4][4];
   /** Inverse result of parent, so that object doesn't 'stick' to parent. */
   float parentinv[4][4];
   /** Inverse result of constraints.
@@ -511,8 +397,12 @@ typedef struct Object {
   /** Irradiance caches baked for this object (light-probes only). */
   struct LightProbeObjectCache *lightprobe_cache;
 
-  /** Runtime evaluation data (keep last). */
-  Object_Runtime runtime;
+  ObjectRuntimeHandle *runtime;
+
+#ifdef __cplusplus
+  const blender::float4x4 &object_to_world() const;
+  const blender::float4x4 &world_to_object() const;
+#endif
 } Object;
 
 /** DEPRECATED: this is not used anymore because hooks are now modifiers. */
@@ -545,7 +435,7 @@ typedef struct ObHook {
 /**
  * This is used as a flag for many kinds of data that use selections, examples include:
  * - #BezTriple.f1, #BezTriple.f2, #BezTriple.f3
- * - #bNote.flag
+ * - #bNode.flag
  * - #MovieTrackingTrack.flag
  * And more, ideally this would have a generic location.
  */
@@ -589,8 +479,10 @@ typedef enum ObjectType {
 #define OB_TYPE_SUPPORT_MATERIAL(_type) \
   (((_type) >= OB_MESH && (_type) <= OB_MBALL) || \
    ((_type) >= OB_GPENCIL_LEGACY && (_type) <= OB_GREASE_PENCIL))
-/** Does the object have some render-able geometry (unlike empties, cameras, etc.). True for
- * #OB_CURVES_LEGACY, since these often evaluate to objects with geometry. */
+/**
+ * Does the object have some render-able geometry (unlike empties, cameras, etc.). True for
+ * #OB_CURVES_LEGACY, since these often evaluate to objects with geometry.
+ */
 #define OB_TYPE_IS_GEOMETRY(_type) \
   (ELEM(_type, \
         OB_MESH, \
@@ -603,7 +495,8 @@ typedef enum ObjectType {
         OB_POINTCLOUD, \
         OB_VOLUME, \
         OB_GREASE_PENCIL))
-#define OB_TYPE_SUPPORT_VGROUP(_type) (ELEM(_type, OB_MESH, OB_LATTICE, OB_GPENCIL_LEGACY))
+#define OB_TYPE_SUPPORT_VGROUP(_type) \
+  (ELEM(_type, OB_MESH, OB_LATTICE, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL))
 #define OB_TYPE_SUPPORT_EDITMODE(_type) \
   (ELEM(_type, \
         OB_MESH, \
@@ -739,9 +632,9 @@ enum {
   GP_EMPTY = 0,
   GP_STROKE = 1,
   GP_MONKEY = 2,
-  GP_LRT_SCENE = 3,
-  GP_LRT_OBJECT = 4,
-  GP_LRT_COLLECTION = 5,
+  GREASE_PENCIL_LINEART_SCENE = 3,
+  GREASE_PENCIL_LINEART_OBJECT = 4,
+  GREASE_PENCIL_LINEART_COLLECTION = 5,
 };
 
 /** #Object.boundtype */
@@ -801,7 +694,10 @@ enum {
   OB_HIDE_VOLUME_SCATTER = 1 << 7,
   OB_HIDE_SHADOW = 1 << 8,
   OB_HOLDOUT = 1 << 9,
-  OB_SHADOW_CATCHER = 1 << 10
+  OB_SHADOW_CATCHER = 1 << 10,
+  OB_HIDE_PROBE_VOLUME = 1 << 11,
+  OB_HIDE_PROBE_CUBEMAP = 1 << 12,
+  OB_HIDE_PROBE_PLANAR = 1 << 13,
 };
 
 /** #Object.shapeflag */
@@ -877,9 +773,3 @@ enum {
 typedef enum ObjectModifierFlag {
   OB_MODIFIER_FLAG_ADD_REST_POSITION = 1 << 0,
 } ObjectModifierFlag;
-
-#define MAX_DUPLI_RECUR 8
-
-#ifdef __cplusplus
-}
-#endif

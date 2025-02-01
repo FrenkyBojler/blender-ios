@@ -8,13 +8,8 @@
  * Query functions for area/region.
  */
 
-#include "DNA_userdef_types.h"
-
-#include "BLI_blenlib.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
-
-#include "RNA_types.hh"
 
 #include "ED_screen.hh"
 

@@ -6,12 +6,9 @@
  * \ingroup depsgraph
  */
 
-#include "intern/depsgraph_relation.h" /* own include */
+#include "intern/depsgraph_relation.hh" /* own include */
 
-#include "BLI_utildefines.h"
-
-#include "intern/depsgraph_type.h"
-#include "intern/node/deg_node.h"
+#include "intern/node/deg_node.hh"
 
 namespace blender::deg {
 

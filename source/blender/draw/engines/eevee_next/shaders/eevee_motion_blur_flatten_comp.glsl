@@ -14,8 +14,12 @@
  * Adapted from G3D Innovation Engine implementation.
  */
 
-#pragma BLENDER_REQUIRE(common_math_geom_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_velocity_lib.glsl)
+#include "infos/eevee_motion_blur_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_motion_blur_tiles_flatten_rgba)
+
+#include "draw_math_geom_lib.glsl"
+#include "eevee_velocity_lib.glsl"
 
 shared uint payload_prev;
 shared uint payload_next;
@@ -37,7 +41,7 @@ uvec2 unpack_payload(uint payload)
 
 void main()
 {
-  if (all(equal(gl_LocalInvocationID.xy, uvec2(0)))) {
+  if (gl_LocalInvocationIndex == 0u) {
     payload_prev = 0u;
     payload_next = 0u;
   }
@@ -99,7 +103,7 @@ void main()
   }
   barrier();
 
-  if (all(equal(gl_LocalInvocationID.xy, uvec2(0)))) {
+  if (gl_LocalInvocationIndex == 0u) {
     ivec2 tile_co = ivec2(gl_WorkGroupID.xy);
     imageStore(out_tiles_img, tile_co, vec4(max_motion_prev, max_motion_next));
   }

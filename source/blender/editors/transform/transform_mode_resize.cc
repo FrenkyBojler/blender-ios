@@ -6,6 +6,7 @@
  * \ingroup edtransform
  */
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "DNA_windowmanager_types.h"
@@ -14,9 +15,12 @@
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
 
-#include "BKE_context.h"
-#include "BKE_image.h"
-#include "BKE_unit.h"
+#include "BKE_context.hh"
+
+#include "BKE_image.hh"
+#include "BKE_unit.hh"
+
+#include "BLT_translation.hh"
 
 #include "ED_screen.hh"
 
@@ -107,7 +111,7 @@ static void constrain_scale_to_boundary(const float numerator,
    * "catastrophic cancellation". See #102923 for an example. We use epsilon tests here to
    * distinguish between genuine negative coordinates versus coordinates that should be rounded off
    * to zero. */
-  const float epsilon = 0.25f / 65536.0f; /* i.e. Quarter of a texel on a 65536 x 65536 texture. */
+  const float epsilon = 0.25f / 65536.0f; /* A quarter of a texel on a 65536 x 65536 texture. */
   if (fabsf(denominator) < epsilon) {
     /* The origin of the scale is very near the edge of the boundary. */
     if (numerator < -epsilon) {
@@ -125,16 +129,12 @@ static void constrain_scale_to_boundary(const float numerator,
 
   if (denominator < 0.0f) {
     /* Scale origin is outside boundary, only make scale bigger. */
-    if (*scale < correction) {
-      *scale = correction;
-    }
+    *scale = std::max(*scale, correction);
     return;
   }
 
   /* Scale origin is inside boundary, the "regular" case, limit maximum scale. */
-  if (*scale > correction) {
-    *scale = correction;
-  }
+  *scale = std::min(*scale, correction);
 }
 
 static bool clip_uv_transform_resize(TransInfo *t, float vec[2])
@@ -170,7 +170,7 @@ static bool clip_uv_transform_resize(TransInfo *t, float vec[2])
         constrain_scale_to_boundary(
             scale_origin[0] - base_offset[0], scale_origin[0] - min[0], &scale);
 
-        /* Now the right border, negated, because `-1.0 / -1.0 = 1.0` */
+        /* Now the right border, negated, because `-1.0 / -1.0 = 1.0`. */
         constrain_scale_to_boundary(
             base_offset[0] + t->aspect[0] - scale_origin[0], max[0] - scale_origin[0], &scale);
       }
@@ -235,7 +235,7 @@ static void applyResize(TransInfo *t)
     headerResize(t, t->values_final, str, sizeof(str));
   }
 
-  copy_m3_m3(t->mat, mat); /* used in gizmo */
+  copy_m3_m3(t->mat, mat); /* Used in gizmo. */
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
 
@@ -312,8 +312,17 @@ static void initResize(TransInfo *t, wmOperator *op)
     zero_v3(mouse_dir_constraint);
   }
 
+  const bool only_location = (t->flag & T_V3D_ALIGN) && (t->options & CTX_OBJECT) &&
+                             (t->settings->transform_pivot_point != V3D_AROUND_CURSOR) &&
+                             t->context &&
+                             (CTX_DATA_COUNT(t->context, selected_editable_objects) == 1);
+  if (only_location) {
+    WorkspaceStatus status(t->context);
+    status.item(TIP_("Transform is set to only affect location"), ICON_ERROR);
+  }
+
   if (is_zero_v3(mouse_dir_constraint)) {
-    initMouseInputMode(t, &t->mouse, INPUT_SPRING_FLIP);
+    initMouseInputMode(t, &t->mouse, only_location ? INPUT_ERROR : INPUT_SPRING_FLIP);
   }
   else {
     int mval_start[2], mval_end[2];
@@ -341,7 +350,7 @@ static void initResize(TransInfo *t, wmOperator *op)
 
     setCustomPoints(t, &t->mouse, mval_end, mval_start);
 
-    initMouseInputMode(t, &t->mouse, INPUT_CUSTOM_RATIO);
+    initMouseInputMode(t, &t->mouse, only_location ? INPUT_ERROR : INPUT_CUSTOM_RATIO);
   }
 
   t->num.val_flag[0] |= NUM_NULL_ONE;

@@ -11,9 +11,8 @@
 #include <cstring>
 
 #include "BLI_kdtree.h"
-#include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_windowmanager_types.h"
 

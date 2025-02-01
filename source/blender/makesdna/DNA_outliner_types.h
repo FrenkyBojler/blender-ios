@@ -10,10 +10,6 @@
 
 #include "DNA_defs.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct ID;
 
 typedef struct TreeStoreElem {
@@ -93,11 +89,11 @@ typedef enum eTreeStoreElemType {
   /* TSE_LINKED_MAT = 22, */
   /* NOTE: is used for light group. */
   /* TSE_LINKED_LAMP = 23, */
-  TSE_POSEGRP_BASE = 24,
-  TSE_POSEGRP = 25,
-  TSE_SEQUENCE = 26,     /* NO ID */
-  TSE_SEQ_STRIP = 27,    /* NO ID */
-  TSE_SEQUENCE_DUP = 28, /* NO ID */
+  TSE_BONE_COLLECTION_BASE = 24,
+  TSE_BONE_COLLECTION = 25,
+  TSE_STRIP = 26,      /* NO ID */
+  TSE_STRIP_DATA = 27, /* NO ID */
+  TSE_STRIP_DUP = 28,  /* NO ID */
   TSE_LINKED_PSYS = 29,
   TSE_RNA_STRUCT = 30,        /* NO ID */
   TSE_RNA_PROPERTY = 31,      /* NO ID */
@@ -118,6 +114,7 @@ typedef enum eTreeStoreElemType {
   TSE_LIBRARY_OVERRIDE_OPERATION = 46,
   TSE_GENERIC_LABEL = 47, /* No ID */
   TSE_GREASE_PENCIL_NODE = 48,
+  TSE_LINKED_NODE_TREE = 49,
 } eTreeStoreElemType;
 
 /** Check whether given #TreeStoreElem should have a real ID in #TreeStoreElem.id member. */
@@ -126,16 +123,12 @@ typedef enum eTreeStoreElemType {
          TSE_NLA, \
          TSE_NLA_TRACK, \
          TSE_DRIVER_BASE, \
-         TSE_SEQUENCE, \
-         TSE_SEQ_STRIP, \
-         TSE_SEQUENCE_DUP, \
+         TSE_STRIP, \
+         TSE_STRIP_DATA, \
+         TSE_STRIP_DUP, \
          TSE_RNA_STRUCT, \
          TSE_RNA_PROPERTY, \
          TSE_RNA_ARRAY_ELEM, \
          TSE_ID_BASE, \
          TSE_GP_LAYER, \
          TSE_GENERIC_LABEL))
-
-#ifdef __cplusplus
-}
-#endif

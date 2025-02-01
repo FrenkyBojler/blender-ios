@@ -8,7 +8,11 @@
 
 #pragma once
 
-struct AssetLibrary;
+#include <cstddef>
+#include <cstdint>
+
+#include "DNA_space_types.h"
+
 struct AssetLibraryReference;
 struct bContext;
 struct BlendHandle;
@@ -19,10 +23,14 @@ struct ID;
 struct ImBuf;
 struct bUUID;
 struct wmWindowManager;
+namespace blender::asset_system {
+class AssetLibrary;
+class AssetRepresentation;
+}  // namespace blender::asset_system
 
 struct FileDirEntry;
 
-typedef uint32_t FileUID;
+using FileUID = uint32_t;
 
 enum FileSelType {
   FILE_SEL_REMOVE = 0,
@@ -75,11 +83,20 @@ void filelist_file_get_full_path(const FileList *filelist,
                                  const FileDirEntry *file,
                                  char r_filepath[/*FILE_MAX_LIBEXTRA*/]);
 bool filelist_file_is_preview_pending(const FileList *filelist, const FileDirEntry *file);
-ImBuf *filelist_getimage(FileList *filelist, int index);
-ImBuf *filelist_file_getimage(const FileDirEntry *file);
-ImBuf *filelist_geticon_image_ex(const FileDirEntry *file);
-ImBuf *filelist_geticon_image(FileList *filelist, int index);
-int filelist_geticon(FileList *filelist, int index, bool is_main);
+/**
+ * \return True if a new preview request was pushed, false otherwise (e.g. because the preview is
+ * already loaded, invalid or not supported).
+ */
+bool filelist_file_ensure_preview_requested(FileList *filelist, FileDirEntry *file);
+ImBuf *filelist_get_preview_image(FileList *filelist, int index);
+ImBuf *filelist_file_get_preview_image(const FileDirEntry *file);
+ImBuf *filelist_geticon_special_file_image_ex(const FileDirEntry *file);
+/**
+ * Get one of the larger document icons as image. E.g. a folder or file icon. A file type icon can
+ * be overlaid on top then.
+ */
+ImBuf *filelist_geticon_special_file_image(FileList *filelist, int index);
+int filelist_geticon_file_type(FileList *filelist, int index, bool is_main);
 
 FileList *filelist_new(short type);
 void filelist_settype(FileList *filelist, short type);
@@ -131,7 +148,7 @@ FileDirEntry *filelist_file_ex(FileList *filelist, int index, bool use_request);
  * Find a file from a file name, or more precisely, its file-list relative path, inside the
  * filtered items. \return The index of the found file or -1.
  */
-int filelist_file_find_path(FileList *filelist, const char *file);
+int filelist_file_find_path(FileList *filelist, const char *filename);
 /**
  * Find a file representing \a id.
  * \return The index of the found file or -1.
@@ -145,6 +162,8 @@ ID *filelist_file_get_id(const FileDirEntry *file);
  * Same as #filelist_file_get_id(), but gets the file by index (doesn't require the file to be
  * cached, uses #FileListInternEntry only). */
 ID *filelist_entry_get_id(const FileList *filelist, int index);
+blender::asset_system::AssetRepresentation *filelist_entry_get_asset_representation(
+    const FileList *filelist, const int index);
 /**
  * Get the #FileDirEntry.relpath value without requiring the #FileDirEntry to be available (doesn't
  * require the file to be cached, uses #FileListInternEntry only).
@@ -157,6 +176,8 @@ void filelist_file_cache_slidingwindow_set(FileList *filelist, size_t window_siz
  * Load in cache all entries "around" given index (as much as block cache may hold).
  */
 bool filelist_file_cache_block(FileList *filelist, int index);
+
+void filelist_set_no_preview_auto_cache(FileList *filelist);
 
 bool filelist_needs_force_reset(const FileList *filelist);
 void filelist_tag_force_reset(FileList *filelist);
@@ -197,7 +218,7 @@ void filelist_entry_parent_select_set(FileList *filelist,
 
 void filelist_setrecursion(FileList *filelist, int recursion_level);
 
-AssetLibrary *filelist_asset_library(FileList *filelist);
+blender::asset_system::AssetLibrary *filelist_asset_library(FileList *filelist);
 
 BlendHandle *filelist_lib(FileList *filelist);
 /**
@@ -206,15 +227,19 @@ BlendHandle *filelist_lib(FileList *filelist);
 bool filelist_islibrary(FileList *filelist, char *dir, char **r_group);
 void filelist_freelib(FileList *filelist);
 
-/** Return the total raw number of entries listed in the given `filelist`, whether they are
- * filtered out or not. */
+/**
+ * Return the total raw number of entries listed in the given `filelist`, whether they are
+ * filtered out or not.
+ */
 int filelist_files_num_entries(FileList *filelist);
 
 void filelist_readjob_start(FileList *filelist, int space_notifier, const bContext *C);
 void filelist_readjob_stop(FileList *filelist, wmWindowManager *wm);
 int filelist_readjob_running(FileList *filelist, wmWindowManager *wm);
 
+void filelist_cache_previews_ensure_running(FileList *filelist);
 bool filelist_cache_previews_update(FileList *filelist);
+bool filelist_cache_previews_enabled(const FileList *filelist);
 void filelist_cache_previews_set(FileList *filelist, bool use_previews);
 bool filelist_cache_previews_running(FileList *filelist);
 bool filelist_cache_previews_done(FileList *filelist);

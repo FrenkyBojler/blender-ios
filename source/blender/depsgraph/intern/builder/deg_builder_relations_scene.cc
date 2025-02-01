@@ -32,6 +32,18 @@ void DepsgraphRelationBuilder::build_scene_render(Scene *scene, ViewLayer *view_
   }
 }
 
+void DepsgraphRelationBuilder::build_scene_camera(Scene *scene)
+{
+  if (scene->camera != nullptr) {
+    build_object(scene->camera);
+  }
+  LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
+    if (!ELEM(marker->camera, nullptr, scene->camera)) {
+      build_object(marker->camera);
+    }
+  }
+}
+
 void DepsgraphRelationBuilder::build_scene_parameters(Scene *scene)
 {
   if (built_map_.checkIsBuiltAndTag(scene, BuilderMap::TAG_PARAMETERS)) {
@@ -44,7 +56,7 @@ void DepsgraphRelationBuilder::build_scene_parameters(Scene *scene)
   build_parameters(&scene->id);
   OperationKey parameters_eval_key(
       &scene->id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EXIT);
-  OperationKey scene_eval_key(&scene->id, NodeType::PARAMETERS, OperationCode::SCENE_EVAL);
+  ComponentKey scene_eval_key(&scene->id, NodeType::SCENE);
   add_relation(parameters_eval_key, scene_eval_key, "Parameters -> Scene Eval");
 
   LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {

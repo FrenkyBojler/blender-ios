@@ -13,16 +13,20 @@
 namespace blender::bke::greasepencil {
 class TreeNode;
 }  // namespace blender::bke::greasepencil
+struct GreasePencil;
 
 namespace blender::ed::outliner {
 
 class TreeElementGreasePencilNode final : public AbstractTreeElement {
+  GreasePencil &owner_grease_pencil_;
   blender::bke::greasepencil::TreeNode &node_;
 
  public:
-  TreeElementGreasePencilNode(TreeElement &legacy_te, blender::bke::greasepencil::TreeNode &node);
+  TreeElementGreasePencilNode(TreeElement &legacy_te,
+                              GreasePencil &owner_grease_pencil,
+                              blender::bke::greasepencil::TreeNode &node);
 
-  void expand(SpaceOutliner &) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
 
   blender::bke::greasepencil::TreeNode &node() const;
 };

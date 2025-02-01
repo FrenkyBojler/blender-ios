@@ -6,6 +6,11 @@
 # Created by Robert Wenzlaff (Det. Thorn).
 # Oct. 30, 2003
 
+__all__ = (
+    "main",
+)
+
+import sys
 from tkinter import (
     Button,
     Canvas,
@@ -30,7 +35,7 @@ class App:
 
         self.state = []
         self.states = 256
-        self.laststate = 2  # 0=Black, 1=White, 2=Transp.
+        self.laststate = 2  # 0=Black, 1=White, 2=Transparent.
 
         self.size = 16
         self.gridsz = 20
@@ -288,9 +293,15 @@ class App:
 
 
 ################## Main App #######################
-root = Tk()
+def main() -> int:
+    root = Tk()
 
-app = App(root)
-root.title("Cursor Maker")
+    _app = App(root)
+    root.title("Cursor Maker")
 
-root.mainloop()
+    root.mainloop()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

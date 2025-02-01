@@ -14,7 +14,7 @@
 #  include <io.h> /* for open close read */
 #endif
 
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
 #include "BLI_filereader.h"
 
 #include "MEM_guardedalloc.h"
@@ -25,10 +25,10 @@ typedef struct {
   int filedes;
 } RawFileReader;
 
-static ssize_t file_read(FileReader *reader, void *buffer, size_t size)
+static int64_t file_read(FileReader *reader, void *buffer, size_t size)
 {
   RawFileReader *rawfile = (RawFileReader *)reader;
-  ssize_t readsize = read(rawfile->filedes, buffer, size);
+  int64_t readsize = BLI_read(rawfile->filedes, buffer, size);
 
   if (readsize >= 0) {
     rawfile->reader.offset += readsize;

@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BKE_global.hh" /* IWYU pragma: keep. Used in macro. */
+
 #define PASS_VECTOR_MAX 10000.0f
 
 #define RR_ALL_LAYERS NULL
@@ -37,7 +39,7 @@ extern "C" {
  * `re->winx`, `re->winy` is coordinate space of entire image, `partrct` the part within.
  */
 struct RenderResult *render_result_new(struct Render *re,
-                                       struct rcti *partrct,
+                                       const struct rcti *partrct,
                                        const char *layername,
                                        const char *viewname);
 

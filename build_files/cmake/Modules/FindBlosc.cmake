@@ -45,13 +45,13 @@ find_library(BLOSC_LIBRARY
     ${_blosc_SEARCH_DIRS}
   PATH_SUFFIXES
     lib64 lib
-  )
+)
 
 # handle the QUIETLY and REQUIRED arguments and set BLOSC_FOUND to TRUE if
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Blosc DEFAULT_MSG
-    BLOSC_LIBRARY BLOSC_INCLUDE_DIR)
+  BLOSC_LIBRARY BLOSC_INCLUDE_DIR)
 
 if(BLOSC_FOUND)
   set(BLOSC_LIBRARIES ${BLOSC_LIBRARY})
@@ -64,3 +64,5 @@ mark_as_advanced(
   BLOSC_INCLUDE_DIR
   BLOSC_LIBRARY
 )
+
+unset(_blosc_SEARCH_DIRS)

@@ -2,6 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
+#include "infos/workbench_prepass_info.hh"
+
+// SHADER_LIBRARY_CREATE_INFO(workbench_color_material)
+SHADER_LIBRARY_CREATE_INFO(workbench_color_texture)
+
 void workbench_material_data_get(int handle,
                                  vec3 vertex_color,
                                  out vec3 color,
@@ -9,22 +16,12 @@ void workbench_material_data_get(int handle,
                                  out float roughness,
                                  out float metallic)
 {
-#ifndef WORKBENCH_NEXT
-  handle = (materialIndex != -1) ? materialIndex : handle;
-  vec4 data = materials_data[uint(handle) & 0xFFFu];
-  color = data.rgb;
-  if (materialIndex == 0) {
-    color = vertex_color;
-  }
-#else
-
-#  ifdef WORKBENCH_COLOR_MATERIAL
+#ifdef WORKBENCH_COLOR_MATERIAL
   vec4 data = materials_data[handle];
-#  else
+#else
   vec4 data = vec4(0.0);
-#  endif
-  color = (data.r == -1) ? vertex_color : data.rgb;
 #endif
+  color = (data.r == -1) ? vertex_color : data.rgb;
 
   uint encoded_data = floatBitsToUint(data.w);
   alpha = float((encoded_data >> 16u) & 0xFFu) * (1.0 / 255.0);

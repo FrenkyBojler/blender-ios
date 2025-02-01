@@ -10,6 +10,8 @@
 
 #include "tree_element_id.hh"
 
+struct bGPdata;
+
 namespace blender::ed::outliner {
 
 class TreeElementIDGPLegacy final : public TreeElementID {
@@ -18,10 +20,10 @@ class TreeElementIDGPLegacy final : public TreeElementID {
  public:
   TreeElementIDGPLegacy(TreeElement &legacy_te, bGPdata &gpd);
 
-  void expand(SpaceOutliner &) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
 
  private:
-  void expand_layers(SpaceOutliner &) const;
+  void expand_layers() const;
 };
 
 }  // namespace blender::ed::outliner

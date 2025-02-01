@@ -7,10 +7,11 @@
  * \ingroup balembic
  */
 
-#include <Alembic/Abc/All.h>
-#include <Alembic/AbcCoreOgawa/All.h>
+#include <Alembic/Abc/IArchive.h>
+#include <Alembic/Abc/IObject.h>
 
 #include <fstream>
+#include <vector>
 
 struct Main;
 
@@ -30,10 +31,10 @@ class ArchiveReader {
 
   ArchiveReader(const std::vector<ArchiveReader *> &readers);
 
-  ArchiveReader(struct Main *bmain, const char *filename);
+  ArchiveReader(const struct Main *bmain, const char *filename);
 
  public:
-  static ArchiveReader *get(struct Main *bmain, const std::vector<const char *> &filenames);
+  static ArchiveReader *get(const struct Main *bmain, const std::vector<const char *> &filenames);
 
   ~ArchiveReader();
 

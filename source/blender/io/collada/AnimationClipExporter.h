@@ -4,18 +4,16 @@
 
 #pragma once
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "COLLADASWLibraryAnimationClips.h"
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 #include "ExportSettings.h"
 
 class AnimationClipExporter : COLLADASW::LibraryAnimationClips {
  private:
   Depsgraph *depsgraph;
-  Scene *scene;
+  Scene *scene = nullptr;
   COLLADASW::StreamWriter *sw;
   BCExportSettings &export_settings;
   std::vector<std::vector<std::string>> anim_meta;
@@ -27,7 +25,6 @@ class AnimationClipExporter : COLLADASW::LibraryAnimationClips {
                         std::vector<std::vector<std::string>> anim_meta)
       : COLLADASW::LibraryAnimationClips(sw),
         depsgraph(depsgraph),
-        scene(nullptr),
         sw(sw),
         export_settings(export_settings),
         anim_meta(anim_meta)

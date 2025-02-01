@@ -4,16 +4,13 @@
 
 /* Prepare the Depth Buffer for the Overlay Engine. */
 
+#include "infos/workbench_depth_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(workbench_overlay_depth)
+
 void main()
 {
-  uint stencil = texelFetch(stencil_tx, ivec2(gl_FragCoord.xy), 0).r;
-  if (stencil != 0) {
-    /* Set the depth to 0 for "In Front" objects,
-     * so the Overlay engine doesn't draw on top of them. */
-    gl_FragDepth = 0.0;
-  }
-  else {
-    float depth = texelFetch(depth_tx, ivec2(gl_FragCoord.xy), 0).r;
-    gl_FragDepth = depth;
-  }
+  /* Set the depth to 0 for "In Front" objects,
+   * so the Overlay engine doesn't draw on top of them. */
+  gl_FragDepth = 0.0;
 }

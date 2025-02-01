@@ -15,26 +15,24 @@
 #include "DNA_anim_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math_base.h"
 #include "BLI_string.h"
 
 #include "BKE_animsys.h"
 #include "BKE_fcurve_driver.h"
-#include "BKE_global.h"
-#include "BKE_idtype.h"
+#include "BKE_global.hh"
+#include "BKE_idtype.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
-#include "RNA_types.hh"
+#include "RNA_prototypes.hh"
 
-#include "bpy_rna_driver.h" /* For #pyrna_driver_get_variable_value. */
+#include "bpy_rna_driver.hh" /* For #pyrna_driver_get_variable_value. */
 
-#include "bpy_intern_string.h"
+#include "bpy_intern_string.hh"
 
-#include "bpy_driver.h"
-#include "bpy_rna.h"
+#include "bpy_driver.hh"
+#include "bpy_rna.hh"
 
-#include "BPY_extern.h"
+#include "BPY_extern.hh"
 
 #define USE_RNA_AS_PYOBJECT
 
@@ -42,6 +40,13 @@
 
 #ifdef USE_BYTECODE_WHITELIST
 #  include <opcode.h>
+#endif
+
+#if PY_VERSION_HEX >= 0x030d0000 /* >=3.13 */
+/* WARNING(@ideasman42): Using `Py_BUILD_CORE` is a last resort,
+ * the alternative would be not to inspect OP-CODES at all. */
+#  define Py_BUILD_CORE
+#  include <internal/pycore_code.h>
 #endif
 
 PyObject *bpy_pydriver_Dict = nullptr;
@@ -203,8 +208,7 @@ static void bpy_pydriver_namespace_clear_self()
 
 static PyObject *bpy_pydriver_depsgraph_as_pyobject(Depsgraph *depsgraph)
 {
-  PointerRNA depsgraph_ptr;
-  RNA_pointer_create(nullptr, &RNA_Depsgraph, depsgraph, &depsgraph_ptr);
+  PointerRNA depsgraph_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
   return pyrna_struct_CreatePyObject(&depsgraph_ptr);
 }
 
@@ -224,7 +228,7 @@ static void bpy_pydriver_namespace_update_depsgraph(Depsgraph *depsgraph)
   }
 
   if ((g_pydriver_state_prev.depsgraph == nullptr) ||
-      (depsgraph != g_pydriver_state_prev.depsgraph->ptr.data))
+      (depsgraph != g_pydriver_state_prev.depsgraph->ptr->data))
   {
     PyObject *item = bpy_pydriver_depsgraph_as_pyobject(depsgraph);
     PyDict_SetItem(bpy_pydriver_Dict, bpy_intern_str_depsgraph, item);
@@ -305,25 +309,29 @@ static void pydriver_error(ChannelDriver *driver, const PathResolvedRNA *anim_rn
 
 static bool is_opcode_secure(const int opcode)
 {
+  /* TODO(@ideasman42): Handle intrinsic opcodes (`CALL_INTRINSIC_1` & `CALL_INTRINSIC_2`).
+   * For Python 3.12. */
 
 #  define OK_OP(op) \
     case op: \
       return true;
 
   switch (opcode) {
-#  if PY_VERSION_HEX >= 0x030b0000 /* Python 3.11 & newer. */
-
     OK_OP(CACHE)
     OK_OP(POP_TOP)
     OK_OP(PUSH_NULL)
     OK_OP(NOP)
+#  if PY_VERSION_HEX < 0x030c0000
     OK_OP(UNARY_POSITIVE)
+#  endif
     OK_OP(UNARY_NEGATIVE)
     OK_OP(UNARY_NOT)
     OK_OP(UNARY_INVERT)
     OK_OP(BINARY_SUBSCR)
     OK_OP(GET_LEN)
+#  if PY_VERSION_HEX < 0x030c0000
     OK_OP(LIST_TO_TUPLE)
+#  endif
     OK_OP(RETURN_VALUE)
     OK_OP(SWAP)
     OK_OP(BUILD_TUPLE)
@@ -332,10 +340,12 @@ static bool is_opcode_secure(const int opcode)
     OK_OP(BUILD_MAP)
     OK_OP(COMPARE_OP)
     OK_OP(JUMP_FORWARD)
+#  if PY_VERSION_HEX < 0x030c0000
     OK_OP(JUMP_IF_FALSE_OR_POP)
     OK_OP(JUMP_IF_TRUE_OR_POP)
     OK_OP(POP_JUMP_FORWARD_IF_FALSE)
     OK_OP(POP_JUMP_FORWARD_IF_TRUE)
+#  endif
     OK_OP(LOAD_GLOBAL)
     OK_OP(IS_OP)
     OK_OP(CONTAINS_OP)
@@ -343,8 +353,10 @@ static bool is_opcode_secure(const int opcode)
     OK_OP(LOAD_FAST)
     OK_OP(STORE_FAST)
     OK_OP(DELETE_FAST)
+#  if PY_VERSION_HEX < 0x030c0000
     OK_OP(POP_JUMP_FORWARD_IF_NOT_NONE)
     OK_OP(POP_JUMP_FORWARD_IF_NONE)
+#  endif
     OK_OP(BUILD_SLICE)
     OK_OP(LOAD_DEREF)
     OK_OP(STORE_DEREF)
@@ -353,103 +365,55 @@ static bool is_opcode_secure(const int opcode)
     OK_OP(SET_UPDATE)
 /* NOTE(@ideasman42): Don't enable dict manipulation, unless we can prove there is not way it
  * can be used to manipulate the name-space (potentially allowing malicious code). */
-#    if 0
+#  if 0
     OK_OP(DICT_MERGE)
     OK_OP(DICT_UPDATE)
-#    endif
+#  endif
+
+#  if PY_VERSION_HEX < 0x030c0000
     OK_OP(POP_JUMP_BACKWARD_IF_NOT_NONE)
     OK_OP(POP_JUMP_BACKWARD_IF_NONE)
     OK_OP(POP_JUMP_BACKWARD_IF_FALSE)
     OK_OP(POP_JUMP_BACKWARD_IF_TRUE)
+#  endif
 
     /* Special cases. */
     OK_OP(LOAD_CONST) /* Ok because constants are accepted. */
     OK_OP(LOAD_NAME)  /* Ok, because `PyCodeObject.names` is checked. */
     OK_OP(CALL)       /* Ok, because we check its "name" before calling. */
-    OK_OP(KW_NAMES)   /* Ok, because it's used for calling functions with keyword arguments. */
-    OK_OP(PRECALL)    /* Ok, because it's used for calling. */
+#  if PY_VERSION_HEX >= 0x030d0000
+    OK_OP(CALL_KW) /* Ok, because it's used for calling functions with keyword arguments. */
 
-#  else /* Python 3.10 and older. */
+    OK_OP(CALL_FUNCTION_EX);
 
-    OK_OP(POP_TOP)
-    OK_OP(ROT_TWO)
-    OK_OP(ROT_THREE)
-    OK_OP(DUP_TOP)
-    OK_OP(DUP_TOP_TWO)
-    OK_OP(ROT_FOUR)
-    OK_OP(NOP)
-    OK_OP(UNARY_POSITIVE)
-    OK_OP(UNARY_NEGATIVE)
-    OK_OP(UNARY_NOT)
-    OK_OP(UNARY_INVERT)
-    OK_OP(BINARY_MATRIX_MULTIPLY)
-    OK_OP(INPLACE_MATRIX_MULTIPLY)
-    OK_OP(BINARY_POWER)
-    OK_OP(BINARY_MULTIPLY)
-    OK_OP(BINARY_MODULO)
-    OK_OP(BINARY_ADD)
-    OK_OP(BINARY_SUBTRACT)
-    OK_OP(BINARY_SUBSCR)
-    OK_OP(BINARY_FLOOR_DIVIDE)
-    OK_OP(BINARY_TRUE_DIVIDE)
-    OK_OP(INPLACE_FLOOR_DIVIDE)
-    OK_OP(INPLACE_TRUE_DIVIDE)
-    OK_OP(GET_LEN)
-    OK_OP(INPLACE_ADD)
-    OK_OP(INPLACE_SUBTRACT)
-    OK_OP(INPLACE_MULTIPLY)
-    OK_OP(INPLACE_MODULO)
-    OK_OP(BINARY_LSHIFT)
-    OK_OP(BINARY_RSHIFT)
-    OK_OP(BINARY_AND)
-    OK_OP(BINARY_XOR)
-    OK_OP(BINARY_OR)
-    OK_OP(INPLACE_POWER)
-    OK_OP(INPLACE_LSHIFT)
-    OK_OP(INPLACE_RSHIFT)
-    OK_OP(INPLACE_AND)
-    OK_OP(INPLACE_XOR)
-    OK_OP(INPLACE_OR)
-    OK_OP(LIST_TO_TUPLE)
-    OK_OP(RETURN_VALUE)
-    OK_OP(ROT_N)
-    OK_OP(BUILD_TUPLE)
-    OK_OP(BUILD_LIST)
-    OK_OP(BUILD_SET)
-    OK_OP(BUILD_MAP)
-    OK_OP(COMPARE_OP)
-    OK_OP(JUMP_FORWARD)
-    OK_OP(JUMP_IF_FALSE_OR_POP)
-    OK_OP(JUMP_IF_TRUE_OR_POP)
-    OK_OP(JUMP_ABSOLUTE)
-    OK_OP(POP_JUMP_IF_FALSE)
-    OK_OP(POP_JUMP_IF_TRUE)
-    OK_OP(LOAD_GLOBAL)
-    OK_OP(IS_OP)
-    OK_OP(CONTAINS_OP)
-    OK_OP(LOAD_FAST)
-    OK_OP(STORE_FAST)
-    OK_OP(DELETE_FAST)
-    OK_OP(BUILD_SLICE)
-    OK_OP(LOAD_DEREF)
-    OK_OP(STORE_DEREF)
-    OK_OP(LIST_EXTEND)
-    OK_OP(SET_UPDATE)
-/* NOTE(@ideasman42): Don't enable dict manipulation, unless we can prove there is not way it
- * can be used to manipulate the name-space (potentially allowing malicious code). */
-#    if 0
-    OK_OP(DICT_MERGE)
-    OK_OP(DICT_UPDATE)
-#    endif
+    /* OK because the names are checked. */
+    OK_OP(CALL_ALLOC_AND_ENTER_INIT)
+    OK_OP(CALL_BOUND_METHOD_EXACT_ARGS)
+    OK_OP(CALL_BOUND_METHOD_GENERAL)
+    OK_OP(CALL_BUILTIN_CLASS)
+    OK_OP(CALL_BUILTIN_FAST)
+    OK_OP(CALL_BUILTIN_FAST_WITH_KEYWORDS)
+    OK_OP(CALL_BUILTIN_O)
+    OK_OP(CALL_ISINSTANCE)
+    OK_OP(CALL_LEN)
+    OK_OP(CALL_LIST_APPEND)
+    OK_OP(CALL_METHOD_DESCRIPTOR_FAST)
+    OK_OP(CALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS)
+    OK_OP(CALL_METHOD_DESCRIPTOR_NOARGS)
+    OK_OP(CALL_METHOD_DESCRIPTOR_O)
+    OK_OP(CALL_NON_PY_GENERAL)
+    OK_OP(CALL_PY_EXACT_ARGS)
+    OK_OP(CALL_PY_GENERAL)
+    OK_OP(CALL_STR_1)
+    OK_OP(CALL_TUPLE_1)
+    OK_OP(CALL_TYPE_1)
+#  else
+    OK_OP(KW_NAMES) /* Ok, because it's used for calling functions with keyword arguments. */
+#  endif
 
-    /* Special cases. */
-    OK_OP(LOAD_CONST)    /* Ok because constants are accepted. */
-    OK_OP(LOAD_NAME)     /* Ok, because `PyCodeObject.names` is checked. */
-    OK_OP(CALL_FUNCTION) /* Ok, because we check its "name" before calling. */
-    OK_OP(CALL_FUNCTION_KW)
-    OK_OP(CALL_FUNCTION_EX)
-
-#  endif /* Python 3.10 and older. */
+#  if PY_VERSION_HEX < 0x030c0000
+    OK_OP(PRECALL) /* Ok, because it's used for calling. */
+#  endif
   }
 
 #  undef OK_OP
@@ -496,16 +460,12 @@ bool BPY_driver_secure_bytecode_test_ex(PyObject *expr_code,
 
     PyObject *co_code;
 
-#  if PY_VERSION_HEX >= 0x030b0000 /* Python 3.11 & newer. */
     co_code = PyCode_GetCode(py_code);
     if (UNLIKELY(!co_code)) {
       PyErr_Print();
       PyErr_Clear();
       return false;
     }
-#  else
-    co_code = py_code->co_code;
-#  endif
 
     PyBytes_AsStringAndSize(co_code, (char **)&codestr, &code_len);
     code_len /= sizeof(*codestr);
@@ -527,9 +487,7 @@ bool BPY_driver_secure_bytecode_test_ex(PyObject *expr_code,
       }
     }
 
-#  if PY_VERSION_HEX >= 0x030b0000 /* Python 3.11 & newer. */
     Py_DECREF(co_code);
-#  endif
     if (!ok) {
       return false;
     }
@@ -569,7 +527,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
    * now release the GIL on python operator execution instead, using
    * #PyEval_SaveThread() / #PyEval_RestoreThread() so we don't lock up blender.
    *
-   * For copy-on-write we always cache expressions and write errors in the
+   * For copy-on-evaluation we always cache expressions and write errors in the
    * original driver, otherwise these would get freed while editing.
    * Due to the GIL this is thread-safe. */
 
@@ -603,6 +561,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
 
       printf("skipping driver '%s', automatic scripts are disabled\n", expr);
     }
+    driver_orig->flag |= DRIVER_FLAG_PYTHON_BLOCKED;
     return 0.0f;
   }
 #else
@@ -657,6 +616,8 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
 
     /* Maybe this can be removed but for now best keep until were sure. */
     driver_orig->flag |= DRIVER_FLAG_RENAMEVAR;
+    driver_orig->flag &= ~DRIVER_FLAG_PYTHON_BLOCKED;
+
 #ifdef USE_BYTECODE_WHITELIST
     is_recompile = true;
 #endif
@@ -674,7 +635,8 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
     PyTuple_SET_ITEM(((PyObject *)driver_orig->expr_comp), 1, expr_vars);
 
     for (dvar = static_cast<DriverVar *>(driver_orig->variables.first), i = 0; dvar;
-         dvar = dvar->next) {
+         dvar = dvar->next)
+    {
       PyTuple_SET_ITEM(expr_vars, i++, PyUnicode_FromString(dvar->name));
     }
 
@@ -708,7 +670,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
           dvar->curval = float(PyLong_AsLong(driver_arg));
         }
         else if (PyBool_Check(driver_arg)) {
-          dvar->curval = (driver_arg == Py_True);
+          dvar->curval = float(driver_arg == Py_True);
         }
         else {
           dvar->curval = 0.0f;
@@ -764,6 +726,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
         Py_DECREF(expr_code);
         expr_code = nullptr;
         PyTuple_SET_ITEM(((PyObject *)driver_orig->expr_comp), 0, nullptr);
+        driver_orig->flag |= DRIVER_FLAG_PYTHON_BLOCKED;
       }
     }
   }

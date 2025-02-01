@@ -1,5 +1,6 @@
 import bpy
-from bpy.types import NodeTree, Node, NodeSocket
+from bpy.types import NodeTree, Node, NodeSocket, NodeTreeInterfaceSocket
+from bl_ui import node_add_menu
 
 # Implementation of custom nodes from Python
 
@@ -25,19 +26,9 @@ class MyCustomSocket(NodeSocket):
     # Label for nice name display
     bl_label = "Custom Node Socket"
 
-    # Enum items list
-    my_items = (
-        ('DOWN', "Down", "Where your feet are"),
-        ('UP', "Up", "Where your head should be"),
-        ('LEFT', "Left", "Not right"),
-        ('RIGHT', "Right", "Not left"),
-    )
-
-    my_enum_prop: bpy.props.EnumProperty(
-        name="Direction",
-        description="Just an example",
-        items=my_items,
-        default='UP',
+    input_value: bpy.props.FloatProperty(
+        name="Value",
+        description="Value when the socket is not connected",
     )
 
     # Optional function for drawing the socket input value
@@ -45,11 +36,33 @@ class MyCustomSocket(NodeSocket):
         if self.is_output or self.is_linked:
             layout.label(text=text)
         else:
-            layout.prop(self, "my_enum_prop", text=text)
+            layout.prop(self, "input_value", text=text)
 
     # Socket color
-    def draw_color(self, context, node):
+    @classmethod
+    def draw_color_simple(cls):
         return (1.0, 0.4, 0.216, 0.5)
+
+
+# Customizable interface properties to generate a socket from.
+class MyCustomInterfaceSocket(NodeTreeInterfaceSocket):
+    # The type of socket that is generated.
+    bl_socket_idname = 'CustomSocketType'
+
+    default_value: bpy.props.FloatProperty(default=1.0, description="Default input value for new sockets",)
+
+    def draw(self, context, layout):
+        # Display properties of the interface.
+        layout.prop(self, "default_value")
+
+    # Set properties of newly created sockets
+    def init_socket(self, node, socket, data_path):
+        socket.input_value = self.default_value
+
+    # Use an existing socket to initialize the group interface
+    def from_socket(self, node, socket):
+        # Current value of the socket becomes the default
+        self.default_value = socket.input_value
 
 
 # Mix-in class for all custom nodes in this tree type.
@@ -87,7 +100,7 @@ class MyCustomNode(MyCustomTreeNode, Node):
     def init(self, context):
         self.inputs.new('CustomSocketType', "Hello")
         self.inputs.new('NodeSocketFloat', "World")
-        self.inputs.new('NodeSocketVector', "!")
+        self.inputs.new('NodeSocketVector', "!", use_multi_input=True)
 
         self.outputs.new('NodeSocketColor', "How")
         self.outputs.new('NodeSocketColor', "are")
@@ -119,50 +132,20 @@ class MyCustomNode(MyCustomTreeNode, Node):
         return "I am a custom node"
 
 
-### Node Categories ###
-# Node categories are a python system for automatically
-# extending the Add menu, toolbar panels and search operator.
-# For more examples see scripts/startup/nodeitems_builtins.py
+# Add custom nodes to the Add menu.
+def draw_add_menu(self, context):
+    layout = self.layout
+    if context.space_data.tree_type != MyCustomTree.bl_idname:
+        # Avoid adding nodes to built-in node tree
+        return
+    # Add nodes to the layout. Can use submenus, separators, etc. as in any other menu.
+    node_add_menu.add_node_type(layout, "CustomNodeType")
 
-import nodeitems_utils
-from nodeitems_utils import NodeCategory, NodeItem
-
-# our own base class with an appropriate poll function,
-# so the categories only show up in our own tree type
-
-
-class MyNodeCategory(NodeCategory):
-    @classmethod
-    def poll(cls, context):
-        return context.space_data.tree_type == 'CustomTreeType'
-
-
-# all categories in a list
-node_categories = [
-    # identifier, label, items list
-    MyNodeCategory('SOMENODES', "Some Nodes", items=[
-        # our basic node
-        NodeItem("CustomNodeType"),
-    ]),
-    MyNodeCategory('OTHERNODES', "Other Nodes", items=[
-        # the node item can have additional settings,
-        # which are applied to new nodes
-        # NOTE: settings values are stored as string expressions,
-        # for this reason they should be converted to strings using repr()
-        NodeItem("CustomNodeType", label="Node A", settings={
-            "my_string_prop": repr("Lorem ipsum dolor sit amet"),
-            "my_float_prop": repr(1.0),
-        }),
-        NodeItem("CustomNodeType", label="Node B", settings={
-            "my_string_prop": repr("consectetur adipisicing elit"),
-            "my_float_prop": repr(2.0),
-        }),
-    ]),
-]
 
 classes = (
     MyCustomTree,
     MyCustomSocket,
+    MyCustomInterfaceSocket,
     MyCustomNode,
 )
 
@@ -172,11 +155,11 @@ def register():
     for cls in classes:
         register_class(cls)
 
-    nodeitems_utils.register_node_categories('CUSTOM_NODES', node_categories)
+    bpy.types.NODE_MT_add.append(draw_add_menu)
 
 
 def unregister():
-    nodeitems_utils.unregister_node_categories('CUSTOM_NODES')
+    bpy.types.NODE_MT_add.remove(draw_add_menu)
 
     from bpy.utils import unregister_class
     for cls in reversed(classes):

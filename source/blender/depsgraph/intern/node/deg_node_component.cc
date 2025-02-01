@@ -6,22 +6,21 @@
  * \ingroup depsgraph
  */
 
-#include "intern/node/deg_node_component.h"
+#include "intern/node/deg_node_component.hh"
 
 #include <cstdio>
 #include <cstring> /* required for STREQ later on. */
 
 #include "BLI_ghash.h"
-#include "BLI_hash.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_object_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 
-#include "intern/node/deg_node_factory.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/node/deg_node_factory.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
 
 namespace blender::deg {
 
@@ -47,9 +46,9 @@ ComponentNode::OperationIDKey::OperationIDKey(OperationCode opcode, const char *
 {
 }
 
-string ComponentNode::OperationIDKey::identifier() const
+std::string ComponentNode::OperationIDKey::identifier() const
 {
-  const string codebuf = to_string(int(opcode));
+  const std::string codebuf = std::to_string(int(opcode));
   return "OperationIDKey(" + codebuf + ", " + name + ")";
 }
 
@@ -89,10 +88,10 @@ ComponentNode::~ComponentNode()
   delete operations_map;
 }
 
-string ComponentNode::identifier() const
+std::string ComponentNode::identifier() const
 {
-  const string type_name = type_get_factory(type)->type_name();
-  const string name_part = name[0] ? (string(" '") + name + "'") : "";
+  const std::string type_name = type_get_factory(type)->type_name();
+  const std::string name_part = name[0] ? (std::string(" '") + name + "'") : "";
 
   return "[" + type_name + "]" + name_part + " : " +
          "(affects_visible_id: " + (affects_visible_id ? "true" : "false") + ")";
@@ -319,11 +318,11 @@ DEG_COMPONENT_NODE_DEFINE(Animation, ANIMATION, ID_RECALC_ANIMATION);
 DEG_COMPONENT_NODE_DEFINE(BatchCache, BATCH_CACHE, ID_RECALC_SHADING);
 DEG_COMPONENT_NODE_DEFINE(Bone, BONE, ID_RECALC_GEOMETRY);
 DEG_COMPONENT_NODE_DEFINE(Cache, CACHE, 0);
-DEG_COMPONENT_NODE_DEFINE(CopyOnWrite, COPY_ON_WRITE, ID_RECALC_COPY_ON_WRITE);
+DEG_COMPONENT_NODE_DEFINE(CopyOnWrite, COPY_ON_EVAL, ID_RECALC_SYNC_TO_EVAL);
 DEG_COMPONENT_NODE_DEFINE(ImageAnimation, IMAGE_ANIMATION, 0);
 DEG_COMPONENT_NODE_DEFINE(Geometry, GEOMETRY, ID_RECALC_GEOMETRY);
 DEG_COMPONENT_NODE_DEFINE(LayerCollections, LAYER_COLLECTIONS, 0);
-DEG_COMPONENT_NODE_DEFINE(Parameters, PARAMETERS, 0);
+DEG_COMPONENT_NODE_DEFINE(Parameters, PARAMETERS, ID_RECALC_PARAMETERS);
 DEG_COMPONENT_NODE_DEFINE(Particles, PARTICLE_SYSTEM, ID_RECALC_GEOMETRY);
 DEG_COMPONENT_NODE_DEFINE(ParticleSettings, PARTICLE_SETTINGS, 0);
 DEG_COMPONENT_NODE_DEFINE(PointCache, POINT_CACHE, 0);
@@ -333,11 +332,12 @@ DEG_COMPONENT_NODE_DEFINE(Shading, SHADING, ID_RECALC_SHADING);
 DEG_COMPONENT_NODE_DEFINE(Transform, TRANSFORM, ID_RECALC_TRANSFORM);
 DEG_COMPONENT_NODE_DEFINE(ObjectFromLayer, OBJECT_FROM_LAYER, 0);
 DEG_COMPONENT_NODE_DEFINE(Hierarchy, HIERARCHY, 0);
-DEG_COMPONENT_NODE_DEFINE(Dupli, DUPLI, 0);
+DEG_COMPONENT_NODE_DEFINE(Instancing, INSTANCING, 0);
 DEG_COMPONENT_NODE_DEFINE(Synchronization, SYNCHRONIZATION, 0);
 DEG_COMPONENT_NODE_DEFINE(Audio, AUDIO, 0);
 DEG_COMPONENT_NODE_DEFINE(Armature, ARMATURE, 0);
 DEG_COMPONENT_NODE_DEFINE(GenericDatablock, GENERIC_DATABLOCK, 0);
+DEG_COMPONENT_NODE_DEFINE(Scene, SCENE, 0);
 DEG_COMPONENT_NODE_DEFINE(Visibility, VISIBILITY, 0);
 DEG_COMPONENT_NODE_DEFINE(NTreeOutput, NTREE_OUTPUT, ID_RECALC_NTREE_OUTPUT);
 DEG_COMPONENT_NODE_DEFINE(NTreeGeometryPreprocess, NTREE_GEOMETRY_PREPROCESS, 0);
@@ -354,7 +354,7 @@ void deg_register_component_depsnodes()
   register_node_typeinfo(&DNTI_BONE);
   register_node_typeinfo(&DNTI_CACHE);
   register_node_typeinfo(&DNTI_BATCH_CACHE);
-  register_node_typeinfo(&DNTI_COPY_ON_WRITE);
+  register_node_typeinfo(&DNTI_COPY_ON_EVAL);
   register_node_typeinfo(&DNTI_GEOMETRY);
   register_node_typeinfo(&DNTI_LAYER_COLLECTIONS);
   register_node_typeinfo(&DNTI_PARAMETERS);
@@ -368,11 +368,12 @@ void deg_register_component_depsnodes()
   register_node_typeinfo(&DNTI_TRANSFORM);
   register_node_typeinfo(&DNTI_OBJECT_FROM_LAYER);
   register_node_typeinfo(&DNTI_HIERARCHY);
-  register_node_typeinfo(&DNTI_DUPLI);
+  register_node_typeinfo(&DNTI_INSTANCING);
   register_node_typeinfo(&DNTI_SYNCHRONIZATION);
   register_node_typeinfo(&DNTI_AUDIO);
   register_node_typeinfo(&DNTI_ARMATURE);
   register_node_typeinfo(&DNTI_GENERIC_DATABLOCK);
+  register_node_typeinfo(&DNTI_SCENE);
   register_node_typeinfo(&DNTI_VISIBILITY);
   register_node_typeinfo(&DNTI_NTREE_OUTPUT);
   register_node_typeinfo(&DNTI_NTREE_GEOMETRY_PREPROCESS);

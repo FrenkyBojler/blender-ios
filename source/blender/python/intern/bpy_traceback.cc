@@ -12,20 +12,13 @@
 #include <Python.h>
 #include <frameobject.h>
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 #ifdef WIN32
 #  include "BLI_string.h" /* BLI_strcasecmp */
 #endif
 
-#include "bpy_traceback.h"
-
-static const char *traceback_filepath(PyTracebackObject *tb, PyObject **coerce)
-{
-  PyCodeObject *code = PyFrame_GetCode(tb->tb_frame);
-  *coerce = PyUnicode_EncodeFSDefault(code->co_filename);
-  return PyBytes_AS_STRING(*coerce);
-}
+#include "bpy_traceback.hh"
 
 #define MAKE_PY_IDENTIFIER_EX(varname, value) static _Py_Identifier varname{value, -1};
 #define MAKE_PY_IDENTIFIER(varname) MAKE_PY_IDENTIFIER_EX(PyId_##varname, #varname)
@@ -37,7 +30,44 @@ MAKE_PY_IDENTIFIER(lineno);
 MAKE_PY_IDENTIFIER(offset);
 MAKE_PY_IDENTIFIER(end_lineno);
 MAKE_PY_IDENTIFIER(end_offset);
+MAKE_PY_IDENTIFIER(tb_lineno);
 MAKE_PY_IDENTIFIER(text);
+
+static const char *traceback_filepath(PyTracebackObject *tb, PyObject **r_coerce)
+{
+  PyCodeObject *code = PyFrame_GetCode(tb->tb_frame);
+  *r_coerce = PyUnicode_EncodeFSDefault(code->co_filename);
+  return PyBytes_AS_STRING(*r_coerce);
+}
+
+/** Return the line number from the trace-back, -1 on failure. */
+static int traceback_line_number(PyTracebackObject *tb)
+{
+  int lineno = tb->tb_lineno;
+  if (lineno == -1) {
+    PyObject *lineno_py = _PyObject_GetAttrId((PyObject *)tb, &PyId_tb_lineno);
+    if (lineno_py) {
+      if (PyLong_Check(lineno_py)) {
+        const int lineno_test = PyLong_AsLongLong(lineno_py);
+        /* Theoretically could occur from overflow,
+         * internally these are `int` so it shouldn't happen. */
+        if (!((lineno_test == -1) && PyErr_Occurred())) {
+          lineno = lineno_test;
+        }
+        else {
+          PyErr_Clear();
+        }
+      }
+      Py_DECREF(lineno_py);
+    }
+    else {
+      /* This should never happen, print the error. */
+      PyErr_Print();
+      PyErr_Clear();
+    }
+  }
+  return lineno;
+}
 
 static int parse_syntax_error(PyObject *err,
                               PyObject **message,
@@ -170,13 +200,8 @@ finally:
 bool python_script_error_jump(
     const char *filepath, int *r_lineno, int *r_offset, int *r_lineno_end, int *r_offset_end)
 {
-  /* WARNING(@ideasman42): The normalized exception is restored (losing line number info).
-   * Ideally this would leave the exception state as it found it, but that needs to be done
-   * carefully with regards to reference counting, see: #97731. */
-
   bool success = false;
-  PyObject *exception, *value;
-  PyTracebackObject *tb;
+  PyObject *exception, *value, *tb;
 
   *r_lineno = -1;
   *r_offset = 0;
@@ -184,15 +209,20 @@ bool python_script_error_jump(
   *r_lineno_end = -1;
   *r_offset_end = 0;
 
-  PyErr_Fetch(&exception, &value, (PyObject **)&tb);
-  if (exception == nullptr) {
+  PyErr_Fetch(&exception, &value, &tb);
+  if (exception == nullptr) { /* Equivalent of `!PyErr_Occurred()`. */
     return false;
   }
-
+  PyObject *base_exception_type = nullptr;
   if (PyErr_GivenExceptionMatches(exception, PyExc_SyntaxError)) {
+    base_exception_type = PyExc_SyntaxError;
+  }
+
+  PyErr_NormalizeException(&exception, &value, &tb);
+
+  if (base_exception_type == PyExc_SyntaxError) {
     /* No trace-back available when `SyntaxError`.
-     * Python has no API's to this. reference #parse_syntax_error() from `pythonrun.c`. */
-    PyErr_NormalizeException(&exception, &value, (PyObject **)&tb);
+     * Python has no API for this. reference #parse_syntax_error() from `pythonrun.c`. */
 
     if (value) { /* Should always be true. */
       PyObject *message;
@@ -208,7 +238,7 @@ bool python_script_error_jump(
                              &text_py))
       {
         const char *filepath_exc = PyUnicode_AsUTF8(filepath_exc_py);
-        /* python adds a '/', prefix, so check for both */
+        /* Python adds a '/', prefix, so check for both. */
         if ((BLI_path_cmp(filepath_exc, filepath) == 0) ||
             (ELEM(filepath_exc[0], '\\', '/') && BLI_path_cmp(filepath_exc + 1, filepath) == 0))
         {
@@ -218,28 +248,26 @@ bool python_script_error_jump(
     }
   }
   else {
-    PyErr_NormalizeException(&exception, &value, (PyObject **)&tb);
-
-    for (tb = (PyTracebackObject *)PySys_GetObject("last_traceback");
-         tb && (PyObject *)tb != Py_None;
-         tb = tb->tb_next)
+    for (PyTracebackObject *tb_iter = (PyTracebackObject *)tb;
+         tb_iter && (PyObject *)tb_iter != Py_None;
+         tb_iter = tb_iter->tb_next)
     {
       PyObject *coerce;
-      const char *tb_filepath = traceback_filepath(tb, &coerce);
+      const char *tb_filepath = traceback_filepath(tb_iter, &coerce);
       const int match = ((BLI_path_cmp(tb_filepath, filepath) == 0) ||
                          (ELEM(tb_filepath[0], '\\', '/') &&
                           BLI_path_cmp(tb_filepath + 1, filepath) == 0));
       Py_DECREF(coerce);
 
       if (match) {
+        /* Even though a match has been found, keep searching to find the inner most line. */
         success = true;
-        *r_lineno = *r_lineno_end = tb->tb_lineno;
-        /* used to break here, but better find the inner most line */
+        *r_lineno = *r_lineno_end = traceback_line_number(tb_iter);
       }
     }
   }
 
-  PyErr_Restore(exception, value, (PyObject *)tb); /* takes away reference! */
+  PyErr_Restore(exception, value, tb);
 
   return success;
 }
