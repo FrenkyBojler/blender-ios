@@ -1074,15 +1074,18 @@ static void iter_shader_to_rgba_depth_count(bNode *node,
   }
 }
 
-static std::optional<bool> mix_branch_to_discard(const bNode &mix_node, const blender::StringRef factor_socket, const bool clamp_factor)
+static std::optional<bool> mix_branch_to_discard(const bNode &mix_node,
+                                                 const blender::StringRef factor_socket,
+                                                 const bool clamp_factor)
 {
-  const bNodeSocket *factor_input = blender::bke::node_find_socket(&mix_node, SOCK_IN, factor_socket);
+  const bNodeSocket *factor_input = blender::bke::node_find_socket(
+      &mix_node, SOCK_IN, factor_socket);
   BLI_assert(factor_input != nullptr);
   if (factor_input->link != nullptr) {
     return std::nullopt;
   }
 
-  const auto factor = [&]() -> std::optional<float>{
+  const auto factor = [&]() -> std::optional<float> {
     switch (factor_input->type) {
       case SOCK_FLOAT: {
         const float factor = factor_input->default_value_typed<bNodeSocketValueFloat>()->value;
@@ -1109,10 +1112,10 @@ static std::optional<bool> mix_branch_to_discard(const bNode &mix_node, const bl
       }
       default:
         BLI_assert_unreachable();
-      return std::nullopt;
+        return std::nullopt;
     }
   }();
-  
+
   if (factor == 0.0f) {
     return false;
   }
@@ -1130,7 +1133,8 @@ static void ntree_shader_disconnect_inactive_mix_branches(bNodeTree *ntree)
       if (!branch_to_discard.has_value()) {
         continue;
       }
-      const bNodeSocket *branch_socket = blender::bke::node_find_socket(node, SOCK_IN, (!*branch_to_discard) ? "Shader_001" : "Shader");
+      const bNodeSocket *branch_socket = blender::bke::node_find_socket(
+          node, SOCK_IN, (!*branch_to_discard) ? "Shader_001" : "Shader");
       BLI_assert(branch_socket != nullptr);
       if (branch_socket->link) {
         blender::bke::node_remove_link(ntree, branch_socket->link);
@@ -1138,11 +1142,13 @@ static void ntree_shader_disconnect_inactive_mix_branches(bNodeTree *ntree)
     }
     else if (node->typeinfo->type_legacy == SH_NODE_MIX) {
       const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(node->storage);
-      const std::optional<bool> branch_to_discard = mix_branch_to_discard(*node, "Factor", storage.clamp_factor);
+      const std::optional<bool> branch_to_discard = mix_branch_to_discard(
+          *node, "Factor", storage.clamp_factor);
       if (!branch_to_discard.has_value()) {
         continue;
       }
-      const bNodeSocket *branch_socket = blender::bke::node_find_socket(node, SOCK_IN, (!*branch_to_discard) ? "B" : "A");
+      const bNodeSocket *branch_socket = blender::bke::node_find_socket(
+          node, SOCK_IN, (!*branch_to_discard) ? "B" : "A");
       BLI_assert(branch_socket != nullptr);
       if (branch_socket->link) {
         blender::bke::node_remove_link(ntree, branch_socket->link);

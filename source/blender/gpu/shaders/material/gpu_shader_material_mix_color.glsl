@@ -295,28 +295,19 @@ void node_mix_linear(float fac, vec4 col1, vec4 col2, out vec4 outcol)
   outcol = col1 + fac * (2.0 * (col2 - vec4(0.5)));
 }
 
-void node_mix_float(float fac,
-                    float f1,
-                    float f2,
-                    out float outfloat)
+void node_mix_float(float fac, float f1, float f2, out float outfloat)
 {
 
   outfloat = mix(f1, f2, fac);
 }
 
-void node_mix_vector(float fac,
-                     vec3 v1,
-                     vec3 v2,
-                     out vec3 outvec)
+void node_mix_vector(float fac, vec3 v1, vec3 v2, out vec3 outvec)
 {
 
   outvec = mix(v1, v2, fac);
 }
 
-void node_mix_vector_non_uniform(vec3 facvec,
-                                 vec3 v1,
-                                 vec3 v2,
-                                 out vec3 outvec)
+void node_mix_vector_non_uniform(vec3 facvec, vec3 v1, vec3 v2, out vec3 outvec)
 {
   outvec = mix(v1, v2, facvec);
 }

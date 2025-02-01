@@ -44,13 +44,18 @@ static void sh_node_mix_declare(NodeDeclarationBuilder &b)
 
   const NodeShaderMix &storage = node_storage(*node);
   const eNodeSocketDatatype data_type = static_cast<eNodeSocketDatatype>(storage.data_type);
-  bool use_vector_factor = data_type == SOCK_VECTOR && storage.factor_mode != NODE_MIX_MODE_UNIFORM;
+  bool use_vector_factor = data_type == SOCK_VECTOR &&
+                           storage.factor_mode != NODE_MIX_MODE_UNIFORM;
 
   BaseSocketDeclarationBuilder *factor_builder = nullptr;
   if (use_vector_factor) {
-    factor_builder = &b.add_input<decl::Vector>("Factor").default_value(float3(0.5f)).subtype(PROP_FACTOR);
-  } else {
-    factor_builder = &b.add_input<decl::Float>("Factor").default_value(0.5f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+    factor_builder =
+        &b.add_input<decl::Vector>("Factor").default_value(float3(0.5f)).subtype(PROP_FACTOR);
+  }
+  else {
+    factor_builder =
+        &b.add_input<decl::Float>("Factor").default_value(0.5f).min(0.0f).max(1.0f).subtype(
+            PROP_FACTOR);
   }
   factor_builder->no_muted_links().description("Amount of mixing between the A and B inputs");
 
