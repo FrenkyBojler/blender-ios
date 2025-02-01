@@ -286,7 +286,7 @@ void WM_window_rect_calc(const wmWindow *win, rcti *r_rect);
  * \note Depends on #UI_SCALE_FAC. Should that be outdated, call #WM_window_set_dpi first.
  */
 void WM_window_screen_rect_calc(const wmWindow *win, rcti *r_rect);
-bool WM_window_should_have_global_areas(const wmWindow *win);
+bool WM_window_is_main_top_level(const wmWindow *win);
 bool WM_window_is_fullscreen(const wmWindow *win);
 bool WM_window_is_maximized(const wmWindow *win);
 

@@ -1318,7 +1318,7 @@ void ED_screen_global_areas_refresh(wmWindow *win)
 {
   /* Don't create global area for child and temporary windows. */
   bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
-  if (!WM_window_should_have_global_areas(win)) {
+  if (!WM_window_is_main_top_level(win)) {
     if (win->global_areas.areabase.first) {
       screen->do_refresh = true;
       BKE_screen_area_map_free(&win->global_areas);

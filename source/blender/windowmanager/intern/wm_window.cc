@@ -628,7 +628,7 @@ static void wm_window_decoration_style_set_from_theme(const wmWindow *win, const
 
   /* Colored Titlebar Decoration. */
   /* For main windows, use the topbar color. */
-  if (WM_window_should_have_global_areas(win)) {
+  if (WM_window_is_main_top_level(win)) {
     UI_SetTheme(SPACE_TOPBAR, RGN_TYPE_HEADER);
   }
   /* For single editor floating windows, use the editor header color. */
@@ -2879,10 +2879,11 @@ bool WM_window_is_maximized(const wmWindow *win)
   return win->windowstate == GHOST_kWindowStateMaximized;
 }
 
-bool WM_window_should_have_global_areas(const wmWindow *win)
+bool WM_window_is_main_top_level(const wmWindow *win)
 {
   /**
-   * Return whether the window should contain global areas (topbar/statusbar).
+   * Return whether the window is a main/top-level window. In which case it is expected to contain
+   * global areas (topbar/statusbar).
    */
   const bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
   if ((win->parent != nullptr) || screen->temp) {
