@@ -984,7 +984,7 @@ blender::gpu::Batch *DRW_cache_empty_cross_get()
     GPU_vertbuf_data_alloc(*vbo, 6);
 
     int v = 0;
-    const int flag = VCLASS_EMPTY_SCALED;
+    int flag = VCLASS_EMPTY_SCALED;
     GPU_vertbuf_vert_set(vbo, v++, Vert{{-1.0f, 0.0f, 0.0f}, flag});
     GPU_vertbuf_vert_set(vbo, v++, Vert{{1.0f, 0.0f, 0.0f}, flag});
     GPU_vertbuf_vert_set(vbo, v++, Vert{{0.0f, -1.0f, 0.0f}, flag});
