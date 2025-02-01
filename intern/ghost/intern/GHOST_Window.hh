@@ -437,7 +437,7 @@ class GHOST_Window : public GHOST_IWindow {
   /** Stores whether this is a full screen window. */
   bool m_fullScreen;
 
-  /** Custom Window Decoration Styles. */
+  /** Window Decoration Styles. */
   GHOST_TWindowDecorationStyleFlags m_windowDecorationStyleFlags;
   GHOST_WindowDecorationStyleSettings m_windowDecorationStyleSettings;
 

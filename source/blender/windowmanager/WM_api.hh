@@ -384,7 +384,7 @@ bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
 enum eWM_WindowDecorationStyleFlag {
   /** No Decorations. */
   WM_WINDOW_DECORATION_STYLE_NONE = 0,
-  /** Custom Colored Titlebar. */
+  /** Colored Titlebar. */
   WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR = (1 << 0),
 };
 ENUM_OPERATORS(eWM_WindowDecorationStyleFlag, WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR)
