@@ -890,49 +890,56 @@ class NodeTreeMainUpdater {
     /* Propagation from right to left to determine which enum
      * definition to use for menu sockets. */
     for (bNode *node : ntree.toposort_right_to_left()) {
-      const bool node_updated = this->should_update_individual_node(ntree, *node);
+      for (bNodeSocket *socket : node->input_sockets()) {
+        if (socket->is_available() && socket->type == SOCK_MENU) {
+          clear_enum_reference(*socket);
+        }
+      }
+      for (bNodeSocket *socket : node->output_sockets()) {
+        if (socket->is_available() && socket->type == SOCK_MENU) {
+          clear_enum_reference(*socket);
+        }
+      }
 
-      if (node->is_type("GeometryNodeMenuSwitch")) {
-        /* Generate new enum items when the node has changed, otherwise keep existing items. */
-        if (node_updated) {
-          const NodeMenuSwitch &storage = *static_cast<NodeMenuSwitch *>(node->storage);
-          const RuntimeNodeEnumItems *enum_items = this->create_runtime_enum_items(
-              storage.enum_definition);
+      for (bNodeSocket *output_socket : node->output_sockets()) {
+        if (!output_socket->is_available()) {
+          continue;
+        }
+        if (output_socket->type != SOCK_MENU) {
+          continue;
+        }
+        for (const bNodeSocket *target_input : output_socket->directly_linked_sockets()) {
+          if (!target_input->is_available() || target_input->type != SOCK_MENU) {
+            continue;
+          }
+          this->update_socket_enum_definition(*output_socket->default_value_typed<bNodeSocketValueMenu>(),
+                                              *target_input->default_value_typed<bNodeSocketValueMenu>());
+        }
+      }
 
-          bNodeSocket &input = *node->input_sockets()[0];
-          BLI_assert(input.is_available() && input.type == SOCK_MENU);
-          this->set_enum_ptr(*input.default_value_typed<bNodeSocketValueMenu>(), enum_items);
-          /* Remove initial user. */
-          enum_items->remove_user_and_delete_if_last();
+      if (node->is_muted()) {
+        for (const bNodeLink &internal_link : node->internal_links()) {
+          if (internal_link.tosock->type != SOCK_MENU) {
+            continue;
+          }
+          BLI_assert(internal_link.fromsock->type == SOCK_MENU);
+          this->update_socket_enum_definition(*internal_link.fromsock->default_value_typed<bNodeSocketValueMenu>(),
+                                              *internal_link.tosock->default_value_typed<bNodeSocketValueMenu>());
         }
         continue;
       }
-      else {
-        /* Clear current enum references. */
-        for (bNodeSocket *socket : node->input_sockets()) {
-          if (socket->is_available() && socket->type == SOCK_MENU) {
-            clear_enum_reference(*socket);
-          }
-        }
-        for (bNodeSocket *socket : node->output_sockets()) {
-          if (socket->is_available() && socket->type == SOCK_MENU) {
-            clear_enum_reference(*socket);
-          }
-        }
-      }
 
-      /* Propagate enum references from output links. */
-      for (bNodeSocket *output : node->output_sockets()) {
-        if (!output->is_available() || output->type != SOCK_MENU) {
-          continue;
-        }
-        for (const bNodeSocket *input : output->directly_linked_sockets()) {
-          if (!input->is_available() || input->type != SOCK_MENU) {
-            continue;
-          }
-          this->update_socket_enum_definition(*output->default_value_typed<bNodeSocketValueMenu>(),
-                                              *input->default_value_typed<bNodeSocketValueMenu>());
-        }
+      if (node->is_type("GeometryNodeMenuSwitch")) {
+        const NodeMenuSwitch &storage = *static_cast<NodeMenuSwitch *>(node->storage);
+        const RuntimeNodeEnumItems *enum_items = this->create_runtime_enum_items(
+            storage.enum_definition);
+
+        bNodeSocket &input = *node->input_sockets()[0];
+        BLI_assert(input.is_available() && input.type == SOCK_MENU);
+        this->set_enum_ptr(*input.default_value_typed<bNodeSocketValueMenu>(), enum_items);
+        /* Remove initial user. */
+        enum_items->remove_user_and_delete_if_last();
+        continue;
       }
 
       if (node->is_group()) {
@@ -954,8 +961,10 @@ class NodeTreeMainUpdater {
                 *static_cast<bNodeSocketValueMenu *>(iosocket.socket_data));
           }
         }
+        continue;
       }
-      else if (node->is_type("GeometryNodeMenuSwitch")) {
+
+      if (node->is_type("GeometryNodeMenuSwitch")) {
         /* First input is always the node's own menu, propagate only to the enum case inputs. */
         const bNodeSocket *output = node->output_sockets().first();
         for (bNodeSocket *input : node->input_sockets().drop_front(1)) {
@@ -965,8 +974,10 @@ class NodeTreeMainUpdater {
                 *output->default_value_typed<bNodeSocketValueMenu>());
           }
         }
+        continue;
       }
-      else if (node->is_type("GeometryNodeForeachGeometryElementInput")) {
+
+      if (node->is_type("GeometryNodeForeachGeometryElementInput")) {
         /* Propagate menu from element inputs to field inputs. */
         BLI_assert(node->input_sockets().size() == node->output_sockets().size());
         /* Inputs Geometry, Selection and outputs Index, Element are ignored. */
@@ -982,20 +993,20 @@ class NodeTreeMainUpdater {
                 *output->default_value_typed<bNodeSocketValueMenu>());
           }
         }
+        continue;
       }
-      else {
-        /* Propagate over internal relations. */
-        /* XXX Placeholder implementation just propagates all outputs
-         * to all inputs for built-in nodes This could perhaps use
-         * input/output relations to handle propagation generically? */
-        for (bNodeSocket *input : node->input_sockets()) {
-          if (input->is_available() && input->type == SOCK_MENU) {
-            for (const bNodeSocket *output : node->output_sockets()) {
-              if (output->is_available() && output->type == SOCK_MENU) {
-                this->update_socket_enum_definition(
-                    *input->default_value_typed<bNodeSocketValueMenu>(),
-                    *output->default_value_typed<bNodeSocketValueMenu>());
-              }
+
+      /* Propagate over internal relations. */
+      /* XXX Placeholder implementation just propagates all outputs
+       * to all inputs for built-in nodes This could perhaps use
+       * input/output relations to handle propagation generically? */
+      for (bNodeSocket *input : node->input_sockets()) {
+        if (input->is_available() && input->type == SOCK_MENU) {
+          for (const bNodeSocket *output : node->output_sockets()) {
+            if (output->is_available() && output->type == SOCK_MENU) {
+              this->update_socket_enum_definition(
+                  *input->default_value_typed<bNodeSocketValueMenu>(),
+                  *output->default_value_typed<bNodeSocketValueMenu>());
             }
           }
         }
