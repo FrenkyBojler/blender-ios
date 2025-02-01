@@ -812,11 +812,9 @@ def brush_settings(layout, context, brush, popover=False):
         if capabilities.has_height:
             layout.prop(brush, "height", slider=True, text="Height")
 
-        # plane_height
         if capabilities.has_plane_height:
             layout.prop(brush, "plane_height", slider=True, text="Height")
 
-        # plane_depth
         if capabilities.has_plane_depth:
             layout.prop(brush, "plane_depth", slider=True, text="Depth")
 
