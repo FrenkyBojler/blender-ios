@@ -740,37 +740,43 @@ struct Resources : public select::SelectMap {
     }
   }
 
-  const float4 &object_wire_color(const ObjectRef &ob_ref, ThemeColorID theme_id) const
+  const float4 &object_wire_color(const ObjectRef &ob_ref, ThemeColorID theme_id, const State &state) const
   {
     if (UNLIKELY(ob_ref.object->base_flag & BASE_FROM_SET)) {
       return theme_settings.color_wire;
     }
+    else if (state.v3d->shading.wire_color_type == V3D_SHADING_OBJECT_COLOR && (ob_ref.object->base_flag & BASE_SELECTED) == 0) {
+      static float4 object_color;  
+      object_color = float4(ob_ref.object->color);
+      return object_color;
+    }
+
     switch (theme_id) {
-      case TH_WIRE_EDIT:
-        return theme_settings.color_wire_edit;
-      case TH_ACTIVE:
-        return theme_settings.color_active;
-      case TH_SELECT:
-        return theme_settings.color_select;
-      case TH_TRANSFORM:
-        return theme_settings.color_transform;
-      case TH_SPEAKER:
-        return theme_settings.color_speaker;
-      case TH_CAMERA:
-        return theme_settings.color_camera;
-      case TH_EMPTY:
-        return theme_settings.color_empty;
-      case TH_LIGHT:
-        return theme_settings.color_light;
-      default:
-        return theme_settings.color_wire;
+    case TH_WIRE_EDIT:
+      return theme_settings.color_wire_edit;
+    case TH_ACTIVE:
+      return theme_settings.color_active;
+    case TH_SELECT:
+      return theme_settings.color_select;
+    case TH_TRANSFORM:
+      return theme_settings.color_transform;
+    case TH_SPEAKER:
+      return theme_settings.color_speaker;
+    case TH_CAMERA:
+      return theme_settings.color_camera;
+    case TH_EMPTY:
+      return theme_settings.color_empty;
+    case TH_LIGHT:
+      return theme_settings.color_light;
+    default:
+      return theme_settings.color_wire;
     }
   }
 
   const float4 &object_wire_color(const ObjectRef &ob_ref, const State &state) const
   {
     ThemeColorID theme_id = object_wire_theme_id(ob_ref, state);
-    return object_wire_color(ob_ref, theme_id);
+    return object_wire_color(ob_ref, theme_id, state);
   }
 
   float4 background_blend_color(ThemeColorID theme_id) const

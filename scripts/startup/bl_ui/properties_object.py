@@ -197,7 +197,7 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
         obj_type = obj.type
         is_geometry = (obj_type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'VOLUME', 'CURVES', 'POINTCLOUD'})
         has_bounds = (is_geometry or obj_type in {'LATTICE', 'ARMATURE'})
-        is_wire = (obj_type in {'CAMERA', 'EMPTY'})
+        is_wire = (obj_type in {'CAMERA', 'EMPTY', 'LIGHT', 'SPEAKER', 'LIGHT_PROBE'})
         is_empty_image = (obj_type == 'EMPTY' and obj.empty_display_type == 'IMAGE')
         is_dupli = (obj.instance_type != 'NONE')
         is_gpencil = (obj_type == 'GREASEPENCIL')
@@ -224,8 +224,7 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
             sub.active = is_dupli
         sub.prop(obj, "display_type", text="Display As")
 
-        if is_geometry or is_dupli or is_empty_image or is_gpencil:
-            # Only useful with object having faces/materials...
+        if is_geometry or is_dupli or is_empty_image or is_gpencil or is_wire:
             col.prop(obj, "color")
 
         if has_bounds:
