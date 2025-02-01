@@ -120,7 +120,7 @@ typedef enum {
    */
   GHOST_kCapabilityTrackpadPhysicalDirection = (1 << 7),
   /**
-   * Support for custom window decoration styles.
+   * Support for window decoration styles.
    */
   GHOST_kCapabilityWindowDecorationStyles = (1 << 8),
 } GHOST_TCapabilityFlag;

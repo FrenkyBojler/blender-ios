@@ -185,7 +185,7 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_INPUT_IME = (1 << 6),
   /** Trackpad physical scroll detection. */
   WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION = (1 << 7),
-  /** Support for custom window decoration styles. */
+  /** Support for window decoration styles. */
   WM_CAPABILITY_WINDOW_DECORATION_STYLES = (1 << 8),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
@@ -377,7 +377,7 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title = nul
 
 bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
 
-/** Custom Window Decoration Styles. */
+/** Window Decoration Styles. */
 /* Flags for #WM_window_decoration_set_style().
  * NOTE: To be kept in sync with #GHOST_TWindowDecorationFlags. */
 enum eWM_WindowDecorationStyleFlag {

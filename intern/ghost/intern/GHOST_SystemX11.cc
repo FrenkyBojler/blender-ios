@@ -1818,7 +1818,7 @@ GHOST_TCapabilityFlag GHOST_SystemX11::getCapabilities() const
                                    GHOST_kCapabilityClipboardImages |
                                    /* No support yet for IME input methods. */
                                    GHOST_kCapabilityInputIME |
-                                   /* No support yet for custom client-side window decorations. */
+                                   /* No support for window decoration styles. */
                                    GHOST_kCapabilityWindowDecorationStyles));
 }
 
