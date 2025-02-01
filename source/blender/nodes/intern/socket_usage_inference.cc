@@ -158,6 +158,12 @@ struct SocketUsageInferencer {
   void usage_task__input(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
+
+    if (node->is_muted()) {
+      this->usage_task__input__muted_node(socket);
+      return;
+    }
+
     switch (node->type_legacy) {
       case NODE_GROUP:
       case NODE_CUSTOM_GROUP: {
@@ -420,6 +426,17 @@ struct SocketUsageInferencer {
       dependent_sockets.extend(foreach_output_node->output_sockets());
     }
     this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
+  }
+
+  void usage_task__input__muted_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    for (const bNodeLink &internal_link : node->internal_links()) {
+      if (internal_link.fromsock != socket.socket) {
+        continue;
+      }
+      this->usage_task__with_dependent_sockets(socket, {internal_link.tosock}, socket.context);
+    }
   }
 
   /**
