@@ -388,8 +388,9 @@ void do_plane_brush(const Depsgraph &depsgraph,
 
   SCULPT_tilt_apply_to_normal(plane_normal, ss.cache, brush.tilt_strength_factor);
 
+  const bool flip = ss.cache->initial_direction_flipped;
   const float offset = SCULPT_brush_plane_offset_get(sd, ss);
-  const float displace = ss.cache->radius * offset * brush_flip(brush, *ss.cache);
+  const float displace = ss.cache->radius * offset * (flip ? -1.0f : 1.0f);
   plane_center += plane_normal * ss.cache->scale * displace;
 
   float4x4 mat = float4x4::identity();
@@ -407,8 +408,6 @@ void do_plane_brush(const Depsgraph &depsgraph,
   float strength = ss.cache->bstrength;
   float height = brush.plane_height;
   float depth = brush.plane_depth;
-
-  const bool flip = ss.cache->initial_direction_flipped;
 
   if (flip) {
     switch (brush.plane_inversion_mode) {

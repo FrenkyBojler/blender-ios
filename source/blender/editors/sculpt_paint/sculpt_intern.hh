@@ -638,8 +638,6 @@ std::optional<BMVert *> nearest_vert_calc_bmesh(const bke::pbvh::Tree &pbvh,
                                                 bool use_original);
 }  // namespace blender::ed::sculpt_paint
 
-float brush_flip(const Brush &brush, const blender::ed::sculpt_paint::StrokeCache &cache);
-
 float SCULPT_brush_plane_offset_get(const Sculpt &sd, const SculptSession &ss);
 
 ePaintSymmetryAreas SCULPT_get_vertex_symm_area(const float co[3]);

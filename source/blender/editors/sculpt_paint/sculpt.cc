@@ -2182,7 +2182,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
  * Calculates the sign of the direction of the brush stroke, typically indicates whether the stroke
  * will deform a surface inwards or outwards along the brush normal.
  */
-float brush_flip(const Brush &brush, const blender::ed::sculpt_paint::StrokeCache &cache)
+static float brush_flip(const Brush &brush, const blender::ed::sculpt_paint::StrokeCache &cache)
 {
   const float dir = (brush.flag & BRUSH_DIR_IN) ? -1.0f : 1.0f;
   const float pen_flip = cache.pen_flip ? -1.0f : 1.0f;
