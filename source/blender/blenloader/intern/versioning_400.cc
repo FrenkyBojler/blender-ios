@@ -106,7 +106,7 @@
 #include "readfile.hh"
 
 #include "versioning_common.hh"
-
+#include <windows.h>
 // static CLG_LogRef LOG = {"blo.readfile.doversion"};
 
 static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
@@ -2442,38 +2442,50 @@ static void version_principled_bsdf_subsurface(bNodeTree *ntree)
     float *subsurf_col_val = version_cycles_node_socket_rgba_value(subsurf_col);
     /* If any of the three inputs is dynamic, we need a Mix node. */
     if (subsurf->link || subsurf_col->link || base_col->link) {
-      bNode *mix = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_MIX);
-      static_cast<NodeShaderMix *>(mix->storage)->data_type = SOCK_RGBA;
-      mix->locx_legacy = node->locx_legacy - 170;
-      mix->locy_legacy = node->locy_legacy - 120;
+      bNode &mix = version_node_add_empty(*ntree, "ShaderNodeMix");
 
-      bNodeSocket *a_in = blender::bke::node_find_socket(mix, SOCK_IN, "A_Color");
-      bNodeSocket *b_in = blender::bke::node_find_socket(mix, SOCK_IN, "B_Color");
-      bNodeSocket *fac_in = blender::bke::node_find_socket(mix, SOCK_IN, "Factor_Float");
-      bNodeSocket *result_out = blender::bke::node_find_socket(mix, SOCK_OUT, "Result_Color");
+      NodeShaderMix *data = MEM_cnew<NodeShaderMix>(__func__);
+      data->data_type = SOCK_RGBA;
+      data->factor_mode = NODE_MIX_MODE_UNIFORM;
+      data->clamp_factor = 1;
+      data->clamp_result = 0;
+      data->blend_type = MA_RAMP_BLEND;
+      mix.storage = data;
 
-      copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), base_col_val);
-      copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), subsurf_col_val);
-      *version_cycles_node_socket_float_value(fac_in) = *subsurf_val;
+      mix.locx_legacy = node->locx_legacy - 170;
+      mix.locy_legacy = node->locy_legacy - 120;
+
+      bNodeSocket &a_in = version_node_add_socket(
+          *ntree, mix, SOCK_IN, "NodeSocketColor", "A_Color");
+      bNodeSocket &b_in = version_node_add_socket(
+          *ntree, mix, SOCK_IN, "NodeSocketColor", "B_Color");
+      bNodeSocket &fac_in = version_node_add_socket(
+          *ntree, mix, SOCK_IN, "NodeSocketFloatFactor", "Factor_Float");
+      bNodeSocket &result_out = version_node_add_socket(
+          *ntree, mix, SOCK_OUT, "NodeSocketColor", "Result_Color");
+
+      copy_v4_v4(version_cycles_node_socket_rgba_value(&a_in), base_col_val);
+      copy_v4_v4(version_cycles_node_socket_rgba_value(&b_in), subsurf_col_val);
+      *version_cycles_node_socket_float_value(&fac_in) = *subsurf_val;
 
       if (base_col->link) {
-        blender::bke::node_add_link(
-            ntree, base_col->link->fromnode, base_col->link->fromsock, mix, a_in);
+        version_node_add_link(
+            *ntree, *base_col->link->fromnode, *base_col->link->fromsock, mix, a_in);
         blender::bke::node_remove_link(ntree, base_col->link);
       }
       if (subsurf_col->link) {
-        blender::bke::node_add_link(
-            ntree, subsurf_col->link->fromnode, subsurf_col->link->fromsock, mix, b_in);
+        version_node_add_link(
+            *ntree, *subsurf_col->link->fromnode, *subsurf_col->link->fromsock, mix, b_in);
         blender::bke::node_remove_link(ntree, subsurf_col->link);
       }
       if (subsurf->link) {
-        blender::bke::node_add_link(
-            ntree, subsurf->link->fromnode, subsurf->link->fromsock, mix, fac_in);
-        blender::bke::node_add_link(
-            ntree, subsurf->link->fromnode, subsurf->link->fromsock, node, scale_in);
+        version_node_add_link(
+            *ntree, *subsurf->link->fromnode, *subsurf->link->fromsock, mix, fac_in);
+        version_node_add_link(
+            *ntree, *subsurf->link->fromnode, *subsurf->link->fromsock, *node, *scale_in);
         blender::bke::node_remove_link(ntree, subsurf->link);
       }
-      blender::bke::node_add_link(ntree, mix, result_out, node, base_col);
+      version_node_add_link(*ntree, mix, result_out, *node, *base_col);
     }
     /* Mix the fixed values. */
     interp_v4_v4v4(base_col_val, base_col_val, subsurf_col_val, *subsurf_val);
@@ -2948,27 +2960,39 @@ static void version_principled_bsdf_specular_tint(bNodeTree *ntree)
     bNode *metallic_mix_node = nullptr;
     if (metallic_sock->link || (base_color_sock->link && metallic > 0.0f)) {
       /* Metallic Mix needs to be dynamically mixed. */
-      bNode *mix = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_MIX);
-      static_cast<NodeShaderMix *>(mix->storage)->data_type = SOCK_RGBA;
-      mix->locx_legacy = node->locx_legacy - 270;
-      mix->locy_legacy = node->locy_legacy - 120;
+      bNode &mix = version_node_add_empty(*ntree, "ShaderNodeMix");
 
-      bNodeSocket *a_in = blender::bke::node_find_socket(mix, SOCK_IN, "A_Color");
-      bNodeSocket *b_in = blender::bke::node_find_socket(mix, SOCK_IN, "B_Color");
-      bNodeSocket *fac_in = blender::bke::node_find_socket(mix, SOCK_IN, "Factor_Float");
-      metallic_mix_out = blender::bke::node_find_socket(mix, SOCK_OUT, "Result_Color");
-      metallic_mix_node = mix;
+      NodeShaderMix *data = MEM_cnew<NodeShaderMix>(__func__);
+      data->data_type = SOCK_RGBA;
+      data->factor_mode = NODE_MIX_MODE_UNIFORM;
+      data->clamp_factor = 1;
+      data->clamp_result = 0;
+      data->blend_type = MA_RAMP_BLEND;
+      mix.storage = data;
 
-      copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), base_color);
+      mix.locx_legacy = node->locx_legacy - 270;
+      mix.locy_legacy = node->locy_legacy - 120;
+
+      bNodeSocket &a_in = version_node_add_socket(
+          *ntree, mix, SOCK_IN, "NodeSocketColor", "A_Color");
+      bNodeSocket &b_in = version_node_add_socket(
+          *ntree, mix, SOCK_IN, "NodeSocketColor", "B_Color");
+      bNodeSocket &fac_in = version_node_add_socket(
+          *ntree, mix, SOCK_IN, "NodeSocketFloatFactor", "Factor_Float");
+      metallic_mix_out = &version_node_add_socket(
+          *ntree, mix, SOCK_OUT, "NodeSocketColor", "Result_Color");
+      metallic_mix_node = &mix;
+
+      copy_v4_v4(version_cycles_node_socket_rgba_value(&a_in), base_color);
       if (base_color_sock->link) {
-        blender::bke::node_add_link(
-            ntree, base_color_sock->link->fromnode, base_color_sock->link->fromsock, mix, a_in);
+        version_node_add_link(
+            *ntree, *base_color_sock->link->fromnode, *base_color_sock->link->fromsock, mix, a_in);
       }
-      copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), one);
-      *version_cycles_node_socket_float_value(fac_in) = metallic;
+      copy_v4_v4(version_cycles_node_socket_rgba_value(&b_in), one);
+      *version_cycles_node_socket_float_value(&fac_in) = metallic;
       if (metallic_sock->link) {
-        blender::bke::node_add_link(
-            ntree, metallic_sock->link->fromnode, metallic_sock->link->fromsock, mix, fac_in);
+        version_node_add_link(
+            *ntree, *metallic_sock->link->fromnode, *metallic_sock->link->fromsock, mix, fac_in);
       }
     }
     else if (base_color_sock->link) {
@@ -2980,31 +3004,43 @@ static void version_principled_bsdf_specular_tint(bNodeTree *ntree)
     /* Similar to above, if the Specular Tint input is dynamic, or fixed > 0 and metallic mix
      * is dynamic, we need to insert a node to compute the new specular tint. */
     if (specular_tint_sock->link || (metallic_mix_out && specular_tint_old > 0.0f)) {
-      bNode *mix = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_MIX);
-      static_cast<NodeShaderMix *>(mix->storage)->data_type = SOCK_RGBA;
-      mix->locx_legacy = node->locx_legacy - 170;
-      mix->locy_legacy = node->locy_legacy - 120;
+      bNode &mix = version_node_add_empty(*ntree, "ShaderNodeMix");
 
-      bNodeSocket *a_in = blender::bke::node_find_socket(mix, SOCK_IN, "A_Color");
-      bNodeSocket *b_in = blender::bke::node_find_socket(mix, SOCK_IN, "B_Color");
-      bNodeSocket *fac_in = blender::bke::node_find_socket(mix, SOCK_IN, "Factor_Float");
-      bNodeSocket *result_out = blender::bke::node_find_socket(mix, SOCK_OUT, "Result_Color");
+      NodeShaderMix *data = MEM_cnew<NodeShaderMix>(__func__);
+      data->data_type = SOCK_RGBA;
+      data->factor_mode = NODE_MIX_MODE_UNIFORM;
+      data->clamp_factor = 1;
+      data->clamp_result = 0;
+      data->blend_type = MA_RAMP_BLEND;
+      mix.storage = data;
 
-      copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), one);
-      copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), metallic_mix);
+      mix.locx_legacy = node->locx_legacy - 170;
+      mix.locy_legacy = node->locy_legacy - 120;
+
+      bNodeSocket &a_in = version_node_add_socket(
+          *ntree, mix, SOCK_IN, "NodeSocketColor", "A_Color");
+      bNodeSocket &b_in = version_node_add_socket(
+          *ntree, mix, SOCK_IN, "NodeSocketColor", "B_Color");
+      bNodeSocket &fac_in = version_node_add_socket(
+          *ntree, mix, SOCK_IN, "NodeSocketFloatFactor", "Factor_Float");
+      bNodeSocket &result_out = version_node_add_socket(
+          *ntree, mix, SOCK_OUT, "NodeSocketColor", "Result_Color");
+
+      copy_v4_v4(version_cycles_node_socket_rgba_value(&a_in), one);
+      copy_v4_v4(version_cycles_node_socket_rgba_value(&b_in), metallic_mix);
       if (metallic_mix_out) {
-        blender::bke::node_add_link(ntree, metallic_mix_node, metallic_mix_out, mix, b_in);
+        version_node_add_link(*ntree, *metallic_mix_node, *metallic_mix_out, mix, b_in);
       }
-      *version_cycles_node_socket_float_value(fac_in) = specular_tint_old;
+      *version_cycles_node_socket_float_value(&fac_in) = specular_tint_old;
       if (specular_tint_sock->link) {
-        blender::bke::node_add_link(ntree,
-                                    specular_tint_sock->link->fromnode,
-                                    specular_tint_sock->link->fromsock,
-                                    mix,
-                                    fac_in);
+        version_node_add_link(*ntree,
+                              *specular_tint_sock->link->fromnode,
+                              *specular_tint_sock->link->fromsock,
+                              mix,
+                              fac_in);
         blender::bke::node_remove_link(ntree, specular_tint_sock->link);
       }
-      blender::bke::node_add_link(ntree, mix, result_out, node, specular_tint_sock);
+      version_node_add_link(*ntree, mix, result_out, *node, *specular_tint_sock);
     }
   }
 }
@@ -3737,6 +3773,55 @@ static void version_geometry_normal_input_node(bNodeTree &ntree)
       if (STREQ(node->idname, "GeometryNodeInputNormal")) {
         node->custom1 = 1;
       }
+    }
+  }
+}
+
+static void node_mix_dynamic_socket_types(bNodeTree &tree)
+{
+  LISTBASE_FOREACH (bNode *, node, &tree.nodes) {
+    if (node->type_legacy != SH_NODE_MIX) {
+      continue;
+    }
+    const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(node->storage);
+
+    switch (eNodeSocketDatatype(storage.data_type)) {
+      case SOCK_FLOAT: {
+        change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
+        change_node_socket_name(&node->inputs, "A_Float", "A");
+        change_node_socket_name(&node->inputs, "B_Float", "B");
+        change_node_socket_name(&node->outputs, "Result_Float", "Result");
+        break;
+      }
+      case SOCK_VECTOR: {
+        if (storage.factor_mode == NODE_MIX_MODE_UNIFORM) {
+          change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
+        }
+        else {
+          change_node_socket_name(&node->inputs, "Factor_Vector", "Factor");
+        }
+
+        change_node_socket_name(&node->inputs, "A_Vector", "A");
+        change_node_socket_name(&node->inputs, "B_Vector", "B");
+        change_node_socket_name(&node->outputs, "Result_Vector", "Result");
+        break;
+      }
+      case SOCK_ROTATION: {
+        change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
+        change_node_socket_name(&node->inputs, "A_Rotation", "A");
+        change_node_socket_name(&node->inputs, "B_Rotation", "B");
+        change_node_socket_name(&node->outputs, "Result_Rotation", "Result");
+        break;
+      }
+      case SOCK_RGBA: {
+        change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
+        change_node_socket_name(&node->inputs, "A_Color", "A");
+        change_node_socket_name(&node->inputs, "B_Color", "B");
+        change_node_socket_name(&node->outputs, "Result_Color", "Result");
+        break;
+      }
+      default:
+        BLI_assert_unreachable();
     }
   }
 }
@@ -5817,6 +5902,16 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         do_version_viewer_shortcut(ntree);
       }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 28)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (!ELEM(ntree->type, NTREE_GEOMETRY, NTREE_SHADER)) {
+        continue;
+      }
+      node_mix_dynamic_socket_types(*ntree);
     }
     FOREACH_NODETREE_END;
   }

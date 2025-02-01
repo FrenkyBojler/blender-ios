@@ -128,7 +128,7 @@ ID *do_versions_rename_id(Main *bmain,
   return id;
 }
 
-static void change_node_socket_name(ListBase *sockets, const char *old_name, const char *new_name)
+void change_node_socket_name(ListBase *sockets, const char *old_name, const char *new_name)
 {
   LISTBASE_FOREACH (bNodeSocket *, socket, sockets) {
     if (STREQ(socket->name, old_name)) {

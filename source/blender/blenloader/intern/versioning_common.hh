@@ -10,6 +10,7 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
+#include "BLI_string_ref.hh"
 
 #include "DNA_node_types.h"
 
@@ -69,6 +70,8 @@ ARegion *do_versions_ensure_region(ListBase *regionbase,
 ID *do_versions_rename_id(Main *bmain, short id_type, const char *name_src, const char *name_dst);
 
 bool version_node_socket_is_used(bNodeSocket *sock);
+
+void change_node_socket_name(ListBase *sockets, const char *old_name, const char *new_name);
 
 void version_node_socket_name(bNodeTree *ntree,
                               int node_type,
