@@ -752,24 +752,24 @@ struct Resources : public select::SelectMap {
     }
 
     switch (theme_id) {
-    case TH_WIRE_EDIT:
-      return theme_settings.color_wire_edit;
-    case TH_ACTIVE:
-      return theme_settings.color_active;
-    case TH_SELECT:
-      return theme_settings.color_select;
-    case TH_TRANSFORM:
-      return theme_settings.color_transform;
-    case TH_SPEAKER:
-      return theme_settings.color_speaker;
-    case TH_CAMERA:
-      return theme_settings.color_camera;
-    case TH_EMPTY:
-      return theme_settings.color_empty;
-    case TH_LIGHT:
-      return theme_settings.color_light;
-    default:
-      return theme_settings.color_wire;
+      case TH_WIRE_EDIT:
+        return theme_settings.color_wire_edit;
+      case TH_ACTIVE:
+        return theme_settings.color_active;
+      case TH_SELECT:
+        return theme_settings.color_select;
+      case TH_TRANSFORM:
+        return theme_settings.color_transform;
+      case TH_SPEAKER:
+        return theme_settings.color_speaker;
+      case TH_CAMERA:
+        return theme_settings.color_camera;
+      case TH_EMPTY:
+        return theme_settings.color_empty;
+      case TH_LIGHT:
+        return theme_settings.color_light;
+      default:
+        return theme_settings.color_wire;
     }
   }
 
