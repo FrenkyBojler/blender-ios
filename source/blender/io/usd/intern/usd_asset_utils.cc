@@ -397,7 +397,7 @@ bool should_import_asset(const std::string &path)
     return true;
   }
 
-  if (is_udim_path(path) && parent_dir_exists_on_file_system(path.c_str())) {
+  if (is_udim_path(path) && parent_dir_exists_on_file_system(path)) {
     return false;
   }
 

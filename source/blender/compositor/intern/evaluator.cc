@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <string>
-
 #include "DNA_node_types.h"
 
 #include "NOD_derived_node_tree.hh"
@@ -162,7 +160,7 @@ void Evaluator::map_node_operation_inputs_to_their_results(DNode node,
 
 /* Create one of the concrete subclasses of the PixelOperation based on the context and compile
  * state. Deleting the operation is the caller's responsibility. */
-PixelOperation *create_pixel_operation(Context &context, CompileState &compile_state)
+static PixelOperation *create_pixel_operation(Context &context, CompileState &compile_state)
 {
   const Schedule &schedule = compile_state.get_schedule();
   PixelCompileUnit &compile_unit = compile_state.get_pixel_compile_unit();
