@@ -912,8 +912,9 @@ class NodeTreeMainUpdater {
           if (!target_input->is_available() || target_input->type != SOCK_MENU) {
             continue;
           }
-          this->update_socket_enum_definition(*output_socket->default_value_typed<bNodeSocketValueMenu>(),
-                                              *target_input->default_value_typed<bNodeSocketValueMenu>());
+          this->update_socket_enum_definition(
+              *output_socket->default_value_typed<bNodeSocketValueMenu>(),
+              *target_input->default_value_typed<bNodeSocketValueMenu>());
         }
       }
 
@@ -923,8 +924,9 @@ class NodeTreeMainUpdater {
             continue;
           }
           BLI_assert(internal_link.fromsock->type == SOCK_MENU);
-          this->update_socket_enum_definition(*internal_link.fromsock->default_value_typed<bNodeSocketValueMenu>(),
-                                              *internal_link.tosock->default_value_typed<bNodeSocketValueMenu>());
+          this->update_socket_enum_definition(
+              *internal_link.fromsock->default_value_typed<bNodeSocketValueMenu>(),
+              *internal_link.tosock->default_value_typed<bNodeSocketValueMenu>());
         }
         continue;
       }
@@ -944,7 +946,9 @@ class NodeTreeMainUpdater {
         if (output->type == SOCK_MENU) {
           constexpr int menu_input = 1;
           constexpr int extend_input = 1;
-          for (bNodeSocket *case_input : node->input_sockets().drop_front(menu_input).drop_back(extend_input)) {
+          for (bNodeSocket *case_input :
+               node->input_sockets().drop_front(menu_input).drop_back(extend_input))
+          {
             this->update_socket_enum_definition(
                 *case_input->default_value_typed<bNodeSocketValueMenu>(),
                 *output->default_value_typed<bNodeSocketValueMenu>());
