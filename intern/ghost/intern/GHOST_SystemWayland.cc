@@ -8721,7 +8721,7 @@ GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
           /* This WAYLAND back-end has not yet implemented desktop color sample. */
           GHOST_kCapabilityDesktopSample |
           /* This WAYLAND backend has not yet implemented custom window decoration styles. */
-          GHOST_kCapabilityCustomWindowDecorationStyles |
+          GHOST_kCapabilityWindowDecorationStyles |
           /* This flag will eventually be removed. */
           ((has_wl_trackpad_physical_direction == 1) ?
                0 :

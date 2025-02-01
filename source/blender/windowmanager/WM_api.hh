@@ -186,11 +186,11 @@ enum eWM_CapabilitiesFlag {
   /** Trackpad physical scroll detection. */
   WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION = (1 << 7),
   /** Support for custom window decoration styles. */
-  WM_CAPABILITY_CUSTOM_WINDOW_DECORATION_STYLES = (1 << 8),
+  WM_CAPABILITY_WINDOW_DECORATION_STYLES = (1 << 8),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
-ENUM_OPERATORS(eWM_CapabilitiesFlag, WM_CAPABILITY_CUSTOM_WINDOW_DECORATION_STYLES)
+ENUM_OPERATORS(eWM_CapabilitiesFlag, WM_CAPABILITY_WINDOW_DECORATION_STYLES)
 
 eWM_CapabilitiesFlag WM_capabilities_flag();
 

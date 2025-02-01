@@ -589,7 +589,7 @@ GHOST_TCapabilityFlag GHOST_SystemWin32::getCapabilities() const
                                    GHOST_kCapabilityPrimaryClipboard |
                                    /* This WIN32 backend has not yet implemented custom window
                                     * decoration styles. */
-                                   GHOST_kCapabilityCustomWindowDecorationStyles));
+                                   GHOST_kCapabilityWindowDecorationStyles));
 }
 
 GHOST_TSuccess GHOST_SystemWin32::init()

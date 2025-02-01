@@ -55,7 +55,7 @@ class GHOST_SystemHeadless : public GHOST_System {
                                    GHOST_kCapabilityPrimaryClipboard |
                                    GHOST_kCapabilityDesktopSample |
                                    GHOST_kCapabilityClipboardImages | GHOST_kCapabilityInputIME |
-                                   GHOST_kCapabilityCustomWindowDecorationStyles));
+                                   GHOST_kCapabilityWindowDecorationStyles));
   }
   char *getClipboard(bool /*selection*/) const override
   {

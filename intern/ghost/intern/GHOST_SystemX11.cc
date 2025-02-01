@@ -1819,7 +1819,7 @@ GHOST_TCapabilityFlag GHOST_SystemX11::getCapabilities() const
                                    /* No support yet for IME input methods. */
                                    GHOST_kCapabilityInputIME |
                                    /* No support yet for custom client-side window decorations. */
-                                   GHOST_kCapabilityCustomWindowDecorationStyles));
+                                   GHOST_kCapabilityWindowDecorationStyles));
 }
 
 void GHOST_SystemX11::addDirtyWindow(GHOST_WindowX11 *bad_wind)

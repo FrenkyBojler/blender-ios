@@ -793,7 +793,7 @@ GHOST_TCapabilityFlag GHOST_SystemSDL::getCapabilities() const
           /* No support yet for IME input methods. */
           GHOST_kCapabilityInputIME |
           /* No support for custom window decoration styles. */
-          GHOST_kCapabilityCustomWindowDecorationStyles));
+          GHOST_kCapabilityWindowDecorationStyles));
 }
 
 char *GHOST_SystemSDL::getClipboard(bool /*selection*/) const

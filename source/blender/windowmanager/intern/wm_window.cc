@@ -917,7 +917,7 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
 
     WM_window_set_dpi(win);
 
-    if (WM_capabilities_flag() & WM_CAPABILITY_CUSTOM_WINDOW_DECORATION_STYLES) {
+    if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES) {
       /* Only decoration style we have for now. */
       WM_window_set_decoration_style_flags(win, WM_DECORATION_STYLE_COLORED_TITLEBAR);
       WM_window_apply_decoration_style(win);
@@ -2241,8 +2241,8 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   if (ghost_flag & GHOST_kCapabilityTrackpadPhysicalDirection) {
     flag |= WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION;
   }
-  if (ghost_flag & GHOST_kCapabilityCustomWindowDecorationStyles) {
-    flag |= WM_CAPABILITY_CUSTOM_WINDOW_DECORATION_STYLES;
+  if (ghost_flag & GHOST_kCapabilityWindowDecorationStyles) {
+    flag |= WM_CAPABILITY_WINDOW_DECORATION_STYLES;
   }
 
   return flag;

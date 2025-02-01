@@ -122,7 +122,7 @@ typedef enum {
   /**
    * Support for custom window decoration styles.
    */
-  GHOST_kCapabilityCustomWindowDecorationStyles = (1 << 8),
+  GHOST_kCapabilityWindowDecorationStyles = (1 << 8),
 } GHOST_TCapabilityFlag;
 
 /**
@@ -134,7 +134,7 @@ typedef enum {
    GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
    GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
    GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection | \
-   GHOST_kCapabilityCustomWindowDecorationStyles)
+   GHOST_kCapabilityWindowDecorationStyles)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
