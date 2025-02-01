@@ -46,9 +46,10 @@ def draw_node_group_add_menu(context, layout):
                 not group.name.startswith('.'))
         ]
 
-        visible_groups = set([node.node_tree for node in node_tree.nodes if node.bl_idname in node_tree_group_type.values()])
-        other_groups = list(set(groups) - visible_groups)
-        visible_groups = list(visible_groups)
+        non_distinct_visible_groups = [
+            node.node_tree for node in node_tree.nodes if node.bl_idname in node_tree_group_type.values()]
+        visible_groups = [group for group in groups if group in non_distinct_visible_groups]
+        other_groups = [group for group in groups if group not in non_distinct_visible_groups]
 
         def add_group_node(node_group):
             props = add_node_type(layout, node_tree_group_type[node_group.bl_idname], label=node_group.name)
@@ -96,8 +97,8 @@ def add_repeat_zone(layout, label):
 def add_foreach_geometry_element_zone(layout, label):
     props = layout.operator(
         "node.add_foreach_geometry_element_zone",
-        text = label,
-        text_ctxt = i18n_contexts.default,
+        text=label,
+        text_ctxt=i18n_contexts.default,
     )
     props.use_transform = True
     return props
