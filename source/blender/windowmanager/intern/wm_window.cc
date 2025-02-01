@@ -620,9 +620,9 @@ void WM_window_set_decoration_style_flags(const wmWindow *win,
       static_cast<GHOST_TWindowDecorationStyleFlags>(ghost_style_flags));
 }
 
-static void wm_window_decoration_style_parse_theme(const wmWindow *win, const bScreen *screen)
+static void wm_window_decoration_style_set_from_theme(const wmWindow *win, const bScreen *screen)
 {
-  /* Set the decoration settings by parsing the current theme.
+  /* Set the decoration style settings from the current theme colors.
    * NOTE: screen may be null. In which case, only the window is used as a theme provider. */
   GHOST_WindowDecorationStyleSettings decoration_settings = {};
 
@@ -654,7 +654,7 @@ static void wm_window_decoration_style_parse_theme(const wmWindow *win, const bS
 void WM_window_apply_decoration_style(const wmWindow *win, const bScreen *screen)
 {
   BLI_assert(WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES);
-  wm_window_decoration_style_parse_theme(win, screen);
+  wm_window_decoration_style_set_from_theme(win, screen);
   GHOST_ApplyWindowDecorationStyle(static_cast<GHOST_WindowHandle>(win->ghostwin));
 }
 
