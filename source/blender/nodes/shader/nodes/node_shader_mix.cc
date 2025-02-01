@@ -37,61 +37,32 @@ NODE_STORAGE_FUNCS(NodeShaderMix)
 static void sh_node_mix_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  /* WARNING:
-   * Input socket indices must be kept in sync with ntree_shader_disconnect_inactive_mix_branches
-   */
-  b.add_input<decl::Float>("Factor", "Factor_Float")
-      .default_value(0.5f)
-      .min(0.0f)
-      .max(1.0f)
-      .subtype(PROP_FACTOR)
-      .no_muted_links()
-      .description("Amount of mixing between the A and B inputs");
-  b.add_input<decl::Vector>("Factor", "Factor_Vector")
-      .default_value(float3(0.5f))
-      .subtype(PROP_FACTOR)
-      .no_muted_links()
-      .description("Amount of mixing between the A and B vector inputs");
+  const bNode *node = b.node_or_null();
+  if (node == nullptr) {
+    return;
+  }
 
-  b.add_input<decl::Float>("A", "A_Float")
-      .min(-10000.0f)
-      .max(10000.0f)
+  const NodeShaderMix &storage = node_storage(*node);
+  const eNodeSocketDatatype data_type = static_cast<eNodeSocketDatatype>(storage.data_type);
+  bool use_vector_factor = data_type == SOCK_VECTOR && storage.factor_mode != NODE_MIX_MODE_UNIFORM;
+
+  BaseSocketDeclarationBuilder *factor_builder = nullptr;
+  if (use_vector_factor) {
+    factor_builder = &b.add_input<decl::Vector>("Factor").default_value(float3(0.5f)).subtype(PROP_FACTOR);
+  } else {
+    factor_builder = &b.add_input<decl::Float>("Factor").default_value(0.5f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  }
+  factor_builder->no_muted_links().description("Amount of mixing between the A and B inputs");
+
+  b.add_input(data_type, "A")
       .is_default_link_socket()
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .description("Value of the first floating number input");
-  b.add_input<decl::Float>("B", "B_Float")
-      .min(-10000.0f)
-      .max(10000.0f)
+      .description("Value of the first input");
+  b.add_input(data_type, "B")
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .description("Value of the second floating number input");
+      .description("Value of the second input");
 
-  b.add_input<decl::Vector>("A", "A_Vector")
-      .is_default_link_socket()
-      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .description("Value of the first vector input");
-  b.add_input<decl::Vector>("B", "B_Vector")
-      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .description("Value of the second vector input");
-
-  b.add_input<decl::Color>("A", "A_Color")
-      .default_value({0.5f, 0.5f, 0.5f, 1.0f})
-      .is_default_link_socket()
-      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .description("Value of the first color input");
-  b.add_input<decl::Color>("B", "B_Color")
-      .default_value({0.5f, 0.5f, 0.5f, 1.0f})
-      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .description("Value of the second color input");
-
-  b.add_input<decl::Rotation>("A", "A_Rotation")
-      .is_default_link_socket()
-      .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-  b.add_input<decl::Rotation>("B", "B_Rotation").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-
-  b.add_output<decl::Float>("Result", "Result_Float");
-  b.add_output<decl::Vector>("Result", "Result_Vector");
-  b.add_output<decl::Color>("Result", "Result_Color");
-  b.add_output<decl::Rotation>("Result", "Result_Rotation");
+  b.add_output(data_type, "Result");
 };
 
 static void sh_node_mix_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -144,30 +115,6 @@ static int sh_node_mix_ui_class(const bNode *node)
       return NODE_CLASS_OP_COLOR;
     default:
       return NODE_CLASS_CONVERTER;
-  }
-}
-
-static void sh_node_mix_update(bNodeTree *ntree, bNode *node)
-{
-  const NodeShaderMix &storage = node_storage(*node);
-  const eNodeSocketDatatype data_type = static_cast<eNodeSocketDatatype>(storage.data_type);
-
-  bNodeSocket *sock_factor = static_cast<bNodeSocket *>(node->inputs.first);
-  bNodeSocket *sock_factor_vec = static_cast<bNodeSocket *>(sock_factor->next);
-
-  bool use_vector_factor = data_type == SOCK_VECTOR &&
-                           storage.factor_mode != NODE_MIX_MODE_UNIFORM;
-
-  bke::node_set_socket_availability(ntree, sock_factor, !use_vector_factor);
-
-  bke::node_set_socket_availability(ntree, sock_factor_vec, use_vector_factor);
-
-  for (bNodeSocket *socket = sock_factor_vec->next; socket != nullptr; socket = socket->next) {
-    bke::node_set_socket_availability(ntree, socket, socket->type == data_type);
-  }
-
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
-    bke::node_set_socket_availability(ntree, socket, socket->type == data_type);
   }
 }
 
@@ -366,21 +313,20 @@ static int gpu_shader_mix(GPUMaterial *mat,
   }
 
   if (storage.clamp_factor) {
+    const GPUNodeLink *factor_link = in[0].link ? in[0].link : GPU_uniform(in[0].vec);
     if (is_non_uniform && is_vector_mode) {
       const float min[3] = {0.0f, 0.0f, 0.0f};
       const float max[3] = {1.0f, 1.0f, 1.0f};
-      const GPUNodeLink *factor_link = in[1].link ? in[1].link : GPU_uniform(in[1].vec);
       GPU_link(mat,
                "node_mix_clamp_vector",
                factor_link,
                GPU_constant(min),
                GPU_constant(max),
-               &in[1].link);
+               &in[0].link);
     }
     else {
       const float min = 0.0f;
       const float max = 1.0f;
-      const GPUNodeLink *factor_link = in[0].link ? in[0].link : GPU_uniform(in[0].vec);
       GPU_link(mat,
                "node_mix_clamp_value",
                factor_link,
@@ -397,10 +343,10 @@ static int gpu_shader_mix(GPUMaterial *mat,
     const float max[3] = {1.0f, 1.0f, 1.0f};
     GPU_link(mat,
              "node_mix_clamp_vector",
-             out[2].link,
+             out[0].link,
              GPU_constant(min),
              GPU_constant(max),
-             &out[2].link);
+             &out[0].link);
   }
   return ret;
 }
@@ -548,33 +494,10 @@ NODE_SHADER_MATERIALX_BEGIN
   NodeItem factor = empty();
   NodeItem value1 = empty();
   NodeItem value2 = empty();
-  switch (data->data_type) {
-    case SOCK_FLOAT:
-      factor = get_input_value(0, NodeItem::Type::Float);
-      value1 = get_input_value(2, NodeItem::Type::Float);
-      value2 = get_input_value(3, NodeItem::Type::Float);
-      break;
 
-    case SOCK_VECTOR:
-      if (data->factor_mode == NODE_MIX_MODE_UNIFORM) {
-        factor = get_input_value(0, NodeItem::Type::Float);
-      }
-      else {
-        factor = get_input_value(1, NodeItem::Type::Vector3);
-      }
-      value1 = get_input_value(4, NodeItem::Type::Vector3);
-      value2 = get_input_value(5, NodeItem::Type::Vector3);
-      break;
-
-    case SOCK_RGBA:
-      factor = get_input_value(0, NodeItem::Type::Float);
-      value1 = get_input_value(6, NodeItem::Type::Color3);
-      value2 = get_input_value(7, NodeItem::Type::Color3);
-      break;
-
-    default:
-      BLI_assert_unreachable();
-  }
+  factor = get_input_value(0, NodeItem::Type::Float);
+  value1 = get_input_value(1, NodeItem::Type::Float);
+  value2 = get_input_value(2, NodeItem::Type::Float);
 
   if (data->clamp_factor) {
     factor = factor.clamp();
@@ -607,7 +530,6 @@ void register_node_type_sh_mix()
   ntype.declare = file_ns::sh_node_mix_declare;
   ntype.ui_class = file_ns::sh_node_mix_ui_class;
   ntype.gpu_fn = file_ns::gpu_shader_mix;
-  ntype.updatefunc = file_ns::sh_node_mix_update;
   ntype.initfunc = file_ns::node_mix_init;
   blender::bke::node_type_storage(
       &ntype, "NodeShaderMix", node_free_standard_storage, node_copy_standard_storage);

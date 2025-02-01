@@ -1074,88 +1074,78 @@ static void iter_shader_to_rgba_depth_count(bNode *node,
   }
 }
 
-static void shader_node_disconnect_input(bNodeTree *ntree, bNode *node, int index)
+static std::optional<bool> mix_branch_to_discard(const bNode &mix_node, const blender::StringRef factor_socket, const bool clamp_factor)
 {
-  bNodeLink *link = ntree_shader_node_input_get(node, index)->link;
-  if (link) {
-    blender::bke::node_remove_link(ntree, link);
+  const bNodeSocket *factor_input = blender::bke::node_find_socket(&mix_node, SOCK_IN, factor_socket);
+  BLI_assert(factor_input != nullptr);
+  if (factor_input->link != nullptr) {
+    return std::nullopt;
   }
-}
 
-static void shader_node_disconnect_inactive_mix_branch(bNodeTree *ntree,
-                                                       bNode *node,
-                                                       int factor_socket_index,
-                                                       int a_socket_index,
-                                                       int b_socket_index,
-                                                       bool clamp_factor)
-{
-  bNodeSocket *factor_socket = ntree_shader_node_input_get(node, factor_socket_index);
-  if (factor_socket->link == nullptr) {
-    float factor = 0.5;
-
-    if (factor_socket->type == SOCK_FLOAT) {
-      factor = factor_socket->default_value_typed<bNodeSocketValueFloat>()->value;
-      if (clamp_factor) {
-        factor = clamp_f(factor, 0.0f, 1.0f);
-      }
-    }
-    else if (factor_socket->type == SOCK_VECTOR) {
-      const float *vfactor = factor_socket->default_value_typed<bNodeSocketValueVector>()->value;
-      float vfactor_copy[3];
-      for (int i = 0; i < 3; i++) {
+  const auto factor = [&]() -> std::optional<float>{
+    switch (factor_input->type) {
+      case SOCK_FLOAT: {
+        const float factor = factor_input->default_value_typed<bNodeSocketValueFloat>()->value;
         if (clamp_factor) {
-          vfactor_copy[i] = clamp_f(vfactor[i], 0.0f, 1.0f);
+          return clamp_f(factor, 0.0f, 1.0f);
         }
-        else {
-          vfactor_copy[i] = vfactor[i];
+        return factor;
+      }
+      case SOCK_VECTOR: {
+        const float *vfactor = factor_input->default_value_typed<bNodeSocketValueVector>()->value;
+        float vfactor_copy[3];
+        for (int i = 0; i < 3; i++) {
+          if (clamp_factor) {
+            vfactor_copy[i] = clamp_f(vfactor[i], 0.0f, 1.0f);
+          }
+          else {
+            vfactor_copy[i] = vfactor[i];
+          }
         }
+        if (vfactor_copy[0] == vfactor_copy[1] || vfactor_copy[0] == vfactor_copy[2]) {
+          return vfactor_copy[0];
+        }
+        return std::nullopt;
       }
-      if (vfactor_copy[0] == vfactor_copy[1] && vfactor_copy[0] == vfactor_copy[2]) {
-        factor = vfactor_copy[0];
-      }
+      default:
+        BLI_assert_unreachable();
+      return std::nullopt;
     }
-
-    if (factor == 1.0f && a_socket_index >= 0) {
-      shader_node_disconnect_input(ntree, node, a_socket_index);
-    }
-    else if (factor == 0.0f && b_socket_index >= 0) {
-      shader_node_disconnect_input(ntree, node, b_socket_index);
-    }
+  }();
+  
+  if (factor == 0.0f) {
+    return false;
   }
+  if (factor == 1.0f) {
+    return true;
+  }
+  return std::nullopt;
 }
 
 static void ntree_shader_disconnect_inactive_mix_branches(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (node->typeinfo->type_legacy == SH_NODE_MIX_SHADER) {
-      shader_node_disconnect_inactive_mix_branch(ntree, node, 0, 1, 2, true);
+      const std::optional<bool> branch_to_discard = mix_branch_to_discard(*node, "Fac", true);
+      if (!branch_to_discard.has_value()) {
+        continue;
+      }
+      const bNodeSocket *branch_socket = blender::bke::node_find_socket(node, SOCK_IN, (!*branch_to_discard) ? "Shader_001" : "Shader");
+      BLI_assert(branch_socket != nullptr);
+      if (branch_socket->link) {
+        blender::bke::node_remove_link(ntree, branch_socket->link);
+      }
     }
     else if (node->typeinfo->type_legacy == SH_NODE_MIX) {
-      const NodeShaderMix *storage = static_cast<NodeShaderMix *>(node->storage);
-      if (storage->data_type == SOCK_FLOAT) {
-        shader_node_disconnect_inactive_mix_branch(ntree, node, 0, 2, 3, storage->clamp_factor);
-        /* Disconnect links from data_type-specific sockets that are not currently in use */
-        for (int i : {1, 4, 5, 6, 7}) {
-          shader_node_disconnect_input(ntree, node, i);
-        }
+      const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(node->storage);
+      const std::optional<bool> branch_to_discard = mix_branch_to_discard(*node, "Factor", storage.clamp_factor);
+      if (!branch_to_discard.has_value()) {
+        continue;
       }
-      else if (storage->data_type == SOCK_VECTOR) {
-        int factor_socket = storage->factor_mode == NODE_MIX_MODE_UNIFORM ? 0 : 1;
-        shader_node_disconnect_inactive_mix_branch(
-            ntree, node, factor_socket, 4, 5, storage->clamp_factor);
-        /* Disconnect links from data_type-specific sockets that are not currently in use */
-        int unused_factor_socket = factor_socket == 0 ? 1 : 0;
-        for (int i : {unused_factor_socket, 2, 3, 6, 7}) {
-          shader_node_disconnect_input(ntree, node, i);
-        }
-      }
-      else if (storage->data_type == SOCK_RGBA) {
-        /* Branch A can't be optimized-out, since its alpha is always used regardless of factor */
-        shader_node_disconnect_inactive_mix_branch(ntree, node, 0, -1, 7, storage->clamp_factor);
-        /* Disconnect links from data_type-specific sockets that are not currently in use */
-        for (int i : {1, 2, 3, 4, 5}) {
-          shader_node_disconnect_input(ntree, node, i);
-        }
+      const bNodeSocket *branch_socket = blender::bke::node_find_socket(node, SOCK_IN, (!*branch_to_discard) ? "B" : "A");
+      BLI_assert(branch_socket != nullptr);
+      if (branch_socket->link) {
+        blender::bke::node_remove_link(ntree, branch_socket->link);
       }
     }
   }
