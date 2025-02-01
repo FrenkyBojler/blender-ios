@@ -1187,6 +1187,9 @@ static void create_edit_bezier_segment_vbo_ibo(const bke::CurvesGeometry &curves
 
   GPU_vertbuf_init_with_format(*cache.edit_bezier_segment_data, format_segments);
   GPU_vertbuf_data_alloc(*cache.edit_bezier_segment_data, segment_data.size());
+  if (segment_data.size() == 0) {
+    return;
+  }
   std::copy_n(segment_data.data(),
               segment_data.size(),
               cache.edit_bezier_segment_data->data<CurveSegment>().data());
