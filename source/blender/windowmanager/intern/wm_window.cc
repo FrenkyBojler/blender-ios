@@ -597,10 +597,10 @@ eWM_WindowDecorationStyleFlag WM_window_get_decoration_style_flags(const wmWindo
   const GHOST_TWindowDecorationStyleFlags ghost_style_flags = GHOST_GetWindowDecorationStyleFlags(
       static_cast<GHOST_WindowHandle>(win->ghostwin));
 
-  eWM_WindowDecorationStyleFlag wm_style_flags = WM_DECORATION_STYLE_NONE;
+  eWM_WindowDecorationStyleFlag wm_style_flags = WM_WINDOW_DECORATION_STYLE_NONE;
 
   if (ghost_style_flags & GHOST_kDecorationColoredTitleBar) {
-    wm_style_flags |= WM_DECORATION_STYLE_COLORED_TITLEBAR;
+    wm_style_flags |= WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR;
   }
 
   return wm_style_flags;
@@ -611,7 +611,7 @@ void WM_window_set_decoration_style_flags(const wmWindow *win,
 {
   unsigned int ghost_style_flags = GHOST_kDecorationNone;
 
-  if (style_flags & WM_DECORATION_STYLE_COLORED_TITLEBAR) {
+  if (style_flags & WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR) {
     ghost_style_flags |= GHOST_kDecorationColoredTitleBar;
   }
 
@@ -919,7 +919,7 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
 
     if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES) {
       /* Only decoration style we have for now. */
-      WM_window_set_decoration_style_flags(win, WM_DECORATION_STYLE_COLORED_TITLEBAR);
+      WM_window_set_decoration_style_flags(win, WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR);
       WM_window_apply_decoration_style(win);
     }
   }

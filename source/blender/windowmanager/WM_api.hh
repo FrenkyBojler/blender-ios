@@ -382,11 +382,11 @@ bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
  * NOTE: To be kept in sync with #GHOST_TWindowDecorationFlags. */
 enum eWM_WindowDecorationStyleFlag {
   /** No Decorations. */
-  WM_DECORATION_STYLE_NONE = 0,
+  WM_WINDOW_DECORATION_STYLE_NONE = 0,
   /** Custom Colored Titlebar. */
-  WM_DECORATION_STYLE_COLORED_TITLEBAR = (1 << 0),
+  WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR = (1 << 0),
 };
-ENUM_OPERATORS(eWM_WindowDecorationStyleFlag, WM_DECORATION_STYLE_COLORED_TITLEBAR)
+ENUM_OPERATORS(eWM_WindowDecorationStyleFlag, WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR)
 
 /* Get/set window decoration style flags. */
 eWM_WindowDecorationStyleFlag WM_window_get_decoration_style_flags(const wmWindow *win);
