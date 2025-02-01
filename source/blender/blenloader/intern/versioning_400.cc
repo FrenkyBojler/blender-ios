@@ -106,7 +106,7 @@
 #include "readfile.hh"
 
 #include "versioning_common.hh"
-#include <windows.h>
+
 // static CLG_LogRef LOG = {"blo.readfile.doversion"};
 
 static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
