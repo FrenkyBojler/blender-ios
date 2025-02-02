@@ -1343,10 +1343,9 @@ static void draw_selected_name(
     info_array[i++] = msg_space;
     info_array[i++] = ob->id.name + 2;
 
-    /* show object data name when not in object mode */
+    /* Show object data name when not in object mode. */
     if (ob->mode != OB_MODE_OBJECT) {
-      ID *data_id = static_cast<ID *>(ob->data);
-      if (data_id) {
+      if (const ID *data_id = static_cast<const ID *>(ob->data)) {
         info_array[i++] = " | ";
         info_array[i++] = data_id->name + 2;
       }
