@@ -263,6 +263,7 @@ class MeshState {
   }
 };
 
+/* Replace an entire attributes data using implicit sharing to avoid copies when possible. */
 static void replace_attribute(const bke::AttributeAccessor src_attributes,
                               const StringRef name,
                               const bke::AttrDomain domain,
@@ -312,6 +313,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
     store_sculpt_entire_mesh(op, scene, object, new_mesh);
   }
   else {
+    /* Detect attributes present in the new mesh which no longer match the original. */
     VectorSet<StringRef> changed_attributes;
     new_mesh->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
       if (ELEM(iter.name, ".edge_verts", ".corner_vert", ".corner_edge")) {
@@ -323,12 +325,15 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       }
       changed_attributes.add(iter.name);
     });
+    /* Detect attributes that were removed in the new mesh. */
     mesh.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
       if (!new_mesh->attributes().contains(iter.name)) {
         changed_attributes.add(iter.name);
       }
     });
 
+    /* Try to use the few specialized sculpt undo types that result in better performance, mainly
+     * because redo avoids clearing the BVH, but also because some other updates can be skipped. */
     bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
     IndexMaskMemory memory;
     const IndexMask leaf_nodes = bke::pbvh::all_leaf_nodes(pbvh, memory);
