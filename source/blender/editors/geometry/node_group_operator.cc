@@ -303,6 +303,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
 {
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   const bool changed_topology = orig_mesh_state.topology_changed(*new_mesh);
+  const bool use_pbvh_draw = BKE_sculptsession_use_pbvh_draw(&object, rv3d);
 
   if (changed_topology) {
     store_sculpt_entire_mesh(op, scene, object, new_mesh);
@@ -353,8 +354,15 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       }
 
       pbvh.tag_positions_changed(leaf_nodes);
-      mesh.tag_positions_changed_no_normals();
       bke::pbvh::update_bounds(depsgraph, object, pbvh);
+      if (use_pbvh_draw) {
+        mesh.tag_positions_changed_no_normals();
+        mesh.runtime->corner_normals_cache.tag_dirty();
+      }
+      else {
+        mesh.tag_positions_changed();
+      }
+      mesh.bounds_set_eager(bke::pbvh::bounds_get(pbvh));
       BKE_mesh_copy_parameters(&mesh, new_mesh);
       BKE_id_free(nullptr, new_mesh);
     }
@@ -391,7 +399,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
     }
   }
   DEG_id_tag_update(&mesh.id, ID_RECALC_SHADING);
-  if (!BKE_sculptsession_use_pbvh_draw(&object, rv3d)) {
+  if (!use_pbvh_draw) {
     DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
   }
 }
