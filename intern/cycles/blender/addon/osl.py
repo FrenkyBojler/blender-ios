@@ -217,3 +217,9 @@ def update_script_node(node, report):
             pass
 
     return ok
+
+
+def update_camera_script(cam, report):
+    """compile and update camera script"""
+    # TODO Implement
+    return True
