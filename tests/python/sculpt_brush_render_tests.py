@@ -29,35 +29,6 @@ def set_view3d_context_override(context_override):
                 context_override["region"] = region
 
 
-def prepare_sculpt_scene(context: any):
-    """
-    Prepare a clean state of the scene suitable for benchmarking
-
-    It creates a high-res object and moves it to a sculpt mode.
-    """
-
-    import bpy
-
-    # Ensure the current mode is object, as it might not always be the case
-    # if the benchmark script is run from a non-clean state of the .blend file.
-    if context.object:
-        bpy.ops.object.mode_set(mode='OBJECT')
-
-    # Delete all current objects from the scene.
-    bpy.ops.object.select_by_type(type='MESH')
-    bpy.ops.object.delete(use_global=False)
-    bpy.ops.outliner.orphans_purge()
-
-    # Add and subdivide monkey
-    bpy.ops.mesh.primitive_monkey_add(size=2, align='WORLD', location=(0, 0, 0), scale=(1, 1, 1,))
-    bpy.ops.object.subdivision_set(level=5)
-    bpy.ops.object.modifier_apply(modifier="Subdivision")
-
-    # Enter Sculpt mode
-    bpy.ops.object.select_by_type(type='MESH')
-    bpy.ops.object.mode_set(mode='SCULPT')
-
-
 def generate_stroke(context):
     """
     Generate stroke for the bpy.ops.sculpt.brush_stroke operator
@@ -105,7 +76,10 @@ def setup():
     # Create an undo stack explicitly. This isn't created by default in background mode.
     bpy.ops.ed.undo_push()
 
-    prepare_sculpt_scene(context)
+    # Forcibly flip the object out of and back into sculpt mode to avoid poll errors due to non-initialized
+    # tool runtime data.
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.mode_set(mode='SCULPT')
 
     context_override = context.copy()
     set_view3d_context_override(context_override)
@@ -113,6 +87,9 @@ def setup():
     with context.temp_override(**context_override):
         bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
 
+    # Multires workaround - we need to leave sculpt mode currently to flush MDISP data so that the
+    # render actually works.
+    bpy.ops.object.mode_set(mode='OBJECT')
 
 try:
     import bpy
@@ -167,8 +144,6 @@ def main():
     from modules import render_report
     report = render_report.Report("Sculpt", args.outdir, args.oiiotool)
     report.set_pixelated(True)
-    # TODO: Determine what good thresholds are for these tests, currently we have them rather aggressive, but
-    # They do report a %1.01 failure rate with the current threshold
     report.set_fail_threshold(2.0 / 255.0)
     report.set_fail_percent(1.5)
     report.set_reference_dir("reference")
