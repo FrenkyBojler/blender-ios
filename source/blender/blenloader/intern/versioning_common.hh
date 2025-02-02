@@ -10,7 +10,6 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
-#include "BLI_string_ref.hh"
 
 #include "DNA_node_types.h"
 
