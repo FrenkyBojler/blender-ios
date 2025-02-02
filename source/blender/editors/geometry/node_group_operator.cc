@@ -389,6 +389,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       store_sculpt_entire_mesh(op, scene, object, new_mesh);
     }
   }
+  DEG_id_tag_update(&mesh.id, ID_RECALC_SHADING);
   if (!BKE_sculptsession_use_pbvh_draw(&object, rv3d)) {
     DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
   }
