@@ -398,6 +398,9 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       BKE_id_free(nullptr, new_mesh);
     }
     else {
+      /* Non-geometry-type sculpt undo steps can only handle a single change at a time. When
+       * multiple attributes or attributes that don't have their own undo type are changed, we're
+       * forced to fall back to the slower geometry undo type. */
       store_sculpt_entire_mesh(op, scene, object, new_mesh);
     }
   }
