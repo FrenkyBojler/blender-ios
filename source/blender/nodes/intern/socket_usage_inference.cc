@@ -431,12 +431,14 @@ struct SocketUsageInferencer {
   void usage_task__input__muted_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
+    Vector<const bNodeSocket *> dependent_sockets;
     for (const bNodeLink &internal_link : node->internal_links()) {
       if (internal_link.fromsock != socket.socket) {
         continue;
       }
-      this->usage_task__with_dependent_sockets(socket, {internal_link.tosock}, socket.context);
+      dependent_sockets.append(internal_link.tosock);
     }
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
   }
 
   /**
