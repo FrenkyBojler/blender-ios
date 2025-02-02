@@ -1324,11 +1324,13 @@ static void node_mix_dynamic_socket_types(Main &bmain, bNodeTree &tree, ID *owne
 
     const auto replace_socket_index = [&](const int old_socket_index, const int new_socket_index) {
       BKE_fcurves_id_cb(&tree.id, [&](ID * /*id*/, FCurve *fcurve) {
-        const std::string old_input_rna_path = fmt::format("nodes[\"{}\"].inputs[{}].default_value", escaped_node_name, old_socket_index);
+        const std::string old_input_rna_path = fmt::format(
+            "nodes[\"{}\"].inputs[{}].default_value", escaped_node_name, old_socket_index);
         if (old_input_rna_path != blender::StringRef(fcurve->rna_path)) {
           return;
         }
-        const std::string new_input_rna_path = fmt::format("nodes[\"{}\"].inputs[{}].default_value", escaped_node_name, new_socket_index);
+        const std::string new_input_rna_path = fmt::format(
+            "nodes[\"{}\"].inputs[{}].default_value", escaped_node_name, new_socket_index);
 
         MEM_freeN(fcurve->rna_path);
         fcurve->rna_path = BLI_strdup(new_input_rna_path.c_str());
@@ -1344,7 +1346,8 @@ static void node_mix_dynamic_socket_types(Main &bmain, bNodeTree &tree, ID *owne
         change_node_socket_name(&node->inputs, "B_Float", "B");
         change_node_socket_name(&node->outputs, "Result_Float", "Result");
 
-        // TODO: Also we have to delete animations of other sokcets here since socket usage. See: #133925.
+        // TODO: Also we have to delete animations of other sokcets here since socket usage. See:
+        // #133925.
 
         replace_socket_index(2, 1);
         replace_socket_index(3, 2);
@@ -1362,7 +1365,7 @@ static void node_mix_dynamic_socket_types(Main &bmain, bNodeTree &tree, ID *owne
         change_node_socket_name(&node->inputs, "A_Vector", "A");
         change_node_socket_name(&node->inputs, "B_Vector", "B");
         change_node_socket_name(&node->outputs, "Result_Vector", "Result");
-        
+
         replace_socket_index(4, 1);
         replace_socket_index(5, 2);
         break;
