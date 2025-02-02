@@ -2318,9 +2318,8 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
                                          const bNodeTreeInterfacePanel &interface_panel,
                                          const bool skip_first = false)
 {
-  Span<const bNodeTreeInterfaceItem *> panel_items = interface_panel.items().drop_front(
-      skip_first ? 1 : 0);
-  for (const bNodeTreeInterfaceItem *item : panel_items) {
+  for (const bNodeTreeInterfaceItem *item : interface_panel.items().drop_front(skip_first ? 1 : 0))
+  {
     if (item->item_type == NODE_INTERFACE_PANEL) {
       const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
       if (!interface_panel_has_socket(sub_interface_panel)) {
@@ -2331,7 +2330,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
           ctx.md_ptr->owner_id, &RNA_NodesModifierPanel, panel);
       PanelLayout panel_layout;
       bool skip_first = false;
-      if (const auto *boolean_socket = has_first_boolean_socket_with_same_name(
+      if (const bNodeTreeInterfaceSocket *boolean_socket = has_first_boolean_socket_with_same_name(
               sub_interface_panel))
       {
         const StringRefNull identifier = boolean_socket->identifier;
