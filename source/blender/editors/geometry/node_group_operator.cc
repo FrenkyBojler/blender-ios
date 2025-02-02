@@ -352,8 +352,9 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
         mesh.vert_positions_for_write().copy_from(VArraySpan(*position));
       }
 
-      mesh.tag_positions_changed_no_normals();
       pbvh.tag_positions_changed(leaf_nodes);
+      mesh.tag_positions_changed_no_normals();
+      bke::pbvh::update_bounds(depsgraph, object, pbvh);
       BKE_mesh_copy_parameters(&mesh, new_mesh);
       BKE_id_free(nullptr, new_mesh);
     }
