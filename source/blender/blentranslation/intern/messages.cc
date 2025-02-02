@@ -617,8 +617,12 @@ const char *translate(const int domain, const StringRef context, const char *key
   if (!global_messages) {
     return nullptr;
   }
-
-  return global_messages->translate(domain, context, key)->c_str();  // TODO
+  const std::optional<StringRefNull> translation = global_messages->translate(
+      domain, context, key);
+  if (!translation) {
+    return nullptr;
+  }
+  return translation->c_str();
 }
 
 const char *full_name()
