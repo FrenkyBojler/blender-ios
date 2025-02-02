@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <iostream>
-
 #include "BLI_array_utils.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix.hh"
@@ -44,6 +42,21 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Geometry>("Instances").propagate_all();
 }
+
+static IndexMask existed_layers_mask(IndexMaskMemory &memory, const GreasePencil &grease_pencil)
+{
+  using namespace bke::greasepencil;
+  return IndexMask::from_predicate(
+      grease_pencil.layers().index_range(), GrainSize(4096), memory, [&](const int layer_index) {
+        const Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
+        if (drawing == nullptr) {
+          return false;
+        }
+        const bke::CurvesGeometry &src_curves = drawing->strokes();
+        return !src_curves.is_empty();
+      });
+}
+
 static void wrap_indices(const int total, MutableSpan<int> indices)
 {
   threading::parallel_for(indices.index_range(), 4096 * 4, [&](const IndexRange range) {
@@ -136,7 +149,6 @@ static GeometrySet instances_on_domain(const VArray<bool> &pick_instances,
   bke::Instances *dst_instances = new bke::Instances();
   dst_instances->resize(selection.size());
   MutableSpan<int> dst_handles = dst_instances->reference_handles_for_write();
-  dst_handles.fill(-1);
   MutableSpan<float4x4> dst_transforms = dst_instances->transforms_for_write();
 
   loc_rot_scale_to_transform(positions, rotations, scales, selection, dst_transforms);
@@ -147,7 +159,6 @@ static GeometrySet instances_on_domain(const VArray<bool> &pick_instances,
   }
 
   if (selected_picked_mask.is_empty()) {
-    BLI_assert(!dst_handles.contains(-1));
     return GeometrySet::from_instances(dst_instances);
   }
 
@@ -155,7 +166,6 @@ static GeometrySet instances_on_domain(const VArray<bool> &pick_instances,
   if (instances == nullptr) {
     const int empty_handler_index = dst_instances->add_reference(GeometrySet());
     index_mask::masked_fill<int>(dst_handles, empty_handler_index, selected_picked_mask);
-    BLI_assert(!dst_handles.contains(-1));
     return GeometrySet::from_instances(dst_instances);
   }
 
@@ -166,7 +176,6 @@ static GeometrySet instances_on_domain(const VArray<bool> &pick_instances,
   if (instance_handlers.is_empty()) {
     const int empty_handler_index = dst_instances->add_reference(GeometrySet());
     index_mask::masked_fill<int>(dst_handles, empty_handler_index, selected_picked_mask);
-    BLI_assert(!dst_handles.contains(-1));
     return GeometrySet::from_instances(dst_instances);
   }
 
@@ -237,7 +246,6 @@ static GeometrySet instances_on_domain(const VArray<bool> &pick_instances,
         gathered_pick_indices_data.as_span(), selected_picked_mask, dst_handles);
   }
 
-  BLI_assert(!dst_handles.contains(-1));
   return GeometrySet::from_instances(dst_instances);
 }
 
@@ -261,7 +269,8 @@ static void node_geo_exec(GeoNodeExecParams params)
       [&](const bke::AttributeAccessor src_attributes,
           const fn::FieldContext &field_context,
           const Map<StringRef, AttributeDomainAndType> &attributes_to_propagate) {
-        fn::FieldEvaluator evaluator(field_context, src_attributes.domain_size(AttrDomain::Point));
+        const int domain_size = src_attributes.domain_size(AttrDomain::Point);
+        fn::FieldEvaluator evaluator(field_context, domain_size);
 
         evaluator.set_selection(selection_field);
         evaluator.add(pick_instances_field);
@@ -297,21 +306,36 @@ static void node_geo_exec(GeoNodeExecParams params)
         InstancesComponent &instances_component =
             instanced_geometry.get_component_for_write<InstancesComponent>();
 
+        /* This force attribute propagation from any source domain via point domain to instances.
+         */
         bke::MutableAttributeAccessor dst_attributes = *instances_component.attributes_for_write();
         for (const auto item : attributes_to_propagate.items()) {
-          if (item.value.data_type == CD_PROP_STRING) {
+          const StringRef id = item.key;
+          const eCustomDataType data_type = item.value.data_type;
+          if (data_type == CD_PROP_STRING) {
             continue;
           }
           const bke::GAttributeReader src = src_attributes.lookup(
-              item.key, AttrDomain::Point, item.value.data_type);
+              id, AttrDomain::Point, data_type);
           if (!src) {
             continue;
           }
+
+          if (selection.size() == domain_size && src.varray.size() == domain_size &&
+              src.sharing_info && src.varray.is_span())
+          {
+            const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
+                                                *src.sharing_info);
+            dst_attributes.add(id, AttrDomain::Instance, data_type, init);
+            continue;
+          }
+
           bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_span(
-              item.key, AttrDomain::Instance, item.value.data_type);
+              id, AttrDomain::Instance, data_type);
           if (!src) {
             continue;
           }
+
           array_utils::gather(*src, selection, dst.span);
           dst.finish();
         }
@@ -368,19 +392,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
 
       IndexMaskMemory memory;
-      const IndexMask drawings_mask = IndexMask::from_predicate(
-          grease_pencil.layers().index_range(),
-          GrainSize(4096),
-          memory,
-          [&](const int layer_index) {
-            const Drawing *drawing = grease_pencil.get_eval_drawing(
-                grease_pencil.layer(layer_index));
-            if (drawing == nullptr) {
-              return false;
-            }
-            const bke::CurvesGeometry &src_curves = drawing->strokes();
-            return !src_curves.is_empty();
-          });
+      const IndexMask drawings_mask = existed_layers_mask(memory, grease_pencil);
 
       Array<GeometrySet> drawing_instances(drawings_mask.size());
       drawings_mask.foreach_index(GrainSize(16), [&](const int layer_index) {
@@ -418,6 +430,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     geometry_set.remove_geometry_during_modify();
   });
+
+  if (has_skiped_realized_instances) {
+    params.error_message_add(NodeWarningType::Info,
+                             TIP_("Realized geometry is not used when pick instances is true"));
+  }
 
   params.set_output("Instances", std::move(geometry_set));
 }
