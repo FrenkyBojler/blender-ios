@@ -50,30 +50,18 @@ struct OSLShaderInfo {
   bool has_surface_bssrdf = false;
 };
 
-/* Shader Manage */
-
-class OSLShaderManager : public ShaderManager {
+class OSLManager {
  public:
-  OSLShaderManager(Device *device);
-  ~OSLShaderManager() override;
+  OSLManager(Device *device);
+  ~OSLManager();
 
   static void free_memory();
 
-  void reset(Scene *scene) override;
+  void reset(Scene *scene);
 
-  bool use_osl() override
-  {
-    return true;
-  }
-
-  uint64_t get_attribute_id(ustring name) override;
-  uint64_t get_attribute_id(AttributeStandard std) override;
-
-  void device_update_specific(Device *device,
-                              DeviceScene *dscene,
-                              Scene *scene,
-                              Progress &progress) override;
-  void device_free(Device *device, DeviceScene *dscene, Scene *scene) override;
+  void device_update_pre(Device *device, Scene *scene);
+  void device_update_post(Device *device, Scene *scene, Progress &progress);
+  void device_free(Device *device, DeviceScene *dscene, Scene *scene);
 
   /* osl compile and query */
   static bool osl_compile(const string &inputfile, const string &outputfile);
@@ -85,15 +73,10 @@ class OSLShaderManager : public ShaderManager {
   const char *shader_load_filepath(string filepath);
   OSLShaderInfo *shader_loaded_info(const string &hash);
 
-  /* create OSL node using OSLQuery */
-  static OSLNode *osl_node(ShaderGraph *graph,
-                           ShaderManager *manager,
-                           const std::string &filepath,
-                           const std::string &bytecode_hash = "",
-                           const std::string &bytecode = "");
+  OSL::ShadingSystem *get_shading_system(Device *sub_device);
 
-  /* Get image slots used by OSL services on device. */
-  static void osl_image_slots(Device *device, ImageManager *image_manager, set<int> &image_slots);
+  void tag_update();
+  bool need_update() const;
 
  private:
   void texture_system_init();
@@ -116,8 +99,41 @@ class OSLShaderManager : public ShaderManager {
   static OSL::ErrorHandler errhandler;
   static map<int, unique_ptr<OSL::ShadingSystem>> ss_shared;
   static thread_mutex ss_shared_mutex;
-  static thread_mutex ss_mutex;
   static int ss_shared_users;
+
+  bool need_update_;
+};
+
+/* Shader Manage */
+
+class OSLShaderManager : public ShaderManager {
+ public:
+  OSLShaderManager() = default;
+  ~OSLShaderManager() = default;
+
+  bool use_osl() override
+  {
+    return true;
+  }
+
+  uint64_t get_attribute_id(ustring name) override;
+  uint64_t get_attribute_id(AttributeStandard std) override;
+
+  void device_update_specific(Device *device,
+                              DeviceScene *dscene,
+                              Scene *scene,
+                              Progress &progress) override;
+  void device_free(Device *device, DeviceScene *dscene, Scene *scene) override;
+
+  /* create OSL node using OSLQuery */
+  static OSLNode *osl_node(ShaderGraph *graph,
+                           Scene *scene,
+                           const std::string &filepath,
+                           const std::string &bytecode_hash = "",
+                           const std::string &bytecode = "");
+
+  /* Get image slots used by OSL services on device. */
+  static void osl_image_slots(Device *device, ImageManager *image_manager, set<int> &image_slots);
 };
 
 #endif
