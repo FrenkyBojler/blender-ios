@@ -476,8 +476,6 @@ UndoStep *BKE_undosys_step_push_init_with_type(UndoStack *ustack,
                                                const UndoType *ut)
 {
   UNDO_NESTED_ASSERT(false);
-  /* We could detect and clean this up (but it should never happen!). */
-  BLI_assert(ustack->step_init == nullptr);
   if (ut->step_encode_init) {
     undosys_stack_validate(ustack, false);
 
