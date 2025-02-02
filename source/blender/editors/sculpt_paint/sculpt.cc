@@ -1349,7 +1349,6 @@ static float area_normal_and_center_get_position_radius(const SculptSession &ss,
     /* Layer brush produces artifacts with normal and area radius */
     if (ELEM(brush.sculpt_brush_type,
              SCULPT_BRUSH_TYPE_PLANE,
-             SCULPT_BRUSH_TYPE_FLATTEN,
              SCULPT_BRUSH_TYPE_SCRAPE,
              SCULPT_BRUSH_TYPE_FILL) &&
         brush.area_radius_factor > 0.0f)
@@ -2199,6 +2198,10 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
  */
 static float brush_flip(const Brush &brush, const blender::ed::sculpt_paint::StrokeCache &cache)
 {
+  if (brush.flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
+    return 1.0f;
+  }
+
   const float dir = (brush.flag & BRUSH_DIR_IN) ? -1.0f : 1.0f;
   const float pen_flip = cache.pen_flip ? -1.0f : 1.0f;
   const float invert = cache.invert ? -1.0f : 1.0f;
@@ -2306,15 +2309,23 @@ static float brush_strength(const Sculpt &sd,
       return alpha * flip * pressure * overlap * feather;
 
     case SCULPT_BRUSH_TYPE_PLANE:
-    case SCULPT_BRUSH_TYPE_FILL:
-    case SCULPT_BRUSH_TYPE_SCRAPE:
-    case SCULPT_BRUSH_TYPE_FLATTEN:
       if (flip > 0.0f) {
         overlap = (1.0f + overlap) / 2.0f;
         return alpha * pressure * overlap * feather;
       }
       else {
         return 0.5f * alpha * pressure * overlap * feather;
+      }
+    case SCULPT_BRUSH_TYPE_FILL:
+    case SCULPT_BRUSH_TYPE_SCRAPE:
+    case SCULPT_BRUSH_TYPE_FLATTEN:
+      if (flip > 0.0f) {
+        overlap = (1.0f + overlap) / 2.0f;
+        return alpha * flip * pressure * overlap * feather;
+      }
+      else {
+        /* Reduce strength for DEEPEN, PEAKS, and CONTRAST. */
+        return 0.5f * alpha * flip * pressure * overlap * feather;
       }
 
     case SCULPT_BRUSH_TYPE_SMOOTH:
@@ -3396,6 +3407,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
     case SCULPT_BRUSH_TYPE_LAYER:
       do_layer_brush(depsgraph, sd, ob, node_mask);
       break;
+    case SCULPT_BRUSH_TYPE_FLATTEN:
+      do_flatten_brush(depsgraph, sd, ob, node_mask);
+      break;
     case SCULPT_BRUSH_TYPE_CLAY:
       do_clay_brush(depsgraph, sd, ob, node_mask);
       break;
@@ -3407,6 +3421,22 @@ static void do_brush_action(const Depsgraph &depsgraph,
       break;
     case SCULPT_BRUSH_TYPE_CLAY_THUMB:
       do_clay_thumb_brush(depsgraph, sd, ob, node_mask);
+      break;
+    case SCULPT_BRUSH_TYPE_FILL:
+      if (invert && brush.flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
+        do_scrape_brush(depsgraph, sd, ob, node_mask);
+      }
+      else {
+        do_fill_brush(depsgraph, sd, ob, node_mask);
+      }
+      break;
+    case SCULPT_BRUSH_TYPE_SCRAPE:
+      if (invert && brush.flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
+        do_fill_brush(depsgraph, sd, ob, node_mask);
+      }
+      else {
+        do_scrape_brush(depsgraph, sd, ob, node_mask);
+      }
       break;
     case SCULPT_BRUSH_TYPE_MASK:
       switch ((BrushMaskTool)brush.mask_tool) {
@@ -3462,11 +3492,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
     case SCULPT_BRUSH_TYPE_SMEAR:
       color::do_smear_brush(depsgraph, sd, ob, node_mask);
       break;
-
     case SCULPT_BRUSH_TYPE_PLANE:
-    case SCULPT_BRUSH_TYPE_FLATTEN:
-    case SCULPT_BRUSH_TYPE_FILL:
-    case SCULPT_BRUSH_TYPE_SCRAPE:
       do_plane_brush(depsgraph, sd, ob, node_mask, plane_normal, plane_center);
       break;
   }
