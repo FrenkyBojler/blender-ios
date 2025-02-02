@@ -226,6 +226,9 @@ class MeshState {
         /* Results in false positives when an attribute has no sharing info. That is okay. */
         return;
       }
+      /* Adding a user will require modifications to create a new attribute data array to avoid
+       * modifications to shared data. That makes the implicit sharing info not match anymore which
+       * means the attribute isn't the same as the original. */
       attribute.sharing_info->add_user();
       attribute_sharing_info_.add_new(iter.name, attribute.sharing_info);
     });
