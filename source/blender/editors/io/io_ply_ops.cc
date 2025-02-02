@@ -89,7 +89,13 @@ static int wm_ply_export_exec(bContext *C, wmOperator *op)
 
   PLY_export(C, export_params);
 
-  return BKE_reports_contain(op->reports, RPT_ERROR) ? OPERATOR_CANCELLED : OPERATOR_FINISHED;
+  if (BKE_reports_contain(op->reports, RPT_ERROR)) {
+    return OPERATOR_CANCELLED;
+  }
+  else {
+    BKE_report(op->reports, RPT_INFO, "Exported file successfully");
+    return OPERATOR_FINISHED;
+  }
 }
 
 static void wm_ply_export_draw(bContext *C, wmOperator *op)
