@@ -382,7 +382,7 @@ bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
 /* Flags for #WM_window_decoration_set_style().
  * NOTE: To be kept in sync with #GHOST_TWindowDecorationFlags. */
 enum eWM_WindowDecorationStyleFlag {
-  /** No Decorations. */
+  /** No decoration styling. */
   WM_WINDOW_DECORATION_STYLE_NONE = 0,
   /** Colored Titlebar. */
   WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR = (1 << 0),
