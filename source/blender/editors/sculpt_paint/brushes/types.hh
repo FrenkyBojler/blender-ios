@@ -5,6 +5,7 @@
 #pragma once
 
 #include "BLI_index_mask_fwd.hh"
+#include "BLI_math_vector_types.hh"
 
 struct Depsgraph;
 struct Scene;
@@ -80,7 +81,9 @@ void do_enhance_details_brush(const Depsgraph &depsgraph,
 void do_plane_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &object,
-                    const IndexMask &node_mask);
+                    const IndexMask &node_mask,
+                    float3 &plane_normal,
+                    float3 &plane_center);
 void do_grab_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &ob,

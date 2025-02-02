@@ -2170,6 +2170,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
   copy_v3_v3(r_area_no, stabilized_normal);
   copy_v3_v3(r_area_co, stabilized_center);
 }
+
 }  // namespace blender::ed::sculpt_paint
 
 /** \} */
@@ -3004,6 +3005,37 @@ void calc_brush_plane(const Depsgraph &depsgraph,
   }
 }
 
+static IndexMask calc_plane_for_plane_brush(const Depsgraph &depsgraph,
+                                            const StrokeCache &cache,
+                                            const Brush &brush,
+                                            Object &object,
+                                            float3 &r_plane_normal,
+                                            float3 &r_plane_center)
+{
+  const bool use_original = !cache.accum;
+
+  IndexMaskMemory cursor_mask_memory;
+  const IndexMask cursor_node_mask = pbvh_gather_generic(
+      object, brush, use_original, 1.0f, cursor_mask_memory);
+  calc_brush_plane(depsgraph, brush, object, cursor_node_mask, r_plane_normal, r_plane_center);
+
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+
+  /* Recompute the node mask using the center of the brush plane as the center.
+   *
+   * The indices of the nodes in `cursor_node_mask` have been calculated based on the cursor
+   * location. However, for the Plane brush, its effective center often deviates from the cursor
+   * location. Calculating the affected nodes using the cursor location as the center can lead to
+   * issues (see, for example, #123768). */
+  IndexMaskMemory memory;
+  return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
+    if (node_fully_masked_or_hidden(node)) {
+      return false;
+    }
+    return node_in_sphere(node, r_plane_center, pow2f(cache.radius), use_original);
+  });
+}
+
 }  // namespace blender::ed::sculpt_paint
 
 float SCULPT_brush_plane_offset_get(const Sculpt &sd, const SculptSession &ss)
@@ -3172,11 +3204,18 @@ static void do_brush_action(const Depsgraph &depsgraph,
     }
   }
 
+  float3 plane_normal;
+  float3 plane_center;
+
   /* Build a list of all nodes that are potentially within the brush's area of influence */
 
   if (SCULPT_brush_type_needs_all_pbvh_nodes(brush)) {
     /* These brushes need to update all nodes as they are not constrained by the brush radius */
     node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
+  }
+  else if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
+    node_mask = calc_plane_for_plane_brush(
+        depsgraph, *ss.cache, brush, ob, plane_normal, plane_center);
   }
   else if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH) {
     node_mask = cloth::brush_affected_nodes_gather(ob, brush, memory);
@@ -3247,19 +3286,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
 
   if (!use_pixels) {
-    /**
-     * The indices of the nodes in `node_mask` have been calculated based on the cursor position.
-     * However, for the Plane brush, its effective center often deviates from the
-     * cursor's location. Calculating the affected nodes using the cursor as the center for the
-     * Plane brush can lead to incorrect results (see, for example, #123768).
-     *
-     * To address this, the specific nodes affected by the Plane brush are accurately determined
-     * within the #do_plane_brush function. Consequently, #push_undo_nodes for the Plane brush
-     * is called directly from #do_plane_brush, ensuring the correct nodes are used for undo.
-     */
-    if (brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_PLANE) {
-      push_undo_nodes(depsgraph, ob, brush, node_mask);
-    }
+    push_undo_nodes(depsgraph, ob, brush, node_mask);
   }
 
   if (sculpt_brush_needs_normal(ss, sd, brush)) {
@@ -3426,7 +3453,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
     case SCULPT_BRUSH_TYPE_FLATTEN:
     case SCULPT_BRUSH_TYPE_FILL:
     case SCULPT_BRUSH_TYPE_SCRAPE:
-      do_plane_brush(depsgraph, sd, ob, node_mask);
+      do_plane_brush(depsgraph, sd, ob, node_mask, plane_normal, plane_center);
       break;
   }
 
