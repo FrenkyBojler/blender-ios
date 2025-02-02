@@ -1478,7 +1478,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleTabletEvent(void *eventPtr, short eventT
 
       ct.Pressure = event.pressure;
       ct.Xtilt = event.tilt.x;
-      ct.Ytilt = event.tilt.y;
+      ct.Ytilt = -event.tilt.y;
       break;
 
     case NSEventTypeTabletProximity:
