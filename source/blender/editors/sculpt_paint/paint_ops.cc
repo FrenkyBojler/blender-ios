@@ -957,12 +957,8 @@ static bNodeTree *node_group_add_for_brush(Main *bmain,
   bNodeTree *node_group = bke::node_tree_add_tree(bmain, name, "GeometryNodeTree");
   BKE_id_move_to_same_lib(*bmain, node_group->id, brush->id);
 
-  const bool is_VDM_brush = (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW) &&
-                            (brush->flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT) &&
-                            (brush->mtex.brush_map_mode == MTEX_MAP_MODE_AREA);
-
   /* VDM brush expects a vector output */
-  if (is_VDM_brush) {
+  if (brush_uses_vector_displacement(*brush)) {
     bNodeTreeInterfaceSocket *socket = node_group->tree_interface.add_socket(
         DATA_("Vector"), "", "NodeSocketVector", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
