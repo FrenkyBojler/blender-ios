@@ -37,13 +37,9 @@
 
 #include "pbvh_intern.hh"
 
-#define DEBUG_BUILD_TIME
-
-#ifdef DEBUG_BUILD_TIME
-#  include "BLI_timeit.hh"
-#endif
-
 namespace blender::bke::pbvh {
+
+// #define DEBUG_BUILD_TIME
 
 #define STACK_FIXED_DEPTH 100
 
