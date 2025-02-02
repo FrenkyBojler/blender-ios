@@ -11,6 +11,8 @@
 #include "kernel/util/differential.h"
 #include "kernel/util/lookup_table.h"
 
+#include "kernel/osl/camera.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Perspective Camera */
@@ -239,46 +241,91 @@ ccl_device_inline float3 camera_panorama_direction(ccl_constant KernelCamera *ca
   return panorama_to_direction(cam, Pcamera.x, Pcamera.y);
 }
 
-ccl_device_inline Spectrum camera_sample_panorama(ccl_constant KernelCamera *cam,
+ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
+                                                  ccl_constant KernelCamera *cam,
                                                   const ccl_global DecomposedTransform *cam_motion,
                                                   const float2 raster,
                                                   const float2 rand_lens,
                                                   ccl_private Ray *ray)
 {
-  /* create ray form raster position */
-  float3 P = zero_float3();
-  float3 D = camera_panorama_direction(cam, raster.x, raster.y);
+  float3 P = zero_float3(), D = zero_float3();
+#ifdef __RAY_DIFFERENTIALS__
+  float3 Pcenter = zero_float3(), Dcenter = zero_float3();
+  float3 Px = zero_float3(), Dx = zero_float3();
+  float3 Py = zero_float3(), Dy = zero_float3();
+#endif
+  Spectrum T = one_spectrum();
 
-  /* indicates ray should not receive any light, outside of the lens */
-  if (is_zero(D)) {
-    return zero_spectrum();
+  if (cam->panorama_type == PANORAMA_SCRIPT) {
+    const ProjectionTransform rastertocamera = cam->rastertocamera;
+    float3 sensor = transform_perspective(&rastertocamera, make_float3(raster.x, raster.y, 0.0f));
+    float3 dSdx = transform_perspective_direction(&rastertocamera, make_float3(1.0f, 0.0f, 0.0f));
+    float3 dSdy = transform_perspective_direction(&rastertocamera, make_float3(0.0f, 1.0f, 0.0f));
+    packed_float3 packed_P, packed_dPdx, packed_dPdy, packed_D, packed_dDdx, packed_dDdy, packed_T;
+    packed_T = osl_eval_camera(kg,
+                               sensor,
+                               dSdx,
+                               dSdy,
+                               rand_lens,
+                               packed_P,
+                               packed_dPdx,
+                               packed_dPdy,
+                               packed_D,
+                               packed_dDdx,
+                               packed_dDdy);
+    if (is_zero(T)) {
+      return T;
+    }
+    P = packed_P;
+    D = packed_D;
+    T = packed_T;
+#ifdef __RAY_DIFFERENTIALS__
+    Pcenter = packed_P;
+    Dcenter = packed_D;
+    Px = packed_P + packed_dPdx;
+    Py = packed_P + packed_dPdy;
+    Dx = packed_D + packed_dDdx;
+    Dy = packed_D + packed_dDdy;
+#endif
   }
-
-  /* modify ray for depth of field */
-  const float aperturesize = cam->aperturesize;
+  else {
+    /* create ray from raster position */
+    D = camera_panorama_direction(cam, raster.x, raster.y);
 
 #ifdef __RAY_DIFFERENTIALS__
-  /* keep pre-DoF value for differentials later */
-  float3 Dcenter = D;
+    /* Ray differentials, computed from scratch using the raster coordinates
+     * because we don't want to be affected by depth of field. We compute
+     * ray origin and direction for the center and two neighboring pixels
+     * and simply take their differences. */
+    Dcenter = D;
+    Dx = camera_panorama_direction(cam, raster.x + 1.0f, raster.y);
+    Dy = camera_panorama_direction(cam, raster.x, raster.y + 1.0f);
 #endif
 
-  if (aperturesize > 0.0f) {
-    /* sample point on aperture */
-    const float2 lens_uv = camera_sample_aperture(cam, rand_lens) * aperturesize;
+    /* indicates ray should not receive any light, outside of the lens */
+    if (is_zero(D)) {
+      return zero_spectrum();
+    }
 
-    /* compute point on plane of focus */
-    const float3 Dfocus = normalize(D);
-    const float3 Pfocus = Dfocus * cam->focaldistance;
+    /* modify ray for depth of field */
+    const float aperturesize = cam->aperturesize;
 
-    /* calculate orthonormal coordinates perpendicular to Dfocus */
-    float3 U;
-    float3 V;
-    U = normalize(make_float3(1.0f, 0.0f, 0.0f) - Dfocus.x * Dfocus);
-    V = normalize(cross(Dfocus, U));
+    if (aperturesize > 0.0f) {
+      /* sample point on aperture */
+      const float2 lens_uv = camera_sample_aperture(cam, rand_lens) * aperturesize;
 
-    /* update ray for effect of lens */
-    P = U * lens_uv.x + V * lens_uv.y;
-    D = normalize(Pfocus - P);
+      /* compute point on plane of focus */
+      const float3 Dfocus = normalize(D);
+      const float3 Pfocus = Dfocus * cam->focaldistance;
+
+      /* calculate orthonormal coordinates perpendicular to Dfocus */
+      float3 U = normalize(make_float3(1.0f, 0.0f, 0.0f) - Dfocus.x * Dfocus);
+      float3 V = normalize(cross(Dfocus, U));
+
+      /* update ray for effect of lens */
+      P = U * lens_uv.x + V * lens_uv.y;
+      D = normalize(Pfocus - P);
+    }
   }
 
   /* transform ray from camera to world */
@@ -302,17 +349,7 @@ ccl_device_inline Spectrum camera_sample_panorama(ccl_constant KernelCamera *cam
   ray->D = D;
 
 #ifdef __RAY_DIFFERENTIALS__
-  /* Ray differentials, computed from scratch using the raster coordinates
-   * because we don't want to be affected by depth of field. We compute
-   * ray origin and direction for the center and two neighboring pixels
-   * and simply take their differences. */
-  float3 Dx = camera_panorama_direction(cam, raster.x + 1.0f, raster.y);
-  float3 Dy = camera_panorama_direction(cam, raster.x, raster.y + 1.0f);
-
   if (use_stereo) {
-    float3 Pcenter = zero_float3();
-    float3 Px = zero_float3();
-    float3 Py = zero_float3();
     spherical_stereo_transform(cam, &Pcenter, &Dcenter);
     spherical_stereo_transform(cam, &Px, &Dx);
     spherical_stereo_transform(cam, &Py, &Dy);
@@ -341,7 +378,7 @@ ccl_device_inline Spectrum camera_sample_panorama(ccl_constant KernelCamera *cam
   ray->tmin = 0.0f;
   ray->tmax = cam->cliplength;
 
-  return one_spectrum();
+  return T;
 }
 
 /* Common */
@@ -409,7 +446,7 @@ ccl_device_inline Spectrum camera_sample(KernelGlobals kg,
   }
   else {
     const ccl_global DecomposedTransform *cam_motion = kernel_data_array(camera_motion);
-    return camera_sample_panorama(&kernel_data.cam, cam_motion, raster, lens_uv, ray);
+    return camera_sample_panorama(kg, &kernel_data.cam, cam_motion, raster, lens_uv, ray);
   }
 }
 

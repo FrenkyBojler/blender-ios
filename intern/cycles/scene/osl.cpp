@@ -205,15 +205,9 @@ void OSLManager::device_update_post(Device *device,
         add_param("dDdx", OIIO::TypeVector, false, 12);
         add_param("dDdy", OIIO::TypeVector, false, 15);
       }
-      else {
-        // TODO: Mark OSL symbols as requiring derivatives!
-        // OSL assumes that derivatives are used in the calculation, so it only support propagating
-        // "needs derivatives" up along a dependency chain, but not marking an output as needing
-        // them. Maybe insert a dummp no-op layer that uses derivatives of the outputs??
-      }
       add_param("pos", OIIO::TypeVector, !explicit_derivs, 0);
       add_param("dir", OIIO::TypeVector, !explicit_derivs, 9);
-      add_param("T", OIIO::TypeFloat, false, 18);
+      add_param("T", OIIO::TypeColor, false, 18);
     });
   }
   else if (need_update()) {

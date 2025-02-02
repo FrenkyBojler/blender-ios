@@ -12,7 +12,7 @@ OSLThreadData::OSLThreadData(OSLGlobals *osl_globals, const int thread_index)
     : globals(osl_globals), thread_index(thread_index)
 {
   /* no osl used? */
-  if (globals == nullptr || !globals->use_shading) {
+  if (globals == nullptr || !(globals->use_shading || globals->use_camera)) {
     return;
   }
 
