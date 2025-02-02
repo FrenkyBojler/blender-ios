@@ -1088,7 +1088,7 @@ static void fly_draw_status(bContext *C, wmOperator *op)
 
   status.opmodal("", op->type, FLY_MODAL_AXIS_LOCK_X, fly->xlock != FLY_AXISLOCK_STATE_OFF);
   status.opmodal("", op->type, FLY_MODAL_AXIS_LOCK_Z, fly->zlock != FLY_AXISLOCK_STATE_OFF);
-  status.item(IFACE_("Axix Lock"), ICON_NONE);
+  status.item(IFACE_("Axis Lock"), ICON_NONE);
 
   status.opmodal(IFACE_("Precision"), op->type, FLY_MODAL_PRECISION_ENABLE, fly->use_precision);
   status.opmodal(IFACE_("Free Look"), op->type, FLY_MODAL_FREELOOK_ENABLE, fly->use_freelook);
