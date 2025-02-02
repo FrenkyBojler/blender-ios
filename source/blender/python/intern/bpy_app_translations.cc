@@ -37,9 +37,6 @@ using blender::StringRefNull;
 
 #endif
 
-using blender::StringRef;
-using blender::StringRefNull;
-
 /* ------------------------------------------------------------------- */
 /** \name Local Struct to Store Translation
  * \{ */
@@ -70,19 +67,15 @@ static BlenderAppTranslations *_translations = nullptr;
 
 #ifdef WITH_INTERNATIONAL
 
-/** \} */
-
-/* ------------------------------------------------------------------- */
-/** \name Python'S Messages Cache
- * \{ */
-
 struct MessageKeyRef {
   StringRef context;
   StringRef str;
 
   uint64_t hash() const
   {
-    return get_default_hash(context, str);
+    BLI_assert(this->context == BLT_I18NCONTEXT_DEFAULT_BPYRNA ||
+               !BLT_is_default_context(this->context));
+    return blender::get_default_hash(this->context, this->str);
   }
 };
 
@@ -92,7 +85,7 @@ struct MessageKey {
 
   uint64_t hash() const
   {
-    return blender::get_default_hash(context, str);
+    return blender::get_default_hash(this->context, this->str);
   }
 
   static uint64_t hash_as(const MessageKeyRef &key)
@@ -110,6 +103,12 @@ inline bool operator==(const MessageKeyRef &a, const MessageKey &b)
 {
   return a.context == b.context && a.str == b.str;
 }
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Python'S Messages Cache
+ * \{ */
 
 /**
  * We cache all messages available for a given locale
