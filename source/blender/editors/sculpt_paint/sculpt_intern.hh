@@ -588,11 +588,6 @@ bool SCULPT_brush_type_needs_all_pbvh_nodes(const Brush &brush);
 
 namespace blender::ed::sculpt_paint {
 
-void push_undo_nodes(const Depsgraph &depsgraph,
-                     Object &ob,
-                     const Brush &brush,
-                     const IndexMask &node_mask);
-
 void calc_brush_plane(const Depsgraph &depsgraph,
                       const Brush &brush,
                       Object &ob,

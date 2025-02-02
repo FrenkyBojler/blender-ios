@@ -3170,10 +3170,10 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   mul_m4_v3(ob.object_to_world().ptr(), location);
 }
 
-void push_undo_nodes(const Depsgraph &depsgraph,
-                     Object &ob,
-                     const Brush &brush,
-                     const IndexMask &node_mask)
+static void push_undo_nodes(const Depsgraph &depsgraph,
+                            Object &ob,
+                            const Brush &brush,
+                            const IndexMask &node_mask)
 {
   SculptSession &ss = *ob.sculpt;
   bool need_coords = ss.cache->supports_gravity;
