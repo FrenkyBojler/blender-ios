@@ -1473,8 +1473,8 @@ static void walk_draw_status(bContext *C, wmOperator *op)
 
   WorkspaceStatus status(C);
 
-  status.opmodal(IFACE_("Cancel"), op->type, WALK_MODAL_CANCEL);
   status.opmodal(IFACE_("Confirm"), op->type, WALK_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op->type, WALK_MODAL_CANCEL);
 
   status.opmodal(
       "", op->type, WALK_MODAL_DIR_FORWARD, walk->active_directions & WALK_BIT_LOCAL_FORWARD);
