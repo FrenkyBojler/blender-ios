@@ -5,6 +5,7 @@
 #include "device/device.h"
 
 #include "scene/background.h"
+#include "scene/camera.h"
 #include "scene/colorspace.h"
 #include "scene/light.h"
 #include "scene/osl.h"
@@ -148,6 +149,80 @@ void OSLManager::device_update_post(Device *device,
                                     Progress &progress,
                                     const bool reload_kernels)
 {
+  /* create camera shader */
+  if (need_update() && !scene->camera->script_name.empty()) {
+    if (progress.get_cancel())
+      return;
+
+    foreach_osl_device(device, [this, scene](Device *sub_device, OSLGlobals *og) {
+      OSL::ShadingSystem *ss = get_shading_system(sub_device);
+
+      OSL::ShaderGroupRef group = ss->ShaderGroupBegin("camera_group");
+      for (const auto &param : scene->camera->script_params) {
+        const ustring &name = param.first;
+        const vector<uint8_t> &data = param.second.first;
+        const TypeDesc &type = param.second.second;
+        if (type.basetype == TypeDesc::STRING) {
+          const void *string = data.data();
+          ss->Parameter(*group, name, type, (const void *)&string);
+        }
+        else {
+          ss->Parameter(*group, name, type, (const void *)data.data());
+        }
+      }
+      ss->Shader(*group, "shader", scene->camera->script_name, "camera");
+      ss->ShaderGroupEnd(*group);
+
+      og->camera_state = group;
+      og->use_camera = true;
+
+      /* Memory layout is {P, dPdx, dPdy, D, dDdx, dDdy, T}.
+       * If we request derivs from OSL, it will automatically output them after the main parameter.
+       * However, some scripts might have more efficient ways to compute them explicitly, so if a
+       * script has any of the derivative outputs we use those instead. */
+
+      OSLShaderInfo *info = shader_loaded_info(scene->camera->script_name);
+      const string deriv_args[] = {"dPdx", "dPdy", "dDdx", "dDdy"};
+      bool explicit_derivs = false;
+      for (const auto &arg : deriv_args) {
+        if (info->query.getparam(arg) != nullptr) {
+          explicit_derivs = true;
+        }
+      }
+
+      auto add_param = [&](const char *name, OIIO::TypeDesc type, bool derivs, int offset) {
+        ss->add_symlocs(group.get(),
+                        OSL::SymLocationDesc(string_printf("camera.%s", name),
+                                             type,
+                                             derivs,
+                                             OSL::SymArena::Outputs,
+                                             offset * sizeof(float)));
+      };
+
+      if (explicit_derivs) {
+        add_param("dPdx", OIIO::TypeVector, false, 3);
+        add_param("dPdy", OIIO::TypeVector, false, 6);
+        add_param("dDdx", OIIO::TypeVector, false, 12);
+        add_param("dDdy", OIIO::TypeVector, false, 15);
+      }
+      else {
+        // TODO: Mark OSL symbols as requiring derivatives!
+        // OSL assumes that derivatives are used in the calculation, so it only support propagating
+        // "needs derivatives" up along a dependency chain, but not marking an output as needing
+        // them. Maybe insert a dummp no-op layer that uses derivatives of the outputs??
+      }
+      add_param("pos", OIIO::TypeVector, !explicit_derivs, 0);
+      add_param("dir", OIIO::TypeVector, !explicit_derivs, 9);
+      add_param("T", OIIO::TypeFloat, false, 18);
+    });
+  }
+  else if (need_update()) {
+    foreach_osl_device(device, [](Device *, OSLGlobals *og) {
+      og->camera_state.reset();
+      og->use_camera = false;
+    });
+  }
+
   if (need_update()) {
     scoped_callback_timer timer([scene](double time) {
       if (scene->update_stats) {
@@ -183,7 +258,7 @@ void OSLManager::device_update_post(Device *device,
   /* Load OSL kernels on changes to shaders, or when main kernels got reloaded. */
   if (need_update() || reload_kernels) {
     foreach_osl_device(device, [this, &progress](Device *sub_device, OSLGlobals *og) {
-      if (og->use_shading) {
+      if (og->use_shading || og->use_camera) {
         OSL::ShadingSystem *ss = get_shading_system(sub_device);
 
         og->ss = ss;
@@ -208,6 +283,10 @@ void OSLManager::device_free(Device *device, DeviceScene * /*dscene*/, Scene *sc
     og->use_shading = false;
     og->ss = nullptr;
     og->ts = nullptr;
+
+    og->use_shading = false;
+    og->use_camera = false;
+    og->camera_state.reset();
   });
 
   /* Remove any textures specific to an image manager from shared render services textures, since

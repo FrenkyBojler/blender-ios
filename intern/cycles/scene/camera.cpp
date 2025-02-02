@@ -7,6 +7,7 @@
 #include "scene/camera.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
+#include "scene/osl.h"
 #include "scene/scene.h"
 #include "scene/stats.h"
 #include "scene/tables.h"
@@ -853,6 +854,126 @@ int Camera::motion_step(const float time) const
   }
 
   return -1;
+}
+
+void Camera::set_osl_camera(Scene *scene,
+                            OSLCameraParamQuery &params,
+                            const std::string &filepath,
+                            const std::string &bytecode_hash,
+                            const std::string &bytecode)
+{
+  /* create query */
+  const char *hash;
+
+  if (!filepath.empty()) {
+    hash = scene->osl_manager->shader_load_filepath(filepath);
+  }
+  else {
+    hash = scene->osl_manager->shader_test_loaded(bytecode_hash);
+    if (!hash)
+      hash = scene->osl_manager->shader_load_bytecode(bytecode_hash, bytecode);
+  }
+
+  bool changed = false;
+
+  if (!hash) {
+    changed = (!script_name.empty() || !script_params.empty());
+    script_name = "";
+    script_params.clear();
+  }
+  else {
+    changed = (script_name != hash);
+    script_name = hash;
+
+    OSLShaderInfo *info = scene->osl_manager->shader_loaded_info(hash);
+
+    /* Fetch parameter values */
+    std::set<ustring> used_params;
+    for (int i = 0; i < info->query.nparams(); i++) {
+      const OSL::OSLQuery::Parameter *param = info->query.getparam(i);
+
+      /* skip unsupported types */
+      if (param->varlenarray || param->isstruct || param->type.arraylen > 1 || param->isoutput ||
+          param->isclosure)
+        continue;
+
+      vector<uint8_t> raw_data;
+      int vec_size = (int)param->type.aggregate;
+      if (param->type.basetype == TypeDesc::INT) {
+        vector<int> data;
+        if (!params.get_int(param->name, data) || data.size() != vec_size)
+          continue;
+        raw_data.resize(sizeof(int) * vec_size);
+        memcpy(raw_data.data(), data.data(), sizeof(int) * vec_size);
+      }
+      else if (param->type.basetype == TypeDesc::FLOAT) {
+        vector<float> data;
+        if (!params.get_float(param->name, data) || data.size() != vec_size)
+          continue;
+        raw_data.resize(sizeof(float) * vec_size);
+        memcpy(raw_data.data(), data.data(), sizeof(float) * vec_size);
+      }
+      else if (param->type.basetype == TypeDesc::STRING) {
+        string data;
+        if (!params.get_string(param->name, data))
+          continue;
+        raw_data.resize(data.length() + 1);
+        memcpy(raw_data.data(), data.c_str(), data.length() + 1);
+      }
+      else
+        continue;
+
+      auto entry = std::make_pair(raw_data, param->type);
+      auto it = script_params.find(param->name);
+      if (it == script_params.end()) {
+        script_params[param->name] = entry;
+        changed = true;
+      }
+      else if (it->second != entry) {
+        it->second = entry;
+        changed = true;
+      }
+
+      used_params.insert(param->name);
+    }
+
+    /* Remove unused parameters */
+    for (auto it = script_params.begin(); it != script_params.end();) {
+      if (used_params.count(it->first))
+        it++;
+      else {
+        it = script_params.erase(it);
+        changed = true;
+      }
+    }
+  }
+
+  if (changed) {
+    tag_modified();
+    scene->osl_manager->tag_update();
+  }
+}
+
+void Camera::clear_osl_camera(Scene *scene)
+{
+  if (script_name == "")
+    return;
+
+  script_name = "";
+  script_params.clear();
+
+  scene->osl_manager->tag_update();
+}
+
+uint Camera::get_kernel_features() const
+{
+  uint kernel_features = 0;
+
+  if (!script_name.empty()) {
+    kernel_features |= KERNEL_FEATURE_OSL_CAMERA;
+  }
+
+  return kernel_features;
 }
 
 CCL_NAMESPACE_END

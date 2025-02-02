@@ -40,9 +40,11 @@ struct OSLGlobals {
     ts = nullptr;
     services = nullptr;
     use_shading = false;
+    use_camera = false;
   }
 
   bool use_shading;
+  bool use_camera;
 
   /* shading system */
   OSL::ShadingSystem *ss;
@@ -55,6 +57,7 @@ struct OSLGlobals {
   vector<OSL::ShaderGroupRef> displacement_state;
   vector<OSL::ShaderGroupRef> bump_state;
   OSL::ShaderGroupRef background_state;
+  OSL::ShaderGroupRef camera_state;
 
   /* attributes */
   using ObjectNameMap = unordered_map<OSLUStringHash, int>;
