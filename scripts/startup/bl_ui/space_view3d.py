@@ -6742,7 +6742,7 @@ class VIEW3D_PT_shading_cavity(Panel):
     def poll(cls, context):
         shading = VIEW3D_PT_shading.get_shading(context)
         return shading.type in {'SOLID'}
-    
+
     def draw_header(self, context):
         layout = self.layout
         shading = VIEW3D_PT_shading.get_shading(context)
@@ -6753,7 +6753,7 @@ class VIEW3D_PT_shading_cavity(Panel):
         row.prop(shading, "show_cavity")
         if shading.show_cavity:
             row.prop(shading, "cavity_type", text="Type")
-    
+
     def draw(self, context):
         layout = self.layout
         shading = VIEW3D_PT_shading.get_shading(context)
