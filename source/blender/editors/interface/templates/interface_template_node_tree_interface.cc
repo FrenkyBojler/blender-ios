@@ -195,6 +195,15 @@ class NodePanelViewItem : public BasicTreeViewItem {
     uiLayoutSetPropDecorate(sub, false);
   }
 
+  void build_context_menu(bContext &C, uiLayout &layout) const override
+  {
+    MenuType *mt = WM_menutype_find("NODE_MT_node_tree_panel_interface_item_context_menu", true);
+    if (!mt) {
+      return;
+    }
+    UI_menutype_draw(&C, mt, &layout);
+  }
+
  protected:
   bool matches(const AbstractViewItem &other) const override
   {

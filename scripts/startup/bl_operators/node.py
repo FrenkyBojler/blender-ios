@@ -409,6 +409,44 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
         return {'FINISHED'}
 
 
+class NODE_OT_interface_item_panel_add_toggle(NodeInterfaceOperator, Operator):
+    """Add a boolean input socket that will display as a toggle in the modifier menu"""
+    bl_idname = "node.interface_item_panel_add_toggle"
+    bl_label = "Add panel toggle"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        if not super().poll(context):
+            return False
+
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+        active_item = interface.active
+        return active_item and type(active_item) is bpy.types.NodeTreeInterfacePanel
+
+    def execute(self, context):
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+        active_panel = interface.active
+
+        if not type(active_panel) is bpy.types.NodeTreeInterfacePanel:
+            return {'FINISHED'}
+
+        if len(active_panel.interface_items) > 0:
+            first_item = active_panel.interface_items[0]
+            if type(first_item) is bpy.types.NodeTreeInterfaceSocketBool and first_item.name == active_panel.name:
+                return {'FINISHED'}
+
+        item = interface.new_socket(active_panel.name, socket_type='NodeSocketBool', in_out='INPUT')
+        item.force_non_field = True
+        interface.move_to_parent(item, active_panel, 0)
+
+        return {'FINISHED'}
+
+
 class NODE_OT_viewer_shortcut_set(Operator):
     """Create a compositor viewer shortcut for the selected node by pressing ctrl+1,2,..9"""
     bl_idname = "node.viewer_shortcut_set"
@@ -542,6 +580,7 @@ classes = (
     NODE_OT_interface_item_new,
     NODE_OT_interface_item_duplicate,
     NODE_OT_interface_item_remove,
+    NODE_OT_interface_item_panel_add_toggle,
     NODE_OT_tree_path_parent,
     NODE_OT_viewer_shortcut_get,
     NODE_OT_viewer_shortcut_set,
