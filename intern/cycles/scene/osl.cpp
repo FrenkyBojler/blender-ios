@@ -183,7 +183,7 @@ void OSLManager::device_update_post(Device *device,
   /* Load OSL kernels on changes to shaders, or when main kernels got reloaded. */
   if (need_update() || reload_kernels) {
     foreach_osl_device(device, [this, &progress](Device *sub_device, OSLGlobals *og) {
-      if (og->use) {
+      if (og->use_shading) {
         OSL::ShadingSystem *ss = get_shading_system(sub_device);
 
         og->ss = ss;
@@ -205,7 +205,7 @@ void OSLManager::device_free(Device *device, DeviceScene * /*dscene*/, Scene *sc
 {
   /* clear shader engine */
   foreach_osl_device(device, [](Device *, OSLGlobals *og) {
-    og->use = false;
+    og->use_shading = false;
     og->ss = nullptr;
     og->ts = nullptr;
   });
@@ -556,7 +556,7 @@ void OSLShaderManager::device_update_specific(Device *device,
 
   /* setup shader engine */
   OSLManager::foreach_osl_device(device, [](Device *, OSLGlobals *og) {
-    og->use = true;
+    og->use_shading = true;
 
     og->surface_state.clear();
     og->volume_state.clear();
@@ -633,7 +633,7 @@ void OSLShaderManager::device_free(Device *device, DeviceScene *dscene, Scene *s
 
   /* clear shader engine */
   OSLManager::foreach_osl_device(device, [](Device *, OSLGlobals *og) {
-    og->use = false;
+    og->use_shading = false;
 
     og->surface_state.clear();
     og->volume_state.clear();

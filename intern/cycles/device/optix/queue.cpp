@@ -21,11 +21,11 @@ void OptiXDeviceQueue::init_execution()
   CUDADeviceQueue::init_execution();
 }
 
-static bool is_optix_specific_kernel(DeviceKernel kernel, bool use_osl)
+static bool is_optix_specific_kernel(DeviceKernel kernel, bool osl_shading)
 {
 #  ifdef WITH_OSL
   /* OSL uses direct callables to execute, so shading needs to be done in OptiX if OSL is used. */
-  if (use_osl && device_kernel_has_shading(kernel)) {
+  if (osl_shading && device_kernel_has_shading(kernel)) {
     return true;
   }
 #  else
@@ -42,12 +42,13 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
   OptiXDevice *const optix_device = static_cast<OptiXDevice *>(cuda_device_);
 
 #  ifdef WITH_OSL
-  const bool use_osl = static_cast<OSLGlobals *>(optix_device->get_cpu_osl_memory())->use;
+  const OSLGlobals *og = static_cast<const OSLGlobals *>(optix_device->get_cpu_osl_memory());
+  const bool osl_shading = og->use_shading;
 #  else
-  const bool use_osl = false;
+  const bool osl_shading = false;
 #  endif
 
-  if (!is_optix_specific_kernel(kernel, use_osl)) {
+  if (!is_optix_specific_kernel(kernel, osl_shading)) {
     return CUDADeviceQueue::enqueue(kernel, work_size, args);
   }
 
@@ -172,7 +173,7 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
   sbt_params.callablesRecordStrideInBytes = sizeof(SbtRecord);
 
 #  ifdef WITH_OSL
-  if (use_osl) {
+  if (osl_shading) {
     sbt_params.callablesRecordCount += static_cast<unsigned int>(optix_device->osl_groups.size());
   }
 #  endif

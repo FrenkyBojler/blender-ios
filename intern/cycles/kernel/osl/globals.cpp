@@ -11,7 +11,8 @@ CCL_NAMESPACE_BEGIN
 OSLThreadData::OSLThreadData(OSLGlobals *osl_globals, const int thread_index)
     : globals(osl_globals), thread_index(thread_index)
 {
-  if (globals == nullptr || globals->use == false) {
+  /* no osl used? */
+  if (globals == nullptr || !globals->use_shading) {
     return;
   }
 

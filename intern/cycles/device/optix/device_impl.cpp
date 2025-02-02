@@ -198,7 +198,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   }
 
 #  ifdef WITH_OSL
-  const bool use_osl = (kernel_features & KERNEL_FEATURE_OSL);
+  const bool use_osl = (kernel_features & KERNEL_FEATURE_OSL_SHADING);
 #  else
   const bool use_osl = false;
 #  endif

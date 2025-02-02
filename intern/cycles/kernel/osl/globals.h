@@ -39,10 +39,10 @@ struct OSLGlobals {
     ss = nullptr;
     ts = nullptr;
     services = nullptr;
-    use = false;
+    use_shading = false;
   }
 
-  bool use;
+  bool use_shading;
 
   /* shading system */
   OSL::ShadingSystem *ss;

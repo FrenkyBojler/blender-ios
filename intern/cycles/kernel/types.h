@@ -124,7 +124,7 @@ CCL_NAMESPACE_BEGIN
 #define KERNEL_FEATURE_PATH_GUIDING (1U << 24U)
 
 /* OSL. */
-#define KERNEL_FEATURE_OSL (1U << 25U)
+#define KERNEL_FEATURE_OSL_SHADING (1U << 25U)
 
 /* Light and shadow linking. */
 #define KERNEL_FEATURE_LIGHT_LINKING (1U << 26U)
