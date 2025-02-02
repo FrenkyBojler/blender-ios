@@ -7,29 +7,19 @@
 #include "BLI_memory_counter.hh"
 #include "BLI_task.hh"
 
-#include "BLT_translation.hh"
-
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object_types.hh"
-#include "BKE_pointcloud.hh"
 #include "BKE_volume.hh"
 
-#include "DNA_collection_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
-
-#include "BLI_rand.hh"
-
-#include "MEM_guardedalloc.h"
 
 namespace blender::bke {
 
@@ -238,7 +228,7 @@ std::ostream &operator<<(std::ostream &stream, const GeometrySet &geometry_set)
     parts.append(std::to_string(curves->geometry.curve_num) + " curves");
   }
   if (const GreasePencil *grease_pencil = geometry_set.get_grease_pencil()) {
-    parts.append(std::to_string(grease_pencil->layers().size()) + " grease pencil layers");
+    parts.append(std::to_string(grease_pencil->layers().size()) + " Grease Pencil layers");
   }
   if (const PointCloud *point_cloud = geometry_set.get_pointcloud()) {
     parts.append(std::to_string(point_cloud->totpoint) + " points");
@@ -345,6 +335,12 @@ const CurvesEditHints *GeometrySet::get_curve_edit_hints() const
 {
   const GeometryComponentEditData *component = this->get_component<GeometryComponentEditData>();
   return (component == nullptr) ? nullptr : component->curves_edit_hints_.get();
+}
+
+const GreasePencilEditHints *GeometrySet::get_grease_pencil_edit_hints() const
+{
+  const GeometryComponentEditData *component = this->get_component<GeometryComponentEditData>();
+  return (component == nullptr) ? nullptr : component->grease_pencil_edit_hints_.get();
 }
 
 const GizmoEditHints *GeometrySet::get_gizmo_edit_hints() const
@@ -576,6 +572,16 @@ CurvesEditHints *GeometrySet::get_curve_edit_hints_for_write()
   return component.curves_edit_hints_.get();
 }
 
+GreasePencilEditHints *GeometrySet::get_grease_pencil_edit_hints_for_write()
+{
+  if (!this->has<GeometryComponentEditData>()) {
+    return nullptr;
+  }
+  GeometryComponentEditData &component =
+      this->get_component_for_write<GeometryComponentEditData>();
+  return component.grease_pencil_edit_hints_.get();
+}
+
 GizmoEditHints *GeometrySet::get_gizmo_edit_hints_for_write()
 {
   if (!this->has<GeometryComponentEditData>()) {
@@ -627,16 +633,49 @@ void GeometrySet::attribute_foreach(const Span<GeometryComponent::Type> componen
   }
 }
 
+bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type,
+                                            const StringRef name)
+{
+  switch (type) {
+    case GeometryComponent::Type::Mesh: {
+      static auto component = GeometryComponent::create(type);
+      return component->attributes()->is_builtin(name);
+    }
+    case GeometryComponent::Type::PointCloud: {
+      static auto component = GeometryComponent::create(type);
+      return component->attributes()->is_builtin(name);
+    }
+    case GeometryComponent::Type::Instance: {
+      static auto component = GeometryComponent::create(type);
+      return component->attributes()->is_builtin(name);
+    }
+    case GeometryComponent::Type::Curve: {
+      static auto component = GeometryComponent::create(type);
+      return component->attributes()->is_builtin(name);
+    }
+    case GeometryComponent::Type::GreasePencil: {
+      static auto grease_pencil_component = GeometryComponent::create(
+          GeometryComponent::Type::GreasePencil);
+      static auto curves_component = GeometryComponent::create(GeometryComponent::Type::Curve);
+      return grease_pencil_component->attributes()->is_builtin(name) ||
+             curves_component->attributes()->is_builtin(name);
+    }
+    case GeometryComponent::Type::Volume:
+    case GeometryComponent::Type::Edit: {
+      return false;
+    }
+  }
+  BLI_assert_unreachable();
+  return false;
+}
+
 void GeometrySet::gather_attributes_for_propagation(
     const Span<GeometryComponent::Type> component_types,
     const GeometryComponent::Type dst_component_type,
     bool include_instances,
     const AttributeFilter &attribute_filter,
-    Map<StringRef, AttributeKind> &r_attributes) const
+    Map<StringRef, AttributeDomainAndType> &r_attributes) const
 {
-  /* Only needed right now to check if an attribute is built-in on this component type.
-   * TODO: Get rid of the dummy component. */
-  const GeometryComponentPtr dummy_component = GeometryComponent::create(dst_component_type);
   this->attribute_foreach(
       component_types,
       include_instances,
@@ -644,7 +683,7 @@ void GeometrySet::gather_attributes_for_propagation(
           const AttributeMetaData &meta_data,
           const GeometryComponent &component) {
         if (component.attributes()->is_builtin(attribute_id)) {
-          if (!dummy_component->attributes()->is_builtin(attribute_id)) {
+          if (!attribute_is_builtin_on_component_type(dst_component_type, attribute_id)) {
             /* Don't propagate built-in attributes that are not built-in on the destination
              * component. */
             return;
@@ -664,11 +703,11 @@ void GeometrySet::gather_attributes_for_propagation(
           domain = AttrDomain::Point;
         }
 
-        auto add_info = [&](AttributeKind *attribute_kind) {
+        auto add_info = [&](AttributeDomainAndType *attribute_kind) {
           attribute_kind->domain = domain;
           attribute_kind->data_type = meta_data.data_type;
         };
-        auto modify_info = [&](AttributeKind *attribute_kind) {
+        auto modify_info = [&](AttributeDomainAndType *attribute_kind) {
           attribute_kind->domain = bke::attribute_domain_highest_priority(
               {attribute_kind->domain, domain});
           attribute_kind->data_type = bke::attribute_data_type_highest_complexity(

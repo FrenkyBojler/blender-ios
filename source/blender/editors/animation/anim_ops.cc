@@ -6,10 +6,9 @@
  * \ingroup edanimation
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
-
-#include "BLI_sys_types.h"
 
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
@@ -118,11 +117,13 @@ static int seq_frame_apply_snap(bContext *C, Scene *scene, const int timeline_fr
 
   int best_frame = 0;
   int best_distance = MAXFRAME;
-  for (Sequence *seq : SEQ_query_all_strips(seqbase)) {
+  for (Strip *strip : SEQ_query_all_strips(seqbase)) {
     seq_frame_snap_update_best(
-        SEQ_time_left_handle_frame_get(scene, seq), timeline_frame, &best_frame, &best_distance);
-    seq_frame_snap_update_best(
-        SEQ_time_right_handle_frame_get(scene, seq), timeline_frame, &best_frame, &best_distance);
+        SEQ_time_left_handle_frame_get(scene, strip), timeline_frame, &best_frame, &best_distance);
+    seq_frame_snap_update_best(SEQ_time_right_handle_frame_get(scene, strip),
+                               timeline_frame,
+                               &best_frame,
+                               &best_distance);
   }
 
   if (best_distance < seq_snap_threshold_get_frame_distance(C)) {
@@ -254,12 +255,12 @@ static bool sequencer_skip_for_handle_tweak(const bContext *C, const wmEvent *ev
 /* Modal Operator init */
 static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
   bScreen *screen = CTX_wm_screen(C);
-  if (CTX_wm_space_seq(C) != nullptr && region->regiontype == RGN_TYPE_PREVIEW) {
-    return OPERATOR_CANCELLED;
-  }
-  if (sequencer_skip_for_handle_tweak(C, event)) {
+
+  /* This check is done in case scrubbing and strip tweaking in the sequencer are bound to the same
+   * event (e.g. RCS keymap where both are activated on left mouse press). Tweaking should take
+   * precedence. */
+  if (CTX_wm_space_seq(C) && sequencer_skip_for_handle_tweak(C, event)) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
@@ -297,26 +298,6 @@ static bool need_extra_redraw_after_scrubbing_ends(bContext *C)
   Scene *scene = CTX_data_scene(C);
   if (scene->eevee.taa_samples != 1) {
     return true;
-  }
-  wmWindowManager *wm = CTX_wm_manager(C);
-  Object *object = CTX_data_active_object(C);
-  if (object && object->type == OB_GPENCIL_LEGACY) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      bScreen *screen = WM_window_get_active_screen(win);
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        SpaceLink *sl = (SpaceLink *)area->spacedata.first;
-        if (sl->spacetype == SPACE_VIEW3D) {
-          View3D *v3d = (View3D *)sl;
-          if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
-            if (v3d->gp_flag & V3D_GP_SHOW_ONION_SKIN) {
-              /* Grease pencil onion skin is not drawn during scrubbing. Redraw is necessary after
-               * scrubbing ends to show onion skin again. */
-              return true;
-            }
-          }
-        }
-      }
-    }
   }
   return false;
 }
@@ -591,9 +572,7 @@ static int previewrange_define_exec(bContext *C, wmOperator *op)
    */
   FRAMENUMBER_MIN_CLAMP(sfra);
   FRAMENUMBER_MIN_CLAMP(efra);
-  if (efra < sfra) {
-    efra = sfra;
-  }
+  efra = std::max(efra, sfra);
 
   scene->r.flag |= SCER_PRV_RANGE;
   scene->r.psfra = round_fl_to_int(sfra);
@@ -679,6 +658,56 @@ static void ANIM_OT_previewrange_clear(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Debug operator: channel list
+ * \{ */
+
+#ifndef NDEBUG
+static int debug_channel_list_exec(bContext *C, wmOperator * /*op*/)
+{
+  bAnimContext ac;
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ListBase anim_data = {nullptr, nullptr};
+  /* Same filter flags as in action_channel_region_draw() in
+   * `source/blender/editors/space_action/space_action.cc`. */
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                                   ANIMFILTER_LIST_CHANNELS;
+  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
+
+  printf("==============================================\n");
+  printf("Animation Channel List:\n");
+  printf("----------------------------------------------\n");
+
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    ANIM_channel_debug_print_info(ale, 1);
+  }
+
+  printf("==============================================\n");
+
+  ANIM_animdata_freelist(&anim_data);
+  return OPERATOR_FINISHED;
+}
+
+static void ANIM_OT_debug_channel_list(wmOperatorType *ot)
+{
+  ot->name = "Debug Channel List";
+  ot->idname = "ANIM_OT_debug_channel_list";
+  ot->description =
+      "Log the channel list info in the terminal. This operator is only available in debug builds "
+      "of Blender";
+
+  ot->exec = debug_channel_list_exec;
+  ot->poll = ED_operator_animview_active;
+
+  ot->flag = OPTYPE_REGISTER;
+}
+#endif /* !NDEBUG */
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Frame Scene/Preview Range Operator
  * \{ */
 
@@ -721,59 +750,6 @@ static void ANIM_OT_scene_range_frame(wmOperatorType *ot)
 /** \name Conversion
  * \{ */
 
-static bool slot_new_for_object_poll(bContext *C)
-{
-  using namespace blender;
-
-  Object *object = CTX_data_active_object(C);
-  if (!object) {
-    return false;
-  }
-  animrig::Action *action = animrig::get_action(object->id);
-  if (!action) {
-    CTX_wm_operator_poll_msg_set(
-        C, "Creating a new Action Slot is only possible when an Action is already assigned");
-    return false;
-  }
-  return action->is_action_layered();
-}
-
-static int slot_new_for_object_exec(bContext *C, wmOperator * /*op*/)
-{
-  using namespace blender::animrig;
-
-  Object *object = CTX_data_active_object(C);
-  Action *action = get_action(object->id);
-  BLI_assert_msg(action, "The poll function should have ensured the Action is not NULL");
-
-  Slot &slot = action->slot_add_for_id(object->id);
-  { /* Assign the newly created slot. */
-    const ActionSlotAssignmentResult result = assign_action_slot(&slot, object->id);
-    BLI_assert_msg(result == ActionSlotAssignmentResult::OK,
-                   "Assigning a slot that was made for this ID should always work");
-    UNUSED_VARS_NDEBUG(result);
-  }
-
-  DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
-  return OPERATOR_FINISHED;
-}
-
-static void ANIM_OT_slot_new_for_object(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "New Slot";
-  ot->idname = "ANIM_OT_slot_new_for_object";
-  ot->description = "Create a new Slot for this object, on the Action already assigned to it";
-
-  /* api callbacks */
-  ot->exec = slot_new_for_object_exec;
-  ot->poll = slot_new_for_object_poll;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
 static int convert_action_exec(bContext *C, wmOperator * /*op*/)
 {
   using namespace blender;
@@ -795,7 +771,7 @@ static int convert_action_exec(bContext *C, wmOperator * /*op*/)
 
   BLI_assert(layered_action->slots().size() == 1);
   animrig::Slot *slot = layered_action->slot(0);
-  layered_action->slot_name_set(*bmain, *slot, object->id.name);
+  layered_action->slot_identifier_set(*bmain, *slot, object->id.name);
 
   const animrig::ActionSlotAssignmentResult result = animrig::assign_action_slot(slot, object->id);
   BLI_assert(result == animrig::ActionSlotAssignmentResult::OK);
@@ -947,6 +923,10 @@ void ED_operatortypes_anim()
 
   WM_operatortype_append(ANIM_OT_scene_range_frame);
 
+#ifndef NDEBUG
+  WM_operatortype_append(ANIM_OT_debug_channel_list);
+#endif
+
   /* Entire UI --------------------------------------- */
   WM_operatortype_append(ANIM_OT_keyframe_insert);
   WM_operatortype_append(ANIM_OT_keyframe_delete);
@@ -975,7 +955,6 @@ void ED_operatortypes_anim()
 
   WM_operatortype_append(ANIM_OT_keying_set_active_set);
 
-  WM_operatortype_append(ANIM_OT_slot_new_for_object);
   WM_operatortype_append(ANIM_OT_convert_legacy_action);
   WM_operatortype_append(ANIM_OT_merge_animation);
 }

@@ -16,7 +16,6 @@
 #include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -25,7 +24,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 
@@ -592,6 +591,7 @@ static int scene_drop_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *ev
     }
   }
 
+  ED_region_tag_redraw(CTX_wm_region(C));
   DEG_relations_tag_update(bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
@@ -626,7 +626,9 @@ static bool material_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   /* Ensure item under cursor is valid drop target */
   Material *ma = (Material *)WM_drag_get_local_ID(drag, ID_MA);
-  return (ma && (outliner_ID_drop_find(C, event, ID_OB) != nullptr));
+  Object *ob = reinterpret_cast<Object *>(outliner_ID_drop_find(C, event, ID_OB));
+
+  return (!ELEM(nullptr, ob, ma) && ID_IS_EDITABLE(&ob->id) && !ID_IS_OVERRIDE_LIBRARY(&ob->id));
 }
 
 static int material_drop_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
@@ -635,7 +637,7 @@ static int material_drop_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
   Object *ob = (Object *)outliner_ID_drop_find(C, event, ID_OB);
   Material *ma = (Material *)WM_drag_get_local_ID_from_event(event, ID_MA);
 
-  if (ELEM(nullptr, ob, ma)) {
+  if (ELEM(nullptr, ob, ma) || !BKE_id_is_editable(bmain, &ob->id)) {
     return OPERATOR_CANCELLED;
   }
 

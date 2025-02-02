@@ -10,13 +10,10 @@
 
 #include "BLI_vector.hh"
 
-#include "GPU_capabilities.hh"
 #include "GPU_viewport.hh"
 
 #include "DRW_gpu_wrapper.hh"
 #include "DRW_render.hh"
-
-#include "draw_instance_data.hh"
 
 #include "draw_manager_text.hh"
 
@@ -33,7 +30,7 @@ struct DRWViewData {
   bool from_viewport = false;
   /** Common size for texture in the engines texture list.
    * We free all texture lists if it changes. */
-  int texture_list_size[2] = {0, 0};
+  int2 texture_list_size = {0, 0};
 
   double cache_time = 0.0;
 
@@ -181,7 +178,7 @@ void DRW_view_data_free(DRWViewData *view_data)
 
 void DRW_view_data_texture_list_size_validate(DRWViewData *view_data, const int size[2])
 {
-  if (!equals_v2v2_int(view_data->texture_list_size, size)) {
+  if (view_data->texture_list_size != int2(size)) {
     draw_view_data_clear(view_data, false);
     copy_v2_v2_int(view_data->texture_list_size, size);
   }
@@ -280,13 +277,13 @@ ViewportEngineData *DRW_view_data_enabled_engine_iter_step(DRWEngineIterator *it
 draw::Manager *DRW_manager_get()
 {
   BLI_assert(DST.view_data_active->manager);
-  return reinterpret_cast<draw::Manager *>(DST.view_data_active->manager);
+  return DST.view_data_active->manager;
 }
 
 draw::ObjectRef DRW_object_ref_get(Object *object)
 {
   BLI_assert(DST.view_data_active->manager);
-  return {object, DST.dupli_source, DST.dupli_parent, 0};
+  return {object, DST.dupli_source, DST.dupli_parent, draw::ResourceHandle(0)};
 }
 
 void DRW_manager_begin_sync()
@@ -294,7 +291,7 @@ void DRW_manager_begin_sync()
   if (DST.view_data_active->manager == nullptr) {
     return;
   }
-  reinterpret_cast<draw::Manager *>(DST.view_data_active->manager)->begin_sync();
+  DST.view_data_active->manager->begin_sync();
 }
 
 void DRW_manager_end_sync()
@@ -302,5 +299,5 @@ void DRW_manager_end_sync()
   if (DST.view_data_active->manager == nullptr) {
     return;
   }
-  reinterpret_cast<draw::Manager *>(DST.view_data_active->manager)->end_sync();
+  DST.view_data_active->manager->end_sync();
 }

@@ -10,11 +10,9 @@
 #include "abc_hierarchy_iterator.h"
 #include "intern/abc_axis_conversion.h"
 
-#include "BLI_math_vector.h"
-
 #include "BKE_attribute.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
@@ -26,6 +24,7 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.alembic"};

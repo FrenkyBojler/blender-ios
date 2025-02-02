@@ -8,10 +8,10 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 
-#include "UI_resources.hh"
-
 #include "GEO_join_geometries.hh"
 #include "GEO_randomize.hh"
+
+#include "DNA_mesh_types.h"
 
 #include "node_geometry_util.hh"
 
@@ -59,7 +59,7 @@ static void grease_pencil_to_mesh(GeometrySet &geometry_set,
   Array<Mesh *> mesh_by_layer(grease_pencil.layers().size(), nullptr);
 
   for (const int layer_index : grease_pencil.layers().index_range()) {
-    const Drawing *drawing = grease_pencil.get_eval_drawing(*grease_pencil.layer(layer_index));
+    const Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
     if (drawing == nullptr) {
       continue;
     }
@@ -71,32 +71,32 @@ static void grease_pencil_to_mesh(GeometrySet &geometry_set,
     return;
   }
 
-  bke::Instances *gp_instances = new bke::Instances();
+  bke::Instances *instances = new bke::Instances();
   for (Mesh *mesh : mesh_by_layer) {
     if (!mesh) {
       /* Add an empty reference so the number of layers and instances match.
        * This makes it easy to reconstruct the layers afterwards and keep their attributes.
        * Although in this particular case we don't propagate the attributes. */
-      const int handle = gp_instances->add_reference(bke::InstanceReference());
-      gp_instances->add_instance(handle, float4x4::identity());
+      const int handle = instances->add_reference(bke::InstanceReference());
+      instances->add_instance(handle, float4x4::identity());
       continue;
     }
     GeometrySet temp_set = GeometrySet::from_mesh(mesh);
-    const int handle = gp_instances->add_reference(bke::InstanceReference{temp_set});
-    gp_instances->add_instance(handle, float4x4::identity());
+    const int handle = instances->add_reference(bke::InstanceReference{temp_set});
+    instances->add_instance(handle, float4x4::identity());
   }
 
-  bke::copy_attributes(grease_pencil.attributes(),
+  bke::copy_attributes(geometry_set.get_grease_pencil()->attributes(),
                        bke::AttrDomain::Layer,
                        bke::AttrDomain::Instance,
                        attribute_filter,
-                       gp_instances->attributes_for_write());
-
+                       instances->attributes_for_write());
   InstancesComponent &dst_component = geometry_set.get_component_for_write<InstancesComponent>();
-  bke::Instances *dst_instances = dst_component.get_for_write();
-  GeometrySet new_instances = geometry::join_geometries({GeometrySet::from_instances(dst_instances), GeometrySet::from_instances(gp_instances)}, attribute_filter);
-  
-
+  GeometrySet new_instances = geometry::join_geometries(
+      {GeometrySet::from_instances(dst_component.release()),
+       GeometrySet::from_instances(instances)},
+      attribute_filter);
+  dst_component.replace(new_instances.get_component_for_write<InstancesComponent>().release());
   geometry_set.replace_grease_pencil(nullptr);
 }
 
@@ -113,6 +113,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (geometry_set.has_curves()) {
       const Curves &curves = *geometry_set.get_curves();
       Mesh *mesh = curve_to_mesh(curves.geometry.wrap(), profile_set, fill_caps, attribute_filter);
+      if (mesh != nullptr) {
+        mesh->mat = static_cast<Material **>(MEM_dupallocN(curves.mat));
+        mesh->totcol = curves.totcol;
+      }
       geometry_set.replace_mesh(mesh);
     }
     if (geometry_set.has_grease_pencil()) {
@@ -128,7 +132,12 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_CURVE_TO_MESH, "Curve to Mesh", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeCurveToMesh", GEO_NODE_CURVE_TO_MESH);
+  ntype.ui_name = "Curve to Mesh";
+  ntype.ui_description =
+      "Convert curves into a mesh, optionally with a custom profile shape defined by curves";
+  ntype.enum_name_legacy = "CURVE_TO_MESH";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(&ntype);

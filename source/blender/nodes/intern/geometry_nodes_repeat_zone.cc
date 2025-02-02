@@ -16,6 +16,8 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "FN_lazy_function_graph_executor.hh"
+
 namespace blender::nodes {
 
 using bke::SocketValueVariant;
@@ -33,7 +35,7 @@ class RepeatBodyNodeExecuteWrapper : public lf::GraphExecutorNodeExecuteWrapper 
 
   void execute_node(const lf::FunctionNode &node,
                     lf::Params &params,
-                    const lf::Context &context) const
+                    const lf::Context &context) const override
   {
     GeoNodesLFUserData &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
     const int iteration = lf_body_nodes_->index_of_try(const_cast<lf::FunctionNode *>(&node));
@@ -54,8 +56,6 @@ class RepeatBodyNodeExecuteWrapper : public lf::GraphExecutorNodeExecuteWrapper 
 
     GeoNodesLFLocalUserData body_local_user_data{body_user_data};
     lf::Context body_context{context.storage, &body_user_data, &body_local_user_data};
-
-    ScopedComputeContextTimer timer(body_context);
     fn.execute(params, body_context);
   }
 };
@@ -148,6 +148,8 @@ class LazyFunctionForRepeatZone : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
+    const ScopedNodeTimer node_timer{context, repeat_output_bnode_};
+
     auto &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
     auto &local_user_data = *static_cast<GeoNodesLFLocalUserData *>(context.local_user_data);
 
@@ -272,19 +274,11 @@ class LazyFunctionForRepeatZone : public LazyFunction {
         lf_graph.add_link(lf_node.output(body_fn_.indices.outputs.border_link_usages[i]),
                           lf_border_link_usage_or_nodes[i]->input(iter_i));
       }
-      for (const auto item : body_fn_.indices.inputs.attributes_by_field_source_index.items()) {
-        lf_graph.add_link(
-            *lf_inputs[zone_info_.indices.inputs.attributes_by_field_source_index.lookup(
-                item.key)],
-            lf_node.input(item.value));
-      }
-      for (const auto item :
-           body_fn_.indices.inputs.attributes_by_caller_propagation_index.items())
-      {
-        lf_graph.add_link(
-            *lf_inputs[zone_info_.indices.inputs.attributes_by_caller_propagation_index.lookup(
-                item.key)],
-            lf_node.input(item.value));
+
+      /* Handle reference sets. */
+      for (const auto &item : body_fn_.indices.inputs.reference_sets.items()) {
+        lf_graph.add_link(*lf_inputs[zone_info_.indices.inputs.reference_sets.lookup(item.key)],
+                          lf_node.input(item.value));
       }
     }
 

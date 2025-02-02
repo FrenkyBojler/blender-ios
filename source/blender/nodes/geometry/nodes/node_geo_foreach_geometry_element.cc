@@ -42,37 +42,38 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!zone->output_node) {
     return;
   }
-  const bool is_zone_input_node = current_node->type == GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT;
+  const bool is_zone_input_node = current_node->type_legacy ==
+                                  GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT;
   bNode &output_node = const_cast<bNode &>(*zone->output_node);
-  PointerRNA output_node_ptr = RNA_pointer_create(
+  PointerRNA output_node_ptr = RNA_pointer_create_discrete(
       current_node_ptr->owner_id, &RNA_Node, &output_node);
   auto &storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(output_node.storage);
 
   if (is_zone_input_node) {
-    if (uiLayout *panel = uiLayoutPanel(C, layout, "input", false, TIP_("Input Fields"))) {
+    if (uiLayout *panel = uiLayoutPanel(C, layout, "input", false, IFACE_("Input Fields"))) {
       socket_items::ui::draw_items_list_with_operators<ForeachGeometryElementInputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ForeachGeometryElementInputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
             uiLayoutSetPropSep(panel, true);
             uiLayoutSetPropDecorate(panel, false);
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
   }
   else {
-    if (uiLayout *panel = uiLayoutPanel(C, layout, "main_items", false, TIP_("Main Geometry"))) {
+    if (uiLayout *panel = uiLayoutPanel(C, layout, "main_items", false, IFACE_("Main Geometry"))) {
       socket_items::ui::draw_items_list_with_operators<ForeachGeometryElementMainItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ForeachGeometryElementMainItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
             uiLayoutSetPropSep(panel, true);
             uiLayoutSetPropDecorate(panel, false);
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
     if (uiLayout *panel = uiLayoutPanel(
-            C, layout, "generation_items", false, TIP_("Generated Geometry")))
+            C, layout, "generation_items", false, IFACE_("Generated Geometry")))
     {
       socket_items::ui::draw_items_list_with_operators<
           ForeachGeometryElementGenerationItemsAccessor>(C, panel, ntree, output_node);
@@ -82,15 +83,15 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
                 storage.generation_items.items[storage.generation_items.active_index];
             uiLayoutSetPropSep(panel, true);
             uiLayoutSetPropDecorate(panel, false);
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
             if (active_item.socket_type != SOCK_GEOMETRY) {
-              uiItemR(panel, item_ptr, "domain", UI_ITEM_NONE, nullptr, ICON_NONE);
+              uiItemR(panel, item_ptr, "domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
             }
           });
     }
   }
 
-  uiItemR(layout, &output_node_ptr, "inspection_index", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, &output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 namespace input_node {
@@ -104,6 +105,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
 
+  b.add_default_layout();
+
   if (!node || !tree) {
     return;
   }
@@ -116,13 +119,13 @@ static void node_declare(NodeDeclarationBuilder &b)
                                    nullptr;
 
   b.add_output<decl::Int>("Index").description(
-      "Index of the element in the source geometry. Note that the same index can occure more than "
+      "Index of the element in the source geometry. Note that the same index can occur more than "
       "once when iterating over multiple components at once");
 
   b.add_output<decl::Geometry>("Element")
       .description(
-          "Single element geometry for the current iteration. Note that it can be quite "
-          "inefficient to splitup large geometries into many small geometries")
+          "Single-element geometry for the current iteration. Note that it can be quite "
+          "inefficient to split up large geometries into many small geometries")
       .propagate_all()
       .available(output_storage && AttrDomain(output_storage->domain) != AttrDomain::Corner);
 
@@ -141,16 +144,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       const StringRef name = item.name ? item.name : "";
       const std::string identifier =
           ForeachGeometryElementInputItemsAccessor::socket_identifier_for_item(item);
-      auto &input_decl = b.add_input(socket_type, name, identifier)
-                             .socket_name_ptr(&tree->id,
-                                              ForeachGeometryElementInputItemsAccessor::item_srna,
-                                              &item,
-                                              "name")
-                             .description("Field that is evaluated on the iteration domain");
+      b.add_input(socket_type, name, identifier)
+          .socket_name_ptr(
+              &tree->id, ForeachGeometryElementInputItemsAccessor::item_srna, &item, "name")
+          .description("Field that is evaluated on the iteration domain")
+          .field_on_all();
       b.add_output(socket_type, name, identifier)
           .align_with_previous()
           .description("Evaluated field value for the current element");
-      input_decl.supports_field();
     }
   }
 
@@ -165,7 +166,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   const NodeGeometryForeachGeometryElementInput &storage = node_storage(node);
   bNode *output_node = tree.node_by_id(storage.output_node_id);
 
-  PointerRNA output_node_ptr = RNA_pointer_create(ptr->owner_id, &RNA_Node, output_node);
+  PointerRNA output_node_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Node, output_node);
   uiItemR(layout, &output_node_ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -199,10 +200,11 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype,
-                     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT,
-                     "For Each Geometry Element Input",
-                     NODE_CLASS_INTERFACE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeForeachGeometryElementInput", GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT);
+  ntype.ui_name = "For Each Geometry Element Input";
+  ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_INPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
@@ -235,8 +237,6 @@ static void node_declare(NodeDeclarationBuilder &b)
           "The original input geometry with potentially new attributes that are output by the "
           "zone");
 
-  aal::RelationsInNode &relations = b.get_anonymous_attribute_relations();
-
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
   if (node && tree) {
@@ -262,7 +262,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
     auto &panel = b.add_panel("Generated");
 
-    int previous_geometry_index = -1;
+    int previous_output_geometry_index = -1;
+    int previous_input_geometry_index = -1;
     for (const int i : IndexRange(storage.generation_items.items_num)) {
       const NodeForeachGeometryElementGenerationItem &item = storage.generation_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
@@ -280,11 +281,8 @@ static void node_declare(NodeDeclarationBuilder &b)
                                  "name");
       auto &output_decl = panel.add_output(socket_type, name, identifier).align_with_previous();
       if (socket_type == SOCK_GEOMETRY) {
-        previous_geometry_index = output_decl.index();
-        aal::PropagateRelation relation;
-        relation.from_geometry_input = input_decl.index();
-        relation.to_geometry_output = output_decl.index();
-        relations.propagate_relations.append(relation);
+        previous_input_geometry_index = input_decl.index();
+        previous_output_geometry_index = output_decl.index();
 
         input_decl.description(
             "Geometry generated in the current iteration. Will be joined with geometries from all "
@@ -292,10 +290,10 @@ static void node_declare(NodeDeclarationBuilder &b)
         output_decl.description("Result of joining generated geometries from each iteration");
       }
       else {
-        input_decl.supports_field();
-        if (previous_geometry_index > 0) {
+        if (previous_output_geometry_index > 0) {
           input_decl.description("Field that will be stored as attribute on the geometry above");
-          output_decl.field_on({previous_geometry_index});
+          input_decl.field_on({previous_input_geometry_index});
+          output_decl.field_on({previous_output_geometry_index});
         }
         output_decl.description("Attribute on the geometry above");
       }
@@ -376,9 +374,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype,
-                     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
-                     "For Each Geometry Element Output",
-                     NODE_CLASS_INTERFACE);
+                     "GeometryNodeForeachGeometryElementOutput",
+                     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT);
+  ntype.ui_name = "For Each Geometry Element Output";
+  ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_OUTPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = input_node::node_label;

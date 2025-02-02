@@ -7,8 +7,6 @@
  * \ingroup imbuf
  */
 
-#include <cmath>
-
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
@@ -18,6 +16,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_interp.hh"
+#include "IMB_metadata.hh"
 
 #include "BLI_sys_types.h" /* for intptr_t support */
 
@@ -126,8 +125,8 @@ static void imb_half_y_no_alloc(ImBuf *ibuf2, ImBuf *ibuf1)
 
   _p1 = ibuf1->byte_buffer.data;
   dest = ibuf2->byte_buffer.data;
-  _p1f = (float *)ibuf1->float_buffer.data;
-  destf = (float *)ibuf2->float_buffer.data;
+  _p1f = ibuf1->float_buffer.data;
+  destf = ibuf2->float_buffer.data;
 
   for (y = ibuf2->y; y > 0; y--) {
     if (do_rect) {
@@ -373,11 +372,11 @@ static inline float4 load_pixel(const float *ptr)
 }
 static inline float4 load_pixel(const float2 *ptr)
 {
-  return float4(ptr[0]);
+  return float4(ptr[0], 0.0f, 1.0f);
 }
 static inline float4 load_pixel(const float3 *ptr)
 {
-  return float4(ptr[0]);
+  return float4(ptr[0], 1.0f);
 }
 static inline float4 load_pixel(const float4 *ptr)
 {
@@ -786,18 +785,108 @@ bool IMB_scale(ImBuf *ibuf, uint newx, uint newy, IMBScaleFilter filter, bool th
     return false;
   }
 
-  if (filter == IMBScaleFilter::Nearest) {
-    scale_with_function(ibuf, newx, newy, scale_nearest_func, threaded);
-  }
-  else if (filter == IMBScaleFilter::Bilinear) {
-    scale_with_function(ibuf, newx, newy, scale_bilinear_func, threaded);
-  }
-  else if (filter == IMBScaleFilter::Box) {
-    imb_scale_box(ibuf, newx, newy, threaded);
-  }
-  else {
-    BLI_assert_unreachable();
-    return false;
+  switch (filter) {
+    case IMBScaleFilter::Nearest:
+      scale_with_function(ibuf, newx, newy, scale_nearest_func, threaded);
+      break;
+    case IMBScaleFilter::Bilinear:
+      scale_with_function(ibuf, newx, newy, scale_bilinear_func, threaded);
+      break;
+    case IMBScaleFilter::Box:
+      imb_scale_box(ibuf, newx, newy, threaded);
+      break;
   }
   return true;
+}
+
+ImBuf *IMB_scale_into_new(
+    const ImBuf *ibuf, uint newx, uint newy, IMBScaleFilter filter, bool threaded)
+{
+  BLI_assert_msg(newx > 0 && newy > 0, "Images must be at least 1 on both dimensions!");
+  if (ibuf == nullptr) {
+    return nullptr;
+  }
+  /* Size same as source: just copy source image. */
+  if (newx == ibuf->x && newy == ibuf->y) {
+    ImBuf *dst = IMB_dupImBuf(ibuf);
+    IMB_metadata_copy(dst, ibuf);
+    return dst;
+  }
+
+  /* Allocate destination buffers. */
+  uchar4 *dst_byte = nullptr;
+  float *dst_float = nullptr;
+  alloc_scale_dst_buffers(ibuf, newx, newy, &dst_byte, &dst_float);
+  if (dst_byte == nullptr && dst_float == nullptr) {
+    return nullptr;
+  }
+
+  switch (filter) {
+    case IMBScaleFilter::Nearest:
+      scale_nearest_func(ibuf, newx, newy, dst_byte, dst_float, threaded);
+      break;
+    case IMBScaleFilter::Bilinear:
+      scale_bilinear_func(ibuf, newx, newy, dst_byte, dst_float, threaded);
+      break;
+    case IMBScaleFilter::Box: {
+      /* Horizontal scale. */
+      uchar4 *tmp_byte = nullptr;
+      float *tmp_float = nullptr;
+      alloc_scale_dst_buffers(ibuf, newx, ibuf->y, &tmp_byte, &tmp_float);
+      if (tmp_byte == nullptr && tmp_float == nullptr) {
+        if (dst_byte != nullptr) {
+          MEM_freeN(dst_byte);
+        }
+        if (dst_byte != nullptr) {
+          MEM_freeN(dst_float);
+        }
+        return nullptr;
+      }
+      if (newx < ibuf->x) {
+        scale_down_x_func(ibuf, newx, ibuf->y, tmp_byte, tmp_float, threaded);
+      }
+      else {
+        scale_up_x_func(ibuf, newx, ibuf->y, tmp_byte, tmp_float, threaded);
+      }
+
+      /* Vertical scale. */
+      ImBuf tmpbuf;
+      IMB_initImBuf(&tmpbuf, newx, ibuf->y, ibuf->planes, 0);
+      if (tmp_byte != nullptr) {
+        IMB_assign_byte_buffer(
+            &tmpbuf, reinterpret_cast<uint8_t *>(tmp_byte), IB_DO_NOT_TAKE_OWNERSHIP);
+      }
+      if (tmp_float != nullptr) {
+        IMB_assign_float_buffer(&tmpbuf, tmp_float, IB_DO_NOT_TAKE_OWNERSHIP);
+      }
+      if (newy < ibuf->y) {
+        scale_down_y_func(&tmpbuf, newx, newy, dst_byte, dst_float, threaded);
+      }
+      else {
+        scale_up_y_func(&tmpbuf, newx, newy, dst_byte, dst_float, threaded);
+      }
+
+      if (tmp_byte != nullptr) {
+        MEM_freeN(tmp_byte);
+      }
+      if (tmp_float != nullptr) {
+        MEM_freeN(tmp_float);
+      }
+    } break;
+  }
+
+  /* Create result image. */
+  ImBuf *dst = IMB_allocImBuf(newx, newy, ibuf->planes, IB_uninitialized_pixels);
+  dst->channels = ibuf->channels;
+  IMB_metadata_copy(dst, ibuf);
+  dst->colormanage_flag = ibuf->colormanage_flag;
+  if (dst_byte != nullptr) {
+    IMB_assign_byte_buffer(dst, reinterpret_cast<uint8_t *>(dst_byte), IB_TAKE_OWNERSHIP);
+    dst->byte_buffer.colorspace = ibuf->byte_buffer.colorspace;
+  }
+  if (dst_float != nullptr) {
+    IMB_assign_float_buffer(dst, dst_float, IB_TAKE_OWNERSHIP);
+    dst->float_buffer.colorspace = ibuf->float_buffer.colorspace;
+  }
+  return dst;
 }

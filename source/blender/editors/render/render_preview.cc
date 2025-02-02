@@ -9,6 +9,7 @@
 /* global includes */
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -21,10 +22,11 @@
 #endif
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_time.h"
+#include "BLI_path_utils.hh"
+#include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -45,7 +47,6 @@
 #include "DNA_world_types.h"
 
 #include "BKE_animsys.h"
-#include "BKE_appdir.hh"
 #include "BKE_armature.hh"
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
@@ -53,12 +54,12 @@
 #include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_light.h"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
 #include "BKE_pose_backup.h"
@@ -79,8 +80,6 @@
 #include "IMB_thumbs.hh"
 
 #include "BIF_glutil.hh"
-
-#include "GPU_shader.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -105,7 +104,7 @@
 #  include "BLI_threads.h"
 #endif
 
-static void icon_copy_rect(ImBuf *ibuf, uint w, uint h, uint *rect);
+static void icon_copy_rect(const ImBuf *ibuf, uint w, uint h, uint *rect);
 
 /* -------------------------------------------------------------------- */
 /** \name Local Structs
@@ -179,8 +178,7 @@ static Main *load_main_from_memory(const void *blend, int blend_size)
   bfd = BLO_read_from_memory(blend, blend_size, BLO_READ_SKIP_NONE, nullptr);
   if (bfd) {
     bmain = bfd->main;
-
-    MEM_freeN(bfd);
+    MEM_delete(bfd);
   }
   G.fileflags = fileflags;
 
@@ -709,7 +707,8 @@ static bool ed_preview_draw_rect(
   return ok;
 }
 
-void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, rcti *rect)
+void ED_preview_draw(
+    const bContext *C, void *idp, void *parentp, void *slotp, uiPreview *ui_preview, rcti *rect)
 {
   if (idp) {
     Scene *scene = CTX_data_scene(C);
@@ -720,7 +719,7 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
     MTex *slot = (MTex *)slotp;
     SpaceProperties *sbuts = CTX_wm_space_properties(C);
     ShaderPreview *sp = static_cast<ShaderPreview *>(
-        WM_jobs_customdata_from_type(wm, area, WM_JOB_TYPE_LOAD_PREVIEW));
+        WM_jobs_customdata_from_type(wm, area, WM_JOB_TYPE_RENDER_PREVIEW));
     rcti newrect;
     bool ok;
     int newx = BLI_rcti_size_x(rect);
@@ -746,7 +745,7 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
     /* start a new preview render job if signaled through sbuts->preview,
      * if no render result was found and no preview render job is running,
      * or if the job is running and the size of preview changed */
-    if ((sbuts != nullptr && sbuts->preview) ||
+    if ((sbuts != nullptr && sbuts->preview) || (ui_preview->tag & UI_PREVIEW_TAG_DIRTY) ||
         (!ok && !WM_jobs_test(wm, area, WM_JOB_TYPE_RENDER_PREVIEW)) ||
         (sp && (abs(sp->sizex - newx) >= 2 || abs(sp->sizey - newy) > 2)))
     {
@@ -754,6 +753,22 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
         sbuts->preview = 0;
       }
       ED_preview_shader_job(C, area, id, parent, slot, newx, newy, PR_BUTS_RENDER);
+      ui_preview->tag &= ~UI_PREVIEW_TAG_DIRTY;
+    }
+  }
+}
+
+void ED_previews_tag_dirty_by_id(const Main &bmain, const ID &id)
+{
+  LISTBASE_FOREACH (const bScreen *, screen, &bmain.screens) {
+    LISTBASE_FOREACH (const ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (const ARegion *, region, &area->regionbase) {
+        LISTBASE_FOREACH (uiPreview *, preview, &region->ui_previews) {
+          if (preview->id_session_uid == id.session_uid) {
+            preview->tag |= UI_PREVIEW_TAG_DIRTY;
+          }
+        }
+      }
     }
   }
 }
@@ -960,14 +975,22 @@ static PoseBackup *action_preview_render_prepare(IconPreview *preview)
   }
 
   /* Create a backup of the current pose. */
-  bAction *action = (bAction *)preview->id;
-  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones(object, action);
+  blender::animrig::Action &pose_action = reinterpret_cast<bAction *>(preview->id)->wrap();
+
+  if (pose_action.slot_array_num == 0) {
+    WM_report(RPT_WARNING, "Action has no data, cannot render preview");
+    return nullptr;
+  }
+
+  blender::animrig::Slot &slot = blender::animrig::get_best_pose_slot_for_id(object->id,
+                                                                             pose_action);
+  PoseBackup *pose_backup = BKE_pose_backup_create_all_bones({object}, &pose_action);
 
   /* Apply the Action as pose, so that it can be rendered. This assumes the Action represents a
    * single pose, and that thus the evaluation time doesn't matter. */
   AnimationEvalContext anim_eval_context = {preview->depsgraph, 0.0f};
-  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
-  blender::animrig::pose_apply_action_all_bones(object, action, slot_handle, &anim_eval_context);
+  blender::animrig::pose_apply_action_all_bones(
+      object, &pose_action, slot.handle, &anim_eval_context);
 
   /* Force evaluation of the new pose, before the preview is rendered. */
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
@@ -1341,51 +1364,43 @@ static ImBuf *icon_preview_imbuf_from_brush(Brush *brush)
   return brush->icon_imbuf;
 }
 
-static void icon_copy_rect(ImBuf *ibuf, uint w, uint h, uint *rect)
+static void icon_copy_rect(const ImBuf *ibuf, uint w, uint h, uint *rect)
 {
-  ImBuf *ima;
-  uint *drect, *srect;
-  float scaledx, scaledy;
-  short ex, ey, dx, dy;
-
-  /* paranoia test */
-  if (ibuf == nullptr || (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr))
+  if (ibuf == nullptr ||
+      (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr) || rect == nullptr)
   {
     return;
   }
 
-  /* Waste of cpu cycles... but the imbuf API has no other way to scale fast (ton). */
-  ima = IMB_dupImBuf(ibuf);
-
-  if (!ima) {
-    return;
-  }
-
-  if (ima->x > ima->y) {
+  float scaledx, scaledy;
+  if (ibuf->x > ibuf->y) {
     scaledx = float(w);
-    scaledy = (float(ima->y) / float(ima->x)) * float(w);
+    scaledy = (float(ibuf->y) / float(ibuf->x)) * float(w);
   }
   else {
-    scaledx = (float(ima->x) / float(ima->y)) * float(h);
+    scaledx = (float(ibuf->x) / float(ibuf->y)) * float(h);
     scaledy = float(h);
   }
 
   /* Scaling down must never assign zero width/height, see: #89868. */
-  ex = std::max(short(1), short(scaledx));
-  ey = std::max(short(1), short(scaledy));
+  int ex = std::max<int>(1, scaledx);
+  int ey = std::max<int>(1, scaledy);
 
-  dx = (w - ex) / 2;
-  dy = (h - ey) / 2;
+  int dx = (w - ex) / 2;
+  int dy = (h - ey) / 2;
 
-  IMB_scale(ima, ex, ey, IMBScaleFilter::Nearest, false);
+  ImBuf *ima = IMB_scale_into_new(ibuf, ex, ey, IMBScaleFilter::Nearest, false);
+  if (ima == nullptr) {
+    return;
+  }
 
   /* if needed, convert to 32 bits */
   if (ima->byte_buffer.data == nullptr) {
     IMB_rect_from_float(ima);
   }
 
-  srect = reinterpret_cast<uint *>(ima->byte_buffer.data);
-  drect = rect;
+  const uint *srect = reinterpret_cast<const uint *>(ima->byte_buffer.data);
+  uint *drect = rect;
 
   drect += dy * w + dx;
   for (; ey > 0; ey--) {
@@ -1710,6 +1725,16 @@ class PreviewLoadJob {
     PreviewImage *preview;
     /** Requested size. */
     eIconSizes icon_size;
+    /** Set to true by if the request was fully handled. */
+    std::atomic<bool> done = false;
+    /** Set to true if the request was handled but didn't result in a valid preview.
+     * #PRV_TAG_DEFFERED_INVALID will be set in response. */
+    std::atomic<bool> failure = false;
+
+    RequestedPreview(PreviewImage *preview, eIconSizes icon_size)
+        : preview(preview), icon_size(icon_size)
+    {
+    }
   };
 
   /** The previews that are still to be loaded. */
@@ -1777,15 +1802,12 @@ void PreviewLoadJob::load_jobless(PreviewImage *preview, const eIconSizes icon_s
 void PreviewLoadJob::push_load_request(PreviewImage *preview, const eIconSizes icon_size)
 {
   BLI_assert(preview->runtime->deferred_loading_data);
-  RequestedPreview requested_preview{};
-  requested_preview.preview = preview;
-  requested_preview.icon_size = icon_size;
 
   preview->flag[icon_size] |= PRV_RENDERING;
   /* Warn main thread code that this preview is being rendered and cannot be freed. */
   preview->runtime->tag |= PRV_TAG_DEFFERED_RENDERING;
 
-  requested_previews_.push_back(requested_preview);
+  requested_previews_.emplace_back(preview, icon_size);
   BLI_thread_queue_push(todo_queue_, &requested_previews_.back());
 }
 
@@ -1818,16 +1840,28 @@ void PreviewLoadJob::run_fn(void *customdata, wmJobWorkerStatus *worker_status)
     IMB_thumb_path_unlock(filepath);
 
     if (thumb) {
-      /* PreviewImage assumes premultiplied alpha... */
+      /* PreviewImage assumes premultiplied alpha. */
       IMB_premultiply_alpha(thumb);
 
-      icon_copy_rect(thumb,
-                     preview->w[request->icon_size],
-                     preview->h[request->icon_size],
-                     preview->rect[request->icon_size]);
+      if (ED_preview_use_image_size(preview, request->icon_size)) {
+        preview->w[request->icon_size] = thumb->x;
+        preview->h[request->icon_size] = thumb->y;
+        BLI_assert(preview->rect[request->icon_size] == nullptr);
+        preview->rect[request->icon_size] = (uint *)MEM_dupallocN(thumb->byte_buffer.data);
+      }
+      else {
+        icon_copy_rect(thumb,
+                       preview->w[request->icon_size],
+                       preview->h[request->icon_size],
+                       preview->rect[request->icon_size]);
+      }
       IMB_freeImBuf(thumb);
     }
+    else {
+      request->failure = true;
+    }
 
+    request->done = true;
     worker_status->do_update = true;
   }
 
@@ -1840,6 +1874,9 @@ void PreviewLoadJob::finish_request(RequestedPreview &request)
   PreviewImage *preview = request.preview;
 
   preview->runtime->tag &= ~PRV_TAG_DEFFERED_RENDERING;
+  if (request.failure) {
+    preview->runtime->tag |= PRV_TAG_DEFFERED_INVALID;
+  }
   BKE_previewimg_finish(preview, request.icon_size);
 
   BLI_assert_msg(BLI_thread_is_main(),
@@ -1859,7 +1896,7 @@ void PreviewLoadJob::update_fn(void *customdata)
   {
     RequestedPreview &requested = *request_it;
     /* Skip items that are not done loading yet. */
-    if (requested.preview->runtime->tag & PRV_TAG_DEFFERED_RENDERING) {
+    if (!requested.done) {
       ++request_it;
       continue;
     }
@@ -1897,6 +1934,11 @@ static void icon_preview_free(void *customdata)
 
   BLI_freelistN(&ip->sizes);
   MEM_freeN(ip);
+}
+
+bool ED_preview_use_image_size(const PreviewImage *preview, eIconSizes size)
+{
+  return size == ICON_SIZE_PREVIEW && preview->runtime->deferred_loading_data;
 }
 
 bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)

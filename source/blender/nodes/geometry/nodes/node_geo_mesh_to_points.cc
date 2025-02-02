@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
-#include "BLI_task.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
@@ -16,6 +15,8 @@
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
+
+#include "FN_multi_function_builder.hh"
 
 #include "node_geometry_util.hh"
 
@@ -65,37 +66,76 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
     geometry_set.remove_geometry_during_modify();
     return;
   }
-
+  const AttributeAccessor src_attributes = mesh->attributes();
   const bke::MeshFieldContext field_context{*mesh, domain};
   fn::FieldEvaluator evaluator{field_context, domain_size};
   evaluator.set_selection(selection_field);
+  /* Evaluating directly into the point cloud doesn't work because we are not using the full
+   * "min_array_size" array but compressing the selected elements into the final array with no
+   * gaps. */
   evaluator.add(position_field);
   evaluator.add(radius_field);
   evaluator.evaluate();
-
   const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
-  const GVArray positions_eval = evaluator.get_evaluated(0);
-  const GVArray radii_eval = evaluator.get_evaluated(1);
+  const VArray<float3> positions_eval = evaluator.get_evaluated<float3>(0);
+  const VArray<float> radii_eval = evaluator.get_evaluated<float>(1);
 
-  PointCloud *pointcloud = bke::pointcloud_new_no_attributes(selection.size());
+  const bool share_arrays = selection.size() == domain_size;
+  const bool share_position = share_arrays && positions_eval.is_span() &&
+                              positions_eval.get_internal_span().data() ==
+                                  mesh->vert_positions().data();
+
+  PointCloud *pointcloud;
+  if (share_position) {
+    /* Create an empty point cloud so the positions can be shared. */
+    pointcloud = BKE_pointcloud_new_nomain(0);
+    CustomData_free_layer_named(&pointcloud->pdata, "position", pointcloud->totpoint);
+    pointcloud->totpoint = mesh->verts_num;
+    const bke::AttributeReader src = src_attributes.lookup<float3>("position");
+    const bke::AttributeInitShared init(src.varray.get_internal_span().data(), *src.sharing_info);
+    pointcloud->attributes_for_write().add<float3>("position", AttrDomain::Point, init);
+  }
+  else {
+    pointcloud = BKE_pointcloud_new_nomain(selection.size());
+    array_utils::gather(positions_eval, selection, pointcloud->positions_for_write());
+  }
+
   MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
-  /* TODO: Compose filter to include skip of positions ans radius attribute from gathering. */
-  bke::gather_attributes(mesh->attributes(),
-                         domain,
-                         bke::AttrDomain::Point,
-                         attribute_filter,
-                         selection,
-                         dst_attributes);
-
   GSpanAttributeWriter radius = dst_attributes.lookup_or_add_for_write_only_span(
       "radius", AttrDomain::Point, CD_PROP_FLOAT);
-  array_utils::gather(radii_eval, selection, radius.span);
+  array_utils::gather(evaluator.get_evaluated(1), selection, radius.span);
   radius.finish();
 
-  GSpanAttributeWriter positions = dst_attributes.lookup_or_add_for_write_only_span(
-      "position", AttrDomain::Point, CD_PROP_FLOAT3);
-  array_utils::gather(positions_eval, selection, positions.span);
-  positions.finish();
+  Map<StringRef, AttributeDomainAndType> attributes;
+  geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::Mesh},
+                                                 GeometryComponent::Type::PointCloud,
+                                                 false,
+                                                 attribute_filter,
+                                                 attributes);
+  attributes.remove("radius");
+  attributes.remove("position");
+
+  for (MapItem<StringRef, AttributeDomainAndType> entry : attributes.items()) {
+    const StringRef attribute_id = entry.key;
+    const eCustomDataType data_type = entry.value.data_type;
+    const bke::GAttributeReader src = src_attributes.lookup(attribute_id, domain, data_type);
+    if (!src) {
+      /* Domain interpolation can fail if the source domain is empty. */
+      continue;
+    }
+
+    if (share_arrays && src.domain == domain && src.sharing_info && src.varray.is_span()) {
+      const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
+                                          *src.sharing_info);
+      dst_attributes.add(attribute_id, AttrDomain::Point, data_type, init);
+    }
+    else {
+      GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
+          attribute_id, AttrDomain::Point, data_type);
+      array_utils::gather(src.varray, selection, dst.span);
+      dst.finish();
+    }
+  }
 
   geometry_set.replace_pointcloud(pointcloud);
   geometry_set.keep_only_during_modify({GeometryComponent::Type::PointCloud});
@@ -202,7 +242,11 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_MESH_TO_POINTS, "Mesh to Points", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeMeshToPoints", GEO_NODE_MESH_TO_POINTS);
+  ntype.ui_name = "Mesh to Points";
+  ntype.ui_description = "Generate a point cloud from a mesh's vertices";
+  ntype.enum_name_legacy = "MESH_TO_POINTS";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;

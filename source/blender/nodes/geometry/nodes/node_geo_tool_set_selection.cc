@@ -12,6 +12,8 @@
 
 #include "RNA_enum_types.hh"
 
+#include "FN_multi_function_builder.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_tool_set_selection_cc {
@@ -60,7 +62,7 @@ static GField clamp_selection(const GField &selection)
   return Field<bool>(FieldOperation::Create(clamp, {selection}));
 }
 
-static Field<float> invert_selection(const GField &selection)
+static GField invert_selection(const GField &selection)
 {
   if (selection.cpp_type().is<bool>()) {
     static auto invert = mf::build::SI1_SO<bool, bool>("Invert Selection",
@@ -201,7 +203,11 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_TOOL_SET_SELECTION, "Set Selection", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeToolSetSelection", GEO_NODE_TOOL_SET_SELECTION);
+  ntype.ui_name = "Set Selection";
+  ntype.ui_description = "Set selection of the edited geometry, for tool execution";
+  ntype.enum_name_legacy = "TOOL_SELECTION_SET";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;

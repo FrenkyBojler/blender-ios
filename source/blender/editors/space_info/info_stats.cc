@@ -13,7 +13,6 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
@@ -48,7 +47,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subdiv_modifier.hh"
@@ -58,8 +57,6 @@
 #include "ED_info.hh"
 
 #include "WM_api.hh"
-
-#include "UI_resources.hh"
 
 #include "GPU_capabilities.hh"
 
@@ -171,24 +168,6 @@ static void stats_object(Object *ob,
         stats->totlampsel++;
       }
       break;
-    case OB_GPENCIL_LEGACY: {
-      if (is_selected) {
-        bGPdata *gpd = (bGPdata *)ob->data;
-        if (!BLI_gset_add(objects_gset, gpd)) {
-          break;
-        }
-        /* GPXX Review if we can move to other place when object change
-         * maybe to depsgraph evaluation
-         */
-        BKE_gpencil_stats_update(gpd);
-
-        stats->totgplayer += gpd->totlayer;
-        stats->totgpframe += gpd->totframe;
-        stats->totgpstroke += gpd->totstroke;
-        stats->totgppoint += gpd->totpoint;
-      }
-      break;
-    }
     case OB_GREASE_PENCIL: {
       if (!is_selected) {
         break;
@@ -834,7 +813,7 @@ void ED_info_draw_stats(
     return;
   }
 
-  if ((ob) && ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+  if ((ob) && ob->type == OB_GREASE_PENCIL) {
     stats_row(col1, labels[LAYERS], col2, stats_fmt.totgplayer, nullptr, y, height);
     stats_row(col1, labels[FRAMES], col2, stats_fmt.totgpframe, nullptr, y, height);
     stats_row(col1, labels[STROKES], col2, stats_fmt.totgpstroke, nullptr, y, height);

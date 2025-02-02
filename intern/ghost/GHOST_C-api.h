@@ -10,8 +10,6 @@
 
 #include "GHOST_Types.h"
 
-#include <stdbool.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,7 +19,7 @@ extern "C" {
  * \param event: The event received.
  * \param user_data: The callback's user data, supplied to #GHOST_CreateSystem.
  */
-typedef bool (*GHOST_EventCallbackProcPtr)(GHOST_EventHandle event, GHOST_TUserDataPtr user_data);
+using GHOST_EventCallbackProcPtr = bool (*)(GHOST_EventHandle event, GHOST_TUserDataPtr user_data);
 
 /**
  * Creates the one and only system.
@@ -1277,13 +1275,17 @@ int GHOST_XrGetControllerModelData(GHOST_XrContextHandle xr_context,
  * \param r_queue: After calling this function the VkQueue
  *     referenced by this parameter will contain the VKQueue handle
  *     of the context associated with the `context` parameter.
+ * \param r_queue_mutex: After calling this function the std::mutex referred
+ *     by this parameter will contain the mutex of the context associated
+ *     with the context parameter.
  */
 void GHOST_GetVulkanHandles(GHOST_ContextHandle context,
                             void *r_instance,
                             void *r_physical_device,
                             void *r_device,
                             uint32_t *r_graphic_queue_family,
-                            void *r_queue);
+                            void *r_queue,
+                            void **r_queue_mutex);
 
 /**
  * Set the pre and post callbacks for vulkan swap chain in the given context.

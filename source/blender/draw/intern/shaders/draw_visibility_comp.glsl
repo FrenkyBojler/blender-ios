@@ -7,9 +7,12 @@
  */
 /* TODO(fclem): This could be augmented by a 2 pass occlusion culling system. */
 
+#include "draw_view_info.hh"
+
 #include "common_intersect_lib.glsl"
 #include "common_math_lib.glsl"
-#include "common_view_lib.glsl"
+
+COMPUTE_SHADER_CREATE_INFO(draw_visibility_compute)
 
 void mask_visibility_bit(uint view_id)
 {

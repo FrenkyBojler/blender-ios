@@ -4,13 +4,7 @@
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blentranslation
-  ../../bmesh
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../windowmanager
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -21,13 +15,7 @@ set(INC_SYS
 set(SRC
   annotate_draw.cc
   annotate_paint.cc
-  drawgpencil.cc
   editaction_gpencil.cc
-  gpencil_add_blank.cc
-  gpencil_add_lineart.cc
-  gpencil_add_monkey.cc
-  gpencil_add_stroke.cc
-  gpencil_armature.cc
   gpencil_data.cc
   gpencil_edit.cc
   gpencil_ops.cc
@@ -40,11 +28,16 @@ set(SRC
 set(LIB
   PRIVATE bf::animrig
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 

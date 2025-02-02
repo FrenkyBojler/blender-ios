@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "draw_model_lib.glsl"
+#include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 
 void main()
 {
-  mat3 imat = mat3(ModelMatrixInverse);
+  mat3 imat = to_float3x3(ModelMatrixInverse);
   vec3 right = normalize(imat * ViewMatrixInverse[0].xyz);
   vec3 up = normalize(imat * ViewMatrixInverse[1].xyz);
 #ifdef VERTEX_PULL

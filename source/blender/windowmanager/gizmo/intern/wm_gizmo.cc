@@ -6,16 +6,13 @@
  * \ingroup wm
  */
 
-#include <new>
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
-
-#include "GPU_batch.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -50,10 +47,10 @@ static wmGizmo *wm_gizmo_create(const wmGizmoType *gzt, PointerRNA *properties)
   BLI_assert(gzt != nullptr);
   BLI_assert(gzt->struct_size >= sizeof(wmGizmo));
 
-  /* FIXME: Old C-style over-allocation is not trivial to port to C++, so for now keep it that way
-   * and use a placement new for C++ construction. */
-  wmGizmo *gz = static_cast<wmGizmo *>(MEM_callocN(
-      gzt->struct_size + (sizeof(wmGizmoProperty) * gzt->target_property_defs_len), __func__));
+  /* FIXME: Old C-style allocation is not trivial to port to C++ here, because actual allocation
+   * depends on the 'subtype' of gizmo. The whole gizmo type hierarchy should probably be moved to
+   * proper C++ virtual inheritance at some point. */
+  wmGizmo *gz = static_cast<wmGizmo *>(MEM_callocN(gzt->struct_size, __func__));
   new (gz) wmGizmo();
   gz->type = gzt;
 
@@ -65,7 +62,8 @@ static wmGizmo *wm_gizmo_create(const wmGizmoType *gzt, PointerRNA *properties)
   else {
     gz->properties = blender::bke::idprop::create_group("wmGizmoProperties").release();
   }
-  *gz->ptr = RNA_pointer_create(static_cast<ID *>(G_MAIN->wm.first), gzt->srna, gz->properties);
+  *gz->ptr = RNA_pointer_create_discrete(
+      static_cast<ID *>(G_MAIN->wm.first), gzt->srna, gz->properties);
 
   WM_gizmo_properties_sanitize(gz->ptr, false);
 
@@ -74,6 +72,10 @@ static wmGizmo *wm_gizmo_create(const wmGizmoType *gzt, PointerRNA *properties)
   unit_m4(gz->matrix_offset);
 
   gz->drag_part = -1;
+
+  /* Only ensure expected size for the target properties array. Actual initialization of these
+   * happen separately (see e.g. #WM_gizmo_target_property_def_rna and related). */
+  gz->target_properties.resize(gzt->target_property_defs_len);
 
   return gz;
 }
@@ -146,13 +148,9 @@ void WM_gizmo_free(wmGizmo *gz)
     MEM_delete(gz->ptr);
   }
 
-  if (gz->type->target_property_defs_len != 0) {
-    wmGizmoProperty *gz_prop_array = WM_gizmo_target_property_array(gz);
-    for (int i = 0; i < gz->type->target_property_defs_len; i++) {
-      wmGizmoProperty *gz_prop = &gz_prop_array[i];
-      if (gz_prop->custom_func.free_fn) {
-        gz_prop->custom_func.free_fn(gz, gz_prop);
-      }
+  for (wmGizmoProperty &gz_prop : gz->target_properties) {
+    if (gz_prop.custom_func.free_fn) {
+      gz_prop.custom_func.free_fn(gz, &gz_prop);
     }
   }
 
@@ -477,11 +475,9 @@ static void gizmo_update_prop_data(wmGizmo *gz)
 {
   /* Gizmo property might have been changed, so update gizmo. */
   if (gz->type->property_update) {
-    wmGizmoProperty *gz_prop_array = WM_gizmo_target_property_array(gz);
-    for (int i = 0; i < gz->type->target_property_defs_len; i++) {
-      wmGizmoProperty *gz_prop = &gz_prop_array[i];
-      if (WM_gizmo_target_property_is_valid(gz_prop)) {
-        gz->type->property_update(gz, gz_prop);
+    for (wmGizmoProperty &gz_prop : gz->target_properties) {
+      if (WM_gizmo_target_property_is_valid(&gz_prop)) {
+        gz->type->property_update(gz, &gz_prop);
       }
     }
   }
@@ -585,7 +581,7 @@ void WM_gizmo_calc_matrix_final(const wmGizmo *gz, float r_mat[4][4])
 
 void WM_gizmo_properties_create_ptr(PointerRNA *ptr, wmGizmoType *gzt)
 {
-  *ptr = RNA_pointer_create(nullptr, gzt->srna, nullptr);
+  *ptr = RNA_pointer_create_discrete(nullptr, gzt->srna, nullptr);
 }
 
 void WM_gizmo_properties_create(PointerRNA *ptr, const char *gtstring)
@@ -596,7 +592,7 @@ void WM_gizmo_properties_create(PointerRNA *ptr, const char *gtstring)
     WM_gizmo_properties_create_ptr(ptr, (wmGizmoType *)gzt);
   }
   else {
-    *ptr = RNA_pointer_create(nullptr, &RNA_GizmoProperties, nullptr);
+    *ptr = RNA_pointer_create_discrete(nullptr, &RNA_GizmoProperties, nullptr);
   }
 }
 

@@ -12,7 +12,7 @@
 #include "GHOST_Rect.hh"
 #include "GHOST_Types.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <string>
 
 class GHOST_IContext;
@@ -36,7 +36,7 @@ class GHOST_IWindow {
   /**
    * Destructor.
    */
-  virtual ~GHOST_IWindow() {}
+  virtual ~GHOST_IWindow() = default;
 
   /**
    * Returns indication as to whether the window is valid.
@@ -364,7 +364,5 @@ class GHOST_IWindow {
   virtual void endIME() = 0;
 #endif /* WITH_INPUT_IME */
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_IWindow")
-#endif
 };

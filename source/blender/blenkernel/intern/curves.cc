@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include <cmath>
 #include <cstring>
 #include <optional>
 
@@ -18,7 +17,6 @@
 #include "DNA_object_types.h"
 
 #include "BLI_index_range.hh"
-#include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_rand.hh"
 #include "BLI_span.hh"
@@ -168,7 +166,7 @@ IDTypeInfo IDType_ID_CV = {
     /*lib_override_apply_post*/ nullptr,
 };
 
-void *BKE_curves_add(Main *bmain, const char *name)
+Curves *BKE_curves_add(Main *bmain, const char *name)
 {
   Curves *curves = static_cast<Curves *>(BKE_id_new(bmain, ID_CV, name));
 
@@ -195,7 +193,7 @@ static void curves_evaluate_modifiers(Depsgraph *depsgraph,
   const bool use_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
   if (BKE_object_is_in_editmode(object)) {
-    required_mode = (ModifierMode)(int(required_mode) | eModifierMode_Editmode);
+    required_mode = (ModifierMode)(required_mode | eModifierMode_Editmode);
   }
   ModifierApplyFlag apply_flag = use_render ? MOD_APPLY_RENDER : MOD_APPLY_USECACHE;
   const ModifierEvalContext mectx = {depsgraph, object, apply_flag};
@@ -233,7 +231,7 @@ void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
   /* Evaluate modifiers. */
   Curves *curves = static_cast<Curves *>(object->data);
   GeometrySet geometry_set = GeometrySet::from_curves(curves, GeometryOwnershipType::ReadOnly);
-  if (object->mode == OB_MODE_SCULPT_CURVES) {
+  if (ELEM(object->mode, OB_MODE_EDIT, OB_MODE_SCULPT_CURVES)) {
     /* Try to propagate deformation data through modifier evaluation, so that sculpt mode can work
      * on evaluated curves. */
     GeometryComponentEditData &edit_component =
@@ -316,6 +314,7 @@ void curves_copy_parameters(const Curves &src, Curves &dst)
   if (src.surface_uv_map != nullptr) {
     dst.surface_uv_map = BLI_strdup(src.surface_uv_map);
   }
+  dst.surface_collision_distance = src.surface_collision_distance;
 }
 
 CurvesSurfaceTransforms::CurvesSurfaceTransforms(const Object &curves_ob, const Object *surface_ob)

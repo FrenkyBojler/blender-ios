@@ -18,7 +18,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_rect.h"
@@ -28,6 +28,7 @@
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -44,7 +45,7 @@
 #include "view3d_intern.hh" /* own include */
 #include "view3d_navigate.hh"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 #ifdef WITH_INPUT_NDOF
 // #  define NDOF_WALK_DEBUG
@@ -621,7 +622,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
   walk->time_lastdraw = BLI_time_now_seconds();
 
   walk->draw_handle_pixel = ED_region_draw_cb_activate(
-      walk->region->type, drawWalkPixel, walk, REGION_DRAW_POST_PIXEL);
+      walk->region->runtime->type, drawWalkPixel, walk, REGION_DRAW_POST_PIXEL);
 
   walk->rv3d->rflag |= RV3D_NAVIGATING;
 
@@ -668,7 +669,7 @@ static int walkEnd(bContext *C, WalkInfo *walk)
 
   WM_event_timer_remove(CTX_wm_manager(C), win, walk->timer);
 
-  ED_region_draw_cb_exit(walk->region->type, walk->draw_handle_pixel);
+  ED_region_draw_cb_exit(walk->region->runtime->type, walk->draw_handle_pixel);
 
   ED_transform_snap_object_context_destroy(walk->snap_context);
 

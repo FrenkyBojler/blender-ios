@@ -8,10 +8,9 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_object.hh"
 
@@ -27,6 +26,7 @@
 
 #include "RNA_access.hh"
 
+#include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "view3d_intern.hh" /* own include */
@@ -79,6 +79,7 @@ static void gizmo_empty_image_prop_matrix_set(const wmGizmo *gz,
 
   ob->empty_drawsize = matrix[0][0];
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+  WM_main_add_notifier(NC_OBJECT | ND_TRANSFORM, ob);
 
   float dims[2];
   RNA_float_get_array(gz->ptr, "dimensions", dims);

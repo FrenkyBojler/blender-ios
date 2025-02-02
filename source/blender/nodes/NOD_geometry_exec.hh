@@ -12,8 +12,8 @@
 #include "FN_multi_function_builder.hh"
 
 #include "BKE_attribute_filter.hh"
-#include "BKE_attribute_math.hh"
 #include "BKE_geometry_fields.hh"
+#include "BKE_geometry_nodes_reference_set.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_volume_grid_fwd.hh"
@@ -27,10 +27,10 @@ namespace blender::nodes {
 
 using bke::AttrDomain;
 using bke::AttributeAccessor;
+using bke::AttributeDomainAndType;
 using bke::AttributeFieldInput;
 using bke::AttributeFilter;
 using bke::AttributeIter;
-using bke::AttributeKind;
 using bke::AttributeMetaData;
 using bke::AttributeReader;
 using bke::AttributeWriter;
@@ -39,6 +39,7 @@ using bke::GAttributeReader;
 using bke::GAttributeWriter;
 using bke::GeometryComponent;
 using bke::GeometryComponentEditData;
+using bke::GeometryNodesReferenceSet;
 using bke::GeometrySet;
 using bke::GreasePencilComponent;
 using bke::GSpanAttributeWriter;
@@ -60,10 +61,10 @@ using geo_eval_log::NodeWarningType;
 
 class NodeAttributeFilter : public AttributeFilter {
  private:
-  const bke::AnonymousAttributeSet &set_;
+  const GeometryNodesReferenceSet &set_;
 
  public:
-  NodeAttributeFilter(const bke::AnonymousAttributeSet &set) : set_(set) {}
+  NodeAttributeFilter(const GeometryNodesReferenceSet &set) : set_(set) {}
 
   Result filter(StringRef attribute_name) const override;
 };
@@ -95,18 +96,18 @@ class GeoNodeExecParams {
   }
 
   template<typename T>
-  static inline constexpr bool is_field_base_type_v = is_same_any_v<T,
-                                                                    float,
-                                                                    int,
-                                                                    bool,
-                                                                    ColorGeometry4f,
-                                                                    float3,
-                                                                    std::string,
-                                                                    math::Quaternion,
-                                                                    float4x4>;
+  static constexpr bool is_field_base_type_v = is_same_any_v<T,
+                                                             float,
+                                                             int,
+                                                             bool,
+                                                             ColorGeometry4f,
+                                                             float3,
+                                                             std::string,
+                                                             math::Quaternion,
+                                                             float4x4>;
 
   template<typename T>
-  static inline constexpr bool stored_as_SocketValueVariant_v =
+  static constexpr bool stored_as_SocketValueVariant_v =
       is_field_base_type_v<T> || fn::is_field_v<T> || bke::is_VolumeGrid_v<T> ||
       is_same_any_v<T, GField, bke::GVolumeGrid>;
 
@@ -301,8 +302,7 @@ class GeoNodeExecParams {
     const int lf_index =
         lf_input_for_attribute_propagation_to_output_[node_.output_by_identifier(output_identifier)
                                                           .index_in_all_outputs()];
-    const bke::AnonymousAttributeSet &set = params_.get_input<bke::AnonymousAttributeSet>(
-        lf_index);
+    const GeometryNodesReferenceSet &set = params_.get_input<GeometryNodesReferenceSet>(lf_index);
     return NodeAttributeFilter(set);
   }
 

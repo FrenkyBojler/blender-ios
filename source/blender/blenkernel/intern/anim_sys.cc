@@ -14,15 +14,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
 #include "BLI_bit_vector.hh"
-#include "BLI_blenlib.h"
-#include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -31,7 +30,6 @@
 #include "DNA_anim_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -47,10 +45,9 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_nla.hh"
 #include "BKE_node.hh"
-#include "BKE_report.hh"
 #include "BKE_texture.h"
 
 #include "ANIM_action.hh"
@@ -67,8 +64,6 @@
 #include "BLO_read_write.hh"
 
 #include "nla_private.h"
-
-#include "atomic_ops.h"
 
 #include "CLG_log.h"
 
@@ -796,7 +791,6 @@ static void action_idcode_patch_check(ID *id, bAction *act)
     return;
   }
 
-#ifdef WITH_ANIM_BAKLAVA
   if (!blender::animrig::legacy::action_treat_as_legacy(*act)) {
     /* Layered Actions can always be assigned to any ID. It's actually the Slot that is limited
      * to an ID type (similar to legacy Actions). Layered Actions are evaluated differently,
@@ -805,7 +799,6 @@ static void action_idcode_patch_check(ID *id, bAction *act)
     /* TODO: when possible, add a BLI_assert_unreachable() here. */
     return;
   }
-#endif
 
   idcode = GS(id->name);
 
@@ -863,24 +856,20 @@ void animsys_evaluate_action_group(PointerRNA *ptr,
     }
   };
 
-#ifdef WITH_ANIM_BAKLAVA
   blender::animrig::ChannelGroup channel_group = agrp->wrap();
   if (channel_group.is_legacy()) {
-#endif
     /* calculate then execute each curve */
     for (fcu = static_cast<FCurve *>(agrp->channels.first); (fcu) && (fcu->grp == agrp);
          fcu = fcu->next)
     {
       visit_fcurve(fcu);
     }
-#ifdef WITH_ANIM_BAKLAVA
     return;
   }
 
   for (FCurve *fcurve : channel_group.fcurves()) {
     visit_fcurve(fcurve);
   }
-#endif
 }
 
 void animsys_evaluate_action(PointerRNA *ptr,
@@ -962,7 +951,7 @@ static void nlastrip_evaluate_controls(NlaStrip *strip,
   if (strip->fcurves.first) {
 
     /* create RNA-pointer needed to set values */
-    PointerRNA strip_ptr = RNA_pointer_create(nullptr, &RNA_NlaStrip, strip);
+    PointerRNA strip_ptr = RNA_pointer_create_discrete(nullptr, &RNA_NlaStrip, strip);
 
     /* execute these settings as per normal */
     Vector<FCurve *> strip_fcurves = listbase_to_vector<FCurve>(strip->fcurves);

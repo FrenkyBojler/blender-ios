@@ -14,14 +14,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array_utils.h"
-#include "BLI_color.hh"
 #include "BLI_color_mix.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -41,7 +38,6 @@
 #include "BKE_editmesh.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
@@ -64,8 +60,9 @@
 /* For IMB_BlendMode only. */
 #include "IMB_imbuf.hh"
 
-#include "BKE_ccg.hh"
 #include "bmesh.hh"
+
+#include "RNA_define.hh"
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh" /* own include */
@@ -126,7 +123,7 @@ struct WPaintData : public PaintModeData {
   float *precomputed_weight;
   bool precomputed_weight_ready;
 
-  ~WPaintData()
+  ~WPaintData() override
   {
     MEM_SAFE_FREE(defbase_sel);
     MEM_SAFE_FREE(vgroup_validmap);
@@ -1318,7 +1315,7 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
             continue;
           }
           const float final_alpha = factors[i] * brush_strength * brush_alpha_pressure;
-          do_weight_paint_vertex(vp, ob, wpi, vert, final_alpha, float(weight_final));
+          do_weight_paint_vertex(vp, ob, wpi, vert, final_alpha, weight_final);
         }
       }
     });
@@ -1786,7 +1783,7 @@ static void wpaint_do_symmetrical_brush_actions(
 }
 
 static void wpaint_stroke_update_step(bContext *C,
-                                      wmOperator * /*op*/,
+                                      wmOperator *op,
                                       PaintStroke *stroke,
                                       PointerRNA *itemptr)
 {
@@ -1840,7 +1837,7 @@ static void wpaint_stroke_update_step(bContext *C,
   wpi.vgroup_validmap = wpd->vgroup_validmap;
   wpi.vgroup_locked = wpd->vgroup_locked;
   wpi.vgroup_unlocked = wpd->vgroup_unlocked;
-  wpi.do_flip = RNA_boolean_get(itemptr, "pen_flip") || ss.cache->invert;
+  wpi.do_flip = RNA_boolean_get(op->ptr, "pen_flip") || ss.cache->invert;
   wpi.do_multipaint = wpd->do_multipaint;
   wpi.do_auto_normalize = ((ts.auto_normalize != 0) && (wpi.vgroup_validmap != nullptr) &&
                            (wpi.do_multipaint || wpi.vgroup_validmap[wpi.active.index]));
@@ -1991,6 +1988,14 @@ void PAINT_OT_weight_paint(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 
   paint_stroke_operator_properties(ot);
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "override_location",
+      false,
+      "Override Location",
+      "Override the given `location` array by recalculating object space positions from the "
+      "provided `mouse_event` positions");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
 /** \} */
