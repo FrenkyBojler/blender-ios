@@ -1312,6 +1312,87 @@ static bool all_scenes_use(Main *bmain, const blender::Span<const char *> engine
   return true;
 }
 
+static void node_mix_dynamic_socket_types(Main &bmain, bNodeTree &tree, ID *owner_id)
+{
+  LISTBASE_FOREACH (bNode *, node, &tree.nodes) {
+    if (node->type_legacy != SH_NODE_MIX) {
+      continue;
+    }
+
+    char escaped_node_name[sizeof(node->name) * 2 + 1];
+    BLI_str_escape(escaped_node_name, node->name, sizeof(escaped_node_name));
+
+    const auto replace_socket_index = [&](const int old_socket_index, const int new_socket_index) {
+      BKE_fcurves_id_cb(&tree.id, [&](ID * /*id*/, FCurve *fcurve) {
+        const std::string old_input_rna_path = fmt::format("nodes[\"{}\"].inputs[{}].default_value", escaped_node_name, old_socket_index);
+        if (old_input_rna_path != blender::StringRef(fcurve->rna_path)) {
+          return;
+        }
+        const std::string new_input_rna_path = fmt::format("nodes[\"{}\"].inputs[{}].default_value", escaped_node_name, new_socket_index);
+
+        MEM_freeN(fcurve->rna_path);
+        fcurve->rna_path = BLI_strdup(new_input_rna_path.c_str());
+      });
+    };
+
+    const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(node->storage);
+
+    switch (eNodeSocketDatatype(storage.data_type)) {
+      case SOCK_FLOAT: {
+        change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
+        change_node_socket_name(&node->inputs, "A_Float", "A");
+        change_node_socket_name(&node->inputs, "B_Float", "B");
+        change_node_socket_name(&node->outputs, "Result_Float", "Result");
+
+        // TODO: Also we have to delete animations of other sokcets here since socket usage. See: #133925.
+
+        replace_socket_index(2, 1);
+        replace_socket_index(3, 2);
+        break;
+      }
+      case SOCK_VECTOR: {
+        if (storage.factor_mode == NODE_MIX_MODE_UNIFORM) {
+          change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
+        }
+        else {
+          change_node_socket_name(&node->inputs, "Factor_Vector", "Factor");
+          replace_socket_index(1, 0);
+        }
+
+        change_node_socket_name(&node->inputs, "A_Vector", "A");
+        change_node_socket_name(&node->inputs, "B_Vector", "B");
+        change_node_socket_name(&node->outputs, "Result_Vector", "Result");
+        
+        replace_socket_index(4, 1);
+        replace_socket_index(5, 2);
+        break;
+      }
+      case SOCK_ROTATION: {
+        change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
+        change_node_socket_name(&node->inputs, "A_Rotation", "A");
+        change_node_socket_name(&node->inputs, "B_Rotation", "B");
+        change_node_socket_name(&node->outputs, "Result_Rotation", "Result");
+
+        replace_socket_index(8, 1);
+        replace_socket_index(9, 2);
+        break;
+      }
+      case SOCK_RGBA: {
+        change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
+        change_node_socket_name(&node->inputs, "A_Color", "A");
+        change_node_socket_name(&node->inputs, "B_Color", "B");
+        change_node_socket_name(&node->outputs, "Result_Color", "Result");
+
+        replace_socket_index(6, 1);
+        replace_socket_index(7, 2);
+        break;
+      }
+      default:
+        BLI_assert_unreachable();
+    }
+  }
+}
+
 void do_versions_after_linking_400(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 9)) {
@@ -1628,6 +1709,16 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         do_version_color_to_float_conversion(ntree);
       }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 28)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, owner_id) {
+      if (!ELEM(ntree->type, NTREE_GEOMETRY, NTREE_SHADER)) {
+        continue;
+      }
+      node_mix_dynamic_socket_types(*bmain, *ntree, owner_id);
     }
     FOREACH_NODETREE_END;
   }
@@ -3777,55 +3868,6 @@ static void version_geometry_normal_input_node(bNodeTree &ntree)
   }
 }
 
-static void node_mix_dynamic_socket_types(bNodeTree &tree)
-{
-  LISTBASE_FOREACH (bNode *, node, &tree.nodes) {
-    if (node->type_legacy != SH_NODE_MIX) {
-      continue;
-    }
-    const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(node->storage);
-
-    switch (eNodeSocketDatatype(storage.data_type)) {
-      case SOCK_FLOAT: {
-        change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
-        change_node_socket_name(&node->inputs, "A_Float", "A");
-        change_node_socket_name(&node->inputs, "B_Float", "B");
-        change_node_socket_name(&node->outputs, "Result_Float", "Result");
-        break;
-      }
-      case SOCK_VECTOR: {
-        if (storage.factor_mode == NODE_MIX_MODE_UNIFORM) {
-          change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
-        }
-        else {
-          change_node_socket_name(&node->inputs, "Factor_Vector", "Factor");
-        }
-
-        change_node_socket_name(&node->inputs, "A_Vector", "A");
-        change_node_socket_name(&node->inputs, "B_Vector", "B");
-        change_node_socket_name(&node->outputs, "Result_Vector", "Result");
-        break;
-      }
-      case SOCK_ROTATION: {
-        change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
-        change_node_socket_name(&node->inputs, "A_Rotation", "A");
-        change_node_socket_name(&node->inputs, "B_Rotation", "B");
-        change_node_socket_name(&node->outputs, "Result_Rotation", "Result");
-        break;
-      }
-      case SOCK_RGBA: {
-        change_node_socket_name(&node->inputs, "Factor_Float", "Factor");
-        change_node_socket_name(&node->inputs, "A_Color", "A");
-        change_node_socket_name(&node->inputs, "B_Color", "B");
-        change_node_socket_name(&node->outputs, "Result_Color", "Result");
-        break;
-      }
-      default:
-        BLI_assert_unreachable();
-    }
-  }
-}
-
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -5902,16 +5944,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         do_version_viewer_shortcut(ntree);
       }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 28)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (!ELEM(ntree->type, NTREE_GEOMETRY, NTREE_SHADER)) {
-        continue;
-      }
-      node_mix_dynamic_socket_types(*ntree);
     }
     FOREACH_NODETREE_END;
   }
