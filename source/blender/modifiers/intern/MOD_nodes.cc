@@ -2287,11 +2287,40 @@ static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
   return false;
 }
 
+static const bNodeTreeInterfaceSocket *has_first_boolean_socket_with_same_name(
+    const bNodeTreeInterfacePanel &interface_panel)
+{
+  const bNodeTreeInterfaceItem *first_item = interface_panel.items().first();
+  if (first_item->item_type != NODE_INTERFACE_SOCKET) {
+    return nullptr;
+  }
+  const auto &first_socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(first_item);
+  if (!(first_socket.flag & NODE_INTERFACE_SOCKET_INPUT) ||
+      !(first_socket.flag & NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY) ||
+      (first_socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER))
+  {
+    return nullptr;
+  }
+  const bke::bNodeSocketType *typeinfo = first_socket.socket_typeinfo();
+  if (!typeinfo || typeinfo->type != SOCK_BOOLEAN) {
+    return nullptr;
+  }
+  const StringRefNull interface_panel_name(interface_panel.name);
+  const StringRefNull first_socket_name(first_socket.name);
+  if (first_socket_name.is_empty() || first_socket_name != interface_panel_name) {
+    return nullptr;
+  }
+  return &first_socket;
+}
+
 static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
                                          uiLayout *layout,
-                                         const bNodeTreeInterfacePanel &interface_panel)
+                                         const bNodeTreeInterfacePanel &interface_panel,
+                                         const bool skip_first = false)
 {
-  for (const bNodeTreeInterfaceItem *item : interface_panel.items()) {
+  Span<const bNodeTreeInterfaceItem *> panel_items = interface_panel.items().drop_front(
+      skip_first ? 1 : 0);
+  for (const bNodeTreeInterfaceItem *item : panel_items) {
     if (item->item_type == NODE_INTERFACE_PANEL) {
       const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
       if (!interface_panel_has_socket(sub_interface_panel)) {
@@ -2300,8 +2329,29 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
       NodesModifierPanel *panel = find_panel_by_id(ctx.nmd, sub_interface_panel.identifier);
       PointerRNA panel_ptr = RNA_pointer_create_discrete(
           ctx.md_ptr->owner_id, &RNA_NodesModifierPanel, panel);
-      PanelLayout panel_layout = uiLayoutPanelProp(&ctx.C, layout, &panel_ptr, "is_open");
-      uiItemL(panel_layout.header, IFACE_(sub_interface_panel.name), ICON_NONE);
+      PanelLayout panel_layout;
+      bool skip_first = false;
+      if (const auto *boolean_socket = has_first_boolean_socket_with_same_name(
+              sub_interface_panel))
+      {
+        const StringRefNull identifier = boolean_socket->identifier;
+        /* TODO: Handle edge case where this is not valid. */
+        char socket_id_esc[MAX_NAME * 2];
+        BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
+
+        char rna_path[sizeof(socket_id_esc) + 4];
+        SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
+
+        const char *name = IFACE_(boolean_socket->name);
+
+        panel_layout = uiLayoutPanelPropWithBoolHeader(
+            &ctx.C, layout, &panel_ptr, "is_open", ctx.md_ptr, rna_path, name);
+        skip_first = true;
+      }
+      else {
+        panel_layout = uiLayoutPanelProp(&ctx.C, layout, &panel_ptr, "is_open");
+        uiItemL(panel_layout.header, IFACE_(sub_interface_panel.name), ICON_NONE);
+      }
       if (!interface_panel_affects_output(ctx, sub_interface_panel)) {
         uiLayoutSetActive(panel_layout.header, false);
       }
@@ -2315,7 +2365,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
           nullptr,
           nullptr);
       if (panel_layout.body) {
-        draw_interface_panel_content(ctx, panel_layout.body, sub_interface_panel);
+        draw_interface_panel_content(ctx, panel_layout.body, sub_interface_panel, skip_first);
       }
     }
     else {
