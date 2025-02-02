@@ -2002,8 +2002,10 @@ static void calc_stabilized_plane(const Brush &brush,
     new_plane_normal = plane_normal;
     new_plane_center = plane_center;
 
-    const int max_normal_index = int(1 + normal_weight * (plane_brush_max_rolling_average_num - 1));
-    const int max_center_index = int(1 + center_weight * (plane_brush_max_rolling_average_num - 1));
+    const int max_normal_index = int(1 +
+                                     normal_weight * (plane_brush_max_rolling_average_num - 1));
+    const int max_center_index = int(1 +
+                                     center_weight * (plane_brush_max_rolling_average_num - 1));
 
     plane_cache.normals.reinitialize(max_normal_index);
     plane_cache.centers.reinitialize(max_center_index);
@@ -2071,6 +2073,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
 {
   SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+  int n;
 
   AreaNormalCenterData anctd;
   threading::EnumerableThreadSpecific<SampleLocalData> all_tls;
@@ -2143,32 +2146,43 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
     }
   }
 
-  float3 plane_normal = float3(0.0f);
-  float3 plane_center = ss.cache ? ss.cache->location_symm : float3(0.0f);
+  /* For flatten center. */
+  for (n = 0; n < anctd.area_cos.size(); n++) {
+    if (anctd.count_co[n] == 0) {
+      continue;
+    }
 
-  /* Plane normal. */
-  for (int i = 0; i < anctd.count_no.size(); i++) {
-    if (anctd.count_no[i] > 0) {
-      plane_normal = math::normalize(anctd.area_nos[i]);
+    mul_v3_v3fl(r_area_co, anctd.area_cos[n], 1.0f / anctd.count_co[n]);
+    break;
+  }
+
+  if (n == 2) {
+    zero_v3(r_area_co);
+  }
+
+  if (anctd.count_co[0] == 0 && anctd.count_co[1] == 0) {
+    if (ss.cache) {
+      copy_v3_v3(r_area_co, ss.cache->location_symm);
+    }
+  }
+
+  /* For area normal. */
+  for (n = 0; n < anctd.area_nos.size(); n++) {
+    if (normalize_v3_v3(r_area_no, anctd.area_nos[n]) != 0.0f) {
       break;
     }
   }
 
-  /* Plane center. */
-  for (int i = 0; i < anctd.area_cos.size(); i++) {
-    if (anctd.count_co[i] > 0) {
-      plane_center = anctd.area_cos[i] * 1.0f / anctd.count_co[i];
-      break;
-    }
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
+    float3 stabilized_normal;
+    float3 stabilized_center;
+
+    calc_stabilized_plane(
+        brush, *ss.cache, r_area_no, r_area_co, stabilized_normal, stabilized_center);
+
+    copy_v3_v3(r_area_no, stabilized_normal);
+    copy_v3_v3(r_area_co, stabilized_center);
   }
-
-  float3 stabilized_normal;
-  float3 stabilized_center;
-  calc_stabilized_plane(
-      brush, *ss.cache, plane_normal, plane_center, stabilized_normal, stabilized_center);
-
-  copy_v3_v3(r_area_no, stabilized_normal);
-  copy_v3_v3(r_area_co, stabilized_center);
 }
 
 }  // namespace blender::ed::sculpt_paint
