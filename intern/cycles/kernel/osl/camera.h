@@ -51,7 +51,27 @@ ccl_device_inline packed_float3 osl_eval_camera(KernelGlobals kg,
                                                 packed_float3 &dDdx,
                                                 packed_float3 &dDdy)
 {
-  return zero_spectrum();
+  ShaderGlobals globals;
+  cameradata_to_shaderglobals(sensor, dSdx, dSdy, rand_lens, &globals);
+
+  float output[21] = {0.0f};
+#  ifdef __KERNEL_OPTIX__
+  optixDirectCall<void>(/* NUM_CALLABLE_PROGRAM_GROUPS */ 2,
+                        /* shaderglobals_ptr = */ &globals,
+                        /* groupdata_ptr = */ (void *)nullptr,
+                        /* userdata_base_ptr = */ (void *)nullptr,
+                        /* output_base_ptr = */ (void *)output,
+                        /* shadeindex = */ 0,
+                        /* interactive_params_ptr */ (void *)nullptr);
+#  endif
+
+  P = make_float3(output[0], output[1], output[2]);
+  dPdx = make_float3(output[3], output[4], output[5]);
+  dPdy = make_float3(output[6], output[7], output[8]);
+  D = make_float3(output[9], output[10], output[11]);
+  dDdx = make_float3(output[12], output[13], output[14]);
+  dDdy = make_float3(output[15], output[16], output[17]);
+  return make_float3(output[18], output[19], output[20]);
 }
 
 #endif

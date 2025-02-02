@@ -21,11 +21,14 @@ void OptiXDeviceQueue::init_execution()
   CUDADeviceQueue::init_execution();
 }
 
-static bool is_optix_specific_kernel(DeviceKernel kernel, bool osl_shading)
+static bool is_optix_specific_kernel(DeviceKernel kernel, bool osl_shading, bool osl_camera)
 {
 #  ifdef WITH_OSL
   /* OSL uses direct callables to execute, so shading needs to be done in OptiX if OSL is used. */
   if (osl_shading && device_kernel_has_shading(kernel)) {
+    return true;
+  }
+  if (osl_camera && kernel == DEVICE_KERNEL_INTEGRATOR_INIT_FROM_CAMERA) {
     return true;
   }
 #  else
@@ -44,11 +47,13 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
 #  ifdef WITH_OSL
   const OSLGlobals *og = static_cast<const OSLGlobals *>(optix_device->get_cpu_osl_memory());
   const bool osl_shading = og->use_shading;
+  const bool osl_camera = og->use_camera;
 #  else
   const bool osl_shading = false;
+  const bool osl_camera = false;
 #  endif
 
-  if (!is_optix_specific_kernel(kernel, osl_shading)) {
+  if (!is_optix_specific_kernel(kernel, osl_shading, osl_camera)) {
     return CUDADeviceQueue::enqueue(kernel, work_size, args);
   }
 
@@ -79,6 +84,12 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
       kernel == DEVICE_KERNEL_SHADER_EVAL_CURVE_SHADOW_TRANSPARENCY)
   {
     set_launch_param(offsetof(KernelParamsOptiX, offset), sizeof(int32_t), 2);
+  }
+
+  if (kernel == DEVICE_KERNEL_INTEGRATOR_INIT_FROM_CAMERA) {
+    set_launch_param(offsetof(KernelParamsOptiX, num_tiles), sizeof(int32_t), 1);
+    set_launch_param(offsetof(KernelParamsOptiX, render_buffer), sizeof(device_ptr), 2);
+    set_launch_param(offsetof(KernelParamsOptiX, max_tile_work_size), sizeof(int32_t), 3);
   }
 
   cuda_device_assert(cuda_device_, cuStreamSynchronize(cuda_stream_));
@@ -156,6 +167,11 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
                                 PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY * sizeof(SbtRecord);
       break;
 
+    case DEVICE_KERNEL_INTEGRATOR_INIT_FROM_CAMERA:
+      pipeline = optix_device->pipelines[PIP_SHADE];
+      sbt_params.raygenRecord = sbt_data_ptr + PG_RGEN_INIT_FROM_CAMERA * sizeof(SbtRecord);
+      break;
+
     default:
       LOG(ERROR) << "Invalid kernel " << device_kernel_as_string(kernel)
                  << " is attempted to be enqueued.";
@@ -173,7 +189,7 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
   sbt_params.callablesRecordStrideInBytes = sizeof(SbtRecord);
 
 #  ifdef WITH_OSL
-  if (osl_shading) {
+  if (osl_shading || osl_camera) {
     sbt_params.callablesRecordCount += static_cast<unsigned int>(optix_device->osl_groups.size());
   }
 #  endif
