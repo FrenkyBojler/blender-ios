@@ -89,6 +89,73 @@ def shader_param_ensure(node, param):
     return sock
 
 
+def camera_param_ensure(ccam, param):
+    import idprop
+
+    if param.isoutput or param.isclosure:
+        return None
+
+    # Get metadata for the parameter to control UI display
+    metadata = {meta.name: meta.value for meta in param.metadata}
+    if 'label' not in metadata:
+        metadata['label'] = param.name
+
+    datatype = None
+    if param.type.basetype == param.type.basetype.INT:
+        datatype = int
+    elif param.type.basetype == param.type.basetype.FLOAT:
+        datatype = float
+    elif param.type.basetype == param.type.basetype.STRING:
+        datatype = str
+
+    # OSl doesn't have boolean as a type, but we do
+    if (datatype == int) and (metadata.get('widget') in ('boolean', 'checkBox')):
+        datatype = bool
+    default = param.value if isinstance(param.value, tuple) else [param.value]
+    default = [datatype(v) for v in default]
+
+    name = 'script_param_' + param.name
+    if name in ccam:
+        # If the parameter already exists, only reset its value if its type
+        # or array length changed
+        cur_data = ccam[name]
+        if isinstance(cur_data, idprop.types.IDPropertyArray):
+            cur_length = len(cur_data)
+            cur_type = type(cur_data[0])
+        else:
+            cur_length = 1
+            cur_type = type(cur_data)
+        do_replace = datatype != cur_type or len(default) != cur_length
+    else:
+        # Parameter doesn't exist yet, so set it from the defaults
+        do_replace = True
+
+    if do_replace:
+        ccam[name] = tuple(default) if len(default) > 1 else default[0]
+
+    ui = ccam.id_properties_ui(name)
+    ui.clear()
+
+    # Determine subtype (no unit support for now)
+    if param.type.vecsemantics == param.type.vecsemantics.COLOR:
+        ui.update(subtype='COLOR')
+    elif metadata.get('slider'):
+        ui.update(subtype='FACTOR')
+
+    # Map OSL metadata to Blender names
+    option_map = {
+        'help': 'description',
+        'sensitivity': 'step', 'digits': 'precision',
+        'min': 'min', 'max': 'max',
+        'slidermin': 'soft_min', 'slidermax': 'soft_max',
+    }
+    for option, value in metadata.items():
+        if option in option_map:
+            ui.update(**{option_map[option]: value})
+
+    return name
+
+
 def update_external_script(report, filepath, library):
     """compile and update OSL script"""
     import os
@@ -221,5 +288,51 @@ def update_script_node(node, report):
 
 def update_camera_script(cam, report):
     """compile and update camera script"""
-    # TODO Implement
-    return True
+    import os
+    import oslquery
+
+    oso_file_remove = False
+
+    ccam = cam.cycles
+    if ccam.script_mode == 'EXTERNAL':
+        # compile external script file
+        ok, oso_path, oso_file_remove = update_external_script(report, ccam.script_path, cam.library)
+
+    elif ccam.script_mode == 'INTERNAL' and ccam.script:
+        # internal script, we will store bytecode in the node
+        ok, oso_path, bytecode, bytecode_hash = update_internal_script(report, ccam.script)
+        if bytecode:
+            ccam.script_bytecode = bytecode
+            ccam.script_bytecode_hash = bytecode_hash
+            cam.update_tag()
+
+    else:
+        report({'WARNING'}, "No text or file specified in node, nothing to compile")
+        return
+
+    if ok:
+        if query := oslquery.OSLQuery(oso_path):
+            # Ensure that all parameters have a matching property
+            used_params = set()
+            for param in query.parameters:
+                if name := camera_param_ensure(ccam, param):
+                    used_params.add(name)
+
+            # Clean up unused parameters
+            for prop in list(ccam.keys()):
+                if prop.startswith('script_param_') and prop not in used_params:
+                    del ccam[prop]
+        else:
+            ok = False
+            report({'ERROR'}, tip_("OSL query failed to open %s") % oso_path)
+    else:
+        report({'ERROR'}, "OSL script compilation failed, see console for errors")
+
+    # remove temporary oso file
+    if oso_file_remove:
+        try:
+            os.remove(oso_path)
+        except:
+            pass
+
+    return ok
