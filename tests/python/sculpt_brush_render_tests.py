@@ -91,6 +91,7 @@ def setup():
     # render actually works.
     bpy.ops.object.mode_set(mode='OBJECT')
 
+
 try:
     import bpy
     inside_blender = True
