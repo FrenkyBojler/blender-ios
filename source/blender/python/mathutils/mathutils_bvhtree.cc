@@ -14,7 +14,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -47,7 +47,7 @@
 #  include "../bmesh/bmesh_py_types.hh"
 #endif /* MATH_STANDALONE */
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* -------------------------------------------------------------------- */
 /** \name Documentation String (snippets)
@@ -269,10 +269,11 @@ static void py_bvhtree_raycast_cb(void *userdata,
   float dist;
 
   if (self->epsilon == 0.0f) {
-    dist = bvhtree_ray_tri_intersection(ray, hit->dist, UNPACK3(tri_co));
+    dist = blender::bke::bvhtree_ray_tri_intersection(ray, hit->dist, UNPACK3(tri_co));
   }
   else {
-    dist = bvhtree_sphereray_tri_intersection(ray, self->epsilon, hit->dist, UNPACK3(tri_co));
+    dist = blender::bke::bvhtree_sphereray_tri_intersection(
+        ray, self->epsilon, hit->dist, UNPACK3(tri_co));
   }
 
   if (dist >= 0 && dist < hit->dist) {
@@ -789,7 +790,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
       plink = static_cast<PolyLink *>(BLI_memarena_alloc(
           poly_arena, sizeof(*plink) + (sizeof(int) * size_t(py_tricoords_len))));
 
-      plink->len = uint(py_tricoords_len);
+      plink->len = py_tricoords_len;
       *p_plink_prev = plink;
       p_plink_prev = &plink->next;
 

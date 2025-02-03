@@ -11,9 +11,8 @@
 #include "BLI_math_vector.h"
 
 #include "BLI_task.h"
-#include "BLI_utildefines.h"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /********************************** Covariance Matrices *********************************/
 
@@ -85,7 +84,7 @@ void BLI_covariance_m_vn_ex(const int n,
    */
   const float covfac = 1.0f / float(use_sample_correction ? cos_vn_num - 1 : cos_vn_num);
 
-  memset(r_covmat, 0, sizeof(*r_covmat) * (size_t)(n * n));
+  memset(r_covmat, 0, sizeof(*r_covmat) * size_t(n * n));
 
   CovarianceData data{};
   data.cos_vn = cos_vn;

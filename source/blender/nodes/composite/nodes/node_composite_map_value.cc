@@ -6,6 +6,8 @@
  * \ingroup cmpnodes
  */
 
+#include <algorithm>
+
 #include "FN_multi_function_builder.hh"
 
 #include "NOD_multi_function.hh"
@@ -65,7 +67,7 @@ static void node_composit_buts_map_value(uiLayout *layout, bContext * /*C*/, Poi
   uiItemR(sub, ptr, "max", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 static bool get_use_min(const bNode &node)
 {
@@ -117,15 +119,11 @@ static float map_value(
   float result = (value + offset) * size;
 
   if constexpr (UseMin) {
-    if (result < min) {
-      result = min;
-    }
+    result = std::max(result, min);
   }
 
   if constexpr (UseMax) {
-    if (result > max) {
-      result = max;
-    }
+    result = std::min(result, max);
   }
 
   return result;
@@ -195,7 +193,11 @@ void register_node_type_cmp_map_value()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MAP_VALUE, "Map Value", NODE_CLASS_OP_VECTOR);
+  cmp_node_type_base(&ntype, "CompositorNodeMapValue", CMP_NODE_MAP_VALUE);
+  ntype.ui_name = "Map Value";
+  ntype.ui_description = "Scale, offset and clamp values";
+  ntype.enum_name_legacy = "MAP_VALUE";
+  ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = file_ns::cmp_node_map_value_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_map_value;
   ntype.initfunc = file_ns::node_composit_init_map_value;

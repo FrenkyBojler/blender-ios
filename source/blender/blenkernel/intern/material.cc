@@ -6,8 +6,8 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cmath>
-#include <cstddef>
 #include <cstring>
 #include <optional>
 
@@ -19,8 +19,6 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
-#include "DNA_anim_types.h"
-#include "DNA_collection_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_customdata_types.h"
@@ -46,9 +44,9 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
-#include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_curve.hh"
+#include "BKE_curves.hh"
 #include "BKE_displist.h"
 #include "BKE_editmesh.hh"
 #include "BKE_gpencil_legacy.h"
@@ -59,9 +57,10 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -289,7 +288,7 @@ static void nodetree_mark_previews_dirty_reccursive(bNodeTree *tree)
   }
   tree->runtime->previews_refresh_state++;
   for (bNode *node : tree->all_nodes()) {
-    if (node->type == NODE_GROUP) {
+    if (node->is_group()) {
       bNodeTree *nested_tree = reinterpret_cast<bNodeTree *>(node->id);
       nodetree_mark_previews_dirty_reccursive(nested_tree);
     }
@@ -591,8 +590,8 @@ void BKE_id_material_resize(Main *bmain, ID *id, short totcol, bool do_id_user)
 
 void BKE_id_material_append(Main *bmain, ID *id, Material *ma)
 {
-  Material ***matar;
-  if ((matar = BKE_id_material_array_p(id))) {
+  Material ***matar = BKE_id_material_array_p(id);
+  if (matar) {
     short *totcol = BKE_id_material_len_p(id);
     Material **mat = MEM_cnew_array<Material *>((*totcol) + 1, "newmatar");
     if (*totcol) {
@@ -617,8 +616,8 @@ Material *BKE_id_material_pop(Main *bmain, ID *id, int index_i)
 {
   short index = short(index_i);
   Material *ret = nullptr;
-  Material ***matar;
-  if ((matar = BKE_id_material_array_p(id))) {
+  Material ***matar = BKE_id_material_array_p(id);
+  if (matar) {
     short *totcol = BKE_id_material_len_p(id);
     if (index >= 0 && index < (*totcol)) {
       ret = (*matar)[index];
@@ -653,8 +652,8 @@ Material *BKE_id_material_pop(Main *bmain, ID *id, int index_i)
 
 void BKE_id_material_clear(Main *bmain, ID *id)
 {
-  Material ***matar;
-  if ((matar = BKE_id_material_array_p(id))) {
+  Material ***matar = BKE_id_material_array_p(id);
+  if (matar) {
     short *totcol = BKE_id_material_len_p(id);
 
     while ((*totcol)--) {
@@ -694,9 +693,7 @@ Material **BKE_object_material_get_p(Object *ob, short act)
 
   /* Fix inconsistency which may happen when library linked data reduces the number of
    * slots but object was not updated. Ideally should be fixed elsewhere. */
-  if (*totcolp < ob->totcol) {
-    ob->totcol = *totcolp;
-  }
+  ob->totcol = std::min<int>(*totcolp, ob->totcol);
 
   if (slot_index < ob->totcol && ob->matbits && ob->matbits[slot_index]) {
     /* Use object material slot. */
@@ -731,7 +728,7 @@ Material *BKE_object_material_get(Object *ob, short act)
   return ma_p ? *ma_p : nullptr;
 }
 
-static const ID *get_evaluated_object_data_with_materials(Object *ob)
+static const ID *get_evaluated_object_data_with_materials(const Object *ob)
 {
   const ID *data = static_cast<ID *>(ob->data);
   /* Meshes in edit mode need special handling. */
@@ -750,35 +747,37 @@ Material *BKE_object_material_get_eval(Object *ob, short act)
   BLI_assert(DEG_is_evaluated_object(ob));
 
   const ID *data = get_evaluated_object_data_with_materials(ob);
-  const short *tot_slots_data_ptr = BKE_id_material_len_p(const_cast<ID *>(data));
-  const int tot_slots_data = tot_slots_data_ptr ? *tot_slots_data_ptr : 0;
+  const int slots_num = BKE_object_material_count_eval(ob);
 
-  if (tot_slots_data == 0) {
+  if (slots_num == 0) {
     return nullptr;
   }
 
   /* Clamp to number of slots if index is out of range, same convention as used for rendering. */
-  const int slot_index = clamp_i(act - 1, 0, tot_slots_data - 1);
+  const int slot_index = clamp_i(act - 1, 0, slots_num - 1);
   const int tot_slots_object = ob->totcol;
-
-  Material ***materials_data_ptr = BKE_id_material_array_p(const_cast<ID *>(data));
-  Material **materials_data = materials_data_ptr ? *materials_data_ptr : nullptr;
-  Material **materials_object = ob->mat;
 
   /* Check if slot is overwritten by object. */
   if (slot_index < tot_slots_object) {
     if (ob->matbits) {
       if (ob->matbits[slot_index]) {
-        Material *material = materials_object[slot_index];
+        Material *material = ob->mat[slot_index];
         if (material != nullptr) {
           return material;
         }
       }
     }
   }
+
   /* Otherwise use data from object-data. */
-  if (slot_index < tot_slots_data) {
-    Material *material = materials_data[slot_index];
+  const short *data_slots_num_ptr = BKE_id_material_len_p(const_cast<ID *>(data));
+  if (!data_slots_num_ptr) {
+    return nullptr;
+  }
+  const int data_slots_num = *data_slots_num_ptr;
+  Material **data_materials = *BKE_id_material_array_p(const_cast<ID *>(data));
+  if (slot_index < data_slots_num) {
+    Material *material = data_materials[slot_index];
     return material;
   }
   return nullptr;
@@ -793,7 +792,46 @@ int BKE_object_material_count_eval(const Object *ob)
   BLI_assert(ob->data != nullptr);
   const ID *id = get_evaluated_object_data_with_materials(const_cast<Object *>(ob));
   const short *len_p = BKE_id_material_len_p(const_cast<ID *>(id));
-  return len_p ? *len_p : 0;
+  return std::max(ob->totcol, len_p ? *len_p : 0);
+}
+
+std::optional<int> BKE_id_material_index_max_eval(const ID &id)
+{
+  switch (GS(id.name)) {
+    case ID_ME:
+      return reinterpret_cast<const Mesh &>(id).material_index_max();
+    case ID_CU_LEGACY:
+      return reinterpret_cast<const Curve &>(id).material_index_max();
+    case ID_CV:
+      return reinterpret_cast<const Curves &>(id).geometry.wrap().material_index_max();
+    case ID_PT:
+      return reinterpret_cast<const PointCloud &>(id).material_index_max();
+    case ID_GP:
+      return reinterpret_cast<const GreasePencil &>(id).material_index_max_eval();
+    case ID_VO:
+    case ID_MB:
+      /* Always use the first material. */
+      return 0;
+    case ID_GD_LEGACY:
+      /* Is not rendered anymore. */
+      BLI_assert_unreachable();
+      return 0;
+    default:
+      break;
+  }
+  return 0;
+}
+
+int BKE_id_material_used_with_fallback_eval(const ID &id)
+{
+  const int max_material_index = std::max(0, BKE_id_material_index_max_eval(id).value_or(0));
+  return max_material_index + 1;
+}
+
+int BKE_object_material_used_with_fallback_eval(const Object &ob)
+{
+  const ID *data = get_evaluated_object_data_with_materials(&ob);
+  return BKE_id_material_used_with_fallback_eval(*data);
 }
 
 void BKE_id_material_eval_assign(ID *id, int slot, Material *material)
@@ -933,9 +971,7 @@ void BKE_object_material_resize(Main *bmain, Object *ob, const short totcol, boo
   if (ob->totcol && ob->actcol == 0) {
     ob->actcol = 1;
   }
-  if (ob->actcol > ob->totcol) {
-    ob->actcol = ob->totcol;
-  }
+  ob->actcol = std::min(ob->actcol, ob->totcol);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
@@ -998,9 +1034,7 @@ void BKE_id_material_assign(Main *bmain, ID *id, Material *ma, short act)
   if (act > MAXMAT) {
     return;
   }
-  if (act < 1) {
-    act = 1;
-  }
+  act = std::max<int>(act, 1);
 
   /* test arraylens */
 
@@ -1047,9 +1081,7 @@ static void object_material_assign(
   if (act > MAXMAT) {
     return;
   }
-  if (act < 1) {
-    act = 1;
-  }
+  act = std::max<int>(act, 1);
 
   /* test arraylens */
 
@@ -1279,9 +1311,7 @@ void BKE_object_material_array_assign(
                                to_object_only ? BKE_MAT_ASSIGN_OBJECT : BKE_MAT_ASSIGN_USERPREF);
   }
 
-  if (actcol_orig > ob->totcol) {
-    actcol_orig = ob->totcol;
-  }
+  actcol_orig = std::min(actcol_orig, ob->totcol);
 
   ob->actcol = actcol_orig;
 }
@@ -1313,7 +1343,7 @@ short BKE_object_material_slot_find_index(Object *ob, Material *ma)
   return 0;
 }
 
-bool BKE_object_material_slot_add(Main *bmain, Object *ob)
+bool BKE_object_material_slot_add(Main *bmain, Object *ob, const bool set_active)
 {
   if (ob == nullptr) {
     return false;
@@ -1323,7 +1353,9 @@ bool BKE_object_material_slot_add(Main *bmain, Object *ob)
   }
 
   BKE_object_material_assign(bmain, ob, nullptr, ob->totcol + 1, BKE_MAT_ASSIGN_USERPREF);
-  ob->actcol = ob->totcol;
+  if (set_active) {
+    ob->actcol = ob->totcol;
+  }
   return true;
 }
 
@@ -1356,9 +1388,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
   }
 
   /* can happen on face selection in editmode */
-  if (ob->actcol > ob->totcol) {
-    ob->actcol = ob->totcol;
-  }
+  ob->actcol = std::min(ob->actcol, ob->totcol);
 
   /* we delete the actcol */
   mao = (*matarar)[ob->actcol - 1];
@@ -1397,9 +1427,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
         obt->matbits[a - 1] = obt->matbits[a];
       }
       obt->totcol--;
-      if (obt->actcol > obt->totcol) {
-        obt->actcol = obt->totcol;
-      }
+      obt->actcol = std::min(obt->actcol, obt->totcol);
 
       if (obt->totcol == 0) {
         MEM_freeN(obt->mat);
@@ -1426,7 +1454,9 @@ static bNode *nodetree_uv_node_recursive(bNode *node)
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (sock->link) {
       bNode *inode = sock->link->fromnode;
-      if (inode->typeinfo->nclass == NODE_CLASS_INPUT && inode->typeinfo->type == SH_NODE_UVMAP) {
+      if (inode->typeinfo->nclass == NODE_CLASS_INPUT &&
+          inode->typeinfo->type_legacy == SH_NODE_UVMAP)
+      {
         return inode;
       }
 
@@ -1454,18 +1484,18 @@ static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
   const bool do_color_attributes = (slot_filter & PAINT_SLOT_COLOR_ATTRIBUTE) != 0;
   for (bNode *node : nodetree->all_nodes()) {
     if (do_image_nodes && node->typeinfo->nclass == NODE_CLASS_TEXTURE &&
-        node->typeinfo->type == SH_NODE_TEX_IMAGE && node->id)
+        node->typeinfo->type_legacy == SH_NODE_TEX_IMAGE && node->id)
     {
       if (!callback(node, userdata)) {
         return false;
       }
     }
-    if (do_color_attributes && node->typeinfo->type == SH_NODE_ATTRIBUTE) {
+    if (do_color_attributes && node->typeinfo->type_legacy == SH_NODE_ATTRIBUTE) {
       if (!callback(node, userdata)) {
         return false;
       }
     }
-    else if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP) && node->id) {
+    else if (node->is_group() && node->id) {
       /* recurse into the node group and see if it contains any textures */
       if (!ntree_foreach_texnode_recursive((bNodeTree *)node->id, callback, userdata, slot_filter))
       {
@@ -1510,7 +1540,7 @@ static bool fill_texpaint_slots_cb(bNode *node, void *userdata)
     ma->paint_active_slot = index;
   }
 
-  switch (node->type) {
+  switch (node->type_legacy) {
     case SH_NODE_TEX_IMAGE: {
       TexPaintSlot *slot = &ma->texpaintslot[index];
       slot->ima = (Image *)node->id;
@@ -1658,7 +1688,7 @@ struct FindTexPaintNodeData {
 static bool texpaint_slot_node_find_cb(bNode *node, void *userdata)
 {
   FindTexPaintNodeData *find_data = static_cast<FindTexPaintNodeData *>(userdata);
-  if (find_data->slot->ima && node->type == SH_NODE_TEX_IMAGE) {
+  if (find_data->slot->ima && node->type_legacy == SH_NODE_TEX_IMAGE) {
     Image *node_ima = (Image *)node->id;
     if (find_data->slot->ima == node_ima) {
       find_data->r_node = node;
@@ -1666,7 +1696,7 @@ static bool texpaint_slot_node_find_cb(bNode *node, void *userdata)
     }
   }
 
-  if (find_data->slot->attribute_name && node->type == SH_NODE_ATTRIBUTE) {
+  if (find_data->slot->attribute_name && node->type_legacy == SH_NODE_ATTRIBUTE) {
     NodeShaderAttribute *storage = static_cast<NodeShaderAttribute *>(node->storage);
     if (STREQLEN(find_data->slot->attribute_name, storage->name, sizeof(storage->name))) {
       find_data->r_node = node;

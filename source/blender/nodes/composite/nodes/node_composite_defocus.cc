@@ -6,8 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include <climits>
-
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -94,7 +92,7 @@ static void node_composit_buts_defocus(uiLayout *layout, bContext *C, PointerRNA
   uiItemR(sub, ptr, "z_scale", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class DefocusOperation : public NodeOperation {
  public:
@@ -217,7 +215,7 @@ class DefocusOperation : public NodeOperation {
     };
 
     parallel_for(domain.size, [&](const int2 texel) {
-      float center_radius = math::max(0.0f, radius.load_pixel<float>(texel));
+      float center_radius = math::max(0.0f, radius.load_pixel<float, true>(texel));
 
       /* Go over the window of the given search radius and accumulate the colors multiplied by
        * their respective weights as well as the weights themselves, but only if both the radius of
@@ -228,7 +226,7 @@ class DefocusOperation : public NodeOperation {
       for (int y = -search_radius; y <= search_radius; y++) {
         for (int x = -search_radius; x <= search_radius; x++) {
           float candidate_radius = math::max(
-              0.0f, radius.load_pixel_extended<float>(texel + int2(x, y)));
+              0.0f, radius.load_pixel_extended<float, true>(texel + int2(x, y)));
 
           /* Skip accumulation if either the x or y distances of the candidate pixel are larger
            * than either the center or candidate pixel radius. Note that the max and min functions
@@ -257,9 +255,7 @@ class DefocusOperation : public NodeOperation {
     if (node_storage(bnode()).no_zbuf) {
       return compute_defocus_radius_from_scale();
     }
-    else {
-      return compute_defocus_radius_from_depth();
-    }
+    return compute_defocus_radius_from_depth();
   }
 
   Result compute_defocus_radius_from_scale()
@@ -311,7 +307,7 @@ class DefocusOperation : public NodeOperation {
 
     if (input_depth.is_single_value()) {
       output_radius.allocate_single_value();
-      output_radius.set_float_value(compute_radius(input_depth.get_float_value()));
+      output_radius.set_single_value(compute_radius(input_depth.get_single_value<float>()));
       return output_radius;
     }
 
@@ -412,7 +408,7 @@ class DefocusOperation : public NodeOperation {
 
     if (input_depth.is_single_value()) {
       output_radius.allocate_single_value();
-      output_radius.set_float_value(compute_radius(input_depth.get_float_value()));
+      output_radius.set_single_value(compute_radius(input_depth.get_single_value<float>()));
       return;
     }
 
@@ -516,7 +512,7 @@ class DefocusOperation : public NodeOperation {
   }
 
   /* Returns the f-stop number. Fallback to 1e-3 for zero f-stop. */
-  const float get_f_stop()
+  float get_f_stop()
   {
     return math::max(1e-3f, node_storage(bnode()).fstop);
   }
@@ -560,7 +556,11 @@ void register_node_type_cmp_defocus()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_DEFOCUS, "Defocus", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeDefocus", CMP_NODE_DEFOCUS);
+  ntype.ui_name = "Defocus";
+  ntype.ui_description = "Apply depth of field in 2D, using a Z depth map or mask";
+  ntype.enum_name_legacy = "DEFOCUS";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_defocus_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_defocus;
   ntype.initfunc = file_ns::node_composit_init_defocus;

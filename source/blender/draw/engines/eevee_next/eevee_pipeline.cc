@@ -17,7 +17,7 @@
 #include "eevee_pipeline.hh"
 #include "eevee_shadow.hh"
 
-#include <iostream>
+#include "draw_manager_profiling.hh"
 
 #include "draw_common.hh"
 
@@ -78,8 +78,9 @@ void BackgroundPipeline::clear(View &view)
   inst_.manager->submit(clear_ps_, view);
 }
 
-void BackgroundPipeline::render(View &view)
+void BackgroundPipeline::render(View &view, Framebuffer &combined_fb)
 {
+  GPU_framebuffer_bind(combined_fb);
   inst_.manager->submit(world_ps_, view);
 }
 
@@ -959,9 +960,7 @@ PassMain::Sub *DeferredPipeline::prepass_add(::Material *blender_mat,
   if (!use_combined_lightprobe_eval && (blender_mat->blend_flag & MA_BL_SS_REFRACTION)) {
     return refraction_layer_.prepass_add(blender_mat, gpumat, has_motion);
   }
-  else {
-    return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion);
-  }
+  return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion);
 }
 
 PassMain::Sub *DeferredPipeline::material_add(::Material *blender_mat, GPUMaterial *gpumat)
@@ -969,9 +968,7 @@ PassMain::Sub *DeferredPipeline::material_add(::Material *blender_mat, GPUMateri
   if (!use_combined_lightprobe_eval && (blender_mat->blend_flag & MA_BL_SS_REFRACTION)) {
     return refraction_layer_.material_add(blender_mat, gpumat);
   }
-  else {
-    return opaque_layer_.material_add(blender_mat, gpumat);
-  }
+  return opaque_layer_.material_add(blender_mat, gpumat);
 }
 
 void DeferredPipeline::render(View &main_view,
@@ -1211,7 +1208,7 @@ std::optional<Bounds<float>> VolumePipeline::object_integration_range() const
 
 bool VolumePipeline::use_hit_list() const
 {
-  for (auto &layer : layers_) {
+  for (const auto &layer : layers_) {
     if (layer->use_hit_list) {
       return true;
     }

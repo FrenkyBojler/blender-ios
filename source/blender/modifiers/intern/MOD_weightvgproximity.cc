@@ -74,7 +74,7 @@ struct Vert2GeomData {
 
   const SpaceTransform *loc2trgt;
 
-  BVHTreeFromMesh *treeData[3];
+  blender::bke::BVHTreeFromMesh *treeData[3];
 
   /* Write data, but not needing locking (two different threads will never write same index). */
   float *dist[3];
@@ -154,9 +154,9 @@ static void get_vert2geom_distance(int verts_num,
   Vert2GeomData data{};
   Vert2GeomDataChunk data_chunk = {{{0}}};
 
-  BVHTreeFromMesh treeData_v{};
-  BVHTreeFromMesh treeData_e{};
-  BVHTreeFromMesh treeData_f{};
+  blender::bke::BVHTreeFromMesh treeData_v{};
+  blender::bke::BVHTreeFromMesh treeData_e{};
+  blender::bke::BVHTreeFromMesh treeData_f{};
 
   if (dist_v) {
     /* Create a BVH-tree of the given target's verts. */
@@ -359,7 +359,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "mask_texture");
   walk(user_data, ob, md, &ptr, prop);
 }

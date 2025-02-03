@@ -6,11 +6,9 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 
 #include "BLI_math_rotation.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -1300,6 +1298,7 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
                            "Error",
                            "Maximum distance allowed between the new Bézier curve and the "
                            "original backbone geometry");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
 
   srna = RNA_def_struct(
@@ -1462,6 +1461,7 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
       prop,
       "Error",
       "Maximum distance between the original stroke and its polygonal approximation");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
 
   srna = RNA_def_struct(

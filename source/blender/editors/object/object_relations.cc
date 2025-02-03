@@ -55,7 +55,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh_types.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
@@ -2562,7 +2562,7 @@ static int make_override_library_invoke(bContext *C, wmOperator *op, const wmEve
     else {
       bool has_parents_in_potential_roots = false;
       bool is_potential_root = false;
-      for (auto collection_root_iter : potential_root_collections) {
+      for (auto *collection_root_iter : potential_root_collections) {
         if (BKE_collection_has_collection(collection_root_iter, collection)) {
           BLI_assert_msg(!BKE_collection_has_collection(collection, collection_root_iter),
                          "Invalid loop in collection hierarchy");
@@ -3083,7 +3083,7 @@ void OBJECT_OT_drop_geometry_nodes(wmOperatorType *ot)
                                   "Session UID of the geometry node group being dropped",
                                   INT32_MIN,
                                   INT32_MAX);
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   RNA_def_boolean(ot->srna,
                   "show_datablock_in_modifier",
                   true,

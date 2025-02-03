@@ -14,10 +14,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_action.hh"
@@ -474,7 +475,7 @@ static void apply_armature_pose2bones_ui(bContext *C, wmOperator *op)
   uiLayout *layout = op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  PointerRNA ptr = RNA_pointer_create(&wm->id, op->type->srna, op->properties);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
   uiItemR(layout, &ptr, "selected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -791,17 +792,16 @@ static int pose_copy_exec(bContext *C, wmOperator *op)
   PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
   copybuffer.id_add(
       &ob->id,
-      PartialWriteContext::IDAddOptions{PartialWriteContext::IDAddOperations(
-          PartialWriteContext::IDAddOperations::MAKE_LOCAL |
-          PartialWriteContext::IDAddOperations::SET_FAKE_USER |
-          PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)},
+      PartialWriteContext::IDAddOptions{
+          (PartialWriteContext::IDAddOperations::MAKE_LOCAL |
+           PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+           PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)},
       [ob](LibraryIDLinkCallbackData *cb_data,
            PartialWriteContext::IDAddOptions /*options*/) -> PartialWriteContext::IDAddOperations {
         /* Only include `ob->data` (i.e. the Armature) dependency. */
         if (*(cb_data->id_pointer) == ob->data) {
-          return PartialWriteContext::IDAddOperations(
-              PartialWriteContext::IDAddOperations::MAKE_LOCAL |
-              PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES);
+          return (PartialWriteContext::IDAddOperations::MAKE_LOCAL |
+                  PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES);
         }
         return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
       });

@@ -8,13 +8,12 @@
 #include <optional>
 
 #include "BLI_function_ref.hh"
-#include "BLI_generic_span.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
 #include "BLI_struct_equality_utils.hh"
 
-#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.h"
 #include "BKE_attribute_filters.hh"
 
@@ -465,6 +464,7 @@ struct AttributeAccessorFunctions {
   int (*domain_size)(const void *owner, AttrDomain domain);
   std::optional<AttributeDomainAndType> (*builtin_domain_and_type)(const void *owner,
                                                                    StringRef attribute_id);
+  GPointer (*get_builtin_default)(const void *owner, StringRef attribute_id);
   GAttributeReader (*lookup)(const void *owner, StringRef attribute_id);
   GVArray (*adapt_domain)(const void *owner,
                           const GVArray &varray,
@@ -559,6 +559,16 @@ class AttributeAccessor {
   std::optional<AttributeDomainAndType> get_builtin_domain_and_type(const StringRef name) const
   {
     return fn_->builtin_domain_and_type(owner_, name);
+  }
+
+  /**
+   * \return The default value defined by the `#BuiltinAttributeProvider`. The provided
+   * attribute_id must refer to a builtin attribute.
+   */
+  GPointer get_builtin_default(const StringRef attribute_id) const
+  {
+    BLI_assert(this->is_builtin(attribute_id));
+    return fn_->get_builtin_default(owner_, attribute_id);
   }
 
   /**
@@ -860,6 +870,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
 struct AttributeTransferData {
   /* Expect that if an attribute exists, it is stored as a contiguous array internally anyway. */
   GVArraySpan src;
+  StringRef name;
   AttributeMetaData meta_data;
   GSpanAttributeWriter dst;
 };

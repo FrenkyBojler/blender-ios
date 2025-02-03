@@ -118,17 +118,17 @@ struct wmWindowManager;
 #include "DNA_vec_types.h"
 #include "DNA_xr_types.h"
 
-#include "BKE_wm_runtime.hh"
+#include "BKE_wm_runtime.hh"  // IWYU pragma: export
 
 #include "RNA_types.hh"
 
 /* Exported types for WM. */
-#include "gizmo/WM_gizmo_types.hh"
-#include "wm_cursors.hh"
-#include "wm_event_types.hh"
+#include "gizmo/WM_gizmo_types.hh"  // IWYU pragma: export
+#include "wm_cursors.hh"            // IWYU pragma: export
+#include "wm_event_types.hh"        // IWYU pragma: export
 
 /* Include external gizmo API's. */
-#include "gizmo/WM_gizmo_api.hh"
+#include "gizmo/WM_gizmo_api.hh"  // IWYU pragma: export
 
 namespace blender::asset_system {
 class AssetRepresentation;
@@ -156,7 +156,17 @@ struct wmGenericCallback {
 
 /** #wmOperatorType.flag */
 enum {
-  /** Register operators in stack after finishing (needed for redo). */
+  /**
+   * Register operators in stack after finishing (needed for redo).
+   *
+   * \note Typically this flag should be enabled along with #OPTYPE_UNDO.
+   * There is an exception to this, some operators can perform an undo push indirectly.
+   * (`UI_OT_reset_default_button` for example).
+   *
+   * In this case, register needs to be enabled so as not to clear the "Redo" panel, see #133761.
+   * Unless otherwise stated, any operators that register without the undo flag
+   * can be assumed to be creating undo steps indirectly (potentially at least).
+   */
   OPTYPE_REGISTER = (1 << 0),
   /** Do an undo push after the operator runs. */
   OPTYPE_UNDO = (1 << 1),
@@ -1283,9 +1293,11 @@ struct wmDrag {
   eWM_DragDataType type;
   void *poin;
 
-  /** If no icon but imbuf should be drawn around cursor. */
+  /** If no small icon but imbuf should be drawn around cursor. */
   const ImBuf *imb;
   float imbuf_scale;
+  /** If #imb is not set, draw this as a big preview instead of the small #icon. */
+  int preview_icon_id; /* BIFIconID */
 
   wmDragActiveDropState drop_state;
 

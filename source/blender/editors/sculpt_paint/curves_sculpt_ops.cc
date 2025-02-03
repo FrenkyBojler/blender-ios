@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <algorithm>
+
 #include "BLI_kdtree.h"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
@@ -893,9 +895,7 @@ static int calculate_points_per_side(bContext *C, MinDistanceEditData &op_data)
     const float distance = math::length(pos_re - origin_re);
     const int needed_points_iter = (brush_radius * 2.0f) / distance;
 
-    if (needed_points_iter > needed_points) {
-      needed_points = needed_points_iter;
-    }
+    needed_points = std::max(needed_points_iter, needed_points);
   }
 
   /* Limit to a hard-coded number since it only adds noise at some point. */
@@ -1026,7 +1026,7 @@ static int min_distance_edit_invoke(bContext *C, wmOperator *op, const wmEvent *
     return OPERATOR_CANCELLED;
   }
 
-  BVHTreeFromMesh surface_bvh_eval = surface_me_eval->bvh_corner_tris();
+  bke::BVHTreeFromMesh surface_bvh_eval = surface_me_eval->bvh_corner_tris();
 
   const int2 mouse_pos_int_re{event->mval};
   const float2 mouse_pos_re{mouse_pos_int_re};

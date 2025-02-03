@@ -14,7 +14,6 @@
 #include "BKE_anim_data.hh"
 #include "BKE_attribute.hh"
 #include "BKE_blendfile_link_append.hh"
-#include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_deform.hh"
@@ -26,7 +25,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_node_tree_update.hh"
@@ -40,6 +39,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -62,7 +62,6 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
-#include "ANIM_action_legacy.hh"
 
 namespace blender::bke::greasepencil::convert {
 
@@ -167,8 +166,8 @@ class AnimDataConvertor {
    * Source and destination RNA root path. These can be modified by user code at any time (e.g.
    * when processing animation data for different modifiers...).
    */
-  std::string root_path_src = "";
-  std::string root_path_dst = "";
+  std::string root_path_src;
+  std::string root_path_dst;
 
  private:
   /**
@@ -537,7 +536,7 @@ class AnimDataConvertor {
         this->animdata_dst = BKE_animdata_ensure_id(&this->id_dst);
       }
       auto actions_idroot_ensure = [&](bAction &action) -> bool {
-        action.idroot = GS(this->id_dst.name);
+        BKE_animdata_action_ensure_idroot(&this->id_dst, &action);
         return true;
       };
       this->animdata_action_foreach(*this->animdata_dst, actions_idroot_ensure);
@@ -916,7 +915,9 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
 
     stroke_cyclic.span[stroke_i] = (gps->flag & GP_STROKE_CYCLIC) != 0;
     /* Truncating time in ms to uint32 then we don't lose precision in lower bits. */
-    stroke_init_times.span[stroke_i] = float(uint32_t(gps->inittime * double(1e3))) / float(1e3);
+    const uint32_t clamped_init_time = uint32_t(
+        std::clamp(gps->inittime * 1e3, 0.0, double(std::numeric_limits<uint32_t>::max())));
+    stroke_init_times.span[stroke_i] = float(clamped_init_time) / float(1e3);
     stroke_start_caps.span[stroke_i] = int8_t(gps->caps[0]);
     stroke_end_caps.span[stroke_i] = int8_t(gps->caps[1]);
     stroke_softness.span[stroke_i] = 1.0f - gps->hardness;
@@ -1475,7 +1476,7 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
         /* Remove the default user. The count is tracked manually when assigning to modifiers. */
         id_us_min(&new_ntree->id);
         conversion_data.offset_radius_ntree_by_library.add_new(owner_library, new_ntree);
-        BKE_ntree_update_main_tree(&conversion_data.bmain, new_ntree, nullptr);
+        BKE_ntree_update_after_single_tree_change(conversion_data.bmain, *new_ntree);
         return new_ntree;
       };
       bNodeTree *offset_radius_node_tree = offset_radius_ntree_ensure(dst_object.id.lib);
@@ -1535,7 +1536,9 @@ static ModifierData &legacy_object_modifier_common(ConversionData &conversion_da
     for (md = static_cast<ModifierData *>(object.modifiers.first);
          md && BKE_modifier_get_info(ModifierType(md->type))->type == ModifierTypeType::OnlyDeform;
          md = md->next)
+    {
       ;
+    }
     BLI_insertlinkbefore(&object.modifiers, md, &new_md);
   }
   else {
@@ -1591,7 +1594,7 @@ static void legacy_object_modifier_influence(GreasePencilModifierInfluenceData &
 {
   influence.flag = 0;
 
-  STRNCPY(influence.layer_name, layername.data());
+  layername.copy_utf8_truncated(influence.layer_name);
   if (invert_layer) {
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_LAYER_FILTER;
   }
@@ -1618,7 +1621,7 @@ static void legacy_object_modifier_influence(GreasePencilModifierInfluenceData &
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_MATERIAL_PASS_FILTER;
   }
 
-  STRNCPY(influence.vertex_group_name, vertex_group_name.data());
+  vertex_group_name.copy_utf8_truncated(influence.vertex_group_name);
   if (invert_vertex_group) {
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_VERTEX_GROUP;
   }
@@ -2161,6 +2164,23 @@ static void legacy_object_modifier_opacity(ConversionData &conversion_data,
   }
   md_opacity.color_factor = legacy_md_opacity.factor;
   md_opacity.hardness_factor = legacy_md_opacity.hardness;
+
+  /* Account for animation on renamed properties. */
+  char modifier_name[MAX_NAME * 2];
+  BLI_str_escape(modifier_name, md.name, sizeof(modifier_name));
+  AnimDataConvertor anim_convertor_factor(
+      conversion_data, object.id, object.id, {{".factor", ".color_factor"}});
+  anim_convertor_factor.root_path_src = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_factor.root_path_dst = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_factor.fcurves_convert();
+  anim_convertor_factor.fcurves_convert_finalize();
+  AnimDataConvertor anim_convertor_hardness(
+      conversion_data, object.id, object.id, {{".hardness", ".hardness_factor"}});
+  anim_convertor_hardness.root_path_src = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_hardness.root_path_dst = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_hardness.fcurves_convert();
+  anim_convertor_hardness.fcurves_convert_finalize();
+  DEG_relations_tag_update(&conversion_data.bmain);
 
   legacy_object_modifier_influence(md_opacity.influence,
                                    legacy_md_opacity.layername,
@@ -2946,8 +2966,12 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
     /* Legacy GP data also used by objects. Create the duplicate of legacy GPv2 data for
      * annotations, if not yet done. */
     if (!new_annotation_gpd) {
-      new_annotation_gpd = reinterpret_cast<bGPdata *>(BKE_id_copy_in_lib(
-          &bmain, legacy_gpd->id.lib, &legacy_gpd->id, nullptr, nullptr, LIB_ID_COPY_DEFAULT));
+      new_annotation_gpd = reinterpret_cast<bGPdata *>(BKE_id_copy_in_lib(&bmain,
+                                                                          legacy_gpd->id.lib,
+                                                                          &legacy_gpd->id,
+                                                                          std::nullopt,
+                                                                          nullptr,
+                                                                          LIB_ID_COPY_DEFAULT));
       new_annotation_gpd->flag |= GP_DATA_ANNOTATIONS;
       id_us_min(&new_annotation_gpd->id);
       annotations_gpv2.add_overwrite(legacy_gpd, new_annotation_gpd);

@@ -1830,6 +1830,13 @@ void UI_but_func_drawextra_set(uiBlock *block,
 
 void UI_but_func_menu_step_set(uiBut *but, uiMenuStepFunc func);
 
+/**
+ * When a button displays a menu, hovering another button that can display one will switch to that
+ * menu instead. In some cases that's unexpected, so the feature can be disabled here (as in, this
+ * button will not spawn its menu on hover and the previously spawned menu will remain open).
+ */
+void UI_but_menu_disable_hover_open(uiBut *but);
+
 void UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *arg, uiFreeArgFunc free_arg);
 /**
  * Enable a custom quick tooltip label. That is, a short tooltip that appears faster than the full
@@ -1966,13 +1973,15 @@ void UI_but_drag_attach_image(uiBut *but, const ImBuf *imb, float scale);
 /**
  * Sets #UI_BUT_DRAG_FULL_BUT so the full button can be dragged.
  * \param asset: May be passed from a temporary variable, drag data only stores a copy of this.
+ * \param icon: Small icon that will be drawn while dragging.
+ * \param preview_icon: Bigger preview size icon that will be drawn while dragging instead of \a
+ * icon.
  */
 void UI_but_drag_set_asset(uiBut *but,
                            const blender::asset_system::AssetRepresentation *asset,
                            int import_method, /* eAssetImportMethod */
                            int icon,
-                           const ImBuf *imb,
-                           float scale);
+                           int preview_icon);
 
 void UI_but_drag_set_rna(uiBut *but, PointerRNA *ptr);
 /**
@@ -2064,6 +2073,8 @@ void UI_panel_category_clear_all(ARegion *region);
  * Draw vertical tabs on the left side of the region, one tab per category.
  */
 void UI_panel_category_draw_all(ARegion *region, const char *category_id_active);
+
+void UI_panel_stop_animation(const bContext *C, Panel *panel);
 
 /* Panel custom data. */
 PointerRNA *UI_panel_custom_data_get(const Panel *panel);
@@ -2410,6 +2421,13 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
                             const char *open_prop_name,
                             const char *label);
 
+uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
+                                          uiLayout *layout,
+                                          PointerRNA *open_prop_owner,
+                                          const blender::StringRefNull open_prop_name,
+                                          const blender::StringRefNull bool_prop_name,
+                                          const std::optional<blender::StringRefNull> label);
+
 /**
  * Variant of #uiLayoutPanelProp that automatically stores the open-close-state in the root
  * panel. When a dynamic number of panels is required, it's recommended to use #uiLayoutPanelProp
@@ -2660,8 +2678,8 @@ void uiTemplateCryptoPicker(uiLayout *layout,
                             blender::StringRefNull propname,
                             int icon);
 /**
- * \todo for now, grouping of layers is determined by dividing up the length of
- * the array of layer bitflags
+ * TODO: for now, grouping of layers is determined by dividing up the length of
+ * the array of layer bit-flags.
  */
 void uiTemplateLayers(uiLayout *layout,
                       PointerRNA *ptr,
@@ -3134,13 +3152,10 @@ void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, blender::StringRef name, int
 /**
  * Menu.
  */
-void uiItemM_ptr(uiLayout *layout,
-                 MenuType *mt,
-                 std::optional<blender::StringRefNull> name,
-                 int icon);
+void uiItemM_ptr(uiLayout *layout, MenuType *mt, std::optional<blender::StringRef> name, int icon);
 void uiItemM(uiLayout *layout,
              blender::StringRefNull menuname,
-             std::optional<blender::StringRefNull> name,
+             std::optional<blender::StringRef> name,
              int icon);
 /**
  * Menu contents.
@@ -3256,8 +3271,9 @@ uiLayout *uiItemsAlertBox(uiBlock *block, const int size, const eAlertIcon icon)
 
 /* UI Operators */
 struct uiDragColorHandle {
-  float color[3];
+  float color[4];
   bool gamma_corrected;
+  bool has_alpha;
 };
 
 void ED_operatortypes_ui();

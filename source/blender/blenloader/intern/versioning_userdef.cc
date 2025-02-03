@@ -10,7 +10,7 @@
 #define DNA_DEPRECATED_ALLOW
 #include <cstring>
 
-#include "fmt/format.h"
+#include <fmt/format.h>
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -214,6 +214,10 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_view3d.face_front);
   }
 
+  if (!USER_VERSION_ATLEAST(404, 12)) {
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.text_strip_cursor);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.selected_text);
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

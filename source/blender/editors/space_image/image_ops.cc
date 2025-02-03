@@ -19,8 +19,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_time.h"
@@ -39,6 +39,7 @@
 #include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_image_save.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -53,6 +54,8 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_moviecache.hh"
+
+#include "MOV_read.hh"
 
 #include "RE_pipeline.h"
 
@@ -1524,7 +1527,7 @@ static void image_open_draw(bContext * /*C*/, wmOperator *op)
                    false);
 
   /* image template */
-  PointerRNA imf_ptr = RNA_pointer_create(nullptr, &RNA_ImageFormatSettings, imf);
+  PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, imf);
 
   /* multiview template */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
@@ -1725,11 +1728,11 @@ static int image_match_len_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  ImBufAnim *anim = ((ImageAnim *)ima->anims.first)->anim;
+  MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
   if (!anim) {
     return OPERATOR_CANCELLED;
   }
-  iuser->frames = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+  iuser->frames = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
   BKE_image_user_frame_calc(ima, iuser, scene->r.cfra);
 
   return OPERATOR_FINISHED;
@@ -2034,7 +2037,8 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
   uiItemS(layout);
 
   /* Image format settings. */
-  PointerRNA imf_ptr = RNA_pointer_create(nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
+  PointerRNA imf_ptr = RNA_pointer_create_discrete(
+      nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
   uiTemplateImageSettings(layout, &imf_ptr, save_as_render);
 
   if (!save_as_render) {
@@ -2960,6 +2964,7 @@ void IMAGE_OT_rotate_orthogonal(wmOperatorType *ot)
 
 static int image_clipboard_copy_exec(bContext *C, wmOperator *op)
 {
+  Scene *scene = CTX_data_scene(C);
   Image *ima = image_from_context(C);
   if (ima == nullptr) {
     return false;
@@ -2976,9 +2981,25 @@ static int image_clipboard_copy_exec(bContext *C, wmOperator *op)
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
   bool changed = false;
   if (ibuf) {
-    if (WM_clipboard_image_set(ibuf)) {
+    /* Clipboard uses byte buffer, so match saving an 8 bit PNG for color management. */
+    const bool save_as_render = ima->flag & IMA_VIEW_AS_RENDER;
+
+    ImageFormatData image_format;
+    BKE_image_format_init_for_write(&image_format, scene, nullptr);
+    BKE_image_format_set(&image_format, nullptr, R_IMF_IMTYPE_PNG);
+    image_format.depth = R_IMF_CHAN_DEPTH_8;
+
+    ImBuf *colormanaged_ibuf = IMB_colormanagement_imbuf_for_write(
+        ibuf, save_as_render, true, &image_format);
+
+    if (WM_clipboard_image_set_byte_buffer(colormanaged_ibuf)) {
       changed = true;
     }
+
+    if (colormanaged_ibuf != ibuf) {
+      IMB_freeImBuf(colormanaged_ibuf);
+    }
+    BKE_image_format_free(&image_format);
   }
   BKE_image_release_ibuf(ima, ibuf, lock);
   WM_cursor_wait(false);
@@ -3223,38 +3244,80 @@ static int image_scale_exec(bContext *C, wmOperator *op)
 {
   Image *ima = image_from_context(C);
   ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
   SpaceImage *sima = CTX_wm_space_image(C);
   const bool is_paint = ((sima != nullptr) && (sima->mode == SI_MODE_PAINT));
-
-  if (ibuf == nullptr) {
-    /* TODO: this should actually never happen, but does for render-results -> cleanup */
-    return OPERATOR_CANCELLED;
-  }
 
   if (is_paint) {
     ED_imapaint_clear_partial_redraw();
   }
 
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "size");
-  int size[2];
-  if (RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_int_get_array(op->ptr, prop, size);
+  const bool is_scaling_all = RNA_boolean_get(op->ptr, "all_udims");
+
+  if (!is_scaling_all) {
+    ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+
+    if (ibuf == nullptr) {
+      /* TODO: this should actually never happen, but does for render-results -> cleanup */
+      return OPERATOR_CANCELLED;
+    }
+
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "size");
+    int size[2];
+    if (RNA_property_is_set(op->ptr, prop)) {
+      RNA_property_int_get_array(op->ptr, prop, size);
+    }
+    else {
+      size[0] = ibuf->x;
+      size[1] = ibuf->y;
+      RNA_property_int_set_array(op->ptr, prop, size);
+    }
+
+    ED_image_undo_push_begin_with_image(op->type->name, ima, ibuf, &iuser);
+    ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+    IMB_scale(ibuf, size[0], size[1], IMBScaleFilter::Box, false);
+    BKE_image_mark_dirty(ima, ibuf);
+    BKE_image_release_ibuf(ima, ibuf, nullptr);
+    ED_image_undo_push_end();
   }
   else {
-    size[0] = ibuf->x;
-    size[1] = ibuf->y;
-    RNA_property_int_set_array(op->ptr, prop, size);
+    // Ensure that an image buffer can be aquired for all UDIM tiles
+    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
+      iuser.tile = current_tile->tile_number;
+
+      ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+
+      if (ibuf == nullptr) {
+        /* TODO: this should actually never happen, but does for render-results -> cleanup */
+        return OPERATOR_CANCELLED;
+      }
+
+      BKE_image_release_ibuf(ima, ibuf, nullptr);
+    }
+
+    ED_image_undo_push_begin_with_image_all_udims(op->type->name, ima, &iuser);
+    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
+      iuser.tile = current_tile->tile_number;
+
+      ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
+
+      PropertyRNA *prop = RNA_struct_find_property(op->ptr, "size");
+      int size[2];
+      if (RNA_property_is_set(op->ptr, prop)) {
+        RNA_property_int_get_array(op->ptr, prop, size);
+      }
+      else {
+        size[0] = ibuf->x;
+        size[1] = ibuf->y;
+        RNA_property_int_set_array(op->ptr, prop, size);
+      }
+
+      ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+      IMB_scale(ibuf, size[0], size[1], IMBScaleFilter::Box, false);
+      BKE_image_mark_dirty(ima, ibuf);
+      BKE_image_release_ibuf(ima, ibuf, nullptr);
+    }
+    ED_image_undo_push_end();
   }
-
-  ED_image_undo_push_begin_with_image(op->type->name, ima, ibuf, &iuser);
-
-  ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
-  IMB_scale(ibuf, size[0], size[1], IMBScaleFilter::Box, false);
-  BKE_image_mark_dirty(ima, ibuf);
-  BKE_image_release_ibuf(ima, ibuf, nullptr);
-
-  ED_image_undo_push_end();
 
   BKE_image_partial_update_mark_full_update(ima);
 
@@ -3278,6 +3341,8 @@ void IMAGE_OT_resize(wmOperatorType *ot)
 
   /* properties */
   RNA_def_int_vector(ot->srna, "size", 2, nullptr, 1, INT_MAX, "Size", "", 1, SHRT_MAX);
+  RNA_def_boolean(
+      ot->srna, "all_udims", false, "All UDIM Tiles", "Scale all the image's UDIM tiles");
 
   /* flags */
   ot->flag = OPTYPE_REGISTER;
@@ -4293,6 +4358,8 @@ static void tile_add_draw(bContext * /*C*/, wmOperator *op)
 
 void IMAGE_OT_tile_add(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* identifiers */
   ot->name = "Add Tile";
   ot->description = "Adds a tile to the image";
@@ -4318,7 +4385,8 @@ void IMAGE_OT_tile_add(wmOperatorType *ot)
               1099);
   RNA_def_int(ot->srna, "count", 1, 1, INT_MAX, "Count", "How many tiles to add", 1, 1000);
   RNA_def_string(ot->srna, "label", nullptr, 0, "Label", "Optional tile label");
-  RNA_def_boolean(ot->srna, "fill", true, "Fill", "Fill new tile with a generated image");
+  prop = RNA_def_boolean(ot->srna, "fill", true, "Fill", "Fill new tile with a generated image");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_IMAGE);
   def_fill_tile(ot->srna);
 }
 
@@ -4402,8 +4470,11 @@ static int tile_fill_invoke(bContext *C, wmOperator *op, const wmEvent * /*event
 {
   tile_fill_init(op->ptr, CTX_data_edit_image(C), nullptr);
 
-  return WM_operator_props_dialog_popup(
-      C, op, 300, IFACE_("Fill Tile With Generated Image"), IFACE_("Fill"));
+  return WM_operator_props_dialog_popup(C,
+                                        op,
+                                        300,
+                                        IFACE_("Fill Tile With Generated Image"),
+                                        CTX_IFACE_(BLT_I18NCONTEXT_ID_IMAGE, "Fill"));
 }
 
 static void tile_fill_draw(bContext * /*C*/, wmOperator *op)

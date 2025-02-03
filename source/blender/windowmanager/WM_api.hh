@@ -23,7 +23,6 @@
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
-#include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
 
@@ -31,7 +30,6 @@
 #include "WM_types.hh"
 
 struct ARegion;
-struct GHashIterator;
 struct GPUViewport;
 struct ID;
 struct IDProperty;
@@ -1183,8 +1181,7 @@ std::optional<std::string> WM_context_path_resolve_full(bContext *C, const Point
 /* `wm_operator_type.cc` */
 
 wmOperatorType *WM_operatortype_find(const char *idname, bool quiet);
-using wmOperatorTypeMap = blender::Map<std::string, wmOperatorType *>;
-const wmOperatorTypeMap &WM_operatortype_map();
+blender::Span<wmOperatorType *> WM_operatortypes_registered_get();
 void WM_operatortype_append(void (*opfunc)(wmOperatorType *ot));
 void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *ot, void *userdata),
                                 void *userdata);
@@ -1304,7 +1301,7 @@ const char *WM_uilisttype_list_id_get(const uiListType *ult, uiList *list);
  */
 void WM_menutype_init();
 MenuType *WM_menutype_find(const char *idname, bool quiet);
-void WM_menutype_iter(GHashIterator *ghi);
+blender::Span<MenuType *> WM_menutypes_registered_get();
 bool WM_menutype_add(MenuType *mt);
 void WM_menutype_freelink(MenuType *mt);
 void WM_menutype_free();
@@ -1463,6 +1460,7 @@ wmDrag *WM_drag_data_create(
  */
 void WM_event_start_prepared_drag(bContext *C, wmDrag *drag);
 void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale);
+void WM_event_drag_preview_icon(wmDrag *drag, int icon_id);
 void WM_drag_free(wmDrag *drag);
 void WM_drag_data_free(eWM_DragDataType dragtype, void *poin);
 void WM_drag_free_list(ListBase *lb);
@@ -1783,7 +1781,7 @@ ImBuf *WM_clipboard_image_get();
  *
  * \param ibuf: the image to set the clipboard to.
  */
-bool WM_clipboard_image_set(ImBuf *ibuf) ATTR_NONNULL(1);
+bool WM_clipboard_image_set_byte_buffer(ImBuf *ibuf) ATTR_NONNULL(1);
 
 /* Progress. */
 

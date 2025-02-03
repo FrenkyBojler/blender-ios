@@ -7,15 +7,12 @@
  */
 
 #include <cfloat>
-#include <cmath>
-#include <cstdio>
 #include <cstring>
 #include <optional>
 
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
@@ -28,7 +25,6 @@
 #include "BLI_bitmap.h"
 #include "BLI_function_ref.hh"
 #include "BLI_lasso_2d.hh"
-#include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_bits.h"
 #include "BLI_math_geom.h"
@@ -42,10 +38,6 @@
 #ifdef __BIG_ENDIAN__
 #  include "BLI_endian_switch.h"
 #endif
-
-/* vertex box select */
-#include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
@@ -62,7 +54,6 @@
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 #include "BKE_tracking.h"
@@ -1176,7 +1167,7 @@ static bool do_lasso_select_grease_pencil(const ViewContext *vc,
 {
   using namespace blender;
   Object *object = (vc->obedit ? vc->obedit : vc->obact);
-  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, const_cast<Object *>(object));
+  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, object);
   const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   const bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(
       vc->scene->toolsettings, object);
@@ -1656,7 +1647,7 @@ void VIEW3D_OT_select_menu(wmOperatorType *ot)
   /* #Object.id.name to select (dynamic enum). */
   prop = RNA_def_enum(ot->srna, "name", rna_enum_dummy_NULL_items, 0, "Object Name", "");
   RNA_def_enum_funcs(prop, object_select_menu_enum_itemf);
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
 
   prop = RNA_def_boolean(ot->srna, "extend", false, "Extend", "");
@@ -1870,7 +1861,7 @@ void VIEW3D_OT_bone_select_menu(wmOperatorType *ot)
   /* #Object.id.name to select (dynamic enum). */
   prop = RNA_def_enum(ot->srna, "name", rna_enum_dummy_NULL_items, 0, "Bone Name", "");
   RNA_def_enum_funcs(prop, object_select_menu_enum_itemf);
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
 
   prop = RNA_def_boolean(ot->srna, "extend", false, "Extend", "");
@@ -3070,7 +3061,7 @@ static bool ed_wpaint_vertex_select_pick(bContext *C,
 struct ClosestCurveDataBlock {
   blender::StringRef selection_attribute_name;
   Curves *curves_id = nullptr;
-  blender::ed::curves::FindClosestData elem = {};
+  blender::ed::curves::FindClosestData elem;
 };
 
 /**
@@ -3207,7 +3198,7 @@ struct ClosestGreasePencilDrawing {
   blender::StringRef selection_attribute_name;
   int info_index = -1;
   blender::bke::greasepencil::Drawing *drawing = nullptr;
-  blender::ed::curves::FindClosestData elem = {};
+  blender::ed::curves::FindClosestData elem;
 };
 
 /**
@@ -3226,7 +3217,7 @@ static bool ed_grease_pencil_select_pick(bContext *C,
   Object *object = (vc.obedit ? vc.obedit : vc.obact);
 
   /* Collect editable drawings. */
-  const Object *ob_eval = DEG_get_evaluated_object(vc.depsgraph, const_cast<Object *>(object));
+  const Object *ob_eval = DEG_get_evaluated_object(vc.depsgraph, object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   const Vector<ed::greasepencil::MutableDrawingInfo> drawings =
       ed::greasepencil::retrieve_editable_drawings(*vc.scene, grease_pencil);
@@ -4282,7 +4273,7 @@ static bool do_grease_pencil_box_select(const ViewContext *vc,
 {
   using namespace blender;
   Object *object = (vc->obedit ? vc->obedit : vc->obact);
-  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, const_cast<Object *>(object));
+  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, object);
   const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   const bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(
       vc->scene->toolsettings, object);
@@ -5149,7 +5140,7 @@ static bool grease_pencil_circle_select(const ViewContext *vc,
 {
   using namespace blender;
   Object *object = (vc->obedit ? vc->obedit : vc->obact);
-  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, const_cast<Object *>(object));
+  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, object);
   const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   const bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(
       vc->scene->toolsettings, object);

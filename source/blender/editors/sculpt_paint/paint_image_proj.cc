@@ -11,9 +11,7 @@
 #include <cfloat>
 #include <climits>
 #include <cmath>
-#include <cstdio>
 #include <cstring>
-#include <utility>
 
 #include "MEM_guardedalloc.h"
 
@@ -21,7 +19,6 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_bits.h"
@@ -29,6 +26,9 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
 #include "BLI_memarena.h"
+#include "BLI_rect.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -63,11 +63,13 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_main_invariants.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
@@ -4958,7 +4960,7 @@ static void do_projectpaint_soften_f(ProjPaintState *ps,
   }
 
   if (LIKELY(accum_tot != 0)) {
-    mul_v4_fl(rgba, 1.0f / float(accum_tot));
+    mul_v4_fl(rgba, 1.0f / accum_tot);
 
     if (ps->mode == BRUSH_STROKE_INVERT) {
       /* subtract blurred image from normal image gives high pass filter */
@@ -5021,7 +5023,7 @@ static void do_projectpaint_soften(ProjPaintState *ps,
   if (LIKELY(accum_tot != 0)) {
     uchar *rgba_ub = projPixel->newColor.ch;
 
-    mul_v4_fl(rgba, 1.0f / float(accum_tot));
+    mul_v4_fl(rgba, 1.0f / accum_tot);
 
     if (ps->mode == BRUSH_STROKE_INVERT) {
       float rgba_pixel[4];
@@ -6278,12 +6280,8 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 
   maxsize = GPU_max_texture_size();
 
-  if (w > maxsize) {
-    w = maxsize;
-  }
-  if (h > maxsize) {
-    h = maxsize;
-  }
+  w = std::min(w, maxsize);
+  h = std::min(h, maxsize);
 
   /* Create a copy of the overlays where they are all turned off, except the
    * texture paint overlay opacity */
@@ -6776,7 +6774,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       }
     }
 
-    ED_node_tree_propagate_change(C, bmain, ntree);
+    BKE_main_ensure_invariants(*bmain);
     /* In case we added more than one node, position them too. */
     blender::bke::node_position_propagate(out_node);
 
