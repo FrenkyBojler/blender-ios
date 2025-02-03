@@ -225,11 +225,9 @@ class SubdivisionSet(Operator):
         soft_min=-6, soft_max=6,
         default=1,
     )
-    render_level: IntProperty(
-        name="Render Level",
-        min=-100, max=100,
-        soft_min=-6, soft_max=6,
-        default=1,
+    match_render: BoolProperty(
+        name="Match Render Level",
+        default=True,
     )
     relative: BoolProperty(
         name="Relative",
@@ -242,25 +240,16 @@ class SubdivisionSet(Operator):
         obs = context.selected_editable_objects
         return (obs is not None)
 
-    def invoke(self, context, event):
-        if not self.properties.is_property_set("render_level"):
-            self.render_level = 2
-
-        return self.execute(context)
-
     def execute(self, context):
         level = self.level
-        render_level = self.render_level
         relative = self.relative
+        match_render = self.match_render
 
         if relative and level == 0:
             return {'CANCELLED'}  # nothing to do
 
-        if not self.relative:
-            if self.level < 0:
-                self.level = level = 0
-            if self.render_level < 0:
-                self.render_level = render_level = 0
+        if not relative and level < 0:
+            self.level = level = 0
 
         def set_object_subd(obj):
             for mod in obj.modifiers:
@@ -277,8 +266,8 @@ class SubdivisionSet(Operator):
                         elif obj.mode == 'OBJECT':
                             if mod.levels != level:
                                 mod.levels = level
-                            if mod.render_levels != render_level:
-                                mod.render_levels = render_level
+                                if match_render:
+                                    mod.render_levels = level
                         return
                     else:
                         if obj.mode == 'SCULPT':
@@ -287,17 +276,20 @@ class SubdivisionSet(Operator):
                         elif obj.mode == 'OBJECT':
                             if mod.levels + level <= mod.total_levels:
                                 mod.levels += level
+                                if match_render:
+                                    mod.render_levels += level
                         return
 
                 elif mod.type == 'SUBSURF':
                     if relative:
                         mod.levels += level
-                        mod.render_levels += render_level
+                        if match_render:
+                            mod.render_levels += level
                     else:
                         if mod.levels != level:
                             mod.levels = level
-                        if mod.render_levels != render_level:
-                            mod.render_levels = render_level
+                            if match_render:
+                                mod.render_levels = level
 
                     return
 
@@ -311,7 +303,8 @@ class SubdivisionSet(Operator):
                 else:
                     mod = obj.modifiers.new("Subdivision", 'SUBSURF')
                     mod.levels = level
-                    mod.render_levels = render_level
+                    if match_render:
+                        mod.render_levels = level
             except Exception:
                 self.report({'WARNING'}, "Modifiers cannot be added to object: " + obj.name)
 
