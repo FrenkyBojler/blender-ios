@@ -191,6 +191,24 @@ class ActionSlotAssignmentTest(unittest.TestCase):
             "After assignment, the ID type should remain UNSPECIFIED when the Action is linked.")
         self.assertEqual("XXLegacy Slot", slot.identifier)
 
+    def test_slot_identifier_writing(self):
+        """Test writing to the identifier of a slot."""
+
+        action = bpy.data.actions.new('TestAction')
+        slot = action.slots.new('OBJECT', "Slot")
+
+        self.assertEqual("OBSlot", slot.identifier)
+
+        # Assigning identifier with same type prefix should work.
+        slot.identifier = "OBCoolerSlot"
+        self.assertEqual("OBCoolerSlot", slot.identifier)
+
+        # Assigning identifier with different type prefix should still set the
+        # name part, but leave the type prefix untouched so that it stays
+        # consistent with the actual target ID type of the slot.
+        slot.identifier = "MAEvenCoolerSlot"
+        self.assertEqual("OBEvenCoolerSlot", slot.identifier)
+
     def test_untyped_slot_target_id_writing(self):
         """Test writing to the target id type of an untyped slot."""
 
