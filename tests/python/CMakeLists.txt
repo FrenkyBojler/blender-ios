@@ -680,7 +680,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
             eevee_next_opengl_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_opengl"
             --gpu-backend opengl
             ${_gpu_render_tests_arguments}
           )
@@ -693,7 +693,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
             eevee_next_metal_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_metal"
             --gpu-backend metal
             ${_gpu_render_tests_arguments}
           )
@@ -706,7 +706,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
             eevee_next_vulkan_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_vulkan"
             --gpu-backend vulkan
             ${_gpu_render_tests_arguments}
           )
@@ -836,7 +836,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
           compositor_opengl_${comp_test}
           ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
           --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-          --outdir "${TEST_OUT_DIR}/compositor"
+          --outdir "${TEST_OUT_DIR}/compositor_opengl"
           --gpu
           --gpu-backend opengl
         )
@@ -848,7 +848,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
           compositor_metal_${comp_test}
           ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
           --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-          --outdir "${TEST_OUT_DIR}/compositor"
+          --outdir "${TEST_OUT_DIR}/compositor_metal"
           --gpu
           --gpu-backend metal
         )
@@ -860,7 +860,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
           compositor_vulkan_${comp_test}
           ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
           --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-          --outdir "${TEST_OUT_DIR}/compositor"
+          --outdir "${TEST_OUT_DIR}/compositor_vulkan"
           --gpu
           --gpu-backend vulkan
         )
