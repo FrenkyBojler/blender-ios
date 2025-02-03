@@ -96,7 +96,7 @@ class TreeViewItemContainer {
 };
 
 ENUM_OPERATORS(TreeViewItemContainer::IterOptions,
-               TreeViewItemContainer::IterOptions::SkipCollapsed);
+               TreeViewItemContainer::IterOptions::SkipFiltered);
 
 /**
  * The container class is the base for both the tree-view and the items. This alias gives it a

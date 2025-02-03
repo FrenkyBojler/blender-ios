@@ -93,7 +93,7 @@ enum class CPPTypeFlags {
 
   BasicType = Hashable | Printable | EqualityComparable,
 };
-ENUM_OPERATORS(CPPTypeFlags, CPPTypeFlags::EqualityComparable)
+ENUM_OPERATORS(CPPTypeFlags, CPPTypeFlags::IdentityDefaultValue)
 
 namespace blender {
 

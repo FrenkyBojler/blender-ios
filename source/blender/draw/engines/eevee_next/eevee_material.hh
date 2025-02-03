@@ -144,7 +144,7 @@ static inline uint64_t shader_uuid_from_material_type(
   return uuid;
 }
 
-ENUM_OPERATORS(eClosureBits, CLOSURE_AMBIENT_OCCLUSION)
+ENUM_OPERATORS(eClosureBits, CLOSURE_CLEARCOAT)
 
 static inline eClosureBits shader_closure_bits_from_flag(const GPUMaterial *gpumat)
 {

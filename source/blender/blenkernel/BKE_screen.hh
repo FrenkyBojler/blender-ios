@@ -560,7 +560,7 @@ enum class MenuTypeFlag {
    */
   SearchOnKeyPress = (1 << 1),
 };
-ENUM_OPERATORS(MenuTypeFlag, MenuTypeFlag::ContextDependent)
+ENUM_OPERATORS(MenuTypeFlag, MenuTypeFlag::SearchOnKeyPress)
 
 struct MenuType {
   MenuType *next, *prev;
@@ -597,10 +597,8 @@ enum AssetShelfTypeFlag {
   ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG = (1 << 0),
   ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE = (1 << 1),
   ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS = (1 << 2),
-
-  ASSET_SHELF_TYPE_FLAG_MAX
 };
-ENUM_OPERATORS(AssetShelfTypeFlag, ASSET_SHELF_TYPE_FLAG_MAX);
+ENUM_OPERATORS(AssetShelfTypeFlag, ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS);
 
 #define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 64
 

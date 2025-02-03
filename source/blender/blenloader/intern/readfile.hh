@@ -51,7 +51,7 @@ enum eFileDataFlag {
    */
   FD_FLAGS_FILE_FUTURE = 1 << 5,
 };
-ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_IS_MEMFILE)
+ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_FILE_FUTURE)
 
 /* Disallow since it's 32bit on ms-windows. */
 #ifdef __GNUC__

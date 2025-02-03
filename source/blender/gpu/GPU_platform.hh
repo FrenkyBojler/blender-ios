@@ -30,7 +30,7 @@ enum eGPUDeviceType {
   GPU_DEVICE_ANY = (0xff),
 };
 
-ENUM_OPERATORS(eGPUDeviceType, GPU_DEVICE_ANY)
+ENUM_OPERATORS(eGPUDeviceType, GPU_DEVICE_UNKNOWN)
 
 enum eGPUOSType {
   GPU_OS_WIN = (1 << 8),

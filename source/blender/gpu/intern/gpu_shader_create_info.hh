@@ -538,9 +538,8 @@ enum class Qualifier {
   WRITE = (1 << 2),
   /** Shorthand version of combined flags. */
   READ_WRITE = READ | WRITE,
-  QUALIFIER_MAX = (WRITE << 1) - 1,
 };
-ENUM_OPERATORS(Qualifier, Qualifier::QUALIFIER_MAX);
+ENUM_OPERATORS(Qualifier, Qualifier::WRITE);
 
 /** Maps to different descriptor sets. */
 enum class Frequency {

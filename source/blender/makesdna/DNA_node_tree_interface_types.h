@@ -119,7 +119,7 @@ typedef enum NodeTreeInterfacePanelFlag {
   /* Allow adding sockets after panels. */
   NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS = 1 << 2,
 } NodeTreeInterfacePanelFlag;
-ENUM_OPERATORS(NodeTreeInterfacePanelFlag, NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
+ENUM_OPERATORS(NodeTreeInterfacePanelFlag, NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS);
 
 /** Use the same default for different node systems. */
 #define NODE_INPUT_DEFAULT_VALUE 0

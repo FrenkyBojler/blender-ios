@@ -62,7 +62,7 @@ enum ColorFlag {
   Seed = (1 << 3),
   Debug = (1 << 7),
 };
-ENUM_OPERATORS(ColorFlag, ColorFlag::Seed)
+ENUM_OPERATORS(ColorFlag, ColorFlag::Debug)
 
 /** \} */
 

@@ -60,7 +60,7 @@
 
 #include "GPU_capabilities.hh"
 
-ENUM_OPERATORS(eUserpref_StatusBar_Flag, STATUSBAR_SHOW_VERSION)
+ENUM_OPERATORS(eUserpref_StatusBar_Flag, STATUSBAR_SHOW_EXTENSIONS_UPDATES)
 
 struct SceneStats {
   uint64_t totvert, totvertsel, totvertsculpt;
