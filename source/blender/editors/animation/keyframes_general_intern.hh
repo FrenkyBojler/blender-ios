@@ -42,6 +42,14 @@ struct KeyframeCopyBuffer {
   animrig::StripKeyframeData keyframe_data;
 
   /**
+   * Slot handle used for slotless keyframes.
+   *
+   * These are keyframes copied from F-Curves not owned by an Action, such as drivers and NLA
+   * control curves.
+   */
+  static constexpr animrig::slot_handle_t SLOTLESS_SLOT_HANDLE = 0;
+
+  /**
    * Just a more-or-less randomly chosen number to start at.
    *
    * Having this distinctly different from DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE

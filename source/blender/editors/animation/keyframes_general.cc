@@ -1396,11 +1396,19 @@ class SlotMapper {
    */
   Channelbag &channelbag_for_ale(const bAnimListElem *ale)
   {
-    /* Copying keyframes really only works with F-Curves from Actions. */
-    BLI_assert(GS(ale->fcurve_owner_id->name) == ID_AC);
+    /* Slots really only exit with F-Curves from Actions. */
+    const Action *map_key_action;
+    slot_handle_t map_key_handle;
+    if (GS(ale->fcurve_owner_id->name) == ID_AC) {
+      map_key_action = &reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
+      map_key_handle = ale->slot_handle;
+    }
+    else {
+      map_key_action = nullptr;
+      map_key_handle = KeyframeCopyBuffer::SLOTLESS_SLOT_HANDLE;
+    }
 
-    const Action &ale_action = reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
-    const auto orig_action_slot_pair = std::make_pair(&ale_action, ale->slot_handle);
+    const auto orig_action_slot_pair = std::make_pair(map_key_action, map_key_handle);
 
     if (const std::optional<slot_handle_t> opt_internal_slot_handle =
             this->orig_to_buffer_slots.lookup_try(orig_action_slot_pair))
@@ -1422,11 +1430,18 @@ class SlotMapper {
         internal_slot_handle);
     this->orig_to_buffer_slots.add_new(orig_action_slot_pair, internal_slot_handle);
 
-    /* Copy some data from the Action slot to our internal bookkeeping. */
-    const Slot *ale_slot = ale_action.slot_for_handle(ale->slot_handle);
-    BLI_assert_msg(ale_slot, "Slot for copied keyframes is expected to exist.");
-
-    this->buffer.slot_identifiers.add_new(internal_slot_handle, ale_slot->identifier);
+    /* Determine the slot identifier. */
+    StringRef slot_identifier;
+    if (map_key_action) {
+      const Slot *ale_slot = map_key_action->slot_for_handle(ale->slot_handle);
+      BLI_assert_msg(ale_slot, "Slot for copied keyframes is expected to exist.");
+      slot_identifier = ale_slot->identifier;
+    }
+    else {
+      /* No Action means no slot, so also no identifier. */
+      slot_identifier = "";
+    }
+    this->buffer.slot_identifiers.add(internal_slot_handle, slot_identifier);
 
     /* ale->id might be nullptr on unassigned slots. */
     this->buffer.slot_animated_ids.add_new(internal_slot_handle, ale->id);
