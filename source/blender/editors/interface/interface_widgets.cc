@@ -4260,8 +4260,9 @@ static void widget_preview_tile(uiBut *but,
     widget_list_itembut(but, wcol, rect, state, roundboxalign, zoom);
   }
 
+  const BIFIconID icon = ui_but_icon(but);
   ui_draw_preview_item_stateless(
-      &UI_style_get()->widget, rect, but->drawstr, but->icon, wcol->text, UI_STYLE_TEXT_CENTER);
+      &UI_style_get()->widget, rect, but->drawstr, icon, wcol->text, UI_STYLE_TEXT_CENTER);
 }
 
 static void widget_optionbut(uiWidgetColors *wcol,
