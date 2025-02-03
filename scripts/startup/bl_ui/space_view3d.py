@@ -6759,7 +6759,7 @@ class VIEW3D_PT_shading_cavity(Panel):
         shading = VIEW3D_PT_shading.get_shading(context)
         xray_active = shading.show_xray and shading.xray_alpha != 1
 
-        col = layout.column(align=True)
+        col = layout.column()
         col.active = not xray_active
 
         if shading.show_cavity:
@@ -6772,13 +6772,13 @@ class VIEW3D_PT_shading_cavity(Panel):
                     text="",
                 )
 
-                row = col.row(align=True)
+                row = col.row()
                 row.prop(shading, "cavity_ridge_factor", text="Ridge")
                 row.prop(shading, "cavity_valley_factor", text="Valley")
 
             if shading.cavity_type in {'SCREEN', 'BOTH'}:
                 col.label(text="Screen Space")
-                row = col.row(align=True)
+                row = col.row()
                 row.prop(shading, "curvature_ridge_factor", text="Ridge")
                 row.prop(shading, "curvature_valley_factor", text="Valley")
 
