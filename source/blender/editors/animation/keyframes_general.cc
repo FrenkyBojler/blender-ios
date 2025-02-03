@@ -1591,8 +1591,10 @@ enum class SlotNameMatch {
   NONE = 0,
   /** Source and target F-Curve must be from a slot with the same identifier. */
   NAME = 1,
+  /** Target F-Curve must be from a selected slot, name does not matter. */
+  SELECTION = 2,
   /** NAME + target F-Curve must be from a selected slot. */
-  NAME_AND_SELECTION = 2,
+  NAME_AND_SELECTION = 3,
 };
 
 }  // namespace
@@ -1615,6 +1617,12 @@ static SlotNameMatch slot_name_matcher(const bool from_single,
      * source Channelbag. */
 
     if (keyframe_copy_buffer->num_slots() == 1) {
+      /* Slot selection can also matter: Copy from one slot, paste into another slot (by
+       * selecting that slot). */
+      if (options.num_slots_selected > 0) {
+        return SlotNameMatch::SELECTION;
+      }
+
       /* Copied from one slot, which will get pasted into every target slot. Slot names do not
        * matter. */
       return SlotNameMatch::NONE;
@@ -1652,16 +1660,12 @@ static SlotNameMatch slot_name_matcher(const bool from_single,
   const int num_slots_copied = keyframe_copy_buffer->num_slots();
   BLI_assert_msg(num_slots_copied > 0,
                  "If any keyframes were copied, they MUST have come from some slot.");
-  if (num_slots_copied == 1) {
-    /* TODO: Slot selection can also matter: Copy from one slot, paste into another slot (by
-     * selecting that slot). */
-    // if (options.num_slots_selected == 1) {
-    //   return SlotNameMatch::SELECTION;
-    // }
-
-    return SlotNameMatch::NONE;
+  if (num_slots_copied > 1) {
+    /* Copied from multiple slots, so do name matching. */
+    return SlotNameMatch::NAME;
   }
-  return SlotNameMatch::NAME;
+
+  return SlotNameMatch::NONE;
 }
 
 /**
@@ -1691,32 +1695,26 @@ static const FCurve *pastebuf_find_matching_copybuf_item(
   const Channelbag *single_copy_buffer_channelbag;
   Span<const Channelbag *> channelbags_to_copy_from;
 
+  /* Get the slot of this ALE, as some of the cases below need to query it. */
+  BLI_assert_msg(GS(ale_to_paste_into.fcurve_owner_id->name) == ID_AC,
+                 "This code doesn't handle slotless cases yet");
+  const Action &ale_action =
+      reinterpret_cast<bAction *>(ale_to_paste_into.fcurve_owner_id)->wrap();
+  const Slot *ale_slot = ale_action.slot_for_handle(ale_to_paste_into.slot_handle);
+  BLI_assert_msg(ale_slot, "pasting into some F-Curve, so assuming it has a slot");
+
+  /* NASTYNESS: this code shouldn't have to care about which slots are currently visible in
+   * the channel list. But since selection state is only relevant when they CAN actually be
+   * selected, it does matter. This code assumes:
+   *   1. because NAME_AND_SELECTION was returned, slot selection is a thing in this mode,
+   *   2. because slot selection is a thing, and this F-Curve is potentially getting pasted
+   *      into, its slot is visible too,
+   *   3. and because of that, the selection state of this slot is enough to check here. */
+
   const SlotNameMatch slot_name_match = slot_name_matcher(from_single, to_single, options);
   switch (slot_name_match) {
-    case SlotNameMatch::NONE:
-      /* If slot names do not matter, just search through all channelbags in the copy buffer. */
-      channelbags_to_copy_from = keyframe_copy_buffer->keyframe_data.channelbags();
-      break;
-
-    case SlotNameMatch::NAME_AND_SELECTION: {
-      printf("\033[96mSlot names AND selection matter!\033[0m\n");
-
-      /* See if we copied from a slot whose identifier matches this ALE. */
-      BLI_assert_msg(GS(ale_to_paste_into.fcurve_owner_id->name) == ID_AC,
-                     "This code doesn't handle slotless cases yet");
-
-      const Action &ale_action =
-          reinterpret_cast<bAction *>(ale_to_paste_into.fcurve_owner_id)->wrap();
-      const Slot *ale_slot = ale_action.slot_for_handle(ale_to_paste_into.slot_handle);
-      BLI_assert_msg(ale_slot, "pasting into some F-Curve, assuming it has a slot");
-
-      /* NASTYNESS: this code shouldn't have to care about which slots are currently visible in the
-       * channel list. But since selection state is only relevant when they CAN actually be
-       * selected, it does matter. This code assumes:
-       *   1. because NAME_AND_SELECTION was returned, slot selection is a thing in this mode,
-       *   2. because slot selection is a thing, and this F-Curve is potentially getting pasted
-       *      into, its slot is visible too,
-       *   3. and because of that, the selection state of this slot is enough to check here. */
+    case SlotNameMatch::SELECTION: {
+      printf("\033[97mSlot name does not matter, but selection matters!\033[0m\n");
       if (!ale_slot->is_selected()) {
         /* This potential F-Curve belongs to a non-selected slots, so let's ignore it. */
         printf("    slot %s is not selected, skipping %s[%d]\n",
@@ -1728,16 +1726,35 @@ static const FCurve *pastebuf_find_matching_copybuf_item(
 
       /* FALLTHROUGH */
     }
+
+    case SlotNameMatch::NONE:
+      /* Just search through all channelbags in the copy buffer. */
+      channelbags_to_copy_from = keyframe_copy_buffer->keyframe_data.channelbags();
+      break;
+
+    case SlotNameMatch::NAME_AND_SELECTION: {
+      printf("\033[96mSlot names AND selection matter!\033[0m\n");
+
+      if (!ale_slot->is_selected()) {
+        /* This potential F-Curve belongs to a non-selected slots, so let's ignore it. */
+        printf("    slot %s is not selected, skipping %s[%d]\n",
+               ale_slot->identifier,
+               fcurve_to_match.rna_path,
+               fcurve_to_match.array_index);
+        return nullptr;
+      }
+
+      /* FALLTHROUGH */
+    }
+
     case SlotNameMatch::NAME: {
       printf("\033[92mSlot names matter!\033[0m\n");
       /* See if we copied from a slot whose identifier matches this ALE. */
       BLI_assert_msg(GS(ale_to_paste_into.fcurve_owner_id->name) == ID_AC,
                      "This code doesn't handle slotless cases yet");
 
-      const bAction *ale_action = reinterpret_cast<bAction *>(ale_to_paste_into.fcurve_owner_id);
-
       const std::string target_slot_identifier = slot_identifier_cache.lookup(
-          ale_action, ale_to_paste_into.slot_handle);
+          &ale_action, ale_to_paste_into.slot_handle);
       printf("  looking up slot %s\n", target_slot_identifier.c_str());
 
       single_copy_buffer_channelbag = keyframe_copy_buffer->channelbag_for_slot(
