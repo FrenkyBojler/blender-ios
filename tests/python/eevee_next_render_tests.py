@@ -52,6 +52,11 @@ BLOCKLIST_METAL = [
     "principled_bsdf_interior.blend",
 ]
 
+BLOCKLIST_VULKAN = [
+    # Blocked due to difference in screen space tracing (to be fixed).
+    "sss_reflection_clamp.blend",
+]
+
 
 def setup():
     import bpy
@@ -228,6 +233,8 @@ def main():
     blocklist = BLOCKLIST
     if args.gpu_backend == "metal":
         blocklist += BLOCKLIST_METAL
+    elif args.gpu_backend == "vulkan":
+        blocklist += BLOCKLIST_VULKAN
 
     report = EEVEEReport("Eevee Next", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":

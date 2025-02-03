@@ -677,7 +677,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_OPENGL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_opengl
+            eevee_next_opengl_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
             --outdir "${TEST_OUT_DIR}/eevee_next"
@@ -690,7 +690,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_METAL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_metal
+            eevee_next_metal_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
             --outdir "${TEST_OUT_DIR}/eevee_next"
@@ -703,7 +703,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_vulkan
+            eevee_next_vulkan_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
             --outdir "${TEST_OUT_DIR}/eevee_next"
@@ -830,15 +830,42 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       list(APPEND compositor_tests distort matte)
     endif()
 
-    foreach(comp_test ${compositor_tests})
-      add_render_test(
-        compositor_gpu_${comp_test}
-        ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
-        --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-        --outdir "${TEST_OUT_DIR}/compositor_gpu"
-        --gpu
-      )
-    endforeach()
+    if(WITH_OPENGL_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_opengl_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor"
+          --gpu
+          --gpu-backend opengl
+        )
+      endforeach()
+    endif()
+    if(WITH_METAL_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_metal_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor"
+          --gpu
+          --gpu-backend metal
+        )
+      endforeach()
+    endif()
+    if(WITH_VULKAN_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_vulkan_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor"
+          --gpu
+          --gpu-backend vulkan
+        )
+      endforeach()
+    endif()
   endif()
 endif()
 
