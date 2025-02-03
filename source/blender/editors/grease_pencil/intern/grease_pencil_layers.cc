@@ -32,8 +32,6 @@
 #include "WM_api.hh"
 #include "WM_message.hh"
 
-#include <iostream>
-
 namespace blender::ed::greasepencil {
 
 /* This utility function is modified from `BKE_object_get_parent_matrix()`. */
