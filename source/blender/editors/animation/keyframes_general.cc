@@ -1948,8 +1948,6 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
       const FCurve *fcurve_in_copy_buffer = pastebuf_find_matching_copybuf_item(
           matcher, ac->bmain, *fcurve_to_paste_into, from_single, to_single, flip);
       if (!fcurve_in_copy_buffer) {
-        /* TODO: remove the next line. It's here purely to keep a refactor non-functional. */
-        ale->update |= ANIM_UPDATE_DEFAULT;
         continue;
       }
 
