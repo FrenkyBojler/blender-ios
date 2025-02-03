@@ -17,7 +17,6 @@
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
 
-#include "DNA_action_defaults.h"
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
@@ -37,7 +36,6 @@
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
 
-#include "DNA_defaults.h"
 #include "DNA_defs.h"
 #include "DNA_genfile.h"
 #include "DNA_particle_types.h"
@@ -56,7 +54,6 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_action.hh"
@@ -1280,6 +1277,17 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
 
     /* Remove the old link. */
     blender::bke::node_remove_link(node_tree, link);
+  }
+}
+
+static void do_version_viewer_shortcut(bNodeTree *node_tree)
+{
+  LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+    if (node->type_legacy != CMP_NODE_VIEWER) {
+      continue;
+    }
+    /* custom1 was previously used for Tile Order for the Tiled Compositor. */
+    node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
   }
 }
 
@@ -3119,18 +3127,17 @@ static void versioning_node_group_sort_sockets_recursive(bNodeTreeInterfacePanel
       /* Keep sockets above panels. */
       return a->item_type == NODE_INTERFACE_SOCKET;
     }
-    else {
-      /* Keep outputs above inputs. */
-      if (a->item_type == NODE_INTERFACE_SOCKET) {
-        const bNodeTreeInterfaceSocket *sa = reinterpret_cast<const bNodeTreeInterfaceSocket *>(a);
-        const bNodeTreeInterfaceSocket *sb = reinterpret_cast<const bNodeTreeInterfaceSocket *>(b);
-        const bool is_output_a = sa->flag & NODE_INTERFACE_SOCKET_OUTPUT;
-        const bool is_output_b = sb->flag & NODE_INTERFACE_SOCKET_OUTPUT;
-        if (is_output_a != is_output_b) {
-          return is_output_a;
-        }
+    /* Keep outputs above inputs. */
+    if (a->item_type == NODE_INTERFACE_SOCKET) {
+      const bNodeTreeInterfaceSocket *sa = reinterpret_cast<const bNodeTreeInterfaceSocket *>(a);
+      const bNodeTreeInterfaceSocket *sb = reinterpret_cast<const bNodeTreeInterfaceSocket *>(b);
+      const bool is_output_a = sa->flag & NODE_INTERFACE_SOCKET_OUTPUT;
+      const bool is_output_b = sb->flag & NODE_INTERFACE_SOCKET_OUTPUT;
+      if (is_output_a != is_output_b) {
+        return is_output_a;
       }
     }
+
     return false;
   };
 
@@ -5295,9 +5302,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     /* LIGHT_PROBE_RESOLUTION_64 has been removed in EEVEE-Next as the tedrahedral mapping is to
      * low res to be usable. */
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->eevee.gi_cubemap_resolution < 128) {
-        scene->eevee.gi_cubemap_resolution = 128;
-      }
+      scene->eevee.gi_cubemap_resolution = std::max(scene->eevee.gi_cubemap_resolution, 128);
     }
   }
 
@@ -5805,6 +5810,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         brush->mask_stencil_pos[1] = default_brush->mask_stencil_pos[1];
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 27)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        do_version_viewer_shortcut(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
