@@ -505,8 +505,6 @@ UndoStep *BKE_undosys_step_push_init_with_type(UndoStack *ustack,
 UndoStep *BKE_undosys_step_push_init(UndoStack *ustack, bContext *C, const char *name)
 {
   UNDO_NESTED_ASSERT(false);
-  /* We could detect and clean this up (but it should never happen!). */
-  BLI_assert(ustack->step_init == nullptr);
   const UndoType *ut = BKE_undosys_type_from_context(C);
   if (ut == nullptr) {
     return nullptr;
