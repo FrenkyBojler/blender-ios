@@ -48,7 +48,7 @@ Channelbag &channelbag_ensure(Action &action)
   Slot *slot;
   if (action.slots().is_empty()) {
     slot = &action.slot_add();
-    action.slot_identifier_define(*slot, DATA_(DEFAULT_LEGACY_SLOT_NAME));
+    action.slot_display_name_define(*slot, DATA_(DEFAULT_LEGACY_SLOT_NAME));
   }
   else {
     slot = action.slot(0);
