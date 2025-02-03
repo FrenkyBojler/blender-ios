@@ -13,6 +13,7 @@
 
 #include "DNA_listBase.h"
 
+#include "BLI_map.hh"
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_types.hh"
@@ -291,7 +292,7 @@ using RNAPropOverrideApply = bool (*)(Main *bmain, RNAPropertyOverrideApplyConte
 struct ContainerRNA {
   void *next, *prev;
 
-  struct GHash *prophash;
+  blender::Map<blender::StringRefNull, PropertyRNA *> *prop_map;
   ListBase properties;
 };
 

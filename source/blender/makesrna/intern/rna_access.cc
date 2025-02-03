@@ -85,12 +85,12 @@ void RNA_init()
   for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
        srna = static_cast<StructRNA *>(srna->cont.next))
   {
-    if (!srna->cont.prophash) {
-      srna->cont.prophash = BLI_ghash_str_new("RNA_init gh");
+    if (!srna->cont.prop_map) {
+      srna->cont.prop_map = MEM_new<blender::Map<blender::StringRefNull, PropertyRNA *>>(__func__);
 
       LISTBASE_FOREACH (PropertyRNA *, prop, &srna->cont.properties) {
         if (!(prop->flag_internal & PROP_INTERN_BUILTIN)) {
-          BLI_ghash_insert(srna->cont.prophash, (void *)prop->identifier, prop);
+          srna->cont.prop_map->add(prop->identifier, prop);
         }
       }
     }
@@ -122,9 +122,9 @@ void RNA_exit()
   for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
        srna = static_cast<StructRNA *>(srna->cont.next))
   {
-    if (srna->cont.prophash) {
-      BLI_ghash_free(srna->cont.prophash, nullptr, nullptr);
-      srna->cont.prophash = nullptr;
+    if (srna->cont.prop_map) {
+      MEM_delete(srna->cont.prop_map);
+      srna->cont.prop_map = nullptr;
     }
   }
 
