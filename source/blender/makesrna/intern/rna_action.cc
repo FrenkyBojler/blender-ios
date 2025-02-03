@@ -1621,6 +1621,21 @@ static void rna_Action_id_root_set(PointerRNA *ptr, int value)
   action.slot_idtype_define(*action.slot(0), ID_Type(value));
 }
 
+static void rna_Action_id_root_update(Main *bmain, Scene *, PointerRNA *ptr)
+{
+  animrig::Action &action = rna_action(ptr);
+
+  if (action.slots().is_empty()) {
+    /* Nothing to do: id_root can't be set without at least one slot, so no
+     * change was possible that would necessitate an update. */
+    return;
+  }
+
+  /* Setting id_root actually sets the target ID type of the first slot, so it's
+   * the resulting changes to the first slot that we need to propagate. */
+  action.slot_identifier_propagate(*bmain, *action.slot(0));
+}
+
 #else
 
 static void rna_def_dopesheet(BlenderRNA *brna)
@@ -2789,6 +2804,7 @@ static void rna_def_action_legacy(BlenderRNA *brna, StructRNA *srna)
                               "rna_Action_id_root_get",
                               "rna_Action_id_root_set",
                               "rna_ActionSlot_target_id_type_itemf");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_Action_id_root_update");
   RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
   RNA_def_property_ui_text(prop,
                            "ID Root Type",
