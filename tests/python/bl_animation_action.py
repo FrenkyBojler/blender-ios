@@ -500,14 +500,17 @@ class LegacyAPIOnLayeredActionTest(unittest.TestCase):
         self.assertEqual(self.action.slots[1].identifier, 'CAFoo')
 
     def test_id_root_on_empty_action(self) -> None:
-        # When there are no slots, action.id_root should ignore writes and
-        # should unconditionally yield 'UNSPECIFIED'.
+        # When there are no slots, setting action.id_root should create a legacy
+        # slot and set its target_id_type.
 
         self.assertEqual(self.action.id_root, 'UNSPECIFIED')
+        self.assertEqual(len(self.action.slots), 0)
 
         self.action.id_root = 'OBJECT'
 
-        self.assertEqual(self.action.id_root, 'UNSPECIFIED')
+        self.assertEqual(self.action.id_root, 'OBJECT')
+        self.assertEqual(len(self.action.slots), 1)
+        self.assertEqual(self.action.slots[0].target_id_type, 'OBJECT')
 
 
 class ChannelbagsTest(unittest.TestCase):
