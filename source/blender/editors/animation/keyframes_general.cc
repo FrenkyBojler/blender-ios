@@ -1882,10 +1882,7 @@ static float paste_get_y_offset(const bAnimContext *ac,
 
 eKeyPasteError paste_animedit_keys(bAnimContext *ac,
                                    ListBase *anim_data,
-                                   const eKeyPasteOffset offset_mode,
-                                   const eKeyPasteValueOffset value_offset_mode,
-                                   const eKeyMergeMode merge_mode,
-                                   const bool flip)
+                                   const KeyframePasteOptions options)
 {
   using namespace blender::ed::animation;
 
@@ -1902,7 +1899,7 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
   float offset[2] = {0, 0};
 
   /* methods of offset */
-  switch (offset_mode) {
+  switch (options.offset_mode) {
     case KEYFRAME_PASTE_OFFSET_CFRA_START:
       offset[0] = float(scene->r.cfra - keyframe_copy_buffer->first_frame);
       break;
@@ -1924,8 +1921,8 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
     const FCurve &fcurve_in_copy_buffer =
         *keyframe_copy_buffer->keyframe_data.channelbag(0)->fcurve(0);
 
-    offset[1] = paste_get_y_offset(ac, fcurve_in_copy_buffer, ale, value_offset_mode);
-    paste_animedit_keys_fcurve(fcu, fcurve_in_copy_buffer, offset, merge_mode, false);
+    offset[1] = paste_get_y_offset(ac, fcurve_in_copy_buffer, ale, options.value_offset_mode);
+    paste_animedit_keys_fcurve(fcu, fcurve_in_copy_buffer, offset, options.merge_mode, false);
     ale->update |= ANIM_UPDATE_DEFAULT;
 
     ANIM_animdata_update(ac, anim_data);
@@ -1946,17 +1943,17 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
       FCurve *fcurve_to_paste_into = (FCurve *)ale->data;
 
       const FCurve *fcurve_in_copy_buffer = pastebuf_find_matching_copybuf_item(
-          matcher, ac->bmain, *fcurve_to_paste_into, from_single, to_single, flip);
+          matcher, ac->bmain, *fcurve_to_paste_into, from_single, to_single, options.flip);
       if (!fcurve_in_copy_buffer) {
         continue;
       }
 
       /* Copy the relevant data from the matching buffer curve. */
-      offset[1] = paste_get_y_offset(ac, *fcurve_in_copy_buffer, ale, value_offset_mode);
+      offset[1] = paste_get_y_offset(ac, *fcurve_in_copy_buffer, ale, options.value_offset_mode);
 
       ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcurve_to_paste_into, false, false);
       paste_animedit_keys_fcurve(
-          fcurve_to_paste_into, *fcurve_in_copy_buffer, offset, merge_mode, flip);
+          fcurve_to_paste_into, *fcurve_in_copy_buffer, offset, options.merge_mode, options.flip);
       ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcurve_to_paste_into, true, false);
 
       found_match = true;

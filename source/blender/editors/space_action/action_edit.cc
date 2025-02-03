@@ -556,9 +556,14 @@ static eKeyPasteError paste_action_keys(bAnimContext *ac,
     ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
   }
 
+  KeyframePasteOptions options;
+  options.offset_mode = offset_mode;
   /* Value offset is always None because the user cannot see the effect of it. */
-  const eKeyPasteError ok = paste_animedit_keys(
-      ac, &anim_data, offset_mode, KEYFRAME_PASTE_VALUE_OFFSET_NONE, merge_mode, flip);
+  options.value_offset_mode = KEYFRAME_PASTE_VALUE_OFFSET_NONE;
+  options.merge_mode = merge_mode;
+  options.flip = flip;
+
+  const eKeyPasteError ok = paste_animedit_keys(ac, &anim_data, options);
 
   /* clean up */
   ANIM_animdata_freelist(&anim_data);

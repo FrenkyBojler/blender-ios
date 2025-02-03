@@ -493,7 +493,7 @@ static eKeyPasteError paste_graph_keys(bAnimContext *ac,
                                        const eKeyPasteOffset offset_mode,
                                        const eKeyPasteValueOffset value_offset_mode,
                                        const eKeyMergeMode merge_mode,
-                                       bool flip)
+                                       const bool flip)
 {
   ListBase anim_data = {nullptr, nullptr};
   int filter;
@@ -517,9 +517,15 @@ static eKeyPasteError paste_graph_keys(bAnimContext *ac,
         ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
   }
 
+  /* Determine paste options. */
+  KeyframePasteOptions options;
+  options.offset_mode = offset_mode;
+  options.value_offset_mode = value_offset_mode;
+  options.merge_mode = merge_mode;
+  options.flip = flip;
+
   /* Paste keyframes. */
-  const eKeyPasteError ok = paste_animedit_keys(
-      ac, &anim_data, offset_mode, value_offset_mode, merge_mode, flip);
+  const eKeyPasteError ok = paste_animedit_keys(ac, &anim_data, options);
 
   /* Clean up. */
   ANIM_animdata_freelist(&anim_data);

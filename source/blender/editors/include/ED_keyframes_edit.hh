@@ -529,12 +529,17 @@ void ANIM_fcurves_copybuf_free();
  * \returns Whether anything was copied into the buffer.
  */
 bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data);
+
+struct KeyframePasteOptions {
+  eKeyPasteOffset offset_mode;
+  eKeyPasteValueOffset value_offset_mode;
+  eKeyMergeMode merge_mode;
+  bool flip;
+};
+
 eKeyPasteError paste_animedit_keys(bAnimContext *ac,
                                    ListBase *anim_data,
-                                   eKeyPasteOffset offset_mode,
-                                   eKeyPasteValueOffset value_offset_mode,
-                                   eKeyMergeMode merge_mode,
-                                   bool flip);
+                                   KeyframePasteOptions options);
 
 /* ************************************************ */
 
