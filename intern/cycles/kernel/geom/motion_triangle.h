@@ -225,6 +225,8 @@ triangle_interpolate(const float u, const float v, const T f0, const T f1, const
   return (1.0f - u - v) * f0 + u * f1 + v * f2;
 }
 
+/* Compute motion triangle normals at the hit position, and offsetted positions in x and y
+ * direction for bump mapping. */
 ccl_device_inline float3 motion_triangle_smooth_normal(KernelGlobals kg,
                                                        const float3 Ng,
                                                        const int object,
