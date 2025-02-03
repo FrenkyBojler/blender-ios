@@ -558,14 +558,14 @@ if(WITH_OPENCOLORIO)
   )
 endif()
 if(WIN32)
-  if(EXISTS ${LIBDIR}/osl/lib/python${PYTHON_VERSION}/site-packages/oslquery.pyd) # 4.4+
+  if(EXISTS ${LIBDIR}/osl/lib/python${PYTHON_VERSION}/site-packages/oslquery) # 4.4+
     install(
-      FILES ${LIBDIR}/osl/lib/python${PYTHON_VERSION}/site-packages/oslquery.pyd
+      DIRECTORY ${LIBDIR}/osl/lib/python${PYTHON_VERSION}/site-packages/oslquery
       DESTINATION ${TARGETDIR_SITE_PACKAGES}
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
     install(
-      FILES ${LIBDIR}/osl/lib/python${PYTHON_VERSION}_debug/site-packages/oslquery_d.pyd
+      DIRECTORY ${LIBDIR}/osl/lib/python${PYTHON_VERSION}_debug/site-packages/oslquery
       DESTINATION ${TARGETDIR_SITE_PACKAGES}
       CONFIGURATIONS Debug
     )
@@ -1739,7 +1739,7 @@ if(WITH_PYTHON_MODULE AND LIBDIR AND NOT WIN32)
     DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/PyOpenColorIO
     DESTINATION ${TARGETDIR_SITE_PACKAGES})
   install(
-    FILES ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/oslquery.so
+    DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/oslquery
     DESTINATION ${TARGETDIR_SITE_PACKAGES} OPTIONAL)
   install(
     DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/pxr
