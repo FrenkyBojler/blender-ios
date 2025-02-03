@@ -351,18 +351,8 @@ static void node_geo_exec(GeoNodeExecParams params)
      * to other geometry sets that are processed by this node. */
     InstancesComponent &instances_component =
         geometry_set.get_component_for_write<InstancesComponent>();
-    bke::Instances *dst_instances = instances_component.get_for_write();
 
-    Vector<GeometrySet, 4> instances_set;
-    if (dst_instances != nullptr) {
-      instances_set.append(
-          GeometrySet::from_instances(dst_instances, bke::GeometryOwnershipType::Editable));
-    }
-
-    if (dst_instances == nullptr) {
-      dst_instances = new bke::Instances();
-      instances_component.replace(dst_instances);
-    }
+    Vector<GeometrySet, 4> instances_set = {GeometrySet::from_instances(instances_component.release())};
 
     static const Array<GeometryComponent::Type> types{GeometryComponent::Type::Mesh,
                                                       GeometryComponent::Type::PointCloud,
