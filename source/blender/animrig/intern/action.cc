@@ -403,6 +403,18 @@ void Action::slot_display_name_set(Main &bmain, Slot &slot, StringRefNull new_di
   this->slot_identifier_propagate(bmain, slot);
 }
 
+void Action::slot_display_name_define(Slot &slot, StringRefNull new_display_name)
+{
+  BLI_assert_msg(StringRef(new_display_name).size() >= 1,
+                 "Action Slot display names must not be empty");
+  BLI_assert_msg(StringRef(slot.identifier).size() >= 2,
+                 "Action Slot's existing identifier lacks the two-character type prefix, which "
+                 "would make the display name copy meaningless due to early null termination.");
+
+  BLI_strncpy_utf8(slot.identifier + 2, new_display_name.c_str(), ARRAY_SIZE(slot.identifier) - 2);
+  slot_identifier_ensure_unique(*this, slot);
+}
+
 void Action::slot_idtype_define(Slot &slot, ID_Type idtype)
 {
   slot.idtype = idtype;
@@ -419,18 +431,6 @@ void Action::slot_identifier_set(Main &bmain, Slot &slot, const StringRefNull ne
 
   this->slot_identifier_define(slot, new_identifier);
   this->slot_identifier_propagate(bmain, slot);
-}
-
-void Action::slot_display_name_define(Slot &slot, StringRefNull new_display_name)
-{
-  BLI_assert_msg(StringRef(new_display_name).size() >= 1,
-                 "Action Slot display names must not be empty");
-  BLI_assert_msg(StringRef(slot.identifier).size() >= 2,
-                 "Action Slot's existing identifier lacks the two-character type prefix, which "
-                 "would make the display name copy meaningless due to early null termination.");
-
-  BLI_strncpy_utf8(slot.identifier + 2, new_display_name.c_str(), ARRAY_SIZE(slot.identifier) - 2);
-  slot_identifier_ensure_unique(*this, slot);
 }
 
 void Action::slot_identifier_define(Slot &slot, const StringRefNull new_identifier)
