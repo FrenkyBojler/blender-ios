@@ -2926,6 +2926,7 @@ void GreasePencil::copy_frames_from_layer(blender::bke::greasepencil::Layer &dst
       dst_drawing_index = this->drawings().size() - 1;
       drawing_index_map[src_drawing_index] = dst_drawing_index;
     }
+    BLI_assert(this->drawings().index_range().contains(dst_drawing_index));
 
     GreasePencilFrame *dst_frame = dst_layer.add_frame(frame_number);
     dst_frame->flag = src_frame.flag;
