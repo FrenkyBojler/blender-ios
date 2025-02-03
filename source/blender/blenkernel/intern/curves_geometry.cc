@@ -128,7 +128,7 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
                             other.runtime->evaluated_tangent_cache,
                             other.runtime->evaluated_normal_cache,
                             other.runtime->max_material_index_cache,
-                            other.runtime->custom_knots_offsets_cache,
+                            other.runtime->custom_knot_offsets_cache,
                             {},
                             true});
 
@@ -546,7 +546,7 @@ OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
   if (this->curve_num == 0) {
     return {};
   }
-  runtime.custom_knots_offsets_cache.ensure([&](Vector<int> &r_data) {
+  runtime.custom_knot_offsets_cache.ensure([&](Vector<int> &r_data) {
     r_data.resize(this->curve_num + 1, 0);
 
     const OffsetIndices points_by_curve = this->points_by_curve();
@@ -562,12 +562,12 @@ OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
       r_data[curve + 1] = knot_count;
     }
   });
-  return OffsetIndices<int>(runtime.custom_knots_offsets_cache.data());
+  return OffsetIndices<int>(runtime.custom_knot_offsets_cache.data());
 }
 
 void CurvesGeometry::nurbs_custom_knots_update_size()
 {
-  this->runtime->custom_knots_offsets_cache.tag_dirty();
+  this->runtime->custom_knot_offsets_cache.tag_dirty();
   const OffsetIndices<int> knots_by_curve = this->nurbs_custom_knots_by_curve();
   const int knots_num = knots_by_curve.total_size();
   if (this->custom_knot_num != knots_num) {
@@ -586,7 +586,7 @@ void CurvesGeometry::nurbs_custom_knots_resize(int knots_num)
                                          this->custom_knot_num,
                                          knots_num);
   this->custom_knot_num = knots_num;
-  this->runtime->custom_knots_offsets_cache.tag_dirty();
+  this->runtime->custom_knot_offsets_cache.tag_dirty();
 }
 
 Span<MDeformVert> CurvesGeometry::deform_verts() const
@@ -1184,7 +1184,7 @@ void CurvesGeometry::tag_positions_changed()
 }
 void CurvesGeometry::tag_topology_changed()
 {
-  this->runtime->custom_knots_offsets_cache.tag_dirty();
+  this->runtime->custom_knot_offsets_cache.tag_dirty();
   this->tag_positions_changed();
   this->runtime->evaluated_offsets_cache.tag_dirty();
   this->runtime->nurbs_basis_cache.tag_dirty();

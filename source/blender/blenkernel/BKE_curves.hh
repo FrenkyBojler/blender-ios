@@ -128,7 +128,7 @@ class CurvesGeometryRuntime {
    * Offsets of custom knots in #CurvesGeometry::custom_knots for each curve in #CurvesGeometry.
    * For curves with no custom knots next offset value stays the same.
    */
-  mutable SharedCache<Vector<int>> custom_knots_offsets_cache;
+  mutable SharedCache<Vector<int>> custom_knot_offsets_cache;
 
   /** Stores weak references to material data blocks. */
   std::unique_ptr<bake::BakeMaterialsList> bake_materials;
