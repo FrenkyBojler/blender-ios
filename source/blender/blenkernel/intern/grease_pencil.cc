@@ -2895,7 +2895,7 @@ bool GreasePencil::remove_frames(blender::bke::greasepencil::Layer &layer,
 void GreasePencil::copy_frames_from_layer(blender::bke::greasepencil::Layer &dst_layer,
                                           const GreasePencil &src_grease_pencil,
                                           const blender::bke::greasepencil::Layer &src_layer,
-                                          std::optional<int> frame_select)
+                                          const std::optional<int> frame_select)
 {
   using namespace blender;
 

@@ -635,7 +635,7 @@ typedef struct GreasePencil {
   void copy_frames_from_layer(blender::bke::greasepencil::Layer &dst_layer,
                               const GreasePencil &src_grease_pencil,
                               const blender::bke::greasepencil::Layer &src_layer,
-                              std::optional<int> frame_select = std::nullopt);
+                              const std::optional<int> frame_select = std::nullopt);
   /**
    * Adds multiple layers each with its own empty drawing. This can be more efficient than adding
    * every layer and drawing one by one.
