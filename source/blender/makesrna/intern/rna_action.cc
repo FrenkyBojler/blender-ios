@@ -1575,9 +1575,6 @@ static void rna_ActionSlot_target_id_type_set(PointerRNA *ptr, int value)
  * property (`idtype` in DNA) of the Action's first Slot.
  *
  * If the Action has no slots, then we fallback to returning 'unspecified' (0).
- *
- * See `rna_Action_id_root_set()` for the "set" side of this, and some further
- * explanation of the rationale.
  */
 static int rna_Action_id_root_get(PointerRNA *ptr)
 {
@@ -1594,29 +1591,14 @@ static int rna_Action_id_root_get(PointerRNA *ptr)
  * earlier), we treat `Action.id_root` as a proxy for the `target_id_type`
  * property (`idtype` in DNA) of the Action's first Slot.
  *
- * If the Action has no slots, then we ignore the assignment.
- *
- * The rationale for ignoring the assignment in that case is that leaving the
- * `idroot` as always 'unspecified' will (practically speaking) not break legacy
- * scripts, since the Action will still be assignable to anything the script
- * tries to assign it to. And this way the new layered action code doesn't have
- * to special-case on the weird corner case of 'id_root' sometimes being
- * specified under obscure circumstances. */
+ * If the Action has no slots, then a legacy slot is created and its
+ * `target_id_type` is set. */
 static void rna_Action_id_root_set(PointerRNA *ptr, int value)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
 
-  if (action.slots().is_empty()) {
-    /* Ignore the assignment. */
-    printf(
-        "WARNING: ignoring assignment to id_root of Action '%s'. id_root is a legacy API that "
-        "proxies target_id_type in the Action's first slot, but the Action currently has no "
-        "slots.\n",
-        action.id.name);
-    return;
-  }
-
-  action.slot_idtype_define(*action.slot(0), ID_Type(value));
+  animrig::Slot &slot = animrig::legacy::slot_ensure(action);
+  action.slot_idtype_define(slot, ID_Type(value));
 }
 
 static void rna_Action_id_root_update(Main *bmain, Scene *, PointerRNA *ptr)
