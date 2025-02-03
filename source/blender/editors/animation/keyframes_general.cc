@@ -1933,60 +1933,40 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
     return KEYFRAME_PASTE_OK;
   }
 
-  /* from selected channels
-   * This "passes" system aims to try to find "matching" channels to paste keyframes
-   * into with increasingly loose matching heuristics. The process finishes when at least
-   * one F-Curve has been pasted into.
-   */
-  for (int pass = 0; pass < 3; pass++) {
-    uint totmatch = 0;
+  /* Try to find "matching" channels to paste keyframes into with increasingly
+   * loose matching heuristics. The process finishes when at least one F-Curve
+   * has been pasted into. */
+  Vector<pastebuf_match_func> matchers = {
+      pastebuf_match_path_full, pastebuf_match_path_property, pastebuf_match_index_only};
 
-    pastebuf_match_func matcher;
-    switch (pass) {
-      case 0:
-        matcher = pastebuf_match_path_full;
-        break;
-      case 1:
-        matcher = pastebuf_match_path_property;
-        break;
-      case 2:
-        matcher = pastebuf_match_index_only;
-        break;
-      default:
-        BLI_assert_unreachable();
-        continue;
-    }
+  for (const pastebuf_match_func matcher : matchers) {
+    bool found_match = false;
 
     LISTBASE_FOREACH (bAnimListElem *, ale, anim_data) {
-      /* Find buffer item to paste from:
-       * - If names don't matter (i.e. only 1 channel in buffer), don't check id/group
-       * - If names do matter, only check if id-type is ok for now
-       *   (group check is not that important).
-       * - Most importantly, rna-paths should match (array indices are unimportant for now)
-       */
-      FCurve *fcu = (FCurve *)ale->data; /* destination F-Curve */
+      FCurve *fcurve_to_paste_into = (FCurve *)ale->data;
 
       const FCurve *fcurve_in_copy_buffer = pastebuf_find_matching_copybuf_item(
-          matcher, ac->bmain, *fcu, from_single, to_single, flip);
-
-      /* copy the relevant data from the matching buffer curve */
-      if (fcurve_in_copy_buffer) {
-        totmatch++;
-
-        offset[1] = paste_get_y_offset(ac, *fcurve_in_copy_buffer, ale, value_offset_mode);
-
-        ANIM_nla_mapping_apply_if_needed_fcurve(
-            ale, static_cast<FCurve *>(ale->key_data), false, false);
-        paste_animedit_keys_fcurve(fcu, *fcurve_in_copy_buffer, offset, merge_mode, flip);
-        ANIM_nla_mapping_apply_if_needed_fcurve(
-            ale, static_cast<FCurve *>(ale->key_data), true, false);
+          matcher, ac->bmain, *fcurve_to_paste_into, from_single, to_single, flip);
+      if (!fcurve_in_copy_buffer) {
+        /* TODO: remove the next line. It's here purely to keep a refactor non-functional. */
+        ale->update |= ANIM_UPDATE_DEFAULT;
+        continue;
       }
 
+      /* Copy the relevant data from the matching buffer curve. */
+      offset[1] = paste_get_y_offset(ac, *fcurve_in_copy_buffer, ale, value_offset_mode);
+
+      ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcurve_to_paste_into, false, false);
+      paste_animedit_keys_fcurve(
+          fcurve_to_paste_into, *fcurve_in_copy_buffer, offset, merge_mode, flip);
+      ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcurve_to_paste_into, true, false);
+
+      found_match = true;
       ale->update |= ANIM_UPDATE_DEFAULT;
     }
 
-    /* don't continue if some fcurves were pasted */
-    if (totmatch) {
+    /* Don't continue if some fcurves were pasted. */
+    if (found_match) {
       break;
     }
   }
