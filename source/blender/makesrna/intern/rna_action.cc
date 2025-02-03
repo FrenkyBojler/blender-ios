@@ -1561,6 +1561,11 @@ static void rna_ActionSlot_target_id_type_set(PointerRNA *ptr, int value)
 
   if (slot.idtype != 0) {
     /* Ignore the assignment. */
+    printf(
+        "WARNING: ignoring assignment to target_id_type of Slot '%s' in Action '%s'. A Slot's "
+        "target_id_type can only be changed when currently 'UNSPECIFIED'.\n",
+        slot.identifier,
+        action.id.name);
     return;
   }
 
