@@ -28,19 +28,7 @@ except ImportError:
 
 def run_test():
     import bpy
-
-    for scene in bpy.data.scenes:
-        scene.render.engine = 'BLENDER_WORKBENCH'
-        scene.display.shading.light = 'STUDIO'
-        scene.display.shading.color_type = 'TEXTURE'
-    
-    def screenshot():
-        # Force redraw and take screenshot.
-        bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
-        bpy.ops.screen.screenshot(filepath = bpy.test_output_path + '0001.png')
-    
-    screenshot()
-    
+    bpy.ops.render.opengl(write_still=True, view_context=True)
     bpy.ops.wm.quit_blender()
 
 
@@ -63,7 +51,7 @@ def get_arguments(filepath, output_filepath, gpu_backend):
     arguments = [
         "--no-window-focus",
         "--window-geometry",
-        "0", "0", "1024", "768",
+        "0", "0", "128", "128",
         "-noaudio",
         "--factory-startup",
         "--enable-autoexec",
@@ -75,12 +63,12 @@ def get_arguments(filepath, output_filepath, gpu_backend):
     
     # Windows separators get messed up when passing them inside the python expression
     output_filepath = output_filepath.replace("\\", "/")
+    output_filepath += '0001.png'
 
     arguments.extend([
         filepath,
-        "-E", "BLENDER_WORKBENCH",
         "--python-expr",
-        f'import bpy; bpy.test_output_path = "{output_filepath}"',
+        f'import bpy; bpy.context.scene.render.filepath = "{output_filepath}"',
         "-P",
         os.path.realpath(__file__)])
 
@@ -117,6 +105,14 @@ def generate_tests(test_dir, blender, gen_re):
             
             command = [
                 blender,
+                "--no-window-focus",
+                "--window-geometry",
+                "0", "0", "128", "128",
+                "-noaudio",
+                "--factory-startup",
+                "--enable-autoexec",
+                "--debug-memory",
+                "--debug-exit-on-error",
                 os.path.join(root, filename),
                 "--python-expr",
                 "import bpy; bpy.data.texts[0].as_module()"
