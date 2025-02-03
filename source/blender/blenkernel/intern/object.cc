@@ -2370,18 +2370,9 @@ Object *BKE_object_pose_armature_get_with_wpaint_check(Object *ob)
 {
   /* When not in weight paint mode. */
   if (ob) {
-    switch (ob->type) {
-      case OB_MESH: {
-        if ((ob->mode & OB_MODE_WEIGHT_PAINT) == 0) {
-          return nullptr;
-        }
-        break;
-      }
-      case OB_GPENCIL_LEGACY: {
-        if ((ob->mode & OB_MODE_WEIGHT_GREASE_PENCIL) == 0) {
-          return nullptr;
-        }
-        break;
+    if (ob->type == OB_MESH) {
+      if ((ob->mode & OB_MODE_WEIGHT_PAINT) == 0) {
+        return nullptr;
       }
     }
   }

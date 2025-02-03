@@ -494,10 +494,6 @@ static const int *object_defgroup_active_index_get_p(const Object *ob)
       const Lattice *lattice = (const Lattice *)ob->data;
       return &lattice->vertex_group_active_index;
     }
-    case OB_GPENCIL_LEGACY: {
-      const bGPdata *gpd = (const bGPdata *)ob->data;
-      return &gpd->vertex_group_active_index;
-    }
     case OB_GREASE_PENCIL: {
       const GreasePencil *grease_pencil = (const GreasePencil *)ob->data;
       return &grease_pencil->vertex_group_active_index;
