@@ -324,6 +324,6 @@ def get_channelbag_for_slot(action, slot):
     # happen in C++.
     for layer in action.layers:
         for strip in layer.strips:
-            channelbag = strip.channelbag(slot)
+            channelbag = strip.channels(slot.handle)
             return channelbag
     return None

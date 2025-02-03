@@ -11,7 +11,6 @@ from ....com.data_path import get_target_object_path, get_target_property_name, 
 from ....com.conversion import get_target, get_channel_from_target
 from .channel_target import gather_fcurve_channel_target
 from .sampler import gather_animation_fcurves_sampler
-from .. import anim_utils
 
 
 @cached
@@ -380,11 +379,8 @@ def needs_baking(obj_uuid: str,
 
 
 def __get_channelbag_for_slot_handle(action, slot_handle):
-    # TODO: better to pass either the slot directly, or use the slot identifier instead.
-    for slot in action.slots:
-        if slot.handle == slot_handle:
-            break
-    else:
-        raise ValueError(f"Action {action} does not have a slot with handle {slot_handle}")
-
-    return anim_utils.get_channelbag_for_slot(action, slot)
+    for layer in action.layers:
+        for strip in layer.strips:
+            channelbag = strip.channels(slot_handle)
+            return channelbag
+    return None
