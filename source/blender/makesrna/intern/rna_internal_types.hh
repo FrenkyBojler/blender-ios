@@ -360,7 +360,7 @@ struct PropertyRNA {
 };
 
 struct PropertyRNAIdentifierGetter {
-  blender::StringRef operator()(const PropertyRNA *prop)
+  blender::StringRef operator()(const PropertyRNA *prop) const
   {
     return prop->identifier;
   };
