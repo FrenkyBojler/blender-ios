@@ -414,7 +414,6 @@ void Action::slot_idtype_define(Slot &slot, ID_Type idtype)
 {
   slot.idtype = idtype;
   slot.identifier_ensure_prefix();
-
   slot_identifier_ensure_unique(*this, slot);
 }
 

@@ -2024,8 +2024,10 @@ static void rna_def_action_slot(BlenderRNA *brna)
       prop, nullptr, "rna_ActionSlot_target_id_type_set", "rna_ActionSlot_target_id_type_itemf");
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_ActionSlot_identifier_update");
   RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
-  RNA_def_property_ui_text(
-      prop, "Target ID Type", "Type of data-block that this slot is intended to animate");
+  RNA_def_property_ui_text(prop,
+                           "Target ID Type",
+                           "Type of data-block that this slot is intended to animate; can be set "
+                           "when 'UNSPECIFIED' but is otherwise read-only");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
 
   prop = RNA_def_property(srna, "target_id_type_icon", PROP_INT, PROP_NONE);

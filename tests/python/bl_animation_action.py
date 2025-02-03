@@ -267,8 +267,6 @@ class ActionSlotAssignmentTest(unittest.TestCase):
         assert slot.target_id_type == 'UNSPECIFIED'
         assert slot.identifier == "XXLegacy Slot"
 
-        # Should be able to manually set target_id_type via Python only when 'UNSPECIFIED'
-
         return action
 
 
