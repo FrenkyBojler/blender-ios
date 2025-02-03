@@ -54,7 +54,10 @@ Channelbag &channelbag_ensure(Action &action)
     slot = action.slot(0);
   }
 
-  /* Ensure a Layer + keyframe Strip. */
+  /* Ensure a Layer + keyframe Strip.
+   *
+   * Normally we would use `Action::layer_keystrip_ensure()` for this, but that
+   * doesn't let us specify the name of the layer if newly created. */
   if (action.layers().is_empty()) {
     action.layer_add(DATA_(DEFAULT_LEGACY_LAYER_NAME));
   }
