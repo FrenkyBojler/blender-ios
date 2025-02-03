@@ -113,7 +113,7 @@ static int wm_obj_export_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   else {
-    BKE_report(op->reports, RPT_INFO, "Exported file successfully");
+    BKE_report(op->reports, RPT_INFO, "File exported successfully");
     return OPERATOR_FINISHED;
   }
 }

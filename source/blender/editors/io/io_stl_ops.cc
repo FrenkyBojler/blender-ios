@@ -69,7 +69,7 @@ static int wm_stl_export_execute(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   else {
-    BKE_report(op->reports, RPT_INFO, "Exported file successfully");
+    BKE_report(op->reports, RPT_INFO, "File exported successfully");
     return OPERATOR_FINISHED;
   }
 }
