@@ -114,6 +114,7 @@ const EnumPropertyItem rna_enum_object_empty_drawtype_items[] = {
     {OB_EMPTY_SPHERE, "SPHERE", ICON_SPHERE, "Sphere", ""},
     {OB_EMPTY_CONE, "CONE", ICON_CONE, "Cone", ""},
     {OB_EMPTY_IMAGE, "IMAGE", ICON_FILE_IMAGE, "Image", ""},
+    {OB_EMPTY_CUSTOM_SHAPE, "CUSTOM_SHAPE", 0, "Custom Shape", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1552,6 +1553,12 @@ static void rna_Object_active_shape_key_index_set(PointerRNA *ptr, int value)
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
 
   ob->shapenr = value + 1;
+}
+
+static PointerRNA rna_Object_empty_display_custom_shape_get(PointerRNA *ptr)
+{
+  Object *ob = static_cast<Object *>(ptr->data);
+  return RNA_id_pointer_create((ID *)ob->empty_custom_shape);
 }
 
 static PointerRNA rna_Object_active_shape_key_get(PointerRNA *ptr)
@@ -3319,6 +3326,14 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.01, 100, 1, 2);
   RNA_def_property_ui_text(
       prop, "Empty Display Size", "Size of display for empties in the viewport");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "empty_display_custom_shape", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "empty_custom_shape");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_Object_empty_display_custom_shape_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Custom Shape", "Object to use as custom shape for the empty");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
 
   prop = RNA_def_property(srna, "empty_image_offset", PROP_FLOAT, PROP_NONE);

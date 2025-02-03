@@ -28,6 +28,8 @@ class DATA_PT_empty(DataButtonsPanel, Panel):
         ob = context.object
 
         layout.prop(ob, "empty_display_type", text="Display As")
+        if ob.empty_display_type == 'CUSTOM_SHAPE':
+            layout.prop(ob, "empty_display_custom_shape", text="Shape")
         layout.prop(ob, "empty_display_size", text="Size")
 
         if ob.empty_display_type == 'IMAGE':

@@ -322,6 +322,8 @@ typedef struct Object {
   char dt;
   char empty_drawtype;
   float empty_drawsize;
+  /** Custom shape object for empties. */
+  struct Object *empty_custom_shape;
   /** Dupliface scale. */
   float instance_faces_scale;
 
@@ -622,6 +624,7 @@ enum {
   OB_EMPTY_SPHERE = 6,
   OB_EMPTY_CONE = 7,
   OB_EMPTY_IMAGE = 8,
+  OB_EMPTY_CUSTOM_SHAPE = 10,
 };
 
 /**
