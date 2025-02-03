@@ -538,30 +538,48 @@ static eKeyPasteError paste_action_keys(bAnimContext *ac,
                                         const eKeyMergeMode merge_mode,
                                         bool flip)
 {
-  ListBase anim_data = {nullptr, nullptr};
-  eAnimFilter_Flags filter;
-
-  /* filter data
-   * - First time we try to filter more strictly, allowing only selected channels
-   *   to allow copying animation between channels
-   * - Second time, we loosen things up if nothing was found the first time, allowing
-   *   users to just paste keyframes back into the original curve again #31670.
-   */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
-            ANIMFILTER_FCURVESONLY | ANIMFILTER_NODUPLIS);
-
-  if (ANIM_animdata_filter(
-          ac, &anim_data, filter | ANIMFILTER_SEL, ac->data, eAnimCont_Types(ac->datatype)) == 0)
-  {
-    ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
-  }
-
-  KeyframePasteOptions options;
+  KeyframePasteOptions options{};
   options.offset_mode = offset_mode;
   /* Value offset is always None because the user cannot see the effect of it. */
   options.value_offset_mode = KEYFRAME_PASTE_VALUE_OFFSET_NONE;
   options.merge_mode = merge_mode;
   options.flip = flip;
+
+  /* See how many slots are selected to paste into. This determines how slot matching is done:
+   * - Copied from one slot, paste into multiple: duplicate into each slot.
+   * - Otherwise: match slots by name. */
+  {
+    ListBase anim_data = {nullptr, nullptr};
+    const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                                     ANIMFILTER_LIST_CHANNELS | ANIMFILTER_NODUPLIS |
+                                     ANIMFILTER_SEL;
+    ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+    LISTBASE_FOREACH (const bAnimListElem *, ale, &anim_data) {
+      if (ale->datatype == ALE_ACTION_SLOT) {
+        options.num_slots_selected++;
+      }
+    }
+    ANIM_animdata_freelist(&anim_data);
+  }
+
+  /* Find F-Curves to paste into.
+   * This is done in two stages.
+   * - First time we try to filter more strictly, allowing only selected channels
+   *   to allow copying animation between channels
+   * - Second time, we loosen things up if nothing was found the first time, allowing
+   *   users to just paste keyframes back into the original curve again #31670.
+   */
+  ListBase anim_data = {nullptr, nullptr};
+  {
+    const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                                     ANIMFILTER_FOREDIT | ANIMFILTER_FCURVESONLY |
+                                     ANIMFILTER_NODUPLIS;
+    options.num_fcurves_selected = ANIM_animdata_filter(
+        ac, &anim_data, filter | ANIMFILTER_SEL, ac->data, ac->datatype);
+    if (options.num_fcurves_selected == 0) {
+      ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+    }
+  }
 
   const eKeyPasteError ok = paste_animedit_keys(ac, &anim_data, options);
 

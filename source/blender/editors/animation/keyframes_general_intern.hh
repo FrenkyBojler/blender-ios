@@ -95,6 +95,9 @@ struct KeyframeCopyBuffer {
   bool is_empty() const;
   bool is_single_fcurve() const;
   bool is_bone(const FCurve &fcurve) const;
+  int num_slots() const;
+
+  animrig::Channelbag *channelbag_for_slot(StringRef slot_identifier);
 
   /**
    * Print the contents of the copy buffer to stdout.

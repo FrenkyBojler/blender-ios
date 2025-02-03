@@ -1263,6 +1263,35 @@ bool KeyframeCopyBuffer::is_bone(const FCurve &fcurve) const
   return this->bone_fcurves.contains(&fcurve);
 }
 
+int KeyframeCopyBuffer::num_slots() const
+{
+  /* The number of slots can be taken from any of these properties, so just assert that they are
+   * consistent with each other. */
+  BLI_assert(this->keyframe_data.channelbags().size() == this->slot_identifiers.size());
+
+  /* Return the number of channelbags, as this is actually storing data; the `slot_identifiers`
+   * field is more cache-like. Even though they should produce the same value, I (Sybren) feel more
+   * comfortable using the channelbag count, as channelbags are defined as per-slot F-Curve
+   * storage. */
+  return this->keyframe_data.channelbags().size();
+}
+
+animrig::Channelbag *KeyframeCopyBuffer::channelbag_for_slot(const StringRef slot_identifier)
+{
+  /* TODO: use a nicer data structure so this loop isn't necessary any more. Or use a vector, in
+   * which case we always need to loop, but it'll be small and maybe the lower overhead of Vector
+   * (vs Map) will be worth it anyway.
+   *
+   * TODO: alternatively, make this a mapping between channelbag and slot identifier, cutting out
+   * the slot handle altogether. */
+  for (const auto [handle, identifier] : this->slot_identifiers.items()) {
+    if (identifier == slot_identifier) {
+      return this->keyframe_data.channelbag_for_slot(handle);
+    }
+  }
+  return nullptr;
+}
+
 void KeyframeCopyBuffer::debug_print() const
 {
   using namespace blender::animrig;
@@ -1515,19 +1544,219 @@ using pastebuf_match_func = bool (*)(Main *bmain,
                                      bool to_single,
                                      bool flip);
 
+namespace {
+
+using namespace blender::animrig;
+
 /**
- * Return the first item in the copy buffer that matches the given F-Curve.
+ * Mapping from (bAction* + slot_handle) to the slot identifier.
+ *
+ * Just a simple cache to avoid having to iterate over all the action's slots to find the
+ * identifier.
  */
-static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_func strategy,
-                                                         Main *bmain,
-                                                         const FCurve &fcurve_to_match,
-                                                         const bool from_single,
-                                                         const bool to_single,
-                                                         const bool flip)
+class SlotIdentifierCache {
+  using CacheKey = std::pair<const bAction *, slot_handle_t>;
+  Map<CacheKey, std::string> mapping_;
+
+ public:
+  /**
+   * Return the identifier of the specified action slot.
+   */
+  std::string lookup(const bAction *dna_action, const slot_handle_t slot_handle)
+  {
+    BLI_assert(dna_action);
+
+    const CacheKey cache_key{dna_action, slot_handle};
+    const std::optional<std::string> maybe_cached = mapping_.lookup_try(cache_key);
+    if (maybe_cached) {
+      return *maybe_cached;
+    }
+
+    const Action &action = dna_action->wrap();
+    const Slot *slot = action.slot_for_handle(slot_handle);
+    BLI_assert_msg(slot,
+                   "The copied F-Curve has to have come from somewhere, and pasting has to go "
+                   "into something. There has to be a slot.");
+    if (!slot) {
+      return "no such slot";
+    }
+
+    mapping_.add_new(cache_key, slot->identifier);
+    return slot->identifier;
+  }
+};
+
+enum class SlotNameMatch {
+  /** No matching, just ignore slots altogether. */
+  NONE = 0,
+  /** Source and target F-Curve must be from a slot with the same identifier. */
+  NAME = 1,
+  /** NAME + target F-Curve must be from a selected slot. */
+  NAME_AND_SELECTION = 2,
+};
+
+}  // namespace
+
+/**
+ * Determine whether slot names matter when matching copied data to selected-to-paste-into
+ * channels.
+ */
+static SlotNameMatch slot_name_matcher(const bool from_single,
+                                       const bool to_single,
+                                       const KeyframePasteOptions options)
+{
+  BLI_assert_msg(!(from_single && to_single),
+                 "The from-single-to-single case is expected to be implemented as a special case "
+                 "in `paste_animedit_keys()`");
+  UNUSED_VARS_NDEBUG(from_single);
+
+  if (options.num_fcurves_selected == 0) {
+    /* No F-Curves selected to explicitly paste into. The names of the selected slots determine the
+     * source Channelbag. */
+
+    if (keyframe_copy_buffer->num_slots() == 1) {
+      /* Copied from one slot, which will get pasted into every target slot. Slot names do not
+       * matter. */
+      return SlotNameMatch::NONE;
+    }
+
+    if (options.num_slots_selected == 0) {
+      /* Copied from multiple slots, in which case slot names do matter. Since none of the slots
+       * was selected to paste into, just do a match by name and ignore their selection state. */
+      return SlotNameMatch::NAME;
+    }
+
+    /* Copied from multiple slots, in which case slot names do matter, and the targets should be
+     * limited by their slot selection (i.e. F-Curves from unselected slots should not be pasted
+     * into). */
+    return SlotNameMatch::NAME_AND_SELECTION;
+  }
+
+  if (to_single) {
+    /* Copying into a single slot. Because the single-to-single case is handled somewhere else, we
+     * know multiple F-Curves were copied. Slot names do not matter, matching is done purely on RNA
+     * path + array index.
+     *
+     * TODO: slot names may matter here after all, when the copy buffer has multiple slots. That's
+     * a corner case to implement at some other time, though. */
+    return SlotNameMatch::NONE;
+  }
+
+  /* Pasting into multiple F-Curves. Whether slot names matter depends on how many slots the
+   * key were copied from:
+   * - 0 slots: impossible, then there would not be any keys at all.
+   * - 1 slot: slot names do not matter. This makes it possible to copy-paste between slots.
+   * - 2+ slots: slot names matter, only paste within the same slot as the copied data.
+   */
+
+  const int num_slots_copied = keyframe_copy_buffer->num_slots();
+  BLI_assert_msg(num_slots_copied > 0,
+                 "If any keyframes were copied, they MUST have come from some slot.");
+  if (num_slots_copied == 1) {
+    /* TODO: Slot selection can also matter: Copy from one slot, paste into another slot (by
+     * selecting that slot). */
+    // if (options.num_slots_selected == 1) {
+    //   return SlotNameMatch::SELECTION;
+    // }
+
+    return SlotNameMatch::NONE;
+  }
+  return SlotNameMatch::NAME;
+}
+
+/**
+ * Return the first item in the copy buffer that matches the given bAnimListElem.
+ *
+ * \param ale_to_paste_into must be an ALE that represents an F-Curve. The entire ALE is passed
+ * (instead of just the F-Curve) as it provides information about the Action & Slot it came from.
+ */
+static const FCurve *pastebuf_find_matching_copybuf_item(
+    const pastebuf_match_func strategy,
+    Main *bmain,
+    const bAnimListElem &ale_to_paste_into,
+    const bool from_single,
+    const bool to_single,
+    const KeyframePasteOptions options,
+    SlotIdentifierCache &slot_identifier_cache)
 {
   using namespace blender::animrig;
 
-  for (const Channelbag *channelbag : keyframe_copy_buffer->keyframe_data.channelbags()) {
+  BLI_assert(ale_to_paste_into.datatype == ALE_FCURVE);
+  const FCurve &fcurve_to_match = *static_cast<FCurve *>(ale_to_paste_into.data);
+
+  BLI_assert_msg(!(from_single && to_single),
+                 "The from-single-to-single case is expected to be implemented as a special case "
+                 "in `paste_animedit_keys()`");
+
+  const Channelbag *single_copy_buffer_channelbag;
+  Span<const Channelbag *> channelbags_to_copy_from;
+
+  const SlotNameMatch slot_name_match = slot_name_matcher(from_single, to_single, options);
+  switch (slot_name_match) {
+    case SlotNameMatch::NONE:
+      /* If slot names do not matter, just search through all channelbags in the copy buffer. */
+      channelbags_to_copy_from = keyframe_copy_buffer->keyframe_data.channelbags();
+      break;
+
+    case SlotNameMatch::NAME_AND_SELECTION: {
+      printf("\033[96mSlot names AND selection matter!\033[0m\n");
+
+      /* See if we copied from a slot whose identifier matches this ALE. */
+      BLI_assert_msg(GS(ale_to_paste_into.fcurve_owner_id->name) == ID_AC,
+                     "This code doesn't handle slotless cases yet");
+
+      const Action &ale_action =
+          reinterpret_cast<bAction *>(ale_to_paste_into.fcurve_owner_id)->wrap();
+      const Slot *ale_slot = ale_action.slot_for_handle(ale_to_paste_into.slot_handle);
+      BLI_assert_msg(ale_slot, "pasting into some F-Curve, assuming it has a slot");
+
+      /* NASTYNESS: this code shouldn't have to care about which slots are currently visible in the
+       * channel list. But since selection state is only relevant when they CAN actually be
+       * selected, it does matter. This code assumes:
+       *   1. because NAME_AND_SELECTION was returned, slot selection is a thing in this mode,
+       *   2. because slot selection is a thing, and this F-Curve is potentially getting pasted
+       *      into, its slot is visible too,
+       *   3. and because of that, the selection state of this slot is enough to check here. */
+      if (!ale_slot->is_selected()) {
+        /* This potential F-Curve belongs to a non-selected slots, so let's ignore it. */
+        printf("    slot %s is not selected, skipping %s[%d]\n",
+               ale_slot->identifier,
+               fcurve_to_match.rna_path,
+               fcurve_to_match.array_index);
+        return nullptr;
+      }
+
+      /* FALLTHROUGH */
+    }
+    case SlotNameMatch::NAME: {
+      printf("\033[92mSlot names matter!\033[0m\n");
+      /* See if we copied from a slot whose identifier matches this ALE. */
+      BLI_assert_msg(GS(ale_to_paste_into.fcurve_owner_id->name) == ID_AC,
+                     "This code doesn't handle slotless cases yet");
+
+      const bAction *ale_action = reinterpret_cast<bAction *>(ale_to_paste_into.fcurve_owner_id);
+
+      const std::string target_slot_identifier = slot_identifier_cache.lookup(
+          ale_action, ale_to_paste_into.slot_handle);
+      printf("  looking up slot %s\n", target_slot_identifier.c_str());
+
+      single_copy_buffer_channelbag = keyframe_copy_buffer->channelbag_for_slot(
+          target_slot_identifier);
+      if (!single_copy_buffer_channelbag) {
+        /* No data copied from a slot with this name. */
+        printf("  \033[38;5;214mno such slot was copied from, ignoring\033[0m\n");
+        return nullptr;
+      }
+
+      /* Only consider the F-Curves from this channelbag. Because of channelbags_to_copy_from
+       * referencing single_copy_buffer_channelbag, the latter has to live longer, hence it was
+       * declared first. */
+      channelbags_to_copy_from = Span<const Channelbag *>(&single_copy_buffer_channelbag, 1);
+      break;
+    }
+  }
+
+  for (const Channelbag *channelbag : channelbags_to_copy_from) {
     for (const FCurve *fcurve : channelbag->fcurves()) {
       if (strategy(bmain,
                    fcurve_to_match,
@@ -1535,12 +1764,13 @@ static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_fu
                    channelbag->slot_handle,
                    from_single,
                    to_single,
-                   flip))
+                   options.flip))
       {
         return fcurve;
       }
     }
   }
+
   return nullptr;
 }
 
@@ -1557,9 +1787,9 @@ bool pastebuf_match_path_full(Main * /*bmain*/,
     return to_single;
   }
 
-  /* The 'source' of the copy data is considered 'ok' if either we're copying a single F-Curve, or
-   * the array index matches (so [location X,Y,Z] can be copied to a single 'scale' property, and
-   * it'll pick up the right X/Y/Z component). */
+  /* The 'source' of the copy data is considered 'ok' if either we're copying a single F-Curve,
+   * or the array index matches (so [location X,Y,Z] can be copied to a single 'scale' property,
+   * and it'll pick up the right X/Y/Z component). */
   const bool is_source_ok = from_single ||
                             fcurve_in_copy_buffer.array_index == fcurve_to_match.array_index;
   if (!is_source_ok) {
@@ -1587,9 +1817,9 @@ bool pastebuf_match_path_property(Main *bmain,
     return false;
   }
 
-  /* The 'source' of the copy data is considered 'ok' if either we're copying a single F-Curve, or
-   * the array index matches (so [location X,Y,Z] can be copied to a single 'scale' property, and
-   * it'll pick up the right X/Y/Z component). */
+  /* The 'source' of the copy data is considered 'ok' if either we're copying a single F-Curve,
+   * or the array index matches (so [location X,Y,Z] can be copied to a single 'scale' property,
+   * and it'll pick up the right X/Y/Z component). */
   const bool is_source_ok = from_single ||
                             fcurve_in_copy_buffer.array_index == fcurve_to_match.array_index;
   if (!is_source_ok) {
@@ -1936,14 +2166,17 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
   Vector<pastebuf_match_func> matchers = {
       pastebuf_match_path_full, pastebuf_match_path_property, pastebuf_match_index_only};
 
+  SlotIdentifierCache slot_identifier_cache;
+
+  printf("\033[95mPasting keyframes:\033[0m\n");
+
   for (const pastebuf_match_func matcher : matchers) {
     bool found_match = false;
 
     LISTBASE_FOREACH (bAnimListElem *, ale, anim_data) {
-      FCurve *fcurve_to_paste_into = (FCurve *)ale->data;
-
+      /* See if there is an F-Curve in the copy buffer that matches this ALE. */
       const FCurve *fcurve_in_copy_buffer = pastebuf_find_matching_copybuf_item(
-          matcher, ac->bmain, *fcurve_to_paste_into, from_single, to_single, options.flip);
+          matcher, ac->bmain, *ale, from_single, to_single, options, slot_identifier_cache);
       if (!fcurve_in_copy_buffer) {
         continue;
       }
@@ -1951,6 +2184,8 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
       /* Copy the relevant data from the matching buffer curve. */
       offset[1] = paste_get_y_offset(ac, *fcurve_in_copy_buffer, ale, options.value_offset_mode);
 
+      /* Do the actual pasting. */
+      FCurve *fcurve_to_paste_into = (FCurve *)ale->data;
       ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcurve_to_paste_into, false, false);
       paste_animedit_keys_fcurve(
           fcurve_to_paste_into, *fcurve_in_copy_buffer, offset, options.merge_mode, options.flip);

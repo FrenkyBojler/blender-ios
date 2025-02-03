@@ -518,7 +518,7 @@ static eKeyPasteError paste_graph_keys(bAnimContext *ac,
   }
 
   /* Determine paste options. */
-  KeyframePasteOptions options;
+  KeyframePasteOptions options{};
   options.offset_mode = offset_mode;
   options.value_offset_mode = value_offset_mode;
   options.merge_mode = merge_mode;
