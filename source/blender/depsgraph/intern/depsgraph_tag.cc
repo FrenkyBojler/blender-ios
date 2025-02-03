@@ -307,14 +307,6 @@ void deg_graph_id_tag_legacy_compat(
 {
   if (ELEM(tag, ID_RECALC_GEOMETRY, 0)) {
     switch (GS(id->name)) {
-      case ID_OB: {
-        Object *object = (Object *)id;
-        ID *data_id = (ID *)object->data;
-        if (data_id != nullptr) {
-          graph_id_tag_update(bmain, depsgraph, data_id, 0, update_source);
-        }
-        break;
-      }
       /* TODO(sergey): Shape keys are annoying, maybe we should find a
        * way to chain geometry evaluation to them, so we don't need extra
        * tagging here. */
