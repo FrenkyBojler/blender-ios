@@ -897,7 +897,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
          * We need to manually clear that cache. */
         mesh.runtime->corner_normals_cache.tag_dirty();
       }
-      bke::pbvh::update_bounds(*depsgraph, object, pbvh);
+      pbvh.update_bounds(*depsgraph, object);
       bke::pbvh::store_bounds_orig(pbvh);
       break;
     }
@@ -938,7 +938,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       }
 
       BKE_pbvh_sync_visibility_from_verts(object);
-      bke::pbvh::update_visibility(object, pbvh);
+      pbvh.update_visibility(object);
       if (BKE_sculpt_multires_active(scene, &object)) {
         multires_mark_as_modified(depsgraph, &object, MULTIRES_HIDDEN_MODIFIED);
       }
@@ -981,7 +981,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       }
 
       hide::sync_all_from_faces(object);
-      bke::pbvh::update_visibility(object, pbvh);
+      pbvh.update_visibility(object);
       break;
     }
     case Type::Mask: {
