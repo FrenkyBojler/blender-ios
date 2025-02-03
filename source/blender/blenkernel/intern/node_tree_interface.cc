@@ -1063,7 +1063,7 @@ static bNodeTreeInterfaceSocket *make_socket(const int uid,
   new_socket->description = description.is_empty() ?
                                 nullptr :
                                 BLI_strdupn(description.data(), description.size());
-  new_socket->socket_type = BLI_strdup(idname);
+  new_socket->socket_type = BLI_strdupn(idname->data(), idname->size());
   new_socket->flag = flag;
 
   new_socket->socket_data = socket_types::make_socket_data(socket_type);

@@ -10458,7 +10458,7 @@ static void rna_def_geo_capture_attribute(BlenderRNA * /*brna*/, StructRNA *srna
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
-static void rna_def_geo_context_input(StructRNA *srna)
+static void rna_def_geo_context_input(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
 
@@ -12658,6 +12658,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeVolumeCube");
   define("GeometryNode", "GeometryNodeVolumeToMesh");
   define("GeometryNode", "GeometryNodeWarning");
+  define("GeometryNode", "GeometryNodeContextInput", rna_def_geo_context_input);
 
   /* Node group types are currently defined for each tree type individually. */
   define("ShaderNode", "ShaderNodeGroup", def_group);

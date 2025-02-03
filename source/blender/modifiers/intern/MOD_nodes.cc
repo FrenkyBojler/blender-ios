@@ -2218,14 +2218,14 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 
   if (!context_identifier.is_empty()) {
     const std::string override_context_path = fmt::format(
-        "[\"{}{}\"]", socket_id_esc, nodes::override_context_name_suffix());
+        "[\"{}{}\"]", socket_id_esc, nodes::override_context_name_suffix);
     uiItemR(layout,
-            md_ptr,
+            ctx.md_ptr,
             override_context_path.c_str(),
             UI_ITEM_NONE,
             "Override Context",
             ICON_NONE);
-    const bool override_enabled = nodes::input_override_context_get(*nmd->settings.properties,
+    const bool override_enabled = nodes::input_override_context_get(*ctx.nmd.settings.properties,
                                                                     socket);
     if (!override_enabled) {
       layout = uiLayoutColumn(layout, false);
