@@ -1623,9 +1623,9 @@ static SlotNameMatch slot_name_matcher(const bool from_single,
         return SlotNameMatch::SELECTION;
       }
 
-      /* Copied from one slot, which will get pasted into every target slot. Slot names do not
-       * matter. */
-      return SlotNameMatch::NONE;
+      /* Copied from one slot, and no target was selected at all. This should match the slot by
+       * name, to paste into what it was copied from. */
+      return SlotNameMatch::NAME;
     }
 
     if (options.num_slots_selected == 0) {
@@ -1645,8 +1645,9 @@ static SlotNameMatch slot_name_matcher(const bool from_single,
      * know multiple F-Curves were copied. Slot names do not matter, matching is done purely on RNA
      * path + array index.
      *
-     * TODO: slot names may matter here after all, when the copy buffer has multiple slots. That's
-     * a corner case to implement at some other time, though. */
+     * TODO: slot names may matter here after all, when the copy buffer has multiple slots. In that
+     * case the single F-Curve to paste into can still match multiple copied F-Curves. That's a
+     * corner case to implement at some other time, though. */
     return SlotNameMatch::NONE;
   }
 
