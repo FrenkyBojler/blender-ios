@@ -13,7 +13,6 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
@@ -58,8 +57,6 @@
 #include "ED_info.hh"
 
 #include "WM_api.hh"
-
-#include "UI_resources.hh"
 
 #include "GPU_capabilities.hh"
 
@@ -816,7 +813,7 @@ void ED_info_draw_stats(
     return;
   }
 
-  if ((ob) && ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+  if ((ob) && ob->type == OB_GREASE_PENCIL) {
     stats_row(col1, labels[LAYERS], col2, stats_fmt.totgplayer, nullptr, y, height);
     stats_row(col1, labels[FRAMES], col2, stats_fmt.totgpframe, nullptr, y, height);
     stats_row(col1, labels[STROKES], col2, stats_fmt.totgpstroke, nullptr, y, height);

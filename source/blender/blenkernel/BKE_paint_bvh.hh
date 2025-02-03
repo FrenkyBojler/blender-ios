@@ -9,17 +9,13 @@
  * \brief A BVH for high poly meshes.
  */
 
-#include <optional>
-#include <string>
 #include <variant>
 
 #include "BLI_array.hh"
 #include "BLI_bit_group_vector.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_bounds_types.hh"
-#include "BLI_compiler_compat.h"
 #include "BLI_function_ref.hh"
-#include "BLI_generic_span.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
@@ -28,6 +24,7 @@
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 struct BMFace;
 struct BMLog;
@@ -42,16 +39,15 @@ struct SubdivCCGCoord;
 struct Image;
 struct ImageUser;
 struct Object;
-namespace blender {
-namespace bke::pbvh {
+
+namespace blender::bke::pbvh {
 class Node;
 class Tree;
 namespace pixels {
 struct PBVHData;
 struct NodeData;
 }  // namespace pixels
-}  // namespace bke::pbvh
-}  // namespace blender
+}  // namespace blender::bke::pbvh
 
 namespace blender::bke::pbvh {
 
@@ -258,7 +254,6 @@ class Tree {
 
   std::unique_ptr<DrawCache> draw_data;
 
- public:
   Tree(const Tree &other) = delete;
   Tree(Tree &&other) = default;
   Tree &operator=(const Tree &other) = delete;
@@ -319,7 +314,7 @@ void build_pixels(const Depsgraph &depsgraph, Object &object, Image &image, Imag
  * hit first */
 
 void raycast(Tree &pbvh,
-             FunctionRef<void(Node &node, float *tmin)> cb,
+             FunctionRef<void(Node &node, float *tmin)> hit_fn,
              const float3 &ray_start,
              const float3 &ray_normal,
              bool original);
@@ -423,7 +418,7 @@ namespace blender::bke::pbvh {
 /**
  * Returns the number of visible quads in the nodes' grids.
  */
-int count_grid_quads(const BitGroupVector<> &grid_visibility,
+int count_grid_quads(const BitGroupVector<> &grid_hidden,
                      Span<int> grid_indices,
                      int gridsize,
                      int display_gridsize);
@@ -566,14 +561,14 @@ Span<float3> vert_positions_eval_from_eval(const Object &object_eval);
 
 /**
  * Retrieve write access to the evaluated deform positions, or the original object positions if
- * there are no deformation modifiers. Writing the the evaluated positions is necessary because
+ * there are no deformation modifiers. Writing the evaluated positions is necessary because
  * they are used for drawing and we don't run a full dependency graph update whenever they are
  * changed.
  */
 MutableSpan<float3> vert_positions_eval_for_write(const Depsgraph &depsgraph, Object &object_orig);
 
 /**
- * Return the vertex normals corresponding the the positions from #vert_positions_eval. This may be
+ * Return the vertex normals corresponding the positions from #vert_positions_eval. This may be
  * a reference to the normals cache on the original mesh.
  */
 Span<float3> vert_normals_eval(const Depsgraph &depsgraph, const Object &object_orig);
@@ -584,10 +579,6 @@ Span<float3> face_normals_eval_from_eval(const Object &object_eval);
 }  // namespace blender::bke::pbvh
 
 int BKE_pbvh_debug_draw_gen_get(blender::bke::pbvh::Node &node);
-
-void BKE_pbvh_draw_debug_cb(blender::bke::pbvh::Tree &pbvh,
-                            void (*draw_fn)(blender::bke::pbvh::Node *node, void *user_data),
-                            void *user_data);
 
 namespace blender::bke::pbvh {
 

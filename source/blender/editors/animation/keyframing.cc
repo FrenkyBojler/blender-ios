@@ -6,14 +6,13 @@
  * \ingroup edanimation
  */
 
-#include <cstddef>
 #include <cstdio>
 
 #include <fmt/format.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -47,7 +46,6 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
-#include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_driver.hh"
@@ -451,7 +449,7 @@ static int insert_key_invoke(bContext *C, wmOperator *op, const wmEvent * /*even
   /* The depsgraph needs to be in an evaluated state to ensure the values we get from the
    * properties are actually the values of the current frame. However we cannot do that in the exec
    * function, as that would mean every call to the operator via python has to re-evaluate the
-   * depsgraph, causing performance regressions.*/
+   * depsgraph, causing performance regressions. */
   CTX_data_ensure_evaluated_depsgraph(C);
   return insert_key_exec(C, op);
 }
@@ -1038,7 +1036,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   uiBut *but;
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
@@ -1193,7 +1191,7 @@ void ANIM_OT_keyframe_insert_button(wmOperatorType *ot)
 static int delete_key_button_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   Main *bmain = CTX_data_main(C);
   const float cfra = BKE_scene_frame_get(scene);
@@ -1248,7 +1246,7 @@ static int delete_key_button_exec(bContext *C, wmOperator *op)
     else {
       /* standard properties */
       if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
-        RNAPath rna_path = {path->c_str(), std::nullopt, index};
+        RNAPath rna_path = {*path, std::nullopt, index};
         if (all) {
           /* nullopt indicates operating on the entire array (or the property itself otherwise). */
           rna_path.index = std::nullopt;
@@ -1299,7 +1297,7 @@ void ANIM_OT_keyframe_delete_button(wmOperatorType *ot)
 
 static int clear_key_button_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = {nullptr};
+  PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   Main *bmain = CTX_data_main(C);
   bool changed = false;
@@ -1313,7 +1311,7 @@ static int clear_key_button_exec(bContext *C, wmOperator *op)
 
   if (ptr.owner_id && ptr.data && prop) {
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
-      RNAPath rna_path = {path->c_str(), std::nullopt, index};
+      RNAPath rna_path = {*path, std::nullopt, index};
       if (all) {
         /* nullopt indicates operating on the entire array (or the property itself otherwise). */
         rna_path.index = std::nullopt;

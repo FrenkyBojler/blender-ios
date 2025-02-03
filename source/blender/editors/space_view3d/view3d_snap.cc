@@ -6,8 +6,6 @@
  * \ingroup spview3d
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 
@@ -714,7 +712,7 @@ void VIEW3D_OT_snap_cursor_to_grid(wmOperatorType *ot)
   ot->poll = ED_operator_region_view3d_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -905,7 +903,7 @@ void VIEW3D_OT_snap_cursor_to_selected(wmOperatorType *ot)
   ot->poll = ED_operator_view3d_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -954,7 +952,7 @@ void VIEW3D_OT_snap_cursor_to_active(wmOperatorType *ot)
   ot->poll = ED_operator_view3d_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -988,7 +986,7 @@ void VIEW3D_OT_snap_cursor_to_center(wmOperatorType *ot)
   ot->poll = ED_operator_view3d_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -1027,7 +1025,7 @@ bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float r_min[3], 
   TransVert *tv;
   float centroid[3], vec[3], bmat[3][3];
 
-  /* Metaballs are an exception. */
+  /* Meta-balls are an exception. */
   if (obedit->type == OB_MBALL) {
     float ob_min[3], ob_max[3];
     bool changed;

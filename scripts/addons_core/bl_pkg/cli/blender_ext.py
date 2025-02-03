@@ -27,7 +27,7 @@ import zipfile
 
 from typing import (
     Any,
-    Generator,
+    Iterator,
     IO,
     NamedTuple,
 )
@@ -465,7 +465,7 @@ def path_from_url(path: str) -> str:
     return result
 
 
-def random_acii_lines(*, seed: int | str, width: int) -> Generator[str, None, None]:
+def random_acii_lines(*, seed: int | str, width: int) -> Iterator[str]:
     """
     Generate random ASCII text [A-Za-z0-9].
     Intended not to compress well, it's possible to simulate downloading a large package.
@@ -522,7 +522,7 @@ def scandir_recursive_impl(
         path: str,
         *,
         filter_fn: Callable[[str, bool], bool],
-) -> Generator[tuple[str, str], None, None]:
+) -> Iterator[tuple[str, str]]:
     """Recursively yield DirEntry objects for given directory."""
     for entry in os.scandir(path):
         if entry.is_symlink():
@@ -548,7 +548,7 @@ def scandir_recursive_impl(
 def scandir_recursive(
         path: str,
         filter_fn: Callable[[str, bool], bool],
-) -> Generator[tuple[str, str], None, None]:
+) -> Iterator[tuple[str, str]]:
     yield from scandir_recursive_impl(path, path, filter_fn=filter_fn)
 
 
@@ -646,7 +646,7 @@ def rmtree_with_fallback_or_error_pseudo_atomic(
         path_test = path_base
         test_count = 0
         # Unlikely this exists.
-        while os.path.exists(path_test):
+        while os.path.lexists(path_test):
             path_test = "{:s}{:d}".format(path_base, test_count)
             test_count += 1
             # Very unlikely, something is likely incorrect in the setup, avoid hanging.
@@ -690,13 +690,24 @@ def rmtree_with_fallback_or_error_pseudo_atomic(
 def build_paths_expand_iter(
         path: str,
         path_list: Sequence[str],
-) -> Generator[tuple[str, str], None, None]:
+) -> Iterator[tuple[str, str]]:
     """
     Expand paths from a path list which always uses "/" slashes.
     """
     path_swap = os.sep != "/"
     path_strip = path.rstrip(os.sep)
     for filepath in path_list:
+        # This is needed so it's possible to compare relative paths against string literals.
+        # So it's possible to know if a path list includes a path or not.
+        #
+        # Simple path normalization:
+        # - Remove redundant slashes.
+        # - Strip all `./`.
+        while "//" in filepath:
+            filepath = filepath.replace("//", "/")
+        while filepath.startswith("./"):
+            filepath = filepath[2:]
+
         if path_swap:
             filepath = filepath.replace("/", "\\")
 
@@ -1290,6 +1301,26 @@ class PathPatternMatch:
 # -----------------------------------------------------------------------------
 # URL Downloading
 
+
+# NOTE:
+# - Using return arguments isn't ideal but is better than including
+#   a static value in the iterator.
+# - Other data could be added here as needed (response headers if the caller needs them).
+class DataRetrieveInfo:
+    """
+    When accessing a file from a URL or from the file-system,
+    this is a "return" argument so the caller can know the size of the chunks it's iterating over,
+    or -1 when the size is not known.
+    """
+    __slots__ = (
+        "size_hint",
+    )
+    size_hint: int
+
+    def __init__(self) -> None:
+        self.size_hint = -1
+
+
 # Originally based on `urllib.request.urlretrieve`.
 def url_retrieve_to_data_iter(
         url: str,
@@ -1298,21 +1329,16 @@ def url_retrieve_to_data_iter(
         headers: dict[str, str],
         chunk_size: int,
         timeout_in_seconds: float,
-) -> Generator[tuple[bytes, int, Any], None, None]:
+        retrieve_info: DataRetrieveInfo,
+) -> Iterator[bytes]:
     """
-    Retrieve a URL into a temporary location on disk.
+    Iterate over byte data downloaded from a from a URL
+    limited to ``chunk_size``.
 
-    Requires a URL argument. If a filename is passed, it is used as
-    the temporary file location. The reporthook argument should be
-    a callable that accepts a block number, a read size, and the
-    total file size of the URL target. The data argument should be
-    valid URL encoded data.
-
-    If a filename is passed and the URL points to a local resource,
-    the result is a copy from local file to new file.
-
-    Returns a tuple containing the path to the newly created
-    data file as well as the resulting HTTPMessage object.
+    - The ``retrieve_info.size_hint``
+      will be set once the iterator starts and can be used for progress display.
+    - The iterator will start with an empty block, so the size can be known
+      before time is spent downloading data.
     """
     from urllib.error import ContentTooShortError
     from urllib.request import urlopen
@@ -1334,7 +1360,10 @@ def url_retrieve_to_data_iter(
         if "content-length" in response_headers:
             size = int(response_headers["Content-Length"])
 
-        yield (b'', size, response_headers)
+        retrieve_info.size_hint = size
+
+        # Yield an empty block so progress display may start.
+        yield b""
 
         if timeout_in_seconds <= 0.0:
             while True:
@@ -1342,14 +1371,14 @@ def url_retrieve_to_data_iter(
                 if not block:
                     break
                 read += len(block)
-                yield (block, size, response_headers)
+                yield block
         else:
             while True:
                 block = read_with_timeout(fp, chunk_size, timeout_in_seconds=timeout_in_seconds)
                 if not block:
                     break
                 read += len(block)
-                yield (block, size, response_headers)
+                yield block
 
     if size >= 0 and read < size:
         raise ContentTooShortError(
@@ -1358,6 +1387,7 @@ def url_retrieve_to_data_iter(
         )
 
 
+# See `url_retrieve_to_data_iter` doc-string.
 def url_retrieve_to_filepath_iter(
         url: str,
         filepath: str,
@@ -1366,69 +1396,77 @@ def url_retrieve_to_filepath_iter(
         data: Any | None = None,
         chunk_size: int,
         timeout_in_seconds: float,
-) -> Generator[tuple[int, int, Any], None, None]:
+        retrieve_info: DataRetrieveInfo,
+) -> Iterator[int]:
     # Handle temporary file setup.
     with open(filepath, 'wb') as fh_output:
-        for block, size, response_headers in url_retrieve_to_data_iter(
+        for block in url_retrieve_to_data_iter(
                 url,
                 headers=headers,
                 data=data,
                 chunk_size=chunk_size,
                 timeout_in_seconds=timeout_in_seconds,
+                retrieve_info=retrieve_info,
         ):
             fh_output.write(block)
-            yield (len(block), size, response_headers)
+            yield len(block)
 
 
+# See `url_retrieve_to_data_iter` doc-string.
 def filepath_retrieve_to_filepath_iter(
         filepath_src: str,
         filepath: str,
         *,
         chunk_size: int,
         timeout_in_seconds: float,
-) -> Generator[tuple[int, int], None, None]:
+        retrieve_info: DataRetrieveInfo,
+) -> Iterator[int]:
     # TODO: `timeout_in_seconds`.
     # Handle temporary file setup.
     _ = timeout_in_seconds
     with open(filepath_src, 'rb') as fh_input:
-        size = os.fstat(fh_input.fileno()).st_size
+        retrieve_info.size_hint = os.fstat(fh_input.fileno()).st_size
+        yield 0
         with open(filepath, 'wb') as fh_output:
             while (block := fh_input.read(chunk_size)):
                 fh_output.write(block)
-                yield (len(block), size)
+                yield len(block)
 
 
 def url_retrieve_to_data_iter_or_filesystem(
         url: str,
         headers: dict[str, str],
+        *,
         chunk_size: int,
         timeout_in_seconds: float,
-) -> Generator[bytes, None, None]:
+        retrieve_info: DataRetrieveInfo,
+) -> Iterator[bytes]:
     if url_is_filesystem(url):
         with open(path_from_url(url), "rb") as fh_source:
+            retrieve_info.size_hint = os.fstat(fh_source.fileno()).st_size
+            yield b""
             while (block := fh_source.read(chunk_size)):
                 yield block
     else:
-        for (
-                block,
-                _size,
-                _response_headers,
-        ) in url_retrieve_to_data_iter(
+        yield from url_retrieve_to_data_iter(
             url,
             headers=headers,
             chunk_size=chunk_size,
             timeout_in_seconds=timeout_in_seconds,
-        ):
-            yield block
+            retrieve_info=retrieve_info,
+        )
 
 
+# See `url_retrieve_to_data_iter` doc-string.
 def url_retrieve_to_filepath_iter_or_filesystem(
         url: str,
         filepath: str,
+        *,
         headers: dict[str, str],
         chunk_size: int,
         timeout_in_seconds: float,
-) -> Generator[tuple[int, int], None, None]:
+        retrieve_info: DataRetrieveInfo,
+) -> Iterator[int]:
     """
     Callers should catch: ``(Exception, KeyboardInterrupt)`` and convert them to message using:
     ``url_retrieve_exception_as_message``.
@@ -1439,16 +1477,17 @@ def url_retrieve_to_filepath_iter_or_filesystem(
             filepath,
             chunk_size=chunk_size,
             timeout_in_seconds=timeout_in_seconds,
+            retrieve_info=retrieve_info,
         )
     else:
-        for (read, size, _response_headers) in url_retrieve_to_filepath_iter(
+        yield from url_retrieve_to_filepath_iter(
             url,
             filepath,
             headers=headers,
             chunk_size=chunk_size,
             timeout_in_seconds=timeout_in_seconds,
-        ):
-            yield (read, size)
+            retrieve_info=retrieve_info,
+        )
 
 
 def url_retrieve_exception_is_connectivity(
@@ -2133,7 +2172,7 @@ def platform_from_this_system() -> str:
     )
 
 
-def blender_platform_from_wheel_platform(wheel_platform: str) -> str:
+def blender_platforms_from_wheel_platform(wheel_platform: str) -> list[str]:
     """
     Convert a wheel to a Blender compatible platform: e.g.
     - ``linux_x86_64``              -> ``linux-x64``.
@@ -2142,13 +2181,14 @@ def blender_platform_from_wheel_platform(wheel_platform: str) -> str:
     - ``win_amd64``                 -> ``windows-x64``.
     - ``macosx_11_0_arm64``         -> ``macos-arm64``.
     - ``manylinux2014_x86_64``      -> ``linux-x64``.
+    - ``macosx_10_9_universal2``    -> ``macos-x64``, ``macos-arm64``.
     """
 
     i = wheel_platform.find("_")
     if i == -1:
         # WARNING: this should never or almost never happen.
         # Return the result as we don't have a better alternative.
-        return wheel_platform
+        return [wheel_platform]
 
     head = wheel_platform[:i]
     tail = wheel_platform[i + 1:]
@@ -2175,15 +2215,21 @@ def blender_platform_from_wheel_platform(wheel_platform: str) -> str:
         # (only `x86_64` at the moment).
         tail = tail.rpartition("_")[2]
 
-    return "{:s}-{:s}".format(head, tail)
+    if (head == "macos") and (tail == "universal2"):
+        tails = ["x64", "arm64"]
+    else:
+        tails = [tail]
+
+    return ["{:s}-{:s}".format(head, tail) for tail in tails]
 
 
 def blender_platform_compatible_with_wheel_platform(platform: str, wheel_platform: str) -> bool:
     assert platform
     if wheel_platform == "any":
         return True
-    platform_blender = blender_platform_from_wheel_platform(wheel_platform)
-    return platform == platform_blender
+    platforms_blender = blender_platforms_from_wheel_platform(wheel_platform)
+
+    return platform in platforms_blender
 
 
 def blender_platform_compatible_with_wheel_platform_from_filepath(platform: str, wheel_filepath: str) -> bool:
@@ -2202,11 +2248,9 @@ def python_versions_from_wheel_python_tag(python_tag: str) -> set[tuple[int] | t
     """
     Return Python versions from a wheels ``python_tag``.
     """
-    # Index backwards to skip the optional build tag.
     # The version may be:
     # `cp312` for CPython 3.12
     # `py2.py3` for both Python 2 & 3.
-    versions_string = python_tag.split(".")
 
     # Based on the documentation as of 2024 and wheels used by existing extensions,
     # these are the only valid prefix values.
@@ -2214,12 +2258,10 @@ def python_versions_from_wheel_python_tag(python_tag: str) -> set[tuple[int] | t
 
     versions: set[tuple[int] | tuple[int, int]] = set()
 
-    for version_string in versions_string:
-        m = RE_PYTHON_WHEEL_VERSION_TAG.match(version_string)
+    for tag in python_tag.split("."):
+        m = RE_PYTHON_WHEEL_VERSION_TAG.match(tag)
         if m is None:
-            return "wheel filename version could not be extracted from: \"{:s}\"".format(
-                version_string,
-            )
+            return "wheel filename version could not be extracted from: \"{:s}\"".format(tag)
 
         version_prefix = m.group(1).lower()
         version_number = m.group(2)
@@ -2245,6 +2287,25 @@ def python_versions_from_wheel_python_tag(python_tag: str) -> set[tuple[int] | t
     return versions
 
 
+def python_versions_from_wheel_abi_tag(
+        abi_tag: str,
+        *,
+        stable_only: bool,
+) -> set[tuple[int] | tuple[int, int]] | str:
+    versions: set[tuple[int] | tuple[int, int]] = set()
+
+    # Not yet needed, add as needed.
+    if stable_only:
+        for tag in abi_tag.split("."):
+            if tag.startswith("abi") and tag[3:].isdigit():
+                versions.add((int(tag[3:]),))
+    else:
+        # Not a problem to support this, currently it's not needed.
+        raise NotImplementedError
+
+    return versions
+
+
 def python_versions_from_wheel(wheel_filename: str) -> set[tuple[int] | tuple[int, int]] | str:
     """
     Extract a set of Python versions from a list of wheels or return an error string.
@@ -2255,7 +2316,25 @@ def python_versions_from_wheel(wheel_filename: str) -> set[tuple[int] | tuple[in
     if not (5 <= len(wheel_filename_split) <= 6):
         return "wheel filename must follow the spec \"{:s}\", found {!r}".format(WHEEL_FILENAME_SPEC, wheel_filename)
 
-    return python_versions_from_wheel_python_tag(wheel_filename_split[-3])
+    python_tag = wheel_filename_split[-3]
+    abi_tag = wheel_filename_split[-2]
+
+    # NOTE(@ideasman42): when the ABI is set, simply return the major version,
+    # This is needed because older version of CPython (3.6) for e.g. are compatible with newer versions of CPython,
+    # but returning the old version causes it not to register as being compatible.
+    # So return the ABI version to allow any version of CPython 3.x.
+    #
+    # There is a logical problem here: which is that a future wheel from CPython *should* be detected
+    # as incompatible but wont be. To properly support this, extensions repository data would need to store
+    # either store a separate ABI version or a `>=` version. In practice this isn't as bad as it sounds
+    # because those packages typically won't support old versions of Blender known to use older Python versions,
+    # although it will incorrectly exclude old versions of Blender which were built against newer versions of
+    # CPython than the version used by official builds.
+    python_versions_from_abi = python_versions_from_wheel_abi_tag(abi_tag, stable_only=True)
+    if python_versions_from_abi:
+        return python_versions_from_abi
+
+    return python_versions_from_wheel_python_tag(python_tag)
 
 
 def python_versions_from_wheels(wheel_files: Sequence[str]) -> set[tuple[int] | tuple[int, int]] | str:
@@ -2329,7 +2408,7 @@ def build_paths_filter_by_platform(
         build_paths: list[tuple[str, str]],
         wheel_range: tuple[int, int],
         platforms: tuple[str, ...],
-) -> Generator[tuple[list[tuple[str, str]], str], None, None]:
+) -> Iterator[tuple[list[tuple[str, str]], str]]:
     if not platforms:
         yield (build_paths, "")
         return
@@ -2925,8 +3004,9 @@ def repo_sync_from_remote(
             return False
 
         try:
+            retrieve_info = DataRetrieveInfo()
             read_total = 0
-            for (read, size) in url_retrieve_to_filepath_iter_or_filesystem(
+            for read in url_retrieve_to_filepath_iter_or_filesystem(
                     remote_json_url,
                     local_json_path_temp,
                     headers=url_request_headers_create(
@@ -2936,12 +3016,14 @@ def repo_sync_from_remote(
                     ),
                     chunk_size=CHUNK_SIZE_DEFAULT,
                     timeout_in_seconds=timeout_in_seconds,
+                    retrieve_info=retrieve_info,
             ):
-                request_exit |= msglog.progress("Downloading...", read_total, size, 'BYTE')
+                request_exit |= msglog.progress("Downloading...", read_total, retrieve_info.size_hint, 'BYTE')
                 if request_exit:
                     break
                 read_total += read
             del read_total
+            del retrieve_info
         except (Exception, KeyboardInterrupt) as ex:
             msg = url_retrieve_exception_as_message(ex, prefix="sync", url=remote_url)
             if demote_connection_errors_to_status and url_retrieve_exception_is_connectivity(ex):
@@ -3848,6 +3930,7 @@ class subcmd_client:
                     ),
                     chunk_size=CHUNK_SIZE_DEFAULT,
                     timeout_in_seconds=timeout_in_seconds,
+                    retrieve_info=DataRetrieveInfo(),  # Unused.
             ):
                 result.write(block)
 
@@ -3999,7 +4082,7 @@ class subcmd_client:
                 filepath_local_pkg_temp = filepath_local_pkg + "@"
 
                 # It's unlikely this exist, nevertheless if it does - it must be removed.
-                if os.path.exists(filepath_local_pkg_temp):
+                if os.path.lexists(filepath_local_pkg_temp):
                     if (error := rmtree_with_fallback_or_error(filepath_local_pkg_temp)) is not None:
                         msglog.error(
                             "Failed to remove temporary directory for \"{:s}\": {:s}".format(manifest.id, error),
@@ -4020,17 +4103,44 @@ class subcmd_client:
                     return False
 
             is_reinstall = False
-            if os.path.isdir(filepath_local_pkg):
+            # Even though this is expected to be a directory,
+            # check for any file since the existence of a file should not break installation.
+            # Besides users manually creating files, this could occur from broken symbolic-links
+            # or an incorrectly repaired corrupt file-system.
+            if os.path.lexists(filepath_local_pkg):
                 if (error := rmtree_with_fallback_or_error_pseudo_atomic(
                         filepath_local_pkg,
                         temp_prefix_and_suffix=temp_prefix_and_suffix,
                 )) is not None:
-                    msglog.error("Failed to remove existing directory for \"{:s}\": {:s}".format(manifest.id, error))
-                    return False
+                    if os.path.lexists(filepath_local_pkg):
+                        msglog.error("Failed to remove or relocate existing directory for \"{:s}\": {:s}".format(
+                            manifest.id,
+                            error,
+                        ))
+                        return False
+
+                    msglog.status("Relocated directory that could not be removed \"{:s}\": {:s}".format(
+                        manifest.id,
+                        error,
+                    ))
 
                 is_reinstall = True
 
-            os.rename(filepath_local_pkg_temp, filepath_local_pkg)
+            # While renaming should never fail, it's always possible file-system operations fail.
+            # Unlike other actions, failure here causes the extension to be uninstalled.
+            #
+            # There is little that can be done about this, being able to create a temporary
+            # directory and move it into the destination is required for installation.
+            # When that fails - the best that can be done is to communicate the failure, see: #130211.
+            try:
+                os.rename(filepath_local_pkg_temp, filepath_local_pkg)
+            except Exception as ex:
+                msglog.error("Failed to rename directory, causing unexpected removal \"{:s}\": {:s}".format(
+                    manifest.id,
+                    str(ex),
+                ))
+                return False
+
             directories_to_clean.remove(filepath_local_pkg_temp)
 
         if is_reinstall:
@@ -4272,6 +4382,7 @@ class subcmd_client:
                                     ),
                                     chunk_size=CHUNK_SIZE_DEFAULT,
                                     timeout_in_seconds=timeout_in_seconds,
+                                    retrieve_info=DataRetrieveInfo(),  # Unused.
                             ):
                                 request_exit |= msglog.progress(
                                     "Downloading \"{:s}\"".format(pkg_idname),
@@ -4605,6 +4716,20 @@ class subcmd_author:
             except Exception as ex:
                 msglog.fatal_error("Error building path list \"{:s}\"".format(str(ex)))
                 return False
+
+        if manifest.type == "add-on":
+            # We could have a more generic way to find expected files,
+            # for now perform specific checks.
+            is_valid_python_package = False
+            for _, filepath_rel in build_paths:
+                # Other Python module suffixes besides `.py` can be used.
+                if filepath_rel.startswith("__init__."):
+                    is_valid_python_package = True
+                    break
+            if not is_valid_python_package:
+                msglog.fatal_error("Not a Python package: missing \"__init__.*\" file, typically \"__init__.py\"")
+                return False
+            del is_valid_python_package
 
         request_exit = False
 

@@ -722,12 +722,10 @@ typedef struct {
 
 #ifdef WITH_VULKAN_BACKEND
 typedef struct {
-  /** Identifier of the swap chain image in the swap chain. */
-  uint32_t swap_chain_index;
   /** Image handle to the image that will be presented to the user. */
   VkImage image;
-  /** Format of the image. */
-  VkFormat format;
+  /** Format of the swap chain. */
+  VkSurfaceFormatKHR surface_format;
   /** Resolution of the image. */
   VkExtent2D extent;
 } GHOST_VulkanSwapChainData;

@@ -18,13 +18,11 @@
 #include "DNA_anim_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_key_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 // #define DEBUG_OVERRIDE_TIMEIT
@@ -41,7 +39,6 @@
 #include "BKE_main.hh"
 
 #include "RNA_access.hh"
-#include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"
@@ -1066,9 +1063,8 @@ static bool rna_property_override_collection_subitem_name_id_lookup(
 
     return iter.valid;
   }
-  else {
-    return RNA_property_collection_lookup_string(ptr, prop, item_name, r_ptr_item_name);
-  }
+
+  return RNA_property_collection_lookup_string(ptr, prop, item_name, r_ptr_item_name);
 }
 
 static void rna_property_override_collection_subitem_name_index_lookup(

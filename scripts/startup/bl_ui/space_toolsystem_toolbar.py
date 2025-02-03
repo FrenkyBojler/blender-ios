@@ -2036,9 +2036,10 @@ class _defs_weight_paint:
         if context is None:
             return VIEW3D_PT_tools_active._tools_select
         ob = context.active_object
-        if (ob and ob.type == 'MESH' and
-            (ob.data.use_paint_mask or
-             ob.data.use_paint_mask_vertex)):
+        if (
+                ob and ob.type == 'MESH' and
+                (ob.data.use_paint_mask or ob.data.use_paint_mask_vertex)
+        ):
             return VIEW3D_PT_tools_active._tools_select
         elif context.pose_object:
             return VIEW3D_PT_tools_active._tools_select
@@ -2351,10 +2352,10 @@ class _defs_grease_pencil_paint:
             row.use_property_split = False
             row.prop(props, "mode", expand=True)
 
-            if props.mode == "MATERIAL":
+            if props.mode == 'MATERIAL':
                 col = layout.column()
                 col.prop(props, "material_mode")
-            elif props.mode == "PALETTE":
+            elif props.mode == 'PALETTE':
                 tool_settings = context.tool_settings
                 settings = tool_settings.gpencil_paint
 
@@ -2377,6 +2378,19 @@ class _defs_grease_pencil_paint:
 
 
 class _defs_grease_pencil_edit:
+    @ToolDef.from_fn
+    def shear():
+        def draw_settings(context, layout, _tool):
+            _template_widget.VIEW3D_GGT_xform_gizmo.draw_settings_with_index(context, layout, 2)
+        return dict(
+            idname="builtin.shear",
+            label="Shear",
+            icon="ops.gpencil.edit_shear",
+            widget="VIEW3D_GGT_xform_shear",
+            keymap="3D View Tool: Shear",
+            draw_settings=draw_settings,
+        )
+
     @ToolDef.from_fn
     def interpolate():
         def draw_settings(_context, layout, tool):
@@ -3147,6 +3161,7 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
             _brush_tool,
             _defs_texture_paint.blur,
             _defs_texture_paint.smear,
+            _defs_texture_paint.clone,
             _defs_texture_paint.fill,
             _defs_texture_paint.mask,
             None,
@@ -3453,7 +3468,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_edit_curve.curve_radius,
             _defs_transform.bend,
             (
-                _defs_transform.shear,
+                _defs_grease_pencil_edit.shear,
                 _defs_edit_mesh.tosphere,
             ),
             None,

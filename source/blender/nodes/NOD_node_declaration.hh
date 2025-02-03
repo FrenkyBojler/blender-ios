@@ -12,7 +12,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BLT_translation.hh"
+#include "BLT_translation.hh" /* IWYU pragma: export */
 
 #include "DNA_node_types.h"
 
@@ -48,14 +48,13 @@ enum class OutputSocketFieldType {
 };
 
 /**
- * A bit-field that maps to the #realtime_compositor::InputRealizationOptions.
+ * An enum that maps to the #compositor::InputRealizationMode.
  */
-enum class CompositorInputRealizationOptions : uint8_t {
-  None = 0,
-  RealizeOnOperationDomain = (1 << 0),
+enum class CompositorInputRealizationMode : uint8_t {
+  None,
+  Transforms,
+  OperationDomain,
 };
-ENUM_OPERATORS(CompositorInputRealizationOptions,
-               CompositorInputRealizationOptions::RealizeOnOperationDomain)
 
 /**
  * Contains information about how a node output's field state depends on inputs of the same node.
@@ -198,15 +197,15 @@ class SocketDeclaration : public ItemDeclaration {
   OutputFieldDependency output_field_dependency;
 
  private:
-  CompositorInputRealizationOptions compositor_realization_options_ =
-      CompositorInputRealizationOptions::RealizeOnOperationDomain;
+  CompositorInputRealizationMode compositor_realization_mode_ =
+      CompositorInputRealizationMode::OperationDomain;
 
   /** The priority of the input for determining the domain of the node. See
-   * realtime_compositor::InputDescriptor for more information. */
+   * compositor::InputDescriptor for more information. */
   int compositor_domain_priority_ = 0;
 
   /** This input expects a single value and can't operate on non-single values. See
-   * realtime_compositor::InputDescriptor for more information. */
+   * compositor::InputDescriptor for more information. */
   bool compositor_expects_single_value_ = false;
 
   /** Utility method to make the socket available if there is a straightforward way to do so. */
@@ -226,8 +225,7 @@ class SocketDeclaration : public ItemDeclaration {
   friend class BaseSocketDeclarationBuilder;
   template<typename SocketDecl> friend class SocketDeclarationBuilder;
 
- public:
-  virtual ~SocketDeclaration() = default;
+  ~SocketDeclaration() override = default;
 
   virtual bNodeSocket &build(bNodeTree &ntree, bNode &node) const = 0;
   virtual bool matches(const bNodeSocket &socket) const = 0;
@@ -246,7 +244,7 @@ class SocketDeclaration : public ItemDeclaration {
    */
   void make_available(bNode &node) const;
 
-  const CompositorInputRealizationOptions &compositor_realization_options() const;
+  const CompositorInputRealizationMode &compositor_realization_mode() const;
   int compositor_domain_priority() const;
   bool compositor_expects_single_value() const;
 
@@ -355,18 +353,17 @@ class BaseSocketDeclarationBuilder {
   /** Attributes from the all geometry inputs can be propagated. */
   BaseSocketDeclarationBuilder &propagate_all();
 
-  BaseSocketDeclarationBuilder &compositor_realization_options(
-      CompositorInputRealizationOptions value);
+  BaseSocketDeclarationBuilder &compositor_realization_mode(CompositorInputRealizationMode value);
 
   /**
    * The priority of the input for determining the domain of the node. See
-   * realtime_compositor::InputDescriptor for more information.
+   * compositor::InputDescriptor for more information.
    */
   BaseSocketDeclarationBuilder &compositor_domain_priority(int priority);
 
   /**
    * This input expects a single value and can't operate on non-single values. See
-   * realtime_compositor::InputDescriptor for more information.
+   * compositor::InputDescriptor for more information.
    */
   BaseSocketDeclarationBuilder &compositor_expects_single_value(bool value = true);
 
@@ -453,7 +450,7 @@ class PanelDeclaration : public ItemDeclaration {
   friend class PanelDeclarationBuilder;
 
  public:
-  virtual ~PanelDeclaration() = default;
+  ~PanelDeclaration() override = default;
 
   void build(bNodePanelState &panel) const;
   bool matches(const bNodePanelState &panel) const;
@@ -530,7 +527,7 @@ using PanelDeclarationPtr = std::unique_ptr<PanelDeclaration>;
 
 class NodeDeclaration {
  public:
-  /* Contains all items including recursive children.*/
+  /* Contains all items including recursive children. */
   Vector<ItemDeclarationPtr> all_items;
   /* Contains only the items in the root. */
   Vector<ItemDeclaration *> root_items;
@@ -576,8 +573,7 @@ class NodeDeclaration {
 
 class NodeDeclarationBuilder : public DeclarationListBuilder {
  private:
-  /* Unused in release builds, but used for BLI_assert() in debug builds. */
-  [[maybe_unused]] const bke::bNodeType &typeinfo_;
+  const bke::bNodeType &typeinfo_;
   NodeDeclaration &declaration_;
   const bNodeTree *ntree_ = nullptr;
   const bNode *node_ = nullptr;
@@ -587,7 +583,6 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
   Vector<std::unique_ptr<PanelDeclarationBuilder>> panel_builders_;
   bool is_function_node_ = false;
 
- private:
   friend PanelDeclarationBuilder;
   friend BaseSocketDeclarationBuilder;
   friend DeclarationListBuilder;

@@ -6,13 +6,11 @@
  * \ingroup spuserpref
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -126,7 +124,7 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
   }
 
   ED_region_panels_layout_ex(
-      C, region, &region->type->paneltypes, WM_OP_INVOKE_REGION_WIN, contexts, nullptr);
+      C, region, &region->runtime->type->paneltypes, WM_OP_INVOKE_REGION_WIN, contexts, nullptr);
 }
 
 static void userpref_operatortypes() {}
@@ -160,7 +158,7 @@ static void userpref_navigation_region_draw(const bContext *C, ARegion *region)
 static bool userpref_execute_region_poll(const RegionPollParams *params)
 {
   const ARegion *region_header = BKE_area_find_region_type(params->area, RGN_TYPE_HEADER);
-  return !region_header->visible;
+  return !region_header->runtime->visible;
 }
 
 /* add handlers, stuff you only do once or on area/region changes */

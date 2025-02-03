@@ -18,8 +18,6 @@
  */
 
 #include <memory>
-#include <type_traits>
-#include <variant>
 
 #include "DNA_screen_types.h"
 
@@ -27,7 +25,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
-#include "BLI_string.h"
+#include "BLI_rect.h"
 
 #include "ED_screen.hh"
 
@@ -210,7 +208,7 @@ blender::ui::AbstractView *UI_region_view_find_at(const ARegion *region,
   if (!ui_region_contains_point_px(region, xy)) {
     return nullptr;
   }
-  LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
+  LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     float mx = xy[0], my = xy[1];
     ui_window_to_block_fl(region, block, &mx, &my);
 
@@ -260,7 +258,7 @@ uiBut *UI_region_views_find_active_item_but(const ARegion *region)
 
 void UI_region_views_clear_search_highlight(const ARegion *region)
 {
-  LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
+  LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
       view_link->view->clear_search_highlight();
     }

@@ -13,10 +13,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_function_ref.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_vector.h"
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -167,9 +167,9 @@ static short agrp_keyframes_loop(KeyframeEditData *ked,
   }
 
   /* Layered actions. */
-  animrig::ChannelBag &channel_bag = agrp->channel_bag->wrap();
-  Span<FCurve *> fcurves = channel_bag.fcurves().slice(agrp->fcurve_range_start,
-                                                       agrp->fcurve_range_length);
+  animrig::Channelbag &channelbag = agrp->channelbag->wrap();
+  Span<FCurve *> fcurves = channelbag.fcurves().slice(agrp->fcurve_range_start,
+                                                      agrp->fcurve_range_length);
   for (FCurve *fcurve : fcurves) {
     if (ANIM_fcurve_keyframes_loop(ked, fcurve, key_ok, key_cb, fcu_cb)) {
       return 1;

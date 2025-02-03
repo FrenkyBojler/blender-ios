@@ -47,7 +47,6 @@
 #define ccl_device_noinline_cpu ccl_device
 #define ccl_device_inline_method ccl_device
 #define ccl_restrict __restrict__
-#define ccl_loop_no_unroll
 #define ccl_optional_struct_init
 #define ccl_private
 #define ccl_ray_data ccl_private
@@ -194,15 +193,15 @@ ccl_device_forceinline float __uint_as_float(unsigned int x)
 {
   return sycl::bit_cast<float>(x);
 }
-ccl_device_forceinline unsigned int __float_as_uint(float x)
+ccl_device_forceinline unsigned int __float_as_uint(const float x)
 {
   return sycl::bit_cast<unsigned int>(x);
 }
-ccl_device_forceinline float __int_as_float(int x)
+ccl_device_forceinline float __int_as_float(const int x)
 {
   return sycl::bit_cast<float>(x);
 }
-ccl_device_forceinline int __float_as_int(float x)
+ccl_device_forceinline int __float_as_int(const float x)
 {
   return sycl::bit_cast<int>(x);
 }

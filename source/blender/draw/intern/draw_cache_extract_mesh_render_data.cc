@@ -8,24 +8,19 @@
  * \brief Extraction of Mesh data into VBO to feed to GPU.
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_index_mask.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_geom.h"
 #include "BLI_task.hh"
 #include "BLI_virtual_array.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_object.hh"
-
-#include "GPU_batch.hh"
 
 #include "ED_mesh.hh"
 
@@ -197,7 +192,7 @@ static void accumululate_material_counts_mesh(
             }
             return count;
           },
-          std::plus<int>());
+          std::plus<>());
     }
     else {
       all_tri_counts.local().first() = poly_to_tri_count(mr.faces_num, mr.corners_num);
@@ -456,7 +451,7 @@ static bke::MeshNormalDomain bmesh_normals_domain(BMesh *bm)
     return bke::MeshNormalDomain::Point;
   }
 
-  if (CustomData_has_layer(&bm->ldata, CD_CUSTOMLOOPNORMAL)) {
+  if (CustomData_has_layer_named(&bm->ldata, CD_PROP_INT16_2D, "custom_normal")) {
     return bke::MeshNormalDomain::Corner;
   }
 
@@ -492,7 +487,8 @@ void mesh_render_data_update_corner_normals(MeshRenderData &mr)
   }
   else {
     mr.bm_loop_normals.reinitialize(mr.corners_num);
-    const int clnors_offset = CustomData_get_offset(&mr.bm->ldata, CD_CUSTOMLOOPNORMAL);
+    const int clnors_offset = CustomData_get_offset_named(
+        &mr.bm->ldata, CD_PROP_INT16_2D, "custom_normal");
     BM_loops_calc_normal_vcos(mr.bm,
                               mr.bm_vert_coords,
                               mr.bm_vert_normals,
@@ -538,14 +534,14 @@ std::unique_ptr<MeshRenderData> mesh_render_data_create(Object &object,
 {
   std::unique_ptr<MeshRenderData> mr = std::make_unique<MeshRenderData>();
   mr->toolsettings = ts;
-  mr->materials_num = mesh_render_mat_len_get(object, mesh);
+  mr->materials_num = BKE_object_material_used_with_fallback_eval(object);
 
   mr->object_to_world = object_to_world;
 
   mr->use_hide = use_hide;
 
-  if (is_editmode) {
-    const Mesh *editmesh_orig = BKE_object_get_pre_modified_mesh(&object);
+  const Mesh *editmesh_orig = BKE_object_get_pre_modified_mesh(&object);
+  if (is_editmode && editmesh_orig) {
     const Mesh *eval_cage = BKE_object_get_editmesh_eval_cage(&object);
 
     mr->bm = editmesh_orig->runtime->edit_mesh->bm;

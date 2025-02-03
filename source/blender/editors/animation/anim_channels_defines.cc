@@ -14,8 +14,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_color.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -668,8 +669,6 @@ static int acf_object_icon(bAnimListElem *ale)
       return ICON_OUTLINER_OB_VOLUME;
     case OB_EMPTY:
       return ICON_OUTLINER_OB_EMPTY;
-    case OB_GPENCIL_LEGACY:
-      return ICON_OUTLINER_OB_GREASEPENCIL;
     case OB_GREASE_PENCIL:
       return ICON_OUTLINER_OB_GREASEPENCIL;
     default:
@@ -860,7 +859,7 @@ static void acf_group_name(bAnimListElem *ale, char *name)
 /* name property for group entries */
 static bool acf_group_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
-  *r_ptr = RNA_pointer_create(ale->fcurve_owner_id, &RNA_ActionGroup, ale->data);
+  *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, &RNA_ActionGroup, ale->data);
   *r_prop = RNA_struct_name_property(r_ptr->type);
 
   return (*r_prop != nullptr);
@@ -1059,7 +1058,7 @@ static bool acf_fcurve_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, Property
    * as our "name" so that user can perform quick fixes
    */
   if (fcu->flag & FCURVE_DISABLED) {
-    *r_ptr = RNA_pointer_create(ale->fcurve_owner_id, &RNA_FCurve, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, &RNA_FCurve, ale->data);
     *r_prop = RNA_struct_find_property(r_ptr, "data_path");
   }
   else {
@@ -1416,7 +1415,7 @@ static void acf_action_slot_name(bAnimListElem *ale, char *r_name)
 
   BLI_assert(ale->bmain);
   const int num_users = slot->users(*ale->bmain).size();
-  const char *display_name = slot->name_without_prefix().c_str();
+  const char *display_name = slot->identifier_without_prefix().c_str();
 
   BLI_assert(num_users >= 0);
   switch (num_users) {
@@ -1436,7 +1435,7 @@ static bool acf_action_slot_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, Pro
   animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
   BLI_assert(GS(ale->fcurve_owner_id->name) == ID_AC);
 
-  *r_ptr = RNA_pointer_create(ale->fcurve_owner_id, &RNA_ActionSlot, slot);
+  *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, &RNA_ActionSlot, slot);
   *r_prop = RNA_struct_find_property(r_ptr, "name_display");
 
   return (*r_prop != nullptr);
@@ -3488,7 +3487,7 @@ static bool acf_shapekey_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, Proper
 
   /* if the KeyBlock had a name, use it, otherwise use the index */
   if (kb && kb->name[0]) {
-    *r_ptr = RNA_pointer_create(ale->id, &RNA_ShapeKey, kb);
+    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_ShapeKey, kb);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -3677,7 +3676,7 @@ static void acf_gpl_name_legacy(bAnimListElem *ale, char *name)
 static bool acf_gpl_name_prop_legacy(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (ale->data) {
-    *r_ptr = RNA_pointer_create(ale->id, &RNA_GPencilLayer, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_GPencilLayer, ale->data);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -3845,7 +3844,7 @@ static bool layer_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA *
     return false;
   }
 
-  *r_ptr = RNA_pointer_create(ale->id, &RNA_GreasePencilLayer, ale->data);
+  *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_GreasePencilLayer, ale->data);
   *r_prop = RNA_struct_name_property(r_ptr->type);
 
   return (*r_prop != nullptr);
@@ -3903,6 +3902,14 @@ static void *layer_setting_ptr(bAnimListElem *ale,
 {
   GreasePencilLayer *layer = (GreasePencilLayer *)ale->data;
   return GET_ACF_FLAG_PTR(layer->base.flag, r_type);
+}
+
+static bool layer_channel_color(const bAnimListElem *ale, uint8_t r_color[3])
+{
+  using namespace bke::greasepencil;
+  GreasePencilLayerTreeNode &layer = *static_cast<GreasePencilLayerTreeNode *>(ale->data);
+  rgb_float_to_uchar(r_color, layer.color);
+  return true;
 }
 
 static int layer_group_icon(bAnimListElem *ale)
@@ -3987,7 +3994,7 @@ static bAnimChannelType ACF_GPL = {
     /*channel_role*/ ACHANNEL_ROLE_CHANNEL,
 
     /*get_backdrop_color*/ acf_generic_channel_color,
-    /*get_channel_color*/ nullptr,
+    /*get_channel_color*/ greasepencil::layer_channel_color,
     /*draw_backdrop*/ acf_generic_channel_backdrop,
     /*get_indent_level*/ acf_generic_indentation_flexible,
     /*get_offset*/ greasepencil::layer_offset,
@@ -4118,7 +4125,7 @@ static void acf_masklay_name(bAnimListElem *ale, char *name)
 static bool acf_masklay_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (ale->data) {
-    *r_ptr = RNA_pointer_create(ale->id, &RNA_MaskLayer, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_MaskLayer, ale->data);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -4234,7 +4241,7 @@ static void acf_nlatrack_name(bAnimListElem *ale, char *name)
 static bool acf_nlatrack_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (ale->data) {
-    *r_ptr = RNA_pointer_create(ale->id, &RNA_NlaTrack, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_NlaTrack, ale->data);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -4410,7 +4417,7 @@ static void acf_nlaaction_backdrop(bAnimContext *ac, bAnimListElem *ale, float y
    */
   rctf box;
   box.xmin = offset;
-  box.xmax = float(v2d->cur.xmax);
+  box.xmax = v2d->cur.xmax;
   box.ymin = yminc + NLATRACK_SKIP;
   box.ymax = ymaxc + NLATRACK_SKIP - 1;
   UI_draw_roundbox_4fv(&box, true, 8, color);
@@ -4436,7 +4443,7 @@ static void acf_nlaaction_name(bAnimListElem *ale, char *name)
 static bool acf_nlaaction_name_prop(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (ale->data) {
-    *r_ptr = RNA_pointer_create(ale->fcurve_owner_id, &RNA_Action, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, &RNA_Action, ale->data);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -5096,7 +5103,7 @@ void ANIM_channel_draw(
 
       immBegin(GPU_PRIM_LINES, 2);
       immVertex2f(pos, float(offset), yminc);
-      immVertex2f(pos, float(v2d->cur.xmax), yminc);
+      immVertex2f(pos, v2d->cur.xmax, yminc);
       immEnd();
 
       immUnbindProgram();
@@ -5753,7 +5760,7 @@ static void draw_grease_pencil_layer_widgets(bAnimListElem *ale,
   offset += SLIDER_WIDTH;
 
   /* Create the RNA pointers. */
-  PointerRNA ptr = RNA_pointer_create(ale->id, &RNA_GreasePencilLayer, ale->data);
+  PointerRNA ptr = RNA_pointer_create_discrete(ale->id, &RNA_GreasePencilLayer, ale->data);
   PointerRNA id_ptr = RNA_id_pointer_create(ale->id);
 
   /* Layer onion skinning switch. */
@@ -5894,7 +5901,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
   /* step 4) draw text - check if renaming widget is in use... */
   if (is_being_renamed) {
-    PointerRNA ptr = {nullptr};
+    PointerRNA ptr = {};
     PropertyRNA *prop = nullptr;
 
     /* draw renaming widget if we can get RNA pointer for it
@@ -6119,7 +6126,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
           PropertyRNA *prop;
 
           /* create RNA pointers */
-          PointerRNA ptr = RNA_pointer_create(ale->id, &RNA_NlaStrip, strip);
+          PointerRNA ptr = RNA_pointer_create_discrete(ale->id, &RNA_NlaStrip, strip);
           prop = RNA_struct_find_property(&ptr, fcu->rna_path);
 
           /* create property slider */
@@ -6171,14 +6178,14 @@ void ANIM_channel_draw_widgets(const bContext *C,
             bGPDlayer *gpl = (bGPDlayer *)ale->data;
 
             /* Create the RNA pointers. */
-            ptr = RNA_pointer_create(ale->id, &RNA_GPencilLayer, ale->data);
+            ptr = RNA_pointer_create_discrete(ale->id, &RNA_GPencilLayer, ale->data);
             PointerRNA id_ptr = RNA_id_pointer_create(ale->id);
             int icon;
 
             /* Layer onion skinning switch. */
             offset -= ICON_WIDTH;
             UI_block_emboss_set(block, UI_EMBOSS_NONE);
-            prop = RNA_struct_find_property(&ptr, "use_onion_skinning");
+            prop = RNA_struct_find_property(&ptr, "use_annotation_onion_skinning");
             if (const std::optional<std::string> gp_rna_path = RNA_path_from_ID_to_property(&ptr,
                                                                                             prop))
             {
@@ -6198,38 +6205,11 @@ void ANIM_channel_draw_widgets(const bContext *C,
               }
             }
 
-            /* Mask Layer. */
-            offset -= ICON_WIDTH;
-            UI_block_emboss_set(block, UI_EMBOSS_NONE);
-            prop = RNA_struct_find_property(&ptr, "use_mask_layer");
-            if (const std::optional<std::string> gp_rna_path = RNA_path_from_ID_to_property(&ptr,
-                                                                                            prop))
-            {
-              if (RNA_path_resolve_property(&id_ptr, gp_rna_path->c_str(), &ptr, &prop)) {
-                if (gpl->flag & GP_LAYER_USE_MASK) {
-                  icon = ICON_MOD_MASK;
-                }
-                else {
-                  icon = ICON_LAYER_ACTIVE;
-                }
-                uiDefAutoButR(block,
-                              &ptr,
-                              prop,
-                              array_index,
-                              "",
-                              icon,
-                              offset,
-                              rect->ymin,
-                              ICON_WIDTH,
-                              channel_height);
-              }
-            }
-
             /* Layer opacity. */
             const short width = SLIDER_WIDTH * 0.6;
             offset -= width;
             UI_block_emboss_set(block, UI_EMBOSS);
-            prop = RNA_struct_find_property(&ptr, "opacity");
+            prop = RNA_struct_find_property(&ptr, "annotation_opacity");
             if (const std::optional<std::string> gp_rna_path = RNA_path_from_ID_to_property(&ptr,
                                                                                             prop))
             {
@@ -6269,7 +6249,8 @@ void ANIM_channel_draw_widgets(const bContext *C,
                                 &ptr,
                                 prop,
                                 array_index,
-                                RNA_property_type(prop) == PROP_ENUM ? nullptr : "",
+                                RNA_property_type(prop) == PROP_ENUM ? std::nullopt :
+                                                                       std::optional(""),
                                 ICON_NONE,
                                 offset,
                                 rect->ymin,

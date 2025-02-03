@@ -9,6 +9,8 @@
 
 #include "BKE_fcurve.hh"
 
+#include "BLT_translation.hh"
+
 namespace blender::animrig::legacy {
 
 static Strip *first_keyframe_strip(Action &action)
@@ -24,7 +26,7 @@ static Strip *first_keyframe_strip(Action &action)
   return nullptr;
 }
 
-ChannelBag *channelbag_get(Action &action)
+Channelbag *channelbag_get(Action &action)
 {
   if (action.slots().is_empty()) {
     return nullptr;
@@ -38,7 +40,7 @@ ChannelBag *channelbag_get(Action &action)
   return keystrip->data<StripKeyframeData>(action).channelbag_for_slot(*action.slot(0));
 }
 
-ChannelBag &channelbag_ensure(Action &action)
+Channelbag &channelbag_ensure(Action &action)
 {
   assert_baklava_phase_1_invariants(action);
 
@@ -46,16 +48,26 @@ ChannelBag &channelbag_ensure(Action &action)
   Slot *slot;
   if (action.slots().is_empty()) {
     slot = &action.slot_add();
+    action.slot_display_name_define(*slot, DATA_(DEFAULT_LEGACY_SLOT_NAME));
   }
   else {
     slot = action.slot(0);
   }
 
-  /* Ensure a Layer + keyframe Strip. */
-  action.layer_keystrip_ensure();
+  /* Ensure a Layer + keyframe Strip.
+   *
+   * Normally we would use `Action::layer_keystrip_ensure()` for this, but that
+   * doesn't let us specify the name of the layer if newly created. */
+  if (action.layers().is_empty()) {
+    action.layer_add(DATA_(DEFAULT_LEGACY_LAYER_NAME));
+  }
+  if (action.layer(0)->strips().is_empty()) {
+    action.layer(0)->strip_add(action, Strip::Type::Keyframe);
+  }
+
   Strip &keystrip = *action.layer(0)->strip(0);
 
-  /* Ensure a ChannelBag. */
+  /* Ensure a Channelbag. */
   return keystrip.data<StripKeyframeData>(action).channelbag_for_slot_ensure(*slot);
 }
 
@@ -65,7 +77,7 @@ template<typename ActionType,
          typename LayerType,
          typename StripType,
          typename StripKeyframeDataType,
-         typename ChannelBagType>
+         typename ChannelbagType>
 static Vector<FCurveType *> fcurves_all_templated(ActionType &action)
 {
   /* Legacy Action. */
@@ -86,7 +98,7 @@ static Vector<FCurveType *> fcurves_all_templated(ActionType &action)
       switch (strip->type()) {
         case Strip::Type::Keyframe: {
           StripKeyframeDataType &strip_data = strip->template data<StripKeyframeData>(action);
-          for (ChannelBagType *bag : strip_data.channelbags()) {
+          for (ChannelbagType *bag : strip_data.channelbags()) {
             for (FCurveType *fcurve : bag->fcurves()) {
               all_fcurves.append(fcurve);
             }
@@ -103,7 +115,7 @@ Vector<FCurve *> fcurves_all(bAction *action)
   if (!action) {
     return {};
   }
-  return fcurves_all_templated<Action, FCurve, Layer, Strip, StripKeyframeData, ChannelBag>(
+  return fcurves_all_templated<Action, FCurve, Layer, Strip, StripKeyframeData, Channelbag>(
       action->wrap());
 }
 
@@ -117,7 +129,7 @@ Vector<const FCurve *> fcurves_all(const bAction *action)
                                const Layer,
                                const Strip,
                                const StripKeyframeData,
-                               const ChannelBag>(action->wrap());
+                               const Channelbag>(action->wrap());
 }
 
 Vector<FCurve *> fcurves_first_slot(bAction *action)
@@ -143,7 +155,7 @@ template<typename ActionType,
          typename LayerType,
          typename StripType,
          typename StripKeyframeDataType,
-         typename ChannelBagType>
+         typename ChannelbagType>
 static Vector<FCurveType *> fcurves_for_action_slot_templated(ActionType &action,
                                                               const slot_handle_t slot_handle)
 {
@@ -167,7 +179,7 @@ Vector<FCurve *> fcurves_for_action_slot(bAction *action, const slot_handle_t sl
                                            Layer,
                                            Strip,
                                            StripKeyframeData,
-                                           ChannelBag>(action->wrap(), slot_handle);
+                                           Channelbag>(action->wrap(), slot_handle);
 }
 Vector<const FCurve *> fcurves_for_action_slot(const bAction *action,
                                                const slot_handle_t slot_handle)
@@ -180,7 +192,7 @@ Vector<const FCurve *> fcurves_for_action_slot(const bAction *action,
                                            const Layer,
                                            const Strip,
                                            const StripKeyframeData,
-                                           const ChannelBag>(action->wrap(), slot_handle);
+                                           const Channelbag>(action->wrap(), slot_handle);
 }
 
 Vector<FCurve *> fcurves_for_assigned_action(AnimData *adt)
@@ -238,7 +250,7 @@ Vector<bActionGroup *> channel_groups_all(bAction *action)
       switch (strip->type()) {
         case Strip::Type::Keyframe: {
           StripKeyframeData &strip_data = strip->template data<StripKeyframeData>(action_wrap);
-          for (ChannelBag *bag : strip_data.channelbags()) {
+          for (Channelbag *bag : strip_data.channelbags()) {
             all_groups.extend(bag->channel_groups());
           }
         }
@@ -262,7 +274,7 @@ Vector<bActionGroup *> channel_groups_for_assigned_slot(AnimData *adt)
   }
 
   /* Layered Action. */
-  ChannelBag *bag = channelbag_for_action_slot(action, adt->slot_handle);
+  Channelbag *bag = channelbag_for_action_slot(action, adt->slot_handle);
   if (!bag) {
     return {};
   }
@@ -311,7 +323,7 @@ bool action_fcurves_remove(bAction &action,
   }
 
   /* Layered Action. */
-  ChannelBag *bag = channelbag_for_action_slot(action.wrap(), slot_handle);
+  Channelbag *bag = channelbag_for_action_slot(action.wrap(), slot_handle);
   if (!bag) {
     return false;
   }

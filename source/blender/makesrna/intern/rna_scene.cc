@@ -8,41 +8,24 @@
 
 #include <cstdlib>
 
-#include "DNA_brush_types.h"
-#include "DNA_collection_types.h"
-#include "DNA_gpencil_legacy_types.h"
-#include "DNA_grease_pencil_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_layer_types.h"
-#include "DNA_linestyle_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_particle_types.h"
-#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h" /* TransformOrientation */
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_world_types.h"
 
 #include "IMB_colormanagement.hh"
-#include "IMB_imbuf_types.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
+#include "MOV_enums.hh"
+
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.hh"
 
-#include "BKE_armature.hh"
-#include "BKE_editmesh.hh"
-#include "BKE_idtype.hh"
 #include "BKE_paint.hh"
-#include "BKE_volume.hh"
 
-#include "ED_gpencil_legacy.hh"
 #include "ED_object.hh"
-#include "ED_uvedit.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -50,27 +33,12 @@
 #include "rna_internal.hh"
 
 /* Include for Bake Options */
-#include "RE_engine.h"
 #include "RE_pipeline.h"
-
-#ifdef WITH_FFMPEG
-#  include "BKE_writeffmpeg.hh"
-#  include "ffmpeg_compat.h"
-#  include <libavcodec/avcodec.h>
-#  include <libavformat/avformat.h>
-#endif
-
-#include "ED_render.hh"
-#include "ED_transform.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "BLI_threads.h"
-
-#include "ANIM_keyingsets.hh"
-
-#include "DEG_depsgraph.hh"
 
 #ifdef WITH_OPENEXR
 const EnumPropertyItem rna_enum_exr_codec_items[] = {
@@ -205,18 +173,6 @@ static const EnumPropertyItem rna_enum_snap_element_base_items[] = {
 static const EnumPropertyItem *rna_enum_snap_element_individual_items =
     &rna_enum_snap_element_items[ARRAY_SIZE(rna_enum_snap_element_items) - 3];
 #endif
-
-const EnumPropertyItem rna_enum_snap_node_element_items[] = {
-    {SCE_SNAP_TO_GRID, "GRID", ICON_SNAP_GRID, "Grid", "Snap to grid"},
-    {SCE_SNAP_TO_NODE_X, "NODE_X", ICON_NODE_SIDE, "Node X", "Snap to left/right node border"},
-    {SCE_SNAP_TO_NODE_Y, "NODE_Y", ICON_NODE_TOP, "Node Y", "Snap to top/bottom node border"},
-    {SCE_SNAP_TO_NODE_X | SCE_SNAP_TO_NODE_Y,
-     "NODE_XY",
-     ICON_NODE_CORNER,
-     "Node X / Y",
-     "Snap to any node border"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
 
 const EnumPropertyItem rna_enum_snap_animation_element_items[] = {
     {SCE_SNAP_TO_FRAME, "FRAME", 0, "Frame", "Snap to frame"},
@@ -731,21 +687,29 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "DNA_anim_types.h"
 #  include "DNA_cachefile_types.h"
 #  include "DNA_color_types.h"
+#  include "DNA_grease_pencil_types.h"
+#  include "DNA_linestyle_types.h"
 #  include "DNA_mesh_types.h"
 #  include "DNA_node_types.h"
 #  include "DNA_object_types.h"
+#  include "DNA_particle_types.h"
 #  include "DNA_text_types.h"
 #  include "DNA_workspace_types.h"
+#  include "DNA_world_types.h"
 
 #  include "RNA_access.hh"
 
 #  include "MEM_guardedalloc.h"
 
+#  include "MOV_util.hh"
+
 #  include "BKE_animsys.h"
+#  include "BKE_armature.hh"
 #  include "BKE_bake_geometry_nodes_modifier.hh"
 #  include "BKE_brush.hh"
 #  include "BKE_collection.hh"
 #  include "BKE_context.hh"
+#  include "BKE_editmesh.hh"
 #  include "BKE_freestyle.h"
 #  include "BKE_global.hh"
 #  include "BKE_gpencil_legacy.h"
@@ -754,8 +718,10 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "BKE_image_format.hh"
 #  include "BKE_layer.hh"
 #  include "BKE_main.hh"
+#  include "BKE_main_invariants.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_node.hh"
+#  include "BKE_node_legacy_types.hh"
 #  include "BKE_pointcache.h"
 #  include "BKE_scene.hh"
 #  include "BKE_screen.hh"
@@ -763,14 +729,18 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 
 #  include "NOD_composite.hh"
 
+#  include "ED_grease_pencil.hh"
 #  include "ED_image.hh"
 #  include "ED_info.hh"
 #  include "ED_keyframing.hh"
 #  include "ED_mesh.hh"
 #  include "ED_node.hh"
+#  include "ED_render.hh"
 #  include "ED_scene.hh"
+#  include "ED_uvedit.hh"
 #  include "ED_view3d.hh"
 
+#  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_query.hh"
 
@@ -781,6 +751,14 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  ifdef WITH_FREESTYLE
 #    include "FRS_freestyle.h"
 #  endif
+
+#  ifdef WITH_ALEMBIC
+#    include "ABC_alembic.h"
+#  endif
+
+#  include "RE_engine.h"
+
+#  include "ANIM_keyingsets.hh"
 
 using blender::Vector;
 
@@ -806,52 +784,82 @@ static void rna_ToolSettings_snap_uv_mode_set(PointerRNA *ptr, int value)
   }
 }
 
-static void rna_Gpencil_mask_point_update(bContext * /*C*/, PointerRNA *ptr)
+static void rna_Gpencil_mask_point_update(bContext *C, PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_STROKE;
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_SEGMENT;
+
+  Object *ob = CTX_data_active_object(C);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
-static void rna_Gpencil_mask_stroke_update(bContext * /*C*/, PointerRNA *ptr)
+static void rna_Gpencil_mask_stroke_update(bContext *C, PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_SEGMENT;
+
+  Object *ob = CTX_data_active_object(C);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
-static void rna_Gpencil_mask_segment_update(bContext * /*C*/, PointerRNA *ptr)
+static void rna_Gpencil_mask_segment_update(bContext *C, PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_STROKE;
+
+  Object *ob = CTX_data_active_object(C);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
-static void rna_Gpencil_vertex_mask_point_update(bContext * /*C*/, PointerRNA *ptr)
+static void rna_Gpencil_vertex_mask_point_update(bContext *C, PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_STROKE;
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_SEGMENT;
+
+  Object *ob = CTX_data_active_object(C);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
-static void rna_Gpencil_vertex_mask_stroke_update(bContext * /*C*/, PointerRNA *ptr)
+static void rna_Gpencil_vertex_mask_stroke_update(bContext *C, PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_SEGMENT;
+
+  Object *ob = CTX_data_active_object(C);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
-static void rna_Gpencil_vertex_mask_segment_update(bContext * /*C*/, PointerRNA *ptr)
+static void rna_Gpencil_vertex_mask_segment_update(bContext *C, PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_STROKE;
+
+  Object *ob = CTX_data_active_object(C);
+  if (ob && ob->type == OB_GREASE_PENCIL) {
+    blender::ed::greasepencil::ensure_selection_domain(ts, ob);
+  }
 }
 
 static void rna_active_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
@@ -892,7 +900,7 @@ static void rna_Scene_objects_end(CollectionPropertyIterator *iter)
 static PointerRNA rna_Scene_objects_get(CollectionPropertyIterator *iter)
 {
   Object *ob = static_cast<Object *>(((BLI_Iterator *)iter->internal.custom)->current);
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_Object, ob);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(ob));
 }
 
 /* End of read-only Iterator of all the scene objects. */
@@ -1252,7 +1260,7 @@ static std::optional<std::string> rna_ImageFormatSettings_path(const PointerRNA 
       bNode *node;
 
       for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
-        if (node->type == CMP_NODE_OUTPUT_FILE) {
+        if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
           if (&((NodeImageMultiFile *)node->storage)->format == imf) {
             char node_name_esc[sizeof(node->name) * 2];
             BLI_str_escape(node_name_esc, node->name, sizeof(node_name_esc));
@@ -1310,64 +1318,9 @@ static bool rna_RenderSettings_is_movie_format_get(PointerRNA *ptr)
   return BKE_imtype_is_movie(rd->im_format.imtype);
 }
 
-static int get_first_valid_depth(const int valid_depths)
-{
-  /* set first available depth */
-  const char depth_ls[] = {
-      R_IMF_CHAN_DEPTH_32,
-      R_IMF_CHAN_DEPTH_24,
-      R_IMF_CHAN_DEPTH_16,
-      R_IMF_CHAN_DEPTH_12,
-      R_IMF_CHAN_DEPTH_10,
-      R_IMF_CHAN_DEPTH_8,
-      R_IMF_CHAN_DEPTH_1,
-      0,
-  };
-  for (int i = 0; depth_ls[i]; i++) {
-    if (valid_depths & depth_ls[i]) {
-      return depth_ls[i];
-    }
-  }
-  return R_IMF_CHAN_DEPTH_8;
-}
-
 static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
 {
-  ImageFormatData *imf = (ImageFormatData *)ptr->data;
-  ID *id = ptr->owner_id;
-  imf->imtype = value;
-
-  const bool is_render = (id && GS(id->name) == ID_SCE);
-  /* see note below on why this is */
-  const char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) |
-                         (is_render ? IMA_CHAN_FLAG_BW : 0);
-
-  /* ensure depth and color settings match */
-  if ((imf->planes == R_IMF_PLANES_BW) && !(chan_flag & IMA_CHAN_FLAG_BW)) {
-    imf->planes = R_IMF_PLANES_RGBA;
-  }
-  if ((imf->planes == R_IMF_PLANES_RGBA) && !(chan_flag & IMA_CHAN_FLAG_RGBA)) {
-    imf->planes = R_IMF_PLANES_RGB;
-  }
-
-  /* ensure usable depth */
-  {
-    const int depth_ok = BKE_imtype_valid_depths(imf->imtype);
-    if ((imf->depth & depth_ok) == 0) {
-      imf->depth = get_first_valid_depth(depth_ok);
-    }
-  }
-
-  if (id && GS(id->name) == ID_SCE) {
-    Scene *scene = (Scene *)ptr->owner_id;
-    RenderData *rd = &scene->r;
-#  ifdef WITH_FFMPEG
-    BKE_ffmpeg_image_type_verify(rd, imf);
-#  endif
-    (void)rd;
-  }
-
-  BKE_image_format_update_color_space_for_type(imf);
+  BKE_image_format_set((ImageFormatData *)ptr->data, ptr->owner_id, value);
 }
 
 static const EnumPropertyItem *rna_ImageFormatSettings_file_format_itemf(bContext * /*C*/,
@@ -1400,7 +1353,6 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
   char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) |
                    (is_render ? IMA_CHAN_FLAG_BW : 0);
 
-#  ifdef WITH_FFMPEG
   /* a WAY more crappy case than B&W flag: depending on codec, file format MIGHT support
    * alpha channel. for example MPEG format with h264 codec can't do alpha channel, but
    * the same MPEG format with QTRLE codec can easily handle alpha channel.
@@ -1409,11 +1361,10 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
 
-    if (BKE_ffmpeg_alpha_channel_is_supported(rd)) {
+    if (MOV_codec_supports_alpha(rd->ffcodecdata.codec)) {
       chan_flag |= IMA_CHAN_FLAG_RGBA;
     }
   }
-#  endif
 
   if (chan_flag == (IMA_CHAN_FLAG_BW | IMA_CHAN_FLAG_RGB | IMA_CHAN_FLAG_RGBA)) {
     return rna_enum_image_color_mode_items;
@@ -1833,7 +1784,7 @@ void rna_Scene_compositor_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr
     bNodeTree *ntree = reinterpret_cast<bNodeTree *>(scene->nodetree);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &ntree->id);
     WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
-    ED_node_tree_propagate_change(nullptr, bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
   }
 }
 
@@ -2494,7 +2445,7 @@ PointerRNA rna_FreestyleLineSet_linestyle_get(PointerRNA *ptr)
 {
   FreestyleLineSet *lineset = (FreestyleLineSet *)ptr->data;
 
-  return rna_pointer_inherit_refine(ptr, &RNA_FreestyleLineStyle, lineset->linestyle);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(lineset->linestyle));
 }
 
 void rna_FreestyleLineSet_linestyle_set(PointerRNA *ptr,
@@ -2959,7 +2910,7 @@ static std::optional<std::string> rna_FFmpegSettings_path(const PointerRNA * /*p
 static void rna_FFmpegSettings_codec_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   FFMpegCodecData *codec_data = (FFMpegCodecData *)ptr->data;
-  if (!BKE_ffmpeg_codec_supports_crf(codec_data->codec)) {
+  if (!MOV_codec_supports_crf(codec_data->codec)) {
     /* Constant Rate Factor (CRF) setting is only available for some codecs. Change encoder quality
      * mode to CBR for others. */
     codec_data->constant_rate_factor = FFM_CRF_NONE;
@@ -2972,7 +2923,7 @@ static void rna_FFmpegSettings_codec_update(Main * /*bmain*/, Scene * /*scene*/,
     Scene *scene = (Scene *)ptr->owner_id;
     const int valid_depths = BKE_imtype_valid_depths_with_video(scene->r.im_format.imtype, id);
     if ((scene->r.im_format.depth & valid_depths) == 0) {
-      scene->r.im_format.depth = get_first_valid_depth(valid_depths);
+      scene->r.im_format.depth = BKE_imtype_first_valid_depth(valid_depths);
     }
   }
 }
@@ -3645,14 +3596,6 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       "Snap to Same Target",
       "Snap only to target that source was initially near (\"Face Nearest\" only)");
 
-  /* node editor uses its own set of snap modes */
-  prop = RNA_def_property(srna, "snap_node_element", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_node_mode");
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
-  RNA_def_property_enum_items(prop, rna_enum_snap_node_element_items);
-  RNA_def_property_ui_text(prop, "Snap Node Element", "Type of element to snap to");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
-
   prop = RNA_def_property(srna, "use_snap_anim", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag_anim", SCE_SNAP);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
@@ -4028,6 +3971,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Auto Keying", "Automatic keyframe insertion for objects, bones and masks");
   RNA_def_property_ui_icon(prop, ICON_RECORD_OFF, 1);
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_AUTO, nullptr);
 
   prop = RNA_def_property(srna, "auto_keying_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "autokey_mode");
@@ -4071,6 +4015,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_beztriple_keyframe_type_items);
   RNA_def_property_ui_text(
       prop, "New Keyframe Type", "Type of keyframes to create when inserting keyframes");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
 
   /* UV */
   prop = RNA_def_property(srna, "uv_select_mode", PROP_ENUM, PROP_NONE);
@@ -4106,9 +4051,8 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   /* Mesh */
   prop = RNA_def_property(srna, "mesh_select_mode", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "selectmode", 1);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "selectmode", 1 << 0, 3);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
-  RNA_def_property_array(prop, 3);
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_Scene_editmesh_select_mode_set");
   RNA_def_property_ui_text(prop, "Mesh Selection Mode", "Which mesh elements selection works on");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
@@ -4823,6 +4767,12 @@ static void rna_def_view_layer_lightgroups(BlenderRNA *brna, PropertyRNA *cprop)
   parm = RNA_def_pointer(func, "lightgroup", "Lightgroup", "", "Newly created Lightgroup");
   RNA_def_function_return(func, parm);
   parm = RNA_def_string(func, "name", nullptr, 0, "Name", "Name of newly created lightgroup");
+
+  func = RNA_def_function(srna, "remove", "BKE_view_layer_remove_lightgroup");
+  parm = RNA_def_pointer(func, "lightgroup", "Lightgroup", "", "Lightgroup to remove");
+  RNA_def_function_ui_description(func, "Remove given light group");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
 }
 
 static void rna_def_view_layer_lightgroup(BlenderRNA *brna)
@@ -6439,24 +6389,28 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem ffmpeg_codec_items[] = {
-      {AV_CODEC_ID_NONE, "NONE", 0, "No Video", "Disables video output, for audio-only renders"},
-      {AV_CODEC_ID_AV1, "AV1", 0, "AV1", ""},
-      {AV_CODEC_ID_H264, "H264", 0, "H.264", ""},
-      {AV_CODEC_ID_H265, "H265", 0, "H.265 / HEVC", ""},
-      {AV_CODEC_ID_VP9, "WEBM", 0, "WebM / VP9", ""},
+      {FFMPEG_CODEC_ID_NONE,
+       "NONE",
+       0,
+       "No Video",
+       "Disables video output, for audio-only renders"},
+      {FFMPEG_CODEC_ID_AV1, "AV1", 0, "AV1", ""},
+      {FFMPEG_CODEC_ID_H264, "H264", 0, "H.264", ""},
+      {FFMPEG_CODEC_ID_H265, "H265", 0, "H.265 / HEVC", ""},
+      {FFMPEG_CODEC_ID_VP9, "WEBM", 0, "WebM / VP9", ""},
       /* Legacy / rare codecs. */
       RNA_ENUM_ITEM_SEPR,
-      {AV_CODEC_ID_DNXHD, "DNXHD", 0, "DNxHD", ""},
-      {AV_CODEC_ID_DVVIDEO, "DV", 0, "DV", ""},
-      {AV_CODEC_ID_FFV1, "FFV1", 0, "FFmpeg video codec #1", ""},
-      {AV_CODEC_ID_FLV1, "FLASH", 0, "Flash Video", ""},
-      {AV_CODEC_ID_HUFFYUV, "HUFFYUV", 0, "HuffYUV", ""},
-      {AV_CODEC_ID_MPEG1VIDEO, "MPEG1", 0, "MPEG-1", ""},
-      {AV_CODEC_ID_MPEG2VIDEO, "MPEG2", 0, "MPEG-2", ""},
-      {AV_CODEC_ID_MPEG4, "MPEG4", 0, "MPEG-4 (divx)", ""},
-      {AV_CODEC_ID_PNG, "PNG", 0, "PNG", ""},
-      {AV_CODEC_ID_QTRLE, "QTRLE", 0, "QuickTime Animation", ""},
-      {AV_CODEC_ID_THEORA, "THEORA", 0, "Theora", ""},
+      {FFMPEG_CODEC_ID_DNXHD, "DNXHD", 0, "DNxHD", ""},
+      {FFMPEG_CODEC_ID_DVVIDEO, "DV", 0, "DV", ""},
+      {FFMPEG_CODEC_ID_FFV1, "FFV1", 0, "FFmpeg video codec #1", ""},
+      {FFMPEG_CODEC_ID_FLV1, "FLASH", 0, "Flash Video", ""},
+      {FFMPEG_CODEC_ID_HUFFYUV, "HUFFYUV", 0, "HuffYUV", ""},
+      {FFMPEG_CODEC_ID_MPEG1VIDEO, "MPEG1", 0, "MPEG-1", ""},
+      {FFMPEG_CODEC_ID_MPEG2VIDEO, "MPEG2", 0, "MPEG-2", ""},
+      {FFMPEG_CODEC_ID_MPEG4, "MPEG4", 0, "MPEG-4 (divx)", ""},
+      {FFMPEG_CODEC_ID_PNG, "PNG", 0, "PNG", ""},
+      {FFMPEG_CODEC_ID_QTRLE, "QTRLE", 0, "QuickTime Animation", ""},
+      {FFMPEG_CODEC_ID_THEORA, "THEORA", 0, "Theora", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6491,15 +6445,19 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem ffmpeg_audio_codec_items[] = {
-      {AV_CODEC_ID_NONE, "NONE", 0, "No Audio", "Disables audio output, for video-only renders"},
-      {AV_CODEC_ID_AAC, "AAC", 0, "AAC", ""},
-      {AV_CODEC_ID_AC3, "AC3", 0, "AC3", ""},
-      {AV_CODEC_ID_FLAC, "FLAC", 0, "FLAC", ""},
-      {AV_CODEC_ID_MP2, "MP2", 0, "MP2", ""},
-      {AV_CODEC_ID_MP3, "MP3", 0, "MP3", ""},
-      {AV_CODEC_ID_OPUS, "OPUS", 0, "Opus", ""},
-      {AV_CODEC_ID_PCM_S16LE, "PCM", 0, "PCM", ""},
-      {AV_CODEC_ID_VORBIS, "VORBIS", 0, "Vorbis", ""},
+      {FFMPEG_CODEC_ID_NONE,
+       "NONE",
+       0,
+       "No Audio",
+       "Disables audio output, for video-only renders"},
+      {FFMPEG_CODEC_ID_AAC, "AAC", 0, "AAC", ""},
+      {FFMPEG_CODEC_ID_AC3, "AC3", 0, "AC3", ""},
+      {FFMPEG_CODEC_ID_FLAC, "FLAC", 0, "FLAC", ""},
+      {FFMPEG_CODEC_ID_MP2, "MP2", 0, "MP2", ""},
+      {FFMPEG_CODEC_ID_MP3, "MP3", 0, "MP3", ""},
+      {FFMPEG_CODEC_ID_OPUS, "OPUS", 0, "Opus", ""},
+      {FFMPEG_CODEC_ID_PCM_S16LE, "PCM", 0, "PCM", ""},
+      {FFMPEG_CODEC_ID_VORBIS, "VORBIS", 0, "Vorbis", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 #  endif
@@ -6538,7 +6496,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "codec");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_enum_items(prop, ffmpeg_codec_items);
-  RNA_def_property_enum_default(prop, AV_CODEC_ID_H264);
+  RNA_def_property_enum_default(prop, FFMPEG_CODEC_ID_H264);
   RNA_def_property_ui_text(prop, "Video Codec", "FFmpeg codec to use for video output");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_FFmpegSettings_codec_update");
 
@@ -6796,6 +6754,17 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
        "Auto",
        "Full precision for final renders, half precision otherwise"},
       {SCE_COMPOSITOR_PRECISION_FULL, "FULL", 0, "Full", "Full precision"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem compositor_denoise_quality_items[] = {
+      {SCE_COMPOSITOR_DENOISE_HIGH, "HIGH", 0, "High", "High quality"},
+      {SCE_COMPOSITOR_DENOISE_BALANCED,
+       "BALANCED",
+       0,
+       "Balanced",
+       "Balanced between performance and quality"},
+      {SCE_COMPOSITOR_DENOISE_FAST, "FAST", 0, "Fast", "High perfomance"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7540,10 +7509,24 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       prop, "Compositor Precision", "The precision of compositor intermediate result");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
-  prop = RNA_def_property(srna, "use_new_cpu_compositor", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "use_old_cpu_compositor", 1);
-  RNA_def_property_ui_text(
-      prop, "Use New CPU Compositor", "Use the new CPU compositor implementation");
+  prop = RNA_def_property(srna, "compositor_denoise_preview_quality", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "compositor_denoise_preview_quality");
+  RNA_def_property_enum_items(prop, compositor_denoise_quality_items);
+  RNA_def_property_enum_default(prop, SCE_COMPOSITOR_DENOISE_BALANCED);
+  RNA_def_property_ui_text(prop,
+                           "Compositor Preview Denoise Quality",
+                           "The quality used by denoise nodes during viewport and interactive "
+                           "compositing if the nodes' quality option is set to Follow Scene");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
+
+  prop = RNA_def_property(srna, "compositor_denoise_final_quality", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "compositor_denoise_final_quality");
+  RNA_def_property_enum_items(prop, compositor_denoise_quality_items);
+  RNA_def_property_enum_default(prop, SCE_COMPOSITOR_DENOISE_HIGH);
+  RNA_def_property_ui_text(prop,
+                           "Compositor Final Denoise Quality",
+                           "The quality used by denoise nodes during the compositing of final "
+                           "renders if the nodes' quality option is set to Follow Scene");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
   /* Nestled Data. */
@@ -8661,7 +8644,9 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_boolean_sdna(prop, nullptr, "r.flag", SCER_SHOW_SUBFRAME);
   RNA_def_property_ui_text(
-      prop, "Show Subframe", "Show current scene subframe and allow set it using interface tools");
+      prop,
+      "Show Subframe",
+      "Display and allow setting fractional frame values for the current frame");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, "rna_Scene_show_subframe_update");
 
   /* Timeline / Time Navigation settings */

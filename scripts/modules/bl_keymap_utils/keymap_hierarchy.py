@@ -164,6 +164,14 @@ _km_hierarchy = [
 
     ('Node Editor', 'NODE_EDITOR', 'WINDOW', [
         ('Node Generic', 'NODE_EDITOR', 'WINDOW', []),
+        ('Node Tool: Tweak', 'NODE_EDITOR', 'WINDOW', []),
+        ('Node Tool: Tweak (fallback)', 'NODE_EDITOR', 'WINDOW', []),
+        ('Node Tool: Select Box', 'NODE_EDITOR', 'WINDOW', []),
+        ('Node Tool: Select Box (fallback)', 'NODE_EDITOR', 'WINDOW', []),
+        ('Node Tool: Select Lasso', 'NODE_EDITOR', 'WINDOW', []),
+        ('Node Tool: Select Lasso (fallback)', 'NODE_EDITOR', 'WINDOW', []),
+        ('Node Tool: Select Circle', 'NODE_EDITOR', 'WINDOW', []),
+        ('Node Tool: Select Circle (fallback)', 'NODE_EDITOR', 'WINDOW', []),
     ]),
     ('SequencerCommon', 'SEQUENCE_EDITOR', 'WINDOW', [
         ('Sequencer', 'SEQUENCE_EDITOR', 'WINDOW', [
@@ -223,4 +231,12 @@ _km_hierarchy = [
 
     # Grease Pencil Fill Tool
     ('Fill Tool Modal Map', 'EMPTY', 'WINDOW', []),
+
+    ('Generic Gizmo', 'EMPTY', 'WINDOW', [
+        ('Generic Gizmo Drag', 'EMPTY', 'WINDOW', []),
+        ('Generic Gizmo Click Drag', 'EMPTY', 'WINDOW', []),
+        ('Generic Gizmo Maybe Drag', 'EMPTY', 'WINDOW', []),
+        ('Generic Gizmo Select', 'EMPTY', 'WINDOW', []),
+        ('Generic Gizmo Tweak Modal Map', 'EMPTY', 'WINDOW', []),
+    ]),
 ]

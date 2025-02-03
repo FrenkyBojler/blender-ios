@@ -18,7 +18,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_ACTIVE_CAMERA, "Active Camera", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "GeometryNodeInputActiveCamera", GEO_NODE_INPUT_ACTIVE_CAMERA);
+  ntype.ui_name = "Active Camera";
+  ntype.ui_description = "Retrieve the scene's active camera";
+  ntype.enum_name_legacy = "INPUT_ACTIVE_CAMERA";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.has_context_outputs = true;
   blender::bke::node_register_type(&ntype);

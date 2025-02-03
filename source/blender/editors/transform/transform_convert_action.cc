@@ -6,6 +6,8 @@
  * \ingroup edtransform
  */
 
+#include <algorithm>
+
 #include "DNA_anim_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_mask_types.h"
@@ -855,9 +857,7 @@ static void createTransActionData(bContext *C, TransInfo *t)
               if (gpf_iter->flag & GP_FRAME_SELECT) {
                 if (FrameOnMouseSide(t->frame_side, float(gpf_iter->framenum), cfra)) {
                   int val = abs(gpf->framenum - gpf_iter->framenum);
-                  if (val < min) {
-                    min = val;
-                  }
+                  min = std::min(val, min);
                 }
               }
             }
@@ -920,9 +920,7 @@ static void createTransActionData(bContext *C, TransInfo *t)
                 if (masklay_iter->flag & MASK_SHAPE_SELECT) {
                   if (FrameOnMouseSide(t->frame_side, float(masklay_iter->frame), cfra)) {
                     int val = abs(masklay_shape->frame - masklay_iter->frame);
-                    if (val < min) {
-                      min = val;
-                    }
+                    min = std::min(val, min);
                   }
                 }
               }
@@ -948,11 +946,9 @@ static void createTransActionData(bContext *C, TransInfo *t)
               float min = FLT_MAX;
               for (j = 0, bezt_iter = fcu->bezt; j < fcu->totvert; j++, bezt_iter++) {
                 if (bezt_iter->f2 & SELECT) {
-                  if (FrameOnMouseSide(t->frame_side, float(bezt_iter->vec[1][0]), cfra)) {
+                  if (FrameOnMouseSide(t->frame_side, bezt_iter->vec[1][0], cfra)) {
                     float val = fabs(bezt->vec[1][0] - bezt_iter->vec[1][0]);
-                    if (val < min) {
-                      min = val;
-                    }
+                    min = std::min(val, min);
                   }
                 }
               }
@@ -1034,7 +1030,7 @@ static void recalcData_actedit(TransInfo *t)
 
     transform_convert_flush_handle2D(td, td2d, 0.0f);
 
-    if ((t->state == TRANS_RUNNING) && ((td->flag & TD_GREASE_PENCIL_FRAME) != 0)) {
+    if ((td->flag & TD_GREASE_PENCIL_FRAME) != 0) {
       grease_pencil_layer_update_trans_data(
           *static_cast<blender::bke::greasepencil::Layer *>(td->extra),
           round_fl_to_int(td->ival),
@@ -1077,6 +1073,7 @@ static void recalcData_actedit(TransInfo *t)
         }
         grease_pencil_layer_reset_trans_data(
             *static_cast<blender::bke::greasepencil::Layer *>(ale->data));
+        ANIM_id_update(ale->bmain, ale->id);
       }
       ANIM_animdata_freelist(&anim_data);
     }

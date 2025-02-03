@@ -12,9 +12,16 @@
 
 #include <fmt/format.h>
 
+#include "BLI_string.h"
+
+#include "BLT_translation.hh"
+
 #include "BKE_object.hh"
+
 #include "DEG_depsgraph.hh"
+
 #include "DNA_lightprobe_types.h"
+
 #include "DRW_render.hh"
 
 #include "eevee_ambient_occlusion.hh"
@@ -127,7 +134,7 @@ class Instance {
   const RenderLayer *render_layer;
   RenderEngine *render;
   /** Only available when rendering for viewport. */
-  const DRWView *drw_view;
+  const View *drw_view = nullptr;
   const View3D *v3d;
   const RegionView3D *rv3d;
 
@@ -182,7 +189,7 @@ class Instance {
             Depsgraph *depsgraph,
             Object *camera_object = nullptr,
             const RenderLayer *render_layer = nullptr,
-            const DRWView *drw_view = nullptr,
+            View *drw_view_ = nullptr,
             const View3D *v3d = nullptr,
             const RegionView3D *rv3d = nullptr);
 

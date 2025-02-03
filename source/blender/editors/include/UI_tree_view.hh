@@ -113,7 +113,8 @@ using TreeViewOrItem = TreeViewItemContainer;
 
 class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /* Shared pointer so the pointer can be kept persistent over redraws. The grip button gets a
-   * pointer to modify the value on resizing, and it uses it to identify the button over redraws.*/
+   * pointer to modify the value on resizing, and it uses it to identify the button over redraws.
+   */
   /* TODO support region zoom. */
   std::shared_ptr<int> custom_height_ = nullptr;
   std::shared_ptr<int> scroll_value_ = nullptr;
@@ -424,7 +425,7 @@ class TreeViewBuilder {
 template<class ItemT, typename... Args>
 inline ItemT &TreeViewItemContainer::add_tree_item(Args &&...args)
 {
-  static_assert(std::is_base_of<AbstractTreeViewItem, ItemT>::value,
+  static_assert(std::is_base_of_v<AbstractTreeViewItem, ItemT>,
                 "Type must derive from and implement the AbstractTreeViewItem interface");
 
   return dynamic_cast<ItemT &>(
@@ -433,7 +434,7 @@ inline ItemT &TreeViewItemContainer::add_tree_item(Args &&...args)
 
 template<class ViewType> ViewType &TreeViewItemDropTarget::get_view() const
 {
-  static_assert(std::is_base_of<AbstractTreeView, ViewType>::value,
+  static_assert(std::is_base_of_v<AbstractTreeView, ViewType>,
                 "Type must derive from and implement the ui::AbstractTreeView interface");
   return dynamic_cast<ViewType &>(view_item_.get_tree_view());
 }

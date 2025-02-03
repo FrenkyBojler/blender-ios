@@ -6,6 +6,7 @@
  * \ingroup cmpnodes
  */
 
+#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_vector_types.hh"
@@ -57,19 +58,27 @@ static void node_composit_buts_color_matte(uiLayout *layout, bContext * /*C*/, P
   uiLayout *col;
 
   col = uiLayoutColumn(layout, true);
-  uiItemR(
-      col, ptr, "color_hue", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(col,
+          ptr,
+          "color_hue",
+          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+          std::nullopt,
+          ICON_NONE);
   uiItemR(col,
           ptr,
           "color_saturation",
           UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
-          nullptr,
+          std::nullopt,
           ICON_NONE);
-  uiItemR(
-      col, ptr, "color_value", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(col,
+          ptr,
+          "color_value",
+          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+          std::nullopt,
+          ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 static float get_hue_epsilon(const bNode &node)
 {
@@ -172,7 +181,11 @@ void register_node_type_cmp_color_matte()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_COLOR_MATTE, "Color Key", NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeColorMatte", CMP_NODE_COLOR_MATTE);
+  ntype.ui_name = "Color Key";
+  ntype.ui_description = "Create matte using a given color, for green or blue screen footage";
+  ntype.enum_name_legacy = "COLOR_MATTE";
+  ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_color_matte_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_color_matte;
   ntype.flag |= NODE_PREVIEW;
