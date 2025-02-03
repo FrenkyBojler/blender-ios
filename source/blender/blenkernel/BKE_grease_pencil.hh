@@ -424,6 +424,14 @@ class LayerRuntime {
   /* Runtime data used for frame transformations. */
   LayerTransformData trans_data_;
 
+  /**
+   * The drawing that is visible on this layer for evaluation.
+   *
+   * Note: This is expected to be owned by the Grease Pencil ID. For Drawing references, this
+   * cannot be used.
+   */
+  Drawing *eval_drawing_ = nullptr;
+
  public:
   /* Reset all runtime data. */
   void clear();
@@ -593,6 +601,11 @@ class Layer : public ::GreasePencilLayer {
    */
   StringRefNull view_layer_name() const;
   void set_view_layer_name(const StringRef new_name);
+
+  /**
+   * Return the Drawing for this evaluated layer, e.g. the drawing that's currently visible.
+   */
+  Drawing *get_eval_drawing() const;
 
  private:
   /**

@@ -1048,6 +1048,7 @@ void LayerRuntime::clear()
   sorted_keys_cache_.tag_dirty();
   masks_.clear_and_shrink();
   trans_data_ = {};
+  eval_drawing_ = nullptr;
 }
 
 Layer::Layer()
@@ -1109,6 +1110,7 @@ Layer::Layer(const Layer &other) : Layer()
   /* NOTE: We do not duplicate the frame storage since it is only needed for writing to file. */
   this->runtime->frames_ = other.runtime->frames_;
   this->runtime->sorted_keys_cache_ = other.runtime->sorted_keys_cache_;
+  this->runtime->eval_drawing_ = other.runtime->eval_drawing_;
   /* Tag the frames map, so the frame storage is recreated once the DNA is saved. */
   this->tag_frames_map_changed();
 
@@ -1512,6 +1514,11 @@ void Layer::set_view_layer_name(const StringRef new_name)
   if (!new_name.is_empty()) {
     this->viewlayername = BLI_strdupn(new_name.data(), new_name.size());
   }
+}
+
+Drawing *Layer::get_eval_drawing() const
+{
+  return this->runtime->eval_drawing_;
 }
 
 LayerGroup::LayerGroup()
@@ -2181,6 +2188,19 @@ static void grease_pencil_do_layer_adjustments(GreasePencil &grease_pencil)
   }
 }
 
+static void grease_pencil_evaluate_layers(GreasePencil &grease_pencil)
+{
+  using namespace blender::bke::greasepencil;
+  const int eval_frame = grease_pencil.runtime->eval_frame;
+  /* Cache visible drawings for each layer. */
+  for (Layer *layer : grease_pencil.layers_for_write()) {
+    if (!layer->is_visible()) {
+      continue;
+    }
+    layer->runtime->eval_drawing_ = grease_pencil.get_drawing_at(*layer, eval_frame);
+  }
+}
+
 void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
 {
   using namespace blender;
@@ -2188,10 +2208,11 @@ void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   /* Free any evaluated data and restore original data. */
   BKE_object_free_derived_caches(object);
 
-  /* Evaluate modifiers. */
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
   /* Store the frame that this grease pencil is evaluated on. */
   grease_pencil->runtime->eval_frame = int(DEG_get_ctime(depsgraph));
+  grease_pencil_evaluate_layers(*grease_pencil);
+
   GeometrySet geometry_set = GeometrySet::from_grease_pencil(grease_pencil,
                                                              GeometryOwnershipType::ReadOnly);
   /* The layer adjustments for tinting and radii offsets are applied before modifier evaluation.
@@ -2950,6 +2971,8 @@ void GreasePencil::add_layers_with_empty_drawings_for_eval(const int num)
       GreasePencilFrame *frame = layer.add_frame(this->runtime->eval_frame);
       BLI_assert(frame);
       frame->drawing_index = new_drawing_i;
+      /* FIXME: Find a better place to do this. */
+      layer.runtime->eval_drawing_ = this->get_drawing_at(layer, this->runtime->eval_frame);
     }
   });
 }
@@ -3202,13 +3225,13 @@ blender::bke::greasepencil::Drawing *GreasePencil::get_editable_drawing_at(
 const blender::bke::greasepencil::Drawing *GreasePencil::get_eval_drawing(
     const blender::bke::greasepencil::Layer &layer) const
 {
-  return this->get_drawing_at(layer, this->runtime->eval_frame);
+  return layer.get_eval_drawing();
 }
 
 blender::bke::greasepencil::Drawing *GreasePencil::get_eval_drawing(
     const blender::bke::greasepencil::Layer &layer)
 {
-  return this->get_drawing_at(layer, this->runtime->eval_frame);
+  return layer.get_eval_drawing();
 }
 
 static void transform_positions(const Span<blender::float3> src,
@@ -3248,7 +3271,21 @@ std::optional<blender::Bounds<blender::float3>> GreasePencil::bounds_min_max(con
 
 std::optional<blender::Bounds<blender::float3>> GreasePencil::bounds_min_max_eval() const
 {
-  return this->bounds_min_max(this->runtime->eval_frame);
+  using namespace blender;
+  std::optional<Bounds<float3>> bounds;
+  const Span<const bke::greasepencil::Layer *> layers = this->layers();
+  for (const int layer_i : layers.index_range()) {
+    const bke::greasepencil::Layer &layer = *layers[layer_i];
+    const float4x4 layer_to_object = layer.local_transform();
+    if (const bke::greasepencil::Drawing *drawing = this->get_eval_drawing(layer)) {
+      const bke::CurvesGeometry &curves = drawing->strokes();
+
+      Array<float3> world_pos(curves.evaluated_positions().size());
+      transform_positions(curves.evaluated_positions(), layer_to_object, world_pos);
+      bounds = bounds::merge(bounds, bounds::min_max(world_pos.as_span()));
+    }
+  }
+  return bounds;
 }
 
 void GreasePencil::count_memory(blender::MemoryCounter &memory) const
