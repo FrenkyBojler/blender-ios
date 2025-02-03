@@ -1610,10 +1610,15 @@ static void rna_Action_id_root_set(PointerRNA *ptr, int value)
 
   if (action.slots().is_empty()) {
     /* Ignore the assignment. */
+    printf(
+        "WARNING: ignoring assignment to id_root of Action '%s'. id_root is a legacy API that "
+        "proxies target_id_type in the Action's first slot, but the Action currently has no "
+        "slots.\n",
+        action.id.name);
     return;
   }
 
-  action.slot(0)->idtype = value;
+  action.slot_idtype_define(*action.slot(0), ID_Type(value));
 }
 
 #else
