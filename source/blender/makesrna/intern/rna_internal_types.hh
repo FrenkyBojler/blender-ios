@@ -11,9 +11,10 @@
 #include <optional>
 #include <string>
 
+#include "BLI_map.hh"
+
 #include "DNA_listBase.h"
 
-#include "BLI_map.hh"
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_types.hh"
