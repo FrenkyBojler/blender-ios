@@ -244,7 +244,7 @@ static void do_plane_brush(const Depsgraph &depsgraph,
   pbvh.flush_bounds_to_parents();
 }
 
-}  // namespace flatten_cc
+}  // namespace plane_legacy_cc
 
 void do_flatten_brush(const Depsgraph &depsgraph,
                       const Sculpt &sd,
