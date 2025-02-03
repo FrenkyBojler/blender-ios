@@ -140,9 +140,11 @@ static void create_default_bodies(JPH::BodyInterface &body_interface,
   });
 
   Array<JPH::BodyID> body_ids = get_valid_body_ids(bodies, mask);
-  JPH::BodyInterface::AddState add_state = body_interface.AddBodiesPrepare(body_ids.data(),
-                                                                           body_ids.size());
-  body_interface.AddBodiesFinalize(body_ids.data(), body_ids.size(), add_state, activation);
+  if (!body_ids.is_empty()) {
+    JPH::BodyInterface::AddState add_state = body_interface.AddBodiesPrepare(body_ids.data(),
+                                                                             body_ids.size());
+    body_interface.AddBodiesFinalize(body_ids.data(), body_ids.size(), add_state, activation);
+  }
 }
 
 static void create_default_constraints(const IndexMask &selection,
@@ -658,8 +660,10 @@ void JoltPhysicsWorldData::resize(const int body_num,
     });
     /* Delete unused. */
     Array<JPH::BodyID> body_ids = get_valid_body_ids(bodies_);
-    body_interface.RemoveBodies(body_ids.data(), body_ids.size());
-    body_interface.DestroyBodies(body_ids.data(), body_ids.size());
+    if (!body_ids.is_empty()) {
+      body_interface.RemoveBodies(body_ids.data(), body_ids.size());
+      body_interface.DestroyBodies(body_ids.data(), body_ids.size());
+    }
 
     /* Create new default bodies in empty places. */
     const IndexRange full_range = new_rigid_bodies.index_range();
@@ -856,14 +860,15 @@ void JoltPhysicsWorldData::set_body_shapes(const IndexMask &selection,
 
     const JPH::Shape &jolt_shape = shape->impl();
     JPH::Body *body = this->bodies_[index];
-    /* XXX Jolt bug: triangle shapes always compute zero mass from density,
+    /* XXX Jolt bug: mesh and triangle shapes always compute zero mass from density,
      * updating motion properties will trigger an assert. */
-    const bool update_motion_props = shape->supports_motion() &&
-                                     (shape->type() != CollisionShapeType::Triangle);
+    const bool update_mass_props =
+        shape->supports_motion() &&
+        (!ELEM(shape->type(), CollisionShapeType::Mesh, CollisionShapeType::Triangle));
     const JPH::EActivation body_activation_mode = shape->supports_motion() ?
                                                       activation_mode :
                                                       JPH::EActivation::DontActivate;
-    body_interface.SetShape(body->GetID(), &jolt_shape, update_motion_props, body_activation_mode);
+    body_interface.SetShape(body->GetID(), &jolt_shape, update_mass_props, body_activation_mode);
   });
 }
 
