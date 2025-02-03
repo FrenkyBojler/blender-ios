@@ -958,7 +958,8 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
     /* Copy from struct to derive stuff, a bit clumsy since we can't
      * use #MEM_dupallocN, data structs may not be allocated but builtin. */
     memcpy(srna, srnafrom, sizeof(StructRNA));
-    srna->cont.prop_map = MEM_new<blender::Map<blender::StringRefNull, PropertyRNA *>>(__func__);
+    srna->cont.prop_map =
+        MEM_new<blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter>>(__func__);
     BLI_listbase_clear(&srna->cont.properties);
     BLI_listbase_clear(&srna->functions);
     srna->py_type = nullptr;
@@ -1498,7 +1499,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
     prop->flag_internal |= PROP_INTERN_RUNTIME;
 #ifdef RNA_RUNTIME
     if (cont->prop_map) {
-      cont->prop_map->add(prop->identifier, prop);
+      cont->prop_map->add(prop);
     }
 #endif
   }
@@ -4858,7 +4859,7 @@ void RNA_def_property_duplicate_pointers(StructOrFunctionRNA *cont_, PropertyRNA
   if (prop->identifier) {
     if (cont->prop_map) {
       prop->identifier = BLI_strdup(prop->identifier);
-      cont->prop_map->add(prop->identifier, prop);
+      cont->prop_map->add(prop);
     }
     else {
       prop->identifier = BLI_strdup(prop->identifier);
@@ -5039,7 +5040,7 @@ static void rna_def_property_free(StructOrFunctionRNA *cont_, PropertyRNA *prop)
 
   if (prop->flag_internal & PROP_INTERN_RUNTIME) {
     if (cont->prop_map) {
-      cont->prop_map->remove(prop->identifier);
+      cont->prop_map->remove_as(prop->identifier);
     }
 
     RNA_def_property_free_pointers(prop);

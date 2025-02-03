@@ -86,11 +86,13 @@ void RNA_init()
        srna = static_cast<StructRNA *>(srna->cont.next))
   {
     if (!srna->cont.prop_map) {
-      srna->cont.prop_map = MEM_new<blender::Map<blender::StringRefNull, PropertyRNA *>>(__func__);
+      srna->cont.prop_map =
+          MEM_new<blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter>>(
+              __func__);
 
       LISTBASE_FOREACH (PropertyRNA *, prop, &srna->cont.properties) {
         if (!(prop->flag_internal & PROP_INTERN_BUILTIN)) {
-          srna->cont.prop_map->add(prop->identifier, prop);
+          srna->cont.prop_map->add(prop);
         }
       }
     }

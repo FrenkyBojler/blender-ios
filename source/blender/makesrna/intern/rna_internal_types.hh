@@ -11,7 +11,7 @@
 #include <optional>
 #include <string>
 
-#include "BLI_map.hh"
+#include "BLI_vector_set.hh"
 
 #include "DNA_listBase.h"
 
@@ -289,34 +289,6 @@ struct RNAPropertyOverrideApplyContext {
 };
 using RNAPropOverrideApply = bool (*)(Main *bmain, RNAPropertyOverrideApplyContext &rnaapply_ctx);
 
-/* Container - generic abstracted container of RNA properties */
-struct ContainerRNA {
-  void *next, *prev;
-
-  blender::Map<blender::StringRefNull, PropertyRNA *> *prop_map;
-  ListBase properties;
-};
-
-struct FunctionRNA {
-  /* structs are containers of properties */
-  ContainerRNA cont;
-
-  /* unique identifier, keep after 'cont' */
-  const char *identifier;
-  /* various options */
-  int flag;
-
-  /* single line description, displayed in the tooltip for example */
-  const char *description;
-
-  /* callback to execute the function */
-  CallFunc call;
-
-  /* parameter for the return value
-   * NOTE: this is only the C return value, rna functions can have multiple return values. */
-  PropertyRNA *c_ret;
-};
-
 struct PropertyRNA {
   PropertyRNA *next, *prev;
 
@@ -385,6 +357,41 @@ struct PropertyRNA {
   /* python handle to hold all callbacks
    * (in a pointer array at the moment, may later be a tuple) */
   void *py_data;
+};
+
+struct PropertyRNAIdentifierGetter {
+  blender::StringRef operator()(const PropertyRNA *prop)
+  {
+    return prop->identifier;
+  };
+};
+
+/* Container - generic abstracted container of RNA properties */
+struct ContainerRNA {
+  void *next, *prev;
+
+  blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter> *prop_map;
+  ListBase properties;
+};
+
+struct FunctionRNA {
+  /* structs are containers of properties */
+  ContainerRNA cont;
+
+  /* unique identifier, keep after 'cont' */
+  const char *identifier;
+  /* various options */
+  int flag;
+
+  /* single line description, displayed in the tooltip for example */
+  const char *description;
+
+  /* callback to execute the function */
+  CallFunc call;
+
+  /* parameter for the return value
+   * NOTE: this is only the C return value, rna functions can have multiple return values. */
+  PropertyRNA *c_ret;
 };
 
 /* internal flags WARNING! 16bits only! */

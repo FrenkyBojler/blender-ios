@@ -560,8 +560,8 @@ bool rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Poin
 
   do {
     if (srna->cont.prop_map) {
-      prop = srna->cont.prop_map->lookup_try(key).value_or(nullptr);
-
+      PropertyRNA *const *lookup_prop = srna->cont.prop_map->lookup_key_ptr_as(key);
+      prop = lookup_prop ? *lookup_prop : nullptr;
       if (prop) {
         propptr.type = &RNA_Property;
         propptr.data = prop;
