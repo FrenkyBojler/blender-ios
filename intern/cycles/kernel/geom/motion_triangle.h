@@ -237,8 +237,7 @@ ccl_device_inline float3 motion_triangle_smooth_normal(KernelGlobals kg,
                                                        ccl_private float3 &N_x,
                                                        ccl_private float3 &N_y)
 {
-  int numsteps;
-  int step;
+  int numsteps, step;
   float t;
   uint3 tri_vindex;
   motion_triangle_compute_info(kg, object, time, prim, &tri_vindex, &numsteps, &step, &t);
