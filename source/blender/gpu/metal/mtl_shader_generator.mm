@@ -1299,7 +1299,6 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
     fragment_outputs.append(mtl_frag_out);
   }
 
-
   /* Fragment tile inputs. */
   for (const shader::ShaderCreateInfo::SubpassIn &frag_tile_in : create_info_->subpass_inputs_) {
 
