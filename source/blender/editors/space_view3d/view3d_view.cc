@@ -17,8 +17,10 @@
 
 #include "BKE_action.hh"
 #include "BKE_context.hh"
+#ifdef WITH_XR_OPENXR
+#  include "BKE_idprop.hh"
+#endif
 #include "BKE_global.hh"
-#include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -63,6 +65,8 @@ static int view3d_camera_to_view_exec(bContext *C, wmOperator * /*op*/)
 
   ED_view3d_context_user_region(C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
+
+  ED_view3d_smooth_view_force_finish(C, v3d, region);
 
   ED_view3d_lastview_store(rv3d);
 
@@ -233,6 +237,8 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
   /* no nullptr check is needed, poll checks */
   ED_view3d_context_user_region(C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
+
+  ED_view3d_smooth_view_force_finish(C, v3d, region);
 
   if (ob) {
     Object *camera_old = (rv3d->persp == RV3D_CAMOB) ? V3D_CAMERA_SCENE(scene, v3d) : nullptr;

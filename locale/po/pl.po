@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'9439ff09e962')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'5c1749f7b7d3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-20 09:44+0000\n"
+"POT-Creation-Date: 2025-02-03 14:39+0000\n"
 "PO-Revision-Date: 2024-11-23 15:56+0000\n"
 "Last-Translator: Kacper Madej <cacperkacper@yahoo.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -295,6 +295,10 @@ msgid "Active"
 msgstr "Aktywny"
 
 
+msgid "Show Expanded"
+msgstr "Pokaż rozwinięty"
+
+
 msgctxt "ID"
 msgid "Action"
 msgstr "Akcja"
@@ -488,10 +492,6 @@ msgstr "Obszar roboczy"
 msgctxt "ID"
 msgid "World"
 msgstr "Świat"
-
-
-msgid "Show Expanded"
-msgstr "Pokaż rozwinięty"
 
 
 msgid "Add-on"
@@ -11181,24 +11181,8 @@ msgid "Mask"
 msgstr "Maska"
 
 
-msgid "Local View"
-msgstr "Widok lokalny"
-
-
-msgid "Snap"
-msgstr "Przyciągnij"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proporcjonalne edytowanie spadku"
-
-
-msgid "Face Data"
-msgstr "Dane ściany"
-
-
-msgid "Bone Collections"
-msgstr "Kolekcja kości"
+msgid "Metaball"
+msgstr "Metakula"
 
 
 msgid "Show/Hide"
@@ -11209,68 +11193,84 @@ msgid "Clean Up"
 msgstr "Sprzątanie"
 
 
-msgid "Apply"
-msgstr "Zastosuj"
+msgid "Snap"
+msgstr "Przyciągnij"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proporcjonalne edytowanie spadku"
 
 
 msgid "Mirror"
 msgstr "Odbicie lustrzane"
 
 
-msgid "Assign Material"
-msgstr "Przypisanie materiału"
+msgid "Local View"
+msgstr "Widok lokalny"
 
 
-msgid "Convert"
-msgstr "Konwertuj"
-
-
-msgid "Asset"
-msgstr "Prefabrykat"
-
-
-msgid "Quick Effects"
-msgstr "Szybkie efekty"
-
-
-msgid "Track"
-msgstr "Ścieżka"
-
-
-msgid "Rigid Body"
-msgstr "Bryła sztywna"
-
-
-msgid "Metaball"
-msgstr "Metakula"
-
-
-msgid "Text"
-msgstr "Tekst"
-
-
-msgid "Light Probe"
-msgstr "Sonda świetlna"
-
-
-msgid "Light"
-msgstr "Światło"
-
-
-msgid "Select Linked"
-msgstr "Zaznacz powiązane"
-
-
-msgid "Merge"
-msgstr "Scal"
+msgid "Viewpoint"
+msgstr "Punkt obserwacji"
 
 
 msgid "Navigation"
 msgstr "Nawigacja"
 
 
-msgid "Viewpoint"
-msgstr "Punkt obserwacji"
+msgid "Select Linked"
+msgstr "Zaznacz powiązane"
+
+
+msgid "Assign Material"
+msgstr "Przypisanie materiału"
+
+
+msgid "Light"
+msgstr "Światło"
+
+
+msgid "Light Probe"
+msgstr "Sonda świetlna"
+
+
+msgid "Rigid Body"
+msgstr "Bryła sztywna"
+
+
+msgid "Apply"
+msgstr "Zastosuj"
+
+
+msgid "Track"
+msgstr "Ścieżka"
+
+
+msgid "Quick Effects"
+msgstr "Szybkie efekty"
+
+
+msgid "Asset"
+msgstr "Prefabrykat"
+
+
+msgid "Convert"
+msgstr "Konwertuj"
+
+
+msgid "Bone Collections"
+msgstr "Kolekcja kości"
+
+
+msgid "Face Data"
+msgstr "Dane ściany"
+
+
+msgid "Merge"
+msgstr "Scal"
+
+
+msgid "Text"
+msgstr "Tekst"
 
 
 msgid "Catalog"
@@ -16595,10 +16595,6 @@ msgid "Transform Mode"
 msgstr "Tryb transformacji"
 
 
-msgid "UV Sculpting"
-msgstr "Rzeźbienie UV"
-
-
 msgid "Palette Color"
 msgstr "Kolor palety"
 
@@ -18868,6 +18864,10 @@ msgstr "Sortuj według nazwy"
 
 msgid "Radius of the brush"
 msgstr "Promień pędzla"
+
+
+msgid "UV Sculpting"
+msgstr "Rzeźbienie UV"
 
 
 msgid "Face Orientation"
@@ -22405,6 +22405,10 @@ msgid "Keying Set does not contain any paths"
 msgstr "Zestaw Kluczowania nie zawiera żadnych ścieżek"
 
 
+msgid "Cancel"
+msgstr "Anuluj"
+
+
 msgid "No keyframes to slide between"
 msgstr "Brak klatek kluczowych między którymi można ślizgać"
 
@@ -22565,10 +22569,6 @@ msgstr "Brak aktywnej warstwy Grease Pencil"
 
 msgid "No Grease Pencil frame to draw on"
 msgstr "Brak ramki Grease Pencil, na której można rysować"
-
-
-msgid "Cancel"
-msgstr "Anuluj"
 
 
 msgid "Could not resolve path '%s'"
@@ -24394,14 +24394,6 @@ msgid "Duplicate Current"
 msgstr "Duplikuj bieżący"
 
 
-msgid "ON"
-msgstr "WŁ"
-
-
-msgid "OFF"
-msgstr "WYŁ"
-
-
 msgid "Active group is locked, aborting"
 msgstr "Aktywna grupa jest zablokowana, rezygnuję"
 
@@ -24543,10 +24535,6 @@ msgstr "Aktywna Klatka Kluczowa"
 
 msgid "Action must have at least one keyframe or F-Modifier"
 msgstr "Akcja musi posiadać przynajmniej jedną klatkę kluczową lub modyfikator F"
-
-
-msgid "Action has already been stashed"
-msgstr "Akcja została już przytrzymana (stashed)"
 
 
 msgid "Keyframe pasting is not available for mask mode"
@@ -24699,10 +24687,6 @@ msgstr "Nie zaznaczono plików do otwarcia"
 
 msgid "Cannot read '%s': %s"
 msgstr "Nie udało się odczytać '%s': %s"
-
-
-msgid "Use LMB click to define location where place the marker"
-msgstr "Użyj LPM klik do zdefiniowania pozycji markera"
 
 
 msgid "Delete selected tracks?"
@@ -26531,6 +26515,10 @@ msgid "Collection Masks"
 msgstr "Kolekcja masek"
 
 
+msgid "Levels Viewport"
+msgstr "Poziomy rzutni"
+
+
 msgid "Bake Path"
 msgstr "Wypal ścieżkę"
 
@@ -26541,10 +26529,6 @@ msgstr "Usuń przeliczenie"
 
 msgid "Create Armature"
 msgstr "Utwórz szkielet"
-
-
-msgid "Levels Viewport"
-msgstr "Poziomy rzutni"
 
 
 msgid "VertexWeightEdit"
@@ -27119,6 +27103,14 @@ msgstr "To nie jest biblioteka"
 
 msgid "Nothing indicated"
 msgstr "Nic nie wskazano"
+
+
+msgid "ON"
+msgstr "WŁ"
+
+
+msgid "OFF"
+msgstr "WYŁ"
 
 
 msgid "unsupported format"

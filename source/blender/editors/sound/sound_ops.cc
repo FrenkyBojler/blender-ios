@@ -7,20 +7,19 @@
  */
 
 #include <cstddef>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
@@ -657,7 +656,7 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
       break;
   }
 
-  PointerRNA ptr = RNA_pointer_create(&wm->id, op->type->srna, op->properties);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
   /* main draw call */
   uiDefAutoButsRNA(layout,

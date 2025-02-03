@@ -9,7 +9,6 @@
 #include "DNA_brush_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
-#include "DNA_workspace_types.h"
 
 #include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"
@@ -22,7 +21,6 @@
 #include "BKE_report.hh"
 
 #include "AS_asset_catalog_path.hh"
-#include "AS_asset_catalog_tree.hh"
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
@@ -258,7 +256,11 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
                                                                  PropertyRNA * /*prop*/,
                                                                  bool *r_free)
 {
-  const EnumPropertyItem *items = asset::library_reference_to_rna_enum_itemf(false);
+  const EnumPropertyItem *items = asset::library_reference_to_rna_enum_itemf(
+      /* Only get writable libraries. */
+      /*include_readonly=*/false,
+      /* Saving brushes to the current file isn't working correctly yet. */
+      /*include_current_file=*/false);
   if (!items) {
     *r_free = false;
     return nullptr;
