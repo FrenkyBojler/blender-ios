@@ -221,6 +221,35 @@ class Action : public ::bAction {
   void slot_display_name_set(Main &bmain, Slot &slot, StringRefNull new_display_name);
 
   /**
+   * Set the slot display name (the part of the identifier after the two-letter
+   * ID prefix), and ensure the resulting identifier is unique.
+   *
+   * This has to be done on the Action level to ensure each slot has a unique
+   * identifier within the Action.
+   *
+   * \note This does NOT propagate the resulting slot identifier to the slot's
+   * users.
+   *
+   * \see #Action::slot_display_name_set
+   * \see #Action::slot_identifier_propagate
+   */
+  void slot_display_name_define(Slot &slot, StringRefNull new_display_name);
+
+  /**
+   * Set the slot's target ID type, updating the identifier prefix to match and
+   * ensuring that the resulting identifier is unique.
+   *
+   * This has to be done on the Action level to ensure each slot has a unique
+   * identifier within the Action.
+   *
+   * \note This does NOT propagate the identifier to the slot's users. That is
+   * the caller's responsibility.
+   *
+   * \see #Action::slot_identifier_propagate
+   */
+  void slot_idtype_define(Slot &slot, ID_Type idtype);
+
+  /**
    * Set the slot identifier, ensure it is unique, and propagate the new identifier to
    * all data-blocks that use it.
    *
@@ -325,7 +354,7 @@ class Action : public ::bAction {
    * `slot` must belong to this action, and `to_slot_index` must be a
    * valid index in the slot array.
    */
-  void slot_move(Slot &slot, int to_slot_index);
+  void slot_move_to_index(Slot &slot, int to_slot_index);
 
   /**
    * Set the active Slot, ensuring only one Slot is flagged as the Active one.
@@ -965,11 +994,13 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
    * Should only be called when there is no `Channelbag` for this slot yet.
    */
   Channelbag &channelbag_for_slot_add(const Slot &slot);
+  Channelbag &channelbag_for_slot_add(slot_handle_t slot_handle);
 
   /**
    * Find the channelbag for the given slot, or if none exists, create it.
    */
   Channelbag &channelbag_for_slot_ensure(const Slot &slot);
+  Channelbag &channelbag_for_slot_ensure(slot_handle_t slot_handle);
 
   /**
    * Remove the given channelbag from this strip data.
@@ -1095,7 +1126,7 @@ class Channelbag : public ::ActionChannelbag {
    *
    * \see fcurve_remove
    */
-  void fcurve_remove_by_index(int64_t fcurve_array_index);
+  void fcurve_remove_by_index(int64_t fcurve_index);
 
   /**
    * Detach an F-Curve from the Channelbag.
@@ -1131,7 +1162,7 @@ class Channelbag : public ::ActionChannelbag {
    * `fcurve` must belong to this channel bag, and `to_fcurve_index` must be a
    * valid index in the fcurve array.
    */
-  void fcurve_move(FCurve &fcurve, int to_fcurve_index);
+  void fcurve_move_to_index(FCurve &fcurve, int to_fcurve_index);
 
   /**
    * Remove all F-Curves from this Channelbag.
@@ -1211,7 +1242,7 @@ class Channelbag : public ::ActionChannelbag {
    * `group` must belong to this channel bag, and `to_group_index` must be a
    * valid index in the channel group array.
    */
-  void channel_group_move(bActionGroup &group, int to_group_index);
+  void channel_group_move_to_index(bActionGroup &group, int to_group_index);
 
   /**
    * Assigns the given FCurve to the given channel group.
