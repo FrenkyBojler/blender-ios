@@ -308,102 +308,6 @@ static Vector<IndexRange> extend_and_merge(const Span<IndexRange> ranges,
   return out;
 }
 
-static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
-                                         const IndexRange points,
-                                         const int curve,
-                                         const VArray<bool> cyclic,
-                                         Vector<int> &r_new_curve_offsets,
-                                         Vector<bool> &r_new_cyclic,
-                                         Vector<IndexRange> &r_src_ranges,
-                                         Vector<int> &r_dst_offsets,
-                                         Vector<int> &r_curve_map)
-{
-  IndexRange rolled_range;
-  int dropped_front_ranges = 0;
-
-  if (cyclic[curve] && selected_points.first().size() < points.size()) {
-    const IndexRange first_range = selected_points.first();
-    const IndexRange last_range = selected_points.last();
-
-    if (first_range.first() == points.first() && last_range.last() == points.last()) {
-      rolled_range = selected_points.first();
-      dropped_front_ranges = 1;
-    }
-  }
-
-  for (const IndexRange range : selected_points.drop_front(dropped_front_ranges)) {
-    r_src_ranges.append(range);
-    r_dst_offsets.append(r_dst_offsets.last() + range.size());
-    r_new_curve_offsets.append(r_new_curve_offsets.last() + range.size());
-  };
-  if (!rolled_range.is_empty()) {
-    r_src_ranges.append(rolled_range);
-    r_dst_offsets.append(r_dst_offsets.last() + rolled_range.size());
-    r_new_curve_offsets.last() += rolled_range.size();
-  }
-  const int curves_added = selected_points.size() - dropped_front_ranges;
-  r_curve_map.append_n_times(curve, curves_added);
-  r_new_cyclic.append_n_times(cyclic[curve] && selected_points.first().size() == points.size() &&
-                                  rolled_range.size() == 0,
-                              curves_added);
-}
-
-static void foreach_mask_content_slice_by_offsets(
-    const IndexMask &mask,
-    const OffsetIndices<int> offset_indices,
-    FunctionRef<void(Span<IndexRange> selected_points, IndexRange range_points, int range_index)>
-        fn)
-{
-  Vector<IndexRange> ranges;
-
-  int current_offset = 0;
-
-  mask.foreach_range([&](const IndexRange range) {
-    IndexRange points = offset_indices[current_offset];
-
-    if (range.first() > points.last()) {
-      if (!ranges.is_empty()) {
-        fn(ranges, points, current_offset++);
-        points = offset_indices[current_offset];
-        ranges.clear();
-      }
-      while (range.first() > points.last()) {
-        points = offset_indices[++current_offset];
-      }
-    }
-
-    IndexRange intersect = points.intersect(range);
-    ranges.append(intersect);
-    IndexRange range_to_handle = range.drop_front(intersect.size());
-
-    while (!range_to_handle.is_empty()) {
-      fn(ranges, points, current_offset++);
-      points = offset_indices[current_offset];
-      ranges.clear();
-      intersect = points.intersect(range_to_handle);
-      ranges.append(intersect);
-      range_to_handle = range_to_handle.drop_front(intersect.size());
-    };
-  });
-
-  if (!ranges.is_empty()) {
-    fn(ranges, offset_indices[current_offset], current_offset);
-  }
-}
-
-static void gather_group_to_group(const Span<IndexRange> src_ranges,
-                                  const OffsetIndices<int> dst_offsets,
-                                  const GSpan src,
-                                  GMutableSpan dst)
-{
-  threading::parallel_for(
-      src_ranges.index_range(), GrainSize(512).value, [&](const IndexRange range) {
-        for (const int i : range) {
-          dst.slice(dst_offsets[i]).copy_from(src.slice(src_ranges[i]));
-        }
-      });
-}
-
 Array<IndexRange> invert_ranges(IndexRange universe, Span<IndexRange> ranges)
 {
   const bool contains_first = ranges.first().first() == universe.first();
@@ -439,7 +343,7 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
 
   /* Appends offsets of non selected points, to copy them into sliced existing curves. Their ranges
    * have to be extended to left and right to include edge points of selection ranges. */
-  foreach_mask_content_slice_by_offsets(
+  foreach_content_slice_by_offsets(
       points_to_split.complement(curves.points_range(), memory),
       points_by_curve,
       [&](const Span<IndexRange> curve_points_to_preserve,
@@ -463,7 +367,7 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
   const int non_selected_curve_num = new_offsets.size() - 1;
 
   /* Appends offsets of selected points, those will be copied into newly appended curves. */
-  foreach_mask_content_slice_by_offsets(
+  foreach_content_slice_by_offsets(
       points_to_split,
       points_by_curve,
       [&](const Span<IndexRange> curve_points_to_split, const IndexRange points, const int curve) {
@@ -500,7 +404,7 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
            bke::attribute_filter_from_skip_ref(
                ed::curves::get_curves_selection_attribute_names(curves))))
   {
-    gather_group_to_group(
+    bke::attribute_math::gather_ranges_to_groups(
         src_ranges.as_span(), dst_offsets.as_span(), attribute.src, attribute.dst.span);
     attribute.dst.finish();
   };
