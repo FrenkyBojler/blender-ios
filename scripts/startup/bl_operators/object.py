@@ -220,7 +220,7 @@ class SubdivisionSet(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     level: IntProperty(
-        name="Viewport Level",
+        name="Level",
         min=-100, max=100,
         soft_min=-6, soft_max=6,
         default=1,
@@ -266,8 +266,8 @@ class SubdivisionSet(Operator):
                         elif obj.mode == 'OBJECT':
                             if mod.levels != level:
                                 mod.levels = level
-                                if match_render:
-                                    mod.render_levels = level
+                            if match_render and mod.render_levels != level:
+                                mod.render_levels = level
                         return
                     else:
                         if obj.mode == 'SCULPT':
@@ -276,8 +276,8 @@ class SubdivisionSet(Operator):
                         elif obj.mode == 'OBJECT':
                             if mod.levels + level <= mod.total_levels:
                                 mod.levels += level
-                                if match_render:
-                                    mod.render_levels += level
+                            if match_render and mod.render_levels + level <= mod.total_levels:
+                                mod.render_levels += level
                         return
 
                 elif mod.type == 'SUBSURF':
@@ -288,8 +288,8 @@ class SubdivisionSet(Operator):
                     else:
                         if mod.levels != level:
                             mod.levels = level
-                            if match_render:
-                                mod.render_levels = level
+                        if match_render and mod.render_levels != level:
+                            mod.render_levels = level
 
                     return
 
