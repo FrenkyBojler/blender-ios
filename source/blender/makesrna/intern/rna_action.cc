@@ -341,20 +341,23 @@ static void rna_ActionSlot_identifier_set(PointerRNA *ptr, const char *identifie
   }
 
   if (slot.has_idtype()) {
-    /* Check if the new identifier is going to be compatible with the already-established ID type.
-     */
+    /* Check if the new identifier would change the type prefix, and if so issue
+     * a warning that that part of the rename will be ignored. */
     const std::string expect_prefix = slot.identifier_prefix_for_idtype();
 
     if (!identifier_ref.startswith(expect_prefix)) {
       const std::string new_prefix = identifier_ref.substr(0, 2);
       WM_reportf(RPT_WARNING,
-                 "Action slot identifier set with unexpected prefix \"%s\" (expected \"%s\").\n",
-                 new_prefix.c_str(),
-                 expect_prefix.c_str());
+                 "Slot identifier set, but the type prefix part of the change (from \"%s\" to "
+                 "\"%s\") has been ignored.\n",
+                 expect_prefix.c_str(),
+                 new_prefix.c_str());
     }
   }
 
-  action.slot_identifier_define(slot, identifier);
+  /* Set just the name part of the identifier, ignoring the two-character type
+   * prefix. */
+  action.slot_display_name_define(slot, identifier + 2);
 }
 
 static void rna_ActionSlot_identifier_update(Main *bmain, Scene *, PointerRNA *ptr)
