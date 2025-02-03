@@ -733,9 +733,6 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
   set(HIPRT_COMPILER_PARALLEL_JOBS 1 CACHE STRING "Number of parallel compiler instances to use for HIP-RT kernels")
   mark_as_advanced(HIPRT_COMPILER_PARALLEL_JOBS)
 
-  set(bvh_file ${CMAKE_CURRENT_BINARY_DIR}/hiprt${HIPRT_VERSION}_${HIP_VERSION_SHORT}_amd.hipfb)
-  set(bvh_file_oro ${CMAKE_CURRENT_BINARY_DIR}/oro_compiled_kernels.hipfb)
-
   if(WIN32)
     set(hiprt_compile_command ${CMAKE_COMMAND})
     set(hiprt_compile_flags
@@ -745,10 +742,6 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     set(hiprt_compile_command ${HIP_HIPCC_EXECUTABLE})
     set(hiprt_compile_flags)
   endif()
-  set(target_gpus)
-  foreach(arch ${CYCLES_HIP_BINARIES_ARCH})
-    list(APPEND target_gpus "--offload-arch=${arch}")
-  endforeach()
 
   if(WITH_NANOVDB)
     set(hiprt_compile_flags ${hiprt_compile_flags} -D WITH_NANOVDB)
@@ -769,17 +762,12 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     ${SRC_UTIL_HEADERS}
   )
 
-  set(hiprt_file ${CMAKE_CURRENT_BINARY_DIR}/kernel_rt_gfx.hipfb)
-  set(hiprt_file_compressed ${hiprt_file}.zst)
   set(kernel_sources ${hiprt_sources})
   set(hiprt_kernel_src "/device/hiprt/kernel.cpp")
-
   set(hiprt_compile_flags
     ${hiprt_compile_flags}
-    ${target_gpus}
     ${HIP_HIPCC_FLAGS}
     ${CMAKE_CURRENT_SOURCE_DIR}${hiprt_kernel_src}
-    ${flags}
     -D CCL_NAMESPACE_BEGIN=
     -D CCL_NAMESPACE_END=
     -D HIPCC
@@ -797,24 +785,32 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     -Wno-parentheses-equality
     -Wno-unused-value
     -ffast-math
-    -o ${hiprt_file}
   )
 
-  add_custom_command(
-    OUTPUT  ${hiprt_file}
-    COMMAND ${hiprt_compile_command} ${hiprt_compile_flags}
-    DEPENDS ${kernel_sources}
-  )
+  set(hiprt_hipfb)
+  foreach(arch ${CYCLES_HIP_BINARIES_ARCH})
+    set(hiprt_file ${CMAKE_CURRENT_BINARY_DIR}/kernel_rt_${arch}.hipfb)
+    set(hiprt_file_compressed ${hiprt_file}.zst)
+    set(hiprt_flags
+    ${hiprt_compile_flags}
+    --offload-arch=${arch}
+    -o ${hiprt_file})
 
-  add_custom_command(
-    OUTPUT ${hiprt_file_compressed}
-    COMMAND "$<TARGET_FILE:zstd_compress>" ${hiprt_file} ${hiprt_file_compressed}
-    DEPENDS ${hiprt_file}
-  )
-  delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${hiprt_file_compressed}" ${CYCLES_INSTALL_PATH}/lib)
+    add_custom_command(
+      OUTPUT  ${hiprt_file}
+      COMMAND ${hiprt_compile_command} ${hiprt_flags}
+      DEPENDS ${kernel_sources}
+    )
+    add_custom_command(
+      OUTPUT ${hiprt_file_compressed}
+      COMMAND "$<TARGET_FILE:zstd_compress>" ${hiprt_file} ${hiprt_file_compressed}
+      DEPENDS ${hiprt_file}
+    )
+    delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${hiprt_file_compressed}" ${CYCLES_INSTALL_PATH}/lib)
+    list(APPEND hiprt_hipfb ${hiprt_file_compressed})
+  endforeach()
 
-
-  add_custom_target(cycles_kernel_hiprt ALL DEPENDS ${hiprt_file_compressed} ${bvh_file} ${bvh_file_oro})
+  add_custom_target(cycles_kernel_hiprt ALL DEPENDS ${hiprt_hipfb})
   cycles_set_solution_folder(cycles_kernel_hiprt)
 endif()
 
