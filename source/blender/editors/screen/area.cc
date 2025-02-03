@@ -6,6 +6,7 @@
  * \ingroup edscr
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 
@@ -606,7 +607,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
     {
       SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
 
-      PointerRNA ptr = RNA_pointer_create(&screen->id, &RNA_Space, sl);
+      PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Space, sl);
 
       /* All properties for this space type. */
       wmMsgSubscribeValue msg_sub_value_region_tag_redraw{};
@@ -2775,7 +2776,7 @@ int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco)
   bScreen *screen = CTX_wm_screen(C);
   int xco = 0.4 * U.widget_unit;
 
-  PointerRNA areaptr = RNA_pointer_create(&(screen->id), &RNA_Area, area);
+  PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), &RNA_Area, area);
 
   uiDefButR(block,
             UI_BTYPE_MENU,
@@ -3573,17 +3574,13 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
 
       /* for view2d */
       xco = uiLayoutGetWidth(layout);
-      if (xco > maxco) {
-        maxco = xco;
-      }
+      maxco = std::max(xco, maxco);
     }
 
     UI_block_layout_resolve(block, &xco, &yco);
 
     /* for view2d */
-    if (xco > maxco) {
-      maxco = xco;
-    }
+    maxco = std::max(xco, maxco);
 
     int new_sizex = (maxco + UI_HEADER_OFFSET) / UI_SCALE_FAC;
 

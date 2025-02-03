@@ -8,7 +8,6 @@
 
 #include <sstream>
 
-#include "BKE_customdata.hh"
 #include "BKE_geometry_nodes_bundle.hh"
 #include "BKE_geometry_nodes_closure.hh"
 #include "BKE_node.hh"
