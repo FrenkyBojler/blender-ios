@@ -347,7 +347,6 @@ static void rna_ActionSlot_identifier_set(PointerRNA *ptr, const char *identifie
                                                      identifier_ref.substr(2);
 
   if (identifier_with_correct_prefix != identifier_ref) {
-    const std::string attemped_prefix = identifier_ref.substr(0, 2);
     WM_reportf(RPT_WARNING,
                "Attempted to set slot identifier to \"%s\", but the type prefix doesn't match the "
                "slot's 'target_id_type' \"%s\". Setting to \"%s\" instead.\n",
