@@ -362,7 +362,7 @@ static void store_result_mesh_sculpt_mode(const wmOperator &op,
       }
 
       pbvh.tag_positions_changed(leaf_nodes);
-      bke::pbvh::update_bounds(depsgraph, object, pbvh);
+      pbvh.update_bounds(depsgraph, object);
       if (use_pbvh_draw) {
         mesh.tag_positions_changed_no_normals();
         mesh.runtime->corner_normals_cache.tag_dirty();
