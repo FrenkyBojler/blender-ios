@@ -61,8 +61,8 @@ class Wireframe : Overlay {
     const bool is_transform = (G.moving & G_TRANSFORM_OBJ) != 0;
     const float wire_threshold = wire_discard_threshold_get(state.overlay.wireframe_threshold);
 
-    GPUTexture **depth_tex = (state.xray_enabled) ? &res.depth_tx : &tmp_depth_tx_;
-    if (is_selection) {
+    GPUTexture **depth_tex = &res.depth_tx;
+    if (is_selection || state.xray_enabled) {
       depth_tex = &res.dummy_depth_tx;
     }
 

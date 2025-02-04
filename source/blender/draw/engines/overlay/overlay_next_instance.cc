@@ -728,7 +728,9 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
     return true;
   }
 
-  if (in_paint_mode) {
+  if (in_paint_mode && ((state.is_solid() && ob_ref.object->dt >= OB_SOLID) ||
+                        (ob_ref.object->mode & OB_MODE_ALL_WEIGHT_PAINT)))
+  {
     /* Allow paint overlays to draw with depth equal test. */
     return object_is_rendered_transparent(ob_ref.object, state);
   }
@@ -747,7 +749,7 @@ bool Instance::object_is_rendered_transparent(const Object *object, const State 
     return false;
   }
 
-  if (state.xray_enabled) {
+  if (!state.is_solid()) {
     return true;
   }
 
