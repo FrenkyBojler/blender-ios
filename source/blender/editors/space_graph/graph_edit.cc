@@ -495,27 +495,7 @@ static eKeyPasteError paste_graph_keys(bAnimContext *ac,
                                        const eKeyMergeMode merge_mode,
                                        const bool flip)
 {
-  ListBase anim_data = {nullptr, nullptr};
-  int filter;
-
-  /* Filter data
-   * - First time we try to filter more strictly, allowing only selected channels
-   *   to allow copying animation between channels
-   * - Second time, we loosen things up if nothing was found the first time, allowing
-   *   users to just paste keyframes back into the original curve again #31670.
-   */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FCURVESONLY |
-            ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
-
-  if (ANIM_animdata_filter(ac,
-                           &anim_data,
-                           eAnimFilter_Flags(filter | ANIMFILTER_SEL),
-                           ac->data,
-                           eAnimCont_Types(ac->datatype)) == 0)
-  {
-    ANIM_animdata_filter(
-        ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
-  }
+  /* TODO: deduplicate this function and `paste_action_keys()` in `action_edit.cc`, */
 
   /* Determine paste options. */
   KeyframePasteOptions options{};
@@ -523,6 +503,25 @@ static eKeyPasteError paste_graph_keys(bAnimContext *ac,
   options.value_offset_mode = value_offset_mode;
   options.merge_mode = merge_mode;
   options.flip = flip;
+  options.num_slots_selected = 0; /* Graph editor doesn't show slots. */
+
+  /* Find F-Curves to paste into, in two stages.
+   * - First time we try to filter more strictly, allowing only selected channels
+   *   to allow copying animation between channels
+   * - Second time, we loosen things up if nothing was found the first time, allowing
+   *   users to just paste keyframes back into the original curve again #31670.
+   */
+  ListBase anim_data = {nullptr, nullptr};
+  {
+    const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                                     ANIMFILTER_FOREDIT | ANIMFILTER_FCURVESONLY |
+                                     ANIMFILTER_NODUPLIS;
+    options.num_fcurves_selected = ANIM_animdata_filter(
+        ac, &anim_data, filter | ANIMFILTER_SEL, ac->data, ac->datatype);
+    if (options.num_fcurves_selected == 0) {
+      ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+    }
+  }
 
   /* Paste keyframes. */
   const eKeyPasteError ok = paste_animedit_keys(ac, &anim_data, options);

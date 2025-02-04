@@ -538,6 +538,9 @@ static eKeyPasteError paste_action_keys(bAnimContext *ac,
                                         const eKeyMergeMode merge_mode,
                                         bool flip)
 {
+  /* TODO: deduplicate this function and `paste_graph_keys()` in `graph_edit.cc`, */
+
+  /* Determine paste options. */
   KeyframePasteOptions options{};
   options.offset_mode = offset_mode;
   /* Value offset is always None because the user cannot see the effect of it. */
@@ -562,8 +565,7 @@ static eKeyPasteError paste_action_keys(bAnimContext *ac,
     ANIM_animdata_freelist(&anim_data);
   }
 
-  /* Find F-Curves to paste into.
-   * This is done in two stages.
+  /* Find F-Curves to paste into, in two stages.
    * - First time we try to filter more strictly, allowing only selected channels
    *   to allow copying animation between channels
    * - Second time, we loosen things up if nothing was found the first time, allowing
