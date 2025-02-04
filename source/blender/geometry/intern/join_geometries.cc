@@ -9,6 +9,7 @@
 #include "GEO_join_geometries.hh"
 #include "GEO_realize_instances.hh"
 
+#include "BKE_customdata.hh"
 #include "BKE_instances.hh"
 
 namespace blender::geometry {
@@ -109,11 +110,62 @@ static void join_instances(const Span<const GeometryComponent *> src_components,
   }
   join_attributes(all_attributes.as_span(),
                   get_final_attribute_types(
-                      all_attributes,
+                      all_attributes.as_span(),
                       bke::attribute_filter_with_skip_ref(attribute_filter, {".reference_index"})),
                   bke::AttrDomain::Instance,
                   bke::AttrDomain::Instance,
                   *dst_component.attributes_for_write());
+}
+
+void join_instances_into(const bke::AttributeFilter &attribute_filter, const Span<const bke::Instances *> other_instances, bke::Instances &target)
+{
+  /* Use it instead of just CustomData copy in order to be able to create AttributeAccessor. */
+  const bke::Instances dummy_attributes_owner = target;
+
+  constexpr int target_item = 1;
+  constexpr int extra_offset = 1;
+  Array<int> offsets_data(target_item + other_instances.size() + extra_offset);
+  offsets_data.first() = target.instances_num();
+  for (const int i : other_instances.index_range()) {
+    offsets_data[target_item + i] = other_instances[i]->instances_num();
+  }
+  const OffsetIndices offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
+
+  CustomData_free(&target.custom_data_attributes(), target.instances_num());
+  CustomData_reset(&target.custom_data_attributes());
+  target.resize(offsets.total_size());
+
+  Array<bke::AttributeAccessor> all_attributes(target_item + other_instances.size());
+  all_attributes.first() = dummy_attributes_owner.attributes();
+  for (const int i : other_instances.index_range()) {
+    all_attributes[target_item + i] = other_instances[i]->attributes();
+  }
+  join_attributes(all_attributes.as_span(),
+                  get_final_attribute_types(
+                      all_attributes,
+                      bke::attribute_filter_with_skip_ref(attribute_filter, {".reference_index"})),
+                  bke::AttrDomain::Instance,
+                  bke::AttrDomain::Instance,
+                  target.attributes_for_write());
+
+  MutableSpan<int> all_new_handles = target.reference_handles_for_write();
+
+  Map<std::reference_wrapper<const bke::InstanceReference>, int> new_handle_by_src_reference;
+
+  for (const int i : other_instances.index_range()) {
+    const bke::Instances &src_instances = *other_instances[i];
+    /* After this extraction original instances will not be valid in mean they will contains just a lot of null references. Simply kill them all here instead of keep outside of the function. */
+    const Span<bke::InstanceReference> src_references = src_instances.references();
+    Array<int> handle_map(src_references.size());
+    for (const int src_handle : src_references.index_range()) {
+      const bke::InstanceReference &src_reference = src_references[src_handle];
+      handle_map[src_handle] = new_handle_by_src_reference.lookup_or_add_cb(
+          src_reference, [&]() { return target.add_new_reference(src_reference); });
+    }
+
+    const Span<int> src_handles = src_instances.reference_handles();
+    array_utils::gather(handle_map.as_span(), src_handles, all_new_handles.slice(offsets[target_item + i]));
+  }
 }
 
 static void join_volumes(const Span<const GeometryComponent *> /*src_components*/,

@@ -261,12 +261,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                            bke::AttrDomain::Instance,
                            attribute_filter,
                            instances->attributes_for_write());
-      GeometrySet new_instances = geometry::join_geometries(
-          {GeometrySet::from_instances(dst_instances, bke::GeometryOwnershipType::Editable),
-           GeometrySet::from_instances(instances)},
-          attribute_filter);
-      instances_component.replace(
-          new_instances.get_component_for_write<InstancesComponent>().release());
+
+      geometry::join_instances_into(attribute_filter, {instances}, *dst_instances);
 
       geometry_set.replace_grease_pencil(nullptr);
     }
