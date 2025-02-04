@@ -30,16 +30,13 @@ Slot &slot_ensure(Action &action)
 {
   assert_baklava_phase_1_invariants(action);
 
-  Slot *slot;
-  if (action.slots().is_empty()) {
-    slot = &action.slot_add();
-    action.slot_display_name_define(*slot, DATA_(DEFAULT_LEGACY_SLOT_NAME));
-  }
-  else {
-    slot = action.slot(0);
+  if (!action.slots().is_empty()) {
+    return *action.slot(0);
   }
 
-  return *slot;
+  Slot &slot = action.slot_add();
+  action.slot_display_name_define(slot, DATA_(DEFAULT_LEGACY_SLOT_NAME));
+  return slot;
 }
 
 Channelbag *channelbag_get(Action &action)
