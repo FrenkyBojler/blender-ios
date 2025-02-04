@@ -940,6 +940,11 @@ MaterialGPencilStyle *BKE_gpencil_material_settings(Object *ob, short act)
 
 void BKE_object_material_resize(Main *bmain, Object *ob, const short totcol, bool do_id_user)
 {
+  if (totcol == ob->totcol) {
+    /* Prevent depsgraph update and relations tag when nothing changed. */
+    return;
+  }
+
   Material **newmatar;
   char *newmatbits;
 
@@ -1288,9 +1293,7 @@ void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *
       id_us_plus(&material_orig->id);
     }
   }
-  if (*eval_totcol != *orig_totcol) {
-    BKE_object_materials_sync_length(bmain, ob_orig, data_orig);
-  }
+  BKE_object_materials_sync_length(bmain, ob_orig, data_orig);
 }
 
 void BKE_object_material_array_assign(
