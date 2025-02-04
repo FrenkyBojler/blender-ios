@@ -809,7 +809,7 @@ class Slot : public ::ActionSlot {
   static_assert(sizeof(NlaStrip::last_slot_identifier) == identifier_length_max);
 
   /**
-   * Return a string that represents 'idtype'.
+   * Return a string that represents the Slot's 'idtype'.
    *
    * E.g "OB" for object, "CA" for camera, etc.
    *
