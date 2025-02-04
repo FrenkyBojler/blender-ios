@@ -34,7 +34,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_iterators.hh"
 #include "BKE_mesh_runtime.hh"
@@ -685,7 +685,7 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
   ob->totcol = mesh->totcol = totcol;
 
   /* other mesh users */
-  BKE_objects_materials_test_all(bmain, (ID *)mesh);
+  BKE_objects_materials_sync_length_all(bmain, (ID *)mesh);
 
   /* Free temporary copy of destination shape-keys (if applicable). */
   if (nkey) {

@@ -6,6 +6,7 @@
  * \ingroup edinterface
  */
 
+#include <algorithm>
 #include <cctype>
 #include <cfloat>
 #include <climits>
@@ -22,7 +23,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -374,9 +374,7 @@ static void ui_block_bounds_calc_text(uiBlock *block, float offset)
     if (!ELEM(bt->type, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE, UI_BTYPE_SEPR_SPACER)) {
       j = BLF_width(style->widget.uifont_id, bt->drawstr.c_str(), bt->drawstr.size());
 
-      if (j > i) {
-        i = j;
-      }
+      i = std::max(j, i);
     }
 
     /* Skip all buttons that are in a horizontal alignment group.
@@ -390,9 +388,7 @@ static void ui_block_bounds_calc_text(uiBlock *block, float offset)
         col_bt->rect.xmin += x1addval;
         col_bt->rect.xmax += x1addval;
       }
-      if (width > i) {
-        i = width;
-      }
+      i = std::max(width, i);
       /* Give the following code the last button in the alignment group, there might have to be a
        * split immediately after. */
       bt = col_bt ? col_bt->prev : nullptr;
@@ -1164,6 +1160,9 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
                 UI_BTYPE_MENU,
                 UI_BTYPE_BLOCK,
                 UI_BTYPE_PULLDOWN,
+                UI_BTYPE_ICON_TOGGLE,
+                UI_BTYPE_ICON_TOGGLE_N,
+
                 /* For PIE-menus. */
                 UI_BTYPE_ROW) ||
           (but->flag & UI_HIDDEN))
@@ -2951,7 +2950,8 @@ void ui_but_string_get_ex(uiBut *but,
 
       /* uiBut.custom_data points to data this tab represents (e.g. workspace).
        * uiBut.rnapoin/prop store an active value (e.g. active workspace). */
-      PointerRNA ptr = RNA_pointer_create(but->rnapoin.owner_id, ptr_type, but->custom_data);
+      PointerRNA ptr = RNA_pointer_create_discrete(
+          but->rnapoin.owner_id, ptr_type, but->custom_data);
       buf = RNA_struct_name_get_alloc(&ptr, str, str_maxncpy, &buf_len);
     }
     else if (type == PROP_STRING) {
@@ -3263,9 +3263,10 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
           RNA_property_pointer_set(&but->rnapoin, but->rnaprop, rptr, nullptr);
         }
         else if (search_but && search_but->item_active != nullptr) {
-          rptr = RNA_pointer_create(nullptr,
-                                    RNA_property_pointer_type(&but->rnapoin, but->rnaprop),
-                                    search_but->item_active);
+          rptr = RNA_pointer_create_discrete(
+              nullptr,
+              RNA_property_pointer_type(&but->rnapoin, but->rnaprop),
+              search_but->item_active);
           RNA_property_pointer_set(&but->rnapoin, but->rnaprop, rptr, nullptr);
         }
 
@@ -3295,7 +3296,8 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
 
       /* uiBut.custom_data points to data this tab represents (e.g. workspace).
        * uiBut.rnapoin/prop store an active value (e.g. active workspace). */
-      PointerRNA ptr = RNA_pointer_create(but->rnapoin.owner_id, ptr_type, but->custom_data);
+      PointerRNA ptr = RNA_pointer_create_discrete(
+          but->rnapoin.owner_id, ptr_type, but->custom_data);
       prop = RNA_struct_name_property(ptr_type);
       if (RNA_property_editable(&ptr, prop)) {
         RNA_property_string_set(&ptr, prop, str);
@@ -3481,9 +3483,7 @@ void ui_but_range_set_soft(uiBut *but)
         softmin = soft_range_round_down(value_min, softmin);
       }
 
-      if (softmin < double(but->hardmin)) {
-        softmin = double(but->hardmin);
-      }
+      softmin = std::max(softmin, double(but->hardmin));
     }
     if (value_max - 1e-10 > softmax) {
       if (value_max < 0.0) {
@@ -4475,9 +4475,10 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   int rows = 0;
 
   const wmWindow *win = CTX_wm_window(C);
-  const int row_height = int(float(UI_UNIT_Y) / but->block->aspect);
+  const float row_height = float(UI_UNIT_Y) / but->block->aspect;
   /* Calculate max_rows from how many rows can fit in this window. */
-  const int max_rows = (win->sizey - (4 * row_height)) / row_height;
+  const float vertical_space = (float(WM_window_native_pixel_y(win)) / 2.0f) - (UI_UNIT_Y * 3.0f);
+  const int max_rows = int(vertical_space / row_height) - 1;
   float text_width = 0.0f;
 
   BLF_size(BLF_default(), UI_style_get()->widget.points * UI_SCALE_FAC);
@@ -4511,10 +4512,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
 
   /* Wrap long single-column lists. */
   if (categories == 0) {
-    columns = std::max((totitems + 20) / 20, 1);
-    if (columns > 8) {
-      columns = (totitems + 25) / 25;
-    }
+    columns = std::max((totitems + col_rows) / max_rows, 1);
     rows = std::max(totitems / columns, 1);
     while (rows * columns < totitems) {
       rows++;
@@ -6868,7 +6866,7 @@ std::string UI_but_string_get_rna_tooltip(bContext &C, uiBut &but)
     PointerRNA *opptr = UI_but_operator_ptr_ensure(&but);
     const bContextStore *previous_ctx = CTX_store_get(&C);
     CTX_store_set(&C, but.context);
-    std::string tmp = WM_operatortype_description(&C, but.optype, opptr).c_str();
+    std::string tmp = WM_operatortype_description(&C, but.optype, opptr);
     CTX_store_set(&C, previous_ctx);
     return tmp;
   }

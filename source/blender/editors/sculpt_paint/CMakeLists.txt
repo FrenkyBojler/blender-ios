@@ -153,7 +153,7 @@ set(SRC
   brushes/multires_displacement_eraser.cc
   brushes/multires_displacement_smear.cc
   brushes/pinch.cc
-  brushes/plane.cc
+  brushes/plane_legacy.cc
   brushes/relax.cc
   brushes/rotate.cc
   brushes/smooth.cc
@@ -206,6 +206,7 @@ endif()
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    paint_test.cc
     sculpt_detail_test.cc
   )
   set(TEST_INC

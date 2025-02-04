@@ -19,7 +19,6 @@
 #include "WM_api.hh"
 
 #include "BKE_asset.hh"
-#include "BKE_attribute_math.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -30,7 +29,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_node_runtime.hh"
@@ -63,11 +62,10 @@
 
 #include "BLT_translation.hh"
 
-#include "FN_lazy_function_execute.hh"
-
 #include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_socket_usage_inference.hh"
 
 #include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_path.hh"
@@ -121,7 +119,7 @@ static const bNodeTree *get_node_group(const bContext &C, PointerRNA &ptr, Repor
   return group;
 }
 
-GeoOperatorLog::~GeoOperatorLog() {}
+GeoOperatorLog::~GeoOperatorLog() = default;
 
 /**
  * The socket value log is stored statically so it can be used in the node editor. A fancier
@@ -717,7 +715,8 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
                                      PointerRNA *bmain_ptr,
                                      PointerRNA *op_ptr,
                                      const bNodeTreeInterfaceSocket &socket,
-                                     const int socket_index)
+                                     const int socket_index,
+                                     const bool affects_output)
 {
   bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
@@ -738,6 +737,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
   uiLayout *row = uiLayoutRow(layout, true);
+  uiLayoutSetActive(row, affects_output);
   uiLayoutSetPropDecorate(row, false);
 
   /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
@@ -788,10 +788,21 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   }
 
   node_tree->ensure_interface_cache();
+
+  Array<bool> input_usages(node_tree->interface_inputs().size());
+  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+      *node_tree, op->properties, input_usages);
+
   int input_index = 0;
   for (const bNodeTreeInterfaceSocket *io_socket : node_tree->interface_inputs()) {
-    draw_property_for_socket(
-        *node_tree, layout, op->properties, &bmain_ptr, op->ptr, *io_socket, input_index);
+    draw_property_for_socket(*node_tree,
+                             layout,
+                             op->properties,
+                             &bmain_ptr,
+                             op->ptr,
+                             *io_socket,
+                             input_index,
+                             input_usages[input_index]);
     ++input_index;
   }
 }

@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -23,6 +24,10 @@
 #include <string>
 
 #include "BLI_array.hh"
+#include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
+#include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
 #include "CLG_log.h"
@@ -46,14 +51,12 @@
 #include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_packedFile_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_vector.h"
 #include "BLI_mempool.h"
 #include "BLI_system.h"
@@ -75,6 +78,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_packedFile.hh"
@@ -105,7 +109,6 @@
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view3d_types.h"
 
 using blender::Array;
 
@@ -250,9 +253,9 @@ static void image_foreach_cache(ID *id,
   function_callback(id, &key, (void **)&image->cache, 0, user_data);
 
   key.identifier = offsetof(Image, anims.first);
-  function_callback(id, &key, (void **)&image->anims.first, 0, user_data);
+  function_callback(id, &key, &image->anims.first, 0, user_data);
   key.identifier = offsetof(Image, anims.last);
-  function_callback(id, &key, (void **)&image->anims.last, 0, user_data);
+  function_callback(id, &key, &image->anims.last, 0, user_data);
 
   auto gputexture_offset = [image](int target, int eye) {
     constexpr size_t base_offset = offsetof(Image, gputexture);
@@ -2889,12 +2892,12 @@ static void image_walk_ntree_all_users(
     case NTREE_SHADER:
       for (bNode *node : ntree->all_nodes()) {
         if (node->id) {
-          if (node->type == SH_NODE_TEX_IMAGE) {
+          if (node->type_legacy == SH_NODE_TEX_IMAGE) {
             NodeTexImage *tex = static_cast<NodeTexImage *>(node->storage);
             Image *ima = (Image *)node->id;
             callback(ima, id, &tex->iuser, customdata);
           }
-          if (node->type == SH_NODE_TEX_ENVIRONMENT) {
+          if (node->type_legacy == SH_NODE_TEX_ENVIRONMENT) {
             NodeTexImage *tex = static_cast<NodeTexImage *>(node->storage);
             Image *ima = (Image *)node->id;
             callback(ima, id, &tex->iuser, customdata);
@@ -2904,7 +2907,7 @@ static void image_walk_ntree_all_users(
       break;
     case NTREE_TEXTURE:
       for (bNode *node : ntree->all_nodes()) {
-        if (node->id && node->type == TEX_NODE_IMAGE) {
+        if (node->id && node->type_legacy == TEX_NODE_IMAGE) {
           Image *ima = (Image *)node->id;
           ImageUser *iuser = static_cast<ImageUser *>(node->storage);
           callback(ima, id, iuser, customdata);
@@ -2913,12 +2916,12 @@ static void image_walk_ntree_all_users(
       break;
     case NTREE_COMPOSIT:
       for (bNode *node : ntree->all_nodes()) {
-        if (node->id && node->type == CMP_NODE_IMAGE) {
+        if (node->id && node->type_legacy == CMP_NODE_IMAGE) {
           Image *ima = (Image *)node->id;
           ImageUser *iuser = static_cast<ImageUser *>(node->storage);
           callback(ima, id, iuser, customdata);
         }
-        if (node->type == CMP_NODE_CRYPTOMATTE) {
+        if (node->type_legacy == CMP_NODE_CRYPTOMATTE) {
           CMPNodeCryptomatteSource source = static_cast<CMPNodeCryptomatteSource>(node->custom1);
           if (source == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE) {
             Image *image = (Image *)node->id;
@@ -3386,7 +3389,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
   BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
 
   BKE_ntree_update_tag_id_changed(bmain, &ima->id);
-  BKE_ntree_update_main(bmain, nullptr);
+  BKE_ntree_update(*bmain);
 }
 
 /**
@@ -4195,12 +4198,8 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
     int dur = MOV_get_duration_frames(ia->anim, IMB_TC_RECORD_RUN);
     int fra = frame - 1;
 
-    if (fra < 0) {
-      fra = 0;
-    }
-    if (fra > (dur - 1)) {
-      fra = dur - 1;
-    }
+    fra = std::max(fra, 0);
+    fra = std::min(fra, dur - 1);
     ibuf = IMB_makeSingleUser(MOV_decode_frame(ia->anim, fra, IMB_TC_RECORD_RUN, IMB_PROXY_NONE));
 
     if (ibuf) {
@@ -5180,9 +5179,7 @@ int BKE_image_user_frame_get(const ImageUser *iuser, int cfra, bool *r_is_in_ran
 
   /* transform to images space */
   framenr = cfra;
-  if (framenr > iuser->frames) {
-    framenr = iuser->frames;
-  }
+  framenr = std::min(framenr, iuser->frames);
 
   if (iuser->cycl) {
     framenr = ((framenr) % len);

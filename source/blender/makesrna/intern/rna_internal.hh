@@ -8,13 +8,11 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
-
 #include "BLI_compiler_attrs.h"
 
 #include "rna_internal_types.hh"
 
-#include "UI_resources.hh"
+#include "UI_resources.hh" /* IWYU pragma: export */
 
 #define RNA_MAGIC ((int)~0)
 
@@ -454,7 +452,7 @@ void RNA_api_pose(StructRNA *srna);
 void RNA_api_pose_channel(StructRNA *srna);
 void RNA_api_scene(StructRNA *srna);
 void RNA_api_scene_render(StructRNA *srna);
-void RNA_api_sequence_strip(StructRNA *srna);
+void RNA_api_strip(StructRNA *srna);
 void RNA_api_text(StructRNA *srna);
 void RNA_api_ui_layout(StructRNA *srna);
 void RNA_api_window(StructRNA *srna);
@@ -464,9 +462,9 @@ void RNA_api_space_text(StructRNA *srna);
 void RNA_api_space_filebrowser(StructRNA *srna);
 void RNA_api_region_view3d(StructRNA *srna);
 void RNA_api_texture(StructRNA *srna);
-void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, bool metastrip);
-void RNA_api_sequence_elements(BlenderRNA *brna, PropertyRNA *cprop);
-void RNA_api_sequence_retiming_keys(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_api_strips(StructRNA *srna, bool metastrip);
+void RNA_api_strip_elements(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_api_strip_retiming_keys(BlenderRNA *brna);
 void RNA_api_sound(StructRNA *srna);
 void RNA_api_vfont(StructRNA *srna);
 void RNA_api_workspace(StructRNA *srna);
@@ -583,8 +581,8 @@ PointerRNA rna_array_lookup_int(
 /* Duplicated code since we can't link in blenlib */
 
 #ifndef RNA_RUNTIME
-void *rna_alloc_from_buffer(const char *buffer, int buffer_len);
-void *rna_calloc(int buffer_len);
+void *rna_alloc_from_buffer(const char *buffer, int buffer_size);
+void *rna_calloc(int buffer_size);
 #endif
 
 void rna_addtail(ListBase *listbase, void *vlink);

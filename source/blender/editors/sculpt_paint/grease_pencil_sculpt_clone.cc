@@ -17,6 +17,8 @@
 #include "grease_pencil_intern.hh"
 #include "paint_intern.hh"
 
+#include <numeric>
+
 namespace blender::ed::sculpt_paint::greasepencil {
 
 class CloneOperation : public GreasePencilStrokeOperationCommon {
@@ -47,8 +49,11 @@ void CloneOperation::on_stroke_begin(const bContext &C, const InputSample &start
    * - Continuous: Create multiple copies during the stroke (disabled)
    *
    * Here we only have the GPv2 behavior that actually works for now. */
-  this->foreach_editable_drawing(
-      C, [&](const GreasePencilStrokeParams &params, const DeltaProjectionFunc &projection_fn) {
+  this->foreach_editable_drawing_with_automask(
+      C,
+      [&](const GreasePencilStrokeParams &params,
+          const IndexMask & /*point_mask*/,
+          const DeltaProjectionFunc &projection_fn) {
         /* Only insert on the active layer. */
         if (&params.layer != grease_pencil.get_active_layer()) {
           return false;

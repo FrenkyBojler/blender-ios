@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
+  ../asset
   ../include
   ../../makesrna
+  ../../asset_system
   ../../../../extern/fmtlib/include
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -14,6 +16,7 @@ set(INC_SYS
 )
 
 set(SRC
+  anim_asset_ops.cc
   anim_channels_defines.cc
   anim_channels_edit.cc
   anim_deps.cc
@@ -62,6 +65,7 @@ add_dependencies(bf_editor_animation bf_rna)
 if(WITH_GTESTS)
   set(TEST_SRC
     anim_filter_test.cc
+    keyframes_general_test.cc
     keyframes_keylist_test.cc
   )
   set(TEST_INC

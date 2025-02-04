@@ -9,19 +9,11 @@
 #include <climits>
 #include <cstdlib>
 
-#include "MEM_guardedalloc.h"
-
-#include "DNA_defaults.h"
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h" /* SELECT */
 #include "DNA_scene_types.h"
 
-#include "BLI_math_vector.h"
-
 #include "BLT_translation.hh"
-
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -30,17 +22,19 @@
 
 #include "WM_types.hh"
 
-#include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
-
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
 #  include <fmt/format.h>
 
+#  include "DNA_defaults.h"
 #  include "DNA_movieclip_types.h"
 
+#  include "BLI_math_vector.h"
+
 #  include "BKE_mask.h"
+#  include "BKE_movieclip.h"
+#  include "BKE_tracking.h"
 
 #  include "DEG_depsgraph.hh"
 
@@ -1029,7 +1023,7 @@ static void rna_def_mask_layer(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "invert", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "blend_flag", MASK_BLENDFLAG_INVERT);
-  RNA_def_property_ui_text(prop, "Restrict View", "Invert the mask black/white");
+  RNA_def_property_ui_text(prop, "Invert", "Invert the mask black/white");
   RNA_def_property_update(prop, NC_MASK | NA_EDITED, nullptr);
 
   prop = RNA_def_property(srna, "falloff", PROP_ENUM, PROP_NONE);

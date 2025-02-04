@@ -117,9 +117,9 @@ typedef struct RegionView3D {
   char lview_axis_roll;
   char _pad8[1];
 
-  /** Active rotation from NDOF or elsewhere. */
-  float rot_angle;
-  float rot_axis[3];
+  /** Active rotation from NDOF (run-time only). */
+  float ndof_rot_angle;
+  float ndof_rot_axis[3];
 } RegionView3D;
 
 typedef struct View3DCursor {
@@ -436,6 +436,12 @@ enum {
 
 /** #RegionView3D.viewlock */
 enum {
+  /**
+   * Used to lock axis views when quad-view is enabled.
+   *
+   * \note this implies locking the perspective as these views
+   * should use an orthographic projection.
+   */
   RV3D_LOCK_ROTATION = (1 << 0),
   RV3D_BOXVIEW = (1 << 1),
   RV3D_BOXCLIP = (1 << 2),
@@ -526,6 +532,8 @@ enum {
   V3D_GP_SHOW_MATERIAL_NAME = 1 << 8,
   /** Show Canvas Grid on Top. */
   V3D_GP_SHOW_GRID_XRAY = 1 << 9,
+  /** Force 3D depth rendering and ignore per-object stroke depth mode. */
+  V3D_GP_FORCE_STROKE_ORDER_3D = 1 << 10,
 };
 
 /** #View3DShading.flag */

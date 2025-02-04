@@ -10,6 +10,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_main_idmap.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_report.hh"
@@ -29,7 +30,7 @@ namespace blender::ed::space_node {
 
 struct NodeClipboardItemIDInfo {
   /** Name of the referenced ID. */
-  std::string id_name = "";
+  std::string id_name;
   /**
    * Library filepath of the referenced ID, together with its name it forms a unique identifier.
    *
@@ -37,7 +38,7 @@ struct NodeClipboardItemIDInfo {
    * data, persistent over new blend-files opening, this should guarantee that identical IDs from
    * identical libraries can be matched accordingly, even across several blend-files.
    */
-  std::string library_path = "";
+  std::string library_path;
 
   /** The validated ID pointer (may be the same as the original one, or a new one). */
   std::optional<ID *> new_id = {};
@@ -473,7 +474,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
     update_multi_input_indices_for_removed_links(*new_node);
   }
 
-  ED_node_tree_propagate_change(bmain, &tree);
+  BKE_main_ensure_invariants(*bmain);
   /* Pasting nodes can create arbitrary new relations because nodes can reference IDs. */
   DEG_relations_tag_update(bmain);
 

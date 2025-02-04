@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include "BLI_listbase.h"
+#include "BLI_math_geom.h"
 #include "BLI_math_half.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -32,6 +33,7 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_unit.hh"
+#include "BKE_viewer_path.hh"
 
 #include "BLF_api.hh"
 
@@ -58,7 +60,6 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "GPU_batch.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
@@ -188,7 +189,7 @@ static void view3d_main_region_setup_view(Depsgraph *depsgraph,
 
   ED_view3d_update_viewmat(depsgraph, scene, v3d, region, viewmat, winmat, rect, false);
 
-  /* set for opengl */
+  /* Set for GPU drawing. */
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);
 }
@@ -203,7 +204,7 @@ static void view3d_main_region_setup_offscreen(Depsgraph *depsgraph,
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   ED_view3d_update_viewmat(depsgraph, scene, v3d, region, viewmat, winmat, nullptr, true);
 
-  /* set for opengl */
+  /* Set for GPU drawing. */
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);
 }
@@ -1045,11 +1046,11 @@ static void draw_rotation_guide(const RegionView3D *rv3d)
 
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
-  if (rv3d->rot_angle != 0.0f) {
+  if (rv3d->ndof_rot_angle != 0.0f) {
     /* -- draw rotation axis -- */
     float scaled_axis[3];
     const float scale = rv3d->dist;
-    mul_v3_v3fl(scaled_axis, rv3d->rot_axis, scale);
+    mul_v3_v3fl(scaled_axis, rv3d->ndof_rot_axis, scale);
 
     immBegin(GPU_PRIM_LINE_STRIP, 3);
     color[3] = 0; /* more transparent toward the ends */
@@ -1080,13 +1081,13 @@ static void draw_rotation_guide(const RegionView3D *rv3d)
       const float step = 2.0f * float(M_PI / ROT_AXIS_DETAIL);
 
       float q[4]; /* rotate ring so it's perpendicular to axis */
-      const int upright = fabsf(rv3d->rot_axis[2]) >= 0.95f;
+      const int upright = fabsf(rv3d->ndof_rot_axis[2]) >= 0.95f;
       if (!upright) {
         const float up[3] = {0.0f, 0.0f, 1.0f};
         float vis_angle, vis_axis[3];
 
-        cross_v3_v3v3(vis_axis, up, rv3d->rot_axis);
-        vis_angle = acosf(dot_v3v3(up, rv3d->rot_axis));
+        cross_v3_v3v3(vis_axis, up, rv3d->ndof_rot_axis);
+        vis_angle = acosf(dot_v3v3(up, rv3d->ndof_rot_axis));
         axis_angle_to_quat(q, vis_axis, vis_angle);
       }
 
@@ -1301,7 +1302,7 @@ static void draw_selected_name(
     const View3D *v3d, Scene *scene, ViewLayer *view_layer, Object *ob, int xoffset, int *yoffset)
 {
   const int cfra = scene->r.cfra;
-  const char *msg_pin = " (Pinned)";
+  const char *msg_pin = " (Soloed)";
   const char *msg_sep = " : ";
   const char *msg_space = " ";
 
@@ -2244,7 +2245,7 @@ static void validate_object_select_id(Depsgraph *depsgraph,
 
 /* Avoid calling this function multiple times in sequence to prevent frequent CPU-GPU
  * synchronization (which can be very slow). */
-static void view3d_opengl_read_Z_pixels(GPUViewport *viewport, rcti *rect, void *data)
+static void view3d_gpu_read_Z_pixels(GPUViewport *viewport, rcti *rect, void *data)
 {
   GPUTexture *depth_tx = GPU_viewport_depth_texture(viewport);
 
@@ -2318,7 +2319,7 @@ void view3d_depths_rect_create(ARegion *region, rcti *rect, ViewDepths *r_d)
 
   {
     GPUViewport *viewport = WM_draw_region_get_viewport(region);
-    view3d_opengl_read_Z_pixels(viewport, rect, r_d->depths);
+    view3d_gpu_read_Z_pixels(viewport, rect, r_d->depths);
     /* Range is assumed to be this as they are never changed. */
     r_d->depth_range[0] = 0.0;
     r_d->depth_range[1] = 1.0;
@@ -2434,17 +2435,17 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
         DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false);
         break;
       case V3D_DEPTH_NO_GPENCIL:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, false);
         break;
       case V3D_DEPTH_GPENCIL_ONLY:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, false);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false);
         break;
       case V3D_DEPTH_OBJECT_ONLY:
         DRW_draw_depth_object(
             scene, region, v3d, viewport, DEG_get_evaluated_object(depsgraph, obact));
         break;
       case V3D_DEPTH_SELECTED_ONLY:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, true);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, true);
         break;
     }
 
