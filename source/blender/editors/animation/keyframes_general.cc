@@ -1415,7 +1415,7 @@ class SlotMapper {
    */
   Channelbag &channelbag_for_ale(const bAnimListElem *ale)
   {
-    /* Slots really only exit with F-Curves from Actions. */
+    /* Slots really only exist with F-Curves from Actions. */
     const Action *map_key_action;
     slot_handle_t map_key_handle;
     if (GS(ale->fcurve_owner_id->name) == ID_AC) {
@@ -1600,19 +1600,19 @@ enum class SlotMatchMethod {
  */
 static SlotMatchMethod get_slot_match_method(const bool from_single,
                                              const bool to_single,
-                                             const KeyframePasteOptions options)
+                                             const KeyframePasteContext paste_context)
 {
   BLI_assert_msg(!(from_single && to_single),
                  "The from-single-to-single case is expected to be implemented as a special case "
                  "in `paste_animedit_keys()`");
   UNUSED_VARS_NDEBUG(from_single);
 
-  if (options.num_fcurves_selected == 0) {
+  if (paste_context.num_fcurves_selected == 0) {
     /* No F-Curves selected to explicitly paste into. The names of the selected slots determine the
      * source Channelbag. */
 
-    if (options.num_slots_selected == 0) {
-      /* Since none of the slots was selected to paste into, just do a match by name and ignore
+    if (paste_context.num_slots_selected == 0) {
+      /* Since none of the slots were selected to paste into, just do a match by name and ignore
        * their selection state. */
       return SlotMatchMethod::IDENTIFIER;
     }
@@ -1669,7 +1669,7 @@ static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_fu
                                                          const bAnimListElem &ale_to_paste_into,
                                                          const bool from_single,
                                                          const bool to_single,
-                                                         const KeyframePasteOptions options)
+                                                         const KeyframePasteContext paste_context)
 {
   using namespace blender::animrig;
 
@@ -1680,10 +1680,10 @@ static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_fu
                  "The from-single-to-single case is expected to be implemented as a special case "
                  "in `paste_animedit_keys()`");
 
-  /* Because `channelbags_to_copy_from` can reference `single_copy_buffer_channelbag`, the latter
+  /* Because `channelbags_to_paste_from` can reference `single_copy_buffer_channelbag`, the latter
    * has to live longer, hence it is declared first. */
   const Channelbag *single_copy_buffer_channelbag;
-  Span<const Channelbag *> channelbags_to_copy_from;
+  Span<const Channelbag *> channelbags_to_paste_from;
 
   /* Get the slot of this ALE, as some of the cases below need to query it. It might be slotless,
    * for example for NLA control curves. */
@@ -1698,12 +1698,13 @@ static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_fu
   /* NASTYNESS: this code shouldn't have to care about which slots are currently visible in
    * the channel list. But since selection state is only relevant when they CAN actually be
    * selected, it does matter. This code assumes:
-   *   1. because SELECTION(_AND_IDENTIFIER) was returned, slot selection is a thing in this mode,
+   *   1. because SELECTION or SELECTION_AND_IDENTIFIER was returned, slot selection is a
+   *      thing in this mode,
    *   2. because slot selection is a thing, and this F-Curve is potentially getting pasted
    *      into, its slot is visible too,
    *   3. and because of that, the selection state of this slot is enough to check here. */
 
-  const SlotMatchMethod slot_match = get_slot_match_method(from_single, to_single, options);
+  const SlotMatchMethod slot_match = get_slot_match_method(from_single, to_single, paste_context);
   switch (slot_match) {
     case SlotMatchMethod::SELECTION:
       if (!ale_slot->is_selected()) {
@@ -1713,7 +1714,7 @@ static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_fu
 
     case SlotMatchMethod::NONE:
       /* Just search through all channelbags in the copy buffer. */
-      channelbags_to_copy_from = keyframe_copy_buffer->keyframe_data.channelbags();
+      channelbags_to_paste_from = keyframe_copy_buffer->keyframe_data.channelbags();
       break;
 
     case SlotMatchMethod::SELECTION_AND_IDENTIFIER:
@@ -1735,15 +1736,15 @@ static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_fu
         return nullptr;
       }
 
-      /* Only consider the F-Curves from this channelbag. Because of channelbags_to_copy_from
+      /* Only consider the F-Curves from this channelbag. Because of channelbags_to_paste_from
        * referencing single_copy_buffer_channelbag, the latter has to live longer, hence it was
        * declared first. */
-      channelbags_to_copy_from = Span<const Channelbag *>(&single_copy_buffer_channelbag, 1);
+      channelbags_to_paste_from = Span<const Channelbag *>(&single_copy_buffer_channelbag, 1);
       break;
     }
   }
 
-  for (const Channelbag *channelbag : channelbags_to_copy_from) {
+  for (const Channelbag *channelbag : channelbags_to_paste_from) {
     for (const FCurve *fcurve : channelbag->fcurves()) {
       if (strategy(bmain,
                    fcurve_to_match,
@@ -1751,7 +1752,7 @@ static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_fu
                    channelbag->slot_handle,
                    from_single,
                    to_single,
-                   options.flip))
+                   paste_context.flip))
       {
         return fcurve;
       }
@@ -2099,7 +2100,7 @@ static float paste_get_y_offset(const bAnimContext *ac,
 
 eKeyPasteError paste_animedit_keys(bAnimContext *ac,
                                    ListBase *anim_data,
-                                   const KeyframePasteOptions options)
+                                   const KeyframePasteContext options)
 {
   using namespace blender::ed::animation;
 

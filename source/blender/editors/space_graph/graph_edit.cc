@@ -497,13 +497,13 @@ static eKeyPasteError paste_graph_keys(bAnimContext *ac,
 {
   /* TODO: deduplicate this function and `paste_action_keys()` in `action_edit.cc`, */
 
-  /* Determine paste options. */
-  KeyframePasteOptions options{};
-  options.offset_mode = offset_mode;
-  options.value_offset_mode = value_offset_mode;
-  options.merge_mode = merge_mode;
-  options.flip = flip;
-  options.num_slots_selected = 0; /* Graph editor doesn't show slots. */
+  /* Determine paste context. */
+  KeyframePasteContext paste_context{};
+  paste_context.offset_mode = offset_mode;
+  paste_context.value_offset_mode = value_offset_mode;
+  paste_context.merge_mode = merge_mode;
+  paste_context.flip = flip;
+  paste_context.num_slots_selected = 0; /* Graph editor doesn't show slots. */
 
   /* Find F-Curves to paste into, in two stages.
    * - First time we try to filter more strictly, allowing only selected channels
@@ -516,15 +516,15 @@ static eKeyPasteError paste_graph_keys(bAnimContext *ac,
     const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                      ANIMFILTER_FOREDIT | ANIMFILTER_FCURVESONLY |
                                      ANIMFILTER_NODUPLIS;
-    options.num_fcurves_selected = ANIM_animdata_filter(
+    paste_context.num_fcurves_selected = ANIM_animdata_filter(
         ac, &anim_data, filter | ANIMFILTER_SEL, ac->data, ac->datatype);
-    if (options.num_fcurves_selected == 0) {
+    if (paste_context.num_fcurves_selected == 0) {
       ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
     }
   }
 
   /* Paste keyframes. */
-  const eKeyPasteError ok = paste_animedit_keys(ac, &anim_data, options);
+  const eKeyPasteError ok = paste_animedit_keys(ac, &anim_data, paste_context);
 
   /* Clean up. */
   ANIM_animdata_freelist(&anim_data);

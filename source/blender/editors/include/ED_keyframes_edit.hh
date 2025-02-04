@@ -530,7 +530,7 @@ void ANIM_fcurves_copybuf_free();
  */
 bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data);
 
-struct KeyframePasteOptions {
+struct KeyframePasteContext {
   eKeyPasteOffset offset_mode;
   eKeyPasteValueOffset value_offset_mode;
   eKeyMergeMode merge_mode;
@@ -542,7 +542,7 @@ struct KeyframePasteOptions {
 
 eKeyPasteError paste_animedit_keys(bAnimContext *ac,
                                    ListBase *anim_data,
-                                   KeyframePasteOptions options);
+                                   KeyframePasteContext paste_context);
 
 /* ************************************************ */
 
