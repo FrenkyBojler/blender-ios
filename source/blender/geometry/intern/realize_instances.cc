@@ -1046,13 +1046,13 @@ static void execute_instances_tasks(
   /* Join attribute values from the 'unselected' instances, as they aren't included otherwise.
    * Omit instance_transform and .reference_index to prevent them from overwriting the correct
    * attributes of the realized instances. */
-  Array<std::optional<bke::AttributeAccessor>> attributes_for_join(src_components.size());
+  Array<bke::AttributeAccessor> attributes_for_join(src_components.size());
   for (const int i : src_components.index_range()) {
     attributes_for_join[i] = *src_components[i]->attributes();
   }
-  join_attributes(attributes_for_join,
+  join_attributes(attributes_for_join.as_span(),
                   bke::get_final_attribute_types(
-                      attributes_for_join,
+                      attributes_for_join.as_span(),
                       bke::attribute_filter_with_skip_ref(
                           options.attribute_filter, {".reference_index", "instance_transform"})),
                   bke::AttrDomain::Instance,

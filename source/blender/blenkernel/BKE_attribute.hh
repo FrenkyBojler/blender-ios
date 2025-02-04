@@ -518,6 +518,7 @@ class AttributeAccessor {
   const AttributeAccessorFunctions *fn_;
 
  public:
+  AttributeAccessor() = default;
   AttributeAccessor(const void *owner, const AttributeAccessorFunctions &fn)
       : owner_(const_cast<void *>(owner)), fn_(&fn)
   {
@@ -905,7 +906,7 @@ eCustomDataType attribute_data_type_highest_complexity(Span<eCustomDataType> dat
 AttrDomain attribute_domain_highest_priority(Span<AttrDomain> domains);
 
 Map<StringRef, eCustomDataType> get_final_attribute_types(
-    Span<std::optional<AttributeAccessor>> attribute_accessors,
+    Span<AttributeAccessor> attribute_accessors,
     const AttributeFilter &attribute_filter);
 
 void gather_attributes(AttributeAccessor src_attributes,

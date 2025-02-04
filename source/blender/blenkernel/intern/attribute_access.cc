@@ -881,13 +881,13 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
 /** \} */
 
 Map<StringRef, eCustomDataType> get_final_attribute_types(
-    const Span<std::optional<AttributeAccessor>> attribute_accessors,
+    const Span<AttributeAccessor> attribute_accessors,
     const AttributeFilter &attribute_filter)
 {
   Map<StringRef, eCustomDataType> info;
 
-  for (const std::optional<AttributeAccessor> &attributes : attribute_accessors) {
-    attributes->foreach_attribute([&](const bke::AttributeIter &iter) {
+  for (const AttributeAccessor &attributes : attribute_accessors) {
+    attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
       if (attribute_filter.allow_skip(iter.name)) {
         return;
       }
