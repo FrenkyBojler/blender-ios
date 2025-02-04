@@ -1280,10 +1280,7 @@ animrig::Channelbag *KeyframeCopyBuffer::channelbag_for_slot(const StringRef slo
 {
   /* TODO: use a nicer data structure so this loop isn't necessary any more. Or use a vector, in
    * which case we always need to loop, but it'll be small and maybe the lower overhead of Vector
-   * (vs Map) will be worth it anyway.
-   *
-   * TODO: alternatively, make this a mapping between channelbag and slot identifier, cutting out
-   * the slot handle altogether. */
+   * (vs Map) will be worth it anyway. */
   for (const auto [handle, identifier] : this->slot_identifiers.items()) {
     if (identifier == slot_identifier) {
       return this->keyframe_data.channelbag_for_slot(handle);
@@ -1388,6 +1385,11 @@ using namespace blender::ed::animation;
  * To the caller, this mapping is implicit, and is just reflected in the returned `Channelbag` for
  * some `bAnimListElem`. There is a 1:1 mapping in the copy-paste buffer between slots and their
  * channelbags,
+ *
+ * Technically this code could be part of KeyframeCopyBuffer. The nice thing about the current
+ * structure is that the properties of this class are only accessible when copying, and once the
+ * work is done, this gets destructed. The KeyframeCopyBuffer class only tracks data that is
+ * relevant for pasting.
  */
 class SlotMapper {
  public:
