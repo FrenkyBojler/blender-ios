@@ -274,6 +274,71 @@ static void get_manifold(Manifold &manifold,
   }
 }
 
+static void get_manifold_with_props(Manifold &manifold,
+                                    const Mesh *joined_mesh,
+                                    int mesh_index,
+                                    const MeshOffsets &mesh_offsets)
+{
+  constexpr int dbg_level = 0;
+  if (dbg_level > 0) {
+    std::cout << "get_manifold for mesh " << mesh_index << "\n";
+  }
+  MeshGL meshgl;
+  constexpr int props_num = 3;
+  meshgl.numProp = props_num;
+  const int verts_num = mesh_offsets.vert_offsets[mesh_index].size();
+  const int vert_start = mesh_offsets.vert_start[mesh_index];
+  meshgl.vertProperties.resize(verts_num * props_num);
+  Span<float3> vpos = joined_mesh->vert_positions();
+  const int grain_size = 20000;
+  threading::parallel_for(IndexRange(verts_num), grain_size, [&](const IndexRange range) {
+    for (const int i : range) {
+      int offset_i = i + vert_start;
+      const float3 &pos = vpos[offset_i];
+      meshgl.vertProperties[props_num * i] = pos[0];
+      meshgl.vertProperties[props_num * i + 1] = pos[1];
+      meshgl.vertProperties[props_num * i + 2] = pos[2];
+    }
+  });
+  /* Calling joined_mesh->corner_tris() may cause triangulation to happen,
+   * to populate a triangulation cache for the mesh. */
+  Span<int3> corner_tris = joined_mesh->corner_tris();
+  Span<int> corner_verts = joined_mesh->corner_verts();
+  Span<int> corner_tri_faces = joined_mesh->corner_tri_faces();
+  const int tris_start = poly_to_tri_count(mesh_offsets.face_start[mesh_index],
+                                           mesh_offsets.corner_start[mesh_index]);
+  const int tris_end = poly_to_tri_count(mesh_offsets.face_start[mesh_index + 1],
+                                         mesh_offsets.corner_start[mesh_index + 1]);
+  const int tris_num = tris_end - tris_start;
+  meshgl.triVerts.resize(3 * tris_num);
+  meshgl.faceID.resize(tris_num);
+  threading::parallel_for(
+      IndexRange(tris_start, tris_num), grain_size, [&](const IndexRange range) {
+        for (const int i : range) {
+          const int3 &ctri = corner_tris[i];
+          const int meshgl_i = i - tris_start;
+          const int tv_start = 3 * meshgl_i;
+          meshgl.triVerts[tv_start] = corner_verts[ctri[0]] - vert_start;
+          meshgl.triVerts[tv_start + 1] = corner_verts[ctri[1]] - vert_start;
+          meshgl.triVerts[tv_start + 2] = corner_verts[ctri[2]] - vert_start;
+          meshgl.faceID[meshgl_i] = corner_tri_faces[i];
+        }
+      });
+  meshgl.runIndex.resize(2);
+  meshgl.runOriginalID.resize(1);
+  meshgl.runIndex[0] = 0;
+  meshgl.runIndex[1] = 3 * tris_num;
+  meshgl.runOriginalID[0] = mesh_index;
+  if (dbg_level > 0) {
+    dump_meshgl(meshgl, "converted result for mesh " + std::to_string(mesh_index));
+  }
+  {
+    timeit::ScopedTimer mtimer("manifold constructor from meshgl");
+    manifold = Manifold(meshgl);
+  }
+}
+
+
 /* Get all the Manifold data structures for each Mesh subset of \a joined_mesh that is indicated
  * by a range of offsets in \a mesh_offsets. ß*/
 static void get_manifolds(MutableSpan<Manifold> manifolds,
@@ -299,6 +364,37 @@ static void get_manifolds(MutableSpan<Manifold> manifolds,
   else {
     threading::parallel_for_each(IndexRange(meshes_num), [&](int mesh_index) {
       get_manifold(manifolds[mesh_index], joined_mesh, mesh_index, mesh_offsets);
+    });
+  }
+}
+
+/* Get all the Manifold data structures for each Mesh subset of \a joined_mesh that is indicated
+ * by a range of offsets in \a mesh_offsets.
+ * This version adds vertex properties to let us recover vertex and corner attributes.
+ */
+static void get_manifolds_with_props(MutableSpan<Manifold> manifolds,
+                                     const Mesh *joined_mesh,
+                                     const MeshOffsets &mesh_offsets)
+{
+  constexpr int dbg_level = 0;
+  if (dbg_level > 0) {
+    std::cout << "GET_MANIFOLDS (WITH PROPS)\n";
+    dump_mesh(joined_mesh, "joined_mesh");
+    std::cout << "\nMesh Offset (starts):\n";
+    dump_span(mesh_offsets.vert_start.as_span(), "vert");
+    dump_span(mesh_offsets.face_start.as_span(), "face");
+    dump_span(mesh_offsets.edge_start.as_span(), "edge");
+    dump_span(mesh_offsets.corner_start.as_span(), "corner");
+  }
+  const int meshes_num = manifolds.size();
+  if (dbg_level > 0) {
+    for (const int mesh_index : IndexRange(meshes_num)) {
+      get_manifold(manifolds[mesh_index], joined_mesh, mesh_index, mesh_offsets);
+    }
+  }
+  else {
+    threading::parallel_for_each(IndexRange(meshes_num), [&](int mesh_index) {
+      get_manifold_with_props(manifolds[mesh_index], joined_mesh, mesh_index, mesh_offsets);
     });
   }
 }
