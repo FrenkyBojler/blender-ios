@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2002-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2002-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,7 @@
 class GHOST_NDOFManagerCocoa : public GHOST_NDOFManager {
  public:
   GHOST_NDOFManagerCocoa(GHOST_System &);
-  ~GHOST_NDOFManagerCocoa();
+  ~GHOST_NDOFManagerCocoa() override;
 
-  bool available();
+  bool available() override;
 };

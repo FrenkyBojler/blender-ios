@@ -8,19 +8,16 @@
 
 #include <cstdlib>
 
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BKE_context.h"
-#include "BKE_unit.h"
-
-#include "DNA_gpencil_legacy_types.h"
+#include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -46,26 +43,22 @@ static void applyGPOpacity(TransInfo *t)
 
   t->values_final[0] = ratio;
 
-  /* header print for NumInput */
+  /* Header print for NumInput. */
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
 
-    outputNumInput(&(t->num), c, &t->scene->unit);
-    SNPRINTF(str, TIP_("Opacity: %s"), c);
+    outputNumInput(&(t->num), c, t->scene->unit);
+    SNPRINTF(str, IFACE_("Opacity: %s"), c);
   }
   else {
-    SNPRINTF(str, TIP_("Opacity: %3f"), ratio);
+    SNPRINTF(str, IFACE_("Opacity: %3f"), ratio);
   }
 
   bool recalc = false;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     TransData *td = tc->data;
-    bGPdata *gpd = static_cast<bGPdata *>(td->ob->data);
-    const bool is_curve_edit = bool(GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd));
-    /* Only recalculate data when in curve edit mode. */
-    if (is_curve_edit) {
-      recalc = true;
-    }
+
+    recalc = true;
 
     for (i = 0; i < tc->data_len; i++, td++) {
       if (td->flag & TD_SKIP) {

@@ -1,15 +1,26 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2021-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2021-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
+
+__all__ = (
+    "main",
+)
 
 import argparse
 import make_utils
 import os
-import re
 import subprocess
+import sys
 from pathlib import Path
-from typing import Iterable, TextIO, Optional, Any, Union
+
+from typing import (
+    TextIO,
+    Any,
+    Union,
+    # Proxies for `collections.abc`
+    Iterable,
+)
 
 # This script can run from any location,
 # output is created in the $CWD
@@ -32,7 +43,7 @@ def main() -> None:
     blender_srcdir = Path(__file__).absolute().parent.parent.parent
 
     cli_parser = argparse.ArgumentParser(
-        description=f"Create a tarball of the Blender sources, optionally including sources of dependencies.",
+        description="Create a tarball of the Blender sources, optionally including sources of dependencies.",
         epilog="This script is intended to be run by `make source_archive_complete`.",
     )
     cli_parser.add_argument(
@@ -78,24 +89,24 @@ def manifest_path(tarball: Path) -> Path:
     """Return the manifest path for the given tarball path.
 
     >>> from pathlib import Path
-    >>> tarball = Path("/home/sybren/workspace/blender-git/blender-test.tar.gz")
+    >>> tarball = Path("/home/user/workspace/blender-git/blender-test.tar.gz")
     >>> manifest_path(tarball).as_posix()
-    '/home/sybren/workspace/blender-git/blender-test-manifest.txt'
+    '/home/user/workspace/blender-git/blender-test-manifest.txt'
     """
-    # ".tar.gz" is seen as two suffixes.
+    # Note that `.tar.gz` is seen as two suffixes.
     without_suffix = tarball.with_suffix("").with_suffix("")
     name = without_suffix.name
     return without_suffix.with_name(f"{name}-manifest.txt")
 
 
-def packages_path(current_directory: Path, cli_args: Any) -> Optional[Path]:
+def packages_path(current_directory: Path, cli_args: Any) -> Union[Path, None]:
     if not cli_args.include_packages:
         return None
 
     abspath = cli_args.include_packages.absolute()
 
-    # os.path.relpath() can return paths like "../../packages", where
-    # Path.relative_to() will not go up directories (so its return value never
+    # `os.path.relpath()` can return paths like "../../packages", where
+    # `Path.relative_to()` will not go up directories (so its return value never
     # has "../" in there).
     relpath = os.path.relpath(abspath, current_directory)
 
@@ -109,13 +120,12 @@ def create_manifest(
     version: make_utils.BlenderVersion,
     outpath: Path,
     blender_srcdir: Path,
-    packages_dir: Optional[Path],
+    packages_dir: Union[Path, None],
 ) -> None:
     print(f'Building manifest of files:  "{outpath}"...', end="", flush=True)
     with outpath.open("w", encoding="utf-8") as outfile:
         main_files_to_manifest(blender_srcdir, outfile)
         assets_to_manifest(blender_srcdir, outfile)
-        submodules_to_manifest(blender_srcdir, version, outfile)
 
         if packages_dir:
             packages_to_manifest(outfile, packages_dir)
@@ -126,21 +136,6 @@ def main_files_to_manifest(blender_srcdir: Path, outfile: TextIO) -> None:
     assert not blender_srcdir.is_absolute()
     for path in git_ls_files(blender_srcdir):
         print(path, file=outfile)
-
-
-def submodules_to_manifest(
-    blender_srcdir: Path, version: make_utils.BlenderVersion, outfile: TextIO
-) -> None:
-    skip_addon_contrib = version.is_release()
-    assert not blender_srcdir.is_absolute()
-
-    for submodule in ("scripts/addons", "scripts/addons_contrib"):
-        # Don't use native slashes as GIT for MS-Windows outputs forward slashes.
-        if skip_addon_contrib and submodule == "scripts/addons_contrib":
-            continue
-
-        for path in git_ls_files(blender_srcdir / submodule):
-            print(path, file=outfile)
 
 
 def assets_to_manifest(blender_srcdir: Path, outfile: TextIO) -> None:
@@ -173,12 +168,17 @@ def create_tarball(
     tarball: Path,
     manifest: Path,
     blender_srcdir: Path,
-    packages_dir: Optional[Path],
+    packages_dir: Union[Path, None],
 ) -> None:
     print(f'Creating archive:            "{tarball}" ...', end="", flush=True)
-    command = ["tar"]
 
     # Requires GNU `tar`, since `--transform` is used.
+    if sys.platform == "darwin":
+        # Provided by `brew install gnu-tar`.
+        command = ["gtar"]
+    else:
+        command = ["tar"]
+
     if packages_dir:
         command += ["--transform", f"s,{packages_dir}/,packages/,g"]
 

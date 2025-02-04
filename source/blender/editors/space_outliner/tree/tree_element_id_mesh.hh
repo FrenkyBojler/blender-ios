@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,6 +10,8 @@
 
 #include "tree_element_id.hh"
 
+struct Mesh;
+
 namespace blender::ed::outliner {
 
 class TreeElementIDMesh final : public TreeElementID {
@@ -18,11 +20,11 @@ class TreeElementIDMesh final : public TreeElementID {
  public:
   TreeElementIDMesh(TreeElement &legacy_te_, Mesh &mesh);
 
-  void expand(SpaceOutliner &) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
 
  private:
-  void expand_key(SpaceOutliner &) const;
-  void expand_materials(SpaceOutliner &) const;
+  void expand_key() const;
+  void expand_materials() const;
 };
 
 }  // namespace blender::ed::outliner

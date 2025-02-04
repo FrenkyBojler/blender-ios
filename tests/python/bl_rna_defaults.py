@@ -1,8 +1,8 @@
-# SPDX-FileCopyrightText: 2015-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2015-2023 Blender Authors
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# ./blender.bin --background -noaudio --factory-startup --python tests/python/bl_rna_defaults.py
+# ./blender.bin --background --factory-startup --python tests/python/bl_rna_defaults.py
 
 import bpy
 

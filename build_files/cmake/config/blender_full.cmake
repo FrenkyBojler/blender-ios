@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2014-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2014-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -12,10 +12,8 @@ set(WITH_ALEMBIC             ON  CACHE BOOL "" FORCE)
 set(WITH_AUDASPACE           ON  CACHE BOOL "" FORCE)
 set(WITH_BUILDINFO           ON  CACHE BOOL "" FORCE)
 set(WITH_BULLET              ON  CACHE BOOL "" FORCE)
-set(WITH_CODEC_AVI           ON  CACHE BOOL "" FORCE)
 set(WITH_CODEC_FFMPEG        ON  CACHE BOOL "" FORCE)
 set(WITH_CODEC_SNDFILE       ON  CACHE BOOL "" FORCE)
-set(WITH_COMPOSITOR_CPU      ON  CACHE BOOL "" FORCE)
 set(WITH_CYCLES              ON  CACHE BOOL "" FORCE)
 set(WITH_CYCLES_EMBREE       ON  CACHE BOOL "" FORCE)
 set(WITH_CYCLES_OSL          ON  CACHE BOOL "" FORCE)
@@ -41,6 +39,7 @@ set(WITH_LZO                 ON  CACHE BOOL "" FORCE)
 set(WITH_MOD_FLUID           ON  CACHE BOOL "" FORCE)
 set(WITH_MOD_OCEANSIM        ON  CACHE BOOL "" FORCE)
 set(WITH_MOD_REMESH          ON  CACHE BOOL "" FORCE)
+set(WITH_UV_SLIM             ON  CACHE BOOL "" FORCE)
 set(WITH_NANOVDB             ON  CACHE BOOL "" FORCE)
 set(WITH_OPENAL              ON  CACHE BOOL "" FORCE)
 set(WITH_OPENCOLLADA         ON  CACHE BOOL "" FORCE)
@@ -54,7 +53,7 @@ set(WITH_POTRACE             ON  CACHE BOOL "" FORCE)
 set(WITH_PUGIXML             ON  CACHE BOOL "" FORCE)
 set(WITH_PYTHON_INSTALL      ON  CACHE BOOL "" FORCE)
 set(WITH_QUADRIFLOW          ON  CACHE BOOL "" FORCE)
-set(WITH_SDL                 ON  CACHE BOOL "" FORCE)
+set(WITH_SDL                 OFF CACHE BOOL "" FORCE)
 set(WITH_TBB                 ON  CACHE BOOL "" FORCE)
 set(WITH_USD                 ON  CACHE BOOL "" FORCE)
 set(WITH_MATERIALX           ON  CACHE BOOL "" FORCE)

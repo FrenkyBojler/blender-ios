@@ -15,8 +15,7 @@
 
 using OpenSubdiv::Osd::GLVertexBuffer;
 
-namespace blender {
-namespace opensubdiv {
+namespace blender::opensubdiv {
 
 class GpuEvalOutput : public VolatileEvalOutput<GLVertexBuffer,
                                                 GLVertexBuffer,
@@ -26,10 +25,10 @@ class GpuEvalOutput : public VolatileEvalOutput<GLVertexBuffer,
  public:
   GpuEvalOutput(const StencilTable *vertex_stencils,
                 const StencilTable *varying_stencils,
-                const vector<const StencilTable *> &all_face_varying_stencils,
+                const std::vector<const StencilTable *> &all_face_varying_stencils,
                 const int face_varying_width,
                 const PatchTable *patch_table,
-                EvaluatorCache *evaluator_cache = NULL);
+                EvaluatorCache *evaluator_cache = nullptr);
 
   void fillPatchArraysBuffer(OpenSubdiv_Buffer *patch_arrays_buffer) override;
 
@@ -53,7 +52,6 @@ class GpuEvalOutput : public VolatileEvalOutput<GLVertexBuffer,
   void wrapFVarSrcBuffer(const int face_varying_channel, OpenSubdiv_Buffer *src_buffer) override;
 };
 
-}  // namespace opensubdiv
-}  // namespace blender
+}  // namespace blender::opensubdiv
 
 #endif  // OPENSUBDIV_EVAL_OUTPUT_GPU_H_

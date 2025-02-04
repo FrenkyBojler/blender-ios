@@ -22,7 +22,7 @@
  */
 
 ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
-                                                     ccl_private const Ray *ray,
+                                                     const ccl_private Ray *ray,
                                                      ccl_private Intersection *isect,
                                                      const uint visibility)
 {
@@ -132,7 +132,7 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
             }
 
 #ifdef __SHADOW_LINKING__
-            if (intersection_skip_shadow_link(kg, ray, prim_object)) {
+            if (intersection_skip_shadow_link(kg, ray->self, prim_object)) {
               continue;
             }
 #endif
@@ -151,8 +151,9 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
                                        prim_addr))
                 {
                   /* shadow ray early termination */
-                  if (visibility & PATH_RAY_SHADOW_OPAQUE)
+                  if (visibility & PATH_RAY_SHADOW_OPAQUE) {
                     return true;
+                  }
                 }
                 break;
               }
@@ -177,7 +178,7 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
                 break;
               }
 #endif /* BVH_FEATURE(BVH_MOTION) */
-#if BVH_FEATURE(BVH_HAIR)
+#if BVH_FEATURE(BVH_HAIR) && defined(__HAIR__)
               case PRIMITIVE_CURVE_THICK:
               case PRIMITIVE_MOTION_CURVE_THICK:
               case PRIMITIVE_CURVE_RIBBON:
@@ -200,7 +201,7 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
                 break;
               }
 #endif /* BVH_FEATURE(BVH_HAIR) */
-#if BVH_FEATURE(BVH_POINTCLOUD)
+#if BVH_FEATURE(BVH_POINTCLOUD) && defined(__POINTCLOUD__)
               case PRIMITIVE_POINT:
               case PRIMITIVE_MOTION_POINT: {
                 if ((type & PRIMITIVE_MOTION) && kernel_data.bvh.use_bvh_steps) {
@@ -259,7 +260,7 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
 }
 
 ccl_device_inline bool BVH_FUNCTION_NAME(KernelGlobals kg,
-                                         ccl_private const Ray *ray,
+                                         const ccl_private Ray *ray,
                                          ccl_private Intersection *isect,
                                          const uint visibility)
 {

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,37 +16,35 @@
 #include <Python.h>
 #include <cstddef>
 
-#include "BLI_ghash.h"
 #include "BLI_linklist.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_blendfile_link_append.h"
-#include "BKE_context.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
+#include "BKE_blendfile_link_append.hh"
+#include "BKE_context.hh"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_report.hh"
 
 #include "DNA_space_types.h" /* FILE_LINK, FILE_RELPATH */
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
-#include "MEM_guardedalloc.h"
+#include "bpy_capi_utils.hh"
+#include "bpy_library.hh"
 
-#include "bpy_capi_utils.h"
-#include "bpy_library.h"
-
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
+#include "../generic/python_utildefines.hh"
 
 /* nifty feature. swap out strings for RNA data */
 #define USE_RNA_DATABLOCKS
 
 #ifdef USE_RNA_DATABLOCKS
-#  include "RNA_access.h"
-#  include "bpy_rna.h"
+#  include "RNA_access.hh"
+#  include "bpy_rna.hh"
 #endif
 
 struct BPy_Library {
@@ -71,7 +69,7 @@ struct BPy_Library {
   bool bmain_is_temp;
 };
 
-static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *kwds);
+static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *kw);
 static PyObject *bpy_lib_enter(BPy_Library *self);
 static PyObject *bpy_lib_exit(BPy_Library *self, PyObject *args);
 static PyObject *bpy_lib_dir(BPy_Library *self);
@@ -151,6 +149,7 @@ static PyTypeObject bpy_lib_Type = {
 };
 
 PyDoc_STRVAR(
+    /* Wrap. */
     bpy_lib_load_doc,
     ".. method:: load("
     "filepath, "
@@ -165,7 +164,7 @@ PyDoc_STRVAR(
     "   Each object has attributes matching bpy.data which are lists of strings to be linked.\n"
     "\n"
     "   :arg filepath: The path to a blend file.\n"
-    "   :type filepath: string\n"
+    "   :type filepath: str | bytes\n"
     "   :arg link: When False reference to the original file is lost.\n"
     "   :type link: bool\n"
     "   :arg relative: When True the path is stored relative to the open blend file.\n"
@@ -184,9 +183,9 @@ PyDoc_STRVAR(
 static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *kw)
 {
   Main *bmain_base = CTX_data_main(BPY_context_get());
-  Main *bmain = static_cast<Main *>(self->ptr.data); /* Typically #G_MAIN */
+  Main *bmain = static_cast<Main *>(self->ptr->data); /* Typically #G_MAIN */
   BPy_Library *ret;
-  const char *filepath = nullptr;
+  PyC_UnicodeAsBytesAndSize_Data filepath_data = {nullptr};
   bool is_rel = false, is_link = false, use_assets_only = false;
   bool create_liboverrides = false, reuse_liboverrides = false,
        create_liboverrides_runtime = false;
@@ -202,7 +201,8 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      "s" /* `filepath` */
+      PY_ARG_PARSER_HEAD_COMPAT()
+      "O&" /* `filepath` */
       /* Optional keyword only arguments. */
       "|$"
       "O&" /* `link` */
@@ -218,7 +218,8 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kw,
                                         &_parser,
-                                        &filepath,
+                                        PyC_ParseUnicodeAsBytesAndSize,
+                                        &filepath_data,
                                         PyC_ParseBool,
                                         &is_link,
                                         PyC_ParseBool,
@@ -252,8 +253,10 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
 
   ret = PyObject_New(BPy_Library, &bpy_lib_Type);
 
-  STRNCPY(ret->relpath, filepath);
-  STRNCPY(ret->abspath, filepath);
+  STRNCPY(ret->relpath, filepath_data.value);
+  Py_XDECREF(filepath_data.value_coerce);
+
+  STRNCPY(ret->abspath, ret->relpath);
   BLI_path_abs(ret->abspath, BKE_main_blendfile_path(bmain));
 
   ret->bmain = bmain;
@@ -402,54 +405,50 @@ struct LibExitLappContextItemsIterData {
 
 static bool bpy_lib_exit_lapp_context_items_cb(BlendfileLinkAppendContext *lapp_context,
                                                BlendfileLinkAppendContextItem *item,
-                                               void *userdata)
+                                               LibExitLappContextItemsIterData &data)
 {
-  LibExitLappContextItemsIterData *data = static_cast<LibExitLappContextItemsIterData *>(userdata);
-
   /* Since `bpy_lib_exit` loops over all ID types, all items in `lapp_context` end up being looped
    * over for each ID type, so when it does not match the item can simply be skipped: it either has
    * already been processed, or will be processed in a later loop. */
-  if (BKE_blendfile_link_append_context_item_idcode_get(lapp_context, item) != data->idcode) {
+  if (BKE_blendfile_link_append_context_item_idcode_get(lapp_context, item) != data.idcode) {
     return true;
   }
 
   const int py_list_index = POINTER_AS_INT(
       BKE_blendfile_link_append_context_item_userdata_get(lapp_context, item));
   ID *new_id = BKE_blendfile_link_append_context_item_newid_get(lapp_context, item);
-  ID *liboverride_id = data->py_library->create_liboverrides ?
+  ID *liboverride_id = data.py_library->create_liboverrides ?
                            BKE_blendfile_link_append_context_item_liboverrideid_get(lapp_context,
                                                                                     item) :
                            nullptr;
 
-  BLI_assert(py_list_index < data->py_list_size);
+  BLI_assert(py_list_index < data.py_list_size);
 
   /* Fully invalid items (which got set to `Py_None` already in first loop of `bpy_lib_exit`)
    * should never be accessed here, since their index should never be set to any item in
    * `lapp_context`. */
-  PyObject *item_src = PyList_GET_ITEM(data->py_list, py_list_index);
+  PyObject *item_src = PyList_GET_ITEM(data.py_list, py_list_index);
   BLI_assert(item_src != Py_None);
 
   PyObject *py_item;
   if (liboverride_id != nullptr) {
-    PointerRNA newid_ptr;
-    RNA_id_pointer_create(liboverride_id, &newid_ptr);
+    PointerRNA newid_ptr = RNA_id_pointer_create(liboverride_id);
     py_item = pyrna_struct_CreatePyObject(&newid_ptr);
   }
   else if (new_id != nullptr) {
-    PointerRNA newid_ptr;
-    RNA_id_pointer_create(new_id, &newid_ptr);
+    PointerRNA newid_ptr = RNA_id_pointer_create(new_id);
     py_item = pyrna_struct_CreatePyObject(&newid_ptr);
   }
   else {
     const char *item_idname = PyUnicode_AsUTF8(item_src);
-    const char *idcode_name_plural = BKE_idtype_idcode_to_name_plural(data->idcode);
+    const char *idcode_name_plural = BKE_idtype_idcode_to_name_plural(data.idcode);
 
-    bpy_lib_exit_warn_idname(data->py_library, idcode_name_plural, item_idname);
+    bpy_lib_exit_warn_idname(data.py_library, idcode_name_plural, item_idname);
 
-    py_item = Py_INCREF_RET(Py_None);
+    py_item = Py_NewRef(Py_None);
   }
 
-  PyList_SET_ITEM(data->py_list, py_list_index, py_item);
+  PyList_SET_ITEM(data.py_list, py_list_index, py_item);
 
   Py_DECREF(item_src);
 
@@ -465,16 +464,18 @@ static PyObject *bpy_lib_exit(BPy_Library *self, PyObject * /*args*/)
    */
   BLI_assert(!do_append || !create_liboverrides);
 
-  BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, true);
+  BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
 
   /* here appending/linking starts */
-  const int id_tag_extra = self->bmain_is_temp ? LIB_TAG_TEMP_MAIN : 0;
+  const int id_tag_extra = self->bmain_is_temp ? int(ID_TAG_TEMP_MAIN) : 0;
   LibraryLink_Params liblink_params;
   BLO_library_link_params_init(&liblink_params, bmain, self->flag, id_tag_extra);
 
   BlendfileLinkAppendContext *lapp_context = BKE_blendfile_link_append_context_new(
       &liblink_params);
+  /* NOTE: Transfers the ownership of the `blo_handle` to the `lapp_context`. */
   BKE_blendfile_link_append_context_library_add(lapp_context, self->abspath, self->blo_handle);
+  self->blo_handle = nullptr;
 
   int idcode_step = 0;
   short idcode;
@@ -516,13 +517,15 @@ static PyObject *bpy_lib_exit(BPy_Library *self, PyObject * /*args*/)
 
 #ifdef USE_RNA_DATABLOCKS
         /* We can replace the item immediately with `None`. */
-        PyObject *py_item = Py_INCREF_RET(Py_None);
+        PyObject *py_item = Py_NewRef(Py_None);
         PyList_SET_ITEM(ls, i, py_item);
         Py_DECREF(item_src);
 #endif
       }
     }
   }
+
+  BKE_blendfile_link_append_context_init_done(lapp_context);
 
   BKE_blendfile_link(lapp_context, nullptr);
   if (do_append) {
@@ -531,6 +534,8 @@ static PyObject *bpy_lib_exit(BPy_Library *self, PyObject * /*args*/)
   else if (create_liboverrides) {
     BKE_blendfile_override(lapp_context, self->liboverride_flags, nullptr);
   }
+
+  BKE_blendfile_link_append_context_finalize(lapp_context);
 
 /* If enabled, replace named items in given lists by the final matching new ID pointer. */
 #ifdef USE_RNA_DATABLOCKS
@@ -560,17 +565,18 @@ static PyObject *bpy_lib_exit(BPy_Library *self, PyObject * /*args*/)
     iter_data.py_list_size = size;
     BKE_blendfile_link_append_context_item_foreach(
         lapp_context,
-        bpy_lib_exit_lapp_context_items_cb,
-        BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_DIRECT,
-        &iter_data);
+        [&iter_data](BlendfileLinkAppendContext *lapp_context,
+                     BlendfileLinkAppendContextItem *item) -> bool {
+          return bpy_lib_exit_lapp_context_items_cb(lapp_context, item, iter_data);
+        },
+        BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_DIRECT);
   }
 #endif  // USE_RNA_DATABLOCKS
 
-  BLO_blendhandle_close(self->blo_handle);
-  self->blo_handle = nullptr;
-
   BKE_blendfile_link_append_context_free(lapp_context);
-  BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, false);
+  BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
+
+  BKE_reports_free(&self->reports);
 
   Py_RETURN_NONE;
 }

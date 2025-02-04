@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,11 +6,11 @@
  * \ingroup select
  */
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
-#include "GPU_capabilities.h"
+#include "BLT_translation.hh"
 
-#include "select_engine.h"
+#include "select_engine.hh"
 
 #include "../overlay/overlay_next_instance.hh"
 #include "select_instance.hh"
@@ -35,14 +35,15 @@ struct SELECT_NextData {
 
 static void SELECT_next_engine_init(void *vedata)
 {
-  if (!GPU_shader_storage_buffer_objects_support()) {
-    return;
-  }
-
   OVERLAY_Data *ved = reinterpret_cast<OVERLAY_Data *>(vedata);
 
   if (ved->instance == nullptr) {
-    ved->instance = new Instance(select::SelectionType::ENABLED);
+    const DRWContextState *draw_ctx = DRW_context_state_get();
+    const RegionView3D *rv3d = draw_ctx->rv3d;
+    const View3D *v3d = draw_ctx->v3d;
+    const bool clipping_enabled = RV3D_CLIPPING_ENABLED(v3d, rv3d);
+
+    ved->instance = new Instance(select::SelectionType::ENABLED, clipping_enabled);
   }
 
   reinterpret_cast<Instance *>(ved->instance)->init();
@@ -50,21 +51,16 @@ static void SELECT_next_engine_init(void *vedata)
 
 static void SELECT_next_cache_init(void *vedata)
 {
-  if (!GPU_shader_storage_buffer_objects_support()) {
-    return;
-  }
   reinterpret_cast<Instance *>(reinterpret_cast<OVERLAY_Data *>(vedata)->instance)->begin_sync();
 }
 
 static void SELECT_next_cache_populate(void *vedata, Object *object)
 {
-  if (!GPU_shader_storage_buffer_objects_support()) {
-    return;
-  }
   ObjectRef ref;
   ref.object = object;
   ref.dupli_object = DRW_object_get_dupli(object);
   ref.dupli_parent = DRW_object_get_dupli_parent(object);
+  ref.handle = ResourceHandle(0);
 
   reinterpret_cast<Instance *>(reinterpret_cast<OVERLAY_Data *>(vedata)->instance)
       ->object_sync(ref, *DRW_manager_get());
@@ -72,28 +68,19 @@ static void SELECT_next_cache_populate(void *vedata, Object *object)
 
 static void SELECT_next_cache_finish(void *vedata)
 {
-  if (!GPU_shader_storage_buffer_objects_support()) {
-    return;
-  }
   reinterpret_cast<Instance *>(reinterpret_cast<OVERLAY_Data *>(vedata)->instance)->end_sync();
 }
 
 static void SELECT_next_draw_scene(void *vedata)
 {
-  if (!GPU_shader_storage_buffer_objects_support()) {
-    return;
-  }
-
   reinterpret_cast<Instance *>(reinterpret_cast<OVERLAY_Data *>(vedata)->instance)
       ->draw(*DRW_manager_get());
 }
 
 static void SELECT_next_instance_free(void *instance_)
 {
-  auto *instance = (Instance *)instance_;
-  if (instance != nullptr) {
-    delete instance;
-  }
+  Instance *instance = (Instance *)instance_;
+  delete instance;
 }
 
 static const DrawEngineDataSize SELECT_next_data_size = DRW_VIEWPORT_DATA_SIZE(SELECT_NextData);

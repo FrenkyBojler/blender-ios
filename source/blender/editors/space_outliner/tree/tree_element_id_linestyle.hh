@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -20,10 +20,10 @@ class TreeElementIDLineStyle final : public TreeElementID {
  public:
   TreeElementIDLineStyle(TreeElement &legacy_te, FreestyleLineStyle &linestyle);
 
-  void expand(SpaceOutliner &) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
 
  private:
-  void expand_textures(SpaceOutliner &) const;
+  void expand_textures() const;
 };
 
 }  // namespace blender::ed::outliner

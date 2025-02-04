@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2015 Blender Foundation
+/* SPDX-FileCopyrightText: 2015 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,7 +14,8 @@
 #  pragma GCC diagnostic ignored "-Wlogical-op"
 #endif
 
-#ifdef __EIGEN3_SVD_C_API_CC__ /* quiet warning */
+#ifdef __EIGEN3_SVD_C_API_CC__
+/* Quiet warning. */
 #endif
 
 #include <Eigen/Core>

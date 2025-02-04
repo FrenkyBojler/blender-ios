@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2018-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2018-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -8,7 +8,7 @@ from bpy.types import Header
 class STATUSBAR_HT_header(Header):
     bl_space_type = 'STATUSBAR'
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         # input status

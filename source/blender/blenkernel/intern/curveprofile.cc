@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,14 +13,15 @@
 #include "DNA_curve_types.h"
 #include "DNA_curveprofile_types.h"
 
+#include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 #include "BKE_curveprofile.h"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 /** Number of points in high resolution table is dynamic up to a maximum. */
 #define PROF_TABLE_MAX 512
@@ -88,7 +89,7 @@ void BKE_curveprofile_blend_write(BlendWriter *writer, const CurveProfile *profi
 
 void BKE_curveprofile_blend_read(BlendDataReader *reader, CurveProfile *profile)
 {
-  BLO_read_data_address(reader, &profile->path);
+  BLO_read_struct_array(reader, CurveProfilePoint, profile->path_len, &profile->path);
   profile->table = nullptr;
   profile->segments = nullptr;
 
@@ -703,7 +704,7 @@ static void create_samples(CurveProfile *profile,
   int n_left;
   if (n_segments >= totedges) {
     if (sample_straight_edges) {
-      /* Assign an even number to each edge if it’s possible, then add the remainder of sampled
+      /* Assign an even number to each edge if it's possible, then add the remainder of sampled
        * points starting with the most curved edges. */
       int n_common = n_segments / totedges;
       n_left = n_segments % totedges;
@@ -967,7 +968,7 @@ static void curveprofile_make_segments_table(CurveProfile *profile)
 void BKE_curveprofile_update(CurveProfile *profile, const int update_flags)
 {
   CurveProfilePoint *points = profile->path;
-  rctf *clipr = &profile->clip_rect;
+  const rctf *clipr = &profile->clip_rect;
 
   profile->changed_timestamp++;
 

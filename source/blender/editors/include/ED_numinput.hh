@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,6 +11,7 @@
 #define NUM_STR_REP_LEN 64
 #define NUM_MAX_ELEMENTS 3
 
+struct bContext;
 struct wmEvent;
 struct UnitSettings;
 
@@ -48,7 +49,7 @@ enum {
   /* (1 << 9) and above are reserved for internal flags! */
 };
 
-/* NumInput.val_flag[] */
+/** #NumInput::val_flag */
 enum {
   /* Public! */
   NUM_NULL_ONE = (1 << 0),
@@ -80,7 +81,7 @@ void initNumInput(NumInput *n);
 /**
  * \param str: Must be NUM_STR_REP_LEN * (idx_max + 1) length.
  */
-void outputNumInput(NumInput *n, char *str, UnitSettings *unit_settings);
+void outputNumInput(NumInput *n, char *str, const UnitSettings &unit_settings);
 bool hasNumInput(const NumInput *n);
 /**
  * \warning \a vec must be set beforehand otherwise we risk uninitialized vars.
@@ -94,7 +95,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event);
 
 bool user_string_to_number(bContext *C,
                            const char *str,
-                           const UnitSettings *unit,
+                           const UnitSettings &unit,
                            int type,
                            double *r_value,
                            bool use_single_line_error,

@@ -1,14 +1,10 @@
-# SPDX-FileCopyrightText: 2012 Blender Foundation
+# SPDX-FileCopyrightText: 2012 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../depsgraph
-  ../../gpu
   ../../makesrna
-  ../../windowmanager
 )
 
 set(INC_SYS
@@ -25,13 +21,19 @@ set(SRC
   mask_select.cc
   mask_shapekey.cc
 
-  mask_intern.h
+  mask_intern.hh
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::animrig
+  PRIVATE bf::windowmanager
 )
 
 

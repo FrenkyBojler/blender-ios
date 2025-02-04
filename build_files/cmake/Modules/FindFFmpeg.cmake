@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020 Blender Foundation
+# SPDX-FileCopyrightText: 2020 Blender Authors
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
@@ -66,17 +66,19 @@ foreach(_component ${FFMPEG_FIND_COMPONENTS})
   list(APPEND _ffmpeg_LIBRARIES ${FFMPEG_${_upper_COMPONENT}_LIBRARY})
   mark_as_advanced(FFMPEG_${_upper_COMPONENT}_LIBRARY)
 endforeach()
+unset(_component)
+unset(_upper_COMPONENT)
 
 # handle the QUIETLY and REQUIRED arguments and set FFMPEG_FOUND to TRUE if
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(FFmpeg DEFAULT_MSG
-    _ffmpeg_LIBRARIES _ffmpeg_INCLUDE_DIR)
+  _ffmpeg_LIBRARIES _ffmpeg_INCLUDE_DIR)
 
-IF(FFMPEG_FOUND)
+if(FFMPEG_FOUND)
   set(FFMPEG_LIBRARIES ${_ffmpeg_LIBRARIES})
   set(FFMPEG_INCLUDE_DIRS ${_ffmpeg_INCLUDE_DIR})
-ENDIF()
+endif()
 
 mark_as_advanced(
   FFMPEG_INCLUDE_DIR

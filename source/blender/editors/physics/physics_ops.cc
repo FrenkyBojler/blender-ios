@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,11 +8,13 @@
 
 #include <cstdlib>
 
+#include "DNA_space_types.h"
+
 #include "WM_api.hh"
 
 #include "ED_physics.hh"
 
-#include "physics_intern.h" /* own include */
+#include "physics_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Particles
@@ -86,7 +88,7 @@ static void operatortypes_particle()
 
 static void keymap_particle(wmKeyConfig *keyconf)
 {
-  wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Particle", 0, 0);
+  wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Particle", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = PE_poll;
 }
 

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,9 @@
 
 using blender::Span;
 
+struct SpaceText;
 struct Text;
+struct TextLine;
 
 /* *** Flatten String *** */
 struct FlattenString {
@@ -114,6 +116,7 @@ TextFormatType *ED_text_format_get(Text *text);
 void ED_text_format_register(TextFormatType *tft);
 
 /* formatters */
+void ED_text_format_register_glsl();
 void ED_text_format_register_py();
 void ED_text_format_register_osl();
 void ED_text_format_register_pov();
@@ -126,14 +129,13 @@ void ED_text_format_register_pov_ini();
  * If a string literal is found, the length of the string literal is returned.
  * Otherwise, 0.
  */
-int text_format_string_literal_find(const Span<const char *> string_literals, const char *text);
+int text_format_string_literal_find(Span<const char *> string_literals, const char *text);
 
 #ifndef NDEBUG
 /**
  * Check if #string_literals array is shorted. This validation is required since text formatters do
  * binary search on these string literals arrays. Used only for assertions.
  */
-const bool text_format_string_literals_check_sorted_array(
-    const Span<const char *> &string_literals);
+bool text_format_string_literals_check_sorted_array(Span<const char *> string_literals);
 
 #endif

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2021 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2021 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,9 +6,9 @@
  * \ingroup bli
  */
 
+#include <stdio.h>
 #include <zlib.h>
 
-#include "BLI_blenlib.h"
 #include "BLI_filereader.h"
 
 #include "MEM_guardedalloc.h"
@@ -24,7 +24,7 @@ typedef struct {
   size_t in_size;
 } GzipReader;
 
-static ssize_t gzip_read(FileReader *reader, void *buffer, size_t size)
+static int64_t gzip_read(FileReader *reader, void *buffer, size_t size)
 {
   GzipReader *gzip = (GzipReader *)reader;
 
@@ -54,7 +54,7 @@ static ssize_t gzip_read(FileReader *reader, void *buffer, size_t size)
     }
   }
 
-  ssize_t read_len = size - gzip->strm.avail_out;
+  int64_t read_len = size - gzip->strm.avail_out;
   gzip->reader.offset += read_len;
   return read_len;
 }
@@ -66,7 +66,7 @@ static void gzip_close(FileReader *reader)
   if (inflateEnd(&gzip->strm) != Z_OK) {
     printf("close gzip stream error\n");
   }
-  MEM_freeN((void *)gzip->in_buf);
+  MEM_freeN(gzip->in_buf);
 
   gzip->base->close(gzip->base);
   MEM_freeN(gzip);

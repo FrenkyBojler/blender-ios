@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,46 +7,47 @@
  */
 
 /* Screw modifier: revolves the edges about an axis */
+#include <algorithm>
 #include <climits>
 
 #include "BLI_utildefines.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_span.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_context.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_customdata.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_screen.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_build.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "BLI_strict_flags.h"
-
 #include "GEO_mesh_merge_by_distance.hh"
+
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 using namespace blender;
 
@@ -179,7 +180,7 @@ static Mesh *mesh_remove_doubles_on_axis(Mesh *result,
     /* TODO(mano-wii): Polygons with all vertices merged are the ones that form duplicates.
      * Therefore the duplicate face test can be skipped. */
     result = geometry::mesh_merge_verts(*tmp,
-                                        MutableSpan<int>{full_doubles_map, result->totvert},
+                                        MutableSpan<int>{full_doubles_map, result->verts_num},
                                         int(tot_doubles * (step_tot - 1)),
                                         false);
 
@@ -221,8 +222,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   };
 
   uint maxVerts = 0, maxEdges = 0, maxPolys = 0;
-  const uint totvert = uint(mesh->totvert);
-  const uint totedge = uint(mesh->totedge);
+  const uint totvert = uint(mesh->verts_num);
+  const uint totedge = uint(mesh->edges_num);
   const uint faces_num = uint(mesh->faces_num);
 
   uint *edge_face_map = nullptr; /* orig edge to orig face */
@@ -230,7 +231,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   /* UV Coords */
   const uint mloopuv_layers_tot = uint(
-      CustomData_number_of_layers(&mesh->loop_data, CD_PROP_FLOAT2));
+      CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2));
   blender::Array<blender::float2 *> mloopuv_layers(mloopuv_layers_tot);
   float uv_u_scale;
   float uv_v_minmax[2] = {FLT_MAX, -FLT_MAX};
@@ -286,8 +287,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   if (ob_axis != nullptr) {
     /* Calculate the matrix relative to the axis object. */
-    invert_m4_m4(mtx_tmp_a, ctx->object->object_to_world);
-    copy_m4_m4(mtx_tx_inv, ob_axis->object_to_world);
+    invert_m4_m4(mtx_tmp_a, ctx->object->object_to_world().ptr());
+    copy_m4_m4(mtx_tx_inv, ob_axis->object_to_world().ptr());
     mul_m4_m4m4(mtx_tx, mtx_tmp_a, mtx_tx_inv);
 
     /* Calculate the axis vector. */
@@ -376,9 +377,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   }
   else {
     close = false;
-    if (step_tot < 2) {
-      step_tot = 2;
-    }
+    step_tot = std::max<uint>(step_tot, 2);
 
     maxVerts = totvert * step_tot;          /* -1 because we're joining back up */
     maxEdges = (totvert * (step_tot - 1)) + /* these are the edges between new verts */
@@ -397,8 +396,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       mesh, int(maxVerts), int(maxEdges), int(maxPolys), int(maxPolys) * 4);
   /* The modifier doesn't support original index mapping on the edge or face domains. Remove
    * original index layers, since otherwise edges aren't displayed at all in wireframe view. */
-  CustomData_free_layers(&result->edge_data, CD_ORIGINDEX, result->totedge);
-  CustomData_free_layers(&result->face_data, CD_ORIGINDEX, result->totedge);
+  CustomData_free_layers(&result->edge_data, CD_ORIGINDEX, result->edges_num);
+  CustomData_free_layers(&result->face_data, CD_ORIGINDEX, result->edges_num);
 
   const blender::Span<float3> vert_positions_orig = mesh->vert_positions();
   const blender::Span<int2> edges_orig = mesh->edges();
@@ -413,7 +412,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   blender::MutableSpan<int> corner_edges_new = result->corner_edges_for_write();
   bke::MutableAttributeAccessor attributes = result->attributes_for_write();
   bke::SpanAttributeWriter<bool> sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
-      "sharp_face", ATTR_DOMAIN_FACE);
+      "sharp_face", bke::AttrDomain::Face);
 
   if (!CustomData_has_layer(&result->face_data, CD_ORIGINDEX)) {
     CustomData_add_layer(&result->face_data, CD_ORIGINDEX, CD_SET_DEFAULT, int(maxPolys));
@@ -433,7 +432,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     uint uv_lay;
     for (uv_lay = 0; uv_lay < mloopuv_layers_tot; uv_lay++) {
       mloopuv_layers[uv_lay] = static_cast<blender::float2 *>(CustomData_get_layer_n_for_write(
-          &result->loop_data, CD_PROP_FLOAT2, int(uv_lay), result->totloop));
+          &result->corner_data, CD_PROP_FLOAT2, int(uv_lay), result->corners_num));
     }
 
     if (ltmd->flag & MOD_SCREW_UV_STRETCH_V) {
@@ -833,8 +832,13 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   /* more of an offset in this case */
   edge_offset = totedge + (totvert * (step_tot - (close ? 0 : 1)));
 
-  const int *src_material_index = BKE_mesh_material_indices(mesh);
-  int *dst_material_index = BKE_mesh_material_indices_for_write(result);
+  const bke::AttributeAccessor src_attributes = mesh->attributes();
+  const VArraySpan src_material_index = *src_attributes.lookup<int>("material_index",
+                                                                    bke::AttrDomain::Face);
+
+  bke::MutableAttributeAccessor dst_attributes = result->attributes_for_write();
+  bke::SpanAttributeWriter dst_material_index = dst_attributes.lookup_or_add_for_write_span<int>(
+      "material_index", bke::AttrDomain::Face);
 
   for (uint i = 0; i < totedge; i++, med_new_firstloop++) {
     const uint step_last = step_tot - (close ? 1 : 2);
@@ -855,7 +859,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     i2 = uint((*med_new_firstloop)[1]);
 
     if (has_mpoly_orig) {
-      mat_nr = src_material_index == nullptr ? 0 : src_material_index[face_index_orig];
+      mat_nr = src_material_index.is_empty() ? 0 : src_material_index[face_index_orig];
     }
     else {
       mat_nr = 0;
@@ -876,12 +880,12 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       /* Polygon */
       if (has_mpoly_orig) {
         CustomData_copy_data(
-            &mesh->face_data, &result->face_data, int(face_index_orig), int(face_index), 1);
+            &mesh->face_data, &result->face_data, int(face_index_orig), face_index, 1);
         origindex[face_index] = int(face_index_orig);
       }
       else {
         origindex[face_index] = ORIGINDEX_NONE;
-        dst_material_index[face_index] = mat_nr;
+        dst_material_index.span[face_index] = mat_nr;
         sharp_faces.span[face_index] = use_flat_shading;
       }
       face_offests_new[face_index] = face_index * 4;
@@ -889,14 +893,26 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       /* Loop-Custom-Data */
       if (has_mloop_orig) {
 
-        CustomData_copy_data(
-            &mesh->loop_data, &result->loop_data, int(mloop_index_orig[0]), new_loop_index + 0, 1);
-        CustomData_copy_data(
-            &mesh->loop_data, &result->loop_data, int(mloop_index_orig[1]), new_loop_index + 1, 1);
-        CustomData_copy_data(
-            &mesh->loop_data, &result->loop_data, int(mloop_index_orig[1]), new_loop_index + 2, 1);
-        CustomData_copy_data(
-            &mesh->loop_data, &result->loop_data, int(mloop_index_orig[0]), new_loop_index + 3, 1);
+        CustomData_copy_data(&mesh->corner_data,
+                             &result->corner_data,
+                             int(mloop_index_orig[0]),
+                             new_loop_index + 0,
+                             1);
+        CustomData_copy_data(&mesh->corner_data,
+                             &result->corner_data,
+                             int(mloop_index_orig[1]),
+                             new_loop_index + 1,
+                             1);
+        CustomData_copy_data(&mesh->corner_data,
+                             &result->corner_data,
+                             int(mloop_index_orig[1]),
+                             new_loop_index + 2,
+                             1);
+        CustomData_copy_data(&mesh->corner_data,
+                             &result->corner_data,
+                             int(mloop_index_orig[0]),
+                             new_loop_index + 3,
+                             1);
 
         if (mloopuv_layers_tot) {
           uint uv_lay;
@@ -1004,6 +1020,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 #endif
 
   sharp_faces.finish();
+  dst_material_index.finish();
 
   if (edge_face_map) {
     MEM_freeN(edge_face_map);
@@ -1055,22 +1072,22 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "angle", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row = uiLayoutRow(col, false);
   uiLayoutSetActive(row,
                     RNA_pointer_is_null(&screw_obj_ptr) ||
                         !RNA_boolean_get(ptr, "use_object_screw_offset"));
-  uiItemR(row, ptr, "screw_offset", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "iterations", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "screw_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemS(layout);
   col = uiLayoutColumn(layout, false);
   row = uiLayoutRow(col, false);
-  uiItemR(row, ptr, "axis", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   uiItemR(col, ptr, "object", UI_ITEM_NONE, IFACE_("Axis Object"), ICON_NONE);
   sub = uiLayoutColumn(col, false);
   uiLayoutSetActive(sub, !RNA_pointer_is_null(&screw_obj_ptr));
-  uiItemR(sub, ptr, "use_object_screw_offset", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(sub, ptr, "use_object_screw_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemS(layout);
 
@@ -1105,9 +1122,9 @@ static void normals_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "use_smooth_shade", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_normal_calculate", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_normal_flip", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "use_normal_calculate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "use_normal_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -1123,7 +1140,7 @@ ModifierTypeInfo modifierType_Screw = {
     /*struct_name*/ "ScrewModifierData",
     /*struct_size*/ sizeof(ScrewModifierData),
     /*srna*/ &RNA_ScrewModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
 
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode,
@@ -1151,4 +1168,5 @@ ModifierTypeInfo modifierType_Screw = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

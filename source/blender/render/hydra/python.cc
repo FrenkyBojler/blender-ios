@@ -1,23 +1,23 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * SPDX-FileCopyrightText: 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "final_engine.h"
-#include "preview_engine.h"
-#include "viewport_engine.h"
+#include "final_engine.hh"
+#include "preview_engine.hh"
+#include "viewport_engine.hh"
 
 #include <Python.h>
 
 #include "RE_engine.h"
 
-#include "bpy_rna.h"
+#include "../generic/py_capi_utils.hh"
+#include "bpy_rna.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
-#include "RE_engine.h"
+#include "RNA_prototypes.hh"
 
-#include "RNA_prototypes.h"
-
-#include "hydra/image.h"
+#include "hydra/image.hh"
 
 namespace blender::render::hydra {
 
@@ -32,7 +32,7 @@ static PyObject *engine_create_func(PyObject * /*self*/, PyObject *args)
   PyObject *pyengine;
   char *engine_type, *render_delegate_id;
   if (!PyArg_ParseTuple(args, "Oss", &pyengine, &engine_type, &render_delegate_id)) {
-    Py_RETURN_NONE;
+    return nullptr;
   }
 
   RenderEngine *bl_engine = pyrna_to_pointer<RenderEngine>(pyengine, &RNA_RenderEngine);
@@ -62,7 +62,7 @@ static PyObject *engine_free_func(PyObject * /*self*/, PyObject *args)
 {
   PyObject *pyengine;
   if (!PyArg_ParseTuple(args, "O", &pyengine)) {
-    Py_RETURN_NONE;
+    return nullptr;
   }
 
   Engine *engine = static_cast<Engine *>(PyLong_AsVoidPtr(pyengine));
@@ -76,7 +76,7 @@ static PyObject *engine_update_func(PyObject * /*self*/, PyObject *args)
 {
   PyObject *pyengine, *pydepsgraph, *pycontext;
   if (!PyArg_ParseTuple(args, "OOO", &pyengine, &pydepsgraph, &pycontext)) {
-    Py_RETURN_NONE;
+    return nullptr;
   }
 
   Engine *engine = static_cast<Engine *>(PyLong_AsVoidPtr(pyengine));
@@ -93,7 +93,7 @@ static PyObject *engine_render_func(PyObject * /*self*/, PyObject *args)
 {
   PyObject *pyengine;
   if (!PyArg_ParseTuple(args, "O", &pyengine)) {
-    Py_RETURN_NONE;
+    return nullptr;
   }
 
   Engine *engine = static_cast<Engine *>(PyLong_AsVoidPtr(pyengine));
@@ -112,7 +112,7 @@ static PyObject *engine_view_draw_func(PyObject * /*self*/, PyObject *args)
 {
   PyObject *pyengine, *pycontext;
   if (!PyArg_ParseTuple(args, "OO", &pyengine, &pycontext)) {
-    Py_RETURN_NONE;
+    return nullptr;
   }
 
   ViewportEngine *engine = static_cast<ViewportEngine *>(PyLong_AsVoidPtr(pyengine));
@@ -151,7 +151,7 @@ static PyObject *engine_set_render_setting_func(PyObject * /*self*/, PyObject *a
   PyObject *pyengine, *pyval;
   char *key;
   if (!PyArg_ParseTuple(args, "OsO", &pyengine, &key, &pyval)) {
-    Py_RETURN_NONE;
+    return nullptr;
   }
 
   Engine *engine = static_cast<Engine *>(PyLong_AsVoidPtr(pyengine));
@@ -166,7 +166,7 @@ static PyObject *cache_or_get_image_file_func(PyObject * /*self*/, PyObject *arg
 {
   PyObject *pycontext, *pyimage;
   if (!PyArg_ParseTuple(args, "OO", &pycontext, &pyimage)) {
-    Py_RETURN_NONE;
+    return nullptr;
   }
 
   bContext *context = static_cast<bContext *>(PyLong_AsVoidPtr(pycontext));
@@ -174,7 +174,7 @@ static PyObject *cache_or_get_image_file_func(PyObject * /*self*/, PyObject *arg
 
   std::string image_path = io::hydra::cache_or_get_image_file(
       CTX_data_main(context), CTX_data_scene(context), image, nullptr);
-  return PyUnicode_FromString(image_path.c_str());
+  return PyC_UnicodeFromStdStr(image_path);
 }
 
 static PyMethodDef methods[] = {
@@ -187,19 +187,19 @@ static PyMethodDef methods[] = {
 
     {"cache_or_get_image_file", cache_or_get_image_file_func, METH_VARARGS, ""},
 
-    {NULL, NULL, 0, NULL},
+    {nullptr, nullptr, 0, nullptr},
 };
 
-static struct PyModuleDef module = {
+static PyModuleDef module = {
     PyModuleDef_HEAD_INIT,
     "_bpy_hydra",
     "Hydra render API",
     -1,
     methods,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
 };
 
 }  // namespace blender::render::hydra

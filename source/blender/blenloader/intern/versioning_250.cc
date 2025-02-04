@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -24,10 +24,8 @@
 #include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_fluid_types.h"
-#include "DNA_ipo_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -36,45 +34,46 @@
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_sdna_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_world_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
+#include "BLI_math_color.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_anim_visualization.h"
-#include "BKE_armature.h"
-#include "BKE_colortools.h"
-#include "BKE_global.h" /* for G */
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_mesh.hh"
-#include "BKE_modifier.h"
-#include "BKE_multires.hh"
-#include "BKE_node.h"
-#include "BKE_node_tree_update.h"
+#include "BKE_armature.hh"
+#include "BKE_colortools.hh"
+#include "BKE_customdata.hh"
+#include "BKE_global.hh" /* for G */
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_modifier.hh"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_particle.h"
-#include "BKE_pointcache.h"
-#include "BKE_screen.h"
-#include "BKE_sound.h"
+#include "BKE_screen.hh"
 #include "BKE_texture.h"
 
-#include "SEQ_iterator.h"
+#include "SEQ_iterator.hh"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
-#include "readfile.h"
+#include "readfile.hh"
 
-#include "versioning_common.h"
+#include "versioning_common.hh"
 
+#include <algorithm>
 #include <cerrno>
 
 /* Make preferences read-only, use `versioning_userdef.cc`. */
@@ -83,8 +82,7 @@
 /* 2.50 patch */
 static void area_add_header_region(ScrArea *area, ListBase *lb)
 {
-  ARegion *region = static_cast<ARegion *>(
-      MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+  ARegion *region = BKE_area_region_new();
 
   BLI_addtail(lb, region);
   region->regiontype = RGN_TYPE_HEADER;
@@ -135,16 +133,14 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
     /* first channels for ipo action nla... */
     switch (sl->spacetype) {
       case SPACE_GRAPH:
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_CHANNELS;
         region->alignment = RGN_ALIGN_LEFT;
         region->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
 
         /* for some reason, this doesn't seem to go auto like for NLA... */
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
         region->alignment = RGN_ALIGN_RIGHT;
@@ -153,8 +149,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         break;
 
       case SPACE_ACTION:
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_CHANNELS;
         region->alignment = RGN_ALIGN_LEFT;
@@ -163,8 +158,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         break;
 
       case SPACE_NLA:
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_CHANNELS;
         region->alignment = RGN_ALIGN_LEFT;
@@ -172,8 +166,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
 
         /* for some reason, some files still don't get this auto */
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
         region->alignment = RGN_ALIGN_RIGHT;
@@ -182,7 +175,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         break;
 
       case SPACE_NODE:
-        region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "nodetree area for node"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
         region->alignment = RGN_ALIGN_LEFT;
@@ -192,12 +185,12 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->flag = RGN_FLAG_HIDDEN;
         break;
       case SPACE_FILE:
-        region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "nodetree area for node"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_CHANNELS;
         region->alignment = RGN_ALIGN_LEFT;
 
-        region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "ui area for file"));
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
         region->alignment = RGN_ALIGN_TOP;
@@ -210,15 +203,14 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
             break;
           }
         }
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "preview area for sequencer"));
+        region = BKE_area_region_new();
         BLI_insertlinkbefore(lb, region_main, region);
         sequencer_init_preview_region(region);
         break;
       }
       case SPACE_VIEW3D:
         /* toolbar */
-        region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "toolbar for view3d"));
+        region = BKE_area_region_new();
 
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_TOOLS;
@@ -226,8 +218,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->flag = RGN_FLAG_HIDDEN;
 
         /* tool properties */
-        region = static_cast<ARegion *>(
-            MEM_callocN(sizeof(ARegion), "tool properties for view3d"));
+        region = BKE_area_region_new();
 
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_TOOL_PROPS;
@@ -235,7 +226,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->flag = RGN_FLAG_HIDDEN;
 
         /* buttons/list view */
-        region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "buttons for view3d"));
+        region = BKE_area_region_new();
 
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
@@ -244,7 +235,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
 #if 0
       case SPACE_PROPERTIES:
         /* context UI region */
-        region = MEM_callocN(sizeof(ARegion), "area region from do_versions");
+        region = BKE_area_region_new();
         BLI_addtail(lb, region);
         region->regiontype = RGN_TYPE_UI;
         region->alignment = RGN_ALIGN_RIGHT;
@@ -255,7 +246,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
   }
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "area region from do_versions"));
+  region = BKE_area_region_new();
 
   BLI_addtail(lb, region);
   region->winrct = area->totrct;
@@ -317,7 +308,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
       case SPACE_ACTION: {
         SpaceAction *saction = (SpaceAction *)sl;
 
-        /* We totally reinit the view for the Action Editor,
+        /* We totally reinitialize the view for the Action Editor,
          * as some old instances had some weird cruft set. */
         region->v2d.tot.xmin = -20.0f;
         region->v2d.tot.ymin = float(-area->winy) / 3.0f;
@@ -440,14 +431,14 @@ static void versions_gpencil_add_main(Main *bmain, ListBase *lb, ID *id, const c
 {
   BLI_addtail(lb, id);
   id->us = 1;
-  id->flag = LIB_FAKEUSER;
+  id->flag = ID_FLAG_FAKEUSER;
   *((short *)id->name) = ID_GD_LEGACY;
 
-  BKE_id_new_name_validate(bmain, lb, id, name, false);
+  BKE_id_new_name_validate(*bmain, *lb, *id, name, IDNewNameMode::RenameExistingNever, false);
   /* alphabetic insertion: is in BKE_id_new_name_validate */
 
-  if ((id->tag & LIB_TAG_TEMP_MAIN) == 0) {
-    BKE_lib_libblock_session_uuid_ensure(id);
+  if ((id->tag & ID_TAG_TEMP_MAIN) == 0) {
+    BKE_lib_libblock_session_uid_ensure(id);
   }
 
   if (G.debug & G_DEBUG) {
@@ -575,9 +566,9 @@ static bNodeSocket *do_versions_node_group_add_socket_2_56_2(bNodeTree *ngroup,
   //  if (stype->value_structsize > 0)
   //      gsock->default_value = MEM_callocN(stype->value_structsize, "default socket value");
 
-  BLI_addtail(in_out == SOCK_IN ? &ngroup->inputs : &ngroup->outputs, gsock);
+  BLI_addtail(in_out == SOCK_IN ? &ngroup->inputs_legacy : &ngroup->outputs_legacy, gsock);
 
-  BKE_ntree_update_tag_interface(ngroup);
+  ngroup->tree_interface.tag_items_changed();
 
   return gsock;
 }
@@ -627,44 +618,36 @@ static void do_versions_socket_default_value_259(bNodeSocket *sock)
   }
 }
 
-static bool seq_sound_proxy_update_cb(Sequence *seq, void *user_data)
+static bool strip_sound_proxy_update_cb(Strip *strip, void * /*user_data*/)
 {
-  Main *bmain = (Main *)user_data;
-  if (seq->type == SEQ_TYPE_SOUND_HD) {
-    char filepath_abs[FILE_MAX];
-    BLI_path_join(
-        filepath_abs, sizeof(filepath_abs), seq->strip->dirpath, seq->strip->stripdata->filename);
-    BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
-    seq->sound = BKE_sound_new_file(bmain, filepath_abs);
-  }
-#define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
-#define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)
+#define STRIP_USE_PROXY_CUSTOM_DIR (1 << 19)
+#define STRIP_USE_PROXY_CUSTOM_FILE (1 << 21)
   /* don't know, if anybody used that this way, but just in case, upgrade to new way... */
-  if ((seq->flag & SEQ_USE_PROXY_CUSTOM_FILE) && !(seq->flag & SEQ_USE_PROXY_CUSTOM_DIR)) {
-    SNPRINTF(seq->strip->proxy->dirpath, "%s" SEP_STR "BL_proxy", seq->strip->dirpath);
+  if ((strip->flag & STRIP_USE_PROXY_CUSTOM_FILE) && !(strip->flag & STRIP_USE_PROXY_CUSTOM_DIR)) {
+    SNPRINTF(strip->data->proxy->dirpath, "%s" SEP_STR "BL_proxy", strip->data->dirpath);
   }
-#undef SEQ_USE_PROXY_CUSTOM_DIR
-#undef SEQ_USE_PROXY_CUSTOM_FILE
+#undef STRIP_USE_PROXY_CUSTOM_DIR
+#undef STRIP_USE_PROXY_CUSTOM_FILE
   return true;
 }
 
-static bool seq_set_volume_cb(Sequence *seq, void * /*user_data*/)
+static bool strip_set_volume_cb(Strip *strip, void * /*user_data*/)
 {
-  seq->volume = 1.0f;
+  strip->volume = 1.0f;
   return true;
 }
 
-static bool seq_set_sat_cb(Sequence *seq, void * /*user_data*/)
+static bool strip_set_sat_cb(Strip *strip, void * /*user_data*/)
 {
-  if (seq->sat == 0.0f) {
-    seq->sat = 1.0f;
+  if (strip->sat == 0.0f) {
+    strip->sat = 1.0f;
   }
   return true;
 }
 
-static bool seq_set_pitch_cb(Sequence *seq, void * /*user_data*/)
+static bool strip_set_pitch_cb(Strip *strip, void * /*user_data*/)
 {
-  seq->pitch = 1.0f;
+  strip->pitch = 1.0f;
   return true;
 }
 
@@ -686,8 +669,8 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->ed && scene->ed->seqbasep) {
-        SEQ_for_each_callback(&scene->ed->seqbase, seq_sound_proxy_update_cb, bmain);
+      if (scene->ed) {
+        SEQ_for_each_callback(&scene->ed->seqbase, strip_sound_proxy_update_cb, bmain);
       }
     }
 
@@ -737,7 +720,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
         /* which_output 0 is now "not specified" */
         LISTBASE_FOREACH (bNode *, node, &tx->nodetree->nodes) {
-          if (node->type == TEX_NODE_OUTPUT) {
+          if (node->type_legacy == TEX_NODE_OUTPUT) {
             node->custom1++;
           }
         }
@@ -954,7 +937,6 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 250, 7)) {
-    Key *key;
     const float *data;
     int a, tot;
 
@@ -962,14 +944,13 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
      * to the evaluated #Mesh, so here we ensure that the basis
      * shape key is always set in the mesh coordinates. */
     LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
-      if ((key = static_cast<Key *>(
-               blo_do_versions_newlibadr(fd, &me->id, ID_IS_LINKED(me), me->key))) &&
-          key->refkey)
-      {
+      Key *key = static_cast<Key *>(
+          blo_do_versions_newlibadr(fd, &me->id, ID_IS_LINKED(me), me->key));
+      if (key && key->refkey) {
         data = static_cast<const float *>(key->refkey->data);
-        tot = MIN2(me->totvert, key->refkey->totelem);
+        tot = std::min(me->verts_num, key->refkey->totelem);
         MVert *verts = (MVert *)CustomData_get_layer_for_write(
-            &me->vert_data, CD_MVERT, me->totvert);
+            &me->vert_data, CD_MVERT, me->verts_num);
         for (a = 0; a < tot; a++, data += 3) {
           copy_v3_v3(verts[a].co_legacy, data);
         }
@@ -977,12 +958,11 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (Lattice *, lt, &bmain->lattices) {
-      if ((key = static_cast<Key *>(
-               blo_do_versions_newlibadr(fd, &lt->id, ID_IS_LINKED(lt), lt->key))) &&
-          key->refkey)
-      {
+      Key *key = static_cast<Key *>(
+          blo_do_versions_newlibadr(fd, &lt->id, ID_IS_LINKED(lt), lt->key));
+      if (key && key->refkey) {
         data = static_cast<const float *>(key->refkey->data);
-        tot = MIN2(lt->pntsu * lt->pntsv * lt->pntsw, key->refkey->totelem);
+        tot = std::min(lt->pntsu * lt->pntsv * lt->pntsw, key->refkey->totelem);
 
         for (a = 0; a < tot; a++, data += 3) {
           copy_v3_v3(lt->def[a].vec, data);
@@ -991,10 +971,9 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (Curve *, cu, &bmain->curves) {
-      if ((key = static_cast<Key *>(
-               blo_do_versions_newlibadr(fd, &cu->id, ID_IS_LINKED(cu), cu->key))) &&
-          key->refkey)
-      {
+      Key *key = static_cast<Key *>(
+          blo_do_versions_newlibadr(fd, &cu->id, ID_IS_LINKED(cu), cu->key));
+      if (key && key->refkey) {
         data = static_cast<const float *>(key->refkey->data);
 
         LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
@@ -1046,7 +1025,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         bNode *node = static_cast<bNode *>(ntree->nodes.first);
 
         while (node) {
-          nodeUniqueName(ntree, node);
+          blender::bke::node_unique_name(ntree, node);
           node = node->next;
         }
 
@@ -1223,8 +1202,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
                   break;
                 }
               }
-              ARegion *region = static_cast<ARegion *>(
-                  MEM_callocN(sizeof(ARegion), "preview area for sequencer"));
+              ARegion *region = BKE_area_region_new();
               BLI_insertlinkbefore(regionbase, region_main, region);
               sequencer_init_preview_region(region);
             }
@@ -1359,7 +1337,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         sce->r.ffcodecdata.audio_codec = 0x0; /* `CODEC_ID_NONE` */
       }
       if (sce->ed) {
-        SEQ_for_each_callback(&sce->ed->seqbase, seq_set_volume_cb, nullptr);
+        SEQ_for_each_callback(&sce->ed->seqbase, strip_set_volume_cb, nullptr);
       }
     }
 
@@ -1444,7 +1422,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         bNode *node = static_cast<bNode *>(scene->nodetree->nodes.first);
 
         while (node) {
-          if (node->type == CMP_NODE_COLORBALANCE) {
+          if (node->type_legacy == CMP_NODE_COLORBALANCE) {
             NodeColorBalance *n = (NodeColorBalance *)node->storage;
             n->lift[0] += 1.0f;
             n->lift[1] += 1.0f;
@@ -1459,7 +1437,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
       bNode *node = static_cast<bNode *>(ntree->nodes.first);
 
       while (node) {
-        if (node->type == CMP_NODE_COLORBALANCE) {
+        if (node->type_legacy == CMP_NODE_COLORBALANCE) {
           NodeColorBalance *n = (NodeColorBalance *)node->storage;
           n->lift[0] += 1.0f;
           n->lift[1] += 1.0f;
@@ -1507,21 +1485,13 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
               regionbase = &sl->regionbase;
             }
 
-            if (snode->v2d.minzoom > 0.09f) {
-              snode->v2d.minzoom = 0.09f;
-            }
-            if (snode->v2d.maxzoom < 2.31f) {
-              snode->v2d.maxzoom = 2.31f;
-            }
+            snode->v2d.minzoom = std::min(snode->v2d.minzoom, 0.09f);
+            snode->v2d.maxzoom = std::max(snode->v2d.maxzoom, 2.31f);
 
             LISTBASE_FOREACH (ARegion *, region, regionbase) {
               if (region->regiontype == RGN_TYPE_WINDOW) {
-                if (region->v2d.minzoom > 0.09f) {
-                  region->v2d.minzoom = 0.09f;
-                }
-                if (region->v2d.maxzoom < 2.31f) {
-                  region->v2d.maxzoom = 2.31f;
-                }
+                region->v2d.minzoom = std::min(region->v2d.minzoom, 0.09f);
+                region->v2d.maxzoom = std::max(region->v2d.maxzoom, 2.31f);
               }
             }
           }
@@ -1545,7 +1515,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
             amd = (ArmatureModifierData *)BKE_modifier_new(eModifierType_Armature);
             amd->object = ob->parent;
-            BLI_addtail((ListBase *)&ob->modifiers, amd);
+            BLI_addtail((&ob->modifiers), amd);
             amd->deformflag = arm->deformflag;
             ob->partype = PAROBJECT;
           }
@@ -1554,7 +1524,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
             lmd = (LatticeModifierData *)BKE_modifier_new(eModifierType_Lattice);
             lmd->object = ob->parent;
-            BLI_addtail((ListBase *)&ob->modifiers, lmd);
+            BLI_addtail((&ob->modifiers), lmd);
             ob->partype = PAROBJECT;
           }
           else if (parent->type == OB_CURVES_LEGACY && ob->partype == PARCURVE) {
@@ -1562,7 +1532,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
             cmd = (CurveModifierData *)BKE_modifier_new(eModifierType_Curve);
             cmd->object = ob->parent;
-            BLI_addtail((ListBase *)&ob->modifiers, cmd);
+            BLI_addtail((&ob->modifiers), cmd);
             ob->partype = PAROBJECT;
           }
         }
@@ -1594,7 +1564,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        SEQ_for_each_callback(&scene->ed->seqbase, seq_set_sat_cb, nullptr);
+        SEQ_for_each_callback(&scene->ed->seqbase, strip_set_sat_cb, nullptr);
       }
     }
 
@@ -1871,13 +1841,12 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
             /* initialize the default socket value */
             copy_v4_v4(gsock->ns.vec, sock->ns.vec);
 
-            /* XXX nodeAddLink does not work with incomplete (node==nullptr) links any longer,
+            /* XXX node_add_link does not work with incomplete (node==nullptr) links any longer,
              * have to create these directly here.
              * These links are updated again in subsequent do_version!
              */
             bNodeLink *link = static_cast<bNodeLink *>(MEM_callocN(sizeof(bNodeLink), "link"));
             BLI_addtail(&ntree->links, link);
-            nodeUniqueID(ntree, node);
             link->fromnode = nullptr;
             link->fromsock = gsock;
             link->tonode = node;
@@ -1888,21 +1857,21 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
         LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-          if (nodeCountSocketLinks(ntree, sock) == 0 &&
-              !((sock->flag & (SOCK_HIDDEN | SOCK_UNAVAIL)) != 0)) {
+          if (blender::bke::node_count_socket_links(ntree, sock) == 0 &&
+              !((sock->flag & (SOCK_HIDDEN | SOCK_UNAVAIL)) != 0))
+          {
             bNodeSocket *gsock = do_versions_node_group_add_socket_2_56_2(
                 ntree, sock->name, sock->type, SOCK_OUT);
 
             /* initialize the default socket value */
             copy_v4_v4(gsock->ns.vec, sock->ns.vec);
 
-            /* XXX nodeAddLink does not work with incomplete (node==nullptr) links any longer,
+            /* XXX node_add_link does not work with incomplete (node==nullptr) links any longer,
              * have to create these directly here.
              * These links are updated again in subsequent do_version!
              */
             bNodeLink *link = static_cast<bNodeLink *>(MEM_callocN(sizeof(bNodeLink), "link"));
             BLI_addtail(&ntree->links, link);
-            nodeUniqueID(ntree, node);
             link->fromnode = node;
             link->fromsock = sock;
             link->tonode = nullptr;
@@ -1972,7 +1941,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->nodetree) {
         LISTBASE_FOREACH (bNode *, node, &scene->nodetree->nodes) {
-          if (node->type == CMP_NODE_BLUR) {
+          if (node->type_legacy == CMP_NODE_BLUR) {
             NodeBlurData *nbd = static_cast<NodeBlurData *>(node->storage);
             nbd->percentx *= 100.0f;
             nbd->percenty *= 100.0f;
@@ -2026,7 +1995,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
       scene->r.ffcodecdata.audio_channels = 2;
       scene->audio.volume = 1.0f;
       if (scene->ed) {
-        SEQ_for_each_callback(&scene->ed->seqbase, seq_set_pitch_cb, nullptr);
+        SEQ_for_each_callback(&scene->ed->seqbase, strip_set_pitch_cb, nullptr);
       }
     }
 
@@ -2105,10 +2074,10 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
 
-        LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->inputs) {
+        LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->inputs_legacy) {
           do_versions_socket_default_value_259(sock);
         }
-        LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->outputs) {
+        LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->outputs_legacy) {
           do_versions_socket_default_value_259(sock);
         }
 
@@ -2129,56 +2098,8 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 }
 
-/* updates group node socket identifier so that
- * external links to/from the group node are preserved.
- */
-static void lib_node_do_versions_group_indices(bNode *gnode)
-{
-  bNodeTree *ngroup = (bNodeTree *)gnode->id;
-
-  LISTBASE_FOREACH (bNodeSocket *, sock, &gnode->outputs) {
-    int old_index = sock->to_index;
-
-    LISTBASE_FOREACH (bNodeLink *, link, &ngroup->links) {
-      if (link->tonode == nullptr && link->fromsock->own_index == old_index) {
-        STRNCPY(sock->identifier, link->fromsock->identifier);
-        /* deprecated */
-        sock->own_index = link->fromsock->own_index;
-        sock->to_index = 0;
-      }
-    }
-  }
-  LISTBASE_FOREACH (bNodeSocket *, sock, &gnode->inputs) {
-    int old_index = sock->to_index;
-
-    LISTBASE_FOREACH (bNodeLink *, link, &ngroup->links) {
-      if (link->fromnode == nullptr && link->tosock->own_index == old_index) {
-        STRNCPY(sock->identifier, link->tosock->identifier);
-        /* deprecated */
-        sock->own_index = link->tosock->own_index;
-        sock->to_index = 0;
-      }
-    }
-  }
-}
-
 void do_versions_after_linking_250(Main *bmain)
 {
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 256, 2)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      /* updates external links for all group nodes in a tree */
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type == NODE_GROUP) {
-          bNodeTree *ngroup = (bNodeTree *)node->id;
-          if (ngroup) {
-            lib_node_do_versions_group_indices(node);
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 258, 0)) {
     /* Some very old (original comments claim pre-2.57) versioning that was wrongly done in
      * lib-linking code... Putting it here just to be sure (this is also checked at runtime anyway

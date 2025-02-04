@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,4 +8,4 @@
 
 #pragma once
 
-#include "message_bus/wm_message_bus.hh"
+#include "message_bus/wm_message_bus.hh"  // IWYU pragma: export

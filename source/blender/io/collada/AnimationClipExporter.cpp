@@ -1,10 +1,8 @@
-/* SPDX-FileCopyrightText: 2018-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2018-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "AnimationClipExporter.h"
-#include "GeometryExporter.h"
-#include "MaterialExporter.h"
 
 void AnimationClipExporter::exportAnimationClips(Scene *sce)
 {

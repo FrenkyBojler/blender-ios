@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2009-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2009-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -10,6 +10,7 @@ __all__ = (
     "app",
     "context",
     "data",
+    "msgbus",
     "ops",
     "path",
     "props",
@@ -40,11 +41,18 @@ def main():
     import sys
 
     # Possibly temp. addons path
-    from os.path import join, dirname
-    sys.path.extend([
-        join(dirname(dirname(dirname(__file__))), "addons", "modules"),
-        join(utils.user_resource('SCRIPTS'), "addons", "modules"),
-    ])
+    from os.path import join, dirname, exists
+
+    # It's unlikely this directory exists.
+    # Keep it so users can bundle their own add-ons with app-templates which share modules.
+    # Also keep this for consistency with the other `addons` directories.
+    # Check this exists because the bundled scripts should not be manipulated at run-time.
+    dirpath = join(dirname(dirname(dirname(__file__))), "addons_core", "modules")
+    if exists(dirpath):
+        sys.path.append(dirpath)
+
+    # Don't check if this exists as it may be created as part of installing add-ons.
+    sys.path.append(join(utils.user_resource('SCRIPTS'), "addons", "modules"))
 
     # fake module to allow:
     #   from bpy.types import Panel
@@ -57,7 +65,9 @@ def main():
 
     # Initializes Python classes.
     # (good place to run a profiler or trace).
-    utils.load_scripts()
+    # Postpone loading `extensions` scripts (add-ons & app-templates),
+    # until after the key-maps have been initialized.
+    utils.load_scripts(extensions=False)
 
 
 main()

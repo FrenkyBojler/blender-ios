@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,9 +6,8 @@
 
 #include "DNA_pointcloud_types.h"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_instances.hh"
-#include "BKE_pointcloud.h"
+#include "BKE_pointcloud.hh"
 
 #include "node_geometry_util.hh"
 
@@ -31,7 +30,7 @@ static void convert_instances_to_points(GeometrySet &geometry_set,
                                         Field<float3> position_field,
                                         Field<float> radius_field,
                                         Field<bool> selection_field,
-                                        const AnonymousAttributePropagationInfo &propagation_info)
+                                        const AttributeFilter &attribute_filter)
 {
   const bke::Instances &instances = *geometry_set.get_instances();
 
@@ -54,23 +53,23 @@ static void convert_instances_to_points(GeometrySet &geometry_set,
 
   bke::MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
   bke::SpanAttributeWriter<float> point_radii =
-      dst_attributes.lookup_or_add_for_write_only_span<float>("radius", ATTR_DOMAIN_POINT);
+      dst_attributes.lookup_or_add_for_write_only_span<float>("radius", AttrDomain::Point);
   array_utils::gather(radii, selection, point_radii.span);
   point_radii.finish();
 
   const bke::AttributeAccessor src_attributes = instances.attributes();
-  Map<AttributeIDRef, AttributeKind> attributes_to_propagate;
+  Map<StringRef, AttributeDomainAndType> attributes_to_propagate;
   geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::Instance},
                                                  GeometryComponent::Type::PointCloud,
                                                  false,
-                                                 propagation_info,
+                                                 attribute_filter,
                                                  attributes_to_propagate);
   /* These two attributes are added by the implicit inputs above. */
   attributes_to_propagate.remove("position");
   attributes_to_propagate.remove("radius");
 
   for (const auto item : attributes_to_propagate.items()) {
-    const AttributeIDRef &id = item.key;
+    const StringRef id = item.key;
     const eCustomDataType type = item.value.data_type;
 
     const GAttributeReader src = src_attributes.lookup(id);
@@ -78,11 +77,11 @@ static void convert_instances_to_points(GeometrySet &geometry_set,
     {
       const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
                                           *src.sharing_info);
-      dst_attributes.add(id, ATTR_DOMAIN_POINT, type, init);
+      dst_attributes.add(id, AttrDomain::Point, type, init);
     }
     else {
       GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-          id, ATTR_DOMAIN_POINT, type);
+          id, AttrDomain::Point, type);
       array_utils::gather(src.varray, selection, dst.span);
       dst.finish();
     }
@@ -98,7 +97,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                 params.extract_input<Field<float3>>("Position"),
                                 params.extract_input<Field<float>>("Radius"),
                                 params.extract_input<Field<bool>>("Selection"),
-                                params.get_output_propagation_info("Points"));
+                                params.get_attribute_filter("Points"));
     geometry_set.keep_only({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Edit});
     params.set_output("Points", std::move(geometry_set));
   }
@@ -107,17 +106,21 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 }
 
-}  // namespace blender::nodes::node_geo_instances_to_points_cc
-
-void register_node_type_geo_instances_to_points()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_instances_to_points_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(
-      &ntype, GEO_NODE_INSTANCES_TO_POINTS, "Instances to Points", NODE_CLASS_GEOMETRY);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeInstancesToPoints", GEO_NODE_INSTANCES_TO_POINTS);
+  ntype.ui_name = "Instances to Points";
+  ntype.ui_description =
+      "Generate points at the origins of instances.\nNote: Nested instances are not affected by "
+      "this node";
+  ntype.enum_name_legacy = "INSTANCES_TO_POINTS";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_instances_to_points_cc

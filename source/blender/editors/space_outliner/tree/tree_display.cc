@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,10 +6,7 @@
  * \ingroup spoutliner
  */
 
-#include "DNA_listBase.h"
 #include "DNA_space_types.h"
-
-#include "BLI_utildefines.h"
 
 #include "tree_display.hh"
 
@@ -17,7 +14,7 @@ using namespace blender::ed::outliner;
 
 namespace blender::ed::outliner {
 
-std::unique_ptr<AbstractTreeDisplay> AbstractTreeDisplay::createFromDisplayMode(
+std::unique_ptr<AbstractTreeDisplay> AbstractTreeDisplay::create_from_display_mode(
     int /*eSpaceOutliner_Mode*/ mode, SpaceOutliner &space_outliner)
 {
   switch ((eSpaceOutliner_Mode)mode) {
@@ -47,7 +44,7 @@ std::unique_ptr<AbstractTreeDisplay> AbstractTreeDisplay::createFromDisplayMode(
   return nullptr;
 }
 
-bool AbstractTreeDisplay::supportsModeColumn() const
+bool AbstractTreeDisplay::supports_mode_column() const
 {
   return false;
 }

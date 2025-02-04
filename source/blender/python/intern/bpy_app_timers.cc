@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,15 +7,14 @@
  */
 
 #include "BLI_timer.h"
-#include "BLI_utildefines.h"
-#include "PIL_time.h"
+
 #include <Python.h>
 
-#include "BPY_extern.h"
-#include "bpy_app_timers.h"
+#include <algorithm>
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "bpy_app_timers.hh"
+
+#include "../generic/python_compat.hh"
 
 static double handle_returned_value(PyObject *function, PyObject *ret)
 {
@@ -38,9 +37,7 @@ static double handle_returned_value(PyObject *function, PyObject *ret)
     return -1;
   }
 
-  if (value < 0.0) {
-    value = 0.0;
-  }
+  value = std::max(value, 0.0);
 
   return value;
 }
@@ -73,6 +70,7 @@ static void py_timer_free(uintptr_t /*uuid*/, void *user_data)
 }
 
 PyDoc_STRVAR(
+    /* Wrap. */
     bpy_app_timers_register_doc,
     ".. function:: register(function, first_interval=0, persistent=False)\n"
     "\n"
@@ -83,7 +81,7 @@ PyDoc_STRVAR(
     "   ``functools.partial`` can be used to assign some parameters.\n"
     "\n"
     "   :arg function: The function that should called.\n"
-    "   :type function: Callable[[], Union[float, None]]\n"
+    "   :type function: Callable[[], float | None]\n"
     "   :arg first_interval: Seconds until the callback should be called the first time.\n"
     "   :type first_interval: float\n"
     "   :arg persistent: Don't remove timer when a new file is loaded.\n"
@@ -96,6 +94,7 @@ static PyObject *bpy_app_timers_register(PyObject * /*self*/, PyObject *args, Py
 
   static const char *_keywords[] = {"function", "first_interval", "persistent", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "O"  /* `function` */
       "|$" /* Optional keyword only arguments. */
       "d"  /* `first_interval` */
@@ -105,7 +104,8 @@ static PyObject *bpy_app_timers_register(PyObject * /*self*/, PyObject *args, Py
       nullptr,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(
-          args, kw, &_parser, &function, &first_interval, &persistent)) {
+          args, kw, &_parser, &function, &first_interval, &persistent))
+  {
     return nullptr;
   }
 
@@ -120,13 +120,15 @@ static PyObject *bpy_app_timers_register(PyObject * /*self*/, PyObject *args, Py
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(bpy_app_timers_unregister_doc,
-             ".. function:: unregister(function)\n"
-             "\n"
-             "   Unregister timer.\n"
-             "\n"
-             "   :arg function: Function to unregister.\n"
-             "   :type function: function\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_timers_unregister_doc,
+    ".. function:: unregister(function)\n"
+    "\n"
+    "   Unregister timer.\n"
+    "\n"
+    "   :arg function: Function to unregister.\n"
+    "   :type function: Callable[[], float | None]\n");
 static PyObject *bpy_app_timers_unregister(PyObject * /*self*/, PyObject *function)
 {
   if (!BLI_timer_unregister(intptr_t(function))) {
@@ -136,15 +138,17 @@ static PyObject *bpy_app_timers_unregister(PyObject * /*self*/, PyObject *functi
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(bpy_app_timers_is_registered_doc,
-             ".. function:: is_registered(function)\n"
-             "\n"
-             "   Check if this function is registered as a timer.\n"
-             "\n"
-             "   :arg function: Function to check.\n"
-             "   :type function: int\n"
-             "   :return: True when this function is registered, otherwise False.\n"
-             "   :rtype: bool\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_timers_is_registered_doc,
+    ".. function:: is_registered(function)\n"
+    "\n"
+    "   Check if this function is registered as a timer.\n"
+    "\n"
+    "   :arg function: Function to check.\n"
+    "   :type function: Callable[[], float | None]\n"
+    "   :return: True when this function is registered, otherwise False.\n"
+    "   :rtype: bool\n");
 static PyObject *bpy_app_timers_is_registered(PyObject * /*self*/, PyObject *function)
 {
   const bool ret = BLI_timer_is_registered(intptr_t(function));

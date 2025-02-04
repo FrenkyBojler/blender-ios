@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,10 +14,11 @@
 
 #include "BLI_heap_simple.h"
 #include "BLI_linklist.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 
-#include "bmesh.h"
-#include "bmesh_path.h" /* own include */
+#include "bmesh.hh"
+#include "bmesh_path.hh" /* own include */
 
 #define COST_INIT_MAX FLT_MAX
 

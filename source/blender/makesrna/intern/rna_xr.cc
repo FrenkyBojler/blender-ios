@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,26 +6,22 @@
  * \ingroup RNA
  */
 
-#include "BLI_math.h"
+#include "BLT_translation.hh"
 
-#include "BLT_translation.h"
-
-#include "DNA_space_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_xr_types.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "WM_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #ifdef RNA_RUNTIME
 
-#  include "BLI_listbase.h"
+#  include "BLI_math_rotation.h"
+#  include "BLI_math_vector.h"
 
 #  include "WM_api.hh"
 
@@ -355,7 +351,7 @@ static void rna_XrActionMapItem_op_name_get(PointerRNA *ptr, char *value)
     if (ami->op_properties_ptr) {
       wmOperatorType *ot = WM_operatortype_find(ami->op, 1);
       if (ot) {
-        strcpy(value, WM_operatortype_name(ot, ami->op_properties_ptr));
+        strcpy(value, WM_operatortype_name(ot, ami->op_properties_ptr).c_str());
         return;
       }
     }
@@ -376,7 +372,7 @@ static int rna_XrActionMapItem_op_name_length(PointerRNA *ptr)
     if (ami->op_properties_ptr) {
       wmOperatorType *ot = WM_operatortype_find(ami->op, 1);
       if (ot) {
-        return strlen(WM_operatortype_name(ot, ami->op_properties_ptr));
+        return strlen(WM_operatortype_name(ot, ami->op_properties_ptr).c_str());
       }
     }
     return strlen(ami->op);
@@ -706,8 +702,8 @@ static int rna_XrSessionSettings_icon_from_show_object_viewport_get(PointerRNA *
   return rna_object_type_visibility_icon_get_common(
       xr->session_settings.object_type_exclude_viewport,
 #    if 0
-    /* For the future when selection in VR is reliably supported. */
-    &xr->session_settings.object_type_exclude_select
+      /* For the future when selection in VR is reliably supported. */
+      &xr->session_settings.object_type_exclude_select
 #    else
       nullptr
 #    endif
@@ -1794,14 +1790,14 @@ static void rna_def_xr_actionmap(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0, FLT_MAX);
   RNA_def_property_ui_text(prop,
                            "Haptic Duration",
-                           "Haptic duration in seconds. 0.0 is the minimum supported duration");
+                           "Haptic duration in seconds. 0.0 is the minimum supported duration.");
 
   prop = RNA_def_property(srna, "haptic_frequency", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0, FLT_MAX);
   RNA_def_property_ui_text(prop,
                            "Haptic Frequency",
                            "Frequency of the haptic vibration in hertz. 0.0 specifies the OpenXR "
-                           "runtime's default frequency");
+                           "runtime's default frequency.");
 
   prop = RNA_def_property(srna, "haptic_amplitude", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0, 1.0);
@@ -1998,6 +1994,11 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Display Grid Floor", "Show the ground plane grid");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
+  prop = RNA_def_property(srna, "show_passthrough", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "draw_flags", V3D_OFSDRAW_XR_SHOW_PASSTHROUGH);
+  RNA_def_property_ui_text(prop, "Show Passthrough", "Show the passthrough view");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
   prop = RNA_def_property(srna, "show_annotation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "draw_flags", V3D_OFSDRAW_SHOW_ANNOTATION);
   RNA_def_property_ui_text(prop, "Show Annotation", "Show annotations for this view");
@@ -2088,7 +2089,6 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
   PropertyRNA *parm, *prop;
 
   srna = RNA_def_struct(brna, "XrSessionState", nullptr);
-  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
   RNA_def_struct_ui_text(srna, "Session State", "Runtime state information about the VR session");
 
   func = RNA_def_function(srna, "is_running", "rna_XrSessionState_is_running");
@@ -2199,7 +2199,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       -FLT_MAX,
       FLT_MAX,
       "Action State",
-      "Current state of the VR action. Second float value is only set for 2D vector type actions",
+      "Current state of the VR action. Second float value is only set for 2D vector type actions.",
       -FLT_MAX,
       FLT_MAX);
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_OUTPUT);
@@ -2220,7 +2220,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       nullptr,
       XR_MAX_USER_PATH_LENGTH,
       "User Path",
-      "Optional OpenXR user path. If not set, the action will be applied to all paths");
+      "Optional OpenXR user path. If not set, the action will be applied to all paths.");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
   parm = RNA_def_float(func,
                        "duration",
@@ -2228,7 +2228,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
                        0.0f,
                        FLT_MAX,
                        "Duration",
-                       "Haptic duration in seconds. 0.0 is the minimum supported duration",
+                       "Haptic duration in seconds. 0.0 is the minimum supported duration.",
                        0.0f,
                        FLT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
@@ -2239,7 +2239,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
                        FLT_MAX,
                        "Frequency",
                        "Frequency of the haptic vibration in hertz. 0.0 specifies the OpenXR "
-                       "runtime's default frequency",
+                       "runtime's default frequency.",
                        0.0f,
                        FLT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
@@ -2272,7 +2272,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       nullptr,
       XR_MAX_USER_PATH_LENGTH,
       "User Path",
-      "Optional OpenXR user path. If not set, the action will be stopped for all paths");
+      "Optional OpenXR user path. If not set, the action will be stopped for all paths.");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
   func = RNA_def_function(

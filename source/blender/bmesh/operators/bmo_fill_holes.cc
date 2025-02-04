@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,12 +8,10 @@
  * Fill boundary edge loop(s) with faces.
  */
 
-#include "BLI_utildefines.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
-
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 void bmo_holes_fill_exec(BMesh *bm, BMOperator *op)
 {
@@ -59,7 +57,7 @@ void bmo_holes_fill_exec(BMesh *bm, BMOperator *op)
     BMFace *f;
 
     BMO_ITER (f, &siter, op_attr.slots_out, "faces_fail.out", BM_FACE) {
-      BM_face_normal_update(f); /* normals are zero'd */
+      BM_face_normal_update(f); /* Normals are zeroed. */
     }
 
     BMO_op_callf(bm, op->flag, "recalc_face_normals faces=%S", &op_attr, "faces_fail.out");

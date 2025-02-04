@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -38,7 +38,7 @@ static void scale_instances(GeoNodeExecParams &params, bke::Instances &instances
   const VArray<float3> pivots = evaluator.get_evaluated<float3>(1);
   const VArray<bool> local_spaces = evaluator.get_evaluated<bool>(2);
 
-  MutableSpan<float4x4> transforms = instances.transforms();
+  MutableSpan<float4x4> transforms = instances.transforms_for_write();
 
   selection.foreach_index(GrainSize(512), [&](const int64_t i) {
     const float3 pivot = pivots[i];
@@ -68,16 +68,19 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Instances", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_scale_instances_cc
-
-void register_node_type_geo_scale_instances()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_scale_instances_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_SCALE_INSTANCES, "Scale Instances", NODE_CLASS_GEOMETRY);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeScaleInstances", GEO_NODE_SCALE_INSTANCES);
+  ntype.ui_name = "Scale Instances";
+  ntype.ui_description = "Scale geometry instances in local or global space";
+  ntype.enum_name_legacy = "SCALE_INSTANCES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_scale_instances_cc

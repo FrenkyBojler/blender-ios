@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -17,11 +17,11 @@
 
 #include "BLI_alloca.h"
 #include "BLI_linklist.h"
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines_stack.h"
 
-#include "bmesh.h"
-#include "bmesh_path_region_uv.h" /* own include */
+#include "bmesh.hh"
+#include "bmesh_path_region_uv.hh" /* own include */
 
 /**
  * Special handling of vertices with 2 edges

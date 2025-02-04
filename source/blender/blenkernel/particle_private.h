@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2018 Blender Foundation
+/* SPDX-FileCopyrightText: 2018 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,6 +7,8 @@
  */
 
 #pragma once
+
+#include "BKE_particle.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,7 +40,7 @@ void do_kink(ParticleKey *state,
              float flat,
              short type,
              short axis,
-             float obmat[4][4],
+             const float obmat[4][4],
              int smooth_start);
 float do_clump(ParticleKey *state,
                const float par_co[3],

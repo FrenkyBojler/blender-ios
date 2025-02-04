@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
@@ -8,7 +8,9 @@
  */
 
 #include "BLI_compiler_attrs.h"
-#include "DNA_shader_fx_types.h" /* needed for all enum typdefs */
+#include "DNA_shader_fx_types.h" /* Needed for all enum type definitions. */
+
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,7 +18,6 @@ extern "C" {
 
 struct ARegionType;
 struct BlendDataReader;
-struct BlendLibReader;
 struct BlendWriter;
 struct ID;
 struct ListBase;
@@ -55,7 +56,7 @@ typedef enum {
 typedef void (*ShaderFxIDWalkFunc)(void *user_data,
                                    struct Object *ob,
                                    struct ID **idpoin,
-                                   int cb_flag);
+                                   LibraryForeachIDCallbackFlag cb_flag);
 typedef void (*ShaderFxTexWalkFunc)(void *user_data,
                                     struct Object *ob,
                                     struct ShaderFxData *fx,
@@ -157,7 +158,7 @@ void BKE_shaderfx_free(struct ShaderFxData *fx);
 /**
  * Check unique name.
  */
-bool BKE_shaderfx_unique_name(struct ListBase *shaderfx, struct ShaderFxData *fx);
+void BKE_shaderfx_unique_name(struct ListBase *shaders, struct ShaderFxData *fx);
 bool BKE_shaderfx_depends_ontime(struct ShaderFxData *fx);
 /**
  * Check whether given shaderfx is not local (i.e. from linked data) when the object is a library
@@ -181,8 +182,9 @@ void BKE_shaderfx_foreach_ID_link(struct Object *ob, ShaderFxIDWalkFunc walk, vo
 bool BKE_shaderfx_has_gpencil(const struct Object *ob);
 
 void BKE_shaderfx_blend_write(struct BlendWriter *writer, struct ListBase *fxbase);
-void BKE_shaderfx_blend_read_data(struct BlendDataReader *reader, struct ListBase *lb);
-void BKE_shaderfx_blend_read_lib(struct BlendLibReader *reader, struct Object *ob);
+void BKE_shaderfx_blend_read_data(struct BlendDataReader *reader,
+                                  struct ListBase *lb,
+                                  struct Object *ob);
 
 #ifdef __cplusplus
 }

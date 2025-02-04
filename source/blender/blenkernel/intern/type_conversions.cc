@@ -1,15 +1,16 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_type_conversions.hh"
 
-#include "DNA_meshdata_types.h"
-
 #include "FN_multi_function_builder.hh"
 
 #include "BLI_color.hh"
+#include "BLI_math_euler.hh"
+#include "BLI_math_quaternion.hh"
 #include "BLI_math_vector.hh"
+#include "IMB_colormanagement.hh"
 
 namespace blender::bke {
 
@@ -53,6 +54,10 @@ static int32_t float_to_int(const float &a)
 {
   return int32_t(a);
 }
+static short2 float_to_short2(const float &a)
+{
+  return short2(a);
+}
 static int2 float_to_int2(const float &a)
 {
   return int2(a);
@@ -74,6 +79,10 @@ static ColorGeometry4b float_to_byte_color(const float &a)
 {
   return float_to_color(a).encode();
 }
+static math::Quaternion float_to_quaternion(const float &a)
+{
+  return math::to_quaternion(math::EulerXYZ(float3(a)));
+}
 
 static float3 float2_to_float3(const float2 &a)
 {
@@ -86,6 +95,10 @@ static float float2_to_float(const float2 &a)
 static int float2_to_int(const float2 &a)
 {
   return int32_t((a.x + a.y) / 2.0f);
+}
+static short2 float2_to_short2(const float2 &a)
+{
+  return short2(a.x, a.y);
 }
 static int2 float2_to_int2(const float2 &a)
 {
@@ -124,6 +137,10 @@ static int float3_to_int(const float3 &a)
 {
   return int((a.x + a.y + a.z) / 3.0f);
 }
+static short2 float3_to_short2(const float3 &a)
+{
+  return short2(a.x, a.y);
+}
 static int2 float3_to_int2(const float3 &a)
 {
   return int2(a.x, a.y);
@@ -150,6 +167,10 @@ static int8_t int_to_int8(const int32_t &a)
   return std::clamp(
       a, int(std::numeric_limits<int8_t>::min()), int(std::numeric_limits<int8_t>::max()));
 }
+static short2 int_to_short2(const int32_t &a)
+{
+  return short2(a);
+}
 static int2 int_to_int2(const int32_t &a)
 {
   return int2(a);
@@ -175,6 +196,43 @@ static ColorGeometry4b int_to_byte_color(const int32_t &a)
   return int_to_color(a).encode();
 }
 
+static bool short2_to_bool(const short2 &a)
+{
+  return !math::is_zero(a);
+}
+static float2 short2_to_float2(const short2 &a)
+{
+  return float2(a);
+}
+static int short2_to_int(const short2 &a)
+{
+  return math::midpoint(a.x, a.y);
+}
+static int2 short2_to_int2(const short2 &a)
+{
+  return int2(a.x, a.y);
+}
+static int8_t short2_to_int8(const short2 &a)
+{
+  return int_to_int8(short2_to_int(a));
+}
+static float short2_to_float(const short2 &a)
+{
+  return float2_to_float(float2(a));
+}
+static float3 short2_to_float3(const short2 &a)
+{
+  return float3(float(a.x), float(a.y), 0.0f);
+}
+static ColorGeometry4f short2_to_color(const short2 &a)
+{
+  return ColorGeometry4f(float(a.x), float(a.y), 0.0f, 1.0f);
+}
+static ColorGeometry4b short2_to_byte_color(const short2 &a)
+{
+  return short2_to_color(a).encode();
+}
+
 static bool int2_to_bool(const int2 &a)
 {
   return !math::is_zero(a);
@@ -186,6 +244,10 @@ static float2 int2_to_float2(const int2 &a)
 static int int2_to_int(const int2 &a)
 {
   return math::midpoint(a.x, a.y);
+}
+static short2 int2_to_short2(const int2 &a)
+{
+  return short2(a.x, a.y);
 }
 static int8_t int2_to_int8(const int2 &a)
 {
@@ -216,6 +278,10 @@ static int int8_to_int(const int8_t &a)
 {
   return int(a);
 }
+static short2 int8_to_short2(const int8_t &a)
+{
+  return short2(a);
+}
 static int2 int8_to_int2(const int8_t &a)
 {
   return int2(a);
@@ -232,6 +298,11 @@ static float3 int8_to_float3(const int8_t &a)
 {
   return float3(float(a));
 }
+static math::Quaternion float3_to_quaternion(const float3 &a)
+{
+  return math::to_quaternion(math::EulerXYZ(a));
+}
+
 static ColorGeometry4f int8_to_color(const int8_t &a)
 {
   return ColorGeometry4f(float(a), float(a), float(a), 1.0f);
@@ -252,6 +323,10 @@ static int8_t bool_to_int8(const bool &a)
 static int32_t bool_to_int(const bool &a)
 {
   return int32_t(a);
+}
+static short2 bool_to_short2(const bool &a)
+{
+  return short2(a);
 }
 static int2 bool_to_int2(const bool &a)
 {
@@ -276,15 +351,19 @@ static ColorGeometry4b bool_to_byte_color(const bool &a)
 
 static bool color_to_bool(const ColorGeometry4f &a)
 {
-  return rgb_to_grayscale(a) > 0.0f;
+  return IMB_colormanagement_get_luminance(a) > 0.0f;
 }
 static float color_to_float(const ColorGeometry4f &a)
 {
-  return rgb_to_grayscale(a);
+  return IMB_colormanagement_get_luminance(a);
 }
 static int32_t color_to_int(const ColorGeometry4f &a)
 {
-  return int(rgb_to_grayscale(a));
+  return int(IMB_colormanagement_get_luminance(a));
+}
+static short2 color_to_short2(const ColorGeometry4f &a)
+{
+  return short2(a.r, a.g);
 }
 static int2 color_to_int2(const ColorGeometry4f &a)
 {
@@ -319,6 +398,10 @@ static int32_t byte_color_to_int(const ColorGeometry4b &a)
 {
   return color_to_int(a.decode());
 }
+static short2 byte_color_to_short2(const ColorGeometry4b &a)
+{
+  return short2(a.r, a.g);
+}
 static int2 byte_color_to_int2(const ColorGeometry4b &a)
 {
   return int2(a.r, a.g);
@@ -340,6 +423,21 @@ static ColorGeometry4f byte_color_to_color(const ColorGeometry4b &a)
   return a.decode();
 }
 
+static math::Quaternion float4x4_to_quaternion(const float4x4 &a)
+{
+  return math::normalized_to_quaternion_safe(math::normalize(float3x3(a)));
+}
+
+static float3 quaternion_to_float3(const math::Quaternion &a)
+{
+  return float3(math::to_euler(a).xyz());
+}
+
+static float4x4 quaternion_to_float4x4(const math::Quaternion &a)
+{
+  return math::from_rotation<float4x4>(a);
+}
+
 static DataTypeConversions create_implicit_conversions()
 {
   DataTypeConversions conversions;
@@ -347,15 +445,18 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<float, float2, float_to_float2>(conversions);
   add_implicit_conversion<float, float3, float_to_float3>(conversions);
   add_implicit_conversion<float, int32_t, float_to_int>(conversions);
+  add_implicit_conversion<float, short2, float_to_short2>(conversions);
   add_implicit_conversion<float, int2, float_to_int2>(conversions);
   add_implicit_conversion<float, bool, float_to_bool>(conversions);
   add_implicit_conversion<float, int8_t, float_to_int8>(conversions);
   add_implicit_conversion<float, ColorGeometry4f, float_to_color>(conversions);
   add_implicit_conversion<float, ColorGeometry4b, float_to_byte_color>(conversions);
+  add_implicit_conversion<float, math::Quaternion, float_to_quaternion>(conversions);
 
   add_implicit_conversion<float2, float3, float2_to_float3>(conversions);
   add_implicit_conversion<float2, float, float2_to_float>(conversions);
   add_implicit_conversion<float2, int32_t, float2_to_int>(conversions);
+  add_implicit_conversion<float2, short2, float2_to_short2>(conversions);
   add_implicit_conversion<float2, int2, float2_to_int2>(conversions);
   add_implicit_conversion<float2, bool, float2_to_bool>(conversions);
   add_implicit_conversion<float2, int8_t, float2_to_int8>(conversions);
@@ -366,13 +467,16 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<float3, int8_t, float3_to_int8>(conversions);
   add_implicit_conversion<float3, float, float3_to_float>(conversions);
   add_implicit_conversion<float3, int32_t, float3_to_int>(conversions);
+  add_implicit_conversion<float3, short2, float3_to_short2>(conversions);
   add_implicit_conversion<float3, int2, float3_to_int2>(conversions);
   add_implicit_conversion<float3, float2, float3_to_float2>(conversions);
   add_implicit_conversion<float3, ColorGeometry4f, float3_to_color>(conversions);
   add_implicit_conversion<float3, ColorGeometry4b, float3_to_byte_color>(conversions);
+  add_implicit_conversion<float3, math::Quaternion, float3_to_quaternion>(conversions);
 
   add_implicit_conversion<int32_t, bool, int_to_bool>(conversions);
   add_implicit_conversion<int32_t, int8_t, int_to_int8>(conversions);
+  add_implicit_conversion<int32_t, short2, int_to_short2>(conversions);
   add_implicit_conversion<int32_t, int2, int_to_int2>(conversions);
   add_implicit_conversion<int32_t, float, int_to_float>(conversions);
   add_implicit_conversion<int32_t, float2, int_to_float2>(conversions);
@@ -380,9 +484,20 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<int32_t, ColorGeometry4f, int_to_color>(conversions);
   add_implicit_conversion<int32_t, ColorGeometry4b, int_to_byte_color>(conversions);
 
+  add_implicit_conversion<short2, bool, short2_to_bool>(conversions);
+  add_implicit_conversion<short2, int8_t, short2_to_int8>(conversions);
+  add_implicit_conversion<short2, int, short2_to_int>(conversions);
+  add_implicit_conversion<short2, int2, short2_to_int2>(conversions);
+  add_implicit_conversion<short2, float, short2_to_float>(conversions);
+  add_implicit_conversion<short2, float2, short2_to_float2>(conversions);
+  add_implicit_conversion<short2, float3, short2_to_float3>(conversions);
+  add_implicit_conversion<short2, ColorGeometry4f, short2_to_color>(conversions);
+  add_implicit_conversion<short2, ColorGeometry4b, short2_to_byte_color>(conversions);
+
   add_implicit_conversion<int2, bool, int2_to_bool>(conversions);
   add_implicit_conversion<int2, int8_t, int2_to_int8>(conversions);
   add_implicit_conversion<int2, int, int2_to_int>(conversions);
+  add_implicit_conversion<int2, short2, int2_to_short2>(conversions);
   add_implicit_conversion<int2, float, int2_to_float>(conversions);
   add_implicit_conversion<int2, float2, int2_to_float2>(conversions);
   add_implicit_conversion<int2, float3, int2_to_float3>(conversions);
@@ -391,6 +506,7 @@ static DataTypeConversions create_implicit_conversions()
 
   add_implicit_conversion<int8_t, bool, int8_to_bool>(conversions);
   add_implicit_conversion<int8_t, int32_t, int8_to_int>(conversions);
+  add_implicit_conversion<int8_t, short2, int8_to_short2>(conversions);
   add_implicit_conversion<int8_t, int2, int8_to_int2>(conversions);
   add_implicit_conversion<int8_t, float, int8_to_float>(conversions);
   add_implicit_conversion<int8_t, float2, int8_to_float2>(conversions);
@@ -401,6 +517,7 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<bool, float, bool_to_float>(conversions);
   add_implicit_conversion<bool, int8_t, bool_to_int8>(conversions);
   add_implicit_conversion<bool, int32_t, bool_to_int>(conversions);
+  add_implicit_conversion<bool, short2, bool_to_short2>(conversions);
   add_implicit_conversion<bool, int2, bool_to_int2>(conversions);
   add_implicit_conversion<bool, float2, bool_to_float2>(conversions);
   add_implicit_conversion<bool, float3, bool_to_float3>(conversions);
@@ -411,6 +528,7 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<ColorGeometry4f, int8_t, color_to_int8>(conversions);
   add_implicit_conversion<ColorGeometry4f, float, color_to_float>(conversions);
   add_implicit_conversion<ColorGeometry4f, int32_t, color_to_int>(conversions);
+  add_implicit_conversion<ColorGeometry4f, short2, color_to_short2>(conversions);
   add_implicit_conversion<ColorGeometry4f, int2, color_to_int2>(conversions);
   add_implicit_conversion<ColorGeometry4f, float2, color_to_float2>(conversions);
   add_implicit_conversion<ColorGeometry4f, float3, color_to_float3>(conversions);
@@ -420,10 +538,16 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<ColorGeometry4b, int8_t, byte_color_to_int8>(conversions);
   add_implicit_conversion<ColorGeometry4b, float, byte_color_to_float>(conversions);
   add_implicit_conversion<ColorGeometry4b, int32_t, byte_color_to_int>(conversions);
+  add_implicit_conversion<ColorGeometry4b, short2, byte_color_to_short2>(conversions);
   add_implicit_conversion<ColorGeometry4b, int2, byte_color_to_int2>(conversions);
   add_implicit_conversion<ColorGeometry4b, float2, byte_color_to_float2>(conversions);
   add_implicit_conversion<ColorGeometry4b, float3, byte_color_to_float3>(conversions);
   add_implicit_conversion<ColorGeometry4b, ColorGeometry4f, byte_color_to_color>(conversions);
+
+  add_implicit_conversion<float4x4, math::Quaternion, float4x4_to_quaternion>(conversions);
+
+  add_implicit_conversion<math::Quaternion, float3, quaternion_to_float3>(conversions);
+  add_implicit_conversion<math::Quaternion, float4x4, quaternion_to_float4x4>(conversions);
 
   return conversions;
 }

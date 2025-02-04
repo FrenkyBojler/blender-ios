@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,7 +7,9 @@
  */
 
 #include "BLI_math_base.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_rotation.h"
 #include "BLI_math_rotation.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.h"
@@ -109,8 +111,13 @@ void generate_axes_to_quaternion_switch_cases()
 
 float3 rotate_direction_around_axis(const float3 &direction, const float3 &axis, const float angle)
 {
-  BLI_ASSERT_UNIT_V3(direction);
-  BLI_ASSERT_UNIT_V3(axis);
+  BLI_assert(math::is_unit(axis));
+
+  if (UNLIKELY(angle == 0.0f || math::is_zero(direction, std::numeric_limits<float>::epsilon()))) {
+    return direction;
+  }
+
+  BLI_assert(math::is_unit(direction));
 
   const float3 axis_scaled = axis * math::dot(direction, axis);
   const float3 diff = direction - axis_scaled;

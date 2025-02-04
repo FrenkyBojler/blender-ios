@@ -1,39 +1,34 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_index_range.hh"
-#include "BLI_listbase.h"
 #include "BLI_map.hh"
-#include "BLI_rect.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
-#include "BLI_string_search.hh"
 
-#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
+#include "BKE_main_invariants.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_node_tree_update.h"
+#include "BKE_node_tree_update.hh"
 #include "BKE_node_tree_zones.hh"
-#include "BKE_object.h"
 
-#include "RNA_access.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 
 #include "ED_node.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
-#include "BLT_translation.h"
-
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geometry_nodes_log.hh"
+#include "NOD_socket.hh"
 
 #include "node_intern.hh"
 
@@ -76,16 +71,22 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
   const Map<const bke::bNodeTreeZone *, GeoTreeLog *> log_by_zone =
       GeoModifierLog::get_tree_log_by_zone_for_node_editor(*snode);
 
+  Set<StringRef> names;
+
   /* For the attribute input node, collect attribute information from all nodes in the group. */
-  if (node->type == GEO_NODE_INPUT_NAMED_ATTRIBUTE) {
+  if (node->type_legacy == GEO_NODE_INPUT_NAMED_ATTRIBUTE) {
     Vector<const GeometryAttributeInfo *> attributes;
     for (GeoTreeLog *tree_log : log_by_zone.values()) {
       tree_log->ensure_socket_values();
       tree_log->ensure_existing_attributes();
       for (const GeometryAttributeInfo *attribute : tree_log->existing_attributes) {
-        if (bke::allow_procedural_attribute_access(attribute->name)) {
-          attributes.append(attribute);
+        if (!names.add(attribute->name)) {
+          continue;
         }
+        if (!bke::allow_procedural_attribute_access(attribute->name)) {
+          continue;
+        }
+        attributes.append(attribute);
       }
     }
     return attributes;
@@ -100,7 +101,7 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
   if (node_log == nullptr) {
     return {};
   }
-  Set<StringRef> names;
+
   Vector<const GeometryAttributeInfo *> attributes;
   for (const bNodeSocket *input_socket : node->input_sockets()) {
     if (input_socket->type != SOCK_GEOMETRY) {
@@ -143,10 +144,6 @@ static void attribute_search_update_fn(
  */
 static eCustomDataType data_type_in_attribute_input_node(const eCustomDataType type)
 {
-  if (!U.experimental.use_rotation_socket && type == CD_PROP_QUATERNION) {
-    /* Invalid type, no implicit conversions available. */
-    return CD_PROP_BOOL;
-  }
   switch (type) {
     case CD_PROP_FLOAT:
     case CD_PROP_INT32:
@@ -154,6 +151,7 @@ static eCustomDataType data_type_in_attribute_input_node(const eCustomDataType t
     case CD_PROP_COLOR:
     case CD_PROP_BOOL:
     case CD_PROP_QUATERNION:
+    case CD_PROP_FLOAT4X4:
       return type;
     case CD_PROP_BYTE_COLOR:
       return CD_PROP_COLOR;
@@ -161,6 +159,7 @@ static eCustomDataType data_type_in_attribute_input_node(const eCustomDataType t
       /* Unsupported currently. */
       return CD_PROP_FLOAT;
     case CD_PROP_FLOAT2:
+    case CD_PROP_INT16_2D:
     case CD_PROP_INT32_2D:
       /* No 2D vector sockets currently. */
       return CD_PROP_FLOAT3;
@@ -196,38 +195,27 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
     BLI_assert_unreachable();
     return;
   }
+
+  /* For the attribute input node, also adjust the type and links connected to the output. */
+  if (node->type_legacy == GEO_NODE_INPUT_NAMED_ATTRIBUTE && item->data_type.has_value()) {
+    NodeGeometryInputNamedAttribute &storage = *static_cast<NodeGeometryInputNamedAttribute *>(
+        node->storage);
+    const eCustomDataType new_type = data_type_in_attribute_input_node(*item->data_type);
+    if (new_type != storage.data_type) {
+      storage.data_type = new_type;
+      /* Make the output socket with the new type on the attribute input node active. */
+      nodes::update_node_declaration_and_sockets(*node_tree, *node);
+      BKE_ntree_update_tag_node_property(node_tree, node);
+      BKE_main_ensure_invariants(*CTX_data_main(C), node_tree->id);
+    }
+  }
+
   bNodeSocket *socket = bke::node_find_enabled_input_socket(*node, data->socket_identifier);
   if (socket == nullptr) {
     BLI_assert_unreachable();
     return;
   }
   BLI_assert(socket->type == SOCK_STRING);
-
-  /* For the attribute input node, also adjust the type and links connected to the output. */
-  if (node->type == GEO_NODE_INPUT_NAMED_ATTRIBUTE && item->data_type.has_value()) {
-    NodeGeometryInputNamedAttribute &storage = *(NodeGeometryInputNamedAttribute *)node->storage;
-    const eCustomDataType new_type = data_type_in_attribute_input_node(*item->data_type);
-    if (new_type != storage.data_type) {
-      storage.data_type = new_type;
-      /* Make the output socket with the new type on the attribute input node active. */
-      node->typeinfo->updatefunc(node_tree, node);
-
-      /* Relink all node links to the newly active output socket. */
-      bNodeSocket *output_socket = bke::node_find_enabled_output_socket(*node, "Attribute");
-      LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
-        if (link->fromnode != node) {
-          continue;
-        }
-        if (!STREQ(link->fromsock->name, "Attribute")) {
-          continue;
-        }
-        link->fromsock = output_socket;
-        BKE_ntree_update_tag_link_changed(node_tree);
-      }
-    }
-    BKE_ntree_update_tag_node_property(node_tree, node);
-    ED_node_tree_propagate_change(C, CTX_data_main(C), node_tree);
-  }
 
   bNodeSocketValueString *value = static_cast<bNodeSocketValueString *>(socket->default_value);
   BLI_strncpy(value->value, item->name.c_str(), MAX_NAME);
@@ -238,7 +226,8 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
 void node_geometry_add_attribute_search_button(const bContext & /*C*/,
                                                const bNode &node,
                                                PointerRNA &socket_ptr,
-                                               uiLayout &layout)
+                                               uiLayout &layout,
+                                               const StringRefNull placeholder)
 {
   uiBlock *block = uiLayoutGetBlock(&layout);
   uiBut *but = uiDefIconTextButR(block,
@@ -255,12 +244,11 @@ void node_geometry_add_attribute_search_button(const bContext & /*C*/,
                                  0,
                                  0.0f,
                                  0.0f,
-                                 0.0f,
-                                 0.0f,
                                  "");
+  UI_but_placeholder_set(but, placeholder.c_str());
 
   const bNodeSocket &socket = *static_cast<const bNodeSocket *>(socket_ptr.data);
-  AttributeSearchData *data = MEM_new<AttributeSearchData>(__func__);
+  AttributeSearchData *data = MEM_cnew<AttributeSearchData>(__func__);
   data->node_id = node.identifier;
   STRNCPY(data->socket_identifier, socket.identifier);
 

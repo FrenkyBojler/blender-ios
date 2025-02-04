@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2010-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2010-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,8 +10,6 @@
 
 #include "COLLADASWColor.h"
 #include "COLLADASWLight.h"
-
-#include "BLI_math.h"
 
 #include "LightExporter.h"
 #include "collada_internal.h"
@@ -92,15 +90,11 @@ bool LightsExporter::exportBlenderProfile(COLLADASW::Light &cla, Light *la)
   cla.addExtraTechniqueParameter("blender", "red", la->r);
   cla.addExtraTechniqueParameter("blender", "green", la->g);
   cla.addExtraTechniqueParameter("blender", "blue", la->b);
-  cla.addExtraTechniqueParameter("blender", "shadow_r", la->shdwr, "blender_shadow_r");
-  cla.addExtraTechniqueParameter("blender", "shadow_g", la->shdwg, "blender_shadow_g");
-  cla.addExtraTechniqueParameter("blender", "shadow_b", la->shdwb, "blender_shadow_b");
   cla.addExtraTechniqueParameter("blender", "energy", la->energy, "blender_energy");
   cla.addExtraTechniqueParameter("blender", "spotsize", RAD2DEGF(la->spotsize));
   cla.addExtraTechniqueParameter("blender", "spotblend", la->spotblend);
   cla.addExtraTechniqueParameter("blender", "clipsta", la->clipsta);
-  cla.addExtraTechniqueParameter("blender", "clipend", la->clipend);
-  cla.addExtraTechniqueParameter("blender", "bias", la->bias);
+  cla.addExtraTechniqueParameter("blender", "clipend", la->att_dist);
   cla.addExtraTechniqueParameter("blender", "radius", la->radius);
   cla.addExtraTechniqueParameter("blender", "area_shape", la->area_shape);
   cla.addExtraTechniqueParameter("blender", "area_size", la->area_size);

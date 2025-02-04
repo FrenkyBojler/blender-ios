@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: Blender Foundation
+/* SPDX-FileCopyrightText: Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,17 +8,15 @@
  * \ingroup sim
  */
 
-#include "stdio.h"
+#include "BLI_compiler_compat.h"
 
-#include "BLI_utildefines.h"
-
-#include "BKE_collision.h"
+#include <cstdio>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-//#define IMPLICIT_SOLVER_EIGEN
+// #define IMPLICIT_SOLVER_EIGEN
 #define IMPLICIT_SOLVER_BLENDER
 
 #define CLOTH_ROOT_FRAME /* enable use of root frame coordinate transform */
@@ -31,18 +29,18 @@ extern "C" {
 // #define CLOTH_FORCE_SPRING_GOAL /* UNUSED. */
 // #define CLOTH_FORCE_EFFECTORS /* UNUSED. */
 
-//#define IMPLICIT_PRINT_SOLVER_INPUT_OUTPUT
+// #define IMPLICIT_PRINT_SOLVER_INPUT_OUTPUT
 
-//#define IMPLICIT_ENABLE_EIGEN_DEBUG
+// #define IMPLICIT_ENABLE_EIGEN_DEBUG
 
 struct Implicit_Data;
 
-typedef struct ImplicitSolverResult {
+struct ImplicitSolverResult {
   int status;
 
   int iterations;
   float error;
-} ImplicitSolverResult;
+};
 
 BLI_INLINE void implicit_print_matrix_elem(float v)
 {

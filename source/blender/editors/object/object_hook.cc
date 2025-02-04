@@ -12,7 +12,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -20,29 +21,27 @@
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_layer.h"
-#include "BKE_main.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_action.hh"
+#include "BKE_context.hh"
+#include "BKE_deform.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_layer.hh"
+#include "BKE_mesh_types.hh"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
+#include "BKE_report.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
+#include "RNA_prototypes.hh"
 
 #include "ED_curve.hh"
 #include "ED_mesh.hh"
@@ -53,7 +52,9 @@
 
 #include "UI_resources.hh"
 
-#include "object_intern.h"
+#include "object_intern.hh"
+
+namespace blender::ed::object {
 
 static int return_editmesh_indexar(BMEditMesh *em,
                                    int *r_indexar_num,
@@ -130,8 +131,8 @@ static bool return_editmesh_vgroup(Object *obedit, BMEditMesh *em, char *r_name,
 
 static void select_editbmesh_hook(Object *ob, HookModifierData *hmd)
 {
-  Mesh *me = static_cast<Mesh *>(ob->data);
-  BMEditMesh *em = me->edit_mesh;
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  BMEditMesh *em = mesh->runtime->edit_mesh.get();
   BMVert *eve;
   BMIter iter;
   int index = 0, nr = 0;
@@ -332,18 +333,16 @@ static bool object_hook_index_array(Main *bmain,
 
   switch (obedit->type) {
     case OB_MESH: {
-      Mesh *me = static_cast<Mesh *>(obedit->data);
-
-      BMEditMesh *em;
+      Mesh *mesh = static_cast<Mesh *>(obedit->data);
 
       EDBM_mesh_load(bmain, obedit);
       EDBM_mesh_make(obedit, scene->toolsettings->selectmode, true);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
 
-      em = me->edit_mesh;
+      BMEditMesh *em = mesh->runtime->edit_mesh.get();
 
-      BKE_editmesh_looptri_and_normals_calc(em);
+      BKE_editmesh_looptris_and_normals_calc(em);
 
       /* check selected vertices first */
       if (return_editmesh_indexar(em, r_indexar_num, r_indexar, r_cent) == 0) {
@@ -496,7 +495,7 @@ static Object *add_hook_object_new(
   Base *basact = BKE_view_layer_active_base_get(view_layer);
   BLI_assert(basact->object == ob);
   if (v3d && v3d->localvd) {
-    basact->local_view_bits |= v3d->local_view_uuid;
+    basact->local_view_bits |= v3d->local_view_uid;
   }
 
   /* icky, BKE_object_add sets new base as active.
@@ -537,11 +536,11 @@ static int add_hook_object(const bContext *C,
     ob = add_hook_object_new(bmain, scene, view_layer, v3d, obedit);
 
     /* transform cent to global coords for loc */
-    mul_v3_m4v3(ob->loc, obedit->object_to_world, cent);
+    mul_v3_m4v3(ob->loc, obedit->object_to_world().ptr(), cent);
   }
 
   md = static_cast<ModifierData *>(obedit->modifiers.first);
-  while (md && BKE_modifier_get_info(ModifierType(md->type))->type == eModifierTypeType_OnlyDeform)
+  while (md && BKE_modifier_get_info(ModifierType(md->type))->type == ModifierTypeType::OnlyDeform)
   {
     md = md->next;
   }
@@ -550,6 +549,7 @@ static int add_hook_object(const bContext *C,
   BLI_insertlinkbefore(&obedit->modifiers, md, hmd);
   SNPRINTF(hmd->modifier.name, "Hook-%s", ob->id.name + 2);
   BKE_modifier_unique_name(&obedit->modifiers, (ModifierData *)hmd);
+  BKE_modifiers_persistent_uid_init(*obedit, hmd->modifier);
 
   hmd->object = ob;
   hmd->indexar = indexar;
@@ -559,13 +559,13 @@ static int add_hook_object(const bContext *C,
 
   unit_m4(pose_mat);
 
-  invert_m4_m4(obedit->world_to_object, obedit->object_to_world);
+  invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
   if (mode == OBJECT_ADDHOOK_NEWOB) {
     /* pass */
   }
   else {
     /* may overwrite with pose-bone location, below */
-    mul_v3_m4v3(cent, obedit->world_to_object, ob->object_to_world[3]);
+    mul_v3_m4v3(cent, obedit->world_to_object().ptr(), ob->object_to_world().location());
   }
 
   if (mode == OBJECT_ADDHOOK_SELOB_BONE) {
@@ -576,11 +576,11 @@ static int add_hook_object(const bContext *C,
 
       STRNCPY(hmd->subtarget, arm->act_bone->name);
 
-      pchan_act = BKE_pose_channel_active_if_layer_visible(ob);
+      pchan_act = BKE_pose_channel_active_if_bonecoll_visible(ob);
       if (LIKELY(pchan_act)) {
         invert_m4_m4(pose_mat, pchan_act->pose_mat);
-        mul_v3_m4v3(cent, ob->object_to_world, pchan_act->pose_mat[3]);
-        mul_v3_m4v3(cent, obedit->world_to_object, cent);
+        mul_v3_m4v3(cent, ob->object_to_world().ptr(), pchan_act->pose_mat[3]);
+        mul_v3_m4v3(cent, obedit->world_to_object().ptr(), cent);
       }
     }
     else {
@@ -591,17 +591,22 @@ static int add_hook_object(const bContext *C,
   copy_v3_v3(hmd->cent, cent);
 
   /* matrix calculus */
-  /* vert x (obmat x hook->world_to_object) x hook->object_to_world x ob->world_to_object */
-  /*        (parentinv         )                          */
+  /* vert x (obmat x hook->world_to_object) x hook->object_to_world().ptr() x ob->world_to_object
+   */
+  /*        (parentinv) */
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
   BKE_object_transform_copy(object_eval, ob);
   BKE_object_where_is_calc(depsgraph, scene_eval, object_eval);
 
-  invert_m4_m4(object_eval->world_to_object, object_eval->object_to_world);
+  invert_m4_m4(object_eval->runtime->world_to_object.ptr(), object_eval->object_to_world().ptr());
   /* apparently this call goes from right to left... */
-  mul_m4_series(hmd->parentinv, pose_mat, object_eval->world_to_object, obedit->object_to_world);
+  mul_m4_series(hmd->parentinv,
+                pose_mat,
+                object_eval->world_to_object().ptr(),
+                obedit->object_to_world().ptr());
 
+  DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
 
   return true;
@@ -714,6 +719,7 @@ static int object_hook_remove_exec(bContext *C, wmOperator *op)
   BKE_modifier_remove_from_list(ob, (ModifierData *)hmd);
   BKE_modifier_free((ModifierData *)hmd);
 
+  DEG_relations_tag_update(CTX_data_main(C));
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
@@ -732,7 +738,7 @@ static const EnumPropertyItem *hook_mod_itemf(bContext *C,
   int a, totitem = 0;
 
   if (!ob) {
-    return DummyRNA_NULL_items;
+    return rna_enum_dummy_NULL_items;
   }
 
   for (a = 0, md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next, a++) {
@@ -772,7 +778,7 @@ void OBJECT_OT_hook_remove(wmOperatorType *ot)
 
   /* properties */
   prop = RNA_def_enum(
-      ot->srna, "modifier", DummyRNA_NULL_items, 0, "Modifier", "Modifier number to remove");
+      ot->srna, "modifier", rna_enum_dummy_NULL_items, 0, "Modifier", "Modifier number to remove");
   RNA_def_enum_funcs(prop, hook_mod_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
@@ -816,8 +822,12 @@ void OBJECT_OT_hook_reset(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  prop = RNA_def_enum(
-      ot->srna, "modifier", DummyRNA_NULL_items, 0, "Modifier", "Modifier number to assign to");
+  prop = RNA_def_enum(ot->srna,
+                      "modifier",
+                      rna_enum_dummy_NULL_items,
+                      0,
+                      "Modifier",
+                      "Modifier number to assign to");
   RNA_def_enum_funcs(prop, hook_mod_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
@@ -838,10 +848,10 @@ static int object_hook_recenter_exec(bContext *C, wmOperator *op)
   }
 
   /* recenter functionality */
-  copy_m3_m4(bmat, ob->object_to_world);
+  copy_m3_m4(bmat, ob->object_to_world().ptr());
   invert_m3_m3(imat, bmat);
 
-  sub_v3_v3v3(hmd->cent, scene->cursor.location, ob->object_to_world[3]);
+  sub_v3_v3v3(hmd->cent, scene->cursor.location, ob->object_to_world().location());
   mul_m3_v3(imat, hmd->cent);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -867,8 +877,12 @@ void OBJECT_OT_hook_recenter(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  prop = RNA_def_enum(
-      ot->srna, "modifier", DummyRNA_NULL_items, 0, "Modifier", "Modifier number to assign to");
+  prop = RNA_def_enum(ot->srna,
+                      "modifier",
+                      rna_enum_dummy_NULL_items,
+                      0,
+                      "Modifier",
+                      "Modifier number to assign to");
   RNA_def_enum_funcs(prop, hook_mod_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
@@ -930,8 +944,12 @@ void OBJECT_OT_hook_assign(wmOperatorType *ot)
   ot->flag = /*OPTYPE_REGISTER|*/ OPTYPE_UNDO;
 
   /* properties */
-  prop = RNA_def_enum(
-      ot->srna, "modifier", DummyRNA_NULL_items, 0, "Modifier", "Modifier number to assign to");
+  prop = RNA_def_enum(ot->srna,
+                      "modifier",
+                      rna_enum_dummy_NULL_items,
+                      0,
+                      "Modifier",
+                      "Modifier number to assign to");
   RNA_def_enum_funcs(prop, hook_mod_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
@@ -976,7 +994,9 @@ void OBJECT_OT_hook_select(wmOperatorType *ot)
 
   /* properties */
   prop = RNA_def_enum(
-      ot->srna, "modifier", DummyRNA_NULL_items, 0, "Modifier", "Modifier number to remove");
+      ot->srna, "modifier", rna_enum_dummy_NULL_items, 0, "Modifier", "Modifier number to remove");
   RNA_def_enum_funcs(prop, hook_mod_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
+
+}  // namespace blender::ed::object

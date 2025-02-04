@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,14 +10,13 @@
 
 #include "BLI_assert.h"
 
-#include "GPU_vertex_buffer.h"
+#include "GPU_vertex_buffer.hh"
 
 #include "gpu_framebuffer_private.hh"
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
-typedef enum eGPUTextureFormatFlag {
+enum eGPUTextureFormatFlag {
   /* The format has a depth component and can be used as depth attachment. */
   GPU_FORMAT_DEPTH = (1 << 0),
   /* The format has a stencil component and can be used as stencil attachment. */
@@ -36,7 +35,7 @@ typedef enum eGPUTextureFormatFlag {
   GPU_FORMAT_SIGNED = (1 << 7),
 
   GPU_FORMAT_DEPTH_STENCIL = (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL),
-} eGPUTextureFormatFlag;
+};
 
 ENUM_OPERATORS(eGPUTextureFormatFlag, GPU_FORMAT_SIGNED)
 
@@ -68,7 +67,7 @@ enum eGPUSamplerFormat {
 
 ENUM_OPERATORS(eGPUSamplerFormat, GPU_SAMPLER_TYPE_UINT)
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #  define DEBUG_NAME_LEN 64
 #else
 #  define DEBUG_NAME_LEN 8
@@ -132,7 +131,7 @@ class Texture {
   bool init_2D(int w, int h, int layers, int mip_len, eGPUTextureFormat format);
   bool init_3D(int w, int h, int d, int mip_len, eGPUTextureFormat format);
   bool init_cubemap(int w, int layers, int mip_len, eGPUTextureFormat format);
-  bool init_buffer(GPUVertBuf *vbo, eGPUTextureFormat format);
+  bool init_buffer(VertBuf *vbo, eGPUTextureFormat format);
   bool init_view(GPUTexture *src,
                  eGPUTextureFormat format,
                  eGPUTextureType type,
@@ -313,7 +312,7 @@ class Texture {
 
  protected:
   virtual bool init_internal() = 0;
-  virtual bool init_internal(GPUVertBuf *vbo) = 0;
+  virtual bool init_internal(VertBuf *vbo) = 0;
   virtual bool init_internal(GPUTexture *src,
                              int mip_offset,
                              int layer_offset,
@@ -341,7 +340,7 @@ class PixelBuffer {
 
  public:
   PixelBuffer(size_t size) : size_(size){};
-  virtual ~PixelBuffer(){};
+  virtual ~PixelBuffer() = default;
 
   virtual void *map() = 0;
   virtual void unmap() = 0;
@@ -470,7 +469,9 @@ inline size_t to_bytesize(eGPUTextureFormat format)
     case GPU_DEPTH_COMPONENT32F:
       return 32 / 8;
     case GPU_DEPTH_COMPONENT24:
-      return 24 / 8;
+      /* Depth component 24 uses 3 bytes to store the depth value, and reserved 1 byte for
+       * alignment. */
+      return (24 + 8) / 8;
     case GPU_DEPTH_COMPONENT16:
       return 16 / 8;
   }
@@ -765,8 +766,7 @@ inline size_t to_bytesize(eGPUTextureFormat tex_format, eGPUDataFormat data_form
 }
 
 /* Definitely not complete, edit according to the gl specification. */
-constexpr inline bool validate_data_format(eGPUTextureFormat tex_format,
-                                           eGPUDataFormat data_format)
+constexpr bool validate_data_format(eGPUTextureFormat tex_format, eGPUDataFormat data_format)
 {
   switch (tex_format) {
     /* Formats texture & render-buffer */
@@ -823,7 +823,7 @@ constexpr inline bool validate_data_format(eGPUTextureFormat tex_format,
       /* Should have its own type. For now, we rely on the backend to do the conversion. */
       ATTR_FALLTHROUGH;
     case GPU_DEPTH24_STENCIL8:
-      return ELEM(data_format, GPU_DATA_UINT_24_8, GPU_DATA_UINT);
+      return ELEM(data_format, GPU_DATA_FLOAT, GPU_DATA_UINT_24_8, GPU_DATA_UINT);
     case GPU_SRGB8_A8:
       return ELEM(data_format, GPU_DATA_FLOAT, GPU_DATA_UBYTE);
 
@@ -1168,5 +1168,4 @@ static inline eGPUTextureFormat to_texture_format(const GPUVertFormat *format)
   return GPU_DEPTH_COMPONENT24;
 }
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,7 +16,7 @@
 namespace blender::ed::outliner {
 
 TreeElementParticleSystem::TreeElementParticleSystem(TreeElement &legacy_te,
-                                                     Object & /* object */,
+                                                     Object & /*object*/,
                                                      ParticleSystem &psys)
     : AbstractTreeElement(legacy_te), /* object_(object), */ psys_(psys)
 {

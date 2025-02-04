@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,18 +6,20 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_enum_types.h"
+#include "IMB_colormanagement.hh"
+
+#include "RNA_enum_types.hh"
 
 #include "node_function_util.hh"
 
+#include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
 namespace blender::nodes::node_fn_compare_cc {
@@ -41,8 +43,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("A", "A_COL").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
   b.add_input<decl::Color>("B", "B_COL").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
 
-  b.add_input<decl::String>("A", "A_STR").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-  b.add_input<decl::String>("B", "B_STR").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::String>("A", "A_STR")
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .hide_label();
+  b.add_input<decl::String>("B", "B_STR")
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .hide_label();
 
   b.add_input<decl::Float>("C").default_value(0.9f);
   b.add_input<decl::Float>("Angle").default_value(0.0872665f).subtype(PROP_ANGLE);
@@ -70,25 +76,25 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *sock_epsilon = (bNodeSocket *)BLI_findlink(&node->inputs, 12);
 
   LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
-    bke::nodeSetSocketAvailability(
+    bke::node_set_socket_availability(
         ntree, socket, socket->type == (eNodeSocketDatatype)data->data_type);
   }
 
-  bke::nodeSetSocketAvailability(
+  bke::node_set_socket_availability(
       ntree,
       sock_epsilon,
       ELEM(data->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL) &&
           !ELEM(data->data_type, SOCK_INT, SOCK_STRING));
 
-  bke::nodeSetSocketAvailability(ntree,
-                                 sock_comp,
-                                 ELEM(data->mode, NODE_COMPARE_MODE_DOT_PRODUCT) &&
-                                     data->data_type == SOCK_VECTOR);
+  bke::node_set_socket_availability(ntree,
+                                    sock_comp,
+                                    ELEM(data->mode, NODE_COMPARE_MODE_DOT_PRODUCT) &&
+                                        data->data_type == SOCK_VECTOR);
 
-  bke::nodeSetSocketAvailability(ntree,
-                                 sock_angle,
-                                 ELEM(data->mode, NODE_COMPARE_MODE_DIRECTION) &&
-                                     data->data_type == SOCK_VECTOR);
+  bke::node_set_socket_availability(ntree,
+                                    sock_angle,
+                                    ELEM(data->mode, NODE_COMPARE_MODE_DIRECTION) &&
+                                        data->data_type == SOCK_VECTOR);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -566,7 +572,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
           static auto fn = mf::build::SI2_SO<ColorGeometry4f, ColorGeometry4f, bool>(
               "Brighter",
               [](ColorGeometry4f a, ColorGeometry4f b) {
-                return rgb_to_grayscale(a) > rgb_to_grayscale(b);
+                return IMB_colormanagement_get_luminance(a) > IMB_colormanagement_get_luminance(b);
               },
               exec_preset_all);
           return &fn;
@@ -575,7 +581,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
           static auto fn = mf::build::SI2_SO<ColorGeometry4f, ColorGeometry4f, bool>(
               "Darker",
               [](ColorGeometry4f a, ColorGeometry4f b) {
-                return rgb_to_grayscale(a) < rgb_to_grayscale(b);
+                return IMB_colormanagement_get_luminance(a) < IMB_colormanagement_get_luminance(b);
               },
               exec_preset_all);
           return &fn;
@@ -606,22 +612,147 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
-}  // namespace blender::nodes::node_fn_compare_cc
-
-void register_node_type_fn_compare()
+static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  namespace file_ns = blender::nodes::node_fn_compare_cc;
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeFunctionCompare *node_storage = static_cast<NodeFunctionCompare *>(node->storage);
 
-  static bNodeType ntype;
-  fn_node_type_base(&ntype, FN_NODE_COMPARE, "Compare", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::node_declare;
-  ntype.labelfunc = file_ns::node_label;
-  ntype.updatefunc = file_ns::node_update;
-  ntype.initfunc = file_ns::node_init;
-  node_type_storage(
-      &ntype, "NodeFunctionCompare", node_free_standard_storage, node_copy_standard_storage);
-  ntype.build_multi_function = file_ns::node_build_multi_function;
-  ntype.draw_buttons = file_ns::node_layout;
-  ntype.gather_link_search_ops = file_ns::node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  if (node_storage->data_type == SOCK_RGBA && !ELEM(node_storage->operation,
+                                                    NODE_COMPARE_EQUAL,
+                                                    NODE_COMPARE_NOT_EQUAL,
+                                                    NODE_COMPARE_COLOR_BRIGHTER,
+                                                    NODE_COMPARE_COLOR_DARKER))
+  {
+    node_storage->operation = NODE_COMPARE_EQUAL;
+  }
+  else if (node_storage->data_type == SOCK_STRING &&
+           !ELEM(node_storage->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL))
+  {
+    node_storage->operation = NODE_COMPARE_EQUAL;
+  }
+  else if (node_storage->data_type != SOCK_RGBA &&
+           ELEM(node_storage->operation, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER))
+  {
+    node_storage->operation = NODE_COMPARE_EQUAL;
+  }
+
+  rna_Node_socket_update(bmain, scene, ptr);
 }
+
+static void node_rna(StructRNA *srna)
+{
+  static const EnumPropertyItem mode_items[] = {
+      {NODE_COMPARE_MODE_ELEMENT,
+       "ELEMENT",
+       0,
+       "Element-Wise",
+       "Compare each element of the input vectors"},
+      {NODE_COMPARE_MODE_LENGTH, "LENGTH", 0, "Length", "Compare the length of the input vectors"},
+      {NODE_COMPARE_MODE_AVERAGE,
+       "AVERAGE",
+       0,
+       "Average",
+       "Compare the average of the input vectors elements"},
+      {NODE_COMPARE_MODE_DOT_PRODUCT,
+       "DOT_PRODUCT",
+       0,
+       "Dot Product",
+       "Compare the dot products of the input vectors"},
+      {NODE_COMPARE_MODE_DIRECTION,
+       "DIRECTION",
+       0,
+       "Direction",
+       "Compare the direction of the input vectors"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_node_enum(
+      srna,
+      "operation",
+      "Operation",
+      "",
+      rna_enum_node_compare_operation_items,
+      NOD_storage_enum_accessors(operation),
+      NODE_COMPARE_EQUAL,
+      [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
+        *r_free = true;
+        bNode *node = static_cast<bNode *>(ptr->data);
+        NodeFunctionCompare *data = static_cast<NodeFunctionCompare *>(node->storage);
+
+        if (ELEM(data->data_type, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR)) {
+          return enum_items_filter(
+              rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
+                return !ELEM(item.value, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER);
+              });
+        }
+        if (data->data_type == SOCK_STRING) {
+          return enum_items_filter(
+              rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
+                return ELEM(item.value, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL);
+              });
+        }
+        if (data->data_type == SOCK_RGBA) {
+          return enum_items_filter(rna_enum_node_compare_operation_items,
+                                   [](const EnumPropertyItem &item) {
+                                     return ELEM(item.value,
+                                                 NODE_COMPARE_EQUAL,
+                                                 NODE_COMPARE_NOT_EQUAL,
+                                                 NODE_COMPARE_COLOR_BRIGHTER,
+                                                 NODE_COMPARE_COLOR_DARKER);
+                                   });
+        }
+        return enum_items_filter(rna_enum_node_compare_operation_items,
+                                 [](const EnumPropertyItem & /*item*/) { return false; });
+      });
+
+  prop = RNA_def_node_enum(
+      srna,
+      "data_type",
+      "Input Type",
+      "",
+      rna_enum_node_socket_data_type_items,
+      NOD_storage_enum_accessors(data_type),
+      std::nullopt,
+      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+        *r_free = true;
+        return enum_items_filter(
+            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) {
+              return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_STRING, SOCK_RGBA);
+            });
+      });
+  RNA_def_property_update_runtime(prop, data_type_update);
+
+  prop = RNA_def_node_enum(srna,
+                           "mode",
+                           "Mode",
+                           "",
+                           mode_items,
+                           NOD_storage_enum_accessors(mode),
+                           NODE_COMPARE_MODE_ELEMENT);
+}
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+  fn_node_type_base(&ntype, "FunctionNodeCompare", FN_NODE_COMPARE);
+  ntype.ui_name = "Compare";
+  ntype.enum_name_legacy = "COMPARE";
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.declare = node_declare;
+  ntype.labelfunc = node_label;
+  ntype.updatefunc = node_update;
+  ntype.initfunc = node_init;
+  blender::bke::node_type_storage(
+      &ntype, "NodeFunctionCompare", node_free_standard_storage, node_copy_standard_storage);
+  ntype.build_multi_function = node_build_multi_function;
+  ntype.draw_buttons = node_layout;
+  ntype.gather_link_search_ops = node_gather_link_searches;
+  blender::bke::node_register_type(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
+}
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_compare_cc

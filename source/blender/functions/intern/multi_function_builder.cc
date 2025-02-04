@@ -1,10 +1,8 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "FN_multi_function_builder.hh"
-
-#include "BLI_hash.hh"
 
 namespace blender::fn::multi_function {
 

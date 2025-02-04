@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation, Joshua Leung. All rights reserved.
+/* SPDX-FileCopyrightText: 2009 Blender Authors, Joshua Leung. All rights reserved.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,18 +6,16 @@
  * \ingroup spnla
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "DNA_scene_types.h"
 
-#include "BKE_context.h"
-#include "BKE_screen.h"
+#include "BKE_context.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_screen.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -171,7 +169,7 @@ void ED_operatormacros_nla()
 void nla_keymap(wmKeyConfig *keyconf)
 {
   /* keymap for all regions ------------------------------------------- */
-  WM_keymap_ensure(keyconf, "NLA Generic", SPACE_NLA, 0);
+  WM_keymap_ensure(keyconf, "NLA Generic", SPACE_NLA, RGN_TYPE_WINDOW);
 
   /* channels ---------------------------------------------------------- */
   /* Channels are not directly handled by the NLA Editor module, but are inherited from the
@@ -182,8 +180,8 @@ void nla_keymap(wmKeyConfig *keyconf)
    * However, those operations which involve clicking on channels and/or
    * the placement of them in the view are implemented here instead
    */
-  WM_keymap_ensure(keyconf, "NLA Channels", SPACE_NLA, 0);
+  WM_keymap_ensure(keyconf, "NLA Tracks", SPACE_NLA, RGN_TYPE_WINDOW);
 
   /* data ------------------------------------------------------------- */
-  WM_keymap_ensure(keyconf, "NLA Editor", SPACE_NLA, 0);
+  WM_keymap_ensure(keyconf, "NLA Editor", SPACE_NLA, RGN_TYPE_WINDOW);
 }

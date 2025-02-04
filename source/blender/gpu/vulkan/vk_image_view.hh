@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,17 +16,41 @@
 namespace blender::gpu {
 class VKTexture;
 
+struct VKImageViewInfo {
+  eImageViewUsage usage;
+  IndexRange layer_range;
+  IndexRange mip_range;
+  union {
+    char swizzle[4];
+    uint32_t swizzle_data;
+  };
+  bool use_stencil;
+  bool use_srgb;
+  /**
+   * When binding an image to a shader it needs to match the operations used inside the shader.
+   *
+   * If an shader accesses an image via an image view using the operation should match the view.
+   * arrayed will ensure the right image view is created.
+   */
+  VKImageViewArrayed arrayed;
+
+  bool operator==(const VKImageViewInfo &other) const
+  {
+    return usage == other.usage && layer_range == other.layer_range &&
+           mip_range == other.mip_range && swizzle_data == other.swizzle_data &&
+           use_stencil == other.use_stencil && use_srgb == other.use_srgb &&
+           arrayed == other.arrayed;
+  }
+};
+
 class VKImageView : NonCopyable {
   VkImageView vk_image_view_ = VK_NULL_HANDLE;
+  VkFormat vk_format_ = VK_FORMAT_UNDEFINED;
 
  public:
-  VKImageView(VKTexture &texture, int layer, int mip_level, StringRefNull name);
+  const VKImageViewInfo info;
 
-  /**
-   * Wrap the given vk_image_view handle. Note that the vk_image_view handle ownership is
-   * transferred to VKImageView.
-   */
-  VKImageView(VkImageView vk_image_view);
+  VKImageView(VKTexture &texture, const VKImageViewInfo &info, StringRefNull name);
 
   VKImageView(VKImageView &&other);
   ~VKImageView();
@@ -37,11 +61,10 @@ class VKImageView : NonCopyable {
     return vk_image_view_;
   }
 
- private:
-  static VkImageView create_vk_image_view(VKTexture &texture,
-                                          int layer,
-                                          int mip_level,
-                                          StringRefNull name);
+  VkFormat vk_format() const
+  {
+    return vk_format_;
+  }
 };
 
 }  // namespace blender::gpu

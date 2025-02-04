@@ -15,12 +15,12 @@ CCL_NAMESPACE_BEGIN
 void BlenderSync::sync_light(BL::Object &b_parent,
                              int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
                              BObjectInfo &b_ob_info,
-                             int random_id,
+                             const int random_id,
                              Transform &tfm,
                              bool *use_portal)
 {
   /* test if we need to sync */
-  ObjectKey key(b_parent, persistent_id, b_ob_info.real_object, false);
+  const ObjectKey key(b_parent, persistent_id, b_ob_info.real_object, false);
   BL::Light b_light(b_ob_info.object_data);
 
   Light *light = light_map.find(key);
@@ -33,8 +33,9 @@ void BlenderSync::sync_light(BL::Object &b_parent,
   if (!light_map.add_or_update(&light, b_ob_info.real_object, b_parent, key) && !tfm_updated) {
     Shader *shader;
     if (!shader_map.add_or_update(&shader, b_light)) {
-      if (light->get_is_portal())
+      if (light->get_is_portal()) {
         *use_portal = true;
+      }
       return;
     }
   }
@@ -47,16 +48,16 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       BL::PointLight b_point_light(b_light);
       light->set_size(b_point_light.shadow_soft_size());
       light->set_light_type(LIGHT_POINT);
+      light->set_is_sphere(!b_point_light.use_soft_falloff());
       break;
     }
     case BL::Light::type_SPOT: {
       BL::SpotLight b_spot_light(b_light);
       light->set_size(b_spot_light.shadow_soft_size());
-      light->set_axisu(transform_get_column(&tfm, 0));
-      light->set_axisv(transform_get_column(&tfm, 1));
       light->set_light_type(LIGHT_SPOT);
       light->set_spot_angle(b_spot_light.spot_size());
       light->set_spot_smooth(b_spot_light.spot_blend());
+      light->set_is_sphere(!b_spot_light.use_soft_falloff());
       break;
     }
     /* Hemi were removed from 2.8 */
@@ -74,8 +75,6 @@ void BlenderSync::sync_light(BL::Object &b_parent,
     case BL::Light::type_AREA: {
       BL::AreaLight b_area_light(b_light);
       light->set_size(1.0f);
-      light->set_axisu(transform_get_column(&tfm, 0));
-      light->set_axisv(transform_get_column(&tfm, 1));
       light->set_sizeu(b_area_light.size());
       light->set_spread(b_area_light.spread());
       switch (b_area_light.shape()) {
@@ -102,12 +101,10 @@ void BlenderSync::sync_light(BL::Object &b_parent,
   }
 
   /* strength */
-  float3 strength = get_float3(b_light.color()) * BL::PointLight(b_light).energy();
+  const float3 strength = get_float3(b_light.color()) * BL::PointLight(b_light).energy();
   light->set_strength(strength);
 
   /* location and (inverted!) direction */
-  light->set_co(transform_get_column(&tfm, 3));
-  light->set_dir(-transform_get_column(&tfm, 2));
   light->set_tfm(tfm);
 
   /* shader */
@@ -117,7 +114,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
 
   /* shadow */
   PointerRNA clight = RNA_pointer_get(&b_light.ptr, "cycles");
-  light->set_cast_shadow(get_boolean(clight, "cast_shadow"));
+  light->set_cast_shadow(b_light.use_shadow());
   light->set_use_mis(get_boolean(clight, "use_multiple_importance_sampling"));
 
   /* caustics light */
@@ -132,16 +129,19 @@ void BlenderSync::sync_light(BL::Object &b_parent,
     light->set_random_id(hash_uint2(hash_string(b_ob_info.real_object.name().c_str()), 0));
   }
 
-  if (light->get_light_type() == LIGHT_AREA)
+  if (light->get_light_type() == LIGHT_AREA) {
     light->set_is_portal(get_boolean(clight, "is_portal"));
-  else
+  }
+  else {
     light->set_is_portal(false);
+  }
 
-  if (light->get_is_portal())
+  if (light->get_is_portal()) {
     *use_portal = true;
+  }
 
   /* visibility */
-  uint visibility = object_ray_visibility(b_ob_info.real_object);
+  const uint visibility = object_ray_visibility(b_ob_info.real_object);
   light->set_use_camera((visibility & PATH_RAY_CAMERA) != 0);
   light->set_use_diffuse((visibility & PATH_RAY_DIFFUSE) != 0);
   light->set_use_glossy((visibility & PATH_RAY_GLOSSY) != 0);
@@ -166,19 +166,20 @@ void BlenderSync::sync_light(BL::Object &b_parent,
 
 void BlenderSync::sync_background_light(BL::SpaceView3D &b_v3d, bool use_portal)
 {
-  BL::World b_world = b_scene.world();
+  BL::World b_world = view_layer.world_override ? view_layer.world_override : b_scene.world();
 
   if (b_world) {
     PointerRNA cworld = RNA_pointer_get(&b_world.ptr, "cycles");
 
     enum SamplingMethod { SAMPLING_NONE = 0, SAMPLING_AUTOMATIC, SAMPLING_MANUAL, SAMPLING_NUM };
-    int sampling_method = get_enum(cworld, "sampling_method", SAMPLING_NUM, SAMPLING_AUTOMATIC);
-    bool sample_as_light = (sampling_method != SAMPLING_NONE);
+    const int sampling_method = get_enum(
+        cworld, "sampling_method", SAMPLING_NUM, SAMPLING_AUTOMATIC);
+    const bool sample_as_light = (sampling_method != SAMPLING_NONE);
 
     if (sample_as_light || use_portal) {
       /* test if we need to sync */
       Light *light;
-      ObjectKey key(b_world, 0, b_world, false);
+      const ObjectKey key(b_world, nullptr, b_world, false);
 
       if (light_map.add_or_update(&light, b_world, b_world, key) || world_recalc ||
           b_world.ptr.data != world_map)

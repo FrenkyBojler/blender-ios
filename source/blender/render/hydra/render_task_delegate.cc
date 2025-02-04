@@ -1,11 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * SPDX-FileCopyrightText: 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "render_task_delegate.h"
+#include "render_task_delegate.hh"
 
 #include <epoxy/gl.h>
 
-#include "GPU_context.h"
+#include "GPU_context.hh"
 
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/renderDelegate.h>
@@ -13,9 +14,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "Eigen/Core"
+#include <Eigen/Core>
 
-#include "engine.h"
+#include "engine.hh"
 
 namespace blender::render::hydra {
 
@@ -28,6 +29,10 @@ RenderTaskDelegate::RenderTaskDelegate(pxr::HdRenderIndex *parent_index,
 
   task_params_.enableLighting = true;
   task_params_.alphaThreshold = 0.1f;
+
+  /* Disable this so Metal and OpenGL match in Storm render tests, only
+   * the former seems to use multisample. */
+  task_params_.useAovMultiSample = false;
 
   CLOG_INFO(LOG_HYDRA_RENDER, 1, "%s", task_id_.GetText());
 }

@@ -1,21 +1,12 @@
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
-  ../../blenfont
-  ../../blenkernel
-  ../../blentranslation
-  ../../bmesh
-  ../../depsgraph
-  ../../gpu
   ../../ikplugin
   ../../makesrna
-  ../../render
-  ../../sequencer
-  ../../windowmanager
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 set(INC_SYS
@@ -30,8 +21,8 @@ set(SRC
   transform_convert_cursor.cc
   transform_convert_curve.cc
   transform_convert_curves.cc
-  transform_convert_gpencil_legacy.cc
   transform_convert_graph.cc
+  transform_convert_grease_pencil.cc
   transform_convert_lattice.cc
   transform_convert_mask.cc
   transform_convert_mball.cc
@@ -49,6 +40,7 @@ set(SRC
   transform_convert_sculpt.cc
   transform_convert_sequencer.cc
   transform_convert_sequencer_image.cc
+  transform_convert_sequencer_retiming.cc
   transform_convert_tracking.cc
   transform_convert_tracking_curves.cc
   transform_draw_cursors.cc
@@ -72,7 +64,6 @@ set(SRC
   transform_mode_edge_seq_slide.cc
   transform_mode_edge_slide.cc
   transform_mode_gpopacity.cc
-  transform_mode_gpshrinkfatten.cc
   transform_mode_maskshrinkfatten.cc
   transform_mode_mirror.cc
   transform_mode_push_pull.cc
@@ -105,7 +96,6 @@ set(SRC
   transform.hh
   transform_constraints.hh
   transform_convert.hh
-  transform_data.hh
   transform_draw_cursors.hh
   transform_gizmo.hh
   transform_mode.hh
@@ -116,18 +106,23 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
-  bf_blenfont
-  bf_blenkernel
+  PRIVATE bf::blenfont
+  PRIVATE bf::blentranslation
+  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  bf_bmesh
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_mask
-  bf_gpu
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::render
+  PRIVATE bf::sequencer
+  PRIVATE bf::windowmanager
 )
-
 
 blender_add_lib(bf_editor_transform "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_transform bf_rna)

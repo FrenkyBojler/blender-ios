@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2009-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2009-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -16,7 +16,7 @@ MAX_DISPLAY_ROWS = 8
 
 
 def rna_idprop_quote_path(prop):
-    return "[\"%s\"]" % bpy.utils.escape_identifier(prop)
+    return "[\"{:s}\"]".format(bpy.utils.escape_identifier(prop))
 
 
 def rna_idprop_ui_prop_update(item, prop):
@@ -75,11 +75,15 @@ def rna_idprop_ui_prop_default_set(item, prop, value):
 
 def rna_idprop_ui_create(
         item, prop, *, default,
-        min=0.0, max=1.0,
+        min=0, max=1,
         soft_min=None, soft_max=None,
         description=None,
         overridable=False,
         subtype=None,
+        step=None,
+        precision=None,
+        id_type='OBJECT',
+        items=None,
 ):
     """Create and initialize a custom property with limits, defaults and other settings."""
 
@@ -90,17 +94,26 @@ def rna_idprop_ui_create(
     ui_data = item.id_properties_ui(prop)
     proptype, _ = rna_idprop_value_item_type(default)
 
-    if proptype is bool:
-        ui_data = item.id_properties_ui(prop)
+    if soft_min is None:
+        soft_min = min
+    if soft_max is None:
+        soft_max = max
+
+    if (proptype is bool) or (proptype is str):
         ui_data.update(
             description=description,
             default=default,
         )
-    else:
-        if soft_min is None:
-            soft_min = min
-        if soft_max is None:
-            soft_max = max
+    elif proptype is type(None) or issubclass(proptype, bpy.types.ID):
+        ui_data.update(
+            description=description,
+            id_type=id_type,
+        )
+    elif proptype is float:
+        if step is None:
+            step = 0.1
+        if precision is None:
+            precision = 3
 
         ui_data.update(
             subtype=subtype,
@@ -108,9 +121,35 @@ def rna_idprop_ui_create(
             max=max,
             soft_min=soft_min,
             soft_max=soft_max,
+            step=step,
+            precision=precision,
             description=description,
             default=default,
         )
+    elif proptype is int:
+        if step is None:
+            step = 1
+
+        if items is None:
+            ui_data.update(
+                subtype=subtype,
+                min=min,
+                max=max,
+                soft_min=soft_min,
+                soft_max=soft_max,
+                step=step,
+                description=description,
+                default=default,
+            )
+        else:
+            ui_data.update(
+                subtype=subtype,
+                description=description,
+                default=default,
+                items=items,
+            )
+    else:
+        raise TypeError("Unexpected value type")
 
     prop_path = rna_idprop_quote_path(prop)
 
@@ -122,8 +161,6 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     # poll should really get this...
     if not rna_item:
         return
-
-    from bpy.utils import escape_identifier
 
     if rna_item.id_data.library is not None:
         use_edit = False
@@ -156,6 +193,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
 
         to_dict = getattr(value, "to_dict", None)
         to_list = getattr(value, "to_list", None)
+        is_datablock = value is None or isinstance(value, bpy.types.ID)
 
         if to_dict:
             value = to_dict()
@@ -178,14 +216,16 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
             props = value_column.operator("wm.properties_edit_value", text="Edit Value")
             props.data_path = context_member
             props.property_name = key
+        elif is_datablock:
+            value_column.template_ID(rna_item, rna_idprop_quote_path(key), text="")
         else:
-            value_column.prop(rna_item, '["%s"]' % escape_identifier(key), text="")
+            value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
 
-        operator_row = value_row.row()
+        operator_row = value_row.row(align=True)
         operator_row.alignment = 'RIGHT'
 
         # Do not allow editing of overridden properties (we cannot use a poll function
-        # of the operators here since they's have no access to the specific property).
+        # of the operators here since they have no access to the specific property).
         operator_row.enabled = not (is_lib_override and key in rna_item.id_data.override_library.reference)
 
         if use_edit:
@@ -201,9 +241,6 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
                 props = operator_row.operator("wm.properties_remove", text="", icon='X', emboss=False)
                 props.data_path = context_member
                 props.property_name = key
-        else:
-            # Add some spacing, so the right side of the buttons line up with layouts with decorators.
-            operator_row.label(text="", icon='BLANK1')
 
 
 class PropertyPanel:
@@ -225,7 +262,7 @@ class PropertyPanel:
         rna_item, context_member = rna_idprop_context_value(context, self._context_path, self._property_type)
         tot = len(rna_item.keys())
         if tot:
-            self.layout().label(text="%d:" % tot)
+            self.layout().label(text="{:d}:".format(tot))
     """
 
     def draw(self, context):

@@ -1,19 +1,20 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include <memory>
 #include <unordered_map>
 
+#include "testing/testing.h"
+
 #include "BLI_exception_safety_test_utils.hh"
 #include "BLI_map.hh"
 #include "BLI_rand.h"
 #include "BLI_set.hh"
-#include "BLI_strict_flags.h"
 #include "BLI_timeit.hh"
 #include "BLI_vector.hh"
 
-#include "testing/testing.h"
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 namespace blender::tests {
 
@@ -22,6 +23,48 @@ TEST(map, DefaultConstructor)
   Map<int, float> map;
   EXPECT_EQ(map.size(), 0);
   EXPECT_TRUE(map.is_empty());
+}
+
+TEST(map, ItemsConstructor)
+{
+  {
+    Map<int, std::string> map = {{1, "where"}, {3, "when"}, {5, "why"}};
+    EXPECT_EQ(map.size(), 3);
+    EXPECT_EQ(map.lookup(1), "where");
+    EXPECT_EQ(map.lookup(3), "when");
+    EXPECT_EQ(map.lookup(5), "why");
+  }
+  {
+    Map<int, std::string> map{{1, "where"}, {3, "when"}, {5, "why"}};
+    EXPECT_EQ(map.size(), 3);
+    EXPECT_EQ(map.lookup(1), "where");
+    EXPECT_EQ(map.lookup(3), "when");
+    EXPECT_EQ(map.lookup(5), "why");
+  }
+  {
+    Map<int, std::string> map{{{1, "where"}, {3, "when"}, {5, "why"}}};
+    EXPECT_EQ(map.size(), 3);
+    EXPECT_EQ(map.lookup(1), "where");
+    EXPECT_EQ(map.lookup(3), "when");
+    EXPECT_EQ(map.lookup(5), "why");
+  }
+  {
+    const Array<std::pair<int, std::string>> items = {{1, "where"}, {3, "when"}, {5, "why"}};
+    Map<int, std::string> map{items};
+    EXPECT_EQ(map.size(), 3);
+    EXPECT_EQ(map.lookup(1), "where");
+    EXPECT_EQ(map.lookup(3), "when");
+    EXPECT_EQ(map.lookup(5), "why");
+  }
+}
+
+TEST(map, ItemsConstructorDuplicates)
+{
+  Map<int, int> map = {{1, 2}, {3, 4}, {1, 4}, {2, 5}, {2, 6}};
+  EXPECT_EQ(map.size(), 3);
+  EXPECT_EQ(map.lookup(1), 2);
+  EXPECT_EQ(map.lookup(2), 5);
+  EXPECT_EQ(map.lookup(3), 4);
 }
 
 TEST(map, AddIncreasesSize)
@@ -349,6 +392,16 @@ TEST(map, LookupOrAdd)
   EXPECT_EQ(map.lookup_or_add(6, 5), 4);
   map.lookup_or_add(6, 4) += 10;
   EXPECT_EQ(map.lookup(6), 14);
+}
+
+TEST(map, LookupTry)
+{
+  Map<int, int> map;
+  map.add(1, 10);
+  map.add(2, 20);
+  EXPECT_EQ(map.lookup_try(1), 10);
+  EXPECT_EQ(map.lookup_try(2), 20);
+  EXPECT_EQ(map.lookup_try(3), std::nullopt);
 }
 
 TEST(map, MoveConstructorSmall)
@@ -692,6 +745,22 @@ TEST(map, VectorKey)
 
   map.remove_as(Vector<int>({1, 2, 3}).as_mutable_span());
   EXPECT_EQ(map.size(), 1);
+}
+
+TEST(map, Equality)
+{
+  Map<int, int> a;
+  Map<int, int> b;
+
+  EXPECT_EQ(a, b);
+  a.add(3, 4);
+  EXPECT_NE(a, b);
+  b.add(3, 4);
+  EXPECT_EQ(a, b);
+
+  a.add(4, 10);
+  b.add(4, 11);
+  EXPECT_NE(a, b);
 }
 
 /**

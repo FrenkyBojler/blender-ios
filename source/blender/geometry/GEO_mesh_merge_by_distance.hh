@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -47,7 +47,7 @@ std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
  *
  * \param vert_dest_map: The table that maps vertices to target vertices.  a value of -1
  * indicates a vertex is a target, and is to be kept.
- * This array is aligned with 'mesh->totvert'
+ * This array is aligned with 'mesh->verts_num'
  * \warning \a vert_merge_map must **not** contain any chained mapping (v1 -> v2 -> v3 etc.),
  * this is not supported and will likely generate corrupted geometry.
  *

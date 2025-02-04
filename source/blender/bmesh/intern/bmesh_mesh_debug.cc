@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,17 +13,15 @@
 
 #ifndef NDEBUG
 
-#  include <stdio.h>
+#  include <cstdio>
 
 #  include "MEM_guardedalloc.h"
 
-#  include "BLI_utildefines.h"
+#  include "BKE_customdata.hh"
 
-#  include "BKE_customdata.h"
+#  include "bmesh.hh"
 
-#  include "bmesh.h"
-
-#  include "bmesh_mesh_debug.h"
+#  include "bmesh_mesh_debug.hh"
 
 #  include "BLI_dynstr.h"
 
@@ -71,4 +69,4 @@ void BM_mesh_debug_print(BMesh *bm)
   MEM_freeN(str);
 }
 
-#endif /* NDEBUG */
+#endif /* !NDEBUG */

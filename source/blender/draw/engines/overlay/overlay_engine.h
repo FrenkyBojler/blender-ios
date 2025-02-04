@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,8 @@
 extern "C" {
 #endif
 
-extern DrawEngineType draw_engine_overlay_type;
+struct DrawEngineType;
+
 extern DrawEngineType draw_engine_overlay_next_type;
 
 #ifdef __cplusplus

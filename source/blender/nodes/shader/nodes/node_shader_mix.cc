@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,17 +8,27 @@
 
 #include <algorithm>
 
+#include "BKE_material.hh"
+
 #include "BLI_math_quaternion.hh"
+#include "BLI_math_vector.h"
+#include "BLI_string_utf8.h"
+
+#include "DNA_material_types.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "node_shader_util.hh"
+#include "node_util.hh"
 
-#include "NOD_add_node_search.hh"
+#include "FN_multi_function_builder.hh"
+
+#include "NOD_multi_function.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 
 namespace blender::nodes::node_sh_mix_cc {
 
@@ -31,38 +41,47 @@ static void sh_node_mix_declare(NodeDeclarationBuilder &b)
    * Input socket indices must be kept in sync with ntree_shader_disconnect_inactive_mix_branches
    */
   b.add_input<decl::Float>("Factor", "Factor_Float")
-      .no_muted_links()
       .default_value(0.5f)
       .min(0.0f)
       .max(1.0f)
-      .subtype(PROP_FACTOR);
-  b.add_input<decl::Vector>("Factor", "Factor_Vector")
+      .subtype(PROP_FACTOR)
       .no_muted_links()
+      .description("Amount of mixing between the A and B inputs");
+  b.add_input<decl::Vector>("Factor", "Factor_Vector")
       .default_value(float3(0.5f))
-      .subtype(PROP_FACTOR);
+      .subtype(PROP_FACTOR)
+      .no_muted_links()
+      .description("Amount of mixing between the A and B vector inputs");
 
   b.add_input<decl::Float>("A", "A_Float")
       .min(-10000.0f)
       .max(10000.0f)
       .is_default_link_socket()
-      .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .description("Value of the first floating number input");
   b.add_input<decl::Float>("B", "B_Float")
       .min(-10000.0f)
       .max(10000.0f)
-      .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .description("Value of the second floating number input");
 
   b.add_input<decl::Vector>("A", "A_Vector")
       .is_default_link_socket()
-      .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-  b.add_input<decl::Vector>("B", "B_Vector").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .description("Value of the first vector input");
+  b.add_input<decl::Vector>("B", "B_Vector")
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .description("Value of the second vector input");
 
   b.add_input<decl::Color>("A", "A_Color")
       .default_value({0.5f, 0.5f, 0.5f, 1.0f})
       .is_default_link_socket()
-      .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .description("Value of the first color input");
   b.add_input<decl::Color>("B", "B_Color")
       .default_value({0.5f, 0.5f, 0.5f, 1.0f})
-      .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .description("Value of the second color input");
 
   b.add_input<decl::Rotation>("A", "A_Rotation")
       .is_default_link_socket()
@@ -87,14 +106,14 @@ static void sh_node_mix_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *p
       break;
     case SOCK_RGBA:
       uiItemR(layout, ptr, "blend_type", UI_ITEM_NONE, "", ICON_NONE);
-      uiItemR(layout, ptr, "clamp_result", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, ptr, "clamp_result", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SOCK_ROTATION:
       break;
     default:
       BLI_assert_unreachable();
   }
-  uiItemR(layout, ptr, "clamp_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "clamp_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void sh_node_mix_label(const bNodeTree * /*ntree*/,
@@ -139,16 +158,16 @@ static void sh_node_mix_update(bNodeTree *ntree, bNode *node)
   bool use_vector_factor = data_type == SOCK_VECTOR &&
                            storage.factor_mode != NODE_MIX_MODE_UNIFORM;
 
-  bke::nodeSetSocketAvailability(ntree, sock_factor, !use_vector_factor);
+  bke::node_set_socket_availability(ntree, sock_factor, !use_vector_factor);
 
-  bke::nodeSetSocketAvailability(ntree, sock_factor_vec, use_vector_factor);
+  bke::node_set_socket_availability(ntree, sock_factor_vec, use_vector_factor);
 
   for (bNodeSocket *socket = sock_factor_vec->next; socket != nullptr; socket = socket->next) {
-    bke::nodeSetSocketAvailability(ntree, socket, socket->type == data_type);
+    bke::node_set_socket_availability(ntree, socket, socket->type == data_type);
   }
 
   LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
-    bke::nodeSetSocketAvailability(ntree, socket, socket->type == data_type);
+    bke::node_set_socket_availability(ntree, socket, socket->type == data_type);
   }
 }
 
@@ -248,23 +267,12 @@ static void node_mix_gather_link_searches(GatherLinkSearchOpParams &params)
   }
   const std::string socket_name = params.in_out() == SOCK_IN ? "A" : "Result";
   for (const EnumPropertyItem *item = rna_enum_ramp_blend_items; item->identifier != nullptr;
-       item++) {
+       item++)
+  {
     if (item->name != nullptr && item->identifier[0] != '\0') {
-      params.add_item(CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
-                      SocketSearchOp{socket_name, item->value},
-                      weight);
+      params.add_item(IFACE_(item->name), SocketSearchOp{socket_name, item->value}, weight);
     }
   }
-}
-
-static void gather_add_node_searches(GatherAddNodeSearchParams &params)
-{
-  params.add_single_node_item(IFACE_("Mix"), params.node_type().ui_description);
-  params.add_single_node_item(IFACE_("Mix Color"),
-                              params.node_type().ui_description,
-                              [](const bContext & /*C*/, bNodeTree & /*node_tree*/, bNode &node) {
-                                node_storage(node).data_type = SOCK_RGBA;
-                              });
 }
 
 static void node_mix_init(bNodeTree * /*tree*/, bNode *node)
@@ -461,13 +469,10 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
             });
         return &fn;
       }
-      else {
-        static auto fn = mf::build::SI3_SO<float, float, float, float>(
-            "Mix Float", [](const float t, const float a, const float b) {
-              return math::interpolate(a, b, t);
-            });
-        return &fn;
-      }
+      static auto fn = mf::build::SI3_SO<float, float, float, float>(
+          "Mix Float",
+          [](const float t, const float a, const float b) { return math::interpolate(a, b, t); });
+      return &fn;
     }
     case SOCK_VECTOR: {
       if (clamp_factor) {
@@ -478,31 +483,25 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
               });
           return &fn;
         }
-        else {
-          static auto fn = mf::build::SI3_SO<float3, float3, float3, float3>(
-              "Clamp Mix Vector Non Uniform", [](float3 t, const float3 a, const float3 b) {
-                t = math::clamp(t, 0.0f, 1.0f);
-                return a * (float3(1.0f) - t) + b * t;
-              });
-          return &fn;
-        }
+        static auto fn = mf::build::SI3_SO<float3, float3, float3, float3>(
+            "Clamp Mix Vector Non Uniform", [](float3 t, const float3 a, const float3 b) {
+              t = math::clamp(t, 0.0f, 1.0f);
+              return a * (float3(1.0f) - t) + b * t;
+            });
+        return &fn;
       }
-      else {
-        if (uniform_factor) {
-          static auto fn = mf::build::SI3_SO<float, float3, float3, float3>(
-              "Mix Vector", [](const float t, const float3 a, const float3 b) {
-                return math::interpolate(a, b, t);
-              });
-          return &fn;
-        }
-        else {
-          static auto fn = mf::build::SI3_SO<float3, float3, float3, float3>(
-              "Mix Vector Non Uniform", [](const float3 t, const float3 a, const float3 b) {
-                return a * (float3(1.0f) - t) + b * t;
-              });
-          return &fn;
-        }
+      if (uniform_factor) {
+        static auto fn = mf::build::SI3_SO<float, float3, float3, float3>(
+            "Mix Vector", [](const float t, const float3 a, const float3 b) {
+              return math::interpolate(a, b, t);
+            });
+        return &fn;
       }
+      static auto fn = mf::build::SI3_SO<float3, float3, float3, float3>(
+          "Mix Vector Non Uniform", [](const float3 t, const float3 a, const float3 b) {
+            return a * (float3(1.0f) - t) + b * t;
+          });
+      return &fn;
     }
     case SOCK_ROTATION: {
       if (clamp_factor) {
@@ -514,15 +513,13 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
                 });
         return &fn;
       }
-      else {
-        static auto fn =
-            mf::build::SI3_SO<float, math::Quaternion, math::Quaternion, math::Quaternion>(
-                "Mix Rotation",
-                [](const float t, const math::Quaternion &a, const math::Quaternion &b) {
-                  return math::interpolate(a, b, t);
-                });
-        return &fn;
-      }
+      static auto fn =
+          mf::build::SI3_SO<float, math::Quaternion, math::Quaternion, math::Quaternion>(
+              "Mix Rotation",
+              [](const float t, const math::Quaternion &a, const math::Quaternion &b) {
+                return math::interpolate(a, b, t);
+              });
+      return &fn;
     }
   }
   BLI_assert_unreachable();
@@ -543,25 +540,82 @@ static void sh_node_mix_build_multi_function(NodeMultiFunctionBuilder &builder)
   }
 }
 
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  const NodeShaderMix *data = (NodeShaderMix *)node_->storage;
+
+  NodeItem factor = empty();
+  NodeItem value1 = empty();
+  NodeItem value2 = empty();
+  switch (data->data_type) {
+    case SOCK_FLOAT:
+      factor = get_input_value(0, NodeItem::Type::Float);
+      value1 = get_input_value(2, NodeItem::Type::Float);
+      value2 = get_input_value(3, NodeItem::Type::Float);
+      break;
+
+    case SOCK_VECTOR:
+      if (data->factor_mode == NODE_MIX_MODE_UNIFORM) {
+        factor = get_input_value(0, NodeItem::Type::Float);
+      }
+      else {
+        factor = get_input_value(1, NodeItem::Type::Vector3);
+      }
+      value1 = get_input_value(4, NodeItem::Type::Vector3);
+      value2 = get_input_value(5, NodeItem::Type::Vector3);
+      break;
+
+    case SOCK_RGBA:
+      factor = get_input_value(0, NodeItem::Type::Float);
+      value1 = get_input_value(6, NodeItem::Type::Color3);
+      value2 = get_input_value(7, NodeItem::Type::Color3);
+      break;
+
+    default:
+      BLI_assert_unreachable();
+  }
+
+  if (data->clamp_factor) {
+    factor = factor.clamp();
+  }
+  NodeItem res = factor.mix(value1, value2);
+  if (data->data_type == SOCK_RGBA) {
+    /* TODO: Apply data->blend_type */
+
+    if (data->clamp_result) {
+      res = res.clamp();
+    }
+  }
+  return res;
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
 }  // namespace blender::nodes::node_sh_mix_cc
 
 void register_node_type_sh_mix()
 {
   namespace file_ns = blender::nodes::node_sh_mix_cc;
 
-  static bNodeType ntype;
-  sh_fn_node_type_base(&ntype, SH_NODE_MIX, "Mix", NODE_CLASS_CONVERTER);
+  static blender::bke::bNodeType ntype;
+  sh_fn_node_type_base(&ntype, "ShaderNodeMix", SH_NODE_MIX);
+  ntype.ui_name = "Mix";
+  ntype.ui_description = "Mix values by a factor";
+  ntype.enum_name_legacy = "MIX";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_mix_declare;
   ntype.ui_class = file_ns::sh_node_mix_ui_class;
   ntype.gpu_fn = file_ns::gpu_shader_mix;
   ntype.updatefunc = file_ns::sh_node_mix_update;
   ntype.initfunc = file_ns::node_mix_init;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeShaderMix", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = file_ns::sh_node_mix_build_multi_function;
   ntype.draw_buttons = file_ns::sh_node_mix_layout;
   ntype.labelfunc = file_ns::sh_node_mix_label;
   ntype.gather_link_search_ops = file_ns::node_mix_gather_link_searches;
-  ntype.gather_add_node_search_ops = file_ns::gather_add_node_searches;
-  nodeRegisterType(&ntype);
+  ntype.materialx_fn = file_ns::node_shader_materialx;
+
+  blender::bke::node_register_type(&ntype);
 }

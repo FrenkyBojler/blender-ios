@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,39 +9,36 @@
 #include <climits>
 #include <cstdlib>
 
-#include "MEM_guardedalloc.h"
-
-#include "DNA_defaults.h"
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h" /* SELECT */
 #include "DNA_scene_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
-
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "WM_types.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-
 #ifdef RNA_RUNTIME
 
-#  include "BLI_math.h"
+#  include <algorithm>
+#  include <fmt/format.h>
 
+#  include "DNA_defaults.h"
 #  include "DNA_movieclip_types.h"
 
+#  include "BLI_math_vector.h"
+
 #  include "BKE_mask.h"
+#  include "BKE_movieclip.h"
+#  include "BKE_tracking.h"
 
-#  include "DEG_depsgraph.h"
+#  include "DEG_depsgraph.hh"
 
-#  include "RNA_access.h"
+#  include "RNA_access.hh"
 
 #  include "WM_api.hh"
 
@@ -166,12 +163,12 @@ static void rna_Mask_layer_active_index_range(
   *softmax = *max;
 }
 
-static char *rna_MaskLayer_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_MaskLayer_path(const PointerRNA *ptr)
 {
   const MaskLayer *masklay = (MaskLayer *)ptr->data;
   char name_esc[sizeof(masklay->name) * 2];
   BLI_str_escape(name_esc, masklay->name, sizeof(name_esc));
-  return BLI_sprintfN("layers[\"%s\"]", name_esc);
+  return fmt::format("layers[\"{}\"]", name_esc);
 }
 
 static PointerRNA rna_Mask_layer_active_get(PointerRNA *ptr)
@@ -317,7 +314,8 @@ static MaskSpline *mask_spline_from_point(Mask *mask, MaskSplinePoint *point)
   {
     MaskSpline *spline;
     for (spline = static_cast<MaskSpline *>(mask_layer->splines.first); spline;
-         spline = spline->next) {
+         spline = spline->next)
+    {
       if (point >= spline->points && point < spline->points + spline->tot_point) {
         return spline;
       }
@@ -460,7 +458,7 @@ static void rna_Mask_start_frame_set(PointerRNA *ptr, int value)
   data->sfra = value;
 
   if (data->sfra >= data->efra) {
-    data->efra = MIN2(data->sfra, MAXFRAME);
+    data->efra = std::min(data->sfra, MAXFRAME);
   }
 }
 
@@ -471,7 +469,7 @@ static void rna_Mask_end_frame_set(PointerRNA *ptr, int value)
   data->efra = value;
 
   if (data->sfra >= data->efra) {
-    data->sfra = MAX2(data->efra, MINFRAME);
+    data->sfra = std::max(data->efra, MINFRAME);
   }
 }
 
@@ -893,6 +891,7 @@ static void rna_def_maskSpline(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, spline_offset_mode_items);
   RNA_def_property_ui_text(
       prop, "Feather Offset", "The method used for calculating the feather offset");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MASK);
   RNA_def_property_update(prop, 0, "rna_Mask_update_data");
 
   /* weight interpolation */
@@ -1024,13 +1023,13 @@ static void rna_def_mask_layer(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "invert", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "blend_flag", MASK_BLENDFLAG_INVERT);
-  RNA_def_property_ui_text(prop, "Restrict View", "Invert the mask black/white");
+  RNA_def_property_ui_text(prop, "Invert", "Invert the mask black/white");
   RNA_def_property_update(prop, NC_MASK | NA_EDITED, nullptr);
 
   prop = RNA_def_property(srna, "falloff", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "falloff");
   RNA_def_property_enum_items(prop, rna_enum_proportional_falloff_curve_only_items);
-  RNA_def_property_ui_text(prop, "Falloff", "Falloff type the feather");
+  RNA_def_property_ui_text(prop, "Falloff", "Falloff type of the feather");
   RNA_def_property_translation_context(prop,
                                        BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
   RNA_def_property_update(prop, NC_MASK | NA_EDITED, nullptr);

@@ -7,9 +7,7 @@
  * `.blend` file reading entry point.
  */
 
-#include <cmath>
 #include <cstddef>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -17,33 +15,28 @@
 
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
-#include "BLI_listbase.h"
-#include "BLI_path_util.h" /* Only for assertions. */
+#include "BLI_path_utils.hh" /* Only for assertions. */
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_genfile.h"
 #include "DNA_sdna_types.h"
 
-#include "BKE_asset.h"
-#include "BKE_icons.h"
-#include "BKE_idtype.h"
-#include "BKE_main.h"
+#include "BKE_asset.hh"
+#include "BKE_idtype.hh"
+#include "BKE_main.hh"
+#include "BKE_preview_image.hh"
 
-#include "BLO_blend_defs.h"
-#include "BLO_readfile.h"
-#include "BLO_undofile.h"
+#include "BLO_blend_defs.hh"
+#include "BLO_readfile.hh"
 
-#include "readfile.h"
+#include "readfile.hh"
 
 #include "BLI_sys_types.h" /* Needed for `intptr_t`. */
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
-
-/* local prototypes --------------------- */
-void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp);
 
 /* Access routines used by file-selector. */
 
@@ -82,41 +75,6 @@ BlendHandle *BLO_blendhandle_from_memory(const void *mem,
   bh = (BlendHandle *)blo_filedata_from_memory(mem, memsize, reports);
 
   return bh;
-}
-
-void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp)
-{
-  FileData *fd = (FileData *)bh;
-  BHead *bhead;
-
-  fprintf(static_cast<FILE *>(fp), "[\n");
-  for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
-    if (bhead->code == BLO_CODE_ENDB) {
-      break;
-    }
-
-    const SDNA_Struct *struct_info = fd->filesdna->structs[bhead->SDNAnr];
-    const char *name = fd->filesdna->types[struct_info->type];
-    char buf[4];
-
-    buf[0] = (bhead->code >> 24) & 0xFF;
-    buf[1] = (bhead->code >> 16) & 0xFF;
-    buf[2] = (bhead->code >> 8) & 0xFF;
-    buf[3] = (bhead->code >> 0) & 0xFF;
-
-    buf[0] = buf[0] ? buf[0] : ' ';
-    buf[1] = buf[1] ? buf[1] : ' ';
-    buf[2] = buf[2] ? buf[2] : ' ';
-    buf[3] = buf[3] ? buf[3] : ' ';
-
-    fprintf(static_cast<FILE *>(fp),
-            "['%.4s', '%s', %d, %ld ],\n",
-            buf,
-            name,
-            bhead->nr,
-            (long int)(bhead->len + sizeof(BHead)));
-  }
-  fprintf(static_cast<FILE *>(fp), "]\n");
 }
 
 LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
@@ -158,7 +116,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
   BHead *bhead;
   int tot = 0;
 
-  const int sdna_nr_preview_image = DNA_struct_find_nr(fd->filesdna, "PreviewImage");
+  const int sdna_nr_preview_image = DNA_struct_find_with_alias(fd->filesdna, "PreviewImage");
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == BLO_CODE_ENDB) {
@@ -261,7 +219,7 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
 {
   FileData *fd = (FileData *)bh;
   bool looking = false;
-  const int sdna_preview_image = DNA_struct_find_nr(fd->filesdna, "PreviewImage");
+  const int sdna_preview_image = DNA_struct_find_with_alias(fd->filesdna, "PreviewImage");
 
   for (BHead *bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == BLO_CODE_DATA) {
@@ -274,6 +232,7 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
         }
 
         PreviewImage *result = static_cast<PreviewImage *>(MEM_dupallocN(preview_from_file));
+        result->runtime = MEM_new<blender::bke::PreviewImageRuntime>(__func__);
         bhead = blo_blendhandle_read_preview_rects(fd, bhead, result, preview_from_file);
         MEM_freeN(preview_from_file);
         return result;
@@ -293,66 +252,6 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
   }
 
   return nullptr;
-}
-
-LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_tot_prev)
-{
-  FileData *fd = (FileData *)bh;
-  LinkNode *previews = nullptr;
-  BHead *bhead;
-  int looking = 0;
-  PreviewImage *prv = nullptr;
-  PreviewImage *new_prv = nullptr;
-  int tot = 0;
-
-  for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
-    if (bhead->code == ofblocktype) {
-      const char *idname = blo_bhead_id_name(fd, bhead);
-      switch (GS(idname)) {
-        case ID_MA:  /* fall through */
-        case ID_TE:  /* fall through */
-        case ID_IM:  /* fall through */
-        case ID_WO:  /* fall through */
-        case ID_LA:  /* fall through */
-        case ID_OB:  /* fall through */
-        case ID_GR:  /* fall through */
-        case ID_SCE: /* fall through */
-        case ID_AC:  /* fall through */
-        case ID_NT:  /* fall through */
-          new_prv = static_cast<PreviewImage *>(MEM_callocN(sizeof(PreviewImage), "newpreview"));
-          BLI_linklist_prepend(&previews, new_prv);
-          tot++;
-          looking = 1;
-          break;
-        default:
-          break;
-      }
-    }
-    else if (bhead->code == BLO_CODE_DATA) {
-      if (looking) {
-        if (bhead->SDNAnr == DNA_struct_find_nr(fd->filesdna, "PreviewImage")) {
-          prv = static_cast<PreviewImage *>(BLO_library_read_struct(fd, bhead, "PreviewImage"));
-
-          if (prv) {
-            memcpy(new_prv, prv, sizeof(PreviewImage));
-            bhead = blo_blendhandle_read_preview_rects(fd, bhead, new_prv, prv);
-            MEM_freeN(prv);
-          }
-        }
-      }
-    }
-    else if (bhead->code == BLO_CODE_ENDB) {
-      break;
-    }
-    else {
-      looking = 0;
-      new_prv = nullptr;
-      prv = nullptr;
-    }
-  }
-
-  *r_tot_prev = tot;
-  return previews;
 }
 
 LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
@@ -500,5 +399,12 @@ void BLO_blendfiledata_free(BlendFileData *bfd)
     MEM_freeN(bfd->user);
   }
 
-  MEM_freeN(bfd);
+  MEM_delete(bfd);
+}
+
+void BLO_read_do_version_after_setup(Main *new_bmain,
+                                     BlendfileLinkAppendContext *lapp_context,
+                                     BlendFileReadReport *reports)
+{
+  do_versions_after_setup(new_bmain, lapp_context, reports);
 }

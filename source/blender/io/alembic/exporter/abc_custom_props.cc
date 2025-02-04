@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,15 +10,13 @@
 
 #include "abc_writer_abstract.h"
 
-#include <functional>
-#include <iostream>
-#include <memory>
 #include <string>
 
 #include <Alembic/Abc/OTypedArrayProperty.h>
-#include <Alembic/Abc/OTypedScalarProperty.h>
 
-#include "BKE_idprop.h"
+#include "BLI_listbase.h"
+
+#include "BKE_idprop.hh"
 #include "DNA_ID.h"
 
 using Alembic::Abc::ArraySample;

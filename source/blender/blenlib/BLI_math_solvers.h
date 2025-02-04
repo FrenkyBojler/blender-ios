@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2015 Blender Foundation
+/* SPDX-FileCopyrightText: 2015 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,6 @@
  * \ingroup bli
  */
 
-#include "BLI_compiler_attrs.h"
 #include "BLI_math_inline.h"
 
 #ifdef __cplusplus

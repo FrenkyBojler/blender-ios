@@ -8,9 +8,6 @@
 
 #include "GHOST_System.hh"
 
-#include <chrono>
-#include <cstdio> /* Just for #printf. */
-
 #include "GHOST_DisplayManager.hh"
 #include "GHOST_EventManager.hh"
 #include "GHOST_TimerManager.hh"
@@ -32,6 +29,7 @@ GHOST_System::GHOST_System()
 #ifdef WITH_INPUT_NDOF
       m_ndofManager(nullptr),
 #endif
+      m_preFullScreenSetting{0},
       m_multitouchGestures(true),
       m_tabletAPI(GHOST_kTabletAutomatic),
       m_is_debug_enabled(false)
@@ -43,7 +41,7 @@ GHOST_System::~GHOST_System()
   exit();
 }
 
-GHOST_TSuccess GHOST_System::hasClipboardImage(void) const
+GHOST_TSuccess GHOST_System::hasClipboardImage() const
 {
   return GHOST_kFailure;
 }
@@ -58,13 +56,6 @@ GHOST_TSuccess GHOST_System::putClipboardImage(uint * /*rgba*/,
                                                int /*height*/) const
 {
   return GHOST_kFailure;
-}
-
-uint64_t GHOST_System::getMilliSeconds() const
-{
-  return std::chrono::duration_cast<std::chrono::milliseconds>(
-             std::chrono::steady_clock::now().time_since_epoch())
-      .count();
 }
 
 GHOST_ITimerTask *GHOST_System::installTimer(uint64_t delay,
@@ -183,14 +174,12 @@ GHOST_TSuccess GHOST_System::endFullScreen()
   if (m_windowManager->getFullScreen()) {
     // GHOST_IWindow* window = m_windowManager->getFullScreenWindow();
     // GHOST_PRINT("GHOST_System::endFullScreen(): leaving window manager full-screen mode\n");
-    success = m_windowManager->endFullScreen();
-    GHOST_ASSERT(m_displayManager, "GHOST_System::endFullScreen(): invalid display manager");
-    // GHOST_PRINT("GHOST_System::endFullScreen(): leaving full-screen mode\n");
-    success = m_displayManager->setCurrentDisplaySetting(GHOST_DisplayManager::kMainDisplay,
-                                                         m_preFullScreenSetting);
-  }
-  else {
-    success = GHOST_kFailure;
+    if (m_windowManager->endFullScreen() == GHOST_kSuccess) {
+      GHOST_ASSERT(m_displayManager, "GHOST_System::endFullScreen(): invalid display manager");
+      // GHOST_PRINT("GHOST_System::endFullScreen(): leaving full-screen mode\n");
+      success = m_displayManager->setCurrentDisplaySetting(GHOST_DisplayManager::kMainDisplay,
+                                                           m_preFullScreenSetting);
+    }
   }
   return success;
 }
@@ -210,16 +199,27 @@ bool GHOST_System::getFullScreen()
 GHOST_IWindow *GHOST_System::getWindowUnderCursor(int32_t x, int32_t y)
 {
   /* TODO: This solution should follow the order of the activated windows (Z-order).
-   * It is imperfect but usable in most cases. */
-  for (GHOST_IWindow *iwindow : m_windowManager->getWindows()) {
-    if (iwindow->getState() == GHOST_kWindowStateMinimized) {
+   * It is imperfect but usable in most cases. Ideally each platform should provide
+   * a custom version of this function that properly considers z-order. */
+
+  std::vector<GHOST_IWindow *> windows = m_windowManager->getWindows();
+  std::vector<GHOST_IWindow *>::reverse_iterator iwindow_iter;
+
+  /* Search through the windows in reverse order because in most cases
+   * the window that is on top was created after those that are below it. */
+
+  for (iwindow_iter = windows.rbegin(); iwindow_iter != windows.rend(); ++iwindow_iter) {
+
+    GHOST_IWindow *win = *iwindow_iter;
+
+    if (win->getState() == GHOST_kWindowStateMinimized) {
       continue;
     }
 
     GHOST_Rect bounds;
-    iwindow->getClientBounds(bounds);
+    win->getClientBounds(bounds);
     if (bounds.isInside(x, y)) {
-      return iwindow;
+      return win;
     }
   }
 
@@ -266,7 +266,7 @@ GHOST_TSuccess GHOST_System::removeEventConsumer(GHOST_IEventConsumer *consumer)
   return success;
 }
 
-GHOST_TSuccess GHOST_System::pushEvent(GHOST_IEvent *event)
+GHOST_TSuccess GHOST_System::pushEvent(const GHOST_IEvent *event)
 {
   GHOST_TSuccess success;
   if (m_eventManager) {
@@ -338,6 +338,11 @@ void GHOST_System::setTabletAPI(GHOST_TTabletAPI api)
 GHOST_TTabletAPI GHOST_System::getTabletAPI()
 {
   return m_tabletAPI;
+}
+
+GHOST_TSuccess GHOST_System::getPixelAtCursor(float /*r_color*/[3]) const
+{
+  return GHOST_kFailure;
 }
 
 #ifdef WITH_INPUT_NDOF
@@ -424,7 +429,7 @@ GHOST_TSuccess GHOST_System::createFullScreenWindow(GHOST_Window **window,
                                          settings.yPixels,
                                          GHOST_kWindowStateNormal,
                                          gpuSettings,
-                                         true /* exclusive */);
+                                         true /*exclusive*/);
   return (*window == nullptr) ? GHOST_kFailure : GHOST_kSuccess;
 }
 

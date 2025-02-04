@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,26 +6,22 @@
  * \ingroup RNA
  */
 
-#include <climits>
 #include <cstdlib>
 
-#include "BKE_dynamicpaint.h"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 
 #include "BLI_string_utf8_symbols.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "WM_types.hh"
 
@@ -37,33 +33,38 @@ const EnumPropertyItem rna_enum_prop_dynamicpaint_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_context.h"
+#  include <fmt/format.h>
+
+#  include "BLI_string.h"
+
+#  include "BKE_context.hh"
+#  include "BKE_dynamicpaint.h"
 #  include "BKE_particle.h"
 
-#  include "DEG_depsgraph.h"
-#  include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph.hh"
+#  include "DEG_depsgraph_build.hh"
 
-static char *rna_DynamicPaintCanvasSettings_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_DynamicPaintCanvasSettings_path(const PointerRNA *ptr)
 {
   const DynamicPaintCanvasSettings *settings = (DynamicPaintCanvasSettings *)ptr->data;
   const ModifierData *md = (ModifierData *)settings->pmd;
   char name_esc[sizeof(md->name) * 2];
 
   BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-  return BLI_sprintfN("modifiers[\"%s\"].canvas_settings", name_esc);
+  return fmt::format("modifiers[\"{}\"].canvas_settings", name_esc);
 }
 
-static char *rna_DynamicPaintBrushSettings_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_DynamicPaintBrushSettings_path(const PointerRNA *ptr)
 {
   const DynamicPaintBrushSettings *settings = (DynamicPaintBrushSettings *)ptr->data;
   const ModifierData *md = (ModifierData *)settings->pmd;
   char name_esc[sizeof(md->name) * 2];
 
   BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-  return BLI_sprintfN("modifiers[\"%s\"].brush_settings", name_esc);
+  return fmt::format("modifiers[\"{}\"].brush_settings", name_esc);
 }
 
-static char *rna_DynamicPaintSurface_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_DynamicPaintSurface_path(const PointerRNA *ptr)
 {
   const DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
   const ModifierData *md = (ModifierData *)surface->canvas->pmd;
@@ -72,8 +73,8 @@ static char *rna_DynamicPaintSurface_path(const PointerRNA *ptr)
 
   BLI_str_escape(name_esc, md->name, sizeof(name_esc));
   BLI_str_escape(name_esc_surface, surface->name, sizeof(name_esc_surface));
-  return BLI_sprintfN(
-      "modifiers[\"%s\"].canvas_settings.canvas_surfaces[\"%s\"]", name_esc, name_esc_surface);
+  return fmt::format(
+      "modifiers[\"{}\"].canvas_settings.canvas_surfaces[\"{}\"]", name_esc, name_esc_surface);
 }
 
 /*
@@ -126,7 +127,13 @@ static void rna_DynamicPaintSurfaces_changeFormat(Main *bmain, Scene *scene, Poi
 {
   DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
 
-  surface->type = MOD_DPAINT_SURFACE_T_PAINT;
+  /* Only #MOD_DPAINT_SURFACE_F_VERTEX supports #MOD_DPAINT_SURFACE_T_WEIGHT. */
+  if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ &&
+      surface->type == MOD_DPAINT_SURFACE_T_WEIGHT)
+  {
+    surface->type = MOD_DPAINT_SURFACE_T_PAINT;
+  }
+
   dynamicPaintSurface_updateType((DynamicPaintSurface *)ptr->data);
   rna_DynamicPaintSurface_reset(bmain, scene, ptr);
 }
@@ -154,7 +161,7 @@ static PointerRNA rna_PaintSurface_active_get(PointerRNA *ptr)
     }
     id++;
   }
-  return rna_pointer_inherit_refine(ptr, &RNA_DynamicPaintSurface, nullptr);
+  return PointerRNA_NULL;
 }
 
 static void rna_DynamicPaint_surfaces_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -177,7 +184,6 @@ static void rna_Surface_active_point_index_set(PointerRNA *ptr, int value)
 {
   DynamicPaintCanvasSettings *canvas = (DynamicPaintCanvasSettings *)ptr->data;
   canvas->active_sur = value;
-  return;
 }
 
 static void rna_Surface_active_point_range(
@@ -211,7 +217,7 @@ static bool rna_DynamicPaint_is_cache_user_get(PointerRNA *ptr)
 {
   DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
 
-  return (surface->format != MOD_DPAINT_SURFACE_F_IMAGESEQ) ? 1 : 0;
+  return (surface->format != MOD_DPAINT_SURFACE_F_IMAGESEQ) ? true : false;
 }
 
 /* Does output layer exist. */
@@ -401,6 +407,7 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_dissolve", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", MOD_DPAINT_DISSOLVE);
   RNA_def_property_ui_text(prop, "Dissolve", "Enable to make surface changes disappear over time");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SIMULATION);
 
   prop = RNA_def_property(srna, "dissolve_speed", PROP_INT, PROP_TIME);
   RNA_def_property_int_sdna(prop, nullptr, "diss_speed");
@@ -909,6 +916,7 @@ static void rna_def_dynamic_paint_brush_settings(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "proximity_falloff");
   RNA_def_property_enum_items(prop, prop_dynamicpaint_prox_falloff);
   RNA_def_property_ui_text(prop, "Falloff", "Proximity falloff type");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_DynamicPaint_redoModifier");
 
   prop = RNA_def_property(srna, "use_proximity_project", PROP_BOOLEAN, PROP_NONE);

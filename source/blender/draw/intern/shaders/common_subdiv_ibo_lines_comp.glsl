@@ -1,5 +1,10 @@
+/* SPDX-FileCopyrightText: 2021-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* To be compiled with common_subdiv_lib.glsl */
+
+#ifndef LINES_LOOSE
 
 layout(std430, binding = 1) readonly buffer inputEdgeDrawFlag
 {
@@ -11,15 +16,21 @@ layout(std430, binding = 2) readonly restrict buffer extraCoarseFaceData
   uint extra_coarse_face_data[];
 };
 
+#endif
+
 layout(std430, binding = 3) writeonly buffer outputLinesIndices
 {
   uint output_lines[];
 };
 
+#ifdef LINES_LOOSE
+
 layout(std430, binding = 4) readonly buffer LinesLooseFlags
 {
   uint lines_loose_flags[];
 };
+
+#endif
 
 #ifndef LINES_LOOSE
 

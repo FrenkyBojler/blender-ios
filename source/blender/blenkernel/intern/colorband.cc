@@ -9,16 +9,15 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_heap.h"
-#include "BLI_math.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_key_types.h"
 #include "DNA_texture_types.h"
 
-#include "BKE_colorband.h"
-#include "BKE_key.h"
-#include "BKE_material.h"
+#include "BKE_colorband.hh"
+#include "BKE_key.hh"
 
 void BKE_colorband_init(ColorBand *coba, bool rangetype)
 {

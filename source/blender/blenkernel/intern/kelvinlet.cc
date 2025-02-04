@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: Blender Foundation
+/* SPDX-FileCopyrightText: Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,6 +7,8 @@
  */
 
 #include "BKE_kelvinlet.h"
+#include "BLI_math_base.h"
+#include "BLI_math_vector.h"
 
 /* Regularized Kelvinlets: Sculpting Brushes based on Fundamental Solutions of Elasticity
  * Pixar Technical Memo #17-03 */
@@ -148,7 +150,7 @@ static void sculpt_kelvinet_integrate(kelvinlet_fn kelvinlet,
 static void kelvinlet_scale(float disp[3],
                             const float vertex_co[3],
                             const float location[3],
-                            const float[3] /*normal*/,
+                            const float /*normal*/[3],
                             const KelvinletParams *p)
 {
   float radius_vertex[3];

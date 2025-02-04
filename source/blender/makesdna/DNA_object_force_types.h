@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,10 +10,6 @@
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct BodySpring;
 
@@ -135,8 +131,6 @@ typedef struct PartDeflect {
   struct Tex *tex;
 
   /* effector noise */
-  /** Random noise generator for e.g. wind. */
-  struct RNG *rng;
   /** Noise of force. */
   float f_noise;
   /** Noise random seed. */
@@ -182,10 +176,10 @@ typedef struct SBVertex {
   float vec[4];
 } SBVertex;
 
-/* Container for data that is shared among CoW copies.
+/* Container for data that is shared among evaluated copies.
  *
  * This is placed in a separate struct so that values can be changed
- * without having to update all CoW copies. */
+ * without having to update all evaluated copies. */
 typedef struct SoftBody_Shared {
   struct PointCache *pointcache;
   struct ListBase ptcaches;
@@ -407,7 +401,3 @@ enum {
   SBC_MODE_MAX = 3,
   SBC_MODE_AVGMINMAX = 4,
 };
-
-#ifdef __cplusplus
-}
-#endif

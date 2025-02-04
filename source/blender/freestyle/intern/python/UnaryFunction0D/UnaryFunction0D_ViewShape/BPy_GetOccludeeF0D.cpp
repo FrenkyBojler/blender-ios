@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -20,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetOccludeeF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetOccludeeF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DViewShape` > :class:`GetOccludeeF0D`\n"
     "\n"
@@ -36,7 +38,7 @@ static char GetOccludeeF0D___doc__[] =
     "   :arg it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The ViewShape occluded by the pointed Interface0D.\n"
-    "   :rtype: :class:`freestyle.types.ViewShape`\n";
+    "   :rtype: :class:`freestyle.types.ViewShape`\n");
 
 static int GetOccludeeF0D___init__(BPy_GetOccludeeF0D *self, PyObject *args, PyObject *kwds)
 {

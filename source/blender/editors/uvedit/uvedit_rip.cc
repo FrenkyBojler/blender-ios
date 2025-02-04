@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,39 +14,38 @@
 
 #include "BLI_ghash.h"
 #include "BLI_linklist_stack.h"
-#include "BLI_math.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_image_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_context.h"
-#include "BKE_customdata.h"
-#include "BKE_editmesh.h"
-#include "BKE_layer.h"
-#include "BKE_report.h"
+#include "BKE_context.hh"
+#include "BKE_customdata.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_layer.hh"
+#include "BKE_mesh_types.hh"
+#include "BKE_report.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_screen.hh"
 #include "ED_transform.hh"
 #include "ED_uvedit.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "UI_view2d.hh"
 
-#include "uvedit_intern.h"
+#include "uvedit_intern.hh"
+
+using blender::Vector;
 
 /* -------------------------------------------------------------------- */
 /** \name UV Loop Rip Data Struct
@@ -230,7 +229,7 @@ static void bm_loop_calc_uv_angle_from_dir(BMLoop *l,
                                            int *r_edge_index)
 {
   /* Calculate 3 directions, return the shortest angle. */
-  float dir_test[3][2];
+  blender::float2 dir_test[3];
   const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
   const float *luv_prev = BM_ELEM_CD_GET_FLOAT_P(l->prev, cd_loop_uv_offset);
   const float *luv_next = BM_ELEM_CD_GET_FLOAT_P(l->next, cd_loop_uv_offset);
@@ -248,11 +247,11 @@ static void bm_loop_calc_uv_angle_from_dir(BMLoop *l,
   normalize_v2(dir_test[1]);
 
   /* Rotate 90 degrees. */
-  SWAP(float, dir_test[1][0], dir_test[1][1]);
+  std::swap(dir_test[1][0], dir_test[1][1]);
   dir_test[1][1] *= -1.0f;
 
   if (BM_face_uv_calc_cross(l->f, cd_loop_uv_offset) > 0.0f) {
-    negate_v2(dir_test[1]);
+    dir_test[1] *= -1.0f;
   }
 
   const float angles[3] = {
@@ -643,7 +642,8 @@ static UVRipPairs *uv_rip_pairs_from_loop(BMLoop *l_init,
         do {
           /* Not a boundary and visible. */
           if (!UL(l_radial_iter)->is_select_edge &&
-              BM_elem_flag_test(l_radial_iter->f, BM_ELEM_TAG)) {
+              BM_elem_flag_test(l_radial_iter->f, BM_ELEM_TAG))
+          {
             BMLoop *l_other = (l_radial_iter->v == l_step->v) ? l_radial_iter :
                                                                 l_radial_iter->next;
             BLI_assert(l_other->v == l_step->v);
@@ -738,8 +738,8 @@ static bool uv_rip_pairs_calc_center_and_direction(UVRipPairs *rip,
  */
 static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const float aspect_y)
 {
-  Mesh *me = (Mesh *)obedit->data;
-  BMEditMesh *em = me->edit_mesh;
+  Mesh *mesh = (Mesh *)obedit->data;
+  BMEditMesh *em = mesh->runtime->edit_mesh.get();
   BMesh *bm = em->bm;
   const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
   BM_uv_map_ensure_vert_select_attr(bm, active_uv_name);
@@ -914,13 +914,10 @@ static int uv_rip_exec(bContext *C, wmOperator *op)
   }
   const float aspect_y = aspx / aspy;
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, ((View3D *)nullptr), &objects_len);
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, nullptr);
 
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *obedit = objects[ob_index];
-
+  for (Object *obedit : objects) {
     if (uv_rip_object(scene, obedit, co, aspect_y)) {
       changed_multi = true;
       uvedit_live_unwrap_update(sima, scene, obedit);
@@ -928,7 +925,6 @@ static int uv_rip_exec(bContext *C, wmOperator *op)
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
-  MEM_freeN(objects);
 
   if (!changed_multi) {
     BKE_report(op->reports, RPT_ERROR, "Rip failed");

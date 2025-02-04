@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,7 +14,6 @@
 
 #include "DNA_scene_types.h"
 
-struct Object;
 struct bContext;
 struct wmGizmo;
 struct SnapObjectContext;
@@ -40,12 +39,9 @@ void ED_gizmotypes_snap_3d();
 
 /* `gizmo_library_presets.cc` */
 
-void ED_gizmo_draw_preset_box(const struct wmGizmo *gz, const float mat[4][4], int select_id);
-void ED_gizmo_draw_preset_arrow(const struct wmGizmo *gz,
-                                const float mat[4][4],
-                                int axis,
-                                int select_id);
-void ED_gizmo_draw_preset_circle(const struct wmGizmo *gz,
+void ED_gizmo_draw_preset_box(const wmGizmo *gz, const float mat[4][4], int select_id);
+void ED_gizmo_draw_preset_arrow(const wmGizmo *gz, const float mat[4][4], int axis, int select_id);
+void ED_gizmo_draw_preset_circle(const wmGizmo *gz,
                                  const float mat[4][4],
                                  int axis,
                                  int select_id);
@@ -63,9 +59,9 @@ enum {
 
 /* transform */
 enum {
-  /* inverted offset during interaction - if set it also sets constrained below */
+  /** Inverted offset during interaction - if set it also sets constrained below. */
   ED_GIZMO_ARROW_XFORM_FLAG_INVERTED = (1 << 3),
-  /* clamp arrow interaction to property width */
+  /** Clamp arrow interaction to property width. */
   ED_GIZMO_ARROW_XFORM_FLAG_CONSTRAINED = (1 << 4),
 };
 
@@ -81,13 +77,13 @@ enum {
  *
  * \note Needs to be called before #WM_gizmo_target_property_def_rna!
  */
-void ED_gizmo_arrow3d_set_ui_range(struct wmGizmo *gz, float min, float max);
+void ED_gizmo_arrow3d_set_ui_range(wmGizmo *gz, float min, float max);
 /**
  * Define a custom factor for arrow min/max distance.
  *
  * \note Needs to be called before #WM_gizmo_target_property_def_rna!
  */
-void ED_gizmo_arrow3d_set_range_fac(struct wmGizmo *gz, float range_fac);
+void ED_gizmo_arrow3d_set_range_fac(wmGizmo *gz, float range_fac);
 
 /* -------------------------------------------------------------------- */
 /* Cage Gizmo */
@@ -102,12 +98,14 @@ enum {
 
 /* draw_style */
 enum {
-  /* Display the hover region (edge or corner) of the underlying bounding box. */
+  /** Display the hover region (edge or corner) of the underlying bounding box. */
   ED_GIZMO_CAGE2D_STYLE_BOX = 0,
-  /* Display the bounding box plus dots on four corners while hovering, usually used for
-   * transforming a 2D shape. */
+  /**
+   * Display the bounding box plus dots on four corners while hovering,
+   * usually used for transforming a 2D shape.
+   */
   ED_GIZMO_CAGE2D_STYLE_BOX_TRANSFORM,
-  /* Display the bounding circle while hovering. */
+  /** Display the bounding circle while hovering. */
   ED_GIZMO_CAGE2D_STYLE_CIRCLE,
 };
 
@@ -238,15 +236,14 @@ enum {
 
 /* `snap3d_gizmo.cc` */
 
-struct SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(struct Scene *scene,
-                                                               struct wmGizmo *gz);
+SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene, wmGizmo *gz);
 
-void ED_gizmotypes_snap_3d_flag_set(struct wmGizmo *gz, int flag);
+void ED_gizmotypes_snap_3d_flag_set(wmGizmo *gz, int flag);
 
-bool ED_gizmotypes_snap_3d_is_enabled(const struct wmGizmo *gz);
+bool ED_gizmotypes_snap_3d_is_enabled(const wmGizmo *gz);
 
-void ED_gizmotypes_snap_3d_data_get(const struct bContext *C,
-                                    struct wmGizmo *gz,
+void ED_gizmotypes_snap_3d_data_get(const bContext *C,
+                                    wmGizmo *gz,
                                     float r_loc[3],
                                     float r_nor[3],
                                     int r_elem_index[3],

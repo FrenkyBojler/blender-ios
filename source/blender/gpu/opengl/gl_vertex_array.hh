@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "GPU_batch.h"
+#include "GPU_batch.hh"
 #include "gl_shader_interface.hh"
 
 namespace blender {
@@ -20,7 +20,7 @@ namespace GLVertArray {
  * Update the Attribute Binding of the currently bound VAO.
  */
 void update_bindings(const GLuint vao,
-                     const GPUBatch *batch,
+                     const Batch *batch,
                      const ShaderInterface *interface,
                      int base_instance);
 

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2007 Blender Foundation
+/* SPDX-FileCopyrightText: 2007 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,11 +15,25 @@
 #include "DNA_ID.h"
 
 #ifdef __cplusplus
-extern "C" {
+#  include <mutex>
+using std_mutex_type = std::mutex;
+#else
+#  define std_mutex_type void
 #endif
+
+/** Workaround to forward-declare C++ type in C header. */
+#ifdef __cplusplus
+namespace blender::bke {
+class WindowManagerRuntime;
+}
+using WindowManagerRuntimeHandle = blender::bke::WindowManagerRuntime;
+#else   // __cplusplus
+typedef struct WindowManagerRuntimeHandle WindowManagerRuntimeHandle;
+#endif  // __cplusplus
 
 /* Defined here: */
 
+struct wmNotifier;
 struct wmWindow;
 struct wmWindowManager;
 
@@ -102,6 +116,9 @@ typedef struct ReportList {
   int flag;
   char _pad[4];
   struct wmTimer *reporttimer;
+
+  /** Mutex for thread-safety, runtime only. */
+  std_mutex_type *lock;
 } ReportList;
 
 /* Timer custom-data to control reports display. */
@@ -109,11 +126,11 @@ typedef struct ReportList {
 #
 #
 typedef struct ReportTimerInfo {
-  float col[4];
   float widthfac;
+  float flash_progress;
 } ReportTimerInfo;
 
-//#ifdef WITH_XR_OPENXR
+// #ifdef WITH_XR_OPENXR
 typedef struct wmXrData {
   /** Runtime information for managing Blender specific behaviors. */
   struct wmXrRuntimeData *runtime;
@@ -121,7 +138,7 @@ typedef struct wmXrData {
    * even before the session runs. */
   XrSessionSettings session_settings;
 } wmXrData;
-//#endif
+// #endif
 
 /* reports need to be before wmWindowManager */
 
@@ -167,8 +184,13 @@ typedef struct wmWindowManager {
    */
   struct GSet *notifier_queue_set;
 
-  /** Information and error reports. */
-  struct ReportList reports;
+  /** The current notifier in the `notifier_queue` being handled (clear instead of freeing). */
+  const struct wmNotifier *notifier_current;
+
+  /** Available/pending extensions updates. */
+  int extensions_updates;
+  /** Number of blocked & installed extensions. */
+  int extensions_blocked;
 
   /** Threaded jobs manager. */
   ListBase jobs;
@@ -179,8 +201,12 @@ typedef struct wmWindowManager {
   /** Active dragged items. */
   ListBase drags;
 
-  /** Known key configurations. */
+  /**
+   * Known key configurations.
+   * This includes all the #wmKeyConfig members (`defaultconf`, `addonconf`, etc).
+   */
   ListBase keyconfigs;
+
   /** Default configuration. */
   struct wmKeyConfig *defaultconf;
   /** Addon configuration. */
@@ -192,20 +218,29 @@ typedef struct wmWindowManager {
   ListBase timers;
   /** Timer for auto save. */
   struct wmTimer *autosavetimer;
+  /** Auto-save timer was up, but it wasn't possible to auto-save in the current mode. */
+  char autosave_scheduled;
+  char _pad2[7];
 
   /** All undo history (runtime only). */
   struct UndoStack *undo_stack;
 
-  /** Indicates whether interface is locked for user interaction. */
-  char is_interface_locked;
-  char _pad[7];
-
   struct wmMsgBus *message_bus;
 
-  //#ifdef WITH_XR_OPENXR
+  // #ifdef WITH_XR_OPENXR
   wmXrData xr;
-  //#endif
+  // #endif
+
+  WindowManagerRuntimeHandle *runtime;
 } wmWindowManager;
+
+#define WM_KEYCONFIG_ARRAY_P(wm) &(wm)->defaultconf, &(wm)->addonconf, &(wm)->userconf
+
+/** #wmWindowManager.extensions_updates */
+enum {
+  WM_EXTENSIONS_UPDATE_UNSET = -2,
+  WM_EXTENSIONS_UPDATE_CHECKING = -1,
+};
 
 /** #wmWindowManager.init_flag */
 enum {
@@ -276,7 +311,7 @@ typedef struct wmWindow {
    * \note Loading a window typically uses the size & position saved in the blend-file,
    * there is an exception for startup files which works as follows:
    * Setting the window size to zero before `ghostwin` has been set has a special meaning,
-   * it causes the window size to be initialized to `wm_init_state.size_x` (& `size_y`).
+   * it causes the window size to be initialized to `wm_init_state.size`.
    * These default to the main screen size but can be overridden by the `--window-geometry`
    * command line argument.
    */
@@ -356,7 +391,9 @@ typedef struct wmWindow {
    * Input Method Editor data - complex character input (especially for Asian character input)
    * Currently WIN32 and APPLE, runtime-only data.
    */
-  struct wmIMEData *ime_data;
+  const struct wmIMEData *ime_data;
+  char ime_data_is_composing;
+  char _pad1[7];
 
   /** All events #wmEvent (ghost level events were handled). */
   ListBase event_queue;
@@ -376,6 +413,13 @@ typedef struct wmWindow {
 
   /** Private runtime info to show text in the status bar. */
   void *cursor_keymap_status;
+
+  /**
+   * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
+   * Used to detect double-click events.
+   */
+  uint64_t eventstate_prev_press_time_ms;
+
 } wmWindow;
 
 #ifdef ime_data
@@ -505,7 +549,7 @@ typedef struct wmKeyMap {
   /** See above. */
   short regionid;
   /** Optional, see: #wmOwnerID. */
-  char owner_id[64];
+  char owner_id[128];
 
   /** General flags. */
   short flag;
@@ -650,18 +694,14 @@ enum {
    * Unlike #OP_IS_REPEAT the selection (and context generally) may be different each time.
    * See #60777 for an example of when this is needed.
    */
-  OP_IS_REPEAT_LAST = (1 << 1),
+  OP_IS_REPEAT_LAST = (1 << 2),
 
   /** When the cursor is grabbed */
-  OP_IS_MODAL_GRAB_CURSOR = (1 << 2),
+  OP_IS_MODAL_GRAB_CURSOR = (1 << 3),
 
   /**
    * Allow modal operators to have the region under the cursor for their context
    * (the region-type is maintained to prevent errors).
    */
-  OP_IS_MODAL_CURSOR_REGION = (1 << 3),
+  OP_IS_MODAL_CURSOR_REGION = (1 << 4),
 };
-
-#ifdef __cplusplus
-}
-#endif

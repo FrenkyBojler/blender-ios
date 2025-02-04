@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -59,6 +59,9 @@
  *  \ingroup intern */
 
 /** \defgroup intern_sky_model Sky Model
+ *  \ingroup intern */
+
+/** \defgroup intern_slim SLIM Solver for UV Unwrapping
  *  \ingroup intern */
 
 /** \defgroup intern_utf_conv UTF-8/16 Conversion (utfconv)

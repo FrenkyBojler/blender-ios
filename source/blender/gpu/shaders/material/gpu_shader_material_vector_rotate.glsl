@@ -1,4 +1,8 @@
-#pragma BLENDER_REQUIRE(gpu_shader_common_math_utils.glsl)
+/* SPDX-FileCopyrightText: 2020-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "gpu_shader_common_math_utils.glsl"
 
 vec3 rotate_around_axis(vec3 p, vec3 axis, float angle)
 {

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,12 +9,12 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 /**
  * TODO(@ideasman42): Many connected edge loops can cause an error attempting
@@ -146,12 +146,12 @@ static void bridge_loop_pair(BMesh *bm,
   float dot_a, dot_b;
   const bool use_edgeout = true;
 
-  el_store_a_len = BM_edgeloop_length_get((BMEdgeLoopStore *)el_store_a);
-  el_store_b_len = BM_edgeloop_length_get((BMEdgeLoopStore *)el_store_b);
+  el_store_a_len = BM_edgeloop_length_get(el_store_a);
+  el_store_b_len = BM_edgeloop_length_get(el_store_b);
 
   if (el_store_a_len < el_store_b_len) {
-    SWAP(int, el_store_a_len, el_store_b_len);
-    SWAP(BMEdgeLoopStore *, el_store_a, el_store_b);
+    std::swap(el_store_a_len, el_store_b_len);
+    std::swap(el_store_a, el_store_b);
   }
 
   if (use_merge) {
@@ -410,19 +410,19 @@ static void bridge_loop_pair(BMesh *bm,
 
             l_iter = BM_FACE_FIRST_LOOP(f);
             if (l_b) {
-              BM_elem_attrs_copy(bm, bm, l_b, l_iter);
+              BM_elem_attrs_copy(bm, l_b, l_iter);
             }
             l_iter = l_iter->next;
             if (l_b_next) {
-              BM_elem_attrs_copy(bm, bm, l_b_next, l_iter);
+              BM_elem_attrs_copy(bm, l_b_next, l_iter);
             }
             l_iter = l_iter->next;
             if (l_a_next) {
-              BM_elem_attrs_copy(bm, bm, l_a_next, l_iter);
+              BM_elem_attrs_copy(bm, l_a_next, l_iter);
             }
             l_iter = l_iter->next;
             if (l_a) {
-              BM_elem_attrs_copy(bm, bm, l_a, l_iter);
+              BM_elem_attrs_copy(bm, l_a, l_iter);
             }
           }
         }
@@ -444,15 +444,15 @@ static void bridge_loop_pair(BMesh *bm,
 
             l_iter = BM_FACE_FIRST_LOOP(f);
             if (l_b) {
-              BM_elem_attrs_copy(bm, bm, l_b, l_iter);
+              BM_elem_attrs_copy(bm, l_b, l_iter);
             }
             l_iter = l_iter->next;
             if (l_a_next) {
-              BM_elem_attrs_copy(bm, bm, l_a_next, l_iter);
+              BM_elem_attrs_copy(bm, l_a_next, l_iter);
             }
             l_iter = l_iter->next;
             if (l_a) {
-              BM_elem_attrs_copy(bm, bm, l_a, l_iter);
+              BM_elem_attrs_copy(bm, l_a, l_iter);
             }
           }
         }
@@ -463,7 +463,7 @@ static void bridge_loop_pair(BMesh *bm,
 #endif
       {
         if (f_example && (f_example != f)) {
-          BM_elem_attrs_copy(bm, bm, f_example, f);
+          BM_elem_attrs_copy(bm, f_example, f);
         }
         BMO_face_flag_enable(bm, f, FACE_OUT);
         BM_elem_flag_enable(f, BM_ELEM_TAG);

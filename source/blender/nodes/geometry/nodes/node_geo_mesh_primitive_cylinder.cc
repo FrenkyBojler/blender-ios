@@ -1,17 +1,19 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
+#include "BKE_material.hh"
 
-#include "BKE_material.h"
-#include "BKE_mesh.hh"
+#include "NOD_rna_define.hh"
+
+#include "GEO_mesh_primitive_cylinder_cone.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
+
+#include "RNA_enum_types.hh"
 
 namespace blender::nodes::node_geo_mesh_primitive_cylinder_cc {
 
@@ -29,11 +31,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(1)
       .max(512)
       .description("The number of rectangular segments along each side");
-  b.add_input<decl::Int>("Fill Segments")
-      .default_value(1)
-      .min(1)
-      .max(512)
-      .description("The number of concentric rings used to fill the round faces");
+  auto &fill = b.add_input<decl::Int>("Fill Segments")
+                   .default_value(1)
+                   .min(1)
+                   .max(512)
+                   .description("The number of concentric rings used to fill the round faces");
   b.add_input<decl::Float>("Radius")
       .default_value(1.0f)
       .min(0.0f)
@@ -45,17 +47,26 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_DISTANCE)
       .description("The height of the cylinder");
   b.add_output<decl::Geometry>("Mesh");
-  b.add_output<decl::Bool>("Top").field_on_all();
+  b.add_output<decl::Bool>("Top").field_on_all().translation_context(BLT_I18NCONTEXT_ID_NODETREE);
   b.add_output<decl::Bool>("Side").field_on_all();
-  b.add_output<decl::Bool>("Bottom").field_on_all();
+  b.add_output<decl::Bool>("Bottom").field_on_all().translation_context(
+      BLT_I18NCONTEXT_ID_NODETREE);
   b.add_output<decl::Vector>("UV Map").field_on_all();
+
+  const bNode *node = b.node_or_null();
+  if (node != nullptr) {
+    const NodeGeometryMeshCylinder &storage = node_storage(*node);
+    const GeometryNodeMeshCircleFillType fill_type = GeometryNodeMeshCircleFillType(
+        storage.fill_type);
+    fill.available(fill_type != GEO_NODE_MESH_CIRCLE_FILL_NONE);
+  }
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "fill_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "fill_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -65,18 +76,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node_storage->fill_type = GEO_NODE_MESH_CIRCLE_FILL_NGON;
 
   node->storage = node_storage;
-}
-
-static void node_update(bNodeTree *ntree, bNode *node)
-{
-  bNodeSocket *vertices_socket = static_cast<bNodeSocket *>(node->inputs.first);
-  bNodeSocket *rings_socket = vertices_socket->next;
-  bNodeSocket *fill_subdiv_socket = rings_socket->next;
-
-  const NodeGeometryMeshCylinder &storage = node_storage(*node);
-  const GeometryNodeMeshCircleFillType fill = (GeometryNodeMeshCircleFillType)storage.fill_type;
-  const bool has_fill = fill != GEO_NODE_MESH_CIRCLE_FILL_NONE;
-  bke::nodeSetSocketAvailability(ntree, fill_subdiv_socket, has_fill);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -108,39 +107,57 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  ConeAttributeOutputs attribute_outputs;
+  geometry::ConeAttributeOutputs attribute_outputs;
   attribute_outputs.top_id = params.get_output_anonymous_attribute_id_if_needed("Top");
   attribute_outputs.bottom_id = params.get_output_anonymous_attribute_id_if_needed("Bottom");
   attribute_outputs.side_id = params.get_output_anonymous_attribute_id_if_needed("Side");
   attribute_outputs.uv_map_id = params.get_output_anonymous_attribute_id_if_needed("UV Map");
 
   /* The cylinder is a special case of the cone mesh where the top and bottom radius are equal. */
-  Mesh *mesh = create_cylinder_or_cone_mesh(radius,
-                                            radius,
-                                            depth,
-                                            circle_segments,
-                                            side_segments,
-                                            fill_segments,
-                                            fill,
-                                            attribute_outputs);
+  Mesh *mesh = geometry::create_cylinder_or_cone_mesh(radius,
+                                                      radius,
+                                                      depth,
+                                                      circle_segments,
+                                                      side_segments,
+                                                      fill_segments,
+                                                      geometry::ConeFillType(fill),
+                                                      attribute_outputs);
+  BKE_id_material_eval_ensure_default_slot(reinterpret_cast<ID *>(mesh));
 
   params.set_output("Mesh", GeometrySet::from_mesh(mesh));
 }
 
-}  // namespace blender::nodes::node_geo_mesh_primitive_cylinder_cc
-
-void register_node_type_geo_mesh_primitive_cylinder()
+static void node_rna(StructRNA *srna)
 {
-  namespace file_ns = blender::nodes::node_geo_mesh_primitive_cylinder_cc;
-
-  static bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_MESH_PRIMITIVE_CYLINDER, "Cylinder", NODE_CLASS_GEOMETRY);
-  ntype.initfunc = file_ns::node_init;
-  ntype.updatefunc = file_ns::node_update;
-  node_type_storage(
-      &ntype, "NodeGeometryMeshCylinder", node_free_standard_storage, node_copy_standard_storage);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.draw_buttons = file_ns::node_layout;
-  nodeRegisterType(&ntype);
+  RNA_def_node_enum(srna,
+                    "fill_type",
+                    "Fill Type",
+                    "",
+                    rna_enum_node_geometry_mesh_circle_fill_type_items,
+                    NOD_storage_enum_accessors(fill_type),
+                    GEO_NODE_MESH_CIRCLE_FILL_NGON,
+                    nullptr,
+                    true);
 }
+
+static void node_register()
+{
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeMeshCylinder", GEO_NODE_MESH_PRIMITIVE_CYLINDER);
+  ntype.ui_name = "Cylinder";
+  ntype.ui_description = "Generate a cylinder mesh";
+  ntype.enum_name_legacy = "MESH_PRIMITIVE_CYLINDER";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.initfunc = node_init;
+  blender::bke::node_type_storage(
+      &ntype, "NodeGeometryMeshCylinder", node_free_standard_storage, node_copy_standard_storage);
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.draw_buttons = node_layout;
+  blender::bke::node_register_type(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
+}
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_mesh_primitive_cylinder_cc

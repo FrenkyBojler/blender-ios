@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -35,15 +35,12 @@
  * \note Others can be added as needed.
  */
 
-#include "DNA_object_types.h"
-
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
 #include "BLI_bitmap.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_base.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
 /**
  * Grow by 1.5x (rounding up).

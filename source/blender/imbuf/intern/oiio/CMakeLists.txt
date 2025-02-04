@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2013 Blender Foundation
+# SPDX-FileCopyrightText: 2013 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -6,7 +6,6 @@ set(INC
   .
   ..
   ../..
-  ../../../blenkernel
   ../../../../../intern/utfconv
 )
 
@@ -24,6 +23,7 @@ set(SRC
 
 set(LIB
   ${OPENIMAGEIO_LIBRARIES}
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
@@ -41,6 +41,15 @@ if(WITH_IMAGE_OPENEXR)
   )
   list(APPEND LIB
     ${OPENEXR_LIBRARIES}
+  )
+endif()
+
+# OpenImageIO headers include `Imath` headers when there is no SSE support for
+# matrix operations. This depends on the specific architecture and compiler
+# flags, most reliable is to always include the `Imath` headers if we have them.
+if(DEFINED IMATH_INCLUDE_DIRS)
+  list(APPEND INC_SYS
+    ${IMATH_INCLUDE_DIRS}
   )
 endif()
 

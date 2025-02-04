@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,6 +16,7 @@
 
 #  include "BLI_bounds_types.hh"
 #  include "BLI_math_vector_types.hh"
+#  include "BLI_memory_counter_fwd.hh"
 #  include "BLI_span.hh"
 #endif
 
@@ -33,10 +34,6 @@ using PointCloudRuntimeHandle = blender::bke::PointCloudRuntime;
 typedef struct PointCloudRuntimeHandle PointCloudRuntimeHandle;
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct PointCloud {
   ID id;
   struct AnimData *adt; /* animation data (must be immediately after id) */
@@ -48,6 +45,7 @@ typedef struct PointCloud {
 
   /* Custom Data */
   struct CustomData pdata;
+  /** Set to -1 when none is active. */
   int attributes_active_index;
   int _pad4;
 
@@ -67,6 +65,11 @@ typedef struct PointCloud {
   void tag_radii_changed();
 
   std::optional<blender::Bounds<blender::float3>> bounds_min_max() const;
+
+  /** Get the largest material index used by the point-cloud or `nullopt` if it is empty. */
+  std::optional<int> material_index_max() const;
+
+  void count_memory(blender::MemoryCounter &memory) const;
 #endif
 
   PointCloudRuntimeHandle *runtime;
@@ -82,7 +85,3 @@ enum {
 
 /* Only one material supported currently. */
 #define POINTCLOUD_MATERIAL_NR 1
-
-#ifdef __cplusplus
-}
-#endif

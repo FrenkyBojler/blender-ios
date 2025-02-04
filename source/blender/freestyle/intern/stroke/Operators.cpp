@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2008-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -18,7 +18,7 @@
 
 #include "BLI_sys_types.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 namespace Freestyle {
 
@@ -228,7 +228,8 @@ void Operators::bidirectionalChain(ViewEdgeIterator &it,
 
   for (I1DContainer::iterator it_edge = _current_view_edges_set.begin();
        it_edge != _current_view_edges_set.end();
-       ++it_edge) {
+       ++it_edge)
+  {
     if (pred(**it_edge)) {
       continue;
     }
@@ -280,7 +281,8 @@ void Operators::bidirectionalChain(ViewEdgeIterator &it, UnaryPredicate1D &pred)
 
   for (I1DContainer::iterator it_edge = _current_view_edges_set.begin();
        it_edge != _current_view_edges_set.end();
-       ++it_edge) {
+       ++it_edge)
+  {
     if (pred(**it_edge) || pred_ts(**it_edge)) {
       continue;
     }
@@ -1275,7 +1277,8 @@ int Operators::create(UnaryPredicate1D &pred, vector<StrokeShader *> shaders)
   }
   StrokesContainer new_strokes_set;
   for (Operators::I1DContainer::iterator it = _current_set->begin(); it != _current_set->end();
-       ++it) {
+       ++it)
+  {
     if (pred(**it) < 0) {
       goto error;
     }

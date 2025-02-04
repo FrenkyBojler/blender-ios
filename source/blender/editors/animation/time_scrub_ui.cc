@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,12 +6,12 @@
  * \ingroup edanimation
  */
 
-#include "BKE_context.h"
-#include "BKE_scene.h"
+#include "BKE_context.hh"
+#include "BKE_scene.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "ED_time_scrub_ui.hh"
 
@@ -25,20 +25,19 @@
 
 #include "DNA_scene_types.h"
 
-#include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_timecode.h"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
-void ED_time_scrub_region_rect_get(const ARegion *region, rcti *rect)
+void ED_time_scrub_region_rect_get(const ARegion *region, rcti *r_rect)
 {
-  rect->xmin = 0;
-  rect->xmax = region->winx;
-  rect->ymax = region->winy;
-  rect->ymin = rect->ymax - UI_TIME_SCRUB_MARGIN_Y;
+  r_rect->xmin = 0;
+  r_rect->xmax = region->winx;
+  r_rect->ymax = region->winy;
+  r_rect->ymin = r_rect->ymax - UI_TIME_SCRUB_MARGIN_Y;
 }
 
 static int get_centered_text_y(const rcti *rect)
@@ -66,7 +65,7 @@ static void get_current_time_str(
     const Scene *scene, bool display_seconds, int frame, char *r_str, uint str_maxncpy)
 {
   if (display_seconds) {
-    BLI_timecode_string_from_time(r_str, str_maxncpy, 0, FRA2TIME(frame), FPS, U.timecode_style);
+    BLI_timecode_string_from_time(r_str, str_maxncpy, -1, FRA2TIME(frame), FPS, U.timecode_style);
   }
   else {
     BLI_snprintf(r_str, str_maxncpy, "%d", frame);
@@ -85,7 +84,7 @@ static void draw_current_frame(const Scene *scene,
   char frame_str[64];
   get_current_time_str(scene, display_seconds, current_frame, frame_str, sizeof(frame_str));
   float text_width = UI_fontstyle_string_width(fstyle, frame_str);
-  float box_width = MAX2(text_width + 8 * UI_SCALE_FAC, 24 * UI_SCALE_FAC);
+  float box_width = std::max(text_width + 8 * UI_SCALE_FAC, 24 * UI_SCALE_FAC);
   float box_padding = 3 * UI_SCALE_FAC;
   const int line_outline = max_ii(1, round_fl_to_int(1 * UI_SCALE_FAC));
 
@@ -133,11 +132,11 @@ static void draw_current_frame(const Scene *scene,
 
   uchar text_color[4];
   UI_GetThemeColor4ubv(TH_HEADER_TEXT_HI, text_color);
-  UI_fontstyle_draw_simple(fstyle,
-                           frame_x - text_width / 2 + U.pixelsize / 2,
-                           get_centered_text_y(scrub_region_rect),
-                           frame_str,
-                           text_color);
+
+  const int y = BLI_rcti_cent_y(scrub_region_rect) - int(fstyle->points * UI_SCALE_FAC * 0.35f);
+
+  UI_fontstyle_draw_simple(
+      +fstyle, frame_x - text_width / 2 + U.pixelsize / 2, y, frame_str, text_color);
 }
 
 void ED_time_scrub_draw_current_frame(const ARegion *region,
@@ -184,11 +183,26 @@ void ED_time_scrub_draw(const ARegion *region,
   GPU_matrix_pop_projection();
 }
 
+rcti ED_time_scrub_clamp_scroller_mask(const rcti &scroller_mask)
+{
+  rcti clamped_mask = scroller_mask;
+  clamped_mask.ymax -= UI_TIME_SCRUB_MARGIN_Y;
+  return clamped_mask;
+}
+
 bool ED_time_scrub_event_in_region(const ARegion *region, const wmEvent *event)
 {
   rcti rect = region->winrct;
   rect.ymin = rect.ymax - UI_TIME_SCRUB_MARGIN_Y;
   return BLI_rcti_isect_pt_v(&rect, event->xy);
+}
+
+bool ED_time_scrub_event_in_region_poll(const wmWindow * /*win*/,
+                                        const ScrArea * /*area*/,
+                                        const ARegion *region,
+                                        const wmEvent *event)
+{
+  return ED_time_scrub_event_in_region(region, event);
 }
 
 void ED_time_scrub_channel_search_draw(const bContext *C, ARegion *region, bDopeSheet *dopesheet)
@@ -208,8 +222,7 @@ void ED_time_scrub_channel_search_draw(const bContext *C, ARegion *region, bDope
   immRectf(pos, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
   immUnbindProgram();
 
-  PointerRNA ptr;
-  RNA_pointer_create(&CTX_wm_screen(C)->id, &RNA_DopeSheet, dopesheet, &ptr);
+  PointerRNA ptr = RNA_pointer_create_discrete(&CTX_wm_screen(C)->id, &RNA_DopeSheet, dopesheet);
 
   const uiStyle *style = UI_style_get_dpi();
   const float padding_x = 2 * UI_SCALE_FAC;

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,16 +14,11 @@
  * - Pass cached data to called functions.
  */
 
-#include "BLI_utildefines.h"
-
-#include "BLI_map.hh"
-
 namespace blender::fn::multi_function {
 
 class Context;
 
-class ContextBuilder {
-};
+class ContextBuilder {};
 
 class Context {
  public:

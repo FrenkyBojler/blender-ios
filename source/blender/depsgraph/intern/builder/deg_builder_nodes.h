@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,15 +8,19 @@
 
 #pragma once
 
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
+
+#include "DNA_armature_types.h"
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_key.h"
 #include "intern/builder/deg_builder_map.h"
-#include "intern/depsgraph_type.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/depsgraph_type.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
+struct BoneCollection;
 struct CacheFile;
 struct Camera;
 struct Collection;
@@ -64,9 +68,9 @@ struct TimeSourceNode;
 class DepsgraphNodeBuilder : public DepsgraphBuilder {
  public:
   DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache);
-  ~DepsgraphNodeBuilder();
+  ~DepsgraphNodeBuilder() override;
 
-  /* For given original ID get ID which is created by CoW system. */
+  /* For given original ID get ID which is created by copy-on-evaluation system. */
   ID *get_cow_id(const ID *id_orig) const;
   /* Similar to above, but for the cases when there is no ID node we create
    * one. */
@@ -78,7 +82,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
     return (T *)get_cow_id(&orig->id);
   }
 
-  /* For a given COW datablock get corresponding original one. */
+  /* For a given evaluated datablock get corresponding original one. */
   template<typename T> T *get_orig_datablock(const T *cow) const
   {
     return (T *)cow->id.orig_id;
@@ -156,7 +160,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
 
   OperationNode *find_operation_node(const OperationKey &key);
 
-  virtual void build_id(ID *id);
+  virtual void build_id(ID *id, bool force_be_visible = false);
 
   /* Build function for ID types that do not need their own build_xxx() function. */
   virtual void build_generic_id(ID *id);
@@ -192,9 +196,11 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_object_data_light(Object *object);
   virtual void build_object_data_lightprobe(Object *object);
   virtual void build_object_data_speaker(Object *object);
+  virtual void build_object_data_grease_pencil(Object *object);
   virtual void build_object_transform(Object *object);
   virtual void build_object_constraints(Object *object);
   virtual void build_object_pointcache(Object *object);
+  virtual void build_object_shading(Object *object);
 
   virtual void build_object_light_linking(Object *object);
   virtual void build_light_linking_collection(Collection *collection);
@@ -241,22 +247,30 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
 
   virtual void build_parameters(ID *id);
   virtual void build_dimensions(Object *object);
+  /** IK Solver Eval Steps. */
   virtual void build_ik_pose(Object *object, bPoseChannel *pchan, bConstraint *con);
+  /** Spline IK Eval Steps. */
   virtual void build_splineik_pose(Object *object, bPoseChannel *pchan, bConstraint *con);
+  /** Pose/Armature Bones Graph. */
   virtual void build_rig(Object *object);
   virtual void build_armature(bArmature *armature);
   virtual void build_armature_bones(ListBase *bones);
+  virtual void build_armature_bone_collections(blender::Span<BoneCollection *> collections);
+  /** Shape-keys. */
   virtual void build_shapekeys(Key *key);
   virtual void build_camera(Camera *camera);
   virtual void build_light(Light *lamp);
   virtual void build_nodetree(bNodeTree *ntree);
   virtual void build_nodetree_socket(bNodeSocket *socket);
+  /** Recursively build graph for material. */
   virtual void build_material(Material *ma);
   virtual void build_materials(Material **materials, int num_materials);
   virtual void build_freestyle_lineset(FreestyleLineSet *fls);
   virtual void build_freestyle_linestyle(FreestyleLineStyle *linestyle);
+  /** Recursively build graph for texture. */
   virtual void build_texture(Tex *tex);
   virtual void build_image(Image *image);
+  /** Recursively build graph for world. */
   virtual void build_world(World *world);
   virtual void build_cachefile(CacheFile *cache_file);
   virtual void build_mask(Mask *mask);
@@ -284,9 +298,14 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   };
 
  protected:
-  /* Entry tags from the previous state of the dependency graph.
+  /* Entry tags and non-updated operations from the previous state of the dependency graph.
+   * The entry tags are operations which were directly tagged, the matching operations from the
+   * new dependency graph will be tagged. The needs-update operations are possibly indirectly
+   * modified operations, whose complementary part from the new dependency graph will only be
+   * marked as needs-update.
    * Stored before the graph is re-created so that they can be transferred over. */
   Vector<PersistentOperationKey> saved_entry_tags_;
+  Vector<PersistentOperationKey> needs_update_operations_;
 
   struct BuilderWalkUserData {
     DepsgraphNodeBuilder *builder;
@@ -294,7 +313,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   static void modifier_walk(void *user_data,
                             struct Object *object,
                             struct ID **idpoin,
-                            int cb_flag);
+                            LibraryForeachIDCallbackFlag cb_flag);
   static void constraint_walk(bConstraint *constraint,
                               ID **idpoin,
                               bool is_reference,
@@ -302,7 +321,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
 
   void tag_previously_tagged_nodes();
   /**
-   * Check for IDs that need to be flushed (COW-updated)
+   * Check for IDs that need to be flushed (copy-on-eval-updated)
    * because the depsgraph itself created or removed some of their evaluated dependencies.
    */
   void update_invalid_cow_pointers();
@@ -318,7 +337,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
    * very root is visible (aka not restricted.). */
   bool is_parent_collection_visible_;
 
-  /* Indexed by original ID.session_uuid, values are IDInfo. */
+  /* Indexed by original ID.session_uid, values are IDInfo. */
   Map<uint, IDInfo *> id_info_hash_;
 
   /* Set of IDs which were already build. Makes it easier to keep track of

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2017 Blender Foundation
+/* SPDX-FileCopyrightText: 2017 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,6 +11,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct DrawEngineType;
+struct RenderEngineType;
 
 extern DrawEngineType draw_engine_external_type;
 extern RenderEngineType DRW_engine_viewport_external_type;

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2021-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2021-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -28,13 +28,23 @@
 #define PACKETMODE 0
 #include <pktdef.h>
 
-#define WINTAB_PRINTF(x, ...) \
-  { \
-    if (GHOST_Wintab::getDebug()) { \
-      printf(x, __VA_ARGS__); \
+#if !defined(_MSVC_TRADITIONAL) || _MSVC_TRADITIONAL
+#  define WINTAB_PRINTF(x, ...) \
+    { \
+      if (GHOST_Wintab::getDebug()) { \
+        printf(x, __VA_ARGS__); \
+      } \
     } \
-  } \
-  (void)0
+    (void)0
+#else
+#  define WINTAB_PRINTF(x, ...) \
+    { \
+      if (GHOST_Wintab::getDebug()) { \
+        printf(x, ##__VA_ARGS__); \
+      } \
+    } \
+    (void)0
+#endif
 
 /* Typedefs for Wintab functions to allow dynamic loading. */
 typedef UINT(API *GHOST_WIN32_WTInfo)(UINT, UINT, LPVOID);

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,64 +9,43 @@
 #pragma once
 
 #include <cfloat>
-#include <cmath>
-#include <cstring>
+#include <optional>
 
-#include "BLI_blenlib.h"
-#include "BLI_color.hh"
-#include "BLI_math.h"
-#include "BLI_math_base_safe.h"
-#include "BLI_math_vector.hh"
-#include "BLI_rand.h"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
-
-#include "BKE_colorband.h"
-#include "BKE_colortools.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_main.h"
-#include "BKE_material.h"
 #include "BKE_node.hh"
-#include "BKE_texture.h"
+#include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 
-#include "DNA_ID.h"
-#include "DNA_color_types.h"
-#include "DNA_customdata_types.h"
-#include "DNA_image_types.h"
-#include "DNA_material_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_texture_types.h"
 
-#include "FN_multi_function_builder.hh"
+#include "GPU_material.hh"
 
-#include "GPU_material.h"
-#include "GPU_texture.h"
-#include "GPU_uniform_buffer.h"
+#include "NOD_socket_declarations.hh"  // IWYU pragma: export
 
-#include "IMB_colormanagement.h"
+#include "node_shader_register.hh"  // IWYU pragma: export
 
-#include "MEM_guardedalloc.h"
+#ifdef WITH_MATERIALX
+#  include "materialx/node_parser.h"  // IWYU pragma: export
+#else
+#  define NODE_SHADER_MATERIALX_BEGIN \
+    blender::bke::NodeMaterialXFunction node_shader_materialx = nullptr;
+#  define NODE_SHADER_MATERIALX_END
+#endif
 
-#include "NOD_multi_function.hh"
-#include "NOD_shader.h"
-#include "NOD_socket_declarations.hh"
+struct bContext;
+struct bNodeExecContext;
+struct bNodeTreeExec;
+struct GPUNodeLink;
+struct GPUNodeStack;
+struct GPUMaterial;
 
-#include "node_shader_register.hh"
-#include "node_util.hh"
-
-#include "RE_pipeline.h"
-#include "RE_texture.h"
-
-#include "RNA_access.h"
-
-bool sh_node_poll_default(const bNodeType *ntype,
+bool sh_node_poll_default(const blender::bke::bNodeType *ntype,
                           const bNodeTree *ntree,
                           const char **r_disabled_hint);
-void sh_node_type_base(bNodeType *ntype, int type, const char *name, short nclass);
-void sh_fn_node_type_base(bNodeType *ntype, int type, const char *name, short nclass);
+void sh_node_type_base(blender::bke::bNodeType *ntype,
+                       std::string idname,
+                       std::optional<int16_t> legacy_type = std::nullopt);
+void sh_fn_node_type_base(blender::bke::bNodeType *ntype,
+                          std::string idname,
+                          std::optional<int16_t> legacy_type = std::nullopt);
 bool line_style_shader_nodes_poll(const bContext *C);
 bool world_shader_nodes_poll(const bContext *C);
 bool object_shader_nodes_poll(const bContext *C);
@@ -94,5 +73,16 @@ bNodeTreeExec *ntreeShaderBeginExecTree_internal(bNodeExecContext *context,
                                                  bNodeInstanceKey parent_key);
 void ntreeShaderEndExecTree_internal(bNodeTreeExec *exec);
 
-void ntreeExecGPUNodes(bNodeTreeExec *exec, GPUMaterial *mat, bNode *output_node);
+/* If depth_level is not null, only nodes where `node->runtime->tmp_flag == depth_level` will be
+ * executed. This allows finer control over node execution order without modifying the tree
+ * topology. */
+void ntreeExecGPUNodes(bNodeTreeExec *exec,
+                       GPUMaterial *mat,
+                       bNode *output_node,
+                       const int *depth_level = nullptr);
+
 void get_XYZ_to_RGB_for_gpu(XYZ_to_RGB *data);
+
+bool node_socket_not_zero(const GPUNodeStack &socket);
+bool node_socket_not_white(const GPUNodeStack &socket);
+bool node_socket_not_black(const GPUNodeStack &socket);

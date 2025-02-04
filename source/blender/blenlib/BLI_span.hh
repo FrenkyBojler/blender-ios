@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -58,8 +58,6 @@
 
 #include <algorithm>
 #include <array>
-#include <iostream>
-#include <string>
 #include <vector>
 
 #include "BLI_index_range.hh"
@@ -179,8 +177,8 @@ template<typename T> class Span {
   }
 
   /**
-   * Returns a new Span with n elements removed from the beginning. This invokes undefined
-   * behavior when n is negative.
+   * Returns a new Span with n elements removed from the end. This invokes undefined behavior when
+   * n is negative.
    */
   constexpr Span drop_back(int64_t n) const
   {
@@ -333,18 +331,6 @@ template<typename T> class Span {
   }
 
   /**
-   * Returns the element at the given index. If the index is out of range, return the fallback
-   * value.
-   */
-  constexpr T get(int64_t index, const T &fallback) const
-  {
-    if (index < size_ && index >= 0) {
-      return data_[index];
-    }
-    return fallback;
-  }
-
-  /**
    * Check if the array contains duplicates. Does a linear search for every element. So the total
    * running time is O(n^2). Only use this for small arrays.
    */
@@ -449,29 +435,6 @@ template<typename T> class Span {
   {
     return !(a == b);
   }
-
-  /**
-   * A debug utility to print the content of the Span. Every element will be printed on a
-   * separate line using the given callback.
-   */
-  template<typename PrintLineF> void print_as_lines(std::string name, PrintLineF print_line) const
-  {
-    std::cout << "Span: " << name << " \tSize:" << size_ << '\n';
-    for (const T &value : *this) {
-      std::cout << "  ";
-      print_line(value);
-      std::cout << '\n';
-    }
-  }
-
-  /**
-   * A debug utility to print the content of the span. Every element be printed on a separate
-   * line.
-   */
-  void print_as_lines(std::string name) const
-  {
-    this->print_as_lines(name, [](const T &value) { std::cout << value; });
-  }
 };
 
 /**
@@ -552,7 +515,7 @@ template<typename T> class MutableSpan {
   /**
    * Replace all elements in the referenced array with the given value.
    */
-  constexpr void fill(const T &value)
+  constexpr void fill(const T &value) const
   {
     initialized_fill_n(data_, size_, value);
   }
@@ -561,7 +524,7 @@ template<typename T> class MutableSpan {
    * Replace a subset of all elements with the given value. This invokes undefined behavior when
    * one of the indices is out of bounds.
    */
-  template<typename IndexT> constexpr void fill_indices(Span<IndexT> indices, const T &value)
+  template<typename IndexT> constexpr void fill_indices(Span<IndexT> indices, const T &value) const
   {
     static_assert(std::is_integral_v<IndexT>);
     for (IndexT i : indices) {
@@ -685,7 +648,7 @@ template<typename T> class MutableSpan {
   /**
    * Reverse the data in the MutableSpan.
    */
-  constexpr void reverse()
+  constexpr void reverse() const
   {
     for (const int i : IndexRange(size_ / 2)) {
       std::swap(data_[size_ - 1 - i], data_[i]);
@@ -747,6 +710,20 @@ template<typename T> class MutableSpan {
   }
 
   /**
+   * Does a linear search to see of the value is in the array.
+   * Returns true if it is, otherwise false.
+   */
+  constexpr bool contains(const T &value) const
+  {
+    for (const T &element : *this) {
+      if (element == value) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Does a constant time check to see if the pointer points to a value in the referenced array.
    * Return true if it is, otherwise false.
    */
@@ -760,7 +737,7 @@ template<typename T> class MutableSpan {
    * destination contains uninitialized data and T is not trivially copy constructible.
    * The size of both spans is expected to be the same.
    */
-  constexpr void copy_from(Span<T> values)
+  constexpr void copy_from(Span<T> values) const
   {
     BLI_assert(size_ == values.size());
     initialized_copy_n(values.data(), size_, data_);

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2018 Blender Foundation, Alexander Gavrilov. All rights reserved.
+/* SPDX-FileCopyrightText: 2018 Blender Authors, Alexander Gavrilov. All rights reserved.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -33,15 +33,15 @@ void BLI_expr_pylike_free(struct ExprPyLike_Parsed *expr);
 /**
  * Check if the parsing result is valid for evaluation.
  */
-bool BLI_expr_pylike_is_valid(struct ExprPyLike_Parsed *expr);
+bool BLI_expr_pylike_is_valid(const struct ExprPyLike_Parsed *expr);
 /**
  * Check if the parsed expression always evaluates to the same value.
  */
-bool BLI_expr_pylike_is_constant(struct ExprPyLike_Parsed *expr);
+bool BLI_expr_pylike_is_constant(const struct ExprPyLike_Parsed *expr);
 /**
  * Check if the parsed expression uses the parameter with the given index.
  */
-bool BLI_expr_pylike_is_using_param(struct ExprPyLike_Parsed *expr, int index);
+bool BLI_expr_pylike_is_using_param(const struct ExprPyLike_Parsed *expr, int index);
 /**
  * Compile the expression and return the result.
  *

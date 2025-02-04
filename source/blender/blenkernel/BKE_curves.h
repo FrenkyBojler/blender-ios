@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,16 +15,13 @@
 extern "C" {
 #endif
 
-struct BoundBox;
 struct Curves;
 struct Depsgraph;
 struct Main;
 struct Object;
 struct Scene;
 
-void *BKE_curves_add(struct Main *bmain, const char *name);
-
-struct BoundBox *BKE_curves_boundbox_get(struct Object *ob);
+struct Curves *BKE_curves_add(struct Main *bmain, const char *name);
 
 bool BKE_curves_attribute_required(const struct Curves *curves, const char *name);
 

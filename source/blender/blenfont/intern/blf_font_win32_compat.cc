@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -22,7 +22,7 @@
 #  include "BLI_fileops.h"
 #  include "BLI_utildefines.h"
 
-#  include "blf_internal.h"
+#  include "blf_internal.hh"
 
 /* internal freetype defines */
 #  define STREAM_FILE(stream) static_cast<FILE *>(stream->descriptor.pointer)

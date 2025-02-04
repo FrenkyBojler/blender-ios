@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2009-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,22 +6,14 @@
  * \ingroup collada
  */
 
-/* COLLADABU_ASSERT, may be able to remove later */
-#include "COLLADABUPlatform.h"
-
+#include "collada.h"
 #include "DocumentExporter.h"
 #include "DocumentImporter.h"
 #include "ExportSettings.h"
 #include "ImportSettings.h"
-#include "collada.h"
 
-#include "BKE_context.h"
-#include "BKE_scene.h"
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "BKE_context.hh"
 
-/* make dummy file */
-#include "BLI_fileops.h"
 #include "BLI_linklist.h"
 
 extern "C" {

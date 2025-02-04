@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2018 Blender Foundation
+/* SPDX-FileCopyrightText: 2018 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,11 +8,11 @@
 
 #include "BLI_timer.h"
 #include "BLI_listbase.h"
+#include "BLI_time.h"
 
 #include "MEM_guardedalloc.h"
-#include "PIL_time.h"
 
-#define GET_TIME() PIL_check_seconds_timer()
+#define GET_TIME() BLI_time_now_seconds()
 
 typedef struct TimedFunction {
   struct TimedFunction *next, *prev;

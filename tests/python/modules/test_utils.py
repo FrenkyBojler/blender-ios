@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2018-2022 Blender Foundation
+# SPDX-FileCopyrightText: 2018-2022 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -60,7 +60,6 @@ class AbstractBlenderRunnerTest(unittest.TestCase):
         command = [
             self.blender,
             '--background',
-            '-noaudio',
             '--factory-startup',
             '--enable-autoexec',
             '--debug-memory',

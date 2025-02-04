@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008 Blender Foundation
+/* SPDX-FileCopyrightText: 2008 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,11 +10,13 @@
 
 struct ARegion;
 struct ARegionType;
+struct ListBase;
 struct Object;
 struct Scene;
 struct SpaceAction;
 struct bAnimContext;
 struct bContext;
+struct wmKeyConfig;
 struct wmOperatorType;
 
 /* internal exports only */
@@ -30,11 +32,17 @@ void action_buttons_register(ARegionType *art);
 /**
  * Left hand part.
  */
-void draw_channel_names(bContext *C, bAnimContext *ac, ARegion *region);
+void draw_channel_names(bContext *C,
+                        bAnimContext *ac,
+                        ARegion *region,
+                        const ListBase /*bAnimListElem*/ &anim_data);
 /**
  * Draw keyframes in each channel.
  */
-void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *region);
+void draw_channel_strips(bAnimContext *ac,
+                         SpaceAction *saction,
+                         ARegion *region,
+                         ListBase /* bAnimListElem */ *anim_data);
 
 void timeline_draw_cache(const SpaceAction *saction, const Object *ob, const Scene *scene);
 
@@ -82,7 +90,7 @@ void ACTION_OT_keyframe_insert(wmOperatorType *ot);
 void ACTION_OT_duplicate(wmOperatorType *ot);
 void ACTION_OT_delete(wmOperatorType *ot);
 void ACTION_OT_clean(wmOperatorType *ot);
-void ACTION_OT_sample(wmOperatorType *ot);
+void ACTION_OT_bake_keys(wmOperatorType *ot);
 
 void ACTION_OT_keyframe_type(wmOperatorType *ot);
 void ACTION_OT_handle_type(wmOperatorType *ot);

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008 Blender Foundation
+/* SPDX-FileCopyrightText: 2008 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,8 +6,6 @@
  * \ingroup spfile
  */
 
-#include <cmath>
-#include <cstdio>
 #include <cstring>
 
 #include <sys/stat.h>
@@ -32,22 +30,25 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
 #include "BLI_fnmatch.h"
 #include "BLI_math_base.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
-#include "BLO_readfile.h"
+#include "BLO_userdef_default.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_appdir.h"
-#include "BKE_context.h"
-#include "BKE_idtype.h"
-#include "BKE_main.h"
+#include "BKE_appdir.hh"
+#include "BKE_context.hh"
+#include "BKE_idtype.hh"
+#include "BKE_main.hh"
 #include "BKE_preferences.h"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
@@ -55,13 +56,12 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
-#include "AS_asset_representation.hh"
 #include "AS_essentials_library.hh"
 
 #include "file_intern.hh"
@@ -110,7 +110,7 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
     asset_params->base_params.details_flags = U_default.file_space_data.details_flags;
     asset_params->asset_library_ref.type = ASSET_LIBRARY_ALL;
     asset_params->asset_library_ref.custom_library_index = -1;
-    asset_params->import_type = FILE_ASSET_IMPORT_FOLLOW_PREFS;
+    asset_params->import_method = FILE_ASSET_IMPORT_FOLLOW_PREFS;
   }
 
   FileSelectParams *base_params = &asset_params->base_params;
@@ -121,7 +121,7 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   base_params->filter |= FILE_TYPE_BLENDERLIB;
   base_params->filter_id = FILTER_ID_ALL;
   base_params->display = FILE_IMGDISPLAY;
-  base_params->sort = FILE_SORT_ALPHA;
+  base_params->sort = FILE_SORT_ASSET_CATALOG;
   /* Asset libraries include all sub-directories, so enable maximal recursion. */
   base_params->recursion_level = FILE_SELECT_MAX_RECURSIONS;
   /* 'SMALL' size by default. More reasonable since this is typically used as regular editor,
@@ -172,7 +172,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     const bool is_relative_path = (RNA_struct_find_property(op->ptr, "relative_path") != nullptr);
 
     BLI_strncpy_utf8(
-        params->title, WM_operatortype_name(op->type, op->ptr), sizeof(params->title));
+        params->title, WM_operatortype_name(op->type, op->ptr).c_str(), sizeof(params->title));
 
     if ((prop = RNA_struct_find_property(op->ptr, "filemode"))) {
       params->type = RNA_property_int_get(op->ptr, prop);
@@ -424,8 +424,7 @@ static void fileselect_refresh_asset_params(FileAssetSelectParams *asset_params)
   if (library->type == ASSET_LIBRARY_CUSTOM) {
     BLI_assert(library->custom_library_index >= 0);
 
-    user_library = BKE_preferences_asset_library_find_from_index(&U,
-                                                                 library->custom_library_index);
+    user_library = BKE_preferences_asset_library_find_index(&U, library->custom_library_index);
     if (!user_library) {
       library->type = ASSET_LIBRARY_ALL;
     }
@@ -470,7 +469,7 @@ bool ED_fileselect_is_asset_browser(const SpaceFile *sfile)
   return (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
 }
 
-AssetLibrary *ED_fileselect_active_asset_library_get(const SpaceFile *sfile)
+blender::asset_system::AssetLibrary *ED_fileselect_active_asset_library_get(const SpaceFile *sfile)
 {
   if (!ED_fileselect_is_asset_browser(sfile) || !sfile->files) {
     return nullptr;
@@ -482,6 +481,10 @@ AssetLibrary *ED_fileselect_active_asset_library_get(const SpaceFile *sfile)
 ID *ED_fileselect_active_asset_get(const SpaceFile *sfile)
 {
   if (!ED_fileselect_is_asset_browser(sfile)) {
+    return nullptr;
+  }
+
+  if (sfile->files == nullptr) {
     return nullptr;
   }
 
@@ -520,12 +523,12 @@ int ED_fileselect_asset_import_method_get(const SpaceFile *sfile, const FileDirE
 
   const FileAssetSelectParams *params = ED_fileselect_get_asset_params(sfile);
 
-  if (params->import_type == FILE_ASSET_IMPORT_FOLLOW_PREFS) {
+  if (params->import_method == FILE_ASSET_IMPORT_FOLLOW_PREFS) {
     std::optional import_method = file->asset->get_import_method();
     return import_method ? *import_method : -1;
   }
 
-  switch (eFileAssetImportType(params->import_type)) {
+  switch (eFileAssetImportMethod(params->import_method)) {
     case FILE_ASSET_IMPORT_LINK:
       return ASSET_IMPORT_LINK;
     case FILE_ASSET_IMPORT_APPEND:
@@ -624,15 +627,16 @@ void ED_fileselect_deselect_all(SpaceFile *sfile)
  * may also be remembered, but only conditionally. */
 #define PARAMS_FLAGS_REMEMBERED (FILE_HIDE_DOT)
 
-void ED_fileselect_window_params_get(const wmWindow *win, int win_size[2], bool *is_maximized)
+void ED_fileselect_window_params_get(const wmWindow *win, int r_win_size[2], bool *r_is_maximized)
 {
   /* Get DPI/pixel-size independent size to be stored in preferences. */
   WM_window_set_dpi(win); /* Ensure the DPI is taken from the right window. */
 
-  win_size[0] = WM_window_pixels_x(win) / UI_SCALE_FAC;
-  win_size[1] = WM_window_pixels_y(win) / UI_SCALE_FAC;
+  const blender::int2 win_size = WM_window_native_pixel_size(win);
+  r_win_size[0] = win_size[0] / UI_SCALE_FAC;
+  r_win_size[1] = win_size[1] / UI_SCALE_FAC;
 
-  *is_maximized = WM_window_is_maximized(win);
+  *r_is_maximized = WM_window_is_maximized(win);
 }
 
 static bool file_select_use_default_display_type(const SpaceFile *sfile)
@@ -894,16 +898,18 @@ bool file_attribute_column_header_is_inside(const View2D *v2d,
 }
 
 bool file_attribute_column_type_enabled(const FileSelectParams *params,
-                                        FileAttributeColumnType column)
+                                        FileAttributeColumnType column,
+                                        const FileLayout *layout)
 {
   switch (column) {
     case COLUMN_NAME:
       /* Always enabled */
       return true;
     case COLUMN_DATETIME:
-      return (params->details_flags & FILE_DETAILS_DATETIME) != 0;
+      return ((params->details_flags & FILE_DETAILS_DATETIME) != 0) &&
+             !FILE_LAYOUT_HIDE_DATE(layout);
     case COLUMN_SIZE:
-      return (params->details_flags & FILE_DETAILS_SIZE) != 0;
+      return ((params->details_flags & FILE_DETAILS_SIZE) != 0) && !FILE_LAYOUT_HIDE_SIZE(layout);
     default:
       return false;
   }
@@ -933,7 +939,7 @@ FileAttributeColumnType file_attribute_column_type_find_isect(const View2D *v2d,
          column < ATTRIBUTE_COLUMN_MAX;
          column = FileAttributeColumnType(int(column) + 1))
     {
-      if (!file_attribute_column_type_enabled(params, column)) {
+      if (!file_attribute_column_type_enabled(params, column, layout)) {
         continue;
       }
       const int width = layout->attribute_columns[column].width;
@@ -975,18 +981,17 @@ float file_font_pointsize()
 static void file_attribute_columns_widths(const FileSelectParams *params, FileLayout *layout)
 {
   FileAttributeColumn *columns = layout->attribute_columns;
-  const bool small_size = SMALL_SIZE_CHECK(params->thumbnail_size);
-  const int pad = small_size ? 0 : ATTRIBUTE_COLUMN_PADDING * 2;
+  const int pad = ATTRIBUTE_COLUMN_PADDING * 2;
+  const bool compact = FILE_LAYOUT_COMPACT(layout);
 
   for (int i = 0; i < ATTRIBUTE_COLUMN_MAX; i++) {
     layout->attribute_columns[i].width = 0;
   }
 
   /* Biggest possible reasonable values... */
-  columns[COLUMN_DATETIME].width = file_string_width(small_size ? "23/08/89" :
-                                                                  "23 Dec 6789, 23:59") +
+  columns[COLUMN_DATETIME].width = file_string_width(compact ? "23/08/89" : "23 Dec 6789, 23:59") +
                                    pad;
-  columns[COLUMN_SIZE].width = file_string_width(small_size ? "98.7 M" : "098.7 MiB") + pad;
+  columns[COLUMN_SIZE].width = file_string_width(compact ? "369G" : "098.7 MiB") + pad;
   if (params->display == FILE_IMGDISPLAY) {
     columns[COLUMN_NAME].width = (float(params->thumbnail_size) / 8.0f) * UI_UNIT_X;
   }
@@ -998,7 +1003,8 @@ static void file_attribute_columns_widths(const FileSelectParams *params, FileLa
          column_type >= 0;
          column_type = FileAttributeColumnType(int(column_type) - 1))
     {
-      if ((column_type == COLUMN_NAME) || !file_attribute_column_type_enabled(params, column_type))
+      if ((column_type == COLUMN_NAME) ||
+          !file_attribute_column_type_enabled(params, column_type, layout))
       {
         continue;
       }
@@ -1015,7 +1021,10 @@ static void file_attribute_columns_init(const FileSelectParams *params, FileLayo
   layout->attribute_columns[COLUMN_NAME].name = N_("Name");
   layout->attribute_columns[COLUMN_NAME].sort_type = FILE_SORT_ALPHA;
   layout->attribute_columns[COLUMN_NAME].text_align = UI_STYLE_TEXT_LEFT;
-  layout->attribute_columns[COLUMN_DATETIME].name = N_("Date Modified");
+
+  const bool compact = FILE_LAYOUT_COMPACT(layout);
+  layout->attribute_columns[COLUMN_DATETIME].name = compact ? N_("Date") : N_("Date Modified");
+
   layout->attribute_columns[COLUMN_DATETIME].sort_type = FILE_SORT_TIME;
   layout->attribute_columns[COLUMN_DATETIME].text_align = UI_STYLE_TEXT_LEFT;
   layout->attribute_columns[COLUMN_SIZE].name = N_("Size");
@@ -1090,8 +1099,10 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
                (layout->tile_h + 2 * layout->tile_border_y);
     file_attribute_columns_init(params, layout);
 
-    layout->rows = MAX2(rowcount, numfiles);
-    BLI_assert(layout->rows != 0);
+    layout->rows = std::max(rowcount, numfiles);
+
+    /* layout->rows can be zero if a very small area is changed to a File Browser. #124168. */
+
     layout->height = sfile->layout->rows * (layout->tile_h + 2 * layout->tile_border_y) +
                      layout->tile_border_y * 2 + layout->offset_top;
     layout->flag = FILE_LAYOUT_VER;
@@ -1345,7 +1356,7 @@ void file_params_invoke_rename_postscroll(wmWindowManager *wm, wmWindow *win, Sp
 void file_params_rename_end(wmWindowManager *wm,
                             wmWindow *win,
                             SpaceFile *sfile,
-                            FileDirEntry *rename_file)
+                            const FileDirEntry *rename_file)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
@@ -1460,7 +1471,7 @@ void ED_fileselect_ensure_default_filepath(bContext *C, wmOperator *op, const ch
     const char *blendfile_path = BKE_main_blendfile_path(bmain);
 
     if (blendfile_path[0] == '\0') {
-      STRNCPY(filepath, DATA_("untitled"));
+      STRNCPY(filepath, DATA_("Untitled"));
     }
     else {
       STRNCPY(filepath, blendfile_path);

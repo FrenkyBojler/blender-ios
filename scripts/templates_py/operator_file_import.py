@@ -3,7 +3,7 @@ import bpy
 
 def read_some_data(context, filepath, use_some_setting):
     print("running read_some_data...")
-    f = open(filepath, 'r', encoding='utf-8')
+    f = open(filepath, "r", encoding="utf-8")
     data = f.read()
     f.close()
 
@@ -25,7 +25,7 @@ class ImportSomeData(Operator, ImportHelper):
     bl_idname = "import_test.some_data"  # important since its how bpy.ops.import_test.some_data is constructed
     bl_label = "Import Some Data"
 
-    # ImportHelper mixin class uses this
+    # ImportHelper mix-in class uses this.
     filename_ext = ".txt"
 
     filter_glob: StringProperty(

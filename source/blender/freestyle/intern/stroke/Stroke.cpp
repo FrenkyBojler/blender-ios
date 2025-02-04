@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2008-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,7 @@
 #include "StrokeIterators.h"
 #include "StrokeRenderer.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_node.hh"
 
 namespace Freestyle {
@@ -795,7 +795,8 @@ Interface0DIterator Stroke::pointsEnd(float /*t*/)
 void Stroke::ScaleThickness(float iFactor)
 {
   for (vertex_container::iterator it = _Vertices.begin(), itend = _Vertices.end(); it != itend;
-       ++it) {
+       ++it)
+  {
     StrokeAttribute &attr = (*it)->attribute();
     attr.setThickness(iFactor * attr.getThicknessR(), iFactor * attr.getThicknessL());
   }
@@ -935,7 +936,7 @@ bool Stroke::occluders_empty() const
 }
 
 #  if 0
-inline const polygon3d& occludee() const
+inline const polygon3d &occludee() const
 {
   return *(_FEdgeA->aFace());
 }

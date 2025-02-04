@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -184,7 +184,7 @@ void WM_msg_publish_with_key(wmMsgBus *mbus, wmMsgSubscribeKey *msg_key)
             BLI_listbase_count(&msg_key->values));
 
   LISTBASE_FOREACH (wmMsgSubscribeValueLink *, msg_lnk, &msg_key->values) {
-    if (false) { /* make an option? */
+    if (false) { /* Make an option? */
       msg_lnk->params.notify(nullptr, msg_key, &msg_lnk->params);
     }
     else {

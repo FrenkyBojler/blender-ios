@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005-2007 Blender Foundation
+/* SPDX-FileCopyrightText: 2005-2007 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,22 +8,17 @@
  * Cursor pixmap and cursor utility functions to change the cursor.
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "GHOST_C-api.h"
 
 #include "BLI_utildefines.h"
 
-#include "BLI_sys_types.h"
-
 #include "DNA_listBase.h"
-#include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -52,6 +47,8 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
     case WM_CURSOR_EDIT:
     case WM_CURSOR_CROSS:
       return GHOST_kStandardCursorCrosshair;
+    case WM_CURSOR_MOVE:
+      return GHOST_kStandardCursorMove;
     case WM_CURSOR_X_MOVE:
       return GHOST_kStandardCursorLeftRight;
     case WM_CURSOR_Y_MOVE:
@@ -59,7 +56,11 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
     case WM_CURSOR_COPY:
       return GHOST_kStandardCursorCopy;
     case WM_CURSOR_HAND:
-      return GHOST_kStandardCursorMove;
+      return GHOST_kStandardCursorHandOpen;
+    case WM_CURSOR_HAND_CLOSED:
+      return GHOST_kStandardCursorHandClosed;
+    case WM_CURSOR_HAND_POINT:
+      return GHOST_kStandardCursorHandPoint;
     case WM_CURSOR_H_SPLIT:
       return GHOST_kStandardCursorHorizontalSplit;
     case WM_CURSOR_V_SPLIT:
@@ -100,25 +101,18 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
       return GHOST_kStandardCursorRightArrow;
     case WM_CURSOR_W_ARROW:
       return GHOST_kStandardCursorLeftArrow;
+    case WM_CURSOR_LEFT_HANDLE:
+      return GHOST_kStandardCursorLeftHandle;
+    case WM_CURSOR_RIGHT_HANDLE:
+      return GHOST_kStandardCursorRightHandle;
+    case WM_CURSOR_BOTH_HANDLES:
+      return GHOST_kStandardCursorBothHandles;
     default:
       return GHOST_kStandardCursorCustom;
   }
 }
 
-static void window_set_custom_cursor(
-    wmWindow *win, const uchar mask[16][2], const uchar bitmap[16][2], int hotx, int hoty)
-{
-  GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
-                             (uint8_t *)bitmap,
-                             (uint8_t *)mask,
-                             16,
-                             16,
-                             hotx,
-                             hoty,
-                             true);
-}
-
-static void window_set_custom_cursor_ex(wmWindow *win, BCursor *cursor)
+static void window_set_custom_cursor(wmWindow *win, BCursor *cursor)
 {
   GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
                              (uint8_t *)cursor->bitmap,
@@ -133,7 +127,7 @@ static void window_set_custom_cursor_ex(wmWindow *win, BCursor *cursor)
 void WM_cursor_set(wmWindow *win, int curs)
 {
   if (win == nullptr || G.background) {
-    return; /* Can't set custom cursor before Window init */
+    return; /* Can't set custom cursor before Window init. */
   }
 
   if (curs == WM_CURSOR_DEFAULT && win->modalcursor) {
@@ -148,7 +142,7 @@ void WM_cursor_set(wmWindow *win, int curs)
   GHOST_SetCursorVisibility(static_cast<GHOST_WindowHandle>(win->ghostwin), true);
 
   if (win->cursor == curs) {
-    return; /* Cursor is already set */
+    return; /* Cursor is already set. */
   }
 
   win->cursor = curs;
@@ -170,7 +164,7 @@ void WM_cursor_set(wmWindow *win, int curs)
     BCursor *bcursor = BlenderCursor[curs];
     if (bcursor) {
       /* Use custom bitmap cursor. */
-      window_set_custom_cursor_ex(win, bcursor);
+      window_set_custom_cursor(win, bcursor);
     }
     else {
       /* Fallback to default cursor if no bitmap found. */
@@ -314,13 +308,14 @@ static void wm_cursor_warp_relative(wmWindow *win, int x, int y)
 {
   /* NOTE: don't use wmEvent coords because of continuous grab #36409. */
   int cx, cy;
-  wm_cursor_position_get(win, &cx, &cy);
-  WM_cursor_warp(win, cx + x, cy + y);
+  if (wm_cursor_position_get(win, &cx, &cy)) {
+    WM_cursor_warp(win, cx + x, cy + y);
+  }
 }
 
 bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
 {
-  /* TODO: give it a modal keymap? Hard coded for now */
+  /* TODO: give it a modal keymap? Hard coded for now. */
 
   if (win && event->val == KM_PRESS) {
     /* Must move at least this much to avoid rounding in WM_cursor_warp. */
@@ -346,9 +341,75 @@ bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
   return false;
 }
 
-void WM_cursor_time(wmWindow *win, int nr)
+static bool wm_cursor_time_large(wmWindow *win, int nr)
 {
-  /* 10 8x8 digits */
+  /* 10 16x16 digits. */
+  const uchar number_bitmaps[][32] = {
+      {0x00, 0x00, 0xf0, 0x0f, 0xf8, 0x1f, 0x1c, 0x38, 0x0c, 0x30, 0x0c,
+       0x30, 0x0c, 0x30, 0x0c, 0x30, 0x0c, 0x30, 0x0c, 0x30, 0x0c, 0x30,
+       0x0c, 0x30, 0x1c, 0x38, 0xf8, 0x1f, 0xf0, 0x0f, 0x00, 0x00},
+      {0x00, 0x00, 0x80, 0x01, 0xc0, 0x01, 0xf0, 0x01, 0xbc, 0x01, 0x8c,
+       0x01, 0x80, 0x01, 0x80, 0x01, 0x80, 0x01, 0x80, 0x01, 0x80, 0x01,
+       0x80, 0x01, 0x80, 0x01, 0xfc, 0x3f, 0xfc, 0x3f, 0x00, 0x00},
+      {0x00, 0x00, 0xf0, 0x1f, 0xf8, 0x3f, 0x1c, 0x30, 0x0c, 0x30, 0x00,
+       0x30, 0x00, 0x30, 0xe0, 0x3f, 0xf0, 0x1f, 0x38, 0x00, 0x1c, 0x00,
+       0x0c, 0x00, 0x0c, 0x00, 0xfc, 0x3f, 0xfc, 0x3f, 0x00, 0x00},
+      {0x00, 0x00, 0xf0, 0x0f, 0xf8, 0x1f, 0x1c, 0x38, 0x00, 0x30, 0x00,
+       0x30, 0x00, 0x38, 0xf0, 0x1f, 0xf0, 0x1f, 0x00, 0x38, 0x00, 0x30,
+       0x00, 0x30, 0x1c, 0x38, 0xf8, 0x1f, 0xf0, 0x0f, 0x00, 0x00},
+      {0x00, 0x00, 0x00, 0x0f, 0x80, 0x0f, 0xc0, 0x0d, 0xe0, 0x0c, 0x70,
+       0x0c, 0x38, 0x0c, 0x1c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c,
+       0xfc, 0x3f, 0xfc, 0x3f, 0x00, 0x0c, 0x00, 0x0c, 0x00, 0x00},
+      {0x00, 0x00, 0xfc, 0x3f, 0xfc, 0x3f, 0x0c, 0x00, 0x0c, 0x00, 0x0c,
+       0x00, 0xfc, 0x0f, 0xfc, 0x1f, 0x00, 0x38, 0x00, 0x30, 0x00, 0x30,
+       0x00, 0x30, 0x0c, 0x38, 0xfc, 0x1f, 0xf8, 0x0f, 0x00, 0x00},
+      {0x00, 0x00, 0xc0, 0x3f, 0xe0, 0x3f, 0x70, 0x00, 0x38, 0x00, 0x1c,
+       0x00, 0xfc, 0x0f, 0xfc, 0x1f, 0x0c, 0x38, 0x0c, 0x30, 0x0c, 0x30,
+       0x0c, 0x30, 0x1c, 0x38, 0xf8, 0x1f, 0xf0, 0x0f, 0x00, 0x00},
+      {0x00, 0x00, 0xfc, 0x3f, 0xfc, 0x3f, 0x0c, 0x30, 0x0c, 0x38, 0x00,
+       0x18, 0x00, 0x1c, 0x00, 0x0c, 0x00, 0x0e, 0x00, 0x06, 0x00, 0x07,
+       0x00, 0x03, 0x80, 0x03, 0x80, 0x01, 0x80, 0x01, 0x00, 0x00},
+      {0x00, 0x00, 0xf0, 0x0f, 0xf8, 0x1f, 0x1c, 0x38, 0x0c, 0x30, 0x0c,
+       0x30, 0x1c, 0x38, 0xf8, 0x1f, 0xf8, 0x1f, 0x1c, 0x38, 0x0c, 0x30,
+       0x0c, 0x30, 0x1c, 0x38, 0xf8, 0x1f, 0xf0, 0x0f, 0x00, 0x00},
+      {0x00, 0x00, 0xf0, 0x0f, 0xf8, 0x1f, 0x1c, 0x38, 0x0c, 0x30, 0x0c,
+       0x30, 0x0c, 0x30, 0x1c, 0x30, 0xf8, 0x3f, 0xf0, 0x3f, 0x00, 0x38,
+       0x00, 0x1c, 0x00, 0x0e, 0xfc, 0x07, 0xfc, 0x03, 0x00, 0x00},
+  };
+  uchar mask[32][4] = {{0}};
+  uchar bitmap[32][4] = {{0}};
+
+  /* Print number bottom right justified. */
+  for (int idx = 3; nr && idx >= 0; idx--) {
+    const uchar *digit = number_bitmaps[nr % 10];
+    int x = idx % 2;
+    int y = idx / 2;
+
+    for (int i = 0; i < 16; i++) {
+      bitmap[i + y * 16][x * 2] = digit[i * 2];
+      bitmap[i + y * 16][(x * 2) + 1] = digit[(i * 2) + 1];
+    }
+    for (int i = 0; i < 16; i++) {
+      mask[i + y * 16][x * 2] = 0xFF;
+      mask[i + y * 16][(x * 2) + 1] = 0xFF;
+    }
+
+    nr /= 10;
+  }
+
+  return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                                    (uint8_t *)bitmap,
+                                    (uint8_t *)mask,
+                                    32,
+                                    32,
+                                    15,
+                                    15,
+                                    false) == GHOST_kSuccess;
+}
+
+static void wm_cursor_time_small(wmWindow *win, int nr)
+{
+  /* 10 8x8 digits. */
   const char number_bitmaps[10][8] = {
       {0, 56, 68, 68, 68, 68, 68, 56},
       {0, 24, 16, 16, 16, 16, 16, 56},
@@ -361,16 +422,10 @@ void WM_cursor_time(wmWindow *win, int nr)
       {0, 60, 66, 66, 60, 66, 66, 60},
       {0, 56, 68, 68, 120, 64, 68, 56},
   };
-  uchar mask[16][2];
+  uchar mask[16][2] = {{0}};
   uchar bitmap[16][2] = {{0}};
 
-  if (win->lastcursor == 0) {
-    win->lastcursor = win->cursor;
-  }
-
-  memset(&mask, 0xFF, sizeof(mask));
-
-  /* print number bottom right justified */
+  /* Print number bottom right justified. */
   for (int idx = 3; nr && idx >= 0; idx--) {
     const char *digit = number_bitmaps[nr % 10];
     int x = idx % 2;
@@ -379,10 +434,33 @@ void WM_cursor_time(wmWindow *win, int nr)
     for (int i = 0; i < 8; i++) {
       bitmap[i + y * 8][x] = digit[i];
     }
+    for (int i = 0; i < 8; i++) {
+      mask[i + y * 8][x] = 0xFF;
+    }
     nr /= 10;
   }
 
-  window_set_custom_cursor(win, mask, bitmap, 7, 7);
+  GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                             (uint8_t *)bitmap,
+                             (uint8_t *)mask,
+                             16,
+                             16,
+                             7,
+                             7,
+                             false);
+}
+
+void WM_cursor_time(wmWindow *win, int nr)
+{
+  if (win->lastcursor == 0) {
+    win->lastcursor = win->cursor;
+  }
+
+  /* Use `U.ui_scale` instead of `UI_SCALE_FAC` here to ignore HiDPI/Retina scaling. */
+  if (U.ui_scale < 1.45f || !wm_cursor_time_large(win, nr)) {
+    wm_cursor_time_small(win, nr);
+  }
+
   /* Unset current cursor value so it's properly reset to wmWindow.lastcursor. */
   win->cursor = 0;
 }
@@ -415,8 +493,8 @@ void WM_cursor_time(wmWindow *win, int nr)
  * Because defining a cursor mixes declarations and executable code
  * each cursor needs its own scoping block or it would be split up
  * over several hundred lines of code. To enforce/document this better
- * I define 2 pretty brain-dead macros so it's obvious what the extra "[]"
- * are for */
+ * I define 2 pretty brain-dead macros so it's obvious what the extra "[]" are for.
+ */
 
 #define BEGIN_CURSOR_BLOCK \
   { \
@@ -1181,6 +1259,84 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_PICK_AREA] = &PickAreaCursor;
+  END_CURSOR_BLOCK;
+
+  /********************** Right handle cursor ***********************/
+  BEGIN_CURSOR_BLOCK;
+
+  static char right_handle_bitmap[] = {
+      0x00, 0x00, 0x7e, 0x00, 0x7e, 0x00, 0x70, 0x00, 0x70, 0x08, 0x70,
+      0x18, 0x70, 0x38, 0x70, 0x78, 0x70, 0x78, 0x70, 0x38, 0x70, 0x18,
+      0x70, 0x08, 0x70, 0x00, 0x7e, 0x00, 0x7e, 0x00, 0x00, 0x00,
+  };
+
+  static char right_handle_mask[] = {
+      0xff, 0x00, 0xff, 0x00, 0xff, 0x04, 0xff, 0x0c, 0xf8, 0x1c, 0xf8,
+      0x3c, 0xf8, 0x7c, 0xf8, 0xfc, 0xf8, 0xfc, 0xf8, 0x7c, 0xf8, 0x3c,
+      0xf8, 0x1c, 0xff, 0x0c, 0xff, 0x04, 0xff, 0x00, 0xff, 0x00,
+  };
+
+  static BCursor RightHandleCursor = {
+      right_handle_bitmap,
+      right_handle_mask,
+      7,
+      7,
+      false,
+  };
+
+  BlenderCursor[WM_CURSOR_RIGHT_HANDLE] = &RightHandleCursor;
+  END_CURSOR_BLOCK;
+
+  /********************** Left handle cursor ***********************/
+  BEGIN_CURSOR_BLOCK;
+
+  static char left_handle_bitmap[] = {
+      0x00, 0x00, 0x00, 0x7e, 0x00, 0x7e, 0x00, 0x0e, 0x10, 0x0e, 0x18,
+      0x0e, 0x1c, 0x0e, 0x1e, 0x0e, 0x1e, 0x0e, 0x1c, 0x0e, 0x18, 0x0e,
+      0x10, 0x0e, 0x00, 0x0e, 0x00, 0x7e, 0x00, 0x7e, 0x00, 0x00,
+  };
+
+  static char left_handle_mask[] = {
+      0x00, 0xff, 0x00, 0xff, 0x20, 0xff, 0x30, 0xff, 0x38, 0x1f, 0x3c,
+      0x1f, 0x3e, 0x1f, 0x3f, 0x1f, 0x3f, 0x1f, 0x3e, 0x1f, 0x3c, 0x1f,
+      0x38, 0x1f, 0x30, 0xff, 0x20, 0xff, 0x00, 0xff, 0x00, 0xff,
+  };
+
+  static BCursor LeftHandleCursor = {
+      left_handle_bitmap,
+      left_handle_mask,
+      7,
+      7,
+      false,
+  };
+
+  BlenderCursor[WM_CURSOR_LEFT_HANDLE] = &LeftHandleCursor;
+  END_CURSOR_BLOCK;
+
+  /********************** both handles cursor ***********************/
+  BEGIN_CURSOR_BLOCK;
+
+  static char both_handles_bitmap[] = {
+      0x00, 0x00, 0x7e, 0x7e, 0x7e, 0x7e, 0x60, 0x06, 0x60, 0x06, 0x64,
+      0x26, 0x66, 0x66, 0x67, 0xe6, 0x67, 0xe6, 0x66, 0x66, 0x64, 0x26,
+      0x60, 0x06, 0x60, 0x06, 0x7e, 0x7e, 0x7e, 0x7e, 0x00, 0x00,
+  };
+
+  static char both_handles_mask[] = {
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc, 0x3f, 0xfe,
+      0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x7f,
+      0xfc, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  };
+
+  static BCursor BothHandlesCursor = {
+      both_handles_bitmap,
+      both_handles_mask,
+      7,
+      7,
+      false,
+  };
+
+  BlenderCursor[WM_CURSOR_BOTH_HANDLES] = &BothHandlesCursor;
   END_CURSOR_BLOCK;
 
   /********************** Put the cursors in the array ***********************/

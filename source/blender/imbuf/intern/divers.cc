@@ -1,4 +1,5 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ * SPDX-FileCopyrightText: 2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,17 +7,15 @@
  * \ingroup imbuf
  */
 
-#include "BLI_math.h"
 #include "BLI_rect.h"
-#include "BLI_utildefines.h"
+#include "BLI_task.hh"
 
-#include "IMB_filter.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "imbuf.h"
+#include "IMB_filter.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_colormanagement_intern.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_colormanagement_intern.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -165,10 +164,9 @@ void IMB_buffer_byte_from_float(uchar *rect_to,
       uchar *to = rect_to + size_t(stride_to) * y * 4;
 
       if (profile_to == profile_from) {
-        float straight[4];
-
         /* no color space conversion */
         if (dither && predivide) {
+          float straight[4];
           for (x = 0; x < width; x++, from += 4, to += 4) {
             premul_to_straight_v4_v4(straight, from);
             float_to_byte_dither_v4(to, straight, di, float(x) * inv_width, t);
@@ -181,8 +179,7 @@ void IMB_buffer_byte_from_float(uchar *rect_to,
         }
         else if (predivide) {
           for (x = 0; x < width; x++, from += 4, to += 4) {
-            premul_to_straight_v4_v4(straight, from);
-            rgba_float_to_uchar(to, straight);
+            premul_float_to_straight_uchar(to, from);
           }
         }
         else {
@@ -308,9 +305,8 @@ void IMB_buffer_byte_from_float_mask(uchar *rect_to,
       const float *from = rect_from + size_t(stride_from) * y * 4;
       uchar *to = rect_to + size_t(stride_to) * y * 4;
 
-      float straight[4];
-
       if (dither && predivide) {
+        float straight[4];
         for (x = 0; x < width; x++, from += 4, to += 4) {
           if (*mask++ == FILTER_MASK_USED) {
             premul_to_straight_v4_v4(straight, from);
@@ -328,8 +324,7 @@ void IMB_buffer_byte_from_float_mask(uchar *rect_to,
       else if (predivide) {
         for (x = 0; x < width; x++, from += 4, to += 4) {
           if (*mask++ == FILTER_MASK_USED) {
-            premul_to_straight_v4_v4(straight, from);
-            rgba_float_to_uchar(to, straight);
+            premul_float_to_straight_uchar(to, from);
           }
         }
       }
@@ -521,7 +516,7 @@ static void imb_buffer_float_from_float_thread_do(void *data_v, int scanline)
   const int num_scanlines = 1;
   FloatToFloatThreadData *data = (FloatToFloatThreadData *)data_v;
   size_t offset_from = size_t(scanline) * data->stride_from * data->channels_from;
-  size_t offset_to = size_t(scanline) * data->stride_to * data->channels_from;
+  size_t offset_to = size_t(scanline) * data->stride_to * 4;
   IMB_buffer_float_from_float(data->rect_to + offset_to,
                               data->rect_from + offset_from,
                               data->channels_from,
@@ -703,7 +698,7 @@ void IMB_rect_from_float(ImBuf *ibuf)
 
   /* create byte rect if it didn't exist yet */
   if (ibuf->byte_buffer.data == nullptr) {
-    if (imb_addrectImBuf(ibuf) == 0) {
+    if (imb_addrectImBuf(ibuf, false) == 0) {
       return;
     }
   }
@@ -845,8 +840,10 @@ void IMB_color_to_bw(ImBuf *ibuf)
   size_t i;
 
   if (rct_fl) {
-    for (i = IMB_get_rect_len(ibuf); i > 0; i--, rct_fl += 4) {
-      rct_fl[0] = rct_fl[1] = rct_fl[2] = IMB_colormanagement_get_luminance(rct_fl);
+    if (ibuf->channels >= 3) {
+      for (i = IMB_get_rect_len(ibuf); i > 0; i--, rct_fl += ibuf->channels) {
+        rct_fl[0] = rct_fl[1] = rct_fl[2] = IMB_colormanagement_get_luminance(rct_fl);
+      }
     }
   }
 
@@ -854,26 +851,6 @@ void IMB_color_to_bw(ImBuf *ibuf)
     for (i = IMB_get_rect_len(ibuf); i > 0; i--, rct += 4) {
       rct[0] = rct[1] = rct[2] = IMB_colormanagement_get_luminance_byte(rct);
     }
-  }
-}
-
-void IMB_buffer_float_unpremultiply(float *buf, int width, int height)
-{
-  size_t total = size_t(width) * height;
-  float *fp = buf;
-  while (total--) {
-    premul_to_straight_v4(fp);
-    fp += 4;
-  }
-}
-
-void IMB_buffer_float_premultiply(float *buf, int width, int height)
-{
-  size_t total = size_t(width) * height;
-  float *fp = buf;
-  while (total--) {
-    straight_to_premul_v4(fp);
-    fp += 4;
   }
 }
 
@@ -885,26 +862,35 @@ void IMB_buffer_float_premultiply(float *buf, int width, int height)
 
 void IMB_saturation(ImBuf *ibuf, float sat)
 {
-  size_t i;
-  uchar *rct = ibuf->byte_buffer.data;
-  float *rct_fl = ibuf->float_buffer.data;
-  float hsv[3];
+  using namespace blender;
 
-  if (rct) {
-    float rgb[3];
-    for (i = IMB_get_rect_len(ibuf); i > 0; i--, rct += 4) {
-      rgb_uchar_to_float(rgb, rct);
-      rgb_to_hsv_v(rgb, hsv);
-      hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], rgb, rgb + 1, rgb + 2);
-      rgb_float_to_uchar(rct, rgb);
-    }
+  const size_t pixel_count = IMB_get_rect_len(ibuf);
+  if (ibuf->byte_buffer.data != nullptr) {
+    threading::parallel_for(IndexRange(pixel_count), 64 * 1024, [&](IndexRange range) {
+      uchar *ptr = ibuf->byte_buffer.data + range.first() * 4;
+      float rgb[3];
+      float hsv[3];
+      for ([[maybe_unused]] const int64_t i : range) {
+        rgb_uchar_to_float(rgb, ptr);
+        rgb_to_hsv_v(rgb, hsv);
+        hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], rgb + 0, rgb + 1, rgb + 2);
+        rgb_float_to_uchar(ptr, rgb);
+        ptr += 4;
+      }
+    });
   }
 
-  if (rct_fl) {
-    for (i = IMB_get_rect_len(ibuf); i > 0; i--, rct_fl += 4) {
-      rgb_to_hsv_v(rct_fl, hsv);
-      hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], rct_fl, rct_fl + 1, rct_fl + 2);
-    }
+  if (ibuf->float_buffer.data != nullptr && ibuf->channels >= 3) {
+    threading::parallel_for(IndexRange(pixel_count), 64 * 1024, [&](IndexRange range) {
+      const int channels = ibuf->channels;
+      float *ptr = ibuf->float_buffer.data + range.first() * channels;
+      float hsv[3];
+      for ([[maybe_unused]] const int64_t i : range) {
+        rgb_to_hsv_v(ptr, hsv);
+        hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], ptr + 0, ptr + 1, ptr + 2);
+        ptr += channels;
+      }
+    });
   }
 }
 

@@ -1,13 +1,12 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include <algorithm>
 
 #include "BLI_math_vector.hh"
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
-#include "BKE_mesh.hh"
 
 #include "node_geometry_util.hh"
 
@@ -16,15 +15,16 @@ namespace blender::nodes::node_geo_input_mesh_face_is_planar_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Float>("Threshold")
-      .field_source()
       .default_value(0.01f)
+      .min(0.0f)
       .subtype(PROP_DISTANCE)
       .supports_field()
       .description(
           "The distance a point can be from the surface before the face is no longer "
-          "considered planar")
-      .min(0.0f);
-  b.add_output<decl::Bool>("Planar").field_source();
+          "considered planar");
+  b.add_output<decl::Bool>("Planar")
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+      .field_source();
 }
 
 class PlanarFieldInput final : public bke::MeshFieldInput {
@@ -39,7 +39,7 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
     const Span<float3> positions = mesh.vert_positions();
@@ -47,7 +47,7 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
     const Span<int> corner_verts = mesh.corner_verts();
     const Span<float3> face_normals = mesh.face_normals();
 
-    const bke::MeshFieldContext context{mesh, ATTR_DOMAIN_FACE};
+    const bke::MeshFieldContext context{mesh, AttrDomain::Face};
     fn::FieldEvaluator evaluator{context, faces.size()};
     evaluator.add(threshold_);
     evaluator.evaluate();
@@ -66,18 +66,14 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
 
       for (const int vert : corner_verts.slice(face)) {
         float dot = math::dot(reference_normal, positions[vert]);
-        if (dot > max) {
-          max = dot;
-        }
-        if (dot < min) {
-          min = dot;
-        }
+        max = std::max(dot, max);
+        min = std::min(dot, min);
       }
       return max - min < thresholds[i] / 2.0f;
     };
 
     return mesh.attributes().adapt_domain<bool>(
-        VArray<bool>::ForFunc(faces.size(), planar_fn), ATTR_DOMAIN_FACE, domain);
+        VArray<bool>::ForFunc(faces.size(), planar_fn), AttrDomain::Face, domain);
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -96,9 +92,9 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
     return dynamic_cast<const PlanarFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_FACE;
+    return AttrDomain::Face;
   }
 };
 
@@ -109,17 +105,22 @@ static void geo_node_exec(GeoNodeExecParams params)
   params.set_output("Planar", std::move(planar_field));
 }
 
-}  // namespace blender::nodes::node_geo_input_mesh_face_is_planar_cc
-
-void register_node_type_geo_input_mesh_face_is_planar()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_mesh_face_is_planar_cc;
-
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_INPUT_MESH_FACE_IS_PLANAR, "Is Face Planar", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::geo_node_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+      &ntype, "GeometryNodeInputMeshFaceIsPlanar", GEO_NODE_INPUT_MESH_FACE_IS_PLANAR);
+  ntype.ui_name = "Is Face Planar";
+  ntype.ui_description =
+      "Retrieve whether all triangles in a face are on the same plane, i.e. whether they have the "
+      "same normal";
+  ntype.enum_name_legacy = "MESH_FACE_IS_PLANAR";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.geometry_node_execute = geo_node_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_mesh_face_is_planar_cc

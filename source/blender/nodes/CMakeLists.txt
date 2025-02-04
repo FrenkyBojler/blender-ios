@@ -1,6 +1,43 @@
-# SPDX-FileCopyrightText: 2006 Blender Foundation
+# SPDX-FileCopyrightText: 2006 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
+
+set(DISCOVER_NODES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/intern/discover_nodes.py)
+
+# Creates a library with the given name that exposes one function which calls
+# the register functions of all nodes in the provided source files.
+function(add_node_discovery
+  lib_name
+  sources
+  output_file
+  output_function
+  )
+
+  set(extra_args "")
+
+  # See `add_definitions(-DUSE_MAKEFILE_WORKAROUND)` comment for `makesrna`.
+  if(CMAKE_GENERATOR MATCHES ".*Unix Makefiles")
+    set(extra_args "--use-makefile-workaround")
+  endif()
+
+  add_custom_command(
+    OUTPUT
+      ${output_file}
+    COMMAND
+      ${PYTHON_EXECUTABLE}
+        ${DISCOVER_NODES_PATH}
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${output_file}
+        ${output_function}
+        ${sources}
+        ${extra_args}
+    DEPENDS
+      ${SRC}
+      ${DISCOVER_NODES_PATH}
+  )
+  set_source_files_properties(${output_file} PROPERTIES GENERATED TRUE)
+  add_library(${lib_name} ${output_file})
+endfunction()
 
 add_subdirectory(composite)
 add_subdirectory(function)
@@ -9,39 +46,36 @@ add_subdirectory(shader)
 add_subdirectory(texture)
 
 set(INC
-  .
+  PUBLIC .
   composite
   function
   geometry
   intern
   shader
   texture
+  ../animrig
   ../editors/include
-  ../blenkernel
-  ../blentranslation
-  ../bmesh
   ../depsgraph
-  ../functions
-  ../geometry
-  ../gpu
-  ../imbuf
   ../makesrna
   ../modifiers
-  ../render
-  ../windowmanager
-  ../../../extern/fmtlib/include
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
+set(INC_SYS
+)
 
 set(SRC
-  intern/add_node_search.cc
   intern/derived_node_tree.cc
+  intern/geometry_nodes_dependencies.cc
   intern/geometry_nodes_execute.cc
+  intern/geometry_nodes_foreach_geometry_element_zone.cc
+  intern/geometry_nodes_gizmos.cc
   intern/geometry_nodes_lazy_function.cc
   intern/geometry_nodes_log.cc
+  intern/geometry_nodes_repeat_zone.cc
+  intern/inverse_eval.cc
   intern/math_functions.cc
   intern/node_common.cc
   intern/node_declaration.cc
@@ -49,48 +83,76 @@ set(SRC
   intern/node_geometry_exec.cc
   intern/node_multi_function.cc
   intern/node_register.cc
+  intern/node_rna_define.cc
   intern/node_socket.cc
   intern/node_socket_declarations.cc
   intern/node_util.cc
+  intern/partial_eval.cc
   intern/socket_search_link.cc
+  intern/socket_usage_inference.cc
+  intern/value_elem.cc
 
-  NOD_add_node_search.hh
-  NOD_common.h
-  NOD_composite.h
+  NOD_common.hh
+  NOD_composite.hh
   NOD_derived_node_tree.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
+  NOD_geometry_nodes_dependencies.hh
   NOD_geometry_nodes_execute.hh
+  NOD_geometry_nodes_gizmos.hh
   NOD_geometry_nodes_lazy_function.hh
   NOD_geometry_nodes_log.hh
+  NOD_inverse_eval_params.hh
+  NOD_inverse_eval_path.hh
+  NOD_inverse_eval_run.hh
   NOD_math_functions.hh
   NOD_multi_function.hh
   NOD_node_declaration.hh
+  NOD_node_extra_info.hh
+  NOD_node_in_compute_context.hh
+  NOD_partial_eval.hh
   NOD_register.hh
+  NOD_rna_define.hh
   NOD_shader.h
   NOD_socket.hh
   NOD_socket_declarations.hh
   NOD_socket_declarations_geometry.hh
+  NOD_socket_items.hh
+  NOD_socket_items_blend.hh
+  NOD_socket_items_ops.hh
+  NOD_socket_items_ui.hh
   NOD_socket_search_link.hh
-  NOD_static_types.h
+  NOD_socket_usage_inference.hh
   NOD_texture.h
+  NOD_value_elem.hh
+  NOD_value_elem_eval.hh
   intern/node_common.h
   intern/node_exec.hh
   intern/node_util.hh
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  bf_bmesh
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_functions
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   bf_nodes_composite
   bf_nodes_function
   bf_nodes_geometry
   bf_nodes_shader
   bf_nodes_texture
-  extern_fmtlib
+  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::extern::xxhash
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_BULLET)
@@ -105,13 +167,9 @@ if(WITH_BULLET)
 endif()
 
 if(WITH_TBB)
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-  add_definitions(-DWITH_TBB)
   if(WIN32)
     # TBB includes Windows.h which will define min/max macros
-    # that will collide with the stl versions.
+    # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
 endif()
@@ -141,6 +199,9 @@ if(WITH_GMP)
 endif()
 
 if(WITH_OPENVDB)
+  list(APPEND INC
+    ../../../intern/openvdb
+  )
   list(APPEND INC_SYS
     ${OPENVDB_INCLUDE_DIRS}
   )
@@ -148,6 +209,7 @@ if(WITH_OPENVDB)
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::nodes ALIAS bf_nodes)
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_nodes bf_rna)

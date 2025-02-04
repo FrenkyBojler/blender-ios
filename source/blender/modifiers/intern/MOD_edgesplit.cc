@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,33 +11,30 @@
  * or edge angle (can be used to achieve auto-smoothing)
  */
 
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLI_math.h"
-
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
+
+#include "GEO_randomize.hh"
 
 /* For edge split modifier node. */
 Mesh *doEdgeSplit(const Mesh *mesh, EdgeSplitModifierData *emd);
@@ -70,8 +67,9 @@ Mesh *doEdgeSplit(const Mesh *mesh, EdgeSplitModifierData *emd)
   if (do_split_angle) {
     BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
       /* check for 1 edge having 2 face users */
-      BMLoop *l1, *l2;
-      if ((l1 = e->l) && (l2 = e->l->radial_next) != l1) {
+      BMLoop *l1 = e->l;
+      BMLoop *l2 = (e->l) ? e->l->radial_next : nullptr;
+      if (l1 && l2 != l1) {
         if (/* 3+ faces on this edge, always split */
             UNLIKELY(l1 != l2->radial_next) ||
             /* O degree angle setting, we want to split on all edges. */
@@ -103,6 +101,8 @@ Mesh *doEdgeSplit(const Mesh *mesh, EdgeSplitModifierData *emd)
 
   result = BKE_mesh_from_bmesh_for_eval_nomain(bm, nullptr, mesh);
   BM_mesh_free(bm);
+
+  blender::geometry::debug_randomize_mesh_order(result);
 
   return result;
 }
@@ -161,7 +161,7 @@ ModifierTypeInfo modifierType_EdgeSplit = {
     /*struct_name*/ "EdgeSplitModifierData",
     /*struct_size*/ sizeof(EdgeSplitModifierData),
     /*srna*/ &RNA_EdgeSplitModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode,
@@ -189,4 +189,5 @@ ModifierTypeInfo modifierType_EdgeSplit = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

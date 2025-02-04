@@ -16,12 +16,16 @@ class CustomHydraRenderEngine(bpy.types.HydraRenderEngine):
     # Name of the render plugin.
     bl_delegate_id = "HdCustomRendererPlugin"
 
+    # Use MaterialX instead of `UsdPreviewSurface` for materials.
+    bl_use_materialx = True
+
     # Register path to plugin.
     @classmethod
     def register(cls):
-        super().register()
+        # Make `pxr` module available, for running as `bpy` PIP package.
+        bpy.utils.expose_bundled_modules()
 
-        import pxr
+        import pxr.Plug
         pxr.Plug.Registry().RegisterPlugins(['/path/to/plugin'])
 
     # Render settings that will be passed to the delegate.

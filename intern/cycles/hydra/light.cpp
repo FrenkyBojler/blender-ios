@@ -30,7 +30,7 @@ HdCyclesLight::HdCyclesLight(const SdfPath &sprimId, const TfToken &lightType)
 {
 }
 
-HdCyclesLight::~HdCyclesLight() {}
+HdCyclesLight::~HdCyclesLight() = default;
 
 HdDirtyBits HdCyclesLight::GetInitialDirtyBitsMask() const
 {
@@ -65,14 +65,6 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
                                   .Get<GfMatrix4d>());
 #endif
     _light->set_tfm(tfm);
-
-    _light->set_co(transform_get_column(&tfm, 3));
-    _light->set_dir(-transform_get_column(&tfm, 2));
-
-    if (_lightType == HdPrimTypeTokens->diskLight || _lightType == HdPrimTypeTokens->rectLight) {
-      _light->set_axisu(transform_get_column(&tfm, 0));
-      _light->set_axisv(transform_get_column(&tfm, 1));
-    }
   }
 
   if (*dirtyBits & DirtyBits::DirtyParams) {
@@ -198,24 +190,37 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
 
 void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
 {
-  auto graph = new ShaderGraph();
+  unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
   ShaderNode *outputNode = nullptr;
 
   if (_lightType == HdPrimTypeTokens->domeLight) {
     BackgroundNode *bgNode = graph->create_node<BackgroundNode>();
     // Bake strength into shader graph, since only the shader is used for background lights
     bgNode->set_color(_light->get_strength());
-    graph->add(bgNode);
 
     graph->connect(bgNode->output("Background"), graph->output()->input("Surface"));
 
     outputNode = bgNode;
   }
-  else {
+  else if (sceneDelegate != nullptr) {
+    VtValue value;
+    const SdfPath &id = GetId();
+    value = sceneDelegate->GetLightParamValue(id, TfToken("falloff"));
+    if (!value.IsEmpty()) {
+      const std::string strVal = value.Get<string>();
+      if (strVal == "Constant" || strVal == "Linear" || strVal == "Quadratic") {
+        LightFalloffNode *lfoNode = graph->create_node<LightFalloffNode>();
+        lfoNode->set_strength(1.f);
+        graph->connect(lfoNode->output(strVal.c_str()), graph->output()->input("Surface"));
+        outputNode = lfoNode;
+      }
+    }
+  }
+
+  if (outputNode == nullptr) {
     EmissionNode *emissionNode = graph->create_node<EmissionNode>();
     emissionNode->set_color(one_float3());
     emissionNode->set_strength(1.0f);
-    graph->add(emissionNode);
 
     graph->connect(emissionNode->output("Emission"), graph->output()->input("Surface"));
 
@@ -236,13 +241,11 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
       if (value.IsHolding<float>()) {
         BlackbodyNode *blackbodyNode = graph->create_node<BlackbodyNode>();
         blackbodyNode->set_temperature(value.UncheckedGet<float>());
-        graph->add(blackbodyNode);
 
         if (_lightType == HdPrimTypeTokens->domeLight) {
           VectorMathNode *mathNode = graph->create_node<VectorMathNode>();
           mathNode->set_math_type(NODE_VECTOR_MATH_MULTIPLY);
           mathNode->set_vector2(_light->get_strength());
-          graph->add(mathNode);
 
           graph->connect(blackbodyNode->output("Color"), mathNode->input("Vector1"));
           graph->connect(mathNode->output("Vector"), outputNode->input("Color"));
@@ -265,7 +268,6 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
       TextureCoordinateNode *coordNode = graph->create_node<TextureCoordinateNode>();
       coordNode->set_ob_tfm(_light->get_tfm());
       coordNode->set_use_transform(true);
-      graph->add(coordNode);
 
       IESLightNode *iesNode = graph->create_node<IESLightNode>();
       iesNode->set_filename(ustring(filename));
@@ -291,11 +293,9 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
         TextureCoordinateNode *coordNode = graph->create_node<TextureCoordinateNode>();
         coordNode->set_ob_tfm(tfm);
         coordNode->set_use_transform(true);
-        graph->add(coordNode);
 
         textureNode = graph->create_node<EnvironmentTextureNode>();
         static_cast<EnvironmentTextureNode *>(textureNode)->set_filename(ustring(filename));
-        graph->add(textureNode);
 
         graph->connect(coordNode->output("Object"), textureNode->input("Vector"));
 
@@ -303,11 +303,9 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
       }
       else {
         GeometryNode *coordNode = graph->create_node<GeometryNode>();
-        graph->add(coordNode);
 
         textureNode = graph->create_node<ImageTextureNode>();
         static_cast<ImageTextureNode *>(textureNode)->set_filename(ustring(filename));
-        graph->add(textureNode);
 
         graph->connect(coordNode->output("Parametric"), textureNode->input("Vector"));
       }
@@ -315,7 +313,6 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
       if (hasColorTemperature) {
         VectorMathNode *mathNode = graph->create_node<VectorMathNode>();
         mathNode->set_math_type(NODE_VECTOR_MATH_MULTIPLY);
-        graph->add(mathNode);
 
         graph->connect(textureNode->output("Color"), mathNode->input("Vector1"));
         ShaderInput *const outputNodeInput = outputNode->input("Color");
@@ -327,7 +324,6 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
         VectorMathNode *mathNode = graph->create_node<VectorMathNode>();
         mathNode->set_math_type(NODE_VECTOR_MATH_MULTIPLY);
         mathNode->set_vector2(_light->get_strength());
-        graph->add(mathNode);
 
         graph->connect(textureNode->output("Color"), mathNode->input("Vector1"));
         graph->connect(mathNode->output("Vector"), outputNode->input("Color"));
@@ -339,7 +335,7 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
   }
 
   Shader *const shader = _light->get_shader();
-  shader->set_graph(graph);
+  shader->set_graph(std::move(graph));
   shader->tag_update((Scene *)_light->get_owner());
 
   shader->has_surface_spatial_varying = hasSpatialVarying;

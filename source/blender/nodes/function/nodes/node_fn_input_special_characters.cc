@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -44,17 +44,19 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(special_characters_fn);
 }
 
-}  // namespace blender::nodes::node_fn_input_special_characters_cc
-
-void register_node_type_fn_input_special_characters()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_fn_input_special_characters_cc;
-
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   fn_node_type_base(
-      &ntype, FN_NODE_INPUT_SPECIAL_CHARACTERS, "Special Characters", NODE_CLASS_INPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.build_multi_function = file_ns::node_build_multi_function;
-  nodeRegisterType(&ntype);
+      &ntype, "FunctionNodeInputSpecialCharacters", FN_NODE_INPUT_SPECIAL_CHARACTERS);
+  ntype.ui_name = "Special Characters";
+  ntype.enum_name_legacy = "INPUT_SPECIAL_CHARACTERS";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.declare = node_declare;
+  ntype.build_multi_function = node_build_multi_function;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_input_special_characters_cc

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -29,9 +29,7 @@
 
 #include "../winged_edge/Curvature.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -439,9 +437,7 @@ class SVertex : public Interface0D {
   inline real curvature2d_as_angle() const;
 #endif
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:SVertex")
-#endif
 };
 
 /**********************************/
@@ -900,9 +896,7 @@ class FEdge : public Interface1D {
   inline float local_average_depth(int iCombination = 0) const;
   inline float local_depth_variance(int iCombination = 0) const;
   inline real local_average_density(float sigma = 2.3f, int iCombination = 0) const;
-  inline Vec3r shaded_color(int iCombination = 0) const
-  {
-  }
+  inline Vec3r shaded_color(int iCombination = 0) const {}
 #endif
 
   int viewedge_nature() const;
@@ -954,9 +948,7 @@ class FEdge : public Interface1D {
    */
   virtual inline Interface0DIterator pointsEnd(float t = 0.0f);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:FEdge")
-#endif
 };
 
 //
@@ -1267,9 +1259,7 @@ class FEdgeSharp : public FEdge {
     _bFaceMark = iFaceMark;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:FEdgeSharp")
-#endif
 };
 
 /** Class defining a smooth edge. This kind of edge typically runs across a face of the input mesh.
@@ -1382,9 +1372,7 @@ class FEdgeSmooth : public FEdge {
     _FrsMaterialIndex = i;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:FEdgeSmooth")
-#endif
 };
 
 /**********************************/
@@ -1862,7 +1850,7 @@ class SShape {
     return _BBox;
   }
 
-  /** Returns the ith material of the shape. */
+  /** Returns the i-th material of the shape. */
   inline const FrsMaterial &frs_material(uint i) const
   {
     return _FrsMaterials[i];
@@ -1937,9 +1925,7 @@ class SShape {
     _importance = importance;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:SShape")
-#endif
 };
 
 } /* namespace Freestyle */

@@ -1,7 +1,15 @@
+/* SPDX-FileCopyrightText: 2018-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 /**
  * Simple shader that just draw multiple icons at the specified locations
  * does not need any vertex input (producing less call to immBegin/End)
  */
+
+#include "infos/gpu_shader_icon_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(gpu_shader_icon_multi)
 
 void main()
 {

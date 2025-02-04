@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,9 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 
 #include "GHOST_C-api.h"
@@ -22,7 +24,9 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "wm_xr_intern.h"
+#include "wm_xr_intern.hh"
+
+#include <cstring>
 
 /* -------------------------------------------------------------------- */
 /** \name XR-Action API
@@ -538,4 +542,4 @@ void WM_xr_haptic_action_stop(wmXrData *xr,
   GHOST_XrStopHapticAction(xr->runtime->context, action_set_name, action_name, subaction_path);
 }
 
-/** \} */ /* XR-Action API */
+/** \} */ /* XR-Action API. */

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,9 +13,7 @@
 
 #include "../geometry/Geom.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 #include "DNA_material_types.h"  // for MAX_MTEX
 struct bNodeTree;
@@ -25,7 +23,7 @@ namespace Freestyle {
 using namespace Geometry;
 
 #if 0
-//symbolic constant to call the appropriate renderers and textures
+// symbolic constant to call the appropriate renderers and textures
 #  define NO_TEXTURE_WITH_BLEND_STROKE -2
 #  define NO_TEXTURE_STROKE -1
 #  define PSEUDO_CHARCOAL_STROKE 0
@@ -113,9 +111,7 @@ class StrokeVertexRep {
   Vec3r _color;
   float _alpha;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:StrokeVertexRep")
-#endif
 };
 
 class Strip {
@@ -156,9 +152,7 @@ class Strip {
     return _vertices;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Strip")
-#endif
 };
 
 class StrokeRep {
@@ -255,9 +249,7 @@ class StrokeRep {
   }
 #endif
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:StrokeRep")
-#endif
 };
 
 } /* namespace Freestyle */

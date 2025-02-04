@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -23,18 +23,17 @@ namespace blender::deg {
  */
 
 class FromIDsBuilderPipeline : public AbstractBuilderPipeline {
+  Span<ID *> ids_;
+
  public:
   FromIDsBuilderPipeline(::Depsgraph *graph, Span<ID *> ids);
 
  protected:
-  virtual unique_ptr<DepsgraphNodeBuilder> construct_node_builder() override;
-  virtual unique_ptr<DepsgraphRelationBuilder> construct_relation_builder() override;
+  std::unique_ptr<DepsgraphNodeBuilder> construct_node_builder() override;
+  std::unique_ptr<DepsgraphRelationBuilder> construct_relation_builder() override;
 
-  virtual void build_nodes(DepsgraphNodeBuilder &node_builder) override;
-  virtual void build_relations(DepsgraphRelationBuilder &relation_builder) override;
-
- private:
-  Span<ID *> ids_;
+  void build_nodes(DepsgraphNodeBuilder &node_builder) override;
+  void build_relations(DepsgraphRelationBuilder &relation_builder) override;
 };
 
 }  // namespace blender::deg

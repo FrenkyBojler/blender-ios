@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -20,8 +20,8 @@ class AllObjectsBuilderPipeline : public ViewLayerBuilderPipeline {
   AllObjectsBuilderPipeline(::Depsgraph *graph);
 
  protected:
-  virtual unique_ptr<DepsgraphNodeBuilder> construct_node_builder() override;
-  virtual unique_ptr<DepsgraphRelationBuilder> construct_relation_builder() override;
+  std::unique_ptr<DepsgraphNodeBuilder> construct_node_builder() override;
+  std::unique_ptr<DepsgraphRelationBuilder> construct_relation_builder() override;
 };
 
 }  // namespace blender::deg

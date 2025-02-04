@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,48 +6,40 @@
  * \ingroup modifiers
  */
 
+#include <algorithm>
+
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_deform.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
-
-#include "DEG_depsgraph_query.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 
 #define BEND_EPS 0.000001f
 
-ALIGN_STRUCT struct DeformUserData {
+BLI_ALIGN_STRUCT struct DeformUserData {
   bool invert_vgroup;
   char mode;
   char deform_axis;
   int lock_axis;
   int vgroup;
   int limit_axis;
-  float weight;
   float smd_factor;
   float smd_limit[2];
   float (*vertexCos)[3];
@@ -79,17 +71,15 @@ BLI_INLINE void copy_v3_v3_unmap(float a[3], const float b[3], const uint map[3]
   a[map[2]] = b[2];
 }
 
-/* Clamps/Limits the given coordinate to:  limits[0] <= co[axis] <= limits[1]
- * The amount of clamp is saved on dcut */
+/**
+ * Clamps/Limits the given coordinate to: limits[0] <= co[axis] <= limits[1]
+ * The amount of clamp is saved on `dcut`.
+ */
 static void axis_limit(const int axis, const float limits[2], float co[3], float dcut[3])
 {
   float val = co[axis];
-  if (limits[0] > val) {
-    val = limits[0];
-  }
-  if (limits[1] < val) {
-    val = limits[1];
-  }
+  val = std::max(limits[0], val);
+  val = std::min(limits[1], val);
 
   dcut[axis] = co[axis] - val;
   co[axis] = val;
@@ -296,7 +286,7 @@ static void SimpleDeformModifier_do(SimpleDeformModifierData *smd,
   const MDeformVert *dvert;
 
   /* This is historically the lock axis, _not_ the deform axis as the name would imply */
-  const int deform_axis = smd->deform_axis;
+  const int deform_axis = std::clamp(int(smd->deform_axis), 0, 2);
   int lock_axis = smd->axis;
   if (smd->mode == MOD_SIMPLEDEFORM_MODE_BEND) { /* Bend mode shouldn't have any lock axis */
     lock_axis = 0;
@@ -320,12 +310,8 @@ static void SimpleDeformModifier_do(SimpleDeformModifierData *smd,
     smd->origin = nullptr; /* No self references */
   }
 
-  if (smd->limit[0] < 0.0f) {
-    smd->limit[0] = 0.0f;
-  }
-  if (smd->limit[0] > 1.0f) {
-    smd->limit[0] = 1.0f;
-  }
+  smd->limit[0] = std::max(smd->limit[0], 0.0f);
+  smd->limit[0] = std::min(smd->limit[0], 1.0f);
 
   smd->limit[0] = min_ff(smd->limit[0], smd->limit[1]); /* Upper limit >= than lower limit */
 
@@ -442,11 +428,15 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         float (*vertexCos)[3],
-                         int verts_num)
+                         blender::MutableSpan<blender::float3> positions)
 {
   SimpleDeformModifierData *sdmd = (SimpleDeformModifierData *)md;
-  SimpleDeformModifier_do(sdmd, ctx, ctx->object, mesh, vertexCos, verts_num);
+  SimpleDeformModifier_do(sdmd,
+                          ctx,
+                          ctx->object,
+                          mesh,
+                          reinterpret_cast<float(*)[3]>(positions.data()),
+                          positions.size());
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -460,19 +450,19 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   int deform_method = RNA_enum_get(ptr, "deform_method");
 
   row = uiLayoutRow(layout, false);
-  uiItemR(row, ptr, "deform_method", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "deform_method", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
   if (ELEM(deform_method, MOD_SIMPLEDEFORM_MODE_TAPER, MOD_SIMPLEDEFORM_MODE_STRETCH)) {
-    uiItemR(layout, ptr, "factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    uiItemR(layout, ptr, "angle", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  uiItemR(layout, ptr, "origin", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "deform_axis", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "origin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
@@ -490,7 +480,7 @@ static void restrictions_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "limits", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "limits", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   if (ELEM(deform_method,
            MOD_SIMPLEDEFORM_MODE_TAPER,
@@ -501,17 +491,17 @@ static void restrictions_panel_draw(const bContext * /*C*/, Panel *panel)
 
     row = uiLayoutRowWithHeading(layout, true, IFACE_("Lock"));
     if (deform_axis != 0) {
-      uiItemR(row, ptr, "lock_x", toggles_flag, nullptr, ICON_NONE);
+      uiItemR(row, ptr, "lock_x", toggles_flag, std::nullopt, ICON_NONE);
     }
     if (deform_axis != 1) {
-      uiItemR(row, ptr, "lock_y", toggles_flag, nullptr, ICON_NONE);
+      uiItemR(row, ptr, "lock_y", toggles_flag, std::nullopt, ICON_NONE);
     }
     if (deform_axis != 2) {
-      uiItemR(row, ptr, "lock_z", toggles_flag, nullptr, ICON_NONE);
+      uiItemR(row, ptr, "lock_z", toggles_flag, std::nullopt, ICON_NONE);
     }
   }
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -528,7 +518,7 @@ ModifierTypeInfo modifierType_SimpleDeform = {
     /*struct_name*/ "SimpleDeformModifierData",
     /*struct_size*/ sizeof(SimpleDeformModifierData),
     /*srna*/ &RNA_SimpleDeformModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
 
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_AcceptsVertexCosOnly | eModifierTypeFlag_SupportsEditmode |
@@ -557,4 +547,5 @@ ModifierTypeInfo modifierType_SimpleDeform = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

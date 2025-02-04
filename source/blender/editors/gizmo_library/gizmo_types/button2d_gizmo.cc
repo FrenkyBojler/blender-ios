@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,37 +16,34 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
+#include "BLI_math_color.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector_types.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
-#include "GPU_batch.h"
-#include "GPU_batch_utils.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_select.h"
-#include "GPU_state.h"
+#include "GPU_batch.hh"
+#include "GPU_batch_utils.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_select.hh"
+#include "GPU_state.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "ED_gizmo_library.hh"
-#include "ED_screen.hh"
 #include "ED_view3d.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
-#include "UI_resources.hh"
 
 /* own includes */
-#include "../gizmo_geometry.h"
-#include "../gizmo_library_intern.h"
+#include "../gizmo_library_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Types
@@ -57,7 +54,7 @@ struct ButtonGizmo2D {
   bool is_init;
   /* Use an icon or shape */
   int icon;
-  GPUBatch *shape_batch[2];
+  blender::gpu::Batch *shape_batch[2];
 };
 
 /** \} */
@@ -230,7 +227,7 @@ static void button2d_draw_intern(const bContext *C,
            * Use a low value instead of 50% so some darker primary colors
            * aren't considered being close to black. */
           float color_contrast[4];
-          copy_v3_fl(color_contrast, rgb_to_grayscale(color) < 0.2f ? 1 : 0);
+          copy_v3_fl(color_contrast, srgb_to_grayscale(color) < 0.2f ? 1 : 0);
           color_contrast[3] = color[3];
           GPU_shader_uniform_4f(button->shape_batch[i]->shader, "color", UNPACK4(color_contrast));
         }
@@ -401,7 +398,7 @@ static void GIZMO_GT_button_2d(wmGizmoType *gzt)
   gzt->struct_size = sizeof(ButtonGizmo2D);
 
   /* rna */
-  static EnumPropertyItem rna_enum_draw_options[] = {
+  static const EnumPropertyItem rna_enum_draw_options[] = {
       {ED_GIZMO_BUTTON_SHOW_OUTLINE, "OUTLINE", 0, "Outline", ""},
       {ED_GIZMO_BUTTON_SHOW_BACKDROP, "BACKDROP", 0, "Backdrop", ""},
       {ED_GIZMO_BUTTON_SHOW_HELPLINE, "HELPLINE", 0, "Help Line", ""},

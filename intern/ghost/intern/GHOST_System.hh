@@ -47,20 +47,12 @@ class GHOST_System : public GHOST_ISystem {
    * Destructor.
    * Protected default constructor to force use of static dispose member.
    */
-  virtual ~GHOST_System();
+  ~GHOST_System() override;
 
  public:
   /***************************************************************************************
    * Time(r) functionality
    ***************************************************************************************/
-
-  /**
-   * Returns the system time.
-   * Returns the number of milliseconds since the start of the system process.
-   * Based on ANSI clock() routine.
-   * \return The number of milliseconds.
-   */
-  virtual uint64_t getMilliSeconds() const;
 
   /**
    * Installs a timer.
@@ -77,14 +69,14 @@ class GHOST_System : public GHOST_ISystem {
   GHOST_ITimerTask *installTimer(uint64_t delay,
                                  uint64_t interval,
                                  GHOST_TimerProcPtr timerProc,
-                                 GHOST_TUserDataPtr userData = nullptr);
+                                 GHOST_TUserDataPtr userData = nullptr) override;
 
   /**
    * Removes a timer.
    * \param timerTask: Timer task to be removed.
    * \return Indication of success.
    */
-  GHOST_TSuccess removeTimer(GHOST_ITimerTask *timerTask);
+  GHOST_TSuccess removeTimer(GHOST_ITimerTask *timerTask) override;
 
   /***************************************************************************************
    * Display/window management functionality
@@ -95,21 +87,21 @@ class GHOST_System : public GHOST_ISystem {
    * \param window: Pointer to the window to be disposed.
    * \return Indication of success.
    */
-  GHOST_TSuccess disposeWindow(GHOST_IWindow *window);
+  GHOST_TSuccess disposeWindow(GHOST_IWindow *window) override;
 
   /**
    * Create a new off-screen context.
    * Never explicitly delete the context, use #disposeContext() instead.
    * \return The new context (or 0 if creation failed).
    */
-  virtual GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpuSettings) = 0;
+  GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpuSettings) override = 0;
 
   /**
    * Returns whether a window is valid.
    * \param window: Pointer to the window to be checked.
    * \return Indication of validity.
    */
-  bool validWindow(GHOST_IWindow *window);
+  bool validWindow(GHOST_IWindow *window) override;
 
   /**
    * Begins full screen mode.
@@ -121,7 +113,7 @@ class GHOST_System : public GHOST_ISystem {
    */
   GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
                                  GHOST_IWindow **window,
-                                 const bool stereoVisual);
+                                 const bool stereoVisual) override;
 
   /**
    * Updates the resolution while in full-screen mode.
@@ -130,38 +122,39 @@ class GHOST_System : public GHOST_ISystem {
    *
    * \return Indication of success.
    */
-  GHOST_TSuccess updateFullScreen(const GHOST_DisplaySetting &setting, GHOST_IWindow **window);
+  GHOST_TSuccess updateFullScreen(const GHOST_DisplaySetting &setting,
+                                  GHOST_IWindow **window) override;
 
   /**
    * Ends full screen mode.
    * \return Indication of success.
    */
-  GHOST_TSuccess endFullScreen();
+  GHOST_TSuccess endFullScreen() override;
 
   /**
    * Returns current full screen mode status.
    * \return The current status.
    */
-  bool getFullScreen();
+  bool getFullScreen() override;
 
   /**
    * Native pixel size support (MacBook 'retina').
    * \return The pixel size in float.
    */
-  bool useNativePixel();
+  bool useNativePixel() override;
   bool m_nativePixel;
 
   /**
    * Focus window after opening, or put them in the background.
    */
-  void useWindowFocus(const bool use_focus);
+  void useWindowFocus(const bool use_focus) override;
 
   bool m_windowFocus;
 
   /**
    * Focus and raise windows on mouse hover.
    */
-  void setAutoFocus(const bool auto_focus);
+  void setAutoFocus(const bool auto_focus) override;
   bool m_autoFocus;
 
   /**
@@ -170,7 +163,7 @@ class GHOST_System : public GHOST_ISystem {
    * \param y: The y-coordinate of the cursor.
    * \return The window under the cursor or nullptr if none.
    */
-  GHOST_IWindow *getWindowUnderCursor(int32_t x, int32_t y);
+  GHOST_IWindow *getWindowUnderCursor(int32_t x, int32_t y) override;
 
   /***************************************************************************************
    * Event management functionality
@@ -186,21 +179,21 @@ class GHOST_System : public GHOST_ISystem {
    * Dispatches all the events on the stack.
    * The event stack will be empty afterwards.
    */
-  void dispatchEvents();
+  void dispatchEvents() override;
 
   /**
    * Adds the given event consumer to our list.
    * \param consumer: The event consumer to add.
    * \return Indication of success.
    */
-  GHOST_TSuccess addEventConsumer(GHOST_IEventConsumer *consumer);
+  GHOST_TSuccess addEventConsumer(GHOST_IEventConsumer *consumer) override;
 
   /**
    * Remove the given event consumer to our list.
    * \param consumer: The event consumer to remove.
    * \return Indication of success.
    */
-  GHOST_TSuccess removeEventConsumer(GHOST_IEventConsumer *consumer);
+  GHOST_TSuccess removeEventConsumer(GHOST_IEventConsumer *consumer) override;
 
   /***************************************************************************************
    * Cursor management functionality
@@ -212,8 +205,10 @@ class GHOST_System : public GHOST_ISystem {
 
   GHOST_TSuccess getCursorPositionClientRelative(const GHOST_IWindow *window,
                                                  int32_t &x,
-                                                 int32_t &y) const;
-  GHOST_TSuccess setCursorPositionClientRelative(GHOST_IWindow *window, int32_t x, int32_t y);
+                                                 int32_t &y) const override;
+  GHOST_TSuccess setCursorPositionClientRelative(GHOST_IWindow *window,
+                                                 int32_t x,
+                                                 int32_t y) override;
 
   /**
    * Inherited from GHOST_ISystem but left pure virtual
@@ -233,7 +228,7 @@ class GHOST_System : public GHOST_ISystem {
    * \param isDown: The state of a modifier key (true == pressed).
    * \return Indication of success.
    */
-  GHOST_TSuccess getModifierKeyState(GHOST_TModifierKey mask, bool &isDown) const;
+  GHOST_TSuccess getModifierKeyState(GHOST_TModifierKey mask, bool &isDown) const override;
 
   /**
    * Returns the state of a mouse button (outside the message queue).
@@ -241,20 +236,27 @@ class GHOST_System : public GHOST_ISystem {
    * \param isDown: Button state.
    * \return Indication of success.
    */
-  GHOST_TSuccess getButtonState(GHOST_TButton mask, bool &isDown) const;
+  GHOST_TSuccess getButtonState(GHOST_TButton mask, bool &isDown) const override;
 
   /**
    * Enable multi-touch gestures if supported.
    * \param use: Enable or disable.
    */
-  void setMultitouchGestures(const bool use);
+  void setMultitouchGestures(const bool use) override;
 
   /**
    * Set which tablet API to use. Only affects Windows, other platforms have a single API.
    * \param api: Enum indicating which API to use.
    */
-  virtual void setTabletAPI(GHOST_TTabletAPI api);
-  GHOST_TTabletAPI getTabletAPI(void);
+  void setTabletAPI(GHOST_TTabletAPI api) override;
+  GHOST_TTabletAPI getTabletAPI();
+
+  /**
+   * Get the color of the pixel at the current mouse cursor location
+   * \param r_color: returned sRGB float colors
+   * \return Success value (true == successful and supported by platform)
+   */
+  GHOST_TSuccess getPixelAtCursor(float r_color[3]) const override;
 
 #ifdef WITH_INPUT_NDOF
   /***************************************************************************************
@@ -265,7 +267,7 @@ class GHOST_System : public GHOST_ISystem {
    * Sets 3D mouse dead-zone
    * \param deadzone: Dead-zone of the 3D mouse (both for rotation and pan) relative to full range.
    */
-  void setNDOFDeadZone(float deadzone);
+  void setNDOFDeadZone(float deadzone) override;
 #endif
 
   /***************************************************************************************
@@ -278,7 +280,7 @@ class GHOST_System : public GHOST_ISystem {
    * Do not delete the event!
    * \param event: The event to push on the stack.
    */
-  GHOST_TSuccess pushEvent(GHOST_IEvent *event);
+  GHOST_TSuccess pushEvent(const GHOST_IEvent *event);
 
   /**
    * \return The timer manager.
@@ -320,21 +322,20 @@ class GHOST_System : public GHOST_ISystem {
    * Returns the selection buffer
    * \param selection: Only used on X11.
    * \return Returns the clipboard data
-   *
    */
-  virtual char *getClipboard(bool selection) const = 0;
+  char *getClipboard(bool selection) const override = 0;
 
   /**
    * Put data to the Clipboard
    * \param buffer: The buffer to copy to the clipboard.
    * \param selection: The clipboard to copy too only used on X11.
    */
-  virtual void putClipboard(const char *buffer, bool selection) const = 0;
+  void putClipboard(const char *buffer, bool selection) const override = 0;
 
   /**
    * Returns GHOST_kSuccess if the clipboard contains an image.
    */
-  GHOST_TSuccess hasClipboardImage(void) const;
+  GHOST_TSuccess hasClipboardImage() const override;
 
   /**
    * Get image data from the Clipboard
@@ -342,7 +343,7 @@ class GHOST_System : public GHOST_ISystem {
    * \param r_height: the returned image height in pixels.
    * \return pointer uint array in RGBA byte order. Caller must free.
    */
-  uint *getClipboardImage(int *r_width, int *r_height) const;
+  uint *getClipboardImage(int *r_width, int *r_height) const override;
 
   /**
    * Put image data to the Clipboard
@@ -350,7 +351,7 @@ class GHOST_System : public GHOST_ISystem {
    * \param width: the image width in pixels.
    * \param height: the image height in pixels.
    */
-  GHOST_TSuccess putClipboardImage(uint *rgba, int width, int height) const;
+  GHOST_TSuccess putClipboardImage(uint *rgba, int width, int height) const override;
 
   /**
    * Show a system message box
@@ -361,12 +362,12 @@ class GHOST_System : public GHOST_ISystem {
    * \param link: An optional hyperlink.
    * \param dialog_options: Options  how to display the message.
    */
-  virtual GHOST_TSuccess showMessageBox(const char * /*title*/,
-                                        const char * /*message*/,
-                                        const char * /*help_label*/,
-                                        const char * /*continue_label*/,
-                                        const char * /*link*/,
-                                        GHOST_DialogOptions /*dialog_options*/) const
+  GHOST_TSuccess showMessageBox(const char * /*title*/,
+                                const char * /*message*/,
+                                const char * /*help_label*/,
+                                const char * /*continue_label*/,
+                                const char * /*link*/,
+                                GHOST_DialogOptions /*dialog_options*/) const override
   {
     return GHOST_kFailure;
   };
@@ -379,25 +380,25 @@ class GHOST_System : public GHOST_ISystem {
    * Specify whether debug messages are to be shown.
    * \param debug: Flag for systems to debug.
    */
-  virtual void initDebug(GHOST_Debug debug);
+  void initDebug(GHOST_Debug debug) override;
 
   /**
    * Check whether debug messages are to be shown.
    */
-  virtual bool isDebugEnabled();
+  bool isDebugEnabled() override;
 
  protected:
   /**
    * Initialize the system.
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess init();
+  GHOST_TSuccess init() override;
 
   /**
    * Shut the system down.
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess exit();
+  GHOST_TSuccess exit() override;
 
   /**
    * Creates a full-screen window.

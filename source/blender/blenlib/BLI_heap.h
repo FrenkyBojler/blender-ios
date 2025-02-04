@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,7 +9,10 @@
  * \brief A min-heap / priority queue ADT
  */
 
-#include "BLI_math.h"
+#include <stdbool.h>
+#include <stddef.h>
+
+#include "BLI_compiler_attrs.h"
 
 #ifdef __cplusplus
 extern "C" {

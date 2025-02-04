@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,104 +11,139 @@
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
+#include "GPU_context.hh"
+#include "GPU_platform.hh"
 
-#include "GPU_context.h"
-#include "GPU_platform.h"
-
-#include "gpu_py.h"
-#include "gpu_py_platform.h" /* Own include. */
+#include "gpu_py.hh"
+#include "gpu_py_platform.hh" /* Own include. */
 
 /* -------------------------------------------------------------------- */
 /** \name Functions
  * \{ */
 
-PyDoc_STRVAR(pygpu_platform_vendor_get_doc,
-             ".. function:: vendor_get()\n"
-             "\n"
-             "   Get GPU vendor.\n"
-             "\n"
-             "   :return: Vendor name.\n"
-             "   :rtype: str\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_platform_vendor_get_doc,
+    ".. function:: vendor_get()\n"
+    "\n"
+    "   Get GPU vendor.\n"
+    "\n"
+    "   :return: Vendor name.\n"
+    "   :rtype: str\n");
 static PyObject *pygpu_platform_vendor_get(PyObject * /*self*/)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   return PyUnicode_FromString(GPU_platform_vendor());
 }
 
-PyDoc_STRVAR(pygpu_platform_renderer_get_doc,
-             ".. function:: renderer_get()\n"
-             "\n"
-             "   Get GPU to be used for rendering.\n"
-             "\n"
-             "   :return: GPU name.\n"
-             "   :rtype: str\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_platform_renderer_get_doc,
+    ".. function:: renderer_get()\n"
+    "\n"
+    "   Get GPU to be used for rendering.\n"
+    "\n"
+    "   :return: GPU name.\n"
+    "   :rtype: str\n");
 static PyObject *pygpu_platform_renderer_get(PyObject * /*self*/)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   return PyUnicode_FromString(GPU_platform_renderer());
 }
 
-PyDoc_STRVAR(pygpu_platform_version_get_doc,
-             ".. function:: version_get()\n"
-             "\n"
-             "   Get GPU driver version.\n"
-             "\n"
-             "   :return: Driver version.\n"
-             "   :rtype: str\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_platform_version_get_doc,
+    ".. function:: version_get()\n"
+    "\n"
+    "   Get GPU driver version.\n"
+    "\n"
+    "   :return: Driver version.\n"
+    "   :rtype: str\n");
 static PyObject *pygpu_platform_version_get(PyObject * /*self*/)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   return PyUnicode_FromString(GPU_platform_version());
 }
 
 PyDoc_STRVAR(
+    /* Wrap. */
     pygpu_platform_device_type_get_doc,
     ".. function:: device_type_get()\n"
     "\n"
     "   Get GPU device type.\n"
     "\n"
-    "   :return: Device type ('APPLE', 'NVIDIA', 'AMD', 'INTEL', 'SOFTWARE', 'UNKNOWN').\n"
+    "   :return: Device type ('APPLE', 'NVIDIA', 'AMD', 'INTEL', 'SOFTWARE', 'QUALCOMM', "
+    "'UNKNOWN').\n"
     "   :rtype: str\n");
 static PyObject *pygpu_platform_device_type_get(PyObject * /*self*/)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
+  const char *device;
   if (GPU_type_matches(GPU_DEVICE_APPLE, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    return PyUnicode_FromString("APPLE");
+    device = "APPLE";
   }
-  if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    return PyUnicode_FromString("NVIDIA");
+  else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    device = "NVIDIA";
   }
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    return PyUnicode_FromString("AMD");
+  else if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    device = "AMD";
   }
-  if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    return PyUnicode_FromString("INTEL");
+  else if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    device = "INTEL";
   }
-  if (GPU_type_matches(GPU_DEVICE_SOFTWARE, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    return PyUnicode_FromString("SOFTWARE");
+  else if (GPU_type_matches(GPU_DEVICE_SOFTWARE, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    device = "SOFTWARE";
   }
-  return PyUnicode_FromString("UNKNOWN");
+  /* Right now we can only detect Qualcomm GPUs on Windows, not other OSes */
+  else if (GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY)) {
+    device = "QUALCOMM";
+  }
+  else {
+    device = "UNKNOWN";
+  }
+  return PyUnicode_FromString(device);
 }
 
-PyDoc_STRVAR(pygpu_platform_backend_type_get_doc,
-             ".. function:: backend_type_get()\n"
-             "\n"
-             "   Get actuve GPU backend.\n"
-             "\n"
-             "   :return: Backend type ('OPENGL', 'VULKAN', 'METAL', 'NONE', 'UNKNOWN').\n"
-             "   :rtype: str\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_platform_backend_type_get_doc,
+    ".. function:: backend_type_get()\n"
+    "\n"
+    "   Get actuve GPU backend.\n"
+    "\n"
+    "   :return: Backend type ('OPENGL', 'VULKAN', 'METAL', 'NONE', 'UNKNOWN').\n"
+    "   :rtype: str\n");
 static PyObject *pygpu_platform_backend_type_get(PyObject * /*self*/)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
+  const char *backend = "UNKNOWN";
   switch (GPU_backend_get_type()) {
-    case GPU_BACKEND_VULKAN:
-      return PyUnicode_FromString("VULKAN");
-    case GPU_BACKEND_METAL:
-      return PyUnicode_FromString("METAL");
-    case GPU_BACKEND_NONE:
-      return PyUnicode_FromString("NONE");
-    case GPU_BACKEND_OPENGL:
-      return PyUnicode_FromString("OPENGL");
+    case GPU_BACKEND_VULKAN: {
+      backend = "VULKAN";
+      break;
+    }
+    case GPU_BACKEND_METAL: {
+      backend = "METAL";
+      break;
+    }
+    case GPU_BACKEND_NONE: {
+      backend = "NONE";
+      break;
+    }
+    case GPU_BACKEND_OPENGL: {
+      backend = "OPENGL";
+      break;
+    }
     case GPU_BACKEND_ANY:
       break;
   }
-  return PyUnicode_FromString("UNKNOWN");
+  return PyUnicode_FromString(backend);
 }
 
 /** \} */
@@ -150,7 +185,10 @@ static PyMethodDef pygpu_platform__tp_methods[] = {
 #  pragma GCC diagnostic pop
 #endif
 
-PyDoc_STRVAR(pygpu_platform__tp_doc, "This module provides access to GPU Platform definitions.");
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_platform__tp_doc,
+    "This module provides access to GPU Platform definitions.");
 static PyModuleDef pygpu_platform_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "gpu.platform",
@@ -167,7 +205,7 @@ PyObject *bpygpu_platform_init()
 {
   PyObject *submodule;
 
-  submodule = bpygpu_create_module(&pygpu_platform_module_def);
+  submodule = PyModule_Create(&pygpu_platform_module_def);
 
   return submodule;
 }

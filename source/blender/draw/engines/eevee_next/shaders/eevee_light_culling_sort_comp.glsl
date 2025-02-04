@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
  * Sort the lights by their Z distance to the camera.
@@ -5,7 +8,11 @@
  * One thread processes one Light entity.
  */
 
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+#include "infos/eevee_light_culling_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_light_culling_sort)
+
+#include "gpu_shader_math_base_lib.glsl"
 
 shared float zdists_cache[gl_WorkGroupSize.x];
 
@@ -52,6 +59,8 @@ void main()
         }
       }
     }
+
+    barrier();
   }
 
   if (valid_thread) {

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,13 +8,8 @@
  * Query functions for area/region.
  */
 
-#include "DNA_userdef_types.h"
-
-#include "BLI_blenlib.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
-
-#include "RNA_types.h"
 
 #include "ED_screen.hh"
 

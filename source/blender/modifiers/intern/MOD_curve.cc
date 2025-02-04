@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Foundation
+/* SPDX-FileCopyrightText: 2005 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,36 +10,27 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_curve.hh"
+#include "BKE_deform.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 
@@ -102,8 +93,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         float (*vertexCos)[3],
-                         int verts_num)
+                         blender::MutableSpan<blender::float3> positions)
 {
   CurveModifierData *cmd = (CurveModifierData *)md;
 
@@ -113,26 +103,25 @@ static void deform_verts(ModifierData *md,
 
   /* Silly that defaxis and BKE_curve_deform_coords are off by 1
    * but leave for now to save having to call do_versions */
-
+  const int defaxis = std::clamp(cmd->defaxis - 1, 0, 5);
   BKE_curve_deform_coords(cmd->object,
                           ctx->object,
-                          vertexCos,
-                          verts_num,
+                          reinterpret_cast<float(*)[3]>(positions.data()),
+                          positions.size(),
                           dvert,
                           defgrp_index,
                           cmd->flag,
-                          cmd->defaxis - 1);
+                          defaxis);
 }
 
 static void deform_verts_EM(ModifierData *md,
                             const ModifierEvalContext *ctx,
-                            BMEditMesh *em,
+                            const BMEditMesh *em,
                             Mesh *mesh,
-                            float (*vertexCos)[3],
-                            int verts_num)
+                            blender::MutableSpan<blender::float3> positions)
 {
   if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_MDATA) {
-    deform_verts(md, ctx, mesh, vertexCos, verts_num);
+    deform_verts(md, ctx, mesh, positions);
     return;
   }
 
@@ -147,25 +136,26 @@ static void deform_verts_EM(ModifierData *md,
     }
   }
 
+  const int defaxis = std::clamp(cmd->defaxis - 1, 0, 5);
   if (use_dverts) {
     BKE_curve_deform_coords_with_editmesh(cmd->object,
                                           ctx->object,
-                                          vertexCos,
-                                          verts_num,
+                                          reinterpret_cast<float(*)[3]>(positions.data()),
+                                          positions.size(),
                                           defgrp_index,
                                           cmd->flag,
-                                          cmd->defaxis - 1,
+                                          defaxis,
                                           em);
   }
   else {
     BKE_curve_deform_coords(cmd->object,
                             ctx->object,
-                            vertexCos,
-                            verts_num,
+                            reinterpret_cast<float(*)[3]>(positions.data()),
+                            positions.size(),
                             nullptr,
                             defgrp_index,
                             cmd->flag,
-                            cmd->defaxis - 1);
+                            defaxis);
   }
 }
 
@@ -179,9 +169,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   uiItemR(layout, ptr, "object", UI_ITEM_NONE, IFACE_("Curve Object"), ICON_NONE);
-  uiItemR(layout, ptr, "deform_axis", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "deform_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   modifier_panel_end(layout, ptr);
 }
@@ -197,7 +187,7 @@ ModifierTypeInfo modifierType_Curve = {
     /*struct_name*/ "CurveModifierData",
     /*struct_size*/ sizeof(CurveModifierData),
     /*srna*/ &RNA_CurveModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_CURVE,
@@ -224,4 +214,5 @@ ModifierTypeInfo modifierType_Curve = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

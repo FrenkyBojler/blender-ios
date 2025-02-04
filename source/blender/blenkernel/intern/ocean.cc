@@ -9,6 +9,7 @@
  * OpenMP hints by Christian Schnellhammer
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 
@@ -19,19 +20,19 @@
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math.h"
-#include "BLI_path_util.h"
+#include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rand.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_ocean.h"
 #include "ocean_intern.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "RE_texture.h"
 
@@ -56,8 +57,8 @@ static float gaussRand(RNG *rng)
   float length2;
 
   do {
-    x = float(nextfr(rng, -1, 1));
-    y = float(nextfr(rng, -1, 1));
+    x = nextfr(rng, -1, 1);
+    y = nextfr(rng, -1, 1);
     length2 = x * x + y * y;
   } while (length2 >= 1 || length2 == 0);
 
@@ -715,9 +716,7 @@ static void set_height_normalize_factor(Ocean *oc)
 
   for (i = 0; i < oc->_M; i++) {
     for (j = 0; j < oc->_N; j++) {
-      if (max_h < fabs(oc->_disp_y[i * oc->_N + j])) {
-        max_h = fabs(oc->_disp_y[i * oc->_N + j]);
-      }
+      max_h = std::max<double>(max_h, fabs(oc->_disp_y[i * oc->_N + j]));
     }
   }
 
@@ -930,37 +929,34 @@ bool BKE_ocean_init(Ocean *o,
         case MOD_OCEAN_SPECTRUM_JONSWAP:
           mul_complex_f(o->_h0[i * o->_N + j],
                         r1r2,
-                        float(sqrt(BLI_ocean_spectrum_jonswap(o, o->_kx[i], o->_kz[j]) / 2.0f)));
+                        sqrt(BLI_ocean_spectrum_jonswap(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(o->_h0_minus[i * o->_N + j],
                         r1r2,
-                        float(sqrt(BLI_ocean_spectrum_jonswap(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+                        sqrt(BLI_ocean_spectrum_jonswap(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
         case MOD_OCEAN_SPECTRUM_TEXEL_MARSEN_ARSLOE:
           mul_complex_f(
               o->_h0[i * o->_N + j],
               r1r2,
-              float(sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, o->_kx[i], o->_kz[j]) / 2.0f)));
+              sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(
               o->_h0_minus[i * o->_N + j],
               r1r2,
-              float(sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+              sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
         case MOD_OCEAN_SPECTRUM_PIERSON_MOSKOWITZ:
-          mul_complex_f(
-              o->_h0[i * o->_N + j],
-              r1r2,
-              float(sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, o->_kx[i], o->_kz[j]) / 2.0f)));
+          mul_complex_f(o->_h0[i * o->_N + j],
+                        r1r2,
+                        sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(
               o->_h0_minus[i * o->_N + j],
               r1r2,
-              float(sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+              sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
         default:
+          mul_complex_f(o->_h0[i * o->_N + j], r1r2, sqrt(Ph(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(
-              o->_h0[i * o->_N + j], r1r2, float(sqrt(Ph(o, o->_kx[i], o->_kz[j]) / 2.0f)));
-          mul_complex_f(o->_h0_minus[i * o->_N + j],
-                        r1r2,
-                        float(sqrt(Ph(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+              o->_h0_minus[i * o->_N + j], r1r2, sqrt(Ph(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
       }
     }
@@ -1348,12 +1344,11 @@ OceanCache *BKE_ocean_init_cache(const char *bakepath,
 void BKE_ocean_simulate_cache(OceanCache *och, int frame)
 {
   char filepath[FILE_MAX];
-  int f = frame;
 
   /* ibufs array is zero based, but filenames are based on frame numbers */
   /* still need to clamp frame numbers to valid range of images on disk though */
   CLAMP(frame, och->start, och->end);
-  f = frame - och->start; /* shift to 0 based */
+  const int f = frame - och->start; /* shift to 0 based */
 
   /* if image is already loaded in mem, return */
   if (och->ibufs_disp[f] != nullptr) {
@@ -1499,24 +1494,24 @@ void BKE_ocean_bake(Ocean *o,
 
     /* write the images */
     cache_filepath(filepath, och->bakepath, och->relbase, f, CACHE_TYPE_DISPLACE);
-    if (0 == BKE_imbuf_write(ibuf_disp, filepath, &imf)) {
+    if (false == BKE_imbuf_write(ibuf_disp, filepath, &imf)) {
       printf("Cannot save Displacement File Output to %s\n", filepath);
     }
 
     if (o->_do_jacobian) {
       cache_filepath(filepath, och->bakepath, och->relbase, f, CACHE_TYPE_FOAM);
-      if (0 == BKE_imbuf_write(ibuf_foam, filepath, &imf)) {
+      if (false == BKE_imbuf_write(ibuf_foam, filepath, &imf)) {
         printf("Cannot save Foam File Output to %s\n", filepath);
       }
 
       if (o->_do_spray) {
         cache_filepath(filepath, och->bakepath, och->relbase, f, CACHE_TYPE_SPRAY);
-        if (0 == BKE_imbuf_write(ibuf_spray, filepath, &imf)) {
+        if (false == BKE_imbuf_write(ibuf_spray, filepath, &imf)) {
           printf("Cannot save Spray File Output to %s\n", filepath);
         }
 
         cache_filepath(filepath, och->bakepath, och->relbase, f, CACHE_TYPE_SPRAY_INVERSE);
-        if (0 == BKE_imbuf_write(ibuf_spray_inverse, filepath, &imf)) {
+        if (false == BKE_imbuf_write(ibuf_spray_inverse, filepath, &imf)) {
           printf("Cannot save Spray Inverse File Output to %s\n", filepath);
         }
       }
@@ -1524,7 +1519,7 @@ void BKE_ocean_bake(Ocean *o,
 
     if (o->_do_normals) {
       cache_filepath(filepath, och->bakepath, och->relbase, f, CACHE_TYPE_NORMAL);
-      if (0 == BKE_imbuf_write(ibuf_normal, filepath, &imf)) {
+      if (false == BKE_imbuf_write(ibuf_normal, filepath, &imf)) {
         printf("Cannot save Normal File Output to %s\n", filepath);
       }
     }
@@ -1562,51 +1557,27 @@ float BKE_ocean_jminus_to_foam(float /*jminus*/, float /*coverage*/)
   return 0.0f;
 }
 
-void BKE_ocean_eval_uv(struct Ocean * /*oc*/,
-                       struct OceanResult * /*ocr*/,
-                       float /*u*/,
-                       float /*v*/)
-{
-}
+void BKE_ocean_eval_uv(Ocean * /*oc*/, OceanResult * /*ocr*/, float /*u*/, float /*v*/) {}
 
 /* use catmullrom interpolation rather than linear */
-void BKE_ocean_eval_uv_catrom(struct Ocean * /*oc*/,
-                              struct OceanResult * /*ocr*/,
-                              float /*u*/,
-                              float /*v*/)
-{
-}
+void BKE_ocean_eval_uv_catrom(Ocean * /*oc*/, OceanResult * /*ocr*/, float /*u*/, float /*v*/) {}
 
-void BKE_ocean_eval_xz(struct Ocean * /*oc*/,
-                       struct OceanResult * /*ocr*/,
-                       float /*x*/,
-                       float /*z*/)
-{
-}
+void BKE_ocean_eval_xz(Ocean * /*oc*/, OceanResult * /*ocr*/, float /*x*/, float /*z*/) {}
 
-void BKE_ocean_eval_xz_catrom(struct Ocean * /*oc*/,
-                              struct OceanResult * /*ocr*/,
-                              float /*x*/,
-                              float /*z*/)
-{
-}
+void BKE_ocean_eval_xz_catrom(Ocean * /*oc*/, OceanResult * /*ocr*/, float /*x*/, float /*z*/) {}
 
-void BKE_ocean_eval_ij(struct Ocean * /*oc*/, struct OceanResult * /*ocr*/, int /*i*/, int /*j*/)
-{
-}
+void BKE_ocean_eval_ij(Ocean * /*oc*/, OceanResult * /*ocr*/, int /*i*/, int /*j*/) {}
 
-void BKE_ocean_simulate(struct Ocean * /*o*/, float /*t*/, float /*scale*/, float /*chop_amount*/)
-{
-}
+void BKE_ocean_simulate(Ocean * /*o*/, float /*t*/, float /*scale*/, float /*chop_amount*/) {}
 
-struct Ocean *BKE_ocean_add()
+Ocean *BKE_ocean_add()
 {
   Ocean *oc = static_cast<Ocean *>(MEM_callocN(sizeof(Ocean), "ocean sim data"));
 
   return oc;
 }
 
-bool BKE_ocean_init(struct Ocean * /*o*/,
+bool BKE_ocean_init(Ocean * /*o*/,
                     int /*M*/,
                     int /*N*/,
                     float /*Lx*/,
@@ -1632,9 +1603,9 @@ bool BKE_ocean_init(struct Ocean * /*o*/,
   return false;
 }
 
-void BKE_ocean_free_data(struct Ocean * /*oc*/) {}
+void BKE_ocean_free_data(Ocean * /*oc*/) {}
 
-void BKE_ocean_free(struct Ocean *oc)
+void BKE_ocean_free(Ocean *oc)
 {
   if (!oc) {
     return;
@@ -1644,7 +1615,7 @@ void BKE_ocean_free(struct Ocean *oc)
 
 /* ********* Baking/Caching ********* */
 
-void BKE_ocean_free_cache(struct OceanCache *och)
+void BKE_ocean_free_cache(OceanCache *och)
 {
   if (!och) {
     return;
@@ -1654,12 +1625,12 @@ void BKE_ocean_free_cache(struct OceanCache *och)
 }
 
 void BKE_ocean_cache_eval_uv(
-    struct OceanCache * /*och*/, struct OceanResult * /*ocr*/, int /*f*/, float /*u*/, float /*v*/)
+    OceanCache * /*och*/, OceanResult * /*ocr*/, int /*f*/, float /*u*/, float /*v*/)
 {
 }
 
 void BKE_ocean_cache_eval_ij(
-    struct OceanCache * /*och*/, struct OceanResult * /*ocr*/, int /*f*/, int /*i*/, int /*j*/)
+    OceanCache * /*och*/, OceanResult * /*ocr*/, int /*f*/, int /*i*/, int /*j*/)
 {
 }
 
@@ -1678,10 +1649,10 @@ OceanCache *BKE_ocean_init_cache(const char * /*bakepath*/,
   return och;
 }
 
-void BKE_ocean_simulate_cache(struct OceanCache * /*och*/, int /*frame*/) {}
+void BKE_ocean_simulate_cache(OceanCache * /*och*/, int /*frame*/) {}
 
-void BKE_ocean_bake(struct Ocean * /*o*/,
-                    struct OceanCache * /*och*/,
+void BKE_ocean_bake(Ocean * /*o*/,
+                    OceanCache * /*och*/,
                     void (*update_cb)(void *, float progress, int *cancel),
                     void * /*update_cb_data*/)
 {
@@ -1689,8 +1660,8 @@ void BKE_ocean_bake(struct Ocean * /*o*/,
   (void)update_cb;
 }
 
-bool BKE_ocean_init_from_modifier(struct Ocean * /*ocean*/,
-                                  struct OceanModifierData const * /*omd*/,
+bool BKE_ocean_init_from_modifier(Ocean * /*ocean*/,
+                                  OceanModifierData const * /*omd*/,
                                   int /*resolution*/)
 {
   return true;

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2016 Blender Foundation
+/* SPDX-FileCopyrightText: 2016 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,13 +9,12 @@
 #include "DNA_cachefile_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 const EnumPropertyItem rna_enum_velocity_unit_items[] = {
     {CACHEFILE_VELOCITY_UNIT_SECOND, "SECOND", 0, "Second", ""},
@@ -25,13 +24,14 @@ const EnumPropertyItem rna_enum_velocity_unit_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BLI_math.h"
-#  include "BLI_string.h"
+#  include "BLI_math_base.h"
 
-#  include "BKE_cachefile.h"
+#  include "BKE_cachefile.hh"
+#  include "BKE_context.hh"
+#  include "BKE_report.hh"
 
-#  include "DEG_depsgraph.h"
-#  include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph.hh"
+#  include "DEG_depsgraph_build.hh"
 
 #  include "WM_api.hh"
 #  include "WM_types.hh"
@@ -44,7 +44,7 @@ static void rna_CacheFile_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA
 {
   CacheFile *cache_file = (CacheFile *)ptr->data;
 
-  DEG_id_tag_update(&cache_file->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&cache_file->id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }
 
@@ -52,7 +52,7 @@ static void rna_CacheFileLayer_update(Main * /*bmain*/, Scene * /*scene*/, Point
 {
   CacheFile *cache_file = (CacheFile *)ptr->owner_id;
 
-  DEG_id_tag_update(&cache_file->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&cache_file->id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }
 

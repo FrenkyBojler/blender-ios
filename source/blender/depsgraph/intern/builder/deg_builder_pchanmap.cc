@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2015 Blender Foundation
+/* SPDX-FileCopyrightText: 2015 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,8 +10,6 @@
 
 #include <cstdio>
 #include <cstring>
-
-#include "BLI_utildefines.h"
 
 namespace blender::deg {
 

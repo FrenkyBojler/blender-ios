@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,24 +10,19 @@
  * \brief Preset shapes that can be drawn from any gizmo type.
  */
 
-#include "BLI_math.h"
-
 #include "DNA_object_types.h"
 
-#include "BKE_context.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 
-#include "GPU_matrix.h"
-#include "GPU_select.h"
-
-#include "DEG_depsgraph.h"
+#include "GPU_matrix.hh"
+#include "GPU_select.hh"
 
 #include "WM_types.hh"
 
-#include "ED_view3d.hh"
-
 /* own includes */
-#include "ED_gizmo_library.hh"    /* own include */
-#include "gizmo_library_intern.h" /* own include */
+#include "ED_gizmo_library.hh"     /* own include */
+#include "gizmo_library_intern.hh" /* own include */
 
 /* TODO: this is to be used by RNA. might move to ED_gizmo_library. */
 

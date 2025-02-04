@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
+#include "BLI_assert.h"
 
 struct bTheme;
 
@@ -18,11 +18,20 @@ struct bTheme;
 #define DEF_ICON_COLOR(name) ICON_##name,
 #define DEF_ICON_BLANK(name) ICON_BLANK_##name,
 
-enum BIFIconID {
+/**
+ * Builtin icons with a compile-time icon-id. Dynamically created icons such as preview image
+ * icons get a dynamic icon-id <= #BIFICONID_LAST_STATIC, #BIFIconID can hold both.
+ */
+enum BIFIconID_Static {
 /* ui */
 #include "UI_icons.hh"
-  BIFICONID_LAST,
+  BIFICONID_LAST_STATIC,
 };
+
+/** Type that fits all compile time and dynamic icon-ids. */
+using BIFIconID = int;
+BLI_STATIC_ASSERT(sizeof(BIFIconID_Static) <= sizeof(BIFIconID),
+                  "Expected all builtin icon IDs to fit into `BIFIconID`");
 
 #define BIFICONID_FIRST (ICON_NONE)
 
@@ -47,7 +56,6 @@ enum ThemeColorID {
   TH_TAB_OUTLINE,
 
   TH_HEADER,
-  TH_HEADER_ACTIVE,
   TH_HEADER_TEXT,
   TH_HEADER_TEXT_HI,
 
@@ -82,11 +90,13 @@ enum ThemeColorID {
   TH_OUTLINE_WIDTH,
   TH_OBCENTER_DIA,
   TH_EDGE,
-  TH_EDGE_SELECT,
+  TH_EDGE_SELECT, /* Stands for edge selection, not edge select mode. */
+  TH_EDGE_MODE_SELECT,
   TH_EDGE_SEAM,
   TH_EDGE_FACESEL,
   TH_FACE,
-  TH_FACE_SELECT,
+  TH_FACE_SELECT, /* Stands for face selection, not face select mode. */
+  TH_FACE_MODE_SELECT,
   TH_FACE_RETOPOLOGY,
   TH_FACE_BACK,
   TH_FACE_FRONT,
@@ -96,6 +106,8 @@ enum ThemeColorID {
   TH_FACE_DOT,
   TH_FACEDOT_SIZE,
   TH_CFRAME,
+  TH_FRAME_BEFORE,
+  TH_FRAME_AFTER,
   TH_TIME_SCRUB_BACKGROUND,
   TH_TIME_MARKER_LINE,
   TH_TIME_MARKER_LINE_SELECTED,
@@ -149,6 +161,8 @@ enum ThemeColorID {
   TH_KEYTYPE_JITTER_SELECT,
   TH_KEYTYPE_MOVEHOLD,
   TH_KEYTYPE_MOVEHOLD_SELECT,
+  TH_KEYTYPE_GENERATED,
+  TH_KEYTYPE_GENERATED_SELECT,
 
   TH_KEYBORDER,
   TH_KEYBORDER_SELECT,
@@ -180,6 +194,7 @@ enum ThemeColorID {
 
   TH_NODE_ZONE_SIMULATION,
   TH_NODE_ZONE_REPEAT,
+  TH_NODE_ZONE_FOREACH_GEOMETRY_ELEMENT,
   TH_SIMULATED_FRAMES,
 
   TH_CONSOLE_OUTPUT,
@@ -196,12 +211,15 @@ enum ThemeColorID {
   TH_SEQ_SCENE,
   TH_SEQ_AUDIO,
   TH_SEQ_EFFECT,
+  TH_SEQ_TRANSITION,
   TH_SEQ_META,
   TH_SEQ_TEXT,
   TH_SEQ_PREVIEW,
   TH_SEQ_COLOR,
   TH_SEQ_ACTIVE,
   TH_SEQ_SELECTED,
+  TH_SEQ_TEXT_CURSOR,
+  TH_SEQ_SELECTED_TEXT,
 
   TH_EDGE_SHARP,
   TH_EDITMESH_ACTIVE,
@@ -280,6 +298,7 @@ enum ThemeColorID {
   TH_ICON_MODIFIER,
   TH_ICON_SHADING,
   TH_ICON_FOLDER,
+  TH_ICON_AUTOKEY,
   TH_ICON_FUND,
 
   TH_SCROLL_TEXT,
@@ -300,6 +319,8 @@ enum ThemeColorID {
   TH_WIDGET_TEXT_SELECTION,
   TH_WIDGET_TEXT_HIGHLIGHT,
   TH_EDITOR_OUTLINE,
+  TH_EDITOR_OUTLINE_ACTIVE,
+  TH_EDITOR_BORDER,
 
   TH_TRANSPARENT_CHECKER_PRIMARY,
   TH_TRANSPARENT_CHECKER_SECONDARY,
@@ -444,16 +465,16 @@ bool UI_GetIconThemeColor4ubv(int colorid, unsigned char col[4]);
 /**
  * Shade a 3 byte color (same as UI_GetColorPtrBlendShade3ubv with 0.0 factor).
  */
-void UI_GetColorPtrShade3ubv(const unsigned char cp1[3], unsigned char col[3], int offset);
+void UI_GetColorPtrShade3ubv(const unsigned char cp[3], int offset, unsigned char r_col[3]);
 
 /**
  * Get a 3 byte color, blended and shaded between two other char color pointers.
  */
 void UI_GetColorPtrBlendShade3ubv(const unsigned char cp1[3],
                                   const unsigned char cp2[3],
-                                  unsigned char col[3],
                                   float fac,
-                                  int offset);
+                                  int offset,
+                                  unsigned char r_col[3]);
 
 /**
  * Sets the font color
@@ -480,7 +501,7 @@ bTheme *UI_GetTheme();
  * For the rare case we need to temp swap in a different theme (off-screen render).
  */
 void UI_Theme_Store(bThemeState *theme_state);
-void UI_Theme_Restore(bThemeState *theme_state);
+void UI_Theme_Restore(const bThemeState *theme_state);
 
 /**
  * Return shadow width outside menus and popups.
@@ -492,4 +513,4 @@ int UI_ThemeMenuShadowWidth();
  */
 const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid);
 
-void UI_make_axis_color(const unsigned char src_col[3], unsigned char dst_col[3], char axis);
+void UI_make_axis_color(const unsigned char col[3], char axis, unsigned char r_col[3]);

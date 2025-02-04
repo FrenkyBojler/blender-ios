@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2017-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2017-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -8,7 +8,11 @@
 
 import unittest
 
-from view_layer_common import *
+from view_layer_common import (
+    Clay,
+    ViewLayerTesting,
+    setup_extra_arguments,
+)
 
 
 # ############################################################

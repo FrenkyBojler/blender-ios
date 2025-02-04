@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2009 Blender Foundation
+/* SPDX-FileCopyrightText: 2009 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,6 +9,9 @@
 #pragma once
 
 struct Main;
+struct Scene;
+struct View3D;
+struct ViewLayer;
 struct wmWindowManager;
 
 /* `info_stats.cc` */

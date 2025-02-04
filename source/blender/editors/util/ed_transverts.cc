@@ -16,25 +16,22 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_DerivedMesh.h"
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_editmesh.h"
-#include "BKE_lattice.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_lattice.hh"
 #include "BKE_mesh_iterators.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_armature.hh"
 #include "ED_curves.hh"
 
-#include "ANIM_bone_collections.h"
+#include "ANIM_bone_collections.hh"
 
 #include "ED_transverts.hh" /* own include */
 
@@ -105,7 +102,7 @@ void ED_transverts_update_obedit(TransVertStore *tvs, Object *obedit)
       if (CU_IS_2D(cu)) {
         BKE_nurb_project_2d(nu);
       }
-      BKE_nurb_handles_test(nu, true, false); /* test for bezier too */
+      BKE_nurb_handles_test(nu, NURB_HANDLE_TEST_EACH, false); /* test for bezier too */
       nu = nu->next;
     }
   }
@@ -116,6 +113,9 @@ void ED_transverts_update_obedit(TransVertStore *tvs, Object *obedit)
 
     /* Ensure all bone tails are correctly adjusted */
     LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
+      if (!EBONE_VISIBLE(arm, ebo)) {
+        continue;
+      }
       /* adjust tip if both ends selected */
       if ((ebo->flag & BONE_ROOTSEL) && (ebo->flag & BONE_TIPSEL)) {
         if (tv) {
@@ -136,7 +136,7 @@ void ED_transverts_update_obedit(TransVertStore *tvs, Object *obedit)
     LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
       if ((ebo->flag & BONE_CONNECTED) && ebo->parent) {
         /* If this bone has a parent tip that has been moved */
-        if (ebo->parent->flag & BONE_TIPSEL) {
+        if (EBONE_VISIBLE(arm, ebo->parent) && (ebo->parent->flag & BONE_TIPSEL)) {
           copy_v3_v3(ebo->head, ebo->parent->tail);
         }
         /* If this bone has a parent tip that has NOT been moved */
@@ -156,9 +156,14 @@ void ED_transverts_update_obedit(TransVertStore *tvs, Object *obedit)
       outside_lattice(lt->editlatt->latt);
     }
   }
+  else if (obedit->type == OB_CURVES) {
+    Curves *curves_id = static_cast<Curves *>(obedit->data);
+    blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    curves.tag_positions_changed();
+  }
 }
 
-static void set_mapped_co(void *vuserdata, int index, const float co[3], const float[3] /*no*/)
+static void set_mapped_co(void *vuserdata, int index, const float co[3], const float /*no*/[3])
 {
   void **userdata = static_cast<void **>(vuserdata);
   BMEditMesh *em = static_cast<BMEditMesh *>(userdata[0]);
@@ -309,7 +314,7 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
     }
 
     if (mode & TM_CALC_MAPLOC) {
-      Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(obedit);
+      const Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(obedit);
       if (tvs->transverts && editmesh_eval_cage) {
         BM_mesh_elem_table_ensure(bm, BM_VERT);
         BKE_mesh_foreach_mapped_vert(
@@ -327,11 +332,12 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
         MEM_callocN(totmalloc * sizeof(TransVert), __func__));
 
     LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
-      if (ANIM_bonecoll_is_visible_editbone(arm, ebo)) {
+      if (EBONE_VISIBLE(arm, ebo)) {
         const bool tipsel = (ebo->flag & BONE_TIPSEL) != 0;
         const bool rootsel = (ebo->flag & BONE_ROOTSEL) != 0;
-        const bool rootok = !(ebo->parent && (ebo->flag & BONE_CONNECTED) &&
-                              (ebo->parent->flag & BONE_TIPSEL));
+        const bool rootok = !(
+            ebo->parent && (ebo->flag & BONE_CONNECTED) &&
+            (EBONE_VISIBLE(arm, ebo->parent) && (ebo->parent->flag & BONE_TIPSEL)));
 
         if ((tipsel && rootsel) || (rootsel)) {
           /* Don't add the tip (unless mode & TM_ALL_JOINTS, for getting all joints),

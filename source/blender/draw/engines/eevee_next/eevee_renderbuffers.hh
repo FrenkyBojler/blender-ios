@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "eevee_shader_shared.hh"
 
@@ -22,7 +22,10 @@ class Instance;
 
 class RenderBuffers {
  public:
-  UniformBuffer<RenderBuffersInfoData> data;
+  RenderBuffersInfoData &data;
+
+  static constexpr eGPUTextureFormat color_format = GPU_RGBA16F;
+  static constexpr eGPUTextureFormat float_format = GPU_R16F;
 
   Texture depth_tx;
   TextureFromPool combined_tx;
@@ -37,8 +40,10 @@ class RenderBuffers {
  private:
   Instance &inst_;
 
+  int2 extent_;
+
  public:
-  RenderBuffers(Instance &inst) : inst_(inst){};
+  RenderBuffers(Instance &inst, RenderBuffersInfoData &data) : data(data), inst_(inst){};
 
   /** WARNING: RenderBuffers and Film use different storage types for AO and Shadow. */
   static ePassStorageType pass_storage_type(eViewLayerEEVEEPassType pass_type)
@@ -58,11 +63,17 @@ class RenderBuffers {
     }
   }
 
-  void sync();
+  void init();
 
   /* Acquires (also ensures) the render buffer before rendering to them. */
   void acquire(int2 extent);
   void release();
+
+  /* Return the size of the allocated render buffers. Undefined if called before `acquire()`. */
+  int2 extent_get() const
+  {
+    return extent_;
+  }
 
   eGPUTextureFormat vector_tx_format();
 };

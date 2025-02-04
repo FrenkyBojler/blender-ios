@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2016 Blender Foundation
+/* SPDX-FileCopyrightText: 2016 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,8 +12,9 @@
 extern "C" {
 #endif
 
+struct RenderEngineType;
+
 extern RenderEngineType DRW_engine_viewport_workbench_type;
-extern RenderEngineType DRW_engine_viewport_workbench_next_type;
 
 #ifdef __cplusplus
 };

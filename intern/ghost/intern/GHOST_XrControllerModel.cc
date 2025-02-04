@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2021-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2021-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -374,11 +374,6 @@ static PFN_xrLoadControllerModelMSFT g_xrLoadControllerModelMSFT = nullptr;
 static PFN_xrGetControllerModelPropertiesMSFT g_xrGetControllerModelPropertiesMSFT = nullptr;
 static PFN_xrGetControllerModelStateMSFT g_xrGetControllerModelStateMSFT = nullptr;
 static XrInstance g_instance = XR_NULL_HANDLE;
-
-#define INIT_EXTENSION_FUNCTION(name) \
-  CHECK_XR( \
-      xrGetInstanceProcAddr(instance, #name, reinterpret_cast<PFN_xrVoidFunction *>(&g_##name)), \
-      "Failed to get pointer to extension function: " #name);
 
 static void init_controller_model_extension_functions(XrInstance instance)
 {

@@ -1,18 +1,20 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include <set>
 #include <unordered_set>
 
+#include "testing/testing.h"
+
 #include "BLI_exception_safety_test_utils.hh"
 #include "BLI_ghash.h"
 #include "BLI_rand.h"
 #include "BLI_set.hh"
-#include "BLI_strict_flags.h"
 #include "BLI_timeit.hh"
 #include "BLI_vector.hh"
-#include "testing/testing.h"
+
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 namespace blender {
 namespace tests {

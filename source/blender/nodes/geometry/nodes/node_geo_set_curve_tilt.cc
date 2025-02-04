@@ -1,8 +1,9 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 
 #include "node_geometry_util.hh"
 
@@ -10,57 +11,77 @@ namespace blender::nodes::node_geo_set_curve_tilt_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Geometry>("Curve").supported_type(
+      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Float>("Tilt").subtype(PROP_ANGLE).field_on_all();
   b.add_output<decl::Geometry>("Curve").propagate_all();
 }
 
-static void set_tilt(bke::CurvesGeometry &curves,
-                     const Field<bool> &selection_field,
-                     const Field<float> &tilt_field)
+static void set_curve_tilt(bke::CurvesGeometry &curves,
+                           const fn::FieldContext &field_context,
+                           const Field<bool> &selection,
+                           const Field<float> &tilt)
 {
-  if (curves.points_num() == 0) {
-    return;
+  bke::try_capture_field_on_geometry(curves.attributes_for_write(),
+                                     field_context,
+                                     "tilt",
+                                     bke::AttrDomain::Point,
+                                     selection,
+                                     tilt);
+}
+
+static void set_grease_pencil_tilt(GreasePencil &grease_pencil,
+                                   const Field<bool> &selection,
+                                   const Field<float> &tilt)
+{
+  using namespace blender::bke::greasepencil;
+  for (const int layer_index : grease_pencil.layers().index_range()) {
+    Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
+    if (drawing == nullptr) {
+      continue;
+    }
+    set_curve_tilt(
+        drawing->strokes_for_write(),
+        bke::GreasePencilLayerFieldContext(grease_pencil, AttrDomain::Point, layer_index),
+        selection,
+        tilt);
   }
-  MutableAttributeAccessor attributes = curves.attributes_for_write();
-  AttributeWriter<float> tilts = attributes.lookup_or_add_for_write<float>("tilt",
-                                                                           ATTR_DOMAIN_POINT);
-
-  const bke::CurvesFieldContext field_context{curves, ATTR_DOMAIN_POINT};
-  fn::FieldEvaluator evaluator{field_context, curves.points_num()};
-  evaluator.set_selection(selection_field);
-  evaluator.add_with_destination(tilt_field, tilts.varray);
-  evaluator.evaluate();
-
-  tilts.finish();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  Field<float> tilt_field = params.extract_input<Field<float>>("Tilt");
+  const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
+  const Field<float> tilt = params.extract_input<Field<float>>("Tilt");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
-      set_tilt(curves_id->geometry.wrap(), selection_field, tilt_field);
+      bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+      const bke::CurvesFieldContext field_context(*curves_id, AttrDomain::Point);
+      set_curve_tilt(curves, field_context, selection, tilt);
+    }
+    if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
+      set_grease_pencil_tilt(*grease_pencil, selection, tilt);
     }
   });
 
   params.set_output("Curve", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_set_curve_tilt_cc
-
-void register_node_type_geo_set_curve_tilt()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_set_curve_tilt_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_SET_CURVE_TILT, "Set Curve Tilt", NODE_CLASS_GEOMETRY);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeSetCurveTilt", GEO_NODE_SET_CURVE_TILT);
+  ntype.ui_name = "Set Curve Tilt";
+  ntype.ui_description = "Set the tilt angle at each curve control point";
+  ntype.enum_name_legacy = "SET_CURVE_TILT";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_set_curve_tilt_cc

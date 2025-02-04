@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,33 +15,32 @@
 
 #include <Python.h>
 
-#include "RNA_types.h"
+#include "RNA_types.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
-#include "../generic/py_capi_rna.h"
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
-#include "BPY_extern.h"
-#include "bpy_capi_utils.h"
-#include "bpy_operator.h"
-#include "bpy_operator_wrap.h"
-#include "bpy_rna.h" /* for setting argument properties & type method `get_rna_type`. */
+#include "../generic/py_capi_rna.hh"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
 
-#include "RNA_access.h"
-#include "RNA_enum_types.h"
-#include "RNA_prototypes.h"
+#include "BPY_extern.hh"
+#include "bpy_capi_utils.hh"
+#include "bpy_operator.hh"
+#include "bpy_operator_wrap.hh"
+#include "bpy_rna.hh" /* for setting argument properties & type method `get_rna_type`. */
+
+#include "RNA_access.hh"
+#include "RNA_enum_types.hh"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_ghash.h"
-
-#include "BKE_context.h"
-#include "BKE_report.h"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_report.hh"
 
 /* so operators called can spawn threads which acquire the GIL */
 #define BPY_RELEASE_GIL
@@ -83,6 +82,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "s" /* `opname` */
       "|" /* Optional arguments. */
       "s" /* `context_str` */
@@ -122,9 +122,9 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   }
 
   /* main purpose of this function */
-  ret = WM_operator_poll_context((bContext *)C, ot, context) ? Py_True : Py_False;
+  ret = WM_operator_poll_context(C, ot, context) ? Py_True : Py_False;
 
-  return Py_INCREF_RET(ret);
+  return Py_NewRef(ret);
 }
 
 static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
@@ -153,6 +153,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", "", "", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `opname` */
       "|"  /* Optional arguments. */
       "O!" /* `kw` */
@@ -203,7 +204,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
     context = wmOperatorCallContext(context_int);
   }
 
-  if (WM_operator_poll_context((bContext *)C, ot, context) == false) {
+  if (WM_operator_poll_context(C, ot, context) == false) {
     bool msg_free = false;
     const char *msg = CTX_wm_operator_poll_msg_get(C, &msg_free);
     PyErr_Format(PyExc_RuntimeError,
@@ -222,7 +223,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
 
     if (kw && PyDict_Size(kw)) {
       error_val = pyrna_pydict_to_props(
-          &ptr, kw, false, "Converting py args to operator properties: ");
+          &ptr, kw, false, "Converting py args to operator properties:");
     }
 
     if (error_val == 0) {
@@ -254,11 +255,16 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
 
       /* operator output is nice to have in the terminal/console too */
       if (!BLI_listbase_is_empty(&reports->list)) {
+        /* Restore the print level as this is owned by the operator now. */
+        eReportType level = eReportType(reports->printlevel);
+        BKE_report_print_level_set(reports, G.quiet ? RPT_WARNING : RPT_DEBUG);
         BPy_reports_write_stdout(reports, nullptr);
+        BKE_report_print_level_set(reports, level);
       }
 
       BKE_reports_clear(reports);
       if ((reports->flag & RPT_FREE) == 0) {
+        BKE_reports_free(reports);
         MEM_freeN(reports);
       }
       else {
@@ -301,7 +307,6 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
 static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
-  PointerRNA ptr;
 
   const char *opname;
   PyObject *kw = nullptr; /* optional args */
@@ -309,7 +314,6 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
   bool macro_args = true;
   int error_val = 0;
 
-  char *buf = nullptr;
   PyObject *pybuf;
 
   bContext *C = BPY_context_get();
@@ -323,6 +327,7 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", "", "", nullptr};
   static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `opname` */
       "|"  /* Optional arguments. */
       "O!" /* `kw` */
@@ -358,15 +363,16 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 
   // WM_operator_properties_create(&ptr, opname);
   /* Save another lookup */
-  RNA_pointer_create(nullptr, ot->srna, nullptr, &ptr);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, ot->srna, nullptr);
 
   if (kw && PyDict_Size(kw)) {
     error_val = pyrna_pydict_to_props(
-        &ptr, kw, false, "Converting py args to operator properties: ");
+        &ptr, kw, false, "Converting py args to operator properties:");
   }
 
+  std::string op_string;
   if (error_val == 0) {
-    buf = WM_operator_pystring_ex(C, nullptr, all_args, macro_args, ot, &ptr);
+    op_string = WM_operator_pystring_ex(C, nullptr, all_args, macro_args, ot, &ptr);
   }
 
   WM_operator_properties_free(&ptr);
@@ -375,9 +381,8 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  if (buf) {
-    pybuf = PyUnicode_FromString(buf);
-    MEM_freeN(buf);
+  if (!op_string.empty()) {
+    pybuf = PyUnicode_FromString(op_string.c_str());
   }
   else {
     pybuf = PyUnicode_FromString("");
@@ -388,16 +393,13 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 
 static PyObject *pyop_dir(PyObject * /*self*/)
 {
-  GHashIterator iter;
-  PyObject *list;
-  int i;
+  const blender::Span<wmOperatorType *> types = WM_operatortypes_registered_get();
+  PyObject *list = PyList_New(types.size());
 
-  WM_operatortype_iter(&iter);
-  list = PyList_New(BLI_ghash_len(iter.gh));
-
-  for (i = 0; !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter), i++) {
-    wmOperatorType *ot = static_cast<wmOperatorType *>(BLI_ghashIterator_getValue(&iter));
+  int i = 0;
+  for (wmOperatorType *ot : types) {
     PyList_SET_ITEM(list, i, PyUnicode_FromString(ot->idname));
+    i++;
   }
 
   return list;
@@ -410,8 +412,7 @@ static PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
     return nullptr;
   }
 
-  PointerRNA ptr;
-  RNA_pointer_create(nullptr, &RNA_Struct, ot->srna, &ptr);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, ot->srna);
   BPy_StructRNA *pyrna = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ptr);
   return (PyObject *)pyrna;
 }

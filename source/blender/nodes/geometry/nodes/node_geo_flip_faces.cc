@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -23,7 +23,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
-      const bke::MeshFieldContext field_context(*mesh, ATTR_DOMAIN_FACE);
+      const bke::MeshFieldContext field_context(*mesh, AttrDomain::Face);
       fn::FieldEvaluator evaluator(field_context, mesh->faces_num);
       evaluator.add(selection_field);
       evaluator.evaluate();
@@ -39,16 +39,21 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Mesh", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_flip_faces_cc
-
-void register_node_type_geo_flip_faces()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_flip_faces_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_FLIP_FACES, "Flip Faces", NODE_CLASS_GEOMETRY);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeFlipFaces", GEO_NODE_FLIP_FACES);
+  ntype.ui_name = "Flip Faces";
+  ntype.ui_description =
+      "Reverse the order of the vertices and edges of selected faces, flipping their normal "
+      "direction";
+  ntype.enum_name_legacy = "FLIP_FACES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_flip_faces_cc

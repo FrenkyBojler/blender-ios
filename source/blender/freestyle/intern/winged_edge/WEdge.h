@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -18,11 +18,9 @@
 
 #include "../system/FreestyleConfig.h"
 
-#include "BLI_math.h"
+#include "BLI_math_base.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 using namespace std;
 
@@ -212,9 +210,7 @@ class WVertex {
    protected:
     virtual void increment();
 
-#ifdef WITH_CXX_GUARDEDALLOC
     MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WVertex:incoming_edge_iterator")
-#endif
   };
 
   class face_iterator {
@@ -283,9 +279,7 @@ class WVertex {
       ++_edge_it;
     }
 
-#ifdef WITH_CXX_GUARDEDALLOC
     MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WVertex:face_iterator")
-#endif
   };
 
  public:
@@ -303,9 +297,7 @@ class WVertex {
     return face_iterator(incoming_edges_end());
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WVertex")
-#endif
 };
 
 /**********************************
@@ -484,9 +476,7 @@ class WOEdge {
     userdata = nullptr;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WOEdge")
-#endif
 };
 
 /**********************************
@@ -673,9 +663,7 @@ class WEdge {
     userdata = nullptr;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WEdge")
-#endif
 };
 
 /**********************************
@@ -972,9 +960,7 @@ class WFace {
     userdata = nullptr;
   }
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WFace")
-#endif
 };
 
 /**********************************
@@ -1209,7 +1195,8 @@ class WShape {
   inline void ResetUserData()
   {
     for (vector<WVertex *>::iterator v = _VertexList.begin(), vend = _VertexList.end(); v != vend;
-         v++) {
+         v++)
+    {
       (*v)->ResetUserData();
     }
 
@@ -1240,7 +1227,8 @@ class WShape {
     Vec3f v;
     for (vector<WVertex *>::iterator wv = _VertexList.begin(), wvend = _VertexList.end();
          wv != wvend;
-         wv++) {
+         wv++)
+    {
       for (uint i = 0; i < 3; i++) {
         v = (*wv)->GetVertex();
         if (v[i] < _min[i]) {
@@ -1282,9 +1270,7 @@ class WShape {
                           uint iMaterialIndex,
                           WFace *face);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WShape")
-#endif
 };
 
 /**********************************
@@ -1336,9 +1322,7 @@ class WingedEdge {
   vector<WShape *> _wshapes;
   uint _numFaces;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WingedEdge")
-#endif
 };
 
 /*

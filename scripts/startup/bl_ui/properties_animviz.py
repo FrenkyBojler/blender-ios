@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2010-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2010-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -41,6 +41,9 @@ class MotionPathButtonsPanel:
             start_end_group.prop(mps, "frame_start", text="Frame Range Start")
             start_end_group.prop(mps, "frame_end", text="End")
             col.prop(mps, "frame_step", text="Step")
+
+        row = col.row()
+        row.prop(mps, "use_camera_space_bake", text="Bake to Active Camera")
 
         if bones:
             op_category = "pose"
@@ -104,12 +107,11 @@ class MotionPathButtonsPanel_display:
             col = layout.column()
             col.prop(mpath, "line_thickness", text="Thickness")
 
-            split = col.split(factor=0.6)
-
-            split.prop(mpath, "use_custom_color", text="Custom Color")
-            sub = split.column()
+            col.prop(mpath, "use_custom_color", text="Custom Color")
+            sub = layout.column()
             sub.enabled = mpath.use_custom_color
-            sub.prop(mpath, "color", text="")
+            sub.prop(mpath, "color", text="Before")
+            sub.prop(mpath, "color_post", text="After")
 
 
 classes = (

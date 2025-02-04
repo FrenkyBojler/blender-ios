@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2002-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2002-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,5 +9,5 @@
 class GHOST_NDOFManagerWin32 : public GHOST_NDOFManager {
  public:
   GHOST_NDOFManagerWin32(GHOST_System &);
-  bool available();
+  bool available() override;
 };

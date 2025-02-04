@@ -1,11 +1,11 @@
-/* SPDX-FileCopyrightText: 2020 Blender Foundation
+/* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 #include "IO_dupli_persistent_id.hh"
 
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 
 #include <map>
 #include <set>
@@ -20,11 +20,11 @@ class DupliParentFinder final {
   std::set<const Object *> dupli_set_;
 
   /* To find the DupliObject given its Persistent ID. */
-  typedef std::map<const PersistentID, const DupliObject *> PIDToDupliMap;
+  using PIDToDupliMap = std::map<const PersistentID, const DupliObject *>;
   PIDToDupliMap pid_to_dupli_;
 
   /* Mapping from instancer PID to duplis instanced by it. */
-  typedef std::map<const PersistentID, std::set<const DupliObject *>> InstancerPIDToDuplisMap;
+  using InstancerPIDToDuplisMap = std::map<const PersistentID, std::set<const DupliObject *>>;
   InstancerPIDToDuplisMap instancer_pid_to_duplis_;
 
  public:

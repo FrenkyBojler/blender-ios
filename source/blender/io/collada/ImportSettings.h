@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,7 @@
 
 #pragma once
 
-typedef struct ImportSettings {
+struct ImportSettings {
   bool import_units;
   bool custom_normals;
   bool find_chains;
@@ -17,4 +17,4 @@ typedef struct ImportSettings {
   int min_chain_length;
   char *filepath;
   bool keep_bind_info;
-} ImportSettings;
+};

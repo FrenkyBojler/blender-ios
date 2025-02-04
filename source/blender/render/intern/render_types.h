@@ -23,9 +23,14 @@
 
 #include "tile_highlight.h"
 
+namespace blender::compositor {
+class RenderContext;
+class Profiler;
+enum class OutputTypes : uint8_t;
+}  // namespace blender::compositor
+
 struct bNodeTree;
 struct Depsgraph;
-struct GSet;
 struct Main;
 struct Object;
 struct RenderEngine;
@@ -41,13 +46,37 @@ struct BaseRender {
    * highlight. */
   virtual blender::render::TilesHighlight *get_tile_highlight() = 0;
 
-  /* GPU/realtime compositor. */
   virtual void compositor_execute(const Scene &scene,
                                   const RenderData &render_data,
                                   const bNodeTree &node_tree,
-                                  const bool use_file_output,
-                                  const char *view_name) = 0;
+                                  const char *view_name,
+                                  blender::compositor::RenderContext *render_context,
+                                  blender::compositor::Profiler *profiler,
+                                  blender::compositor::OutputTypes needed_outputs) = 0;
   virtual void compositor_free() = 0;
+
+  virtual void display_init(RenderResult *render_result) = 0;
+  virtual void display_clear(RenderResult *render_result) = 0;
+  virtual void display_update(RenderResult *render_result, rcti *rect) = 0;
+  virtual void current_scene_update(struct Scene *scene) = 0;
+
+  virtual void stats_draw(RenderStats *render_stats) = 0;
+  virtual void progress(float progress) = 0;
+
+  virtual void draw_lock() = 0;
+  virtual void draw_unlock() = 0;
+
+  /* Test whether render is to be stopped: if the function returns true rendering will be stopped
+   * as soon as the render pipeline allows it. */
+  virtual bool test_break() = 0;
+
+  /**
+   * Executed right before the initialization of the depsgraph, in order to modify some stuff in
+   * the viewlayer. The modified ids must be tagged in the depsgraph.
+   *
+   * If false is returned then rendering is aborted,
+   */
+  virtual bool prepare_viewlayer(struct ViewLayer *view_layer, struct Depsgraph *depsgraph) = 0;
 
   /* Result of rendering */
   RenderResult *result = nullptr;
@@ -73,19 +102,43 @@ struct ViewRender : public BaseRender {
   void compositor_execute(const Scene & /*scene*/,
                           const RenderData & /*render_data*/,
                           const bNodeTree & /*node_tree*/,
-                          const bool /*use_file_output*/,
-                          const char * /*view_name*/) override
+                          const char * /*view_name*/,
+                          blender::compositor::RenderContext * /*render_context*/,
+                          blender::compositor::Profiler * /*profiler*/,
+                          blender::compositor::OutputTypes /*needed_outputs*/) override
   {
   }
   void compositor_free() override {}
+
+  void display_init(RenderResult * /*render_result*/) override {}
+  void display_clear(RenderResult * /*render_result*/) override {}
+  void display_update(RenderResult * /*render_result*/, rcti * /*rect*/) override {}
+  void current_scene_update(struct Scene * /*scene*/) override {}
+
+  void stats_draw(RenderStats * /*render_stats*/) override {}
+  void progress(const float /*progress*/) override {}
+
+  void draw_lock() override {}
+  void draw_unlock() override {}
+
+  bool test_break() override
+  {
+    return false;
+  }
+
+  bool prepare_viewlayer(struct ViewLayer * /*view_layer*/,
+                         struct Depsgraph * /*depsgraph*/) override
+  {
+    return true;
+  }
 };
 
-/* Controls state of render, everything that's read-only during render stage */
+/** Controls state of render, everything that's read-only during render stage. */
 struct Render : public BaseRender {
   /* NOTE: Currently unused, provision for the future.
    * Add these now to allow the guarded memory allocator to catch C-specific function calls. */
   Render() = default;
-  virtual ~Render();
+  ~Render() override;
 
   blender::render::TilesHighlight *get_tile_highlight() override
   {
@@ -95,12 +148,28 @@ struct Render : public BaseRender {
   void compositor_execute(const Scene &scene,
                           const RenderData &render_data,
                           const bNodeTree &node_tree,
-                          const bool use_file_output,
-                          const char *view_name) override;
+                          const char *view_name,
+                          blender::compositor::RenderContext *render_context,
+                          blender::compositor::Profiler *profiler,
+                          blender::compositor::OutputTypes needed_outputs) override;
   void compositor_free() override;
 
+  void display_init(RenderResult *render_result) override;
+  void display_clear(RenderResult *render_result) override;
+  void display_update(RenderResult *render_result, rcti *rect) override;
+  void current_scene_update(struct Scene *scene) override;
+
+  void stats_draw(RenderStats *render_stats) override;
+  void progress(float progress) override;
+
+  void draw_lock() override;
+  void draw_unlock() override;
+
+  bool test_break() override;
+
+  bool prepare_viewlayer(struct ViewLayer *view_layer, struct Depsgraph *depsgraph) override;
+
   char name[RE_MAXNAME] = "";
-  int slot = 0;
 
   /* state settings */
   short flag = 0;
@@ -123,7 +192,7 @@ struct Render : public BaseRender {
   /* final picture width and height (within disprect) */
   int rectx = 0, recty = 0;
 
-  /* Camera transform, only used by Freestyle. */
+  /* Camera transform. Used by Freestyle, Eevee, and other draw manager engines.. */
   float winmat[4][4] = {{0}};
 
   /* Clipping. */
@@ -144,31 +213,33 @@ struct Render : public BaseRender {
   struct Depsgraph *pipeline_depsgraph = nullptr;
   Scene *pipeline_scene_eval = nullptr;
 
-  /* Realtime GPU Compositor.
-   * NOTE: Use bare pointer instead of smart pointer because the RealtimeCompositor is a fully
-   * opaque type. */
-  blender::render::RealtimeCompositor *gpu_compositor = nullptr;
-  std::mutex gpu_compositor_mutex;
+  /* Compositor.
+   * NOTE: Use bare pointer instead of smart pointer because the it is a fully opaque type. */
+  blender::render::Compositor *compositor = nullptr;
+  std::mutex compositor_mutex;
 
-  /* callbacks */
-  void (*display_init)(void *handle, RenderResult *rr) = nullptr;
+  /* Callbacks for the corresponding base class method implementation. */
+  void (*display_init_cb)(void *handle, RenderResult *rr) = nullptr;
   void *dih = nullptr;
-  void (*display_clear)(void *handle, RenderResult *rr) = nullptr;
+  void (*display_clear_cb)(void *handle, RenderResult *rr) = nullptr;
   void *dch = nullptr;
-  void (*display_update)(void *handle, RenderResult *rr, rcti *rect) = nullptr;
+  void (*display_update_cb)(void *handle, RenderResult *rr, rcti *rect) = nullptr;
   void *duh = nullptr;
-  void (*current_scene_update)(void *handle, struct Scene *scene) = nullptr;
+  void (*current_scene_update_cb)(void *handle, struct Scene *scene) = nullptr;
   void *suh = nullptr;
 
-  void (*stats_draw)(void *handle, RenderStats *ri) = nullptr;
+  void (*stats_draw_cb)(void *handle, RenderStats *ri) = nullptr;
   void *sdh = nullptr;
-  void (*progress)(void *handle, float i) = nullptr;
+  void (*progress_cb)(void *handle, float i) = nullptr;
   void *prh = nullptr;
 
-  void (*draw_lock)(void *handle, bool lock) = nullptr;
+  void (*draw_lock_cb)(void *handle, bool lock) = nullptr;
   void *dlh = nullptr;
-  bool (*test_break)(void *handle) = nullptr;
+  bool (*test_break_cb)(void *handle) = nullptr;
   void *tbh = nullptr;
+
+  bool (*prepare_viewlayer_cb)(void *handle, struct ViewLayer *vl, struct Depsgraph *depsgraph);
+  void *prepare_vl_handle;
 
   RenderStats i = {};
 
@@ -178,7 +249,7 @@ struct Render : public BaseRender {
    */
   struct ReportList *reports = nullptr;
 
-  void **movie_ctx_arr = nullptr;
+  blender::Vector<MovieWriter *> movie_writers;
   char viewname[MAX_NAME] = "";
 
   /* TODO: replace by a whole draw manager. */
@@ -189,4 +260,10 @@ struct Render : public BaseRender {
 /* **************** defines ********************* */
 
 /** #R.flag */
-#define R_ANIMATION 1
+#define R_ANIMATION 1 << 0
+/* Indicates that the render pipeline should not write its render result. This happens for instance
+ * when the render pipeline uses the compositor, but the compositor node tree does not have an
+ * output composite node or a render layer input, and consequently no render result. In that case,
+ * the output will be written from the File Output nodes, since the render pipeline will early fail
+ * if neither a File Output nor a Composite node exist in the scene. */
+#define R_SKIP_WRITE 1 << 1

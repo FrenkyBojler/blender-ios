@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -25,8 +25,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (const Mesh *mesh = geometry_set.get_mesh()) {
-      const bke::MeshFieldContext field_context{*mesh, ATTR_DOMAIN_EDGE};
-      fn::FieldEvaluator selection_evaluator{field_context, mesh->totedge};
+      const bke::MeshFieldContext field_context{*mesh, AttrDomain::Edge};
+      fn::FieldEvaluator selection_evaluator{field_context, mesh->edges_num};
       selection_evaluator.set_selection(selection_field);
       selection_evaluator.evaluate();
       const IndexMask mask = selection_evaluator.get_evaluated_selection_as_mask();
@@ -35,23 +35,26 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
 
       geometry::split_edges(
-          *geometry_set.get_mesh_for_write(), mask, params.get_output_propagation_info("Mesh"));
+          *geometry_set.get_mesh_for_write(), mask, params.get_attribute_filter("Mesh"));
     }
   });
 
   params.set_output("Mesh", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_edge_split_cc
-
-void register_node_type_geo_edge_split()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_edge_split_cc;
+  static blender::bke::bNodeType ntype;
 
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_SPLIT_EDGES, "Split Edges", NODE_CLASS_GEOMETRY);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
-  nodeRegisterType(&ntype);
+  geo_node_type_base(&ntype, "GeometryNodeSplitEdges", GEO_NODE_SPLIT_EDGES);
+  ntype.ui_name = "Split Edges";
+  ntype.ui_description = "Duplicate mesh edges and break connections with the surrounding faces";
+  ntype.enum_name_legacy = "SPLIT_EDGES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
+  blender::bke::node_register_type(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_edge_split_cc

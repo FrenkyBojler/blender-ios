@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2010 Blender Foundation
+/* SPDX-FileCopyrightText: 2010 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,12 +9,7 @@
 #include <climits>
 #include <cstring>
 
-#include "BLI_utildefines.h"
-
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-
-#include "BKE_report.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -212,7 +207,7 @@ void *info_text_pick(const SpaceInfo *sinfo,
   const int mval[2] = {0, mouse_y};
 
   info_textview_main__internal(sinfo, region, reports, false, mval, &mval_pick_item, nullptr);
-  return (void *)mval_pick_item;
+  return mval_pick_item;
 }
 
 int info_textview_height(const SpaceInfo *sinfo, const ARegion *region, const ReportList *reports)

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,6 +7,8 @@
  */
 
 #pragma once
+
+#include "CCGSubSurf.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,26 +32,24 @@ extern "C" {
  * Common type definitions.
  */
 
-typedef unsigned char byte;
-
 /**
  * Hash implementation.
  */
 
-typedef struct _EHEntry {
-  struct _EHEntry *next;
+struct EHEntry {
+  struct EHEntry *next;
   void *key;
-} EHEntry;
+};
 
-typedef struct _EHash {
+struct EHash {
   EHEntry **buckets;
   int numEntries, curSize, curSizeIdx;
 
   CCGAllocatorIFC allocatorIFC;
   CCGAllocatorHDL allocator;
-} EHash;
+};
 
-typedef void (*EHEntryFreeFP)(EHEntry *, void *);
+using EHEntryFreeFP = void (*)(EHEntry *, void *);
 
 #define EHASH_alloc(eh, nb) (EHEntry **)((eh)->allocatorIFC.alloc((eh)->allocator, nb))
 #define EHASH_free(eh, ptr) ((eh)->allocatorIFC.free((eh)->allocator, ptr))
@@ -82,9 +82,6 @@ CCGAllocatorIFC *ccg_getStandardAllocatorIFC(void);
  * Catmull-Clark Gridding Subdivision Surface.
  */
 
-/* TODO(sergey): Get rid of this, it's more or less a bad level call. */
-struct DerivedMesh;
-
 /* ** Data structures, constants. enums ** */
 
 enum {
@@ -110,8 +107,8 @@ struct CCGVert {
 
   CCGEdge **edges;
   CCGFace **faces;
-  /* byte *levelData; */
-  /* byte *user_data; */
+  // uint8_t *levelData;
+  // uint8_t *user_data;
 };
 
 struct CCGEdge {
@@ -124,8 +121,8 @@ struct CCGEdge {
   CCGVert *v0, *v1;
   CCGFace **faces;
 
-  /* byte *levelData; */
-  /* byte *user_data; */
+  // uint8_t *levelData;
+  // uint8_t *user_data;
 };
 
 struct CCGFace {
@@ -135,20 +132,20 @@ struct CCGFace {
   short numVerts, flags;
   int osd_index;
 
-  /* CCGVert **verts; */
-  /* CCGEdge **edges; */
-  /* byte *centerData; */
-  /* byte **gridData; */
-  /* byte *user_data; */
+  // CCGVert **verts;
+  // CCGEdge **edges;
+  // uint8_t *centerData;
+  // uint8_t **gridData;
+  // uint8_t *user_data;
 };
 
-typedef enum {
+enum SyncState {
   eSyncState_None = 0,
   eSyncState_Vert,
   eSyncState_Edge,
   eSyncState_Face,
   eSyncState_Partial,
-} SyncState;
+};
 
 struct CCGSubSurf {
   EHash *vMap; /* map of CCGVertHDL -> Vert */
@@ -224,7 +221,8 @@ struct CCGSubSurf {
   (void)0
 #define NormCopy(av, bv) \
   { \
-    float *_a = (float *)av, *_b = (float *)bv; \
+    float *_a = (float *)av; \
+    const float *_b = (const float *)bv; \
     _a[0] = _b[0]; \
     _a[1] = _b[1]; \
     _a[2] = _b[2]; \
@@ -232,7 +230,8 @@ struct CCGSubSurf {
   (void)0
 #define NormAdd(av, bv) \
   { \
-    float *_a = (float *)av, *_b = (float *)bv; \
+    float *_a = (float *)av; \
+    const float *_b = (const float *)bv; \
     _a[0] += _b[0]; \
     _a[1] += _b[1]; \
     _a[2] += _b[2]; \
@@ -256,8 +255,6 @@ void ccgSubSurf__effectedFaceNeighbors(CCGSubSurf *ss,
 
 void ccgSubSurf__sync_legacy(CCGSubSurf *ss);
 
-struct OpenSubdiv_Converter;
-
 /* `CCGSubSurf_util.cc` */
 
 #ifdef DUMP_RESULT_GRIDS
@@ -267,5 +264,3 @@ void ccgSubSurf__dumpCoords(CCGSubSurf *ss);
 #ifdef __cplusplus
 }
 #endif
-
-#include "CCGSubSurf_inline.h"

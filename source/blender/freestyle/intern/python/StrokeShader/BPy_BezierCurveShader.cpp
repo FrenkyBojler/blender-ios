@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2004-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -20,7 +20,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char BezierCurveShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    BezierCurveShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`BezierCurveShader`\n"
     "\n"
     "[Geometry shader]\n"
@@ -40,7 +42,7 @@ static char BezierCurveShader___doc__[] =
     "   Bezier Curve approximation of the original backbone geometry.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 
 static int BezierCurveShader___init__(BPy_BezierCurveShader *self, PyObject *args, PyObject *kwds)
 {

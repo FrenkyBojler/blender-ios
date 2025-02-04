@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -9,7 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
 

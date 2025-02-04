@@ -1,34 +1,45 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * SPDX-FileCopyrightText: 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "material.h"
+#include "material.hh"
+#include "usd_private.hh"
 
 #include <Python.h>
 #include <unicodeobject.h>
 
+#include <pxr/base/tf/stringUtils.h>
 #include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/tokens.h>
+#include <pxr/usdImaging/usdImaging/materialParamUtils.h>
 
-#include "MEM_guardedalloc.h"
+#ifdef WITH_MATERIALX
+#  include <pxr/usd/usdMtlx/reader.h>
+#  include <pxr/usd/usdMtlx/utils.h>
+#endif
 
-#include "BKE_lib_id.h"
-#include "BKE_material.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "RNA_access.h"
-#include "RNA_prototypes.h"
-#include "RNA_types.h"
+#include "hydra_scene_delegate.hh"
+#include "image.hh"
 
-#include "bpy_rna.h"
+#include "intern/usd_exporter_context.hh"
+#include "intern/usd_writer_material.hh"
 
-#include "hydra_scene_delegate.h"
+#ifdef WITH_MATERIALX
+
+#  include "shader/materialx/material.h"
+#endif
+
+using namespace blender::io::usd;
 
 namespace blender::io::hydra {
 
 MaterialData::MaterialData(HydraSceneDelegate *scene_delegate,
                            const Material *material,
                            pxr::SdfPath const &prim_id)
-    : IdData(scene_delegate, (const ID *)material, prim_id)
+    : IdData(scene_delegate, &material->id, prim_id)
 {
 }
 
@@ -36,6 +47,82 @@ void MaterialData::init()
 {
   ID_LOGN(1, "");
   double_sided = (((Material *)id)->blend_flag & MA_BL_CULL_BACKFACE) == 0;
+  material_network_map_ = pxr::VtValue();
+
+  /* Create temporary in memory stage. */
+  pxr::UsdStageRefPtr stage = pxr::UsdStage::CreateInMemory();
+  pxr::UsdTimeCode time = pxr::UsdTimeCode::Default();
+  auto get_time_code = [time]() { return time; };
+  pxr::SdfPath material_library_path("/_materials");
+  pxr::SdfPath material_path = material_library_path.AppendChild(
+      pxr::TfToken(prim_id.GetElementString()));
+
+  /* Create USD export content to reuse USD file export code. */
+  USDExportParams export_params;
+  export_params.relative_paths = false;
+  export_params.export_textures = false; /* Don't copy all textures, is slow. */
+  export_params.evaluation_mode = DEG_get_mode(scene_delegate_->depsgraph);
+
+  usd::USDExporterContext export_context{scene_delegate_->bmain,
+                                         scene_delegate_->depsgraph,
+                                         stage,
+                                         material_library_path,
+                                         get_time_code,
+                                         export_params,
+                                         blender::io::usd::image_cache_file_path(),
+                                         cache_or_get_image_file};
+  /* Create USD material. */
+  pxr::UsdShadeMaterial usd_material;
+#ifdef WITH_MATERIALX
+  if (scene_delegate_->use_materialx) {
+    std::string material_name = pxr::TfMakeValidIdentifier(id->name);
+    blender::nodes::materialx::ExportParams materialx_export_params{
+        material_name, cache_or_get_image_file, "st", "UVMap"};
+    MaterialX::DocumentPtr doc = blender::nodes::materialx::export_to_materialx(
+        scene_delegate_->depsgraph, (Material *)id, materialx_export_params);
+    pxr::UsdMtlxRead(doc, stage);
+
+    /* Logging stage: creating lambda stage_str() to not call stage->ExportToString()
+     * if log won't be printed. */
+    auto stage_str = [&stage]() {
+      std::string str;
+      stage->ExportToString(&str);
+      return str;
+    };
+    ID_LOGN(2, "Stage:\n%s", stage_str().c_str());
+
+    if (pxr::UsdPrim materials = stage->GetPrimAtPath(pxr::SdfPath("/MaterialX/Materials"))) {
+      pxr::UsdPrimSiblingRange children = materials.GetChildren();
+      if (!children.empty()) {
+        usd_material = pxr::UsdShadeMaterial(*children.begin());
+      }
+    }
+  }
+  else
+#endif
+  {
+    usd_material = usd::create_usd_material(
+        export_context, material_path, (Material *)id, "st", nullptr);
+  }
+
+  /* Convert USD material to Hydra material network map, adapted for render delegate. */
+  const pxr::HdRenderDelegate *render_delegate =
+      scene_delegate_->GetRenderIndex().GetRenderDelegate();
+  const pxr::TfTokenVector contextVector = render_delegate->GetMaterialRenderContexts();
+  pxr::TfTokenVector shaderSourceTypes = render_delegate->GetShaderSourceTypes();
+
+  pxr::HdMaterialNetworkMap network_map;
+
+  if (pxr::UsdShadeShader surface = usd_material.ComputeSurfaceSource(contextVector)) {
+    pxr::UsdImagingBuildHdMaterialNetworkFromTerminal(surface.GetPrim(),
+                                                      pxr::HdMaterialTerminalTokens->surface,
+                                                      shaderSourceTypes,
+                                                      contextVector,
+                                                      &network_map,
+                                                      time);
+  }
+
+  material_network_map_ = pxr::VtValue(network_map);
 }
 
 void MaterialData::insert()
@@ -69,14 +156,14 @@ void MaterialData::update()
   }
 }
 
-pxr::VtValue MaterialData::get_data(pxr::TfToken const & /* key */) const
+pxr::VtValue MaterialData::get_data(pxr::TfToken const & /*key*/) const
 {
   return pxr::VtValue();
 }
 
 pxr::VtValue MaterialData::get_material_resource() const
 {
-  return pxr::VtValue();
+  return material_network_map_;
 }
 
 pxr::HdCullStyle MaterialData::cull_style() const

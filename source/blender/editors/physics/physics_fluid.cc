@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: Blender Foundation
+/* SPDX-FileCopyrightText: Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -6,7 +6,6 @@
  * \ingroup edphys
  */
 
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <sys/stat.h>
@@ -14,33 +13,33 @@
 #include "MEM_guardedalloc.h"
 
 /* types */
-#include "DNA_action_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_path_util.h"
+#include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fluid.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
-#include "BKE_modifier.h"
-#include "BKE_report.h"
-#include "BKE_screen.h"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
+#include "BKE_modifier.hh"
+#include "BKE_report.hh"
+#include "BKE_screen.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_object.hh"
 #include "ED_screen.hh"
-#include "PIL_time.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "physics_intern.h" /* own include */
+#include "physics_intern.hh" /* own include */
 
 #include "DNA_fluid_types.h"
 #include "DNA_scene_types.h"
@@ -134,7 +133,7 @@ static bool fluid_initjob(
 {
   FluidModifierData *fmd = nullptr;
   FluidDomainSettings *fds;
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
 
   fmd = (FluidModifierData *)BKE_modifiers_findby_type(ob, eModifierType_Fluid);
   if (!fmd) {
@@ -338,7 +337,7 @@ static void fluid_bake_endjob(void *customdata)
   if (job->success) {
     /* Show bake info. */
     WM_reportf(
-        RPT_INFO, "Fluid: %s complete! (%.2f)", job->name, PIL_check_seconds_timer() - job->start);
+        RPT_INFO, "Fluid: %s complete (%.2f)", job->name, BLI_time_now_seconds() - job->start);
   }
   else {
     if (fds->error[0] != '\0') {
@@ -350,7 +349,7 @@ static void fluid_bake_endjob(void *customdata)
   }
 }
 
-static void fluid_bake_startjob(void *customdata, bool *stop, bool *do_update, float *progress)
+static void fluid_bake_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   FluidJob *job = static_cast<FluidJob *>(customdata);
   FluidDomainSettings *fds = job->fmd->domain;
@@ -358,10 +357,10 @@ static void fluid_bake_startjob(void *customdata, bool *stop, bool *do_update, f
   char temp_dir[FILE_MAX];
   const char *relbase = BKE_modifier_path_relbase_from_global(job->ob);
 
-  job->stop = stop;
-  job->do_update = do_update;
-  job->progress = progress;
-  job->start = PIL_check_seconds_timer();
+  job->stop = &worker_status->stop;
+  job->do_update = &worker_status->do_update;
+  job->progress = &worker_status->progress;
+  job->start = BLI_time_now_seconds();
   job->success = 1;
 
   G.is_break = false;
@@ -425,12 +424,8 @@ static void fluid_bake_startjob(void *customdata, bool *stop, bool *do_update, f
 
   fluid_bake_sequence(job);
 
-  if (do_update) {
-    *do_update = true;
-  }
-  if (stop) {
-    *stop = false;
-  }
+  worker_status->do_update = true;
+  worker_status->stop = false;
 }
 
 static void fluid_free_endjob(void *customdata)
@@ -450,7 +445,7 @@ static void fluid_free_endjob(void *customdata)
   if (job->success) {
     /* Show free job info */
     WM_reportf(
-        RPT_INFO, "Fluid: %s complete! (%.2f)", job->name, PIL_check_seconds_timer() - job->start);
+        RPT_INFO, "Fluid: %s complete (%.2f)", job->name, BLI_time_now_seconds() - job->start);
   }
   else {
     if (fds->error[0] != '\0') {
@@ -462,15 +457,15 @@ static void fluid_free_endjob(void *customdata)
   }
 }
 
-static void fluid_free_startjob(void *customdata, bool *stop, bool *do_update, float *progress)
+static void fluid_free_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   FluidJob *job = static_cast<FluidJob *>(customdata);
   FluidDomainSettings *fds = job->fmd->domain;
 
-  job->stop = stop;
-  job->do_update = do_update;
-  job->progress = progress;
-  job->start = PIL_check_seconds_timer();
+  job->stop = &worker_status->stop;
+  job->do_update = &worker_status->do_update;
+  job->progress = &worker_status->progress;
+  job->start = BLI_time_now_seconds();
   job->success = 1;
 
   G.is_break = false;
@@ -504,8 +499,8 @@ static void fluid_free_startjob(void *customdata, bool *stop, bool *do_update, f
   UNUSED_VARS(cache_map);
 #endif
 
-  *do_update = true;
-  *stop = false;
+  worker_status->do_update = true;
+  worker_status->stop = false;
 
   /* Update scene so that viewport shows freed up scene */
   ED_update_for_newframe(job->bmain, job->depsgraph);
@@ -531,7 +526,8 @@ static int fluid_bake_exec(bContext *C, wmOperator *op)
   }
   WM_report_banners_cancel(job->bmain);
 
-  fluid_bake_startjob(job, nullptr, nullptr, nullptr);
+  wmJobWorkerStatus worker_status = {};
+  fluid_bake_startjob(job, &worker_status);
   fluid_bake_endjob(job);
   fluid_bake_free(job);
 
@@ -597,7 +593,7 @@ static int fluid_free_exec(bContext *C, wmOperator *op)
 {
   FluidModifierData *fmd = nullptr;
   FluidDomainSettings *fds;
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   Scene *scene = CTX_data_scene(C);
 
   /*
@@ -662,7 +658,7 @@ static int fluid_pause_exec(bContext *C, wmOperator *op)
 {
   FluidModifierData *fmd = nullptr;
   FluidDomainSettings *fds;
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
 
   /*
    * Get modifier data

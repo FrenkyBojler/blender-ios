@@ -12,10 +12,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /** Generic - all structs which are put into linked lists begin with this. */
 typedef struct Link {
   struct Link *next, *prev;
@@ -27,13 +23,14 @@ typedef struct LinkData {
   void *data;
 } LinkData;
 
-/** Never change the size of this! dna_genfile.cc detects pointer_size with it. */
+/**
+ * The basic double linked-list structure.
+ *
+ * \warning Never change the size/definition of this struct! The #init_structDNA
+ * function (from dna_genfile.cc) uses it to compute the #pointer_size.
+ */
 typedef struct ListBase {
   void *first, *last;
 } ListBase;
 
 /* 8 byte alignment! */
-
-#ifdef __cplusplus
-}
-#endif

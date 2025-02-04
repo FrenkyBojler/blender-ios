@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * SPDX-FileCopyrightText: 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "engine.h"
+#include "engine.hh"
 
 #include <pxr/base/plug/plugin.h>
 #include <pxr/base/plug/registry.h>
@@ -10,13 +11,13 @@
 #include <pxr/imaging/hgi/tokens.h>
 #include <pxr/usd/usdGeom/tokens.h>
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
-#include "GPU_context.h"
+#include "GPU_context.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "RE_engine.h"
 
@@ -80,14 +81,16 @@ void Engine::sync(Depsgraph *depsgraph, bContext *context)
   context_ = context;
   scene_ = DEG_get_evaluated_scene(depsgraph);
 
+  const bool use_materialx = bl_engine_->type->flag & RE_USE_MATERIALX;
+
   if (scene_->hydra.export_method == SCE_HYDRA_EXPORT_HYDRA) {
     /* Fast path. */
     usd_scene_delegate_.reset();
 
     if (!hydra_scene_delegate_) {
       pxr::SdfPath scene_path = pxr::SdfPath::AbsoluteRootPath().AppendElementString("scene");
-      hydra_scene_delegate_ = std::make_unique<io::hydra::HydraSceneDelegate>(render_index_.get(),
-                                                                              scene_path);
+      hydra_scene_delegate_ = std::make_unique<io::hydra::HydraSceneDelegate>(
+          render_index_.get(), scene_path, use_materialx);
     }
     hydra_scene_delegate_->populate(depsgraph, context ? CTX_wm_view3d(context) : nullptr);
   }
@@ -101,8 +104,8 @@ void Engine::sync(Depsgraph *depsgraph, bContext *context)
 
     if (!usd_scene_delegate_) {
       pxr::SdfPath scene_path = pxr::SdfPath::AbsoluteRootPath().AppendElementString("usd_scene");
-      usd_scene_delegate_ = std::make_unique<io::hydra::USDSceneDelegate>(render_index_.get(),
-                                                                          scene_path);
+      usd_scene_delegate_ = std::make_unique<io::hydra::USDSceneDelegate>(
+          render_index_.get(), scene_path, use_materialx);
     }
     usd_scene_delegate_->populate(depsgraph);
   }
@@ -120,7 +123,7 @@ float Engine::renderer_percent_done()
   if (it == render_stats.end()) {
     return 0.0f;
   }
-  return (float)it->second.UncheckedGet<double>();
+  return float(it->second.UncheckedGet<double>());
 }
 
 pxr::HdTaskSharedPtrVector Engine::tasks()

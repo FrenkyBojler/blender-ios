@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2023 Blender Foundation
+# SPDX-FileCopyrightText: 2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
 this script updates XML themes once new settings are added
 
-  ./blender.bin --background -noaudio --python tools/check_source/check_descriptions.py
+  ./blender.bin --background --python tools/check_source/check_descriptions.py
 """
+__all__ = (
+    "main",
+)
 
 import bpy
 

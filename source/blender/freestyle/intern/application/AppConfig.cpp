@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2008-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2008-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,7 +14,7 @@
 
 using namespace std;
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 
 namespace Freestyle::Config {
 
@@ -23,7 +23,8 @@ Path::Path()
 {
   // get the root directory
   // soc
-  setRootDir(BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, nullptr));
+  const std::optional<std::string> path = BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, nullptr);
+  setRootDir(path.value_or(BKE_appdir_program_dir()));
 
   _pInstance = this;
 }

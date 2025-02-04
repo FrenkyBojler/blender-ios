@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,13 +10,10 @@
 
 #include "BLI_assert.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_volume_types.h"
 
-#include "BKE_volume.h"
-
-#include <cstdio>
+#include "BKE_volume.hh"
 
 namespace blender::deg {
 
@@ -28,8 +25,8 @@ void VolumeBackup::init_from_volume(Volume *volume)
   BLI_STATIC_ASSERT(sizeof(filepath) == sizeof(volume->filepath),
                     "VolumeBackup filepath length wrong");
 
-  grids = volume->runtime.grids;
-  volume->runtime.grids = nullptr;
+  grids = volume->runtime->grids;
+  volume->runtime->grids = nullptr;
 }
 
 void VolumeBackup::restore_to_volume(Volume *volume)

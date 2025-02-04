@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -10,6 +10,9 @@
 
 #include "tree_element.hh"
 
+struct Scene;
+struct ViewLayer;
+
 namespace blender::ed::outliner {
 
 class TreeElementViewLayerBase final : public AbstractTreeElement {
@@ -18,7 +21,16 @@ class TreeElementViewLayerBase final : public AbstractTreeElement {
  public:
   TreeElementViewLayerBase(TreeElement &legacy_te, Scene &scene);
 
-  void expand(SpaceOutliner &) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
+};
+
+class TreeElementViewLayer final : public AbstractTreeElement {
+  /* Not needed right now, avoid unused member variable warning. */
+  // Scene &scene_;
+  ViewLayer &view_layer_;
+
+ public:
+  TreeElementViewLayer(TreeElement &legacy_te, Scene &scene, ViewLayer &view_layer);
 };
 
 }  // namespace blender::ed::outliner

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2013 Blender Foundation
+/* SPDX-FileCopyrightText: 2013 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -16,14 +16,14 @@
 
 #include "GHOST_ContextCGL.hh"
 
-#include <Cocoa/Cocoa.h>
-#include <Metal/Metal.h>
-#include <QuartzCore/QuartzCore.h>
-
-#include <epoxy/gl.h>
+#import <Cocoa/Cocoa.h>
+#import <Metal/Metal.h>
+#import <QuartzCore/QuartzCore.h>
 
 #include <cassert>
 #include <vector>
+
+static const MTLPixelFormat METAL_FRAMEBUFFERPIXEL_FORMAT_EDR = MTLPixelFormatRGBA16Float;
 
 static void ghost_fatal_error_dialog(const char *msg)
 {
@@ -31,17 +31,18 @@ static void ghost_fatal_error_dialog(const char *msg)
     NSString *message = [NSString stringWithFormat:@"Error opening window:\n%s", msg];
 
     NSAlert *alert = [[NSAlert alloc] init];
+
+    alert.messageText = @"Blender";
+    alert.informativeText = message;
+    alert.alertStyle = NSAlertStyleCritical;
+
     [alert addButtonWithTitle:@"Quit"];
-    [alert setMessageText:@"Blender"];
-    [alert setInformativeText:message];
-    [alert setAlertStyle:NSAlertStyleCritical];
     [alert runModal];
   }
 
   exit(1);
 }
 
-NSOpenGLContext *GHOST_ContextCGL::s_sharedOpenGLContext = nil;
 MTLCommandQueue *GHOST_ContextCGL::s_sharedMetalCommandQueue = nil;
 int GHOST_ContextCGL::s_sharedCount = 0;
 
@@ -55,46 +56,62 @@ GHOST_ContextCGL::GHOST_ContextCGL(bool stereoVisual,
       m_metalRenderPipeline(nil),
       m_debug(debug)
 {
-  /* Initialize Metal Swap-chain. */
-  current_swapchain_index = 0;
-  for (int i = 0; i < METAL_SWAPCHAIN_SIZE; i++) {
-    m_defaultFramebufferMetalTexture[i].texture = nil;
-    m_defaultFramebufferMetalTexture[i].index = i;
-  }
-
-  if (m_metalView) {
-    m_ownsMetalDevice = false;
-    metalInit();
-  }
-  else {
-    /* Prepare offscreen GHOST Context Metal device. */
-    id<MTLDevice> metalDevice = MTLCreateSystemDefaultDevice();
-
-    if (m_debug) {
-      printf("Selected Metal Device: %s\n", [metalDevice.name UTF8String]);
+  @autoreleasepool {
+    /* Initialize Metal Swap-chain. */
+    current_swapchain_index = 0;
+    for (int i = 0; i < METAL_SWAPCHAIN_SIZE; i++) {
+      m_defaultFramebufferMetalTexture[i].texture = nil;
+      m_defaultFramebufferMetalTexture[i].index = i;
     }
 
-    m_ownsMetalDevice = true;
-    if (metalDevice) {
-      m_metalLayer = [[CAMetalLayer alloc] init];
-      [m_metalLayer setEdgeAntialiasingMask:0];
-      [m_metalLayer setMasksToBounds:NO];
-      [m_metalLayer setOpaque:YES];
-      [m_metalLayer setFramebufferOnly:YES];
-      [m_metalLayer setPresentsWithTransaction:NO];
-      [m_metalLayer removeAllAnimations];
-      [m_metalLayer setDevice:metalDevice];
-      m_metalLayer.allowsNextDrawableTimeout = NO;
+    if (m_metalView) {
+      m_ownsMetalDevice = false;
       metalInit();
     }
     else {
-      ghost_fatal_error_dialog(
-          "[ERROR] Failed to create Metal device for offscreen GHOST Context.\n");
-    }
-  }
+      /* Prepare offscreen GHOST Context Metal device. */
+      id<MTLDevice> metalDevice = MTLCreateSystemDefaultDevice();
 
-  /* Initialize swap-interval. */
-  mtl_SwapInterval = 60;
+      if (m_debug) {
+        printf("Selected Metal Device: %s\n", [metalDevice.name UTF8String]);
+      }
+
+      m_ownsMetalDevice = true;
+      if (metalDevice) {
+        m_metalLayer = [[CAMetalLayer alloc] init];
+        m_metalLayer.edgeAntialiasingMask = 0;
+        m_metalLayer.masksToBounds = NO;
+        m_metalLayer.opaque = YES;
+        m_metalLayer.framebufferOnly = YES;
+        m_metalLayer.presentsWithTransaction = NO;
+        [m_metalLayer removeAllAnimations];
+        m_metalLayer.device = metalDevice;
+        m_metalLayer.allowsNextDrawableTimeout = NO;
+
+        /* Enable EDR support. This is done by:
+         * 1. Using a floating point render target, so that values outside 0..1 can be used
+         * 2. Informing the OS that we are EDR aware, and intend to use values outside 0..1
+         * 3. Setting the extended sRGB color space so that the OS knows how to interpret the
+         *    values.
+         */
+        m_metalLayer.wantsExtendedDynamicRangeContent = YES;
+        m_metalLayer.pixelFormat = METAL_FRAMEBUFFERPIXEL_FORMAT_EDR;
+        const CFStringRef name = kCGColorSpaceExtendedSRGB;
+        CGColorSpaceRef colorspace = CGColorSpaceCreateWithName(name);
+        m_metalLayer.colorspace = colorspace;
+        CGColorSpaceRelease(colorspace);
+
+        metalInit();
+      }
+      else {
+        ghost_fatal_error_dialog(
+            "[ERROR] Failed to create Metal device for offscreen GHOST Context.\n");
+      }
+    }
+
+    /* Initialize swap-interval. */
+    mtl_SwapInterval = 60;
+  }
 }
 
 GHOST_ContextCGL::~GHOST_ContextCGL()
@@ -106,6 +123,13 @@ GHOST_ContextCGL::~GHOST_ContextCGL()
       [m_metalLayer release];
       m_metalLayer = nil;
     }
+  }
+  assert(s_sharedCount);
+
+  s_sharedCount--;
+  [s_sharedMetalCommandQueue release];
+  if (s_sharedCount == 0) {
+    s_sharedMetalCommandQueue = nil;
   }
 }
 
@@ -199,8 +223,6 @@ GHOST_TSuccess GHOST_ContextCGL::releaseNativeHandles()
   return GHOST_kSuccess;
 }
 
-static const MTLPixelFormat METAL_FRAMEBUFFERPIXEL_FORMAT = MTLPixelFormatBGRA8Unorm;
-
 void GHOST_ContextCGL::metalInit()
 {
   @autoreleasepool {
@@ -215,6 +237,7 @@ void GHOST_ContextCGL::metalInit()
     }
     /* Ensure active GHOSTContext retains a reference to the shared context. */
     [s_sharedMetalCommandQueue retain];
+    s_sharedCount++;
 
     /* Create shaders for blit operation. */
     NSString *source = @R"msl(
@@ -244,7 +267,7 @@ void GHOST_ContextCGL::metalInit()
                       texture2d<float> t [[texture(0)]]) {
 
         /* Final blit should ensure alpha is 1.0. This resolves
-         * rendering artifacts for blitting of final backbuffer. */
+         * rendering artifacts for blitting of final back-buffer. */
         float4 out_tex = t.sample(s, v.texCoord);
         out_tex.a = 1.0;
         return out_tex;
@@ -266,10 +289,11 @@ void GHOST_ContextCGL::metalInit()
 
     desc.fragmentFunction = [library newFunctionWithName:@"fragment_shader"];
     desc.vertexFunction = [library newFunctionWithName:@"vertex_shader"];
+    [desc.colorAttachments objectAtIndexedSubscript:0].pixelFormat =
+        METAL_FRAMEBUFFERPIXEL_FORMAT_EDR;
+
     /* Ensure library is released. */
     [library autorelease];
-
-    [desc.colorAttachments objectAtIndexedSubscript:0].pixelFormat = METAL_FRAMEBUFFERPIXEL_FORMAT;
 
     m_metalRenderPipeline = (MTLRenderPipelineState *)[device
         newRenderPipelineStateWithDescriptor:desc
@@ -292,6 +316,9 @@ void GHOST_ContextCGL::metalInit()
           "GHOST_ContextCGL::metalInit: newRenderPipelineStateWithDescriptor:error: failed (when "
           "creating the Metal overlay pipeline)!");
     }
+
+    [desc.fragmentFunction release];
+    [desc.vertexFunction release];
   }
 }
 
@@ -299,11 +326,13 @@ void GHOST_ContextCGL::metalFree()
 {
   if (m_metalRenderPipeline) {
     [m_metalRenderPipeline release];
+    m_metalRenderPipeline = nil;
   }
 
   for (int i = 0; i < METAL_SWAPCHAIN_SIZE; i++) {
     if (m_defaultFramebufferMetalTexture[i].texture) {
       [m_defaultFramebufferMetalTexture[i].texture release];
+      m_defaultFramebufferMetalTexture[i].texture = nil;
     }
   }
 }
@@ -315,63 +344,62 @@ void GHOST_ContextCGL::metalInitFramebuffer()
 
 void GHOST_ContextCGL::metalUpdateFramebuffer()
 {
-  NSRect bounds = [m_metalView bounds];
-  NSSize backingSize = [m_metalView convertSizeToBacking:bounds.size];
-  size_t width = (size_t)backingSize.width;
-  size_t height = (size_t)backingSize.height;
+  @autoreleasepool {
+    const NSRect bounds = [m_metalView bounds];
+    const NSSize backingSize = [m_metalView convertSizeToBacking:bounds.size];
+    const size_t width = size_t(backingSize.width);
+    const size_t height = size_t(backingSize.height);
 
-  if (m_defaultFramebufferMetalTexture[current_swapchain_index].texture &&
-      m_defaultFramebufferMetalTexture[current_swapchain_index].texture.width == width &&
-      m_defaultFramebufferMetalTexture[current_swapchain_index].texture.height == height)
-  {
-    return;
+    if (m_defaultFramebufferMetalTexture[current_swapchain_index].texture &&
+        m_defaultFramebufferMetalTexture[current_swapchain_index].texture.width == width &&
+        m_defaultFramebufferMetalTexture[current_swapchain_index].texture.height == height)
+    {
+      return;
+    }
+
+    /* Free old texture */
+    [m_defaultFramebufferMetalTexture[current_swapchain_index].texture release];
+
+    id<MTLDevice> device = m_metalLayer.device;
+    MTLTextureDescriptor *overlayDesc = [MTLTextureDescriptor
+        texture2DDescriptorWithPixelFormat:METAL_FRAMEBUFFERPIXEL_FORMAT_EDR
+                                     width:width
+                                    height:height
+                                 mipmapped:NO];
+    overlayDesc.storageMode = MTLStorageModePrivate;
+    overlayDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
+
+    id<MTLTexture> overlayTex = [device newTextureWithDescriptor:overlayDesc];
+    if (!overlayTex) {
+      ghost_fatal_error_dialog(
+          "GHOST_ContextCGL::metalUpdateFramebuffer: failed to create Metal overlay texture!");
+    }
+    else {
+      overlayTex.label = [NSString
+          stringWithFormat:@"Metal Overlay for GHOST Context %p", this];  //@"";
+    }
+
+    m_defaultFramebufferMetalTexture[current_swapchain_index].texture = overlayTex;
+
+    /* Clear texture on create */
+    id<MTLCommandBuffer> cmdBuffer = [s_sharedMetalCommandQueue commandBuffer];
+    MTLRenderPassDescriptor *passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+    {
+      auto attachment = [passDescriptor.colorAttachments objectAtIndexedSubscript:0];
+      attachment.texture = m_defaultFramebufferMetalTexture[current_swapchain_index].texture;
+      attachment.loadAction = MTLLoadActionClear;
+      attachment.clearColor = MTLClearColorMake(0.294, 0.294, 0.294, 1.000);
+      attachment.storeAction = MTLStoreActionStore;
+    }
+    {
+      id<MTLRenderCommandEncoder> enc = [cmdBuffer
+          renderCommandEncoderWithDescriptor:passDescriptor];
+      [enc endEncoding];
+    }
+    [cmdBuffer commit];
+
+    m_metalLayer.drawableSize = CGSizeMake(CGFloat(width), CGFloat(height));
   }
-
-  /* Free old texture */
-  [m_defaultFramebufferMetalTexture[current_swapchain_index].texture release];
-
-  id<MTLDevice> device = m_metalLayer.device;
-  MTLTextureDescriptor *overlayDesc = [MTLTextureDescriptor
-      texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA16Float
-                                   width:width
-                                  height:height
-                               mipmapped:NO];
-  overlayDesc.storageMode = MTLStorageModePrivate;
-  overlayDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
-
-  id<MTLTexture> overlayTex = [device newTextureWithDescriptor:overlayDesc];
-  if (!overlayTex) {
-    ghost_fatal_error_dialog(
-        "GHOST_ContextCGL::metalUpdateFramebuffer: failed to create Metal overlay texture!");
-  }
-  else {
-    overlayTex.label = [NSString
-        stringWithFormat:@"Metal Overlay for GHOST Context %p", this];  //@"";
-
-    // NSLog(@"Created new Metal Overlay (backbuffer) for context %p\n", this);
-  }
-
-  m_defaultFramebufferMetalTexture[current_swapchain_index].texture =
-      overlayTex;  //[(MTLTexture *)overlayTex retain];
-
-  /* Clear texture on create */
-  id<MTLCommandBuffer> cmdBuffer = [s_sharedMetalCommandQueue commandBuffer];
-  MTLRenderPassDescriptor *passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
-  {
-    auto attachment = [passDescriptor.colorAttachments objectAtIndexedSubscript:0];
-    attachment.texture = m_defaultFramebufferMetalTexture[current_swapchain_index].texture;
-    attachment.loadAction = MTLLoadActionClear;
-    attachment.clearColor = MTLClearColorMake(0.294, 0.294, 0.294, 1.000);
-    attachment.storeAction = MTLStoreActionStore;
-  }
-  {
-    id<MTLRenderCommandEncoder> enc = [cmdBuffer
-        renderCommandEncoderWithDescriptor:passDescriptor];
-    [enc endEncoding];
-  }
-  [cmdBuffer commit];
-
-  [m_metalLayer setDrawableSize:CGSizeMake((CGFloat)width, (CGFloat)height)];
 }
 
 void GHOST_ContextCGL::metalSwapBuffers()

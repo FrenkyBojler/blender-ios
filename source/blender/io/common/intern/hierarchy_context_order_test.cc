@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2019 Blender Foundation
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "IO_abstract_hierarchy_iterator.h"
@@ -18,8 +18,7 @@ Object *fake_pointer(int value)
 
 }  // namespace
 
-class HierarchyContextOrderTest : public testing::Test {
-};
+class HierarchyContextOrderTest : public testing::Test {};
 
 TEST_F(HierarchyContextOrderTest, ObjectPointerTest)
 {

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2002-2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2002-2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -33,6 +33,11 @@
     (void)_res; \
   } \
   (void)0
+
+#define INIT_EXTENSION_FUNCTION(name) \
+  CHECK_XR( \
+      xrGetInstanceProcAddr(instance, #name, reinterpret_cast<PFN_xrVoidFunction *>(&g_##name)), \
+      "Failed to get pointer to extension function: " #name);
 
 inline void copy_ghost_pose_to_openxr_pose(const GHOST_XrPose &ghost_pose, XrPosef &r_oxr_pose)
 {

@@ -1,16 +1,21 @@
+/* SPDX-FileCopyrightText: 2018-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(select_lib.glsl)
+#include "common_view_clipping_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "overlay_common_lib.glsl"
+#include "select_lib.glsl"
 
 /* Sphere radius */
-const float rad = 0.05;
+#define rad 0.05
 
 void main()
 {
   select_id_set(in_select_buf[gl_InstanceID]);
 
   vec4 bone_color, state_color;
+  mat4 inst_obmat = data_buf[gl_InstanceID];
   mat4 model_mat = extract_matrix_packed_data(inst_obmat, state_color, bone_color);
 
   mat4 model_view_matrix = drw_view.viewmat * model_mat;
@@ -19,10 +24,10 @@ void main()
   bool is_persp = (drw_view.winmat[3][3] == 0.0);
 
   /* This is the local space camera ray (not normalize).
-   * In perspective mode it's also the viewspace position
+   * In perspective mode it's also the view-space position
    * of the sphere center. */
   vec3 cam_ray = (is_persp) ? model_view_matrix[3].xyz : vec3(0.0, 0.0, -1.0);
-  cam_ray = mat3(sphereMatrix) * cam_ray;
+  cam_ray = to_float3x3(sphereMatrix) * cam_ray;
 
   /* Sphere center distance from the camera (persp) in local space. */
   float cam_dist = length(cam_ray);
@@ -48,7 +53,7 @@ void main()
     float cos_b = cos(a);
     float sin_b = sqrt(clamp(1.0 - cos_b * cos_b, 0.0, 1.0));
 #if 1
-    /* Instead of choosing the biggest circle in screenspace,
+    /* Instead of choosing the biggest circle in screen-space,
      * we choose the nearest with the same angular size. This
      * permit us to leverage GL_ARB_conservative_depth in the
      * fragment shader. */
