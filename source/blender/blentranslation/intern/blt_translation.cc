@@ -37,11 +37,11 @@ bool BLT_is_default_context(const StringRef msgctxt)
   return (msgctxt.is_empty() || msgctxt[0] == BLT_I18NCONTEXT_DEFAULT_BPYRNA[0]);
 }
 
-const char *BLT_pgettext(const char *msgctxt, const char *msgid)
+static std::optional<StringRefNull> pgettext(StringRef msgctxt, const StringRef msgid)
 {
 #ifdef WITH_INTERNATIONAL
-  if (!msgid || !msgid[0]) {
-    return msgid;
+  if (msgid.is_empty()) {
+    return std::nullopt;
   }
   if (BLT_is_default_context(msgctxt)) {
     msgctxt = BLT_I18NCONTEXT_DEFAULT;
@@ -49,40 +49,33 @@ const char *BLT_pgettext(const char *msgctxt, const char *msgid)
   if (const std::optional<StringRefNull> translation = blender::locale::translate(
           0, msgctxt, msgid))
   {
-    return translation->c_str();
+    return translation;
   }
 #  ifdef WITH_PYTHON
-  return BPY_app_translations_py_pgettext(msgctxt, StringRefNull(msgid)).c_str();
-#  else
-  return msgid;
+  return BPY_app_translations_py_pgettext(msgctxt, msgid);
 #  endif
 #else
   (void)msgctxt;
-  return msgid;
+  return std::nullopt;
 #endif
+}
+
+const char *BLT_pgettext(const char *msgctxt, const char *msgid)
+{
+  const std::optional<StringRefNull> translation = pgettext(msgctxt, msgid);
+  if (!translation) {
+    return msgid;
+  }
+  return translation->c_str();
 }
 
 blender::StringRef BLT_pgettext(blender::StringRef msgctxt, blender::StringRef msgid)
 {
-#ifdef WITH_INTERNATIONAL
-  if (msgid.is_empty()) {
+  const std::optional<StringRefNull> translation = pgettext(msgctxt, msgid);
+  if (!translation) {
     return msgid;
   }
-  if (BLT_is_default_context(msgctxt)) {
-    msgctxt = BLT_I18NCONTEXT_DEFAULT;
-  }
-  if (const std::optional<StringRef> translation = blender::locale::translate(0, msgctxt, msgid)) {
-    return *translation;
-  }
-#  ifdef WITH_PYTHON
-  return BPY_app_translations_py_pgettext(msgctxt, msgid);
-#  else
-  return msgid;
-#  endif
-#else
-  (void)msgctxt;
-  return msgid;
-#endif
+  return *translation;
 }
 
 bool BLT_translate()

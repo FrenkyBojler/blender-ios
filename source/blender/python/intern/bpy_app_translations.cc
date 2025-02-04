@@ -236,7 +236,7 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
         }
 
         /* Do not overwrite existing keys! */
-        if (BPY_app_translations_py_pgettext(msgctxt, StringRef(msgid)).data() == msgid) {
+        if (!BPY_app_translations_py_pgettext(msgctxt, msgid).has_value()) {
           MessageKey key{msgctxt, msgid};
           Py_ssize_t trans_str_len;
           const char *trans_str = PyUnicode_AsUTF8AndSize(trans, &trans_str_len);
@@ -252,8 +252,8 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
   MEM_SAFE_FREE(language_variant);
 }
 
-template<typename StringT>
-inline StringT app_translations_py_pgettext(const StringRef msgctxt, const StringT msgid)
+std::optional<StringRefNull> BPY_app_translations_py_pgettext(const StringRef msgctxt,
+                                                              const StringRef msgid)
 {
 #  define STATIC_LOCALE_SIZE 32 /* Should be more than enough! */
 
@@ -262,7 +262,7 @@ inline StringT app_translations_py_pgettext(const StringRef msgctxt, const Strin
 
   /* Just in case, should never happen! */
   if (!_translations) {
-    return msgid;
+    return std::nullopt;
   }
 
   tmp = BLT_lang_get();
@@ -287,21 +287,11 @@ inline StringT app_translations_py_pgettext(const StringRef msgctxt, const Strin
 
   const std::string *result = get_translations_cache()->lookup_ptr_as(key);
   if (!result) {
-    return msgid;
+    return std::nullopt;
   }
   return result->c_str();
 
 #  undef STATIC_LOCALE_SIZE
-}
-
-StringRef BPY_app_translations_py_pgettext(const StringRef msgctxt, const StringRef msgid)
-{
-  return app_translations_py_pgettext(msgctxt, msgid);
-}
-
-StringRefNull BPY_app_translations_py_pgettext(const StringRef msgctxt, const StringRefNull msgid)
-{
-  return app_translations_py_pgettext(msgctxt, msgid);
 }
 
 #endif /* WITH_INTERNATIONAL */
