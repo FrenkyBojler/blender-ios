@@ -6,6 +6,7 @@
  * \ingroup edgreasepencil
  */
 
+#include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_assert.h"
 #include "BLI_index_mask.hh"
@@ -2448,7 +2449,13 @@ static void GREASE_PENCIL_OT_separate(wmOperatorType *ot)
 
 /* Global clipboard for Grease Pencil curves. */
 static struct Clipboard {
-  bke::CurvesGeometry curves;
+  struct ClipboardLayer {
+    /* Name of the layer. */
+    std::string name;
+    /* Curves for this layer. */
+    bke::CurvesGeometry curves;
+  };
+  Array<ClipboardLayer> layers;
   /* Object transform of stored curves. */
   float4x4 transform;
   /* We store the material uid's of the copied curves, so we can match those when pasting the
@@ -2514,9 +2521,23 @@ static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
     selection_in_target.finish();
   });
 
-  const float4x4 object_to_layer = math::invert(active_layer.to_object_space(*object));
-  clipboard_paste_strokes(
-      *bmain, *object, *target_drawing, object_to_layer, keep_world_transform, paste_on_back);
+  const Clipboard &clipboard = ensure_grease_pencil_clipboard();
+  for (const Clipboard::ClipboardLayer &layer : clipboard.layers) {
+    if (bke::greasepencil::TreeNode *node = grease_pencil.find_node_by_name(layer.name)) {
+      if (node->is_layer()) {
+        clipboard_paste_strokes_to_layer(*bmain, *object, layer.curves, node->as_layer());
+      } 
+    }
+    
+    /* Fallback to using active layer. */
+    const float4x4 object_to_layer = math::invert(active_layer.to_object_space(*object));
+    clipboard_paste_strokes(
+        *bmain, *object, *target_drawing, object_to_layer, keep_world_transform, paste_on_back);
+  }
+
+  // const float4x4 object_to_layer = math::invert(active_layer.to_object_space(*object));
+  // clipboard_paste_strokes(
+  //     *bmain, *object, *target_drawing, object_to_layer, keep_world_transform, paste_on_back);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
@@ -2528,14 +2549,30 @@ static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bke::GeometrySet join_geometries_with_transform(Span<bke::GeometrySet> geometries,
-                                                       Span<float4x4> transforms)
-{
-  BLI_assert(geometries.size() == transforms.size());
+// static bke::GeometrySet join_geometries_with_transform(Span<bke::GeometrySet> geometries,
+//                                                        Span<float4x4> transforms)
+// {
+//   BLI_assert(geometries.size() == transforms.size());
 
+//   std::unique_ptr<bke::Instances> instances = std::make_unique<bke::Instances>();
+//   instances->resize(geometries.size());
+//   instances->transforms_for_write().copy_from(transforms);
+//   MutableSpan<int> handles = instances->reference_handles_for_write();
+//   for (const int i : geometries.index_range()) {
+//     handles[i] = instances->add_new_reference(bke::InstanceReference{geometries[i]});
+//   }
+
+//   geometry::RealizeInstancesOptions options;
+//   options.keep_original_ids = true;
+//   options.realize_instance_attributes = false;
+//   return realize_instances(bke::GeometrySet::from_instances(instances.release()), options);
+// }
+static bke::GeometrySet join_geometries_with_transform(Span<bke::GeometrySet> geometries,
+                                                       const float4x4 transform)
+{
   std::unique_ptr<bke::Instances> instances = std::make_unique<bke::Instances>();
   instances->resize(geometries.size());
-  instances->transforms_for_write().copy_from(transforms);
+  instances->transforms_for_write().fill(transform);
   MutableSpan<int> handles = instances->reference_handles_for_write();
   for (const int i : geometries.index_range()) {
     handles[i] = instances->add_new_reference(bke::InstanceReference{geometries[i]});
@@ -2560,16 +2597,17 @@ static int grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
   Clipboard &clipboard = ensure_grease_pencil_clipboard();
 
   bool anything_copied = false;
-  int num_copied = 0;
-  Vector<bke::GeometrySet> set_of_copied_curves;
-  Vector<float4x4> set_of_transforms;
+  int num_elements_copied = 0;
+  // Vector<bke::GeometrySet> set_of_copied_curves;
+  // Vector<float4x4> set_of_transforms;
+  Map<int, Vector<bke::GeometrySet>> copied_curves_per_layer_index;
 
   /* Collect all selected strokes/points on all editable layers. */
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   for (const MutableDrawingInfo &drawing_info : drawings) {
     const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
     const Layer &layer = grease_pencil.layer(drawing_info.layer_index);
-    const float4x4 layer_to_object = layer.to_object_space(*object);
+    // const float4x4 layer_to_object = layer.to_object_space(*object);
 
     if (curves.is_empty()) {
       continue;
@@ -2585,41 +2623,62 @@ static int grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
     if (selection_domain == bke::AttrDomain::Curve) {
       const IndexMask selected_curves = ed::curves::retrieve_selected_curves(curves, memory);
       copied_curves = curves_copy_curve_selection(curves, selected_curves, {});
-      num_copied += copied_curves.curves_num();
+      num_elements_copied += copied_curves.curves_num();
     }
     else if (selection_domain == bke::AttrDomain::Point) {
       const IndexMask selected_points = ed::curves::retrieve_selected_points(curves, memory);
       copied_curves = curves_copy_point_selection(curves, selected_points, {});
-      num_copied += copied_curves.points_num();
+      num_elements_copied += copied_curves.points_num();
     }
 
     /* Add the layer selection to the set of copied curves. */
-    Curves *layer_curves = curves_new_nomain(std::move(copied_curves));
-    set_of_copied_curves.append(bke::GeometrySet::from_curves(layer_curves));
-    set_of_transforms.append(layer_to_object);
+    // Curves *layer_curves = curves_new_nomain(std::move(copied_curves));
+    // set_of_copied_curves.append(bke::GeometrySet::from_curves(layer_curves));
+    // set_of_transforms.append(layer_to_object);
+    copied_curves_per_layer_index.lookup_or_add_default(drawing_info.layer_index)
+        .append(bke::GeometrySet::from_curves(curves_new_nomain(std::move(copied_curves))));
     anything_copied = true;
   }
 
   if (!anything_copied) {
-    clipboard.curves.resize(0, 0);
+    clipboard.layers.reinitialize(0);
     return OPERATOR_CANCELLED;
   }
 
-  /* Merge all copied curves into one CurvesGeometry object and assign it to the clipboard. */
-  bke::GeometrySet joined_copied_curves = join_geometries_with_transform(set_of_copied_curves,
-                                                                         set_of_transforms);
-  clipboard.curves = std::move(joined_copied_curves.get_curves_for_write()->geometry.wrap());
+  clipboard.layers.reinitialize(copied_curves_per_layer_index.size());
+  int i = 0;
+  for (auto const &[layer_index, geometries] : copied_curves_per_layer_index.items()) {
+    const Layer &layer = grease_pencil.layer(layer_index);
+    const float4x4 layer_to_object = layer.to_object_space(*object);
+    Clipboard::ClipboardLayer &cliplayer = clipboard.layers[i];
+
+    bke::GeometrySet joined_copied_curves = join_geometries_with_transform(geometries.as_span(),
+                                                                           layer_to_object);
+    cliplayer.curves = std::move(joined_copied_curves.get_curves_for_write()->geometry.wrap());
+    cliplayer.name = layer.name();
+    i++;
+  }
   clipboard.transform = object->object_to_world();
 
   /* Store the session uid of the materials used by the curves in the clipboard. We use the uid to
    * remap the material indices when pasting. */
   clipboard.materials.clear();
   clipboard.materials_in_source_num = grease_pencil.material_array_num;
-  const bke::AttributeAccessor attributes = clipboard.curves.attributes();
-  const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+
+  const auto is_material_index_used = [&](const int material_index) -> bool {
+    for (const Clipboard::ClipboardLayer &layer : clipboard.layers) {
+      const bke::AttributeAccessor attributes = layer.curves.attributes();
+      const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
+          "material_index", bke::AttrDomain::Curve, 0);
+      if (material_indices.contains(material_index)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   for (const int material_index : IndexRange(grease_pencil.material_array_num)) {
-    if (!material_indices.contains(material_index)) {
+    if (!is_material_index_used(material_index)) {
       continue;
     }
     const Material *material = grease_pencil.material_array[material_index];
@@ -2628,10 +2687,10 @@ static int grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
 
   /* Report the numbers. */
   if (selection_domain == bke::AttrDomain::Curve) {
-    BKE_reportf(op->reports, RPT_INFO, "Copied %d selected curve(s)", num_copied);
+    BKE_reportf(op->reports, RPT_INFO, "Copied %d selected curve(s)", num_elements_copied);
   }
   else if (selection_domain == bke::AttrDomain::Point) {
-    BKE_reportf(op->reports, RPT_INFO, "Copied %d selected point(s)", num_copied);
+    BKE_reportf(op->reports, RPT_INFO, "Copied %d selected point(s)", num_elements_copied);
   }
 
   return OPERATOR_FINISHED;
@@ -2645,7 +2704,7 @@ static bool grease_pencil_paste_strokes_poll(bContext *C)
 
   std::scoped_lock lock(grease_pencil_clipboard_lock);
   /* Check for curves in the Grease Pencil clipboard. */
-  return (grease_pencil_clipboard && grease_pencil_clipboard->curves.curves_num() > 0);
+  return (grease_pencil_clipboard && grease_pencil_clipboard->layers.size() > 0);
 }
 
 static void GREASE_PENCIL_OT_paste(wmOperatorType *ot)
@@ -2694,11 +2753,11 @@ void clipboard_free()
   }
 }
 
-const bke::CurvesGeometry &clipboard_curves()
-{
-  using namespace blender::ed::greasepencil;
-  return ensure_grease_pencil_clipboard().curves;
-}
+// const bke::CurvesGeometry &clipboard_curves()
+// {
+//   using namespace blender::ed::greasepencil;
+//   return ensure_grease_pencil_clipboard().curves;
+// }
 
 static Array<int> clipboard_materials_remap(Main &bmain, Object &object)
 {
@@ -2734,15 +2793,17 @@ static Array<int> clipboard_materials_remap(Main &bmain, Object &object)
 
 IndexRange clipboard_paste_strokes(Main &bmain,
                                    Object &object,
-                                   bke::greasepencil::Drawing &drawing,
+                                   const bke::CurvesGeometry &clipboard_curves,
                                    const float4x4 &transform,
+                                   const float4x4 &clipboard_to_world,
                                    const bool keep_world_transform,
-                                   const bool paste_back)
+                                   const bool paste_back,
+                                   bke::greasepencil::Drawing &drawing)
 {
   const Clipboard &clipboard = ensure_grease_pencil_clipboard();
-  const bke::CurvesGeometry &clipboard_curves = clipboard.curves;
-  const float4x4 clipboard_to_world = clipboard.transform;
-  if (clipboard_curves.curves_num() <= 0) {
+  // const bke::CurvesGeometry &clipboard_curves = clipboard.curves;
+  // const float4x4 clipboard_to_world = clipboard.transform;
+  if (clipboard.layers.size() <= 0) {
     return {};
   }
 
