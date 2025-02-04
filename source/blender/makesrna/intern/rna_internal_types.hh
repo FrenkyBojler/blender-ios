@@ -290,7 +290,7 @@ struct RNAPropertyOverrideApplyContext {
 using RNAPropOverrideApply = bool (*)(Main *bmain, RNAPropertyOverrideApplyContext &rnaapply_ctx);
 
 struct PropertyRNAIdentifierGetter {
-  inline blender::StringRef operator()(const PropertyRNA *prop) const;
+  blender::StringRef operator()(const PropertyRNA *prop) const;
 };
 
 /* Container - generic abstracted container of RNA properties */
@@ -394,7 +394,7 @@ struct PropertyRNA {
 inline blender::StringRef PropertyRNAIdentifierGetter::operator()(const PropertyRNA *prop) const
 {
   return prop->identifier;
-};
+}
 
 /* internal flags WARNING! 16bits only! */
 enum PropertyFlagIntern {
