@@ -340,23 +340,31 @@ static void rna_ActionSlot_identifier_set(PointerRNA *ptr, const char *identifie
     return;
   }
 
-  if (slot.has_idtype()) {
-    /* Check if the new identifier would change the type prefix, and if so issue
-     * a warning that that part of the rename will be ignored. */
+  /* Check if the new identifier would change the type prefix, and if so issue a
+   * warning that that part of the rename will be corrected to be consistent
+   * with the target ID type. */
+  {
     const std::string expect_prefix = slot.identifier_prefix_for_idtype();
 
     if (!identifier_ref.startswith(expect_prefix)) {
       const std::string new_prefix = identifier_ref.substr(0, 2);
       WM_reportf(RPT_WARNING,
                  "Slot identifier set, but the type prefix part of the change (from \"%s\" to "
-                 "\"%s\") has been ignored.\n",
+                 "\"%s\") has been corrected back to \"%s\" to match 'target_id_type'.\n",
                  expect_prefix.c_str(),
-                 new_prefix.c_str());
+                 new_prefix.c_str(),
+                 expect_prefix.c_str());
     }
   }
 
   /* Set just the name part of the identifier, ignoring the two-character type
-   * prefix. */
+   * prefix.
+   *
+   * In the warning to the user, above, we frame this as correcting the prefix
+   * back to its correct value (Sybren's suggestion), but it's simpler and
+   * equivalent to just never set it in the first place, so that's what we do
+   * here by using `slot_display_name_define()` instead of
+   * `slot_identifier_define(). */
   action.slot_display_name_define(slot, identifier + 2);
 }
 
