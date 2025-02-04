@@ -32,7 +32,7 @@ AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
                                          const AssetLibrary &owner_asset_library)
     : owner_asset_library_(owner_asset_library),
       relative_identifier_(relative_asset_path),
-      asset_(AssetRepresentation::ExternalAsset{name, id_type, std::move(metadata), nullptr})
+      asset_(AssetRepresentation::ExternalAsset{name, id_type, std::move(metadata)})
 {
 }
 
@@ -66,7 +66,7 @@ AssetRepresentation::~AssetRepresentation()
   if (const ExternalAsset *extern_asset = std::get_if<ExternalAsset>(&asset_);
       extern_asset && extern_asset->preview_)
   {
-    BKE_previewimg_cached_release(this->full_path().c_str());
+    BKE_previewimg_cached_release(this->full_path(true).c_str());
   }
 }
 
@@ -84,8 +84,9 @@ void AssetRepresentation::ensure_previewable()
 
   ExternalAsset &extern_asset = std::get<ExternalAsset>(asset_);
 
-  /* Use the full path as preview name, it's the only unique identifier we have. */
-  const std::string full_path = this->full_path();
+  /* Use the full path as preview name, it's the only unique identifier we have. Resolve the
+   * redirect so the preview is queried from the correct file. */
+  const std::string full_path = this->full_path(true);
   /* Doesn't do the actual reading, just allocates and attaches the derived load info. */
   extern_asset.preview_ = BKE_previewimg_cached_thumbnail_read(
       full_path.c_str(), full_path.c_str(), THB_SOURCE_BLEND, false);
