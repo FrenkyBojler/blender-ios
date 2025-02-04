@@ -341,9 +341,9 @@ static void rna_ActionSlot_identifier_set(PointerRNA *ptr, const char *identifie
   }
 
   /* Sanity check. These should never be out of sync in higher-level code. */
-  BLI_assert(slot.identifier_prefix_for_idtype() == slot.identifier_prefix());
+  BLI_assert(slot.idtype_string() == slot.identifier_prefix());
 
-  const std::string identifier_with_correct_prefix = slot.identifier_prefix_for_idtype() +
+  const std::string identifier_with_correct_prefix = slot.idtype_string() +
                                                      identifier_ref.substr(2);
 
   if (identifier_with_correct_prefix != identifier_ref) {
@@ -351,7 +351,7 @@ static void rna_ActionSlot_identifier_set(PointerRNA *ptr, const char *identifie
                "Attempted to set slot identifier to \"%s\", but the type prefix doesn't match the "
                "slot's 'target_id_type' \"%s\". Setting to \"%s\" instead.\n",
                identifier,
-               slot.identifier_prefix_for_idtype().c_str(),
+               slot.idtype_string().c_str(),
                identifier_with_correct_prefix.c_str());
   }
 
@@ -599,6 +599,16 @@ static std::optional<std::string> rna_Channelbag_path(const PointerRNA *ptr)
   }
 
   return std::nullopt;
+}
+
+static PointerRNA rna_Channelbag_slot_get(PointerRNA *ptr)
+{
+  animrig::Action &action = rna_action(ptr);
+  animrig::Channelbag &channelbag = rna_data_channelbag(ptr);
+  animrig::Slot *slot = action.slot_for_handle(channelbag.slot_handle);
+  BLI_assert(slot);
+
+  return rna_pointer_inherit_refine(ptr, &RNA_ActionSlot, slot);
 }
 
 static void rna_iterator_Channelbag_fcurves_begin(CollectionPropertyIterator *iter,
@@ -2492,6 +2502,12 @@ static void rna_def_action_channelbag(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "slot_handle", PROP_INT, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "slot", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "ActionSlot");
+  RNA_def_property_ui_text(prop, "Slot", "The Slot that the Channelbag's animation data is for");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(prop, "rna_Channelbag_slot_get", nullptr, nullptr, nullptr);
 
   /* Channelbag.fcurves */
   prop = RNA_def_property(srna, "fcurves", PROP_COLLECTION, PROP_NONE);

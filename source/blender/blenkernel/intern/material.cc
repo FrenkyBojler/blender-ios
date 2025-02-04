@@ -609,7 +609,7 @@ void BKE_id_material_append(Main *bmain, ID *id, Material *ma)
     (*matar)[(*totcol)++] = ma;
 
     id_us_plus((ID *)ma);
-    BKE_objects_materials_test_all(bmain, id);
+    BKE_objects_materials_sync_length_all(bmain, id);
 
     DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
     DEG_relations_tag_update(bmain);
@@ -641,7 +641,7 @@ Material *BKE_id_material_pop(Main *bmain, ID *id, int index_i)
 
         (*totcol)--;
         *matar = static_cast<Material **>(MEM_reallocN(*matar, sizeof(void *) * (*totcol)));
-        BKE_objects_materials_test_all(bmain, id);
+        BKE_objects_materials_sync_length_all(bmain, id);
       }
 
       material_data_index_remove_id(id, index);
@@ -669,7 +669,7 @@ void BKE_id_material_clear(Main *bmain, ID *id)
       *matar = nullptr;
     }
 
-    BKE_objects_materials_test_all(bmain, id);
+    BKE_objects_materials_sync_length_all(bmain, id);
     material_data_index_clear_id(id);
 
     DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
@@ -981,9 +981,8 @@ void BKE_object_material_resize(Main *bmain, Object *ob, const short totcol, boo
   DEG_relations_tag_update(bmain);
 }
 
-void BKE_object_materials_test(Main *bmain, Object *ob, ID *id)
+void BKE_object_materials_sync_length(Main *bmain, Object *ob, ID *id)
 {
-  /* make the ob mat-array same size as 'ob->data' mat-array */
   const short *totcol;
 
   if (id == nullptr || (totcol = BKE_id_material_len_p(id)) == nullptr) {
@@ -1003,9 +1002,8 @@ void BKE_object_materials_test(Main *bmain, Object *ob, ID *id)
   }
 }
 
-void BKE_objects_materials_test_all(Main *bmain, ID *id)
+void BKE_objects_materials_sync_length_all(Main *bmain, ID *id)
 {
-  /* make the ob mat-array same size as 'ob->data' mat-array */
   Object *ob;
   const short *totcol;
 
@@ -1072,7 +1070,7 @@ void BKE_id_material_assign(Main *bmain, ID *id, Material *ma, short act)
     id_us_plus(&ma->id);
   }
 
-  BKE_objects_materials_test_all(bmain, id);
+  BKE_objects_materials_sync_length_all(bmain, id);
 }
 
 static void object_material_assign(
@@ -1151,7 +1149,7 @@ static void object_material_assign(
       id_us_min(&mao->id);
     }
     ob->mat[act - 1] = ma;
-    BKE_object_materials_test(bmain, ob, static_cast<ID *>(ob->data));
+    BKE_object_materials_sync_length(bmain, ob, static_cast<ID *>(ob->data));
   }
   else { /* in data */
     mao = (*matarar)[act - 1];
@@ -1161,7 +1159,7 @@ static void object_material_assign(
     (*matarar)[act - 1] = ma;
     /* Data may be used by several objects. */
     if (do_test_all) {
-      BKE_objects_materials_test_all(bmain, static_cast<ID *>(ob->data));
+      BKE_objects_materials_sync_length_all(bmain, static_cast<ID *>(ob->data));
     }
   }
 
@@ -1291,7 +1289,7 @@ void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *
     }
   }
   if (*eval_totcol != *orig_totcol) {
-    BKE_object_materials_test(bmain, ob_orig, data_orig);
+    BKE_object_materials_sync_length(bmain, ob_orig, data_orig);
   }
 }
 
