@@ -116,6 +116,15 @@ static void modify_curves(ModifierData &md,
                           bke::GreasePencilDrawingEditHints *edit_hints)
 {
   auto &amd = reinterpret_cast<GreasePencilArmatureModifierData &>(md);
+
+  Array<int> orig_offsets;
+  Array<MDeformVert> orig_dverts;
+  OffsetIndices<int> orig_points_by_curve;
+  if (edit_hints) {
+    orig_dverts = drawing.strokes().deform_verts();
+    orig_offsets = drawing.strokes().offsets();
+    orig_points_by_curve = OffsetIndices<int>(orig_offsets.as_span());
+  }
   modifier::greasepencil::ensure_no_bezier_curves(drawing);
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
 
@@ -144,15 +153,18 @@ static void modify_curves(ModifierData &md,
   Span<float3> old_positions = {static_cast<const float3 *>(old_positions_data.data),
                                 curves.points_num()};
 
+  std::optional<MutableSpan<float3>> deform_positions;
   std::optional<MutableSpan<float3x3>> deform_mats;
   if (edit_hints) {
     if (!edit_hints->deform_mats.has_value()) {
       edit_hints->deform_mats.emplace(drawing.strokes().points_num(), float3x3::identity());
     }
     deform_mats = edit_hints->deform_mats->as_mutable_span();
+    deform_positions = edit_hints->positions_for_write();
   }
 
   curves_mask.foreach_index(blender::GrainSize(128), [&](const int curve_i) {
+    const IndexRange orig_points = orig_points_by_curve[curve_i];
     const IndexRange points = points_by_curve[curve_i];
 
     std::optional<Span<float3>> old_positions_for_curve;
@@ -171,6 +183,17 @@ static void modify_curves(ModifierData &md,
                                            dverts.slice(points),
                                            deformflag,
                                            amd.influence.vertex_group_name);
+    if (deform_positions) {
+      BKE_armature_deform_coords_with_curves(*amd.object,
+                                             *ctx.object,
+                                             &curves.vertex_group_names,
+                                             deform_positions->slice(orig_points),
+                                             {},
+                                             {},
+                                             orig_dverts.as_span().slice(orig_points),
+                                             deformflag,
+                                             amd.influence.vertex_group_name);
+    }
   });
 
   drawing.tag_positions_changed();
@@ -187,6 +210,8 @@ static void modify_geometry_set(ModifierData *md,
   if (!geometry_set->has_grease_pencil()) {
     return;
   }
+  bke::GeometryComponentEditData::remember_deformed_positions_if_necessary(*geometry_set);
+
   GreasePencil &grease_pencil = *geometry_set->get_grease_pencil_for_write();
   const GreasePencil &grease_pencil_orig = *reinterpret_cast<GreasePencil *>(
       DEG_get_original_id(&grease_pencil.id));
