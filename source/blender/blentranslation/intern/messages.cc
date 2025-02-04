@@ -603,26 +603,13 @@ void free()
   global_full_name = "";
 }
 
-std::optional<StringRef> translate(const int domain, const StringRef context, StringRef key)
+std::optional<StringRefNull> translate(const int domain, const StringRef context, StringRef key)
 {
   if (!global_messages) {
     return std::nullopt;
   }
 
   return global_messages->translate(domain, context, key);
-}
-
-const char *translate(const int domain, const StringRef context, const char *key)
-{
-  if (!global_messages) {
-    return nullptr;
-  }
-  const std::optional<StringRefNull> translation = global_messages->translate(
-      domain, context, key);
-  if (!translation) {
-    return nullptr;
-  }
-  return translation->c_str();
 }
 
 const char *full_name()

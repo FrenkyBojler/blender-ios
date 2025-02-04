@@ -21,8 +21,7 @@ void init(const StringRef locale_full_name,   /* Local name. */
           const Vector<std::string> &paths);  /* Search paths for .mo files. */
 void free();
 
-const char *translate(const int domain, const StringRef context, const char *key);
-std::optional<StringRef> translate(int domain, StringRef context, StringRef key);
+std::optional<StringRefNull> translate(int domain, StringRef context, StringRef key);
 const char *full_name();
 
 #if defined(__APPLE__) && !defined(WITH_HEADLESS) && !defined(WITH_GHOST_SDL)

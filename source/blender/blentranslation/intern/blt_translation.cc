@@ -46,8 +46,10 @@ const char *BLT_pgettext(const char *msgctxt, const char *msgid)
   if (BLT_is_default_context(msgctxt)) {
     msgctxt = BLT_I18NCONTEXT_DEFAULT;
   }
-  if (const char *translation = blender::locale::translate(0, msgctxt, msgid)) {
-    return translation;
+  if (const std::optional<StringRefNull> translation = blender::locale::translate(
+          0, msgctxt, msgid))
+  {
+    return translation->c_str();
   }
 #  ifdef WITH_PYTHON
   return BPY_app_translations_py_pgettext(msgctxt, StringRefNull(msgid)).c_str();
@@ -128,7 +130,7 @@ bool BLT_translate_new_dataname()
 #endif
 }
 
-const char *BLT_translate_do(const char *msgctxt, const char *msgid)
+template<typename StringT> StringT translate_do(StringT msgctxt, StringT msgid)
 {
 #ifdef WITH_INTERNATIONAL
   if (BLT_translate()) {
@@ -143,10 +145,20 @@ const char *BLT_translate_do(const char *msgctxt, const char *msgid)
 #endif
 }
 
+const char *BLT_translate_do(const char *msgctxt, const char *msgid)
+{
+  return translate_do(msgctxt, msgid);
+}
+
 StringRef BLT_translate_do(StringRef msgctxt, StringRef msgid)
 {
+  return translate_do(msgctxt, msgid);
+}
+
+template<typename StringT> StringT translate_do_iface(StringT msgctxt, StringT msgid)
+{
 #ifdef WITH_INTERNATIONAL
-  if (BLT_translate()) {
+  if (BLT_translate_iface()) {
     return BLT_pgettext(msgctxt, msgid);
   }
 
@@ -160,23 +172,18 @@ StringRef BLT_translate_do(StringRef msgctxt, StringRef msgid)
 
 const char *BLT_translate_do_iface(const char *msgctxt, const char *msgid)
 {
-#ifdef WITH_INTERNATIONAL
-  if (BLT_translate_iface()) {
-    return BLT_pgettext(msgctxt, msgid);
-  }
-
-  return msgid;
-
-#else
-  (void)msgctxt;
-  return msgid;
-#endif
+  return translate_do_iface(msgctxt, msgid);
 }
 
 StringRef BLT_translate_do_iface(StringRef msgctxt, StringRef msgid)
 {
+  return translate_do_iface(msgctxt, msgid);
+}
+
+template<typename StringT> StringT translate_do_tooltip(StringT msgctxt, StringT msgid)
+{
 #ifdef WITH_INTERNATIONAL
-  if (BLT_translate_iface()) {
+  if (BLT_translate_tooltips()) {
     return BLT_pgettext(msgctxt, msgid);
   }
 
@@ -190,23 +197,18 @@ StringRef BLT_translate_do_iface(StringRef msgctxt, StringRef msgid)
 
 const char *BLT_translate_do_tooltip(const char *msgctxt, const char *msgid)
 {
-#ifdef WITH_INTERNATIONAL
-  if (BLT_translate_tooltips()) {
-    return BLT_pgettext(msgctxt, msgid);
-  }
-
-  return msgid;
-
-#else
-  (void)msgctxt;
-  return msgid;
-#endif
+  return translate_do_tooltip(msgctxt, msgid);
 }
 
 StringRef BLT_translate_do_tooltip(StringRef msgctxt, StringRef msgid)
 {
+  return translate_do_tooltip(msgctxt, msgid);
+}
+
+template<typename StringT> StringT translate_do_report(StringT msgctxt, StringT msgid)
+{
 #ifdef WITH_INTERNATIONAL
-  if (BLT_translate_tooltips()) {
+  if (BLT_translate_reports()) {
     return BLT_pgettext(msgctxt, msgid);
   }
 
@@ -220,23 +222,18 @@ StringRef BLT_translate_do_tooltip(StringRef msgctxt, StringRef msgid)
 
 const char *BLT_translate_do_report(const char *msgctxt, const char *msgid)
 {
-#ifdef WITH_INTERNATIONAL
-  if (BLT_translate_reports()) {
-    return BLT_pgettext(msgctxt, msgid);
-  }
-
-  return msgid;
-
-#else
-  (void)msgctxt;
-  return msgid;
-#endif
+  return translate_do_report(msgctxt, msgid);
 }
 
 StringRef BLT_translate_do_report(StringRef msgctxt, StringRef msgid)
 {
+  return translate_do_report(msgctxt, msgid);
+}
+
+template<typename StringT> StringT translate_do_new_dataname(StringT msgctxt, StringT msgid)
+{
 #ifdef WITH_INTERNATIONAL
-  if (BLT_translate_reports()) {
+  if (BLT_translate_new_dataname()) {
     return BLT_pgettext(msgctxt, msgid);
   }
 
@@ -250,30 +247,10 @@ StringRef BLT_translate_do_report(StringRef msgctxt, StringRef msgid)
 
 const char *BLT_translate_do_new_dataname(const char *msgctxt, const char *msgid)
 {
-#ifdef WITH_INTERNATIONAL
-  if (BLT_translate_new_dataname()) {
-    return BLT_pgettext(msgctxt, msgid);
-  }
-
-  return msgid;
-
-#else
-  (void)msgctxt;
-  return msgid;
-#endif
+  return translate_do_new_dataname(msgctxt, msgid);
 }
 
 StringRef BLT_translate_do_new_dataname(StringRef msgctxt, StringRef msgid)
 {
-#ifdef WITH_INTERNATIONAL
-  if (BLT_translate_new_dataname()) {
-    return BLT_pgettext(msgctxt, msgid);
-  }
-
-  return msgid;
-
-#else
-  (void)msgctxt;
-  return msgid;
-#endif
+  return translate_do_new_dataname(msgctxt, msgid);
 }
