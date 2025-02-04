@@ -502,7 +502,6 @@ static void keymap_update_mesh_sculpt_brushes(wmKeyMap *keymap)
     map.add_new(SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR, "Smear Multires Displacement");
     map.add_new(SCULPT_BRUSH_TYPE_PAINT, "Paint Hard");
     map.add_new(SCULPT_BRUSH_TYPE_SMEAR, "Smear");
-    map.add_new(SCULPT_BRUSH_TYPE_PLANE, "Plane");
     return map;
   }();
 
