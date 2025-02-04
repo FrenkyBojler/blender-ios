@@ -51,7 +51,7 @@ template<typename Item> class TimelineResources : Vector<std::pair<TimelineValue
   {
     int64_t first_index_to_keep = 0;
     for (std::pair<TimelineValue, Item> &item : *this) {
-      if (item.first > current_timeline) {
+      if (item.first >= current_timeline) {
         break;
       }
       deleter(item.second);
