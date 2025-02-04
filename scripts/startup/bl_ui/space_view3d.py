@@ -4152,7 +4152,7 @@ class VIEW3D_MT_pose(Menu):
         layout.menu("VIEW3D_MT_bone_options_toggle", text="Bone Settings")
 
         layout.separator()
-        layout.operator("POSELIB.create_pose_asset")
+        layout.operator("POSELIB.create_pose_asset", text="Create Pose Assets...")
 
 
 class VIEW3D_MT_pose_transform(Menu):
