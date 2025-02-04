@@ -144,6 +144,7 @@ ExternalProject_Add(external_openimageio
 
 add_dependencies(
   external_openimageio
+  external_opencolorio
   external_png
   external_zlib
   external_openexr
