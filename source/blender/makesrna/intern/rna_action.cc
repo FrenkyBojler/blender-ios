@@ -340,32 +340,22 @@ static void rna_ActionSlot_identifier_set(PointerRNA *ptr, const char *identifie
     return;
   }
 
-  /* Check if the new identifier would change the type prefix, and if so issue a
-   * warning that that part of the rename will be corrected to be consistent
-   * with the target ID type. */
-  {
-    const std::string expect_prefix = slot.identifier_prefix_for_idtype();
+  /* Sanity check. These should never be out of sync in higher-level code. */
+  BLI_assert(slot.idtype_string() == slot.identifier_prefix_for_idtype());
 
-    if (!identifier_ref.startswith(expect_prefix)) {
-      const std::string new_prefix = identifier_ref.substr(0, 2);
-      WM_reportf(RPT_WARNING,
-                 "Slot identifier set, but the type prefix part of the change (from \"%s\" to "
-                 "\"%s\") has been corrected back to \"%s\" to match 'target_id_type'.\n",
-                 expect_prefix.c_str(),
-                 new_prefix.c_str(),
-                 expect_prefix.c_str());
-    }
+  const std::string new_identifier = slot.idtype_string() + identifier_ref.substr(2);
+
+  if (new_identifier != identifier_ref) {
+    const std::string attemped_prefix = identifier_ref.substr(0, 2);
+    WM_reportf(RPT_WARNING,
+               "Attempted to set slot identifier to \"%s\", but the type prefix doesn't match the "
+               "slot's 'target_id_type' \"%s\". Setting to \"%s\" instead.\n",
+               identifier,
+               slot.idtype_string().c_str(),
+               new_identifier.c_str());
   }
 
-  /* Set just the name part of the identifier, ignoring the two-character type
-   * prefix.
-   *
-   * In the warning to the user, above, we frame this as correcting the prefix
-   * back to its correct value (Sybren's suggestion), but it's simpler and
-   * equivalent to just never set it in the first place, so that's what we do
-   * here by using `slot_display_name_define()` instead of
-   * `slot_identifier_define(). */
-  action.slot_display_name_define(slot, identifier + 2);
+  action.slot_identifier_define(slot, new_identifier);
 }
 
 static void rna_ActionSlot_identifier_update(Main *bmain, Scene *, PointerRNA *ptr)

@@ -809,10 +809,35 @@ class Slot : public ::ActionSlot {
   static_assert(sizeof(NlaStrip::last_slot_identifier) == identifier_length_max);
 
   /**
-   * Return the prefix of this Slot's identifier.
+   * Return a string that represents 'idtype'.
    *
-   * This corresponds to the intended ID type (`idtype`) of the slot, e.g "OB"
-   * for object, "CA" for camera, etc.
+   * E.g "OB" for object, "CA" for camera, etc.
+   *
+   * This is different from `identifier_prefix_for_idtype()`: this constructs a
+   * string directly from the actual 'idtype' field of the Slot, whereas
+   * `identifier_prefix_for_idtype()` returns the first two characters of the
+   * identifier string.
+   *
+   * This distinction matters in some lower-level code where the two can
+   * momentarily be out of sync, although this should always be corrected before
+   * exiting such code so that it's never observable in higher-level code.
+   *
+   * \see identifier_prefix_for_idtype()
+   * \see identifier_ensure_prefix()
+   */
+  std::string idtype_string() const;
+
+  /**
+   * Return the two-character type prefix of this Slot's identifier.
+   *
+   * This corresponds to the intended ID type of the slot, e.g "OB" for object,
+   * "CA" for camera, etc.
+   *
+   * This is subtly different from `idtype_string()`. See its documentation for
+   * details.
+   *
+   * \see idtype_string()
+   * \see identifier_ensure_prefix()
    */
   std::string identifier_prefix_for_idtype() const;
 

@@ -697,9 +697,15 @@ TEST_F(ActionLayersTest, slot_identifier_ensure_prefix)
 TEST_F(ActionLayersTest, slot_identifier_prefix)
 {
   Slot &slot = action->slot_add();
+  EXPECT_EQ("XX", slot.idtype_string());
   EXPECT_EQ("XX", slot.identifier_prefix_for_idtype());
 
   slot.idtype = ID_CA;
+  EXPECT_EQ("CA", slot.idtype_string());
+  EXPECT_EQ("XX", slot.identifier_prefix_for_idtype());
+
+  slot.identifier_ensure_prefix();
+  EXPECT_EQ("CA", slot.idtype_string());
   EXPECT_EQ("CA", slot.identifier_prefix_for_idtype());
 }
 
