@@ -839,7 +839,7 @@ class Slot : public ::ActionSlot {
    * \see idtype_string()
    * \see identifier_ensure_prefix()
    */
-  std::string identifier_prefix_for_idtype() const;
+  StringRef identifier_prefix_for_idtype() const;
 
   /**
    * Return this Slot's identifier without the prefix, also known as the
