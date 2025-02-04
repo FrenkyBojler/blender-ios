@@ -104,7 +104,6 @@ void AS_asset_library_remap_ids(const bke::id::IDRemapper &mappings)
 }
 
 void AS_asset_full_path_explode_from_weak_ref(const AssetWeakReference *asset_reference,
-                                              const bool follow_override,
                                               char r_path_buffer[1090 /* FILE_MAX_LIBEXTRA */],
                                               char **r_dir,
                                               char **r_group,
@@ -112,7 +111,7 @@ void AS_asset_full_path_explode_from_weak_ref(const AssetWeakReference *asset_re
 {
   AssetLibraryService *service = AssetLibraryService::get();
   std::optional<AssetLibraryService::ExplodedPath> exploded =
-      service->resolve_asset_weak_reference_to_exploded_path(*asset_reference, follow_override);
+      service->resolve_asset_weak_reference_to_exploded_path(*asset_reference);
 
   if (!exploded) {
     if (r_dir) {
@@ -333,10 +332,10 @@ void AssetLibrary::on_blend_save_post(Main *bmain,
 }
 
 std::string AssetLibrary::resolve_asset_weak_reference_to_full_path(
-    const AssetWeakReference &asset_reference, const bool follow_override)
+    const AssetWeakReference &asset_reference)
 {
   AssetLibraryService *service = AssetLibraryService::get();
-  return service->resolve_asset_weak_reference_to_full_path(asset_reference, follow_override);
+  return service->resolve_asset_weak_reference_to_full_path(asset_reference);
 }
 
 void AssetLibrary::refresh_catalog_simplename(AssetMetaData *asset_data)

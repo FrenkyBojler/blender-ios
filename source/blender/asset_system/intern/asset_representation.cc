@@ -131,14 +131,14 @@ AssetMetaData &AssetRepresentation::get_metadata() const
 
 StringRefNull AssetRepresentation::library_relative_identifier(const bool follow_override) const
 {
-  return (follow_override && is_essentials_override()) ?
+  return (follow_override && has_location_override()) ?
              std::get<ExternalAsset>(asset_).relative_identifier_override_ :
              relative_identifier_;
 }
 
 std::string AssetRepresentation::full_path(const bool follow_override) const
 {
-  if (follow_override && is_essentials_override()) {
+  if (follow_override && has_location_override()) {
     return essentials_asset_override_full_path(*this);
   }
 
@@ -190,7 +190,7 @@ bool AssetRepresentation::is_local_id() const
   return std::holds_alternative<ID *>(asset_);
 }
 
-bool AssetRepresentation::is_essentials_override() const
+bool AssetRepresentation::has_location_override() const
 {
   return this->is_local_id() ?
              false :

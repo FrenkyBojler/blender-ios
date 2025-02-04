@@ -109,7 +109,7 @@ std::string essentials_asset_override_blend_path_resolve(StringRefNull essential
 
   BLI_assert(BKE_blendfile_extension_check(essentials_blendpath_abs.c_str()));
   if (!BLI_path_contains(essentials_directory.c_str(), essentials_blendpath_abs.c_str())) {
-    /* Ensure path is actually a .blend withing the original essentials location. */
+    /* Ensure path is actually a .blend within the original essentials location. */
     BLI_assert_unreachable();
     return "";
   }
@@ -233,7 +233,7 @@ std::string essentials_asset_override_full_path_from_reference(
 std::string essentials_asset_override_full_path(const AssetRepresentation &asset)
 {
   BLI_assert(asset.owner_asset_library().library_type() == ASSET_LIBRARY_ESSENTIALS);
-  BLI_assert(asset.is_essentials_override());
+  BLI_assert(asset.has_location_override());
 
   return essentials_override_directory_path() + SEP_STR + asset.library_relative_identifier(true);
 }
@@ -243,7 +243,7 @@ bool essentials_asset_override_exists(const AssetRepresentation &asset)
   BLI_assert(asset.owner_asset_library().library_type() == ASSET_LIBRARY_ESSENTIALS);
 
   /* Overriding overrides is not supported. */
-  if (asset.is_essentials_override()) {
+  if (asset.has_location_override()) {
     return false;
   }
 

@@ -180,7 +180,7 @@ void catalogs_save_from_asset_reference(AssetLibrary &library, const AssetWeakRe
   char asset_full_path_buffer[1024 + MAX_ID_NAME /*FILE_MAX_LIBEXTRA*/];
   char *file_path = nullptr;
   AS_asset_full_path_explode_from_weak_ref(
-      &reference, false, asset_full_path_buffer, &file_path, nullptr, nullptr);
+      &reference, asset_full_path_buffer, &file_path, nullptr, nullptr);
   if (!file_path) {
     BLI_assert_unreachable();
     return;

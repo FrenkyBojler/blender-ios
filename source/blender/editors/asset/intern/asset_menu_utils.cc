@@ -104,8 +104,7 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
     return nullptr;
   }
 
-  const std::string full_path = all_library->resolve_asset_weak_reference_to_full_path(weak_ref,
-                                                                                       false);
+  const std::string full_path = all_library->resolve_asset_weak_reference_to_full_path(weak_ref);
 
   const asset_system::AssetRepresentation *matching_asset = nullptr;
   list::iterate(library_ref, [&](asset_system::AssetRepresentation &asset) {

@@ -136,7 +136,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
   ID *local_id() const;
   /** Returns if this asset is stored inside this current file, and as such fully editable. */
   bool is_local_id() const;
-  bool is_essentials_override() const;
+  bool has_location_override() const;
   AssetLibrary &owner_asset_library() const;
 };
 

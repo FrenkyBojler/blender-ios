@@ -254,7 +254,7 @@ AssetLibrary *AssetLibraryService::find_loaded_on_disk_asset_library_from_name(
 }
 
 std::string AssetLibraryService::resolve_asset_weak_reference_to_library_path(
-    const AssetWeakReference &asset_reference, const bool follow_override)
+    const AssetWeakReference &asset_reference)
 {
   StringRefNull library_dirpath;
 
@@ -279,12 +279,7 @@ std::string AssetLibraryService::resolve_asset_weak_reference_to_library_path(
       break;
     }
     case ASSET_LIBRARY_ESSENTIALS:
-      if (follow_override && essentials_asset_override_exists(asset_reference)) {
-        library_dirpath = essentials_override_directory_path();
-      }
-      else {
-        library_dirpath = essentials_directory_path();
-      }
+      library_dirpath = essentials_directory_path();
       break;
     case ASSET_LIBRARY_LOCAL:
     case ASSET_LIBRARY_ALL:
@@ -353,7 +348,7 @@ std::string AssetLibraryService::normalize_asset_weak_reference_relative_asset_i
 }
 
 std::string AssetLibraryService::resolve_asset_weak_reference_to_full_path(
-    const AssetWeakReference &asset_reference, const bool follow_override)
+    const AssetWeakReference &asset_reference)
 {
   /* TODO currently only works for asset libraries on disk (custom or essentials asset libraries).
    * Once there is a proper registry of asset libraries, this could contain an asset library
@@ -364,16 +359,7 @@ std::string AssetLibraryService::resolve_asset_weak_reference_to_full_path(
     return "";
   }
 
-  if (follow_override && (asset_reference.asset_library_type == ASSET_LIBRARY_ESSENTIALS)) {
-    const std::string override_path = essentials_asset_override_full_path_from_reference(
-        asset_reference);
-    if (!override_path.empty()) {
-      return override_path;
-    }
-  }
-
-  std::string library_dirpath = resolve_asset_weak_reference_to_library_path(asset_reference,
-                                                                             follow_override);
+  std::string library_dirpath = resolve_asset_weak_reference_to_library_path(asset_reference);
   if (library_dirpath.empty()) {
     return "";
   }
@@ -386,8 +372,7 @@ std::string AssetLibraryService::resolve_asset_weak_reference_to_full_path(
 }
 
 std::optional<AssetLibraryService::ExplodedPath> AssetLibraryService::
-    resolve_asset_weak_reference_to_exploded_path(const AssetWeakReference &asset_reference,
-                                                  const bool follow_override)
+    resolve_asset_weak_reference_to_exploded_path(const AssetWeakReference &asset_reference)
 {
   if (asset_reference.relative_asset_identifier[0] == '\0') {
     return std::nullopt;
@@ -408,8 +393,7 @@ std::optional<AssetLibraryService::ExplodedPath> AssetLibraryService::
     }
     case ASSET_LIBRARY_CUSTOM:
     case ASSET_LIBRARY_ESSENTIALS: {
-      std::string full_path = this->resolve_asset_weak_reference_to_full_path(asset_reference,
-                                                                              follow_override);
+      std::string full_path = this->resolve_asset_weak_reference_to_full_path(asset_reference);
       /* #full_path uses native slashes, so others don't need to be considered in the following. */
 
       if (full_path.empty()) {

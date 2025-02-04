@@ -397,17 +397,24 @@ ID *asset_edit_id_from_weak_reference(Main &global_main,
   char *asset_lib_path, *asset_group, *asset_name;
 
   AS_asset_full_path_explode_from_weak_ref(
-      &weak_ref, true, asset_full_path_buffer, &asset_lib_path, &asset_group, &asset_name);
+      &weak_ref, asset_full_path_buffer, &asset_lib_path, &asset_group, &asset_name);
   if (asset_lib_path == nullptr && asset_group == nullptr && asset_name == nullptr) {
     return nullptr;
+  }
+  BLI_assert(asset_name != nullptr);
+
+  std::string override_filepath =
+      (weak_ref.asset_library_type == ASSET_LIBRARY_ESSENTIALS) ?
+          asset_system::essentials_asset_override_blend_path_from_reference(weak_ref) :
+          "";
+  if (!override_filepath.empty()) {
+    asset_lib_path = override_filepath.data();
   }
 
   /* If this is the same file as we have open, use local datablock. */
   if (asset_lib_path && STREQ(asset_lib_path, global_main.filepath)) {
     asset_lib_path = nullptr;
   }
-
-  BLI_assert(asset_name != nullptr);
 
   /* Test if asset has been loaded already. */
   ID *local_asset = BKE_libblock_find_name_and_library_filepath(
