@@ -308,24 +308,6 @@ static Vector<IndexRange> extend_and_merge(const Span<IndexRange> ranges,
   return out;
 }
 
-Array<IndexRange> invert_ranges(IndexRange universe, Span<IndexRange> ranges)
-{
-  const bool contains_first = ranges.first().first() == universe.first();
-  const bool contains_last = ranges.last().last() == universe.last();
-  Array<IndexRange> inverted(ranges.size() - 1 + contains_first + contains_last);
-
-  int64_t start = contains_first ? ranges.first().one_after_last() : universe.first();
-  for (const int r : ranges.index_range().drop_front(contains_first).drop_back(contains_last)) {
-    const IndexRange range = ranges[r];
-    inverted[r] = IndexRange::from_begin_end(start, range.first());
-    start = range.one_after_last();
-  }
-  if (!contains_last) {
-    inverted.last() = IndexRange::from_begin_end(start, universe.one_after_last());
-  }
-  return inverted;
-}
-
 bke::CurvesGeometry split_points(const IndexMask &points_to_split,
                                  const bke::CurvesGeometry &curves)
 {
@@ -356,7 +338,7 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
         curve_offsets_from_selection(curve_points_to_preserve_expanded,
                                      points,
                                      curve,
-                                     cyclic,
+                                     cyclic[curve],
                                      new_offsets,
                                      new_cyclic,
                                      src_ranges,
@@ -374,7 +356,7 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
         curve_offsets_from_selection(curve_points_to_split,
                                      points,
                                      curve,
-                                     cyclic,
+                                     cyclic[curve],
                                      new_offsets,
                                      new_cyclic,
                                      src_ranges,
