@@ -19,6 +19,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_color.hh"
+#include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 
@@ -878,6 +879,32 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
 }
 
 /** \} */
+
+Map<StringRef, eCustomDataType> get_final_attribute_types(
+    const Span<std::optional<AttributeAccessor>> attribute_accessors,
+    const AttributeFilter &attribute_filter)
+{
+  Map<StringRef, eCustomDataType> info;
+
+  for (const std::optional<AttributeAccessor> &attributes : attribute_accessors) {
+    attributes->foreach_attribute([&](const bke::AttributeIter &iter) {
+      if (attribute_filter.allow_skip(iter.name)) {
+        return;
+      }
+      if (iter.data_type == CD_PROP_STRING) {
+        return;
+      }
+      info.add_or_modify(
+          iter.name,
+          [&](eCustomDataType *data_type) { *data_type = iter.data_type; },
+          [&](eCustomDataType *data_type) {
+            *data_type = attribute_data_type_highest_complexity({*data_type, iter.data_type});
+          });
+    });
+  }
+
+  return info;
+}
 
 void gather_attributes(const AttributeAccessor src_attributes,
                        const AttrDomain src_domain,

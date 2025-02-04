@@ -4,7 +4,13 @@
 
 #pragma once
 
+#include <iterator>
+
 #include "BKE_geometry_set.hh"
+
+namespace blender::bke {
+class Instances;
+}
 
 namespace blender::geometry {
 
@@ -13,7 +19,10 @@ bke::GeometrySet join_geometries(Span<bke::GeometrySet> geometries,
                                  const std::optional<Span<bke::GeometryComponent::Type>>
                                      &component_types_to_join = std::nullopt);
 
-void join_attributes(const Span<const bke::GeometryComponent *> src_components,
-                     bke::GeometryComponent &r_result,
-                     const Span<StringRef> ignored_attributes = {});
+void join_attributes(const Span<std::optional<bke::AttributeAccessor>> attribute_accessors,
+                     const Map<StringRef, eCustomDataType> &attribute_types,
+                     const bke::AttrDomain src_domain,
+                     const bke::AttrDomain dst_domain,
+                     bke::MutableAttributeAccessor dst_attributes);
+
 }  // namespace blender::geometry

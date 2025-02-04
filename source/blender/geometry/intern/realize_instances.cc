@@ -12,6 +12,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_noise.hh"
 
+#include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
@@ -959,6 +960,7 @@ static OrderedAttributes gather_generic_instance_attributes_to_propagate(
 }
 
 static void execute_instances_tasks(
+    const RealizeInstancesOptions &options,
     const Span<bke::GeometryComponentPtr> src_components,
     Span<blender::float4x4> src_base_transforms,
     OrderedAttributes all_instances_attributes,
@@ -1041,14 +1043,21 @@ static void execute_instances_tasks(
   r_realized_geometry.replace_instances(dst_instances.release());
   auto &dst_component = r_realized_geometry.get_component_for_write<bke::InstancesComponent>();
 
-  Vector<const bke::GeometryComponent *> for_join_attributes;
-  for (bke::GeometryComponentPtr component : src_components) {
-    for_join_attributes.append(component.get());
-  }
   /* Join attribute values from the 'unselected' instances, as they aren't included otherwise.
    * Omit instance_transform and .reference_index to prevent them from overwriting the correct
    * attributes of the realized instances. */
-  join_attributes(for_join_attributes, dst_component, {".reference_index", "instance_transform"});
+  Array<std::optional<bke::AttributeAccessor>> attributes_for_join(src_components.size());
+  for (const int i : src_components.index_range()) {
+    attributes_for_join[i] = *src_components[i]->attributes();
+  }
+  join_attributes(attributes_for_join,
+                  bke::get_final_attribute_types(
+                      attributes_for_join,
+                      bke::attribute_filter_with_skip_ref(
+                          options.attribute_filter, {".reference_index", "instance_transform"})),
+                  bke::AttrDomain::Instance,
+                  bke::AttrDomain::Instance,
+                  *dst_component.attributes_for_write());
 }
 
 /** \} */
@@ -2358,7 +2367,8 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
       gather_info, 0, VariedDepthOptions::MAX_DEPTH, geometry_set, transform, attribute_fallbacks);
 
   bke::GeometrySet new_geometry_set;
-  execute_instances_tasks(gather_info.instances.instances_components_to_merge,
+  execute_instances_tasks(options,
+                          gather_info.instances.instances_components_to_merge,
                           gather_info.instances.instances_components_transforms,
                           all_instance_attributes,
                           gather_info.instances.attribute_fallback,
