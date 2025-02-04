@@ -1568,6 +1568,8 @@ using namespace blender::animrig;
  * identifier, for every F-Curve visited to maybe paste into.
  */
 class SlotIdentifierCache {
+  /* The F-Curves of a slot are visited sequentially, so keeping track of the
+   * last action/slot is good enough. */
   const bAction *last_action;
   slot_handle_t last_slot_handle;
   std::string last_identifier;
@@ -1581,7 +1583,7 @@ class SlotIdentifierCache {
     BLI_assert(dna_action);
 
     if (this->last_action == dna_action && this->last_slot_handle == slot_handle) {
-      return last_identifier;
+      return this->last_identifier;
     }
 
     const Action &action = dna_action->wrap();
