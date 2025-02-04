@@ -327,8 +327,8 @@ struct StrokeCache {
 
   /* Plane Brush */
   struct {
-    float3 last_normal;
-    float3 last_center;
+    std::optional<float3> last_normal;
+    std::optional<float3> last_center;
     Array<float3> normals;
     Array<float3> centers;
     int normal_index;

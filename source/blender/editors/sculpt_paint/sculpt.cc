@@ -2016,12 +2016,15 @@ static void calc_stabilized_plane(const Brush &brush,
     plane_cache.first_time = false;
   }
   else {
+    const float3 last_normal = plane_cache.last_normal.value();
+    const float3 last_center = plane_cache.last_center.value();
+
     /* Interpolate between `plane_normal` and the last plane normal. */
     new_plane_normal = math::normalize(
-        math::interpolate(plane_normal, plane_cache.last_normal, normal_weight));
+        math::interpolate(plane_normal, last_normal, normal_weight));
 
     float4 last_plane;
-    plane_from_point_normal_v3(last_plane, plane_cache.last_center, plane_cache.last_normal);
+    plane_from_point_normal_v3(last_plane, last_center, last_normal);
 
     /* Projection of `plane_center` on the last plane. */
     float3 projected_plane_center;
