@@ -117,15 +117,20 @@ static void modify_curves(ModifierData &md,
 {
   auto &amd = reinterpret_cast<GreasePencilArmatureModifierData &>(md);
 
+  const bool has_bezier_curves = drawing.strokes().has_curve_with_type(
+      CurveType::CURVE_TYPE_BEZIER);
+
   Array<int> orig_offsets;
   Array<MDeformVert> orig_dverts;
   OffsetIndices<int> orig_points_by_curve;
-  if (edit_hints) {
-    orig_dverts = drawing.strokes().deform_verts();
-    orig_offsets = drawing.strokes().offsets();
-    orig_points_by_curve = OffsetIndices<int>(orig_offsets.as_span());
+  if (has_bezier_curves) {
+    if (edit_hints) {
+      orig_dverts = drawing.strokes().deform_verts();
+      orig_offsets = drawing.strokes().offsets();
+      orig_points_by_curve = OffsetIndices<int>(orig_offsets.as_span());
+    }
+    modifier::greasepencil::ensure_no_bezier_curves(drawing);
   }
-  modifier::greasepencil::ensure_no_bezier_curves(drawing);
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
 
   /* The influence flag is where the "invert" flag is stored,
@@ -160,7 +165,9 @@ static void modify_curves(ModifierData &md,
       edit_hints->deform_mats.emplace(drawing.strokes().points_num(), float3x3::identity());
     }
     deform_mats = edit_hints->deform_mats->as_mutable_span();
-    deform_positions = edit_hints->positions_for_write();
+    if (has_bezier_curves) {
+      deform_positions = edit_hints->positions_for_write();
+    }
   }
 
   curves_mask.foreach_index(blender::GrainSize(128), [&](const int curve_i) {
