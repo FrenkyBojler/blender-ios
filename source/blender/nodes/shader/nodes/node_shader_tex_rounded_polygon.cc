@@ -32,8 +32,6 @@ static void sh_node_tex_rounded_polygon_declare(NodeDeclarationBuilder &b)
       .hide_value()
       .implicit_field(implicit_field_inputs::position)
       .description("(X, Y) components of the input vector. The Z component is ignored");
-  b.add_input<decl::Float>("Scale").min(-1000.0f).max(1000.0f).default_value(1.0f).description(
-      "Factor by which the input vector is scaled");
   b.add_input<decl::Float>("R_gon Sides")
       .min(2.0f)
       .max(1000.0f)
@@ -161,7 +159,6 @@ class RoundedPolygonFunction : public mf::MultiFunction {
     mf::SignatureBuilder builder{"rounded_polygon", signature};
 
     builder.single_input<float3>("Vector");
-    builder.single_input<float>("Scale");
 
     builder.single_input<float>("R_gon Sides");
     builder.single_input<float>("R_gon Roundness");
@@ -180,7 +177,6 @@ class RoundedPolygonFunction : public mf::MultiFunction {
     int param = 0;
 
     const VArray<float3> &coord = params.readonly_single_input<float3>(param++, "Vector");
-    const VArray<float> &scale = params.readonly_single_input<float>(param++, "Scale");
 
     const VArray<float> &r_gon_sides = params.readonly_single_input<float>(param++, "R_gon Sides");
     const VArray<float> &r_gon_roundness = params.readonly_single_input<float>(param++,
@@ -208,7 +204,7 @@ class RoundedPolygonFunction : public mf::MultiFunction {
           math::max(r_gon_sides[i], 2.0f),
           math::clamp(r_gon_roundness[i], 0.0f, 1.0f),
           math::clamp(irregular_r_gon_corner_shape[i], 0.0f, 1.0f),
-          scale[i] * float2(coord[i].x, coord[i].y));
+          float2(coord[i].x, coord[i].y));
 
       if (calc_r_gon_parameter_field) {
         r_segment_coordinates[i] = float3(out_variables.y, out_variables.x - 1.0f, 0.0);

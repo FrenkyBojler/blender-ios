@@ -1481,20 +1481,20 @@ ccl_device float4 calculate_out_fields(bool calculate_r_gon_parameter_field,
                                                        l_coord);
       }
       else {
-        return mix(calculate_out_fields_irregular_elliptical(calculate_r_gon_parameter_field,
-                                                             calculate_max_unit_parameter,
-                                                             normalize_r_gon_parameter,
-                                                             r_gon_sides,
-                                                             r_gon_roundness,
-                                                             coord,
-                                                             l_coord),
-                   calculate_out_fields_irregular_circular(calculate_r_gon_parameter_field,
+        return mix(calculate_out_fields_irregular_circular(calculate_r_gon_parameter_field,
                                                            calculate_max_unit_parameter,
                                                            normalize_r_gon_parameter,
                                                            r_gon_sides,
                                                            r_gon_roundness,
                                                            coord,
                                                            l_coord),
+                   calculate_out_fields_irregular_elliptical(calculate_r_gon_parameter_field,
+                                                             calculate_max_unit_parameter,
+                                                             normalize_r_gon_parameter,
+                                                             r_gon_sides,
+                                                             r_gon_roundness,
+                                                             coord,
+                                                             l_coord),
                    irregular_r_gon_corner_shape);
       }
     }

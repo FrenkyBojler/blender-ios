@@ -14,7 +14,6 @@
 /* No macro flags necessary, as code is translated to GLSL by default. */
 
 void node_tex_rounded_polygon(vec3 coord,
-                              float scale,
                               float r_gon_sides,
                               float r_gon_roundness,
                               float irregular_r_gon_corner_shape,
@@ -31,7 +30,7 @@ void node_tex_rounded_polygon(vec3 coord,
                                             max(r_gon_sides, 2.0),
                                             clamp(r_gon_roundness, 0.0, 1.0),
                                             clamp(irregular_r_gon_corner_shape, 0.0, 1.0),
-                                            scale * vec2(coord.x, coord.y));
+                                            vec2(coord.x, coord.y));
 
   out_segment_coordinates = vec3(out_variables.y, out_variables.x - 1.0, 0.0);
   out_max_unit_parameter = out_variables.z;

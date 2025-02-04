@@ -23,7 +23,6 @@ shader node_rounded_polygon_texture(
     matrix mapping = matrix(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
     int normalize_r_gon_parameter = 0,
     vector3 Vector = P,
-    float Scale = 1.0,
     float R_gonSides = 5.0,
     float R_gonRoundness = 0.0,
     float IrregularR_gonCornerShape = 0.0,
@@ -41,7 +40,7 @@ shader node_rounded_polygon_texture(
                                                max(R_gonSides, 2.0),
                                                clamp(R_gonRoundness, 0.0, 1.0),
                                                clamp(IrregularR_gonCornerShape, 0.0, 1.0),
-                                               Scale * vector2(Vector.x, Vector.y));
+                                               vector2(Vector.x, Vector.y));
 
   SegmentCoordinates = vector3(out_variables.y, out_variables.x - 1.0, 0.0);
   MaxUnitParameter = out_variables.z;

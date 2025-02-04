@@ -8,7 +8,6 @@ CCL_NAMESPACE_BEGIN
 
 struct RoundedPolygonStackOffsets {
   uint vector;
-  uint scale;
   uint r_gon_sides;
   uint r_gon_roundness;
   uint irregular_r_gon_corner_shape;
@@ -34,25 +33,26 @@ ccl_device_noinline int svm_node_tex_rounded_polygon(
 
   uint normalize_r_gon_parameter;
 
-  svm_unpack_node_uchar4(
-      node.y, &(normalize_r_gon_parameter), &(so.vector), &(so.scale), &(so.r_gon_sides));
+  svm_unpack_node_uchar4(node.y,
+                         &(normalize_r_gon_parameter),
+                         &(so.vector),
+                         &(so.r_gon_sides),
+                         &(so.r_gon_roundness));
   svm_unpack_node_uchar4(node.z,
-                         &(so.r_gon_roundness),
                          &(so.irregular_r_gon_corner_shape),
                          &(so.segment_coordinates),
-                         &(so.max_unit_parameter));
-  svm_unpack_node_uchar(node.w, &(so.x_axis_A_angle_bisector));
+                         &(so.max_unit_parameter),
+                         &(so.x_axis_A_angle_bisector));
 
   bool calculate_r_gon_parameter_field = stack_valid(so.segment_coordinates);
   bool calculate_max_unit_parameter = stack_valid(so.max_unit_parameter);
 
   float3 coord = stack_load_float3(stack, so.vector);
   uint4 defaults = read_node(kg, &offset);
-  float scale = stack_load_float_default(stack, so.scale, defaults.x);
-  float r_gon_sides = stack_load_float_default(stack, so.r_gon_sides, defaults.y);
-  float r_gon_roundness = stack_load_float_default(stack, so.r_gon_roundness, defaults.z);
+  float r_gon_sides = stack_load_float_default(stack, so.r_gon_sides, defaults.x);
+  float r_gon_roundness = stack_load_float_default(stack, so.r_gon_roundness, defaults.y);
   float irregular_r_gon_corner_shape = stack_load_float_default(
-      stack, so.irregular_r_gon_corner_shape, defaults.w);
+      stack, so.irregular_r_gon_corner_shape, defaults.z);
 
   float4 out_variables = calculate_out_fields(calculate_r_gon_parameter_field,
                                               calculate_max_unit_parameter,
@@ -60,7 +60,7 @@ ccl_device_noinline int svm_node_tex_rounded_polygon(
                                               fmaxf(r_gon_sides, 2.0f),
                                               clamp(r_gon_roundness, 0.0f, 1.0f),
                                               clamp(irregular_r_gon_corner_shape, 0.0f, 1.0f),
-                                              scale * make_float2(coord.x, coord.y));
+                                              make_float2(coord.x, coord.y));
 
   if (stack_valid(so.segment_coordinates)) {
     stack_store_float3(

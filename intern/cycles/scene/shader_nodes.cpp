@@ -1231,10 +1231,9 @@ NODE_DEFINE(RoundedPolygonTextureNode)
 
   SOCKET_BOOLEAN(normalize_r_gon_parameter, "Normalize Edge Parameter", false);
   SOCKET_IN_POINT(vector, "Vector", zero_float3(), SocketType::LINK_TEXTURE_GENERATED);
-  SOCKET_IN_FLOAT(scale, "Scale", 1.0f);
   SOCKET_IN_FLOAT(r_gon_sides, "R_gon Sides", 5.0f);
   SOCKET_IN_FLOAT(r_gon_roundness, "R_gon Roundness", 0.0f);
-  SOCKET_IN_FLOAT(irregular_r_gon_corner_shape, "Irregular Corner Shape", 0.0f);
+  SOCKET_IN_FLOAT(irregular_r_gon_corner_shape, "Irregular R_gon Corner Shape", 0.0f);
 
   SOCKET_OUT_POINT(segment_coordinates, "Segment Coordinates");
   SOCKET_OUT_FLOAT(max_unit_parameter, "Max Unit Parameter");
@@ -1248,7 +1247,6 @@ RoundedPolygonTextureNode::RoundedPolygonTextureNode() : TextureNode(get_node_ty
 void RoundedPolygonTextureNode::compile(SVMCompiler &compiler)
 {
   int vector_stack_offset = tex_mapping.compile_begin(compiler, input("Vector"));
-  int scale_stack_offset = compiler.stack_assign_if_linked(input("Scale"));
 
   int r_gon_sides_stack_offset = compiler.stack_assign_if_linked(input("R_gon Sides"));
   int r_gon_roundness_stack_offset = compiler.stack_assign_if_linked(input("R_gon Roundness"));
@@ -1265,17 +1263,17 @@ void RoundedPolygonTextureNode::compile(SVMCompiler &compiler)
   compiler.add_node(NODE_TEX_ROUNDED_POLYGON,
                     compiler.encode_uchar4(normalize_r_gon_parameter,
                                            vector_stack_offset,
-                                           scale_stack_offset,
-                                           r_gon_sides_stack_offset),
-                    compiler.encode_uchar4(r_gon_roundness_stack_offset,
-                                           irregular_r_gon_corner_shape_offset,
+                                           r_gon_sides_stack_offset,
+                                           r_gon_roundness_stack_offset),
+                    compiler.encode_uchar4(irregular_r_gon_corner_shape_offset,
                                            segment_coordinates_field_stack_offset,
-                                           max_unit_parameter_stack_offset),
-                    compiler.encode_uchar4(x_axis_A_angle_bisector_stack_offset));
-  compiler.add_node(__float_as_int(scale),
-                    __float_as_int(r_gon_sides),
+                                           max_unit_parameter_stack_offset,
+                                           x_axis_A_angle_bisector_stack_offset),
+                    SVM_STACK_INVALID);
+  compiler.add_node(__float_as_int(r_gon_sides),
                     __float_as_int(r_gon_roundness),
-                    __float_as_int(irregular_r_gon_corner_shape));
+                    __float_as_int(irregular_r_gon_corner_shape),
+                    SVM_STACK_INVALID);
 
   tex_mapping.compile_end(compiler, input("Vector"), vector_stack_offset);
 }
