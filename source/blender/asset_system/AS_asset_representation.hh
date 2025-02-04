@@ -34,7 +34,7 @@ class AssetLibrary;
 
 class AssetRepresentation : NonCopyable, NonMovable {
   /** Pointer back to the asset library that owns this asset representation. */
-  const AssetLibrary &owner_asset_library_;
+  AssetLibrary &owner_asset_library_;
   /**
    * Uniquely identifies the asset within the asset library. Currently this is always a path (path
    * within the asset library).
@@ -60,21 +60,19 @@ class AssetRepresentation : NonCopyable, NonMovable {
                       StringRef name,
                       int id_type,
                       std::unique_ptr<AssetMetaData> metadata,
-                      const AssetLibrary &owner_asset_library);
+                      AssetLibrary &owner_asset_library);
   /** Constructs an asset representation for an external ID. The asset will not be editable. */
   AssetRepresentation(StringRef relative_asset_path,
                       StringRef relative_asset_override_path,
                       StringRef name,
                       int id_type,
                       std::unique_ptr<AssetMetaData> metadata,
-                      const AssetLibrary &owner_asset_library);
+                      AssetLibrary &owner_asset_library);
   /**
    * Constructs an asset representation for an ID stored in the current file. This makes the asset
    * local and fully editable.
    */
-  AssetRepresentation(StringRef relative_asset_path,
-                      ID &id,
-                      const AssetLibrary &owner_asset_library);
+  AssetRepresentation(StringRef relative_asset_path, ID &id, AssetLibrary &owner_asset_library);
   ~AssetRepresentation();
 
   /**
@@ -96,8 +94,6 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * to the preview but doesn't actually load it. To load it, attach its
    * #PreviewImageRuntime::icon_id to a UI button (UI loads it asynchronously then) or call
    * #BKE_previewimg_ensure() (not asynchronous).
-   *
-   * \returns the prepared preview, same as calling #get_preview().
    */
   void ensure_previewable();
   /**
@@ -141,7 +137,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
   /** Returns if this asset is stored inside this current file, and as such fully editable. */
   bool is_local_id() const;
   bool is_essentials_override() const;
-  const AssetLibrary &owner_asset_library() const;
+  AssetLibrary &owner_asset_library() const;
 };
 
 }  // namespace blender::asset_system

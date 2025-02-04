@@ -29,7 +29,7 @@ AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
                                          StringRef name,
                                          const int id_type,
                                          std::unique_ptr<AssetMetaData> metadata,
-                                         const AssetLibrary &owner_asset_library)
+                                         AssetLibrary &owner_asset_library)
     : owner_asset_library_(owner_asset_library),
       relative_identifier_(relative_asset_path),
       asset_(AssetRepresentation::ExternalAsset{name, id_type, std::move(metadata)})
@@ -41,7 +41,7 @@ AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
                                          StringRef name,
                                          const int id_type,
                                          std::unique_ptr<AssetMetaData> metadata,
-                                         const AssetLibrary &owner_asset_library)
+                                         AssetLibrary &owner_asset_library)
     : owner_asset_library_(owner_asset_library),
       relative_identifier_(relative_asset_path),
       asset_(AssetRepresentation::ExternalAsset{
@@ -51,7 +51,7 @@ AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
 
 AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
                                          ID &id,
-                                         const AssetLibrary &owner_asset_library)
+                                         AssetLibrary &owner_asset_library)
     : owner_asset_library_(owner_asset_library),
       relative_identifier_(relative_asset_path),
       asset_(&id)
@@ -79,7 +79,9 @@ AssetWeakReference AssetRepresentation::make_weak_reference() const
 void AssetRepresentation::ensure_previewable()
 {
   if (ID *id = this->local_id()) {
-    BKE_previewimg_id_ensure(id);
+    PreviewImage *preview = BKE_previewimg_id_ensure(id);
+    BKE_icon_preview_ensure(id, preview);
+    return;
   }
 
   ExternalAsset &extern_asset = std::get<ExternalAsset>(asset_);
@@ -195,7 +197,7 @@ bool AssetRepresentation::is_essentials_override() const
              !std::get<ExternalAsset>(asset_).relative_identifier_override_.empty();
 }
 
-const AssetLibrary &AssetRepresentation::owner_asset_library() const
+AssetLibrary &AssetRepresentation::owner_asset_library() const
 {
   return owner_asset_library_;
 }
