@@ -573,6 +573,16 @@ static void get_stats_string(char *info,
     *ofs += BLI_snprintf_rlen(
         info + *ofs, len - *ofs, IFACE_("Bones:%s/%s"), stats_fmt->totbonesel, stats_fmt->totbone);
   }
+  else if ((ob) && (ob->type == OB_GREASE_PENCIL)) {
+    *ofs += BLI_snprintf_rlen(info + *ofs,
+                              len - *ofs,
+
+                              IFACE_("Layers:%s | Frames:%s | Strokes:%s | Points:%s"),
+                              stats_fmt->totgplayer,
+                              stats_fmt->totgpframe,
+                              stats_fmt->totgpstroke,
+                              stats_fmt->totgppoint);
+  }
   else if (ob && (object_mode & OB_MODE_SCULPT)) {
     if (stats_is_object_dynamic_topology_sculpt(ob)) {
       *ofs += BLI_snprintf_rlen(info + *ofs,
