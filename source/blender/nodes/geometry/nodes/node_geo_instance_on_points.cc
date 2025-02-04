@@ -226,7 +226,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (geometry_set.has_grease_pencil()) {
       using namespace bke::greasepencil;
       const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
-      bke::Instances *instances = new bke::Instances();
+      bke::Instances instances;
       for (const int layer_index : grease_pencil.layers().index_range()) {
         const Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
         if (drawing == nullptr) {
@@ -237,8 +237,8 @@ static void node_geo_exec(GeoNodeExecParams params)
           /* Add an empty reference so the number of layers and instances match.
            * This makes it easy to reconstruct the layers afterwards and keep their attributes.
            * Although in this particular case we don't propagate the attributes. */
-          const int handle = instances->add_reference(bke::InstanceReference());
-          instances->add_instance(handle, float4x4::identity());
+          const int handle = instances.add_reference(bke::InstanceReference());
+          instances.add_instance(handle, float4x4::identity());
           continue;
         }
         /* TODO: Attributes are not propagating from the curves or the points. */
@@ -252,17 +252,17 @@ static void node_geo_exec(GeoNodeExecParams params)
                                      params,
                                      attributes_to_propagate);
         GeometrySet temp_set = GeometrySet::from_instances(layer_instances);
-        const int handle = instances->add_reference(bke::InstanceReference{temp_set});
-        instances->add_instance(handle, float4x4::identity());
+        const int handle = instances.add_reference(bke::InstanceReference{temp_set});
+        instances.add_instance(handle, float4x4::identity());
       }
 
       bke::copy_attributes(geometry_set.get_grease_pencil()->attributes(),
                            bke::AttrDomain::Layer,
                            bke::AttrDomain::Instance,
                            attribute_filter,
-                           instances->attributes_for_write());
+                           instances.attributes_for_write());
 
-      geometry::join_instances_into(attribute_filter, {instances}, *dst_instances);
+      geometry::join_instances_into(attribute_filter, {&instances}, *dst_instances);
 
       geometry_set.replace_grease_pencil(nullptr);
     }
