@@ -289,6 +289,38 @@ struct RNAPropertyOverrideApplyContext {
 };
 using RNAPropOverrideApply = bool (*)(Main *bmain, RNAPropertyOverrideApplyContext &rnaapply_ctx);
 
+struct PropertyRNAIdentifierGetter {
+  inline blender::StringRef operator()(const PropertyRNA *prop) const;
+};
+
+/* Container - generic abstracted container of RNA properties */
+struct ContainerRNA {
+  void *next, *prev;
+
+  blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter> *prop_map;
+  ListBase properties;
+};
+
+struct FunctionRNA {
+  /* structs are containers of properties */
+  ContainerRNA cont;
+
+  /* unique identifier, keep after 'cont' */
+  const char *identifier;
+  /* various options */
+  int flag;
+
+  /* single line description, displayed in the tooltip for example */
+  const char *description;
+
+  /* callback to execute the function */
+  CallFunc call;
+
+  /* parameter for the return value
+   * NOTE: this is only the C return value, rna functions can have multiple return values. */
+  PropertyRNA *c_ret;
+};
+
 struct PropertyRNA {
   PropertyRNA *next, *prev;
 
@@ -359,39 +391,9 @@ struct PropertyRNA {
   void *py_data;
 };
 
-struct PropertyRNAIdentifierGetter {
-  blender::StringRef operator()(const PropertyRNA *prop) const
-  {
-    return prop->identifier;
-  };
-};
-
-/* Container - generic abstracted container of RNA properties */
-struct ContainerRNA {
-  void *next, *prev;
-
-  blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter> *prop_map;
-  ListBase properties;
-};
-
-struct FunctionRNA {
-  /* structs are containers of properties */
-  ContainerRNA cont;
-
-  /* unique identifier, keep after 'cont' */
-  const char *identifier;
-  /* various options */
-  int flag;
-
-  /* single line description, displayed in the tooltip for example */
-  const char *description;
-
-  /* callback to execute the function */
-  CallFunc call;
-
-  /* parameter for the return value
-   * NOTE: this is only the C return value, rna functions can have multiple return values. */
-  PropertyRNA *c_ret;
+inline blender::StringRef PropertyRNAIdentifierGetter::operator()(const PropertyRNA *prop) const
+{
+  return prop->identifier;
 };
 
 /* internal flags WARNING! 16bits only! */
