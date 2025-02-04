@@ -3046,8 +3046,8 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
   RNA_def_property_ui_text(prop,
                            "Depth",
-                           "Limit the brush effect on vertices below the plane. Only affect those "
-                           "within this distance.");
+                           "The maximum distance below the plane for affected vertices. "
+                           "Increasing the depth affects vertices farther below the plane.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "plane_height", PROP_FLOAT, PROP_FACTOR);
@@ -3057,8 +3057,8 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
   RNA_def_property_ui_text(prop,
                            "Height",
-                           "Limit the brush effect on vertices above the plane. Only affect those "
-                           "within this distance.");
+                           "The maximum distance above the plane for affected vertices. "
+                           "Increasing the height affects vertices farther above the plane.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "stabilize_normal", PROP_FLOAT, PROP_FACTOR);
