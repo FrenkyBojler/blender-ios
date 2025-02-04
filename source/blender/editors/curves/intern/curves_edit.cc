@@ -341,13 +341,12 @@ static IndexRange extend_range(const IndexRange range, const IndexRange universe
 
 /* Extends each range by one point at both ends of it. Merges adjacent ranges if intersections
  * occur. */
-static Vector<IndexRange> extend_and_merge(const Span<IndexRange> ranges,
-                                           const IndexRange universe,
-                                           const bool cyclic)
+static Span<IndexRange> extend_and_merge(const IndexRange universe,
+                                         const bool cyclic,
+                                         MutableSpan<IndexRange> ranges)
 {
-  Vector<IndexRange> out;
   if (ranges.is_empty()) {
-    return out;
+    return {};
   }
 
   const bool first_match = ranges.first().first() == universe.first();
@@ -355,24 +354,25 @@ static Vector<IndexRange> extend_and_merge(const Span<IndexRange> ranges,
   const bool add_first = cyclic && last_match && !first_match;
   const bool add_last = cyclic && first_match && !last_match;
 
-  out.append(add_first ? IndexRange::from_single(universe.first()) :
-                         extend_range(ranges.first(), universe));
-
+  IndexRange current = add_first ? IndexRange::from_single(universe.first()) :
+                                   extend_range(ranges.first(), universe);
+  int i = 0;
   for (const IndexRange range : ranges.drop_front(!add_first)) {
     const IndexRange extended = extend_range(range, universe);
-    IndexRange &last = out.last();
-    if (extended.first() <= last.last()) {
-      last = IndexRange::from_begin_end_inclusive(last.start(), extended.last());
+    if (extended.first() <= current.last()) {
+      current = IndexRange::from_begin_end_inclusive(current.start(), extended.last());
     }
     else {
-      out.append(extended);
+      ranges[i++] = current;
+      current = extended;
     }
   }
+  ranges[i++] = current;
   if (add_last) {
-    out.append(IndexRange::from_single(universe.last()));
+    ranges[i++] = IndexRange::from_single(universe.last());
   }
 
-  return out;
+  return {ranges.begin(), i};
 }
 
 bke::CurvesGeometry split_points(const IndexMask &points_to_split,
@@ -405,14 +405,13 @@ bke::CurvesGeometry split_points(const IndexMask &points_to_split,
                                      src_ranges,
                                      dst_offsets,
                                      curve_map);
-        /* Invert ranges to get non selected points. After inversion every range is extended to
-         * left and right by one point. Any resulting intersection is merged. */
-        Vector<IndexRange> curve_points_to_preserve = extend_and_merge(
-            invert_ranges(points, selected_curve_points), points, cyclic[curve]);
+        /* Invert ranges to get non selected points. */
+        Array<IndexRange> nonselected_curve_points = invert_ranges(points, selected_curve_points);
+        /* Extended every range to left and right by one point. Any resulting intersection is
+         * merged. */
+        Span<IndexRange> curve_points_to_preserve = extend_and_merge(
+            points, cyclic[curve], nonselected_curve_points);
         const int size_before = curve_map.size();
-        /* Appends offsets of non selected points, to copy them into sliced existing curves. Their
-         * ranges have to be extended to left and right to include edge points of selection ranges.
-         */
         curve_offsets_from_selection(curve_points_to_preserve,
                                      points,
                                      curve,
