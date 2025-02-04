@@ -621,7 +621,6 @@ void BKE_armature_deform_coords_with_curves(
    * used for Grease Pencil layers as well. */
   BLI_assert(dverts.size() == vert_coords.size());
 
-
   blender::float3 *vert_coords_prev_data = nullptr;
   if (vert_coords_prev.has_value()) {
     /* const_cast for old positions for the C API, these are not actually written. */
