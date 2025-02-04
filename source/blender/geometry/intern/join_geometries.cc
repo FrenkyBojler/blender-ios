@@ -40,21 +40,19 @@ void join_attributes(const Span<std::optional<bke::AttributeAccessor>> attribute
       continue;
     }
 
-    threading::memory_bandwidth_bound_task(dst_attribute.span.size_in_bytes(), [&]() {
-      threading::parallel_for(attribute_accessors.index_range(), 1024 * 16, [&](const IndexRange range) {
-        for (const int i : range) {
-          const bke::GAttributeReader src_attribute = attribute_accessors[i]->lookup(attribute_id, src_domain, data_type);
-          if (!src_attribute) {
-            GMutableSpan dst_range = dst_attribute.span.slice(src_offsets[i]);
-            const CPPType &type = dst_range.type();
-            type.fill_assign_n(type.default_value(), dst_range.data(), dst_range.size());
-            continue;
-          }
-
-          array_utils::copy(src_attribute.varray, dst_attribute.span.slice(src_offsets[i]));
+    threading::parallel_for(attribute_accessors.index_range(), 1024 * 16, [&](const IndexRange range) {
+      for (const int i : range) {
+        const bke::GAttributeReader src_attribute = attribute_accessors[i]->lookup(attribute_id, src_domain, data_type);
+        if (!src_attribute) {
+          GMutableSpan dst_range = dst_attribute.span.slice(src_offsets[i]);
+          const CPPType &type = dst_range.type();
+          type.fill_assign_n(type.default_value(), dst_range.data(), dst_range.size());
+          continue;
         }
-      }, threading::accumulated_task_sizes([&](const IndexRange range) { return src_offsets[range].size(); }));
-    });
+
+        array_utils::copy(src_attribute.varray, dst_attribute.span.slice(src_offsets[i]));
+      }
+    }, threading::accumulated_task_sizes([&](const IndexRange range) { return src_offsets[range].size(); }));
 
     dst_attribute.finish();
   }
