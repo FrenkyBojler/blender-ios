@@ -115,7 +115,10 @@ typedef struct RegionView3D {
   char lpersp;
   char lview;
   char lview_axis_roll;
-  char _pad8[1];
+  char _pad8[4];
+
+  char ndof_flag;
+  float ndof_ofs[3];
 
   /** Active rotation from NDOF (run-time only). */
   float ndof_rot_angle;
@@ -483,6 +486,20 @@ enum {
   RV3D_VIEW_AXIS_ROLL_90 = 1,
   RV3D_VIEW_AXIS_ROLL_180 = 2,
   RV3D_VIEW_AXIS_ROLL_270 = 3,
+};
+
+/** #RegionView3D::ndof_flag */
+enum {
+  /**
+   * When set, #RegionView3D::ndof_ofs may be used instead of #RegionView3D::ofs,
+   * This should be cleared on any actions that reset the view such as:
+   * "Home", "View Selected", "Axis Views".. because in this case the previously
+   * calculated center is not valid relative to the users view-point.
+   *
+   * Resetting this value should not be disruptive
+   * as the value is automatically calculated on demand.
+   */
+  RV3D_NDOF_OFS_IS_VALID = (1 << 0),
 };
 
 #define RV3D_CLIPPING_ENABLED(v3d, rv3d) \

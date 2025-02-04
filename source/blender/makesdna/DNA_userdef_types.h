@@ -1536,6 +1536,8 @@ typedef enum eNdof_Flag {
   NDOF_PANZ_INVERT_AXIS = (1 << 14),
   NDOF_TURNTABLE = (1 << 15),
   NDOF_CAMERA_PAN_ZOOM = (1 << 16),
+  NDOF_ORBIT_CENTER_AUTO = (1 << 17),
+  NDOF_ORBIT_CENTER_SELECTED = (1 << 18),
 } eNdof_Flag;
 
 #define NDOF_PIXELS_PER_SECOND 600.0f
