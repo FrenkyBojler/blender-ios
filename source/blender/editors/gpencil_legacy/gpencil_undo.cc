@@ -45,54 +45,6 @@ int ED_gpencil_session_active()
   return (BLI_listbase_is_empty(&undo_nodes) == false);
 }
 
-int ED_undo_gpencil_step(bContext *C, const int step)
-{
-  bGPdata **gpd_ptr = nullptr, *new_gpd = nullptr;
-
-  gpd_ptr = ED_gpencil_data_get_pointers(C, nullptr);
-
-  const eUndoStepDir undo_step = (eUndoStepDir)step;
-  if (undo_step == STEP_UNDO) {
-    if (cur_node->prev) {
-      cur_node = cur_node->prev;
-      new_gpd = cur_node->gpd;
-    }
-  }
-  else if (undo_step == STEP_REDO) {
-    if (cur_node->next) {
-      cur_node = cur_node->next;
-      new_gpd = cur_node->gpd;
-    }
-  }
-
-  if (new_gpd) {
-    if (gpd_ptr) {
-      if (*gpd_ptr) {
-        bGPdata *gpd = *gpd_ptr;
-        bGPDlayer *gpld;
-
-        BKE_gpencil_free_layers(&gpd->layers);
-
-        /* copy layers */
-        BLI_listbase_clear(&gpd->layers);
-
-        LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-          /* make a copy of source layer and its data */
-          gpld = BKE_gpencil_layer_duplicate(gpl, true, true);
-          BLI_addtail(&gpd->layers, gpld);
-        }
-      }
-    }
-    /* drawing batch cache is dirty now */
-    DEG_id_tag_update(&new_gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-    new_gpd->flag |= GP_DATA_CACHE_IS_DIRTY;
-  }
-
-  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
-
-  return OPERATOR_FINISHED;
-}
-
 void gpencil_undo_init(bGPdata *gpd)
 {
   gpencil_undo_push(gpd);

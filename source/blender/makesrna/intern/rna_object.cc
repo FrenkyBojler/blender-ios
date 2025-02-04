@@ -611,19 +611,6 @@ static StructRNA *rna_Object_data_typef(PointerRNA *ptr)
   }
 }
 
-static bool rna_Object_data_poll(PointerRNA *ptr, const PointerRNA value)
-{
-  Object *ob = static_cast<Object *>(ptr->data);
-
-  if (ob->type == OB_GPENCIL_LEGACY) {
-    /* GP Object - Don't allow using "Annotation" GP datablocks here */
-    bGPdata *gpd = static_cast<bGPdata *>(value.data);
-    return (gpd->flag & GP_DATA_ANNOTATIONS) == 0;
-  }
-
-  return true;
-}
-
 static void rna_Object_parent_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
 {
   Object *ob = static_cast<Object *>(ptr->data);
@@ -2905,7 +2892,7 @@ static void rna_def_object(BlenderRNA *brna)
                                  "rna_Object_data_get",
                                  "rna_Object_data_set",
                                  "rna_Object_data_typef",
-                                 "rna_Object_data_poll");
+                                 nullptr);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
   RNA_def_property_ui_text(prop, "Data", "Object data");
   RNA_def_property_update(prop, 0, "rna_Object_data_update");

@@ -246,9 +246,6 @@ static int ed_undo_step_direction(bContext *C, enum eUndoStepDir step, ReportLis
    * or index is fully not implemented.
    * FIXME: However, it seems to never be used in current code (`ED_gpencil_session_active` seems
    * to always return false). */
-  if (ED_gpencil_session_active()) {
-    return ED_undo_gpencil_step(C, step);
-  }
 
   wmWindowManager *wm = CTX_wm_manager(C);
 
