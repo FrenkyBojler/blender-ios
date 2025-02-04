@@ -32,7 +32,6 @@
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
 
@@ -94,7 +93,7 @@ static void calc_local_distances(const float height,
     const float height_rcp = math::rcp(height);
 
     for (const int i : local_positions.index_range()) {
-      const float3 position = local_positions[i];
+      const float3 &position = local_positions[i];
       if (position.z >= 0.0f) {
         distances[i] = math::length(float3(position.x, position.y, position.z * height_rcp));
       }
@@ -112,7 +111,7 @@ static void calc_local_distances(const float height,
     const float depth_rcp = math::rcp(depth);
 
     for (const int i : local_positions.index_range()) {
-      const float3 position = local_positions[i];
+      const float3 &position = local_positions[i];
       if (position.z < 0.0f) {
         distances[i] = math::length(float3(position.x, position.y, position.z * depth_rcp));
       }
@@ -150,7 +149,7 @@ static void scale_factors_by_height_and_depth(const float height,
     }
   }
 
-  if (depth != 1.0f && depth != 0.0f) {
+  if (!ELEM(depth, 0.0f, 1.0f)) {
     for (const int i : factors.index_range()) {
       if (local_positions[i].z < 0.0f) {
         factors[i] *= depth;
@@ -230,12 +229,12 @@ static void calc_faces(const Depsgraph &depsgraph,
   calc_local_positions(mat, verts, position_data.eval, local_positions);
 
   tls.distances.resize(verts.size());
-  const MutableSpan<float> local_distances = tls.distances;
-  calc_local_distances(height, depth, local_positions, local_distances);
+  const MutableSpan<float> distances = tls.distances;
+  calc_local_distances(height, depth, local_positions, distances);
 
-  apply_hardness_to_distances(1.0f, cache.hardness, local_distances);
+  apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, local_distances, 1.0f, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -283,12 +282,12 @@ static void calc_grids(const Depsgraph &depsgraph,
   calc_local_positions(mat, positions, local_positions);
 
   tls.distances.resize(positions.size());
-  const MutableSpan<float> local_distances = tls.distances;
-  calc_local_distances(height, depth, local_positions, local_distances);
+  const MutableSpan<float> distances = tls.distances;
+  calc_local_distances(height, depth, local_positions, distances);
 
-  apply_hardness_to_distances(1.0f, cache.hardness, local_distances);
+  apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, local_distances, 1.0f, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
@@ -334,12 +333,12 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   calc_local_positions(mat, positions, local_positions);
 
   tls.distances.resize(positions.size());
-  const MutableSpan<float> local_distances = tls.distances;
-  calc_local_distances(height, depth, local_positions, local_distances);
+  const MutableSpan<float> distances = tls.distances;
+  calc_local_distances(height, depth, local_positions, distances);
 
-  apply_hardness_to_distances(1.0f, cache.hardness, local_distances);
+  apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, local_distances, 1.0f, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -383,7 +382,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
 
   float4x4 mat = float4x4::identity();
   mat.x_axis() = math::cross(normal, ss.cache->grab_delta_symm);
-  mat.y_axis() = math::cross(normal, float3(mat[0]));
+  mat.y_axis() = math::cross(normal, mat.x_axis());
   mat.z_axis() = normal;
   mat.location() = center;
   mat = math::normalize(mat);
