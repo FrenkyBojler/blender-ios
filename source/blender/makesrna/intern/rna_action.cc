@@ -2505,6 +2505,7 @@ static void rna_def_action_channelbag(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "slot", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "ActionSlot");
+  RNA_def_property_ui_text(prop, "Slot", "The Slot that the Channelbag's animation data for");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_pointer_funcs(prop, "rna_Channelbag_slot_get", nullptr, nullptr, nullptr);
 
