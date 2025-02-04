@@ -160,10 +160,14 @@ static const EnumPropertyItem parent_type_items[] = {
 #define INSTANCE_ITEMS_SHARED \
   {0, "NONE", 0, "None", ""}, \
       {OB_DUPLIVERTS, "VERTS", 0, "Vertices", "Instantiate child objects on all vertices"}, \
-      {OB_DUPLIFACES, "FACES", 0, "Faces", "Instantiate child objects on all faces"}
+  { \
+    OB_DUPLIFACES, "FACES", 0, "Faces", "Instantiate child objects on all faces" \
+  }
 
 #define INSTANCE_ITEM_COLLECTION \
-  {OB_DUPLICOLLECTION, "COLLECTION", 0, "Collection", "Enable collection instancing"}
+  { \
+    OB_DUPLICOLLECTION, "COLLECTION", 0, "Collection", "Enable collection instancing" \
+  }
 static const EnumPropertyItem instance_items[] = {
     INSTANCE_ITEMS_SHARED,
     INSTANCE_ITEM_COLLECTION,
@@ -208,9 +212,18 @@ const EnumPropertyItem rna_enum_lightprobes_type_items[] = {
 };
 
 /* used for 2 enums */
-#define OBTYPE_CU_CURVE {OB_CURVES_LEGACY, "CURVE", ICON_OUTLINER_OB_CURVE, "Curve", ""}
-#define OBTYPE_CU_SURF {OB_SURF, "SURFACE", ICON_OUTLINER_OB_SURFACE, "Surface", ""}
-#define OBTYPE_CU_FONT {OB_FONT, "FONT", ICON_OUTLINER_OB_FONT, "Text", ""}
+#define OBTYPE_CU_CURVE \
+  { \
+    OB_CURVES_LEGACY, "CURVE", ICON_OUTLINER_OB_CURVE, "Curve", "" \
+  }
+#define OBTYPE_CU_SURF \
+  { \
+    OB_SURF, "SURFACE", ICON_OUTLINER_OB_SURFACE, "Surface", "" \
+  }
+#define OBTYPE_CU_FONT \
+  { \
+    OB_FONT, "FONT", ICON_OUTLINER_OB_FONT, "Text", "" \
+  }
 
 const EnumPropertyItem rna_enum_object_type_items[] = {
     {OB_MESH, "MESH", ICON_OUTLINER_OB_MESH, "Mesh", ""},
