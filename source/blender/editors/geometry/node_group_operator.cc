@@ -263,7 +263,7 @@ class MeshState {
   }
 };
 
-/* Replace an entire attributes data using implicit sharing to avoid copies when possible. */
+/* Replace an entire attribute using implicit sharing to avoid copies when possible. */
 static void replace_attribute(const bke::AttributeAccessor src_attributes,
                               const StringRef name,
                               const bke::AttrDomain domain,
