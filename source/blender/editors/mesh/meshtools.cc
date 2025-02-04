@@ -13,9 +13,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
-#include "BLI_rect.h"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
@@ -1326,134 +1324,12 @@ bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px,
     edge_idx_best = ORIGINDEX_NONE;
   }
 
-  if (edge_idx_best != ORIGINDEX_NONE) {
+  if ((edge_idx_best != ORIGINDEX_NONE) && (edge_idx_best < mesh->edges_num)) {
     *r_index = edge_idx_best;
     return true;
   }
 
   return false;
-}
-
-/**
- * Edge projection is more involved since part of the edge may be behind the view
- * or extend beyond the far limits. In the case of single points, these can be ignored.
- * However it just may still be visible on screen, so constrained the edge to planes
- * defined by the port to ensure both ends of the edge can be projected, see #32214.
- *
- * \note This is unrelated to #V3D_PROJ_TEST_CLIP_BB which must be checked separately.
- */
-static bool view3d_project_segment_to_screen_with_content_clip_planes(
-    const ARegion *region,
-    const float v_a[3],
-    const float v_b[3],
-    const eV3DProjTest clip_flag,
-    const rctf *win_rect,
-    const float content_planes[][4],
-    const int content_planes_len,
-    /* Output. */
-    float r_screen_co_a[2],
-    float r_screen_co_b[2])
-{
-  /* Clipping already handled, no need to check in projection. */
-  eV3DProjTest clip_flag_nowin = clip_flag & ~V3D_PROJ_TEST_CLIP_WIN;
-
-  const eV3DProjStatus status_a = ED_view3d_project_float_object(
-      region, v_a, r_screen_co_a, clip_flag_nowin);
-  const eV3DProjStatus status_b = ED_view3d_project_float_object(
-      region, v_b, r_screen_co_b, clip_flag_nowin);
-
-  if ((status_a == V3D_PROJ_RET_OK) && (status_b == V3D_PROJ_RET_OK)) {
-    if (clip_flag & V3D_PROJ_TEST_CLIP_WIN) {
-      if (!BLI_rctf_isect_segment(win_rect, r_screen_co_a, r_screen_co_b)) {
-        return false;
-      }
-    }
-  }
-  else {
-    if (content_planes_len == 0) {
-      return false;
-    }
-
-    /* Both too near, ignore. */
-    if ((status_a & V3D_PROJ_TEST_CLIP_NEAR) && (status_b & V3D_PROJ_TEST_CLIP_NEAR)) {
-      return false;
-    }
-
-    /* Both too far, ignore. */
-    if ((status_a & V3D_PROJ_TEST_CLIP_FAR) && (status_b & V3D_PROJ_TEST_CLIP_FAR)) {
-      return false;
-    }
-
-    /* Simple cases have been ruled out, clip by viewport planes, then re-project. */
-    float v_a_clip[3], v_b_clip[3];
-    if (!clip_segment_v3_plane_n(v_a, v_b, content_planes, content_planes_len, v_a_clip, v_b_clip))
-    {
-      return false;
-    }
-
-    if ((ED_view3d_project_float_object(region, v_a_clip, r_screen_co_a, clip_flag_nowin) !=
-         V3D_PROJ_RET_OK) ||
-        (ED_view3d_project_float_object(region, v_b_clip, r_screen_co_b, clip_flag_nowin) !=
-         V3D_PROJ_RET_OK))
-    {
-      return false;
-    }
-
-    /* No need for #V3D_PROJ_TEST_CLIP_WIN check here,
-     * clipping the segment by planes handle this. */
-  }
-
-  return true;
-}
-
-/**
- * Calculate clipping planes to use when #V3D_PROJ_TEST_CLIP_CONTENT is enabled.
- *
- * Planes are selected from the viewpoint using `clip_flag`
- * to detect which planes should be applied (maximum 6).
- *
- * \return The number of planes written into `planes`.
- */
-static int content_planes_from_clip_flag(const ARegion *region,
-                                         const Object *ob,
-                                         const eV3DProjTest clip_flag,
-                                         float planes[6][4])
-{
-  BLI_assert(clip_flag & V3D_PROJ_TEST_CLIP_CONTENT);
-
-  float *clip_xmin = nullptr, *clip_xmax = nullptr;
-  float *clip_ymin = nullptr, *clip_ymax = nullptr;
-  float *clip_zmin = nullptr, *clip_zmax = nullptr;
-
-  int planes_len = 0;
-
-  /* The order of `planes` has been selected based on the likelihood of points being fully
-   * outside the plane to increase the chance of an early exit in #clip_segment_v3_plane_n.
-   * With "near" being most likely and "far" being unlikely.
-   *
-   * Otherwise the order of axes in `planes` isn't significant. */
-
-  if (clip_flag & V3D_PROJ_TEST_CLIP_NEAR) {
-    clip_zmin = planes[planes_len++];
-  }
-  if (clip_flag & V3D_PROJ_TEST_CLIP_WIN) {
-    clip_xmin = planes[planes_len++];
-    clip_xmax = planes[planes_len++];
-    clip_ymin = planes[planes_len++];
-    clip_ymax = planes[planes_len++];
-  }
-  if (clip_flag & V3D_PROJ_TEST_CLIP_FAR) {
-    clip_zmax = planes[planes_len++];
-  }
-
-  BLI_assert(planes_len <= 6);
-  if (planes_len != 0) {
-    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-    const blender::float4x4 projection = ED_view3d_ob_project_mat_get(rv3d, ob);
-    planes_from_projmat(
-        projection.ptr(), clip_xmin, clip_xmax, clip_ymin, clip_ymax, clip_zmin, clip_zmax);
-  }
-  return planes_len;
 }
 
 bool ED_mesh_pick_face_edge(
@@ -1508,64 +1384,18 @@ bool ED_mesh_pick_face_edge(
   for (const int i : face_edges) {
     float2 screen_coordinate;
     const int2 edge = edges[i];
-
-    const bool use_poop = true;
-    if (use_poop) {
-      //view3d_project_segment_to_screen_with_content_clip_planes
-      // ^^ gives screen_co_a, screen_co_b
-      //dist_squared_to_line_segment_v2(cent, screen_co_a, screen_co_b)
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
-
-      float content_planes[6][4];
-      int content_planes_len;
-      rctf win_rect;//rctf win_rect; /* copy of: vc.region->winx/winy, use for faster tests, minx/y will always be 0 */
-
-      content_planes_len = content_planes_from_clip_flag(
-          vc.region, ob, V3D_PROJ_TEST_CLIP_CONTENT_DEFAULT, content_planes);
-      win_rect.xmin = 0;
-      win_rect.ymin = 0;
-      win_rect.xmax = vc.region->winx;
-      win_rect.ymax = vc.region->winy;
-
-      float2 screen_co_a;
-      float2 screen_co_b;
-
-      if (!view3d_project_segment_to_screen_with_content_clip_planes(vc.region,
-                                                                     vert_positions[edge[0]],
-                                                                     vert_positions[edge[1]],
-                                                                     V3D_PROJ_TEST_CLIP_CONTENT_DEFAULT,
-                                                                     &win_rect,
-                                                                     content_planes,
-                                                                     content_planes_len,
-                                                                     screen_co_a,
-                                                                     screen_co_b))
-      {
-        continue;
-      }
-
-      const float len_test = dist_squared_to_line_segment_v2(mval_f, screen_co_a, screen_co_b);
-      if (len_test < len_best) {
-        len_best = len_test;
-        edge_idx_best = i;
-      }
-
-
+    const float3 edge_vert_average = blender::math::midpoint(vert_positions[edge[0]],
+                                                             vert_positions[edge[1]]);
+    eV3DProjStatus status = ED_view3d_project_float_object(
+        region, edge_vert_average, screen_coordinate, V3D_PROJ_TEST_CLIP_DEFAULT);
+    if (status != V3D_PROJ_RET_OK) {
+      continue;
     }
-    else {
-      const float3 edge_vert_average = blender::math::midpoint(vert_positions[edge[0]],
-                                                               vert_positions[edge[1]]);
-      eV3DProjStatus status = ED_view3d_project_float_object(
-          region, edge_vert_average, screen_coordinate, V3D_PROJ_TEST_CLIP_DEFAULT);
-      if (status != V3D_PROJ_RET_OK) {
-        continue;
-      }
 
-      const float len_test = len_manhattan_v2v2(mval_f, screen_coordinate);
-      if (len_test < len_best) {
-        len_best = len_test;
-        edge_idx_best = i;
-      }
+    const float len_test = len_manhattan_v2v2(mval_f, screen_coordinate);
+    if (len_test < len_best) {
+      len_best = len_test;
+      edge_idx_best = i;
     }
   }
 
