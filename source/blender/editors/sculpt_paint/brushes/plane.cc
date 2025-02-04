@@ -44,7 +44,7 @@
 
 namespace blender::ed::sculpt_paint {
 
-inline namespace plane_new_cc {
+inline namespace plane_cc {
 
 struct LocalData {
   Vector<float3> positions;
@@ -354,7 +354,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   apply_translations(translations, verts);
 }
 
-}  // namespace plane_new_cc
+}  // namespace plane_cc
 
 void do_plane_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
