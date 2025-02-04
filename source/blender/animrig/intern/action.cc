@@ -1140,7 +1140,7 @@ void Slot::users_invalidate(Main &bmain)
   bmain.is_action_slot_to_id_map_dirty = true;
 }
 
-std::string Slot::idtype_string() const
+std::string Slot::identifier_prefix_for_idtype() const
 {
   if (!this->has_idtype()) {
     return slot_untyped_prefix;
@@ -1151,7 +1151,7 @@ std::string Slot::idtype_string() const
   return name;
 }
 
-StringRef Slot::identifier_prefix_for_idtype() const
+StringRef Slot::identifier_prefix() const
 {
   StringRef identifier(this->identifier);
   BLI_assert(identifier.size() >= 2);

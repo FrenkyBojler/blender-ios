@@ -813,19 +813,19 @@ class Slot : public ::ActionSlot {
    *
    * E.g "OB" for object, "CA" for camera, etc.
    *
-   * This is different from `identifier_prefix_for_idtype()`: this constructs a
+   * This is different from `identifier_prefix()`: this constructs a
    * string directly from the actual 'idtype' field of the Slot, whereas
-   * `identifier_prefix_for_idtype()` returns the first two characters of the
+   * `identifier_prefix()` returns the first two characters of the
    * identifier string.
    *
    * This distinction matters in some lower-level code where the two can
    * momentarily be out of sync, although this should always be corrected before
    * exiting such code so that it's never observable in higher-level code.
    *
-   * \see identifier_prefix_for_idtype()
+   * \see identifier_prefix()
    * \see identifier_ensure_prefix()
    */
-  std::string idtype_string() const;
+  std::string identifier_prefix_for_idtype() const;
 
   /**
    * Return the two-character type prefix of this Slot's identifier.
@@ -833,13 +833,13 @@ class Slot : public ::ActionSlot {
    * This corresponds to the intended ID type of the slot, e.g "OB" for object,
    * "CA" for camera, etc.
    *
-   * This is subtly different from `idtype_string()`. See its documentation for
+   * This is subtly different from `identifier_prefix_for_idtype()`. See its documentation for
    * details.
    *
-   * \see idtype_string()
+   * \see identifier_prefix_for_idtype()
    * \see identifier_ensure_prefix()
    */
-  StringRef identifier_prefix_for_idtype() const;
+  StringRef identifier_prefix() const;
 
   /**
    * Return this Slot's identifier without the prefix, also known as the
@@ -847,7 +847,7 @@ class Slot : public ::ActionSlot {
    *
    * E.g. if the identifier is "OBCube", then "Cube" is returned.
    *
-   * \see identifier_prefix_for_idtype
+   * \see identifier_prefix()
    */
   StringRefNull identifier_without_prefix() const;
 
@@ -870,7 +870,8 @@ class Slot : public ::ActionSlot {
    * method returning `false` should NOT be taken as a guarantee that this Slot
    * will never be used by the given ID or other IDs of the same type.
    *
-   * \see identifier_prefix_for_idtype() \see has_idtype()
+   * \see identifier_prefix_for_idtype()
+   * \see has_idtype()
    */
   bool is_suitable_for(const ID &animated_id) const;
 
