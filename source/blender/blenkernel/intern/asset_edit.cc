@@ -6,13 +6,9 @@
  * \ingroup bke
  */
 
-#include <memory>
-#include <utility>
-
 #include "BLI_fileops.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_vector.hh"
 
 #include "DNA_asset_types.h"
 #include "DNA_space_types.h"
@@ -20,7 +16,6 @@
 #include "AS_asset_library.hh"
 #include "AS_essentials_library.hh"
 
-#include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_blendfile_link_append.hh"
@@ -40,8 +35,6 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
-
-#include "MEM_guardedalloc.h"
 
 namespace blender::bke {
 

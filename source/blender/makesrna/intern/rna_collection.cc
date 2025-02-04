@@ -12,8 +12,6 @@
 
 #include "DNA_collection_types.h"
 
-#include "DNA_lineart_types.h"
-
 #include "BLI_utildefines.h"
 
 #include "RNA_define.hh"
@@ -53,6 +51,8 @@ BLI_STATIC_ASSERT(ARRAY_SIZE(rna_enum_collection_color_items) - 2 == COLLECTION_
 #  include "BKE_collection.hh"
 #  include "BKE_global.hh"
 #  include "BKE_layer.hh"
+#  include "BKE_lib_id.hh"
+#  include "BKE_report.hh"
 
 #  include "BLT_translation.hh"
 
@@ -73,7 +73,7 @@ static PointerRNA rna_Collection_all_objects_get(CollectionPropertyIterator *ite
 
   /* we are actually iterating a ObjectBase list, so override get */
   Base *base = (Base *)internal->link;
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_Object, base->object);
+  return RNA_id_pointer_create(&base->object->id);
 }
 
 static void rna_Collection_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -88,7 +88,7 @@ static PointerRNA rna_Collection_objects_get(CollectionPropertyIterator *iter)
 
   /* we are actually iterating a ObjectBase list, so override get */
   CollectionObject *cob = (CollectionObject *)internal->link;
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_Object, cob->ob);
+  return RNA_id_pointer_create(&cob->ob->id);
 }
 
 static bool rna_collection_objects_edit_check(Collection *collection,
@@ -216,7 +216,7 @@ static PointerRNA rna_Collection_children_get(CollectionPropertyIterator *iter)
 
   /* we are actually iterating a CollectionChild list, so override get */
   CollectionChild *child = (CollectionChild *)internal->link;
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_Collection, child->collection);
+  return RNA_id_pointer_create(&child->collection->id);
 }
 
 static bool rna_collection_children_edit_check(Collection *collection,

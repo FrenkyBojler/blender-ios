@@ -8,30 +8,34 @@
 
 #include <cstdlib>
 
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_string_utf8_symbols.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
-#include "BKE_keyconfig.h"
 #include "BKE_screen.hh"
-#include "BKE_workspace.hh"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
 #include "rna_internal.hh"
 
 #include "WM_api.hh"
+#include "WM_keymap.hh"
 #include "WM_types.hh"
 
 #ifdef RNA_RUNTIME
+
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
+
+#  include "BKE_keyconfig.h"
+#  include "BKE_main.hh"
+#  include "BKE_report.hh"
+#  include "BKE_wm_runtime.hh"
+#  include "BKE_workspace.hh"
 
 #  include "wm_event_system.hh"
 
@@ -610,15 +614,14 @@ const EnumPropertyItem rna_enum_wm_report_items[] = {
 
 #  include "WM_api.hh"
 
-#  include "DNA_object_types.h"
+#  include "DNA_ID.h"
 #  include "DNA_workspace_types.h"
+
+#  include "BKE_global.hh"
 
 #  include "ED_screen.hh"
 
 #  include "UI_interface.hh"
-
-#  include "BKE_global.hh"
-#  include "BKE_idprop.hh"
 
 #  include "MEM_guardedalloc.h"
 
@@ -869,8 +872,8 @@ static void rna_Window_scene_update(bContext *C, PointerRNA *ptr)
 static PointerRNA rna_Window_workspace_get(PointerRNA *ptr)
 {
   wmWindow *win = static_cast<wmWindow *>(ptr->data);
-  return rna_pointer_inherit_refine(
-      ptr, &RNA_WorkSpace, BKE_workspace_active_get(win->workspace_hook));
+  return RNA_id_pointer_create(
+      reinterpret_cast<ID *>(BKE_workspace_active_get(win->workspace_hook)));
 }
 
 static void rna_Window_workspace_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -907,8 +910,8 @@ static void rna_Window_workspace_update(bContext *C, PointerRNA *ptr)
 PointerRNA rna_Window_screen_get(PointerRNA *ptr)
 {
   wmWindow *win = static_cast<wmWindow *>(ptr->data);
-  return rna_pointer_inherit_refine(
-      ptr, &RNA_Screen, BKE_workspace_active_screen_get(win->workspace_hook));
+  return RNA_id_pointer_create(
+      reinterpret_cast<ID *>(BKE_workspace_active_screen_get(win->workspace_hook)));
 }
 
 static void rna_Window_screen_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)

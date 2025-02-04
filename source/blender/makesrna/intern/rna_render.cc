@@ -9,20 +9,13 @@
 #include <cstdlib>
 
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_path_utils.hh"
-#include "BLI_utildefines.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
 #endif
-
-#include "DEG_depsgraph.hh"
-
-#include "BKE_image.hh"
-#include "BKE_scene.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -30,9 +23,6 @@
 #include "rna_internal.hh"
 
 #include "RE_engine.h"
-#include "RE_pipeline.h"
-
-#include "ED_render.hh"
 
 /* Deprecated, only provided for API compatibility. */
 const EnumPropertyItem rna_enum_render_pass_type_items[] = {
@@ -88,7 +78,9 @@ const EnumPropertyItem rna_enum_bake_pass_type_items[] = {
 
 #  include "BKE_appdir.hh"
 #  include "BKE_context.hh"
+#  include "BKE_image.hh"
 #  include "BKE_report.hh"
+#  include "BKE_scene.hh"
 
 #  include "GPU_capabilities.hh"
 #  include "GPU_shader.hh"
@@ -96,6 +88,8 @@ const EnumPropertyItem rna_enum_bake_pass_type_items[] = {
 #  include "IMB_imbuf_types.hh"
 
 #  include "DEG_depsgraph_query.hh"
+
+#  include "ED_render.hh"
 
 /* RenderEngine Callbacks */
 
@@ -427,9 +421,7 @@ static PointerRNA rna_RenderEngine_render_get(PointerRNA *ptr)
 
     return rna_pointer_inherit_refine(ptr, &RNA_RenderSettings, r);
   }
-  else {
-    return rna_pointer_inherit_refine(ptr, &RNA_RenderSettings, nullptr);
-  }
+  return PointerRNA_NULL;
 }
 
 static PointerRNA rna_RenderEngine_camera_override_get(PointerRNA *ptr)
@@ -439,10 +431,10 @@ static PointerRNA rna_RenderEngine_camera_override_get(PointerRNA *ptr)
   if (engine->re) {
     Object *cam = RE_GetCamera(engine->re);
     Object *cam_eval = DEG_get_evaluated_object(engine->depsgraph, cam);
-    return rna_pointer_inherit_refine(ptr, &RNA_Object, cam_eval);
+    return RNA_id_pointer_create(reinterpret_cast<ID *>(cam_eval));
   }
   else {
-    return rna_pointer_inherit_refine(ptr, &RNA_Object, engine->camera_override);
+    return RNA_id_pointer_create(reinterpret_cast<ID *>(engine->camera_override));
   }
 }
 

@@ -6,15 +6,16 @@
  * \ingroup edanimation
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_listbase.h"
 #include "BLI_span.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -1394,13 +1395,15 @@ static void rearrange_animchannel_flatten_islands(ListBase *islands, ListBase *s
 /* ............................. */
 
 /* get a list of all bAnimListElem's of a certain type which are currently visible */
-static void rearrange_animchannels_filter_visible(ListBase *anim_data_visible,
-                                                  bAnimContext *ac,
-                                                  eAnim_ChannelType type)
+static void rearrange_animchannels_filter_visible(
+    ListBase *anim_data_visible,
+    bAnimContext *ac,
+    const eAnim_ChannelType type,
+    const eAnimFilter_Flags additional_filters = eAnimFilter_Flags(0))
 {
   ListBase anim_data = {nullptr, nullptr};
   eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-                              ANIMFILTER_LIST_CHANNELS);
+                              ANIMFILTER_LIST_CHANNELS | additional_filters);
 
   /* get all visible channels */
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
@@ -1685,13 +1688,122 @@ static void join_groups_action_temp(bAction *act)
 }
 
 /**
+ * Move selected, visible action slots in the channel list according to `mode`.
+ *
+ * Returns true if any rearranging happened, false otherwise.
+ */
+static bool rearrange_layered_action_slots(bAnimContext *ac, const eRearrangeAnimChan_Mode mode)
+{
+  /* TODO: the general structure of this function is basically the same as
+   * `rearrange_layered_action_channel_groups()` and
+   * `rearrange_layered_action_fcurves()`. It would be nice to DRY them at some
+   * point if we can. */
+
+  ListBase anim_data_selected_visible = {nullptr, nullptr};
+  rearrange_animchannels_filter_visible(
+      &anim_data_selected_visible, ac, ANIMTYPE_ACTION_SLOT, ANIMFILTER_SEL);
+
+  int total_moved = 0;
+
+  switch (mode) {
+    case REARRANGE_ANIMCHAN_UP: {
+      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_selected_visible) {
+        BLI_assert(ale->type == ANIMTYPE_ACTION_SLOT);
+        blender::animrig::Slot &slot = static_cast<ActionSlot *>(ale->data)->wrap();
+        blender::animrig::Action &action =
+            reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
+
+        const int current_index = action.slots().first_index_try(&slot);
+        const int to_index = current_index - 1;
+        BLI_assert(current_index >= 0);
+
+        /* We skip moving when the destination is also selected because that
+         * would swap two selected slots rather than moving them all in the
+         * same direction. This happens when multiple selected slots are
+         * already packed together at the top. */
+        if (to_index < 0 || action.slot(to_index)->is_selected()) {
+          continue;
+        }
+
+        action.slot_move_to_index(slot, to_index);
+        total_moved++;
+      }
+      break;
+    }
+
+    case REARRANGE_ANIMCHAN_TOP: {
+      LISTBASE_FOREACH_BACKWARD (bAnimListElem *, ale, &anim_data_selected_visible) {
+        BLI_assert(ale->type == ANIMTYPE_ACTION_SLOT);
+        blender::animrig::Slot &slot = static_cast<ActionSlot *>(ale->data)->wrap();
+        blender::animrig::Action &action =
+            reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
+
+        const int current_index = action.slots().first_index_try(&slot);
+        const int to_index = 0;
+        if (current_index != to_index) {
+          action.slot_move_to_index(slot, to_index);
+          total_moved++;
+        }
+      }
+      break;
+    }
+
+    case REARRANGE_ANIMCHAN_DOWN: {
+      LISTBASE_FOREACH_BACKWARD (bAnimListElem *, ale, &anim_data_selected_visible) {
+        BLI_assert(ale->type == ANIMTYPE_ACTION_SLOT);
+        blender::animrig::Slot &slot = static_cast<ActionSlot *>(ale->data)->wrap();
+        blender::animrig::Action &action =
+            reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
+
+        const int current_index = action.slots().first_index_try(&slot);
+        const int to_index = current_index + 1;
+        BLI_assert(current_index >= 0);
+
+        /* We skip moving when the destination is also selected because that
+         * would swap two selected slots rather than moving them all in the
+         * same direction. This happens when multiple selected slots are
+         * already packed together at the bottom. */
+        if (to_index >= action.slots().size() || action.slot(to_index)->is_selected()) {
+          continue;
+        }
+
+        action.slot_move_to_index(slot, to_index);
+        total_moved++;
+      }
+      break;
+    }
+
+    case REARRANGE_ANIMCHAN_BOTTOM: {
+      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_selected_visible) {
+        BLI_assert(ale->type == ANIMTYPE_ACTION_SLOT);
+        blender::animrig::Slot &slot = static_cast<ActionSlot *>(ale->data)->wrap();
+        blender::animrig::Action &action =
+            reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
+
+        const int current_index = action.slots().first_index_try(&slot);
+        const int to_index = action.slots().size() - 1;
+        if (current_index != to_index) {
+          action.slot_move_to_index(slot, to_index);
+          total_moved++;
+        }
+      }
+      break;
+    }
+  }
+
+  BLI_freelistN(&anim_data_selected_visible);
+
+  return total_moved > 0;
+}
+
+/**
  * Move selected, visible channel groups in the channel list according to
  * `mode`.
  *
  * NOTE: the current implementation has quadratic performance with respect to
  * the number of groups in a `Channelbag`, due to both `Span::first_index_try()`
- * and `Channelbag::channel_group_move()` having linear performance. If this
- * becomes a performance bottleneck in practice, we can create a dedicated
+ * and `Channelbag::channel_group_move_to_index()` having linear performance. If
+ * this becomes a performance bottleneck in practice, we can create a dedicated
  * method on `Channelbag` for collectively moving a non-contiguous set of
  * channel groups that works in linear time.
  *
@@ -1735,7 +1847,7 @@ static void rearrange_layered_action_channel_groups(bAnimContext *ac,
           continue;
         }
 
-        bag.channel_group_move(*group, to_index);
+        bag.channel_group_move_to_index(*group, to_index);
       }
       break;
     }
@@ -1748,7 +1860,7 @@ static void rearrange_layered_action_channel_groups(bAnimContext *ac,
           continue;
         }
         blender::animrig::Channelbag &bag = group->channelbag->wrap();
-        bag.channel_group_move(*group, 0);
+        bag.channel_group_move_to_index(*group, 0);
       }
       break;
     }
@@ -1773,7 +1885,7 @@ static void rearrange_layered_action_channel_groups(bAnimContext *ac,
           continue;
         }
 
-        bag.channel_group_move(*group, to_index);
+        bag.channel_group_move_to_index(*group, to_index);
       }
       break;
     }
@@ -1786,7 +1898,7 @@ static void rearrange_layered_action_channel_groups(bAnimContext *ac,
           continue;
         }
         blender::animrig::Channelbag &bag = group->channelbag->wrap();
-        bag.channel_group_move(*group, bag.channel_groups().size() - 1);
+        bag.channel_group_move_to_index(*group, bag.channel_groups().size() - 1);
       }
       break;
     }
@@ -1800,9 +1912,9 @@ static void rearrange_layered_action_channel_groups(bAnimContext *ac,
  *
  * NOTE: the current implementation has quadratic performance with respect to
  * the number of fcurves in a `Channelbag`, due to both
- * `Span::first_index_try()` and `Channelbag::fcurve_move()` having linear
- * performance. If this becomes a performance bottleneck in practice, we can
- * create a dedicated method on `Channelbag` for collectively moving a
+ * `Span::first_index_try()` and `Channelbag::fcurve_move_to_index()` having
+ * linear performance. If this becomes a performance bottleneck in practice, we
+ * can create a dedicated method on `Channelbag` for collectively moving a
  * non-contiguous set of fcurves that works in linear time.
  *
  * TODO: there's a fair amount of apparent repetition in this code and the code
@@ -1886,7 +1998,7 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
           continue;
         }
 
-        bag.fcurve_move(*fcurve, to_index);
+        bag.fcurve_move_to_index(*fcurve, to_index);
       }
       return;
     }
@@ -1902,7 +2014,7 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
         }
 
         blender::animrig::Channelbag &bag = group.channelbag->wrap();
-        bag.fcurve_move(*fcurve, group.fcurve_range_start);
+        bag.fcurve_move_to_index(*fcurve, group.fcurve_range_start);
       }
       return;
     }
@@ -1931,7 +2043,7 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
           continue;
         }
 
-        bag.fcurve_move(*fcurve, to_index);
+        bag.fcurve_move_to_index(*fcurve, to_index);
       }
       return;
     }
@@ -1947,7 +2059,8 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
         }
 
         blender::animrig::Channelbag &bag = group.channelbag->wrap();
-        bag.fcurve_move(*fcurve, group.fcurve_range_start + group.fcurve_range_length - 1);
+        bag.fcurve_move_to_index(*fcurve,
+                                 group.fcurve_range_start + group.fcurve_range_length - 1);
       }
       return;
     }
@@ -1963,6 +2076,10 @@ static void rearrange_action_channels(bAnimContext *ac, bAction *act, eRearrange
 
   /* Layered actions. */
   if (!blender::animrig::legacy::action_treat_as_legacy(*act)) {
+    if (rearrange_layered_action_slots(ac, mode)) {
+      /* Only rearrange other channels if no slot rearranging happened. */
+      return;
+    }
     rearrange_layered_action_channel_groups(ac, mode);
     rearrange_layered_action_fcurves(ac, act->wrap(), mode);
     return;
@@ -5070,9 +5187,7 @@ static int channels_bake_exec(bContext *C, wmOperator *op)
    * constantly be overridden. */
   blender::int2 frame_range;
   RNA_int_get_array(op->ptr, "range", frame_range);
-  if (frame_range[1] < frame_range[0]) {
-    frame_range[1] = frame_range[0];
-  }
+  frame_range[1] = std::max(frame_range[1], frame_range[0]);
   const float step = RNA_float_get(op->ptr, "step");
   if (frame_range[0] == 0 && frame_range[1] == 0) {
     if (scene->r.flag & SCER_PRV_RANGE) {

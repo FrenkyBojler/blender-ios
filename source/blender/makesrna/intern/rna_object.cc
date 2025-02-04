@@ -6,53 +6,29 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 
 #include "DNA_action_types.h"
-#include "DNA_brush_types.h"
-#include "DNA_collection_types.h"
-#include "DNA_customdata_types.h"
-#include "DNA_gpencil_modifier_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_lightprobe_types.h"
-#include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
-#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_shader_fx_types.h"
-#include "DNA_workspace_types.h"
 
-#include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
-#include "BKE_camera.h"
-#include "BKE_collection.hh"
-#include "BKE_editlattice.h"
-#include "BKE_editmesh.hh"
-#include "BKE_layer.hh"
-#include "BKE_object_deform.h"
 #include "BKE_paint.hh"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
 #include "rna_internal.hh"
 
-#include "BLI_sys_types.h" /* needed for intptr_t used in ED_mesh.hh */
-#include "ED_mesh.hh"
 #include "ED_object_vgroup.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
-
-#include "DEG_depsgraph_query.hh"
 
 const EnumPropertyItem rna_enum_object_mode_items[] = {
     {OB_MODE_OBJECT, "OBJECT", ICON_OBJECT_DATAMODE, "Object Mode", ""},
@@ -319,23 +295,33 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 #  include "DNA_gpencil_legacy_types.h"
 #  include "DNA_key_types.h"
 #  include "DNA_lattice_types.h"
+#  include "DNA_material_types.h"
 #  include "DNA_node_types.h"
+
+#  include "BLI_math_matrix.h"
+#  include "BLI_math_vector.h"
 
 #  include "BKE_armature.hh"
 #  include "BKE_brush.hh"
+#  include "BKE_camera.h"
+#  include "BKE_collection.hh"
 #  include "BKE_constraint.h"
 #  include "BKE_context.hh"
 #  include "BKE_curve.hh"
 #  include "BKE_deform.hh"
+#  include "BKE_editlattice.h"
+#  include "BKE_editmesh.hh"
 #  include "BKE_effect.h"
 #  include "BKE_global.hh"
 #  include "BKE_key.hh"
+#  include "BKE_layer.hh"
 #  include "BKE_light_linking.h"
 #  include "BKE_material.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_mesh_wrapper.hh"
 #  include "BKE_modifier.hh"
 #  include "BKE_object.hh"
+#  include "BKE_object_deform.h"
 #  include "BKE_particle.h"
 #  include "BKE_scene.hh"
 
@@ -344,8 +330,11 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 
 #  include "ED_curve.hh"
 #  include "ED_lattice.hh"
+#  include "ED_mesh.hh"
 #  include "ED_object.hh"
 #  include "ED_particle.hh"
+
+#  include "DEG_depsgraph_query.hh"
 
 static void rna_Object_internal_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
@@ -524,9 +513,9 @@ static PointerRNA rna_Object_data_get(PointerRNA *ptr)
   if (ob->type == OB_MESH) {
     Mesh *mesh = static_cast<Mesh *>(ob->data);
     mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
-    return rna_pointer_inherit_refine(ptr, &RNA_Mesh, mesh);
+    return RNA_id_pointer_create(reinterpret_cast<ID *>(mesh));
   }
-  return rna_pointer_inherit_refine(ptr, &RNA_ID, ob->data);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(ob->data));
 }
 
 static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
@@ -1139,7 +1128,7 @@ static PointerRNA rna_Object_active_material_get(PointerRNA *ptr)
   Material *ma;
 
   ma = (ob->totcol) ? BKE_object_material_get(ob, ob->actcol) : nullptr;
-  return rna_pointer_inherit_refine(ptr, &RNA_Material, ma);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(ma));
 }
 
 static void rna_Object_active_material_set(PointerRNA *ptr,
@@ -1373,7 +1362,7 @@ static PointerRNA rna_MaterialSlot_material_get(PointerRNA *ptr)
   else {
     ma = BKE_object_material_get(ob, index + 1);
   }
-  return rna_pointer_inherit_refine(ptr, &RNA_Material, ma);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(ma));
 }
 
 static void rna_MaterialSlot_material_set(PointerRNA *ptr,
@@ -3572,8 +3561,9 @@ static void rna_def_object(BlenderRNA *brna)
   /* shape keys */
   prop = RNA_def_property(srna, "show_only_shape_key", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "shapeflag", OB_SHAPE_LOCK);
-  RNA_def_property_ui_text(prop, "Shape Key Lock", "Only show the active shape key at full value");
-  RNA_def_property_ui_icon(prop, ICON_UNPINNED, 1);
+  RNA_def_property_ui_text(
+      prop, "Solo Active Shape Key", "Only show the active shape key at full value");
+  RNA_def_property_ui_icon(prop, ICON_SOLO_OFF, 1);
   RNA_def_property_update(prop, 0, "rna_Object_internal_update_data");
 
   prop = RNA_def_property(srna, "use_shape_key_edit_mode", PROP_BOOLEAN, PROP_NONE);

@@ -353,7 +353,7 @@ static PointerRNA rna_ID_original_get(PointerRNA *ptr)
 {
   ID *id = (ID *)ptr->data;
 
-  return rna_pointer_inherit_refine(ptr, &RNA_ID, DEG_get_original_id(id));
+  return RNA_id_pointer_create(DEG_get_original_id(id));
 }
 
 short RNA_type_to_ID_code(const StructRNA *type)
@@ -654,8 +654,10 @@ IDProperty **rna_PropertyGroup_idprops(PointerRNA *ptr)
 
 bool rna_PropertyGroup_unregister(Main * /*bmain*/, StructRNA *type)
 {
+#  ifdef WITH_PYTHON
   /* Ensure that a potential py object representing this RNA type is properly dereferenced. */
   BPY_free_srna_pytype(type);
+#  endif
 
   RNA_struct_free(&BLENDER_RNA, type);
   return true;

@@ -13,7 +13,6 @@
 
 #include <cfloat>
 #include <chrono>
-#include <cmath>
 #include <cstdarg>
 #include <cstddef>
 #include <cstdlib>
@@ -25,7 +24,6 @@
 #include "DNA_cloth_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_fluid_types.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_object_force_types.h"
@@ -38,7 +36,6 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rand.hh"
-#include "BLI_session_uid.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"

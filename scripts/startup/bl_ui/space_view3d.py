@@ -983,6 +983,9 @@ class VIEW3D_HT_header(Header):
                 canvas_source = tool_settings.paint_mode.canvas_source
                 icon = 'GROUP_VCOL' if canvas_source == 'COLOR_ATTRIBUTE' else canvas_source
                 row.popover(panel="VIEW3D_PT_slots_paint_canvas", icon=icon)
+                # TODO: Update this boolean condition so that the Canvas button is only active when
+                # the appropriate color types are selected in Solid mode, I.E. 'TEXTURE'
+                row.active = is_paint_tool
             else:
                 row.popover(panel="VIEW3D_PT_slots_color_attributes", icon='GROUP_VCOL')
 
@@ -1275,7 +1278,13 @@ class VIEW3D_MT_transform_base:
         layout.operator("transform.push_pull", text="Push/Pull")
 
         if context.mode in {
-                'EDIT_MESH', 'EDIT_ARMATURE', 'EDIT_SURFACE', 'EDIT_CURVE', 'EDIT_LATTICE', 'EDIT_METABALL',
+            'EDIT_MESH',
+            'EDIT_ARMATURE',
+            'EDIT_SURFACE',
+            'EDIT_CURVE',
+            'EDIT_CURVES',
+            'EDIT_LATTICE',
+            'EDIT_METABALL',
         }:
             layout.operator("transform.vertex_warp", text="Warp")
             layout.operator_context = 'EXEC_REGION_WIN'
@@ -8795,7 +8804,7 @@ class View3DAssetShelf(BrushAssetShelf):
     bl_space_type = "VIEW_3D"
 
 
-class AssetShelfHiddenByDefault():
+class AssetShelfHiddenByDefault:
     # Take #BrushAssetShelf.bl_options but remove the 'DEFAULT_VISIBLE' flag.
     bl_options = {option for option in BrushAssetShelf.bl_options if option != 'DEFAULT_VISIBLE'}
 
