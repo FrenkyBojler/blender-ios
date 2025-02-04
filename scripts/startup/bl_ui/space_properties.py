@@ -10,6 +10,31 @@ from . import anim
 class PROPERTIES_HT_header(Header):
     bl_space_type = 'PROPERTIES'
 
+    @staticmethod
+    def _visibility_icon_get(space):
+        all_properties_visible = (
+            space.show_properties_tool and
+            space.show_properties_render and
+            space.show_properties_output and
+            space.show_properties_view_layer and
+            space.show_properties_scene and
+            space.show_properties_world and
+            space.show_properties_collection and
+            space.show_properties_object and
+            space.show_properties_modifiers and
+            space.show_properties_effects and
+            space.show_properties_particles and
+            space.show_properties_physics and
+            space.show_properties_constraints and
+            space.show_properties_data and
+            space.show_properties_bone and
+            space.show_properties_bone_constraints and
+            space.show_properties_material and
+            space.show_properties_texture
+        )
+
+        return 'HIDE_OFF' if all_properties_visible else 'HIDE_ON'
+
     def draw(self, context):
         layout = self.layout
         view = context.space_data
@@ -33,6 +58,7 @@ class PROPERTIES_HT_header(Header):
 
         layout.separator_spacer()
 
+        layout.popover(panel="PROPERTIES_PT_visibility", text="", icon=PROPERTIES_HT_header._visibility_icon_get(view))
         layout.popover(panel="PROPERTIES_PT_options", text="")
 
 
@@ -56,6 +82,46 @@ class PROPERTIES_PT_navigation_bar(Panel):
             )
         else:
             layout.prop_tabs_enum(view, "context", icon_only=True)
+
+
+class PROPERTIES_PT_visibility(Panel):
+    """Choose visibility of tabs in the properties editor"""
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'HEADER'
+    bl_label = "Visibility"
+
+    def draw(self, context):
+        layout = self.layout
+
+        space = context.space_data
+
+        col = layout.column()
+        col.label(text="Sync with Outliner")
+        col.row().prop(space, "outliner_sync", expand=True)
+
+        layout.separator()
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        col = layout.column(heading="Visible Tabs", align=True)
+        col.prop(space, "show_properties_tool")
+        col.prop(space, "show_properties_render")
+        col.prop(space, "show_properties_output")
+        col.prop(space, "show_properties_view_layer")
+        col.prop(space, "show_properties_scene")
+        col.prop(space, "show_properties_world")
+        col.prop(space, "show_properties_collection")
+        col.prop(space, "show_properties_object")
+        col.prop(space, "show_properties_modifiers")
+        col.prop(space, "show_properties_effects")
+        col.prop(space, "show_properties_particles")
+        col.prop(space, "show_properties_physics")
+        col.prop(space, "show_properties_constraints")
+        col.prop(space, "show_properties_data")
+        col.prop(space, "show_properties_bone")
+        col.prop(space, "show_properties_bone_constraints")
+        col.prop(space, "show_properties_material")
+        col.prop(space, "show_properties_texture")
 
 
 class PROPERTIES_PT_options(Panel):
@@ -154,6 +220,7 @@ classes = (
     PROPERTIES_HT_header,
     PROPERTIES_PT_navigation_bar,
     PROPERTIES_PT_options,
+    PROPERTIES_PT_visibility,
 )
 
 if __name__ == "__main__":  # only for live edit.
