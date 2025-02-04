@@ -68,10 +68,9 @@ static int wm_stl_export_execute(bContext *C, wmOperator *op)
   if (BKE_reports_contain(op->reports, RPT_ERROR)) {
     return OPERATOR_CANCELLED;
   }
-  else {
-    BKE_report(op->reports, RPT_INFO, "File exported successfully");
-    return OPERATOR_FINISHED;
-  }
+
+  BKE_report(op->reports, RPT_INFO, "File exported successfully");
+  return OPERATOR_FINISHED;
 }
 
 static void wm_stl_export_draw(bContext *C, wmOperator *op)
