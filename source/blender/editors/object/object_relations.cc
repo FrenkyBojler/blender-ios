@@ -1497,7 +1497,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
             ob_dst->data = obdata_id;
 
             /* if amount of material indices changed: */
-            BKE_object_materials_test(bmain, ob_dst, static_cast<ID *>(ob_dst->data));
+            BKE_object_materials_sync_length(bmain, ob_dst, static_cast<ID *>(ob_dst->data));
 
             if (ob_dst->type == OB_ARMATURE) {
               BKE_pose_rebuild(bmain, ob_dst, static_cast<bArmature *>(ob_dst->data), true);
@@ -2562,7 +2562,7 @@ static int make_override_library_invoke(bContext *C, wmOperator *op, const wmEve
     else {
       bool has_parents_in_potential_roots = false;
       bool is_potential_root = false;
-      for (auto collection_root_iter : potential_root_collections) {
+      for (auto *collection_root_iter : potential_root_collections) {
         if (BKE_collection_has_collection(collection_root_iter, collection)) {
           BLI_assert_msg(!BKE_collection_has_collection(collection, collection_root_iter),
                          "Invalid loop in collection hierarchy");

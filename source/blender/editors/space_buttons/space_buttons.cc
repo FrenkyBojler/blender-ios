@@ -6,7 +6,6 @@
  * \ingroup spbuttons
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
@@ -16,8 +15,8 @@
 #include "DNA_view2d_types.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_blenlib.h"
 #include "BLI_span.hh"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
@@ -42,7 +41,6 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_c.hh"
-#include "UI_resources.hh"
 #include "UI_view2d.hh"
 
 #include "BLO_read_write.hh"
@@ -1067,6 +1065,7 @@ void ED_spacetype_buttons()
   art->draw = ED_region_panels_draw;
   art->listener = buttons_main_region_listener;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
+  art->lock = true;
   buttons_context_register(art);
   BLI_addhead(&st->regiontypes, art);
 
