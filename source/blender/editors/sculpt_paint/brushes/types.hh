@@ -90,8 +90,8 @@ void do_plane_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &object,
                     const IndexMask &node_mask,
-                    float3 &plane_normal,
-                    float3 &plane_center);
+                    const float3 &plane_normal,
+                    const float3 &plane_center);
 void do_grab_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &ob,

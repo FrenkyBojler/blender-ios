@@ -360,8 +360,8 @@ void do_plane_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &object,
                     const IndexMask &node_mask,
-                    float3 &plane_normal,
-                    float3 &plane_center)
+                    const float3 &plane_normal,
+                    const float3 &plane_center)
 {
   const SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -371,18 +371,21 @@ void do_plane_brush(const Depsgraph &depsgraph,
     return;
   }
 
-  SCULPT_tilt_apply_to_normal(plane_normal, ss.cache, brush.tilt_strength_factor);
+  float3 normal = plane_normal;
+  float3 center = plane_center;
+
+  SCULPT_tilt_apply_to_normal(normal, ss.cache, brush.tilt_strength_factor);
 
   const bool flip = ss.cache->initial_direction_flipped;
   const float offset = SCULPT_brush_plane_offset_get(sd, ss);
   const float displace = ss.cache->radius * offset * (flip ? -1.0f : 1.0f);
-  plane_center += plane_normal * ss.cache->scale * displace;
+  center += normal * ss.cache->scale * displace;
 
   float4x4 mat = float4x4::identity();
-  mat.x_axis() = math::cross(plane_normal, ss.cache->grab_delta_symm);
-  mat.y_axis() = math::cross(plane_normal, float3(mat[0]));
-  mat.z_axis() = plane_normal;
-  mat.location() = plane_center;
+  mat.x_axis() = math::cross(normal, ss.cache->grab_delta_symm);
+  mat.y_axis() = math::cross(normal, float3(mat[0]));
+  mat.z_axis() = normal;
+  mat.location() = center;
   mat = math::normalize(mat);
 
   const float4x4 scale = math::from_scale<float4x4>(float3(ss.cache->radius));
@@ -421,7 +424,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
                    sd,
                    brush,
                    mat,
-                   plane_normal,
+                   normal,
                    strength,
                    height,
                    depth,
@@ -441,17 +444,8 @@ void do_plane_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_grids(depsgraph,
-                   sd,
-                   object,
-                   brush,
-                   mat,
-                   plane_normal,
-                   strength,
-                   height,
-                   depth,
-                   nodes[i],
-                   tls);
+        calc_grids(
+            depsgraph, sd, object, brush, mat, normal, strength, height, depth, nodes[i], tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
@@ -460,17 +454,8 @@ void do_plane_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_bmesh(depsgraph,
-                   sd,
-                   object,
-                   brush,
-                   mat,
-                   plane_normal,
-                   strength,
-                   height,
-                   depth,
-                   nodes[i],
-                   tls);
+        calc_bmesh(
+            depsgraph, sd, object, brush, mat, normal, strength, height, depth, nodes[i], tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;
