@@ -139,7 +139,6 @@ class VKRenderGraph : public NonCopyable {
    */
   template<typename NodeInfo> void add_node(const typename NodeInfo::CreateInfo &create_info)
   {
-    std::scoped_lock lock(resources_.mutex);
     static VKRenderGraphNode node_template = {};
     NodeHandle node_handle = nodes_.append_and_get_index(node_template);
 #if 0
@@ -160,7 +159,10 @@ class VKRenderGraph : public NonCopyable {
     VKRenderGraphNodeLinks &node_links = links_[node_handle];
     BLI_assert(node_links.inputs.is_empty());
     BLI_assert(node_links.outputs.is_empty());
-    node.build_links<NodeInfo>(resources_, node_links, create_info);
+    {
+      std::scoped_lock lock(resources_.mutex);
+      node.build_links<NodeInfo>(resources_, node_links, create_info);
+    }
 
     if (G.debug & G_DEBUG_GPU) {
       if (!debug_.group_used) {

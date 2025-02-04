@@ -52,6 +52,8 @@ void VKDevice::deinit()
     }
     thread_data_.clear();
   }
+  BLI_spin_end(&current_thread_data_mutex_);
+  BLI_spin_end(&render_graph_mutex_);
   pipelines.write_to_disk();
   pipelines.free_data();
   descriptor_set_layouts_.deinit();
@@ -93,6 +95,9 @@ void VKDevice::init(void *ghost_context)
                          &vk_queue_,
                          &queue_mutex);
   queue_mutex_ = static_cast<std::mutex *>(queue_mutex);
+
+  BLI_spin_init(&current_thread_data_mutex_);
+  BLI_spin_init(&render_graph_mutex_);
 
   init_physical_device_properties();
   init_physical_device_memory_properties();
@@ -418,9 +423,10 @@ render_graph::VKRenderGraph *VKDevice::render_graph_new()
     return render_graph;
   }
 
-  std::scoped_lock lock(resources.mutex);
   render_graph = MEM_new<render_graph::VKRenderGraph>(__func__, resources);
+  BLI_spin_lock(&render_graph_mutex_);
   render_graphs_.append(render_graph);
+  BLI_spin_unlock(&render_graph_mutex_);
   return render_graph;
 }
 
@@ -596,39 +602,21 @@ void VKThreadData::deinit(VKDevice &device)
 
 VKThreadData &VKDevice::current_thread_data()
 {
-  std::scoped_lock mutex(resources.mutex);
   pthread_t current_thread_id = pthread_self();
 
+  BLI_spin_lock(&current_thread_data_mutex_);
   for (VKThreadData *thread_data : thread_data_) {
     if (pthread_equal(thread_data->thread_id, current_thread_id)) {
+      BLI_spin_unlock(&current_thread_data_mutex_);
       return *thread_data;
     }
   }
 
   VKThreadData *thread_data = new VKThreadData(*this, current_thread_id);
   thread_data_.append(thread_data);
+  BLI_spin_unlock(&current_thread_data_mutex_);
   return *thread_data;
 }
-
-#if 0
-VKDiscardPool &VKDevice::discard_pool_for_current_thread(bool thread_safe)
-{
-  std::unique_lock lock(resources.mutex, std::defer_lock);
-  if (!thread_safe) {
-    lock.lock();
-  }
-  pthread_t current_thread_id = pthread_self();
-  if (BLI_thread_is_main()) {
-    for (VKThreadData *thread_data : thread_data_) {
-      if (pthread_equal(thread_data->thread_id, current_thread_id)) {
-        return thread_data->resource_pool_get().discard_pool;
-      }
-    }
-  }
-
-  return orphaned_data;
-}
-#endif
 
 void VKDevice::context_register(VKContext &context)
 {

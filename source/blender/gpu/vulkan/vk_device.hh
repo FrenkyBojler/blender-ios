@@ -349,6 +349,10 @@ class VKDevice : public NonCopyable {
   /* -------------------------------------------------------------------- */
   /** \name Render graph
    * \{ */
+ private:
+  SpinLock render_graph_mutex_;
+
+ public:
   static void submission_runner(TaskPool *__restrict pool, void *task_data);
   render_graph::VKRenderGraph *render_graph_new();
 
@@ -374,29 +378,14 @@ class VKDevice : public NonCopyable {
   /* -------------------------------------------------------------------- */
   /** \name Resource management
    * \{ */
+ private:
+  SpinLock current_thread_data_mutex_;
 
+ public:
   /**
    * Get or create current thread data.
    */
   VKThreadData &current_thread_data();
-
-#if 0
-  /**
-   * Get the discard pool for the current thread.
-   *
-   * When the active thread has a context a discard pool associated to the thread is returned.
-   * When there is no context the orphan discard pool is returned.
-   *
-   * A thread with a context can have multiple discard pools. One for each swap-chain image.
-   * A thread without a context is most likely a discarded resource triggered during dependency
-   * graph update. A dependency graph update from the viewport during playback or editing;
-   * or a dependency graph update when rendering.
-   * These can happen from a different thread which will don't have a context at all.
-   * \param thread_safe: Caller thread already owns the resources mutex and is safe to run this
-   * function without trying to reacquire resources mutex making a deadlock.
-   */
-  VKDiscardPool &discard_pool_for_current_thread(bool thread_safe = false);
-#endif
 
   void context_register(VKContext &context);
   void context_unregister(VKContext &context);
