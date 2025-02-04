@@ -182,7 +182,7 @@ static void ensure_asset_ui_visible(bContext &C)
       if (!shelf_region) {
         continue;
       }
-      if (!shelf_region->runtime->visible) {
+      if (shelf_region->runtime->visible) {
         /* A visible asset shelf was found. */
         return;
       }
