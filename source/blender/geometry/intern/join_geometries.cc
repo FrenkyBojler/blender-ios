@@ -17,7 +17,7 @@ using bke::AttributeDomainAndType;
 using bke::GeometryComponent;
 using bke::GeometrySet;
 
-void join_attributes(const Span<std::optional<bke::AttributeAccessor>> attribute_accessors,
+void join_attributes(const Span<bke::AttributeAccessor> attribute_accessors,
                      const Map<StringRef, eCustomDataType> &attribute_types,
                      const bke::AttrDomain src_domain,
                      const bke::AttrDomain dst_domain,
@@ -25,7 +25,7 @@ void join_attributes(const Span<std::optional<bke::AttributeAccessor>> attribute
 {
   Array<int> src_offsets_data(attribute_accessors.size() + 1);
   for (const int i : attribute_accessors.index_range()) {
-    src_offsets_data[i] = attribute_accessors[i]->domain_size(src_domain);
+    src_offsets_data[i] = attribute_accessors[i].domain_size(src_domain);
   }
   const OffsetIndices<int> src_offsets = offset_indices::accumulate_counts_to_offsets(
       src_offsets_data);
@@ -40,19 +40,25 @@ void join_attributes(const Span<std::optional<bke::AttributeAccessor>> attribute
       continue;
     }
 
-    threading::parallel_for(attribute_accessors.index_range(), 1024 * 16, [&](const IndexRange range) {
-      for (const int i : range) {
-        const bke::GAttributeReader src_attribute = attribute_accessors[i]->lookup(attribute_id, src_domain, data_type);
-        if (!src_attribute) {
-          GMutableSpan dst_range = dst_attribute.span.slice(src_offsets[i]);
-          const CPPType &type = dst_range.type();
-          type.fill_assign_n(type.default_value(), dst_range.data(), dst_range.size());
-          continue;
-        }
+    threading::parallel_for(
+        attribute_accessors.index_range(),
+        1024 * 16,
+        [&](const IndexRange range) {
+          for (const int i : range) {
+            const bke::GAttributeReader src_attribute = attribute_accessors[i].lookup(
+                attribute_id, src_domain, data_type);
+            if (!src_attribute) {
+              GMutableSpan dst_range = dst_attribute.span.slice(src_offsets[i]);
+              const CPPType &type = dst_range.type();
+              type.fill_assign_n(type.default_value(), dst_range.data(), dst_range.size());
+              continue;
+            }
 
-        array_utils::copy(src_attribute.varray, dst_attribute.span.slice(src_offsets[i]));
-      }
-    }, threading::accumulated_task_sizes([&](const IndexRange range) { return src_offsets[range].size(); }));
+            array_utils::copy(src_attribute.varray, dst_attribute.span.slice(src_offsets[i]));
+          }
+        },
+        threading::accumulated_task_sizes(
+            [&](const IndexRange range) { return src_offsets[range].size(); }));
 
     dst_attribute.finish();
   }
@@ -97,11 +103,11 @@ static void join_instances(const Span<const GeometryComponent *> src_components,
   result.replace_instances(dst_instances.release());
   auto &dst_component = result.get_component_for_write<bke::InstancesComponent>();
 
-  Array<std::optional<bke::AttributeAccessor>> all_attributes(src_components.size());
+  Array<bke::AttributeAccessor> all_attributes(src_components.size());
   for (const int i : src_components.index_range()) {
     all_attributes[i] = *src_components[i]->attributes();
   }
-  join_attributes(all_attributes,
+  join_attributes(all_attributes.as_span(),
                   get_final_attribute_types(
                       all_attributes,
                       bke::attribute_filter_with_skip_ref(attribute_filter, {".reference_index"})),
