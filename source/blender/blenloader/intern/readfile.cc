@@ -174,6 +174,12 @@
 static CLG_LogRef LOG = {"blo.readfile"};
 static CLG_LogRef LOG_UNDO = {"blo.readfile.undo"};
 
+/* Can be commented out in Blender 4.5 still to enable building Blender on Big Endian systems. Will
+ * become fully unsupported in Blender 5.0. See #125759. */
+BLI_STATIC_ASSERT(
+    ENDIAN_ORDER == L_ENDIAN,
+    "Support for Big Endian endianness is deprecated and will be removed in Blender 5.0")
+
 /* local prototypes */
 static void read_libraries(FileData *basefd, ListBase *mainlist);
 static void *read_struct(FileData *fd, BHead *bh, const char *blockname, const int id_type_index);
@@ -1197,6 +1203,17 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
     else if (is_minversion_older_than_blender(fd, reports)) {
       blo_filedata_free(fd);
       fd = nullptr;
+    }
+    else if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
+      BKE_reportf(reports,
+                  RPT_WARNING,
+                  "Blend file '%s' created by a Big Endian version of Blender, support for these "
+                  "files will be removed in Blender 5.0",
+                  fd->relabase);
+      CLOG_WARN(&LOG,
+                "Blend file '%s' created by a Big Endian version of Blender, support for these "
+                "files will be removed in Blender 5.0",
+                fd->relabase);
     }
   }
   else if (fd->flags & FD_FLAGS_FILE_FUTURE) {
