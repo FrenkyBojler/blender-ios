@@ -8,6 +8,7 @@
  * 3D View checks and manipulation (no operators).
  */
 
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
@@ -29,6 +30,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -1749,9 +1751,7 @@ static bool depth_read_test_fn(const void *value, void *userdata)
 {
   ReadData *data = static_cast<ReadData *>(userdata);
   float depth = *(float *)value;
-  if (depth < data->r_depth) {
-    data->r_depth = depth;
-  }
+  data->r_depth = std::min(depth, data->r_depth);
 
   if ((++data->count) >= data->count_max) {
     /* Outside the margin. */

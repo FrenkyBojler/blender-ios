@@ -8,53 +8,34 @@
 
 #include <climits>
 #include <cstdlib>
-#include <sstream>
 
-#include "DNA_brush_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_view3d_types.h"
 
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
-#include "BLI_memory_cache.hh"
-#include "BLI_string_utf8.h"
 #include "BLI_string_utf8_symbols.h"
-#include "BLI_utildefines.h"
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
 
 #include "BLT_translation.hh"
 
-#include "BKE_addon.h"
-#include "BKE_appdir.hh"
-#include "BKE_callbacks.hh"
-#include "BKE_node_tree_update.hh"
-#include "BKE_sound.h"
 #include "BKE_studiolight.h"
 
-#include "ED_screen.hh"
-
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
 #include "GPU_platform.hh"
 
-#include "UI_interface_icons.hh"
-
 #include "rna_internal.hh"
 
 #include "WM_api.hh"
+#include "WM_keymap.hh"
 #include "WM_types.hh"
 
 #include "BLT_lang.hh"
-
-#include "ED_node.hh"
 
 const EnumPropertyItem rna_enum_preference_section_items[] = {
     {USER_SECTION_INTERFACE, "INTERFACE", 0, "Interface", ""},
@@ -200,12 +181,16 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #ifdef RNA_RUNTIME
 
 #  include "BLI_math_vector.h"
+#  include "BLI_memory_cache.hh"
 #  include "BLI_string_utils.hh"
 
 #  include "DNA_object_types.h"
 #  include "DNA_screen_types.h"
 
+#  include "BKE_addon.h"
+#  include "BKE_appdir.hh"
 #  include "BKE_blender.hh"
+#  include "BKE_callbacks.hh"
 #  include "BKE_global.hh"
 #  include "BKE_idprop.hh"
 #  include "BKE_image.hh"
@@ -215,6 +200,7 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #  include "BKE_paint.hh"
 #  include "BKE_preferences.h"
 #  include "BKE_screen.hh"
+#  include "BKE_sound.h"
 
 #  include "DEG_depsgraph.hh"
 
@@ -230,6 +216,7 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #  include "MEM_guardedalloc.h"
 
 #  include "ED_asset_list.hh"
+#  include "ED_screen.hh"
 
 #  include "UI_interface.hh"
 
@@ -1218,7 +1205,8 @@ static StructRNA *rna_AddonPref_register(Main *bmain,
   // bool have_function[1];
 
   /* Setup dummy add-on preference and it's type to store static properties in. */
-  PointerRNA dummy_addon_ptr = RNA_pointer_create(nullptr, &RNA_AddonPreferences, &dummy_addon);
+  PointerRNA dummy_addon_ptr = RNA_pointer_create_discrete(
+      nullptr, &RNA_AddonPreferences, &dummy_addon);
 
   /* validate the python class */
   if (validate(&dummy_addon_ptr, data, nullptr /*have_function*/) != 0) {

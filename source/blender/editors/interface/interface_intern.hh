@@ -229,7 +229,7 @@ struct uiBut {
   /* When defined, and the button edits a string RNA property, the new name is _not_ set at all,
    * instead this function is called with the new name. */
   std::function<void(std::string &new_name)> rename_full_func = nullptr;
-  std::string rename_full_new = "";
+  std::string rename_full_new;
 
   /** Run an action when holding the button down. */
   uiButHandleHoldFunc hold_func = nullptr;
@@ -294,6 +294,7 @@ struct uiBut {
   eWM_DragDataType dragtype = WM_DRAG_ID;
   short dragflag = 0;
   void *dragpoin = nullptr;
+  BIFIconID drag_preview_icon_id;
   const ImBuf *imb = nullptr;
   float imb_scale = 0;
 
