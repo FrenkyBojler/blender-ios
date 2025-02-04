@@ -277,6 +277,8 @@ static void buttons_main_region_layout_properties(const bContext *C,
                                                   SpaceProperties *sbuts,
                                                   ARegion *region)
 {
+  buttons_context_compute(C, sbuts);
+
   const char *contexts[2] = {buttons_main_region_context_string(sbuts->mainb), nullptr};
 
   ED_region_panels_layout_ex(
