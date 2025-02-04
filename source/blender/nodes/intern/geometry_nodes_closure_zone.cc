@@ -86,8 +86,14 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
   {
+    /* All border links are captured currently. */
     for (const int i : zone_.border_links.index_range()) {
       params.set_output(zone_info_.indices.outputs.border_link_usages[i], true);
+    }
+    if (!U.experimental.use_bundle_and_closure_nodes) {
+      params.set_output(zone_info_.indices.outputs.main[0],
+                        bke::SocketValueVariant(bke::ClosurePtr()));
+      return;
     }
 
     const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(output_bnode_.storage);
