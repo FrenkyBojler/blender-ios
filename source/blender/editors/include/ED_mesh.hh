@@ -573,12 +573,6 @@ bool ED_mesh_pick_face(bContext *C, Object *ob, const int mval[2], uint dist_px,
 bool ED_mesh_pick_face_vert(
     bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index);
 /**
- * Use when the back buffer stores face index values. but we want an edge.
- * This gets the face then finds the closest edge to mval.
- */
-bool ED_mesh_pick_face_edge(
-    bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index);
-/**
  * Used for paint face loop selection which needs to get closest edge even though in face select
  * mode. Changes the select_buffer context to edge selection for this.
  */

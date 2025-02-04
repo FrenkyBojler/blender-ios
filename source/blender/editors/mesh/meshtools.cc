@@ -57,7 +57,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-using blender::float2;
 using blender::float3;
 using blender::int2;
 using blender::MutableSpan;
@@ -1324,89 +1323,6 @@ bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px,
     edge_idx_best = ORIGINDEX_NONE;
   }
 
-  if ((edge_idx_best != ORIGINDEX_NONE) && (edge_idx_best < mesh->edges_num)) {
-    *r_index = edge_idx_best;
-    return true;
-  }
-
-  return false;
-}
-
-bool ED_mesh_pick_face_edge(
-    bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
-{
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  uint face_index;
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
-
-  BLI_assert(mesh && GS(mesh->id.name) == ID_ME);
-
-  if (!ED_mesh_pick_face(C, ob, mval, dist_px, &face_index)) {
-    return false;
-  }
-
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob_eval);
-  if (!mesh_eval) {
-    return false;
-  }
-
-  /* Map to face (on evaluated mesh) from orig index if possible. */
-  const blender::OffsetIndices faces = mesh_eval->faces();
-  const int *index_face_to_orig = (const int *)CustomData_get_layer(&mesh_eval->face_data,
-                                                                    CD_ORIGINDEX);
-  blender::IndexRange face;
-  if (index_face_to_orig) {
-    for (const int i : faces.index_range()) {
-      if (index_face_to_orig[i] == face_index) {
-        face = faces[i];
-        break;
-      }
-    }
-  }
-  else {
-    if (face_index < faces.size()) {
-      face = faces[face_index];
-    }
-  }
-
-  /* Find the edge (on evaluated mesh) closest to 'mval'. */
-  ARegion *region = CTX_wm_region(C);
-  int edge_idx_best = ORIGINDEX_NONE;
-  const float2 mval_f = {float(mval[0]), float(mval[1])};
-  float len_best = FLT_MAX;
-
-  const Span<float3> vert_positions = mesh_eval->vert_positions();
-  const Span<int> corner_edges = mesh_eval->corner_edges();
-  const Span<int2> edges = mesh_eval->edges();
-  const blender::Span<int> face_edges = corner_edges.slice(face);
-
-  for (const int i : face_edges) {
-    float2 screen_coordinate;
-    const int2 edge = edges[i];
-    const float3 edge_vert_average = blender::math::midpoint(vert_positions[edge[0]],
-                                                             vert_positions[edge[1]]);
-    eV3DProjStatus status = ED_view3d_project_float_object(
-        region, edge_vert_average, screen_coordinate, V3D_PROJ_TEST_CLIP_DEFAULT);
-    if (status != V3D_PROJ_RET_OK) {
-      continue;
-    }
-
-    const float len_test = len_manhattan_v2v2(mval_f, screen_coordinate);
-    if (len_test < len_best) {
-      len_best = len_test;
-      edge_idx_best = i;
-    }
-  }
-
-  /* Map edge index (on evaluated mesh) back to orig if possible. */
-  if (edge_idx_best != ORIGINDEX_NONE) {
-    const int *index_edge_to_orig = (const int *)CustomData_get_layer(&mesh_eval->edge_data,
-                                                                      CD_ORIGINDEX);
-    if (index_edge_to_orig) {
-      edge_idx_best = index_edge_to_orig[edge_idx_best];
-    }
-  }
   if ((edge_idx_best != ORIGINDEX_NONE) && (edge_idx_best < mesh->edges_num)) {
     *r_index = edge_idx_best;
     return true;
