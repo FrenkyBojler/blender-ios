@@ -107,6 +107,11 @@ ccl_device_inline float4 fetch_node_float(KernelGlobals kg, const int offset)
                      __uint_as_float(node.w));
 }
 
+ccl_device_forceinline void svm_unpack_node_uchar(const uint i, ccl_private uint *x)
+{
+  *x = (i & 0xFF);
+}
+
 ccl_device_forceinline void svm_unpack_node_uchar2(const uint i,
                                                    ccl_private uint *x,
                                                    ccl_private uint *y)

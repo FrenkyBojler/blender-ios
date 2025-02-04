@@ -948,7 +948,6 @@ static ShaderNode *add_node(Scene *scene,
     RoundedPolygonTextureNode *rounded_polygon = graph->create_node<RoundedPolygonTextureNode>();
     rounded_polygon->set_normalize_r_gon_parameter(
         b_rounded_polygon_node.normalize_r_gon_parameter());
-    rounded_polygon->set_elliptical_corners(b_rounded_polygon_node.elliptical_corners());
     BL::TexMapping b_texture_mapping(b_rounded_polygon_node.texture_mapping());
     get_tex_mapping(rounded_polygon, b_texture_mapping);
     node = rounded_polygon;

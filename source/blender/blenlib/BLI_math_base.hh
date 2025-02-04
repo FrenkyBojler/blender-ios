@@ -91,7 +91,7 @@ template<typename T> inline T floored_mod(const T &a, const T &b)
   return a - std::floor(a / b) * b;
 }
 
-template<typename T> inline T mix(const T &a, const T &b, const T &factor)
+template<typename T1, typename T2> inline T1 mix(const T1 &a, const T1 &b, const T2 &factor)
 {
   return (1 - factor) * a + factor * b;
 }

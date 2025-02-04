@@ -1418,8 +1418,7 @@ typedef struct NodeTexNoise {
 typedef struct NodeTexRoundedPolygon {
   NodeTexBase base;
   uint8_t normalize_r_gon_parameter;
-  uint8_t elliptical_corners;
-  char _pad[6];
+  char _pad[7];
 } NodeTexRoundedPolygon;
 
 typedef struct NodeTexVoronoi {

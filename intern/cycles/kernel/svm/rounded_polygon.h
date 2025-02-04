@@ -11,7 +11,7 @@ struct RoundedPolygonStackOffsets {
   uint scale;
   uint r_gon_sides;
   uint r_gon_roundness;
-  uint r_gon_field;
+  uint irregular_r_gon_corner_shape;
   uint segment_coordinates;
   uint max_unit_parameter;
   uint x_axis_A_angle_bisector;
@@ -32,16 +32,16 @@ ccl_device_noinline int svm_node_tex_rounded_polygon(
 {
   RoundedPolygonStackOffsets so;
 
-  uint normalize_r_gon_parameter, elliptical_corners;
+  uint normalize_r_gon_parameter;
 
   svm_unpack_node_uchar4(
-      node.y, &(normalize_r_gon_parameter), &(elliptical_corners), &(so.vector), &(so.scale));
+      node.y, &(normalize_r_gon_parameter), &(so.vector), &(so.scale), &(so.r_gon_sides));
   svm_unpack_node_uchar4(node.z,
-                         &(so.r_gon_sides),
                          &(so.r_gon_roundness),
-                         &(so.r_gon_field),
-                         &(so.segment_coordinates));
-  svm_unpack_node_uchar2(node.w, &(so.max_unit_parameter), &(so.x_axis_A_angle_bisector));
+                         &(so.irregular_r_gon_corner_shape),
+                         &(so.segment_coordinates),
+                         &(so.max_unit_parameter));
+  svm_unpack_node_uchar(node.w, &(so.x_axis_A_angle_bisector));
 
   bool calculate_r_gon_parameter_field = stack_valid(so.segment_coordinates);
   bool calculate_max_unit_parameter = stack_valid(so.max_unit_parameter);
@@ -51,18 +51,17 @@ ccl_device_noinline int svm_node_tex_rounded_polygon(
   float scale = stack_load_float_default(stack, so.scale, defaults.x);
   float r_gon_sides = stack_load_float_default(stack, so.r_gon_sides, defaults.y);
   float r_gon_roundness = stack_load_float_default(stack, so.r_gon_roundness, defaults.z);
+  float irregular_r_gon_corner_shape = stack_load_float_default(
+      stack, so.irregular_r_gon_corner_shape, defaults.w);
 
   float4 out_variables = calculate_out_fields(calculate_r_gon_parameter_field,
                                               calculate_max_unit_parameter,
                                               normalize_r_gon_parameter,
-                                              elliptical_corners,
                                               fmaxf(r_gon_sides, 2.0f),
                                               clamp(r_gon_roundness, 0.0f, 1.0f),
+                                              clamp(irregular_r_gon_corner_shape, 0.0f, 1.0f),
                                               scale * make_float2(coord.x, coord.y));
 
-  if (stack_valid(so.r_gon_field)) {
-    stack_store_float(stack, so.r_gon_field, out_variables.x);
-  }
   if (stack_valid(so.segment_coordinates)) {
     stack_store_float3(
         stack, so.segment_coordinates, make_float3(out_variables.y, out_variables.x - 1.0f, 0.0));

@@ -22,12 +22,11 @@ shader node_rounded_polygon_texture(
     int use_mapping = 0,
     matrix mapping = matrix(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
     int normalize_r_gon_parameter = 0,
-    int elliptical_corners = 0,
     vector3 Vector = P,
     float Scale = 1.0,
-    float R_gonSides = 0.0,
-    float R_gonRoundness = 5.0,
-    output float R_gonField = 0.0,
+    float R_gonSides = 5.0,
+    float R_gonRoundness = 0.0,
+    float IrregularR_gonCornerShape = 0.0,
     output vector3 SegmentCoordinates = vector3(0.0, 0.0, 0.0),
     output float MaxUnitParameter = 0.0,
     output float X_axisToAngleBisectorAngle = 0.0)
@@ -39,12 +38,11 @@ shader node_rounded_polygon_texture(
   vector4 out_variables = calculate_out_fields(calculate_r_gon_parameter_field,
                                                calculate_max_unit_parameter,
                                                normalize_r_gon_parameter,
-                                               elliptical_corners,
                                                max(R_gonSides, 2.0),
                                                clamp(R_gonRoundness, 0.0, 1.0),
+                                               clamp(IrregularR_gonCornerShape, 0.0, 1.0),
                                                Scale * vector2(Vector.x, Vector.y));
 
-  R_gonField = out_variables.x;
   SegmentCoordinates = vector3(out_variables.y, out_variables.x - 1.0, 0.0);
   MaxUnitParameter = out_variables.z;
   X_axisToAngleBisectorAngle = out_variables.w;

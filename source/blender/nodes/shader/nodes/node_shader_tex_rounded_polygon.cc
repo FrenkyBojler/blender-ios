@@ -24,7 +24,6 @@ static void sh_node_tex_rounded_polygon_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
 
-  b.add_output<decl::Float>("R_gon Field").no_muted_links();
   b.add_output<decl::Vector>("Segment Coordinates").no_muted_links();
   b.add_output<decl::Float>("Max Unit Parameter").no_muted_links();
   b.add_output<decl::Float>("X_axis To Angle Bisector Angle").no_muted_links();
@@ -46,6 +45,14 @@ static void sh_node_tex_rounded_polygon_declare(NodeDeclarationBuilder &b)
       .default_value(0.0f)
       .subtype(PROP_FACTOR)
       .description("Corner roundness of the rounded polygon");
+  b.add_input<decl::Float>("Irregular R_gon Corner Shape")
+      .min(0.0f)
+      .max(1.0f)
+      .default_value(0.0f)
+      .subtype(PROP_FACTOR)
+      .description(
+          "Shape of the irregular rounded corner, if existent. A value of 0 results in a circular "
+          "corner while a value of 1 results in an elliptical corner");
 }
 
 static void node_shader_buts_tex_rounded_polygon(uiLayout *layout,
@@ -58,7 +65,6 @@ static void node_shader_buts_tex_rounded_polygon(uiLayout *layout,
           UI_ITEM_R_SPLIT_EMPTY_NAME,
           std::nullopt,
           ICON_NONE);
-  uiItemR(layout, ptr, "elliptical_corners", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static void node_shader_init_tex_rounded_polygon(bNodeTree * /*ntree*/, bNode *node)
@@ -67,7 +73,6 @@ static void node_shader_init_tex_rounded_polygon(bNodeTree * /*ntree*/, bNode *n
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->normalize_r_gon_parameter = false;
-  tex->elliptical_corners = false;
 
   node->storage = tex;
 }
@@ -88,9 +93,8 @@ static int node_shader_gpu_tex_rounded_polygon(GPUMaterial *mat,
 
   const NodeTexRoundedPolygon &storage = node_storage(*node);
   float normalize_r_gon_parameter = storage.normalize_r_gon_parameter;
-  float elliptical_corners = storage.elliptical_corners;
-  float calculate_r_gon_parameter_field = out[1].hasoutput;
-  float calculate_max_unit_parameter = out[2].hasoutput;
+  float calculate_r_gon_parameter_field = out[0].hasoutput;
+  float calculate_max_unit_parameter = out[1].hasoutput;
 
   const char *name = gpu_shader_get_name();
 
@@ -100,7 +104,6 @@ static int node_shader_gpu_tex_rounded_polygon(GPUMaterial *mat,
                         in,
                         out,
                         GPU_constant(&normalize_r_gon_parameter),
-                        GPU_constant(&elliptical_corners),
                         GPU_constant(&calculate_r_gon_parameter_field),
                         GPU_constant(&calculate_max_unit_parameter));
 }
@@ -112,8 +115,9 @@ static void node_shader_update_tex_rounded_polygon(bNodeTree *ntree, bNode *node
   bNodeSocket *inVectorSock = bke::node_find_socket(node, SOCK_IN, "Vector");
   bNodeSocket *inR_gonSidesSock = bke::node_find_socket(node, SOCK_IN, "R_gon Sides");
   bNodeSocket *inR_gonRoundnessSock = bke::node_find_socket(node, SOCK_IN, "R_gon Roundness");
+  bNodeSocket *inIrregularR_gonCornerShapeSock = bke::node_find_socket(
+      node, SOCK_IN, "Irregular R_gon Corner Shape");
 
-  bNodeSocket *outR_gonFieldSock = bke::node_find_socket(node, SOCK_OUT, "R_gon Field");
   bNodeSocket *outMaxUnitParameterSock = bke::node_find_socket(
       node, SOCK_OUT, "Max Unit Parameter");
   bNodeSocket *outX_axisToAngleBisectorAngleSock = bke::node_find_socket(
@@ -122,8 +126,8 @@ static void node_shader_update_tex_rounded_polygon(bNodeTree *ntree, bNode *node
   node_sock_label(inVectorSock, "Vector 2D");
   node_sock_label(inR_gonSidesSock, "Sides");
   node_sock_label(inR_gonRoundnessSock, "Roundness");
+  node_sock_label(inIrregularR_gonCornerShapeSock, "Irregular Corner Shape");
 
-  node_sock_label(outR_gonFieldSock, "Radius");
   node_sock_label(outMaxUnitParameterSock, "Segment Width");
   node_sock_label(outX_axisToAngleBisectorAngleSock, "Segment Rotation");
 }
@@ -140,14 +144,12 @@ static void node_shader_update_tex_rounded_polygon(bNodeTree *ntree, bNode *node
 class RoundedPolygonFunction : public mf::MultiFunction {
  private:
   bool normalize_r_gon_parameter_;
-  bool elliptical_corners_;
 
   mf::Signature signature_;
 
  public:
-  RoundedPolygonFunction(bool normalize_r_gon_parameter, bool elliptical_corners)
-      : normalize_r_gon_parameter_(normalize_r_gon_parameter),
-        elliptical_corners_(elliptical_corners)
+  RoundedPolygonFunction(bool normalize_r_gon_parameter)
+      : normalize_r_gon_parameter_(normalize_r_gon_parameter)
   {
     signature_ = create_signature();
     this->set_signature(&signature_);
@@ -163,8 +165,8 @@ class RoundedPolygonFunction : public mf::MultiFunction {
 
     builder.single_input<float>("R_gon Sides");
     builder.single_input<float>("R_gon Roundness");
+    builder.single_input<float>("Irregular R_gon Corner Shape");
 
-    builder.single_output<float>("R_gon Field", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float3>("Segment Coordinates", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float>("Max Unit Parameter", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float>("X_axis To Angle Bisector Angle",
@@ -183,9 +185,9 @@ class RoundedPolygonFunction : public mf::MultiFunction {
     const VArray<float> &r_gon_sides = params.readonly_single_input<float>(param++, "R_gon Sides");
     const VArray<float> &r_gon_roundness = params.readonly_single_input<float>(param++,
                                                                                "R_gon Roundness");
+    const VArray<float> &irregular_r_gon_corner_shape = params.readonly_single_input<float>(
+        param++, "Irregular R_gon Corner Shape");
 
-    MutableSpan<float> r_r_gon_field = params.uninitialized_single_output_if_required<float>(
-        param++, "R_gon Field");
     MutableSpan<float3> r_segment_coordinates =
         params.uninitialized_single_output_if_required<float3>(param++, "Segment Coordinates");
     MutableSpan<float> r_max_unit_parameter =
@@ -194,23 +196,20 @@ class RoundedPolygonFunction : public mf::MultiFunction {
         params.uninitialized_single_output_if_required<float>(param++,
                                                               "X_axis To Angle Bisector Angle");
 
-    const bool calc_r_gon_field = !r_r_gon_field.is_empty();
     const bool calc_r_gon_parameter_field = !r_segment_coordinates.is_empty();
     const bool calc_max_unit_parameter = !r_max_unit_parameter.is_empty();
     const bool calc_x_axis_A_angle_bisector = !r_x_axis_A_angle_bisector.is_empty();
 
     mask.foreach_index([&](const int64_t i) {
-      float4 out_variables = calculate_out_fields(calc_r_gon_parameter_field,
-                                                  calc_max_unit_parameter,
-                                                  normalize_r_gon_parameter_,
-                                                  elliptical_corners_,
-                                                  math::max(r_gon_sides[i], 2.0f),
-                                                  math::clamp(r_gon_roundness[i], 0.0f, 1.0f),
-                                                  scale[i] * float2(coord[i].x, coord[i].y));
+      float4 out_variables = calculate_out_fields(
+          calc_r_gon_parameter_field,
+          calc_max_unit_parameter,
+          normalize_r_gon_parameter_,
+          math::max(r_gon_sides[i], 2.0f),
+          math::clamp(r_gon_roundness[i], 0.0f, 1.0f),
+          math::clamp(irregular_r_gon_corner_shape[i], 0.0f, 1.0f),
+          scale[i] * float2(coord[i].x, coord[i].y));
 
-      if (calc_r_gon_field) {
-        r_r_gon_field[i] = out_variables.x;
-      }
       if (calc_r_gon_parameter_field) {
         r_segment_coordinates[i] = float3(out_variables.y, out_variables.x - 1.0f, 0.0);
       }
@@ -235,8 +234,7 @@ class RoundedPolygonFunction : public mf::MultiFunction {
 static void sh_node_rounded_polygon_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const NodeTexRoundedPolygon &storage = node_storage(builder.node());
-  builder.construct_and_set_matching_fn<RoundedPolygonFunction>(storage.normalize_r_gon_parameter,
-                                                                storage.elliptical_corners);
+  builder.construct_and_set_matching_fn<RoundedPolygonFunction>(storage.normalize_r_gon_parameter);
 }
 
 }  // namespace blender::nodes::node_shader_tex_rounded_polygon_cc

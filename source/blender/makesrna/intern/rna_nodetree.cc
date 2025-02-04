@@ -5954,12 +5954,6 @@ static void def_sh_tex_rounded_polygon(BlenderRNA *brna, StructRNA *srna)
       "Normalize X-coordinate",
       "Normalize the X-coordinate of the Segment Coordinates output to a [-1, 1] interval");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-
-  prop = RNA_def_property(srna, "elliptical_corners", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "elliptical_corners", 0);
-  RNA_def_property_ui_text(
-      prop, "Elliptical Corners", "Use elliptical corners for the irregular segment if existent");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 static void def_sh_tex_voronoi(BlenderRNA *brna, StructRNA *srna)
