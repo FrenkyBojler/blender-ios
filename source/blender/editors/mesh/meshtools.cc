@@ -1317,13 +1317,13 @@ bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px,
     edge_idx_best = DRW_select_buffer_sample_point(vc.depsgraph, vc.region, vc.v3d, mval);
   }
 
-  edge_idx_best--;
-
   if (edge_idx_best == 0 || edge_idx_best > uint(mesh->edges_num)) {
-    edge_idx_best = ORIGINDEX_NONE;
+    return false;
   }
 
-  if ((edge_idx_best != ORIGINDEX_NONE) && (edge_idx_best < mesh->edges_num)) {
+  edge_idx_best--;
+
+  if ((edge_idx_best != ORIGINDEX_NONE)) {
     *r_index = edge_idx_best;
     return true;
   }
