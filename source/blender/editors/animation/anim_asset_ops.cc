@@ -54,43 +54,9 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
                                                                  PropertyRNA * /*prop*/,
                                                                  bool *r_free)
 {
-  EnumPropertyItem *items;
-  int totitem = 0;
-
-  {
-    const EnumPropertyItem local_library_item = {ASSET_LIBRARY_LOCAL,
-                                                 "LOCAL",
-                                                 0,
-                                                 "Current File",
-                                                 "Save the pose asset to the current file"};
-    RNA_enum_item_add(&items, &totitem, &local_library_item);
-  }
-
-  /* Because `ASSET_LIBRARY_LOCAL` will always be created. */
+  const EnumPropertyItem *items = blender::ed::asset::library_reference_to_rna_enum_itemf(false,
+                                                                                          true);
   *r_free = true;
-
-  int i;
-  LISTBASE_FOREACH_INDEX (bUserAssetLibrary *, user_library, &U.asset_libraries, i) {
-    /* Note that the path itself isn't checked for validity here. If an invalid library path is
-     * used, the Asset Browser can give a nice hint on what's wrong. */
-    const bool is_valid = (user_library->name[0] && user_library->dirpath[0]);
-    if (!is_valid) {
-      continue;
-    }
-
-    AssetLibraryReference library_reference;
-    library_reference.type = ASSET_LIBRARY_CUSTOM;
-    library_reference.custom_library_index = i;
-
-    const int enum_value = blender::ed::asset::library_reference_to_enum_value(&library_reference);
-    /* Use library path as description, it's a nice hint for users. */
-    const EnumPropertyItem user_library_item = {
-        enum_value, user_library->name, ICON_NONE, user_library->name, user_library->dirpath};
-    RNA_enum_item_add(&items, &totitem, &user_library_item);
-  }
-
-  RNA_enum_item_end(&items, &totitem);
-
   BLI_assert(items != nullptr);
   return items;
 }
