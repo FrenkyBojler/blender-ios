@@ -375,8 +375,8 @@ static Span<IndexRange> extend_and_merge(const IndexRange universe,
   return {ranges.begin(), i};
 }
 
-bke::CurvesGeometry split_points(const IndexMask &points_to_split,
-                                 const bke::CurvesGeometry &curves)
+bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
+                                 const IndexMask &points_to_split)
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();

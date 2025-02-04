@@ -443,8 +443,8 @@ bool remove_selection(bke::CurvesGeometry &curves, bke::AttrDomain selection_dom
 void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask);
 void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask);
 
-bke::CurvesGeometry split_points(const IndexMask &points_to_split,
-                                 const bke::CurvesGeometry &curves);
+bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
+                                 const IndexMask &points_to_split);
 
 /**
  * Adds new curves to \a curves.

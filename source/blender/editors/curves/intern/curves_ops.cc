@@ -1149,7 +1149,7 @@ static int split_exec(bContext *C, wmOperator * /*op*/)
     if (points_to_split.is_empty()) {
       continue;
     }
-    curves = split_points(points_to_split, curves);
+    curves = split_points(curves, points_to_split);
 
     curves.calculate_bezier_auto_handles();
 
