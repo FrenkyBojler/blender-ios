@@ -182,7 +182,7 @@ static void ensure_asset_ui_visible(bContext &C)
       if (!shelf_region) {
         continue;
       }
-      if (!(shelf_region->flag & RGN_FLAG_HIDDEN)) {
+      if (!shelf_region->runtime->visible) {
         /* A visible asset shelf was found. */
         return;
       }
@@ -463,16 +463,16 @@ static const EnumPropertyItem prop_asset_overwrite_modes[] = {
  * to that action, else returns a nullptr. */
 static bAction *get_action_of_selected_asset(bContext *C)
 {
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
-  if (!asset_handle) {
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  if (!asset) {
     return nullptr;
   }
 
-  if (asset_handle->get_id_type() != ID_AC) {
+  if (asset->get_id_type() != ID_AC) {
     return nullptr;
   }
 
-  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
+  AssetWeakReference asset_reference = asset->make_weak_reference();
   Main *bmain = CTX_data_main(C);
   return reinterpret_cast<bAction *>(
       bke::asset_edit_id_from_weak_reference(*bmain, ID_AC, asset_reference));
@@ -629,8 +629,8 @@ static void update_pose_action_from_scene(Main *bmain,
 
 static void refresh_asset_library(bContext *C)
 {
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
-  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  AssetWeakReference asset_reference = asset->make_weak_reference();
   bUserAssetLibrary *library = BKE_preferences_asset_library_find_by_name(
       &U, asset_reference.asset_library_identifier);
   asset::refresh_asset_library(C, *library);
@@ -755,8 +755,8 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
-  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  AssetWeakReference asset_reference = asset->make_weak_reference();
   bUserAssetLibrary *library = BKE_preferences_asset_library_find_by_name(
       &U, asset_reference.asset_library_identifier);
 
