@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 
 #include "AS_asset_catalog.hh"
 
@@ -100,7 +101,6 @@ class AssetLibrary {
   friend class AssetLibraryService;
   friend class AssetRepresentation;
 
- public:
   /**
    * \param name: The name this asset library will be displayed in the UI as. Will also be used as
    *              a weak way to identify an asset library (e.g. by #AssetWeakReference). Make sure
@@ -120,6 +120,13 @@ class AssetLibrary {
    *                          iterating over it is redundant.
    */
   static void foreach_loaded(FunctionRef<void(AssetLibrary &)> fn, bool include_all_library);
+
+  /**
+   * Get the #AssetLibraryReference referencing this library. This can fail for custom libraries,
+   * which have too look up their #bUserAssetLibrary. It will not return a value for values that
+   * were loaded directly through a path.
+   */
+  virtual std::optional<AssetLibraryReference> library_reference() const = 0;
 
   void load_catalogs();
 

@@ -2,16 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <algorithm>
+
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 #include "BLI_vector.hh"
-#include "BLI_vector_set.hh"
 
 #include "NOD_derived_node_tree.hh"
 
 #include "BKE_node_legacy_types.hh"
-#include "BKE_node_runtime.hh"
 
 #include "COM_context.hh"
 #include "COM_scheduler.hh"
@@ -91,21 +91,27 @@ static void add_output_nodes(const Context &context,
   const DTreeContext &root_context = tree.root_context();
 
   /* Only add File Output nodes if the context supports them. */
-  if (context.use_file_output()) {
+  if (bool(context.needed_outputs() & OutputTypes::FileOutput)) {
     add_file_output_nodes(root_context, node_stack);
   }
 
-  /* Add the active composite node in the root tree, but only if we are not treating viewer outputs
-   * as composite ones. That's because in cases where viewer nodes will be treated as composite
-   * outputs, viewer nodes will take precedence, so this is handled as a special case in the
-   * add_viewer_nodes_in_context function instead and no need to add it here. */
-  if (!context.treat_viewer_as_composite_output()) {
-    for (const bNode *node : root_context.btree().nodes_by_type("CompositorNodeComposite")) {
-      if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
-        node_stack.push(DNode(&root_context, node));
-        break;
+  /* Add the active composite node in the root tree if needed, but only if we are not treating
+   * viewer outputs as composite ones. That's because in cases where viewer nodes will be treated
+   * as composite outputs, viewer nodes will take precedence, so this is handled as a special case
+   * in the add_viewer_nodes_in_context function instead and no need to add it here. */
+  if (bool(context.needed_outputs() & OutputTypes::Composite)) {
+    if (!context.treat_viewer_as_composite_output()) {
+      for (const bNode *node : root_context.btree().nodes_by_type("CompositorNodeComposite")) {
+        if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
+          node_stack.push(DNode(&root_context, node));
+          break;
+        }
       }
     }
+  }
+
+  if (!bool(context.needed_outputs() & OutputTypes::Viewer)) {
+    return;
   }
 
   const DTreeContext &active_context = tree.active_context();
@@ -255,9 +261,8 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes
        * buffers needed by the dependencies, then update the latter to be the former. This is
        * computing the "d" in the aforementioned equation "max(n + m, d)". */
       const int buffers_needed_by_dependency = needed_buffers.lookup(doutput.node());
-      if (buffers_needed_by_dependency > buffers_needed_by_dependencies) {
-        buffers_needed_by_dependencies = buffers_needed_by_dependency;
-      }
+      buffers_needed_by_dependencies = std::max(buffers_needed_by_dependency,
+                                                buffers_needed_by_dependencies);
     }
 
     /* Compute the number of buffers that will be computed/output by this node. */

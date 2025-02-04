@@ -6,17 +6,15 @@
  * \ingroup blenloader
  */
 
+#include "fmt/core.h"
 #include <cctype> /* for isdigit. */
 #include <cerrno>
-#include <climits>
 #include <cstdarg> /* for va_start/end. */
 #include <cstddef> /* for offsetof. */
 #include <cstdlib> /* for atoi. */
 #include <ctime>   /* for gmtime. */
 #include <fcntl.h> /* for open flags (O_BINARY, O_RDONLY). */
 
-#include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
 #ifndef WIN32
 #  include <unistd.h> /* for read close */
 #else
@@ -25,16 +23,14 @@
 #  include <io.h> /* for open close read */
 #endif
 
-#include "CLG_log.h"
+#include <fmt/format.h>
 
-#include "fmt/format.h"
+#include "CLG_log.h"
 
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_anim_types.h"
 #include "DNA_asset_types.h"
-#include "DNA_cachefile_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_fileglobal_types.h"
 #include "DNA_genfile.h"
@@ -43,24 +39,21 @@
 #include "DNA_node_types.h"
 #include "DNA_packedFile_types.h"
 #include "DNA_sdna_types.h"
-#include "DNA_sound_types.h"
-#include "DNA_vfont_types.h"
-#include "DNA_volume_types.h"
-#include "DNA_workspace_types.h"
 
 #include "MEM_alloc_string_storage.hh"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
+#include "BLI_fileops.h"
 #include "BLI_ghash.h"
-#include "BLI_linklist.h"
 #include "BLI_map.hh"
 #include "BLI_memarena.h"
-#include "BLI_mempool.h"
+#include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_threads.h"
 #include "BLI_time.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -2206,6 +2199,14 @@ static void direct_link_id_common(BlendDataReader *reader,
     id->tag = id_tag;
   }
 
+  if (!BLO_read_data_is_undo(reader)) {
+    /* Reset the runtime data, as there were versions of Blender that did not do
+     * this before writing to disk. */
+    memset(&id->runtime, 0, sizeof(id->runtime));
+  }
+  readfile_id_runtime_data_ensure(*id);
+  id->runtime.readfile_data->tags = id_read_tags;
+
   if ((id_tag & ID_TAG_TEMP_MAIN) == 0) {
     BKE_lib_libblock_session_uid_ensure(id);
   }
@@ -2215,17 +2216,6 @@ static void direct_link_id_common(BlendDataReader *reader,
   }
   else {
     BLO_read_struct(reader, LibraryWeakReference, &id->library_weak_reference);
-  }
-
-  if (!BLO_read_data_is_undo(reader)) {
-    /* Reset the runtime data, as there were versions of Blender that did not do
-     * this before writing to disk. */
-    memset(&id->runtime, 0, sizeof(id->runtime));
-
-    /* Only track the readfile tags when loading from disk. During 'undo' there is no versioning,
-     * no linking, etc. so there is no need for these flags. */
-    readfile_id_runtime_data_ensure(*id);
-    id->runtime.readfile_data->tags = id_read_tags;
   }
 
   if (BLO_readfile_id_runtime_tags(*id).is_link_placeholder) {
@@ -2520,7 +2510,7 @@ static void placeholders_ensure_valid(Main *bmain)
   LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
     ID *obdata = static_cast<ID *>(ob->data);
     if (obdata != nullptr && obdata->tag & ID_TAG_MISSING) {
-      BKE_object_materials_test(bmain, ob, obdata);
+      BKE_object_materials_sync_length(bmain, ob, obdata);
     }
   }
 }

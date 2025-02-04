@@ -12,11 +12,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
@@ -897,8 +897,13 @@ static void select_linked_time(const Scene *scene,
   }
 }
 
-/* Similar to `sequence_handle_size_get_clamped()` but allows for larger clickable area. */
-static float clickable_handle_size_get(const Scene *scene, const Strip *strip, const View2D *v2d)
+/* Similar to `strip_handle_draw_size_get()`, but returns a larger clickable area that is
+ * the same for a given zoom level no matter whether "simplified tweaking" is turned off or on.
+ * `strip_clickable_areas_get` will pad this past strip bounds by 1/3 of the inner handle size,
+ * making the full handle size either 15 + 5 = 20px or 1/4 + 1/12 = 1/3 of the strip size. */
+static float inner_clickable_handle_size_get(const Scene *scene,
+                                             const Strip *strip,
+                                             const View2D *v2d)
 {
   const float pixelx = 1 / UI_view2d_scale_get_x(v2d);
   const float strip_len = SEQ_time_right_handle_frame_get(scene, strip) -
@@ -918,6 +923,10 @@ bool ED_sequencer_can_select_handle(const Scene *scene, const Strip *strip, cons
     return false;
   }
 
+  /* This ensures clickable handles are deactivated when the strip gets too small (25 or 15
+   * frames). Since the full handle size for a small strip is 1/3 of the strip size (see
+   * `inner_clickable_handle_size_get`), this means handles cannot be smaller than 25/3 = 8px for
+   * simple tweaking, 15/3 = 5px for legacy behavior. */
   int min_len = 25 * U.pixelsize;
   if ((U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) == 0) {
     min_len = 15 * U.pixelsize;
@@ -929,6 +938,11 @@ bool ED_sequencer_can_select_handle(const Scene *scene, const Strip *strip, cons
   if (strip_len / pixelx < min_len) {
     return false;
   }
+
+  if (UI_view2d_scale_get_y(v2d) < 16 * U.pixelsize) {
+    return false;
+  }
+
   return true;
 }
 
@@ -943,11 +957,11 @@ static void strip_clickable_areas_get(const Scene *scene,
   *r_left_handle = *r_body;
   *r_right_handle = *r_body;
 
-  const float handsize = clickable_handle_size_get(scene, strip, v2d);
-  BLI_rctf_pad(r_left_handle, handsize / 3, 0.0f);
-  BLI_rctf_pad(r_right_handle, handsize / 3, 0.0f);
+  const float handsize = inner_clickable_handle_size_get(scene, strip, v2d);
   r_left_handle->xmax = r_body->xmin + handsize;
   r_right_handle->xmin = r_body->xmax - handsize;
+  BLI_rctf_pad(r_left_handle, handsize / 3, 0.0f);
+  BLI_rctf_pad(r_right_handle, handsize / 3, 0.0f);
   BLI_rctf_pad(r_body, -handsize, 0.0f);
 }
 
@@ -1054,7 +1068,7 @@ static bool is_mouse_over_both_handles_of_adjacent_strips(const Scene *scene,
   if (seq1_handle == SEQ_HANDLE_RIGHT && seq2_handle != SEQ_HANDLE_LEFT) {
     return false;
   }
-  else if (seq1_handle == SEQ_HANDLE_LEFT && seq2_handle != SEQ_HANDLE_RIGHT) {
+  if (seq1_handle == SEQ_HANDLE_LEFT && seq2_handle != SEQ_HANDLE_RIGHT) {
     return false;
   }
 
@@ -1367,10 +1381,8 @@ static int sequencer_select_handle_exec(bContext *C, wmOperator *op)
     sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
-  else {
-    sseq->flag |= SPACE_SEQ_DESELECT_STRIP_HANDLE;
-    ED_sequencer_deselect_all(scene);
-  }
+  sseq->flag |= SPACE_SEQ_DESELECT_STRIP_HANDLE;
+  ED_sequencer_deselect_all(scene);
 
   /* Do actual selection. */
   sequencer_select_strip_impl(ed, selection.seq1, selection.handle, false, false, false);
@@ -2048,9 +2060,8 @@ static int sequencer_box_select_exec(bContext *C, wmOperator *op)
     strip_rectf(scene, strip, &rq);
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
       if (handles) {
-        /* Get the handles draw size. */
-        float pixelx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
-        float handsize = sequence_handle_size_get_clamped(scene, strip, pixelx) * 4;
+        /* Get the clickable handle size, ignoring padding. */
+        float handsize = inner_clickable_handle_size_get(scene, strip, v2d) * 4;
 
         /* Right handle. */
         if (rectf.xmax > (SEQ_time_right_handle_frame_get(scene, strip) - handsize)) {
