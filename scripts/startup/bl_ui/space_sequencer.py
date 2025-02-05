@@ -228,8 +228,7 @@ class SEQUENCER_MT_editor_menus(Menu):
 
         layout.menu("SEQUENCER_MT_strip")
 
-        if st.view_type in {'SEQUENCER', 'PREVIEW'}:
-            layout.menu("SEQUENCER_MT_image")
+        layout.menu("SEQUENCER_MT_image")
 
 
 class SEQUENCER_PT_gizmo_display(Panel):
@@ -893,37 +892,25 @@ class SEQUENCER_MT_strip_transform(Menu):
     def draw(self, context):
         layout = self.layout
         st = context.space_data
-        has_sequencer, has_preview = _space_view_types(st)
 
-        if has_preview:
-            layout.operator_context = 'INVOKE_REGION_PREVIEW'
-        else:
-            layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator_context = 'INVOKE_REGION_WIN'
 
-        if has_preview:
-            layout.operator("transform.translate", text="Move")
-            layout.operator("transform.rotate", text="Rotate")
-            layout.operator("transform.resize", text="Scale")
-        else:
-            layout.operator("transform.seq_slide", text="Move").view2d_edge_pan = True
-            layout.operator("transform.transform", text="Move/Extend from Current Frame").mode = 'TIME_EXTEND'
-            layout.operator("sequencer.slip", text="Slip Strip Contents")
+        layout.operator("transform.seq_slide", text="Move").view2d_edge_pan = True
+        layout.operator("transform.transform", text="Move/Extend from Current Frame").mode = 'TIME_EXTEND'
+        layout.operator("sequencer.slip", text="Slip Strip Contents")
 
-        # TODO (for preview)
-        if has_sequencer:
-            layout.separator()
-            layout.operator("sequencer.snap")
-            layout.operator("sequencer.offset_clear")
+        layout.separator()
+        layout.operator("sequencer.snap")
+        layout.operator("sequencer.offset_clear")
 
-            layout.separator()
+        layout.separator()
 
-        if has_sequencer:
-            layout.operator_menu_enum("sequencer.swap", "side")
+        layout.operator_menu_enum("sequencer.swap", "side")
 
-            layout.separator()
-            layout.operator("sequencer.gap_remove").all = False
-            layout.operator("sequencer.gap_remove", text="Remove Gaps (All)").all = True
-            layout.operator("sequencer.gap_insert")
+        layout.separator()
+        layout.operator("sequencer.gap_remove").all = False
+        layout.operator("sequencer.gap_remove", text="Remove Gaps (All)").all = True
+        layout.operator("sequencer.gap_insert")
 
 
 class SEQUENCER_MT_strip_text(Menu):
@@ -1053,7 +1040,8 @@ class SEQUENCER_MT_strip(Menu):
         st = context.space_data
         has_sequencer, has_preview = _space_view_types(st)
 
-        layout.menu("SEQUENCER_MT_strip_transform")
+        if has_sequencer:
+            layout.menu("SEQUENCER_MT_strip_transform")
 
         if has_preview:
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
