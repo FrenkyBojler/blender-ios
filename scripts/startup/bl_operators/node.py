@@ -526,12 +526,12 @@ class NODE_OT_viewer_shortcut_get(Operator):
 
 class NODE_OT_swap_node(Operator):
     bl_idname = "node.swap_node"
-    bl_label = "Swap Node"
+    bl_label = "Swap Node" 
     bl_options = {"REGISTER", "UNDO"}
 
     node_type: StringProperty(name="New Node", default="GeometryNodeJoinGeometry")
     menu_idname: StringProperty(name="Menu ID", default="NODE_MT_add")
-
+    
     @classmethod
     def poll(cls, context):
         return (
@@ -539,18 +539,32 @@ class NODE_OT_swap_node(Operator):
             and (context.area.type == "NODE_EDITOR")
             and (context.active_node is not None)
         )
-    
-    # def invoke(self, context: Context, event: Event):
-    #     wm = context.window_manager
-    #     wm.invoke_search_popup(self)
-    #     return {'CANCELLED'}
+        
+    def invoke(self, context, event):
+        self.has_selected_node = False
+        self.original_node = context.active_node
+        self.current_nodes = [node for node in self.original_node.id_data.nodes]
+        
+        context.window_manager.modal_handler_add(self)
+        bpy.ops.wm.search_single_menu('INVOKE_DEFAULT', menu_idname=self.menu_idname)
+        self.has_selected_node = True
+        
+        return {'RUNNING_MODAL'}
 
-    def execute(self, context):
+    def modal(self, context, event):
+        if event.type != "RET":
+            return {"RUNNING_MODAL"}
+        
+        return self.exectute(context)
+
+    
+    def exectute(self, context):
+        if not self.has_selected_node:
+            return {"RUNNING_MODAL"}
+            
         active_node = context.active_node
         tree = active_node.id_data
-        current_nodes = [node for node in tree.nodes]
-        bpy.ops.wm.search_single_menu('INVOKE_DEFAULT', menu_idname=self.menu_idname)
-        node_new = [node for node in tree.nodes if node not in current_nodes][0]
+        node_new = [node for node in tree.nodes if node not in self.current_nodes][0]
 
         # return {"FINISHED"}
         # capture all of the existing links and default attributes for the current node
@@ -560,7 +574,7 @@ class NODE_OT_swap_node(Operator):
         output_links = []
         default_inputs = {}
 
-        for input in active_node.inputs:
+        for input in self.original_node.inputs:
             try:
                 default_inputs[input.name] = input.default_value
             except AttributeError:
@@ -570,7 +584,7 @@ class NODE_OT_swap_node(Operator):
                 input_links.append((link.from_socket, input.name))
                 tree.links.remove(link)
 
-        for output in active_node.outputs:
+        for output in self.original_node.outputs:
             for link in output.links:
                 output_links.append((output.name, link.to_socket))
                 tree.links.remove(link)
@@ -605,7 +619,9 @@ class NODE_OT_swap_node(Operator):
             except KeyError:
                 pass
 
-        return {"FINISHED"}
+        return {'FINISHED'}
+
+
 
 
 class NODE_FH_image_node(FileHandler):
