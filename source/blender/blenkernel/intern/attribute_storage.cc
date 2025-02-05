@@ -4,6 +4,7 @@
 
 #include "BLI_implicit_sharing.hh"
 #include "BLI_string.h"
+#include "BLI_vector_set.hh"
 
 #include "BLO_read_write.hh"
 
@@ -16,7 +17,13 @@
 namespace blender::bke {
 
 struct AttributeStorageRuntime {
-  Map<StringRef, std::reference_wrapper<Attribute>> name_map;
+  struct AttributeNameGetter {
+    StringRef operator()(const Attribute &value) const
+    {
+      return StringRef(value.name);
+    }
+  };
+  CustomIDVectorSet<std::reference_wrapper<Attribute>, AttributeNameGetter> name_map;
 };
 
 class ArrayDataImplicitSharing : public ImplicitSharingInfo {
@@ -35,16 +42,16 @@ class ArrayDataImplicitSharing : public ImplicitSharingInfo {
   void delete_self_with_data() override
   {
     if (data_ != nullptr) {
-      type_.destruct_n(const_cast<void *>(data_), size_);
-      MEM_freeN(const_cast<void *>(data_));
+      type_.destruct_n(data_, size_);
+      MEM_freeN(data_);
     }
     MEM_delete(this);
   }
 
   void delete_data_only() override
   {
-    type_.destruct_n(const_cast<void *>(data_), size_);
-    MEM_freeN(const_cast<void *>(data_));
+    type_.destruct_n(data_, size_);
+    MEM_freeN(data_);
     data_ = nullptr;
     size_ = 0;
   }
@@ -111,7 +118,7 @@ AttributeStorage::AttributeStorage(const AttributeStorage &other)
     dst_attribute.data_type = src_attribute.data_type;
     dst_attribute.storage_type = src_attribute.storage_type;
 
-    this->runtime->name_map.add_new(StringRef(dst_attribute.name, src_name.size()), dst_attribute);
+    this->runtime->name_map.add_new(dst_attribute);
     switch (AttrStorageType(dst_attribute.storage_type)) {
       case AttrStorageType::Array: {
         const AttributeDataArray &src_data = *static_cast<AttributeDataArray *>(
@@ -195,7 +202,8 @@ AttributeStorage::~AttributeStorage()
 
 const Attribute *AttributeStorage::lookup(const StringRef name) const
 {
-  std::reference_wrapper<Attribute> *attribute = this->runtime->name_map.lookup_ptr(name);
+  const std::reference_wrapper<Attribute> *attribute = this->runtime->name_map.lookup_key_ptr_as(
+      name);
   if (!attribute) {
     return nullptr;
   }
@@ -204,7 +212,8 @@ const Attribute *AttributeStorage::lookup(const StringRef name) const
 
 Attribute *AttributeStorage::lookup_for_write(const StringRef name)
 {
-  std::reference_wrapper<Attribute> *attribute = this->runtime->name_map.lookup_ptr(name);
+  const std::reference_wrapper<Attribute> *attribute = this->runtime->name_map.lookup_key_ptr_as(
+      name);
   if (!attribute) {
     return nullptr;
   }
@@ -218,7 +227,7 @@ bool AttributeStorage::remove(const StringRef name)
   if (!attribute) {
     return false;
   }
-  this->runtime->name_map.remove(name);
+  this->runtime->name_map.remove_as(name);
   ::Attribute **result = std::remove(
       this->attributes_array, this->attributes_array + this->attributes_num, attribute);
   BLI_assert(std::distance(this->attributes_array, result) == this->attributes_num - 1);
@@ -268,7 +277,7 @@ Attribute &AttributeStorage::add_without_data(const StringRef name,
   attribute.domain = int8_t(domain);
   attribute.data_type = int16_t(data_type);
   attribute.storage_type = int8_t(storage_type);
-  this->runtime->name_map.add_new(StringRef(attribute.name, name.size()), attribute);
+  this->runtime->name_map.add_new(attribute);
 
   return attribute;
 }
@@ -345,8 +354,7 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
     BLO_read_struct(&reader, Attribute, &this->attributes_array[i]);
     BLO_read_string(&reader, &this->attributes_array[i]->name);
 
-    this->runtime->name_map.add_new(this->attributes_array[i]->name,
-                                    this->attributes_array[i]->wrap());
+    this->runtime->name_map.add_new(this->attributes_array[i]->wrap());
 
     switch (AttrStorageType(this->attributes_array[i]->storage_type)) {
       case AttrStorageType::Array: {

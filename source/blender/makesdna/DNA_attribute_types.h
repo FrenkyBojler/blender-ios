@@ -8,8 +8,7 @@
 
 #ifdef __cplusplus
 
-#  include "BLI_span.hh"
-#  include "BLI_string_ref.hh"
+#  include <cstdint>
 
 namespace blender {
 namespace bke {

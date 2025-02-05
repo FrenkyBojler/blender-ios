@@ -5,6 +5,7 @@
 #pragma once
 
 #include "BLI_span.hh"
+#include "BLI_string_ref.hh"
 
 #include "DNA_attribute_types.h"
 
