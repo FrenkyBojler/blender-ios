@@ -3708,7 +3708,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   }
 
   if (is_incremental) {
-    save_msg_pre = "Saved Incremental as";
+    save_msg_pre = "Saved incremental as";
   }
   if (is_save_as) {
     save_msg_pre = "Saved as";
