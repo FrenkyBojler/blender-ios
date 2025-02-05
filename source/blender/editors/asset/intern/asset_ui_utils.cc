@@ -43,11 +43,6 @@ std::string asset_tooltip(const asset_system::AssetRepresentation &asset, const 
 BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset)
 {
   if (const PreviewImage *preview = asset.get_preview()) {
-    if (!BKE_previewimg_is_finished(preview, ICON_SIZE_PREVIEW)) {
-      /* Loading icon. */
-      return ICON_TEMP;
-    }
-
     if (!BKE_previewimg_is_invalid(preview)) {
       return preview->runtime->icon_id;
     }
@@ -72,6 +67,12 @@ const bUserAssetLibrary *get_asset_library_from_opptr(PointerRNA &ptr)
   const int enum_value = RNA_enum_get(&ptr, "asset_library_reference");
   const AssetLibraryReference lib_ref = asset::library_reference_from_enum_value(enum_value);
   return BKE_preferences_asset_library_find_index(&U, lib_ref.custom_library_index);
+}
+
+AssetLibraryReference get_asset_library_ref_from_opptr(PointerRNA &ptr)
+{
+  const int enum_value = RNA_enum_get(&ptr, "asset_library_reference");
+  return asset::library_reference_from_enum_value(enum_value);
 }
 
 void visit_library_catalogs_catalog_for_search(
