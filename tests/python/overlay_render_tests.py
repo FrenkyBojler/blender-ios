@@ -4,11 +4,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import importlib.util
 import os
 import platform
 import subprocess
 import sys
 from pathlib import Path
+import sys
 try:
     # Render report is not always available and leads to errors in the console logs that can be ignored.
     from modules import render_report
@@ -28,9 +30,7 @@ except ImportError:
 
 def run_test():
     import bpy
-    bpy.ops.render.opengl(write_still=True, view_context=True)
-    bpy.ops.wm.quit_blender()
-
+    bpy.data.texts[0].as_module()
 
 # When run from inside Blender, render and exit.
 try:
@@ -63,7 +63,6 @@ def get_arguments(filepath, output_filepath, gpu_backend):
     
     # Windows separators get messed up when passing them inside the python expression
     output_filepath = output_filepath.replace("\\", "/")
-    output_filepath += '0001.png'
 
     arguments.extend([
         filepath,
@@ -88,62 +87,12 @@ def create_argparse():
     parser.add_argument('--gpu-backend')
     return parser
 
-def generate_tests(test_dir, blender, gen_re):
-    import re
-    
-    verbose = os.environ.get("BLENDER_VERBOSE") is not None
-
-    for root, dirs, files in os.walk(test_dir):
-        for filename in files:
-            if not filename.lower().endswith(".blend"):
-                continue
-
-            if re.match(gen_re, filename) is None:
-                continue
-
-            #TODO: Detect if generator file is newer than generated files?
-            
-            command = [
-                blender,
-                "--no-window-focus",
-                "--window-geometry",
-                "0", "0", "128", "128",
-                "-noaudio",
-                "--factory-startup",
-                "--enable-autoexec",
-                "--debug-memory",
-                "--debug-exit-on-error",
-                os.path.join(root, filename),
-                "--python-expr",
-                "import bpy; bpy.data.texts[0].as_module()"
-            ]
-            
-            if verbose:
-                print("Generator Command: ", " ".join(command))
-            
-            crash = False
-            output = None
-            try:
-                completed_process = subprocess.run(command, stdout=subprocess.PIPE)
-                if completed_process.returncode != 0:
-                    crash = True
-                output = completed_process.stdout
-            except Exception as e:
-                if verbose:
-                    print(e)
-                crash = True
-
-            if (verbose or crash) and output:
-                print(output.decode("utf-8", 'ignore'))
 
 def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    gen_re = ".*-gen.blend"
-    generate_tests(args.testdir, args.blender, gen_re)
-
-    report = OverlayReport("Overlay", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist = [gen_re])
+    report = OverlayReport("Overlay", args.outdir, args.oiiotool, variation=args.gpu_backend)
     if args.gpu_backend == "vulkan":
         report.set_compare_engine('overlay', 'opengl')
     else:
