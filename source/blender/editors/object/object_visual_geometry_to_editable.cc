@@ -49,37 +49,6 @@ class GeometryToEditableOp {
  public:
   GeometryToEditableOp(Main &bmain) : bmain_(bmain) {}
 
-  Object *build_object_for_geometry(const Object &src_ob_eval, const bke::GeometrySet &geometry)
-  {
-    Object *mesh_ob = nullptr;
-    Object *curves_ob = nullptr;
-    if (const Mesh *mesh = geometry.get_mesh()) {
-      if (mesh->verts_num > 0) {
-        mesh_ob = this->get_or_create_object_for_mesh(src_ob_eval, *mesh, geometry.name);
-      }
-    }
-    if (const Curves *curves = geometry.get_curves()) {
-      if (curves->geometry.curve_num > 0) {
-        curves_ob = this->get_or_create_object_for_curves(src_ob_eval, *curves, geometry.name);
-      }
-    }
-
-    const int num_objects = (mesh_ob != nullptr) + (curves_ob != nullptr);
-    if (num_objects == 0) {
-      return nullptr;
-    }
-    if (num_objects == 1) {
-      if (mesh_ob != nullptr) {
-        return mesh_ob;
-      }
-      if (curves_ob != nullptr) {
-        return curves_ob;
-      }
-    }
-    // TODO: create collection and instance that
-    return mesh_ob;
-  }
-
   Collection *build_collection_for_geometry(const Object &src_ob_eval,
                                             const bke::GeometrySet &geometry)
   {
