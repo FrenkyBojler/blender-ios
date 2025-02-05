@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import bpy
 from bpy.types import (
+    Context,
+    Event,
     FileHandler,
     Operator,
     PropertyGroup,
@@ -527,7 +529,8 @@ class NODE_OT_swap_node(Operator):
     bl_label = "Swap Node"
     bl_options = {"REGISTER", "UNDO"}
 
-    new_node_name: StringProperty(name="New Node", default="")
+    node_type: StringProperty(name="New Node", default="GeometryNodeJoinGeometry")
+    # menu_idname: StringProperty(name="Menu ID", default="NODE_MT_add")
 
     @classmethod
     def poll(cls, context):
@@ -536,11 +539,17 @@ class NODE_OT_swap_node(Operator):
             and (context.area.type == "NODE_EDITOR")
             and (context.active_node is not None)
         )
+    
+    # def invoke(self, context: Context, event: Event):
+    #     wm = context.window_manager
+    #     wm.invoke_search_popup(self)
+    #     return {'CANCELLED'}
 
-    def execute(self, context: Context):
+    def execute(self, context):
         active_node = context.active_node
         tree = active_node.id_data
 
+        # return {"FINISHED"}
         # capture all of the existing links and default attributes for the current node
         # to rebuild the connections we can capture the sockets that are connected to and
         # from other nodes, but on the node itself we have to use the name instead
@@ -563,20 +572,25 @@ class NODE_OT_swap_node(Operator):
                 output_links.append((output.name, link.to_socket))
                 tree.links.remove(link)
 
-        node_location = active_node.location
+        old_location = active_node.location.copy()
         tree.nodes.remove(active_node)
 
         # now we can add the new node, set the default values and rebuild connections
         # to and from the node
-        node_new = tree.nodes.new(self.new_node_name)
-        node_new.location = node_location
+        
+        node_new = tree.nodes.new(self.node_type)
+        node_new.location = old_location
 
+        # try to restore default values based on name, but if there isn't a socket
+        # with that name or it doesn't take a default value then we move on
         for name, value in default_inputs.items():
             try:
                 node_new.inputs[name].default_value = value
-            except AttributeError | KeyError:
+            except (AttributeError, KeyError):
                 pass
-
+        
+        # restore the links into and out of the node. Other sockets are referenced
+        # by their socket, but sockets on the new node are reference by name and looked up
         for link in input_links:
             try:
                 tree.links.new(link[0], node_new.inputs[link[1]])
@@ -624,4 +638,5 @@ classes = (
     NODE_OT_tree_path_parent,
     NODE_OT_viewer_shortcut_get,
     NODE_OT_viewer_shortcut_set,
+    NODE_OT_swap_node,
 )

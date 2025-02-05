@@ -8,6 +8,7 @@ from bpy.types import (
     Menu,
     Panel,
 )
+from nodeitems_utils import node_items_iter
 from bpy.app.translations import (
     pgettext_iface as iface_,
     contexts as i18n_contexts,
@@ -33,6 +34,12 @@ from bl_ui.properties_data_light import (
     DATA_PT_EEVEE_light,
 )
 
+NODES_FOR_SWAPPING = {
+    "Input": [], 
+    "Output": [],
+    "Shader": [],
+    "Texture": [],
+}
 
 class NODE_HT_header(Header):
     bl_space_type = 'NODE_EDITOR'
@@ -630,13 +637,15 @@ class NODE_MT_context_menu(Menu):
 
         layout.separator()
 
+        layout.operator("node.swap_node").menu_idname
+        layout.operator("WM_OT_search_single_menu", text="Node Swap Search", icon='VIEWZOOM').menu_idname = "NODE_MT_add"
+        
         layout.operator("node.delete", icon='X')
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("node.delete_reconnect", text="Dissolve")
 
         if selected_nodes_len > 1:
             layout.separator()
-
             layout.operator("node.link_make").replace = False
             layout.operator("node.link_make", text="Make and Replace Links").replace = True
             layout.operator("node.links_detach")
