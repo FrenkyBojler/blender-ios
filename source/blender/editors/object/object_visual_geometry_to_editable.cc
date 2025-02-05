@@ -9,6 +9,7 @@
 #include "BKE_instances.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.h"
 #include "BKE_object.hh"
@@ -227,15 +228,18 @@ class GeometryToEditableOp {
       case bke::InstanceReference::Type::Object: {
         /* Create a collection for the object because we can't instance objects directly. */
         Object &object_eval = reference.object();
-        collection_for_reference = BKE_collection_add(
-            &bmain_, nullptr, BKE_id_name(object_eval.id));
         Object *object_orig = DEG_get_original_object(&object_eval);
+        collection_for_reference = BKE_collection_add(
+            &bmain_, nullptr, BKE_id_name(object_orig->id));
         BKE_collection_object_add(&bmain_, collection_for_reference, object_orig);
         copy_v3_v3(collection_for_reference->instance_offset, object_orig->loc);
         break;
       }
       case bke::InstanceReference::Type::Collection: {
-        collection_for_reference = &reference.collection();
+        Collection &collection_eval = reference.collection();
+        Collection *collection_orig = reinterpret_cast<Collection *>(
+            DEG_get_original_id(&collection_eval.id));
+        collection_for_reference = collection_orig;
         break;
       }
       case bke::InstanceReference::Type::GeometrySet: {
