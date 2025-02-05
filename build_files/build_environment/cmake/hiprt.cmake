@@ -16,6 +16,7 @@ set(HIPRT_EXTRA_ARGS
   -DNO_UNITTEST=ON
   -DBAKE_COMPILED_KERNEL=ON
   -DPRECOMPILE=ON
+  -DPYTHON_EXECUTABLE=${PYTHON_BINARY}
 )
 
 set(HIPRT_SOURCE_DIR ${BUILD_DIR}/hiprt/src/external_hiprt)
@@ -28,11 +29,21 @@ ExternalProject_Add(external_hiprt
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/hiprt
 
+  PATCH_COMMAND
+  ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/hiprt/src/external_hiprt <
+    ${PATCH_DIR}/hiprt.diff
+
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/hiprt
     ${HIPRT_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/hiprt
+)
+
+add_dependencies(
+  external_hiprt
+  external_python
 )
 
 if(WIN32)
