@@ -491,8 +491,7 @@ NODE_SHADER_MATERIALX_BEGIN
           break;
         }
         case NODE_VECTOR_MATH_REFLECT:
-          /* TODO: use <reflect> node in MaterialX 1.38.9 */
-          res = x - val(2.0f) * y.dotproduct(x) * y;
+          res = create_node("reflect", NodeItem::Type::Vector3, {{"in", x}, {"normal", y}});
           break;
         case NODE_VECTOR_MATH_DISTANCE:
           res = (y - x).length();
@@ -510,11 +509,8 @@ NODE_SHADER_MATERIALX_BEGIN
               res = x * y + z;
               break;
             case NODE_VECTOR_MATH_REFRACT: {
-              /* TODO: use <refract> node in MaterialX 1.38.9 */
-              NodeItem dot_yx = y.dotproduct(x);
-              NodeItem k = val(1.0f) - (w * w * (val(1.0f) - (dot_yx * dot_yx)));
-              NodeItem r = w * x - ((w * dot_yx + k.sqrt()) * y);
-              res = k.if_else(NodeItem::CompareOp::GreaterEq, val(0.0f), r, null_vec);
+              res = create_node(
+                  "refract", NodeItem::Type::Vector3, {{"in", x}, {"normal", y}}, {{"ior", w}});
               break;
             }
             case NODE_VECTOR_MATH_FACEFORWARD: {
