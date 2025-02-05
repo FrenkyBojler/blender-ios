@@ -15,8 +15,15 @@ endif()
 # Note the utility apps may use png/tiff/gif system libraries, but the
 # library itself does not depend on them, so should give no problems.
 
-get_filename_component(_hip_path ${HIP_HIPCC_EXECUTABLE} DIRECTORY)
-get_filename_component(_hip_path ${_hip_path} DIRECTORY)
+get_filename_component(_hip_bin_path ${HIP_HIPCC_EXECUTABLE} DIRECTORY)
+get_filename_component(_hip_path ${_hip_bin_path} DIRECTORY)
+
+set(HIPRT_ENV "")
+if(LINUX)
+  # HIP-RT does not explicitly prefix hipcc with the HIP_PATH and calls it
+  # directly on Linux. Work this around by ensuring hipcc is in the PATH.
+  set(HIPRT_ENV "PATH=$ENV{PATH}:${_hip_bin_path}")
+endif()
 
 set(HIPRT_EXTRA_ARGS
   -DCMAKE_BUILD_TYPE=Release
@@ -38,6 +45,8 @@ ExternalProject_Add(external_hiprt
   URL_HASH ${HIPRT_HASH_TYPE}=${HIPRT_HASH}
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/hiprt
+
+  CMAKE_COMMAND ${CMAKE_COMMAND} -E env ${HIPRT_ENV} ${CMAKE_COMMAND}
 
   PATCH_COMMAND
   ${PATCH_CMD} -p 1 -d
