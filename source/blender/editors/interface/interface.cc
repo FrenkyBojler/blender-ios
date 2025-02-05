@@ -2135,6 +2135,7 @@ void UI_block_draw(const bContext *C, uiBlock *block)
   }
   else if (block->flag & UI_BLOCK_LOOP) {
     ui_draw_menu_back(&style, block, &rect);
+    ui_draw_dialog_alert(block, &rect);
   }
   else if (block->panel) {
     ui_draw_aligned_panel(region,
@@ -3878,6 +3879,11 @@ void UI_block_emboss_set(uiBlock *block, eUIEmbossType emboss)
 void UI_block_theme_style_set(uiBlock *block, char theme_style)
 {
   block->theme_style = theme_style;
+}
+
+void UI_block_alert_level_set(uiBlock *block, uiBlockAlertLevel level)
+{
+  block->alert_level = level;
 }
 
 bool UI_block_is_search_only(const uiBlock *block)

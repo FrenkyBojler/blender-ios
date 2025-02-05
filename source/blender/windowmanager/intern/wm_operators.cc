@@ -1532,6 +1532,19 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
     data->icon = ALERT_ICON_QUESTION;
   }
 
+  uiBlockAlertLevel level = uiBlockAlertLevel::Warning;
+  if (data->icon == ALERT_ICON_INFO) {
+    level = uiBlockAlertLevel::Info;
+  }
+  if (data->icon == ALERT_ICON_WARNING) {
+    level = uiBlockAlertLevel::Warning;
+  }
+  else if (data->icon == ALERT_ICON_ERROR) {
+    level = uiBlockAlertLevel::Error;
+  }
+
+  UI_block_alert_level_set(block, level);
+
   UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NUMSELECT);
 
   UI_fontstyle_set(&style->widget);

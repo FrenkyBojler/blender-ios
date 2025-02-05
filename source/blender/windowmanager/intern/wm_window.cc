@@ -2098,6 +2098,8 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
   uiLayout *layout = uiItemsAlertBox(
       block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
 
+  UI_block_alert_level_set(block, uiBlockAlertLevel::Error);
+
   uiLayout *col = uiLayoutColumn(layout, false);
   uiLayoutSetScaleY(col, 0.9f);
 
@@ -2167,6 +2169,8 @@ static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, 
   UI_block_emboss_set(block, UI_EMBOSS);
 
   uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
+
+  UI_block_alert_level_set(block, uiBlockAlertLevel::Error);
 
   /* Title and explanation text. */
   uiLayout *col = uiLayoutColumn(layout, false);

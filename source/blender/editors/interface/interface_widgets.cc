@@ -2792,12 +2792,7 @@ static void widget_menu_back(uiWidgetColors *wcol,
 
   widget_init(&wtb);
 
-  /* menu is 2nd level or deeper */
-  if (block_flag & UI_BLOCK_POPUP) {
-    // rect->ymin -= 4.0;
-    // rect->ymax += 4.0;
-  }
-  else if (direction & (UI_DIR_DOWN | UI_DIR_UP)) {
+  if (direction & (UI_DIR_DOWN | UI_DIR_UP)) {
     if (direction & UI_DIR_DOWN) {
       roundboxalign = (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT);
     }
@@ -5197,6 +5192,50 @@ static void ui_draw_clip_tri(uiBlock *block, const rcti *rect, uiWidgetType *wt)
   }
 }
 
+void ui_draw_dialog_alert(uiBlock *block, const rcti *rect)
+{
+  if (block->alert_level == uiBlockAlertLevel::None) {
+    return;
+  }
+
+  /* From themes after #131127 */
+  float info[4] = {0.357f, 0.753f, 0.871f, 1.0f};
+  float success[4] = {0.133f, 0.733f, 0.20f, 1.0f};
+  float warning[4] = {0.941f, 0.678f, 0.306f, 1.0f};
+  float error[4] = {0.733f, 0.129f, 0.141f, 1.0f};
+
+  float *color = warning;
+
+  switch (block->alert_level) {
+    case uiBlockAlertLevel::Error:
+      color = error;
+      break;
+    case uiBlockAlertLevel::Warning:
+      color = warning;
+      break;
+    case uiBlockAlertLevel::Success:
+      color = success;
+      break;
+    default:
+      color = info;
+  }
+
+  const uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+  immUniformColor4fv(color);
+  GPU_line_width(3.0f);
+
+  GPU_blend(GPU_BLEND_ALPHA);
+  immBegin(GPU_PRIM_LINES, 2);
+  immVertex2f(pos, rect->xmin, rect->ymax);
+  immVertex2f(pos, rect->xmax, rect->ymax);
+  immEnd();
+
+  immUnbindProgram();
+}
+
 void ui_draw_menu_back(uiStyle * /*style*/, uiBlock *block, const rcti *rect)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_MENU_BACK);
@@ -5204,7 +5243,11 @@ void ui_draw_menu_back(uiStyle * /*style*/, uiBlock *block, const rcti *rect)
   wt->state(wt, &STATE_INFO_NULL, UI_EMBOSS_UNDEFINED);
   if (block) {
     const float zoom = 1.0f / block->aspect;
-    wt->draw_block(&wt->wcol, rect, block->flag, block->direction, zoom);
+    wt->draw_block(&wt->wcol,
+                   rect,
+                   block->flag,
+                   block->alert_level == uiBlockAlertLevel::None ? block->direction : UI_DIR_DOWN,
+                   zoom);
   }
   else {
     wt->draw_block(&wt->wcol, rect, 0, 0, 1.0f);

@@ -259,6 +259,8 @@ enum {
   UI_BUT_OVERRIDDEN = 1u << 31u,
 };
 
+enum class uiBlockAlertLevel : int8_t { None = 0, Info = 1, Success = 2, Warning = 3, Error = 4 };
+
 enum {
   /**
    * This is used when `UI_BUT_ACTIVATE_ON_INIT` is used, which is used to activate e.g. a search
@@ -907,6 +909,7 @@ enum {
   UI_BLOCK_THEME_STYLE_POPUP = 1,
 };
 void UI_block_theme_style_set(uiBlock *block, char theme_style);
+void UI_block_alert_level_set(uiBlock *block, uiBlockAlertLevel alert_level);
 eUIEmbossType UI_block_emboss_get(uiBlock *block);
 void UI_block_emboss_set(uiBlock *block, eUIEmbossType emboss);
 bool UI_block_is_search_only(const uiBlock *block);
