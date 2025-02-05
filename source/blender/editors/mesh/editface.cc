@@ -457,6 +457,12 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
       ".hide_poly", bke::AttrDomain::Face, false);
 
   const Span<int> faces_to_closest_edge = edge_to_face_map[closest_edge_index];
+
+  /* Picked edge may not be linked to a face (loose edge). */
+  if (faces_to_closest_edge.is_empty()) {
+    return;
+  }
+
   const bool traced_full_loop = follow_face_loop(faces_to_closest_edge[0],
                                                  closest_edge_index,
                                                  faces,
