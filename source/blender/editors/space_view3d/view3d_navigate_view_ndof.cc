@@ -25,6 +25,8 @@
 using blender::Bounds;
 using blender::float3;
 
+static bool ndof_orbit_center_is_valid(const RegionView3D *rv3d, const float3 &center);
+
 /* -------------------------------------------------------------------- */
 /** \name NDOF Utility Functions
  * \{ */
@@ -40,13 +42,6 @@ static bool is_bounding_box_in_frustum(const float projmat[4][4],
   int ret = isect_aabb_planes_v3(planes, 4, bounding_box.min, bounding_box.max);
 
   return ret == ISECT_AABB_PLANE_IN_FRONT_ALL;
-}
-
-static bool is_point_in_frustum(float projmat[4][4], const float3 &point)
-{
-  float planes[4][4];
-  planes_from_projmat(projmat, planes[0], planes[1], planes[2], planes[3], nullptr, nullptr);
-  return isect_point_planes_v3(planes, 4, point);
 }
 
 enum {
@@ -256,13 +251,11 @@ static void view3d_ndof_orbit(const wmNDOFMotionData *ndof,
     /* Use NDOF center as a dynamic offset. */
     if (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) {
       if (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID) {
-        if (is_point_in_frustum(rv3d->persmat, -float3(rv3d->ndof_ofs))) {
+        if (ndof_orbit_center_is_valid(vod->rv3d, -float3(rv3d->ndof_ofs))) {
           vod->use_dyn_ofs = true;
           copy_v3_v3(vod->dyn_ofs, rv3d->ndof_ofs);
         }
         else {
-          /* When outside the view, don't use the offset again,
-           * it will be recalculated. */
           rv3d->ndof_flag &= ~RV3D_NDOF_OFS_IS_VALID;
         }
       }
@@ -398,6 +391,32 @@ void view3d_ndof_fly(const wmNDOFMotionData *ndof,
 /** \name NDOF Orbit Center Calculation
  * \{ */
 
+/**
+ * Return true when `center` should not be used.
+ */
+static bool ndof_orbit_center_is_valid(const RegionView3D *rv3d, const float3 &center)
+{
+  /* NOTE: this is a fairly arbitrary check mainly to avoid obvious problems
+   * where the orbit center is going to seem buggy/unusable.
+   *
+   * Other cases could also be counted as invalid:
+   * - It's beyond the clip-end.
+   * - It's not inside the viewport frustum (with some margin perhaps).
+   *
+   * The value could also be clamped to make it valid however when function
+   * returns false the #RegionView3D::ofs is used instead, so it's not necessary
+   * to go to great lengths to attempt to use the value.
+   */
+  if (rv3d->is_persp) {
+    const float zfac = mul_project_m4_v3_zfac(rv3d->persmat, center);
+    if (zfac <= 0.0f) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 static std::optional<float3> ndof_orbit_center_calc_from_bounds(Depsgraph *depsgraph,
                                                                 ScrArea *area,
                                                                 ARegion *region)
@@ -421,7 +440,13 @@ static std::optional<float3> ndof_orbit_center_calc_from_bounds(Depsgraph *depsg
     bounding_box_eval.scale_from_center(float3(0.8));
 
     if (is_bounding_box_in_frustum(rv3d->persmat, bounding_box_eval)) {
-      return bounding_box_eval.center();
+      /* TODO: for perspective views it would be good to clip the bounds by the
+       * view-point's plane, so the only the portion of the bounds in front of the
+       * view-point is taken into account when calculating the center. */
+      const float3 center = bounding_box_eval.center();
+      if (ndof_orbit_center_is_valid(rv3d, center)) {
+        return center;
+      }
     }
   }
   return std::nullopt;

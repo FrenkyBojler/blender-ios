@@ -492,12 +492,17 @@ enum {
 enum {
   /**
    * When set, #RegionView3D::ndof_ofs may be used instead of #RegionView3D::ofs,
-   * This should be cleared on any actions that reset the view such as:
-   * "Home", "View Selected", "Axis Views".. because in this case the previously
-   * calculated center is not valid relative to the users view-point.
    *
-   * Resetting this value should not be disruptive
-   * as the value is automatically calculated on demand.
+   * This value will be recalculated when starting NDOF motion,
+   * however if the center can *not* be calculated, the previous value may be used.
+   *
+   * To prevent strange behavior some checks should be used
+   * to ensure the previously calculated value makes sense.
+   *
+   * The most common case is for perspective views, where orbiting around a point behind
+   * the view (while possible) often seems like a bug from a user perspective.
+   * We could consider other cases invalid too (values beyond the clipping plane for e.g.),
+   * although in practice these cases should be fairly rare.
    */
   RV3D_NDOF_OFS_IS_VALID = (1 << 0),
 };
