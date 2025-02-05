@@ -613,7 +613,7 @@ static PointerRNA rna_Channelbag_slot_get(PointerRNA *ptr)
   animrig::Slot *slot = action.slot_for_handle(channelbag.slot_handle);
   BLI_assert(slot);
 
-  return rna_pointer_inherit_refine(ptr, &RNA_ActionSlot, slot);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ActionSlot, slot);
 }
 
 static void rna_iterator_Channelbag_fcurves_begin(CollectionPropertyIterator *iter,
