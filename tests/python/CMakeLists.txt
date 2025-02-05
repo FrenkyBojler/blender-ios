@@ -809,6 +809,14 @@ else()
     )
   endforeach()
 
+  add_blender_test(
+    compositor_cpu_file_output
+    --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py 
+    --
+    --testdir "${TEST_SRC_DIR}/compositor/file_output/"
+    --outdir "${TEST_OUT_DIR}/compositor_cpu"
+  )
+
 endif()
 
 if(WITH_GPU_COMPOSITOR_TESTS)
