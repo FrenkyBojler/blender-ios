@@ -21,6 +21,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
@@ -136,7 +137,7 @@ class GeometryToEditableOp {
     return objects;
   }
 
-  Object *get_or_create_object_for_mesh(const Object & /*src_ob_eval*/,
+  Object *get_or_create_object_for_mesh(const Object &src_ob_eval,
                                         const Mesh &src_mesh,
                                         const StringRefNull name)
   {
@@ -148,14 +149,15 @@ class GeometryToEditableOp {
       Mesh *mesh_to_move_from = BKE_mesh_copy_for_eval(src_mesh);
       BKE_mesh_nomain_to_mesh(mesh_to_move_from, new_mesh, new_ob);
       new_mesh->attributes_for_write().remove_anonymous();
-      /* TODO: Materials. */
+      this->copy_materials_to_new_geometry_object(src_ob_eval, src_mesh.id, *new_ob, new_mesh->id);
+
       /* TODO: #remove_invalid_attribute_strings, uv related maybe */
       /* TODO: #multires_customdata_delete */
       return new_ob;
     });
   }
 
-  Object *get_or_create_object_for_curves(const Object & /*src_ob_eval*/,
+  Object *get_or_create_object_for_curves(const Object &src_ob_eval,
                                           const Curves &src_curves,
                                           const StringRefNull name)
   {
@@ -166,12 +168,14 @@ class GeometryToEditableOp {
 
       new_curves->geometry.wrap() = src_curves.geometry.wrap();
       new_curves->geometry.wrap().attributes_for_write().remove_anonymous();
-      /* TODO: Materials. */
+
+      this->copy_materials_to_new_geometry_object(
+          src_ob_eval, src_curves.id, *new_ob, new_curves->id);
       return new_ob;
     });
   }
 
-  Object *get_or_create_object_for_pointcloud(const Object & /*src_ob_eval*/,
+  Object *get_or_create_object_for_pointcloud(const Object &src_ob_eval,
                                               const PointCloud &src_pointcloud,
                                               const StringRefNull name)
   {
@@ -184,12 +188,14 @@ class GeometryToEditableOp {
       PointCloud *pointcloud_to_move_from = BKE_pointcloud_copy_for_eval(&src_pointcloud);
       BKE_pointcloud_nomain_to_pointcloud(pointcloud_to_move_from, new_pointcloud);
       new_pointcloud->attributes_for_write().remove_anonymous();
-      /* TODO: Materials. */
+
+      this->copy_materials_to_new_geometry_object(
+          src_ob_eval, src_pointcloud.id, *new_ob, new_pointcloud->id);
       return new_ob;
     });
   }
 
-  Object *get_or_create_object_for_grease_pencil(const Object & /*src_ob_eval*/,
+  Object *get_or_create_object_for_grease_pencil(const Object &src_ob_eval,
                                                  const GreasePencil &src_grease_pencil,
                                                  const StringRefNull name)
   {
@@ -211,7 +217,9 @@ class GeometryToEditableOp {
             reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
         drawing.strokes_for_write().attributes_for_write().remove_anonymous();
       }
-      /* TODO: Materials. */
+
+      this->copy_materials_to_new_geometry_object(
+          src_ob_eval, src_grease_pencil.id, *new_ob, new_grease_pencil->id);
       return new_ob;
     });
   }
@@ -291,6 +299,35 @@ class GeometryToEditableOp {
     }
     collection_by_instance_.add(reference, collection_for_reference);
     return collection_for_reference;
+  }
+
+  void copy_materials_to_new_geometry_object(const Object &src_ob_eval,
+                                             const ID &src_data_eval,
+                                             Object &dst_ob_orig,
+                                             ID &dst_data_orig) const
+  {
+    const int materials_num = BKE_id_material_used_eval(src_data_eval);
+    if (materials_num == 0) {
+      return;
+    }
+    *BKE_id_material_len_p(&dst_data_orig) = materials_num;
+    dst_ob_orig.totcol = materials_num;
+
+    dst_ob_orig.matbits = MEM_cnew_array<char>(materials_num, __func__);
+    dst_ob_orig.mat = MEM_cnew_array<Material *>(materials_num, __func__);
+    Material ***dst_materials = BKE_id_material_array_p(&dst_data_orig);
+    *dst_materials = MEM_cnew_array<Material *>(materials_num, __func__);
+
+    for (int i = 0; i < materials_num; i++) {
+      const Material *material_eval = BKE_object_material_get_eval(
+          src_ob_eval, src_data_eval, i + 1);
+      Material *material_orig = reinterpret_cast<Material *>(
+          DEG_get_original_id(const_cast<ID *>(&material_eval->id)));
+      if (material_orig) {
+        (*dst_materials)[i] = material_orig;
+        id_us_plus(&material_orig->id);
+      }
+    }
   }
 };
 
