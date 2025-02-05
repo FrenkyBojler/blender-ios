@@ -519,7 +519,77 @@ class NODE_OT_viewer_shortcut_get(Operator):
         if old_active.type != "VIEWER":
             nodes.active = old_active
 
-        return {'FINISHED'}
+        return {"FINISHED"}
+
+
+class NODE_OT_swap_node(Operator):
+    bl_idname = "node.swap_node"
+    bl_label = "Swap Node"
+    bl_options = {"REGISTER", "UNDO"}
+
+    new_node_name: StringProperty(name="New Node", default="")
+
+    @classmethod
+    def poll(cls, context):
+        return (
+            (context.area is not None)
+            and (context.area.type == "NODE_EDITOR")
+            and (context.active_node is not None)
+        )
+
+    def execute(self, context: Context):
+        active_node = context.active_node
+        tree = active_node.id_data
+
+        # capture all of the existing links and default attributes for the current node
+        # to rebuild the connections we can capture the sockets that are connected to and
+        # from other nodes, but on the node itself we have to use the name instead
+        input_links = []
+        output_links = []
+        default_inputs = {}
+
+        for input in active_node.inputs:
+            try:
+                default_inputs[input.name] = input.default_value
+            except AttributeError:
+                pass
+
+            for link in input.links:
+                input_links.append((link.from_socket, input.name))
+                tree.links.remove(link)
+
+        for output in active_node.outputs:
+            for link in output.links:
+                output_links.append((output.name, link.to_socket))
+                tree.links.remove(link)
+
+        node_location = active_node.location
+        tree.nodes.remove(active_node)
+
+        # now we can add the new node, set the default values and rebuild connections
+        # to and from the node
+        node_new = tree.nodes.new(self.new_node_name)
+        node_new.location = node_location
+
+        for name, value in default_inputs.items():
+            try:
+                node_new.inputs[name].default_value = value
+            except AttributeError | KeyError:
+                pass
+
+        for link in input_links:
+            try:
+                tree.links.new(link[0], node_new.inputs[link[1]])
+            except KeyError:
+                pass
+
+        for link in output_links:
+            try:
+                tree.links.new(node_new.outputs[link[0]], link[1])
+            except KeyError:
+                pass
+
+        return {"FINISHED"}
 
 
 class NODE_FH_image_node(FileHandler):
