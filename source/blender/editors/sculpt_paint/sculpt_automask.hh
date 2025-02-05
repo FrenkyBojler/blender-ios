@@ -10,10 +10,8 @@
 #include <memory>
 
 #include "BLI_array.hh"
-#include "BLI_bit_vector.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
-#include "BLI_sys_types.h"
 
 #include "DNA_brush_enums.h"
 
@@ -76,6 +74,21 @@ struct Cache {
    * \note -1 means the vertex value still needs to be calculated.
    */
   Array<float> cavity_factor;
+
+  /**
+   * Calculates the cavity factor for a set of nodes.
+   *
+   * Has no effect on an individual node level if the factor for a vertex has already been
+   * calculated. This data is best calculated outside of any loops that affect the stroke's
+   * position, as the curvature calculation is sensitive to small changes, meaning processing
+   * inside the normal brush update step may result in odd artifacts from ordering of position
+   * updates.
+   *
+   * \note Should be called prior to any call that may use the cavity mode.
+   */
+  void calc_cavity_factor(const Depsgraph &depsgraph,
+                          const Object &object,
+                          const IndexMask &node_mask);
 };
 
 /**
@@ -106,7 +119,7 @@ bool needs_normal(const SculptSession &ss, const Sculpt &sd, const Brush *brush)
  */
 void calc_vert_factors(const Depsgraph &depsgraph,
                        const Object &object,
-                       const Cache &cache,
+                       const Cache &automasking,
                        const bke::pbvh::MeshNode &node,
                        Span<int> verts,
                        MutableSpan<float> factors);
@@ -123,7 +136,7 @@ inline void calc_vert_factors(const Depsgraph &depsgraph,
 }
 void calc_grids_factors(const Depsgraph &depsgraph,
                         const Object &object,
-                        const Cache &cache,
+                        const Cache &automasking,
                         const bke::pbvh::GridsNode &node,
                         Span<int> grids,
                         MutableSpan<float> factors);
@@ -140,7 +153,7 @@ inline void calc_grids_factors(const Depsgraph &depsgraph,
 }
 void calc_vert_factors(const Depsgraph &depsgraph,
                        const Object &object,
-                       const Cache &cache,
+                       const Cache &automasking,
                        const bke::pbvh::BMeshNode &node,
                        const Set<BMVert *, 0> &verts,
                        MutableSpan<float> factors);
@@ -163,7 +176,7 @@ void calc_face_factors(const Depsgraph &depsgraph,
                        const Object &object,
                        OffsetIndices<int> faces,
                        Span<int> corner_verts,
-                       const Cache &cache,
+                       const Cache &automasking,
                        const bke::pbvh::MeshNode &node,
                        Span<int> face_indices,
                        MutableSpan<float> factors);

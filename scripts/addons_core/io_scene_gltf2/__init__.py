@@ -5,7 +5,7 @@
 bl_info = {
     'name': 'glTF 2.0 format',
     'author': 'Julien Duroure, Scurest, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
-    "version": (4, 4, 33),
+    "version": (4, 4, 42),
     'blender': (4, 4, 0),
     'location': 'File > Import-Export',
     'description': 'Import-Export as glTF 2.0',
@@ -671,6 +671,15 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         default=True
     )
 
+    export_sampling_interpolation_fallback: EnumProperty(
+        name='Sampling Interpolation Fallback',
+        items=(('LINEAR', 'Linear', 'Linear interpolation between keyframes'),
+               ('STEP', 'Step', 'No interpolation between keyframes'),
+        ),
+        description='Interpolation fallback for sampled animations, when the property is not keyed',
+        default='LINEAR'
+    )
+
     export_pointer_animation: BoolProperty(
         name='Export Animation Pointer (Experimental)',
         description='Export material, Light & Camera animation as Animation Pointer. '
@@ -1036,21 +1045,6 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
                 self.report({"ERROR"}, "Loading export settings failed. Removed corrupted settings")
                 del context.scene[self.scene_key]
 
-        import sys
-        preferences = bpy.context.preferences
-        for addon_name in preferences.addons.keys():
-            try:
-                if hasattr(
-                        sys.modules[addon_name],
-                        'glTF2ExportUserExtension') or hasattr(
-                        sys.modules[addon_name],
-                        'glTF2ExportUserExtensions'):
-                    exporter_extension_layout_draw[addon_name] = sys.modules[addon_name].draw_export if hasattr(
-                        sys.modules[addon_name], 'draw_export') else sys.modules[addon_name].draw
-            except Exception:
-                pass
-
-        self.has_active_exporter_extensions = len(exporter_extension_layout_draw.keys()) > 0
         return ExportHelper.invoke(self, context, event)
 
     def save_settings(self, context):
@@ -1078,6 +1072,7 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         import os
         import datetime
         import logging
+        from .io.exp.user_extensions import export_user_extensions
         from .io.com.debug import Log
         from .blender.exp import export as gltf2_blender_export
         from .io.com.path import path_to_uri
@@ -1089,6 +1084,15 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
 
         # All custom export settings are stored in this container.
         export_settings = {}
+
+        # Collection Export does not handle correctly props declaration for now
+        # So use this tweak to manage it, waiting for a better solution
+        is_file_browser = context.space_data and context.space_data.type == 'FILE_BROWSER'
+        if not is_file_browser:
+            if not hasattr(context.scene, "gltf_action_filter") and self.export_action_filter:
+                bpy.types.Scene.gltf_action_filter = bpy.props.CollectionProperty(type=GLTF2_filter_action)
+                bpy.types.Scene.gltf_action_filter_active = bpy.props.IntProperty()
+
 
         # Get log level from parameters
         # If not set, get it from Blender app debug value
@@ -1179,6 +1183,7 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         if self.export_animations:
             export_settings['gltf_frame_range'] = self.export_frame_range
             export_settings['gltf_force_sampling'] = self.export_force_sampling
+            export_settings['gltf_sampling_interpolation_fallback'] = self.export_sampling_interpolation_fallback
             if not self.export_force_sampling:
                 export_settings['gltf_def_bones'] = False
                 export_settings['gltf_bake_animation'] = False
@@ -1318,6 +1323,9 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         # Initialize logging for export
         export_settings['log'] = Log(export_settings['loglevel'])
 
+        # Pre-export hook
+        export_user_extensions('pre_export_hook', export_settings)
+
         profile = bpy.app.debug_value == 102
         if profile:
             import cProfile
@@ -1341,6 +1349,9 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
             self.report({message_type}, message)
 
         export_settings['log'].flush()
+
+        # Post-export hook
+        export_user_extensions('post_export_hook', export_settings)
 
         return res
 
@@ -1708,6 +1719,7 @@ def export_panel_animation_sampling(layout, operator):
         body.active = operator.export_animations and operator.export_force_sampling
 
         body.prop(operator, 'export_frame_step')
+        body.prop(operator, 'export_sampling_interpolation_fallback')
 
 
 def export_panel_animation_pointer(layout, operator):

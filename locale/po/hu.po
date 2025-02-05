@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'5c1749f7b7d3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
+"POT-Creation-Date: 2025-02-03 14:39+0000\n"
 "PO-Revision-Date: 2024-01-11 03:55+0000\n"
 "Last-Translator: Répási Dávid <hu.repasidavid@protonmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -5240,10 +5240,6 @@ msgid "Display the object's name"
 msgstr "Az objektum nevének megjelenítése"
 
 
-msgid "Shape Key Lock"
-msgstr "Formakulcs lezárása"
-
-
 msgid "Display the object's texture space"
 msgstr "Az objektum textúraterének megjelenítése"
 
@@ -6614,6 +6610,10 @@ msgid "Mask"
 msgstr "Maszk"
 
 
+msgid "Metaball"
+msgstr "Meta test"
+
+
 msgid "Show/Hide"
 msgstr "Mutat/Rejt"
 
@@ -6636,10 +6636,6 @@ msgstr "Navigáció"
 
 msgid "Align View"
 msgstr "Nézet igazítása"
-
-
-msgid "Metaball"
-msgstr "Meta test"
 
 
 msgid "Light"
@@ -9301,10 +9297,6 @@ msgstr "Forgatás"
 
 msgid "Translate"
 msgstr "Áthelyez"
-
-
-msgid "Wrapping"
-msgstr "Borítás/csomagolás"
 
 
 msgid "X Axis"
@@ -14358,14 +14350,6 @@ msgid "Reduce extra velocity that can build up when objects collide (lowers simu
 msgstr "Extra sebesség csökkentése, ami termelődhet az objektumok ütözésekor (alacsonyabb szimulációs stabilitás, csak akkor ajánlott, ha feltétlenül szükséges)"
 
 
-msgid "Translate X"
-msgstr "Áthelyezés X (irányba)"
-
-
-msgid "Translate Y"
-msgstr "Áthelyezés Y (irányba)"
-
-
 msgid "Show Cache"
 msgstr "Gyorsítótár megjelenítése"
 
@@ -14720,6 +14704,14 @@ msgstr "Trimmelés kezdete"
 
 msgid "Outline Width"
 msgstr "Körvonal vastagsága"
+
+
+msgid "Translate X"
+msgstr "Áthelyezés X (irányba)"
+
+
+msgid "Translate Y"
+msgstr "Áthelyezés Y (irányba)"
 
 
 msgid "Force Field"
@@ -16513,6 +16505,10 @@ msgid "Operation requires an active bone"
 msgstr "A művelet aktív csontot igényel"
 
 
+msgid "Cancel"
+msgstr "Mégsem"
+
+
 msgid "Cannot spin"
 msgstr "Nem lehet forgatni"
 
@@ -16575,10 +16571,6 @@ msgstr "Átlátszóság:"
 
 msgid "Hex"
 msgstr "Hex"
-
-
-msgid "Cancel"
-msgstr "Mégsem"
 
 
 msgid "Movie"
@@ -17103,10 +17095,6 @@ msgid "Value:"
 msgstr "Érték:"
 
 
-msgid "Decimate Keyframes"
-msgstr "Kulcs-képkockák tizedelése"
-
-
 msgid "Select Layer"
 msgstr "Réteg kijelölése"
 
@@ -17153,18 +17141,6 @@ msgstr " Elnevezett tulajdonság"
 
 msgid " Named Attributes"
 msgstr " Elnevezett tulajdonságok"
-
-
-msgid "Add a multiply effect strip to the sequencer"
-msgstr "Egy megtöbbszöröző effektsáv hozzáadása a szekvenszerhez"
-
-
-msgid "Add a wipe transition to the sequencer"
-msgstr "Egy törlő tranzíció hozzáadása a szekvenszerhez"
-
-
-msgid "Add a glow effect strip to the sequencer"
-msgstr "Egy világító effektsáv hozzáadása a szekvenszerhez"
 
 
 msgid "Add a text strip to the sequencer"

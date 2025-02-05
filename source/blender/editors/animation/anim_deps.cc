@@ -21,8 +21,8 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.hh"
@@ -184,9 +184,9 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
   FCurve *fcu = (FCurve *)ale->data;
   Strip *strip = nullptr;
 
-  /* Only affect if F-Curve involves sequence_editor.sequences. */
+  /* Only affect if F-Curve involves sequence_editor.strips. */
   char strip_name[sizeof(strip->name)];
-  if (!BLI_str_quoted_substr(fcu->rna_path, "sequences_all[", strip_name, sizeof(strip_name))) {
+  if (!BLI_str_quoted_substr(fcu->rna_path, "strips_all[", strip_name, sizeof(strip_name))) {
     return;
   }
 

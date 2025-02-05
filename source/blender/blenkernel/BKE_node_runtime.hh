@@ -47,39 +47,19 @@ struct ReferenceLifetimesInfo;
 
 namespace blender::bke {
 
-struct NodeIDHash {
-  uint64_t operator()(const bNode *node) const
-  {
-    return node->identifier;
-  }
-  uint64_t operator()(const int32_t id) const
-  {
-    return id;
-  }
-};
-
-struct NodeIDEquality {
-  bool operator()(const bNode *a, const bNode *b) const
-  {
-    return a->identifier == b->identifier;
-  }
-  bool operator()(const bNode *a, const int32_t b) const
-  {
-    return a->identifier == b;
-  }
-  bool operator()(const int32_t a, const bNode *b) const
-  {
-    return this->operator()(b, a);
-  }
-};
-
 enum class FieldSocketState : int8_t {
   RequiresSingle,
   CanBeField,
   IsField,
 };
 
-using NodeIDVectorSet = VectorSet<bNode *, DefaultProbingStrategy, NodeIDHash, NodeIDEquality>;
+struct NodeIDGetter {
+  int32_t operator()(const bNode *value) const
+  {
+    return value->identifier;
+  }
+};
+using NodeIDVectorSet = CustomIDVectorSet<bNode *, NodeIDGetter>;
 
 struct NodeLinkError {
   std::string tooltip;
@@ -160,6 +140,14 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   /** Information about usage of anonymous attributes within the group. */
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
   std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
+
+  /**
+   * A bool for each input socket (indexed by `index_in_all_inputs()`) that indicates whether this
+   * socket is used by the node it belongs to. Sockets for which this is false may e.g. be grayed
+   * out.
+   */
+  blender::Array<bool> inferenced_input_socket_usage;
+  CacheMutex inferenced_input_socket_usage_mutex;
 
   /**
    * For geometry nodes, a lazy function graph with some additional info is cached. This is used to
@@ -712,6 +700,28 @@ inline blender::IndexRange bNode::output_socket_indices_in_tree() const
     return {};
   }
   return blender::IndexRange::from_begin_size(this->output_socket(0).index_in_tree(), num_outputs);
+}
+
+inline blender::IndexRange bNode::input_socket_indices_in_all_inputs() const
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  const int num_inputs = this->runtime->inputs.size();
+  if (num_inputs == 0) {
+    return {};
+  }
+  return blender::IndexRange::from_begin_size(this->input_socket(0).index_in_all_inputs(),
+                                              num_inputs);
+}
+
+inline blender::IndexRange bNode::output_socket_indices_in_all_outputs() const
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  const int num_outputs = this->runtime->outputs.size();
+  if (num_outputs == 0) {
+    return {};
+  }
+  return blender::IndexRange::from_begin_size(this->output_socket(0).index_in_all_outputs(),
+                                              num_outputs);
 }
 
 inline bNodeSocket &bNode::input_socket(int index)
