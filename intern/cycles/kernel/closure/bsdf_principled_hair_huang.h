@@ -37,7 +37,7 @@ struct HuangHairExtra {
   /* The projected width of half a pixel at `sd->P` in `h` space. */
   float pixel_coverage;
 
-  /* Valid integration interval. */
+  /* Valid integration interval, pre-divided by the radius so the range is [-1, 1]. */
   Interval<float> h;
 };
 
@@ -160,12 +160,13 @@ ccl_device_inline float to_gamma(const float phi, const float b)
 ccl_device_inline float phi_to_h(const float phi, const float b, const float3 wi)
 {
   if (is_circular(b)) {
-    return -sinf(phi);
+    return -fast_sinf(phi);
   }
 
+  float sin_gamma, cos_gamma;
+  fast_sincosf(to_gamma(phi, b), &sin_gamma, &cos_gamma);
   const float2 sin_cos_phi_i = sincos_phi(wi);
-  const float gamma = to_gamma(phi, b);
-  return -sin_cos_phi_i.y * sinf(gamma) + b * sin_cos_phi_i.x * cosf(gamma);
+  return -sin_cos_phi_i.y * sin_gamma + b * sin_cos_phi_i.x * cos_gamma;
 }
 
 /* Solve for `gamma` in equation `h = -cos_phi_i * sin_gamma + b * sin_phi_i * cos_gamma`.
@@ -178,10 +179,13 @@ ccl_device_inline float h_to_gamma(const float h_div_r, const float b, const flo
 /* Jacobian |d_gamma/d_h|, used for changing variable in the integration. */
 ccl_device_inline float d_gamma_d_h(const float2 sincos_phi_i, const float gamma, const float b)
 {
-  const float d_h_d_gamma = is_circular(b) ?
-                                cosf(gamma) :
-                                (sincos_phi_i.y * cosf(gamma) + b * sincos_phi_i.x * sinf(gamma));
-  return safe_divide(1.0f, d_h_d_gamma);
+  if (is_circular(b)) {
+    return safe_divide(1.0f, fast_cosf(gamma));
+  }
+
+  float sin_gamma, cos_gamma;
+  fast_sincosf(gamma, &sin_gamma, &cos_gamma);
+  return safe_divide(1.0f, sincos_phi_i.y * cos_gamma + b * sincos_phi_i.x * sin_gamma);
 }
 
 /* Compute the coordinate on the ellipse, given `gamma` and the aspect ratio between the minor axis
