@@ -664,7 +664,7 @@ class FileOutputOperation : public NodeOperation {
             MEM_malloc_arrayN(buffer_size, sizeof(float), "File Output Buffer Copy."));
         threading::parallel_for(IndexRange(buffer_size), 1024, [&](const IndexRange sub_range) {
           for (const int64_t i : sub_range) {
-            buffer[i] = result.float_texture()[i];
+            buffer[i] = static_cast<float *>(result.cpu_data().data())[i];
           }
         });
       }
@@ -756,7 +756,7 @@ class FileOutputOperation : public NodeOperation {
           MEM_malloc_arrayN(buffer_size, sizeof(float), "File Output Buffer Copy."));
       threading::parallel_for(IndexRange(buffer_size), 1024, [&](const IndexRange sub_range) {
         for (const int64_t i : sub_range) {
-          buffer[i] = result.float_texture()[i];
+          buffer[i] = static_cast<float *>(result.cpu_data().data())[i];
         }
       });
     }
