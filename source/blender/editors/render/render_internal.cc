@@ -396,6 +396,7 @@ static void render_freejob(void *rjv)
   MEM_delete(rj);
 }
 
+/* The ret text will be shown at the top of the render window. */
 static void make_renderinfo_string(const RenderStats *rs,
                                    const Scene *scene,
                                    const bool v3d_override,
@@ -407,6 +408,7 @@ static void make_renderinfo_string(const RenderStats *rs,
   struct {
     char time_last[32];
     char time_elapsed[32];
+    char time_remaining[32];
     char frame[16];
     char statistics[64];
   } info_buffers;
@@ -441,6 +443,7 @@ static void make_renderinfo_string(const RenderStats *rs,
       info_buffers.time_last, sizeof(info_buffers.time_last), rs->lastframetime);
 
   ret_array[i++] = info_sep;
+  const double elapsed_s = BLI_time_now_seconds() - rs->starttime;
   if (rs->infostr && rs->infostr[0]) {
     if (rs->lastframetime != 0.0) {
       ret_array[i++] = "Last:";
@@ -449,14 +452,25 @@ static void make_renderinfo_string(const RenderStats *rs,
     }
 
     info_time = info_buffers.time_elapsed;
-    BLI_timecode_string_from_time_simple(info_buffers.time_elapsed,
-                                         sizeof(info_buffers.time_elapsed),
-                                         BLI_time_now_seconds() - rs->starttime);
+    BLI_timecode_string_from_time_simple(
+        info_buffers.time_elapsed, sizeof(info_buffers.time_elapsed), elapsed_s);
   }
 
   ret_array[i++] = RPT_("Time:");
   ret_array[i++] = info_time;
   ret_array[i++] = info_space;
+
+  if (elapsed_s < rs->framedurationsecs) {
+    /* Assume this render will take as many seconds as the last one. */
+    const double remaining_s = rs->framedurationsecs - elapsed_s;
+    BLI_timecode_string_from_time_simple(
+        info_buffers.time_remaining, sizeof(info_buffers.time_remaining), remaining_s);
+
+    ret_array[i++] = info_sep;
+    ret_array[i++] = RPT_("Remaining:");
+    ret_array[i++] = info_buffers.time_remaining;
+    ret_array[i++] = info_space;
+  }
 
   /* Statistics. */
   {

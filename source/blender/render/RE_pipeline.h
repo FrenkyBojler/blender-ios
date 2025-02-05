@@ -152,6 +152,10 @@ struct RenderStats {
   int cfra;
   bool localview;
   double starttime, lastframetime;
+
+  /* Our best guess on how many seconds rendering a frame takes. */
+  double framedurationsecs;
+
   const char *infostr, *statstr;
   char scene_name[MAX_ID_NAME - 2];
   int mem_used, mem_peak;

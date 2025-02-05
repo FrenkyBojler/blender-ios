@@ -193,6 +193,7 @@ static bool default_break(void * /*arg*/)
   return G.is_break == true;
 }
 
+/* Prints render progress messages on the console during command line renders. */
 static void stats_background(void * /*arg*/, RenderStats *rs)
 {
   if (rs->infostr == nullptr) {
@@ -1601,6 +1602,22 @@ static void do_render_sequencer(Render *re)
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
+static void register_frame_duration(RenderStats *rs, double framesecs, bool finished)
+{
+  rs->lastframetime = framesecs;
+
+  if (framesecs > rs->framedurationsecs) {
+    /* framesecs is longer than what we knew was possible, go for this value whether
+     * or not the frame finished. */
+    rs->framedurationsecs = framesecs;
+  }
+
+  if (finished) {
+    /* framesecs is how long a frame actually took from start to finish */
+    rs->framedurationsecs = framesecs;
+  }
+}
+
 /* Render full pipeline, using render engine, sequencer and compositing nodes. */
 static void do_render_full_pipeline(Render *re)
 {
@@ -1633,7 +1650,7 @@ static void do_render_full_pipeline(Render *re)
     do_render_compositor(re);
   }
 
-  re->i.lastframetime = BLI_time_now_seconds() - re->i.starttime;
+  register_frame_duration(&re->i, BLI_time_now_seconds() - re->i.starttime, !G.is_break);
 
   re->stats_draw(&re->i);
 
@@ -2337,7 +2354,7 @@ static bool do_write_image_or_movie(
   }
 
   render_time = re->i.lastframetime;
-  re->i.lastframetime = BLI_time_now_seconds() - re->i.starttime;
+  register_frame_duration(&re->i, BLI_time_now_seconds() - re->i.starttime, !G.is_break);
 
   BLI_timecode_string_from_time_simple(filepath, sizeof(filepath), re->i.lastframetime);
   std::string message = fmt::format("Time: {}", filepath);

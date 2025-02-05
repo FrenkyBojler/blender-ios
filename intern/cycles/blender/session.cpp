@@ -1003,14 +1003,6 @@ void BlenderSession::update_status_progress()
   const float mem_used = (float)session->stats.mem_used / 1024.0f / 1024.0f;
   const float mem_peak = (float)session->stats.mem_peak / 1024.0f / 1024.0f;
   if (background) {
-
-    if (progress > 0) {
-      const double remaining_time = session->get_estimated_remaining_time();
-      if (remaining_time > 0) {
-        timestatus = "Remaining: " + time_human_readable_from_seconds(remaining_time) + " | ";
-      }
-    }
-
     timestatus += string_printf("Mem: %dM | ", (int)ceilf(mem_used));
   }
 
