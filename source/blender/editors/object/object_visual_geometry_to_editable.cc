@@ -6,6 +6,7 @@
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -19,6 +20,7 @@
 
 #include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
@@ -57,6 +59,7 @@ struct ComponentObjects {
   Object *mesh_ob = nullptr;
   Object *curves_ob = nullptr;
   Object *pointcloud_ob = nullptr;
+  Object *greasepencil_ob = nullptr;
   Vector<Object *> instance_objects;
 };
 
@@ -91,6 +94,9 @@ class GeometryToEditableOp {
     if (component_objects.pointcloud_ob != nullptr) {
       BKE_collection_object_add(&bmain_, collection, component_objects.pointcloud_ob);
     }
+    if (component_objects.greasepencil_ob != nullptr) {
+      BKE_collection_object_add(&bmain_, collection, component_objects.greasepencil_ob);
+    }
     for (Object *instance_object : component_objects.instance_objects) {
       BKE_collection_object_add(&bmain_, collection, instance_object);
     }
@@ -116,6 +122,12 @@ class GeometryToEditableOp {
       if (pointcloud->totpoint > 0) {
         objects.pointcloud_ob = this->get_or_create_object_for_pointcloud(
             src_ob_eval, *pointcloud, geometry.name);
+      }
+    }
+    if (const GreasePencil *greasepencil = geometry.get_grease_pencil()) {
+      if (greasepencil->layers().size() > 0) {
+        objects.greasepencil_ob = this->get_or_create_object_for_grease_pencil(
+            src_ob_eval, *greasepencil, geometry.name);
       }
     }
     if (const bke::Instances *instances = geometry.get_instances()) {
@@ -171,6 +183,24 @@ class GeometryToEditableOp {
 
       PointCloud *pointcloud_to_move_from = BKE_pointcloud_copy_for_eval(&src_pointcloud);
       BKE_pointcloud_nomain_to_pointcloud(pointcloud_to_move_from, new_pointcloud);
+      /* TODO: Materials. */
+      return new_ob;
+    });
+  }
+
+  Object *get_or_create_object_for_grease_pencil(const Object & /*src_ob_eval*/,
+                                                 const GreasePencil &src_grease_pencil,
+                                                 const StringRefNull name)
+  {
+    return new_object_by_generated_geometry_.lookup_or_add_cb(&src_grease_pencil.id, [&]() {
+      GreasePencil *new_grease_pencil = reinterpret_cast<GreasePencil *>(
+          BKE_id_new(&bmain_, ID_GP, name.c_str()));
+      Object *new_ob = BKE_object_add_only_object(&bmain_, OB_GREASE_PENCIL, name.c_str());
+      new_ob->data = new_grease_pencil;
+
+      GreasePencil *greasepencil_to_move_from = BKE_grease_pencil_copy_for_eval(
+          &src_grease_pencil);
+      BKE_grease_pencil_nomain_to_grease_pencil(greasepencil_to_move_from, new_grease_pencil);
       /* TODO: Materials. */
       return new_ob;
     });
