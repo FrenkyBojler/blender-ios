@@ -906,7 +906,7 @@ static void GREASE_PENCIL_OT_active_frame_delete(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "all", false, "Delete all", "Delete active keyframes of all layers");
 }
 
-bool grease_pencil_active_breakdown_frame_poll(bContext* C)
+bool grease_pencil_active_breakdown_frame_poll(bContext *C)
 {
   if (!active_grease_pencil_poll(C)) {
     return false;
@@ -924,7 +924,7 @@ bool grease_pencil_active_breakdown_frame_poll(bContext* C)
   return false;
 }
 
-static int grease_pencil_delete_breakdown_frames_exec(bContext* C, wmOperator* op)
+static int grease_pencil_delete_breakdown_frames_exec(bContext *C, wmOperator * /*op*/)
 {
   const Object &ob = *CTX_data_active_object(C);
   const Scene &scene = *CTX_data_scene(C);
@@ -933,9 +933,8 @@ static int grease_pencil_delete_breakdown_frames_exec(bContext* C, wmOperator* o
   const int current_frame = active_layer->start_frame_at(scene.r.cfra).value();
 
   const Span<int> sorted_keys = active_layer->sorted_keys();
-  int curr_frame_index = sorted_keys.first_index(current_frame);
+  const int curr_frame_index = sorted_keys.first_index(current_frame);
   bool changed = false;
-
 
   for (int i = curr_frame_index; i <= sorted_keys.size(); i++) {
     int frame_number = sorted_keys[i];
