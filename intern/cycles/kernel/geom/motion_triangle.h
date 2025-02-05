@@ -17,6 +17,8 @@
 
 #include "kernel/bvh/util.h"
 
+#include "kernel/geom/triangle.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Time interpolation of vertex positions and normals */
@@ -216,15 +218,6 @@ ccl_device_inline float3 motion_triangle_smooth_normal(KernelGlobals kg,
   return motion_triangle_smooth_normal(kg, Ng, object, tri_vindex, numsteps, step, t, u, v);
 }
 
-/* Evaluate a quantity at barycentric coordinates u, v, given the values at three triangle
- * vertices. */
-template<typename T>
-ccl_device_inline T
-triangle_interpolate(const float u, const float v, const T f0, const T f1, const T f2)
-{
-  return (1.0f - u - v) * f0 + u * f1 + v * f2;
-}
-
 /* Compute motion triangle normals at the hit position, and offsetted positions in x and y
  * direction for bump mapping. */
 ccl_device_inline float3 motion_triangle_smooth_normal(KernelGlobals kg,
@@ -249,8 +242,10 @@ ccl_device_inline float3 motion_triangle_smooth_normal(KernelGlobals kg,
   motion_triangle_normals(kg, object, tri_vindex, numsteps, numverts, step, t, n);
 
   const float3 N = safe_normalize(triangle_interpolate(u, v, n[0], n[1], n[2]));
-  N_x = safe_normalize(triangle_interpolate(u + du.dx, v + dv.dx, n[0], n[1], n[2]));
-  N_y = safe_normalize(triangle_interpolate(u + du.dy, v + dv.dy, n[0], n[1], n[2]));
+  N_x = safe_normalize(
+      triangle_interpolate(u + du.dx * BUMP_DX, v + dv.dx * BUMP_DX, n[0], n[1], n[2]));
+  N_y = safe_normalize(
+      triangle_interpolate(u + du.dy * BUMP_DY, v + dv.dy * BUMP_DY, n[0], n[1], n[2]));
 
   N_x = is_zero(N_x) ? Ng : N_x;
   N_y = is_zero(N_y) ? Ng : N_y;

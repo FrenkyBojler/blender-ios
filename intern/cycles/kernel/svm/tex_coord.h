@@ -120,8 +120,14 @@ ccl_device_inline float3 texco_normal_from_uv(KernelGlobals kg,
       N = sd->Ng;
       object_inverse_normal_transform(kg, sd, &N);
     }
-    else if (sd->flag & SD_BACKFACING) {
-      N = -N;
+    else {
+      if (sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED) {
+        /* Transform to local space. */
+        object_inverse_normal_transform(kg, sd, &N);
+      }
+      if (sd->flag & SD_BACKFACING) {
+        N = -N;
+      }
     }
   }
   else {

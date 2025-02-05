@@ -16,23 +16,38 @@ CCL_NAMESPACE_BEGIN
 bool attribute_bump_map_normal(KernelGlobals kg, ccl_private const ShaderData *sd, float3 f[3])
 {
   if (!(sd->type & PRIMITIVE_TRIANGLE) || !(sd->shader & SHADER_SMOOTH_NORMAL)) {
+    /* TODO: implement for curve. */
     return false;
   }
 
+  const bool backfacing = (sd->shader & SD_BACKFACING);
+
+  /* Fallback when the smooth normal is zero. */
+  float3 Ng = backfacing ? -sd->Ng : sd->Ng;
+  object_inverse_normal_transform(kg, sd, &Ng);
+
   if (sd->type == PRIMITIVE_TRIANGLE) {
-    f[0] = sd->N;
-    f[1] = triangle_smooth_normal(kg, sd->Ng, sd->prim, sd->u + sd->du.dx, sd->v + sd->dv.dx);
-    f[2] = triangle_smooth_normal(kg, sd->Ng, sd->prim, sd->u + sd->du.dy, sd->v + sd->dv.dy);
+    f[0] = triangle_smooth_normal(kg, Ng, sd->prim, sd->u, sd->v, sd->du, sd->dv, f[1], f[2]);
   }
   else {
+    assert(sd->type & PRIMITIVE_MOTION_TRIANGLE);
     f[0] = motion_triangle_smooth_normal(
-        kg, sd->Ng, sd->object, sd->prim, sd->time, sd->u, sd->v, sd->du, sd->dv, f[1], f[2]);
+        kg, Ng, sd->object, sd->prim, sd->time, sd->u, sd->v, sd->du, sd->dv, f[1], f[2]);
   }
 
-  if (sd->shader & SD_BACKFACING) {
+  if (sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED) {
+    /* Transform to local space. */
+    object_inverse_normal_transform(kg, sd, f);
+    object_inverse_normal_transform(kg, sd, f + 1);
+    object_inverse_normal_transform(kg, sd, f + 2);
+  }
+
+  if (backfacing) {
+    f[0] = -f[0];
     f[1] = -f[1];
     f[2] = -f[2];
   }
+
   f[1] -= f[0];
   f[2] -= f[0];
 
