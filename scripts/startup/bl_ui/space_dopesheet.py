@@ -600,6 +600,7 @@ class DOPESHEET_MT_key(Menu):
         layout.operator("action.paste", text="Paste Flipped").flipped = True
         layout.operator("action.duplicate_move")
         layout.operator("action.delete")
+        layout.operator("grease_pencil.delete_breakdown")
 
         layout.separator()
         layout.operator_menu_enum("action.keyframe_type", "type", text="Keyframe Type")

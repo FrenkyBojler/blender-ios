@@ -906,6 +906,82 @@ static void GREASE_PENCIL_OT_active_frame_delete(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "all", false, "Delete all", "Delete active keyframes of all layers");
 }
 
+bool grease_pencil_active_breakdown_frame_poll(bContext* C)
+{
+  if (!active_grease_pencil_poll(C)) {
+    return false;
+  }
+  const Object &ob = *CTX_data_active_object(C);
+  const Scene &scene = *CTX_data_scene(C);
+
+  const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
+  if (const bke::greasepencil::Layer *active_layer = grease_pencil.get_active_layer()) {
+    const GreasePencilFrame *frame = active_layer->frame_at(scene.r.cfra);
+    if (frame && frame->type == BEZT_KEYTYPE_BREAKDOWN) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static int grease_pencil_delete_breakdown_frames_exec(bContext* C, wmOperator* op)
+{
+  const Object &ob = *CTX_data_active_object(C);
+  const Scene &scene = *CTX_data_scene(C);
+  const int current_frame = scene.r.cfra;
+
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
+  bke::greasepencil::Layer *active_layer = grease_pencil.get_active_layer();
+  const Span<int> sorted_keys = active_layer->sorted_keys();
+  int key_index = sorted_keys.first_index(current_frame);
+  bool changed = false;
+
+  for (int i = key_index; i <= sorted_keys.size(); i++) {
+    int frame_number = sorted_keys[i];
+    GreasePencilFrame *frame = active_layer->frame_at(frame_number);
+    if (frame && frame->type == BEZT_KEYTYPE_BREAKDOWN) {
+      active_layer->remove_frame(frame_number);
+      changed = true;
+      continue;
+    }
+    break;
+  }
+  for (int i = key_index - 1; i >= 0; i--) {
+    int frame_number = sorted_keys[i];
+    GreasePencilFrame *frame = active_layer->frame_at(frame_number);
+    if (frame && frame->type == BEZT_KEYTYPE_BREAKDOWN) {
+      active_layer->remove_frame(frame_number);
+      changed = true;
+      continue;
+    }
+    break;
+  }
+
+  if (!changed) {
+    return OPERATOR_CANCELLED;
+  }
+
+  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_delete_breakdown(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Delete Breakdown Frames";
+  ot->idname = "GREASE_PENCIL_OT_delete_breakdown";
+  ot->description = "Delete breakdown frames generated from interpolate sequence";
+
+  /* callback */
+  ot->exec = grease_pencil_delete_breakdown_frames_exec;
+  ot->poll = grease_pencil_active_breakdown_frame_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 }  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_frames()
@@ -915,4 +991,5 @@ void ED_operatortypes_grease_pencil_frames()
   WM_operatortype_append(GREASE_PENCIL_OT_frame_clean_duplicate);
   WM_operatortype_append(GREASE_PENCIL_OT_frame_duplicate);
   WM_operatortype_append(GREASE_PENCIL_OT_active_frame_delete);
+  WM_operatortype_append(GREASE_PENCIL_OT_delete_breakdown);
 }
