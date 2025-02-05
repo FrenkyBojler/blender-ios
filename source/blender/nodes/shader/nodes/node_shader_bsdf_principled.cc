@@ -98,7 +98,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(100.0f)
       .short_label("Radius")
-      .description("Scattering radius to use for subsurface component (multiplied with Scale)");
+      .description(
+          "Scattering radius of R,G,B channels to use for subsurface component (multiplied with "
+          "Scale)");
 #define SOCK_SUBSURFACE_RADIUS_ID 9
   sss.add_input<decl::Float>("Subsurface Scale")
       .default_value(0.05f)
