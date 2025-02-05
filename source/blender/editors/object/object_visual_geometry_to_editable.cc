@@ -12,19 +12,22 @@
 #include "BKE_material.hh"
 #include "BKE_mesh.h"
 #include "BKE_object.hh"
-
 #include "BKE_pointcloud.hh"
+
 #include "DEG_depsgraph_query.hh"
+
+#include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
-
 #include "DNA_pointcloud_types.h"
+
 #include "ED_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "BLI_map.hh"
+#include "BLI_math_matrix.hh"
 
 #include "object_intern.hh"
 
@@ -126,6 +129,9 @@ class GeometryToEditableOp {
             src_ob_eval, *pointcloud, geometry.name);
       }
     }
+    if (const bke::Instances *instances = geometry.get_instances()) {
+      objects.instance_objects = this->create_objects_for_instances(src_ob_eval, *instances);
+    }
     return objects;
   }
 
@@ -180,6 +186,86 @@ class GeometryToEditableOp {
       return new_ob;
     });
   }
+
+  Vector<Object *> create_objects_for_instances(const Object &src_ob_eval,
+                                                const bke::Instances &src_instances)
+  {
+    bke::Instances instances = src_instances;
+    instances.remove_unused_references();
+
+    Vector<Collection *> collection_by_handle;
+    for (const bke::InstanceReference &reference : instances.references()) {
+      collection_by_handle.append(
+          this->get_or_create_collection_for_instance_reference(src_ob_eval, reference));
+    }
+
+    const Span<int> handles = instances.reference_handles();
+    const Span<float4x4> transforms = instances.transforms();
+
+    Vector<Object *> objects;
+    for (const int instance_i : IndexRange(instances.instances_num())) {
+      const int handle = handles[instance_i];
+      if (handle < 0 || handle >= collection_by_handle.size()) {
+        continue;
+      }
+      Collection *collection_to_instance = collection_by_handle[handle];
+      if (!collection_to_instance) {
+        continue;
+      }
+      Object *instance_object = BKE_object_add_only_object(
+          &bmain_, OB_EMPTY, BKE_id_name(collection_to_instance->id));
+      instance_object->transflag = OB_DUPLICOLLECTION;
+      instance_object->instance_collection = collection_to_instance;
+
+      const float4x4 &transform = transforms[instance_i];
+      float3 location;
+      math::EulerXYZ rotation;
+      float3 scale;
+      math::to_loc_rot_scale_safe<true>(transform, location, rotation, scale);
+
+      copy_v3_v3(instance_object->loc, location);
+      copy_v3_v3(instance_object->rot,
+                 float3(rotation.x().radian(), rotation.y().radian(), rotation.z().radian()));
+      copy_v3_v3(instance_object->scale, scale);
+
+      objects.append(instance_object);
+    }
+    return objects;
+  }
+
+  Collection *get_or_create_collection_for_instance_reference(
+      const Object &src_ob_eval, const bke::InstanceReference &reference)
+  {
+    if (Collection *collection = collection_by_instance_.lookup_default(reference, nullptr)) {
+      return collection;
+    }
+    Collection *collection_for_reference = nullptr;
+    switch (reference.type()) {
+      case bke::InstanceReference::Type::None: {
+        break;
+      }
+      case bke::InstanceReference::Type::Object: {
+        /* Create a collection for the object because we can't instance objects directly. */
+        Object &object_eval = reference.object();
+        collection_for_reference = BKE_collection_add(
+            &bmain_, nullptr, BKE_id_name(object_eval.id));
+        Object *object_orig = DEG_get_original_object(&object_eval);
+        BKE_collection_object_add(&bmain_, collection_for_reference, object_orig);
+        break;
+      }
+      case bke::InstanceReference::Type::Collection: {
+        collection_for_reference = &reference.collection();
+        break;
+      }
+      case bke::InstanceReference::Type::GeometrySet: {
+        collection_for_reference = this->build_collection_for_geometry(src_ob_eval,
+                                                                       reference.geometry_set());
+        break;
+      }
+    }
+    collection_by_instance_.add(reference, collection_for_reference);
+    return collection_for_reference;
+  }
 };
 
 static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
@@ -225,6 +311,8 @@ void OBJECT_OT_visual_geometry_to_editable(wmOperatorType *ot)
 
   ot->exec = visual_geometry_to_editable_exec;
   ot->poll = ED_operator_object_active;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 }  // namespace blender::ed::object
