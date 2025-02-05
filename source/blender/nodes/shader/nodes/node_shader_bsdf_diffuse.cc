@@ -47,7 +47,15 @@ NODE_SHADER_MATERIALX_BEGIN
 
   return create_node("oren_nayar_diffuse_bsdf",
                      NodeItem::Type::BSDF,
-                     {{"color", color}, {"roughness", roughness}, {"normal", normal}});
+                     {{"color", color},
+                      {"roughness", roughness},
+                      {"normal", normal}
+#  if !(MATERIALX_MAJOR_VERSION <= 1 && MATERIALX_MINOR_VERSION <= 38)
+                      ,
+                      {"energy_compensation", val(true)}});
+#  else
+                     });
+#  endif
 }
 #endif
 NODE_SHADER_MATERIALX_END
