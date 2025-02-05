@@ -1490,7 +1490,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     }
   }
 
-  if (U.ndof_flag & NDOF_SHOW_GUIDE_ORBIT_AXIS) {
+  if (U.ndof_flag & NDOF_SHOW_GUIDE_ORBIT_CENTER) {
     /* Draw this only when orbiting and auto orbit-center is enabled */
     if ((U.ndof_flag & NDOF_MODE_ORBIT) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) &&
         (rv3d->ndof_rot_angle != 0.0f))

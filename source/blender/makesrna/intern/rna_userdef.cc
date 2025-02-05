@@ -6764,11 +6764,15 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   /* 3D view */
   prop = RNA_def_property(srna, "ndof_show_guide_orbit_axis", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_SHOW_GUIDE_ORBIT_AXIS);
-
   /* TODO: update description when fly-mode visuals are in place
    * ("projected position in fly mode"). */
   RNA_def_property_ui_text(
-      prop, "Show Navigation Guide", "Display the center and axis during rotation");
+      prop, "Show Orbit Axis Guide", "Display the center and axis during rotation");
+
+  prop = RNA_def_property(srna, "ndof_show_guide_orbit_center", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_SHOW_GUIDE_ORBIT_CENTER);
+  RNA_def_property_ui_text(
+      prop, "Show Orbit Center Guide", "Display the orbit center during rotation");
 
   /* 3D view */
   prop = RNA_def_property(srna, "ndof_view_navigate_method", PROP_ENUM, PROP_NONE);
