@@ -13,10 +13,12 @@
 #include "BKE_mesh.h"
 #include "BKE_object.hh"
 
+#include "BKE_pointcloud.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 
+#include "DNA_pointcloud_types.h"
 #include "ED_screen.hh"
 
 #include "WM_api.hh"
@@ -31,6 +33,7 @@ namespace blender::ed::object {
 struct ComponentObjects {
   Object *mesh_ob = nullptr;
   Object *curves_ob = nullptr;
+  Object *pointcloud_ob = nullptr;
   Vector<Object *> instance_objects;
 };
 
@@ -93,6 +96,9 @@ class GeometryToEditableOp {
     if (component_objects.curves_ob != nullptr) {
       BKE_collection_object_add(&bmain_, collection, component_objects.curves_ob);
     }
+    if (component_objects.pointcloud_ob != nullptr) {
+      BKE_collection_object_add(&bmain_, collection, component_objects.pointcloud_ob);
+    }
     for (Object *instance_object : component_objects.instance_objects) {
       BKE_collection_object_add(&bmain_, collection, instance_object);
     }
@@ -112,6 +118,12 @@ class GeometryToEditableOp {
       if (curves->geometry.curve_num > 0) {
         objects.curves_ob = this->get_or_create_object_for_curves(
             src_ob_eval, *curves, geometry.name);
+      }
+    }
+    if (const PointCloud *pointcloud = geometry.get_pointcloud()) {
+      if (pointcloud->totpoint > 0) {
+        objects.pointcloud_ob = this->get_or_create_object_for_pointcloud(
+            src_ob_eval, *pointcloud, geometry.name);
       }
     }
     return objects;
@@ -152,11 +164,22 @@ class GeometryToEditableOp {
     });
   }
 
-  // Object *get_or_create_object_for_instances(const Object & /*src_ob_eval*/,
-  //                                            const bke::Instances &src_instances,
-  //                                            const StringRefNull name)
-  // {
-  // }
+  Object *get_or_create_object_for_pointcloud(const Object & /*src_ob_eval*/,
+                                              const PointCloud &src_pointcloud,
+                                              const StringRefNull name)
+  {
+    return new_object_by_generated_geometry_.lookup_or_add_cb(&src_pointcloud.id, [&]() {
+      PointCloud *new_pointcloud = reinterpret_cast<PointCloud *>(
+          BKE_id_new(&bmain_, ID_PT, name.c_str()));
+      Object *new_ob = BKE_object_add_only_object(&bmain_, OB_POINTCLOUD, name.c_str());
+      new_ob->data = new_pointcloud;
+
+      PointCloud *pointcloud_to_move_from = BKE_pointcloud_copy_for_eval(&src_pointcloud);
+      BKE_pointcloud_nomain_to_pointcloud(pointcloud_to_move_from, new_pointcloud);
+      /* TODO: Materials. */
+      return new_ob;
+    });
+  }
 };
 
 static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
