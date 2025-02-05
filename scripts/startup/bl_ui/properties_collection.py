@@ -41,6 +41,9 @@ class COLLECTION_PT_collection_flags(CollectionButtonsPanel, Panel):
         vlc = vl.active_layer_collection
 
         col = layout.column(align=True)
+        col.prop(vlc, "exclude", toggle=False, invert_checkbox=True)
+
+        col = layout.column(align=True)
         col.prop(collection, "hide_select", text="Selectable", toggle=False, invert_checkbox=True)
         col.prop(collection, "hide_viewport", toggle=False)
         col.prop(collection, "hide_render", toggle=False)
