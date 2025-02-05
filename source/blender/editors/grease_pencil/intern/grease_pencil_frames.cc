@@ -928,15 +928,16 @@ static int grease_pencil_delete_breakdown_frames_exec(bContext* C, wmOperator* o
 {
   const Object &ob = *CTX_data_active_object(C);
   const Scene &scene = *CTX_data_scene(C);
-  const int current_frame = scene.r.cfra;
-
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
   bke::greasepencil::Layer *active_layer = grease_pencil.get_active_layer();
+  const int current_frame = active_layer->start_frame_at(scene.r.cfra).value();
+
   const Span<int> sorted_keys = active_layer->sorted_keys();
-  int key_index = sorted_keys.first_index(current_frame);
+  int curr_frame_index = sorted_keys.first_index(current_frame);
   bool changed = false;
 
-  for (int i = key_index; i <= sorted_keys.size(); i++) {
+
+  for (int i = curr_frame_index; i <= sorted_keys.size(); i++) {
     int frame_number = sorted_keys[i];
     GreasePencilFrame *frame = active_layer->frame_at(frame_number);
     if (frame && frame->type == BEZT_KEYTYPE_BREAKDOWN) {
@@ -946,7 +947,7 @@ static int grease_pencil_delete_breakdown_frames_exec(bContext* C, wmOperator* o
     }
     break;
   }
-  for (int i = key_index - 1; i >= 0; i--) {
+  for (int i = curr_frame_index - 1; i >= 0; i--) {
     int frame_number = sorted_keys[i];
     GreasePencilFrame *frame = active_layer->frame_at(frame_number);
     if (frame && frame->type == BEZT_KEYTYPE_BREAKDOWN) {
