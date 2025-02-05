@@ -45,6 +45,11 @@ elseif(UNIX)
     list(APPEND USD_PLATFORM_FLAGS
       -DCMAKE_SHARED_LINKER_FLAGS=${USD_SHARED_LINKER_FLAGS}
     )
+    # Metal only patch for MaterialX 1.39 issues.
+    set(USD_EXTRA_PATCHES
+      ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/usd/src/external_usd <
+      ${PATCH_DIR}/usd_3519.diff &&)
   endif()
 endif()
 
@@ -123,6 +128,7 @@ ExternalProject_Add(external_usd
   LIST_SEPARATOR ^^
 
   PATCH_COMMAND
+    ${USD_EXTRA_PATCHES}
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/usd/src/external_usd <
       ${PATCH_DIR}/usd.diff &&
