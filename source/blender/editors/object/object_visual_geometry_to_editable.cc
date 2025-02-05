@@ -149,7 +149,7 @@ class GeometryToEditableOp {
       BKE_mesh_nomain_to_mesh(mesh_to_move_from, new_mesh, new_ob);
       new_mesh->attributes_for_write().remove_anonymous();
       /* TODO: Materials. */
-      /* TODO: #remove_invalid_attribute_strings */
+      /* TODO: #remove_invalid_attribute_strings, uv related maybe */
       /* TODO: #multires_customdata_delete */
       return new_ob;
     });
@@ -183,6 +183,7 @@ class GeometryToEditableOp {
 
       PointCloud *pointcloud_to_move_from = BKE_pointcloud_copy_for_eval(&src_pointcloud);
       BKE_pointcloud_nomain_to_pointcloud(pointcloud_to_move_from, new_pointcloud);
+      new_pointcloud->attributes_for_write().remove_anonymous();
       /* TODO: Materials. */
       return new_ob;
     });
@@ -201,6 +202,15 @@ class GeometryToEditableOp {
       GreasePencil *greasepencil_to_move_from = BKE_grease_pencil_copy_for_eval(
           &src_grease_pencil);
       BKE_grease_pencil_nomain_to_grease_pencil(greasepencil_to_move_from, new_grease_pencil);
+      new_grease_pencil->attributes_for_write().remove_anonymous();
+      for (GreasePencilDrawingBase *base : new_grease_pencil->drawings()) {
+        if (base->type != GP_DRAWING) {
+          continue;
+        }
+        bke::greasepencil::Drawing &drawing =
+            reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+        drawing.strokes_for_write().attributes_for_write().remove_anonymous();
+      }
       /* TODO: Materials. */
       return new_ob;
     });
