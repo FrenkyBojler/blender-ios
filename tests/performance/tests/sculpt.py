@@ -41,12 +41,17 @@ def set_view3d_context_override(context_override):
 
 
 def prepare_sculpt_scene(context: any, mode: SculptMode, brush_type: BrushType):
-    import bpy
     """
     Prepare a clean state of the scene suitable for benchmarking
 
     It creates a high-res object and moves it to a sculpt mode.
+
+    For dyntopo & normal mesh sculpting, we create a grid with 2.2M vertices.
+    For multires sculpting, we create a grid with 22k vertices - with a multires
+    modifier set to level 3, this results in an equivalent number of 2.2M vertices
+    inside sculpt mode.
     """
+    import bpy
 
     # Ensure the current mode is object, as it might not be the always the case
     # if the benchmark script is run from a non-clean state of the .blend file.
