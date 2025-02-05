@@ -205,6 +205,7 @@ class GeometryToEditableOp {
           &bmain_, OB_EMPTY, BKE_id_name(collection_to_instance->id));
       instance_object->transflag = OB_DUPLICOLLECTION;
       instance_object->instance_collection = collection_to_instance;
+      id_us_plus(&collection_to_instance->id);
 
       const float4x4 &transform = transforms[instance_i];
       set_raw_object_transform(*instance_object, transform);
