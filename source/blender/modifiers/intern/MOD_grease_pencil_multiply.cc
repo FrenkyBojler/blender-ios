@@ -139,8 +139,8 @@ static void generate_curves(GreasePencilMultiModifierData &mmd,
   const IndexMask unselected_mask = curves_mask.complement(curves.curves_range(), mask_memory);
 
   int src_point_count, src_curve_count;
-  curves = std::move(duplicate_strokes(
-      curves, curves_mask, unselected_mask, mmd.duplications, src_point_count, src_curve_count));
+  curves = duplicate_strokes(
+      curves, curves_mask, unselected_mask, mmd.duplications, src_point_count, src_curve_count);
 
   const float offset = math::length(math::to_scale(ctx.object->object_to_world())) * mmd.offset;
   const float distance = mmd.distance;
