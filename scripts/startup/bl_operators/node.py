@@ -530,7 +530,7 @@ class NODE_OT_swap_node(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     node_type: StringProperty(name="New Node", default="GeometryNodeJoinGeometry")
-    # menu_idname: StringProperty(name="Menu ID", default="NODE_MT_add")
+    menu_idname: StringProperty(name="Menu ID", default="NODE_MT_add")
 
     @classmethod
     def poll(cls, context):
@@ -548,6 +548,9 @@ class NODE_OT_swap_node(Operator):
     def execute(self, context):
         active_node = context.active_node
         tree = active_node.id_data
+        current_nodes = [node for node in tree.nodes]
+        bpy.ops.wm.search_single_menu('INVOKE_DEFAULT', menu_idname=self.menu_idname)
+        node_new = [node for node in tree.nodes if node not in current_nodes][0]
 
         # return {"FINISHED"}
         # capture all of the existing links and default attributes for the current node
@@ -578,7 +581,6 @@ class NODE_OT_swap_node(Operator):
         # now we can add the new node, set the default values and rebuild connections
         # to and from the node
         
-        node_new = tree.nodes.new(self.node_type)
         node_new.location = old_location
 
         # try to restore default values based on name, but if there isn't a socket
