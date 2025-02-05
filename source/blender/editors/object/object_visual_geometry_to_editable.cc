@@ -33,6 +33,25 @@
 
 namespace blender::ed::object {
 
+static void set_raw_object_transform(Object &ob, const float4x4 &transform)
+{
+  float3 location;
+  math::EulerXYZ rotation;
+  float3 scale;
+  math::to_loc_rot_scale_safe<true>(transform, location, rotation, scale);
+  copy_v3_v3(ob.loc, location);
+  copy_v3_v3(ob.rot, float3(rotation.x().radian(), rotation.y().radian(), rotation.z().radian()));
+  copy_v3_v3(ob.scale, scale);
+}
+
+static void transform_raw_object_transform(Object &ob, const float4x4 &transform)
+{
+  const float4x4 old_transform = math::from_loc_rot_scale<float4x4>(
+      ob.loc, math::EulerXYZ(float3(ob.rot)), float3(ob.scale));
+  const float4x4 new_transform = transform * old_transform;
+  set_raw_object_transform(ob, new_transform);
+}
+
 struct ComponentObjects {
   Object *mesh_ob = nullptr;
   Object *curves_ob = nullptr;
@@ -187,15 +206,7 @@ class GeometryToEditableOp {
       instance_object->instance_collection = collection_to_instance;
 
       const float4x4 &transform = transforms[instance_i];
-      float3 location;
-      math::EulerXYZ rotation;
-      float3 scale;
-      math::to_loc_rot_scale_safe<true>(transform, location, rotation, scale);
-
-      copy_v3_v3(instance_object->loc, location);
-      copy_v3_v3(instance_object->rot,
-                 float3(rotation.x().radian(), rotation.y().radian(), rotation.z().radian()));
-      copy_v3_v3(instance_object->scale, scale);
+      set_raw_object_transform(*instance_object, transform);
 
       objects.append(instance_object);
     }
@@ -220,6 +231,7 @@ class GeometryToEditableOp {
             &bmain_, nullptr, BKE_id_name(object_eval.id));
         Object *object_orig = DEG_get_original_object(&object_eval);
         BKE_collection_object_add(&bmain_, collection_for_reference, object_orig);
+        copy_v3_v3(collection_for_reference->instance_offset, object_orig->loc);
         break;
       }
       case bke::InstanceReference::Type::Collection: {
@@ -256,6 +268,12 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
   bke::GeometrySet geometry_eval = bke::object_get_evaluated_geometry_set(*src_ob_eval);
 
   Collection *new_collection = op.build_collection_for_geometry(*src_ob_eval, geometry_eval);
+
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (new_collection, ob) {
+    transform_raw_object_transform(*ob, src_ob_eval->object_to_world());
+  }
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+
   BKE_collection_child_add(&bmain, layer_collection.collection, new_collection);
   BKE_view_layer_synced_ensure(&scene, &view_layer);
 
