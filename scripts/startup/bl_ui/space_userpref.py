@@ -1124,6 +1124,7 @@ class USERPREF_PT_theme_interface_state(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui_state, "error")
         col.prop(ui_state, "warning")
         col.prop(ui_state, "info")
+        col.prop(ui_state, "success")
 
         col = flow.column(align=True)
         col.prop(ui_state, "inner_anim")

@@ -46,6 +46,7 @@ enum ThemeColorID {
   TH_ERROR,
   TH_WARNING,
   TH_INFO,
+  TH_SUCCESS,
 
   TH_THEMEUI,
   /* Common colors among spaces. */

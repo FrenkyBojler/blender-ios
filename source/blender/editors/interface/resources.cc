@@ -97,6 +97,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_INFO:
           cp = btheme->tui.wcol_state.info;
           break;
+        case TH_SUCCESS:
+          cp = btheme->tui.wcol_state.success;
+          break;
       }
     }
     else {

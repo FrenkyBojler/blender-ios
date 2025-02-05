@@ -131,6 +131,7 @@ typedef struct uiWidgetStateColors {
   unsigned char error[4];
   unsigned char warning[4];
   unsigned char info[4];
+  unsigned char success[4];
   unsigned char inner_anim[4];
   unsigned char inner_anim_sel[4];
   unsigned char inner_key[4];
@@ -142,6 +143,7 @@ typedef struct uiWidgetStateColors {
   unsigned char inner_changed[4];
   unsigned char inner_changed_sel[4];
   float blend;
+  char _pad0[4];
 } uiWidgetStateColors;
 
 typedef struct uiPanelColors {
