@@ -148,8 +148,8 @@ class DenoiseOperation : public NodeOperation {
       temporary_buffers_to_free.append(input_color);
     }
     else {
-      input_color = reinterpret_cast<float *>(input_image.cpu_data().typed<float4>().data());
-      output_color = reinterpret_cast<float *>(output_image.cpu_data().typed<float4>().data());
+      input_color = static_cast<float *>(input_image.cpu_data().data());
+      output_color = static_cast<float *>(output_image.cpu_data().data());
     }
     oidn::FilterRef filter = device.newFilter("RT");
     filter.setImage("color", input_color, oidn::Format::Float3, width, height, 0, pixel_stride);
@@ -179,7 +179,7 @@ class DenoiseOperation : public NodeOperation {
           temporary_buffers_to_free.append(albedo);
         }
         else {
-          albedo = reinterpret_cast<float *>(input_albedo.cpu_data().typed<float4>().data());
+          albedo = static_cast<float *>(input_albedo.cpu_data().data());
         }
       }
 
@@ -207,7 +207,7 @@ class DenoiseOperation : public NodeOperation {
           temporary_buffers_to_free.append(normal);
         }
         else {
-          normal = reinterpret_cast<float *>(input_normal.cpu_data().typed<float4>().data());
+          normal = static_cast<float *>(input_normal.cpu_data().data());
         }
       }
 

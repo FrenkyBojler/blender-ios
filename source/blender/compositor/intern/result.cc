@@ -572,6 +572,7 @@ int Result::reference_count() const
 void Result::allocate_data(int2 size, bool from_pool)
 {
   if (context_->use_gpu()) {
+    storage_type_ = ResultStorageType::GPU;
     is_from_pool_ = from_pool;
     if (from_pool) {
       data_ = context_->texture_pool().acquire(size, this->get_gpu_texture_format());

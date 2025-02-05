@@ -139,13 +139,12 @@ class ConvertColorSpaceOperation : public NodeOperation {
       output_image.store_pixel(texel, input_image.load_pixel<float4>(texel));
     });
 
-    IMB_colormanagement_processor_apply(
-        color_processor,
-        reinterpret_cast<float *>(output_image.cpu_data().typed<float4>().data()),
-        domain.size.x,
-        domain.size.y,
-        input_image.channels_count(),
-        false);
+    IMB_colormanagement_processor_apply(color_processor,
+                                        static_cast<float *>(output_image.cpu_data().data()),
+                                        domain.size.x,
+                                        domain.size.y,
+                                        input_image.channels_count(),
+                                        false);
     IMB_colormanagement_processor_free(color_processor);
   }
 
