@@ -2236,9 +2236,6 @@ static bool wm_file_write(bContext *C,
       IMB_thumb_delete(filepath, THB_FAIL); /* Without this a failed thumb overrides. */
       ibuf_thumb = IMB_thumb_create(filepath, THB_LARGE, THB_SOURCE_BLEND, ibuf_thumb);
     }
-
-    /* Without this there is no feedback the file was saved. */
-    BKE_reportf(reports, RPT_INFO, "Saved \"%s\"", BLI_path_basename(filepath));
   }
 
   BKE_callback_exec_string(
@@ -3638,6 +3635,8 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   const bool is_save_as = (op->type->invoke == wm_save_as_mainfile_invoke);
   const bool use_save_as_copy = is_save_as && RNA_boolean_get(op->ptr, "copy");
+  const bool is_incremental = RNA_boolean_get(op->ptr, "incremental");
+  const char *save_msg_pre = "Saved";
 
   /* We could expose all options to the users however in most cases remapping
    * existing relative paths is a good default.
@@ -3663,7 +3662,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if ((is_save_as == false) && RNA_boolean_get(op->ptr, "incremental")) {
+  if ((is_save_as == false) && is_incremental) {
     char head[FILE_MAXFILE], tail[FILE_MAXFILE];
     ushort digits;
     int num = BLI_path_sequence_decode(filepath, head, sizeof(head), tail, sizeof(tail), &digits);
@@ -3707,6 +3706,18 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   if (success == false) {
     return OPERATOR_CANCELLED;
   }
+
+  if (is_incremental) {
+    save_msg_pre = "Saved Incremental as";
+  }
+  if (is_save_as) {
+    save_msg_pre = "Saved as";
+  }
+  if (use_save_as_copy) {
+    save_msg_pre = "Saved copy to";
+  }
+
+  BKE_reportf(op->reports, RPT_INFO, "%s \"%s\"", save_msg_pre, BLI_path_basename(filepath));
 
   if (!use_save_as_copy) {
     /* If saved file is the active one, there are technically no more compatibility issues, the
