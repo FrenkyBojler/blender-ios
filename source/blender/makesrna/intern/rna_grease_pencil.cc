@@ -7,16 +7,12 @@
  */
 
 #include "BKE_attribute.h"
-#include "BKE_global.hh"
-
-#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_grease_pencil_types.h"
 #include "DNA_scene_types.h"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -30,10 +26,12 @@
 
 #  include "BKE_attribute.hh"
 #  include "BKE_curves.hh"
+#  include "BKE_global.hh"
 #  include "BKE_grease_pencil.hh"
 
 #  include "BLI_math_matrix.hh"
 #  include "BLI_span.hh"
+#  include "BLI_string.h"
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
@@ -319,7 +317,7 @@ static void rna_iterator_grease_pencil_layers_begin(CollectionPropertyIterator *
   blender::Span<Layer *> layers = grease_pencil->layers_for_write();
 
   rna_iterator_array_begin(
-      iter, ptr, (void *)layers.data(), sizeof(Layer *), layers.size(), 0, nullptr);
+      iter, ptr, (void *)layers.data(), sizeof(Layer *), layers.size(), false, nullptr);
 }
 
 static int rna_iterator_grease_pencil_layers_length(PointerRNA *ptr)
@@ -647,7 +645,7 @@ static void rna_iterator_grease_pencil_layer_groups_begin(CollectionPropertyIter
   blender::Span<LayerGroup *> groups = grease_pencil->layer_groups_for_write();
 
   rna_iterator_array_begin(
-      iter, ptr, (void *)groups.data(), sizeof(LayerGroup *), groups.size(), 0, nullptr);
+      iter, ptr, (void *)groups.data(), sizeof(LayerGroup *), groups.size(), false, nullptr);
 }
 
 static int rna_iterator_grease_pencil_layer_groups_length(PointerRNA *ptr)
@@ -1270,7 +1268,7 @@ static void rna_def_grease_pencil_onion_skinning(StructRNA *srna)
 {
   PropertyRNA *prop;
 
-  static EnumPropertyItem prop_enum_onion_modes_items[] = {
+  static const EnumPropertyItem prop_enum_onion_modes_items[] = {
       {GP_ONION_SKINNING_MODE_ABSOLUTE,
        "ABSOLUTE",
        0,
@@ -1285,7 +1283,7 @@ static void rna_def_grease_pencil_onion_skinning(StructRNA *srna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem prop_enum_onion_keyframe_type_items[] = {
+  static const EnumPropertyItem prop_enum_onion_keyframe_type_items[] = {
       {GREASE_PENCIL_ONION_SKINNING_FILTER_ALL, "ALL", 0, "All", "Include all Keyframe types"},
       {GP_ONION_SKINNING_FILTER_KEYTYPE_KEYFRAME,
        "KEYFRAME",
@@ -1411,7 +1409,7 @@ static void rna_def_grease_pencil_data(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static EnumPropertyItem prop_stroke_depth_order_items[] = {
+  static const EnumPropertyItem prop_stroke_depth_order_items[] = {
       {0, "2D", 0, "2D Layers", "Display strokes using Grease Pencil layers to define order"},
       {GREASE_PENCIL_STROKE_ORDER_3D,
        "3D",

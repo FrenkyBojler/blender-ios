@@ -12,8 +12,6 @@
 
 #include "DNA_ID.h"
 #include "DNA_ID_enums.h"
-#include "DNA_camera_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
@@ -32,6 +30,7 @@
 #include "COM_texture_pool.hh"
 
 #include "GPU_context.hh"
+#include "GPU_state.hh"
 #include "GPU_texture.hh"
 
 #include "draw_view_data.hh"
@@ -83,14 +82,9 @@ class Context : public compositor::Context {
         this->get_render_data().compositor_denoise_preview_quality);
   }
 
-  bool use_file_output() const override
+  compositor::OutputTypes needed_outputs() const override
   {
-    return false;
-  }
-
-  bool should_compute_node_previews() const override
-  {
-    return false;
+    return compositor::OutputTypes::Composite | compositor::OutputTypes::Viewer;
   }
 
   /* The viewport compositor does not support viewer outputs, so treat viewers as composite

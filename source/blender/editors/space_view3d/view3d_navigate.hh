@@ -204,6 +204,7 @@ struct ViewOpsData {
 bool view3d_location_poll(bContext *C);
 bool view3d_rotation_poll(bContext *C);
 bool view3d_zoom_or_dolly_poll(bContext *C);
+bool view3d_zoom_or_dolly_or_rotation_poll(bContext *C);
 
 int view3d_navigate_invoke_impl(bContext *C,
                                 wmOperator *op,
@@ -384,18 +385,19 @@ void VIEW3D_OT_smoothview(wmOperatorType *ot);
 /**
  * Return the bounds of visible contents of the 3D viewport.
  *
+ * \param depsgraph: The evaluated depsgraph.
  * \param clip_bounds: Clip the bounds by the viewport clipping.
  */
 std::optional<blender::Bounds<blender::float3>> view3d_calc_minmax_visible(
-    bContext *C, ScrArea *area, ARegion *region, bool use_all_regions, bool clip_bounds);
+    Depsgraph *depsgraph, ScrArea *area, ARegion *region, bool use_all_regions, bool clip_bounds);
 /**
  * Return the bounds of selected contents of the 3D viewport.
- *
+ * \param depsgraph: The evaluated depsgraph.
  * \param clip_bounds: Clip the bounds by the viewport clipping.
  * \param r_do_zoom: When false, the bounds should be treated as a point
  * (don't zoom to view the point).
  */
-std::optional<blender::Bounds<blender::float3>> view3d_calc_minmax_selected(bContext *C,
+std::optional<blender::Bounds<blender::float3>> view3d_calc_minmax_selected(Depsgraph *depsgraph,
                                                                             ScrArea *area,
                                                                             ARegion *region,
                                                                             bool use_all_regions,
