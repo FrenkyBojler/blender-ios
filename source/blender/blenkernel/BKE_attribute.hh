@@ -906,8 +906,7 @@ eCustomDataType attribute_data_type_highest_complexity(Span<eCustomDataType> dat
 AttrDomain attribute_domain_highest_priority(Span<AttrDomain> domains);
 
 Map<StringRef, eCustomDataType> get_final_attribute_types(
-    Span<AttributeAccessor> attribute_accessors,
-    const AttributeFilter &attribute_filter);
+    Span<AttributeAccessor> attribute_accessors, const AttributeFilter &attribute_filter);
 
 void gather_attributes(AttributeAccessor src_attributes,
                        AttrDomain src_domain,
