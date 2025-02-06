@@ -3714,7 +3714,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
     save_msg_pre = "Saved as";
   }
   if (use_save_as_copy) {
-    save_msg_pre = "Saved copy to";
+    save_msg_pre = "Saved copy as";
   }
 
   BKE_reportf(op->reports, RPT_INFO, "%s \"%s\"", save_msg_pre, BLI_path_basename(filepath));
