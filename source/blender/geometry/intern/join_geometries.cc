@@ -170,9 +170,6 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter,
 
   for (const int i : other_instances.index_range()) {
     const bke::Instances &src_instances = *other_instances[i];
-    /* After this extraction original instances will not be valid in mean they will contains just a
-     * lot of null references. Simply kill them all here instead of keep outside of the function.
-     */
     const Span<bke::InstanceReference> src_references = src_instances.references();
     Array<int> handle_map(src_references.size());
     for (const int src_handle : src_references.index_range()) {
