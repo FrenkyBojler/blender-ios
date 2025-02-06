@@ -943,15 +943,6 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(gradient, b_texture_mapping);
     node = gradient;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexRoundedPolygon)) {
-    BL::ShaderNodeTexRoundedPolygon b_rounded_polygon_node(b_node);
-    RoundedPolygonTextureNode *rounded_polygon = graph->create_node<RoundedPolygonTextureNode>();
-    rounded_polygon->set_normalize_r_gon_parameter(
-        b_rounded_polygon_node.normalize_r_gon_parameter());
-    BL::TexMapping b_texture_mapping(b_rounded_polygon_node.texture_mapping());
-    get_tex_mapping(rounded_polygon, b_texture_mapping);
-    node = rounded_polygon;
-  }
   else if (b_node.is_a(&RNA_ShaderNodeTexVoronoi)) {
     BL::ShaderNodeTexVoronoi b_voronoi_node(b_node);
     VoronoiTextureNode *voronoi = graph->create_node<VoronoiTextureNode>();
@@ -1077,6 +1068,12 @@ static ShaderNode *add_node(Scene *scene,
     nmap->set_space((NodeNormalMapSpace)b_normal_map_node.space());
     nmap->set_attribute(ustring(b_normal_map_node.uv_map()));
     node = nmap;
+  }
+  else if (b_node.is_a(&RNA_ShaderNodeRadialTiling)) {
+    BL::ShaderNodeRadialTiling b_radial_tiling_node(b_node);
+    RadialTilingNode *radial_tiling = graph->create_node<RadialTilingNode>();
+    radial_tiling->set_normalize_r_gon_parameter(b_radial_tiling_node.normalize_r_gon_parameter());
+    node = radial_tiling;
   }
   else if (b_node.is_a(&RNA_ShaderNodeTangent)) {
     BL::ShaderNodeTangent b_tangent_node(b_node);

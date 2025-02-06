@@ -596,8 +596,8 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_ray_portal.glsl
   shaders/material/gpu_shader_material_refraction.glsl
   shaders/material/gpu_shader_material_rgb_to_bw.glsl
-  shaders/material/gpu_shader_material_rounded_polygon.glsl
-  ../../../intern/cycles/kernel/svm/rounded_polygon_generic.h
+  shaders/material/gpu_shader_material_radial_tiling.glsl
+  ../../../intern/cycles/kernel/svm/radial_tiling_generic.h
   shaders/material/gpu_shader_material_separate_color.glsl
   shaders/material/gpu_shader_material_separate_hsv.glsl
   shaders/material/gpu_shader_material_separate_rgb.glsl

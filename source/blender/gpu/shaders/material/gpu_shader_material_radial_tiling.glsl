@@ -7,13 +7,13 @@
 /* Define macro flags for code translation. */
 /* No macro flags necessary, as code is translated to GLSL by default. */
 
-/* The rounded polygon calculation functions are defined in rounded_polygon_generic.h. */
-#include "rounded_polygon_generic.h"
+/* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
+#include "radial_tiling_generic.h"
 
 /* Undefine macro flags used for code translation. */
 /* No macro flags necessary, as code is translated to GLSL by default. */
 
-void node_tex_rounded_polygon(vec3 coord,
+void node_radial_tiling(vec3 coord,
                               float r_gon_sides,
                               float r_gon_roundness,
                               float irregular_r_gon_corner_shape,

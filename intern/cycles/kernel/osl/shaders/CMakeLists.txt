@@ -75,7 +75,7 @@ set(SRC_OSL
   node_refraction_bsdf.osl
   node_rgb_curves.osl
   node_rgb_ramp.osl
-  node_rounded_polygon_texture.osl
+  node_radial_tiling.osl
   node_separate_color.osl
   node_separate_rgb.osl
   node_separate_hsv.osl
@@ -124,7 +124,7 @@ set(SRC_OSL_HEADERS
   node_math.h
   node_noise.h
   node_ramp_util.h
-  ../../svm/rounded_polygon_generic.h
+  ../../svm/radial_tiling_generic.h
   node_voronoi.h
   stdcycles.h
   ${SRC_OSL_HEADER_DIST}

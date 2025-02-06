@@ -1221,71 +1221,6 @@ void NoiseTextureNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_noise_texture");
 }
 
-/* Rounded Polygon Texture */
-
-NODE_DEFINE(RoundedPolygonTextureNode)
-{
-  NodeType *type = NodeType::add("rounded_polygon_texture", create, NodeType::SHADER);
-
-  TEXTURE_MAPPING_DEFINE(RoundedPolygonTextureNode);
-
-  SOCKET_BOOLEAN(normalize_r_gon_parameter, "Normalize Edge Parameter", false);
-  SOCKET_IN_POINT(vector, "Vector", zero_float3(), SocketType::LINK_TEXTURE_GENERATED);
-  SOCKET_IN_FLOAT(r_gon_sides, "R_gon Sides", 5.0f);
-  SOCKET_IN_FLOAT(r_gon_roundness, "R_gon Roundness", 0.0f);
-  SOCKET_IN_FLOAT(irregular_r_gon_corner_shape, "Irregular R_gon Corner Shape", 0.0f);
-
-  SOCKET_OUT_POINT(segment_coordinates, "Segment Coordinates");
-  SOCKET_OUT_FLOAT(max_unit_parameter, "Max Unit Parameter");
-  SOCKET_OUT_FLOAT(x_axis_A_angle_bisector, "X_axis To Angle Bisector Angle");
-
-  return type;
-}
-
-RoundedPolygonTextureNode::RoundedPolygonTextureNode() : TextureNode(get_node_type()) {}
-
-void RoundedPolygonTextureNode::compile(SVMCompiler &compiler)
-{
-  int vector_stack_offset = tex_mapping.compile_begin(compiler, input("Vector"));
-
-  int r_gon_sides_stack_offset = compiler.stack_assign_if_linked(input("R_gon Sides"));
-  int r_gon_roundness_stack_offset = compiler.stack_assign_if_linked(input("R_gon Roundness"));
-  int irregular_r_gon_corner_shape_offset = compiler.stack_assign_if_linked(
-      input("Irregular R_gon Corner Shape"));
-
-  int segment_coordinates_field_stack_offset = compiler.stack_assign_if_linked(
-      output("Segment Coordinates"));
-  int max_unit_parameter_stack_offset = compiler.stack_assign_if_linked(
-      output("Max Unit Parameter"));
-  int x_axis_A_angle_bisector_stack_offset = compiler.stack_assign_if_linked(
-      output("X_axis To Angle Bisector Angle"));
-
-  compiler.add_node(NODE_TEX_ROUNDED_POLYGON,
-                    compiler.encode_uchar4(normalize_r_gon_parameter,
-                                           vector_stack_offset,
-                                           r_gon_sides_stack_offset,
-                                           r_gon_roundness_stack_offset),
-                    compiler.encode_uchar4(irregular_r_gon_corner_shape_offset,
-                                           segment_coordinates_field_stack_offset,
-                                           max_unit_parameter_stack_offset,
-                                           x_axis_A_angle_bisector_stack_offset),
-                    SVM_STACK_INVALID);
-  compiler.add_node(__float_as_int(r_gon_sides),
-                    __float_as_int(r_gon_roundness),
-                    __float_as_int(irregular_r_gon_corner_shape),
-                    SVM_STACK_INVALID);
-
-  tex_mapping.compile_end(compiler, input("Vector"), vector_stack_offset);
-}
-
-void RoundedPolygonTextureNode::compile(OSLCompiler &compiler)
-{
-  tex_mapping.compile(compiler);
-
-  compiler.parameter(this, "normalize_r_gon_parameter");
-  compiler.add(this, "node_rounded_polygon_texture");
-}
-
 /* Gabor Texture */
 
 NODE_DEFINE(GaborTextureNode)
@@ -7605,6 +7540,55 @@ void NormalMapNode::compile(OSLCompiler &compiler)
 
   compiler.parameter(this, "space");
   compiler.add(this, "node_normal_map");
+}
+
+/* Radial Tiling */
+
+NODE_DEFINE(RadialTilingNode)
+{
+  NodeType *type = NodeType::add("radial_tiling", create, NodeType::SHADER);
+
+  SOCKET_BOOLEAN(normalize_r_gon_parameter, "Normalize Edge Parameter", false);
+  SOCKET_IN_POINT(vector, "Vector", zero_float3());
+  SOCKET_IN_FLOAT(r_gon_sides, "R_gon Sides", 5.0f);
+  SOCKET_IN_FLOAT(r_gon_roundness, "R_gon Roundness", 0.0f);
+  SOCKET_IN_FLOAT(irregular_r_gon_corner_shape, "Irregular R_gon Corner Shape", 0.0f);
+
+  SOCKET_OUT_POINT(segment_coordinates, "Segment Coordinates");
+  SOCKET_OUT_FLOAT(max_unit_parameter, "Max Unit Parameter");
+  SOCKET_OUT_FLOAT(x_axis_A_angle_bisector, "X_axis To Angle Bisector Angle");
+
+  return type;
+}
+
+RadialTilingNode::RadialTilingNode() : ShaderNode(get_node_type()) {}
+
+void RadialTilingNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *vector_in = input("Vector");
+  ShaderInput *r_gon_sides_in = input("R_gon Sides");
+  ShaderInput *r_gon_roundness_in = input("R_gon Roundness");
+  ShaderInput *irregular_r_gon_corner_shape_in = input("Irregular R_gon Corner Shape");
+  ShaderOutput *segment_coordinates_out = output("Segment Coordinates");
+  ShaderOutput *max_unit_parameter_out = output("Max Unit Parameter");
+  ShaderOutput *x_axis_A_angle_bisector_out = output("X_axis To Angle Bisector Angle");
+
+  compiler.add_node(NODE_RADIAL_TILING,
+                    compiler.encode_uchar4(normalize_r_gon_parameter,
+                                           compiler.stack_assign(vector_in),
+                                           compiler.stack_assign(r_gon_sides_in),
+                                           compiler.stack_assign(r_gon_roundness_in)),
+                    compiler.encode_uchar4(compiler.stack_assign(irregular_r_gon_corner_shape_in),
+                                           compiler.stack_assign(segment_coordinates_out),
+                                           compiler.stack_assign(max_unit_parameter_out),
+                                           compiler.stack_assign(x_axis_A_angle_bisector_out)),
+                    SVM_STACK_INVALID);
+}
+
+void RadialTilingNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "normalize_r_gon_parameter");
+  compiler.add(this, "node_radial_tiling");
 }
 
 /* Tangent */

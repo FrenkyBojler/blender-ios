@@ -16,11 +16,11 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-namespace blender::nodes::node_shader_tex_rounded_polygon_cc {
+namespace blender::nodes::node_shader_radial_tiling_cc {
 
-NODE_STORAGE_FUNCS(NodeTexRoundedPolygon)
+NODE_STORAGE_FUNCS(NodeRadialTiling)
 
-static void sh_node_tex_rounded_polygon_declare(NodeDeclarationBuilder &b)
+static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
 
@@ -29,8 +29,7 @@ static void sh_node_tex_rounded_polygon_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("X_axis To Angle Bisector Angle").no_muted_links();
 
   b.add_input<decl::Vector>("Vector")
-      .hide_value()
-      .implicit_field(implicit_field_inputs::position)
+      .default_value(float3{0.0f, 0.0f, 0.0f})
       .description("(X, Y) components of the input vector. The Z component is ignored");
   b.add_input<decl::Float>("R_gon Sides")
       .min(2.0f)
@@ -53,7 +52,7 @@ static void sh_node_tex_rounded_polygon_declare(NodeDeclarationBuilder &b)
           "corner while a value of 1 results in an elliptical corner");
 }
 
-static void node_shader_buts_tex_rounded_polygon(uiLayout *layout,
+static void node_shader_buts_radial_tiling(uiLayout *layout,
                                                  bContext * /*C*/,
                                                  PointerRNA *ptr)
 {
@@ -65,31 +64,26 @@ static void node_shader_buts_tex_rounded_polygon(uiLayout *layout,
           ICON_NONE);
 }
 
-static void node_shader_init_tex_rounded_polygon(bNodeTree * /*ntree*/, bNode *node)
+static void node_shader_init_radial_tiling(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexRoundedPolygon *tex = MEM_cnew<NodeTexRoundedPolygon>(__func__);
-  BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
-  BKE_texture_colormapping_default(&tex->base.color_mapping);
-  tex->normalize_r_gon_parameter = false;
+  NodeRadialTiling *storage = MEM_cnew<NodeRadialTiling>(__func__);
+  storage->normalize_r_gon_parameter = false;
 
-  node->storage = tex;
+  node->storage = storage;
 }
 
 static const char *gpu_shader_get_name()
 {
-  return "node_tex_rounded_polygon";
+  return "node_radial_tiling";
 }
 
-static int node_shader_gpu_tex_rounded_polygon(GPUMaterial *mat,
+static int node_shader_gpu_radial_tiling(GPUMaterial *mat,
                                                bNode *node,
                                                bNodeExecData * /*execdata*/,
                                                GPUNodeStack *in,
                                                GPUNodeStack *out)
 {
-  node_shader_gpu_default_tex_coord(mat, node, &in[0].link);
-  node_shader_gpu_tex_mapping(mat, node, in, out);
-
-  const NodeTexRoundedPolygon &storage = node_storage(*node);
+  const NodeRadialTiling &storage = node_storage(*node);
   float normalize_r_gon_parameter = storage.normalize_r_gon_parameter;
   float calculate_r_gon_parameter_field = out[0].hasoutput;
   float calculate_max_unit_parameter = out[1].hasoutput;
@@ -106,7 +100,7 @@ static int node_shader_gpu_tex_rounded_polygon(GPUMaterial *mat,
                         GPU_constant(&calculate_max_unit_parameter));
 }
 
-static void node_shader_update_tex_rounded_polygon(bNodeTree *ntree, bNode *node)
+static void node_shader_update_radial_tiling(bNodeTree *ntree, bNode *node)
 {
   (void)ntree;
 
@@ -133,8 +127,8 @@ static void node_shader_update_tex_rounded_polygon(bNodeTree *ntree, bNode *node
 /* Define macro flags for code translation. */
 #define TRANSLATE_TO_GEOMETRY_NODES
 
-/* The rounded polygon calculation functions are defined in rounded_polygon_generic.h. */
-#include "../../../../../intern/cycles/kernel/svm/rounded_polygon_generic.h"
+/* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
+#include "../../../../../intern/cycles/kernel/svm/radial_tiling_generic.h"
 
 /* Undefine macro flags used for code translation. */
 #undef TRANSLATE_TO_GEOMETRY_NODES
@@ -156,7 +150,7 @@ class RoundedPolygonFunction : public mf::MultiFunction {
   static mf::Signature create_signature()
   {
     mf::Signature signature;
-    mf::SignatureBuilder builder{"rounded_polygon", signature};
+    mf::SignatureBuilder builder{"radial_tiling", signature};
 
     builder.single_input<float3>("Vector");
 
@@ -227,32 +221,32 @@ class RoundedPolygonFunction : public mf::MultiFunction {
   }
 };
 
-static void sh_node_rounded_polygon_build_multi_function(NodeMultiFunctionBuilder &builder)
+static void sh_node_radial_tiling_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  const NodeTexRoundedPolygon &storage = node_storage(builder.node());
+  const NodeRadialTiling &storage = node_storage(builder.node());
   builder.construct_and_set_matching_fn<RoundedPolygonFunction>(storage.normalize_r_gon_parameter);
 }
 
-}  // namespace blender::nodes::node_shader_tex_rounded_polygon_cc
+}  // namespace blender::nodes::node_shader_radial_tiling_cc
 
-void register_node_type_sh_tex_rounded_polygon()
+void register_node_type_sh_radial_tiling()
 {
-  namespace file_ns = blender::nodes::node_shader_tex_rounded_polygon_cc;
+  namespace file_ns = blender::nodes::node_shader_radial_tiling_cc;
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, "ShaderNodeTexRoundedPolygon");
-  ntype.ui_name = "Rounded Polygon Texture";
-  ntype.ui_description = "Generate Rounded Polygon Texture";
-  ntype.nclass = NODE_CLASS_TEXTURE;
-  ntype.declare = file_ns::sh_node_tex_rounded_polygon_declare;
-  ntype.draw_buttons = file_ns::node_shader_buts_tex_rounded_polygon;
-  ntype.initfunc = file_ns::node_shader_init_tex_rounded_polygon;
+  sh_fn_node_type_base(&ntype, "ShaderNodeRadialTiling");
+  ntype.ui_name = "Radial Tiling";
+  ntype.ui_description = "Transform Coordinate System for Radial Tiling";
+  ntype.nclass = NODE_CLASS_OP_VECTOR;
+  ntype.declare = file_ns::sh_node_radial_tiling_declare;
+  ntype.draw_buttons = file_ns::node_shader_buts_radial_tiling;
+  ntype.initfunc = file_ns::node_shader_init_radial_tiling;
   blender::bke::node_type_storage(
-      &ntype, "NodeTexRoundedPolygon", node_free_standard_storage, node_copy_standard_storage);
-  ntype.gpu_fn = file_ns::node_shader_gpu_tex_rounded_polygon;
-  ntype.updatefunc = file_ns::node_shader_update_tex_rounded_polygon;
-  ntype.build_multi_function = file_ns::sh_node_rounded_polygon_build_multi_function;
+      &ntype, "NodeRadialTiling", node_free_standard_storage, node_copy_standard_storage);
+  ntype.gpu_fn = file_ns::node_shader_gpu_radial_tiling;
+  ntype.updatefunc = file_ns::node_shader_update_radial_tiling;
+  ntype.build_multi_function = file_ns::sh_node_radial_tiling_build_multi_function;
 
   blender::bke::node_register_type(&ntype);
 }

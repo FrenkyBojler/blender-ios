@@ -241,17 +241,6 @@ class NoiseTextureNode : public TextureNode {
   NODE_SOCKET_API(float3, vector)
 };
 
-class RoundedPolygonTextureNode : public TextureNode {
- public:
-  SHADER_NODE_CLASS(RoundedPolygonTextureNode)
-
-  NODE_SOCKET_API(bool, normalize_r_gon_parameter)
-  NODE_SOCKET_API(float3, vector)
-  NODE_SOCKET_API(float, r_gon_sides)
-  NODE_SOCKET_API(float, r_gon_roundness)
-  NODE_SOCKET_API(float, irregular_r_gon_corner_shape)
-};
-
 class GaborTextureNode : public TextureNode {
  public:
   SHADER_NODE_CLASS(GaborTextureNode)
@@ -1636,6 +1625,17 @@ class NormalMapNode : public ShaderNode {
   NODE_SOCKET_API(ustring, attribute)
   NODE_SOCKET_API(float, strength)
   NODE_SOCKET_API(float3, color)
+};
+
+class RadialTilingNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(RadialTilingNode)
+
+  NODE_SOCKET_API(bool, normalize_r_gon_parameter)
+  NODE_SOCKET_API(float3, vector)
+  NODE_SOCKET_API(float, r_gon_sides)
+  NODE_SOCKET_API(float, r_gon_roundness)
+  NODE_SOCKET_API(float, irregular_r_gon_corner_shape)
 };
 
 class TangentNode : public ShaderNode {

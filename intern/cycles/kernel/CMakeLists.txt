@@ -210,8 +210,8 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/normal.h
   svm/ramp.h
   svm/ramp_util.h
-  svm/rounded_polygon.h
-  svm/rounded_polygon_generic.h
+  svm/radial_tiling.h
+  svm/radial_tiling_generic.h
   svm/sepcomb_color.h
   svm/sepcomb_hsv.h
   svm/sepcomb_vector.h

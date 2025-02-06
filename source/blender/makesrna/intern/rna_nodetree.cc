@@ -5940,22 +5940,6 @@ static void def_sh_tex_magic(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, 0, "rna_Node_update");
 }
 
-static void def_sh_tex_rounded_polygon(BlenderRNA *brna, StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  RNA_def_struct_sdna_from(srna, "NodeTexRoundedPolygon", "storage");
-  def_sh_tex(brna, srna);
-
-  prop = RNA_def_property(srna, "normalize_r_gon_parameter", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "normalize_r_gon_parameter", 0);
-  RNA_def_property_ui_text(
-      prop,
-      "Normalize X-coordinate",
-      "Normalize the X-coordinate of the Segment Coordinates output to a [-1, 1] interval");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-}
-
 static void def_sh_tex_voronoi(BlenderRNA *brna, StructRNA *srna)
 {
   static EnumPropertyItem prop_distance_items[] = {
@@ -6558,6 +6542,21 @@ static void def_sh_normal_map(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   RNA_def_struct_sdna_from(srna, "bNode", nullptr);
+}
+
+static void def_sh_radial_tiling(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "NodeRadialTiling", "storage");
+
+  prop = RNA_def_property(srna, "normalize_r_gon_parameter", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "normalize_r_gon_parameter", 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Normalize X-coordinate",
+      "Normalize the X-coordinate of the Segment Coordinates output to a [-1, 1] interval");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 static void def_sh_displacement(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -12261,7 +12260,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeTexMagic", def_sh_tex_magic);
   define("ShaderNode", "ShaderNodeTexNoise", def_sh_tex_noise);
   define("ShaderNode", "ShaderNodeTexPointDensity", def_sh_tex_pointdensity);
-  define("ShaderNode", "ShaderNodeTexRoundedPolygon", def_sh_tex_rounded_polygon);
+  define("ShaderNode", "ShaderNodeRadialTiling", def_sh_radial_tiling);
   define("ShaderNode", "ShaderNodeTexSky", def_sh_tex_sky);
   define("ShaderNode", "ShaderNodeTexVoronoi", def_sh_tex_voronoi);
   define("ShaderNode", "ShaderNodeTexWave", def_sh_tex_wave);

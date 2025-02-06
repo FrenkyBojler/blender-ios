@@ -19,14 +19,14 @@ struct RoundedPolygonStackOffsets {
 /* Define macro flags for code translation. */
 #define TRANSLATE_TO_SVM
 
-/* The rounded polygon calculation functions are defined in rounded_polygon_generic.h. */
-#include "rounded_polygon_generic.h"
+/* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
+#include "radial_tiling_generic.h"
 
 /* Undefine macro flags used for code translation. */
 #undef TRANSLATE_TO_SVM
 
 template<uint node_feature_mask>
-ccl_device_noinline int svm_node_tex_rounded_polygon(
+ccl_device_noinline int svm_node_radial_tiling(
     KernelGlobals kg, ccl_private ShaderData *sd, ccl_private float *stack, uint4 node, int offset)
 {
   RoundedPolygonStackOffsets so;
@@ -48,11 +48,10 @@ ccl_device_noinline int svm_node_tex_rounded_polygon(
   bool calculate_max_unit_parameter = stack_valid(so.max_unit_parameter);
 
   float3 coord = stack_load_float3(stack, so.vector);
-  uint4 defaults = read_node(kg, &offset);
-  float r_gon_sides = stack_load_float_default(stack, so.r_gon_sides, defaults.x);
-  float r_gon_roundness = stack_load_float_default(stack, so.r_gon_roundness, defaults.y);
-  float irregular_r_gon_corner_shape = stack_load_float_default(
-      stack, so.irregular_r_gon_corner_shape, defaults.z);
+  float r_gon_sides = stack_load_float(stack, so.r_gon_sides);
+  float r_gon_roundness = stack_load_float(stack, so.r_gon_roundness);
+  float irregular_r_gon_corner_shape = stack_load_float(
+      stack, so.irregular_r_gon_corner_shape);
 
   float4 out_variables = calculate_out_fields(calculate_r_gon_parameter_field,
                                               calculate_max_unit_parameter,

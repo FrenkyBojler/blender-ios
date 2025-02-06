@@ -74,7 +74,7 @@ using namespace math;
 #  endif
 #endif
 
-/* Naming convention for the Rounded Polygon Texture node code:
+/* Naming convention for the Radial Tiling node code:
  * Let x and y be 2D vectors.
  * The length of X is expressed as l_x, which is an abbreviation of length_x.
  * The counterclockwise unsinged angle in [0.0, M_TAU] from X to Y is expressed as x_A_y, which

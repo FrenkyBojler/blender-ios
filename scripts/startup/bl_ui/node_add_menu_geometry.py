@@ -574,7 +574,6 @@ class NODE_MT_category_GEO_TEXTURE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeImageTexture")
         node_add_menu.add_node_type(layout, "ShaderNodeTexMagic")
         node_add_menu.add_node_type(layout, "ShaderNodeTexNoise")
-        node_add_menu.add_node_type(layout, "ShaderNodeTexRoundedPolygon")
         node_add_menu.add_node_type(layout, "ShaderNodeTexVoronoi")
         node_add_menu.add_node_type(layout, "ShaderNodeTexWave")
         node_add_menu.add_node_type(layout, "ShaderNodeTexWhiteNoise")
@@ -705,6 +704,7 @@ class NODE_MT_category_GEO_VECTOR(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "ShaderNodeRadialTiling")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorCurve")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorMath")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorRotate")

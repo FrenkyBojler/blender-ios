@@ -1415,12 +1415,6 @@ typedef struct NodeTexNoise {
   char _pad[2];
 } NodeTexNoise;
 
-typedef struct NodeTexRoundedPolygon {
-  NodeTexBase base;
-  uint8_t normalize_r_gon_parameter;
-  char _pad[7];
-} NodeTexRoundedPolygon;
-
 typedef struct NodeTexVoronoi {
   NodeTexBase base;
   int dimensions;
@@ -1556,6 +1550,11 @@ typedef struct NodeShaderNormalMap {
   int space;
   char uv_map[64];
 } NodeShaderNormalMap;
+
+typedef struct NodeRadialTiling {
+  uint8_t normalize_r_gon_parameter;
+  char _pad[7];
+} NodeRadialTiling;
 
 typedef struct NodeShaderUVMap {
   char uv_map[64];
