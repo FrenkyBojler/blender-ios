@@ -117,10 +117,24 @@ static void join_instances(const Span<const GeometryComponent *> src_components,
                   *dst_component.attributes_for_write());
 }
 
-void join_instances_into(const bke::AttributeFilter &attribute_filter, const Span<const bke::Instances *> other_instances, bke::Instances &target)
+void join_instances_into(const bke::AttributeFilter &attribute_filter,
+                         const Span<const bke::Instances *> other_instances,
+                         bke::Instances &target)
 {
-  /* Use it instead of just CustomData copy in order to be able to create AttributeAccessor. */
-  const bke::Instances dummy_attributes_owner = target;
+  /* We need to have a copy of attributes of instances. In order to be able to made an
+   AttributeAccessor later it is important to make a copy of instances. But since Instances comes
+   from external context it is possible that handlers data is edited in other thread. This is
+   fairly common case of use of processing all instanced GeometrySet in parallel loop. Since
+   editing of GeometrySet is not thread safe action (and we do not really need they copy here) we
+   can not copy just instances itself (copy of GeometrySet is kind of editing due to implicit
+   sharing). For this reason copy of instances created manually, without handlers and nested
+   GeometrySet handlers.*/
+  bke::Instances dummy_attributes_owner;
+  dummy_attributes_owner.resize(target.instances_num());
+  CustomData_init_from(&target.custom_data_attributes(),
+                       &dummy_attributes_owner.custom_data_attributes(),
+                       CD_MASK_ALL,
+                       target.instances_num());
 
   constexpr int target_item = 1;
   constexpr int extra_offset = 1;
@@ -131,6 +145,8 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter, const Spa
   }
   const OffsetIndices offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
 
+  /* Drop all attributes in order to do not copy then while resize or next writing (if they in
+   * read-only state). */
   CustomData_free(&target.custom_data_attributes(), target.instances_num());
   CustomData_reset(&target.custom_data_attributes());
   target.resize(offsets.total_size());
@@ -154,7 +170,9 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter, const Spa
 
   for (const int i : other_instances.index_range()) {
     const bke::Instances &src_instances = *other_instances[i];
-    /* After this extraction original instances will not be valid in mean they will contains just a lot of null references. Simply kill them all here instead of keep outside of the function. */
+    /* After this extraction original instances will not be valid in mean they will contains just a
+     * lot of null references. Simply kill them all here instead of keep outside of the function.
+     */
     const Span<bke::InstanceReference> src_references = src_instances.references();
     Array<int> handle_map(src_references.size());
     for (const int src_handle : src_references.index_range()) {
@@ -164,7 +182,8 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter, const Spa
     }
 
     const Span<int> src_handles = src_instances.reference_handles();
-    array_utils::gather(handle_map.as_span(), src_handles, all_new_handles.slice(offsets[target_item + i]));
+    array_utils::gather(
+        handle_map.as_span(), src_handles, all_new_handles.slice(offsets[target_item + i]));
   }
 }
 
