@@ -62,6 +62,27 @@ struct ComponentObjects {
   Object *pointcloud_ob = nullptr;
   Object *greasepencil_ob = nullptr;
   Vector<Object *> instance_objects;
+
+  Vector<Object *> all_objects() const
+  {
+    Vector<Object *> objects;
+    if (mesh_ob) {
+      objects.append(mesh_ob);
+    }
+    if (curves_ob) {
+      objects.append(curves_ob);
+    }
+    if (pointcloud_ob) {
+      objects.append(pointcloud_ob);
+    }
+    if (greasepencil_ob) {
+      objects.append(greasepencil_ob);
+    }
+    for (Object *instance_object : instance_objects) {
+      objects.append(instance_object);
+    }
+    return objects;
+  }
 };
 
 class GeometryToEditableOp {
@@ -79,29 +100,6 @@ class GeometryToEditableOp {
     ComponentObjects component_objects = this->get_objects_for_geometry(src_ob_eval, geometry);
     return this->flat_collection_from_geometry_set_objects(
         component_objects, geometry.name.empty() ? BKE_id_name(src_ob_eval.id) : geometry.name);
-  }
-
- private:
-  Collection *flat_collection_from_geometry_set_objects(const ComponentObjects &component_objects,
-                                                        const StringRefNull name)
-  {
-    Collection *collection = BKE_collection_add(&bmain_, nullptr, name.c_str());
-    if (component_objects.mesh_ob != nullptr) {
-      BKE_collection_object_add(&bmain_, collection, component_objects.mesh_ob);
-    }
-    if (component_objects.curves_ob != nullptr) {
-      BKE_collection_object_add(&bmain_, collection, component_objects.curves_ob);
-    }
-    if (component_objects.pointcloud_ob != nullptr) {
-      BKE_collection_object_add(&bmain_, collection, component_objects.pointcloud_ob);
-    }
-    if (component_objects.greasepencil_ob != nullptr) {
-      BKE_collection_object_add(&bmain_, collection, component_objects.greasepencil_ob);
-    }
-    for (Object *instance_object : component_objects.instance_objects) {
-      BKE_collection_object_add(&bmain_, collection, instance_object);
-    }
-    return collection;
   }
 
   ComponentObjects get_objects_for_geometry(const Object &src_ob_eval,
@@ -135,6 +133,17 @@ class GeometryToEditableOp {
       objects.instance_objects = this->create_objects_for_instances(src_ob_eval, *instances);
     }
     return objects;
+  }
+
+ private:
+  Collection *flat_collection_from_geometry_set_objects(const ComponentObjects &component_objects,
+                                                        const StringRefNull name)
+  {
+    Collection *collection = BKE_collection_add(&bmain_, nullptr, name.c_str());
+    for (Object *object : component_objects.all_objects()) {
+      BKE_collection_object_add(&bmain_, collection, object);
+    }
+    return collection;
   }
 
   Object *get_or_create_object_for_mesh(const Object &src_ob_eval,
