@@ -50,8 +50,7 @@ ccl_device_noinline int svm_node_radial_tiling(
   float3 coord = stack_load_float3(stack, so.vector);
   float r_gon_sides = stack_load_float(stack, so.r_gon_sides);
   float r_gon_roundness = stack_load_float(stack, so.r_gon_roundness);
-  float irregular_r_gon_corner_shape = stack_load_float(
-      stack, so.irregular_r_gon_corner_shape);
+  float irregular_r_gon_corner_shape = stack_load_float(stack, so.irregular_r_gon_corner_shape);
 
   float4 out_variables = calculate_out_fields(calculate_r_gon_parameter_field,
                                               calculate_max_unit_parameter,

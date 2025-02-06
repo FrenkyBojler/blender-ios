@@ -52,9 +52,7 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
           "corner while a value of 1 results in an elliptical corner");
 }
 
-static void node_shader_buts_radial_tiling(uiLayout *layout,
-                                                 bContext * /*C*/,
-                                                 PointerRNA *ptr)
+static void node_shader_buts_radial_tiling(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiItemR(layout,
           ptr,
@@ -78,10 +76,10 @@ static const char *gpu_shader_get_name()
 }
 
 static int node_shader_gpu_radial_tiling(GPUMaterial *mat,
-                                               bNode *node,
-                                               bNodeExecData * /*execdata*/,
-                                               GPUNodeStack *in,
-                                               GPUNodeStack *out)
+                                         bNode *node,
+                                         bNodeExecData * /*execdata*/,
+                                         GPUNodeStack *in,
+                                         GPUNodeStack *out)
 {
   const NodeRadialTiling &storage = node_storage(*node);
   float normalize_r_gon_parameter = storage.normalize_r_gon_parameter;
