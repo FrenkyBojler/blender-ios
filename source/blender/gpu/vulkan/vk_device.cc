@@ -386,6 +386,7 @@ struct VKRenderGraphSubmitTask {
 TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_graph,
                                             VKDiscardPool &context_discard_pool,
                                             bool submit_to_device,
+                                            bool wait_for_submission,
                                             bool wait_for_completion,
                                             VkSemaphore vk_image_available_semaphore,
                                             VkSemaphore vk_rendering_completed_semaphore)
@@ -396,16 +397,16 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
                       vk_rendering_completed_semaphore != VK_NULL_HANDLE),
                  "Incorrect usage: Both semaphores should be filled when preseting or not set "
                  "when not presenting.");
-  /*
-BLI_assert_msg(vk_image_available_semaphore == VK_NULL_HANDLE ||
-      (submit_to_device == true && wait_for_completion == false),
-  "Incorrect usage: When presenting the batch must be submitted to device and not "
-  "wait for its completion.`");
-BLI_assert_msg(vk_rendering_completed_semaphore == VK_NULL_HANDLE ||
-      (submit_to_device == true && wait_for_completion == false),
-  "Incorrect usage: When presenting the batch must be submitted to device and not "
-  "wait for its completion.`");
-  */
+  BLI_assert_msg(vk_image_available_semaphore == VK_NULL_HANDLE ||
+                     (submit_to_device == true && wait_for_submission == true &&
+                      wait_for_completion == false),
+                 "Incorrect usage: When presenting the batch must be submitted to device and not "
+                 "wait for its completion.`");
+  BLI_assert_msg(vk_rendering_completed_semaphore == VK_NULL_HANDLE ||
+                     (submit_to_device == true && wait_for_submission == true &&
+                      wait_for_completion == false),
+                 "Incorrect usage: When presenting the batch must be submitted to device and not "
+                 "wait for its completion.`");
 
   if (render_graph->is_empty()) {
     render_graph->reset();
@@ -426,6 +427,10 @@ BLI_assert_msg(vk_rendering_completed_semaphore == VK_NULL_HANDLE ||
   BLI_thread_queue_push(submitted_render_graphs_, submit_task);
   submit_task = nullptr;
 
+  if (wait_for_submission) {
+    while (last_submitted_timeline_ < timeline) {
+    }
+  }
   if (wait_for_completion) {
     wait_for_timeline(timeline);
   }
@@ -556,6 +561,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       {
         std::scoped_lock lock_queue(*device->queue_mutex_);
         vkQueueSubmit(device->vk_queue_, 1, &vk_submit_info, VK_NULL_HANDLE);
+        device->last_submitted_timeline_ = submit_task->timeline;
       }
       command_buffers_in_use.append_timeline(submit_task->timeline, vk_command_buffer);
       vk_command_buffer = VK_NULL_HANDLE;

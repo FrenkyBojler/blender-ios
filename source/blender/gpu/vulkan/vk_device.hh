@@ -181,6 +181,7 @@ class VKDevice : public NonCopyable {
   ThreadQueue *unused_render_graphs_ = nullptr;
   VkSemaphore vk_timeline_semaphore_ = VK_NULL_HANDLE;
   std::atomic<uint_least64_t> timeline_value_ = 0;
+  std::atomic<uint_least64_t> last_submitted_timeline_ = 0;
 
   VKSamplers samplers_;
   VKDescriptorSetLayouts descriptor_set_layouts_;
@@ -372,6 +373,11 @@ class VKDevice : public NonCopyable {
    *   `submit_to_device` is set to `true`.
    *
    * \param wait_for_completion:
+   *   This function will wait until the render graph has been submitted to the device. Used
+   *   to safely wait for vk_rendering_completed_semaphore. You can only wait for a semaphore, when
+   *   there is a command scheduled that signals it.
+   *
+   * \param wait_for_completion:
    *   This function will wait until the render graph has been fully completed its execution. This
    *   should is used to ensure that any read-back buffers have the correct content.
    *
@@ -386,6 +392,7 @@ class VKDevice : public NonCopyable {
   TimelineValue render_graph_submit(render_graph::VKRenderGraph *render_graph,
                                     VKDiscardPool &context_discard_pool,
                                     bool submit_to_device,
+                                    bool wait_for_submission,
                                     bool wait_for_completion,
                                     VkSemaphore vk_image_available_semaphore,
                                     VkSemaphore vk_rendering_completed_semaphore);
