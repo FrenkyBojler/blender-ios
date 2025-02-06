@@ -2457,7 +2457,7 @@ static struct Clipboard {
   };
   Array<ClipboardLayer> layers;
   /* Object transform of stored curves. */
-  float4x4 transform;
+  float4x4 object_to_world;
   /* We store the material uid's of the copied curves, so we can match those when pasting the
    * clipboard into another object. */
   Vector<std::pair<uint, int>> materials;
@@ -2567,8 +2567,6 @@ static int grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
   Clipboard &clipboard = ensure_grease_pencil_clipboard();
 
   int num_elements_copied = 0;
-  // Vector<bke::GeometrySet> set_of_copied_curves;
-  // Vector<float4x4> set_of_transforms;
   Map<const Layer *, Vector<bke::GeometrySet>> copied_curves_per_layer;
 
   /* Collect all selected strokes/points on all editable layers. */
@@ -2576,7 +2574,6 @@ static int grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
   for (const MutableDrawingInfo &drawing_info : drawings) {
     const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
     const Layer &layer = grease_pencil.layer(drawing_info.layer_index);
-    // const float4x4 layer_to_object = layer.to_object_space(*object);
 
     if (curves.is_empty()) {
       continue;
@@ -2601,9 +2598,6 @@ static int grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
     }
 
     /* Add the layer selection to the set of copied curves. */
-    // Curves *layer_curves = curves_new_nomain(std::move(copied_curves));
-    // set_of_copied_curves.append(bke::GeometrySet::from_curves(layer_curves));
-    // set_of_transforms.append(layer_to_object);
     copied_curves_per_layer.lookup_or_add_default(&layer).append(
         bke::GeometrySet::from_curves(curves_new_nomain(std::move(copied_curves))));
   }
@@ -2626,7 +2620,7 @@ static int grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
     cliplayer.name = layer->name();
     i++;
   }
-  clipboard.transform = object->object_to_world();
+  clipboard.object_to_world = object->object_to_world();
 
   /* Store the session uid of the materials used by the curves in the clipboard. We use the uid to
    * remap the material indices when pasting. */
@@ -2851,7 +2845,7 @@ static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
                                  *object,
                                  curves_to_paste,
                                  object_to_paste_layer,
-                                 clipboard.transform,
+                                 clipboard.object_to_world,
                                  keep_world_transform,
                                  paste_on_back,
                                  *target_drawing);
@@ -2942,7 +2936,7 @@ IndexRange paste_all_strokes_from_clipboard(Main &bmain,
                                     object,
                                     joined_clipboard_curves,
                                     object_to_paste_layer,
-                                    clipboard.transform,
+                                    clipboard.object_to_world,
                                     keep_world_transform,
                                     paste_back,
                                     drawing);
