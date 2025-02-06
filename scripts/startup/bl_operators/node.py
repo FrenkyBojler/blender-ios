@@ -17,6 +17,7 @@ from bpy.props import (
     FloatVectorProperty,
     StringProperty,
     IntProperty,
+    PointerProperty
 )
 from mathutils import (
     Vector,
@@ -539,28 +540,28 @@ class NODE_OT_swap_node(Operator):
         )
     
     def invoke(self, context, event):
-        self.has_selected_node = False
-        self.original_node = context.active_node
-        self.current_nodes = [node for node in self.original_node.id_data.nodes]
+        self.old_node = context.active_node
+        self.current_nodes = [node for node in self.old_node.id_data.nodes]
         
         context.window_manager.modal_handler_add(self)
         bpy.ops.wm.search_single_menu('INVOKE_DEFAULT', menu_idname=self.menu_idname)
-        self.has_selected_node = True
-        
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        if event.type != "RET":
-            return {"RUNNING_MODAL"}
+        if event.type == "ESC":
+            return {"CANCELLED"}
+
+        nodes = [node for node in self.old_node.id_data.nodes]
+        for node in nodes:
+            if node not in self.current_nodes:
+                self.new_node = node
+                self.exectute(context)
+                return {"FINISHED"}
         
-        return self.exectute(context)
+        return {"RUNNING_MODAL"}
     
     def exectute(self, context):
-        if not self.has_selected_node:
-            return {"RUNNING_MODAL"}
-            
-        active_node = context.active_node
-        tree = active_node.id_data
+        tree = self.old_node.id_data
         node_new = [node for node in tree.nodes if node not in self.current_nodes][0]
 
         # capture all of the existing links and default attributes for the current node
@@ -570,7 +571,7 @@ class NODE_OT_swap_node(Operator):
         output_links = []
         default_inputs = {}
 
-        for input in self.original_node.inputs:
+        for input in self.old_node.inputs:
             try:
                 default_inputs[input.name] = input.default_value
             except AttributeError:
@@ -580,18 +581,13 @@ class NODE_OT_swap_node(Operator):
                 input_links.append((link.from_socket, input.name))
                 tree.links.remove(link)
 
-        for output in self.original_node.outputs:
+        for output in self.old_node.outputs:
             for link in output.links:
                 output_links.append((output.name, link.to_socket))
                 tree.links.remove(link)
 
-        old_location = active_node.location.copy()
-        tree.nodes.remove(active_node)
-
-        # now we can add the new node, set the default values and rebuild connections
-        # to and from the node
-        
-        node_new.location = old_location
+        node_new.location = self.old_node.location
+        tree.nodes.remove(self.old_node)
 
         # try to restore default values based on name, but if there isn't a socket
         # with that name or it doesn't take a default value then we move on
