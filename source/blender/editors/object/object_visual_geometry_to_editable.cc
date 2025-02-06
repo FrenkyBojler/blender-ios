@@ -90,6 +90,7 @@ class GeometryToEditableOp {
   Main &bmain_;
   Map<const ID *, Object *> new_object_by_generated_geometry_;
   Map<bke::InstanceReference, Collection *> collection_by_instance_;
+  Vector<Collection *> new_instance_collections_;
 
  public:
   GeometryToEditableOp(Main &bmain) : bmain_(bmain) {}
@@ -133,6 +134,11 @@ class GeometryToEditableOp {
       objects.instance_objects = this->create_objects_for_instances(src_ob_eval, *instances);
     }
     return objects;
+  }
+
+  Span<Collection *> new_instance_collections() const
+  {
+    return new_instance_collections_;
   }
 
  private:
@@ -289,6 +295,7 @@ class GeometryToEditableOp {
         Object *object_orig = DEG_get_original_object(&object_eval);
         collection_for_reference = BKE_collection_add(
             &bmain_, nullptr, BKE_id_name(object_orig->id));
+        new_instance_collections_.append(collection_for_reference);
         BKE_collection_object_add(&bmain_, collection_for_reference, object_orig);
         copy_v3_v3(collection_for_reference->instance_offset, object_orig->loc);
         break;
@@ -303,6 +310,7 @@ class GeometryToEditableOp {
       case bke::InstanceReference::Type::GeometrySet: {
         collection_for_reference = this->build_collection_for_geometry(src_ob_eval,
                                                                        reference.geometry_set());
+        new_instance_collections_.append(collection_for_reference);
         break;
       }
     }
@@ -366,6 +374,9 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
   for (Object *object : top_level_objects) {
     BKE_collection_object_add(&bmain, collection_of_active_object_orig, object);
     transform_raw_object_transform(*object, src_ob_eval->object_to_world());
+  }
+  for (Collection *new_collection : op.new_instance_collections()) {
+    BKE_collection_child_add(&bmain, scene.master_collection, new_collection);
   }
   BKE_view_layer_synced_ensure(&scene, &view_layer);
   for (Object *object : top_level_objects) {
