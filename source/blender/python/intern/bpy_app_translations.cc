@@ -291,7 +291,7 @@ std::optional<StringRefNull> BPY_app_translations_py_pgettext(const StringRef ms
   if (!result) {
     return std::nullopt;
   }
-  return result->c_str();
+  return *result;
 
 #  undef STATIC_LOCALE_SIZE
 }
