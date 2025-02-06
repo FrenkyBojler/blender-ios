@@ -529,34 +529,31 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
 
     if (submit_task->submit_to_device) {
       command_buffer->end_recording();
-      TimelineValue wait_for_timeline_values[2] = {submit_task->timeline, 0};
+      TimelineValue signal_timeline_values[2] = {submit_task->timeline, 0};
+      const uint32_t num_signals = uint32_t(
+          submit_task->vk_rendering_completed_semaphore == VK_NULL_HANDLE ? 1 : 2);
       VkTimelineSemaphoreSubmitInfo vk_timeline_semaphore_submit_info = {
           VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
           nullptr,
           0,
           nullptr,
-          uint32_t(submit_task->vk_rendering_completed_semaphore == VK_NULL_HANDLE ? 1 : 2),
-          wait_for_timeline_values};
+          num_signals,
+          signal_timeline_values};
 
-      // TODO(jbakker): When waiting on an image available semaphore, we should split in two submit
-      // infos. One containing the large amount of work that doesn't require the image to be
-      // available, and one that update the image. This requires that when swap chain semaphores
-      // are in play to record to a second command buffer.
       VkSemaphore wait_for_semaphores = submit_task->vk_image_available_semaphore;
+      VkPipelineStageFlags wait_for_stages = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
       VkSemaphore signal_on_completion_semaphores[2] = {
           device->vk_timeline_semaphore_, submit_task->vk_rendering_completed_semaphore};
-      VkPipelineStageFlags wait_for_stages = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
-      VkSubmitInfo vk_submit_info = {
-          VK_STRUCTURE_TYPE_SUBMIT_INFO,
-          &vk_timeline_semaphore_submit_info,
-          uint32_t(wait_for_semaphores == VK_NULL_HANDLE ? 0 : 1),
-          &wait_for_semaphores,
-          &wait_for_stages,
-          1,
-          &vk_command_buffer,
-          uint32_t(submit_task->vk_rendering_completed_semaphore == VK_NULL_HANDLE ? 1 : 2),
-          signal_on_completion_semaphores};
+      VkSubmitInfo vk_submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                                     &vk_timeline_semaphore_submit_info,
+                                     uint32_t(wait_for_semaphores == VK_NULL_HANDLE ? 0 : 1),
+                                     &wait_for_semaphores,
+                                     &wait_for_stages,
+                                     1,
+                                     &vk_command_buffer,
+                                     num_signals,
+                                     signal_on_completion_semaphores};
 
       {
         std::scoped_lock lock_queue(*device->queue_mutex_);
