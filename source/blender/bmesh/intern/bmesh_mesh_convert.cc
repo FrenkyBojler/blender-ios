@@ -1155,7 +1155,7 @@ static void bm_face_loop_table_build(BMesh &bm,
   for (const int i : IndexRange(CustomData_number_of_layers(&ldata, CD_PROP_FLOAT2))) {
     char const *layer_name = CustomData_get_layer_name(&ldata, CD_PROP_FLOAT2, i);
     char sub_layer_name[MAX_CUSTOMDATA_LAYER_NAME];
-    auto add_bool_layer = [&](Vector<int> &layers, const char *name) {
+    auto add_bool_layer = [&](Vector<int> &layers, const StringRef name) {
       const int layer_index = CustomData_get_named_layer_index(&ldata, CD_PROP_BOOL, name);
       if (layer_index != -1) {
         layers.append(layer_index);
