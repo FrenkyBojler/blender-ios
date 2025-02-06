@@ -814,7 +814,7 @@ else()
     --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py 
     --
     --testdir "${TEST_SRC_DIR}/compositor/file_output/"
-    --outdir "${TEST_OUT_DIR}/compositor_cpu"
+    --outdir "${TEST_OUT_DIR}/compositor_cpu/file_output"
   )
 
 endif()
@@ -847,6 +847,16 @@ if(WITH_GPU_COMPOSITOR_TESTS)
         --gpu
       )
     endforeach()
+
+    add_blender_test(
+    compositor_gpu_file_output
+    --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py 
+    --
+    --testdir "${TEST_SRC_DIR}/compositor/file_output/"
+    --outdir "${TEST_OUT_DIR}/compositor_gpu/file_output"
+    --gpu
+  )
+
   endif()
 endif()
 

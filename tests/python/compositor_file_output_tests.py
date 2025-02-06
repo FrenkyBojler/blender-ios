@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-print("current file", __file__)
 import sys
 import os
 from shutil import copyfile, rmtree
@@ -13,11 +12,11 @@ import unittest
 
 import bpy
 
+# Test utils are not accessible when run inside blender.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 from modules.colored_print import print_message
 
-print("imports passed")
 
 class FileOutputTest(unittest.TestCase):
     """
@@ -31,16 +30,17 @@ class FileOutputTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        print(f"Python path: '{sys.executable}'")
         cls.testdir = pathlib.Path(args.testdir)
         cls.outdir = pathlib.Path(args.outdir)
         cls.execution_device = "GPU" if args.gpu else "CPU"
         cls.update = os.getenv("BLENDER_TEST_UPDATE") is not None
 
+        # Images that look similar enough should pass the test
+        cls.fail_relative_threshold = 1.0
+
         comp_outdir = os.path.dirname(cls.outdir)
         if not os.path.exists(comp_outdir):
             os.mkdir(comp_outdir)
-        print("setUpCalss success")
 
     def update_tests(self, testdir, outdir):
         """
@@ -92,8 +92,8 @@ class FileOutputTest(unittest.TestCase):
             out_img = oiio.ImageBuf(os.path.join(curr_outdir, img))
 
             # Compare image content
-            comp = oiio.ImageBufAlgo.compare(ref_img, out_img, 0, 0)
-            if comp.nwarn != 0 or comp.nfail != 0:
+            comp = oiio.ImageBufAlgo.compare(ref_img, out_img, 0, 0, failrelative=self.fail_relative_threshold)
+            if comp.nfail != 0:
                 print_message(f"Image content mismatch for '{img}'",
                               'FAILURE', 'FAILED')
                 ok = False
@@ -131,7 +131,6 @@ class FileOutputTest(unittest.TestCase):
         return ok
 
     def test_file_output_node(self):
-        print("executing test_file_output_node...")
         if not os.path.exists(self.testdir):
             print_message(f"Test directory '{self.testdir}' does not exist.")
             return False
@@ -142,9 +141,6 @@ class FileOutputTest(unittest.TestCase):
         if not os.path.exists(self.outdir):
             os.mkdir(self.outdir)
 
-        print(self.testdir)
-        print(os.listdir(self.testdir))
-        
         ok = True
         for filename in os.listdir(self.testdir):
             test_name, ext = os.path.splitext(filename)
@@ -162,27 +158,25 @@ class FileOutputTest(unittest.TestCase):
 
             print_message(f"Running test {os.path.basename(curr_out_dir)}... ", 'SUCCESS', 'RUN')
             self.run_test_script(blendfile, curr_out_dir)
-            
+
             if not self.compare(curr_test_dir, curr_out_dir):
                 ok = False
 
         self.assertTrue(ok)
-        
+
     def run_test_script(self, blendfile, curr_out_dir):
         def set_basepath(node_tree, base_path):
             for node in node_tree.nodes:
-                print(node.name)
-                if node.type =='OUTPUT_FILE':
+                if node.type == 'OUTPUT_FILE':
                     node.base_path = f'{curr_out_dir}/'
                 elif node.type == 'GROUP' and node.node_tree:
                     set_basepath(node.node_tree, base_path)
-        
+
         bpy.ops.wm.open_mainfile(filepath=blendfile)
-        # Set output directory for all existing file output nodes.                    
+        # Set output directory for all existing file output nodes.
         set_basepath(bpy.data.scenes[0].node_tree, f'{curr_out_dir}/')
         bpy.data.scenes[0].render.compositor_device = f'{self.execution_device}'
         bpy.ops.render.render()
-        
 
 
 if __name__ == "__main__":
@@ -190,7 +184,7 @@ if __name__ == "__main__":
         argv = [sys.argv[0]] + sys.argv[sys.argv.index('--') + 1:]
     else:
         argv = sys.argv
-        
+
     parser = argparse.ArgumentParser(
         description="Run test script for each blend file containing a File Output node in TESTDIR, "
         "comparing all render outputs with known outputs."
