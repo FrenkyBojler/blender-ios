@@ -11,17 +11,19 @@
 
 #include "BLI_string_ref.hh"
 
+struct FileData;
 struct Library;
 struct ListBase;
 struct Main;
+struct UniqueName_Map;
 
 namespace blender::bke::library {
 
 struct LibraryRuntime {
   /* Used for efficient calculations of unique names. */
-  struct UniqueName_Map *name_map;
+  UniqueName_Map *name_map;
 
-  struct FileData *filedata;
+  FileData *filedata;
 
   /**
    * Run-time only, absolute file-path (set on read).
@@ -34,11 +36,10 @@ struct LibraryRuntime {
   char filepath_abs[1024];
 
   /** Set for indirectly linked libraries, used in the outliner and while reading. */
-  struct Library *parent;
+  Library *parent;
 
   /** #eLibrary_Tag. */
   ushort tag;
-  char _pad[6];
 
   /** Temp data needed by read/write code, and lib-override recursive re-synchronized. */
   int temp_index;

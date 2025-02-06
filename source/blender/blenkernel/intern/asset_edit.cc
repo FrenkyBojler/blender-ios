@@ -34,7 +34,6 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
-#include <string>
 
 namespace blender::bke {
 
