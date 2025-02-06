@@ -529,7 +529,7 @@ class NODE_OT_swap_node(Operator):
     bl_label = "Swap Node" 
     bl_options = {"REGISTER", "UNDO"}
 
-    node_type: StringProperty(name="New Node", default="GeometryNodeJoinGeometry")
+    # node_type: StringProperty(name="New Node", default="GeometryNodeJoinGeometry")
     menu_idname: StringProperty(name="Menu ID", default="NODE_MT_add")
     
     @classmethod
@@ -539,7 +539,7 @@ class NODE_OT_swap_node(Operator):
             and (context.area.type == "NODE_EDITOR")
             and (context.active_node is not None)
         )
-        
+    
     def invoke(self, context, event):
         self.has_selected_node = False
         self.original_node = context.active_node
@@ -556,7 +556,6 @@ class NODE_OT_swap_node(Operator):
             return {"RUNNING_MODAL"}
         
         return self.exectute(context)
-
     
     def exectute(self, context):
         if not self.has_selected_node:
