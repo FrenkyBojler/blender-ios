@@ -8,17 +8,13 @@
 
 #include <cstring>
 #include <fmt/format.h>
-#include <iostream>
 #include <sstream>
 #include <string>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array.hh"
 #include "BLI_listbase.h"
-#include "BLI_math_vector_types.hh"
 #include "BLI_multi_value_map.hh"
-#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -29,7 +25,6 @@
 #include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -40,13 +35,10 @@
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_bake_data_block_map.hh"
 #include "BKE_bake_geometry_nodes_modifier.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_customdata.hh"
-#include "BKE_geometry_fields.hh"
-#include "BKE_geometry_set_instances.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -87,7 +79,6 @@
 
 #include "ED_object.hh"
 #include "ED_screen.hh"
-#include "ED_spreadsheet.hh"
 #include "ED_undo.hh"
 #include "ED_viewer_path.hh"
 
@@ -97,11 +88,7 @@
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
-
-#include "FN_field.hh"
-#include "FN_lazy_function_execute.hh"
-#include "FN_lazy_function_graph_executor.hh"
-#include "FN_multi_function.hh"
+#include "NOD_socket_usage_inference.hh"
 
 namespace lf = blender::fn::lazy_function;
 namespace geo_log = blender::nodes::geo_eval_log;
@@ -275,7 +262,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
   walk(user_data, ob, md, &ptr, prop);
 }
@@ -837,7 +824,7 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
       const SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
       if (sl->spacetype == SPACE_NODE) {
         const SpaceNode &snode = *reinterpret_cast<const SpaceNode *>(sl);
-        if (snode.edittree == nullptr) {
+        if (snode.edittree == nullptr || snode.edittree->type != NTREE_GEOMETRY) {
           continue;
         }
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
@@ -1460,7 +1447,7 @@ class NodesModifierBakeParams : public nodes::GeoNodesBakeParams {
     bmain_ = DEG_get_bmain(depsgraph);
   }
 
-  nodes::BakeNodeBehavior *get(const int id) const
+  nodes::BakeNodeBehavior *get(const int id) const override
   {
     if (!modifier_cache_) {
       return nullptr;
@@ -2014,6 +2001,7 @@ struct DrawGroupInputsContext {
   NodesModifierData &nmd;
   PointerRNA *md_ptr;
   PointerRNA *bmain_ptr;
+  Array<bool> input_usages;
 };
 
 static void add_attribute_search_button(DrawGroupInputsContext &ctx,
@@ -2159,10 +2147,11 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   char rna_path[sizeof(socket_id_esc) + 4];
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
+  const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+
   uiLayout *row = uiLayoutRow(layout, true);
   uiLayoutSetPropDecorate(row, true);
-
-  const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+  uiLayoutSetActive(row, ctx.input_usages[input_index]);
 
   /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
    * information about what type of ID to select for editing the values. This is because
@@ -2263,6 +2252,27 @@ static bool interface_panel_has_socket(const bNodeTreeInterfacePanel &interface_
   return false;
 }
 
+static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
+                                           const bNodeTreeInterfacePanel &panel)
+{
+  for (const bNodeTreeInterfaceItem *item : panel.items()) {
+    if (item->item_type == NODE_INTERFACE_SOCKET) {
+      const auto &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
+      const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+      if (ctx.input_usages[input_index]) {
+        return true;
+      }
+    }
+    else if (item->item_type == NODE_INTERFACE_PANEL) {
+      const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
+      if (interface_panel_affects_output(ctx, sub_interface_panel)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
                                          uiLayout *layout,
                                          const bNodeTreeInterfacePanel &interface_panel)
@@ -2274,10 +2284,13 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         continue;
       }
       NodesModifierPanel *panel = find_panel_by_id(ctx.nmd, sub_interface_panel.identifier);
-      PointerRNA panel_ptr = RNA_pointer_create(
+      PointerRNA panel_ptr = RNA_pointer_create_discrete(
           ctx.md_ptr->owner_id, &RNA_NodesModifierPanel, panel);
       PanelLayout panel_layout = uiLayoutPanelProp(&ctx.C, layout, &panel_ptr, "is_open");
       uiItemL(panel_layout.header, IFACE_(sub_interface_panel.name), ICON_NONE);
+      if (!interface_panel_affects_output(ctx, sub_interface_panel)) {
+        uiLayoutSetActive(panel_layout.header, false);
+      }
       uiLayoutSetTooltipFunc(
           panel_layout.header,
           [](bContext * /*C*/, void *panel_arg, const char * /*tip*/) -> std::string {
@@ -2500,6 +2513,9 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
+    ctx.input_usages.reinitialize(nmd->node_group->interface_inputs().size());
+    nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+        *nmd->node_group, nmd->settings.properties, ctx.input_usages);
     draw_interface_panel_content(ctx, layout, nmd->node_group->tree_interface.root_panel);
   }
 
@@ -2807,10 +2823,9 @@ ModifierTypeInfo modifierType_Nodes = {
     /*srna*/ &RNA_NodesModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/
-    static_cast<ModifierTypeFlag>(
-        eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
-        eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
-        eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_AcceptsGreasePencil),
+    (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
+     eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
+     eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_AcceptsGreasePencil),
     /*icon*/ ICON_GEOMETRY_NODES,
 
     /*copy_data*/ blender::copy_data,

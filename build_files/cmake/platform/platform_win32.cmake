@@ -12,8 +12,8 @@ endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(MSVC_CLANG ON)
-  if(NOT WITH_WINDOWS_EXTERNAL_MANIFEST AND (CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
-    message(WARNING "WITH_WINDOWS_EXTERNAL_MANIFEST is required for clang (all generators on ARM64, VS generator on x64), turning ON")
+  if(NOT WITH_WINDOWS_EXTERNAL_MANIFEST)
+    message(WARNING "WITH_WINDOWS_EXTERNAL_MANIFEST is required for clang, turning ON")
     set(WITH_WINDOWS_EXTERNAL_MANIFEST ON)
   endif()
   set(VC_TOOLS_DIR $ENV{VCToolsRedistDir} CACHE STRING "Location of the msvc redistributables")
@@ -99,7 +99,7 @@ endif()
 list(APPEND PLATFORM_LINKLIBS
   ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 Comctl32 version
   advapi32 shfolder shell32 ole32 oleaut32 uuid psapi Dbghelp Shlwapi
-  pathcch Shcore Dwmapi Crypt32
+  pathcch Shcore Dwmapi Crypt32 Bcrypt
 )
 
 if(WITH_INPUT_IME)
@@ -178,8 +178,8 @@ remove_cc_flag(
 )
 
 if(MSVC_CLANG) # Clangs version of cl doesn't support all flags
-  string(APPEND CMAKE_CXX_FLAGS " ${CXX_WARN_FLAGS} /nologo /J /Gd /EHsc -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
-  string(APPEND CMAKE_C_FLAGS   " /nologo /J /Gd -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
+  string(APPEND CMAKE_CXX_FLAGS " ${CXX_WARN_FLAGS} /MP /nologo /J /Gd /showFilenames /EHsc -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
+  string(APPEND CMAKE_C_FLAGS   " /MP /nologo /J /Gd /showFilenames -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
 else()
   string(APPEND CMAKE_CXX_FLAGS " /nologo /J /Gd /MP /EHsc /bigobj")
   string(APPEND CMAKE_C_FLAGS   " /nologo /J /Gd /MP /bigobj")
@@ -652,37 +652,45 @@ if(WITH_PYTHON)
 endif()
 
 if(NOT WITH_WINDOWS_FIND_MODULES)
-  # even if boost is off, we still need to install the dlls when we use our lib folder since
-  # some of the other dependencies may need them. For this to work, BOOST_VERSION,
-  # BOOST_POSTFIX, and BOOST_DEBUG_POSTFIX need to be set.
   set(BOOST ${LIBDIR}/boost)
   set(BOOST_INCLUDE_DIR ${BOOST}/include)
   set(BOOST_LIBPATH ${BOOST}/lib)
-  set(BOOST_VERSION_HEADER ${BOOST_INCLUDE_DIR}/boost/version.hpp)
-  if(EXISTS ${BOOST_VERSION_HEADER})
-    file(STRINGS "${BOOST_VERSION_HEADER}" BOOST_LIB_VERSION REGEX "#define BOOST_LIB_VERSION ")
-    if(BOOST_LIB_VERSION MATCHES "#define BOOST_LIB_VERSION \"([0-9_]+)\"")
-      set(BOOST_VERSION "${CMAKE_MATCH_1}")
-    endif()
-  endif()
-  if(NOT BOOST_VERSION)
-    message(FATAL_ERROR "Unable to determine Boost version")
-  endif()
-  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
-    set(BOOST_POSTFIX "vc143-mt-a64-${BOOST_VERSION}")
-    set(BOOST_DEBUG_POSTFIX "vc143-mt-gyd-a64-${BOOST_VERSION}")
-    set(BOOST_PREFIX "")
+
+  # With Blender 4.4 libraries there is no more Boost. This code is only
+  # here until we can reasonably assume everyone has upgraded to them.
+  if(EXISTS "${LIBDIR}" AND NOT EXISTS "${BOOST}")
+    set(WITH_BOOST OFF)
+    set(BOOST_LIBRARIES)
+    set(BOOST_PYTHON_LIBRARIES)
+    set(BOOST_INCLUDE_DIR)
   else()
-    set(BOOST_POSTFIX "vc142-mt-x64-${BOOST_VERSION}")
-    set(BOOST_DEBUG_POSTFIX "vc142-mt-gyd-x64-${BOOST_VERSION}")
-    set(BOOST_PREFIX "")
+    # For older libraries when boost is off, we still need to install the dlls when
+    # since some of the other dependencies may need them. For this to work, BOOST_VERSION,
+    # BOOST_POSTFIX, and BOOST_DEBUG_POSTFIX need to be set.
+    set(BOOST_VERSION_HEADER ${BOOST_INCLUDE_DIR}/boost/version.hpp)
+    if(EXISTS ${BOOST_VERSION_HEADER})
+      file(STRINGS "${BOOST_VERSION_HEADER}" BOOST_LIB_VERSION REGEX "#define BOOST_LIB_VERSION ")
+      if(BOOST_LIB_VERSION MATCHES "#define BOOST_LIB_VERSION \"([0-9_]+)\"")
+        set(BOOST_VERSION "${CMAKE_MATCH_1}")
+      endif()
+    endif()
+    if(NOT BOOST_VERSION)
+      message(FATAL_ERROR "Unable to determine Boost version")
+    endif()
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+      set(BOOST_POSTFIX "vc143-mt-a64-${BOOST_VERSION}")
+      set(BOOST_DEBUG_POSTFIX "vc143-mt-gyd-a64-${BOOST_VERSION}")
+      set(BOOST_PREFIX "")
+    else()
+      set(BOOST_POSTFIX "vc142-mt-x64-${BOOST_VERSION}")
+      set(BOOST_DEBUG_POSTFIX "vc142-mt-gyd-x64-${BOOST_VERSION}")
+      set(BOOST_PREFIX "")
+    endif()
   endif()
 endif()
 
 if(WITH_BOOST)
-  if(WITH_INTERNATIONAL)
-    list(APPEND boost_extra_libs locale)
-  endif()
+  set(boost_extra_libs)
   set(Boost_USE_STATIC_RUNTIME ON) # prefix lib
   set(Boost_USE_MULTITHREADED ON) # suffix -mt
   set(Boost_USE_STATIC_LIBS ON) # suffix -s
@@ -698,8 +706,8 @@ if(WITH_BOOST)
       set(BOOST_DEBUG_POSTFIX "vc142-mt-gd-x64-${BOOST_VERSION}")
       set(BOOST_PREFIX "lib")
     endif()
-    set(BOOST_LIBRARIES)
     if(EXISTS ${BOOST_34_TRIGGER_FILE})
+      # Boost Python is the only library Blender directly depends on, though USD headers.
       if(WITH_USD)
         set(BOOST_PYTHON_LIBRARIES
           debug ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_python${_PYTHON_VERSION_NO_DOTS}-${BOOST_DEBUG_POSTFIX}.lib
@@ -707,15 +715,8 @@ if(WITH_BOOST)
         )
       endif()
     endif()
-    if(WITH_INTERNATIONAL)
-      set(BOOST_LIBRARIES ${BOOST_LIBRARIES}
-        optimized ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_locale-${BOOST_POSTFIX}.lib
-        debug ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_locale-${BOOST_DEBUG_POSTFIX}.lib
-      )
-    endif()
   else() # we found boost using find_package
     set(BOOST_INCLUDE_DIR ${Boost_INCLUDE_DIRS})
-    set(BOOST_LIBRARIES ${Boost_LIBRARIES})
     set(BOOST_LIBPATH ${Boost_LIBRARY_DIRS})
   endif()
 
@@ -919,10 +920,17 @@ endif()
 if(WITH_TBB)
   windows_find_package(TBB)
   if(NOT TBB_FOUND)
-    set(TBB_LIBRARIES
-      optimized ${LIBDIR}/tbb/lib/tbb.lib
-      debug ${LIBDIR}/tbb/lib/tbb_debug.lib
-    )
+    if(EXISTS ${LIBDIR}/tbb/lib/tbb12.lib) # 4.4
+      set(TBB_LIBRARIES
+        optimized ${LIBDIR}/tbb/lib/tbb12.lib
+        debug ${LIBDIR}/tbb/lib/tbb12_debug.lib
+      )
+    else() # 4.3-
+      set(TBB_LIBRARIES
+        optimized ${LIBDIR}/tbb/lib/tbb.lib
+        debug ${LIBDIR}/tbb/lib/tbb_debug.lib
+      )
+    endif()
     set(TBB_INCLUDE_DIR ${LIBDIR}/tbb/include)
     set(TBB_INCLUDE_DIRS ${TBB_INCLUDE_DIR})
     if(WITH_TBB_MALLOC_PROXY)
@@ -1049,11 +1057,19 @@ if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
     )
 
     if(EMBREE_SYCL_SUPPORT)
-      set(EMBREE_LIBRARIES
-        ${EMBREE_LIBRARIES}
-        optimized ${LIBDIR}/embree/lib/embree4_sycl.lib
-        debug ${LIBDIR}/embree/lib/embree4_sycl_d.lib
-      )
+      # MSVC debug version of embree may have been compiled without SYCL support
+      if(EXISTS ${LIBDIR}/embree/lib/embree4_sycl_d.lib)
+        set(EMBREE_LIBRARIES
+          ${EMBREE_LIBRARIES}
+          optimized ${LIBDIR}/embree/lib/embree4_sycl.lib
+          debug ${LIBDIR}/embree/lib/embree4_sycl_d.lib
+        )
+      else()
+        set(EMBREE_LIBRARIES
+          ${EMBREE_LIBRARIES}
+          optimized ${LIBDIR}/embree/lib/embree4_sycl.lib
+        )
+      endif()
     endif()
 
     if(EMBREE_STATIC_LIB)
@@ -1078,11 +1094,19 @@ if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
       )
 
       if(EMBREE_SYCL_SUPPORT)
-        set(EMBREE_LIBRARIES
-          ${EMBREE_LIBRARIES}
-          optimized ${LIBDIR}/embree/lib/embree_rthwif.lib
-          debug ${LIBDIR}/embree/lib/embree_rthwif_d.lib
-        )
+        # MSVC debug version of embree may have been compiled without SYCL support
+        if(EXISTS ${LIBDIR}/embree/lib/embree_rthwif_d.lib)
+          set(EMBREE_LIBRARIES
+            ${EMBREE_LIBRARIES}
+            optimized ${LIBDIR}/embree/lib/embree_rthwif.lib
+            debug ${LIBDIR}/embree/lib/embree_rthwif_d.lib
+          )
+        else()
+          set(EMBREE_LIBRARIES
+            ${EMBREE_LIBRARIES}
+            optimized ${LIBDIR}/embree/lib/embree_rthwif.lib
+          )
+        endif()
       endif()
     endif()
   endif()

@@ -353,7 +353,7 @@ static PointerRNA rna_ID_original_get(PointerRNA *ptr)
 {
   ID *id = (ID *)ptr->data;
 
-  return rna_pointer_inherit_refine(ptr, &RNA_ID, DEG_get_original_id(id));
+  return RNA_id_pointer_create(DEG_get_original_id(id));
 }
 
 short RNA_type_to_ID_code(const StructRNA *type)
@@ -654,8 +654,10 @@ IDProperty **rna_PropertyGroup_idprops(PointerRNA *ptr)
 
 bool rna_PropertyGroup_unregister(Main * /*bmain*/, StructRNA *type)
 {
+#  ifdef WITH_PYTHON
   /* Ensure that a potential py object representing this RNA type is properly dereferenced. */
   BPY_free_srna_pytype(type);
+#  endif
 
   RNA_struct_free(&BLENDER_RNA, type);
   return true;
@@ -670,7 +672,7 @@ StructRNA *rna_PropertyGroup_register(Main * /*bmain*/,
                                       StructFreeFunc /*free*/)
 {
   /* create dummy pointer */
-  PointerRNA dummy_ptr = RNA_pointer_create(nullptr, &RNA_PropertyGroup, nullptr);
+  PointerRNA dummy_ptr = RNA_pointer_create_discrete(nullptr, &RNA_PropertyGroup, nullptr);
 
   /* validate the python class */
   if (validate(&dummy_ptr, data, nullptr) != 0) {
@@ -1144,7 +1146,8 @@ void **rna_ID_instance(PointerRNA *ptr)
 static void rna_IDPArray_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   IDProperty *prop = (IDProperty *)ptr->data;
-  rna_iterator_array_begin(iter, IDP_IDPArray(prop), sizeof(IDProperty), prop->len, 0, nullptr);
+  rna_iterator_array_begin(
+      iter, ptr, IDP_IDPArray(prop), sizeof(IDProperty), prop->len, 0, nullptr);
 }
 
 static int rna_IDPArray_length(PointerRNA *ptr)
@@ -1512,7 +1515,7 @@ static PointerRNA rna_IDPreview_get(PointerRNA *ptr)
   ID *id = (ID *)ptr->data;
   PreviewImage *prv_img = BKE_previewimg_id_get(id);
 
-  return rna_pointer_inherit_refine(ptr, &RNA_ImagePreview, prv_img);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ImagePreview, prv_img);
 }
 
 static IDProperty **rna_IDPropertyWrapPtr_idprops(PointerRNA *ptr)

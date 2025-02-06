@@ -8,6 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
@@ -35,7 +36,6 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
-#include "ED_screen.hh"
 #include "ED_view3d.hh"
 
 #include "UI_interface.hh"
@@ -152,7 +152,7 @@ static void drw_text_cache_draw_ex(DRWTextStore *dt, ARegion *region)
     if (vos->sco[0] != IS_CLIPPED) {
       if (col_pack_prev != vos->col.pack) {
         BLF_color4ubv(font_id, vos->col.ub);
-        const uchar lightness = rgb_to_grayscale_byte(vos->col.ub);
+        const uchar lightness = srgb_to_grayscale_byte(vos->col.ub);
         outline_is_dark = lightness > 96;
         col_pack_prev = vos->col.pack;
       }
@@ -584,8 +584,7 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
   if (v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_INDICES) {
     int i;
 
-    /* For now, reuse an appropriate theme color */
-    UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEANG, col);
+    UI_GetThemeColor4ubv(TH_TEXT_HI, col);
 
     if (em->selectmode & SCE_SELECT_VERTEX) {
       BMVert *v;
@@ -599,7 +598,7 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
               ob->object_to_world(), use_coords ? vert_positions[BM_elem_index_get(v)] : v->co);
 
           const size_t numstr_len = SNPRINTF_RLEN(numstr, "%d", i);
-          DRW_text_cache_add(dt, co, numstr, numstr_len, 0, 0, txt_flag, col);
+          DRW_text_cache_add(dt, co, numstr, numstr_len, 0, 0, txt_flag, col, true, false);
         }
       }
     }
@@ -637,7 +636,9 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
                 0,
                 (use_edge_tex_sep) ? (use_edge_tex_len) ? -edge_tex_sep : edge_tex_sep : 0,
                 txt_flag,
-                col);
+                col,
+                true,
+                false);
           }
         }
       }
@@ -664,7 +665,7 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
           co = blender::math::transform_point(ob->object_to_world(), co);
 
           const size_t numstr_len = SNPRINTF_RLEN(numstr, "%d", i);
-          DRW_text_cache_add(dt, co, numstr, numstr_len, 0, 0, txt_flag, col);
+          DRW_text_cache_add(dt, co, numstr, numstr_len, 0, 0, txt_flag, col, true, false);
         }
       }
     }

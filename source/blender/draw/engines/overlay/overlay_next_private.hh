@@ -8,10 +8,13 @@
 
 #pragma once
 
+#include "BKE_context.hh"
 #include "BKE_movieclip.h"
 #include "BKE_object.hh"
 
 #include "BLI_function_ref.hh"
+
+#include "DNA_world_types.h"
 
 #include "GPU_matrix.hh"
 
@@ -20,6 +23,7 @@
 #include "UI_resources.hh"
 #include "draw_manager.hh"
 #include "draw_pass.hh"
+#include "draw_view_data.hh"
 #include "gpu_shader_create_info.hh"
 
 #include "../select/select_instance.hh"
@@ -140,6 +144,8 @@ struct State {
   bool is_material_select = false;
   /** Whether we should render the background or leave it transparent. */
   bool draw_background = false;
+  /** True if the render engine outputs satisfactory depth information to the depth buffer. */
+  bool is_render_depth_available = false;
   /** Should text draw in this mode? */
   bool show_text = false;
   bool hide_overlays = false;
@@ -172,6 +178,11 @@ struct State {
     }
     return View::OffsetData(*rv3d);
   }
+
+  /* Factor to use for wireframe offset.
+   * Result of GPU_polygon_offset_calc for the current view.
+   * Only valid at draw time, so use push constant reference instead of copy. */
+  float ndc_offset_factor = 0.0f;
 
   /** Convenience functions. */
 
@@ -389,15 +400,15 @@ class ShaderModule {
   ShaderPtr lattice_points = shader_clippable("overlay_edit_lattice_point");
   ShaderPtr lattice_wire = shader_clippable("overlay_edit_lattice_wire");
   ShaderPtr legacy_curve_edit_handles = shader_clippable("overlay_edit_curve_handle");
-  ShaderPtr legacy_curve_edit_normals = shader("overlay_edit_curve_normals");
+  ShaderPtr legacy_curve_edit_normals = shader_clippable("overlay_edit_curve_normals");
   ShaderPtr legacy_curve_edit_points = shader_clippable("overlay_edit_curve_point");
   ShaderPtr legacy_curve_edit_wires = shader_clippable("overlay_edit_curve_wire");
   ShaderPtr light_spot_cone = shader_clippable("overlay_extra_spot_cone");
   ShaderPtr mesh_analysis = shader_clippable("overlay_edit_mesh_analysis");
   ShaderPtr mesh_edit_depth = shader_clippable("overlay_edit_mesh_depth");
-  ShaderPtr mesh_edit_edge = shader("overlay_edit_mesh_edge");
+  ShaderPtr mesh_edit_edge = shader_clippable("overlay_edit_mesh_edge");
   ShaderPtr mesh_edit_face = shader_clippable("overlay_edit_mesh_face");
-  ShaderPtr mesh_edit_facedot = shader("overlay_edit_mesh_facedot");
+  ShaderPtr mesh_edit_facedot = shader_clippable("overlay_edit_mesh_facedot");
   ShaderPtr mesh_edit_vert = shader_clippable("overlay_edit_mesh_vert");
   ShaderPtr mesh_edit_skin_root = shader_clippable("overlay_edit_mesh_skin_root");
   ShaderPtr mesh_face_normal = shader_clippable("overlay_mesh_face_normal");
@@ -405,6 +416,7 @@ class ShaderModule {
   ShaderPtr mesh_loop_normal = shader_clippable("overlay_mesh_loop_normal");
   ShaderPtr mesh_loop_normal_subdiv = shader_clippable("overlay_mesh_loop_normal_subdiv");
   ShaderPtr mesh_vert_normal = shader_clippable("overlay_mesh_vert_normal");
+  ShaderPtr mesh_vert_normal_subdiv = shader_clippable("overlay_mesh_vert_normal_subdiv");
   ShaderPtr motion_path_line = shader_clippable("overlay_motion_path_line");
   ShaderPtr motion_path_vert = shader_clippable("overlay_motion_path_point");
   ShaderPtr outline_detect = shader("overlay_outline_detect");
@@ -781,7 +793,7 @@ struct Resources : public select::SelectMap {
   {
     if (state.v3d->shading.background_type == V3D_SHADING_BACKGROUND_WORLD) {
       if (state.scene->world) {
-        return float4(float3(&state.scene->world->horr));
+        return float4(float3(&state.scene->world->horr), 0.0f);
       }
     }
     else if (state.v3d->shading.background_type == V3D_SHADING_BACKGROUND_VIEWPORT) {
