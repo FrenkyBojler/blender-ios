@@ -25,48 +25,28 @@
 
 using blender::StringRef;
 
-struct PanelTypePointerHash {
-  uint64_t operator()(const PanelType *value) const
-  {
-    return get_default_hash(StringRef(value->idname));
-  }
-  uint64_t operator()(const StringRef name) const
-  {
-    return get_default_hash(name);
-  }
-};
-
-struct PanelTypePointerNameEqual {
-  bool operator()(const PanelType *a, const PanelType *b) const
-  {
-    return STREQ(a->idname, b->idname);
-  }
-  bool operator()(const StringRef idname, const PanelType *a) const
-  {
-    return a->idname == idname;
-  }
-};
-
 static auto &get_panel_type_map()
 {
-  static blender::VectorSet<PanelType *,
-                            blender::DefaultProbingStrategy,
-                            PanelTypePointerHash,
-                            PanelTypePointerNameEqual>
-      map;
+  struct IDNameGetter {
+    StringRef operator()(const PanelType *value) const
+    {
+      return StringRef(value->idname);
+    }
+  };
+  static blender::CustomIDVectorSet<PanelType *, IDNameGetter> map;
   return map;
 }
 
-PanelType *WM_paneltype_find(const char *idname, bool quiet)
+PanelType *WM_paneltype_find(const StringRef idname, bool quiet)
 {
-  if (idname[0]) {
-    if (PanelType *const *pt = get_panel_type_map().lookup_key_ptr_as(StringRef(idname))) {
+  if (!idname.is_empty()) {
+    if (PanelType *const *pt = get_panel_type_map().lookup_key_ptr_as(idname)) {
       return *pt;
     }
   }
 
   if (!quiet) {
-    printf("search for unknown paneltype %s\n", idname);
+    printf("search for unknown paneltype %s\n", std::string(idname).c_str());
   }
 
   return nullptr;

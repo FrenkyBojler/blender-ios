@@ -39,47 +39,27 @@
 
 using blender::StringRef;
 
-struct GizmoTypePointerHash {
-  uint64_t operator()(const wmGizmoType *value) const
-  {
-    return get_default_hash(StringRef(value->idname));
-  }
-  uint64_t operator()(const StringRef name) const
-  {
-    return get_default_hash(name);
-  }
-};
-
-struct GizmoTypePointerNameEqual {
-  bool operator()(const wmGizmoType *a, const wmGizmoType *b) const
-  {
-    return STREQ(a->idname, b->idname);
-  }
-  bool operator()(const StringRef idname, const wmGizmoType *a) const
-  {
-    return a->idname == idname;
-  }
-};
-
 static auto &get_gizmo_type_map()
 {
-  static blender::VectorSet<wmGizmoType *,
-                            blender::DefaultProbingStrategy,
-                            GizmoTypePointerHash,
-                            GizmoTypePointerNameEqual>
-      map;
+  struct IDNameGetter {
+    StringRef operator()(const wmGizmoType *value) const
+    {
+      return StringRef(value->idname);
+    }
+  };
+  static blender::CustomIDVectorSet<wmGizmoType *, IDNameGetter> map;
   return map;
 }
 
-const wmGizmoType *WM_gizmotype_find(const char *idname, bool quiet)
+const wmGizmoType *WM_gizmotype_find(const StringRef idname, bool quiet)
 {
-  if (idname[0]) {
-    if (wmGizmoType *const *gzt = get_gizmo_type_map().lookup_key_ptr_as(StringRef(idname))) {
+  if (!idname.is_empty()) {
+    if (wmGizmoType *const *gzt = get_gizmo_type_map().lookup_key_ptr_as(idname)) {
       return *gzt;
     }
 
     if (!quiet) {
-      printf("search for unknown gizmo '%s'\n", idname);
+      printf("search for unknown gizmo '%s'\n", std::string(idname).c_str());
     }
   }
   else {
@@ -179,9 +159,9 @@ void WM_gizmotype_remove_ptr(bContext *C, Main *bmain, wmGizmoType *gzt)
   gizmotype_unlink(C, bmain, gzt);
 }
 
-bool WM_gizmotype_remove(bContext *C, Main *bmain, const char *idname)
+bool WM_gizmotype_remove(bContext *C, Main *bmain, const StringRef idname)
 {
-  wmGizmoType *const *gzt = get_gizmo_type_map().lookup_key_ptr_as(StringRef(idname));
+  wmGizmoType *const *gzt = get_gizmo_type_map().lookup_key_ptr_as(idname);
   if (gzt == nullptr) {
     return false;
   }

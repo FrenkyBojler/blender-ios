@@ -219,7 +219,7 @@ template<typename T> inline T safe_acos(const T &a)
   if (UNLIKELY(a <= T(-1))) {
     return T(numbers::pi);
   }
-  else if (UNLIKELY(a >= T(1))) {
+  if (UNLIKELY(a >= T(1))) {
     return T(0);
   }
   return math::acos((a));
