@@ -14,6 +14,7 @@
 #include "BKE_material.hh"
 #include "BKE_mesh.h"
 #include "BKE_mesh.hh"
+#include "BKE_multires.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcloud.hh"
 
@@ -169,8 +170,7 @@ class GeometryToEditableOp {
       new_mesh->attributes_for_write().remove_anonymous();
       this->copy_materials_to_new_geometry_object(src_ob_eval, src_mesh.id, *new_ob, new_mesh->id);
       bke::mesh_remove_invalid_attribute_strings(*new_mesh);
-
-      /* TODO: #multires_customdata_delete */
+      multires_customdata_delete(new_mesh);
       return new_ob;
     });
   }
