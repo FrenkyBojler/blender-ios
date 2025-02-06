@@ -38,25 +38,3 @@ set(LIB
 )
 
 blender_add_lib(bf_io_csv "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
-
-if(WITH_GTESTS)
-  set(TEST_SRC
-
-  )
-
-  set(TEST_INC
-    ${INC}
-
-    ../../blenloader
-    ../../../../tests/gtests
-  )
-
-  set(TEST_LIB
-    ${LIB}
-
-    bf_blenloader_test_util
-    bf_io_csv
-  )
-
-  blender_add_test_suite_lib(io_csv "${TEST_SRC}" "${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
-endif()
