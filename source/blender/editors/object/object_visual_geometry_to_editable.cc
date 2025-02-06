@@ -25,12 +25,14 @@
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "ED_object.hh"
 #include "ED_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "BLI_map.hh"
+#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 
 #include "object_intern.hh"
@@ -374,11 +376,16 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
   Collection *collection_to_add_to = BKE_collection_object_find(
       &bmain, &scene, nullptr, src_ob_orig);
 
+  float4x4 src_ob_local_transform;
+  BKE_object_to_mat4(src_ob_orig, src_ob_local_transform.ptr());
+
   for (Object *object : top_level_objects) {
     /* Link the new objects into the collection. */
     BKE_collection_object_add(&bmain, collection_to_add_to, object);
-    /* Transform the objects so that they align with the source object. */
-    transform_raw_object_transform(*object, src_ob_eval->object_to_world());
+    /* Transform and parent the objects so that they align with the source object. */
+    transform_raw_object_transform(*object, src_ob_local_transform);
+    object->parent = src_ob_orig->parent;
+    copy_m4_m4(object->parentinv, src_ob_orig->parentinv);
   }
   for (Collection *new_collection : new_instance_collections) {
     /* Add the new collections to the master collection. This makes them more visible to the user,
@@ -399,6 +406,7 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
   if (!top_level_objects.is_empty()) {
     Base *first_base = BKE_view_layer_base_find(&view_layer, top_level_objects[0]);
     BKE_view_layer_base_select_and_set_active(&view_layer, first_base);
+    base_active_refresh(&bmain, &scene, &view_layer);
   }
   /* Exclude the new collections. This is done because they are only instanced by other objects but
    * should not be visible by themselves. */
@@ -407,9 +415,13 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
         &view_layer, new_collection);
     BKE_layer_collection_set_flag(new_layer_collection, LAYER_COLLECTION_EXCLUDE, true);
   }
+  BKE_view_layer_need_resync_tag(&view_layer);
+  DEG_id_tag_update(&scene.id, ID_RECALC_BASE_FLAGS);
 
   DEG_relations_tag_update(&bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, &scene);
+  WM_main_add_notifier(NC_SCENE | ND_LAYER, nullptr);
+  WM_main_add_notifier(NC_SCENE | ND_LAYER_CONTENT, nullptr);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
   return OPERATOR_FINISHED;
 }
