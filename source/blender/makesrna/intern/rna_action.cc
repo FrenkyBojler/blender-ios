@@ -29,6 +29,8 @@
 
 using namespace blender;
 
+/* Disabled for now, see comment in `rna_def_action_layer()` for more info. */
+#if 0
 const EnumPropertyItem rna_enum_layer_mix_mode_items[] = {
     {int(animrig::Layer::MixMode::Replace),
      "REPLACE",
@@ -57,6 +59,7 @@ const EnumPropertyItem rna_enum_layer_mix_mode_items[] = {
      "Channels in this layer are multiplied with underlying layers on a per-channel basis"},
     {0, nullptr, 0, nullptr, nullptr},
 };
+#endif
 
 const EnumPropertyItem rna_enum_strip_type_items[] = {
     {int(animrig::Strip::Type::Keyframe),
@@ -127,11 +130,14 @@ static animrig::Strip &rna_data_strip(const PointerRNA *ptr)
   return reinterpret_cast<ActionStrip *>(ptr->data)->wrap();
 }
 
+/* Disabled for now, see comment in `rna_def_action_layer()` for more info. */
+#  if 0
 static void rna_Action_tag_animupdate(Main * /*main*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   animrig::Action &action = rna_action(ptr);
   DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
 }
+#  endif
 
 static animrig::Channelbag &rna_data_channelbag(const PointerRNA *ptr)
 {
@@ -139,15 +145,19 @@ static animrig::Channelbag &rna_data_channelbag(const PointerRNA *ptr)
 }
 
 template<typename T>
-static void rna_iterator_array_begin(CollectionPropertyIterator *iter, Span<T *> items)
+static void rna_iterator_array_begin(CollectionPropertyIterator *iter,
+                                     PointerRNA *ptr,
+                                     Span<T *> items)
 {
-  rna_iterator_array_begin(iter, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
+  rna_iterator_array_begin(iter, ptr, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
 }
 
 template<typename T>
-static void rna_iterator_array_begin(CollectionPropertyIterator *iter, MutableSpan<T *> items)
+static void rna_iterator_array_begin(CollectionPropertyIterator *iter,
+                                     PointerRNA *ptr,
+                                     MutableSpan<T *> items)
 {
-  rna_iterator_array_begin(iter, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
+  rna_iterator_array_begin(iter, ptr, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
 }
 
 static PointerRNA rna_ActionSlots_active_get(PointerRNA *ptr)
@@ -221,7 +231,7 @@ void rna_Action_slots_remove(bAction *dna_action,
 static void rna_iterator_action_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   animrig::Action &action = rna_action(ptr);
-  rna_iterator_array_begin(iter, action.layers());
+  rna_iterator_array_begin(iter, ptr, action.layers());
 }
 
 static int rna_iterator_action_layers_length(PointerRNA *ptr)
@@ -278,7 +288,7 @@ void rna_Action_layers_remove(bAction *dna_action,
 static void rna_iterator_animation_slots_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   animrig::Action &action = rna_action(ptr);
-  rna_iterator_array_begin(iter, action.slots());
+  rna_iterator_array_begin(iter, ptr, action.slots());
 }
 
 static int rna_iterator_animation_slots_length(PointerRNA *ptr)
@@ -401,7 +411,7 @@ static void rna_iterator_ActionLayer_strips_begin(CollectionPropertyIterator *it
                                                   PointerRNA *ptr)
 {
   animrig::Layer &layer = rna_data_layer(ptr);
-  rna_iterator_array_begin(iter, layer.strips());
+  rna_iterator_array_begin(iter, ptr, layer.strips());
 }
 
 static int rna_iterator_ActionLayer_strips_length(PointerRNA *ptr)
@@ -485,7 +495,8 @@ static void rna_iterator_keyframestrip_channelbags_begin(CollectionPropertyItera
 {
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
   animrig::Strip &strip = rna_data_strip(ptr);
-  rna_iterator_array_begin(iter, strip.data<animrig::StripKeyframeData>(action).channelbags());
+  rna_iterator_array_begin(
+      iter, ptr, strip.data<animrig::StripKeyframeData>(action).channelbags());
 }
 
 static int rna_iterator_keyframestrip_channelbags_length(PointerRNA *ptr)
@@ -601,11 +612,21 @@ static std::optional<std::string> rna_Channelbag_path(const PointerRNA *ptr)
   return std::nullopt;
 }
 
+static PointerRNA rna_Channelbag_slot_get(PointerRNA *ptr)
+{
+  animrig::Action &action = rna_action(ptr);
+  animrig::Channelbag &channelbag = rna_data_channelbag(ptr);
+  animrig::Slot *slot = action.slot_for_handle(channelbag.slot_handle);
+  BLI_assert(slot);
+
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ActionSlot, slot);
+}
+
 static void rna_iterator_Channelbag_fcurves_begin(CollectionPropertyIterator *iter,
                                                   PointerRNA *ptr)
 {
   animrig::Channelbag &bag = rna_data_channelbag(ptr);
-  rna_iterator_array_begin(iter, bag.fcurves());
+  rna_iterator_array_begin(iter, ptr, bag.fcurves());
 }
 
 static int rna_iterator_Channelbag_fcurves_length(PointerRNA *ptr)
@@ -683,7 +704,7 @@ static void rna_Channelbag_fcurve_clear(ID *dna_action_id,
 static void rna_iterator_Channelbag_groups_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   animrig::Channelbag &bag = rna_data_channelbag(ptr);
-  rna_iterator_array_begin(iter, bag.channel_groups());
+  rna_iterator_array_begin(iter, ptr, bag.channel_groups());
 }
 
 static int rna_iterator_Channelbag_groups_length(PointerRNA *ptr)
@@ -850,7 +871,7 @@ static PointerRNA rna_ActionGroup_channels_get(CollectionPropertyIterator *iter)
       break;
   }
 
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_FCurve, fcurve);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_FCurve, fcurve);
 }
 
 /* Use the backward-compatible API only when we're working with the action as a
@@ -869,10 +890,10 @@ static void rna_iterator_Action_groups_begin(CollectionPropertyIterator *iter, P
     if (!channelbag) {
       return;
     }
-    rna_iterator_array_begin(iter, channelbag->channel_groups());
+    rna_iterator_array_begin(iter, ptr, channelbag->channel_groups());
   }
   else {
-    rna_iterator_listbase_begin(iter, &action.groups, nullptr);
+    rna_iterator_listbase_begin(iter, ptr, &action.groups, nullptr);
   }
 }
 static void rna_iterator_Action_groups_next(CollectionPropertyIterator *iter)
@@ -906,7 +927,7 @@ static PointerRNA rna_iterator_Action_groups_get(CollectionPropertyIterator *ite
     group = static_cast<bActionGroup *>(rna_iterator_listbase_get(iter));
   }
 
-  return RNA_pointer_create_discrete(&action.id, &RNA_ActionGroup, group);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_ActionGroup, group);
 }
 static int rna_iterator_Action_groups_length(PointerRNA *ptr)
 {
@@ -1006,10 +1027,10 @@ static void rna_iterator_Action_fcurves_begin(CollectionPropertyIterator *iter, 
     if (!channelbag) {
       return;
     }
-    rna_iterator_array_begin(iter, channelbag->fcurves());
+    rna_iterator_array_begin(iter, ptr, channelbag->fcurves());
   }
   else {
-    rna_iterator_listbase_begin(iter, &action.curves, nullptr);
+    rna_iterator_listbase_begin(iter, ptr, &action.curves, nullptr);
   }
 }
 static void rna_iterator_Action_fcurves_next(CollectionPropertyIterator *iter)
@@ -1043,7 +1064,7 @@ static PointerRNA rna_iterator_Action_fcurves_get(CollectionPropertyIterator *it
     fcurve = static_cast<FCurve *>(rna_iterator_listbase_get(iter));
   }
 
-  return RNA_pointer_create_discrete(&action.id, &RNA_FCurve, fcurve);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_FCurve, fcurve);
 }
 static int rna_iterator_Action_fcurves_length(PointerRNA *ptr)
 {
@@ -1240,8 +1261,8 @@ static void rna_Action_pose_markers_remove(bAction *act,
 static PointerRNA rna_Action_active_pose_marker_get(PointerRNA *ptr)
 {
   bAction *act = (bAction *)ptr->data;
-  return rna_pointer_inherit_refine(
-      ptr, &RNA_TimelineMarker, BLI_findlink(&act->markers, act->active_marker - 1));
+  return RNA_pointer_create_with_parent(
+      *ptr, &RNA_TimelineMarker, BLI_findlink(&act->markers, act->active_marker - 1));
 }
 
 static void rna_Action_active_pose_marker_set(PointerRNA *ptr,
@@ -1353,8 +1374,10 @@ static void rna_Action_deselect_keys(bAction *act)
   WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-/* Used to check if an action (value pointer)
- * is suitable to be assigned to the ID-block that is ptr. */
+/**
+ * Used to check if an action (value pointer)
+ * is suitable to be assigned to the ID-block that is ptr.
+ */
 bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
 {
   ID *srcId = ptr->owner_id;
@@ -1383,8 +1406,10 @@ bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
   return true;
 }
 
-/* Used to check if an action (value pointer)
- * can be assigned to Action Editor given current mode. */
+/**
+ * Used to check if an action (value pointer)
+ * can be assigned to Action Editor given current mode.
+ */
 bool rna_Action_actedit_assign_poll(PointerRNA *ptr, PointerRNA value)
 {
   SpaceAction *saction = (SpaceAction *)ptr->data;
@@ -1416,8 +1441,10 @@ bool rna_Action_actedit_assign_poll(PointerRNA *ptr, PointerRNA value)
   return false;
 }
 
-/** Iterate the FCurves of the given bAnimContext and validate the RNA path. Sets the flag
- * FCURVE_DISABLED if the path can't be resolved. */
+/**
+ * Iterate the FCurves of the given bAnimContext and validate the RNA path. Sets the flag
+ * #FCURVE_DISABLED if the path can't be resolved.
+ */
 static void reevaluate_fcurve_errors(bAnimContext *ac)
 {
   /* Need to take off the flag before filtering, else the filter code would skip the FCurves, which
@@ -1572,7 +1599,8 @@ static void rna_ActionSlot_target_id_type_set(PointerRNA *ptr, int value)
   action.slot_idtype_define(slot, ID_Type(value));
 }
 
-/* For API backwards compatability with pre-layered-actions (Blender 4.3 and
+/**
+ * For API backwards compatibility with pre-layered-actions (Blender 4.3 and
  * earlier), we treat `Action.id_root` as a proxy for the `target_id_type`
  * property (`idtype` in DNA) of the Action's first Slot.
  *
@@ -1589,12 +1617,14 @@ static int rna_Action_id_root_get(PointerRNA *ptr)
   return action.slot(0)->idtype;
 }
 
-/* For API backwards compatability with pre-layered-actions (Blender 4.3 and
+/**
+ * For API backwards compatibility with pre-layered-actions (Blender 4.3 and
  * earlier), we treat `Action.id_root` as a proxy for the `target_id_type`
  * property (`idtype` in DNA) of the Action's first Slot.
  *
  * If the Action has no slots, then a legacy slot is created and its
- * `target_id_type` is set. */
+ * `target_id_type` is set.
+ */
 static void rna_Action_id_root_set(PointerRNA *ptr, int value)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
@@ -2190,6 +2220,12 @@ static void rna_def_action_layer(BlenderRNA *brna)
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_struct_name_property(srna, prop);
 
+  /* Disabled in RNA until layered animation is actually implemented.
+   *
+   * The animation evaluation already takes these into account, but there is no guarantee that the
+   * mixing that is currently implemented is going to be mathematically identical to the eventual
+   * implementation. */
+#  if 0
   prop = RNA_def_property(srna, "influence", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(
@@ -2205,6 +2241,7 @@ static void rna_def_action_layer(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_enum_items(prop, rna_enum_layer_mix_mode_items);
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_Action_tag_animupdate");
+#  endif
 
   /* Collection properties. */
   prop = RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);
@@ -2492,6 +2529,12 @@ static void rna_def_action_channelbag(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "slot_handle", PROP_INT, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "slot", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "ActionSlot");
+  RNA_def_property_ui_text(prop, "Slot", "The Slot that the Channelbag's animation data is for");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(prop, "rna_Channelbag_slot_get", nullptr, nullptr, nullptr);
 
   /* Channelbag.fcurves */
   prop = RNA_def_property(srna, "fcurves", PROP_COLLECTION, PROP_NONE);
