@@ -13,6 +13,7 @@
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcloud.hh"
 
@@ -167,8 +168,8 @@ class GeometryToEditableOp {
       BKE_mesh_nomain_to_mesh(mesh_to_move_from, new_mesh, new_ob);
       new_mesh->attributes_for_write().remove_anonymous();
       this->copy_materials_to_new_geometry_object(src_ob_eval, src_mesh.id, *new_ob, new_mesh->id);
+      bke::mesh_remove_invalid_attribute_strings(*new_mesh);
 
-      /* TODO: #remove_invalid_attribute_strings, uv related maybe */
       /* TODO: #multires_customdata_delete */
       return new_ob;
     });
