@@ -371,13 +371,42 @@ struct VKRenderGraphSubmitTask {
   render_graph::VKRenderGraph *render_graph;
   uint64_t timeline;
   bool submit_to_device;
+  /**
+   * When set the submitted command queue will wait until the image available semaphore is
+   * signalled.
+   */
+  VkSemaphore vk_image_available_semaphore;
+
+  /**
+   * When set the semaphore will be signalled when the work has finished execution.
+   */
+  VkSemaphore vk_rendering_completed_semaphore;
 };
 
 TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_graph,
                                             VKDiscardPool &context_discard_pool,
                                             bool submit_to_device,
-                                            bool wait_for_completion)
+                                            bool wait_for_completion,
+                                            VkSemaphore vk_image_available_semaphore,
+                                            VkSemaphore vk_rendering_completed_semaphore)
 {
+  BLI_assert_msg((vk_image_available_semaphore == VK_NULL_HANDLE &&
+                  vk_rendering_completed_semaphore == VK_NULL_HANDLE) ||
+                     (vk_image_available_semaphore != VK_NULL_HANDLE &&
+                      vk_rendering_completed_semaphore != VK_NULL_HANDLE),
+                 "Incorrect usage: Both semaphores should be filled when preseting or not set "
+                 "when not presenting.");
+  /*
+BLI_assert_msg(vk_image_available_semaphore == VK_NULL_HANDLE ||
+      (submit_to_device == true && wait_for_completion == false),
+  "Incorrect usage: When presenting the batch must be submitted to device and not "
+  "wait for its completion.`");
+BLI_assert_msg(vk_rendering_completed_semaphore == VK_NULL_HANDLE ||
+      (submit_to_device == true && wait_for_completion == false),
+  "Incorrect usage: When presenting the batch must be submitted to device and not "
+  "wait for its completion.`");
+  */
+
   if (render_graph->is_empty()) {
     render_graph->reset();
     BLI_thread_queue_push(unused_render_graphs_, render_graph);
@@ -387,6 +416,9 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
   VKRenderGraphSubmitTask *submit_task = MEM_new<VKRenderGraphSubmitTask>(__func__);
   submit_task->render_graph = render_graph;
   submit_task->submit_to_device = submit_to_device;
+  submit_task->vk_image_available_semaphore = vk_image_available_semaphore;
+  submit_task->vk_rendering_completed_semaphore = vk_rendering_completed_semaphore;
+
   TimelineValue timeline = submit_task->timeline = submit_to_device ? ++timeline_value_ :
                                                                       timeline_value_ + 1;
   orphaned_data.timeline_ = timeline + 1;
@@ -492,22 +524,34 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
 
     if (submit_task->submit_to_device) {
       command_buffer->end_recording();
+      TimelineValue wait_for_timeline_values[2] = {submit_task->timeline, 0};
       VkTimelineSemaphoreSubmitInfo vk_timeline_semaphore_submit_info = {
           VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
           nullptr,
           0,
           nullptr,
+          uint32_t(submit_task->vk_rendering_completed_semaphore == VK_NULL_HANDLE ? 1 : 2),
+          wait_for_timeline_values};
+
+      // TODO(jbakker): When waiting on an image available semaphore, we should split in two submit
+      // infos. One containing the large amount of work that doesn't require the image to be
+      // available, and one that update the image. This requires that when swap chain semaphores
+      // are in play to record to a second command buffer.
+      VkSemaphore wait_for_semaphores = submit_task->vk_image_available_semaphore;
+      VkSemaphore signal_on_completion_semaphores[2] = {
+          device->vk_timeline_semaphore_, submit_task->vk_rendering_completed_semaphore};
+      VkPipelineStageFlags wait_for_stages = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+
+      VkSubmitInfo vk_submit_info = {
+          VK_STRUCTURE_TYPE_SUBMIT_INFO,
+          &vk_timeline_semaphore_submit_info,
+          uint32_t(wait_for_semaphores == VK_NULL_HANDLE ? 0 : 1),
+          &wait_for_semaphores,
+          &wait_for_stages,
           1,
-          &submit_task->timeline};
-      VkSubmitInfo vk_submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                                     &vk_timeline_semaphore_submit_info,
-                                     0,
-                                     nullptr,
-                                     nullptr,
-                                     1,
-                                     &vk_command_buffer,
-                                     1,
-                                     &device->vk_timeline_semaphore_};
+          &vk_command_buffer,
+          uint32_t(submit_task->vk_rendering_completed_semaphore == VK_NULL_HANDLE ? 1 : 2),
+          signal_on_completion_semaphores};
 
       {
         std::scoped_lock lock_queue(*device->queue_mutex_);

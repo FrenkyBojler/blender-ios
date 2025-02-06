@@ -192,7 +192,8 @@ class GHOST_ContextVK : public GHOST_Context {
   VkExtent2D m_render_extent;
   VkExtent2D m_render_extent_min;
   VkSurfaceFormatKHR m_surface_format;
-  VkFence m_fence;
+  VkSemaphore m_image_available_semaphore;
+  VkSemaphore m_rendering_completed_semaphore;
 
   std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffers_pre_callback_;
   std::function<void(void)> swap_buffers_post_callback_;

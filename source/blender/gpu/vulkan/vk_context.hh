@@ -71,7 +71,21 @@ class VKContext : public Context, NonCopyable {
 
   void flush() override;
 
-  TimelineValue flush_render_graph(RenderGraphFlushFlags flags);
+  /**
+   * Flush the current render graph to the device.
+   *
+   * \param flags:
+   *   Flags for submitting the render graph.
+   * \param vk_image_available_semaphore:
+   *   Semaphore to wait for before the submitted render graph can execute on the GPU. Should be
+   *  `VK_NULL_HANDLE` when not submitting for presenting.
+   * \param vk_rendering_completed_semaphore:
+   *   Semaphore to signal when the render graph has been completed execution on the GPU. Should be
+   *   `VK_NULL_HANDLE` when not submitting for presenting.
+   */
+  TimelineValue flush_render_graph(RenderGraphFlushFlags flags,
+                                   VkSemaphore vk_image_available_semaphore = VK_NULL_HANDLE,
+                                   VkSemaphore vk_rendering_completed_semaphore = VK_NULL_HANDLE);
   void finish() override;
 
   void memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) override;

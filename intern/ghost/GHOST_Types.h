@@ -746,6 +746,8 @@ typedef struct {
   VkSurfaceFormatKHR surface_format;
   /** Resolution of the image. */
   VkExtent2D extent;
+  VkSemaphore image_available;
+  VkSemaphore rendering_completed;
 } GHOST_VulkanSwapChainData;
 #endif
 

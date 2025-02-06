@@ -145,7 +145,9 @@ void VKContext::end_frame()
 
 void VKContext::flush() {}
 
-TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags)
+TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
+                                            VkSemaphore vk_image_available_semaphore,
+                                            VkSemaphore vk_rendering_completed_semaphore)
 {
   if (has_active_framebuffer()) {
     VKFrameBuffer &framebuffer = *active_framebuffer_get();
@@ -159,7 +161,9 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags)
       &render_graph_.value().get(),
       discard_pool,
       bool(flags & RenderGraphFlushFlags::SUBMIT),
-      bool(flags & RenderGraphFlushFlags::WAIT_FOR_COMPLETION));
+      bool(flags & RenderGraphFlushFlags::WAIT_FOR_COMPLETION),
+      vk_image_available_semaphore,
+      vk_rendering_completed_semaphore);
   render_graph_.reset();
   if (bool(flags & RenderGraphFlushFlags::RENEW_RENDER_GRAPH)) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
@@ -363,7 +367,10 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
    * chain image as device resources. When we move towards GPU swap chain synchronization we need
    * to keep track of the swap chain image between frames. */
   VKDevice &device = VKBackend::get().device;
-  device.resources.add_image(swap_chain_data.image, 1, "SwapchainImage");
+  if (!device.resources.contains_image(swap_chain_data.image)) {
+    // TODO: need to cleanup older swapchain images...
+    device.resources.add_image(swap_chain_data.image, 1, "SwapchainImage");
+  }
 
   framebuffer.rendering_end(*this);
   render_graph::VKRenderGraph &render_graph = this->render_graph();
@@ -376,9 +383,10 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   synchronization.vk_image_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
   render_graph.add_node(synchronization);
   flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
-                     RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+                     swap_chain_data.image_available,
+                     swap_chain_data.rendering_completed);
 
-  device.resources.remove_image(swap_chain_data.image);
 #if 0
   device.debug_print();
 #endif

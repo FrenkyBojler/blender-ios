@@ -485,7 +485,8 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
       m_command_buffer(VK_NULL_HANDLE),
       m_surface(VK_NULL_HANDLE),
       m_swapchain(VK_NULL_HANDLE),
-      m_fence(VK_NULL_HANDLE)
+      m_image_available_semaphore(VK_NULL_HANDLE),
+      m_rendering_completed_semaphore(VK_NULL_HANDLE)
 {
 }
 
@@ -496,6 +497,14 @@ GHOST_ContextVK::~GHOST_ContextVK()
     device_vk.wait_idle();
 
     destroySwapchain();
+    if (m_image_available_semaphore != VK_NULL_HANDLE) {
+      vkDestroySemaphore(device_vk.device, m_image_available_semaphore, nullptr);
+      m_image_available_semaphore = VK_NULL_HANDLE;
+    }
+    if (m_rendering_completed_semaphore != VK_NULL_HANDLE) {
+      vkDestroySemaphore(device_vk.device, m_rendering_completed_semaphore, nullptr);
+      m_rendering_completed_semaphore = VK_NULL_HANDLE;
+    }
 
     if (m_command_buffer != VK_NULL_HANDLE) {
       vkFreeCommandBuffers(device_vk.device, m_command_pool, 1, &m_command_buffer);
@@ -522,10 +531,6 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
 
   if (m_swapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(device, m_swapchain, nullptr);
-  }
-  if (m_fence != VK_NULL_HANDLE) {
-    vkDestroyFence(device, m_fence, nullptr);
-    m_fence = VK_NULL_HANDLE;
   }
   return GHOST_kSuccess;
 }
@@ -563,20 +568,23 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   VkResult result = VK_ERROR_OUT_OF_DATE_KHR;
   uint32_t image_index = 0;
   while (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    result = vkAcquireNextImageKHR(
-        device, m_swapchain, UINT64_MAX, VK_NULL_HANDLE, m_fence, &image_index);
+    result = vkAcquireNextImageKHR(device,
+                                   m_swapchain,
+                                   UINT64_MAX,
+                                   m_image_available_semaphore,
+                                   VK_NULL_HANDLE,
+                                   &image_index);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
       destroySwapchain();
       createSwapchain();
     }
   }
-  VK_CHECK(vkWaitForFences(device, 1, &m_fence, VK_TRUE, UINT64_MAX));
-  VK_CHECK(vkResetFences(device, 1, &m_fence));
 
-  GHOST_VulkanSwapChainData swap_chain_data;
-  swap_chain_data.image = m_swapchain_images[image_index];
-  swap_chain_data.surface_format = m_surface_format;
-  swap_chain_data.extent = m_render_extent;
+  GHOST_VulkanSwapChainData swap_chain_data = {m_swapchain_images[image_index],
+                                               m_surface_format,
+                                               m_render_extent,
+                                               m_image_available_semaphore,
+                                               m_rendering_completed_semaphore};
 
   if (swap_buffers_pre_callback_) {
     swap_buffers_pre_callback_(&swap_chain_data);
@@ -584,8 +592,8 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 
   VkPresentInfoKHR present_info = {};
   present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  present_info.waitSemaphoreCount = 0;
-  present_info.pWaitSemaphores = nullptr;
+  present_info.waitSemaphoreCount = 1;
+  present_info.pWaitSemaphores = &m_rendering_completed_semaphore;
   present_info.swapchainCount = 1;
   present_info.pSwapchains = &m_swapchain;
   present_info.pImageIndices = &image_index;
@@ -888,51 +896,12 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
   m_swapchain_images.resize(image_count);
   vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, m_swapchain_images.data());
 
-  VkFenceCreateInfo fence_info = {};
-  fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  VK_CHECK(vkCreateFence(device, &fence_info, nullptr, &m_fence));
-
-  /* Change image layout from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR. */
-  VkCommandBufferBeginInfo begin_info = {};
-  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  VK_CHECK(vkBeginCommandBuffer(m_command_buffer, &begin_info));
-  VkImageMemoryBarrier *barriers = new VkImageMemoryBarrier[image_count];
-  for (int i = 0; i < image_count; i++) {
-    VkImageMemoryBarrier &barrier = barriers[i];
-    barrier = {};
-
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    barrier.image = m_swapchain_images[i];
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+  VkSemaphoreCreateInfo vk_semaphore_info = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
+  if (m_image_available_semaphore == VK_NULL_HANDLE) {
+    VK_CHECK(vkCreateSemaphore(device, &vk_semaphore_info, nullptr, &m_image_available_semaphore));
+    VK_CHECK(
+        vkCreateSemaphore(device, &vk_semaphore_info, nullptr, &m_rendering_completed_semaphore));
   }
-  vkCmdPipelineBarrier(m_command_buffer,
-                       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                       VK_DEPENDENCY_BY_REGION_BIT,
-                       0,
-                       nullptr,
-                       0,
-                       nullptr,
-                       image_count,
-                       barriers);
-  VK_CHECK(vkEndCommandBuffer(m_command_buffer));
-
-  VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
-  VkSubmitInfo submit_info = {};
-  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submit_info.pWaitDstStageMask = wait_stages;
-  submit_info.commandBufferCount = 1;
-  submit_info.pCommandBuffers = &m_command_buffer;
-  submit_info.signalSemaphoreCount = 0;
-  submit_info.pSignalSemaphores = nullptr;
-  VK_CHECK(vkQueueSubmit(m_graphic_queue, 1, &submit_info, nullptr));
-  VK_CHECK(vkQueueWaitIdle(m_graphic_queue));
-
-  delete[] barriers;
 
   return GHOST_kSuccess;
 }
@@ -1039,16 +1008,20 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     create_info.ppEnabledExtensionNames = extensions_enabled.data();
 
     /* VkValidationFeaturesEXT */
+
+    // TODO: should find a better solution for this as it is not often used, but raises an annoying
+    // validation warning.
+    /*
     VkValidationFeaturesEXT validationFeatures = {};
     validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
     validationFeatures.enabledValidationFeatureCount = 1;
-
     VkValidationFeatureEnableEXT enabledValidationFeatures[1] = {
         VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
     validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
     if (m_debug) {
       create_info.pNext = &validationFeatures;
     }
+    */
 
 #ifdef __APPLE__
     create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;

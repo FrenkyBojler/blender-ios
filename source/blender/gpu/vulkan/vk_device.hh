@@ -352,10 +352,44 @@ class VKDevice : public NonCopyable {
   static void submission_runner(TaskPool *__restrict pool, void *task_data);
   render_graph::VKRenderGraph *render_graph_new();
 
+  /**
+   * Submit the given render graph to the device.
+   *
+   * The render graph ownership will be transferred to the device submission runner.
+   *
+   * \param render_graph:
+   *   Render graph to submit to the device.
+   *
+   * \param context_discard_pool:
+   *   Discard pool that containing resources to be cleared after the render graph has been
+   *   completed. The resources are transferred to the device discard pool and its lifetime values
+   *   are set.
+   *
+   * \param submit_to_device:
+   *   Should the render graph be submitted to the device right after the command builders have
+   *   been recorded, or allow it to include other render graphs to use the same command builder.
+   *   Execution of the commands will be postponed until the next render graph where
+   *   `submit_to_device` is set to `true`.
+   *
+   * \param wait_for_completion:
+   *   This function will wait until the render graph has been fully completed its execution. This
+   *   should is used to ensure that any read-back buffers have the correct content.
+   *
+   * \param vk_image_available_semaphore:
+   *   Semaphore to wait for before the submitted render graph can execute on the GPU. Should be
+   *   `VK_NULL_HANDLE` when not submitting for presenting.
+   *
+   * \param vk_rendering_completed_semaphore:
+   *   Semaphore to signal when the render graph has been completed execution on the GPU. Should be
+   *   `VK_NULL_HANDLE` when not submitting for presenting.
+   */
   TimelineValue render_graph_submit(render_graph::VKRenderGraph *render_graph,
                                     VKDiscardPool &context_discard_pool,
                                     bool submit_to_device,
-                                    bool wait_for_completion);
+                                    bool wait_for_completion,
+                                    VkSemaphore vk_image_available_semaphore,
+                                    VkSemaphore vk_rendering_completed_semaphore);
+
   void wait_for_timeline(TimelineValue timeline);
 
   /**

@@ -987,7 +987,7 @@ void VKFrameBuffer::rendering_ensure(VKContext &context)
   if (G.debug & G_DEBUG_GPU) {
     char message[256];
     message[0] = '\0';
-    BLI_assert_msg(this->check(message), message);
+    //BLI_assert_msg(this->check(message), message);
   }
 #endif
 

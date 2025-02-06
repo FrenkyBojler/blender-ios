@@ -198,6 +198,7 @@ class VKResourceStateTracker {
    * unregister the resource from state tracking.
    */
   void remove_image(VkImage vk_image);
+  bool contains_image(VkImage vk_image);
 
   /**
    * Remove an registered buffer.

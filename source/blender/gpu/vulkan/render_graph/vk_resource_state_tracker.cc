@@ -105,6 +105,12 @@ void VKResourceStateTracker::remove_image(VkImage vk_image)
 #endif
 }
 
+bool VKResourceStateTracker::contains_image(VkImage vk_image)
+{
+  std::scoped_lock lock(mutex);
+  return image_resources_.contains(vk_image);
+}
+
 /** \} */
 
 ResourceWithStamp VKResourceStateTracker::get_stamp(ResourceHandle handle,
