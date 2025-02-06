@@ -387,6 +387,11 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
     Base *first_base = BKE_view_layer_base_find(&view_layer, top_level_objects[0]);
     BKE_view_layer_base_select_and_set_active(&view_layer, first_base);
   }
+  for (Collection *new_collection : op.new_instance_collections()) {
+    LayerCollection *new_layer_collection = BKE_layer_collection_first_from_scene_collection(
+        &view_layer, new_collection);
+    BKE_layer_collection_set_flag(new_layer_collection, LAYER_COLLECTION_EXCLUDE, true);
+  }
 
   DEG_relations_tag_update(&bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, &scene);
