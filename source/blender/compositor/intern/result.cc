@@ -378,7 +378,7 @@ void Result::wrap_external(GPUTexture *texture)
   BLI_assert(!this->is_allocated());
   BLI_assert(!master_);
 
-  data_ = texture;
+  gpu_texture_ = texture;
   storage_type_ = ResultStorageType::GPU;
   is_external_ = true;
   is_single_value_ = false;
@@ -391,7 +391,7 @@ void Result::wrap_external(void *data, int2 size)
   BLI_assert(!master_);
 
   const int64_t array_size = int64_t(size.x) * int64_t(size.y);
-  data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
+  cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
   storage_type_ = ResultStorageType::CPU;
   is_external_ = true;
   domain_ = Domain(size);
@@ -494,11 +494,11 @@ void Result::free()
       else {
         GPU_texture_free(this->gpu_texture());
       }
-      data_ = nullptr;
+      gpu_texture_ = nullptr;
       break;
     case ResultStorageType::CPU:
       MEM_freeN(this->cpu_data().data());
-      data_ = GMutableSpan();
+      cpu_data_ = GMutableSpan();
       break;
   }
 
@@ -575,16 +575,16 @@ void Result::allocate_data(int2 size, bool from_pool)
     storage_type_ = ResultStorageType::GPU;
     is_from_pool_ = from_pool;
     if (from_pool) {
-      data_ = context_->texture_pool().acquire(size, this->get_gpu_texture_format());
+      gpu_texture_ = context_->texture_pool().acquire(size, this->get_gpu_texture_format());
     }
     else {
-      data_ = GPU_texture_create_2d(__func__,
-                                    size.x,
-                                    size.y,
-                                    1,
-                                    this->get_gpu_texture_format(),
-                                    GPU_TEXTURE_USAGE_GENERAL,
-                                    nullptr);
+      gpu_texture_ = GPU_texture_create_2d(__func__,
+                                           size.x,
+                                           size.y,
+                                           1,
+                                           this->get_gpu_texture_format(),
+                                           GPU_TEXTURE_USAGE_GENERAL,
+                                           nullptr);
     }
   }
   else {
@@ -599,7 +599,7 @@ void Result::allocate_data(int2 size, bool from_pool)
     void *data = MEM_mallocN_aligned(memory_size, alignment, AT);
     cpp_type.default_construct_n(data, array_size);
 
-    data_ = GMutableSpan(cpp_type, data, array_size);
+    cpu_data_ = GMutableSpan(cpp_type, data, array_size);
   }
 }
 

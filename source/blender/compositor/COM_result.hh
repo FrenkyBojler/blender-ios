@@ -116,13 +116,16 @@ class Result {
   ResultPrecision precision_ = ResultPrecision::Half;
   /* If true, the result is a single value, otherwise, the result is an image. */
   bool is_single_value_ = false;
-  /* The type of storage used to hold the data. Used to correctly interpret the data variant. */
+  /* The type of storage used to hold the data. Used to correctly interpret the data union. */
   ResultStorageType storage_type_ = ResultStorageType::GPU;
   /* Stores the result's pixel data, either stored in a GPU texture or a buffer that is wrapped in
    * a GMutableSpan on CPU. This will represent a 1x1 image if the result is a single value, the
    * value of which will be identical to that of the value member. See class description for more
    * information. */
-  std::variant<GPUTexture *, GMutableSpan> data_ = nullptr;
+  union {
+    GPUTexture *gpu_texture_ = nullptr;
+    GMutableSpan cpu_data_;
+  };
   /* The number of operations that currently needs this result. At the time when the result is
    * computed, this member will have a value that matches initial_reference_count_. Once each
    * operation that needs the result no longer needs it, the release method is called and the
@@ -486,13 +489,13 @@ inline int64_t Result::channels_count() const
 inline GPUTexture *Result::gpu_texture() const
 {
   BLI_assert(storage_type_ == ResultStorageType::GPU);
-  return std::get<GPUTexture *>(data_);
+  return gpu_texture_;
 }
 
 inline GMutableSpan Result::cpu_data() const
 {
   BLI_assert(storage_type_ == ResultStorageType::CPU);
-  return std::get<GMutableSpan>(data_);
+  return cpu_data_;
 }
 
 template<typename T> inline const T &Result::get_single_value() const
