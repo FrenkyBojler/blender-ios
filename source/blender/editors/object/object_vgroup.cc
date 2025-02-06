@@ -1006,6 +1006,7 @@ void vgroup_select_by_name(Object *ob, const char *name)
 static void vgroup_grease_pencil_select_verts(const Scene &scene,
                                               const ToolSettings &tool_settings,
                                               const bDeformGroup *def_group,
+                                              const bool select,
                                               Object &object)
 {
   using namespace bke;
@@ -1025,7 +1026,7 @@ static void vgroup_grease_pencil_select_verts(const Scene &scene,
       return;
     }
 
-    const Span<MDeformVert> dverts = curves.deform_verts_for_write();
+    const Span<MDeformVert> dverts = curves.deform_verts();
     if (dverts.is_empty()) {
       return;
     }
@@ -1164,7 +1165,7 @@ static void vgroup_select_verts(const ToolSettings &tool_settings,
     }
   }
   else if (ob->type == OB_GREASE_PENCIL) {
-    vgroup_grease_pencil_select_verts(scene, tool_settings, def_group, *ob);
+    vgroup_grease_pencil_select_verts(scene, tool_settings, def_group, select, *ob);
   }
 }
 
