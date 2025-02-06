@@ -2942,6 +2942,22 @@ static bke::CurvesGeometry extrude_grease_pencil_curves(const bke::CurvesGeometr
   selection.span.copy_from(dst_selected.as_span());
   selection.finish();
 
+  /* Bezier handle selections */
+  /* Copy the value of control point selections to handle selection attributes.
+   *                                
+   * This will lead to the extruded control point always having both handles selected.
+   * This is to circumvent the issue of source curves handles not being deselected when the user     
+   * extrudes a point with both handles selected*/      
+  bke::GSpanAttributeWriter selection_left = ed::curves::ensure_selection_attribute(
+      dst, bke::AttrDomain::Point, CD_PROP_BOOL, ".selection_handle_left");
+  selection_left.span.copy_from(dst_selected.as_span());
+  selection_left.finish();                             
+                                
+  bke::GSpanAttributeWriter selection_right = ed::curves::ensure_selection_attribute(
+      dst, bke::AttrDomain::Point, CD_PROP_BOOL, ".selection_handle_right");
+  selection_right.span.copy_from(dst_selected.as_span());
+  selection_right.finish();  
+
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
@@ -2955,7 +2971,7 @@ static bke::CurvesGeometry extrude_grease_pencil_curves(const bke::CurvesGeometr
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Point,
                          bke::AttrDomain::Point,
-                         bke::attribute_filter_from_skip_ref({".selection"}),
+                         bke::attribute_filter_from_skip_ref({".selection", ".selection_handle_left", "selection_handle_right"}),
                          dst_to_src_points,
                          dst_attributes);
 
