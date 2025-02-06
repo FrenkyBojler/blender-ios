@@ -360,34 +360,49 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
   if (!src_ob_eval) {
     return OPERATOR_CANCELLED;
   }
-
-  BKE_view_layer_base_deselect_all(&scene, &view_layer);
-
-  Collection *collection_of_active_object_orig = BKE_collection_object_find(
-      &bmain, &scene, nullptr, src_ob_orig);
-  bke::GeometrySet geometry_eval = bke::object_get_evaluated_geometry_set(*src_ob_eval);
-
+  /* Create all required objects and collections and add them to bmain. However, so far nothing is
+   * linked to the scene or view layer. That happens below. */
   GeometryToEditableOp op(bmain);
+  bke::GeometrySet geometry_eval = bke::object_get_evaluated_geometry_set(*src_ob_eval);
   const ComponentObjects new_component_objects = op.get_objects_for_geometry(*src_ob_eval,
                                                                              geometry_eval);
   const Vector<Object *> top_level_objects = new_component_objects.all_objects();
+  const Span<Collection *> new_instance_collections = op.new_instance_collections();
+
+  /* Find the collection that the active object is on, because we want to add the new objects
+   * in the same place. */
+  Collection *collection_to_add_to = BKE_collection_object_find(
+      &bmain, &scene, nullptr, src_ob_orig);
+
   for (Object *object : top_level_objects) {
-    BKE_collection_object_add(&bmain, collection_of_active_object_orig, object);
+    /* Link the new objects into the collection. */
+    BKE_collection_object_add(&bmain, collection_to_add_to, object);
+    /* Transform the objects so that they align with the source object. */
     transform_raw_object_transform(*object, src_ob_eval->object_to_world());
   }
-  for (Collection *new_collection : op.new_instance_collections()) {
+  for (Collection *new_collection : new_instance_collections) {
+    /* Add the new collections to the master collection. This makes them more visible to the user,
+     * compared to having collection instances which use collections that are not in the scene. */
     BKE_collection_child_add(&bmain, scene.master_collection, new_collection);
   }
+  /* Ensure that the #Base for objects and #LayerCollection for collections are created. */
   BKE_view_layer_synced_ensure(&scene, &view_layer);
+
+  /* Deselect everything so that we can select the new objects. */
+  BKE_view_layer_base_deselect_all(&scene, &view_layer);
+  /* Select the new objects. */
   for (Object *object : top_level_objects) {
     Base *base = BKE_view_layer_base_find(&view_layer, object);
     base->flag |= BASE_SELECTED;
   }
+  /* Make one of the new objects active. */
   if (!top_level_objects.is_empty()) {
     Base *first_base = BKE_view_layer_base_find(&view_layer, top_level_objects[0]);
     BKE_view_layer_base_select_and_set_active(&view_layer, first_base);
   }
-  for (Collection *new_collection : op.new_instance_collections()) {
+  /* Exclude the new collections. This is done because they are only instanced by other objects but
+   * should not be visible by themselves. */
+  for (Collection *new_collection : new_instance_collections) {
     LayerCollection *new_layer_collection = BKE_layer_collection_first_from_scene_collection(
         &view_layer, new_collection);
     BKE_layer_collection_set_flag(new_layer_collection, LAYER_COLLECTION_EXCLUDE, true);
