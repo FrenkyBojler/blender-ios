@@ -24,6 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Profile Curve")
       .only_realized_data()
       .supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Float>("Scale").min(0.0f).default_value(1.0f).field_on_all();
   b.add_input<decl::Bool>("Fill Caps")
       .description(
           "If the profile spline is cyclic, fill the ends of the generated mesh with N-gons");
@@ -32,6 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static Mesh *curve_to_mesh(const bke::CurvesGeometry &curves,
                            const GeometrySet &profile_set,
+                           const std::optional<VArray<float>> profile_scales,
                            const bool fill_caps,
                            const AttributeFilter &attribute_filter)
 {
@@ -39,7 +41,7 @@ static Mesh *curve_to_mesh(const bke::CurvesGeometry &curves,
   if (profile_set.has_curves()) {
     const Curves *profile_curves = profile_set.get_curves();
     mesh = bke::curve_to_mesh_sweep(
-        curves, profile_curves->geometry.wrap(), fill_caps, attribute_filter);
+        curves, profile_curves->geometry.wrap(), profile_scales, fill_caps, attribute_filter);
   }
   else {
     mesh = bke::curve_to_wire_mesh(curves, attribute_filter);
@@ -50,6 +52,7 @@ static Mesh *curve_to_mesh(const bke::CurvesGeometry &curves,
 
 static void grease_pencil_to_mesh(GeometrySet &geometry_set,
                                   const GeometrySet &profile_set,
+                                  const Field<float> scale_field,
                                   const bool fill_caps,
                                   const AttributeFilter &attribute_filter)
 {
@@ -64,7 +67,17 @@ static void grease_pencil_to_mesh(GeometrySet &geometry_set,
       continue;
     }
     const bke::CurvesGeometry &curves = drawing->strokes();
-    mesh_by_layer[layer_index] = curve_to_mesh(curves, profile_set, fill_caps, attribute_filter);
+    std::optional<VArray<float>> profile_scales;
+    if (profile_set.has_curves()) {
+      const bke::CurvesFieldContext context{curves, bke::AttrDomain::Point};
+      FieldEvaluator evaluator{context, curves.points_num()};
+      evaluator.add(scale_field);
+      evaluator.evaluate();
+
+      profile_scales.emplace(evaluator.get_evaluated<float>(0));
+    }
+    mesh_by_layer[layer_index] = curve_to_mesh(
+        curves, profile_set, profile_scales, fill_caps, attribute_filter);
   }
 
   if (mesh_by_layer.is_empty()) {
@@ -104,6 +117,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet curve_set = params.extract_input<GeometrySet>("Curve");
   GeometrySet profile_set = params.extract_input<GeometrySet>("Profile Curve");
+  const Field<float> scale_field = params.extract_input<Field<float>>("Scale");
   const bool fill_caps = params.extract_input<bool>("Fill Caps");
 
   bke::GeometryComponentEditData::remember_deformed_positions_if_necessary(curve_set);
@@ -112,7 +126,18 @@ static void node_geo_exec(GeoNodeExecParams params)
   curve_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (geometry_set.has_curves()) {
       const Curves &curves = *geometry_set.get_curves();
-      Mesh *mesh = curve_to_mesh(curves.geometry.wrap(), profile_set, fill_caps, attribute_filter);
+      std::optional<VArray<float>> profile_scales;
+      if (profile_set.has_curves()) {
+        const bke::CurvesFieldContext context{curves, bke::AttrDomain::Point};
+        FieldEvaluator evaluator{context, curves.geometry.wrap().points_num()};
+        evaluator.add(scale_field);
+        evaluator.evaluate();
+
+        profile_scales.emplace(evaluator.get_evaluated<float>(0));
+      }
+
+      Mesh *mesh = curve_to_mesh(
+          curves.geometry.wrap(), profile_set, profile_scales, fill_caps, attribute_filter);
       if (mesh != nullptr) {
         mesh->mat = static_cast<Material **>(MEM_dupallocN(curves.mat));
         mesh->totcol = curves.totcol;
@@ -120,7 +145,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       geometry_set.replace_mesh(mesh);
     }
     if (geometry_set.has_grease_pencil()) {
-      grease_pencil_to_mesh(geometry_set, profile_set, fill_caps, attribute_filter);
+      grease_pencil_to_mesh(geometry_set, profile_set, scale_field, fill_caps, attribute_filter);
     }
     geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
   });
