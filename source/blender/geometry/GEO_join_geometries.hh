@@ -29,8 +29,8 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter,
 
 void join_attributes(Span<bke::AttributeAccessor> attribute_accessors,
                      const Map<StringRef, eCustomDataType> &attribute_types,
-                     const bke::AttrDomain src_domain,
-                     const bke::AttrDomain dst_domain,
+                     bke::AttrDomain src_domain,
+                     bke::AttrDomain dst_domain,
                      bke::MutableAttributeAccessor dst_attributes);
 
 }  // namespace blender::geometry
