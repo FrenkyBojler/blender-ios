@@ -157,6 +157,9 @@ bool BKE_color_attribute_supported(const struct Mesh &mesh, const blender::Strin
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner,
                                            const blender::StringRef name);
 
-blender::StringRef BKE_uv_map_vert_select_name_get(blender::StringRef uv_map_name, char *buffer);
-blender::StringRef BKE_uv_map_edge_select_name_get(blender::StringRef uv_map_name, char *buffer);
-blender::StringRef BKE_uv_map_pin_name_get(blender::StringRef uv_map_name, char *buffer);
+[[nodiscard]] blender::StringRef BKE_uv_map_vert_select_name_get(blender::StringRef uv_map_name,
+                                                                 char *buffer);
+[[nodiscard]] blender::StringRef BKE_uv_map_edge_select_name_get(blender::StringRef uv_map_name,
+                                                                 char *buffer);
+[[nodiscard]] blender::StringRef BKE_uv_map_pin_name_get(blender::StringRef uv_map_name,
+                                                         char *buffer);
