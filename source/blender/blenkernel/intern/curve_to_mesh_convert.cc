@@ -472,7 +472,7 @@ static void foreach_curve_combination(const CurvesInfo &info,
 
 static void build_mesh_positions(const CurvesInfo &curves_info,
                                  const ResultOffsets &offsets,
-                                 const std::optional<VArray<float>> scales,
+                                 const VArray<float> scales,
                                  Vector<std::byte> &eval_buffer,
                                  Mesh &mesh)
 {
@@ -501,8 +501,8 @@ static void build_mesh_positions(const CurvesInfo &curves_info,
   const Span<float3> tangents = curves_info.main.evaluated_tangents();
   const Span<float3> normals = curves_info.main.evaluated_normals();
   Span<float> eval_scales;
-  if (scales.has_value()) {
-    eval_scales = evaluate_attribute(*scales, curves_info.main, eval_buffer).typed<float>();
+  if (!scales.is_empty()) {
+    eval_scales = evaluate_attribute(scales, curves_info.main, eval_buffer).typed<float>();
   }
   foreach_curve_combination(curves_info, offsets, [&](const CombinationInfo &info) {
     fill_mesh_positions(info.main_points.size(),
@@ -812,7 +812,7 @@ static void write_sharp_bezier_edges(const CurvesInfo &curves_info,
 
 Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
                           const CurvesGeometry &profile,
-                          const std::optional<VArray<float>> scales,
+                          const VArray<float> scales,
                           const bool fill_caps,
                           const AttributeFilter &attribute_filter)
 {

@@ -28,7 +28,7 @@ class CurvesGeometry;
  */
 Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
                           const CurvesGeometry &profile,
-                          const std::optional<VArray<float>> scales,
+                          const VArray<float> scales,
                           bool fill_caps,
                           const bke::AttributeFilter &attribute_filter = {});
 /**
