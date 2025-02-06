@@ -106,6 +106,8 @@ FileSelectParams *ED_fileselect_get_file_params(const SpaceFile *sfile);
 FileAssetSelectParams *ED_fileselect_get_asset_params(const SpaceFile *sfile);
 bool ED_fileselect_is_local_asset_library(const SpaceFile *sfile);
 
+void ED_fileselect_draw_check(bContext *C);
+
 void ED_fileselect_set_params_from_userdef(SpaceFile *sfile);
 /**
  * Update the user-preference data for the file space. In fact, this also contains some

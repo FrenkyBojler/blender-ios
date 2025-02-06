@@ -9108,6 +9108,10 @@ void UI_context_active_but_prop_handle(bContext *C, const bool handle_undo)
 {
   uiBut *activebut = UI_context_active_but_get_respect_popup(C);
   if (activebut) {
+    /* ALTERNATIVE 2: just call the associated button function as well.
+     * NOTE: for some reason, this is not in block->func... */
+    // ui_apply_but_func(C, activebut);
+
     /* TODO(@ideasman42): look into a better way to handle the button change
      * currently this is mainly so reset defaults works for the
      * operator redo panel. */

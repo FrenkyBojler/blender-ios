@@ -2866,6 +2866,17 @@ static std::optional<std::string> rna_FileSelectParams_path(const PointerRNA * /
   return "params";
 }
 
+/* ALTERNATIVE 1: make sure we end up with calls to operator check() funtions. */
+static void rna_FileSelectParams_filename_update(bContext *C, PointerRNA *ptr)
+{
+  FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
+  if (params->file[0] == '\0') {
+    /* This runs the operator check() functions which is needed to prevent empty filename on "Reset
+     * to Default". */
+    ED_fileselect_draw_check(C);
+  }
+}
+
 int rna_FileSelectParams_filename_editable(const PointerRNA *ptr, const char **r_info)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
@@ -7091,7 +7102,9 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, nullptr, "file");
   RNA_def_property_ui_text(prop, "File Name", "Active file in the file browser");
   RNA_def_property_editable_func(prop, "rna_FileSelectParams_filename_editable");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_FILE_PARAMS, "rna_FileSelectParams_filename_update");
 
   prop = RNA_def_property(srna, "use_library_browsing", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(

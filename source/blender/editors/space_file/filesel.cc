@@ -400,6 +400,12 @@ FileSelectParams *ED_fileselect_get_file_params(const SpaceFile *sfile)
   return (sfile->browse_mode == FILE_BROWSE_MODE_FILES) ? sfile->params : nullptr;
 }
 
+void ED_fileselect_draw_check(bContext *C)
+{
+  ScrArea *area = CTX_wm_area(C);
+  file_draw_check_ex(C, area);
+}
+
 FileAssetSelectParams *ED_fileselect_get_asset_params(const SpaceFile *sfile)
 {
   return (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS) ? sfile->asset_params : nullptr;
