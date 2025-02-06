@@ -2487,9 +2487,7 @@ void clipboard_free()
   }
 }
 
-static Array<int> clipboard_materials_remap(Main &bmain,
-                                            Object &object,
-                                            const Clipboard &clipboard)
+static Array<int> clipboard_materials_remap(Main &bmain, Object &object)
 {
   using namespace blender::ed::greasepencil;
 
@@ -2499,6 +2497,7 @@ static Array<int> clipboard_materials_remap(Main &bmain,
     scene_materials.add(material->id.session_uid, material);
   }
 
+  const Clipboard &clipboard = ensure_grease_pencil_clipboard();
   Array<int> clipboard_material_remap(clipboard.materials_in_source_num, 0);
   for (const int i : clipboard.materials.index_range()) {
     /* Check if the material name exists in the scene. */
@@ -2623,7 +2622,7 @@ static int grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
 
     bke::GeometrySet joined_copied_curves = join_geometries_with_transform(geometries.as_span(),
                                                                            layer_to_object);
-    cliplayer.curves = std::move(joined_copied_curves.get_curves()->geometry.wrap());
+    cliplayer.curves = joined_copied_curves.get_curves()->geometry.wrap();
     cliplayer.name = layer->name();
     i++;
   }
@@ -2679,7 +2678,6 @@ static void GREASE_PENCIL_OT_copy(wmOperatorType *ot)
 
 static IndexRange clipboard_paste_strokes_ex(Main &bmain,
                                              Object &object,
-                                             const Clipboard &clipboard,
                                              const bke::CurvesGeometry &curves_to_paste,
                                              const float4x4 &object_to_paste_layer,
                                              const float4x4 &clipboard_to_world,
@@ -2688,8 +2686,8 @@ static IndexRange clipboard_paste_strokes_ex(Main &bmain,
                                              bke::greasepencil::Drawing &drawing)
 {
   /* Get a list of all materials in the scene. */
-  const Array<int> clipboard_material_remap = ed::greasepencil::clipboard_materials_remap(
-      bmain, object, clipboard);
+  const Array<int> clipboard_material_remap = ed::greasepencil::clipboard_materials_remap(bmain,
+                                                                                          object);
 
   /* Get the index range of the pasted curves in the target layer. */
   const IndexRange pasted_curves_range = paste_back ? IndexRange(0, curves_to_paste.curves_num()) :
@@ -2730,6 +2728,11 @@ static IndexRange clipboard_paste_strokes_ex(Main &bmain,
   return pasted_curves_range;
 }
 
+enum class PasteType {
+  Active = 0,
+  ByLayer = 1,
+};
+
 static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
@@ -2740,6 +2743,8 @@ static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
       scene.toolsettings);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
+  const PasteType type = PasteType(RNA_enum_get(op->ptr, "type"));
+
   const bool keep_world_transform = RNA_boolean_get(op->ptr, "keep_world_transform");
   const bool paste_on_back = RNA_boolean_get(op->ptr, "paste_back");
 
@@ -2748,16 +2753,7 @@ static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* Find layers to paste strokes into. */
-  Array<Layer *> layers_to_paste_into(clipboard.layers.size());
-  for (const int clip_layer_i : clipboard.layers.index_range()) {
-    const Clipboard::ClipboardLayer &layer = clipboard.layers[clip_layer_i];
-    if (bke::greasepencil::TreeNode *node = grease_pencil.find_node_by_name(layer.name)) {
-      if (node->is_layer() && node->as_layer().is_editable()) {
-        layers_to_paste_into[clip_layer_i] = &node->as_layer();
-      }
-    }
-    /* Fallback to active layer. */
+  if (type == PasteType::Active) {
     Layer *active_layer = grease_pencil.get_active_layer();
     if (!active_layer) {
       BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer to paste into");
@@ -2767,50 +2763,102 @@ static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
       BKE_report(op->reports, RPT_ERROR, "Active layer is not editable");
       return OPERATOR_CANCELLED;
     }
-    layers_to_paste_into[clip_layer_i] = active_layer;
-  }
 
-  /* Deselect everything from editable drawings. The pasted strokes are the only ones then after
-   * the paste. That's convenient for the user. */
-  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
-  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::GSpanAttributeWriter selection_in_target = ed::curves::ensure_selection_attribute(
-        info.drawing.strokes_for_write(), selection_domain, CD_PROP_BOOL);
-    ed::curves::fill_selection_false(selection_in_target.span);
-    selection_in_target.finish();
-  });
+    /* Deselect everything from editable drawings. The pasted strokes are the only ones then after
+     * the paste. That's convenient for the user. */
+    const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
+    threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+      bke::GSpanAttributeWriter selection_in_target = ed::curves::ensure_selection_attribute(
+          info.drawing.strokes_for_write(), selection_domain, CD_PROP_BOOL);
+      ed::curves::fill_selection_false(selection_in_target.span);
+      selection_in_target.finish();
+    });
 
-  for (const int clip_layer_i : clipboard.layers.index_range()) {
-    const Clipboard::ClipboardLayer &clip_layer = clipboard.layers[clip_layer_i];
-    const bke::CurvesGeometry &curves_to_paste = clip_layer.curves;
-
-    BLI_assert(layers_to_paste_into[clip_layer_i] != nullptr);
-    Layer &paste_layer = *layers_to_paste_into[clip_layer_i];
-    const float4x4 object_to_paste_layer = math::invert(paste_layer.to_object_space(*object));
+    const float4x4 object_to_layer = math::invert(active_layer->to_object_space(*object));
 
     /* Ensure active keyframe. */
     bool inserted_keyframe = false;
-    if (!ensure_active_keyframe(scene, grease_pencil, paste_layer, false, inserted_keyframe)) {
+    if (!ensure_active_keyframe(scene, grease_pencil, *active_layer, false, inserted_keyframe)) {
       BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
       return OPERATOR_CANCELLED;
     }
 
     bke::greasepencil::Drawing *target_drawing = grease_pencil.get_editable_drawing_at(
-        paste_layer, scene.r.cfra);
+        *active_layer, scene.r.cfra);
     BLI_assert(target_drawing != nullptr);
 
-    clipboard_paste_strokes_ex(*bmain,
-                               *object,
-                               clipboard,
-                               curves_to_paste,
-                               object_to_paste_layer,
-                               clipboard.transform,
-                               keep_world_transform,
-                               paste_on_back,
-                               *target_drawing);
+    paste_all_strokes_from_clipboard(
+        *bmain, *object, object_to_layer, keep_world_transform, paste_on_back, *target_drawing);
 
     if (inserted_keyframe) {
       WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+    }
+  }
+  else if (type == PasteType::ByLayer) {
+    /* Find layers to paste strokes into. */
+    Array<Layer *> layers_to_paste_into(clipboard.layers.size());
+    for (const int clip_layer_i : clipboard.layers.index_range()) {
+      const Clipboard::ClipboardLayer &layer = clipboard.layers[clip_layer_i];
+      if (bke::greasepencil::TreeNode *node = grease_pencil.find_node_by_name(layer.name)) {
+        if (node->is_layer() && node->as_layer().is_editable()) {
+          layers_to_paste_into[clip_layer_i] = &node->as_layer();
+          continue;
+        }
+      }
+      /* Fallback to active layer. */
+      Layer *active_layer = grease_pencil.get_active_layer();
+      if (!active_layer) {
+        BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer to paste into");
+        return OPERATOR_CANCELLED;
+      }
+      if (!active_layer->is_editable()) {
+        BKE_report(op->reports, RPT_ERROR, "Active layer is not editable");
+        return OPERATOR_CANCELLED;
+      }
+      layers_to_paste_into[clip_layer_i] = active_layer;
+    }
+
+    /* Deselect everything from editable drawings. The pasted strokes are the only ones then after
+     * the paste. That's convenient for the user. */
+    const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
+    threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+      bke::GSpanAttributeWriter selection_in_target = ed::curves::ensure_selection_attribute(
+          info.drawing.strokes_for_write(), selection_domain, CD_PROP_BOOL);
+      ed::curves::fill_selection_false(selection_in_target.span);
+      selection_in_target.finish();
+    });
+
+    for (const int clip_layer_i : clipboard.layers.index_range()) {
+      const Clipboard::ClipboardLayer &clip_layer = clipboard.layers[clip_layer_i];
+      const bke::CurvesGeometry &curves_to_paste = clip_layer.curves;
+
+      BLI_assert(layers_to_paste_into[clip_layer_i] != nullptr);
+      Layer &paste_layer = *layers_to_paste_into[clip_layer_i];
+      const float4x4 object_to_paste_layer = math::invert(paste_layer.to_object_space(*object));
+
+      /* Ensure active keyframe. */
+      bool inserted_keyframe = false;
+      if (!ensure_active_keyframe(scene, grease_pencil, paste_layer, false, inserted_keyframe)) {
+        BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
+        return OPERATOR_CANCELLED;
+      }
+
+      bke::greasepencil::Drawing *target_drawing = grease_pencil.get_editable_drawing_at(
+          paste_layer, scene.r.cfra);
+      BLI_assert(target_drawing != nullptr);
+
+      clipboard_paste_strokes_ex(*bmain,
+                                 *object,
+                                 curves_to_paste,
+                                 object_to_paste_layer,
+                                 clipboard.transform,
+                                 keep_world_transform,
+                                 paste_on_back,
+                                 *target_drawing);
+
+      if (inserted_keyframe) {
+        WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+      }
     }
   }
 
@@ -2833,6 +2881,14 @@ static bool grease_pencil_paste_strokes_poll(bContext *C)
 
 static void GREASE_PENCIL_OT_paste(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem rna_paste_items[] = {
+      {int(PasteType::Active), "ACTIVE", 0, "Paste to Active", ""},
+      {int(PasteType::ByLayer), "LAYER", 0, "Paste by Layer", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   ot->name = "Paste Strokes";
   ot->idname = "GREASE_PENCIL_OT_paste";
   ot->description =
@@ -2843,14 +2899,18 @@ static void GREASE_PENCIL_OT_paste(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ot->prop = RNA_def_boolean(
+  ot->prop = RNA_def_enum(ot->srna, "type", rna_paste_items, int(PasteType::Active), "Type", "");
+
+  prop = RNA_def_boolean(
       ot->srna, "paste_back", false, "Paste on Back", "Add pasted strokes behind all strokes");
-  RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
-  ot->prop = RNA_def_boolean(ot->srna,
-                             "keep_world_transform",
-                             false,
-                             "Keep World Transform",
-                             "Keep the world transform of strokes from the clipboard unchanged");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(ot->srna,
+                         "keep_world_transform",
+                         false,
+                         "Keep World Transform",
+                         "Keep the world transform of strokes from the clipboard unchanged");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -2880,7 +2940,6 @@ IndexRange paste_all_strokes_from_clipboard(Main &bmain,
 
   return clipboard_paste_strokes_ex(bmain,
                                     object,
-                                    clipboard,
                                     joined_clipboard_curves,
                                     object_to_paste_layer,
                                     clipboard.transform,
