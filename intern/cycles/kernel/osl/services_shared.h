@@ -20,7 +20,7 @@ bool attribute_bump_map_normal(KernelGlobals kg, ccl_private const ShaderData *s
     return false;
   }
 
-  const bool backfacing = (sd->shader & SD_BACKFACING);
+  const bool backfacing = (sd->flag & SD_BACKFACING);
 
   /* Fallback when the smooth normal is zero. */
   float3 Ng = backfacing ? -sd->Ng : sd->Ng;
