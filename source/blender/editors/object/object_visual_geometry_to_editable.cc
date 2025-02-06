@@ -346,7 +346,6 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
   Scene &scene = *CTX_data_scene(C);
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
   ViewLayer &view_layer = *CTX_data_view_layer(C);
-  LayerCollection &layer_collection = *BKE_layer_collection_get_active(&view_layer);
 
   Object *src_ob_orig = CTX_data_active_object(C);
   Object *src_ob_eval = DEG_get_evaluated_object(&depsgraph, src_ob_orig);
