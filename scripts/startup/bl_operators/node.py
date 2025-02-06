@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import bpy
 from bpy.types import (
-    Context,
-    Event,
     FileHandler,
     Operator,
     PropertyGroup,
@@ -565,7 +563,6 @@ class NODE_OT_swap_node(Operator):
         tree = active_node.id_data
         node_new = [node for node in tree.nodes if node not in self.current_nodes][0]
 
-        # return {"FINISHED"}
         # capture all of the existing links and default attributes for the current node
         # to rebuild the connections we can capture the sockets that are connected to and
         # from other nodes, but on the node itself we have to use the name instead
@@ -619,8 +616,6 @@ class NODE_OT_swap_node(Operator):
                 pass
 
         return {'FINISHED'}
-
-
 
 
 class NODE_FH_image_node(FileHandler):
