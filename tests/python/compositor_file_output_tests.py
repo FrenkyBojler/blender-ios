@@ -46,7 +46,7 @@ class FileOutputTest(unittest.TestCase):
         """
         Update tests by copying all output images to the test directory.
         """
-        print_message(f"Updating test {os.path.basename(outdir)}...", 'SUCCESS', 'RUN')
+        print_message("Updating test {:s}...".format(os.path.basename(outdir)), 'SUCCESS', 'RUN')
         # Ensure the updated testdir contains images only (no OS specific files such as .desktop).
         if os.path.exists(testdir):
             rmtree(testdir)
@@ -63,7 +63,7 @@ class FileOutputTest(unittest.TestCase):
         ref_images = set()
         out_images = set()
         if not os.path.exists(curr_testdir):
-            print_message(f"Test directory {curr_testdir} does not exist", 'FAILURE', 'FAILED')
+            print_message("Test directory {:s} does not exist".format(curr_testdir), 'FAILURE', 'FAILED')
             if self.update:
                 self.update_tests(curr_testdir, curr_outdir)
                 return True
@@ -78,13 +78,13 @@ class FileOutputTest(unittest.TestCase):
 
         for img in out_images:
             if img not in ref_images:
-                print_message(f"Output image '{img}' has no corresponding test image.",
+                print_message("Output image '{:s}' has no corresponding test image".format(img),
                               'FAILURE', 'FAILED')
                 ok = False
 
         for img in ref_images:
             if img not in out_images:
-                print_message(f"Test image '{img}' not found in output images", 'FAILURE', 'FAILED')
+                print_message("Test image '{:s}' not found in output images".format(img), 'FAILURE', 'FAILED')
                 ok = False
                 continue
 
@@ -94,7 +94,7 @@ class FileOutputTest(unittest.TestCase):
             # Compare image content
             comp = oiio.ImageBufAlgo.compare(ref_img, out_img, 0, 0, failrelative=self.fail_relative_threshold)
             if comp.nfail != 0:
-                print_message(f"Image content mismatch for '{img}'",
+                print_message("Image content mismatch for '{:s}'".format(img),
                               'FAILURE', 'FAILED')
                 ok = False
 
@@ -109,14 +109,13 @@ class FileOutputTest(unittest.TestCase):
                     continue
                 if attrib.name not in out_meta:
                     print_message(
-                        f"Image metadata mismatch: metadata '{attrib.name}' does not exist in output image '{img}'",
-                        'FAILURE',
-                        'FAILED')
+                        "Image metadata mismatch: metadata '{:s}' does not exist in output image '{:s}'".format(
+                            attrib.name, img), 'FAILURE', 'FAILED')
                     ok = False
                     continue
                 if attrib.value != out_meta[attrib.name]:
                     print_message(
-                        "Image metadata mismatch for metadata '{attrib.name}' in image '{img}'",
+                        "Image metadata mismatch for metadata '{:s}' in image '{:s}'".format(attrib.name, img),
                         'FAILURE',
                         'FAILED')
                     ok = False
@@ -132,10 +131,10 @@ class FileOutputTest(unittest.TestCase):
 
     def test_file_output_node(self):
         if not os.path.exists(self.testdir):
-            print_message(f"Test directory '{self.testdir}' does not exist.")
+            print_message("Test directory '{:s}' does not exist.".format(self.testdir), 'FAILURE', 'FAILED')
             return False
         if not os.listdir(self.testdir):
-            print_message(f"Test directory '{self.testdir}' is empty.", 'FAILURE', 'FAILED')
+            print_message("Test directory '{:s}' is empty.".format(self.testdir), 'FAILURE', 'FAILED')
             return False
 
         if not os.path.exists(self.outdir):
@@ -156,7 +155,7 @@ class FileOutputTest(unittest.TestCase):
                 rmtree(curr_out_dir)
             os.mkdir(curr_out_dir)
 
-            print_message(f"Running test {os.path.basename(curr_out_dir)}... ", 'SUCCESS', 'RUN')
+            print_message("Running test {:s}... ".format(os.path.basename(curr_out_dir)), 'SUCCESS', 'RUN')
             self.run_test_script(blendfile, curr_out_dir)
 
             if not self.compare(curr_test_dir, curr_out_dir):
