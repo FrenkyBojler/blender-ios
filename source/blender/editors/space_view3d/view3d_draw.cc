@@ -1303,8 +1303,14 @@ static bool is_grease_pencil_with_layer_keyframe(const Object &ob)
     return false;
   }
 
+  using namespace blender::bke::greasepencil;
   const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
-  return grease_pencil.drawings().size() > 0;
+  for (const Layer *layer : grease_pencil.layers()) {
+    if (!layer->frames().is_empty()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
