@@ -3750,7 +3750,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
         break;
       case ID_LI: {
         Main *first_bmain = static_cast<Main *>(fd->mainlist->first);
-        bhead = read_libblock(fd, first_bmain, bhead, ID_TAG_LOCAL, false, nullptr);
+        bhead = read_libblock(fd, first_bmain, bhead, ID_TAG_LOCAL, {}, false, nullptr);
         break;
       }
         /* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
