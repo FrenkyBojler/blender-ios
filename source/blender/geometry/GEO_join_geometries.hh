@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include <iterator>
+#include "BLI_span.hh"
 
 #include "BKE_geometry_set.hh"
 
 namespace blender::bke {
+class AttributeAccessor;
 class Instances;
-}
+}  // namespace blender::bke
 
 namespace blender::geometry {
 
@@ -26,7 +27,7 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter,
                          Span<const bke::Instances *> other_instances,
                          bke::Instances &target);
 
-void join_attributes(const Span<bke::AttributeAccessor> attribute_accessors,
+void join_attributes(Span<bke::AttributeAccessor> attribute_accessors,
                      const Map<StringRef, eCustomDataType> &attribute_types,
                      const bke::AttrDomain src_domain,
                      const bke::AttrDomain dst_domain,
