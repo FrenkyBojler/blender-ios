@@ -1869,10 +1869,12 @@ IDNewNameResult BKE_id_new_name_validate(Main &bmain,
   char name[MAX_ID_NAME - 2];
 
   /* If library, don't rename (unless explicitly required), but do ensure proper sorting. */
-  if (!do_linked_data && ID_IS_LINKED(&id)) {
-    id_sort_by_name(&lb, &id, nullptr);
+  if (ID_IS_LINKED(&id)) {
+    if (!do_linked_data || (id.lib->runtime.tag & LIBRARY_IDNAMES_READ_ONLY) != 0) {
+      id_sort_by_name(&lb, &id, nullptr);
 
-    return {IDNewNameResult::Action::UNCHANGED, nullptr};
+      return {IDNewNameResult::Action::UNCHANGED, nullptr};
+    }
   }
 
   /* If no name given, use name of current ID. */

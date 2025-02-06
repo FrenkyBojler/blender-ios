@@ -76,13 +76,18 @@ static ID *asset_link_id(Main &global_main,
   if (local_asset && local_asset->lib) {
     local_asset->lib->runtime.tag |= LIBRARY_ASSET_EDITABLE;
 
+    const bool is_essentials_override = asset_system::essentials_override_is_path_inside(filepath);
+    /* Don't allow changing names of essentials. It would break override handling. */
+    if (is_essentials_override || asset_system::essentials_is_path_inside(filepath)) {
+      local_asset->lib->runtime.tag |= LIBRARY_IDNAMES_READ_ONLY;
+    }
+
     if ((local_asset->lib->runtime.tag & LIBRARY_IS_ASSET_EDIT_FILE) &&
         StringRef(filepath).endswith(BLENDER_ASSET_FILE_SUFFIX) && BLI_file_is_writable(filepath))
     {
-      if (BKE_preferences_asset_library_containing_path(&U, filepath) ||
-          /* Path into essentials override directory. */
-          asset_system::essentials_override_is_path_inside(filepath))
-      {
+      /* Only asset files from the essentials overrides or custom asset directories may be
+       * writable. */
+      if (is_essentials_override || BKE_preferences_asset_library_containing_path(&U, filepath)) {
         local_asset->lib->runtime.tag |= LIBRARY_ASSET_FILE_WRITABLE;
       }
     }

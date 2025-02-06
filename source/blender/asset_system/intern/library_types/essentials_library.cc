@@ -63,6 +63,11 @@ StringRefNull essentials_override_directory_path()
   return path;
 }
 
+bool essentials_is_path_inside(const StringRefNull path)
+{
+  return BLI_path_contains(essentials_directory_path().c_str(), path.c_str());
+}
+
 bool essentials_override_is_path_inside(const StringRefNull path)
 {
   return BLI_path_contains(essentials_override_directory_path().c_str(), path.c_str());

@@ -21,6 +21,12 @@ class AssetRepresentation;
 StringRefNull essentials_directory_path();
 StringRefNull essentials_override_directory_path();
 
+/**
+ * Does this path point into the essentials directory? Does not include checking for the essential
+ * overrides directory, do that additionally if needed.
+ */
+bool essentials_is_path_inside(const StringRefNull path);
+/** Does this path point into the essentials overrides directory? */
 bool essentials_override_is_path_inside(const StringRefNull path);
 
 /**

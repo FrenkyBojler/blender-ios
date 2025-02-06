@@ -201,6 +201,8 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include "AS_essentials_library.hh"
+
 #  include "DNA_anim_types.h"
 
 #  include "BLI_listbase.h"
@@ -299,6 +301,23 @@ static int rna_ID_name_editable(const PointerRNA *ptr, const char **r_info)
   if (!ID_IS_EDITABLE(id)) {
     if (r_info) {
       *r_info = N_("Linked data-blocks cannot be renamed");
+    }
+    return 0;
+  }
+
+  if (ID_IS_LINKED(id) && (id->lib->runtime.tag & LIBRARY_IDNAMES_READ_ONLY) != 0) {
+    if (r_info) {
+      /* Add extra context for the disabled hint. */
+      if (blender::asset_system::essentials_is_path_inside(id->lib->filepath) ||
+          blender::asset_system::essentials_override_is_path_inside(id->lib->filepath))
+      {
+        *r_info = N_(
+            "Data-blocks from the Essentials library cannot be renamed. Duplicate the asset into "
+            "a different asset library if this is desired");
+      }
+      else {
+        *r_info = N_("Data-blocks from this library cannot be renamed");
+      }
     }
     return 0;
   }
