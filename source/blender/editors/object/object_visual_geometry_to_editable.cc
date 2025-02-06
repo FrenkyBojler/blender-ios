@@ -105,28 +105,28 @@ class GeometryToEditableOp {
   ComponentObjects get_objects_for_geometry(const Object &src_ob_eval,
                                             const bke::GeometrySet &geometry)
   {
+    const StringRefNull name = geometry.name.empty() ? BKE_id_name(src_ob_eval.id) : geometry.name;
     ComponentObjects objects;
     if (const Mesh *mesh = geometry.get_mesh()) {
       if (mesh->verts_num > 0) {
-        objects.mesh_ob = this->get_or_create_object_for_mesh(src_ob_eval, *mesh, geometry.name);
+        objects.mesh_ob = this->get_or_create_object_for_mesh(src_ob_eval, *mesh, name);
       }
     }
     if (const Curves *curves = geometry.get_curves()) {
       if (curves->geometry.curve_num > 0) {
-        objects.curves_ob = this->get_or_create_object_for_curves(
-            src_ob_eval, *curves, geometry.name);
+        objects.curves_ob = this->get_or_create_object_for_curves(src_ob_eval, *curves, name);
       }
     }
     if (const PointCloud *pointcloud = geometry.get_pointcloud()) {
       if (pointcloud->totpoint > 0) {
         objects.pointcloud_ob = this->get_or_create_object_for_pointcloud(
-            src_ob_eval, *pointcloud, geometry.name);
+            src_ob_eval, *pointcloud, name);
       }
     }
     if (const GreasePencil *greasepencil = geometry.get_grease_pencil()) {
       if (greasepencil->layers().size() > 0) {
         objects.greasepencil_ob = this->get_or_create_object_for_grease_pencil(
-            src_ob_eval, *greasepencil, geometry.name);
+            src_ob_eval, *greasepencil, name);
       }
     }
     if (const bke::Instances *instances = geometry.get_instances()) {
@@ -354,26 +354,29 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  GeometryToEditableOp op(bmain);
+  BKE_view_layer_base_deselect_all(&scene, &view_layer);
 
+  Collection *collection_of_active_object_orig = BKE_collection_object_find(
+      &bmain, &scene, nullptr, src_ob_orig);
   bke::GeometrySet geometry_eval = bke::object_get_evaluated_geometry_set(*src_ob_eval);
 
-  Collection *new_collection = op.build_collection_for_geometry(*src_ob_eval, geometry_eval);
-
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (new_collection, ob) {
-    transform_raw_object_transform(*ob, src_ob_eval->object_to_world());
+  GeometryToEditableOp op(bmain);
+  const ComponentObjects new_component_objects = op.get_objects_for_geometry(*src_ob_eval,
+                                                                             geometry_eval);
+  const Vector<Object *> top_level_objects = new_component_objects.all_objects();
+  for (Object *object : top_level_objects) {
+    BKE_collection_object_add(&bmain, collection_of_active_object_orig, object);
+    transform_raw_object_transform(*object, src_ob_eval->object_to_world());
   }
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-
-  BKE_collection_child_add(&bmain, layer_collection.collection, new_collection);
   BKE_view_layer_synced_ensure(&scene, &view_layer);
-
-  BKE_view_layer_base_deselect_all(&scene, &view_layer);
-  BKE_collection_objects_select(&scene, &view_layer, new_collection, false);
-
-  LayerCollection *new_layer_collection = BKE_layer_collection_first_from_scene_collection(
-      &view_layer, new_collection);
-  BKE_layer_collection_activate(&view_layer, new_layer_collection);
+  for (Object *object : top_level_objects) {
+    Base *base = BKE_view_layer_base_find(&view_layer, object);
+    base->flag |= BASE_SELECTED;
+  }
+  if (!top_level_objects.is_empty()) {
+    Base *first_base = BKE_view_layer_base_find(&view_layer, top_level_objects[0]);
+    BKE_view_layer_base_select_and_set_active(&view_layer, first_base);
+  }
 
   DEG_relations_tag_update(&bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, &scene);
