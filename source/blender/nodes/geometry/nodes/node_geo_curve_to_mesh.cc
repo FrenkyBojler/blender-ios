@@ -34,13 +34,20 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static Mesh *curve_to_mesh(const bke::CurvesGeometry &curves,
                            const GeometrySet &profile_set,
-                           const VArray<float> profile_scales,
+                           const Field<float> &scale_field,
                            const bool fill_caps,
                            const AttributeFilter &attribute_filter)
 {
   Mesh *mesh;
   if (profile_set.has_curves()) {
     const Curves *profile_curves = profile_set.get_curves();
+
+    const bke::CurvesFieldContext context{curves, bke::AttrDomain::Point};
+    FieldEvaluator evaluator{context, curves.points_num()};
+    evaluator.add(scale_field);
+    evaluator.evaluate();
+
+    const VArray<float> profile_scales = evaluator.get_evaluated<float>(0);
     mesh = bke::curve_to_mesh_sweep(
         curves, profile_curves->geometry.wrap(), profile_scales, fill_caps, attribute_filter);
   }
@@ -53,7 +60,7 @@ static Mesh *curve_to_mesh(const bke::CurvesGeometry &curves,
 
 static void grease_pencil_to_mesh(GeometrySet &geometry_set,
                                   const GeometrySet &profile_set,
-                                  const Field<float> scale_field,
+                                  const Field<float> &scale_field,
                                   const bool fill_caps,
                                   const AttributeFilter &attribute_filter)
 {
@@ -68,17 +75,8 @@ static void grease_pencil_to_mesh(GeometrySet &geometry_set,
       continue;
     }
     const bke::CurvesGeometry &curves = drawing->strokes();
-    VArray<float> profile_scales;
-    if (profile_set.has_curves()) {
-      const bke::CurvesFieldContext context{curves, bke::AttrDomain::Point};
-      FieldEvaluator evaluator{context, curves.points_num()};
-      evaluator.add(scale_field);
-      evaluator.evaluate();
-
-      profile_scales = evaluator.get_evaluated<float>(0);
-    }
     mesh_by_layer[layer_index] = curve_to_mesh(
-        curves, profile_set, profile_scales, fill_caps, attribute_filter);
+        curves, profile_set, scale_field, fill_caps, attribute_filter);
   }
 
   if (mesh_by_layer.is_empty()) {
@@ -128,18 +126,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (geometry_set.has_curves()) {
       const Curves &curves = *geometry_set.get_curves();
 
-      VArray<float> profile_scales;
-      if (profile_set.has_curves()) {
-        const bke::CurvesFieldContext context{curves, bke::AttrDomain::Point};
-        FieldEvaluator evaluator{context, curves.geometry.wrap().points_num()};
-        evaluator.add(scale_field);
-        evaluator.evaluate();
-
-        profile_scales = evaluator.get_evaluated<float>(0);
-      }
-
       Mesh *mesh = curve_to_mesh(
-          curves.geometry.wrap(), profile_set, profile_scales, fill_caps, attribute_filter);
+          curves.geometry.wrap(), profile_set, scale_field, fill_caps, attribute_filter);
       if (mesh != nullptr) {
         mesh->mat = static_cast<Material **>(MEM_dupallocN(curves.mat));
         mesh->totcol = curves.totcol;
