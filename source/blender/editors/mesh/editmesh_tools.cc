@@ -4815,6 +4815,14 @@ static FillGridSplitJoin *edbm_fill_grid_split_join_init(BMEditMesh *em)
       BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
       BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
     }
+
+    /* Since the grid fill is performed "inside out", (filling an exterior edge of an island,
+     * instead of a hole), the winding of the generated faces would be the reverse of normal.
+     * This reversal would cause both the span/offset computation in edbm_fill_grid_prepare, and
+     * the flip detection in bm_grid_fill, to alternate on repeated calls, causing the final result
+     * to alternate between two different, (but both valid!), results.  Reversing the direction of
+     * each edge after the split avoids that, resulting in the consistent results every time. */
+    BM_edge_verts_swap(e_dst);
   }
 
   /* Store the island for removal once it has been replaced by new fill_grid geometry . */
