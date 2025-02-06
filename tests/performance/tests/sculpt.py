@@ -207,6 +207,7 @@ class SculptBrushTest(api.Test):
 
 
 def generate(env):
-    filepaths = env.find_blend_files('sculpt/brushes/*')
-    print(filepaths)
+    filepaths = env.find_blend_files('sculpt/*')
+    # For now, we only expect there to ever be a single file to use as the basis for generating other brush tests
+    assert len(filepaths) == 1
     return [SculptBrushTest(filepaths[0], mode, brush_type) for mode in SculptMode for brush_type in BrushType]
