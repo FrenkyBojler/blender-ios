@@ -17,7 +17,6 @@
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
 
-#include "DNA_action_defaults.h"
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
@@ -37,7 +36,6 @@
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
 
-#include "DNA_defaults.h"
 #include "DNA_defs.h"
 #include "DNA_genfile.h"
 #include "DNA_particle_types.h"
@@ -56,7 +54,6 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_action.hh"
@@ -1136,8 +1133,15 @@ static void do_version_glare_node_bloom_strength(const Scene *scene,
   /* See the get_quality_factor method in the glare code. */
   const int quality_factor = 1 << storage->quality;
 
+  /* Find the render size to guess the Strength value. The node tree might not belong to a scene,
+   * so we just assume an arbitrary HDTV 1080p render size. */
   blender::int2 render_size;
-  BKE_render_resolution(&scene->r, true, &render_size.x, &render_size.y);
+  if (scene) {
+    BKE_render_resolution(&scene->r, true, &render_size.x, &render_size.y);
+  }
+  else {
+    render_size = blender::int2(1920, 1080);
+  }
 
   const blender::int2 highlights_size = render_size / quality_factor;
 
@@ -3130,18 +3134,17 @@ static void versioning_node_group_sort_sockets_recursive(bNodeTreeInterfacePanel
       /* Keep sockets above panels. */
       return a->item_type == NODE_INTERFACE_SOCKET;
     }
-    else {
-      /* Keep outputs above inputs. */
-      if (a->item_type == NODE_INTERFACE_SOCKET) {
-        const bNodeTreeInterfaceSocket *sa = reinterpret_cast<const bNodeTreeInterfaceSocket *>(a);
-        const bNodeTreeInterfaceSocket *sb = reinterpret_cast<const bNodeTreeInterfaceSocket *>(b);
-        const bool is_output_a = sa->flag & NODE_INTERFACE_SOCKET_OUTPUT;
-        const bool is_output_b = sb->flag & NODE_INTERFACE_SOCKET_OUTPUT;
-        if (is_output_a != is_output_b) {
-          return is_output_a;
-        }
+    /* Keep outputs above inputs. */
+    if (a->item_type == NODE_INTERFACE_SOCKET) {
+      const bNodeTreeInterfaceSocket *sa = reinterpret_cast<const bNodeTreeInterfaceSocket *>(a);
+      const bNodeTreeInterfaceSocket *sb = reinterpret_cast<const bNodeTreeInterfaceSocket *>(b);
+      const bool is_output_a = sa->flag & NODE_INTERFACE_SOCKET_OUTPUT;
+      const bool is_output_b = sb->flag & NODE_INTERFACE_SOCKET_OUTPUT;
+      if (is_output_a != is_output_b) {
+        return is_output_a;
       }
     }
+
     return false;
   };
 
@@ -5306,9 +5309,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     /* LIGHT_PROBE_RESOLUTION_64 has been removed in EEVEE-Next as the tedrahedral mapping is to
      * low res to be usable. */
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->eevee.gi_cubemap_resolution < 128) {
-        scene->eevee.gi_cubemap_resolution = 128;
-      }
+      scene->eevee.gi_cubemap_resolution = std::max(scene->eevee.gi_cubemap_resolution, 128);
     }
   }
 

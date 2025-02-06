@@ -476,11 +476,19 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_action.py
   --
   --testdir "${TEST_SRC_DIR}/animation"
+  --output-dir "${TEST_OUT_DIR}/bl_animation_action"
 )
 
 add_blender_test(
   bl_animation_keyframing
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_keyframing.py
+  --
+  --testdir "${TEST_SRC_DIR}/animation"
+)
+
+add_blender_test(
+  bl_pose_assets
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pose_assets.py
   --
   --testdir "${TEST_SRC_DIR}/animation"
 )
