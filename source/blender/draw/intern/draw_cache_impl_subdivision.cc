@@ -44,6 +44,7 @@
 #include "draw_cache_impl.hh"
 #include "draw_cache_inline.hh"
 #include "draw_shader.hh"
+#include "draw_subdiv_shader_shared.hh"
 #include "mesh_extractors/extract_mesh.hh"
 
 namespace blender::draw {
@@ -1001,48 +1002,6 @@ static bool draw_subdiv_build_cache(DRWSubdivCache &cache,
  *
  * Common uniforms for the various shaders.
  * \{ */
-
-struct DRWSubdivUboStorage {
-  /* Offsets in the buffers data where the source and destination data start. */
-  int src_offset;
-  int dst_offset;
-
-  /* Parameters for the DRWPatchMap. */
-  int min_patch_face;
-  int max_patch_face;
-  int max_depth;
-  int patches_are_triangular;
-
-  /* Coarse topology information. */
-  int coarse_face_count;
-  uint edge_loose_offset;
-
-  /* Refined topology information. */
-  uint num_subdiv_loops;
-
-  /* The sculpt mask data layer may be null. */
-  int has_sculpt_mask;
-
-  /* Masks for the extra coarse face data. */
-  uint coarse_face_select_mask;
-  uint coarse_face_smooth_mask;
-  uint coarse_face_active_mask;
-  uint coarse_face_hidden_mask;
-  uint coarse_face_loopstart_mask;
-
-  /* Number of elements to process in the compute shader (can be the coarse quad count, or the
-   * final vertex count, depending on which compute pass we do). This is used to early out in case
-   * of out of bond accesses as compute dispatch are of fixed size. */
-  uint total_dispatch_size;
-
-  int is_edit_mode;
-  int use_hide;
-  int _pad3;
-  int _pad4;
-};
-
-static_assert((sizeof(DRWSubdivUboStorage) % 16) == 0,
-              "DRWSubdivUboStorage is not padded to a multiple of the size of vec4");
 
 static void draw_subdiv_init_ubo_storage(const DRWSubdivCache &cache,
                                          DRWSubdivUboStorage *ubo,

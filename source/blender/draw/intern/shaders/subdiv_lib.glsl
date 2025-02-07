@@ -4,9 +4,13 @@
 
 #pragma once
 
+#include "draw_subdiv_shader_shared.hh"
+
+#ifndef USE_GPU_SHADER_CREATE_INFO
+
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
-/* Uniform block for #DRWSubivUboStorage. */
+/* Uniform block for #DRWSubdivUboStorage. */
 layout(std140) uniform shader_data
 {
   /* Offsets in the buffers data where the source and destination data start. */
@@ -43,6 +47,7 @@ layout(std140) uniform shader_data
 
   bool use_hide;
 };
+#endif
 
 uint get_global_invocation_index()
 {
@@ -171,10 +176,12 @@ void add_newell_cross_v3_v3v3(inout vec3 n, vec3 v_prev, vec3 v_curr)
 #define ORIGINDEX_NONE -1
 
 #ifdef SUBDIV_POLYGON_OFFSET
+#  ifndef USE_GPU_SHADER_CREATE_INFO
 layout(std430, binding = 0) readonly buffer inputSubdivPolygonOffset
 {
   uint subdiv_face_offset[];
 };
+#  endif
 
 /* Given the index of the subdivision quad, return the index of the corresponding coarse polygon.
  * This uses subdiv_face_offset and since it is a growing list of offsets, we can use binary

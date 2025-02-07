@@ -4,7 +4,8 @@
 
 /* To be compiled with subdiv_lib.glsl */
 
-#ifdef CUSTOM_NORMALS
+#ifndef USE_GPU_SHADER_CREATE_INFO
+#  ifdef CUSTOM_NORMALS
 struct CustomNormal {
   float x;
   float y;
@@ -15,7 +16,7 @@ layout(std430, binding = 0) readonly buffer inputNormals
 {
   CustomNormal custom_normals[];
 };
-#else
+#  else
 layout(std430, binding = 0) readonly buffer inputNormals
 {
   vec3 vertex_normals[];
@@ -25,12 +26,13 @@ layout(std430, binding = 1) readonly buffer inputSubdivVertLoopMap
 {
   uint vert_loop_map[];
 };
-#endif
+#  endif
 
 layout(std430, binding = 2) buffer outputPosNor
 {
   PosNorLoop pos_nor[];
 };
+#endif
 
 void main()
 {
