@@ -22,7 +22,9 @@ class VertBuf;
 class VKStorageBuffer : public StorageBuf {
   GPUUsageType usage_;
   VKBuffer buffer_;
-  VKStagingBuffer *async_read_ = nullptr;
+
+  /** Staging buffer that is used when doing an async read-back. */
+  VKStagingBuffer *async_read_buffer_ = nullptr;
 
  public:
   VKStorageBuffer(size_t size, GPUUsageType usage, const char *name);
