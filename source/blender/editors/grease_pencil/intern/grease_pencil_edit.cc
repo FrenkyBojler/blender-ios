@@ -3972,7 +3972,7 @@ static int grease_pencil_separate_shapes_exec(bContext *C, wmOperator *op)
     shape_ids.finish();
     info.drawing.tag_topology_changed();
 
-    changed.store(true, std::memory_order_relaxed);
+    changed = true;
   });
 
   if (changed) {
