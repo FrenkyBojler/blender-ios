@@ -41,7 +41,8 @@
 
 namespace blender::ed::object {
 
-static void set_raw_object_transform(Object &ob, const float4x4 &transform)
+/** Sets the transform of the object to a specific matrix. */
+static void set_local_object_transform(Object &ob, const float4x4 &transform)
 {
   float3 location;
   math::EulerXYZ rotation;
@@ -50,14 +51,7 @@ static void set_raw_object_transform(Object &ob, const float4x4 &transform)
   copy_v3_v3(ob.loc, location);
   copy_v3_v3(ob.rot, float3(rotation.x().radian(), rotation.y().radian(), rotation.z().radian()));
   copy_v3_v3(ob.scale, scale);
-}
-
-static void transform_raw_object_transform(Object &ob, const float4x4 &transform)
-{
-  const float4x4 old_transform = math::from_loc_rot_scale<float4x4>(
-      ob.loc, math::EulerXYZ(float3(ob.rot)), float3(ob.scale));
-  const float4x4 new_transform = transform * old_transform;
-  set_raw_object_transform(ob, new_transform);
+  ob.rotmode = ROT_MODE_EUL;
 }
 
 struct ComponentObjects {
@@ -274,7 +268,7 @@ class GeometryToObjectsBuilder {
       id_us_plus(&collection_to_instance->id);
 
       const float4x4 &transform = transforms[instance_i];
-      set_raw_object_transform(*instance_object, transform);
+      set_local_object_transform(*instance_object, transform);
 
       objects.append(instance_object);
     }
@@ -391,7 +385,9 @@ static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
       BKE_collection_object_add(&bmain, collection_to_add_to, object);
     }
     /* Transform and parent the objects so that they align with the source object. */
-    transform_raw_object_transform(*object, src_ob_local_transform);
+    float4x4 old_transform;
+    BKE_object_to_mat4(object, old_transform.ptr());
+    set_local_object_transform(*object, src_ob_local_transform * old_transform);
     object->parent = src_ob_orig->parent;
     copy_m4_m4(object->parentinv, src_ob_orig->parentinv);
   }
