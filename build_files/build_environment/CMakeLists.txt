@@ -72,7 +72,9 @@ include(cmake/tbb.cmake)
 include(cmake/python.cmake)
 include(cmake/llvm.cmake)
 include(cmake/osl.cmake)
+include(cmake/cython.cmake)
 include(cmake/numpy.cmake)
+include(cmake/zstandard.cmake)
 include(cmake/python_site_packages.cmake)
 include(cmake/package_python.cmake)
 include(cmake/openimageio.cmake)
@@ -182,3 +184,6 @@ include(cmake/manifold.cmake)
 # Keep these last
 include(cmake/deps_html.cmake)
 include(cmake/cve_check.cmake)
+
+# Strip all installed libraries
+harvest_strip_all_libraries()

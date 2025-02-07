@@ -162,7 +162,7 @@ else()
       ${PYTHON_CONFIGURE_EXTRA_ARGS}
       # Used on most release Linux builds (Fedora for e.g.),
       # increases build times noticeably with the benefit of a modest speedup at runtime.
-      --enable-optimizations
+      --disable-optimizations
       # While LTO is OK when building on the same system, it's incompatible across GCC versions,
       # making it impractical for developers to build against, so keep it disabled.
       # `--with-lto`

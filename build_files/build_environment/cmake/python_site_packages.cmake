@@ -26,13 +26,11 @@ ExternalProject_Add(external_python_site_packages
   # issues building on windows with the newer versions that ships with python 3.10.9+
   INSTALL_COMMAND ${PYTHON_BINARY} -m pip install --no-cache-dir ${SITE_PACKAGES_EXTRA}
   setuptools==63.2.0
-  cython==${CYTHON_VERSION}
   idna==${IDNA_VERSION}
   charset-normalizer==${CHARSET_NORMALIZER_VERSION}
   urllib3==${URLLIB3_VERSION}
   certifi==${CERTIFI_VERSION}
   requests==${REQUESTS_VERSION}
-  zstandard==${ZSTANDARD_VERSION}
   autopep8==${AUTOPEP8_VERSION}
   pycodestyle==${PYCODESTYLE_VERSION}
   meson==${MESON_VERSION}
