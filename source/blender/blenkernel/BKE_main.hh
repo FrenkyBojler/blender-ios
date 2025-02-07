@@ -20,6 +20,8 @@
  * - `BKE_main_` should be used for functions in that file.
  */
 
+#include <array>
+
 #include "DNA_listBase.h"
 
 #include "BLI_compiler_attrs.h"
@@ -571,6 +573,9 @@ const char *BKE_main_blendfile_path_from_global();
  * \return A pointer to the \a ListBase of given \a bmain for requested \a type ID type.
  */
 ListBase *which_libbase(Main *bmain, short type);
+
+using MainListsArray = std::array<ListBase *, INDEX_ID_MAX>;
+MainListsArray BKE_main_lists_get(Main &bmain);
 
 // #define INDEX_ID_MAX 41
 /**
