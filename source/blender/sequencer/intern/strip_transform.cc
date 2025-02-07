@@ -8,7 +8,6 @@
  * \ingroup bke
  */
 
-#include "BLI_math_vector.hh"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
@@ -29,9 +28,6 @@
 
 #include "sequencer.hh"
 #include "strip_time.hh"
-#include <array>
-
-using namespace blender;
 
 using namespace blender;
 

@@ -6,7 +6,6 @@
  * \ingroup edtransform
  */
 
-#include <array>
 #include <cstddef>
 #include <cstdlib>
 
