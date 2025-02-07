@@ -3759,7 +3759,65 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
   }
 
   for (bNode *curve_to_mesh : curve_to_mesh_nodes) {
+    version_node_add_socket_if_not_exist(
+        tree, curve_to_mesh, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Scale", "Scale");
+
     bNode &named_attribute = version_node_add_empty(*tree, "GeometryNodeInputNamedAttribute");
+    NodeGeometryInputNamedAttribute *named_attribute_storage =
+        MEM_cnew<NodeGeometryInputNamedAttribute>(__func__);
+    named_attribute_storage->data_type = CD_PROP_FLOAT;
+    named_attribute.storage = named_attribute_storage;
+    named_attribute.parent = curve_to_mesh->parent;
+    named_attribute.location[0] = curve_to_mesh->location[0] - 300;
+    named_attribute.location[1] = curve_to_mesh->location[1] - 50;
+    named_attribute.flag &= ~NODE_SELECT;
+
+    bNodeSocket *name_input = version_node_add_socket_if_not_exist(
+        tree, &named_attribute, SOCK_IN, SOCK_STRING, PROP_NONE, "Name", "Name");
+    STRNCPY(name_input->default_value_typed<bNodeSocketValueString>()->value, "radius");
+
+    version_node_add_socket_if_not_exist(
+        tree, &named_attribute, SOCK_OUT, SOCK_BOOLEAN, PROP_NONE, "Exists", "Exists");
+    version_node_add_socket_if_not_exist(
+        tree, &named_attribute, SOCK_OUT, SOCK_FLOAT, PROP_NONE, "Attribute", "Attribute");
+
+    bNode &switch_node = version_node_add_empty(*tree, "GeometryNodeSwitch");
+    NodeSwitch *switch_storage = MEM_cnew<NodeSwitch>(__func__);
+    switch_storage->input_type = SOCK_FLOAT;
+    switch_node.storage = switch_storage;
+    switch_node.parent = curve_to_mesh->parent;
+    switch_node.location[0] = curve_to_mesh->location[0] - 150;
+    switch_node.location[1] = curve_to_mesh->location[1] - 50;
+    switch_node.flag &= ~NODE_SELECT;
+
+    version_node_add_socket_if_not_exist(
+        tree, &switch_node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Switch", "Switch");
+    bNodeSocket *false_input = version_node_add_socket_if_not_exist(
+        tree, &switch_node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "False", "False");
+    false_input->default_value_typed<bNodeSocketValueFloat>()->value = 1.0f;
+
+    version_node_add_socket_if_not_exist(
+        tree, &switch_node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "True", "True");
+
+    version_node_add_link(*tree,
+                          named_attribute,
+                          *bke::node_find_socket(&named_attribute, SOCK_OUT, "Exists"),
+                          switch_node,
+                          *bke::node_find_socket(&switch_node, SOCK_IN, "Switch"));
+    version_node_add_link(*tree,
+                          named_attribute,
+                          *bke::node_find_socket(&named_attribute, SOCK_OUT, "Attribute"),
+                          switch_node,
+                          *bke::node_find_socket(&switch_node, SOCK_IN, "True"));
+
+    version_node_add_socket_if_not_exist(
+        tree, &switch_node, SOCK_OUT, SOCK_FLOAT, PROP_NONE, "Output", "Output");
+
+    version_node_add_link(*tree,
+                          switch_node,
+                          *bke::node_find_socket(&switch_node, SOCK_OUT, "Output"),
+                          *curve_to_mesh,
+                          *bke::node_find_socket(curve_to_mesh, SOCK_IN, "Scale"));
   }
 }
 
@@ -4856,8 +4914,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 18)) {
     if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "transmission_fac")) {
       LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-        /* Refracted light was not supported in legacy EEVEE. Set it to zero for compatibility with
-         * older files. */
+        /* Refracted light was not supported in legacy EEVEE. Set it to zero for compatibility
+         * with older files. */
         light->transmission_fac = 0.0f;
       }
     }
@@ -5117,8 +5175,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       world->sun_angle = default_world->sun_angle;
       world->sun_shadow_maximum_resolution = default_world->sun_shadow_maximum_resolution;
       /* Having the sun extracted is mandatory to keep the same look and avoid too much light
-       * leaking compared to EEVEE-Legacy. But adding shadows might create performance overhead and
-       * change the result in a very different way. So we disable shadows in older file. */
+       * leaking compared to EEVEE-Legacy. But adding shadows might create performance overhead
+       * and change the result in a very different way. So we disable shadows in older file. */
       world->flag &= ~WO_USE_SUN_SHADOW;
     }
   }
@@ -5416,10 +5474,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   /* The File Output node now uses the linear color space setting of its stored image formats. So
-   * we need to ensure the color space value is initialized to some sane default based on the image
-   * type. Furthermore, the node now gained a new Save As Render option that is global to the node,
-   * which will be used if Use Node Format is enabled for each input, so we potentially need to
-   * disable Use Node Format in case inputs had different Save As render options. */
+   * we need to ensure the color space value is initialized to some sane default based on the
+   * image type. Furthermore, the node now gained a new Save As Render option that is global to
+   * the node, which will be used if Use Node Format is enabled for each input, so we potentially
+   * need to disable Use Node Format in case inputs had different Save As render options. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 14)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type != NTREE_COMPOSIT) {
@@ -5470,8 +5528,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
 
-        /* All inputs have the same save as render option, so we set the node Save As Render option
-         * to that value, and we leave inputs as is. */
+        /* All inputs have the same save as render option, so we set the node Save As Render
+         * option to that value, and we leave inputs as is. */
         if (all_inputs_have_same_save_as_render) {
           storage->save_as_render = first_save_as_render;
           continue;
@@ -5843,7 +5901,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 1)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 2)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_GEOMETRY) {
         do_version_node_curve_to_mesh_scale_input(ntree);
