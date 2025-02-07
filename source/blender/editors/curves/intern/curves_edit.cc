@@ -400,6 +400,7 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
       points_to_split,
       points_by_curve,
       [&](const Span<IndexRange> selected_curve_points, const IndexRange points, const int curve) {
+        const int points_start = new_offsets.last();
         curve_offsets_from_selection(selected_curve_points,
                                      points,
                                      curve,
@@ -409,6 +410,7 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
                                      src_ranges,
                                      dst_offsets,
                                      curve_map);
+        const int split_points_num = new_offsets.last() - points_start;
         /* Invert ranges to get non selected points. */
         invert_ranges(points, selected_curve_points, nonselected_curve_points);
         /* Extended every range to left and right by one point. Any resulting intersection is
@@ -419,7 +421,8 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
         curve_offsets_from_selection(curve_points_to_preserve,
                                      points,
                                      curve,
-                                     cyclic[curve],
+                                     cyclic[curve] &&
+                                         (split_points_num <= curve_points_to_preserve.size()),
                                      new_offsets,
                                      new_cyclic,
                                      src_ranges,

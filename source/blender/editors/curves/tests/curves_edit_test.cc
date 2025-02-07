@@ -215,6 +215,11 @@ TEST(curves_editors, SplitPointsTwoCyclic)
 
   EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
+  Array<bool> expected_cyclic = {false, false, false, false, false};
+  VArray<bool> cyclic = new_curves.cyclic();
+  for (const int i : expected_cyclic.index_range()) {
+    EXPECT_EQ(expected_cyclic[i], cyclic[i]);
+  }
 }
 
 TEST(curves_editors, SplitPointsTwoTouchCyclic)
