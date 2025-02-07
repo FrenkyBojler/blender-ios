@@ -1636,7 +1636,10 @@ static void id_embed_linked(bContext * /*C*/,
                             TreeStoreElem *tselem)
 {
   ID *id = tselem->id;
-  printf("%s\n", id->name);
+  if (ID_IS_LINKED(id)) {
+    id->flag |= ID_FLAG_LINKED_AND_EMBEDDED;
+    printf("Embed: %s\n", id->name);
+  }
 }
 
 static void singleuser_action_fn(bContext *C,
