@@ -217,4 +217,30 @@ TEST(curves_editors, SplitPointsTwoCyclic)
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
 }
 
+TEST(curves_editors, SplitPointsTwoTouchCyclic)
+{
+  /* Two points from cyclic curve. Points are touching cycle. */
+  const Vector<Vector<float3>> positions = {
+      {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}},
+      {{0, 0, 0}},
+      {{1, 1, 0}, {1, -1, 0}, {-1, -1, 0}, {-1, 1, 0}},
+      {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {1, -1, 0}}};
+
+  bke::CurvesGeometry curves = create_curves(positions, 4, {2});
+  IndexMaskMemory memory;
+  const IndexMask mask = IndexMask::from_indices(Array<int>{5, 6}.as_span(), memory);
+
+  bke::CurvesGeometry new_curves = split_points(curves, mask);
+
+  const Vector<Vector<float3>> expected_positions = {
+      {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}},
+      {{0, 0, 0}},
+      {{1, 1, 0}, {1, -1, 0}},
+      {{1, -1, 0}, {-1, -1, 0}, {-1, 1, 0}, {1, 1, 0}},
+      {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {1, -1, 0}}};
+
+  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
+}
+
 }  // namespace blender::ed::curves::tests
