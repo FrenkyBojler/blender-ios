@@ -39,7 +39,7 @@ using namespace blender;
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *strip;
-  std::array<float2, 4> quad_orig;
+  Array<float2> quad_orig;
   float4x4 orig_matrix;
 
   float orig_origin_relative[2];
@@ -294,7 +294,7 @@ static float2 calculate_translation_offset(TransInfo *t, TransDataSeq *tdseq)
   float2 mirror;
   SEQ_image_transform_mirror_factor_get(strip, mirror);
 
-  std::array<float2, 4> quad_new = SEQ_image_transform_final_quad_get(t->scene, strip);
+  Array<float2> quad_new = SEQ_image_transform_final_quad_get(t->scene, strip);
   return (quad_new[0] - tdseq->quad_orig[0]) * mirror / viewport_pixel_aspect;
 }
 
