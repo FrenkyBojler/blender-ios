@@ -14,6 +14,7 @@
 #include "gpu_storage_buffer_private.hh"
 
 #include "vk_buffer.hh"
+#include "vk_staging_buffer.hh"
 
 namespace blender::gpu {
 class VertBuf;
@@ -21,9 +22,11 @@ class VertBuf;
 class VKStorageBuffer : public StorageBuf {
   GPUUsageType usage_;
   VKBuffer buffer_;
+  VKStagingBuffer *async_read_ = nullptr;
 
  public:
   VKStorageBuffer(size_t size, GPUUsageType usage, const char *name);
+  ~VKStorageBuffer();
 
   void update(const void *data) override;
   void bind(int slot) override;
