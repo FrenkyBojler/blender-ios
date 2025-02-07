@@ -12,9 +12,8 @@
 /* Constants */
 static const float rayleigh_scale = 8e3f;       /* Rayleigh scale height (m). */
 static const float mie_scale = 1.2e3f;          /* Mie scale height (m). */
-static const float mie_coeff = 2e-5f;           /* Mie scattering coefficient (m^-1). */
-static const float mie_G = 0.76f;               /* aerosols anisotropy. */
-static const float sqr_G = mie_G * mie_G;       /* squared aerosols anisotropy. */
+static const float mie_coeff = 3.996e-6f;       /* Mie scattering coefficient (m^-1). */
+static const float mie_diameter = 0.5f;         /* aerosol particles diameter (um). */
 static const float earth_radius = 6360e3f;      /* radius of Earth (m). */
 static const float atmosphere_radius = 6420e3f; /* radius of atmosphere (m). */
 static const int steps = 32;                    /* segments of primary ray. */
@@ -142,13 +141,46 @@ static float density_ozone(float height)
 
 static float phase_rayleigh(float mu)
 {
-  return 3.0f / (16.0f * M_PI_F) * (1.0f + sqr(mu));
+  return (0.1875f * M_1_PI_F) * (1.0f + sqr(mu));
+}
+
+static float phase_henyey_greenstein(float mu, float g)
+{
+  if (fabsf(g) < 1e-3f) {
+    return M_1_4PI_F;
+  }
+  float fac = 1 + g * (g - 2 * mu);
+  return (1 - sqr(g)) / (M_4PI_F * fac * safe_sqrtf(fac));
+}
+
+static float phase_draine(float mu, float g, float alpha)
+{
+  /* Check special cases. */
+  if (fabsf(g) < 1e-3f && alpha > 0.999f) {
+    return phase_rayleigh(mu);
+  }
+  if (fabsf(alpha) < 1e-3f) {
+    return phase_henyey_greenstein(mu, g);
+  }
+
+  const float g2 = sqr(g);
+  const float fac = 1 + g2 - 2 * g * mu;
+  return ((1 - g2) * (1 + alpha * sqr(mu))) /
+         ((1 + (alpha * (1 + 2 * g2)) * (1 / 3.0f)) * M_4PI_F * fac * sqrtf(fac));
 }
 
 static float phase_mie(float mu)
 {
-  return (3.0f * (1.0f - sqr_G) * (1.0f + sqr(mu))) /
-         (8.0f * M_PI_F * (2.0f + sqr_G) * powf((1.0f + sqr_G - 2.0f * mie_G * mu), 1.5));
+  const float log_d = log2f(mie_diameter) * M_LN2_F;
+  float g_HG = 0.862f - 0.143f * sqr(log_d);
+  const float a = (log_d - 0.238604f) * (log_d + 1.00667f);
+  const float b = 0.507522f - 0.15677f * log_d;
+  const float c = 1.19692f * cosf(a / b) + 1.37932f * log_d + 0.0625835f;
+  float g_D = 0.379685f * cosf(c) + 0.344213f;
+  float alpha = 250.0f;
+  float w = 0.146209f * cosf(3.38707f * log_d + 2.11193f) + 0.316072f + 0.0778917f * log_d;
+
+  return ((1.0f - w) * phase_henyey_greenstein(mu, g_HG) + w * phase_draine(mu, g_D, alpha));
 }
 
 /* Intersection helpers */
