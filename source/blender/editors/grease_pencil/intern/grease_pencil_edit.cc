@@ -2922,8 +2922,7 @@ IndexRange paste_all_strokes_from_clipboard(Main &bmain,
 
   Vector<bke::GeometrySet> geometries_to_join;
   for (Clipboard::ClipboardLayer &layer : clipboard.layers) {
-    geometries_to_join.append(
-        bke::GeometrySet::from_curves(curves_new_nomain(std::move(layer.curves))));
+    geometries_to_join.append(bke::GeometrySet::from_curves(curves_new_nomain(layer.curves)));
   }
   bke::GeometrySet joined_clipboard_set = geometry::join_geometries(geometries_to_join.as_span(),
                                                                     {});
