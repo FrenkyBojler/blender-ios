@@ -89,7 +89,7 @@ struct ComponentObjects {
   }
 };
 
-class GeometryToEditableOp {
+class GeometryToObjectsBuilder {
  private:
   Main &bmain_;
   Map<const ID *, Object *> new_object_by_generated_geometry_;
@@ -97,7 +97,7 @@ class GeometryToEditableOp {
   Vector<Collection *> new_instance_collections_;
 
  public:
-  GeometryToEditableOp(Main &bmain) : bmain_(bmain) {}
+  GeometryToObjectsBuilder(Main &bmain) : bmain_(bmain) {}
 
   Collection *build_collection_for_geometry(const Object &src_ob_eval,
                                             const bke::GeometrySet &geometry)
@@ -351,7 +351,7 @@ class GeometryToEditableOp {
   }
 };
 
-static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
+static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
 {
   Main &bmain = *CTX_data_main(C);
   Scene &scene = *CTX_data_scene(C);
@@ -365,7 +365,7 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
   }
   /* Create all required objects and collections and add them to bmain. However, so far nothing is
    * linked to the scene or view layer. That happens below. */
-  GeometryToEditableOp op(bmain);
+  GeometryToObjectsBuilder op(bmain);
   bke::GeometrySet geometry_eval = bke::object_get_evaluated_geometry_set(*src_ob_eval);
   const ComponentObjects new_component_objects = op.get_objects_for_geometry(*src_ob_eval,
                                                                              geometry_eval);
@@ -427,13 +427,13 @@ static int visual_geometry_to_editable_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-void OBJECT_OT_visual_geometry_to_editable(wmOperatorType *ot)
+void OBJECT_OT_visual_geometry_to_objects(wmOperatorType *ot)
 {
-  ot->name = "Visual Geometry to Editable";
+  ot->name = "Visual Geometry to Objects";
   ot->description = "Convert geometry and instances into editable objects and collections";
-  ot->idname = "OBJECT_OT_visual_geometry_to_editable";
+  ot->idname = "OBJECT_OT_visual_geometry_to_objects";
 
-  ot->exec = visual_geometry_to_editable_exec;
+  ot->exec = visual_geometry_to_objects_exec;
   ot->poll = ED_operator_object_active;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
