@@ -16,7 +16,7 @@ class AssetActivateTest(unittest.TestCase):
     def test_loads_essential_asset(self):
         result = bpy.ops.brush.asset_activate(
             asset_library_type='ESSENTIALS',
-            relative_asset_identifier='brushes/essentials_brushes-mesh_sculpt.blend/Brush/Draw')
+            relative_asset_identifier='brushes/essentials_brushes-mesh_sculpt.blend/Brush/Smooth')
         self.assertEqual({'FINISHED'}, result)
 
 
