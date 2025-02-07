@@ -53,7 +53,8 @@ static int brush_asset_activate_exec(bContext *C, wmOperator *op)
    * this can be simplified to just that case. */
   Main *bmain = CTX_data_main(C);
   const asset_system::AssetRepresentation *asset =
-      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *op->ptr, op->reports);
+      asset::operator_asset_reference_props_blocking_get_asset_from_all_library(
+          *C, *op->ptr, op->reports);
   if (!asset) {
     return OPERATOR_CANCELLED;
   }
