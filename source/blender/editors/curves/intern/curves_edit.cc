@@ -391,8 +391,6 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
 
   Vector<IndexRange> deselect;
 
-  IndexMaskMemory memory;
-
   Array<IndexRange> nonselected_curve_points;
   Vector<IndexRange> curve_points_to_preserve;
 
