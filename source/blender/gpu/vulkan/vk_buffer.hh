@@ -54,8 +54,23 @@ class VKBuffer : public NonCopyable {
    */
   void update_render_graph(VKContext &context, void *data) const;
   void flush() const;
+
+  /**
+   * Read the buffer (synchronously).
+   */
   void read(VKContext &context, void *data) const;
+
+  /**
+   * Start a async read-back.
+   */
   void async_flush_to_host(VKContext &context);
+
+  /**
+   * Wait until the async read back is finished and fill the given data with the content of the
+   * buffer.
+   *
+   * Will start a new async read-back when there is no read back in progress.
+   */
   void read_async(VKContext &context, void *data);
 
   /**
