@@ -2860,6 +2860,9 @@ static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
       }
     }
   }
+  else {
+    BLI_assert_unreachable();
+  }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
