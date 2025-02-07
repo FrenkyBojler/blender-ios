@@ -176,7 +176,7 @@ void seq_imbuf_to_sequencer_space(const Scene *scene, ImBuf *ibuf, bool make_flo
   seq_imbuf_assign_spaces(scene, ibuf);
 }
 
-void SEQ_render_imbuf_from_sequencer_space(Scene *scene, ImBuf *ibuf)
+void SEQ_render_imbuf_from_sequencer_space(const Scene *scene, ImBuf *ibuf)
 {
   const char *from_colorspace = scene->sequencer_colorspace_settings.name;
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -198,7 +198,7 @@ void SEQ_render_imbuf_from_sequencer_space(Scene *scene, ImBuf *ibuf)
   }
 }
 
-void SEQ_render_pixel_from_sequencer_space_v4(Scene *scene, float pixel[4])
+void SEQ_render_pixel_from_sequencer_space_v4(const Scene *scene, float pixel[4])
 {
   const char *from_colorspace = scene->sequencer_colorspace_settings.name;
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -297,7 +297,7 @@ StripScreenQuad get_strip_screen_quad(const SeqRenderData *context, const Strip 
   const int y = context->recty;
   float2 offset{x * 0.5f, y * 0.5f};
 
-  std::array<float2, 4> quad = SEQ_image_transform_final_quad_get(scene, strip);
+  Array<float2> quad = SEQ_image_transform_final_quad_get(scene, strip);
   const float scale = SEQ_rendersize_to_scale_factor(context->preview_render_size);
   return StripScreenQuad{quad[0] * scale + offset,
                          quad[1] * scale + offset,

@@ -383,7 +383,7 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
       set(OSL_ROOT ${CYCLES_OSL})
     endif()
   endif()
-  find_package_wrapper(OSL)
+  find_package_wrapper(OSL 1.13.4)
   set_and_warn_library_found("OSL" OSL_FOUND WITH_CYCLES_OSL)
 
   if(OSL_FOUND)
@@ -424,9 +424,9 @@ if(DEFINED LIBDIR)
     ${SYCL_ROOT_DIR}/lib/libsycl.so.*
     ${SYCL_ROOT_DIR}/lib/libpi_*.so
     ${SYCL_ROOT_DIR}/lib/libur_*.so
+    ${SYCL_ROOT_DIR}/lib/libur_*.so.*
   )
   list(FILTER _sycl_runtime_libraries EXCLUDE REGEX ".*\.py")
-  list(REMOVE_ITEM _sycl_runtime_libraries "${SYCL_ROOT_DIR}/lib/libpi_opencl.so")
   list(APPEND PLATFORM_BUNDLED_LIBRARIES ${_sycl_runtime_libraries})
   unset(_sycl_runtime_libraries)
 endif()
@@ -463,6 +463,18 @@ if(WITH_MATERIALX)
   set_and_warn_library_found("MaterialX" MaterialX_FOUND WITH_MATERIALX)
 endif()
 add_bundled_libraries(materialx/lib)
+
+# With Blender 4.4 libraries there is no more Boost. But Linux distros may have
+# older versions of libs like USD with a header dependency on Boost, so can't
+# remove this entirely yet.
+if(WITH_BOOST)
+  if(DEFINED LIBDIR AND NOT EXISTS "${LIBDIR}/boost")
+    set(WITH_BOOST OFF)
+    set(BOOST_LIBRARIES)
+    set(BOOST_PYTHON_LIBRARIES)
+    set(BOOST_INCLUDE_DIR)
+  endif()
+endif()
 
 if(WITH_BOOST)
   # uses in build instructions to override include and library variables

@@ -39,10 +39,12 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_blenlib.h"
 #include "BLI_dial_2d.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
@@ -95,6 +97,7 @@
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
+#include "WM_keymap.hh"
 #include "WM_types.hh"
 
 #include "wm.hh"
@@ -146,7 +149,7 @@ size_t WM_operator_py_idname(char *dst, const char *src)
 
 size_t WM_operator_bl_idname(char *dst, const char *src)
 {
-  const size_t from_len = size_t(strlen(src));
+  const size_t from_len = strlen(src);
 
   const char *sep = strchr(src, OP_PY_SEP_CHAR);
   if (sep && (from_len <= OP_MAX_PY_IDNAME)) {
@@ -725,7 +728,7 @@ std::optional<std::string> WM_prop_pystring_assign(bContext *C,
 void WM_operator_properties_create_ptr(PointerRNA *ptr, wmOperatorType *ot)
 {
   /* Set the ID so the context can be accessed: see #STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID. */
-  *ptr = RNA_pointer_create(static_cast<ID *>(G_MAIN->wm.first), ot->srna, nullptr);
+  *ptr = RNA_pointer_create_discrete(static_cast<ID *>(G_MAIN->wm.first), ot->srna, nullptr);
 }
 
 void WM_operator_properties_create(PointerRNA *ptr, const char *opstring)
@@ -737,7 +740,7 @@ void WM_operator_properties_create(PointerRNA *ptr, const char *opstring)
   }
   else {
     /* Set the ID so the context can be accessed: see #STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID. */
-    *ptr = RNA_pointer_create(
+    *ptr = RNA_pointer_create_discrete(
         static_cast<ID *>(G_MAIN->wm.first), &RNA_OperatorProperties, nullptr);
   }
 }
@@ -1311,7 +1314,7 @@ IDProperty *WM_operator_last_properties_ensure_idprops(wmOperatorType *ot)
 void WM_operator_last_properties_ensure(wmOperatorType *ot, PointerRNA *ptr)
 {
   IDProperty *props = WM_operator_last_properties_ensure_idprops(ot);
-  *ptr = RNA_pointer_create(static_cast<ID *>(G_MAIN->wm.first), ot->srna, props);
+  *ptr = RNA_pointer_create_discrete(static_cast<ID *>(G_MAIN->wm.first), ot->srna, props);
 }
 
 ID *WM_operator_drop_load_path(bContext *C, wmOperator *op, const short idcode)
@@ -2474,7 +2477,7 @@ bool WM_paint_cursor_end(wmPaintCursor *handle)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
   LISTBASE_FOREACH (wmPaintCursor *, pc, &wm->paintcursors) {
-    if (pc == (wmPaintCursor *)handle) {
+    if (pc == handle) {
       BLI_remlink(&wm->paintcursors, pc);
       MEM_freeN(pc);
       return true;
@@ -2513,21 +2516,29 @@ struct RadialControl {
   PropertySubType subtype;
   PointerRNA ptr, col_ptr, fill_col_ptr, rot_ptr, zoom_ptr, image_id_ptr;
   PointerRNA fill_col_override_ptr, fill_col_override_test_ptr;
-  PropertyRNA *prop, *col_prop, *fill_col_prop, *rot_prop, *zoom_prop;
-  PropertyRNA *fill_col_override_prop, *fill_col_override_test_prop;
-  StructRNA *image_id_srna;
-  float initial_value, current_value, min_value, max_value;
-  int initial_mouse[2];
-  int initial_co[2];
-  int slow_mouse[2];
-  bool slow_mode;
-  Dial *dial;
-  GPUTexture *texture;
-  ListBase orig_paintcursors;
-  bool use_secondary_tex;
-  void *cursor;
-  NumInput num_input;
-  int init_event;
+  PropertyRNA *prop = nullptr;
+  PropertyRNA *col_prop = nullptr;
+  PropertyRNA *fill_col_prop = nullptr;
+  PropertyRNA *rot_prop = nullptr;
+  PropertyRNA *zoom_prop = nullptr;
+  PropertyRNA *fill_col_override_prop = nullptr;
+  PropertyRNA *fill_col_override_test_prop = nullptr;
+  StructRNA *image_id_srna = nullptr;
+  float initial_value = 0.0f;
+  float current_value = 0.0f;
+  float min_value = 0.0f;
+  float max_value = 0.0f;
+  int initial_mouse[2] = {};
+  int initial_co[2] = {};
+  int slow_mouse[2] = {};
+  bool slow_mode = false;
+  Dial *dial = nullptr;
+  GPUTexture *texture = nullptr;
+  ListBase orig_paintcursors = {};
+  bool use_secondary_tex = false;
+  void *cursor = nullptr;
+  NumInput num_input = {};
+  int init_event = 0;
 };
 
 static void radial_control_update_header(wmOperator *op, bContext *C)
@@ -2975,7 +2986,7 @@ static int radial_control_get_properties(bContext *C, wmOperator *op)
 {
   RadialControl *rc = static_cast<RadialControl *>(op->customdata);
 
-  PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
 
   /* Check if we use primary or secondary path. */
   PointerRNA use_secondary_ptr;
@@ -3085,17 +3096,14 @@ static int radial_control_get_properties(bContext *C, wmOperator *op)
 
 static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindowManager *wm;
-  RadialControl *rc;
-
-  if (!(op->customdata = rc = static_cast<RadialControl *>(
-            MEM_callocN(sizeof(RadialControl), "RadialControl"))))
-  {
+  op->customdata = MEM_new<RadialControl>(__func__);
+  if (!op->customdata) {
     return OPERATOR_CANCELLED;
   }
+  RadialControl *rc = static_cast<RadialControl *>(op->customdata);
 
   if (!radial_control_get_properties(C, op)) {
-    MEM_freeN(rc);
+    MEM_delete(rc);
     return OPERATOR_CANCELLED;
   }
 
@@ -3125,7 +3133,7 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
     }
     default:
       BKE_report(op->reports, RPT_ERROR, "Property must be an integer or a float");
-      MEM_freeN(rc);
+      MEM_delete(rc);
       return OPERATOR_CANCELLED;
   }
 
@@ -3149,7 +3157,7 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
     BKE_report(op->reports,
                RPT_ERROR,
                "Property must be a none, distance, factor, percentage, angle, or pixel");
-    MEM_freeN(rc);
+    MEM_delete(rc);
     return OPERATOR_CANCELLED;
   }
 
@@ -3160,7 +3168,7 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
   rc->init_event = WM_userdef_event_type_from_keymap_type(event->type);
 
   /* Temporarily disable other paint cursors. */
-  wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   rc->orig_paintcursors = wm->paintcursors;
   BLI_listbase_clear(&wm->paintcursors);
 
@@ -3211,7 +3219,7 @@ static void radial_control_cancel(bContext *C, wmOperator *op)
     GPU_texture_free(rc->texture);
   }
 
-  MEM_freeN(rc);
+  MEM_delete(rc);
 }
 
 static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *event)

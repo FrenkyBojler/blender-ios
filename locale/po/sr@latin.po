@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'9439ff09e962')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'5c1749f7b7d3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-20 09:44+0000\n"
+"POT-Creation-Date: 2025-02-03 14:39+0000\n"
 "PO-Revision-Date: 2012-09-07 22:32+0100\n"
 "Last-Translator: Nikola Radovanovic <cobisimo@gmail.com>\n"
 "Language-Team: Nikola Radovanovic\n"
@@ -8634,56 +8634,12 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
-msgid "Local View"
-msgstr "Lokalni pogled"
-
-
-msgid "Snap"
-msgstr "Lepljenje"
-
-
-msgid "Propagate"
-msgstr "Prenesi"
-
-
-msgid "In-Betweens"
-msgstr "U međuvremenu"
-
-
-msgid "Clear Transform"
-msgstr "Očisti transformacije"
+msgid "Metaball"
+msgstr "Meta lopta"
 
 
 msgid "Show/Hide"
 msgstr "Prikaži/sakrij"
-
-
-msgid "Mesh Select Mode"
-msgstr "Mod izbora mreže"
-
-
-msgid "Disable Bone Options"
-msgstr "Onemogući opcije kostiju"
-
-
-msgid "Enable Bone Options"
-msgstr "Omogući opcije kostiju"
-
-
-msgid "Toggle Bone Options"
-msgstr "Manje/više informacija"
-
-
-msgid "UV Mapping"
-msgstr "UV Mapiranje"
-
-
-msgid "Apply"
-msgstr "Primeni"
-
-
-msgid "Mirror"
-msgstr "Ogledalo"
 
 
 msgid "Names"
@@ -8694,52 +8650,96 @@ msgid "Bone Roll"
 msgstr "Rolna kostiju"
 
 
-msgid "Hooks"
-msgstr "Udice"
+msgid "Snap"
+msgstr "Lepljenje"
 
 
-msgid "Quick Effects"
-msgstr "Brzi efekti"
+msgid "Mirror"
+msgstr "Ogledalo"
 
 
-msgid "Track"
-msgstr "Staza"
+msgid "UV Mapping"
+msgstr "UV Mapiranje"
 
 
-msgid "Rigid Body"
-msgstr "Kruto telo"
+msgid "Local View"
+msgstr "Lokalni pogled"
 
 
-msgid "Relations"
-msgstr "Odnosi"
-
-
-msgid "Metaball"
-msgstr "Meta lopta"
-
-
-msgid "Light"
-msgstr "Svetlost"
-
-
-msgid "Special Characters"
-msgstr "Specijalni znaci"
-
-
-msgid "Select Linked"
-msgstr "Izaberi povezano"
-
-
-msgid "Merge"
-msgstr "Sjedini"
+msgid "Navigation"
+msgstr "Navigacija"
 
 
 msgid "Align View"
 msgstr "Poravnaj pogled"
 
 
-msgid "Navigation"
-msgstr "Navigacija"
+msgid "Select Linked"
+msgstr "Izaberi povezano"
+
+
+msgid "Light"
+msgstr "Svetlost"
+
+
+msgid "Relations"
+msgstr "Odnosi"
+
+
+msgid "Rigid Body"
+msgstr "Kruto telo"
+
+
+msgid "Apply"
+msgstr "Primeni"
+
+
+msgid "Track"
+msgstr "Staza"
+
+
+msgid "Quick Effects"
+msgstr "Brzi efekti"
+
+
+msgid "Hooks"
+msgstr "Udice"
+
+
+msgid "Clear Transform"
+msgstr "Očisti transformacije"
+
+
+msgid "In-Betweens"
+msgstr "U međuvremenu"
+
+
+msgid "Propagate"
+msgstr "Prenesi"
+
+
+msgid "Toggle Bone Options"
+msgstr "Manje/više informacija"
+
+
+msgid "Enable Bone Options"
+msgstr "Omogući opcije kostiju"
+
+
+msgid "Disable Bone Options"
+msgstr "Onemogući opcije kostiju"
+
+
+msgid "Mesh Select Mode"
+msgstr "Mod izbora mreže"
+
+
+msgid "Merge"
+msgstr "Sjedini"
+
+
+msgid "Special Characters"
+msgstr "Specijalni znaci"
 
 
 msgid "Basic"
@@ -19852,10 +19852,6 @@ msgid "Use only deformation modifiers (temporary disable all constructive modifi
 msgstr "Koristi samo deformacione modifikatore (privremeno isključuje sve konstruktivne modifikatore osim više-rezolucija)"
 
 
-msgid "UV Sculpting"
-msgstr "UV vajanje"
-
-
 msgid "Properties of vertex and weight paint mode"
 msgstr "Podešavanje temena i moda bojenja težine"
 
@@ -23191,6 +23187,10 @@ msgid "Solid Light"
 msgstr "Osnovna svetla"
 
 
+msgid "UV Sculpting"
+msgstr "UV vajanje"
+
+
 msgid "Group Index"
 msgstr "Grupisano"
 
@@ -24969,6 +24969,10 @@ msgid "Cannot remove built in keying set"
 msgstr "Ne mogu da uklonim ugrađenu zbirku ključeva"
 
 
+msgid "Cancel"
+msgstr "Odustani"
+
+
 msgid "No keyframes to slide between"
 msgstr "Ključni kadrovi"
 
@@ -25031,10 +25035,6 @@ msgstr "Modifikator vrednosti F-krive"
 
 msgid "Nothing selected"
 msgstr "Ništa nije izabrano"
-
-
-msgid "Cancel"
-msgstr "Odustani"
 
 
 msgid "Pin"
