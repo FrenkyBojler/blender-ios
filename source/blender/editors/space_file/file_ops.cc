@@ -1791,14 +1791,14 @@ bool file_draw_check_exists(SpaceFile *sfile)
 static const EnumPropertyItem file_external_operation[] = {
     {FILE_EXTERNAL_OPERATION_OPEN, "OPEN", 0, "Open", "Open the file"},
     {FILE_EXTERNAL_OPERATION_FOLDER_OPEN, "FOLDER_OPEN", 0, "Open Folder", "Open the folder"},
-    {FILE_EXTERNAL_OPERATION_EDIT, "EDIT", 0, "Edit", "Edit the file"},
+    {FILE_EXTERNAL_OPERATION_EDIT, "EDIT", ICON_CURRENT_FILE, "Edit", "Edit the file"},
     {FILE_EXTERNAL_OPERATION_NEW, "NEW", 0, "New", "Create a new file of this type"},
     {FILE_EXTERNAL_OPERATION_FIND, "FIND", 0, "Find File", "Search for files of this type"},
     {FILE_EXTERNAL_OPERATION_SHOW, "SHOW", 0, "Show", "Show this file"},
     {FILE_EXTERNAL_OPERATION_PLAY, "PLAY", 0, "Play", "Play this file"},
     {FILE_EXTERNAL_OPERATION_BROWSE, "BROWSE", 0, "Browse", "Browse this file"},
     {FILE_EXTERNAL_OPERATION_PREVIEW, "PREVIEW", 0, "Preview", "Preview this file"},
-    {FILE_EXTERNAL_OPERATION_PRINT, "PRINT", 0, "Print", "Print this file"},
+    {FILE_EXTERNAL_OPERATION_PRINT, "PRINT", ICON_OUTPUT, "Print", "Print this file"},
     {FILE_EXTERNAL_OPERATION_INSTALL, "INSTALL", 0, "Install", "Install this file"},
     {FILE_EXTERNAL_OPERATION_RUNAS, "RUNAS", 0, "Run As User", "Run as specific user"},
     {FILE_EXTERNAL_OPERATION_PROPERTIES,
@@ -1813,7 +1813,7 @@ static const EnumPropertyItem file_external_operation[] = {
      "Search for items in this folder"},
     {FILE_EXTERNAL_OPERATION_FOLDER_CMD,
      "CMD",
-     0,
+     ICON_CONSOLE,
      "Command Prompt Here",
      "Open a command prompt here"},
     {0, nullptr, 0, nullptr, nullptr}};
@@ -1908,11 +1908,14 @@ static void file_os_operations_menu_item(uiLayout *layout,
   const char *title = "";
   RNA_enum_name(file_external_operation, operation, &title);
 
+  int icon_val;
+  RNA_enum_icon_from_value(file_external_operation, operation, &icon_val);
+
   PointerRNA props_ptr;
   uiItemFullO_ptr(layout,
                   ot,
                   IFACE_(title),
-                  ICON_NONE,
+                  icon_val,  // fix here
                   nullptr,
                   WM_OP_INVOKE_DEFAULT,
                   UI_ITEM_NONE,
