@@ -28,7 +28,9 @@
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_report.hh"
@@ -289,7 +291,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
     /* Remove interface nodes.
      * This also removes remaining links to and from interface nodes.
      */
-    if (ELEM(node->type_legacy, NODE_GROUP_INPUT, NODE_GROUP_OUTPUT)) {
+    if (node->is_group_input() || node->is_group_output()) {
       /* We must delay removal since sockets will reference this node. see: #52092 */
       nodes_delayed_free.append(node);
     }
@@ -298,7 +300,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
      * if the old node-tree has animation data which potentially covers this node. */
     std::optional<std::string> old_animation_basepath;
     if (wgroup->adt) {
-      PointerRNA ptr = RNA_pointer_create(&wgroup->id, &RNA_Node, node);
+      PointerRNA ptr = RNA_pointer_create_discrete(&wgroup->id, &RNA_Node, node);
       old_animation_basepath = RNA_path_from_ID_to_struct(&ptr);
     }
 
@@ -313,7 +315,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
     BKE_ntree_update_tag_node_new(ntree, node);
 
     if (wgroup->adt) {
-      PointerRNA ptr = RNA_pointer_create(&ntree->id, &RNA_Node, node);
+      PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
       const std::optional<std::string> new_animation_basepath = RNA_path_from_ID_to_struct(&ptr);
       BLI_addtail(&anim_basepaths,
                   animation_basepath_change_new(*old_animation_basepath, *new_animation_basepath));
@@ -376,7 +378,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
   /* input links */
   if (glinks_first != nullptr) {
     for (bNodeLink *link = glinks_first->next; link != glinks_last->next; link = link->next) {
-      if (link->fromnode->type_legacy == NODE_GROUP_INPUT) {
+      if (link->fromnode->is_group_input()) {
         const char *identifier = link->fromsock->identifier;
         int num_external_links = 0;
 
@@ -422,9 +424,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
              tlink = tlink->next)
         {
           /* only use active output node */
-          if (tlink->tonode->type_legacy == NODE_GROUP_OUTPUT &&
-              (tlink->tonode->flag & NODE_DO_OUTPUT))
-          {
+          if (tlink->tonode->is_group_output() && (tlink->tonode->flag & NODE_DO_OUTPUT)) {
             if (STREQ(tlink->tosock->identifier, identifier)) {
               bke::node_add_link(
                   ntree, tlink->fromnode, tlink->fromsock, link->tonode, link->tosock);
@@ -482,7 +482,7 @@ static int node_group_ungroup_exec(bContext *C, wmOperator * /*op*/)
   for (bNode *node : nodes_to_ungroup) {
     node_group_ungroup(bmain, snode->edittree, node);
   }
-  ED_node_tree_propagate_change(*CTX_data_main(C));
+  BKE_main_ensure_invariants(*CTX_data_main(C));
   return OPERATOR_FINISHED;
 }
 
@@ -546,7 +546,7 @@ static bool node_group_separate_selected(
     /* Keep track of this node's RNA "base" path (the part of the path identifying the node)
      * if the old node-tree has animation data which potentially covers this node. */
     if (ngroup.adt) {
-      PointerRNA ptr = RNA_pointer_create(&ngroup.id, &RNA_Node, newnode);
+      PointerRNA ptr = RNA_pointer_create_discrete(&ngroup.id, &RNA_Node, newnode);
       if (const std::optional<std::string> path = RNA_path_from_ID_to_struct(&ptr)) {
         BLI_addtail(&anim_basepaths, animation_basepath_change_new(*path, *path));
       }
@@ -667,7 +667,7 @@ static int node_group_separate_exec(bContext *C, wmOperator *op)
   /* switch to parent tree */
   ED_node_tree_pop(snode);
 
-  ED_node_tree_propagate_change(*CTX_data_main(C));
+  BKE_main_ensure_invariants(*CTX_data_main(C));
 
   return OPERATOR_FINISHED;
 }
@@ -1089,7 +1089,7 @@ static void node_group_make_insert_selected(const bContext &C,
   if (ntree.adt) {
     ListBase anim_basepaths = {nullptr, nullptr};
     for (bNode *node : nodes_to_move) {
-      PointerRNA ptr = RNA_pointer_create(&ntree.id, &RNA_Node, node);
+      PointerRNA ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, node);
       if (const std::optional<std::string> path = RNA_path_from_ID_to_struct(&ptr)) {
         BLI_addtail(&anim_basepaths, animation_basepath_change_new(*path, *path));
       }
@@ -1200,7 +1200,7 @@ static void node_group_make_insert_selected(const bContext &C,
 
   update_nested_node_refs_after_moving_nodes_into_group(ntree, group, *gnode, node_identifier_map);
 
-  ED_node_tree_propagate_change(*bmain);
+  BKE_main_ensure_invariants(*bmain);
 }
 
 static bNode *node_group_make_from_nodes(const bContext &C,

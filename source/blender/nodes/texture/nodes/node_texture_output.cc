@@ -6,6 +6,8 @@
  * \ingroup texnodes
  */
 
+#include <algorithm>
+
 #include "BLI_string.h"
 
 #include "node_texture_util.hh"
@@ -77,9 +79,7 @@ static void unique_name(bNode *node)
       else {
         suffix = 0;
         new_len = len + 4;
-        if (new_len > (sizeof(tno->name) - 1)) {
-          new_len = (sizeof(tno->name) - 1);
-        }
+        new_len = std::min<unsigned long>(new_len, sizeof(tno->name) - 1);
       }
 
       STRNCPY(new_name, name);
@@ -138,9 +138,10 @@ void register_node_type_tex_output()
 {
   static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, "TextureNodeOutput", TEX_NODE_OUTPUT, NODE_CLASS_OUTPUT);
+  tex_node_type_base(&ntype, "TextureNodeOutput", TEX_NODE_OUTPUT);
   ntype.ui_name = "Output";
   ntype.enum_name_legacy = "OUTPUT";
+  ntype.nclass = NODE_CLASS_OUTPUT;
   blender::bke::node_type_socket_templates(&ntype, inputs, nullptr);
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.initfunc = init;

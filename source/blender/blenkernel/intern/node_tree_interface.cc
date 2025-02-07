@@ -15,7 +15,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
-#include "BLI_vector.hh"
 
 #include "BLO_read_write.hh"
 
@@ -677,9 +676,7 @@ blender::ColorGeometry4f bNodeTreeInterfaceSocket::socket_color() const
     typeinfo->draw_color_simple(typeinfo, color);
     return blender::ColorGeometry4f(color);
   }
-  else {
-    return blender::ColorGeometry4f(1.0f, 0.0f, 1.0f, 1.0f);
-  }
+  return blender::ColorGeometry4f(1.0f, 0.0f, 1.0f, 1.0f);
 }
 
 bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
@@ -1078,6 +1075,7 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
                                                          const StringRef socket_type,
                                                          const StringRef name)
 {
+  ntree.ensure_topology_cache();
   bNodeTreeInterfaceSocket *iosock = nullptr;
   if (from_node.is_group()) {
     if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(from_node.id)) {

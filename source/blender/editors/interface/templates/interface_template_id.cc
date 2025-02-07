@@ -13,7 +13,9 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_packedFile.hh"
 
 #include "BLI_string.h"
@@ -771,7 +773,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
           WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
           DEG_relations_tag_update(bmain);
         }
-        ED_node_tree_propagate_change(*CTX_data_main(C));
+        BKE_main_ensure_invariants(*CTX_data_main(C));
         undo_push_label = "Make Single User";
       }
       break;
@@ -783,6 +785,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 
   if (undo_push_label != nullptr) {
     ED_undo_push(C, undo_push_label);
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
   }
 }
 
@@ -1612,9 +1615,12 @@ void uiTemplateAction(uiLayout *layout,
   /* Construct a pointer with the animated ID as owner, even when `adt` may be `nullptr`.
    * This way it is possible to use this RNA pointer to get/set `adt->action`, as that RNA property
    * has a `getter` & `setter` that only need the owner ID and are null-safe regarding the `adt`
-   * itself. */
+   * itself.
+   * FIXME: This is a very dirty hack, would be good to find a way to not rely on typed-but-null
+   * PointerRNA.
+   */
   AnimData *adt = BKE_animdata_from_id(id);
-  PointerRNA adt_ptr = RNA_pointer_create(id, &RNA_AnimData, adt);
+  PointerRNA adt_ptr = PointerRNA{id, &RNA_AnimData, adt, RNA_id_pointer_create(id)};
 
   TemplateID template_ui = {};
   template_ui.ptr = adt_ptr;

@@ -13,6 +13,7 @@
 
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
+#include "NOD_socket_usage_inference.hh"
 
 namespace blender::bke::node_tree_runtime {
 
@@ -34,7 +35,7 @@ static void update_node_vector(const bNodeTree &ntree)
     bNode &node = *nodes[i];
     node.runtime->index_in_tree = i;
     node.runtime->owner_tree = const_cast<bNodeTree *>(&ntree);
-    tree_runtime.has_undefined_nodes_or_sockets |= node.typeinfo == &bke::NodeTypeUndefined;
+    tree_runtime.has_undefined_nodes_or_sockets |= node.is_undefined();
     if (node.is_group()) {
       tree_runtime.group_nodes.append(&node);
     }
@@ -178,7 +179,7 @@ static void find_logical_origins_for_socket_recursive(
       /* Non available sockets are ignored. */
       continue;
     }
-    if (origin_node.type_legacy == NODE_REROUTE) {
+    if (origin_node.is_reroute()) {
       bNodeSocket &reroute_input = *origin_node.runtime->inputs[0];
       bNodeSocket &reroute_output = *origin_node.runtime->outputs[0];
       r_skipped_origins.append(&reroute_input);
@@ -661,4 +662,18 @@ const bNodeSocket &bNode::socket_by_decl(const blender::nodes::SocketDeclaration
 bNodeSocket &bNode::socket_by_decl(const blender::nodes::SocketDeclaration &decl)
 {
   return decl.in_out == SOCK_IN ? this->input_socket(decl.index) : this->output_socket(decl.index);
+}
+
+bool bNodeSocket::affects_node_output() const
+{
+  BLI_assert(this->is_input());
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  const bNodeTree &tree = this->owner_tree();
+
+  tree.runtime->inferenced_input_socket_usage_mutex.ensure([&]() {
+    tree.runtime->inferenced_input_socket_usage =
+        blender::nodes::socket_usage_inference::infer_all_input_sockets_usage(tree);
+  });
+
+  return tree.runtime->inferenced_input_socket_usage[this->index_in_all_inputs()];
 }

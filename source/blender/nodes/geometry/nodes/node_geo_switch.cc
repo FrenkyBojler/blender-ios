@@ -13,6 +13,8 @@
 
 #include "RNA_enum_types.hh"
 
+#include "FN_multi_function_builder.hh"
+
 namespace blender::nodes::node_geo_switch_cc {
 
 NODE_STORAGE_FUNCS(NodeSwitch)
@@ -246,10 +248,11 @@ static void register_node()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSwitch", GEO_NODE_SWITCH, NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, "GeometryNodeSwitch", GEO_NODE_SWITCH);
   ntype.ui_name = "Switch";
   ntype.ui_description = "Switch between two inputs";
   ntype.enum_name_legacy = "SWITCH";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(

@@ -8,6 +8,8 @@
  * \ingroup bke
  */
 
+#include <optional>
+
 #include "BLI_compiler_compat.h"
 #include "BLI_ghash.h"
 #include "BLI_span.hh"
@@ -46,7 +48,6 @@ struct bNode;
 struct bNodeExecContext;
 struct bNodeTreeExec;
 struct bNodeExecData;
-struct bNodeInstanceHash;
 struct bNodeLink;
 struct bNodeSocket;
 struct bNodeStack;
@@ -183,7 +184,7 @@ struct bNodeSocketType {
   int type = 0, subtype = 0;
 
   /* When set, bNodeSocket->limit does not have any effect anymore. */
-  bool use_link_limits_of_type = 0;
+  bool use_link_limits_of_type = false;
   int input_link_limit = 0;
   int output_link_limit = 0;
 
@@ -587,10 +588,10 @@ void node_tree_set_output(bNodeTree *ntree);
 /**
  * Returns localized tree for execution in threads.
  *
- * \param new_owner_id: the owner ID of the localized nodetree, may be null if unknown or
+ * \param new_owner_id: the owner ID of the localized nodetree, may be nullopt if unknown or
  * irrelevant.
  */
-bNodeTree *node_tree_localize(bNodeTree *ntree, ID *new_owner_id);
+bNodeTree *node_tree_localize(bNodeTree *ntree, std::optional<ID *> new_owner_id);
 
 /**
  * This is only direct data, tree itself should have been written.
@@ -604,7 +605,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree);
  * \{ */
 
 bNodeType *node_type_find(StringRef idname);
-StringRefNull node_type_find_alias(StringRefNull idname);
+StringRefNull node_type_find_alias(StringRefNull alias);
 void node_register_type(bNodeType *ntype);
 void node_unregister_type(bNodeType *ntype);
 void node_register_alias(bNodeType *nt, StringRef alias);
@@ -806,6 +807,8 @@ void node_type_storage(bNodeType *ntype,
 #define NODE_GROUP_INPUT 7
 #define NODE_GROUP_OUTPUT 8
 #define NODE_CUSTOM_GROUP 9
+
+#define NODE_LEGACY_TYPE_GENERATION_START 5000
 
 /** \} */
 
@@ -1064,7 +1067,7 @@ bNode *node_get_active_paint_canvas(bNodeTree *ntree);
  *
  * \param sub_active: The active flag to check. #NODE_ACTIVE_TEXTURE / #NODE_ACTIVE_PAINT_CANVAS.
  */
-bool node_supports_active_flag(const bNode *node, int sub_active);
+bool node_supports_active_flag(const bNode *node, int sub_activity);
 
 void node_set_socket_availability(bNodeTree *ntree, bNodeSocket *sock, bool is_available);
 
@@ -1149,7 +1152,7 @@ void node_preview_merge_tree(bNodeTree *to_ntree, bNodeTree *from_ntree, bool re
 /** \name Node Type Access
  * \{ */
 
-void nodeLabel(const bNodeTree *ntree, const bNode *node, char *label, int maxlen);
+void nodeLabel(const bNodeTree *ntree, const bNode *node, char *label, int label_maxncpy);
 
 /**
  * Get node socket label if it is set.
@@ -1165,7 +1168,9 @@ std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket *sock);
 /**
  * Initialize a new node type struct with default values and callbacks.
  */
-void node_type_base(bNodeType *ntype, std::string idname, int type, short nclass);
+void node_type_base(bNodeType *ntype,
+                    std::string idname,
+                    std::optional<int16_t> legacy_type = std::nullopt);
 
 void node_type_socket_templates(bNodeType *ntype,
                                 bNodeSocketTemplate *inputs,

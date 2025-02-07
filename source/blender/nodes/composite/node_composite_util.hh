@@ -8,17 +8,19 @@
 
 #pragma once
 
-#include "DNA_ID.h"
+#include <optional>
+
+#include "DNA_ID.h"  // IWYU pragma: export
 #include "DNA_node_types.h"
 
 #include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 
-#include "node_composite_register.hh"
-#include "node_util.hh"
+#include "node_composite_register.hh"  // IWYU pragma: export
+#include "node_util.hh"                // IWYU pragma: export
 
-#include "NOD_composite.hh"
-#include "NOD_socket.hh"
-#include "NOD_socket_declarations.hh"
+#include "NOD_composite.hh"            // IWYU pragma: export
+#include "NOD_socket.hh"               // IWYU pragma: export
+#include "NOD_socket_declarations.hh"  // IWYU pragma: export
 
 #define CMP_SCALE_MAX 12000
 
@@ -28,5 +30,4 @@ bool cmp_node_poll_default(const blender::bke::bNodeType *ntype,
 void cmp_node_update_default(bNodeTree *ntree, bNode *node);
 void cmp_node_type_base(blender::bke::bNodeType *ntype,
                         std::string idname,
-                        int type,
-                        short nclass);
+                        std::optional<int16_t> legacy_type = std::nullopt);

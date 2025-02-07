@@ -8,8 +8,6 @@
 
 #include "DNA_node_types.h"
 
-#include "BLI_utildefines.h"
-
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
@@ -28,7 +26,7 @@ static void group_gpu_copy_inputs(bNode *gnode, GPUNodeStack *in, bNodeStack *gs
   bNodeTree *ngroup = (bNodeTree *)gnode->id;
 
   for (bNode *node : ngroup->all_nodes()) {
-    if (node->type_legacy == NODE_GROUP_INPUT) {
+    if (node->is_group_input()) {
       int a;
       LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &node->outputs, a) {
         bNodeStack *ns = node_get_socket_stack(gstack, sock);
