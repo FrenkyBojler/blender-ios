@@ -21,9 +21,9 @@ namespace blender::bke::library {
 
 struct LibraryRuntime {
   /* Used for efficient calculations of unique names. */
-  UniqueName_Map *name_map;
+  UniqueName_Map *name_map = nullptr;
 
-  FileData *filedata;
+  FileData *filedata = nullptr;
 
   /**
    * Run-time only, absolute file-path (set on read).
@@ -33,19 +33,20 @@ struct LibraryRuntime {
    * Use #BKE_library_filepath_set() rather than setting `filepath`
    * directly and it will be kept in sync - campbell
    */
-  char filepath_abs[1024];
+  char filepath_abs[1024] = "";
 
   /** Set for indirectly linked libraries, used in the outliner and while reading. */
-  Library *parent;
+  Library *parent = nullptr;
 
   /** #eLibrary_Tag. */
-  ushort tag;
+  ushort tag = 0;
 
   /** Temp data needed by read/write code, and lib-override recursive re-synchronized. */
-  int temp_index;
+  int temp_index = 0;
 
   /** See BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION, needed for do_versions. */
-  short versionfile, subversionfile;
+  short versionfile = 0;
+  short subversionfile = 0;
 };
 
 /**
