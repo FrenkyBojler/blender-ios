@@ -935,14 +935,13 @@ static int grease_pencil_delete_breakdown_frames_exec(bContext *C, wmOperator * 
 
   const Span<int> sorted_keys = active_layer->sorted_keys();
   const int curr_frame_index = sorted_keys.first_index(current_frame);
-  bool changed = false;
+  Vector<int> frame_numbers_to_remove;
 
   for (int i = curr_frame_index; i <= sorted_keys.size(); i++) {
     int frame_number = sorted_keys[i];
     GreasePencilFrame *frame = active_layer->frame_at(frame_number);
     if (frame && frame->type == BEZT_KEYTYPE_BREAKDOWN) {
-      active_layer->remove_frame(frame_number);
-      changed = true;
+      frame_numbers_to_remove.append(frame_number);
       continue;
     }
     break;
@@ -951,16 +950,17 @@ static int grease_pencil_delete_breakdown_frames_exec(bContext *C, wmOperator * 
     int frame_number = sorted_keys[i];
     GreasePencilFrame *frame = active_layer->frame_at(frame_number);
     if (frame && frame->type == BEZT_KEYTYPE_BREAKDOWN) {
-      active_layer->remove_frame(frame_number);
-      changed = true;
+      frame_numbers_to_remove.append(frame_number);
       continue;
     }
     break;
   }
 
-  if (!changed) {
+  if (frame_numbers_to_remove.is_empty()) {
     return OPERATOR_CANCELLED;
   }
+
+  grease_pencil.remove_frames(*active_layer, frame_numbers_to_remove);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
