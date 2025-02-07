@@ -1628,6 +1628,17 @@ static void id_select_linked_fn(bContext *C,
   object::select_linked_by_id(C, id);
 }
 
+static void id_embed_linked(bContext * /*C*/,
+                            ReportList * /*reports*/,
+                            Scene * /*scene*/,
+                            TreeElement * /*te*/,
+                            TreeStoreElem * /*tsep*/,
+                            TreeStoreElem *tselem)
+{
+  ID *id = tselem->id;
+  printf("%s\n", id->name);
+}
+
 static void singleuser_action_fn(bContext *C,
                                  ReportList * /*reports*/,
                                  Scene * /*scene*/,
@@ -2776,6 +2787,8 @@ enum eOutlinerIdOpTypes {
   OUTLINER_IDOP_RENAME,
 
   OUTLINER_IDOP_SELECT_LINKED,
+
+  OUTLINER_IDOP_EMBED_LINKED,
 };
 
 /* TODO: implement support for changing the ID-block used. */
@@ -2802,6 +2815,11 @@ static const EnumPropertyItem prop_id_op_types[] = {
     {OUTLINER_IDOP_FAKE_CLEAR, "CLEAR_FAKE", 0, "Clear Fake User", ""},
     {OUTLINER_IDOP_RENAME, "RENAME", 0, "Rename", ""},
     {OUTLINER_IDOP_SELECT_LINKED, "SELECT_LINKED", 0, "Select Linked", ""},
+    {OUTLINER_IDOP_EMBED_LINKED,
+     "EMBED_LINKED",
+     0,
+     "Embed Linked",
+     "Embed data-block and its dependencies into the current .blend file"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -3016,6 +3034,11 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
       ED_outliner_select_sync_from_all_tag(C);
       ED_undo_push(C, "Select");
       break;
+    case OUTLINER_IDOP_EMBED_LINKED: {
+      outliner_do_libdata_operation(C, op->reports, scene, space_outliner, id_embed_linked);
+      ED_undo_push(C, "Embed Linked");
+      break;
+    }
 
     default:
       /* Invalid - unhandled. */
