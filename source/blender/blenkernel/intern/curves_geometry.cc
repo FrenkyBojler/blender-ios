@@ -24,6 +24,7 @@
 #include "DNA_curves_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_attribute_storage.hh"
 #include "BKE_bake_data_block_id.hh"
@@ -1633,6 +1634,9 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
           return implicit_sharing::info_for_mem_free(this->curve_offsets);
         });
   }
+
+  /* Forward compatibility. To be removed when runtime format changes. */
+  curves_convert_storage_to_customdata(*this);
 
   BLO_read_struct_list(&reader, bDeformGroup, &this->vertex_group_names);
 

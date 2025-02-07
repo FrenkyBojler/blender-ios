@@ -9,6 +9,7 @@
 #pragma once
 
 #include "DNA_ID.h"
+#include "DNA_attribute_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_listBase.h"
@@ -461,6 +462,9 @@ typedef struct GreasePencil {
    * All attributes stored on the grease pencil layers (#AttrDomain::Layer).
    */
   CustomData layers_data;
+
+  AttributeStorage attribute_storage;
+
   /**
    * The index of the active attribute in the UI.
    *

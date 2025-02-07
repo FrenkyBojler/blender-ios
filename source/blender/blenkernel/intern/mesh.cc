@@ -43,6 +43,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_bpath.hh"
@@ -363,6 +364,9 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
           mesh->vertex_group_names, vert_layers, edge_layers, face_layers, loop_layers);
       mesh_sculpt_mask_to_legacy(vert_layers);
       mesh_custom_normals_to_legacy(loop_layers);
+
+      /* Forward compatibility: Convert future #AttributeStorage DNA data to #CustomData. */
+      mesh_convert_storage_to_customdata(*mesh);
     }
   }
 

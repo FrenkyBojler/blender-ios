@@ -8,7 +8,12 @@
 
 #include "BLI_string.h"
 
+#include "DNA_grease_pencil_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_pointcloud_types.h"
+
 #include "BKE_attribute.hh"
+#include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 
 #include "BKE_attribute_legacy_convert.hh"
@@ -89,9 +94,7 @@ static std::optional<AttrType> custom_data_type_to_attribute_type(const eCustomD
 }
 
 AttributeStorage attribute_legacy_convert_customdata_to_storage(
-    const Span<AttrDomain> domains,
-    const Span<CustomData *> custom_datas,
-    const Span<int> domain_sizes)
+    const Map<AttrDomain, std::pair<CustomData *, int>> &domains)
 {
   AttributeStorage storage{};
   struct AttributeToAdd {
@@ -103,15 +106,15 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
     const ImplicitSharingInfo *sharing_info;
   };
   Vector<AttributeToAdd> attributes_to_add;
-  for (const int i : domains.index_range()) {
-    CustomData &custom_data = *custom_datas[i];
+  for (const auto &item : domains.items()) {
+    CustomData &custom_data = *item.value.first;
     Vector<CustomDataLayer> kept_layers;
     for (CustomDataLayer &layer : MutableSpan(custom_data.layers, custom_data.totlayer)) {
       if (std::optional<AttrType> attr_type = custom_data_type_to_attribute_type(
               eCustomDataType(layer.type)))
       {
         attributes_to_add.append(
-            {layer.name, domains[i], *attr_type, layer.data, domain_sizes[i], layer.sharing_info});
+            {layer.name, item.key, *attr_type, layer.data, item.value.second, layer.sharing_info});
         layer.data = nullptr;
         layer.sharing_info = nullptr;
       }
@@ -182,7 +185,8 @@ static std::optional<eCustomDataType> attribute_to_to_custom_data_type(const Att
 }
 
 void attribute_legacy_convert_storage_to_customdata(
-    AttributeStorage &storage, const std::array<CustomData *, ATTR_DOMAIN_NUM> custom_data_domains)
+    AttributeStorage &storage,
+    const Map<AttrDomain, std::pair<CustomData *, int>> &custom_data_domains)
 {
   for (::Attribute *attribute : Span(storage.attributes_array, storage.attributes_num)) {
     if (AttrStorageType(attribute->storage_type) != AttrStorageType::Array) {
@@ -194,13 +198,88 @@ void attribute_legacy_convert_storage_to_customdata(
       continue;
     }
     const auto &array_data = *static_cast<const AttributeDataArray *>(attribute->data);
-    CustomData_add_layer_named_with_data(custom_data_domains[attribute->domain],
-                                         *data_type,
-                                         attribute->data,
-                                         array_data.elements_num,
-                                         attribute->name,
-                                         array_data.sharing_info);
+    BLI_assert(array_data.elements_num ==
+               custom_data_domains.lookup(AttrDomain(attribute->domain)).second);
+    CustomData_add_layer_named_with_data(
+        custom_data_domains.lookup(AttrDomain(attribute->domain)).first,
+        *data_type,
+        attribute->data,
+        array_data.elements_num,
+        attribute->name,
+        array_data.sharing_info);
   }
+}
+
+static auto mesh_domains(Mesh &mesh)
+{
+  return Map<AttrDomain, std::pair<CustomData *, int>>{
+      {AttrDomain::Point, {&mesh.vert_data, mesh.verts_num}},
+      {AttrDomain::Edge, {&mesh.edge_data, mesh.edges_num}},
+      {AttrDomain::Face, {&mesh.face_data, mesh.faces_num}},
+      {AttrDomain::Corner, {&mesh.corner_data, mesh.corners_num}}};
+}
+
+void mesh_convert_storage_to_customdata(Mesh &mesh)
+{
+  attribute_legacy_convert_storage_to_customdata(mesh.attribute_storage.wrap(),
+                                                 mesh_domains(mesh));
+}
+void mesh_convert_customdata_to_storage(Mesh &mesh)
+{
+  mesh.attribute_storage.wrap() = bke::attribute_legacy_convert_customdata_to_storage(
+      mesh_domains(mesh));
+}
+
+static auto curves_domains(CurvesGeometry &curves)
+{
+  return Map<AttrDomain, std::pair<CustomData *, int>>{
+      {AttrDomain::Point, {&curves.point_data, curves.points_num()}},
+      {AttrDomain::Curve, {&curves.curve_data, curves.curves_num()}}};
+}
+
+void curves_convert_storage_to_customdata(CurvesGeometry &curves)
+{
+  attribute_legacy_convert_storage_to_customdata(curves.attribute_storage.wrap(),
+                                                 curves_domains(curves));
+}
+void curves_convert_customdata_to_storage(CurvesGeometry &curves)
+{
+  curves.attribute_storage.wrap() = bke::attribute_legacy_convert_customdata_to_storage(
+      curves_domains(curves));
+}
+
+static auto pointcloud_domains(PointCloud &pointcloud)
+{
+  return Map<AttrDomain, std::pair<CustomData *, int>>{
+      {AttrDomain::Point, {&pointcloud.pdata, pointcloud.totpoint}}};
+}
+
+void pointcloud_convert_storage_to_customdata(PointCloud &pointcloud)
+{
+  attribute_legacy_convert_storage_to_customdata(pointcloud.attribute_storage.wrap(),
+                                                 pointcloud_domains(pointcloud));
+}
+void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
+{
+  pointcloud.attribute_storage.wrap() = bke::attribute_legacy_convert_customdata_to_storage(
+      pointcloud_domains(pointcloud));
+}
+
+static auto grease_pencil_domains(GreasePencil &grease_pencil)
+{
+  return Map<AttrDomain, std::pair<CustomData *, int>>{
+      {AttrDomain::Layer, {&grease_pencil.layers_data, grease_pencil.layers().size()}}};
+}
+
+void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)
+{
+  attribute_legacy_convert_storage_to_customdata(grease_pencil.attribute_storage.wrap(),
+                                                 grease_pencil_domains(grease_pencil));
+}
+void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
+{
+  grease_pencil.attribute_storage.wrap() = bke::attribute_legacy_convert_customdata_to_storage(
+      grease_pencil_domains(grease_pencil));
 }
 
 }  // namespace blender::bke

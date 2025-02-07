@@ -12,6 +12,8 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
+#include "BKE_attribute_legacy_convert.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
@@ -95,6 +97,7 @@ static void grease_pencil_init_data(ID *id)
   grease_pencil->set_active_node(nullptr);
 
   CustomData_reset(&grease_pencil->layers_data);
+  new (&grease_pencil->attribute_storage) blender::bke::AttributeStorage();
 
   grease_pencil->runtime = MEM_new<GreasePencilRuntime>(__func__);
 }
@@ -132,6 +135,8 @@ static void grease_pencil_copy_data(Main * /*bmain*/,
                        &grease_pencil_dst->layers_data,
                        CD_MASK_ALL,
                        grease_pencil_dst->layers().size());
+  new (&grease_pencil_dst->attribute_storage.wrap())
+      blender::bke::AttributeStorage(grease_pencil_src->attribute_storage.wrap());
 
   BKE_defgroup_copy_list(&grease_pencil_dst->vertex_group_names,
                          &grease_pencil_src->vertex_group_names);
@@ -153,6 +158,7 @@ static void grease_pencil_free_data(ID *id)
   MEM_SAFE_FREE(grease_pencil->material_array);
 
   CustomData_free(&grease_pencil->layers_data, grease_pencil->layers().size());
+  grease_pencil->attribute_storage.wrap().~AttributeStorage();
 
   free_drawing_array(*grease_pencil);
   MEM_delete(&grease_pencil->root_group());
@@ -203,6 +209,8 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
                          CD_MASK_ALL,
                          id);
 
+  grease_pencil->attribute_storage.wrap().blend_write(*writer);
+
   /* Write drawings. */
   write_drawing_array(*grease_pencil, writer);
   /* Write layer tree. */
@@ -226,6 +234,10 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
   read_layer_tree(*grease_pencil, reader);
 
   CustomData_blend_read(reader, &grease_pencil->layers_data, grease_pencil->layers().size());
+  grease_pencil->attribute_storage.wrap().blend_read(*reader);
+
+  /* Forward compatibility. To be removed when runtime format changes. */
+  blender::bke::grease_pencil_convert_storage_to_customdata(*grease_pencil);
 
   /* Read materials. */
   BLO_read_pointer_array(reader,

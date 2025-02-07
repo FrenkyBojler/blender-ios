@@ -23,6 +23,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_customdata.hh"
@@ -145,6 +146,9 @@ static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
   /* Geometry */
   CustomData_blend_read(reader, &pointcloud->pdata, pointcloud->totpoint);
   pointcloud->attribute_storage.wrap().blend_read(*reader);
+
+  /* Forward compatibility. To be removed when runtime format changes. */
+  blender::bke::pointcloud_convert_storage_to_customdata(*pointcloud);
 
   /* Materials */
   BLO_read_pointer_array(reader, pointcloud->totcol, (void **)&pointcloud->mat);
