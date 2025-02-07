@@ -98,7 +98,7 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
 {
   AttributeStorage storage{};
   struct AttributeToAdd {
-    StringRef name;
+    std::string name;
     AttrDomain domain;
     AttrType type;
     void *array_data;
@@ -107,14 +107,16 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
   };
   Vector<AttributeToAdd> attributes_to_add;
   for (const auto &item : domains.items()) {
+    const AttrDomain domain = item.key;
     CustomData &custom_data = *item.value.first;
+    const int domain_size = item.value.second;
     Vector<CustomDataLayer> kept_layers;
     for (CustomDataLayer &layer : MutableSpan(custom_data.layers, custom_data.totlayer)) {
       if (std::optional<AttrType> attr_type = custom_data_type_to_attribute_type(
               eCustomDataType(layer.type)))
       {
         attributes_to_add.append(
-            {layer.name, item.key, *attr_type, layer.data, item.value.second, layer.sharing_info});
+            {layer.name, domain, *attr_type, layer.data, domain_size, layer.sharing_info});
         layer.data = nullptr;
         layer.sharing_info = nullptr;
       }
@@ -122,10 +124,12 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
         kept_layers.append(layer);
       }
     }
+    CustomData_free(&custom_data, domain_size);
     VectorData<CustomDataLayer, GuardedAllocator> kept_layers_data = kept_layers.release();
     custom_data.layers = kept_layers_data.data;
     custom_data.totlayer = kept_layers_data.size;
     custom_data.maxlayer = kept_layers_data.capacity;
+    CustomData_update_typemap(&custom_data);
   }
 
   storage.attributes_array = static_cast<::Attribute **>(
@@ -197,17 +201,25 @@ void attribute_legacy_convert_storage_to_customdata(
     if (!data_type) {
       continue;
     }
-    const auto &array_data = *static_cast<const AttributeDataArray *>(attribute->data);
-    BLI_assert(array_data.elements_num ==
+    auto *array_data = static_cast<AttributeDataArray *>(attribute->data);
+    BLI_assert(array_data->elements_num ==
                custom_data_domains.lookup(AttrDomain(attribute->domain)).second);
     CustomData_add_layer_named_with_data(
         custom_data_domains.lookup(AttrDomain(attribute->domain)).first,
         *data_type,
-        attribute->data,
-        array_data.elements_num,
+        array_data->data,
+        array_data->elements_num,
         attribute->name,
-        array_data.sharing_info);
+        array_data->sharing_info);
+    array_data->sharing_info->remove_user_and_delete_if_last();
+    MEM_freeN(array_data);
+    MEM_freeN(attribute->name);
+    MEM_freeN(attribute);
   }
+  MEM_SAFE_FREE(storage.attributes_array);
+  storage.attributes_num = 0;
+  storage.attributes_capacity = 0;
+  storage.runtime->name_map.clear();
 }
 
 static auto mesh_domains(Mesh &mesh)

@@ -16,16 +16,6 @@
 
 namespace blender::bke {
 
-struct AttributeStorageRuntime {
-  struct AttributeNameGetter {
-    StringRef operator()(const Attribute &value) const
-    {
-      return StringRef(value.name);
-    }
-  };
-  CustomIDVectorSet<std::reference_wrapper<Attribute>, AttributeNameGetter> name_map;
-};
-
 class ArrayDataImplicitSharing : public ImplicitSharingInfo {
  private:
   void *data_;
@@ -192,6 +182,7 @@ AttributeStorage::~AttributeStorage()
         break;
       }
     }
+    MEM_freeN(attribute->name);
     MEM_freeN(attribute);
   }
   if (this->attributes_array) {

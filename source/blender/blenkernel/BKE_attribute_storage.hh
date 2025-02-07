@@ -6,6 +6,7 @@
 
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_vector_set.hh"
 
 #include "DNA_attribute_types.h"
 
@@ -17,6 +18,19 @@ namespace blender::bke {
 class Attribute : public ::Attribute {
  public:
   void ensure_mutable();
+};
+
+/**
+ * \todo Move to .cc file when attribute_legacy_convert.cc no longer needs to remove attributes.
+ */
+struct AttributeStorageRuntime {
+  struct AttributeNameGetter {
+    StringRef operator()(const Attribute &value) const
+    {
+      return StringRef(value.name);
+    }
+  };
+  CustomIDVectorSet<std::reference_wrapper<Attribute>, AttributeNameGetter> name_map;
 };
 
 class AttributeStorage : public ::AttributeStorage {
