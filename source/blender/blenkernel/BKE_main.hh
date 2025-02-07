@@ -574,7 +574,8 @@ const char *BKE_main_blendfile_path_from_global();
  */
 ListBase *which_libbase(Main *bmain, short type);
 
-using MainListsArray = std::array<ListBase *, INDEX_ID_MAX>;
+/** Subtracting 1, because #INDEX_ID_NULL is ignored here. */
+using MainListsArray = std::array<ListBase *, INDEX_ID_MAX - 1>;
 
 /**
  * Returns the pointers to all the #ListBase structs in given `bmain`.

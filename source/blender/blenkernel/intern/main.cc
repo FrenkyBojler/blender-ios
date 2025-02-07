@@ -994,6 +994,5 @@ MainListsArray BKE_main_lists_get(Main &bmain)
   lb[INDEX_ID_WM] = &bmain.wm;
   lb[INDEX_ID_MSK] = &bmain.masks;
 
-  lb[INDEX_ID_NULL] = nullptr;
   return lb;
 }
