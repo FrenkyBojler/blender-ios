@@ -167,6 +167,7 @@ const Material *BKE_object_material_get_eval(const Object &ob, const ID &data, s
  * This is the maximum of the number of material slots on the object and geometry.
  */
 int BKE_object_material_count_eval(const Object *ob);
+/** Same as above but allows using a custom ID as data instead of Object.data. */
 int BKE_object_material_count_eval(const Object &ob, const ID &data);
 
 /**
@@ -174,6 +175,7 @@ int BKE_object_material_count_eval(const Object &ob, const ID &data);
  * empty or if all material indices are negative.
  */
 std::optional<int> BKE_id_material_index_max_eval(const ID &id);
+/** Returns how many material slots the geometry may use (based on the maximum material index). */
 int BKE_id_material_used_eval(const ID &id);
 
 /**
