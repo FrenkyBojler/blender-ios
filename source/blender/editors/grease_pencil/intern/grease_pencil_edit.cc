@@ -2942,7 +2942,7 @@ static bke::CurvesGeometry extrude_grease_pencil_curves(const bke::CurvesGeometr
    * This will lead to the extruded control point always having both handles selected, if it's a
    * bezier type stroke. This is to circumvent the issue of source curves handles not being
    * deselected when the user extrudes a bezier control point with both handles selected*/
-  for (StringRef selection_attribute_name : ed::curves::get_curves_selection_attribute_names(src))
+  for (const StringRef selection_attribute_name : ed::curves::get_curves_selection_attribute_names(src))
   {
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
         dst, bke::AttrDomain::Point, CD_PROP_BOOL, selection_attribute_name);
