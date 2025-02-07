@@ -2789,27 +2789,32 @@ static int grease_pencil_paste_strokes_exec(bContext *C, wmOperator *op)
     }
   }
   else if (type == PasteType::ByLayer) {
+    Layer *active_layer = grease_pencil.get_active_layer();
     /* Find layers to paste strokes into. */
     Array<Layer *> layers_to_paste_into(clipboard.layers.size());
     for (const int clip_layer_i : clipboard.layers.index_range()) {
       const Clipboard::ClipboardLayer &layer = clipboard.layers[clip_layer_i];
-      if (bke::greasepencil::TreeNode *node = grease_pencil.find_node_by_name(layer.name)) {
-        if (node->is_layer() && node->as_layer().is_editable()) {
-          layers_to_paste_into[clip_layer_i] = &node->as_layer();
-          continue;
-        }
+      bke::greasepencil::TreeNode *node = grease_pencil.find_node_by_name(layer.name);
+      const bool found_layer = node && node->is_layer() && node->as_layer().is_editable();
+      if (found_layer) {
+        layers_to_paste_into[clip_layer_i] = &node->as_layer();
+        continue;
       }
-      /* Fallback to active layer. */
-      Layer *active_layer = grease_pencil.get_active_layer();
+      else if (active_layer && active_layer->is_editable()) {
+        /* Fallback to active layer. */
+        BKE_report(
+            op->reports, RPT_WARNING, "Couldn't find matching layer, pasting into active layer");
+        layers_to_paste_into[clip_layer_i] = active_layer;
+        continue;
+      }
+
       if (!active_layer) {
         BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer to paste into");
-        return OPERATOR_CANCELLED;
       }
       if (!active_layer->is_editable()) {
         BKE_report(op->reports, RPT_ERROR, "Active layer is not editable");
-        return OPERATOR_CANCELLED;
       }
-      layers_to_paste_into[clip_layer_i] = active_layer;
+      return OPERATOR_CANCELLED;
     }
 
     /* Deselect everything from editable drawings. The pasted strokes are the only ones then after
