@@ -278,31 +278,6 @@ static void image_transform_set(TransInfo *t)
   }
 }
 
-/* I see 2 ways of doing this:
-  - Get origin point, apply operator translation.
-  - Transform it back to raw image space. Then, we must calculate factor from image size.
-  - Pros:
-    - One matrix to rule them all perhaps
-    - Precision?
-  - Cons:
-    - but may need extending API or duplicating code.
-    - Messy math in raw image space
-
-
-  - Get origin point and Quad, apply operator translation.
-  - Find distance from quad edges and divide by quad size.
-  - Pros:
-    - Doable with current API
-  - Cons:
-    - Geometry API may not cover all calculations
-    - Perhaps less precise
-
-  In both cases I think, that I will need backup quad, to offset image back. Soooo IMO second
-  approach seems quite fine, as I can write absolute origin value. What about mirrored image? eh
-  who the hell knows...gs
-
-*/
-
 static void image_origin_set(TransInfo *t)
 {
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
