@@ -1798,8 +1798,8 @@ bool pastebuf_match_path_property(Main *bmain,
                                   const FCurve &fcurve_in_copy_buffer,
                                   blender::animrig::slot_handle_t slot_handle_in_copy_buffer,
                                   const bool from_single,
-                                  const bool /*to_single*/,
-                                  const bool /*flip*/)
+                                  bool /*to_single*/,
+                                  bool /*flip*/)
 {
   if (!fcurve_in_copy_buffer.rna_path || !fcurve_to_match.rna_path) {
     return false;
@@ -1859,8 +1859,8 @@ bool pastebuf_match_index_only(Main * /*bmain*/,
                                const FCurve &fcurve_in_copy_buffer,
                                blender::animrig::slot_handle_t /* slot_handle_in_copy_buffer */,
                                const bool from_single,
-                               const bool /*to_single*/,
-                               const bool /*flip*/)
+                               bool /*to_single*/,
+                               bool /*flip*/)
 {
   return from_single || fcurve_in_copy_buffer.array_index == fcurve_to_match.array_index;
 }
