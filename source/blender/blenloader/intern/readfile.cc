@@ -3809,7 +3809,28 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
   if (!is_undo) {
     if ((fd->skip_flags & BLO_READ_SKIP_DATA) == 0) {
       LISTBASE_FOREACH (Main *, main, fd->mainlist) {
+        /* Temporarily remove placeholders from Main, because they can't be versioned yet. */
+        /* Embedded IDs are stored in the current .blend file, so they do need versioning here
+         * already and are not removed. */
+        ListBase *lbarray[INDEX_ID_MAX];
+        int a = set_listbasepointers(main, lbarray);
+        blender::Vector<ID *> placeholders;
+        while (a--) {
+          LISTBASE_FOREACH_MUTABLE (ID *, id, lbarray[a]) {
+            if (id->runtime.readfile_data->tags.is_link_placeholder) {
+              placeholders.append(id);
+              BLI_remlink(lbarray[a], id);
+            }
+          }
+        }
+
         do_versions(fd, main->curlib, main);
+
+        /* Add placeholders back. */
+        for (ID *id : placeholders) {
+          const int a = BKE_idtype_idcode_to_index(GS(id->name));
+          BLI_addtail(lbarray[a], id);
+        }
       }
     }
 
