@@ -66,8 +66,6 @@ void BKE_main_init(Main &bmain)
 void BKE_main_clear(Main &bmain)
 {
   /* Also call when reading a file, erase all, etc */
-  ListBase *lbarray[INDEX_ID_MAX];
-  int a;
 
   /* Since we are removing whole main, no need to bother 'properly' (and slowly) removing each ID
    * from it. */
@@ -76,7 +74,8 @@ void BKE_main_clear(Main &bmain)
 
   MEM_SAFE_FREE(bmain.blen_thumb);
 
-  a = set_listbasepointers(&bmain, lbarray);
+  MainListsArray lbarray = BKE_main_lists_get(bmain);
+  int a = lbarray.size();
   while (a--) {
     ListBase *lb = lbarray[a];
     ID *id, *id_next;
@@ -997,13 +996,4 @@ MainListsArray BKE_main_lists_get(Main &bmain)
 
   lb[INDEX_ID_NULL] = nullptr;
   return lb;
-}
-
-int set_listbasepointers(Main *bmain, ListBase *lb[/*INDEX_ID_MAX*/])
-{
-  MainListsArray bmain_lists = BKE_main_lists_get(*bmain);
-  for (int i = 0; i < INDEX_ID_MAX; i++) {
-    lb[i] = bmain_lists[i];
-  }
-  return (INDEX_ID_MAX - 1);
 }
