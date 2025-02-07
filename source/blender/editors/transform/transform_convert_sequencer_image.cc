@@ -32,7 +32,6 @@
 
 #include "transform.hh"
 #include "transform_convert.hh"
-#include <array>
 
 using namespace blender;
 
