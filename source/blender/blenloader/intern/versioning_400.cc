@@ -4914,8 +4914,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 18)) {
     if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "transmission_fac")) {
       LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-        /* Refracted light was not supported in legacy EEVEE. Set it to zero for compatibility
-         * with older files. */
+        /* Refracted light was not supported in legacy EEVEE. Set it to zero for compatibility with
+         * older files. */
         light->transmission_fac = 0.0f;
       }
     }
@@ -5175,8 +5175,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       world->sun_angle = default_world->sun_angle;
       world->sun_shadow_maximum_resolution = default_world->sun_shadow_maximum_resolution;
       /* Having the sun extracted is mandatory to keep the same look and avoid too much light
-       * leaking compared to EEVEE-Legacy. But adding shadows might create performance overhead
-       * and change the result in a very different way. So we disable shadows in older file. */
+       * leaking compared to EEVEE-Legacy. But adding shadows might create performance overhead and
+       * change the result in a very different way. So we disable shadows in older file. */
       world->flag &= ~WO_USE_SUN_SHADOW;
     }
   }
@@ -5474,10 +5474,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   /* The File Output node now uses the linear color space setting of its stored image formats. So
-   * we need to ensure the color space value is initialized to some sane default based on the
-   * image type. Furthermore, the node now gained a new Save As Render option that is global to
-   * the node, which will be used if Use Node Format is enabled for each input, so we potentially
-   * need to disable Use Node Format in case inputs had different Save As render options. */
+   * we need to ensure the color space value is initialized to some sane default based on the image
+   * type. Furthermore, the node now gained a new Save As Render option that is global to the node,
+   * which will be used if Use Node Format is enabled for each input, so we potentially need to
+   * disable Use Node Format in case inputs had different Save As render options. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 14)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type != NTREE_COMPOSIT) {
@@ -5528,8 +5528,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
 
-        /* All inputs have the same save as render option, so we set the node Save As Render
-         * option to that value, and we leave inputs as is. */
+        /* All inputs have the same save as render option, so we set the node Save As Render option
+         * to that value, and we leave inputs as is. */
         if (all_inputs_have_same_save_as_render) {
           storage->save_as_render = first_save_as_render;
           continue;
