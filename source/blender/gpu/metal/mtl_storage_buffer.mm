@@ -390,6 +390,14 @@ void MTLStorageBuf::read(void *data)
     return;
   }
 
+  if (metal_buffer_->get_metal_buffer().storageMode == MTLStorageModeManaged &&
+      (gpu_write_fence_ == nil || gpu_write_fence_.signaledValue >= host_read_signal_value_))
+  {
+    /* Fixes sync issues with intel Mac platforms where discrete GPU memory doesn't sync when
+     * reading the buffer result. */
+    this->async_flush_to_host();
+  }
+
   if (metal_buffer_ == nullptr) {
     this->init();
   }
