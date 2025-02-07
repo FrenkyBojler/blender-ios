@@ -1458,12 +1458,13 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
       }
     }
     else {
-      const int pad = max_ff(1.0f, U.pixelsize) * 5;
+      const int clamp_pad_x = int((5.0f * UI_SCALE_FAC) + (pad_x * 0.5f));
+      const int clamp_pad_y = int((7.0f * UI_SCALE_FAC) + (pad_y * 0.5f));
       rcti rect_clamp;
-      rect_clamp.xmin = pad;
-      rect_clamp.xmax = win_size[0] - pad;
-      rect_clamp.ymin = pad + (UI_UNIT_Y * 2);
-      rect_clamp.ymax = win_size[1] - pad;
+      rect_clamp.xmin = clamp_pad_x;
+      rect_clamp.xmax = win_size[0] - clamp_pad_x;
+      rect_clamp.ymin = clamp_pad_y;
+      rect_clamp.ymax = win_size[1] - clamp_pad_y;
       int offset_dummy[2];
       BLI_rcti_clamp(&rect_i, &rect_clamp, offset_dummy);
     }
