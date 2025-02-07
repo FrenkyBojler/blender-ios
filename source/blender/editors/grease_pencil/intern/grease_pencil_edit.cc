@@ -2520,13 +2520,13 @@ static Array<int> clipboard_materials_remap(Main &bmain, Object &object)
 }
 
 static bke::GeometrySet join_geometries_with_transforms(Span<bke::GeometrySet> geometries,
-                                                        Span<float4x4> transforms)
+                                                        const VArray<float4x4> &transforms)
 {
   BLI_assert(geometries.size() == transforms.size());
 
   std::unique_ptr<bke::Instances> instances = std::make_unique<bke::Instances>();
   instances->resize(geometries.size());
-  instances->transforms_for_write().copy_from(transforms);
+  transforms.materialize(instances->transforms_for_write());
   MutableSpan<int> handles = instances->reference_handles_for_write();
   for (const int i : geometries.index_range()) {
     handles[i] = instances->add_new_reference(bke::InstanceReference{geometries[i]});
@@ -2538,20 +2538,10 @@ static bke::GeometrySet join_geometries_with_transforms(Span<bke::GeometrySet> g
   return realize_instances(bke::GeometrySet::from_instances(instances.release()), options);
 }
 static bke::GeometrySet join_geometries_with_transform(Span<bke::GeometrySet> geometries,
-                                                       const float4x4 transform)
+                                                       const float4x4 &transform)
 {
-  std::unique_ptr<bke::Instances> instances = std::make_unique<bke::Instances>();
-  instances->resize(geometries.size());
-  instances->transforms_for_write().fill(transform);
-  MutableSpan<int> handles = instances->reference_handles_for_write();
-  for (const int i : geometries.index_range()) {
-    handles[i] = instances->add_new_reference(bke::InstanceReference{geometries[i]});
-  }
-
-  geometry::RealizeInstancesOptions options;
-  options.keep_original_ids = true;
-  options.realize_instance_attributes = false;
-  return realize_instances(bke::GeometrySet::from_instances(instances.release()), options);
+  return join_geometries_with_transforms(
+      geometries, VArray<float4x4>::ForSingle(transform, geometries.size()));
 }
 
 static int grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
@@ -2702,7 +2692,8 @@ static IndexRange clipboard_paste_strokes_ex(Main &bmain,
                                   float4x4::identity());
   const Array<float4x4> transforms = paste_back ? Span<float4x4>{transform, float4x4::identity()} :
                                                   Span<float4x4>{float4x4::identity(), transform};
-  bke::GeometrySet joined_curves = join_geometries_with_transforms(geometry_sets, transforms);
+  bke::GeometrySet joined_curves = join_geometries_with_transforms(
+      geometry_sets, VArray<float4x4>::ForContainer(transforms));
 
   drawing.strokes_for_write() = std::move(joined_curves.get_curves_for_write()->geometry.wrap());
 
