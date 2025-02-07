@@ -914,6 +914,7 @@ bool grease_pencil_active_breakdown_frame_poll(bContext *C)
   const Object &ob = *CTX_data_active_object(C);
   const Scene &scene = *CTX_data_scene(C);
 
+  /* Ensure that there is a breakdown keyframe visible at the current frame. */
   const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
   if (const bke::greasepencil::Layer *active_layer = grease_pencil.get_active_layer()) {
     const GreasePencilFrame *frame = active_layer->frame_at(scene.r.cfra);
