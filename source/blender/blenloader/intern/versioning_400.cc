@@ -3748,6 +3748,22 @@ static void version_geometry_normal_input_node(bNodeTree &ntree)
   }
 }
 
+static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
+{
+  using namespace blender;
+  Set<bNode *> curve_to_mesh_nodes;
+  LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
+    if (STREQ(node->idname, "GeometryNodeCurveToMesh")) {
+      curve_to_mesh_nodes.add(node);
+    }
+  }
+
+  for (bNode *curve_to_mesh : curve_to_mesh_nodes) {
+    bNode &named_attribute = version_node_add_empty(*tree, "GeometryNodeInputNamedAttribute");
+    
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -5823,6 +5839,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
         do_version_viewer_shortcut(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 1)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        do_version_node_curve_to_mesh_scale_input(ntree);
       }
     }
     FOREACH_NODETREE_END;
