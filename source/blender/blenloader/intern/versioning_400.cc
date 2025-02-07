@@ -3768,8 +3768,8 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
     named_attribute_storage->data_type = CD_PROP_FLOAT;
     named_attribute.storage = named_attribute_storage;
     named_attribute.parent = curve_to_mesh->parent;
-    named_attribute.location[0] = curve_to_mesh->location[0] - 300;
-    named_attribute.location[1] = curve_to_mesh->location[1] - 50;
+    named_attribute.location[0] = curve_to_mesh->location[0] - 25;
+    named_attribute.location[1] = curve_to_mesh->location[1];
     named_attribute.flag &= ~NODE_SELECT;
 
     bNodeSocket *name_input = version_node_add_socket_if_not_exist(
@@ -3786,8 +3786,8 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
     switch_storage->input_type = SOCK_FLOAT;
     switch_node.storage = switch_storage;
     switch_node.parent = curve_to_mesh->parent;
-    switch_node.location[0] = curve_to_mesh->location[0] - 150;
-    switch_node.location[1] = curve_to_mesh->location[1] - 50;
+    switch_node.location[0] = curve_to_mesh->location[0] - 25;
+    switch_node.location[1] = curve_to_mesh->location[1];
     switch_node.flag &= ~NODE_SELECT;
 
     version_node_add_socket_if_not_exist(
