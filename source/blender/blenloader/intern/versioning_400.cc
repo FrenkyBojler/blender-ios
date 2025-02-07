@@ -3760,7 +3760,6 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
 
   for (bNode *curve_to_mesh : curve_to_mesh_nodes) {
     bNode &named_attribute = version_node_add_empty(*tree, "GeometryNodeInputNamedAttribute");
-    
   }
 }
 
@@ -5663,13 +5662,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 5)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      SequencerToolSettings *sequencer_tool_settings = SEQ_tool_settings_ensure(scene);
-      sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_RETIMING;
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 6)) {
     add_subsurf_node_limit_surface_option(*bmain);
   }
@@ -5842,6 +5834,13 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 28)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      SequencerToolSettings *sequencer_tool_settings = SEQ_tool_settings_ensure(scene);
+      sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_RETIMING;
+    }
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 1)) {
