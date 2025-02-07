@@ -54,6 +54,7 @@ static void set_local_object_transform(Object &ob, const float4x4 &transform)
   ob.rotmode = ROT_MODE_EUL;
 }
 
+/** Objects for a #GeometrySet. */
 struct ComponentObjects {
   Object *mesh_ob = nullptr;
   Object *curves_ob = nullptr;
@@ -83,6 +84,7 @@ struct ComponentObjects {
   }
 };
 
+/** Utility class to build objects for a #GeometrySet recursively. */
 class GeometryToObjectsBuilder {
  private:
   Main &bmain_;
@@ -97,7 +99,7 @@ class GeometryToObjectsBuilder {
                                             const bke::GeometrySet &geometry)
   {
     ComponentObjects component_objects = this->get_objects_for_geometry(src_ob_eval, geometry);
-    return this->flat_collection_from_geometry_set_objects(
+    return this->collection_from_component_objects(
         component_objects, geometry.name.empty() ? BKE_id_name(src_ob_eval.id) : geometry.name);
   }
 
@@ -140,8 +142,8 @@ class GeometryToObjectsBuilder {
   }
 
  private:
-  Collection *flat_collection_from_geometry_set_objects(const ComponentObjects &component_objects,
-                                                        const StringRefNull name)
+  Collection *collection_from_component_objects(const ComponentObjects &component_objects,
+                                                const StringRefNull name)
   {
     Collection *collection = BKE_collection_add(&bmain_, nullptr, name.c_str());
     for (Object *object : component_objects.all_objects()) {
@@ -180,7 +182,6 @@ class GeometryToObjectsBuilder {
 
       new_curves->geometry.wrap() = src_curves.geometry.wrap();
       new_curves->geometry.wrap().attributes_for_write().remove_anonymous();
-
       this->copy_materials_to_new_geometry_object(
           src_ob_eval, src_curves.id, *new_ob, new_curves->id);
       return new_ob;
@@ -200,7 +201,6 @@ class GeometryToObjectsBuilder {
       PointCloud *pointcloud_to_move_from = BKE_pointcloud_copy_for_eval(&src_pointcloud);
       BKE_pointcloud_nomain_to_pointcloud(pointcloud_to_move_from, new_pointcloud);
       new_pointcloud->attributes_for_write().remove_anonymous();
-
       this->copy_materials_to_new_geometry_object(
           src_ob_eval, src_pointcloud.id, *new_ob, new_pointcloud->id);
       return new_ob;
@@ -229,7 +229,6 @@ class GeometryToObjectsBuilder {
             reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
         drawing.strokes_for_write().attributes_for_write().remove_anonymous();
       }
-
       this->copy_materials_to_new_geometry_object(
           src_ob_eval, src_grease_pencil.id, *new_ob, new_grease_pencil->id);
       return new_ob;
@@ -242,6 +241,8 @@ class GeometryToObjectsBuilder {
     bke::Instances instances = src_instances;
     instances.remove_unused_references();
 
+    /* Each instance will be a collection instance, so we need to get the collection for each
+     * #InstanceReference that is instanced. */
     Vector<Collection *> collection_by_handle;
     for (const bke::InstanceReference &reference : instances.references()) {
       collection_by_handle.append(
@@ -261,6 +262,7 @@ class GeometryToObjectsBuilder {
       if (!collection_to_instance) {
         continue;
       }
+      /* Create an empty object that then instances the collection. */
       Object *instance_object = BKE_object_add_only_object(
           &bmain_, OB_EMPTY, BKE_id_name(collection_to_instance->id));
       instance_object->transflag = OB_DUPLICOLLECTION;
@@ -298,6 +300,8 @@ class GeometryToObjectsBuilder {
         break;
       }
       case bke::InstanceReference::Type::Collection: {
+        /* For collections, we don't need to create a new wrapper collection, we can just create
+         * objects that instance the existing collection. */
         Collection &collection_eval = reference.collection();
         Collection *collection_orig = reinterpret_cast<Collection *>(
             DEG_get_original_id(&collection_eval.id));
