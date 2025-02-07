@@ -372,17 +372,24 @@ static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
   const Vector<Object *> top_level_objects = new_component_objects.all_objects();
   const Span<Collection *> new_instance_collections = op.new_instance_collections();
 
-  /* Find the collection that the active object is on, because we want to add the new objects
+  /* Find the collections that the active object is in, because we want to add the new objects
    * in the same place. */
-  Collection *collection_to_add_to = BKE_collection_object_find(
-      &bmain, &scene, nullptr, src_ob_orig);
+  Set<Collection *> collections_to_add_to;
+  FOREACH_COLLECTION_BEGIN (&bmain, &scene, Collection *, collection) {
+    if (BKE_collection_has_object(collection, src_ob_orig)) {
+      collections_to_add_to.add(collection);
+    }
+  }
+  FOREACH_COLLECTION_END;
 
   float4x4 src_ob_local_transform;
   BKE_object_to_mat4(src_ob_orig, src_ob_local_transform.ptr());
 
   for (Object *object : top_level_objects) {
-    /* Link the new objects into the collection. */
-    BKE_collection_object_add(&bmain, collection_to_add_to, object);
+    /* Link the new objects into some collections. */
+    for (Collection *collection_to_add_to : collections_to_add_to) {
+      BKE_collection_object_add(&bmain, collection_to_add_to, object);
+    }
     /* Transform and parent the objects so that they align with the source object. */
     transform_raw_object_transform(*object, src_ob_local_transform);
     object->parent = src_ob_orig->parent;
