@@ -3759,7 +3759,11 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
   }
 
   for (bNode *curve_to_mesh : curve_to_mesh_nodes) {
-    version_node_add_socket_if_not_exist(
+    if (blender::bke::node_find_socket(curve_to_mesh, SOCK_IN, "Scale")) {
+      /* Make versioning idempotent. */
+      continue;
+    }
+    bke::node_add_static_socket(
         tree, curve_to_mesh, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Scale", "Scale");
 
     bNode &named_attribute = version_node_add_empty(*tree, "GeometryNodeInputNamedAttribute");
