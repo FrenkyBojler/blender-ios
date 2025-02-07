@@ -42,6 +42,7 @@ struct TransDataSeq {
   std::array<float2, 4> quad_orig;
   float4x4 orig_matrix;
 
+  float orig_origin_relative[2];
   float orig_origin_position[2];
   float orig_translation[2];
   float orig_scale[2];
@@ -89,6 +90,7 @@ static TransData *SeqToTransData(const Scene *scene,
 
   // if (vert_index == 0) {
   tdseq->strip = strip;
+  copy_v2_v2(tdseq->orig_origin_relative, transform->origin);
   copy_v2_v2(tdseq->orig_origin_position, origin);
   tdseq->quad_orig = SEQ_image_transform_final_quad_get(scene, strip);
   tdseq->orig_matrix = math::invert(SEQ_image_transform_matrix_get(scene, strip));
@@ -365,21 +367,18 @@ static void special_aftertrans_update__sequencer_image(bContext * /*C*/, TransIn
   TransData2D *td2d = nullptr;
   int i;
 
-  for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i++, td++, td2d++) {
+  for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i += 3, td += 3, td2d += 3) {
     TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
     Strip *strip = tdseq->strip;
     StripTransform *transform = strip->data->transform;
     if (t->state == TRANS_CANCEL) {
-      if (t->mode == TFM_ROTATION) {
-        transform->xofs = tdseq->orig_translation[0];
-        transform->yofs = tdseq->orig_translation[1];
-        transform->rotation = tdseq->orig_rotation;
-        transform->scale_x = tdseq->orig_scale[0];
-        transform->scale_y = tdseq->orig_scale[1];
-        transform->origin[0] = tdseq->orig_origin_position[0];
-        transform->origin[1] = tdseq->orig_origin_position[1];
-      }
-      continue;
+      transform->xofs = tdseq->orig_translation[0];
+      transform->yofs = tdseq->orig_translation[1];
+      transform->rotation = tdseq->orig_rotation;
+      transform->scale_x = tdseq->orig_scale[0];
+      transform->scale_y = tdseq->orig_scale[1];
+      transform->origin[0] = tdseq->orig_origin_relative[0];
+      transform->origin[1] = tdseq->orig_origin_relative[1];
     }
 
     if (animrig::is_autokey_on(t->scene)) {
